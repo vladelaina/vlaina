@@ -9,6 +9,7 @@ const sessionQueues = new Map<string, PersistenceQueue<ChatMessage[]>>();
 const DEFAULT_DEBOUNCE_MS = 180;
 const SESSION_MESSAGES_FILE_VERSION = 1;
 let autoSyncTrigger: ((sessionId?: string) => void) | null = null;
+let autoSyncTriggerRegistrationId = 0;
 
 interface SessionMessagesFile {
   version: typeof SESSION_MESSAGES_FILE_VERSION;
@@ -20,7 +21,24 @@ interface SessionMessagesFile {
 export function setChatStorageAutoSyncTrigger(
   trigger: ((sessionId?: string) => void) | null,
 ): void {
+  autoSyncTriggerRegistrationId += 1;
   autoSyncTrigger = trigger;
+}
+
+export function registerChatStorageAutoSyncTrigger(
+  trigger: (sessionId?: string) => void,
+): () => void {
+  const registrationId = autoSyncTriggerRegistrationId + 1;
+  autoSyncTriggerRegistrationId = registrationId;
+  autoSyncTrigger = trigger;
+
+  return () => {
+    if (autoSyncTriggerRegistrationId !== registrationId) {
+      return;
+    }
+    autoSyncTriggerRegistrationId += 1;
+    autoSyncTrigger = null;
+  };
 }
 
 export function serializeSessionMessages(sessionId: string, messages: ChatMessage[]): string {

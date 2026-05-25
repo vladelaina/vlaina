@@ -2,6 +2,7 @@ import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { ensureSystemDirectory, getVaultSystemStorePath } from './notes/systemStoragePaths';
 
 const CONFIG_FILE_NAME = 'config.json';
+const MAX_VAULT_CONFIG_BYTES = 64 * 1024;
 
 function createVaultConfig(vaultPath: string) {
   return {
@@ -38,6 +39,15 @@ export async function ensureVaultConfig(vaultPath: string): Promise<void> {
   }
 
   try {
+    const fileInfo = await storage.stat(configFilePath).catch(() => null);
+    if (fileInfo?.size && fileInfo.size > MAX_VAULT_CONFIG_BYTES) {
+      await storage.writeFile(
+        configFilePath,
+        JSON.stringify(createVaultConfig(normalizedVaultPath), null, 2)
+      );
+      return;
+    }
+
     const parsed = JSON.parse(await storage.readFile(configFilePath));
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       await storage.writeFile(

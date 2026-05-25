@@ -202,6 +202,43 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().isDirty).toBe(false);
   });
 
+  it('merges vault metadata updates with newer disk edits instead of overwriting them', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    mocks.stat
+      .mockResolvedValueOnce({ modifiedAt: 2 })
+      .mockResolvedValueOnce({ modifiedAt: 3 });
+    mocks.readFile.mockResolvedValue(['# Alpha', '', 'Disk body'].join('\n'));
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      notesPath: '/vault',
+      currentNote: { path: notePath, content: ['# Alpha', '', 'Original body'].join('\n') },
+      openTabs: [{ path: notePath, name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([[
+        notePath,
+        { content: ['# Alpha', '', 'Original body'].join('\n'), modifiedAt: 1 },
+      ]]),
+    });
+
+    store.getState().setNoteIcon(notePath, 'sparkles');
+
+    await vi.waitFor(() => {
+      expect(mocks.safeWriteTextFile).toHaveBeenCalled();
+    });
+
+    const writtenContent = mocks.safeWriteTextFile.mock.calls[0]?.[1] as string;
+    expect(writtenContent).toContain('vlaina_icon: "sparkles"');
+    expect(writtenContent).toContain('Disk body');
+    expect(writtenContent).not.toContain('Original body');
+    expect(store.getState().currentNote?.content).toBe(writtenContent);
+    expect(store.getState().noteContentsCache.get(notePath)).toEqual({
+      content: writtenContent,
+      modifiedAt: 3,
+    });
+
+    vi.useRealTimers();
+  });
+
   it('keeps a failed absolute metadata write dirty so the change is not silently lost', async () => {
     mocks.safeWriteTextFile.mockRejectedValueOnce(new Error('disk unavailable'));
     const notePath = '/notes/alpha.md';

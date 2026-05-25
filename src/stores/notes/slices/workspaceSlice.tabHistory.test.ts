@@ -345,6 +345,51 @@ describe('workspaceSlice tab history', () => {
     });
   });
 
+  it('flushes pending editor markdown before opening an absolute note', async () => {
+    const saveNote = vi.fn(async () => {
+      store.setState((state) => ({
+        isDirty: false,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'alpha.md' ? { ...tab, isDirty: false } : tab
+        ),
+      }));
+    });
+    storageAdapter.readFile.mockResolvedValue('# starred');
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'old' },
+      isDirty: false,
+      saveNote,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'old', modifiedAt: 1 }],
+      ]),
+    });
+    hoisted.flushCurrentPendingEditorMarkdown.mockImplementation(() => {
+      store.setState((state) => ({
+        currentNote: { path: 'alpha.md', content: 'pending absolute open' },
+        isDirty: true,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'alpha.md' ? { ...tab, isDirty: true } : tab
+        ),
+        noteContentsCache: new Map(state.noteContentsCache).set('alpha.md', {
+          content: 'pending absolute open',
+          modifiedAt: 1,
+        }),
+      }));
+      return true;
+    });
+
+    await store.getState().openNoteByAbsolutePath('/other-vault/starred.md');
+
+    expect(hoisted.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
+    expect(saveNote).toHaveBeenCalledTimes(1);
+    expect(store.getState().noteContentsCache.get('alpha.md')?.content).toBe('pending absolute open');
+    expect(store.getState().currentNote).toEqual({
+      path: '/other-vault/starred.md',
+      content: '# starred',
+    });
+  });
+
   it('saves a dirty regular tab before replacing it with an absolute note', async () => {
     const saveNote = vi.fn(async () => {
       store.setState((state) => ({
@@ -1214,5 +1259,51 @@ describe('workspaceSlice tab history', () => {
       { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
     ]);
     expect(store.getState().draftNotes['draft:blank']).toEqual({ parentPath: null, name: '' });
+  });
+
+  it('flushes pending editor markdown before restoring a discarded draft tab', async () => {
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'Old alpha' },
+      isDirty: false,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      recentlyClosedTabs: [
+        {
+          tab: { path: 'draft:blank', name: '', isDirty: true },
+          index: 1,
+          draftNote: { parentPath: null, name: '' },
+          content: 'draft text',
+          modifiedAt: null,
+        },
+      ],
+      noteContentsCache: new Map([['alpha.md', { content: 'Old alpha', modifiedAt: 1 }]]),
+    });
+    hoisted.flushCurrentPendingEditorMarkdown.mockImplementation(() => {
+      store.setState((state) => ({
+        currentNote: { path: 'alpha.md', content: 'Pending alpha' },
+        currentNoteRevision: state.currentNoteRevision + 1,
+        isDirty: true,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'alpha.md' ? { ...tab, isDirty: true } : tab
+        ),
+        noteContentsCache: new Map(state.noteContentsCache).set('alpha.md', {
+          content: 'Pending alpha',
+          modifiedAt: 1,
+        }),
+      }));
+      return true;
+    });
+
+    await store.getState().reopenClosedTab();
+
+    expect(hoisted.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
+    expect(store.getState().currentNote).toEqual({ path: 'draft:blank', content: 'draft text' });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: true },
+      { path: 'draft:blank', name: '', isDirty: true },
+    ]);
+    expect(store.getState().noteContentsCache.get('alpha.md')).toEqual({
+      content: 'Pending alpha',
+      modifiedAt: 1,
+    });
   });
 });

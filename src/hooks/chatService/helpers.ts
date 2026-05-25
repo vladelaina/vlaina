@@ -8,6 +8,7 @@ import { isManagedProviderId } from '@/lib/ai/managedService';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { stripVlainaManagedFrontmatter } from '@/stores/notes/frontmatter';
+import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 
 const SVG_DATA_URL_REGEX = /^data:image\/svg\+xml/i;
 const IMAGE_NAME_REGEX = /\.(png|jpe?g|webp|gif|bmp|avif|svg)(?:$|[?#])/i;
@@ -119,6 +120,7 @@ async function resolveMentionedNoteContent(notePath: string): Promise<string> {
 export async function loadMentionedNotes(
   noteMentions: NoteMentionReference[]
 ): Promise<Array<NoteMentionReference & { content: string }>> {
+  flushCurrentPendingEditorMarkdown();
   return (
     await Promise.all(
       noteMentions.map(async (mention) => ({

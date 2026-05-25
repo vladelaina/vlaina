@@ -5,6 +5,10 @@ import { mathEditorPluginKey } from './mathEditorPluginKey';
 import { isMathBlockShortcutText } from './mathBlockFence';
 import { createOpenMathEditorState } from './mathEditorState';
 
+function markMathUserInput(view: EditorView): void {
+  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+}
+
 function getMathBlockEnterViewportPosition(view: EditorView) {
   try {
     const coords = view.coordsAtPos(view.state.selection.from);
@@ -73,6 +77,7 @@ export function handleMathBlockShortcutEnter(view: EditorView): boolean {
     )
     .scrollIntoView();
 
+  markMathUserInput(view);
   view.dispatch(tr);
   return true;
 }

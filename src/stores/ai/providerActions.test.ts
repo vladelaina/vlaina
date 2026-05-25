@@ -123,16 +123,24 @@ describe('deleteIncompleteCustomProviders', () => {
     });
   });
 
-  it('removes custom channels when both base url and api key are empty', () => {
-    const model = buildModel({});
-    seedAI([
-      buildProvider({
-        id: 'provider-1',
-        name: 'Channel 1',
-        apiHost: '',
-        apiKey: '',
-      }),
-    ], [model]);
+  it('removes locally created custom channels when both base url and api key are empty', () => {
+    const providerId = actions.addProvider({
+      name: 'Channel 1',
+      type: 'newapi',
+      apiHost: '',
+      apiKey: '',
+      enabled: true,
+    });
+    actions.addModel(buildModel({
+      id: `${providerId}::gpt-test`,
+      providerId,
+    }));
+    actions.setProviderBenchmarkResults(providerId, {
+      items: {},
+      overall: 'success',
+      updatedAt: 1,
+    });
+    actions.setProviderFetchedModels(providerId, ['gpt-test']);
 
     actions.deleteIncompleteCustomProviders();
 
@@ -142,6 +150,20 @@ describe('deleteIncompleteCustomProviders', () => {
     expect(ai.benchmarkResults).toEqual({});
     expect(ai.fetchedModels).toEqual({});
     expect(ai.selectedModelId).toBeNull();
+  });
+
+  it('keeps incomplete custom channels that were synced from another window', () => {
+    const provider = buildProvider({
+      id: 'provider-remote',
+      name: 'Channel 1',
+      apiHost: '',
+      apiKey: '',
+    });
+    seedAI([provider]);
+
+    actions.deleteIncompleteCustomProviders();
+
+    expect(useUnifiedStore.getState().data.ai?.providers).toEqual([provider]);
   });
 
   it('keeps custom channels when the generated label was changed', () => {

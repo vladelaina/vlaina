@@ -8,6 +8,7 @@ export const SKIN_TONE_KEY = 'vlaina-emoji-skin-tone';
 export const ICON_COLOR_KEY = 'vlaina-icon-color';
 export const ACTIVE_TAB_KEY = 'vlaina-icon-picker-tab';
 export const MAX_RECENT_EMOJIS = 18;
+const MAX_RECENT_ICONS_STORAGE_CHARS = 16 * 1024;
 export const EMOJI_PER_ROW = 9;
 export const EMOJI_SIZE = 32;
 export const ROW_GAP = 2;
@@ -135,7 +136,18 @@ export const ICON_MAP = new Map<string, any>(); // Empty placeholder map
 export function loadRecentIcons(): string[] {
   try {
     const saved = localStorage.getItem(RECENT_ICONS_KEY);
-    return saved ? JSON.parse(saved) : [];
+    if (!saved || saved.length > MAX_RECENT_ICONS_STORAGE_CHARS) {
+      return [];
+    }
+
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .filter((icon): icon is string => typeof icon === 'string' && icon.length > 0)
+      .slice(0, MAX_RECENT_EMOJIS);
   } catch {
     return [];
   }
@@ -143,7 +155,9 @@ export function loadRecentIcons(): string[] {
 
 export function saveRecentIcons(icons: string[]): void {
   try {
-    localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(icons));
+    localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(
+      icons.filter((icon) => typeof icon === 'string' && icon.length > 0).slice(0, MAX_RECENT_EMOJIS)
+    ));
   } catch { }
 }
 
@@ -157,7 +171,8 @@ export function addToRecentIcons(icon: string, current: string[]): string[] {
 export function loadSkinTone(): number {
   try {
     const saved = localStorage.getItem(SKIN_TONE_KEY);
-    return saved ? parseInt(saved, 10) : 0;
+    const parsed = saved ? parseInt(saved, 10) : 0;
+    return Number.isInteger(parsed) && parsed >= 0 && parsed < SKIN_TONES.length ? parsed : 0;
   } catch {
     return 0;
   }
@@ -165,7 +180,9 @@ export function loadSkinTone(): number {
 
 export function saveSkinTone(tone: number): void {
   try {
-    localStorage.setItem(SKIN_TONE_KEY, tone.toString());
+    localStorage.setItem(SKIN_TONE_KEY, String(
+      Number.isInteger(tone) && tone >= 0 && tone < SKIN_TONES.length ? tone : 0
+    ));
   } catch { }
 }
 

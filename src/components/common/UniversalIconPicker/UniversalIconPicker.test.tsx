@@ -1,10 +1,13 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UniversalIconPicker } from './index';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { ACTIVE_TAB_KEY, RECENT_ICONS_KEY, SKIN_TONE_KEY } from './constants';
 
 vi.mock('./EmojiTab', () => ({
-  EmojiTab: () => <div data-testid="emoji-tab" />,
+  EmojiTab: ({ recentEmojis, skinTone }: { recentEmojis: string[]; skinTone: number }) => (
+    <div data-testid="emoji-tab" data-recent={recentEmojis.join(',')} data-skin-tone={skinTone} />
+  ),
 }));
 
 vi.mock('./UploadTab', () => ({
@@ -95,5 +98,52 @@ describe('UniversalIconPicker', () => {
 
     menuLayer.remove();
     vi.useRealTimers();
+  });
+
+  it('reloads picker preferences after cross-window storage updates', async () => {
+    const onSkinToneChange = vi.fn();
+    render(
+      <UniversalIconPicker
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        onSkinToneChange={onSkinToneChange}
+      />,
+    );
+
+    expect(screen.getByTestId('emoji-tab')).toBeInTheDocument();
+
+    act(() => {
+      localStorage.setItem(ACTIVE_TAB_KEY, 'upload');
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: ACTIVE_TAB_KEY,
+        newValue: 'upload',
+      }));
+    });
+
+    await waitFor(() => expect(screen.getByTestId('upload-tab')).toBeInTheDocument());
+
+    act(() => {
+      localStorage.setItem(ACTIVE_TAB_KEY, 'emoji');
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: ACTIVE_TAB_KEY,
+        newValue: 'emoji',
+      }));
+
+      localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(['😀']));
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: RECENT_ICONS_KEY,
+        newValue: JSON.stringify(['😀']),
+      }));
+
+      localStorage.setItem(SKIN_TONE_KEY, '2');
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: SKIN_TONE_KEY,
+        newValue: '2',
+      }));
+    });
+
+    await waitFor(() => expect(screen.getByTestId('emoji-tab')).toHaveAttribute('data-recent', '😀'));
+    expect(screen.getByTestId('emoji-tab')).toHaveAttribute('data-skin-tone', '2');
+    expect(onSkinToneChange).toHaveBeenCalledWith(2);
   });
 });

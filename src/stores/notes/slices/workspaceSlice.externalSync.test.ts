@@ -492,7 +492,7 @@ describe('workspaceSlice external sync', () => {
   it('ignores expected self-write events while the current note is clean', async () => {
     storageAdapter.exists.mockResolvedValue(true);
     storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
-    storageAdapter.readFile.mockResolvedValue('# should not reload');
+    storageAdapter.readFile.mockResolvedValue('# saved');
 
     const store = createNotesStore({
       currentNote: { path: 'docs/alpha.md', content: '# saved' },
@@ -505,10 +505,37 @@ describe('workspaceSlice external sync', () => {
     const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
 
     expect(result).toBe('ignored');
-    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(storageAdapter.readFile).toHaveBeenCalledTimes(1);
     expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# saved' });
     expect(store.getState().currentNoteDiskRevision).toBe(3);
     expect(store.getState().noteContentsCache.get('docs/alpha.md')?.modifiedAt).toBe(2);
+    shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md');
+    shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md');
+    shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md');
+    expect(shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md')).toBe(false);
+  });
+
+  it('reloads a clean current note when a later external write arrives before the self-write marker expires', async () => {
+    storageAdapter.exists.mockResolvedValue(true);
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
+    storageAdapter.readFile.mockResolvedValue('# other window update');
+
+    const store = createNotesStore({
+      currentNote: { path: 'docs/alpha.md', content: '# saved' },
+      currentNoteDiskRevision: 3,
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# saved', modifiedAt: 1 }]]),
+    });
+
+    markExpectedExternalChange('/vault/docs/alpha.md');
+    const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
+
+    expect(result).toBe('reloaded');
+    expect(storageAdapter.readFile).toHaveBeenCalledTimes(1);
+    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# other window update' });
+    expect(store.getState().currentNoteDiskRevision).toBe(4);
+    expect(store.getState().isDirty).toBe(false);
+    expect(store.getState().error).toBeNull();
     shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md');
     shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md');
     shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md');

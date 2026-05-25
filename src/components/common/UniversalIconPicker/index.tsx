@@ -8,6 +8,9 @@ import { EmojiTab } from './EmojiTab';
 import { UploadTab, type CustomIcon } from './UploadTab';
 import {
   TabType,
+  ACTIVE_TAB_KEY,
+  RECENT_ICONS_KEY,
+  SKIN_TONE_KEY,
   loadActiveTab,
   saveActiveTab,
   loadRecentIcons,
@@ -99,6 +102,33 @@ export function UniversalIconPicker({
   const handleSkinToneChangeInternal = useCallback((tone: number) => {
     setSkinTone(tone);
     onSkinToneChange?.(tone);
+  }, [onSkinToneChange]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === ACTIVE_TAB_KEY) {
+        setActiveTab(loadActiveTab());
+        return;
+      }
+
+      if (event.key === RECENT_ICONS_KEY) {
+        setRecentIcons(loadRecentIcons());
+        return;
+      }
+
+      if (event.key === SKIN_TONE_KEY) {
+        const nextTone = loadSkinTone();
+        setSkinTone(nextTone);
+        onSkinToneChange?.(nextTone);
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, [onSkinToneChange]);
 
   const handleUploadSelect = useCallback((assetUrl: string) => {

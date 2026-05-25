@@ -11,6 +11,7 @@ function createMockView(options: {
   };
 
   const view: any = {
+    dom: new EventTarget(),
     state: {
       doc: {
         nodeAt: vi.fn(() => options.nodeAt),
@@ -36,9 +37,12 @@ describe('codeBlockTransactions', () => {
         nodeSize: 8,
       },
     });
+    const listener = vi.fn();
+    view.dom.addEventListener('vlaina:block-user-input', listener);
 
     updateCodeBlockLanguage(view, 10, 'JavaScript');
 
+    expect(listener).toHaveBeenCalledTimes(1);
     expect(tr.setNodeMarkup).toHaveBeenCalledWith(10, undefined, {
       language: 'ecmascript',
       collapsed: true,
@@ -70,9 +74,12 @@ describe('codeBlockTransactions', () => {
       },
       selection: { from: 11, to: 11 },
     });
+    const listener = vi.fn();
+    view.dom.addEventListener('vlaina:block-user-input', listener);
 
     toggleCodeBlockCollapsed(view, 10, false);
 
+    expect(listener).toHaveBeenCalledTimes(1);
     expect(tr.setNodeMarkup).toHaveBeenCalledWith(10, undefined, {
       language: 'ts',
       collapsed: true,

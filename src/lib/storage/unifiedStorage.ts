@@ -17,6 +17,7 @@ import { translate } from '@/lib/i18n';
 import { useToastStore } from '@/stores/useToastStore';
 import {
   createDefaultUnifiedData,
+  type CustomIcon,
   type DataFile,
   type UnifiedData,
 } from './unifiedStorageTypes';
@@ -26,6 +27,21 @@ export type {
   TimezoneInfo,
   UnifiedData,
 } from './unifiedStorageTypes';
+
+export interface UnifiedSavePatch {
+  settings?: {
+    timezone?: UnifiedData['settings']['timezone'];
+    markdown?: Omit<Partial<UnifiedData['settings']['markdown']>, 'codeBlock'> & {
+      codeBlock?: Partial<UnifiedData['settings']['markdown']['codeBlock']>;
+    };
+    ui?: Partial<NonNullable<UnifiedData['settings']['ui']>>;
+  };
+}
+
+interface UnifiedSaveRequest {
+  data: UnifiedData;
+  patch?: UnifiedSavePatch;
+}
 
 const MAIN_DATA_FILE = 'data.json';
 const MAIN_DATA_BACKUP_FILE = 'data.backup.json';
@@ -67,6 +83,7 @@ interface AIProviderChannelFile {
 }
 
 let autoSyncTrigger: (() => void) | null = null;
+let autoSyncTriggerRegistrationId = 0;
 let hasShownPersistenceFailureToast = false;
 let hasShownSecretLoadFailureToast = false;
 
@@ -330,8 +347,162 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
   };
 }
 
+function normalizeCustomIcon(value: unknown): CustomIcon | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const { id, url, name, createdAt } = value;
+  if (
+    typeof id !== 'string' ||
+    typeof url !== 'string' ||
+    typeof name !== 'string' ||
+    typeof createdAt !== 'number' ||
+    !Number.isFinite(createdAt)
+  ) {
+    return null;
+  }
+
+  return { id, url, name, createdAt };
+}
+
+async function readExistingMainDataFile(
+  storage: ReturnType<typeof getStorageAdapter>,
+  path: string,
+): Promise<UnifiedData | null> {
+  if (!(await storage.exists(path))) {
+    return null;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(await storage.readFile(path));
+    if (!isRecord(parsed) || parsed.version !== 2 || !isRecord(parsed.data)) {
+      return null;
+    }
+
+    return sanitizeUnifiedData(parsed.data as unknown as UnifiedData);
+  } catch {
+    return null;
+  }
+}
+
+function mergeCustomIconsForSafeSave(
+  incomingData: UnifiedData,
+  existingData: UnifiedData | null,
+): Pick<UnifiedData, 'customIcons' | 'deletedCustomIconIds'> {
+  const incomingDeletedIds = new Set(
+    (incomingData.deletedCustomIconIds || []).filter((id): id is string => typeof id === 'string')
+  );
+  const existingDeletedIds = new Set(
+    (existingData?.deletedCustomIconIds || []).filter((id): id is string => typeof id === 'string')
+  );
+  const deletedIds = new Set([...existingDeletedIds, ...incomingDeletedIds]);
+  const iconsById = new Map<string, CustomIcon>();
+
+  for (const icon of existingData?.customIcons || []) {
+    const normalized = normalizeCustomIcon(icon);
+    if (normalized && !deletedIds.has(normalized.id)) {
+      iconsById.set(normalized.id, normalized);
+    }
+  }
+
+  for (const icon of incomingData.customIcons || []) {
+    const normalized = normalizeCustomIcon(icon);
+    if (normalized && !deletedIds.has(normalized.id)) {
+      iconsById.set(normalized.id, normalized);
+    }
+  }
+
+  return {
+    customIcons: Array.from(iconsById.values()).sort((a, b) => b.createdAt - a.createdAt),
+    deletedCustomIconIds: Array.from(deletedIds).filter((id) => !iconsById.has(id)),
+  };
+}
+
+function mergeUnifiedSavePatches(
+  left: UnifiedSavePatch | undefined,
+  right: UnifiedSavePatch | undefined,
+): UnifiedSavePatch | undefined {
+  if (!left) return right;
+  if (!right) return left;
+
+  return {
+    settings: {
+      ...left.settings,
+      ...right.settings,
+      markdown: left.settings?.markdown || right.settings?.markdown
+        ? {
+            ...left.settings?.markdown,
+            ...right.settings?.markdown,
+            codeBlock: left.settings?.markdown?.codeBlock || right.settings?.markdown?.codeBlock
+              ? {
+                  ...left.settings?.markdown?.codeBlock,
+                  ...right.settings?.markdown?.codeBlock,
+                }
+              : undefined,
+          }
+        : undefined,
+      ui: left.settings?.ui || right.settings?.ui
+        ? {
+            ...left.settings?.ui,
+            ...right.settings?.ui,
+          }
+        : undefined,
+    },
+  };
+}
+
+function mergeSettingsForSafeSave(
+  incomingSettings: UnifiedData['settings'],
+  existingSettings: UnifiedData['settings'] | undefined,
+  patch: UnifiedSavePatch | undefined,
+): UnifiedData['settings'] {
+  const baseSettings = existingSettings || incomingSettings;
+  if (!patch?.settings) {
+    return baseSettings;
+  }
+
+  return {
+    ...baseSettings,
+    ...(patch.settings.timezone ? { timezone: patch.settings.timezone } : {}),
+    markdown: patch.settings.markdown
+      ? {
+          ...baseSettings.markdown,
+          ...patch.settings.markdown,
+          codeBlock: patch.settings.markdown.codeBlock
+            ? {
+                ...baseSettings.markdown.codeBlock,
+                ...patch.settings.markdown.codeBlock,
+              }
+            : baseSettings.markdown.codeBlock,
+        }
+      : baseSettings.markdown,
+    ui: patch.settings.ui
+      ? {
+          ...baseSettings.ui,
+          ...patch.settings.ui,
+        }
+      : baseSettings.ui,
+  };
+}
+
 export function setUnifiedStorageAutoSyncTrigger(trigger: (() => void) | null): void {
+  autoSyncTriggerRegistrationId += 1;
   autoSyncTrigger = trigger;
+}
+
+export function registerUnifiedStorageAutoSyncTrigger(trigger: () => void): () => void {
+  const registrationId = autoSyncTriggerRegistrationId + 1;
+  autoSyncTriggerRegistrationId = registrationId;
+  autoSyncTrigger = trigger;
+
+  return () => {
+    if (autoSyncTriggerRegistrationId !== registrationId) {
+      return;
+    }
+    autoSyncTriggerRegistrationId += 1;
+    autoSyncTrigger = null;
+  };
 }
 
 async function getBasePath(): Promise<string> {
@@ -548,7 +719,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
   }
 }
 
-async function performSplitSave(data: UnifiedData) {
+async function performSplitSave(request: UnifiedSaveRequest) {
     const storage = getStorageAdapter();
     const base = await getBasePath();
     
@@ -565,8 +736,19 @@ async function performSplitSave(data: UnifiedData) {
         await storage.mkdir(channelsDir, true);
     }
 
-    const sanitizedData = sanitizeUnifiedData(data);
-    const { ai, ...mainPart } = sanitizedData;
+    const sanitizedData = sanitizeUnifiedData(request.data);
+    const existingMainData = await readExistingMainDataFile(storage, mainPath);
+    const mergedCustomIconData = mergeCustomIconsForSafeSave(sanitizedData, existingMainData);
+    const dataForMainFile: UnifiedData = {
+        ...sanitizedData,
+        settings: mergeSettingsForSafeSave(
+          sanitizedData.settings,
+          existingMainData?.settings,
+          request.patch,
+        ),
+        ...mergedCustomIconData,
+    };
+    const { ai, ...mainPart } = dataForMainFile;
     
     const mainFile: DataFile = {
         version: 2,
@@ -578,14 +760,21 @@ async function performSplitSave(data: UnifiedData) {
     await storage.writeFile(mainBackupPath, mainPayload);
 
     if (ai) {
-        const persistedProviders = (ai.providers || []).filter((provider) => isSafeProviderId(provider.id));
+        const requestedPersistedProviders = (ai.providers || []).filter((provider) => isSafeProviderId(provider.id));
         const incomingDeletedProviderIds = new Set(
           (ai.deletedProviderIds || []).filter(isSafeProviderId)
         );
 
+        const existingSessionsData = await readExistingAISessionsFile(storage, sessionsPath);
+        const tombstonedProviderIds = new Set([
+          ...(existingSessionsData?.deletedProviderIds || []),
+          ...incomingDeletedProviderIds,
+        ].filter(isSafeProviderId));
+        const persistedProviders = requestedPersistedProviders.filter(
+          (provider) => !tombstonedProviderIds.has(provider.id)
+        );
         await syncProviderSecrets(persistedProviders);
 
-        const existingSessionsData = await readExistingAISessionsFile(storage, sessionsPath);
         const incomingPersistedSessions = ai.sessions.filter((session) => !isTemporarySession(session));
         const mergedSessions = await mergeSessionsForSafeSave(
             incomingPersistedSessions,
@@ -597,16 +786,20 @@ async function performSplitSave(data: UnifiedData) {
         const mergedProviderIds = Array.from(new Set([
           ...persistedProviders.map((provider) => provider.id),
           ...(existingSessionsData?.providerIds || []),
-        ])).filter((providerId) => isSafeProviderId(providerId) && !incomingDeletedProviderIds.has(providerId));
+        ])).filter((providerId) => isSafeProviderId(providerId) && !tombstonedProviderIds.has(providerId));
         const activeProviderIds = new Set(mergedProviderIds);
-        const deletedProviderIds = Array.from(new Set([
-          ...(existingSessionsData?.deletedProviderIds || []),
-          ...incomingDeletedProviderIds,
-        ])).filter((providerId) => !activeProviderIds.has(providerId));
+        const deletedProviderIds = Array.from(tombstonedProviderIds).filter(
+          (providerId) => !activeProviderIds.has(providerId)
+        );
+        const activeModelIds = new Set(ai.models
+          .filter((model) => activeProviderIds.has(model.providerId))
+          .map((model) => model.id));
 
         const sessionsData = {
             sessions: persistedSessions,
-            selectedModelId: ai.selectedModelId,
+            selectedModelId: ai.selectedModelId && activeModelIds.has(ai.selectedModelId)
+              ? ai.selectedModelId
+              : null,
             unreadSessionIds: (ai.unreadSessionIds || []).filter((sessionId) => persistedSessionIds.has(sessionId)),
             currentSessionId: ai.currentSessionId && persistedSessionIds.has(ai.currentSessionId)
               ? ai.currentSessionId
@@ -669,10 +862,13 @@ async function performSplitSave(data: UnifiedData) {
     }
 }
 
-const unifiedSaveQueue = createPersistenceQueue<UnifiedData>({
+let pendingUnifiedSavePatch: UnifiedSavePatch | undefined;
+
+const unifiedSaveQueue = createPersistenceQueue<UnifiedSaveRequest>({
   debounceMs: 120,
-  write: async (data) => {
-    await performSplitSave(data);
+  write: async (request) => {
+    await performSplitSave(request);
+    pendingUnifiedSavePatch = undefined;
     hasShownPersistenceFailureToast = false;
     triggerAutoSyncIfEligible();
   },
@@ -686,8 +882,9 @@ const unifiedSaveQueue = createPersistenceQueue<UnifiedData>({
   },
 });
 
-export async function saveUnifiedData(data: UnifiedData): Promise<void> {
-  unifiedSaveQueue.schedule(data);
+export async function saveUnifiedData(data: UnifiedData, patch?: UnifiedSavePatch): Promise<void> {
+  pendingUnifiedSavePatch = mergeUnifiedSavePatches(pendingUnifiedSavePatch, patch);
+  unifiedSaveQueue.schedule({ data, patch: pendingUnifiedSavePatch });
 }
 
 export async function flushPendingSave(): Promise<void> {
@@ -695,11 +892,13 @@ export async function flushPendingSave(): Promise<void> {
 }
 
 export function cancelPendingSave(): void {
+  pendingUnifiedSavePatch = undefined;
   unifiedSaveQueue.cancel();
 }
 
-export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void> {
-  await unifiedSaveQueue.saveNow(data);
+export async function saveUnifiedDataImmediate(data: UnifiedData, patch?: UnifiedSavePatch): Promise<void> {
+  pendingUnifiedSavePatch = mergeUnifiedSavePatches(pendingUnifiedSavePatch, patch);
+  await unifiedSaveQueue.saveNow({ data, patch: pendingUnifiedSavePatch });
 }
 
 function triggerAutoSyncIfEligible(): void {

@@ -18,6 +18,7 @@ import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import {
   normalizeSerializedMarkdownDocument,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { mergeNonConflictingNoteChanges } from './noteThreeWayMerge';
 
 interface LoadNoteDocumentOptions {
   notesPath: string;
@@ -30,6 +31,7 @@ interface SaveNoteDocumentOptions {
   notesPath: string;
   currentNote: CurrentNoteState;
   cache: NoteContentCache;
+  updatedAt?: number;
 }
 
 export interface LoadedNoteDocument {
@@ -164,6 +166,7 @@ export async function saveNoteDocument({
   notesPath,
   currentNote,
   cache,
+  updatedAt,
 }: SaveNoteDocumentOptions): Promise<SavedNoteDocument> {
   const storage = getStorageAdapter();
   const fullPath = await resolveStoredPath(notesPath, currentNote.path);
@@ -217,12 +220,38 @@ export async function saveNoteDocument({
         }),
       };
     } else {
-      throw new NoteWriteConflictError();
+      const mergedContent = mergeNonConflictingNoteChanges(
+        normalizedCachedContent,
+        normalizedCurrentContent,
+        normalizedDiskContent,
+      );
+      if (mergedContent == null) {
+        throw new NoteWriteConflictError();
+      }
+      const { content, metadata } = updateNoteMetadataInMarkdown(mergedContent, {
+        updatedAt: updatedAt ?? Date.now(),
+      });
+
+      markExpectedExternalChange(fullPath);
+      await safeWriteTextFile(fullPath, content);
+      markExpectedExternalChange(fullPath);
+
+      const fileInfo = await storage.stat(fullPath);
+      const modifiedAt = fileInfo?.modifiedAt ?? null;
+
+      return {
+        content,
+        metadata,
+        modifiedAt,
+        nextCache: setCachedNoteContent(cache, currentNote.path, content, modifiedAt, {
+          updateBaseline: true,
+        }),
+      };
     }
   }
 
   const { content, metadata } = updateNoteMetadataInMarkdown(normalizedCurrentContent, {
-    updatedAt: Date.now(),
+    updatedAt: updatedAt ?? Date.now(),
   });
 
   markExpectedExternalChange(fullPath);

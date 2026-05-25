@@ -5,6 +5,7 @@ import { useVaultStore } from './useVaultStore';
 const hoisted = vi.hoisted(() => ({
   saveStarredRegistry: vi.fn(),
   moveVaultSystemStore: vi.fn(async () => undefined),
+  flushCurrentPendingEditorMarkdown: vi.fn(),
 }));
 
 vi.mock('@/stores/notes/starred', async () => {
@@ -17,6 +18,10 @@ vi.mock('@/stores/notes/starred', async () => {
 
 vi.mock('@/stores/notes/systemStoragePaths', () => ({
   moveVaultSystemStore: hoisted.moveVaultSystemStore,
+}));
+
+vi.mock('@/stores/notes/pendingEditorMarkdownFlusher', () => ({
+  flushCurrentPendingEditorMarkdown: hoisted.flushCurrentPendingEditorMarkdown,
 }));
 
 describe('useVaultStore external sync', () => {
@@ -57,6 +62,10 @@ describe('useVaultStore external sync', () => {
         relativePath: 'docs/alpha.md',
       },
       clearAssetUrlCache: vi.fn(),
+      currentNote: null,
+      openTabs: [],
+      noteContentsCache: new Map(),
+      isDirty: false,
     });
   });
 
@@ -109,6 +118,62 @@ describe('useVaultStore external sync', () => {
     );
     expect(hoisted.moveVaultSystemStore).toHaveBeenCalledWith('C:/vault-old', 'C:/vault-new');
     expect(useNotesStore.getState().clearAssetUrlCache).toHaveBeenCalledTimes(1);
+  });
+
+  it('flushes pending editor markdown before syncing an externally renamed vault path', () => {
+    useVaultStore.setState({
+      currentVault: {
+        id: 'vault-1',
+        name: 'vault-old',
+        path: 'C:/vault-old',
+        lastOpened: 10,
+      },
+      recentVaults: [
+        {
+          id: 'vault-1',
+          name: 'vault-old',
+          path: 'C:/vault-old',
+          lastOpened: 10,
+        },
+      ],
+    });
+    useNotesStore.setState({
+      currentNote: { path: 'docs/alpha.md', content: 'Old alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: 'Old alpha', modifiedAt: 1 }]]),
+      isDirty: false,
+    });
+    hoisted.flushCurrentPendingEditorMarkdown.mockImplementation(() => {
+      useNotesStore.setState((state) => ({
+        currentNote: { path: 'docs/alpha.md', content: 'Pending alpha' },
+        currentNoteRevision: state.currentNoteRevision + 1,
+        isDirty: true,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'docs/alpha.md' ? { ...tab, isDirty: true } : tab
+        ),
+        noteContentsCache: new Map(state.noteContentsCache).set('docs/alpha.md', {
+          content: 'Pending alpha',
+          modifiedAt: 1,
+        }),
+      }));
+      return true;
+    });
+
+    useVaultStore.getState().syncCurrentVaultExternalPath('C:/vault-new');
+
+    expect(hoisted.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
+    expect(useNotesStore.getState().notesPath).toBe('C:/vault-new');
+    expect(useNotesStore.getState().currentNote).toEqual({
+      path: 'docs/alpha.md',
+      content: 'Pending alpha',
+    });
+    expect(useNotesStore.getState().noteContentsCache.get('docs/alpha.md')).toEqual({
+      content: 'Pending alpha',
+      modifiedAt: 1,
+    });
+    expect(useNotesStore.getState().openTabs).toEqual([
+      { path: 'docs/alpha.md', name: 'alpha', isDirty: true },
+    ]);
   });
 
   it('deduplicates mixed-slash recent vault entries during external path sync', () => {

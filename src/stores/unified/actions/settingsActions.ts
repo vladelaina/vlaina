@@ -1,4 +1,5 @@
 import type { UnifiedData } from '@/lib/storage/unifiedStorage';
+import type { UnifiedSavePatch } from '@/lib/storage/unifiedStorage';
 import { createMarkdownSettingsActions } from './markdownSettingsActions';
 
 type SetState = (fn: (state: { 
@@ -7,7 +8,7 @@ type SetState = (fn: (state: {
   data: UnifiedData; 
 }>) => void;
 
-type Persist = (data: UnifiedData) => void;
+type Persist = (data: UnifiedData, patch?: UnifiedSavePatch) => void;
 
 export function createSettingsActions(set: SetState, persist: Persist) {
   return {
@@ -23,7 +24,11 @@ export function createSettingsActions(set: SetState, persist: Persist) {
             } 
           },
         };
-        persist(newData);
+        persist(newData, {
+          settings: {
+            timezone: newData.settings.timezone,
+          },
+        });
         return { data: newData };
       });
     },
@@ -40,7 +45,13 @@ export function createSettingsActions(set: SetState, persist: Persist) {
             },
           },
         };
-        persist(newData);
+        persist(newData, {
+          settings: {
+            ui: {
+              lastAppViewMode: mode,
+            },
+          },
+        });
         return { data: newData };
       });
     },

@@ -17,6 +17,10 @@ function setCopyFeedbackSelectionSuppression(view: EditorView, active: boolean):
   view.dom.classList.toggle(COPY_FEEDBACK_SELECTION_SUPPRESS_CLASS, active);
 }
 
+function markToolbarUserInput(view: EditorView): void {
+  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+}
+
 function getSelectedCodeBlockDom(view: EditorView, from: number, to: number): HTMLElement | null {
   let codeBlockDom: HTMLElement | null = null;
 
@@ -218,6 +222,7 @@ export function createToolbarActionController(
       const codeBlockDom = from < to ? getSelectedCodeBlockDom(view, from, to) : null;
       if (from < to) {
         const { tr } = deleteSelectionRange(view, from, to);
+        markToolbarUserInput(view);
         dispatch(tr);
       }
       if (!focusSelectedCodeBlockAfterDelete(codeBlockDom)) {

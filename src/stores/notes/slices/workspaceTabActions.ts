@@ -331,6 +331,7 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
     },
 
     reopenClosedTab: async () => {
+      flushCurrentPendingEditorMarkdown();
       const closedTabs = get().recentlyClosedTabs;
       if (closedTabs.length === 0) {
         return;

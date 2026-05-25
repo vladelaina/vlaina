@@ -18,6 +18,10 @@ const SLASH_MENU_MARGIN_PX = 12;
 const SLASH_MENU_MAX_HEIGHT_PX = 360;
 const SLASH_MENU_MIN_HEIGHT_PX = 160;
 
+function markSlashUserInput(view: EditorView): void {
+  view.dom.dispatchEvent(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+}
+
 export class SlashMenuView {
   private menuElement: HTMLElement | null = null;
   private root: Root | null = null;
@@ -126,6 +130,7 @@ export class SlashMenuView {
     const slashRange = getSlashTextRange(this.editorView);
     if (!slashRange) return;
 
+    markSlashUserInput(this.editorView);
     this.editorView.dispatch(
       this.editorView.state.tr
         .delete(slashRange.deleteFrom, slashRange.deleteTo)

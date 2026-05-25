@@ -4,6 +4,9 @@ interface MermaidNodeLike {
 }
 
 interface MermaidEditorViewLike<TTransaction> {
+  dom?: {
+    dispatchEvent?: (event: Event) => boolean;
+  };
   state: {
     doc: {
       nodeAt: (pos: number) => MermaidNodeLike | null;
@@ -17,6 +20,10 @@ interface MermaidEditorViewLike<TTransaction> {
     };
   };
   dispatch: (tr: TTransaction) => void;
+}
+
+function markMermaidUserInput(editorView: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
+  editorView.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
 }
 
 export function removeMermaidNode<TTransaction>(
@@ -39,6 +46,7 @@ export function removeMermaidNode<TTransaction>(
   }
 
   const tr = editorView.state.tr.delete(nodePos, nodePos + 1);
+  markMermaidUserInput(editorView);
   editorView.dispatch(tr);
   return true;
 }
@@ -65,6 +73,7 @@ export function applyMermaidNodeCode<TTransaction>(
     ...node.attrs,
     code,
   });
+  markMermaidUserInput(editorView);
   editorView.dispatch(tr);
   return true;
 }

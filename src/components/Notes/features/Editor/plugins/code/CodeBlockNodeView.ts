@@ -315,6 +315,9 @@ export class CodeBlockNodeView implements NodeView {
 
     const tr = forwardCodeBlockUpdate(update, this.view, this.getPos);
     if (tr) {
+      if (update.docChanged) {
+        this.view.dom.dispatchEvent(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+      }
       this.view.dispatch(tr);
     }
   };

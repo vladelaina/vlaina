@@ -21,6 +21,7 @@ import {
   getCachedCommunitySettings,
   loadCommunitySettings,
 } from '@/components/Settings/tabs/aboutCommunitySettings';
+import { installSyncE2EBridge } from '@/lib/e2e/syncE2EBridge';
 
 function once<T>(factory: () => Promise<T>): () => Promise<T> {
   let promise: Promise<T> | null = null;
@@ -178,6 +179,10 @@ export function AppContent() {
   const deferredChromeTimerRef = useRef<number | null>(null);
   const preloadedPrimaryViewRef = useRef<typeof appViewMode | null>(null);
   const effectiveAppViewModeRef = useRef(effectiveAppViewMode);
+
+  useEffect(() => {
+    installSyncE2EBridge();
+  }, []);
 
   useEffect(() => {
     effectiveAppViewModeRef.current = effectiveAppViewMode;

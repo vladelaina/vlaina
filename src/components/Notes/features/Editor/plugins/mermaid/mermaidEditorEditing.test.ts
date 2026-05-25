@@ -12,6 +12,7 @@ function createEditorView(node: {
 
   return {
     editorView: {
+      dom: new EventTarget(),
       state: {
         doc: {
           nodeAt: vi.fn(() => node),
@@ -36,10 +37,13 @@ describe('mermaidEditorEditing', () => {
       type: { name: 'mermaid' },
       attrs: { code: 'graph TD', id: 'node-1' },
     });
+    const listener = vi.fn();
+    editorView.dom.addEventListener('vlaina:block-user-input', listener);
 
     const updated = applyMermaidNodeCode(editorView, 7, 'graph TD\nA --> B');
 
     expect(updated).toBe(true);
+    expect(listener).toHaveBeenCalledTimes(1);
     expect(setNodeMarkup).toHaveBeenCalledWith(7, undefined, {
       code: 'graph TD\nA --> B',
       id: 'node-1',
@@ -81,10 +85,13 @@ describe('mermaidEditorEditing', () => {
       type: { name: 'mermaid' },
       attrs: { code: '' },
     });
+    const listener = vi.fn();
+    editorView.dom.addEventListener('vlaina:block-user-input', listener);
 
     const removed = removeMermaidNode(editorView, 4);
 
     expect(removed).toBe(true);
+    expect(listener).toHaveBeenCalledTimes(1);
     expect(deleteNode).toHaveBeenCalledWith(4, 5);
     expect(dispatch).toHaveBeenCalledWith(transaction);
   });

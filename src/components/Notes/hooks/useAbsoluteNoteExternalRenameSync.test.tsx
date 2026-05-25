@@ -59,6 +59,10 @@ describe('useAbsoluteNoteExternalRenameSync', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hoisted.watchHandler = null;
+    hoisted.watchDesktopPath.mockImplementation(async (_path: string, handler: (event: WatchEvent) => void | Promise<void>) => {
+      hoisted.watchHandler = handler;
+      return hoisted.unwatch;
+    });
   });
 
   it('syncs an open absolute note after a content watch event', async () => {
@@ -124,6 +128,23 @@ describe('useAbsoluteNoteExternalRenameSync', () => {
     expect(hoisted.watchDesktopPath).not.toHaveBeenCalled();
 
     await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+    });
+
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalledWith({ force: true });
+
+    hook.unmount();
+  });
+
+  it('falls back to focus polling when the absolute note watcher is unavailable', async () => {
+    hoisted.watchDesktopPath.mockRejectedValueOnce(
+      new Error('ENOSPC: System limit for number of file watchers reached')
+    );
+
+    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('/external/docs/current.md'));
+
+    await act(async () => {
+      await Promise.resolve();
       window.dispatchEvent(new Event('focus'));
     });
 

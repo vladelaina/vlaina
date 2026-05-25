@@ -3,6 +3,7 @@ import {
   loadUnifiedData,
   saveUnifiedData,
   type UnifiedData,
+  type UnifiedSavePatch,
   type CustomIcon,
   type TimezoneInfo,
 } from '@/lib/storage/unifiedStorage';
@@ -48,8 +49,8 @@ interface UnifiedStoreActions {
 
 type UnifiedStore = UnifiedStoreState & UnifiedStoreActions;
 
-function persist(data: UnifiedData) {
-  saveUnifiedData(data);
+function persist(data: UnifiedData, patch?: UnifiedSavePatch) {
+  saveUnifiedData(data, patch);
 }
 
 export function retainLoadedSessionMessages(

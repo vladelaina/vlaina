@@ -184,6 +184,7 @@ function replaceSelectionWithText(view: EditorView, from: number, to: number, te
   const tr = parsedSlice
     ? view.state.tr.replaceRange(from, to, parsedSlice).scrollIntoView()
     : view.state.tr.insertText(text, from, to).scrollIntoView();
+  view.dom.dispatchEvent(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
   view.dispatch(tr);
   collapseSelectionAfterToolbarApply(view);
 }

@@ -1,10 +1,32 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ChatMessage } from '@/lib/ai/types';
+
+const mocks = vi.hoisted(() => ({
+  storage: {
+    getBasePath: vi.fn().mockResolvedValue('/appdata'),
+    exists: vi.fn().mockResolvedValue(false),
+    mkdir: vi.fn().mockResolvedValue(undefined),
+    readFile: vi.fn(),
+    writeFile: vi.fn().mockResolvedValue(undefined),
+    deleteFile: vi.fn().mockResolvedValue(undefined),
+  },
+  joinPath: vi.fn(async (...parts: string[]) => parts.join('/')),
+}));
+
+vi.mock('@/lib/storage/adapter', () => ({
+  getStorageAdapter: () => mocks.storage,
+  joinPath: mocks.joinPath,
+}));
+
 import {
   normalizeSessionMessages,
   mergeSessionMessages,
   parseSessionMessagesPayload,
   preserveUnknownPersistedMessages,
+  registerChatStorageAutoSyncTrigger,
+  saveSessionJson,
   serializeSessionMessages,
+  setChatStorageAutoSyncTrigger,
 } from './chatStorage';
 
 describe('chatStorage session message normalization', () => {
@@ -273,5 +295,49 @@ describe('chatStorage session message normalization', () => {
       { role: 'user', content: '' },
       { role: 'tool', tool_call_id: 'call-1', content: '' },
     ]);
+  });
+});
+
+function createMessage(id: string): ChatMessage {
+  return {
+    id,
+    role: 'user',
+    content: id,
+    modelId: 'model-1',
+    timestamp: 1,
+    versions: [],
+    currentVersionIndex: 0,
+  };
+}
+
+describe('chatStorage auto sync registration', () => {
+  beforeEach(() => {
+    mocks.storage.getBasePath.mockClear();
+    mocks.storage.exists.mockClear();
+    mocks.storage.exists.mockResolvedValue(false);
+    mocks.storage.mkdir.mockClear();
+    mocks.storage.readFile.mockReset();
+    mocks.storage.writeFile.mockClear();
+    mocks.storage.deleteFile.mockClear();
+    mocks.joinPath.mockClear();
+    mocks.joinPath.mockImplementation(async (...parts: string[]) => parts.join('/'));
+    setChatStorageAutoSyncTrigger(null);
+  });
+
+  it('keeps the newest chat-session auto-sync trigger when an older registration is disposed', async () => {
+    const staleTrigger = vi.fn();
+    const activeTrigger = vi.fn();
+    const unregisterStale = registerChatStorageAutoSyncTrigger(staleTrigger);
+    const unregisterActive = registerChatStorageAutoSyncTrigger(activeTrigger);
+
+    unregisterStale();
+
+    await saveSessionJson('session-1', [createMessage('m1')]);
+
+    expect(staleTrigger).not.toHaveBeenCalled();
+    expect(activeTrigger).toHaveBeenCalledTimes(1);
+    expect(activeTrigger).toHaveBeenCalledWith('session-1');
+
+    unregisterActive();
   });
 });

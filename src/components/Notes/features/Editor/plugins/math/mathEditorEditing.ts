@@ -4,6 +4,9 @@ interface MathNodeLike {
 }
 
 interface MathEditorViewLike<TTransaction> {
+  dom?: {
+    dispatchEvent?: (event: Event) => boolean;
+  };
   state: {
     doc: {
       nodeAt: (pos: number) => MathNodeLike | null;
@@ -17,6 +20,10 @@ interface MathEditorViewLike<TTransaction> {
     };
   };
   dispatch: (tr: TTransaction) => void;
+}
+
+function markMathUserInput(editorView: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
+  editorView.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
 }
 
 export function removeMathNode<TTransaction>(
@@ -39,6 +46,7 @@ export function removeMathNode<TTransaction>(
   }
 
   const tr = editorView.state.tr.delete(nodePos, nodePos + 1);
+  markMathUserInput(editorView);
   editorView.dispatch(tr);
   return true;
 }
@@ -65,6 +73,7 @@ export function applyMathNodeLatex<TTransaction>(
     ...node.attrs,
     latex,
   });
+  markMathUserInput(editorView);
   editorView.dispatch(tr);
   return true;
 }

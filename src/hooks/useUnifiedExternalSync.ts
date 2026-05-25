@@ -4,8 +4,8 @@ import { useAIUIStore } from '@/stores/ai/chatState';
 import { useUIStore } from '@/stores/uiSlice';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { reloadSessionMessagesFromDisk } from '@/stores/ai/sessionConsistency';
-import { setUnifiedStorageAutoSyncTrigger } from '@/lib/storage/unifiedStorage';
-import { setChatStorageAutoSyncTrigger } from '@/lib/storage/chatStorage';
+import { registerUnifiedStorageAutoSyncTrigger } from '@/lib/storage/unifiedStorage';
+import { registerChatStorageAutoSyncTrigger } from '@/lib/storage/chatStorage';
 import {
   emitStorageAutoSyncEvent,
   subscribeStorageAutoSync,
@@ -46,12 +46,14 @@ export function useUnifiedExternalSync() {
       emitStorageAutoSyncEvent({ kind: 'chat-session', sessionId });
     };
 
-    setUnifiedStorageAutoSyncTrigger(triggerUnifiedSync);
-    setChatStorageAutoSyncTrigger(triggerChatSessionSync);
+    const unregisterUnifiedStorageAutoSyncTrigger =
+      registerUnifiedStorageAutoSyncTrigger(triggerUnifiedSync);
+    const unregisterChatStorageAutoSyncTrigger =
+      registerChatStorageAutoSyncTrigger(triggerChatSessionSync);
 
     return () => {
-      setUnifiedStorageAutoSyncTrigger(null);
-      setChatStorageAutoSyncTrigger(null);
+      unregisterUnifiedStorageAutoSyncTrigger();
+      unregisterChatStorageAutoSyncTrigger();
     };
   }, []);
 

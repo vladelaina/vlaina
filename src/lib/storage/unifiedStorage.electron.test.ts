@@ -45,23 +45,32 @@ vi.mock('@/stores/useToastStore', () => ({
   },
 }));
 
-import { saveUnifiedDataImmediate } from './unifiedStorage';
+import {
+  registerUnifiedStorageAutoSyncTrigger,
+  saveUnifiedDataImmediate,
+  setUnifiedStorageAutoSyncTrigger,
+} from './unifiedStorage';
 import { loadUnifiedData } from './unifiedStorage';
 
 describe('unifiedStorage electron save', () => {
   beforeEach(() => {
     mocks.storage.getBasePath.mockClear();
-    mocks.storage.exists.mockClear();
-    mocks.storage.mkdir.mockClear();
+    mocks.storage.exists.mockReset();
+    mocks.storage.mkdir.mockReset();
     mocks.storage.readFile.mockReset();
-    mocks.storage.writeFile.mockClear();
+    mocks.storage.writeFile.mockReset();
     mocks.storage.listDir.mockReset();
-    mocks.storage.deleteFile.mockClear();
+    mocks.storage.deleteFile.mockReset();
     mocks.joinPath.mockReset();
     mocks.hasElectronDesktopBridge.mockReturnValue(true);
     mocks.setProviderSecret.mockClear();
     mocks.deleteProviderSecret.mockClear();
+    setUnifiedStorageAutoSyncTrigger(null);
 
+    mocks.storage.exists.mockResolvedValue(true);
+    mocks.storage.mkdir.mockResolvedValue(undefined);
+    mocks.storage.writeFile.mockResolvedValue(undefined);
+    mocks.storage.deleteFile.mockResolvedValue(undefined);
     mocks.joinPath.mockImplementation(async (...parts: string[]) => parts.join('/'));
     mocks.storage.listDir.mockImplementation(async (path: string) => {
       if (path.endsWith('/chat/channels')) {
@@ -79,6 +88,28 @@ describe('unifiedStorage electron save', () => {
 
       return [];
     });
+  });
+
+  it('keeps the newest unified auto-sync trigger when an older registration is disposed', async () => {
+    const staleTrigger = vi.fn();
+    const activeTrigger = vi.fn();
+    const unregisterStale = registerUnifiedStorageAutoSyncTrigger(staleTrigger);
+    const unregisterActive = registerUnifiedStorageAutoSyncTrigger(activeTrigger);
+
+    unregisterStale();
+
+    await saveUnifiedDataImmediate({
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      },
+      customIcons: [],
+    });
+
+    expect(staleTrigger).not.toHaveBeenCalled();
+    expect(activeTrigger).toHaveBeenCalledTimes(1);
+
+    unregisterActive();
   });
 
   it('syncs provider secrets and removes stale channel files in electron runtime', async () => {
@@ -250,6 +281,554 @@ describe('unifiedStorage electron save', () => {
     const payload = JSON.parse(String(sessionsWrite?.[1]));
     expect(payload.data.providerIds).toEqual(['other-provider']);
     expect(mocks.storage.deleteFile).not.toHaveBeenCalledWith('/appdata/.vlaina/chat/channels/other-provider.json');
+  });
+
+  it('does not resurrect provider channels deleted by another window during a stale save', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          version: 1,
+          updatedAt: 2,
+          data: {
+            sessions: [],
+            selectedModelId: null,
+            unreadSessionIds: [],
+            currentSessionId: null,
+            temporaryChatEnabled: false,
+            customSystemPrompt: '',
+            includeTimeContext: true,
+            webSearchEnabled: false,
+            providerIds: [],
+            deletedSessionIds: [],
+            deletedProviderIds: ['deleted-provider'],
+          },
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+    mocks.storage.listDir.mockImplementation(async (path: string) => {
+      if (path.endsWith('/chat/channels')) {
+        return [
+          { name: 'deleted-provider.json', path: '/appdata/.vlaina/chat/channels/deleted-provider.json', isFile: true, isDirectory: false },
+        ];
+      }
+      return [];
+    });
+
+    await saveUnifiedDataImmediate({
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      },
+      customIcons: [],
+      ai: {
+        providers: [{
+          id: 'deleted-provider',
+          name: 'Deleted in another window',
+          type: 'newapi',
+          apiHost: 'https://example.com',
+          apiKey: '',
+          enabled: true,
+          createdAt: 1,
+          updatedAt: 1,
+        }],
+        models: [{
+          id: 'deleted-provider:model-a',
+          apiModelId: 'model-a',
+          name: 'Model A',
+          group: 'default',
+          providerId: 'deleted-provider',
+          enabled: true,
+          createdAt: 1,
+        }],
+        benchmarkResults: {
+          'deleted-provider': {
+            items: {},
+            overall: 'success',
+            updatedAt: 1,
+          },
+        },
+        fetchedModels: {
+          'deleted-provider': ['model-a'],
+        },
+        sessions: [],
+        messages: {},
+        unreadSessionIds: [],
+        selectedModelId: 'deleted-provider:model-a',
+        currentSessionId: null,
+      },
+    });
+
+    const sessionsWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
+      String(path).endsWith('/chat/sessions.json'),
+    );
+    const payload = JSON.parse(String(sessionsWrite?.[1]));
+    expect(payload.data.providerIds).toEqual([]);
+    expect(payload.data.deletedProviderIds).toEqual(['deleted-provider']);
+    expect(payload.data.selectedModelId).toBeNull();
+    expect(mocks.storage.writeFile).not.toHaveBeenCalledWith(
+      expect.stringContaining('/chat/channels/deleted-provider.json'),
+      expect.anything(),
+    );
+    expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/channels/deleted-provider.json');
+  });
+
+  it('preserves independent provider, settings, and icon edits from two stale windows', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    const disk = new Map<string, string>();
+    const directoryPaths = new Set([
+      '/appdata/.vlaina',
+      '/appdata/.vlaina/chat',
+      '/appdata/.vlaina/chat/channels',
+      '/appdata/.vlaina/chat/sessions',
+      '/appdata/.vlaina/chat/tts-channels',
+    ]);
+    mocks.storage.exists.mockImplementation(async (path: string) =>
+      disk.has(path) || directoryPaths.has(path)
+    );
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      const value = disk.get(path);
+      if (value === undefined) {
+        throw new Error(`Missing file: ${path}`);
+      }
+      return value;
+    });
+    mocks.storage.writeFile.mockImplementation(async (path: string, content: string) => {
+      disk.set(path, content);
+    });
+    mocks.storage.deleteFile.mockImplementation(async (path: string) => {
+      disk.delete(path);
+    });
+    mocks.storage.listDir.mockImplementation(async (path: string) => {
+      const prefix = `${path}/`;
+      return Array.from(disk.keys())
+        .filter((filePath) => filePath.startsWith(prefix))
+        .map((filePath) => ({
+          name: filePath.slice(prefix.length),
+          path: filePath,
+          isFile: true,
+          isDirectory: false,
+        }));
+    });
+
+    const windowAData: UnifiedData = {
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: false } },
+        ui: { lastAppViewMode: 'notes' },
+      },
+      customIcons: [
+        { id: '/app/.vlaina/assets/icons/a.png', url: 'img:/app/.vlaina/assets/icons/a.png', name: 'a.png', createdAt: 10 },
+      ],
+      deletedCustomIconIds: [],
+      ai: {
+        providers: [{
+          id: 'provider-a',
+          name: 'Provider A',
+          type: 'newapi',
+          apiHost: 'https://a.example.com',
+          apiKey: '',
+          enabled: true,
+          createdAt: 1,
+          updatedAt: 1,
+        }],
+        models: [{
+          id: 'provider-a:model-a',
+          apiModelId: 'model-a',
+          name: 'Model A',
+          group: 'default',
+          providerId: 'provider-a',
+          enabled: true,
+          createdAt: 1,
+        }],
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions: [],
+        messages: {},
+        unreadSessionIds: [],
+        selectedModelId: 'provider-a:model-a',
+        currentSessionId: null,
+      },
+    };
+
+    const windowBStaleData: UnifiedData = {
+      settings: {
+        timezone: { offset: 0, city: 'UTC' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+        ui: { lastAppViewMode: 'chat' },
+      },
+      customIcons: [
+        { id: '/app/.vlaina/assets/icons/b.png', url: 'img:/app/.vlaina/assets/icons/b.png', name: 'b.png', createdAt: 20 },
+      ],
+      deletedCustomIconIds: [],
+      ai: {
+        providers: [{
+          id: 'provider-b',
+          name: 'Provider B',
+          type: 'newapi',
+          apiHost: 'https://b.example.com',
+          apiKey: '',
+          enabled: true,
+          createdAt: 2,
+          updatedAt: 2,
+        }],
+        models: [{
+          id: 'provider-b:model-b',
+          apiModelId: 'model-b',
+          name: 'Model B',
+          group: 'default',
+          providerId: 'provider-b',
+          enabled: true,
+          createdAt: 2,
+        }],
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions: [],
+        messages: {},
+        unreadSessionIds: [],
+        selectedModelId: 'provider-b:model-b',
+        currentSessionId: null,
+      },
+    };
+
+    await saveUnifiedDataImmediate(windowAData, {
+      settings: {
+        timezone: windowAData.settings.timezone,
+      },
+    });
+    await saveUnifiedDataImmediate(windowBStaleData, {
+      settings: {
+        markdown: {
+          codeBlock: { showLineNumbers: true },
+        },
+        ui: { lastAppViewMode: 'chat' },
+      },
+    });
+
+    const mainPayload = JSON.parse(disk.get('/appdata/.vlaina/data.json') || '{}');
+    expect(mainPayload.data.settings).toEqual({
+      timezone: { offset: 480, city: 'Beijing' },
+      markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      ui: { lastAppViewMode: 'chat' },
+    });
+    expect(mainPayload.data.customIcons.map((icon: { id: string }) => icon.id)).toEqual([
+      '/app/.vlaina/assets/icons/b.png',
+      '/app/.vlaina/assets/icons/a.png',
+    ]);
+
+    const sessionsPayload = JSON.parse(disk.get('/appdata/.vlaina/chat/sessions.json') || '{}');
+    expect(new Set(sessionsPayload.data.providerIds)).toEqual(new Set(['provider-a', 'provider-b']));
+    expect(sessionsPayload.data.selectedModelId).toBe('provider-b:model-b');
+    expect(disk.has('/appdata/.vlaina/chat/channels/provider-a.json')).toBe(true);
+    expect(disk.has('/appdata/.vlaina/chat/channels/provider-b.json')).toBe(true);
+  });
+
+  it('preserves custom icons added by another window during a stale main-data save', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/.vlaina/data.json')) {
+        return JSON.stringify({
+          version: 2,
+          lastModified: 1,
+          data: {
+            settings: {
+              timezone: { offset: 480, city: 'Beijing' },
+              markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+            },
+            customIcons: [
+              { id: '/app/.vlaina/assets/icons/other.png', url: 'img:/app/.vlaina/assets/icons/other.png', name: 'other.png', createdAt: 20 },
+            ],
+            deletedCustomIconIds: [],
+          },
+        });
+      }
+
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          version: 1,
+          updatedAt: 1,
+          data: {
+            sessions: [],
+            selectedModelId: null,
+            unreadSessionIds: [],
+            currentSessionId: null,
+            temporaryChatEnabled: false,
+            customSystemPrompt: '',
+            includeTimeContext: true,
+            webSearchEnabled: false,
+            providerIds: [],
+            deletedSessionIds: [],
+            deletedProviderIds: [],
+          },
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    await saveUnifiedDataImmediate({
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      },
+      customIcons: [
+        { id: '/app/.vlaina/assets/icons/local.png', url: 'img:/app/.vlaina/assets/icons/local.png', name: 'local.png', createdAt: 10 },
+      ],
+      deletedCustomIconIds: [],
+      ai: {
+        providers: [],
+        models: [],
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions: [],
+        messages: {},
+        unreadSessionIds: [],
+        selectedModelId: null,
+        currentSessionId: null,
+      },
+    });
+
+    const mainWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
+      String(path).endsWith('/.vlaina/data.json'),
+    );
+    const payload = JSON.parse(String(mainWrite?.[1]));
+    expect(payload.data.customIcons.map((icon: { id: string }) => icon.id)).toEqual([
+      '/app/.vlaina/assets/icons/other.png',
+      '/app/.vlaina/assets/icons/local.png',
+    ]);
+  });
+
+  it('does not resurrect custom icons deleted by another window during a stale main-data save', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/.vlaina/data.json')) {
+        return JSON.stringify({
+          version: 2,
+          lastModified: 1,
+          data: {
+            settings: {
+              timezone: { offset: 480, city: 'Beijing' },
+              markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+            },
+            customIcons: [],
+            deletedCustomIconIds: ['/app/.vlaina/assets/icons/deleted.png'],
+          },
+        });
+      }
+
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          version: 1,
+          updatedAt: 1,
+          data: {
+            sessions: [],
+            selectedModelId: null,
+            unreadSessionIds: [],
+            currentSessionId: null,
+            temporaryChatEnabled: false,
+            customSystemPrompt: '',
+            includeTimeContext: true,
+            webSearchEnabled: false,
+            providerIds: [],
+            deletedSessionIds: [],
+            deletedProviderIds: [],
+          },
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    await saveUnifiedDataImmediate({
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      },
+      customIcons: [
+        { id: '/app/.vlaina/assets/icons/deleted.png', url: 'img:/app/.vlaina/assets/icons/deleted.png', name: 'deleted.png', createdAt: 10 },
+      ],
+      deletedCustomIconIds: [],
+      ai: {
+        providers: [],
+        models: [],
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions: [],
+        messages: {},
+        unreadSessionIds: [],
+        selectedModelId: null,
+        currentSessionId: null,
+      },
+    });
+
+    const mainWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
+      String(path).endsWith('/.vlaina/data.json'),
+    );
+    const payload = JSON.parse(String(mainWrite?.[1]));
+    expect(payload.data.customIcons).toEqual([]);
+    expect(payload.data.deletedCustomIconIds).toEqual(['/app/.vlaina/assets/icons/deleted.png']);
+  });
+
+  it('applies settings patches without overwriting unrelated settings from another window', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/.vlaina/data.json')) {
+        return JSON.stringify({
+          version: 2,
+          lastModified: 1,
+          data: {
+            settings: {
+              timezone: { offset: -300, city: 'New York' },
+              markdown: { typewriterMode: false, codeBlock: { showLineNumbers: false } },
+              ui: { lastAppViewMode: 'chat' },
+            },
+            customIcons: [],
+            deletedCustomIconIds: [],
+          },
+        });
+      }
+
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          version: 1,
+          updatedAt: 1,
+          data: {
+            sessions: [],
+            selectedModelId: null,
+            unreadSessionIds: [],
+            currentSessionId: null,
+            temporaryChatEnabled: false,
+            customSystemPrompt: '',
+            includeTimeContext: true,
+            webSearchEnabled: false,
+            providerIds: [],
+            deletedSessionIds: [],
+            deletedProviderIds: [],
+          },
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    await saveUnifiedDataImmediate({
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: true, codeBlock: { showLineNumbers: true } },
+        ui: { lastAppViewMode: 'notes' },
+      },
+      customIcons: [],
+      ai: {
+        providers: [],
+        models: [],
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions: [],
+        messages: {},
+        unreadSessionIds: [],
+        selectedModelId: null,
+        currentSessionId: null,
+      },
+    }, {
+      settings: {
+        markdown: {
+          codeBlock: {
+            showLineNumbers: true,
+          },
+        },
+      },
+    });
+
+    const mainWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
+      String(path).endsWith('/.vlaina/data.json'),
+    );
+    const payload = JSON.parse(String(mainWrite?.[1]));
+    expect(payload.data.settings).toEqual({
+      timezone: { offset: -300, city: 'New York' },
+      markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      ui: { lastAppViewMode: 'chat' },
+    });
+  });
+
+  it('preserves disk settings when a stale save only changes non-settings data', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/.vlaina/data.json')) {
+        return JSON.stringify({
+          version: 2,
+          lastModified: 1,
+          data: {
+            settings: {
+              timezone: { offset: -300, city: 'New York' },
+              markdown: { typewriterMode: true, codeBlock: { showLineNumbers: true } },
+              ui: { lastAppViewMode: 'chat' },
+            },
+            customIcons: [],
+            deletedCustomIconIds: [],
+          },
+        });
+      }
+
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          version: 1,
+          updatedAt: 1,
+          data: {
+            sessions: [],
+            selectedModelId: null,
+            unreadSessionIds: [],
+            currentSessionId: null,
+            temporaryChatEnabled: false,
+            customSystemPrompt: '',
+            includeTimeContext: true,
+            webSearchEnabled: false,
+            providerIds: [],
+            deletedSessionIds: [],
+            deletedProviderIds: [],
+          },
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    await saveUnifiedDataImmediate({
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: false } },
+        ui: { lastAppViewMode: 'notes' },
+      },
+      customIcons: [
+        { id: '/app/.vlaina/assets/icons/local.png', url: 'img:/app/.vlaina/assets/icons/local.png', name: 'local.png', createdAt: 10 },
+      ],
+      deletedCustomIconIds: [],
+      ai: {
+        providers: [],
+        models: [],
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions: [],
+        messages: {},
+        unreadSessionIds: [],
+        selectedModelId: null,
+        currentSessionId: null,
+      },
+    });
+
+    const mainWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
+      String(path).endsWith('/.vlaina/data.json'),
+    );
+    const payload = JSON.parse(String(mainWrite?.[1]));
+    expect(payload.data.settings).toEqual({
+      timezone: { offset: -300, city: 'New York' },
+      markdown: { typewriterMode: true, codeBlock: { showLineNumbers: true } },
+      ui: { lastAppViewMode: 'chat' },
+    });
+    expect(payload.data.customIcons.map((icon: { id: string }) => icon.id)).toEqual([
+      '/app/.vlaina/assets/icons/local.png',
+    ]);
   });
 
   it('skips keychain cleanup work outside electron runtime', async () => {

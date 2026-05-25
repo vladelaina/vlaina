@@ -4,6 +4,7 @@ import { ensureVaultConfig } from './vaultConfig';
 const adapter = {
   exists: vi.fn<(path: string) => Promise<boolean>>(),
   readFile: vi.fn<(path: string) => Promise<string>>(),
+  stat: vi.fn<(path: string) => Promise<{ size?: number } | null>>(),
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
   mkdir: vi.fn<(path: string, recursive?: boolean) => Promise<void>>(),
   getBasePath: vi.fn<() => Promise<string>>(),
@@ -20,6 +21,7 @@ describe('vaultConfig', () => {
     vi.spyOn(Date, 'now').mockReturnValue(1234);
     adapter.exists.mockResolvedValue(false);
     adapter.readFile.mockResolvedValue('{}');
+    adapter.stat.mockResolvedValue(null);
     adapter.writeFile.mockResolvedValue(undefined);
     adapter.mkdir.mockResolvedValue(undefined);
     adapter.getBasePath.mockResolvedValue('/app');
@@ -57,6 +59,19 @@ describe('vaultConfig', () => {
 
     await ensureVaultConfig('/vault');
 
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
+      JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)
+    );
+  });
+
+  it('repairs oversized existing config content without reading it', async () => {
+    adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockResolvedValue({ size: 100 * 1024 });
+
+    await ensureVaultConfig('/vault');
+
+    expect(adapter.readFile).not.toHaveBeenCalled();
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
       JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)

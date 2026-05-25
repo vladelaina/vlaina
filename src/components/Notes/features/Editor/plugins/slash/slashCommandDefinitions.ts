@@ -27,6 +27,10 @@ interface SlashCommandDefinition {
   run: (ctx: Ctx) => boolean | void | Promise<void>;
 }
 
+function markSlashUserInput(view: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
+  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+}
+
 function insertNode(ctx: Ctx, nodeType: string, attrs?: object) {
   const view = ctx.get(editorViewCtx);
   const { state, dispatch } = view;
@@ -36,6 +40,7 @@ function insertNode(ctx: Ctx, nodeType: string, attrs?: object) {
   try {
     const node = type.createAndFill?.(attrs) ?? type.create(attrs);
     if (!node) return;
+    markSlashUserInput(view);
     dispatch(state.tr.replaceSelectionWith(node).scrollIntoView());
   } catch (error) {
   }
@@ -55,6 +60,7 @@ function replaceCurrentTextBlockWithParagraphText(ctx: Ctx, text: string) {
   const tr = state.tr.replaceWith(from, to, nextNode);
 
   tr.setSelection(TextSelection.create(tr.doc, from + 1 + text.length)).scrollIntoView();
+  markSlashUserInput(view);
   dispatch(tr);
 }
 
@@ -162,7 +168,10 @@ export const slashCommandDefinitions = [
     icon: 'editor.divider',
     searchTerms: ['hr', 'line', 'separator'],
     commandId: 'divider',
-    run: (ctx) => ctx.get(commandsCtx).call(insertHrCommand.key),
+    run: (ctx) => {
+      markSlashUserInput(ctx.get(editorViewCtx));
+      ctx.get(commandsCtx).call(insertHrCommand.key);
+    },
   },
   {
     id: 'code-block',
@@ -178,7 +187,10 @@ export const slashCommandDefinitions = [
     icon: 'editor.table',
     searchTerms: ['grid'],
     commandId: 'table',
-    run: (ctx) => ctx.get(commandsCtx).call(insertTableCommand.key),
+    run: (ctx) => {
+      markSlashUserInput(ctx.get(editorViewCtx));
+      ctx.get(commandsCtx).call(insertTableCommand.key);
+    },
   },
   {
     id: 'image',

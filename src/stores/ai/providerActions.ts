@@ -25,6 +25,7 @@ let managedModelsRefreshInFlight: Promise<void> | null = null;
 let managedModelsLastRefreshAttemptAt = 0;
 let managedModelsLastForcedRefreshAttemptAt = 0;
 let managedModelsCatalogVersion: string | null = null;
+const locallyCreatedProviderIds = new Set<string>();
 
 async function refreshManagedBudgetIfConnected(): Promise<void> {
   if (!useAccountSessionStore.getState().isConnected) {
@@ -155,6 +156,7 @@ export const actions = {
     const id = generateId('provider-')
     const now = Date.now()
     const newProvider: Provider = { ...provider, id, createdAt: now, updatedAt: now }
+    locallyCreatedProviderIds.add(id)
     const state = useUnifiedStore.getState();
     const currentProviders = state.data.ai?.providers || [];
     state.updateAIData({ providers: [...currentProviders, newProvider] });
@@ -205,7 +207,10 @@ export const actions = {
     const ai = state.data.ai!;
     const providerIdsToDelete = new Set(
       ai.providers
-        .filter(shouldDeleteIncompleteCustomProvider)
+        .filter((provider) =>
+          locallyCreatedProviderIds.has(provider.id) &&
+          shouldDeleteIncompleteCustomProvider(provider)
+        )
         .map((provider) => provider.id)
     );
 
@@ -237,6 +242,9 @@ export const actions = {
           : ai.selectedModelId,
         remainingModels
       ),
+    });
+    providerIdsToDelete.forEach((providerId) => {
+      locallyCreatedProviderIds.delete(providerId);
     });
   },
 

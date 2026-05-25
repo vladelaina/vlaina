@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { moveImageNode } from './imageNodeCommands';
+import { applyImageNodeAttrsAtPos, deleteImageNodeAtPos, moveImageNode } from './imageNodeCommands';
 
 function createDoc(nodes: Record<number, any>) {
     return {
@@ -40,6 +40,32 @@ function createParagraphNode() {
 }
 
 describe('imageNodeCommands', () => {
+    it('marks image attr updates as user input so autosave can persist them', () => {
+        const imageNode = createImageNode({ src: './assets/demo.png', alt: 'demo' });
+        const doc = createDoc({ 12: imageNode });
+        const tr: any = {
+            setNodeMarkup: vi.fn(() => tr),
+        };
+        const view: any = {
+            dom: new EventTarget(),
+            state: { doc, tr },
+            dispatch: vi.fn(),
+        };
+        const listener = vi.fn();
+        view.dom.addEventListener('vlaina:image-user-input', listener);
+
+        const updated = applyImageNodeAttrsAtPos(view, 12, { width: '70%' });
+
+        expect(updated).toBe(true);
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(tr.setNodeMarkup).toHaveBeenCalledWith(
+            12,
+            undefined,
+            expect.objectContaining({ width: '70%' }),
+        );
+        expect(view.dispatch).toHaveBeenCalledWith(tr);
+    });
+
     it('applies left alignment to the inserted image node when moving upward', () => {
         const imageAttrs = {
             src: './assets/demo.png',
@@ -75,12 +101,15 @@ describe('imageNodeCommands', () => {
             }),
         };
         const view: any = {
+            dom: new EventTarget(),
             state: {
                 doc: initialDoc,
                 tr,
             },
             dispatch: vi.fn(),
         };
+        const listener = vi.fn();
+        view.dom.addEventListener('vlaina:image-user-input', listener);
 
         const moved = moveImageNode(view, {
             sourcePos: 51,
@@ -101,6 +130,7 @@ describe('imageNodeCommands', () => {
         expect(nextAttrs.src).toBe('./assets/demo.png');
         expect(nextAttrs.align).toBe('left');
         expect(nextAttrs.width).toBe('72%');
+        expect(listener).toHaveBeenCalledTimes(1);
         expect(view.dispatch).toHaveBeenCalledWith(tr);
     });
 
@@ -139,12 +169,15 @@ describe('imageNodeCommands', () => {
             }),
         };
         const view: any = {
+            dom: new EventTarget(),
             state: {
                 doc: initialDoc,
                 tr,
             },
             dispatch: vi.fn(),
         };
+        const listener = vi.fn();
+        view.dom.addEventListener('vlaina:image-user-input', listener);
 
         const moved = moveImageNode(view, {
             sourcePos: 49,
@@ -165,6 +198,29 @@ describe('imageNodeCommands', () => {
         expect(nextAttrs.src).toBe('./assets/demo.png');
         expect(nextAttrs.align).toBe('right');
         expect(nextAttrs.width).toBe('72%');
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(view.dispatch).toHaveBeenCalledWith(tr);
+    });
+
+    it('marks image deletion as user input so autosave can persist it', () => {
+        const imageNode = createImageNode({ src: './assets/demo.png', alt: 'demo' });
+        const doc = createDoc({ 20: imageNode });
+        const tr: any = {
+            delete: vi.fn(() => tr),
+        };
+        const view: any = {
+            dom: new EventTarget(),
+            state: { doc, tr },
+            dispatch: vi.fn(),
+        };
+        const listener = vi.fn();
+        view.dom.addEventListener('vlaina:image-user-input', listener);
+
+        const deleted = deleteImageNodeAtPos(view, 20);
+
+        expect(deleted).toBe(true);
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(tr.delete).toHaveBeenCalledWith(20, 21);
         expect(view.dispatch).toHaveBeenCalledWith(tr);
     });
 });

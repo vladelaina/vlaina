@@ -120,22 +120,28 @@ describe('uiSlice', () => {
   });
 
   it('reloads local settings preferences from storage for external window sync', () => {
+    localStorage.setItem('vlaina-notes-sidebar-collapsed', 'true');
+    localStorage.setItem('vlaina_sidebar_width', '360');
     localStorage.setItem('fontSize', '18');
     localStorage.setItem('vlaina-language-preference', 'zh-CN');
     localStorage.setItem('vlaina_image_storage_mode', 'vaultSubfolder');
     localStorage.setItem('vlaina_image_subfolder_name', 'inline-assets');
     localStorage.setItem('vlaina_image_vault_subfolder_name', 'vault-assets');
     localStorage.setItem('vlaina_image_filename_format', 'sequence');
+    localStorage.setItem('vlaina_notes_chat_panel_collapsed', 'true');
 
     useUIStore.getState().reloadPreferencesFromStorage();
 
     expect(useUIStore.getState()).toMatchObject({
+      sidebarCollapsed: true,
+      sidebarWidth: 360,
       fontSize: 18,
       languagePreference: 'zh-CN',
       imageStorageMode: 'vaultSubfolder',
       imageSubfolderName: 'inline-assets',
       imageVaultSubfolderName: 'vault-assets',
       imageFilenameFormat: 'sequence',
+      notesChatPanelCollapsed: true,
     });
   });
 

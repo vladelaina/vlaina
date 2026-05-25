@@ -5,6 +5,10 @@ import { createVideoDom } from './videoDom';
 import { VideoNodeView } from './videoNodeView';
 import { normalizeVideoUrlInput, parseVideoUrl } from './videoUrl';
 
+function markVideoUserInput(state: { view?: { dom?: { dispatchEvent?: (event: Event) => boolean } } }): void {
+  state.view?.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+}
+
 export const videoSchema = $node('video', () => ({
   group: 'block',
   atom: true,
@@ -81,6 +85,7 @@ export const insertVideoCommand = $command('insertVideo', () => (src: string = '
         tr.insert(afterVideoPos, paragraphType.create());
         tr.setSelection(TextSelection.create(tr.doc, afterVideoPos + 1));
       }
+      markVideoUserInput(state);
       dispatch(tr.scrollIntoView());
     }
 

@@ -7,6 +7,7 @@ import { getAutoSaveableDraftPaths, saveAutoSaveableDrafts } from '@/stores/note
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { saveDirtyRegularOpenTabs } from '@/stores/notes/dirtyOpenTabs';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
+import { flushStarredRegistry } from '@/stores/notes/starred';
 import { saveWorkspaceSnapshot } from '@/stores/notes/workspacePersistence';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useCloseDraftPersistence } from './useCloseDraftPersistence';
@@ -136,6 +137,7 @@ export function useElectronCloseGuard() {
         const tasks: Array<{ name: string; task: Promise<unknown> }> = [
           { name: 'unified storage', task: flushPendingSave() },
           { name: 'chat session storage', task: flushPendingSessionJsonSaves() },
+          { name: 'starred notes registry', task: flushStarredRegistry() },
         ];
 
         const initialNotesState = useNotesStore.getState();

@@ -25,6 +25,17 @@ function isActiveUploadVault(state: NotesStore, vaultPath: string) {
   }) === vaultPath;
 }
 
+function isActiveAssetLoadScope(
+  state: NotesStore,
+  vaultPath: string,
+  loadKey: string,
+) {
+  const currentConfig = getAssetConfig();
+  const currentLoadKey = getLoadAssetsKey(vaultPath, state.currentNote?.path, currentConfig);
+
+  return currentLoadKey === loadKey && isActiveUploadVault(state, vaultPath);
+}
+
 function combineAndSortAssets(userAssets: AssetEntry[]): AssetEntry[] {
   return [...userAssets].sort((a, b) => b.filename.localeCompare(a.filename));
 }
@@ -96,6 +107,11 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
       }
 
       assets = combineAndSortAssets(assets);
+
+      if (!isActiveAssetLoadScope(get(), vaultPath, loadKey)) {
+        set({ isLoadingAssets: false });
+        return;
+      }
 
       set({ assetList: assets, isLoadingAssets: false });
     } catch (error) {

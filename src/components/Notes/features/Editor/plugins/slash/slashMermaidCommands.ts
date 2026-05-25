@@ -4,6 +4,10 @@ import { mermaidEditorPluginKey } from '../mermaid/mermaidEditorPluginKey';
 import { createOpenMermaidEditorState } from '../mermaid/mermaidEditorState';
 import { findInsertedNodePos, getSlashInsertViewportPosition } from './slashInsertUtils';
 
+function markSlashUserInput(view: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
+  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+}
+
 export function insertMermaidNodeAndOpenEditor(ctx: Ctx) {
   const view = ctx.get(editorViewCtx);
   const { state, dispatch } = view;
@@ -32,6 +36,7 @@ export function insertMermaidNodeAndOpenEditor(ctx: Ctx) {
         })
       )
       .scrollIntoView();
+    markSlashUserInput(view);
     dispatch(tr);
   } catch (error) {
   }

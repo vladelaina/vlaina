@@ -12,6 +12,7 @@ function createEditorView(node: {
 
   return {
     editorView: {
+      dom: new EventTarget(),
       state: {
         doc: {
           nodeAt: vi.fn(() => node),
@@ -36,10 +37,13 @@ describe('mathEditorEditing', () => {
       type: { name: 'math_inline' },
       attrs: { latex: 'x', id: 'node-1' },
     });
+    const listener = vi.fn();
+    editorView.dom.addEventListener('vlaina:block-user-input', listener);
 
     const updated = applyMathNodeLatex(editorView, 7, 'x+1');
 
     expect(updated).toBe(true);
+    expect(listener).toHaveBeenCalledTimes(1);
     expect(setNodeMarkup).toHaveBeenCalledWith(7, undefined, {
       latex: 'x+1',
       id: 'node-1',
@@ -81,10 +85,13 @@ describe('mathEditorEditing', () => {
       type: { name: 'math_block' },
       attrs: { latex: '' },
     });
+    const listener = vi.fn();
+    editorView.dom.addEventListener('vlaina:block-user-input', listener);
 
     const removed = removeMathNode(editorView, 4);
 
     expect(removed).toBe(true);
+    expect(listener).toHaveBeenCalledTimes(1);
     expect(deleteNode).toHaveBeenCalledWith(4, 5);
     expect(dispatch).toHaveBeenCalledWith(transaction);
   });

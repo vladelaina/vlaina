@@ -63,6 +63,7 @@ describe('imageNodeInsertion', () => {
         const imageNode = { type: 'image-node' };
         const create = vi.fn(() => imageNode);
         const view = {
+            dom: { dispatchEvent: vi.fn() },
             state: {
                 schema: { nodes: { image: { create } } },
                 tr,
@@ -79,6 +80,9 @@ describe('imageNodeInsertion', () => {
         });
         expect(replaceSelectionWith).toHaveBeenCalledWith(imageNode);
         expect(scrollIntoView).toHaveBeenCalled();
+        expect(view.dom.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+            type: 'vlaina:image-user-input',
+        }));
         expect(dispatch).toHaveBeenCalledWith(tr);
     });
 });

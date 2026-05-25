@@ -105,12 +105,15 @@ interface UIStore {
 
 type UIPreferenceState = Pick<
   UIStore,
+  | 'sidebarCollapsed'
+  | 'sidebarWidth'
   | 'fontSize'
   | 'languagePreference'
   | 'imageStorageMode'
   | 'imageSubfolderName'
   | 'imageVaultSubfolderName'
   | 'imageFilenameFormat'
+  | 'notesChatPanelCollapsed'
 >;
 
 function loadBoolean(key: string, defaultValue: boolean): boolean {
@@ -262,12 +265,15 @@ function normalizeAppViewMode(mode: AppViewMode): AppViewMode {
 
 function loadUIPreferencesFromStorage(): UIPreferenceState {
   return {
+    sidebarCollapsed: loadBoolean(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, false),
+    sidebarWidth: loadNumber(STORAGE_KEY_SIDEBAR_WIDTH, getDefaultSidebarWidth()),
     fontSize: loadFontSize(),
     languagePreference: loadLanguagePreference(),
     imageStorageMode: loadImageStorageMode(),
     imageSubfolderName: loadImageSubfolderName(),
     imageVaultSubfolderName: loadImageVaultSubfolderName(),
     imageFilenameFormat: loadImageFilenameFormat(),
+    notesChatPanelCollapsed: loadNotesChatPanelCollapsed(),
   };
 }
 
@@ -290,15 +296,13 @@ export const useUIStore = create<UIStore>()((set) => ({
     return { appViewMode: mode };
   }),
 
-  sidebarCollapsed: loadBoolean(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, false),
   toggleSidebar: () => set((state) => {
     const next = !state.sidebarCollapsed;
-    saveString(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, String(next));
+    savePreferenceString(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, String(next));
     return { sidebarCollapsed: next };
   }),
-  sidebarWidth: loadNumber(STORAGE_KEY_SIDEBAR_WIDTH, getDefaultSidebarWidth()),
   setSidebarWidth: (width) => {
-    saveString(STORAGE_KEY_SIDEBAR_WIDTH, String(width));
+    savePreferenceString(STORAGE_KEY_SIDEBAR_WIDTH, String(width));
     set({ sidebarWidth: width });
   },
   layoutPanelDragging: false,
@@ -377,15 +381,14 @@ export const useUIStore = create<UIStore>()((set) => ({
     set({ imageFilenameFormat: format });
   },
 
-  notesChatPanelCollapsed: loadNotesChatPanelCollapsed(),
   setNotesChatPanelCollapsed: (collapsed) => {
-    saveString(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, String(collapsed));
+    savePreferenceString(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, String(collapsed));
     set({ notesChatPanelCollapsed: collapsed });
   },
   toggleNotesChatPanel: () =>
     set((state) => {
       const next = !state.notesChatPanelCollapsed;
-      saveString(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, String(next));
+      savePreferenceString(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, String(next));
       return { notesChatPanelCollapsed: next };
     }),
   pendingNotesChatComposerInsert: null,

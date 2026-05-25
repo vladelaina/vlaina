@@ -10,6 +10,10 @@ function getImageNodeAtPos(view: EditorView, pos: number): ProseNode | null {
     return node;
 }
 
+function markImageUserInput(view: EditorView): void {
+    view.dom.dispatchEvent(new CustomEvent('vlaina:image-user-input', { bubbles: true }));
+}
+
 function matchesImageNode(node: ProseNode | null, expectedAttrs: ImageNodeAttrs): node is ProseNode {
     if (!node || node.type.name !== 'image') return false;
 
@@ -62,6 +66,7 @@ export function applyImageNodeAttrsAtPos(
     if (!latestNode) return false;
     const latestAttrs = latestNode.attrs as ImageNodeAttrs;
     const nextAttrs = mergeImageNodeAttrs(latestAttrs, incomingAttrs);
+    markImageUserInput(view);
     view.dispatch(view.state.tr.setNodeMarkup(pos, undefined, nextAttrs));
     return true;
 }
@@ -87,6 +92,7 @@ export function moveImageNode(view: EditorView, options: MoveImageNodeOptions): 
         return false;
     }
 
+    markImageUserInput(view);
     const updatedAttrs = mergeImageNodeAttrs(imageNode.attrs, { align: nextAlign });
     const tr = state.tr;
 
@@ -130,6 +136,7 @@ export function moveImageNode(view: EditorView, options: MoveImageNodeOptions): 
 export function deleteImageNodeAtPos(view: EditorView, pos: number): boolean {
     const imageNode = getImageNodeAtPos(view, pos);
     if (!imageNode) return false;
+    markImageUserInput(view);
     view.dispatch(view.state.tr.delete(pos, pos + imageNode.nodeSize));
     return true;
 }

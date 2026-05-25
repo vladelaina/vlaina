@@ -206,4 +206,49 @@ describe('assetSlice loadAssets', () => {
 
     expect(mocks.list).toHaveBeenCalledTimes(1);
   });
+
+  it('ignores a stale asset refresh after switching vaults', async () => {
+    let resolveList: (value: Array<{
+      filename: string;
+      hash: string;
+      size: number;
+      mimeType: string;
+      uploadedAt: string;
+    }>) => void = () => {};
+    mocks.list.mockReturnValue(new Promise((resolve) => {
+      resolveList = resolve;
+    }));
+    const harness = createSliceHarness({
+      notesPath: '/vault-a',
+      currentNote: { path: 'daily/demo.md', content: '' },
+      assetList: [
+        {
+          filename: './assets/current.jpg',
+          hash: 'current',
+          size: 10,
+          mimeType: 'image/jpeg',
+          uploadedAt: '2026-05-08T01:47:54.361Z',
+        },
+      ],
+    });
+
+    const load = harness.getState().loadAssets('/vault-a');
+    harness.getState().notesPath = '/vault-b';
+    harness.getState().currentNote = { path: 'daily/other.md', content: '' };
+
+    resolveList([
+      {
+        filename: './assets/stale.jpg',
+        hash: 'stale',
+        size: 10,
+        mimeType: 'image/jpeg',
+        uploadedAt: '2026-05-08T01:47:54.361Z',
+      },
+    ]);
+    await load;
+
+    expect(harness.getState().assetList.map((entry: { filename: string }) => entry.filename))
+      .toEqual(['./assets/current.jpg']);
+    expect(harness.getState().isLoadingAssets).toBe(false);
+  });
 });

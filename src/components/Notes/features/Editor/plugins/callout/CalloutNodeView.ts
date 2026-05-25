@@ -56,6 +56,7 @@ export class CalloutNodeView implements NodeView {
       ...this.node.attrs,
       icon,
     };
+    this.view.dom.dispatchEvent(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
     this.view.dispatch(this.view.state.tr.setNodeMarkup(pos, undefined, attrs));
     this.view.focus();
   }

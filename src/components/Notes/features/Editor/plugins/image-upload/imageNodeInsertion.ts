@@ -37,6 +37,7 @@ export function insertImageNodeAtSelection(view: EditorView, src: string): boole
     }
 
     try {
+        view.dom.dispatchEvent(new CustomEvent('vlaina:image-user-input', { bubbles: true }));
         view.dispatch(view.state.tr.replaceSelectionWith(imageNode).scrollIntoView());
         return true;
     } catch (error) {

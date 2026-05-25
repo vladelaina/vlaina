@@ -63,6 +63,12 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
     endpointTypeCheckedAt: initialProvider?.endpointTypeCheckedAt,
     persistedApiHost: initialProvider?.apiHost || '',
   });
+  const syncedProviderSnapshotRef = useRef({
+    providerId: initialProvider?.id || '',
+    name: initialProvider?.name || '',
+    apiHost: initialProvider?.apiHost || '',
+    apiKey: initialProvider?.apiKey || '',
+  });
   const updateProviderRef = useRef(updateProvider);
 
   const providerId = initialProvider?.id;
@@ -82,11 +88,23 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
       setApiKey(initialProvider.apiKey || '');
       setApiHost(initialProvider.apiHost || '');
       setAllowHiddenApiKeyEditing(!initialProvider.apiKey);
+      syncedProviderSnapshotRef.current = {
+        providerId: initialProvider.id,
+        name: initialProvider.name,
+        apiHost: initialProvider.apiHost || '',
+        apiKey: initialProvider.apiKey || '',
+      };
     } else {
       setName('');
       setApiKey('');
       setApiHost('');
       setAllowHiddenApiKeyEditing(true);
+      syncedProviderSnapshotRef.current = {
+        providerId: '',
+        name: '',
+        apiHost: '',
+        apiKey: '',
+      };
     }
 
     setQuickAddModelId('');
@@ -96,6 +114,51 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
     setApiKeyCopied(false);
     onDraftClear?.();
   }, [providerId]);
+
+  useEffect(() => {
+    const nextSnapshot = {
+      providerId: initialProvider?.id || '',
+      name: initialProvider?.name || '',
+      apiHost: initialProvider?.apiHost || '',
+      apiKey: initialProvider?.apiKey || '',
+    };
+    const previousSnapshot = syncedProviderSnapshotRef.current;
+    if (nextSnapshot.providerId !== previousSnapshot.providerId) {
+      syncedProviderSnapshotRef.current = nextSnapshot;
+      return;
+    }
+
+    const providerChanged =
+      nextSnapshot.name !== previousSnapshot.name ||
+      nextSnapshot.apiHost !== previousSnapshot.apiHost ||
+      nextSnapshot.apiKey !== previousSnapshot.apiKey;
+    if (!providerChanged) {
+      return;
+    }
+
+    const hasLocalDraft =
+      name !== previousSnapshot.name ||
+      apiHost !== previousSnapshot.apiHost ||
+      apiKey !== previousSnapshot.apiKey;
+    if (!hasLocalDraft) {
+      setName(nextSnapshot.name);
+      setApiHost(nextSnapshot.apiHost);
+      setApiKey(nextSnapshot.apiKey);
+      setAllowHiddenApiKeyEditing(!nextSnapshot.apiKey);
+      onDraftClear?.();
+    }
+
+    syncedProviderSnapshotRef.current = nextSnapshot;
+  }, [
+    apiHost,
+    apiKey,
+    initialProvider?.apiHost,
+    initialProvider?.apiKey,
+    initialProvider?.id,
+    initialProvider?.name,
+    name,
+    onDraftClear,
+  ]);
 
   useEffect(() => {
     setFetchedModels(persistedProviderFetchedModels);

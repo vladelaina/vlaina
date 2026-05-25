@@ -269,6 +269,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   },
 
   openNoteByAbsolutePath: async (absolutePath: string, openInNewTab: boolean = false) => {
+    flushCurrentPendingEditorMarkdown();
     if (!isSupportedMarkdownPath(absolutePath)) {
       set({ error: 'Only Markdown files can be opened as notes.' });
       return;

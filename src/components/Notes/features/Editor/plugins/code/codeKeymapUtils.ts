@@ -9,6 +9,11 @@ import {
 
 type ProseDispatch = ((tr: Transaction) => void) | null | undefined;
 
+function markCodeUserInput(state: EditorState): void {
+  const view = state as EditorState & { view?: { dom?: { dispatchEvent?: (event: Event) => boolean } } };
+  view.view?.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+}
+
 export function convertParagraphToCodeBlock(
   state: EditorState,
   dispatch: ProseDispatch,
@@ -30,6 +35,7 @@ export function convertParagraphToCodeBlock(
     const node = codeBlockType.create(createCodeBlockAttrs({ language: normalizedLanguage }));
     tr.replaceWith(start, end, node);
     tr.setSelection(TextSelection.create(tr.doc, start + 1));
+    markCodeUserInput(state);
     dispatch(tr);
   }
 
@@ -89,6 +95,7 @@ export function handleEmptyCodeBlockBackspace(
   if (dispatch) {
     const tr = state.tr;
     tr.delete($from.before(), $from.after());
+    markCodeUserInput(state);
     dispatch(tr);
   }
 

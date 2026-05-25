@@ -4,6 +4,10 @@ import { mathEditorPluginKey } from '../math/mathEditorPluginKey';
 import { createOpenMathEditorState } from '../math/mathEditorState';
 import { findInsertedNodePos, getSlashInsertViewportPosition } from './slashInsertUtils';
 
+function markSlashUserInput(view: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
+  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+}
+
 export function insertMathNodeAndOpenEditor(ctx: Ctx, nodeType: 'math_block' | 'math_inline') {
   const view = ctx.get(editorViewCtx);
   const { state, dispatch } = view;
@@ -33,6 +37,7 @@ export function insertMathNodeAndOpenEditor(ctx: Ctx, nodeType: 'math_block' | '
         })
       )
       .scrollIntoView();
+    markSlashUserInput(view);
     dispatch(tr);
   } catch (error) {
   }

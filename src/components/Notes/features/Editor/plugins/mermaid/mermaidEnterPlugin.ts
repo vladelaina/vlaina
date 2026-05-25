@@ -6,6 +6,10 @@ import { mermaidEditorPluginKey } from './mermaidEditorPluginKey';
 import { createMermaidFenceStarterCode } from './mermaidFenceCode';
 import { parseMermaidFenceLanguage } from './mermaidLanguage';
 
+function markMermaidUserInput(view: EditorView): void {
+  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+}
+
 function getMermaidEnterViewportPosition(view: EditorView) {
   try {
     const coords = view.coordsAtPos(view.state.selection.from);
@@ -75,6 +79,7 @@ export function handleMermaidFenceEnter(view: EditorView): boolean {
     )
     .scrollIntoView();
 
+  markMermaidUserInput(view);
   view.dispatch(tr);
   return true;
 }

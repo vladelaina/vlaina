@@ -9,7 +9,11 @@ describe('link tooltip transactions', () => {
 
         const deleteMock = vi.fn(() => 'delete-tr');
         const dispatch = vi.fn();
+        const dom = new EventTarget();
+        const listener = vi.fn();
+        dom.addEventListener('vlaina:block-user-input', listener);
         const view = {
+            dom,
             posAtDOM: vi.fn(() => 3),
             state: {
                 doc: {
@@ -36,6 +40,7 @@ describe('link tooltip transactions', () => {
         };
 
         expect(removeExistingLink(view as never, link)).toBe(true);
+        expect(listener).toHaveBeenCalledTimes(1);
         expect(deleteMock).toHaveBeenCalledWith(3, 22);
         expect(dispatch).toHaveBeenCalledWith('delete-tr');
     });
@@ -43,7 +48,11 @@ describe('link tooltip transactions', () => {
     it('removes the link mark when the edited href is plain text', () => {
         const removeMark = vi.fn(() => 'remove-mark-tr');
         const dispatch = vi.fn();
+        const dom = new EventTarget();
+        const listener = vi.fn();
+        dom.addEventListener('vlaina:block-user-input', listener);
         const view = {
+            dom,
             state: {
                 schema: {
                     marks: {
@@ -58,6 +67,7 @@ describe('link tooltip transactions', () => {
         };
 
         expect(editLinkAtPosition(view as never, 2, 9, 'me', 'me')).toBeNull();
+        expect(listener).toHaveBeenCalledTimes(1);
         expect(removeMark).toHaveBeenCalledWith(2, 9, {});
         expect(dispatch).toHaveBeenCalledWith('remove-mark-tr');
     });

@@ -51,6 +51,7 @@ const mocks = vi.hoisted(() => {
     },
     flushPendingSave: vi.fn().mockResolvedValue(undefined),
     flushPendingSessionJsonSaves: vi.fn().mockResolvedValue(undefined),
+    flushStarredRegistry: vi.fn().mockResolvedValue(undefined),
     flushCurrentPendingEditorMarkdown: vi.fn(() => false),
     openStoredNotePath: vi.fn().mockResolvedValue(undefined),
     saveWorkspaceSnapshot: vi.fn().mockResolvedValue(undefined),
@@ -112,6 +113,10 @@ vi.mock('@/lib/storage/unifiedStorage', () => ({
 vi.mock('@/lib/storage/chatStorage', () => ({
   flushPendingSessionJsonSaves: mocks.flushPendingSessionJsonSaves,
   hasSessionJson: vi.fn(async () => false),
+}));
+
+vi.mock('@/stores/notes/starred', () => ({
+  flushStarredRegistry: mocks.flushStarredRegistry,
 }));
 
 vi.mock('@/stores/useNotesStore', () => ({
@@ -321,6 +326,8 @@ describe('App close flow', () => {
     mocks.desktopWindow.onCloseRequested.mockClear();
     mocks.flushPendingSave.mockClear();
     mocks.flushPendingSessionJsonSaves.mockClear();
+    mocks.flushStarredRegistry.mockClear();
+    mocks.flushStarredRegistry.mockResolvedValue(undefined);
     mocks.saveWorkspaceSnapshot.mockClear();
     mocks.saveWorkspaceSnapshot.mockResolvedValue(undefined);
     mocks.flushCurrentPendingEditorMarkdown.mockClear();
@@ -367,6 +374,7 @@ describe('App close flow', () => {
     await waitFor(() => {
       expect(mocks.flushPendingSave).toHaveBeenCalledTimes(1);
       expect(mocks.flushPendingSessionJsonSaves).toHaveBeenCalledTimes(1);
+      expect(mocks.flushStarredRegistry).toHaveBeenCalledTimes(1);
       expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
     });
 
@@ -485,6 +493,7 @@ describe('App close flow', () => {
     await waitFor(() => {
       expect(mocks.flushPendingSave).toHaveBeenCalledTimes(1);
       expect(mocks.flushPendingSessionJsonSaves).toHaveBeenCalledTimes(1);
+      expect(mocks.flushStarredRegistry).toHaveBeenCalledTimes(1);
       expect(mocks.notesState.saveNote).toHaveBeenCalledTimes(1);
       expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
     });

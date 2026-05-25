@@ -2,6 +2,10 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { isSelectionFullyInsideNode, moveSelectionAfterNode } from './codeBlockSelectionUtils';
 import { normalizeCodeBlockLanguage } from './codeBlockLanguage';
 
+function markCodeBlockUserInput(view: EditorView): void {
+  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+}
+
 export function updateCodeBlockLanguage(
   view: EditorView,
   pos: number,
@@ -13,6 +17,7 @@ export function updateCodeBlockLanguage(
   }
 
   const normalized = normalizeCodeBlockLanguage(language);
+  markCodeBlockUserInput(view);
   view.dispatch(
     view.state.tr.setNodeMarkup(pos, undefined, {
       ...currentNode.attrs,
@@ -41,5 +46,6 @@ export function toggleCodeBlockCollapsed(
     moveSelectionAfterNode(tr, pos, currentNode.nodeSize);
   }
 
+  markCodeBlockUserInput(view);
   view.dispatch(tr);
 }

@@ -19,6 +19,20 @@ export function toHealthStatusMap(record?: ProviderBenchmarkRecord): Record<stri
   );
 }
 
+function getInitialHealthStatus(
+  providerId: string | undefined,
+  benchmarkResults: Record<string, ProviderBenchmarkRecord>
+) {
+  return providerId ? toHealthStatusMap(benchmarkResults[providerId]) : {};
+}
+
+function getInitialHealthOverall(
+  providerId: string | undefined,
+  benchmarkResults: Record<string, ProviderBenchmarkRecord>
+) {
+  return providerId ? benchmarkResults[providerId]?.overall || 'idle' : 'idle';
+}
+
 export function useProviderBenchmarkSnapshot({
   providerId,
   benchmarkResults,
@@ -26,18 +40,51 @@ export function useProviderBenchmarkSnapshot({
   providerId: string | undefined;
   benchmarkResults: Record<string, ProviderBenchmarkRecord>;
 }) {
-  const [healthStatus, setHealthStatus] = useState<Record<string, HealthStatus>>({});
+  const [healthStatus, setHealthStatus] = useState<Record<string, HealthStatus>>(() =>
+    getInitialHealthStatus(providerId, benchmarkResults)
+  );
   const [isHealthChecking, setIsHealthChecking] = useState(false);
-  const [healthCheckOverall, setHealthCheckOverall] = useState<'idle' | 'success' | 'error'>('idle');
+  const [healthCheckOverall, setHealthCheckOverall] = useState<'idle' | 'success' | 'error'>(() =>
+    getInitialHealthOverall(providerId, benchmarkResults)
+  );
   const [benchmarkingModelIds, setBenchmarkingModelIds] = useState<string[]>([]);
   const [activeBenchmarkScopes, setActiveBenchmarkScopes] = useState<BenchmarkScope[]>([]);
   const [queuedBenchmarkScopes, setQueuedBenchmarkScopes] = useState<BenchmarkScope[]>([]);
   const activeBenchmarkScopesRef = useRef<BenchmarkScope[]>([]);
   const benchmarkResultsRef = useRef(benchmarkResults);
+  const didApplyInitialBenchmarkResultsRef = useRef(false);
 
   useEffect(() => {
     benchmarkResultsRef.current = benchmarkResults;
   }, [benchmarkResults]);
+
+  useEffect(() => {
+    if (!didApplyInitialBenchmarkResultsRef.current) {
+      didApplyInitialBenchmarkResultsRef.current = true;
+      return;
+    }
+
+    if (!providerId) return;
+
+    const snapshot = backgroundBenchmarkRunner.getSnapshot(providerId);
+    const persistedRecord = benchmarkResults[providerId];
+    const persistedStatus = toHealthStatusMap(persistedRecord);
+
+    if (snapshot?.isRunning) {
+      setHealthStatus({ ...persistedStatus, ...snapshot.items });
+      setHealthCheckOverall(snapshot.overall);
+      setIsHealthChecking(true);
+      setBenchmarkingModelIds(Object.keys(snapshot.items));
+      return;
+    }
+
+    setHealthStatus(persistedStatus);
+    setHealthCheckOverall(persistedRecord?.overall || 'idle');
+    setIsHealthChecking(false);
+    setBenchmarkingModelIds([]);
+    setActiveBenchmarkScopes([]);
+    activeBenchmarkScopesRef.current = [];
+  }, [providerId, benchmarkResults]);
 
   useEffect(() => {
     if (!providerId) {
@@ -47,27 +94,6 @@ export function useProviderBenchmarkSnapshot({
       setBenchmarkingModelIds([]);
       return;
     }
-
-    const applySnapshot = () => {
-      const persistedRecord = benchmarkResultsRef.current[providerId];
-      const persistedStatus = toHealthStatusMap(persistedRecord);
-      const snapshot = backgroundBenchmarkRunner.getSnapshot(providerId);
-      if (!snapshot) {
-        setHealthStatus(persistedStatus);
-        setHealthCheckOverall(persistedRecord?.overall || 'idle');
-        setIsHealthChecking(false);
-        setBenchmarkingModelIds([]);
-        setActiveBenchmarkScopes([]);
-        activeBenchmarkScopesRef.current = [];
-        return;
-      }
-      setHealthStatus({ ...persistedStatus, ...snapshot.items });
-      setHealthCheckOverall(snapshot.overall);
-      setIsHealthChecking(snapshot.isRunning);
-      setBenchmarkingModelIds(Object.keys(snapshot.items));
-    };
-
-    applySnapshot();
 
     return backgroundBenchmarkRunner.subscribe(providerId, (snapshot) => {
       const persistedStatus = toHealthStatusMap(benchmarkResultsRef.current[providerId]);

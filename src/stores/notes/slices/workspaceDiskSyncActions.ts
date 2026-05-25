@@ -88,6 +88,7 @@ export function createWorkspaceDiskSyncAction(
           return isCurrentDiskSyncTarget(get, notesPath, currentNote.path) ? 'unchanged' : 'ignored';
         }
 
+        let preloadedDiskContent: string | null = null;
         const isExpectedExternalChange =
           Boolean(options?.expectedExternalChange) || shouldIgnoreExpectedExternalChange(fullPath);
         if (isExpectedExternalChange) {
@@ -96,16 +97,38 @@ export function createWorkspaceDiskSyncAction(
           const latestContent = latestCurrentNote?.path === currentNote.path
             ? latestCurrentNote.content
             : currentNote.content;
-          set({
-            noteContentsCache: setCachedNoteContent(
-              latestState.noteContentsCache,
-              currentNote.path,
-              latestContent,
-              nextModifiedAt,
-            ),
-            error: null,
-          });
-          return 'ignored';
+          if (latestState.isDirty) {
+            set({
+              noteContentsCache: setCachedNoteContent(
+                latestState.noteContentsCache,
+                currentNote.path,
+                latestContent,
+                nextModifiedAt,
+              ),
+              error: null,
+            });
+            return 'ignored';
+          }
+
+          const rawDiskContent = await storage.readFile(fullPath);
+          preloadedDiskContent = normalizeSerializedMarkdownDocument(rawDiskContent);
+          if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
+            return 'ignored';
+          }
+
+          if (preloadedDiskContent === latestContent) {
+            set({
+              noteContentsCache: setCachedNoteContent(
+                latestState.noteContentsCache,
+                currentNote.path,
+                latestContent,
+                nextModifiedAt,
+                { updateBaseline: true },
+              ),
+              error: null,
+            });
+            return 'ignored';
+          }
         }
 
         if (isDirty) {
@@ -116,8 +139,9 @@ export function createWorkspaceDiskSyncAction(
           return 'conflict';
         }
 
-        const rawDiskContent = await storage.readFile(fullPath);
-        const nextContent = normalizeSerializedMarkdownDocument(rawDiskContent);
+        const nextContent = preloadedDiskContent ?? normalizeSerializedMarkdownDocument(
+          await storage.readFile(fullPath)
+        );
         if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
           return 'ignored';
         }

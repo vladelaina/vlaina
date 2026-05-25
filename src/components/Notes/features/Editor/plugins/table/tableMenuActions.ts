@@ -45,6 +45,10 @@ function resolveTableActionCommand(action: TableMenuAction): TableCommand {
   }
 }
 
+function markTableMenuUserInput(view: EditorView): void {
+  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+}
+
 export function isTableMenuAction(value: string): value is TableMenuAction {
   return [
     'insert-row-above',
@@ -77,5 +81,6 @@ export function runTableMenuAction(
   );
   view.dispatch(tr);
   const command = resolveTableActionCommand(action);
+  markTableMenuUserInput(view);
   return command(view.state, view.dispatch);
 }

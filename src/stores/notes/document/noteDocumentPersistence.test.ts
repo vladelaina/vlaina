@@ -592,6 +592,66 @@ describe('saveNoteDocument', () => {
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 
+  it('merges non-overlapping local and disk edits before saving', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    adapter.stat
+      .mockResolvedValueOnce({ modifiedAt: 200 })
+      .mockResolvedValueOnce({ modifiedAt: 201 });
+    adapter.readFile.mockResolvedValue([
+      '# Title',
+      '',
+      'Disk edit',
+      '',
+      'Shared ending',
+    ].join('\n'));
+    adapter.writeFile.mockResolvedValue();
+
+    const result = await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: [
+          '# Title',
+          '',
+          'Loaded middle',
+          '',
+          'Local ending',
+        ].join('\n'),
+      },
+      cache: new Map([[
+        'alpha.md',
+        {
+          content: [
+            '# Title',
+            '',
+            'Loaded middle',
+            '',
+            'Shared ending',
+          ].join('\n'),
+          modifiedAt: 100,
+        },
+      ]]),
+    });
+
+    const expectedContent = [
+      '---',
+      'vlaina_updated: 2026-04-15 18:00:00 +08:00',
+      '---',
+      '',
+      '# Title',
+      '',
+      'Disk edit',
+      '',
+      'Local ending',
+    ].join('\n');
+    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/alpha.md', expectedContent);
+    expect(result.content).toBe(expectedContent);
+    expect(result.modifiedAt).toBe(201);
+
+    vi.useRealTimers();
+  });
+
   it('refuses to overwrite a note whose disk content changed with the same modified timestamp', async () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 100 });
     adapter.readFile.mockResolvedValue('# External same timestamp edit');

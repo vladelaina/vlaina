@@ -7,6 +7,10 @@ import { parseVideoUrl } from '../video';
 import { findInsertedNodePos } from './slashInsertUtils';
 import { openSlashVideoPrompt } from './slashVideoPrompt';
 
+function markSlashUserInput(view: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
+  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+}
+
 function insertVideoNode(ctx: Ctx, src: string) {
   const view = ctx.get(editorViewCtx);
   const { state, dispatch } = view;
@@ -36,6 +40,7 @@ function insertVideoNode(ctx: Ctx, src: string) {
       tr.setSelection(TextSelection.create(tr.doc, afterVideoPos + 1));
     }
 
+    markSlashUserInput(view);
     dispatch(tr.scrollIntoView());
     return nodePos;
   } catch (error) {
@@ -106,6 +111,7 @@ function updateInsertedVideoNodeSrc(args: {
     return false;
   }
 
+  markSlashUserInput(view);
   view.dispatch(
     view.state.tr.setNodeMarkup(nodePos, undefined, {
       ...node.attrs,

@@ -9,6 +9,7 @@ import {
   normalizeStarredVaultPath,
   saveStarredRegistry,
 } from '@/stores/notes/starred';
+import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { setCurrentVaultPath, useNotesStore } from './useNotesStore';
 import { normalizeVaultPath } from './vaultConfig';
 import type { VaultInfo } from './useVaultStore';
@@ -376,6 +377,7 @@ export function syncCurrentVaultExternalPathAction({
   set: (state: { currentVault?: VaultInfo | null; recentVaults?: VaultInfo[]; error?: string | null }) => void;
 }) {
   if (!currentVault) return;
+  flushCurrentPendingEditorMarkdown();
 
   const normalizedPath = normalizeVaultPath(path);
   const normalizedCurrentVault = normalizeVaultInfo(currentVault);

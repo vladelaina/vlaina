@@ -15,6 +15,7 @@ import {
   toVaultRelativePath,
 } from './notesExternalSyncUtils';
 import { rememberProcessedRenameEventNonce } from './notesExternalRenameQueue';
+import { isExternalWatchUnavailableError } from './externalWatchErrorUtils';
 
 const BROAD_ABSOLUTE_NOTE_SYNC_POLL_MS = 5000;
 
@@ -179,6 +180,9 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
 
         unwatch = stopWatching;
       } catch (error) {
+        if (!disposed && isExternalWatchUnavailableError(error)) {
+          startPollingSync();
+        }
       }
     };
 

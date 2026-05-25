@@ -15,6 +15,23 @@ interface ResizablePanelProps {
   onDragStateChange?: (dragging: boolean) => void;
 }
 
+function clampPanelWidth(width: number, minWidth: number, maxWidth: number): number {
+  return Math.max(minWidth, Math.min(maxWidth, width));
+}
+
+function parseStoredPanelWidth(value: string | null, minWidth: number, maxWidth: number): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  return clampPanelWidth(parsed, minWidth, maxWidth);
+}
+
 export function ResizablePanel({
   children,
   defaultWidth = 320,
@@ -28,12 +45,12 @@ export function ResizablePanel({
   const [width, setWidth] = useState(() => {
     if (storageKey) {
       try {
-        const saved = localStorage.getItem(storageKey);
-        if (saved) return parseInt(saved, 10);
+        const saved = parseStoredPanelWidth(localStorage.getItem(storageKey), minWidth, maxWidth);
+        if (saved !== null) return saved;
       } catch (e) {
       }
     }
-    return defaultWidth;
+    return clampPanelWidth(defaultWidth, minWidth, maxWidth);
   });
 
   const handleWidthChange = useCallback((nextWidth: number) => {
@@ -53,10 +70,36 @@ export function ResizablePanel({
   });
 
   useEffect(() => {
-      if (storageKey && !isDragging) {
-          localStorage.setItem(storageKey, String(width));
+    if (storageKey && !isDragging) {
+      try {
+        localStorage.setItem(storageKey, String(width));
+      } catch {
       }
+    }
   }, [width, isDragging, storageKey]);
+
+  useEffect(() => {
+    if (!storageKey || typeof window === 'undefined') {
+      return;
+    }
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.storageArea !== localStorage || event.key !== storageKey) {
+        return;
+      }
+
+      const nextWidth = parseStoredPanelWidth(event.newValue, minWidth, maxWidth);
+      if (nextWidth === null) {
+        return;
+      }
+
+      setWidth(nextWidth);
+      onWidthChange?.(nextWidth);
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [maxWidth, minWidth, onWidthChange, storageKey]);
 
   return (
     <aside

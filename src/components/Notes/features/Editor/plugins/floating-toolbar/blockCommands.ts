@@ -21,6 +21,10 @@ function getHeadingLevel(blockType: BlockType): number | null {
   return Number.isInteger(level) && level >= 1 && level <= 6 ? level : null;
 }
 
+function markToolbarUserInput(view: EditorView): void {
+  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+}
+
 export function getSelectedCodeBlockSourceText(view: EditorView): string {
   const { state } = view;
   const { from, to, empty, $from } = state.selection;
@@ -306,6 +310,7 @@ function applyTextBlockTypeAcrossSelection(
 
 export function convertBlockType(view: EditorView, blockType: BlockType): void {
   const { state } = view;
+  markToolbarUserInput(view);
 
   if (blockType === 'paragraph' || getHeadingLevel(blockType) !== null) {
     const targetNodeType = blockType === 'paragraph'
@@ -453,6 +458,7 @@ export function setTextAlignment(view: EditorView, alignment: TextAlignment): vo
     return;
   }
 
+  markToolbarUserInput(view);
   dispatch(tr);
   view.focus();
 }

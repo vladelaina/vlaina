@@ -1,6 +1,10 @@
 import type { Ctx } from '@milkdown/kit/ctx';
 import { editorViewCtx } from '@milkdown/kit/core';
 
+function markSlashUserInput(view: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
+  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+}
+
 function insertNode(ctx: Ctx, nodeType: string, attrs?: object) {
   const view = ctx.get(editorViewCtx);
   const { state, dispatch } = view;
@@ -10,6 +14,7 @@ function insertNode(ctx: Ctx, nodeType: string, attrs?: object) {
   try {
     const node = type.createAndFill?.(attrs) ?? type.create(attrs);
     if (!node) return;
+    markSlashUserInput(view);
     dispatch(state.tr.replaceSelectionWith(node).scrollIntoView());
   } catch (error) {
   }

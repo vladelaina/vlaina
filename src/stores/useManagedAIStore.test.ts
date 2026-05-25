@@ -17,6 +17,7 @@ const fetchManagedBudgetMock = vi.mocked(fetchManagedBudget);
 afterEach(() => {
   fetchManagedBudgetMock.mockReset();
   useManagedAIStore.setState(originalState, true);
+  localStorage.clear();
 });
 
 describe('useManagedAIStore', () => {
@@ -99,5 +100,79 @@ describe('useManagedAIStore', () => {
 
     expect(fetchManagedBudgetMock).toHaveBeenCalledTimes(2);
     expect(useManagedAIStore.getState().budget).toEqual(freshBudget);
+  });
+
+  it('reloads a newer budget snapshot from another window', () => {
+    const budget = {
+      active: true,
+      usedPercent: 20,
+      remainingPercent: 80,
+      status: 'active',
+    };
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'vlaina-managed-ai-budget',
+      newValue: JSON.stringify({
+        budget,
+        syncedAt: 1_700_000_000_000,
+      }),
+    }));
+
+    expect(useManagedAIStore.getState().budget).toEqual(budget);
+    expect(useManagedAIStore.getState().lastBudgetSyncAt).toBe(1_700_000_000_000);
+  });
+
+  it('ignores older budget snapshots from another window', () => {
+    const currentBudget = {
+      active: true,
+      usedPercent: 10,
+      remainingPercent: 90,
+      status: 'active',
+    };
+    const staleBudget = {
+      active: true,
+      usedPercent: 80,
+      remainingPercent: 20,
+      status: 'active',
+    };
+
+    useManagedAIStore.setState({
+      ...originalState,
+      budget: currentBudget,
+      lastBudgetSyncAt: 1_700_000_000_000,
+      lastBudgetAttemptAt: 1_700_000_000_000,
+    }, true);
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'vlaina-managed-ai-budget',
+      newValue: JSON.stringify({
+        budget: staleBudget,
+        syncedAt: 1_699_999_999_999,
+      }),
+    }));
+
+    expect(useManagedAIStore.getState().budget).toEqual(currentBudget);
+  });
+
+  it('clears the budget after another window clears the shared snapshot', () => {
+    useManagedAIStore.setState({
+      ...originalState,
+      budget: {
+        active: true,
+        usedPercent: 10,
+        remainingPercent: 90,
+        status: 'active',
+      },
+      lastBudgetSyncAt: 1_700_000_000_000,
+      lastBudgetAttemptAt: 1_700_000_000_000,
+    }, true);
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'vlaina-managed-ai-budget',
+      newValue: null,
+    }));
+
+    expect(useManagedAIStore.getState().budget).toBeNull();
+    expect(useManagedAIStore.getState().lastBudgetSyncAt).toBeNull();
   });
 });

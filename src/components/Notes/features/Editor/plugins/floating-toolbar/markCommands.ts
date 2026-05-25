@@ -15,6 +15,10 @@ function collapseSelectionAfterInlineApply(tr: EditorView['state']['tr'], pos: n
   tr.setSelection(Selection.near(tr.doc.resolve(clampedPos), -1));
 }
 
+function markToolbarUserInput(view: EditorView): void {
+  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+}
+
 export function toggleMark(view: EditorView, markName: string): void {
   const { state, dispatch } = view;
   const markType = state.schema.marks[markName];
@@ -28,6 +32,7 @@ export function toggleMark(view: EditorView, markName: string): void {
     ? state.tr.removeMark(from, to, markType)
     : state.tr.addMark(from, to, markType.create());
 
+  markToolbarUserInput(view);
   dispatch(tr);
   view.focus();
 }
@@ -70,6 +75,7 @@ export function setLink(view: EditorView, url: string | null): void {
     ? state.tr.addMark(from, to, linkMark.create({ href: safeUrl }))
     : state.tr.removeMark(from, to, linkMark);
 
+  markToolbarUserInput(view);
   dispatch(tr);
   view.focus();
 }
@@ -95,6 +101,7 @@ export function setTextColor(view: EditorView, color: string | null): void {
   }
 
   collapseSelectionAfterInlineApply(tr, to);
+  markToolbarUserInput(view);
   dispatch(tr);
   view.focus();
 }
@@ -120,6 +127,7 @@ export function setBgColor(view: EditorView, color: string | null): void {
   }
 
   collapseSelectionAfterInlineApply(tr, to);
+  markToolbarUserInput(view);
   dispatch(tr);
   view.focus();
 }
