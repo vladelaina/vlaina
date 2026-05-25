@@ -105,6 +105,143 @@ describe('LocalSearchProvider quality controls', () => {
     });
   });
 
+  it('returns an empty result set instead of unavailable when search succeeds with only irrelevant results', async () => {
+    const provider = new LocalSearchProvider({
+      fetchImpl: async () => ({
+        ok: true,
+        async text() {
+          return `
+            <li class="b_algo">
+              <h2><a href="https://weather.com/us/washington/city/seattle/tenday">10-Day Weather Forecast for Seattle</a></h2>
+              <div class="b_caption"><p>Seattle weather forecast and conditions.</p></div>
+            </li>
+          `;
+        },
+      }),
+    });
+
+    await expect(provider.search('weather in shanghai today', { engines: ['bing'], limit: 5 })).resolves.toEqual([]);
+  });
+
+  it('probes a direct .com site for single-token products when search results are irrelevant', async () => {
+    const calls = [];
+    const provider = new LocalSearchProvider({
+      fetchImpl: async (url) => {
+        calls.push(String(url));
+        if (String(url).startsWith('https://vlaina.com/')) {
+          return new Response('<title>vlaina</title>', {
+            status: 200,
+            headers: { 'content-type': 'text/html' },
+          });
+        }
+        return {
+          ok: true,
+          async text() {
+            return `
+              <li class="b_algo">
+                <h2><a href="https://www.zjzwfw.gov.cn/">浙江政务服务网</a></h2>
+                <div class="b_caption"><p>浙江政务服务网提供便捷的在线政务服务。</p></div>
+              </li>
+            `;
+          },
+        };
+      },
+    });
+
+    await expect(provider.search('\u4ec0\u4e48\u662fvlaina', { engines: ['bing'], limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'vlaina',
+        url: 'https://vlaina.com/',
+        source: 'local-web-search:direct-domain',
+      }),
+    ]);
+    expect(calls).toContain('https://vlaina.com/');
+    expect(calls).toContainEqual(expect.stringMatching(/^https:\/\/www\.bing\.com\/search/));
+  });
+
+  it('keeps hyphenated product names together for direct-domain probing', async () => {
+    const calls = [];
+    const provider = new LocalSearchProvider({
+      fetchImpl: async (url) => {
+        calls.push(String(url));
+        if (String(url).startsWith('https://my-app-demo.com/')) {
+          return new Response('<title>my-app-demo</title>', {
+            status: 200,
+            headers: { 'content-type': 'text/html' },
+          });
+        }
+        return {
+          ok: true,
+          async text() {
+            return '';
+          },
+        };
+      },
+    });
+
+    await expect(provider.search('my-app-demo official', { engines: ['bing'], limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'my-app-demo',
+        url: 'https://my-app-demo.com/',
+        source: 'local-web-search:direct-domain',
+      }),
+    ]);
+    expect(calls).toContain('https://my-app-demo.com/');
+    expect(calls).toContainEqual(expect.stringMatching(/^https:\/\/www\.bing\.com\/search/));
+  });
+
+  it('does not direct-domain probe broad multi-term informational searches', async () => {
+    const calls = [];
+    const provider = new LocalSearchProvider({
+      fetchImpl: async (url) => {
+        calls.push(String(url));
+        return {
+          ok: true,
+          async text() {
+            return `
+              <li class="b_algo">
+                <h2><a href="https://weather.com/us/washington/city/seattle/tenday">10-Day Weather Forecast for Seattle</a></h2>
+                <div class="b_caption"><p>Seattle weather forecast and conditions.</p></div>
+              </li>
+            `;
+          },
+        };
+      },
+    });
+
+    await expect(provider.search('weather in shanghai today', { engines: ['bing'], limit: 5 })).resolves.toEqual([]);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('does not direct-domain probe ordinary single-word concepts', async () => {
+    const calls = [];
+    const provider = new LocalSearchProvider({
+      fetchImpl: async (url) => {
+        calls.push(String(url));
+        if (String(url).startsWith('https://gravity.com/')) {
+          return new Response('<title>Gravity - WordPress forms</title>', {
+            status: 200,
+            headers: { 'content-type': 'text/html' },
+          });
+        }
+        return {
+          ok: true,
+          async text() {
+            return `
+              <li class="b_algo">
+                <h2><a href="https://example.com/noise">Unrelated result</a></h2>
+                <div class="b_caption"><p>Unrelated snippet.</p></div>
+              </li>
+            `;
+          },
+        };
+      },
+    });
+
+    await expect(provider.search('what is gravity', { engines: ['bing'], limit: 5 })).resolves.toEqual([]);
+    expect(calls).toHaveLength(1);
+  });
+
   it('keeps low relevance result filtering explicit for catime-like queries', () => {
     expect(localSearchInternals.filterLowRelevanceResults('catime', [
       {
@@ -126,6 +263,7 @@ describe('LocalSearchProvider quality controls', () => {
 
   it('requires enough meaningful terms to avoid ambiguous Bing-style matches', () => {
     expect(localSearchInternals.getMeaningfulTerms('fish shell official documentation')).toEqual(['fish', 'shell']);
+    expect(localSearchInternals.getMeaningfulTerms('my-app-demo official')).toEqual(['my-app-demo']);
     expect(localSearchInternals.filterLowRelevanceResults('fish shell official documentation', [
       {
         title: 'Oregon Fishing Forum',

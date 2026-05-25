@@ -64,6 +64,31 @@ function selectText(editor: TestEditor, text: string) {
   return view;
 }
 
+function selectTextNodeRange(editor: TestEditor, fromText: string, toText: string) {
+  const view = editor.ctx.get(editorViewCtx);
+  let from: number | null = null;
+  let to: number | null = null;
+
+  view.state.doc.descendants((node, pos) => {
+    if (!node.isText || typeof node.text !== 'string') {
+      return;
+    }
+
+    if (from === null && node.text.includes(fromText)) {
+      from = pos + node.text.indexOf(fromText);
+    }
+
+    if (node.text.includes(toText)) {
+      to = pos + node.text.indexOf(toText) + toText.length;
+    }
+  });
+
+  expect(from).not.toBeNull();
+  expect(to).not.toBeNull();
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, from!, to!)));
+  return view;
+}
+
 function selectBlockStart(editor: TestEditor) {
   const view = editor.ctx.get(editorViewCtx);
   view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1)));
@@ -176,6 +201,30 @@ describe('floating toolbar command markdown persistence', () => {
     const view = blockType === 'codeBlock' ? selectText(editor, 'text') : selectBlockStart(editor);
     convertBlockType(view, blockType);
     await expect(persist(editor)).resolves.toBe(expected);
+  });
+
+  it.each([
+    ['selected task items to bullet items', '- [ ] one\n- [ ] two', 'bulletList', '- one\n- two'],
+    ['selected task items to ordered items', '- [ ] one\n- [ ] two', 'orderedList', '1. one\n2. two'],
+    ['selected bullet items to task items', '- one\n- two', 'taskList', '- [ ] one\n- [ ] two'],
+    ['selected ordered items to task items', '1. one\n2. two', 'taskList', '- [ ] one\n- [ ] two'],
+    ['mixed task item states to bullet items', '- [x] one\n- [ ] two', 'bulletList', '- one\n- two'],
+  ] as const)('converts every %s', async (_name, markdown, blockType, expected) => {
+    const editor = await createEditor(markdown);
+    const view = selectTextNodeRange(editor, 'one', 'two');
+
+    convertBlockType(view, blockType);
+
+    await expect(persist(editor)).resolves.toBe(expected);
+  });
+
+  it('only clears checkbox state for selected task list items', async () => {
+    const editor = await createEditor('- [ ] one\n- [ ] two\n- [ ] three');
+    const view = selectTextNodeRange(editor, 'two', 'two');
+
+    convertBlockType(view, 'bulletList');
+
+    await expect(persist(editor)).resolves.toBe('- [ ] one\n- two\n- [ ] three');
   });
 
   it('persists non-left alignment as markdown html comments', async () => {

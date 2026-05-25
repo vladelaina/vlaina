@@ -129,7 +129,7 @@ export interface ElectronWebSearchApi {
     category?: string;
     timeRange?: string;
     limit?: number;
-  }): Promise<{
+  }, requestId?: string): Promise<{
     query: string;
     results: Array<{
       title: string;
@@ -140,7 +140,7 @@ export interface ElectronWebSearchApi {
       thumbnail: string | null;
     }>;
   }>;
-  read(url: string, options?: { contentLimit?: number; retries?: number }): Promise<{
+  read(url: string, options?: { contentLimit?: number; retries?: number }, requestId?: string): Promise<{
     title: string;
     summary: string;
     siteName: string;
@@ -148,7 +148,7 @@ export interface ElectronWebSearchApi {
     content: string;
     charCount: number;
   }>;
-  readBatch(urls: string[], options?: { contentLimit?: number; retries?: number }): Promise<Array<{
+  readBatch(urls: string[], options?: { contentLimit?: number; retries?: number }, requestId?: string): Promise<Array<{
     url: string;
     ok: boolean;
     page?: {
@@ -162,6 +162,7 @@ export interface ElectronWebSearchApi {
     error?: string;
     code?: string;
   }>>;
+  cancelRequest(requestId: string): Promise<boolean>;
 }
 
 export interface ElectronDragDropApi {

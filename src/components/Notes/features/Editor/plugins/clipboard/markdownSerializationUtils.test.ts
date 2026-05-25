@@ -6,6 +6,8 @@ import {
   normalizeCjkAtxHeadingMarkerSpaces,
   normalizeEscapedUrlSchemes,
   normalizeFullwidthMarkdownLineMarkers,
+  normalizeFullwidthOrderedListDigits,
+  normalizeFullwidthTablePipes,
   normalizeLenientMarkdownLineMarkers,
   normalizeMalformedTaskListMarkers,
   normalizeMarkdownAutolinkLiterals,
@@ -15,6 +17,7 @@ import {
   normalizeSerializedMarkdownBlock,
   normalizeSerializedMarkdownDocument,
   normalizeSerializedMarkdownSelection,
+  normalizeUnicodeBulletListMarkers,
   restoreMathBlockFenceStylesFromReference,
   stripTrailingNewlines,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
@@ -210,6 +213,16 @@ describe('normalize lenient markdown line markers', () => {
     expect(normalizeMissingUnorderedListMarkerSpaces(['-1', '-2'].join('\n'))).toBe(['-1', '-2'].join('\n'));
   });
 
+  it('canonicalizes unicode bullet list markers only for consecutive runs', () => {
+    expect(normalizeUnicodeBulletListMarkers(['• 苹果', '• 香蕉', '◦ 橘子'].join('\n'))).toBe(
+      ['- 苹果', '- 香蕉', '- 橘子'].join('\n')
+    );
+    expect(normalizeUnicodeBulletListMarkers(['>• 苹果', '>• 香蕉'].join('\n'))).toBe(
+      ['> - 苹果', '> - 香蕉'].join('\n')
+    );
+    expect(normalizeUnicodeBulletListMarkers('• 普通句子')).toBe('• 普通句子');
+  });
+
   it('canonicalizes fullwidth line markers before other lenient rules', () => {
     expect(normalizeLenientMarkdownLineMarkers(['＃标题', '＞引用', '－苹果', '－香蕉'].join('\n'))).toBe(
       ['# 标题', '> 引用', '- 苹果', '- 香蕉'].join('\n')
@@ -217,8 +230,27 @@ describe('normalize lenient markdown line markers', () => {
     expect(normalizeLenientMarkdownLineMarkers(['＞1.苹果', '＞2.香蕉', '＞-[] todo'].join('\n'))).toBe(
       ['> 1. 苹果', '> 2. 香蕉', '> - [ ] todo'].join('\n')
     );
+    expect(normalizeFullwidthOrderedListDigits(['１．苹果', '２）香蕉', '（３）橘子'].join('\n'))).toBe(
+      ['1．苹果', '2）香蕉', '（3）橘子'].join('\n')
+    );
+    expect(normalizeLenientMarkdownLineMarkers(['１．苹果', '２．香蕉', '３）橘子'].join('\n'))).toBe(
+      ['1. 苹果', '2. 香蕉', '3. 橘子'].join('\n')
+    );
+    expect(normalizeLenientMarkdownLineMarkers(['＞１．苹果', '＞２．香蕉'].join('\n'))).toBe(
+      ['> 1. 苹果', '> 2. 香蕉'].join('\n')
+    );
     expect(normalizeFullwidthMarkdownLineMarkers('正文 ＃ 不动')).toBe('正文 ＃ 不动');
     expect(normalizeFullwidthMarkdownLineMarkers('－普通破折号文本')).toBe('－普通破折号文本');
+  });
+
+  it('canonicalizes fullwidth table pipes only for table-shaped runs', () => {
+    expect(normalizeFullwidthTablePipes(['｜ A ｜ B ｜', '｜ --- ｜ --- ｜', '｜ 1 ｜ 2 ｜'].join('\n'))).toBe(
+      ['| A | B |', '| --- | --- |', '| 1 | 2 |'].join('\n')
+    );
+    expect(normalizeFullwidthTablePipes('这不是｜表格｜文本')).toBe('这不是｜表格｜文本');
+    expect(normalizeFullwidthTablePipes(['```md', '｜ A ｜ B ｜', '｜ --- ｜ --- ｜', '```'].join('\n'))).toBe(
+      ['```md', '｜ A ｜ B ｜', '｜ --- ｜ --- ｜', '```'].join('\n')
+    );
   });
 
   it('canonicalizes CJK headings and blockquotes without changing hashtags', () => {

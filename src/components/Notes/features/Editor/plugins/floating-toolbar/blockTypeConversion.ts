@@ -15,16 +15,26 @@ function isDirectChildOfBlockquote(view: EditorView): boolean {
 
 function getAncestorEntry(view: EditorView, predicate: (node: any) => boolean) {
   const { $from } = view.state.selection;
+  return getAncestorEntryAt($from, predicate);
+}
 
-  for (let depth = $from.depth; depth > 0; depth -= 1) {
-    const node = $from.node(depth);
+function getAncestorEntryAt(
+  $pos: EditorView['state']['selection']['$from'] | undefined,
+  predicate: (node: any) => boolean
+) {
+  if (!$pos || typeof $pos.depth !== 'number' || typeof $pos.node !== 'function') {
+    return null;
+  }
+
+  for (let depth = $pos.depth; depth > 0; depth -= 1) {
+    const node = $pos.node(depth);
     if (!predicate(node)) {
       continue;
     }
 
     return {
       node,
-      pos: $from.before(depth),
+      pos: $pos.before(depth),
     };
   }
 
@@ -140,6 +150,44 @@ function getListItemAttrsForListType(
   };
 }
 
+function collectSelectedListItems(
+  view: EditorView
+): Array<{ node: { type: { name: string }; attrs: Record<string, unknown> }; pos: number }> {
+  const { state } = view;
+  const selection = state.selection;
+  const targets = new Map<number, { node: { type: { name: string }; attrs: Record<string, unknown> }; pos: number }>();
+
+  const register = (entry: { node: { type: { name: string }; attrs?: Record<string, unknown> }; pos: number } | null) => {
+    if (!entry || entry.node.type.name !== 'list_item' || targets.has(entry.pos)) {
+      return;
+    }
+
+    targets.set(entry.pos, {
+      node: {
+        ...entry.node,
+        attrs: entry.node.attrs ?? {},
+      },
+      pos: entry.pos,
+    });
+  };
+
+  register(getAncestorEntryAt(selection.$from, (node) => node.type.name === 'list_item'));
+  register(getAncestorEntryAt('$to' in selection ? selection.$to : undefined, (node) => node.type.name === 'list_item'));
+
+  if (!selection.empty && state.doc && typeof state.doc.nodesBetween === 'function') {
+    state.doc.nodesBetween(selection.from, selection.to, (node, pos) => {
+      if (node.type.name !== 'list_item') {
+        return;
+      }
+
+      register({ node, pos });
+      return false;
+    });
+  }
+
+  return Array.from(targets.values()).sort((a, b) => a.pos - b.pos);
+}
+
 export function convertToList(
   view: EditorView,
   listNodeType: any,
@@ -164,24 +212,25 @@ export function convertToList(
       changed = true;
     }
 
-    const nextChecked =
-      options && 'checked' in options
-        ? (options.checked ?? null)
-        : (listItemEntry.node.attrs.checked != null ? null : listItemEntry.node.attrs.checked);
+    for (const selectedItem of collectSelectedListItems(view)) {
+      const selectedNextChecked =
+        options && 'checked' in options
+          ? (options.checked ?? null)
+          : (selectedItem.node.attrs.checked != null ? null : selectedItem.node.attrs.checked);
+      const nextListItemAttrs = getListItemAttrsForListType(
+        listNodeType.name,
+        selectedItem.node.attrs,
+        selectedNextChecked
+      );
 
-    const nextListItemAttrs = getListItemAttrsForListType(
-      listNodeType.name,
-      listItemEntry.node.attrs,
-      nextChecked
-    );
-
-    if (
-      listItemEntry.node.attrs.checked !== nextChecked ||
-      listItemEntry.node.attrs.listType !== nextListItemAttrs.listType ||
-      listItemEntry.node.attrs.label !== nextListItemAttrs.label
-    ) {
-      tr.setNodeMarkup(listItemEntry.pos, undefined, nextListItemAttrs);
-      changed = true;
+      if (
+        selectedItem.node.attrs.checked !== selectedNextChecked ||
+        selectedItem.node.attrs.listType !== nextListItemAttrs.listType ||
+        selectedItem.node.attrs.label !== nextListItemAttrs.label
+      ) {
+        tr.setNodeMarkup(selectedItem.pos, undefined, nextListItemAttrs);
+        changed = true;
+      }
     }
 
     if (changed) {

@@ -85,8 +85,7 @@ export function usePendingMarkdownFlusher({
           }
         }
       }
-      const flushed = flushPendingEditorMarkdown(currentNotePath, pendingMarkdown);
-      return flushed;
+      return flushPendingEditorMarkdown(currentNotePath, pendingMarkdown);
     };
 
     setPendingEditorMarkdownFlusher(flushPendingMarkdown);

@@ -48,12 +48,12 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
   const [apiKey, setApiKey] = useState(initialProvider?.apiKey || '');
   const [apiHost, setApiHost] = useState(initialProvider?.apiHost || '');
   const [showApiKey, setShowApiKey] = useState(false);
-  const [allowHiddenApiKeyEditing, setAllowHiddenApiKeyEditing] = useState(() => !initialProvider?.apiKey);
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const [modelQuery, setModelQuery] = useState('');
   const [quickAddModelId, setQuickAddModelId] = useState('');
   const [quickAddError, setQuickAddError] = useState('');
   const [fetchedModels, setFetchedModels] = useState<string[]>([]);
+  const apiKeyCopiedTimerRef = useRef<number | null>(null);
   const latestConnectionDraftRef = useRef({
     providerId: initialProvider?.id || '',
     name: initialProvider?.name || '',
@@ -87,7 +87,6 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
       setName(initialProvider.name);
       setApiKey(initialProvider.apiKey || '');
       setApiHost(initialProvider.apiHost || '');
-      setAllowHiddenApiKeyEditing(!initialProvider.apiKey);
       syncedProviderSnapshotRef.current = {
         providerId: initialProvider.id,
         name: initialProvider.name,
@@ -98,7 +97,6 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
       setName('');
       setApiKey('');
       setApiHost('');
-      setAllowHiddenApiKeyEditing(true);
       syncedProviderSnapshotRef.current = {
         providerId: '',
         name: '',
@@ -112,6 +110,10 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
     setModelQuery('');
     setShowApiKey(false);
     setApiKeyCopied(false);
+    if (apiKeyCopiedTimerRef.current !== null) {
+      window.clearTimeout(apiKeyCopiedTimerRef.current);
+      apiKeyCopiedTimerRef.current = null;
+    }
     onDraftClear?.();
   }, [providerId]);
 
@@ -144,7 +146,6 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
       setName(nextSnapshot.name);
       setApiHost(nextSnapshot.apiHost);
       setApiKey(nextSnapshot.apiKey);
-      setAllowHiddenApiKeyEditing(!nextSnapshot.apiKey);
       onDraftClear?.();
     }
 
@@ -167,6 +168,15 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
   useEffect(() => {
     updateProviderRef.current = updateProvider;
   }, [updateProvider]);
+
+  useEffect(() => {
+    return () => {
+      if (apiKeyCopiedTimerRef.current !== null) {
+        window.clearTimeout(apiKeyCopiedTimerRef.current);
+        apiKeyCopiedTimerRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     latestConnectionDraftRef.current = {
@@ -284,7 +294,13 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
       const didCopy = await writeTextToClipboard(apiKey);
       if (didCopy) {
         setApiKeyCopied(true);
-        setTimeout(() => setApiKeyCopied(false), 1500);
+        if (apiKeyCopiedTimerRef.current !== null) {
+          window.clearTimeout(apiKeyCopiedTimerRef.current);
+        }
+        apiKeyCopiedTimerRef.current = window.setTimeout(() => {
+          setApiKeyCopied(false);
+          apiKeyCopiedTimerRef.current = null;
+        }, 1500);
       }
     } catch {}
   };
@@ -313,7 +329,6 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
         name={name}
         apiHost={apiHost}
         apiKey={apiKey}
-        allowHiddenApiKeyEditing={allowHiddenApiKeyEditing}
         showApiKey={showApiKey}
         apiKeyCopied={apiKeyCopied}
         onNameChange={(nextName) => {
@@ -326,7 +341,6 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
           modelActions.setFetchError('');
         }}
         onApiKeyChange={(nextApiKey) => {
-          setAllowHiddenApiKeyEditing(true);
           setApiKey(nextApiKey);
           modelActions.setFetchError('');
         }}

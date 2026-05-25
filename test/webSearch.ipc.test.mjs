@@ -39,6 +39,62 @@ describe('web search IPC', () => {
       category: 'general',
       timeRange: 'week',
       limit: 5,
+      signal: undefined,
     });
+  });
+
+  it('cancels an in-flight search request by request id', async () => {
+    const handlers = new Map();
+    const services = {
+      searchService: {
+        webSearch: vi.fn((_query, options) => new Promise((_resolve, reject) => {
+          options.signal.addEventListener('abort', () => {
+            reject(new DOMException('cancelled', 'AbortError'));
+          }, { once: true });
+        })),
+      },
+      crawler: {
+        readUrl: vi.fn(),
+      },
+    };
+    registerWebSearchIpc({
+      handleIpc: (channel, handler) => {
+        handlers.set(channel, handler);
+      },
+      services,
+    });
+
+    const searchPromise = handlers.get('desktop:web-search:search')(null, 'catime', { limit: 5 }, 'request-1');
+    await expect(handlers.get('desktop:web-search:cancel')(null, 'request-1')).resolves.toBe(true);
+    await expect(searchPromise).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('passes cancellation signals into page reads', async () => {
+    const handlers = new Map();
+    const services = {
+      searchService: {
+        webSearch: vi.fn(),
+      },
+      crawler: {
+        readUrl: vi.fn((_url, options) => new Promise((_resolve, reject) => {
+          options.signal.addEventListener('abort', () => {
+            reject(new DOMException('cancelled', 'AbortError'));
+          }, { once: true });
+        })),
+      },
+    };
+    registerWebSearchIpc({
+      handleIpc: (channel, handler) => {
+        handlers.set(channel, handler);
+      },
+      services,
+    });
+
+    const readPromise = handlers.get('desktop:web-search:read-batch')(null, ['https://example.com'], { retries: 0 }, 'request-2');
+    await expect(handlers.get('desktop:web-search:cancel')(null, 'request-2')).resolves.toBe(true);
+    await expect(readPromise).rejects.toMatchObject({ name: 'AbortError' });
+    expect(services.crawler.readUrl).toHaveBeenCalledWith('https://example.com', expect.objectContaining({
+      signal: expect.any(AbortSignal),
+    }));
   });
 });

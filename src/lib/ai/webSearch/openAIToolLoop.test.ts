@@ -693,6 +693,89 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(final).not.toContain('Sources:\n- https://unread.example');
   });
 
+  it('keeps trying unread search results when the first forced read batch fails', async () => {
+    const requestJson = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: '',
+            tool_calls: [{
+              id: 'search-1',
+              type: 'function',
+              function: {
+                name: 'web_search',
+                arguments: JSON.stringify({ query: 'vlaina' }),
+              },
+            }],
+          },
+        }],
+      })
+      .mockResolvedValueOnce({ choices: [{ message: { content: 'Premature answer.' } }] })
+      .mockResolvedValueOnce({ choices: [{ message: { content: 'Still premature.' } }] })
+      .mockResolvedValueOnce({ choices: [{ message: { content: 'Final answer with https://four.example' } }] });
+    const client = {
+      webSearch: vi.fn(async () => ({
+        query: 'vlaina',
+        results: [1, 2, 3, 4].map((index) => ({
+          title: `Source ${index}`,
+          url: `https://${['one', 'two', 'three', 'four'][index - 1]}.example`,
+          snippet: 'Snippet',
+          publishedAt: null,
+          source: null,
+          thumbnail: null,
+        })),
+      })),
+      readWebPage: vi.fn(),
+      readWebPages: vi
+        .fn()
+        .mockResolvedValueOnce([
+          { url: 'https://one.example', ok: false, error: 'timeout', code: 'timeout' },
+          { url: 'https://two.example', ok: false, error: 'timeout', code: 'timeout' },
+          { url: 'https://three.example', ok: false, error: 'timeout', code: 'timeout' },
+        ])
+        .mockResolvedValueOnce([
+          {
+            url: 'https://four.example',
+            ok: true,
+            page: {
+              title: 'Four',
+              summary: '',
+              siteName: 'four.example',
+              finalUrl: 'https://four.example',
+              content: 'Fourth readable page content.',
+              charCount: 29,
+            },
+          },
+        ]),
+    };
+
+    const final = await runOpenAIWebSearchJsonToolLoop({
+      body: {
+        model: 'test',
+        stream: true,
+        messages: [{ role: 'user', content: 'search vlaina' }],
+      },
+      client,
+      requestJson,
+      onChunk: vi.fn(),
+    });
+
+    expect(client.readWebPages).toHaveBeenNthCalledWith(1, [
+      'https://one.example',
+      'https://two.example',
+      'https://three.example',
+    ], {
+      contentLimit: 3000,
+      retries: 0,
+    });
+    expect(client.readWebPages).toHaveBeenNthCalledWith(2, ['https://four.example'], {
+      contentLimit: 3000,
+      retries: 0,
+    });
+    expect(final).toContain('Final answer with https://four.example');
+  });
+
   it('forces a new page read after later successful searches even when an earlier page was read', async () => {
     const requestJson = vi
       .fn()

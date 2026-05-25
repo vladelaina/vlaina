@@ -142,6 +142,12 @@ describe('clipboard paste markdown persistence', () => {
     );
   });
 
+  it('persists pasted fullwidth-pipe tables as standard GFM tables', async () => {
+    await expect(pasteAndPersist(['｜ A ｜ B ｜', '｜ --- ｜ --- ｜', '｜ 1 ｜ 2 ｜'].join('\n'))).resolves.toBe(
+      ['| A | B |', '| - | - |', '| 1 | 2 |'].join('\n')
+    );
+  });
+
   it('persists pasted ordered lists that are missing marker spaces as standard markdown', async () => {
     await expect(pasteAndPersist(['0.安装更换路径', '', '1.调用笔记', '', '2.切换笔记'].join('\n'))).resolves.toBe(
       ['0. 安装更换路径', '1. 调用笔记', '2. 切换笔记'].join('\n')
@@ -160,6 +166,47 @@ describe('clipboard paste markdown persistence', () => {
     );
     await expect(pasteAndPersist(['＃标题', '', '＞引用'].join('\n'))).resolves.toBe(
       ['# 标题', '', '> 引用'].join('\n')
+    );
+    await expect(pasteAndPersist(['１．苹果', '２．香蕉', '３）橘子'].join('\n'))).resolves.toBe(
+      ['1. 苹果', '2. 香蕉', '3. 橘子'].join('\n')
+    );
+    await expect(pasteAndPersist(['• 苹果', '• 香蕉', '◦ 橘子'].join('\n'))).resolves.toBe(
+      ['- 苹果', '- 香蕉', '- 橘子'].join('\n')
+    );
+  });
+
+  it('persists copied bullet-prefixed numbered outlines as ordered lists without hard-break escapes', async () => {
+    const pasted = [
+      '• 1. emoji shortcode 没接入',
+      '     Typora 支持 :smile: 这类短码和 ESC 补全。我们当前没有接',
+      '     入 emoji shortcode，:smile: 基本会保留为普通文本。',
+      '  2. 源代码模式缺失',
+      '     没看到 Typora 式一键切换纯 Markdown 源码编辑模式。',
+      '  3. span 元素“靠近光标自动展开源码”的体验不完整',
+      '     我们有 tooltip、节点视图和编辑器，但不是 Typora 那种统一',
+      '     的“平时渲染，编辑时展开 Markdown 源码”。',
+    ].join('\n');
+
+    await expect(pasteAndPersist(pasted)).resolves.toBe([
+      '1. emoji shortcode 没接入',
+      '',
+      '   Typora 支持 :smile: 这类短码和 ESC 补全。我们当前没有接入 emoji shortcode，:smile: 基本会保留为普通文本。',
+      '',
+      '2. 源代码模式缺失',
+      '',
+      '   没看到 Typora 式一键切换纯 Markdown 源码编辑模式。',
+      '',
+      '3. span 元素“靠近光标自动展开源码”的体验不完整',
+      '',
+      '   我们有 tooltip、节点视图和编辑器，但不是 Typora 那种统一的“平时渲染，编辑时展开 Markdown 源码”。',
+    ].join('\n'));
+  });
+
+  it('does not fold unindented prose after a bullet-prefixed number into an ordered outline item', async () => {
+    const pasted = ['• 1. Release note', 'This paragraph is not part of the outline.', '2. Next'].join('\n');
+
+    await expect(pasteAndPersist(pasted)).resolves.toBe(
+      ['• 1. Release note\\', 'This paragraph is not part of the outline.\\', '2\\. Next'].join('\n')
     );
   });
 

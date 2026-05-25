@@ -416,20 +416,131 @@ describe('LocalSearchProvider', () => {
     expect(calls[2]).toMatch(/^https:\/\/html\.duckduckgo\.com\/html\//);
   });
 
-  it('returns official source hints without waiting on external engines', async () => {
+  it('falls back to official source hints when live search engines fail', async () => {
     const provider = new LocalSearchProvider({
       fetchImpl: async () => {
-        throw new Error('external search should not be called');
+        throw new Error('external search unavailable');
       },
     });
 
-    await expect(provider.search('SQLite UPSERT syntax official', { limit: 5 })).resolves.toEqual([
+    await expect(provider.search('SQLite UPSERT syntax official', { timeRange: 'week', limit: 5 })).resolves.toEqual([
       expect.objectContaining({
         title: 'SQLite UPSERT',
         url: 'https://www.sqlite.org/lang_upsert.html',
       }),
       expect.objectContaining({
         title: 'SQLite Query Language',
+      }),
+    ]);
+  });
+
+  it('uses official source hints as pinned results while still accepting live search results', async () => {
+    const provider = new LocalSearchProvider({
+      fetchImpl: async () => ({
+        ok: true,
+        async text() {
+          return `
+            <li class="b_algo">
+              <h2><a href="https://example.com/sqlite-upsert-news">SQLite UPSERT official syntax update</a></h2>
+              <div class="b_caption"><p>SQLite UPSERT syntax official supplemental source.</p></div>
+            </li>
+          `;
+        },
+      }),
+    });
+
+    await expect(provider.search('SQLite UPSERT syntax official', { engines: ['bing'], timeRange: 'week', limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'SQLite UPSERT',
+        url: 'https://www.sqlite.org/lang_upsert.html',
+      }),
+      expect.objectContaining({
+        title: 'SQLite Query Language',
+      }),
+      expect.objectContaining({
+        title: 'SQLite UPSERT official syntax update',
+        url: 'https://example.com/sqlite-upsert-news',
+      }),
+    ]);
+  });
+
+  it('does not short-circuit fresh official queries before checking live search results', async () => {
+    const calls = [];
+    const provider = new LocalSearchProvider({
+      fetchImpl: async (url) => {
+        calls.push(url);
+        return {
+          ok: true,
+          async text() {
+            return `
+              <li class="b_algo">
+                <h2><a href="https://example.com/latest-openai-api">OpenAI API documentation recent update official</a></h2>
+                <div class="b_caption"><p>Recent OpenAI API documentation official update.</p></div>
+              </li>
+            `;
+          },
+        };
+      },
+    });
+
+    await expect(provider.search('OpenAI API documentation recent official', { engines: ['bing'], limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'OpenAI API Documentation',
+        url: 'https://platform.openai.com/docs',
+      }),
+      expect.objectContaining({
+        title: 'OpenAI API documentation recent update official',
+        url: 'https://example.com/latest-openai-api',
+      }),
+    ]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatch(/^https:\/\/www\.bing\.com\/search/);
+  });
+
+  it('treats Chinese freshness wording as a live-search request', async () => {
+    const calls = [];
+    const provider = new LocalSearchProvider({
+      fetchImpl: async (url) => {
+        calls.push(url);
+        return {
+          ok: true,
+          async text() {
+            return `
+              <li class="b_algo">
+                <h2><a href="https://example.com/openai-api-update-cn">OpenAI API 官方文档 最新更新</a></h2>
+                <div class="b_caption"><p>OpenAI API documentation official update.</p></div>
+              </li>
+            `;
+          },
+        };
+      },
+    });
+
+    await expect(provider.search('OpenAI API 官方文档 最新更新', { engines: ['bing'], limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'OpenAI API Documentation',
+        url: 'https://platform.openai.com/docs',
+      }),
+      expect.objectContaining({
+        title: 'OpenAI API 官方文档 最新更新',
+        url: 'https://example.com/openai-api-update-cn',
+      }),
+    ]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatch(/^https:\/\/www\.bing\.com\/search/);
+  });
+
+  it('keeps stable Chinese official queries on the no-network fast path', async () => {
+    const provider = new LocalSearchProvider({
+      fetchImpl: async () => {
+        throw new Error('external search should not be called');
+      },
+    });
+
+    await expect(provider.search('OpenAI API 官方文档', { limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'OpenAI API Documentation',
+        url: 'https://platform.openai.com/docs',
       }),
     ]);
   });

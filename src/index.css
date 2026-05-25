@@ -305,6 +305,27 @@ html, body, #root {
   box-shadow: 0 8px 20px -12px rgb(0 0 0 / 0.55);
 }
 
+.settings-api-key-copy-button[data-copied="true"] {
+  background-color: rgb(39 131 222 / 0.12);
+  color: var(--vlaina-accent, #3b82f6);
+}
+
+.settings-api-key-copy-button[data-copied="true"] svg {
+  transform: scale(1.1);
+  animation: toolbar-copy-feedback-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes toolbar-copy-feedback-in {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
 .vlaina-sidebar-menu-surface {
   border-radius: 22px !important;
   box-shadow:

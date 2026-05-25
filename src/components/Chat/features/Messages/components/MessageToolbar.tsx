@@ -15,6 +15,7 @@ type CopyFeedbackSource = 'manual' | 'shortcut' | null;
 interface MessageToolbarProps {
   msg: ChatMessage;
   isLoading: boolean;
+  forceVisible?: boolean;
   onCopy: (text: string) => Promise<boolean | void> | boolean | void;
   onRegenerate: () => void;
   onSwitchVersion: (targetIndex: number) => void;
@@ -23,6 +24,7 @@ interface MessageToolbarProps {
 export const MessageToolbar = memo(function MessageToolbar({
   msg,
   isLoading,
+  forceVisible = false,
   onCopy,
   onRegenerate,
   onSwitchVersion
@@ -109,7 +111,11 @@ export const MessageToolbar = memo(function MessageToolbar({
         <div
           className={cn(
             "flex items-center gap-1 select-none transition-opacity duration-200",
-            isCopied ? "opacity-100" : isCopyClosing ? "opacity-0" : "opacity-0 group-hover:opacity-100"
+            isCopied || forceVisible
+              ? "opacity-100"
+              : isCopyClosing
+                ? "opacity-0"
+                : "opacity-0 group-hover:opacity-100"
           )}
         >
             

@@ -6,16 +6,29 @@ import {
 } from '../document/noteContentCache';
 import { saveNoteDocument } from '../document/noteDocumentPersistence';
 import { setNoteTabDirtyState } from '../document/noteTabState';
+import { stripVlainaUpdatedFrontmatter } from '../frontmatter';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import { createWorkspaceDiskSyncAction } from './workspaceDiskSyncActions';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 import { saveDraftNote } from './workspaceDraftSave';
+import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 
 type WorkspaceDocumentActions = Pick<
   WorkspaceSlice,
   'saveNote' | 'syncCurrentNoteFromDisk' | 'invalidateNoteCache' | 'updateContent'
 >;
+
+function shouldKeepEditorContentAfterSave(editorContent: string | undefined, savedContent: string): editorContent is string {
+  if (editorContent === undefined || editorContent === savedContent) {
+    return false;
+  }
+  if (!editorContent.includes('\u2800') && !/<br\s/i.test(editorContent)) {
+    return false;
+  }
+  return stripVlainaUpdatedFrontmatter(normalizeSerializedMarkdownDocument(editorContent))
+    === stripVlainaUpdatedFrontmatter(savedContent);
+}
 
 export function createWorkspaceDocumentActions(
   set: NotesSet,
@@ -64,7 +77,9 @@ export function createWorkspaceDocumentActions(
         cache: noteContentsCache,
       });
       const latestState = get();
-      if (latestState.notesPath !== notesPath) return;
+      if (latestState.notesPath !== notesPath) {
+        return;
+      }
       const latestCurrentNote = latestState.currentNote;
       const currentSaveTargetStillActive = latestCurrentNote?.path === notePathAtSaveStart;
       const latestCachedContent = latestState.noteContentsCache.get(currentNote.path)?.content;
@@ -109,11 +124,16 @@ export function createWorkspaceDocumentActions(
         return;
       }
 
+      const shouldKeepEditorContent = shouldKeepEditorContentAfterSave(
+        latestSaveTargetContent,
+        content,
+      );
+      const nextVisibleContent = shouldKeepEditorContent ? latestSaveTargetContent : content;
       set({
         currentNote: currentSaveTargetStillActive
-          ? { path: currentNote.path, content }
+          ? { path: currentNote.path, content: nextVisibleContent }
           : latestState.currentNote,
-        currentNoteRevision: currentSaveTargetStillActive
+        currentNoteRevision: currentSaveTargetStillActive && nextVisibleContent !== latestCurrentNote?.content
           ? get().currentNoteRevision + 1
           : get().currentNoteRevision,
         isDirty: currentSaveTargetStillActive ? false : latestState.isDirty,
@@ -122,9 +142,11 @@ export function createWorkspaceDocumentActions(
         noteContentsCache: setCachedNoteContent(
           latestState.noteContentsCache,
           currentNote.path,
-          content,
+          nextVisibleContent,
           modifiedAt,
-          { updateBaseline: true },
+          shouldKeepEditorContent
+            ? { baselineContent: content }
+            : { updateBaseline: true },
         ),
         openTabs: setNoteTabDirtyState(latestState.openTabs, currentNote.path, false),
         error: null,
