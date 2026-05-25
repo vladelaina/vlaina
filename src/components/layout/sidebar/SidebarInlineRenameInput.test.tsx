@@ -14,7 +14,7 @@ describe('SidebarInlineRenameInput', () => {
       />,
     );
 
-    const input = screen.getByLabelText('Rename') as HTMLInputElement;
+    const input = screen.getByLabelText('Rename') as HTMLTextAreaElement;
 
     await waitFor(() => {
       expect(document.activeElement).toBe(input);
@@ -45,6 +45,26 @@ describe('SidebarInlineRenameInput', () => {
 
     expect(onSubmit).toHaveBeenCalledTimes(2);
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('normalizes pasted newlines without writing line breaks into the value', () => {
+    const onValueChange = vi.fn();
+
+    render(
+      <SidebarInlineRenameInput
+        value="Example"
+        onValueChange={onValueChange}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+        aria-label="Rename"
+      />,
+    );
+
+    const input = screen.getByLabelText('Rename');
+
+    fireEvent.change(input, { target: { value: 'Alpha\nBeta\r\nGamma' } });
+
+    expect(onValueChange).toHaveBeenCalledWith('Alpha Beta Gamma');
   });
 
   it('stops click and mouse down propagation', () => {

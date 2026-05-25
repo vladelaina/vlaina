@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ExternalStarredEntryRow } from './ExternalStarredEntryRow';
 
@@ -8,6 +8,8 @@ const mocked = vi.hoisted(() => ({
   handleCopyPath: vi.fn(),
   handleOpenInNewWindow: vi.fn(),
   handleOpenLocation: vi.fn(),
+  renameNote: vi.fn(),
+  renameAbsoluteNote: vi.fn(),
 }));
 
 vi.mock('@/hooks/useTitleSync', () => ({
@@ -18,6 +20,16 @@ vi.mock('@/hooks/useTitleSync', () => ({
 
 vi.mock('@/components/ui/icons', () => ({
   Icon: ({ name }: { name: string }) => <span>{name}</span>,
+}));
+
+vi.mock('@/stores/useNotesStore', () => ({
+  useNotesStore: (selector: (state: {
+    renameNote: typeof mocked.renameNote;
+    renameAbsoluteNote: typeof mocked.renameAbsoluteNote;
+  }) => unknown) => selector({
+    renameNote: mocked.renameNote,
+    renameAbsoluteNote: mocked.renameAbsoluteNote,
+  }),
 }));
 
 vi.mock('../IconPicker/NoteIcon', () => ({
@@ -32,13 +44,15 @@ vi.mock('../Sidebar/NotesSidebarRow', () => ({
     main,
     actions,
     onClick,
+    onDoubleClick,
   }: {
     leading?: React.ReactNode;
     main?: React.ReactNode;
     actions?: React.ReactNode;
     onClick?: React.MouseEventHandler<HTMLDivElement>;
+    onDoubleClick?: React.MouseEventHandler<HTMLDivElement>;
   }) => (
-    <div onClick={onClick}>
+    <div onClick={onClick} onDoubleClick={onDoubleClick}>
       {leading}
       {main}
       {actions}
@@ -76,6 +90,10 @@ describe('ExternalStarredEntryRow', () => {
     mocked.handleCopyPath.mockReset();
     mocked.handleOpenInNewWindow.mockReset();
     mocked.handleOpenLocation.mockReset();
+    mocked.renameNote.mockReset();
+    mocked.renameNote.mockResolvedValue(undefined);
+    mocked.renameAbsoluteNote.mockReset();
+    mocked.renameAbsoluteNote.mockResolvedValue(undefined);
   });
 
   it('subscribes external starred notes using their absolute path', () => {
@@ -210,5 +228,43 @@ describe('ExternalStarredEntryRow', () => {
     fireEvent.click(getByLabelText('Open starred item menu'));
 
     expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('double-clicks to rename a current-vault starred note without opening it first', async () => {
+    vi.useFakeTimers();
+    try {
+      const onOpen = vi.fn();
+      const { getByText, getByDisplayValue } = render(
+        <ExternalStarredEntryRow
+          entry={{
+            id: 'starred-1',
+            kind: 'note',
+            vaultPath: '/vault-b',
+            relativePath: 'docs/alpha.md',
+            addedAt: 1,
+          }}
+          isCurrentVaultEntry={true}
+          isActive={false}
+          onOpen={onOpen}
+          onRemove={vi.fn()}
+        />,
+      );
+
+      fireEvent.doubleClick(getByText('alpha'));
+      act(() => {
+        vi.advanceTimersByTime(180);
+      });
+
+      expect(onOpen).not.toHaveBeenCalled();
+      const input = getByDisplayValue('alpha');
+      fireEvent.change(input, { target: { value: 'Renamed' } });
+      await act(async () => {
+        fireEvent.keyDown(input, { key: 'Enter' });
+      });
+
+      expect(mocked.renameNote).toHaveBeenCalledWith('docs/alpha.md', 'Renamed');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

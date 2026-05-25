@@ -38,7 +38,15 @@ export function areOutlineHeadingsEqual(
     const left = previous[index];
     const right = next[index];
     if (!left || !right) return false;
-    if (left.id !== right.id || left.level !== right.level || left.text !== right.text) return false;
+    if (
+      left.id !== right.id ||
+      left.level !== right.level ||
+      left.text !== right.text ||
+      left.from !== right.from ||
+      left.to !== right.to
+    ) {
+      return false;
+    }
   }
   return true;
 }

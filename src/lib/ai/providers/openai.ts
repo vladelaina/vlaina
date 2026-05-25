@@ -27,6 +27,36 @@ function summarizeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error || 'Unknown error')
 }
 
+function isLikelyHtmlErrorContent(content: string): boolean {
+  const normalized = content.slice(0, 2000).trim().toLowerCase()
+  const hasCloudflareErrorShell =
+    normalized.includes('cloudflare') &&
+    (normalized.includes('error code') ||
+      normalized.includes('cf-wrapper') ||
+      normalized.includes('performance & security by'))
+  return (
+    normalized.startsWith('<!doctype html') ||
+    normalized.startsWith('<html') ||
+    normalized.includes('<title>') ||
+    hasCloudflareErrorShell ||
+    normalized.includes('error code 524')
+  )
+}
+
+function rejectHtmlErrorContent(content: string): string {
+  if (isLikelyHtmlErrorContent(content)) {
+    throw createAIError(AIErrorType.SERVER_ERROR, 'UPSTREAM_UNAVAILABLE')
+  }
+  return content
+}
+
+function createHtmlRejectingChunkHandler(onChunk: (chunk: string) => void): (chunk: string) => void {
+  return (chunk) => {
+    rejectHtmlErrorContent(chunk)
+    onChunk(chunk)
+  }
+}
+
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError'
     || !!error && typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError'
@@ -236,7 +266,7 @@ export class OpenAICompatibleClient implements AIClient {
     if (!message || typeof message !== 'object') return ''
 
     const content = (message as Record<string, unknown>).content
-    return typeof content === 'string' ? content : ''
+    return typeof content === 'string' ? rejectHtmlErrorContent(content) : ''
   }
 
   private buildChatRequest(
@@ -296,9 +326,10 @@ export class OpenAICompatibleClient implements AIClient {
 
     const content = await requestManagedChatCompletionStream(
       body as unknown as Record<string, unknown>,
-      onChunk || (() => {}),
+      createHtmlRejectingChunkHandler(onChunk || (() => {})),
       signal
     )
+    rejectHtmlErrorContent(content)
     const apiTranscript = buildAssistantApiTranscriptFromRenderedContent(content)
     if (apiTranscript.length) {
       options?.onApiTranscript?.(apiTranscript)
@@ -571,12 +602,12 @@ export class OpenAICompatibleClient implements AIClient {
         throw parseHTTPError(response.status, errorBody)
       }
 
-      const result = await consumeOpenAIStream(response, onChunk, {
+      const result = await consumeOpenAIStream(response, createHtmlRejectingChunkHandler(onChunk), {
         onAssistantTranscriptMessage: (message) => {
           options?.onApiTranscript?.([message])
         },
       })
-      return result
+      return rejectHtmlErrorContent(result)
     } catch (error) {
       if (isAbortError(error)) {
         if (timedOut) {

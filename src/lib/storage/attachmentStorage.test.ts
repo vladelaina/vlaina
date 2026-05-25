@@ -125,4 +125,23 @@ describe('attachmentStorage', () => {
 
     expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/appdata/attachments/file.bin');
   });
+
+  it('resolves stored attachment URLs from the attachments directory when converting to base64', async () => {
+    mocks.joinPath.mockReset();
+    mocks.joinPath.mockResolvedValueOnce('/appdata/attachments/demo image.png');
+
+    await expect(convertToBase64({
+      id: 'a',
+      path: '',
+      previewUrl: 'attachment://demo%20image.png',
+      assetUrl: 'attachment://demo%20image.png',
+      name: 'demo image.png',
+      type: 'image/png',
+      size: 2,
+    })).resolves.toBe('data:image/png;base64,SEk=');
+
+    expect(mocks.adapter.getBasePath).toHaveBeenCalled();
+    expect(mocks.joinPath).toHaveBeenCalledWith('/appdata', 'attachments', 'demo image.png');
+    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/appdata/attachments/demo image.png');
+  });
 });

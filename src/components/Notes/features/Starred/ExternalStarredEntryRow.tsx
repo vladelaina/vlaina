@@ -1,11 +1,14 @@
-import { lazy, Suspense, useState, type MouseEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { Icon } from '@/components/ui/icons';
 import { getSidebarLabelClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { SidebarRowActionButton } from '@/components/layout/sidebar/SidebarRow';
+import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import type { StarredEntry } from '@/stores/notes/types';
 import { getStarredNoteDisplayPath } from '@/stores/notes/starred';
+import { joinPath } from '@/lib/storage/adapter';
+import { useNotesStore } from '@/stores/useNotesStore';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 import type { NotesSidebarMenuEntry } from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
@@ -24,6 +27,8 @@ const NotesSidebarContextMenuContent = lazy(async () => {
   const mod = await import('../Sidebar/context-menu/NotesSidebarContextMenuContent');
   return { default: mod.NotesSidebarContextMenuContent };
 });
+
+const STARRED_ROW_CLICK_DELAY_MS = 180;
 
 interface ExternalStarredEntryRowProps {
   entry: StarredEntry;
@@ -48,8 +53,14 @@ export function ExternalStarredEntryRow({
   const displayIcon = liveIcon || starredIcon;
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const clickTimerRef = useRef<number | null>(null);
+  const renameNote = useNotesStore((state) => state.renameNote);
+  const renameAbsoluteNote = useNotesStore((state) => state.renameAbsoluteNote);
   const title = liveTitle || getEntryTitle(entry);
   const canOpen = entry.kind === 'note';
+  const canRename = entry.kind === 'note';
   const { handleCopyPath, handleOpenInNewWindow, handleOpenLocation } = useTreeItemPathActions({
     notesPath: entry.vaultPath,
     itemPath: entry.relativePath,
@@ -71,6 +82,53 @@ export function ExternalStarredEntryRow({
     setShowMenu(true);
   };
 
+  const cancelPendingClick = useCallback(() => {
+    if (clickTimerRef.current !== null) {
+      window.clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => cancelPendingClick(), [cancelPendingClick]);
+
+  useEffect(() => {
+    if (!isRenaming) {
+      setRenameValue(title);
+    }
+  }, [isRenaming, title]);
+
+  const startRename = useCallback(() => {
+    if (!canRename) {
+      return;
+    }
+
+    cancelPendingClick();
+    setRenameValue(title);
+    setShowMenu(false);
+    setIsRenaming(true);
+  }, [canRename, cancelPendingClick, title]);
+
+  const submitRename = useCallback(async () => {
+    const trimmedValue = renameValue.trim();
+    if (trimmedValue && trimmedValue !== title) {
+      if (isCurrentVaultEntry) {
+        await renameNote(entry.relativePath, trimmedValue);
+      } else {
+        const absolutePath = await joinPath(entry.vaultPath, entry.relativePath);
+        await renameAbsoluteNote(absolutePath, trimmedValue);
+      }
+    }
+    setIsRenaming(false);
+  }, [
+    entry.relativePath,
+    entry.vaultPath,
+    isCurrentVaultEntry,
+    renameAbsoluteNote,
+    renameNote,
+    renameValue,
+    title,
+  ]);
+
   const handleMenuTrigger = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -81,6 +139,14 @@ export function ExternalStarredEntryRow({
   };
 
   const menuEntries: NotesSidebarMenuEntry[] = [
+    ...(canRename
+      ? [{
+          key: 'rename',
+          icon: <Icon name="common.compose" size="md" />,
+          label: t('sidebar.rename'),
+          onClick: startRename,
+        } satisfies NotesSidebarMenuEntry]
+      : []),
     ...(canOpen
       ? [{
           key: 'open-new-tab',
@@ -173,7 +239,20 @@ export function ExternalStarredEntryRow({
         isHighlighted={showMenu}
         showActionsByDefault={showMenu}
         onClick={canOpen ? (event) => {
-          onOpen(event.ctrlKey || event.metaKey);
+          if (isRenaming) {
+            return;
+          }
+          cancelPendingClick();
+          const openInNewTab = event.ctrlKey || event.metaKey;
+          clickTimerRef.current = window.setTimeout(() => {
+            clickTimerRef.current = null;
+            onOpen(openInNewTab);
+          }, STARRED_ROW_CLICK_DELAY_MS);
+        } : undefined}
+        onDoubleClick={canRename ? (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          startRename();
         } : undefined}
         onContextMenu={handleContextMenu}
         actions={
@@ -191,9 +270,22 @@ export function ExternalStarredEntryRow({
         }
         main={
           <div className="relative min-w-0">
-            <span className={getSidebarLabelClass('notes', { selected: isActive })}>
-              {title}
-            </span>
+            {isRenaming ? (
+              <SidebarInlineRenameInput
+                value={renameValue}
+                onValueChange={setRenameValue}
+                onSubmit={submitRename}
+                onCancel={() => setIsRenaming(false)}
+                className={cn(
+                  'w-full min-w-0 border-none bg-transparent p-0 outline-none',
+                  getSidebarLabelClass('notes', { selected: isActive }),
+                )}
+              />
+            ) : (
+              <span className={getSidebarLabelClass('notes', { selected: isActive })}>
+                {title}
+              </span>
+            )}
           </div>
         }
       />

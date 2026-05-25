@@ -20,6 +20,13 @@ afterEach(() => {
 });
 
 describe('UserIdentityCard', () => {
+  it('does not render a membership badge for local signed-out usage', () => {
+    render(<UserIdentityCard onLogout={vi.fn()} onSwitchAccount={vi.fn()} />);
+
+    expect(screen.getByText('vlaina')).toBeInTheDocument();
+    expect(screen.queryByText('LOCAL')).not.toBeInTheDocument();
+  });
+
   it('does not label a connected account as Free while membership is still loading', () => {
     act(() => {
       useAccountSessionStore.setState({
@@ -72,6 +79,32 @@ describe('UserIdentityCard', () => {
 
     expect(screen.getByText('alice@example.com')).toBeInTheDocument();
     expect(screen.queryByText('Free')).not.toBeInTheDocument();
+  });
+
+  it('does not render free membership as a user-card badge or more-menu upgrade option', () => {
+    act(() => {
+      useAccountSessionStore.setState({
+        ...initialAccountSessionState,
+        isConnected: true,
+        isLoading: false,
+        provider: 'google',
+        username: 'alice',
+        primaryEmail: 'alice@example.com',
+        membershipTier: 'free',
+        membershipName: 'Free',
+      });
+    });
+
+    render(<UserIdentityCard onLogout={vi.fn()} onSwitchAccount={vi.fn()} />);
+
+    expect(screen.queryByText('Upgrade ໒꒱')).not.toBeInTheDocument();
+    expect(screen.queryByText('Free')).not.toBeInTheDocument();
+
+    act(() => {
+      screen.getAllByRole('button')[0]?.click();
+    });
+
+    expect(screen.queryByText('Upgrade ໒꒱')).not.toBeInTheDocument();
   });
 
   it('opens the account plan page when the membership badge is activated', async () => {

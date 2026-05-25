@@ -24,7 +24,7 @@ import {
 
 interface ChatInputProps {
   active?: boolean;
-  onSend: (message: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => void;
+  onSend: (message: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => void | boolean | Promise<void | boolean>;
   onStop: () => void;
   isLoading: boolean;
   hasSelectedModel: boolean;
@@ -77,11 +77,11 @@ export const ChatInput = memo(function ChatInput({
     handleCompositionEnd,
   } = useChatComposer({
     active,
-    onSend: (text, nextAttachments, nextNoteMentions) => {
+    onSend: async (text, nextAttachments, nextNoteMentions) => {
       if (isLoading) {
         onStop();
       }
-      onSend(text, nextAttachments, nextNoteMentions);
+      return await onSend(text, nextAttachments, nextNoteMentions);
     },
     attachments,
     getNoteMentions: () => noteMentions,

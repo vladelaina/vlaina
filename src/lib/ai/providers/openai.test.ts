@@ -770,6 +770,24 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     vi.useRealTimers();
   });
 
+  it('rejects HTML error documents streamed as assistant content before emitting UI chunks', async () => {
+    const onChunk = vi.fn();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      streamResponse('data: {"choices":[{"delta":{"content":"<!DOCTYPE html><html><head><title>nekotick.org | 524: A timeout occurred</title></head><body>Cloudflare Error code 524</body></html>"}}]}\n\ndata: [DONE]\n\n'),
+    ));
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel({ apiModelId: 'gpt-4o-mini' }),
+      buildProvider({ endpointType: 'openai' }),
+      onChunk,
+    )).rejects.toMatchObject({
+      message: 'UPSTREAM_UNAVAILABLE',
+    });
+    expect(onChunk).not.toHaveBeenCalled();
+  });
+
   it('preserves direct provider transport details for chat failures', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fetch failed')));
 

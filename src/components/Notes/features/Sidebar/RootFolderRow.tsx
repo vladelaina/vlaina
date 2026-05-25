@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type RefObject } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -30,6 +30,7 @@ import {
 
 const INTERNAL_ROOT_AUTO_EXPAND_DELAY_MS = 120;
 const EXTERNAL_ROOT_AUTO_EXPAND_DELAY_MS = 560;
+const RENAMEABLE_ROW_CLICK_DELAY_MS = 180;
 
 interface RootFolderRowProps {
   rootFolder: FolderNode | null;
@@ -65,6 +66,7 @@ export function RootFolderRow({
   const rootRowRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const isRenamingRef = useRef(false);
+  const clickTimerRef = useRef<number | null>(null);
   const isInternalRootDragOver = useFileTreePointerDragState(
     (state) => active && state.dropTargetKind === 'folder' && state.dropTargetPath === '',
   );
@@ -102,9 +104,18 @@ export function RootFolderRow({
     }
   };
 
+  const cancelPendingClick = () => {
+    if (clickTimerRef.current !== null) {
+      window.clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
+    }
+  };
+
   useEffect(() => {
     isRenamingRef.current = isRenaming;
   }, [isRenaming]);
+
+  useEffect(() => () => cancelPendingClick(), []);
 
   useEffect(() => {
     if (!expanded) {
@@ -232,6 +243,31 @@ export function RootFolderRow({
     setShowMenu(true);
   };
 
+  const handleClick = () => {
+    if (!hasChildren) {
+      return;
+    }
+
+    cancelPendingClick();
+    clickTimerRef.current = window.setTimeout(() => {
+      clickTimerRef.current = null;
+      toggleFolder('');
+    }, RENAMEABLE_ROW_CLICK_DELAY_MS);
+  };
+
+  const handleRenameFromDoubleClick = (event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (target?.closest('button,a,input,textarea,select,[role="button"]')) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    cancelPendingClick();
+    setShowMenu(false);
+    setIsRenaming(true);
+  };
+
   const handleRenameSubmit = async () => {
     const trimmedValue = renameValue.trim();
     if (trimmedValue && trimmedValue !== title) {
@@ -252,6 +288,7 @@ export function RootFolderRow({
         onMouseEnter={() => setHoveredSidebarRenamePath(rootFolder.path)}
         onMouseLeave={() => clearHoveredSidebarRenamePath(rootFolder.path)}
         onContextMenu={handleContextMenu}
+        onDoubleClick={handleRenameFromDoubleClick}
         leading={
           <span className="relative flex size-[20px] items-center justify-center">
             <span
@@ -277,7 +314,7 @@ export function RootFolderRow({
             ) : null}
           </span>
         }
-        onClick={hasChildren ? () => toggleFolder('') : undefined}
+        onClick={hasChildren ? handleClick : undefined}
         isHighlighted={showMenu}
         isDragOver={isRootDragOver}
         showActionsByDefault={showMenu}

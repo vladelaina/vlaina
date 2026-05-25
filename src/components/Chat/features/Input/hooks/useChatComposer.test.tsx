@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useChatComposer } from './useChatComposer';
 
@@ -100,6 +100,35 @@ describe('useChatComposer', () => {
       expect.any(Object),
       expect.objectContaining({ value: '' }),
     );
+  });
+
+  it('keeps the composer content when async send is not accepted', async () => {
+    const onSend = vi.fn().mockResolvedValue(false);
+    const onAfterSend = vi.fn();
+
+    const { result } = renderHook(() =>
+      useChatComposer({
+        onSend,
+        attachments: [],
+        getNoteMentions: () => [],
+        onAfterSend,
+      }),
+    );
+
+    act(() => {
+      result.current.handleMessageChange('keep me');
+    });
+
+    act(() => {
+      result.current.handleSend();
+    });
+
+    await waitFor(() => {
+      expect(onSend).toHaveBeenCalledTimes(1);
+    });
+
+    expect(onAfterSend).not.toHaveBeenCalled();
+    expect(result.current.message).toBe('keep me');
   });
 
   it('blocks send and Enter submission while submit is disabled', () => {

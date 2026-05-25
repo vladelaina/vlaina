@@ -36,6 +36,8 @@ export function readOutlineHeadingMetrics(
       id,
       level,
       text,
+      from: 0,
+      to: 0,
       element,
       top,
     }];

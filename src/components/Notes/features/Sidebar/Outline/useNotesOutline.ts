@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { TextSelection } from '@milkdown/kit/prose/state';
 import type { NotesOutlineHeading } from './types';
 import { areOutlineHeadingsEqual } from './outlineUtils';
 import {
@@ -102,13 +103,17 @@ export function useNotesOutline(enabled: boolean) {
         id: heading.id,
         level: heading.level,
         text: heading.text,
+        from: heading.from,
+        to: heading.to,
         element: heading.element,
         top: heading.top,
       }));
-      const nextHeadings = snapshot.headings.map(({ id, level, text }) => ({
+      const nextHeadings = snapshot.headings.map(({ id, level, text, from, to }) => ({
         id,
         level,
         text,
+        from,
+        to,
       }));
 
       headingMetricsRef.current = metrics;
@@ -191,12 +196,44 @@ export function useNotesOutline(enabled: boolean) {
     setActiveId(headingId);
   }, []);
 
+  const renameHeading = useCallback((headingId: string, nextText: string): boolean => {
+    const normalizedText = nextText.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!normalizedText) {
+      return false;
+    }
+
+    const snapshot = getCurrentEditorBlockPositionSnapshot();
+    const heading = snapshot?.headings.find((entry) => entry.id === headingId);
+    const view = snapshot?.view;
+    if (!snapshot || !heading || !view || view.state.doc !== snapshot.doc) {
+      return false;
+    }
+
+    const node = view.state.doc.nodeAt(heading.from);
+    if (!node || node.type.name !== 'heading') {
+      return false;
+    }
+
+    const textFrom = heading.from + 1;
+    const textTo = heading.to - 1;
+    const textNode = view.state.schema.text(normalizedText);
+    const tr = view.state.tr.replaceWith(textFrom, textTo, textNode);
+    tr.setSelection(TextSelection.create(tr.doc, textFrom + normalizedText.length));
+    tr.scrollIntoView();
+
+    view.dom.dispatchEvent(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+    view.dispatch(tr);
+    view.focus();
+    return true;
+  }, []);
+
   return useMemo(
     () => ({
       headings,
       activeId,
       jumpToHeading,
+      renameHeading,
     }),
-    [headings, activeId, jumpToHeading],
+    [headings, activeId, jumpToHeading, renameHeading],
   );
 }

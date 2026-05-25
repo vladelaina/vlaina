@@ -7,12 +7,24 @@ interface UseResolvedMenuPositionOptions {
   position: SidebarMenuPosition;
 }
 
+interface ResolvedMenuPositionState {
+  requestedPosition: SidebarMenuPosition;
+  resolvedPosition: SidebarMenuPosition;
+}
+
+function isSamePosition(a: SidebarMenuPosition, b: SidebarMenuPosition) {
+  return a.top === b.top && a.left === b.left;
+}
+
 export function useResolvedMenuPosition({
   isOpen,
   menuRef,
   position,
 }: UseResolvedMenuPositionOptions) {
-  const [resolvedPosition, setResolvedPosition] = useState(position);
+  const [state, setState] = useState<ResolvedMenuPositionState>(() => ({
+    requestedPosition: position,
+    resolvedPosition: position,
+  }));
 
   useLayoutEffect(() => {
     if (!isOpen || !menuRef.current) {
@@ -24,11 +36,19 @@ export function useResolvedMenuPosition({
 
     const updatePosition = () => {
       const nextPosition = resolveMenuPosition(menuElement, position);
-      setResolvedPosition((current) =>
-        current.top === nextPosition.top && current.left === nextPosition.left
-          ? current
-          : nextPosition,
-      );
+      setState((current) => {
+        if (
+          isSamePosition(current.requestedPosition, position) &&
+          isSamePosition(current.resolvedPosition, nextPosition)
+        ) {
+          return current;
+        }
+
+        return {
+          requestedPosition: position,
+          resolvedPosition: nextPosition,
+        };
+      });
     };
 
     updatePosition();
@@ -53,5 +73,7 @@ export function useResolvedMenuPosition({
     };
   }, [isOpen, menuRef, position]);
 
-  return resolvedPosition;
+  return isSamePosition(state.requestedPosition, position)
+    ? state.resolvedPosition
+    : position;
 }

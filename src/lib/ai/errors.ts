@@ -105,6 +105,11 @@ function inferErrorTypeByStatus(code: string): AIErrorType | null {
     case 502:
     case 503:
     case 504:
+    case 520:
+    case 521:
+    case 522:
+    case 523:
+    case 524:
       return AIErrorType.SERVER_ERROR
     default:
       return null
@@ -119,9 +124,29 @@ function normalizeUserFacingMessage(message: string): string {
   return message.replace(/\s+/g, ' ').trim()
 }
 
+function isLikelyHtmlErrorDocument(message: string): boolean {
+  const normalized = message.slice(0, 2000).trim().toLowerCase()
+  const hasCloudflareErrorShell =
+    normalized.includes('cloudflare') &&
+    (normalized.includes('error code') ||
+      normalized.includes('cf-wrapper') ||
+      normalized.includes('performance & security by'))
+  return (
+    normalized.startsWith('<!doctype html') ||
+    normalized.startsWith('<html') ||
+    normalized.includes('<title>') ||
+    hasCloudflareErrorShell ||
+    normalized.includes('error code 524')
+  )
+}
+
 function isLowSignalServerMessage(message: string): boolean {
   const normalized = normalizeUserFacingMessage(message).toLowerCase()
   if (!normalized) {
+    return true
+  }
+
+  if (/^http\s+\d{3}\s+error$/i.test(normalized)) {
     return true
   }
 
@@ -392,7 +417,8 @@ export function parseAPIError(error: any): AIError {
 
 function extractHTTPErrorMessage(body: any): string | undefined {
   if (typeof body === 'string' && body.trim()) {
-    return body.trim()
+    const trimmed = body.trim()
+    return isLikelyHtmlErrorDocument(trimmed) ? undefined : trimmed
   }
 
   if (!isRecord(body)) {
@@ -418,7 +444,8 @@ function extractHTTPErrorMessage(body: any): string | undefined {
   for (const key of ['message', 'msg', 'detail', 'error_description'] as const) {
     const value = body[key]
     if (typeof value === 'string' && value.trim()) {
-      return value.trim()
+      const trimmed = value.trim()
+      return isLikelyHtmlErrorDocument(trimmed) ? undefined : trimmed
     }
   }
 

@@ -27,19 +27,18 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
   const userAvatar = useUserAvatar();
   const displayAvatar = userAvatar || fallbackAvatarUrl;
   const isMembershipPending = isConnected && !membershipTier && !membershipName;
-  const shouldShowMembershipBadge = !isMembershipPending;
+  const shouldShowMembershipBadge = isConnected && !isMembershipPending && membershipTier !== 'free';
+  const membershipBadgeLabel = membershipName || '';
 
-  const membershipPillClassName = isConnected
-    ? membershipTier === 'plus'
-      ? 'border-sky-200 bg-sky-50 text-sky-700'
-      : membershipTier === 'pro'
-        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-        : membershipTier === 'max'
-          ? 'border-orange-200 bg-orange-50 text-orange-700'
-          : membershipTier === 'ultra'
-            ? 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700'
-            : 'border-zinc-200 bg-white text-zinc-700'
-    : 'border-neutral-300 bg-white text-neutral-500 dark:border-neutral-600 dark:bg-zinc-900 dark:text-neutral-400';
+  const membershipPillClassName = membershipTier === 'plus'
+    ? 'bg-sky-50 text-sky-700'
+    : membershipTier === 'pro'
+      ? 'bg-emerald-50 text-emerald-700'
+      : membershipTier === 'max'
+        ? 'bg-orange-50 text-orange-700'
+        : membershipTier === 'ultra'
+          ? 'bg-fuchsia-50 text-fuchsia-700'
+          : 'bg-white text-zinc-700';
 
   return (
     <div className="group relative flex select-none items-start gap-3 px-3 pb-2.5 pt-3">
@@ -63,11 +62,11 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
               }
             }}
             className={cn(
-              'absolute -bottom-1.5 -right-2 z-10 inline-flex cursor-pointer select-none items-center rounded-[10px] border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] leading-none shadow-[0_8px_18px_rgba(15,23,42,0.08)]',
+              'absolute -bottom-1 -right-1.5 z-10 inline-flex cursor-pointer select-none items-center rounded-[8px] px-1.5 py-[3px] text-[8px] font-semibold normal-case tracking-normal leading-none shadow-[0_8px_18px_rgba(15,23,42,0.08)]',
               membershipPillClassName
             )}
           >
-            {isConnected ? membershipName || (membershipTier === 'free' ? 'Free' : '') : 'LOCAL'}
+            {membershipBadgeLabel}
           </span>
         ) : null}
       </div>
