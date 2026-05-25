@@ -48,6 +48,41 @@ function moveCursorAfterText(view: EditorView, text: string) {
   view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos)));
 }
 
+function moveCursorToFirstEmptyParagraph(view: EditorView) {
+  let pos: number | null = null;
+  view.state.doc.descendants((node, nodePos) => {
+    if (pos !== null || node.type.name !== 'paragraph' || node.content.size !== 0) return false;
+    pos = nodePos + 1;
+    return false;
+  });
+  if (pos === null) {
+    throw new Error('Expected empty paragraph');
+  }
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos)));
+}
+
+function typeText(view: EditorView, input: string) {
+  for (const text of input) {
+    const { from, to } = view.state.selection;
+    let handled = false;
+
+    view.someProp('handleTextInput', (handleTextInput: any) => {
+      handled = handleTextInput(view, from, to, text) || handled;
+    });
+
+    if (!handled) view.dispatch(view.state.tr.insertText(text, from, to));
+  }
+}
+
+function selectionAncestorNames(view: EditorView): string[] {
+  const names: string[] = [];
+  const { $from } = view.state.selection;
+  for (let depth = 0; depth <= $from.depth; depth += 1) {
+    names.push($from.node(depth).type.name);
+  }
+  return names;
+}
+
 function pressTab(view: EditorView, init: KeyboardEventInit = {}) {
   const event = new KeyboardEvent('keydown', {
     key: 'Tab',
@@ -245,6 +280,159 @@ describe('listTabIndentPlugin', () => {
     expect(nestedList.childCount).toBe(2);
     expect(nestedList.child(0).attrs.label).toBe('1.');
     expect(nestedList.child(1).attrs.label).toBe('2.');
+  });
+
+  it('keeps the cursor in a newly inserted middle ordered list item', async () => {
+    const editor = createEditorWithContent('');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.ordered_list.create(null, [
+        schema.nodes.list_item.create({ label: '1.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(null, schema.text('1')),
+        ]),
+      ]),
+      schema.nodes.paragraph.create(),
+      schema.nodes.ordered_list.create({ order: 3 }, [
+        schema.nodes.list_item.create({ label: '3.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(null, schema.text('3')),
+        ]),
+      ]),
+    ]);
+
+    moveCursorToFirstEmptyParagraph(view);
+    typeText(view, '2. ');
+
+    const list = view.state.doc.child(0);
+    expect(list.type.name).toBe('ordered_list');
+    expect(list.childCount).toBe(3);
+    expect(list.child(0).textContent).toBe('1');
+    expect(list.child(1).textContent).toBe('');
+    expect(list.child(2).textContent).toBe('3');
+    expect(list.child(1).attrs.label).toBe('2.');
+    expect(selectionAncestorNames(view)).toContain('list_item');
+    expect(view.state.selection.$from.node(-1).attrs.label).toBe('2.');
+  });
+
+  it('renumbers the following ordered list after typing an ordered marker into the gap', async () => {
+    const editor = createEditorWithContent('');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.ordered_list.create(null, [
+        schema.nodes.list_item.create({ label: '1.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(null, schema.text('1')),
+        ]),
+      ]),
+      schema.nodes.paragraph.create(),
+      schema.nodes.ordered_list.create(null, [
+        schema.nodes.list_item.create({ label: '1.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(null, schema.text('2')),
+        ]),
+      ]),
+    ]);
+
+    moveCursorToFirstEmptyParagraph(view);
+    typeText(view, '4. ');
+
+    expect(view.state.doc.childCount).toBe(1);
+    const list = view.state.doc.child(0);
+    expect(list.type.name).toBe('ordered_list');
+    expect(list.childCount).toBe(3);
+    expect(list.child(0).textContent).toBe('1');
+    expect(list.child(1).textContent).toBe('');
+    expect(list.child(2).textContent).toBe('2');
+    expect(list.child(0).attrs.label).toBe('1.');
+    expect(list.child(1).attrs.label).toBe('2.');
+    expect(list.child(2).attrs.label).toBe('3.');
+  });
+
+  it('turns a typed ordered-list gap placeholder into an ordered item', async () => {
+    const editor = createEditorWithContent('');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.ordered_list.create(null, [
+        schema.nodes.list_item.create({ label: '1.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(null, schema.text('1')),
+        ]),
+      ]),
+      schema.nodes.bullet_list.create(null, [
+        schema.nodes.list_item.create({ label: '•', listType: 'bullet' }, [
+          schema.nodes.paragraph.create(null, schema.text('\u2800')),
+        ]),
+      ]),
+      schema.nodes.ordered_list.create({ order: 3 }, [
+        schema.nodes.list_item.create({ label: '3.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(null, schema.text('3')),
+        ]),
+      ]),
+    ]);
+
+    moveCursorAfterText(view, '\u2800');
+    typeText(view, '2');
+
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).textContent).toBe('2');
+
+    typeText(view, '. ');
+
+    const list = view.state.doc.child(0);
+    expect(list.type.name).toBe('ordered_list');
+    expect(view.state.doc.childCount).toBe(1);
+    expect(list.childCount).toBe(3);
+    expect(list.child(0).textContent).toBe('1');
+    expect(list.child(1).textContent).toBe('');
+    expect(list.child(2).textContent).toBe('3');
+    expect(list.child(1).attrs.listType).toBe('ordered');
+    expect(list.child(1).attrs.label).toBe('2.');
+    expect(view.state.selection.$from.node(-1).attrs.label).toBe('2.');
+  });
+
+  it('turns only the edited placeholder into a paragraph when an ordered-list gap has multiple blanks', async () => {
+    const editor = createEditorWithContent('');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.ordered_list.create(null, [
+        schema.nodes.list_item.create({ label: '1.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(null, schema.text('1')),
+        ]),
+      ]),
+      schema.nodes.bullet_list.create(null, [
+        schema.nodes.list_item.create({ label: '•', listType: 'bullet' }, [
+          schema.nodes.paragraph.create(null, schema.text('\u2800')),
+        ]),
+        schema.nodes.list_item.create({ label: '•', listType: 'bullet' }, [
+          schema.nodes.paragraph.create(null, schema.text('\u2800')),
+        ]),
+      ]),
+      schema.nodes.ordered_list.create({ order: 3 }, [
+        schema.nodes.list_item.create({ label: '3.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(null, schema.text('3')),
+        ]),
+      ]),
+    ]);
+
+    moveCursorAfterText(view, '\u2800');
+    typeText(view, '2');
+
+    expect(view.state.doc.child(0).type.name).toBe('ordered_list');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).textContent).toBe('2');
+    expect(view.state.doc.child(2).type.name).toBe('bullet_list');
+    expect(view.state.doc.child(2).childCount).toBe(1);
+    expect(view.state.doc.child(2).textContent).toBe('\u2800');
+    expect(view.state.doc.child(3).type.name).toBe('ordered_list');
+    expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
   });
 
   it('renumbers ordered list items after splitting an item with Enter', async () => {
