@@ -68,12 +68,19 @@ const MISSING_ORDERED_LIST_SPACE_LINE_PATTERN =
   /^((?:(?: {0,3}>[ \t]?)* {0,3})(\d{1,3})\.)(\S.*)$/;
 const MISSING_UNORDERED_LIST_SPACE_LINE_PATTERN =
   /^((?:(?: {0,3}>[ \t]?)* {0,3})([-+*－＊＋]))([^\s\d\-+*－＊＋[\]].*)$/u;
+const UNICODE_BULLET_LIST_LINE_PATTERN =
+  /^((?:(?: {0,3}>[ \t]?)* {0,3})([•‣◦]))[ \t]+(.+)$/u;
 const CHINESE_ORDERED_LIST_MARKER_PATTERN =
   /^((?:(?: {0,3}>[ \t]?)* {0,3})(?:[（(]\s*)?(\d{1,3})(?:\s*[）)]|[、．]))[ \t]*(\S.*)$/u;
 const MALFORMED_TASK_LIST_MARKER_PATTERN =
   /^((?:(?: {0,3}>[ \t]?)* {0,3})(?:[-+*－＊＋]|\d+[.)]))[ \t]*(?:\[\s*([xXｘＸ✓✔√]?)\s*\]|［\s*([xXｘＸ✓✔√]?)\s*］|【\s*([xXｘＸ✓✔√]?)\s*】)[ \t]*(.*)$/u;
 const FULLWIDTH_MARKDOWN_LINE_MARKER_PATTERN =
   /^((?:(?: {0,3}＞[ \t]?| {0,3}>[ \t]?)* {0,3}))(＃{1,6}|＞)(.*)$/u;
+const FULLWIDTH_ORDERED_LIST_DIGIT_PATTERN =
+  /^((?:(?: {0,3}>[ \t]?)* {0,3})(?:[（(][ \t]*)?)([０-９]{1,3})(?=[ \t]*(?:[）)]|[、．.]))/u;
+const FULLWIDTH_TABLE_PIPE_PATTERN = /｜/g;
+const TABLE_ROW_PATTERN = /^\s*\|.*\|\s*$/;
+const TABLE_DELIMITER_ROW_PATTERN = /^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$/;
 const MISSING_BLOCKQUOTE_SPACE_PATTERN =
   /^((?:(?: {0,3}>[ \t]?)* {0,3})>)(\S.*)$/;
 const CJK_ATX_HEADING_WITHOUT_SPACE_PATTERN =
@@ -206,6 +213,40 @@ export function normalizeMissingUnorderedListMarkerSpaces(text: string): string 
   });
 }
 
+export function normalizeUnicodeBulletListMarkers(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) => {
+    const lines = segment.split('\n');
+    const output = [...lines];
+
+    for (let index = 0; index < lines.length; index += 1) {
+      const firstMatch = UNICODE_BULLET_LIST_LINE_PATTERN.exec(lines[index] ?? '');
+      if (!firstMatch) continue;
+
+      const run: number[] = [index];
+      let cursor = index + 1;
+      for (; cursor < lines.length; cursor += 1) {
+        if ((lines[cursor] ?? '').trim().length === 0) continue;
+        if (!UNICODE_BULLET_LIST_LINE_PATTERN.test(lines[cursor] ?? '')) break;
+        run.push(cursor);
+      }
+
+      if (run.length >= 2) {
+        for (const lineIndex of run) {
+          output[lineIndex] = (lines[lineIndex] ?? '').replace(
+            UNICODE_BULLET_LIST_LINE_PATTERN,
+            (_match: string, rawMarker: string, _symbol: string, content: string) =>
+              `${normalizeBlockquotePrefixedMarker(rawMarker.replace(/[•‣◦]/u, '-'))} ${content}`
+          );
+        }
+      }
+
+      index = Math.max(index, cursor - 1);
+    }
+
+    return output.join('\n');
+  });
+}
+
 export function normalizeMalformedTaskListMarkers(text: string): string {
   return mapMarkdownOutsideProtectedSegments(text, (segment) =>
     segment.split('\n').map((line) => {
@@ -240,6 +281,60 @@ export function normalizeFullwidthMarkdownLineMarkers(text: string): string {
   );
 }
 
+function normalizeFullwidthDigitRun(value: string): string {
+  return value.replace(/[０-９]/g, (digit) => String.fromCharCode(digit.charCodeAt(0) - 0xfee0));
+}
+
+export function normalizeFullwidthOrderedListDigits(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment.split('\n').map((line) =>
+      line.replace(
+        FULLWIDTH_ORDERED_LIST_DIGIT_PATTERN,
+        (_match: string, prefix: string, digits: string) => `${prefix}${normalizeFullwidthDigitRun(digits)}`
+      )
+    ).join('\n')
+  );
+}
+
+function normalizeFullwidthTableLine(line: string): string {
+  return line.replace(FULLWIDTH_TABLE_PIPE_PATTERN, '|');
+}
+
+function isFullwidthTableCandidateLine(line: string): boolean {
+  return line.includes('｜') && TABLE_ROW_PATTERN.test(normalizeFullwidthTableLine(line));
+}
+
+function isFullwidthTableDelimiterLine(line: string): boolean {
+  return TABLE_DELIMITER_ROW_PATTERN.test(normalizeFullwidthTableLine(line));
+}
+
+export function normalizeFullwidthTablePipes(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) => {
+    const lines = segment.split('\n');
+    const output = [...lines];
+
+    for (let index = 0; index < lines.length; index += 1) {
+      if (!isFullwidthTableCandidateLine(lines[index] ?? '')) continue;
+
+      let end = index;
+      while (end < lines.length && isFullwidthTableCandidateLine(lines[end] ?? '')) {
+        end += 1;
+      }
+
+      const hasDelimiter = lines.slice(index, end).some(isFullwidthTableDelimiterLine);
+      if (hasDelimiter && end - index >= 2) {
+        for (let lineIndex = index; lineIndex < end; lineIndex += 1) {
+          output[lineIndex] = normalizeFullwidthTableLine(lines[lineIndex] ?? '');
+        }
+      }
+
+      index = end - 1;
+    }
+
+    return output.join('\n');
+  });
+}
+
 export function normalizeMissingBlockquoteMarkerSpaces(text: string): string {
   return mapMarkdownOutsideProtectedSegments(text, (segment) =>
     segment.split('\n').map((line) =>
@@ -260,10 +355,13 @@ export function normalizeLenientMarkdownLineMarkers(text: string): string {
   const afterFullwidthMarkers = normalizeFullwidthMarkdownLineMarkers(text);
   const afterBlockquoteSpaces = normalizeMissingBlockquoteMarkerSpaces(afterFullwidthMarkers);
   const afterHeadingSpaces = normalizeCjkAtxHeadingMarkerSpaces(afterBlockquoteSpaces);
-  const afterChineseOrderedLists = normalizeChineseOrderedListMarkers(afterHeadingSpaces);
+  const afterFullwidthTables = normalizeFullwidthTablePipes(afterHeadingSpaces);
+  const afterFullwidthOrderedDigits = normalizeFullwidthOrderedListDigits(afterFullwidthTables);
+  const afterChineseOrderedLists = normalizeChineseOrderedListMarkers(afterFullwidthOrderedDigits);
   const afterTaskListMarkers = normalizeMalformedTaskListMarkers(afterChineseOrderedLists);
+  const afterUnicodeBulletLists = normalizeUnicodeBulletListMarkers(afterTaskListMarkers);
   const afterMissingUnorderedListSpaces =
-    normalizeMissingUnorderedListMarkerSpaces(afterTaskListMarkers);
+    normalizeMissingUnorderedListMarkerSpaces(afterUnicodeBulletLists);
   return normalizeMissingOrderedListMarkerSpaces(afterMissingUnorderedListSpaces);
 }
 

@@ -246,6 +246,65 @@ function joinWrappedPlainTextLines(lines: string[]): string {
         }, '');
 }
 
+const BULLET_PREFIXED_ORDERED_MARKER_PATTERN = /^(?:\s*)[•‣◦]\s*(\d{1,3})[.)][ \t]+(.+)$/u;
+const ORDERED_OUTLINE_MARKER_PATTERN = /^(\s{0,3})(?:[•‣◦]\s*)?(\d{1,3})[.)][ \t]+(.+)$/u;
+
+function normalizeBulletPrefixedOrderedOutlinePaste(text: string): string {
+    const normalized = text.replace(/\r\n?/g, '\n');
+    const lines = normalized.split('\n');
+
+    if (!lines.some((line) => BULLET_PREFIXED_ORDERED_MARKER_PATTERN.test(line))) {
+        return text;
+    }
+
+    type OutlineItem = {
+        number: string;
+        title: string;
+        bodyLines: string[];
+    };
+
+    const items: OutlineItem[] = [];
+    let current: OutlineItem | null = null;
+    let sawBulletPrefixedMarker = false;
+
+    for (const line of lines) {
+        const markerMatch = ORDERED_OUTLINE_MARKER_PATTERN.exec(line);
+        if (markerMatch) {
+            if (BULLET_PREFIXED_ORDERED_MARKER_PATTERN.test(line)) {
+                sawBulletPrefixedMarker = true;
+            }
+            current = {
+                number: markerMatch[2] ?? '1',
+                title: (markerMatch[3] ?? '').trim(),
+                bodyLines: [],
+            };
+            items.push(current);
+            continue;
+        }
+
+        if (!current) {
+            if (line.trim().length > 0) return text;
+            continue;
+        }
+
+        if (line.trim().length > 0 && !/^[ \t]{2,}\S/.test(line)) {
+            return text;
+        }
+
+        current.bodyLines.push(line);
+    }
+
+    if (!sawBulletPrefixedMarker || items.length < 2) return text;
+
+    return items
+        .map((item) => {
+            const body = joinWrappedPlainTextLines(item.bodyLines);
+            if (!body) return `${item.number}. ${item.title}`;
+            return `${item.number}. ${item.title}\n\n   ${body}`;
+        })
+        .join('\n\n');
+}
+
 function createPlainParagraphNodesFromText(state: {
     schema: {
         text: (text: string) => ProseNode;
@@ -408,10 +467,11 @@ export const clipboardPlugin = $prose((ctx) => {
     };
 
     const parseMarkdownNodes = (text: string): ProseNode[] | null => {
-        const withMathFences = normalizeAlternativeMathBlockFences(text);
+        const withOrderedOutline = normalizeBulletPrefixedOrderedOutlinePaste(text);
+        const withMathFences = normalizeAlternativeMathBlockFences(withOrderedOutline);
         const withLenientLineMarkers = normalizeLenientMarkdownLineMarkers(withMathFences);
         if (
-            !looksLikeMarkdownForPaste(text)
+            !looksLikeMarkdownForPaste(withOrderedOutline)
             && !looksLikeMarkdownForPaste(withMathFences)
             && !looksLikeMarkdownForPaste(withLenientLineMarkers)
         ) {
