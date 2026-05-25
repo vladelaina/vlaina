@@ -5,13 +5,19 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import type { MilkdownPlugin } from '@milkdown/kit/ctx';
-import { textSelectionOverlayPlugin } from './textSelectionOverlayPlugin';
+import { TEXT_SELECTION_OVERLAY_CLASS, textSelectionOverlayPlugin } from './textSelectionOverlayPlugin';
 import { mathPlugin } from '../math';
 import { tocPlugin } from '../toc';
 import { videoPlugin } from '../video';
 
 const OVERLAY_ACTIVE_CLASS = 'vlaina-text-selection-overlay-active';
 const POINTER_NATIVE_SELECTION_CLASS = 'vlaina-pointer-native-selection';
+
+function getOverlayText(view: EditorView): string {
+  return Array.from(
+    view.dom.querySelectorAll(`.${TEXT_SELECTION_OVERLAY_CLASS}`)
+  ).map((element) => element.textContent ?? '').join('');
+}
 
 async function createEditor(defaultValue: string, plugins: MilkdownPlugin[] = []): Promise<EditorView> {
   let editor = Editor.make()
@@ -251,6 +257,34 @@ describe('textSelectionOverlayPlugin', () => {
     view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
 
     expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+  });
+
+  it('does not draw text selection overlay on editable list gap placeholders', async () => {
+    const view = await createEditor(['- one', '- \u2800', '- two'].join('\n'));
+
+    view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
+
+    expect(getOverlayText(view)).toBe('onetwo');
+    expect(getOverlayText(view)).not.toContain('\u2800');
+  });
+
+  it('does not draw text selection overlay on invisible blank-line placeholders', async () => {
+    const view = await createEditor(['one', '\u200B', '\u200B\u200C', 'two'].join('\n'));
+
+    view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
+
+    expect(getOverlayText(view)).toBe('onetwo');
+    expect(getOverlayText(view)).not.toContain('\u200B');
+    expect(getOverlayText(view)).not.toContain('\u200C');
+  });
+
+  it('splits text selection overlays around inline editor-only placeholder characters', async () => {
+    const view = await createEditor('a\u200Bb\u200Cc\u2800d');
+
+    view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
+
+    expect(getOverlayText(view)).toBe('abcd');
+    expect(view.dom.querySelectorAll(`.${TEXT_SELECTION_OVERLAY_CLASS}`)).toHaveLength(4);
   });
 
   it('clears stale native browser ranges for editor select-all overlay selections', async () => {

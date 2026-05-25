@@ -8,6 +8,7 @@ export const TEXT_SELECTION_OVERLAY_CLASS = 'vlaina-text-selection-overlay';
 const TEXT_SELECTION_OVERLAY_ACTIVE_CLASS = 'vlaina-text-selection-overlay-active';
 const POINTER_NATIVE_SELECTION_CLASS = 'vlaina-pointer-native-selection';
 const POINTER_NATIVE_SELECTION_META = 'vlainaTextSelectionPointerNative';
+const EDITOR_ONLY_TEXT_SELECTION_PLACEHOLDERS = new Set(['\u200B', '\u200C', '\u2800']);
 
 interface TextSelectionOverlayState {
   decorations: DecorationSet;
@@ -74,6 +75,40 @@ function isTextSelectionOverlayEligible(state: EditorState): boolean {
   return true;
 }
 
+export function addTextSelectionOverlayDecorations(
+  decorations: Decoration[],
+  text: string,
+  nodeStart: number,
+  selectionFrom: number,
+  selectionTo: number
+): void {
+  const from = Math.max(selectionFrom, nodeStart);
+  const to = Math.min(selectionTo, nodeStart + text.length);
+  if (to <= from) return;
+
+  let rangeStart: number | null = null;
+  for (let pos = from; pos < to; pos += 1) {
+    const char = text[pos - nodeStart];
+    if (EDITOR_ONLY_TEXT_SELECTION_PLACEHOLDERS.has(char)) {
+      if (rangeStart !== null && pos > rangeStart) {
+        decorations.push(Decoration.inline(rangeStart, pos, {
+          class: TEXT_SELECTION_OVERLAY_CLASS,
+        }));
+      }
+      rangeStart = null;
+      continue;
+    }
+
+    rangeStart ??= pos;
+  }
+
+  if (rangeStart !== null && to > rangeStart) {
+    decorations.push(Decoration.inline(rangeStart, to, {
+      class: TEXT_SELECTION_OVERLAY_CLASS,
+    }));
+  }
+}
+
 function createTextSelectionDecorationState(
   state: EditorState,
   usePointerNativeSelection = false
@@ -101,14 +136,13 @@ function createTextSelectionDecorationState(
     }
 
     if (!node.isText) return;
-
-    const from = Math.max(selection.from, pos);
-    const to = Math.min(selection.to, pos + node.nodeSize);
-    if (to <= from) return;
-
-    decorations.push(Decoration.inline(from, to, {
-      class: TEXT_SELECTION_OVERLAY_CLASS,
-    }));
+    addTextSelectionOverlayDecorations(
+      decorations,
+      node.text ?? '',
+      pos,
+      selection.from,
+      selection.to
+    );
   });
 
   return {
