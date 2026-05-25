@@ -2,10 +2,11 @@ import { createRoot } from 'react-dom/client';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
-import { defaultSchema } from 'rehype-sanitize';
 import {
-  CHAT_MARKDOWN_REMARK_PLUGINS,
-} from '@/components/Chat/features/Markdown/markdownPipeline';
+  READONLY_MARKDOWN_REMARK_PLUGINS,
+} from '@/components/common/markdown/markdownPipeline';
+import { createMarkdownSanitizeSchema } from '@/components/common/markdown/imagePolicy';
+import { normalizeImageWidth, serializeCropValue } from '@/components/common/markdown/imageSourceFragment';
 import { MARKDOWN_BODY_FONT_SIZE } from '@/components/common/markdown/markdownMetrics';
 import {
   isPublicRemoteMediaUrl,
@@ -90,6 +91,12 @@ const EXPORT_CSS = `
     height: auto;
     border-radius: 6px;
   }
+  .vlaina-note-export-body [data-text-align='center'] {
+    text-align: center;
+  }
+  .vlaina-note-export-body [data-text-align='right'] {
+    text-align: right;
+  }
   .vlaina-note-export-body table {
     width: 100%;
     border-collapse: collapse;
@@ -109,10 +116,12 @@ const EXPORT_CSS = `
   }
 `;
 
+const BASE_EXPORT_MARKDOWN_SANITIZE_SCHEMA = createMarkdownSanitizeSchema();
+
 const NOTE_EXPORT_MARKDOWN_SANITIZE_SCHEMA = {
-  ...defaultSchema,
+  ...BASE_EXPORT_MARKDOWN_SANITIZE_SCHEMA,
   protocols: {
-    ...(defaultSchema.protocols || {}),
+    ...(BASE_EXPORT_MARKDOWN_SANITIZE_SCHEMA.protocols || {}),
     href: ['http', 'https', 'mailto'],
     src: ['http', 'https', 'data'],
   },
@@ -149,12 +158,24 @@ function renderExportLink(props: any) {
 
 function renderExportImage(props: any) {
   const rawSrc = typeof props.src === 'string' ? props.src.trim() : '';
+  const safeWidth = normalizeImageWidth(typeof props.width === 'number' ? `${props.width}px` : props.width);
+  const safeCrop = serializeCropValue(props.dataVlainaCrop ?? props['data-vlaina-crop']);
+  const align = props.align === 'left' || props.align === 'right' || props.align === 'center'
+    ? props.align
+    : undefined;
+  const imageStyle: React.CSSProperties = {
+    ...(safeWidth ? { width: safeWidth } : {}),
+    ...(align === 'center' ? { display: 'block', marginLeft: 'auto', marginRight: 'auto' } : {}),
+    ...(align === 'right' ? { display: 'block', marginLeft: 'auto' } : {}),
+  };
   if (SAFE_EXPORT_DATA_IMAGE_PATTERN.test(rawSrc)) {
     return (
       <img
         src={rawSrc}
         alt={props.alt ?? ''}
         title={props.title}
+        style={Object.keys(imageStyle).length > 0 ? imageStyle : undefined}
+        data-vlaina-crop={safeCrop ?? undefined}
       />
     );
   }
@@ -169,6 +190,8 @@ function renderExportImage(props: any) {
       src={safeSrc}
       alt={props.alt ?? ''}
       title={props.title}
+      style={Object.keys(imageStyle).length > 0 ? imageStyle : undefined}
+      data-vlaina-crop={safeCrop ?? undefined}
     />
   );
 }
@@ -211,7 +234,7 @@ export function NoteExportDocument({
       <h1 className="vlaina-note-export-title">{title}</h1>
       <div className="vlaina-note-export-body">
         <ReactMarkdown
-          remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
+          remarkPlugins={READONLY_MARKDOWN_REMARK_PLUGINS}
           rehypePlugins={NOTE_EXPORT_REHYPE_PLUGINS}
           urlTransform={transformExportUrl}
           components={{

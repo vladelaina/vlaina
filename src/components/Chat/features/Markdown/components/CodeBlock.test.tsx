@@ -9,7 +9,12 @@ const mocks = vi.hoisted(() => ({
   highlightAuto: vi.fn(),
 }));
 
-vi.mock("../utils/chatHighlighter", () => ({
+vi.mock("@/components/common/code-block/highlighter", () => ({
+  markdownHighlighter: {
+    getLanguage: mocks.getLanguage,
+    highlight: mocks.highlight,
+    highlightAuto: mocks.highlightAuto,
+  },
   chatHighlighter: {
     getLanguage: mocks.getLanguage,
     highlight: mocks.highlight,

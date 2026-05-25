@@ -1,15 +1,13 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
+import {
+  createAbbrUsagePattern,
+  extractAbbrDefinitionsFromText,
+  type AbbrDefinition,
+} from '@/components/common/markdown/abbrMarkdown';
 
 export const abbrPluginKey = new PluginKey('abbr');
-
-interface AbbrDefinition {
-  abbr: string;
-  fullText: string;
-}
-
-const ABBR_DEF_REGEX = /^\*\[([^\]]+)\]:\s*(.+)$/gm;
 
 function extractAbbrDefinitions(doc: any): AbbrDefinition[] {
   const definitions: AbbrDefinition[] = [];
@@ -17,15 +15,7 @@ function extractAbbrDefinitions(doc: any): AbbrDefinition[] {
   doc.descendants((node: any) => {
     if (node.isText) {
       const text = node.text || '';
-      let match;
-      
-      ABBR_DEF_REGEX.lastIndex = 0;
-      while ((match = ABBR_DEF_REGEX.exec(text)) !== null) {
-        definitions.push({
-          abbr: match[1],
-          fullText: match[2].trim()
-        });
-      }
+      definitions.push(...extractAbbrDefinitionsFromText(text));
     }
   });
   
@@ -38,8 +28,8 @@ function findAbbrUsages(doc: any, definitions: AbbrDefinition[]): { start: numbe
   if (definitions.length === 0) return usages;
   
   const abbrMap = new Map(definitions.map(d => [d.abbr, d.fullText]));
-  const escapedAbbrs = definitions.map(d => escapeRegex(d.abbr));
-  const pattern = new RegExp('\\b(' + escapedAbbrs.join('|') + ')\\b', 'g');
+  const pattern = createAbbrUsagePattern(definitions);
+  if (!pattern) return usages;
   
   doc.descendants((node: any, pos: number) => {
     if (node.isText) {
@@ -63,18 +53,6 @@ function findAbbrUsages(doc: any, definitions: AbbrDefinition[]): { start: numbe
   });
   
   return usages;
-}
-
-function escapeRegex(str: string): string {
-  let result = '';
-  for (const char of str) {
-    if ('.*+?^${}()|[]\\'.includes(char)) {
-      result += '\\' + char;
-    } else {
-      result += char;
-    }
-  }
-  return result;
 }
 
 function createAbbrDecorations(doc: any): DecorationSet {

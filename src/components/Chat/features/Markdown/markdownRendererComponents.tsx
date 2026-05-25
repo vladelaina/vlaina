@@ -7,8 +7,13 @@ import { cn, iconButtonStyles } from '@/lib/utils';
 import { copyImageSourceToClipboard } from '@/components/Chat/common/messageClipboard';
 import { downloadImageWithPrompt } from '@/components/Chat/common/imageDownload';
 import { ChatImageViewer } from './components/ChatImageViewer';
-import { CodeBlock } from './components/CodeBlock';
-import { normalizeRenderableImageSrc } from './imagePolicy';
+import { ReadOnlyCodeBlock } from '@/components/common/code-block';
+import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
+import { ReadOnlyMermaidBlock } from '@/components/common/markdown/ReadOnlyMermaidBlock';
+import { ReadOnlyVideoBlock } from '@/components/common/markdown/ReadOnlyVideoBlock';
+import { normalizeImageWidth, serializeCropValue } from '@/components/common/markdown/imageSourceFragment';
+import { isMermaidFenceLanguage } from '@/components/common/markdown/mermaidLanguage';
+import { parseVideoUrl } from '@/components/common/markdown/videoUrl';
 import { translate, useI18n } from '@/lib/i18n';
 
 type ImageGalleryItem = { id: string; src: string };
@@ -41,8 +46,12 @@ type MarkdownParagraphProps = React.HTMLAttributes<HTMLParagraphElement> & {
 };
 
 type MarkdownImageProps = {
+  align?: string;
   alt?: string;
+  'data-vlaina-crop'?: string;
+  dataVlainaCrop?: string;
   src?: string;
+  width?: string | number;
 };
 
 const BLOCK_LEVEL_TAGS = new Set([
@@ -125,18 +134,28 @@ async function copyImageOrUrl(src: string): Promise<boolean> {
   return writeTextToClipboard(src);
 }
 
+function isInternalHashHref(href: unknown): href is string {
+  return typeof href === 'string' && /^#[A-Za-z0-9_-]+$/.test(href);
+}
+
 function MarkdownImage({
   src,
   alt,
   imageGallery,
   getImageGallery,
   currentImageId,
+  align,
+  width,
+  crop,
 }: {
+  align?: string;
   alt?: string;
   currentImageId?: string;
+  crop?: string | null;
   getImageGallery?: () => ImageGalleryItem[];
   imageGallery?: ImageGalleryItem[];
   src: string;
+  width?: string | null;
 }) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
@@ -160,14 +179,24 @@ function MarkdownImage({
   };
 
   const gallery = getImageGallery ? getImageGallery() : imageGallery;
+  const normalizedAlign = align === 'left' || align === 'right' || align === 'center' ? align : 'center';
+  const justifyClass = normalizedAlign === 'left'
+    ? 'justify-start'
+    : normalizedAlign === 'right'
+      ? 'justify-end'
+      : 'justify-center';
+  const safeWidth = normalizeImageWidth(width);
+  const safeCrop = serializeCropValue(crop);
 
   return (
-    <span className="block max-w-full" data-no-focus-input="true">
+    <span className={cn('flex max-w-full', justifyClass)} data-no-focus-input="true">
       <span className="group relative inline-block max-w-full align-top">
         <LocalImage
           src={src}
           alt={alt || 'image'}
           className="block max-h-[420px] w-auto max-w-full object-contain"
+          style={safeWidth ? { width: safeWidth } : undefined}
+          data-vlaina-crop={safeCrop || undefined}
           onClick={() => {
             setIsViewerOpen(true);
           }}
@@ -233,6 +262,22 @@ export function createMarkdownComponents({
 
   return {
     a({ href, children, ...props }: MarkdownAnchorProps) {
+      if (isInternalHashHref(href)) {
+        return (
+          <a
+            {...props}
+            href={href}
+            className={cn(
+              props.className,
+              (href.startsWith('#heading-') || href.startsWith('#user-content-heading-')) && 'toc-link'
+            )}
+            data-no-focus-input="true"
+          >
+            {children}
+          </a>
+        );
+      }
+
       return (
         <a
           {...props}
@@ -252,11 +297,18 @@ export function createMarkdownComponents({
     },
     pre({ children, ...props }: MarkdownPreProps) {
       const { className, content } = resolvePreCodePayload(children);
+      const language = typeof className === 'string'
+        ? className.match(/language-([\w+-]+)/)?.[1] ?? ''
+        : '';
+      if (isMermaidFenceLanguage(language)) {
+        return <ReadOnlyMermaidBlock code={String(content ?? '')} />;
+      }
+
       const blockId = `${codeBlockIdBase || 'code'}:${codeBlockRenderIndex}`;
       codeBlockRenderIndex += 1;
 
       return (
-        <CodeBlock
+        <ReadOnlyCodeBlock
           className={className}
           blockId={blockId}
           copied={copiedCodeBlockId === blockId}
@@ -264,7 +316,7 @@ export function createMarkdownComponents({
           {...props}
         >
           {content}
-        </CodeBlock>
+        </ReadOnlyCodeBlock>
       );
     },
     p({ children, ...props }: MarkdownParagraphProps) {
@@ -274,8 +326,13 @@ export function createMarkdownComponents({
 
       return <p {...props}>{children}</p>;
     },
-    img({ src, alt }: MarkdownImageProps) {
-      const safeSrc = normalizeRenderableImageSrc(typeof src === 'string' ? src : null);
+    img({ src, alt, align, width, dataVlainaCrop, 'data-vlaina-crop': dataVlainaCropKebab }: MarkdownImageProps) {
+      const rawSrc = typeof src === 'string' ? src : null;
+      if (rawSrc && parseVideoUrl(rawSrc)) {
+        return <ReadOnlyVideoBlock src={rawSrc} title={typeof alt === 'string' ? alt : ''} />;
+      }
+
+      const safeSrc = normalizeRenderableImageSrc(rawSrc);
       if (!safeSrc) {
         return (
           <span className="inline-block rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-500 dark:bg-zinc-800 dark:text-gray-400">
@@ -291,6 +348,9 @@ export function createMarkdownComponents({
         <MarkdownImage
           src={safeSrc}
           alt={typeof alt === 'string' ? alt : 'image'}
+          align={align}
+          width={typeof width === 'number' ? `${width}px` : width}
+          crop={dataVlainaCrop ?? dataVlainaCropKebab ?? null}
           imageGallery={imageGallery}
           getImageGallery={getImageGallery}
           currentImageId={currentImageId}
