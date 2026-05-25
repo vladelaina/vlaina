@@ -14,6 +14,7 @@ export interface BlockRect extends RectBounds {
   to: number;
   contentLeft?: number;
   contentRight?: number;
+  contentLineRects?: RectBounds[];
   allowInsideTrailingClick?: boolean;
 }
 

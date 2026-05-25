@@ -23,7 +23,34 @@ function shouldIgnoreContentBoundsElement(root: HTMLElement, element: Element): 
   return false;
 }
 
-function collectTextContentBounds(root: HTMLElement): { left: number; right: number } | null {
+function mergeContentLineRects(rects: DOMRect[]): { left: number; top: number; right: number; bottom: number }[] {
+  const lines: { left: number; top: number; right: number; bottom: number }[] = [];
+
+  for (const rect of rects) {
+    const centerY = rect.top + rect.height / 2;
+    const line = lines.find((candidate) => (
+      centerY >= candidate.top - 2 && centerY <= candidate.bottom + 2
+    ));
+    if (line) {
+      line.left = Math.min(line.left, rect.left);
+      line.top = Math.min(line.top, rect.top);
+      line.right = Math.max(line.right, rect.right);
+      line.bottom = Math.max(line.bottom, rect.bottom);
+      continue;
+    }
+
+    lines.push({
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+    });
+  }
+
+  return lines;
+}
+
+function collectTextContentBounds(root: HTMLElement): { left: number; right: number; lineRects?: { left: number; top: number; right: number; bottom: number }[] } | null {
   const doc = root.ownerDocument;
   const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
@@ -41,6 +68,7 @@ function collectTextContentBounds(root: HTMLElement): { left: number; right: num
   let left = Number.POSITIVE_INFINITY;
   let right = Number.NEGATIVE_INFINITY;
   let hasBounds = false;
+  const rects: DOMRect[] = [];
 
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const range = doc.createRange();
@@ -49,12 +77,20 @@ function collectTextContentBounds(root: HTMLElement): { left: number; right: num
       if (rect.width <= 0 && rect.height <= 0) continue;
       left = Math.min(left, rect.left);
       right = Math.max(right, rect.right);
+      rects.push(rect);
       hasBounds = true;
     }
     range.detach();
   }
 
-  return hasBounds ? { left, right } : null;
+  if (!hasBounds) return null;
+
+  const lineRects = mergeContentLineRects(rects);
+  return {
+    left,
+    right,
+    ...(lineRects.length > 1 ? { lineRects } : {}),
+  };
 }
 
 function resolveContentBoundsElement(element: HTMLElement): HTMLElement {
@@ -69,7 +105,7 @@ function resolveContentBoundsElement(element: HTMLElement): HTMLElement {
   return element;
 }
 
-function resolveContentHorizontalBounds(element: HTMLElement, rect: DOMRect): { left: number; right: number } {
+function resolveContentHorizontalBounds(element: HTMLElement, rect: DOMRect): { left: number; right: number; lineRects?: { left: number; top: number; right: number; bottom: number }[] } {
   const contentElement = resolveContentBoundsElement(element);
   return collectTextContentBounds(contentElement) ?? {
     left: rect.left,
@@ -93,6 +129,7 @@ function collectSelectableBlockRects(view: EditorView): BlockRect[] {
       bottom: rect.bottom,
       contentLeft: contentBounds.left,
       contentRight: contentBounds.right,
+      ...(contentBounds.lineRects ? { contentLineRects: contentBounds.lineRects } : {}),
       ...(element.tagName === 'LI' || (element.tagName === 'P' && element.querySelector('.footnote-ref'))
         ? { allowInsideTrailingClick: true }
         : {}),

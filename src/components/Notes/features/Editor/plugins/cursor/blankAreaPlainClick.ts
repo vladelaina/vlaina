@@ -3,12 +3,17 @@ import type { BlockRect } from './blockSelectionUtils';
 import { TEXT_ONLY_BLOCK_EDGE_NODE_NAMES } from '../shared/blockNodeTypes';
 
 const INSIDE_BLOCK_TRAILING_CLICK_MIN_GAP_PX = 24;
+const INSIDE_BLOCK_TRAILING_LINE_CLICK_MIN_GAP_PX = 8;
+const VISUAL_LINE_EDGE_CLICK_GAP_PX = 8;
+const VISUAL_LINE_VERTICAL_SLACK_PX = 4;
 
 export interface BlankAreaPlainClickAction {
   targetPos: number;
   bias: 1 | -1;
   blockFrom: number;
 }
+
+type ContentLineRect = NonNullable<BlockRect['contentLineRects']>[number];
 
 function resolveVerticalDistance(block: BlockRect, clientY: number): number {
   if (clientY < block.top) return block.top - clientY;
@@ -22,6 +27,43 @@ function resolveHorizontalBias(block: BlockRect, clientX: number): 1 | -1 {
   if (clientX <= left) return 1;
   if (clientX >= right) return -1;
   return clientX <= (left + right) / 2 ? 1 : -1;
+}
+
+function isPointVerticallyInsideLine(rect: { top: number; bottom: number }, clientY: number): boolean {
+  return clientY >= rect.top - VISUAL_LINE_VERTICAL_SLACK_PX
+    && clientY <= rect.bottom + VISUAL_LINE_VERTICAL_SLACK_PX;
+}
+
+function resolveLineVerticalDistance(rect: { top: number; bottom: number }, clientY: number): number {
+  if (clientY < rect.top) return rect.top - clientY;
+  if (clientY > rect.bottom) return clientY - rect.bottom;
+  return 0;
+}
+
+function resolveNearestVisualLine(block: BlockRect, clientY: number): ContentLineRect | null {
+  const lineRects = block.contentLineRects;
+  if (!lineRects) return null;
+
+  let nearestLine: ContentLineRect | null = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  for (const line of lineRects) {
+    if (!isPointVerticallyInsideLine(line, clientY)) continue;
+    const distance = resolveLineVerticalDistance(line, clientY);
+    if (distance >= nearestDistance) continue;
+    nearestLine = line;
+    nearestDistance = distance;
+  }
+
+  return nearestLine;
+}
+
+function resolveVisualLineHorizontalBias(block: BlockRect, clientX: number, clientY: number): 1 | -1 | null {
+  const line = resolveNearestVisualLine(block, clientY);
+  if (!line) return null;
+  if (clientX >= line.right + VISUAL_LINE_EDGE_CLICK_GAP_PX) return -1;
+  if (clientX <= line.left - VISUAL_LINE_EDGE_CLICK_GAP_PX) return 1;
+  return null;
 }
 
 export function resolveBlankAreaPlainClickAction(args: {
@@ -45,7 +87,8 @@ export function resolveBlankAreaPlainClickAction(args: {
     }
   }
 
-  const bias = resolveHorizontalBias(nearestBlock, clientX);
+  const bias = resolveVisualLineHorizontalBias(nearestBlock, clientX, clientY)
+    ?? resolveHorizontalBias(nearestBlock, clientX);
   const targetPos = bias === 1
     ? nearestBlock.from + 1
     : Math.max(nearestBlock.from + 1, nearestBlock.to - 1);
@@ -66,6 +109,16 @@ export function resolveInsideBlockTrailingPlainClickAction(args: {
   for (let index = 0; index < blockRects.length; index += 1) {
     const block = blockRects[index];
     if (!block.allowInsideTrailingClick) continue;
+    const trailingLine = resolveNearestVisualLine(block, clientY);
+    if (trailingLine && clientX < trailingLine.right + INSIDE_BLOCK_TRAILING_LINE_CLICK_MIN_GAP_PX) continue;
+    if (trailingLine) {
+      return {
+        targetPos: Math.max(block.from + 1, block.to - 1),
+        bias: -1,
+        blockFrom: block.from,
+      };
+    }
+
     const contentRight = block.contentRight;
     if (contentRight === undefined || clientX < contentRight + INSIDE_BLOCK_TRAILING_CLICK_MIN_GAP_PX) continue;
 
