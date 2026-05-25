@@ -155,6 +155,7 @@ html, body, #root {
   --vlaina-color-text-soft: #636363;
   --vlaina-color-text-tertiary: #636363;
   --vlaina-color-text-disabled: #636363;
+  --vlaina-color-soft-placeholder: #e1e1e1;
   --vlaina-color-editor-block-selection: var(--vlaina-color-accent);
   --vlaina-color-sidebar-pin: #636363;
   --vlaina-color-border: #e3e2e4;
@@ -237,6 +238,7 @@ html, body, #root {
   --vlaina-color-text-soft: #636363;
   --vlaina-color-text-tertiary: #636363;
   --vlaina-color-text-disabled: #636363;
+  --vlaina-color-soft-placeholder: #e1e1e1;
   --vlaina-color-editor-block-selection: var(--vlaina-color-accent);
   --vlaina-color-sidebar-pin: #636363;
   --vlaina-color-border: #333333;
@@ -360,6 +362,7 @@ html, body, #root {
   --vlaina-text-secondary: var(--vlaina-color-text-secondary);
   --vlaina-text-tertiary: var(--vlaina-color-text-tertiary);
   --vlaina-text-disabled: var(--vlaina-color-text-disabled);
+  --vlaina-soft-placeholder: var(--vlaina-color-soft-placeholder);
   --vlaina-border: var(--vlaina-color-border);
   --vlaina-divider: var(--vlaina-color-border);
   --vlaina-shell-divider: var(--vlaina-color-border-shell);

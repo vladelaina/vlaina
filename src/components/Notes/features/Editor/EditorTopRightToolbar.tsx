@@ -133,7 +133,7 @@ export function EditorTopRightToolbar({
             <DropdownMenuTrigger asChild>
               <button
                 onClick={(event) => event.stopPropagation()}
-                className={cn('p-1.5 transition-colors', iconButtonStyles)}
+                className="cursor-pointer bg-transparent p-1.5 text-[var(--vlaina-text-tertiary)] transition-colors hover:text-[var(--sidebar-row-selected-text)] disabled:cursor-default"
               >
                 <Icon size="md" name="common.more" />
               </button>

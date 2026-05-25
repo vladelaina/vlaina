@@ -24,7 +24,7 @@ interface SingleTabProps {
 
 const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClose, onTabMiddleClick }: SingleTabProps) {
   const icon = useDisplayIcon(tab.path);
-  const { title, disambiguation } = useNoteLabelDescriptor(tab.path, tab.name);
+  const { title, disambiguation, isUntitledPlaceholder } = useNoteLabelDescriptor(tab.path, tab.name);
   const notesPath = useNotesStore((s) => s.notesPath);
   const draftNote = useNotesStore((s) => s.draftNotes[tab.path]);
   const hasSaveError = useNotesStore((s) => Boolean(s.error));
@@ -74,7 +74,9 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
 
       <span className={cn(
         "text-[12px] truncate",
-        isActive
+        isUntitledPlaceholder
+          ? "text-[var(--vlaina-soft-placeholder)]"
+          : isActive
           ? "text-[var(--vlaina-text-primary)]"
           : "text-[var(--vlaina-text-secondary)]"
       )}>

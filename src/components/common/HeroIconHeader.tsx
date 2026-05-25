@@ -260,7 +260,7 @@ export function HeroIconHeader({
                           onIconChange(randomIcon);
                           setShowIconPicker(true);
                       }}
-                      className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--vlaina-text-secondary)] hover:text-[var(--vlaina-text-primary)] transition-colors")}
+                      className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--vlaina-soft-placeholder)] hover:text-[var(--sidebar-row-selected-text)] transition-colors")}
                   >
                       <Icon size="md" name="misc.activity" />
                       {!compact && <span>{t('icon.addIcon')}</span>}

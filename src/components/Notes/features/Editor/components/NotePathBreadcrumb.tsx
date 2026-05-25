@@ -287,7 +287,7 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
     <button
       type="button"
       onClick={handleNoteClick}
-      className="max-w-[360px] truncate rounded px-1 py-0 text-[var(--vlaina-text-secondary)] transition-colors hover:bg-[var(--vlaina-hover-filled)] hover:text-[var(--vlaina-text-primary)]"
+      className="max-w-[360px] truncate rounded px-1 py-0 text-[var(--vlaina-soft-placeholder)] transition-colors hover:text-[var(--sidebar-row-selected-text)]"
     >
       {truncateNoteLabel(noteLabel)}
     </button>
@@ -302,12 +302,12 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
               type="button"
               onClick={handleRootClick}
               className={cn(
-                'rounded px-1 py-0 text-[var(--vlaina-text-tertiary)] transition-colors hover:bg-[var(--vlaina-hover-filled)] hover:text-[var(--vlaina-text-primary)]'
+                'rounded px-1 py-0 text-[var(--vlaina-soft-placeholder)] transition-colors hover:text-[var(--sidebar-row-selected-text)]'
               )}
             >
               {displayInfo.rootLabel}
             </button>
-            <span className="text-[var(--vlaina-text-disabled)]">/</span>
+            <span className="text-[var(--vlaina-soft-placeholder)]">/</span>
 
             {folderSegments.map((segment, index) => (
               <div key={segment.fullPath} className="inline-flex items-center gap-1.5">
@@ -315,12 +315,12 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
                   type="button"
                   onClick={() => handleFolderClick(segment.fullPath)}
                   className={cn(
-                    'rounded px-1 py-0 text-[var(--vlaina-text-tertiary)] transition-colors hover:bg-[var(--vlaina-hover-filled)] hover:text-[var(--vlaina-text-primary)]'
+                    'rounded px-1 py-0 text-[var(--vlaina-soft-placeholder)] transition-colors hover:text-[var(--sidebar-row-selected-text)]'
                   )}
                 >
                   {segment.label}
                 </button>
-                <span className="text-[var(--vlaina-text-disabled)]">/</span>
+                <span className="text-[var(--vlaina-soft-placeholder)]">/</span>
                 {index === folderSegments.length - 1 && noteButton}
               </div>
             ))}

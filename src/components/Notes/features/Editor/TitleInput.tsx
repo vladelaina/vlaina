@@ -162,7 +162,13 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
     if (isCommittingRef.current) return;
     const trimmed = title.trim();
     if (!trimmed) {
-      setTitle(initialTitle);
+      if (isDraftNotePath(notePath)) {
+        updateDraftNoteName(notePath, '');
+        if (useNotesStore.getState().notesPath) {
+          await saveNote({ explicit: false });
+        }
+      }
+      setTitle('');
       setNotesPreviewTitle(null, null);
       return;
     }
@@ -288,7 +294,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
       onChange={handleChange}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      className="block w-full resize-none overflow-hidden bg-transparent border-none outline-none text-[34px] font-bold leading-[1.15] tracking-normal text-[var(--vlaina-text-primary)] placeholder:text-[var(--vlaina-text-disabled)] selection:bg-[var(--vlaina-selection-bg)] selection:text-white"
+      className="block w-full resize-none overflow-hidden bg-transparent border-none outline-none text-[34px] font-bold leading-[1.15] tracking-normal text-[var(--vlaina-text-primary)] placeholder:text-[var(--vlaina-soft-placeholder)] selection:bg-[var(--vlaina-selection-bg)] selection:text-white"
       placeholder={t('notes.untitled')}
     />
   );

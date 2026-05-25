@@ -1,6 +1,9 @@
 import { useDisplayName } from '@/hooks/useTitleSync';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
+import { isDraftNotePath } from '@/stores/notes/draftNote';
+import { useNotesStore } from '@/stores/useNotesStore';
 
 interface NoteDisambiguatedTitleProps {
   path: string;
@@ -13,14 +16,21 @@ interface NoteDisambiguatedTitleProps {
 interface NoteLabelDescriptor {
   title: string;
   disambiguation: string | null;
+  isUntitledPlaceholder: boolean;
 }
 
 export function useNoteLabelDescriptor(path: string, fallbackName?: string): NoteLabelDescriptor {
+  const { t } = useI18n();
   const displayName = useDisplayName(path);
+  const draftName = useNotesStore((state) => state.draftNotes[path]?.name);
+  const isUntitledPlaceholder = isDraftNotePath(path) && !draftName?.trim();
 
   return {
-    title: displayName?.trim() || fallbackName?.trim() || getNoteTitleFromPath(path),
+    title: isUntitledPlaceholder
+      ? t('notes.untitled')
+      : displayName?.trim() || fallbackName?.trim() || getNoteTitleFromPath(path),
     disambiguation: null,
+    isUntitledPlaceholder,
   };
 }
 
@@ -31,11 +41,11 @@ export function NoteDisambiguatedTitle({
   titleClassName,
   hintClassName,
 }: NoteDisambiguatedTitleProps) {
-  const { title, disambiguation } = useNoteLabelDescriptor(path, fallbackName);
+  const { title, disambiguation, isUntitledPlaceholder } = useNoteLabelDescriptor(path, fallbackName);
 
   return (
     <span className={cn('block whitespace-normal break-all', className)}>
-      <span className={titleClassName}>{title}</span>
+      <span className={cn(titleClassName, isUntitledPlaceholder && 'text-[var(--vlaina-soft-placeholder)]')}>{title}</span>
       {disambiguation ? (
         <span className={cn('text-[11px]', hintClassName)}>{` · ${disambiguation}`}</span>
       ) : null}

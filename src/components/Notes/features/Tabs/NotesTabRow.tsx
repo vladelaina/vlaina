@@ -45,7 +45,7 @@ const SortableTab = memo(function SortableTab({
   showSeparator,
 }: SortableTabProps) {
   const icon = useDisplayIcon(tab.path);
-  const { title, disambiguation } = useNoteLabelDescriptor(tab.path, tab.name);
+  const { title, disambiguation, isUntitledPlaceholder } = useNoteLabelDescriptor(tab.path, tab.name);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ id: tab.path });
   const labelRef = React.useRef<HTMLSpanElement | null>(null);
   const [isLabelClipped, setIsLabelClipped] = React.useState(false);
@@ -136,6 +136,7 @@ const SortableTab = memo(function SortableTab({
             icon={icon}
             title={title}
             disambiguation={disambiguation}
+            isUntitledPlaceholder={isUntitledPlaceholder}
             labelRef={labelRef}
           />
 
@@ -188,7 +189,7 @@ interface TabOverlayProps {
 
 function TabOverlay({ tab, isActive }: TabOverlayProps) {
   const icon = useDisplayIcon(tab.path);
-  const { title, disambiguation } = useNoteLabelDescriptor(tab.path, tab.name);
+  const { title, disambiguation, isUntitledPlaceholder } = useNoteLabelDescriptor(tab.path, tab.name);
   return (
     <div
       className={cn(
@@ -202,6 +203,7 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
         icon={icon}
         title={title}
         disambiguation={disambiguation}
+        isUntitledPlaceholder={isUntitledPlaceholder}
       />
     </div>
   );

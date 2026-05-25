@@ -12,6 +12,7 @@ interface NoteTabContentProps {
   icon?: string;
   title: string;
   disambiguation?: string | null;
+  isUntitledPlaceholder?: boolean;
   labelRef?: Ref<HTMLSpanElement>;
 }
 
@@ -21,6 +22,7 @@ export function NoteTabContent({
   icon,
   title,
   disambiguation,
+  isUntitledPlaceholder = false,
   labelRef,
 }: NoteTabContentProps) {
   const notesPath = useNotesStore((s) => s.notesPath);
@@ -48,7 +50,14 @@ export function NoteTabContent({
         />
       )}
 
-      <span ref={labelRef} className={cn('pointer-events-none truncate text-[13px] text-current', isActive && 'font-semibold')}>
+      <span
+        ref={labelRef}
+        className={cn(
+          'pointer-events-none truncate text-[13px] text-current',
+          isActive && 'font-semibold',
+          isUntitledPlaceholder && 'text-[var(--vlaina-soft-placeholder)]',
+        )}
+      >
         {truncateNoteLabel(title)}
         {disambiguation ? (
           <span className="text-[11px] text-current/65">{` · ${disambiguation}`}</span>

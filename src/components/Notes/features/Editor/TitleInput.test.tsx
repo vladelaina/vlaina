@@ -45,6 +45,7 @@ describe('TitleInput', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.clearAllMocks();
     width = 0;
     scrollHeight = 1200;
     originalRect = HTMLTextAreaElement.prototype.getBoundingClientRect;
@@ -109,5 +110,36 @@ describe('TitleInput', () => {
         ...eventInit,
       })
     ).toBe(true);
+  });
+
+  it('keeps a cleared existing title empty on blur so the Untitled placeholder remains visible', async () => {
+    render(<TitleInput notePath="/vault/test.md" initialTitle="test" />);
+
+    const input = screen.getByDisplayValue('test') as HTMLTextAreaElement;
+
+    fireEvent.change(input, { target: { value: '' } });
+    await act(async () => {
+      fireEvent.blur(input);
+    });
+
+    expect(input.value).toBe('');
+    expect(screen.getByPlaceholderText('notes.untitled')).toBe(input);
+    expect(notesState.renameNote).not.toHaveBeenCalled();
+    expect(notesState.renameAbsoluteNote).not.toHaveBeenCalled();
+  });
+
+  it('clears a draft title on blur instead of restoring the previous draft name', async () => {
+    render(<TitleInput notePath="draft:test" initialTitle="Draft title" />);
+
+    const input = screen.getByDisplayValue('Draft title') as HTMLTextAreaElement;
+
+    fireEvent.change(input, { target: { value: '' } });
+    await act(async () => {
+      fireEvent.blur(input);
+    });
+
+    expect(input.value).toBe('');
+    expect(notesState.updateDraftNoteName).toHaveBeenCalledWith('draft:test', '');
+    expect(notesState.saveNote).toHaveBeenCalledWith({ explicit: false });
   });
 });
