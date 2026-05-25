@@ -1,6 +1,5 @@
 import { type ReactNode, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import {
   SidebarContextMenuDivider,
@@ -32,28 +31,21 @@ export function SidebarContextMenu({
   if (!isOpen) return null;
 
   return createPortal(
-    <AnimatePresence>
-      <motion.div
-        key="menu"
-        ref={menuRef}
-        data-sidebar-context-menu-layer="true"
-        style={{
-          top: resolvedPosition.top,
-          left: resolvedPosition.left,
-          transformOrigin: 'top left',
-          maxHeight: `calc(100vh - ${VIEWPORT_MENU_MARGIN * 2}px)`,
-        }}
-        className={cn('fixed z-[9999]', MENU_PANEL_CLASS_NAME)}
-        initial={{ opacity: 0, scale: 0.95, y: -8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.1 } }}
-        transition={{ type: 'spring', stiffness: 400, damping: 25, mass: 0.5 }}
-        onClick={(event) => event.stopPropagation()}
-        onContextMenu={(event) => event.stopPropagation()}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>,
+    <div
+      ref={menuRef}
+      data-sidebar-context-menu-layer="true"
+      style={{
+        top: resolvedPosition.top,
+        left: resolvedPosition.left,
+        transformOrigin: 'top left',
+        maxHeight: `calc(100vh - ${VIEWPORT_MENU_MARGIN * 2}px)`,
+      }}
+      className={cn('fixed z-[9999]', MENU_PANEL_CLASS_NAME)}
+      onClick={(event) => event.stopPropagation()}
+      onContextMenu={(event) => event.stopPropagation()}
+    >
+      {children}
+    </div>,
     document.body,
   );
 }
