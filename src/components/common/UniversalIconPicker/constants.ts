@@ -155,9 +155,8 @@ export function loadRecentIcons(): string[] {
 
 export function saveRecentIcons(icons: string[]): void {
   try {
-    localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(
-      icons.filter((icon) => typeof icon === 'string' && icon.length > 0).slice(0, MAX_RECENT_EMOJIS)
-    ));
+    const validIcons = icons.filter((icon) => typeof icon === 'string' && icon.length > 0).slice(0, MAX_RECENT_EMOJIS);
+    localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(validIcons));
   } catch { }
 }
 
@@ -180,9 +179,8 @@ export function loadSkinTone(): number {
 
 export function saveSkinTone(tone: number): void {
   try {
-    localStorage.setItem(SKIN_TONE_KEY, String(
-      Number.isInteger(tone) && tone >= 0 && tone < SKIN_TONES.length ? tone : 0
-    ));
+    const validTone = Number.isInteger(tone) && tone >= 0 && tone < SKIN_TONES.length ? tone : 0;
+    localStorage.setItem(SKIN_TONE_KEY, String(validTone));
   } catch { }
 }
 

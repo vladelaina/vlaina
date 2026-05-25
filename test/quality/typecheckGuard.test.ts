@@ -82,12 +82,14 @@ describe('typecheck quality gate', () => {
       'src/stores/notes/storage.ts:localStorage.setItem(NOTE_ICON_SIZE_KEY, String(normalized));',
       'src/stores/uiSlice.ts:localStorage.setItem(key, value);',
       'src/stores/uiSlice.ts:localStorage.removeItem(key);',
+      'src/stores/useManagedAIStore.ts:localStorage.setItem(BUDGET_SYNC_STORAGE_KEY, JSON.stringify({ budget, syncedAt }))',
+      'src/stores/useManagedAIStore.ts:localStorage.removeItem(BUDGET_SYNC_STORAGE_KEY)',
       'src/stores/vaultStoreSupport.ts:localStorage.setItem(key, JSON.stringify(value));',
 
       // Window-local/layout-local preferences.
       'src/components/layout/ResizablePanel.tsx:localStorage.setItem(storageKey, String(width));',
-      'src/components/common/UniversalIconPicker/constants.ts:localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(icons));',
-      'src/components/common/UniversalIconPicker/constants.ts:localStorage.setItem(SKIN_TONE_KEY, tone.toString());',
+      'src/components/common/UniversalIconPicker/constants.ts:localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(validIcons));',
+      'src/components/common/UniversalIconPicker/constants.ts:localStorage.setItem(SKIN_TONE_KEY, String(validTone));',
       'src/components/common/UniversalIconPicker/constants.ts:localStorage.setItem(ICON_COLOR_KEY, color);',
       'src/components/common/UniversalIconPicker/constants.ts:localStorage.setItem(ACTIVE_TAB_KEY, tab);',
       'src/components/Notes/features/Editor/plugins/floating-toolbar/components/ai-dropdown/usageRanking.ts:window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));',
@@ -104,6 +106,9 @@ describe('typecheck quality gate', () => {
       'src/lib/account/webSession.ts:localStorage.removeItem(ACCOUNT_USER_PERSIST_KEY);',
       'src/lib/ai/sessionMutationLock.ts:localStorage.setItem(getLockKey(sessionId), JSON.stringify(record));',
       'src/lib/ai/sessionMutationLock.ts:localStorage.removeItem(getLockKey(sessionId));',
+
+      // E2E-only bridge activation persistence, guarded behind import.meta.env.DEV.
+      "src/lib/e2e/syncE2EBridge.ts:window.localStorage.setItem(E2E_LOCAL_STORAGE_KEY, '1');",
     ];
 
     expect(findStorageWriteSites()).toEqual([...expectedSites].sort());

@@ -28,6 +28,7 @@ describe('handleEditorImageFiles', () => {
                 schema: { nodes: { image: { create } } },
                 tr,
             },
+            dom: { dispatchEvent: vi.fn() },
             dispatch,
         };
         const file = new File(['demo'], 'demo.png', { type: 'image/png' });
@@ -91,6 +92,7 @@ describe('handleEditorImageFiles', () => {
                 schema: { nodes: { image: { create } } },
                 tr,
             },
+            dom: { dispatchEvent: vi.fn() },
             dispatch,
         };
         const files = [
