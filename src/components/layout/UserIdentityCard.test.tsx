@@ -81,6 +81,32 @@ describe('UserIdentityCard', () => {
     expect(screen.queryByText('Free')).not.toBeInTheDocument();
   });
 
+  it('does not render free membership as a user-card badge or more-menu upgrade option', () => {
+    act(() => {
+      useAccountSessionStore.setState({
+        ...initialAccountSessionState,
+        isConnected: true,
+        isLoading: false,
+        provider: 'google',
+        username: 'alice',
+        primaryEmail: 'alice@example.com',
+        membershipTier: 'free',
+        membershipName: 'Free',
+      });
+    });
+
+    render(<UserIdentityCard onLogout={vi.fn()} onSwitchAccount={vi.fn()} />);
+
+    expect(screen.queryByText('Upgrade ໒꒱')).not.toBeInTheDocument();
+    expect(screen.queryByText('Free')).not.toBeInTheDocument();
+
+    act(() => {
+      screen.getAllByRole('button')[0]?.click();
+    });
+
+    expect(screen.queryByText('Upgrade ໒꒱')).not.toBeInTheDocument();
+  });
+
   it('opens the account plan page when the membership badge is activated', async () => {
     act(() => {
       useAccountSessionStore.setState({
