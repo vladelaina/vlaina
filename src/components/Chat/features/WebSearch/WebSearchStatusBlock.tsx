@@ -17,28 +17,6 @@ function phaseLabel(status: WebSearchStatus): string {
   return 'Web search';
 }
 
-function metricsLabel(status: WebSearchStatus): string {
-  const metrics = status.metrics;
-  if (!metrics) return '';
-
-  if (typeof metrics.successCount === 'number' || typeof metrics.failureCount === 'number') {
-    const successCount = metrics.successCount ?? 0;
-    const failureCount = metrics.failureCount ?? 0;
-    const parts: string[] = [];
-    if (successCount > 0) {
-      parts.push(`${successCount} read`);
-    }
-    if (failureCount > 0) {
-      parts.push(`${failureCount} skipped`);
-    }
-    return parts.join(' · ');
-  }
-
-  if (typeof metrics.resultCount === 'number') return '';
-
-  return '';
-}
-
 function hostLabel(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, '');
@@ -84,7 +62,6 @@ export function WebSearchStatusBlock({ statuses, isWaitingForAnswer = false }: W
   const status = statuses[statuses.length - 1];
   if (!status) return null;
   const latestResults = [...statuses].reverse().find((item) => item.results?.length)?.results ?? [];
-  const metricsText = metricsLabel(status);
   const isSearching = isWaitingForAnswer;
   const showStatusMessage = shouldShowStatusMessage(status);
   const sourceItems = uniqueSourceItems(latestResults, status.urls ?? []);
@@ -109,7 +86,6 @@ export function WebSearchStatusBlock({ statuses, isWaitingForAnswer = false }: W
         </span>
         <span>{phaseLabel(status)}</span>
         {status.query && <span className="min-w-0 truncate text-[var(--vlaina-text-tertiary)]">"{status.query}"</span>}
-        {metricsText && <span className="ml-auto shrink-0 text-[var(--vlaina-text-tertiary)]">{metricsText}</span>}
       </div>
 
       {showStatusMessage && (
