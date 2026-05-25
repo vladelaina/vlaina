@@ -6,6 +6,7 @@ import type { ChatMessage } from '@/lib/ai/types';
 import { parseErrorTag } from '@/lib/ai/errorTag';
 import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
 import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup';
+import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { WebSearchStatusBlock } from '@/components/Chat/features/WebSearch/WebSearchStatusBlock';
 import { useAccountSessionStore } from '@/stores/accountSession';
 
@@ -89,6 +90,7 @@ export function AIMessage({
     };
   }, [msg.content]);
   const isStreamingContentVisible = isLoading && contentWithoutError.trim().length > 0;
+  const isEmptyCompletedResponse = !isLoading && stripThinkingContent(contentWithoutError).trim().length === 0;
   const visibleContent = contentWithoutError || ' ';
   const isManagedModelAuthError = !isAccountConnected
     && errorType === 'AUTH_ERROR'
@@ -136,7 +138,10 @@ export function AIMessage({
   return (
     <div className="w-full pl-[15px]" data-chat-selection-surface="true">
         <div className="[&>*:last-child]:mb-0">
-            <WebSearchStatusBlock statuses={webSearchStatuses} />
+            <WebSearchStatusBlock
+                statuses={webSearchStatuses}
+                isWaitingForAnswer={isLoading && stripThinkingContent(contentWithoutError).trim().length === 0}
+            />
             <MarkdownRenderer
                 content={visibleContent}
                 imageGallery={imageGallery}
@@ -167,6 +172,7 @@ export function AIMessage({
             <MessageToolbar 
                 msg={msg}
                 isLoading={isLoading}
+                forceVisible={isEmptyCompletedResponse}
                 onCopy={onCopy}
                 onRegenerate={onRegenerate}
                 onSwitchVersion={onSwitchVersion}

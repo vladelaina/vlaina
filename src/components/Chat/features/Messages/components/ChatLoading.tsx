@@ -13,7 +13,7 @@ export function ChatLoading() {
             {[0, 1, 2].map((i) => (
                 <div
                     key={i}
-                    className="w-1.5 h-1.5 bg-neutral-400 dark:bg-neutral-500 rounded-full vlaina-dot"
+                    className="w-1.5 h-1.5 bg-[var(--vlaina-accent)] rounded-full vlaina-dot"
                     style={{
                         animationDelay: `${i * 0.1}s`,
                     }}
