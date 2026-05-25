@@ -248,6 +248,108 @@ function joinWrappedPlainTextLines(lines: string[]): string {
 
 const BULLET_PREFIXED_ORDERED_MARKER_PATTERN = /^(?:\s*)[•‣◦]\s*(\d{1,3})[.)][ \t]+(.+)$/u;
 const ORDERED_OUTLINE_MARKER_PATTERN = /^(\s{0,3})(?:[•‣◦]\s*)?(\d{1,3})[.)][ \t]+(.+)$/u;
+const INLINE_EMBEDDED_HTML_EXAMPLE_PATTERN =
+    /<(video|audio|iframe)\b[^>\n]*>[^<\n]*<\/\1>|<(img|source|track|video|audio|iframe)\b[^>\n]*\/?>/gi;
+const FENCED_CODE_LINE_PATTERN = /^(?: {0,3}>[ \t]*)* {0,3}(`{3,}|~{3,})/;
+
+function getInlineCodeSpanRanges(line: string): Array<[number, number]> {
+    const ranges: Array<[number, number]> = [];
+    let index = 0;
+
+    while (index < line.length) {
+        const start = line.indexOf('`', index);
+        if (start < 0) break;
+
+        let markerSize = 1;
+        while (line[start + markerSize] === '`') {
+            markerSize += 1;
+        }
+
+        const marker = '`'.repeat(markerSize);
+        const end = line.indexOf(marker, start + markerSize);
+        if (end < 0) break;
+
+        ranges.push([start, end + markerSize]);
+        index = end + markerSize;
+    }
+
+    return ranges;
+}
+
+function isOffsetInRanges(offset: number, ranges: ReadonlyArray<[number, number]>): boolean {
+    return ranges.some(([start, end]) => offset >= start && offset < end);
+}
+
+function stripMarkdownContainerPrefix(value: string): string {
+    let normalized = value.replace(/^(?: {0,3}>[ \t]*)*/, '');
+    normalized = normalized.replace(/^ {0,3}(?:[-+*]|\d+[.)])[ \t]+(?:\[(?: |x|X)\][ \t]+)?/, '');
+    return normalized;
+}
+
+function startsWithRawHtmlAfterMarkdownContainerPrefix(value: string): boolean {
+    return stripMarkdownContainerPrefix(value).trimStart().startsWith('<');
+}
+
+function isAtRawHtmlLineStart(line: string, offset: number): boolean {
+    return stripMarkdownContainerPrefix(line.slice(0, offset)).trim().length === 0
+        && stripMarkdownContainerPrefix(line).trimStart().startsWith('<');
+}
+
+function escapeInlineEmbeddedHtmlExamples(text: string): string {
+    let activeFence: { marker: string; size: number } | null = null;
+
+    return text.replace(/^.*$/gm, (line) => {
+        const fenceMatch = FENCED_CODE_LINE_PATTERN.exec(line);
+        if (activeFence) {
+            if (
+                fenceMatch
+                && (fenceMatch[1]?.[0] ?? '') === activeFence.marker
+                && (fenceMatch[1]?.length ?? 0) >= activeFence.size
+            ) {
+                activeFence = null;
+            }
+            return line;
+        }
+
+        if (fenceMatch) {
+            activeFence = {
+                marker: fenceMatch[1]?.[0] ?? '`',
+                size: fenceMatch[1]?.length ?? 3,
+            };
+            return line;
+        }
+
+        INLINE_EMBEDDED_HTML_EXAMPLE_PATTERN.lastIndex = 0;
+        if (!INLINE_EMBEDDED_HTML_EXAMPLE_PATTERN.test(line)) {
+            return line;
+        }
+
+        INLINE_EMBEDDED_HTML_EXAMPLE_PATTERN.lastIndex = 0;
+        const codeSpanRanges = getInlineCodeSpanRanges(line);
+        return line.replace(INLINE_EMBEDDED_HTML_EXAMPLE_PATTERN, (match, _tagName, _voidTagName, offset: number) => {
+            if (isOffsetInRanges(offset, codeSpanRanges)) {
+                return match;
+            }
+
+            const before = line.slice(0, offset);
+            const after = line.slice(offset + match.length);
+            if (startsWithRawHtmlAfterMarkdownContainerPrefix(before)) {
+                return match;
+            }
+
+            if (isAtRawHtmlLineStart(line, offset) && after.trimStart().startsWith('<')) {
+                return match;
+            }
+
+            const isStandaloneHtmlLine = before.trim().length === 0 && after.trim().length === 0;
+            if (isStandaloneHtmlLine) {
+                return match;
+            }
+
+            return match.replace(/[<>/]/g, '\\$&');
+        });
+    });
+}
 
 function normalizeBulletPrefixedOrderedOutlinePaste(text: string): string {
     const normalized = text.replace(/\r\n?/g, '\n');
@@ -469,7 +571,8 @@ export const clipboardPlugin = $prose((ctx) => {
     const parseMarkdownNodes = (text: string): ProseNode[] | null => {
         const withOrderedOutline = normalizeBulletPrefixedOrderedOutlinePaste(text);
         const withMathFences = normalizeAlternativeMathBlockFences(withOrderedOutline);
-        const withLenientLineMarkers = normalizeLenientMarkdownLineMarkers(withMathFences);
+        const withEscapedInlineEmbeddedHtml = escapeInlineEmbeddedHtmlExamples(withMathFences);
+        const withLenientLineMarkers = normalizeLenientMarkdownLineMarkers(withEscapedInlineEmbeddedHtml);
         if (
             !looksLikeMarkdownForPaste(withOrderedOutline)
             && !looksLikeMarkdownForPaste(withMathFences)

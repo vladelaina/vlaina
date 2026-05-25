@@ -202,6 +202,173 @@ describe('clipboard paste markdown persistence', () => {
     ].join('\n'));
   });
 
+  it('keeps inline self-closing video html examples visible inside pasted ordered-list prose', async () => {
+    const editor = await createPasteEditor();
+    const view = editor.ctx.get(editorViewCtx);
+    const pasted = [
+      '  12. 视频 HTML 支持弱于 Typora',
+      '     Typora 支持 <video src="xxx.mp4" />、拖放视频和路径规',
+      '  则。我们有 video 插件，但原生 HTML video 兼容、拖放和路径策',
+      '  略不一定完整对齐。',
+    ].join('\n');
+
+    expect(simulatePasteText(view, pasted)).toBe(true);
+    expect(view.dom.querySelector('video')).toBeNull();
+    expect(view.dom.textContent).toContain('<video src="xxx.mp4" />');
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const persisted = stripTrailingNewlines(
+      serializeLeadingFrontmatterMarkdown(
+        normalizeSerializedMarkdownDocument(serializer(view.state.doc)),
+        pasted
+      )
+    );
+    expect(persisted).toContain('<video src="xxx.mp4" />');
+
+    await editor.destroy();
+  });
+
+  it.each([
+    ['image', '<img src="cover.png" />', 'img'],
+    ['iframe', '<iframe src="https://example.com/embed"></iframe>', 'iframe'],
+    ['audio', '<audio src="demo.mp3" />', 'audio'],
+  ] as const)('keeps inline %s html examples as text while pasting markdown prose', async (_name, html, selector) => {
+    const editor = await createPasteEditor();
+    const view = editor.ctx.get(editorViewCtx);
+    const pasted = [
+      '1. HTML 示例',
+      `   说明里写 ${html} 不应该变成真实元素。`,
+    ].join('\n');
+
+    expect(simulatePasteText(view, pasted)).toBe(true);
+    expect(view.dom.querySelector(selector)).toBeNull();
+    expect(view.dom.textContent).toContain(html);
+
+    await editor.destroy();
+  });
+
+  it('does not rewrite embedded html inside pasted fenced code blocks or inline code spans', async () => {
+    const pasted = [
+      '1. HTML 示例',
+      '   行内代码 `<img src="cover.png" />` 应该保持代码内容。',
+      '',
+      '```html',
+      '<iframe src="https://example.com/embed"></iframe>',
+      '<video src="demo.mp4" />',
+      '```',
+    ].join('\n');
+
+    const persisted = await pasteAndPersist(pasted);
+
+    expect(persisted).toContain('`<img src="cover.png" />`');
+    expect(persisted).toContain('<iframe src="https://example.com/embed"></iframe>');
+    expect(persisted).toContain('<video src="demo.mp4" />');
+    expect(persisted).not.toContain('\\<iframe');
+    expect(persisted).not.toContain('\\<video');
+  });
+
+  it('does not rewrite embedded html inside pasted blockquote fenced code blocks', async () => {
+    const pasted = [
+      '> ```html',
+      '> <img src="cover.png" />',
+      '> <iframe src="https://example.com/embed"></iframe>',
+      '> ```',
+    ].join('\n');
+
+    const persisted = await pasteAndPersist(pasted);
+
+    expect(persisted).toContain('<img src="cover.png" />');
+    expect(persisted).toContain('<iframe src="https://example.com/embed"></iframe>');
+    expect(persisted).not.toContain('\\<img');
+    expect(persisted).not.toContain('\\<iframe');
+  });
+
+  it('keeps standalone embedded html lines as raw html during structural markdown paste', async () => {
+    const pasted = [
+      '1. HTML 示例',
+      '',
+      '<iframe src="https://example.com/embed"></iframe>',
+      '',
+      '<video src="https://example.com/demo.mp4"></video>',
+    ].join('\n');
+
+    const persisted = await pasteAndPersist(pasted);
+
+    expect(persisted).toContain('<iframe src="https://example.com/embed"></iframe>');
+    expect(persisted).toContain('<video src="https://example.com/demo.mp4"></video>');
+    expect(persisted).not.toContain('\\<iframe');
+    expect(persisted).not.toContain('\\<video');
+  });
+
+  it('does not rewrite embedded elements inside standalone raw html wrapper lines', async () => {
+    const pasted = [
+      '1. HTML 示例',
+      '',
+      '<div><img src="https://example.com/cover.png" alt="cover"></div>',
+      '',
+      '<p>Typora 支持 <video src="https://example.com/demo.mp4"></video></p>',
+    ].join('\n');
+
+    const persisted = await pasteAndPersist(pasted);
+
+    expect(persisted).toContain('<img src="https://example.com/cover.png" alt="cover" />');
+    expect(persisted).toContain('<p>Typora 支持 <video src="https://example.com/demo.mp4"></video></p>');
+    expect(persisted).not.toContain('\\<img');
+    expect(persisted).not.toContain('\\<video');
+  });
+
+  it('does not rewrite embedded elements inside raw html wrappers in markdown containers', async () => {
+    const pasted = [
+      '> <p>引用里 <video src="https://example.com/demo.mp4"></video></p>',
+      '',
+      '1. <p>列表里 <img src="https://example.com/cover.png" /></p>',
+      '',
+      '2. <video controls><source src="https://example.com/demo.mp4" type="video/mp4"></video>',
+    ].join('\n');
+
+    const persisted = await pasteAndPersist(pasted);
+
+    expect(persisted).toContain('<video src="https://example.com/demo.mp4"></video>');
+    expect(persisted).toContain('<img src="https://example.com/cover.png"');
+    expect(persisted).toContain('<video controls><source src="https://example.com/demo.mp4" type="video/mp4"></video>');
+    expect(persisted).not.toContain('\\<video');
+    expect(persisted).not.toContain('\\<img');
+    expect(persisted).not.toContain('\\<source');
+  });
+
+  it('keeps embedded html examples inside table cells as text', async () => {
+    const editor = await createPasteEditor();
+    const view = editor.ctx.get(editorViewCtx);
+    const pasted = [
+      '| A | B |',
+      '| - | - |',
+      '| text | 表格里 <audio src="demo.mp3"></audio> 应该是文本 |',
+    ].join('\n');
+
+    expect(simulatePasteText(view, pasted)).toBe(true);
+    expect(view.dom.querySelector('audio')).toBeNull();
+    expect(view.dom.textContent).toContain('<audio src="demo.mp3"></audio>');
+
+    await editor.destroy();
+  });
+
+  it('keeps leading embedded html examples in list prose as text when followed by prose', async () => {
+    const editor = await createPasteEditor();
+    const view = editor.ctx.get(editorViewCtx);
+    const pasted = [
+      '1. <video src="demo.mp4" /> 是 Typora 支持的视频示例。',
+      '2. <img src="cover.png" /> 是图片示例。',
+    ].join('\n');
+
+    expect(simulatePasteText(view, pasted)).toBe(true);
+    expect(view.dom.querySelector('video')).toBeNull();
+    expect(view.dom.querySelector('img')).toBeNull();
+    expect(view.dom.textContent).toContain('<video src="demo.mp4" />');
+    expect(view.dom.textContent).toContain('<img src="cover.png" />');
+
+    await editor.destroy();
+  });
+
   it('does not fold unindented prose after a bullet-prefixed number into an ordered outline item', async () => {
     const pasted = ['• 1. Release note', 'This paragraph is not part of the outline.', '2. Next'].join('\n');
 
