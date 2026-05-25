@@ -43,16 +43,37 @@ export function ReadOnlyMermaidBlock({ code }: ReadOnlyMermaidBlockProps) {
   }, [normalizedCode]);
 
   if (!normalizedCode) {
-    return <div className="mermaid-block mermaid-empty" data-type="mermaid">{translate('editor.emptyDiagram')}</div>;
+    return (
+      <div
+        className="mermaid-block mermaid-empty"
+        data-type="mermaid"
+        data-chat-selection-excluded="true"
+      >
+        {translate('editor.emptyDiagram')}
+      </div>
+    );
   }
 
   if (failed) {
-    return <div className="mermaid-block mermaid-error" data-type="mermaid">{translate('editor.mermaidRenderError')}</div>;
+    return (
+      <div
+        className="mermaid-block mermaid-error"
+        data-type="mermaid"
+        data-chat-selection-excluded="true"
+      >
+        {translate('editor.mermaidRenderError')}
+      </div>
+    );
   }
 
   if (!markup) {
     return (
-      <div className="mermaid-block" data-type="mermaid" data-code={normalizedCode}>
+      <div
+        className="mermaid-block"
+        data-type="mermaid"
+        data-code={normalizedCode}
+        data-chat-selection-excluded="true"
+      >
         <div className="mermaid-placeholder">{translate('editor.mermaidPlaceholder')}</div>
       </div>
     );
@@ -63,6 +84,7 @@ export function ReadOnlyMermaidBlock({ code }: ReadOnlyMermaidBlockProps) {
       className="mermaid-block"
       data-type="mermaid"
       data-code={normalizedCode}
+      data-chat-selection-excluded="true"
       dangerouslySetInnerHTML={{ __html: markup }}
     />
   );
