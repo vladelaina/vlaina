@@ -82,28 +82,16 @@ export function ChatInputActions({
               onRequestComposerFocus();
             }}
             className={cn(
-              "w-52 rounded-[22px] border-transparent p-1.5 text-[var(--chat-sidebar-text)]",
+              "w-max min-w-52 rounded-[22px] border-transparent p-1.5 text-[var(--chat-sidebar-text)]",
               chatComposerPillSurfaceClass
             )}
           >
-            <button
-              type="button"
-              onClick={handleTriggerFileSelect}
-              className={cn(
-                "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[16px] font-medium transition-colors",
-                "text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)]",
-                getSidebarIdleRowSurfaceClass('chat')
-              )}
-            >
-              <Icon name="common.upload" size="md" className="text-[var(--chat-sidebar-text)]" />
-              <span>{t('chat.uploadFile')}</span>
-            </button>
             {!webSearchEnabled && (
               <button
                 type="button"
                 onClick={handleEnableWebSearch}
                 className={cn(
-                  "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[16px] font-medium transition-colors",
+                  "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[16px] font-medium whitespace-nowrap transition-colors",
                   "text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)]",
                   getSidebarIdleRowSurfaceClass('chat')
                 )}
@@ -112,6 +100,18 @@ export function ChatInputActions({
                 <span>{t('chat.webSearch')}</span>
               </button>
             )}
+            <button
+              type="button"
+              onClick={handleTriggerFileSelect}
+              className={cn(
+                "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[16px] font-medium whitespace-nowrap transition-colors",
+                "text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)]",
+                getSidebarIdleRowSurfaceClass('chat')
+              )}
+            >
+              <Icon name="common.upload" size="md" className="text-[var(--chat-sidebar-text)]" />
+              <span>{t('chat.uploadFile')}</span>
+            </button>
           </PopoverContent>
         </Popover>
         {webSearchEnabled && (
