@@ -45,6 +45,10 @@ export function serializeSliceToText(slice: any): string {
             return '```' + language + '\n' + content + '\n```\n';
         }
 
+        if (node.isTextblock && node.content?.size === 0) {
+            return '\n';
+        }
+
         if (node.content && node.content.size > 0) {
             const content = serializeNodeContent(node);
             if (node.isBlock) {
