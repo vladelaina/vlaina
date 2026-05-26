@@ -516,7 +516,14 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('.milkdown .ProseMirror.vlaina-text-selection-overlay-active *::selection {');
     expect(css).toContain('background-color: transparent !important;');
     expect(css).toContain('.milkdown .ProseMirror.vlaina-pointer-native-selection *::selection {');
-    expect(css).toContain('-webkit-text-fill-color: currentColor !important;');
+    expect(css).toContain([
+      '.milkdown .ProseMirror.vlaina-pointer-native-selection::selection,',
+      '.milkdown .ProseMirror.vlaina-pointer-native-selection *::selection {',
+      '  background-color: transparent !important;',
+      '  color: inherit !important;',
+      '  -webkit-text-fill-color: inherit !important;',
+      '}',
+    ].join('\n'));
     expect(css).toContain('.milkdown .ProseMirror .vlaina-text-selection-overlay {');
     expect(css).toContain('box-shadow: none;');
     expect(css).toContain('border-radius: 3px;');
@@ -527,7 +534,7 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(source).toContain("const EDITOR_ONLY_TEXT_SELECTION_PLACEHOLDERS = new Set(['\\u200B', '\\u200C', '\\u2800']);");
     expect(source).toContain('EDITOR_ONLY_TEXT_SELECTION_PLACEHOLDERS.has(char)');
     expect(source).toContain('export function addTextSelectionOverlayDecorations(');
-    expect(source).toContain('Decoration.inline(rangeStart, to, {');
+    expect(source).toContain('Decoration.inline(rangeFrom, rangeTo, {');
     expect(source).toContain('ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES.has(node.type.name)');
     expect(sharedSource).toContain('ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES');
     expect(sharedSource).toContain("'video'");
