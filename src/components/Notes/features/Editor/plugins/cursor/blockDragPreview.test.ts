@@ -466,6 +466,422 @@ describe('createBlockDragPreview', () => {
     rectSpy.mockRestore();
   });
 
+  it('wraps detached ordered list items with the original marker number', () => {
+    const editorRoot = document.createElement('div');
+    const list = document.createElement('ol');
+    list.start = 5;
+    const firstItem = document.createElement('li');
+    firstItem.textContent = 'Five';
+    const secondItem = document.createElement('li');
+    secondItem.textContent = 'Six';
+    list.append(firstItem, secondItem);
+    editorRoot.appendChild(list);
+    document.body.appendChild(editorRoot);
+
+    const firstItemNode = createNode('list_item', 6);
+    const secondItemNode = createNode('list_item', 6);
+    const listNode = createNode('ordered_list', 14, [firstItemNode, secondItemNode]);
+
+    const view = {
+      dom: editorRoot,
+      state: {
+        doc: {
+          content: { size: 14 },
+          forEach(cb: (child: any, offset: number) => void) {
+            cb(listNode, 0);
+          },
+          resolve(pos: number) {
+            const itemNode = pos === 7 ? secondItemNode : firstItemNode;
+            return {
+              pos,
+              depth: 1,
+              nodeAfter: itemNode,
+              node() {
+                return listNode;
+              },
+              before() {
+                return 0;
+              },
+            };
+          },
+        },
+      },
+      nodeDOM(pos: number) {
+        return pos >= 7 ? secondItem : firstItem;
+      },
+      domAtPos(pos: number) {
+        return { node: pos >= 7 ? secondItem.firstChild as Node : firstItem.firstChild as Node };
+      },
+    } as any;
+
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (this === firstItem || this === secondItem) {
+          const top = this === firstItem ? 80 : 112;
+          return {
+            left: 120,
+            top,
+            width: 260,
+            height: 32,
+            right: 380,
+            bottom: top + 32,
+            x: 120,
+            y: top,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        if (this.dataset.noEditorDragBox === 'true') {
+          return {
+            left: 0,
+            top: 0,
+            width: 260,
+            height: 32,
+            right: 260,
+            bottom: 32,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        return {
+          left: 0,
+          top: 0,
+          width: 0,
+          height: 0,
+          right: 0,
+          bottom: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        } as DOMRect;
+      });
+
+    const firstPreview = createBlockDragPreview({
+      view,
+      ranges: [{ from: 1, to: 7 }],
+      clientX: 88,
+      clientY: 96,
+    });
+
+    expect(firstPreview).not.toBeNull();
+    expect(firstPreview?.element.querySelector('ol')?.getAttribute('start')).toBe('5');
+    firstPreview?.destroy();
+
+    const secondPreview = createBlockDragPreview({
+      view,
+      ranges: [{ from: 7, to: 13 }],
+      clientX: 88,
+      clientY: 128,
+    });
+
+    expect(secondPreview).not.toBeNull();
+    expect(secondPreview?.element.querySelector('ol')?.getAttribute('start')).toBe('6');
+
+    secondPreview?.destroy();
+    rectSpy.mockRestore();
+  });
+
+  it('continues ordered list preview numbering after explicit item values', () => {
+    const editorRoot = document.createElement('div');
+    const list = document.createElement('ol');
+    const firstItem = document.createElement('li');
+    firstItem.value = 9;
+    firstItem.textContent = 'Nine';
+    const secondItem = document.createElement('li');
+    secondItem.textContent = 'Ten';
+    list.append(firstItem, secondItem);
+    editorRoot.appendChild(list);
+    document.body.appendChild(editorRoot);
+
+    const itemNode = createNode('list_item', 6);
+    const listNode = createNode('ordered_list', 14, [createNode('list_item', 6), itemNode]);
+    const view = {
+      dom: editorRoot,
+      state: {
+        doc: {
+          content: { size: 14 },
+          forEach(cb: (child: any, offset: number) => void) {
+            cb(listNode, 0);
+          },
+          resolve(pos: number) {
+            return {
+              pos,
+              depth: 1,
+              nodeAfter: itemNode,
+              node() {
+                return listNode;
+              },
+              before() {
+                return 0;
+              },
+            };
+          },
+        },
+      },
+      nodeDOM() {
+        return secondItem;
+      },
+      domAtPos() {
+        return { node: secondItem.firstChild as Node };
+      },
+    } as any;
+
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (this === secondItem) {
+          return {
+            left: 120,
+            top: 80,
+            width: 260,
+            height: 32,
+            right: 380,
+            bottom: 112,
+            x: 120,
+            y: 80,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        if (this.dataset.noEditorDragBox === 'true') {
+          return {
+            left: 0,
+            top: 0,
+            width: 260,
+            height: 32,
+            right: 260,
+            bottom: 32,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        return {
+          left: 0,
+          top: 0,
+          width: 0,
+          height: 0,
+          right: 0,
+          bottom: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        } as DOMRect;
+      });
+
+    const preview = createBlockDragPreview({
+      view,
+      ranges: [{ from: 7, to: 13 }],
+      clientX: 88,
+      clientY: 96,
+    });
+
+    expect(preview).not.toBeNull();
+    expect(preview?.element.querySelector('ol')?.getAttribute('start')).toBe('10');
+
+    preview?.destroy();
+    rectSpy.mockRestore();
+  });
+
+  it('preserves bullet list wrappers in detached list item previews', () => {
+    const editorRoot = document.createElement('div');
+    const bulletList = document.createElement('ul');
+    const bulletItem = document.createElement('li');
+    bulletItem.textContent = 'Bullet';
+    bulletList.appendChild(bulletItem);
+    editorRoot.appendChild(bulletList);
+    document.body.appendChild(editorRoot);
+
+    const itemNode = createNode('list_item', 6);
+    const listNode = createNode('bullet_list', 8, [itemNode]);
+    const view = {
+      dom: editorRoot,
+      state: {
+        doc: {
+          content: { size: 16 },
+          forEach(cb: (child: any, offset: number) => void) {
+            cb(listNode, 0);
+          },
+          resolve(pos: number) {
+            return {
+              pos,
+              depth: 1,
+              nodeAfter: itemNode,
+              node() {
+                return listNode;
+              },
+              before() {
+                return 0;
+              },
+            };
+          },
+        },
+      },
+      nodeDOM() {
+        return bulletItem;
+      },
+      domAtPos() {
+        return { node: bulletItem.firstChild as Node };
+      },
+    } as any;
+
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (this === bulletItem) {
+          return {
+            left: 120,
+            top: 80,
+            width: 260,
+            height: 32,
+            right: 380,
+            bottom: 112,
+            x: 120,
+            y: 80,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        if (this.dataset.noEditorDragBox === 'true') {
+          return {
+            left: 0,
+            top: 0,
+            width: 260,
+            height: 32,
+            right: 260,
+            bottom: 32,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        return {
+          left: 0,
+          top: 0,
+          width: 0,
+          height: 0,
+          right: 0,
+          bottom: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        } as DOMRect;
+      });
+
+    const bulletPreview = createBlockDragPreview({
+      view,
+      ranges: [{ from: 1, to: 7 }],
+      clientX: 88,
+      clientY: 96,
+    });
+
+    expect(bulletPreview).not.toBeNull();
+    expect(bulletPreview?.element.querySelector('ul > li')?.textContent).toBe('Bullet');
+    bulletPreview?.destroy();
+    rectSpy.mockRestore();
+  });
+
+  it('preserves task list attributes in detached list item previews', () => {
+    const editorRoot = document.createElement('div');
+    const taskList = document.createElement('ul');
+    const taskItem = document.createElement('li');
+    taskItem.dataset.itemType = 'task';
+    taskItem.dataset.checked = 'true';
+    taskItem.textContent = 'Task';
+    taskList.appendChild(taskItem);
+    editorRoot.appendChild(taskList);
+    document.body.appendChild(editorRoot);
+
+    const itemNode = createNode('list_item', 6);
+    const listNode = createNode('bullet_list', 8, [itemNode]);
+    const view = {
+      dom: editorRoot,
+      state: {
+        doc: {
+          content: { size: 8 },
+          forEach(cb: (child: any, offset: number) => void) {
+            cb(listNode, 0);
+          },
+          resolve(pos: number) {
+            return {
+              pos,
+              depth: 1,
+              nodeAfter: itemNode,
+              node() {
+                return listNode;
+              },
+              before() {
+                return 0;
+              },
+            };
+          },
+        },
+      },
+      nodeDOM() {
+        return taskItem;
+      },
+      domAtPos() {
+        return { node: taskItem.firstChild as Node };
+      },
+    } as any;
+
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (this === taskItem) {
+          return {
+            left: 120,
+            top: 80,
+            width: 260,
+            height: 32,
+            right: 380,
+            bottom: 112,
+            x: 120,
+            y: 80,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        if (this.dataset.noEditorDragBox === 'true') {
+          return {
+            left: 0,
+            top: 0,
+            width: 260,
+            height: 32,
+            right: 260,
+            bottom: 32,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        return {
+          left: 0,
+          top: 0,
+          width: 0,
+          height: 0,
+          right: 0,
+          bottom: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        } as DOMRect;
+      });
+
+    const taskPreview = createBlockDragPreview({
+      view,
+      ranges: [{ from: 1, to: 7 }],
+      clientX: 88,
+      clientY: 96,
+    });
+
+    expect(taskPreview).not.toBeNull();
+    const previewTaskItem = taskPreview?.element.querySelector('ul > li[data-item-type="task"]');
+    expect(previewTaskItem?.getAttribute('data-item-type')).toBe('task');
+    expect(previewTaskItem?.getAttribute('data-checked')).toBe('true');
+
+    taskPreview?.destroy();
+    rectSpy.mockRestore();
+  });
+
   it('replaces video iframes with a stable preview surface', () => {
     const editorRoot = document.createElement('div');
     const videoBlock = document.createElement('div');

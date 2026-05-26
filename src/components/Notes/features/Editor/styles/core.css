@@ -600,6 +600,24 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
   -webkit-text-fill-color: var(--vlaina-block-drag-preview-fg) !important;
 }
 
+.vlaina-block-drag-preview-layer :is(ol, ul) {
+  margin-block: 0;
+  padding-inline-start: 1.75rem;
+  list-style-position: outside;
+}
+
+.vlaina-block-drag-preview-layer ol {
+  list-style-type: decimal;
+}
+
+.vlaina-block-drag-preview-layer ul {
+  list-style-type: disc;
+}
+
+.vlaina-block-drag-preview-layer li::marker {
+  color: var(--vlaina-block-drag-preview-fg);
+}
+
 .milkdown .milkdown-table-block {
   position: relative;
   display: block;

@@ -400,6 +400,9 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('box-shadow: none;');
     expect(css).toContain('--vlaina-block-drag-preview-fg: color-mix(in srgb, var(--vlaina-text-primary, currentColor) 40%, white 60%);');
     expect(css).toContain('.vlaina-block-drag-preview-layer * {');
+    expect(css).toContain('.vlaina-block-drag-preview-layer :is(ol, ul) {');
+    expect(css).toContain('padding-inline-start: 1.75rem;');
+    expect(css).toContain('.vlaina-block-drag-preview-layer li::marker {');
   });
 
   it('keeps block handle dragging on a grabbing cursor', () => {

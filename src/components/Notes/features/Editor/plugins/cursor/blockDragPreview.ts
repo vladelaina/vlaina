@@ -238,6 +238,53 @@ function replaceMermaidBlocksForPreview(sourceRoot: HTMLElement, cloneRoot: HTML
   return cloneRoot;
 }
 
+function isListContainerElement(element: Node | null): element is HTMLOListElement | HTMLUListElement {
+  return element instanceof HTMLOListElement || element instanceof HTMLUListElement;
+}
+
+function resolveOrderedListItemValue(sourceItem: HTMLLIElement, parentList: HTMLOListElement): number {
+  const explicitValue = sourceItem.getAttribute('value');
+  if (explicitValue !== null) {
+    const parsed = Number.parseInt(explicitValue, 10);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  let value = parentList.hasAttribute('start') ? parentList.start : 1;
+  for (const child of parentList.children) {
+    if (!(child instanceof HTMLLIElement)) continue;
+    if (child === sourceItem) return value;
+
+    const childExplicitValue = child.getAttribute('value');
+    if (childExplicitValue !== null) {
+      const parsed = Number.parseInt(childExplicitValue, 10);
+      if (Number.isFinite(parsed)) {
+        value = parsed;
+      }
+    }
+    value += 1;
+  }
+  return value;
+}
+
+function wrapDetachedListItemForPreview(sourceRoot: HTMLElement, cloneRoot: HTMLElement): HTMLElement {
+  if (!(sourceRoot instanceof HTMLLIElement) || !(cloneRoot instanceof HTMLLIElement)) {
+    return cloneRoot;
+  }
+
+  const parentList = sourceRoot.parentElement;
+  if (!isListContainerElement(parentList)) return cloneRoot;
+
+  const wrapper = parentList.cloneNode(false);
+  if (!isListContainerElement(wrapper)) return cloneRoot;
+
+  sanitizeCloneTree(wrapper);
+  if (wrapper instanceof HTMLOListElement && parentList instanceof HTMLOListElement) {
+    wrapper.start = resolveOrderedListItemValue(sourceRoot, parentList);
+  }
+  wrapper.appendChild(cloneRoot);
+  return wrapper;
+}
+
 function createContentLayer(doc: Document, items: readonly PreviewItem[], captureJobs: CaptureJob[]): HTMLElement {
   const layer = doc.createElement('div');
   layer.className = PREVIEW_LAYER_CLASS;
@@ -245,7 +292,8 @@ function createContentLayer(doc: Document, items: readonly PreviewItem[], captur
   items.forEach(({ source, content }) => {
     const clone = content;
     replaceVideoMediaForPreview(source, clone, captureJobs);
-    layer.appendChild(replaceMermaidBlocksForPreview(source, clone, captureJobs));
+    const stableMediaClone = replaceMermaidBlocksForPreview(source, clone, captureJobs);
+    layer.appendChild(wrapDetachedListItemForPreview(source, stableMediaClone));
   });
   return layer;
 }
