@@ -174,4 +174,35 @@ describe("MessageToolbar", () => {
     expect(screen.queryByText("1/2")).not.toBeInTheDocument();
     expect(screen.getAllByRole("button")).toHaveLength(2);
   });
+
+  it("can render only the regenerate action", () => {
+    const onRegenerate = vi.fn();
+
+    render(
+      <MessageToolbar
+        msg={createMessage({
+          content: "v2",
+          versions: [
+            { content: "v1", createdAt: 1, kind: "original", subsequentMessages: [] },
+            { content: "v2", createdAt: 2, kind: "regeneration", subsequentMessages: [] },
+          ],
+          currentVersionIndex: 1,
+        })}
+        isLoading={false}
+        showCopyAction={false}
+        showVersionNavigation={false}
+        onCopy={() => {}}
+        onRegenerate={onRegenerate}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    const buttons = screen.getAllByRole("button");
+    expect(buttons).toHaveLength(1);
+    expect(screen.queryByTestId("icon-common.copy")).not.toBeInTheDocument();
+
+    fireEvent.click(buttons[0]);
+
+    expect(onRegenerate).toHaveBeenCalledTimes(1);
+  });
 });

@@ -2,6 +2,8 @@ import { act, createRef } from "react";
 import { afterEach, describe, expect, it, beforeEach, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ChatMessage } from "@/lib/ai/types";
+import { useAccountSessionStore } from "@/stores/accountSession";
+import { initialAccountSessionState } from "@/stores/accountSession/state";
 
 const { messageItemSpy } = vi.hoisted(() => ({
   messageItemSpy: vi.fn(),
@@ -38,9 +40,27 @@ function createMessage(id: string, role: ChatMessage["role"]): ChatMessage {
   };
 }
 
+function createManagedAuthMessage(id: string): ChatMessage {
+  const timestamp = Date.now();
+  const content = '<error type="AUTH_ERROR" code="401">Sign in required</error>';
+  return {
+    id,
+    role: "assistant",
+    content,
+    modelId: "vlaina-managed::gpt-test",
+    timestamp,
+    versions: [{ content, createdAt: timestamp, kind: 'original' as const, subsequentMessages: [] }],
+    currentVersionIndex: 0,
+  };
+}
+
 describe("MessageList", () => {
   beforeEach(() => {
     messageItemSpy.mockClear();
+    useAccountSessionStore.setState({
+      ...initialAccountSessionState,
+      isLoading: false,
+    });
   });
 
   afterEach(() => {
@@ -98,6 +118,9 @@ describe("MessageList", () => {
     expect(messageItemSpy.mock.calls[0][0]).toMatchObject({ msg: messages[0], isLoading: false });
     expect(messageItemSpy.mock.calls[1][0]).toMatchObject({ msg: messages[1], isLoading: false });
     expect(messageItemSpy.mock.calls[2][0]).toMatchObject({ msg: messages[2], isLoading: true });
+    expect(messageItemSpy.mock.calls[0][0]).toMatchObject({ isLastMessage: false });
+    expect(messageItemSpy.mock.calls[1][0]).toMatchObject({ isLastMessage: false });
+    expect(messageItemSpy.mock.calls[2][0]).toMatchObject({ isLastMessage: true });
   });
 
   it("passes handlers and image gallery getter through to each message item", () => {
@@ -130,6 +153,40 @@ describe("MessageList", () => {
       onSwitchVersion,
     });
   });
+
+  it("filters older managed auth prompts before building visible rows", () => {
+    const messages = [
+      createMessage("u1", "user"),
+      createManagedAuthMessage("a-auth-1"),
+      createMessage("u2", "user"),
+      createManagedAuthMessage("a-auth-2"),
+    ];
+
+    render(
+      <MessageList
+        messages={messages}
+        getImageGallery={() => []}
+        isSessionActive={false}
+        showLoading={false}
+        spacerHeight={0}
+        containerRef={createRef<HTMLDivElement>()}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    const renderedIds = messageItemSpy.mock.calls.map(([props]) => props.msg.id);
+    expect(renderedIds).toEqual(["u1", "u2", "a-auth-2"]);
+    const renderedIndexes = Array.from(document.querySelectorAll('[data-message-index]'))
+      .map((node) => node.getAttribute('data-message-index'));
+    expect(renderedIndexes).toEqual(["0", "2", "3"]);
+    expect(messageItemSpy.mock.calls.at(-1)?.[0]).toMatchObject({
+      msg: expect.objectContaining({ id: "a-auth-2" }),
+      isLastMessage: true,
+    });
+  });
+
 
   it("does not rerender message items when parent rerenders with identical props", () => {
     const messages = [createMessage("a1", "assistant")];

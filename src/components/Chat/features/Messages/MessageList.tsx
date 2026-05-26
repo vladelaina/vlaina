@@ -12,6 +12,10 @@ import { ChatLoading } from '@/components/Chat/features/Messages/components/Chat
 import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/ai/types';
+import { parseErrorTag } from '@/lib/ai/errorTag';
+import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
+import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
+import { useAccountSessionStore } from '@/stores/accountSession';
 import {
   buildChatMessageFrameLayout,
   buildTrailingChatLayout,
@@ -30,6 +34,34 @@ interface ChatImageGalleryItem {
 type ChatImageGalleryGetter = () => ChatImageGalleryItem[];
 const TAIL_ANCHOR_THRESHOLD = 2;
 const STREAM_SCROLL_IDLE_MS = 180;
+const ERROR_TAG_REGEX = /<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/i;
+
+interface RenderedMessageRow {
+  message: ChatMessage;
+  originalIndex: number;
+}
+
+function isManagedModelMessage(modelId: string): boolean {
+  return modelId === MANAGED_PROVIDER_ID || modelId.startsWith(`${MANAGED_PROVIDER_ID}:`);
+}
+
+function isPureManagedAuthErrorMessage(message: ChatMessage): boolean {
+  const parsedError = parseErrorTag(message.content);
+  if (parsedError?.type !== 'AUTH_ERROR' || !isManagedModelMessage(message.modelId)) {
+    return false;
+  }
+
+  const contentWithoutError = message.content.replace(ERROR_TAG_REGEX, '');
+  return stripThinkingContent(contentWithoutError).trim().length === 0;
+}
+
+function shouldHideManagedAuthMessage(message: ChatMessage, isLastMessage: boolean, isAccountConnected: boolean): boolean {
+  if (!isPureManagedAuthErrorMessage(message)) {
+    return false;
+  }
+
+  return isAccountConnected || !isLastMessage;
+}
 
 interface MessageListProps {
   active?: boolean;
@@ -81,7 +113,20 @@ export const MessageList = memo(function MessageList({
   onEdit,
   onSwitchVersion
 }: MessageListProps) {
-  const isEmpty = messages.length === 0;
+  const isAccountConnected = useAccountSessionStore((state) => state.isConnected);
+  const renderedRows = useMemo<RenderedMessageRow[]>(
+    () => messages
+      .map((message, index) => ({ message, originalIndex: index }))
+      .filter(({ message, originalIndex }) =>
+        !shouldHideManagedAuthMessage(message, originalIndex === messages.length - 1, isAccountConnected)
+      ),
+    [isAccountConnected, messages]
+  );
+  const renderedMessages = useMemo(
+    () => renderedRows.map((row) => row.message),
+    [renderedRows]
+  );
+  const isEmpty = renderedMessages.length === 0;
   const [viewportHeight, setViewportHeight] = useState(0);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
@@ -111,18 +156,18 @@ export const MessageList = memo(function MessageList({
     [viewportWidth]
   );
   const lastStreamingMessageId = isSessionActive
-    ? messages[messages.length - 1]?.id ?? null
+    ? renderedMessages[renderedMessages.length - 1]?.id ?? null
     : null;
   const activeMeasuredMessageId =
-    isSessionActive && messages[messages.length - 1]?.role === 'assistant'
-      ? messages[messages.length - 1]!.id
+    isSessionActive && renderedMessages[renderedMessages.length - 1]?.role === 'assistant'
+      ? renderedMessages[renderedMessages.length - 1]!.id
       : null;
   measuredHeightsRef.current = measuredHeights;
   activeRef.current = active;
   lastStreamingMessageIdRef.current = lastStreamingMessageId;
   const messageById = useMemo(
-    () => new Map(messages.map((message) => [message.id, message])),
-    [messages]
+    () => new Map(renderedMessages.map((message) => [message.id, message])),
+    [renderedMessages]
   );
 
   useEffect(() => {
@@ -184,7 +229,7 @@ export const MessageList = memo(function MessageList({
     return () => {
       cancelAnimationFrame(frameId);
     };
-  }, [active, commitViewportMetrics, messages.length, isEmpty]);
+  }, [active, commitViewportMetrics, renderedMessages.length, isEmpty]);
 
   useEffect(() => {
     if (!active) {
@@ -272,7 +317,7 @@ export const MessageList = memo(function MessageList({
     }
 
     setMeasuredHeights((current) => {
-      const restored = restoreCachedMeasuredHeights(messages, {
+      const restored = restoreCachedMeasuredHeights(renderedMessages, {
         activeMessageId: activeMeasuredMessageId,
         cacheKey: chatId,
         containerWidth: layoutWidth,
@@ -280,7 +325,7 @@ export const MessageList = memo(function MessageList({
       });
       return areMeasuredHeightsEqual(current, restored) ? current : restored;
     });
-  }, [activeMeasuredMessageId, chatId, isSessionActive, layoutWidth, messages]);
+  }, [activeMeasuredMessageId, chatId, isSessionActive, layoutWidth, renderedMessages]);
 
   const flushMeasuredHeights = useCallback(() => {
     measuredHeightsRafRef.current = null;
@@ -452,13 +497,13 @@ export const MessageList = memo(function MessageList({
   }, [bindVisibleRow]);
 
   useEffect(() => {
-    const activeMessageIds = new Set(messages.map((message) => message.id));
+    const activeMessageIds = new Set(renderedMessages.map((message) => message.id));
     visibleRowRefCallbacksRef.current.forEach((_callback, messageId) => {
       if (!activeMessageIds.has(messageId)) {
         visibleRowRefCallbacksRef.current.delete(messageId);
       }
     });
-  }, [messages]);
+  }, [renderedMessages]);
 
   const getVisibleRowRef = useCallback((messageId: string) => {
     const cached = visibleRowRefCallbacksRef.current.get(messageId);
@@ -474,14 +519,14 @@ export const MessageList = memo(function MessageList({
   }, []);
 
   const frameLayout = useMemo(
-    () => buildChatMessageFrameLayout(messages, {
+    () => buildChatMessageFrameLayout(renderedMessages, {
       activeMessageId: activeMeasuredMessageId,
       cacheKey: chatId,
       containerWidth: Math.max(layoutWidth, 1),
       isSessionActive,
       measuredHeights,
     }),
-    [activeMeasuredMessageId, chatId, isSessionActive, layoutWidth, measuredHeights, messages]
+    [activeMeasuredMessageId, chatId, isSessionActive, layoutWidth, measuredHeights, renderedMessages]
   );
 
   const trailingLayout = useMemo(
@@ -532,11 +577,12 @@ export const MessageList = memo(function MessageList({
           style={{ height: trailingLayout.totalHeight }}
         >
           {visibleFrames.map((frame) => {
-            const message = messages[frame.index]!;
+            const row = renderedRows[frame.index]!;
+            const message = row.message;
             return (
               <div
                 key={frame.id}
-                data-message-index={frame.index}
+                data-message-index={row.originalIndex}
                 className="absolute left-0 right-0"
                 style={{ top: frame.top }}
                 ref={getVisibleRowRef(frame.id)}
@@ -545,11 +591,12 @@ export const MessageList = memo(function MessageList({
                   msg={message}
                   userBubbleContainerWidth={layoutWidth}
                   getImageGallery={getImageGallery}
-                  isLoading={isSessionActive && frame.index === messages.length - 1}
+                  isLoading={isSessionActive && frame.index === renderedMessages.length - 1}
+                  isLastMessage={frame.index === renderedMessages.length - 1}
                   suspendStreamAnimation={
                     isScrollActive &&
                     isSessionActive &&
-                    frame.index === messages.length - 1
+                    frame.index === renderedMessages.length - 1
                   }
                   onCopy={onCopy}
                   onRegenerate={onRegenerate}

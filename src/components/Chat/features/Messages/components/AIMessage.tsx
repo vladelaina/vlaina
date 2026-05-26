@@ -44,6 +44,7 @@ interface AIMessageProps {
   imageGallery?: ChatImageGalleryItem[];
   getImageGallery?: ChatImageGalleryGetter;
   isLoading: boolean;
+  isLastMessage?: boolean;
   suspendStreamAnimation?: boolean;
   onCopy: (text: string) => Promise<boolean | void> | boolean | void;
   onRegenerate: () => void;
@@ -59,6 +60,7 @@ export function AIMessage({
   imageGallery,
   getImageGallery,
   isLoading,
+  isLastMessage = true,
   suspendStreamAnimation = false,
   onCopy,
   onRegenerate,
@@ -92,12 +94,14 @@ export function AIMessage({
   const isStreamingContentVisible = isLoading && contentWithoutError.trim().length > 0;
   const isEmptyCompletedResponse = !isLoading && stripThinkingContent(contentWithoutError).trim().length === 0;
   const visibleContent = contentWithoutError || ' ';
-  const isManagedModelAuthError = !isAccountConnected
-    && errorType === 'AUTH_ERROR'
+  const isManagedAuthErrorMessage = errorType === 'AUTH_ERROR'
     && isManagedModelMessage(msg.modelId);
-  const shouldHideManagedAuthError = isAccountConnected
-    && errorType === 'AUTH_ERROR'
-    && isManagedModelMessage(msg.modelId);
+  const shouldShowManagedAuthPrompt = !isAccountConnected
+    && isManagedAuthErrorMessage
+    && isLastMessage;
+  const shouldHideManagedAuthError = isManagedAuthErrorMessage
+    && (isAccountConnected || !shouldShowManagedAuthPrompt);
+  const shouldForceToolbarVisible = isEmptyCompletedResponse && !isManagedAuthErrorMessage;
   const isManagedModelQuotaError = errorType === 'QUOTA_EXHAUSTED'
     && isManagedModelMessage(msg.modelId);
   const startTime = useMemo(() => {
@@ -135,6 +139,10 @@ export function AIMessage({
     }, 1200);
   }, []);
 
+  if (shouldHideManagedAuthError && stripThinkingContent(contentWithoutError).trim().length === 0) {
+    return null;
+  }
+
   return (
     <div className="w-full pl-[15px]" data-chat-selection-surface="true">
         <div className="[&>*:last-child]:mb-0">
@@ -162,22 +170,22 @@ export function AIMessage({
                     type={errorType} 
                     code={errorCode} 
                     content={errorContent} 
-                    showLoginPrompt={isManagedModelAuthError}
+                    showLoginPrompt={shouldShowManagedAuthPrompt}
                     showBillingPrompt={isManagedModelQuotaError}
                 />
             </div>
         )}
 
-        {!isManagedModelAuthError && (
-            <MessageToolbar 
+        <MessageToolbar
                 msg={msg}
                 isLoading={isLoading}
-                forceVisible={isEmptyCompletedResponse}
+                forceVisible={shouldForceToolbarVisible}
+                showCopyAction={!isManagedAuthErrorMessage}
+                showVersionNavigation={!isManagedAuthErrorMessage}
                 onCopy={onCopy}
                 onRegenerate={onRegenerate}
                 onSwitchVersion={onSwitchVersion}
             />
-        )}
     </div>
   );
 }
