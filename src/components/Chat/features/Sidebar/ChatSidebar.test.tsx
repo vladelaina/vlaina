@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatSession } from '@/lib/ai/types';
 import type { ReactNode } from 'react';
@@ -13,11 +13,28 @@ const hoisted = vi.hoisted(() => ({
   switchSession: vi.fn(),
   updateSession: vi.fn(),
   deleteSession: vi.fn(),
+  sidebarSearchOpen: false,
+  setSidebarSearchOpen: vi.fn((open: boolean) => {
+    hoisted.sidebarSearchOpen = open;
+  }),
+  toggleSidebarSearch: vi.fn(() => {
+    hoisted.sidebarSearchOpen = !hoisted.sidebarSearchOpen;
+  }),
 }));
 
 vi.mock('@/stores/uiSlice', () => ({
-  useUIStore: (selector: (state: { appViewMode: 'chat' | 'notes' }) => unknown) =>
-    selector({ appViewMode: hoisted.appViewMode }),
+  useUIStore: (selector: (state: {
+    appViewMode: 'chat' | 'notes';
+    sidebarSearchOpen: boolean;
+    setSidebarSearchOpen: (open: boolean) => void;
+    toggleSidebarSearch: () => void;
+  }) => unknown) =>
+    selector({
+      appViewMode: hoisted.appViewMode,
+      sidebarSearchOpen: hoisted.sidebarSearchOpen,
+      setSidebarSearchOpen: hoisted.setSidebarSearchOpen,
+      toggleSidebarSearch: hoisted.toggleSidebarSearch,
+    }),
 }));
 
 vi.mock('@/stores/unified/useUnifiedStore', () => ({
@@ -65,7 +82,42 @@ vi.mock('@/components/layout/sidebar/SidebarSearchDrawer', async () => {
   );
   return {
     ...actual,
-    SidebarSearchDrawer: () => null,
+    SidebarSearchDrawer: ({
+      searchQuery,
+      setSearchQuery,
+      canSubmit,
+      onSubmit,
+      canSelectPrevious,
+      canSelectNext,
+      onSelectPrevious,
+      onSelectNext,
+    }: {
+      searchQuery: string;
+      setSearchQuery: (value: string) => void;
+      canSubmit: boolean;
+      onSubmit: () => void;
+      canSelectPrevious?: boolean;
+      canSelectNext?: boolean;
+      onSelectPrevious?: () => void;
+      onSelectNext?: () => void;
+    }) => (
+      <input
+        aria-label="chat-search"
+        value={searchQuery}
+        onChange={(event) => setSearchQuery(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowUp' && canSelectPrevious) {
+            onSelectPrevious?.();
+          }
+          if (event.key === 'ArrowDown' && canSelectNext) {
+            onSelectNext?.();
+          }
+          if (event.key === 'Enter' && canSubmit) {
+            onSubmit();
+          }
+        }}
+      />
+    ),
   };
 });
 
@@ -86,10 +138,21 @@ vi.mock('@/components/layout/sidebar/SidebarPrimitives', () => ({
 }));
 
 vi.mock('./ChatSidebarVirtualList', () => ({
-  ChatSidebarVirtualList: ({ sessions }: { sessions: ChatSession[] }) => (
+  ChatSidebarVirtualList: ({
+    sessions,
+    highlightedSessionId,
+  }: {
+    sessions: ChatSession[];
+    highlightedSessionId?: string | null;
+  }) => (
     <div data-testid="session-list">
       {sessions.map((session) => (
-        <div key={session.id}>{session.title}</div>
+        <div
+          key={session.id}
+          data-highlighted={highlightedSessionId === session.id ? 'true' : undefined}
+        >
+          {session.title}
+        </div>
       ))}
     </div>
   ),
@@ -110,6 +173,7 @@ describe('ChatSidebar', () => {
     vi.clearAllMocks();
     hoisted.appViewMode = 'chat';
     hoisted.currentSessionId = 's1';
+    hoisted.sidebarSearchOpen = false;
     hoisted.sessions = [
       buildSession('s1', 'Alpha'),
       buildSession('s2', 'Beta'),
@@ -129,5 +193,33 @@ describe('ChatSidebar', () => {
     expect(screen.getByText('Alpha')).toBeInTheDocument();
     expect(screen.getByText('Beta')).toBeInTheDocument();
     expect(screen.queryByTestId('empty-hint')).not.toBeInTheDocument();
+  });
+
+  it('uses arrow key selection when submitting chat search results', async () => {
+    hoisted.sidebarSearchOpen = true;
+    hoisted.sessions = [
+      buildSession('s1', 'Alpha'),
+      buildSession('s2', 'Alpine'),
+      buildSession('s3', 'Beta'),
+    ];
+
+    render(<ChatSidebar active />);
+
+    const input = screen.getByLabelText('chat-search');
+    fireEvent.change(input, { target: { value: 'Al' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Alpha')).toHaveAttribute('data-highlighted', 'true');
+    });
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+
+    await waitFor(() => {
+      expect(screen.getByText('Alpine')).toHaveAttribute('data-highlighted', 'true');
+    });
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(hoisted.switchSession).toHaveBeenCalledWith('s2');
   });
 });

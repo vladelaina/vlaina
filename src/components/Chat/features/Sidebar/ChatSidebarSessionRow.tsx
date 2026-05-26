@@ -22,6 +22,7 @@ import { useI18n } from '@/lib/i18n';
 interface ChatSidebarSessionRowProps {
   session: ChatSession;
   isActive: boolean;
+  isKeyboardHighlighted?: boolean;
   isRenaming: boolean;
   renameDraft: string;
   onRenameDraftChange: (value: string) => void;
@@ -51,6 +52,7 @@ function ChatSidebarLoadingTitle({ title }: { title: string }) {
 function ChatSidebarSessionRowInner({
   session,
   isActive,
+  isKeyboardHighlighted = false,
   isRenaming,
   renameDraft,
   onRenameDraftChange,
@@ -163,7 +165,8 @@ function ChatSidebarSessionRowInner({
     <ChatSidebarRow
       isActive={isActive}
       showActionsByDefault={false}
-      isHighlighted={showContextMenu}
+      isHighlighted={showContextMenu || isKeyboardHighlighted}
+      aria-selected={isKeyboardHighlighted || undefined}
       data-chat-sidebar-session-row="true"
       onMouseEnter={hoverPrefetch.onMouseEnter}
       onMouseLeave={hoverPrefetch.onMouseLeave}
@@ -256,6 +259,7 @@ export const ChatSidebarSessionRow = memo(
   (prevProps, nextProps) =>
     prevProps.session === nextProps.session &&
     prevProps.isActive === nextProps.isActive &&
+    prevProps.isKeyboardHighlighted === nextProps.isKeyboardHighlighted &&
     prevProps.isRenaming === nextProps.isRenaming &&
     prevProps.onRenameDraftChange === nextProps.onRenameDraftChange &&
     prevProps.onStartRename === nextProps.onStartRename &&

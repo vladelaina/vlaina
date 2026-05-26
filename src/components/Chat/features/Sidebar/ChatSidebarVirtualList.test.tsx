@@ -5,6 +5,7 @@ import { ChatSidebarVirtualList } from './ChatSidebarVirtualList';
 import type { ChatSession } from '@/lib/ai/types';
 
 const measureMock = vi.fn();
+const scrollToIndexMock = vi.fn();
 
 const virtualizerOptionsMock = vi.fn();
 
@@ -18,8 +19,9 @@ vi.mock('@tanstack/react-virtual', () => ({
           index,
           size: 38,
           start: index * 38,
-        })),
+      })),
       measure: measureMock,
+      scrollToIndex: scrollToIndexMock,
     };
   },
 }));
@@ -29,15 +31,18 @@ vi.mock('./ChatSidebarSessionRow', () => ({
     session,
     isActive,
     isRenaming,
+    isKeyboardHighlighted,
   }: {
     session: ChatSession;
     isActive: boolean;
     isRenaming: boolean;
+    isKeyboardHighlighted?: boolean;
   }) => (
     <div
       data-testid={`session-row-${session.id}`}
       data-active={isActive ? 'true' : 'false'}
       data-renaming={isRenaming ? 'true' : 'false'}
+      data-highlighted={isKeyboardHighlighted ? 'true' : 'false'}
     >
       {session.title}
     </div>
@@ -61,6 +66,7 @@ function renderList({
   resetKey = '',
   scrollRootRef = createRef<HTMLDivElement>(),
   active = true,
+  highlightedSessionId = null,
 }: {
   sessions?: ChatSession[];
   currentSessionId?: string | null;
@@ -68,6 +74,7 @@ function renderList({
   resetKey?: string;
   scrollRootRef?: RefObject<HTMLDivElement | null>;
   active?: boolean;
+  highlightedSessionId?: string | null;
 }) {
   return render(
     <ChatSidebarVirtualList
@@ -86,6 +93,7 @@ function renderList({
       onRequestDelete={() => {}}
       onTogglePin={() => {}}
       resetKey={resetKey}
+      highlightedSessionId={highlightedSessionId}
     />,
   );
 }
@@ -93,6 +101,7 @@ function renderList({
 describe('ChatSidebarVirtualList', () => {
   beforeEach(() => {
     measureMock.mockClear();
+    scrollToIndexMock.mockClear();
     virtualizerOptionsMock.mockClear();
   });
 
@@ -172,6 +181,20 @@ describe('ChatSidebarVirtualList', () => {
     );
 
     expect(scrollToMock).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+  });
+
+  it('highlights and scrolls the keyboard-selected session into view', () => {
+    renderList({
+      sessions: [
+        buildSession('s1', 'Alpha'),
+        buildSession('s2', 'Beta'),
+        buildSession('s3', 'Gamma'),
+      ],
+      highlightedSessionId: 's3',
+    });
+
+    expect(screen.getByTestId('session-row-s3')).toHaveAttribute('data-highlighted', 'true');
+    expect(scrollToIndexMock).toHaveBeenCalledWith(2, { align: 'auto' });
   });
 
   it('renders nothing for an empty session list', () => {
