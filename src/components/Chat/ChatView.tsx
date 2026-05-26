@@ -402,29 +402,28 @@ export function ChatView({
             />
           </div>
 
-          <div className="ml-auto flex h-8 items-center">
+          <div className="ml-auto flex h-8 items-center gap-1">
             {showEmbeddedTemporaryToggle && (
               <TemporaryChatToggle mode={showInTitleBar ? 'promote' : 'toggle'} />
             )}
+            {onCloseEmbeddedPanel && (
+              <button
+                type="button"
+                aria-label={t('chat.closeChatPanel')}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  onCloseEmbeddedPanel();
+                }}
+                className={cn(
+                  "flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-[var(--chat-sidebar-text)] transition-colors hover:text-[var(--sidebar-row-selected-text)]",
+                  chatComposerPillSurfaceClass
+                )}
+              >
+                <Icon name="nav.chevronRight" size="md" />
+              </button>
+            )}
           </div>
         </div>
-      )}
-
-      {isEmbedded && onCloseEmbeddedPanel && (
-        <button
-          type="button"
-          aria-label={t('chat.closeChatPanel')}
-          onPointerDown={(event) => {
-            event.preventDefault();
-            onCloseEmbeddedPanel();
-          }}
-          className={cn(
-            "absolute bottom-3 left-3 z-30 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-[var(--chat-sidebar-text)] transition-colors hover:text-[var(--sidebar-row-selected-text)]",
-            chatComposerPillSurfaceClass
-          )}
-        >
-          <Icon name="nav.chevronRight" size="md" />
-        </button>
       )}
 
       <AnimatePresence>
