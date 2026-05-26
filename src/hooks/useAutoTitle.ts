@@ -5,6 +5,8 @@ import { buildTitleSourceFromMessages, needsAutoTitle } from '@/lib/ai/temporary
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
 
+const AUTO_TITLE_TIMEOUT_MS = 12_000;
+
 export function useAutoTitle() {
   const providers = useUnifiedStore((state) => state.data.ai?.providers || []);
   const models = useUnifiedStore((state) => state.data.ai?.models || []);
@@ -28,21 +30,27 @@ export function useAutoTitle() {
           const messages = useUnifiedStore.getState().data.ai?.messages[sessionId] || [];
           const titleSource = buildTitleSourceFromMessages(messages);
 
-          const prompt = `Generate an extremely short title (max 5 words or 10 Chinese characters) for this chat session based on the following conversation content.
-Rules:
-1. STRICTLY use the SAME LANGUAGE as the user's message.
-2. Do not use quotes, punctuation, or "Title:".
-3. Keep it extremely concise.
+          const prompt = `Name this chat in the main language and script of USER_MESSAGES, ignoring this instruction language.
+Max 5 words or 10 CJK characters. Return only the title, no quotes or punctuation.
 
-Conversation Content: ${titleSource}`;
+USER_MESSAGES
+${titleSource}`;
           
-          const title = await sendMessageWithEndpointFallback({
+          const controller = new AbortController();
+          const timeoutId = window.setTimeout(() => controller.abort(), AUTO_TITLE_TIMEOUT_MS);
+          let title = '';
+          try {
+            title = await sendMessageWithEndpointFallback({
               content: prompt,
               history: [],
               model,
               provider,
               onChunk: () => {},
-          });
+              signal: controller.signal,
+            });
+          } finally {
+            window.clearTimeout(timeoutId);
+          }
           
           const cleanTitle = stripThinkingContent(title)
               .replace(/^["']|["']$/g, '') 
