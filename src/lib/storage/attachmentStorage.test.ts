@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     mkdir: vi.fn().mockResolvedValue(undefined),
     writeBinaryFile: vi.fn().mockResolvedValue(undefined),
     readBinaryFile: vi.fn().mockResolvedValue(new Uint8Array([72, 73])),
+    deleteFile: vi.fn().mockResolvedValue(undefined),
   },
   joinPath: vi.fn(),
   getElectronBridge: vi.fn(),
@@ -21,7 +22,12 @@ vi.mock('@/lib/electron/bridge', () => ({
   getElectronBridge: mocks.getElectronBridge,
 }));
 
-import { convertToBase64, saveAttachment } from './attachmentStorage';
+import {
+  convertToBase64,
+  deleteAttachment,
+  persistDataUrlAttachment,
+  saveAttachment,
+} from './attachmentStorage';
 
 describe('attachmentStorage', () => {
   beforeEach(() => {
@@ -30,6 +36,7 @@ describe('attachmentStorage', () => {
     mocks.adapter.mkdir.mockClear();
     mocks.adapter.writeBinaryFile.mockClear();
     mocks.adapter.readBinaryFile.mockClear();
+    mocks.adapter.deleteFile.mockClear();
     mocks.joinPath.mockReset();
     mocks.joinPath
       .mockResolvedValueOnce('/appdata/attachments')
@@ -80,6 +87,54 @@ describe('attachmentStorage', () => {
       type: 'image/png',
       size: 3,
     });
+  });
+
+  it('keeps temporary attachments in memory without writing to disk', async () => {
+    const file = new File([new Uint8Array([1, 2, 3])], 'note.png', { type: 'image/png' });
+
+    const attachment = await saveAttachment(file, { persist: false });
+
+    expect(mocks.adapter.getBasePath).not.toHaveBeenCalled();
+    expect(mocks.adapter.writeBinaryFile).not.toHaveBeenCalled();
+    expect(attachment).toMatchObject({
+      path: '',
+      previewUrl: 'data:image/png;base64,PREVIEW',
+      assetUrl: '',
+      name: 'note.png',
+      type: 'image/png',
+      size: 3,
+    });
+  });
+
+  it('deletes persisted attachment files', async () => {
+    await deleteAttachment({
+      id: 'a',
+      path: '/appdata/attachments/file.png',
+      previewUrl: 'data:image/png;base64,INLINE',
+      assetUrl: 'file:///appdata/attachments/file.png',
+      name: 'file.png',
+      type: 'image/png',
+      size: 1,
+    });
+
+    expect(mocks.adapter.deleteFile).toHaveBeenCalledWith('/appdata/attachments/file.png');
+  });
+
+  it('persists inline data URLs into the attachments directory', async () => {
+    mocks.joinPath.mockReset();
+    mocks.joinPath
+      .mockResolvedValueOnce('/appdata/attachments')
+      .mockResolvedValueOnce('/appdata/attachments/12345678-12345678.png');
+
+    await expect(persistDataUrlAttachment('data:image/png;base64,AQI=')).resolves.toBe(
+      'attachment://12345678-12345678.png',
+    );
+
+    expect(mocks.adapter.writeBinaryFile).toHaveBeenCalledWith(
+      '/appdata/attachments/12345678-12345678.png',
+      new Uint8Array([1, 2]),
+      { recursive: true },
+    );
   });
 
   it('falls back to preview data for assetUrl when the electron path bridge is unavailable', async () => {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { TemporaryChatToggle } from "./TemporaryChatToggle";
 
@@ -105,12 +105,13 @@ function createUIState(store: ReturnType<typeof createStore>, overrides?: Record
 describe("TemporaryChatToggle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.promoteTemporarySession.mockResolvedValue(null);
   });
 
-  it("promotes temporary chat and triggers auto title generation in promote mode", () => {
+  it("promotes temporary chat and triggers auto title generation in promote mode", async () => {
     const store = createStore();
     const uiState = createUIState(store);
-    mocks.promoteTemporarySession.mockReturnValue("session-123");
+    mocks.promoteTemporarySession.mockResolvedValue("session-123");
     mocks.useUnifiedStore.mockImplementation((selector: (state: typeof store) => unknown) => selector(store));
     mocks.useAIUIStore.mockImplementation((selector: (state: typeof uiState) => unknown) => selector(uiState));
 
@@ -121,14 +122,16 @@ describe("TemporaryChatToggle", () => {
     );
 
     expect(mocks.promoteTemporarySession).toHaveBeenCalledTimes(1);
-    expect(mocks.generateAutoTitle).toHaveBeenCalledWith(
-      "session-123",
-      "provider-1",
-      "model-1",
-    );
+    await waitFor(() => {
+      expect(mocks.generateAutoTitle).toHaveBeenCalledWith(
+        "session-123",
+        "provider-1",
+        "model-1",
+      );
+    });
   });
 
-  it("skips auto title generation when selected model is unavailable", () => {
+  it("skips auto title generation when selected model is unavailable", async () => {
     const store = createStore({
       data: {
         ai: {
@@ -145,7 +148,7 @@ describe("TemporaryChatToggle", () => {
       },
     });
     const uiState = createUIState(store);
-    mocks.promoteTemporarySession.mockReturnValue("session-123");
+    mocks.promoteTemporarySession.mockResolvedValue("session-123");
     mocks.useUnifiedStore.mockImplementation((selector: (state: typeof store) => unknown) => selector(store));
     mocks.useAIUIStore.mockImplementation((selector: (state: typeof uiState) => unknown) => selector(uiState));
 
@@ -155,6 +158,9 @@ describe("TemporaryChatToggle", () => {
     );
 
     expect(mocks.promoteTemporarySession).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(mocks.promoteTemporarySession).toHaveBeenCalledTimes(1);
+    });
     expect(mocks.generateAutoTitle).not.toHaveBeenCalled();
   });
 

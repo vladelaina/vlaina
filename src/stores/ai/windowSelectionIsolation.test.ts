@@ -33,6 +33,7 @@ const mocked = vi.hoisted(() => {
     deleteSessionJson: vi.fn(async () => {}),
     loadSessionJson: vi.fn(async (): Promise<ChatMessage[] | null> => []),
     hasSessionJson: vi.fn(async () => false),
+    persistDataUrlAttachment: vi.fn(async () => 'attachment://persisted.png'),
     flushPendingSessionJsonSaves: vi.fn(async () => {}),
     readWindowLaunchContext: vi.fn(() => ({
       isNewWindow: false,
@@ -77,6 +78,10 @@ vi.mock('@/lib/storage/chatStorage', () => ({
   loadSessionJson: mocked.loadSessionJson,
   hasSessionJson: mocked.hasSessionJson,
   flushPendingSessionJsonSaves: mocked.flushPendingSessionJsonSaves,
+}));
+
+vi.mock('@/lib/storage/attachmentStorage', () => ({
+  persistDataUrlAttachment: mocked.persistDataUrlAttachment,
 }));
 
 vi.mock('@/lib/desktop/launchContext', () => ({
@@ -431,6 +436,63 @@ describe('chat window selection isolation', () => {
     expect(useUnifiedStore.getState().data.ai?.currentSessionId).toBe('session-1');
   });
 
+  it('aborts a temporary response when the temporary chat is discarded', () => {
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              sessions: [
+                ...state.data.ai.sessions,
+                {
+                  id: 'temp-session-1',
+                  title: 'Temporary Chat',
+                  modelId: managedModel.id,
+                  createdAt: 5,
+                  updatedAt: 5,
+                },
+              ],
+              messages: {
+                ...state.data.ai.messages,
+                'temp-session-1': [{
+                  id: 'a1',
+                  role: 'assistant',
+                  content: '',
+                  modelId: managedModel.id,
+                  timestamp: 5,
+                  versions: [{
+                    content: '',
+                    createdAt: 5,
+                    kind: 'original' as const,
+                    subsequentMessages: [],
+                  }],
+                  currentVersionIndex: 0,
+                }],
+              },
+            }
+          : state.data.ai,
+      },
+    }));
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'temp-session-1',
+      temporaryChatEnabled: true,
+    });
+    useAIUIStore.getState().setSessionLoading('temp-session-1', true);
+
+    act(() => {
+      actions.openNewChat();
+    });
+
+    expect(mocked.requestAbort).toHaveBeenCalledWith('temp-session-1');
+    expect(useUnifiedStore.getState().data.ai?.sessions.some((session) => session.id === 'temp-session-1')).toBe(false);
+    expect(useUnifiedStore.getState().data.ai?.messages).not.toHaveProperty('temp-session-1');
+    expect(useAIUIStore.getState().generatingSessions).toEqual({});
+    expect(useAIUIStore.getState().currentSessionId).toBe(null);
+    expect(useAIUIStore.getState().temporaryChatEnabled).toBe(false);
+  });
+
   it('enables temporary chat locally while keeping shared selection unchanged', () => {
     useAIUIStore.getState().setChatSelection({
       currentSessionId: 'session-1',
@@ -447,7 +509,7 @@ describe('chat window selection isolation', () => {
     expect(useUnifiedStore.getState().data.ai?.currentSessionId).toBe('session-1');
   });
 
-  it('preserves hidden API transcript when promoting a temporary session', () => {
+  it('preserves hidden API transcript when promoting a temporary session', async () => {
     const apiTranscript = [{
       role: 'assistant',
       content: 'temporary answer',
@@ -498,8 +560,8 @@ describe('chat window selection isolation', () => {
     });
 
     let promotedSessionId: string | null = null;
-    act(() => {
-      promotedSessionId = actions.promoteTemporarySession();
+    await act(async () => {
+      promotedSessionId = await actions.promoteTemporarySession();
     });
 
     expect(promotedSessionId).toMatch(/^session-/);
@@ -509,7 +571,93 @@ describe('chat window selection isolation', () => {
     expect(mocked.saveSessionJson).toHaveBeenCalledWith(promotedSessionId, promotedMessages);
   });
 
-  it('keeps a generating temporary response attached after promotion', () => {
+  it('persists inline temporary images when promoting a temporary session', async () => {
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              sessions: [
+                ...state.data.ai.sessions,
+                {
+                  id: 'temp-session-1',
+                  title: 'Temporary Chat',
+                  modelId: managedModel.id,
+                  createdAt: 5,
+                  updatedAt: 5,
+                },
+              ],
+              messages: {
+                ...state.data.ai.messages,
+                'temp-session-1': [{
+                  id: 'u1',
+                  role: 'user',
+                  content: '![image](<data:image/png;base64,INLINE>)\n\nDescribe',
+                  imageSources: ['data:image/png;base64,INLINE'],
+                  apiTranscript: [{
+                    role: 'user',
+                    content: [
+                      { type: 'image_url', image_url: { url: 'data:image/png;base64,INLINE' } },
+                    ],
+                  }],
+                  modelId: managedModel.id,
+                  timestamp: 5,
+                  versions: [{
+                    content: '![image](<data:image/png;base64,INLINE>)\n\nDescribe',
+                    createdAt: 5,
+                    kind: 'original' as const,
+                    subsequentMessages: [{
+                      id: 'branch-assistant',
+                      role: 'assistant',
+                      content: 'branch ![image](<data:image/png;base64,INLINE>)',
+                      modelId: managedModel.id,
+                      timestamp: 6,
+                      versions: [{
+                        content: 'branch ![image](<data:image/png;base64,INLINE>)',
+                        createdAt: 6,
+                        kind: 'original' as const,
+                        subsequentMessages: [],
+                      }],
+                      currentVersionIndex: 0,
+                    }],
+                  }],
+                  currentVersionIndex: 0,
+                }],
+              },
+            }
+          : state.data.ai,
+      },
+    }));
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'temp-session-1',
+      temporaryChatEnabled: true,
+    });
+    mocked.persistDataUrlAttachment.mockResolvedValueOnce('attachment://persisted.png');
+
+    let promotedSessionId: string | null = null;
+    await act(async () => {
+      promotedSessionId = await actions.promoteTemporarySession();
+    });
+
+    await vi.waitFor(() => {
+      expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith('data:image/png;base64,INLINE');
+      const promotedMessages = useUnifiedStore.getState().data.ai?.messages[promotedSessionId!];
+      expect(promotedMessages?.[0]?.content).toBe('![image](<attachment://persisted.png>)\n\nDescribe');
+      expect(promotedMessages?.[0]?.imageSources).toEqual(['attachment://persisted.png']);
+      expect(promotedMessages?.[0]?.apiTranscript?.[0]?.content).toEqual([
+        { type: 'image_url', image_url: { url: 'attachment://persisted.png' } },
+      ]);
+      expect(promotedMessages?.[0]?.versions[0]?.content).toBe('![image](<attachment://persisted.png>)\n\nDescribe');
+      expect(promotedMessages?.[0]?.versions[0]?.subsequentMessages[0]?.content).toBe(
+        'branch ![image](<attachment://persisted.png>)',
+      );
+      expect(mocked.saveSessionJson).toHaveBeenLastCalledWith(promotedSessionId, promotedMessages);
+    });
+  });
+
+  it('keeps a generating temporary response attached after promotion', async () => {
     useUnifiedStore.setState((state) => ({
       ...state,
       data: {
@@ -553,8 +701,8 @@ describe('chat window selection isolation', () => {
     useAIUIStore.getState().setSessionLoading('temp-session-1', true);
 
     let promotedSessionId: string | null = null;
-    act(() => {
-      promotedSessionId = actions.promoteTemporarySession();
+    await act(async () => {
+      promotedSessionId = await actions.promoteTemporarySession();
     });
 
     expect(promotedSessionId).toMatch(/^session-/);

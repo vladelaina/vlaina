@@ -26,6 +26,7 @@ import { TemporaryChatToggle } from '@/components/Chat/features/Temporary/Tempor
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
 import { estimateChatLoadingHeight } from '@/components/Chat/features/Layout/chatMessageLayout';
 import { ChatSidebar } from '@/components/Chat/features/Sidebar/ChatSidebar';
+import { ChatDebugLogButton } from '@/components/Chat/features/Debug/ChatDebugLogButton';
 import { ModelSelector } from '@/components/Chat/features/Input/ModelSelector';
 import { Icon } from '@/components/ui/icons';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
@@ -402,29 +403,28 @@ export function ChatView({
             />
           </div>
 
-          <div className="ml-auto flex h-8 items-center">
+          <div className="ml-auto flex h-8 items-center gap-1">
             {showEmbeddedTemporaryToggle && (
               <TemporaryChatToggle mode={showInTitleBar ? 'promote' : 'toggle'} />
             )}
+            {onCloseEmbeddedPanel && (
+              <button
+                type="button"
+                aria-label={t('chat.closeChatPanel')}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  onCloseEmbeddedPanel();
+                }}
+                className={cn(
+                  "flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-[var(--chat-sidebar-text)] transition-colors hover:text-[var(--sidebar-row-selected-text)]",
+                  chatComposerPillSurfaceClass
+                )}
+              >
+                <Icon name="nav.chevronRight" size="md" />
+              </button>
+            )}
           </div>
         </div>
-      )}
-
-      {isEmbedded && onCloseEmbeddedPanel && (
-        <button
-          type="button"
-          aria-label={t('chat.closeChatPanel')}
-          onPointerDown={(event) => {
-            event.preventDefault();
-            onCloseEmbeddedPanel();
-          }}
-          className={cn(
-            "absolute bottom-3 left-3 z-30 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-[var(--chat-sidebar-text)] transition-colors hover:text-[var(--sidebar-row-selected-text)]",
-            chatComposerPillSurfaceClass
-          )}
-        >
-          <Icon name="nav.chevronRight" size="md" />
-        </button>
       )}
 
       <AnimatePresence>
@@ -524,6 +524,7 @@ export function ChatView({
         />
       )}
       {!isEmbedded && <SelectionInsertButton />}
+      {!isEmbedded && <ChatDebugLogButton />}
     </div>
   );
 }

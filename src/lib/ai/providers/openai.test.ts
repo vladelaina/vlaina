@@ -406,6 +406,29 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('retries one transient OpenAI-compatible web search model request before failing the tool loop', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('<!DOCTYPE html><html><body>Cloudflare 502</body></html>', { status: 502 }))
+      .mockResolvedValueOnce(streamResponse('data: {"choices":[{"delta":{"content":"web answer"}}]}\n\ndata: [DONE]\n\n'));
+    vi.stubGlobal('fetch', fetchMock);
+    const chunks: string[] = [];
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'search current docs',
+      [],
+      buildModel({ apiModelId: 'gpt-4o-mini' }),
+      buildProvider({ endpointType: 'openai' }),
+      (chunk) => chunks.push(chunk),
+      undefined,
+      { webSearchEnabled: true },
+    );
+
+    expect(result).toBe('web answer');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(chunks[chunks.length - 1]).toBe('web answer');
+  });
+
   it('wraps Anthropic thinking deltas in think tags', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       streamResponse([

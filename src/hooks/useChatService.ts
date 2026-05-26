@@ -1,6 +1,10 @@
 import { useCallback, useMemo } from 'react';
 import { actions as aiActions } from '@/stores/useAIStore';
-import type { Attachment } from '@/lib/storage/attachmentStorage';
+import {
+  convertToBase64,
+  deleteAttachment,
+  type Attachment,
+} from '@/lib/storage/attachmentStorage';
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { buildRequestHistory } from '@/lib/ai/requestContext';
@@ -34,6 +38,7 @@ import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEn
 import { hydrateSessionMessagesFromDisk } from '@/stores/ai/sessionConsistency';
 import { translate, useI18n } from '@/lib/i18n';
 import { ACCOUNT_AUTH_INVALIDATED_EVENT } from '@/lib/account/sessionEvent';
+import { addChatDebugLog } from '@/lib/debug/chatDebugLog';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
@@ -174,6 +179,42 @@ function markManagedAuthPromptForError(sessionId: string, error: unknown, manage
   }
 }
 
+async function makeTemporaryAttachmentsEphemeral(attachments: Attachment[]): Promise<Attachment[]> {
+  return await Promise.all(
+    attachments.map(async (attachment) => {
+      const hasPersistentReference =
+        !!attachment.path ||
+        attachment.previewUrl.startsWith('attachment://') ||
+        attachment.previewUrl.startsWith('app-file://attachment/') ||
+        attachment.assetUrl.startsWith('attachment://') ||
+        attachment.assetUrl.startsWith('app-file://attachment/') ||
+        (attachment.assetUrl.startsWith('file:') && attachment.assetUrl.includes('/attachments/'));
+
+      if (!hasPersistentReference) {
+        return attachment;
+      }
+
+      let previewUrl: string | null = null;
+      try {
+        previewUrl = await convertToBase64(attachment);
+      } catch {
+      }
+
+      if (!previewUrl) {
+        return attachment;
+      }
+
+      await deleteAttachment(attachment);
+      return {
+        ...attachment,
+        path: '',
+        assetUrl: '',
+        previewUrl,
+      };
+    })
+  );
+}
+
 export function useChatService() {
   const { t } = useI18n();
   const { generateAutoTitle } = useAutoTitle();
@@ -276,14 +317,30 @@ export function useChatService() {
       }
 
       const targetSessionId = activeSessionId;
+      const requestStartedAt = Date.now();
+      addChatDebugLog('chat', 'sendMessage accepted', {
+        sessionId: targetSessionId,
+        modelId: selectedModel.id,
+        providerId: provider.id,
+        webSearchEnabled,
+        textLength: userMessageText.length,
+        attachments: attachments.length,
+        mentions: normalizedMentions.length,
+      });
 
       void runWithSessionMutationLock(targetSessionId, async () => {
         const latestMessages = await hydrateSessionMessagesFromDisk(targetSessionId);
+        const targetSession = useUnifiedStore.getState().data.ai?.sessions.find((item) => item.id === targetSessionId);
+        const isTemporaryTarget =
+          isTemporarySessionId(targetSessionId) || isTemporarySession(targetSession);
+        const requestAttachments = isTemporaryTarget
+          ? await makeTemporaryAttachmentsEphemeral(attachments)
+          : attachments;
 
         let storageContent = userMessageText;
         let messageImageSources: string[] = [];
-        if (attachments.length > 0) {
-          const builtImages = buildMessageImageSources(attachments);
+        if (requestAttachments.length > 0) {
+          const builtImages = buildMessageImageSources(requestAttachments);
           const imageMarkdown = builtImages.content;
           messageImageSources = builtImages.imageSources;
           storageContent = imageMarkdown + (userMessageText ? `\n\n${userMessageText}` : '');
@@ -310,10 +367,6 @@ export function useChatService() {
           persistUnified: false,
           touchSession: false,
         });
-
-        const targetSession = useUnifiedStore.getState().data.ai?.sessions.find((item) => item.id === targetSessionId);
-        const isTemporaryTarget =
-          isTemporarySessionId(targetSessionId) || isTemporarySession(targetSession);
 
         if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
           writeManagedQuotaErrorMessage(targetSessionId, assistantMessageId, setError, t('chat.error.pointsExhausted'));
@@ -344,12 +397,12 @@ export function useChatService() {
             : requestText;
 
           let apiMessageContent: ChatMessageContent = textPayload;
-          if (attachments.length > 0) {
+          if (requestAttachments.length > 0) {
             const parts: ChatMessageContentPart[] = [];
             if (textPayload) {
               parts.push({ type: 'text', text: textPayload });
             }
-            for (const attachment of attachments) {
+            for (const attachment of requestAttachments) {
               const imagePart = await normalizeVisionAttachment(attachment);
               if (imagePart) {
                 parts.push(imagePart);
@@ -373,7 +426,22 @@ export function useChatService() {
                 signal,
                 options: {
                   webSearchEnabled,
+                  onWebSearchStatus: (status) => {
+                    addChatDebugLog('web-search', `status:${status.phase}`, {
+                      sessionId: targetSessionId,
+                      query: status.query,
+                      urls: status.urls,
+                      resultCount: status.results?.length,
+                      metrics: status.metrics,
+                      message: status.message,
+                    }, status.phase === 'error' ? 'warn' : 'info');
+                  },
                   onApiTranscript: (apiTranscript) => {
+                    addChatDebugLog('chat', 'api transcript updated', {
+                      sessionId: targetSessionId,
+                      messageId: assistantMessageId,
+                      transcriptMessages: apiTranscript.length,
+                    });
                     aiActions.updateMessageApiTranscript(targetSessionId, assistantMessageId, apiTranscript);
                   },
                 },
@@ -389,6 +457,11 @@ export function useChatService() {
             },
             createEmptyResponseError: () => createEmptyResponseError(provider.id),
             onSuccess: () => {
+              addChatDebugLog('chat', 'sendMessage completed', {
+                sessionId: targetSessionId,
+                messageId: assistantMessageId,
+                durationMs: Date.now() - requestStartedAt,
+              });
               refreshManagedBudgetIfNeeded(provider.id);
               if (!isTemporaryTarget) {
                 maybeGenerateAutoTitle(targetSessionId, provider.id, selectedModel.id);
@@ -401,6 +474,11 @@ export function useChatService() {
             },
           });
         } catch (error) {
+          addChatDebugLog('chat', 'sendMessage failed before stream runner completed', {
+            sessionId: targetSessionId,
+            durationMs: Date.now() - requestStartedAt,
+            error: error instanceof Error ? error.message : String(error),
+          }, 'error');
           const isManaged = isManagedProviderId(provider.id);
           markManagedAuthPromptForError(targetSessionId, error, isManaged);
           const { message, xml } = buildChatErrorPayload(error, isManaged);
@@ -408,6 +486,11 @@ export function useChatService() {
           aiActions.updateMessage(targetSessionId, assistantMessageId, xml);
         }
       }).catch((error) => {
+        addChatDebugLog('chat', 'sendMessage mutation failed', {
+          sessionId: targetSessionId,
+          durationMs: Date.now() - requestStartedAt,
+          error: error instanceof Error ? error.message : String(error),
+        }, 'error');
         const isManaged = isManagedProviderId(provider.id);
         markManagedAuthPromptForError(targetSessionId, error, isManaged);
         const { message } = buildChatErrorPayload(error, isManaged);
@@ -476,6 +559,14 @@ export function useChatService() {
         }
 
         try {
+          const requestStartedAt = Date.now();
+          addChatDebugLog('chat', 'edit resend started', {
+            sessionId,
+            messageId,
+            modelId: selectedModel.id,
+            providerId: provider.id,
+            webSearchEnabled,
+          });
           const state = useUnifiedStore.getState();
           const sessionMessages = state.data.ai?.messages[sessionId] || [];
 
@@ -508,6 +599,16 @@ export function useChatService() {
                 signal,
                 options: {
                   webSearchEnabled,
+                  onWebSearchStatus: (status) => {
+                    addChatDebugLog('web-search', `status:${status.phase}`, {
+                      sessionId,
+                      query: status.query,
+                      urls: status.urls,
+                      resultCount: status.results?.length,
+                      metrics: status.metrics,
+                      message: status.message,
+                    }, status.phase === 'error' ? 'warn' : 'info');
+                  },
                   onApiTranscript: (apiTranscript) => {
                     aiActions.updateMessageApiTranscript(sessionId, assistantMessageId, apiTranscript);
                   },
@@ -524,6 +625,11 @@ export function useChatService() {
             },
             createEmptyResponseError: () => createEmptyResponseError(provider.id),
             onSuccess: () => {
+              addChatDebugLog('chat', 'edit resend completed', {
+                sessionId,
+                assistantMessageId,
+                durationMs: Date.now() - requestStartedAt,
+              });
               refreshManagedBudgetIfNeeded(provider.id);
               maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
             },
@@ -593,6 +699,14 @@ export function useChatService() {
         }
 
         try {
+          const requestStartedAt = Date.now();
+          addChatDebugLog('chat', 'regenerate started', {
+            sessionId,
+            messageId,
+            modelId: selectedModel.id,
+            providerId: provider.id,
+            webSearchEnabled,
+          });
           const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
           const requestHistory = buildRequestHistory({
             history,
@@ -616,6 +730,16 @@ export function useChatService() {
                 signal,
                 options: {
                   webSearchEnabled,
+                  onWebSearchStatus: (status) => {
+                    addChatDebugLog('web-search', `status:${status.phase}`, {
+                      sessionId,
+                      query: status.query,
+                      urls: status.urls,
+                      resultCount: status.results?.length,
+                      metrics: status.metrics,
+                      message: status.message,
+                    }, status.phase === 'error' ? 'warn' : 'info');
+                  },
                   onApiTranscript: (apiTranscript) => {
                     aiActions.updateMessageApiTranscript(sessionId, messageId, apiTranscript);
                   },
@@ -632,6 +756,11 @@ export function useChatService() {
             },
             createEmptyResponseError: () => createEmptyResponseError(provider.id),
             onSuccess: () => {
+              addChatDebugLog('chat', 'regenerate completed', {
+                sessionId,
+                messageId,
+                durationMs: Date.now() - requestStartedAt,
+              });
               refreshManagedBudgetIfNeeded(provider.id);
               maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
             },

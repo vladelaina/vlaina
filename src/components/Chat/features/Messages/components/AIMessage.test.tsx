@@ -36,7 +36,25 @@ vi.mock("@/components/Chat/features/Markdown/MarkdownRenderer", () => ({
 }));
 
 vi.mock("./MessageToolbar", () => ({
-  MessageToolbar: () => <div data-testid="toolbar" data-chat-selection-excluded="true">toolbar</div>,
+  MessageToolbar: ({
+    forceVisible,
+    showCopyAction,
+    showVersionNavigation,
+  }: {
+    forceVisible?: boolean;
+    showCopyAction?: boolean;
+    showVersionNavigation?: boolean;
+  }) => (
+    <div
+      data-testid="toolbar"
+      data-chat-selection-excluded="true"
+      data-force-visible={String(Boolean(forceVisible))}
+      data-show-copy-action={String(showCopyAction ?? true)}
+      data-show-version-navigation={String(showVersionNavigation ?? true)}
+    >
+      toolbar
+    </div>
+  ),
 }));
 
 vi.mock("./ErrorBlock", () => ({
@@ -264,7 +282,7 @@ describe("AIMessage", () => {
     expect(screen.getByTestId("error")).toHaveTextContent("Request failed");
   });
 
-  it("shows the managed model auth prompt without the assistant toolbar", () => {
+  it("shows the managed model auth prompt with only the regenerate toolbar action", () => {
     render(
       <AIMessage
         msg={{
@@ -280,6 +298,70 @@ describe("AIMessage", () => {
     );
 
     expect(screen.getByTestId("error")).toHaveAttribute("data-login-prompt", "true");
+    expect(screen.getByTestId("toolbar")).toHaveAttribute("data-force-visible", "false");
+    expect(screen.getByTestId("toolbar")).toHaveAttribute("data-show-copy-action", "false");
+    expect(screen.getByTestId("toolbar")).toHaveAttribute("data-show-version-navigation", "false");
+  });
+
+  it("keeps the managed model auth prompt while it is still the last message", () => {
+    render(
+      <AIMessage
+        msg={{
+          ...createMessage('<error type="AUTH_ERROR" code="401">Sign in required</error>'),
+          modelId: "vlaina-managed::gpt-test",
+        }}
+        imageGallery={[]}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId("error")).toHaveAttribute("data-login-prompt", "true");
+    expect(screen.getByTestId("toolbar")).toHaveAttribute("data-force-visible", "false");
+    expect(screen.getByTestId("toolbar")).toHaveAttribute("data-show-copy-action", "false");
+  });
+
+  it("hides the managed model auth prompt after any follow-up message is sent", () => {
+    render(
+      <AIMessage
+        msg={{
+          ...createMessage('<error type="AUTH_ERROR" code="401">Sign in required</error>'),
+          modelId: "vlaina-managed::gpt-test",
+        }}
+        imageGallery={[]}
+        isLoading={false}
+        isLastMessage={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.queryByTestId("error")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("markdown")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("toolbar")).not.toBeInTheDocument();
+  });
+
+  it("keeps only the latest managed model auth prompt visible", () => {
+    render(
+      <AIMessage
+        msg={{
+          ...createMessage('<error type="AUTH_ERROR" code="401">Sign in required</error>'),
+          modelId: "vlaina-managed::gpt-test",
+        }}
+        imageGallery={[]}
+        isLoading={false}
+        isLastMessage={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.queryByTestId("error")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("markdown")).not.toBeInTheDocument();
     expect(screen.queryByTestId("toolbar")).not.toBeInTheDocument();
   });
 
@@ -307,7 +389,8 @@ describe("AIMessage", () => {
     );
 
     expect(screen.queryByTestId("error")).not.toBeInTheDocument();
-    expect(screen.getByTestId("toolbar")).toBeInTheDocument();
+    expect(screen.queryByTestId("markdown")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("toolbar")).not.toBeInTheDocument();
   });
 
   it("keeps the normal error block and toolbar for non-managed auth errors", () => {
@@ -393,6 +476,31 @@ describe("AIMessage", () => {
     expect(screen.getByText("Unable to read this page.")).toBeInTheDocument();
     expect(screen.getByText("https://fail.example")).toBeInTheDocument();
     expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Answer with source.");
+  });
+
+  it("keeps source links from every web search step visible", () => {
+    const content = [
+      '<web-search-status>{"phase":"results","query":"first","results":[{"title":"First Source","url":"https://first.example","snippet":"First","publishedAt":null}]}</web-search-status>',
+      '<web-search-status>{"phase":"complete","urls":["https://first.example"],"metrics":{"successCount":1,"durationMs":12}}</web-search-status>',
+      '<web-search-status>{"phase":"results","query":"second","results":[{"title":"Second Source","url":"https://second.example","snippet":"Second","publishedAt":null}]}</web-search-status>',
+      '<web-search-status>{"phase":"complete","urls":["https://second.example"],"metrics":{"successCount":1,"durationMs":12}}</web-search-status>',
+      "Answer with multiple sources.",
+    ].join("\n");
+
+    render(
+      <AIMessage
+        msg={createMessage(content)}
+        imageGallery={[]}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("First Source")).toBeInTheDocument();
+    expect(screen.getByText("Second Source")).toBeInTheDocument();
+    expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Answer with multiple sources.");
   });
 
   it("stores copied code block feedback above the markdown renderer", () => {

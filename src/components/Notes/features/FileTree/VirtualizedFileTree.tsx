@@ -162,7 +162,7 @@ export function VirtualizedFileTree({
 
       scrollRoot.scrollTo({
         top: Math.max(0, Math.min(maxScrollTop, nextScrollTop)),
-        behavior: 'smooth',
+        behavior: 'auto',
       });
       updateViewport();
     };
