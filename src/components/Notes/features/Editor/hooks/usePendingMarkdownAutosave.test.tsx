@@ -17,6 +17,8 @@ describe('usePendingMarkdownAutosave', () => {
   });
 
   afterEach(() => {
+    delete (globalThis as { __VL_TEST_CONTENT_COMMIT_THROTTLE_MS__?: number })
+      .__VL_TEST_CONTENT_COMMIT_THROTTLE_MS__;
     vi.useRealTimers();
   });
 
@@ -174,6 +176,45 @@ describe('usePendingMarkdownAutosave', () => {
     expect(useNotesStore.getState().currentNote).toEqual({
       path: 'docs/alpha.md',
       content: '# pending before unmount',
+    });
+    expect(updateContent).not.toHaveBeenCalled();
+    expect(debouncedSave).not.toHaveBeenCalled();
+  });
+
+  it('flushes delayed pending markdown before the commit throttle elapses', () => {
+    (globalThis as { __VL_TEST_CONTENT_COMMIT_THROTTLE_MS__?: number })
+      .__VL_TEST_CONTENT_COMMIT_THROTTLE_MS__ = 120;
+    const updateContent = vi.fn((content: string) => {
+      useNotesStore.setState((state) => ({
+        currentNote: state.currentNote ? { ...state.currentNote, content } : state.currentNote,
+      }));
+    });
+    const debouncedSave = vi.fn();
+    const editorView = { dom: document.createElement('div') };
+    const ctx = { get: vi.fn() };
+
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha',
+      updateContent,
+      debouncedSave,
+    }));
+
+    act(() => {
+      result.current.createUserInputMarker(editorView as never, null)(new KeyboardEvent('keydown'));
+      result.current.configureMarkdownListener(ctx, '# alpha')('# delayed');
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(updateContent).not.toHaveBeenCalled();
+    expect(useNotesStore.getState().currentNote?.content).toBe('# alpha');
+
+    unmount();
+
+    expect(useNotesStore.getState().currentNote).toEqual({
+      path: 'docs/alpha.md',
+      content: '# delayed',
     });
     expect(updateContent).not.toHaveBeenCalled();
     expect(debouncedSave).not.toHaveBeenCalled();

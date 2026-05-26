@@ -3,6 +3,7 @@ import type { RefObject } from 'react';
 import {
   measureTextareaContentHeight,
   resolveElementTextLayoutMetrics,
+  type ElementTextLayoutMetrics,
 } from '@/lib/text-layout';
 
 interface UsePredictedTextareaHeightOptions {
@@ -33,6 +34,10 @@ export function usePredictedTextareaHeight(
   const applyHeightRef = useRef<(value?: string) => void>(() => {});
   const observerRef = useRef<ResizeObserver | null>(null);
   const observedTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const metricsRef = useRef<{
+    element: HTMLTextAreaElement;
+    metrics: ElementTextLayoutMetrics;
+  } | null>(null);
   const retryFrameRef = useRef<number | null>(null);
   const retryTimeoutRef = useRef<number | null>(null);
 
@@ -91,7 +96,13 @@ export function usePredictedTextareaHeight(
 
       clearPendingRetry();
       try {
-        const metrics = resolveElementTextLayoutMetrics(current);
+        let metrics = metricsRef.current?.element === current
+          ? metricsRef.current.metrics
+          : null;
+        if (!metrics) {
+          metrics = resolveElementTextLayoutMetrics(current);
+          metricsRef.current = { element: current, metrics };
+        }
         const nextHeight = measureTextareaContentHeight(nextValue, width, {
           font: metrics.font,
           lineHeight: metrics.lineHeight,
@@ -131,6 +142,7 @@ export function usePredictedTextareaHeight(
       observerRef.current?.disconnect();
       observerRef.current = null;
       observedTextareaRef.current = null;
+      metricsRef.current = null;
     };
   }, []);
 

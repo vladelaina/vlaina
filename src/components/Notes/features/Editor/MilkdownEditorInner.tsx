@@ -22,6 +22,7 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
+import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import {
   normalizeAlternativeMathBlockFences,
   preserveMarkdownBlankLinesForEditor,
@@ -133,6 +134,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
 
   useEffect(() => {
     const handleBlur = () => {
+      flushCurrentPendingEditorMarkdown();
       flushSave();
     };
     window.addEventListener('blur', handleBlur);
