@@ -150,7 +150,7 @@ describe('textSelectionOverlayPlugin', () => {
     { key: 'PageUp', shiftKey: true },
     { key: 'PageDown', shiftKey: true },
     { key: 'ArrowRight', ctrlKey: true, shiftKey: true },
-  ])('keeps overlay styling while enabling native routing before modified navigation: %o', async (eventInit) => {
+  ])('keeps keyboard modified navigation on the overlay path: %o', async (eventInit) => {
     const view = await createEditor('hello world');
 
     view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 2)));
@@ -166,7 +166,7 @@ describe('textSelectionOverlayPlugin', () => {
       })
     );
 
-    expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+    expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
     expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
   });
 

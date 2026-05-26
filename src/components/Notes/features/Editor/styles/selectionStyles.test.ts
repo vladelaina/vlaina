@@ -518,8 +518,14 @@ describe('editor embedded CodeMirror selection styles', () => {
 
     expect(css).toContain('.milkdown .ProseMirror.vlaina-text-selection-overlay-active *::selection {');
     expect(css).toContain('background-color: transparent !important;');
+    expect(css).toContain('.milkdown .ProseMirror.vlaina-keyboard-selection-pending::selection,');
+    expect(css).toContain('.milkdown .ProseMirror.vlaina-keyboard-selection-pending *::selection,');
     expect(css).toContain('.milkdown .ProseMirror.vlaina-pointer-native-selection *::selection {');
+    expect(source).toContain("const KEYBOARD_SELECTION_PENDING_CLASS = 'vlaina-keyboard-selection-pending'");
+    expect(source).toContain('view.dom.classList.add(KEYBOARD_SELECTION_PENDING_CLASS)');
     expect(css).toContain([
+      '.milkdown .ProseMirror.vlaina-keyboard-selection-pending::selection,',
+      '.milkdown .ProseMirror.vlaina-keyboard-selection-pending *::selection,',
       '.milkdown .ProseMirror.vlaina-pointer-native-selection::selection,',
       '.milkdown .ProseMirror.vlaina-pointer-native-selection *::selection {',
       '  background-color: transparent !important;',

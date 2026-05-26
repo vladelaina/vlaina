@@ -42,8 +42,21 @@ function isTextSelectionLike(selection: EditorState['selection']): boolean {
 function shouldCopyTextSelectionAsPlainText(state: EditorState, slice: Slice): boolean {
   if (!isTextSelectionLike(state.selection)) return false;
   if (state.selection.empty) return false;
+  if (hasEmptySelectedTextblock(slice)) return false;
 
   return isVisiblePlainTextSlice(slice);
+}
+
+function hasEmptySelectedTextblock(slice: Slice): boolean {
+  const visit = (node: any): boolean => {
+    if (node.isTextblock && node.content.size === 0) {
+      return true;
+    }
+
+    return getNodeChildren(node).some(visit);
+  };
+
+  return getNodeChildren({ content: slice.content }).some(visit);
 }
 
 function isCellSelectionLike(selection: EditorState['selection']): boolean {
