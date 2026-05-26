@@ -16,9 +16,9 @@
 
 .milkdown .ProseMirror.vlaina-pointer-native-selection::selection,
 .milkdown .ProseMirror.vlaina-pointer-native-selection *::selection {
-  background-color: var(--vlaina-selection-bg, #2781db) !important;
+  background-color: transparent !important;
   color: inherit !important;
-  -webkit-text-fill-color: currentColor !important;
+  -webkit-text-fill-color: inherit !important;
 }
 
 .milkdown .ProseMirror.vlaina-text-selection-overlay-active .vlaina-atomic-selected,

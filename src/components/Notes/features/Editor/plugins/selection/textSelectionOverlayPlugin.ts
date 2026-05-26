@@ -9,6 +9,8 @@ const TEXT_SELECTION_OVERLAY_ACTIVE_CLASS = 'vlaina-text-selection-overlay-activ
 const POINTER_NATIVE_SELECTION_CLASS = 'vlaina-pointer-native-selection';
 const POINTER_NATIVE_SELECTION_META = 'vlainaTextSelectionPointerNative';
 const EDITOR_ONLY_TEXT_SELECTION_PLACEHOLDERS = new Set(['\u200B', '\u200C', '\u2800']);
+const VISIBLE_TEXT_PATTERN = /\S/u;
+const LINE_BREAK_PATTERN = /[\n\r\u2028\u2029]/u;
 
 interface TextSelectionOverlayState {
   decorations: DecorationSet;
@@ -44,18 +46,10 @@ function getNativeSelectionMetrics() {
 
   const range = selection.getRangeAt(0);
   const rects = Array.from(range.getClientRects());
-  const firstRect = rects[0];
-  const lastRect = rects[rects.length - 1];
 
   return {
-    anchorOffset: selection.anchorOffset,
-    focusOffset: selection.focusOffset,
     isCollapsed: selection.isCollapsed,
     rectCount: rects.length,
-    firstHeight: firstRect ? Math.round(firstRect.height * 100) / 100 : null,
-    lastHeight: lastRect ? Math.round(lastRect.height * 100) / 100 : null,
-    firstTop: firstRect ? Math.round(firstRect.top * 100) / 100 : null,
-    lastTop: lastRect ? Math.round(lastRect.top * 100) / 100 : null,
   };
 }
 
@@ -86,14 +80,30 @@ export function addTextSelectionOverlayDecorations(
   const to = Math.min(selectionTo, nodeStart + text.length);
   if (to <= from) return;
 
+  const pushVisibleDecoration = (rangeFrom: number, rangeTo: number) => {
+    if (rangeTo <= rangeFrom) return;
+    const selectedText = text.slice(rangeFrom - nodeStart, rangeTo - nodeStart);
+    if (!VISIBLE_TEXT_PATTERN.test(selectedText)) {
+      return;
+    }
+    decorations.push(Decoration.inline(rangeFrom, rangeTo, {
+      class: TEXT_SELECTION_OVERLAY_CLASS,
+    }));
+  };
+
   let rangeStart: number | null = null;
   for (let pos = from; pos < to; pos += 1) {
     const char = text[pos - nodeStart];
     if (EDITOR_ONLY_TEXT_SELECTION_PLACEHOLDERS.has(char)) {
-      if (rangeStart !== null && pos > rangeStart) {
-        decorations.push(Decoration.inline(rangeStart, pos, {
-          class: TEXT_SELECTION_OVERLAY_CLASS,
-        }));
+      if (rangeStart !== null) {
+        pushVisibleDecoration(rangeStart, pos);
+      }
+      rangeStart = null;
+      continue;
+    }
+    if (LINE_BREAK_PATTERN.test(char)) {
+      if (rangeStart !== null) {
+        pushVisibleDecoration(rangeStart, pos);
       }
       rangeStart = null;
       continue;
@@ -103,20 +113,14 @@ export function addTextSelectionOverlayDecorations(
   }
 
   if (rangeStart !== null && to > rangeStart) {
-    decorations.push(Decoration.inline(rangeStart, to, {
-      class: TEXT_SELECTION_OVERLAY_CLASS,
-    }));
+    pushVisibleDecoration(rangeStart, to);
   }
 }
 
 function createTextSelectionDecorationState(
-  state: EditorState,
-  usePointerNativeSelection = false
+  state: EditorState
 ): Pick<TextSelectionOverlayState, 'decorationCount' | 'decorations'> {
   const { doc, selection } = state;
-  if (usePointerNativeSelection) {
-    return { decorationCount: 0, decorations: DecorationSet.empty };
-  }
   if (!isTextSelectionOverlayEligible(state)) {
     return { decorationCount: 0, decorations: DecorationSet.empty };
   }
@@ -170,7 +174,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
             : false
         );
         if (!tr.docChanged && !tr.selectionSet && pointerNativeMeta === undefined) return previous;
-        const decorationState = createTextSelectionDecorationState(newState, usePointerNativeSelection);
+        const decorationState = createTextSelectionDecorationState(newState);
         return {
           ...decorationState,
           usePointerNativeSelection,
@@ -186,7 +190,8 @@ export const textSelectionOverlayPlugin = $prose(() => {
       let lastClassSignature = '';
       let keyClearFrame: number | null = null;
       let pointerNativeReleaseFrame: number | null = null;
-      let recoverNativeSelectionFrame: number | null = null;
+      let clearNativeSelectionFrame: number | null = null;
+      let isPointerSelectionActive = false;
 
       const setPointerNativeSelection = (nextValue: boolean) => {
         const currentValue = Boolean(
@@ -200,43 +205,30 @@ export const textSelectionOverlayPlugin = $prose(() => {
         );
       };
 
-      const scheduleRecoverNativeSelection = () => {
-        if (recoverNativeSelectionFrame !== null) return;
+      const scheduleClearNativeSelection = () => {
+        if (clearNativeSelectionFrame !== null) return;
 
-        recoverNativeSelectionFrame = requestAnimationFrame(() => {
-          recoverNativeSelectionFrame = null;
+        clearNativeSelectionFrame = requestAnimationFrame(() => {
+          clearNativeSelectionFrame = null;
           const nativeSelection = getNativeSelectionMetrics();
-          const shouldRecover =
-            view.state.selection instanceof TextSelection &&
-            !view.state.selection.empty &&
+          const shouldClearNativeRangeForOverlay =
+            !isPointerSelectionActive &&
+            isTextSelectionOverlayEligible(view.state) &&
             nativeSelection &&
             !nativeSelection.isCollapsed &&
             nativeSelection.rectCount > 0 &&
             !textSelectionOverlayPluginKey.getState(view.state)?.usePointerNativeSelection;
 
-          if (!shouldRecover) {
-            const shouldClearNativeRangeForOverlay =
-              view.state.selection instanceof AllSelection &&
-              nativeSelection &&
-              !nativeSelection.isCollapsed &&
-              nativeSelection.rectCount > 0 &&
-              !textSelectionOverlayPluginKey.getState(view.state)?.usePointerNativeSelection;
-
-            if (shouldClearNativeRangeForOverlay) {
-              clearNativeSelectionRange();
-            }
-            return;
+          if (shouldClearNativeRangeForOverlay) {
+            clearNativeSelectionRange();
           }
-
-          setPointerNativeSelection(true);
-          syncActiveClass();
         });
       };
 
       const syncActiveClass = () => {
         const pluginState = textSelectionOverlayPluginKey.getState(view.state);
         const usePointerNativeSelection = Boolean(pluginState?.usePointerNativeSelection);
-        const active = !usePointerNativeSelection && isTextSelectionOverlayEligible(view.state);
+        const active = isTextSelectionOverlayEligible(view.state);
         view.dom.classList.toggle(TEXT_SELECTION_OVERLAY_ACTIVE_CLASS, active);
         view.dom.classList.toggle(POINTER_NATIVE_SELECTION_CLASS, usePointerNativeSelection);
         const classSignature = [
@@ -253,13 +245,14 @@ export const textSelectionOverlayPlugin = $prose(() => {
             !nativeSelection.isCollapsed &&
             nativeSelection.rectCount > 0
           ) {
-            scheduleRecoverNativeSelection();
+            scheduleClearNativeSelection();
           }
         }
       };
 
       const handleMouseDown = (event: MouseEvent) => {
         if (event.button !== 0) return;
+        isPointerSelectionActive = true;
         setPointerNativeSelection(true);
         syncActiveClass();
       };
@@ -302,6 +295,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
       };
 
       const handleMouseUp = () => {
+        isPointerSelectionActive = false;
         if (pointerNativeReleaseFrame !== null) {
           cancelAnimationFrame(pointerNativeReleaseFrame);
         }
@@ -314,6 +308,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
           if (!usePointerNativeSelection) return;
 
           if (isTextSelectionOverlayEligible(view.state)) {
+            setPointerNativeSelection(false);
             syncActiveClass();
             return;
           }
@@ -324,11 +319,25 @@ export const textSelectionOverlayPlugin = $prose(() => {
             syncActiveClass();
           }
         });
+
+        if (isTextSelectionOverlayEligible(view.state)) {
+          scheduleClearNativeSelection();
+        }
+      };
+
+      const handleWindowBlur = () => {
+        isPointerSelectionActive = false;
+        setPointerNativeSelection(false);
+        syncActiveClass();
+        if (isTextSelectionOverlayEligible(view.state)) {
+          scheduleClearNativeSelection();
+        }
       };
 
       view.dom.addEventListener('mousedown', handleMouseDown);
       view.dom.addEventListener('keydown', handleKeyDown);
       document.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('blur', handleWindowBlur);
       syncActiveClass();
       return {
         update() {
@@ -341,12 +350,13 @@ export const textSelectionOverlayPlugin = $prose(() => {
           if (pointerNativeReleaseFrame !== null) {
             cancelAnimationFrame(pointerNativeReleaseFrame);
           }
-          if (recoverNativeSelectionFrame !== null) {
-            cancelAnimationFrame(recoverNativeSelectionFrame);
+          if (clearNativeSelectionFrame !== null) {
+            cancelAnimationFrame(clearNativeSelectionFrame);
           }
           view.dom.removeEventListener('mousedown', handleMouseDown);
           view.dom.removeEventListener('keydown', handleKeyDown);
           document.removeEventListener('mouseup', handleMouseUp);
+          window.removeEventListener('blur', handleWindowBlur);
           view.dom.classList.remove(TEXT_SELECTION_OVERLAY_ACTIVE_CLASS);
           view.dom.classList.remove(POINTER_NATIVE_SELECTION_CLASS);
         },
