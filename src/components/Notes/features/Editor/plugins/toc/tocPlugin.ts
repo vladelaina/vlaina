@@ -228,6 +228,21 @@ export const tocSchema = $node('toc', () => ({
   },
   parseMarkdown: {
     match: (node) => {
+      if (node.type === 'container') {
+        const hProperties = (node as {
+          data?: {
+            hName?: string;
+            hProperties?: {
+              className?: unknown;
+              dataType?: unknown;
+            };
+          };
+        }).data?.hProperties;
+        const className = hProperties?.className;
+        const classes = Array.isArray(className) ? className : [];
+        return hProperties?.dataType === 'toc' || classes.includes('toc-block');
+      }
+
       if (node.type === 'paragraph') {
         const children = node.children as Array<{ type: string; value?: string }> | undefined;
         if (children?.length === 1 && children[0].type === 'text') {

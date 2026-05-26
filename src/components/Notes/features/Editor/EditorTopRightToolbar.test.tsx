@@ -43,6 +43,11 @@ vi.mock('@/stores/useNotesStore', () => ({
     {
       getState: () => ({
         currentNote: mocks.currentNote,
+        noteContentsCache: new Map(
+          mocks.currentNote ? [[mocks.currentNote.path, { content: mocks.currentNote.content }]] : [],
+        ),
+        isDirty: false,
+        openTabs: mocks.currentNote ? [{ path: mocks.currentNote.path, name: 'Current', isDirty: false }] : [],
       }),
     },
   ),

@@ -15,6 +15,7 @@ Before implementing:
 - No features beyond what was asked.
 - No abstractions for single-use code.
 - No "flexibility" or "configurability" that wasn't requested.
+- Think long-term: avoid quick fixes that create future maintenance traps.
 - No error handling for impossible scenarios.
 - If you write 200 lines and it could be 50, rewrite it.
 
@@ -117,3 +118,13 @@ When a task involves Milkdown behavior, schemas, commands, plugins, or editor in
 - If the bug or behavior originates in Milkdown, fix it at the Milkdown source first instead of masking it in app-level CSS, plugins, or adapters.
 - Do not avoid vendor changes by adding workaround code in app-level editor plugins.
 - Keep vendor edits as surgical as any other code change, and verify them with the most relevant app and vendor-facing tests.
+
+## 9. Markdown Editor Compatibility
+
+**Every custom Markdown AST node must be editable.**
+
+When changing notes Markdown parsing, rendering, or remark plugins:
+- If remark creates a custom node or mark, add the matching Milkdown `parseMarkdown` schema/mark.
+- Keep main editor plugin config and round-trip test editor config in sync.
+- Add a focused compatibility test that opens the syntax in Milkdown.
+- Preserve a source-edit fallback for editor creation failures; do not let one bad node make the note blank.

@@ -5,24 +5,7 @@ import {
   Paragraph,
   TextRun,
 } from 'docx';
-
-function stripMarkdownLinks(value: string): string {
-  return value
-    .replace(/!\[([^\]]*)]\([^)]+\)/g, '$1')
-    .replace(/\[([^\]]+)]\([^)]+\)/g, '$1');
-}
-
-function stripMarkdownInline(value: string): string {
-  return stripMarkdownLinks(value)
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/__([^_]+)__/g, '$1')
-    .replace(/\*([^*]+)\*/g, '$1')
-    .replace(/_([^_]+)_/g, '$1')
-    .replace(/~~([^~]+)~~/g, '$1')
-    .replace(/<[^>]+>/g, '')
-    .trim();
-}
+import { stripMarkdownInline } from '@/components/common/markdown/plainText';
 
 function createParagraph(text: string, options: Record<string, unknown> = {}) {
   return new Paragraph({

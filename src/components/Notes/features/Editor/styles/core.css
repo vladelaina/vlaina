@@ -49,16 +49,21 @@ body.vlaina-overlay-scrollbar-dragging * {
 }
 
 body.vlaina-block-dragging-cursor,
-body.vlaina-block-dragging-cursor * {
+body.vlaina-block-dragging-cursor .milkdown,
+body.vlaina-block-dragging-cursor .milkdown *,
+body.vlaina-block-dragging-cursor [data-editor-drag-box='true'] {
   cursor: crosshair !important;
 }
 
 body.vlaina-block-drag-active,
-body.vlaina-block-drag-active * {
+body.vlaina-block-drag-active .milkdown,
+body.vlaina-block-drag-active .milkdown *,
+body.vlaina-block-drag-active .vlaina-block-drag-preview-layer,
+body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
   cursor: grabbing !important;
 }
 
-body.vlaina-block-dragging-cursor .milkdown :is(
+.milkdown .ProseMirror.vlaina-block-selection-pending :is(
   a,
   button,
   [role='button'],
@@ -74,14 +79,14 @@ body.vlaina-block-dragging-cursor .milkdown :is(
   pointer-events: none !important;
 }
 
-body.vlaina-block-dragging-cursor .milkdown :is(
+.milkdown .ProseMirror.vlaina-block-selection-pending :is(
   .heading-toggle-btn,
   .vlaina-collapse-btn
 ) {
   opacity: 0 !important;
 }
 
-body.vlaina-block-dragging-cursor .milkdown :is(
+.milkdown .ProseMirror.vlaina-block-selection-pending :is(
   .callout-icon-button,
   .video-external-action,
   .milkdown-table-block .column-header-drag-control,
@@ -456,8 +461,7 @@ body.vlaina-block-dragging-cursor .milkdown :is(
 }
 
 /* Hide text caret while drag block selection is active */
-.milkdown .ProseMirror.vlaina-block-selection-active,
-.milkdown .ProseMirror.vlaina-block-selection-active * {
+.milkdown .ProseMirror.vlaina-block-selection-active {
   caret-color: transparent !important;
 }
 

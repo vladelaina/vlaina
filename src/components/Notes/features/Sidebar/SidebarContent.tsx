@@ -100,6 +100,7 @@ export function SidebarContent({
     previousView: CurrentEditorView;
   } | null>(null);
   const [activeSearchResultId, setActiveSearchResultId] = useState<string | null>(null);
+  const [selectedSearchResultIndex, setSelectedSearchResultIndex] = useState(0);
   const displayRootFolder = useMemo(() => {
     if (!currentNotePath || !isCurrentDraftNote) {
       return rootFolder;
@@ -302,6 +303,7 @@ export function SidebarContent({
     if (previousSearchQueryRef.current !== effectiveSearchQuery) {
       previousSearchQueryRef.current = effectiveSearchQuery;
       setActiveSearchResultId(null);
+      setSelectedSearchResultIndex(0);
     }
 
     if (effectiveSearchOpen && effectiveSearchQuery.trim().length > 0) {
@@ -314,6 +316,7 @@ export function SidebarContent({
     });
     setPendingNavigation(null);
     setActiveSearchResultId(null);
+    setSelectedSearchResultIndex(0);
   }, [active, effectiveSearchOpen, effectiveSearchQuery]);
 
   useEffect(() => {
@@ -325,6 +328,16 @@ export function SidebarContent({
       setActiveSearchResultId(null);
     }
   }, [activeSearchResultId, searchResults]);
+
+  useEffect(() => {
+    setSelectedSearchResultIndex((current) => {
+      if (!active || searchResults.length === 0) {
+        return 0;
+      }
+
+      return Math.min(current, searchResults.length - 1);
+    });
+  }, [active, searchResults.length]);
 
   useEffect(() => {
     if (!pendingNavigation || currentNotePath !== pendingNavigation.path) {
@@ -393,6 +406,28 @@ export function SidebarContent({
     });
   };
 
+  const selectedSearchResult = searchResults[selectedSearchResultIndex] ?? null;
+
+  const selectPreviousSearchResult = () => {
+    setSelectedSearchResultIndex((current) => {
+      if (searchResults.length === 0) {
+        return 0;
+      }
+
+      return (current - 1 + searchResults.length) % searchResults.length;
+    });
+  };
+
+  const selectNextSearchResult = () => {
+    setSelectedSearchResultIndex((current) => {
+      if (searchResults.length === 0) {
+        return 0;
+      }
+
+      return (current + 1) % searchResults.length;
+    });
+  };
+
   const handleOpenMarkdownFile = () => {
     window.dispatchEvent(new Event('vlaina-open-markdown-target-file'));
   };
@@ -413,14 +448,18 @@ export function SidebarContent({
         setSearchQuery={search.setSearchQuery}
         inputRef={inputRef}
         hideSearch={hideSearch}
-        canSubmit={Boolean(searchResults[0])}
+        canSubmit={Boolean(selectedSearchResult)}
         onSubmit={() => {
-          const result = searchResults[0];
+          const result = selectedSearchResult;
           if (!result) {
             return;
           }
           handleOpenSearchResult(result);
         }}
+        canSelectPrevious={searchResults.length > 0}
+        canSelectNext={searchResults.length > 0}
+        onSelectPrevious={selectPreviousSearchResult}
+        onSelectNext={selectNextSearchResult}
         placeholder=""
         closeLabel={t('notes.closeSidebarSearch')}
         topActions={null}
@@ -443,6 +482,7 @@ export function SidebarContent({
                 query={deferredSearchQuery}
                 currentNotePath={currentNotePath}
                 activeResultId={activeSearchResultId}
+                highlightedResultId={selectedSearchResult?.id ?? null}
                 onOpen={handleOpenSearchResult}
                 scrollRootRef={scrollRootRef}
                 isContentScanPending={isContentScanPending}

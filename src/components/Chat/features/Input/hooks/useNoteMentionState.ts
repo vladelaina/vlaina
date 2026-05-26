@@ -28,6 +28,11 @@ type SyncMentionsContext = {
   value: string;
 };
 
+type IndexedNoteMentionCandidate = NoteMentionCandidate & {
+  lowerTitle: string;
+  lowerPath: string;
+};
+
 interface UseNoteMentionStateOptions {
   value: string;
   onValueChange: (value: string) => void;
@@ -59,7 +64,7 @@ export function useNoteMentionState({
   const [textareaScrollTop, setTextareaScrollTop] = useState(0);
   const requestedTreeLoadTriggerRef = useRef<string | null>(null);
 
-  const allNoteCandidates = useMemo<NoteMentionCandidate[]>(() => {
+  const allNoteCandidates = useMemo<IndexedNoteMentionCandidate[]>(() => {
     const paths: string[] = [];
     if (notesRootFolder) {
       collectNotePaths(notesRootFolder.children, paths);
@@ -76,8 +81,7 @@ export function useNoteMentionState({
         isCurrent: path === currentNotePath,
         icon: getNoteIcon(path),
         notePath: path,
-      }))
-      .sort((a, b) => a.title.localeCompare(b.title));
+      }));
 
     const seenPaths = new Set(candidates.map((candidate) => candidate.path));
     for (const entry of starredEntries) {
@@ -108,7 +112,18 @@ export function useNoteMentionState({
       });
     }
 
-    return candidates.sort((a, b) => a.title.localeCompare(b.title));
+    return candidates
+      .map((candidate) => ({
+        ...candidate,
+        lowerTitle: candidate.title.toLowerCase(),
+        lowerPath: candidate.path.toLowerCase(),
+      }))
+      .sort((a, b) => {
+        if (a.isCurrent !== b.isCurrent) {
+          return a.isCurrent ? -1 : 1;
+        }
+        return a.title.localeCompare(b.title);
+      });
   }, [activeVaultPath, currentNotePath, getDisplayName, getNoteIcon, notesPath, notesRootFolder, starredEntries]);
 
   const mentionTrigger = useMemo(
@@ -128,19 +143,12 @@ export function useNoteMentionState({
       }
 
       return (
-        candidate.title.toLowerCase().includes(query)
-        || candidate.path.toLowerCase().includes(query)
+        candidate.lowerTitle.includes(query)
+        || candidate.lowerPath.includes(query)
       );
     });
 
-    return candidates
-      .sort((a, b) => {
-        if (a.isCurrent !== b.isCurrent) {
-          return a.isCurrent ? -1 : 1;
-        }
-        return a.title.localeCompare(b.title);
-      })
-      .slice(0, 30);
+    return candidates.slice(0, 30);
   }, [allNoteCandidates, mentionTrigger]);
 
   const currentPageCandidates = useMemo(
@@ -198,11 +206,22 @@ export function useNoteMentionState({
   }, [effectiveVaultPath, loadFileTree, mentionTrigger, mentionTriggerKey, notesLoading, notesRootFolder]);
 
   useEffect(() => {
-    setMentions((prev) => syncMentions({
-      allNoteCandidates,
-      mentions: prev,
-      value,
-    }));
+    setMentions((prev) => {
+      const next = syncMentions({
+        allNoteCandidates,
+        mentions: prev,
+        value,
+      });
+      if (
+        next.length === prev.length &&
+        next.every((mention, index) =>
+          mention.path === prev[index]?.path && mention.title === prev[index]?.title
+        )
+      ) {
+        return prev;
+      }
+      return next;
+    });
   }, [allNoteCandidates, syncMentions, value]);
 
   const clearMentions = useCallback(() => {

@@ -1,6 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { createDragSelectionRect, type RectBounds } from './blockSelectionUtils';
-import { setSelectionDraggingVisualState } from './blockDragVisualState';
 
 export type BlockDragStartZone = 'outside-editor' | 'below-last-block';
 
@@ -12,6 +11,7 @@ interface StartBlockDragSessionOptions {
   startZone: BlockDragStartZone;
   dragThreshold: number;
   cursor: string;
+  cursorRoot?: HTMLElement | null;
   onActivate: () => void;
   onDragMove: (selectionRect: RectBounds) => void;
   onPlainClick: (startZone: BlockDragStartZone) => void;
@@ -29,6 +29,7 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
     startZone,
     dragThreshold,
     cursor,
+    cursorRoot: providedCursorRoot,
     onActivate,
     onDragMove,
     onPlainClick,
@@ -39,27 +40,33 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
   const startY = event.clientY;
   let activated = false;
   let stopped = false;
+  let visualStateApplied = false;
 
   const editorRoot = view.dom.closest('.milkdown-editor') as HTMLElement | null;
-  const previousBodyCursor = document.body.style.cursor;
-  const previousBodyUserSelect = document.body.style.userSelect;
+  const cursorRoot = providedCursorRoot ?? editorRoot ?? view.dom;
+  const previousCursorRootCursor = cursorRoot.style.cursor;
   const previousViewCursor = view.dom.style.cursor;
   const previousEditorRootCursor = editorRoot?.style.cursor ?? '';
 
-  document.body.classList.add(BLOCK_SELECTION_PENDING_CLASS);
-  document.body.style.cursor = 'text';
-  view.dom.style.cursor = 'text';
-  if (editorRoot) editorRoot.style.cursor = 'text';
+  const applyVisualState = (nextCursor: string) => {
+    if (!visualStateApplied) {
+      view.dom.classList.add(BLOCK_SELECTION_PENDING_CLASS);
+      visualStateApplied = true;
+    }
+    cursorRoot.style.cursor = nextCursor;
+    view.dom.style.cursor = nextCursor;
+    if (editorRoot && editorRoot !== cursorRoot) editorRoot.style.cursor = nextCursor;
+  };
 
   const teardown = () => {
     if (stopped) return;
     stopped = true;
-    document.body.style.cursor = previousBodyCursor;
-    document.body.style.userSelect = previousBodyUserSelect;
-    document.body.classList.remove(BLOCK_SELECTION_PENDING_CLASS);
-    setSelectionDraggingVisualState(false);
+    cursorRoot.style.cursor = previousCursorRootCursor;
+    if (visualStateApplied) {
+      view.dom.classList.remove(BLOCK_SELECTION_PENDING_CLASS);
+    }
     view.dom.style.cursor = previousViewCursor;
-    if (editorRoot) editorRoot.style.cursor = previousEditorRootCursor;
+    if (editorRoot && editorRoot !== cursorRoot) editorRoot.style.cursor = previousEditorRootCursor;
     document.removeEventListener('mousemove', handleMouseMove, true);
     document.removeEventListener('mouseup', handleMouseUp, true);
     onTeardown?.();
@@ -79,11 +86,7 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
 
     if (!activated) {
       activated = true;
-      document.body.style.cursor = cursor;
-      setSelectionDraggingVisualState(true);
-      view.dom.style.cursor = cursor;
-      if (editorRoot) editorRoot.style.cursor = cursor;
-      document.body.style.userSelect = 'none';
+      applyVisualState(cursor);
       onActivate();
     }
 

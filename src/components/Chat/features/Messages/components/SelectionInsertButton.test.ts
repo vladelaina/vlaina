@@ -360,4 +360,112 @@ describe("chat selection surfaces", () => {
     selection.removeAllRanges();
     container.remove();
   });
+
+  it("filters code block chrome out of the composer insertion text", () => {
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <div data-chat-scrollable="true">
+        <div data-message-item="true" data-role="assistant">
+          <div data-chat-selection-surface="true" data-chat-selection-start="true">
+            <p>Before</p>
+            <div class="vlaina-code-block">
+              <div class="vlaina-code-block-header" data-chat-selection-excluded="true">
+                <div class="vlaina-code-block-language">
+                  <span class="vlaina-code-block-language-label">code</span>
+                </div>
+                <button>Copy</button>
+              </div>
+              <div class="vlaina-code-block-body"><pre class="vlaina-code-block-line-numbers" data-chat-selection-excluded="true">1</pre><code>const value = 1;</code></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const messageBody = container.querySelector('[data-chat-selection-start="true"]')!;
+    const selection = window.getSelection()!;
+    const range = document.createRange();
+    range.selectNodeContents(messageBody);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    expect(selection.toString()).toContain("code");
+    const composerText = getSelectionTextForComposer(selection, range);
+    expect(composerText).toContain("Before");
+    expect(composerText).toContain("const value = 1;");
+    expect(composerText).not.toContain("code");
+    expect(composerText).not.toContain("Copy");
+    expect(composerText).not.toMatch(/^1$/m);
+
+    selection.removeAllRanges();
+    container.remove();
+  });
+
+  it("filters aria-hidden visual text out of the composer insertion text", () => {
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <div data-chat-scrollable="true">
+        <div data-message-item="true" data-role="assistant">
+          <div data-chat-selection-surface="true" data-chat-selection-start="true">
+            <span>Visible</span>
+            <span aria-hidden="true">Decorative duplicate</span>
+            <span>Text</span>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const messageBody = container.querySelector('[data-chat-selection-start="true"]')!;
+    const selection = window.getSelection()!;
+    const range = document.createRange();
+    range.selectNodeContents(messageBody);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    expect(selection.toString()).toContain("Decorative duplicate");
+    const composerText = getSelectionTextForComposer(selection, range);
+    expect(composerText).toContain("Visible");
+    expect(composerText).toContain("Text");
+    expect(composerText).not.toContain("Decorative duplicate");
+
+    selection.removeAllRanges();
+    container.remove();
+  });
+
+  it("filters embedded media placeholders out of the composer insertion text", () => {
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <div data-chat-scrollable="true">
+        <div data-message-item="true" data-role="assistant">
+          <div data-chat-selection-surface="true" data-chat-selection-start="true">
+            <p>Before</p>
+            <div class="mermaid-block" data-chat-selection-excluded="true">Rendered diagram label</div>
+            <div class="video-block" data-chat-selection-excluded="true">Open video</div>
+            <span data-chat-selection-excluded="true">[Image unavailable]</span>
+            <p>After</p>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const messageBody = container.querySelector('[data-chat-selection-start="true"]')!;
+    const selection = window.getSelection()!;
+    const range = document.createRange();
+    range.selectNodeContents(messageBody);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const composerText = getSelectionTextForComposer(selection, range);
+    expect(composerText).toContain("Before");
+    expect(composerText).toContain("After");
+    expect(composerText).not.toContain("Rendered diagram label");
+    expect(composerText).not.toContain("Open video");
+    expect(composerText).not.toContain("Image unavailable");
+
+    selection.removeAllRanges();
+    container.remove();
+  });
 });

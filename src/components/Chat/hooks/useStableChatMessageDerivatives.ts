@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import type { ChatMessage } from '@/lib/ai/types';
 import { extractMessageImageSources } from '@/components/Chat/common/messageClipboard';
-import { normalizeRenderableImageSrc } from '@/components/Chat/features/Markdown/imagePolicy';
+import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
 
 export interface ChatImageGalleryItem {
   id: string;

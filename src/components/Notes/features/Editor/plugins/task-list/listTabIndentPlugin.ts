@@ -189,6 +189,71 @@ function handleInternalPlaceholderListEnter(view: EditorView, event: KeyboardEve
     return true;
 }
 
+function createListWithItems(list: ProseNode, items: ProseNode[]): ProseNode | null {
+    return items.length > 0 ? list.type.create(list.attrs, items, list.marks) : null;
+}
+
+function handleEmptyParentListItemBackspace(view: EditorView, event: KeyboardEvent): boolean {
+    if (event.key !== 'Backspace') return false;
+    if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || event.isComposing) return false;
+    if (!view.state.selection.empty || !(view.state.selection instanceof TextSelection)) return false;
+
+    const { state } = view;
+    const { $from } = state.selection;
+    if ($from.parent.type.name !== 'paragraph' || $from.parent.content.size !== 0 || $from.parentOffset !== 0) {
+        return false;
+    }
+
+    const listItemDepth = findSelectionListItemDepth(view);
+    if (listItemDepth === null || listItemDepth < 2) return false;
+    if ($from.index(listItemDepth) !== 0) return false;
+
+    const listDepth = listItemDepth - 1;
+    const parentList = $from.node(listDepth);
+    const listItem = $from.node(listItemDepth);
+    if (parentList.type.name !== 'ordered_list' && parentList.type.name !== 'bullet_list') return false;
+    if (listItem.childCount !== 2) return false;
+
+    const emptyParagraph = listItem.child(0);
+    const nestedList = listItem.child(1);
+    if (emptyParagraph.type.name !== 'paragraph' || emptyParagraph.content.size !== 0) return false;
+    if (nestedList.type.name !== parentList.type.name) return false;
+
+    const paragraphType = state.schema.nodes.paragraph;
+    if (!paragraphType) return false;
+
+    const listItemIndex = $from.index(listDepth);
+    const beforeItems: ProseNode[] = [];
+    const afterItems: ProseNode[] = [];
+
+    parentList.forEach((child, _offset, index) => {
+        if (index < listItemIndex) beforeItems.push(child);
+        if (index > listItemIndex) afterItems.push(child);
+    });
+
+    const replacementNodes = [
+        createListWithItems(parentList, beforeItems),
+        paragraphType.create(),
+        nestedList,
+        createListWithItems(parentList, afterItems),
+    ].filter((node): node is ProseNode => node !== null);
+
+    event.preventDefault();
+
+    const listFrom = $from.before(listDepth);
+    const listTo = $from.after(listDepth);
+    const paragraphIndex = beforeItems.length > 0 ? 1 : 0;
+    const paragraphStart = listFrom + replacementNodes
+        .slice(0, paragraphIndex)
+        .reduce((offset, node) => offset + node.nodeSize, 0);
+
+    let tr = state.tr.replaceWith(listFrom, listTo, replacementNodes);
+    tr = tr.setSelection(TextSelection.create(tr.doc, paragraphStart + 1));
+    view.dispatch(tr.scrollIntoView());
+    view.focus();
+    return true;
+}
+
 function buildInternalListGapDecorations(doc: Parameters<typeof DecorationSet.create>[0]): DecorationSet {
     const decorations: Decoration[] = [];
 
@@ -376,6 +441,7 @@ export const listTabIndentPlugin = $prose(() => {
             },
             handleKeyDown(view, event) {
                 if (handleInternalPlaceholderListEnter(view, event)) return true;
+                if (handleEmptyParentListItemBackspace(view, event)) return true;
                 if (event.key !== 'Tab') return false;
                 if (event.metaKey || event.ctrlKey || event.altKey) return false;
 

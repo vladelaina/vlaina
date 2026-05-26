@@ -22,6 +22,7 @@ interface ChatSidebarVirtualListProps {
   onTogglePin: (sessionId: string, isPinned?: boolean) => void;
   onHideSearch?: () => void;
   resetKey?: string;
+  highlightedSessionId?: string | null;
 }
 
 export function ChatSidebarVirtualList({
@@ -41,6 +42,7 @@ export function ChatSidebarVirtualList({
   onTogglePin,
   onHideSearch,
   resetKey,
+  highlightedSessionId,
 }: ChatSidebarVirtualListProps) {
   const sessionIds = useMemo(() => sessions.map((session) => session.id), [sessions]);
   const virtualizer = useVirtualizer({
@@ -66,6 +68,19 @@ export function ChatSidebarVirtualList({
 
     virtualizer.measure();
   }, [active, sessionIds, virtualizer]);
+
+  useEffect(() => {
+    if (!active || !highlightedSessionId) {
+      return;
+    }
+
+    const highlightedIndex = sessionIds.indexOf(highlightedSessionId);
+    if (highlightedIndex < 0) {
+      return;
+    }
+
+    virtualizer.scrollToIndex(highlightedIndex, { align: 'auto' });
+  }, [active, highlightedSessionId, sessionIds, virtualizer]);
 
   if (sessions.length === 0) {
     return null;
@@ -100,6 +115,7 @@ export function ChatSidebarVirtualList({
             <ChatSidebarSessionRow
               session={session}
               isActive={currentSessionId === session.id}
+              isKeyboardHighlighted={highlightedSessionId === session.id}
               isRenaming={renamingSessionId === session.id}
               renameDraft={renameDraft}
               onRenameDraftChange={onRenameDraftChange}

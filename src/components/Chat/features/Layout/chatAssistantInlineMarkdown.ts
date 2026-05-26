@@ -36,6 +36,7 @@ import {
   MARKDOWN_INLINE_CODE_EXTRA_WIDTH,
   MARKDOWN_INLINE_CODE_FONT,
 } from '@/components/common/markdown/markdownMetrics';
+import { normalizeMarkdownInlineTextForMeasurement } from '@/components/common/markdown/plainText';
 import type { TextBlockVariant } from './chatAssistantMarkdownTypes';
 import {
   setCacheEntry,
@@ -222,13 +223,7 @@ function tokenizeInlineMarkdown(
 }
 
 export function normalizeInlineMarkdownForMeasurement(content: string): string {
-  return content
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '$1')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\\([\\`*_{}[\]()#+\-.!|>~])/g, '$1')
-    .replace(/\s*\n\s*/g, ' ')
-    .replace(/[ \t]{2,}/g, ' ')
-    .trim();
+  return normalizeMarkdownInlineTextForMeasurement(content);
 }
 
 export function getPreparedMarkdownTextBlock(

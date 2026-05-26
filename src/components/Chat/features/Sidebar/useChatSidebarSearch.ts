@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useRef, type RefObject } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useSidebarSearchDrawerState } from '@/components/layout/sidebar/SidebarSearchDrawer';
 import { useSidebarSearchState } from '@/components/layout/sidebar/useSidebarSearchState';
 import { useSidebarSearchShortcut } from '@/hooks/useSidebarSearchShortcut';
@@ -36,6 +36,7 @@ export function useChatSidebarSearch({
   useSidebarSearchShortcut(toggleSearch, enabled);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const previousQueryRef = useRef('');
+  const [selectedSearchIndex, setSelectedSearchIndex] = useState(0);
 
   const drawer = useSidebarSearchDrawerState({
     enabled,
@@ -77,8 +78,43 @@ export function useChatSidebarSearch({
     }
 
     previousQueryRef.current = trimmedQuery;
+    setSelectedSearchIndex(0);
     drawer.scrollRootRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [deferredSearchQuery, drawer.scrollRootRef, enabled]);
+
+  useEffect(() => {
+    if (!enabled) {
+      setSelectedSearchIndex(0);
+      return;
+    }
+
+    setSelectedSearchIndex((current) => {
+      if (filteredSessions.length === 0) {
+        return 0;
+      }
+      return Math.min(current, filteredSessions.length - 1);
+    });
+  }, [enabled, filteredSessions.length]);
+
+  const selectPreviousSearchResult = useCallback(() => {
+    setSelectedSearchIndex((current) => {
+      if (filteredSessions.length === 0) {
+        return 0;
+      }
+      return (current - 1 + filteredSessions.length) % filteredSessions.length;
+    });
+  }, [filteredSessions.length]);
+
+  const selectNextSearchResult = useCallback(() => {
+    setSelectedSearchIndex((current) => {
+      if (filteredSessions.length === 0) {
+        return 0;
+      }
+      return (current + 1) % filteredSessions.length;
+    });
+  }, [filteredSessions.length]);
+
+  const selectedSearchSession = filteredSessions[selectedSearchIndex] ?? null;
 
   return {
     isSearchOpen,
@@ -90,6 +126,10 @@ export function useChatSidebarSearch({
     toggleSearch,
     ...drawer,
     filteredSessions,
+    selectedSearchIndex,
+    selectedSearchSession,
+    selectPreviousSearchResult,
+    selectNextSearchResult,
     hasSessions: visibleSessions.length > 0,
     sessionsToRender: drawer.shouldShowSearchResults ? filteredSessions : sortedSessions,
   };

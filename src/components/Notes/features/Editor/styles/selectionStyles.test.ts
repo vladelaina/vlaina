@@ -406,7 +406,9 @@ describe('editor embedded CodeMirror selection styles', () => {
     const css = readStyleFile('core.css');
 
     expect(css).toContain('body.vlaina-block-drag-active,');
-    expect(css).toContain('body.vlaina-block-drag-active * {');
+    expect(css).toContain('body.vlaina-block-drag-active .milkdown,');
+    expect(css).toContain('body.vlaina-block-drag-active .milkdown *,');
+    expect(css).toContain('body.vlaina-block-drag-active .vlaina-block-drag-preview-layer,');
     expect(css).toContain('cursor: grabbing !important;');
   });
 
@@ -456,8 +458,7 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('background-color: var(--vlaina-block-selection-color);');
     expect(css).toContain('.vlaina-block-drag-preview .video-drag-preview-surface {');
     expect(css).toContain('background: transparent;');
-    expect(css).toContain('body.vlaina-block-selection-pending .milkdown .video-block iframe,');
-    expect(css).toContain('body.vlaina-block-dragging-cursor .milkdown .video-block iframe,');
+    expect(css).toContain('.milkdown .ProseMirror.vlaina-block-selection-pending .video-block iframe,');
     expect(css).toContain('body.vlaina-block-drag-active .milkdown .video-block iframe,');
     expect(css).toContain('pointer-events: none;');
   });
@@ -465,7 +466,7 @@ describe('editor embedded CodeMirror selection styles', () => {
   it('suppresses editor icon hover affordances while dragging a block selection', () => {
     const css = readStyleFile('core.css');
 
-    expect(css).toContain('body.vlaina-block-dragging-cursor .milkdown :is(');
+    expect(css).toContain('.milkdown .ProseMirror.vlaina-block-selection-pending :is(');
     expect(css).toContain('.heading-toggle-btn,');
     expect(css).toContain('.vlaina-block-control-btn,');
     expect(css).toContain('.vlaina-collapse-btn,');
@@ -515,7 +516,14 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('.milkdown .ProseMirror.vlaina-text-selection-overlay-active *::selection {');
     expect(css).toContain('background-color: transparent !important;');
     expect(css).toContain('.milkdown .ProseMirror.vlaina-pointer-native-selection *::selection {');
-    expect(css).toContain('-webkit-text-fill-color: currentColor !important;');
+    expect(css).toContain([
+      '.milkdown .ProseMirror.vlaina-pointer-native-selection::selection,',
+      '.milkdown .ProseMirror.vlaina-pointer-native-selection *::selection {',
+      '  background-color: transparent !important;',
+      '  color: inherit !important;',
+      '  -webkit-text-fill-color: inherit !important;',
+      '}',
+    ].join('\n'));
     expect(css).toContain('.milkdown .ProseMirror .vlaina-text-selection-overlay {');
     expect(css).toContain('box-shadow: none;');
     expect(css).toContain('border-radius: 3px;');
@@ -523,7 +531,10 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).not.toContain('vlaina-ai-review-selection');
     expect(css).not.toContain('vlaina-link-selection-visible');
     expect(source).toContain("export const TEXT_SELECTION_OVERLAY_CLASS = 'vlaina-text-selection-overlay'");
-    expect(source).toContain('Decoration.inline(from, to, {');
+    expect(source).toContain("const EDITOR_ONLY_TEXT_SELECTION_PLACEHOLDERS = new Set(['\\u200B', '\\u200C', '\\u2800']);");
+    expect(source).toContain('EDITOR_ONLY_TEXT_SELECTION_PLACEHOLDERS.has(char)');
+    expect(source).toContain('export function addTextSelectionOverlayDecorations(');
+    expect(source).toContain('Decoration.inline(rangeFrom, rangeTo, {');
     expect(source).toContain('ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES.has(node.type.name)');
     expect(sharedSource).toContain('ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES');
     expect(sharedSource).toContain("'video'");
@@ -565,8 +576,7 @@ describe('editor embedded CodeMirror selection styles', () => {
   it('hides carets inside inline content while block selection is active', () => {
     const coreCss = readStyleFile('core.css');
 
-    expect(coreCss).toContain('.milkdown .ProseMirror.vlaina-block-selection-active,');
-    expect(coreCss).toContain('.milkdown .ProseMirror.vlaina-block-selection-active * {');
+    expect(coreCss).toContain('.milkdown .ProseMirror.vlaina-block-selection-active {');
     expect(coreCss).toContain('caret-color: transparent !important;');
   });
 
@@ -585,8 +595,9 @@ describe('editor embedded CodeMirror selection styles', () => {
     const css = readStyleFile('core.css');
     const source = readAiReviewSelectionSource();
 
-    expect(source).toContain("import { TEXT_SELECTION_OVERLAY_CLASS }");
-    expect(source).toContain("class: TEXT_SELECTION_OVERLAY_CLASS");
+    expect(source).toContain("import { addTextSelectionOverlayDecorations }");
+    expect(source).toContain("from '../../selection/textSelectionOverlayPlugin'");
+    expect(source).toContain('addTextSelectionOverlayDecorations(');
     expect(source).toContain('node.isText');
     expect(source).not.toContain('vlaina-ai-review-selection');
     expect(css).not.toContain('vlaina-ai-review-selection');
@@ -741,8 +752,8 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(coreCss).toContain('.milkdown .ProseMirror .vlaina-block-selected:not(.code-block-container):not(.mermaid-block),');
     expect(coreCss).toContain(':not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {');
     expect(coreCss).not.toContain('.milkdown .ProseMirror .mermaid-block.vlaina-block-selected * {');
-    expect(mathCss).not.toContain('.milkdown .ProseMirror .mermaid-block.vlaina-block-selected,\nbody.vlaina-block-dragging-cursor');
-    expect(mathCss).toContain('body.vlaina-block-dragging-cursor .milkdown .mermaid-block.vlaina-block-selected:is(:hover, :focus-visible) {');
+    expect(mathCss).not.toContain('.milkdown .ProseMirror .mermaid-block.vlaina-block-selected,\n.milkdown .ProseMirror.vlaina-block-selection-pending');
+    expect(mathCss).toContain('.milkdown .ProseMirror.vlaina-block-selection-pending .mermaid-block.vlaina-block-selected:is(:hover, :focus-visible) {');
     expect(mathCss).toContain('background: var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe)) !important;');
   });
 

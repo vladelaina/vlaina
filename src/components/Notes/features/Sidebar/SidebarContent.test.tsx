@@ -62,7 +62,42 @@ vi.mock('@/hooks/useTitleSync', () => ({
 }));
 
 vi.mock('@/components/layout/sidebar/SidebarSearchDrawer', () => ({
-  SidebarSearchDrawer: () => null,
+  SidebarSearchDrawer: ({
+    searchQuery,
+    setSearchQuery,
+    canSubmit,
+    onSubmit,
+    canSelectPrevious,
+    canSelectNext,
+    onSelectPrevious,
+    onSelectNext,
+  }: {
+    searchQuery: string;
+    setSearchQuery: (value: string) => void;
+    canSubmit: boolean;
+    onSubmit: () => void;
+    canSelectPrevious?: boolean;
+    canSelectNext?: boolean;
+    onSelectPrevious?: () => void;
+    onSelectNext?: () => void;
+  }) => (
+    <input
+      aria-label="notes-search"
+      value={searchQuery}
+      onChange={(event) => setSearchQuery(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === 'ArrowUp' && canSelectPrevious) {
+          onSelectPrevious?.();
+        }
+        if (event.key === 'ArrowDown' && canSelectNext) {
+          onSelectNext?.();
+        }
+        if (event.key === 'Enter' && canSubmit) {
+          onSubmit();
+        }
+      }}
+    />
+  ),
   useSidebarSearchDrawerState: () => ({
     inputRef: { current: null },
     scrollRootRef: { current: null },
@@ -138,10 +173,12 @@ vi.mock('./SidebarSearchResultsList', () => ({
   SidebarSearchResultsList: ({
     results,
     activeResultId,
+    highlightedResultId,
     onOpen,
   }: {
     results: Array<{ id: string; name: string }>;
     activeResultId?: string | null;
+    highlightedResultId?: string | null;
     onOpen: (result: any) => void;
   }) => (
     <div>
@@ -149,6 +186,7 @@ vi.mock('./SidebarSearchResultsList', () => ({
         <button
           key={result.id}
           data-active={result.id === activeResultId ? 'true' : 'false'}
+          data-highlighted={result.id === highlightedResultId ? 'true' : 'false'}
           onClick={() => onOpen(result)}
         >
           {result.name}
@@ -709,6 +747,58 @@ describe('SidebarContent search highlight cleanup', () => {
     });
     expect(hoisted.openNote).not.toHaveBeenCalled();
     expect(hoisted.markSidebarSearchNavigationPending).toHaveBeenCalledWith('/external/starred.md');
+  });
+
+  it('uses arrow key selection when submitting sidebar search results', async () => {
+    hoisted.shouldShowSearchResults = true;
+    hoisted.queryNotesSidebarSearch.mockReturnValue([
+      {
+        id: 'docs/alpha.md::name',
+        path: 'docs/alpha.md',
+        name: 'alpha',
+        preview: 'docs/',
+        matchIndex: 0,
+        matchKind: 'name',
+        contentSnippet: null,
+        contentMatchOrdinal: null,
+      },
+      {
+        id: 'docs/beta.md::name',
+        path: 'docs/beta.md',
+        name: 'beta',
+        preview: 'docs/',
+        matchIndex: 0,
+        matchKind: 'name',
+        contentSnippet: null,
+        contentMatchOrdinal: null,
+      },
+    ]);
+
+    const { getByLabelText, getByText } = render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="docs/alpha.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: true, searchQuery: 'a' })}
+      />,
+    );
+
+    expect(getByText('alpha')).toHaveAttribute('data-highlighted', 'true');
+
+    const input = getByLabelText('notes-search');
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+
+    await waitFor(() => {
+      expect(getByText('beta')).toHaveAttribute('data-highlighted', 'true');
+    });
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(hoisted.openNote).toHaveBeenCalledWith('docs/beta.md');
+    });
   });
 
   it('does not mark sidebar navigation pending when jumping between matches in the current note', async () => {

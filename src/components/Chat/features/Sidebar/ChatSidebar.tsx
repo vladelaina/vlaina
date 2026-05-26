@@ -71,6 +71,9 @@ export const ChatSidebar = memo(function ChatSidebar({
     deferredSearchQuery,
     setSearchQuery,
     filteredSessions,
+    selectedSearchSession,
+    selectPreviousSearchResult,
+    selectNextSearchResult,
     hasSessions,
     sessionsToRender,
   } = useChatSidebarSearch({
@@ -172,15 +175,19 @@ export const ChatSidebar = memo(function ChatSidebar({
           setSearchQuery={setSearchQuery}
           inputRef={searchInputRef}
           hideSearch={hideSearch}
-          canSubmit={Boolean(filteredSessions[0])}
+          canSubmit={Boolean(selectedSearchSession)}
           onSubmit={() => {
-            const session = filteredSessions[0];
+            const session = selectedSearchSession;
             if (!session) {
               return;
             }
             handleSwitch(session.id, !!useAIUIStore.getState().unreadSessions[session.id]);
             hideSearch();
           }}
+          canSelectPrevious={filteredSessions.length > 0}
+          canSelectNext={filteredSessions.length > 0}
+          onSelectPrevious={selectPreviousSearchResult}
+          onSelectNext={selectNextSearchResult}
           placeholder=""
           closeLabel={t('sidebar.closeChatSearch')}
           topActions={null}
@@ -219,6 +226,7 @@ export const ChatSidebar = memo(function ChatSidebar({
                     onTogglePin={handleTogglePin}
                     onHideSearch={hideSearch}
                     resetKey={shouldShowSearchResults ? deferredSearchQuery.trim() : ''}
+                    highlightedSessionId={shouldShowSearchResults ? selectedSearchSession?.id ?? null : null}
                   />
                 </ChatSidebarList>
               )}

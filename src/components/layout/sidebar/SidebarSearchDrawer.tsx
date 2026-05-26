@@ -26,6 +26,10 @@ interface SidebarSearchDrawerProps {
   hideSearch: () => void;
   canSubmit: boolean;
   onSubmit: () => void;
+  canSelectPrevious?: boolean;
+  canSelectNext?: boolean;
+  onSelectPrevious?: () => void;
+  onSelectNext?: () => void;
   placeholder: string;
   closeLabel: string;
   topActions?: ReactNode;
@@ -79,6 +83,10 @@ export function SidebarSearchDrawer({
   hideSearch,
   canSubmit,
   onSubmit,
+  canSelectPrevious = false,
+  canSelectNext = false,
+  onSelectPrevious,
+  onSelectNext,
   placeholder,
   closeLabel,
   topActions,
@@ -87,6 +95,18 @@ export function SidebarSearchDrawer({
     if (event.key === 'Escape') {
       event.preventDefault();
       hideSearch();
+      return;
+    }
+
+    if (event.key === 'ArrowUp' && canSelectPrevious) {
+      event.preventDefault();
+      onSelectPrevious?.();
+      return;
+    }
+
+    if (event.key === 'ArrowDown' && canSelectNext) {
+      event.preventDefault();
+      onSelectNext?.();
       return;
     }
 

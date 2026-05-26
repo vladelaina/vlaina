@@ -39,8 +39,8 @@ vi.mock("react-markdown", () => ({
   },
 }));
 
-vi.mock("./components/CodeBlock", () => ({
-  CodeBlock: (props: any) => {
+vi.mock("@/components/common/code-block", () => ({
+  ReadOnlyCodeBlock: (props: any) => {
     codeBlockSpy(props);
     return (
       <div data-testid={`code-block-${props.blockId}`} data-copied={String(props.copied)}>
@@ -146,7 +146,7 @@ describe("MarkdownRenderer", () => {
   it("renders markdown through the local react-markdown pipeline", () => {
     render(<MarkdownRenderer content={"Visible"} />);
 
-    expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-remark-count", "3");
+    expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-remark-count", "4");
     expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-rehype-count", "3");
     expect(screen.getByTestId("react-markdown").parentElement).toHaveClass("vlaina-markdown-surface");
   });

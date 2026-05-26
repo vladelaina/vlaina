@@ -24,6 +24,7 @@ type EditorGetter = () => MilkdownEditorLike | null | undefined;
 interface PendingMarkdownFlusherOptions {
   currentNotePath: string | undefined;
   pendingMarkdownUpdateFrameRef: RefObject<number | null>;
+  pendingMarkdownApplyTimeoutRef: RefObject<ReturnType<typeof setTimeout> | null>;
   pendingRawMarkdownRef: RefObject<string | null>;
   pendingMarkdownRef: RefObject<string | null>;
   hasEditorUserInputRef: RefObject<boolean>;
@@ -35,6 +36,7 @@ interface PendingMarkdownFlusherOptions {
 export function usePendingMarkdownFlusher({
   currentNotePath,
   pendingMarkdownUpdateFrameRef,
+  pendingMarkdownApplyTimeoutRef,
   pendingRawMarkdownRef,
   pendingMarkdownRef,
   hasEditorUserInputRef,
@@ -48,6 +50,10 @@ export function usePendingMarkdownFlusher({
       if (pendingMarkdownUpdateFrameRef.current !== null) {
         cancelAnimationFrame(pendingMarkdownUpdateFrameRef.current);
         pendingMarkdownUpdateFrameRef.current = null;
+      }
+      if (pendingMarkdownApplyTimeoutRef.current !== null) {
+        clearTimeout(pendingMarkdownApplyTimeoutRef.current);
+        pendingMarkdownApplyTimeoutRef.current = null;
       }
       let pendingMarkdown = pendingMarkdownRef.current;
       pendingMarkdownRef.current = null;
@@ -101,6 +107,7 @@ export function usePendingMarkdownFlusher({
     getEditorRef,
     hasEditorUserInputRef,
     pendingMarkdownRef,
+    pendingMarkdownApplyTimeoutRef,
     pendingRawMarkdownRef,
     pendingMarkdownUpdateFrameRef,
   ]);

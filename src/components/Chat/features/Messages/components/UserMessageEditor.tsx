@@ -20,11 +20,6 @@ import {
 import { useUserMessageEditorMentions } from './useUserMessageEditorMentions';
 import { useI18n } from '@/lib/i18n';
 
-const editComposerSurfaceClass = cn(
-  chatComposerSurfaceClass,
-  'shadow-none hover:shadow-none'
-);
-
 interface UserMessageEditorProps {
   message: ChatMessage;
   parsedContent: ParsedUserMessageContent;
@@ -140,13 +135,13 @@ export function UserMessageEditor({
 
   return (
     <motion.div
-      initial={{ clipPath: 'inset(0 0 0 100%)', opacity: 0.85 }}
-      animate={{ clipPath: 'inset(0 0 0 0%)', opacity: 1 }}
+      initial={{ opacity: 0.85, x: 12 }}
+      animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
-      className="w-full flex justify-end"
-      style={{ willChange: 'clip-path, opacity' }}
+      className="w-full flex justify-end pb-4"
+      style={{ willChange: 'transform, opacity' }}
     >
-      <div className={cn('w-full', chatComposerFrameClass, editComposerSurfaceClass)}>
+      <div className={cn('w-full', chatComposerFrameClass, chatComposerSurfaceClass)}>
         <ChatAttachmentPreviewList attachments={editAttachments} onRemove={handleRemoveEditAttachment} />
         {showMentionPicker && (
           <NoteMentionPicker
@@ -190,7 +185,7 @@ export function UserMessageEditor({
           </button>
           <button
             onClick={handleSave}
-            className="h-8 rounded-full bg-[#41a8ea] px-3.5 text-[13px] font-semibold text-white shadow-md shadow-[#41a8ea]/25 transition-all duration-200 hover:scale-105 active:scale-95"
+            className="h-9 rounded-full bg-[#41a8ea] px-4 text-[13px] font-semibold text-white shadow-md shadow-[#41a8ea]/25 transition-all duration-200 hover:scale-105 active:scale-95"
             style={{ boxShadow: '0 0 0 3px rgba(65, 168, 234, 0.12), 0 10px 24px rgba(65, 168, 234, 0.28)' }}
           >
             {t('common.send')}
