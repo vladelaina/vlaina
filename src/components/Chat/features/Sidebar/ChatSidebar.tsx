@@ -197,6 +197,7 @@ export const ChatSidebar = memo(function ChatSidebar({
           {!shouldShowSearchResults ? (
             <ChatSidebarTopActions
               onOpenNewChat={handleOpenNewChat}
+              showAppViewModeSwitch={!embedded}
             />
           ) : null}
 
