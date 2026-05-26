@@ -21,6 +21,8 @@ interface MessageToolbarProps {
   msg: ChatMessage;
   isLoading: boolean;
   forceVisible?: boolean;
+  showCopyAction?: boolean;
+  showVersionNavigation?: boolean;
   onCopy: (text: string) => Promise<boolean | void> | boolean | void;
   onRegenerate: () => void;
   onSwitchVersion: (targetIndex: number) => void;
@@ -30,6 +32,8 @@ export const MessageToolbar = memo(function MessageToolbar({
   msg,
   isLoading,
   forceVisible = false,
+  showCopyAction = true,
+  showVersionNavigation = true,
   onCopy,
   onRegenerate,
   onSwitchVersion
@@ -128,7 +132,7 @@ export const MessageToolbar = memo(function MessageToolbar({
           )}
         >
             
-            {totalVer > 1 && currentSwitchableIndex >= 0 && (
+            {showVersionNavigation && totalVer > 1 && currentSwitchableIndex >= 0 && (
                 <MessageVersionNavigator
                   current={currentVer}
                   total={totalVer}
@@ -146,12 +150,14 @@ export const MessageToolbar = memo(function MessageToolbar({
                 />
             )}
             
-            <button 
-                onClick={handleCopy} 
-                className={cn("p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/5", iconButtonStyles, sidebarTextIconButtonClass)}
-            >
-                {isCopyFeedbackVisible ? <Icon name="common.check" size="md" /> : <Icon name="common.copy" size="md" />}
-            </button>
+            {showCopyAction && (
+              <button
+                  onClick={handleCopy}
+                  className={cn("p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/5", iconButtonStyles, sidebarTextIconButtonClass)}
+              >
+                  {isCopyFeedbackVisible ? <Icon name="common.check" size="md" /> : <Icon name="common.copy" size="md" />}
+              </button>
+            )}
 
             {!isCopyClosing && (
               <button onClick={onRegenerate} className={cn("p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/5", iconButtonStyles, secondaryActionClass, sidebarTextIconButtonClass)}>

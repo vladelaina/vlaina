@@ -104,6 +104,7 @@ describe("MessageItem", () => {
         msg={msg}
         getImageGallery={getImageGallery}
         isLoading
+        isLastMessage={false}
         onCopy={onCopy}
         onRegenerate={onRegenerate}
         onSwitchVersion={onSwitchVersion}
@@ -119,6 +120,7 @@ describe("MessageItem", () => {
       msg,
       getImageGallery,
       isLoading: true,
+      isLastMessage: false,
       onCopy,
     });
 
