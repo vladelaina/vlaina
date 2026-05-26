@@ -61,6 +61,20 @@ function moveCursorToFirstEmptyParagraph(view: EditorView) {
   view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos)));
 }
 
+function moveCursorToFirstEmptyParagraphDeep(view: EditorView) {
+  let pos: number | null = null;
+  view.state.doc.descendants((node, nodePos) => {
+    if (pos !== null) return false;
+    if (node.type.name !== 'paragraph' || node.content.size !== 0) return true;
+    pos = nodePos + 1;
+    return false;
+  });
+  if (pos === null) {
+    throw new Error('Expected empty paragraph');
+  }
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos)));
+}
+
 function typeText(view: EditorView, input: string) {
   for (const text of input) {
     const { from, to } = view.state.selection;
@@ -109,6 +123,22 @@ function pressEnter(view: EditorView) {
   let handled = false;
   view.someProp('handleKeyDown', (handleKeyDown: any) => {
     handled = handleKeyDown(view, event) || handled;
+  });
+
+  return { event, handled };
+}
+
+function pressBackspace(view: EditorView) {
+  const event = new KeyboardEvent('keydown', {
+    key: 'Backspace',
+    bubbles: true,
+    cancelable: true,
+  });
+
+  let handled = false;
+  view.someProp('handleKeyDown', (handleKeyDown: any) => {
+    handled = handleKeyDown(view, event) || handled;
+    return handled;
   });
 
   return { event, handled };
@@ -481,6 +511,115 @@ describe('listTabIndentPlugin', () => {
     expect(nestedList.child(0).attrs.label).toBe('1.');
     expect(nestedList.child(0).textContent).toBe('two');
     expect(list.child(1).textContent).toBe('three');
+  });
+
+  it('keeps the cursor on the empty line after Backspace removes an empty parent list marker', async () => {
+    const editor = createEditorWithContent('');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.ordered_list.create(null, [
+        schema.nodes.list_item.create({ label: '1.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(),
+          schema.nodes.ordered_list.create(null, [
+            schema.nodes.list_item.create({ label: '1.', listType: 'ordered' }, [
+              schema.nodes.paragraph.create(null, schema.text('2')),
+            ]),
+          ]),
+        ]),
+      ]),
+    ]);
+
+    moveCursorToFirstEmptyParagraphDeep(view);
+
+    const { event, handled } = pressBackspace(view);
+
+    expect(handled).toBe(true);
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.child(0).type.name).toBe('paragraph');
+    expect(view.state.doc.child(0).content.size).toBe(0);
+    expect(view.state.doc.child(1).type.name).toBe('ordered_list');
+    expect(view.state.doc.child(1).textContent).toBe('2');
+    expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
+    expect(view.state.selection.$from.parent.content.size).toBe(0);
+  });
+
+  it('keeps sibling ordered list content around the empty line after Backspace removes a parent marker', async () => {
+    const editor = createEditorWithContent('');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.ordered_list.create(null, [
+        schema.nodes.list_item.create({ label: '1.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(null, schema.text('one')),
+        ]),
+        schema.nodes.list_item.create({ label: '2.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(),
+          schema.nodes.ordered_list.create(null, [
+            schema.nodes.list_item.create({ label: '1.', listType: 'ordered' }, [
+              schema.nodes.paragraph.create(null, schema.text('child')),
+            ]),
+          ]),
+        ]),
+        schema.nodes.list_item.create({ label: '3.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(null, schema.text('three')),
+        ]),
+      ]),
+    ]);
+
+    moveCursorToFirstEmptyParagraphDeep(view);
+
+    const { handled } = pressBackspace(view);
+
+    expect(handled).toBe(true);
+    expect(view.state.doc.childCount).toBe(3);
+    expect(view.state.doc.child(0).type.name).toBe('ordered_list');
+    expect(view.state.doc.child(0).textContent).toBe('one');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).content.size).toBe(0);
+    expect(view.state.doc.child(2).type.name).toBe('ordered_list');
+    expect(view.state.doc.child(2).childCount).toBe(2);
+    expect(view.state.doc.child(2).child(0).textContent).toBe('child');
+    expect(view.state.doc.child(2).child(1).textContent).toBe('three');
+    expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
+    expect(view.state.selection.$from.parent.content.size).toBe(0);
+  });
+
+  it('keeps the cursor on the empty line after Backspace removes an empty bullet parent marker', async () => {
+    const editor = createEditorWithContent('');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.bullet_list.create(null, [
+        schema.nodes.list_item.create({ label: '•', listType: 'bullet' }, [
+          schema.nodes.paragraph.create(),
+          schema.nodes.bullet_list.create(null, [
+            schema.nodes.list_item.create({ label: '•', listType: 'bullet' }, [
+              schema.nodes.paragraph.create(null, schema.text('child')),
+            ]),
+          ]),
+        ]),
+      ]),
+    ]);
+
+    moveCursorToFirstEmptyParagraphDeep(view);
+
+    const { event, handled } = pressBackspace(view);
+
+    expect(handled).toBe(true);
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.child(0).type.name).toBe('paragraph');
+    expect(view.state.doc.child(0).content.size).toBe(0);
+    expect(view.state.doc.child(1).type.name).toBe('bullet_list');
+    expect(view.state.doc.child(1).textContent).toBe('child');
+    expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
+    expect(view.state.selection.$from.parent.content.size).toBe(0);
   });
 
 });
