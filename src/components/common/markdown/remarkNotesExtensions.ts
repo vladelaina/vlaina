@@ -192,6 +192,11 @@ function replaceInlineColorHtmlContainerMark(tree: MdastNode) {
       if (closeIndex <= index + 1) continue;
 
       const content = node.children.slice(index + 1, closeIndex);
+      const canCollapseToColorMark = content.every((contentNode) => contentNode.type === 'text');
+      if (!canCollapseToColorMark && (textColorOpen || bgColorOpen)) {
+        continue;
+      }
+
       let nextNode: MdastNode | null = null;
       if (textColorOpen) {
         const color = sanitizeCssColorValue(

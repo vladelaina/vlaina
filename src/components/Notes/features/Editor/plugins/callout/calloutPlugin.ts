@@ -26,8 +26,30 @@ type MdastChild = {
 
 type MdastBlockquote = {
   type: string;
+  data?: {
+    hProperties?: {
+      className?: unknown;
+      dataType?: unknown;
+    };
+  };
   children?: MdastChild[];
 };
+
+function getMdastClasses(node: MdastBlockquote): string[] {
+  const className = node.data?.hProperties?.className;
+  return Array.isArray(className)
+    ? className.filter((value): value is string => typeof value === 'string')
+    : [];
+}
+
+function isExpandedCalloutContainer(node: MdastBlockquote): boolean {
+  if (node.type !== 'container') {
+    return false;
+  }
+
+  const hProperties = node.data?.hProperties;
+  return hProperties?.dataType === 'callout' || getMdastClasses(node).includes('callout');
+}
 
 function getCalloutIconFromMarkdownBlockquote(node: MdastBlockquote): IconData | null {
   if (node.type !== 'blockquote') {
@@ -61,7 +83,27 @@ function getCalloutIconFromMarkdownBlockquote(node: MdastBlockquote): IconData |
 }
 
 function isCalloutMarkdownBlockquote(node: MdastBlockquote): boolean {
-  return getCalloutIconFromMarkdownBlockquote(node) !== null;
+  return getCalloutIconFromMarkdownBlockquote(node) !== null || isExpandedCalloutContainer(node);
+}
+
+function getChildrenFromExpandedCalloutContainer(node: MdastBlockquote): {
+  icon: IconData;
+  children: MdastChild[];
+} {
+  const containerChildren = node.children ?? [];
+  const iconContainer = containerChildren.find((child) => {
+    const classes = getMdastClasses(child as MdastBlockquote);
+    return classes.includes('callout-icon');
+  });
+  const contentContainer = containerChildren.find((child) => {
+    const classes = getMdastClasses(child as MdastBlockquote);
+    return classes.includes('callout-content');
+  });
+  const iconText = iconContainer?.children?.map((child) => child.value ?? '').join('').trim();
+  return {
+    icon: iconDataFromValue(iconText || '💡'),
+    children: contentContainer?.children?.length ? contentContainer.children : [{ type: 'paragraph', children: [] }],
+  };
 }
 
 export const calloutIdAttr = $nodeAttr('callout', () => ({
@@ -126,6 +168,17 @@ export const calloutSchema = $node('callout', () => ({
       return isCalloutMarkdownBlockquote(node as MdastBlockquote);
     },
     runner: (state, node, type) => {
+      if (isExpandedCalloutContainer(node as MdastBlockquote)) {
+        const expanded = getChildrenFromExpandedCalloutContainer(node as MdastBlockquote);
+        state.openNode(type, {
+          icon: expanded.icon,
+          backgroundColor: 'yellow',
+        });
+        state.next(expanded.children as any);
+        state.closeNode();
+        return;
+      }
+
       const children = (
         node.children as Array<{ type: string; children?: Array<{ type: string; value?: string }> }> | undefined
       ) ?? [];

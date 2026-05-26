@@ -35,6 +35,7 @@ import { colorMarksPlugin } from '../floating-toolbar/colorMarks';
 import { codePlugin } from '../code';
 import { tablePlugin } from '../table';
 import { abbrPlugin } from '../abbr';
+import { deflistPlugin } from '../deflist';
 import { autolinkPlugin } from '../links/autolink/autolinkPlugin';
 import { markdownLinkPlugin } from '../links/markdown-link/markdownLinkPlugin';
 
@@ -51,7 +52,8 @@ const syntaxPlugins = [
   ...blockAlignmentPlugin,
   ...colorMarksPlugin,
   ...codePlugin,
-  abbrPlugin,
+  ...abbrPlugin,
+  ...deflistPlugin,
   autolinkPlugin,
   markdownLinkPlugin,
 ];
