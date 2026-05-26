@@ -1,4 +1,4 @@
-import { $prose } from '@milkdown/kit/utils';
+import { $mark, $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import {
@@ -8,6 +8,35 @@ import {
 } from '@/components/common/markdown/abbrMarkdown';
 
 export const abbrPluginKey = new PluginKey('abbr');
+
+export const abbrMark = $mark('abbr', () => ({
+  attrs: {
+    title: { default: '' },
+  },
+  parseDOM: [{
+    tag: 'abbr',
+    getAttrs: (dom) => ({
+      title: (dom as HTMLElement).getAttribute('title') ?? '',
+    }),
+  }],
+  toDOM: (mark) => ['abbr', { title: mark.attrs.title, class: 'abbr' }, 0],
+  parseMarkdown: {
+    match: (node) => node.type === 'abbr',
+    runner: (state, node, markType) => {
+      const title = (node as { data?: { hProperties?: { title?: unknown } } }).data?.hProperties?.title;
+      state.openMark(markType, { title: typeof title === 'string' ? title : '' });
+      state.next((node as { children?: unknown }).children);
+      state.closeMark(markType);
+    },
+  },
+  toMarkdown: {
+    match: (mark) => mark.type.name === 'abbr',
+    runner: (state, _mark, node) => {
+      state.addNode('text', undefined, node.text || '');
+      return true;
+    },
+  },
+}));
 
 function extractAbbrDefinitions(doc: any): AbbrDefinition[] {
   const definitions: AbbrDefinition[] = [];
@@ -73,7 +102,7 @@ function createAbbrDecorations(doc: any): DecorationSet {
   return DecorationSet.create(doc, decorations);
 }
 
-export const abbrPlugin = $prose(() => {
+export const abbrDecorationPlugin = $prose(() => {
   return new Plugin({
     key: abbrPluginKey,
     state: {
@@ -94,3 +123,8 @@ export const abbrPlugin = $prose(() => {
     }
   });
 });
+
+export const abbrPlugin = [
+  abbrMark,
+  abbrDecorationPlugin,
+].flat();

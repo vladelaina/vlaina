@@ -12,6 +12,7 @@ import { tablePlugin } from '../plugins/table/tablePlugin';
 import { selectAllPlugin } from '../plugins/select-all/selectAllPlugin';
 import { highlightPlugin } from '../plugins/highlight/highlightPlugin';
 import { footnotePlugin } from '../plugins/footnote/footnotePlugin';
+import { deflistPlugin } from '../plugins/deflist/deflistPlugin';
 import { autolinkPlugin } from '../plugins/links/autolink/autolinkPlugin';
 import { linkTooltipPlugin } from '../plugins/links/tooltip/linkTooltipPlugin';
 import { tocPlugin } from '../plugins/toc/tocPlugin';
@@ -77,6 +78,7 @@ export const customPluginGroups = [
       selectAllPlugin,
       ...highlightPlugin,
       ...footnotePlugin,
+      ...deflistPlugin,
     ],
   },
   {
@@ -97,7 +99,7 @@ export const customPluginGroups = [
       ...codePlugin,
       ...codeBlockPlugins,
       ...videoPlugin,
-      abbrPlugin,
+      ...abbrPlugin,
     ],
   },
   {

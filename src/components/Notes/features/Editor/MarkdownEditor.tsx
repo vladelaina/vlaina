@@ -15,11 +15,16 @@ import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 import { useNoteEditorFind } from './find/useNoteEditorFind';
 import type { EditorTopRightToolbarProps } from './EditorTopRightToolbar';
 import {
+  flushPendingEditorMarkdown,
+  setPendingEditorMarkdownFlusher,
+} from '@/stores/notes/pendingEditorMarkdown';
+import {
   getSidebarSearchNavigationPendingPath,
   isSidebarSearchNavigationPending,
   subscribeSidebarSearchNavigationPending,
 } from '../Sidebar/sidebarSearchNavigation';
 import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
+import { logMarkdownDebug } from '@/lib/notes/markdownDebugLog';
 import {
   canKeepCoverDuringEditorReload,
   getStableCoverSignature,
@@ -29,6 +34,7 @@ import 'katex/dist/katex.min.css';
 import './styles/index.css';
 
 const MERMAID_PREWARM_DELAY_MS = import.meta.env.DEV ? 45000 : 5000;
+const EDITOR_INIT_FALLBACK_DELAY_MS = 2500;
 
 const EditorTopRightToolbar = lazy(async () => {
   const mod = await import('./EditorTopRightToolbar');
@@ -64,8 +70,10 @@ export function MarkdownEditor({
   const [editorReadyTarget, setEditorReadyTarget] = useState<{
     path: string | undefined;
   } | null>(null);
+  const [editorInitTimedOutPath, setEditorInitTimedOutPath] = useState<string | null>(null);
 
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
+  const saveNote = useNotesStore(s => s.saveNote);
   const notesPath = useNotesStore(s => s.notesPath);
   const currentNoteTitle = useNotesStore(
     useCallback((state) => {
@@ -120,11 +128,14 @@ export function MarkdownEditor({
   const reservedCoverHeight = coverController.cover.height ?? DEFAULT_COVER_HEIGHT;
   const coverLayoutActive = Boolean(coverUrl) || coverController.isPickerOpen;
   const handleEditorViewReady = useCallback(() => {
+    setEditorInitTimedOutPath(null);
     setEditorReadyTarget({
       path: currentNotePath,
     });
     onEditorViewReady?.();
   }, [currentNotePath, onEditorViewReady]);
+  const shouldUseSourceFallback =
+    hasActiveNote && currentNotePath !== undefined && editorInitTimedOutPath === currentNotePath;
   const getCurrentNoteContent = useCallback(() => {
     if (!currentNotePath) {
       return '';
@@ -138,6 +149,44 @@ export function MarkdownEditor({
 
     return state.noteContentsCache.get(currentNotePath)?.content ?? '';
   }, [currentNotePath]);
+
+  useEffect(() => {
+    if (!hasActiveNote || !currentNotePath) {
+      return;
+    }
+
+    const state = useNotesStore.getState();
+    const currentNote = state.currentNote;
+    const cachedContent = state.noteContentsCache.get(currentNotePath)?.content;
+    logMarkdownDebug('MarkdownEditor:active-note', {
+      currentNotePath,
+      storePath: currentNote?.path ?? null,
+      storeContentLength: currentNote?.path === currentNotePath ? currentNote.content.length : null,
+      cachedContentLength: cachedContent?.length ?? null,
+      isEditorViewReady,
+      openTabs: openTabs.length,
+    });
+  }, [currentNotePath, hasActiveNote, isEditorViewReady, openTabs.length]);
+
+  useEffect(() => {
+    setEditorInitTimedOutPath(null);
+    if (!hasActiveNote || !currentNotePath || isEditorViewReady) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      logMarkdownDebug('MarkdownEditor:init-timeout-source-fallback', {
+        currentNotePath,
+        contentLength: getCurrentNoteContent().length,
+      });
+      setEditorInitTimedOutPath(currentNotePath);
+      onEditorViewReady?.();
+    }, EDITOR_INIT_FALLBACK_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [currentNotePath, getCurrentNoteContent, hasActiveNote, isEditorViewReady, onEditorViewReady]);
 
   useEffect(() => {
     if (!hasActiveNote) {
@@ -388,11 +437,18 @@ export function MarkdownEditor({
               />
 
               <Suspense fallback={null}>
-                <MilkdownEditorRuntime
-                  key={currentNotePath ?? 'empty'}
-                  active={active}
-                  onEditorViewReady={handleEditorViewReady}
-                />
+                {shouldUseSourceFallback ? (
+                  <MarkdownSourceFallback
+                    currentNotePath={currentNotePath}
+                    saveNote={saveNote}
+                  />
+                ) : (
+                  <MilkdownEditorRuntime
+                    key={currentNotePath ?? 'empty'}
+                    active={active}
+                    onEditorViewReady={handleEditorViewReady}
+                  />
+                )}
               </Suspense>
             </>
           ) : (
@@ -403,6 +459,91 @@ export function MarkdownEditor({
           )}
         </div>
       </OverlayScrollArea>
+    </div>
+  );
+}
+
+function MarkdownSourceFallback({
+  currentNotePath,
+  saveNote,
+}: {
+  currentNotePath: string;
+  saveNote: (options?: { explicit?: boolean }) => Promise<void>;
+}) {
+  const updateContent = useNotesStore((state) => state.updateContent);
+  const currentNoteContent = useNotesStore(
+    useCallback((state) => (
+      state.currentNote?.path === currentNotePath ? state.currentNote.content : ''
+    ), [currentNotePath])
+  );
+  const [draft, setDraft] = useState(currentNoteContent);
+  const draftRef = useRef(currentNoteContent);
+  const saveTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setDraft(currentNoteContent);
+    draftRef.current = currentNoteContent;
+  }, [currentNoteContent, currentNotePath]);
+
+  const flushFallbackDraft = useCallback(() => {
+    return flushPendingEditorMarkdown(currentNotePath, draftRef.current);
+  }, [currentNotePath]);
+
+  useEffect(() => {
+    setPendingEditorMarkdownFlusher(flushFallbackDraft);
+    return () => {
+      flushFallbackDraft();
+      setPendingEditorMarkdownFlusher(null);
+    };
+  }, [flushFallbackDraft]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current !== null) {
+        window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const scheduleSave = useCallback(() => {
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current);
+    }
+    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = null;
+      void saveNote({ explicit: false });
+    }, 800);
+  }, [saveNote]);
+
+  const flushSave = useCallback(() => {
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    void saveNote({ explicit: false });
+  }, [saveNote]);
+
+  return (
+    <div
+      className={cn('milkdown-editor min-h-[420px]', EDITOR_LAYOUT_CLASS)}
+      data-note-content-root="true"
+      data-note-source-fallback="true"
+    >
+      <textarea
+        value={draft}
+        onChange={(event) => {
+          const nextValue = event.currentTarget.value;
+          setDraft(nextValue);
+          draftRef.current = nextValue;
+          updateContent(nextValue);
+          scheduleSave();
+        }}
+        onBlur={flushSave}
+        spellCheck={false}
+        aria-label="Markdown source editor"
+        className="min-h-[420px] w-full resize-none bg-transparent px-0 py-2 font-mono text-sm leading-6 text-[var(--vlaina-text-primary)] outline-none"
+      />
     </div>
   );
 }
