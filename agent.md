@@ -15,6 +15,7 @@ Before implementing:
 - No features beyond what was asked.
 - No abstractions for single-use code.
 - No "flexibility" or "configurability" that wasn't requested.
+- Think long-term: avoid quick fixes that create future maintenance traps.
 - No error handling for impossible scenarios.
 - If you write 200 lines and it could be 50, rewrite it.
 
