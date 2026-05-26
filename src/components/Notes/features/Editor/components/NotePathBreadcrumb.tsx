@@ -257,7 +257,7 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
     useNotesStore.getState().revealFolder(revealPath);
     requestAnimationFrame(() => {
       const scrollRoot = document.querySelector<HTMLElement>('[data-notes-sidebar-scroll-root="true"]');
-      if (scrollRoot) scrollRoot.scrollTo({ top: 0, behavior: 'smooth' });
+      if (scrollRoot) scrollRoot.scrollTo({ top: 0, behavior: 'auto' });
     });
   };
 

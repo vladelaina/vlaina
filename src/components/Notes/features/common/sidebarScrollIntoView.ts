@@ -38,7 +38,7 @@ export function scrollSidebarItemIntoView(path: string, block: ScrollLogicalPosi
   if (target) {
     target.scrollIntoView({
       block,
-      behavior: 'smooth',
+      behavior: 'auto',
     });
     return true;
   }

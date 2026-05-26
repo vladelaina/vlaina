@@ -34,7 +34,7 @@ describe('scrollSidebarItemIntoView', () => {
     expect(scrollSidebarItemIntoView('docs/alpha.md')).toBe(true);
     expect(treeScrollIntoView).toHaveBeenCalledWith({
       block: 'center',
-      behavior: 'smooth',
+      behavior: 'auto',
     });
     expect(starredScrollIntoView).not.toHaveBeenCalled();
   });
