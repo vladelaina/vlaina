@@ -62,9 +62,28 @@ function nextFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
-function createView(): EditorView {
+function createView(options: { scrollRoot?: boolean } = {}): EditorView {
   const dom = document.createElement('div');
-  document.body.appendChild(dom);
+  if (options.scrollRoot) {
+    const scrollRoot = document.createElement('div');
+    scrollRoot.setAttribute('data-note-scroll-root', 'true');
+    scrollRoot.scrollTop = 20;
+    scrollRoot.getBoundingClientRect = () => ({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 500,
+      bottom: 100,
+      width: 500,
+      height: 100,
+      toJSON: () => ({}),
+    } as DOMRect);
+    scrollRoot.appendChild(dom);
+    document.body.appendChild(scrollRoot);
+  } else {
+    document.body.appendChild(dom);
+  }
   return {
     dom,
     state: {
@@ -73,6 +92,12 @@ function createView(): EditorView {
       },
     },
   } as unknown as EditorView;
+}
+
+function getScrollRoot(): HTMLElement {
+  const scrollRoot = document.querySelector<HTMLElement>('[data-note-scroll-root="true"]');
+  if (!scrollRoot) throw new Error('Missing scroll root');
+  return scrollRoot;
 }
 
 describe('BlockControlsViewSession', () => {
@@ -175,6 +200,34 @@ describe('BlockControlsViewSession', () => {
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 500, clientY: 120, buttons: 1, bubbles: true }));
 
       expect(indicator?.classList.contains('visible')).toBe(false);
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('auto-scrolls the note viewport while dragging selected blocks near the edge', async () => {
+    const view = createView({ scrollRoot: true });
+    const session = new BlockControlsViewSession(view);
+    const scrollRoot = getScrollRoot();
+
+    vi.mocked(resolveDropTarget).mockReturnValue({
+      insertPos: 5,
+      lineLeft: 80,
+      lineY: 100,
+      lineWidth: 280,
+    });
+
+    try {
+      document
+        .querySelector<HTMLElement>('.vlaina-block-control-handle')
+        ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 20, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 40, clientY: 95, buttons: 1, bubbles: true }));
+      vi.mocked(resolveDropTarget).mockClear();
+
+      await nextFrame();
+
+      expect(scrollRoot.scrollTop).toBeGreaterThan(20);
+      expect(resolveDropTarget).toHaveBeenCalledWith(view, 40, 95);
     } finally {
       session.destroy();
     }

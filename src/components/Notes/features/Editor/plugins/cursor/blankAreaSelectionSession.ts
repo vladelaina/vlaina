@@ -21,6 +21,10 @@ import {
 } from './blankAreaPlainClick';
 import { startBlockDragSession, type BlockDragSessionHandle, type BlockDragStartZone } from './blockDragSession';
 import { expandKnownSelectableListItemHeaderRanges } from './blockUnitResolver';
+import {
+  createVerticalEdgeAutoScroll,
+  resolveVerticalEdgeAutoScrollDelta,
+} from './edgeAutoScroll';
 
 interface BlankAreaSelectionPlainClickResult {
   zone: BlockDragStartZone;
@@ -44,9 +48,6 @@ interface StartBlankAreaSelectionSessionOptions {
   onActivateSelectionState: () => void;
   onSyncSelectionState: () => void;
 }
-
-const AUTO_SCROLL_EDGE_PX = 56;
-const AUTO_SCROLL_MAX_STEP_PX = 18;
 
 function createDragBox(doc: Document, dragBoxColor: string): HTMLDivElement {
   const box = doc.createElement('div');
@@ -98,19 +99,7 @@ export function resolveBlankAreaSelectionAutoScrollDelta(
   pointerY: number,
   scrollRootRect: Pick<DOMRect, 'top' | 'bottom'>,
 ): number {
-  if (pointerY < scrollRootRect.top + AUTO_SCROLL_EDGE_PX) {
-    const distanceIntoEdge = scrollRootRect.top + AUTO_SCROLL_EDGE_PX - pointerY;
-    const intensity = Math.min(distanceIntoEdge, AUTO_SCROLL_EDGE_PX) / AUTO_SCROLL_EDGE_PX;
-    return -Math.ceil(intensity * AUTO_SCROLL_MAX_STEP_PX);
-  }
-
-  if (pointerY > scrollRootRect.bottom - AUTO_SCROLL_EDGE_PX) {
-    const distanceIntoEdge = pointerY - (scrollRootRect.bottom - AUTO_SCROLL_EDGE_PX);
-    const intensity = Math.min(distanceIntoEdge, AUTO_SCROLL_EDGE_PX) / AUTO_SCROLL_EDGE_PX;
-    return Math.ceil(intensity * AUTO_SCROLL_MAX_STEP_PX);
-  }
-
-  return 0;
+  return resolveVerticalEdgeAutoScrollDelta(pointerY, scrollRootRect);
 }
 
 export function startBlankAreaSelectionSession(
@@ -152,8 +141,6 @@ export function startBlankAreaSelectionSession(
   let dragBoxTopBoundary = 0;
   let dragMoveRafId = 0;
   let dragBoxRafId = 0;
-  let autoScrollRafId = 0;
-  let isAutoScrollActive = false;
   let preserveContainingBlocksForSession = false;
   let didResolveFirstNonEmptySelection = false;
   let shouldFocusAfterDrag = false;
@@ -320,39 +307,11 @@ export function startBlankAreaSelectionSession(
     scheduleDragRectSelection(lastViewportDragRect);
   };
 
-  const stopAutoScroll = () => {
-    isAutoScrollActive = false;
-    if (autoScrollRafId !== 0) {
-      window.cancelAnimationFrame(autoScrollRafId);
-      autoScrollRafId = 0;
-    }
-  };
-
-  const runAutoScrollFrame = () => {
-    autoScrollRafId = 0;
-    if (!isAutoScrollActive || !scrollRoot || !lastViewportDragRect) return;
-
-    const deltaY = resolveBlankAreaSelectionAutoScrollDelta(
-      lastPointerY,
-      scrollRoot.getBoundingClientRect(),
-    );
-
-    if (deltaY !== 0) {
-      const previousScrollTop = scrollRoot.scrollTop;
-      scrollRoot.scrollTop = previousScrollTop + deltaY;
-      if (scrollRoot.scrollTop !== previousScrollTop) {
-        handleScrollWhileDragging();
-      }
-    }
-
-    autoScrollRafId = window.requestAnimationFrame(runAutoScrollFrame);
-  };
-
-  const startAutoScroll = () => {
-    if (!scrollRoot || isAutoScrollActive) return;
-    isAutoScrollActive = true;
-    autoScrollRafId = window.requestAnimationFrame(runAutoScrollFrame);
-  };
+  const autoScroll = createVerticalEdgeAutoScroll({
+    scrollRoot,
+    getPointerY: () => lastViewportDragRect ? lastPointerY : null,
+    onScroll: handleScrollWhileDragging,
+  });
 
   const session = startBlockDragSession({
     view,
@@ -371,7 +330,7 @@ export function startBlankAreaSelectionSession(
       }
       onActivateSelectionState();
       shouldFocusAfterDrag = !view.hasFocus();
-      startAutoScroll();
+      autoScroll.start();
     },
     onDragMove(dragRect) {
       lastPointerY = resolveDragPointerY(event.clientY, dragRect);
@@ -421,7 +380,7 @@ export function startBlankAreaSelectionSession(
       }
       pendingDragBoxRect = null;
       scrollRoot?.removeEventListener('scroll', handleScrollWhileDragging);
-      stopAutoScroll();
+      autoScroll.stop();
       rectResolver.invalidate();
       onSyncSelectionState();
       if (shouldFocusAfterDrag && view.dom.isConnected) {
