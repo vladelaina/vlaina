@@ -22,6 +22,7 @@ import {
   runOpenAIWebSearchToolLoop,
 } from '@/lib/ai/webSearch/openAIToolLoop'
 import { isStandaloneImageGenerationModel } from '@/lib/ai/modelCapabilities'
+import { addChatDebugLog } from '@/lib/debug/chatDebugLog'
 
 function summarizeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error || 'Unknown error')
@@ -64,6 +65,38 @@ function isAbortError(error: unknown): boolean {
 
 function createUnsupportedWebSearchError(): Error {
   return new Error('Web search is unavailable for this model.')
+}
+
+function isTransientHttpStatus(status: number): boolean {
+  return status === 408 || status === 500 || status === 502 || status === 503 || status === 504
+}
+
+function waitForProviderRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
+  if (delayMs <= 0) return Promise.resolve()
+  if (signal?.aborted) {
+    return Promise.reject(new DOMException('Aborted', 'AbortError'))
+  }
+
+  return new Promise((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout>
+    const abort = () => {
+      clearTimeout(timer)
+      reject(new DOMException('Aborted', 'AbortError'))
+    }
+    const finish = () => {
+      signal?.removeEventListener('abort', abort)
+      resolve()
+    }
+
+    signal?.addEventListener('abort', abort, { once: true })
+    timer = setTimeout(finish, delayMs)
+  })
+}
+
+function hasHttpStatus(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  return typeof (error as { statusCode?: unknown }).statusCode === 'number'
+    || typeof (error as { status?: unknown }).status === 'number'
 }
 
 function isDeepSeekOpenAICompatible(provider: Provider, model: AIModel): boolean {
@@ -256,6 +289,7 @@ function stripRenderedThinkingFromAssistantContent(content: ChatMessageContent):
 
 export class OpenAICompatibleClient implements AIClient {
   private readonly timeout = 300000
+  private readonly webSearchRequestRetryDelayMs = 700
 
   private extractManagedResponseContent(payload: Record<string, unknown>): string {
     const choices = Array.isArray(payload.choices) ? payload.choices : []
@@ -353,6 +387,75 @@ export class OpenAICompatibleClient implements AIClient {
       throw new Error('Missing API key')
     }
     return directApiKey
+  }
+
+  private async requestOpenAIChatCompletionWithRetry({
+    url,
+    headers,
+    body,
+    signal,
+    scope,
+  }: {
+    url: string
+    headers: Record<string, string>
+    body: ChatCompletionRequest
+    signal?: AbortSignal
+    scope: string
+  }): Promise<Response> {
+    let lastError: unknown
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (attempt > 0) {
+        addChatDebugLog(scope, 'retrying transient model request', { attempt })
+        await waitForProviderRetry(this.webSearchRequestRetryDelayMs, signal)
+      }
+
+      try {
+        const response = await providerFetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+          signal,
+        })
+        if (response.ok) {
+          return response
+        }
+
+        const errorText = await response.text().catch(() => 'Unknown error')
+        let errorBody
+        try {
+          errorBody = JSON.parse(errorText)
+        } catch {
+          errorBody = { message: errorText }
+        }
+        const parsedError = parseHTTPError(response.status, errorBody)
+        if (attempt === 0 && isTransientHttpStatus(response.status)) {
+          lastError = parsedError
+          addChatDebugLog(scope, 'transient model request failed before response body stream', {
+            status: response.status,
+          }, 'warn')
+          continue
+        }
+        throw parsedError
+      } catch (error) {
+        if (signal?.aborted || isAbortError(error)) {
+          throw error
+        }
+        if (hasHttpStatus(error)) {
+          throw error
+        }
+        if (attempt === 0) {
+          lastError = error
+          addChatDebugLog(scope, 'model request failed before response body stream', {
+            error: summarizeError(error),
+          }, 'warn')
+          continue
+        }
+        throw error
+      }
+    }
+
+    throw lastError
   }
 
   async sendMessage(
@@ -462,25 +565,13 @@ export class OpenAICompatibleClient implements AIClient {
         onStatus: options.onWebSearchStatus,
         onApiTranscript: options.onApiTranscript,
         signal,
-        request: async (nextBody) => {
-          const response = await providerFetch(url, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(nextBody),
-            signal,
-          })
-          if (!response.ok) {
-            const errorText = await response.text().catch(() => 'Unknown error')
-            let errorBody
-            try {
-              errorBody = JSON.parse(errorText)
-            } catch {
-              errorBody = { message: errorText }
-            }
-            throw parseHTTPError(response.status, errorBody)
-          }
-          return response
-        },
+        request: (nextBody) => this.requestOpenAIChatCompletionWithRetry({
+          url,
+          headers,
+          body: nextBody,
+          signal,
+          scope: 'web-search-model',
+        }),
       })
     }
 

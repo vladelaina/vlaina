@@ -51,6 +51,30 @@ function uniqueSourceItems(
   return items;
 }
 
+function sourceItemsFromStatuses(statuses: WebSearchStatus[]): Array<{ url: string; label: string; detail?: string }> {
+  const titleByUrl = new Map<string, string>();
+  const results: NonNullable<WebSearchStatus['results']> = [];
+  const urls: string[] = [];
+
+  for (const status of statuses) {
+    for (const result of status.results ?? []) {
+      if (!titleByUrl.has(result.url) && result.title?.trim()) {
+        titleByUrl.set(result.url, result.title.trim());
+      }
+      results.push(result);
+    }
+    urls.push(...(status.urls ?? []));
+  }
+
+  return uniqueSourceItems(
+    results.map((result) => ({
+      ...result,
+      title: titleByUrl.get(result.url) || result.title,
+    })),
+    urls,
+  );
+}
+
 function shouldShowStatusMessage(status: WebSearchStatus): boolean {
   if (!status.message) return false;
   if (status.phase === 'error' && status.message === 'No relevant results were found.') return false;
@@ -61,10 +85,9 @@ export function WebSearchStatusBlock({ statuses, isWaitingForAnswer = false }: W
   const { t } = useI18n();
   const status = statuses[statuses.length - 1];
   if (!status) return null;
-  const latestResults = [...statuses].reverse().find((item) => item.results?.length)?.results ?? [];
   const isSearching = isWaitingForAnswer;
   const showStatusMessage = shouldShowStatusMessage(status);
-  const sourceItems = uniqueSourceItems(latestResults, status.urls ?? []);
+  const sourceItems = sourceItemsFromStatuses(statuses);
 
   return (
     <div

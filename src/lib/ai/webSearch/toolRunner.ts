@@ -47,6 +47,17 @@ function stringArrayArg(args: Record<string, unknown>, key: string): string[] {
   return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
 }
 
+function numberArg(args: Record<string, unknown>, key: string): number | undefined {
+  const value = args[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function contentLimitArg(args: Record<string, unknown>): number {
+  const limit = numberArg(args, 'contentLimit');
+  if (!limit) return 3000;
+  return Math.min(3000, Math.max(500, Math.round(limit)));
+}
+
 function normalizeToolName(name: string): string {
   if (name === 'search') return WEB_SEARCH_TOOL_NAMES.search;
   if (name === 'read' || name === 'read_page') return WEB_SEARCH_TOOL_NAMES.read;
@@ -137,7 +148,7 @@ export async function runWebSearchToolCall(
       const url = stringArg(args, 'url');
       const startedAt = performance.now();
       options.onStatus?.({ phase: 'reading', urls: [url] });
-      const readOptions = { contentLimit: 3000, retries: 0 };
+      const readOptions = { contentLimit: contentLimitArg(args), retries: 0 };
       const page = await callWebSearchClient(
         options.signal,
         (signal) => client.readWebPage(url, readOptions, signal),
@@ -160,7 +171,7 @@ export async function runWebSearchToolCall(
       const urls = stringArrayArg(args, 'urls').slice(0, 8);
       const startedAt = performance.now();
       options.onStatus?.({ phase: 'reading', urls });
-      const readOptions = { contentLimit: 3000, retries: 0 };
+      const readOptions = { contentLimit: contentLimitArg(args), retries: 0 };
       const pages = await callWebSearchClient(
         options.signal,
         (signal) => client.readWebPages(urls, readOptions, signal),

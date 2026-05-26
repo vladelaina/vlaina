@@ -395,6 +395,31 @@ describe("AIMessage", () => {
     expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Answer with source.");
   });
 
+  it("keeps source links from every web search step visible", () => {
+    const content = [
+      '<web-search-status>{"phase":"results","query":"first","results":[{"title":"First Source","url":"https://first.example","snippet":"First","publishedAt":null}]}</web-search-status>',
+      '<web-search-status>{"phase":"complete","urls":["https://first.example"],"metrics":{"successCount":1,"durationMs":12}}</web-search-status>',
+      '<web-search-status>{"phase":"results","query":"second","results":[{"title":"Second Source","url":"https://second.example","snippet":"Second","publishedAt":null}]}</web-search-status>',
+      '<web-search-status>{"phase":"complete","urls":["https://second.example"],"metrics":{"successCount":1,"durationMs":12}}</web-search-status>',
+      "Answer with multiple sources.",
+    ].join("\n");
+
+    render(
+      <AIMessage
+        msg={createMessage(content)}
+        imageGallery={[]}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("First Source")).toBeInTheDocument();
+    expect(screen.getByText("Second Source")).toBeInTheDocument();
+    expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Answer with multiple sources.");
+  });
+
   it("stores copied code block feedback above the markdown renderer", () => {
     render(
       <AIMessage
