@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent } from "react";
 import { createPortal } from "react-dom";
 import Cropper from "react-easy-crop";
 import { Icon } from "@/components/ui/icons";
@@ -24,6 +25,9 @@ const MAX_ZOOM = 5;
 const ZOOM_STEP = 0.12;
 const TRANSPARENT_IMAGE_DATA_URL =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+const VIEWER_CONTROL_SELECTOR = '[data-chat-image-viewer-control="true"]';
+const CROPPER_IMAGE_SELECTOR = '.reactEasyCrop_Image';
+const VIEWER_SURFACE_SELECTOR = '[data-chat-image-viewer-surface="true"]';
 
 async function copyImageOrUrl(src: string): Promise<boolean> {
   const copied = await copyImageSourceToClipboard(src);
@@ -104,6 +108,7 @@ export function ChatImageViewer({
   const [viewportSize, setViewportSize] = useState({ width: 1440, height: 900 });
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(-1);
   const [resolvedActiveSrc, setResolvedActiveSrc] = useState(src);
+  const imageElementRef = useRef<HTMLImageElement | null>(null);
 
   const galleryIndex = useMemo(() => {
     if (!gallery || gallery.length === 0) {
@@ -281,7 +286,25 @@ export function ChatImageViewer({
     };
   }, [aspectRatio, viewportSize.height, viewportSize.width]);
 
-  const isPointOnImage = (clientX: number, clientY: number) => {
+  const isPointOnImage = useCallback((clientX: number, clientY: number) => {
+    if (typeof document !== "undefined" && typeof document.elementsFromPoint === "function") {
+      const elementsAtPoint = document.elementsFromPoint(clientX, clientY);
+      return elementsAtPoint.some((element) => (
+        element === imageElementRef.current ||
+        element.matches(CROPPER_IMAGE_SELECTOR)
+      ));
+    }
+
+    const imageRect = imageElementRef.current?.getBoundingClientRect();
+    if (imageRect && imageRect.width > 0 && imageRect.height > 0) {
+      return (
+        clientX >= imageRect.left &&
+        clientX <= imageRect.right &&
+        clientY >= imageRect.top &&
+        clientY <= imageRect.bottom
+      );
+    }
+
     const safeAspect = aspectRatio > 0 ? aspectRatio : 1;
     const viewportAspect = viewportSize.width / Math.max(viewportSize.height, 1);
     const baseWidth =
@@ -301,6 +324,50 @@ export function ChatImageViewer({
     const bottom = top + scaledHeight;
 
     return clientX >= left && clientX <= right && clientY >= top && clientY <= bottom;
+  }, [aspectRatio, crop.x, crop.y, viewportSize.height, viewportSize.width, zoom]);
+
+  useEffect(() => {
+    if (!open || typeof document === "undefined") {
+      return;
+    }
+
+    const handleDocumentPress = (event: MouseEvent | globalThis.PointerEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (
+        event.button !== 0 ||
+        target?.closest(VIEWER_CONTROL_SELECTOR) ||
+        !target?.closest(VIEWER_SURFACE_SELECTOR) ||
+        target === imageElementRef.current ||
+        target?.matches(CROPPER_IMAGE_SELECTOR)
+      ) {
+        return;
+      }
+
+      onOpenChange(false);
+    };
+
+    document.addEventListener("pointerdown", handleDocumentPress, true);
+    document.addEventListener("mousedown", handleDocumentPress, true);
+    document.addEventListener("click", handleDocumentPress, true);
+    return () => {
+      document.removeEventListener("pointerdown", handleDocumentPress, true);
+      document.removeEventListener("mousedown", handleDocumentPress, true);
+      document.removeEventListener("click", handleDocumentPress, true);
+    };
+  }, [isPointOnImage, onOpenChange, open]);
+
+  const handleDialogPointerDownCapture = (event: PointerEvent<HTMLDivElement>) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (
+      event.button !== 0 ||
+      target?.closest(VIEWER_CONTROL_SELECTOR) ||
+      target === imageElementRef.current ||
+      target?.matches(CROPPER_IMAGE_SELECTOR)
+    ) {
+      return;
+    }
+
+    onOpenChange(false);
   };
 
   useEffect(() => {
@@ -343,6 +410,8 @@ export function ChatImageViewer({
         aria-label={activeAlt || "Image preview"}
         className="fixed inset-0 z-[121]"
         data-no-focus-input="true"
+        data-chat-image-viewer-surface="true"
+        onPointerDownCapture={handleDialogPointerDownCapture}
         onClick={(event) => {
           if (isPointOnImage(event.clientX, event.clientY)) {
             return;
@@ -354,6 +423,7 @@ export function ChatImageViewer({
           type="button"
           aria-label={t('chat.closePreview')}
           data-no-focus-input="true"
+          data-chat-image-viewer-control="true"
           className={cn(
             "absolute right-12 top-12 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-950",
             "dark:text-zinc-500 dark:hover:bg-zinc-100 dark:hover:text-zinc-950",
@@ -373,6 +443,7 @@ export function ChatImageViewer({
               type="button"
               aria-label={t('chat.previousImage')}
               data-no-focus-input="true"
+              data-chat-image-viewer-control="true"
               className={cn(
                 "inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/78 text-slate-700 shadow-[0_18px_54px_rgba(84,121,160,0.16)] transition-colors hover:bg-white",
                 iconButtonStyles
@@ -393,6 +464,7 @@ export function ChatImageViewer({
               type="button"
               aria-label={t('chat.nextImage')}
               data-no-focus-input="true"
+              data-chat-image-viewer-control="true"
               className={cn(
                 "inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/78 text-slate-700 shadow-[0_18px_54px_rgba(84,121,160,0.16)] transition-colors hover:bg-white",
                 iconButtonStyles
@@ -420,6 +492,9 @@ export function ChatImageViewer({
               zoomSpeed={0.12}
               restrictPosition={false}
               objectFit="contain"
+              setImageRef={(ref) => {
+                imageElementRef.current = ref.current;
+              }}
               onCropChange={setCrop}
               onZoomChange={(value) => setZoom(clampZoom(value))}
               style={{
@@ -430,6 +505,7 @@ export function ChatImageViewer({
                   color: "transparent",
                   outline: "none",
                   background: "transparent",
+                  pointerEvents: "none",
                 },
                 mediaStyle: {
                   maxWidth: "none",
@@ -441,6 +517,7 @@ export function ChatImageViewer({
 
           <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center">
             <div
+              data-chat-image-viewer-control="true"
               className="pointer-events-auto inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-2 py-2 text-slate-800 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
               onClick={(event) => event.stopPropagation()}
             >
