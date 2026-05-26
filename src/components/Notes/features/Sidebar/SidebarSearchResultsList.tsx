@@ -18,6 +18,7 @@ interface SidebarSearchResultsListProps {
   query: string;
   currentNotePath?: string | null;
   activeResultId?: string | null;
+  highlightedResultId?: string | null;
   onOpen: (result: NotesSidebarSearchResult) => void;
   scrollRootRef: RefObject<HTMLDivElement | null>;
   isContentScanPending: boolean;
@@ -80,6 +81,7 @@ function SidebarSearchResultRow({
   query,
   currentNotePath,
   isActive,
+  isHighlighted,
   onOpen,
   showFileHeader,
 }: {
@@ -87,6 +89,7 @@ function SidebarSearchResultRow({
   query: string;
   currentNotePath?: string | null;
   isActive: boolean;
+  isHighlighted: boolean;
   onOpen: (result: NotesSidebarSearchResult) => void;
   showFileHeader: boolean;
 }) {
@@ -124,6 +127,8 @@ function SidebarSearchResultRow({
       rowClassName={rowClassName}
       contentClassName={contentClassName}
       isActive={isActive}
+      isHighlighted={isHighlighted}
+      aria-selected={isHighlighted || undefined}
       onClick={() => onOpen(result)}
       main={(
         <div className={cn('min-w-0', hasContentLine && 'space-y-0.5')}>
@@ -157,6 +162,7 @@ export function SidebarSearchResultsList({
   query,
   currentNotePath,
   activeResultId,
+  highlightedResultId,
   onOpen,
   scrollRootRef,
   isContentScanPending,
@@ -221,6 +227,19 @@ export function SidebarSearchResultsList({
     virtualizer.measure();
   }, [containerWidth, estimates, virtualizer]);
 
+  useEffect(() => {
+    if (!highlightedResultId) {
+      return;
+    }
+
+    const highlightedIndex = items.findIndex((item) => item.result.id === highlightedResultId);
+    if (highlightedIndex < 0) {
+      return;
+    }
+
+    virtualizer.scrollToIndex(highlightedIndex, { align: 'auto' });
+  }, [highlightedResultId, items, virtualizer]);
+
   const hasQuery = deferredQuery.trim().length > 0;
 
   return (
@@ -261,6 +280,7 @@ export function SidebarSearchResultsList({
                   query={deferredQuery}
                   currentNotePath={currentNotePath}
                   isActive={item.result.id === activeResultId}
+                  isHighlighted={item.result.id === highlightedResultId}
                   onOpen={onOpen}
                   showFileHeader={item.showFileHeader}
                 />

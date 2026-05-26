@@ -5,6 +5,7 @@ import { SidebarSearchResultsList } from './SidebarSearchResultsList';
 import type { NotesSidebarSearchResult } from './notesSidebarSearchResults';
 
 const measureMock = vi.fn();
+const scrollToIndexMock = vi.fn();
 
 vi.mock('@tanstack/react-virtual', () => ({
   useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: (index: number) => number }) => ({
@@ -17,6 +18,7 @@ vi.mock('@tanstack/react-virtual', () => ({
         start: Array.from({ length: index }, (_, innerIndex) => estimateSize(innerIndex)).reduce((sum, size) => sum + size, 0),
       })),
     measure: measureMock,
+    scrollToIndex: scrollToIndexMock,
   }),
 }));
 
@@ -32,13 +34,20 @@ vi.mock('./NotesSidebarRow', () => ({
   NotesSidebarRow: ({
     main,
     isActive,
+    isHighlighted,
     onClick,
   }: {
     main: ReactNode;
     isActive?: boolean;
+    isHighlighted?: boolean;
     onClick?: () => void;
   }) => (
-    <button type="button" data-active={isActive ? 'true' : 'false'} onClick={onClick}>
+    <button
+      type="button"
+      data-active={isActive ? 'true' : 'false'}
+      data-highlighted={isHighlighted ? 'true' : 'false'}
+      onClick={onClick}
+    >
       {main}
     </button>
   ),
@@ -61,6 +70,7 @@ function buildResult(overrides: Partial<NotesSidebarSearchResult> = {}): NotesSi
 describe('SidebarSearchResultsList', () => {
   beforeEach(() => {
     measureMock.mockClear();
+    scrollToIndexMock.mockClear();
   });
 
   it('renders results and opens the clicked item', () => {
@@ -176,6 +186,30 @@ describe('SidebarSearchResultsList', () => {
     );
 
     expect(scrollToMock).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+  });
+
+  it('highlights and scrolls the keyboard-selected result into view', () => {
+    render(
+      <SidebarSearchResultsList
+        results={[
+          buildResult({ id: 'result-1', name: 'Alpha Note' }),
+          buildResult({ id: 'result-2', path: 'folder/beta.md', name: 'Beta Note' }),
+        ]}
+        query="note"
+        currentNotePath={null}
+        highlightedResultId="result-2"
+        onOpen={() => {}}
+        scrollRootRef={createRef<HTMLDivElement>()}
+        isContentScanPending={false}
+      />,
+    );
+
+    const betaRow = screen
+      .getAllByRole('button')
+      .find((row) => row.textContent?.includes('Beta Note'));
+
+    expect(betaRow).toHaveAttribute('data-highlighted', 'true');
+    expect(scrollToIndexMock).toHaveBeenCalledWith(1, { align: 'auto' });
   });
 
   it('keeps the pending label visible while content scanning is running', () => {
