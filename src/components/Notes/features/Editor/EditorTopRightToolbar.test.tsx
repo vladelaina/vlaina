@@ -11,7 +11,6 @@ const mocks = vi.hoisted(() => ({
   exportNote: vi.fn(),
   flushCurrentPendingEditorMarkdown: vi.fn(),
   setNotesChatPanelCollapsed: vi.fn(),
-  writeTextToClipboard: vi.fn(),
 }));
 
 vi.mock('@/components/ui/dropdown-menu', () => ({
@@ -68,10 +67,6 @@ vi.mock('@/stores/notes/pendingEditorMarkdownFlusher', () => ({
   flushCurrentPendingEditorMarkdown: mocks.flushCurrentPendingEditorMarkdown,
 }));
 
-vi.mock('@/lib/clipboard', () => ({
-  writeTextToClipboard: mocks.writeTextToClipboard,
-}));
-
 vi.mock('../Export', () => ({
   exportNote: mocks.exportNote,
 }));
@@ -116,8 +111,6 @@ describe('EditorTopRightToolbar', () => {
     mocks.exportNote.mockReset();
     mocks.flushCurrentPendingEditorMarkdown.mockReset();
     mocks.setNotesChatPanelCollapsed.mockReset();
-    mocks.writeTextToClipboard.mockReset();
-    mocks.writeTextToClipboard.mockResolvedValue(true);
   });
 
   it('shows the remove-star button for starred external notes outside the current vault', () => {
@@ -211,35 +204,6 @@ describe('EditorTopRightToolbar', () => {
     );
 
     expect(getCurrentNoteContent).not.toHaveBeenCalled();
-  });
-
-  it('copies Markdown debug logs from the toolbar action', async () => {
-    mocks.currentNote = {
-      path: 'docs/current.md',
-      content: '# Current',
-    };
-
-    const { getByRole } = render(
-      <EditorTopRightToolbar
-        editorFind={createEditorFindController()}
-        currentNotePath="docs/current.md"
-        currentNoteTitle="Current"
-        getCurrentNoteContent={() => '# Current'}
-        notesPath="/vault"
-        starred={false}
-        toggleStarred={vi.fn()}
-        currentNoteMetadata={undefined}
-      />,
-    );
-
-    fireEvent.click(getByRole('button', { name: 'Copy Markdown debug logs' }));
-
-    await waitFor(() => {
-      expect(mocks.writeTextToClipboard).toHaveBeenCalledWith(
-        expect.stringContaining('currentNotePath: docs/current.md'),
-      );
-    });
-    expect(mocks.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
   });
 
   it('opens the right Chat panel from the first note menu action', () => {

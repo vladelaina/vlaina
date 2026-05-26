@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useCallback } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,8 +16,6 @@ import { useUIStore } from '@/stores/uiSlice';
 import { useToastStore } from '@/stores/useToastStore';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { useI18n } from '@/lib/i18n';
-import { writeTextToClipboard } from '@/lib/clipboard';
-import { getMarkdownDebugLogText, logMarkdownDebug } from '@/lib/notes/markdownDebugLog';
 import { NoteEditorFindBar } from './find/NoteEditorFindBar';
 import type { NoteEditorFindController } from './find/types';
 import { useDeferredTextStats } from './hooks/useDeferredTextStats';
@@ -25,8 +23,6 @@ import { canStarNotePath } from '@/stores/notes/notePathState';
 import type { NoteExportFormat } from '../Export/noteExportTypes';
 import type { AppLanguage } from '@/lib/i18n/languages';
 import { MENU_PANEL_CLASS_NAME } from '@/components/layout/sidebar/context-menu/shared';
-
-const DEBUG_LOG_COPY_FEEDBACK_MS = 1200;
 
 export interface EditorTopRightToolbarProps {
   editorFind: NoteEditorFindController;
@@ -84,55 +80,6 @@ export function EditorTopRightToolbar({
   const starButtonLabel = starred ? t('notes.removeFromStarred') : t('notes.addToStarred');
   const addToast = useToastStore((state) => state.addToast);
   const setNotesChatPanelCollapsed = useUIStore((state) => state.setNotesChatPanelCollapsed);
-  const [debugLogCopied, setDebugLogCopied] = useState(false);
-  const debugLogCopiedTimerRef = useRef<number | null>(null);
-  useEffect(() => {
-    return () => {
-      if (debugLogCopiedTimerRef.current !== null) {
-        window.clearTimeout(debugLogCopiedTimerRef.current);
-      }
-    };
-  }, []);
-  const copyDebugLog = useCallback(async (event?: MouseEvent<HTMLButtonElement>) => {
-    event?.stopPropagation();
-    flushCurrentPendingEditorMarkdown();
-    const latestState = useNotesStore.getState();
-    const latestNote = latestState.currentNote;
-    const latestCacheEntry = currentNotePath
-      ? latestState.noteContentsCache.get(currentNotePath)
-      : undefined;
-    logMarkdownDebug('EditorTopRightToolbar:copy-debug-log', {
-      currentNotePath: currentNotePath ?? null,
-      latestStorePath: latestNote?.path ?? null,
-      latestStoreContentLength: latestNote?.content.length ?? null,
-      latestCacheContentLength: latestCacheEntry?.content.length ?? null,
-      isDirty: latestState.isDirty,
-      openTabs: latestState.openTabs.length,
-    });
-    const didCopy = await writeTextToClipboard(getMarkdownDebugLogText({
-      currentNotePath: currentNotePath ?? null,
-      currentNoteTitle,
-      latestStorePath: latestNote?.path ?? null,
-      latestStoreContentLength: latestNote?.content.length ?? null,
-      latestCacheContentLength: latestCacheEntry?.content.length ?? null,
-      isDirty: latestState.isDirty,
-      openTabs: latestState.openTabs.length,
-    }));
-
-    if (!didCopy) {
-      addToast('Failed to copy Markdown debug logs', 'error', 3000);
-      return;
-    }
-
-    setDebugLogCopied(true);
-    if (debugLogCopiedTimerRef.current !== null) {
-      window.clearTimeout(debugLogCopiedTimerRef.current);
-    }
-    debugLogCopiedTimerRef.current = window.setTimeout(() => {
-      setDebugLogCopied(false);
-      debugLogCopiedTimerRef.current = null;
-    }, DEBUG_LOG_COPY_FEEDBACK_MS);
-  }, [addToast, currentNotePath, currentNoteTitle]);
   const exportCurrentNote = async (format: NoteExportFormat) => {
     if (!currentNotePath) {
       return;
@@ -160,20 +107,6 @@ export function EditorTopRightToolbar({
 
       {!editorFind.isOpen ? (
         <>
-          <button
-            type="button"
-            onClick={(event) => void copyDebugLog(event)}
-            aria-label={debugLogCopied ? t('common.copied') : 'Copy Markdown debug logs'}
-            className={cn(
-              'p-1.5 transition-colors',
-              debugLogCopied
-                ? 'text-emerald-500'
-                : `${iconButtonStyles} hover:text-[var(--sidebar-row-selected-text)]`,
-            )}
-          >
-            <Icon size="md" name={debugLogCopied ? 'common.check' : 'common.copy'} />
-          </button>
-
           {showStarButton ? (
             <button
               onClick={(event) => {

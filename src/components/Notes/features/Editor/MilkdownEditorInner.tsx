@@ -22,7 +22,6 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
-import { logMarkdownDebug } from '@/lib/notes/markdownDebugLog';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import {
   normalizeAlternativeMathBlockFences,
@@ -70,9 +69,6 @@ function replaceEditorMarkdown(ctx: Ctx, markdown: string) {
   const parser = ctx.get(parserCtx);
   const doc = parser(markdown);
   if (!doc) {
-    logMarkdownDebug('MilkdownEditor:replace-parse-empty', {
-      markdownLength: markdown.length,
-    });
     return;
   }
 
@@ -123,15 +119,6 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const initialContent = useMemo(() => {
     return normalizeAlternativeMathBlockFences(currentNoteContentRef.current);
   }, []);
-
-  useEffect(() => {
-    logMarkdownDebug('MilkdownEditor:mount-note', {
-      currentNotePath,
-      initialContentLength: initialContent.length,
-      diskRevision: currentNoteDiskRevision,
-      active,
-    });
-  }, [active, currentNoteDiskRevision, currentNotePath, initialContent.length]);
 
   useEffect(() => {
     onEditorViewReadyRef.current = onEditorViewReady;
@@ -212,11 +199,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
         clearCurrentEditorBlockPositionSnapshot();
         clearCurrentMarkdownRuntime();
       };
-    } catch (error) {
-      logMarkdownDebug('MilkdownEditor:activate-error', {
-        currentNotePath,
-        message: error instanceof Error ? error.message : String(error),
-      });
+    } catch {
       setCurrentEditorView(null);
       clearCurrentEditorBlockPositionSnapshot();
       clearCurrentMarkdownRuntime();
@@ -257,16 +240,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
 
     const statusEditor = editor as unknown as ActiveMilkdownEditor;
     statusEditor.onStatusChange?.((status: string) => {
-      logMarkdownDebug('MilkdownEditor:status', {
-        status,
-        currentNotePath: useNotesStore.getState().currentNote?.path ?? null,
-        contentLength: currentNoteContentRef.current.length,
-      });
       if (status === 'Created') {
-        logMarkdownDebug('MilkdownEditor:status-created', {
-          currentNotePath: currentNoteContentRef.current === undefined ? null : useNotesStore.getState().currentNote?.path ?? null,
-          contentLength: currentNoteContentRef.current.length,
-        });
         onEditorViewReadyRef.current?.();
         activateEditor(statusEditor);
       }
@@ -322,13 +296,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
         restoreFrame = requestAnimationFrame(restoreScroll);
         restoreTimeout = window.setTimeout(restoreScroll, 80);
       }
-    } catch (error) {
-      logMarkdownDebug('MilkdownEditor:replace-error', {
-        currentNotePath,
-        contentLength: currentNoteContent.length,
-        diskRevision: currentNoteDiskRevision,
-        message: error instanceof Error ? error.message : String(error),
-      });
+    } catch {
     }
 
     return () => {
@@ -360,11 +328,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       if (activatedEditorRef.current !== editor) {
         activateEditor(editor);
       }
-    } catch (error) {
-      logMarkdownDebug('MilkdownEditor:reactivate-error', {
-        currentNotePath,
-        message: error instanceof Error ? error.message : String(error),
-      });
+    } catch {
       setCurrentEditorView(null);
       clearCurrentEditorBlockPositionSnapshot();
       clearCurrentMarkdownRuntime();

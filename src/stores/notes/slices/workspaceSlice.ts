@@ -1,7 +1,6 @@
 import { StateCreator } from 'zustand';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
-import { logMarkdownDebug } from '@/lib/notes/markdownDebugLog';
 import { createAsyncPrefetchQueue } from '@/lib/asyncPrefetchQueue';
 import { NotesStore } from '../types';
 import { updateDisplayName } from '../displayNameUtils';
@@ -170,13 +169,10 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   openNote: async (path: string, openInNewTab: boolean = false) => {
     flushCurrentPendingEditorMarkdown();
     const openRequestId = ++latestOpenNoteRequestId;
-    logMarkdownDebug('openNote:start', { path, openInNewTab, openRequestId });
     if (openDraftNoteFromMemory(set, get, path, openInNewTab)) {
-      logMarkdownDebug('openNote:draft-memory', { path, openRequestId });
       return;
     }
     if (!isSupportedMarkdownPath(path)) {
-      logMarkdownDebug('openNote:unsupported-path', { path, openRequestId });
       set({ error: 'Only Markdown files can be opened as notes.' });
       return;
     }
@@ -216,15 +212,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         cache: noteContentsCache,
         allowStaleCachedContent: existingTabIsDirty,
       });
-      logMarkdownDebug('openNote:loaded', {
-        path,
-        openRequestId,
-        contentLength: content.length,
-        modifiedAt: modifiedAt ?? null,
-        existingTabIsDirty,
-      });
       if (openRequestId !== latestOpenNoteRequestId || get().notesPath !== notesPath) {
-        logMarkdownDebug('openNote:stale-result', { path, openRequestId });
         return;
       }
       const latestState = get();
@@ -273,19 +261,8 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         currentNotePath: path,
         fileTreeSortMode,
       });
-      logMarkdownDebug('openNote:committed', {
-        path,
-        openRequestId,
-        contentLength: content.length,
-        openTabs: updatedTabs.length,
-      });
     } catch (error) {
       if (openRequestId === latestOpenNoteRequestId && get().notesPath === notesPath) {
-        logMarkdownDebug('openNote:error', {
-          path,
-          openRequestId,
-          message: error instanceof Error ? error.message : String(error),
-        });
         set({ error: error instanceof Error ? error.message : 'Failed to open note' });
       }
     }
@@ -293,9 +270,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
   openNoteByAbsolutePath: async (absolutePath: string, openInNewTab: boolean = false) => {
     flushCurrentPendingEditorMarkdown();
-    logMarkdownDebug('openNoteByAbsolutePath:start', { absolutePath, openInNewTab });
     if (!isSupportedMarkdownPath(absolutePath)) {
-      logMarkdownDebug('openNoteByAbsolutePath:unsupported-path', { absolutePath });
       set({ error: 'Only Markdown files can be opened as notes.' });
       return;
     }
@@ -330,15 +305,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         cache: noteContentsCache,
         allowStaleCachedContent: existingTabIsDirty,
       });
-      logMarkdownDebug('openNoteByAbsolutePath:loaded', {
-        absolutePath,
-        openRequestId,
-        contentLength: content.length,
-        modifiedAt: modifiedAt ?? null,
-        existingTabIsDirty,
-      });
       if (openRequestId !== latestOpenNoteRequestId || get().notesPath !== notesPath) {
-        logMarkdownDebug('openNoteByAbsolutePath:stale-result', { absolutePath, openRequestId });
         return;
       }
       const latestState = get();
@@ -378,19 +345,8 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         ),
         noteMetadata: nextMetadata,
       });
-      logMarkdownDebug('openNoteByAbsolutePath:committed', {
-        absolutePath,
-        openRequestId,
-        contentLength: content.length,
-        openTabs: updatedTabs.length,
-      });
     } catch (error) {
       if (openRequestId === latestOpenNoteRequestId && get().notesPath === notesPath) {
-        logMarkdownDebug('openNoteByAbsolutePath:error', {
-          absolutePath,
-          openRequestId,
-          message: error instanceof Error ? error.message : String(error),
-        });
         set({ error: error instanceof Error ? error.message : 'Failed to open note' });
       }
     }

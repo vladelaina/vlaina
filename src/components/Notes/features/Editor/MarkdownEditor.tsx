@@ -24,7 +24,6 @@ import {
   subscribeSidebarSearchNavigationPending,
 } from '../Sidebar/sidebarSearchNavigation';
 import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
-import { logMarkdownDebug } from '@/lib/notes/markdownDebugLog';
 import {
   canKeepCoverDuringEditorReload,
   getStableCoverSignature,
@@ -151,34 +150,12 @@ export function MarkdownEditor({
   }, [currentNotePath]);
 
   useEffect(() => {
-    if (!hasActiveNote || !currentNotePath) {
-      return;
-    }
-
-    const state = useNotesStore.getState();
-    const currentNote = state.currentNote;
-    const cachedContent = state.noteContentsCache.get(currentNotePath)?.content;
-    logMarkdownDebug('MarkdownEditor:active-note', {
-      currentNotePath,
-      storePath: currentNote?.path ?? null,
-      storeContentLength: currentNote?.path === currentNotePath ? currentNote.content.length : null,
-      cachedContentLength: cachedContent?.length ?? null,
-      isEditorViewReady,
-      openTabs: openTabs.length,
-    });
-  }, [currentNotePath, hasActiveNote, isEditorViewReady, openTabs.length]);
-
-  useEffect(() => {
     setEditorInitTimedOutPath(null);
     if (!hasActiveNote || !currentNotePath || isEditorViewReady) {
       return;
     }
 
     const timeoutId = window.setTimeout(() => {
-      logMarkdownDebug('MarkdownEditor:init-timeout-source-fallback', {
-        currentNotePath,
-        contentLength: getCurrentNoteContent().length,
-      });
       setEditorInitTimedOutPath(currentNotePath);
       onEditorViewReady?.();
     }, EDITOR_INIT_FALLBACK_DELAY_MS);
@@ -186,7 +163,7 @@ export function MarkdownEditor({
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [currentNotePath, getCurrentNoteContent, hasActiveNote, isEditorViewReady, onEditorViewReady]);
+  }, [currentNotePath, hasActiveNote, isEditorViewReady, onEditorViewReady]);
 
   useEffect(() => {
     if (!hasActiveNote) {
