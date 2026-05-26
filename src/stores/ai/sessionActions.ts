@@ -1,4 +1,4 @@
-import type { ChatMessage, ChatSession } from '@/lib/ai/types'
+import type { ApiTranscriptMessage, ChatMessage, ChatMessageContent, ChatSession } from '@/lib/ai/types'
 import { generateId } from '@/lib/id'
 import {
   cancelSessionJsonSave,
@@ -7,6 +7,7 @@ import {
   loadSessionJson,
   saveSessionJson,
 } from '@/lib/storage/chatStorage'
+import { persistDataUrlAttachment } from '@/lib/storage/attachmentStorage'
 import { requestManager } from '@/lib/ai/requestManager'
 import {
   isTemporarySession,
@@ -25,8 +26,155 @@ import {
   runWithSessionMutationLock,
   runWithSessionMutationLocks,
 } from '@/lib/ai/sessionMutationLock'
+import { extractMarkdownImageSources } from '@/components/Chat/common/messageClipboard'
 
 let switchSessionGeneration = 0;
+const DATA_IMAGE_SOURCE_PREFIX = 'data:image/'
+
+function collectInlineImageSourcesFromContent(content: string | undefined) {
+  if (!content) {
+    return []
+  }
+  return extractMarkdownImageSources(content).filter((src) => src.startsWith(DATA_IMAGE_SOURCE_PREFIX))
+}
+
+function collectInlineImageSourcesFromApiContent(content: ChatMessageContent | null | undefined) {
+  if (typeof content === 'string') {
+    return collectInlineImageSourcesFromContent(content)
+  }
+
+  if (!Array.isArray(content)) {
+    return []
+  }
+
+  return content
+    .map((part) => part.type === 'image_url' ? part.image_url.url : null)
+    .filter((src): src is string => !!src && src.startsWith(DATA_IMAGE_SOURCE_PREFIX))
+}
+
+function collectInlineImageSourcesFromApiTranscript(apiTranscript: ApiTranscriptMessage[] | undefined) {
+  if (!apiTranscript) {
+    return []
+  }
+
+  return apiTranscript.flatMap((message) => collectInlineImageSourcesFromApiContent(message.content))
+}
+
+function replaceAllSourceReferences(content: string, replacements: Map<string, string>) {
+  let nextContent = content
+  replacements.forEach((target, source) => {
+    nextContent = nextContent.split(source).join(target)
+  })
+  return nextContent
+}
+
+function replaceApiTranscriptContent(
+  content: ChatMessageContent | null | undefined,
+  replacements: Map<string, string>,
+): ChatMessageContent | null | undefined {
+  if (typeof content === 'string') {
+    return replaceAllSourceReferences(content, replacements)
+  }
+
+  if (!Array.isArray(content)) {
+    return content
+  }
+
+  return content.map((part) => {
+    if (part.type !== 'image_url') {
+      return part
+    }
+    return {
+      ...part,
+      image_url: {
+        ...part.image_url,
+        url: replacements.get(part.image_url.url) || part.image_url.url,
+      },
+    }
+  })
+}
+
+function replaceApiTranscriptSources(
+  apiTranscript: ApiTranscriptMessage[] | undefined,
+  replacements: Map<string, string>,
+): ApiTranscriptMessage[] | undefined {
+  return apiTranscript?.map((message) => ({
+    ...message,
+    content: replaceApiTranscriptContent(message.content, replacements),
+  }))
+}
+
+function collectInlineImageSources(messages: ChatMessage[], sources = new Set<string>()) {
+  messages.forEach((message) => {
+    collectInlineImageSourcesFromContent(message.content).forEach((source) => sources.add(source))
+    collectInlineImageSourcesFromApiTranscript(message.apiTranscript).forEach((source) => sources.add(source))
+    message.imageSources?.forEach((source) => {
+      if (source.startsWith(DATA_IMAGE_SOURCE_PREFIX)) {
+        sources.add(source)
+      }
+    })
+    message.versions?.forEach((version) => {
+      collectInlineImageSourcesFromContent(version.content).forEach((source) => sources.add(source))
+      collectInlineImageSourcesFromApiTranscript(version.apiTranscript).forEach((source) => sources.add(source))
+      collectInlineImageSources(version.subsequentMessages || [], sources)
+    })
+  })
+
+  return sources
+}
+
+function applyImageSourceReplacements(messages: ChatMessage[], replacements: Map<string, string>): ChatMessage[] {
+  return messages.map((message) => ({
+    ...message,
+    content: replaceAllSourceReferences(message.content, replacements),
+    apiTranscript: replaceApiTranscriptSources(message.apiTranscript, replacements),
+    imageSources: message.imageSources?.map((source) => replacements.get(source) || source),
+    versions: message.versions?.map((version) => ({
+      ...version,
+      content: replaceAllSourceReferences(version.content, replacements),
+      apiTranscript: replaceApiTranscriptSources(version.apiTranscript, replacements),
+      subsequentMessages: applyImageSourceReplacements(version.subsequentMessages || [], replacements),
+    })),
+  }))
+}
+
+async function persistInlineImageSourcesForSession(sessionId: string) {
+  const state = useUnifiedStore.getState()
+  const ai = state.data.ai!
+  const messages = ai.messages[sessionId] || []
+  const sources = collectInlineImageSources(messages)
+  if (sources.size === 0) {
+    return
+  }
+
+  const replacements = new Map<string, string>()
+  for (const source of sources) {
+    const persistedSource = await persistDataUrlAttachment(source).catch(() => null)
+    if (persistedSource) {
+      replacements.set(source, persistedSource)
+    }
+  }
+
+  if (replacements.size === 0) {
+    return
+  }
+
+  const latestState = useUnifiedStore.getState()
+  const latestAI = latestState.data.ai!
+  if (!latestAI.sessions.some((session) => session.id === sessionId)) {
+    return
+  }
+  const latestMessages = latestAI.messages[sessionId] || []
+  const nextMessages = applyImageSourceReplacements(latestMessages, replacements)
+
+  latestState.updateAIData({
+    messages: {
+      ...latestAI.messages,
+      [sessionId]: nextMessages,
+    },
+  }, true)
+  void saveSessionJson(sessionId, nextMessages)
+}
 
 export function createSessionActions() {
   return {
@@ -97,7 +245,7 @@ export function createSessionActions() {
       uiState.setChatSelection({ currentSessionId: null, temporaryChatEnabled: false })
     },
 
-    promoteTemporarySession: () => {
+    promoteTemporarySession: async () => {
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
       const uiState = useAIUIStore.getState()
@@ -170,6 +318,7 @@ export function createSessionActions() {
       })
 
       void saveSessionJson(promotedSessionId, nextMessages[promotedSessionId] || [])
+      void persistInlineImageSourcesForSession(promotedSessionId)
       return promotedSessionId
     },
 

@@ -985,6 +985,70 @@ describe('unifiedStorage electron save', () => {
     expect(payload.data.deletedSessionIds).toEqual(['session-2']);
   });
 
+  it('drops temporary sessions when merging existing disk metadata', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          version: 1,
+          updatedAt: 1,
+          data: {
+            sessions: [
+              { id: 'temp-session-legacy', title: 'Temporary Chat', modelId: '', createdAt: 1, updatedAt: 30 },
+              { id: 'session-2', title: 'From other window', modelId: '', createdAt: 2, updatedAt: 20 },
+            ],
+            selectedModelId: null,
+            unreadSessionIds: ['temp-session-legacy', 'session-2'],
+            currentSessionId: 'temp-session-legacy',
+            temporaryChatEnabled: true,
+            customSystemPrompt: '',
+            includeTimeContext: true,
+            webSearchEnabled: false,
+            providerIds: [],
+            deletedSessionIds: [],
+          },
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    const data: UnifiedData = {
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      },
+      customIcons: [],
+      ai: {
+        providers: [],
+        models: [],
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions: [
+          { id: 'session-1', title: 'Local window', modelId: '', createdAt: 1, updatedAt: 10 },
+        ],
+        messages: {},
+        unreadSessionIds: [],
+        selectedModelId: null,
+        currentSessionId: 'session-1',
+      },
+    };
+
+    await saveUnifiedDataImmediate(data);
+
+    const sessionsWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
+      String(path).endsWith('/chat/sessions.json'),
+    );
+    const payload = JSON.parse(String(sessionsWrite?.[1]));
+    expect(payload.data.sessions.map((session: { id: string }) => session.id)).toEqual([
+      'session-2',
+      'session-1',
+    ]);
+    expect(payload.data.unreadSessionIds).toEqual([]);
+    expect(payload.data.currentSessionId).toBe('session-1');
+    expect(payload.data.temporaryChatEnabled).toBe(false);
+  });
+
   it('trusts provider channel filenames over mismatched provider ids when loading split storage', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.readFile.mockImplementation(async (path: string) => {
@@ -1162,6 +1226,77 @@ describe('unifiedStorage electron save', () => {
       '[Storage] Ignoring invalid AI sessions file:',
       '/appdata/.vlaina/chat/sessions.json',
     );
+    warnSpy.mockRestore();
+  });
+
+  it('does not recover temporary session message files', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mocks.storage.listDir.mockImplementation(async (path: string) => {
+      if (path.endsWith('/chat/sessions')) {
+        return [
+          { name: 'temp-session-legacy.json', path: '/appdata/.vlaina/chat/sessions/temp-session-legacy.json', isFile: true, isDirectory: false },
+          { name: 'session-1.json', path: '/appdata/.vlaina/chat/sessions/session-1.json', isFile: true, isDirectory: false },
+        ];
+      }
+      return [];
+    });
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/.vlaina/data.json')) {
+        return JSON.stringify({
+          version: 2,
+          lastModified: 1,
+          data: {
+            settings: {
+              timezone: { offset: 480, city: 'Beijing' },
+              markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+            },
+            customIcons: [],
+          },
+        });
+      }
+
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          sessions: [],
+          providerIds: [],
+        });
+      }
+
+      if (path.endsWith('/chat/sessions/temp-session-legacy.json')) {
+        throw new Error('Temporary sessions must not be loaded');
+      }
+
+      if (path.endsWith('/chat/sessions/session-1.json')) {
+        return JSON.stringify({
+          version: 1,
+          sessionId: 'session-1',
+          updatedAt: 2,
+          messages: [
+            {
+              id: 'm1',
+              role: 'user',
+              content: 'Recover only this chat',
+              modelId: 'provider::model-a',
+              timestamp: 10,
+              versions: [{
+                content: 'Recover only this chat',
+                createdAt: 10,
+                kind: 'original',
+                subsequentMessages: [],
+              }],
+              currentVersionIndex: 0,
+            },
+          ],
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    const data = await loadUnifiedData();
+
+    expect(data.ai?.sessions.map((session) => session.id)).toEqual(['session-1']);
     warnSpy.mockRestore();
   });
 });

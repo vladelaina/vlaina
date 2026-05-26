@@ -63,16 +63,17 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
     }
 
     if (isPromoteMode) {
-      const promotedSessionId = aiActions.promoteTemporarySession();
-      if (!promotedSessionId) return;
+      void aiActions.promoteTemporarySession().then((promotedSessionId) => {
+        if (!promotedSessionId) return;
 
-      const modelForTitle = (currentSessionModelId
-        ? models.find((model) => model.id === currentSessionModelId)
-        : undefined) || selectedModel;
+        const modelForTitle = (currentSessionModelId
+          ? models.find((model) => model.id === currentSessionModelId)
+          : undefined) || selectedModel;
 
-      if (modelForTitle) {
-        void generateAutoTitle(promotedSessionId, modelForTitle.providerId, modelForTitle.id);
-      }
+        if (modelForTitle) {
+          void generateAutoTitle(promotedSessionId, modelForTitle.providerId, modelForTitle.id);
+        }
+      }).catch(() => {});
       return;
     }
 

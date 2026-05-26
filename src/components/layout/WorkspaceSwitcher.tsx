@@ -84,7 +84,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
     }
 
     if (temporaryChatEnabled && currentSessionId === authPromptSessionId) {
-      aiActions.promoteTemporarySession();
+      void aiActions.promoteTemporarySession();
     }
     useAIUIStore.getState().setAuthPromptSessionId(null);
   }, [authPromptSessionId, currentSessionId, isConnected, temporaryChatEnabled]);

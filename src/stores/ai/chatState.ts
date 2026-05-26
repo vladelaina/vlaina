@@ -10,6 +10,7 @@ import {
   stripTemporaryData,
 } from '@/lib/ai/temporaryChat'
 import { resolveSessionIdAlias } from '@/lib/ai/sessionIdAliases'
+import { requestManager } from '@/lib/ai/requestManager'
 
 export interface AIUIState {
   generatingSessions: Record<string, boolean>;
@@ -167,7 +168,10 @@ export const useAIUIStore = create<AIUIState>((set) => ({
 
 function clearTemporaryUIState(sessionIds: string[]) {
   const uiState = useAIUIStore.getState()
-  sessionIds.forEach((id) => uiState.clearSessionState(id))
+  sessionIds.forEach((id) => {
+    requestManager.abort(id)
+    uiState.clearSessionState(id)
+  })
 }
 
 export function stripTemporaryForMutation(ai: ChatMutationState) {
