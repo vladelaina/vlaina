@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { serializerCtx } from '@milkdown/kit/core';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { hasTemporaryTailParagraph } from '../plugins/cursor/endBlankClickPlugin';
 import { getCurrentEditorView } from '../utils/editorViewRegistry';
 import {
-  resolvePendingMarkdownUpdate,
   serializeEditorMarkdownSnapshot,
 } from '../utils/pendingMarkdownUpdate';
 import { usePendingMarkdownFlusher } from './usePendingMarkdownFlusher';
@@ -33,6 +31,8 @@ const CONTENT_EDITING_KEYS = new Set([
 ]);
 const ALLOW_SYNTHETIC_USER_EVENTS =
   import.meta.env.MODE === 'test' || Boolean(import.meta.env.VITEST);
+const DEFAULT_CONTENT_COMMIT_THROTTLE_MS = 120;
+const TEST_CONTENT_COMMIT_THROTTLE_MS = 0;
 
 interface PendingMarkdownAutosaveOptions {
   currentNotePath: string | undefined;
@@ -40,6 +40,15 @@ interface PendingMarkdownAutosaveOptions {
   currentNoteContent: string;
   updateContent: (content: string) => void;
   debouncedSave: () => void;
+}
+
+function getContentCommitThrottleMs(): number {
+  if (import.meta.env.MODE === 'test' || Boolean(import.meta.env.VITEST)) {
+    const override = (globalThis as { __VL_TEST_CONTENT_COMMIT_THROTTLE_MS__?: number })
+      .__VL_TEST_CONTENT_COMMIT_THROTTLE_MS__;
+    return typeof override === 'number' ? override : TEST_CONTENT_COMMIT_THROTTLE_MS;
+  }
+  return DEFAULT_CONTENT_COMMIT_THROTTLE_MS;
 }
 
 function isContentEditingUserEvent(event: Event): boolean {
@@ -73,6 +82,7 @@ export function usePendingMarkdownAutosave({
   const handledUserInputVersionRef = useRef(0);
   const pendingUserInputVersionRef = useRef(0);
   const pendingMarkdownUpdateFrameRef = useRef<number | null>(null);
+  const pendingMarkdownApplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRawMarkdownRef = useRef<string | null>(null);
   const pendingMarkdownRef = useRef<string | null>(null);
   const currentNotePathRef = useRef(currentNotePath);
@@ -91,6 +101,10 @@ export function usePendingMarkdownAutosave({
       cancelAnimationFrame(pendingMarkdownUpdateFrameRef.current);
       pendingMarkdownUpdateFrameRef.current = null;
     }
+    if (pendingMarkdownApplyTimeoutRef.current !== null) {
+      clearTimeout(pendingMarkdownApplyTimeoutRef.current);
+      pendingMarkdownApplyTimeoutRef.current = null;
+    }
   }, [currentNoteDiskRevision, currentNotePath]);
 
   useEffect(() => {
@@ -101,6 +115,7 @@ export function usePendingMarkdownAutosave({
   usePendingMarkdownFlusher({
     currentNotePath,
     pendingMarkdownUpdateFrameRef,
+    pendingMarkdownApplyTimeoutRef,
     pendingMarkdownRef,
     pendingRawMarkdownRef,
     hasEditorUserInputRef: hasEditorUserInput,
@@ -113,7 +128,50 @@ export function usePendingMarkdownAutosave({
     getEditorRef.current = getEditor;
   }, []);
 
-  const configureMarkdownListener = useCallback((ctx: MilkdownContext, initialContent: string) => {
+  const applyPendingMarkdown = useCallback(() => {
+    pendingMarkdownApplyTimeoutRef.current = null;
+    const pendingMarkdown = pendingMarkdownRef.current;
+    pendingMarkdownRef.current = null;
+    if (pendingMarkdown === null) {
+      return;
+    }
+
+    const latestNote = useNotesStore.getState().currentNote;
+    if (!latestNote || latestNote.path !== currentNotePath) {
+      return;
+    }
+
+    const markdownToApply = pendingMarkdown;
+    if (latestNote.content === markdownToApply) {
+      return;
+    }
+
+    const latestNotesPath = useNotesStore.getState().notesPath;
+    const latestIsDraftNote = isDraftNotePath(latestNote.path);
+    updateContent(markdownToApply);
+    if (!latestIsDraftNote || latestNotesPath) {
+      debouncedSave();
+    }
+  }, [currentNotePath, debouncedSave, updateContent]);
+
+  const schedulePendingMarkdownApply = useCallback(() => {
+    if (pendingMarkdownApplyTimeoutRef.current !== null) {
+      return;
+    }
+
+    const throttleMs = getContentCommitThrottleMs();
+    if (throttleMs <= 0) {
+      applyPendingMarkdown();
+      return;
+    }
+
+    pendingMarkdownApplyTimeoutRef.current = setTimeout(
+      applyPendingMarkdown,
+      throttleMs,
+    );
+  }, [applyPendingMarkdown]);
+
+  const configureMarkdownListener = useCallback((_ctx: MilkdownContext, initialContent: string) => {
     const initTime = Date.now();
     const INIT_PERIOD = 500;
 
@@ -176,41 +234,10 @@ export function usePendingMarkdownAutosave({
         }
 
         pendingMarkdownRef.current = nextMarkdown;
-        const pendingMarkdown = pendingMarkdownRef.current;
-        pendingMarkdownRef.current = null;
-        if (pendingMarkdown === null) {
-          return;
-        }
-
-        let liveSerializedMarkdown: string | null = null;
-        try {
-          const latestEditorView = getCurrentEditorView();
-          if (latestEditorView) {
-            const serializer = ctx.get(serializerCtx);
-            liveSerializedMarkdown = serializer(latestEditorView.state.doc);
-          }
-        } catch {
-        }
-
-        const resolvedUpdate = resolvePendingMarkdownUpdate({
-          pendingMarkdown,
-          latestNoteContent: latestNote.content,
-          liveSerializedMarkdown,
-        });
-        const markdownToApply = resolvedUpdate.markdownToApply;
-        if (latestNote.content === markdownToApply) {
-          return;
-        }
-
-        const latestNotesPath = useNotesStore.getState().notesPath;
-        const latestIsDraftNote = isDraftNotePath(latestNote.path);
-        updateContent(markdownToApply);
-        if (!latestIsDraftNote || latestNotesPath) {
-          debouncedSave();
-        }
+        schedulePendingMarkdownApply();
       });
     };
-  }, [currentNotePath, debouncedSave, updateContent]);
+  }, [currentNotePath, schedulePendingMarkdownApply]);
 
   const createUserInputMarker = useCallback((
     _view: EditorView,
