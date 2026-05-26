@@ -1,6 +1,10 @@
 import { useCallback, useMemo } from 'react';
 import { actions as aiActions } from '@/stores/useAIStore';
-import type { Attachment } from '@/lib/storage/attachmentStorage';
+import {
+  convertToBase64,
+  deleteAttachment,
+  type Attachment,
+} from '@/lib/storage/attachmentStorage';
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { buildRequestHistory } from '@/lib/ai/requestContext';
@@ -175,6 +179,42 @@ function markManagedAuthPromptForError(sessionId: string, error: unknown, manage
   }
 }
 
+async function makeTemporaryAttachmentsEphemeral(attachments: Attachment[]): Promise<Attachment[]> {
+  return await Promise.all(
+    attachments.map(async (attachment) => {
+      const hasPersistentReference =
+        !!attachment.path ||
+        attachment.previewUrl.startsWith('attachment://') ||
+        attachment.previewUrl.startsWith('app-file://attachment/') ||
+        attachment.assetUrl.startsWith('attachment://') ||
+        attachment.assetUrl.startsWith('app-file://attachment/') ||
+        (attachment.assetUrl.startsWith('file:') && attachment.assetUrl.includes('/attachments/'));
+
+      if (!hasPersistentReference) {
+        return attachment;
+      }
+
+      let previewUrl: string | null = null;
+      try {
+        previewUrl = await convertToBase64(attachment);
+      } catch {
+      }
+
+      if (!previewUrl) {
+        return attachment;
+      }
+
+      await deleteAttachment(attachment);
+      return {
+        ...attachment,
+        path: '',
+        assetUrl: '',
+        previewUrl,
+      };
+    })
+  );
+}
+
 export function useChatService() {
   const { t } = useI18n();
   const { generateAutoTitle } = useAutoTitle();
@@ -290,11 +330,17 @@ export function useChatService() {
 
       void runWithSessionMutationLock(targetSessionId, async () => {
         const latestMessages = await hydrateSessionMessagesFromDisk(targetSessionId);
+        const targetSession = useUnifiedStore.getState().data.ai?.sessions.find((item) => item.id === targetSessionId);
+        const isTemporaryTarget =
+          isTemporarySessionId(targetSessionId) || isTemporarySession(targetSession);
+        const requestAttachments = isTemporaryTarget
+          ? await makeTemporaryAttachmentsEphemeral(attachments)
+          : attachments;
 
         let storageContent = userMessageText;
         let messageImageSources: string[] = [];
-        if (attachments.length > 0) {
-          const builtImages = buildMessageImageSources(attachments);
+        if (requestAttachments.length > 0) {
+          const builtImages = buildMessageImageSources(requestAttachments);
           const imageMarkdown = builtImages.content;
           messageImageSources = builtImages.imageSources;
           storageContent = imageMarkdown + (userMessageText ? `\n\n${userMessageText}` : '');
@@ -321,10 +367,6 @@ export function useChatService() {
           persistUnified: false,
           touchSession: false,
         });
-
-        const targetSession = useUnifiedStore.getState().data.ai?.sessions.find((item) => item.id === targetSessionId);
-        const isTemporaryTarget =
-          isTemporarySessionId(targetSessionId) || isTemporarySession(targetSession);
 
         if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
           writeManagedQuotaErrorMessage(targetSessionId, assistantMessageId, setError, t('chat.error.pointsExhausted'));
@@ -355,12 +397,12 @@ export function useChatService() {
             : requestText;
 
           let apiMessageContent: ChatMessageContent = textPayload;
-          if (attachments.length > 0) {
+          if (requestAttachments.length > 0) {
             const parts: ChatMessageContentPart[] = [];
             if (textPayload) {
               parts.push({ type: 'text', text: textPayload });
             }
-            for (const attachment of attachments) {
+            for (const attachment of requestAttachments) {
               const imagePart = await normalizeVisionAttachment(attachment);
               if (imagePart) {
                 parts.push(imagePart);

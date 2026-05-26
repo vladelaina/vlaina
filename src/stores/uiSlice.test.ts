@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useUIStore } from './uiSlice';
 import { useUnifiedStore } from './unified/useUnifiedStore';
+import { useAIUIStore } from './ai/chatState';
 
 describe('uiSlice', () => {
   beforeEach(() => {
@@ -59,6 +60,16 @@ describe('uiSlice', () => {
       loaded: false,
       undoStack: [],
     });
+    useAIUIStore.setState({
+      generatingSessions: {},
+      unreadSessions: {},
+      error: null,
+      currentSessionId: null,
+      temporaryChatEnabled: false,
+      selectionInitialized: false,
+      temporaryReturnSessionId: null,
+      authPromptSessionId: null,
+    });
   });
 
   afterEach(() => {
@@ -87,6 +98,53 @@ describe('uiSlice', () => {
     expect(useUIStore.getState().appViewMode).toBe('notes');
     expect(localStorage.getItem('vlaina_last_app_view_mode')).toBe('notes');
     expect(useUnifiedStore.getState().data.settings.ui?.lastAppViewMode).toBe('notes');
+  });
+
+  it('keeps temporary chat in memory when switching between chat and notes', () => {
+    const temporarySessionId = 'temp-session-view-switch';
+    useUnifiedStore.setState((state) => ({
+      data: {
+        ...state.data,
+        ai: {
+          ...state.data.ai!,
+          sessions: [{
+            id: temporarySessionId,
+            title: 'Temporary Chat',
+            modelId: 'model-1',
+            createdAt: 1,
+            updatedAt: 1,
+          }],
+          messages: {
+            [temporarySessionId]: [{
+              id: 'msg-1',
+              role: 'user',
+              content: 'temporary message',
+              modelId: 'model-1',
+              timestamp: 1,
+              versions: [{
+                content: 'temporary message',
+                createdAt: 1,
+                kind: 'original',
+                subsequentMessages: [],
+              }],
+              currentVersionIndex: 0,
+            }],
+          },
+        },
+      },
+    }));
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: temporarySessionId,
+      temporaryChatEnabled: true,
+    });
+
+    useUIStore.getState().setAppViewMode('chat');
+    useUIStore.getState().setAppViewMode('notes');
+    useUIStore.getState().setAppViewMode('chat');
+
+    expect(useAIUIStore.getState().currentSessionId).toBe(temporarySessionId);
+    expect(useAIUIStore.getState().temporaryChatEnabled).toBe(true);
+    expect(useUnifiedStore.getState().data.ai?.messages[temporarySessionId]).toHaveLength(1);
   });
 
   it('initializes app view mode from the last stored notes or chat view', async () => {

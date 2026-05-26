@@ -68,7 +68,7 @@ export function parseUserMessageContent(content: string): ParsedUserMessageConte
 export function composeUserMessageContent(text: string, attachments: Attachment[]): string {
   const normalizedText = text.replace(/\r\n?/g, '\n');
   const imageMarkdown = attachments
-    .map((attachment) => attachment.assetUrl?.trim())
+    .map((attachment) => attachment.assetUrl?.trim() || attachment.previewUrl?.trim())
     .filter((src): src is string => !!src)
     .map((src) => `![image](<${src}>)`)
     .join('\n');

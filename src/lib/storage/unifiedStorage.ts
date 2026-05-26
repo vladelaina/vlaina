@@ -3,7 +3,7 @@ import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 import { createPersistenceQueue } from './persistenceEngine';
 import type { AIModel, ChatMessage, Provider, ProviderBenchmarkRecord } from '@/lib/ai/types';
 import type { ChatSession } from '@/lib/ai/types';
-import { isTemporarySession } from '@/lib/ai/temporaryChat';
+import { isTemporarySession, isTemporarySessionId } from '@/lib/ai/temporaryChat';
 import { getStorageBasePath } from './basePath';
 import { loadSessionJson } from './chatStorage';
 import {
@@ -98,7 +98,9 @@ function parseAISessionsFile(value: unknown): AISessionsFileData | null {
 
   const data = value.data;
   return {
-    sessions: Array.isArray(data.sessions) ? data.sessions as ChatSession[] : [],
+    sessions: Array.isArray(data.sessions)
+      ? (data.sessions as ChatSession[]).filter((session) => !isTemporarySession(session))
+      : [],
     selectedModelId: typeof data.selectedModelId === 'string' ? data.selectedModelId : null,
     unreadSessionIds: Array.isArray(data.unreadSessionIds)
       ? data.unreadSessionIds.filter((sessionId): sessionId is string => typeof sessionId === 'string')
@@ -224,7 +226,7 @@ async function recoverOrphanChatSessions(
     }
 
     const sessionId = entry.name.slice(0, -5);
-    if (existingSessionIds.has(sessionId)) {
+    if (existingSessionIds.has(sessionId) || isTemporarySessionId(sessionId)) {
       continue;
     }
 
@@ -272,7 +274,7 @@ async function mergeSessionsForSafeSave(
   sessionFilesDir: string,
 ): Promise<{ sessions: ChatSession[]; deletedSessionIds: string[] }> {
   const incomingById = new Map(incomingSessions.map((session) => [session.id, session]));
-  const existingSessions = existingSessionsData?.sessions || [];
+  const existingSessions = (existingSessionsData?.sessions || []).filter((session) => !isTemporarySession(session));
   const deletedSessionIds = new Set(existingSessionsData?.deletedSessionIds || []);
 
   for (const session of existingSessions) {

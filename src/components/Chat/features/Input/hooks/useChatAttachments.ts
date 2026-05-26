@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { saveAttachment, type Attachment } from '@/lib/storage/attachmentStorage';
+import { useAIUIStore } from '@/stores/ai/chatState';
 
 export function useChatAttachments() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -28,8 +29,9 @@ export function useChatAttachments() {
   );
 
   const processFiles = useCallback(async (files: File[]) => {
+    const shouldPersist = !useAIUIStore.getState().temporaryChatEnabled;
     const results = await Promise.allSettled(
-      files.map(async (file) => saveAttachment(file))
+      files.map(async (file) => saveAttachment(file, { persist: shouldPersist }))
     );
 
     const newAttachments: Attachment[] = [];
