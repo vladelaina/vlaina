@@ -34,6 +34,7 @@ import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEn
 import { hydrateSessionMessagesFromDisk } from '@/stores/ai/sessionConsistency';
 import { translate, useI18n } from '@/lib/i18n';
 import { ACCOUNT_AUTH_INVALIDATED_EVENT } from '@/lib/account/sessionEvent';
+import { addChatDebugLog } from '@/lib/debug/chatDebugLog';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
@@ -276,6 +277,16 @@ export function useChatService() {
       }
 
       const targetSessionId = activeSessionId;
+      const requestStartedAt = Date.now();
+      addChatDebugLog('chat', 'sendMessage accepted', {
+        sessionId: targetSessionId,
+        modelId: selectedModel.id,
+        providerId: provider.id,
+        webSearchEnabled,
+        textLength: userMessageText.length,
+        attachments: attachments.length,
+        mentions: normalizedMentions.length,
+      });
 
       void runWithSessionMutationLock(targetSessionId, async () => {
         const latestMessages = await hydrateSessionMessagesFromDisk(targetSessionId);
@@ -373,7 +384,22 @@ export function useChatService() {
                 signal,
                 options: {
                   webSearchEnabled,
+                  onWebSearchStatus: (status) => {
+                    addChatDebugLog('web-search', `status:${status.phase}`, {
+                      sessionId: targetSessionId,
+                      query: status.query,
+                      urls: status.urls,
+                      resultCount: status.results?.length,
+                      metrics: status.metrics,
+                      message: status.message,
+                    }, status.phase === 'error' ? 'warn' : 'info');
+                  },
                   onApiTranscript: (apiTranscript) => {
+                    addChatDebugLog('chat', 'api transcript updated', {
+                      sessionId: targetSessionId,
+                      messageId: assistantMessageId,
+                      transcriptMessages: apiTranscript.length,
+                    });
                     aiActions.updateMessageApiTranscript(targetSessionId, assistantMessageId, apiTranscript);
                   },
                 },
@@ -389,6 +415,11 @@ export function useChatService() {
             },
             createEmptyResponseError: () => createEmptyResponseError(provider.id),
             onSuccess: () => {
+              addChatDebugLog('chat', 'sendMessage completed', {
+                sessionId: targetSessionId,
+                messageId: assistantMessageId,
+                durationMs: Date.now() - requestStartedAt,
+              });
               refreshManagedBudgetIfNeeded(provider.id);
               if (!isTemporaryTarget) {
                 maybeGenerateAutoTitle(targetSessionId, provider.id, selectedModel.id);
@@ -401,6 +432,11 @@ export function useChatService() {
             },
           });
         } catch (error) {
+          addChatDebugLog('chat', 'sendMessage failed before stream runner completed', {
+            sessionId: targetSessionId,
+            durationMs: Date.now() - requestStartedAt,
+            error: error instanceof Error ? error.message : String(error),
+          }, 'error');
           const isManaged = isManagedProviderId(provider.id);
           markManagedAuthPromptForError(targetSessionId, error, isManaged);
           const { message, xml } = buildChatErrorPayload(error, isManaged);
@@ -408,6 +444,11 @@ export function useChatService() {
           aiActions.updateMessage(targetSessionId, assistantMessageId, xml);
         }
       }).catch((error) => {
+        addChatDebugLog('chat', 'sendMessage mutation failed', {
+          sessionId: targetSessionId,
+          durationMs: Date.now() - requestStartedAt,
+          error: error instanceof Error ? error.message : String(error),
+        }, 'error');
         const isManaged = isManagedProviderId(provider.id);
         markManagedAuthPromptForError(targetSessionId, error, isManaged);
         const { message } = buildChatErrorPayload(error, isManaged);
@@ -476,6 +517,14 @@ export function useChatService() {
         }
 
         try {
+          const requestStartedAt = Date.now();
+          addChatDebugLog('chat', 'edit resend started', {
+            sessionId,
+            messageId,
+            modelId: selectedModel.id,
+            providerId: provider.id,
+            webSearchEnabled,
+          });
           const state = useUnifiedStore.getState();
           const sessionMessages = state.data.ai?.messages[sessionId] || [];
 
@@ -508,6 +557,16 @@ export function useChatService() {
                 signal,
                 options: {
                   webSearchEnabled,
+                  onWebSearchStatus: (status) => {
+                    addChatDebugLog('web-search', `status:${status.phase}`, {
+                      sessionId,
+                      query: status.query,
+                      urls: status.urls,
+                      resultCount: status.results?.length,
+                      metrics: status.metrics,
+                      message: status.message,
+                    }, status.phase === 'error' ? 'warn' : 'info');
+                  },
                   onApiTranscript: (apiTranscript) => {
                     aiActions.updateMessageApiTranscript(sessionId, assistantMessageId, apiTranscript);
                   },
@@ -524,6 +583,11 @@ export function useChatService() {
             },
             createEmptyResponseError: () => createEmptyResponseError(provider.id),
             onSuccess: () => {
+              addChatDebugLog('chat', 'edit resend completed', {
+                sessionId,
+                assistantMessageId,
+                durationMs: Date.now() - requestStartedAt,
+              });
               refreshManagedBudgetIfNeeded(provider.id);
               maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
             },
@@ -593,6 +657,14 @@ export function useChatService() {
         }
 
         try {
+          const requestStartedAt = Date.now();
+          addChatDebugLog('chat', 'regenerate started', {
+            sessionId,
+            messageId,
+            modelId: selectedModel.id,
+            providerId: provider.id,
+            webSearchEnabled,
+          });
           const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
           const requestHistory = buildRequestHistory({
             history,
@@ -616,6 +688,16 @@ export function useChatService() {
                 signal,
                 options: {
                   webSearchEnabled,
+                  onWebSearchStatus: (status) => {
+                    addChatDebugLog('web-search', `status:${status.phase}`, {
+                      sessionId,
+                      query: status.query,
+                      urls: status.urls,
+                      resultCount: status.results?.length,
+                      metrics: status.metrics,
+                      message: status.message,
+                    }, status.phase === 'error' ? 'warn' : 'info');
+                  },
                   onApiTranscript: (apiTranscript) => {
                     aiActions.updateMessageApiTranscript(sessionId, messageId, apiTranscript);
                   },
@@ -632,6 +714,11 @@ export function useChatService() {
             },
             createEmptyResponseError: () => createEmptyResponseError(provider.id),
             onSuccess: () => {
+              addChatDebugLog('chat', 'regenerate completed', {
+                sessionId,
+                messageId,
+                durationMs: Date.now() - requestStartedAt,
+              });
               refreshManagedBudgetIfNeeded(provider.id);
               maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
             },
