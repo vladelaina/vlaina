@@ -435,6 +435,45 @@ describe('selectionSerialization', () => {
     expect(serializeSelectionToClipboardText(state)).toBe('Hello');
   });
 
+  it('preserves blank paragraphs in fallback slice serialization', () => {
+    const createParagraph = (text: string) => ({
+      type: { name: 'paragraph' },
+      isBlock: true,
+      isTextblock: true,
+      content: {
+        size: text.length,
+        forEach(callback: (node: unknown) => void) {
+          if (text.length === 0) return;
+          callback({
+            isText: true,
+            text,
+            marks: [],
+            type: { name: 'text' },
+          });
+        },
+      },
+    });
+    const slice = {
+      content: {
+        size: 3,
+        forEach(callback: (node: unknown) => void) {
+          callback(createParagraph('Before'));
+          callback(createParagraph(''));
+          callback(createParagraph('After'));
+        },
+      },
+    };
+    const state: any = {
+      selection: {
+        from: 1,
+        to: 20,
+        content: () => slice,
+      },
+    };
+
+    expect(serializeSelectionToClipboardText(state)).toBe('Before\n\nAfter');
+  });
+
   it('returns empty text for empty selections', () => {
     const state: any = {
       selection: {
@@ -813,6 +852,47 @@ describe('selectionSerialization', () => {
     expect(copied).not.toContain('[Example]');
     expect(copied).not.toContain('(https://example.com)');
     expect(copied).not.toContain('\\$');
+
+    await editor.destroy();
+  });
+
+  it('preserves blank paragraphs when copying a text selection across paragraph gaps', async () => {
+    const { editor, view, serializer } = await createMarkdownEditor('Before\n\nAfter');
+    const firstParagraphEnd = (view.state.doc.firstChild?.nodeSize ?? 2) - 1;
+
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, firstParagraphEnd)));
+    pressEnter(view);
+    const before = findTextRange(view.state.doc, 'Before');
+    const after = findTextRange(view.state.doc, 'After');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, before.from, after.to)));
+
+    expect(serializeSelectionToClipboardText(view.state, serializer)).toBe('Before\n\nAfter');
+
+    await editor.destroy();
+  });
+
+  it('preserves an editor-created leading blank paragraph in a full selection', async () => {
+    const { editor, view, serializer } = await createMarkdownEditor('Before');
+    const before = findTextRange(view.state.doc, 'Before');
+
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, before.from)));
+    pressEnter(view);
+    view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
+
+    expect(serializeSelectionToClipboardText(view.state, serializer)).toBe('\nBefore');
+
+    await editor.destroy();
+  });
+
+  it('preserves an editor-created trailing blank paragraph in a full selection', async () => {
+    const { editor, view, serializer } = await createMarkdownEditor('Before');
+    const before = findTextRange(view.state.doc, 'Before');
+
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, before.to)));
+    pressEnter(view);
+    view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
+
+    expect(serializeSelectionToClipboardText(view.state, serializer)).toBe('Before\n');
 
     await editor.destroy();
   });

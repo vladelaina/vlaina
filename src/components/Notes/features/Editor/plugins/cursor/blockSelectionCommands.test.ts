@@ -66,6 +66,29 @@ async function copyAllSelectableBlocks(markdown: string, plugins: readonly any[]
   }
 }
 
+async function copyAllSelectableBlocksWithoutMarkdownSerializer(markdown: string): Promise<string> {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, markdown);
+      ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+        ...prev,
+        ...notesRemarkStringifyOptions,
+      }));
+    })
+    .use(commonmark)
+    .use(gfm);
+
+  await editor.create();
+
+  try {
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    return serializeSelectedBlocksToText(view.state, blocks);
+  } finally {
+    await editor.destroy();
+  }
+}
+
 async function copySelectableBlockIndexes(
   markdown: string,
   indexes: number[],
@@ -267,6 +290,10 @@ describe('serializeSelectedBlocksToText', () => {
     );
 
     await editor.destroy();
+  });
+
+  it('keeps a single blank line gap in fallback block serialization', async () => {
+    await expect(copyAllSelectableBlocksWithoutMarkdownSerializer('1\n\n2')).resolves.toBe('1\n\n2');
   });
 
   it('copies selected plain paragraph blocks as visible text without markdown escape artifacts', async () => {

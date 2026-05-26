@@ -7,6 +7,7 @@ import { ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES } from '../shared/blockNodeTyp
 export const TEXT_SELECTION_OVERLAY_CLASS = 'vlaina-text-selection-overlay';
 const TEXT_SELECTION_OVERLAY_ACTIVE_CLASS = 'vlaina-text-selection-overlay-active';
 const POINTER_NATIVE_SELECTION_CLASS = 'vlaina-pointer-native-selection';
+const KEYBOARD_SELECTION_PENDING_CLASS = 'vlaina-keyboard-selection-pending';
 const POINTER_NATIVE_SELECTION_META = 'vlainaTextSelectionPointerNative';
 const EDITOR_ONLY_TEXT_SELECTION_PLACEHOLDERS = new Set(['\u200B', '\u200C', '\u2800']);
 const VISIBLE_TEXT_PATTERN = /\S/u;
@@ -191,7 +192,9 @@ export const textSelectionOverlayPlugin = $prose(() => {
       let keyClearFrame: number | null = null;
       let pointerNativeReleaseFrame: number | null = null;
       let clearNativeSelectionFrame: number | null = null;
+      let keyboardSelectionPendingCleanupTimeout: number | null = null;
       let isPointerSelectionActive = false;
+      let preserveNativeSelectionForKeyboard = false;
 
       const setPointerNativeSelection = (nextValue: boolean) => {
         const currentValue = Boolean(
@@ -213,6 +216,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
           const nativeSelection = getNativeSelectionMetrics();
           const shouldClearNativeRangeForOverlay =
             !isPointerSelectionActive &&
+            !preserveNativeSelectionForKeyboard &&
             isTextSelectionOverlayEligible(view.state) &&
             nativeSelection &&
             !nativeSelection.isCollapsed &&
@@ -229,8 +233,14 @@ export const textSelectionOverlayPlugin = $prose(() => {
         const pluginState = textSelectionOverlayPluginKey.getState(view.state);
         const usePointerNativeSelection = Boolean(pluginState?.usePointerNativeSelection);
         const active = isTextSelectionOverlayEligible(view.state);
+        if (!active) {
+          preserveNativeSelectionForKeyboard = false;
+        }
         view.dom.classList.toggle(TEXT_SELECTION_OVERLAY_ACTIVE_CLASS, active);
         view.dom.classList.toggle(POINTER_NATIVE_SELECTION_CLASS, usePointerNativeSelection);
+        if (active || !usePointerNativeSelection) {
+          view.dom.classList.remove(KEYBOARD_SELECTION_PENDING_CLASS);
+        }
         const classSignature = [
           active ? 'overlay-active' : 'overlay-inactive',
           usePointerNativeSelection ? 'native-active' : 'native-inactive',
@@ -252,6 +262,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
 
       const handleMouseDown = (event: MouseEvent) => {
         if (event.button !== 0) return;
+        preserveNativeSelectionForKeyboard = false;
         isPointerSelectionActive = true;
         setPointerNativeSelection(true);
         syncActiveClass();
@@ -261,14 +272,34 @@ export const textSelectionOverlayPlugin = $prose(() => {
         const isModifiedNavigation =
           NAVIGATION_KEYS_THAT_CLEAR_NATIVE_SELECTION.has(event.key) &&
           isModifiedNavigationKey(event);
+        const shouldSuppressInitialKeyboardSelection =
+          isModifiedNavigation &&
+          event.shiftKey &&
+          view.state.selection.empty;
+
+        if (isModifiedNavigation && event.shiftKey) {
+          preserveNativeSelectionForKeyboard = true;
+        }
+
+        if (shouldSuppressInitialKeyboardSelection) {
+          view.dom.classList.add(KEYBOARD_SELECTION_PENDING_CLASS);
+          if (keyboardSelectionPendingCleanupTimeout !== null) {
+            window.clearTimeout(keyboardSelectionPendingCleanupTimeout);
+          }
+          keyboardSelectionPendingCleanupTimeout = window.setTimeout(() => {
+            keyboardSelectionPendingCleanupTimeout = null;
+            if (!isTextSelectionOverlayEligible(view.state)) {
+              view.dom.classList.remove(KEYBOARD_SELECTION_PENDING_CLASS);
+            }
+          }, 160);
+        }
 
         if (
           isModifiedNavigation &&
           isTextSelectionOverlayEligible(view.state) &&
           !textSelectionOverlayPluginKey.getState(view.state)?.usePointerNativeSelection
         ) {
-          setPointerNativeSelection(true);
-          syncActiveClass();
+          scheduleClearNativeSelection();
           return;
         }
 
@@ -327,6 +358,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
 
       const handleWindowBlur = () => {
         isPointerSelectionActive = false;
+        preserveNativeSelectionForKeyboard = false;
         setPointerNativeSelection(false);
         syncActiveClass();
         if (isTextSelectionOverlayEligible(view.state)) {
@@ -347,6 +379,11 @@ export const textSelectionOverlayPlugin = $prose(() => {
           if (keyClearFrame !== null) {
             cancelAnimationFrame(keyClearFrame);
           }
+          if (keyboardSelectionPendingCleanupTimeout !== null) {
+            window.clearTimeout(keyboardSelectionPendingCleanupTimeout);
+            keyboardSelectionPendingCleanupTimeout = null;
+          }
+          view.dom.classList.remove(KEYBOARD_SELECTION_PENDING_CLASS);
           if (pointerNativeReleaseFrame !== null) {
             cancelAnimationFrame(pointerNativeReleaseFrame);
           }
@@ -359,6 +396,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
           window.removeEventListener('blur', handleWindowBlur);
           view.dom.classList.remove(TEXT_SELECTION_OVERLAY_ACTIVE_CLASS);
           view.dom.classList.remove(POINTER_NATIVE_SELECTION_CLASS);
+          view.dom.classList.remove(KEYBOARD_SELECTION_PENDING_CLASS);
         },
       };
     },
