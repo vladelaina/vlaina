@@ -8,6 +8,13 @@ interface CopySelectionOptions {
   collapseAfterCopy?: boolean;
 }
 
+function isSameProseObject<T extends { eq?: (other: T) => boolean }>(current: T, previous: T): boolean {
+  if (current === previous) {
+    return true;
+  }
+  return typeof current.eq === 'function' && current.eq(previous);
+}
+
 export async function copySelectionToClipboard(
   view: EditorView,
   options: CopySelectionOptions = {}
@@ -26,8 +33,8 @@ export async function copySelectionToClipboard(
 
   if (
     options.collapseAfterCopy !== false &&
-    view.state.doc.eq(doc) &&
-    selection.eq(view.state.selection)
+    isSameProseObject(view.state.doc, doc) &&
+    isSameProseObject(selection, view.state.selection)
   ) {
     collapseSelectionAndHideFloatingToolbar(view);
   }

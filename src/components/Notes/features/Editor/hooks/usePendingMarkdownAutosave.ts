@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { editorViewCtx } from '@milkdown/kit/core';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { hasTemporaryTailParagraph } from '../plugins/cursor/endBlankClickPlugin';
@@ -7,6 +8,7 @@ import { getCurrentEditorView } from '../utils/editorViewRegistry';
 import {
   serializeEditorMarkdownSnapshot,
 } from '../utils/pendingMarkdownUpdate';
+import { hasCommittedCompositionText } from '../utils/compositionMarkdown';
 import { usePendingMarkdownFlusher } from './usePendingMarkdownFlusher';
 
 interface MilkdownToken<T> {
@@ -33,6 +35,7 @@ const ALLOW_SYNTHETIC_USER_EVENTS =
   import.meta.env.MODE === 'test' || Boolean(import.meta.env.VITEST);
 const DEFAULT_CONTENT_COMMIT_THROTTLE_MS = 120;
 const TEST_CONTENT_COMMIT_THROTTLE_MS = 0;
+const COMPOSITION_SETTLE_MS = 220;
 
 interface PendingMarkdownAutosaveOptions {
   currentNotePath: string | undefined;
@@ -52,6 +55,9 @@ function getContentCommitThrottleMs(): number {
 }
 
 function isContentEditingUserEvent(event: Event): boolean {
+  if (event.type === 'compositionstart' || event.type === 'compositionend') {
+    return true;
+  }
   if (event.type.startsWith('vlaina:')) {
     return true;
   }
@@ -67,6 +73,29 @@ function isContentEditingUserEvent(event: Event): boolean {
     return CONTENT_EDITING_KEYS.has(event.key) || event.key.length === 1;
   }
   return true;
+}
+
+function getEditorViewFromContext(ctx: MilkdownContext): EditorView | null {
+  try {
+    return ctx.get(editorViewCtx as never) as EditorView;
+  } catch {
+    return null;
+  }
+}
+
+function isEditorComposing(view: EditorView | null | undefined): boolean {
+  return Boolean(view?.composing);
+}
+
+function isInputEvent(event: Event): event is InputEvent {
+  return typeof InputEvent !== 'undefined' && event instanceof InputEvent;
+}
+
+function isCompositionInputEvent(event: Event): boolean {
+  return event.type === 'compositionstart' ||
+    event.type === 'compositionend' ||
+    (isInputEvent(event) && event.inputType === 'insertCompositionText') ||
+    (event instanceof KeyboardEvent && event.isComposing);
 }
 
 export function usePendingMarkdownAutosave({
@@ -85,7 +114,12 @@ export function usePendingMarkdownAutosave({
   const pendingMarkdownApplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRawMarkdownRef = useRef<string | null>(null);
   const pendingMarkdownRef = useRef<string | null>(null);
-  const currentNotePathRef = useRef(currentNotePath);
+  const isCompositionActiveRef = useRef(false);
+  const compositionSettleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deferredCompositionMarkdownRef = useRef<string | null>(null);
+  const deferredCompositionUserInputVersionRef = useRef(0);
+  const latestCompositionDataRef = useRef<string | null>(null);
+  const hasCompositionEndedRef = useRef(false);
   const currentNoteContentRef = useRef(currentNoteContent);
   const getEditorRef = useRef<EditorGetter | undefined>(undefined);
 
@@ -97,6 +131,15 @@ export function usePendingMarkdownAutosave({
     pendingUserInputVersionRef.current = 0;
     pendingRawMarkdownRef.current = null;
     pendingMarkdownRef.current = null;
+    isCompositionActiveRef.current = false;
+    deferredCompositionMarkdownRef.current = null;
+    deferredCompositionUserInputVersionRef.current = 0;
+    latestCompositionDataRef.current = null;
+    hasCompositionEndedRef.current = false;
+    if (compositionSettleTimeoutRef.current !== null) {
+      clearTimeout(compositionSettleTimeoutRef.current);
+      compositionSettleTimeoutRef.current = null;
+    }
     if (pendingMarkdownUpdateFrameRef.current !== null) {
       cancelAnimationFrame(pendingMarkdownUpdateFrameRef.current);
       pendingMarkdownUpdateFrameRef.current = null;
@@ -105,21 +148,29 @@ export function usePendingMarkdownAutosave({
       clearTimeout(pendingMarkdownApplyTimeoutRef.current);
       pendingMarkdownApplyTimeoutRef.current = null;
     }
+    return () => {
+      if (compositionSettleTimeoutRef.current !== null) {
+        clearTimeout(compositionSettleTimeoutRef.current);
+        compositionSettleTimeoutRef.current = null;
+      }
+    };
   }, [currentNoteDiskRevision, currentNotePath]);
 
   useEffect(() => {
-    currentNotePathRef.current = currentNotePath;
     currentNoteContentRef.current = currentNoteContent;
-  }, [currentNotePath, currentNoteContent]);
+  }, [currentNoteContent]);
 
   usePendingMarkdownFlusher({
     currentNotePath,
     pendingMarkdownUpdateFrameRef,
     pendingMarkdownApplyTimeoutRef,
     pendingMarkdownRef,
+    isCompositionActiveRef,
+    deferredCompositionMarkdownRef,
+    latestCompositionDataRef,
+    hasCompositionEndedRef,
     pendingRawMarkdownRef,
     hasEditorUserInputRef: hasEditorUserInput,
-    currentNotePathRef,
     currentNoteContentRef,
     getEditorRef,
   });
@@ -171,16 +222,14 @@ export function usePendingMarkdownAutosave({
     );
   }, [applyPendingMarkdown]);
 
-  const configureMarkdownListener = useCallback((_ctx: MilkdownContext, initialContent: string) => {
+  const configureMarkdownListener = useCallback((ctx: MilkdownContext, initialContent: string) => {
     const initTime = Date.now();
     const INIT_PERIOD = 500;
 
-    return (markdown: string) => {
-      const editorView = getCurrentEditorView();
-      if (editorView && hasTemporaryTailParagraph(editorView.state)) {
-        return;
-      }
-
+    const processMarkdown = (
+      markdown: string,
+      rawUserInputVersion = userInputVersionRef.current,
+    ) => {
       const isInitializing = Date.now() - initTime < INIT_PERIOD;
       if (
         isInitializing &&
@@ -200,7 +249,7 @@ export function usePendingMarkdownAutosave({
       if (!hasEditorUserInput.current) {
         return;
       }
-      const userInputVersion = userInputVersionRef.current;
+      const userInputVersion = rawUserInputVersion;
       if (userInputVersion <= handledUserInputVersionRef.current) {
         return;
       }
@@ -237,6 +286,49 @@ export function usePendingMarkdownAutosave({
         schedulePendingMarkdownApply();
       });
     };
+
+    const scheduleCompositionSettle = () => {
+      if (compositionSettleTimeoutRef.current !== null) {
+        clearTimeout(compositionSettleTimeoutRef.current);
+      }
+      compositionSettleTimeoutRef.current = setTimeout(() => {
+        compositionSettleTimeoutRef.current = null;
+        if (!hasCompositionEndedRef.current) {
+          scheduleCompositionSettle();
+          return;
+        }
+
+        isCompositionActiveRef.current = false;
+        const deferredMarkdown = deferredCompositionMarkdownRef.current;
+        const deferredUserInputVersion = deferredCompositionUserInputVersionRef.current;
+        deferredCompositionMarkdownRef.current = null;
+        deferredCompositionUserInputVersionRef.current = 0;
+        hasCompositionEndedRef.current = false;
+        const latestCompositionData = latestCompositionDataRef.current;
+        if (hasCommittedCompositionText(deferredMarkdown, latestCompositionData)) {
+          processMarkdown(deferredMarkdown, deferredUserInputVersion);
+        }
+      }, COMPOSITION_SETTLE_MS);
+    };
+
+    return (markdown: string) => {
+      const editorView = getCurrentEditorView();
+      const contextEditorView = editorView ?? getEditorViewFromContext(ctx);
+      if (contextEditorView && hasTemporaryTailParagraph(contextEditorView.state)) {
+        return;
+      }
+
+      if (isCompositionActiveRef.current || isEditorComposing(contextEditorView)) {
+        pendingRawMarkdownRef.current = null;
+        pendingMarkdownRef.current = null;
+        deferredCompositionMarkdownRef.current = markdown;
+        deferredCompositionUserInputVersionRef.current = userInputVersionRef.current;
+        scheduleCompositionSettle();
+        return;
+      }
+
+      processMarkdown(markdown);
+    };
   }, [currentNotePath, schedulePendingMarkdownApply]);
 
   const createUserInputMarker = useCallback((
@@ -244,8 +336,38 @@ export function usePendingMarkdownAutosave({
     _liveSerializer: ((doc: unknown) => string) | null
   ) => {
     return (event: Event) => {
+      if (event.type === 'compositionstart') {
+        isCompositionActiveRef.current = true;
+        if (compositionSettleTimeoutRef.current !== null) {
+          clearTimeout(compositionSettleTimeoutRef.current);
+          compositionSettleTimeoutRef.current = null;
+        }
+        deferredCompositionMarkdownRef.current = null;
+        deferredCompositionUserInputVersionRef.current = 0;
+        latestCompositionDataRef.current = null;
+        hasCompositionEndedRef.current = false;
+        pendingRawMarkdownRef.current = null;
+        pendingMarkdownRef.current = null;
+        return;
+      }
+
+      if (event.type === 'compositionend') {
+        isCompositionActiveRef.current = true;
+        hasCompositionEndedRef.current = true;
+      }
+
       if (!isContentEditingUserEvent(event)) {
         return;
+      }
+
+      if (isInputEvent(event) && event.inputType === 'insertCompositionText') {
+        latestCompositionDataRef.current = event.data ?? latestCompositionDataRef.current;
+      }
+
+      if (!isCompositionInputEvent(event) && pendingMarkdownApplyTimeoutRef.current !== null) {
+        clearTimeout(pendingMarkdownApplyTimeoutRef.current);
+        pendingMarkdownApplyTimeoutRef.current = null;
+        pendingMarkdownRef.current = null;
       }
       hasEditorUserInput.current = true;
       userInputVersionRef.current += 1;

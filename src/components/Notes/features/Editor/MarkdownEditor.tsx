@@ -466,6 +466,7 @@ function MarkdownSourceFallback({
   );
   const [draft, setDraft] = useState(currentNoteContent);
   const draftRef = useRef(currentNoteContent);
+  const isComposingRef = useRef(false);
   const saveTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -474,6 +475,9 @@ function MarkdownSourceFallback({
   }, [currentNoteContent, currentNotePath]);
 
   const flushFallbackDraft = useCallback(() => {
+    if (isComposingRef.current) {
+      return false;
+    }
     return flushPendingEditorMarkdown(currentNotePath, draftRef.current);
   }, [currentNotePath]);
 
@@ -524,10 +528,24 @@ function MarkdownSourceFallback({
     >
       <textarea
         value={draft}
+        onCompositionStart={() => {
+          isComposingRef.current = true;
+        }}
+        onCompositionEnd={(event) => {
+          isComposingRef.current = false;
+          const nextValue = event.currentTarget.value;
+          setDraft(nextValue);
+          draftRef.current = nextValue;
+          updateContent(nextValue);
+          scheduleSave();
+        }}
         onChange={(event) => {
           const nextValue = event.currentTarget.value;
           setDraft(nextValue);
           draftRef.current = nextValue;
+          if (isComposingRef.current || Boolean((event.nativeEvent as InputEvent).isComposing)) {
+            return;
+          }
           updateContent(nextValue);
           scheduleSave();
         }}
