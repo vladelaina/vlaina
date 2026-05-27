@@ -32,6 +32,10 @@ describe("messageClipboard", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.mocked(convertToBase64).mockReset();
+    Object.defineProperty(window, "vlainaDesktop", {
+      value: undefined,
+      configurable: true,
+    });
   });
 
   it("extracts markdown image sources from content", () => {
@@ -95,6 +99,28 @@ describe("messageClipboard", () => {
 
     expect(copied).toBe(true);
     expect(writeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("copies data URL images through the desktop image clipboard when available", async () => {
+    const writeImage = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, "vlainaDesktop", {
+      value: {
+        platform: "electron",
+        clipboard: {
+          writeText: vi.fn(),
+          writeImage,
+        },
+      },
+      configurable: true,
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const copied = await copyImageSourceToClipboard("data:image/png;base64,eA==");
+
+    expect(copied).toBe(true);
+    expect(writeImage).toHaveBeenCalledWith("data:image/png;base64,eA==");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("resolves stored attachment images before copying", async () => {

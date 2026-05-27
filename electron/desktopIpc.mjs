@@ -28,7 +28,7 @@ import {
   updateAuthorizedRootRename,
 } from './fsAccess.mjs';
 
-const { app, BrowserWindow, clipboard, dialog, shell } = electron;
+const { app, BrowserWindow, clipboard, dialog, nativeImage, shell } = electron;
 const activeAiProviderRequests = new Map();
 const HTTP_HEADER_NAME_PATTERN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 const IPC_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
@@ -323,6 +323,20 @@ export function registerDesktopIpc({
 
   handleIpc('desktop:clipboard:write-text', async (_event, text) => {
     clipboard.writeText(String(text ?? ''));
+  });
+
+  handleIpc('desktop:clipboard:write-image', async (_event, dataUrl) => {
+    const normalizedDataUrl = String(dataUrl ?? '');
+    if (!/^data:image\/[a-z0-9.+-]+;base64,/i.test(normalizedDataUrl)) {
+      throw new Error('Invalid clipboard image data URL');
+    }
+
+    const image = nativeImage.createFromDataURL(normalizedDataUrl);
+    if (image.isEmpty()) {
+      throw new Error('Invalid clipboard image data');
+    }
+
+    clipboard.writeImage(image);
   });
 
   handleIpc('desktop:export:html-to-pdf', async (_event, html, options) => {

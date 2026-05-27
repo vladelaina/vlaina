@@ -22,10 +22,12 @@ interface SettingsModalProps {
 }
 
 type SettingsTab = 'markdown' | 'appearance' | 'language' | 'ai' | 'about';
+type SettingsOpenTab = SettingsTab | 'feedback';
 
 interface SidebarItem {
   id: SettingsTab;
-  labelKey: MessageKey;
+  labelKey?: MessageKey;
+  label?: string;
   icon: IconName;
 }
 
@@ -60,8 +62,12 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
   }, [onClose]);
 
   useEffect(() => {
-    const handleOpenSettings = (e: CustomEvent<{ tab?: SettingsTab }>) => {
+    const handleOpenSettings = (e: CustomEvent<{ tab?: SettingsOpenTab }>) => {
       if (e.detail?.tab) {
+        if (e.detail.tab === 'feedback') {
+          setActiveTab('about');
+          return;
+        }
         setActiveTab(e.detail.tab)
       }
     }
@@ -187,7 +193,9 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
                                         )}
                                       />
                                     </span>
-                                    <span className="inline-flex min-w-0 items-center truncate leading-none tracking-tight">{t(item.labelKey)}</span>
+                                    <span className="inline-flex min-w-0 items-center truncate leading-none tracking-tight">
+                                      {item.label ?? (item.labelKey ? t(item.labelKey) : '')}
+                                    </span>
                                   </button>
                                 </div>
                               );

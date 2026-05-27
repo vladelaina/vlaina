@@ -2,6 +2,7 @@ import { stripErrorTags } from '@/lib/ai/errorTag';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { stripWebSearchStatusMarkup } from '@/lib/ai/webSearch/statusMarkup';
 import { writeTextToClipboard } from '@/lib/clipboard';
+import { getElectronBridge } from '@/lib/electron/bridge';
 import { convertToBase64, type Attachment } from '@/lib/storage/attachmentStorage';
 
 function normalizeImageMarkdownTarget(rawTarget: string): string | null {
@@ -198,6 +199,17 @@ export function formatMessageCopyText(content: string): string {
 export async function copyImageSourceToClipboard(src: string): Promise<boolean> {
   try {
     const resolvedSrc = await resolveClipboardImageSource(src);
+    if (resolvedSrc.trim().startsWith("data:image/")) {
+      const desktopClipboard = getElectronBridge()?.clipboard;
+      if (desktopClipboard?.writeImage) {
+        try {
+          await desktopClipboard.writeImage(resolvedSrc);
+          return true;
+        } catch {
+        }
+      }
+    }
+
     const response = await fetch(resolvedSrc);
     const blob = await response.blob();
     const ClipboardItemCtor = (window as any).ClipboardItem;

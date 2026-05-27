@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import path from 'node:path';
+import electron from 'electron';
 import { isPathInsideDirectory, registerDesktopIpc, revealItemInFolder } from '../../electron/desktopIpc.mjs';
 
 const hoisted = vi.hoisted(() => {
@@ -51,6 +52,12 @@ vi.mock('electron', () => ({
     BrowserWindow: hoisted.MockBrowserWindow,
     clipboard: {
       writeText: vi.fn(),
+      writeImage: vi.fn(),
+    },
+    nativeImage: {
+      createFromDataURL: vi.fn(() => ({
+        isEmpty: () => false,
+      })),
     },
     dialog: {},
     shell: {
@@ -138,6 +145,16 @@ describe('desktop export ipc', () => {
     expect(isPathInsideDirectory('/vault/docs', '/vault/docs')).toBe(false);
     expect(isPathInsideDirectory('/vault/docs', '/vault/docs-archive')).toBe(false);
     expect(isPathInsideDirectory('/vault/docs', '/vault/other')).toBe(false);
+  });
+
+  it('writes data URL images to the native clipboard', async () => {
+    const { handlers } = registerHarness();
+    const imageDataUrl = 'data:image/png;base64,eA==';
+
+    await handlers.get('desktop:clipboard:write-image')?.({}, imageDataUrl);
+
+    expect(electron.nativeImage.createFromDataURL).toHaveBeenCalledWith(imageDataUrl);
+    expect(electron.clipboard.writeImage).toHaveBeenCalledTimes(1);
   });
 
   it('rejects invalid AI provider request headers before fetch', async () => {

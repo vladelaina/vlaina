@@ -42,6 +42,7 @@ export interface ElectronDialogApi {
 
 export interface ElectronClipboardApi {
   writeText(text: string): Promise<void>;
+  writeImage?(dataUrl: string): Promise<void>;
 }
 
 export interface ElectronMediaApi {
@@ -272,6 +273,10 @@ export interface ElectronAccountApi {
   createBillingCheckout(tier: string): Promise<{
     success: boolean;
     url?: string;
+    error?: string;
+  }>;
+  submitFeedback(message: string): Promise<{
+    success: boolean;
     error?: string;
   }>;
   getManagedModels(): Promise<Record<string, unknown>>;

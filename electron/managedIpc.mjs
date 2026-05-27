@@ -95,10 +95,15 @@ export function registerManagedIpc({
   fetchWithStoredSession,
   managedApiBaseUrl,
   createElectronBillingCheckout,
+  submitElectronFeedback,
   requireNonEmptyString,
 }) {
   handleIpc('desktop:billing:create-checkout', async (_event, tier) => {
     return await createElectronBillingCheckout(String(tier ?? ''));
+  });
+
+  handleIpc('desktop:feedback:submit', async (_event, message) => {
+    return await submitElectronFeedback(String(message ?? ''));
   });
 
   handleIpc('desktop:managed:get-models', async () => {

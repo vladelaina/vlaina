@@ -123,6 +123,9 @@ const desktopApi = {
     writeText(text) {
       return ipcRenderer.invoke('desktop:clipboard:write-text', text);
     },
+    writeImage(dataUrl) {
+      return ipcRenderer.invoke('desktop:clipboard:write-image', dataUrl);
+    },
   },
   media: {
     resolveVideoUrl(url) {
@@ -339,6 +342,9 @@ const desktopApi = {
     },
     createBillingCheckout(tier) {
       return ipcRenderer.invoke('desktop:billing:create-checkout', tier);
+    },
+    submitFeedback(message) {
+      return ipcRenderer.invoke('desktop:feedback:submit', message);
     },
     getManagedModels() {
       return ipcRenderer.invoke('desktop:managed:get-models');

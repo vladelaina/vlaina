@@ -3,7 +3,6 @@ import type { PointerEvent } from "react";
 import { createPortal } from "react-dom";
 import Cropper from "react-easy-crop";
 import { Icon } from "@/components/ui/icons";
-import { BlurBackdrop } from "@/components/common/BlurBackdrop";
 import { writeTextToClipboard } from "@/lib/clipboard";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { copyImageSourceToClipboard } from "@/components/Chat/common/messageClipboard";
@@ -33,6 +32,9 @@ async function copyImageOrUrl(src: string): Promise<boolean> {
   const copied = await copyImageSourceToClipboard(src);
   if (copied) {
     return true;
+  }
+  if (src.trim().startsWith("data:image/")) {
+    return false;
   }
   return writeTextToClipboard(src);
 }
@@ -386,7 +388,7 @@ export function ChatImageViewer({
 
   const handleCopy = async () => {
     try {
-      setCopied(await copyImageOrUrl(resolvedActiveSrc));
+      setCopied(await copyImageOrUrl(activeSrc));
     } catch {
       setCopied(false);
     }
@@ -398,12 +400,6 @@ export function ChatImageViewer({
 
   return createPortal(
     <>
-      <BlurBackdrop
-        className="pointer-events-none"
-        zIndex={120}
-        duration={0.05}
-        blurPx={6}
-      />
       <div
         role="dialog"
         aria-modal="true"
@@ -559,10 +555,8 @@ export function ChatImageViewer({
                 type="button"
                 aria-label={t('chat.copyImage')}
                 data-no-focus-input="true"
-                className={cn(
-                  "inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-700 transition-colors hover:bg-zinc-100",
-                  iconButtonStyles
-                )}
+                data-action="copy"
+                className={cn("toolbar-btn", copied && "active")}
                 onClick={() => {
                     void handleCopy();
                 }}
