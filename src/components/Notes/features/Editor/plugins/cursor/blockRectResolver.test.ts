@@ -8,6 +8,7 @@ import {
 } from '../../utils/editorBlockPositionCache';
 import {
   isTypewriterInputEvent,
+  isTypewriterKeyEvent,
   resolveTypewriterScrollTop,
   shouldCenterTypewriterSelection,
 } from './typewriterModePlugin';
@@ -574,5 +575,23 @@ describe('isTypewriterInputEvent', () => {
   it('does not center for non-editing input events', () => {
     expect(isTypewriterInputEvent(new InputEvent('beforeinput', { inputType: 'historyUndo' }))).toBe(false);
     expect(isTypewriterInputEvent(new InputEvent('beforeinput', { inputType: 'formatBold' }))).toBe(false);
+  });
+});
+
+describe('isTypewriterKeyEvent', () => {
+  it('centers after editing key events and shortcuts', () => {
+    expect(isTypewriterKeyEvent(new KeyboardEvent('keydown', { key: 'Enter' }))).toBe(true);
+    expect(isTypewriterKeyEvent(new KeyboardEvent('keydown', { key: 'Backspace' }))).toBe(true);
+    expect(isTypewriterKeyEvent(new KeyboardEvent('keydown', { key: 'Delete' }))).toBe(true);
+    expect(isTypewriterKeyEvent(new KeyboardEvent('keydown', { key: 'Tab' }))).toBe(true);
+    expect(isTypewriterKeyEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true }))).toBe(true);
+    expect(isTypewriterKeyEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true, shiftKey: true }))).toBe(true);
+    expect(isTypewriterKeyEvent(new KeyboardEvent('keydown', { key: 'y', ctrlKey: true }))).toBe(true);
+  });
+
+  it('does not center for navigation and non-editing key events', () => {
+    expect(isTypewriterKeyEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }))).toBe(false);
+    expect(isTypewriterKeyEvent(new KeyboardEvent('keydown', { key: 'z' }))).toBe(false);
+    expect(isTypewriterKeyEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, altKey: true }))).toBe(false);
   });
 });
