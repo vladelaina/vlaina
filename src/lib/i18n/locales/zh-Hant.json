@@ -90,7 +90,7 @@
   "settings.about.note.originStory": "vlaina 從立項到第一版發佈已經過去差不多 8 個月。其實剛開始是想做 todo + 日曆 + 筆記 + AI 對話的聚合應用，做了兩個月後後悔了，發現內容太多，需要處理的細節實在太多，光靠一個人很難完成，最終只能將寫了兩個月的代碼全部刪掉重來。",
   "settings.about.note.migrationStory": "中途還經歷了一次框架遷移，從 Tauri 遷移到現在的 Electron。剛開始選擇 Tauri，很大原因是我是寫 C 語言開發出身的，對體積和資源佔用特別敏感。之前曾把 {catimeSite} 做到 {catimeSize}（如果你還不知道 {catimeSite} 是什麼，強烈推薦去試試：一款 {catimeStars} Star、純 C 寫的桌面計時器，資源佔用極低），所以很自然就選擇了 Tauri。剛開始其實很猶豫，因爲有信心應該可以將體積控制到 {targetSize} 以下，但最終還是下定決心換掉了。主要原因是我用 Arch 作爲主力系統，而 Tauri 在 Linux 上存在一些細節問題。Tauri 很好用，只是不太適合 vlaina，最後只能遷移。",
   "settings.about.note.releaseHeading": "爲啥會選擇現在發而不是進一步去打磨呢？",
-  "settings.about.note.releaseReason": "其實很簡單，這 8 個月是純無收入的，兜裏的錢只夠撐到這個月了。沒有投資人，如果再不上線，就很難繼續維持全職開發工作。",
+  "settings.about.note.releaseReason": "其實很簡單，這 8 個月是純無收入的，兜裏的錢只夠撐到這個月了。沒有投資人，如果再不上線，就很難繼續維持全職開發工作。同時怎麼說呢，感覺 vlaina 當前的第一版的完成度其實比 {catimeSite} 的第一版還是要強太多了，我記得那個時候把所有的 6000 多行純 C 代碼全部都寫在一個 main.c 中∑(O_O；)",
   "settings.about.note.donationHeading": "既然是開源項目，爲啥不能做成純打賞呢？",
   "settings.about.note.donationReason": "很簡單，光靠打賞完全無法撐起一份全職工作。",
   "settings.about.note.catimeStory": "在開發 vlaina 之前，我在大學期間用一年多時間開發了一款特別棒的倒計時工具 {catimeSite}，一個用純 C 寫、花費無數個日夜一行一行實現的項目。它在 GitHub 上收穫了 {catimeStars} Star，擁有十幾萬用戶。這對我來說是莫大的榮幸，從沒想過居然能做到這個地步。可能 {catimeStars} 並不是很直觀，{catimeSite} 是 GitHub {clockTopic} 分區的第二名，第一名是一款 Mac 工具。這一切都只花了差不多一年，而遲遲沒做 Mac 端的原因其實只是沒錢買 Mac，但後續一定會支持上！",
