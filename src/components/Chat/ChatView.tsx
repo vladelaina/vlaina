@@ -26,7 +26,6 @@ import { TemporaryChatToggle } from '@/components/Chat/features/Temporary/Tempor
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
 import { estimateChatLoadingHeight } from '@/components/Chat/features/Layout/chatMessageLayout';
 import { ChatSidebar } from '@/components/Chat/features/Sidebar/ChatSidebar';
-import { ChatDebugLogButton } from '@/components/Chat/features/Debug/ChatDebugLogButton';
 import { ModelSelector } from '@/components/Chat/features/Input/ModelSelector';
 import { Icon } from '@/components/ui/icons';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
@@ -525,7 +524,6 @@ export function ChatView({
         />
       )}
       {!isEmbedded && <SelectionInsertButton />}
-      {!isEmbedded && <ChatDebugLogButton />}
     </div>
   );
 }
