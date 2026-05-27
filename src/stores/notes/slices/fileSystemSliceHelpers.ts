@@ -46,6 +46,8 @@ export function replaceCurrentTabOrAppend(
 
 export function createBlankDraftState({
   folderPath,
+  originNotesPath,
+  kind,
   openTabs,
   currentNote,
   currentNoteRevision,
@@ -54,6 +56,8 @@ export function createBlankDraftState({
   displayNames,
 }: {
   folderPath?: string;
+  originNotesPath?: string;
+  kind?: NotesStore['draftNotes'][string]['kind'];
   openTabs: NotesStore['openTabs'];
   currentNote: NotesStore['currentNote'];
   currentNoteRevision: NotesStore['currentNoteRevision'];
@@ -81,6 +85,8 @@ export function createBlankDraftState({
         [draftPath]: {
           parentPath: folderPath ?? null,
           name: '',
+          ...(originNotesPath !== undefined ? { originNotesPath } : {}),
+          ...(kind ? { kind } : {}),
         },
       },
       displayNames: nextDisplayNames,

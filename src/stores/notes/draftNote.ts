@@ -11,11 +11,19 @@ export function isDraftNotePath(path: string | null | undefined): path is string
 }
 
 export function canAutoSaveDraftNote(notesPath: string, draftNote: DraftNoteEntry | undefined) {
+  if (draftNote?.kind === 'scratch') {
+    return false;
+  }
+
   return Boolean(
     notesPath &&
     draftNote &&
     (draftNote.originNotesPath === undefined || draftNote.originNotesPath === notesPath)
   );
+}
+
+export function isScratchDraftNote(draftNote: DraftNoteEntry | undefined): boolean {
+  return draftNote?.kind === 'scratch';
 }
 
 export function resolveDraftNoteTitle(name: string | null | undefined): string {

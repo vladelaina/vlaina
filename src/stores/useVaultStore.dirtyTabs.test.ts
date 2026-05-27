@@ -58,6 +58,7 @@ describe('useVaultStore dirty note protection', () => {
         },
       ],
       isLoading: false,
+      hasInitialized: true,
       error: null,
     });
 

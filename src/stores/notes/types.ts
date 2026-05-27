@@ -82,6 +82,7 @@ export interface DraftNoteEntry {
   parentPath: string | null;
   name: string;
   originNotesPath?: string;
+  kind?: 'scratch' | 'vault';
 }
 
 export interface PendingDeletedItemState extends RecoverableDeletedItem {

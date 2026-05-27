@@ -107,6 +107,7 @@ const mocks = vi.hoisted(() => {
 
   const vaultState = {
     currentVault: { path: '/vault' } as { path: string } | null,
+    hasInitialized: true,
     openVault: vi.fn(),
   };
 
@@ -360,6 +361,7 @@ describe('NotesView', () => {
   beforeEach(() => {
     delete (window as Window & { vlainaDesktop?: unknown }).vlainaDesktop;
     mocks.vaultState.currentVault = { path: '/vault' };
+    mocks.vaultState.hasInitialized = true;
     notesState.currentNote = null;
     notesState.noteMetadata = null;
     notesState.openTabs = [];
@@ -770,8 +772,9 @@ describe('NotesView', () => {
     });
   });
 
-  it('creates an in-memory draft when the workspace starts blank without an open vault', async () => {
+  it('creates an in-memory scratch draft when the workspace starts blank without an open vault', async () => {
     mocks.vaultState.currentVault = null;
+    mocks.vaultState.hasInitialized = true;
 
     render(<NotesView />);
 
@@ -781,6 +784,74 @@ describe('NotesView', () => {
       expect(notesState.createNote).toHaveBeenCalledTimes(1);
     });
     expect(notesState.createNote).toHaveBeenCalledWith(undefined, { asDraft: true });
+  });
+
+  it('waits for vault store initialization before creating a blank no-vault scratch draft', async () => {
+    mocks.vaultState.currentVault = null;
+    mocks.vaultState.hasInitialized = false;
+    notesState.notesPath = '';
+    notesState.rootFolder = null;
+    notesState.rootFolderPath = null;
+
+    const { rerender } = render(<NotesView />);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
+
+    mocks.vaultState.hasInitialized = true;
+    rerender(<NotesView />);
+
+    await waitFor(() => {
+      expect(notesState.createNote).toHaveBeenCalledWith(undefined, { asDraft: true });
+    });
+  });
+
+  it('does not create a transient draft while a previous vault is still hydrating', async () => {
+    mocks.vaultState.currentVault = null;
+    mocks.vaultState.hasInitialized = false;
+    notesState.notesPath = '';
+    notesState.rootFolder = null;
+    notesState.rootFolderPath = null;
+
+    const { rerender } = render(<NotesView />);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
+
+    mocks.vaultState.currentVault = { path: '/vault' };
+    mocks.vaultState.hasInitialized = true;
+    notesState.notesPath = '/vault';
+    notesState.currentNote = { path: 'docs/restored.md', content: '# restored' };
+    notesState.openTabs = [{ path: 'docs/restored.md', name: 'restored', isDirty: false }];
+    notesState.rootFolder = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      children: [
+        {
+          id: 'docs/restored.md',
+          name: 'restored',
+          path: 'docs/restored.md',
+          isFolder: false,
+        },
+      ],
+      expanded: true,
+    };
+    notesState.rootFolderPath = '/vault';
+    rerender(<NotesView />);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
   });
 
   it('does not create an untitled note while the previous workspace note is restoring', async () => {

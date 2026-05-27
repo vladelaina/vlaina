@@ -142,6 +142,8 @@ export function createFileSystemCreateActions(
         if (options?.asDraft) {
           const { draftPath, nextState } = createBlankDraftState({
             folderPath,
+            originNotesPath: notesPath || '',
+            kind: notesPath ? 'vault' : 'scratch',
             openTabs,
             currentNote,
             currentNoteRevision,
@@ -158,6 +160,8 @@ export function createFileSystemCreateActions(
           if (!currentVaultPath) {
             const { draftPath, nextState } = createBlankDraftState({
               folderPath,
+              originNotesPath: '',
+              kind: 'scratch',
               openTabs,
               currentNote,
               currentNoteRevision,

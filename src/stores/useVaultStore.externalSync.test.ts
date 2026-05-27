@@ -33,6 +33,7 @@ describe('useVaultStore external sync', () => {
       currentVault: null,
       recentVaults: [],
       isLoading: false,
+      hasInitialized: true,
       error: null,
     });
 
