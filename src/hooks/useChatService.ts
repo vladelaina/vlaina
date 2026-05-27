@@ -29,6 +29,7 @@ import {
   buildMessageImageSources,
   buildStoredUserMessageContent,
   loadMentionedNotes,
+  loadMentionedFolderImageAttachments,
   normalizeNoteMentions,
   normalizeVisionAttachment,
   refreshManagedBudgetIfNeeded,
@@ -388,6 +389,7 @@ export function useChatService() {
           });
 
           const mentionedNotes = await loadMentionedNotes(normalizedMentions);
+          const mentionedFolderImages = await loadMentionedFolderImageAttachments(normalizedMentions);
           const notesContext = buildMentionedNotesContext(mentionedNotes);
           const requestText = userMessageText;
           const textPayload = notesContext
@@ -397,12 +399,13 @@ export function useChatService() {
             : requestText;
 
           let apiMessageContent: ChatMessageContent = textPayload;
-          if (requestAttachments.length > 0) {
+          const apiAttachments = [...requestAttachments, ...mentionedFolderImages];
+          if (apiAttachments.length > 0) {
             const parts: ChatMessageContentPart[] = [];
             if (textPayload) {
               parts.push({ type: 'text', text: textPayload });
             }
-            for (const attachment of requestAttachments) {
+            for (const attachment of apiAttachments) {
               const imagePart = await normalizeVisionAttachment(attachment);
               if (imagePart) {
                 parts.push(imagePart);

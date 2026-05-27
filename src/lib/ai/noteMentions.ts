@@ -1,6 +1,7 @@
 export interface NoteMentionReference {
   path: string;
   title: string;
+  kind?: 'note' | 'folder';
 }
 
 export function dedupeNoteMentions(
@@ -17,6 +18,7 @@ export function dedupeNoteMentions(
     next.push({
       path: key,
       title: mention.title.trim() || key,
+      kind: mention.kind === 'folder' ? 'folder' : 'note',
     });
   }
   return next;

@@ -1,5 +1,6 @@
 import { useCallback, type RefObject } from 'react';
 import { useNoteMentionState } from './useNoteMentionState';
+import { valueContainsMentionLabel } from '../noteMentionHelpers';
 
 interface UseNoteMentionsOptions {
   message: string;
@@ -12,17 +13,53 @@ export function useNoteMentions({
   textareaRef,
   handleMessageChange,
 }: UseNoteMentionsOptions) {
-  const syncMentions = useCallback(({ mentions, value }: {
-    mentions: Array<{ path: string; title: string }>;
+  const syncMentions = useCallback(({ allNoteCandidates, mentions, value }: {
+    allNoteCandidates: Array<{ path: string; title: string; kind: 'note' | 'folder' }>;
+    mentions: Array<{ path: string; title: string; kind?: 'note' | 'folder' }>;
     value: string;
   }) => {
-    return mentions.filter((mention) => value.includes(`@${mention.title}`));
+    const syncedMentions = new Map<string, { path: string; title: string; kind: 'note' | 'folder' }>();
+    const candidatesByPath = new Map(allNoteCandidates.map((candidate) => [candidate.path, candidate]));
+    const retainedTitles = new Set<string>();
+    for (const mention of mentions) {
+      if (valueContainsMentionLabel(value, mention.title)) {
+        const candidate = candidatesByPath.get(mention.path);
+        syncedMentions.set(mention.path, {
+          path: mention.path,
+          title: mention.title,
+          kind: candidate?.kind ?? (mention.kind === 'folder' ? 'folder' : 'note'),
+        });
+        retainedTitles.add(mention.title);
+      }
+    }
+
+    const candidatesByTitle = new Map<string, Array<{ path: string; title: string; kind: 'note' | 'folder' }>>();
+    for (const candidate of allNoteCandidates) {
+      if (!retainedTitles.has(candidate.title) && valueContainsMentionLabel(value, candidate.title)) {
+        const candidates = candidatesByTitle.get(candidate.title) ?? [];
+        candidates.push(candidate);
+        candidatesByTitle.set(candidate.title, candidates);
+      }
+    }
+
+    for (const candidates of candidatesByTitle.values()) {
+      if (candidates.length === 1) {
+        const candidate = candidates[0];
+        syncedMentions.set(candidate.path, {
+          path: candidate.path,
+          title: candidate.title,
+          kind: candidate.kind,
+        });
+      }
+    }
+    return Array.from(syncedMentions.values());
   }, []);
 
   const {
     mentions,
     clearMentions,
     currentPageCandidates,
+    folderCandidates,
     linkedPageCandidates,
     mentionPreviewParts,
     showMentionPicker,
@@ -34,6 +71,7 @@ export function useNoteMentions({
     handleMentionKeyDown,
     setTextareaScrollTop,
     applyMentionCandidate,
+    appendMentions,
     removeMention,
   } = useNoteMentionState({
     value: message,
@@ -47,6 +85,7 @@ export function useNoteMentions({
     noteMentions: mentions,
     clearNoteMentions: clearMentions,
     currentPageCandidates,
+    folderCandidates,
     linkedPageCandidates,
     mentionPreviewParts,
     showMentionPicker,
@@ -58,6 +97,7 @@ export function useNoteMentions({
     handleMentionKeyDown,
     setTextareaScrollTop,
     applyMentionCandidate,
+    appendNoteMentions: appendMentions,
     removeNoteMention: removeMention,
   };
 }

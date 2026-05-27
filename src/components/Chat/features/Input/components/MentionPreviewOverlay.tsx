@@ -52,7 +52,7 @@ function MentionPreviewToken({
 }) {
   return (
     <span
-      className="pointer-events-auto group relative inline rounded-md bg-[#41a8ea]/90 text-white shadow-sm shadow-[#41a8ea]/20 dark:bg-[#41a8ea]/85"
+      className="pointer-events-auto group relative inline rounded-md bg-[#41a8ea]/90 text-white dark:bg-[#41a8ea]/85"
       data-no-focus-input="true"
     >
       {part.text}

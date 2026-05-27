@@ -3,6 +3,7 @@ import {
   type RefObject,
 } from 'react';
 import { useNoteMentionState } from '@/components/Chat/features/Input/hooks/useNoteMentionState';
+import { valueContainsMentionLabel } from '@/components/Chat/features/Input/noteMentionHelpers';
 
 interface UseUserMessageEditorMentionsOptions {
   value: string;
@@ -16,16 +17,27 @@ export function useUserMessageEditorMentions({
   textareaRef,
 }: UseUserMessageEditorMentionsOptions) {
   const syncMentions = useCallback(({ allNoteCandidates, value }: {
-    allNoteCandidates: Array<{ path: string; title: string; isCurrent: boolean }>;
+    allNoteCandidates: Array<{ path: string; title: string; kind: 'note' | 'folder'; isCurrent: boolean }>;
     value: string;
   }) => {
-    return allNoteCandidates
-      .filter((candidate) => value.includes(`@${candidate.title}`))
-      .map((candidate) => ({ path: candidate.path, title: candidate.title }));
+    const candidatesByTitle = new Map<string, typeof allNoteCandidates>();
+    for (const candidate of allNoteCandidates) {
+      if (!valueContainsMentionLabel(value, candidate.title)) {
+        continue;
+      }
+      const candidates = candidatesByTitle.get(candidate.title) ?? [];
+      candidates.push(candidate);
+      candidatesByTitle.set(candidate.title, candidates);
+    }
+
+    return Array.from(candidatesByTitle.values())
+      .filter((candidates) => candidates.length === 1)
+      .map(([candidate]) => ({ path: candidate.path, title: candidate.title, kind: candidate.kind }));
   }, []);
 
   const {
     currentPageCandidates,
+    folderCandidates,
     linkedPageCandidates,
     mentionPreviewParts,
     showMentionPicker,
@@ -48,6 +60,7 @@ export function useUserMessageEditorMentions({
 
   return {
     currentPageCandidates,
+    folderCandidates,
     linkedPageCandidates,
     mentionPreviewParts,
     showMentionPicker,

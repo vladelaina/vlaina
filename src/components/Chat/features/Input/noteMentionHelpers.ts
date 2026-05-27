@@ -4,6 +4,7 @@ import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 export interface NoteMentionCandidate {
   path: string;
   title: string;
+  kind: 'note' | 'folder';
   isCurrent: boolean;
   icon?: string;
   notePath?: string;
@@ -26,12 +27,25 @@ export interface MentionPreviewPart {
   mention?: NoteMentionReference;
 }
 
-export function collectNotePaths(nodes: FileTreeNode[], result: string[]): void {
+export function collectMentionCandidates(nodes: FileTreeNode[], result: NoteMentionCandidate[]): void {
   for (const node of nodes) {
     if (node.isFolder) {
-      collectNotePaths(node.children, result);
+      const folderName = node.name || node.path.split('/').filter(Boolean).pop() || node.path;
+      result.push({
+        path: node.path,
+        title: `${folderName.replace(/\/+$/, '')}/`,
+        kind: 'folder',
+        isCurrent: false,
+      });
+      collectMentionCandidates(node.children, result);
     } else if (node.path.toLowerCase().endsWith('.md')) {
-      result.push(node.path);
+      result.push({
+        path: node.path,
+        title: '',
+        kind: 'note',
+        isCurrent: false,
+        notePath: node.path,
+      });
     }
   }
 }
@@ -134,6 +148,19 @@ export function buildMentionPreviewParts(
   }
 
   return parts;
+}
+
+export function valueContainsMentionLabel(value: string, title: string): boolean {
+  const label = `@${title}`;
+  let index = value.indexOf(label);
+  while (index >= 0) {
+    const end = index + label.length;
+    if (end === value.length || /\s/.test(value[end] ?? '')) {
+      return true;
+    }
+    index = value.indexOf(label, index + label.length);
+  }
+  return false;
 }
 
 export function insertMentionAtTrigger(

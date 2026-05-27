@@ -1,0 +1,297 @@
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { useRef, useState } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useNoteMentionState } from './useNoteMentionState';
+import { useNoteMentions } from './useNoteMentions';
+
+const hoisted = vi.hoisted(() => {
+  const loadFileTree = vi.fn();
+  const storeRef: { state: any } = { state: null };
+  const vaultStoreRef: { state: any } = { state: null };
+  let currentVaultPath: string | null = '/vault';
+
+  const useNotesStore = ((selector?: (state: any) => any) => {
+    return selector ? selector(storeRef.state) : storeRef.state;
+  }) as any;
+  useNotesStore.getState = () => storeRef.state;
+
+  const useVaultStore = ((selector?: (state: any) => any) => {
+    return selector ? selector(vaultStoreRef.state) : vaultStoreRef.state;
+  }) as any;
+  useVaultStore.getState = () => vaultStoreRef.state;
+
+  return {
+    loadFileTree,
+    storeRef,
+    useNotesStore,
+    vaultStoreRef,
+    useVaultStore,
+    getCurrentVaultPath: vi.fn(() => currentVaultPath),
+    setCurrentVaultPath: vi.fn((path: string | null) => {
+      currentVaultPath = path;
+    }),
+    resetCurrentVaultPath: (path: string | null) => {
+      currentVaultPath = path;
+    },
+  };
+});
+
+vi.mock('@/stores/notes/useNotesStore', () => ({
+  useNotesStore: hoisted.useNotesStore,
+}));
+
+vi.mock('@/stores/useVaultStore', () => ({
+  useVaultStore: hoisted.useVaultStore,
+}));
+
+vi.mock('@/stores/notes/storage', () => ({
+  getCurrentVaultPath: hoisted.getCurrentVaultPath,
+  setCurrentVaultPath: hoisted.setCurrentVaultPath,
+}));
+
+function renderMentions(initialMessage: string) {
+  return renderHook(() => {
+    const [message, setMessage] = useState(initialMessage);
+    const textareaRef = useRef<HTMLTextAreaElement>(document.createElement('textarea'));
+    const controller = useNoteMentions({
+      message,
+      textareaRef,
+      handleMessageChange: setMessage,
+    });
+
+    return { ...controller, message };
+  });
+}
+
+describe('useNoteMentions folder candidates', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  beforeEach(() => {
+    hoisted.loadFileTree.mockReset();
+    hoisted.getCurrentVaultPath.mockClear();
+    hoisted.setCurrentVaultPath.mockClear();
+    hoisted.resetCurrentVaultPath('/vault');
+    hoisted.vaultStoreRef.state = {
+      currentVault: { path: '/vault' },
+    };
+    hoisted.storeRef.state = {
+      rootFolder: {
+        children: [
+          { isFolder: false, path: 'Today.md' },
+          {
+            isFolder: true,
+            name: 'Projects',
+            path: 'Projects',
+            children: [
+              { isFolder: false, path: 'Projects/Plan.md' },
+            ],
+          },
+          { isFolder: false, path: 'Tomorrow.md' },
+          { isFolder: false, path: 'Archive.md' },
+        ],
+      },
+      currentNote: { path: 'Today.md' },
+      notesPath: '/vault',
+      starredEntries: [],
+      isLoading: false,
+      loadFileTree: hoisted.loadFileTree,
+      getDisplayName: (path: string) => (
+        path.split('/').pop()?.replace(/\.md$/, '') ?? path.replace(/\.md$/, '')
+      ),
+      getNoteIcon: (path: string) => (path === 'Today.md' ? '✨' : undefined),
+    };
+
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+  });
+
+  it('shows folders alongside note candidates for a bare mention trigger', () => {
+    const { result } = renderMentions('@');
+
+    act(() => {
+      result.current.handleCaretChange(1);
+    });
+
+    expect(result.current.showMentionPicker).toBe(true);
+    expect(result.current.currentPageCandidates.map((item) => item.title)).toEqual(['Today']);
+    expect(result.current.currentPageCandidates[0]?.icon).toBe('✨');
+    expect(result.current.folderCandidates.map((item) => item.title)).toEqual(['Projects/']);
+    expect(result.current.linkedPageCandidates.map((item) => item.title)).toEqual([
+      'Archive',
+      'Plan',
+      'Tomorrow',
+    ]);
+  });
+
+  it('includes folders as mention candidates', () => {
+    const { result } = renderMentions('@Proj');
+
+    act(() => {
+      result.current.handleCaretChange(5);
+    });
+
+    expect(result.current.showMentionPicker).toBe(true);
+    expect(result.current.folderCandidates).toMatchObject([
+      {
+        path: 'Projects',
+        title: 'Projects/',
+        kind: 'folder',
+      },
+    ]);
+  });
+
+  it('restores typed folder mention text into a real mention reference', () => {
+    const { result } = renderMentions('@Projects/ ');
+
+    expect(result.current.noteMentions).toEqual([
+      { path: 'Projects', title: 'Projects/', kind: 'folder' },
+    ]);
+    expect(result.current.mentionPreviewParts.some((part) =>
+      part.type === 'mention' && part.mention?.kind === 'folder'
+    )).toBe(true);
+  });
+
+  it('updates an existing mention when sync resolves its folder kind', async () => {
+    const textarea = document.createElement('textarea');
+
+    const { result, rerender } = renderHook(({ kind }: { kind: 'folder' | undefined }) => {
+      const [message, setMessage] = useState('@Projects/ ');
+      const textareaRef = useRef<HTMLTextAreaElement>(textarea);
+      return useNoteMentionState({
+        value: message,
+        onValueChange: setMessage,
+        textareaRef,
+        syncMentions: ({ value }) =>
+          value.includes('@Projects/')
+            ? [{ path: 'Projects', title: 'Projects/', kind }]
+            : [],
+      });
+    }, {
+      initialProps: { kind: undefined as 'folder' | undefined },
+    });
+
+    await waitFor(() => {
+      expect(result.current.mentions).toEqual([
+        { path: 'Projects', title: 'Projects/', kind: undefined },
+      ]);
+    });
+
+    rerender({ kind: 'folder' });
+
+    await waitFor(() => {
+      expect(result.current.mentions).toEqual([
+        { path: 'Projects', title: 'Projects/', kind: 'folder' },
+      ]);
+    });
+  });
+
+  it('keeps a dragged folder mention scoped to its exact path when folder names collide', async () => {
+    hoisted.storeRef.state = {
+      ...hoisted.storeRef.state,
+      rootFolder: {
+        children: [
+          {
+            isFolder: true,
+            name: 'assets',
+            path: 'assets',
+            children: [],
+          },
+          {
+            isFolder: true,
+            name: 'docs',
+            path: 'docs',
+            children: [
+              {
+                isFolder: true,
+                name: 'assets',
+                path: 'docs/assets',
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+    };
+    const { result } = renderMentions('');
+
+    act(() => {
+      result.current.appendNoteMentions([
+        { path: 'docs/assets', title: 'assets/', kind: 'folder' },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.noteMentions).toEqual([
+        { path: 'docs/assets', title: 'assets/', kind: 'folder' },
+      ]);
+    });
+  });
+
+  it('does not restore ambiguous typed folder mentions with duplicate titles', async () => {
+    hoisted.storeRef.state = {
+      ...hoisted.storeRef.state,
+      rootFolder: {
+        children: [
+          {
+            isFolder: true,
+            name: 'assets',
+            path: 'assets',
+            children: [],
+          },
+          {
+            isFolder: true,
+            name: 'docs',
+            path: 'docs',
+            children: [
+              {
+                isFolder: true,
+                name: 'assets',
+                path: 'docs/assets',
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+    };
+    const { result } = renderMentions('@assets/ ');
+
+    await waitFor(() => {
+      expect(result.current.noteMentions).toEqual([]);
+    });
+  });
+
+  it('keeps folder candidates visible when many files match first', () => {
+    hoisted.storeRef.state = {
+      ...hoisted.storeRef.state,
+      rootFolder: {
+        children: [
+          ...Array.from({ length: 36 }, (_, index) => ({
+            isFolder: false,
+            path: `Match-${String(index).padStart(2, '0')}.md`,
+          })),
+          {
+            isFolder: true,
+            name: 'Match Folder',
+            path: 'Match Folder',
+            children: [],
+          },
+        ],
+      },
+      currentNote: null,
+    };
+
+    const { result } = renderMentions('@Match');
+
+    act(() => {
+      result.current.handleCaretChange(6);
+    });
+
+    expect(result.current.linkedPageCandidates).toHaveLength(30);
+    expect(result.current.folderCandidates.map((item) => item.title)).toEqual(['Match Folder/']);
+  });
+});
