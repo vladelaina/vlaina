@@ -59,10 +59,46 @@ function contentLimitArg(args: Record<string, unknown>): number {
 }
 
 function normalizeToolName(name: string): string {
-  if (name === 'search') return WEB_SEARCH_TOOL_NAMES.search;
-  if (name === 'read' || name === 'read_page') return WEB_SEARCH_TOOL_NAMES.read;
-  if (name === 'read_pages' || name === 'read_batch') return WEB_SEARCH_TOOL_NAMES.readBatch;
-  return name;
+  const normalized = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  if (
+    normalized === WEB_SEARCH_TOOL_NAMES.search ||
+    normalized === 'search' ||
+    normalized === 'search_web' ||
+    normalized === 'searchweb' ||
+    normalized === 'web_search_tool' ||
+    normalized === 'websearch'
+  ) {
+    return WEB_SEARCH_TOOL_NAMES.search;
+  }
+  if (
+    normalized === WEB_SEARCH_TOOL_NAMES.read ||
+    normalized === 'read' ||
+    normalized === 'read_page' ||
+    normalized === 'read_webpage' ||
+    normalized === 'read_url' ||
+    normalized === 'readurl' ||
+    normalized === 'fetch_web_page' ||
+    normalized === 'fetchwebpage' ||
+    normalized === 'fetch_url' ||
+    normalized === 'fetchurl'
+  ) {
+    return WEB_SEARCH_TOOL_NAMES.read;
+  }
+  if (
+    normalized === WEB_SEARCH_TOOL_NAMES.readBatch ||
+    normalized === 'read_pages' ||
+    normalized === 'read_batch' ||
+    normalized === 'read_webpages' ||
+    normalized === 'read_urls' ||
+    normalized === 'readurls' ||
+    normalized === 'fetch_web_pages' ||
+    normalized === 'fetchwebpages' ||
+    normalized === 'fetch_urls' ||
+    normalized === 'fetchurls'
+  ) {
+    return WEB_SEARCH_TOOL_NAMES.readBatch;
+  }
+  return normalized || name;
 }
 
 function errorCode(error: unknown): string | undefined {

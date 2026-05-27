@@ -21,6 +21,7 @@ import {
   runOpenAIWebSearchJsonToolLoop,
   runOpenAIWebSearchToolLoop,
 } from '@/lib/ai/webSearch/openAIToolLoop'
+import { buildWebSearchStatusMarkup, stripWebSearchStatusMarkup } from '@/lib/ai/webSearch/statusMarkup'
 import { isStandaloneImageGenerationModel } from '@/lib/ai/modelCapabilities'
 import { addChatDebugLog } from '@/lib/debug/chatDebugLog'
 
@@ -111,6 +112,36 @@ function isDeepSeekOpenAICompatible(provider: Provider, model: AIModel): boolean
 
 function shouldReplayApiTranscript(provider: Provider, model: AIModel): boolean {
   return provider.endpointType !== 'anthropic' && isDeepSeekOpenAICompatible(provider, model)
+}
+
+function isGrokModel(provider: Provider, model: AIModel): boolean {
+  const haystack = [
+    provider.id,
+    provider.name,
+    provider.apiHost,
+    model.id,
+    model.providerId,
+    model.name,
+    model.apiModelId,
+  ].join(' ').toLowerCase()
+  return /(^|[\s._:/-])grok(?:[\s._:/-]|\d|$)/i.test(haystack) ||
+    /(^|[\s._:/-])x[\s._-]?ai(?:[\s._:/-]|$)/i.test(haystack)
+}
+
+function isOfficialXaiProvider(provider: Provider): boolean {
+  try {
+    const hostname = new URL(provider.apiHost).hostname.toLowerCase()
+    return hostname === 'api.x.ai' || hostname.endsWith('.x.ai')
+  } catch {
+    return provider.apiHost.toLowerCase().includes('api.x.ai')
+  }
+}
+
+function shouldUseXaiNativeWebSearch(provider: Provider, model: AIModel): boolean {
+  if (!isOfficialXaiProvider(provider)) {
+    return false
+  }
+  return isGrokModel(provider, model)
 }
 
 function buildChatCompletionOptions(options?: ChatSendOptions): Partial<ChatCompletionRequest> {
@@ -273,7 +304,7 @@ function buildAssistantApiTranscriptFromRenderedContent(content: string): ApiTra
 
 function stripRenderedThinkingFromAssistantContent(content: ChatMessageContent): ChatMessageContent {
   if (typeof content === 'string') {
-    return stripThinkingContent(content)
+    return stripWebSearchStatusMarkup(stripThinkingContent(content))
   }
 
   return content.map((part) => {
@@ -282,9 +313,113 @@ function stripRenderedThinkingFromAssistantContent(content: ChatMessageContent):
     }
     return {
       ...part,
-      text: stripThinkingContent(part.text),
+      text: stripWebSearchStatusMarkup(stripThinkingContent(part.text)),
     }
   })
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isSafeHttpUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+function hostLabel(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+
+function textFromResponseContent(value: unknown): string {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (!Array.isArray(value)) {
+    return ''
+  }
+  return value.map((part) => {
+    if (typeof part === 'string') return part
+    if (!isRecord(part)) return ''
+    if (typeof part.text === 'string') return part.text
+    if (typeof part.content === 'string') return part.content
+    return ''
+  }).join('')
+}
+
+function extractXaiResponsesText(payload: Record<string, unknown>): string {
+  if (typeof payload.output_text === 'string') {
+    return payload.output_text
+  }
+
+  const output = Array.isArray(payload.output) ? payload.output : []
+  const parts: string[] = []
+  for (const item of output) {
+    if (!isRecord(item)) continue
+    if (typeof item.content === 'string') {
+      parts.push(item.content)
+      continue
+    }
+    if (!Array.isArray(item.content)) continue
+    for (const content of item.content) {
+      if (!isRecord(content)) continue
+      if (content.type === 'output_text' && typeof content.text === 'string') {
+        parts.push(content.text)
+      }
+    }
+  }
+  return parts.join('')
+}
+
+function collectXaiCitationUrlsFromValue(value: unknown, urls: string[]): void {
+  if (isSafeHttpUrl(value)) {
+    if (!urls.includes(value)) urls.push(value)
+    return
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectXaiCitationUrlsFromValue(item, urls)
+    }
+    return
+  }
+  if (!isRecord(value)) {
+    return
+  }
+  if (isSafeHttpUrl(value.url) && !urls.includes(value.url)) {
+    urls.push(value.url)
+  }
+  for (const key of ['citations', 'citation', 'annotations', 'inline_citations', 'url_citation', 'source', 'sources', 'content', 'output']) {
+    if (key in value) {
+      collectXaiCitationUrlsFromValue(value[key], urls)
+    }
+  }
+}
+
+function extractXaiCitationUrls(payload: Record<string, unknown>): string[] {
+  const urls: string[] = []
+  collectXaiCitationUrlsFromValue(payload.citations, urls)
+  collectXaiCitationUrlsFromValue(payload.inline_citations, urls)
+  collectXaiCitationUrlsFromValue(payload.output, urls)
+  return urls.slice(0, 8)
+}
+
+function buildXaiResponsesInput(messages: ApiTranscriptMessage[]): Array<Record<string, unknown>> {
+  return messages
+    .filter((message) => message.role === 'system' || message.role === 'user' || message.role === 'assistant')
+    .map((message) => ({
+      role: message.role,
+      content: textFromResponseContent(message.content),
+    }))
+    .filter((message) => typeof message.content === 'string' && message.content.trim().length > 0)
 }
 
 export class OpenAICompatibleClient implements AIClient {
@@ -458,6 +593,95 @@ export class OpenAICompatibleClient implements AIClient {
     throw lastError
   }
 
+  private async sendXaiNativeWebSearchMessage({
+    baseUrl,
+    headers,
+    body,
+    onChunk,
+    signal,
+    options,
+  }: {
+    baseUrl: string
+    headers: Record<string, string>
+    body: ChatCompletionRequest
+    onChunk: (chunk: string) => void
+    signal?: AbortSignal
+    options?: ChatSendOptions
+  }): Promise<string> {
+    options?.onWebSearchStatus?.({ phase: 'searching', query: extractTextPrompt(body.messages[body.messages.length - 1]?.content ?? '') })
+    onChunk(buildWebSearchStatusMarkup({ phase: 'searching' }))
+
+    const response = await providerFetch(`${baseUrl}/responses`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: body.model,
+        input: buildXaiResponsesInput(body.messages),
+        tools: [{ type: 'web_search' }],
+        ...buildChatCompletionOptions(options),
+      }),
+      signal,
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error')
+      let errorBody
+      try {
+        errorBody = JSON.parse(errorText)
+      } catch {
+        errorBody = { message: errorText }
+      }
+      throw parseHTTPError(response.status, errorBody)
+    }
+
+    const payload = await response.json() as Record<string, unknown>
+    const content = rejectHtmlErrorContent(extractXaiResponsesText(payload))
+    if (!content.trim()) {
+      throw new Error('The model completed web search but returned no visible answer.')
+    }
+    const citationUrls = extractXaiCitationUrls(payload)
+    const statuses = citationUrls.length > 0
+      ? [
+          buildWebSearchStatusMarkup({
+            phase: 'results',
+            results: citationUrls.slice(0, 5).map((url) => ({
+              title: hostLabel(url),
+              url,
+              snippet: '',
+              publishedAt: null,
+            })),
+            metrics: { resultCount: citationUrls.length },
+          }),
+          buildWebSearchStatusMarkup({
+            phase: 'complete',
+            urls: citationUrls,
+            metrics: { successCount: citationUrls.length },
+          }),
+        ].join('')
+      : ''
+    const finalContent = `${statuses}${statuses && content.trim() ? '\n\n' : ''}${content}`
+    if (citationUrls.length > 0) {
+      options?.onWebSearchStatus?.({
+        phase: 'results',
+        results: citationUrls.slice(0, 5).map((url) => ({
+          title: hostLabel(url),
+          url,
+          snippet: '',
+          publishedAt: null,
+        })),
+        metrics: { resultCount: citationUrls.length },
+      })
+      options?.onWebSearchStatus?.({
+        phase: 'complete',
+        urls: citationUrls,
+        metrics: { successCount: citationUrls.length },
+      })
+    }
+    onChunk(finalContent)
+    options?.onApiTranscript?.([{ role: 'assistant', content }])
+    return finalContent
+  }
+
   async sendMessage(
     message: ChatMessageContent,
     history: ChatMessage[],
@@ -488,7 +712,7 @@ export class OpenAICompatibleClient implements AIClient {
           n: 1,
         }, onChunk)
       }
-      if (options?.webSearchEnabled) {
+      if (options?.webSearchEnabled && !isGrokModel(provider, model)) {
         return runOpenAIWebSearchJsonToolLoop({
           body,
           onChunk: onChunk || (() => {}),
@@ -559,6 +783,19 @@ export class OpenAICompatibleClient implements AIClient {
     const url = `${baseUrl}/chat/completions`
 
     if (options?.webSearchEnabled) {
+      if (shouldUseXaiNativeWebSearch(provider, model)) {
+        return this.sendXaiNativeWebSearchMessage({
+          baseUrl,
+          headers,
+          body,
+          onChunk: onChunk || (() => {}),
+          signal,
+          options,
+        })
+      }
+      if (isGrokModel(provider, model)) {
+        return this.streamResponse(url, headers, body, onChunk || (() => {}), signal, options)
+      }
       return runOpenAIWebSearchToolLoop({
         body,
         onChunk: onChunk || (() => {}),
