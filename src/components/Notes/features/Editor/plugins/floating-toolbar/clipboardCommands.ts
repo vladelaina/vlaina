@@ -17,12 +17,18 @@ export async function copySelectionToClipboard(
     return false;
   }
 
+  const selection = view.state.selection;
+  const doc = view.state.doc;
   const didCopy = await writeTextToClipboard(text);
   if (!didCopy) {
     return false;
   }
 
-  if (options.collapseAfterCopy !== false) {
+  if (
+    options.collapseAfterCopy !== false &&
+    view.state.doc.eq(doc) &&
+    selection.eq(view.state.selection)
+  ) {
     collapseSelectionAndHideFloatingToolbar(view);
   }
   return true;

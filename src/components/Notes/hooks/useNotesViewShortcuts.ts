@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { matchesShortcutBinding } from '@/lib/shortcuts';
 import { isEventInsideDialog } from '@/lib/shortcuts/dialogGuards';
+import { shouldSkipShortcutForEditableSystemShortcut } from '@/lib/shortcuts/editableGuards';
 import {
   runOpenNewChatShortcut,
   runTemporaryChatWelcomeShortcut,
@@ -45,6 +46,10 @@ export function useNotesViewShortcuts({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || shouldSkipShortcutForEditableSystemShortcut(event)) {
+        return;
+      }
+
       if (isEventInsideDialog(event.target)) {
         return;
       }

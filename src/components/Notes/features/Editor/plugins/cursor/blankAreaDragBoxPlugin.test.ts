@@ -278,6 +278,35 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
     }
   });
 
+  it('does not delete selected blocks when async Ctrl+X completes after the document changes', async () => {
+    let resolveWrite: () => void = () => {
+      throw new Error('clipboard write promise was not created');
+    };
+    const writeText = vi.fn(() => new Promise<void>((resolve) => {
+      resolveWrite = resolve;
+    }));
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      const cut = simulateKeydown(view, 'x');
+      view.dispatch(view.state.tr.insertText('Prefix ', 1));
+      resolveWrite();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(cut.handled).toBe(true);
+      expect(cut.event.defaultPrevented).toBe(true);
+      expect(writeText).toHaveBeenCalledWith('Alpha');
+      expect(view.state.doc.textContent).toBe('Prefix AlphaBeta');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
   it('copies selected blocks during the native copy event', async () => {
     const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
 

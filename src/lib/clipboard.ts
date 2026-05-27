@@ -5,6 +5,11 @@ function tryExecCommandCopy(text: string): boolean {
     return false;
   }
 
+  const activeElement = document.activeElement;
+  const selection = typeof window !== 'undefined' ? window.getSelection() : null;
+  const selectedRanges = selection
+    ? Array.from({ length: selection.rangeCount }, (_, index) => selection.getRangeAt(index).cloneRange())
+    : [];
   const textarea = document.createElement('textarea');
   textarea.value = text;
   textarea.setAttribute('readonly', 'true');
@@ -21,14 +26,17 @@ function tryExecCommandCopy(text: string): boolean {
     return false;
   } finally {
     textarea.remove();
+    if (selection) {
+      selection.removeAllRanges();
+      selectedRanges.forEach((range) => selection.addRange(range));
+    }
+    if (activeElement instanceof HTMLElement) {
+      activeElement.focus({ preventScroll: true });
+    }
   }
 }
 
 export async function writeTextToClipboard(text: string): Promise<boolean> {
-  if (tryExecCommandCopy(text)) {
-    return true;
-  }
-
   const desktopClipboard = getElectronBridge()?.clipboard;
   if (desktopClipboard?.writeText) {
     try {

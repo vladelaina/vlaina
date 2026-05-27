@@ -30,6 +30,9 @@ function TestHarness() {
       <button data-testid="message-button" type="button">
         action
       </button>
+      <div contentEditable="plaintext-only" data-testid="plaintext-editor" suppressContentEditableWarning>
+        editable
+      </div>
     </div>
   );
 }
@@ -99,6 +102,18 @@ describe("useComposerClickFocus", () => {
     render(<TestHarness />);
 
     fireEvent.mouseDown(screen.getByTestId("message-button"), {
+      button: 0,
+      clientX: 20,
+      clientY: 20,
+    });
+
+    expect(mocked.focusComposerInput).not.toHaveBeenCalled();
+  });
+
+  it("does not focus composer when clicking plaintext-only editable content", () => {
+    render(<TestHarness />);
+
+    fireEvent.mouseDown(screen.getByTestId("plaintext-editor"), {
       button: 0,
       clientX: 20,
       clientY: 20,

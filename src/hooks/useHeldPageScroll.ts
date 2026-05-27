@@ -1,4 +1,5 @@
 import { RefObject, useEffect, useRef } from 'react';
+import { isEditableShortcutTarget } from '@/lib/shortcuts/editableGuards';
 
 const INITIAL_SCROLL_RATIO = 0.22;
 const MIN_INITIAL_SCROLL_PX = 96;
@@ -51,22 +52,6 @@ function isEventWithinRoot(root: HTMLElement, target: EventTarget | null) {
   }
 
   return root.contains(target);
-}
-
-function isEditableTarget(target: EventTarget | null) {
-  if (!(target instanceof Element)) {
-    return false;
-  }
-
-  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
-    return true;
-  }
-
-  if ((target as HTMLElement).isContentEditable) {
-    return true;
-  }
-
-  return !!target.closest('[contenteditable="true"]');
 }
 
 export function useHeldPageScroll(
@@ -215,7 +200,7 @@ export function useHeldPageScroll(
         return;
       }
 
-      if (ignoreEditableTargets && isEditableTarget(event.target) && !isHoverTriggered) {
+      if (ignoreEditableTargets && isEditableShortcutTarget(event.target) && !isHoverTriggered) {
         return;
       }
 

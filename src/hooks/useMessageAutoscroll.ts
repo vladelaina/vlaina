@@ -13,6 +13,7 @@ import {
   CHAT_MESSAGE_LIST_GAP,
 } from "@/components/Chat/features/Layout/chatMessageFrames";
 import { normalizeChatContainerWidth } from "@/components/Chat/features/Layout/chatWidthBuckets";
+import { isEditableShortcutTarget } from "@/lib/shortcuts/editableGuards";
 
 interface UseMessageAutoscrollOptions {
   active?: boolean;
@@ -43,19 +44,6 @@ function hasUsableScrollContainer(container: HTMLElement | null): container is H
 
 function isEventWithinRoot(root: HTMLElement, target: EventTarget | null): boolean {
   return target instanceof Node && root.contains(target);
-}
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) {
-    return false;
-  }
-
-  return (
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    (target as HTMLElement).isContentEditable ||
-    !!target.closest('[contenteditable="true"]')
-  );
 }
 
 function isUpwardKeyboardScrollIntent(event: KeyboardEvent): boolean {
@@ -817,7 +805,7 @@ export const useMessageAutoscroll = ({
       if (
         !isStreamingRef.current ||
         !isUpwardKeyboardScrollIntent(event) ||
-        isEditableTarget(event.target)
+        isEditableShortcutTarget(event.target)
       ) {
         return;
       }

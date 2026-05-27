@@ -1307,6 +1307,37 @@ describe('NotesView', () => {
     expect(notesState.openNote).not.toHaveBeenCalled();
   });
 
+  it('does not let notes shortcuts steal editable copy', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    shortcutMatchesMock.mockImplementation((event, binding) => (
+      binding === 'toggleEmbeddedChat' && event.key.toLowerCase() === 'c' && event.ctrlKey
+    ));
+
+    render(<NotesView />);
+    await waitForVaultInitializationEffects();
+
+    const editor = document.createElement('div');
+    editor.className = 'ProseMirror';
+    editor.setAttribute('contenteditable', 'true');
+    document.body.appendChild(editor);
+
+    try {
+      const event = new KeyboardEvent('keydown', {
+        key: 'c',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      editor.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(uiState.toggleNotesChatPanel).not.toHaveBeenCalled();
+      expect(mocks.sidebarDiscussion.openSidebarDiscussionForSelection).not.toHaveBeenCalled();
+    } finally {
+      editor.remove();
+    }
+  });
+
   it('reopens the last closed tab on Ctrl+Shift+T', async () => {
     notesState.currentNote = { path: 'docs/current.md', content: '# current' };
     shortcutMatchesMock.mockImplementation((event, binding) => (
