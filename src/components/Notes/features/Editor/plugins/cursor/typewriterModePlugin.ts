@@ -42,12 +42,24 @@ export function isTypewriterInputEvent(event: InputEvent): boolean {
     return event.inputType.startsWith('insert') || event.inputType.startsWith('delete');
 }
 
-function getScrollRoot(view: EditorView): HTMLElement | null {
-    return view.dom.closest(SCROLL_ROOT_SELECTOR)
-        ?? view.dom.ownerDocument.querySelector<HTMLElement>(SCROLL_ROOT_SELECTOR);
+export function isTypewriterKeyEvent(event: KeyboardEvent): boolean {
+    if (event.key === 'Enter' || event.key === 'Backspace' || event.key === 'Delete' || event.key === 'Tab') {
+        return true;
+    }
+
+    if ((!event.metaKey && !event.ctrlKey) || event.altKey) {
+        return false;
+    }
+
+    const key = event.key.toLowerCase();
+    return key === 'z' || key === 'y';
 }
 
-class TypewriterModeView {
+function getScrollRoot(view: EditorView): HTMLElement | null {
+    return view.dom.closest(SCROLL_ROOT_SELECTOR);
+}
+
+export class TypewriterModeView {
     private enabled = selectMarkdownTypewriterModeEnabled(useUnifiedStore.getState());
     private frameId: number | null = null;
     private unsubscribe: (() => void) | null = null;
@@ -59,9 +71,14 @@ class TypewriterModeView {
             const nextEnabled = selectMarkdownTypewriterModeEnabled(state);
             if (this.enabled === nextEnabled) return;
             this.enabled = nextEnabled;
+            if (!nextEnabled) {
+                this.pendingInputCenter = false;
+                this.cancelPendingFrame();
+            }
         });
         this.view.dom.addEventListener('pointerdown', this.handlePointerDown);
         this.view.dom.addEventListener('beforeinput', this.handleBeforeInput);
+        this.view.dom.addEventListener('keydown', this.handleKeyDown);
     }
 
     update(view: EditorView, prevState: EditorView['state']): void {
@@ -78,31 +95,33 @@ class TypewriterModeView {
     }
 
     destroy(): void {
-        if (this.frameId !== null) {
-            this.view.dom.ownerDocument.defaultView?.cancelAnimationFrame(this.frameId);
-            this.frameId = null;
-        }
+        this.cancelPendingFrame();
         this.unsubscribe?.();
         this.unsubscribe = null;
         this.view.dom.removeEventListener('pointerdown', this.handlePointerDown);
         this.view.dom.removeEventListener('beforeinput', this.handleBeforeInput);
+        this.view.dom.removeEventListener('keydown', this.handleKeyDown);
         this.view.dom.ownerDocument.defaultView?.removeEventListener('pointerup', this.handlePointerUp);
         this.view.dom.ownerDocument.defaultView?.removeEventListener('pointercancel', this.handlePointerUp);
     }
 
     private handleBeforeInput = (event: Event): void => {
+        if (!this.enabled) return;
         if (!(event instanceof InputEvent)) return;
         if (!isTypewriterInputEvent(event)) return;
+        this.pendingInputCenter = true;
+    };
+
+    private handleKeyDown = (event: KeyboardEvent): void => {
+        if (!this.enabled) return;
+        if (!isTypewriterKeyEvent(event)) return;
         this.pendingInputCenter = true;
     };
 
     private handlePointerDown = (): void => {
         this.pointerDown = true;
         this.pendingInputCenter = false;
-        if (this.frameId !== null) {
-            this.view.dom.ownerDocument.defaultView?.cancelAnimationFrame(this.frameId);
-            this.frameId = null;
-        }
+        this.cancelPendingFrame();
 
         const ownerWindow = this.view.dom.ownerDocument.defaultView;
         ownerWindow?.addEventListener('pointerup', this.handlePointerUp, { once: true });
@@ -126,6 +145,12 @@ class TypewriterModeView {
             this.frameId = null;
             this.centerCursor();
         });
+    }
+
+    private cancelPendingFrame(): void {
+        if (this.frameId === null) return;
+        this.view.dom.ownerDocument.defaultView?.cancelAnimationFrame(this.frameId);
+        this.frameId = null;
     }
 
     private centerCursor(): void {
