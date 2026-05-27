@@ -6,8 +6,6 @@ export function setClipboardText(event: ClipboardEvent, text: string): void {
     event.clipboardData.setData('text/plain', text);
     return;
   }
-  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    void navigator.clipboard.writeText(text);
-  }
+  void writeTextToClipboard(text);
 }
 export { writeTextToClipboard };

@@ -28,7 +28,9 @@ describe('floating toolbar clipboard commands', () => {
 
   it('uses the shared selection serializer with the current markdown serializer', async () => {
     const markdownSerializer = vi.fn();
-    const state = { selection: { from: 1, to: 7 } };
+    const selection = { from: 1, to: 7, eq: vi.fn((next) => next === selection) };
+    const doc = { eq: vi.fn((next) => next === doc) };
+    const state = { selection, doc };
     const view: any = { state };
 
     vi.mocked(getCurrentMarkdownSerializer).mockReturnValue(markdownSerializer);
@@ -41,5 +43,30 @@ describe('floating toolbar clipboard commands', () => {
     expect(serializeSelectionToClipboardText).toHaveBeenCalledWith(state, markdownSerializer);
     expect(writeTextToClipboard).toHaveBeenCalledWith('Before\n\nAfter');
     expect(collapseSelectionAndHideFloatingToolbar).toHaveBeenCalledWith(view);
+  });
+
+  it('does not collapse a newer selection after async copy resolves', async () => {
+    let resolveWrite: (value: boolean) => void = () => {
+      throw new Error('clipboard write promise was not created');
+    };
+    const markdownSerializer = vi.fn();
+    const selection = { from: 1, to: 7, eq: vi.fn((next) => next === selection) };
+    const nextSelection = { from: 8, to: 12 };
+    const doc = { eq: vi.fn((next) => next === doc) };
+    const state = { selection, doc };
+    const view: any = { state };
+
+    vi.mocked(getCurrentMarkdownSerializer).mockReturnValue(markdownSerializer);
+    vi.mocked(serializeSelectionToClipboardText).mockReturnValue('Before\n\nAfter');
+    vi.mocked(writeTextToClipboard).mockImplementation(() => new Promise((resolve) => {
+      resolveWrite = resolve;
+    }));
+
+    const copyPromise = copySelectionToClipboard(view);
+    view.state = { selection: nextSelection, doc };
+    resolveWrite(true);
+
+    await expect(copyPromise).resolves.toBe(true);
+    expect(collapseSelectionAndHideFloatingToolbar).not.toHaveBeenCalled();
   });
 });

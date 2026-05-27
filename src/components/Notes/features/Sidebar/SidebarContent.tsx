@@ -26,6 +26,7 @@ import {
 } from '../common/sidebarScrollIntoView';
 import { useSidebarContentSearchResults } from './useSidebarContentSearchResults';
 import { useI18n } from '@/lib/i18n';
+import { isEditableShortcutTarget } from '@/lib/shortcuts/editableGuards';
 
 const EMPTY_NOTE_CONTENTS_CACHE = new Map<string, { content: string; modifiedAt: number | null }>();
 const SidebarSearchResultsList = lazy(async () => {
@@ -216,19 +217,6 @@ export function SidebarContent({
       typeof window !== 'undefined' &&
       /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 
-    const isEditableTarget = (target: EventTarget | null) => {
-      if (!(target instanceof HTMLElement)) {
-        return false;
-      }
-
-      if (target.isContentEditable) {
-        return true;
-      }
-
-      const editable = target.closest('input, textarea, select, [contenteditable="true"]');
-      return editable instanceof HTMLElement;
-    };
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing) {
         return;
@@ -245,7 +233,7 @@ export function SidebarContent({
         return;
       }
 
-      if (isEditableTarget(event.target) && !isF2) {
+      if (isEditableShortcutTarget(event.target) && !isF2) {
         return;
       }
 

@@ -331,6 +331,60 @@ describe('useShortcuts', () => {
     expect(restoreLastDeletedItem).not.toHaveBeenCalled();
   });
 
+  it('does not run global shortcuts after an editor shortcut has handled the event', async () => {
+    const toggleDrawer = vi.fn();
+    useUIStore.setState({ toggleDrawer });
+
+    renderHook(() => useShortcuts());
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'd',
+      code: 'KeyD',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    event.preventDefault();
+
+    window.dispatchEvent(event);
+    await Promise.resolve();
+
+    expect(toggleDrawer).not.toHaveBeenCalled();
+  });
+
+  it('keeps user-configured copy shortcuts from stealing editable copy', async () => {
+    localStorage.setItem('vlaina-shortcuts', JSON.stringify([
+      { id: 'toggleDrawer', keys: ['Ctrl', 'C'] },
+    ]));
+    const toggleDrawer = vi.fn();
+    useUIStore.setState({ toggleDrawer });
+
+    try {
+      renderHook(() => useShortcuts());
+
+      const editor = document.createElement('div');
+      editor.className = 'ProseMirror';
+      editor.setAttribute('contenteditable', 'true');
+      document.body.appendChild(editor);
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'c',
+        code: 'KeyC',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+
+      editor.dispatchEvent(event);
+      await Promise.resolve();
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(toggleDrawer).not.toHaveBeenCalled();
+    } finally {
+      document.querySelector('.ProseMirror')?.remove();
+    }
+  });
+
   it('does not dispatch in-note find outside notes mode', () => {
     useUIStore.setState({ appViewMode: 'chat' });
     const editorFindListener = vi.fn();

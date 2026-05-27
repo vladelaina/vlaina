@@ -1,15 +1,12 @@
 import { useCallback, type MouseEvent } from 'react';
 import { focusComposerInput, isComposerFocusTarget } from '@/lib/ui/composerFocusRegistry';
+import { isEditableShortcutTarget } from '@/lib/shortcuts/editableGuards';
 
 const NON_FOCUSABLE_SELECTOR = [
-  'textarea',
-  'input',
-  'select',
   'button',
   'a',
   'label',
   'summary',
-  '[contenteditable="true"]',
   '[role="button"]',
   '[data-no-focus-input="true"]'
 ].join(', ');
@@ -44,6 +41,7 @@ function getClosestElement(target: EventTarget | null, selector: string): Elemen
 function shouldFocusComposer(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
   if (isComposerFocusTarget(target)) return false;
+  if (isEditableShortcutTarget(target)) return false;
   if (getClosestElement(target, NON_FOCUSABLE_SELECTOR)) return false;
   return true;
 }

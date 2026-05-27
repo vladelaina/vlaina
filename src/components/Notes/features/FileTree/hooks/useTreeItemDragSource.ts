@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import type React from 'react';
 import type { NotesSidebarRowDragHandlers } from '../../Sidebar/NotesSidebarRow';
 import { startFileTreePointerDrag, useFileTreePointerDragState } from './fileTreePointerDragState';
+import { isEditableShortcutTarget } from '@/lib/shortcuts/editableGuards';
 
 export function useTreeItemDragSource(
   path: string,
@@ -19,7 +20,10 @@ export function useTreeItemDragSource(
       const target = event.target;
       if (
         target instanceof HTMLElement &&
-        target.closest('button, input, textarea, select, a, [contenteditable="true"], [data-slot="dialog-close"]')
+        (
+          isEditableShortcutTarget(target) ||
+          target.closest('button, a, [data-slot="dialog-close"]')
+        )
       ) {
         return;
       }

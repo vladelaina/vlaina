@@ -41,17 +41,25 @@ const MAX_HTML_PASTE_CHARS = 2 * 1024 * 1024;
 const INLINE_FOOTNOTE_REFERENCE_PATTERN = /\[\^([^\]\r\n]+)\]/g;
 const BLANK_LINE_PATTERN = /\n[ \t]*\n/;
 
-function isCopyShortcut(event: KeyboardEvent): boolean {
+function isClipboardShortcut(event: KeyboardEvent, key: 'c' | 'x'): boolean {
     return (
         (event.metaKey || event.ctrlKey) &&
         !event.altKey &&
         !event.shiftKey &&
-        event.key.toLowerCase() === 'c'
+        event.key.toLowerCase() === key
+    );
+}
+
+function isNonEmptyTextSelection(selection: Selection): boolean {
+    return (
+        (selection instanceof TextSelection || selection.constructor?.name === 'TextSelection') &&
+        !selection.empty
     );
 }
 
 function shouldHandleCopyShortcutDirectly(selection: Selection): boolean {
     return (
+        isNonEmptyTextSelection(selection) ||
         selection instanceof AllSelection ||
         selection instanceof CellSelection ||
         selection instanceof NodeSelection ||
@@ -59,6 +67,32 @@ function shouldHandleCopyShortcutDirectly(selection: Selection): boolean {
         selection.constructor?.name === 'CellSelection' ||
         selection.constructor?.name === 'NodeSelection'
     );
+}
+
+function shouldHandleCutShortcutDirectly(selection: Selection): boolean {
+    return shouldHandleCopyShortcutDirectly(selection);
+}
+
+function deleteCapturedSelection(view: EditorView, selection: Selection, doc: ProseNode): void {
+    if (!view.state.doc.eq(doc)) {
+        return;
+    }
+
+    view.dispatch(
+        view.state.tr
+            .setSelection(selection)
+            .deleteSelection()
+            .scrollIntoView(),
+    );
+    view.focus();
+}
+
+function collapseCapturedSelectionAndHideFloatingToolbar(view: EditorView, selection: Selection, doc: ProseNode): void {
+    if (!view.state.doc.eq(doc) || !selection.eq(view.state.selection)) {
+        return;
+    }
+
+    collapseSelectionAndHideFloatingToolbar(view);
 }
 
 export function createStandaloneTocPasteNode(schema: {
@@ -611,7 +645,14 @@ export const clipboardPlugin = $prose((ctx) => {
         key: clipboardPluginKey,
         props: {
             handleKeyDown(view, event) {
-                if (!isCopyShortcut(event) || !shouldHandleCopyShortcutDirectly(view.state.selection)) {
+                const isDirectCopy =
+                    isClipboardShortcut(event, 'c') &&
+                    shouldHandleCopyShortcutDirectly(view.state.selection);
+                const isDirectCut =
+                    isClipboardShortcut(event, 'x') &&
+                    shouldHandleCutShortcutDirectly(view.state.selection);
+
+                if (!isDirectCopy && !isDirectCut) {
                     return false;
                 }
 
@@ -623,10 +664,17 @@ export const clipboardPlugin = $prose((ctx) => {
                     return false;
                 }
 
+                const selection = view.state.selection;
+                const doc = view.state.doc;
                 event.preventDefault();
                 void writeTextToClipboard(text).then((didCopy) => {
                     if (didCopy) {
-                        collapseSelectionAndHideFloatingToolbar(view);
+                        if (isDirectCut) {
+                            deleteCapturedSelection(view, selection, doc);
+                            return;
+                        }
+
+                        collapseCapturedSelectionAndHideFloatingToolbar(view, selection, doc);
                     }
                 });
                 return true;
@@ -639,10 +687,47 @@ export const clipboardPlugin = $prose((ctx) => {
                     );
                     if (text.length === 0) return false;
 
+                    const selection = view.state.selection;
+                    const doc = view.state.doc;
                     event.preventDefault();
-                    event.clipboardData?.setData('text/plain', text);
-                    collapseSelectionAndHideFloatingToolbar(view);
+                    if (event.clipboardData) {
+                        event.clipboardData.setData('text/plain', text);
+                        collapseSelectionAndHideFloatingToolbar(view);
+                        return true;
+                    }
 
+                    void writeTextToClipboard(text).then((didCopy) => {
+                        if (didCopy) {
+                            collapseCapturedSelectionAndHideFloatingToolbar(view, selection, doc);
+                        }
+                    });
+                    return true;
+                },
+                cut(view, event) {
+                    if (!shouldHandleCutShortcutDirectly(view.state.selection)) {
+                        return false;
+                    }
+
+                    const text = serializeSelectionToClipboardText(
+                        view.state,
+                        getMarkdownSerializer(),
+                    );
+                    if (text.length === 0) return false;
+
+                    const selection = view.state.selection;
+                    const doc = view.state.doc;
+                    event.preventDefault();
+                    if (event.clipboardData) {
+                        event.clipboardData.setData('text/plain', text);
+                        deleteCapturedSelection(view, selection, doc);
+                        return true;
+                    }
+
+                    void writeTextToClipboard(text).then((didCopy) => {
+                        if (didCopy) {
+                            deleteCapturedSelection(view, selection, doc);
+                        }
+                    });
                     return true;
                 }
             },

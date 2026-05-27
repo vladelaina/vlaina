@@ -60,9 +60,10 @@ export function handleBlockSelectionKeyDown(
     const text = serializeSelectedBlocks(view.state, selectedBlocks);
     if (text.length === 0) return false;
 
+    const doc = view.state.doc;
     event.preventDefault();
     void writeTextToClipboard(text).then((didCopy) => {
-      if (didCopy) {
+      if (didCopy && view.state.doc.eq(doc)) {
         deleteSelectedBlocks(view, selectedBlocks);
       }
     });

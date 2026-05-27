@@ -7,6 +7,10 @@ import { useUIStore as useAppUIStore } from '@/stores/uiSlice';
 import { getShortcuts, getKeysFromEvent, matchShortcut, ShortcutScope, ShortcutHandler } from '@/lib/shortcuts';
 import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuards';
 import { isEventInsideDialog } from '@/lib/shortcuts/dialogGuards';
+import {
+  isEditableShortcutTarget,
+  shouldSkipShortcutForEditableSystemShortcut,
+} from '@/lib/shortcuts/editableGuards';
 import { dispatchSidebarOpenSearchEvent } from '@/components/layout/sidebar/sidebarEvents';
 import { resolveSiblingNoteParentPath } from '@/stores/notes/notePathState';
 import { dispatchDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
@@ -15,19 +19,6 @@ import { isOpenSettingsBinding } from '@/lib/shortcuts';
 interface UseShortcutsOptions {
   scope?: ShortcutScope;
   handlers?: Record<string, ShortcutHandler>;
-}
-
-function isEditableUndoTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
-    return false;
-  }
-
-  if (target.closest('[contenteditable="true"], .ProseMirror, .cm-editor')) {
-    return true;
-  }
-
-  const tagName = target.tagName.toLowerCase();
-  return tagName === 'input' || tagName === 'textarea' || tagName === 'select';
 }
 
 export function useShortcuts(options: UseShortcutsOptions = {}) {
@@ -89,6 +80,10 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
+      if (e.defaultPrevented) {
+        return;
+      }
+
       if (e.key === 'F11') {
         e.preventDefault();
         await desktopWindow.toggleFullscreen();
@@ -140,11 +135,15 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
         !e.shiftKey &&
         !e.altKey &&
         e.key.toLowerCase() === 'z' &&
-        !isEditableUndoTarget(e.target) &&
+        !isEditableShortcutTarget(e.target) &&
         useNotesStore.getState().pendingDeletedItems.length > 0
       ) {
         e.preventDefault();
         await restoreLastDeletedItem();
+        return;
+      }
+
+      if (shouldSkipShortcutForEditableSystemShortcut(e)) {
         return;
       }
       

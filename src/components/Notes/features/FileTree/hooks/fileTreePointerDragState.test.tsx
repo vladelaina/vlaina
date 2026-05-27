@@ -118,6 +118,7 @@ interface DragHarnessProps {
   folderTargetPath?: string;
   showRootTarget?: boolean;
   showStarredTarget?: boolean;
+  showEditableChild?: boolean;
 }
 
 function DragHarness({
@@ -127,6 +128,7 @@ function DragHarness({
   folderTargetPath,
   showRootTarget = false,
   showStarredTarget = false,
+  showEditableChild = false,
 }: DragHarnessProps) {
   const dragHandlers = useTreeItemDragSource(path, disabled, kind);
   const activeSourcePath = useFileTreePointerDragState((state) => state.activeSourcePath);
@@ -161,6 +163,11 @@ function DragHarness({
           onPointerDown={dragHandlers.onPointerDown}
         >
           Source
+          {showEditableChild ? (
+            <span contentEditable="plaintext-only" data-testid="editable-child" suppressContentEditableWarning>
+              edit
+            </span>
+          ) : null}
         </div>
       </div>
       <div data-testid="active-source">{activeSourcePath ?? ''}</div>
@@ -178,6 +185,7 @@ function setupHarness(options: DragHarnessProps = {}) {
   const folderTarget = screen.queryByTestId('folder-target');
   const rootTarget = screen.queryByTestId('root-target');
   const starredTarget = screen.queryByTestId('starred-target');
+  const editableChild = screen.queryByTestId('editable-child');
 
   setRect(scrollRoot, {
     left: 0,
@@ -229,6 +237,7 @@ function setupHarness(options: DragHarnessProps = {}) {
     folderTarget,
     rootTarget,
     starredTarget,
+    editableChild,
     activeSource: screen.getByTestId('active-source'),
     dropTarget: screen.getByTestId('drop-target'),
     dropTargetKind: screen.getByTestId('drop-target-kind'),
@@ -800,6 +809,39 @@ describe('fileTreePointerDragState', () => {
       clientY: 52,
       buttons: 0,
       pointerType: 'touch',
+    });
+
+    await waitFor(() => {
+      expect(activeSource.textContent).toBe('');
+      expect(moveItemMock).not.toHaveBeenCalled();
+      expect(screen.getAllByTestId('source')).toHaveLength(1);
+    });
+  });
+
+  it('does not start drag from plaintext-only editable children', async () => {
+    const { editableChild, folderTarget, activeSource } = setupHarness({
+      path: 'Source.md',
+      folderTargetPath: 'Archive',
+      showEditableChild: true,
+    });
+
+    document.elementsFromPoint = vi.fn(() => [folderTarget as Element]);
+
+    fireEvent.pointerDown(editableChild as HTMLElement, {
+      button: 0,
+      clientX: 40,
+      clientY: 40,
+      pointerType: 'mouse',
+    });
+    dispatchDocumentPointerEvent('pointermove', {
+      clientX: 40,
+      clientY: 52,
+      buttons: 1,
+    });
+    dispatchDocumentPointerEvent('pointerup', {
+      clientX: 40,
+      clientY: 52,
+      buttons: 0,
     });
 
     await waitFor(() => {

@@ -26,9 +26,11 @@ function setScrollableMetrics(element: HTMLDivElement, metrics: { clientHeight: 
 function PageScrollHarness({
   useScope = false,
   includeInput = false,
+  includePlaintextEditor = false,
 }: {
   useScope?: boolean;
   includeInput?: boolean;
+  includePlaintextEditor?: boolean;
 }) {
   const scopeRef = useRef<HTMLDivElement | null>(null);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -43,6 +45,11 @@ function PageScrollHarness({
         <div data-testid="inside">content</div>
       </div>
       {includeInput ? <textarea data-testid="editor-input" /> : null}
+      {includePlaintextEditor ? (
+        <div contentEditable="plaintext-only" data-testid="plaintext-editor" suppressContentEditableWarning>
+          editable
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -191,6 +198,19 @@ describe('useHeldPageScroll', () => {
     flushAnimationFrame(16);
     flushAnimationFrame(32);
     expect(scrollRoot.scrollTop).toBeGreaterThan(120);
+  });
+
+  it('ignores PageDown from plaintext-only editable targets', () => {
+    render(<PageScrollHarness useScope includePlaintextEditor />);
+
+    const inside = screen.getByTestId('inside');
+    const editor = screen.getByTestId('plaintext-editor');
+    const scrollRoot = inside.parentElement as HTMLDivElement;
+    setScrollableMetrics(scrollRoot, { clientHeight: 800, scrollHeight: 4000, scrollTop: 120 });
+
+    fireEvent.keyDown(editor, { key: 'PageDown' });
+
+    expect(scrollRoot.scrollTop).toBe(120);
   });
 
   it('allows hovered scrolling when focus remains in an editable target outside the hover scope', () => {

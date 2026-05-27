@@ -13,6 +13,10 @@ export function useModuleShortcutsDialog({ enabled = true, onToggle }: UseModule
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+
       if (!isToggleShortcutsBinding(event)) {
         return;
       }

@@ -131,6 +131,7 @@ function setup(options?: {
 describe("useChatShortcuts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mocked.getState.mockReturnValue(createState());
     mocked.getUIState.mockReturnValue(createUIState());
     mocked.isComposerFocusTarget.mockReturnValue(false);
@@ -294,6 +295,80 @@ describe("useChatShortcuts", () => {
     await waitFor(() => {
       expect(mocked.dispatchChatMessageCopied).toHaveBeenCalledWith("a1");
     });
+  });
+
+  it("does not let user-configured chat copy shortcuts steal editable copy", async () => {
+    localStorage.setItem("vlaina-shortcuts", JSON.stringify([
+      { id: "copyLastResponse", keys: ["Ctrl", "C"] },
+    ]));
+    setup({
+      state: createState({
+        messages: {
+          "session-1": [
+            { id: "u1", role: "user", content: "ask" },
+            { id: "a1", role: "assistant", content: "answer" },
+          ],
+        },
+      }),
+    });
+
+    const input = document.createElement("textarea");
+    document.body.appendChild(input);
+
+    try {
+      const event = new KeyboardEvent("keydown", {
+        key: "c",
+        code: "KeyC",
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      input.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(mocked.writeText).not.toHaveBeenCalled();
+      expect(mocked.dispatchChatMessageCopied).not.toHaveBeenCalled();
+    } finally {
+      input.remove();
+    }
+  });
+
+  it("does not let earlier chat shortcut branches steal editable copy", async () => {
+    localStorage.setItem("vlaina-shortcuts", JSON.stringify([
+      { id: "focusChatInput", keys: ["Ctrl", "C"] },
+      { id: "openNewChat", keys: ["Ctrl", "X"] },
+    ]));
+    const { onFocusInput } = setup();
+
+    const input = document.createElement("textarea");
+    document.body.appendChild(input);
+
+    try {
+      const copyEvent = new KeyboardEvent("keydown", {
+        key: "c",
+        code: "KeyC",
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      const cutEvent = new KeyboardEvent("keydown", {
+        key: "x",
+        code: "KeyX",
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+
+      input.dispatchEvent(copyEvent);
+      input.dispatchEvent(cutEvent);
+
+      expect(copyEvent.defaultPrevented).toBe(false);
+      expect(cutEvent.defaultPrevented).toBe(false);
+      expect(onFocusInput).not.toHaveBeenCalled();
+      expect(mocked.openNewChat).not.toHaveBeenCalled();
+    } finally {
+      input.remove();
+    }
   });
 
   it("extracts the last completed fenced code block with matching fence closers", () => {

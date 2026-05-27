@@ -6,6 +6,10 @@ import { useAIUIStore } from '@/stores/ai/chatState';
 import { isToggleShortcutsBinding, matchesShortcutBinding } from '@/lib/shortcuts';
 import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuards';
 import { isEventInsideDialog } from '@/lib/shortcuts/dialogGuards';
+import {
+  isEditableShortcutTarget,
+  shouldSkipShortcutForEditableSystemShortcut,
+} from '@/lib/shortcuts/editableGuards';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { dispatchChatMessageCopied } from '@/components/Chat/common/copyFeedback';
@@ -66,15 +70,11 @@ export function useChatShortcuts(
   useEffect(() => {
     if (!enabled) return;
 
-    const isEditableTarget = (target: EventTarget | null): boolean => {
-      if (!(target instanceof Element)) return false;
-      if (target instanceof HTMLInputElement) return true;
-      if (target instanceof HTMLTextAreaElement) return true;
-      if ((target as HTMLElement).isContentEditable) return true;
-      return !!target.closest('[contenteditable="true"]');
-    };
-
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) {
+        return;
+      }
+
       const isMod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
 
@@ -91,6 +91,10 @@ export function useChatShortcuts(
       }
 
       if (isEventInsideDialog(e.target)) {
+        return;
+      }
+
+      if (shouldSkipShortcutForEditableSystemShortcut(e)) {
         return;
       }
 
@@ -115,7 +119,7 @@ export function useChatShortcuts(
       }
 
       if (isMod && !e.shiftKey && !e.altKey && key === 'a') {
-        if (isEditableTarget(e.target) && !isComposerFocusTarget(e.target)) {
+        if (isEditableShortcutTarget(e.target) && !isComposerFocusTarget(e.target)) {
           return;
         }
         e.preventDefault();
@@ -133,7 +137,7 @@ export function useChatShortcuts(
       }
 
       if (matchesShortcutBinding(e, 'previousMessage')) {
-        if (isEditableTarget(e.target)) {
+        if (isEditableShortcutTarget(e.target)) {
           return;
         }
         e.preventDefault();
@@ -142,7 +146,7 @@ export function useChatShortcuts(
       }
 
       if (matchesShortcutBinding(e, 'nextMessage')) {
-        if (isEditableTarget(e.target)) {
+        if (isEditableShortcutTarget(e.target)) {
           return;
         }
         e.preventDefault();
