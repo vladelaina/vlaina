@@ -5,6 +5,7 @@ import {
   flushPendingEditorMarkdown,
   setPendingEditorMarkdownFlusher,
 } from '@/stores/notes/pendingEditorMarkdown';
+import { hasCommittedCompositionText } from '../utils/compositionMarkdown';
 import { serializeEditorMarkdownSnapshot } from '../utils/pendingMarkdownUpdate';
 
 interface MilkdownToken<T> {
@@ -27,8 +28,11 @@ interface PendingMarkdownFlusherOptions {
   pendingMarkdownApplyTimeoutRef: RefObject<ReturnType<typeof setTimeout> | null>;
   pendingRawMarkdownRef: RefObject<string | null>;
   pendingMarkdownRef: RefObject<string | null>;
+  isCompositionActiveRef: RefObject<boolean>;
+  deferredCompositionMarkdownRef: RefObject<string | null>;
+  latestCompositionDataRef: RefObject<string | null>;
+  hasCompositionEndedRef: RefObject<boolean>;
   hasEditorUserInputRef: RefObject<boolean>;
-  currentNotePathRef: RefObject<string | undefined>;
   currentNoteContentRef: RefObject<string>;
   getEditorRef: RefObject<EditorGetter | undefined>;
 }
@@ -39,8 +43,11 @@ export function usePendingMarkdownFlusher({
   pendingMarkdownApplyTimeoutRef,
   pendingRawMarkdownRef,
   pendingMarkdownRef,
+  isCompositionActiveRef,
+  deferredCompositionMarkdownRef,
+  latestCompositionDataRef,
+  hasCompositionEndedRef,
   hasEditorUserInputRef,
-  currentNotePathRef,
   currentNoteContentRef,
   getEditorRef,
 }: PendingMarkdownFlusherOptions) {
@@ -59,6 +66,27 @@ export function usePendingMarkdownFlusher({
       pendingMarkdownRef.current = null;
       const pendingRawMarkdown = pendingRawMarkdownRef.current;
       pendingRawMarkdownRef.current = null;
+      if (isCompositionActiveRef.current) {
+        const deferredCompositionMarkdown = deferredCompositionMarkdownRef.current;
+        const latestCompositionData = latestCompositionDataRef.current;
+        if (
+          hasCompositionEndedRef.current &&
+          hasCommittedCompositionText(deferredCompositionMarkdown, latestCompositionData)
+        ) {
+          const state = useNotesStore.getState();
+          const latestCurrentNote = state.currentNote;
+          let currentContent = state.noteContentsCache.get(currentNotePath ?? '')?.content
+            ?? currentNoteContentRef.current;
+          if (latestCurrentNote && latestCurrentNote.path === currentNotePath) {
+            currentContent = latestCurrentNote.content;
+          }
+          pendingMarkdown = serializeEditorMarkdownSnapshot(deferredCompositionMarkdown, currentContent);
+          deferredCompositionMarkdownRef.current = null;
+          hasCompositionEndedRef.current = false;
+        } else {
+          return false;
+        }
+      }
       if (pendingMarkdown === null && pendingRawMarkdown !== null) {
         const state = useNotesStore.getState();
         const latestCurrentNote = state.currentNote;
@@ -75,7 +103,7 @@ export function usePendingMarkdownFlusher({
             const editor = getEditorRef.current?.();
             const view = editor?.ctx.get(editorViewCtx);
             const serializer = editor?.ctx.get(serializerCtx);
-            if (view && serializer) {
+            if (view && serializer && !(view as { composing?: boolean }).composing) {
               const state = useNotesStore.getState();
               const latestCurrentNote = state.currentNote;
               let currentContent = state.noteContentsCache.get(currentNotePath ?? '')?.content
@@ -103,9 +131,12 @@ export function usePendingMarkdownFlusher({
   }, [
     currentNotePath,
     currentNoteContentRef,
-    currentNotePathRef,
     getEditorRef,
     hasEditorUserInputRef,
+    isCompositionActiveRef,
+    deferredCompositionMarkdownRef,
+    latestCompositionDataRef,
+    hasCompositionEndedRef,
     pendingMarkdownRef,
     pendingMarkdownApplyTimeoutRef,
     pendingRawMarkdownRef,
