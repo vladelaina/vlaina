@@ -11,7 +11,7 @@ describe("getModuleShortcutPreset", () => {
       expect.arrayContaining([
         expect.objectContaining({ action: "Open new chat", keys: ["Ctrl", "Shift", "O"] }),
         expect.objectContaining({
-          action: "Open temporary chat (toggle if empty)",
+          action: "Open temporary chat",
           keys: ["Ctrl", "Shift", "J"],
         }),
       ]),

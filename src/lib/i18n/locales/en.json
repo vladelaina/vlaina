@@ -166,7 +166,7 @@
   "shortcut.action.toggleEmbeddedChat": "Quote selection / toggle embedded chat",
   "shortcut.action.toggleNotesSidebarView": "Toggle files / outline",
   "shortcut.action.toggleSidebar": "Toggle sidebar",
-  "shortcut.action.toggleTemporaryChatWelcome": "Open temporary chat (toggle if empty)",
+  "shortcut.action.toggleTemporaryChatWelcome": "Open temporary chat",
   "shortcut.description.chat": "Available keyboard shortcuts for Chat.",
   "shortcut.description.notes": "Available keyboard shortcuts for Notes.",
   "shortcut.section.chat": "Chat",
