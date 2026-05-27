@@ -56,7 +56,7 @@ describe('sanitizeHtml', () => {
     expect(result).not.toContain('javascript:');
   });
 
-  it('keeps constrained Typora-style inline styles while dropping executable CSS', () => {
+  it('keeps constrained editor-style inline styles while dropping executable CSS', () => {
     const result = sanitizeHtml(
       '<span style="color:red; font-size:2rem; background:yellow; background-image:url(javascript:alert(1)); position:fixed">x</span>',
     );

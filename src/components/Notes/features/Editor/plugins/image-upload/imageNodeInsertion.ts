@@ -1,4 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
+import type { Node as ProseNode } from '@milkdown/kit/prose/model';
+import type { Transaction } from '@milkdown/kit/prose/state';
+import { replaceVisibleBlockSelectionWithCursor } from '../cursor/blockSelectionReplacement';
 
 export function buildImageNodeAttrs(src: string) {
     const fileName = src.split('/').pop() || src;
@@ -18,12 +21,16 @@ function createImageNode(view: EditorView, src: string) {
     return imageNodeType.create(buildImageNodeAttrs(src));
 }
 
+function replaceSelectionWithImageNode(view: EditorView, imageNode: ProseNode): Transaction {
+    return replaceVisibleBlockSelectionWithCursor(view).replaceSelectionWith(imageNode);
+}
+
 export function canInsertImageNodeAtSelection(view: EditorView): boolean {
     const imageNode = createImageNode(view, './image.png');
     if (!imageNode) return false;
 
     try {
-        const tr = view.state.tr.replaceSelectionWith(imageNode);
+        const tr = replaceSelectionWithImageNode(view, imageNode);
         return tr.docChanged;
     } catch {
         return false;
@@ -38,7 +45,7 @@ export function insertImageNodeAtSelection(view: EditorView, src: string): boole
 
     try {
         view.dom.dispatchEvent(new CustomEvent('vlaina:image-user-input', { bubbles: true }));
-        view.dispatch(view.state.tr.replaceSelectionWith(imageNode).scrollIntoView());
+        view.dispatch(replaceSelectionWithImageNode(view, imageNode).scrollIntoView());
         return true;
     } catch (error) {
         return false;

@@ -178,27 +178,27 @@ describe('clipboard paste markdown persistence', () => {
   it('persists copied bullet-prefixed numbered outlines as ordered lists without hard-break escapes', async () => {
     const pasted = [
       '• 1. emoji shortcode 没接入',
-      '     Typora 支持 :smile: 这类短码和 ESC 补全。我们当前没有接',
+      '     editor 支持 :smile: 这类短码和 ESC 补全。我们当前没有接',
       '     入 emoji shortcode，:smile: 基本会保留为普通文本。',
       '  2. 源代码模式缺失',
-      '     没看到 Typora 式一键切换纯 Markdown 源码编辑模式。',
+      '     没看到 editor 式一键切换纯 Markdown 源码编辑模式。',
       '  3. span 元素“靠近光标自动展开源码”的体验不完整',
-      '     我们有 tooltip、节点视图和编辑器，但不是 Typora 那种统一',
+      '     我们有 tooltip、节点视图和编辑器，但不是 editor 那种统一',
       '     的“平时渲染，编辑时展开 Markdown 源码”。',
     ].join('\n');
 
     await expect(pasteAndPersist(pasted)).resolves.toBe([
       '1. emoji shortcode 没接入',
       '',
-      '   Typora 支持 :smile: 这类短码和 ESC 补全。我们当前没有接入 emoji shortcode，:smile: 基本会保留为普通文本。',
+      '   editor 支持 :smile: 这类短码和 ESC 补全。我们当前没有接入 emoji shortcode，:smile: 基本会保留为普通文本。',
       '',
       '2. 源代码模式缺失',
       '',
-      '   没看到 Typora 式一键切换纯 Markdown 源码编辑模式。',
+      '   没看到 editor 式一键切换纯 Markdown 源码编辑模式。',
       '',
       '3. span 元素“靠近光标自动展开源码”的体验不完整',
       '',
-      '   我们有 tooltip、节点视图和编辑器，但不是 Typora 那种统一的“平时渲染，编辑时展开 Markdown 源码”。',
+      '   我们有 tooltip、节点视图和编辑器，但不是 editor 那种统一的“平时渲染，编辑时展开 Markdown 源码”。',
     ].join('\n'));
   });
 
@@ -206,8 +206,8 @@ describe('clipboard paste markdown persistence', () => {
     const editor = await createPasteEditor();
     const view = editor.ctx.get(editorViewCtx);
     const pasted = [
-      '  12. 视频 HTML 支持弱于 Typora',
-      '     Typora 支持 <video src="xxx.mp4" />、拖放视频和路径规',
+      '  12. 视频 HTML 支持弱于 editor',
+      '     editor 支持 <video src="xxx.mp4" />、拖放视频和路径规',
       '  则。我们有 video 插件，但原生 HTML video 兼容、拖放和路径策',
       '  略不一定完整对齐。',
     ].join('\n');
@@ -306,13 +306,13 @@ describe('clipboard paste markdown persistence', () => {
       '',
       '<div><img src="https://example.com/cover.png" alt="cover"></div>',
       '',
-      '<p>Typora 支持 <video src="https://example.com/demo.mp4"></video></p>',
+      '<p>editor 支持 <video src="https://example.com/demo.mp4"></video></p>',
     ].join('\n');
 
     const persisted = await pasteAndPersist(pasted);
 
     expect(persisted).toContain('<img src="https://example.com/cover.png" alt="cover" />');
-    expect(persisted).toContain('<p>Typora 支持 <video src="https://example.com/demo.mp4"></video></p>');
+    expect(persisted).toContain('<p>editor 支持 <video src="https://example.com/demo.mp4"></video></p>');
     expect(persisted).not.toContain('\\<img');
     expect(persisted).not.toContain('\\<video');
   });
@@ -356,7 +356,7 @@ describe('clipboard paste markdown persistence', () => {
     const editor = await createPasteEditor();
     const view = editor.ctx.get(editorViewCtx);
     const pasted = [
-      '1. <video src="demo.mp4" /> 是 Typora 支持的视频示例。',
+      '1. <video src="demo.mp4" /> 是 editor 支持的视频示例。',
       '2. <img src="cover.png" /> 是图片示例。',
     ].join('\n');
 

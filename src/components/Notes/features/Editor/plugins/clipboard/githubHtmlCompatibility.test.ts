@@ -374,7 +374,7 @@ describe('GitHub README HTML compatibility', () => {
     expect(result.persisted).toBe(markdown);
   });
 
-  it('renders Typora-style inline HTML examples from markdown notes', async () => {
+  it('renders editor-style inline HTML examples from markdown notes', async () => {
     const markdown = [
       '<span style="color:red">This is red</span>',
       '<ruby>漢<rt>ㄏㄢˋ</rt></ruby>',
