@@ -1,9 +1,9 @@
 import type { EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import {
-  setClipboardText,
   writeTextToClipboard,
 } from './blockSelectionCommands';
+import { clearBlockSelection, getBlockSelectionPluginState } from './blockSelectionPluginState';
 import type { BlockRange } from './blockSelectionUtils';
 
 type SerializeSelectedBlocks = (
@@ -23,12 +23,36 @@ interface BlockSelectionInputHandlerOptions {
   deleteSelectedBlocks: DeleteSelectedBlocks;
 }
 
-function isClipboardShortcut(event: KeyboardEvent, key: 'c' | 'x'): boolean {
+function areSameBlockRanges(a: readonly BlockRange[], b: readonly BlockRange[]): boolean {
+  return a.length === b.length && a.every((range, index) => (
+    range.from === b[index]?.from && range.to === b[index]?.to
+  ));
+}
+
+function clearCapturedBlockSelection(view: EditorView, selectedBlocks: readonly BlockRange[], doc: EditorState['doc']): void {
+  if (!view.state.doc.eq(doc)) return;
+  if (!areSameBlockRanges(getBlockSelectionPluginState(view.state).selectedBlocks, selectedBlocks)) return;
+  clearBlockSelection(view);
+}
+
+function isClipboardCopyShortcut(event: KeyboardEvent): boolean {
+  if (event.altKey) return false;
+
+  const key = event.key.toLowerCase();
   return (
     (event.metaKey || event.ctrlKey) &&
-    !event.altKey &&
     !event.shiftKey &&
-    event.key.toLowerCase() === key
+    (key === 'c' || key === 'insert')
+  );
+}
+
+function isClipboardCutShortcut(event: KeyboardEvent): boolean {
+  if (event.altKey) return false;
+
+  const key = event.key.toLowerCase();
+  return (
+    ((event.metaKey || event.ctrlKey) && !event.shiftKey && key === 'x') ||
+    (!(event.metaKey || event.ctrlKey) && event.shiftKey && key === 'delete')
   );
 }
 
@@ -47,16 +71,21 @@ export function handleBlockSelectionKeyDown(
 ): boolean {
   if (selectedBlocks.length === 0) return false;
 
-  if (isClipboardShortcut(event, 'c')) {
+  if (isClipboardCopyShortcut(event)) {
     const text = serializeSelectedBlocks(view.state, selectedBlocks);
     if (text.length === 0) return false;
 
+    const doc = view.state.doc;
     event.preventDefault();
-    void writeTextToClipboard(text);
+    void writeTextToClipboard(text).then((didCopy) => {
+      if (didCopy) {
+        clearCapturedBlockSelection(view, selectedBlocks, doc);
+      }
+    });
     return true;
   }
 
-  if (isClipboardShortcut(event, 'x')) {
+  if (isClipboardCutShortcut(event)) {
     const text = serializeSelectedBlocks(view.state, selectedBlocks);
     if (text.length === 0) return false;
 
@@ -90,7 +119,19 @@ export function handleBlockSelectionCopy(
   if (selectedBlocks.length === 0) return false;
 
   const text = serializeSelectedBlocks(view.state, selectedBlocks);
-  setClipboardText(event, text);
+  const doc = view.state.doc;
+  event.preventDefault();
+  if (event.clipboardData) {
+    event.clipboardData.setData('text/plain', text);
+    clearBlockSelection(view);
+    return true;
+  }
+
+  void writeTextToClipboard(text).then((didCopy) => {
+    if (didCopy) {
+      clearCapturedBlockSelection(view, selectedBlocks, doc);
+    }
+  });
   return true;
 }
 
@@ -106,6 +147,17 @@ export function handleBlockSelectionCut(
   if (selectedBlocks.length === 0) return false;
 
   const text = serializeSelectedBlocks(view.state, selectedBlocks);
-  setClipboardText(event, text);
-  return deleteSelectedBlocks(view, selectedBlocks);
+  const doc = view.state.doc;
+  event.preventDefault();
+  if (event.clipboardData) {
+    event.clipboardData.setData('text/plain', text);
+    return deleteSelectedBlocks(view, selectedBlocks);
+  }
+
+  void writeTextToClipboard(text).then((didCopy) => {
+    if (didCopy && view.state.doc.eq(doc)) {
+      deleteSelectedBlocks(view, selectedBlocks);
+    }
+  });
+  return true;
 }

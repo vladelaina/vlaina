@@ -323,20 +323,22 @@ export class FrontmatterNodeView implements NodeView {
       this.dom.dataset.pmSelected === 'true' ||
       this.dom.classList.contains('vlaina-block-selected')
     ) {
-      if (event.type === 'copy' || event.type === 'cut') {
+      if (event.type === 'copy' || event.type === 'cut' || event.type === 'paste') {
         return false;
       }
 
-      if (
-        event instanceof KeyboardEvent &&
-        (
-          event.key === 'Delete' ||
-          event.key === 'Backspace' ||
-          event.key.toLowerCase() === 'x' ||
-          event.key.toLowerCase() === 'c'
-        )
-      ) {
-        return false;
+      if (event instanceof KeyboardEvent) {
+        const key = event.key.toLowerCase();
+        if (
+          key === 'delete' ||
+          key === 'backspace' ||
+          ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && key === 'insert') ||
+          (!(event.ctrlKey || event.metaKey) && event.shiftKey && !event.altKey && key === 'insert') ||
+          key === 'x' ||
+          key === 'c'
+        ) {
+          return false;
+        }
       }
     }
 

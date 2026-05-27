@@ -26,6 +26,12 @@ vi.mock('../clipboard/copyCleanup', () => ({
 type MockToolbarView = EditorView & {
   dom: HTMLDivElement;
   state: {
+    doc: {
+      eq: ReturnType<typeof vi.fn>;
+    };
+    selection: {
+      eq: ReturnType<typeof vi.fn>;
+    };
     tr: {
       setMeta: ReturnType<typeof vi.fn>;
     };
@@ -35,6 +41,12 @@ type MockToolbarView = EditorView & {
 
 function createMockView() {
   const dom = document.createElement('div');
+  const doc = {
+    eq: vi.fn((other: unknown) => other === doc),
+  };
+  const selection = {
+    eq: vi.fn((other: unknown) => other === selection),
+  };
   const tr = {
     setMeta: vi.fn(),
   };
@@ -42,9 +54,17 @@ function createMockView() {
 
   return {
     dom,
-    state: { tr },
+    state: { doc, selection, tr },
     dispatch: vi.fn(),
   } as unknown as MockToolbarView;
+}
+
+function replaceMockSelection(view: MockToolbarView) {
+  const selection = {
+    eq: vi.fn((other: unknown) => other === selection),
+  };
+  view.state.selection = selection as MockToolbarView['state']['selection'];
+  return selection;
 }
 
 describe('toolbarActions copy feedback', () => {
@@ -90,6 +110,26 @@ describe('toolbarActions copy feedback', () => {
 
     resolveCopy(true);
     await action;
+
+    controller.destroy();
+  });
+
+  it('does not collapse a newer selection after copy feedback expires', async () => {
+    vi.useFakeTimers();
+    commandMocks.copySelectionToClipboard.mockResolvedValue(true);
+    const view = createMockView();
+    const controller = createToolbarActionController(() => null);
+
+    await controller.handleAction(view, 'copy');
+    replaceMockSelection(view);
+
+    vi.advanceTimersByTime(NOTES_COPY_FEEDBACK_DURATION_MS);
+
+    expect(cleanupMocks.collapseSelectionAndHideFloatingToolbar).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(40);
+
+    expect(view.dom.classList.contains('vlaina-toolbar-copy-feedback-active')).toBe(false);
 
     controller.destroy();
   });

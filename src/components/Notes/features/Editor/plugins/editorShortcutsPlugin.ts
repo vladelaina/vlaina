@@ -137,15 +137,15 @@ function clearFormatting(view: EditorView): boolean {
   return true;
 }
 
-export const typoraShortcutsPlugin = $prose(() => {
+export const editorShortcutsPlugin = $prose(() => {
   return new Plugin({
     props: {
-      handleKeyDown: handleTyporaShortcut,
+      handleKeyDown: handleEditorShortcut,
     },
   });
 });
 
-export function handleTyporaShortcut(view: EditorView, event: KeyboardEvent): boolean {
+export function handleEditorShortcut(view: EditorView, event: KeyboardEvent): boolean {
   if (!isModShortcut(event)) return false;
 
   if (!event.shiftKey) {

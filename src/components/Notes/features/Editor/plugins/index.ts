@@ -41,7 +41,7 @@ export {
 } from './cursor';
 export { hrAutoParagraphPlugin } from './hr';
 export { autoPairPlugin } from './pairs';
-export { typoraShortcutsPlugin } from './typoraShortcutsPlugin';
+export { editorShortcutsPlugin } from './editorShortcutsPlugin';
 export type { SlashMenuItem } from './slash/types';
 export type { CalloutBlockAttrs, IconData } from './callout/types';
 export type { CodeBlockAttrs } from './code/types';

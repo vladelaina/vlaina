@@ -52,12 +52,14 @@ function findTableCellPos(doc: any, text: string): number {
     return resolved;
 }
 
-function simulateClipboardKeydown(view: any, key: 'c' | 'x'): { handled: boolean; event: KeyboardEvent } {
+function simulateClipboardKeydown(
+    view: any,
+    init: KeyboardEventInit,
+): { handled: boolean; event: KeyboardEvent } {
     const event = new KeyboardEvent('keydown', {
-        key,
-        ctrlKey: true,
         bubbles: true,
         cancelable: true,
+        ...init,
     });
 
     let handled = false;
@@ -69,19 +71,23 @@ function simulateClipboardKeydown(view: any, key: 'c' | 'x'): { handled: boolean
 }
 
 function simulateCopyKeydown(view: any): { handled: boolean; event: KeyboardEvent } {
-    return simulateClipboardKeydown(view, 'c');
+    return simulateClipboardKeydown(view, { key: 'c', ctrlKey: true });
 }
 
 function simulateCutKeydown(view: any): { handled: boolean; event: KeyboardEvent } {
-    return simulateClipboardKeydown(view, 'x');
+    return simulateClipboardKeydown(view, { key: 'x', ctrlKey: true });
 }
 
-function simulateClipboardEvent(view: any, type: 'copy' | 'cut') {
+function simulateClipboardEvent(
+    view: any,
+    type: 'copy' | 'cut',
+    options: { clipboardData?: { setData: ReturnType<typeof vi.fn> } | null } = {},
+) {
     const clipboardData = {
         setData: vi.fn(),
     };
     const event = {
-        clipboardData,
+        clipboardData: options.clipboardData === undefined ? clipboardData : options.clipboardData,
         preventDefault: vi.fn(),
     };
 
@@ -99,6 +105,10 @@ function simulateCopyEvent(view: any) {
 
 function simulateCutEvent(view: any) {
     return simulateClipboardEvent(view, 'cut');
+}
+
+function simulateClipboardEventWithoutData(view: any, type: 'copy' | 'cut') {
+    return simulateClipboardEvent(view, type, { clipboardData: null });
 }
 
 function simulatePasteText(view: any, text: string): boolean {
@@ -225,6 +235,8 @@ describe('clipboardPlugin copy', () => {
         expect(handled).toBe(true);
         expect(event.defaultPrevented).toBe(true);
         expect(writeText).toHaveBeenCalledWith('- first bullet\n- second bullet');
+        expect(view.state.selection.empty).toBe(true);
+        expect(view.state.selection.from).not.toBe(firstRange.from);
 
         await editor.destroy();
     });
@@ -276,6 +288,91 @@ describe('clipboardPlugin copy', () => {
         await editor.destroy();
     });
 
+    it('keeps the original selection when Ctrl+C cannot write to the clipboard', async () => {
+        const writeText = vi.fn().mockRejectedValue(new Error('clipboard unavailable'));
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+        });
+
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, 'Alpha Beta Gamma');
+                ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+                    ...prev,
+                    ...notesRemarkStringifyOptions,
+                }));
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        const fullRange = findTextRange(view.state.doc, 'Alpha Beta Gamma');
+        const betaFrom = fullRange.from + 'Alpha '.length;
+        const betaTo = betaFrom + 'Beta'.length;
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, betaFrom, betaTo)));
+
+        const { handled, event } = simulateCopyKeydown(view);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(handled).toBe(true);
+        expect(event.defaultPrevented).toBe(true);
+        expect(writeText).toHaveBeenCalledWith('Beta');
+        expect(view.state.selection.from).toBe(betaFrom);
+        expect(view.state.selection.to).toBe(betaTo);
+
+        await editor.destroy();
+    });
+
+    it('keeps a later selection intact when native copy falls back after selection moves', async () => {
+        let resolveWrite: () => void = () => {
+            throw new Error('clipboard write promise was not created');
+        };
+        const writeText = vi.fn(() => new Promise<void>((resolve) => {
+            resolveWrite = resolve;
+        }));
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+        });
+
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, 'Alpha Beta Gamma');
+                ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+                    ...prev,
+                    ...notesRemarkStringifyOptions,
+                }));
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        const fullRange = findTextRange(view.state.doc, 'Alpha Beta Gamma');
+        const betaFrom = fullRange.from + 'Alpha '.length;
+        const betaTo = betaFrom + 'Beta'.length;
+        const gammaFrom = fullRange.from + 'Alpha Beta '.length;
+        const gammaTo = gammaFrom + 'Gamma'.length;
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, betaFrom, betaTo)));
+
+        const { handled, event } = simulateClipboardEventWithoutData(view, 'copy');
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, gammaFrom, gammaTo)));
+        resolveWrite();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(handled).toBe(true);
+        expect(event.preventDefault).toHaveBeenCalled();
+        expect(writeText).toHaveBeenCalledWith('Beta');
+        expect(view.state.selection.from).toBe(gammaFrom);
+        expect(view.state.selection.to).toBe(gammaTo);
+
+        await editor.destroy();
+    });
+
     it('copies a Ctrl+A all-selection during Ctrl+C keydown', async () => {
         const writeText = vi.fn().mockResolvedValue(undefined);
         Object.defineProperty(navigator, 'clipboard', {
@@ -305,6 +402,46 @@ describe('clipboardPlugin copy', () => {
         expect(handled).toBe(true);
         expect(event.defaultPrevented).toBe(true);
         expect(writeText).toHaveBeenCalledWith('Alpha\n\nBeta');
+        expect(view.state.selection).not.toBeInstanceOf(AllSelection);
+        expect(view.state.selection.empty).toBe(true);
+
+        await editor.destroy();
+    });
+
+    it('copies a text selection during Ctrl+Insert keydown', async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+        });
+
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, 'Alpha Beta Gamma');
+                ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+                    ...prev,
+                    ...notesRemarkStringifyOptions,
+                }));
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        const fullRange = findTextRange(view.state.doc, 'Alpha Beta Gamma');
+        const betaFrom = fullRange.from + 'Alpha '.length;
+        const betaTo = betaFrom + 'Beta'.length;
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, betaFrom, betaTo)));
+
+        const { handled, event } = simulateClipboardKeydown(view, { key: 'Insert', ctrlKey: true });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(handled).toBe(true);
+        expect(event.defaultPrevented).toBe(true);
+        expect(writeText).toHaveBeenCalledWith('Beta');
+        expect(view.state.selection.empty).toBe(true);
+        expect(view.state.selection.from).not.toBe(betaFrom);
 
         await editor.destroy();
     });
@@ -336,6 +473,39 @@ describe('clipboardPlugin copy', () => {
         view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, betaFrom, betaTo)));
 
         const { handled, event } = simulateCutKeydown(view);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(handled).toBe(true);
+        expect(event.defaultPrevented).toBe(true);
+        expect(writeText).toHaveBeenCalledWith('Beta');
+        expect(view.state.doc.textContent).toBe('Alpha  Gamma');
+
+        await editor.destroy();
+    });
+
+    it('cuts a text selection during Shift+Delete keydown', async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+        });
+
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, 'Alpha Beta Gamma');
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        const fullRange = findTextRange(view.state.doc, 'Alpha Beta Gamma');
+        const betaFrom = fullRange.from + 'Alpha '.length;
+        const betaTo = betaFrom + 'Beta'.length;
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, betaFrom, betaTo)));
+
+        const { handled, event } = simulateClipboardKeydown(view, { key: 'Delete', shiftKey: true });
         await new Promise((resolve) => setTimeout(resolve, 0));
 
         expect(handled).toBe(true);
@@ -426,6 +596,50 @@ describe('clipboardPlugin copy', () => {
         await editor.destroy();
     });
 
+    it('does not delete after native cut fallback when the document changed before copy resolves', async () => {
+        let resolveWrite: () => void = () => {
+            throw new Error('clipboard write promise was not created');
+        };
+        const writeText = vi.fn(() => new Promise<void>((resolve) => {
+            resolveWrite = resolve;
+        }));
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+        });
+
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, 'Alpha Beta Gamma');
+                ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+                    ...prev,
+                    ...notesRemarkStringifyOptions,
+                }));
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        const fullRange = findTextRange(view.state.doc, 'Alpha Beta Gamma');
+        const betaFrom = fullRange.from + 'Alpha '.length;
+        const betaTo = betaFrom + 'Beta'.length;
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, betaFrom, betaTo)));
+
+        const { handled, event } = simulateClipboardEventWithoutData(view, 'cut');
+        view.dispatch(view.state.tr.insertText('!', view.state.doc.content.size));
+        resolveWrite();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(handled).toBe(true);
+        expect(event.preventDefault).toHaveBeenCalled();
+        expect(writeText).toHaveBeenCalledWith('Beta');
+        expect(view.state.doc.textContent).toBe('Alpha Beta Gamma!');
+
+        await editor.destroy();
+    });
+
     it('cuts a text selection during the native cut event', async () => {
         const editor = Editor.make()
             .config((ctx) => {
@@ -480,6 +694,8 @@ describe('clipboardPlugin copy', () => {
         expect(handled).toBe(true);
         expect(event.preventDefault).toHaveBeenCalled();
         expect(clipboardData.setData).toHaveBeenCalledWith('text/plain', '- first bullet\n- second bullet');
+        expect(view.state.selection.empty).toBe(true);
+        expect(view.state.selection.from).not.toBe(firstRange.from);
 
         await editor.destroy();
     });
@@ -549,6 +765,8 @@ describe('clipboardPlugin copy', () => {
         expect(handled).toBe(true);
         expect(event.preventDefault).toHaveBeenCalled();
         expect(clipboardData.setData).toHaveBeenCalledWith('text/plain', '启动');
+        expect(view.state.selection).not.toBeInstanceOf(CellSelection);
+        expect(view.state.selection.empty).toBe(true);
 
         await editor.destroy();
     });
@@ -590,6 +808,8 @@ describe('clipboardPlugin copy', () => {
         expect(handled).toBe(true);
         expect(event.defaultPrevented).toBe(true);
         expect(writeText).toHaveBeenCalledWith('启动');
+        expect(view.state.selection).not.toBeInstanceOf(CellSelection);
+        expect(view.state.selection.empty).toBe(true);
 
         await editor.destroy();
     });

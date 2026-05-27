@@ -105,7 +105,7 @@ describe('FrontmatterNodeView', () => {
     nodeView.destroy();
   });
 
-  it('lets block-level clipboard and delete events reach ProseMirror while selected', () => {
+  it('lets block-level clipboard events, delete keys, and legacy shortcut keys reach ProseMirror while selected', () => {
     const node = createMockNode('title: note');
     const view = createMockView({ from: 1, to: node.textContent.length + 1 });
     const nodeView = new FrontmatterNodeView(node, view, () => 0);
@@ -117,12 +117,21 @@ describe('FrontmatterNodeView', () => {
     Object.defineProperty(copy, 'target', { value: insideTarget });
     const cut = new Event('cut', { bubbles: true, cancelable: true });
     Object.defineProperty(cut, 'target', { value: insideTarget });
+    const paste = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(paste, 'target', { value: insideTarget });
     const backspace = new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true });
     Object.defineProperty(backspace, 'target', { value: insideTarget });
+    const ctrlInsert = new KeyboardEvent('keydown', { key: 'Insert', ctrlKey: true, bubbles: true, cancelable: true });
+    Object.defineProperty(ctrlInsert, 'target', { value: insideTarget });
+    const shiftInsert = new KeyboardEvent('keydown', { key: 'Insert', shiftKey: true, bubbles: true, cancelable: true });
+    Object.defineProperty(shiftInsert, 'target', { value: insideTarget });
 
     expect(nodeView.stopEvent(copy)).toBe(false);
     expect(nodeView.stopEvent(cut)).toBe(false);
+    expect(nodeView.stopEvent(paste)).toBe(false);
     expect(nodeView.stopEvent(backspace)).toBe(false);
+    expect(nodeView.stopEvent(ctrlInsert)).toBe(false);
+    expect(nodeView.stopEvent(shiftInsert)).toBe(false);
 
     nodeView.destroy();
   });
