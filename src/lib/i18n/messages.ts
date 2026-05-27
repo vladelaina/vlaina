@@ -42,6 +42,13 @@ export function getMessages(language: AppLanguage): Messages {
   return localizedMessages[language] ?? englishMessages;
 }
 
+export function getMessageVariants(key: MessageKey): string[] {
+  return Array.from(new Set([
+    englishMessages[key],
+    ...Object.values(localizedMessages).map((messages) => messages[key]),
+  ].filter(Boolean)));
+}
+
 export function formatMessage(
   message: string,
   values: MessageValues | undefined

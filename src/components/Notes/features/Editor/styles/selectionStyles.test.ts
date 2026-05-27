@@ -168,6 +168,19 @@ function readMilkdownLinkTooltipThemeSource() {
 }
 
 describe('editor embedded CodeMirror selection styles', () => {
+  it('scopes body line number gutter styles behind the markdown body line number class', () => {
+    const coreCss = readStyleFile('core.css');
+
+    expect(coreCss).toContain(
+      '.milkdown-editor.vlaina-markdown-body-line-numbers .vlaina-body-line-number-gutter'
+    );
+    expect(coreCss).toContain(
+      '.milkdown-editor.vlaina-markdown-body-line-numbers .vlaina-body-line-number'
+    );
+    expect(coreCss).not.toContain('.milkdown-editor .vlaina-body-line-number-gutter');
+    expect(coreCss).not.toContain('.milkdown-editor .vlaina-body-line-number {');
+  });
+
   it('keeps nested list block selection overlays from stacking darker backgrounds', () => {
     const css = readStyleFile('core.css');
 

@@ -21,6 +21,13 @@ import {
   getBlockDragComposerPayload,
   subscribeBlockDragVisualState,
 } from '@/components/Notes/features/Editor/plugins/cursor/blockDragVisualState';
+import {
+  FILE_TREE_CHAT_DROP_EVENT,
+  FILE_TREE_CHAT_DROP_TARGET_SELECTOR,
+  useFileTreePointerDragState,
+  type FileTreeChatDropDetail,
+} from '@/components/Notes/features/FileTree/hooks/fileTreePointerDragState';
+import { useNotesStore } from '@/stores/notes/useNotesStore';
 
 interface ChatInputProps {
   active?: boolean;
@@ -49,6 +56,9 @@ export const ChatInput = memo(function ChatInput({
   const focusRafRef = useRef<number | null>(null);
   const restoreFocusListenerRef = useRef<(() => void) | null>(null);
   const [isBlockDropActive, setIsBlockDropActive] = useState(false);
+  const [isFileTreeDropActive, setIsFileTreeDropActive] = useState(false);
+  const isFileTreeDragActive = useFileTreePointerDragState((state) => state.activeSourcePath !== null);
+  const getDisplayName = useNotesStore((state) => state.getDisplayName);
   const { webSearchEnabled, setWebSearchEnabled } = useAIStore();
   const {
     attachments,
@@ -136,6 +146,7 @@ export const ChatInput = memo(function ChatInput({
     noteMentions,
     clearNoteMentions,
     currentPageCandidates,
+    folderCandidates,
     linkedPageCandidates,
     mentionPreviewParts,
     showMentionPicker,
@@ -148,6 +159,7 @@ export const ChatInput = memo(function ChatInput({
     setTextareaScrollTop,
     applyMentionCandidate,
     removeNoteMention,
+    appendNoteMentions,
   } = useNoteMentions({
     message,
     textareaRef,
@@ -245,6 +257,79 @@ export const ChatInput = memo(function ChatInput({
     active,
     clearHistoryNavigationOnInput,
     composerRootRef,
+    resetHistoryNavigation,
+  ]);
+
+  const buildDroppedFileTreeMentions = useCallback(
+    (detail: FileTreeChatDropDetail): NoteMentionReference[] => {
+      const title = detail.kind === 'folder'
+        ? `${detail.path.split('/').filter(Boolean).pop() ?? detail.path}/`
+        : getDisplayName(detail.path);
+      return [{
+        path: detail.path,
+        title,
+        kind: detail.kind === 'folder' ? 'folder' : 'note',
+      }];
+    },
+    [getDisplayName],
+  );
+
+  useEffect(() => {
+    if (!active) {
+      setIsFileTreeDropActive(false);
+      return;
+    }
+
+    const isInsideDropTarget = (event: PointerEvent | MouseEvent) => {
+      const root = composerRootRef.current?.closest(FILE_TREE_CHAT_DROP_TARGET_SELECTOR) as HTMLElement | null;
+      if (!root) {
+        return false;
+      }
+      const rect = root.getBoundingClientRect();
+      return (
+        event.clientX >= rect.left
+        && event.clientX <= rect.right
+        && event.clientY >= rect.top
+        && event.clientY <= rect.bottom
+      );
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      setIsFileTreeDropActive(isFileTreeDragActive && isInsideDropTarget(event));
+    };
+
+    const handlePointerUp = () => {
+      setIsFileTreeDropActive(false);
+    };
+
+    const handleFileTreeChatDrop = (event: Event) => {
+      const detail = (event as CustomEvent<FileTreeChatDropDetail>).detail;
+      if (!detail?.path) {
+        return;
+      }
+      appendNoteMentions(buildDroppedFileTreeMentions(detail));
+      resetHistoryNavigation();
+      clearHistoryNavigationOnInput();
+      setIsFileTreeDropActive(false);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, true);
+    window.addEventListener('pointerup', handlePointerUp, true);
+    window.addEventListener(FILE_TREE_CHAT_DROP_EVENT, handleFileTreeChatDrop);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove, true);
+      window.removeEventListener('pointerup', handlePointerUp, true);
+      window.removeEventListener(FILE_TREE_CHAT_DROP_EVENT, handleFileTreeChatDrop);
+      setIsFileTreeDropActive(false);
+    };
+  }, [
+    active,
+    appendNoteMentions,
+    buildDroppedFileTreeMentions,
+    clearHistoryNavigationOnInput,
+    composerRootRef,
+    isFileTreeDragActive,
     resetHistoryNavigation,
   ]);
 
@@ -349,11 +434,11 @@ export const ChatInput = memo(function ChatInput({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {(isDragging || isBlockDropActive) && (
+        {(isDragging || isBlockDropActive || isFileTreeDropActive) && (
           <div
             className={cn(
               "absolute inset-0 z-20 flex items-center justify-center rounded-[32px] border-2 border-dashed backdrop-blur-sm pointer-events-none",
-              isBlockDropActive
+              isBlockDropActive || isFileTreeDropActive
                 ? "border-[var(--vlaina-color-accent)]/60 bg-[var(--vlaina-color-accent)]/[0.08] dark:border-[var(--vlaina-color-accent)]/65 dark:bg-[var(--vlaina-color-accent)]/[0.14]"
                 : "border-[var(--chat-sidebar-icon)]/50 bg-black/[0.03] dark:border-white/15 dark:bg-white/[0.04]"
             )}
@@ -361,7 +446,7 @@ export const ChatInput = memo(function ChatInput({
             <span
               className={cn(
                 "font-medium",
-                isBlockDropActive
+                isBlockDropActive || isFileTreeDropActive
                   ? "text-[var(--vlaina-color-accent)]"
                   : "text-[var(--chat-sidebar-text-muted)] dark:text-[var(--chat-sidebar-text-soft)]"
               )}
@@ -375,6 +460,7 @@ export const ChatInput = memo(function ChatInput({
           {showMentionPicker && (
             <NoteMentionPicker
               currentPageCandidates={currentPageCandidates}
+              folderCandidates={folderCandidates}
               linkedPageCandidates={linkedPageCandidates}
               activeCandidatePath={activeCandidatePath}
               status={mentionPickerStatus}

@@ -37,6 +37,7 @@ interface UnifiedStoreActions {
 
   setTimezone: (offset: number, city: string) => void;
   setMarkdownCodeBlockLineNumbers: (showLineNumbers: boolean) => void;
+  setMarkdownBodyLineNumbers: (showLineNumbers: boolean) => void;
   setMarkdownTypewriterMode: (typewriterMode: boolean) => void;
   setLastAppViewMode: (mode: 'notes' | 'chat') => void;
   

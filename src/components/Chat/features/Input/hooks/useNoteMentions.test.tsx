@@ -65,6 +65,14 @@ describe('useNoteMentions', () => {
       rootFolder: {
         children: [
           { isFolder: false, path: 'Today.md' },
+          {
+            isFolder: true,
+            name: 'Projects',
+            path: 'Projects',
+            children: [
+              { isFolder: false, path: 'Projects/Plan.md' },
+            ],
+          },
           { isFolder: false, path: 'Tomorrow.md' },
           { isFolder: false, path: 'Archive.md' },
         ],
@@ -74,7 +82,9 @@ describe('useNoteMentions', () => {
       starredEntries: [],
       isLoading: false,
       loadFileTree: hoisted.loadFileTree,
-      getDisplayName: (path: string) => path.replace(/\.md$/, ''),
+      getDisplayName: (path: string) => (
+        path.split('/').pop()?.replace(/\.md$/, '') ?? path.replace(/\.md$/, '')
+      ),
       getNoteIcon: (path: string) => (path === 'Today.md' ? '✨' : undefined),
     };
 
@@ -103,33 +113,8 @@ describe('useNoteMentions', () => {
 
     expect(result.current.showMentionPicker).toBe(true);
     expect(result.current.currentPageCandidates.map((item) => item.title)).toEqual(['Today']);
+    expect(result.current.folderCandidates.map((item) => item.title)).toEqual([]);
     expect(result.current.linkedPageCandidates.map((item) => item.title)).toEqual(['Tomorrow']);
-  });
-
-  it('shows all candidates for a bare mention trigger', () => {
-    const { result } = renderHook(() => {
-      const [message, setMessage] = useState('@');
-      const textareaRef = useRef<HTMLTextAreaElement>(document.createElement('textarea'));
-      const controller = useNoteMentions({
-        message,
-        textareaRef,
-        handleMessageChange: setMessage,
-      });
-
-      return { ...controller, message };
-    });
-
-    act(() => {
-      result.current.handleCaretChange(1);
-    });
-
-    expect(result.current.showMentionPicker).toBe(true);
-    expect(result.current.currentPageCandidates.map((item) => item.title)).toEqual(['Today']);
-    expect(result.current.currentPageCandidates[0]?.icon).toBe('✨');
-    expect(result.current.linkedPageCandidates.map((item) => item.title)).toEqual([
-      'Archive',
-      'Tomorrow',
-    ]);
   });
 
   it('loads the note tree for mentions even before notesPath is initialized', () => {
@@ -406,6 +391,7 @@ describe('useNoteMentions', () => {
       result.current.applyMentionCandidate({
         path: 'Today.md',
         title: 'Today',
+        kind: 'note',
         isCurrent: true,
       });
     });
@@ -421,6 +407,52 @@ describe('useNoteMentions', () => {
 
     expect(result.current.message.trim()).toBe('');
     expect(result.current.mentionPreviewParts.some((part) => part.type === 'mention')).toBe(false);
+  });
+
+  it('moves the active mention candidate with arrow keys', () => {
+    const { result } = renderHook(() => {
+      const [message, setMessage] = useState('@');
+      const textareaRef = useRef<HTMLTextAreaElement>(document.createElement('textarea'));
+      const controller = useNoteMentions({
+        message,
+        textareaRef,
+        handleMessageChange: setMessage,
+      });
+
+      return { ...controller, message };
+    });
+
+    act(() => {
+      result.current.handleCaretChange(1);
+    });
+
+    expect(result.current.activeCandidatePath).toBe('Today.md');
+
+    act(() => {
+      const handled = result.current.handleMentionKeyDown({
+        key: 'ArrowDown',
+        currentTarget: { selectionStart: 1, selectionEnd: 1 },
+        preventDefault: vi.fn(),
+      } as any);
+      expect(handled).toBe(true);
+    });
+
+    expect(result.current.activeCandidatePath).toBe('Projects');
+
+    act(() => {
+      const handled = result.current.handleMentionKeyDown({
+        key: 'Enter',
+        shiftKey: false,
+        currentTarget: { selectionStart: 1, selectionEnd: 1 },
+        preventDefault: vi.fn(),
+      } as any);
+      expect(handled).toBe(true);
+    });
+
+    expect(result.current.message).toBe('@Projects/ ');
+    expect(result.current.noteMentions).toEqual([
+      { path: 'Projects', title: 'Projects/', kind: 'folder' },
+    ]);
   });
 
   it('removes a mention token on Backspace from its trailing insertion space', () => {
@@ -444,6 +476,7 @@ describe('useNoteMentions', () => {
       result.current.applyMentionCandidate({
         path: 'Today.md',
         title: 'Today',
+        kind: 'note',
         isCurrent: true,
       });
     });

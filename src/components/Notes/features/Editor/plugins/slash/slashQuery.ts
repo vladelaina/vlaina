@@ -1,9 +1,15 @@
 import { translate } from '@/lib/i18n';
+import { getMessageVariants } from '@/lib/i18n/messages';
 import { getSlashMenuItems } from './slashItems';
+import { getSlashUsageRank } from './slashUsageOrder';
 import type { SlashMenuItem } from './types';
 
 function normalize(value: string) {
-  return value.trim().toLowerCase();
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/\p{Diacritic}/gu, '');
 }
 
 function tokenize(value: string) {
@@ -98,6 +104,9 @@ function scoreCandidate(query: string, candidate: string) {
   if (!candidate) return null;
 
   if (candidate === query) return 0;
+  if (query.length === 1 && /[a-z]/.test(query)) {
+    return candidate.length <= 3 && candidate.startsWith(query) ? 1 : null;
+  }
   if (candidate.startsWith(query)) return 1;
   if (candidate.includes(query)) return 2;
 
@@ -111,18 +120,20 @@ function scoreCandidate(query: string, candidate: string) {
 
 function scoreSlashItem(query: string, item: SlashMenuItem) {
   const candidates = [
-    item.name,
-    translate(item.nameKey),
-    item.id,
-    item.commandId,
-    ...item.searchTerms,
-  ].map(normalize);
+    { value: item.name, penalty: 0 },
+    { value: translate(item.nameKey), penalty: 0 },
+    { value: item.id, penalty: 0 },
+    { value: item.commandId, penalty: 0 },
+    ...item.searchTerms.map((value) => ({ value, penalty: 0 })),
+    ...getMessageVariants(item.nameKey).map((value) => ({ value, penalty: 4 })),
+  ].map(({ value, penalty }) => ({ value: normalize(value), penalty }));
   let bestScore: number | null = null;
 
-  for (const candidate of candidates) {
-    const score = scoreCandidate(query, candidate);
+  for (const { value, penalty } of candidates) {
+    const score = scoreCandidate(query, value);
     if (score === null) continue;
-    bestScore = bestScore === null ? score : Math.min(bestScore, score);
+    const weightedScore = score + penalty;
+    bestScore = bestScore === null ? weightedScore : Math.min(bestScore, weightedScore);
   }
 
   return bestScore;
@@ -150,6 +161,10 @@ export function filterSlashItems(query: string, items: readonly SlashMenuItem[] 
       };
     })
     .filter((entry): entry is typeof entry & { score: number } => entry.score !== null)
-    .sort((a, b) => a.score - b.score || a.index - b.index)
+    .sort((a, b) => (
+      a.score - b.score
+      || getSlashUsageRank(a.item.commandId) - getSlashUsageRank(b.item.commandId)
+      || a.index - b.index
+    ))
     .map((entry) => entry.item);
 }

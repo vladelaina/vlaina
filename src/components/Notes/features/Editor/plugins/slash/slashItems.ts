@@ -1,5 +1,6 @@
 import { translate } from '@/lib/i18n';
 import { slashCommandDefinitions } from './slashCommandDefinitions';
+import { getSlashUsageRank } from './slashUsageOrder';
 import type { SlashMenuItem } from './types';
 
 function toSlashMenuItem(definition: (typeof slashCommandDefinitions)[number]): SlashMenuItem {
@@ -13,8 +14,14 @@ function toSlashMenuItem(definition: (typeof slashCommandDefinitions)[number]): 
   };
 }
 
-export const slashMenuItems: SlashMenuItem[] = slashCommandDefinitions.map(toSlashMenuItem);
+function buildSlashMenuItems() {
+  return slashCommandDefinitions
+    .map(toSlashMenuItem)
+    .sort((a, b) => getSlashUsageRank(a.commandId) - getSlashUsageRank(b.commandId));
+}
+
+export const slashMenuItems: SlashMenuItem[] = buildSlashMenuItems();
 
 export function getSlashMenuItems(): SlashMenuItem[] {
-  return slashCommandDefinitions.map(toSlashMenuItem);
+  return buildSlashMenuItems();
 }

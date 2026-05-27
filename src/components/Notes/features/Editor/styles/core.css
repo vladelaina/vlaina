@@ -113,6 +113,29 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
   caret-color: var(--vlaina-editor-caret-color);
 }
 
+.milkdown-editor.vlaina-markdown-body-line-numbers .vlaina-body-line-number-gutter {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.milkdown-editor.vlaina-markdown-body-line-numbers .vlaina-body-line-number {
+  position: absolute;
+  width: 2.5rem;
+  color: var(--vlaina-text-tertiary);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  line-height: inherit;
+  opacity: 0.86;
+  pointer-events: none;
+  text-align: right;
+  transform: translateY(-50%);
+  user-select: none;
+}
+
 .milkdown.vlaina-block-selection-line-fill-host,
 .milkdown .vlaina-block-selection-line-fill-host {
   position: relative;

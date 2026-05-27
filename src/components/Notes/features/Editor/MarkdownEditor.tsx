@@ -1,6 +1,8 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
 import { useNotesStore } from '@/stores/useNotesStore';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { selectMarkdownBodyLineNumbersEnabled } from '@/stores/unified/settings/markdownSettings';
 import { cn } from '@/lib/utils';
 import { NoteHeader } from './NoteHeader';
 import { useNoteCoverController, NoteCoverCanvas } from '../Cover';
@@ -72,6 +74,7 @@ export function MarkdownEditor({
   const [editorInitTimedOutPath, setEditorInitTimedOutPath] = useState<string | null>(null);
 
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
+  const showBodyLineNumbers = useUnifiedStore(selectMarkdownBodyLineNumbersEnabled);
   const saveNote = useNotesStore(s => s.saveNote);
   const notesPath = useNotesStore(s => s.notesPath);
   const currentNoteTitle = useNotesStore(
@@ -417,12 +420,14 @@ export function MarkdownEditor({
                 {shouldUseSourceFallback ? (
                   <MarkdownSourceFallback
                     currentNotePath={currentNotePath}
+                    showBodyLineNumbers={showBodyLineNumbers}
                     saveNote={saveNote}
                   />
                 ) : (
                   <MilkdownEditorRuntime
                     key={currentNotePath ?? 'empty'}
                     active={active}
+                    showBodyLineNumbers={showBodyLineNumbers}
                     onEditorViewReady={handleEditorViewReady}
                   />
                 )}
@@ -430,7 +435,11 @@ export function MarkdownEditor({
             </>
           ) : (
             <div
-              className={cn('milkdown-editor min-h-[420px]', EDITOR_LAYOUT_CLASS)}
+              className={cn(
+                'milkdown-editor min-h-[420px]',
+                showBodyLineNumbers && 'vlaina-markdown-body-line-numbers',
+                EDITOR_LAYOUT_CLASS
+              )}
               data-note-placeholder-root="true"
             />
           )}
@@ -442,9 +451,11 @@ export function MarkdownEditor({
 
 function MarkdownSourceFallback({
   currentNotePath,
+  showBodyLineNumbers,
   saveNote,
 }: {
   currentNotePath: string;
+  showBodyLineNumbers: boolean;
   saveNote: (options?: { explicit?: boolean }) => Promise<void>;
 }) {
   const updateContent = useNotesStore((state) => state.updateContent);
@@ -503,7 +514,11 @@ function MarkdownSourceFallback({
 
   return (
     <div
-      className={cn('milkdown-editor min-h-[420px]', EDITOR_LAYOUT_CLASS)}
+      className={cn(
+        'milkdown-editor min-h-[420px]',
+        showBodyLineNumbers && 'vlaina-markdown-body-line-numbers',
+        EDITOR_LAYOUT_CLASS
+      )}
       data-note-content-root="true"
       data-note-source-fallback="true"
     >

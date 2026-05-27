@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { retainLoadedSessionMessages } from './useUnifiedStore';
 import {
   resolveMarkdownSettings,
+  updateMarkdownBodyLineNumbers,
   updateMarkdownTypewriterMode,
 } from './settings/markdownSettings';
 import type { UnifiedData } from '@/lib/storage/unifiedStorage';
@@ -110,6 +111,7 @@ describe('markdownSettings', () => {
       codeBlock: { showLineNumbers: false },
     } as Partial<UnifiedData['settings']['markdown']>)).toEqual({
       typewriterMode: false,
+      body: { showLineNumbers: false },
       codeBlock: { showLineNumbers: false },
     });
   });
@@ -120,6 +122,7 @@ describe('markdownSettings', () => {
         timezone: { offset: 0, city: 'UTC' },
         markdown: {
           typewriterMode: false,
+          body: { showLineNumbers: false },
           codeBlock: { showLineNumbers: false },
         },
       },
@@ -129,7 +132,29 @@ describe('markdownSettings', () => {
 
     expect(updateMarkdownTypewriterMode(data, true).settings.markdown).toEqual({
       typewriterMode: true,
+      body: { showLineNumbers: false },
       codeBlock: { showLineNumbers: false },
+    });
+  });
+
+  it('updates body line numbers without changing code block settings', () => {
+    const data: UnifiedData = {
+      settings: {
+        timezone: { offset: 0, city: 'UTC' },
+        markdown: {
+          typewriterMode: false,
+          body: { showLineNumbers: false },
+          codeBlock: { showLineNumbers: true },
+        },
+      },
+      customIcons: [],
+      ai: undefined,
+    };
+
+    expect(updateMarkdownBodyLineNumbers(data, true).settings.markdown).toEqual({
+      typewriterMode: false,
+      body: { showLineNumbers: true },
+      codeBlock: { showLineNumbers: true },
     });
   });
 });

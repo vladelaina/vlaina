@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { NOTES_DRAG_RETURN_ANIMATION } from '../../common/NotesDragOverlay';
 import {
+  FILE_TREE_CHAT_DROP_EVENT,
   requestFileTreePointerDragDropTargetUpdate,
   useFileTreePointerDragState,
 } from './fileTreePointerDragState';
@@ -330,6 +331,9 @@ describe('fileTreePointerDragState', () => {
       expect(activeSource.textContent).toBe('Source.md');
       expect(dropTarget.textContent).toBe('Archive');
       expect(screen.getAllByTestId('source')).toHaveLength(2);
+      const preview = screen.getAllByTestId('source')[1] as HTMLElement;
+      expect(preview.style.backgroundColor).toBe('var(--notes-sidebar-surface)');
+      expect(preview.style.boxShadow).toBe('none');
     });
 
     dispatchDocumentPointerEvent('pointerup', {
@@ -344,6 +348,48 @@ describe('fileTreePointerDragState', () => {
       expect(dropTarget.textContent).toBe('');
       expect(screen.getAllByTestId('source')).toHaveLength(1);
     });
+  });
+
+  it('drops a dragged file tree item onto the chat target without moving it', async () => {
+    const { source } = setupHarness({
+      path: 'docs/Source.md',
+      folderTargetPath: 'Archive',
+    });
+    const chatTarget = document.createElement('div');
+    chatTarget.dataset.fileTreeChatDropTarget = 'true';
+    document.body.append(chatTarget);
+    const chatDropListener = vi.fn();
+    window.addEventListener(FILE_TREE_CHAT_DROP_EVENT, chatDropListener);
+    document.elementsFromPoint = vi.fn(() => [chatTarget]);
+
+    fireEvent.pointerDown(source, {
+      button: 0,
+      clientX: 40,
+      clientY: 40,
+      pointerType: 'mouse',
+    });
+
+    dispatchDocumentPointerEvent('pointermove', {
+      clientX: 40,
+      clientY: 52,
+      buttons: 1,
+    });
+    dispatchDocumentPointerEvent('pointerup', {
+      clientX: 40,
+      clientY: 52,
+      buttons: 0,
+    });
+
+    await waitFor(() => {
+      expect(chatDropListener).toHaveBeenCalledTimes(1);
+      expect((chatDropListener.mock.calls[0]?.[0] as CustomEvent).detail).toEqual({
+        path: 'docs/Source.md',
+        kind: 'note',
+      });
+      expect(moveItemMock).not.toHaveBeenCalled();
+    });
+
+    window.removeEventListener(FILE_TREE_CHAT_DROP_EVENT, chatDropListener);
   });
 
   it('uses the shared drag overlay timing when returning the preview', async () => {

@@ -8,6 +8,7 @@ import { useI18n } from '@/lib/i18n';
 
 interface ChatSidebarTopActionsProps {
   onOpenNewChat: () => void;
+  showAppViewModeSwitch?: boolean;
 }
 
 interface ChatSidebarTopAction {
@@ -19,6 +20,7 @@ interface ChatSidebarTopAction {
 
 export function ChatSidebarTopActions({
   onOpenNewChat,
+  showAppViewModeSwitch = true,
 }: ChatSidebarTopActionsProps) {
   const { t } = useI18n();
   const actions: ChatSidebarTopAction[] = [
@@ -31,7 +33,7 @@ export function ChatSidebarTopActions({
 
   return (
     <SidebarActionGroup>
-      <AppViewModeSwitch />
+      {showAppViewModeSwitch ? <AppViewModeSwitch /> : null}
       {actions.map((action) => (
         <SidebarActionButton
           key={action.key}

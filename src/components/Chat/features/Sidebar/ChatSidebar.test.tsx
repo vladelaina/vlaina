@@ -13,6 +13,7 @@ const hoisted = vi.hoisted(() => ({
   switchSession: vi.fn(),
   updateSession: vi.fn(),
   deleteSession: vi.fn(),
+  topActionsProps: [] as Array<{ showAppViewModeSwitch?: boolean }>,
   sidebarSearchOpen: false,
   setSidebarSearchOpen: vi.fn((open: boolean) => {
     hoisted.sidebarSearchOpen = open;
@@ -129,7 +130,10 @@ vi.mock('./ChatSidebarPrimitives', () => ({
 }));
 
 vi.mock('./ChatSidebarTopActions', () => ({
-  ChatSidebarTopActions: () => <div data-testid="top-actions" />,
+  ChatSidebarTopActions: (props: { showAppViewModeSwitch?: boolean }) => {
+    hoisted.topActionsProps.push(props);
+    return <div data-testid="top-actions" />;
+  },
 }));
 
 vi.mock('@/components/layout/sidebar/SidebarPrimitives', () => ({
@@ -174,6 +178,7 @@ describe('ChatSidebar', () => {
     hoisted.appViewMode = 'chat';
     hoisted.currentSessionId = 's1';
     hoisted.sidebarSearchOpen = false;
+    hoisted.topActionsProps = [];
     hoisted.sessions = [
       buildSession('s1', 'Alpha'),
       buildSession('s2', 'Beta'),
@@ -193,6 +198,12 @@ describe('ChatSidebar', () => {
     expect(screen.getByText('Alpha')).toBeInTheDocument();
     expect(screen.getByText('Beta')).toBeInTheDocument();
     expect(screen.queryByTestId('empty-hint')).not.toBeInTheDocument();
+  });
+
+  it('hides the app view switch in the embedded chat sidebar', () => {
+    render(<ChatSidebar embedded />);
+
+    expect(hoisted.topActionsProps.at(-1)?.showAppViewModeSwitch).toBe(false);
   });
 
   it('uses arrow key selection when submitting chat search results', async () => {

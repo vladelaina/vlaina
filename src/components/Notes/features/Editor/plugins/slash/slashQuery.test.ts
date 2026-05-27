@@ -6,20 +6,63 @@ import { filterSlashItems } from './slashQuery';
 describe('slashMenuItems', () => {
   it('is derived from the command definitions', () => {
     expect(slashMenuItems).toHaveLength(slashCommandDefinitions.length);
-    expect(slashMenuItems.map((item) => item.commandId)).toEqual(
-      slashCommandDefinitions.map((definition) => definition.commandId)
+    expect(new Set(slashMenuItems.map((item) => item.commandId))).toEqual(
+      new Set(slashCommandDefinitions.map((definition) => definition.commandId))
     );
+  });
+
+  it('starts with the most commonly used commands', () => {
+    expect(slashMenuItems.slice(0, 6).map((item) => item.name)).toEqual([
+      'Heading 1',
+      'Heading 2',
+      'Heading 3',
+      'Task List',
+      'Bullet List',
+      'Numbered List',
+    ]);
   });
 });
 
 describe('filterSlashItems', () => {
-  it('returns all items for an empty query', () => {
-    expect(filterSlashItems('')).toHaveLength(slashMenuItems.length);
+  it('returns all items for an empty query in common-usage order', () => {
+    const names = filterSlashItems('').map((item) => item.name);
+
+    expect(names).toHaveLength(slashMenuItems.length);
+    expect(names.slice(0, 6)).toEqual([
+      'Heading 1',
+      'Heading 2',
+      'Heading 3',
+      'Task List',
+      'Bullet List',
+      'Numbered List',
+    ]);
   });
 
   it('matches names and search terms case-insensitively', () => {
     expect(filterSlashItems('todo').map((item) => item.name)).toContain('Task List');
     expect(filterSlashItems('H1').map((item) => item.name)).toContain('Heading 1');
+    expect(filterSlashItems('h').map((item) => item.name)).toContain('Heading 1');
+  });
+
+  it('matches command names from any app locale', () => {
+    expect(filterSlashItems('表格').map((item) => item.name)).toContain('Table');
+    expect(filterSlashItems('目录').map((item) => item.name)).toContain('Table of Contents');
+    expect(filterSlashItems('cita').map((item) => item.name)).toContain('Quote');
+    expect(filterSlashItems('citacao').map((item) => item.name)).toContain('Quote');
+  });
+
+  it('matches common localized aliases and pinyin', () => {
+    expect(filterSlashItems('biaoti').map((item) => item.name)).toContain('Heading 1');
+    expect(filterSlashItems('gongshi').map((item) => item.name)).toContain('Equation');
+    expect(filterSlashItems('tupian').map((item) => item.name)).toContain('Image');
+  });
+
+  it('matches common habits across supported languages', () => {
+    expect(filterSlashItems('tabelle').map((item) => item.name)).toContain('Table');
+    expect(filterSlashItems('aufgabe').map((item) => item.name)).toContain('Task List');
+    expect(filterSlashItems('muc luc').map((item) => item.name)).toContain('Table of Contents');
+    expect(filterSlashItems('dipnot').map((item) => item.name)).toContain('Footnote');
+    expect(filterSlashItems('動画').map((item) => item.name)).toContain('Video');
   });
 
   it('matches compact abbreviations for common commands', () => {
@@ -52,6 +95,19 @@ describe('filterSlashItems', () => {
     const names = filterSlashItems('im').map((item) => item.name);
 
     expect(names.indexOf('Image')).toBeLessThan(names.indexOf('Inline Math'));
+  });
+
+  it('uses common-usage order when search scores tie', () => {
+    const names = filterSlashItems('heading').map((item) => item.name);
+
+    expect(names.slice(0, 6)).toEqual([
+      'Heading 1',
+      'Heading 2',
+      'Heading 3',
+      'Heading 4',
+      'Heading 5',
+      'Heading 6',
+    ]);
   });
 
   it('keeps frontmatter behind other short metadata-like matches', () => {

@@ -23,6 +23,7 @@ import {
   type DropTarget,
   type HandleBlockTarget,
 } from './blockControlsInteractions';
+import { createVerticalEdgeAutoScroll, type VerticalEdgeAutoScrollHandle } from './edgeAutoScroll';
 
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const CONTROLS_LEFT_OFFSET = 44;
@@ -60,6 +61,7 @@ export class BlockControlsViewSession {
   private readonly controls: HTMLDivElement;
   private readonly handleButton: HTMLButtonElement;
   private readonly dropIndicator: HTMLDivElement;
+  private readonly dragAutoScroll: VerticalEdgeAutoScrollHandle;
 
   private draggedRanges: BlockRange[] | null = null;
   private dragPreview: BlockDragPreviewHandle | null = null;
@@ -85,6 +87,11 @@ export class BlockControlsViewSession {
     this.doc = view.dom.ownerDocument;
     this.scrollRoot = view.dom.closest(SCROLL_ROOT_SELECTOR) as HTMLElement | null;
     this.cachedDoc = view.state.doc;
+    this.dragAutoScroll = createVerticalEdgeAutoScroll({
+      scrollRoot: this.scrollRoot,
+      getPointerY: () => this.draggedRanges ? this.lastDragClientY : null,
+      onScroll: this.refreshDragDropAfterScroll,
+    });
 
     const { controls, handleButton, dropIndicator } = createBlockControlsDom(this.doc);
     this.controls = controls;
@@ -120,6 +127,7 @@ export class BlockControlsViewSession {
     this.handleButton.removeEventListener('mousedown', this.handleHandleMouseDown);
     this.doc.removeEventListener('mousemove', this.handleDocumentMouseMove, true);
     this.doc.removeEventListener('mouseup', this.handleDocumentMouseUp, true);
+    this.dragAutoScroll.stop();
     this.detachDragWheelListener();
     this.doc.removeEventListener('keydown', this.handleDocumentKeyDown, true);
     this.scrollRoot?.removeEventListener('scroll', this.handleScrollOrResize);
@@ -238,6 +246,16 @@ export class BlockControlsViewSession {
     this.doc.removeEventListener('wheel', this.handleDocumentWheel, true);
   }
 
+  private readonly refreshDragDropAfterScroll = (): void => {
+    this.invalidateTargetCache();
+    this.scheduleHandleRefresh();
+    if (this.lastDragClientX !== null && this.lastDragClientY !== null) {
+      this.updateDropTargetByPointer(this.lastDragClientX, this.lastDragClientY);
+    } else {
+      this.hideDropIndicator();
+    }
+  };
+
   private finishDrag(): void {
     this.draggedRanges = null;
     this.dragStartClientX = null;
@@ -251,6 +269,7 @@ export class BlockControlsViewSession {
     setBlockDraggingVisualState(false);
     this.controls.classList.remove('dragging');
     this.hideDropIndicator();
+    this.dragAutoScroll.stop();
     this.detachDragWheelListener();
   }
 
@@ -266,6 +285,7 @@ export class BlockControlsViewSession {
 
     this.draggedRanges = draggableRanges;
     this.attachDragWheelListener();
+    this.dragAutoScroll.start();
     this.dragStartClientX = event.clientX;
     this.dragStartClientY = event.clientY;
     const composerText = serializeDraggedRangesForComposer(this.view, draggableRanges);
@@ -311,12 +331,7 @@ export class BlockControlsViewSession {
 
   private readonly handleScrollOrResize = (): void => {
     if (this.draggedRanges) {
-      this.invalidateTargetCache();
-      if (this.lastDragClientX !== null && this.lastDragClientY !== null) {
-        this.updateDropTargetByPointer(this.lastDragClientX, this.lastDragClientY);
-      } else {
-        this.hideDropIndicator();
-      }
+      this.refreshDragDropAfterScroll();
       return;
     }
     this.invalidateTargetCache();
@@ -356,11 +371,7 @@ export class BlockControlsViewSession {
       this.scrollRoot.scrollLeft += deltaX;
     }
 
-    this.invalidateTargetCache();
-    this.scheduleHandleRefresh();
-    if (this.lastDragClientX !== null && this.lastDragClientY !== null) {
-      this.updateDropTargetByPointer(this.lastDragClientX, this.lastDragClientY);
-    }
+    this.refreshDragDropAfterScroll();
   };
 
   private readonly handleDocumentMouseUp = (event: MouseEvent): void => {

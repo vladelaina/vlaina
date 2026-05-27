@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { NoteIcon } from '@/components/Notes/features/IconPicker/NoteIcon';
 import { useStarredEntryIcon } from '@/components/Notes/features/Starred/useStarredEntryIcon';
@@ -14,6 +15,7 @@ import { NOTES_SIDEBAR_ICON_SIZE } from '@/components/Notes/features/Sidebar/sid
 
 interface NoteMentionPickerProps {
   currentPageCandidates: NoteMentionCandidate[];
+  folderCandidates: NoteMentionCandidate[];
   linkedPageCandidates: NoteMentionCandidate[];
   activeCandidatePath: string | null;
   status?: 'loading' | 'empty' | null;
@@ -29,6 +31,16 @@ interface NoteMentionSectionProps {
 }
 
 function NoteMentionCandidateIcon({ candidate }: { candidate: NoteMentionCandidate }) {
+  if (candidate.kind === 'folder') {
+    return (
+      <Icon
+        name="file.folder"
+        size={NOTES_SIDEBAR_ICON_SIZE}
+        className="text-[var(--notes-sidebar-folder-icon)]"
+      />
+    );
+  }
+
   if (candidate.icon) {
     return (
       <NoteIcon
@@ -88,6 +100,14 @@ function NoteMentionSection({
   activeCandidatePath,
   onSelect,
 }: NoteMentionSectionProps) {
+  const activeButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    activeButtonRef.current?.scrollIntoView({
+      block: 'nearest',
+    });
+  }, [activeCandidatePath]);
+
   if (candidates.length === 0) {
     return null;
   }
@@ -103,6 +123,7 @@ function NoteMentionSection({
 
           return (
             <button
+              ref={isActive ? activeButtonRef : undefined}
               key={candidate.path}
               type="button"
               className={cn(
@@ -128,6 +149,7 @@ function NoteMentionSection({
 
 export function NoteMentionPicker({
   currentPageCandidates,
+  folderCandidates,
   linkedPageCandidates,
   activeCandidatePath,
   status,
@@ -135,7 +157,10 @@ export function NoteMentionPicker({
   onSelect,
 }: NoteMentionPickerProps) {
   const { t } = useI18n();
-  const hasCandidates = currentPageCandidates.length > 0 || linkedPageCandidates.length > 0;
+  const hasCandidates =
+    currentPageCandidates.length > 0 ||
+    folderCandidates.length > 0 ||
+    linkedPageCandidates.length > 0;
 
   return (
     <div
@@ -158,6 +183,12 @@ export function NoteMentionPicker({
             <NoteMentionSection
               title={t('chat.linkToPage')}
               candidates={linkedPageCandidates}
+              activeCandidatePath={activeCandidatePath}
+              onSelect={onSelect}
+            />
+            <NoteMentionSection
+              title={t('notes.folder')}
+              candidates={folderCandidates}
               activeCandidatePath={activeCandidatePath}
               onSelect={onSelect}
             />
