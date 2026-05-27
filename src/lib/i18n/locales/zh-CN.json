@@ -90,7 +90,7 @@
   "settings.about.note.originStory": "vlaina从立项到第一版发布已经过去差不多8个月，其实刚开始是想做todo+日历+笔记+AI对话的聚合应用，做了两个月后后悔了，发现内容太多，需要处理的细节实在太多，光靠一个人很难完成，最终只能将写了两个月的代码全部删掉重来。",
   "settings.about.note.migrationStory": "中途还经历了一次框架迁移，从Tauri迁移到现在的Electron。刚开始选择Tauri，很大原因是我是写C语言开发出身的，对体积和资源占用特别敏感。之前曾把{catimeSite}做到{catimeSize}（如果你还不知道{catimeSite}是什么，强烈推荐去试试，一款{catimeStars} Star、纯C写的桌面计时器，资源占用极低），所以很自然就选择了Tauri。刚开始其实很犹豫，因为有信心应该可以将体积控制到{targetSize}以下，但最终还是下定决心换掉了，主要原因是我用Arch作为主力系统，而Tauri在Linux上存在一些细节问题，Tauri很好用，只是不太适合vlaina，最后只能迁移。",
   "settings.about.note.releaseHeading": "为啥会选择现在发而不是进一步去打磨呢？",
-  "settings.about.note.releaseReason": "其实很简单，这8个月是纯无收入的，兜里的钱只够撑到这个月了，没有投资人，如果再不上线很难继续维持全职开发工作了。",
+  "settings.about.note.releaseReason": "其实很简单，这8个月是纯无收入的，兜里的钱只够撑到这个月了，没有投资人，如果再不上线很难继续维持全职开发工作了。同时怎么说呢，感觉vlaina当前的第一版的完成度其实比{catimeSite}的第一版还是要强太多了，我记得那个时候把所有的6000多行纯C代码全部都写在一个main.c中∑(O_O；)",
   "settings.about.note.donationHeading": "既然是开源项目，为啥不能做成纯打赏呢？",
   "settings.about.note.donationReason": "很简单，光靠打赏完全无法撑起一份全职工作。",
   "settings.about.note.catimeStory": "在开发vlaina之前，我在大学期间用一年多时间开发了一款特别棒的倒计时工具{catimeSite}，一个用纯C写、花费无数个日夜一行一行实现的项目。它在GitHub上收获了{catimeStars} Star，拥有十几万用户，这对我来说是莫大的荣幸，从没想过居然能做到这个地步，可能{catimeStars}并不是很直观，{catimeSite}是GitHub {clockTopic}分区的第二名，第一名是一款Mac工具。这一切都只花了差不多一年，而迟迟没做Mac端的原因其实只是没钱买Mac，但后续一定会支持上！",

@@ -248,7 +248,7 @@ function DeveloperNotePanel() {
         <h2 className="text-[16px] font-semibold leading-7 text-[var(--notes-sidebar-text)]">
           {t('settings.about.note.releaseHeading')}
         </h2>
-        <p>{t('settings.about.note.releaseReason')}</p>
+        <p>{noteText('settings.about.note.releaseReason')}</p>
         <h2 className="text-[16px] font-semibold leading-7 text-[var(--notes-sidebar-text)]">
           {t('settings.about.note.donationHeading')}
         </h2>

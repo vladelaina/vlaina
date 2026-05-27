@@ -90,7 +90,7 @@
   "settings.about.note.originStory": "vlaina の立ち上げから最初のリリースまで、もうすぐ 8 か月になります。最初は todo + カレンダー + ノート + AI チャットをまとめたアプリを作るつもりでした。でも 2 か月作ったところで、扱う細部が多すぎて 1 人では完成が難しいと気づき、その 2 か月分のコードをすべて削除して作り直しました。",
   "settings.about.note.migrationStory": "途中でフレームワークも Tauri から Electron へ移行しました。最初に Tauri を選んだ大きな理由は、私が C 言語開発出身で、サイズやリソース使用量にとても敏感だったからです。以前 {catimeSite} を {catimeSize} まで小さくしたことがあります（{catimeSite} を知らないならぜひ試してみてください。{catimeStars} stars の純 C 製デスクトップタイマーで、リソース使用量が非常に低いです）。自然と Tauri を選びました。最初は vlaina を {targetSize} 未満に抑えられる自信もあり迷いましたが、最終的には移行を決めました。主な理由は、私のメイン環境である Arch Linux 上で Tauri に細かな問題があったことです。Tauri は良いものですが、vlaina にはあまり合いませんでした。",
   "settings.about.note.releaseHeading": "なぜさらに磨き込まず、今リリースするのか？",
-  "settings.about.note.releaseReason": "理由は単純です。この 8 か月は完全に無収入で、手元のお金は今月いっぱいしか持ちません。投資家もいないので、今公開しなければフルタイムで開発を続けるのが難しくなります。",
+  "settings.about.note.releaseReason": "理由は単純です。この 8 か月は完全に無収入で、手元のお金は今月いっぱいしか持ちません。投資家もいないので、今公開しなければフルタイムで開発を続けるのが難しくなります。それに、どう言えばいいのか、今の vlaina の最初のバージョンは {catimeSite} の最初のバージョンより完成度がずっと高いと思っています。当時は 6,000 行以上の純 C コードをすべて 1 つの main.c に書いていました ∑(O_O;)",
   "settings.about.note.donationHeading": "オープンソースなら、なぜ寄付だけにしないのか？",
   "settings.about.note.donationReason": "寄付だけでは、フルタイムの仕事として成り立たせることができないからです。",
   "settings.about.note.catimeStory": "vlaina を作る前、大学時代に 1 年以上かけて {catimeSite} という大好きなカウントダウンツールを開発しました。純 C で、数え切れない日夜をかけて一行ずつ実装したものです。GitHub で {catimeStars} stars を獲得し、十数万人のユーザーに使ってもらえました。私にとって本当に大きな栄誉です。{catimeStars} は直感的でないかもしれませんが、{catimeSite} は GitHub の {clockTopic} で 2 位です。1 位は Mac ツールです。これらはほぼ 1 年で実現しました。Mac 版がまだない理由は、単に Mac を買うお金がなかったからですが、今後必ず対応します。",
