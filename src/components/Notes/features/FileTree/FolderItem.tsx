@@ -319,6 +319,7 @@ function areFolderItemPropsEqual(prevProps: FolderItemProps, nextProps: FolderIt
     prevProps.node.name === nextProps.node.name &&
     prevProps.node.path === nextProps.node.path &&
     prevProps.node.expanded === nextProps.node.expanded &&
+    prevProps.node.isGitRepository === nextProps.node.isGitRepository &&
     prevProps.node.children === nextProps.node.children &&
     prevProps.depth === nextProps.depth &&
     prevProps.showStarBadge === nextProps.showStarBadge &&

@@ -23,6 +23,15 @@ function shouldSkipDirectory(name: string) {
   return name.startsWith('.') || SKIPPED_DIRECTORY_NAMES.has(name);
 }
 
+export async function isGitRepositoryDirectory(fullPath: string) {
+  const storage = getStorageAdapter();
+  try {
+    return await storage.exists(await joinPath(fullPath, '.git'));
+  } catch {
+    return false;
+  }
+}
+
 export async function buildFileTreeLevel(basePath: string, relativePath: string = ''): Promise<FileTreeNode[]> {
   const storage = getStorageAdapter();
   const fullPath = relativePath ? await joinPath(basePath, relativePath) : basePath;
@@ -39,6 +48,8 @@ export async function buildFileTreeLevel(basePath: string, relativePath: string 
     const isFile = entry.isFile === true;
 
     if (isDir) {
+      const entryFullPath = await joinPath(fullPath, entry.name);
+      const isGitRepository = await isGitRepositoryDirectory(entryFullPath);
       nodes.push({
         id: entryPath,
         name: entry.name,
@@ -46,6 +57,7 @@ export async function buildFileTreeLevel(basePath: string, relativePath: string 
         isFolder: true,
         children: [],
         expanded: false,
+        ...(isGitRepository ? { isGitRepository: true } : {}),
       });
     } else if (isFile && entry.name.toLowerCase().endsWith('.md')) {
       nodes.push({

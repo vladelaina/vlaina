@@ -15,6 +15,7 @@ export interface FolderNode {
   isFolder: true;
   children: FileTreeNode[];
   expanded: boolean;
+  isGitRepository?: boolean;
 }
 
 export type FileTreeNode = NoteFile | FolderNode;

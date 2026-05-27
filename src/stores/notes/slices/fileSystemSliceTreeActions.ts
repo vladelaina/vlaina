@@ -3,6 +3,7 @@ import {
   buildFileTree,
   collectExpandedPaths,
   expandFoldersForPath,
+  isGitRepositoryDirectory,
   restoreExpandedState,
   updateFolderExpanded,
 } from '../fileTreeUtils';
@@ -108,6 +109,10 @@ export function createFileSystemTreeActions(
         markStep('build-tree', stepStartedAt);
 
         stepStartedAt = getFileTreeLoadPerfNow();
+        const isRootGitRepository = await isGitRepositoryDirectory(basePath);
+        markStep('detect-root-git', stepStartedAt);
+
+        stepStartedAt = getFileTreeLoadPerfNow();
         let children = sortNestedFileTree(builtChildren, {
           mode: fileTreeSortMode,
           metadata,
@@ -170,6 +175,7 @@ export function createFileSystemTreeActions(
             isFolder: true,
             children: restoredChildren,
             expanded: true,
+            ...(isRootGitRepository ? { isGitRepository: true } : {}),
           },
           noteMetadata: nextMetadata,
           starredNotes: starredPaths.notes,

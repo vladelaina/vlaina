@@ -4,6 +4,7 @@ import {
   addNodeToTree,
   buildFileTree,
   expandFoldersForPath,
+  isGitRepositoryDirectory,
   removeNodeFromTree,
   updateFolderExpanded,
 } from './fileTreeUtils';
@@ -11,11 +12,13 @@ import { ensureFileNodeInTree } from './fileTreePreservation';
 
 const mocks = vi.hoisted(() => ({
   listDir: vi.fn(),
+  exists: vi.fn(),
 }));
 
 vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => ({
     listDir: mocks.listDir,
+    exists: mocks.exists,
   }),
   joinPath: async (...segments: string[]) => segments.filter(Boolean).join('/'),
 }));
@@ -67,6 +70,8 @@ function createTree(): FileTreeNode[] {
 describe('fileTreeUtils structural sharing', () => {
   beforeEach(() => {
     mocks.listDir.mockReset();
+    mocks.exists.mockReset();
+    mocks.exists.mockResolvedValue(false);
   });
 
   it('does not recurse into heavy generated folders while building the tree', async () => {
@@ -121,6 +126,76 @@ describe('fileTreeUtils structural sharing', () => {
         children: [],
       },
     ]);
+  });
+
+  it('marks git repository folders without exposing the .git directory', async () => {
+    mocks.exists.mockImplementation(async (path: string) => path === '/vault/project/.git');
+    mocks.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault') {
+        return [
+          { name: 'project', path: '/vault/project', isDirectory: true, isFile: false },
+        ];
+      }
+
+      if (path === '/vault/project') {
+        return [
+          { name: '.git', path: '/vault/project/.git', isDirectory: true, isFile: false },
+          { name: 'notes', path: '/vault/project/notes', isDirectory: true, isFile: false },
+          { name: 'readme.md', path: '/vault/project/readme.md', isDirectory: false, isFile: true },
+        ];
+      }
+
+      if (path === '/vault/project/notes') {
+        return [
+          { name: 'intro.md', path: '/vault/project/notes/intro.md', isDirectory: false, isFile: true },
+        ];
+      }
+
+      return [];
+    });
+
+    const tree = await buildFileTree('/vault');
+
+    expect(tree).toEqual([
+      {
+        id: 'project',
+        name: 'project',
+        path: 'project',
+        isFolder: true,
+        expanded: false,
+        isGitRepository: true,
+        children: [
+          {
+            id: 'project/notes',
+            name: 'notes',
+            path: 'project/notes',
+            isFolder: true,
+            expanded: false,
+            children: [
+              {
+                id: 'project/notes/intro.md',
+                name: 'intro',
+                path: 'project/notes/intro.md',
+                isFolder: false,
+              },
+            ],
+          },
+          {
+            id: 'project/readme.md',
+            name: 'readme',
+            path: 'project/readme.md',
+            isFolder: false,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('detects a git repository root path', async () => {
+    mocks.exists.mockImplementation(async (path: string) => path === '/vault/.git');
+
+    await expect(isGitRepositoryDirectory('/vault')).resolves.toBe(true);
+    await expect(isGitRepositoryDirectory('/other')).resolves.toBe(false);
   });
 
   it('toggles only the targeted folder route', () => {
