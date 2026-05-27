@@ -134,6 +134,8 @@
   "settings.markdown.showLineNumbers": "แสดงหมายเลขบรรทัด",
   "settings.markdown.typewriterMode": "โหมดพิมพ์ดีด",
   "settings.markdown.typewriterModeDescription": "ให้เคอร์เซอร์อยู่ใกล้ตรงกลางขณะพิมพ์",
+  "settings.markdown.bodyLineNumbers": "แสดงหมายเลขบรรทัดเนื้อหา",
+  "settings.markdown.bodyLineNumbersDescription": "แสดงหมายเลขก่อนบรรทัด Markdown ปกติ โดยไม่รวมบล็อกโค้ด",
   "settings.tabs.about": "เกี่ยวกับ",
   "settings.tabs.ai": "แชท",
   "settings.tabs.appearance": "รูปลักษณ์",

@@ -1,5 +1,6 @@
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import {
+  selectMarkdownBodyLineNumbersEnabled,
   selectCodeBlockLineNumbersEnabled,
   selectMarkdownTypewriterModeEnabled,
 } from '@/stores/unified/settings/markdownSettings';
@@ -17,11 +18,17 @@ export function MarkdownTab() {
   const typewriterMode = useUnifiedStore(
     selectMarkdownTypewriterModeEnabled
   );
+  const showBodyLineNumbers = useUnifiedStore(
+    selectMarkdownBodyLineNumbersEnabled
+  );
   const showCodeBlockLineNumbers = useUnifiedStore(
     selectCodeBlockLineNumbersEnabled
   );
   const setMarkdownTypewriterMode = useUnifiedStore(
     (state) => state.setMarkdownTypewriterMode
+  );
+  const setMarkdownBodyLineNumbers = useUnifiedStore(
+    (state) => state.setMarkdownBodyLineNumbers
   );
   const setMarkdownCodeBlockLineNumbers = useUnifiedStore(
     (state) => state.setMarkdownCodeBlockLineNumbers
@@ -45,6 +52,16 @@ export function MarkdownTab() {
           <SettingsSwitch
             checked={typewriterMode}
             onChange={setMarkdownTypewriterMode}
+            activeColor="bg-[var(--sidebar-row-selected-text)]"
+          />
+        </SettingsItem>
+        <SettingsItem
+          title={t('settings.markdown.bodyLineNumbers')}
+          description={t('settings.markdown.bodyLineNumbersDescription')}
+        >
+          <SettingsSwitch
+            checked={showBodyLineNumbers}
+            onChange={setMarkdownBodyLineNumbers}
             activeColor="bg-[var(--sidebar-row-selected-text)]"
           />
         </SettingsItem>

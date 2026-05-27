@@ -510,7 +510,11 @@ describe('unifiedStorage electron save', () => {
     const mainPayload = JSON.parse(disk.get('/appdata/.vlaina/data.json') || '{}');
     expect(mainPayload.data.settings).toEqual({
       timezone: { offset: 480, city: 'Beijing' },
-      markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      markdown: {
+        typewriterMode: false,
+        body: { showLineNumbers: false },
+        codeBlock: { showLineNumbers: true },
+      },
       ui: { lastAppViewMode: 'chat' },
     });
     expect(mainPayload.data.customIcons.map((icon: { id: string }) => icon.id)).toEqual([
@@ -747,7 +751,11 @@ describe('unifiedStorage electron save', () => {
     const payload = JSON.parse(String(mainWrite?.[1]));
     expect(payload.data.settings).toEqual({
       timezone: { offset: -300, city: 'New York' },
-      markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      markdown: {
+        typewriterMode: false,
+        body: { showLineNumbers: false },
+        codeBlock: { showLineNumbers: true },
+      },
       ui: { lastAppViewMode: 'chat' },
     });
   });
@@ -823,7 +831,11 @@ describe('unifiedStorage electron save', () => {
     const payload = JSON.parse(String(mainWrite?.[1]));
     expect(payload.data.settings).toEqual({
       timezone: { offset: -300, city: 'New York' },
-      markdown: { typewriterMode: true, codeBlock: { showLineNumbers: true } },
+      markdown: {
+        typewriterMode: true,
+        body: { showLineNumbers: false },
+        codeBlock: { showLineNumbers: true },
+      },
       ui: { lastAppViewMode: 'chat' },
     });
     expect(payload.data.customIcons.map((icon: { id: string }) => icon.id)).toEqual([

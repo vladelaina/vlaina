@@ -42,16 +42,26 @@ import {
   createCurrentEditorBlockPositionController,
 } from './utils/editorBlockPositionCache';
 import { normalizeLeadingFrontmatterMarkdown } from './plugins/frontmatter/frontmatterMarkdown';
+import { BodyLineNumberGutter } from './components/BodyLineNumberGutter';
 
 interface MilkdownEditorInnerProps {
   active?: boolean;
+  showBodyLineNumbers?: boolean;
   onEditorViewReady?: () => void;
 }
 
-export function MilkdownEditorRuntime({ active = true, onEditorViewReady }: MilkdownEditorInnerProps) {
+export function MilkdownEditorRuntime({
+  active = true,
+  showBodyLineNumbers = false,
+  onEditorViewReady,
+}: MilkdownEditorInnerProps) {
   return (
     <MilkdownProvider>
-      <MilkdownEditorInner active={active} onEditorViewReady={onEditorViewReady} />
+      <MilkdownEditorInner
+        active={active}
+        showBodyLineNumbers={showBodyLineNumbers}
+        onEditorViewReady={onEditorViewReady}
+      />
     </MilkdownProvider>
   );
 }
@@ -84,6 +94,7 @@ function replaceEditorMarkdown(ctx: Ctx, markdown: string) {
 
 export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   active = true,
+  showBodyLineNumbers = false,
   onEditorViewReady,
 }: MilkdownEditorInnerProps) {
   const updateContent = useNotesStore(s => s.updateContent);
@@ -101,6 +112,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const hasAutoFocused = useRef(false);
   const hasScheduledAutoFocus = useRef(false);
   const activatedEditorRef = useRef<ActiveMilkdownEditor | null>(null);
+  const editorShellRef = useRef<HTMLDivElement | null>(null);
   const activationCleanupRef = useRef<(() => void) | null>(null);
   const [activatedRevision, setActivatedRevision] = useState(0);
   const { debouncedSave, flushSave } = useEditorSave(saveNote);
@@ -406,9 +418,21 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
 
   return (
     <div
-      className={cn("milkdown-editor", EDITOR_LAYOUT_CLASS)}
+      ref={editorShellRef}
+      className={cn(
+        "milkdown-editor",
+        showBodyLineNumbers && 'vlaina-markdown-body-line-numbers',
+        EDITOR_LAYOUT_CLASS
+      )}
       data-note-content-root="true"
     >
+      {showBodyLineNumbers && (
+        <BodyLineNumberGutter
+          markdown={currentNoteContent}
+          shellRef={editorShellRef}
+          revision={activatedRevision}
+        />
+      )}
       <Milkdown />
     </div>
   );

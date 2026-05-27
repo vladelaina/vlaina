@@ -134,6 +134,8 @@
   "settings.markdown.showLineNumbers": "顯示行號",
   "settings.markdown.typewriterMode": "打字機模式",
   "settings.markdown.typewriterModeDescription": "打字時將游標保持在畫面中央附近。",
+  "settings.markdown.bodyLineNumbers": "顯示正文行號",
+  "settings.markdown.bodyLineNumbersDescription": "在一般 Markdown 正文行前顯示序號，不影響程式碼區塊行號。",
   "settings.tabs.about": "關於",
   "settings.tabs.ai": "聊天",
   "settings.tabs.appearance": "外觀",

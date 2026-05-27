@@ -134,6 +134,8 @@
   "settings.markdown.showLineNumbers": "Zeilennummern anzeigen",
   "settings.markdown.typewriterMode": "Schreibmaschinenmodus",
   "settings.markdown.typewriterModeDescription": "Halten Sie den Cursor beim Tippen in der Mitte.",
+  "settings.markdown.bodyLineNumbers": "Textzeilennummern anzeigen",
+  "settings.markdown.bodyLineNumbersDescription": "Zeigt Nummern vor normalen Markdown-Textzeilen an, ohne Codeblöcke zu beeinflussen.",
   "settings.tabs.about": "Info",
   "settings.tabs.ai": "Chatten",
   "settings.tabs.appearance": "Darstellung",

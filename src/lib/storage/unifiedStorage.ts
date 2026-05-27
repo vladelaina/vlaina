@@ -31,8 +31,9 @@ export type {
 export interface UnifiedSavePatch {
   settings?: {
     timezone?: UnifiedData['settings']['timezone'];
-    markdown?: Omit<Partial<UnifiedData['settings']['markdown']>, 'codeBlock'> & {
+    markdown?: Omit<Partial<UnifiedData['settings']['markdown']>, 'body' | 'codeBlock'> & {
       codeBlock?: Partial<UnifiedData['settings']['markdown']['codeBlock']>;
+      body?: Partial<NonNullable<UnifiedData['settings']['markdown']['body']>>;
     };
     ui?: Partial<NonNullable<UnifiedData['settings']['ui']>>;
   };
@@ -320,6 +321,7 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
   const timezoneOffset = settings?.timezone?.offset;
   const timezoneCity = settings?.timezone?.city;
   const typewriterMode = settings?.markdown?.typewriterMode;
+  const showBodyLineNumbers = settings?.markdown?.body?.showLineNumbers;
   const showLineNumbers = settings?.markdown?.codeBlock?.showLineNumbers;
   const lastAppViewMode = settings?.ui?.lastAppViewMode;
 
@@ -333,6 +335,9 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
       },
       markdown: {
         typewriterMode: typewriterMode === true,
+        body: {
+          showLineNumbers: showBodyLineNumbers === true,
+        },
         codeBlock: {
           showLineNumbers: showLineNumbers !== false,
         },
@@ -442,6 +447,12 @@ function mergeUnifiedSavePatches(
                   ...right.settings?.markdown?.codeBlock,
                 }
               : undefined,
+            body: left.settings?.markdown?.body || right.settings?.markdown?.body
+              ? {
+                  ...left.settings?.markdown?.body,
+                  ...right.settings?.markdown?.body,
+                }
+              : undefined,
           }
         : undefined,
       ui: left.settings?.ui || right.settings?.ui
@@ -477,6 +488,12 @@ function mergeSettingsForSafeSave(
                 ...patch.settings.markdown.codeBlock,
               }
             : baseSettings.markdown.codeBlock,
+          body: patch.settings.markdown.body
+            ? {
+                ...baseSettings.markdown.body,
+                ...patch.settings.markdown.body,
+              }
+            : baseSettings.markdown.body,
         }
       : baseSettings.markdown,
     ui: patch.settings.ui
