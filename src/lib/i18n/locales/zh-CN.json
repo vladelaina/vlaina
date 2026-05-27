@@ -166,7 +166,7 @@
   "shortcut.action.toggleEmbeddedChat": "引用选区 / 切换嵌入聊天",
   "shortcut.action.toggleNotesSidebarView": "切换文件 / 大纲",
   "shortcut.action.toggleSidebar": "切换侧边栏",
-  "shortcut.action.toggleTemporaryChatWelcome": "打开临时聊天（为空时切换）",
+  "shortcut.action.toggleTemporaryChatWelcome": "打开临时聊天",
   "shortcut.description.chat": "Chat 可用的键盘快捷键。",
   "shortcut.description.notes": "Notes 可用的键盘快捷键。",
   "shortcut.section.chat": "聊天",

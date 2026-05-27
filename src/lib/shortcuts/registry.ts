@@ -192,9 +192,9 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   },
   {
     id: 'toggleTemporaryChatWelcome',
-    action: 'Open temporary chat (toggle if empty)',
+    action: 'Open temporary chat',
     actionKey: 'shortcut.action.toggleTemporaryChatWelcome',
-    description: 'Open temporary chat (toggle if empty)',
+    description: 'Open temporary chat',
     keys: ['Ctrl', 'Shift', 'J'],
     scope: 'chat',
     isSystem: true,
