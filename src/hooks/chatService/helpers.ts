@@ -8,6 +8,8 @@ import {
 } from '@/components/Chat/common/messageClipboard';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
+import { findNode } from '@/stores/notes/fileTreeUtils';
+import type { FileTreeNode } from '@/stores/notes/types';
 import { isManagedProviderId } from '@/lib/ai/managedService';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
@@ -19,7 +21,21 @@ const IMAGE_NAME_REGEX = /\.(png|jpe?g|webp|gif|bmp|avif|svg)(?:$|[?#])/i;
 const MAX_NOTE_MENTION_COUNT = 3;
 const MAX_NOTE_MENTION_CHARS = 12000;
 const MAX_NOTE_MENTION_READ_BYTES = 512 * 1024;
+const MAX_FOLDER_MENTION_NOTES = 20;
+const MAX_FOLDER_LISTING_ENTRIES = 80;
+const MAX_FOLDER_IMAGE_ATTACHMENTS = 8;
+const MAX_FOLDER_IMAGE_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 const STREAM_CHUNK_FLUSH_MAX_DELAY_MS = 40;
+const IMAGE_EXTENSION_MIME_TYPES: Record<string, string> = {
+  avif: 'image/avif',
+  bmp: 'image/bmp',
+  gif: 'image/gif',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  svg: 'image/svg+xml',
+  webp: 'image/webp',
+};
 
 export function resolveAssistantContent(
   returnedContent: string,
@@ -204,20 +220,226 @@ async function resolveMentionedNoteContent(notePath: string): Promise<string> {
   }
 }
 
+function collectMarkdownNodes(nodes: readonly FileTreeNode[], result: FileTreeNode[] = []): FileTreeNode[] {
+  for (const node of nodes) {
+    if (node.isFolder) {
+      collectMarkdownNodes(node.children, result);
+    } else if (node.path.toLowerCase().endsWith('.md')) {
+      result.push(node);
+    }
+  }
+  return result;
+}
+
+async function resolveMentionedFolderPath(folderPath: string): Promise<string | null> {
+  if (isAbsolutePath(folderPath)) {
+    return folderPath;
+  }
+  const notesPath = useNotesStore.getState().notesPath;
+  if (!notesPath) {
+    return null;
+  }
+  return await joinPath(notesPath, folderPath);
+}
+
+function formatFolderEntrySize(size: number | undefined): string {
+  if (typeof size !== 'number' || !Number.isFinite(size) || size < 0) {
+    return '';
+  }
+  if (size < 1024) {
+    return `, ${size} B`;
+  }
+  if (size < 1024 * 1024) {
+    return `, ${(size / 1024).toFixed(1)} KB`;
+  }
+  return `, ${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+async function loadFolderListingReference(
+  mention: NoteMentionReference
+): Promise<NoteMentionReference & { content: string } | null> {
+  const folderPath = await resolveMentionedFolderPath(mention.path);
+  if (!folderPath) {
+    return null;
+  }
+
+  const storage = getStorageAdapter();
+  const entries = await storage.listDir(folderPath).catch(() => []);
+  if (entries.length === 0) {
+    return {
+      ...mention,
+      kind: 'folder',
+      content: [
+        `Folder: ${mention.path}`,
+        '',
+        'Folder listing is empty or unavailable.',
+      ].join('\n'),
+    };
+  }
+
+  const visibleEntries = entries
+    .filter((entry) => !entry.name.startsWith('.'))
+    .sort((a, b) => {
+      if (a.isDirectory !== b.isDirectory) {
+        return a.isDirectory ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
+  const listedEntries = visibleEntries.slice(0, MAX_FOLDER_LISTING_ENTRIES);
+  const lines = listedEntries.map((entry) => {
+    const kind = entry.isDirectory ? 'folder' : 'file';
+    return `- ${entry.name} (${kind}${formatFolderEntrySize(entry.size)})`;
+  });
+  const hiddenCount = Math.max(visibleEntries.length - listedEntries.length, 0);
+
+  return {
+    ...mention,
+    kind: 'folder',
+    content: [
+      `Folder: ${mention.path}`,
+      '',
+      'Directory listing:',
+      '',
+      lines.join('\n'),
+      hiddenCount > 0 ? `\n...and ${hiddenCount} more entries.` : '',
+      '',
+      'Top-level image files in this folder may be attached separately when supported; non-image binary contents are represented only by names, types, and sizes.',
+    ].filter(Boolean).join('\n'),
+  };
+}
+
+function inferImageMimeTypeFromName(name: string): string {
+  const extension = name.split('.').pop()?.trim().toLowerCase() ?? '';
+  return IMAGE_EXTENSION_MIME_TYPES[extension] ?? 'application/octet-stream';
+}
+
+function createFolderImageAttachment(entry: { path: string; name: string; size?: number }): Attachment {
+  return {
+    id: `folder-image:${entry.path}`,
+    path: entry.path,
+    previewUrl: '',
+    assetUrl: '',
+    name: entry.name,
+    type: inferImageMimeTypeFromName(entry.name),
+    size: entry.size ?? 0,
+  };
+}
+
+async function loadFolderImageAttachmentsForMention(
+  mention: NoteMentionReference
+): Promise<Attachment[]> {
+  const notesState = useNotesStore.getState();
+  const folderNode = notesState.rootFolder
+    ? findNode(notesState.rootFolder.children, mention.path)
+    : null;
+  if (mention.kind !== 'folder' && !folderNode?.isFolder) {
+    return [];
+  }
+
+  const folderPath = await resolveMentionedFolderPath(mention.path);
+  if (!folderPath) {
+    return [];
+  }
+
+  const storage = getStorageAdapter();
+  const entries = await storage.listDir(folderPath).catch(() => []);
+  const imageEntries = entries
+    .filter((entry) =>
+      !entry.name.startsWith('.') &&
+      entry.isFile &&
+      IMAGE_NAME_REGEX.test(entry.name)
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const attachments: Attachment[] = [];
+  for (const entry of imageEntries) {
+    if (attachments.length >= MAX_FOLDER_IMAGE_ATTACHMENTS) {
+      break;
+    }
+    const stat = typeof entry.size === 'number'
+      ? entry
+      : await storage.stat(entry.path).catch(() => null);
+    const size = typeof stat?.size === 'number' ? stat.size : entry.size;
+    if (typeof size === 'number' && size > MAX_FOLDER_IMAGE_ATTACHMENT_BYTES) {
+      continue;
+    }
+    attachments.push(createFolderImageAttachment({
+      path: entry.path,
+      name: entry.name,
+      size,
+    }));
+  }
+  return attachments;
+}
+
+async function loadMentionReference(
+  mention: NoteMentionReference
+): Promise<Array<NoteMentionReference & { content: string }>> {
+  const notesState = useNotesStore.getState();
+  const folderNode = notesState.rootFolder
+    ? findNode(notesState.rootFolder.children, mention.path)
+    : null;
+  const isFolderMention = mention.kind === 'folder' || Boolean(folderNode?.isFolder);
+
+  if (!isFolderMention) {
+    const content = stripVlainaManagedFrontmatter(
+      await resolveMentionedNoteContent(mention.path),
+    ).trim();
+    return content ? [{ ...mention, content }] : [];
+  }
+
+  if (!folderNode?.isFolder) {
+    if (mention.kind === 'folder') {
+      const listing = await loadFolderListingReference(mention);
+      return listing ? [listing] : [];
+    }
+    return [];
+  }
+
+  const markdownNodes = collectMarkdownNodes(folderNode.children)
+    .slice(0, MAX_FOLDER_MENTION_NOTES);
+  const listing = await loadFolderListingReference(mention);
+  if (markdownNodes.length === 0) {
+    return listing ? [listing] : [];
+  }
+
+  const loaded = await Promise.all(
+    markdownNodes.map(async (node) => {
+      const title = notesState.getDisplayName?.(node.path) ?? node.name;
+      const content = stripVlainaManagedFrontmatter(
+        await resolveMentionedNoteContent(node.path),
+      ).trim();
+      return {
+        path: node.path,
+        title: `${mention.title.replace(/\/+$/, '')}/${title}`,
+        kind: 'note' as const,
+        content,
+      };
+    }),
+  );
+  const markdownReferences = loaded.filter((note) => note.content.length > 0);
+  return listing ? [listing, ...markdownReferences] : markdownReferences;
+}
+
 export async function loadMentionedNotes(
   noteMentions: NoteMentionReference[]
 ): Promise<Array<NoteMentionReference & { content: string }>> {
   flushCurrentPendingEditorMarkdown();
-  return (
-    await Promise.all(
-      noteMentions.map(async (mention) => ({
-        ...mention,
-        content: stripVlainaManagedFrontmatter(
-          await resolveMentionedNoteContent(mention.path),
-        ).trim(),
-      }))
-    )
-  ).filter((note) => note.content.length > 0);
+  return (await Promise.all(noteMentions.map(loadMentionReference))).flat();
+}
+
+export async function loadMentionedFolderImageAttachments(
+  noteMentions: NoteMentionReference[]
+): Promise<Attachment[]> {
+  const attachments = (await Promise.all(noteMentions.map(loadFolderImageAttachmentsForMention))).flat();
+  const seenPaths = new Set<string>();
+  return attachments.filter((attachment) => {
+    if (!attachment.path || seenPaths.has(attachment.path)) {
+      return false;
+    }
+    seenPaths.add(attachment.path);
+    return true;
+  });
 }
 
 export function buildMentionedNotesContext(
@@ -233,11 +455,11 @@ export function buildMentionedNotesContext(
   });
 
   return [
-    'Referenced notes (Markdown):',
+    'Referenced notes and folders:',
     '',
     sections.join('\n\n---\n\n'),
     '',
-    'Answer based on these notes plus the user request.',
+    'Answer based on these references plus the user request.',
   ].join('\n');
 }
 

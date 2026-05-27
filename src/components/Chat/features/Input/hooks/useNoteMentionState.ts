@@ -15,7 +15,7 @@ import { normalizeStarredVaultPath } from '@/stores/notes/starred';
 import { useVaultStore } from '@/stores/useVaultStore';
 import {
   buildMentionPreviewParts,
-  collectNotePaths,
+  collectMentionCandidates,
   getNoteMentionTrigger,
   insertMentionAtTrigger,
   type MentionPreviewPart,
@@ -65,27 +65,37 @@ export function useNoteMentionState({
   const requestedTreeLoadTriggerRef = useRef<string | null>(null);
 
   const allNoteCandidates = useMemo<IndexedNoteMentionCandidate[]>(() => {
-    const paths: string[] = [];
+    const treeCandidates: NoteMentionCandidate[] = [];
     if (notesRootFolder) {
-      collectNotePaths(notesRootFolder.children, paths);
+      collectMentionCandidates(notesRootFolder.children, treeCandidates);
     }
-    const uniquePaths = Array.from(new Set(paths));
 
     const currentVaultPath = notesPath || activeVaultPath
       ? normalizeStarredVaultPath(notesPath || activeVaultPath || '')
       : '';
-    const candidates: NoteMentionCandidate[] = uniquePaths
-      .map((path) => ({
-        path,
-        title: getDisplayName(path),
-        isCurrent: path === currentNotePath,
-        icon: getNoteIcon(path),
-        notePath: path,
-      }));
+    const candidates: NoteMentionCandidate[] = [];
+    const seenPaths = new Set<string>();
+    for (const candidate of treeCandidates) {
+      if (seenPaths.has(candidate.path)) {
+        continue;
+      }
 
-    const seenPaths = new Set(candidates.map((candidate) => candidate.path));
+      seenPaths.add(candidate.path);
+      if (candidate.kind === 'folder') {
+        candidates.push(candidate);
+        continue;
+      }
+
+      candidates.push({
+        ...candidate,
+        title: getDisplayName(candidate.path),
+        isCurrent: candidate.path === currentNotePath,
+        icon: getNoteIcon(candidate.path),
+      });
+    }
+
     for (const entry of starredEntries) {
-      if (entry.kind !== 'note') {
+      if (entry.kind !== 'note' && entry.kind !== 'folder') {
         continue;
       }
 
@@ -101,12 +111,15 @@ export function useNoteMentionState({
       seenPaths.add(path);
       candidates.push({
         path,
-        title: isCurrentVaultEntry
-          ? getDisplayName(entry.relativePath)
-          : getNoteTitleFromPath(entry.relativePath),
+        title: entry.kind === 'folder'
+          ? `${entry.relativePath.split('/').filter(Boolean).pop() ?? entry.relativePath}/`
+          : isCurrentVaultEntry
+            ? getDisplayName(entry.relativePath)
+            : getNoteTitleFromPath(entry.relativePath),
+        kind: entry.kind,
         isCurrent: path === currentNotePath,
-        icon: isCurrentVaultEntry ? getNoteIcon(entry.relativePath) : undefined,
-        notePath: entry.relativePath,
+        icon: entry.kind === 'note' && isCurrentVaultEntry ? getNoteIcon(entry.relativePath) : undefined,
+        notePath: entry.kind === 'note' ? entry.relativePath : undefined,
         vaultPath: entryVaultPath,
         starredEntry: isCurrentVaultEntry ? undefined : entry,
       });
@@ -148,7 +161,27 @@ export function useNoteMentionState({
       );
     });
 
-    return candidates.slice(0, 30);
+    const sortedCandidates = candidates
+      .sort((a, b) => {
+        if (a.isCurrent !== b.isCurrent) {
+          return a.isCurrent ? -1 : 1;
+        }
+        if (a.kind !== b.kind) {
+          return a.kind === 'note' ? -1 : 1;
+        }
+        return a.title.localeCompare(b.title);
+      });
+    const noteCandidates = sortedCandidates.filter((candidate) => candidate.kind === 'note');
+    const folderCandidates = sortedCandidates
+      .filter((candidate) => candidate.kind === 'folder')
+      .slice(0, 12);
+    const currentNoteCandidates = noteCandidates
+      .filter((candidate) => candidate.isCurrent)
+      .slice(0, 30);
+    const linkedNoteCandidates = noteCandidates
+      .filter((candidate) => !candidate.isCurrent)
+      .slice(0, Math.max(30 - currentNoteCandidates.length, 0));
+    return [...currentNoteCandidates, ...folderCandidates, ...linkedNoteCandidates];
   }, [allNoteCandidates, mentionTrigger]);
 
   const currentPageCandidates = useMemo(
@@ -157,7 +190,12 @@ export function useNoteMentionState({
   );
 
   const linkedPageCandidates = useMemo(
-    () => filteredCandidates.filter((candidate) => !candidate.isCurrent),
+    () => filteredCandidates.filter((candidate) => candidate.kind === 'note' && !candidate.isCurrent),
+    [filteredCandidates],
+  );
+
+  const folderCandidates = useMemo(
+    () => filteredCandidates.filter((candidate) => candidate.kind === 'folder'),
     [filteredCandidates],
   );
 
@@ -215,7 +253,9 @@ export function useNoteMentionState({
       if (
         next.length === prev.length &&
         next.every((mention, index) =>
-          mention.path === prev[index]?.path && mention.title === prev[index]?.title
+          mention.path === prev[index]?.path &&
+          mention.title === prev[index]?.title &&
+          mention.kind === prev[index]?.kind
         )
       ) {
         return prev;
@@ -281,6 +321,70 @@ export function useNoteMentionState({
     [mentions, onValueChange, textareaRef, value],
   );
 
+  const deleteSelectionRange = useCallback(
+    (selectionStart: number, selectionEnd: number, overlappedMentions: NoteMentionReference[]) => {
+      const nextValue = `${value.slice(0, selectionStart)}${value.slice(selectionEnd)}`;
+      const overlappedPaths = new Set(overlappedMentions.map((mention) => mention.path));
+
+      onValueChange(nextValue);
+      setCaretIndex(selectionStart);
+      setMentions((prev) => prev.filter((mention) => !overlappedPaths.has(mention.path)));
+
+      requestAnimationFrame(() => {
+        const input = textareaRef.current;
+        if (!input) {
+          return;
+        }
+        input.focus({ preventScroll: true });
+        input.setSelectionRange(selectionStart, selectionStart);
+      });
+    },
+    [onValueChange, textareaRef, value],
+  );
+
+  const appendMentions = useCallback(
+    (nextMentions: NoteMentionReference[]) => {
+      const validMentions = nextMentions
+        .map((mention) => ({
+          ...mention,
+          path: mention.path.trim(),
+          title: mention.title.trim() || mention.path.trim(),
+        }))
+        .filter((mention) => mention.path && mention.title);
+      if (validMentions.length === 0) {
+        return;
+      }
+
+      const existingPaths = new Set(mentions.map((mention) => mention.path));
+      const uniqueMentions = validMentions.filter((mention) => !existingPaths.has(mention.path));
+      if (uniqueMentions.length === 0) {
+        return;
+      }
+
+      const insertion = uniqueMentions
+        .map((mention) => `@${mention.title}`)
+        .join(' ');
+      const prefix = value.length === 0 || /\s$/.test(value) ? '' : ' ';
+      const suffix = insertion ? ' ' : '';
+      const nextValue = insertion ? `${value}${prefix}${insertion}${suffix}` : value;
+      const nextCaret = nextValue.length;
+
+      onValueChange(nextValue);
+      setCaretIndex(nextCaret);
+      setMentions((prev) => [...prev, ...uniqueMentions]);
+
+      requestAnimationFrame(() => {
+        const input = textareaRef.current;
+        if (!input) {
+          return;
+        }
+        input.focus({ preventScroll: true });
+        input.setSelectionRange(nextCaret, nextCaret);
+      });
+    },
+    [mentions, onValueChange, textareaRef, value],
+  );
+
   const applyMentionCandidate = useCallback(
     (candidate: NoteMentionCandidate) => {
       if (!mentionTrigger) {
@@ -294,7 +398,7 @@ export function useNoteMentionState({
         if (prev.some((mention) => mention.path === candidate.path)) {
           return prev;
         }
-        return [...prev, { path: candidate.path, title: candidate.title }];
+        return [...prev, { path: candidate.path, title: candidate.title, kind: candidate.kind }];
       });
 
       requestAnimationFrame(() => {
@@ -325,12 +429,16 @@ export function useNoteMentionState({
 
       if (event.key === 'Backspace' || event.key === 'Delete') {
         if (selectionStart !== selectionEnd) {
-          const overlapped = mentionRanges.find(
+          const overlapped = mentionRanges.filter(
             (part) => selectionStart < part.end && selectionEnd > part.start,
           );
-          if (overlapped) {
+          if (overlapped.length > 0) {
             event.preventDefault();
-            removeMention(overlapped.mention.path, overlapped.start);
+            deleteSelectionRange(
+              selectionStart,
+              selectionEnd,
+              overlapped.map((part) => part.mention),
+            );
             return true;
           }
         }
@@ -421,6 +529,7 @@ export function useNoteMentionState({
     [
       activeMentionIndex,
       applyMentionCandidate,
+      deleteSelectionRange,
       filteredCandidates,
       mentionPreviewParts,
       mentions,
@@ -434,6 +543,7 @@ export function useNoteMentionState({
     mentions,
     clearMentions,
     currentPageCandidates,
+    folderCandidates,
     linkedPageCandidates,
     mentionPreviewParts,
     showMentionPicker,
@@ -446,6 +556,7 @@ export function useNoteMentionState({
     handleMentionKeyDown,
     setTextareaScrollTop,
     applyMentionCandidate,
+    appendMentions,
     removeMention,
   };
 }

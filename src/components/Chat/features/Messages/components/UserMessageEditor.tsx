@@ -47,6 +47,7 @@ export function UserMessageEditor({
 
   const {
     currentPageCandidates,
+    folderCandidates,
     linkedPageCandidates,
     mentionPreviewParts,
     showMentionPicker,
@@ -146,6 +147,7 @@ export function UserMessageEditor({
         {showMentionPicker && (
           <NoteMentionPicker
             currentPageCandidates={currentPageCandidates}
+            folderCandidates={folderCandidates}
             activeCandidatePath={activeCandidatePath}
             linkedPageCandidates={linkedPageCandidates}
             status={mentionPickerStatus}

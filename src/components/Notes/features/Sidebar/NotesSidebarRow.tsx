@@ -59,7 +59,7 @@ export function NotesSidebarRow({
       isHighlighted={isHighlighted}
       isDragOver={isDragOver}
       showActionsByDefault={showActionsByDefault}
-      className={cn(className, dragHandlers?.isDragging && 'opacity-60')}
+      className={cn(className, dragHandlers?.isDragging && 'opacity-100')}
       contentClassName={contentClassName}
       actionFadeClassName={cn(
         styles.fade,

@@ -11,8 +11,15 @@ import type { StarredKind } from '@/stores/notes/types';
 import { resolveInternalMoveDropTargetPath, resolveStarredDropTargetFromElements } from './dropTargetDom';
 import { NOTES_DRAG_RETURN_ANIMATION } from '../../common/NotesDragOverlay';
 
-type FileTreePointerDragSourceKind = 'note' | 'folder';
+export type FileTreePointerDragSourceKind = 'note' | 'folder';
 type FileTreePointerDropTargetKind = 'folder' | 'starred' | null;
+export const FILE_TREE_CHAT_DROP_TARGET_SELECTOR = '[data-file-tree-chat-drop-target="true"]';
+export const FILE_TREE_CHAT_DROP_EVENT = 'vlaina-file-tree-chat-drop';
+
+export interface FileTreeChatDropDetail {
+  path: string;
+  kind: FileTreePointerDragSourceKind;
+}
 
 interface FileTreePointerDragSnapshot {
   activeSourcePath: string | null;
@@ -95,9 +102,10 @@ function createPreviewElement(sourceElement: HTMLElement) {
   previewElement.style.pointerEvents = 'none';
   previewElement.style.zIndex = '9999';
   previewElement.style.margin = '0';
-  previewElement.style.opacity = '0.92';
+  previewElement.style.opacity = '1';
+  previewElement.style.backgroundColor = 'var(--notes-sidebar-surface)';
   previewElement.style.transform = 'translate3d(-9999px, -9999px, 0)';
-  previewElement.style.boxShadow = '0 14px 32px rgba(15, 23, 42, 0.18)';
+  previewElement.style.boxShadow = 'none';
   previewElement.style.borderRadius = '0.75rem';
   previewElement.style.filter = 'saturate(1.02)';
   previewElement.style.willChange = 'transform';
@@ -172,8 +180,8 @@ function animatePreviewBackToSource(
 
   const animation = animate(
     [
-      { transform: currentTransform, opacity: previewElement.style.opacity || '0.92' },
-      { transform: targetTransform, opacity: previewElement.style.opacity || '0.92' },
+      { transform: currentTransform, opacity: previewElement.style.opacity || '1' },
+      { transform: targetTransform, opacity: previewElement.style.opacity || '1' },
     ],
     {
       duration: NOTES_DRAG_RETURN_ANIMATION.duration,
@@ -469,22 +477,37 @@ function finishPointerDrag(shouldCommit: boolean) {
   const dropTargetPath = snapshot.dropTargetPath;
   const dropTargetKind = snapshot.dropTargetKind;
   const shouldMove = !shouldStar && shouldCommit && activeSession.activated && dropTargetKind === 'folder' && dropTargetPath != null;
+  const shouldDropToChat = shouldCommit
+    && activeSession.activated
+    && document
+      .elementsFromPoint(activeSession.lastClientX, activeSession.lastClientY)
+      .some((element) => element.closest(FILE_TREE_CHAT_DROP_TARGET_SELECTOR));
   const shouldSuppressClick = shouldCommit && activeSession.activated;
 
   activeSession.previewElement = null;
 
   teardownPointerDrag();
-  animatePreviewBackToSource(previewElement, sourceElement);
+  if (shouldDropToChat) {
+    previewElement?.remove();
+    window.dispatchEvent(new CustomEvent<FileTreeChatDropDetail>(FILE_TREE_CHAT_DROP_EVENT, {
+      detail: {
+        path: sourcePath,
+        kind: sourceKind,
+      },
+    }));
+  } else {
+    animatePreviewBackToSource(previewElement, sourceElement);
+  }
 
   if (shouldSuppressClick) {
     suppressNextClick();
   }
 
-  if (shouldStar) {
+  if (!shouldDropToChat && shouldStar) {
     ensureStarredPath(sourceKind === 'folder' ? 'folder' : 'note', sourcePath);
   }
 
-  if (shouldMove && dropTargetPath !== null) {
+  if (!shouldDropToChat && shouldMove && dropTargetPath !== null) {
     void useNotesStore.getState().moveItem(sourcePath, dropTargetPath);
   }
 }
