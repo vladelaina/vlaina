@@ -42,6 +42,7 @@ export interface ElectronDialogApi {
 
 export interface ElectronClipboardApi {
   writeText(text: string): Promise<void>;
+  writeImage?(dataUrl: string): Promise<void>;
 }
 
 export interface ElectronMediaApi {

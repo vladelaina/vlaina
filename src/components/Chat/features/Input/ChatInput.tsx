@@ -364,6 +364,29 @@ export const ChatInput = memo(function ChatInput({
     window.addEventListener('focus', restoreFocus, { capture: true, once: true });
   }, [scheduleComposerFocus, triggerFileSelect]);
 
+  const handleTriggerMentionSelect = useCallback(() => {
+    const input = textareaRef.current;
+    const selectionStart = input?.selectionStart ?? message.length;
+    const selectionEnd = input?.selectionEnd ?? selectionStart;
+    const before = message.slice(0, selectionStart);
+    const after = message.slice(selectionEnd);
+    const prefix = before && !/\s$/.test(before) ? ' ' : '';
+    const nextMessage = `${before}${prefix}@${after}`;
+    const nextCaret = before.length + prefix.length + 1;
+
+    handleMessageChange(nextMessage);
+    clearHistoryNavigationOnInput();
+    handleCaretChange(nextCaret);
+    scheduleComposerFocus(nextCaret);
+  }, [
+    clearHistoryNavigationOnInput,
+    handleCaretChange,
+    handleMessageChange,
+    message,
+    scheduleComposerFocus,
+    textareaRef,
+  ]);
+
   const handleTextareaKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       const selectionStart = e.currentTarget.selectionStart ?? 0;
@@ -490,6 +513,7 @@ export const ChatInput = memo(function ChatInput({
 
           <ChatInputActions
             onTriggerFileSelect={handleTriggerFileSelect}
+            onTriggerMentionSelect={handleTriggerMentionSelect}
             isLoading={isLoading}
             canSend={canSend}
             canSubmit={canSubmit}

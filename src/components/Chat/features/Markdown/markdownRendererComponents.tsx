@@ -130,6 +130,9 @@ async function copyImageOrUrl(src: string): Promise<boolean> {
   if (copied) {
     return true;
   }
+  if (src.trim().startsWith('data:image/')) {
+    return false;
+  }
 
   return writeTextToClipboard(src);
 }
@@ -208,16 +211,13 @@ function MarkdownImage({
           <button
             type="button"
             data-no-focus-input="true"
+            data-action="copy"
             aria-label={t('chat.copyImage')}
             onClick={(event) => {
               event.stopPropagation();
               void handleCopy();
             }}
-            className={cn(
-              'p-1.5',
-              iconButtonStyles,
-              copied && 'text-green-500 dark:text-green-400',
-            )}
+            className={cn('toolbar-btn', copied && 'active')}
           >
             <Icon name={copied ? 'common.check' : 'common.copy'} size="md" />
           </button>

@@ -317,6 +317,74 @@ html, body, #root {
   animation: toolbar-copy-feedback-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 2px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--vlaina-text-primary, #18181b);
+  cursor: pointer;
+  transition:
+    background-color 0.14s cubic-bezier(0.2, 0.8, 0.2, 1),
+    color 0.14s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 0.14s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.14s cubic-bezier(0.2, 0.8, 0.2, 1);
+  position: relative;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.toolbar-btn svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  font-size: 20px;
+  stroke-width: 1.75;
+  transition: transform 0.14s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.toolbar-btn:hover {
+  background-color: var(--vlaina-hover, #f4f4f5);
+}
+
+.toolbar-btn.active {
+  color: var(--vlaina-accent, #2783de);
+  background-color: rgb(39 131 222 / 0.12);
+}
+
+.toolbar-btn[data-action="copy"].active {
+  background-color: rgb(39 131 222 / 0.12);
+  color: var(--vlaina-accent, #3b82f6);
+}
+
+.toolbar-btn[data-action="copy"].active svg {
+  transform: scale(1.1);
+  animation: toolbar-copy-feedback-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark .toolbar-btn {
+  color: var(--vlaina-text-primary, #fafafa);
+}
+
+.dark .toolbar-btn:hover {
+  background-color: rgb(255 255 255 / 0.08);
+}
+
+.dark .toolbar-btn.active,
+.dark .toolbar-btn[data-action="copy"].active {
+  background-color: rgb(96 165 250 / 0.16);
+  color: #60a5fa;
+}
+
+.toolbar-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
 @keyframes toolbar-copy-feedback-in {
   from {
     opacity: 0;

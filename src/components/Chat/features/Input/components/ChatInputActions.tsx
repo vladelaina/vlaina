@@ -8,6 +8,7 @@ import { useI18n } from '@/lib/i18n';
 
 interface ChatInputActionsProps {
   onTriggerFileSelect: () => void;
+  onTriggerMentionSelect: () => void;
   isLoading: boolean;
   canSend: boolean;
   canSubmit: boolean;
@@ -20,6 +21,7 @@ interface ChatInputActionsProps {
 
 export function ChatInputActions({
   onTriggerFileSelect,
+  onTriggerMentionSelect,
   isLoading,
   canSend,
   canSubmit,
@@ -36,6 +38,12 @@ export function ChatInputActions({
   const handleTriggerFileSelect = () => {
     setActionsOpen(false);
     onTriggerFileSelect();
+  };
+
+  const handleTriggerMentionSelect = () => {
+    restoreComposerFocusOnCloseRef.current = true;
+    setActionsOpen(false);
+    onTriggerMentionSelect();
   };
 
   const handleEnableWebSearch = () => {
@@ -102,6 +110,18 @@ export function ChatInputActions({
             )}
             <button
               type="button"
+              onClick={handleTriggerMentionSelect}
+              className={cn(
+                "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[16px] font-medium whitespace-nowrap transition-colors",
+                "text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)]",
+                getSidebarIdleRowSurfaceClass('chat')
+              )}
+            >
+              <span className="flex size-5 items-center justify-center text-[17px] font-semibold leading-none text-[var(--chat-sidebar-text)]">@</span>
+              <span>{t('chat.mentionFileOrFolder')}</span>
+            </button>
+            <button
+              type="button"
               onClick={handleTriggerFileSelect}
               className={cn(
                 "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[16px] font-medium whitespace-nowrap transition-colors",
@@ -109,7 +129,7 @@ export function ChatInputActions({
                 getSidebarIdleRowSurfaceClass('chat')
               )}
             >
-              <Icon name="common.upload" size="md" className="text-[var(--chat-sidebar-text)]" />
+              <Icon name="file.attach" size="md" className="text-[var(--chat-sidebar-text)]" />
               <span>{t('chat.uploadFile')}</span>
             </button>
           </PopoverContent>
