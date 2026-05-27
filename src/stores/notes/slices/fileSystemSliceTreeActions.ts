@@ -26,6 +26,22 @@ let pendingWorkspaceSnapshotTimeout: ReturnType<typeof setTimeout> | null = null
 let pendingWorkspaceSnapshotGet: FileSystemSliceGet | null = null;
 let latestLoadFileTreeRequestId = 0;
 
+export function getWorkspaceRestoreCandidatePaths({
+  currentNotePath,
+  starredNotes,
+  recentNotes,
+}: {
+  currentNotePath?: string | null;
+  starredNotes: string[];
+  recentNotes: string[];
+}): string[] {
+  return Array.from(new Set([
+    ...(currentNotePath ? [currentNotePath] : []),
+    ...starredNotes,
+    ...recentNotes,
+  ]));
+}
+
 function getFileTreeLoadPerfNow() {
   return typeof performance !== 'undefined' ? performance.now() : Date.now();
 }
@@ -184,20 +200,27 @@ export function createFileSystemTreeActions(
         });
         markStep('set-state', stepStartedAt);
 
-        const currentNotePath = workspace?.currentNotePath ?? get().recentNotes[0] ?? null;
+        const restoreCandidatePaths = getWorkspaceRestoreCandidatePaths({
+          currentNotePath: workspace?.currentNotePath,
+          starredNotes: starredPaths.notes,
+          recentNotes: get().recentNotes,
+        });
         const hasActiveNoteOrTabs = Boolean(get().currentNote) || get().openTabs.length > 0;
-        if (!skipRestore && currentNotePath && !hasActiveNoteOrTabs) {
-          try {
-            const { relativePath, fullPath } = await resolveVaultRelativeFullPath(basePath, currentNotePath);
-            if (
-              requestId === latestLoadFileTreeRequestId &&
-              getCurrentVaultPath() === basePath &&
-              await storage.exists(fullPath)
-            ) {
-              await get().openNote(relativePath);
+        if (!skipRestore && restoreCandidatePaths.length > 0 && !hasActiveNoteOrTabs) {
+          for (const candidatePath of restoreCandidatePaths) {
+            try {
+              const { relativePath, fullPath } = await resolveVaultRelativeFullPath(basePath, candidatePath);
+              if (
+                requestId === latestLoadFileTreeRequestId &&
+                getCurrentVaultPath() === basePath &&
+                await storage.exists(fullPath)
+              ) {
+                await get().openNote(relativePath);
+                break;
+              }
+            } catch {
+              // Ignore stale persisted current-note, starred, or recent entries.
             }
-          } catch {
-            // Ignore stale persisted current-note entries.
           }
         }
 

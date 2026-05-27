@@ -14,6 +14,7 @@ vi.mock('../pendingEditorMarkdownFlusher', () => ({
 }));
 
 import { createFileSystemSlice } from './fileSystemSlice';
+import { getWorkspaceRestoreCandidatePaths } from './fileSystemSliceTreeActions';
 import { replaceCurrentTabOrAppend } from './fileSystemSliceHelpers';
 import { setCurrentVaultPath } from '../storage';
 
@@ -66,7 +67,12 @@ describe('createFileSystemSlice draft flows', () => {
     expect(state.notesPath).toBe('');
     expect(state.currentNote).toEqual({ path: draftPath, content: '' });
     expect(state.openTabs).toEqual([{ path: draftPath, name: '', isDirty: false }]);
-    expect(state.draftNotes[draftPath]).toEqual({ parentPath: null, name: '' });
+    expect(state.draftNotes[draftPath]).toEqual({
+      parentPath: null,
+      name: '',
+      originNotesPath: '',
+      kind: 'scratch',
+    });
     expect(state.displayNames.get(draftPath)).toBe('');
     expect(state.noteContentsCache.get(draftPath)).toEqual({ content: '', modifiedAt: null });
     expect(state.saveNote).not.toHaveBeenCalled();
@@ -167,7 +173,12 @@ describe('createFileSystemSlice draft flows', () => {
     expect(state.notesPath).toBe('/vault');
     expect(state.currentNote).toEqual({ path: draftPath, content: '' });
     expect(state.openTabs).toEqual([{ path: draftPath, name: '', isDirty: false }]);
-    expect(state.draftNotes[draftPath]).toEqual({ parentPath: null, name: '' });
+    expect(state.draftNotes[draftPath]).toEqual({
+      parentPath: null,
+      name: '',
+      originNotesPath: '/vault',
+      kind: 'vault',
+    });
     expect(state.saveNote).not.toHaveBeenCalled();
   });
 
@@ -360,6 +371,30 @@ describe('createFileSystemSlice tree flows', () => {
 
     expect(harness.getState().rootFolder.expanded).toBe(true);
     expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('prioritizes persisted current note, then starred notes, then recent notes for workspace restore', () => {
+    expect(getWorkspaceRestoreCandidatePaths({
+      currentNotePath: 'docs/last-opened.md',
+      starredNotes: ['docs/favorite.md', 'docs/recent.md'],
+      recentNotes: ['docs/recent.md', 'docs/older.md'],
+    })).toEqual([
+      'docs/last-opened.md',
+      'docs/favorite.md',
+      'docs/recent.md',
+      'docs/older.md',
+    ]);
+  });
+
+  it('uses starred notes before recent notes when no persisted current note is available', () => {
+    expect(getWorkspaceRestoreCandidatePaths({
+      currentNotePath: null,
+      starredNotes: ['docs/favorite.md'],
+      recentNotes: ['docs/recent.md'],
+    })).toEqual([
+      'docs/favorite.md',
+      'docs/recent.md',
+    ]);
   });
 });
 

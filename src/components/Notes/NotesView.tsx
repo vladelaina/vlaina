@@ -27,6 +27,7 @@ import { collectNotePathsInTreeOrder } from './features/common/noteTreeNavigatio
 import { useI18n } from '@/lib/i18n';
 import { clearRemoteImageMemoryCache } from './features/Editor/plugins/image-block/utils/remoteImageMemoryCache';
 import { preloadMarkdownEditor } from './features/Editor/preloadMarkdownEditor';
+import { shouldAutoCreateBlankDraft } from './autoCreateBlankDraftPolicy';
 
 const EmbeddedChatView = lazy(async () => {
   const mod = await import('@/components/Chat/ChatView');
@@ -100,6 +101,7 @@ export function NotesView({
 
   const currentVault = useVaultStore((state) => state.currentVault);
   const openVault = useVaultStore((state) => state.openVault);
+  const vaultStoreHasInitialized = useVaultStore((state) => state.hasInitialized);
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
   const chatPanelCollapsed = useUIStore((s) => s.notesChatPanelCollapsed);
   const setChatPanelCollapsed = useUIStore((s) => s.setNotesChatPanelCollapsed);
@@ -328,34 +330,26 @@ export function NotesView({
   }, [currentVault?.path]);
 
   useEffect(() => {
-    const blockedReasons = [
-      !active ? 'inactive' : null,
-      currentNotePath ? 'has-current-note' : null,
-      openTabs.length > 0 ? 'has-open-tabs' : null,
-      hasPresentedNoteRef.current ? 'already-presented-note' : null,
-      isLoading ? 'loading' : null,
-      (isVaultInitializing || vaultInitializingRef.current) ? 'vault-initializing' : null,
-      isOpenTargetBusy ? 'open-target-busy' : null,
-      pendingStarredNavigation ? 'pending-starred-navigation' : null,
-      autoCreateBlankNoteRef.current ? 'auto-create-in-flight' : null,
-    ].filter(Boolean);
-
     const launchNoteBlocked = Boolean(launchContextRef.current.notePath && !hasHandledLaunchNoteRef.current);
-    const vaultPathMismatchBlocked = Boolean(currentVault && notesPath !== currentVault.path);
-    const rootFolderCurrent = Boolean(
-      currentVault &&
-      rootFolder &&
-      rootFolderPath === currentVault.path &&
-      notesPath === currentVault.path
-    );
-    const rootFolderBlocked = Boolean(currentVault && !rootFolderCurrent);
-    const vaultHasEntriesBlocked = Boolean(rootFolderCurrent && rootFolder && rootFolder.children.length > 0);
-    if (launchNoteBlocked) blockedReasons.push('pending-launch-note');
-    if (vaultPathMismatchBlocked) blockedReasons.push('vault-path-mismatch');
-    if (rootFolderBlocked) blockedReasons.push('vault-root-not-loaded');
-    if (vaultHasEntriesBlocked) blockedReasons.push('vault-has-entries');
+    const policy = shouldAutoCreateBlankDraft({
+      active,
+      currentNotePath,
+      openTabCount: openTabs.length,
+      hasPresentedNote: hasPresentedNoteRef.current,
+      notesLoading: isLoading,
+      vaultStoreHasInitialized,
+      vaultInitializing: isVaultInitializing || vaultInitializingRef.current,
+      openTargetBusy: isOpenTargetBusy,
+      hasPendingStarredNavigation: Boolean(pendingStarredNavigation),
+      autoCreateInFlight: autoCreateBlankNoteRef.current,
+      hasPendingLaunchNote: launchNoteBlocked,
+      currentVaultPath: currentVault?.path ?? null,
+      notesPath,
+      rootFolder,
+      rootFolderPath,
+    });
 
-    if (blockedReasons.length > 0) {
+    if (!policy.shouldCreate) {
       return;
     }
 
@@ -397,6 +391,7 @@ export function NotesView({
     currentNotePath,
     currentVault,
     isLoading,
+    vaultStoreHasInitialized,
     isVaultInitializing,
     isOpenTargetBusy,
     openTabs.length,
