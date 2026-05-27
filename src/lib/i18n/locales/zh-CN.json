@@ -515,7 +515,7 @@
   "sidebar.mobileDescription": "显示移动端侧边栏。",
   "chat.error.providerNotFound": "未找到服务商",
   "chat.error.channelOff": "这个渠道已关闭。",
-  "chat.error.managedTextOnly": "vlaina 托管聊天目前仅支持文本消息。",
+  "chat.error.managedTextOnly": "当前模型不支持这种输入。请移除不支持的文件，或切换模型后再试。",
   "chat.error.pointsExhausted": "点数已用完",
   "settings.images.previewVaultRoot": "库根目录/image.png",
   "settings.images.previewVaultSubfolder": "库根目录/{folder}/image.png",

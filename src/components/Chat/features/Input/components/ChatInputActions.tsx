@@ -71,7 +71,7 @@ export function ChatInputActions({
               className={cn(
                 'w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200',
                 iconButtonStyles,
-                'text-[var(--chat-sidebar-text)] hover:bg-black/5 dark:hover:bg-black/5 hover:text-[var(--chat-sidebar-text)] active:scale-95'
+                'text-[var(--chat-sidebar-text)] hover:!bg-white dark:hover:!bg-white hover:text-[#41a8ea] hover:!shadow-[0_6px_20px_rgba(0,0,0,0.055),inset_0_1px_0_rgba(255,255,255,0.7)] active:scale-95'
               )}
             >
               <Icon name="common.add" size="md" />
@@ -104,7 +104,7 @@ export function ChatInputActions({
                   getSidebarIdleRowSurfaceClass('chat')
                 )}
               >
-                <Icon name="file.public" size="md" className="text-[var(--chat-sidebar-text)]" />
+                <Icon name="file.public" size="md" className="text-[#41a8ea]" />
                 <span>{t('chat.webSearch')}</span>
               </button>
             )}
@@ -117,7 +117,7 @@ export function ChatInputActions({
                 getSidebarIdleRowSurfaceClass('chat')
               )}
             >
-              <span className="flex size-5 items-center justify-center text-[17px] font-semibold leading-none text-[var(--chat-sidebar-text)]">@</span>
+              <span className="flex size-5 items-center justify-center text-[17px] font-semibold leading-none text-[#41a8ea]">@</span>
               <span>{t('chat.mentionFileOrFolder')}</span>
             </button>
             <button
@@ -129,7 +129,7 @@ export function ChatInputActions({
                 getSidebarIdleRowSurfaceClass('chat')
               )}
             >
-              <Icon name="file.attach" size="md" className="text-[var(--chat-sidebar-text)]" />
+              <Icon name="file.attach" size="md" className="text-[#41a8ea]" />
               <span>{t('chat.uploadFile')}</span>
             </button>
           </PopoverContent>

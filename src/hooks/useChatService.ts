@@ -33,6 +33,7 @@ import {
   normalizeNoteMentions,
   normalizeVisionAttachment,
   refreshManagedBudgetIfNeeded,
+  isImageAttachment,
 } from './chatService/helpers';
 import { runStreamedAssistantMessage } from './chatService/runStreamedAssistantMessage';
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
@@ -300,6 +301,16 @@ export function useChatService() {
         .replace(UNIVERSAL_NEWLINE_REGEX, '\n');
       const userMessageText = normalizedInput.trim();
       const mentionText = normalizedMentions.map((mention) => `@${mention.title}`).join(' ');
+      const unsupportedAttachments = attachments.filter((attachment) => !isImageAttachment(attachment));
+      if (unsupportedAttachments.length > 0) {
+        const { message } = buildChatErrorPayload({
+          message: 'UNSUPPORTED_MODEL_INPUT',
+          errorCode: 'unsupported_message_content',
+          statusCode: 400,
+        });
+        setError(message);
+        return false;
+      }
 
       let activeSessionId = currentSessionId;
       if (!activeSessionId) {

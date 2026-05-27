@@ -20,6 +20,9 @@ function publicManagedStreamErrorMessage(message: string | undefined, errorCode:
       return 'UPSTREAM_RATE_LIMITED';
     case 'upstream_unavailable':
       return 'UPSTREAM_UNAVAILABLE';
+    case 'unsupported_message_content':
+    case 'unsupported_model_input':
+      return 'UNSUPPORTED_MODEL_INPUT';
     case 'invalid_request':
       return 'INVALID_REQUEST';
     default:

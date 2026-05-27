@@ -79,6 +79,20 @@ describe('getUserFacingAIError', () => {
     });
   });
 
+  it('maps managed unsupported input codes to a clear model capability message', () => {
+    const error = new Error('UNSUPPORTED_MODEL_INPUT') as Error & { errorCode?: string; statusCode?: number };
+    error.errorCode = 'unsupported_model_input';
+    error.statusCode = 400;
+
+    const result = getUserFacingAIError(error);
+
+    expect(result).toEqual({
+      type: AIErrorType.INVALID_REQUEST,
+      code: 'unsupported_model_input',
+      message: 'The current model does not support this input. Remove unsupported files or switch models and try again.',
+    });
+  });
+
   it('keeps low-signal server messages normalized to the upstream fallback copy', () => {
     const result = getUserFacingAIError(new Error('Internal server error'));
 
@@ -256,6 +270,20 @@ describe('parseManagedError', () => {
       message: 'MANAGED_QUOTA_EXHAUSTED',
       statusCode: 403,
       errorCode: 'points_exhausted',
+    });
+  });
+
+  it('preserves managed unsupported input status and public error code', async () => {
+    const error = await parseManagedError(new Response(JSON.stringify({
+      success: false,
+      error: 'UNSUPPORTED_MODEL_INPUT',
+      errorCode: 'unsupported_model_input',
+    }), { status: 400 }));
+
+    expect(error).toMatchObject({
+      message: 'UNSUPPORTED_MODEL_INPUT',
+      statusCode: 400,
+      errorCode: 'unsupported_model_input',
     });
   });
 
