@@ -141,6 +141,28 @@ function throwIfMissingVisibleAnswer(content: string): void {
   throw new Error('The model completed web search but returned no visible answer.');
 }
 
+function hasAnySearchResults(statusHistory: WebSearchStatus[]): boolean {
+  return statusHistory.some((status) => status.phase === 'results' && (status.results?.length ?? 0) > 0);
+}
+
+function normalizeToolNameForLoop(name: string): string {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+function isSearchToolName(name: string): boolean {
+  const normalized = normalizeToolNameForLoop(name);
+  return normalized === WEB_SEARCH_TOOL_NAMES.search
+    || normalized === 'search'
+    || normalized === 'search_web'
+    || normalized === 'searchweb'
+    || normalized === 'web_search_tool'
+    || normalized === 'websearch';
+}
+
+function hasOnlySearchToolCalls(toolCalls: OpenAIToolCall[]): boolean {
+  return toolCalls.length > 0 && toolCalls.every((call) => isSearchToolName(call.function.name));
+}
+
 function withoutTools(body: ChatCompletionRequest): ChatCompletionRequest {
   const { tools: _tools, tool_choice: _toolChoice, ...rest } = body;
   return rest;
@@ -772,6 +794,25 @@ export async function runOpenAIWebSearchToolLoop({
       return withStatusPrefix(statusHistory, finalContent);
     }
 
+    const visibleAnswerWithToolCalls = result.assistantContent || stripThinkingContent(result.content);
+    if (
+      hasAnySearchResults(statusHistory) &&
+      hasVisibleAnswerContent(visibleAnswerWithToolCalls) &&
+      hasOnlySearchToolCalls(result.toolCalls)
+    ) {
+      const finalContent = withSourceLinks(result.content, sourceUrls);
+      addChatDebugLog('web-search-loop', 'stream loop completed with visible answer despite redundant tool calls', {
+        loopIndex,
+        sourceUrls,
+        skippedToolCalls: result.toolCalls.map((call) => call.function.name),
+        finalChars: finalContent.length,
+      }, 'warn');
+      const finalApiContent = resolveFinalAssistantApiContent(result, sourceUrls);
+      responseTranscript.push(buildFinalAssistantTranscriptMessage(finalApiContent, result.reasoningContent));
+      onApiTranscript?.(responseTranscript);
+      return withStatusPrefix(statusHistory, finalContent);
+    }
+
     const assistantToolMessage = buildAssistantToolMessage(result);
     addChatDebugLog('web-search-loop', 'running tool calls', {
       loopIndex,
@@ -953,6 +994,26 @@ export async function runOpenAIWebSearchJsonToolLoop({
         sourceUrls,
         finalChars: finalAnswerContent.length,
       });
+      const finalContent = withStatusPrefix(statusHistory, finalAnswerContent);
+      const finalApiContent = resolveFinalAssistantApiContent(result, sourceUrls);
+      responseTranscript.push(buildFinalAssistantTranscriptMessage(finalApiContent, result.reasoningContent));
+      onApiTranscript?.(responseTranscript);
+      onChunk(finalContent);
+      return finalContent;
+    }
+
+    if (
+      hasAnySearchResults(statusHistory) &&
+      hasVisibleAnswerContent(latestContent) &&
+      hasOnlySearchToolCalls(result.toolCalls)
+    ) {
+      const finalAnswerContent = withSourceLinks(latestContent, sourceUrls);
+      addChatDebugLog('web-search-loop', 'json loop completed with visible answer despite redundant tool calls', {
+        loopIndex,
+        sourceUrls,
+        skippedToolCalls: result.toolCalls.map((call) => call.function.name),
+        finalChars: finalAnswerContent.length,
+      }, 'warn');
       const finalContent = withStatusPrefix(statusHistory, finalAnswerContent);
       const finalApiContent = resolveFinalAssistantApiContent(result, sourceUrls);
       responseTranscript.push(buildFinalAssistantTranscriptMessage(finalApiContent, result.reasoningContent));

@@ -20,6 +20,166 @@ function streamResponse(payloads: Array<Record<string, unknown>>): Response {
 }
 
 describe('OpenAI web search JSON tool loop', () => {
+  it('stops after a visible JSON answer when the model emits redundant search tool calls', async () => {
+    const requestJson = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: '',
+            tool_calls: [{
+              id: 'call-1',
+              type: 'function',
+              function: {
+                name: 'web_search',
+                arguments: JSON.stringify({ query: 'vlaina' }),
+              },
+            }],
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: 'Final answer after search.',
+            tool_calls: [{
+              id: 'call-2',
+              type: 'function',
+              function: {
+                name: 'web_search',
+                arguments: JSON.stringify({ query: 'vlaina again' }),
+              },
+            }],
+          },
+        }],
+      });
+    const client = {
+      webSearch: vi.fn(async () => ({
+        query: 'vlaina',
+        results: [{
+          title: 'Vlaina',
+          url: 'https://example.com',
+          snippet: 'Snippet',
+          publishedAt: null,
+          source: null,
+          thumbnail: null,
+        }],
+      })),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(),
+    };
+    const chunks: string[] = [];
+
+    const final = await runOpenAIWebSearchJsonToolLoop({
+      body: {
+        model: 'test',
+        stream: true,
+        messages: [{ role: 'user', content: 'search vlaina' }],
+      },
+      client,
+      requestJson,
+      onChunk: (chunk) => chunks.push(chunk),
+    });
+
+    expect(requestJson).toHaveBeenCalledTimes(2);
+    expect(client.webSearch).toHaveBeenCalledTimes(1);
+    expect(client.webSearch).not.toHaveBeenCalledWith('vlaina again', expect.anything());
+    expect(final).toContain('Final answer after search.');
+    expect(extractWebSearchStatuses(final).statuses.map((status) => status.phase)).toEqual([
+      'searching',
+      'results',
+    ]);
+    expect(chunks[chunks.length - 1]).toBe(final);
+  });
+
+  it('continues JSON tool execution when a visible answer includes a page read tool call', async () => {
+    const requestJson = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: '',
+            tool_calls: [{
+              id: 'call-1',
+              type: 'function',
+              function: {
+                name: 'web_search',
+                arguments: JSON.stringify({ query: 'vlaina' }),
+              },
+            }],
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: 'Draft answer, but I still need to read the page.',
+            tool_calls: [{
+              id: 'call-2',
+              type: 'function',
+              function: {
+                name: 'read_web_page',
+                arguments: JSON.stringify({ url: 'https://example.com' }),
+              },
+            }],
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: 'Final answer after reading https://example.com',
+          },
+        }],
+      });
+    const client = {
+      webSearch: vi.fn(async () => ({
+        query: 'vlaina',
+        results: [{
+          title: 'Vlaina',
+          url: 'https://example.com',
+          snippet: 'Snippet',
+          publishedAt: null,
+          source: null,
+          thumbnail: null,
+        }],
+      })),
+      readWebPage: vi.fn(async () => ({
+        title: 'Example',
+        summary: '',
+        siteName: 'example.com',
+        finalUrl: 'https://example.com',
+        content: 'Readable page content.',
+        charCount: 22,
+      })),
+      readWebPages: vi.fn(),
+    };
+
+    const final = await runOpenAIWebSearchJsonToolLoop({
+      body: {
+        model: 'test',
+        stream: true,
+        messages: [{ role: 'user', content: 'search vlaina' }],
+      },
+      client,
+      requestJson,
+      onChunk: vi.fn(),
+    });
+
+    expect(requestJson).toHaveBeenCalledTimes(3);
+    expect(client.readWebPage).toHaveBeenCalledWith('https://example.com', {
+      contentLimit: 3000,
+      retries: 0,
+    });
+    expect(final).toContain('Final answer after reading https://example.com');
+    expect(extractWebSearchStatuses(final).statuses.map((status) => status.phase)).toEqual([
+      'searching',
+      'results',
+      'reading',
+      'complete',
+    ]);
+  });
+
   it('executes requested search tools and forces a page read before the final answer', async () => {
     const requestJson = vi
       .fn()
@@ -610,6 +770,165 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(final).toContain('<web-search-status>');
     expect(final).toContain('Final answer with https://example.com');
     expect(chunks[chunks.length - 1]).toBe(final);
+  });
+
+  it('stops after a visible streaming answer when the model emits redundant search tool calls', async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(streamResponse([{
+        choices: [{
+          delta: {
+            tool_calls: [{
+              index: 0,
+              id: 'call-1',
+              type: 'function',
+              function: {
+                name: 'web_search',
+                arguments: JSON.stringify({ query: 'vlaina' }),
+              },
+            }],
+          },
+        }],
+      }]))
+      .mockResolvedValueOnce(streamResponse([{
+        choices: [{
+          delta: {
+            content: 'Final streamed answer.',
+            tool_calls: [{
+              index: 0,
+              id: 'call-2',
+              type: 'function',
+              function: {
+                name: 'web_search',
+                arguments: JSON.stringify({ query: 'vlaina again' }),
+              },
+            }],
+          },
+        }],
+      }]));
+    const client = {
+      webSearch: vi.fn(async () => ({
+        query: 'vlaina',
+        results: [{
+          title: 'Vlaina',
+          url: 'https://example.com',
+          snippet: 'Snippet',
+          publishedAt: null,
+          source: null,
+          thumbnail: null,
+        }],
+      })),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(),
+    };
+
+    const final = await runOpenAIWebSearchToolLoop({
+      body: {
+        model: 'test',
+        stream: true,
+        messages: [{ role: 'user', content: 'search vlaina' }],
+      },
+      client,
+      request,
+      onChunk: vi.fn(),
+    });
+
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(client.webSearch).toHaveBeenCalledTimes(1);
+    expect(final).toContain('Final streamed answer.');
+    expect(extractWebSearchStatuses(final).statuses.map((status) => status.phase)).toEqual([
+      'searching',
+      'results',
+    ]);
+  });
+
+  it('continues streaming tool execution when a visible answer includes a page read tool call', async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(streamResponse([{
+        choices: [{
+          delta: {
+            tool_calls: [{
+              index: 0,
+              id: 'call-1',
+              type: 'function',
+              function: {
+                name: 'web_search',
+                arguments: JSON.stringify({ query: 'vlaina' }),
+              },
+            }],
+          },
+        }],
+      }]))
+      .mockResolvedValueOnce(streamResponse([{
+        choices: [{
+          delta: {
+            content: 'Draft streamed answer, but I still need to read the page.',
+            tool_calls: [{
+              index: 0,
+              id: 'call-2',
+              type: 'function',
+              function: {
+                name: 'read_web_page',
+                arguments: JSON.stringify({ url: 'https://example.com' }),
+              },
+            }],
+          },
+        }],
+      }]))
+      .mockResolvedValueOnce(streamResponse([{
+        choices: [{
+          delta: {
+            content: 'Final streamed answer after reading https://example.com',
+          },
+        }],
+      }]));
+    const client = {
+      webSearch: vi.fn(async () => ({
+        query: 'vlaina',
+        results: [{
+          title: 'Vlaina',
+          url: 'https://example.com',
+          snippet: 'Snippet',
+          publishedAt: null,
+          source: null,
+          thumbnail: null,
+        }],
+      })),
+      readWebPage: vi.fn(async () => ({
+        title: 'Example',
+        summary: '',
+        siteName: 'example.com',
+        finalUrl: 'https://example.com',
+        content: 'Readable page content.',
+        charCount: 22,
+      })),
+      readWebPages: vi.fn(),
+    };
+
+    const final = await runOpenAIWebSearchToolLoop({
+      body: {
+        model: 'test',
+        stream: true,
+        messages: [{ role: 'user', content: 'search vlaina' }],
+      },
+      client,
+      request,
+      onChunk: vi.fn(),
+    });
+
+    expect(request).toHaveBeenCalledTimes(3);
+    expect(client.readWebPage).toHaveBeenCalledWith('https://example.com', {
+      contentLimit: 3000,
+      retries: 0,
+    });
+    expect(final).toContain('Final streamed answer after reading https://example.com');
+    expect(extractWebSearchStatuses(final).statuses.map((status) => status.phase)).toEqual([
+      'searching',
+      'results',
+      'reading',
+      'complete',
+    ]);
   });
 
   it('surfaces streaming provider errors during the web search tool loop', async () => {

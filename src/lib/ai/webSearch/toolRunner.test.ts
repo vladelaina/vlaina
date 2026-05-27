@@ -77,11 +77,11 @@ describe('web search tool runner', () => {
     };
 
     await runWebSearchToolCall(
-      { name: 'search', arguments: JSON.stringify({ query: 'pytorch' }) },
+      { name: 'search_web', arguments: JSON.stringify({ query: 'pytorch' }) },
       { client },
     );
     const pageText = await runWebSearchToolCall(
-      { name: 'read_page', arguments: JSON.stringify({ url: 'https://example.com/page' }) },
+      { name: 'fetchUrl', arguments: JSON.stringify({ url: 'https://example.com/page' }) },
       { client },
     );
 
@@ -95,6 +95,50 @@ describe('web search tool runner', () => {
       retries: 0,
     });
     expect(pageText).toContain('Readable content from the page.');
+  });
+
+  it('accepts model-emitted aliases for batch page reads', async () => {
+    const statuses: unknown[] = [];
+    const client: WebSearchClient = {
+      webSearch: vi.fn(),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(async () => [{
+        url: 'https://example.com/a',
+        ok: true,
+        page: {
+          title: 'A',
+          summary: '',
+          siteName: 'example.com',
+          finalUrl: 'https://example.com/a',
+          content: 'Readable A',
+          charCount: 10,
+        },
+      }]),
+    };
+
+    const text = await runWebSearchToolCall(
+      { name: 'fetch_web_pages', arguments: JSON.stringify({ urls: ['https://example.com/a'] }) },
+      { client, onStatus: (status) => statuses.push(status) },
+    );
+
+    expect(client.readWebPages).toHaveBeenCalledWith(['https://example.com/a'], {
+      contentLimit: 3000,
+      retries: 0,
+    });
+    expect(statuses).toEqual([
+      { phase: 'reading', urls: ['https://example.com/a'] },
+      {
+        phase: 'complete',
+        urls: ['https://example.com/a'],
+        failedSources: [],
+        metrics: {
+          durationMs: expect.any(Number),
+          failureCount: 0,
+          successCount: 1,
+        },
+      },
+    ]);
+    expect(text).toContain('Readable A');
   });
 
   it('sanitizes tool errors before returning them to the model', async () => {

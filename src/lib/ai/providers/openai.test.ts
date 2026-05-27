@@ -406,6 +406,237 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('uses xAI native web search for official Grok models', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      output_text: 'Grok answer with sources.',
+      citations: ['https://x.ai/news', 'https://docs.x.ai/docs/guides/live-search'],
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const chunks: string[] = [];
+    const statuses: unknown[] = [];
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'what is new with xai?',
+      [],
+      buildModel({ apiModelId: 'grok-4', name: 'Grok 4' }),
+      buildProvider({ name: 'xAI', apiHost: 'https://api.x.ai', endpointType: 'openai' }),
+      (chunk) => chunks.push(chunk),
+      undefined,
+      {
+        webSearchEnabled: true,
+        onWebSearchStatus: (status) => statuses.push(status),
+      },
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.x.ai/v1/responses');
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body).toMatchObject({
+      model: 'grok-4',
+      input: [{ role: 'user', content: 'what is new with xai?' }],
+      tools: [{ type: 'web_search' }],
+    });
+    expect(body.tools[0].function).toBeUndefined();
+    expect(result).toContain('<web-search-status>');
+    expect(result).toContain('https://x.ai/news');
+    expect(result).toContain('Grok answer with sources.');
+    expect(chunks[chunks.length - 1]).toBe(result);
+    expect(statuses).toEqual([
+      { phase: 'searching', query: 'what is new with xai?' },
+      {
+        phase: 'results',
+        results: [
+          { title: 'x.ai', url: 'https://x.ai/news', snippet: '', publishedAt: null },
+          { title: 'docs.x.ai', url: 'https://docs.x.ai/docs/guides/live-search', snippet: '', publishedAt: null },
+        ],
+        metrics: { resultCount: 2 },
+      },
+      {
+        phase: 'complete',
+        urls: ['https://x.ai/news', 'https://docs.x.ai/docs/guides/live-search'],
+        metrics: { successCount: 2 },
+      },
+    ]);
+  });
+
+  it('strips rendered web search statuses from xAI native search conversation input', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      output_text: 'Follow-up answer.',
+      citations: [{ url: 'https://x.ai/news' }],
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const history: ChatMessage[] = [{
+      id: 'assistant-1',
+      role: 'assistant',
+      content: '<web-search-status>{"phase":"results","results":[{"title":"Old","url":"https://old.example","snippet":"","publishedAt":null}]}</web-search-status>\n\nPrevious answer.',
+      modelId: 'grok-4',
+      timestamp: 1,
+      versions: [],
+      currentVersionIndex: 0,
+    }];
+
+    await new OpenAICompatibleClient().sendMessage(
+      'continue',
+      history,
+      buildModel({ apiModelId: 'grok-4', name: 'Grok 4' }),
+      buildProvider({ name: 'xAI', apiHost: 'https://api.x.ai', endpointType: 'openai' }),
+      vi.fn(),
+      undefined,
+      { webSearchEnabled: true },
+    );
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.input).toEqual([
+      { role: 'assistant', content: 'Previous answer.' },
+      { role: 'user', content: 'continue' },
+    ]);
+    expect(fetchMock.mock.calls[0][1].body).not.toContain('<web-search-status>');
+  });
+
+  it('extracts nested xAI citation URLs for clickable search sources', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      output: [{
+        type: 'message',
+        content: [{
+          type: 'output_text',
+          text: 'Nested citation answer.',
+          annotations: [{
+            type: 'url_citation',
+            url_citation: { url: 'https://docs.x.ai/docs/guides/live-search' },
+          }],
+        }],
+      }],
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'what is new with xai?',
+      [],
+      buildModel({ apiModelId: 'grok-4', name: 'Grok 4' }),
+      buildProvider({ name: 'xAI', apiHost: 'https://api.x.ai', endpointType: 'openai' }),
+      vi.fn(),
+      undefined,
+      { webSearchEnabled: true },
+    );
+
+    expect(result).toContain('<web-search-status>');
+    expect(result).toContain('https://docs.x.ai/docs/guides/live-search');
+    expect(result).toContain('Nested citation answer.');
+  });
+
+  it('rejects xAI native search responses that contain sources but no visible answer', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      output_text: '',
+      citations: ['https://x.ai/news'],
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const chunks: string[] = [];
+
+    await expect(
+      new OpenAICompatibleClient().sendMessage(
+        'what is new with xai?',
+        [],
+        buildModel({ apiModelId: 'grok-4', name: 'Grok 4' }),
+        buildProvider({ name: 'xAI', apiHost: 'https://api.x.ai', endpointType: 'openai' }),
+        (chunk) => chunks.push(chunk),
+        undefined,
+        { webSearchEnabled: true },
+      ),
+    ).rejects.toThrow('returned no visible answer');
+
+    expect(chunks).toEqual(['<web-search-status>{"phase":"searching"}</web-search-status>']);
+  });
+
+  it('does not inject local web search tools for non-xAI Grok-compatible providers', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse('data: {"choices":[{"delta":{"content":"provider-native answer"}}]}\n\ndata: [DONE]\n\n'),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'search something',
+      [],
+      buildModel({ apiModelId: 'x-ai/grok-4', name: 'Grok 4' }),
+      buildProvider({ name: 'OpenRouter', apiHost: 'https://openrouter.ai/api', endpointType: 'openai' }),
+      vi.fn(),
+      undefined,
+      { webSearchEnabled: true },
+    );
+
+    expect(result).toBe('provider-native answer');
+    expect(fetchMock.mock.calls[0][0]).toBe('https://openrouter.ai/api/v1/chat/completions');
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.tools).toBeUndefined();
+    expect(body.tool_choice).toBeUndefined();
+  });
+
+  it('detects prefixed and mixed-case custom Grok model ids without injecting local tools', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse('data: {"choices":[{"delta":{"content":"custom grok answer"}}]}\n\ndata: [DONE]\n\n'),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'search something',
+      [],
+      buildModel({
+        id: 'custom-provider::CompanyPrefix/XAI/GROK-4-Latest',
+        apiModelId: 'CompanyPrefix/XAI/GROK-4-Latest',
+        name: 'Company Prefix Grok 4 Latest',
+        providerId: 'custom-provider',
+      }),
+      buildProvider({
+        id: 'custom-provider',
+        name: 'Custom Gateway',
+        apiHost: 'https://gateway.example.com/api',
+        endpointType: 'openai',
+      }),
+      vi.fn(),
+      undefined,
+      { webSearchEnabled: true },
+    );
+
+    expect(result).toBe('custom grok answer');
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.model).toBe('CompanyPrefix/XAI/GROK-4-Latest');
+    expect(body.tools).toBeUndefined();
+    expect(body.tool_choice).toBeUndefined();
+  });
+
+  it('does not inject local web search tools for managed Grok models', async () => {
+    const encoder = new TextEncoder();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode([
+            'data: {"choices":[{"delta":{"content":"managed grok answer"}}]}',
+            'data: [DONE]',
+            '',
+          ].join('\n')));
+          controller.close();
+        },
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'search something',
+      [],
+      buildModel({ apiModelId: 'grok-4', name: 'Grok 4' }),
+      buildProvider({ id: 'vlaina-managed', apiHost: 'https://api.vlaina.com/v1', apiKey: '' }),
+      vi.fn(),
+      undefined,
+      { webSearchEnabled: true },
+    );
+
+    expect(result).toBe('managed grok answer');
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.tools).toBeUndefined();
+    expect(body.tool_choice).toBeUndefined();
+    expect(body.stream).toBe(true);
+  });
+
   it('retries one transient OpenAI-compatible web search model request before failing the tool loop', async () => {
     const fetchMock = vi
       .fn()
