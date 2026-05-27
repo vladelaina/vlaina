@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 import { SettingsItem, SettingsSectionHeader } from '../components/SettingsControls';
 import { useI18n, type AppLanguage, type MessageKey, type MessageValues } from '@/lib/i18n';
 import { APP_VERSION } from '@/lib/appVersion';
+import { useAccountSessionStore } from '@/stores/accountSession';
+import { FeedbackTab } from './FeedbackTab';
 import {
   type CommunitySettings,
 } from './aboutCommunitySettings';
@@ -293,6 +295,7 @@ function DeveloperNotePanel() {
 
 export function AboutTab({ community }: { community: CommunitySettings }) {
   const { t } = useI18n();
+  const isAccountConnected = useAccountSessionStore((state) => state.isConnected);
   const [status, setStatus] = useState<UpdateStatus>('idle');
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [currentVersion, setCurrentVersion] = useState('');
@@ -398,6 +401,8 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
       </div>
 
       <CommunityPills community={community} />
+
+      {isAccountConnected ? <FeedbackTab compact /> : null}
 
       <div>
         <SettingsSectionHeader>{t('settings.about.privacy')}</SettingsSectionHeader>

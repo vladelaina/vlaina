@@ -251,6 +251,15 @@ async function createElectronBillingCheckout(tier) {
   return await readJsonResponse(response, `Failed to create checkout session: HTTP ${response.status}`);
 }
 
+async function submitElectronFeedback(message) {
+  const response = await fetchWithStoredSession(`${apiBaseUrl}/feedback`, {
+    method: 'POST',
+    cache: 'no-store',
+    body: JSON.stringify({ message: String(message ?? '') }),
+  });
+  return await readJsonResponse(response, `Failed to submit feedback: HTTP ${response.status}`);
+}
+
 function isDevelopment() {
   return !app.isPackaged;
 }
@@ -990,6 +999,7 @@ registerManagedIpc({
   fetchWithStoredSession,
   managedApiBaseUrl,
   createElectronBillingCheckout,
+  submitElectronFeedback,
   requireNonEmptyString,
 });
 

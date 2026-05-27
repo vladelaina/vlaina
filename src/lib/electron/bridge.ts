@@ -274,6 +274,10 @@ export interface ElectronAccountApi {
     url?: string;
     error?: string;
   }>;
+  submitFeedback(message: string): Promise<{
+    success: boolean;
+    error?: string;
+  }>;
   getManagedModels(): Promise<Record<string, unknown>>;
   getManagedModelsVersion(): Promise<Record<string, unknown>>;
   getManagedBudget(): Promise<Record<string, unknown>>;

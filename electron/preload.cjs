@@ -340,6 +340,9 @@ const desktopApi = {
     createBillingCheckout(tier) {
       return ipcRenderer.invoke('desktop:billing:create-checkout', tier);
     },
+    submitFeedback(message) {
+      return ipcRenderer.invoke('desktop:feedback:submit', message);
+    },
     getManagedModels() {
       return ipcRenderer.invoke('desktop:managed:get-models');
     },
