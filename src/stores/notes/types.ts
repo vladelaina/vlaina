@@ -95,6 +95,7 @@ export interface NoteContentCacheEntry {
   content: string;
   modifiedAt: number | null;
   savedContent?: string;
+  freshUntil?: number;
 }
 
 export interface NotesState {

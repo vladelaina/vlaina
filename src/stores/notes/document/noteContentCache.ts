@@ -10,37 +10,73 @@ export function getCachedNoteModifiedAt(cache: NoteContentCache, path: string): 
   return cache.get(path)?.modifiedAt ?? null;
 }
 
+function defineHiddenCacheMetadata(
+  entry: NoteContentCacheEntry,
+  options: { savedContent?: string; freshUntil?: number }
+): void {
+  if (options.savedContent !== undefined) {
+    Object.defineProperty(entry, 'savedContent', {
+      configurable: true,
+      enumerable: false,
+      value: options.savedContent,
+    });
+  }
+
+  if (options.freshUntil !== undefined) {
+    Object.defineProperty(entry, 'freshUntil', {
+      configurable: true,
+      enumerable: false,
+      value: options.freshUntil,
+    });
+  }
+}
+
 export function setCachedNoteContent(
   cache: NoteContentCache,
   path: string,
   content: string,
   modifiedAt: number | null,
-  options: { updateBaseline?: boolean; baselineContent?: string } = {}
+  options: { updateBaseline?: boolean; baselineContent?: string; freshUntil?: number } = {}
 ): NoteContentCache {
   const current = cache.get(path);
   const savedContent = options.baselineContent ?? (options.updateBaseline
     ? content
     : current?.savedContent ?? current?.content ?? content);
   const nextSavedContent = savedContent === content ? undefined : savedContent;
+  const nextFreshUntil = options.freshUntil;
   if (
     current?.content === content &&
     current.modifiedAt === modifiedAt &&
-    current.savedContent === nextSavedContent
+    current.savedContent === nextSavedContent &&
+    current.freshUntil === nextFreshUntil
   ) {
     return cache;
   }
 
   const nextCache = new Map(cache);
   const nextEntry: NoteContentCacheEntry = { content, modifiedAt };
-  if (nextSavedContent !== undefined) {
-    Object.defineProperty(nextEntry, 'savedContent', {
-      configurable: true,
-      enumerable: false,
-      value: nextSavedContent,
-    });
-  }
+  defineHiddenCacheMetadata(nextEntry, {
+    savedContent: nextSavedContent,
+    freshUntil: nextFreshUntil,
+  });
   nextCache.set(path, nextEntry);
   return nextCache;
+}
+
+export function markCachedNoteFresh(
+  cache: NoteContentCache,
+  path: string,
+  freshUntil: number
+): NoteContentCache {
+  const current = cache.get(path);
+  if (!current || current.freshUntil === freshUntil) {
+    return cache;
+  }
+
+  return setCachedNoteContent(cache, path, current.content, current.modifiedAt, {
+    baselineContent: current.savedContent,
+    freshUntil,
+  });
 }
 
 export function removeCachedNoteContent(cache: NoteContentCache, path: string): NoteContentCache {

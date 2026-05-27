@@ -702,6 +702,59 @@ describe('workspaceSlice tab history', () => {
     });
   });
 
+  it('revalidates a stale cached note during hover prefetch so the next open can stay hot', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(5_000);
+    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true });
+
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: '# alpha', modifiedAt: 1 }],
+        ['beta.md', { content: '# beta', modifiedAt: 4 }],
+      ]),
+    });
+
+    await store.getState().prefetchNote('beta.md');
+
+    expect(storageAdapter.stat).toHaveBeenCalledWith('/vault/beta.md');
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().noteContentsCache.get('beta.md')).toEqual({
+      content: '# beta',
+      modifiedAt: 4,
+    });
+    expect(store.getState().noteContentsCache.get('beta.md')?.freshUntil).toBe(6_000);
+
+    vi.useRealTimers();
+  });
+
+  it('does not prefetch over a dirty background tab', async () => {
+    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true });
+    storageAdapter.readFile.mockResolvedValue('# disk beta');
+
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: '# alpha' },
+      openTabs: [
+        { path: 'alpha.md', name: 'alpha', isDirty: false },
+        { path: 'beta.md', name: 'beta', isDirty: true },
+      ],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: '# alpha', modifiedAt: 1 }],
+        ['beta.md', { content: '# unsaved beta', modifiedAt: 2 }],
+      ]),
+    });
+
+    await store.getState().prefetchNote('beta.md');
+
+    expect(storageAdapter.stat).not.toHaveBeenCalled();
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().noteContentsCache.get('beta.md')).toEqual({
+      content: '# unsaved beta',
+      modifiedAt: 2,
+    });
+  });
+
   it('reuses an active hover prefetch when opening the same note', async () => {
     let readStarted = false;
     let resolveRead: (content: string) => void = () => {
