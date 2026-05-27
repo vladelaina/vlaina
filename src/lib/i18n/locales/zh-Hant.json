@@ -515,7 +515,7 @@
   "sidebar.mobileDescription": "顯示行動版側邊欄。",
   "chat.error.providerNotFound": "找不到服務商",
   "chat.error.channelOff": "這個渠道已關閉。",
-  "chat.error.managedTextOnly": "vlaina 託管聊天目前僅支援文字訊息。",
+  "chat.error.managedTextOnly": "目前模型不支援這種輸入。請移除不支援的檔案，或切換模型後再試。",
   "chat.error.pointsExhausted": "點數已用完",
   "settings.images.previewVaultRoot": "保管庫根目錄/image.png",
   "settings.images.previewVaultSubfolder": "保管庫根目錄/{folder}/image.png",

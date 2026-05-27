@@ -37,16 +37,18 @@ function normalizeManagedErrorPayload(payload, status) {
         ? payload.error.code.trim()
         : null;
   const normalizedCode = typeof errorCode === 'string' ? errorCode.toLowerCase() : '';
-  const message =
-    normalizedCode === 'points_exhausted' || normalizedCode === 'inactive_points' || normalizedCode === 'insufficient_points'
-      ? 'MANAGED_QUOTA_EXHAUSTED'
-      : normalizedCode === 'upstream_rate_limited'
-        ? 'UPSTREAM_RATE_LIMITED'
-        : normalizedCode === 'upstream_unavailable'
-          ? 'UPSTREAM_UNAVAILABLE'
-          : normalizedCode === 'invalid_request'
-            ? 'INVALID_REQUEST'
-            : fallback;
+  let message = fallback;
+  if (normalizedCode === 'points_exhausted' || normalizedCode === 'inactive_points' || normalizedCode === 'insufficient_points') {
+    message = 'MANAGED_QUOTA_EXHAUSTED';
+  } else if (normalizedCode === 'upstream_rate_limited') {
+    message = 'UPSTREAM_RATE_LIMITED';
+  } else if (normalizedCode === 'upstream_unavailable') {
+    message = 'UPSTREAM_UNAVAILABLE';
+  } else if (normalizedCode === 'unsupported_message_content' || normalizedCode === 'unsupported_model_input') {
+    message = 'UNSUPPORTED_MODEL_INPUT';
+  } else if (normalizedCode === 'invalid_request') {
+    message = 'INVALID_REQUEST';
+  }
 
   return { message, statusCode: status, errorCode };
 }

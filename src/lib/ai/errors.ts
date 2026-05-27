@@ -12,6 +12,10 @@ const TIMEOUT_ERROR_MESSAGE = 'The request timed out. Please try again later.'
 const AUTH_ERROR_MESSAGE = 'Your sign-in session has expired. Please sign in again and try again.'
 const RATE_LIMIT_ERROR_MESSAGE = 'Too many requests. Please try again later.'
 const INVALID_REQUEST_ERROR_MESSAGE = 'This request could not be processed. Please adjust your input or switch models and try again.'
+const UNSUPPORTED_MODEL_INPUT_CODES = new Set([
+  'unsupported_message_content',
+  'unsupported_model_input',
+])
 const UPSTREAM_FORBIDDEN_MESSAGE =
   'The upstream AI provider rejected this request (HTTP 403). Check the channel API key, model access, account balance, or provider risk controls.'
 const KNOWN_MANAGED_BUSINESS_ERRORS = [
@@ -331,6 +335,19 @@ function shouldPreserveOriginalMessage(type: AIErrorType, message: string): bool
 function getSpecificUserFacingOverride(message: string, code: string): UserFacingAIError | null {
   const normalized = normalizeUserFacingMessage(message).toLowerCase()
   const normalizedCode = code.trim()
+  const normalizedCodeLower = normalizedCode.toLowerCase()
+
+  if (
+    normalized === 'unsupported_model_input' ||
+    normalized === 'unsupported_message_content' ||
+    UNSUPPORTED_MODEL_INPUT_CODES.has(normalizedCodeLower)
+  ) {
+    return {
+      type: AIErrorType.INVALID_REQUEST,
+      code: normalizedCode || 'unsupported_model_input',
+      message: translate('chat.error.managedTextOnly'),
+    }
+  }
 
   if (
     MANAGED_UPSTREAM_RATE_LIMITED_CODES.has(message) ||

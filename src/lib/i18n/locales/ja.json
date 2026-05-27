@@ -515,7 +515,7 @@
   "sidebar.mobileDescription": "Displays the mobile sidebar.",
   "chat.error.providerNotFound": "Provider not found",
   "chat.error.channelOff": "This channel is turned off.",
-  "chat.error.managedTextOnly": "vlaina managed chat currently supports text-only messages.",
+  "chat.error.managedTextOnly": "The current model does not support this input. Remove unsupported files or switch models and try again.",
   "chat.error.pointsExhausted": "Points exhausted",
   "settings.images.previewVaultRoot": "Vault root/image.png",
   "settings.images.previewVaultSubfolder": "Vault root/{folder}/image.png",
