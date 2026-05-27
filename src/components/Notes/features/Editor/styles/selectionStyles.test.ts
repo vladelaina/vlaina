@@ -9,6 +9,10 @@ function readStyleFile(name: string) {
   );
 }
 
+function normalizeLineEndings(value: string) {
+  return value.replace(/\r\n/g, '\n');
+}
+
 function readCommonMarkdownSurfaceStyle() {
   return readFileSync(
     resolve(process.cwd(), 'src/components/common/markdown/markdownSurface.css'),
@@ -525,7 +529,7 @@ describe('editor embedded CodeMirror selection styles', () => {
   });
 
   it('renders editor text selections with inline overlays instead of block line boxes', () => {
-    const css = readStyleFile('selection-width.css');
+    const css = normalizeLineEndings(readStyleFile('selection-width.css'));
     const source = readTextSelectionOverlaySource();
     const sharedSource = readSharedBlockNodeTypesSource();
 
