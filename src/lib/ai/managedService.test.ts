@@ -5,12 +5,14 @@ const {
   clearClientSessionMock,
   getManagedModelsMock,
   getManagedModelsVersionMock,
+  managedChatCompletionMock,
   managedChatCompletionStreamMock,
 } = vi.hoisted(() => ({
   hasElectronDesktopBridgeMock: vi.fn(),
   clearClientSessionMock: vi.fn(),
   getManagedModelsMock: vi.fn(),
   getManagedModelsVersionMock: vi.fn(),
+  managedChatCompletionMock: vi.fn(),
   managedChatCompletionStreamMock: vi.fn(),
 }));
 
@@ -23,7 +25,7 @@ vi.mock('@/lib/account/desktopCommands', () => ({
     getManagedModels: getManagedModelsMock,
     getManagedModelsVersion: getManagedModelsVersionMock,
     getManagedBudget: vi.fn(),
-    managedChatCompletion: vi.fn(),
+    managedChatCompletion: managedChatCompletionMock,
     managedChatCompletionStream: managedChatCompletionStreamMock,
   },
 }));
@@ -41,6 +43,7 @@ describe('managedService', () => {
     clearClientSessionMock.mockReset();
     getManagedModelsMock.mockReset();
     getManagedModelsVersionMock.mockReset();
+    managedChatCompletionMock.mockReset();
     managedChatCompletionStreamMock.mockReset();
     vi.restoreAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -143,6 +146,82 @@ describe('managedService', () => {
 
     await expect(requestManagedChatCompletion({ model: 'unpublished-model' })).rejects.toThrow('MANAGED_QUOTA_EXHAUSTED');
     expect(clearClientSessionMock).not.toHaveBeenCalled();
+  });
+
+  it('sanitizes managed chat completion bodies before web requests', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { requestManagedChatCompletion } = await import('./managedService');
+
+    await requestManagedChatCompletion({
+      model: 'deepseek-chat',
+      messages: [
+        {
+          role: 'assistant',
+          content: null,
+          reasoning_content: 'hidden',
+          tool_calls: [{
+            id: 'call-1',
+            type: 'function',
+            function: { name: 'web_search', arguments: '{"query":"x"}' },
+          }],
+        },
+        { role: 'tool', tool_call_id: 'call-1' },
+      ],
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string);
+    expect(body.messages).toEqual([
+      {
+        role: 'assistant',
+        content: '',
+        reasoning_content: 'hidden',
+        tool_calls: [{
+          id: 'call-1',
+          type: 'function',
+          function: { name: 'web_search', arguments: '{"query":"x"}' },
+        }],
+      },
+      { role: 'tool', tool_call_id: 'call-1', content: '' },
+    ]);
+  });
+
+  it('sanitizes managed chat completion bodies before desktop bridge requests', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(true);
+    managedChatCompletionMock.mockResolvedValue({ choices: [{ message: { content: 'ok' } }] });
+
+    const { requestManagedChatCompletion } = await import('./managedService');
+
+    await requestManagedChatCompletion({
+      model: 'deepseek-chat',
+      messages: [{
+        role: 'assistant',
+        content: null,
+        tool_calls: [{
+          id: 'call-1',
+          type: 'function',
+          function: { name: 'web_search', arguments: '{"query":"x"}' },
+        }],
+      }],
+    });
+
+    expect(managedChatCompletionMock).toHaveBeenCalledWith({
+      model: 'deepseek-chat',
+      messages: [{
+        role: 'assistant',
+        content: '',
+        tool_calls: [{
+          id: 'call-1',
+          type: 'function',
+          function: { name: 'web_search', arguments: '{"query":"x"}' },
+        }],
+      }],
+    });
   });
 
   it('treats auth and network failures as recoverable managed service errors', async () => {
@@ -413,13 +492,16 @@ describe('managedService', () => {
     await requestManagedChatCompletionStream(
       {
         model: 'gpt-5.4',
-        messages: [{ role: 'user', content: 'hello' }],
+        messages: [{ role: 'user' }],
         stream: true,
       },
       vi.fn()
     );
 
     expect(managedChatCompletionStreamMock).toHaveBeenCalledTimes(1);
+    expect(managedChatCompletionStreamMock.mock.calls[0]?.[0]).toMatchObject({
+      messages: [{ role: 'user', content: '' }],
+    });
     expect(typeof managedChatCompletionStreamMock.mock.calls[0]?.[3]).toBe('string');
     expect(managedChatCompletionStreamMock.mock.calls[0]?.[3]).toContain('managed-stream-');
   });

@@ -80,14 +80,50 @@ export async function fetchManagedBudget(): Promise<ManagedBudgetStatus> {
   return normalizeManagedBudgetPayload(payload ?? {})
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function sanitizeManagedChatMessage(message: unknown): unknown {
+  if (!isRecord(message)) {
+    return message
+  }
+
+  const nextMessage = { ...message }
+  const hasAssistantMetadata = Boolean(nextMessage.reasoning_content) ||
+    (Array.isArray(nextMessage.tool_calls) && nextMessage.tool_calls.length > 0)
+  if (nextMessage.role === 'assistant' && nextMessage.content == null && hasAssistantMetadata) {
+    nextMessage.content = ''
+  }
+  if (
+    (nextMessage.role === 'system' || nextMessage.role === 'user' || nextMessage.role === 'tool') &&
+    nextMessage.content == null
+  ) {
+    nextMessage.content = ''
+  }
+  return nextMessage
+}
+
+function sanitizeManagedChatCompletionBody(body: object): Record<string, unknown> {
+  const nextBody = isRecord(body) ? body : {}
+  if (!Array.isArray(nextBody.messages)) {
+    return nextBody
+  }
+  return {
+    ...nextBody,
+    messages: nextBody.messages.map(sanitizeManagedChatMessage),
+  }
+}
+
 export async function requestManagedChatCompletion(
   body: object
 ): Promise<Record<string, unknown>> {
+  const sanitizedBody = sanitizeManagedChatCompletionBody(body)
   return hasElectronDesktopBridge()
-    ? ((await accountCommands.managedChatCompletion(body)) as Record<string, unknown>)
+    ? ((await accountCommands.managedChatCompletion(sanitizedBody)) as Record<string, unknown>)
     : await requestManagedWebJson<Record<string, unknown>>('/chat/completions', {
       method: 'POST',
-      body: JSON.stringify(body),
+      body: JSON.stringify(sanitizedBody),
     })
 }
 
@@ -119,7 +155,8 @@ export async function requestManagedChatCompletionStream(
   signal?: AbortSignal
 ): Promise<string> {
   const requestId = `managed-stream-${Date.now()}-${crypto.randomUUID()}`
+  const sanitizedBody = sanitizeManagedChatCompletionBody(body)
   return hasElectronDesktopBridge()
-    ? await accountCommands.managedChatCompletionStream(body, onChunk, signal, requestId)
-    : await requestManagedWebStream('/chat/completions', body, onChunk, signal)
+    ? await accountCommands.managedChatCompletionStream(sanitizedBody, onChunk, signal, requestId)
+    : await requestManagedWebStream('/chat/completions', sanitizedBody, onChunk, signal)
 }

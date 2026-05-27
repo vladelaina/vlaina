@@ -113,6 +113,13 @@ export function normalizeApiTranscriptMessage(value: unknown): ApiTranscriptMess
   if (
     normalized.role === 'assistant' &&
     normalized.content == null &&
+    (normalized.reasoning_content || normalized.tool_calls?.length)
+  ) {
+    normalized.content = '';
+  }
+  if (
+    normalized.role === 'assistant' &&
+    normalized.content == null &&
     !normalized.reasoning_content &&
     !normalized.tool_calls?.length
   ) {

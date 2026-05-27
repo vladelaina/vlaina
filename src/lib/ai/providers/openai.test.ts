@@ -503,7 +503,10 @@ describe('OpenAICompatibleClient endpoint detection', () => {
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.messages).toEqual([
-      history[0].apiTranscript![0],
+      {
+        ...history[0].apiTranscript![0],
+        content: '',
+      },
       history[0].apiTranscript![1],
       history[0].apiTranscript![2],
       { role: 'user', content: 'continue' },

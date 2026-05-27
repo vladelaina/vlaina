@@ -164,6 +164,7 @@ describe('requestContext', () => {
     expect(result[0].apiTranscript).toHaveLength(3);
     expect(result[0].apiTranscript?.[0]).toMatchObject({
       role: 'assistant',
+      content: '',
       reasoning_content: 'hidden plan',
       tool_calls: expect.any(Array),
     });

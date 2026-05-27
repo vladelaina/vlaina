@@ -682,7 +682,7 @@ describe('OpenAI web search JSON tool loop', () => {
     const nextMessages = request.mock.calls[1][0].messages;
     expect(nextMessages[nextMessages.length - 2]).toMatchObject({
       role: 'assistant',
-      content: null,
+      content: '',
       reasoning_content: 'Need to search first.',
       tool_calls: expect.any(Array),
     });

@@ -74,6 +74,82 @@ describe('managed ipc stream bridge', () => {
     expect(options.fetchWithStoredSession).not.toHaveBeenCalled();
   });
 
+  it('sanitizes managed chat completion message content before forwarding', async () => {
+    const { handlers, options } = registerHarness();
+    options.requestManagedJson.mockResolvedValue({ success: true });
+
+    await handlers.get('desktop:managed:chat-completion')?.({}, {
+      model: 'deepseek-chat',
+      messages: [
+        {
+          role: 'assistant',
+          content: null,
+          reasoning_content: 'hidden',
+          tool_calls: [{
+            id: 'call-1',
+            type: 'function',
+            function: { name: 'web_search', arguments: '{"query":"x"}' },
+          }],
+        },
+        { role: 'tool', tool_call_id: 'call-1' },
+      ],
+    });
+
+    expect(options.requestManagedJson).toHaveBeenCalledWith('/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          {
+            role: 'assistant',
+            content: '',
+            reasoning_content: 'hidden',
+            tool_calls: [{
+              id: 'call-1',
+              type: 'function',
+              function: { name: 'web_search', arguments: '{"query":"x"}' },
+            }],
+          },
+          { role: 'tool', tool_call_id: 'call-1', content: '' },
+        ],
+      }),
+    });
+  });
+
+  it('sanitizes managed stream message content before forwarding', async () => {
+    const fetchWithStoredSession = vi.fn(async () => streamResponse([
+      'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n',
+    ]));
+    const { handlers } = registerHarness({ fetchWithStoredSession });
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+
+    await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-sanitize', {
+      model: 'deepseek-chat',
+      messages: [
+        {
+          role: 'assistant',
+          content: null,
+          tool_calls: [{
+            id: 'call-1',
+            type: 'function',
+            function: { name: 'web_search', arguments: '{"query":"x"}' },
+          }],
+        },
+      ],
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(JSON.parse(fetchWithStoredSession.mock.calls[0][1].body as string)).toMatchObject({
+      model: 'deepseek-chat',
+      messages: [{
+        role: 'assistant',
+        content: '',
+        tool_calls: expect.any(Array),
+      }],
+    });
+  });
+
   it('rejects unsafe stream request ids before starting a request', async () => {
     const { handlers, options } = registerHarness();
 

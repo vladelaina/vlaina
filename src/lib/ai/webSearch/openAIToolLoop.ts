@@ -301,7 +301,7 @@ function buildAssistantToolMessage(result: {
 }): OpenAIWireMessage {
   const message: OpenAIWireMessage = {
     role: 'assistant',
-    content: (result.assistantContent ?? result.content) || null,
+    content: (result.assistantContent ?? result.content) || '',
     tool_calls: result.toolCalls,
   };
   if (result.reasoningContent) {
@@ -360,7 +360,7 @@ async function appendForcedReadMessages(
   const addedMessages: OpenAIWireMessage[] = [
     {
       role: 'assistant',
-      content: null,
+      content: '',
       tool_calls: [toolCall],
     },
     {

@@ -283,7 +283,7 @@ describe('chatStorage session message normalization', () => {
       apiTranscript: [
         {
           role: 'assistant',
-          content: 'answer',
+          content: null,
           reasoning_content: 'hidden',
           tool_calls: [
             {
@@ -303,7 +303,7 @@ describe('chatStorage session message normalization', () => {
     expect(messages[0]?.apiTranscript).toEqual([
       {
         role: 'assistant',
-        content: 'answer',
+        content: '',
         reasoning_content: 'hidden',
         tool_calls: [{
           id: 'call-1',

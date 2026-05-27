@@ -87,9 +87,12 @@ function clipTranscriptContent(content: ChatMessageContent | null | undefined): 
 }
 
 function compactTranscriptMessage(message: ApiTranscriptMessage): ApiTranscriptMessage {
+  const content = clipTranscriptContent(message.content);
   return {
     ...message,
-    content: clipTranscriptContent(message.content),
+    content: message.role === 'assistant' && content == null && (message.reasoning_content || message.tool_calls?.length)
+      ? ''
+      : content,
     ...(typeof message.reasoning_content === 'string'
       ? { reasoning_content: clipContentToBudget(message.reasoning_content, MAX_TRANSCRIPT_FIELD_CHARS) }
       : {}),
@@ -118,7 +121,7 @@ function compactApiTranscriptToBudget(
 
   const minimal: ApiTranscriptMessage = {
     role: 'assistant',
-    content: clipTranscriptContent(finalAssistant.content) ?? null,
+    content: clipTranscriptContent(finalAssistant.content) ?? '',
     ...(finalAssistant.reasoning_content
       ? { reasoning_content: clipContentToBudget(finalAssistant.reasoning_content, MAX_TRANSCRIPT_FIELD_CHARS) }
       : {}),

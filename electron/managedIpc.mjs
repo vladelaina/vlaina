@@ -90,6 +90,39 @@ function normalizeManagedBinaryPayload(payload) {
   return { body: Buffer.from(bodyBase64, 'base64'), headers };
 }
 
+function sanitizeManagedChatMessage(message) {
+  if (!message || typeof message !== 'object' || Array.isArray(message)) {
+    return message;
+  }
+
+  const nextMessage = { ...message };
+  const hasAssistantMetadata = Boolean(nextMessage.reasoning_content) ||
+    (Array.isArray(nextMessage.tool_calls) && nextMessage.tool_calls.length > 0);
+  if (nextMessage.role === 'assistant' && nextMessage.content == null && hasAssistantMetadata) {
+    nextMessage.content = '';
+  }
+  if (
+    (nextMessage.role === 'system' || nextMessage.role === 'user' || nextMessage.role === 'tool') &&
+    nextMessage.content == null
+  ) {
+    nextMessage.content = '';
+  }
+  return nextMessage;
+}
+
+function sanitizeManagedChatCompletionBody(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return body ?? {};
+  }
+  if (!Array.isArray(body.messages)) {
+    return body;
+  }
+  return {
+    ...body,
+    messages: body.messages.map(sanitizeManagedChatMessage),
+  };
+}
+
 export function registerManagedIpc({
   handleIpc,
   requestManagedJson,
@@ -123,7 +156,7 @@ export function registerManagedIpc({
   handleIpc('desktop:managed:chat-completion', async (_event, body) => {
     return await requestManagedJson('/chat/completions', {
       method: 'POST',
-      body: JSON.stringify(body ?? {}),
+      body: JSON.stringify(sanitizeManagedChatCompletionBody(body)),
     });
   });
 
@@ -162,7 +195,7 @@ export function registerManagedIpc({
           headers: {
             Accept: 'text/event-stream',
           },
-          body: JSON.stringify(body ?? {}),
+          body: JSON.stringify(sanitizeManagedChatCompletionBody(body)),
         });
 
         if (!response.ok) {
