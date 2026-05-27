@@ -134,6 +134,8 @@
   "settings.markdown.showLineNumbers": "Hiển thị số dòng",
   "settings.markdown.typewriterMode": "Chế độ máy đánh chữ",
   "settings.markdown.typewriterModeDescription": "Giữ con trỏ ở giữa màn hình khi gõ.",
+  "settings.markdown.bodyLineNumbers": "Hiển thị số dòng nội dung",
+  "settings.markdown.bodyLineNumbersDescription": "Hiển thị số trước các dòng nội dung Markdown thông thường, trừ khối mã.",
   "settings.tabs.about": "Giới thiệu",
   "settings.tabs.ai": "Trò chuyện",
   "settings.tabs.appearance": "Giao diện",

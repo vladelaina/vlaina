@@ -134,6 +134,8 @@
   "settings.markdown.showLineNumbers": "Показывать номера строк",
   "settings.markdown.typewriterMode": "Режим пишущей машинки",
   "settings.markdown.typewriterModeDescription": "Держите курсор ближе к центру во время набора текста.",
+  "settings.markdown.bodyLineNumbers": "Показывать номера строк текста",
+  "settings.markdown.bodyLineNumbersDescription": "Показывает номера перед обычными строками Markdown, кроме блоков кода.",
   "settings.tabs.about": "О программе",
   "settings.tabs.ai": "Чат",
   "settings.tabs.appearance": "Внешний вид",

@@ -134,6 +134,8 @@
   "settings.markdown.showLineNumbers": "Satır numaralarını göster",
   "settings.markdown.typewriterMode": "Daktilo modu",
   "settings.markdown.typewriterModeDescription": "Yazarken imleci merkeze yakın tut.",
+  "settings.markdown.bodyLineNumbers": "Gövde satır numaralarını göster",
+  "settings.markdown.bodyLineNumbersDescription": "Kod blokları hariç normal Markdown gövde satırlarının önünde numara gösterir.",
   "settings.tabs.about": "Hakkında",
   "settings.tabs.ai": "Sohbet",
   "settings.tabs.appearance": "Görünüm",

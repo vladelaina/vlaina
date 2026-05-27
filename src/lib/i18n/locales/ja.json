@@ -134,6 +134,8 @@
   "settings.markdown.showLineNumbers": "行番号を表示",
   "settings.markdown.typewriterMode": "タイプライターモード",
   "settings.markdown.typewriterModeDescription": "入力中にカーソルを中心付近に保ちます。",
+  "settings.markdown.bodyLineNumbers": "本文の行番号を表示",
+  "settings.markdown.bodyLineNumbersDescription": "コードブロックを除く通常の Markdown 本文行の前に番号を表示します。",
   "settings.tabs.about": "概要",
   "settings.tabs.ai": "チャット",
   "settings.tabs.appearance": "外観",

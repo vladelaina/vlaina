@@ -134,6 +134,8 @@
   "settings.markdown.showLineNumbers": "줄 번호 표시",
   "settings.markdown.typewriterMode": "타자기 모드",
   "settings.markdown.typewriterModeDescription": "입력하는 동안 커서를 중앙 근처에 유지합니다.",
+  "settings.markdown.bodyLineNumbers": "본문 줄 번호 표시",
+  "settings.markdown.bodyLineNumbersDescription": "코드 블록을 제외한 일반 Markdown 본문 줄 앞에 번호를 표시합니다.",
   "settings.tabs.about": "정보",
   "settings.tabs.ai": "채팅",
   "settings.tabs.appearance": "모양",

@@ -18,6 +18,9 @@ export interface UnifiedData {
     timezone: TimezoneInfo;
     markdown: {
       typewriterMode: boolean;
+      body?: {
+        showLineNumbers?: boolean;
+      };
       codeBlock: {
         showLineNumbers: boolean;
       };
@@ -58,6 +61,9 @@ export function createDefaultUnifiedData(): UnifiedData {
       timezone: { offset: DEFAULT_TIMEZONE, city: 'Beijing' },
       markdown: {
         typewriterMode: false,
+        body: {
+          showLineNumbers: false,
+        },
         codeBlock: {
           showLineNumbers: false,
         },

@@ -134,6 +134,8 @@
   "settings.markdown.showLineNumbers": "Tampilkan nomor baris",
   "settings.markdown.typewriterMode": "Mode mesin tik",
   "settings.markdown.typewriterModeDescription": "Jaga kursor tetap di tengah saat mengetik.",
+  "settings.markdown.bodyLineNumbers": "Tampilkan nomor baris isi",
+  "settings.markdown.bodyLineNumbersDescription": "Tampilkan nomor sebelum baris isi Markdown biasa, kecuali blok kode.",
   "settings.tabs.about": "Tentang",
   "settings.tabs.ai": "Obrolan",
   "settings.tabs.appearance": "Tampilan",

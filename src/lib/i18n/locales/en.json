@@ -134,6 +134,8 @@
   "settings.markdown.showLineNumbers": "Show line numbers",
   "settings.markdown.typewriterMode": "Typewriter mode",
   "settings.markdown.typewriterModeDescription": "Keep the cursor near the center while typing.",
+  "settings.markdown.bodyLineNumbers": "Show body line numbers",
+  "settings.markdown.bodyLineNumbersDescription": "Show numbers before regular Markdown body lines, excluding code blocks.",
   "settings.tabs.about": "About",
   "settings.tabs.ai": "Chat",
   "settings.tabs.appearance": "Appearance",

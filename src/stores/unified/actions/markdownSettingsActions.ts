@@ -1,6 +1,7 @@
 import type { UnifiedData } from '@/lib/storage/unifiedStorage';
 import type { UnifiedSavePatch } from '@/lib/storage/unifiedStorage';
 import {
+  updateMarkdownBodyLineNumbers,
   updateMarkdownCodeBlockLineNumbers,
   updateMarkdownTypewriterMode,
 } from '../settings/markdownSettings';
@@ -22,6 +23,21 @@ export function createMarkdownSettingsActions(set: SetState, persist: Persist) {
           settings: {
             markdown: {
               codeBlock: {
+                showLineNumbers,
+              },
+            },
+          },
+        });
+        return { data: newData };
+      });
+    },
+    setMarkdownBodyLineNumbers: (showLineNumbers: boolean) => {
+      set((state) => {
+        const newData = updateMarkdownBodyLineNumbers(state.data, showLineNumbers);
+        persist(newData, {
+          settings: {
+            markdown: {
+              body: {
                 showLineNumbers,
               },
             },

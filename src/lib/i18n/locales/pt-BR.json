@@ -134,6 +134,8 @@
   "settings.markdown.showLineNumbers": "Mostrar números de linha",
   "settings.markdown.typewriterMode": "Modo Máquina de Escrever",
   "settings.markdown.typewriterModeDescription": "Mantenha o cursor perto do centro enquanto digita.",
+  "settings.markdown.bodyLineNumbers": "Mostrar números no corpo",
+  "settings.markdown.bodyLineNumbersDescription": "Mostra números antes das linhas normais de Markdown, exceto blocos de código.",
   "settings.tabs.about": "Sobre",
   "settings.tabs.ai": "Conversa",
   "settings.tabs.appearance": "Aparência",
