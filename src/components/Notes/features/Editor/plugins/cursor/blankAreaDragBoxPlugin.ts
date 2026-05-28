@@ -669,6 +669,56 @@ function clearTextSelectionForDragSession(view: EditorView): void {
   }
 }
 
+function shouldHandleDocumentBlockSelectionEvent(view: EditorView, event: Event): boolean {
+  const target = event.target;
+  if (target instanceof Node && view.dom.contains(target)) return false;
+
+  const activeElement = view.dom.ownerDocument.activeElement;
+  if (
+    activeElement instanceof HTMLElement
+    && activeElement !== view.dom.ownerDocument.body
+    && activeElement !== view.dom.ownerDocument.documentElement
+    && activeElement !== view.dom
+  ) {
+    return false;
+  }
+
+  return getBlockSelectionPluginState(view.state).selectedBlocks.length > 0;
+}
+
+function handleDocumentBlockSelectionPaste(view: EditorView, event: ClipboardEvent): boolean {
+  const capturedSelectedBlocks = getBlockSelectionPluginState(view.state).selectedBlocks;
+  let handled = false;
+  view.someProp('handleDOMEvents', (handleDOMEvents: { paste?: (view: EditorView, event: ClipboardEvent) => boolean }) => {
+    if (handleDOMEvents.paste?.(view, event)) {
+      handled = true;
+      return true;
+    }
+    return undefined;
+  });
+  if (handled) return true;
+
+  view.someProp('handlePaste', (handlePaste: (view: EditorView, event: ClipboardEvent, slice: null) => boolean) => {
+    if (handlePaste(view, event, null)) {
+      handled = true;
+      return true;
+    }
+    return undefined;
+  });
+  if (handled) return true;
+
+  const text = event.clipboardData?.getData('text/plain')?.replace(/\r\n?/g, '\n') ?? '';
+  if (!text) return false;
+
+  if (getBlockSelectionPluginState(view.state).selectedBlocks.length > 0) {
+    if (!deleteSelectedBlocks(view, capturedSelectedBlocks)) return false;
+  }
+  view.dispatch(view.state.tr.insertText(text).scrollIntoView());
+  view.focus();
+  event.preventDefault();
+  return true;
+}
+
 function deleteSelectedBlocks(view: EditorView, blocks: readonly BlockRange[]): boolean {
   return deleteSelectedBlocksCommand(
     view,
@@ -891,6 +941,49 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       const doc = view.dom.ownerDocument;
       const lineFillOverlay = createBlockSelectionLineFillOverlay(view);
       syncBlockSelectionVisualState(view);
+      const handleDocumentKeyDown = (event: KeyboardEvent) => {
+        if (!shouldHandleDocumentBlockSelectionEvent(view, event)) return;
+        const { selectedBlocks } = getBlockSelectionPluginState(view.state);
+        if (!handleBlockSelectionKeyDown(event, {
+          view,
+          selectedBlocks,
+          serializeSelectedBlocks,
+          deleteSelectedBlocks,
+        })) {
+          return;
+        }
+        event.stopImmediatePropagation();
+      };
+      const handleDocumentCopy = (event: ClipboardEvent) => {
+        if (!shouldHandleDocumentBlockSelectionEvent(view, event)) return;
+        const { selectedBlocks } = getBlockSelectionPluginState(view.state);
+        if (!handleBlockSelectionCopy(event, {
+          view,
+          selectedBlocks,
+          serializeSelectedBlocks,
+        })) {
+          return;
+        }
+        event.stopImmediatePropagation();
+      };
+      const handleDocumentCut = (event: ClipboardEvent) => {
+        if (!shouldHandleDocumentBlockSelectionEvent(view, event)) return;
+        const { selectedBlocks } = getBlockSelectionPluginState(view.state);
+        if (!handleBlockSelectionCut(event, {
+          view,
+          selectedBlocks,
+          serializeSelectedBlocks,
+          deleteSelectedBlocks,
+        })) {
+          return;
+        }
+        event.stopImmediatePropagation();
+      };
+      const handleDocumentPaste = (event: ClipboardEvent) => {
+        if (!shouldHandleDocumentBlockSelectionEvent(view, event)) return;
+        if (!handleDocumentBlockSelectionPaste(view, event)) return;
+        event.stopImmediatePropagation();
+      };
       const handleDocumentMouseDown = (event: MouseEvent) => {
         if (isIgnoredBlankAreaDragBoxTarget(event.target)) {
           return;
@@ -920,6 +1013,10 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         clearBlockSelection(view);
       };
 
+      doc.addEventListener('keydown', handleDocumentKeyDown, true);
+      doc.addEventListener('copy', handleDocumentCopy, true);
+      doc.addEventListener('cut', handleDocumentCut, true);
+      doc.addEventListener('paste', handleDocumentPaste, true);
       doc.addEventListener('mousedown', handleDocumentMouseDown, true);
 
       return {
@@ -928,6 +1025,10 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           lineFillOverlay.update(updatedView);
         },
         destroy() {
+          doc.removeEventListener('keydown', handleDocumentKeyDown, true);
+          doc.removeEventListener('copy', handleDocumentCopy, true);
+          doc.removeEventListener('cut', handleDocumentCut, true);
+          doc.removeEventListener('paste', handleDocumentPaste, true);
           doc.removeEventListener('mousedown', handleDocumentMouseDown, true);
           clearForcedCaretForOwner(view.dom);
           lineFillOverlay.destroy();
