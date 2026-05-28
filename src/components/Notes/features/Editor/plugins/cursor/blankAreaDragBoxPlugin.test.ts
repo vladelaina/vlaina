@@ -60,6 +60,35 @@ function simulateKeydownUntilHandled(view: any, key: string, init: KeyboardEvent
   return { handled, event };
 }
 
+function dispatchDocumentKeydown(key: string, init: KeyboardEventInit = {}): KeyboardEvent {
+  const event = new KeyboardEvent('keydown', {
+    key,
+    bubbles: true,
+    cancelable: true,
+    ...init,
+  });
+  document.dispatchEvent(event);
+  return event;
+}
+
+function dispatchDocumentClipboardEvent(type: 'copy' | 'cut' | 'paste', text = '') {
+  const clipboardData = {
+    setData: vi.fn(),
+    types: text ? ['text/plain'] : [],
+    getData: vi.fn((format: string) => (format === 'text/plain' ? text : '')),
+  };
+  const event = new Event(type, {
+    bubbles: true,
+    cancelable: true,
+  });
+  Object.defineProperty(event, 'clipboardData', {
+    value: clipboardData,
+    configurable: true,
+  });
+  document.dispatchEvent(event);
+  return { event, clipboardData };
+}
+
 function simulateClipboardEvent(view: any, type: 'copy' | 'cut') {
   const clipboardData = {
     setData: vi.fn(),
@@ -539,6 +568,95 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
       expect(view.state.doc.textContent).toBe('Beta');
       expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
     } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('deletes selected blocks from document Delete and Backspace after drag selection has blurred the editor', async () => {
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      view.dom.blur();
+      const deleteEvent = dispatchDocumentKeydown('Delete');
+
+      expect(deleteEvent.defaultPrevented).toBe(true);
+      expect(view.state.doc.textContent).toBe('Beta');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+
+      const [remainingBlock] = collectSelectableBlockRanges(view.state.doc);
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [remainingBlock] });
+      view.dom.blur();
+      const backspaceEvent = dispatchDocumentKeydown('Backspace');
+
+      expect(backspaceEvent.defaultPrevented).toBe(true);
+      expect(view.state.doc.textContent).toBe('');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('handles native document copy and cut events after drag selection has blurred the editor', async () => {
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      view.dom.blur();
+      const copy = dispatchDocumentClipboardEvent('copy');
+
+      expect(copy.event.defaultPrevented).toBe(true);
+      expect(copy.clipboardData.setData).toHaveBeenCalledWith('text/plain', 'Alpha');
+      expect(view.state.doc.textContent).toBe('AlphaBeta');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+
+      const [firstBlock] = collectSelectableBlockRanges(view.state.doc);
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [firstBlock] });
+      view.dom.blur();
+      const cut = dispatchDocumentClipboardEvent('cut');
+
+      expect(cut.event.defaultPrevented).toBe(true);
+      expect(cut.clipboardData.setData).toHaveBeenCalledWith('text/plain', 'Alpha');
+      expect(view.state.doc.textContent).toBe('Beta');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('replaces selected blocks from a document paste after drag selection has blurred the editor', async () => {
+    const { editor, view } = await createIntegratedBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      view.dom.blur();
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(1);
+      const paste = dispatchDocumentClipboardEvent('paste', 'Gamma');
+
+      expect(paste.event.defaultPrevented).toBe(true);
+      expect(view.state.doc.textContent).toBe('GammaBeta');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('does not hijack document keys or clipboard events while another input is focused', async () => {
+    const { editor, view } = await createIntegratedBlockSelectionEditor('Alpha\n\nBeta');
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+
+    try {
+      input.focus();
+      const deleteEvent = dispatchDocumentKeydown('Delete');
+      const copy = dispatchDocumentClipboardEvent('copy');
+      const paste = dispatchDocumentClipboardEvent('paste', 'Gamma');
+
+      expect(deleteEvent.defaultPrevented).toBe(false);
+      expect(copy.event.defaultPrevented).toBe(false);
+      expect(copy.clipboardData.setData).not.toHaveBeenCalled();
+      expect(paste.event.defaultPrevented).toBe(false);
+      expect(view.state.doc.textContent).toBe('AlphaBeta');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(1);
+    } finally {
+      input.remove();
       await editor.destroy();
     }
   });

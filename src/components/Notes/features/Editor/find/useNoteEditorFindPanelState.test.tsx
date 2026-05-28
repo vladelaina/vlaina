@@ -12,11 +12,13 @@ describe('useNoteEditorFindPanelState', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
   });
 
   it('opens from the global event and re-focuses the query input on repeated open', () => {
+    vi.useFakeTimers();
     const onClose = vi.fn();
     const { result } = renderHook(() =>
       useNoteEditorFindPanelState({
@@ -34,6 +36,9 @@ describe('useNoteEditorFindPanelState', () => {
     act(() => {
       dispatchEditorFindOpenEvent();
     });
+    act(() => {
+      vi.advanceTimersByTime(90);
+    });
 
     expect(result.current.isOpen).toBe(true);
     expect(focusSpy).toHaveBeenCalledTimes(1);
@@ -41,6 +46,9 @@ describe('useNoteEditorFindPanelState', () => {
 
     act(() => {
       dispatchEditorFindOpenEvent();
+    });
+    act(() => {
+      vi.advanceTimersByTime(90);
     });
 
     expect(focusSpy).toHaveBeenCalledTimes(2);
