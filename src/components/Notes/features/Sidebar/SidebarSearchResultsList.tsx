@@ -240,8 +240,6 @@ export function SidebarSearchResultsList({
     virtualizer.scrollToIndex(highlightedIndex, { align: 'auto' });
   }, [highlightedResultId, items, virtualizer]);
 
-  const hasQuery = deferredQuery.trim().length > 0;
-
   return (
     <div className="flex flex-col gap-0.5">
       {isContentScanPending ? (
@@ -287,10 +285,6 @@ export function SidebarSearchResultsList({
               </div>
             );
           })}
-        </div>
-      ) : hasQuery && !isContentScanPending ? (
-        <div className="px-3 py-2 text-[16px] text-[var(--notes-sidebar-text-soft)]">
-          {t('notes.noResults')}
         </div>
       ) : null}
     </div>

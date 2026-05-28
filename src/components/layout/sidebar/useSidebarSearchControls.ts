@@ -31,8 +31,16 @@ export function useSidebarSearchControls({
   const overscrollDistanceRef = useRef(0);
   const shouldResetScrollTopOnCloseRef = useRef(false);
 
+  const blurFocusedInput = useCallback(() => {
+    const input = inputRef.current;
+    if (input && document.activeElement === input) {
+      input.blur();
+    }
+  }, []);
+
   useLayoutEffect(() => {
     if (!enabled || !isOpen) {
+      blurFocusedInput();
       if (shouldResetScrollTopOnCloseRef.current) {
         const scrollRoot = scrollRootRef.current;
         if (scrollRoot) {
@@ -53,12 +61,13 @@ export function useSidebarSearchControls({
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [enabled, isOpen]);
+  }, [blurFocusedInput, enabled, isOpen]);
 
   const hideSearch = useCallback(() => {
     overscrollDistanceRef.current = 0;
+    blurFocusedInput();
     onClose();
-  }, [onClose]);
+  }, [blurFocusedInput, onClose]);
 
   const handleScroll = useCallback((event: UIEvent<HTMLDivElement>) => {
     if (event.currentTarget.scrollTop > 0) {

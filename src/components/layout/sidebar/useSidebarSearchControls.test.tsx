@@ -32,7 +32,7 @@ function SidebarSearchControlsHarness({
   scrollTop?: number;
 }) {
   const interactionScopeRef = useRef<HTMLDivElement | null>(null);
-  const { scrollRootRef } = useSidebarSearchControls({
+  const { inputRef, scrollRootRef } = useSidebarSearchControls({
     isOpen,
     query,
     onOpen,
@@ -51,6 +51,7 @@ function SidebarSearchControlsHarness({
 
   return (
     <div ref={interactionScopeRef} data-testid="interaction-scope">
+      <input ref={inputRef} aria-label="search-input" />
       <div ref={scrollRootRef} data-testid="scroll-root" />
     </div>
   );
@@ -84,6 +85,67 @@ describe('useSidebarSearchControls', () => {
     expect(wheelEvent.defaultPrevented).toBe(true);
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('blurs the focused search input immediately when downward wheel closes the empty drawer', () => {
+    const onOpen = vi.fn();
+    const onClose = vi.fn();
+
+    render(
+      <SidebarSearchControlsHarness
+        isOpen
+        query=""
+        onOpen={onOpen}
+        onClose={onClose}
+      />,
+    );
+
+    const input = screen.getByLabelText('search-input');
+    input.focus();
+    expect(document.activeElement).toBe(input);
+
+    const interactionScope = screen.getByTestId('interaction-scope');
+    const wheelEvent = new WheelEvent('wheel', {
+      bubbles: true,
+      cancelable: true,
+      deltaY: 100,
+    });
+
+    act(() => {
+      interactionScope.dispatchEvent(wheelEvent);
+    });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).not.toBe(input);
+  });
+
+  it('blurs the focused search input when the drawer is closed by state', () => {
+    const onOpen = vi.fn();
+    const onClose = vi.fn();
+
+    const { rerender } = render(
+      <SidebarSearchControlsHarness
+        isOpen
+        query=""
+        onOpen={onOpen}
+        onClose={onClose}
+      />,
+    );
+
+    const input = screen.getByLabelText('search-input');
+    input.focus();
+    expect(document.activeElement).toBe(input);
+
+    rerender(
+      <SidebarSearchControlsHarness
+        isOpen={false}
+        query=""
+        onOpen={onOpen}
+        onClose={onClose}
+      />,
+    );
+
+    expect(document.activeElement).not.toBe(input);
   });
 
   it('still closes the empty search drawer on downward wheel even after results were scrolled', () => {

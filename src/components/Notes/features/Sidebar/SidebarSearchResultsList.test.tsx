@@ -227,7 +227,7 @@ describe('SidebarSearchResultsList', () => {
     expect(screen.getByText('Searching note contents...')).toBeInTheDocument();
   });
 
-  it('shows an empty result message after content scanning finishes', () => {
+  it('renders no empty result message after content scanning finishes', () => {
     render(
       <SidebarSearchResultsList
         results={[]}
@@ -239,6 +239,6 @@ describe('SidebarSearchResultsList', () => {
       />,
     );
 
-    expect(screen.getByText('No results')).toBeInTheDocument();
+    expect(screen.queryByText('No results')).not.toBeInTheDocument();
   });
 });

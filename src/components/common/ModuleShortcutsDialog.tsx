@@ -258,7 +258,7 @@ export function ModuleShortcutsDialog({
             </section>
           )) : (
             <div className="px-3 py-8 text-center text-[13px] font-medium text-zinc-400 dark:text-zinc-500">
-              {t('notes.noResults')}
+              {t('shortcut.noResults')}
             </div>
           )}
         </div>
