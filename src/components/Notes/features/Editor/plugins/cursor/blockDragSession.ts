@@ -44,6 +44,7 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
 
   const editorRoot = view.dom.closest('.milkdown-editor') as HTMLElement | null;
   const cursorRoot = providedCursorRoot ?? editorRoot ?? view.dom;
+  const ownerDocument = view.dom.ownerDocument;
   const previousCursorRootCursor = cursorRoot.style.cursor;
   const previousViewCursor = view.dom.style.cursor;
   const previousEditorRootCursor = editorRoot?.style.cursor ?? '';
@@ -67,8 +68,8 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
     }
     view.dom.style.cursor = previousViewCursor;
     if (editorRoot && editorRoot !== cursorRoot) editorRoot.style.cursor = previousEditorRootCursor;
-    document.removeEventListener('mousemove', handleMouseMove, true);
-    document.removeEventListener('mouseup', handleMouseUp, true);
+    ownerDocument.removeEventListener('mousemove', handleMouseMove, true);
+    ownerDocument.removeEventListener('mouseup', handleMouseUp, true);
     onTeardown?.();
   };
 
@@ -102,8 +103,8 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
     teardown();
   };
 
-  document.addEventListener('mousemove', handleMouseMove, true);
-  document.addEventListener('mouseup', handleMouseUp, true);
+  ownerDocument.addEventListener('mousemove', handleMouseMove, true);
+  ownerDocument.addEventListener('mouseup', handleMouseUp, true);
   event.preventDefault();
 
   return {

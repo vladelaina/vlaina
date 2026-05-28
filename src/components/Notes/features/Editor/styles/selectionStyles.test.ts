@@ -502,6 +502,8 @@ describe('editor embedded CodeMirror selection styles', () => {
   it('uses the editor block handle token for the visible drag handle', () => {
     const css = readStyleFile('core.css');
 
+    expect(css).toContain('.vlaina-block-controls.visible,\n.vlaina-block-controls.dragging {');
+    expect(css).toContain('pointer-events: auto;');
     expect(css).toContain('.vlaina-block-controls.visible .vlaina-block-control-handle,');
     expect(css).toContain('.vlaina-block-controls.dragging .vlaina-block-control-handle {');
     expect(css).toContain('color: var(--vlaina-editor-block-selection-handle, var(--vlaina-text-primary, #2c2c2b));');

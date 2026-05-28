@@ -28,6 +28,7 @@ import { createVerticalEdgeAutoScroll, type VerticalEdgeAutoScrollHandle } from 
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const CONTROLS_LEFT_OFFSET = 44;
 const MIN_DROP_DISTANCE_PX = 4;
+const HANDLE_VERTICAL_GAP_PX = 24;
 const WHEEL_DELTA_MODE_LINE = 1;
 const WHEEL_DELTA_MODE_PAGE = 2;
 const WHEEL_LINE_HEIGHT_PX = 16;
@@ -70,6 +71,7 @@ export class BlockControlsViewSession {
   private dragStartClientY: number | null = null;
   private lastDragClientX: number | null = null;
   private lastDragClientY: number | null = null;
+  private pointerX: number | null = null;
   private pointerY: number | null = null;
   private refreshRafId = 0;
 
@@ -146,8 +148,39 @@ export class BlockControlsViewSession {
     return normalizeBlockRanges(getBlockSelectionPluginState(this.view.state).selectedBlocks);
   }
 
+  private isPointerInEditorScrollRoot(): boolean {
+    if (this.pointerX === null || this.pointerY === null) return false;
+    if (!this.scrollRoot) return true;
+
+    const rect = this.scrollRoot.getBoundingClientRect();
+    return this.pointerX >= rect.left
+      && this.pointerX <= rect.right
+      && this.pointerY >= rect.top
+      && this.pointerY <= rect.bottom;
+  }
+
+  private isPointerNearTarget(target: HandleBlockTarget): boolean {
+    if (this.pointerY === null) return false;
+    if (this.pointerY >= target.rect.top && this.pointerY <= target.rect.bottom) return true;
+
+    const distance = this.pointerY < target.rect.top
+      ? target.rect.top - this.pointerY
+      : this.pointerY - target.rect.bottom;
+    return distance <= HANDLE_VERTICAL_GAP_PX;
+  }
+
   private hideControls(): void {
     this.controls.classList.remove('visible');
+  }
+
+  private clearPointer(): void {
+    this.pointerX = null;
+    this.pointerY = null;
+  }
+
+  private setPointer(clientX: number, clientY: number): void {
+    this.pointerX = clientX;
+    this.pointerY = clientY;
   }
 
   private hideDropIndicator(): void {
@@ -215,9 +248,13 @@ export class BlockControlsViewSession {
 
   private showHandleForPointer(): void {
     if (this.draggedRanges) return;
+    if (!this.isPointerInEditorScrollRoot()) {
+      this.hideControls();
+      return;
+    }
     const targets = this.getCachedHandleTargets();
     const nextTarget = pickPointerBlock(targets, this.pointerY);
-    if (!nextTarget) {
+    if (!nextTarget || !this.isPointerNearTarget(nextTarget)) {
       this.hideControls();
       return;
     }
@@ -288,6 +325,7 @@ export class BlockControlsViewSession {
     this.dragAutoScroll.start();
     this.dragStartClientX = event.clientX;
     this.dragStartClientY = event.clientY;
+    this.setPointer(event.clientX, event.clientY);
     const composerText = serializeDraggedRangesForComposer(this.view, draggableRanges);
     setBlockDraggingVisualState(true, composerText ? { text: composerText } : null);
     this.controls.classList.add('dragging');
@@ -310,6 +348,7 @@ export class BlockControlsViewSession {
 
   private readonly handleDocumentMouseMove = (event: MouseEvent): void => {
     if (this.draggedRanges) {
+      this.setPointer(event.clientX, event.clientY);
       this.lastDragClientX = event.clientX;
       this.lastDragClientY = event.clientY;
       if (isOverNotesBlockDropTarget(this.doc, event.clientX, event.clientY)) {
@@ -325,7 +364,7 @@ export class BlockControlsViewSession {
       return;
     }
 
-    this.pointerY = event.clientY;
+    this.setPointer(event.clientX, event.clientY);
     this.scheduleHandleRefresh();
   };
 
@@ -376,6 +415,7 @@ export class BlockControlsViewSession {
 
   private readonly handleDocumentMouseUp = (event: MouseEvent): void => {
     if (!this.draggedRanges) return;
+    this.setPointer(event.clientX, event.clientY);
     event.preventDefault();
     const draggedDistance = this.dragStartClientX === null || this.dragStartClientY === null
       ? 0
@@ -401,8 +441,11 @@ export class BlockControlsViewSession {
   };
 
   private readonly handleWindowBlur = (): void => {
-    if (!this.draggedRanges) return;
-    this.finishDrag();
+    if (this.draggedRanges) {
+      this.finishDrag();
+    }
+    this.clearPointer();
+    this.hideControls();
     this.invalidateTargetCache();
     this.scheduleHandleRefresh();
   };
@@ -412,6 +455,8 @@ export class BlockControlsViewSession {
     if (event.key !== 'Escape') return;
     event.preventDefault();
     this.finishDrag();
+    this.clearPointer();
+    this.hideControls();
     this.invalidateTargetCache();
     this.scheduleHandleRefresh();
   };
