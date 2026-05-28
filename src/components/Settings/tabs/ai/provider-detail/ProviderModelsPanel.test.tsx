@@ -138,6 +138,29 @@ describe('ProviderModelsPanel', () => {
     expect(onAddModel).toHaveBeenCalledWith('beta');
   });
 
+  it('adds a model directly when a quick add suggestion is clicked', () => {
+    const onAddAllVisible = vi.fn();
+    const onQuickAddModelIdChange = vi.fn();
+
+    render(
+      <ProviderModelsPanel
+        {...buildProps({
+          quickAddModelId: 'gm',
+          sortedFetchedModels: ['alpha', 'gpt-4o-mini'],
+          filteredFetchedModels: ['alpha', 'gpt-4o-mini'],
+          onAddAllVisible,
+          onQuickAddModelIdChange,
+        })}
+      />,
+    );
+
+    fireEvent.focus(screen.getByPlaceholderText('Add a model ID'));
+    fireEvent.click(screen.getByText('gpt-4o-mini'));
+
+    expect(onAddAllVisible).toHaveBeenCalledWith(['gpt-4o-mini']);
+    expect(onQuickAddModelIdChange).toHaveBeenCalledWith('');
+  });
+
   it('adds all visible available models from the available header', () => {
     const onAddAllVisible = vi.fn();
 

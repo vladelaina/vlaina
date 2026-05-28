@@ -7,6 +7,7 @@ import {
   replaceTrailingQuickAddSegment,
 } from './ProviderModelListParts';
 import { useI18n } from '@/lib/i18n';
+import { rankByFuzzySearch } from './fuzzyModelSearch';
 
 interface ProviderQuickAddProps {
   value: string;
@@ -36,14 +37,17 @@ export function ProviderQuickAdd({
   const quickAddQuery = quickAddSegments[quickAddSegments.length - 1]?.trim() ?? '';
   const queuedQuickAddIds = new Set(quickAddIds.slice(0, -1).map((id) => id.toLowerCase()));
   const suggestions = quickAddQuery
-    ? sortedFetchedModels.filter((modelId) => {
-        const normalizedModelId = modelId.toLowerCase();
-        return (
-          !providerModelIdSet.has(normalizedModelId) &&
-          !queuedQuickAddIds.has(normalizedModelId) &&
-          normalizedModelId.includes(quickAddQuery.toLowerCase())
-        );
-      })
+    ? rankByFuzzySearch(
+        sortedFetchedModels.filter((modelId) => {
+          const normalizedModelId = modelId.toLowerCase();
+          return (
+            !providerModelIdSet.has(normalizedModelId) &&
+            !queuedQuickAddIds.has(normalizedModelId)
+          );
+        }),
+        quickAddQuery,
+        (modelId) => modelId
+      )
     : [];
   const showSuggestions = isFocused && suggestions.length > 0;
 
@@ -58,13 +62,11 @@ export function ProviderQuickAdd({
 
   useEffect(() => {
     if (!showSuggestions) return;
-    itemRefs.current[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
+    const highlightedItem = itemRefs.current[highlightedIndex];
+    if (typeof highlightedItem?.scrollIntoView === 'function') {
+      highlightedItem.scrollIntoView({ block: 'nearest' });
+    }
   }, [highlightedIndex, showSuggestions]);
-
-  const selectSuggestion = (modelId: string) => {
-    onValueChange(replaceTrailingQuickAddSegment(value, modelId));
-    if (error) onSetError('');
-  };
 
   const submit = (modelId?: string) => {
     const nextValue = modelId ? replaceTrailingQuickAddSegment(value, modelId) : value;
@@ -142,7 +144,7 @@ export function ProviderQuickAdd({
                   }}
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => selectSuggestion(modelId)}
+                  onClick={() => submit(modelId)}
                   onMouseEnter={() => setHighlightedIndex(index)}
                   className={cn(
                     'flex w-full items-center rounded-[16px] px-3.5 py-2.5 text-left text-[13px] font-medium transition-colors',

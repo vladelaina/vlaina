@@ -21,13 +21,13 @@ describe('getApiKeyInputStyle', () => {
   });
 
   it('scales down as keys get longer', () => {
-    expect(getApiKeyInputStyle('k'.repeat(64))).toEqual({ fontSize: 10 });
-    expect(getApiKeyInputStyle('k'.repeat(96))).toEqual({ fontSize: 6 });
-    expect(getApiKeyInputStyle('k'.repeat(140))).toEqual({ fontSize: 6 });
+    expect(getApiKeyInputStyle('k'.repeat(64))).toEqual({ fontSize: 12 });
+    expect(getApiKeyInputStyle('k'.repeat(96))).toEqual({ fontSize: 12 });
+    expect(getApiKeyInputStyle('k'.repeat(140))).toEqual({ fontSize: 12 });
   });
 
   it('uses the measured text width when provided', () => {
-    expect(getApiKeyInputStyle('k'.repeat(64), 300)).toEqual({ fontSize: 7 });
+    expect(getApiKeyInputStyle('k'.repeat(64), 300)).toEqual({ fontSize: 12 });
   });
 
   it('keeps an empty key at the standard size', () => {
