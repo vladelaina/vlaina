@@ -180,4 +180,71 @@ describe('startBlockDragSession', () => {
     expect(onPlainClick).not.toHaveBeenCalled();
     expect(onTeardown).toHaveBeenCalledTimes(1);
   });
+
+  it('listens on the editor owner document instead of the global document', () => {
+    const iframe = document.createElement('iframe');
+    document.body.appendChild(iframe);
+    const ownerDocument = iframe.contentDocument;
+    if (!ownerDocument || !iframe.contentWindow) {
+      throw new Error('Expected iframe document');
+    }
+    const OwnerMouseEvent = (iframe.contentWindow as unknown as { MouseEvent: typeof MouseEvent }).MouseEvent;
+    const editorRoot = ownerDocument.createElement('div');
+    editorRoot.className = 'milkdown-editor';
+    const dom = ownerDocument.createElement('div');
+    editorRoot.appendChild(dom);
+    ownerDocument.body.appendChild(editorRoot);
+
+    const view = { dom } as any;
+    const onActivate = vi.fn();
+    const onDragMove = vi.fn();
+    const onPlainClick = vi.fn();
+    const onTeardown = vi.fn();
+    const event = new OwnerMouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 10,
+      clientY: 10,
+    });
+
+    startBlockDragSession({
+      view,
+      event,
+      startZone: 'outside-editor',
+      dragThreshold: 1,
+      cursor: 'crosshair',
+      onActivate,
+      onDragMove,
+      onPlainClick,
+      onTeardown,
+    });
+
+    document.dispatchEvent(new MouseEvent('mousemove', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 30,
+      clientY: 30,
+      buttons: 1,
+    }));
+
+    expect(onActivate).not.toHaveBeenCalled();
+    expect(onDragMove).not.toHaveBeenCalled();
+
+    ownerDocument.dispatchEvent(new OwnerMouseEvent('mousemove', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 30,
+      clientY: 30,
+      buttons: 1,
+    }));
+    ownerDocument.dispatchEvent(new OwnerMouseEvent('mouseup', {
+      bubbles: true,
+      cancelable: true,
+    }));
+
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    expect(onDragMove).toHaveBeenCalledTimes(1);
+    expect(onPlainClick).not.toHaveBeenCalled();
+    expect(onTeardown).toHaveBeenCalledTimes(1);
+  });
 });

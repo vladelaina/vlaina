@@ -494,14 +494,16 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
   display: flex;
   align-items: center;
   gap: 0;
-  pointer-events: auto;
+  pointer-events: none;
   opacity: 0;
   transform: translateY(-50%);
   transition: opacity 120ms ease;
 }
 
-.vlaina-block-controls.visible {
+.vlaina-block-controls.visible,
+.vlaina-block-controls.dragging {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .vlaina-block-controls .vlaina-block-control-btn {

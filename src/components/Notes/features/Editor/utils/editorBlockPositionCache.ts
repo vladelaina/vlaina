@@ -354,12 +354,25 @@ export function subscribeCurrentEditorBlockPositionSnapshot(
   };
 }
 
+function isFreshSnapshotForView(
+  snapshot: EditorBlockPositionSnapshot,
+  view: EditorView,
+): boolean {
+  const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+  return snapshot.view === view
+    && snapshot.doc === view.state.doc
+    && snapshot.editorRoot === view.dom
+    && snapshot.scrollRoot === scrollRoot
+    && snapshot.scrollLeft === (scrollRoot?.scrollLeft ?? 0)
+    && snapshot.scrollTop === (scrollRoot?.scrollTop ?? 0);
+}
+
 export function getCachedEditorBlockTargets(
   view: EditorView,
   ranges?: readonly { from: number; to: number }[],
 ): SelectableBlockTarget[] | null {
   const snapshot = currentSnapshot;
-  if (!snapshot || snapshot.view !== view) {
+  if (!snapshot || !isFreshSnapshotForView(snapshot, view)) {
     return null;
   }
 
@@ -386,12 +399,8 @@ export function getFreshCachedEditorBlockTargets(
   const snapshot = currentSnapshot;
   if (
     !snapshot
-    || snapshot.view !== view
-    || snapshot.doc !== view.state.doc
-    || snapshot.editorRoot !== view.dom
+    || !isFreshSnapshotForView(snapshot, view)
     || snapshot.scrollRoot !== scrollRoot
-    || snapshot.scrollLeft !== (scrollRoot?.scrollLeft ?? 0)
-    || snapshot.scrollTop !== (scrollRoot?.scrollTop ?? 0)
   ) {
     return null;
   }
@@ -411,7 +420,7 @@ export function getCachedEditorBlockTargetByPos(
   blockPos: number,
 ): SelectableBlockTarget | null {
   const snapshot = currentSnapshot;
-  if (!snapshot || snapshot.view !== view) {
+  if (!snapshot || !isFreshSnapshotForView(snapshot, view)) {
     return null;
   }
 

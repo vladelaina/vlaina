@@ -123,7 +123,7 @@ describe('BlockControlsViewSession', () => {
       const controls = document.querySelector<HTMLElement>('.vlaina-block-controls');
       expect(controls?.style.top).toBe('50px');
 
-      mocks.targetTop = 120;
+      mocks.targetTop = 54;
       setCurrentEditorBlockPositionSnapshot({
         version: 1,
         view,
@@ -137,8 +137,63 @@ describe('BlockControlsViewSession', () => {
       });
       await nextFrame();
 
-      expect(controls?.style.top).toBe('130px');
+      expect(controls?.style.top).toBe('64px');
       expect(mocks.setControlsPosition).toHaveBeenCalledTimes(2);
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('hides the handle when the pointer leaves the current note scroll root', async () => {
+    const view = createView({ scrollRoot: true });
+    const session = new BlockControlsViewSession(view);
+
+    try {
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 50, bubbles: true }));
+      await nextFrame();
+
+      const controls = document.querySelector<HTMLElement>('.vlaina-block-controls');
+      expect(controls?.classList.contains('visible')).toBe(true);
+
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 140, bubbles: true }));
+      await nextFrame();
+
+      expect(controls?.classList.contains('visible')).toBe(false);
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('does not snap the handle to the nearest selected block when the pointer is far away', async () => {
+    const view = createView({ scrollRoot: true });
+    const session = new BlockControlsViewSession(view);
+
+    try {
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 95, bubbles: true }));
+      await nextFrame();
+
+      const controls = document.querySelector<HTMLElement>('.vlaina-block-controls');
+      expect(controls?.classList.contains('visible')).toBe(false);
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('hides the visible handle when the window loses focus', async () => {
+    const view = createView({ scrollRoot: true });
+    const session = new BlockControlsViewSession(view);
+
+    try {
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 50, bubbles: true }));
+      await nextFrame();
+
+      const controls = document.querySelector<HTMLElement>('.vlaina-block-controls');
+      expect(controls?.classList.contains('visible')).toBe(true);
+
+      window.dispatchEvent(new Event('blur'));
+      await nextFrame();
+
+      expect(controls?.classList.contains('visible')).toBe(false);
     } finally {
       session.destroy();
     }
@@ -167,6 +222,51 @@ describe('BlockControlsViewSession', () => {
       document.dispatchEvent(new MouseEvent('mouseup', { clientX: 40, clientY: 120, bubbles: true }));
 
       expect(applyBlockMove).not.toHaveBeenCalled();
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('does not reshow the handle at the drag start position after dropping outside the note viewport', async () => {
+    const view = createView({ scrollRoot: true });
+    const session = new BlockControlsViewSession(view);
+
+    vi.mocked(resolveDropTarget).mockReturnValue({
+      insertPos: 5,
+      lineLeft: 80,
+      lineY: 100,
+      lineWidth: 280,
+    });
+
+    try {
+      document
+        .querySelector<HTMLElement>('.vlaina-block-control-handle')
+        ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 50, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 40, clientY: 140, buttons: 1, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mouseup', { clientX: 40, clientY: 140, bubbles: true }));
+      await nextFrame();
+
+      const controls = document.querySelector<HTMLElement>('.vlaina-block-controls');
+      expect(controls?.classList.contains('visible')).toBe(false);
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('hides the handle after canceling a block drag with Escape', async () => {
+    const view = createView({ scrollRoot: true });
+    const session = new BlockControlsViewSession(view);
+
+    try {
+      document
+        .querySelector<HTMLElement>('.vlaina-block-control-handle')
+        ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 50, bubbles: true }));
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 40, clientY: 60, buttons: 1, bubbles: true }));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await nextFrame();
+
+      const controls = document.querySelector<HTMLElement>('.vlaina-block-controls');
+      expect(controls?.classList.contains('visible')).toBe(false);
     } finally {
       session.destroy();
     }

@@ -1,9 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createCurrentEditorBlockPositionController,
+  clearCurrentEditorBlockPositionSnapshot,
+  getCachedEditorBlockTargetByPos,
+  getCachedEditorBlockTargets,
   getCurrentEditorBlockPositionSnapshot,
   isEditorHiddenByToolbarPreview,
   resolveToolbarPreviewRoot,
+  setCurrentEditorBlockPositionSnapshot,
 } from './editorBlockPositionCache';
 
 function rect(top: number, bottom: number, width = 320): DOMRect {
@@ -177,5 +181,106 @@ describe('editorBlockPositionCache', () => {
 
     controller.destroy();
     dom.remove();
+  });
+
+  it('does not return block targets from a stale document snapshot', () => {
+    const dom = document.createElement('div');
+    document.body.appendChild(dom);
+    const oldDoc = { content: { size: 4 } };
+    const newDoc = { content: { size: 4 } };
+    const block = document.createElement('p');
+    dom.appendChild(block);
+
+    const view = {
+      dom,
+      state: { doc: newDoc },
+    };
+
+    setCurrentEditorBlockPositionSnapshot({
+      version: 1,
+      view: view as any,
+      doc: oldDoc as any,
+      editorRoot: dom,
+      scrollRoot: null,
+      scrollLeft: 0,
+      scrollTop: 0,
+      blocks: [{
+        from: 0,
+        to: 4,
+        element: block,
+        rect: rect(10, 30),
+        documentTop: 10,
+        documentBottom: 30,
+        tagName: 'P',
+        headingLevel: null,
+        headingId: null,
+        headingText: null,
+      }],
+      headings: [],
+    });
+
+    try {
+      expect(getCachedEditorBlockTargets(view as any)).toBeNull();
+      expect(getCachedEditorBlockTargetByPos(view as any, 0)).toBeNull();
+    } finally {
+      clearCurrentEditorBlockPositionSnapshot();
+      dom.remove();
+    }
+  });
+
+  it('does not return block targets from a stale scroll snapshot', () => {
+    const scrollRoot = document.createElement('div');
+    scrollRoot.setAttribute('data-note-scroll-root', 'true');
+    scrollRoot.scrollTop = 20;
+    scrollRoot.getBoundingClientRect = () => rect(0, 200, 640);
+    const dom = document.createElement('div');
+    const block = document.createElement('p');
+    dom.appendChild(block);
+    scrollRoot.appendChild(dom);
+    document.body.appendChild(scrollRoot);
+
+    const doc = {
+      content: { size: 4 },
+      resolve: () => ({
+        nodeAfter: { type: { name: 'paragraph' }, nodeSize: 4 },
+      }),
+    };
+    const view = {
+      dom,
+      state: { doc },
+    };
+
+    setCurrentEditorBlockPositionSnapshot({
+      version: 1,
+      view: view as any,
+      doc: doc as any,
+      editorRoot: dom,
+      scrollRoot,
+      scrollLeft: 0,
+      scrollTop: 20,
+      blocks: [{
+        from: 0,
+        to: 4,
+        element: block,
+        rect: rect(10, 30),
+        documentTop: 30,
+        documentBottom: 50,
+        tagName: 'P',
+        headingLevel: null,
+        headingId: null,
+        headingText: null,
+      }],
+      headings: [],
+    });
+
+    try {
+      scrollRoot.scrollTop = 80;
+
+      expect(getCachedEditorBlockTargets(view as any)).toBeNull();
+      expect(getCachedEditorBlockTargetByPos(view as any, 0)).toBeNull();
+    } finally {
+      clearCurrentEditorBlockPositionSnapshot();
+      scrollRoot.remove();
+    }
   });
 });
