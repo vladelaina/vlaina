@@ -135,7 +135,7 @@ export function createWorkspaceDiskSyncAction(
           if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
             return 'ignored';
           }
-          set({ error: 'Current note changed outside vlaina while you still have unsaved changes.' });
+          set({ error: null });
           return 'conflict';
         }
 
@@ -180,7 +180,7 @@ export function createWorkspaceDiskSyncAction(
               latestContent,
               latestCachedModifiedAt ?? cachedModifiedAt,
             ),
-            error: 'Current note changed outside vlaina while you still have unsaved changes.',
+            error: null,
           });
           return 'conflict';
         }
