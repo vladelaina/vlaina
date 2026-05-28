@@ -477,7 +477,7 @@ describe('CodeBlockNodeView', () => {
     nodeView.destroy();
   });
 
-  it('collapses the embedded editor selection when the code block loses focus', () => {
+  it('keeps the embedded editor selection when window blur has no next focus target', () => {
     const nodeView = new CodeBlockNodeView(createMockNode(false), createMockView(), () => 1);
     const cm = getCodeMirror(nodeView);
 
@@ -489,6 +489,28 @@ describe('CodeBlockNodeView', () => {
     });
 
     cm.dom.dispatchEvent(new FocusEvent('blur'));
+
+    expect(cm.state.selection.main.anchor).toBe(0);
+    expect(cm.state.selection.main.head).toBe(5);
+    expect(cm.state.selection.main.empty).toBe(false);
+
+    nodeView.destroy();
+  });
+
+  it('collapses the embedded editor selection when focus moves to another element', () => {
+    const nodeView = new CodeBlockNodeView(createMockNode(false), createMockView(), () => 1);
+    const cm = getCodeMirror(nodeView);
+    const nextFocusTarget = document.createElement('button');
+    document.body.appendChild(nextFocusTarget);
+
+    cm.dispatch({
+      selection: {
+        anchor: 0,
+        head: 5,
+      },
+    });
+
+    cm.dom.dispatchEvent(new FocusEvent('blur', { relatedTarget: nextFocusTarget }));
 
     expect(cm.state.selection.main.anchor).toBe(5);
     expect(cm.state.selection.main.head).toBe(5);
