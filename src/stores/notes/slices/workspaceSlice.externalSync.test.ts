@@ -577,6 +577,7 @@ describe('workspaceSlice external sync', () => {
       content: '# pending edit',
     });
     expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().error).toBeNull();
     expect(store.getState().openTabs).toEqual([
       { path: 'docs/alpha.md', name: 'alpha', isDirty: true },
     ]);
@@ -651,6 +652,7 @@ describe('workspaceSlice external sync', () => {
       content: '# local edit during sync',
     });
     expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().error).toBeNull();
     expect(store.getState().openTabs).toEqual([
       { path: 'docs/alpha.md', name: 'alpha', isDirty: true },
     ]);
