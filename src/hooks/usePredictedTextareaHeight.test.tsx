@@ -23,10 +23,12 @@ vi.mock('@/lib/text-layout', () => ({
 class ResizeObserverMock {
   static instances: ResizeObserverMock[] = [];
 
+  callback: ResizeObserverCallback;
   observe = vi.fn();
   disconnect = vi.fn();
 
-  constructor(_callback: ResizeObserverCallback) {
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
     ResizeObserverMock.instances.push(this);
   }
 }
@@ -100,6 +102,35 @@ describe('usePredictedTextareaHeight', () => {
 
       expect(textarea!.style.height).toBe('60px');
       expect(textLayoutMocks.measureTextareaContentHeight).toHaveBeenCalledTimes(1);
+    } finally {
+      if (originalClientWidth) {
+        Object.defineProperty(HTMLTextAreaElement.prototype, 'clientWidth', originalClientWidth);
+      } else {
+        delete (HTMLTextAreaElement.prototype as { clientWidth?: number }).clientWidth;
+      }
+    }
+  });
+
+  it('ignores ResizeObserver callbacks caused by its own stable height write', () => {
+    const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'clientWidth');
+    Object.defineProperty(HTMLTextAreaElement.prototype, 'clientWidth', {
+      configurable: true,
+      get: () => 320,
+    });
+
+    try {
+      const view = render(<Harness value="borderline wrap" />);
+      const textarea = view.container.querySelector('textarea');
+      expect(textarea).not.toBeNull();
+      expect(textarea!.style.height).toBe('60px');
+      expect(textLayoutMocks.measureTextareaContentHeight).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        ResizeObserverMock.instances[0]!.callback([], ResizeObserverMock.instances[0] as unknown as ResizeObserver);
+      });
+
+      expect(textLayoutMocks.measureTextareaContentHeight).toHaveBeenCalledTimes(1);
+      expect(textarea!.style.height).toBe('60px');
     } finally {
       if (originalClientWidth) {
         Object.defineProperty(HTMLTextAreaElement.prototype, 'clientWidth', originalClientWidth);

@@ -855,7 +855,7 @@ export function ModelSelector({
       <button
         onClick={toggleSelector}
         className={cn(
-          "flex h-8 cursor-pointer items-center gap-2 rounded-full px-2.5 transition-all duration-200 group",
+          "flex h-8 cursor-pointer items-center gap-2 rounded-full px-2.5 transition-[background-color,color,box-shadow] duration-200 group",
           chatComposerPillSurfaceClass,
           selectedModel ? styles.triggerTextActive : styles.triggerText
         )}

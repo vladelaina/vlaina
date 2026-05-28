@@ -38,6 +38,10 @@ export function usePredictedTextareaHeight(
     element: HTMLTextAreaElement;
     metrics: ElementTextLayoutMetrics;
   } | null>(null);
+  const lastAppliedRef = useRef<{
+    height: string;
+    width: number;
+  } | null>(null);
   const retryFrameRef = useRef<number | null>(null);
   const retryTimeoutRef = useRef<number | null>(null);
 
@@ -90,6 +94,7 @@ export function usePredictedTextareaHeight(
       const width = current.clientWidth;
       if (width <= 0) {
         current.style.height = '';
+        lastAppliedRef.current = null;
         scheduleRetry();
         return;
       }
@@ -109,9 +114,20 @@ export function usePredictedTextareaHeight(
           minHeight: Math.max(0, nextMinHeight - metrics.paddingBlock),
           maxHeight: Math.max(0, nextMaxHeight - metrics.paddingBlock),
         });
-        current.style.height = `${nextHeight + metrics.paddingBlock}px`;
+        const nextStyleHeight = `${nextHeight + metrics.paddingBlock}px`;
+        if (current.style.height !== nextStyleHeight) {
+          current.style.height = nextStyleHeight;
+        }
+        lastAppliedRef.current = {
+          height: nextStyleHeight,
+          width,
+        };
       } catch {
         applyFallbackHeight(current, nextMinHeight, nextMaxHeight);
+        lastAppliedRef.current = {
+          height: current.style.height,
+          width,
+        };
       }
     };
 
@@ -129,6 +145,16 @@ export function usePredictedTextareaHeight(
 
     observerRef.current?.disconnect();
     const resizeObserver = new ResizeObserver(() => {
+      const current = textareaRef.current;
+      const lastApplied = lastAppliedRef.current;
+      if (
+        current &&
+        lastApplied &&
+        current.clientWidth === lastApplied.width &&
+        current.style.height === lastApplied.height
+      ) {
+        return;
+      }
       applyHeightRef.current();
     });
     resizeObserver.observe(textarea);
@@ -143,6 +169,7 @@ export function usePredictedTextareaHeight(
       observerRef.current = null;
       observedTextareaRef.current = null;
       metricsRef.current = null;
+      lastAppliedRef.current = null;
     };
   }, []);
 
