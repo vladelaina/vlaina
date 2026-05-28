@@ -7,13 +7,57 @@ interface ProviderFetchInit {
   signal?: AbortSignal;
 }
 
+const PROVIDER_GET_RETRY_DELAYS_MS = [300];
+const PROVIDER_FAST_FAILURE_RETRY_WINDOW_MS = 2000;
+
 export async function providerFetch(url: string, init: ProviderFetchInit): Promise<Response> {
   const bridge = getElectronBridge();
   if (bridge?.aiProvider) {
     return desktopProviderFetch(url, init, bridge.aiProvider);
   }
 
-  return fetch(url, init);
+  return fetchWithGetRetry(url, init);
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
+function delayProviderRetry(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) {
+    return Promise.reject(new DOMException('Aborted', 'AbortError'));
+  }
+
+  return new Promise((resolve, reject) => {
+    let timeout: ReturnType<typeof setTimeout>;
+    const abort = () => {
+      clearTimeout(timeout);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    const complete = () => {
+      signal?.removeEventListener('abort', abort);
+      resolve();
+    };
+    signal?.addEventListener('abort', abort, { once: true });
+    timeout = setTimeout(complete, ms);
+  });
+}
+
+async function fetchWithGetRetry(url: string, init: ProviderFetchInit): Promise<Response> {
+  const shouldRetry = init.method === 'GET';
+  for (let attempt = 0; ; attempt += 1) {
+    const startedAt = Date.now();
+    try {
+      return await fetch(url, init);
+    } catch (error) {
+      const retryDelayMs = shouldRetry ? PROVIDER_GET_RETRY_DELAYS_MS[attempt] : undefined;
+      const failedQuickly = Date.now() - startedAt <= PROVIDER_FAST_FAILURE_RETRY_WINDOW_MS;
+      if (isAbortError(error) || init.signal?.aborted || retryDelayMs == null || !failedQuickly) {
+        throw error;
+      }
+      await delayProviderRetry(retryDelayMs, init.signal);
+    }
+  }
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
