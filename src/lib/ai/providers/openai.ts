@@ -18,6 +18,8 @@ import { consumeOpenAIStream } from '@/lib/ai/streaming'
 import { normalizeApiTranscriptMessage } from '@/lib/ai/apiTranscript'
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
 import {
+  runOpenAIWebSearchJsonPrefetchRequest,
+  runOpenAIWebSearchPrefetchRequest,
   runOpenAIWebSearchJsonToolLoop,
   runOpenAIWebSearchToolLoop,
 } from '@/lib/ai/webSearch/openAIToolLoop'
@@ -108,6 +110,17 @@ function isDeepSeekOpenAICompatible(provider: Provider, model: AIModel): boolean
     model.apiModelId,
   ].join(' ').toLowerCase()
   return haystack.includes('deepseek')
+}
+
+function isClaudeModel(provider: Provider, model: AIModel): boolean {
+  const haystack = [
+    provider.id,
+    provider.name,
+    provider.apiHost,
+    model.name,
+    model.apiModelId,
+  ].join(' ').toLowerCase()
+  return haystack.includes('claude') || haystack.includes('anthropic')
 }
 
 function shouldReplayApiTranscript(provider: Provider, model: AIModel): boolean {
@@ -713,6 +726,20 @@ export class OpenAICompatibleClient implements AIClient {
         }, onChunk)
       }
       if (options?.webSearchEnabled && !isGrokModel(provider, model)) {
+        if (isClaudeModel(provider, model)) {
+          return runOpenAIWebSearchJsonPrefetchRequest({
+            body,
+            onChunk: onChunk || (() => {}),
+            onStatus: options.onWebSearchStatus,
+            onApiTranscript: options.onApiTranscript,
+            signal,
+            requestJson: (nextBody) =>
+              requestManagedChatCompletion({
+                ...nextBody,
+                stream: false,
+              } as unknown as Record<string, unknown>),
+          })
+        }
         return runOpenAIWebSearchJsonToolLoop({
           body,
           onChunk: onChunk || (() => {}),
@@ -795,6 +822,22 @@ export class OpenAICompatibleClient implements AIClient {
       }
       if (isGrokModel(provider, model)) {
         return this.streamResponse(url, headers, body, onChunk || (() => {}), signal, options)
+      }
+      if (isClaudeModel(provider, model)) {
+        return runOpenAIWebSearchPrefetchRequest({
+          body,
+          onChunk: onChunk || (() => {}),
+          onStatus: options.onWebSearchStatus,
+          onApiTranscript: options.onApiTranscript,
+          signal,
+          request: (nextBody) => this.requestOpenAIChatCompletionWithRetry({
+            url,
+            headers,
+            body: nextBody,
+            signal,
+            scope: 'web-search-prefetch-model',
+          }),
+        })
       }
       return runOpenAIWebSearchToolLoop({
         body,

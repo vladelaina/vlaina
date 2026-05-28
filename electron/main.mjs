@@ -10,7 +10,7 @@ import { registerManagedIpc } from './managedIpc.mjs';
 import { isTrustedRendererUrl as isTrustedRendererUrlForConfig } from './rendererTrust.mjs';
 import { createWindowManager } from './windowManager.mjs';
 import { configureDevelopmentUserDataPath } from './userDataPath.mjs';
-import { registerWebSearchIpc } from './webSearch/ipc.mjs';
+import { createWebSearchServices, registerWebSearchIpc } from './webSearch/ipc.mjs';
 
 const { app, BrowserWindow, Menu, Tray, ipcMain, session, shell } = electron;
 
@@ -220,6 +220,10 @@ function configureDefaultSessionSafely() {
     session.defaultSession.setPermissionCheckHandler(() => false);
   } catch (error) {
   }
+}
+
+function fetchWithElectronSession(url, init) {
+  return electron.net.fetch(url, init);
 }
 
 async function requestManagedJson(pathname, init = {}) {
@@ -921,7 +925,10 @@ registerDesktopIpc({
   requireStringArray,
 });
 
-registerWebSearchIpc({ handleIpc });
+registerWebSearchIpc({
+  handleIpc,
+  services: createWebSearchServices({ fetchImpl: fetchWithElectronSession }),
+});
 
 handleIpc('desktop:secrets:get-ai-provider-secrets', async (_event, providerIds) => {
   const { data } = await readSecretsStore();

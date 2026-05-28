@@ -5,10 +5,9 @@ export const WEB_SEARCH_TOOL_NAMES = {
 } as const;
 
 export const WEB_SEARCH_SYSTEM_INSTRUCTION =
-  'When web search is enabled, use the web_search tool first for current or source-dependent questions. ' +
-  'Then choose the most relevant results and read pages with read_web_page or read_web_pages before answering. ' +
-  'Do not answer from search result snippets alone; after every successful search, read at least one relevant page unless no results are available. ' +
-  'Synthesize across sources, include source links in the final answer, and do not answer only from snippets.';
+  'Web search is optional. Use it only when the user asks for current, time-sensitive, location-specific, or source-verifiable information. ' +
+  'For casual chat or tasks answerable from general knowledge, answer without searching. ' +
+  'If you search, read at least one relevant page before answering and include source links.';
 
 export function buildWebSearchTools(): Array<Record<string, unknown>> {
   return [
