@@ -54,6 +54,16 @@ function getContentCommitThrottleMs(): number {
   return DEFAULT_CONTENT_COMMIT_THROTTLE_MS;
 }
 
+function publishLiveMarkdownPreview(path: string | undefined, content: string) {
+  if (!path || typeof window === 'undefined') {
+    return;
+  }
+
+  window.dispatchEvent(new CustomEvent('vlaina:note-markdown-preview', {
+    detail: { path, content },
+  }));
+}
+
 function isContentEditingUserEvent(event: Event): boolean {
   if (event.type === 'compositionstart' || event.type === 'compositionend') {
     return true;
@@ -254,6 +264,7 @@ export function usePendingMarkdownAutosave({
         return;
       }
 
+      publishLiveMarkdownPreview(currentNotePath, markdown);
       pendingRawMarkdownRef.current = markdown;
       pendingUserInputVersionRef.current = userInputVersion;
       if (pendingMarkdownUpdateFrameRef.current !== null) {

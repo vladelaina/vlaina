@@ -45,6 +45,7 @@ import { autoPairPlugin } from '../plugins/pairs/autoPairPlugin';
 import { titleNavigationPlugin } from '../plugins/cursor/titleNavigationPlugin';
 import { typewriterModePlugin } from '../plugins/cursor/typewriterModePlugin';
 import { editorShortcutsPlugin } from '../plugins/editorShortcutsPlugin';
+import { tagTokenPlugin } from '../plugins/tags/tagTokenPlugin';
 
 export const customPluginGroups = [
   {
@@ -131,6 +132,7 @@ export const customPluginGroups = [
       endBlankClickPlugin,
       titleNavigationPlugin,
       typewriterModePlugin,
+      tagTokenPlugin,
       editorShortcutsPlugin,
     ],
   },
