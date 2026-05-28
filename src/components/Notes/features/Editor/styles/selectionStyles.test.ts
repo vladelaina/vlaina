@@ -438,8 +438,9 @@ describe('editor embedded CodeMirror selection styles', () => {
     const lineFillSource = readBlockSelectionLineFillOverlaySource();
 
     expect(css).toContain('--vlaina-editor-block-selection-base: var(--vlaina-color-editor-block-selection, var(--vlaina-color-accent, #1e96eb));');
-    expect(css).toContain('--vlaina-editor-block-selection-bg: #bedffe;');
-    expect(css).toContain('--vlaina-editor-block-selection-fg: #fefbf9;');
+    expect(css).toContain('--vlaina-editor-block-selection-bg: var(--vlaina-color-editor-block-selection-bg, #bedffe);');
+    expect(css).toContain('--vlaina-editor-block-selection-fg: var(--vlaina-color-editor-block-selection-fg, #fefbf9);');
+    expect(css).toContain('--vlaina-editor-block-selection-handle: var(--vlaina-color-editor-block-selection-handle, var(--vlaina-text-primary, #2c2c2b));');
     expect(css).toContain('--vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg, #bedffe);');
     expect(css).toContain('--vlaina-block-selection-bleed-x-start: 48px;');
     expect(css).toContain('--vlaina-block-selection-bleed-x-end: 48px;');
@@ -456,7 +457,7 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('background-color: transparent;');
     expect(css).toContain('box-shadow: none;');
     expect(css).toContain('color: var(--vlaina-editor-block-selection-fg, #fefbf9);');
-    expect(source).toContain("const DRAG_BOX_COLOR = 'rgb(190 223 254 / 0.42)';");
+    expect(source).toContain("const DRAG_BOX_COLOR = 'var(--vlaina-color-editor-block-selection-drag-box, rgb(190 223 254 / 0.42))';");
     expect(lineFillSource).toContain('function resolveLineFillLeft(paragraph: HTMLElement): number {');
     expect(lineFillSource).toContain('function resolveLineFillRight(view: EditorView, paragraph: HTMLElement): number {');
     expect(lineFillSource).toContain('const selectedBlockRight = editorRect.width > 0 ? editorRect.right : paragraphRect.right;');
@@ -496,6 +497,15 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('opacity: 0 !important;');
     expect(css).toContain('background: transparent !important;');
     expect(css).toContain('transform: none !important;');
+  });
+
+  it('uses the editor block handle token for the visible drag handle', () => {
+    const css = readStyleFile('core.css');
+
+    expect(css).toContain('.vlaina-block-controls.visible .vlaina-block-control-handle,');
+    expect(css).toContain('.vlaina-block-controls.dragging .vlaina-block-control-handle {');
+    expect(css).toContain('color: var(--vlaina-editor-block-selection-handle, var(--vlaina-text-primary, #2c2c2b));');
+    expect(css).toContain('.vlaina-block-controls.visible .vlaina-block-control-handle:hover {');
   });
 
   it('keeps list collapse toggles clear of wide ordered-list markers', () => {
