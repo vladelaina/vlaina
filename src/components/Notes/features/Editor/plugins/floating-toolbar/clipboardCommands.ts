@@ -8,6 +8,14 @@ interface CopySelectionOptions {
   collapseAfterCopy?: boolean;
 }
 
+function isSameEditorValue<T>(current: T, previous: T): boolean {
+  const maybeComparable = current as { eq?: (other: T) => boolean };
+  if (typeof maybeComparable.eq === 'function') {
+    return maybeComparable.eq(previous);
+  }
+  return current === previous;
+}
+
 export async function copySelectionToClipboard(
   view: EditorView,
   options: CopySelectionOptions = {}
@@ -26,8 +34,8 @@ export async function copySelectionToClipboard(
 
   if (
     options.collapseAfterCopy !== false &&
-    view.state.doc.eq(doc) &&
-    selection.eq(view.state.selection)
+    isSameEditorValue(view.state.doc, doc) &&
+    isSameEditorValue(selection, view.state.selection)
   ) {
     collapseSelectionAndHideFloatingToolbar(view);
   }

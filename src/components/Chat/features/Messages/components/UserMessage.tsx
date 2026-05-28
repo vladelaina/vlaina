@@ -10,7 +10,7 @@ import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/c
 import { UserMessageEditor } from './UserMessageEditor';
 import {
   isSvgSource,
-  parseUserMessageContent,
+  parseUserMessageContentWithKnownImages,
 } from './userMessageContent';
 import { useUIStore } from '@/stores/uiSlice';
 import { MessageVersionNavigator } from './MessageVersionNavigator';
@@ -40,14 +40,10 @@ function UserMessageInner({
   const fontSize = useUIStore((state) => state.fontSize);
   const content = message.content || '';
   const parsedContent = useMemo(() => {
-    const parsed = parseUserMessageContent(content);
-    if (message.role === 'user' && message.imageSources && message.imageSources.length > 0) {
-      return {
-        ...parsed,
-        imageSources: message.imageSources,
-      };
-    }
-    return parsed;
+    return parseUserMessageContentWithKnownImages(
+      content,
+      message.role === 'user' ? message.imageSources : undefined,
+    );
   }, [content, message.imageSources, message.role]);
 
   const [isEditing, setIsEditing] = useState(false);

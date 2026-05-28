@@ -8,6 +8,8 @@ describe("normalizeRenderableImageSrc", () => {
     expect(normalizeRenderableImageSrc("data:image/png;base64,abc")).toBe("data:image/png;base64,abc");
     expect(normalizeRenderableImageSrc("blob:https://example.com/id")).toBe("blob:https://example.com/id");
     expect(normalizeRenderableImageSrc("asset://localhost/image.png")).toBe("asset://localhost/image.png");
+    expect(normalizeRenderableImageSrc("attachment://demo%20image.png")).toBe("attachment://demo%20image.png");
+    expect(normalizeRenderableImageSrc("app-file://attachment/demo%20image.png")).toBe("app-file://attachment/demo%20image.png");
   });
 
   it("allows relative image paths", () => {
@@ -21,6 +23,7 @@ describe("normalizeRenderableImageSrc", () => {
     expect(normalizeRenderableImageSrc("vbscript:msgbox(1)")).toBeNull();
     expect(normalizeRenderableImageSrc("file:///tmp/image.png")).toBeNull();
     expect(normalizeRenderableImageSrc("app://localhost/image.png")).toBeNull();
+    expect(normalizeRenderableImageSrc("app-file://other/image.png")).toBeNull();
     expect(normalizeRenderableImageSrc("custom://localhost/image.png")).toBeNull();
     expect(normalizeRenderableImageSrc("asset://evilhost/image.png")).toBeNull();
     expect(normalizeRenderableImageSrc("")).toBeNull();
@@ -39,6 +42,8 @@ describe("createMarkdownSanitizeSchema", () => {
     const srcProtocols = schema.protocols?.src || [];
 
     expect(srcProtocols).toContain("asset");
+    expect(srcProtocols).toContain("attachment");
+    expect(srcProtocols).toContain("app-file");
     expect(srcProtocols).toContain("data");
     expect(srcProtocols).toContain("blob");
     expect(hrefProtocols).not.toContain("asset");

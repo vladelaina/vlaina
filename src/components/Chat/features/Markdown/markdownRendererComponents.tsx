@@ -15,6 +15,7 @@ import { normalizeImageWidth, serializeCropValue } from '@/components/common/mar
 import { isMermaidFenceLanguage } from '@/components/common/markdown/mermaidLanguage';
 import { parseVideoUrl } from '@/components/common/markdown/videoUrl';
 import { translate, useI18n } from '@/lib/i18n';
+import { resolveCompactedChatImageSrc } from './chatInlineImageTokens';
 
 type ImageGalleryItem = { id: string; src: string };
 
@@ -26,6 +27,7 @@ type CreateMarkdownComponentsOptions = {
   imageIndexOffset?: number;
   imageGallery?: ImageGalleryItem[];
   imageIdBase?: string;
+  imageSrcByToken?: Map<string, string>;
   onCopyCodeBlock?: (blockId: string) => void;
 };
 
@@ -163,6 +165,7 @@ function MarkdownImage({
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [resolvedImageSrc, setResolvedImageSrc] = useState<string | null>(null);
 
   useEffect(() => {
     if (!copied) {
@@ -200,6 +203,7 @@ function MarkdownImage({
           className="block max-h-[420px] w-auto max-w-full object-contain"
           style={safeWidth ? { width: safeWidth } : undefined}
           data-vlaina-crop={safeCrop || undefined}
+          onResolvedSrc={setResolvedImageSrc}
           onClick={() => {
             setIsViewerOpen(true);
           }}
@@ -241,6 +245,7 @@ function MarkdownImage({
         alt={alt}
         gallery={gallery}
         currentImageId={currentImageId}
+        previewSrc={resolvedImageSrc}
         onOpenChange={setIsViewerOpen}
       />
     </span>
@@ -255,6 +260,7 @@ export function createMarkdownComponents({
   imageIndexOffset = 0,
   imageGallery,
   imageIdBase,
+  imageSrcByToken,
   onCopyCodeBlock,
 }: CreateMarkdownComponentsOptions) {
   let imageRenderIndex = imageIndexOffset;
@@ -328,12 +334,8 @@ export function createMarkdownComponents({
     },
     img({ src, alt, align, width, dataVlainaCrop, 'data-vlaina-crop': dataVlainaCropKebab }: MarkdownImageProps) {
       const rawSrc = typeof src === 'string' ? src : null;
-      if (rawSrc && parseVideoUrl(rawSrc)) {
-        return <ReadOnlyVideoBlock src={rawSrc} title={typeof alt === 'string' ? alt : ''} />;
-      }
-
-      const safeSrc = normalizeRenderableImageSrc(rawSrc);
-      if (!safeSrc) {
+      const normalizedRawSrc = normalizeRenderableImageSrc(rawSrc);
+      if (!normalizedRawSrc) {
         return (
           <span
             className="inline-block rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-500 dark:bg-zinc-800 dark:text-gray-400"
@@ -342,6 +344,11 @@ export function createMarkdownComponents({
             [{translate('chat.imageUnavailable')}]
           </span>
         );
+      }
+
+      const safeSrc = resolveCompactedChatImageSrc(normalizedRawSrc, imageSrcByToken);
+      if (parseVideoUrl(safeSrc)) {
+        return <ReadOnlyVideoBlock src={safeSrc} title={typeof alt === 'string' ? alt : ''} />;
       }
 
       const currentImageId = imageIdBase ? `${imageIdBase}:${imageRenderIndex}` : undefined;

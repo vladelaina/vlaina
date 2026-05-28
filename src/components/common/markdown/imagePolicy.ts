@@ -1,4 +1,5 @@
 import { defaultSchema } from 'rehype-sanitize';
+import { isAppFileAttachmentUrl } from '@/lib/storage/attachmentUrl';
 
 const IMAGE_PROTOCOL_WHITELIST = new Set([
   'http:',
@@ -6,6 +7,8 @@ const IMAGE_PROTOCOL_WHITELIST = new Set([
   'data:',
   'blob:',
   'asset:',
+  'attachment:',
+  'app-file:',
 ]);
 
 const RELATIVE_PREFIXES = ['/', './', '../'];
@@ -58,6 +61,9 @@ export function normalizeRenderableImageSrc(src: string | null | undefined): str
     if (parsed.protocol === 'asset:') {
       return isAllowedAssetUrl(parsed) ? trimmed : null;
     }
+    if (parsed.protocol === 'app-file:') {
+      return isAppFileAttachmentUrl(parsed) ? trimmed : null;
+    }
     if (!IMAGE_PROTOCOL_WHITELIST.has(parsed.protocol)) {
       return null;
     }
@@ -88,7 +94,7 @@ export function createMarkdownSanitizeSchema() {
     protocols: {
       ...protocols,
       href: Array.from(new Set([...hrefProtocols, 'tel'])),
-      src: Array.from(new Set([...srcProtocols, 'http', 'https', 'data', 'blob', 'asset'])),
+      src: Array.from(new Set([...srcProtocols, 'http', 'https', 'data', 'blob', 'asset', 'attachment', 'app-file'])),
     },
     // Keep generated Notes color marks without admitting arbitrary raw style payloads.
     attributes: {

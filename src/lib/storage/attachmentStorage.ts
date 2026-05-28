@@ -1,5 +1,10 @@
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { getStorageAdapter, joinPath } from './adapter';
+import { extractStoredAttachmentFilename } from './attachmentUrl';
+import {
+    getPrimaryAttachmentDir,
+    getPrimaryAttachmentPath,
+} from './attachmentPaths';
 
 export interface Attachment {
     id: string;
@@ -11,7 +16,6 @@ export interface Attachment {
     size: number;
 }
 
-const ATTACHMENT_DIR = 'attachments';
 const DATA_URL_REGEX = /^data:([^;,]+)(;base64)?,(.*)$/i;
 
 interface SaveAttachmentOptions {
@@ -42,7 +46,7 @@ export async function saveAttachment(file: File, options: SaveAttachmentOptions 
     if (options.persist !== false) {
         try {
             const appDataPath = await storage.getBasePath();
-            const dirPath = await joinPath(appDataPath, ATTACHMENT_DIR);
+            const dirPath = await getPrimaryAttachmentDir(appDataPath);
 
             if (!(await storage.exists(dirPath))) {
                 await storage.mkdir(dirPath, true);
@@ -88,8 +92,7 @@ export async function deleteAttachment(attachment: Attachment): Promise<void> {
     }
 
     const basePath = await storage.getBasePath();
-    const fullPath = await joinPath(basePath, ATTACHMENT_DIR, storedFilename);
-    await storage.deleteFile(fullPath).catch(() => {});
+    await storage.deleteFile(await getPrimaryAttachmentPath(basePath, storedFilename)).catch(() => {});
 }
 
 function inferDataUrlExtension(mimeType: string): string {
@@ -133,7 +136,7 @@ export async function persistDataUrlAttachment(dataUrl: string): Promise<string 
 
     const storage = getStorageAdapter();
     const appDataPath = await storage.getBasePath();
-    const dirPath = await joinPath(appDataPath, ATTACHMENT_DIR);
+    const dirPath = await getPrimaryAttachmentDir(appDataPath);
 
     if (!(await storage.exists(dirPath))) {
         await storage.mkdir(dirPath, true);
@@ -165,45 +168,6 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
     return window.btoa(binary);
 }
 
-function sanitizeAttachmentFilename(value: string): string | null {
-    const normalized = value.trim();
-    if (!normalized || normalized === '.' || normalized === '..' || /[\\/]/.test(normalized)) {
-        return null;
-    }
-    return normalized;
-}
-
-function decodeAttachmentFilename(value: string): string | null {
-    try {
-        return sanitizeAttachmentFilename(decodeURIComponent(value));
-    } catch {
-        return sanitizeAttachmentFilename(value);
-    }
-}
-
-function extractStoredAttachmentFilename(src: string): string | null {
-    const trimmed = src.trim();
-    if (!trimmed) return null;
-
-    if (trimmed.startsWith('attachment://')) {
-        return decodeAttachmentFilename(trimmed.slice('attachment://'.length));
-    }
-
-    if (trimmed.startsWith('app-file://attachment/')) {
-        return decodeAttachmentFilename(trimmed.slice('app-file://attachment/'.length));
-    }
-
-    try {
-        const url = new URL(trimmed);
-        const marker = '/attachments/';
-        const markerIndex = url.pathname.lastIndexOf(marker);
-        if (markerIndex === -1) return null;
-        return decodeAttachmentFilename(url.pathname.slice(markerIndex + marker.length));
-    } catch {
-        return null;
-    }
-}
-
 export async function convertToBase64(attachment: Attachment): Promise<string> {
     if (attachment.previewUrl.startsWith('data:')) {
         return attachment.previewUrl;
@@ -225,8 +189,7 @@ export async function convertToBase64(attachment: Attachment): Promise<string> {
         extractStoredAttachmentFilename(attachment.assetUrl);
     if (storedFilename) {
         const basePath = await storage.getBasePath();
-        const fullPath = await joinPath(basePath, ATTACHMENT_DIR, storedFilename);
-        const data = await storage.readBinaryFile(fullPath);
+        const data = await storage.readBinaryFile(await getPrimaryAttachmentPath(basePath, storedFilename));
         const base64 = uint8ArrayToBase64(data);
         return `data:${attachment.type};base64,${base64}`;
     }

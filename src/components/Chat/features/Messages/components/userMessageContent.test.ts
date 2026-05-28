@@ -3,6 +3,7 @@ import type { Attachment } from '@/lib/storage/attachmentStorage';
 import {
   composeUserMessageContent,
   parseUserMessageContent,
+  parseUserMessageContentWithKnownImages,
 } from './userMessageContent';
 
 function createAttachment(overrides: Partial<Attachment>): Attachment {
@@ -44,6 +45,15 @@ describe('userMessageContent', () => {
   it('parses image markdown separately from text', () => {
     expect(parseUserMessageContent('![image](<attachment://demo.png>)\n\nhello')).toEqual({
       imageSources: ['attachment://demo.png'],
+      text: 'hello',
+    });
+  });
+
+  it('uses known image sources to avoid reparsing large inline image payloads', () => {
+    const source = `data:image/png;base64,${'a'.repeat(60_000)}`;
+
+    expect(parseUserMessageContentWithKnownImages(`![image](<${source}>)\n\nhello`, [source])).toEqual({
+      imageSources: [source],
       text: 'hello',
     });
   });

@@ -30,6 +30,7 @@ import { extractMarkdownImageSources } from '@/components/Chat/common/messageCli
 
 let switchSessionGeneration = 0;
 const DATA_IMAGE_SOURCE_PREFIX = 'data:image/'
+const inlineImagePersistenceSessions = new Set<string>()
 
 function collectInlineImageSourcesFromContent(content: string | undefined) {
   if (!content) {
@@ -139,41 +140,50 @@ function applyImageSourceReplacements(messages: ChatMessage[], replacements: Map
 }
 
 async function persistInlineImageSourcesForSession(sessionId: string) {
-  const state = useUnifiedStore.getState()
-  const ai = state.data.ai!
-  const messages = ai.messages[sessionId] || []
-  const sources = collectInlineImageSources(messages)
-  if (sources.size === 0) {
+  if (inlineImagePersistenceSessions.has(sessionId)) {
     return
   }
 
-  const replacements = new Map<string, string>()
-  for (const source of sources) {
-    const persistedSource = await persistDataUrlAttachment(source).catch(() => null)
-    if (persistedSource) {
-      replacements.set(source, persistedSource)
+  inlineImagePersistenceSessions.add(sessionId)
+  try {
+    const state = useUnifiedStore.getState()
+    const ai = state.data.ai!
+    const messages = ai.messages[sessionId] || []
+    const sources = collectInlineImageSources(messages)
+    if (sources.size === 0) {
+      return
     }
-  }
 
-  if (replacements.size === 0) {
-    return
-  }
+    const replacements = new Map<string, string>()
+    for (const source of sources) {
+      const persistedSource = await persistDataUrlAttachment(source).catch(() => null)
+      if (persistedSource) {
+        replacements.set(source, persistedSource)
+      }
+    }
 
-  const latestState = useUnifiedStore.getState()
-  const latestAI = latestState.data.ai!
-  if (!latestAI.sessions.some((session) => session.id === sessionId)) {
-    return
-  }
-  const latestMessages = latestAI.messages[sessionId] || []
-  const nextMessages = applyImageSourceReplacements(latestMessages, replacements)
+    if (replacements.size === 0) {
+      return
+    }
 
-  latestState.updateAIData({
-    messages: {
-      ...latestAI.messages,
-      [sessionId]: nextMessages,
-    },
-  }, true)
-  void saveSessionJson(sessionId, nextMessages)
+    const latestState = useUnifiedStore.getState()
+    const latestAI = latestState.data.ai!
+    if (!latestAI.sessions.some((session) => session.id === sessionId)) {
+      return
+    }
+    const latestMessages = latestAI.messages[sessionId] || []
+    const nextMessages = applyImageSourceReplacements(latestMessages, replacements)
+
+    latestState.updateAIData({
+      messages: {
+        ...latestAI.messages,
+        [sessionId]: nextMessages,
+      },
+    }, true)
+    void saveSessionJson(sessionId, nextMessages)
+  } finally {
+    inlineImagePersistenceSessions.delete(sessionId)
+  }
 }
 
 export function createSessionActions() {
@@ -373,6 +383,9 @@ export function createSessionActions() {
           }
         })
       }
+      globalThis.setTimeout(() => {
+        void persistInlineImageSourcesForSession(sessionId)
+      }, 0)
     },
 
     updateSession: (id: string, updates: Partial<ChatSession>) => {

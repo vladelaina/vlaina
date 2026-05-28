@@ -20,6 +20,7 @@ import {
 import 'katex/dist/katex.min.css';
 import '@/components/common/markdown/markdownSurface.css';
 import { readonlyMarkdownUrlTransform } from '@/components/common/markdown/urlTransform';
+import { compactLargeDataImageMarkdown } from './chatInlineImageTokens';
 
 interface MarkdownRendererProps {
   content: string;
@@ -246,6 +247,10 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     }
     const renderedContent =
       selectionFrozenContentRef.current ?? suspendedStreamContentRef.current ?? content;
+    const compactedContent = useMemo(
+      () => compactLargeDataImageMarkdown(renderedContent),
+      [renderedContent],
+    );
 
     const clearReleaseSelectionFreezeTimeout = useCallback(() => {
       if (releaseSelectionFreezeTimeoutRef.current === null) {
@@ -411,13 +416,13 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     }, []);
 
     const { body: thinking, isComplete: isThinkingDone, markdown } = useMemo(() => {
-      const sections = extractThinkingSections(renderedContent || '');
+      const sections = extractThinkingSections(compactedContent.markdown || '');
       return {
         body: sections.body || null,
         isComplete: sections.isComplete,
         markdown: sections.markdown,
       };
-    }, [renderedContent]);
+    }, [compactedContent.markdown]);
 
     const componentOptions = useMemo<Parameters<typeof createMarkdownComponents>[0]>(() => ({
       codeBlockIdBase,
@@ -425,6 +430,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       getImageGallery,
       imageGallery,
       imageIdBase,
+      imageSrcByToken: compactedContent.imageSrcByToken,
       onCopyCodeBlock,
     }), [
       codeBlockIdBase,
@@ -432,6 +438,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       getImageGallery,
       imageGallery,
       imageIdBase,
+      compactedContent.imageSrcByToken,
       onCopyCodeBlock,
     ]);
 

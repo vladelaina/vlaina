@@ -65,6 +65,40 @@ export function parseUserMessageContent(content: string): ParsedUserMessageConte
   };
 }
 
+export function parseUserMessageContentWithKnownImages(
+  content: string,
+  imageSources: string[] | undefined,
+): ParsedUserMessageContent {
+  if (!imageSources || imageSources.length === 0) {
+    return parseUserMessageContent(content);
+  }
+
+  let cursor = 0;
+  for (const source of imageSources) {
+    const wrappedToken = `![image](<${source}>)`;
+    const plainToken = `![image](${source})`;
+    if (content.startsWith(wrappedToken, cursor)) {
+      cursor += wrappedToken.length;
+    } else if (content.startsWith(plainToken, cursor)) {
+      cursor += plainToken.length;
+    } else {
+      return {
+        imageSources,
+        text: stripMarkdownImageTokens(content).trim(),
+      };
+    }
+
+    while (content[cursor] === '\n' || content[cursor] === '\r') {
+      cursor += 1;
+    }
+  }
+
+  return {
+    imageSources,
+    text: content.slice(cursor).trim(),
+  };
+}
+
 export function composeUserMessageContent(text: string, attachments: Attachment[]): string {
   const normalizedText = text.replace(/\r\n?/g, '\n');
   const imageMarkdown = attachments

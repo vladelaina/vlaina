@@ -3,7 +3,11 @@ import { render, screen } from '@testing-library/react';
 import type React from 'react';
 
 vi.mock('@/components/Chat/common/LocalImage', () => ({
-  LocalImage: (props: React.ImgHTMLAttributes<HTMLImageElement> & { alt?: string; src: string }) => (
+  LocalImage: ({ onResolvedSrc: _onResolvedSrc, ...props }: React.ImgHTMLAttributes<HTMLImageElement> & {
+    alt?: string;
+    onResolvedSrc?: (src: string | null) => void;
+    src: string;
+  }) => (
     <img data-testid="local-image" {...props} alt={props.alt || 'image'} />
   ),
 }));
@@ -20,6 +24,14 @@ describe('MarkdownRenderer images', () => {
 
     expect(screen.getByTestId('local-image')).toHaveAttribute('src', 'data:image/png;base64,abc123');
     expect(screen.queryByText('[Image unavailable]')).not.toBeInTheDocument();
+  });
+
+  it('compacts large inline base64 image markdown before rendering', () => {
+    const src = `data:image/png;base64,${'a'.repeat(60_000)}`;
+
+    render(<MarkdownRenderer content={`![Generated image](<${src}>)`} />);
+
+    expect(screen.getByTestId('local-image')).toHaveAttribute('src', src);
   });
 
   it('still renders legacy unwrapped base64 image markdown', () => {

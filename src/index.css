@@ -409,6 +409,8 @@ html, body, #root {
     inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
 }
 
+.vlaina-floating-popover-shadow,
+.vlaina-floating-popover-shadow:hover,
 .vlaina-user-menu-popover {
   box-shadow:
     0 8px 24px rgba(15, 23, 42, 0.08),

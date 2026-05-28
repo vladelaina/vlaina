@@ -7,6 +7,7 @@ import { writeTextToClipboard } from "@/lib/clipboard";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { copyImageSourceToClipboard } from "@/components/Chat/common/messageClipboard";
 import { downloadImageWithPrompt } from "@/components/Chat/common/imageDownload";
+import { chatPopoverPillSurfaceClass } from "@/components/Chat/features/Input/composerStyles";
 import { useI18n } from "@/lib/i18n";
 import { convertToBase64, type Attachment } from "@/lib/storage/attachmentStorage";
 
@@ -16,6 +17,7 @@ interface ChatImageViewerProps {
   alt?: string;
   gallery?: Array<{ id: string; src: string }>;
   currentImageId?: string;
+  previewSrc?: string | null;
   onOpenChange: (open: boolean) => void;
 }
 
@@ -27,6 +29,41 @@ const TRANSPARENT_IMAGE_DATA_URL =
 const VIEWER_CONTROL_SELECTOR = '[data-chat-image-viewer-control="true"]';
 const CROPPER_IMAGE_SELECTOR = '.reactEasyCrop_Image';
 const VIEWER_SURFACE_SELECTOR = '[data-chat-image-viewer-surface="true"]';
+const resolvedViewerImageCache = new Map<string, Promise<string>>();
+const imageViewerToolbarButtonClass =
+  "inline-flex h-9 w-9 items-center justify-center rounded-full bg-transparent text-slate-700 transition-colors hover:bg-black/5 dark:text-slate-700 dark:hover:bg-black/5";
+
+function getViewerFitBounds(viewportSize: { width: number; height: number }) {
+  const horizontalPadding = viewportSize.width < 640 ? 28 : 96;
+  const verticalPadding = viewportSize.height < 640 ? 96 : 140;
+  return {
+    maxWidth: Math.max(1, viewportSize.width - horizontalPadding),
+    maxHeight: Math.max(1, viewportSize.height - verticalPadding),
+  };
+}
+
+function resolveInitialViewerZoom({
+  mediaHeight,
+  mediaWidth,
+  naturalHeight,
+  naturalWidth,
+  viewportSize,
+}: {
+  mediaHeight: number;
+  mediaWidth: number;
+  naturalHeight: number;
+  naturalWidth: number;
+  viewportSize: { width: number; height: number };
+}): number {
+  const { maxHeight, maxWidth } = getViewerFitBounds(viewportSize);
+  const targetWidth = Math.min(naturalWidth || mediaWidth, maxWidth);
+  const targetHeight = Math.min(naturalHeight || mediaHeight, maxHeight);
+  return clampZoom(Math.min(
+    1,
+    targetWidth / Math.max(mediaWidth, 1),
+    targetHeight / Math.max(mediaHeight, 1),
+  ));
+}
 
 async function copyImageOrUrl(src: string): Promise<boolean> {
   const copied = await copyImageSourceToClipboard(src);
@@ -80,6 +117,11 @@ async function resolveViewerImageSource(src: string): Promise<string> {
     return src;
   }
 
+  const cached = resolvedViewerImageCache.get(src);
+  if (cached) {
+    return cached;
+  }
+
   const attachment: Attachment = {
     id: "viewer-image",
     path: "",
@@ -89,7 +131,12 @@ async function resolveViewerImageSource(src: string): Promise<string> {
     type: inferAttachmentMimeType(src),
     size: 0,
   };
-  return convertToBase64(attachment);
+  const resolved = convertToBase64(attachment).catch((error) => {
+    resolvedViewerImageCache.delete(src);
+    throw error;
+  });
+  resolvedViewerImageCache.set(src, resolved);
+  return resolved;
 }
 
 export function ChatImageViewer({
@@ -98,6 +145,7 @@ export function ChatImageViewer({
   alt,
   gallery,
   currentImageId,
+  previewSrc,
   onOpenChange,
 }: ChatImageViewerProps) {
   const { t } = useI18n();
@@ -107,6 +155,8 @@ export function ChatImageViewer({
   const [copied, setCopied] = useState(false);
   const [aspectRatio, setAspectRatio] = useState(1);
   const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
+  const [mediaSize, setMediaSize] = useState<{ width: number; height: number; naturalWidth: number; naturalHeight: number } | null>(null);
+  const [mediaReady, setMediaReady] = useState(false);
   const [viewportSize, setViewportSize] = useState({ width: 1440, height: 900 });
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(-1);
   const [resolvedActiveSrc, setResolvedActiveSrc] = useState(src);
@@ -153,7 +203,8 @@ export function ChatImageViewer({
     }
 
     let active = true;
-    setResolvedActiveSrc(activeSrc);
+    const immediateSrc = activeSrc === src && previewSrc ? previewSrc : activeSrc;
+    setResolvedActiveSrc(immediateSrc);
 
     resolveViewerImageSource(activeSrc)
       .then((resolvedSrc) => {
@@ -170,7 +221,7 @@ export function ChatImageViewer({
     return () => {
       active = false;
     };
-  }, [activeSrc, open]);
+  }, [activeSrc, open, previewSrc, src]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -205,34 +256,6 @@ export function ChatImageViewer({
     if (!open || typeof window === "undefined") {
       return;
     }
-    let active = true;
-    const image = new window.Image();
-    image.onload = () => {
-      if (!active) {
-        return;
-      }
-      const width = image.naturalWidth || 1;
-      const height = image.naturalHeight || 1;
-      setAspectRatio(width / height);
-      setImageSize({ width, height });
-    };
-    image.onerror = () => {
-      if (!active) {
-        return;
-      }
-      setAspectRatio(1);
-      setImageSize(null);
-    };
-    image.src = cropperImageSrc;
-    return () => {
-      active = false;
-    };
-  }, [cropperImageSrc, open]);
-
-  useEffect(() => {
-    if (!open || typeof window === "undefined") {
-      return;
-    }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onOpenChange(false);
@@ -262,23 +285,28 @@ export function ChatImageViewer({
     return `${imageSize.width}×${imageSize.height}`;
   }, [imageSize]);
   const previewMetrics = useMemo(() => {
-    const isMobile = viewportSize.width < 640;
-    const maxWidth = Math.min(viewportSize.width * (isMobile ? 0.94 : 0.86), 1200);
-    const maxHeight = Math.min(viewportSize.height * (isMobile ? 0.74 : 0.78), 900);
+    const { maxHeight, maxWidth } = getViewerFitBounds(viewportSize);
     const safeAspect = aspectRatio > 0 ? aspectRatio : 1;
     const viewportAspect = viewportSize.width / Math.max(viewportSize.height, 1);
-    const fitWidthAtZoomOne =
+    const fitWidthAtZoomOne = mediaSize?.width || (
       safeAspect >= viewportAspect
         ? viewportSize.width
-        : viewportSize.height * safeAspect;
-    const fitHeightAtZoomOne =
+        : viewportSize.height * safeAspect
+    );
+    const fitHeightAtZoomOne = mediaSize?.height || (
       safeAspect >= viewportAspect
         ? viewportSize.width / safeAspect
-        : viewportSize.height;
+        : viewportSize.height
+    );
+    const naturalWidth = mediaSize?.naturalWidth || imageSize?.width || fitWidthAtZoomOne;
+    const naturalHeight = mediaSize?.naturalHeight || imageSize?.height || fitHeightAtZoomOne;
+    const targetWidth = Math.min(naturalWidth, maxWidth);
+    const targetHeight = Math.min(naturalHeight, maxHeight);
     const initialZoom = clampZoom(
       Math.min(
-        maxWidth / Math.max(fitWidthAtZoomOne, 1),
-        maxHeight / Math.max(fitHeightAtZoomOne, 1)
+        1,
+        targetWidth / Math.max(fitWidthAtZoomOne, 1),
+        targetHeight / Math.max(fitHeightAtZoomOne, 1)
       )
     );
     const minZoom = Math.max(0.2, Number((initialZoom * 0.35).toFixed(2)));
@@ -286,7 +314,14 @@ export function ChatImageViewer({
       initialZoom,
       minZoom,
     };
-  }, [aspectRatio, viewportSize.height, viewportSize.width]);
+  }, [aspectRatio, imageSize?.height, imageSize?.width, mediaSize, viewportSize.height, viewportSize.width]);
+  const cropperViewportSize = useMemo(
+    () => ({
+      width: Math.max(1, viewportSize.width),
+      height: Math.max(1, viewportSize.height),
+    }),
+    [viewportSize.height, viewportSize.width],
+  );
 
   const isPointOnImage = useCallback((clientX: number, clientY: number) => {
     if (typeof document !== "undefined" && typeof document.elementsFromPoint === "function") {
@@ -377,8 +412,18 @@ export function ChatImageViewer({
       return;
     }
     setCrop({ x: 0, y: 0 });
-    setZoom(previewMetrics.initialZoom);
-  }, [activeSrc, open, previewMetrics.initialZoom]);
+    setMediaSize(null);
+    setMediaReady(false);
+  }, [activeSrc, open]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    if (mediaReady) {
+      setZoom(previewMetrics.initialZoom);
+    }
+  }, [activeSrc, mediaReady, open, previewMetrics.initialZoom]);
 
   useEffect(() => {
     if (!copied) return;
@@ -476,10 +521,16 @@ export function ChatImageViewer({
         )}
 
         <div className="relative h-full w-full">
-          <div className="absolute inset-0">
+          <div
+            className={cn(
+              "absolute inset-0 transition-opacity duration-100",
+              mediaReady ? "opacity-100" : "opacity-0"
+            )}
+          >
             <Cropper
               image={cropperImageSrc}
               crop={crop}
+              cropSize={cropperViewportSize}
               zoom={zoom}
               minZoom={previewMetrics.minZoom}
               maxZoom={MAX_ZOOM}
@@ -490,6 +541,31 @@ export function ChatImageViewer({
               objectFit="contain"
               setImageRef={(ref) => {
                 imageElementRef.current = ref.current;
+              }}
+              onMediaLoaded={(mediaSize) => {
+                if (cropperImageSrc === TRANSPARENT_IMAGE_DATA_URL) {
+                  return;
+                }
+                const width = mediaSize.naturalWidth || mediaSize.width || 1;
+                const height = mediaSize.naturalHeight || mediaSize.height || 1;
+                const nextZoom = resolveInitialViewerZoom({
+                  mediaHeight: mediaSize.height || height,
+                  mediaWidth: mediaSize.width || width,
+                  naturalHeight: height,
+                  naturalWidth: width,
+                  viewportSize,
+                });
+                setAspectRatio(width / height);
+                setImageSize({ width, height });
+                setMediaSize({
+                  width: mediaSize.width || width,
+                  height: mediaSize.height || height,
+                  naturalWidth: width,
+                  naturalHeight: height,
+                });
+                setCrop({ x: 0, y: 0 });
+                setZoom(nextZoom);
+                setMediaReady(true);
               }}
               onCropChange={setCrop}
               onZoomChange={(value) => setZoom(clampZoom(value))}
@@ -503,10 +579,6 @@ export function ChatImageViewer({
                   background: "transparent",
                   pointerEvents: "none",
                 },
-                mediaStyle: {
-                  maxWidth: "none",
-                  maxHeight: "none",
-                },
               }}
             />
           </div>
@@ -514,7 +586,10 @@ export function ChatImageViewer({
           <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center">
             <div
               data-chat-image-viewer-control="true"
-              className="pointer-events-auto inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-2 py-2 text-slate-800 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
+              className={cn(
+                "pointer-events-auto inline-flex items-center gap-1 rounded-full px-2 py-2 text-slate-800",
+                chatPopoverPillSurfaceClass
+              )}
               onClick={(event) => event.stopPropagation()}
             >
               <button
@@ -522,7 +597,7 @@ export function ChatImageViewer({
                 aria-label={t('chat.zoomOut')}
                 data-no-focus-input="true"
                 className={cn(
-                  "inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-700 transition-colors hover:bg-zinc-100",
+                  imageViewerToolbarButtonClass,
                   iconButtonStyles
                 )}
                 onClick={() => setZoom((value) => clampZoom(value - ZOOM_STEP))}
@@ -537,7 +612,7 @@ export function ChatImageViewer({
                 aria-label={t('chat.zoomIn')}
                 data-no-focus-input="true"
                 className={cn(
-                  "inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-700 transition-colors hover:bg-zinc-100",
+                  imageViewerToolbarButtonClass,
                   iconButtonStyles
                 )}
                 onClick={() => setZoom((value) => clampZoom(value + ZOOM_STEP))}
@@ -556,7 +631,11 @@ export function ChatImageViewer({
                 aria-label={t('chat.copyImage')}
                 data-no-focus-input="true"
                 data-action="copy"
-                className={cn("toolbar-btn", copied && "active")}
+                className={cn(
+                  imageViewerToolbarButtonClass,
+                  iconButtonStyles,
+                  copied && "text-[var(--vlaina-accent,#3b82f6)] bg-[rgb(39_131_222_/_0.12)]"
+                )}
                 onClick={() => {
                     void handleCopy();
                 }}
@@ -568,7 +647,7 @@ export function ChatImageViewer({
                 aria-label={t('chat.downloadImage')}
                 data-no-focus-input="true"
                 className={cn(
-                  "inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-700 transition-colors hover:bg-zinc-100",
+                  imageViewerToolbarButtonClass,
                   iconButtonStyles
                 )}
                 onClick={() => {

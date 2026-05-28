@@ -201,6 +201,7 @@ describe('chat window selection isolation', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     clearSessionIdAliases();
     useAIUIStore.setState({
       generatingSessions: {},
@@ -309,6 +310,67 @@ describe('chat window selection isolation', () => {
 
     expect(useAIUIStore.getState().currentSessionId).toBe('session-2');
     expect(useUnifiedStore.getState().data.ai?.currentSessionId).toBe('session-1');
+  });
+
+  it('persists inline images in a cached session after switching without blocking selection', async () => {
+    vi.useFakeTimers();
+    mocked.persistDataUrlAttachment.mockResolvedValueOnce('attachment://persisted.png');
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              messages: {
+                ...state.data.ai.messages,
+                'session-2': [
+                  {
+                    id: 'm2',
+                    role: 'user',
+                    content: '![image](<data:image/png;base64,INLINE>)\n\nDescribe',
+                    imageSources: ['data:image/png;base64,INLINE'],
+                    modelId: managedModel.id,
+                    timestamp: 2,
+                    versions: [{
+                      content: '![image](<data:image/png;base64,INLINE>)\n\nDescribe',
+                      createdAt: 2,
+                      kind: 'original' as const,
+                      subsequentMessages: [],
+                    }],
+                    currentVersionIndex: 0,
+                  },
+                ],
+              },
+            }
+          : state.data.ai,
+      },
+    }));
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'session-1',
+      temporaryChatEnabled: false,
+    });
+
+    await act(async () => {
+      await actions.switchSession('session-2');
+    });
+
+    expect(useAIUIStore.getState().currentSessionId).toBe('session-2');
+
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    vi.useRealTimers();
+
+    expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith('data:image/png;base64,INLINE');
+    expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content)
+      .toBe('![image](<attachment://persisted.png>)\n\nDescribe');
+    expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.imageSources)
+      .toEqual(['attachment://persisted.png']);
+    expect(mocked.saveSessionJson).toHaveBeenCalledWith(
+      'session-2',
+      useUnifiedStore.getState().data.ai?.messages['session-2'],
+    );
   });
 
   it('does not replace an unreadable persisted session file with an empty chat', async () => {
