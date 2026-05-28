@@ -18,7 +18,7 @@ describe("getModuleShortcutPreset", () => {
     );
   });
 
-  it("includes Typora editor shortcuts in the notes shortcut preset", () => {
+  it("includes editor shortcuts in the notes shortcut preset", () => {
     const preset = getModuleShortcutPreset("notes");
     const paragraphSection = preset.sections.find((section) => section.title === "Paragraph");
     const formatSection = preset.sections.find((section) => section.title === "Format");
@@ -65,7 +65,7 @@ describe("getModuleShortcutPreset", () => {
     );
   });
 
-  it("localizes Typora shortcut sections and actions through the provided translator", () => {
+  it("localizes editor shortcut sections and actions through the provided translator", () => {
     const translations: Record<string, string> = {
       "shortcut.title": "快捷键",
       "shortcut.description.notes": "笔记快捷键",

@@ -108,11 +108,13 @@ export async function loadNoteDocument({
   cache,
   allowStaleCachedContent = false,
 }: LoadNoteDocumentOptions): Promise<LoadedNoteDocument> {
+  const cachedEntry = cache.get(path);
   const cachedContent = getCachedNoteContent(cache, path);
   if (cachedContent !== undefined) {
-    const cachedModifiedAt = cache.get(path)?.modifiedAt ?? null;
+    const cachedModifiedAt = cachedEntry?.modifiedAt ?? null;
     assertEditorSafeMarkdownContent(cachedContent);
-    if (!allowStaleCachedContent) {
+    const canTrustFreshCachedContent = typeof cachedEntry?.freshUntil === 'number' && Date.now() <= cachedEntry.freshUntil;
+    if (!allowStaleCachedContent && !canTrustFreshCachedContent) {
       const storage = getStorageAdapter();
       const fullPath = await resolveStoredPath(notesPath, path);
       const fileInfo = await storage.stat(fullPath);

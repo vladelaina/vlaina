@@ -8,8 +8,9 @@
   --vlaina-editor-caret-color: var(--vlaina-caret-color, #41ace2);
   --vlaina-editor-caret-width: var(--vlaina-caret-width, 1px);
   --vlaina-editor-block-selection-base: var(--vlaina-color-editor-block-selection, var(--vlaina-color-accent, #1e96eb));
-  --vlaina-editor-block-selection-bg: #bedffe;
-  --vlaina-editor-block-selection-fg: #fefbf9;
+  --vlaina-editor-block-selection-bg: var(--vlaina-color-editor-block-selection-bg, #bedffe);
+  --vlaina-editor-block-selection-fg: var(--vlaina-color-editor-block-selection-fg, #fefbf9);
+  --vlaina-editor-block-selection-handle: var(--vlaina-color-editor-block-selection-handle, var(--vlaina-text-primary, #2c2c2b));
 }
 
 /* Reset potential focus outlines during interactions */
@@ -523,6 +524,15 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 .vlaina-block-controls .vlaina-block-control-btn:hover {
   color: var(--vlaina-text-primary);
   background: transparent;
+}
+
+.vlaina-block-controls.visible .vlaina-block-control-handle,
+.vlaina-block-controls.dragging .vlaina-block-control-handle {
+  color: var(--vlaina-editor-block-selection-handle, var(--vlaina-text-primary, #2c2c2b));
+}
+
+.vlaina-block-controls.visible .vlaina-block-control-handle:hover {
+  color: var(--vlaina-editor-block-selection-handle, var(--vlaina-text-primary, #2c2c2b));
 }
 
 .vlaina-block-controls .vlaina-block-control-btn:active {

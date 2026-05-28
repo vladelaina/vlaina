@@ -106,7 +106,7 @@ describe('desktop export ipc', () => {
     },
   );
 
-  it('opens the containing folder with a real file manager on Linux', async () => {
+  it('reveals the target item with a real file manager on Linux', async () => {
     const child = {
       once: vi.fn(),
       unref: vi.fn(),
@@ -128,15 +128,51 @@ describe('desktop export ipc', () => {
     await revealItemInFolder('/vault/docs/readme.md', options);
 
     expect(spawnDetached).toHaveBeenCalledTimes(2);
-    expect(spawnDetached).toHaveBeenNthCalledWith(1, '/usr/bin/nautilus', ['--new-window', '/vault/docs'], {
-      detached: true,
-      stdio: 'ignore',
-    });
-    expect(spawnDetached).toHaveBeenNthCalledWith(2, '/usr/bin/nautilus', ['--new-window', '/vault/docs'], {
-      detached: true,
-      stdio: 'ignore',
-    });
+    expect(spawnDetached).toHaveBeenNthCalledWith(
+      1,
+      '/usr/bin/nautilus',
+      ['--new-window', '--select', '/vault/docs/readme.md'],
+      {
+        detached: true,
+        stdio: 'ignore',
+      },
+    );
+    expect(spawnDetached).toHaveBeenNthCalledWith(
+      2,
+      '/usr/bin/nautilus',
+      ['--new-window', '--select', '/vault/docs/readme.md'],
+      {
+        detached: true,
+        stdio: 'ignore',
+      },
+    );
     expect(child.unref).toHaveBeenCalledTimes(2);
+    expect(shellImpl.showItemInFolder).not.toHaveBeenCalled();
+  });
+
+  it('opens the containing folder on Linux when no selectable file manager is available', async () => {
+    const child = {
+      once: vi.fn(),
+      unref: vi.fn(),
+    };
+    const spawnDetached = vi.fn(() => child);
+    const shellImpl = {
+      openPath: vi.fn(),
+      showItemInFolder: vi.fn(),
+    };
+
+    await revealItemInFolder('/vault/docs/readme.md', {
+      platform: 'linux',
+      shellImpl,
+      spawnDetached,
+      envPath: '/usr/bin',
+      exists: () => false,
+    });
+
+    expect(spawnDetached).toHaveBeenCalledWith('xdg-open', ['/vault/docs'], {
+      detached: true,
+      stdio: 'ignore',
+    });
     expect(shellImpl.showItemInFolder).not.toHaveBeenCalled();
   });
 

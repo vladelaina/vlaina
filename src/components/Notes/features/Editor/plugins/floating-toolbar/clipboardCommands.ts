@@ -8,12 +8,11 @@ interface CopySelectionOptions {
   collapseAfterCopy?: boolean;
 }
 
-function isSameEditorValue<T>(current: T, previous: T): boolean {
-  const maybeComparable = current as { eq?: (other: T) => boolean };
-  if (typeof maybeComparable.eq === 'function') {
-    return maybeComparable.eq(previous);
+function isSameProseObject<T extends { eq?: (other: T) => boolean }>(current: T, previous: T): boolean {
+  if (current === previous) {
+    return true;
   }
-  return current === previous;
+  return typeof current.eq === 'function' && current.eq(previous);
 }
 
 export async function copySelectionToClipboard(
@@ -34,8 +33,8 @@ export async function copySelectionToClipboard(
 
   if (
     options.collapseAfterCopy !== false &&
-    isSameEditorValue(view.state.doc, doc) &&
-    isSameEditorValue(selection, view.state.selection)
+    isSameProseObject(view.state.doc, doc) &&
+    isSameProseObject(selection, view.state.selection)
   ) {
     collapseSelectionAndHideFloatingToolbar(view);
   }

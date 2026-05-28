@@ -190,6 +190,8 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       const markUserInput = createUserInputMarker(view, liveSerializer);
       view.dom.addEventListener('beforeinput', markUserInput, { capture: true });
       view.dom.addEventListener('keydown', markUserInput, { capture: true });
+      view.dom.addEventListener('compositionstart', markUserInput, { capture: true });
+      view.dom.addEventListener('compositionend', markUserInput, { capture: true });
       view.dom.addEventListener('vlaina:image-user-input', markUserInput);
       view.dom.addEventListener('vlaina:block-user-input', markUserInput);
       view.dom.addEventListener('paste', markUserInput);
@@ -201,6 +203,8 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       activationCleanupRef.current = () => {
         view.dom.removeEventListener('beforeinput', markUserInput, { capture: true });
         view.dom.removeEventListener('keydown', markUserInput, { capture: true });
+        view.dom.removeEventListener('compositionstart', markUserInput, { capture: true });
+        view.dom.removeEventListener('compositionend', markUserInput, { capture: true });
         view.dom.removeEventListener('vlaina:image-user-input', markUserInput);
         view.dom.removeEventListener('vlaina:block-user-input', markUserInput);
         view.dom.removeEventListener('paste', markUserInput);

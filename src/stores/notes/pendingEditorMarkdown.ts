@@ -2,6 +2,7 @@ import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { setCachedNoteContent } from './document/noteContentCache';
 import { setNoteTabDirtyState } from './document/noteTabState';
+
 export {
   flushCurrentPendingEditorMarkdown,
   setPendingEditorMarkdownFlusher,

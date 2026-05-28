@@ -157,6 +157,10 @@ html, body, #root {
   --vlaina-color-text-disabled: #636363;
   --vlaina-color-soft-placeholder: #e1e1e1;
   --vlaina-color-editor-block-selection: var(--vlaina-color-accent);
+  --vlaina-color-editor-block-selection-bg: #bedffe;
+  --vlaina-color-editor-block-selection-fg: #fefbf9;
+  --vlaina-color-editor-block-selection-drag-box: rgb(190 223 254 / 0.42);
+  --vlaina-color-editor-block-selection-handle: var(--vlaina-color-text-primary);
   --vlaina-color-sidebar-pin: #636363;
   --vlaina-color-border: #e3e2e4;
   --vlaina-color-border-shell: #eff3f4;
@@ -240,6 +244,10 @@ html, body, #root {
   --vlaina-color-text-disabled: #636363;
   --vlaina-color-soft-placeholder: #e1e1e1;
   --vlaina-color-editor-block-selection: var(--vlaina-color-accent);
+  --vlaina-color-editor-block-selection-bg: #bedffe;
+  --vlaina-color-editor-block-selection-fg: #fefbf9;
+  --vlaina-color-editor-block-selection-drag-box: rgb(190 223 254 / 0.42);
+  --vlaina-color-editor-block-selection-handle: var(--vlaina-color-text-primary);
   --vlaina-color-sidebar-pin: #636363;
   --vlaina-color-border: #333333;
   --vlaina-color-border-shell: #333333;

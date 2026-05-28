@@ -43,7 +43,7 @@ import { hrAutoParagraphPlugin } from '../plugins/hr/hrAutoParagraphPlugin';
 import { autoPairPlugin } from '../plugins/pairs/autoPairPlugin';
 import { titleNavigationPlugin } from '../plugins/cursor/titleNavigationPlugin';
 import { typewriterModePlugin } from '../plugins/cursor/typewriterModePlugin';
-import { typoraShortcutsPlugin } from '../plugins/typoraShortcutsPlugin';
+import { editorShortcutsPlugin } from '../plugins/editorShortcutsPlugin';
 
 export const customPluginGroups = [
   {
@@ -129,7 +129,7 @@ export const customPluginGroups = [
       endBlankClickPlugin,
       titleNavigationPlugin,
       typewriterModePlugin,
-      typoraShortcutsPlugin,
+      editorShortcutsPlugin,
     ],
   },
 ];

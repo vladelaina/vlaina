@@ -46,6 +46,7 @@ interface VaultState {
   currentVault: VaultInfo | null;
   recentVaults: VaultInfo[];
   isLoading: boolean;
+  hasInitialized: boolean;
   error: string | null;
 }
 
@@ -354,67 +355,79 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
   currentVault: null,
   recentVaults: [],
   isLoading: false,
+  hasInitialized: false,
   error: null,
 
   initialize: async () => {
-    const storage = getStorageAdapter();
-    const persistedVaultState = await loadPersistedVaultState();
-    const savedVaults = persistedVaultState.recentVaults;
-    const currentVaultId = persistedVaultState.currentVaultId;
-    const isWebPlatform = storage.platform === 'web';
-    const launchContext = readWindowLaunchContext();
-    const requestedVaultPath = launchContext.vaultPath
-      ? normalizeVaultPath(launchContext.vaultPath)
-      : null;
+    set({ isLoading: true, hasInitialized: false, error: null });
 
-    await initializeWindowLabel();
+    try {
+      const storage = getStorageAdapter();
+      const persistedVaultState = await loadPersistedVaultState();
+      const savedVaults = persistedVaultState.recentVaults;
+      const currentVaultId = persistedVaultState.currentVaultId;
+      const isWebPlatform = storage.platform === 'web';
+      const launchContext = readWindowLaunchContext();
+      const requestedVaultPath = launchContext.vaultPath
+        ? normalizeVaultPath(launchContext.vaultPath)
+        : null;
 
-    const existChecks = await Promise.all(
-      savedVaults.map(async (vault) => {
-        if (isWebPlatform && isNativeFilesystemPath(vault.path)) {
-          return { vault, exists: false };
+      await initializeWindowLabel();
+
+      const existChecks = await Promise.all(
+        savedVaults.map(async (vault) => {
+          if (isWebPlatform && isNativeFilesystemPath(vault.path)) {
+            return { vault, exists: false };
+          }
+          return { vault, exists: await storage.exists(vault.path) };
+        })
+      );
+      let recentVaults = normalizeRecentVaults(
+        existChecks.filter((candidate) => candidate.exists).map((candidate) => candidate.vault)
+      );
+
+      if (recentVaults.length !== savedVaults.length) {
+        persistVaultState(recentVaults, currentVaultId);
+      }
+
+      let currentVault: VaultInfo | null = null;
+      if (requestedVaultPath) {
+        const requestedVaultExists =
+          !isWebPlatform || !isNativeFilesystemPath(requestedVaultPath)
+            ? await storage.exists(requestedVaultPath)
+            : false;
+
+        if (requestedVaultExists) {
+          await ensureVaultConfig(requestedVaultPath);
+          const nextVaultState = upsertRecentVault(recentVaults, requestedVaultPath);
+          recentVaults = nextVaultState.recentVaults;
+          currentVault = nextVaultState.vault;
+          persistVaultState(recentVaults, currentVault.id);
+          setWindowVaultPath(currentVault.path);
+          setCurrentVaultPath(currentVault.path);
         }
-        return { vault, exists: await storage.exists(vault.path) };
-      })
-    );
-    let recentVaults = normalizeRecentVaults(
-      existChecks.filter((candidate) => candidate.exists).map((candidate) => candidate.vault)
-    );
-
-    if (recentVaults.length !== savedVaults.length) {
-      persistVaultState(recentVaults, currentVaultId);
-    }
-
-    let currentVault: VaultInfo | null = null;
-    if (requestedVaultPath) {
-      const requestedVaultExists =
-        !isWebPlatform || !isNativeFilesystemPath(requestedVaultPath)
-          ? await storage.exists(requestedVaultPath)
-          : false;
-
-      if (requestedVaultExists) {
-        await ensureVaultConfig(requestedVaultPath);
-        const nextVaultState = upsertRecentVault(recentVaults, requestedVaultPath);
-        recentVaults = nextVaultState.recentVaults;
-        currentVault = nextVaultState.vault;
-        persistVaultState(recentVaults, currentVault.id);
-        setWindowVaultPath(currentVault.path);
-        setCurrentVaultPath(currentVault.path);
+      } else if (currentVaultId && !launchContext.isNewWindow) {
+        currentVault = recentVaults.find((vault) => vault.id === currentVaultId) || null;
+        if (currentVault) {
+          await ensureVaultConfig(currentVault.path);
+          setWindowVaultPath(currentVault.path);
+          setCurrentVaultPath(currentVault.path);
+        } else {
+          persistVaultState(recentVaults, null);
+        }
       }
-    } else if (currentVaultId && !launchContext.isNewWindow) {
-      currentVault = recentVaults.find((vault) => vault.id === currentVaultId) || null;
-      if (currentVault) {
-        await ensureVaultConfig(currentVault.path);
-        setWindowVaultPath(currentVault.path);
-        setCurrentVaultPath(currentVault.path);
-      } else {
-        persistVaultState(recentVaults, null);
-      }
+
+      setupBroadcastChannel();
+
+      set({ recentVaults, currentVault, isLoading: false, hasInitialized: true });
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to initialize vaults',
+        isLoading: false,
+        hasInitialized: true,
+      });
+      throw error;
     }
-
-    setupBroadcastChannel();
-
-    set({ recentVaults, currentVault });
   },
 
   checkVaultOpenInOtherWindow: async (path: string): Promise<string | null> => {

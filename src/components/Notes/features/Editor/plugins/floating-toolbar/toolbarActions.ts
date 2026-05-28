@@ -234,6 +234,8 @@ export function createToolbarActionController(
       preparedCopyView = null;
       beginCopyFeedbackSelectionSuppression(view);
 
+      const copiedSelection = view.state.selection;
+      const copiedDoc = view.state.doc;
       const copied = await copySelectionToClipboard(view, { collapseAfterCopy: false });
       if (!copied) {
         clearCopyFeedbackTimer();
@@ -249,7 +251,9 @@ export function createToolbarActionController(
 
       copyFeedbackTimer = setTimeout(() => {
         copyFeedbackTimer = null;
-        collapseSelectionAndHideFloatingToolbar(view);
+        if (view.state.doc.eq(copiedDoc) && copiedSelection.eq(view.state.selection)) {
+          collapseSelectionAndHideFloatingToolbar(view);
+        }
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             setCopyFeedbackSelectionSuppression(view, false);

@@ -62,7 +62,7 @@ vi.mock('./math/mathEditorState', () => ({
   createOpenMathEditorState: mocks.createOpenMathEditorState,
 }));
 
-import { handleTyporaShortcut } from './typoraShortcutsPlugin';
+import { handleEditorShortcut } from './editorShortcutsPlugin';
 
 function createEvent(key: string, options: Partial<KeyboardEvent> = {}) {
   return {
@@ -137,7 +137,7 @@ function expectHandled(event: ReturnType<typeof createEvent>) {
   expect(event.stopPropagation).toHaveBeenCalledOnce();
 }
 
-describe('handleTyporaShortcut', () => {
+describe('handleEditorShortcut', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.createEmptyTableNode.mockReturnValue({ type: 'table' });
@@ -163,7 +163,7 @@ describe('handleTyporaShortcut', () => {
     ] as const) {
       const view = createView();
       const event = createEvent(key);
-      expect(handleTyporaShortcut(view as never, event)).toBe(true);
+      expect(handleEditorShortcut(view as never, event)).toBe(true);
       expect(mocks.convertBlockType).toHaveBeenLastCalledWith(view, blockType);
       expectHandled(event);
     }
@@ -172,13 +172,13 @@ describe('handleTyporaShortcut', () => {
   it('handles heading level changes', () => {
     const raiseView = createView();
     const raiseEvent = createEvent('=');
-    expect(handleTyporaShortcut(raiseView as never, raiseEvent)).toBe(true);
+    expect(handleEditorShortcut(raiseView as never, raiseEvent)).toBe(true);
     expect(mocks.convertBlockType).toHaveBeenLastCalledWith(raiseView, 'heading1');
     expectHandled(raiseEvent);
 
     const lowerView = createView();
     const lowerEvent = createEvent('-');
-    expect(handleTyporaShortcut(lowerView as never, lowerEvent)).toBe(true);
+    expect(handleEditorShortcut(lowerView as never, lowerEvent)).toBe(true);
     expect(mocks.convertBlockType).toHaveBeenLastCalledWith(lowerView, 'heading3');
     expectHandled(lowerEvent);
   });
@@ -186,20 +186,20 @@ describe('handleTyporaShortcut', () => {
   it('handles table shortcuts', () => {
     const insertView = createView();
     const insertEvent = createEvent('t');
-    expect(handleTyporaShortcut(insertView as never, insertEvent)).toBe(true);
+    expect(handleEditorShortcut(insertView as never, insertEvent)).toBe(true);
     expect(mocks.createEmptyTableNode).toHaveBeenCalledWith(insertView.state.schema, 3);
     expect(insertView.dispatch).toHaveBeenCalledOnce();
     expectHandled(insertEvent);
 
     const addRowView = createView();
     const addRowEvent = createEvent('Enter');
-    expect(handleTyporaShortcut(addRowView as never, addRowEvent)).toBe(true);
+    expect(handleEditorShortcut(addRowView as never, addRowEvent)).toBe(true);
     expect(mocks.addRowAfter).toHaveBeenCalledWith(addRowView.state, addRowView.dispatch);
     expectHandled(addRowEvent);
 
     const deleteRowView = createView();
     const deleteRowEvent = createEvent('Backspace', { shiftKey: true });
-    expect(handleTyporaShortcut(deleteRowView as never, deleteRowEvent)).toBe(true);
+    expect(handleEditorShortcut(deleteRowView as never, deleteRowEvent)).toBe(true);
     expect(mocks.deleteRow).toHaveBeenCalledWith(deleteRowView.state, deleteRowView.dispatch);
     expectHandled(deleteRowEvent);
   });
@@ -212,7 +212,7 @@ describe('handleTyporaShortcut', () => {
     ] as const) {
       const view = createView();
       const event = createEvent(key, { shiftKey: true });
-      expect(handleTyporaShortcut(view as never, event)).toBe(true);
+      expect(handleEditorShortcut(view as never, event)).toBe(true);
       expect(mocks.convertBlockType).toHaveBeenLastCalledWith(view, blockType);
       expectHandled(event);
     }
@@ -221,7 +221,7 @@ describe('handleTyporaShortcut', () => {
   it('handles math block shortcuts', () => {
     const view = createView();
     const event = createEvent('M', { shiftKey: true });
-    expect(handleTyporaShortcut(view as never, event)).toBe(true);
+    expect(handleEditorShortcut(view as never, event)).toBe(true);
     expect(view.state.schema.nodes.math_block.create).toHaveBeenCalledWith({ latex: '' });
     expect(view.state.tr.setMeta).toHaveBeenCalledWith(expect.anything(), { open: true });
     expect(view.dispatch).toHaveBeenCalledOnce();
@@ -231,27 +231,27 @@ describe('handleTyporaShortcut', () => {
   it('handles list indent shortcuts', () => {
     const indentView = createView();
     const indentEvent = createEvent(']');
-    expect(handleTyporaShortcut(indentView as never, indentEvent)).toBe(true);
+    expect(handleEditorShortcut(indentView as never, indentEvent)).toBe(true);
     expect(mocks.sinkListItem).toHaveBeenCalledWith(indentView.state.schema.nodes.list_item);
     expect(mocks.sinkListItemCommand).toHaveBeenCalledWith(indentView.state, indentView.dispatch);
     expectHandled(indentEvent);
 
     const outdentView = createView();
     const outdentEvent = createEvent('[');
-    expect(handleTyporaShortcut(outdentView as never, outdentEvent)).toBe(true);
+    expect(handleEditorShortcut(outdentView as never, outdentEvent)).toBe(true);
     expect(mocks.liftListItem).toHaveBeenCalledWith(outdentView.state.schema.nodes.list_item);
     expect(mocks.liftListItemCommand).toHaveBeenCalledWith(outdentView.state, outdentView.dispatch);
     expectHandled(outdentEvent);
   });
 
-  it('handles format shortcuts owned by the Typora plugin', () => {
+  it('handles format shortcuts owned by the editor plugin', () => {
     for (const [key, markName] of [
       ['5', 'strike_through'],
       ['`', 'inlineCode'],
     ] as const) {
       const view = createView();
       const event = createEvent(key, { shiftKey: true });
-      expect(handleTyporaShortcut(view as never, event)).toBe(true);
+      expect(handleEditorShortcut(view as never, event)).toBe(true);
       expect(mocks.toggleMark).toHaveBeenLastCalledWith(view, markName);
       expectHandled(event);
     }
@@ -260,13 +260,13 @@ describe('handleTyporaShortcut', () => {
   it('handles clear formatting and ignores non-modifier keys', () => {
     const view = createView();
     const clearEvent = createEvent('\\');
-    expect(handleTyporaShortcut(view as never, clearEvent)).toBe(true);
+    expect(handleEditorShortcut(view as never, clearEvent)).toBe(true);
     expect(view.state.tr.removeStoredMark).toHaveBeenCalledTimes(2);
     expect(view.dispatch).toHaveBeenCalledWith(view.state.tr);
     expectHandled(clearEvent);
 
     const ignoredEvent = createEvent('1', { ctrlKey: false });
-    expect(handleTyporaShortcut(createView() as never, ignoredEvent)).toBe(false);
+    expect(handleEditorShortcut(createView() as never, ignoredEvent)).toBe(false);
     expect(ignoredEvent.preventDefault).not.toHaveBeenCalled();
   });
 });

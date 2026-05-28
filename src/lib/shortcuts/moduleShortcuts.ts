@@ -62,7 +62,7 @@ function label(t: ((key: MessageKey) => string) | undefined, key: MessageKey, fa
   return t ? t(key) : fallback;
 }
 
-function getTyporaEditorShortcuts(t: ((key: MessageKey) => string) | undefined): Partial<Record<ShortcutSection, ModuleShortcutItem[]>> {
+function getEditorShortcutPreset(t: ((key: MessageKey) => string) | undefined): Partial<Record<ShortcutSection, ModuleShortcutItem[]>> {
   return {
     Paragraph: [
       { action: label(t, 'editor.blockType.heading1', 'Heading 1'), keys: ['Ctrl', '1'] },
@@ -124,7 +124,7 @@ function buildSections(
   }
 
   if (module === 'notes') {
-    const editorShortcuts = getTyporaEditorShortcuts(t);
+    const editorShortcuts = getEditorShortcutPreset(t);
     for (const [section, shortcuts] of Object.entries(editorShortcuts) as Array<[ShortcutSection, ModuleShortcutItem[]]>) {
       buckets.set(section, shortcuts);
     }

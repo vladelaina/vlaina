@@ -531,6 +531,50 @@ describe('saveNoteDocument', () => {
     expect(result.modifiedAt).toBe(123);
   });
 
+  it('uses freshly prefetched cached markdown without another disk stat', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+
+    const result = await loadNoteDocument({
+      notesPath: '/vault',
+      path: 'alpha.md',
+      cache: setCachedNoteContent(new Map(), 'alpha.md', '# Fresh', 100, {
+        updateBaseline: true,
+        freshUntil: 2000,
+      }),
+    });
+
+    expect(adapter.stat).not.toHaveBeenCalled();
+    expect(adapter.readFile).not.toHaveBeenCalled();
+    expect(result.content).toBe('# Fresh');
+    expect(result.modifiedAt).toBe(100);
+
+    vi.useRealTimers();
+  });
+
+  it('revalidates cached markdown after the fresh prefetch window expires', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(2500);
+    adapter.stat.mockResolvedValue({ modifiedAt: 200 });
+    adapter.readFile.mockResolvedValue('# Updated after prefetch');
+
+    const result = await loadNoteDocument({
+      notesPath: '/vault',
+      path: 'alpha.md',
+      cache: setCachedNoteContent(new Map(), 'alpha.md', '# Fresh but expired', 100, {
+        updateBaseline: true,
+        freshUntil: 2000,
+      }),
+    });
+
+    expect(adapter.stat).toHaveBeenCalledWith('/vault/alpha.md');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md');
+    expect(result.content).toBe('# Updated after prefetch');
+    expect(result.modifiedAt).toBe(200);
+
+    vi.useRealTimers();
+  });
+
   it('refreshes cached markdown when the disk modified timestamp changed before opening', async () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 200 });
     adapter.readFile.mockResolvedValue('# Updated by another window');

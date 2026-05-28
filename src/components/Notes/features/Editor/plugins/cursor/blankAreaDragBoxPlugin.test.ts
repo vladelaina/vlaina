@@ -8,6 +8,8 @@ import { collectSelectableBlockRanges } from './blockUnitResolver';
 import { dispatchBlockSelectionAction, getBlockSelectionPluginState } from './blockSelectionPluginState';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import { listTabIndentPlugin } from '../task-list';
+import { clipboardPlugin } from '../clipboard/clipboardPlugin';
+import { insertImageNodeAtSelection } from '../image-upload/imageNodeInsertion';
 
 function createMouseEvent(type: string, init: MouseEventInit = {}) {
   return new MouseEvent(type, {
@@ -37,6 +39,27 @@ function simulateKeydown(view: any, key: string, init: KeyboardEventInit = {}): 
   return { handled, event };
 }
 
+function simulateKeydownUntilHandled(view: any, key: string, init: KeyboardEventInit = {}): { handled: boolean; event: KeyboardEvent } {
+  const event = new KeyboardEvent('keydown', {
+    key,
+    ctrlKey: true,
+    bubbles: true,
+    cancelable: true,
+    ...init,
+  });
+
+  let handled = false;
+  view.someProp('handleKeyDown', (handleKeyDown: any) => {
+    if (handleKeyDown(view, event)) {
+      handled = true;
+      return true;
+    }
+    return undefined;
+  });
+
+  return { handled, event };
+}
+
 function simulateClipboardEvent(view: any, type: 'copy' | 'cut') {
   const clipboardData = {
     setData: vi.fn(),
@@ -52,6 +75,70 @@ function simulateClipboardEvent(view: any, type: 'copy' | 'cut') {
   });
 
   return { handled, event, clipboardData };
+}
+
+function simulateClipboardEventUntilHandled(view: any, type: 'copy' | 'cut') {
+  const clipboardData = {
+    setData: vi.fn(),
+  };
+  const event = {
+    clipboardData,
+    preventDefault: vi.fn(),
+  };
+
+  let handled = false;
+  view.someProp('handleDOMEvents', (handleDOMEvents: any) => {
+    if (handleDOMEvents[type]?.(view, event)) {
+      handled = true;
+      return true;
+    }
+    return undefined;
+  });
+
+  return { handled, event, clipboardData };
+}
+
+function simulateClipboardEventWithoutDataUntilHandled(view: any, type: 'copy' | 'cut') {
+  const event = {
+    clipboardData: null,
+    preventDefault: vi.fn(),
+  };
+
+  let handled = false;
+  view.someProp('handleDOMEvents', (handleDOMEvents: any) => {
+    if (handleDOMEvents[type]?.(view, event)) {
+      handled = true;
+      return true;
+    }
+    return undefined;
+  });
+
+  return { handled, event };
+}
+
+function simulatePasteUntilHandled(view: any, text: string, html = '') {
+  const event = {
+    clipboardData: {
+      types: [text ? 'text/plain' : '', html ? 'text/html' : ''].filter(Boolean),
+      getData(type: string) {
+        if (type === 'text/plain') return text;
+        if (type === 'text/html') return html;
+        return '';
+      },
+    },
+    preventDefault: vi.fn(),
+  };
+
+  let handled = false;
+  view.someProp('handlePaste', (handlePaste: any) => {
+    if (handlePaste(view, event, null)) {
+      handled = true;
+      return true;
+    }
+    return undefined;
+  });
+
+  return { handled, event };
 }
 
 function typeText(view: any, input: string) {
@@ -73,6 +160,27 @@ function simulateDomEvent(view: any, type: string, event: Event) {
     handled = handleDOMEvents[type]?.(view, event) || handled;
   });
   return handled;
+}
+
+function findTextRange(doc: any, text: string): { from: number; to: number } {
+  let resolved: { from: number; to: number } | null = null;
+
+  doc.descendants((node: any, pos: number) => {
+    if (resolved) return false;
+    if (!node.isText || node.text !== text) return;
+
+    resolved = {
+      from: pos,
+      to: pos + text.length,
+    };
+    return false;
+  });
+
+  if (!resolved) {
+    throw new Error(`Unable to resolve text range for "${text}"`);
+  }
+
+  return resolved;
 }
 
 function mockTrailingPlainClickGeometry(view: any, target: HTMLElement) {
@@ -177,6 +285,31 @@ async function createBlockSelectionEditor(markdown: string) {
   return { editor, view };
 }
 
+async function createIntegratedBlockSelectionEditor(markdown: string) {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, markdown);
+      ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+        ...prev,
+        ...notesRemarkStringifyOptions,
+      }));
+    })
+    .use(commonmark)
+    .use(gfm)
+    .use(clipboardPlugin)
+    .use(blankAreaDragBoxPlugin);
+
+  await editor.create();
+  const view = editor.ctx.get(editorViewCtx);
+  const [firstBlock] = collectSelectableBlockRanges(view.state.doc);
+  if (!firstBlock) {
+    throw new Error('Expected at least one selectable block');
+  }
+  dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [firstBlock] });
+
+  return { editor, view };
+}
+
 async function createListGapSelectionEditor() {
   const editor = Editor.make()
     .config((ctx) => {
@@ -266,13 +399,199 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
       expect(copy.event.defaultPrevented).toBe(true);
       expect(writeText).toHaveBeenCalledWith('Alpha');
       expect(view.state.doc.textContent).toBe('AlphaBeta');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
 
+      const [firstBlock] = collectSelectableBlockRanges(view.state.doc);
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [firstBlock] });
       const cut = simulateKeydown(view, 'x');
       await new Promise((resolve) => setTimeout(resolve, 0));
       expect(cut.handled).toBe(true);
       expect(cut.event.defaultPrevented).toBe(true);
       expect(writeText).toHaveBeenLastCalledWith('Alpha');
       expect(view.state.doc.textContent).toBe('Beta');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('prioritizes block selection copy over a stale text selection in the integrated plugin order', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+
+    const { editor, view } = await createIntegratedBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      const { from: betaFrom, to: betaTo } = findTextRange(view.state.doc, 'Beta');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, betaFrom, betaTo)));
+      const [firstBlock] = collectSelectableBlockRanges(view.state.doc);
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [firstBlock] });
+
+      const copy = simulateKeydownUntilHandled(view, 'c');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(copy.handled).toBe(true);
+      expect(copy.event.defaultPrevented).toBe(true);
+      expect(writeText).toHaveBeenCalledTimes(1);
+      expect(writeText).toHaveBeenCalledWith('Alpha');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('prioritizes block selection native copy and cut over a stale text selection in the integrated plugin order', async () => {
+    const { editor, view } = await createIntegratedBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      const { from: betaFrom, to: betaTo } = findTextRange(view.state.doc, 'Beta');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, betaFrom, betaTo)));
+      let [firstBlock] = collectSelectableBlockRanges(view.state.doc);
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [firstBlock] });
+
+      const copy = simulateClipboardEventUntilHandled(view, 'copy');
+
+      expect(copy.handled).toBe(true);
+      expect(copy.event.preventDefault).toHaveBeenCalled();
+      expect(copy.clipboardData.setData).toHaveBeenCalledTimes(1);
+      expect(copy.clipboardData.setData).toHaveBeenCalledWith('text/plain', 'Alpha');
+      expect(view.state.doc.textContent).toBe('AlphaBeta');
+
+      firstBlock = collectSelectableBlockRanges(view.state.doc)[0];
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [firstBlock] });
+      const cut = simulateClipboardEventUntilHandled(view, 'cut');
+
+      expect(cut.handled).toBe(true);
+      expect(cut.event.preventDefault).toHaveBeenCalled();
+      expect(cut.clipboardData.setData).toHaveBeenCalledTimes(1);
+      expect(cut.clipboardData.setData).toHaveBeenCalledWith('text/plain', 'Alpha');
+      expect(view.state.doc.textContent).toBe('Beta');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('replaces the visible block selection when pasting with a stale text selection in the integrated plugin order', async () => {
+    const { editor, view } = await createIntegratedBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      const { from: betaFrom, to: betaTo } = findTextRange(view.state.doc, 'Beta');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, betaFrom, betaTo)));
+      const [firstBlock] = collectSelectableBlockRanges(view.state.doc);
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [firstBlock] });
+
+      const paste = simulatePasteUntilHandled(view, '# Gamma');
+
+      expect(paste.handled).toBe(true);
+      expect(paste.event.preventDefault).toHaveBeenCalled();
+      expect(view.state.doc.textContent).toBe('GammaBeta');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('prepares the visible block selection before an html-only paste falls through to the native paste path', async () => {
+    const { editor, view } = await createIntegratedBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      const { from: betaFrom, to: betaTo } = findTextRange(view.state.doc, 'Beta');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, betaFrom, betaTo)));
+      const [firstBlock] = collectSelectableBlockRanges(view.state.doc);
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [firstBlock] });
+
+      const paste = simulatePasteUntilHandled(view, '', '<strong>Gamma</strong>');
+
+      expect(paste.handled).toBe(false);
+      expect(paste.event.preventDefault).not.toHaveBeenCalled();
+      expect(view.state.doc.textContent).toBe('Beta');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+      expect(view.state.selection.empty).toBe(true);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('replaces the visible block selection when inserting an image with a stale text selection', async () => {
+    const { editor, view } = await createIntegratedBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      const { from: betaFrom, to: betaTo } = findTextRange(view.state.doc, 'Beta');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, betaFrom, betaTo)));
+      const [firstBlock] = collectSelectableBlockRanges(view.state.doc);
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [firstBlock] });
+
+      expect(insertImageNodeAtSelection(view, './assets/demo-image.png')).toBe(true);
+
+      const doc = view.state.doc.toJSON();
+      expect(doc.content[0]).toMatchObject({
+        type: 'paragraph',
+      });
+      expect(doc.content[0].content[0]).toMatchObject({
+        type: 'image',
+        attrs: {
+          src: './assets/demo-image.png',
+          alt: 'demo-image',
+        },
+      });
+      expect(view.state.doc.textContent).toBe('Beta');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('copies and cuts selected blocks from legacy system clipboard shortcuts', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      const copy = simulateKeydown(view, 'Insert');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(copy.handled).toBe(true);
+      expect(copy.event.defaultPrevented).toBe(true);
+      expect(writeText).toHaveBeenCalledWith('Alpha');
+      expect(view.state.doc.textContent).toBe('AlphaBeta');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+
+      const [firstBlock] = collectSelectableBlockRanges(view.state.doc);
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [firstBlock] });
+      const cut = simulateKeydown(view, 'Delete', { ctrlKey: false, shiftKey: true });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(cut.handled).toBe(true);
+      expect(cut.event.defaultPrevented).toBe(true);
+      expect(writeText).toHaveBeenLastCalledWith('Alpha');
+      expect(view.state.doc.textContent).toBe('Beta');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('keeps selected blocks when keyboard copy cannot write to the clipboard', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('clipboard unavailable'));
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      const copy = simulateKeydown(view, 'c');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(copy.handled).toBe(true);
+      expect(copy.event.defaultPrevented).toBe(true);
+      expect(writeText).toHaveBeenCalledWith('Alpha');
+      expect(view.state.doc.textContent).toBe('AlphaBeta');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(1);
     } finally {
       await editor.destroy();
     }
@@ -316,6 +635,28 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
       expect(handled).toBe(true);
       expect(event.preventDefault).toHaveBeenCalled();
       expect(clipboardData.setData).toHaveBeenCalledWith('text/plain', 'Alpha');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('keeps selected blocks when a native copy fallback cannot write to the clipboard', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('clipboard unavailable'));
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      const { handled, event } = simulateClipboardEventWithoutDataUntilHandled(view, 'copy');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(handled).toBe(true);
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(writeText).toHaveBeenCalledWith('Alpha');
+      expect(view.state.doc.textContent).toBe('AlphaBeta');
       expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(1);
     } finally {
       await editor.destroy();
@@ -333,6 +674,28 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
       expect(clipboardData.setData).toHaveBeenCalledWith('text/plain', 'Alpha');
       expect(view.state.doc.textContent).toBe('Beta');
       expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('does not delete selected blocks when a native cut fallback cannot write to the clipboard', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('clipboard unavailable'));
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      const { handled, event } = simulateClipboardEventWithoutDataUntilHandled(view, 'cut');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(handled).toBe(true);
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(writeText).toHaveBeenCalledWith('Alpha');
+      expect(view.state.doc.textContent).toBe('AlphaBeta');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(1);
     } finally {
       await editor.destroy();
     }

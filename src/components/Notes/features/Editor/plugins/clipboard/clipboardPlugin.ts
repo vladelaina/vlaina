@@ -34,6 +34,10 @@ import { findTailCursorPosInRange, isMarkdownStructuralResult, resolvePasteRange
 import { createMarkdownPasteSlice, hasOnlyParagraphNodes } from './markdownPasteSlice';
 import { createMarkdownTableFromTabSeparatedText } from './tabSeparatedTablePaste';
 import { writeTextToClipboard } from '@/lib/clipboard';
+import {
+    hasSelectedBlocks,
+} from '../cursor/blockSelectionPluginState';
+import { replaceVisibleBlockSelectionWithCursor } from '../cursor/blockSelectionReplacement';
 
 export const clipboardPluginKey = new PluginKey('vlaina-clipboard');
 const MAX_MARKDOWN_PASTE_CHARS = 1024 * 1024;
@@ -41,12 +45,24 @@ const MAX_HTML_PASTE_CHARS = 2 * 1024 * 1024;
 const INLINE_FOOTNOTE_REFERENCE_PATTERN = /\[\^([^\]\r\n]+)\]/g;
 const BLANK_LINE_PATTERN = /\n[ \t]*\n/;
 
-function isClipboardShortcut(event: KeyboardEvent, key: 'c' | 'x'): boolean {
+function isClipboardCopyShortcut(event: KeyboardEvent): boolean {
+    if (event.altKey) return false;
+
+    const key = event.key.toLowerCase();
     return (
         (event.metaKey || event.ctrlKey) &&
-        !event.altKey &&
         !event.shiftKey &&
-        event.key.toLowerCase() === key
+        (key === 'c' || key === 'insert')
+    );
+}
+
+function isClipboardCutShortcut(event: KeyboardEvent): boolean {
+    if (event.altKey) return false;
+
+    const key = event.key.toLowerCase();
+    return (
+        ((event.metaKey || event.ctrlKey) && !event.shiftKey && key === 'x') ||
+        (!(event.metaKey || event.ctrlKey) && event.shiftKey && key === 'delete')
     );
 }
 
@@ -93,6 +109,24 @@ function collapseCapturedSelectionAndHideFloatingToolbar(view: EditorView, selec
     }
 
     collapseSelectionAndHideFloatingToolbar(view);
+}
+
+function replaceBlockSelectionBeforePaste(view: EditorView): boolean {
+    const tr = replaceVisibleBlockSelectionWithCursor(view);
+    if (!tr.docChanged) {
+        return false;
+    }
+
+    tr.setMeta(clipboardPluginKey, true);
+    view.dispatch(tr);
+    return true;
+}
+
+function hasClipboardPayload(event: ClipboardEvent): boolean {
+    const clipboardData = event.clipboardData;
+    if (!clipboardData) return false;
+    if (clipboardData.getData('text/plain') || clipboardData.getData('text/html')) return true;
+    return Array.from(clipboardData.types ?? []).length > 0;
 }
 
 export function createStandaloneTocPasteNode(schema: {
@@ -645,11 +679,15 @@ export const clipboardPlugin = $prose((ctx) => {
         key: clipboardPluginKey,
         props: {
             handleKeyDown(view, event) {
+                if (hasSelectedBlocks(view.state)) {
+                    return false;
+                }
+
                 const isDirectCopy =
-                    isClipboardShortcut(event, 'c') &&
+                    isClipboardCopyShortcut(event) &&
                     shouldHandleCopyShortcutDirectly(view.state.selection);
                 const isDirectCut =
-                    isClipboardShortcut(event, 'x') &&
+                    isClipboardCutShortcut(event) &&
                     shouldHandleCutShortcutDirectly(view.state.selection);
 
                 if (!isDirectCopy && !isDirectCut) {
@@ -681,6 +719,10 @@ export const clipboardPlugin = $prose((ctx) => {
             },
             handleDOMEvents: {
                 copy(view, event) {
+                    if (hasSelectedBlocks(view.state)) {
+                        return false;
+                    }
+
                     const text = serializeSelectionToClipboardText(
                         view.state,
                         getMarkdownSerializer(),
@@ -704,6 +746,10 @@ export const clipboardPlugin = $prose((ctx) => {
                     return true;
                 },
                 cut(view, event) {
+                    if (hasSelectedBlocks(view.state)) {
+                        return false;
+                    }
+
                     if (!shouldHandleCutShortcutDirectly(view.state.selection)) {
                         return false;
                     }
@@ -733,13 +779,19 @@ export const clipboardPlugin = $prose((ctx) => {
             },
             handlePaste(view, event) {
                 const text = event.clipboardData?.getData('text/plain');
-                if (!text) return false;
+                if (!text) {
+                    if (hasSelectedBlocks(view.state) && hasClipboardPayload(event)) {
+                        replaceBlockSelectionBeforePaste(view);
+                    }
+                    return false;
+                }
                 if (text.length > MAX_MARKDOWN_PASTE_CHARS) {
                     event.preventDefault();
                     return true;
                 }
 
                 const fencedPayload = parseStandaloneFencedCodeBlock(text);
+                replaceBlockSelectionBeforePaste(view);
                 const state = view.state;
                 if (state.selection.$from.parent.type.spec.code || state.selection.$to.parent.type.spec.code) {
                     return false;

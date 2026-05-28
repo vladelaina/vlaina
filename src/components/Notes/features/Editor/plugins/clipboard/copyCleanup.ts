@@ -3,10 +3,21 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
 
+export function hideFloatingToolbar(view: EditorView): void {
+  view.dispatch(
+    view.state.tr
+      .setMeta(floatingToolbarKey, {
+        type: TOOLBAR_ACTIONS.HIDE,
+      })
+      .setMeta('addToHistory', false)
+  );
+}
+
 export function collapseSelectionAndHideFloatingToolbar(view: EditorView): void {
   const { state } = view;
   const { selection } = state;
   if (selection.empty) {
+    hideFloatingToolbar(view);
     return;
   }
 
@@ -18,9 +29,11 @@ export function collapseSelectionAndHideFloatingToolbar(view: EditorView): void 
   } catch {
   }
 
-  tr = tr.setMeta(floatingToolbarKey, {
-    type: TOOLBAR_ACTIONS.HIDE,
-  });
+  tr = tr
+    .setMeta(floatingToolbarKey, {
+      type: TOOLBAR_ACTIONS.HIDE,
+    })
+    .setMeta('addToHistory', false);
 
   view.dispatch(tr);
   view.focus();

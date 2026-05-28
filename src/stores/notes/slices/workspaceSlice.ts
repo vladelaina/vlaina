@@ -13,6 +13,7 @@ import {
 } from '../storage';
 import {
   limitCachedNoteContents,
+  markCachedNoteFresh,
   remapCachedNoteContents,
   setCachedNoteContent,
 } from '../document/noteContentCache';
@@ -40,6 +41,7 @@ const pendingNotePrefetches = new Map<string, PendingNotePrefetch>();
 const cancelledNotePrefetches = new Set<string>();
 const notePrefetchQueue = createAsyncPrefetchQueue(2);
 const MAX_NOTE_CONTENT_CACHE_ENTRIES = 250;
+const HOVER_PREFETCH_FRESH_MS = 1000;
 let latestOpenNoteRequestId = 0;
 
 function getNotePrefetchKey(notesPath: string, path: string) {
@@ -68,6 +70,11 @@ function getProtectedCachePaths(state: NotesStore, extraPaths: string[] = []) {
   state.openTabs.forEach((tab) => protectedPaths.add(tab.path));
   Object.keys(state.draftNotes).forEach((path) => protectedPaths.add(path));
   return protectedPaths;
+}
+
+function isCachedNoteFresh(state: NotesStore, path: string, now = Date.now()) {
+  const freshUntil = state.noteContentsCache.get(path)?.freshUntil;
+  return typeof freshUntil === 'number' && now <= freshUntil;
 }
 
 function openDraftNoteFromMemory(
@@ -353,11 +360,14 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   },
 
   prefetchNote: async (path: string) => {
-    const { notesPath, noteContentsCache } = get();
+    const { notesPath, openTabs } = get();
     if (!isSupportedMarkdownPath(path)) {
       return;
     }
-    if (noteContentsCache.has(path)) {
+    if (isCachedNoteFresh(get(), path)) {
+      return;
+    }
+    if (openTabs.some((tab) => tab.path === path && tab.isDirty)) {
       return;
     }
 
@@ -388,12 +398,16 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         return;
       }
 
-      const prefetchedEntry = nextCache.get(path);
+      const freshCache = markCachedNoteFresh(nextCache, path, Date.now() + HOVER_PREFETCH_FRESH_MS);
+      const prefetchedEntry = freshCache.get(path);
       if (!prefetchedEntry) {
         return;
       }
       set((state) => {
-        if (state.notesPath !== notesPath || state.noteContentsCache.has(path)) {
+        if (
+          state.notesPath !== notesPath ||
+          state.openTabs.some((tab) => tab.path === path && tab.isDirty)
+        ) {
           return {};
         }
         const mergedCache = new Map(state.noteContentsCache);
