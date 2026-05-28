@@ -166,7 +166,7 @@ export const SidebarSearchField = forwardRef<HTMLInputElement, SidebarSearchFiel
             ref={ref}
             spellCheck={false}
             className={cn(
-              'min-w-0 flex-1 bg-transparent text-[16px] text-[var(--vlaina-color-text-soft)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]',
+              'h-8 min-w-0 flex-1 bg-transparent py-0 text-[16px] leading-5 text-[var(--vlaina-color-text-soft)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]',
               inputClassName,
             )}
             {...props}

@@ -449,8 +449,8 @@ export function ModelSelector({
       }
       focusTimerRef.current = setTimeout(() => {
           focusTimerRef.current = null
-          inputRef.current?.focus()
-      }, 50);
+          inputRef.current?.focus({ preventScroll: true })
+      }, 90);
   }, []);
 
   const focusComposerInput = useCallback(() => {
@@ -707,11 +707,10 @@ export function ModelSelector({
                 placeholder={t('chat.findModel')}
                 autoCorrect="off"
                 className={cn(
-                  "min-w-0 flex-1 bg-transparent px-2 py-0.5 text-sm outline-none border-none",
+                  "h-8 min-w-0 flex-1 bg-transparent px-2 py-0 text-sm leading-5 outline-none border-none",
                   styles.inputText,
                   styles.inputPlaceholder
                 )}
-                autoFocus={focusSearchOnOpen}
               />
               <button
                   onClick={() => {
