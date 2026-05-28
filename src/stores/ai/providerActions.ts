@@ -139,7 +139,7 @@ async function syncManagedProviderModelsFromStartup(
 }
 
 function isDefaultChannelLabel(name: string): boolean {
-  return /^channel\s+\d+$/i.test(name.trim());
+  return /^channel\s*\d+$/i.test(name.trim());
 }
 
 function shouldDeleteIncompleteCustomProvider(provider: Provider): boolean {

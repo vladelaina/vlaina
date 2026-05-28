@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 import { formatBenchmarkLatency, type HealthStatus } from '../components/ModelListItem';
 import { useI18n } from '@/lib/i18n';
 import { getModelPresentationName } from '@/components/Chat/features/Input/modelFamilyRegistry';
+import { providerInputClassName, providerInputShellClassName } from './providerInputStyles';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 const SLOW_BENCHMARK_LATENCY_MS = 5000;
 
@@ -75,11 +77,12 @@ export function ActionButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'inline-flex items-center justify-center gap-1.5 rounded-full border border-transparent text-[12px] font-semibold transition-all duration-200',
+        'inline-flex items-center justify-center gap-1.5 rounded-full border border-transparent bg-transparent text-[12px] font-semibold transition-colors duration-200',
         compact ? 'h-8 px-3' : 'h-9 px-4',
+        chatComposerPillSurfaceClass,
         muted
-          ? 'bg-white text-[var(--notes-sidebar-text-soft)] hover:bg-zinc-50 hover:text-[var(--notes-sidebar-text)] disabled:cursor-not-allowed disabled:opacity-50'
-          : 'bg-[var(--sidebar-row-selected-bg)] text-[var(--sidebar-row-selected-text)] hover:bg-[var(--sidebar-row-selected-bg)]/80 disabled:cursor-not-allowed disabled:opacity-50'
+          ? 'text-[var(--notes-sidebar-text-soft)] hover:bg-transparent hover:text-[#41a8ea] disabled:cursor-not-allowed disabled:opacity-50'
+          : 'text-[var(--sidebar-row-selected-text)] hover:bg-transparent hover:text-[#41a8ea] disabled:cursor-not-allowed disabled:opacity-50'
       )}
     >
       {busy ? (
@@ -215,6 +218,8 @@ export function ModelSearchInput({
       onChange={(event) => onChange(event.target.value)}
       placeholder={t('settings.ai.filterModels')}
       leading={<Icon name="common.search" size="sm" className="text-zinc-400" />}
+      inputClassName={cn(providerInputClassName, 'pl-11', value && 'pr-20')}
+      shellClassName={providerInputShellClassName}
       trailing={value ? (
         <button
           type="button"

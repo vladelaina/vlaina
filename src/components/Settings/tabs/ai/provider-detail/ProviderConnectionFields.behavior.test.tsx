@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ProviderConnectionFields } from './ProviderConnectionFields';
+import { ProviderConnectionFields, isDefaultChannelName } from './ProviderConnectionFields';
 
 function buildProps(overrides: Partial<Parameters<typeof ProviderConnectionFields>[0]> = {}) {
   const props: Parameters<typeof ProviderConnectionFields>[0] = {
@@ -154,5 +154,37 @@ describe('ProviderConnectionFields API key input', () => {
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: 'sk-partial-more' } });
     expect(props.onApiKeyChange).toHaveBeenCalledWith('sk-partial-more');
+  });
+});
+
+describe('ProviderConnectionFields channel name input', () => {
+  it('recognizes generated channel labels with and without spaces', () => {
+    expect(isDefaultChannelName('Channel 1')).toBe(true);
+    expect(isDefaultChannelName('channel1')).toBe(true);
+    expect(isDefaultChannelName('My channel1')).toBe(false);
+  });
+
+  it('selects an unchanged generated channel name when clicked', async () => {
+    renderFields({ name: 'channel1' });
+    const input = screen.getByDisplayValue('channel1') as HTMLInputElement;
+
+    fireEvent.click(input);
+
+    await waitFor(() => {
+      expect(input.selectionStart).toBe(0);
+      expect(input.selectionEnd).toBe('channel1'.length);
+    });
+  });
+
+  it('does not auto-select a custom channel name when clicked', async () => {
+    renderFields({ name: 'Work API' });
+    const input = screen.getByDisplayValue('Work API') as HTMLInputElement;
+
+    input.setSelectionRange(4, 4);
+    fireEvent.click(input);
+
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+    expect(input.selectionStart).toBe(4);
+    expect(input.selectionEnd).toBe(4);
   });
 });

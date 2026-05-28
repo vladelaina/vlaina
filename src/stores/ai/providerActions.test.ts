@@ -152,6 +152,20 @@ describe('deleteIncompleteCustomProviders', () => {
     expect(ai.selectedModelId).toBeNull();
   });
 
+  it('removes locally created empty channels with compact generated labels', () => {
+    actions.addProvider({
+      name: 'channel1',
+      type: 'newapi',
+      apiHost: '',
+      apiKey: '',
+      enabled: true,
+    });
+
+    actions.deleteIncompleteCustomProviders();
+
+    expect(useUnifiedStore.getState().data.ai?.providers).toEqual([]);
+  });
+
   it('keeps incomplete custom channels that were synced from another window', () => {
     const provider = buildProvider({
       id: 'provider-remote',

@@ -128,7 +128,10 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                 onClick={() => {
                   void props.onFetchModels();
                 }}
-                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-transparent bg-[var(--sidebar-row-selected-bg)] px-3.5 text-[12px] font-medium text-[var(--sidebar-row-selected-text)] shadow-none transition-colors hover:bg-[var(--sidebar-row-selected-bg)]/80 disabled:cursor-not-allowed disabled:opacity-50"
+                className={cn(
+                  'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-transparent bg-transparent px-3.5 text-[12px] font-medium text-[var(--sidebar-row-selected-text)] transition-colors hover:bg-transparent hover:text-[#41a8ea] disabled:cursor-not-allowed disabled:opacity-50',
+                  chatComposerPillSurfaceClass
+                )}
               >
                 {props.isFetchingModels ? (
                   <span className="h-3 w-3 rounded-full border-2 border-zinc-300 border-t-[var(--sidebar-row-selected-text)] animate-spin" />

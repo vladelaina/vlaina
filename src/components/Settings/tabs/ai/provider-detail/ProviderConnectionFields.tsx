@@ -5,6 +5,7 @@ import { SettingsTextInput } from '@/components/Settings/components/SettingsFiel
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
+import { providerInputClassName, providerInputShellClassName } from './providerInputStyles';
 
 const API_KEY_PREFIX_VISIBLE_CHARS = 7;
 const API_KEY_SUFFIX_VISIBLE_CHARS = 4;
@@ -43,6 +44,10 @@ export function getApiKeyEditableSelectionRange(apiKey: string): { start: number
   }
 
   return { start: 0, end: apiKey.length };
+}
+
+export function isDefaultChannelName(name: string): boolean {
+  return /^channel\s*\d+$/i.test(name.trim());
 }
 
 export function ProviderConnectionFields({
@@ -158,6 +163,16 @@ export function ProviderConnectionFields({
     }, 0);
   };
 
+  const selectDefaultChannelName = (input: HTMLInputElement) => {
+    if (!isDefaultChannelName(name)) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      input.select();
+    }, 0);
+  };
+
   return (
     <section className={cn("overflow-hidden rounded-[26px] p-1 mb-2", chatComposerPillSurfaceClass)}>
       <div className="flex flex-col">
@@ -173,10 +188,12 @@ export function ProviderConnectionFields({
               type="text"
               value={name}
               onChange={(e) => onNameChange(e.target.value)}
+              onFocus={(event) => selectDefaultChannelName(event.currentTarget)}
+              onClick={(event) => selectDefaultChannelName(event.currentTarget)}
               placeholder={t('settings.ai.newChannel')}
               className="w-full max-w-[520px]"
-              inputClassName="h-10 px-5 rounded-xl text-[14px]"
-              shellClassName="rounded-xl shadow-none bg-zinc-100/50 dark:bg-white/5 border-transparent"
+              inputClassName={providerInputClassName}
+              shellClassName={providerInputShellClassName}
             />
           </div>
         </div>
@@ -202,8 +219,8 @@ export function ProviderConnectionFields({
               data-lpignore="true"
               data-1p-ignore="true"
               className="w-full max-w-[520px]"
-              inputClassName="h-10 px-5 rounded-xl text-[14px]"
-              shellClassName="rounded-xl shadow-none bg-zinc-100/50 dark:bg-white/5 border-transparent"
+              inputClassName={providerInputClassName}
+              shellClassName={providerInputShellClassName}
             />
           </div>
         </div>
@@ -235,8 +252,8 @@ export function ProviderConnectionFields({
               data-1p-ignore="true"
               style={getApiKeyInputStyle(apiKeyDisplayValue, apiKeyTextWidthPx)}
               className="w-full max-w-[520px]"
-              inputClassName="h-10 rounded-xl px-5 pr-[5.75rem] font-mono text-[14px]"
-              shellClassName="rounded-xl shadow-none bg-zinc-100/50 dark:bg-white/5 border-transparent"
+              inputClassName={cn(providerInputClassName, 'pr-[5.75rem] font-mono')}
+              shellClassName={providerInputShellClassName}
               trailing={
                 <div className="flex items-center gap-1 pr-1">
                   <button

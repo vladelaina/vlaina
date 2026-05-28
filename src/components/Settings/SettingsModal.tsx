@@ -14,6 +14,7 @@ import { actions as aiActions } from '@/stores/ai/providerActions';
 import { SETTINGS_BEFORE_CLOSE_EVENT, SETTINGS_CLOSED_EVENT } from './settingsEvents';
 import { useI18n, type MessageKey } from '@/lib/i18n';
 import type { CommunitySettings } from './tabs/aboutCommunitySettings';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 interface SettingsModalProps {
   open: boolean;
@@ -149,8 +150,9 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
                 onClick={handleClose}
                 aria-label={t('common.close')}
                 className={cn(
-                  "absolute right-5 top-5 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-950",
-                  "dark:text-zinc-500 dark:hover:bg-zinc-100 dark:hover:text-zinc-950",
+                  "absolute right-5 top-5 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-transparent hover:text-[#41a8ea]",
+                  "dark:text-zinc-500 dark:hover:bg-transparent dark:hover:text-[#41a8ea]",
+                  chatComposerPillSurfaceClass,
                   isAppearanceFontPreviewing && "pointer-events-none opacity-0",
                 )}
               >

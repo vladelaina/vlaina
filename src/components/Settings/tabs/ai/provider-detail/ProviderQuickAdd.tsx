@@ -8,6 +8,8 @@ import {
 } from './ProviderModelListParts';
 import { useI18n } from '@/lib/i18n';
 import { rankByFuzzySearch } from './fuzzyModelSearch';
+import { providerInputClassName, providerInputShellClassName } from './providerInputStyles';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 interface ProviderQuickAddProps {
   value: string;
@@ -132,6 +134,8 @@ export function ProviderQuickAdd({
             }
           }}
           placeholder={t('settings.ai.addModelId')}
+          inputClassName={providerInputClassName}
+          shellClassName={providerInputShellClassName}
         />
         {showSuggestions ? (
           <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[22px] border border-zinc-200/90 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
@@ -165,7 +169,10 @@ export function ProviderQuickAdd({
         type="button"
         aria-label={t('settings.ai.addModels')}
         onClick={() => submit()}
-        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+        className={cn(
+          'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-zinc-500 transition-colors hover:bg-transparent hover:text-[#41a8ea]',
+          chatComposerPillSurfaceClass
+        )}
       >
         <Icon name="common.add" size="md" />
       </button>
