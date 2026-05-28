@@ -82,6 +82,8 @@ describe('OpenAI web search JSON tool loop', () => {
     });
 
     expect(requestJson).toHaveBeenCalledTimes(2);
+    expect(requestJson.mock.calls[0][0].tools).toHaveLength(3);
+    expect(requestJson.mock.calls[0][0].tool_choice).toBeUndefined();
     expect(client.webSearch).toHaveBeenCalledTimes(1);
     expect(client.webSearch).not.toHaveBeenCalledWith('vlaina again', expect.anything());
     expect(final).toContain('Final answer after search.');
@@ -348,12 +350,12 @@ describe('OpenAI web search JSON tool loop', () => {
     const reminderMessages = requestJson.mock.calls[2][0].messages;
     expect(reminderMessages[reminderMessages.length - 1]).toMatchObject({
       role: 'system',
-      content: expect.stringContaining('read_web_page'),
+      content: expect.stringContaining('Read at least one relevant result page'),
     });
     expect(onApiTranscript).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({
         role: 'system',
-        content: expect.stringContaining('read_web_page'),
+        content: expect.stringContaining('Read at least one relevant result page'),
       }),
     ]));
   });
@@ -506,7 +508,7 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(request.mock.calls[0][0].max_completion_tokens).toBe(500);
     expect(request.mock.calls[0][0].messages.at(-1)).toMatchObject({
       role: 'system',
-      content: expect.stringContaining('Fast-path web search results'),
+      content: expect.stringContaining('Answer from the provided web search context'),
     });
     expect(final).toContain('Fast international briefing.');
     expect(final).toContain('<web-search-status>');
@@ -757,6 +759,8 @@ describe('OpenAI web search JSON tool loop', () => {
     });
 
     expect(request).toHaveBeenCalledTimes(3);
+    expect(request.mock.calls[0][0].tools).toHaveLength(3);
+    expect(request.mock.calls[0][0].tool_choice).toBeUndefined();
     expect(client.readWebPages).toHaveBeenCalledWith(['https://example.com'], {
       contentLimit: 3000,
       retries: 0,
@@ -1116,7 +1120,7 @@ describe('OpenAI web search JSON tool loop', () => {
     const reminderMessages = request.mock.calls[2][0].messages;
     expect(reminderMessages[reminderMessages.length - 1]).toMatchObject({
       role: 'system',
-      content: expect.stringContaining('Do not say the search results were poor'),
+      content: expect.stringContaining('Write the final answer now'),
     });
     expect(final).toContain('Final visible answer.');
     expect(final).not.toContain('I have enough context.');
@@ -1124,7 +1128,7 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(onApiTranscript).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({
         role: 'system',
-        content: expect.stringContaining('Do not say the search results were poor'),
+        content: expect.stringContaining('Write the final answer now'),
       }),
     ]));
   });
@@ -1183,7 +1187,7 @@ describe('OpenAI web search JSON tool loop', () => {
     const reminderMessages = requestJson.mock.calls[2][0].messages;
     expect(reminderMessages[reminderMessages.length - 1]).toMatchObject({
       role: 'system',
-      content: expect.stringContaining('Do not say the search results were poor'),
+      content: expect.stringContaining('Write the final answer now'),
     });
     expect(final).toContain('Final visible answer.');
     expect(final).not.toContain('I have enough context.');
@@ -1258,7 +1262,7 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(request.mock.calls[6][0].tool_choice).toBeUndefined();
     expect(request.mock.calls[6][0].messages.at(-1)).toMatchObject({
       role: 'system',
-      content: expect.stringContaining('Do not say the search results were poor'),
+      content: expect.stringContaining('Write the final answer now'),
     });
     expect(final).toContain('Recovered final answer with https://example.com');
   });

@@ -3,6 +3,21 @@ import type { AIModel, ChatMessage, Provider } from '../types';
 import { getUserFacingAIError } from '../errors';
 import { OpenAICompatibleClient } from './openai';
 
+const mocks = vi.hoisted(() => ({
+  bridge: undefined as undefined | {
+    webSearch?: {
+      search: ReturnType<typeof vi.fn>;
+      read: ReturnType<typeof vi.fn>;
+      readBatch: ReturnType<typeof vi.fn>;
+      cancelRequest: ReturnType<typeof vi.fn>;
+    };
+  },
+}));
+
+vi.mock('@/lib/electron/bridge', () => ({
+  getElectronBridge: () => mocks.bridge,
+}));
+
 function buildProvider(overrides: Partial<Provider> = {}): Provider {
   return {
     id: 'provider-1',
@@ -44,6 +59,7 @@ function streamResponse(text: string): Response {
 describe('OpenAICompatibleClient endpoint detection', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    mocks.bridge = undefined;
   });
 
   it('falls back to Anthropic model listing and returns the detected endpoint type', async () => {
@@ -570,6 +586,65 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(body.tool_choice).toBeUndefined();
   });
 
+  it('prefetches web search context for OpenRouter Claude without tool messages', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse('data: {"choices":[{"delta":{"content":"claude web answer"}}]}\n\ndata: [DONE]\n\n'),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    mocks.bridge = {
+      webSearch: {
+        search: vi.fn(async () => ({
+          query: 'search something current',
+          results: [{
+            title: 'Current source',
+            url: 'https://example.com/source',
+            snippet: 'Useful source.',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          }],
+        })),
+        read: vi.fn(),
+        readBatch: vi.fn(async () => [{
+          url: 'https://example.com/source',
+          ok: true,
+          page: {
+            title: 'Current source',
+            summary: '',
+            siteName: 'example.com',
+            finalUrl: 'https://example.com/source',
+            content: 'Readable source content.',
+            charCount: 24,
+          },
+        }]),
+        cancelRequest: vi.fn(),
+      },
+    };
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'search something current',
+      [],
+      buildModel({ apiModelId: 'anthropic/claude-sonnet-4.5', name: 'Claude Sonnet 4.5' }),
+      buildProvider({ name: 'OpenRouter', apiHost: 'https://openrouter.ai/api', endpointType: 'openai' }),
+      vi.fn(),
+      undefined,
+      { webSearchEnabled: true },
+    );
+
+    expect(result).toContain('claude web answer');
+    expect(result).toContain('https://example.com/source');
+    expect(fetchMock.mock.calls[0][0]).toBe('https://openrouter.ai/api/v1/chat/completions');
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.model).toBe('anthropic/claude-sonnet-4.5');
+    expect(body.tools).toBeUndefined();
+    expect(body.tool_choice).toBeUndefined();
+    expect(body.messages.some((message: { role: string; tool_calls?: unknown; tool_call_id?: unknown }) =>
+      message.role === 'tool' || message.tool_calls || message.tool_call_id,
+    )).toBe(false);
+    expect(body.messages.at(-1).content).toContain('Answer from the provided web search context');
+    expect(body.messages.at(-1).content).toContain('Readable source content.');
+  });
+
   it('detects prefixed and mixed-case custom Grok model ids without injecting local tools', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       streamResponse('data: {"choices":[{"delta":{"content":"custom grok answer"}}]}\n\ndata: [DONE]\n\n'),
@@ -648,7 +723,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     const result = await new OpenAICompatibleClient().sendMessage(
       'search current docs',
       [],
-      buildModel({ apiModelId: 'gpt-4o-mini' }),
+      buildModel({ apiModelId: 'gpt-4o-mini', name: 'GPT-4o Mini' }),
       buildProvider({ endpointType: 'openai' }),
       (chunk) => chunks.push(chunk),
       undefined,
