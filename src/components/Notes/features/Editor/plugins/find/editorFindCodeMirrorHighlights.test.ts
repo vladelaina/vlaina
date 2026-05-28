@@ -69,4 +69,34 @@ describe('editorFindCodeMirrorHighlights', () => {
     cm.destroy();
     host.remove();
   });
+
+  it('marks CodeMirror find highlights that overlap the active selection', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+
+    const cm = new CodeMirror({
+      parent: host,
+      state: EditorState.create({
+        doc: 'hello world',
+        extensions: [...codeMirrorFindHighlightExtensions],
+      }),
+    });
+
+    syncCodeMirrorFindHighlights(cm, [
+      { from: 0, to: 5, active: false },
+      { from: 6, to: 11, active: true },
+    ]);
+    cm.dispatch({ selection: { anchor: 1, head: 4 } });
+
+    expect(cm.dom.querySelectorAll('.vlaina-editor-find-match-selected')).toHaveLength(1);
+    expect(cm.dom.querySelectorAll('.vlaina-editor-find-match-active.vlaina-editor-find-match-selected')).toHaveLength(0);
+
+    cm.dispatch({ selection: { anchor: 6, head: 11 } });
+
+    expect(cm.dom.querySelectorAll('.vlaina-editor-find-match-selected')).toHaveLength(1);
+    expect(cm.dom.querySelectorAll('.vlaina-editor-find-match-active.vlaina-editor-find-match-selected')).toHaveLength(1);
+
+    cm.destroy();
+    host.remove();
+  });
 });

@@ -10,6 +10,18 @@
   box-shadow: inset 0 0 0 1px rgba(120, 53, 15, 0.2), 0 0 0 1px rgba(255, 176, 32, 0.45);
 }
 
+.milkdown .ProseMirror .code-block-container .vlaina-editor-find-match-selected {
+  background: transparent;
+  box-shadow: none;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.milkdown .ProseMirror .code-block-container .vlaina-editor-find-match-selected * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
 .dark .milkdown .ProseMirror .vlaina-editor-find-match {
   background: rgba(250, 204, 21, 0.5);
 }

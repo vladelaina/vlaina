@@ -273,7 +273,7 @@ describe('textSelectionOverlayPlugin', () => {
     }
   });
 
-  it('releases native pointer routing when the window loses focus', async () => {
+  it('releases native pointer routing after pointer selection completes', async () => {
     const view = await createEditor('hello');
     const originalGetSelection = window.getSelection;
     const originalElementFromPoint = document.elementFromPoint;
@@ -307,12 +307,61 @@ describe('textSelectionOverlayPlugin', () => {
 
       expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
 
-      window.dispatchEvent(new Event('blur'));
+      view.dom.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true }));
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
       expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
       expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
       expect(removeAllRanges).toHaveBeenCalledTimes(1);
+    } finally {
+      Object.defineProperty(window, 'getSelection', {
+        configurable: true,
+        value: originalGetSelection,
+      });
+      Object.defineProperty(document, 'elementFromPoint', {
+        configurable: true,
+        value: originalElementFromPoint,
+      });
+    }
+  });
+
+  it('does not switch selection rendering modes on window blur', async () => {
+    const view = await createEditor('hello');
+    const originalGetSelection = window.getSelection;
+    const originalElementFromPoint = document.elementFromPoint;
+    const removeAllRanges = vi.fn();
+    const fakeRect = { height: 19, top: 120 } as DOMRect;
+
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => view.dom,
+    });
+    Object.defineProperty(window, 'getSelection', {
+      configurable: true,
+      value: () => ({
+        anchorOffset: 0,
+        focusOffset: 4,
+        isCollapsed: false,
+        rangeCount: 1,
+        removeAllRanges,
+        getRangeAt: () => ({
+          getClientRects: () => [fakeRect],
+        }),
+      }),
+    });
+
+    try {
+      view.dom.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 4)));
+
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+
+      window.dispatchEvent(new Event('blur'));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+      expect(removeAllRanges).not.toHaveBeenCalled();
     } finally {
       Object.defineProperty(window, 'getSelection', {
         configurable: true,

@@ -359,11 +359,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
       const handleWindowBlur = () => {
         isPointerSelectionActive = false;
         preserveNativeSelectionForKeyboard = false;
-        setPointerNativeSelection(false);
         syncActiveClass();
-        if (isTextSelectionOverlayEligible(view.state)) {
-          scheduleClearNativeSelection();
-        }
       };
 
       view.dom.addEventListener('mousedown', handleMouseDown);

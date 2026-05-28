@@ -203,6 +203,48 @@ describe("SelectionInsertButton selection lock", () => {
     container.remove();
     unmount();
   });
+
+  it("keeps the insert button visible when the window blurs", () => {
+    const { unmount } = render(React.createElement(SelectionInsertButton));
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <div data-chat-scrollable="true">
+        <div data-message-item="true" data-role="assistant">
+          <div data-testid="assistant-body" data-chat-selection-surface="true" data-chat-selection-start="true">Answer</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const assistantBody = container.querySelector('[data-testid="assistant-body"]')!;
+    const selection = window.getSelection()!;
+    const range = document.createRange();
+    range.selectNodeContents(assistantBody);
+    Object.defineProperty(range, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({
+        left: 100,
+        right: 160,
+        top: 100,
+        bottom: 120,
+        width: 60,
+        height: 20,
+      }),
+    });
+    selection.removeAllRanges();
+    selection.addRange(range);
+    fireEvent(document, new Event("selectionchange"));
+
+    expect(document.querySelector('[data-no-focus-input="true"]')).not.toBeNull();
+
+    fireEvent(window, new Event("blur"));
+
+    expect(document.querySelector('[data-no-focus-input="true"]')).not.toBeNull();
+
+    selection.removeAllRanges();
+    container.remove();
+    unmount();
+  });
 });
 
 describe("chat selection surfaces", () => {

@@ -228,6 +228,10 @@ export function SelectionInsertButton() {
       setState(nextState);
     };
 
+    const handleWindowBlur = () => {
+      resetSelectionInteractionState();
+    };
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
         resetSelectionInteractionState();
@@ -272,7 +276,7 @@ export function SelectionInsertButton() {
     window.addEventListener("keyup", syncState);
     window.addEventListener("resize", syncState);
     window.addEventListener("scroll", syncState, true);
-    window.addEventListener("blur", handleForceReset);
+    window.addEventListener("blur", handleWindowBlur);
     window.addEventListener("pagehide", handleForceReset);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
@@ -288,7 +292,7 @@ export function SelectionInsertButton() {
       window.removeEventListener("keyup", syncState);
       window.removeEventListener("resize", syncState);
       window.removeEventListener("scroll", syncState, true);
-      window.removeEventListener("blur", handleForceReset);
+      window.removeEventListener("blur", handleWindowBlur);
       window.removeEventListener("pagehide", handleForceReset);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };

@@ -49,11 +49,9 @@ export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
 
         window.addEventListener('mousemove', handleMouseMove, true);
         window.addEventListener('mouseleave', handleMouseLeaveWindow);
-        window.addEventListener('blur', handleMouseLeaveWindow);
         return () => {
             window.removeEventListener('mousemove', handleMouseMove, true);
             window.removeEventListener('mouseleave', handleMouseLeaveWindow);
-            window.removeEventListener('blur', handleMouseLeaveWindow);
         };
     }, []);
 

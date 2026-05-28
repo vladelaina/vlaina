@@ -74,8 +74,12 @@ export class CodeBlockNodeView implements NodeView {
   private findHighlightStateKey = '[]';
   private mirroredOuterSelection = false;
 
-  private readonly clearEditorSelectionOnBlur = () => {
+  private readonly clearEditorSelectionOnBlur = (event: FocusEvent) => {
     if (!this.cm) {
+      return;
+    }
+
+    if (!(event.relatedTarget instanceof globalThis.Node)) {
       return;
     }
 
