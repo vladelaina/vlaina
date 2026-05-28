@@ -142,17 +142,11 @@ export function ModuleShortcutsDialog({
       return;
     }
 
-    const scheduleFrame: (callback: FrameRequestCallback) => number = typeof window.requestAnimationFrame === 'function'
-      ? window.requestAnimationFrame.bind(window)
-      : (callback: FrameRequestCallback) => window.setTimeout(() => callback(performance.now()), 0);
-    const cancelFrame: (id: number) => void = typeof window.cancelAnimationFrame === 'function'
-      ? window.cancelAnimationFrame.bind(window)
-      : (id: number) => window.clearTimeout(id);
-    const frameId = scheduleFrame(() => {
-      searchInputRef.current?.focus();
-    });
+    const timerId = window.setTimeout(() => {
+      searchInputRef.current?.focus({ preventScroll: true });
+    }, 90);
 
-    return () => cancelFrame(frameId);
+    return () => window.clearTimeout(timerId);
   }, [open]);
 
   return (
@@ -204,14 +198,14 @@ export function ModuleShortcutsDialog({
                   placeholder={t('sidebar.search')}
                   aria-label={`${t('sidebar.search')} ${resolvedTitle}`}
                   spellCheck={false}
-                  className="relative z-[1] min-w-0 flex-1 bg-transparent text-[13px] text-[var(--chat-sidebar-text)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]"
+                  className="relative z-[1] h-6 min-w-0 flex-1 bg-transparent py-0 text-[13px] leading-5 text-[var(--chat-sidebar-text)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]"
                 />
                 {searchQuery ? (
                   <button
                     type="button"
                     onClick={() => {
                       setSearchQuery('');
-                      searchInputRef.current?.focus();
+                      searchInputRef.current?.focus({ preventScroll: true });
                     }}
                     aria-label={t('common.close')}
                     className="relative z-[1] inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-[var(--chat-sidebar-row-hover)] hover:text-[var(--chat-sidebar-text)]"

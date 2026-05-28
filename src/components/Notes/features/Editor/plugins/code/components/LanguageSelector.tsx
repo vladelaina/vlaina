@@ -28,6 +28,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
     const [searchTerm, setSearchTerm] = useState('');
     const [activeIndex, setActiveIndex] = useState(0);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     const filteredLanguages = useMemo(() => {
         if (!searchTerm) return codeBlockLanguages;
@@ -45,6 +46,16 @@ export const LanguageSelector = React.memo(function LanguageSelector({
 
     useEffect(() => {
         if (!isOpen) setSearchTerm('');
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const timerId = window.setTimeout(() => {
+            searchInputRef.current?.focus({ preventScroll: true });
+        }, 90);
+
+        return () => window.clearTimeout(timerId);
     }, [isOpen]);
 
     useEffect(() => {
@@ -122,9 +133,9 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                     >
                         <Icon size={18} name="common.search" className="text-[var(--vlaina-color-text-soft)]" />
                         <input
-                            autoFocus
+                            ref={searchInputRef}
                             spellCheck={false}
-                            className="min-w-0 flex-1 bg-transparent text-[16px] text-[var(--vlaina-color-text-soft)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]"
+                            className="h-8 min-w-0 flex-1 bg-transparent py-0 text-[16px] leading-5 text-[var(--vlaina-color-text-soft)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]"
                             placeholder={t('editor.searchLanguage')}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}

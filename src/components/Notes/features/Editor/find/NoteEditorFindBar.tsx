@@ -109,8 +109,7 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
           onKeyDown={controller.handleQueryKeyDown}
           placeholder={t('notes.find')}
           spellCheck={false}
-          autoFocus
-          className="min-w-0 flex-1 bg-transparent text-[15px] font-medium text-zinc-900 dark:text-zinc-100 outline-none placeholder:text-zinc-400/60 tracking-tight"
+          className="h-8 min-w-0 flex-1 bg-transparent py-0 text-[15px] font-medium leading-5 text-zinc-900 outline-none placeholder:text-zinc-400/60 tracking-tight dark:text-zinc-100"
         />
 
         <div className="flex items-center gap-1.5">
@@ -171,7 +170,7 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
                 onKeyDown={controller.handleReplaceKeyDown}
                 placeholder={t('notes.replaceWith')}
                 spellCheck={false}
-                className="min-w-0 flex-1 bg-transparent px-3 text-[14px] text-zinc-700 dark:text-zinc-300 outline-none placeholder:text-zinc-400/60 font-medium tracking-tight"
+                className="h-8 min-w-0 flex-1 bg-transparent px-3 py-0 text-[14px] font-medium leading-5 text-zinc-700 outline-none placeholder:text-zinc-400/60 tracking-tight dark:text-zinc-300"
               />
 
               <div className="flex items-center gap-1.5 pr-1">

@@ -12,7 +12,7 @@ function focusInputElement(input: HTMLInputElement | null, selectAll: boolean) {
     return;
   }
 
-  input.focus();
+  input.focus({ preventScroll: true });
   if (selectAll) {
     input.select();
   }
@@ -26,7 +26,7 @@ export function useNoteEditorFindPanelState({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const replaceInputRef = useRef<HTMLInputElement | null>(null);
   const lastNotePathRef = useRef<string | null | undefined>(notePath);
-  const inputFocusFrameRef = useRef<number | null>(null);
+  const inputFocusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const replaceFocusFrameRef = useRef<number | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isReplaceOpen, setIsReplaceOpen] = useState(false);
@@ -70,19 +70,19 @@ export function useNoteEditorFindPanelState({
       return;
     }
 
-    if (inputFocusFrameRef.current !== null) {
-      cancelAnimationFrame(inputFocusFrameRef.current);
+    if (inputFocusTimerRef.current !== null) {
+      clearTimeout(inputFocusTimerRef.current);
     }
 
-    inputFocusFrameRef.current = requestAnimationFrame(() => {
-      inputFocusFrameRef.current = null;
+    inputFocusTimerRef.current = setTimeout(() => {
+      inputFocusTimerRef.current = null;
       focusInputElement(inputRef.current, true);
-    });
+    }, 90);
 
     return () => {
-      if (inputFocusFrameRef.current !== null) {
-        cancelAnimationFrame(inputFocusFrameRef.current);
-        inputFocusFrameRef.current = null;
+      if (inputFocusTimerRef.current !== null) {
+        clearTimeout(inputFocusTimerRef.current);
+        inputFocusTimerRef.current = null;
       }
     };
   }, [focusToken, isOpen]);

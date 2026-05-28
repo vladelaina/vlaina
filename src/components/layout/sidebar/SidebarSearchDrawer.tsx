@@ -127,7 +127,6 @@ export function SidebarSearchDrawer({
         <div className="overflow-hidden">
           <SidebarSearchField
             ref={inputRef}
-            autoFocus={isSearchOpen}
             type="text"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
