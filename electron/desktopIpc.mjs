@@ -100,45 +100,47 @@ function findCommandOnPath(command, envPath = process.env.PATH, exists = existsS
   return null;
 }
 
-function getLinuxFolderOpener(options = {}) {
+function getLinuxItemRevealer(options = {}) {
   const candidates = [
-    { command: 'nautilus', args: ['--new-window'] },
-    { command: 'dolphin', args: [] },
-    { command: 'nemo', args: [] },
-    { command: 'thunar', args: [] },
-    { command: 'pcmanfm', args: [] },
-    { command: 'caja', args: [] },
-    { command: 'io.elementary.files', args: [] },
+    { command: 'nautilus', args: ['--new-window', '--select'], target: 'item' },
+    { command: 'dolphin', args: ['--select'], target: 'item' },
+    { command: 'thunar', args: ['--select'], target: 'item' },
+    { command: 'nemo', args: [], target: 'item' },
+    { command: 'pcmanfm', args: [], target: 'item' },
+    { command: 'caja', args: [], target: 'item' },
+    { command: 'io.elementary.files', args: [], target: 'item' },
   ];
 
   for (const candidate of candidates) {
     const commandPath = findCommandOnPath(candidate.command, options.envPath, options.exists);
     if (commandPath) {
-      return { command: commandPath, args: candidate.args };
+      return { command: commandPath, args: candidate.args, target: candidate.target };
     }
   }
 
-  return { command: 'xdg-open', args: [] };
+  return { command: 'xdg-open', args: [], target: 'folder' };
 }
 
-function openFolderWithLinuxFileManager(folderPath, options = {}) {
-  const { command, args } = options.opener ?? getLinuxFolderOpener(options);
+function openItemWithLinuxFileManager(filePath, options = {}) {
+  const { command, args, target } = options.opener ?? getLinuxItemRevealer(options);
   const spawnDetached = options.spawnDetached ?? spawn;
   const fallbackShell = options.fallbackShell ?? shell;
-  const child = spawnDetached(command, [...args, folderPath], {
+  const folderPath = path.dirname(filePath);
+  const targetPath = target === 'folder' ? folderPath : filePath;
+  const child = spawnDetached(command, [...args, targetPath], {
     detached: true,
     stdio: 'ignore',
   });
 
   child.once?.('error', () => {
     if (path.basename(command) !== 'xdg-open') {
-      openFolderWithLinuxFileManager(folderPath, {
+      openItemWithLinuxFileManager(filePath, {
         ...options,
-        opener: { command: 'xdg-open', args: [] },
+        opener: { command: 'xdg-open', args: [], target: 'folder' },
       });
       return;
     }
-    void fallbackShell.openPath?.(folderPath);
+    void fallbackShell.openPath?.(path.dirname(filePath));
   });
   child.unref?.();
 }
@@ -148,7 +150,7 @@ export async function revealItemInFolder(filePath, options = {}) {
   const shellImpl = options.shellImpl ?? shell;
 
   if (platform === 'linux') {
-    openFolderWithLinuxFileManager(path.dirname(filePath), {
+    openItemWithLinuxFileManager(filePath, {
       ...options,
       fallbackShell: shellImpl,
     });
