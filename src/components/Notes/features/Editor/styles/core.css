@@ -5,8 +5,6 @@
 .milkdown {
   min-height: 100%;
   outline: none;
-  --vlaina-editor-caret-color: var(--vlaina-caret-color, #41ace2);
-  --vlaina-editor-caret-width: var(--vlaina-caret-width, 1px);
   --vlaina-editor-block-selection-base: var(--vlaina-color-editor-block-selection, var(--vlaina-color-accent, #1e96eb));
   --vlaina-editor-block-selection-bg: #bedffe;
   --vlaina-editor-block-selection-fg: #fefbf9;
@@ -110,7 +108,7 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 
 .milkdown .ProseMirror {
   position: relative;
-  caret-color: var(--vlaina-editor-caret-color);
+  caret-color: transparent;
 }
 
 .milkdown-editor.vlaina-markdown-body-line-numbers .vlaina-body-line-number-gutter {
@@ -560,15 +558,15 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 
 .vlaina-external-text-drop-cursor {
   position: fixed;
-  width: 2px;
-  min-height: 18px;
-  background: var(--sidebar-row-selected-text, var(--vlaina-accent));
-  border-radius: 1px;
+  width: var(--vlaina-caret-width);
+  min-height: 0;
+  background: var(--vlaina-caret-color);
+  border-radius: calc(var(--vlaina-caret-width) / 2);
   box-shadow: 0 0 0 1px color-mix(in srgb, white 72%, transparent);
   pointer-events: none;
   z-index: 61;
   opacity: 0;
-  transform: translateX(-1px);
+  transform: translateX(calc(var(--vlaina-caret-width) / -2));
   transition: opacity 60ms linear;
 }
 

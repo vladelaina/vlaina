@@ -57,7 +57,9 @@ export function AccountEmailCodeCard({
     return (
       <form noValidate onSubmit={handleRequestCode} className="space-y-4 w-full">
         <input
-          type="email"
+          type="text"
+          inputMode="email"
+          autoComplete="email"
           spellCheck={false}
           value={email}
           onChange={(e) => setEmail(e.target.value)}

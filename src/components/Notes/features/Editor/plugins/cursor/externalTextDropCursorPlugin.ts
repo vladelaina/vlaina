@@ -6,9 +6,9 @@ import {
   parseChatHeadingDragPayload,
   VLAINA_CHAT_HEADING_DRAG_MIME,
 } from '@/lib/drag/chatHeadingDrag';
+import { createCaretOverlayRect } from '@/lib/ui/caretOverlayStyles';
 
 const EXTERNAL_TEXT_DROP_CURSOR_CLASS = 'vlaina-external-text-drop-cursor';
-const MIN_CURSOR_HEIGHT = 18;
 
 type EditorViewWithDragging = EditorView & {
   dragging?: unknown;
@@ -58,14 +58,13 @@ function getCursorRect(view: EditorView, event: DragEvent): CursorRect | null {
 }
 
 function positionCursor(cursor: HTMLElement, rect: CursorRect) {
-  const height = Math.max(MIN_CURSOR_HEIGHT, rect.bottom - rect.top);
-  const top = rect.top + ((rect.bottom - rect.top) - height) / 2;
+  const overlayRect = createCaretOverlayRect(rect);
 
   cursor.classList.remove('block');
-  cursor.style.left = `${Math.round(rect.left)}px`;
-  cursor.style.top = `${Math.round(top)}px`;
+  cursor.style.left = `${Math.round(overlayRect.left)}px`;
+  cursor.style.top = `${Math.round(overlayRect.top)}px`;
   cursor.style.width = '';
-  cursor.style.height = `${Math.round(height)}px`;
+  cursor.style.height = `${Math.round(overlayRect.height)}px`;
   cursor.classList.add('visible');
 }
 

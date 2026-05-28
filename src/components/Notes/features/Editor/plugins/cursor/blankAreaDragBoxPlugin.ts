@@ -10,6 +10,7 @@ import {
 } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { Serializer } from '@milkdown/kit/transformer';
+import { createCaretOverlayRect, createCaretOverlayStyle } from '@/lib/ui/caretOverlayStyles';
 import { dispatchTailBlankClickAction } from './endBlankClickPlugin';
 import {
   createBlockSelectionDecorations,
@@ -334,23 +335,11 @@ function ensureForcedCaretStyle(doc: Document): void {
   if (doc.getElementById(FORCED_CARET_STYLE_ID)) return;
   const style = doc.createElement('style');
   style.id = FORCED_CARET_STYLE_ID;
-  style.textContent = `
-    .${FORCED_CARET_CLASS} {
-      caret-color: transparent !important;
-    }
-    .vlaina-forced-line-end-caret {
-      position: fixed;
-      width: var(--vlaina-caret-width, 1px);
-      background: var(--vlaina-caret-color, #41ace2);
-      pointer-events: none;
-      z-index: 10001;
-      animation: vlaina-forced-line-end-caret-blink 1.05s steps(2, start) infinite;
-    }
-    @keyframes vlaina-forced-line-end-caret-blink {
-      0%, 45% { opacity: 1; }
-      46%, 100% { opacity: 0; }
-    }
-  `;
+  style.textContent = createCaretOverlayStyle({
+    activeSelector: `.${FORCED_CARET_CLASS}`,
+    caretClass: 'vlaina-forced-line-end-caret',
+    keyframesName: 'vlaina-forced-line-end-caret-blink',
+  });
   doc.head.appendChild(style);
 }
 
@@ -363,10 +352,15 @@ function createForcedLineEdgeCaret(
   ensureForcedCaretStyle(doc);
 
   const caret = doc.createElement('div');
+  const overlayRect = createCaretOverlayRect({
+    left: forcedCaretX,
+    top: textRect.top,
+    bottom: textRect.bottom,
+  });
   caret.className = 'vlaina-forced-line-end-caret';
-  caret.style.left = `${forcedCaretX}px`;
-  caret.style.top = `${textRect.top}px`;
-  caret.style.height = `${Math.max(12, textRect.bottom - textRect.top)}px`;
+  caret.style.left = `${overlayRect.left}px`;
+  caret.style.top = `${overlayRect.top}px`;
+  caret.style.height = `${overlayRect.height}px`;
   doc.body.appendChild(caret);
   view.dom.classList.add(FORCED_CARET_CLASS);
 
