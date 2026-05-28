@@ -6,6 +6,8 @@ import { createCaretOverlayRect, createCaretOverlayStyle } from '@/lib/ui/caretO
 const TEXTBLOCK_CARET_CLASS = 'vlaina-textblock-caret-overlay-active';
 const TEXTBLOCK_CARET_STYLE_ID = 'vlaina-textblock-caret-overlay-style';
 const TEXTBLOCK_CARET_ELEMENT_CLASS = 'vlaina-textblock-caret-overlay';
+const TAG_TOKEN_CLASS = 'vlaina-editor-tag-token';
+const TAG_TOKEN_CARET_HEIGHT_RATIO = 1.18;
 
 export const textBlockCaretOverlayPluginKey = new PluginKey('textBlockCaretOverlay');
 
@@ -30,6 +32,37 @@ export function shouldShowTextBlockCaretOverlay(view: EditorView): boolean {
   if (!selection.empty) return false;
 
   return selection.$from.parent.isTextblock;
+}
+
+function isCaretInsideTagToken(view: EditorView): boolean {
+  const { selection } = view.state;
+  if (!selection.empty) {
+    return false;
+  }
+
+  const domAtPos = view.domAtPos(selection.head);
+  const node = domAtPos.node.nodeType === Node.ELEMENT_NODE
+    ? domAtPos.node
+    : domAtPos.node.parentElement;
+  const element = node instanceof Element ? node : null;
+
+  return Boolean(element?.closest(`.${TAG_TOKEN_CLASS}`));
+}
+
+function expandCaretOverlayRect(
+  rect: ReturnType<typeof createCaretOverlayRect>,
+  ratio: number,
+): ReturnType<typeof createCaretOverlayRect> {
+  if (!Number.isFinite(rect.height) || rect.height <= 0 || ratio <= 1) {
+    return rect;
+  }
+
+  const nextHeight = rect.height * ratio;
+  return {
+    left: rect.left,
+    top: rect.top - (nextHeight - rect.height) / 2,
+    height: nextHeight,
+  };
 }
 
 class TextBlockCaretOverlayView {
@@ -110,7 +143,9 @@ class TextBlockCaretOverlayView {
       doc.body.appendChild(this.caret);
     }
 
-    const overlayRect = createCaretOverlayRect(rect);
+    const overlayRect = isCaretInsideTagToken(this.view)
+      ? expandCaretOverlayRect(createCaretOverlayRect(rect), TAG_TOKEN_CARET_HEIGHT_RATIO)
+      : createCaretOverlayRect(rect);
     this.caret.style.left = `${overlayRect.left}px`;
     this.caret.style.top = `${overlayRect.top}px`;
     this.caret.style.height = `${overlayRect.height}px`;

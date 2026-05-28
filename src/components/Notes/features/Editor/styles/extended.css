@@ -29,6 +29,26 @@
   color: #fef9c3;
 }
 
+/* Tags */
+.milkdown .vlaina-editor-tag-token {
+  display: inline;
+  margin: 0 0.05em;
+  padding: 0 0.45em;
+  border-radius: 9999px;
+  color: var(--sidebar-row-selected-text, var(--vlaina-accent));
+  font-weight: 500;
+  line-height: 1.45;
+  white-space: nowrap;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.milkdown .ProseMirror .vlaina-block-selected .vlaina-editor-tag-token,
+.milkdown .ProseMirror .vlaina-block-selected.vlaina-editor-tag-token {
+  color: var(--sidebar-row-selected-text, var(--vlaina-accent)) !important;
+  -webkit-text-fill-color: var(--sidebar-row-selected-text, var(--vlaina-accent)) !important;
+}
+
 /* Scripts */
 .milkdown sup.superscript,
 .milkdown .superscript {

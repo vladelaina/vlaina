@@ -28,6 +28,7 @@ import { updateNoteMetadataInMarkdown } from '../frontmatter';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { normalizeVaultRelativePath, resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { extractNoteTags } from '@/lib/notes/tags';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -659,14 +660,10 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     getAllTags: () => {
       const { noteContentsCache } = get();
       const tagCounts = new Map<string, number>();
-      const tagRegex = /(?:^|\s)#([a-zA-Z][a-zA-Z0-9_/-]*)/g;
 
       noteContentsCache.forEach((entry) => {
-        const content = entry.content;
-        let match;
-        while ((match = tagRegex.exec(content)) !== null) {
-          const tag = match[1].toLowerCase();
-          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+        for (const tag of extractNoteTags(entry.content)) {
+          tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
         }
       });
 
