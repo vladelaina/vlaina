@@ -4,6 +4,7 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { ThemeProvider } from '@/components/theme-provider';
 import { useBillingReturnRefresh } from '@/hooks/useBillingReturnRefresh';
 import { useElectronCloseGuard } from '@/hooks/useElectronCloseGuard';
+import { useNativeCaretOverlay } from '@/hooks/useNativeCaretOverlay';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { useToastStore } from '@/stores/useToastStore';
 import { getElectronBridge } from '@/lib/electron/bridge';
@@ -36,6 +37,7 @@ function App() {
   } = useElectronCloseGuard();
   useDocumentLanguage(language);
   useBillingReturnRefresh();
+  useNativeCaretOverlay();
 
   useEffect(() => {
     void getElectronBridge()?.app?.setLanguage?.(language);

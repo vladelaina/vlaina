@@ -102,6 +102,20 @@ export function resolveBlankAreaSelectionAutoScrollDelta(
   return resolveVerticalEdgeAutoScrollDelta(pointerY, scrollRootRect);
 }
 
+export function blurActiveEditableElement(doc: Document): void {
+  const activeElement = doc.activeElement;
+  if (!(activeElement instanceof HTMLElement) || activeElement === doc.body) return;
+  if (!activeElement.matches([
+    'input',
+    'textarea',
+    'select',
+    'button',
+    '[contenteditable]:not([contenteditable="false"])',
+  ].join(', '))) return;
+
+  activeElement.blur();
+}
+
 export function startBlankAreaSelectionSession(
   options: StartBlankAreaSelectionSessionOptions,
 ): BlockDragSessionHandle {
@@ -143,7 +157,6 @@ export function startBlankAreaSelectionSession(
   let dragBoxRafId = 0;
   let preserveContainingBlocksForSession = false;
   let didResolveFirstNonEmptySelection = false;
-  let shouldFocusAfterDrag = false;
   let cachedSelectionResolutionKey = '';
   let cachedSelectionResolutionBlocks: BlockRange[] = [];
   let cachedSelectionResolutionExpandedKey = '';
@@ -328,8 +341,8 @@ export function startBlankAreaSelectionSession(
       if (selection && selection.rangeCount > 0) {
         selection.removeAllRanges();
       }
+      blurActiveEditableElement(doc);
       onActivateSelectionState();
-      shouldFocusAfterDrag = !view.hasFocus();
       autoScroll.start();
     },
     onDragMove(dragRect) {
@@ -383,13 +396,6 @@ export function startBlankAreaSelectionSession(
       autoScroll.stop();
       rectResolver.invalidate();
       onSyncSelectionState();
-      if (shouldFocusAfterDrag && view.dom.isConnected) {
-        window.setTimeout(() => {
-          if (view.dom.isConnected && !view.hasFocus()) {
-            view.focus();
-          }
-        }, 0);
-      }
     },
   });
 

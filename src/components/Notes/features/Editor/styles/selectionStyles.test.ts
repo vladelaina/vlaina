@@ -233,7 +233,7 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(itemRule).toContain('width: calc(100% + var(--vlaina-list-gap-placeholder-outdent));');
     expect(rule).toContain('color: transparent;');
     expect(rule).toContain('-webkit-text-fill-color: transparent;');
-    expect(rule).toContain('caret-color: var(--vlaina-caret-color);');
+    expect(rule).toContain('caret-color: transparent;');
   });
 
   it('keeps list gap placeholder block selection from extending farther left than normal list rows', () => {

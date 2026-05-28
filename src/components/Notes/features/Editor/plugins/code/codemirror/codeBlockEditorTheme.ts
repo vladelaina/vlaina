@@ -34,7 +34,7 @@ export function createCodeBlockEditorTheme() {
       '.cm-content': {
         padding: '0',
         minHeight: '1.75rem',
-        caretColor: 'var(--vlaina-editor-caret-color, var(--vlaina-text-primary, #2c2c2b)) !important',
+        caretColor: 'transparent !important',
       },
       '.cm-line': {
         padding: '0 1rem',
@@ -67,9 +67,9 @@ export function createCodeBlockEditorTheme() {
         backgroundColor: 'transparent',
       },
       '.cm-cursor, .cm-dropCursor, &.cm-focused .cm-cursor, &.cm-focused .cm-dropCursor': {
-        borderLeftColor: 'var(--vlaina-editor-caret-color, var(--vlaina-text-primary, #2c2c2b)) !important',
+        borderLeftColor: 'var(--vlaina-caret-color) !important',
         borderLeftStyle: 'solid',
-        borderLeftWidth: 'var(--vlaina-editor-caret-width, 1px)',
+        borderLeftWidth: 'var(--vlaina-caret-width)',
       },
     }, { dark: false }),
   ];

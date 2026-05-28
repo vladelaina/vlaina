@@ -86,6 +86,20 @@ describe('AccountSignInOptions', () => {
     expect(screen.getByPlaceholderText(/email address/i)).toHaveClass('text-center');
   });
 
+  it('keeps the email field selection-compatible for the shared caret overlay', () => {
+    render(
+      <AccountEmailCodeCard
+        onEmailCodeRequest={vi.fn().mockResolvedValue(true)}
+        onEmailCodeVerify={vi.fn().mockResolvedValue(true)}
+      />
+    );
+
+    const emailInput = screen.getByPlaceholderText(/email address/i);
+    expect(emailInput).toHaveAttribute('type', 'text');
+    expect(emailInput).toHaveAttribute('inputmode', 'email');
+    expect(emailInput).toHaveAttribute('autocomplete', 'email');
+  });
+
   it('opens the privacy policy from the sign-in agreement', () => {
     render(<AccountSignInOptions {...buildProps()} />);
 

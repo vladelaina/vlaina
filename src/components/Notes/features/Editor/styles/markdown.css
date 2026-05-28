@@ -129,7 +129,7 @@
   border-radius: 6px;
   background-color: rgba(175, 184, 193, 0.2);
   color: inherit;
-  caret-color: var(--vlaina-caret-color);
+  caret-color: transparent;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
   font-size: inherit;
   font-weight: 400;
@@ -187,7 +187,7 @@
 .milkdown .ProseMirror li.vlaina-list-gap-placeholder-item > p {
   color: transparent;
   -webkit-text-fill-color: transparent;
-  caret-color: var(--vlaina-caret-color);
+  caret-color: transparent;
   min-height: 1.45em;
 }
 
