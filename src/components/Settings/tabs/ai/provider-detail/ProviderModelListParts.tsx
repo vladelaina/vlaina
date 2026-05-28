@@ -124,7 +124,10 @@ export function SectionHeader({
         onClick={() => {
           void onBenchmark();
         }}
-        className="flex h-5 w-5 items-center justify-center rounded-full text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-zinc-100 hover:text-[var(--notes-sidebar-text)] disabled:cursor-not-allowed disabled:opacity-35"
+        className={cn(
+          'flex h-6 w-6 items-center justify-center rounded-full text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-transparent hover:text-[#41a8ea] disabled:cursor-not-allowed disabled:opacity-35',
+          chatComposerPillSurfaceClass
+        )}
       >
         {busy ? (
           <div className="h-3 w-3 rounded-full border-2 border-zinc-300 border-t-emerald-500 animate-spin" />
