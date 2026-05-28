@@ -103,6 +103,44 @@ describe('managedService', () => {
     });
   });
 
+  it('retries quickly failed managed web GET requests once', async () => {
+    vi.useFakeTimers();
+    try {
+      hasElectronDesktopBridgeMock.mockReturnValue(false);
+      const fetchMock = vi
+        .fn()
+        .mockRejectedValueOnce(new TypeError('fetch failed'))
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            success: true,
+            model_catalog_version: 'v2',
+          }),
+        });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const { fetchManagedModelsVersion } = await import('./managedService');
+      const request = fetchManagedModelsVersion();
+
+      await vi.advanceTimersByTimeAsync(300);
+
+      await expect(request).resolves.toBe('v2');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not retry managed web POST requests', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('fetch failed'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { requestManagedChatCompletion } = await import('./managedService');
+    await expect(requestManagedChatCompletion({ model: 'gpt-4o-mini' })).rejects.toThrow('fetch failed');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('preserves client session when managed web auth is rejected', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
     const fetchMock = vi.fn().mockResolvedValue({

@@ -39,6 +39,8 @@ let tray = null;
 let trayQuitRequested = false;
 let trayLanguage = 'en';
 let pendingOpenMarkdownPath = null;
+const readOnlyNetworkRetryDelaysMs = [300];
+const readOnlyFastFailureRetryWindowMs = 2000;
 
 const supportedTrayLanguages = new Set([
   'en',
@@ -226,23 +228,60 @@ function fetchWithElectronSession(url, init) {
   return electron.net.fetch(url, init);
 }
 
+function isAbortError(error) {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
+function delayReadOnlyNetworkRetry(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function retryReadOnlyNetworkFailure(operation, init = {}) {
+  const method = String(init.method ?? 'GET').toUpperCase();
+  if (method !== 'GET') {
+    return await operation();
+  }
+
+  for (let attempt = 0; ; attempt += 1) {
+    const startedAt = Date.now();
+    try {
+      return await operation();
+    } catch (error) {
+      const retryDelayMs = readOnlyNetworkRetryDelaysMs[attempt];
+      const failedQuickly = Date.now() - startedAt <= readOnlyFastFailureRetryWindowMs;
+      if (isAbortError(error) || retryDelayMs == null || !failedQuickly) {
+        throw error;
+      }
+      await delayReadOnlyNetworkRetry(retryDelayMs);
+    }
+  }
+}
+
 async function requestManagedJson(pathname, init = {}) {
-  const response = await fetchWithStoredSession(`${managedApiBaseUrl}${pathname}`, {
+  const requestInit = {
     ...init,
     cache: 'no-store',
-  });
+  };
+  const response = await retryReadOnlyNetworkFailure(
+    () => fetchWithStoredSession(`${managedApiBaseUrl}${pathname}`, requestInit),
+    requestInit,
+  );
   return await readJsonResponse(response, `Managed API request failed: HTTP ${response.status}`);
 }
 
 async function requestManagedPublicJson(pathname, init = {}) {
-  const response = await fetch(`${managedApiBaseUrl}${pathname}`, {
+  const requestInit = {
     ...init,
     cache: 'no-store',
     headers: {
       Accept: 'application/json',
       ...(init.headers ?? {}),
     },
-  });
+  };
+  const response = await retryReadOnlyNetworkFailure(
+    () => fetch(`${managedApiBaseUrl}${pathname}`, requestInit),
+    requestInit,
+  );
   return await readJsonResponse(response, `Managed API request failed: HTTP ${response.status}`);
 }
 

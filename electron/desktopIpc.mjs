@@ -32,6 +32,8 @@ const { app, BrowserWindow, clipboard, dialog, nativeImage, shell } = electron;
 const activeAiProviderRequests = new Map();
 const HTTP_HEADER_NAME_PATTERN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 const IPC_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
+const AI_PROVIDER_TRANSPORT_RETRY_DELAYS_MS = [300];
+const AI_PROVIDER_FAST_FAILURE_RETRY_WINDOW_MS = 2000;
 
 async function syncDirectoryBestEffort(dirPath) {
   let handle = null;
@@ -83,6 +85,58 @@ function summarizeError(error) {
 
   const cause = error.cause instanceof Error ? `: ${error.cause.message}` : '';
   return `${error.name}: ${error.message}${cause}`;
+}
+
+function isAbortError(error) {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
+function createAbortError() {
+  return new DOMException('Aborted', 'AbortError');
+}
+
+function delayAiProviderRetry(ms, signal) {
+  return new Promise((resolve, reject) => {
+    let timeout;
+    const cleanup = () => {
+      clearTimeout(timeout);
+      signal.removeEventListener('abort', abort);
+    };
+    const abort = () => {
+      cleanup();
+      reject(createAbortError());
+    };
+    timeout = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, ms);
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) {
+      abort();
+    }
+  });
+}
+
+async function fetchAiProviderRequestWithRetry(request, signal) {
+  for (let attempt = 0; ; attempt += 1) {
+    const startedAt = Date.now();
+    try {
+      return await fetch(request.url, {
+        method: request.method,
+        headers: request.headers,
+        body: request.body,
+        signal,
+        cache: 'no-store',
+      });
+    } catch (error) {
+      const retryDelayMs = AI_PROVIDER_TRANSPORT_RETRY_DELAYS_MS[attempt];
+      const failedQuickly = Date.now() - startedAt <= AI_PROVIDER_FAST_FAILURE_RETRY_WINDOW_MS;
+      if (isAbortError(error) || signal.aborted || retryDelayMs == null || !failedQuickly) {
+        throw error;
+      }
+      await delayAiProviderRetry(retryDelayMs, signal);
+    }
+  }
 }
 
 function findCommandOnPath(command, envPath = process.env.PATH, exists = existsSync) {
@@ -357,16 +411,13 @@ export function registerDesktopIpc({
 
     let response;
     try {
-      response = await fetch(request.url, {
-        method: request.method,
-        headers: request.headers,
-        body: request.body,
-        signal: controller.signal,
-        cache: 'no-store',
-      });
+      response = await fetchAiProviderRequestWithRetry(request, controller.signal);
     } catch (error) {
       deleteActiveAiProviderRequest(id, controller);
-      throw new Error(`AI provider request to ${request.url} failed before an HTTP response was received: ${summarizeError(error)}`);
+      if (isAbortError(error) || controller.signal.aborted) {
+        throw error;
+      }
+      throw new Error(`连接到自定义渠道失败，可能是上游或网络瞬时不可达，可重试。AI provider request to ${request.url} failed before an HTTP response was received: ${summarizeError(error)}`);
     }
 
     void (async () => {

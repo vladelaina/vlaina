@@ -1,6 +1,8 @@
 import { createElectronBillingCheckout, hasElectronDesktopBridge } from '@/lib/desktop/backend'
 
 const API_BASE = 'https://api.vlaina.com'
+const BILLING_GET_RETRY_DELAYS_MS = [300]
+const BILLING_FAST_FAILURE_RETRY_WINDOW_MS = 2000
 
 export type BillingPlanTier = 'plus' | 'pro' | 'max' | 'ultra'
 
@@ -56,6 +58,30 @@ async function readJsonErrorMessage(response: Response, fallback: string): Promi
   return fallback
 }
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
+}
+
+function delayBillingRetry(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function fetchReadOnlyBilling(url: string, init: RequestInit): Promise<Response> {
+  for (let attempt = 0; ; attempt += 1) {
+    const startedAt = Date.now()
+    try {
+      return await fetch(url, init)
+    } catch (error) {
+      const retryDelayMs = BILLING_GET_RETRY_DELAYS_MS[attempt]
+      const failedQuickly = Date.now() - startedAt <= BILLING_FAST_FAILURE_RETRY_WINDOW_MS
+      if (isAbortError(error) || retryDelayMs == null || !failedQuickly) {
+        throw error
+      }
+      await delayBillingRetry(retryDelayMs)
+    }
+  }
+}
+
 function normalizeCheckoutUrl(data: BillingCheckoutResponse | null | undefined): string {
   const url = typeof data?.url === 'string' ? data.url.trim() : ''
   if (!data?.success || !url) {
@@ -70,7 +96,7 @@ export async function fetchBillingPlans(): Promise<{
 }> {
   assertSupportedBillingOrigin()
 
-  const response = await fetch(`${API_BASE}/billing/plans`, {
+  const response = await fetchReadOnlyBilling(`${API_BASE}/billing/plans`, {
     method: 'GET',
     cache: 'no-store',
     credentials: 'include',

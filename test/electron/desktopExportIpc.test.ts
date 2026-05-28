@@ -273,6 +273,107 @@ describe('desktop export ipc', () => {
     );
   });
 
+  it('retries quickly failed AI provider transport requests once', async () => {
+    vi.useFakeTimers();
+    try {
+      const { handlers } = registerHarness();
+      const fetchMock = vi
+        .fn()
+        .mockRejectedValueOnce(new TypeError('fetch failed'))
+        .mockResolvedValueOnce(new Response('{}', { status: 200, statusText: 'OK' }));
+      vi.stubGlobal('fetch', fetchMock);
+      const sender = {
+        isDestroyed: () => false,
+        send: vi.fn(),
+      };
+
+      const request = handlers.get('desktop:ai-provider:request:start')?.(
+        { sender },
+        'request-retry',
+        {
+          url: 'https://api.example.com/v1/images/generations',
+          method: 'POST',
+          body: JSON.stringify({ model: 'gpt-image-1', prompt: 'test' }),
+        },
+      ) as Promise<unknown> | undefined;
+
+      await vi.advanceTimersByTimeAsync(300);
+
+      await expect(request).resolves.toMatchObject({
+        status: 200,
+        statusText: 'OK',
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('surfaces a clear custom provider retry hint after transport retries fail', async () => {
+    vi.useFakeTimers();
+    try {
+      const { handlers } = registerHarness();
+      const fetchMock = vi.fn().mockRejectedValue(new TypeError('fetch failed'));
+      vi.stubGlobal('fetch', fetchMock);
+      const sender = {
+        isDestroyed: () => false,
+        send: vi.fn(),
+      };
+
+      const request = handlers.get('desktop:ai-provider:request:start')?.(
+        { sender },
+        'request-retry-fail',
+        {
+          url: 'https://api.example.com/v1/images/generations',
+          method: 'POST',
+          body: JSON.stringify({ model: 'gpt-image-1', prompt: 'test' }),
+        },
+      ) as Promise<unknown> | undefined;
+      request?.catch(() => undefined);
+
+      await vi.advanceTimersByTimeAsync(300);
+
+      await expect(request).rejects.toThrow('连接到自定义渠道失败，可能是上游或网络瞬时不可达，可重试。');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not retry slower AI provider transport failures', async () => {
+    vi.useFakeTimers();
+    try {
+      const { handlers } = registerHarness();
+      const fetchMock = vi.fn(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 2100));
+        throw new TypeError('fetch failed');
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      const sender = {
+        isDestroyed: () => false,
+        send: vi.fn(),
+      };
+
+      const request = handlers.get('desktop:ai-provider:request:start')?.(
+        { sender },
+        'request-slow-fail',
+        {
+          url: 'https://api.example.com/v1/images/generations',
+          method: 'POST',
+          body: JSON.stringify({ model: 'gpt-image-1', prompt: 'test' }),
+        },
+      ) as Promise<unknown> | undefined;
+      request?.catch(() => undefined);
+
+      await vi.advanceTimersByTimeAsync(2100);
+
+      await expect(request).rejects.toThrow('连接到自定义渠道失败，可能是上游或网络瞬时不可达，可重试。');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('does not let an old AI provider stream cleanup remove a newer request with the same id', async () => {
     const { handlers } = registerHarness();
     const signals: AbortSignal[] = [];

@@ -4,6 +4,8 @@ import { consumeOpenAIStream } from '@/lib/ai/streaming';
 
 const MANAGED_JSON_TIMEOUT_MS = 30_000;
 const MANAGED_STREAM_TIMEOUT_MS = 300_000;
+const MANAGED_GET_RETRY_DELAYS_MS = [300];
+const MANAGED_FAST_FAILURE_RETRY_WINDOW_MS = 2000;
 
 interface ManagedJsonRequestInit extends RequestInit {
   timeoutMs?: number;
@@ -32,6 +34,52 @@ function publicManagedStreamErrorMessage(message: string | undefined, errorCode:
   }
 }
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
+function delayManagedRetry(ms: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) {
+    return Promise.reject(new DOMException('Aborted', 'AbortError'));
+  }
+
+  return new Promise((resolve, reject) => {
+    let timeout: ReturnType<typeof setTimeout>;
+    const abort = () => {
+      clearTimeout(timeout);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    const complete = () => {
+      signal.removeEventListener('abort', abort);
+      resolve();
+    };
+    signal.addEventListener('abort', abort, { once: true });
+    timeout = setTimeout(complete, ms);
+  });
+}
+
+async function fetchManagedJsonWithRetry(
+  url: string,
+  init: RequestInit,
+  signal: AbortSignal
+): Promise<Response> {
+  const method = String(init.method ?? 'GET').toUpperCase();
+  const shouldRetry = method === 'GET';
+  for (let attempt = 0; ; attempt += 1) {
+    const startedAt = Date.now();
+    try {
+      return await fetch(url, init);
+    } catch (error) {
+      const retryDelayMs = shouldRetry ? MANAGED_GET_RETRY_DELAYS_MS[attempt] : undefined;
+      const failedQuickly = Date.now() - startedAt <= MANAGED_FAST_FAILURE_RETRY_WINDOW_MS;
+      if (isAbortError(error) || signal.aborted || retryDelayMs == null || !failedQuickly) {
+        throw error;
+      }
+      await delayManagedRetry(retryDelayMs, signal);
+    }
+  }
+}
+
 export async function requestManagedWebJson<T>(path: string, init?: ManagedJsonRequestInit): Promise<T> {
   const timeoutController = new AbortController();
   const timeoutMs = typeof init?.timeoutMs === 'number' && Number.isFinite(init.timeoutMs)
@@ -48,7 +96,7 @@ export async function requestManagedWebJson<T>(path: string, init?: ManagedJsonR
     : timeoutController.signal;
 
   try {
-    const response = await fetch(`${MANAGED_API_BASE}${path}`, {
+    const requestInit: RequestInit = {
       ...fetchInit,
       signal: combinedSignal,
       cache: 'no-store',
@@ -58,7 +106,8 @@ export async function requestManagedWebJson<T>(path: string, init?: ManagedJsonR
         ...(fetchInit.body ? { 'Content-Type': 'application/json' } : {}),
         ...(fetchInit.headers ?? {}),
       },
-    });
+    };
+    const response = await fetchManagedJsonWithRetry(`${MANAGED_API_BASE}${path}`, requestInit, combinedSignal);
 
     if (!response.ok) {
       throw await parseManagedError(response);
