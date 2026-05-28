@@ -24,7 +24,7 @@ export function maskApiKey(apiKey: string): string {
 export function getApiKeyInputStyle(displayValue: string, availableTextWidthPx = 410): CSSProperties {
   const averageMonoCharWidthEm = 0.62;
   const maxFontSizePx = 14;
-  const minFontSizePx = 6;
+  const minFontSizePx = 12;
 
   if (!displayValue) {
     return { fontSize: maxFontSizePx };
