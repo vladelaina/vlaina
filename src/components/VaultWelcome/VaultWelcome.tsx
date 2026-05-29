@@ -18,8 +18,6 @@ export function VaultWelcome() {
     const lockWindow = async () => {
         try {
           await desktopWindow.setResizable(false);
-          await desktopWindow.setSize({ width: 980, height: 640 });
-          await desktopWindow.center();
       } catch (e) {
       }
     };
@@ -30,8 +28,6 @@ export function VaultWelcome() {
       const unlockWindow = async () => {
         try {
           await desktopWindow.setResizable(true);
-          await desktopWindow.setSize({ width: 980, height: 640 });
-          await desktopWindow.center();
         } catch (e) {
         }
       };

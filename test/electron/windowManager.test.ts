@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { createWindowManager } from '../../electron/windowManager.mjs';
 
 type Listener = (...args: unknown[]) => void;
@@ -6,6 +9,7 @@ type Listener = (...args: unknown[]) => void;
 const hoisted = vi.hoisted(() => {
   const windows: MockBrowserWindow[] = [];
   let nextWindowId = 1;
+  let userDataPath = '';
 
   class MockWebContents {
     id = nextWindowId * 10;
@@ -48,14 +52,28 @@ const hoisted = vi.hoisted(() => {
     id = nextWindowId++;
     webContents = new MockWebContents();
     listeners = new Map<string, Listener[]>();
+    options: Record<string, unknown>;
+    bounds = { width: 980, height: 640 };
+    normalBounds = { width: 980, height: 640 };
+    maximized = false;
+    minimized = false;
     show = vi.fn();
     focus = vi.fn();
     close = vi.fn();
     loadURL = vi.fn(async () => undefined);
     loadFile = vi.fn(async () => undefined);
+    maximize = vi.fn(() => {
+      this.maximized = true;
+    });
     destroyed = false;
 
-    constructor() {
+    constructor(options: Record<string, unknown> = {}) {
+      this.options = options;
+      this.bounds = {
+        width: Number(options.width ?? 980),
+        height: Number(options.height ?? 640),
+      };
+      this.normalBounds = { ...this.bounds };
       windows.push(this);
     }
 
@@ -87,11 +105,37 @@ const hoisted = vi.hoisted(() => {
         listener(...args);
       }
     }
+
+    getBounds() {
+      return this.bounds;
+    }
+
+    getNormalBounds() {
+      return this.normalBounds;
+    }
+
+    isMaximized() {
+      return this.maximized;
+    }
+
+    isFullScreen() {
+      return false;
+    }
+
+    isMinimized() {
+      return this.minimized;
+    }
   }
 
   return {
     MockBrowserWindow,
     windows,
+    get userDataPath() {
+      return userDataPath;
+    },
+    setUserDataPath(nextUserDataPath: string) {
+      userDataPath = nextUserDataPath;
+    },
     reset() {
       windows.length = 0;
       nextWindowId = 1;
@@ -101,6 +145,14 @@ const hoisted = vi.hoisted(() => {
 
 vi.mock('electron', () => ({
   default: {
+    app: {
+      getPath: vi.fn(() => hoisted.userDataPath),
+    },
+    screen: {
+      getPrimaryDisplay: vi.fn(() => ({
+        workAreaSize: { width: 1600, height: 900 },
+      })),
+    },
     BrowserWindow: Object.assign(hoisted.MockBrowserWindow, {
       fromWebContents: vi.fn((webContents) =>
         hoisted.windows.find((window) => window.webContents === webContents) ?? null
@@ -144,10 +196,13 @@ describe('window manager reveal timing', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     hoisted.reset();
+    hoisted.setUserDataPath(fs.mkdtempSync(path.join(os.tmpdir(), 'vlaina-window-manager-test-')));
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    fs.rmSync(hoisted.userDataPath, { recursive: true, force: true });
+    hoisted.setUserDataPath('');
   });
 
   it('waits for ready-to-show after the renderer reports startup ready', () => {
@@ -184,5 +239,160 @@ describe('window manager reveal timing', () => {
     expect(window.show).toHaveBeenCalledTimes(1);
     expect(window.focus).toHaveBeenCalledTimes(1);
     expect(window.loadURL).toHaveBeenCalledWith('http://localhost:3000/?newWindow=true&viewMode=chat');
+  });
+
+  it('labels user-created windows as secondary even when no main window exists yet', () => {
+    const { handlers } = createIpcHarness();
+
+    handlers.get('desktop:window:create')?.({}, { viewMode: 'notes' });
+    const window = hoisted.windows[0];
+
+    expect(handlers.get('desktop:window:get-label')?.({ sender: window.webContents })).toBe('window-1');
+  });
+
+  it('persists resized bounds and restores them for the next manager instance', () => {
+    const firstWindow = createHarness();
+    firstWindow.bounds = { width: 1234, height: 777 };
+    firstWindow.emit('resize');
+
+    vi.advanceTimersByTime(250);
+    const storeDir = path.join(hoisted.userDataPath, '.vlaina', 'store');
+    const statePath = path.join(storeDir, 'window-state.json');
+    expect(JSON.parse(fs.readFileSync(statePath, 'utf8'))).toMatchObject({
+      bounds: { width: 1234, height: 777 },
+      isMaximized: false,
+    });
+    expect(fs.readdirSync(storeDir).filter((name) => name.startsWith('window-state.json.tmp-'))).toEqual([]);
+
+    const secondManager = createWindowManager({
+      rendererDevUrl: 'http://localhost:3000',
+      appIconPath: 'icon.png',
+      isDevelopment: () => true,
+      openExternalIfAllowed: vi.fn(),
+      isTrustedRendererUrl: vi.fn(() => true),
+    });
+    const secondWindow = secondManager.createMainWindow() as unknown as InstanceType<typeof hoisted.MockBrowserWindow>;
+
+    expect(secondWindow.options).toMatchObject({ width: 1234, height: 777 });
+  });
+
+  it('restores maximized windows after creating them at their saved normal bounds', () => {
+    const statePath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'window-state.json');
+    fs.mkdirSync(path.dirname(statePath), { recursive: true });
+    fs.writeFileSync(statePath, JSON.stringify({
+      bounds: { width: 1111, height: 700 },
+      isMaximized: true,
+    }));
+
+    const window = createHarness();
+
+    expect(window.options).toMatchObject({ width: 1111, height: 700 });
+    expect(window.maximize).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not maximize secondary windows from the persisted main window state', () => {
+    const statePath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'window-state.json');
+    fs.mkdirSync(path.dirname(statePath), { recursive: true });
+    fs.writeFileSync(statePath, JSON.stringify({
+      bounds: { width: 1111, height: 700 },
+      isMaximized: true,
+    }));
+    const { handlers } = createIpcHarness();
+
+    handlers.get('desktop:window:create')?.({}, { viewMode: 'notes' });
+    const window = hoisted.windows[0];
+
+    expect(window.options).toMatchObject({ width: 1111, height: 700 });
+    expect(window.maximize).not.toHaveBeenCalled();
+  });
+
+  it('caps restored bounds to the current display work area', () => {
+    const statePath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'window-state.json');
+    fs.mkdirSync(path.dirname(statePath), { recursive: true });
+    fs.writeFileSync(statePath, JSON.stringify({
+      bounds: { width: 3000, height: 2000 },
+      isMaximized: false,
+    }));
+
+    const window = createHarness();
+
+    expect(window.options).toMatchObject({ width: 1600, height: 900 });
+  });
+
+  it('persists normal bounds when a minimized window closes', () => {
+    const window = createHarness();
+    window.minimized = true;
+    window.bounds = { width: 0, height: 0 };
+    window.normalBounds = { width: 1180, height: 720 };
+
+    window.emit('close', { preventDefault: vi.fn() });
+
+    const secondManager = createWindowManager({
+      rendererDevUrl: 'http://localhost:3000',
+      appIconPath: 'icon.png',
+      isDevelopment: () => true,
+      openExternalIfAllowed: vi.fn(),
+      isTrustedRendererUrl: vi.fn(() => true),
+    });
+    const restoredWindow = secondManager.createMainWindow() as unknown as InstanceType<typeof hoisted.MockBrowserWindow>;
+
+    expect(restoredWindow.options).toMatchObject({ width: 1180, height: 720 });
+  });
+
+  it('does not let secondary window resizes overwrite the main restored bounds', () => {
+    const handlers = new Map<string, (...args: unknown[]) => unknown>();
+    const manager = createWindowManager({
+      rendererDevUrl: 'http://localhost:3000',
+      appIconPath: 'icon.png',
+      isDevelopment: () => true,
+      openExternalIfAllowed: vi.fn(),
+      isTrustedRendererUrl: vi.fn(() => true),
+    });
+    manager.registerWindowIpc((name, handler) => {
+      handlers.set(name, handler);
+    });
+
+    const mainWindow = manager.createMainWindow() as unknown as InstanceType<typeof hoisted.MockBrowserWindow>;
+    mainWindow.bounds = { width: 1200, height: 760 };
+    mainWindow.emit('resize');
+    vi.advanceTimersByTime(250);
+
+    handlers.get('desktop:window:create')?.({}, { viewMode: 'notes' });
+    const secondaryWindow = hoisted.windows.at(-1) as InstanceType<typeof hoisted.MockBrowserWindow>;
+    secondaryWindow.bounds = { width: 840, height: 620 };
+    secondaryWindow.emit('resize');
+    vi.advanceTimersByTime(250);
+
+    const restoredManager = createWindowManager({
+      rendererDevUrl: 'http://localhost:3000',
+      appIconPath: 'icon.png',
+      isDevelopment: () => true,
+      openExternalIfAllowed: vi.fn(),
+      isTrustedRendererUrl: vi.fn(() => true),
+    });
+    const restoredWindow = restoredManager.createMainWindow() as unknown as InstanceType<typeof hoisted.MockBrowserWindow>;
+
+    expect(restoredWindow.options).toMatchObject({ width: 1200, height: 760 });
+  });
+
+  it('does not persist a secondary window created before the main window', () => {
+    const { handlers } = createIpcHarness();
+
+    handlers.get('desktop:window:create')?.({}, { viewMode: 'notes' });
+    const secondaryWindow = hoisted.windows[0];
+    secondaryWindow.bounds = { width: 1320, height: 820 };
+    secondaryWindow.emit('resize');
+    vi.advanceTimersByTime(250);
+
+    const restoredManager = createWindowManager({
+      rendererDevUrl: 'http://localhost:3000',
+      appIconPath: 'icon.png',
+      isDevelopment: () => true,
+      openExternalIfAllowed: vi.fn(),
+      isTrustedRendererUrl: vi.fn(() => true),
+    });
+    const restoredWindow = restoredManager.createMainWindow() as unknown as InstanceType<typeof hoisted.MockBrowserWindow>;
+
+    expect(restoredWindow.options).toMatchObject({ width: 980, height: 640 });
   });
 });

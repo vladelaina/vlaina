@@ -538,8 +538,11 @@ export function AppContent() {
       await desktopWindow.setMaximizable(true);
       await desktopWindow.setMinSize({ width: 800, height: 600 });
       const size = await desktopWindow.getSize();
-      if (size.width < 980 || size.height < 640) {
-        await desktopWindow.setSize({ width: 980, height: 640 });
+      if (size.width < 800 || size.height < 600) {
+        await desktopWindow.setSize({
+          width: Math.max(800, size.width),
+          height: Math.max(600, size.height),
+        });
         await desktopWindow.center();
       }
     };

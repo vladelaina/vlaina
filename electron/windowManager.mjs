@@ -1,12 +1,105 @@
 import electron from 'electron';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { registerWindowIpc as registerWindowIpcHandlers } from './windowIpc.mjs';
 
-const { BrowserWindow } = electron;
+const { app, BrowserWindow, screen } = electron;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const DEFAULT_WINDOW_BOUNDS = Object.freeze({ width: 980, height: 640 });
+const MIN_RESTORED_WINDOW_WIDTH = 800;
+const MIN_RESTORED_WINDOW_HEIGHT = 600;
+const MAX_RESTORED_WINDOW_WIDTH = 8192;
+const MAX_RESTORED_WINDOW_HEIGHT = 8192;
+const WINDOW_STATE_WRITE_DELAY_MS = 250;
+
+function getWindowStatePath() {
+  return path.join(app.getPath('userData'), '.vlaina', 'store', 'window-state.json');
+}
+
+function normalizeStoredWindowBounds(bounds) {
+  const width = Math.round(Number(bounds?.width));
+  const height = Math.round(Number(bounds?.height));
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    return null;
+  }
+
+  return {
+    width: Math.min(MAX_RESTORED_WINDOW_WIDTH, Math.max(MIN_RESTORED_WINDOW_WIDTH, width)),
+    height: Math.min(MAX_RESTORED_WINDOW_HEIGHT, Math.max(MIN_RESTORED_WINDOW_HEIGHT, height)),
+  };
+}
+
+function clampWindowBoundsToCurrentDisplay(bounds) {
+  try {
+    const workAreaSize = screen?.getPrimaryDisplay?.()?.workAreaSize;
+    const maxWidth = Math.max(MIN_RESTORED_WINDOW_WIDTH, Math.round(Number(workAreaSize?.width)));
+    const maxHeight = Math.max(MIN_RESTORED_WINDOW_HEIGHT, Math.round(Number(workAreaSize?.height)));
+    if (!Number.isFinite(maxWidth) || !Number.isFinite(maxHeight)) {
+      return bounds;
+    }
+
+    return {
+      width: Math.min(bounds.width, maxWidth),
+      height: Math.min(bounds.height, maxHeight),
+    };
+  } catch {
+    return bounds;
+  }
+}
+
+export function readStoredWindowState() {
+  try {
+    const payload = JSON.parse(fs.readFileSync(getWindowStatePath(), 'utf8'));
+    const bounds = normalizeStoredWindowBounds(payload?.bounds);
+    if (!bounds) {
+      return null;
+    }
+
+    return {
+      bounds,
+      isMaximized: Boolean(payload?.isMaximized),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredWindowState(state) {
+  let tempStatePath = null;
+  try {
+    const statePath = getWindowStatePath();
+    tempStatePath = `${statePath}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    fs.mkdirSync(path.dirname(statePath), { recursive: true });
+    fs.writeFileSync(tempStatePath, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+    fs.renameSync(tempStatePath, statePath);
+  } catch (error) {
+    if (tempStatePath) {
+      try {
+        fs.rmSync(tempStatePath, { force: true });
+      } catch {
+      }
+    }
+    console.warn('[vlaina] Failed to persist window state:', error);
+  }
+}
+
+function captureWindowState(window) {
+  const bounds = window.isMaximized() || window.isFullScreen?.() || window.isMinimized?.()
+    ? window.getNormalBounds()
+    : window.getBounds();
+  const normalizedBounds = normalizeStoredWindowBounds(bounds);
+  if (!normalizedBounds) {
+    return null;
+  }
+
+  return {
+    bounds: normalizedBounds,
+    isMaximized: window.isMaximized(),
+  };
+}
 
 export function createWindowManager({
   rendererDevUrl,
@@ -18,7 +111,8 @@ export function createWindowManager({
   const closeApprovedWebContents = new Set();
   const readyToRevealWebContents = new Set();
   const windowLabels = new Map();
-  let secondaryWindowCounter = 0;
+  let secondaryWindowCounter = 1;
+  let persistedWindowState = readStoredWindowState();
   const DEV_RENDERER_RELOAD_DELAY_MS = 1000;
   const DEV_RENDERER_RELOAD_MAX_DELAY_MS = 8000;
 
@@ -127,6 +221,7 @@ export function createWindowManager({
     let didRendererReportStartupReady = false;
     let devRendererReloadTimer = null;
     let devRendererReloadDelay = DEV_RENDERER_RELOAD_DELAY_MS;
+    let windowStateWriteTimer = null;
 
     const clearDevRendererReloadTimer = () => {
       if (devRendererReloadTimer === null) {
@@ -135,6 +230,50 @@ export function createWindowManager({
 
       clearTimeout(devRendererReloadTimer);
       devRendererReloadTimer = null;
+    };
+
+    const clearWindowStateWriteTimer = () => {
+      if (windowStateWriteTimer === null) {
+        return;
+      }
+
+      clearTimeout(windowStateWriteTimer);
+      windowStateWriteTimer = null;
+    };
+
+    const persistWindowState = () => {
+      clearWindowStateWriteTimer();
+      if (!isUsableWindow(window)) {
+        return;
+      }
+
+      if (getWindowLabel(window) !== 'main') {
+        return;
+      }
+
+      const state = captureWindowState(window);
+      if (!state) {
+        return;
+      }
+
+      persistedWindowState = state;
+      writeStoredWindowState(state);
+    };
+
+    const scheduleWindowStateWrite = () => {
+      clearWindowStateWriteTimer();
+      if (!isUsableWindow(window)) {
+        return;
+      }
+
+      if (getWindowLabel(window) !== 'main') {
+        return;
+      }
+
+      windowStateWriteTimer = setTimeout(() => {
+        windowStateWriteTimer = null;
+        persistWindowState();
+      }, WINDOW_STATE_WRITE_DELAY_MS);
     };
 
     const scheduleDevRendererReload = (reason) => {
@@ -248,10 +387,16 @@ export function createWindowManager({
 
     window.on('closed', () => {
       clearDevRendererReloadTimer();
+      clearWindowStateWriteTimer();
       closeApprovedWebContents.delete(webContentsId);
       readyToRevealWebContents.delete(webContentsId);
       windowLabels.delete(window.id);
     });
+
+    window.on('resize', scheduleWindowStateWrite);
+    window.on('maximize', scheduleWindowStateWrite);
+    window.on('unmaximize', scheduleWindowStateWrite);
+    window.on('close', persistWindowState);
 
     window.webContents.on('before-input-event', (event, input) => {
       if (input.type === 'keyDown') {
@@ -346,12 +491,12 @@ export function createWindowManager({
   }
 
   function createWindow(windowOptions = {}) {
-    const label = windowOptions.label ?? (secondaryWindowCounter === 0 ? 'main' : `window-${secondaryWindowCounter}`);
-    secondaryWindowCounter += 1;
+    const label = windowOptions.label ?? (windowOptions.newWindow ? `window-${secondaryWindowCounter++}` : 'main');
+    const restoredBounds = clampWindowBoundsToCurrentDisplay(persistedWindowState?.bounds ?? DEFAULT_WINDOW_BOUNDS);
 
     const window = new BrowserWindow({
-      width: 980,
-      height: 640,
+      width: restoredBounds.width,
+      height: restoredBounds.height,
       minWidth: 400,
       minHeight: 300,
       center: true,
@@ -371,6 +516,10 @@ export function createWindowManager({
         spellcheck: false,
       },
     });
+
+    if (label === 'main' && persistedWindowState?.isMaximized) {
+      window.maximize();
+    }
 
     windowLabels.set(window.id, label);
     const { scheduleDevRendererReload } = attachWindowLifecycle(window, windowOptions);

@@ -53,8 +53,8 @@ describe('VaultWelcome', () => {
     await waitFor(() => {
       expect(mocks.vaultState.initialize).toHaveBeenCalledTimes(1);
       expect(mocks.windowState.setResizable).toHaveBeenCalledWith(false);
-      expect(mocks.windowState.setSize).toHaveBeenCalledWith({ width: 980, height: 640 });
-      expect(mocks.windowState.center).toHaveBeenCalledTimes(1);
+      expect(mocks.windowState.setSize).not.toHaveBeenCalled();
+      expect(mocks.windowState.center).not.toHaveBeenCalled();
     });
 
     const vaultButton = await screen.findByRole('button', { name: /alpha vault/i });
@@ -78,8 +78,8 @@ describe('VaultWelcome', () => {
 
     await waitFor(() => {
       expect(mocks.windowState.setResizable).toHaveBeenCalledWith(true);
-      expect(mocks.windowState.setSize).toHaveBeenLastCalledWith({ width: 980, height: 640 });
-      expect(mocks.windowState.center).toHaveBeenCalledTimes(2);
+      expect(mocks.windowState.setSize).not.toHaveBeenCalled();
+      expect(mocks.windowState.center).not.toHaveBeenCalled();
     });
   });
 });
