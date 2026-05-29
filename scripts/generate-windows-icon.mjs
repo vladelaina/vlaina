@@ -94,7 +94,27 @@ function createIcnsFromPng(pngBytes) {
 
 async function createMacIcon(sourcePath, targetPath, pngBytes) {
   if (process.platform !== 'darwin') {
-    await writeFile(targetPath, createIcnsFromPng(pngBytes));
+    const resizedPngPath = path.join(buildDir, 'icon-1024.png');
+    try {
+      runImageMagick([
+        sourcePath,
+        '-background',
+        'none',
+        '-resize',
+        '1024x1024',
+        resizedPngPath,
+      ]);
+      await writeFile(targetPath, createIcnsFromPng(await readFile(resizedPngPath)));
+    } catch (error) {
+      if (error?.code !== 'ENOENT' && error?.code !== 'EPERM') {
+        throw error;
+      }
+
+      await writeFile(targetPath, createIcnsFromPng(pngBytes));
+      console.warn('ImageMagick was unavailable; generated build/icon.icns from the source PNG instead.');
+    } finally {
+      await rm(resizedPngPath, { force: true });
+    }
     return;
   }
 

@@ -10,9 +10,11 @@ import { registerManagedIpc } from './managedIpc.mjs';
 import { isTrustedRendererUrl as isTrustedRendererUrlForConfig } from './rendererTrust.mjs';
 import { createWindowManager } from './windowManager.mjs';
 import { configureDevelopmentUserDataPath } from './userDataPath.mjs';
+import { authorizeFsPath } from './fsAccess.mjs';
+import { installApplicationMenu } from './appMenu.mjs';
 import { createWebSearchServices, registerWebSearchIpc } from './webSearch/ipc.mjs';
 
-const { app, BrowserWindow, Menu, Tray, ipcMain, session, shell } = electron;
+const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, session, shell } = electron;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,6 +34,7 @@ const defaultDownloadUrl = (
   ?? 'https://github.com/vladelaina/vlaina/releases/latest'
 ).trim();
 const appIconPath = path.join(__dirname, '..', app.isPackaged ? 'dist' : 'public', 'logo.png');
+const trayIconSize = process.platform === 'darwin' ? 18 : 16;
 const rendererFile = path.join(__dirname, '..', 'dist', 'index.html');
 const desktopAccountService = createDesktopAccountService({ apiBaseUrl });
 const { fetchWithStoredSession, readJsonResponse } = desktopAccountService;
@@ -357,6 +360,14 @@ function findMarkdownPathInArgv(argv) {
   return null;
 }
 
+async function authorizeMarkdownOpenPath(filePath) {
+  await authorizeFsPath(filePath, 'file');
+
+  const parentPath = path.dirname(filePath);
+  await authorizeFsPath(parentPath, 'root');
+  await authorizeFsPath(path.dirname(parentPath), 'watch-root');
+}
+
 function showMainWindow() {
   const existingWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed());
   const window = existingWindow ?? createMainWindow();
@@ -379,9 +390,54 @@ function focusWindow(window, { forceShow = false } = {}) {
   }
 }
 
-function sendOpenMarkdownPath(window, filePath) {
+function sendOpenMarkdownShortcut(window, { waitForStartupReady = false } = {}) {
+  if (!window || window.isDestroyed()) {
+    return false;
+  }
+
+  const send = () => {
+    if (window.isDestroyed()) return;
+    window.webContents.send('desktop:shortcut:open-markdown-file');
+  };
+
+  if (waitForStartupReady && !isReadyToReveal(window)) {
+    const handleStartupReady = (_event, channel) => {
+      if (channel !== 'desktop:startup-ready') {
+        return;
+      }
+
+      window.webContents.off?.('ipc-message', handleStartupReady);
+      send();
+    };
+    window.webContents.on('ipc-message', handleStartupReady);
+    return true;
+  }
+
+  if (window.webContents.isLoading()) {
+    window.webContents.once('did-finish-load', send);
+  } else {
+    send();
+  }
+
+  return true;
+}
+
+function requestOpenMarkdownFile() {
+  const existingWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed());
+  const window = existingWindow ?? createMainWindow();
+  focusWindow(window, { forceShow: Boolean(existingWindow) });
+  return sendOpenMarkdownShortcut(window, { waitForStartupReady: !existingWindow });
+}
+
+async function sendOpenMarkdownPath(window, filePath) {
   const normalizedPath = normalizeMarkdownOpenPath(filePath);
   if (!window || window.isDestroyed() || !normalizedPath) {
+    return false;
+  }
+
+  try {
+    await authorizeMarkdownOpenPath(normalizedPath);
+  } catch {
     return false;
   }
 
@@ -399,9 +455,15 @@ function sendOpenMarkdownPath(window, filePath) {
   return true;
 }
 
-function openMarkdownPath(filePath) {
+async function openMarkdownPath(filePath) {
   const normalizedPath = normalizeMarkdownOpenPath(filePath);
   if (!normalizedPath) {
+    return false;
+  }
+
+  try {
+    await authorizeMarkdownOpenPath(normalizedPath);
+  } catch {
     return false;
   }
 
@@ -413,7 +475,7 @@ function openMarkdownPath(filePath) {
 
   focusWindow(existingWindow, { forceShow: true });
   pendingOpenMarkdownPath = null;
-  return sendOpenMarkdownPath(existingWindow, normalizedPath);
+  return await sendOpenMarkdownPath(existingWindow, normalizedPath);
 }
 
 function requestTrayQuit() {
@@ -457,11 +519,25 @@ function setTrayLanguage(language) {
   return true;
 }
 
+function createTrayIcon() {
+  const icon = nativeImage.createFromPath(appIconPath);
+  if (icon.isEmpty()) {
+    return appIconPath;
+  }
+
+  const trayIcon = icon.resize({
+    width: trayIconSize,
+    height: trayIconSize,
+    quality: 'best',
+  });
+  return trayIcon;
+}
+
 function createTray() {
   if (tray) return;
 
   try {
-    tray = new Tray(appIconPath);
+    tray = new Tray(createTrayIcon());
     tray.setToolTip('vlaina');
     setTrayContextMenu();
     tray.on('click', showMainWindow);
@@ -943,7 +1019,7 @@ if (!gotSingleInstanceLock) {
   app.on('second-instance', (_event, argv) => {
     const markdownPath = findMarkdownPathInArgv(argv);
     if (markdownPath) {
-      openMarkdownPath(markdownPath);
+      void openMarkdownPath(markdownPath);
       return;
     }
 
@@ -952,7 +1028,7 @@ if (!gotSingleInstanceLock) {
 
   app.on('open-file', (event, filePath) => {
     event.preventDefault();
-    openMarkdownPath(filePath);
+    void openMarkdownPath(filePath);
   });
 }
 
@@ -1058,11 +1134,12 @@ app.whenReady().then(async () => {
   }
   await configureProxySafely();
   configureDefaultSessionSafely();
+  installApplicationMenu({ Menu, app, onOpenMarkdownFile: requestOpenMarkdownFile });
 
   createTray();
   const mainWindow = createMainWindow();
   if (pendingOpenMarkdownPath) {
-    sendOpenMarkdownPath(mainWindow, pendingOpenMarkdownPath);
+    await sendOpenMarkdownPath(mainWindow, pendingOpenMarkdownPath);
     pendingOpenMarkdownPath = null;
   }
 

@@ -42,11 +42,18 @@ function getDroppedPaths(event: DragEvent): string[] {
   const dragDrop = getElectronBridge()?.dragDrop;
   const fileList = Array.from(event.dataTransfer?.files ?? []);
   return fileList
-    .map((file) => (
-      ((file as File & { path?: string }).path ?? '').trim() ||
-      dragDrop?.getPathForFile(file).trim() ||
-      ''
-    ))
+    .map((file) => {
+      const legacyPath = ((file as File & { path?: string }).path ?? '').trim();
+      if (legacyPath) {
+        return legacyPath;
+      }
+
+      try {
+        return dragDrop?.getPathForFile(file).trim() || '';
+      } catch {
+        return '';
+      }
+    })
     .filter(Boolean);
 }
 

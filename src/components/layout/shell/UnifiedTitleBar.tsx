@@ -2,6 +2,7 @@ import { ReactNode, useCallback } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { WindowControls } from '@/components/layout/WindowControls';
 import { blurComposerInput, isComposerInputFocused } from '@/lib/ui/composerFocusRegistry';
+import { isMacOS } from '@/lib/desktop/platform';
 
 interface UnifiedTitleBarProps {
   leftSlot?: ReactNode;
@@ -24,6 +25,7 @@ export function UnifiedTitleBar({
   centerOverflowVisible = false,
   showWindowControls = true
 }: UnifiedTitleBarProps) {
+  const shouldReserveMacTrafficLightSpace = isMacOS();
   const handleTitleBarMouseDownCapture = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
 
@@ -48,7 +50,7 @@ export function UnifiedTitleBar({
       onMouseDownCapture={handleTitleBarMouseDownCapture}
     >
       {sidebarCollapsed ? (
-        <div className="relative z-20 flex items-center h-full pl-2 pr-3 bg-[var(--vlaina-bg-primary)] dark:bg-zinc-800">
+        <div className={`relative z-20 flex items-center h-full pr-3 bg-[var(--vlaina-bg-primary)] dark:bg-zinc-800 ${shouldReserveMacTrafficLightSpace ? 'pl-[76px]' : 'pl-2'}`}>
           <button
             type="button"
             onClick={onToggleSidebar}
