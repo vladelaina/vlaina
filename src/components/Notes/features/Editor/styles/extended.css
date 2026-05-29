@@ -32,8 +32,10 @@
 /* Tags */
 .milkdown .vlaina-editor-tag-token {
   display: inline;
+  position: relative;
+  z-index: 0;
   margin: 0 0.05em;
-  padding: 0 0.45em;
+  padding: 0 0.12em 0 0.45em;
   border-radius: 9999px;
   color: var(--sidebar-row-selected-text, var(--vlaina-accent));
   font-weight: 500;
@@ -44,9 +46,35 @@
 }
 
 .milkdown .ProseMirror .vlaina-block-selected .vlaina-editor-tag-token,
-.milkdown .ProseMirror .vlaina-block-selected.vlaina-editor-tag-token {
+.milkdown .ProseMirror .vlaina-block-selected.vlaina-editor-tag-token,
+.milkdown .ProseMirror .vlaina-editor-tag-token.vlaina-text-selection-overlay,
+.milkdown .ProseMirror .vlaina-editor-tag-token.vlaina-text-selection-overlay::selection {
   color: var(--sidebar-row-selected-text, var(--vlaina-accent)) !important;
   -webkit-text-fill-color: var(--sidebar-row-selected-text, var(--vlaina-accent)) !important;
+}
+
+.milkdown .ProseMirror .vlaina-editor-tag-token.vlaina-text-selection-overlay {
+  border-radius: 3px !important;
+  box-shadow: none !important;
+  background: #ffffff !important;
+}
+
+.milkdown .ProseMirror .vlaina-editor-tag-token:has(+ .vlaina-editor-tag-token) {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+  border-right-width: 0 !important;
+}
+
+.milkdown .ProseMirror .vlaina-editor-tag-token + .vlaina-editor-tag-token {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  border-left-width: 0 !important;
+}
+
+.milkdown .ProseMirror .vlaina-editor-tag-token.vlaina-text-selection-overlay:has(+ .vlaina-editor-tag-token) {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+  border-right-width: 0 !important;
 }
 
 /* Scripts */
