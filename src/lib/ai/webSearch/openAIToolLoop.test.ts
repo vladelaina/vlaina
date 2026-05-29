@@ -94,6 +94,88 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(chunks[chunks.length - 1]).toBe(final);
   });
 
+  it('can auto-read top search results in the same JSON tool turn', async () => {
+    const requestJson = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: '',
+            tool_calls: [{
+              id: 'call-1',
+              type: 'function',
+              function: {
+                name: 'web_search',
+                arguments: JSON.stringify({ query: 'vlaina' }),
+              },
+            }],
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: 'Final answer using https://example.com',
+          },
+        }],
+      });
+    const client = {
+      webSearch: vi.fn(async () => ({
+        query: 'vlaina',
+        results: [{
+          title: 'Vlaina',
+          url: 'https://example.com',
+          snippet: 'Snippet',
+          publishedAt: null,
+          source: null,
+          thumbnail: null,
+        }],
+      })),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(async () => [{
+        url: 'https://example.com',
+        ok: true,
+        page: {
+          title: 'Example',
+          summary: '',
+          siteName: 'example.com',
+          finalUrl: 'https://example.com',
+          content: 'Readable page content.',
+          charCount: 22,
+        },
+      }]),
+    };
+
+    const final = await runOpenAIWebSearchJsonToolLoop({
+      body: {
+        model: 'test',
+        stream: true,
+        messages: [{ role: 'user', content: 'search vlaina' }],
+      },
+      client,
+      requestJson,
+      onChunk: vi.fn(),
+      autoReadAfterSearch: true,
+    });
+
+    expect(requestJson).toHaveBeenCalledTimes(2);
+    expect(client.readWebPages).toHaveBeenCalledWith(['https://example.com'], {
+      contentLimit: 3000,
+      retries: 0,
+    });
+    expect(client.readWebPage).not.toHaveBeenCalled();
+    expect(JSON.stringify(requestJson.mock.calls[1][0].messages)).toContain('Readable page content.');
+    expect(requestJson.mock.calls[1][0].tools).toBeUndefined();
+    expect(requestJson.mock.calls[1][0].messages.at(-1).content).toContain('Answer now');
+    expect(final).toContain('Final answer using https://example.com');
+    expect(extractWebSearchStatuses(final).statuses.map((status) => status.phase)).toEqual([
+      'searching',
+      'results',
+      'reading',
+      'complete',
+    ]);
+  });
+
   it('continues JSON tool execution when a visible answer includes a page read tool call', async () => {
     const requestJson = vi
       .fn()
@@ -350,12 +432,12 @@ describe('OpenAI web search JSON tool loop', () => {
     const reminderMessages = requestJson.mock.calls[2][0].messages;
     expect(reminderMessages[reminderMessages.length - 1]).toMatchObject({
       role: 'system',
-      content: expect.stringContaining('Read at least one relevant result page'),
+      content: expect.stringContaining('Read one result page'),
     });
     expect(onApiTranscript).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({
         role: 'system',
-        content: expect.stringContaining('Read at least one relevant result page'),
+        content: expect.stringContaining('Read one result page'),
       }),
     ]));
   });
@@ -442,109 +524,16 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(final.match(/- https:\/\/example\.com\/source/g)).toBeNull();
   });
 
-  it('uses the streaming news fast path for current international news requests', async () => {
-    const request = vi.fn().mockResolvedValueOnce(streamResponse([{
-      choices: [{ delta: { content: '1. Fast international briefing. https://news.example/one' } }],
-    }]));
-    const client = {
-      webSearch: vi.fn(async () => ({
-        query: 'international world news today Reuters AP BBC',
-        results: [
-          {
-            title: 'News One',
-            url: 'https://news.example/one',
-            snippet: 'First story',
-            publishedAt: null,
-            source: null,
-            thumbnail: null,
-          },
-          {
-            title: 'News Two',
-            url: 'https://news.example/two',
-            snippet: 'Second story',
-            publishedAt: null,
-            source: null,
-            thumbnail: null,
-          },
-        ],
-      })),
-      readWebPage: vi.fn(),
-      readWebPages: vi.fn(async (urls: string[]) => urls.map((url) => ({
-        url,
-        ok: true,
-        page: {
-          title: url,
-          summary: '',
-          siteName: new URL(url).hostname,
-          finalUrl: url,
-          content: 'Readable news content for fast path.',
-          charCount: 36,
-        },
-      }))),
-    };
-
-    const final = await runOpenAIWebSearchToolLoop({
-      body: {
-        model: 'test',
-        stream: true,
-        messages: [{ role: 'user', content: '就是我想知道今天有什么国际新闻不?' }],
-      },
-      client,
-      request,
-      onChunk: vi.fn(),
-    });
-
-    expect(client.webSearch).not.toHaveBeenCalled();
-    expect(client.readWebPages).toHaveBeenCalledWith([
-      'https://apnews.com/hub/world-news',
-      'https://edition.cnn.com/world',
-    ], {
-      contentLimit: 1200,
-      retries: 0,
-    });
-    expect(request).toHaveBeenCalledTimes(1);
-    expect(request.mock.calls[0][0].tools).toBeUndefined();
-    expect(request.mock.calls[0][0].tool_choice).toBeUndefined();
-    expect(request.mock.calls[0][0].max_completion_tokens).toBe(500);
-    expect(request.mock.calls[0][0].messages.at(-1)).toMatchObject({
-      role: 'system',
-      content: expect.stringContaining('Answer from the provided web search context'),
-    });
-    expect(final).toContain('Fast international briefing.');
-    expect(final).toContain('<web-search-status>');
-  });
-
-  it('uses the JSON news fast path for current international news requests', async () => {
+  it('does not pre-search by keyword before the JSON model requests a tool', async () => {
     const requestJson = vi.fn().mockResolvedValueOnce({
       choices: [{
-        message: { content: 'Fast JSON briefing. https://news.example/one' },
+        message: { content: 'Model answered without using search.' },
       }],
     });
     const client = {
-      webSearch: vi.fn(async () => ({
-        query: 'international news today',
-        results: [{
-          title: 'News One',
-          url: 'https://news.example/one',
-          snippet: 'First story',
-          publishedAt: null,
-          source: null,
-          thumbnail: null,
-        }],
-      })),
+      webSearch: vi.fn(),
       readWebPage: vi.fn(),
-      readWebPages: vi.fn(async (urls: string[]) => urls.map((url) => ({
-        url,
-        ok: true,
-        page: {
-          title: url,
-          summary: '',
-          siteName: new URL(url).hostname,
-          finalUrl: url,
-          content: 'Readable news content for fast path.',
-          charCount: 36,
-        },
-      }))),
+      readWebPages: vi.fn(),
     };
 
     const final = await runOpenAIWebSearchJsonToolLoop({
@@ -559,131 +548,11 @@ describe('OpenAI web search JSON tool loop', () => {
     });
 
     expect(client.webSearch).not.toHaveBeenCalled();
+    expect(client.readWebPages).not.toHaveBeenCalled();
     expect(requestJson).toHaveBeenCalledTimes(1);
-    expect(requestJson.mock.calls[0][0].tools).toBeUndefined();
+    expect(requestJson.mock.calls[0][0].tools).toHaveLength(3);
     expect(requestJson.mock.calls[0][0].tool_choice).toBeUndefined();
-    expect(requestJson.mock.calls[0][0].max_completion_tokens).toBe(500);
-    expect(final).toContain('Fast JSON briefing.');
-  });
-
-  it('detects current international news requests across supported UI languages', async () => {
-    const prompts = [
-      'Quelles sont les actualités internationales aujourd’hui ?',
-      '¿Cuáles son las noticias internacionales de hoy?',
-      'Was sind heute die internationalen Nachrichten?',
-      '今日の国際ニュースは？',
-      '오늘 국제 뉴스 알려줘',
-      'Какие сегодня международные новости?',
-      'Quais são as notícias internacionais de hoje?',
-      'Quali sono le notizie internazionali di oggi?',
-      'ما هي الأخبار العالمية اليوم؟',
-      'आज अंतरराष्ट्रीय समाचार क्या हैं?',
-    ];
-
-    for (const prompt of prompts) {
-      const requestJson = vi.fn().mockResolvedValueOnce({
-        choices: [{ message: { content: 'Fast multilingual briefing.' } }],
-      });
-      const client = {
-        webSearch: vi.fn(),
-        readWebPage: vi.fn(),
-        readWebPages: vi.fn(async (urls: string[]) => urls.map((url) => ({
-          url,
-          ok: true,
-          page: {
-            title: url,
-            summary: '',
-            siteName: new URL(url).hostname,
-            finalUrl: url,
-            content: 'Readable news content for multilingual fast path.',
-            charCount: 50,
-          },
-        }))),
-      };
-
-      const final = await runOpenAIWebSearchJsonToolLoop({
-        body: {
-          model: 'test',
-          stream: true,
-          messages: [{ role: 'user', content: prompt }],
-        },
-        client,
-        requestJson,
-        onChunk: vi.fn(),
-      });
-
-      expect(client.webSearch).not.toHaveBeenCalled();
-      expect(client.readWebPages).toHaveBeenCalledWith([
-        'https://apnews.com/hub/world-news',
-        'https://edition.cnn.com/world',
-      ], {
-        contentLimit: 1200,
-        retries: 0,
-      });
-      expect(final).toContain('Fast multilingual briefing.');
-    }
-  });
-
-  it('does not use the news fast path for non-news world or international questions', async () => {
-    const prompts = [
-      'What is the world population today?',
-      'What is the latest international CSS standard?',
-      'What time is it around the world today?',
-      '¿Cuál es la población mundial hoy?',
-      '今日は世界人口について教えて',
-      '今天世界人口是多少？',
-      'Explique le mot international en français.',
-    ];
-
-    for (const prompt of prompts) {
-      const requestJson = vi
-        .fn()
-        .mockResolvedValueOnce({
-          choices: [{
-            message: {
-              content: '',
-              tool_calls: [{
-                id: 'call-1',
-                type: 'function',
-                function: {
-                  name: 'web_search',
-                  arguments: JSON.stringify({ query: 'ordinary search' }),
-                },
-              }],
-            },
-          }],
-        })
-        .mockResolvedValueOnce({
-          choices: [{ message: { content: 'Ordinary search answer.' } }],
-        });
-      const client = {
-        webSearch: vi.fn(async () => ({ query: 'ordinary search', results: [] })),
-        readWebPage: vi.fn(),
-        readWebPages: vi.fn(),
-      };
-
-      const final = await runOpenAIWebSearchJsonToolLoop({
-        body: {
-          model: 'test',
-          stream: true,
-          messages: [{ role: 'user', content: prompt }],
-        },
-        client,
-        requestJson,
-        onChunk: vi.fn(),
-      });
-
-      expect(client.webSearch).toHaveBeenCalledWith('ordinary search', {
-        category: undefined,
-        timeRange: undefined,
-        limit: 5,
-      });
-      expect(client.readWebPages).not.toHaveBeenCalledWith([
-        'https://apnews.com/hub/world-news',
-        'https://edition.cnn.com/world',
-      ], expect.anything());
-      expect(final).toContain('Ordinary search answer.');
-    }
+    expect(final).toContain('Model answered without using search.');
   });
 
   it('forces a page read in the streaming tool loop before the final answer', async () => {
@@ -1120,7 +989,7 @@ describe('OpenAI web search JSON tool loop', () => {
     const reminderMessages = request.mock.calls[2][0].messages;
     expect(reminderMessages[reminderMessages.length - 1]).toMatchObject({
       role: 'system',
-      content: expect.stringContaining('Write the final answer now'),
+      content: expect.stringContaining('Answer now'),
     });
     expect(final).toContain('Final visible answer.');
     expect(final).not.toContain('I have enough context.');
@@ -1128,7 +997,7 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(onApiTranscript).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({
         role: 'system',
-        content: expect.stringContaining('Write the final answer now'),
+        content: expect.stringContaining('Answer now'),
       }),
     ]));
   });
@@ -1187,7 +1056,7 @@ describe('OpenAI web search JSON tool loop', () => {
     const reminderMessages = requestJson.mock.calls[2][0].messages;
     expect(reminderMessages[reminderMessages.length - 1]).toMatchObject({
       role: 'system',
-      content: expect.stringContaining('Write the final answer now'),
+      content: expect.stringContaining('Answer now'),
     });
     expect(final).toContain('Final visible answer.');
     expect(final).not.toContain('I have enough context.');
@@ -1262,7 +1131,7 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(request.mock.calls[6][0].tool_choice).toBeUndefined();
     expect(request.mock.calls[6][0].messages.at(-1)).toMatchObject({
       role: 'system',
-      content: expect.stringContaining('Write the final answer now'),
+      content: expect.stringContaining('Answer now'),
     });
     expect(final).toContain('Recovered final answer with https://example.com');
   });
@@ -1805,7 +1674,7 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(final).toContain('Final answer with https://one.example and https://two.example');
   });
 
-  it('keeps max-loop fallback API transcript free of rendered think markup', async () => {
+  it('stops repeated no-result streaming searches without another model recovery request', async () => {
     const request = vi.fn(async () => streamResponse([
       {
         choices: [{
@@ -1844,13 +1713,91 @@ describe('OpenAI web search JSON tool loop', () => {
       onApiTranscript,
     });
 
-    expect(request).toHaveBeenCalledTimes(6);
-    expect(final).toContain('<think>Need another search.</think>Searching again.');
+    expect(request).toHaveBeenCalledTimes(3);
+    expect(final).toContain('I tried several search queries');
+    expect(final).not.toContain('<think>');
     const transcript = onApiTranscript.mock.calls[0][0];
     expect(transcript[transcript.length - 1]).toMatchObject({
       role: 'assistant',
-      content: 'Searching again.',
-      reasoning_content: 'Need another search.',
+      content: expect.stringContaining('I tried several search queries'),
     });
+  });
+
+  it('does not expose DeepSeek DSML tool markup after repeated no-result searches', async () => {
+    const dsmlToolCall = [
+      '<｜｜DSML｜｜tool_calls>',
+      '<｜｜DSML｜｜invoke name="web_search">',
+      '<｜｜DSML｜｜parameter name="query" string="true">OpenAI Codex model version gpt</｜｜DSML｜｜parameter>',
+      '</｜｜DSML｜｜invoke>',
+      '</｜｜DSML｜｜tool_calls>',
+    ].join('\n');
+    const requestJson = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: '',
+            tool_calls: [{
+              id: 'search-1',
+              type: 'function',
+              function: {
+                name: 'web_search',
+                arguments: JSON.stringify({ query: 'Codex latest version 2026' }),
+              },
+            }],
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: '',
+            tool_calls: [{
+              id: 'search-2',
+              type: 'function',
+              function: {
+                name: 'web_search',
+                arguments: JSON.stringify({ query: 'OpenAI Codex latest version' }),
+              },
+            }],
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: dsmlToolCall,
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: dsmlToolCall,
+          },
+        }],
+      });
+    const client = {
+      webSearch: vi.fn(async (query: string) => ({ query, results: [] })),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(),
+    };
+
+    const final = await runOpenAIWebSearchJsonToolLoop({
+      body: {
+        model: 'test',
+        stream: true,
+        messages: [{ role: 'user', content: '帮我看看 Codex 最新版本' }],
+      },
+      client,
+      requestJson,
+      onChunk: vi.fn(),
+    });
+
+    expect(client.webSearch).toHaveBeenCalledTimes(3);
+    expect(requestJson).toHaveBeenCalledTimes(3);
+    expect(final).toContain('连续尝试了几个搜索词');
+    expect(final).not.toContain('DSML');
+    expect(final).not.toContain('tool_calls');
   });
 });

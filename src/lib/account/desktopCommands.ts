@@ -132,8 +132,21 @@ export const accountCommands = {
     return await getDesktopAccountBridge().getManagedBudget();
   },
 
-  async managedChatCompletion(body: object) {
-    return await getDesktopAccountBridge().managedChatCompletion(body);
+  async managedChatCompletion(body: object, signal?: AbortSignal) {
+    if (signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
+    const request = getDesktopAccountBridge().managedChatCompletion(body);
+    if (!signal) {
+      return await request;
+    }
+    return await new Promise<Record<string, unknown>>((resolve, reject) => {
+      const abort = () => reject(new DOMException('Aborted', 'AbortError'));
+      signal.addEventListener('abort', abort, { once: true });
+      request.then(resolve, reject).finally(() => {
+        signal.removeEventListener('abort', abort);
+      });
+    });
   },
 
   async managedImageGeneration(body: object) {

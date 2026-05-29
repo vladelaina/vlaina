@@ -8,6 +8,9 @@ import {
 import { WEB_SEARCH_TOOL_NAMES } from './toolDefinitions';
 import type { WebSearchStatus } from './types';
 
+const AUTO_READ_AFTER_SEARCH_LIMIT = 3;
+const AUTO_READ_AFTER_SEARCH_CONTENT_LIMIT = 3000;
+
 interface WebSearchToolCall {
   name: string;
   arguments: string;
@@ -17,6 +20,7 @@ export interface WebSearchToolRunnerOptions {
   client?: WebSearchClient;
   onStatus?: (status: WebSearchStatus) => void;
   signal?: AbortSignal;
+  autoReadAfterSearch?: boolean;
 }
 
 function parseArguments(rawArguments: string): Record<string, unknown> {
@@ -177,7 +181,49 @@ export async function runWebSearchToolCall(
         },
         message: response.results.length > 0 ? undefined : 'No relevant results were found.',
       });
-      return formatSearchResultsForModel(response);
+      const searchContent = formatSearchResultsForModel(response);
+      if (options.autoReadAfterSearch !== true) {
+        return searchContent;
+      }
+
+      const urls = response.results
+        .map((result) => result.url)
+        .filter((url, index, urls): url is string => typeof url === 'string' && url.trim().length > 0 && urls.indexOf(url) === index)
+        .slice(0, AUTO_READ_AFTER_SEARCH_LIMIT);
+
+      if (urls.length === 0) {
+        return searchContent;
+      }
+
+      const readStartedAt = performance.now();
+      options.onStatus?.({ phase: 'reading', urls });
+      const pages = await callWebSearchClient(
+        options.signal,
+        (signal) => client.readWebPages(urls, { contentLimit: AUTO_READ_AFTER_SEARCH_CONTENT_LIMIT, retries: 0 }, signal),
+        () => client.readWebPages(urls, { contentLimit: AUTO_READ_AFTER_SEARCH_CONTENT_LIMIT, retries: 0 }),
+      );
+      throwIfAborted(options.signal);
+      const successfulPages = pages.filter((page) => page.ok);
+      const failedPages = pages.filter((page) => !page.ok);
+      options.onStatus?.({
+        phase: 'complete',
+        urls: successfulPages.map((page) => page.page?.finalUrl || page.url),
+        failedSources: failedPages.map((page) => ({
+          url: page.url,
+          message: safeFailedSourceMessage(page.code),
+        })),
+        metrics: {
+          durationMs: elapsedSince(readStartedAt),
+          failureCount: failedPages.length,
+          successCount: successfulPages.length,
+        },
+      });
+      return [
+        searchContent,
+        '',
+        'Automatically read top search results:',
+        formatBatchPagesForModel(pages),
+      ].join('\n');
     }
 
     if (toolName === WEB_SEARCH_TOOL_NAMES.read) {

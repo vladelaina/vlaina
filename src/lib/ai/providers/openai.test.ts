@@ -586,9 +586,9 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(body.tool_choice).toBeUndefined();
   });
 
-  it('prefetches web search context for OpenRouter Claude without tool messages', async () => {
+  it('lets OpenRouter Claude decide whether to use web search tools', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      streamResponse('data: {"choices":[{"delta":{"content":"claude web answer"}}]}\n\ndata: [DONE]\n\n'),
+      streamResponse('data: {"choices":[{"delta":{"content":"claude direct answer"}}]}\n\ndata: [DONE]\n\n'),
     );
     vi.stubGlobal('fetch', fetchMock);
     mocks.bridge = {
@@ -622,7 +622,68 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     };
 
     const result = await new OpenAICompatibleClient().sendMessage(
-      'search something current',
+      'hi',
+      [],
+      buildModel({ apiModelId: 'anthropic/claude-sonnet-4.5', name: 'Claude Sonnet 4.5' }),
+      buildProvider({ name: 'OpenRouter', apiHost: 'https://openrouter.ai/api', endpointType: 'openai' }),
+      vi.fn(),
+      undefined,
+      { webSearchEnabled: true },
+    );
+
+    expect(result).toBe('claude direct answer');
+    expect(mocks.bridge.webSearch?.search).not.toHaveBeenCalled();
+    expect(mocks.bridge.webSearch?.readBatch).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls[0][0]).toBe('https://openrouter.ai/api/v1/chat/completions');
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.model).toBe('anthropic/claude-sonnet-4.5');
+    expect(body.tools).toBeUndefined();
+    expect(body.tool_choice).toBeUndefined();
+    expect(body.messages[0].role).toBe('system');
+    expect(body.messages[0].content).toContain('<web_search_request>');
+    expect(body.messages.at(-1)).toEqual({ role: 'user', content: 'hi' });
+  });
+
+  it('handles OpenRouter Claude search requests through the text protocol without tool messages', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(streamResponse(
+        'data: {"choices":[{"delta":{"content":"<web_search_request>{\\"query\\":\\"Claude latest news\\",\\"reason\\":\\"current info\\"}</web_search_request>"}}]}\n\ndata: [DONE]\n\n',
+      ))
+      .mockResolvedValueOnce(streamResponse('data: {"choices":[{"delta":{"content":"claude web answer"}}]}\n\ndata: [DONE]\n\n'));
+    vi.stubGlobal('fetch', fetchMock);
+    mocks.bridge = {
+      webSearch: {
+        search: vi.fn(async () => ({
+          query: 'Claude latest news',
+          results: [{
+            title: 'Claude source',
+            url: 'https://example.com/claude',
+            snippet: 'Useful source.',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          }],
+        })),
+        read: vi.fn(),
+        readBatch: vi.fn(async () => [{
+          url: 'https://example.com/claude',
+          ok: true,
+          page: {
+            title: 'Claude source',
+            summary: '',
+            siteName: 'example.com',
+            finalUrl: 'https://example.com/claude',
+            content: 'Readable source content.',
+            charCount: 24,
+          },
+        }]),
+        cancelRequest: vi.fn(),
+      },
+    };
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'search Claude latest news',
       [],
       buildModel({ apiModelId: 'anthropic/claude-sonnet-4.5', name: 'Claude Sonnet 4.5' }),
       buildProvider({ name: 'OpenRouter', apiHost: 'https://openrouter.ai/api', endpointType: 'openai' }),
@@ -632,17 +693,75 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     );
 
     expect(result).toContain('claude web answer');
-    expect(result).toContain('https://example.com/source');
-    expect(fetchMock.mock.calls[0][0]).toBe('https://openrouter.ai/api/v1/chat/completions');
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(body.model).toBe('anthropic/claude-sonnet-4.5');
-    expect(body.tools).toBeUndefined();
-    expect(body.tool_choice).toBeUndefined();
-    expect(body.messages.some((message: { role: string; tool_calls?: unknown; tool_call_id?: unknown }) =>
-      message.role === 'tool' || message.tool_calls || message.tool_call_id,
-    )).toBe(false);
-    expect(body.messages.at(-1).content).toContain('Answer from the provided web search context');
-    expect(body.messages.at(-1).content).toContain('Readable source content.');
+    expect(result).toContain('https://example.com/claude');
+    expect(mocks.bridge.webSearch?.search).toHaveBeenCalledWith('Claude latest news', { limit: 5 }, undefined);
+    expect(mocks.bridge.webSearch?.readBatch).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(firstBody.tools).toBeUndefined();
+    expect(secondBody.tools).toBeUndefined();
+    expect(secondBody.messages.at(-1).content).toContain('Readable source content.');
+  });
+
+  it('handles custom Kimi search requests through the text protocol without tool messages', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(streamResponse(
+        'data: {"choices":[{"delta":{"content":"<web_search_request>{\\"query\\":\\"catime\\",\\"reason\\":\\"current info\\"}</web_search_request>"}}]}\n\ndata: [DONE]\n\n',
+      ))
+      .mockResolvedValueOnce(streamResponse('data: {"choices":[{"delta":{"content":"kimi web answer"}}]}\n\ndata: [DONE]\n\n'));
+    vi.stubGlobal('fetch', fetchMock);
+    mocks.bridge = {
+      webSearch: {
+        search: vi.fn(async () => ({
+          query: 'catime',
+          results: [{
+            title: 'Catime',
+            url: 'https://cati.me/',
+            snippet: 'Catime source.',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          }],
+        })),
+        read: vi.fn(),
+        readBatch: vi.fn(async () => [{
+          url: 'https://cati.me/',
+          ok: true,
+          page: {
+            title: 'Catime',
+            summary: '',
+            siteName: 'cati.me',
+            finalUrl: 'https://cati.me/',
+            content: 'Readable catime content.',
+            charCount: 24,
+          },
+        }]),
+        cancelRequest: vi.fn(),
+      },
+    };
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      '搜一下catime',
+      [],
+      buildModel({ apiModelId: 'moonshotai/kimi-k2', name: 'Kimi K2' }),
+      buildProvider({ name: 'OpenRouter', apiHost: 'https://openrouter.ai/api', endpointType: 'openai' }),
+      vi.fn(),
+      undefined,
+      { webSearchEnabled: true },
+    );
+
+    expect(result).toContain('kimi web answer');
+    expect(result).toContain('https://cati.me/');
+    expect(mocks.bridge.webSearch?.search).toHaveBeenCalledWith('catime', { limit: 5 }, undefined);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(firstBody.tools).toBeUndefined();
+    expect(secondBody.tools).toBeUndefined();
+    expect(firstBody.messages[0].content).toContain('<web_search_request>');
+    expect(secondBody.messages.at(-1).content).toContain('Readable catime content.');
   });
 
   it('detects prefixed and mixed-case custom Grok model ids without injecting local tools', async () => {
@@ -710,6 +829,219 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(body.tools).toBeUndefined();
     expect(body.tool_choice).toBeUndefined();
     expect(body.stream).toBe(true);
+  });
+
+  it('does not prefetch web search for casual managed Claude messages', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse('data: {"choices":[{"delta":{"content":"hello"}}]}\n\ndata: [DONE]\n\n'),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    mocks.bridge = {
+      webSearch: {
+        search: vi.fn(),
+        read: vi.fn(),
+        readBatch: vi.fn(),
+        cancelRequest: vi.fn(),
+      },
+    };
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel({ apiModelId: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5' }),
+      buildProvider({ id: 'vlaina-managed', apiHost: 'https://api.vlaina.com/v1', apiKey: '' }),
+      vi.fn(),
+      undefined,
+      { webSearchEnabled: true },
+    );
+
+    expect(result).toBe('hello');
+    expect(mocks.bridge.webSearch?.search).not.toHaveBeenCalled();
+    expect(mocks.bridge.webSearch?.readBatch).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.tools).toBeUndefined();
+    expect(body.tool_choice).toBeUndefined();
+    expect(body.stream).toBe(true);
+    expect(body.messages[0].content).toContain('<web_search_request>');
+  });
+
+  it('prefetches web search context for explicit managed Claude search requests without provider tools', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(streamResponse('data: {"choices":[{"delta":{"content":"<web_search_request>{\\"query\\":\\"Claude latest news\\",\\"reason\\":\\"current info\\"}</web_search_request>"}}]}\n\ndata: [DONE]\n\n'))
+      .mockResolvedValueOnce(streamResponse('data: {"choices":[{"delta":{"content":"managed claude web answer"}}]}\n\ndata: [DONE]\n\n'));
+    vi.stubGlobal('fetch', fetchMock);
+    mocks.bridge = {
+      webSearch: {
+        search: vi.fn(async () => ({
+          query: '搜索 Claude 最新消息',
+          results: [{
+            title: 'Claude source',
+            url: 'https://example.com/claude',
+            snippet: 'Claude news.',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          }],
+        })),
+        read: vi.fn(),
+        readBatch: vi.fn(async () => [{
+          url: 'https://example.com/claude',
+          ok: true,
+          page: {
+            title: 'Claude source',
+            summary: '',
+            siteName: 'example.com',
+            finalUrl: 'https://example.com/claude',
+            content: 'Readable Claude source content.',
+            charCount: 31,
+          },
+        }]),
+        cancelRequest: vi.fn(),
+      },
+    };
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      '搜索 Claude 最新消息',
+      [],
+      buildModel({ apiModelId: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5' }),
+      buildProvider({ id: 'vlaina-managed', apiHost: 'https://api.vlaina.com/v1', apiKey: '' }),
+      vi.fn(),
+      undefined,
+      { webSearchEnabled: true },
+    );
+
+    expect(result).toContain('managed claude web answer');
+    expect(result).toContain('https://example.com/claude');
+    expect(mocks.bridge.webSearch?.search).toHaveBeenCalledTimes(1);
+    expect(mocks.bridge.webSearch?.readBatch).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(firstBody.tools).toBeUndefined();
+    expect(secondBody.tools).toBeUndefined();
+    expect(firstBody.stream).toBe(true);
+    expect(secondBody.stream).toBe(true);
+    expect(secondBody.messages.at(-1).content).toContain('Answer from web context');
+    expect(secondBody.messages.at(-1).content).toContain('Readable Claude source content.');
+  });
+
+  it('prefetches web search context for managed Kimi through the text protocol without provider tools', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(streamResponse('data: {"choices":[{"delta":{"content":"<web_search_request>{\\"query\\":\\"catime\\",\\"reason\\":\\"current info\\"}"}}]}\n\ndata: [DONE]\n\n'))
+      .mockResolvedValueOnce(streamResponse('data: {"choices":[{"delta":{"content":"managed kimi web answer"}}]}\n\ndata: [DONE]\n\n'));
+    vi.stubGlobal('fetch', fetchMock);
+    mocks.bridge = {
+      webSearch: {
+        search: vi.fn(async () => ({
+          query: 'catime',
+          results: [{
+            title: 'Catime',
+            url: 'https://cati.me/',
+            snippet: 'Catime source.',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          }],
+        })),
+        read: vi.fn(),
+        readBatch: vi.fn(async () => [{
+          url: 'https://cati.me/',
+          ok: true,
+          page: {
+            title: 'Catime',
+            summary: '',
+            siteName: 'cati.me',
+            finalUrl: 'https://cati.me/',
+            content: 'Readable catime content.',
+            charCount: 24,
+          },
+        }]),
+        cancelRequest: vi.fn(),
+      },
+    };
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      '搜一下catime',
+      [],
+      buildModel({ apiModelId: 'moonshotai/kimi-k2', name: 'Kimi K2' }),
+      buildProvider({ id: 'vlaina-managed', apiHost: 'https://api.vlaina.com/v1', apiKey: '' }),
+      vi.fn(),
+      undefined,
+      { webSearchEnabled: true },
+    );
+
+    expect(result).toContain('managed kimi web answer');
+    expect(result).toContain('https://cati.me/');
+    expect(mocks.bridge.webSearch?.search).toHaveBeenCalledWith('catime', { limit: 5 }, undefined);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(firstBody.tools).toBeUndefined();
+    expect(secondBody.tools).toBeUndefined();
+    expect(firstBody.stream).toBe(true);
+    expect(secondBody.stream).toBe(true);
+    expect(firstBody.messages[0].content).toContain('<web_search_request>');
+    expect(secondBody.messages.at(-1).content).toContain('Readable catime content.');
+  });
+
+  it('falls back to the cleaned user query when Claude rewrites search terms too narrowly', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(streamResponse('data: {"choices":[{"delta":{"content":"<web_search_request>{\\"query\\":\\"Vlaina app 2026\\",\\"reason\\":\\"current info\\"}</web_search_request>"}}]}\n\ndata: [DONE]\n\n'))
+      .mockResolvedValueOnce(streamResponse('data: {"choices":[{"delta":{"content":"vlaina answer"}}]}\n\ndata: [DONE]\n\n'));
+    vi.stubGlobal('fetch', fetchMock);
+    mocks.bridge = {
+      webSearch: {
+        search: vi
+          .fn()
+          .mockResolvedValueOnce({ query: 'Vlaina app 2026', results: [] })
+          .mockResolvedValueOnce({
+            query: 'vlaina',
+            results: [{
+              title: 'vlaina',
+              url: 'https://vlaina.com',
+              snippet: 'vlaina home.',
+              publishedAt: null,
+              source: null,
+              thumbnail: null,
+            }],
+          }),
+        read: vi.fn(),
+        readBatch: vi.fn(async () => [{
+          url: 'https://vlaina.com',
+          ok: true,
+          page: {
+            title: 'vlaina',
+            summary: '',
+            siteName: 'vlaina.com',
+            finalUrl: 'https://vlaina.com',
+            content: 'Readable vlaina content.',
+            charCount: 24,
+          },
+        }]),
+        cancelRequest: vi.fn(),
+      },
+    };
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      '搜vlaina',
+      [],
+      buildModel({ apiModelId: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5' }),
+      buildProvider({ id: 'vlaina-managed', apiHost: 'https://api.vlaina.com/v1', apiKey: '' }),
+      vi.fn(),
+      undefined,
+      { webSearchEnabled: true },
+    );
+
+    expect(result).toContain('vlaina answer');
+    expect(result).toContain('https://vlaina.com');
+    expect(mocks.bridge.webSearch?.search).toHaveBeenNthCalledWith(1, 'Vlaina app 2026', { limit: 5 }, undefined);
+    expect(mocks.bridge.webSearch?.search).toHaveBeenNthCalledWith(2, 'vlaina', { limit: 5 }, undefined);
+    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(secondBody.messages.at(-1).content).toContain('Readable vlaina content.');
   });
 
   it('retries one transient OpenAI-compatible web search model request before failing the tool loop', async () => {

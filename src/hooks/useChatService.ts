@@ -427,7 +427,7 @@ export function useChatService() {
             }
           }
 
-          await runStreamedAssistantMessage({
+          const status = await runStreamedAssistantMessage({
             sessionId: targetSessionId,
             assistantMessageId,
             execute: (onChunk, signal) =>
@@ -487,6 +487,13 @@ export function useChatService() {
               }
             },
           });
+          if (status === 'aborted') {
+            addChatDebugLog('chat', 'sendMessage aborted', {
+              sessionId: targetSessionId,
+              messageId: assistantMessageId,
+              durationMs: Date.now() - requestStartedAt,
+            }, 'warn');
+          }
         } catch (error) {
           addChatDebugLog('chat', 'sendMessage failed before stream runner completed', {
             sessionId: targetSessionId,
@@ -600,7 +607,7 @@ export function useChatService() {
           });
           const apiMessageContent = await buildStoredUserMessageContent(newContent);
 
-          await runStreamedAssistantMessage({
+          const status = await runStreamedAssistantMessage({
             sessionId,
             assistantMessageId,
             execute: (onChunk, signal) =>
@@ -648,6 +655,13 @@ export function useChatService() {
               maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
             },
           });
+          if (status === 'aborted') {
+            addChatDebugLog('chat', 'edit resend aborted', {
+              sessionId,
+              assistantMessageId,
+              durationMs: Date.now() - requestStartedAt,
+            }, 'warn');
+          }
         } catch (error) {
           const isManaged = isManagedProviderId(provider.id);
           markManagedAuthPromptForError(sessionId, error, isManaged);
@@ -731,7 +745,7 @@ export function useChatService() {
           });
           const apiMessageContent = await buildStoredUserMessageContent(promptMessage.content);
 
-          await runStreamedAssistantMessage({
+          const status = await runStreamedAssistantMessage({
             sessionId,
             assistantMessageId: messageId,
             execute: (onChunk, signal) =>
@@ -779,6 +793,13 @@ export function useChatService() {
               maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
             },
           });
+          if (status === 'aborted') {
+            addChatDebugLog('chat', 'regenerate aborted', {
+              sessionId,
+              messageId,
+              durationMs: Date.now() - requestStartedAt,
+            }, 'warn');
+          }
         } catch (error) {
           const isManaged = isManagedProviderId(provider.id);
           markManagedAuthPromptForError(sessionId, error, isManaged);

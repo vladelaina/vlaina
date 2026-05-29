@@ -55,6 +55,56 @@ export function extractOpenAIText(value: unknown): string {
   return '';
 }
 
+function dsmlPattern(name: string): string {
+  return `<[|｜]{2}\\s*DSML\\s*[|｜]{2}\\s*${name}`;
+}
+
+const DSML_TOOL_CALLS_BLOCK_RE = new RegExp(
+  `${dsmlPattern('tool_calls')}[^>]*>[\\s\\S]*?<\\/[|｜]{2}\\s*DSML\\s*[|｜]{2}\\s*tool_calls\\s*>`,
+  'gi',
+);
+
+const DSML_INVOKE_RE = new RegExp(
+  `${dsmlPattern('invoke')}\\s+name=["']([^"']+)["'][^>]*>([\\s\\S]*?)<\\/[|｜]{2}\\s*DSML\\s*[|｜]{2}\\s*invoke\\s*>`,
+  'gi',
+);
+
+const DSML_PARAMETER_RE = new RegExp(
+  `${dsmlPattern('parameter')}\\s+name=["']([^"']+)["'][^>]*>([\\s\\S]*?)<\\/[|｜]{2}\\s*DSML\\s*[|｜]{2}\\s*parameter\\s*>`,
+  'gi',
+);
+
+export function stripDsmlToolCallMarkup(content: string): string {
+  return content.replace(DSML_TOOL_CALLS_BLOCK_RE, '').trim();
+}
+
+function extractDsmlToolCalls(content: string): OpenAIToolCall[] {
+  const calls: OpenAIToolCall[] = [];
+  for (const block of content.matchAll(DSML_TOOL_CALLS_BLOCK_RE)) {
+    const blockText = block[0];
+    for (const invoke of blockText.matchAll(DSML_INVOKE_RE)) {
+      const name = invoke[1]?.trim() ?? '';
+      const body = invoke[2] ?? '';
+      if (!name) continue;
+      const args: Record<string, string> = {};
+      for (const parameter of body.matchAll(DSML_PARAMETER_RE)) {
+        const key = parameter[1]?.trim() ?? '';
+        if (!key) continue;
+        args[key] = (parameter[2] ?? '').trim();
+      }
+      calls.push({
+        id: `dsml_${calls.length}`,
+        type: 'function',
+        function: {
+          name,
+          arguments: JSON.stringify(args),
+        },
+      });
+    }
+  }
+  return calls;
+}
+
 export function extractOpenAIContentDelta(payload: Record<string, unknown>): { reasoning?: string; content?: string } {
   const choice = Array.isArray(payload.choices) ? payload.choices[0] : null;
   if (!isRecord(choice)) return {};
@@ -82,9 +132,11 @@ export function extractOpenAIMessageFromJson(payload: Record<string, unknown>): 
   const choice = Array.isArray(payload.choices) ? payload.choices[0] : null;
   const message = isRecord(choice) && isRecord(choice.message) ? choice.message : {};
   const rawToolCalls = Array.isArray(message.tool_calls) ? message.tool_calls : [];
+  const rawContent = extractOpenAIText(message.content);
+  const dsmlToolCalls = extractDsmlToolCalls(rawContent);
 
   return {
-    content: extractOpenAIText(message.content),
+    content: stripDsmlToolCallMarkup(rawContent),
     reasoningContent: extractOpenAIText(message.reasoning_content ?? message.reasoning),
     toolCalls: rawToolCalls
       .map((rawCall): OpenAIToolCall | null => {
@@ -96,6 +148,7 @@ export function extractOpenAIMessageFromJson(payload: Record<string, unknown>): 
         if (!id || !name) return null;
         return { id, type: 'function', function: { name, arguments: args } };
       })
-      .filter((call): call is OpenAIToolCall => call !== null),
+      .filter((call): call is OpenAIToolCall => call !== null)
+      .concat(dsmlToolCalls),
   };
 }
