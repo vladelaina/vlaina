@@ -237,15 +237,19 @@ export function AppContent() {
     if (shouldWaitForInitialUnifiedView) {
       return;
     }
+    const nextActiveViewReady = readyAppViewsRef.current.has(effectiveAppViewMode);
+    const nextPrimaryContentReady = primaryContentReadyAppViewsRef.current.has(effectiveAppViewMode);
+    const nextShouldRenderCenterChrome =
+      nextActiveViewReady && (effectiveAppViewMode !== 'notes' || nextPrimaryContentReady);
     setMountedAppViews((views) => {
       if (views.has(effectiveAppViewMode)) return views;
       return new Set([...views, effectiveAppViewMode]);
     });
-    setActiveViewReady(readyAppViewsRef.current.has(effectiveAppViewMode));
-    setPrimaryContentReady(primaryContentReadyAppViewsRef.current.has(effectiveAppViewMode));
-    setShouldRenderCenterChrome(false);
+    setActiveViewReady(nextActiveViewReady);
+    setPrimaryContentReady(nextPrimaryContentReady);
+    setShouldRenderCenterChrome(nextShouldRenderCenterChrome);
     setShouldRenderDeferredChrome(false);
-    didEnableCenterChromeRef.current = false;
+    didEnableCenterChromeRef.current = nextShouldRenderCenterChrome;
     didEnableDeferredChromeRef.current = false;
     if (centerChromeTimerRef.current !== null) {
       window.clearTimeout(centerChromeTimerRef.current);
@@ -332,6 +336,8 @@ export function AppContent() {
     void preloadChatViewModule();
     void preloadNotesSidebarModule();
     void preloadChatSidebarModule();
+    void preloadNotesTabRowModule();
+    void preloadModelSelectorModule();
 
     setMountedAppViews((views) => {
       if (views.has('notes') && views.has('chat')) return views;
@@ -585,7 +591,7 @@ export function AppContent() {
     </Suspense>
   ) : effectiveAppViewMode === 'chat' ? (
     <Suspense fallback={null}>
-      <div className="flex h-full translate-y-0.5 items-center pl-2">
+      <div className="flex h-full items-center pl-2">
         <ModelSelector dropdownPlacement="bottom" dropdownAlign="left" />
       </div>
     </Suspense>

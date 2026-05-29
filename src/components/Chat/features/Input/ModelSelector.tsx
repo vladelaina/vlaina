@@ -863,11 +863,11 @@ export function ModelSelector({
           <img
             src={selectedModelFamily.icon}
             alt=""
-            className="h-4 w-4 flex-shrink-0 rounded-[3px] object-contain"
+            className="h-[18px] w-[18px] flex-shrink-0 rounded-[3px] object-contain"
             draggable={false}
           />
         ) : (
-          <Icon name="misc.box" size="sm" className="flex-shrink-0 text-[var(--chat-sidebar-icon)]" />
+          <Icon name="misc.box" size={18} className="flex-shrink-0 text-[var(--chat-sidebar-icon)]" />
         )}
         <span className="whitespace-nowrap text-[15px] font-semibold tracking-tight">
           {selectedModel ? getModelPresentationName(selectedModel) : t('chat.selectModel')}
