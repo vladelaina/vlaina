@@ -98,7 +98,7 @@ export function SidebarActionGroup({
   className,
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('px-1 pt-1 pb-0.5 space-y-1', className)} {...props} />;
+  return <div className={cn('px-2 pt-1 pb-0.5 space-y-1', className)} {...props} />;
 }
 
 export const SidebarActionButton = forwardRef<HTMLButtonElement, SidebarActionButtonProps>(
