@@ -40,26 +40,13 @@ details.
 
 ```bash
 pnpm install
+```
+
+```bash
 pnpm dev
 ```
 
-### Typecheck
 
-```bash
-pnpm typecheck
-```
-
-### Test
-
-```bash
-pnpm test
-```
-
-### Build
-
-```bash
-pnpm build
-```
 ## ✨Acknowledgements
 
 With special appreciation to **湾中WanZhong** for the beautiful icon design.
