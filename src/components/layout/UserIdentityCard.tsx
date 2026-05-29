@@ -8,6 +8,7 @@ import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { ManagedQuotaMeter } from './ManagedQuotaMeter';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { getSidebarIdleRowSurfaceClass } from '@/components/layout/sidebar/sidebarLabelStyles';
+import { AccountAvatarImage } from './AccountAvatarImage';
 
 const fallbackAvatarUrl = `${import.meta.env.BASE_URL}logo.png?v=20260327`;
 const membershipPlanUrl = 'https://vlaina.com/r/account_plan';
@@ -25,7 +26,6 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
   const displayName = username || primaryEmail || 'vlaina';
   const displayIdentity = primaryEmail || username || 'vlaina';
   const userAvatar = useUserAvatar();
-  const displayAvatar = userAvatar || fallbackAvatarUrl;
   const isMembershipPending = isConnected && !membershipTier && !membershipName;
   const shouldShowMembershipBadge = isConnected && !isMembershipPending && membershipTier !== 'free';
   const membershipBadgeLabel = membershipName || '';
@@ -48,7 +48,12 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
             'relative flex h-12 w-12 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-neutral-200/50 bg-white/90 shadow-sm backdrop-blur-sm transition-all duration-300 hover:scale-105 dark:border-zinc-700/50 dark:bg-zinc-800/90'
           )}
         >
-          <img src={displayAvatar} alt={displayName} className="h-full w-full object-cover" />
+          <AccountAvatarImage
+            src={userAvatar}
+            fallbackSrc={fallbackAvatarUrl}
+            alt={displayName}
+            className="h-full w-full object-cover"
+          />
         </div>
         {shouldShowMembershipBadge ? (
           <span

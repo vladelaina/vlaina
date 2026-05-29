@@ -12,6 +12,7 @@ import { LoginPrompt } from './LoginPrompt';
 import { AccountLoginDialog } from './AccountLoginDialog';
 import { UserIdentityCard } from './UserIdentityCard';
 import { AppMenu } from './AppMenu';
+import { AccountAvatarImage } from './AccountAvatarImage';
 
 const fallbackAvatarUrl = `${import.meta.env.BASE_URL}logo.png?v=20260327`;
 
@@ -57,8 +58,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
 
   const userAvatar = useUserAvatar();
   const displayName = isConnected ? username || primaryEmail || 'vlaina' : 'vlaina';
-  const displayAvatar =
-    isConnected && userAvatar ? userAvatar : fallbackAvatarUrl;
+  const displayAvatar = isConnected ? userAvatar : null;
 
   const handleOpenLoginDialog = useCallback(() => {
     setIsOpen(false);
@@ -103,7 +103,12 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
             className="group relative flex h-full min-w-0 flex-1 cursor-pointer items-center justify-start overflow-visible rounded-[10px] bg-transparent text-[var(--vlaina-text-primary)] outline-none select-none"
           >
             <span className="relative flex size-[26px] shrink-0 overflow-hidden rounded-[8px]">
-              <img src={displayAvatar} alt={displayName} className="h-full w-full object-cover shadow-sm" />
+              <AccountAvatarImage
+                src={displayAvatar}
+                fallbackSrc={fallbackAvatarUrl}
+                alt={displayName}
+                className="h-full w-full object-cover shadow-sm"
+              />
             </span>
           </button>
         </Popover.Trigger>

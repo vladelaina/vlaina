@@ -50,9 +50,19 @@ const ImageIconRenderer = memo(function ImageIconRenderer({
   rounding?: string;
   maskColor?: string | null;
 }) {
+  const [hasLoadError, setHasLoadError] = useState(false);
+
+  useEffect(() => {
+    setHasLoadError(false);
+  }, [src]);
+
   if (!src) return null;
   const resolvedSize = resolveSize(size);
   const radiusClassName = rounding || 'rounded-sm';
+
+  if (hasLoadError) {
+    return <span className={className} style={{ width: resolvedSize, height: resolvedSize, display: 'inline-block' }} />;
+  }
 
   if (!maskColor) {
     return (
@@ -62,6 +72,7 @@ const ImageIconRenderer = memo(function ImageIconRenderer({
         style={{ width: resolvedSize, height: resolvedSize, display: 'inline-block' }}
         draggable={false}
         alt="icon"
+        onError={() => setHasLoadError(true)}
       />
     );
   }
@@ -77,6 +88,7 @@ const ImageIconRenderer = memo(function ImageIconRenderer({
         style={{ display: 'inline-block' }}
         draggable={false}
         alt="icon"
+        onError={() => setHasLoadError(true)}
       />
       <ImageEdgeMask color={maskColor} rounding={radiusClassName} />
     </span>
