@@ -164,4 +164,14 @@ describe('ChatSidebarSessionRow', () => {
 
     expect(props.onSwitch).not.toHaveBeenCalled();
   });
+
+  it('does not increase title weight for the active session', () => {
+    renderRow({ isActive: true });
+
+    const title = screen.getByText('Alpha chat');
+
+    expect(title).toHaveClass('text-[var(--sidebar-row-selected-text)]');
+    expect(title).not.toHaveClass('font-[550]');
+    expect(title).not.toHaveClass('font-medium');
+  });
 });

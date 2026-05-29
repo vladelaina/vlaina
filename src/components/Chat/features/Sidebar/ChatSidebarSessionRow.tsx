@@ -38,6 +38,22 @@ interface ChatSidebarSessionRowProps {
 
 const RENAMEABLE_ROW_CLICK_DELAY_MS = 180;
 
+function getChatSessionTitleClass({
+  isActive,
+  isGenerating,
+  isUnread,
+}: {
+  isActive: boolean;
+  isGenerating: boolean;
+  isUnread: boolean;
+}) {
+  return cn(
+    isActive
+      ? 'text-[var(--sidebar-row-selected-text)]'
+      : getSidebarLabelClass('chat', { emphasized: isGenerating || isUnread })
+  );
+}
+
 function ChatSidebarLoadingTitle({ title }: { title: string }) {
   return (
     <span className="chat-sidebar-loading-title">
@@ -160,6 +176,11 @@ function ChatSidebarSessionRowInner({
   ) : session.isPinned ? (
     <Icon name="common.pinPrimer" size={14} className="text-[var(--chat-sidebar-text)]" />
   ) : null;
+  const titleClassName = getChatSessionTitleClass({
+    isActive,
+    isGenerating,
+    isUnread,
+  });
 
   return (
     <ChatSidebarRow
@@ -205,7 +226,7 @@ function ChatSidebarSessionRowInner({
             onCancel={onCancelRename}
             className={cn(
               'w-full min-w-0 border-none bg-transparent p-0 text-[16px] leading-5 outline-none',
-              getSidebarLabelClass('chat', { selected: isActive, emphasized: isGenerating || isUnread })
+              titleClassName
             )}
           />
         ) : isGenerating && !isActive ? (
@@ -216,7 +237,7 @@ function ChatSidebarSessionRowInner({
           <span
             className={cn(
               'block truncate transition-opacity',
-              getSidebarLabelClass('chat', { selected: isActive, emphasized: isGenerating || isUnread })
+              titleClassName
             )}
           >
             {displayTitle}
