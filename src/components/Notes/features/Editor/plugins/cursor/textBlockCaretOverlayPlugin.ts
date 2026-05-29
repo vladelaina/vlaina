@@ -6,8 +6,9 @@ import { createCaretOverlayRect, createCaretOverlayStyle } from '@/lib/ui/caretO
 const TEXTBLOCK_CARET_CLASS = 'vlaina-textblock-caret-overlay-active';
 const TEXTBLOCK_CARET_STYLE_ID = 'vlaina-textblock-caret-overlay-style';
 const TEXTBLOCK_CARET_ELEMENT_CLASS = 'vlaina-textblock-caret-overlay';
-const TAG_TOKEN_CLASS = 'vlaina-editor-tag-token';
-const TAG_TOKEN_CARET_HEIGHT_RATIO = 1.18;
+const FORCED_LINE_END_CARET_CLASS = 'vlaina-forced-line-end-caret-active';
+const TAG_TOKEN_PATTERN_AT_CURSOR = /(?:^|[^\p{L}\p{N}_/-])#([\p{L}\p{N}_/-][\p{L}\p{N}_/-]*)$/u;
+const TAG_TOKEN_CONTINUATION_PATTERN = /^[\p{L}\p{N}_/-]$/u;
 
 export const textBlockCaretOverlayPluginKey = new PluginKey('textBlockCaretOverlay');
 
@@ -27,6 +28,7 @@ function ensureTextBlockCaretStyle(doc: Document): void {
 export function shouldShowTextBlockCaretOverlay(view: EditorView): boolean {
   if (!view.hasFocus()) return false;
   if (view.composing) return false;
+  if (view.dom.classList.contains(FORCED_LINE_END_CARET_CLASS)) return false;
 
   const { selection } = view.state;
   if (!selection.empty) return false;
@@ -34,35 +36,64 @@ export function shouldShowTextBlockCaretOverlay(view: EditorView): boolean {
   return selection.$from.parent.isTextblock;
 }
 
-function isCaretInsideTagToken(view: EditorView): boolean {
+function isTagTokenBoundary(view: EditorView): boolean {
   const { selection } = view.state;
-  if (!selection.empty) {
+  if (!selection.empty || !selection.$from.parent.isTextblock) {
     return false;
   }
 
-  const domAtPos = view.domAtPos(selection.head);
-  const node = domAtPos.node.nodeType === Node.ELEMENT_NODE
-    ? domAtPos.node
-    : domAtPos.node.parentElement;
-  const element = node instanceof Element ? node : null;
+  const parentText = selection.$from.parent.textContent ?? '';
+  const offset = selection.$from.parentOffset;
+  const before = parentText.slice(0, offset);
+  const after = parentText.slice(offset);
+  const tokenBeforeCursor = TAG_TOKEN_PATTERN_AT_CURSOR.exec(before)?.[0] ?? '';
+  const nextChar = after[0] ?? '';
 
-  return Boolean(element?.closest(`.${TAG_TOKEN_CLASS}`));
+  return Boolean(
+    tokenBeforeCursor &&
+    (!nextChar || !TAG_TOKEN_CONTINUATION_PATTERN.test(nextChar)),
+  );
 }
 
-function expandCaretOverlayRect(
-  rect: ReturnType<typeof createCaretOverlayRect>,
-  ratio: number,
-): ReturnType<typeof createCaretOverlayRect> {
-  if (!Number.isFinite(rect.height) || rect.height <= 0 || ratio <= 1) {
-    return rect;
+function resolveRangeRect(node: Node, fromOffset: number, toOffset: number): DOMRect | null {
+  if (node.nodeType !== Node.TEXT_NODE) {
+    return null;
   }
 
-  const nextHeight = rect.height * ratio;
-  return {
-    left: rect.left,
-    top: rect.top - (nextHeight - rect.height) / 2,
-    height: nextHeight,
-  };
+  const textLength = node.textContent?.length ?? 0;
+  if (fromOffset < 0 || toOffset > textLength || fromOffset >= toOffset) {
+    return null;
+  }
+
+  const ownerDocument = node.ownerDocument;
+  if (!ownerDocument) {
+    return null;
+  }
+
+  const range = ownerDocument.createRange();
+  range.setStart(node, fromOffset);
+  range.setEnd(node, toOffset);
+  const rect = range.getBoundingClientRect();
+  range.detach();
+
+  if (!Number.isFinite(rect.left) || !Number.isFinite(rect.right) || rect.width <= 0) {
+    return null;
+  }
+
+  return rect;
+}
+
+function resolvePreviousCharacterRight(view: EditorView): number | null {
+  const { selection } = view.state;
+  const previousPos = selection.head > 0 ? selection.head - 1 : null;
+  if (previousPos === null) {
+    return null;
+  }
+
+  const previousDom = view.domAtPos(previousPos);
+  const rect = resolveRangeRect(previousDom.node, previousDom.offset, previousDom.offset + 1);
+
+  return rect?.right ?? null;
 }
 
 class TextBlockCaretOverlayView {
@@ -143,9 +174,16 @@ class TextBlockCaretOverlayView {
       doc.body.appendChild(this.caret);
     }
 
-    const overlayRect = isCaretInsideTagToken(this.view)
-      ? expandCaretOverlayRect(createCaretOverlayRect(rect), TAG_TOKEN_CARET_HEIGHT_RATIO)
-      : createCaretOverlayRect(rect);
+    let overlayRect = createCaretOverlayRect(rect);
+    const previousCharacterRight = isTagTokenBoundary(this.view)
+      ? resolvePreviousCharacterRight(this.view)
+      : null;
+    if (previousCharacterRight !== null) {
+      overlayRect = {
+        ...overlayRect,
+        left: previousCharacterRight,
+      };
+    }
     this.caret.style.left = `${overlayRect.left}px`;
     this.caret.style.top = `${overlayRect.top}px`;
     this.caret.style.height = `${overlayRect.height}px`;
