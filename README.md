@@ -60,6 +60,14 @@ pnpm test
 ```bash
 pnpm build
 ```
+## ✨Acknowledgements
+
+With special appreciation to **湾中WanZhong** for the beautiful icon design.
+
+### Contributors
+<a href="https://github.com/vladelaina/vlaina/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=vladelaina/vlaina" />
+</a>
 
 
 <div align="center">
