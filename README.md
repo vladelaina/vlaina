@@ -69,6 +69,8 @@ With special appreciation to **湾中WanZhong** for the beautiful icon design.
   <img src="https://contrib.rocks/image?repo=vladelaina/vlaina" />
 </a>
 
+---
+
 
 <div align="center">
 
