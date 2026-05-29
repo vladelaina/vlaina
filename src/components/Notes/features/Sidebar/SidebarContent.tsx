@@ -27,6 +27,9 @@ import {
 import { useSidebarContentSearchResults } from './useSidebarContentSearchResults';
 import { useI18n } from '@/lib/i18n';
 import { isEditableShortcutTarget } from '@/lib/shortcuts/editableGuards';
+import { NotesTagsSection } from './NotesTagsSection';
+import { useNotesSidebarTags } from './useNotesSidebarTags';
+import type { NotesSidebarTagPath } from './notesSidebarTags';
 
 const EMPTY_NOTE_CONTENTS_CACHE = new Map<string, { content: string; modifiedAt: number | null }>();
 const SidebarSearchResultsList = lazy(async () => {
@@ -67,6 +70,7 @@ export function SidebarContent({
   const { t } = useI18n();
   const openNote = useNotesStore((s) => s.openNote);
   const openNoteByAbsolutePath = useNotesStore((s) => s.openNoteByAbsolutePath);
+  const currentNote = useNotesStore((s) => s.currentNote);
   const draftNotes = useNotesStore((s) => s.draftNotes);
   const revealFolder = useNotesStore((s) => s.revealFolder);
   const getDisplayName = useNotesStore((s) => s.getDisplayName);
@@ -83,7 +87,7 @@ export function SidebarContent({
   const deferredSearchQuery = useDeferredValue(effectiveSearchQuery);
   const isCurrentDraftNote = Boolean(currentNotePath && isDraftNotePath(currentNotePath));
   const shouldSubscribeToSearchContents =
-    effectiveSearchOpen && deferredSearchQuery.trim().length >= 2;
+    active || (effectiveSearchOpen && deferredSearchQuery.trim().length >= 2);
   const noteContentsCache = useNotesStore((s) =>
     shouldSubscribeToSearchContents ? s.noteContentsCache : EMPTY_NOTE_CONTENTS_CACHE
   );
@@ -102,6 +106,7 @@ export function SidebarContent({
   } | null>(null);
   const [activeSearchResultId, setActiveSearchResultId] = useState<string | null>(null);
   const [selectedSearchResultIndex, setSelectedSearchResultIndex] = useState(0);
+  const [liveNoteContent, setLiveNoteContent] = useState<{ path: string; content: string } | null>(null);
   const displayRootFolder = useMemo(() => {
     if (!currentNotePath || !isCurrentDraftNote) {
       return rootFolder;
@@ -201,6 +206,20 @@ export function SidebarContent({
     starredEntries,
     currentVaultPath: currentVault?.path ?? notesPath,
   });
+  const { tags } = useNotesSidebarTags({
+    rootFolder: displayRootFolder,
+    noteContentsCache,
+    liveNoteContent:
+      liveNoteContent?.path === currentNotePath
+        ? liveNoteContent
+        : currentNote?.path === currentNotePath
+          ? currentNote
+          : null,
+    scanAllNotes,
+    starredEntries,
+    currentVaultPath: currentVault?.path ?? notesPath,
+    active: active && !effectiveSearchOpen,
+  });
   const hasLoadedRootFolder = Boolean(displayRootFolder);
   const shouldShowInlineEmptyHint = !isLoading && hasLoadedRootFolder && !hasFileTreeEntries;
   const shouldShowFloatingEmptyHint = !isLoading && !hasVaultPendingRoot && !hasLoadedRootFolder;
@@ -250,6 +269,38 @@ export function SidebarContent({
       window.removeEventListener('keydown', handleKeyDown, true);
     };
   }, [active]);
+
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+
+    const liveCurrentNote = currentNote?.path === currentNotePath ? currentNote : null;
+    setLiveNoteContent(
+      liveCurrentNote
+        ? { path: liveCurrentNote.path, content: liveCurrentNote.content }
+        : null,
+    );
+
+    const handleLiveMarkdownPreview = (event: Event) => {
+      const detail = (event as CustomEvent<{ path?: unknown; content?: unknown }>).detail;
+      if (
+        !detail ||
+        typeof detail.path !== 'string' ||
+        typeof detail.content !== 'string' ||
+        detail.path !== currentNotePath
+      ) {
+        return;
+      }
+
+      setLiveNoteContent({ path: detail.path, content: detail.content });
+    };
+
+    window.addEventListener('vlaina:note-markdown-preview', handleLiveMarkdownPreview);
+    return () => {
+      window.removeEventListener('vlaina:note-markdown-preview', handleLiveMarkdownPreview);
+    };
+  }, [active, currentNote?.content, currentNote?.path, currentNotePath]);
 
   useEffect(() => {
     if (!active) {
@@ -394,6 +445,39 @@ export function SidebarContent({
     });
   };
 
+  const handleOpenTagPath = (target: NotesSidebarTagPath) => {
+    const isSameNote = currentNotePath === target.path;
+
+    void Promise.all([
+      import('../Editor/utils/editorViewRegistry'),
+      import('./sidebarSearchNavigation'),
+    ]).then(([editorViewRegistry, searchNavigation]) => {
+      const previousView = isSameNote ? null : editorViewRegistry.getCurrentEditorView();
+      const nextNavigation = {
+        path: target.path,
+        query: target.query,
+        contentMatchOrdinal: target.contentMatchOrdinal,
+        previousView,
+      };
+
+      if (!isSameNote) {
+        searchNavigation.markSidebarSearchNavigationPending(target.path);
+      }
+      setPendingNavigation(nextNavigation);
+
+      if (isSameNote) {
+        return;
+      }
+
+      void openNote(target.path).catch(() => {
+        searchNavigation.clearSidebarSearchNavigationPending(target.path);
+        setPendingNavigation((current) =>
+          current === nextNavigation ? null : current,
+        );
+      });
+    });
+  };
+
   const selectedSearchResult = searchResults[selectedSearchResultIndex] ?? null;
 
   const selectPreviousSearchResult = () => {
@@ -492,6 +576,12 @@ export function SidebarContent({
                   />
                 </Suspense>
               ) : null}
+              <NotesTagsSection
+                tags={tags}
+                currentNotePath={currentNotePath}
+                getDisplayName={getDisplayName}
+                onOpenNote={handleOpenTagPath}
+              />
               <div
                 ref={rootBlankAreaRef}
                 data-notes-sidebar-blank-drag-root="true"
