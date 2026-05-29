@@ -5,9 +5,7 @@ export const WEB_SEARCH_TOOL_NAMES = {
 } as const;
 
 export const WEB_SEARCH_SYSTEM_INSTRUCTION =
-  'Web search is optional. Use it only when the user asks for current, time-sensitive, location-specific, or source-verifiable information. ' +
-  'For casual chat or tasks answerable from general knowledge, answer without searching. ' +
-  'If you search, read at least one relevant page before answering and include source links.';
+  'Search only when needed for fresh or verifiable info. For casual/general tasks, answer directly. If searching, read a page and cite URLs.';
 
 export function buildWebSearchTools(): Array<Record<string, unknown>> {
   return [
@@ -15,8 +13,7 @@ export function buildWebSearchTools(): Array<Record<string, unknown>> {
       type: 'function',
       function: {
         name: WEB_SEARCH_TOOL_NAMES.search,
-        description:
-          'Search the web for candidate sources. This only finds candidates; after searching, read selected result pages before answering with source links.',
+        description: 'Find source candidates. Read pages before answering.',
         parameters: {
           type: 'object',
           properties: {
@@ -40,7 +37,7 @@ export function buildWebSearchTools(): Array<Record<string, unknown>> {
       type: 'function',
       function: {
         name: WEB_SEARCH_TOOL_NAMES.read,
-        description: 'Read one web page and return cleaned article text, title, summary, site name, and final URL.',
+        description: 'Read one page.',
         parameters: {
           type: 'object',
           properties: {
@@ -54,8 +51,7 @@ export function buildWebSearchTools(): Array<Record<string, unknown>> {
       type: 'function',
       function: {
         name: WEB_SEARCH_TOOL_NAMES.readBatch,
-        description:
-          'Read multiple web pages. Each URL succeeds or fails independently; use this after searching to inspect several candidate sources.',
+        description: 'Read multiple pages.',
         parameters: {
           type: 'object',
           properties: {

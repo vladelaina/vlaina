@@ -116,14 +116,18 @@ function sanitizeManagedChatCompletionBody(body: object): Record<string, unknown
 }
 
 export async function requestManagedChatCompletion(
-  body: object
+  body: object,
+  signal?: AbortSignal
 ): Promise<Record<string, unknown>> {
   const sanitizedBody = sanitizeManagedChatCompletionBody(body)
   return hasElectronDesktopBridge()
-    ? ((await accountCommands.managedChatCompletion(sanitizedBody)) as Record<string, unknown>)
+    ? ((await (signal
+      ? accountCommands.managedChatCompletion(sanitizedBody, signal)
+      : accountCommands.managedChatCompletion(sanitizedBody))) as Record<string, unknown>)
     : await requestManagedWebJson<Record<string, unknown>>('/chat/completions', {
       method: 'POST',
       body: JSON.stringify(sanitizedBody),
+      signal,
     })
 }
 

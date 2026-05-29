@@ -18,8 +18,8 @@ import { consumeOpenAIStream } from '@/lib/ai/streaming'
 import { normalizeApiTranscriptMessage } from '@/lib/ai/apiTranscript'
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
 import {
-  runOpenAIWebSearchJsonPrefetchRequest,
-  runOpenAIWebSearchPrefetchRequest,
+  runOpenAIWebSearchTextProtocolRequest,
+  runOpenAIWebSearchTextProtocolTextRequest,
   runOpenAIWebSearchJsonToolLoop,
   runOpenAIWebSearchToolLoop,
 } from '@/lib/ai/webSearch/openAIToolLoop'
@@ -121,6 +121,23 @@ function isClaudeModel(provider: Provider, model: AIModel): boolean {
     model.apiModelId,
   ].join(' ').toLowerCase()
   return haystack.includes('claude') || haystack.includes('anthropic')
+}
+
+function isMoonshotModel(provider: Provider, model: AIModel): boolean {
+  const haystack = [
+    provider.id,
+    provider.name,
+    provider.apiHost,
+    model.id,
+    model.providerId,
+    model.name,
+    model.apiModelId,
+  ].join(' ').toLowerCase()
+  return haystack.includes('moonshot') || haystack.includes('kimi')
+}
+
+function shouldUseWebSearchTextProtocol(provider: Provider, model: AIModel): boolean {
+  return isClaudeModel(provider, model) || isMoonshotModel(provider, model)
 }
 
 function shouldReplayApiTranscript(provider: Provider, model: AIModel): boolean {
@@ -496,7 +513,7 @@ export class OpenAICompatibleClient implements AIClient {
       const payload = await requestManagedChatCompletion({
         ...body,
         stream: false,
-      } as unknown as Record<string, unknown>)
+      } as unknown as Record<string, unknown>, signal)
       const content = this.extractManagedResponseContent(payload)
       ;(onChunk || (() => {}))(content)
       const apiTranscript = buildAssistantApiTranscriptFromRenderedContent(content)
@@ -726,18 +743,18 @@ export class OpenAICompatibleClient implements AIClient {
         }, onChunk)
       }
       if (options?.webSearchEnabled && !isGrokModel(provider, model)) {
-        if (isClaudeModel(provider, model)) {
-          return runOpenAIWebSearchJsonPrefetchRequest({
+        if (shouldUseWebSearchTextProtocol(provider, model)) {
+          return runOpenAIWebSearchTextProtocolTextRequest({
             body,
             onChunk: onChunk || (() => {}),
             onStatus: options.onWebSearchStatus,
             onApiTranscript: options.onApiTranscript,
             signal,
-            requestJson: (nextBody) =>
-              requestManagedChatCompletion({
+            requestText: (nextBody, nextOnChunk) =>
+              requestManagedChatCompletionStream({
                 ...nextBody,
-                stream: false,
-              } as unknown as Record<string, unknown>),
+                stream: true,
+              } as unknown as Record<string, unknown>, createHtmlRejectingChunkHandler(nextOnChunk), signal),
           })
         }
         return runOpenAIWebSearchJsonToolLoop({
@@ -746,11 +763,12 @@ export class OpenAICompatibleClient implements AIClient {
           onStatus: options.onWebSearchStatus,
           onApiTranscript: options.onApiTranscript,
           signal,
+          autoReadAfterSearch: true,
           requestJson: (nextBody) =>
             requestManagedChatCompletion({
               ...nextBody,
               stream: false,
-            } as unknown as Record<string, unknown>),
+            } as unknown as Record<string, unknown>, signal),
         })
       }
       return this.sendManagedMessage(body, onChunk, signal, options)
@@ -823,8 +841,8 @@ export class OpenAICompatibleClient implements AIClient {
       if (isGrokModel(provider, model)) {
         return this.streamResponse(url, headers, body, onChunk || (() => {}), signal, options)
       }
-      if (isClaudeModel(provider, model)) {
-        return runOpenAIWebSearchPrefetchRequest({
+      if (shouldUseWebSearchTextProtocol(provider, model)) {
+        return runOpenAIWebSearchTextProtocolRequest({
           body,
           onChunk: onChunk || (() => {}),
           onStatus: options.onWebSearchStatus,
@@ -835,7 +853,7 @@ export class OpenAICompatibleClient implements AIClient {
             headers,
             body: nextBody,
             signal,
-            scope: 'web-search-prefetch-model',
+            scope: 'web-search-text-protocol-model',
           }),
         })
       }

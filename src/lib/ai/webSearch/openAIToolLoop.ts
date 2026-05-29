@@ -15,31 +15,7 @@ import {
 import type { OpenAIToolCall, OpenAIWireMessage } from './openAIToolTypes';
 
 const MAX_WEB_SEARCH_TOOL_LOOPS = 6;
-const NEWS_FAST_PATH_READ_LIMIT = 2;
-const NEWS_FAST_PATH_CONTENT_LIMIT = 1200;
-const NEWS_FAST_PATH_MAX_COMPLETION_TOKENS = 500;
-const NEWS_FAST_PATH_SOURCES = [
-  {
-    title: 'AP News World News',
-    url: 'https://apnews.com/hub/world-news',
-    snippet: 'Associated Press world news coverage.',
-  },
-  {
-    title: 'CNN International',
-    url: 'https://edition.cnn.com/world',
-    snippet: 'CNN international and world news coverage.',
-  },
-  {
-    title: 'Reuters World News',
-    url: 'https://www.reuters.com/world/',
-    snippet: 'Reuters world news and international headlines.',
-  },
-  {
-    title: 'BBC World News',
-    url: 'https://www.bbc.com/news/world',
-    snippet: 'BBC world news headlines and explainers.',
-  },
-];
+const MAX_NO_RESULT_SEARCH_ATTEMPTS = 3;
 
 interface ToolLoopOptions extends WebSearchToolRunnerOptions {
   body: ChatCompletionRequest;
@@ -61,12 +37,16 @@ interface PrefetchOptions extends WebSearchToolRunnerOptions {
   onApiTranscript?: (messages: OpenAIWireMessage[]) => void;
 }
 
-interface StreamingPrefetchOptions extends PrefetchOptions {
+interface StreamingTextProtocolOptions extends PrefetchOptions {
   request: (body: ChatCompletionRequest) => Promise<Response>;
 }
 
-interface JsonPrefetchOptions extends PrefetchOptions {
+interface JsonTextProtocolOptions extends PrefetchOptions {
   requestJson: (body: ChatCompletionRequest) => Promise<Record<string, unknown>>;
+}
+
+interface TextRequestProtocolOptions extends PrefetchOptions {
+  requestText: (body: ChatCompletionRequest, onChunk: (content: string) => void) => Promise<string>;
 }
 
 function withStatusPrefix(statuses: WebSearchStatus[], content: string): string {
@@ -135,14 +115,14 @@ function shouldRequirePageRead(
 function buildReadReminderMessage(): OpenAIWireMessage {
   return {
     role: 'system',
-    content: 'Read at least one relevant result page before answering from search results.',
+    content: 'Read one result page before answering.',
   };
 }
 
 function buildVisibleAnswerReminderMessage(): OpenAIWireMessage {
   return {
     role: 'system',
-    content: 'Write the final answer now using the search/page-read context already provided. Do not call tools. Include source links when available.',
+    content: 'Answer now. No tools. Cite URLs.',
   };
 }
 
@@ -159,6 +139,44 @@ function hasAnySearchResults(statusHistory: WebSearchStatus[]): boolean {
   return statusHistory.some((status) => status.phase === 'results' && (status.results?.length ?? 0) > 0);
 }
 
+function countNoResultSearchAttempts(statusHistory: WebSearchStatus[]): number {
+  return statusHistory.filter((status) =>
+    status.phase === 'error' &&
+    typeof status.metrics?.resultCount === 'number' &&
+    status.metrics.resultCount === 0
+  ).length;
+}
+
+function shouldStopNoResultSearchLoop(statusHistory: WebSearchStatus[]): boolean {
+  return !hasAnySearchResults(statusHistory) && countNoResultSearchAttempts(statusHistory) >= MAX_NO_RESULT_SEARCH_ATTEMPTS;
+}
+
+function buildNoSearchResultsAnswer(body: ChatCompletionRequest): string {
+  const userText = getLatestUserText(body);
+  const isChinese = /[\u3400-\u9fff]/.test(userText);
+  return isChinese
+    ? '我这边连续尝试了几个搜索词，但都没有找到可用的联网搜索结果，所以不能可靠确认这个问题的最新信息。你可以换一个更具体的名称、官网名或英文关键词再试。'
+    : 'I tried several search queries but could not find usable web results, so I cannot reliably verify the latest information for this request. Try a more specific name, official site, or English keyword.';
+}
+
+function finishNoResultSearchLocally({
+  body,
+  statusHistory,
+  onChunk,
+  onApiTranscript,
+}: {
+  body: ChatCompletionRequest;
+  statusHistory: WebSearchStatus[];
+  onChunk: (chunk: string) => void;
+  onApiTranscript?: (messages: OpenAIWireMessage[]) => void;
+}): string {
+  const content = buildNoSearchResultsAnswer(body);
+  const finalContent = withStatusPrefix(statusHistory, content);
+  onApiTranscript?.([buildFinalAssistantTranscriptMessage(content)]);
+  onChunk(finalContent);
+  return finalContent;
+}
+
 function normalizeToolNameForLoop(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
@@ -173,8 +191,156 @@ function isSearchToolName(name: string): boolean {
     || normalized === 'websearch';
 }
 
+function isReadToolName(name: string): boolean {
+  const normalized = normalizeToolNameForLoop(name);
+  return normalized === WEB_SEARCH_TOOL_NAMES.read
+    || normalized === 'read'
+    || normalized === 'read_page'
+    || normalized === 'read_webpage'
+    || normalized === 'read_url'
+    || normalized === 'readurl'
+    || normalized === 'fetch_web_page'
+    || normalized === 'fetchwebpage'
+    || normalized === 'fetch_url'
+    || normalized === 'fetchurl';
+}
+
+function isBatchReadToolName(name: string): boolean {
+  const normalized = normalizeToolNameForLoop(name);
+  return normalized === WEB_SEARCH_TOOL_NAMES.readBatch
+    || normalized === 'read_pages'
+    || normalized === 'read_batch'
+    || normalized === 'read_webpages'
+    || normalized === 'read_urls'
+    || normalized === 'readurls'
+    || normalized === 'fetch_web_pages'
+    || normalized === 'fetchwebpages'
+    || normalized === 'fetch_urls'
+    || normalized === 'fetchurls';
+}
+
+function parseToolArguments(rawArguments: string): Record<string, unknown> {
+  if (!rawArguments.trim()) return {};
+  try {
+    const parsed = JSON.parse(rawArguments) as unknown;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizeReadCacheUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  try {
+    const parsed = new URL(trimmed);
+    parsed.hash = '';
+    return parsed.toString().replace(/\/$/, '');
+  } catch {
+    return trimmed.replace(/\/$/, '');
+  }
+}
+
+function getReadToolUrls(toolCall: OpenAIToolCall): string[] {
+  const name = toolCall.function.name;
+  const args = parseToolArguments(toolCall.function.arguments);
+  if (isReadToolName(name)) {
+    const url = typeof args.url === 'string' ? args.url.trim() : '';
+    return url ? [url] : [];
+  }
+  if (isBatchReadToolName(name)) {
+    return Array.isArray(args.urls)
+      ? args.urls.filter((url): url is string => typeof url === 'string' && url.trim().length > 0)
+      : [];
+  }
+  return [];
+}
+
 function hasOnlySearchToolCalls(toolCalls: OpenAIToolCall[]): boolean {
   return toolCalls.length > 0 && toolCalls.every((call) => isSearchToolName(call.function.name));
+}
+
+function hasOnlyAlreadyReadToolCalls(
+  toolCalls: OpenAIToolCall[],
+  readContentByUrl: Map<string, string>,
+): boolean {
+  return toolCalls.length > 0 && toolCalls.every((call) => {
+    if (!isReadToolName(call.function.name) && !isBatchReadToolName(call.function.name)) return false;
+    const urls = getReadToolUrls(call);
+    return urls.length > 0 && urls.every((url) => readContentByUrl.has(normalizeReadCacheUrl(url)));
+  });
+}
+
+function buildCachedReadToolMessages(
+  toolCalls: OpenAIToolCall[],
+  readContentByUrl: Map<string, string>,
+): OpenAIWireMessage[] {
+  return toolCalls.map((toolCall) => {
+    const urls = getReadToolUrls(toolCall);
+    const cachedContent = urls
+      .map((url) => readContentByUrl.get(normalizeReadCacheUrl(url)))
+      .filter((content): content is string => typeof content === 'string' && content.trim().length > 0)
+      .join('\n\n');
+    return {
+      role: 'tool',
+      tool_call_id: toolCall.id,
+      name: toolCall.function.name,
+      content: [
+        'Cached page read. Use it; do not reread.',
+        '',
+        cachedContent,
+      ].join('\n'),
+    };
+  });
+}
+
+function cacheReadContentForSources(
+  readContentByUrl: Map<string, string>,
+  sourceUrls: string[],
+  toolMessages: OpenAIWireMessage[],
+): void {
+  const content = toolMessages
+    .map((message) => typeof message.content === 'string' ? message.content : '')
+    .filter((value) => value.trim().length > 0)
+    .join('\n\n');
+  if (!content.trim()) return;
+  for (const url of sourceUrls) {
+    const normalized = normalizeReadCacheUrl(url);
+    if (normalized && !readContentByUrl.has(normalized)) {
+      readContentByUrl.set(normalized, content);
+    }
+  }
+}
+
+function buildNoToolRecoveryMessages(
+  body: ChatCompletionRequest,
+  messages: OpenAIWireMessage[],
+  sourceUrls: string[],
+  reminderMessage: OpenAIWireMessage,
+): OpenAIWireMessage[] {
+  const toolContext = messages
+    .filter((message) => message.role === 'tool' && typeof message.content === 'string' && message.content.trim().length > 0)
+    .map((message) => message.content as string)
+    .join('\n\n')
+    .slice(0, 12000);
+  const baseMessages = (body.messages as OpenAIWireMessage[]).filter((message) => message.role !== 'tool');
+  const contextMessage: OpenAIWireMessage | null = toolContext.trim().length > 0 || sourceUrls.length > 0
+    ? {
+      role: 'system',
+      content: [
+        'Web context:',
+        toolContext || '(No readable web context.)',
+        sourceUrls.length > 0 ? `Sources: ${sourceUrls.join(', ')}` : '',
+      ].filter(Boolean).join('\n'),
+    }
+    : null;
+  return [
+    ...baseMessages,
+    ...(contextMessage ? [contextMessage] : []),
+    reminderMessage,
+  ];
 }
 
 function withoutTools(body: ChatCompletionRequest): ChatCompletionRequest {
@@ -202,23 +368,19 @@ function getLatestUserText(body: ChatCompletionRequest): string {
   return '';
 }
 
-function shouldUseNewsFastPath(text: string): boolean {
-  const normalized = text.toLowerCase();
-  const compact = normalized.replace(/\s+/g, '');
-  const asksNews = /(\b(news|headlines|breaking)\b|actualité|actualités|noticias|notícias|notizie|nachrichten|новост|أخبار|समाचार)/i.test(normalized)
-    || /(新闻|資訊|资讯|快訊|快讯|頭條|头条|ニュース|뉴스)/i.test(compact);
-  const asksWorldScope = /(\b(world|international|global|foreign)\b|internationales?|internacionales?|internacionais?|internazionali|internationale|monde|mondo|welt|международ|عالمية|دولية|अंतरराष्ट्रीय|विश्व)/i.test(normalized)
-    || /(国际|國際|世界|全球|国外|國外|海外|国際|국제|세계)/i.test(compact);
-  return asksNews && asksWorldScope;
+function buildTextProtocolDecisionMessage(): OpenAIWireMessage {
+  return {
+    role: 'system',
+    content: [
+      'Web search is optional.',
+      'Answer directly unless fresh/verifiable info is needed.',
+      'If search is needed, output only:',
+      '<web_search_request>{"query":"short search query","reason":"why search is needed"}</web_search_request>',
+    ].join('\n'),
+  };
 }
 
-function buildNewsFastPathQuery(text: string): string {
-  return /[\u3400-\u9fff]/.test(text)
-    ? 'international world news today AP CNN'
-    : text;
-}
-
-function buildNewsFastPathPrompt({
+function buildTextProtocolAnswerPrompt({
   userText,
   searchContent,
   pageContent,
@@ -230,64 +392,87 @@ function buildNewsFastPathPrompt({
   return {
     role: 'system',
     content: [
-      'Answer from the provided web search context. Do not call tools.',
-      'For news, use 4-6 concise bullets in the user language and include source links.',
-      'If evidence is limited, answer first, then briefly note the limitation.',
+      'Answer from web context. No more search. Cite URLs.',
       '',
-      `User request: ${userText}`,
+      `User: ${userText}`,
       '',
-      'Search results:',
+      'Results:',
       searchContent,
       '',
-      'Read page content:',
-      pageContent || '(No pages were readable; use the search results only and say so briefly.)',
+      'Pages:',
+      pageContent || '(No readable pages.)',
     ].join('\n'),
   };
 }
 
-function buildPrefetchedWebSearchPrompt({
-  userText,
-  searchContent,
-  pageContent,
-}: {
-  userText: string;
-  searchContent: string;
-  pageContent: string;
-}): OpenAIWireMessage {
-  return {
-    role: 'system',
-    content: [
-      'Answer from the provided web search context. Do not call tools.',
-      'Include source links when available. If evidence is limited, answer first, then briefly note the limitation.',
-      '',
-      `User request: ${userText}`,
-      '',
-      'Search results:',
-      searchContent,
-      '',
-      'Read page content:',
-      pageContent || '(No pages were readable; use the search results only and say so briefly.)',
-    ].join('\n'),
+function parseTextProtocolSearchRequest(content: string): { query: string; reason?: string } | null {
+  const visible = stripThinkingContent(content).trim();
+  const match =
+    /<web_search_request>\s*([\s\S]*?)\s*<\/web_search_request>/i.exec(visible) ||
+    /^<web_search_request>\s*([\s\S]*)$/i.exec(visible);
+  if (!match) return null;
+
+  try {
+    const jsonText = match[1].trim().replace(/\s*<\/web_search_request>\s*$/i, '');
+    const parsed = JSON.parse(jsonText) as Record<string, unknown>;
+    const query = typeof parsed.query === 'string' ? parsed.query.trim() : '';
+    if (!query) return null;
+    const reason = typeof parsed.reason === 'string' ? parsed.reason.trim() : '';
+    return { query, ...(reason ? { reason } : {}) };
+  } catch {
+    return null;
+  }
+}
+
+function normalizeFallbackSearchQuery(value: string): string {
+  return value
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\b(search|web search|look up|lookup|google|browse)\b/gi, ' ')
+    .replace(/(搜索一下|搜一下|查一下|搜搜|搜索|联网|上网|查找|查询|搜)/g, ' ')
+    .replace(/(帮我|麻烦|请问|看看|看一下|就是|一下|吗|呢)/g, ' ')
+    .replace(/不[？?]?$/g, ' ')
+    .replace(/最后一级/g, '最后一集')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([？?，,。])/g, '$1')
+    .trim();
+}
+
+function simplifySearchQuery(value: string): string {
+  const normalized = normalizeFallbackSearchQuery(value)
+    .replace(/\b(release date|published date|latest|update|follow up|sequel)\b/gi, ' ')
+    .replace(/(发布时间|发布日期|最新消息|最新|后续计划|后续|还会发布|什么时候发布|是什么时候发布的)/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const parts = normalized.split(/\s+/).filter(Boolean);
+  if (parts.length > 4) {
+    return parts.slice(0, 4).join(' ');
+  }
+  return normalized;
+}
+
+function buildTextProtocolSearchQueries(modelQuery: string, userText: string): string[] {
+  const queries: string[] = [];
+  const add = (query: string) => {
+    const normalized = query.trim();
+    if (!normalized) return;
+    if (queries.some((existing) => existing.toLowerCase() === normalized.toLowerCase())) return;
+    queries.push(normalized);
   };
+
+  add(modelQuery);
+  add(simplifySearchQuery(modelQuery));
+  add(normalizeFallbackSearchQuery(userText));
+  add(simplifySearchQuery(userText));
+  return queries.slice(0, 3);
 }
 
-function elapsedSince(startedAt: number): number {
-  return Math.max(0, Math.round(performance.now() - startedAt));
-}
-
-function getPrefetchReadUrls(status: WebSearchStatus): string[] {
-  return (status.results ?? [])
-    .map((result) => result.url)
-    .filter((url, index, urls): url is string => typeof url === 'string' && url.trim().length > 0 && urls.indexOf(url) === index)
-    .slice(0, 3);
-}
-
-async function buildPrefetchedWebSearchMessages({
+async function buildTextProtocolSearchMessages({
   body,
+  query,
   client: providedClient,
   onStatus,
   signal,
-}: Pick<PrefetchOptions, 'body' | 'client' | 'onStatus' | 'signal'>): Promise<{
+}: Pick<PrefetchOptions, 'body' | 'client' | 'onStatus' | 'signal'> & { query: string }): Promise<{
   messages: OpenAIWireMessage[];
   statusHistory: WebSearchStatus[];
   sourceUrls: string[];
@@ -303,27 +488,48 @@ async function buildPrefetchedWebSearchMessages({
   };
 
   throwIfAborted(signal);
-  const searchStartedAt = performance.now();
-  emitStatus({ phase: 'searching', query: userText });
-  const searchResponse = signal
-    ? await client.webSearch(userText, { limit: 5 }, signal)
-    : await client.webSearch(userText, { limit: 5 });
-  throwIfAborted(signal);
-  const resultsStatus: WebSearchStatus = {
-    phase: searchResponse.results.length > 0 ? 'results' : 'error',
-    query: searchResponse.query,
-    results: searchResponse.results.slice(0, 5),
-    metrics: {
-      durationMs: elapsedSince(searchStartedAt),
-      resultCount: searchResponse.results.length,
-    },
-    message: searchResponse.results.length > 0 ? undefined : 'No relevant results were found.',
-  };
-  emitStatus(resultsStatus);
-
-  const urls = getPrefetchReadUrls(resultsStatus);
+  const searchQueries = buildTextProtocolSearchQueries(query, userText);
+  let searchResponse = null as Awaited<ReturnType<typeof client.webSearch>> | null;
+  let resultsStatus: WebSearchStatus | null = null;
   let pageContent = '';
-  if (urls.length > 0) {
+  for (const searchQuery of searchQueries) {
+    const searchStartedAt = performance.now();
+    addChatDebugLog('web-search-text-protocol', 'search attempt started', {
+      query: searchQuery,
+      isFallback: searchQuery !== query,
+    });
+    emitStatus({ phase: 'searching', query: searchQuery });
+    const attemptResponse = signal
+      ? await client.webSearch(searchQuery, { limit: 5 }, signal)
+      : await client.webSearch(searchQuery, { limit: 5 });
+    throwIfAborted(signal);
+    const attemptStatus: WebSearchStatus = {
+      phase: attemptResponse.results.length > 0 ? 'results' : 'error',
+      query: attemptResponse.query,
+      results: attemptResponse.results.slice(0, 5),
+      metrics: {
+        durationMs: elapsedSince(searchStartedAt),
+        resultCount: attemptResponse.results.length,
+      },
+      message: attemptResponse.results.length > 0 ? undefined : 'No relevant results were found.',
+    };
+    addChatDebugLog('web-search-text-protocol', 'search attempt completed', {
+      query: attemptResponse.query,
+      resultCount: attemptResponse.results.length,
+      durationMs: attemptStatus.metrics?.durationMs,
+    }, attemptResponse.results.length > 0 ? 'info' : 'warn');
+    emitStatus(attemptStatus);
+    searchResponse = attemptResponse;
+    resultsStatus = attemptStatus;
+    if (attemptResponse.results.length === 0) {
+      continue;
+    }
+
+    const urls = getPrefetchReadUrls(attemptStatus);
+    if (urls.length === 0) {
+      break;
+    }
+
     const readStartedAt = performance.now();
     emitStatus({ phase: 'reading', urls });
     const pages = signal
@@ -346,12 +552,23 @@ async function buildPrefetchedWebSearchMessages({
       },
     });
     pageContent = formatBatchPagesForModel(pages);
+    if (successfulPages.length > 0 || searchQuery === searchQueries[searchQueries.length - 1]) {
+      break;
+    }
+    addChatDebugLog('web-search-text-protocol', 'read attempt had no readable pages; trying fallback query', {
+      query: attemptResponse.query,
+      failedUrls: failedPages.map((page) => page.url),
+    }, 'warn');
+  }
+
+  if (!searchResponse || !resultsStatus) {
+    throw new Error('Web search did not run.');
   }
 
   return {
     messages: [
       ...body.messages as OpenAIWireMessage[],
-      buildPrefetchedWebSearchPrompt({
+      buildTextProtocolAnswerPrompt({
         userText,
         searchContent: formatSearchResultsForModel(searchResponse),
         pageContent,
@@ -362,52 +579,15 @@ async function buildPrefetchedWebSearchMessages({
   };
 }
 
-function topResultUrls(status: WebSearchStatus | null): string[] {
-  return (status?.results ?? [])
+function elapsedSince(startedAt: number): number {
+  return Math.max(0, Math.round(performance.now() - startedAt));
+}
+
+function getPrefetchReadUrls(status: WebSearchStatus): string[] {
+  return (status.results ?? [])
     .map((result) => result.url)
-    .filter((url, index, urls) => typeof url === 'string' && url.trim().length > 0 && urls.indexOf(url) === index)
-    .slice(0, NEWS_FAST_PATH_READ_LIMIT);
-}
-
-function buildNewsFastPathSourceStatus(): WebSearchStatus {
-  return {
-    phase: 'results',
-    query: 'trusted international news sources',
-    results: NEWS_FAST_PATH_SOURCES.map((source) => ({
-      title: source.title,
-      url: source.url,
-      snippet: source.snippet,
-      publishedAt: null,
-    })),
-    metrics: {
-      resultCount: NEWS_FAST_PATH_SOURCES.length,
-    },
-  };
-}
-
-function buildCuratedNewsSearchContent(): string {
-  return [
-    'Search query: trusted international news sources',
-    'Candidate sources:',
-    ...NEWS_FAST_PATH_SOURCES.flatMap((source, index) => [
-      `${index + 1}. ${source.title}`,
-      `URL: ${source.url}`,
-      `Summary: ${source.snippet}`,
-      'Time: (current source homepage)',
-      'Source: curated-news-fast-path',
-    ]),
-  ].join('\n');
-}
-
-function withFastPathCompletionLimit(body: ChatCompletionRequest): ChatCompletionRequest {
-  const base = withoutTools(body);
-  if (typeof base.max_completion_tokens === 'number' || typeof base.max_tokens === 'number') {
-    return base;
-  }
-  return {
-    ...base,
-    max_completion_tokens: NEWS_FAST_PATH_MAX_COMPLETION_TOKENS,
-  };
+    .filter((url, index, urls): url is string => typeof url === 'string' && url.trim().length > 0 && urls.indexOf(url) === index)
+    .slice(0, 3);
 }
 
 function buildForcedReadToolCall(
@@ -562,7 +742,7 @@ async function recoverStreamingVisibleAnswer({
   }, 'warn');
   const response = await request({
     ...withoutTools(body),
-    messages: [...messages, reminderMessage] as ChatCompletionRequest['messages'],
+    messages: buildNoToolRecoveryMessages(body, messages, sourceUrls, reminderMessage) as ChatCompletionRequest['messages'],
   });
   const result = await consumeOpenAIStreamWithTools(response, (content) => {
     onChunk(withStatusPrefix(statusHistory, content));
@@ -613,8 +793,20 @@ async function recoverJsonVisibleAnswer({
   const result = extractOpenAIMessageFromJson(await requestJson({
     ...withoutTools(body),
     stream: false,
-    messages: [...messages, reminderMessage] as ChatCompletionRequest['messages'],
+    messages: buildNoToolRecoveryMessages(body, messages, sourceUrls, reminderMessage) as ChatCompletionRequest['messages'],
   }));
+  if (result.toolCalls.length > 0 && !hasVisibleAnswerContent(result.content)) {
+    const fallbackAnswer = buildNoSearchResultsAnswer(body);
+    const finalContent = withStatusPrefix(statusHistory, fallbackAnswer);
+    addChatDebugLog('web-search-loop', 'json no-tools recovery returned tool markup; using fallback answer', {
+      durationMs: Date.now() - startedAt,
+      toolCalls: result.toolCalls.map((call) => call.function.name),
+    }, 'warn');
+    responseTranscript.push(buildFinalAssistantTranscriptMessage(fallbackAnswer, result.reasoningContent));
+    onApiTranscript?.(responseTranscript);
+    onChunk(finalContent);
+    return finalContent;
+  }
   throwIfMissingVisibleAnswer(result.content);
   const finalAnswerContent = withSourceLinks(result.content, sourceUrls);
   addChatDebugLog('web-search-loop', 'json no-tools recovery completed', {
@@ -630,148 +822,7 @@ async function recoverJsonVisibleAnswer({
   return finalContent;
 }
 
-async function runStreamingNewsFastPath({
-  body,
-  onChunk,
-  request,
-  client,
-  onStatus,
-  onApiTranscript,
-  signal,
-  userText,
-}: ToolLoopOptions & { userText: string }): Promise<string> {
-  const statusHistory: WebSearchStatus[] = [];
-  const sourceUrls: string[] = [];
-  let latestResultsStatus: WebSearchStatus | null = null;
-  let latestContent = '';
-  const emitStatus = (status: WebSearchStatus) => {
-    if (status.phase === 'results') {
-      latestResultsStatus = status;
-    }
-    statusHistory.push(status);
-    appendSuccessfulReadSources(sourceUrls, status);
-    onStatus?.(status);
-    onChunk(withStatusPrefix(statusHistory, latestContent));
-  };
-
-  const startedAt = Date.now();
-  addChatDebugLog('web-search-fast-path', 'stream news fast path started', {
-    query: userText,
-  });
-  emitStatus({ phase: 'searching', query: buildNewsFastPathQuery(userText) });
-  const curatedResultsStatus = buildNewsFastPathSourceStatus();
-  emitStatus(curatedResultsStatus);
-  latestResultsStatus = curatedResultsStatus;
-  const searchContent = buildCuratedNewsSearchContent();
-  const urls = topResultUrls(latestResultsStatus);
-  const readStartedAt = Date.now();
-  const pageContent = urls.length > 0
-    ? await runWebSearchToolCall({
-      name: WEB_SEARCH_TOOL_NAMES.readBatch,
-      arguments: JSON.stringify({ urls, contentLimit: NEWS_FAST_PATH_CONTENT_LIMIT }),
-    }, { client, onStatus: emitStatus, signal })
-    : '';
-  const readDurationMs = Date.now() - readStartedAt;
-  const sourceMessage = buildNewsFastPathPrompt({ userText, searchContent, pageContent });
-  const responseTranscript: OpenAIWireMessage[] = [sourceMessage];
-  const modelStartedAt = Date.now();
-  const response = await request({
-    ...withFastPathCompletionLimit(body),
-    messages: [...body.messages, sourceMessage] as ChatCompletionRequest['messages'],
-  });
-  const result = await consumeOpenAIStreamWithTools(response, (content) => {
-    latestContent = content;
-    onChunk(withStatusPrefix(statusHistory, latestContent));
-  });
-  const visibleAnswerContent = result.assistantContent || stripThinkingContent(result.content);
-  throwIfMissingVisibleAnswer(visibleAnswerContent);
-  const finalContent = withSourceLinks(result.content, sourceUrls);
-  const finalApiContent = resolveFinalAssistantApiContent(result, sourceUrls);
-  responseTranscript.push(buildFinalAssistantTranscriptMessage(finalApiContent, result.reasoningContent));
-  onApiTranscript?.(responseTranscript);
-  addChatDebugLog('web-search-fast-path', 'stream news fast path completed', {
-    durationMs: Date.now() - startedAt,
-    readDurationMs,
-    modelDurationMs: Date.now() - modelStartedAt,
-    readUrls: urls,
-    sourceUrls,
-    finalChars: finalContent.length,
-    curatedSources: true,
-  });
-  return withStatusPrefix(statusHistory, finalContent);
-}
-
-async function runJsonNewsFastPath({
-  body,
-  onChunk,
-  requestJson,
-  client,
-  onStatus,
-  onApiTranscript,
-  signal,
-  userText,
-}: JsonToolLoopOptions & { userText: string }): Promise<string> {
-  const statusHistory: WebSearchStatus[] = [];
-  const sourceUrls: string[] = [];
-  let latestResultsStatus: WebSearchStatus | null = null;
-  let latestContent = '';
-  const emitStatus = (status: WebSearchStatus) => {
-    if (status.phase === 'results') {
-      latestResultsStatus = status;
-    }
-    statusHistory.push(status);
-    appendSuccessfulReadSources(sourceUrls, status);
-    onStatus?.(status);
-    onChunk(withStatusPrefix(statusHistory, latestContent));
-  };
-
-  const startedAt = Date.now();
-  addChatDebugLog('web-search-fast-path', 'json news fast path started', {
-    query: userText,
-  });
-  emitStatus({ phase: 'searching', query: buildNewsFastPathQuery(userText) });
-  const curatedResultsStatus = buildNewsFastPathSourceStatus();
-  emitStatus(curatedResultsStatus);
-  latestResultsStatus = curatedResultsStatus;
-  const searchContent = buildCuratedNewsSearchContent();
-  const urls = topResultUrls(latestResultsStatus);
-  const readStartedAt = Date.now();
-  const pageContent = urls.length > 0
-    ? await runWebSearchToolCall({
-      name: WEB_SEARCH_TOOL_NAMES.readBatch,
-      arguments: JSON.stringify({ urls, contentLimit: NEWS_FAST_PATH_CONTENT_LIMIT }),
-    }, { client, onStatus: emitStatus, signal })
-    : '';
-  const readDurationMs = Date.now() - readStartedAt;
-  const sourceMessage = buildNewsFastPathPrompt({ userText, searchContent, pageContent });
-  const responseTranscript: OpenAIWireMessage[] = [sourceMessage];
-  const modelStartedAt = Date.now();
-  const result = extractOpenAIMessageFromJson(await requestJson({
-    ...withFastPathCompletionLimit(body),
-    stream: false,
-    messages: [...body.messages, sourceMessage] as ChatCompletionRequest['messages'],
-  }));
-  throwIfMissingVisibleAnswer(result.content);
-  const finalAnswerContent = withSourceLinks(result.content, sourceUrls);
-  latestContent = finalAnswerContent;
-  const finalContent = withStatusPrefix(statusHistory, latestContent);
-  const finalApiContent = resolveFinalAssistantApiContent(result, sourceUrls);
-  responseTranscript.push(buildFinalAssistantTranscriptMessage(finalApiContent, result.reasoningContent));
-  onApiTranscript?.(responseTranscript);
-  onChunk(finalContent);
-  addChatDebugLog('web-search-fast-path', 'json news fast path completed', {
-    durationMs: Date.now() - startedAt,
-    readDurationMs,
-    modelDurationMs: Date.now() - modelStartedAt,
-    readUrls: urls,
-    sourceUrls,
-    finalChars: finalAnswerContent.length,
-    curatedSources: true,
-  });
-  return finalContent;
-}
-
-export async function runOpenAIWebSearchPrefetchRequest({
+export async function runOpenAIWebSearchTextProtocolRequest({
   body,
   onChunk,
   onStatus,
@@ -779,12 +830,44 @@ export async function runOpenAIWebSearchPrefetchRequest({
   request,
   client,
   signal,
-}: StreamingPrefetchOptions): Promise<string> {
+}: StreamingTextProtocolOptions): Promise<string> {
+  throwIfAborted(signal);
+  addChatDebugLog('web-search-text-protocol', 'stream decision request started', {
+    messages: body.messages.length,
+    latestUserText: getLatestUserText(body).slice(0, 240),
+  });
+  const decisionMessages = [
+    buildTextProtocolDecisionMessage(),
+    ...body.messages as OpenAIWireMessage[],
+  ];
+  const decisionResponse = await request({
+    ...withoutTools(body),
+    messages: decisionMessages as ChatCompletionRequest['messages'],
+  });
+  const decision = await consumeOpenAIStreamWithTools(decisionResponse, () => {});
+  const searchRequest = parseTextProtocolSearchRequest(decision.assistantContent || decision.content);
+
+  if (!searchRequest) {
+    const directContent = decision.content;
+    throwIfMissingVisibleAnswer(directContent);
+    addChatDebugLog('web-search-text-protocol', 'stream decision answered directly', {
+      visibleChars: stripThinkingContent(directContent).length,
+    });
+    onChunk(directContent);
+    onApiTranscript?.([buildFinalAssistantTranscriptMessage(decision.assistantContent || directContent, decision.reasoningContent)]);
+    return directContent;
+  }
+
+  addChatDebugLog('web-search-text-protocol', 'stream decision requested search', {
+    query: searchRequest.query,
+    reason: searchRequest.reason ?? '',
+  });
   const {
     messages,
     statusHistory,
     sourceUrls,
-  } = await buildPrefetchedWebSearchMessages({ body, client, onStatus, signal });
+  } = await buildTextProtocolSearchMessages({ body, query: searchRequest.query, client, onStatus, signal });
+
   let latestContent = '';
   const emitContent = (content: string) => {
     latestContent = content;
@@ -792,20 +875,25 @@ export async function runOpenAIWebSearchPrefetchRequest({
   };
 
   onChunk(withStatusPrefix(statusHistory, latestContent));
-  const response = await request({
+  const answerResponse = await request({
     ...withoutTools(body),
     messages: messages as ChatCompletionRequest['messages'],
   });
-  const result = await consumeOpenAIStreamWithTools(response, emitContent);
-  const finalApiContent = withSourceLinks(result.assistantContent || result.content, sourceUrls);
+  const answer = await consumeOpenAIStreamWithTools(answerResponse, emitContent);
+  const finalApiContent = withSourceLinks(answer.assistantContent || answer.content, sourceUrls);
   throwIfMissingVisibleAnswer(finalApiContent);
   const finalContent = withStatusPrefix(statusHistory, finalApiContent);
+  addChatDebugLog('web-search-text-protocol', 'stream search answer completed', {
+    statuses: statusHistory.map((status) => status.phase),
+    sources: sourceUrls,
+    finalChars: finalApiContent.length,
+  });
   onChunk(finalContent);
-  onApiTranscript?.([buildFinalAssistantTranscriptMessage(finalApiContent, result.reasoningContent)]);
+  onApiTranscript?.([buildFinalAssistantTranscriptMessage(finalApiContent, answer.reasoningContent)]);
   return finalContent;
 }
 
-export async function runOpenAIWebSearchJsonPrefetchRequest({
+export async function runOpenAIWebSearchJsonTextProtocolRequest({
   body,
   onChunk,
   onStatus,
@@ -813,24 +901,123 @@ export async function runOpenAIWebSearchJsonPrefetchRequest({
   requestJson,
   client,
   signal,
-}: JsonPrefetchOptions): Promise<string> {
+}: JsonTextProtocolOptions): Promise<string> {
+  throwIfAborted(signal);
+  addChatDebugLog('web-search-text-protocol', 'json decision request started', {
+    messages: body.messages.length,
+    latestUserText: getLatestUserText(body).slice(0, 240),
+  });
+  const decisionMessages = [
+    buildTextProtocolDecisionMessage(),
+    ...body.messages as OpenAIWireMessage[],
+  ];
+  const decision = extractOpenAIMessageFromJson(await requestJson({
+    ...withoutTools(body),
+    stream: false,
+    messages: decisionMessages as ChatCompletionRequest['messages'],
+  }));
+  const searchRequest = parseTextProtocolSearchRequest(decision.content);
+
+  if (!searchRequest) {
+    throwIfMissingVisibleAnswer(decision.content);
+    addChatDebugLog('web-search-text-protocol', 'json decision answered directly', {
+      visibleChars: stripThinkingContent(decision.content).length,
+    });
+    onChunk(decision.content);
+    onApiTranscript?.([buildFinalAssistantTranscriptMessage(decision.content, decision.reasoningContent)]);
+    return decision.content;
+  }
+
+  addChatDebugLog('web-search-text-protocol', 'json decision requested search', {
+    query: searchRequest.query,
+    reason: searchRequest.reason ?? '',
+  });
   const {
     messages,
     statusHistory,
     sourceUrls,
-  } = await buildPrefetchedWebSearchMessages({ body, client, onStatus, signal });
+  } = await buildTextProtocolSearchMessages({ body, query: searchRequest.query, client, onStatus, signal });
 
   onChunk(withStatusPrefix(statusHistory, ''));
-  const result = extractOpenAIMessageFromJson(await requestJson({
+  const answer = extractOpenAIMessageFromJson(await requestJson({
     ...withoutTools(body),
     stream: false,
     messages: messages as ChatCompletionRequest['messages'],
   }));
-  const finalApiContent = withSourceLinks(result.content, sourceUrls);
+  const finalApiContent = withSourceLinks(answer.content, sourceUrls);
   throwIfMissingVisibleAnswer(finalApiContent);
   const finalContent = withStatusPrefix(statusHistory, finalApiContent);
+  addChatDebugLog('web-search-text-protocol', 'json search answer completed', {
+    statuses: statusHistory.map((status) => status.phase),
+    sources: sourceUrls,
+    finalChars: finalApiContent.length,
+  });
   onChunk(finalContent);
-  onApiTranscript?.([buildFinalAssistantTranscriptMessage(finalApiContent, result.reasoningContent)]);
+  onApiTranscript?.([buildFinalAssistantTranscriptMessage(finalApiContent, answer.reasoningContent)]);
+  return finalContent;
+}
+
+export async function runOpenAIWebSearchTextProtocolTextRequest({
+  body,
+  onChunk,
+  onStatus,
+  onApiTranscript,
+  requestText,
+  client,
+  signal,
+}: TextRequestProtocolOptions): Promise<string> {
+  throwIfAborted(signal);
+  addChatDebugLog('web-search-text-protocol', 'text decision request started', {
+    messages: body.messages.length,
+    latestUserText: getLatestUserText(body).slice(0, 240),
+  });
+  const decisionMessages = [
+    buildTextProtocolDecisionMessage(),
+    ...body.messages as OpenAIWireMessage[],
+  ];
+  const decisionContent = await requestText({
+    ...withoutTools(body),
+    messages: decisionMessages as ChatCompletionRequest['messages'],
+  }, () => {});
+  const searchRequest = parseTextProtocolSearchRequest(decisionContent);
+
+  if (!searchRequest) {
+    throwIfMissingVisibleAnswer(decisionContent);
+    addChatDebugLog('web-search-text-protocol', 'text decision answered directly', {
+      visibleChars: stripThinkingContent(decisionContent).length,
+    });
+    onChunk(decisionContent);
+    onApiTranscript?.([buildFinalAssistantTranscriptMessage(stripThinkingContent(decisionContent))]);
+    return decisionContent;
+  }
+
+  addChatDebugLog('web-search-text-protocol', 'text decision requested search', {
+    query: searchRequest.query,
+    reason: searchRequest.reason ?? '',
+  });
+  const {
+    messages,
+    statusHistory,
+    sourceUrls,
+  } = await buildTextProtocolSearchMessages({ body, query: searchRequest.query, client, onStatus, signal });
+
+  onChunk(withStatusPrefix(statusHistory, ''));
+  const answerContent = await requestText({
+    ...withoutTools(body),
+    messages: messages as ChatCompletionRequest['messages'],
+  }, (content) => {
+    onChunk(withStatusPrefix(statusHistory, content));
+  });
+  const finalApiContent = withSourceLinks(stripThinkingContent(answerContent), sourceUrls);
+  throwIfMissingVisibleAnswer(finalApiContent);
+  const finalContent = withStatusPrefix(statusHistory, finalApiContent);
+  addChatDebugLog('web-search-text-protocol', 'text search answer completed', {
+    statuses: statusHistory.map((status) => status.phase),
+    sources: sourceUrls,
+    finalChars: finalApiContent.length,
+  });
+  onChunk(finalContent);
+  onApiTranscript?.([buildFinalAssistantTranscriptMessage(finalApiContent)]);
   return finalContent;
 }
 
@@ -843,29 +1030,6 @@ export async function runOpenAIWebSearchToolLoop({
   onApiTranscript,
   signal,
 }: ToolLoopOptions): Promise<string> {
-  const latestUserText = getLatestUserText(body);
-  if (shouldUseNewsFastPath(latestUserText)) {
-    try {
-      return await runStreamingNewsFastPath({
-        body,
-        onChunk,
-        request,
-        client,
-        onStatus,
-        onApiTranscript,
-        signal,
-        userText: latestUserText,
-      });
-    } catch (error) {
-      if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
-        throw error;
-      }
-      addChatDebugLog('web-search-fast-path', 'stream news fast path failed; falling back to tool loop', {
-        error: error instanceof Error ? error.message : String(error),
-      }, 'warn');
-    }
-  }
-
   let latestResultsStatus: WebSearchStatus | null = null;
   const statusHistory: WebSearchStatus[] = [];
   const sourceUrls: string[] = [];
@@ -877,6 +1041,7 @@ export async function runOpenAIWebSearchToolLoop({
   let forcedReadAttemptedUrls = new Set<string>();
   let messages = appendWebSearchSystemInstruction(body.messages as OpenAIWireMessage[]);
   const responseTranscript: OpenAIWireMessage[] = [];
+  const readContentByUrl = new Map<string, string>();
   const emitStatus = (status: WebSearchStatus) => {
     if (status.phase === 'results' && (status.results?.length ?? 0) > 0) {
       latestResultsStatus = status;
@@ -899,6 +1064,18 @@ export async function runOpenAIWebSearchToolLoop({
 
   for (let loopIndex = 0; loopIndex < MAX_WEB_SEARCH_TOOL_LOOPS; loopIndex += 1) {
     throwIfAborted(signal);
+    if (shouldStopNoResultSearchLoop(statusHistory)) {
+      addChatDebugLog('web-search-loop', 'stream no-result search cap reached', {
+        loopIndex,
+        attempts: countNoResultSearchAttempts(statusHistory),
+      }, 'warn');
+      return finishNoResultSearchLocally({
+        body,
+        statusHistory,
+        onChunk,
+        onApiTranscript,
+      });
+    }
     const loopStartedAt = Date.now();
     addChatDebugLog('web-search-loop', 'stream loop request started', {
       loopIndex,
@@ -1004,6 +1181,22 @@ export async function runOpenAIWebSearchToolLoop({
     }
 
     const assistantToolMessage = buildAssistantToolMessage(result);
+    if (hasOnlyAlreadyReadToolCalls(result.toolCalls, readContentByUrl)) {
+      const toolMessages = buildCachedReadToolMessages(result.toolCalls, readContentByUrl);
+      addChatDebugLog('web-search-loop', 'reused cached page read for redundant tool calls', {
+        loopIndex,
+        urls: result.toolCalls.flatMap(getReadToolUrls),
+      });
+      messages = [
+        ...messages,
+        assistantToolMessage,
+        ...toolMessages,
+      ];
+      responseTranscript.push(assistantToolMessage, ...toolMessages);
+      latestContent = '';
+      onChunk(withStatusPrefix(statusHistory, latestContent));
+      continue;
+    }
     addChatDebugLog('web-search-loop', 'running tool calls', {
       loopIndex,
       toolCalls: result.toolCalls.map((call) => ({
@@ -1012,6 +1205,7 @@ export async function runOpenAIWebSearchToolLoop({
       })),
     });
     const toolMessages = await runToolCallsInParallel(result.toolCalls, { client, onStatus: emitStatus, signal });
+    cacheReadContentForSources(readContentByUrl, sourceUrls, toolMessages);
     messages = [
       ...messages,
       assistantToolMessage,
@@ -1053,30 +1247,8 @@ export async function runOpenAIWebSearchJsonToolLoop({
   onStatus,
   onApiTranscript,
   signal,
+  autoReadAfterSearch,
 }: JsonToolLoopOptions): Promise<string> {
-  const latestUserText = getLatestUserText(body);
-  if (shouldUseNewsFastPath(latestUserText)) {
-    try {
-      return await runJsonNewsFastPath({
-        body,
-        onChunk,
-        requestJson,
-        client,
-        onStatus,
-        onApiTranscript,
-        signal,
-        userText: latestUserText,
-      });
-    } catch (error) {
-      if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
-        throw error;
-      }
-      addChatDebugLog('web-search-fast-path', 'json news fast path failed; falling back to tool loop', {
-        error: error instanceof Error ? error.message : String(error),
-      }, 'warn');
-    }
-  }
-
   let latestResultsStatus: WebSearchStatus | null = null;
   const statusHistory: WebSearchStatus[] = [];
   const sourceUrls: string[] = [];
@@ -1087,6 +1259,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
   let forcedReadAttemptedUrls = new Set<string>();
   let messages = appendWebSearchSystemInstruction(body.messages as OpenAIWireMessage[]);
   const responseTranscript: OpenAIWireMessage[] = [];
+  const readContentByUrl = new Map<string, string>();
   const emitStatus = (status: WebSearchStatus) => {
     if (status.phase === 'results' && (status.results?.length ?? 0) > 0) {
       latestResultsStatus = status;
@@ -1105,6 +1278,18 @@ export async function runOpenAIWebSearchJsonToolLoop({
 
   for (let loopIndex = 0; loopIndex < MAX_WEB_SEARCH_TOOL_LOOPS; loopIndex += 1) {
     throwIfAborted(signal);
+    if (shouldStopNoResultSearchLoop(statusHistory)) {
+      addChatDebugLog('web-search-loop', 'json no-result search cap reached', {
+        loopIndex,
+        attempts: countNoResultSearchAttempts(statusHistory),
+      }, 'warn');
+      return finishNoResultSearchLocally({
+        body,
+        statusHistory,
+        onChunk,
+        onApiTranscript,
+      });
+    }
     const loopStartedAt = Date.now();
     addChatDebugLog('web-search-loop', 'json loop request started', {
       loopIndex,
@@ -1112,11 +1297,15 @@ export async function runOpenAIWebSearchJsonToolLoop({
       hasResults: Boolean(latestResultsStatus),
       successfulRead: latestResultsHaveSuccessfulRead,
     });
+    const shouldDisableToolsForFinalAnswer = autoReadAfterSearch === true && latestResultsHaveSuccessfulRead;
+    const requestMessages = shouldDisableToolsForFinalAnswer
+      ? [...messages, buildVisibleAnswerReminderMessage()]
+      : messages;
     const payload = await requestJson({
-      ...body,
+      ...(shouldDisableToolsForFinalAnswer ? withoutTools(body) : body),
       stream: false,
-      messages: messages as ChatCompletionRequest['messages'],
-      tools: buildWebSearchTools(),
+      messages: requestMessages as ChatCompletionRequest['messages'],
+      ...(shouldDisableToolsForFinalAnswer ? {} : { tools: buildWebSearchTools() }),
     });
     const result = extractOpenAIMessageFromJson(payload);
     latestContent = result.content;
@@ -1135,7 +1324,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
           messages,
           latestResultsStatus,
           loopIndex,
-          { client, onStatus: emitStatus, signal },
+          { client, onStatus: emitStatus, signal, autoReadAfterSearch },
           forcedReadAttemptedUrls,
         );
         addChatDebugLog('web-search-loop', 'forced page read appended', {
@@ -1212,6 +1401,22 @@ export async function runOpenAIWebSearchJsonToolLoop({
     }
 
     const assistantToolMessage = buildAssistantToolMessage(result);
+    if (hasOnlyAlreadyReadToolCalls(result.toolCalls, readContentByUrl)) {
+      const toolMessages = buildCachedReadToolMessages(result.toolCalls, readContentByUrl);
+      addChatDebugLog('web-search-loop', 'reused cached page read for redundant tool calls', {
+        loopIndex,
+        urls: result.toolCalls.flatMap(getReadToolUrls),
+      });
+      messages = [
+        ...messages,
+        assistantToolMessage,
+        ...toolMessages,
+      ];
+      responseTranscript.push(assistantToolMessage, ...toolMessages);
+      latestContent = '';
+      onChunk(withStatusPrefix(statusHistory, latestContent));
+      continue;
+    }
     addChatDebugLog('web-search-loop', 'running tool calls', {
       loopIndex,
       toolCalls: result.toolCalls.map((call) => ({
@@ -1219,7 +1424,13 @@ export async function runOpenAIWebSearchJsonToolLoop({
         name: call.function.name,
       })),
     });
-    const toolMessages = await runToolCallsInParallel(result.toolCalls, { client, onStatus: emitStatus, signal });
+    const toolMessages = await runToolCallsInParallel(result.toolCalls, {
+      client,
+      onStatus: emitStatus,
+      signal,
+      autoReadAfterSearch,
+    });
+    cacheReadContentForSources(readContentByUrl, sourceUrls, toolMessages);
     messages = [
       ...messages,
       assistantToolMessage,
