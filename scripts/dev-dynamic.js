@@ -661,10 +661,21 @@ function normalizeElectronDesktopEnv(env) {
     log('33', 'Adjusted Electron XDG_SESSION_TYPE=x11 for desktop dialogs');
   }
 
+  if (!next.GTK_USE_PORTAL) {
+    next.GTK_USE_PORTAL = '0';
+    log('33', 'Adjusted Electron GTK_USE_PORTAL=0 for desktop dialogs');
+  }
+
   if (!next.XDG_CURRENT_DESKTOP) {
     if (typeof next.DESKTOP_SESSION === 'string' && next.DESKTOP_SESSION.trim()) {
       next.XDG_CURRENT_DESKTOP = next.DESKTOP_SESSION.trim();
       log('33', `Adjusted Electron XDG_CURRENT_DESKTOP=${next.XDG_CURRENT_DESKTOP} from DESKTOP_SESSION`);
+    } else if (
+      fs.existsSync('/usr/share/xdg-desktop-portal/gtk-portals.conf')
+      && fs.existsSync('/usr/share/xdg-desktop-portal/niri-portals.conf')
+    ) {
+      next.XDG_CURRENT_DESKTOP = 'gtk';
+      log('33', 'Adjusted Electron XDG_CURRENT_DESKTOP=gtk to avoid broken niri GNOME portal fallback');
     } else if (fs.existsSync('/usr/share/xdg-desktop-portal/niri-portals.conf')) {
       next.XDG_CURRENT_DESKTOP = 'niri';
       log('33', 'Adjusted Electron XDG_CURRENT_DESKTOP=niri for xdg-desktop-portal');
