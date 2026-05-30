@@ -12,6 +12,7 @@ import { ChatComposerField } from '../../Input/components/ChatComposerField';
 import type { ChatMessage } from '@/lib/ai/types';
 import { NoteMentionPicker } from '@/components/Chat/features/Input/components/NoteMentionPicker';
 import { usePredictedTextareaHeight } from '@/hooks/usePredictedTextareaHeight';
+import { focusVisibleTextareaAt } from '@/lib/ui/composerFocusRegistry';
 import {
   composeUserMessageContent,
   type ParsedUserMessageContent,
@@ -73,12 +74,14 @@ export function UserMessageEditor({
       return;
     }
 
-    requestAnimationFrame(() => {
-      input.focus();
-      const position = input.value.length;
-      input.setSelectionRange(position, position);
+    const frameId = requestAnimationFrame(() => {
+      if (!focusVisibleTextareaAt(input)) {
+        return;
+      }
       input.scrollTop = input.scrollHeight;
     });
+
+    return () => cancelAnimationFrame(frameId);
   }, []);
 
   usePredictedTextareaHeight(editTextareaRef, {

@@ -13,6 +13,7 @@ import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { getCurrentVaultPath, setCurrentVaultPath } from '@/stores/notes/storage';
 import { normalizeStarredVaultPath } from '@/stores/notes/starred';
 import { useVaultStore } from '@/stores/useVaultStore';
+import { focusVisibleTextareaAt } from '@/lib/ui/composerFocusRegistry';
 import {
   buildMentionPreviewParts,
   collectMentionCandidates,
@@ -310,12 +311,7 @@ export function useNoteMentionState({
       setMentions((prev) => prev.filter((mention) => mention.path !== path));
 
       requestAnimationFrame(() => {
-        const input = textareaRef.current;
-        if (!input) {
-          return;
-        }
-        input.focus({ preventScroll: true });
-        input.setSelectionRange(index, index);
+        focusVisibleTextareaAt(textareaRef.current, index);
       });
     },
     [mentions, onValueChange, textareaRef, value],
@@ -331,12 +327,7 @@ export function useNoteMentionState({
       setMentions((prev) => prev.filter((mention) => !overlappedPaths.has(mention.path)));
 
       requestAnimationFrame(() => {
-        const input = textareaRef.current;
-        if (!input) {
-          return;
-        }
-        input.focus({ preventScroll: true });
-        input.setSelectionRange(selectionStart, selectionStart);
+        focusVisibleTextareaAt(textareaRef.current, selectionStart);
       });
     },
     [onValueChange, textareaRef, value],
@@ -374,12 +365,7 @@ export function useNoteMentionState({
       setMentions((prev) => [...prev, ...uniqueMentions]);
 
       requestAnimationFrame(() => {
-        const input = textareaRef.current;
-        if (!input) {
-          return;
-        }
-        input.focus({ preventScroll: true });
-        input.setSelectionRange(nextCaret, nextCaret);
+        focusVisibleTextareaAt(textareaRef.current, nextCaret);
       });
     },
     [mentions, onValueChange, textareaRef, value],
@@ -402,12 +388,7 @@ export function useNoteMentionState({
       });
 
       requestAnimationFrame(() => {
-        const input = textareaRef.current;
-        if (!input) {
-          return;
-        }
-        input.focus({ preventScroll: true });
-        input.setSelectionRange(nextCaret, nextCaret);
+        focusVisibleTextareaAt(textareaRef.current, nextCaret);
       });
     },
     [mentionTrigger, onValueChange, textareaRef, value],

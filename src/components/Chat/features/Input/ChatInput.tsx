@@ -16,7 +16,7 @@ import { useChatHistoryNavigation } from './hooks/useChatHistoryNavigation';
 import { useNoteMentions } from './hooks/useNoteMentions';
 import { useAIStore } from '@/stores/useAIStore';
 import { useI18n } from '@/lib/i18n/useI18n';
-import { insertTextIntoComposer } from '@/lib/ui/composerFocusRegistry';
+import { focusVisibleTextareaAt, insertTextIntoComposer } from '@/lib/ui/composerFocusRegistry';
 import {
   getBlockDragComposerPayload,
   subscribeBlockDragVisualState,
@@ -120,12 +120,9 @@ export const ChatInput = memo(function ChatInput({
     focusRafRef.current = requestAnimationFrame(() => {
       focusRafRef.current = null;
       const input = textareaRef.current;
-      if (!input) {
+      if (!focusVisibleTextareaAt(input, position)) {
         return;
       }
-      input.focus({ preventScroll: true });
-      const nextPosition = position ?? input.value.length;
-      input.setSelectionRange(nextPosition, nextPosition);
     });
   }, [textareaRef]);
 

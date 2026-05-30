@@ -8,6 +8,28 @@ export interface ComposerFocusAdapter {
 
 let activeAdapter: ComposerFocusAdapter | null = null;
 
+export function isMountedVisibleElement(element: HTMLElement | null): boolean {
+  return !!element && element.isConnected && element.getClientRects().length > 0;
+}
+
+export function focusVisibleTextareaAt(
+  input: HTMLTextAreaElement | null,
+  position?: number,
+): boolean {
+  if (!input || !isMountedVisibleElement(input)) {
+    return false;
+  }
+
+  input.focus({ preventScroll: true });
+  if (document.activeElement !== input) {
+    return false;
+  }
+
+  const nextPosition = position ?? input.value.length;
+  input.setSelectionRange(nextPosition, nextPosition);
+  return true;
+}
+
 function queryComposerRoot(): HTMLElement | null {
   return Array.from(document.querySelectorAll<HTMLElement>('[data-chat-input="true"]'))
     .find((root) => root.getClientRects().length > 0) ?? null;
@@ -27,16 +49,14 @@ export function registerComposerFocusAdapter(adapter: ComposerFocusAdapter): () 
 }
 
 export function focusComposerInput(): boolean {
-  let result = activeAdapter?.focus() ?? false;
+  let result = false;
+  if (activeAdapter?.focus()) {
+    result = activeAdapter.isFocused();
+  }
 
   if (!result) {
     const input = queryComposerTextarea();
-    if (input) {
-      input.focus({ preventScroll: true });
-      const pos = input.value.length;
-      input.setSelectionRange(pos, pos);
-      result = document.activeElement === input;
-    }
+    result = focusVisibleTextareaAt(input);
   }
 
   return result;
@@ -47,10 +67,12 @@ export function selectComposerInputAll(): boolean {
   if (!input) {
     return false;
   }
-  input.focus({ preventScroll: true });
   const length = input.value.length;
+  if (!focusVisibleTextareaAt(input, 0)) {
+    return false;
+  }
   input.setSelectionRange(0, length);
-  return document.activeElement === input;
+  return true;
 }
 
 export function insertTextIntoComposer(text: string): boolean {
@@ -69,7 +91,10 @@ export function insertTextIntoComposer(text: string): boolean {
     return false;
   }
 
-  input.focus({ preventScroll: true });
+  if (!focusVisibleTextareaAt(input)) {
+    return false;
+  }
+
   const current = input.value;
   const separator = current && !current.endsWith('\n') ? '\n' : '';
   const next = `${current}${separator}${trimmed}`;

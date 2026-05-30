@@ -10,6 +10,20 @@ const { registerComposerFocusAdapterMock, syncHeightMock, usePredictedTextareaHe
 
 vi.mock('@/lib/ui/composerFocusRegistry', () => ({
   registerComposerFocusAdapter: (adapter: unknown) => registerComposerFocusAdapterMock(adapter),
+  isMountedVisibleElement: (element: HTMLElement | null) =>
+    !!element && element.isConnected && element.getClientRects().length > 0,
+  focusVisibleTextareaAt: (input: HTMLTextAreaElement | null, position?: number) => {
+    if (!input || !input.isConnected || input.getClientRects().length === 0) {
+      return false;
+    }
+    input.focus({ preventScroll: true });
+    if (document.activeElement !== input) {
+      return false;
+    }
+    const nextPosition = position ?? input.value.length;
+    input.setSelectionRange(nextPosition, nextPosition);
+    return true;
+  },
 }));
 
 vi.mock('@/hooks/usePredictedTextareaHeight', () => ({
@@ -24,6 +38,7 @@ describe('useChatComposer', () => {
     registerComposerFocusAdapterMock.mockClear();
     syncHeightMock.mockClear();
     usePredictedTextareaHeightMock.mockClear();
+    document.body.innerHTML = '';
   });
 
   it('does not register the global focus adapter while inactive', () => {
@@ -229,11 +244,17 @@ describe('useChatComposer', () => {
           onAfterSend: vi.fn(),
         }),
       );
+      const root = document.createElement('div');
+      root.getClientRects = () => [{ width: 240, height: 84 }] as unknown as DOMRectList;
       const textarea = document.createElement('textarea');
+      textarea.getClientRects = () => [{ width: 240, height: 48 }] as unknown as DOMRectList;
       Object.defineProperty(textarea, 'scrollHeight', {
         value: 960,
         configurable: true,
       });
+      root.appendChild(textarea);
+      document.body.appendChild(root);
+      result.current.composerRootRef.current = root;
       result.current.textareaRef.current = textarea;
       const adapter = registerComposerFocusAdapterMock.mock.calls[0]?.[0] as {
         insertText: (text: string) => boolean;
@@ -255,5 +276,29 @@ describe('useChatComposer', () => {
       requestAnimationFrameSpy.mockRestore();
       cancelAnimationFrameSpy.mockRestore();
     }
+  });
+
+  it('does not report global focus success for a hidden mounted composer', () => {
+    const { result } = renderHook(() =>
+      useChatComposer({
+        onSend: vi.fn(),
+        attachments: [],
+        getNoteMentions: () => [],
+        onAfterSend: vi.fn(),
+      }),
+    );
+    const root = document.createElement('div');
+    root.getClientRects = () => [] as unknown as DOMRectList;
+    const textarea = document.createElement('textarea');
+    textarea.getClientRects = () => [] as unknown as DOMRectList;
+    root.appendChild(textarea);
+    document.body.appendChild(root);
+    result.current.composerRootRef.current = root;
+    result.current.textareaRef.current = textarea;
+    const adapter = registerComposerFocusAdapterMock.mock.calls[0]?.[0] as {
+      focus: () => boolean;
+    };
+
+    expect(adapter.focus()).toBe(false);
   });
 });

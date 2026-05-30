@@ -10,7 +10,10 @@ import { useModelSelectorKeyboard } from './hooks/useModelSelectorKeyboard'
 import { useModelSelectorScroll } from './hooks/useModelSelectorScroll'
 import type { AIModel } from '@/lib/ai/types';
 import { isManagedProviderId, MANAGED_PROVIDER_NAME } from '@/lib/ai/managedService'
-import { focusComposerInput as focusRegisteredComposerInput } from '@/lib/ui/composerFocusRegistry'
+import {
+  focusComposerInput as focusRegisteredComposerInput,
+  focusVisibleTextareaAt,
+} from '@/lib/ui/composerFocusRegistry'
 import { SETTINGS_CLOSED_EVENT } from '@/components/Settings/settingsEvents'
 import { useI18n } from '@/lib/i18n'
 import {
@@ -460,10 +463,7 @@ export function ModelSelector({
       focusTimerRef.current = setTimeout(() => {
           focusTimerRef.current = null
           const input = composerInputRef?.current;
-          if (input) {
-              input.focus({ preventScroll: true });
-              const position = input.value.length;
-              input.setSelectionRange(position, position);
+          if (input instanceof HTMLTextAreaElement && focusVisibleTextareaAt(input)) {
               return;
           }
           focusRegisteredComposerInput();
