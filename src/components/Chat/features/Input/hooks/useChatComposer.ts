@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { registerComposerFocusAdapter } from '@/lib/ui/composerFocusRegistry';
+import {
+  focusVisibleTextareaAt,
+  isMountedVisibleElement,
+  registerComposerFocusAdapter,
+} from '@/lib/ui/composerFocusRegistry';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { usePredictedTextareaHeight } from '@/hooks/usePredictedTextareaHeight';
@@ -43,7 +47,7 @@ export function useChatComposer({
 
   useEffect(() => {
     if (active && focusTrigger && textareaRef.current) {
-      textareaRef.current.focus();
+      focusVisibleTextareaAt(textareaRef.current);
     }
   }, [active, focusTrigger]);
 
@@ -66,17 +70,14 @@ export function useChatComposer({
     const unregister = registerComposerFocusAdapter({
       focus: () => {
         const input = textareaRef.current;
-        if (!input) {
+        if (!input || !isMountedVisibleElement(input) || !isMountedVisibleElement(composerRootRef.current)) {
           return false;
         }
-        input.focus({ preventScroll: true });
-        const position = input.value.length;
-        input.setSelectionRange(position, position);
-        return true;
+        return focusVisibleTextareaAt(input);
       },
       blur: () => {
         const input = textareaRef.current;
-        if (!input) {
+        if (!input || !input.isConnected) {
           return false;
         }
         input.blur();
@@ -105,12 +106,12 @@ export function useChatComposer({
         focusRafRef.current = requestAnimationFrame(() => {
           focusRafRef.current = null;
           const input = textareaRef.current;
-          if (!input) {
+          if (!input || !isMountedVisibleElement(input) || !isMountedVisibleElement(composerRootRef.current)) {
             return;
           }
-          input.focus({ preventScroll: true });
-          const pos = input.value.length;
-          input.setSelectionRange(pos, pos);
+          if (!focusVisibleTextareaAt(input)) {
+            return;
+          }
           input.scrollTop = input.scrollHeight;
           textareaHeightRef.current.syncHeight(input.value);
         });
