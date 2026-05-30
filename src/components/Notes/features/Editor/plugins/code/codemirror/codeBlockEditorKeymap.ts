@@ -1,15 +1,17 @@
 import * as proseState from '@milkdown/kit/prose/state';
 import type { Node } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import type { EditorView as CodeMirror, KeyBinding } from '@codemirror/view';
+import type { DOMEventHandlers, EditorView as CodeMirror, KeyBinding } from '@codemirror/view';
+import { EditorSelection } from '@codemirror/state';
 import { exitCode } from '@milkdown/kit/prose/commands';
 import { redo, undo } from '@milkdown/kit/prose/history';
-import { deleteSelectedBlocks } from '../../cursor/blockSelectionCommands';
+import { deleteSelectedBlocks, writeTextToClipboard } from '../../cursor/blockSelectionCommands';
 import {
   blankAreaDragBoxPluginKey,
   CLEAR_BLOCKS_ACTION,
   getBlockSelectionPluginState,
 } from '../../cursor/blockSelectionPluginState';
+import { mapCodeBlockEditorOffsetToDocumentOffset } from './codeBlockEditorUtils';
 
 const { TextSelection } = proseState;
 const AllSelection = (
@@ -51,6 +53,143 @@ function deleteActiveBlockSelection(view: EditorView): boolean {
     selectedBlocks,
     (tr) => tr.setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION)
   );
+}
+
+function getSelectedCodeMirrorText(cm: CodeMirror): string {
+  return cm.state.selection.ranges
+    .filter((range) => !range.empty)
+    .map((range) => cm.state.sliceDoc(range.from, range.to))
+    .join('\n');
+}
+
+function collapseCodeMirrorSelection(cm: CodeMirror) {
+  const { main } = cm.state.selection;
+  cm.dispatch({
+    selection: {
+      anchor: main.to,
+      head: main.to,
+    },
+  });
+}
+
+function collapseProseMirrorSelectionToCodeMirrorHead(
+  cm: CodeMirror,
+  view: EditorView,
+  getNode: () => Node,
+  getPos: () => number | undefined
+) {
+  const pos = getPos();
+  if (pos === undefined) {
+    return;
+  }
+
+  const node = getNode();
+  const codeBlockStart = pos + 1;
+  const head = codeBlockStart + mapCodeBlockEditorOffsetToDocumentOffset(
+    node.textContent,
+    cm.state.selection.main.head
+  );
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, head)).scrollIntoView());
+}
+
+function copyCodeMirrorSelection(
+  getCodeMirror: () => CodeMirror | undefined,
+  view: EditorView,
+  getNode: () => Node,
+  getPos: () => number | undefined,
+  event?: ClipboardEvent
+) {
+  const cm = getCodeMirror();
+  if (!cm) {
+    return false;
+  }
+
+  const text = getSelectedCodeMirrorText(cm);
+  if (!text) {
+    return false;
+  }
+
+  if (event?.clipboardData) {
+    event.preventDefault();
+    event.clipboardData.setData('text/plain', text);
+    collapseCodeMirrorSelection(cm);
+    collapseProseMirrorSelectionToCodeMirrorHead(cm, view, getNode, getPos);
+    view.focus();
+    return true;
+  }
+
+  event?.preventDefault();
+  void writeTextToClipboard(text).then((didCopy) => {
+    if (!didCopy) {
+      return;
+    }
+
+    collapseCodeMirrorSelection(cm);
+    collapseProseMirrorSelectionToCodeMirrorHead(cm, view, getNode, getPos);
+    view.focus();
+  });
+  return true;
+}
+
+function cutCodeMirrorSelection(
+  getCodeMirror: () => CodeMirror | undefined,
+  view: EditorView,
+  getNode: () => Node,
+  getPos: () => number | undefined,
+  event?: ClipboardEvent
+) {
+  const cm = getCodeMirror();
+  if (!cm || !view.editable) {
+    return false;
+  }
+
+  const text = getSelectedCodeMirrorText(cm);
+  if (!text) {
+    return false;
+  }
+
+  const deleteSelection = () => {
+    cm.dispatch(
+      cm.state.changeByRange((range) => ({
+        changes: range.empty ? [] : { from: range.from, to: range.to, insert: '' },
+        range: range.empty ? range : EditorSelection.cursor(range.from),
+      }))
+    );
+    collapseProseMirrorSelectionToCodeMirrorHead(cm, view, getNode, getPos);
+    cm.focus();
+  };
+
+  if (event?.clipboardData) {
+    event.preventDefault();
+    event.clipboardData.setData('text/plain', text);
+    deleteSelection();
+    return true;
+  }
+
+  event?.preventDefault();
+  void writeTextToClipboard(text).then((didCopy) => {
+    if (!didCopy) {
+      return;
+    }
+
+    deleteSelection();
+  });
+  return true;
+}
+
+export function createCodeBlockEditorClipboardHandlers({
+  view,
+  getNode,
+  getPos,
+}: Omit<CreateCodeBlockKeymapOptions, 'getCodeMirror'>): DOMEventHandlers<unknown> {
+  return {
+    copy(event, cm) {
+      return copyCodeMirrorSelection(() => cm, view, getNode, getPos, event);
+    },
+    cut(event, cm) {
+      return cutCodeMirrorSelection(() => cm, view, getNode, getPos, event);
+    },
+  };
 }
 
 function maybeEscape(
@@ -105,6 +244,14 @@ export function createCodeBlockEditorKeymap({
     {
       key: 'Delete',
       run: () => deleteActiveBlockSelection(view),
+    },
+    {
+      key: 'Mod-c',
+      run: () => copyCodeMirrorSelection(getCodeMirror, view, getNode, getPos),
+    },
+    {
+      key: 'Mod-x',
+      run: () => cutCodeMirrorSelection(getCodeMirror, view, getNode, getPos),
     },
     {
       key: 'Mod-a',

@@ -12,6 +12,7 @@ import { codeBlockLanguageLoader } from '../code/codeBlockLanguageLoader';
 import {
   bindCodeBlockFontMetricsSync,
   computeCodeBlockChange,
+  createCodeBlockEditorClipboardHandlers,
   createCodeBlockEditorKeymap,
   createCodeBlockEditorTheme,
   mapDocumentOffsetToCodeBlockEditorOffset,
@@ -45,6 +46,7 @@ export class FrontmatterNodeView implements NodeView {
   private readonly unsubscribeSelectionSync: () => void;
   private destroyed = false;
   private findHighlightStateKey = '[]';
+  private mirroredOuterSelection = false;
 
   private getOwnerDocument(): Document | null {
     return (
@@ -84,6 +86,7 @@ export class FrontmatterNodeView implements NodeView {
           ...codeMirrorFindHighlightExtensions,
           ...createCodeBlockEditorTheme(),
           codeMirrorKeymap.of(this.createKeymap()),
+          CodeMirror.domEventHandlers(this.createClipboardHandlers()),
           EditorState.changeFilter.of(() => this.view.editable),
           CodeMirror.updateListener.of(this.handleUpdate),
         ],
@@ -121,6 +124,14 @@ export class FrontmatterNodeView implements NodeView {
         getPos: this.getPos,
       }),
     ];
+  }
+
+  private createClipboardHandlers() {
+    return createCodeBlockEditorClipboardHandlers({
+      view: this.view,
+      getNode: () => this.node,
+      getPos: this.getPos,
+    });
   }
 
   private syncFindHighlights() {
@@ -165,6 +176,7 @@ export class FrontmatterNodeView implements NodeView {
     const nodePos = this.getPos();
     if (nodePos === undefined) {
       this.dom.dataset.pmSelected = 'false';
+      this.clearMirroredOuterSelection();
       return;
     }
 
@@ -176,7 +188,12 @@ export class FrontmatterNodeView implements NodeView {
 
     this.dom.dataset.pmSelected = hasSelection ? 'true' : 'false';
 
-    if (!hasSelection || this.cm.hasFocus) {
+    if (!hasSelection) {
+      this.clearMirroredOuterSelection();
+      return;
+    }
+
+    if (this.cm.hasFocus) {
       return;
     }
 
@@ -192,18 +209,47 @@ export class FrontmatterNodeView implements NodeView {
       },
     });
     this.updating = false;
+    this.mirroredOuterSelection = true;
   };
+
+  private clearMirroredOuterSelection() {
+    if (!this.mirroredOuterSelection || this.cm.hasFocus) {
+      if (!this.cm.hasFocus) {
+        this.mirroredOuterSelection = false;
+      }
+      return;
+    }
+
+    const { main } = this.cm.state.selection;
+    if (!main.empty) {
+      this.updating = true;
+      this.cm.dispatch({
+        selection: {
+          anchor: main.head,
+          head: main.head,
+        },
+      });
+      this.updating = false;
+    }
+    this.mirroredOuterSelection = false;
+  }
 
   private handleUpdate = (update: ViewUpdate) => {
     this.updatePlaceholder();
 
-    if (this.updating || !this.cm.hasFocus) {
+    if (
+      this.updating ||
+      (!this.cm.hasFocus && !(this.mirroredOuterSelection && update.docChanged))
+    ) {
       return;
     }
 
     const tr = forwardCodeBlockUpdate(update, this.view, this.getPos);
     if (tr) {
       this.view.dispatch(tr);
+      if (update.docChanged) {
+        this.mirroredOuterSelection = false;
+      }
     }
   };
 

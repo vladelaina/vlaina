@@ -51,6 +51,10 @@
   background: var(--vlaina-selection-bg, #2781db) !important;
 }
 
+.milkdown .ProseMirror.vlaina-toolbar-copy-feedback-active .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+  background: transparent !important;
+}
+
 .milkdown .frontmatter-block-container .cm-content::selection,
 .milkdown .frontmatter-block-container .cm-content *::selection,
 .milkdown .frontmatter-block-container .cm-line::selection,

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { TextSelection } from '@milkdown/kit/prose/state';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
@@ -88,6 +89,10 @@ function getCodeMirror(nodeView: CodeBlockNodeView) {
 
 function syncProseMirrorSelection(nodeView: CodeBlockNodeView) {
   (nodeView as unknown as { syncProseMirrorSelection: () => void }).syncProseMirrorSelection();
+}
+
+function forwardCodeBlockViewUpdate(nodeView: CodeBlockNodeView, update: unknown) {
+  (nodeView as unknown as { forwardUpdate: (update: unknown) => void }).forwardUpdate(update);
 }
 
 function setGlobalLineNumbers(showLineNumbers: boolean) {
@@ -473,6 +478,56 @@ describe('CodeBlockNodeView', () => {
     expect(cm.state.selection.main.anchor).toBe(node.textContent.length);
     expect(cm.state.selection.main.head).toBe(node.textContent.length);
     expect(cm.state.selection.main.empty).toBe(true);
+
+    nodeView.destroy();
+  });
+
+  it('forwards deletion from a mirrored outer selection even when CodeMirror is not focused', () => {
+    vi.spyOn(TextSelection, 'create').mockReturnValue({ type: 'selection' } as never);
+    const node = createMockNodeWithText('const a = 1;');
+    const view = createMockView();
+    const tr = view.state.tr as unknown as {
+      doc: unknown;
+      mapping: { map: (value: number) => number };
+    };
+    tr.doc = {
+      nodeAt: vi.fn(() => ({
+        textContent: ' a = 1;',
+      })),
+    };
+    tr.mapping = {
+      map: (value: number) => value,
+    };
+    view.state.doc = {
+      ...view.state.doc,
+      nodeAt: vi.fn(() => node),
+    } as never;
+    view.dom = document.createElement('div');
+    view.state.selection = createMockSelection(1, 6) as never;
+    const nodeView = new CodeBlockNodeView(node, view, () => 0);
+    const dispatchEventSpy = vi.spyOn(view.dom, 'dispatchEvent');
+
+    nodeView.update(node);
+    forwardCodeBlockViewUpdate(nodeView, {
+      docChanged: true,
+      state: {
+        selection: {
+          main: { from: 0, to: 0 },
+        },
+      },
+      changes: {
+        iterChanges: (callback: (...args: unknown[]) => void) => {
+          callback(0, 5, 0, 0, { length: 0, toString: () => '' });
+        },
+      },
+    });
+
+    expect(view.state.tr.delete).toHaveBeenCalledWith(1, 6);
+    expect(view.state.tr.setSelection).toHaveBeenCalledTimes(1);
+    expect(view.dispatch).toHaveBeenCalledWith(view.state.tr);
+    expect(dispatchEventSpy).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'vlaina:block-user-input',
+    }));
 
     nodeView.destroy();
   });

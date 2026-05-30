@@ -2,6 +2,7 @@ import { Selection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
+import { requestCodeBlockSelectionSync } from '../code/codeBlockSelectionSync';
 
 export function hideFloatingToolbar(view: EditorView): void {
   view.dispatch(
@@ -36,5 +37,6 @@ export function collapseSelectionAndHideFloatingToolbar(view: EditorView): void 
     .setMeta('addToHistory', false);
 
   view.dispatch(tr);
+  requestCodeBlockSelectionSync(view.dom?.ownerDocument ?? null);
   view.focus();
 }

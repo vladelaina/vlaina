@@ -18,6 +18,7 @@ import { codeBlockLanguageLoader } from './codeBlockLanguageLoader';
 import {
   bindCodeBlockFontMetricsSync,
   computeCodeBlockChange,
+  createCodeBlockEditorClipboardHandlers,
   createCodeBlockEditorKeymap,
   createCodeBlockEditorTheme,
   mapDocumentOffsetToCodeBlockEditorOffset,
@@ -217,6 +218,7 @@ export class CodeBlockNodeView implements NodeView {
           ...codeMirrorFindHighlightExtensions,
           ...createCodeBlockEditorTheme(),
           codeMirrorKeymap.of(this.createKeymap()),
+          CodeMirror.domEventHandlers(this.createClipboardHandlers()),
           EditorState.changeFilter.of(() => this.view.editable),
           CodeMirror.updateListener.of(this.forwardUpdate),
         ],
@@ -312,8 +314,19 @@ export class CodeBlockNodeView implements NodeView {
     });
   }
 
+  private createClipboardHandlers() {
+    return createCodeBlockEditorClipboardHandlers({
+      view: this.view,
+      getNode: () => this.node,
+      getPos: this.getPos,
+    });
+  }
+
   private forwardUpdate = (update: ViewUpdate) => {
-    if (this.updating || !this.cm?.hasFocus) {
+    if (
+      this.updating ||
+      (!this.cm?.hasFocus && !(this.mirroredOuterSelection && update.docChanged))
+    ) {
       return;
     }
 
@@ -323,6 +336,9 @@ export class CodeBlockNodeView implements NodeView {
         this.view.dom.dispatchEvent(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
       }
       this.view.dispatch(tr);
+      if (update.docChanged) {
+        this.mirroredOuterSelection = false;
+      }
     }
   };
 

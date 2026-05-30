@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { TextSelection } from '@milkdown/kit/prose/state';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { FrontmatterNodeView } from './FrontmatterNodeView';
@@ -38,10 +39,18 @@ function getCodeMirror(nodeView: FrontmatterNodeView) {
     cm: {
       dispatch: (spec: unknown) => void;
       state: {
-        selection: { main: { anchor: number; head: number } };
+        selection: { main: { anchor: number; head: number; empty: boolean } };
       };
     };
   }).cm;
+}
+
+function syncProseMirrorSelection(nodeView: FrontmatterNodeView) {
+  (nodeView as unknown as { syncProseMirrorSelection: () => void }).syncProseMirrorSelection();
+}
+
+function handleFrontmatterUpdate(nodeView: FrontmatterNodeView, update: unknown) {
+  (nodeView as unknown as { handleUpdate: (update: unknown) => void }).handleUpdate(update);
 }
 
 function getPendingMeasureFrame(nodeView: FrontmatterNodeView) {
@@ -101,6 +110,75 @@ describe('FrontmatterNodeView', () => {
     expect(nodeView.dom.dataset.pmSelected).toBe('true');
     expect(cm.state.selection.main.anchor).toBe(0);
     expect(cm.state.selection.main.head).toBe(node.textContent.length);
+
+    nodeView.destroy();
+  });
+
+  it('clears mirrored CodeMirror selections when the outer selection collapses', () => {
+    const node = createMockNode('title: note');
+    const view = createMockView({ from: 1, to: node.textContent.length + 1 });
+    const nodeView = new FrontmatterNodeView(node, view, () => 0);
+    const cm = getCodeMirror(nodeView);
+
+    nodeView.update(node);
+    expect(nodeView.dom.dataset.pmSelected).toBe('true');
+    expect(cm.state.selection.main.empty).toBe(false);
+
+    view.state.selection = { from: node.textContent.length + 1, to: node.textContent.length + 1 } as never;
+    syncProseMirrorSelection(nodeView);
+
+    expect(nodeView.dom.dataset.pmSelected).toBe('false');
+    expect(cm.state.selection.main.anchor).toBe(node.textContent.length);
+    expect(cm.state.selection.main.head).toBe(node.textContent.length);
+    expect(cm.state.selection.main.empty).toBe(true);
+
+    nodeView.destroy();
+  });
+
+  it('forwards deletion from a mirrored outer selection even when CodeMirror is not focused', () => {
+    vi.spyOn(TextSelection, 'create').mockReturnValue({ type: 'selection' } as never);
+    const node = createMockNode('title: note');
+    const view = createMockView({ from: 1, to: 6 });
+    const tr = view.state.tr as unknown as {
+      doc: unknown;
+      mapping: { map: (value: number) => number };
+      delete: ReturnType<typeof vi.fn>;
+      setSelection: ReturnType<typeof vi.fn>;
+    };
+    tr.delete = vi.fn(() => tr);
+    tr.setSelection = vi.fn(() => tr);
+    tr.doc = {
+      nodeAt: vi.fn(() => ({
+        textContent: ': note',
+      })),
+    };
+    tr.mapping = {
+      map: (value: number) => value,
+    };
+    view.state.doc = {
+      ...view.state.doc,
+      nodeAt: vi.fn(() => node),
+    } as never;
+    const nodeView = new FrontmatterNodeView(node, view, () => 0);
+
+    nodeView.update(node);
+    handleFrontmatterUpdate(nodeView, {
+      docChanged: true,
+      state: {
+        selection: {
+          main: { from: 0, to: 0 },
+        },
+      },
+      changes: {
+        iterChanges: (callback: (...args: unknown[]) => void) => {
+          callback(0, 5, 0, 0, { length: 0, toString: () => '' });
+        },
+      },
+    });
+
+    expect(tr.delete).toHaveBeenCalledWith(1, 6);
+    expect(tr.setSelection).toHaveBeenCalledTimes(1);
+    expect(view.dispatch).toHaveBeenCalledWith(tr);
 
     nodeView.destroy();
   });

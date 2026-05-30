@@ -1,9 +1,12 @@
 type SelectionSyncCallback = () => void;
 
+export const CODE_BLOCK_SELECTION_SYNC_EVENT = 'vlaina:code-block-selection-sync';
+
 interface SelectionSyncRegistry {
   callbacks: Set<SelectionSyncCallback>;
   frameId: number | null;
-  listener: () => void;
+  selectionListener: () => void;
+  syncListener: () => void;
 }
 
 const registries = new WeakMap<Document, SelectionSyncRegistry>();
@@ -14,32 +17,41 @@ function getRegistry(doc: Document): SelectionSyncRegistry {
     return existing;
   }
 
+  const runCallbacks = () => {
+    registry.frameId = null;
+    registry.callbacks.forEach((callback) => callback());
+  };
+
+  const scheduleCallbacks = () => {
+    const win = doc.defaultView;
+
+    if (!win) {
+      runCallbacks();
+      return;
+    }
+
+    if (registry.frameId !== null) {
+      win.cancelAnimationFrame(registry.frameId);
+    }
+
+    registry.frameId = win.requestAnimationFrame(runCallbacks);
+  };
+
   const registry: SelectionSyncRegistry = {
     callbacks: new Set(),
     frameId: null,
-    listener: () => {
-      const win = doc.defaultView;
-      const runCallbacks = () => {
-        registry.frameId = null;
-        registry.callbacks.forEach((callback) => callback());
-      };
-
-      if (!win) {
-        runCallbacks();
-        return;
-      }
-
-      if (registry.frameId !== null) {
-        win.cancelAnimationFrame(registry.frameId);
-      }
-
-      registry.frameId = win.requestAnimationFrame(runCallbacks);
-    },
+    selectionListener: scheduleCallbacks,
+    syncListener: scheduleCallbacks,
   };
 
   registries.set(doc, registry);
-  doc.addEventListener('selectionchange', registry.listener);
+  doc.addEventListener('selectionchange', registry.selectionListener);
+  doc.addEventListener(CODE_BLOCK_SELECTION_SYNC_EVENT, registry.syncListener);
   return registry;
+}
+
+export function requestCodeBlockSelectionSync(doc: Document | null): void {
+  doc?.dispatchEvent(new Event(CODE_BLOCK_SELECTION_SYNC_EVENT));
 }
 
 export function subscribeCodeBlockSelectionSync(
@@ -59,7 +71,8 @@ export function subscribeCodeBlockSelectionSync(
       return;
     }
 
-    doc.removeEventListener('selectionchange', registry.listener);
+    doc.removeEventListener('selectionchange', registry.selectionListener);
+    doc.removeEventListener(CODE_BLOCK_SELECTION_SYNC_EVENT, registry.syncListener);
     const win = doc.defaultView;
     if (win && registry.frameId !== null) {
       win.cancelAnimationFrame(registry.frameId);

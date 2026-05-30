@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { subscribeCodeBlockSelectionSync } from './codeBlockSelectionSync';
+import {
+  CODE_BLOCK_SELECTION_SYNC_EVENT,
+  requestCodeBlockSelectionSync,
+  subscribeCodeBlockSelectionSync,
+} from './codeBlockSelectionSync';
 
 describe('codeBlockSelectionSync', () => {
   const cleanups: Array<() => void> = [];
@@ -20,7 +24,8 @@ describe('codeBlockSelectionSync', () => {
     cleanups.push(subscribeCodeBlockSelectionSync(document, first));
     cleanups.push(subscribeCodeBlockSelectionSync(document, second));
 
-    expect(addSpy).toHaveBeenCalledTimes(1);
+    expect(addSpy).toHaveBeenCalledWith('selectionchange', expect.any(Function));
+    expect(addSpy).toHaveBeenCalledWith(CODE_BLOCK_SELECTION_SYNC_EVENT, expect.any(Function));
 
     document.dispatchEvent(new Event('selectionchange'));
     await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -32,6 +37,17 @@ describe('codeBlockSelectionSync', () => {
     expect(removeSpy).not.toHaveBeenCalled();
 
     cleanups.pop()?.();
-    expect(removeSpy).toHaveBeenCalledTimes(1);
+    expect(removeSpy).toHaveBeenCalledWith('selectionchange', expect.any(Function));
+    expect(removeSpy).toHaveBeenCalledWith(CODE_BLOCK_SELECTION_SYNC_EVENT, expect.any(Function));
+  });
+
+  it('syncs subscribers when an editor programmatically collapses selection', async () => {
+    const callback = vi.fn();
+    cleanups.push(subscribeCodeBlockSelectionSync(document, callback));
+
+    requestCodeBlockSelectionSync(document);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    expect(callback).toHaveBeenCalledTimes(1);
   });
 });

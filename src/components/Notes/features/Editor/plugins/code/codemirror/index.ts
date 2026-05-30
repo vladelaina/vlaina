@@ -1,4 +1,7 @@
-export { createCodeBlockEditorKeymap } from './codeBlockEditorKeymap';
+export {
+  createCodeBlockEditorClipboardHandlers,
+  createCodeBlockEditorKeymap,
+} from './codeBlockEditorKeymap';
 export { createCodeBlockEditorTheme } from './codeBlockEditorTheme';
 export { bindCodeBlockFontMetricsSync } from './codeBlockFontMetrics';
 export {
