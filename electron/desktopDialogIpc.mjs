@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { showExternalOpenDialog, showExternalSaveDialog } from './externalFileDialog.mjs';
 
 export function registerDesktopDialogIpc({
   app,
@@ -28,7 +29,8 @@ export function registerDesktopDialogIpc({
       properties,
     };
 
-    const result = await dialog.showOpenDialog(window ?? undefined, dialogOptions);
+    const externalResult = await showExternalOpenDialog(options);
+    const result = externalResult ?? await dialog.showOpenDialog(window ?? undefined, dialogOptions);
 
     if (result.canceled) {
       return null;
@@ -51,11 +53,13 @@ export function registerDesktopDialogIpc({
 
   handleIpc('desktop:dialog:save', async (event, options) => {
     const window = resolveTargetWindow(event);
-    const result = await dialog.showSaveDialog(window ?? undefined, {
+    const dialogOptions = {
       title: options?.title,
       defaultPath: options?.defaultPath,
       filters: options?.filters,
-    });
+    };
+    const externalResult = await showExternalSaveDialog(options);
+    const result = externalResult ?? await dialog.showSaveDialog(window ?? undefined, dialogOptions);
     if (result.canceled || !result.filePath) {
       return null;
     }
