@@ -132,7 +132,7 @@ function collectSelectableBlockRects(view: EditorView): BlockRect[] {
       contentLeft: contentBounds.left,
       contentRight: contentBounds.right,
       ...(contentBounds.lineRects ? { contentLineRects: contentBounds.lineRects } : {}),
-      ...(element.tagName === 'LI' || (element.tagName === 'P' && element.querySelector('.footnote-ref'))
+      ...(element.tagName === 'LI' || element.tagName === 'P'
         ? { allowInsideTrailingClick: true }
         : {}),
     };
@@ -153,7 +153,7 @@ function mapTargetsToSelectionBlockRects(
     top: rect.top,
     right: useEditorHorizontalBounds ? editorRect.right : rect.right,
     bottom: rect.bottom,
-    ...(element.tagName === 'LI' || (element.tagName === 'P' && element.querySelector('.footnote-ref'))
+    ...(element.tagName === 'LI' || element.tagName === 'P'
       ? { allowInsideTrailingClick: true }
       : {}),
   }));

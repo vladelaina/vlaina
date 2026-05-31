@@ -151,6 +151,7 @@ describe('createBlockRectResolver', () => {
         bottom: 64,
         contentLeft: 60,
         contentRight: 70,
+        allowInsideTrailingClick: true,
       },
     ]);
   });
@@ -284,6 +285,7 @@ describe('createBlockRectResolver', () => {
           top: 40,
           right: 620,
           bottom: 64,
+          allowInsideTrailingClick: true,
         },
       ]);
     } finally {
