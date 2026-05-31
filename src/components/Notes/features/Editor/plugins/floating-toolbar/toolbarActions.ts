@@ -1,7 +1,14 @@
 import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { collapseSelectionAndHideFloatingToolbar } from '../clipboard/copyCleanup';
+import { deleteSelectedBlocks } from '../cursor/blockSelectionCommands';
+import {
+  CLEAR_BLOCKS_ACTION,
+  blankAreaDragBoxPluginKey,
+  getBlockSelectionPluginState,
+} from '../cursor/blockSelectionPluginState';
 import { NOTES_COPY_FEEDBACK_DURATION_MS } from '../shared/copyFeedback';
+import { markEditorUserInput } from '../shared/userInputEvents';
 import { copySelectionToClipboard, setLink, toggleMark } from './commands';
 import { floatingToolbarKey } from './floatingToolbarKey';
 import { openLinkTooltipFromSelection } from './linkTooltipActions';
@@ -15,10 +22,6 @@ const COPY_FEEDBACK_SELECTION_SUPPRESS_CLASS = 'vlaina-toolbar-copy-feedback-act
 
 function setCopyFeedbackSelectionSuppression(view: EditorView, active: boolean): void {
   view.dom.classList.toggle(COPY_FEEDBACK_SELECTION_SUPPRESS_CLASS, active);
-}
-
-function markToolbarUserInput(view: EditorView): void {
-  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
 }
 
 function getSelectedCodeBlockDom(view: EditorView, from: number, to: number): HTMLElement | null {
@@ -217,12 +220,22 @@ export function createToolbarActionController(
       return false;
     },
     delete: (view) => {
+      const selectedBlocks = getBlockSelectionPluginState(view.state).selectedBlocks;
+      if (selectedBlocks.length > 0) {
+        deleteSelectedBlocks(
+          view,
+          selectedBlocks,
+          (tr) => tr.setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION),
+        );
+        return false;
+      }
+
       const { state: editorState, dispatch } = view;
       const { from, to } = editorState.selection;
       const codeBlockDom = from < to ? getSelectedCodeBlockDom(view, from, to) : null;
       if (from < to) {
         const { tr } = deleteSelectionRange(view, from, to);
-        markToolbarUserInput(view);
+        markEditorUserInput(view);
         dispatch(tr);
       }
       if (!focusSelectedCodeBlockAfterDelete(codeBlockDom)) {

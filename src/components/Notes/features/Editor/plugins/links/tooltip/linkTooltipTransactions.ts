@@ -5,13 +5,10 @@ import {
     findLinkRange,
     resolveLinkMarkRangeAtPos,
 } from '../utils/helpers';
+import { markEditorUserInput } from '../../shared/userInputEvents';
 
 export function sanitizeTooltipLinkHref(value: string): string | null {
     return sanitizeEditorLinkHref(value);
-}
-
-function markLinkTooltipUserInput(view: EditorView): void {
-    view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
 }
 
 export function editExistingLink(
@@ -42,7 +39,7 @@ export function editExistingLink(
     }
 
     tr.setSelection(TextSelection.create(tr.doc, start + text.length));
-    markLinkTooltipUserInput(view);
+    markEditorUserInput(view);
     dispatch(tr);
     return tr.mapping.map(start);
 }
@@ -52,7 +49,7 @@ export function unlinkExistingLink(view: EditorView, link: HTMLElement): boolean
     if (!result) return false;
 
     const tr = view.state.tr.removeMark(result.start, result.end, result.linkMarkType);
-    markLinkTooltipUserInput(view);
+    markEditorUserInput(view);
     view.dispatch(tr);
     return true;
 }
@@ -68,13 +65,13 @@ export function removeExistingLink(view: EditorView, link: HTMLElement): boolean
         if (start < 0 || textLength <= 0 || end > view.state.doc.content.size) return false;
 
         const tr = view.state.tr.delete(start, end);
-        markLinkTooltipUserInput(view);
+        markEditorUserInput(view);
         view.dispatch(tr);
         return true;
     }
 
     const tr = view.state.tr.delete(result.start, result.end);
-    markLinkTooltipUserInput(view);
+    markEditorUserInput(view);
     view.dispatch(tr);
     return true;
 }
@@ -93,7 +90,7 @@ export function editLinkAtPosition(
     const safeUrl = sanitizeTooltipLinkHref(url);
     if (!safeUrl) {
         const tr = state.tr.removeMark(from, to, linkMarkType);
-        markLinkTooltipUserInput(view);
+        markEditorUserInput(view);
         dispatch(tr);
         return null;
     }
@@ -103,7 +100,7 @@ export function editLinkAtPosition(
         .addMark(from, from + text.length, linkMarkType.create({ href: safeUrl }));
 
     tr.setSelection(TextSelection.create(tr.doc, from + text.length));
-    markLinkTooltipUserInput(view);
+    markEditorUserInput(view);
     dispatch(tr);
     return tr.mapping.map(from);
 }

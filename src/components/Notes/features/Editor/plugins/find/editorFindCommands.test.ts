@@ -92,6 +92,7 @@ function createView(options?: {
     })),
     dom: {
       closest: vi.fn(() => null),
+      dispatchEvent: vi.fn(),
     },
   };
 
@@ -212,6 +213,9 @@ describe('editorFindCommands', () => {
       query: 'beta',
       preferredFrom: 17,
     });
+    expect(view.dom.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'vlaina:block-user-input',
+    }));
     expect(view.dispatch).toHaveBeenCalledWith(view.state.tr);
   });
 
@@ -253,6 +257,9 @@ describe('editorFindCommands', () => {
       query: 'beta',
       preferredFrom: 2,
     });
+    expect(view.dom.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'vlaina:block-user-input',
+    }));
     expect(view.dispatch).toHaveBeenCalledWith(view.state.tr);
   });
 });

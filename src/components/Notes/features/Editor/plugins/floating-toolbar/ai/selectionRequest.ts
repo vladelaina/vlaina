@@ -8,6 +8,7 @@ import { sendMessageWithEndpointFallback } from '@/hooks/chatService/sendMessage
 import { getUserFacingAIError } from '@/lib/ai/errors';
 import { isManagedProviderId } from '@/lib/ai/managedService';
 import { parseStandaloneFencedCodeBlock } from '../../clipboard/fencedCodePaste';
+import { hasSelectedBlocks } from '../../cursor/blockSelectionPluginState';
 import { buildEditorAiUserMessage } from './promptBuilder';
 import { EDITOR_AI_SYSTEM_PROMPT } from './promptCatalog';
 import { assertEnglishPromptText } from './promptValidation';
@@ -185,6 +186,11 @@ export async function createAiSelectionSuggestionResult(
   options?: AiRequestOptions
 ): Promise<AiSelectionSuggestionResult> {
   const trimmedInstruction = instruction.trim();
+  if (!selectionSource && hasSelectedBlocks(view.state)) {
+    useToastStore.getState().addToast(translate('editor.ai.cannotEditSelection'), 'warning');
+    return { suggestion: null, errorMessage: null };
+  }
+
   const sourceFrom = selectionSource?.from ?? view.state.selection.from;
   const sourceTo = selectionSource?.to ?? view.state.selection.to;
 

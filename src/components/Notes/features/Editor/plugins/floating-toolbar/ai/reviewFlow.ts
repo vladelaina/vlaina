@@ -1,6 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { translate } from '@/lib/i18n';
 import { useToastStore } from '@/stores/useToastStore';
+import { hasSelectedBlocks } from '../../cursor/blockSelectionPluginState';
 import { floatingToolbarKey } from '../floatingToolbarKey';
 import { TOOLBAR_ACTIONS, type AiReviewState } from '../types';
 import {
@@ -29,6 +30,11 @@ function hasAiSelectionReview(view: EditorView, requestKey: string): boolean {
 }
 
 export function openAiSelectionReview(view: EditorView, requestKey?: string): boolean {
+  if (hasSelectedBlocks(view.state)) {
+    useToastStore.getState().addToast(translate('editor.ai.cannotEditSelection'), 'warning');
+    return false;
+  }
+
   const { from, to } = view.state.selection;
   if (from >= to) {
     useToastStore.getState().addToast(translate('editor.ai.selectTextFirst'), 'warning');

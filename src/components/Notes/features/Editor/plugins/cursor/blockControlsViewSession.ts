@@ -431,7 +431,6 @@ export class BlockControlsViewSession {
       const insertPos = this.pendingDrop.insertPos;
       const canMove = canApplyBlockMove(this.view, ranges, insertPos);
       if (canMove) {
-        this.view.dom.dispatchEvent(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
         applyBlockMove(this.view, ranges, insertPos);
       }
       this.finishDrag();

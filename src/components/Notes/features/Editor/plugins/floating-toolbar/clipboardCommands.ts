@@ -2,6 +2,8 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { collapseSelectionAndHideFloatingToolbar } from '../clipboard/copyCleanup';
 import { serializeSelectionToClipboardText } from '../clipboard/selectionSerialization';
 import { writeTextToClipboard } from '../cursor/blockSelectionCommands';
+import { clearBlockSelection, getBlockSelectionPluginState } from '../cursor/blockSelectionPluginState';
+import { serializeSelectedBlocksToText } from '../cursor/blockSelectionSerializer';
 import { getCurrentMarkdownSerializer } from '../../utils/editorViewRegistry';
 
 interface CopySelectionOptions {
@@ -19,7 +21,11 @@ export async function copySelectionToClipboard(
   view: EditorView,
   options: CopySelectionOptions = {}
 ): Promise<boolean> {
-  const text = serializeSelectionToClipboardText(view.state, getCurrentMarkdownSerializer());
+  const markdownSerializer = getCurrentMarkdownSerializer();
+  const selectedBlocks = getBlockSelectionPluginState(view.state).selectedBlocks;
+  const text = selectedBlocks.length > 0
+    ? serializeSelectedBlocksToText(view.state, selectedBlocks, { markdownSerializer })
+    : serializeSelectionToClipboardText(view.state, markdownSerializer);
   if (text.length === 0) {
     return false;
   }
@@ -32,6 +38,16 @@ export async function copySelectionToClipboard(
   }
 
   if (
+    selectedBlocks.length > 0 &&
+    options.collapseAfterCopy !== false &&
+    isSameProseObject(view.state.doc, doc)
+  ) {
+    clearBlockSelection(view);
+    return true;
+  }
+
+  if (
+    selectedBlocks.length === 0 &&
     options.collapseAfterCopy !== false &&
     isSameProseObject(view.state.doc, doc) &&
     isSameProseObject(selection, view.state.selection)

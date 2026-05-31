@@ -1,10 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { copySelectionToClipboard, convertBlockType, setBgColor, setTextAlignment, setTextColor } from './commands';
+import { copySelectionToClipboard, convertBlockType, setBgColor, setTextAlignment, setTextColor, toggleBold } from './commands';
 
 const mockSetBlockType = vi.fn();
 const mockWrapIn = vi.fn();
 const mockLift = vi.fn();
 const mockTextSelectionCreate = vi.fn();
+const blockSelectionMocks = vi.hoisted(() => ({
+  clearBlockSelection: vi.fn(),
+  hasSelectedBlocks: vi.fn(() => false),
+  getBlockSelectionPluginState: vi.fn(() => ({ selectedBlocks: [] })),
+}));
+const blockSelectionSerializerMocks = vi.hoisted(() => ({
+  serializeSelectedBlocksToText: vi.fn(() => ''),
+}));
 
 vi.mock('@milkdown/kit/prose/commands', () => ({
   setBlockType: (...args: unknown[]) => mockSetBlockType(...args),
@@ -22,6 +30,16 @@ vi.mock('@milkdown/kit/prose/state', async (importOriginal) => {
     },
   };
 });
+
+vi.mock('../cursor/blockSelectionPluginState', () => ({
+  clearBlockSelection: blockSelectionMocks.clearBlockSelection,
+  hasSelectedBlocks: blockSelectionMocks.hasSelectedBlocks,
+  getBlockSelectionPluginState: blockSelectionMocks.getBlockSelectionPluginState,
+}));
+
+vi.mock('../cursor/blockSelectionSerializer', () => ({
+  serializeSelectedBlocksToText: blockSelectionSerializerMocks.serializeSelectedBlocksToText,
+}));
 
 function createListToHeadingView(listType: 'bullet_list' | 'ordered_list', checked: boolean | null = null) {
   const initialState: any = {
@@ -83,6 +101,11 @@ function createListToHeadingView(listType: 'bullet_list' | 'ordered_list', check
 describe('floating toolbar commands', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    blockSelectionMocks.clearBlockSelection.mockReset();
+    blockSelectionMocks.hasSelectedBlocks.mockReturnValue(false);
+    blockSelectionMocks.getBlockSelectionPluginState.mockReturnValue({ selectedBlocks: [] });
+    blockSelectionSerializerMocks.serializeSelectedBlocksToText.mockReset();
+    blockSelectionSerializerMocks.serializeSelectedBlocksToText.mockReturnValue('');
   });
 
   it('unwraps blockquote before converting to a heading', () => {
@@ -135,6 +158,68 @@ describe('floating toolbar commands', () => {
     expect(mockSetBlockType).toHaveBeenCalledWith(initialState.schema.nodes.heading, { level: 2 });
     expect(applyHeading).toHaveBeenCalledWith(nextState, dispatch);
     expect(view.focus).toHaveBeenCalled();
+  });
+
+  it('does not apply inline formatting to a stale text selection while block selection is active', () => {
+    const strongMark = {
+      create: vi.fn(() => 'strong-mark'),
+    };
+    const tr = {
+      addMark: vi.fn(() => tr),
+      removeMark: vi.fn(() => tr),
+    };
+    const view: any = {
+      state: {
+        selection: { from: 2, to: 6 },
+        schema: {
+          marks: {
+            strong: strongMark,
+          },
+        },
+        doc: {
+          rangeHasMark: vi.fn(() => false),
+        },
+        tr,
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    };
+    blockSelectionMocks.hasSelectedBlocks.mockReturnValue(true);
+
+    toggleBold(view);
+
+    expect(strongMark.create).not.toHaveBeenCalled();
+    expect(tr.addMark).not.toHaveBeenCalled();
+    expect(view.dispatch).not.toHaveBeenCalled();
+    expect(view.focus).not.toHaveBeenCalled();
+  });
+
+  it('does not convert structural block types from a stale text selection while block selection is active', () => {
+    const view: any = {
+      state: {
+        selection: {
+          empty: true,
+          $from: {
+            parent: { type: { name: 'paragraph' } },
+            node: vi.fn(() => ({ type: { name: 'doc' } })),
+          },
+        },
+        schema: {
+          nodes: {
+            bullet_list: { name: 'bullet_list' },
+          },
+        },
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    };
+    blockSelectionMocks.hasSelectedBlocks.mockReturnValue(true);
+
+    convertBlockType(view, 'bulletList');
+
+    expect(mockWrapIn).not.toHaveBeenCalled();
+    expect(view.dispatch).not.toHaveBeenCalled();
+    expect(view.focus).not.toHaveBeenCalled();
   });
 
   it('unwraps list item before converting to a heading', () => {
@@ -754,6 +839,67 @@ describe('floating toolbar commands', () => {
     expect(view.focus).toHaveBeenCalled();
   });
 
+  it('updates alignable blocks from the visible block selection instead of a stale text selection', () => {
+    const staleParagraphNode = {
+      type: { name: 'paragraph' },
+      attrs: { align: 'left' },
+    };
+    const selectedHeadingNode = {
+      type: { name: 'heading' },
+      attrs: { level: 2, align: 'left' },
+    };
+    const selectedParagraphNode = {
+      type: { name: 'paragraph' },
+      attrs: { align: 'left' },
+    };
+    const tr = {
+      setNodeMarkup: vi.fn(),
+    };
+    const view: any = {
+      state: {
+        selection: {
+          from: 2,
+          to: 6,
+          $from: {
+            parent: staleParagraphNode,
+            before: vi.fn(() => 1),
+            node: vi.fn(() => ({ type: { name: 'doc' } })),
+          },
+        },
+        tr,
+        doc: {
+          nodesBetween: vi.fn((from: number, to: number, callback: (node: any, pos: number, parent: any) => void) => {
+            if (from === 10 && to === 15) {
+              callback(selectedHeadingNode, 10, { type: { name: 'doc' } });
+            }
+            if (from === 20 && to === 25) {
+              callback(selectedParagraphNode, 20, { type: { name: 'doc' } });
+            }
+          }),
+        },
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    };
+    blockSelectionMocks.getBlockSelectionPluginState.mockReturnValue({
+      selectedBlocks: [{ from: 10, to: 15 }, { from: 20, to: 25 }],
+    });
+
+    setTextAlignment(view, 'center');
+
+    expect(view.state.doc.nodesBetween).toHaveBeenCalledWith(10, 15, expect.any(Function));
+    expect(view.state.doc.nodesBetween).toHaveBeenCalledWith(20, 25, expect.any(Function));
+    expect(tr.setNodeMarkup).toHaveBeenNthCalledWith(1, 10, undefined, {
+      level: 2,
+      align: 'center',
+    });
+    expect(tr.setNodeMarkup).toHaveBeenNthCalledWith(2, 20, undefined, {
+      align: 'center',
+    });
+    expect(view.dispatch).toHaveBeenCalledWith(tr);
+    expect(view.focus).toHaveBeenCalled();
+  });
+
   it('collapses the selection after applying a text color', () => {
     const collapsedSelection = { type: 'collapsed-selection' };
     const textColorMark = {
@@ -1090,6 +1236,45 @@ describe('floating toolbar commands', () => {
     expect(view.state.tr.setMeta).not.toHaveBeenCalled();
     expect(view.dispatch).not.toHaveBeenCalled();
     expect(view.focus).not.toHaveBeenCalled();
+  });
+
+  it('copies the visible block selection instead of a stale text selection', async () => {
+    const clipboardWrite = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: clipboardWrite },
+      configurable: true,
+    });
+    const selectedBlocks = [{ from: 10, to: 15 }, { from: 20, to: 25 }];
+    const doc = {
+      eq: vi.fn((other: unknown) => other === doc),
+    };
+    const selection = {
+      eq: vi.fn((other: unknown) => other === selection),
+      from: 1,
+      to: 2,
+    };
+    const view: any = {
+      state: {
+        selection,
+        doc,
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    };
+    blockSelectionMocks.getBlockSelectionPluginState.mockReturnValue({ selectedBlocks });
+    blockSelectionSerializerMocks.serializeSelectedBlocksToText.mockReturnValue('1. one\n2. two');
+
+    const copied = await copySelectionToClipboard(view);
+
+    expect(copied).toBe(true);
+    expect(blockSelectionSerializerMocks.serializeSelectedBlocksToText).toHaveBeenCalledWith(
+      view.state,
+      selectedBlocks,
+      { markdownSerializer: null },
+    );
+    expect(clipboardWrite).toHaveBeenCalledWith('1. one\n2. two');
+    expect(blockSelectionMocks.clearBlockSelection).toHaveBeenCalledWith(view);
+    expect(view.dispatch).not.toHaveBeenCalled();
   });
 
   it('converts every selected plain text block around code blocks into headings', () => {

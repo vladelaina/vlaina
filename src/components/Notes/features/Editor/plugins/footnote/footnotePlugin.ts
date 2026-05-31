@@ -3,6 +3,7 @@ import { InputRule } from '@milkdown/kit/prose/inputrules';
 import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FootnoteDefAttrs, FootnoteRefAttrs } from './types';
+import { markEditorUserInput } from '../shared/userInputEvents';
 
 type UndoableInputRule = InputRule & { undoable?: boolean };
 
@@ -164,6 +165,7 @@ export function handleFootnoteModEnterExit(view: EditorView): boolean {
   const insertPos = footnotePos + footnoteNode.nodeSize;
   let tr = state.tr.insert(insertPos, paragraphType.create());
   tr = tr.setSelection(TextSelection.create(tr.doc, insertPos + 1)).scrollIntoView();
+  markEditorUserInput(view);
   view.dispatch(tr);
   return true;
 }

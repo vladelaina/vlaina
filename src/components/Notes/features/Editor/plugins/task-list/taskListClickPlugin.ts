@@ -1,12 +1,9 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { isTaskCheckboxClick } from './taskCheckboxHitArea';
+import { markEditorUserInput } from '../shared/userInputEvents';
 
 export const taskListClickPluginKey = new PluginKey('taskListClick');
-
-function markTaskListUserInput(view: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
-    view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
-}
 
 export const taskListClickPlugin = $prose(() => {
     return new Plugin({
@@ -41,7 +38,7 @@ export const taskListClickPlugin = $prose(() => {
                             ...node.attrs,
                             checked: !node.attrs.checked,
                         });
-                        markTaskListUserInput(view);
+                        markEditorUserInput(view);
                         view.dispatch(tr);
                         view.focus();
                         return true;

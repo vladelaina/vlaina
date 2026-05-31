@@ -6,6 +6,7 @@ import type { EditorState } from '@milkdown/kit/prose/state';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
 import { prepareBlockMove, resolveBlockMoveContext } from './blockControlsMoveCore';
 import { isInlineSelectableBlockRange, mapRangesToSelectableBlocks } from './blockUnitResolver';
+import { markEditorUserInput } from '../shared/userInputEvents';
 
 interface TopLevelRange {
   from: number;
@@ -132,6 +133,7 @@ function applyInlineLineMoveWithinParagraph(
   tr = tr.insert(targetPos, movedContent);
   const selectionAnchor = Math.max(0, Math.min(targetPos + movedContent.size, tr.doc.content.size));
   tr = tr.setSelection(Selection.near(tr.doc.resolve(selectionAnchor), 1)).scrollIntoView();
+  markEditorUserInput(view);
   view.dispatch(tr);
   view.focus();
   return true;
@@ -164,6 +166,7 @@ function applyInlineLineMoveToBlockBoundary(
   tr = tr.insert(safeTargetPos, movedContent);
   const selectionAnchor = Math.max(0, Math.min(safeTargetPos + movedContent.size, tr.doc.content.size));
   tr = tr.setSelection(Selection.near(tr.doc.resolve(selectionAnchor), 1)).scrollIntoView();
+  markEditorUserInput(view);
   view.dispatch(tr);
   view.focus();
   return true;
@@ -238,6 +241,7 @@ function applyBlockMoveIntoInlineParagraph(
     tr = tr.replaceWith(mappedParagraph.from, mappedParagraph.to, replacement);
     tr = setSelectionAtMovedContentTail(tr, mappedParagraph.from + beforeContent.size, movedContent.size)
       .scrollIntoView();
+    markEditorUserInput(view);
     view.dispatch(tr);
     view.focus();
     return true;
@@ -268,6 +272,7 @@ export function applyBlockMove(view: EditorView, selectedRanges: readonly BlockR
 
     let tr = preparedMove.tr.insert(preparedMove.targetPos, preparedMove.movedContent);
     tr = setSelectionAtMovedContentTail(tr, preparedMove.targetPos, preparedMove.movedContent.size).scrollIntoView();
+    markEditorUserInput(view);
     view.dispatch(tr);
     view.focus();
     return true;

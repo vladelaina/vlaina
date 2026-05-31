@@ -1,6 +1,8 @@
 import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { sanitizeEditorLinkHref } from '../links/utils/linkHref';
+import { hasSelectedBlocks } from '../cursor/blockSelectionPluginState';
+import { markEditorUserInput } from '../shared/userInputEvents';
 
 function collapseSelectionAfterInlineApply(tr: EditorView['state']['tr'], pos: number): void {
   const clampedPos = Math.max(0, Math.min(pos, tr.doc.content.size));
@@ -15,11 +17,11 @@ function collapseSelectionAfterInlineApply(tr: EditorView['state']['tr'], pos: n
   tr.setSelection(Selection.near(tr.doc.resolve(clampedPos), -1));
 }
 
-function markToolbarUserInput(view: EditorView): void {
-  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
-}
-
 export function toggleMark(view: EditorView, markName: string): void {
+  if (hasSelectedBlocks(view.state)) {
+    return;
+  }
+
   const { state, dispatch } = view;
   const markType = state.schema.marks[markName];
   if (!markType) {
@@ -32,7 +34,7 @@ export function toggleMark(view: EditorView, markName: string): void {
     ? state.tr.removeMark(from, to, markType)
     : state.tr.addMark(from, to, markType.create());
 
-  markToolbarUserInput(view);
+  markEditorUserInput(view);
   dispatch(tr);
   view.focus();
 }
@@ -62,6 +64,10 @@ export function toggleHighlight(view: EditorView): void {
 }
 
 export function setLink(view: EditorView, url: string | null): void {
+  if (hasSelectedBlocks(view.state)) {
+    return;
+  }
+
   const { state, dispatch } = view;
   const { from, to } = state.selection;
   const linkMark = state.schema.marks.link;
@@ -75,12 +81,16 @@ export function setLink(view: EditorView, url: string | null): void {
     ? state.tr.addMark(from, to, linkMark.create({ href: safeUrl }))
     : state.tr.removeMark(from, to, linkMark);
 
-  markToolbarUserInput(view);
+  markEditorUserInput(view);
   dispatch(tr);
   view.focus();
 }
 
 export function setTextColor(view: EditorView, color: string | null): void {
+  if (hasSelectedBlocks(view.state)) {
+    return;
+  }
+
   const { state, dispatch } = view;
   const { from, to } = state.selection;
   const colorMark = state.schema.marks.textColor;
@@ -101,12 +111,16 @@ export function setTextColor(view: EditorView, color: string | null): void {
   }
 
   collapseSelectionAfterInlineApply(tr, to);
-  markToolbarUserInput(view);
+  markEditorUserInput(view);
   dispatch(tr);
   view.focus();
 }
 
 export function setBgColor(view: EditorView, color: string | null): void {
+  if (hasSelectedBlocks(view.state)) {
+    return;
+  }
+
   const { state, dispatch } = view;
   const { from, to } = state.selection;
   const colorMark = state.schema.marks.bgColor;
@@ -127,7 +141,7 @@ export function setBgColor(view: EditorView, color: string | null): void {
   }
 
   collapseSelectionAfterInlineApply(tr, to);
-  markToolbarUserInput(view);
+  markEditorUserInput(view);
   dispatch(tr);
   view.focus();
 }

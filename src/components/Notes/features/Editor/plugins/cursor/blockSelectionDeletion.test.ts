@@ -123,6 +123,22 @@ describe('deleteSelectedBlocks', () => {
     await editor.destroy();
   });
 
+  it('marks block deletion as user input so autosave can persist it', async () => {
+    const editor = await createEditor('A\n\nB');
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    const userInputListener = vi.fn();
+
+    view.dom.addEventListener('vlaina:block-user-input', userInputListener);
+
+    expect(deleteSelectedBlocks(view, [blocks[0]], (tr) => tr)).toBe(true);
+    expect(userInputListener).toHaveBeenCalledTimes(1);
+    expect(view.state.doc.textContent).toBe('B');
+
+    view.dom.removeEventListener('vlaina:block-user-input', userInputListener);
+    await editor.destroy();
+  });
+
   it('places the cursor at the next paragraph tail after deleting a middle block', async () => {
     const editor = await createEditor('A\n\nB\n\nC');
     const view = editor.ctx.get(editorViewCtx);
@@ -329,6 +345,25 @@ describe('deleteSelectedBlocks', () => {
     expect(list.child(1).textContent).toBe('3');
     expect(list.child(0).attrs.label).toBe('1.');
     expect(list.child(1).attrs.label).toBe('2.');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+
+    await editor.destroy();
+  });
+
+  it('removes consecutive selected ordered list items', async () => {
+    const editor = await createEditor(['1. 1', '2. 2', '3. 3'].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(blocks).toHaveLength(3);
+    expect(deleteSelectedBlocks(view, [blocks[0], blocks[1]], (tr) => tr)).toBe(true);
+
+    expect(view.state.doc.childCount).toBe(1);
+    const list = view.state.doc.child(0);
+    expect(list.type.name).toBe('ordered_list');
+    expect(list.childCount).toBe(1);
+    expect(list.child(0).textContent).toBe('3');
+    expect(list.child(0).attrs.label).toBe('1.');
     expect(view.state.selection).toBeInstanceOf(TextSelection);
 
     await editor.destroy();
