@@ -20,6 +20,10 @@ const TRUE_ATTR_VALUE_PATTERN = '(?:"true"|\'true\'|true\\b)';
 const DEPTH_ATTR_VALUE_PATTERN = '(?:"(\\d+)"|\'(\\d+)\'|(\\d+)\\b)';
 const MARKED_BR_ONLY_PATTERN =
   new RegExp(`^<br\\b(?=[^>]*${VLAINA_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
+const INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-blank-line\s*-->\s*$/i;
+const INTERNAL_TIGHT_HEADING_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-tight-heading\s*-->\s*$/i;
+const HTML_IMAGE_LINE_PATTERN = /^(?: {0,3})<img(?:\s|\/?>|$)/i;
+const MARKDOWN_IMAGE_LINE_PATTERN = /^\s{0,3}!\[[^\]]*]\([^)]*\)\s*$/;
 const MARKDOWN_ESCAPE_PATTERN = /\\([\\`*_{}[\]()#+\-.!])/g;
 const LIST_GAP_SENTINEL = '\u0000VLAINA_LIST_GAP_SENTINEL\u0000';
 const USER_BR_SENTINEL = '\u0000VLAINA_USER_BR_SENTINEL\u0000';
@@ -786,9 +790,12 @@ export function summarizeMarkdownNormalizationPipeline(text: string) {
 }
 
 function runMarkdownDocumentNormalizationPipeline(text: string) {
-  const afterHeadingSpacing = collapseSyntheticBlankLinesBetweenAdjacentHeadings(text);
+  const afterInternalTightHeadingComments = normalizeInternalTightHeadingComments(text);
+  const afterHeadingSpacing = collapseSyntheticBlankLinesBetweenAdjacentHeadings(afterInternalTightHeadingComments);
+  const afterInternalMarkdownBlankLineComments =
+    normalizeInternalMarkdownBlankLineComments(afterHeadingSpacing);
   const afterSyntheticBlankLines =
-    collapseSyntheticBlankLinesAroundEmptyPlaceholders(afterHeadingSpacing);
+    collapseSyntheticBlankLinesAroundEmptyPlaceholders(afterInternalMarkdownBlankLineComments);
   const afterCanonicalSpacing = normalizeCanonicalMarkdownSpacingForPersistence(afterSyntheticBlankLines);
   const afterLenientLineMarkers = normalizeLenientMarkdownLineMarkers(afterCanonicalSpacing);
   const afterStripPlaceholders = stripEmptyMarkdownPlaceholders(afterLenientLineMarkers);
@@ -809,7 +816,9 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
 
   return {
     input: text,
+    afterInternalTightHeadingComments,
     afterHeadingSpacing,
+    afterInternalMarkdownBlankLineComments,
     afterSyntheticBlankLines,
     afterCanonicalSpacing,
     afterLenientLineMarkers,
@@ -1002,6 +1011,9 @@ function normalizeEditorBreakPlaceholders(text: string): string {
       if (MARKED_EMPTY_LINE_PATTERN.test(trimmed)) {
         return '';
       }
+      if (INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN.test(line)) {
+        return '';
+      }
       const blockquoteUserBrWithDepthMatch =
         MARKED_BLOCKQUOTE_USER_BR_WITH_DEPTH_PATTERN.exec(line);
       if (blockquoteUserBrWithDepthMatch) {
@@ -1035,6 +1047,77 @@ function normalizeEditorBreakPlaceholders(text: string): string {
         .replace(MARKED_USER_BR_TOKEN_PATTERN, `\n${USER_BR_SENTINEL}\n`);
     }
   );
+}
+
+function normalizeInternalMarkdownBlankLineComments(text: string): string {
+  if (!text.includes('vlaina-markdown-blank-line')) return text;
+
+  const lines = text.split('\n');
+  const output: string[] = [];
+  let previousWasInternalBlankLine = false;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? '';
+    if (!INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN.test(line)) {
+      output.push(line);
+      if (line.trim() !== '') {
+        previousWasInternalBlankLine = false;
+      }
+      continue;
+    }
+
+    if (!previousWasInternalBlankLine && !hasStructuralBlankAfterImage(output)) {
+      while (output.length > 0 && output[output.length - 1]?.trim() === '') {
+        output.pop();
+      }
+    }
+
+    output.push('');
+    previousWasInternalBlankLine = true;
+
+    while (index + 1 < lines.length && (lines[index + 1] ?? '').trim() === '') {
+      index += 1;
+    }
+  }
+
+  return output.join('\n');
+}
+
+function hasStructuralBlankAfterImage(lines: readonly string[]): boolean {
+  if ((lines[lines.length - 1] ?? '').trim() !== '') return false;
+
+  for (let index = lines.length - 2; index >= 0; index -= 1) {
+    const line = lines[index] ?? '';
+    if (line.trim() === '') continue;
+    return HTML_IMAGE_LINE_PATTERN.test(line) || MARKDOWN_IMAGE_LINE_PATTERN.test(line);
+  }
+
+  return false;
+}
+
+function normalizeInternalTightHeadingComments(text: string): string {
+  if (!text.includes('vlaina-markdown-tight-heading')) return text;
+
+  const lines = text.split('\n');
+  const output: string[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? '';
+    if (!INTERNAL_TIGHT_HEADING_COMMENT_PATTERN.test(line)) {
+      output.push(line);
+      continue;
+    }
+
+    while (output.length > 0 && output[output.length - 1]?.trim() === '') {
+      output.pop();
+    }
+
+    while (index + 1 < lines.length && (lines[index + 1] ?? '').trim() === '') {
+      index += 1;
+    }
+  }
+
+  return output.join('\n');
 }
 
 function normalizeUserBreakSentinels(text: string): string {
@@ -1114,7 +1197,11 @@ function replaceListGapSentinelsWithBlankLines(text: string): string {
 }
 
 function normalizeInternalClipboardArtifacts(text: string): string {
-  return normalizeLeakedInternalArtifacts(normalizeListItemBlankLines(normalizeEditorBreakPlaceholders(text)))
+  return normalizeLeakedInternalArtifacts(
+    normalizeListItemBlankLines(
+      normalizeInternalMarkdownBlankLineComments(normalizeEditorBreakPlaceholders(text))
+    )
+  )
     .replace(/\n{3,}/g, '\n\n');
 }
 

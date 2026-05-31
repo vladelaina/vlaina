@@ -181,17 +181,17 @@ describe('markdown blank line reopen regressions', () => {
     {
       name: 'ordinary paragraph breaks',
       markdown: ['1', '', '2', '', '3'].join('\n'),
-      texts: ['1', '2', '3'],
+      texts: ['1', '', '2', '', '3'],
     },
     {
       name: 'one empty paragraph between typed lines',
       markdown: ['1', '', '2', '', '', '3'].join('\n'),
-      texts: ['1', '2', '', '3'],
+      texts: ['1', '', '2', '', '', '3'],
     },
     {
       name: 'two empty paragraphs between typed lines',
       markdown: ['1', '', '2', '', '', '', '3'].join('\n'),
-      texts: ['1', '2', '', '', '3'],
+      texts: ['1', '', '2', '', '', '', '3'],
     },
     {
       name: 'frontmatter plus one empty body paragraph',
@@ -206,7 +206,7 @@ describe('markdown blank line reopen regressions', () => {
         '',
         '3',
       ].join('\n'),
-      texts: ['1', '2', '', '3'],
+      texts: ['1', '', '2', '', '', '3'],
     },
   ])('reopens and immediately resaves stable blank lines: $name', async ({ markdown, texts }) => {
     const firstReopen = await reopenMarkdown(markdown);

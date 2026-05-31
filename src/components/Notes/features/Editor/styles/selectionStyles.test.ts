@@ -264,6 +264,18 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('--vlaina-block-selection-bleed-y: 0px;');
   });
 
+  it('renders markdown source blank lines as editor-only blank line blocks', () => {
+    const markdownCss = readStyleFile('markdown.css');
+    const editorBlankLineRule = extractCssRule(
+      markdownCss,
+      ".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->']"
+    );
+
+    expect(editorBlankLineRule).toContain('min-height: calc(1em + 8px);');
+    expect(editorBlankLineRule).toContain('margin: 0;');
+    expect(editorBlankLineRule).toContain('padding: 0;');
+  });
+
   it('keeps list selection overlays wide enough to cover native markers', () => {
     const css = readStyleFile('core.css');
 

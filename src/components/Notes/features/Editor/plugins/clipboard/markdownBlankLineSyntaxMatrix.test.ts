@@ -21,7 +21,7 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'thematic breaks keep surrounding blank lines',
       markdown: lines(['Before', '', '---', '', '', 'After']),
-      expected: lines(['Before', '', '---', '', 'After']),
+      expected: lines(['Before', '', '---', '', '', 'After']),
     },
     {
       name: 'bullet list gaps reopen and persist as markdown blank lines',
@@ -230,7 +230,7 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'table keeps surrounding blank lines',
       markdown: lines(['Before', '', '| A | B |', '| --- | --- |', '| 1 | 2 |', '', '', 'After']),
-      expected: lines(['Before', '', '| A | B |', '| - | - |', '| 1 | 2 |', '', 'After']),
+      expected: lines(['Before', '', '| A | B |', '| - | - |', '| 1 | 2 |', '', '', 'After']),
     },
     {
       name: 'table cells keep inline markdown without creating blank placeholders',
@@ -256,7 +256,7 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'table alignment keeps surrounding blank lines',
       markdown: lines(['Before', '', '| Left | Right |', '| :--- | ---: |', '| a | b |', '', '', 'After']),
-      expected: lines(['Before', '', '| Left | Right |', '| :--- | ----: |', '| a    |     b |', '', 'After']),
+      expected: lines(['Before', '', '| Left | Right |', '| :--- | ----: |', '| a    |     b |', '', '', 'After']),
     },
     {
       name: 'table followed by list keeps only authored boundaries',
@@ -424,7 +424,7 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'html comment keeps surrounding blank lines',
       markdown: lines(['Before', '', '<!-- note -->', '', '', 'After']),
-      expected: lines(['Before', '', '<!-- note -->', '', 'After']),
+      expected: lines(['Before', '', '<!-- note -->', '', '', 'After']),
     },
     {
       name: 'alignment comments keep authored blank lines',
@@ -443,7 +443,7 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'reference definition keeps surrounding blanks',
       markdown: lines(['Read [Docs][docs].', '', '[docs]: https://example.com "Docs"', '', '', 'After']),
-      expected: lines(['Read [Docs](https://example.com "Docs").', '', '', 'After']),
+      expected: lines(['Read [Docs](https://example.com "Docs").', '', '', '', 'After']),
     },
     {
       name: 'autolinks keep blank paragraphs around them',

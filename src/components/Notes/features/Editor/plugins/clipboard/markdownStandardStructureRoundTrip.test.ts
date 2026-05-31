@@ -55,6 +55,35 @@ function expectPersistedMarkdownToBeClean(markdown: string): void {
   expect(markdown).not.toContain('\u200B');
   expect(markdown).not.toContain('\u200C');
   expect(markdown).not.toContain('VLAINA_LIST_GAP_SENTINEL');
+  expect(markdown).not.toContain('vlaina-markdown-tight-heading');
+  expect(markdown).not.toContain('vlaina-markdown-blank-line');
+}
+
+function stripInternalBlankLineDisplayNodes(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value
+      .map(stripInternalBlankLineDisplayNodes)
+      .filter((item) => !isInternalBlankLineDisplayNode(item));
+  }
+
+  if (!value || typeof value !== 'object') return value;
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+      key,
+      stripInternalBlankLineDisplayNodes(item),
+    ])
+  );
+}
+
+function isInternalBlankLineDisplayNode(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const node = value as { type?: unknown; attrs?: { value?: unknown } };
+  return node.type === 'html_block'
+    && (
+      node.attrs?.value === '<!--vlaina-markdown-blank-line-->'
+      || node.attrs?.value === '<!--vlaina-markdown-tight-heading-->'
+    );
 }
 
 async function expectStableMarkdownStructure(markdown: string): Promise<void> {
@@ -65,7 +94,9 @@ async function expectStableMarkdownStructure(markdown: string): Promise<void> {
   const secondOpen = await openMarkdownThroughEditor(firstPersisted);
   const secondPersisted = stripTrailingNewlines(secondOpen.persisted);
   expectPersistedMarkdownToBeClean(secondPersisted);
-  expect(secondOpen.docJson).toEqual(firstOpen.docJson);
+  expect(stripInternalBlankLineDisplayNodes(secondOpen.docJson)).toEqual(
+    stripInternalBlankLineDisplayNodes(firstOpen.docJson)
+  );
   expect(secondPersisted).toBe(firstPersisted);
 }
 
@@ -81,7 +112,9 @@ async function expectConvergentMarkdownStructure(markdown: string): Promise<void
   const thirdOpen = await openMarkdownThroughEditor(secondPersisted);
   const thirdPersisted = stripTrailingNewlines(thirdOpen.persisted);
   expectPersistedMarkdownToBeClean(thirdPersisted);
-  expect(thirdOpen.docJson).toEqual(secondOpen.docJson);
+  expect(stripInternalBlankLineDisplayNodes(thirdOpen.docJson)).toEqual(
+    stripInternalBlankLineDisplayNodes(secondOpen.docJson)
+  );
   expect(thirdPersisted).toBe(secondPersisted);
 }
 
