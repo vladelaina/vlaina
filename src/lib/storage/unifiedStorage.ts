@@ -324,6 +324,8 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
   const showBodyLineNumbers = settings?.markdown?.body?.showLineNumbers;
   const showLineNumbers = settings?.markdown?.codeBlock?.showLineNumbers;
   const lastAppViewMode = settings?.ui?.lastAppViewMode;
+  const colorMode = settings?.ui?.colorMode;
+  const themeId = settings?.ui?.themeId;
 
   return {
     settings: {
@@ -344,6 +346,10 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
       },
       ui: {
         lastAppViewMode: lastAppViewMode === 'chat' ? 'chat' : 'notes',
+        colorMode: colorMode === 'light' || colorMode === 'dark' ? colorMode : 'system',
+        themeId: typeof themeId === 'string' && themeId.trim().length > 0
+          ? themeId
+          : defaults.settings.ui?.themeId ?? 'default',
       },
     },
     customIcons: Array.isArray(data.customIcons) ? data.customIcons : [],

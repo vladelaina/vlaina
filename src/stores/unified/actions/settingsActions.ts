@@ -56,6 +56,63 @@ export function createSettingsActions(set: SetState, persist: Persist) {
       });
     },
 
+    setColorMode: (mode: NonNullable<UnifiedData['settings']['ui']>['colorMode']) => {
+      const colorMode: NonNullable<UnifiedData['settings']['ui']>['colorMode'] =
+        mode === 'light' || mode === 'dark' ? mode : 'system';
+      set((state) => {
+        if (state.data.settings.ui?.colorMode === colorMode) {
+          return {};
+        }
+
+        const newData = {
+          ...state.data,
+          settings: {
+            ...state.data.settings,
+            ui: {
+              ...state.data.settings.ui,
+              colorMode,
+            },
+          },
+        };
+        persist(newData, {
+          settings: {
+            ui: {
+              colorMode,
+            },
+          },
+        });
+        return { data: newData };
+      });
+    },
+
+    setThemeId: (themeId: string) => {
+      const normalizedThemeId = themeId.trim() || 'default';
+      set((state) => {
+        if (state.data.settings.ui?.themeId === normalizedThemeId) {
+          return {};
+        }
+
+        const newData = {
+          ...state.data,
+          settings: {
+            ...state.data.settings,
+            ui: {
+              ...state.data.settings.ui,
+              themeId: normalizedThemeId,
+            },
+          },
+        };
+        persist(newData, {
+          settings: {
+            ui: {
+              themeId: normalizedThemeId,
+            },
+          },
+        });
+        return { data: newData };
+      });
+    },
+
     ...createMarkdownSettingsActions(set, persist),
   };
 }

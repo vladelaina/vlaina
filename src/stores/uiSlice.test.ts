@@ -38,7 +38,7 @@ describe('uiSlice', () => {
             typewriterMode: false,
             codeBlock: { showLineNumbers: true },
           },
-          ui: { lastAppViewMode: 'notes' },
+          ui: { lastAppViewMode: 'notes', colorMode: 'system', themeId: 'default' },
         },
         customIcons: [],
         deletedCustomIconIds: [],
@@ -87,6 +87,24 @@ describe('uiSlice', () => {
     expect(useUIStore.getState().appViewMode).toBe('lab');
     expect(localStorage.getItem('vlaina_last_app_view_mode')).toBe('chat');
     expect(useUnifiedStore.getState().data.settings.ui?.lastAppViewMode).toBe('chat');
+  });
+
+  it('persists appearance mode and theme settings in unified settings', () => {
+    useUnifiedStore.getState().setColorMode('dark');
+    useUnifiedStore.getState().setThemeId('default');
+
+    expect(useUnifiedStore.getState().data.settings.ui).toMatchObject({
+      colorMode: 'dark',
+      themeId: 'default',
+    });
+
+    useUnifiedStore.getState().setColorMode('light');
+
+    expect(useUnifiedStore.getState().data.settings.ui?.colorMode).toBe('light');
+
+    useUnifiedStore.getState().setColorMode('system');
+
+    expect(useUnifiedStore.getState().data.settings.ui?.colorMode).toBe('system');
   });
 
   it('toggles app view mode between notes and chat', () => {

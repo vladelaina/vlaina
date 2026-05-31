@@ -24,5 +24,7 @@ export const DEFAULT_SETTINGS = {
   },
   ui: {
     lastAppViewMode: 'notes',
+    colorMode: 'system',
+    themeId: 'default',
   },
 } as const;

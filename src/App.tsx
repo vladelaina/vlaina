@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
+import { useTheme } from 'next-themes';
 import { AppContent } from '@/AppContent';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -6,6 +7,7 @@ import { useBillingReturnRefresh } from '@/hooks/useBillingReturnRefresh';
 import { useElectronCloseGuard } from '@/hooks/useElectronCloseGuard';
 import { useNativeCaretOverlay } from '@/hooks/useNativeCaretOverlay';
 import { useAccountSessionStore } from '@/stores/accountSession';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { useDocumentLanguage, useI18n } from '@/lib/i18n';
@@ -21,6 +23,17 @@ const ToastContainer = lazy(async () => {
 });
 
 const ACCOUNT_FOCUS_REFRESH_THROTTLE_MS = 1500;
+
+function AppThemeSync() {
+  const { setTheme } = useTheme();
+  const colorMode = useUnifiedStore((state) => state.data.settings.ui?.colorMode);
+
+  useEffect(() => {
+    setTheme(colorMode === 'light' || colorMode === 'dark' ? colorMode : 'system');
+  }, [colorMode, setTheme]);
+
+  return null;
+}
 
 function App() {
   const { language, t } = useI18n();
@@ -122,6 +135,7 @@ function App() {
 
   return (
     <ThemeProvider>
+      <AppThemeSync />
       <ErrorBoundary>
         <AppContent />
         <Suspense fallback={null}>

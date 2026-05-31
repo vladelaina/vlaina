@@ -40,6 +40,8 @@ interface UnifiedStoreActions {
   setMarkdownBodyLineNumbers: (showLineNumbers: boolean) => void;
   setMarkdownTypewriterMode: (typewriterMode: boolean) => void;
   setLastAppViewMode: (mode: 'notes' | 'chat') => void;
+  setColorMode: (mode: NonNullable<UnifiedData['settings']['ui']>['colorMode']) => void;
+  setThemeId: (themeId: string) => void;
   
   addCustomIcon: (icon: CustomIcon) => void;
   removeCustomIcon: (id: string) => Promise<void>;
@@ -122,6 +124,12 @@ function normalizeUnifiedData(data: UnifiedData): UnifiedData {
       ...DEFAULT_SETTINGS.ui,
       ...settings?.ui,
       lastAppViewMode: settings?.ui?.lastAppViewMode === 'chat' ? 'chat' : 'notes',
+      colorMode: settings?.ui?.colorMode === 'light' || settings?.ui?.colorMode === 'dark'
+        ? settings.ui.colorMode
+        : 'system',
+      themeId: typeof settings?.ui?.themeId === 'string' && settings.ui.themeId.trim()
+        ? settings.ui.themeId
+        : DEFAULT_SETTINGS.ui.themeId,
     },
   };
   normalized.customIcons = normalized.customIcons || [];

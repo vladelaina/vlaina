@@ -27,6 +27,8 @@ export interface UnifiedData {
     };
     ui?: {
       lastAppViewMode?: 'notes' | 'chat';
+      colorMode?: 'system' | 'light' | 'dark';
+      themeId?: string;
     };
   };
   customIcons?: CustomIcon[];
@@ -70,6 +72,8 @@ export function createDefaultUnifiedData(): UnifiedData {
       },
       ui: {
         lastAppViewMode: 'notes',
+        colorMode: 'system',
+        themeId: 'default',
       },
     },
     customIcons: [],

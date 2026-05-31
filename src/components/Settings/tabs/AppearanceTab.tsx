@@ -1,15 +1,158 @@
 import type { ChangeEvent, MouseEvent, PointerEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
+import type { IconName } from '@/components/ui/icons';
 import {
   UI_FONT_SIZE_DEFAULT,
   UI_FONT_SIZE_MAX,
   UI_FONT_SIZE_MIN,
   useUIStore,
 } from '@/stores/uiSlice';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { SettingsItem, SettingsSectionHeader } from '../components/SettingsControls';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+const THEME_OPTIONS = [
+  { id: 'default' },
+] as const;
+
+type ThemeId = typeof THEME_OPTIONS[number]['id'];
+type ColorMode = 'system' | 'light' | 'dark';
+
+const COLOR_MODE_OPTIONS = [
+  {
+    value: 'system',
+    iconName: 'theme.system' as IconName,
+  },
+  {
+    value: 'light',
+    iconName: 'theme.light' as IconName,
+  },
+  {
+    value: 'dark',
+    iconName: 'theme.dark' as IconName,
+  },
+] as const;
+
+function normalizeColorMode(mode: unknown): ColorMode {
+  return mode === 'light' || mode === 'dark' ? mode : 'system';
+}
+
+interface ColorModeToggleProps {
+  colorMode: ColorMode;
+  onChange: (mode: ColorMode) => void;
+}
+
+function ColorModeToggle({ colorMode, onChange }: ColorModeToggleProps) {
+  const { t } = useI18n();
+  const colorModeIndex = Math.max(0, COLOR_MODE_OPTIONS.findIndex((option) => option.value === colorMode));
+
+  return (
+    <div className="relative flex h-8 w-[126px] items-center">
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-[var(--vlaina-accent-light)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_6px_16px_-12px_rgba(30,150,235,0.85)] transition-transform duration-200 ease-out"
+        style={{ transform: `translateX(${colorModeIndex * 100}%)` }}
+      />
+      {COLOR_MODE_OPTIONS.map((option) => {
+        const isActive = colorMode === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-label={t(`settings.appearance.${option.value}Mode`)}
+            aria-pressed={isActive}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              "relative z-10 flex h-8 flex-1 items-center justify-center rounded-full transition-colors",
+              isActive
+                ? "text-[var(--vlaina-accent)]"
+                : "text-[var(--notes-sidebar-text)] hover:text-[var(--vlaina-accent)]"
+            )}
+          >
+            <Icon name={option.iconName} size="sm" />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+interface ThemeDropdownProps {
+  themeId: string;
+  onChange: (themeId: ThemeId) => void;
+}
+
+function ThemeDropdown({ themeId, onChange }: ThemeDropdownProps) {
+  const { t } = useI18n();
+  const activeTheme = THEME_OPTIONS.find((theme) => theme.id === themeId) ?? THEME_OPTIONS[0];
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="flex h-8 min-w-[132px] items-center justify-between gap-3 rounded-full px-2.5 text-[13px] font-medium text-[var(--notes-sidebar-text)] transition-colors hover:bg-[var(--vlaina-accent-light)] hover:text-[var(--vlaina-accent)]"
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate">{t(`settings.appearance.theme.${activeTheme.id}`)}</span>
+          </span>
+          <Icon name="nav.chevronDown" size="sm" className="text-[var(--notes-sidebar-text-soft)]" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="z-[120] min-w-[170px] rounded-2xl border-zinc-200/80 bg-white p-1.5 shadow-[0_16px_40px_rgba(15,23,42,0.12)] dark:border-white/10 dark:bg-[#202020]"
+      >
+        {THEME_OPTIONS.map((theme) => (
+          <DropdownMenuItem
+            key={theme.id}
+            onSelect={() => onChange(theme.id)}
+            className={cn(
+              "rounded-xl px-3 py-2 text-[13px] text-[var(--chat-sidebar-text)] focus:bg-[var(--sidebar-row-selected-bg)] focus:text-[var(--sidebar-row-selected-text)]",
+              themeId === theme.id && "text-[var(--sidebar-row-selected-text)]"
+            )}
+          >
+            <span className="truncate">{t(`settings.appearance.theme.${theme.id}`)}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+interface ThemeAppearanceControlProps {
+  colorMode: ColorMode;
+  themeId: string;
+  onColorModeChange: (mode: ColorMode) => void;
+  onThemeChange: (themeId: ThemeId) => void;
+}
+
+function ThemeAppearanceControl({
+  colorMode,
+  themeId,
+  onColorModeChange,
+  onThemeChange,
+}: ThemeAppearanceControlProps) {
+  return (
+    <div className={cn(
+      "flex h-11 items-center rounded-[22px] p-1.5",
+      chatComposerPillSurfaceClass,
+    )}>
+      <ColorModeToggle colorMode={colorMode} onChange={onColorModeChange} />
+      <div className="mx-2 h-5 w-px bg-zinc-200/80 dark:bg-white/10" />
+      <ThemeDropdown themeId={themeId} onChange={onThemeChange} />
+    </div>
+  );
+}
 
 interface AppearanceTabProps {
   onFontSizePreviewingChange?: (previewing: boolean) => void;
@@ -20,6 +163,13 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
   const fontSize = useUIStore((state) => state.fontSize);
   const setFontSize = useUIStore((state) => state.setFontSize);
   const resetFontSize = useUIStore((state) => state.resetFontSize);
+  const colorMode = useUnifiedStore((state) => {
+    const mode = state.data.settings.ui?.colorMode;
+    return mode === 'light' || mode === 'dark' ? mode : 'system';
+  });
+  const themeId = useUnifiedStore((state) => state.data.settings.ui?.themeId || 'default');
+  const setColorMode = useUnifiedStore((state) => state.setColorMode);
+  const setThemeId = useUnifiedStore((state) => state.setThemeId);
   const [isPreviewingFontSize, setIsPreviewingFontSize] = useState(false);
   const [draftFontSize, setDraftFontSize] = useState(fontSize);
   const draftFontSizeRef = useRef(fontSize);
@@ -175,6 +325,19 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
           </button>
         </div>
       </div>
+
+      <SettingsSectionHeader>{t('settings.appearance.display')}</SettingsSectionHeader>
+      <SettingsItem
+        title={t('settings.appearance.theme')}
+        className={cn(isPreviewingFontSize && "pointer-events-none opacity-0")}
+      >
+        <ThemeAppearanceControl
+          colorMode={colorMode}
+          themeId={themeId}
+          onColorModeChange={setColorMode}
+          onThemeChange={setThemeId}
+        />
+      </SettingsItem>
     </div>
   );
 }
