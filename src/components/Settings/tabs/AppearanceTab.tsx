@@ -146,7 +146,6 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
         </div>
         <div className={cn(
           "flex flex-shrink-0 items-center gap-4",
-          isPreviewingFontSize && "w-[20rem]",
         )}>
           <Icon
             size="md"
@@ -169,7 +168,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
             disabled={fontSize === UI_FONT_SIZE_DEFAULT}
             className={cn(
               "rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--sidebar-row-selected-text)] transition-colors hover:bg-[var(--sidebar-row-selected-bg)] disabled:pointer-events-none disabled:text-[var(--notes-sidebar-text-soft)] disabled:opacity-45 dark:hover:bg-[rgba(65,168,234,0.14)]",
-              isPreviewingFontSize && "hidden",
+              isPreviewingFontSize && "pointer-events-none opacity-0",
             )}
           >
             {t('common.reset')}
