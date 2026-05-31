@@ -8,8 +8,12 @@ const HTML_COMMENT_CLOSE_PATTERN = /-->\s*$/;
 const HTML_ONE_LINE_BLOCK_PATTERN =
   /^(?: {0,3})(?:<\?.*\?>|<![A-Za-z][^>]*>|<!\[CDATA\[[\s\S]*\]\]>)[ \t]*$/;
 const HTML_BLOCK_TAG_PATTERN =
-  /^(?: {0,3})<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i;
+  /^(?: {0,3})<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|img|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i;
 const ALIGNMENT_COMMENT_PATTERN = /^<!--\s*align:(?:left|center|right)\s*-->$/;
+const HTML_IMAGE_LINE_PATTERN = /^(?: {0,3})<img(?:\s|\/?>|$)/i;
+const MARKDOWN_IMAGE_PATTERN = /^\s{0,3}!\[[^\]]*]\([^)]*\)\s*$/;
+const REFERENCE_DEFINITION_PATTERN = /^\s{0,3}\[[^\]]+]:\s+\S+/;
+const DEFINITION_LIST_MARKER_PATTERN = /^\s{0,3}:\s+\S/;
 
 export function isListBoundaryBlankLine(lines: readonly string[], index: number): boolean {
   if (lines[index]?.trim() !== '') return false;
@@ -78,12 +82,69 @@ export function isHtmlBlockBoundaryBlankLine(lines: readonly string[], index: nu
   return isHtmlBlockLine(previous) || isHtmlBlockLine(next);
 }
 
+export function isHtmlImageStructuralBoundaryBlankLine(lines: readonly string[], index: number): boolean {
+  if (lines[index]?.trim() !== '') return false;
+
+  const previousIndex = findNearestNonBlankLineIndex(lines, index, -1);
+  const nextIndex = findNearestNonBlankLineIndex(lines, index, 1);
+  const previous = previousIndex === null ? null : lines[previousIndex] ?? '';
+  const next = nextIndex === null ? null : lines[nextIndex] ?? '';
+
+  return (isHtmlImageLine(previous) && isAdjacentBlankToNonBlank(lines, index, previousIndex, 1))
+    || (isHtmlImageLine(next) && isAdjacentBlankToNonBlank(lines, index, nextIndex, -1));
+}
+
+export function isMarkdownImageStructuralBoundaryBlankLine(lines: readonly string[], index: number): boolean {
+  if (lines[index]?.trim() !== '') return false;
+
+  const previousIndex = findNearestNonBlankLineIndex(lines, index, -1);
+  const nextIndex = findNearestNonBlankLineIndex(lines, index, 1);
+  const previous = previousIndex === null ? null : lines[previousIndex] ?? '';
+  const next = nextIndex === null ? null : lines[nextIndex] ?? '';
+
+  return (isMarkdownImageLine(previous) && isAdjacentBlankToNonBlank(lines, index, previousIndex, 1))
+    || (isMarkdownImageLine(next) && isAdjacentBlankToNonBlank(lines, index, nextIndex, -1));
+}
+
 export function isAlignmentCommentBoundaryBlankLine(lines: readonly string[], index: number): boolean {
   if (lines[index]?.trim() !== '') return false;
 
   const previous = findNearestNonBlankLine(lines, index, -1);
   const next = findNearestNonBlankLine(lines, index, 1);
   return isAlignmentCommentLine(previous) || isAlignmentCommentLine(next);
+}
+
+export function isMarkdownImageBoundaryBlankLine(lines: readonly string[], index: number): boolean {
+  if (lines[index]?.trim() !== '') return false;
+
+  const previous = findNearestNonBlankLine(lines, index, -1);
+  const next = findNearestNonBlankLine(lines, index, 1);
+  return isMarkdownImageLine(previous) || isMarkdownImageLine(next);
+}
+
+export function isReferenceDefinitionBoundaryBlankLine(lines: readonly string[], index: number): boolean {
+  if (lines[index]?.trim() !== '') return false;
+
+  const previous = findNearestNonBlankLine(lines, index, -1);
+  const next = findNearestNonBlankLine(lines, index, 1);
+  return isReferenceDefinitionLine(previous) || isReferenceDefinitionLine(next);
+}
+
+export function isDefinitionListBoundaryBlankLine(lines: readonly string[], index: number): boolean {
+  if (lines[index]?.trim() !== '') return false;
+
+  const next = findNearestNonBlankLine(lines, index, 1);
+  return isDefinitionListMarkerLine(next);
+}
+
+export function isIndentedContinuationBoundaryBlankLine(lines: readonly string[], index: number): boolean {
+  if (lines[index]?.trim() !== '') return false;
+
+  const previous = findNearestNonBlankLine(lines, index, -1);
+  const next = findNearestNonBlankLine(lines, index, 1);
+  if (next === null || !/^(?: {2,}|\t)/.test(next)) return false;
+
+  return isListItemLine(previous) || /^(?: {2,}|\t)/.test(previous ?? '');
 }
 
 function isTableStartAt(lines: readonly string[], index: number | null): boolean {
@@ -132,6 +193,41 @@ function getListItemPrefix(line: string): string | null {
 
 function isAlignmentCommentLine(line: string | null): boolean {
   return line !== null && ALIGNMENT_COMMENT_PATTERN.test(line.trim());
+}
+
+function isHtmlImageLine(line: string | null): boolean {
+  return line !== null && HTML_IMAGE_LINE_PATTERN.test(line);
+}
+
+function isMarkdownImageLine(line: string | null): boolean {
+  return line !== null && MARKDOWN_IMAGE_PATTERN.test(line);
+}
+
+function isReferenceDefinitionLine(line: string | null): boolean {
+  return line !== null && REFERENCE_DEFINITION_PATTERN.test(line);
+}
+
+function isDefinitionListMarkerLine(line: string | null): boolean {
+  return line !== null && DEFINITION_LIST_MARKER_PATTERN.test(line);
+}
+
+function isListItemLine(line: string | null): boolean {
+  return line !== null && LIST_ITEM_MARKER_PATTERN.test(line);
+}
+
+function isAdjacentBlankToNonBlank(
+  lines: readonly string[],
+  blankIndex: number,
+  nonBlankIndex: number | null,
+  directionFromNonBlankToBlank: -1 | 1,
+): boolean {
+  if (nonBlankIndex === null) return false;
+
+  const adjacentIndex = nonBlankIndex + directionFromNonBlankToBlank;
+  return adjacentIndex === blankIndex
+    && adjacentIndex >= 0
+    && adjacentIndex < lines.length
+    && (lines[adjacentIndex] ?? '').trim() === '';
 }
 
 function isValidFencedCodeOpener(line: string | null): boolean {

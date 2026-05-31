@@ -5,13 +5,16 @@ import {
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 
 const LEGACY_EMPTY_LINE_PLACEHOLDER = '\u200B';
+const MARKDOWN_BLANK_LINE_PLACEHOLDER = '<!--vlaina-markdown-blank-line-->';
 
 describe('preserveMarkdownBlankLinesForEditor editor input', () => {
-  it('keeps ordinary markdown blank lines as paragraph boundaries', () => {
-    expect(preserveMarkdownBlankLinesForEditor('1\n\n2')).toBe('1\n\n2');
+  it('uses editor-only blocks for ordinary markdown blank lines', () => {
+    expect(preserveMarkdownBlankLinesForEditor('1\n\n2')).toBe(
+      ['1', MARKDOWN_BLANK_LINE_PLACEHOLDER, '2'].join('\n')
+    );
   });
 
-  it('keeps ordinary body blank lines after leading frontmatter', () => {
+  it('uses editor-only blank line blocks after leading frontmatter', () => {
     const markdown = [
       '---',
       'vlaina_icon: "note"',
@@ -27,7 +30,20 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
       '',
     ].join('\n');
 
-    expect(preserveMarkdownBlankLinesForEditor(markdown)).toBe(markdown);
+    expect(preserveMarkdownBlankLinesForEditor(markdown)).toBe([
+      '---',
+      'vlaina_icon: "note"',
+      'vlaina_updated: "2026-05-05T03:12:51.625Z"',
+      '---',
+      '1',
+      MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      '2',
+      MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      '3',
+      MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      '4',
+      MARKDOWN_BLANK_LINE_PLACEHOLDER,
+    ].join('\n'));
   });
 
   it('caps pathological body blank line runs before they become editor nodes', () => {
@@ -51,7 +67,7 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
     const blankRun = Array.from({ length: 8_000 }, () => '').join('\n');
     const markdown = ['    before', blankRun, '    after', '', 'body'].join('\n');
 
-    expect(preserveMarkdownBlankLinesForEditor(markdown)).toBe(markdown);
+    expect(normalizeSerializedMarkdownDocument(preserveMarkdownBlankLinesForEditor(markdown))).toBe(markdown);
   });
 
   it('does not expose internal user break markers in editor input', () => {
@@ -100,7 +116,7 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
 
     expect(preserveMarkdownBlankLinesForEditor(markdown)).toBe([
       '# Heading',
-      '',
+      MARKDOWN_BLANK_LINE_PLACEHOLDER,
       '底线（-/=）方式（**不推荐**）：\\\\\\',
       '',
       '- item\\',
@@ -114,13 +130,11 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
   });
 
   it('does not add placeholders inside fenced code blocks', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor(
-        ['```ts', 'const a = 1;', '', 'const b = 2;', '```', '', 'after'].join('\n')
-      )
-    ).toBe(
-      ['```ts', 'const a = 1;', '', 'const b = 2;', '```', '', 'after'].join('\n')
-    );
+    const markdown = ['```ts', 'const a = 1;', '', 'const b = 2;', '```', '', 'after'].join('\n');
+    const editorInput = preserveMarkdownBlankLinesForEditor(markdown);
+
+    expect(editorInput).toContain(['```ts', 'const a = 1;', '', 'const b = 2;', '```'].join('\n'));
+    expect(normalizeSerializedMarkdownDocument(editorInput)).toBe(markdown);
   });
 
   it('does not rewrite br-only lines inside fenced code blocks', () => {
@@ -173,77 +187,89 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
   });
 
   it('does not add placeholders inside normalized frontmatter fences', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor(
-        ['```yaml-frontmatter', 'title: Demo', '', 'summary: Test', '```', '', '# Heading'].join('\n')
-      )
-    ).toBe(
-      [
-        '```yaml-frontmatter',
-        'title: Demo',
-        '',
-        'summary: Test',
-        '```',
-        '',
-        '# Heading',
-      ].join('\n')
-    );
+    const markdown = ['```yaml-frontmatter', 'title: Demo', '', 'summary: Test', '```', '', '# Heading'].join('\n');
+    const editorInput = preserveMarkdownBlankLinesForEditor(markdown);
+
+    expect(editorInput).toContain(['```yaml-frontmatter', 'title: Demo', '', 'summary: Test', '```'].join('\n'));
+    expect(normalizeSerializedMarkdownDocument(editorInput)).toBe(markdown);
+  });
+
+  it('keeps the structural separator and uses editor-only blocks for extra blank lines after markdown images', () => {
+    const markdown = ['![alt](image.png)', '', '', '', '# Next'].join('\n');
+    const editorInput = preserveMarkdownBlankLinesForEditor(markdown);
+
+    expect(editorInput).toBe([
+      '![alt](image.png)',
+      '',
+      MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      '# Next',
+    ].join('\n'));
+    expect(normalizeSerializedMarkdownDocument(editorInput)).toBe(markdown);
+  });
+
+  it('keeps the structural separator and uses editor-only blocks for extra blank lines after html image blocks', () => {
+    const markdown = ['<img src="image.png" />', '', '', '', '# Next'].join('\n');
+    const editorInput = preserveMarkdownBlankLinesForEditor(markdown);
+
+    expect(editorInput).toBe([
+      '<img src="image.png" />',
+      '',
+      MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      MARKDOWN_BLANK_LINE_PLACEHOLDER,
+      '# Next',
+    ].join('\n'));
+    expect(normalizeSerializedMarkdownDocument(editorInput)).toBe(markdown);
   });
 
   it('matches fenced code closers by marker and length', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor(['````', '```', '', 'code', '````', '', 'after'].join('\n'))
-    ).toBe(['````', '```', '', 'code', '````', '', 'after'].join('\n'));
+    const markdown = ['````', '```', '', 'code', '````', '', 'after'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(preserveMarkdownBlankLinesForEditor(markdown))).toBe(markdown);
   });
 
   it('does not close a fenced code block with a content line that only starts with a fence', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor(['```', '```still code', '', '```', '', 'after'].join('\n'))
-    ).toBe(['```', '```still code', '', '```', '', 'after'].join('\n'));
+    const markdown = ['```', '```still code', '', '```', '', 'after'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(preserveMarkdownBlankLinesForEditor(markdown))).toBe(markdown);
   });
 
   it('does not treat indented code as fenced code', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor(['    ```', '', 'after'].join('\n'))
-    ).toBe(['    ```', '', 'after'].join('\n'));
+    const markdown = ['    ```', '', 'after'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(preserveMarkdownBlankLinesForEditor(markdown))).toBe(markdown);
   });
 
   it('does not add placeholders inside indented code blocks', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor(['    line 1', '', '    line 2', '', 'after'].join('\n'))
-    ).toBe(['    line 1', '', '    line 2', '', 'after'].join('\n'));
+    const markdown = ['    line 1', '', '    line 2', '', 'after'].join('\n');
+    const editorInput = preserveMarkdownBlankLinesForEditor(markdown);
+
+    expect(editorInput).toContain(['    line 1', '', '    line 2'].join('\n'));
+    expect(normalizeSerializedMarkdownDocument(editorInput)).toBe(markdown);
   });
 
   it('does not add placeholders inside tab-indented code blocks', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor(['\tline 1', '', '\tline 2', '', 'after'].join('\n'))
-    ).toBe(['\tline 1', '', '\tline 2', '', 'after'].join('\n'));
+    const markdown = ['\tline 1', '', '\tline 2', '', 'after'].join('\n');
+    const editorInput = preserveMarkdownBlankLinesForEditor(markdown);
+
+    expect(editorInput).toContain(['\tline 1', '', '\tline 2'].join('\n'));
+    expect(normalizeSerializedMarkdownDocument(editorInput)).toBe(markdown);
   });
 
   it('detects indented code blocks after paragraph breaks', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor(['before', '', '    line 1', '', '    line 2'].join('\n'))
-    ).toBe(['before', '', '    line 1', '', '    line 2'].join('\n'));
+    const markdown = ['before', '', '    line 1', '', '    line 2'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(preserveMarkdownBlankLinesForEditor(markdown))).toBe(markdown);
   });
 
   it('keeps structural blank lines before fenced code blocks', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor(['before', '', '```ts', 'const value = 1;', '```'].join('\n'))
-    ).toBe(['before', '', '```ts', 'const value = 1;', '```'].join('\n'));
+    const markdown = ['before', '', '```ts', 'const value = 1;', '```'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(preserveMarkdownBlankLinesForEditor(markdown))).toBe(markdown);
   });
 
   it('keeps structural blank lines before nested fenced code blocks', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor([
-        '- item',
-        '',
-        '  detail',
-        '',
-        '  ```ts',
-        '  const value = 1;',
-        '  ```',
-      ].join('\n'))
-    ).toBe([
+    const markdown = [
       '- item',
       '',
       '  detail',
@@ -251,13 +277,15 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
       '  ```ts',
       '  const value = 1;',
       '  ```',
-    ].join('\n'));
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(preserveMarkdownBlankLinesForEditor(markdown))).toBe(markdown);
   });
 
   it('keeps trailing document blank lines after indented text', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor(['    line', ''].join('\n'))
-    ).toBe(['    line', ''].join('\n'));
+    const markdown = ['    line', ''].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(preserveMarkdownBlankLinesForEditor(markdown))).toBe(markdown);
   });
 
   it('does not rewrite placeholder-like text inside indented code blocks', () => {
@@ -267,27 +295,29 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
   });
 
   it('does not treat backtick fences with backticks in the info string as fenced code', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor(['``` invalid ` info', '', 'after'].join('\n'))
-    ).toBe(['``` invalid ` info', '', 'after'].join('\n'));
+    const markdown = ['``` invalid ` info', '', 'after'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(preserveMarkdownBlankLinesForEditor(markdown))).toBe(markdown);
   });
 
   it('does not treat mixed backtick and tilde marker runs as fenced code', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor(['``~', '', 'after'].join('\n'))
-    ).toBe(['``~', '', 'after'].join('\n'));
+    const markdown = ['``~', '', 'after'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(preserveMarkdownBlankLinesForEditor(markdown))).toBe(markdown);
   });
 
   it('does not add placeholders inside raw html blocks that allow blank lines', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor(['<pre>', 'line 1', '', 'line 2', '</pre>', '', 'after'].join('\n'))
-    ).toBe(['<pre>', 'line 1', '', 'line 2', '</pre>', '', 'after'].join('\n'));
+    const markdown = ['<pre>', 'line 1', '', 'line 2', '</pre>', '', 'after'].join('\n');
+    const editorInput = preserveMarkdownBlankLinesForEditor(markdown);
+
+    expect(editorInput).toContain(['<pre>', 'line 1', '', 'line 2', '</pre>'].join('\n'));
+    expect(normalizeSerializedMarkdownDocument(editorInput)).toBe(markdown);
   });
 
   it('does not start fenced code state inside raw html blocks', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor(['<pre>', '```', '', '```', '</pre>', '', 'after'].join('\n'))
-    ).toBe(['<pre>', '```', '', '```', '</pre>', '', 'after'].join('\n'));
+    const markdown = ['<pre>', '```', '', '```', '</pre>', '', 'after'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(preserveMarkdownBlankLinesForEditor(markdown))).toBe(markdown);
   });
 
   it('does not add placeholders inside blockquote raw html blocks', () => {
@@ -297,27 +327,35 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
   });
 
   it('does not add placeholders inside markdown html comments', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor(['<!--', 'note', '', 'comment', '-->', '', 'after'].join('\n'))
-    ).toBe(['<!--', 'note', '', 'comment', '-->', '', 'after'].join('\n'));
+    const markdown = ['<!--', 'note', '', 'comment', '-->', '', 'after'].join('\n');
+    const editorInput = preserveMarkdownBlankLinesForEditor(markdown);
+
+    expect(editorInput).toContain(['<!--', 'note', '', 'comment', '-->'].join('\n'));
+    expect(normalizeSerializedMarkdownDocument(editorInput)).toBe(markdown);
   });
 
-  it('does not add placeholders around block alignment comments', () => {
+  it('uses editor-only blank line blocks around block alignment comments', () => {
     const markdown = ['Paragraph', '', '<!--align:center-->', '', '# Heading'].join('\n');
 
-    expect(preserveMarkdownBlankLinesForEditor(markdown)).toBe(markdown);
+    expect(preserveMarkdownBlankLinesForEditor(markdown)).toBe([
+      'Paragraph',
+      '',
+      '<!--align:center-->',
+      '',
+      '# Heading',
+    ].join('\n'));
   });
 
   it('does not add placeholders inside lowercase html declarations', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor(['<!doctype', '', 'html>', '', 'after'].join('\n'))
-    ).toBe(['<!doctype', '', 'html>', '', 'after'].join('\n'));
+    const markdown = ['<!doctype', '', 'html>', '', 'after'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(preserveMarkdownBlankLinesForEditor(markdown))).toBe(markdown);
   });
 
   it('keeps structural blank lines after one-line html blocks', () => {
-    expect(
-      preserveMarkdownBlankLinesForEditor(['<?note value?>', '', '<!doctype html>', '', 'after'].join('\n'))
-    ).toBe(['<?note value?>', '', '<!doctype html>', '', 'after'].join('\n'));
+    const markdown = ['<?note value?>', '', '<!doctype html>', '', 'after'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(preserveMarkdownBlankLinesForEditor(markdown))).toBe(markdown);
   });
 
   it('round trips representative markdown through preserve and normalize', () => {

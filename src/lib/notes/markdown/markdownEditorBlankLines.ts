@@ -4,20 +4,21 @@ import {
 } from './markdownProtectedBlocks';
 import {
   isAlignmentCommentBoundaryBlankLine,
-  isFencedCodeBoundaryBlankLine,
   isBetweenListItemsBlankLine,
-  isHtmlBlockBoundaryBlankLine,
-  isHtmlCommentBoundaryBlankLine,
+  isDefinitionListBoundaryBlankLine,
+  isHtmlImageStructuralBoundaryBlankLine,
   isIndentedCodeBoundaryBlankLine,
+  isIndentedContinuationBoundaryBlankLine,
   isListBoundaryBlankLine,
-  isTableBoundaryBlankLine,
-  isThematicBreakBoundaryBlankLine,
+  isMarkdownImageStructuralBoundaryBlankLine,
 } from './markdownBlankLineBoundaries';
 import { escapeParagraphTrailingBackslashesForEditor } from './plainTextBackslashHardBreaks';
 
 const BR_ONLY_PATTERN = /^<br\s*\/?>$/i;
 const BLOCKQUOTE_BR_ONLY_PATTERN = /^(\s*(?:>\s*)+)<br\s*\/?>$/i;
 const EDITOR_EMPTY_PARAGRAPH_PLACEHOLDER = '<br />';
+const EDITOR_MARKDOWN_BLANK_LINE_PLACEHOLDER = '<!--vlaina-markdown-blank-line-->';
+const EDITOR_TIGHT_HEADING_PLACEHOLDER = '<!--vlaina-markdown-tight-heading-->';
 const LIST_GAP_PLACEHOLDER = '\u2800';
 const USER_BR_SENTINEL = '\u0000VLAINA_USER_BR_SENTINEL\u0000';
 const MAX_CONSECUTIVE_EDITOR_BLANK_LINES = 8;
@@ -68,36 +69,27 @@ export function preserveMarkdownBlankLinesForEditor(text: string): string {
       return createEditableListGapPlaceholderLine(lines, index);
     }
 
-    if (isListBoundaryBlankLine(lines, index)) {
+    if (
+      isListBoundaryBlankLine(lines, index)
+      || isDefinitionListBoundaryBlankLine(lines, index)
+      || isHtmlImageStructuralBoundaryBlankLine(lines, index)
+      || isMarkdownImageStructuralBoundaryBlankLine(lines, index)
+      || isIndentedCodeBoundaryBlankLine(lines, index)
+      || isIndentedContinuationBoundaryBlankLine(lines, index)
+      || isAlignmentCommentBoundaryBlankLine(lines, index)
+    ) {
       return line;
     }
 
-    if (isTableBoundaryBlankLine(lines, index)) {
-      return line;
+    if (line.trim() === '') {
+      return EDITOR_MARKDOWN_BLANK_LINE_PLACEHOLDER;
     }
 
-    if (isThematicBreakBoundaryBlankLine(lines, index)) {
-      return line;
-    }
-
-    if (isIndentedCodeBoundaryBlankLine(lines, index)) {
-      return line;
-    }
-
-    if (isFencedCodeBoundaryBlankLine(lines, index)) {
-      return line;
-    }
-
-    if (isHtmlCommentBoundaryBlankLine(lines, index)) {
-      return line;
-    }
-
-    if (isHtmlBlockBoundaryBlankLine(lines, index)) {
-      return line;
-    }
-
-    if (isAlignmentCommentBoundaryBlankLine(lines, index)) {
-      return line;
+    if (
+      MARKDOWN_HEADING_LINE_PATTERN.test(line)
+      && MARKDOWN_HEADING_LINE_PATTERN.test(lines[index + 1] ?? '')
+    ) {
+      return `${line}\n${EDITOR_TIGHT_HEADING_PLACEHOLDER}`;
     }
 
     const editorBlankLinePlaceholder = getEditorBlankLinePlaceholder(lines, index);
