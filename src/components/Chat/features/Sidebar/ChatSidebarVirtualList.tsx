@@ -2,8 +2,10 @@ import { useEffect, useLayoutEffect, useMemo, type RefObject } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ChatSession } from '@/lib/ai/types';
 import { ChatSidebarSessionRow } from './ChatSidebarSessionRow';
-
-const CHAT_SIDEBAR_ROW_HEIGHT = 38;
+import {
+  CHAT_SIDEBAR_ESTIMATED_SESSION_ROW_HEIGHT,
+  CHAT_SIDEBAR_VIRTUALIZATION_THRESHOLD,
+} from './chatSidebarLayout';
 
 interface ChatSidebarVirtualListProps {
   active?: boolean;
@@ -45,11 +47,12 @@ export function ChatSidebarVirtualList({
   highlightedSessionId,
 }: ChatSidebarVirtualListProps) {
   const sessionIds = useMemo(() => sessions.map((session) => session.id), [sessions]);
+  const shouldVirtualize = sessions.length > CHAT_SIDEBAR_VIRTUALIZATION_THRESHOLD;
   const virtualizer = useVirtualizer({
     count: sessions.length,
-    enabled: active,
+    enabled: active && shouldVirtualize,
     getScrollElement: () => scrollRootRef.current,
-    estimateSize: () => CHAT_SIDEBAR_ROW_HEIGHT,
+    estimateSize: () => CHAT_SIDEBAR_ESTIMATED_SESSION_ROW_HEIGHT,
     overscan: 8,
   });
 
@@ -62,12 +65,12 @@ export function ChatSidebarVirtualList({
   }, [active, resetKey, scrollRootRef]);
 
   useLayoutEffect(() => {
-    if (!active) {
+    if (!active || !shouldVirtualize) {
       return;
     }
 
     virtualizer.measure();
-  }, [active, sessionIds, virtualizer]);
+  }, [active, sessionIds, shouldVirtualize, virtualizer]);
 
   useEffect(() => {
     if (!active || !highlightedSessionId) {
@@ -79,11 +82,50 @@ export function ChatSidebarVirtualList({
       return;
     }
 
-    virtualizer.scrollToIndex(highlightedIndex, { align: 'auto' });
-  }, [active, highlightedSessionId, sessionIds, virtualizer]);
+    if (shouldVirtualize) {
+      virtualizer.scrollToIndex(highlightedIndex, { align: 'auto' });
+      return;
+    }
+
+    const row = Array.from(
+      scrollRootRef.current?.querySelectorAll<HTMLElement>('[data-chat-sidebar-session-id]') ?? [],
+    ).find((element) => element.dataset.chatSidebarSessionId === highlightedSessionId);
+    row?.scrollIntoView?.({ block: 'nearest' });
+  }, [active, highlightedSessionId, scrollRootRef, sessionIds, shouldVirtualize, virtualizer]);
 
   if (sessions.length === 0) {
     return null;
+  }
+
+  const renderSessionRow = (session: ChatSession) => (
+    <ChatSidebarSessionRow
+      session={session}
+      isActive={currentSessionId === session.id}
+      isKeyboardHighlighted={highlightedSessionId === session.id}
+      isRenaming={renamingSessionId === session.id}
+      renameDraft={renameDraft}
+      onRenameDraftChange={onRenameDraftChange}
+      onStartRename={onStartRename}
+      onCommitRename={onCommitRename}
+      onCancelRename={onCancelRename}
+      onSwitch={onSwitch}
+      onRequestDelete={onRequestDelete}
+      onTogglePin={onTogglePin}
+      onHideSearch={onHideSearch}
+      shouldHideSearchResults={shouldHideSearchResults}
+    />
+  );
+
+  if (!shouldVirtualize) {
+    return (
+      <>
+        {sessions.map((session) => (
+          <div key={session.id} data-chat-sidebar-session-id={session.id}>
+            {renderSessionRow(session)}
+          </div>
+        ))}
+      </>
+    );
   }
 
   return (
@@ -103,8 +145,10 @@ export function ChatSidebarVirtualList({
         return (
           <div
             key={session.id}
+            data-index={virtualRow.index}
+            data-chat-sidebar-session-id={session.id}
+            ref={virtualizer.measureElement}
             style={{
-              height: `${virtualRow.size}px`,
               left: 0,
               position: 'absolute',
               top: 0,
@@ -112,22 +156,7 @@ export function ChatSidebarVirtualList({
               width: '100%',
             }}
           >
-            <ChatSidebarSessionRow
-              session={session}
-              isActive={currentSessionId === session.id}
-              isKeyboardHighlighted={highlightedSessionId === session.id}
-              isRenaming={renamingSessionId === session.id}
-              renameDraft={renameDraft}
-              onRenameDraftChange={onRenameDraftChange}
-              onStartRename={onStartRename}
-              onCommitRename={onCommitRename}
-              onCancelRename={onCancelRename}
-              onSwitch={onSwitch}
-              onRequestDelete={onRequestDelete}
-              onTogglePin={onTogglePin}
-              onHideSearch={onHideSearch}
-              shouldHideSearchResults={shouldHideSearchResults}
-            />
+            {renderSessionRow(session)}
           </div>
         );
       })}

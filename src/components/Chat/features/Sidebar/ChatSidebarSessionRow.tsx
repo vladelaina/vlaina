@@ -18,6 +18,10 @@ import { Icon } from '@/components/ui/icons';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import type { ChatSession } from '@/lib/ai/types';
 import { useI18n } from '@/lib/i18n';
+import {
+  CHAT_SIDEBAR_SESSION_ROW_VERTICAL_PADDING_CLASS,
+  CHAT_SIDEBAR_TITLE_WRAP_CLASS,
+} from './chatSidebarLayout';
 
 interface ChatSidebarSessionRowProps {
   session: ChatSession;
@@ -187,6 +191,7 @@ function ChatSidebarSessionRowInner({
       isActive={isActive}
       showActionsByDefault={false}
       isHighlighted={showContextMenu || isKeyboardHighlighted}
+      className={CHAT_SIDEBAR_SESSION_ROW_VERTICAL_PADDING_CLASS}
       aria-selected={isKeyboardHighlighted || undefined}
       data-chat-sidebar-session-row="true"
       onMouseEnter={hoverPrefetch.onMouseEnter}
@@ -230,13 +235,14 @@ function ChatSidebarSessionRowInner({
             )}
           />
         ) : isGenerating && !isActive ? (
-          <span className="block truncate">
+          <span className={CHAT_SIDEBAR_TITLE_WRAP_CLASS}>
             <ChatSidebarLoadingTitle title={displayTitle} />
           </span>
         ) : (
           <span
             className={cn(
-              'block truncate transition-opacity',
+              CHAT_SIDEBAR_TITLE_WRAP_CLASS,
+              'transition-opacity',
               titleClassName
             )}
           >

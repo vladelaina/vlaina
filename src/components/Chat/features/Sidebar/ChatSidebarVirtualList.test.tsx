@@ -3,8 +3,13 @@ import { render, screen } from '@testing-library/react';
 import { createRef, type RefObject } from 'react';
 import { ChatSidebarVirtualList } from './ChatSidebarVirtualList';
 import type { ChatSession } from '@/lib/ai/types';
+import {
+  CHAT_SIDEBAR_ESTIMATED_SESSION_ROW_HEIGHT,
+  CHAT_SIDEBAR_VIRTUALIZATION_THRESHOLD,
+} from './chatSidebarLayout';
 
 const measureMock = vi.fn();
+const measureElementMock = vi.fn();
 const scrollToIndexMock = vi.fn();
 
 const virtualizerOptionsMock = vi.fn();
@@ -13,14 +18,15 @@ vi.mock('@tanstack/react-virtual', () => ({
   useVirtualizer: (options: { count: number; enabled?: boolean }) => {
     virtualizerOptionsMock(options);
     return {
-      getTotalSize: () => options.count * 38,
+      getTotalSize: () => options.count * CHAT_SIDEBAR_ESTIMATED_SESSION_ROW_HEIGHT,
       getVirtualItems: () =>
         Array.from({ length: options.count }, (_, index) => ({
           index,
-          size: 38,
-          start: index * 38,
+          size: CHAT_SIDEBAR_ESTIMATED_SESSION_ROW_HEIGHT,
+          start: index * CHAT_SIDEBAR_ESTIMATED_SESSION_ROW_HEIGHT,
       })),
       measure: measureMock,
+      measureElement: measureElementMock,
       scrollToIndex: scrollToIndexMock,
     };
   },
@@ -57,6 +63,10 @@ function buildSession(id: string, title: string): ChatSession {
     createdAt: 1,
     updatedAt: 1,
   };
+}
+
+function buildSessions(count: number): ChatSession[] {
+  return Array.from({ length: count }, (_, index) => buildSession(`s${index + 1}`, `Session ${index + 1}`));
 }
 
 function renderList({
@@ -101,6 +111,7 @@ function renderList({
 describe('ChatSidebarVirtualList', () => {
   beforeEach(() => {
     measureMock.mockClear();
+    measureElementMock.mockClear();
     scrollToIndexMock.mockClear();
     virtualizerOptionsMock.mockClear();
   });
@@ -111,9 +122,21 @@ describe('ChatSidebarVirtualList', () => {
     expect(screen.getByTestId('session-row-s1')).toHaveTextContent('Alpha');
     expect(screen.getByTestId('session-row-s1')).toHaveAttribute('data-active', 'true');
     expect(screen.getByTestId('session-row-s2')).toHaveAttribute('data-renaming', 'true');
+    expect(measureMock).not.toHaveBeenCalled();
+    expect(virtualizerOptionsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ enabled: false }),
+    );
+  });
+
+  it('enables virtualization for long session lists and uses the shared row estimate', () => {
+    renderList({ sessions: buildSessions(CHAT_SIDEBAR_VIRTUALIZATION_THRESHOLD + 1) });
+
     expect(measureMock).toHaveBeenCalled();
     expect(virtualizerOptionsMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ enabled: true }),
+    );
+    expect(virtualizerOptionsMock.mock.lastCall?.[0].estimateSize()).toBe(
+      CHAT_SIDEBAR_ESTIMATED_SESSION_ROW_HEIGHT,
     );
   });
 
@@ -194,7 +217,17 @@ describe('ChatSidebarVirtualList', () => {
     });
 
     expect(screen.getByTestId('session-row-s3')).toHaveAttribute('data-highlighted', 'true');
-    expect(scrollToIndexMock).toHaveBeenCalledWith(2, { align: 'auto' });
+    expect(scrollToIndexMock).not.toHaveBeenCalled();
+  });
+
+  it('scrolls the keyboard-selected session through the virtualizer for long lists', () => {
+    renderList({
+      sessions: buildSessions(CHAT_SIDEBAR_VIRTUALIZATION_THRESHOLD + 1),
+      highlightedSessionId: 's81',
+    });
+
+    expect(screen.getByTestId('session-row-s81')).toHaveAttribute('data-highlighted', 'true');
+    expect(scrollToIndexMock).toHaveBeenCalledWith(80, { align: 'auto' });
   });
 
   it('renders nothing for an empty session list', () => {

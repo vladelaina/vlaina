@@ -530,9 +530,12 @@ textarea,
 .chat-sidebar-loading-title-base,
 .chat-sidebar-loading-title-overlay {
   grid-area: 1 / 1;
+  display: -webkit-box;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .chat-sidebar-loading-title-base {
