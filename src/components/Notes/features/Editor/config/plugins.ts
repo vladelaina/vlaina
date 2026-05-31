@@ -120,6 +120,7 @@ export const customPluginGroups = [
     plugins: [
       textSelectionOverlayPlugin,
       editorFindPlugin,
+      tagTokenPlugin,
       nativeDragGuardPlugin,
       externalTextDropCursorPlugin,
       blockControlsPlugin,
@@ -132,7 +133,6 @@ export const customPluginGroups = [
       endBlankClickPlugin,
       titleNavigationPlugin,
       typewriterModePlugin,
-      tagTokenPlugin,
       editorShortcutsPlugin,
     ],
   },

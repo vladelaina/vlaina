@@ -154,6 +154,11 @@ class TextBlockCaretOverlayView {
   };
 
   private render(): void {
+    if (this.view.dom.classList.contains(FORCED_LINE_END_CARET_CLASS)) {
+      this.hide();
+      return;
+    }
+
     if (!shouldShowTextBlockCaretOverlay(this.view)) {
       this.hide();
       return;

@@ -66,29 +66,19 @@ const TRAILING_LINE_END_CLICK_GAP_PX = 8;
 const LEADING_LINE_START_CLICK_GAP_PX = 8;
 const FORCED_CARET_CLASS = 'vlaina-forced-line-end-caret-active';
 const FORCED_CARET_STYLE_ID = 'vlaina-forced-line-end-caret-style';
+const TEXTBLOCK_CARET_CLASS = 'vlaina-textblock-caret-overlay-active';
+const TEXTBLOCK_CARET_ELEMENT_SELECTOR = '.vlaina-textblock-caret-overlay';
 const EDITABLE_LIST_GAP_PLACEHOLDER = '\u2800';
-
-type CaretDocument = Document & {
-  caretRangeFromPoint?: (x: number, y: number) => Range | null;
-};
-
-interface DomCaretPoint {
-  pos: number;
-  node: Node;
-  offset: number;
-}
 
 interface RefinedBlankAreaPlainClickAction extends BlankAreaPlainClickAction {
   textRect?: ReturnType<typeof serializeRect>;
   forcedCaretX?: number;
-  domCaret?: DomCaretPoint;
 }
 
 interface VisualLineEdgeResolution {
   pos: number;
   textRect: ReturnType<typeof serializeRect>;
   forcedCaretX: number;
-  domCaret?: DomCaretPoint;
 }
 
 interface ActiveForcedCaret {
@@ -336,11 +326,19 @@ function ensureForcedCaretStyle(doc: Document): void {
   const style = doc.createElement('style');
   style.id = FORCED_CARET_STYLE_ID;
   style.textContent = createCaretOverlayStyle({
-    activeSelector: `.${FORCED_CARET_CLASS}`,
+    activeSelector: `.ProseMirror.${FORCED_CARET_CLASS}, .ProseMirror.${FORCED_CARET_CLASS} *`,
     caretClass: 'vlaina-forced-line-end-caret',
     keyframesName: 'vlaina-forced-line-end-caret-blink',
   });
   doc.head.appendChild(style);
+}
+
+function clearTextBlockCaretOverlay(view: EditorView): number {
+  const doc = view.dom.ownerDocument;
+  const overlays = Array.from(doc.querySelectorAll(TEXTBLOCK_CARET_ELEMENT_SELECTOR));
+  overlays.forEach((overlay) => overlay.remove());
+  view.dom.classList.remove(TEXTBLOCK_CARET_CLASS);
+  return overlays.length;
 }
 
 function createForcedLineEdgeCaret(
@@ -361,8 +359,12 @@ function createForcedLineEdgeCaret(
   caret.style.left = `${overlayRect.left}px`;
   caret.style.top = `${overlayRect.top}px`;
   caret.style.height = `${overlayRect.height}px`;
+  caret.style.zIndex = '2147483647';
+  const previousInlineCaretColor = view.dom.style.caretColor;
+  clearTextBlockCaretOverlay(view);
   doc.body.appendChild(caret);
   view.dom.classList.add(FORCED_CARET_CLASS);
+  view.dom.style.caretColor = 'transparent';
 
   let disposed = false;
   const scrollRoot = view.dom.closest(SCROLL_ROOT_SELECTOR);
@@ -371,28 +373,35 @@ function createForcedLineEdgeCaret(
     disposed = true;
     caret.remove();
     view.dom.classList.remove(FORCED_CARET_CLASS);
-    doc.removeEventListener('selectionchange', cleanup);
-    doc.removeEventListener('mousedown', cleanup, true);
-    view.dom.removeEventListener('keydown', cleanup, true);
-    view.dom.removeEventListener('beforeinput', cleanup, true);
-    view.dom.removeEventListener('input', cleanup, true);
-    view.dom.removeEventListener('mousedown', cleanup, true);
-    view.dom.removeEventListener('blur', cleanup, true);
-    scrollRoot?.removeEventListener('scroll', cleanup);
-    window.removeEventListener('resize', cleanup);
+    view.dom.style.caretColor = previousInlineCaretColor;
+    doc.removeEventListener('mousedown', handleDocumentMouseDown, true);
+    view.dom.removeEventListener('keydown', handleKeyDown, true);
+    view.dom.removeEventListener('beforeinput', handleBeforeInput, true);
+    view.dom.removeEventListener('input', handleInput, true);
+    view.dom.removeEventListener('mousedown', handleEditorMouseDown, true);
+    view.dom.removeEventListener('blur', handleBlur, true);
+    scrollRoot?.removeEventListener('scroll', handleScroll);
+    window.removeEventListener('resize', handleResize);
   };
+  const handleDocumentMouseDown = () => cleanup();
+  const handleKeyDown = () => cleanup();
+  const handleBeforeInput = () => cleanup();
+  const handleInput = () => cleanup();
+  const handleEditorMouseDown = () => cleanup();
+  const handleBlur = () => cleanup();
+  const handleScroll = () => cleanup();
+  const handleResize = () => cleanup();
 
   window.setTimeout(() => {
     if (disposed) return;
-    doc.addEventListener('selectionchange', cleanup, { once: true });
-    doc.addEventListener('mousedown', cleanup, true);
-    view.dom.addEventListener('keydown', cleanup, true);
-    view.dom.addEventListener('beforeinput', cleanup, true);
-    view.dom.addEventListener('input', cleanup, true);
-    view.dom.addEventListener('mousedown', cleanup, true);
-    view.dom.addEventListener('blur', cleanup, true);
-    scrollRoot?.addEventListener('scroll', cleanup, { passive: true });
-    window.addEventListener('resize', cleanup, { passive: true });
+    doc.addEventListener('mousedown', handleDocumentMouseDown, true);
+    view.dom.addEventListener('keydown', handleKeyDown, true);
+    view.dom.addEventListener('beforeinput', handleBeforeInput, true);
+    view.dom.addEventListener('input', handleInput, true);
+    view.dom.addEventListener('mousedown', handleEditorMouseDown, true);
+    view.dom.addEventListener('blur', handleBlur, true);
+    scrollRoot?.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleResize, { passive: true });
   }, 0);
 
   return cleanup;
@@ -438,35 +447,6 @@ function isPointVerticallyInsideRect(rect: Pick<DOMRect, 'top' | 'bottom' | 'hei
   return clientY >= rect.top - verticalSlack && clientY <= rect.bottom + verticalSlack;
 }
 
-function resolveDomCaretFromPoint(view: EditorView, root: HTMLElement, clientX: number, clientY: number): DomCaretPoint | null {
-  const doc = root.ownerDocument as CaretDocument;
-
-  const caretPosition = doc.caretPositionFromPoint?.(clientX, clientY);
-  if (caretPosition && root.contains(caretPosition.offsetNode)) {
-    try {
-      const pos = view.posAtDOM(caretPosition.offsetNode, caretPosition.offset);
-      return { pos, node: caretPosition.offsetNode, offset: caretPosition.offset };
-    } catch {
-    }
-  }
-
-  const caretRange = doc.caretRangeFromPoint?.(clientX, clientY);
-  if (caretRange && root.contains(caretRange.startContainer)) {
-    try {
-      const pos = view.posAtDOM(caretRange.startContainer, caretRange.startOffset);
-      return { pos, node: caretRange.startContainer, offset: caretRange.startOffset };
-    } catch {
-    }
-  }
-
-  try {
-    const coordsPos = view.posAtCoords({ left: clientX, top: clientY });
-    return coordsPos ? { pos: coordsPos.pos, node: root, offset: 0 } : null;
-  } catch {
-    return null;
-  }
-}
-
 function resolveVisualLineEdgePos(
   view: EditorView,
   action: BlankAreaPlainClickAction,
@@ -493,6 +473,7 @@ function resolveVisualLineEdgePos(
   const blockContentEnd = blockNode
     ? Math.max(blockContentStart, action.blockFrom + blockNode.nodeSize - 1)
     : Math.max(blockContentStart, action.targetPos);
+  let lineEdgeRect: DOMRect | null = null;
 
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const range = doc.createRange();
@@ -507,33 +488,38 @@ function resolveVisualLineEdgePos(
       if (!isPointVerticallyInsideRect(rect, clientY)) {
         continue;
       }
-      if (action.bias === -1) {
-        if (clientX < rect.right + TRAILING_LINE_END_CLICK_GAP_PX) {
-          continue;
-        }
-      } else if (clientX > rect.left - LEADING_LINE_START_CLICK_GAP_PX) {
+
+      if (!lineEdgeRect) {
+        lineEdgeRect = rect;
         continue;
       }
 
-      const forcedCaretX = action.bias === -1 ? rect.right : rect.left;
-      const caretX = action.bias === -1
-        ? Math.max(rect.left, rect.right - 1)
-        : Math.min(rect.right, rect.left + 1);
-      const caretY = rect.top + rect.height / 2;
-      const domCaret = resolveDomCaretFromPoint(view, blockElement, caretX, caretY);
-      if (!domCaret) {
-        continue;
+      if (action.bias === -1) {
+        if (rect.right > lineEdgeRect.right) {
+          lineEdgeRect = rect;
+        }
+      } else if (rect.left < lineEdgeRect.left) {
+        lineEdgeRect = rect;
       }
-      const { pos } = domCaret;
-      if (pos < blockContentStart || pos > blockContentEnd) {
-        continue;
-      }
-      const serializedTextRect = serializeRect(rect);
-      return { pos, textRect: serializedTextRect, forcedCaretX, domCaret };
     }
   }
 
-  return null;
+  if (!lineEdgeRect) {
+    return null;
+  }
+
+  if (action.bias === -1) {
+    if (clientX < lineEdgeRect.right + TRAILING_LINE_END_CLICK_GAP_PX) {
+      return null;
+    }
+  } else if (clientX > lineEdgeRect.left - LEADING_LINE_START_CLICK_GAP_PX) {
+    return null;
+  }
+
+  const forcedCaretX = action.bias === -1 ? lineEdgeRect.right : lineEdgeRect.left;
+  const pos = action.bias === -1 ? blockContentEnd : blockContentStart;
+  const serializedTextRect = serializeRect(lineEdgeRect);
+  return { pos, textRect: serializedTextRect, forcedCaretX };
 }
 
 function refineBlankAreaPlainClickAction(
@@ -551,7 +537,6 @@ function refineBlankAreaPlainClickAction(
       targetPos: lineEdgePos.pos,
       textRect: lineEdgePos.textRect,
       forcedCaretX: lineEdgePos.forcedCaretX,
-      domCaret: lineEdgePos.domCaret,
     };
   return refinedAction;
 }
@@ -930,7 +915,8 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
               insideBlockTrailingClickAction,
               () => nativePointerSelectionVersion,
             );
-            return false;
+            event.preventDefault();
+            return true;
           }
 
           return false;
@@ -1007,6 +993,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
             insideBlockTrailingClickAction,
             () => nativePointerSelectionVersion,
           );
+          event.preventDefault();
           return;
         }
 

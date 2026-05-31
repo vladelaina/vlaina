@@ -236,6 +236,20 @@ function mockTrailingPlainClickGeometry(view: any, target: HTMLElement) {
     y: 20,
     toJSON: () => undefined,
   } as DOMRect);
+  const listItem = target.closest('li');
+  if (listItem instanceof HTMLElement) {
+    vi.spyOn(listItem, 'getBoundingClientRect').mockReturnValue({
+      left: 40,
+      top: 20,
+      right: 760,
+      bottom: 44,
+      width: 720,
+      height: 24,
+      x: 40,
+      y: 20,
+      toJSON: () => undefined,
+    } as DOMRect);
+  }
 
   const rangeRects = [{
     left: 72,
@@ -265,6 +279,21 @@ function startTrailingPlainClick(view: any, target: HTMLElement) {
     value: target,
   });
   return simulateDomEvent(view, 'mousedown', mouseDown);
+}
+
+function startTrailingPlainClickWithEvent(view: any, target: HTMLElement) {
+  const mouseDown = createMouseEvent('mousedown', {
+    clientX: 220,
+    clientY: 32,
+  });
+  Object.defineProperty(mouseDown, 'target', {
+    configurable: true,
+    value: target,
+  });
+  return {
+    handled: simulateDomEvent(view, 'mousedown', mouseDown),
+    event: mouseDown,
+  };
 }
 
 function finishTrailingPlainClick() {
@@ -849,7 +878,7 @@ describe('blankAreaDragBoxPlugin list gap selection state', () => {
 });
 
 describe('blankAreaDragBoxPlugin trailing plain clicks', () => {
-  it('does not override a native pointer selection that already moved during the click', async () => {
+  it('handles list item trailing clicks before native pointer selection can choose a stale DOM position', async () => {
     const { editor, view } = await createBlockSelectionEditor('- Alpha\n- Beta');
 
     try {
@@ -858,46 +887,35 @@ describe('blankAreaDragBoxPlugin trailing plain clicks', () => {
 
       mockTrailingPlainClickGeometry(view, firstParagraph as HTMLElement);
 
-      const originalSelection = view.state.selection.from;
-      const handled = startTrailingPlainClick(view, firstParagraph as HTMLElement);
-      expect(handled).toBe(false);
-
-      const nativeSelection = TextSelection.create(view.state.doc, 5);
-      view.dispatch(view.state.tr.setSelection(nativeSelection).setMeta('pointer', true));
-      expect(view.state.selection.from).not.toBe(originalSelection);
+      const { handled, event } = startTrailingPlainClickWithEvent(view, firstParagraph as HTMLElement);
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
 
       finishTrailingPlainClick();
 
-      expect(view.state.selection.from).toBe(5);
+      expect(view.state.selection.from).toBe(8);
     } finally {
       vi.restoreAllMocks();
       await editor.destroy();
     }
   });
 
-  it('does not override a native pointer click when the selection position stays the same', async () => {
-    const { editor, view } = await createBlockSelectionEditor('- Alpha\n- Beta');
+  it('handles regular paragraph trailing clicks after tag-like inline content', async () => {
+    const { editor, view } = await createBlockSelectionEditor('1 #s是 s');
 
     try {
-      const firstParagraph = view.dom.querySelector('li p');
-      expect(firstParagraph).toBeInstanceOf(HTMLElement);
+      const paragraph = view.dom.querySelector('p');
+      expect(paragraph).toBeInstanceOf(HTMLElement);
 
-      mockTrailingPlainClickGeometry(view, firstParagraph as HTMLElement);
+      mockTrailingPlainClickGeometry(view, paragraph as HTMLElement);
 
-      const originalSelection = view.state.selection.from;
-      const handled = startTrailingPlainClick(view, firstParagraph as HTMLElement);
-      expect(handled).toBe(false);
-
-      view.dispatch(
-        view.state.tr
-          .setSelection(TextSelection.create(view.state.doc, originalSelection))
-          .setMeta('pointer', true)
-      );
-      expect(view.state.selection.from).toBe(originalSelection);
+      const { handled, event } = startTrailingPlainClickWithEvent(view, paragraph as HTMLElement);
+      expect(handled).toBe(true);
+      expect(event.defaultPrevented).toBe(true);
 
       finishTrailingPlainClick();
 
-      expect(view.state.selection.from).toBe(originalSelection);
+      expect(view.state.selection.from).toBe(8);
     } finally {
       vi.restoreAllMocks();
       await editor.destroy();

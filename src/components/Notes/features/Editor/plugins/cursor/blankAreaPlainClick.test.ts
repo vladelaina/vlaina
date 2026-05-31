@@ -392,7 +392,7 @@ describe('resolveInsideBlockTrailingPlainClickAction', () => {
     ).toBeNull();
   });
 
-  it('does not override native clicks for non-list blocks', () => {
+  it('focuses regular paragraph ends when paragraph trailing clicks are enabled', () => {
     expect(
       resolveInsideBlockTrailingPlainClickAction({
         blockRects: [
@@ -405,12 +405,17 @@ describe('resolveInsideBlockTrailingPlainClickAction', () => {
             contentRight: 180,
             top: 80,
             bottom: 104,
+            allowInsideTrailingClick: true,
           },
         ],
         clientX: 320,
         clientY: 92,
       })
-    ).toBeNull();
+    ).toEqual({
+      targetPos: 11,
+      bias: -1,
+      blockFrom: 4,
+    });
   });
 });
 
