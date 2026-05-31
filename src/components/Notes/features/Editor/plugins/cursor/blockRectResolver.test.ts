@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { collectSelectableBlockRanges, createBlockRectResolver } from './blockRectResolver';
 import {
+  createBlockRectYIndex,
+  resolveIntersectedBlockRangesFromYIndex,
+} from './blockSelectionUtils';
+import {
   clearCurrentEditorBlockPositionSnapshot,
   getCurrentEditorBlockPositionSnapshot,
   getFreshCachedEditorBlockTargets,
@@ -366,6 +370,80 @@ describe('createBlockRectResolver', () => {
     } finally {
       document.createRange = originalCreateRange;
     }
+  });
+
+  it('selects consecutive ordered list item ranges when the drag box covers their rows', () => {
+    const firstItem = createNode('list_item', 5, [createNode('paragraph', 3)]);
+    const secondItem = createNode('list_item', 5, [createNode('paragraph', 3)]);
+    const thirdItem = createNode('list_item', 5, [createNode('paragraph', 3)]);
+    const orderedList = createNode('ordered_list', 17, [firstItem, secondItem, thirdItem]);
+    const doc = {
+      ...createDoc([orderedList]),
+      resolve(pos: number) {
+        return {
+          nodeAfter:
+            pos === 1 ? firstItem
+              : pos === 6 ? secondItem
+                : pos === 11 ? thirdItem
+                  : null,
+        };
+      },
+    };
+    const dom = document.createElement('div');
+    const list = document.createElement('ol');
+    const items = [0, 1, 2].map((index) => {
+      const item = document.createElement('li');
+      const paragraph = document.createElement('p');
+      paragraph.textContent = String(index + 1);
+      item.append(paragraph);
+      list.append(item);
+      withRect(item, { left: 60, top: 40 + index * 24, width: 560, height: 20 });
+      withRect(paragraph, { left: 100, top: 40 + index * 24, width: 520, height: 20 });
+      return item;
+    });
+    dom.append(list);
+    withRect(dom, { left: 20, top: 10, width: 600, height: 300 });
+
+    const view = {
+      dom,
+      state: { doc },
+      nodeDOM(pos: number) {
+        if (pos === 1) return items[0];
+        if (pos === 6) return items[1];
+        if (pos === 11) return items[2];
+        return null;
+      },
+      domAtPos(pos: number) {
+        if (pos < 6) return { node: items[0].firstChild?.firstChild as Node };
+        if (pos < 11) return { node: items[1].firstChild?.firstChild as Node };
+        return { node: items[2].firstChild?.firstChild as Node };
+      },
+    };
+
+    const resolver = createBlockRectResolver({
+      view: view as any,
+      scrollRootSelector: '[data-note-scroll-root="true"]',
+    });
+    const blockRects = resolver.getSelectionBlockRects();
+    const selected = resolveIntersectedBlockRangesFromYIndex(
+      createBlockRectYIndex(blockRects),
+      {
+        left: 0,
+        right: 800,
+        top: 39,
+        bottom: 85,
+      },
+    );
+
+    expect(blockRects.map(({ from, to }) => ({ from, to }))).toEqual([
+      { from: 1, to: 6 },
+      { from: 6, to: 11 },
+      { from: 11, to: 16 },
+    ]);
+    expect(selected).toEqual([
+      { from: 1, to: 6 },
+      { from: 6, to: 11 },
+    ]);
   });
 
   it('preserves wrapped list item line bounds for visual-line click detection', () => {

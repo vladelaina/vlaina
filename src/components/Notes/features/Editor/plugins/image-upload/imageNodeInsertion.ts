@@ -2,6 +2,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { Transaction } from '@milkdown/kit/prose/state';
 import { replaceVisibleBlockSelectionWithCursor } from '../cursor/blockSelectionReplacement';
+import { markEditorImageUserInput } from '../shared/userInputEvents';
 
 export function buildImageNodeAttrs(src: string) {
     const fileName = src.split('/').pop() || src;
@@ -44,7 +45,7 @@ export function insertImageNodeAtSelection(view: EditorView, src: string): boole
     }
 
     try {
-        view.dom.dispatchEvent(new CustomEvent('vlaina:image-user-input', { bubbles: true }));
+        markEditorImageUserInput(view);
         view.dispatch(replaceSelectionWithImageNode(view, imageNode).scrollIntoView());
         return true;
     } catch (error) {

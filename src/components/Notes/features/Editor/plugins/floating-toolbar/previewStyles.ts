@@ -15,6 +15,7 @@ import {
   toggleMark,
 } from './commands';
 import type { BlockType, TextAlignment } from './types';
+import { markEditorUserInput } from '../shared/userInputEvents';
 
 const FORMAT_MARKS: Record<string, string> = {
   bold: 'strong',
@@ -227,6 +228,7 @@ function dispatchPreviewState(view: EditorView, previewState: EditorState): bool
     // Keep ProseMirror's mapped selection if the preview selection cannot be restored.
   }
 
+  markEditorUserInput(view);
   view.dispatch(tr);
   return true;
 }

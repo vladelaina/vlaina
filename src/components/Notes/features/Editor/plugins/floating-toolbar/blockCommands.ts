@@ -4,7 +4,9 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType, TextAlignment } from './types';
 import { createCodeBlockAttrs } from '../code/codeBlockSettings';
 import { normalizeCodeBlockLanguage } from '../code/codeBlockLanguage';
+import { getBlockSelectionPluginState, hasSelectedBlocks } from '../cursor/blockSelectionPluginState';
 import { normalizeTopLevelBlockPos } from '../cursor/topLevelBlockDom';
+import { markEditorUserInput } from '../shared/userInputEvents';
 import { guessLanguage } from '../../utils/languageDetection';
 import {
   convertToList,
@@ -19,10 +21,6 @@ function getHeadingLevel(blockType: BlockType): number | null {
 
   const level = Number.parseInt(blockType.replace('heading', ''), 10);
   return Number.isInteger(level) && level >= 1 && level <= 6 ? level : null;
-}
-
-function markToolbarUserInput(view: EditorView): void {
-  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
 }
 
 export function getSelectedCodeBlockSourceText(view: EditorView): string {
@@ -308,15 +306,84 @@ function applyTextBlockTypeAcrossSelection(
   return { handled: updated, tr: null };
 }
 
+function applyTextBlockTypeAcrossBlockSelection(
+  view: EditorView,
+  nodeType: { name: string } | undefined,
+  attrs?: Record<string, unknown>,
+): boolean {
+  if (!nodeType || !view.state.doc || typeof view.state.doc.nodesBetween !== 'function') {
+    return false;
+  }
+
+  const selectedBlocks = getBlockSelectionPluginState(view.state).selectedBlocks;
+  if (selectedBlocks.length === 0) {
+    return false;
+  }
+
+  const seenPositions = new Set<number>();
+  const targets: Array<{ pos: number }> = [];
+  for (const range of selectedBlocks) {
+    view.state.doc.nodesBetween(range.from, range.to, (node, pos, parent) => {
+      if (!isConvertibleTextBlock(node) || !canConvertTextBlockInParent(parent?.type.name)) {
+        return;
+      }
+
+      if (!seenPositions.has(pos)) {
+        seenPositions.add(pos);
+        targets.push({ pos });
+      }
+
+      return false;
+    });
+  }
+
+  if (targets.length === 0) {
+    return false;
+  }
+
+  let updated = false;
+  for (const target of targets.sort((a, b) => b.pos - a.pos)) {
+    const currentNode = view.state.doc.nodeAt(target.pos);
+    if (!currentNode || !isConvertibleTextBlock(currentNode)) {
+      continue;
+    }
+
+    const selectionPos = Math.max(1, Math.min(target.pos + 1, view.state.doc.content.size));
+    view.dispatch(
+      view.state.tr
+        .setSelection(TextSelection.create(view.state.doc, selectionPos))
+        .setMeta('addToHistory', false)
+    );
+
+    const beforeNodeDoc = view.state.doc;
+    convertToTextBlock(view, nodeType, attrs);
+    updated = updated || !beforeNodeDoc.eq(view.state.doc);
+  }
+
+  return updated;
+}
+
 export function convertBlockType(view: EditorView, blockType: BlockType): void {
   const { state } = view;
-  markToolbarUserInput(view);
+  const hasBlockSelection = hasSelectedBlocks(state);
+  markEditorUserInput(view);
 
   if (blockType === 'paragraph' || getHeadingLevel(blockType) !== null) {
     const targetNodeType = blockType === 'paragraph'
       ? state.schema.nodes.paragraph
       : state.schema.nodes.heading;
     const headingLevel = getHeadingLevel(blockType);
+    if (hasBlockSelection) {
+      if (applyTextBlockTypeAcrossBlockSelection(
+        view,
+        targetNodeType,
+        headingLevel !== null ? { level: headingLevel } : undefined
+      )) {
+        view.focus();
+      }
+      return;
+    }
+
     const selectionResult = applyTextBlockTypeAcrossSelection(
       view,
       targetNodeType,
@@ -327,6 +394,10 @@ export function convertBlockType(view: EditorView, blockType: BlockType): void {
       view.focus();
       return;
     }
+  }
+
+  if (hasBlockSelection) {
+    return;
   }
 
   switch (blockType) {
@@ -416,29 +487,40 @@ export function setTextAlignment(view: EditorView, alignment: TextAlignment): vo
   const { from, to, $from } = state.selection;
   const tr = state.tr;
   let updated = false;
+  const selectedBlocks = getBlockSelectionPluginState(state).selectedBlocks;
 
   const isUnsupportedContainer = (typeName: string | undefined) =>
     typeName === 'table_cell' || typeName === 'table_header';
 
-  state.doc.nodesBetween(from, to, (node, pos, parent) => {
-    if (node.type.name !== 'paragraph' && node.type.name !== 'heading') {
-      return;
-    }
+  const applyAlignmentAcrossRange = (rangeFrom: number, rangeTo: number) => {
+    state.doc.nodesBetween(rangeFrom, rangeTo, (node, pos, parent) => {
+      if (node.type.name !== 'paragraph' && node.type.name !== 'heading') {
+        return;
+      }
 
-    if (isUnsupportedContainer(parent?.type.name)) {
+      if (isUnsupportedContainer(parent?.type.name)) {
+        return false;
+      }
+
+      tr.setNodeMarkup(pos, undefined, {
+        ...node.attrs,
+        align: alignment,
+      });
+      updated = true;
+
       return false;
-    }
-
-    tr.setNodeMarkup(pos, undefined, {
-      ...node.attrs,
-      align: alignment,
     });
-    updated = true;
+  };
 
-    return false;
-  });
+  if (selectedBlocks.length > 0) {
+    for (const range of selectedBlocks) {
+      applyAlignmentAcrossRange(range.from, range.to);
+    }
+  } else {
+    applyAlignmentAcrossRange(from, to);
+  }
 
-  if (!updated) {
+  if (!updated && selectedBlocks.length === 0) {
     const parent = $from.parent;
     const ancestor = $from.node(-1);
     if (
@@ -458,7 +540,7 @@ export function setTextAlignment(view: EditorView, alignment: TextAlignment): vo
     return;
   }
 
-  markToolbarUserInput(view);
+  markEditorUserInput(view);
   dispatch(tr);
   view.focus();
 }

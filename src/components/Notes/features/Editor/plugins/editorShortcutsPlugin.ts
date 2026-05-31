@@ -11,6 +11,7 @@ import { toggleMark } from './floating-toolbar/markCommands';
 import { createEmptyTableNode } from './table/pipeTableShortcut';
 import { mathEditorPluginKey } from './math/mathEditorPluginKey';
 import { createOpenMathEditorState } from './math/mathEditorState';
+import { markEditorUserInput } from './shared/userInputEvents';
 
 function isModShortcut(event: KeyboardEvent): boolean {
   return (event.ctrlKey || event.metaKey) && !event.altKey && !event.isComposing;
@@ -37,6 +38,7 @@ function insertTable(view: EditorView): boolean {
   const tr = state.tr.replaceRangeWith(from, to, tableNode).scrollIntoView();
   const insertFrom = tr.mapping.map(from);
   const nextSelection = findFirstTableCellSelection(tr.doc, insertFrom);
+  markEditorUserInput(view);
   view.dispatch(nextSelection ? tr.setSelection(nextSelection) : tr);
   view.focus();
   return true;
@@ -61,7 +63,10 @@ function runTableCommand(
   command: typeof addRowAfter | typeof deleteRow,
 ): boolean {
   const handledCommand = command(view.state, view.dispatch);
-  if (handledCommand) view.focus();
+  if (handledCommand) {
+    markEditorUserInput(view);
+    view.focus();
+  }
   return handledCommand;
 }
 
@@ -86,6 +91,7 @@ function createMathBlock(view: EditorView): boolean {
     )
     .scrollIntoView();
 
+  markEditorUserInput(view);
   view.dispatch(tr);
   view.focus();
   return true;
@@ -117,7 +123,10 @@ function setListIndent(view: EditorView, direction: 'in' | 'out'): boolean {
 
   const command = direction === 'in' ? sinkListItem(listItemType) : liftListItem(listItemType);
   const handledCommand = command(view.state, view.dispatch);
-  if (handledCommand) view.focus();
+  if (handledCommand) {
+    markEditorUserInput(view);
+    view.focus();
+  }
   return handledCommand;
 }
 
@@ -132,6 +141,7 @@ function clearFormatting(view: EditorView): boolean {
     Object.values(state.schema.marks).forEach((markType) => tr.removeMark(from, to, markType));
   }
 
+  markEditorUserInput(view);
   dispatch(tr);
   view.focus();
   return true;

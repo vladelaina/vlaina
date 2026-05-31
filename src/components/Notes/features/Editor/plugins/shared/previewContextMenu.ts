@@ -7,6 +7,7 @@ import {
   type PreviewExportFormat,
 } from './previewExport';
 import { suppressPreviewEditorOpen } from './previewContextMenuSuppression';
+import { markEditorUserInput } from './userInputEvents';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { translate } from '@/lib/i18n';
 
@@ -71,6 +72,7 @@ function insertParagraph(
 
   const tr = view.state.tr.insert(insertPos, paragraphType.create());
   tr.setSelection(TextSelection.create(tr.doc, insertPos + 1)).scrollIntoView();
+  markEditorUserInput(view);
   view.dispatch(tr);
   view.focus();
   return true;

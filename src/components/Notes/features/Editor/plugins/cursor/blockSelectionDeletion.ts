@@ -3,6 +3,7 @@ import type { Node as ProseNode, ResolvedPos } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { buildDeleteRangesForBlockSelection } from './listBlockUtils';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
+import { markEditorUserInput } from '../shared/userInputEvents';
 
 function isCursorTextblock(node: { isTextblock: boolean; type: { name: string } } | null | undefined): boolean {
   return Boolean(node?.isTextblock && node.type.name !== 'code_block');
@@ -111,6 +112,7 @@ export function deleteSelectedBlocks(
   const targetPos = Math.max(0, Math.min(anchorHint, tr.doc.content.size));
   tr = setSelectionAfterBlockDeletion(tr, targetPos);
   tr = applyClearSelectionMeta(tr);
+  markEditorUserInput(view);
   view.dispatch(tr.scrollIntoView());
   view.focus();
   return true;

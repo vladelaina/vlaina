@@ -247,14 +247,19 @@ describe('footnote reference markup', () => {
     view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, footnoteTextPos!)));
 
     const originalFootnoteSize = view.state.doc.child(1).nodeSize;
+    const userInputListener = vi.fn();
+    view.dom.addEventListener('vlaina:block-user-input', userInputListener);
+
     expect(handleFootnoteModEnterExit(view)).toBe(true);
 
+    expect(userInputListener).toHaveBeenCalledTimes(1);
     expect(view.state.doc.childCount).toBe(3);
     expect(view.state.doc.child(0).type.name).toBe('paragraph');
     expect(view.state.doc.child(1).type.name).toBe('footnote_definition');
     expect(view.state.doc.child(2).type.name).toBe('paragraph');
     expect(view.state.selection.from).toBe(view.state.doc.child(0).nodeSize + originalFootnoteSize + 1);
 
+    view.dom.removeEventListener('vlaina:block-user-input', userInputListener);
     await editor.destroy();
   });
 });

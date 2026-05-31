@@ -13,6 +13,13 @@ const cleanupMocks = vi.hoisted(() => ({
   collapseSelectionAndHideFloatingToolbar: vi.fn(),
 }));
 
+const blockSelectionMocks = vi.hoisted(() => ({
+  deleteSelectedBlocks: vi.fn(),
+  getBlockSelectionPluginState: vi.fn(() => ({ selectedBlocks: [] })),
+  blankAreaDragBoxPluginKey: {},
+  clearBlocksAction: { type: 'clear-blocks' },
+}));
+
 vi.mock('./commands', () => ({
   copySelectionToClipboard: commandMocks.copySelectionToClipboard,
   setLink: commandMocks.setLink,
@@ -21,6 +28,16 @@ vi.mock('./commands', () => ({
 
 vi.mock('../clipboard/copyCleanup', () => ({
   collapseSelectionAndHideFloatingToolbar: cleanupMocks.collapseSelectionAndHideFloatingToolbar,
+}));
+
+vi.mock('../cursor/blockSelectionCommands', () => ({
+  deleteSelectedBlocks: blockSelectionMocks.deleteSelectedBlocks,
+}));
+
+vi.mock('../cursor/blockSelectionPluginState', () => ({
+  CLEAR_BLOCKS_ACTION: blockSelectionMocks.clearBlocksAction,
+  blankAreaDragBoxPluginKey: blockSelectionMocks.blankAreaDragBoxPluginKey,
+  getBlockSelectionPluginState: blockSelectionMocks.getBlockSelectionPluginState,
 }));
 
 type MockToolbarView = EditorView & {
@@ -72,6 +89,9 @@ describe('toolbarActions copy feedback', () => {
     vi.useRealTimers();
     commandMocks.copySelectionToClipboard.mockReset();
     cleanupMocks.collapseSelectionAndHideFloatingToolbar.mockReset();
+    blockSelectionMocks.deleteSelectedBlocks.mockReset();
+    blockSelectionMocks.getBlockSelectionPluginState.mockReset();
+    blockSelectionMocks.getBlockSelectionPluginState.mockReturnValue({ selectedBlocks: [] });
   });
 
   it('suppresses mirrored CodeMirror selection only while copy feedback is visible', async () => {
@@ -169,5 +189,31 @@ describe('toolbarActions copy feedback', () => {
 
     expect(view.dom.classList.contains('vlaina-toolbar-copy-feedback-active')).toBe(false);
     expect(cleanupMocks.collapseSelectionAndHideFloatingToolbar).not.toHaveBeenCalled();
+  });
+
+  it('deletes the active block selection before falling back to text selection deletion', async () => {
+    const view = createMockView();
+    const selectedBlocks = [{ from: 1, to: 6 }, { from: 6, to: 11 }];
+    blockSelectionMocks.getBlockSelectionPluginState.mockReturnValue({ selectedBlocks });
+    blockSelectionMocks.deleteSelectedBlocks.mockReturnValue(true);
+    const controller = createToolbarActionController(() => null);
+
+    await expect(controller.handleAction(view, 'delete')).resolves.toBe(false);
+
+    expect(blockSelectionMocks.deleteSelectedBlocks).toHaveBeenCalledTimes(1);
+    const [calledView, calledBlocks, applyClearSelectionMeta] = blockSelectionMocks.deleteSelectedBlocks.mock.calls[0];
+    expect(calledView).toBe(view);
+    expect(calledBlocks).toBe(selectedBlocks);
+    expect(typeof applyClearSelectionMeta).toBe('function');
+
+    const tr = { setMeta: vi.fn(() => tr) };
+    expect(applyClearSelectionMeta(tr)).toBe(tr);
+    expect(tr.setMeta).toHaveBeenCalledWith(
+      blockSelectionMocks.blankAreaDragBoxPluginKey,
+      blockSelectionMocks.clearBlocksAction,
+    );
+    expect(view.dispatch).not.toHaveBeenCalled();
+
+    controller.destroy();
   });
 });

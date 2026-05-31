@@ -3,6 +3,14 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { bindAiDropdownInteractions } from './actions';
 import { createAiDropdownMarkup } from './markup';
 
+const blockSelectionMocks = vi.hoisted(() => ({
+  hasSelectedBlocks: vi.fn(() => false),
+}));
+
+vi.mock('../../../cursor/blockSelectionPluginState', () => ({
+  hasSelectedBlocks: blockSelectionMocks.hasSelectedBlocks,
+}));
+
 vi.mock('../../ai/sidebarDiscussion', () => ({
   openSidebarDiscussionForSelection: vi.fn(() => true),
 }));
@@ -41,6 +49,8 @@ describe('ai dropdown actions', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     localStorage.clear();
+    vi.clearAllMocks();
+    blockSelectionMocks.hasSelectedBlocks.mockReturnValue(false);
   });
 
   it('clears the active child panel when hovering a root action item', () => {
@@ -75,5 +85,22 @@ describe('ai dropdown actions', () => {
 
     const rootAction = dropdown.querySelector<HTMLElement>('.ai-dropdown-category-action[data-ai-command-id="discuss-in-sidebar"]');
     expect(rootAction?.querySelector('.ai-dropdown-item-shortcut')?.textContent).toBe('Ctrl+L');
+  });
+
+  it('does not create an AI review from a stale text selection while block selection is active', async () => {
+    const reviewState = await import('../../ai/reviewState');
+    const dropdown = document.createElement('div');
+    dropdown.innerHTML = createAiDropdownMarkup();
+    document.body.appendChild(dropdown);
+    blockSelectionMocks.hasSelectedBlocks.mockReturnValue(true);
+
+    bindAiDropdownInteractions(dropdown, createView());
+    const action = dropdown.querySelector<HTMLButtonElement>('[data-ai-command-id="polish"]');
+    expect(action).not.toBeNull();
+    action?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(reviewState.createAiReviewState).not.toHaveBeenCalled();
   });
 });

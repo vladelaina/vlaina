@@ -3,7 +3,9 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { normalizeSerializedMarkdownSelection } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { useToastStore } from '@/stores/useToastStore';
 import { serializeSliceToText } from '../../clipboard/serializer';
+import { hasSelectedBlocks } from '../../cursor/blockSelectionPluginState';
 import { getCurrentMarkdownParser } from '../../../utils/editorViewRegistry';
+import { markEditorUserInput } from '../../shared/userInputEvents';
 import { collapseSelectionAfterToolbarApply } from '../selectionCollapse';
 import type { AiSelectionSuggestion } from './selectionCommandTypes';
 
@@ -184,7 +186,7 @@ function replaceSelectionWithText(view: EditorView, from: number, to: number, te
   const tr = parsedSlice
     ? view.state.tr.replaceRange(from, to, parsedSlice).scrollIntoView()
     : view.state.tr.insertText(text, from, to).scrollIntoView();
-  view.dom.dispatchEvent(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+  markEditorUserInput(view);
   view.dispatch(tr);
   collapseSelectionAfterToolbarApply(view);
 }
@@ -202,6 +204,14 @@ export function applyAiSelectionSuggestion(
   view: EditorView,
   suggestion: AiSelectionSuggestion
 ): boolean {
+  if (hasSelectedBlocks(view.state)) {
+    useToastStore.getState().addToast(
+      'Clear the block selection before applying an AI edit.',
+      'warning'
+    );
+    return false;
+  }
+
   const maxPos = view.state.doc.content.size;
   const from = Math.max(0, Math.min(suggestion.from, maxPos));
   const to = Math.max(from, Math.min(suggestion.to, maxPos));

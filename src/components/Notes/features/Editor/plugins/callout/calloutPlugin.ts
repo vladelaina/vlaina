@@ -17,6 +17,7 @@ import {
   isTextAlignment,
 } from '../floating-toolbar/blockAlignmentMarkdown';
 import { updateSchemaFactory } from '../../themeSchemaUtils';
+import { markEditorUserInput } from '../shared/userInputEvents';
 
 type MdastChild = {
   type: string;
@@ -288,6 +289,7 @@ export function handleEmptyCalloutExit(view: EditorView): boolean {
   const calloutPos = selection.$from.before(calloutDepth);
   let tr = state.tr.replaceWith(calloutPos, calloutPos + selection.$from.node(calloutDepth).nodeSize, paragraphType.create());
   tr = tr.setSelection(TextSelection.create(tr.doc, calloutPos + 1)).scrollIntoView();
+  markEditorUserInput(view);
   view.dispatch(tr);
   return true;
 }
@@ -310,6 +312,7 @@ export function handleCalloutModEnterExit(view: EditorView): boolean {
   const insertPos = calloutPos + calloutNode.nodeSize;
   let tr = state.tr.insert(insertPos, paragraphType.create());
   tr = tr.setSelection(TextSelection.create(tr.doc, insertPos + 1)).scrollIntoView();
+  markEditorUserInput(view);
   view.dispatch(tr);
   return true;
 }

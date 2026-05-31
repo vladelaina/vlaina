@@ -5,6 +5,9 @@ const mockNormalizeSerializedMarkdownSelection = vi.fn((value: string) => value)
 const mockSerializeSliceToText = vi.fn((_value?: unknown) => 'serialized');
 const mockAddToast = vi.fn();
 const mockCollapseSelectionAfterToolbarApply = vi.fn();
+const blockSelectionMocks = vi.hoisted(() => ({
+  hasSelectedBlocks: vi.fn(() => false),
+}));
 
 vi.mock('../../../utils/editorViewRegistry', () => ({
   getCurrentMarkdownParser: () => mockGetCurrentMarkdownParser(),
@@ -29,6 +32,10 @@ vi.mock('@/stores/useToastStore', () => ({
 
 vi.mock('../selectionCollapse', () => ({
   collapseSelectionAfterToolbarApply: (...args: unknown[]) => mockCollapseSelectionAfterToolbarApply(...args),
+}));
+
+vi.mock('../../cursor/blockSelectionPluginState', () => ({
+  hasSelectedBlocks: blockSelectionMocks.hasSelectedBlocks,
 }));
 
 import {
@@ -77,6 +84,8 @@ describe('selectionEditing', () => {
     mockSerializeSliceToText.mockClear();
     mockAddToast.mockClear();
     mockCollapseSelectionAfterToolbarApply.mockClear();
+    blockSelectionMocks.hasSelectedBlocks.mockReset();
+    blockSelectionMocks.hasSelectedBlocks.mockReturnValue(false);
   });
 
   it('replaces the selection with parsed markdown when runtime is available', () => {
@@ -277,6 +286,33 @@ describe('selectionEditing', () => {
     expect(view.dispatch).not.toHaveBeenCalled();
     expect(mockAddToast).toHaveBeenCalledWith(
       'The selected text changed before the AI result was applied.',
+      'warning'
+    );
+  });
+
+  it('does not apply AI suggestions to a stale text range while block selection is active', () => {
+    mockGetCurrentMarkdownParser.mockReturnValue(null);
+    mockSerializeSliceToText.mockReturnValueOnce('Original text');
+    blockSelectionMocks.hasSelectedBlocks.mockReturnValue(true);
+    const view = createView();
+
+    const applied = applyAiSelectionSuggestion(view as never, {
+      requestKey: 'request',
+      from: 8,
+      to: 21,
+      instruction: 'Edit the selected text.',
+      commandId: null,
+      toneId: null,
+      originalText: 'Original text',
+      suggestedText: 'Updated text',
+    });
+
+    expect(applied).toBe(false);
+    expect(view.state.tr.replaceRange).not.toHaveBeenCalled();
+    expect(view.state.tr.insertText).not.toHaveBeenCalled();
+    expect(view.dispatch).not.toHaveBeenCalled();
+    expect(mockAddToast).toHaveBeenCalledWith(
+      'Clear the block selection before applying an AI edit.',
       'warning'
     );
   });

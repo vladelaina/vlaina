@@ -7,6 +7,7 @@ import { editorFindPluginKey } from './editorFindKey';
 import { revealEditorFindMatch } from './editorFindReveal';
 import type { EditorFindPluginMeta, EditorFindPluginState } from './editorFindState';
 import { getCurrentEditorBlockPositionSnapshot } from '../../utils/editorBlockPositionCache';
+import { markEditorUserInput } from '../shared/userInputEvents';
 
 function getScrollRoot(view: EditorView): HTMLElement | null {
   return view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
@@ -245,6 +246,7 @@ export function replaceCurrentEditorFindMatch(view: EditorView, replacement: str
     preferredFrom: activeMatch.from + replacement.length,
   } as EditorFindPluginMeta);
 
+  markEditorUserInput(view);
   view.dispatch(tr);
   maybeScrollToActiveMatch(view);
   return true;
@@ -268,6 +270,7 @@ export function replaceAllEditorFindMatches(view: EditorView, replacement: strin
     preferredFrom: state.matches[0].from,
   } as EditorFindPluginMeta);
 
+  markEditorUserInput(view);
   view.dispatch(tr);
   maybeScrollToActiveMatch(view);
   return state.matches.length;

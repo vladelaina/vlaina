@@ -27,6 +27,7 @@ import {
 import { forwardCodeBlockUpdate } from '../code/codeBlockNodeViewUtils';
 import { subscribeCodeBlockSelectionSync } from '../code/codeBlockSelectionSync';
 import { deleteSelectedFrontmatterBlocks } from './frontmatterBlockSelection';
+import { markEditorUserInput } from '../shared/userInputEvents';
 
 export class FrontmatterNodeView implements NodeView {
   dom: HTMLElement;
@@ -246,6 +247,9 @@ export class FrontmatterNodeView implements NodeView {
 
     const tr = forwardCodeBlockUpdate(update, this.view, this.getPos);
     if (tr) {
+      if (update.docChanged) {
+        markEditorUserInput(this.view);
+      }
       this.view.dispatch(tr);
       if (update.docChanged) {
         this.mirroredOuterSelection = false;

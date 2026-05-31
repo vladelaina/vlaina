@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx, rootCtx } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
@@ -424,6 +424,8 @@ describe('previewStyles', () => {
     selectText(view, 'format');
 
     applyFormatPreview(view, 'bold');
+    const userInputListener = vi.fn();
+    view.dom.addEventListener('vlaina:block-user-input', userInputListener);
 
     expect(view.state.doc.rangeHasMark(
       findTextRange(view.state.doc, 'format').from,
@@ -433,6 +435,7 @@ describe('previewStyles', () => {
 
     expect(commitFormatPreview(view, 'bold', false)).toBe(true);
 
+    expect(userInputListener).toHaveBeenCalledTimes(1);
     const range = findTextRange(view.state.doc, 'format');
     expect(view.state.doc.rangeHasMark(range.from, range.to, view.state.schema.marks.strong)).toBe(true);
     expect(view.state.selection.empty).toBe(true);

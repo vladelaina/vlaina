@@ -1,4 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { hasSelectedBlocks } from '../../../cursor/blockSelectionPluginState';
 import { recordAiMenuItemUsage } from './usageRanking';
 
 function setActiveCategory(dropdown: HTMLElement, categoryId: string) {
@@ -107,6 +108,13 @@ function bindCommandExecution(dropdown: HTMLElement, view: EditorView) {
       if (behavior === 'sidebar-chat') {
         void import('../../ai/sidebarDiscussion').then((mod) => {
           mod.openSidebarDiscussionForSelection(view);
+        });
+        return;
+      }
+
+      if (hasSelectedBlocks(view.state)) {
+        void import('../../ai/reviewFlow').then((reviewFlow) => {
+          reviewFlow.openAiSelectionReview(view);
         });
         return;
       }

@@ -1,4 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { hasSelectedBlocks } from '../cursor/blockSelectionPluginState';
 import { linkTooltipPluginKey } from '../links';
 import { floatingToolbarKey } from './floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from './types';
@@ -7,6 +8,10 @@ export function openLinkTooltipFromSelection(
   view: EditorView,
   options?: { autoFocus?: boolean }
 ) {
+  if (hasSelectedBlocks(view.state)) {
+    return;
+  }
+
   const { from, to } = view.state.selection;
   const tr = view.state.tr
     .setMeta(linkTooltipPluginKey, {

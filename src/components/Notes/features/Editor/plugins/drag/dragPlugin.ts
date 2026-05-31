@@ -1,6 +1,7 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import type { DragHandleState } from './types';
+import { markEditorUserInput } from '../shared/userInputEvents';
 
 export const dragPluginKey = new PluginKey<DragHandleState>('dragHandle');
 
@@ -188,6 +189,7 @@ export const dragPlugin = $prose(() => {
         }
 
         tr = tr.insert(adjustedTarget, node);
+        markEditorUserInput(editorView);
         editorView.dispatch(tr);
 
         if (dropIndicator) {

@@ -330,6 +330,7 @@ async function createBlockSelectionEditor(markdown: string) {
     })
     .use(commonmark)
     .use(gfm)
+    .use(listTabIndentPlugin)
     .use(blankAreaDragBoxPlugin);
 
   await editor.create();
@@ -620,6 +621,52 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
       expect(backspaceEvent.defaultPrevented).toBe(true);
       expect(view.state.doc.textContent).toBe('');
       expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('deletes consecutive selected ordered list items from document Delete after drag selection has blurred the editor', async () => {
+    const { editor, view } = await createBlockSelectionEditor(['1. 1', '2. 2', '3. 3'].join('\n'));
+
+    try {
+      const blocks = collectSelectableBlockRanges(view.state.doc);
+      expect(blocks).toHaveLength(3);
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [blocks[0], blocks[1]] });
+      view.dom.blur();
+      const deleteEvent = dispatchDocumentKeydown('Delete');
+
+      expect(deleteEvent.defaultPrevented).toBe(true);
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+      expect(view.state.doc.childCount).toBe(1);
+      const list = view.state.doc.child(0);
+      expect(list.type.name).toBe('ordered_list');
+      expect(list.childCount).toBe(1);
+      expect(list.child(0).textContent).toBe('3');
+      expect(list.child(0).attrs.label).toBe('1.');
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('deletes consecutive selected ordered list items from editor Delete while the editor is focused', async () => {
+    const { editor, view } = await createBlockSelectionEditor(['1. 1', '2. 2', '3. 3'].join('\n'));
+
+    try {
+      const blocks = collectSelectableBlockRanges(view.state.doc);
+      expect(blocks).toHaveLength(3);
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [blocks[0], blocks[1]] });
+      const deleteEvent = simulateKeydownUntilHandled(view, 'Delete', { ctrlKey: false });
+
+      expect(deleteEvent.handled).toBe(true);
+      expect(deleteEvent.event.defaultPrevented).toBe(true);
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+      expect(view.state.doc.childCount).toBe(1);
+      const list = view.state.doc.child(0);
+      expect(list.type.name).toBe('ordered_list');
+      expect(list.childCount).toBe(1);
+      expect(list.child(0).textContent).toBe('3');
+      expect(list.child(0).attrs.label).toBe('1.');
     } finally {
       await editor.destroy();
     }
