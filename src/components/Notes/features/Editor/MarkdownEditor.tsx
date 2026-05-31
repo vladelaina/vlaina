@@ -37,6 +37,15 @@ import './styles/index.css';
 const MERMAID_PREWARM_DELAY_MS = import.meta.env.DEV ? 45000 : 5000;
 const EDITOR_INIT_FALLBACK_DELAY_MS = 2500;
 
+export function canPersistNoteScrollPosition(scrollRoot: HTMLElement | null): scrollRoot is HTMLElement {
+  return Boolean(
+    scrollRoot
+    && scrollRoot.isConnected
+    && scrollRoot.clientHeight > 0
+    && scrollRoot.scrollHeight > 0
+  );
+}
+
 const EditorTopRightToolbar = lazy(async () => {
   const mod = await import('./EditorTopRightToolbar');
   return {
@@ -261,7 +270,7 @@ export function MarkdownEditor({
 
     if (!active) {
       const path = activePathRef.current;
-      if (path) {
+      if (path && canPersistNoteScrollPosition(scrollRoot)) {
         scrollPositionsRef.current.set(path, scrollRoot.scrollTop);
       }
       restoreSessionRef.current = null;
