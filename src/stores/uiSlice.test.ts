@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { SIDEBAR_MIN_WIDTH } from '@/lib/layout/sidebarWidth';
 import { useUIStore } from './uiSlice';
 import { useUnifiedStore } from './unified/useUnifiedStore';
 import { useAIUIStore } from './ai/chatState';
@@ -201,6 +202,18 @@ describe('uiSlice', () => {
       imageFilenameFormat: 'sequence',
       notesChatPanelCollapsed: true,
     });
+  });
+
+  it('clamps the sidebar width to the view switch minimum', () => {
+    useUIStore.getState().setSidebarWidth(SIDEBAR_MIN_WIDTH - 1);
+
+    expect(useUIStore.getState().sidebarWidth).toBe(SIDEBAR_MIN_WIDTH);
+    expect(localStorage.getItem('vlaina_sidebar_width')).toBe(String(SIDEBAR_MIN_WIDTH));
+
+    localStorage.setItem('vlaina_sidebar_width', String(SIDEBAR_MIN_WIDTH - 24));
+    useUIStore.getState().reloadPreferencesFromStorage();
+
+    expect(useUIStore.getState().sidebarWidth).toBe(SIDEBAR_MIN_WIDTH);
   });
 
   it('resets the appearance font size to the default markdown body size', () => {

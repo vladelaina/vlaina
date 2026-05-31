@@ -151,6 +151,73 @@ describe('notesSidebarTags', () => {
     ]);
   });
 
+  it('uses current vault starred notes as tag scope when no folder tree is loaded', () => {
+    const entries = buildNotesSidebarTagScopeEntries({
+      rootFolder: null,
+      currentVaultPath: '/vault',
+      starredEntries: [
+        {
+          id: 'star-note',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: 'projects/alpha.md',
+          addedAt: 1,
+        },
+        {
+          id: 'star-folder',
+          kind: 'folder',
+          vaultPath: '/vault',
+          relativePath: 'projects',
+          addedAt: 2,
+        },
+        {
+          id: 'star-external-note',
+          kind: 'note',
+          vaultPath: '/other',
+          relativePath: 'external.md',
+          addedAt: 3,
+        },
+      ],
+    });
+
+    expect(entries.map((entry) => entry.path)).toEqual(['projects/alpha.md']);
+  });
+
+  it('uses absolute starred note paths as tag scope when no current vault is selected', () => {
+    const entries = buildNotesSidebarTagScopeEntries({
+      rootFolder: null,
+      currentVaultPath: '',
+      starredEntries: [
+        {
+          id: 'star-note',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: 'projects/alpha.md',
+          addedAt: 1,
+        },
+        {
+          id: 'star-other-note',
+          kind: 'note',
+          vaultPath: '/other',
+          relativePath: 'external.md',
+          addedAt: 2,
+        },
+        {
+          id: 'star-folder',
+          kind: 'folder',
+          vaultPath: '/vault',
+          relativePath: 'projects',
+          addedAt: 3,
+        },
+      ],
+    });
+
+    expect(entries.map((entry) => entry.path)).toEqual([
+      '/other/external.md',
+      '/vault/projects/alpha.md',
+    ]);
+  });
+
   it('updates the tag path index incrementally by changed file content', () => {
     const index = new Map();
     const entries = [

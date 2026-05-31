@@ -1,4 +1,4 @@
-import { normalizeStarredVaultPath } from '@/stores/notes/starred';
+import { getStarredEntryAbsolutePath, normalizeStarredVaultPath } from '@/stores/notes/starred';
 import type { StarredEntry } from '@/stores/notes/types';
 import type { FileTreeNode, FolderNode } from '@/stores/useNotesStore';
 import { extractNoteTagOccurrences, extractNoteTags } from '@/lib/notes/tags';
@@ -82,11 +82,31 @@ export function buildNotesSidebarTagScopeEntries({
   starredEntries?: readonly StarredEntry[];
   currentVaultPath?: string | null;
 }): NotesSidebarTagScopeEntry[] {
+  const paths = new Set<string>();
+
   if (!rootFolder) {
-    return [];
+    const normalizedCurrentVaultPath = currentVaultPath
+      ? normalizeStarredVaultPath(currentVaultPath)
+      : null;
+    for (const entry of starredEntries) {
+      if (
+        entry.kind === 'note' &&
+        (!normalizedCurrentVaultPath ||
+          normalizeStarredVaultPath(entry.vaultPath) === normalizedCurrentVaultPath)
+      ) {
+        paths.add(
+          normalizedCurrentVaultPath
+            ? entry.relativePath
+            : getStarredEntryAbsolutePath(entry) ?? entry.relativePath,
+        );
+      }
+    }
+
+    return Array.from(paths)
+      .sort((a, b) => a.localeCompare(b))
+      .map((path) => ({ path }));
   }
 
-  const paths = new Set<string>();
   collectNotePaths(rootFolder.children, paths);
 
   const starredFolders = getCurrentVaultStarredFolders(starredEntries, currentVaultPath);
