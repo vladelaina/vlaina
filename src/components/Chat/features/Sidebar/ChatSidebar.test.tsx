@@ -74,7 +74,17 @@ vi.mock('@/lib/ui/composerFocusRegistry', () => ({
 }));
 
 vi.mock('@/components/common/ConfirmDialog', () => ({
-  ConfirmDialog: ({ isOpen }: { isOpen: boolean }) => isOpen ? <div data-testid="confirm-dialog" /> : null,
+  ConfirmDialog: ({
+    isOpen,
+    onConfirm,
+  }: {
+    isOpen: boolean;
+    onConfirm: () => void | Promise<void>;
+  }) => isOpen ? (
+    <button type="button" data-testid="confirm-dialog" onClick={() => void onConfirm()}>
+      confirm
+    </button>
+  ) : null,
 }));
 
 vi.mock('@/components/layout/sidebar/SidebarSearchDrawer', async () => {
@@ -145,9 +155,11 @@ vi.mock('./ChatSidebarVirtualList', () => ({
   ChatSidebarVirtualList: ({
     sessions,
     highlightedSessionId,
+    onRequestDelete,
   }: {
     sessions: ChatSession[];
     highlightedSessionId?: string | null;
+    onRequestDelete?: (sessionId: string) => void;
   }) => (
     <div data-testid="session-list">
       {sessions.map((session) => (
@@ -156,6 +168,9 @@ vi.mock('./ChatSidebarVirtualList', () => ({
           data-highlighted={highlightedSessionId === session.id ? 'true' : undefined}
         >
           {session.title}
+          <button type="button" onClick={() => onRequestDelete?.(session.id)}>
+            delete {session.title}
+          </button>
         </div>
       ))}
     </div>
@@ -232,5 +247,22 @@ describe('ChatSidebar', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     expect(hoisted.switchSession).toHaveBeenCalledWith('s2');
+  });
+
+  it('focuses the composer after confirming a sidebar chat delete', async () => {
+    const { focusComposerInput } = await import('@/lib/ui/composerFocusRegistry');
+    hoisted.deleteSession.mockResolvedValue(undefined);
+
+    render(<ChatSidebar active />);
+
+    fireEvent.click(screen.getByText('delete Alpha'));
+    fireEvent.click(screen.getByTestId('confirm-dialog'));
+
+    await waitFor(() => {
+      expect(hoisted.deleteSession).toHaveBeenCalledWith('s1');
+    });
+    await waitFor(() => {
+      expect(focusComposerInput).toHaveBeenCalled();
+    });
   });
 });

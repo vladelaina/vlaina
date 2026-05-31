@@ -31,6 +31,17 @@ interface ChatSidebarProps {
 
 const EMPTY_CHAT_SESSIONS: ChatSession[] = [];
 
+function scheduleComposerFocusAfterSidebarAction() {
+  requestAnimationFrame(() => {
+    if (focusComposerInput()) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      focusComposerInput();
+    });
+  });
+}
+
 export const ChatSidebar = memo(function ChatSidebar({
   isPeeking = false,
   embedded = false,
@@ -147,14 +158,7 @@ export const ChatSidebar = memo(function ChatSidebar({
   const handleOpenNewChat = useCallback(() => {
     aiActions.openNewChat();
     onRequestClose?.();
-    requestAnimationFrame(() => {
-      if (focusComposerInput()) {
-        return;
-      }
-      requestAnimationFrame(() => {
-        focusComposerInput();
-      });
-    });
+    scheduleComposerFocusAfterSidebarAction();
   }, [onRequestClose]);
 
   const handleRenameDraftChange = useCallback((value: string) => {
@@ -244,7 +248,9 @@ export const ChatSidebar = memo(function ChatSidebar({
         onClose={() => setDeleteId(null)}
         onConfirm={() => {
           if (deleteId) {
-            void aiActions.deleteSession(deleteId);
+            void aiActions.deleteSession(deleteId).then(() => {
+              scheduleComposerFocusAfterSidebarAction();
+            });
           }
         }}
         title={t('sidebar.deleteChatTitle')}
