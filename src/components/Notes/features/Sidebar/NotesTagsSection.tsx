@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import { NotesSidebarRow } from './NotesSidebarRow';
 import type { NotesSidebarTagEntry, NotesSidebarTagPath } from './notesSidebarTags';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
@@ -7,6 +8,59 @@ import { Icon } from '@/components/ui/icons';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
+import { useNotesStore } from '@/stores/useNotesStore';
+import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
+import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
+
+const MAX_TAG_NOTE_ICON_CACHE_ENTRIES = 300;
+const MAX_TAG_NOTE_ICON_METADATA_BYTES = 512 * 1024;
+
+interface TagNoteIconCacheEntry {
+  modifiedAt: number | null;
+  size: number | null;
+  icon: string | null;
+}
+
+const tagNoteIconCache = new Map<string, TagNoteIconCacheEntry>();
+
+function setTagNoteIconCacheEntry(cacheKey: string, entry: TagNoteIconCacheEntry) {
+  tagNoteIconCache.delete(cacheKey);
+  tagNoteIconCache.set(cacheKey, entry);
+
+  while (tagNoteIconCache.size > MAX_TAG_NOTE_ICON_CACHE_ENTRIES) {
+    const oldestKey = tagNoteIconCache.keys().next().value;
+    if (oldestKey === undefined) {
+      return;
+    }
+    tagNoteIconCache.delete(oldestKey);
+  }
+}
+
+async function readTagNoteIcon(path: string, vaultPath: string | null): Promise<TagNoteIconCacheEntry> {
+  const fullPath = isAbsolutePath(path)
+    ? path
+    : vaultPath
+      ? await joinPath(vaultPath, path)
+      : null;
+  if (!fullPath) {
+    return { modifiedAt: null, size: null, icon: null };
+  }
+
+  const storage = getStorageAdapter();
+  const fileInfo = await storage.stat(fullPath).catch(() => null);
+  const modifiedAt = fileInfo?.modifiedAt ?? null;
+  const size = fileInfo?.size ?? null;
+  if (typeof size === 'number' && size > MAX_TAG_NOTE_ICON_METADATA_BYTES) {
+    return { modifiedAt, size, icon: null };
+  }
+
+  const content = await storage.readFile(fullPath);
+  return {
+    modifiedAt,
+    size,
+    icon: readNoteMetadataFromMarkdown(content).icon ?? null,
+  };
+}
 
 interface NotesTagsSectionProps {
   tags: NotesSidebarTagEntry[];
@@ -49,7 +103,7 @@ export function NotesTagsSection({
   }
 
   return (
-    <div className="w-full rounded-md">
+    <div className="min-w-0 w-full overflow-hidden rounded-md">
       <NotesSidebarRow
         leading={
           <span className="relative flex size-[20px] items-center justify-center">
@@ -66,7 +120,7 @@ export function NotesTagsSection({
           </span>
         }
         main={
-          <span className="block truncate text-[16px] text-[var(--notes-sidebar-text)]">
+          <span className="block min-w-0 max-w-full truncate text-[16px] text-[var(--notes-sidebar-text)]">
             {t('notes.tags')}
           </span>
         }
@@ -79,6 +133,9 @@ export function NotesTagsSection({
             <div key={entry.tag}>
               <NotesSidebarRow
                 depth={1}
+                rowClassName="h-auto min-h-[36px] items-start py-1.5"
+                leadingClassName="self-start pt-1"
+                contentClassName="min-w-0 overflow-hidden pr-2"
                 leading={
                   <span className="relative flex size-[20px] items-center justify-center">
                     <span className="text-[14px] font-semibold leading-none text-[var(--notes-sidebar-folder-icon)] transition-none group-hover/sidebar-row:opacity-0 group-focus-within/sidebar-row:opacity-0">
@@ -94,7 +151,7 @@ export function NotesTagsSection({
                   </span>
                 }
                 main={
-                  <span className="block truncate text-[16px] text-[var(--notes-sidebar-text)]">
+                  <span className="block min-w-0 max-w-full whitespace-normal break-words text-[16px] leading-5 text-[var(--notes-sidebar-text)] [overflow-wrap:anywhere]">
                     {entry.tag}
                   </span>
                 }
@@ -144,11 +201,52 @@ function NotesTagFileRow({
   onOpenNote: (target: NotesSidebarTagPath) => void;
 }) {
   const path = target.path;
-  const noteIcon = useDisplayIcon(path);
+  const storeIcon = useDisplayIcon(path);
+  const notesPath = useNotesStore((state) => state.notesPath);
+  const vaultPath = resolveEffectiveVaultPath({ notesPath, currentNotePath: path });
+  const cacheKey = useMemo(() => `${vaultPath}\u001f${path}`, [vaultPath, path]);
+  const [fallbackIcon, setFallbackIcon] = useState<string | undefined>(() =>
+    tagNoteIconCache.get(cacheKey)?.icon ?? undefined
+  );
+  const noteIcon = storeIcon || fallbackIcon;
+
+  useEffect(() => {
+    if (storeIcon) {
+      return;
+    }
+
+    const cached = tagNoteIconCache.get(cacheKey);
+    if (cached) {
+      setFallbackIcon(cached.icon ?? undefined);
+      return;
+    }
+
+    let cancelled = false;
+    void readTagNoteIcon(path, vaultPath || null)
+      .then((entry) => {
+        setTagNoteIconCacheEntry(cacheKey, entry);
+        if (!cancelled) {
+          setFallbackIcon(entry.icon ?? undefined);
+        }
+      })
+      .catch(() => {
+        setTagNoteIconCacheEntry(cacheKey, { modifiedAt: null, size: null, icon: null });
+        if (!cancelled) {
+          setFallbackIcon(undefined);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cacheKey, path, storeIcon, vaultPath]);
 
   return (
     <NotesSidebarRow
       depth={2}
+      rowClassName="h-auto min-h-[36px] items-start py-1.5"
+      leadingClassName="self-start pt-1"
+      contentClassName="min-w-0 overflow-hidden pr-2"
       leading={
         noteIcon ? (
           <NoteIcon icon={noteIcon} notePath={path} size={NOTES_SIDEBAR_ICON_SIZE} />
@@ -162,7 +260,7 @@ function NotesTagFileRow({
       }
       isActive={currentNotePath === path}
       main={
-        <span className="block truncate text-[16px] text-[var(--notes-sidebar-text)]">
+        <span className="block min-w-0 max-w-full whitespace-normal break-words text-[16px] leading-5 text-[var(--notes-sidebar-text)] [overflow-wrap:anywhere]">
           {getDisplayName(path) || path.split('/').pop()?.replace(/\.md$/i, '') || path}
         </span>
       }

@@ -469,7 +469,11 @@ export function SidebarContent({
         return;
       }
 
-      void openNote(target.path).catch(() => {
+      const openPromise = isAbsolutePath(target.path)
+        ? openNoteByAbsolutePath(target.path)
+        : openNote(target.path);
+
+      void openPromise.catch(() => {
         searchNavigation.clearSidebarSearchNavigationPending(target.path);
         setPendingNavigation((current) =>
           current === nextNavigation ? null : current,

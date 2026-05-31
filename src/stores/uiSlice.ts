@@ -3,7 +3,10 @@ import {
   STORAGE_KEY_FONT_SIZE,
   STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED,
 } from '@/lib/config';
-import { getDefaultSidebarWidth } from '@/lib/layout/sidebarWidth';
+import {
+  clampSidebarWidth,
+  getDefaultSidebarWidth,
+} from '@/lib/layout/sidebarWidth';
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
 import { emitStorageAutoSyncEvent } from '@/lib/storage/storageAutoSync';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
@@ -266,7 +269,7 @@ function normalizeAppViewMode(mode: AppViewMode): AppViewMode {
 function loadUIPreferencesFromStorage(): UIPreferenceState {
   return {
     sidebarCollapsed: loadBoolean(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, false),
-    sidebarWidth: loadNumber(STORAGE_KEY_SIDEBAR_WIDTH, getDefaultSidebarWidth()),
+    sidebarWidth: clampSidebarWidth(loadNumber(STORAGE_KEY_SIDEBAR_WIDTH, getDefaultSidebarWidth())),
     fontSize: loadFontSize(),
     languagePreference: loadLanguagePreference(),
     imageStorageMode: loadImageStorageMode(),
@@ -302,8 +305,9 @@ export const useUIStore = create<UIStore>()((set) => ({
     return { sidebarCollapsed: next };
   }),
   setSidebarWidth: (width) => {
-    savePreferenceString(STORAGE_KEY_SIDEBAR_WIDTH, String(width));
-    set({ sidebarWidth: width });
+    const next = clampSidebarWidth(width);
+    savePreferenceString(STORAGE_KEY_SIDEBAR_WIDTH, String(next));
+    set({ sidebarWidth: next });
   },
   layoutPanelDragging: false,
   setLayoutPanelDragging: (dragging) => set({ layoutPanelDragging: dragging }),

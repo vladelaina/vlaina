@@ -1,6 +1,7 @@
 import { Icon } from '@/components/ui/icons';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { useI18n } from '@/lib/i18n';
+import { APP_VIEW_MODE_SWITCH_MIN_WIDTH } from '@/lib/layout/sidebarWidth';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
 
@@ -32,6 +33,7 @@ export function AppViewModeSwitch() {
         'relative mb-1.5 flex h-11 w-full shrink-0 items-center rounded-[22px] p-1.5',
         chatComposerPillSurfaceClass,
       )}
+      style={{ minWidth: APP_VIEW_MODE_SWITCH_MIN_WIDTH }}
     >
       <span
         aria-hidden="true"
