@@ -278,7 +278,7 @@ export function UniversalIconPicker({
               className={cn(
                 "text-sm font-medium pb-1 border-b-2 transition-all active:scale-95 whitespace-nowrap",
                 activeTab === 'emoji'
-                  ? "text-[var(--vlaina-text-primary)] border-[#1e96eb]"
+                  ? "text-[var(--vlaina-text-primary)] border-[var(--vlaina-accent)]"
                   : "text-[var(--vlaina-text-tertiary)] border-transparent hover:text-[var(--vlaina-text-primary)]"
               )}
             >
@@ -295,7 +295,7 @@ export function UniversalIconPicker({
                 className={cn(
                   "text-sm font-medium pb-1 border-b-2 transition-all active:scale-95 whitespace-nowrap",
                   activeTab === 'upload'
-                    ? "text-[var(--vlaina-text-primary)] border-[#1e96eb]"
+                    ? "text-[var(--vlaina-text-primary)] border-[var(--vlaina-accent)]"
                     : "text-[var(--vlaina-text-tertiary)] border-transparent hover:text-[var(--vlaina-text-primary)]"
                 )}
               >
@@ -320,7 +320,7 @@ export function UniversalIconPicker({
               onPointerDown={handleRemoveEvent}
               onMouseDown={handleRemoveEvent}
               onClick={handleRemoveEvent}
-              className="text-xs font-medium transition-all active:scale-95 text-[var(--vlaina-text-tertiary)] hover:text-red-500"
+              className="text-xs font-medium transition-all active:scale-95 text-[var(--vlaina-text-tertiary)] hover:text-[var(--vlaina-color-status-danger-fg)]"
             >
               {t('common.remove')}
             </button>

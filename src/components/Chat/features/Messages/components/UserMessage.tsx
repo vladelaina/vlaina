@@ -16,7 +16,7 @@ import { useUIStore } from '@/stores/uiSlice';
 import { MessageVersionNavigator } from './MessageVersionNavigator';
 
 const userMessageActionButtonClass =
-  'p-1.5 rounded-md text-[var(--chat-sidebar-text)] transition-colors hover:bg-black/5 hover:text-[var(--chat-sidebar-text)] dark:hover:bg-white/5';
+  'p-1.5 rounded-md text-[var(--chat-sidebar-text)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--chat-sidebar-text)]';
 
 function isSwitchableUserVersion(version: ChatMessage['versions'][number]): boolean {
   return version.kind === 'original' || version.kind === 'edit';
@@ -176,7 +176,7 @@ function UserMessageInner({
                 data-no-focus-input="true"
                 data-chat-selection-surface="true"
                 data-chat-selection-start="true"
-                className="inline-block max-w-[90%] select-text rounded-3xl bg-[#41a8ea] px-4 py-1.5 text-left text-white"
+                className="inline-block max-w-[90%] select-text rounded-3xl bg-[var(--vlaina-accent)] px-4 py-1.5 text-left text-[var(--vlaina-color-white)]"
                 style={textBubbleStyle}
               >
                 <div className="whitespace-pre-wrap break-words">{parsedContent.text}</div>
@@ -221,7 +221,7 @@ function UserMessageInner({
                     'p-1.5 rounded-md transition-colors',
                     onEdit
                       ? userMessageActionButtonClass
-                      : 'text-gray-300 cursor-not-allowed'
+                      : 'text-[var(--vlaina-color-text-disabled)] cursor-not-allowed'
                   )}
                 >
                   <Icon name="common.compose" size="md" />

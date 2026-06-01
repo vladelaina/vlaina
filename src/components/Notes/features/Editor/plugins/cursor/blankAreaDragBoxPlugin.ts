@@ -59,7 +59,7 @@ import { createBlockSelectionLineFillOverlay } from './blockSelectionLineFillOve
 export { blankAreaDragBoxPluginKey } from './blockSelectionPluginState';
 
 const DRAG_THRESHOLD = 4;
-const DRAG_BOX_COLOR = 'var(--vlaina-color-editor-block-selection-drag-box, rgb(190 223 254 / 0.42))';
+const DRAG_BOX_COLOR = 'var(--vlaina-color-editor-block-selection-drag-box)';
 const DRAG_SESSION_CURSOR = 'crosshair';
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const TRAILING_LINE_END_CLICK_GAP_PX = 8;

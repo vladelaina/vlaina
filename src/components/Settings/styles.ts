@@ -7,7 +7,7 @@ export const selectStyle: React.CSSProperties = {
 };
 
 export const selectClassName = 
-  "px-2 py-1 pr-6 text-xs bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded text-[var(--chat-sidebar-text)] focus:outline-none focus:ring-1 focus:ring-zinc-400 min-w-[100px] cursor-pointer appearance-none bg-[length:7px_12px] bg-[right_5px_center] bg-no-repeat";
+  "px-2 py-1 pr-6 text-xs bg-[var(--vlaina-color-setting-field)] border border-[var(--vlaina-border)] rounded text-[var(--chat-sidebar-text)] focus:outline-none focus:ring-1 focus:ring-[var(--vlaina-accent)] min-w-[100px] cursor-pointer appearance-none bg-[length:7px_12px] bg-[right_5px_center] bg-no-repeat";
 
 export const settingsButtonClassName = 
-  "px-3 py-1.5 text-xs font-medium text-[var(--chat-sidebar-text)] bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-md transition-colors";
+  "px-3 py-1.5 text-xs font-medium text-[var(--chat-sidebar-text)] bg-[var(--vlaina-bg-tertiary)] hover:bg-[var(--vlaina-hover)] rounded-md transition-colors";

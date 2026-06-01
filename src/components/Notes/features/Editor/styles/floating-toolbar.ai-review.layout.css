@@ -41,20 +41,16 @@
 
 .ai-review-content-glass {
   position: relative;
-  border: 1px solid rgb(228 228 231 / 1);
-  background: rgb(255 255 255 / 1);
-  box-shadow: 
-    0 20px 40px -12px rgb(0 0 0 / 0.1),
-    0 0 0 1px rgb(0 0 0 / 0.02);
+  border: 1px solid var(--vlaina-color-ai-review-panel-border);
+  background: var(--vlaina-color-ai-review-panel);
+  box-shadow: var(--vlaina-shadow-ai-review-panel);
   transition: all 0.2s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .dark .ai-review-content-glass {
-  background: rgb(24 24 27 / 1);
-  border-color: rgb(39 39 42 / 1);
-  box-shadow: 
-    0 25px 50px -12px rgb(0 0 0 / 0.45),
-    0 0 0 1px rgb(255 255 255 / 0.03);
+  background: var(--vlaina-color-ai-review-panel);
+  border-color: var(--vlaina-color-ai-review-panel-border);
+  box-shadow: var(--vlaina-shadow-ai-review-panel);
 }
 
 .ai-review-result-surface {
@@ -62,7 +58,7 @@
   max-height: 320px;
   overflow-y: auto;
   padding: 0 4px 4px 0;
-  color: rgb(24 24 27 / 1);
+  color: var(--vlaina-color-text-primary);
   font-size: 13.5px; /* Slightly adjusted */
   line-height: 1.6;
   white-space: pre-wrap;
@@ -76,26 +72,26 @@
 }
 
 .ai-review-diff-added {
-  color: rgb(22 101 52 / 1);
-  background: rgb(220 252 231 / 0.9);
+  color: var(--vlaina-color-ai-review-added-fg);
+  background: var(--vlaina-color-ai-review-added-bg);
   text-decoration: none;
-  box-shadow: inset 0 -2px 0 rgb(34 197 94 / 0.38);
+  box-shadow: var(--vlaina-shadow-ai-review-added);
 }
 
 .ai-review-diff-removed {
-  color: rgb(153 27 27 / 1);
-  background: rgb(254 226 226 / 0.9);
+  color: var(--vlaina-color-ai-review-removed-fg);
+  background: var(--vlaina-color-ai-review-removed-bg);
   text-decoration: line-through;
   text-decoration-thickness: 1.5px;
-  text-decoration-color: rgb(239 68 68 / 0.7);
+  text-decoration-color: var(--vlaina-color-ai-review-removed-decoration);
 }
 
 .ai-review-error {
   padding: 12px 14px;
   border-radius: 14px;
-  border: 1px solid rgb(254 202 202 / 0.9);
-  background: rgb(254 242 242 / 1);
-  color: rgb(185 28 28 / 1);
+  border: 1px solid var(--vlaina-color-status-danger-bg);
+  background: var(--vlaina-color-status-danger-bg);
+  color: var(--vlaina-color-status-danger-fg);
   font-size: 13px;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -103,7 +99,7 @@
 }
 
 .dark .ai-review-result-surface {
-  color: rgb(228 228 231 / 1);
+  color: var(--vlaina-color-text-primary);
 }
 
 .ai-review-footer {
@@ -144,25 +140,25 @@
 }
 
 .ai-review-action.primary {
-  background: rgb(24 24 27 / 1);
-  color: rgb(255 255 255 / 1);
+  background: var(--vlaina-color-inverse-surface);
+  color: var(--vlaina-color-inverse-text);
   border: none;
 }
 
 .dark .ai-review-action.primary {
-  background: rgb(255 255 255 / 1);
-  color: rgb(24 24 27 / 1);
+  background: var(--vlaina-color-inverse-surface);
+  color: var(--vlaina-color-inverse-text);
 }
 
 .ai-review-action.tertiary {
-  background: rgb(244 244 245 / 1);
-  color: rgb(113 113 122 / 1);
+  background: var(--vlaina-bg-tertiary);
+  color: var(--vlaina-color-text-soft);
   border: none;
 }
 
 .dark .ai-review-action.tertiary {
-  background: rgb(39 39 42 / 1);
-  color: rgb(161 161 170 / 1);
+  background: var(--vlaina-bg-tertiary);
+  color: var(--vlaina-color-text-soft);
 }
 
 .ai-review-icon-action {
@@ -189,11 +185,11 @@
 }
 
 .ai-review-action.ai-review-icon-action.tertiary {
-  color: rgb(113 113 122 / 1);
+  color: var(--vlaina-color-text-soft);
 }
 
 .ai-review-action.ai-review-icon-action.primary {
-  color: rgb(24 24 27 / 1);
+  color: var(--vlaina-color-text-primary);
 }
 
 .ai-review-action:hover {

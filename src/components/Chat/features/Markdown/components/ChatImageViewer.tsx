@@ -31,7 +31,7 @@ const CROPPER_IMAGE_SELECTOR = '.reactEasyCrop_Image';
 const VIEWER_SURFACE_SELECTOR = '[data-chat-image-viewer-surface="true"]';
 const resolvedViewerImageCache = new Map<string, Promise<string>>();
 const imageViewerToolbarButtonClass =
-  "inline-flex h-9 w-9 items-center justify-center rounded-full bg-transparent text-slate-700 transition-colors hover:bg-black/5 dark:text-slate-700 dark:hover:bg-black/5";
+  "inline-flex h-9 w-9 items-center justify-center rounded-full bg-transparent text-[var(--vlaina-color-text-strong)] transition-colors hover:bg-[var(--vlaina-hover)]";
 
 function getViewerFitBounds(viewportSize: { width: number; height: number }) {
   const horizontalPadding = viewportSize.width < 640 ? 28 : 96;
@@ -466,8 +466,7 @@ export function ChatImageViewer({
           data-no-focus-input="true"
           data-chat-image-viewer-control="true"
           className={cn(
-            "absolute right-12 top-12 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-950",
-            "dark:text-zinc-500 dark:hover:bg-zinc-100 dark:hover:text-zinc-950",
+            "absolute right-12 top-12 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-all hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-color-text-strong)]",
             iconButtonStyles
           )}
           onClick={(event) => {
@@ -486,7 +485,7 @@ export function ChatImageViewer({
               data-no-focus-input="true"
               data-chat-image-viewer-control="true"
               className={cn(
-                "inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/78 text-slate-700 shadow-[0_18px_54px_rgba(84,121,160,0.16)] transition-colors hover:bg-white",
+                "inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-setting-field)] text-[var(--vlaina-color-text-strong)] shadow-[var(--vlaina-shadow-floating-panel)] transition-colors hover:bg-[var(--vlaina-color-setting-field)]",
                 iconButtonStyles
               )}
               onClick={(event) => {
@@ -507,7 +506,7 @@ export function ChatImageViewer({
               data-no-focus-input="true"
               data-chat-image-viewer-control="true"
               className={cn(
-                "inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/78 text-slate-700 shadow-[0_18px_54px_rgba(84,121,160,0.16)] transition-colors hover:bg-white",
+                "inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-setting-field)] text-[var(--vlaina-color-text-strong)] shadow-[var(--vlaina-shadow-floating-panel)] transition-colors hover:bg-[var(--vlaina-color-setting-field)]",
                 iconButtonStyles
               )}
               onClick={(event) => {
@@ -587,7 +586,7 @@ export function ChatImageViewer({
             <div
               data-chat-image-viewer-control="true"
               className={cn(
-                "pointer-events-auto inline-flex items-center gap-1 rounded-full px-2 py-2 text-slate-800",
+                "pointer-events-auto inline-flex items-center gap-1 rounded-full px-2 py-2 text-[var(--vlaina-color-text-strong)]",
                 chatPopoverPillSurfaceClass
               )}
               onClick={(event) => event.stopPropagation()}
@@ -604,7 +603,7 @@ export function ChatImageViewer({
               >
                 <Icon name="common.remove" size="md" />
               </button>
-              <span className="min-w-[50px] px-1.5 text-center text-xs font-semibold tabular-nums text-slate-800">
+              <span className="min-w-[50px] px-1.5 text-center text-xs font-semibold tabular-nums text-[var(--vlaina-color-text-strong)]">
                 {percentLabel}
               </span>
               <button
@@ -619,13 +618,13 @@ export function ChatImageViewer({
               >
                 <Icon name="common.add" size="md" />
               </button>
-              <div className="mx-1 h-6 w-px bg-zinc-200" />
+              <div className="mx-1 h-6 w-px bg-[var(--vlaina-border)]" />
               {imageSizeLabel && (
-                <span className="min-w-[78px] px-3 text-center text-[11px] font-medium tabular-nums text-slate-500">
+                <span className="min-w-[78px] px-3 text-center text-[11px] font-medium tabular-nums text-[var(--vlaina-color-text-soft)]">
                   {imageSizeLabel}
                 </span>
               )}
-              <div className="mx-1 h-6 w-px bg-zinc-200" />
+              <div className="mx-1 h-6 w-px bg-[var(--vlaina-border)]" />
               <button
                 type="button"
                 aria-label={t('chat.copyImage')}
@@ -634,7 +633,7 @@ export function ChatImageViewer({
                 className={cn(
                   imageViewerToolbarButtonClass,
                   iconButtonStyles,
-                  copied && "text-[var(--vlaina-accent,#3b82f6)] bg-[rgb(39_131_222_/_0.12)]"
+                  copied && "text-[var(--vlaina-accent)] bg-[var(--vlaina-accent-soft)]"
                 )}
                 onClick={() => {
                     void handleCopy();

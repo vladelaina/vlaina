@@ -40,7 +40,7 @@ export function MarkdownTab() {
         <span>{t('settings.markdown.shortcutHint')}</span>
         <ShortcutKeys
           keys={['Ctrl', '/']}
-          keyClassName="rounded-full border border-zinc-200 bg-white px-2.5 py-0.5 text-[11px] font-medium text-[var(--notes-sidebar-text)] shadow-none dark:border-white/10 dark:bg-white/5"
+          keyClassName="rounded-full border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--notes-sidebar-text)] shadow-none"
         />
       </div>
       <SettingsSectionHeader>{t('settings.markdown.editing')}</SettingsSectionHeader>

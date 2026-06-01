@@ -183,15 +183,14 @@ export function UserMessageEditor({
             onClick={handleCancel}
             className={cn(
               chatComposerSecondaryButtonClass,
-              'h-8 px-3.5 text-[13px] bg-white hover:bg-white dark:bg-white dark:text-zinc-900 dark:hover:bg-white'
+              'h-8 px-3.5 text-[13px] bg-[var(--vlaina-color-white)] hover:bg-[var(--vlaina-color-white)] text-[var(--vlaina-color-inverse-text)]'
             )}
           >
             {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
-            className="h-9 rounded-full bg-[#41a8ea] px-4 text-[13px] font-semibold text-white shadow-md shadow-[#41a8ea]/25 transition-[box-shadow,transform] duration-200 hover:scale-105 active:scale-95"
-            style={{ boxShadow: '0 0 0 3px rgba(65, 168, 234, 0.12), 0 10px 24px rgba(65, 168, 234, 0.28)' }}
+            className="h-9 rounded-full bg-[var(--vlaina-accent)] px-4 text-[13px] font-semibold text-[var(--vlaina-color-white)] shadow-[var(--vlaina-shadow-accent-action)] transition-[box-shadow,transform] duration-200 hover:scale-105 active:scale-95"
           >
             {t('common.send')}
           </button>

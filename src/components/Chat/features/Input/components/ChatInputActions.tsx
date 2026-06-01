@@ -71,7 +71,7 @@ export function ChatInputActions({
               className={cn(
                 'w-9 h-9 flex items-center justify-center rounded-full transition-[background-color,color,box-shadow,transform] duration-200',
                 iconButtonStyles,
-                'text-[var(--chat-sidebar-text)] hover:!bg-white dark:hover:!bg-white hover:text-[#41a8ea] hover:!shadow-[0_6px_20px_rgba(0,0,0,0.055),inset_0_1px_0_rgba(255,255,255,0.7)] active:scale-95'
+                'text-[var(--chat-sidebar-text)] hover:!bg-[var(--vlaina-color-white)] hover:text-[var(--vlaina-accent)] hover:!shadow-[var(--vlaina-shadow-menu-hover)] active:scale-95'
               )}
             >
               <Icon name="common.add" size="md" />
@@ -104,7 +104,7 @@ export function ChatInputActions({
                   getSidebarIdleRowSurfaceClass('chat')
                 )}
               >
-                <Icon name="file.public" size="md" className="text-[#41a8ea]" />
+                <Icon name="file.public" size="md" className="text-[var(--vlaina-accent)]" />
                 <span>{t('chat.webSearch')}</span>
               </button>
             )}
@@ -117,7 +117,7 @@ export function ChatInputActions({
                 getSidebarIdleRowSurfaceClass('chat')
               )}
             >
-              <span className="flex size-5 items-center justify-center text-[17px] font-semibold leading-none text-[#41a8ea]">@</span>
+              <span className="flex size-5 items-center justify-center text-[17px] font-semibold leading-none text-[var(--vlaina-accent)]">@</span>
               <span>{t('chat.mentionFileOrFolder')}</span>
             </button>
             <button
@@ -129,7 +129,7 @@ export function ChatInputActions({
                 getSidebarIdleRowSurfaceClass('chat')
               )}
             >
-              <Icon name="file.attach" size="md" className="text-[#41a8ea]" />
+              <Icon name="file.attach" size="md" className="text-[var(--vlaina-accent)]" />
               <span>{t('chat.uploadFile')}</span>
             </button>
           </PopoverContent>
@@ -151,8 +151,7 @@ export function ChatInputActions({
         {isLoading ? (
           <button
             onClick={onStop}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-[#41a8ea] text-white shadow-sm shadow-[#41a8ea]/25 transition-[box-shadow,transform] duration-200 hover:scale-105 active:scale-95"
-            style={{ boxShadow: '0 0 0 3px rgba(65, 168, 234, 0.12), 0 10px 24px rgba(65, 168, 234, 0.28)' }}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] shadow-[var(--vlaina-shadow-accent-action)] transition-[box-shadow,transform] duration-200 hover:scale-105 active:scale-95"
           >
             <Icon name="media.stop" size="md" />
           </button>
@@ -163,12 +162,11 @@ export function ChatInputActions({
             className={cn(
               'w-9 h-9 rounded-full flex items-center justify-center transition-[background-color,color,box-shadow,opacity,transform] duration-200',
               canSubmit
-                ? 'bg-[#41a8ea] text-white shadow-md shadow-[#41a8ea]/25 hover:scale-105 active:scale-95'
+                ? 'bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] shadow-[var(--vlaina-shadow-accent-action)] hover:scale-105 active:scale-95'
                 : canSend
-                  ? 'bg-[#41a8ea] text-white opacity-60 shadow-sm shadow-[#41a8ea]/15 cursor-default'
-                : 'bg-[#e7f3ff] text-[#9acff3] cursor-default'
+                  ? 'bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] opacity-60 shadow-[var(--vlaina-shadow-selection-soft)] cursor-default'
+                : 'bg-[var(--vlaina-accent-light)] text-[var(--vlaina-color-text-soft)] cursor-default'
             )}
-            style={canSubmit ? { boxShadow: '0 0 0 3px rgba(65, 168, 234, 0.12), 0 10px 24px rgba(65, 168, 234, 0.28)' } : undefined}
           >
             <Icon name="common.send" size="md" />
           </button>

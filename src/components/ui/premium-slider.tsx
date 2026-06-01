@@ -93,7 +93,7 @@ export function PremiumSlider({
             <div
                 className="absolute w-full h-[3px] rounded-full pointer-events-none"
                 style={{
-                    background: `linear-gradient(to right, #1e96eb var(--slider-percentage), var(--vlaina-bg-tertiary, #e4e4e7) var(--slider-percentage))`,
+                    background: `linear-gradient(to right, var(--vlaina-accent) var(--slider-percentage), var(--vlaina-bg-tertiary) var(--slider-percentage))`,
                 }}
             />
 

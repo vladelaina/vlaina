@@ -52,7 +52,7 @@ export function LanguageTab() {
               className={cn(
                 'group flex min-h-[56px] cursor-pointer items-center justify-between gap-4 rounded-[22px] px-6 py-3 text-left transition-all duration-200 border border-transparent',
                 selected
-                  ? 'bg-[var(--sidebar-row-selected-bg)] dark:bg-[rgba(65,168,234,0.12)]'
+                  ? 'bg-[var(--sidebar-row-selected-bg)]'
                   : chatComposerPillSurfaceClass,
               )}
             >

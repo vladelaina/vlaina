@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { usePredictedTextareaHeight } from '@/hooks/usePredictedTextareaHeight';
 
 const fieldShellClassName =
-  'rounded-2xl border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-colors focus-within:border-zinc-300 dark:border-white/10 dark:bg-[#202020] dark:focus-within:border-white/15';
+  'rounded-2xl border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-control-active)] transition-colors focus-within:border-[var(--vlaina-accent)]';
 
 interface SettingsTextInputProps extends ComponentPropsWithoutRef<'input'> {
   leading?: ReactNode;
@@ -108,13 +108,13 @@ export function SettingsSwitch({ checked, onChange, className, 'aria-label': ari
       onClick={() => onChange(!checked)}
       className={cn(
         'relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none',
-        checked ? (activeColor || 'bg-[#10B981]') : 'bg-zinc-200 dark:bg-zinc-700',
+        checked ? (activeColor || 'bg-[var(--vlaina-color-success)]') : 'bg-[var(--vlaina-bg-tertiary)]',
         className
       )}
     >
       <span
         className={cn(
-          'inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200',
+          'inline-block h-5 w-5 rounded-full bg-[var(--vlaina-color-white)] shadow-sm transition-transform duration-200',
           checked ? 'translate-x-[22px]' : 'translate-x-[2px]'
         )}
       />

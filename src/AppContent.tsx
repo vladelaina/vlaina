@@ -649,7 +649,7 @@ export function AppContent() {
             onClick={() => setAppViewMode('lab')}
             aria-label="Open Design Lab"
             className={cn(
-              'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[#eff3f4] bg-white/92 shadow-sm backdrop-blur-sm transition-colors hover:bg-[#f5f5f5]',
+              'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-sm backdrop-blur-sm transition-colors hover:bg-[var(--vlaina-hover)]',
               iconButtonStyles
             )}
           >

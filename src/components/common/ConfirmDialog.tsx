@@ -80,7 +80,7 @@ export function ConfirmDialog({
         <DialogPrimitive.Overlay asChild>
           <BlurBackdrop
             className="z-[120]"
-            overlayClassName="bg-white/20 dark:bg-white/5"
+            overlayClassName="bg-[var(--vlaina-color-drop-overlay)]"
             zIndex={120}
             blurPx={6}
             duration={0.2}
@@ -99,14 +99,14 @@ export function ConfirmDialog({
               confirmRef.current?.focus();
             }}
             onKeyDown={handleKeyDown}
-            className="w-full max-w-[360px] rounded-[34px] border border-transparent bg-white shadow-[0_4px_16px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 dark:bg-[#171717] dark:shadow-[0_4px_16px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.06)]"
+            className="w-full max-w-[360px] rounded-[34px] border border-transparent bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-raised-soft)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
           >
             <div className="px-7 py-7">
-              <DialogTitle className="text-[24px] leading-8 font-semibold tracking-[-0.03em] text-zinc-950 dark:text-zinc-50">
+              <DialogTitle className="text-[24px] leading-8 font-semibold tracking-[-0.03em] text-[var(--vlaina-color-text-strong)]">
                 {title}
               </DialogTitle>
               {description && (
-                <DialogDescription id={descriptionId} className="mt-3 text-[14px] leading-6 text-zinc-500 dark:text-zinc-400">
+                <DialogDescription id={descriptionId} className="mt-3 text-[14px] leading-6 text-[var(--notes-sidebar-text-soft)]">
                   {description}
                 </DialogDescription>
               )}
@@ -120,11 +120,11 @@ export function ConfirmDialog({
                       await onAuxAction();
                     }}
                     className={cn(
-                      "inline-flex h-12 items-center justify-center rounded-full border border-transparent px-5 text-[14px] font-semibold shadow-[0_4px_16px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)] transition-[color,background-color,box-shadow,border-color,transform] outline-none ring-offset-2 ring-offset-white active:scale-[0.985] dark:shadow-[0_4px_16px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.06)] dark:ring-offset-[#171717]",
+                      "inline-flex h-12 items-center justify-center rounded-full border border-transparent px-5 text-[14px] font-semibold shadow-[var(--vlaina-shadow-raised-soft)] transition-[color,background-color,box-shadow,border-color,transform] outline-none ring-offset-2 ring-offset-[var(--vlaina-color-setting-field)] active:scale-[0.985]",
                       showKeyboardSelection && 'focus:ring-2',
                       auxActionVariant === 'success'
-                        ? "bg-[#16a34a] text-white hover:bg-[#15803d] focus:ring-[#16a34a]/35 dark:focus:ring-[#22c55e]/35"
-                        : "bg-zinc-950 text-white hover:bg-zinc-800 focus:ring-zinc-950/20 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200 dark:focus:ring-zinc-100/30"
+                        ? "bg-[var(--vlaina-color-status-success-fg)] text-[var(--vlaina-color-white)] hover:bg-[var(--vlaina-color-success)] focus:ring-[var(--vlaina-color-status-success-fg)]/35"
+                        : "bg-[var(--vlaina-color-inverse-surface)] text-[var(--vlaina-color-inverse-text)] hover:bg-[var(--vlaina-color-inverse-surface-hover)] focus:ring-[var(--vlaina-color-inverse-surface)]/20"
                     )}
                   >
                     {auxActionText}
@@ -138,11 +138,11 @@ export function ConfirmDialog({
                     onClose();
                   }}
                   className={cn(
-                    "inline-flex h-12 items-center justify-center rounded-full border border-transparent px-5 text-[14px] font-semibold transition-[color,background-color,box-shadow,border-color,transform] outline-none ring-offset-2 ring-offset-white active:scale-[0.985] dark:ring-offset-[#171717]",
+                    "inline-flex h-12 items-center justify-center rounded-full border border-transparent px-5 text-[14px] font-semibold transition-[color,background-color,box-shadow,border-color,transform] outline-none ring-offset-2 ring-offset-[var(--vlaina-color-setting-field)] active:scale-[0.985]",
                     showKeyboardSelection && 'focus:ring-2',
                     variant === 'danger'
-                      ? "bg-[#ef4444] text-white shadow-none hover:bg-[#dc2626] focus:ring-[#ef4444]/35 dark:focus:ring-[#f87171]/35"
-                      : "bg-zinc-950 text-white shadow-[0_4px_16px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)] hover:bg-zinc-800 focus:ring-zinc-950/20 dark:bg-zinc-100 dark:text-zinc-950 dark:shadow-[0_4px_16px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.06)] dark:hover:bg-zinc-200 dark:focus:ring-zinc-100/30"
+                      ? "bg-[var(--vlaina-color-danger)] text-[var(--vlaina-color-white)] shadow-none hover:bg-[var(--vlaina-color-danger-hover)] focus:ring-[var(--vlaina-color-danger)]/35"
+                      : "bg-[var(--vlaina-color-inverse-surface)] text-[var(--vlaina-color-inverse-text)] shadow-[var(--vlaina-shadow-raised-soft)] hover:bg-[var(--vlaina-color-inverse-surface-hover)] focus:ring-[var(--vlaina-color-inverse-surface)]/20"
                   )}
                 >
                   {confirmText}
@@ -158,8 +158,8 @@ export function ConfirmDialog({
                     onClose();
                   }}
                   className={cn(
-                    "inline-flex h-12 items-center justify-center rounded-full border border-transparent bg-white px-5 text-[14px] font-medium text-zinc-700 shadow-[0_4px_16px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)] transition-[color,background-color,box-shadow,border-color,transform] outline-none ring-offset-2 ring-offset-white hover:bg-zinc-50 active:scale-[0.985] dark:bg-white/[0.04] dark:text-zinc-300 dark:shadow-[0_4px_16px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.06)] dark:ring-offset-[#171717] dark:hover:bg-white/[0.07]",
-                    showKeyboardSelection && 'focus:ring-2 focus:ring-zinc-950/12 dark:focus:ring-zinc-100/20',
+                    "inline-flex h-12 items-center justify-center rounded-full border border-transparent bg-[var(--vlaina-color-setting-field)] px-5 text-[14px] font-medium text-[var(--notes-sidebar-text)] shadow-[var(--vlaina-shadow-raised-soft)] transition-[color,background-color,box-shadow,border-color,transform] outline-none ring-offset-2 ring-offset-[var(--vlaina-color-setting-field)] hover:bg-[var(--vlaina-hover-filled)] active:scale-[0.985]",
+                    showKeyboardSelection && 'focus:ring-2 focus:ring-[var(--vlaina-color-inverse-surface)]/20',
                   )}
                 >
                   {cancelText}

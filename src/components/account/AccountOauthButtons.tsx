@@ -42,7 +42,7 @@ export function AccountOauthButtons({
             void onOauthSignIn(option.provider);
           }}
           className={cn(
-            'group relative flex h-14 w-full cursor-pointer items-center justify-center gap-3 rounded-full px-5 text-[14px] font-semibold tracking-tight text-zinc-950 transition-all duration-200 active:scale-[0.985] sm:h-[60px] sm:px-6 sm:text-[15px] md:h-16',
+            'group relative flex h-14 w-full cursor-pointer items-center justify-center gap-3 rounded-full px-5 text-[14px] font-semibold tracking-tight text-[var(--vlaina-color-text-strong)] transition-all duration-200 active:scale-[0.985] sm:h-[60px] sm:px-6 sm:text-[15px] md:h-16',
             chatComposerPillSurfaceClass,
             isCompact && 'h-14 text-[14px]'
           )}
@@ -60,7 +60,7 @@ export function AccountOauthButtons({
           <div className="absolute inset-0 overflow-hidden rounded-full pointer-events-none">
             <div
               className={cn(
-                'absolute inset-x-6 bottom-0 h-[3px] rounded-full bg-gradient-to-r from-[#4285F4] via-[#FBBC05] to-[#34A853] opacity-0 transition-opacity duration-300',
+                'absolute inset-x-6 bottom-0 h-[3px] rounded-full bg-[var(--vlaina-color-brand-google-gradient)] opacity-0 transition-opacity duration-300',
                 isBusy && 'animate-pulse opacity-100'
               )}
             />

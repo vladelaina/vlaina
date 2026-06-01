@@ -262,8 +262,8 @@
   line-height: 1.25rem;
   padding: 0.125rem 0.25rem;
   margin: 0;
-  background-color: rgb(245 245 245);
-  color: rgb(38 38 38);
+  background-color: var(--vlaina-code-inline-background);
+  color: var(--vlaina-code-inline-foreground);
   caret-color: transparent;
   border: none;
   border-radius: 0.25rem;
@@ -274,8 +274,8 @@
 }
 
 .dark .vlaina-markdown-surface code:not(pre code) {
-  background-color: rgb(38 38 38);
-  color: rgb(245 245 245);
+  background-color: var(--vlaina-code-inline-background);
+  color: var(--vlaina-code-inline-foreground);
 }
 
 .vlaina-markdown-surface img {
@@ -480,23 +480,23 @@
 }
 
 .vlaina-markdown-surface .callout-yellow {
-  background: color-mix(in srgb, #facc15 12%, var(--vlaina-bg-secondary));
+  background: var(--vlaina-color-status-warning-bg);
 }
 
 .vlaina-markdown-surface .callout-blue {
-  background: color-mix(in srgb, #38bdf8 12%, var(--vlaina-bg-secondary));
+  background: var(--vlaina-color-status-info-bg);
 }
 
 .vlaina-markdown-surface .callout-green {
-  background: color-mix(in srgb, #4ade80 12%, var(--vlaina-bg-secondary));
+  background: var(--vlaina-color-status-success-bg);
 }
 
 .vlaina-markdown-surface .callout-red {
-  background: color-mix(in srgb, #f87171 12%, var(--vlaina-bg-secondary));
+  background: var(--vlaina-color-status-danger-bg);
 }
 
 .vlaina-markdown-surface .callout-purple {
-  background: color-mix(in srgb, #a78bfa 12%, var(--vlaina-bg-secondary));
+  background: var(--vlaina-color-brand-pink-soft);
 }
 
 .vlaina-markdown-surface .callout-gray {
@@ -531,7 +531,7 @@
 
 .vlaina-markdown-surface .mermaid-error,
 .vlaina-markdown-surface .video-error {
-  color: var(--vlaina-error, #dc2626);
+  color: var(--vlaina-color-status-danger-fg);
 }
 
 .vlaina-markdown-surface .video-block {
@@ -562,7 +562,7 @@
   margin: 0 1rem 1rem;
   border-radius: 0.375rem;
   background: var(--vlaina-accent);
-  color: var(--vlaina-accent-foreground, #fff);
+  color: var(--vlaina-color-white);
   padding: 0.375rem 0.625rem;
   font-size: 0.875rem;
 }

@@ -2,20 +2,20 @@ import { HighlightStyle } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 
 const githubSyntax = {
-  foreground: 'var(--vlaina-code-syntax-foreground, #24292e)',
-  muted: 'var(--vlaina-code-syntax-muted, #6a737d)',
-  keyword: 'var(--vlaina-code-syntax-keyword, #d73a49)',
-  name: 'var(--vlaina-code-syntax-name, #6f42c1)',
-  function: 'var(--vlaina-code-syntax-function, #6f42c1)',
-  constant: 'var(--vlaina-code-syntax-constant, #005cc5)',
-  type: 'var(--vlaina-code-syntax-type, #d73a49)',
-  operator: 'var(--vlaina-code-syntax-operator, #24292e)',
-  string: 'var(--vlaina-code-syntax-string, #032f62)',
-  variable: 'var(--vlaina-code-syntax-variable, #e36209)',
-  tag: 'var(--vlaina-code-syntax-tag, #22863a)',
-  markup: 'var(--vlaina-code-syntax-markup, #005cc5)',
-  list: 'var(--vlaina-code-syntax-list, #735c0f)',
-  invalid: 'var(--vlaina-code-syntax-invalid, #b31d28)',
+  foreground: 'var(--vlaina-code-syntax-foreground)',
+  muted: 'var(--vlaina-code-syntax-muted)',
+  keyword: 'var(--vlaina-code-syntax-keyword)',
+  name: 'var(--vlaina-code-syntax-name)',
+  function: 'var(--vlaina-code-syntax-function)',
+  constant: 'var(--vlaina-code-syntax-constant)',
+  type: 'var(--vlaina-code-syntax-type)',
+  operator: 'var(--vlaina-code-syntax-operator)',
+  string: 'var(--vlaina-code-syntax-string)',
+  variable: 'var(--vlaina-code-syntax-variable)',
+  tag: 'var(--vlaina-code-syntax-tag)',
+  markup: 'var(--vlaina-code-syntax-markup)',
+  list: 'var(--vlaina-code-syntax-list)',
+  invalid: 'var(--vlaina-code-syntax-invalid)',
 };
 
 export const vlainaCodeBlockHighlightStyle = HighlightStyle.define([

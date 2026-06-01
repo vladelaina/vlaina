@@ -4,6 +4,7 @@ import { ICON_SIZES, IconSize } from '@/components/ui/icons/sizes';
 import { cn } from '@/lib/utils';
 import { ImageEdgeMask } from '@/components/common/ImageEdgeMask';
 import { resolveEmojiForSkinTone } from './randomEmoji';
+import { themeColorTokens } from '@/styles/themeTokens';
 
 export interface UniversalIconProps {
   icon: string;
@@ -266,11 +267,11 @@ export function UniversalIcon({
 
   if (icon.startsWith('icon:') || icon in icons) {
     let iconName = icon;
-    let originalColor = '#6b7280';
+    let originalColor: string = themeColorTokens.iconDefault;
     if (icon.startsWith('icon:')) {
       const parts = icon.split(':');
       iconName = parts[1];
-      originalColor = parts[2] || '#6b7280';
+      originalColor = parts[2] || themeColorTokens.iconDefault;
     }
     return <IconIconRenderer iconName={iconName} originalColor={originalColor} forcedColor={color} size={size} className={className} previewColor={previewColor} />;
   }

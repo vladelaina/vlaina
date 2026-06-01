@@ -104,7 +104,7 @@ export function ResizablePanel({
   return (
     <aside
       className={cn(
-        "relative flex flex-col bg-white/50 dark:bg-zinc-900/50 backdrop-blur-md overflow-hidden",
+        "relative flex flex-col bg-[var(--vlaina-color-setting-content)] backdrop-blur-md overflow-hidden",
         isDragging && "will-change-[width]",
         !isDragging && "transition-[width] duration-300 ease-in-out",
         className

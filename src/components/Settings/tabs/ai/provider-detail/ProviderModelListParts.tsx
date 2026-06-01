@@ -81,12 +81,12 @@ export function ActionButton({
         compact ? 'h-8 px-3' : 'h-9 px-4',
         chatComposerPillSurfaceClass,
         muted
-          ? 'text-[var(--notes-sidebar-text-soft)] hover:bg-transparent hover:text-[#41a8ea] disabled:cursor-not-allowed disabled:opacity-50'
-          : 'text-[var(--sidebar-row-selected-text)] hover:bg-transparent hover:text-[#41a8ea] disabled:cursor-not-allowed disabled:opacity-50'
+          ? 'text-[var(--notes-sidebar-text-soft)] hover:bg-transparent hover:text-[var(--sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-50'
+          : 'text-[var(--sidebar-row-selected-text)] hover:bg-transparent hover:text-[var(--sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-50'
       )}
     >
       {busy ? (
-        <div className="h-3 w-3 rounded-full border-2 border-zinc-300 border-t-emerald-500 animate-spin" />
+        <div className="h-3 w-3 rounded-full border-2 border-[var(--vlaina-border)] border-t-[var(--vlaina-accent)] animate-spin" />
       ) : icon ? (
         <Icon name={icon} size="xs" />
       ) : null}
@@ -125,12 +125,12 @@ export function SectionHeader({
           void onBenchmark();
         }}
         className={cn(
-          'flex h-6 w-6 items-center justify-center rounded-full text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-transparent hover:text-[#41a8ea] disabled:cursor-not-allowed disabled:opacity-35',
+          'flex h-6 w-6 items-center justify-center rounded-full text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-transparent hover:text-[var(--sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-35',
           chatComposerPillSurfaceClass
         )}
       >
         {busy ? (
-          <div className="h-3 w-3 rounded-full border-2 border-zinc-300 border-t-emerald-500 animate-spin" />
+          <div className="h-3 w-3 rounded-full border-2 border-[var(--vlaina-border)] border-t-[var(--vlaina-accent)] animate-spin" />
         ) : (
           <Icon name="misc.activity" size="xs" />
         )}
@@ -168,16 +168,16 @@ export function ModelRow({
   const tone = getHealthTone(health);
   const className = cn(
     'flex items-center gap-3 rounded-[20px] border border-transparent px-4 py-3 text-left transition-all duration-200',
-    selected && tone === 'neutral' && 'bg-zinc-50/70 text-[var(--notes-sidebar-text)]',
-    selected && tone === 'success' && 'bg-emerald-50 text-[var(--notes-sidebar-text)]',
-    selected && tone === 'warning' && 'bg-amber-50 text-[var(--notes-sidebar-text)]',
-    selected && tone === 'error' && 'bg-red-50 text-[var(--notes-sidebar-text)]',
-    selected && tone === 'loading' && 'bg-zinc-50/70 text-[var(--notes-sidebar-text)]',
-    !selected && tone === 'neutral' && 'bg-zinc-100/40 text-[var(--notes-sidebar-text)] hover:bg-zinc-100/60',
-    !selected && tone === 'success' && 'bg-emerald-50/40 text-[var(--notes-sidebar-text)] hover:bg-emerald-50/60',
-    !selected && tone === 'warning' && 'bg-amber-50/40 text-[var(--notes-sidebar-text)] hover:bg-amber-50/60',
-    !selected && tone === 'error' && 'bg-red-50/40 text-[var(--notes-sidebar-text)] hover:bg-red-50/60',
-    !selected && tone === 'loading' && 'bg-zinc-100/40 text-[var(--notes-sidebar-text)]',
+    selected && tone === 'neutral' && 'bg-[var(--vlaina-bg-secondary)] text-[var(--notes-sidebar-text)]',
+    selected && tone === 'success' && 'bg-[var(--vlaina-color-status-success-bg)] text-[var(--notes-sidebar-text)]',
+    selected && tone === 'warning' && 'bg-[var(--vlaina-color-status-warning-bg)] text-[var(--notes-sidebar-text)]',
+    selected && tone === 'error' && 'bg-[var(--vlaina-color-status-danger-bg)] text-[var(--notes-sidebar-text)]',
+    selected && tone === 'loading' && 'bg-[var(--vlaina-bg-secondary)] text-[var(--notes-sidebar-text)]',
+    !selected && tone === 'neutral' && 'bg-[var(--vlaina-color-row-soft)] text-[var(--notes-sidebar-text)] hover:bg-[var(--vlaina-hover)]',
+    !selected && tone === 'success' && 'bg-[var(--vlaina-color-status-success-bg)] text-[var(--notes-sidebar-text)] hover:bg-[var(--vlaina-color-status-success-bg)]',
+    !selected && tone === 'warning' && 'bg-[var(--vlaina-color-status-warning-bg)] text-[var(--notes-sidebar-text)] hover:bg-[var(--vlaina-color-status-warning-bg)]',
+    !selected && tone === 'error' && 'bg-[var(--vlaina-color-status-danger-bg)] text-[var(--notes-sidebar-text)] hover:bg-[var(--vlaina-color-status-danger-bg)]',
+    !selected && tone === 'loading' && 'bg-[var(--vlaina-color-row-soft)] text-[var(--notes-sidebar-text)]',
     onClick && 'cursor-pointer'
   );
 
@@ -220,14 +220,14 @@ export function ModelSearchInput({
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={t('settings.ai.filterModels')}
-      leading={<Icon name="common.search" size="sm" className="text-zinc-400" />}
+      leading={<Icon name="common.search" size="sm" className="text-[var(--notes-sidebar-text-soft)]" />}
       inputClassName={cn(providerInputClassName, 'pl-11', value && 'pr-20')}
       shellClassName={providerInputShellClassName}
       trailing={value ? (
         <button
           type="button"
           onClick={() => onChange('')}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--notes-sidebar-text)]"
         >
           <Icon name="common.close" size="sm" />
         </button>
@@ -242,7 +242,7 @@ function HealthBadge({ health }: { health?: HealthStatus }) {
   if (!health) return null;
 
   if (health.status === 'loading') {
-    return <div className="h-3.5 w-3.5 rounded-full border-2 border-zinc-300 border-t-emerald-500 animate-spin" />;
+    return <div className="h-3.5 w-3.5 rounded-full border-2 border-[var(--vlaina-border)] border-t-[var(--vlaina-accent)] animate-spin" />;
   }
 
   if (health.status === 'success') {
@@ -251,7 +251,9 @@ function HealthBadge({ health }: { health?: HealthStatus }) {
       <span
         className={cn(
           'rounded-full px-2 py-1 text-[10px] font-medium',
-          isSlow ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+          isSlow
+            ? 'bg-[var(--vlaina-color-status-warning-bg)] text-[var(--vlaina-color-status-warning-fg)]'
+            : 'bg-[var(--vlaina-color-status-success-bg)] text-[var(--vlaina-color-status-success-fg)]'
         )}
       >
         {formatBenchmarkLatency(health.latency)}
@@ -260,7 +262,7 @@ function HealthBadge({ health }: { health?: HealthStatus }) {
   }
 
   return (
-    <span className="rounded-full bg-red-100 px-2 py-1 text-[10px] font-medium text-red-700" title={health.error}>
+    <span className="rounded-full bg-[var(--vlaina-color-status-danger-bg)] px-2 py-1 text-[10px] font-medium text-[var(--vlaina-color-status-danger-fg)]" title={health.error}>
       {t('settings.ai.failed')}
     </span>
   );

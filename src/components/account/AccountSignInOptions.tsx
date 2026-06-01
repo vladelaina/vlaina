@@ -35,9 +35,9 @@ export function AccountSignInOptions({
       <AccountOauthButtons isCompact={isCompact} disabled={disabled} onOauthSignIn={onOauthSignIn} />
 
       <div className="flex items-center gap-4 px-4">
-        <div className="h-px flex-1 bg-zinc-100 dark:bg-white/5" />
-        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300 dark:text-zinc-600">{t('account.or')}</span>
-        <div className="h-px flex-1 bg-zinc-100 dark:bg-white/5" />
+        <div className="h-px flex-1 bg-[var(--vlaina-divider)]" />
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--vlaina-text-disabled)]">{t('account.or')}</span>
+        <div className="h-px flex-1 bg-[var(--vlaina-divider)]" />
       </div>
 
       <div className="space-y-6">
@@ -52,14 +52,14 @@ export function AccountSignInOptions({
           <div
             className={cn(
               'rounded-2xl px-6 py-4 text-[13px] font-medium animate-in slide-in-from-top-2 duration-300',
-              'bg-[rgba(240,138,166,0.12)] text-[var(--vlaina-color-brand-pink)] dark:bg-[rgba(240,138,166,0.14)]'
+              'bg-[var(--vlaina-color-brand-pink-soft)] text-[var(--vlaina-color-brand-pink)]'
             )}
           >
             {error}
           </div>
         ) : null}
 
-        <p className="px-8 text-[11px] text-center leading-relaxed text-zinc-400 dark:text-zinc-500 font-medium opacity-80">
+        <p className="px-8 text-[11px] text-center leading-relaxed text-[var(--vlaina-text-tertiary)] font-medium opacity-80">
           {t('account.privacyAgreement')}{' '}
           <button
             type="button"

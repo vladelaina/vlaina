@@ -1,6 +1,6 @@
 .milkdown .frontmatter-block-container {
   position: relative;
-  border: 1px dashed color-mix(in srgb, var(--crepe-color-outline, #8a8f98), transparent 45%);
+  border: 1px dashed color-mix(in srgb, var(--vlaina-border), transparent 45%);
   border-radius: 0;
   background: transparent;
 }
@@ -40,15 +40,15 @@
 }
 
 .milkdown .frontmatter-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
-  background: var(--vlaina-selection-bg, #2781db) !important;
+  background: var(--vlaina-selection-bg) !important;
 }
 
 .milkdown .frontmatter-block-container:not(.ProseMirror-selectednode):not(.vlaina-block-selected):not([data-pm-selected='true']) .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
-  background: var(--vlaina-selection-bg, #2781db) !important;
+  background: var(--vlaina-selection-bg) !important;
 }
 
 .milkdown .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
-  background: var(--vlaina-selection-bg, #2781db) !important;
+  background: var(--vlaina-selection-bg) !important;
 }
 
 .milkdown .ProseMirror.vlaina-toolbar-copy-feedback-active .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
@@ -80,13 +80,13 @@
   content: 'input YAML Front Matter.';
   position: absolute;
   inset: 0 0.875rem auto 0.875rem;
-  color: color-mix(in srgb, var(--crepe-color-outline, #8a8f98), transparent 18%);
+  color: var(--vlaina-color-editor-frontmatter-placeholder);
   pointer-events: none;
   white-space: pre-wrap;
 }
 
 .milkdown .frontmatter-block-container.ProseMirror-selectednode {
-  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg, #bedffe);
+  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg);
   --vlaina-block-selection-bleed-y: 4px;
   --vlaina-block-selection-bleed-x-start: 48px;
   --vlaina-block-selection-bleed-x-end: 48px;

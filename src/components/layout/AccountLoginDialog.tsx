@@ -35,7 +35,7 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
         useBlurBackdrop
         containerClassName="z-[1001]"
         blurBackdropProps={{ 
-          overlayClassName: 'bg-zinc-950/20 backdrop-blur-sm', 
+          overlayClassName: 'bg-[var(--vlaina-color-backdrop-soft)] backdrop-blur-sm', 
           zIndex: 1000,
           blurPx: 8, 
           duration: 0.05 
@@ -66,15 +66,15 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
           <DialogClose
             ref={closeButtonRef}
             className={cn(
-              "absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-all hover:text-zinc-950 sm:right-5 sm:top-5 dark:text-zinc-500 dark:hover:text-zinc-950",
-              "hover:bg-zinc-100 dark:hover:bg-zinc-100"
+              "absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--notes-sidebar-text-soft)] transition-all hover:text-[var(--vlaina-color-text-strong)] sm:right-5 sm:top-5",
+              "hover:bg-[var(--vlaina-hover-filled)]"
             )}
           >
             <Icon name="common.close" size="md" />
           </DialogClose>
 
           <div className="mb-7 flex items-center justify-center text-center sm:mb-10 md:mb-12">
-            <h2 className="text-[24px] font-black leading-none tracking-tight text-zinc-950 sm:text-[26px] md:text-[28px]">
+            <h2 className="text-[24px] font-black leading-none tracking-tight text-[var(--vlaina-color-text-strong)] sm:text-[26px] md:text-[28px]">
               {t('account.signIn')}
             </h2>
           </div>
@@ -95,7 +95,7 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
               <button
                 type="button"
                 onClick={() => cancelConnect()}
-                className="text-[11px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                className="text-[11px] font-black uppercase tracking-widest text-[var(--notes-sidebar-text-soft)] hover:text-[var(--vlaina-color-text-strong)] transition-colors"
               >
                 {t('account.cancelAuthentication')}
               </button>

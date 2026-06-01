@@ -31,21 +31,21 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
   const membershipBadgeLabel = membershipName || '';
 
   const membershipPillClassName = membershipTier === 'plus'
-    ? 'bg-sky-50 text-sky-700'
+    ? 'bg-[var(--vlaina-color-membership-plus-bg)] text-[var(--vlaina-color-membership-plus-fg)]'
     : membershipTier === 'pro'
-      ? 'bg-emerald-50 text-emerald-700'
+      ? 'bg-[var(--vlaina-color-membership-pro-bg)] text-[var(--vlaina-color-membership-pro-fg)]'
       : membershipTier === 'max'
-        ? 'bg-orange-50 text-orange-700'
+        ? 'bg-[var(--vlaina-color-membership-max-bg)] text-[var(--vlaina-color-membership-max-fg)]'
         : membershipTier === 'ultra'
-          ? 'bg-fuchsia-50 text-fuchsia-700'
-          : 'bg-white text-zinc-700';
+          ? 'bg-[var(--vlaina-color-membership-ultra-bg)] text-[var(--vlaina-color-membership-ultra-fg)]'
+          : 'bg-[var(--vlaina-color-setting-field)] text-[var(--notes-sidebar-text)]';
 
   return (
     <div className="group relative flex select-none items-start gap-3 px-3 pb-2.5 pt-3">
       <div className="relative shrink-0 group/avatar">
         <div
           className={cn(
-            'relative flex h-12 w-12 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-neutral-200/50 bg-white/90 shadow-sm backdrop-blur-sm transition-all duration-300 hover:scale-105 dark:border-zinc-700/50 dark:bg-zinc-800/90'
+            'relative flex h-12 w-12 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-[var(--vlaina-border)] bg-[var(--vlaina-color-input-surface)] shadow-sm backdrop-blur-sm transition-all duration-300 hover:scale-105'
           )}
         >
           <AccountAvatarImage
@@ -67,7 +67,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
               }
             }}
             className={cn(
-              'absolute -bottom-1 -right-1.5 z-10 inline-flex cursor-pointer select-none items-center rounded-[8px] px-1.5 py-[3px] text-[8px] font-semibold normal-case tracking-normal leading-none shadow-[0_8px_18px_rgba(15,23,42,0.08)]',
+              'absolute -bottom-1 -right-1.5 z-10 inline-flex cursor-pointer select-none items-center rounded-[8px] px-1.5 py-[3px] text-[8px] font-semibold normal-case tracking-normal leading-none shadow-[var(--vlaina-shadow-badge)]',
               membershipPillClassName
             )}
           >

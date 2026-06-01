@@ -4,6 +4,7 @@ import {
   normalizeMermaidCodeForRender,
   normalizeMermaidEditorCodeInput,
 } from './mermaidFenceCode';
+import { themeColorTokens } from '@/styles/themeTokens';
 
 type MermaidRender = (code: string, id: string) => Promise<string>;
 
@@ -144,7 +145,7 @@ function replaceMermaidForeignObjectLabels(markup: string) {
     text.setAttribute('x', resolveForeignObjectCenterCoord(foreignObject, 'x', 'width'));
     text.setAttribute('y', resolveForeignObjectCenterCoord(foreignObject, 'y', 'height'));
     text.setAttribute('text-anchor', 'middle');
-    text.setAttribute('fill', '#27272A');
+    text.setAttribute('fill', themeColorTokens.mermaidText);
 
     const firstLineDy = lines.length > 1
       ? `${0.35 - ((lines.length - 1) * 0.6)}em`

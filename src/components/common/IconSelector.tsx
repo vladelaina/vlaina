@@ -68,7 +68,7 @@ export function IconSelector({
             <PopoverTrigger asChild>
               {trigger ? trigger : (
                 <button
-                  className="w-[18px] h-[18px] flex items-center justify-center rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  className="w-[18px] h-[18px] flex items-center justify-center rounded hover:bg-[var(--vlaina-hover)] transition-colors"
                   title={t('icon.changeIcon')}
                   onMouseEnter={() => handlePreview(value || null)}
                   onMouseLeave={() => handlePreview(null)}
@@ -76,7 +76,7 @@ export function IconSelector({
                   {value ? (
                     <AppIcon icon={value} size="md" color={colorHex} />
                   ) : (
-                    <Icon size="md" name="misc.activity" className=" text-zinc-400" />
+                    <Icon size="md" name="misc.activity" className="text-[var(--vlaina-color-text-soft)]" />
                   )}
                 </button>
               )}
@@ -115,8 +115,8 @@ export function IconSelector({
           className={cn(
             "w-6 h-6 rounded-md flex items-center justify-center transition-all",
             !value 
-              ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400" 
-              : "text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              ? "bg-[var(--vlaina-hover-filled)] text-[var(--vlaina-color-text-secondary)]" 
+              : "text-[var(--vlaina-color-text-soft)] hover:bg-[var(--vlaina-hover)]"
           )}
           title={t('icon.clearIcon')}
         >
@@ -131,8 +131,8 @@ export function IconSelector({
               className={cn(
                 "w-6 h-6 rounded-md flex items-center justify-center transition-all",
                  value === name 
-                  ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300" 
-                  : "text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  ? "bg-[var(--vlaina-hover-filled)] text-[var(--vlaina-color-text-strong)]" 
+                  : "text-[var(--vlaina-color-text-soft)] hover:bg-[var(--vlaina-hover)]"
               )}
             >
                <AppIcon icon={name} size="md" color={colorHex} />
@@ -143,8 +143,8 @@ export function IconSelector({
             <PopoverTrigger asChild>
                 <button
                   className={cn(
-                    "w-6 h-6 rounded-md flex items-center justify-center transition-all text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800",
-                    isOpen && "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
+                    "w-6 h-6 rounded-md flex items-center justify-center transition-all text-[var(--vlaina-color-text-soft)] hover:bg-[var(--vlaina-hover)]",
+                    isOpen && "bg-[var(--vlaina-hover-filled)] text-[var(--vlaina-color-text-strong)]"
                   )}
                   title={t('icon.moreIcons')}
                 >

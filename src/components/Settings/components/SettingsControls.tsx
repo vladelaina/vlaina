@@ -12,7 +12,7 @@ interface SegmentedControlProps {
 
 export function SegmentedControl({ options, value, onChange }: SegmentedControlProps) {
     return (
-        <div className="flex p-0.5 bg-[#F4F4F5] dark:bg-[#2A2A2A] rounded-lg border border-transparent dark:border-white/10">
+        <div className="flex p-0.5 bg-[var(--vlaina-color-setting-control)] rounded-lg border border-transparent dark:border-[var(--vlaina-color-menu-border)]">
             {options.map((option) => {
                 const isActive = value === option.value;
                 return (
@@ -29,7 +29,7 @@ export function SegmentedControl({ options, value, onChange }: SegmentedControlP
                         {isActive && (
                             <motion.div
                                 layoutId="segmented-bg"
-                                className="absolute inset-0 bg-white dark:bg-[#3E3E3E] rounded-[6px] shadow-[0_1px_2px_rgba(0,0,0,0.08)] border border-black/5 dark:border-white/10"
+                                className="absolute inset-0 bg-[var(--vlaina-color-setting-control-active)] rounded-[6px] shadow-[var(--vlaina-shadow-control-active)] border border-[var(--vlaina-color-menu-border)]"
                                 transition={{ type: "spring", bounce: 0.15, duration: 0.25 }}
                                 style={{ zIndex: -1 }}
                             />
@@ -58,13 +58,13 @@ export function SettingsToggle({ checked, onChange }: SettingsToggleProps) {
             onClick={() => onChange(!checked)}
             className={cn(
                 "relative w-10 h-6 rounded-full transition-colors duration-200 ease-in-out focus:outline-none",
-                checked ? "bg-[#1E96EB]" : "bg-zinc-200 dark:bg-zinc-600"
+                checked ? "bg-[var(--vlaina-accent)]" : "bg-[var(--vlaina-bg-tertiary)]"
             )}
         >
             <span className="sr-only">{t('common.toggleSetting')}</span>
             <span
                 className={cn(
-                    "inline-block w-[18px] h-[18px] bg-white rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.1)] transform transition-transform duration-200 ease-in-out",
+                    "inline-block w-[18px] h-[18px] bg-[var(--vlaina-color-white)] rounded-full shadow-[var(--vlaina-shadow-control-active)] transform transition-transform duration-200 ease-in-out",
                     checked ? "translate-x-[19px]" : "translate-x-[3px]"
                 )}
                 style={{ marginTop: '3px' }}

@@ -5,10 +5,10 @@
 .milkdown {
   min-height: 100%;
   outline: none;
-  --vlaina-editor-block-selection-base: var(--vlaina-color-editor-block-selection, var(--vlaina-color-accent, #1e96eb));
-  --vlaina-editor-block-selection-bg: var(--vlaina-color-editor-block-selection-bg, #bedffe);
-  --vlaina-editor-block-selection-fg: var(--vlaina-color-editor-block-selection-fg, #fefbf9);
-  --vlaina-editor-block-selection-handle: var(--vlaina-color-editor-block-selection-handle, var(--vlaina-text-primary, #2c2c2b));
+  --vlaina-editor-block-selection-base: var(--vlaina-color-editor-block-selection);
+  --vlaina-editor-block-selection-bg: var(--vlaina-color-editor-block-selection-bg);
+  --vlaina-editor-block-selection-fg: var(--vlaina-color-editor-block-selection-fg);
+  --vlaina-editor-block-selection-handle: var(--vlaina-color-editor-block-selection-handle);
 }
 
 /* Reset potential focus outlines during interactions */
@@ -142,19 +142,19 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 
 /* Selection */
 .milkdown .ProseMirror::selection {
-  background-color: var(--vlaina-selection-bg, #2781db) !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+  background-color: var(--vlaina-selection-bg) !important;
+  color: var(--vlaina-color-white) !important;
+  -webkit-text-fill-color: var(--vlaina-color-white) !important;
 }
 
 .milkdown .ProseMirror::-moz-selection {
-  background-color: var(--vlaina-selection-bg, #2781db) !important;
-  color: #ffffff !important;
+  background-color: var(--vlaina-selection-bg) !important;
+  color: var(--vlaina-color-white) !important;
 }
 
 /* Notion-like drag block selection highlight */
 .milkdown .ProseMirror .vlaina-block-selected {
-  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg, #bedffe);
+  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg);
   --vlaina-block-selection-bleed-y: 4px;
   --vlaina-block-selection-bleed-x-start: 48px;
   --vlaina-block-selection-bleed-x-end: 48px;
@@ -169,7 +169,7 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
   border-radius: 8px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
-  color: var(--vlaina-editor-block-selection-fg, #fefbf9);
+  color: var(--vlaina-editor-block-selection-fg);
   transition: none !important;
 }
 
@@ -181,7 +181,7 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 }
 
 .milkdown .vlaina-block-selection-line-fill {
-  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg, #bedffe);
+  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg);
   --vlaina-block-selection-bleed-y: 4px;
   position: absolute;
   z-index: 0;
@@ -195,25 +195,25 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 
 .milkdown .ProseMirror .vlaina-block-selected:not(.code-block-container):not(.mermaid-block),
 .milkdown .ProseMirror .vlaina-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {
-  color: var(--vlaina-editor-block-selection-fg, #fefbf9);
-  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg, #fefbf9);
+  color: var(--vlaina-editor-block-selection-fg);
+  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg);
 }
 
 .milkdown .ProseMirror li:has(> p.vlaina-block-selected)::marker {
-  color: var(--vlaina-editor-block-selection-fg, #fefbf9);
+  color: var(--vlaina-editor-block-selection-fg);
 }
 
 .milkdown .ProseMirror li[data-item-type="task"].vlaina-block-selected::before,
 .milkdown .ProseMirror li[data-item-type="task"]:has(> p.vlaina-block-selected)::before,
 .milkdown .ProseMirror .vlaina-block-selected li[data-item-type="task"]::before {
-  border-color: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;
+  border-color: var(--vlaina-editor-block-selection-fg) !important;
   background-color: transparent !important;
 }
 
 .milkdown .ProseMirror blockquote.vlaina-block-selected::before,
 .milkdown .ProseMirror blockquote:has(> .vlaina-block-selected)::before,
 .milkdown .ProseMirror .vlaina-block-selected blockquote::before {
-  background: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;
+  background: var(--vlaina-editor-block-selection-fg) !important;
 }
 
 .milkdown .ProseMirror p.vlaina-block-selected {
@@ -377,7 +377,7 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 
 .milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected,
 .milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode {
-  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg, #bedffe);
+  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg);
   --vlaina-block-selection-bleed-y: 4px;
   --vlaina-block-selection-bleed-x-start: 48px;
   --vlaina-block-selection-bleed-x-end: 48px;
@@ -541,11 +541,11 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 
 .vlaina-block-controls.visible .vlaina-block-control-handle,
 .vlaina-block-controls.dragging .vlaina-block-control-handle {
-  color: var(--vlaina-editor-block-selection-handle, var(--vlaina-text-primary, #2c2c2b));
+  color: var(--vlaina-editor-block-selection-handle);
 }
 
 .vlaina-block-controls.visible .vlaina-block-control-handle:hover {
-  color: var(--vlaina-editor-block-selection-handle, var(--vlaina-text-primary, #2c2c2b));
+  color: var(--vlaina-editor-block-selection-handle);
 }
 
 .vlaina-block-controls .vlaina-block-control-btn:active {
@@ -757,9 +757,9 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
   padding: 0;
   border: 1px solid color-mix(in srgb, var(--crepe-color-outline), transparent 42%);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--crepe-color-surface, #ffffff), transparent 6%);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-  color: color-mix(in srgb, var(--crepe-color-outline), var(--crepe-color-on-background, #111827) 24%);
+  background: color-mix(in srgb, var(--vlaina-color-setting-field), transparent 6%);
+  box-shadow: var(--vlaina-shadow-badge);
+  color: color-mix(in srgb, var(--vlaina-border), var(--vlaina-color-text-strong) 24%);
   pointer-events: auto;
   cursor: ew-resize;
   z-index: 1;
@@ -775,17 +775,17 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 .milkdown .milkdown-table-block .column-header-drag-control:hover,
 .milkdown .milkdown-table-block .column-header-drag-control[data-active='true'] {
   border-color: color-mix(in srgb, var(--crepe-color-outline), transparent 26%);
-  background: var(--crepe-color-surface, #ffffff);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-  color: color-mix(in srgb, var(--crepe-color-outline), var(--crepe-color-on-background, #111827) 42%);
+  background: var(--vlaina-color-setting-field);
+  box-shadow: var(--vlaina-shadow-badge);
+  color: color-mix(in srgb, var(--vlaina-border), var(--vlaina-color-text-strong) 42%);
   opacity: 1;
 }
 
 .milkdown .milkdown-table-block .column-header-drag-control:focus-visible {
   border-color: color-mix(in srgb, var(--crepe-color-outline), transparent 20%);
-  background: var(--crepe-color-surface, #ffffff);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-  color: color-mix(in srgb, var(--crepe-color-outline), var(--crepe-color-on-background, #111827) 42%);
+  background: var(--vlaina-color-setting-field);
+  box-shadow: var(--vlaina-shadow-badge);
+  color: color-mix(in srgb, var(--vlaina-border), var(--vlaina-color-text-strong) 42%);
   opacity: 1;
   outline: none;
 }
@@ -795,8 +795,8 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 .milkdown .milkdown-table-block .column-header-drag-control:focus-visible,
 .milkdown .milkdown-table-block .column-header-drag-control[data-active='true'],
 .milkdown .milkdown-table-block .column-header-drag-control__grip {
-  color: var(--vlaina-text-primary, #111827) !important;
-  -webkit-text-fill-color: var(--vlaina-text-primary, #111827) !important;
+  color: var(--vlaina-text-primary) !important;
+  -webkit-text-fill-color: var(--vlaina-text-primary) !important;
 }
 
 .milkdown .milkdown-table-block .column-header-drag-control__grip {
@@ -823,8 +823,8 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
   width: 3px;
   transform: translateX(-50%);
   border-radius: 999px;
-  background: #1e96eb;
-  box-shadow: 0 0 0 1px rgba(30, 150, 235, 0.16), 0 0 14px rgba(30, 150, 235, 0.28);
+  background: var(--vlaina-accent);
+  box-shadow: var(--vlaina-shadow-selection-soft);
   pointer-events: none;
   z-index: 2;
 }
@@ -846,10 +846,8 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
   padding: 6px;
   border: 1px solid transparent;
   border-radius: 22px;
-  background: #ffffff;
-  box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  background: var(--vlaina-color-white);
+  box-shadow: var(--vlaina-shadow-raised-soft);
   pointer-events: auto;
   z-index: 4;
 }
@@ -886,26 +884,26 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__item--danger {
-  color: #dc2626 !important;
-  -webkit-text-fill-color: #dc2626 !important;
+  color: var(--vlaina-color-status-danger-fg) !important;
+  -webkit-text-fill-color: var(--vlaina-color-status-danger-fg) !important;
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__item--danger:hover {
-  background: #fef2f2;
+  background: var(--vlaina-color-status-danger-bg);
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__item--danger:focus-visible {
-  background: #fef2f2;
+  background: var(--vlaina-color-status-danger-bg);
 }
 
 .dark .milkdown .milkdown-table-block .column-header-drag-menu__item--danger {
-  color: #f87171 !important;
-  -webkit-text-fill-color: #f87171 !important;
+  color: var(--vlaina-color-status-danger-fg) !important;
+  -webkit-text-fill-color: var(--vlaina-color-status-danger-fg) !important;
 }
 
 .dark .milkdown .milkdown-table-block .column-header-drag-menu__item--danger:hover,
 .dark .milkdown .milkdown-table-block .column-header-drag-menu__item--danger:focus-visible {
-  background: rgba(127, 29, 29, 0.2);
+  background: var(--vlaina-color-status-danger-bg);
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__divider {

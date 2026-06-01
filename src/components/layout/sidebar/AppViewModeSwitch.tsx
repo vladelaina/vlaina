@@ -38,7 +38,7 @@ export function AppViewModeSwitch() {
       <span
         aria-hidden="true"
         className={cn(
-          'absolute inset-y-1.5 left-1.5 w-[calc((100%_-_0.75rem)_/_2)] rounded-full bg-[var(--vlaina-accent-light)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_6px_16px_-12px_rgba(30,150,235,0.85)] transition-transform duration-200 ease-out',
+          'absolute inset-y-1.5 left-1.5 w-[calc((100%_-_0.75rem)_/_2)] rounded-full bg-[var(--vlaina-accent-light)] shadow-[var(--vlaina-shadow-selection-soft)] transition-transform duration-200 ease-out',
           appViewMode === 'chat' && 'translate-x-full',
         )}
       />

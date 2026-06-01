@@ -103,11 +103,11 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
             iconButtonStyles,
             !isPromoteMode && cn(chatComposerPillSurfaceClass, 'rounded-full'),
             isPromoteMode
-              ? 'bg-transparent text-[#41a8ea] hover:bg-transparent hover:text-[#41a8ea] dark:bg-transparent dark:text-[#41a8ea] dark:hover:bg-transparent dark:hover:text-[#41a8ea]'
+              ? 'bg-transparent text-[var(--vlaina-accent)] hover:bg-transparent hover:text-[var(--vlaina-accent)]'
               :
             temporaryChatEnabled
-              ? 'text-[#41a8ea] hover:text-[#41a8ea] dark:text-[#41a8ea]'
-              : 'text-[var(--chat-sidebar-text)] hover:bg-transparent hover:text-[#41a8ea] dark:hover:bg-transparent',
+              ? 'text-[var(--vlaina-accent)] hover:text-[var(--vlaina-accent)]'
+              : 'text-[var(--chat-sidebar-text)] hover:bg-transparent hover:text-[var(--vlaina-accent)] dark:hover:bg-transparent',
             isDisabled && 'cursor-default pointer-events-none opacity-95'
           )}
         >

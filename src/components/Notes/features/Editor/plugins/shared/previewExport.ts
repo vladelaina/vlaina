@@ -2,6 +2,7 @@ import { getElectronBridge } from '@/lib/electron/bridge';
 import { writeDesktopBinaryFile } from '@/lib/desktop/fs';
 import { saveDialog } from '@/lib/storage/dialog';
 import { translate } from '@/lib/i18n';
+import { themeColorTokens } from '@/styles/themeTokens';
 
 export type PreviewExportFormat = 'svg' | 'png' | 'jpg';
 
@@ -81,7 +82,7 @@ async function createPreviewBytes(element: HTMLElement, format: PreviewExportFor
   }
 
   const options = {
-    backgroundColor: '#ffffff',
+    backgroundColor: themeColorTokens.exportSurface,
     cacheBust: true,
     pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
   };
