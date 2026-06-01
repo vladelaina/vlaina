@@ -132,14 +132,16 @@ export async function requestManagedChatCompletion(
 }
 
 export async function requestManagedImageGeneration(
-  body: object
+  body: object,
+  signal?: AbortSignal
 ): Promise<Record<string, unknown>> {
   return hasElectronDesktopBridge()
-    ? ((await accountCommands.managedImageGeneration(body)) as Record<string, unknown>)
+    ? ((await accountCommands.managedImageGeneration(body, signal)) as Record<string, unknown>)
     : await requestManagedWebJson<Record<string, unknown>>('/images/generations', {
       method: 'POST',
       body: JSON.stringify(body),
       timeoutMs: 300_000,
+      signal,
     })
 }
 
@@ -149,7 +151,7 @@ export async function requestManagedImageEdit(
   signal?: AbortSignal
 ): Promise<Record<string, unknown>> {
   return hasElectronDesktopBridge()
-    ? ((await accountCommands.managedImageEdit(body, headers)) as Record<string, unknown>)
+    ? ((await accountCommands.managedImageEdit(body, headers, signal)) as Record<string, unknown>)
     : await requestManagedWebBinaryJson<Record<string, unknown>>('/images/edits', body, headers, signal)
 }
 

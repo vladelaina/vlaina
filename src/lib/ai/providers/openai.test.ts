@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AIModel, ChatMessage, Provider } from '../types';
+import { AIErrorType, type AIModel, type ChatMessage, type Provider } from '../types';
 import { getUserFacingAIError } from '../errors';
 import { OpenAICompatibleClient } from './openai';
 
@@ -155,17 +155,104 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     );
   });
 
+  it('does not fall back to another endpoint after model listing is externally aborted', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      controller.abort();
+      return Promise.reject(new DOMException('cancelled', 'AbortError'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      new OpenAICompatibleClient().getModelsWithEndpointDetection(buildProvider(), controller.signal),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      headers: { Authorization: 'Bearer sk-test' },
+      signal: expect.any(AbortSignal),
+    });
+  });
+
+  it('rejects model listing results that resolve after external cancellation', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn(async () => {
+      controller.abort();
+      return new Response(JSON.stringify({ data: [{ id: 'late-model' }] }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      new OpenAICompatibleClient().getModelsWithEndpointDetection(buildProvider(), controller.signal),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('surfaces model listing timeouts as timeout failures instead of user cancellation', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchMock = vi.fn((_url: string, init?: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            reject(new DOMException('Aborted', 'AbortError'));
+          }, { once: true });
+        })
+      );
+      vi.stubGlobal('fetch', fetchMock);
+
+      const request = new OpenAICompatibleClient().getModelsWithEndpointDetection(buildProvider());
+      const expectation = expect(request).rejects.toThrow('Model listing request timed out.');
+
+      await vi.advanceTimersByTimeAsync(10_000);
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      await expectation;
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps model listing timeouts active while parsing response bodies', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchMock = vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: vi.fn(() => new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({ data: [{ id: 'late-model' }] });
+          }, 11_000);
+        })),
+      }));
+      vi.stubGlobal('fetch', fetchMock);
+
+      const request = new OpenAICompatibleClient().getModelsWithEndpointDetection(buildProvider());
+      const expectation = expect(request).rejects.toThrow('Model listing request timed out.');
+
+      await vi.advanceTimersByTimeAsync(10_000);
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      await expectation;
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('sanitizes model ids returned by provider model listing endpoints', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
         data: [
           { id: ' gpt-4o-mini ' },
+          'claude-sonnet-4-5',
           { id: '' },
           { id: 42 },
           { id: 'GPT-4O-MINI' },
           {},
-          { id: 'claude-sonnet-4-5' },
+          { id: 'CLAUDE-SONNET-4-5' },
         ],
       }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
@@ -175,6 +262,41 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(result).toEqual({
       models: ['gpt-4o-mini', 'claude-sonnet-4-5'],
       endpointType: 'openai',
+    });
+  });
+
+  it('uses alternate OpenAI-compatible model list fields when data has no valid ids', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: [{ id: '' }, {}, 42],
+        models: [' qwen3-coder ', { name: 'deepseek-chat' }, { model: 'kimi-k2' }],
+      }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new OpenAICompatibleClient().getModelsWithEndpointDetection(buildProvider());
+
+    expect(result).toEqual({
+      models: ['qwen3-coder', 'deepseek-chat', 'kimi-k2'],
+      endpointType: 'openai',
+    });
+  });
+
+  it('sanitizes string model ids returned by Anthropic-compatible model listing endpoints', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: [' claude-sonnet-4-5 ', { id: 'CLAUDE-SONNET-4-5' }, { id: 'claude-opus-4-1' }],
+      }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new OpenAICompatibleClient().getModelsWithEndpointDetection(
+      buildProvider({ endpointType: 'anthropic' }),
+    );
+
+    expect(result).toEqual({
+      models: ['claude-sonnet-4-5', 'claude-opus-4-1'],
+      endpointType: 'anthropic',
     });
   });
 
@@ -214,6 +336,137 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     });
   });
 
+  it('aborts Anthropic streams after response headers have returned', async () => {
+    const cancelStream = vi.fn();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(
+          'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"partial"}}\n\n',
+        ));
+      },
+      cancel: cancelStream,
+    });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(stream, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const controller = new AbortController();
+    const chunks: string[] = [];
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel(),
+      buildProvider({ endpointType: 'anthropic' }),
+      (chunk) => {
+        chunks.push(chunk);
+        controller.abort();
+      },
+      controller.signal,
+    )).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(chunks).toEqual(['partial']);
+    expect(cancelStream).toHaveBeenCalled();
+  });
+
+  it('does not complete Anthropic streams after a residual chunk callback cancels', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response([
+        'event: content_block_delta',
+        'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"residual"}}',
+      ].join('\n'), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const controller = new AbortController();
+    const chunks: string[] = [];
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel(),
+      buildProvider({ endpointType: 'anthropic' }),
+      (chunk) => {
+        chunks.push(chunk);
+        controller.abort();
+      },
+      controller.signal,
+    )).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(chunks).toEqual(['residual']);
+  });
+
+  it('normalizes non-abort Anthropic reader failures after chat cancellation', async () => {
+    const controller = new AbortController();
+    const stream = new ReadableStream({
+      async pull() {
+        controller.abort();
+        throw new TypeError('reader closed by runtime');
+      },
+    });
+    const response = new Response(stream, { status: 200 });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel(),
+      buildProvider({ endpointType: 'anthropic' }),
+      vi.fn(),
+      controller.signal,
+    )).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('normalizes upstream Anthropic abort-shaped stream failures without treating them as chat cancellation', async () => {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.error(new DOMException('provider stream aborted', 'AbortError'));
+      },
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(stream, { status: 200 })));
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel(),
+      buildProvider({ endpointType: 'anthropic' }),
+      vi.fn(),
+    )).rejects.toMatchObject({
+      type: AIErrorType.SERVER_ERROR,
+      message: 'provider stream aborted',
+    });
+  });
+
+  it('keeps Anthropic request timeout active while reading error response bodies', async () => {
+    vi.useFakeTimers();
+    try {
+      const textStarted = vi.fn();
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+        text: vi.fn(() => new Promise(() => {
+          textStarted();
+        })),
+      }));
+      const client = new OpenAICompatibleClient();
+      (client as unknown as { timeout: number }).timeout = 10;
+
+      const request = expect(client.sendMessage(
+        'hi',
+        [],
+        buildModel(),
+        buildProvider({ endpointType: 'anthropic' }),
+        vi.fn(),
+      )).rejects.toThrow('The AI request timed out.');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(textStarted).toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(20);
+
+      await request;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('routes GPT image models to the image generation endpoint', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({
@@ -249,6 +502,85 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       prompt: 'draw a house',
       n: 1,
     });
+  });
+
+  it('does not emit direct image results after cancellation during response parsing', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      async json() {
+        controller.abort();
+        return {
+          data: [{ b64_json: 'abc123', revised_prompt: 'A cancelled image' }],
+        };
+      },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const onChunk = vi.fn();
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'draw a house',
+      [],
+      buildModel({ apiModelId: 'gpt-image-2', name: 'GPT Image 2' }),
+      buildProvider(),
+      onChunk,
+      controller.signal,
+    )).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(onChunk).not.toHaveBeenCalled();
+  });
+
+  it('does not complete direct image generation after the chunk callback cancels', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        data: [{ b64_json: 'abc123', revised_prompt: 'A cancelled image' }],
+      }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const chunks: string[] = [];
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'draw a house',
+      [],
+      buildModel({ apiModelId: 'gpt-image-2', name: 'GPT Image 2' }),
+      buildProvider(),
+      (chunk) => {
+        chunks.push(chunk);
+        controller.abort();
+      },
+      controller.signal,
+    )).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(chunks).toEqual(['![A cancelled image](<data:image/png;base64,abc123>)']);
+  });
+
+  it('aborts direct image response parsing while provider JSON is still pending', async () => {
+    const controller = new AbortController();
+    const jsonStarted = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn(() => new Promise(() => {
+        jsonStarted();
+      })),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const onChunk = vi.fn();
+
+    const request = new OpenAICompatibleClient().sendMessage(
+      'draw a house',
+      [],
+      buildModel({ apiModelId: 'gpt-image-2', name: 'GPT Image 2' }),
+      buildProvider(),
+      onChunk,
+      controller.signal,
+    );
+
+    await vi.waitFor(() => expect(jsonStarted).toHaveBeenCalled());
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    expect(onChunk).not.toHaveBeenCalled();
   });
 
   it('escapes generated image markdown alt text and target', async () => {
@@ -473,6 +805,101 @@ describe('OpenAICompatibleClient endpoint detection', () => {
         metrics: { successCount: 2 },
       },
     ]);
+  });
+
+  it('does not emit xAI native search results after cancellation during response parsing', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      async json() {
+        controller.abort();
+        return {
+          output_text: 'Grok answer after cancellation.',
+          citations: ['https://x.ai/news'],
+        };
+      },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const chunks: string[] = [];
+    const statuses: unknown[] = [];
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'what is new with xai?',
+      [],
+      buildModel({ apiModelId: 'grok-4', name: 'Grok 4' }),
+      buildProvider({ name: 'xAI', apiHost: 'https://api.x.ai', endpointType: 'openai' }),
+      (chunk) => chunks.push(chunk),
+      controller.signal,
+      {
+        webSearchEnabled: true,
+        onWebSearchStatus: (status) => statuses.push(status),
+      },
+    )).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(chunks).toEqual(['<web-search-status>{"phase":"searching"}</web-search-status>']);
+    expect(statuses).toEqual([{ phase: 'searching', query: 'what is new with xai?' }]);
+  });
+
+  it('does not start xAI native search when the initial status callback cancels', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const chunks: string[] = [];
+    const statuses: unknown[] = [];
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'what is new with xai?',
+      [],
+      buildModel({ apiModelId: 'grok-4', name: 'Grok 4' }),
+      buildProvider({ name: 'xAI', apiHost: 'https://api.x.ai', endpointType: 'openai' }),
+      (chunk) => chunks.push(chunk),
+      controller.signal,
+      {
+        webSearchEnabled: true,
+        onWebSearchStatus: (status) => {
+          statuses.push(status);
+          controller.abort();
+        },
+      },
+    )).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(chunks).toEqual([]);
+    expect(statuses).toEqual([{ phase: 'searching', query: 'what is new with xai?' }]);
+  });
+
+  it('aborts xAI native search response parsing while provider JSON is still pending', async () => {
+    const controller = new AbortController();
+    const jsonStarted = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn(() => new Promise(() => {
+        jsonStarted();
+      })),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const chunks: string[] = [];
+    const statuses: unknown[] = [];
+
+    const request = new OpenAICompatibleClient().sendMessage(
+      'what is new with xai?',
+      [],
+      buildModel({ apiModelId: 'grok-4', name: 'Grok 4' }),
+      buildProvider({ name: 'xAI', apiHost: 'https://api.x.ai', endpointType: 'openai' }),
+      (chunk) => chunks.push(chunk),
+      controller.signal,
+      {
+        webSearchEnabled: true,
+        onWebSearchStatus: (status) => statuses.push(status),
+      },
+    );
+
+    await vi.waitFor(() => expect(jsonStarted).toHaveBeenCalled());
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    expect(chunks).toEqual(['<web-search-status>{"phase":"searching"}</web-search-status>']);
+    expect(statuses).toEqual([{ phase: 'searching', query: 'what is new with xai?' }]);
   });
 
   it('strips rendered web search statuses from xAI native search conversation input', async () => {
@@ -829,6 +1256,32 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(body.tools).toBeUndefined();
     expect(body.tool_choice).toBeUndefined();
     expect(body.stream).toBe(true);
+  });
+
+  it('does not emit managed image results after cancellation during response parsing', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      async json() {
+        controller.abort();
+        return {
+          data: [{ b64_json: 'abc123', revised_prompt: 'A cancelled managed image' }],
+        };
+      },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const onChunk = vi.fn();
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'draw a house',
+      [],
+      buildModel({ apiModelId: 'gpt-image-2', name: 'GPT Image 2' }),
+      buildProvider({ id: 'vlaina-managed', apiHost: 'https://api.vlaina.com/v1', apiKey: '' }),
+      onChunk,
+      controller.signal,
+    )).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(onChunk).not.toHaveBeenCalled();
   });
 
   it('does not prefetch web search for casual managed Claude messages', async () => {
@@ -1320,6 +1773,40 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     }]);
   });
 
+  it('does not complete direct OpenAI-compatible streams after the transcript callback cancels', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse([
+        'data: {"choices":[{"delta":{"reasoning_content":"plan"}}]}',
+        '',
+        'data: {"choices":[{"delta":{"content":"answer"}}]}',
+        '',
+        'data: [DONE]',
+        '',
+      ].join('\n')),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const controller = new AbortController();
+    const chunks: string[] = [];
+    const onApiTranscript = vi.fn(() => controller.abort());
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel({ apiModelId: 'deepseek-chat' }),
+      buildProvider({ name: 'DeepSeek', apiHost: 'https://api.deepseek.com', endpointType: 'openai' }),
+      (chunk) => chunks.push(chunk),
+      controller.signal,
+      { onApiTranscript },
+    )).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(chunks[chunks.length - 1]).toBe('<think>plan</think>answer');
+    expect(onApiTranscript).toHaveBeenCalledWith([{
+      role: 'assistant',
+      content: 'answer',
+      reasoning_content: 'plan',
+    }]);
+  });
+
   it('stores hidden API transcript for managed reasoning streams', async () => {
     const encoder = new TextEncoder();
     const fetchMock = vi.fn().mockResolvedValue({
@@ -1411,6 +1898,77 @@ describe('OpenAICompatibleClient endpoint detection', () => {
 
     await request;
     vi.useRealTimers();
+  });
+
+  it('keeps OpenAI-compatible request timeout active while reading error response bodies', async () => {
+    vi.useFakeTimers();
+    try {
+      const textStarted = vi.fn();
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+        text: vi.fn(() => new Promise(() => {
+          textStarted();
+        })),
+      }));
+      const client = new OpenAICompatibleClient();
+      (client as unknown as { timeout: number }).timeout = 10;
+
+      const request = expect(client.sendMessage(
+        'hi',
+        [],
+        buildModel({ apiModelId: 'gpt-4o-mini' }),
+        buildProvider({ endpointType: 'openai' }),
+        vi.fn(),
+      )).rejects.toThrow('The AI request timed out.');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(textStarted).toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(20);
+
+      await request;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not start OpenAI-compatible stream requests when the external signal is already aborted', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel({ apiModelId: 'gpt-4o-mini' }),
+      buildProvider({ endpointType: 'openai' }),
+      vi.fn(),
+      controller.signal,
+    )).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('normalizes upstream OpenAI-compatible abort-shaped stream failures without treating them as chat cancellation', async () => {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.error(new DOMException('provider stream aborted', 'AbortError'));
+      },
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(stream, { status: 200 })));
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel({ apiModelId: 'gpt-4o-mini' }),
+      buildProvider({ endpointType: 'openai' }),
+      vi.fn(),
+    )).rejects.toMatchObject({
+      type: AIErrorType.SERVER_ERROR,
+      message: 'provider stream aborted',
+    });
   });
 
   it('clears the OpenAI-compatible request timeout after a successful stream', async () => {

@@ -43,14 +43,6 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-function createAbortedResult(): HealthCheckResult {
-  return {
-    status: 'error',
-    error: 'Request aborted',
-    endpoint: 'chat',
-  };
-}
-
 export async function benchmarkModels(
   provider: Provider,
   models: AIModel[],
@@ -75,22 +67,26 @@ export async function benchmarkModels(
     const currentBatch = models.slice(index, index + concurrency);
     await Promise.all(
       currentBatch.map(async (model) => {
+        if (options.signal?.aborted) {
+          return;
+        }
+
         let result: HealthCheckResult;
         try {
-          if (options.signal?.aborted) {
-            result = createAbortedResult();
-          } else {
-            result = await checkModelHealth(provider, model, {
-              timeoutMs: options.timeoutMs,
-              signal: options.signal,
-            });
-          }
+          result = await checkModelHealth(provider, model, {
+            timeoutMs: options.timeoutMs,
+            signal: options.signal,
+          });
         } catch (error: unknown) {
           result = {
             status: 'error',
             error: error instanceof Error ? error.message : 'Unknown error',
             endpoint: 'chat',
           };
+        }
+
+        if (options.signal?.aborted) {
+          return;
         }
 
         resultMap[model.id] = result;

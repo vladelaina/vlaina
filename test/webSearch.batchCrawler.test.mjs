@@ -93,4 +93,26 @@ describe('batch crawler', () => {
       code: 'blocked_source',
     });
   });
+
+  it('rejects page reads that resolve after cancellation', async () => {
+    const controller = new AbortController();
+    const crawler = {
+      async readUrl() {
+        controller.abort();
+        return {
+          title: 'Late OK',
+          summary: '',
+          siteName: 'example.com',
+          finalUrl: 'https://late.example',
+          content: 'late content',
+          charCount: 12,
+        };
+      },
+    };
+
+    await expect(readUrlsBatch(crawler, ['https://late.example'], {
+      signal: controller.signal,
+      retries: 0,
+    })).rejects.toMatchObject({ name: 'AbortError' });
+  });
 });

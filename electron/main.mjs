@@ -44,6 +44,7 @@ let trayLanguage = 'en';
 let pendingOpenMarkdownPath = null;
 const readOnlyNetworkRetryDelaysMs = [300];
 const readOnlyFastFailureRetryWindowMs = 2000;
+const managedReadOnlyRequestTimeoutMs = 15_000;
 
 const supportedTrayLanguages = new Set([
   'en',
@@ -231,12 +232,132 @@ function fetchWithElectronSession(url, init) {
   return electron.net.fetch(url, init);
 }
 
-function isAbortError(error) {
-  return error instanceof Error && error.name === 'AbortError';
+function createAbortError() {
+  return new DOMException('Aborted', 'AbortError');
 }
 
-function delayReadOnlyNetworkRetry(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return;
+  throw createAbortError();
+}
+
+async function raceWithAbort(promise, signal) {
+  throwIfAborted(signal);
+  if (!signal) {
+    return await promise;
+  }
+  promise.catch(() => undefined);
+
+  return await new Promise((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      signal.removeEventListener('abort', abort);
+    };
+    const settle = (callback) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback();
+    };
+    const abort = () => {
+      settle(() => reject(createAbortError()));
+    };
+
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+
+    promise.then(
+      (value) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            resolve(value);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+      (error) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            reject(error);
+          } catch (abortError) {
+            reject(abortError);
+          }
+        });
+      },
+    );
+  });
+}
+
+function createTimedRequestInit(init = {}, timeoutMs = null) {
+  if (!timeoutMs || init.signal?.aborted) {
+    return {
+      requestInit: init,
+      cleanup: () => {},
+    };
+  }
+
+  const timeoutController = new AbortController();
+  const timeout = setTimeout(() => {
+    timeoutController.abort();
+  }, timeoutMs);
+  let cleanupExternalAbort = () => {};
+  let signal = timeoutController.signal;
+
+  if (init.signal) {
+    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function') {
+      signal = AbortSignal.any([init.signal, timeoutController.signal]);
+    } else {
+      const abortFromExternal = () => {
+        timeoutController.abort();
+      };
+      init.signal.addEventListener('abort', abortFromExternal, { once: true });
+      cleanupExternalAbort = () => {
+        init.signal.removeEventListener('abort', abortFromExternal);
+      };
+    }
+  }
+
+  return {
+    requestInit: {
+      ...init,
+      signal,
+    },
+    cleanup: () => {
+      clearTimeout(timeout);
+      cleanupExternalAbort();
+    },
+  };
+}
+
+function delayReadOnlyNetworkRetry(ms, signal) {
+  if (signal?.aborted) {
+    return Promise.reject(createAbortError());
+  }
+
+  return new Promise((resolve, reject) => {
+    let timeout = null;
+    const cleanup = () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+      signal?.removeEventListener('abort', abort);
+    };
+    const abort = () => {
+      cleanup();
+      reject(createAbortError());
+    };
+    timeout = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', abort, { once: true });
+  });
 }
 
 async function retryReadOnlyNetworkFailure(operation, init = {}) {
@@ -252,40 +373,53 @@ async function retryReadOnlyNetworkFailure(operation, init = {}) {
     } catch (error) {
       const retryDelayMs = readOnlyNetworkRetryDelaysMs[attempt];
       const failedQuickly = Date.now() - startedAt <= readOnlyFastFailureRetryWindowMs;
-      if (isAbortError(error) || retryDelayMs == null || !failedQuickly) {
+      if (init.signal?.aborted || retryDelayMs == null || !failedQuickly) {
         throw error;
       }
-      await delayReadOnlyNetworkRetry(retryDelayMs);
+      await delayReadOnlyNetworkRetry(retryDelayMs, init.signal);
     }
   }
 }
 
 async function requestManagedJson(pathname, init = {}) {
-  const requestInit = {
+  const method = String(init.method ?? 'GET').toUpperCase();
+  const { requestInit, cleanup } = createTimedRequestInit({
     ...init,
     cache: 'no-store',
-  };
-  const response = await retryReadOnlyNetworkFailure(
-    () => fetchWithStoredSession(`${managedApiBaseUrl}${pathname}`, requestInit),
-    requestInit,
-  );
-  return await readJsonResponse(response, `Managed API request failed: HTTP ${response.status}`);
+  }, method === 'GET' ? managedReadOnlyRequestTimeoutMs : null);
+  try {
+    const response = await retryReadOnlyNetworkFailure(
+      () => fetchWithStoredSession(`${managedApiBaseUrl}${pathname}`, requestInit),
+      requestInit,
+    );
+    return await readJsonResponse(response, `Managed API request failed: HTTP ${response.status}`, requestInit.signal);
+  } finally {
+    cleanup();
+  }
 }
 
 async function requestManagedPublicJson(pathname, init = {}) {
-  const requestInit = {
+  const method = String(init.method ?? 'GET').toUpperCase();
+  const { requestInit, cleanup } = createTimedRequestInit({
     ...init,
     cache: 'no-store',
     headers: {
       Accept: 'application/json',
       ...(init.headers ?? {}),
     },
-  };
-  const response = await retryReadOnlyNetworkFailure(
-    () => fetch(`${managedApiBaseUrl}${pathname}`, requestInit),
-    requestInit,
-  );
-  return await readJsonResponse(response, `Managed API request failed: HTTP ${response.status}`);
+  }, method === 'GET' ? managedReadOnlyRequestTimeoutMs : null);
+  try {
+    const response = await retryReadOnlyNetworkFailure(
+      () => {
+        throwIfAborted(requestInit.signal);
+        return raceWithAbort(fetch(`${managedApiBaseUrl}${pathname}`, requestInit), requestInit.signal);
+      },
+      requestInit,
+    );
+    return await readJsonResponse(response, `Managed API request failed: HTTP ${response.status}`, requestInit.signal);
+  } finally {
+    cleanup();
+  }
 }
 
 async function createElectronBillingCheckout(tier) {

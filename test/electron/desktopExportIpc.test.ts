@@ -309,6 +309,42 @@ describe('desktop export ipc', () => {
     }
   });
 
+  it('retries abort-shaped AI provider transport failures when the request was not cancelled', async () => {
+    vi.useFakeTimers();
+    try {
+      const { handlers } = registerHarness();
+      const fetchMock = vi
+        .fn()
+        .mockRejectedValueOnce(new DOMException('upstream reset', 'AbortError'))
+        .mockResolvedValueOnce(new Response('{}', { status: 200, statusText: 'OK' }));
+      vi.stubGlobal('fetch', fetchMock);
+      const sender = {
+        isDestroyed: () => false,
+        send: vi.fn(),
+      };
+
+      const request = handlers.get('desktop:ai-provider:request:start')?.(
+        { sender },
+        'request-abort-shaped-retry',
+        {
+          url: 'https://api.example.com/v1/chat/completions',
+          method: 'POST',
+          body: JSON.stringify({ model: 'gpt-4o-mini', messages: [] }),
+        },
+      ) as Promise<unknown> | undefined;
+
+      await vi.advanceTimersByTimeAsync(300);
+
+      await expect(request).resolves.toMatchObject({
+        status: 200,
+        statusText: 'OK',
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('surfaces a clear custom provider retry hint after transport retries fail', async () => {
     vi.useFakeTimers();
     try {
@@ -374,13 +410,42 @@ describe('desktop export ipc', () => {
     }
   });
 
-  it('does not let an old AI provider stream cleanup remove a newer request with the same id', async () => {
+  it('rejects AI provider request start promptly when fetch ignores cancellation', async () => {
+    const { handlers } = registerHarness();
+    const fetchMock = vi.fn((_url, init) => {
+      expect(init.signal).toBeInstanceOf(AbortSignal);
+      return new Promise(() => undefined);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const sender = {
+      isDestroyed: () => false,
+      send: vi.fn(),
+    };
+
+    const request = handlers.get('desktop:ai-provider:request:start')?.(
+      { sender },
+      'request-ignores-abort',
+      { url: 'https://api.example.com/v1/chat/completions', method: 'POST' },
+    ) as Promise<unknown> | undefined;
+    request?.catch(() => undefined);
+
+    await Promise.resolve();
+    await handlers.get('desktop:ai-provider:request:cancel')?.({}, 'request-ignores-abort');
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(sender.send).not.toHaveBeenCalled();
+  });
+
+  it('does not let an old AI provider stream cleanup or abort event affect a newer request with the same id', async () => {
     const { handlers } = registerHarness();
     const signals: AbortSignal[] = [];
-    let closeFirstStream!: () => void;
+    const cancelFirstStream = vi.fn();
     const firstStream = new ReadableStream<Uint8Array>({
-      start(controller) {
-        closeFirstStream = () => controller.close();
+      start() {
+      },
+      cancel() {
+        cancelFirstStream();
       },
     });
     const secondStream = new ReadableStream<Uint8Array>({
@@ -413,7 +478,6 @@ describe('desktop export ipc', () => {
       'request-1',
       { url: 'https://api.example.com/v1/chat/completions', method: 'POST' },
     );
-    closeFirstStream();
     await Promise.resolve();
     await Promise.resolve();
 
@@ -422,6 +486,61 @@ describe('desktop export ipc', () => {
     expect(signals).toHaveLength(2);
     expect(signals[0].aborted).toBe(true);
     expect(signals[1].aborted).toBe(true);
+    expect(cancelFirstStream).toHaveBeenCalledTimes(1);
+    expect(sender.send).not.toHaveBeenCalledWith(
+      'desktop:ai-provider:request:request-1:error',
+      { message: 'Aborted' },
+    );
+  });
+
+  it('does not emit stale AI provider reader failures after cancellation', async () => {
+    const { handlers } = registerHarness();
+    let rejectRead: ((error: Error) => void) | undefined;
+    let resolveReadStarted: (() => void) | undefined;
+    const readStarted = new Promise<void>((resolve) => {
+      resolveReadStarted = resolve;
+    });
+    const reader = {
+      read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>((_resolve, reject) => {
+        rejectRead = reject;
+        resolveReadStarted?.();
+      })),
+      cancel: vi.fn(async () => {
+        rejectRead?.(new Error('native reader failed after abort'));
+      }),
+      releaseLock: vi.fn(),
+    };
+    const fetchMock = vi.fn(async () => ({
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers(),
+      body: {
+        getReader: () => reader,
+      },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const sender = {
+      isDestroyed: () => false,
+      send: vi.fn(),
+    };
+
+    await handlers.get('desktop:ai-provider:request:start')?.(
+      { sender },
+      'request-reader-abort',
+      { url: 'https://api.example.com/v1/chat/completions', method: 'POST' },
+    );
+    await readStarted;
+    await handlers.get('desktop:ai-provider:request:cancel')?.({}, 'request-reader-abort');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(sender.send).not.toHaveBeenCalledWith(
+      'desktop:ai-provider:request:request-reader-abort:error',
+      { message: 'Aborted' },
+    );
+    expect(sender.send).not.toHaveBeenCalledWith(
+      'desktop:ai-provider:request:request-reader-abort:error',
+      { message: 'native reader failed after abort' },
+    );
   });
 
   it('renders PDF HTML through a temporary file instead of a data URL', async () => {

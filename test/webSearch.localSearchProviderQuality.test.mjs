@@ -105,6 +105,56 @@ describe('LocalSearchProvider quality controls', () => {
     });
   });
 
+  it('keeps local search timeouts active while response bodies are pending', async () => {
+    const textStarted = vi.fn();
+    const provider = new LocalSearchProvider({
+      timeoutMs: 1,
+      fetchImpl: async () => ({
+        ok: true,
+        text: vi.fn(() => new Promise(() => {
+          textStarted();
+        })),
+      }),
+    });
+
+    await expect(provider.search('unknown query without official hint', {
+      engines: ['bing'],
+      limit: 5,
+    })).rejects.toMatchObject({
+      code: 'search_unavailable',
+    });
+    expect(textStarted).toHaveBeenCalled();
+  });
+
+  it('treats direct-domain probe timeouts as unavailable sources, not user cancellation', async () => {
+    const provider = new LocalSearchProvider({
+      timeoutMs: 1,
+      fetchImpl: async (url, options) => {
+        if (String(url) === 'https://xqtimer.com/') {
+          return new Promise((_resolve, reject) => {
+            options.signal.addEventListener('abort', () => {
+              reject(new DOMException('internal timeout', 'AbortError'));
+            }, { once: true });
+          });
+        }
+        return {
+          ok: true,
+          async text() {
+            return `
+              <li class="b_algo">
+                <h2><a href="https://weather.com/timer">Weather Timer</a></h2>
+                <div class="b_caption"><p>Unrelated timer result.</p></div>
+              </li>
+            `;
+          },
+        };
+      },
+    });
+
+    await expect(provider.search('xqtimer official', { engines: ['bing'], limit: 5 }))
+      .resolves.toEqual([]);
+  });
+
   it('returns an empty result set instead of unavailable when search succeeds with only irrelevant results', async () => {
     const provider = new LocalSearchProvider({
       fetchImpl: async () => ({

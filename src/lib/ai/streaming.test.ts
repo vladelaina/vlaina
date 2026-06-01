@@ -93,6 +93,92 @@ describe('consumeOpenAIStream', () => {
     expect(cancel).toHaveBeenCalledTimes(1);
   });
 
+  it('cancels and releases the stream reader when the signal aborts during body reads', async () => {
+    const cancel = vi.fn();
+    const controller = new AbortController();
+    const encoder = new TextEncoder();
+    const response = new Response(
+      new ReadableStream({
+        start(streamController) {
+          streamController.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"partial"}}]}\n'));
+        },
+        cancel,
+      }),
+    );
+
+    const pending = consumeOpenAIStream(response, () => {}, { signal: controller.signal });
+    await vi.waitFor(() => {
+      expect(response.body?.locked).toBe(true);
+    });
+
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('normalizes non-abort reader failures after signal cancellation', async () => {
+    const cancel = vi.fn();
+    const controller = new AbortController();
+    const response = new Response(
+      new ReadableStream({
+        async pull() {
+          controller.abort();
+          throw new TypeError('reader closed by runtime');
+        },
+        cancel,
+      }),
+    );
+
+    await expect(consumeOpenAIStream(response, () => {}, {
+      signal: controller.signal,
+    })).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('does not finalize a residual stream buffer after a chunk callback aborts', async () => {
+    const controller = new AbortController();
+    const transcriptMessages: unknown[] = [];
+
+    await expect(consumeOpenAIStream(
+      streamResponse([
+        'data: {"choices":[{"delta":{"reasoning_content":"stale reasoning"}}]}',
+      ]),
+      () => controller.abort(),
+      {
+        signal: controller.signal,
+        onAssistantTranscriptMessage: (message) => transcriptMessages.push(message),
+      },
+    )).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(transcriptMessages).toEqual([]);
+  });
+
+  it('does not return success after a transcript callback aborts', async () => {
+    const controller = new AbortController();
+    const chunks: string[] = [];
+
+    await expect(consumeOpenAIStream(
+      streamResponse([
+        'data: {"choices":[{"delta":{"reasoning_content":"plan"}}]}',
+        '',
+        'data: {"choices":[{"delta":{"content":"answer"}}]}',
+        '',
+      ]),
+      (chunk) => chunks.push(chunk),
+      {
+        signal: controller.signal,
+        onAssistantTranscriptMessage: () => controller.abort(),
+      },
+    )).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(chunks[chunks.length - 1]).toBe('<think>plan</think>answer');
+  });
+
   it('parses common OpenAI-compatible non-delta text shapes', async () => {
     const chunks: string[] = [];
     const result = await consumeOpenAIStream(

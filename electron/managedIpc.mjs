@@ -1,4 +1,5 @@
 const activeManagedStreams = new Map();
+const activeManagedJsonRequests = new Map();
 const IPC_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
 
 function requireSafeIpcRequestId(value, label) {
@@ -28,6 +29,72 @@ function deleteActiveManagedStream(requestId, controller) {
   }
 }
 
+function isCurrentManagedStream(requestId, controller) {
+  return activeManagedStreams.get(requestId) === controller;
+}
+
+function deleteActiveManagedJsonRequest(requestId, controller) {
+  if (activeManagedJsonRequests.get(requestId) === controller) {
+    activeManagedJsonRequests.delete(requestId);
+  }
+}
+
+function isCurrentManagedJsonRequest(requestId, controller) {
+  return activeManagedJsonRequests.get(requestId) === controller;
+}
+
+function parseOptionalManagedRequestId(requestIdOrPayload, maybePayload, label) {
+  if (maybePayload === undefined) {
+    return { requestId: null, payload: requestIdOrPayload };
+  }
+
+  return {
+    requestId: requireSafeIpcRequestId(requestIdOrPayload, label),
+    payload: maybePayload,
+  };
+}
+
+async function requestManagedJsonWithOptionalCancel(requestManagedJson, requestId, pathname, init) {
+  const controller = requestId ? new AbortController() : null;
+
+  if (requestId && controller) {
+    activeManagedJsonRequests.get(requestId)?.abort();
+    activeManagedJsonRequests.set(requestId, controller);
+  }
+
+  try {
+    const managedRequest = Promise.resolve(requestManagedJson(pathname, {
+      ...init,
+      ...(controller ? { signal: controller.signal } : {}),
+    }));
+    const result = controller
+      ? await raceWithAbort(managedRequest, controller.signal)
+      : await managedRequest;
+    if (requestId && controller && (!isCurrentManagedJsonRequest(requestId, controller) || controller.signal.aborted)) {
+      throw createAbortError();
+    }
+    return result;
+  } catch (error) {
+    if (requestId && controller && (!isCurrentManagedJsonRequest(requestId, controller) || controller.signal.aborted)) {
+      throw createAbortError();
+    }
+    throw error;
+  } finally {
+    if (requestId && controller) {
+      deleteActiveManagedJsonRequest(requestId, controller);
+    }
+  }
+}
+
+function cancelManagedJsonRequest(requestId, label) {
+  const id = requireSafeIpcRequestId(requestId, label);
+  const controller = activeManagedJsonRequests.get(id);
+  if (controller) {
+    controller.abort();
+    deleteActiveManagedJsonRequest(id, controller);
+  }
+}
+
 function normalizeManagedErrorPayload(payload, status) {
   const fallback = `Managed stream failed: HTTP ${status}`;
   const errorCode =
@@ -53,9 +120,78 @@ function normalizeManagedErrorPayload(payload, status) {
   return { message, statusCode: status, errorCode };
 }
 
-async function readManagedErrorPayload(response) {
+function createAbortError() {
+  return new DOMException('Aborted', 'AbortError');
+}
+
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return;
+  throw createAbortError();
+}
+
+async function raceWithAbort(promise, signal) {
+  if (!signal) return await promise;
+  throwIfAborted(signal);
+  promise.catch(() => undefined);
+
+  return await new Promise((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      signal.removeEventListener('abort', abort);
+    };
+    const settle = (callback) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback();
+    };
+    const abort = () => {
+      settle(() => reject(createAbortError()));
+    };
+
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+
+    promise.then(
+      (value) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            resolve(value);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+      (error) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            reject(error);
+          } catch (abortError) {
+            reject(abortError);
+          }
+        });
+      },
+    );
+  });
+}
+
+async function readManagedErrorPayload(response, signal) {
   const fallback = { message: `Managed stream failed: HTTP ${response.status}`, statusCode: response.status, errorCode: null };
-  const text = await response.text().catch(() => '');
+  let text = '';
+  try {
+    throwIfAborted(signal);
+    text = await raceWithAbort(response.text(), signal);
+  } catch (error) {
+    if (signal?.aborted) {
+      throw createAbortError();
+    }
+    text = '';
+  }
   if (!text) {
     return fallback;
   }
@@ -123,6 +259,48 @@ function sanitizeManagedChatCompletionBody(body) {
   };
 }
 
+function createManagedStreamAccumulator(onChunk) {
+  let fullContent = '';
+  let hasStartedReasoning = false;
+  let hasFinishedReasoning = false;
+
+  return {
+    pushDelta({ reasoning, content }) {
+      const reasoningText = typeof reasoning === 'string' ? reasoning : '';
+      const contentText = typeof content === 'string' ? content : '';
+      if (!reasoningText && !contentText) {
+        return true;
+      }
+
+      if (reasoningText) {
+        if (!hasStartedReasoning || hasFinishedReasoning) {
+          fullContent += '<think>';
+          hasStartedReasoning = true;
+          hasFinishedReasoning = false;
+        }
+        fullContent += reasoningText;
+      }
+
+      if (contentText) {
+        if (hasStartedReasoning && !hasFinishedReasoning) {
+          fullContent += '</think>';
+          hasFinishedReasoning = true;
+        }
+        fullContent += contentText;
+      }
+
+      return onChunk(fullContent);
+    },
+    finish() {
+      if (hasStartedReasoning && !hasFinishedReasoning) {
+        fullContent += '</think>';
+        hasFinishedReasoning = true;
+      }
+      return fullContent;
+    },
+  };
+}
+
 export function registerManagedIpc({
   handleIpc,
   requestManagedJson,
@@ -153,27 +331,54 @@ export function registerManagedIpc({
     return await requestManagedJson('/budget', { method: 'GET' });
   });
 
-  handleIpc('desktop:managed:chat-completion', async (_event, body) => {
-    return await requestManagedJson('/chat/completions', {
+  handleIpc('desktop:managed:chat-completion', async (_event, requestIdOrBody, maybeBody) => {
+    const { requestId, payload: body } = parseOptionalManagedRequestId(
+      requestIdOrBody,
+      maybeBody,
+      'managed chat completion request id',
+    );
+    return await requestManagedJsonWithOptionalCancel(requestManagedJson, requestId, '/chat/completions', {
       method: 'POST',
       body: JSON.stringify(sanitizeManagedChatCompletionBody(body)),
     });
   });
 
-  handleIpc('desktop:managed:image-generation', async (_event, body) => {
-    return await requestManagedJson('/images/generations', {
+  handleIpc('desktop:managed:chat-completion:cancel', async (_event, requestId) => {
+    cancelManagedJsonRequest(requestId, 'managed chat completion request id');
+  });
+
+  handleIpc('desktop:managed:image-generation', async (_event, requestIdOrBody, maybeBody) => {
+    const { requestId, payload: body } = parseOptionalManagedRequestId(
+      requestIdOrBody,
+      maybeBody,
+      'managed image generation request id',
+    );
+    return await requestManagedJsonWithOptionalCancel(requestManagedJson, requestId, '/images/generations', {
       method: 'POST',
       body: JSON.stringify(body ?? {}),
     });
   });
 
-  handleIpc('desktop:managed:image-edit', async (_event, payload) => {
+  handleIpc('desktop:managed:image-generation:cancel', async (_event, requestId) => {
+    cancelManagedJsonRequest(requestId, 'managed image generation request id');
+  });
+
+  handleIpc('desktop:managed:image-edit', async (_event, requestIdOrPayload, maybePayload) => {
+    const { requestId, payload } = parseOptionalManagedRequestId(
+      requestIdOrPayload,
+      maybePayload,
+      'managed image edit request id',
+    );
     const { body, headers } = normalizeManagedBinaryPayload(payload);
-    return await requestManagedJson('/images/edits', {
+    return await requestManagedJsonWithOptionalCancel(requestManagedJson, requestId, '/images/edits', {
       method: 'POST',
       headers,
       body,
     });
+  });
+
+  handleIpc('desktop:managed:image-edit:cancel', async (_event, requestId) => {
+    cancelManagedJsonRequest(requestId, 'managed image edit request id');
   });
 
   handleIpc('desktop:managed:chat-completion-stream:start', async (event, requestId, body) => {
@@ -185,10 +390,16 @@ export function registerManagedIpc({
     const controller = new AbortController();
     activeManagedStreams.set(id, controller);
     const sender = event.sender;
+    const sendStreamEvent = (suffix, payload) => {
+      if (!isCurrentManagedStream(id, controller)) {
+        return false;
+      }
+      return safeSend(sender, `desktop:managed:stream:${id}:${suffix}`, payload);
+    };
 
     void (async () => {
       try {
-        const response = await fetchWithStoredSession(`${managedApiBaseUrl}/chat/completions`, {
+        const response = await raceWithAbort(fetchWithStoredSession(`${managedApiBaseUrl}/chat/completions`, {
           method: 'POST',
           cache: 'no-store',
           signal: controller.signal,
@@ -196,10 +407,10 @@ export function registerManagedIpc({
             Accept: 'text/event-stream',
           },
           body: JSON.stringify(sanitizeManagedChatCompletionBody(body)),
-        });
+        }), controller.signal);
 
         if (!response.ok) {
-          throw await readManagedErrorPayload(response);
+          throw await readManagedErrorPayload(response, controller.signal);
         }
 
         if (!response.body) {
@@ -207,11 +418,20 @@ export function registerManagedIpc({
         }
 
         const reader = response.body.getReader();
+        const cancelReader = () => {
+          void reader.cancel(new Error('Aborted')).catch(() => {});
+        };
+        controller.signal.addEventListener('abort', cancelReader, { once: true });
         const decoder = new TextDecoder();
         let buffer = '';
-        let fullContent = '';
-        let hasStartedReasoning = false;
-        let hasFinishedReasoning = false;
+
+        const accumulator = createManagedStreamAccumulator((fullContent) => {
+          if (!sendStreamEvent('chunk', fullContent)) {
+            controller.abort();
+            return false;
+          }
+          return true;
+        });
 
         const consumeLine = (line) => {
           const trimmed = line.trim();
@@ -232,68 +452,61 @@ export function registerManagedIpc({
             typeof delta?.reasoning_content === 'string' ? delta.reasoning_content : null;
           const content = typeof delta?.content === 'string' ? delta.content : null;
 
-          if (reasoning) {
-            if (!hasStartedReasoning) {
-              fullContent += '<think>';
-              hasStartedReasoning = true;
-            }
-            fullContent += reasoning;
-          }
-
-          if (content) {
-            if (hasStartedReasoning && !hasFinishedReasoning) {
-              fullContent += '</think>';
-              hasFinishedReasoning = true;
-            }
-            fullContent += content;
-          }
-
-          if (reasoning || content) {
-            if (!safeSend(sender, `desktop:managed:stream:${id}:chunk`, fullContent)) {
-              controller.abort();
-              return false;
-            }
-          }
-          return true;
+          return accumulator.pushDelta({ reasoning, content });
         };
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-            break;
+        try {
+          if (controller.signal.aborted) {
+            throw new Error('Aborted');
           }
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
+          while (true) {
+            const { done, value } = await reader.read();
+            if (controller.signal.aborted) {
+              throw new Error('Aborted');
+            }
+            if (done) {
+              break;
+            }
 
-          for (const line of lines) {
-            try {
-              if (!consumeLine(line)) {
-                return;
-              }
-            } catch (error) {
-              if (!(error instanceof SyntaxError)) {
-                throw error;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              try {
+                if (!consumeLine(line)) {
+                  throw new Error('Aborted');
+                }
+              } catch (error) {
+                if (!(error instanceof SyntaxError)) {
+                  throw error;
+                }
               }
             }
           }
-        }
 
-        if (buffer.trim()) {
-          consumeLine(buffer);
-        }
+          if (buffer.trim()) {
+            if (!consumeLine(buffer)) {
+              throw new Error('Aborted');
+            }
+          }
 
-        if (hasStartedReasoning && !hasFinishedReasoning) {
-          fullContent += '</think>';
+          sendStreamEvent('done', { content: accumulator.finish() });
+        } catch (error) {
+          await reader.cancel().catch(() => {});
+          throw error;
+        } finally {
+          controller.signal.removeEventListener('abort', cancelReader);
+          reader.releaseLock();
         }
-
-        safeSend(sender, `desktop:managed:stream:${id}:done`, { content: fullContent });
       } catch (error) {
         if (controller.signal.aborted) {
-          safeSend(sender, `desktop:managed:stream:${id}:error`, { message: 'Aborted' });
+          if (isCurrentManagedStream(id, controller)) {
+            safeSend(sender, `desktop:managed:stream:${id}:error`, { message: 'Aborted' });
+          }
         } else {
-          safeSend(sender, `desktop:managed:stream:${id}:error`, {
+          sendStreamEvent('error', {
             message: error instanceof Error
               ? error.message
               : typeof error?.message === 'string'

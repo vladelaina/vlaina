@@ -60,7 +60,7 @@ export function shouldPersistSession(
     return false;
   }
   const session = ai.sessions.find((item) => item.id === sessionId);
-  return !isTemporarySession(session);
+  return !!session && !isTemporarySession(session);
 }
 
 export function hasUserMessage(messages: ChatMessage[]): boolean {

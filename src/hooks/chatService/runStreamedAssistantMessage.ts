@@ -1,4 +1,5 @@
 import { requestManager } from '@/lib/ai/requestManager';
+import { resolveSessionIdAlias } from '@/lib/ai/sessionIdAliases';
 import { createChunkScheduler, resolveAssistantContent } from './helpers';
 
 export interface ChatErrorPayload {
@@ -8,22 +9,38 @@ export interface ChatErrorPayload {
 
 export type StreamedAssistantMessageStatus = 'completed' | 'aborted' | 'failed';
 
+export interface StreamedAssistantMessageExecutionContext {
+  isCurrentRequest: () => boolean;
+  isActiveRequest: () => boolean;
+}
+
+export interface StreamedAssistantMessageSuccessContext {
+  sessionId: string;
+  resolvedSessionId: string;
+}
+
 interface RunStreamedAssistantMessageOptions {
   sessionId: string;
   assistantMessageId: string;
-  execute: (onChunk: (chunk: string) => void, signal: AbortSignal) => Promise<string>;
+  controller?: AbortController;
+  execute: (
+    onChunk: (chunk: string) => void,
+    signal: AbortSignal,
+    context: StreamedAssistantMessageExecutionContext,
+  ) => Promise<string>;
   updateMessage: (sessionId: string, messageId: string, content: string) => void;
   completeMessage: (sessionId: string, messageId: string) => void;
   setSessionLoading: (sessionId: string, loading: boolean) => void;
   setError: (error: string | null) => void;
   buildErrorPayload: (error: unknown) => ChatErrorPayload;
   createEmptyResponseError?: () => Error;
-  onSuccess?: () => void | Promise<void>;
+  onSuccess?: (context: StreamedAssistantMessageSuccessContext) => void | Promise<void>;
 }
 
 export async function runStreamedAssistantMessage({
   sessionId,
   assistantMessageId,
+  controller: providedController,
   execute,
   updateMessage,
   completeMessage,
@@ -33,11 +50,24 @@ export async function runStreamedAssistantMessage({
   createEmptyResponseError,
   onSuccess,
 }: RunStreamedAssistantMessageOptions): Promise<StreamedAssistantMessageStatus> {
-  const controller = requestManager.start(sessionId);
-  setSessionLoading(sessionId, true);
-  setError(null);
+  const controller = providedController ?? requestManager.start(sessionId);
 
+  const isCurrentRequest = () => requestManager.isCurrent(sessionId, controller);
+  const isCancelledRequest = () => controller.signal.aborted || !isCurrentRequest();
+  const isActiveRequest = () => !controller.signal.aborted && isCurrentRequest();
+
+  if (isActiveRequest()) {
+    setSessionLoading(sessionId, true);
+    setError(null);
+  }
+
+  let lastCommittedContent = '';
+  let successContext: StreamedAssistantMessageSuccessContext | null = null;
   const streamScheduler = createChunkScheduler((nextContent) => {
+    if (!isActiveRequest()) {
+      return;
+    }
+    lastCommittedContent = nextContent;
     updateMessage(sessionId, assistantMessageId, nextContent);
   });
 
@@ -45,30 +75,42 @@ export async function runStreamedAssistantMessage({
   let status: StreamedAssistantMessageStatus = 'completed';
 
   try {
+    if (isCancelledRequest()) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
+
     const returnedContent = await execute((chunk) => {
+      if (!isActiveRequest()) {
+        return;
+      }
       lastStreamedContent = chunk;
       streamScheduler.push(chunk);
-    }, controller.signal);
+    }, controller.signal, { isCurrentRequest, isActiveRequest });
+
+    if (isCancelledRequest()) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
 
     streamScheduler.flushNow();
     resolveAssistantContent(returnedContent, lastStreamedContent, (content) => {
       lastStreamedContent = content;
+      lastCommittedContent = content;
       updateMessage(sessionId, assistantMessageId, content);
     }, createEmptyResponseError);
     completeMessage(sessionId, assistantMessageId);
+    successContext = {
+      sessionId,
+      resolvedSessionId: resolveSessionIdAlias(sessionId),
+    };
   } catch (error) {
     streamScheduler.flushNow();
 
-    const errorName =
-      error instanceof Error
-        ? error.name
-        : error && typeof error === 'object' && 'name' in error && typeof error.name === 'string'
-          ? error.name
-          : '';
-
-    if (controller.signal.aborted || errorName === 'AbortError') {
-      if (lastStreamedContent) {
-        updateMessage(sessionId, assistantMessageId, lastStreamedContent);
+    if (isCancelledRequest()) {
+      const contentToKeep = isCurrentRequest()
+        ? lastStreamedContent || lastCommittedContent
+        : lastCommittedContent;
+      if (contentToKeep) {
+        updateMessage(sessionId, assistantMessageId, contentToKeep);
       }
       completeMessage(sessionId, assistantMessageId);
       status = 'aborted';
@@ -76,17 +118,20 @@ export async function runStreamedAssistantMessage({
       const { message, xml } = buildErrorPayload(error);
       setError(message);
       updateMessage(sessionId, assistantMessageId, xml);
+      completeMessage(sessionId, assistantMessageId);
       status = 'failed';
     }
   } finally {
     streamScheduler.cancel();
+    if (isCurrentRequest()) {
+      setSessionLoading(sessionId, false);
+    }
     requestManager.finish(sessionId, controller);
-    setSessionLoading(sessionId, false);
   }
 
-  if (status === 'completed' && onSuccess) {
+  if (status === 'completed' && onSuccess && successContext) {
     try {
-      await onSuccess();
+      await onSuccess(successContext);
     } catch (error) {
     }
   }

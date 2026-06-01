@@ -35,19 +35,108 @@ function publicManagedStreamErrorMessage(message: string | undefined, errorCode:
 }
 
 function isAbortError(error: unknown): boolean {
-  return error instanceof Error && error.name === 'AbortError';
+  return error instanceof Error && error.name === 'AbortError'
+    || !!error && typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError';
+}
+
+function createAbortError(): DOMException {
+  return new DOMException('Aborted', 'AbortError');
+}
+
+function createManagedTimeoutError(): Error {
+  return new Error('Managed API request timed out.');
+}
+
+function throwIfExternallyAborted(signal?: AbortSignal | null): void {
+  if (!signal?.aborted) return;
+  throw createAbortError();
+}
+
+function throwIfManagedRequestAborted(
+  timeoutController: AbortController,
+  externalSignal?: AbortSignal | null,
+): void {
+  if (!timeoutController.signal.aborted && !externalSignal?.aborted) return;
+  throw createAbortError();
+}
+
+function normalizeManagedAbortError(
+  error: unknown,
+  timeoutController: AbortController,
+  externalSignal?: AbortSignal | null,
+): never {
+  if (isAbortError(error) && timeoutController.signal.aborted && !externalSignal?.aborted) {
+    throw createManagedTimeoutError();
+  }
+  throw error;
+}
+
+async function raceManagedRequest<T>(
+  promise: Promise<T>,
+  timeoutController: AbortController,
+  externalSignal?: AbortSignal | null,
+): Promise<T> {
+  throwIfManagedRequestAborted(timeoutController, externalSignal);
+  promise.catch(() => undefined);
+
+  return await new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      timeoutController.signal.removeEventListener('abort', abort);
+      externalSignal?.removeEventListener('abort', abort);
+    };
+    const settle = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback();
+    };
+    const abort = () => {
+      settle(() => reject(createAbortError()));
+    };
+
+    timeoutController.signal.addEventListener('abort', abort, { once: true });
+    externalSignal?.addEventListener('abort', abort, { once: true });
+    if (timeoutController.signal.aborted || externalSignal?.aborted) {
+      abort();
+      return;
+    }
+
+    promise.then(
+      (value) => {
+        settle(() => {
+          try {
+            throwIfManagedRequestAborted(timeoutController, externalSignal);
+            resolve(value);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+      (error) => {
+        settle(() => {
+          try {
+            throwIfManagedRequestAborted(timeoutController, externalSignal);
+            reject(error);
+          } catch (abortError) {
+            reject(abortError);
+          }
+        });
+      },
+    );
+  });
 }
 
 function delayManagedRetry(ms: number, signal: AbortSignal): Promise<void> {
   if (signal.aborted) {
-    return Promise.reject(new DOMException('Aborted', 'AbortError'));
+    return Promise.reject(createAbortError());
   }
 
   return new Promise((resolve, reject) => {
     let timeout: ReturnType<typeof setTimeout>;
     const abort = () => {
       clearTimeout(timeout);
-      reject(new DOMException('Aborted', 'AbortError'));
+      reject(createAbortError());
     };
     const complete = () => {
       signal.removeEventListener('abort', abort);
@@ -58,24 +147,34 @@ function delayManagedRetry(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
+async function readManagedJson<T>(
+  response: Response,
+  timeoutController: AbortController,
+  externalSignal?: AbortSignal | null,
+): Promise<T> {
+  return await raceManagedRequest(response.json() as Promise<T>, timeoutController, externalSignal);
+}
+
 async function fetchManagedJsonWithRetry(
   url: string,
   init: RequestInit,
-  signal: AbortSignal
+  timeoutController: AbortController,
+  externalSignal?: AbortSignal | null,
 ): Promise<Response> {
   const method = String(init.method ?? 'GET').toUpperCase();
   const shouldRetry = method === 'GET';
+  const retrySignal = init.signal ?? timeoutController.signal;
   for (let attempt = 0; ; attempt += 1) {
     const startedAt = Date.now();
     try {
-      return await fetch(url, init);
+      return await raceManagedRequest(fetch(url, init), timeoutController, externalSignal);
     } catch (error) {
       const retryDelayMs = shouldRetry ? MANAGED_GET_RETRY_DELAYS_MS[attempt] : undefined;
       const failedQuickly = Date.now() - startedAt <= MANAGED_FAST_FAILURE_RETRY_WINDOW_MS;
-      if (isAbortError(error) || signal.aborted || retryDelayMs == null || !failedQuickly) {
+      if (retrySignal.aborted || retryDelayMs == null || !failedQuickly) {
         throw error;
       }
-      await delayManagedRetry(retryDelayMs, signal);
+      await delayManagedRetry(retryDelayMs, retrySignal);
     }
   }
 }
@@ -90,12 +189,14 @@ export async function requestManagedWebJson<T>(path: string, init?: ManagedJsonR
     : null;
   const fetchInit: RequestInit = { ...(init ?? {}) };
   delete (fetchInit as ManagedJsonRequestInit).timeoutMs;
+  const externalSignal = fetchInit.signal;
 
-  const combinedSignal = fetchInit.signal
-    ? AbortSignal.any([fetchInit.signal, timeoutController.signal])
+  const combinedSignal = externalSignal
+    ? AbortSignal.any([externalSignal, timeoutController.signal])
     : timeoutController.signal;
 
   try {
+    throwIfExternallyAborted(externalSignal);
     const requestInit: RequestInit = {
       ...fetchInit,
       signal: combinedSignal,
@@ -107,13 +208,23 @@ export async function requestManagedWebJson<T>(path: string, init?: ManagedJsonR
         ...(fetchInit.headers ?? {}),
       },
     };
-    const response = await fetchManagedJsonWithRetry(`${MANAGED_API_BASE}${path}`, requestInit, combinedSignal);
+    const response = await fetchManagedJsonWithRetry(
+      `${MANAGED_API_BASE}${path}`,
+      requestInit,
+      timeoutController,
+      externalSignal,
+    );
+    throwIfManagedRequestAborted(timeoutController, externalSignal);
 
     if (!response.ok) {
-      throw await parseManagedError(response);
+      const managedError = await raceManagedRequest(parseManagedError(response), timeoutController, externalSignal);
+      throwIfManagedRequestAborted(timeoutController, externalSignal);
+      throw managedError;
     }
 
-    return response.json() as Promise<T>;
+    return await readManagedJson<T>(response, timeoutController, externalSignal);
+  } catch (error) {
+    return normalizeManagedAbortError(error, timeoutController, externalSignal);
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -135,7 +246,8 @@ export async function requestManagedWebBinaryJson<T>(
     : timeoutController.signal;
 
   try {
-    const response = await fetch(`${MANAGED_API_BASE}${path}`, {
+    throwIfExternallyAborted(signal);
+    const response = await raceManagedRequest(fetch(`${MANAGED_API_BASE}${path}`, {
       method: 'POST',
       cache: 'no-store',
       credentials: 'include',
@@ -145,13 +257,18 @@ export async function requestManagedWebBinaryJson<T>(
         ...headers,
       },
       body,
-    });
+    }), timeoutController, signal);
+    throwIfManagedRequestAborted(timeoutController, signal);
 
     if (!response.ok) {
-      throw await parseManagedError(response);
+      const managedError = await raceManagedRequest(parseManagedError(response), timeoutController, signal);
+      throwIfManagedRequestAborted(timeoutController, signal);
+      throw managedError;
     }
 
-    return response.json() as Promise<T>;
+    return await readManagedJson<T>(response, timeoutController, signal);
+  } catch (error) {
+    return normalizeManagedAbortError(error, timeoutController, signal);
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -170,7 +287,8 @@ export async function requestManagedWebStream(
     : timeoutController.signal;
 
   try {
-    const response = await fetch(`${MANAGED_API_BASE}${path}`, {
+    throwIfExternallyAborted(signal);
+    const response = await raceManagedRequest(fetch(`${MANAGED_API_BASE}${path}`, {
       method: 'POST',
       cache: 'no-store',
       credentials: 'include',
@@ -180,17 +298,21 @@ export async function requestManagedWebStream(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
-    });
+    }), timeoutController, signal);
+    throwIfManagedRequestAborted(timeoutController, signal);
 
     if (!response.ok) {
-      throw await parseManagedError(response);
+      const managedError = await raceManagedRequest(parseManagedError(response), timeoutController, signal);
+      throwIfManagedRequestAborted(timeoutController, signal);
+      throw managedError;
     }
 
     if (!response.body) {
       throw new Error('Managed API response body is null');
     }
 
-    return await consumeOpenAIStream(response, onChunk, {
+    const content = await consumeOpenAIStream(response, onChunk, {
+      signal: combinedSignal,
       mapErrorPayload(message, code) {
         const error = new Error(publicManagedStreamErrorMessage(message, code)) as Error & {
           errorCode?: string;
@@ -201,6 +323,10 @@ export async function requestManagedWebStream(
         return error;
       },
     });
+    throwIfManagedRequestAborted(timeoutController, signal);
+    return content;
+  } catch (error) {
+    return normalizeManagedAbortError(error, timeoutController, signal);
   } finally {
     clearTimeout(timer);
   }

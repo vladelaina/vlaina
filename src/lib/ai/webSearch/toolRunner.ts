@@ -135,7 +135,17 @@ function throwIfAborted(signal?: AbortSignal): void {
 }
 
 function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === 'AbortError';
+  return error instanceof DOMException && error.name === 'AbortError'
+    || !!error && typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError';
+}
+
+function emitStatus(
+  options: Pick<WebSearchToolRunnerOptions, 'onStatus' | 'signal'>,
+  status: Parameters<NonNullable<WebSearchToolRunnerOptions['onStatus']>>[0],
+): void {
+  throwIfAborted(options.signal);
+  options.onStatus?.(status);
+  throwIfAborted(options.signal);
 }
 
 function callWebSearchClient<T>(
@@ -159,7 +169,7 @@ export async function runWebSearchToolCall(
     if (toolName === WEB_SEARCH_TOOL_NAMES.search) {
       const query = stringArg(args, 'query');
       const startedAt = performance.now();
-      options.onStatus?.({ phase: 'searching', query });
+      emitStatus(options, { phase: 'searching', query });
       const searchOptions = {
         category: stringArg(args, 'category') || undefined,
         timeRange: stringArg(args, 'timeRange') || undefined,
@@ -171,7 +181,7 @@ export async function runWebSearchToolCall(
         () => client.webSearch(query, searchOptions),
       );
       throwIfAborted(options.signal);
-      options.onStatus?.({
+      emitStatus(options, {
         phase: response.results.length > 0 ? 'results' : 'error',
         query: response.query,
         results: response.results.slice(0, 5),
@@ -196,7 +206,7 @@ export async function runWebSearchToolCall(
       }
 
       const readStartedAt = performance.now();
-      options.onStatus?.({ phase: 'reading', urls });
+      emitStatus(options, { phase: 'reading', urls });
       const pages = await callWebSearchClient(
         options.signal,
         (signal) => client.readWebPages(urls, { contentLimit: AUTO_READ_AFTER_SEARCH_CONTENT_LIMIT, retries: 0 }, signal),
@@ -205,7 +215,7 @@ export async function runWebSearchToolCall(
       throwIfAborted(options.signal);
       const successfulPages = pages.filter((page) => page.ok);
       const failedPages = pages.filter((page) => !page.ok);
-      options.onStatus?.({
+      emitStatus(options, {
         phase: 'complete',
         urls: successfulPages.map((page) => page.page?.finalUrl || page.url),
         failedSources: failedPages.map((page) => ({
@@ -229,7 +239,7 @@ export async function runWebSearchToolCall(
     if (toolName === WEB_SEARCH_TOOL_NAMES.read) {
       const url = stringArg(args, 'url');
       const startedAt = performance.now();
-      options.onStatus?.({ phase: 'reading', urls: [url] });
+      emitStatus(options, { phase: 'reading', urls: [url] });
       const readOptions = { contentLimit: contentLimitArg(args), retries: 0 };
       const page = await callWebSearchClient(
         options.signal,
@@ -237,7 +247,7 @@ export async function runWebSearchToolCall(
         () => client.readWebPage(url, readOptions),
       );
       throwIfAborted(options.signal);
-      options.onStatus?.({
+      emitStatus(options, {
         phase: 'complete',
         urls: [page.finalUrl],
         metrics: {
@@ -252,7 +262,7 @@ export async function runWebSearchToolCall(
     if (toolName === WEB_SEARCH_TOOL_NAMES.readBatch) {
       const urls = stringArrayArg(args, 'urls').slice(0, 8);
       const startedAt = performance.now();
-      options.onStatus?.({ phase: 'reading', urls });
+      emitStatus(options, { phase: 'reading', urls });
       const readOptions = { contentLimit: contentLimitArg(args), retries: 0 };
       const pages = await callWebSearchClient(
         options.signal,
@@ -262,7 +272,7 @@ export async function runWebSearchToolCall(
       throwIfAborted(options.signal);
       const successfulPages = pages.filter((page) => page.ok);
       const failedPages = pages.filter((page) => !page.ok);
-      options.onStatus?.({
+      emitStatus(options, {
         phase: 'complete',
         urls: successfulPages.map((page) => page.page?.finalUrl || page.url),
         failedSources: failedPages.map((page) => ({
@@ -280,11 +290,11 @@ export async function runWebSearchToolCall(
 
     return `Unsupported web search tool: ${toolCall.name}`;
   } catch (error) {
-    if (isAbortError(error)) {
+    if (isAbortError(error) && options.signal?.aborted) {
       throw error;
     }
     const message = friendlyToolErrorMessage(toolName, error);
-    options.onStatus?.({ phase: 'error', message });
+    emitStatus(options, { phase: 'error', message });
     return `Tool error: ${message}`;
   }
 }

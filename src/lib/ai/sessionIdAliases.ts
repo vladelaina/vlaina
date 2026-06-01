@@ -16,6 +16,19 @@ export function resolveSessionIdAlias(sessionId: string): string {
   return current;
 }
 
+export function getSessionIdAliasesResolvingTo(sessionId: string): string[] {
+  const resolvedSessionId = resolveSessionIdAlias(sessionId);
+  const aliases: string[] = [];
+
+  sessionIdAliases.forEach((_targetSessionId, aliasSessionId) => {
+    if (aliasSessionId !== resolvedSessionId && resolveSessionIdAlias(aliasSessionId) === resolvedSessionId) {
+      aliases.push(aliasSessionId);
+    }
+  });
+
+  return aliases;
+}
+
 export function clearSessionIdAlias(sessionId: string) {
   sessionIdAliases.delete(sessionId);
 }

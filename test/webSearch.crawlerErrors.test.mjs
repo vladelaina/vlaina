@@ -1,9 +1,16 @@
+import http from 'node:http';
+import { EventEmitter } from 'node:events';
 import zlib from 'node:zlib';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Crawler } from '../electron/webSearch/crawler.mjs';
+import { crawlerInternals } from '../electron/webSearch/crawler/index.mjs';
 import { prepareCrawlerUrl } from '../electron/webSearch/crawlerUrlPolicy.mjs';
 
 describe('crawler error classification', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('classifies invalid JSON responses', async () => {
     const crawler = new Crawler({
       fetchImpl: async () => new Response('{bad', {
@@ -46,6 +53,148 @@ describe('crawler error classification', () => {
       name: 'AbortError',
     });
     expect(fetchCalled).toBe(false);
+  });
+
+  it('prioritizes cancellation over URL validation work when already aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const crawler = new Crawler({
+      fetchImpl: async () => new Response('not used'),
+    });
+
+    await expect(crawler.readUrl('file:///etc/passwd', {
+      signal: controller.signal,
+    })).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+  });
+
+  it('does not read the response body when the signal aborts after fetch returns', async () => {
+    let bodyRead = false;
+    const controller = new AbortController();
+    const crawler = new Crawler({
+      fetchImpl: async () => {
+        controller.abort();
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'Content-Type': 'text/plain' }),
+          async arrayBuffer() {
+            bodyRead = true;
+            return new TextEncoder().encode('not used').buffer;
+          },
+        };
+      },
+    });
+
+    await expect(crawler.readUrl('http://93.184.216.34/source.txt', {
+      signal: controller.signal,
+    })).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+    expect(bodyRead).toBe(false);
+  });
+
+  it('rejects promptly when the crawler fetch implementation ignores cancellation', async () => {
+    const controller = new AbortController();
+    const fetchImpl = vi.fn(() => new Promise(() => undefined));
+    const crawler = new Crawler({ fetchImpl });
+
+    const request = crawler.readUrl('http://93.184.216.34/source.txt', {
+      signal: controller.signal,
+    });
+    request.catch(() => undefined);
+
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalled());
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels response body reads when the signal aborts while the body is pending', async () => {
+    const controller = new AbortController();
+    const bodyRead = vi.fn();
+    const crawler = new Crawler({
+      fetchImpl: async () => ({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'Content-Type': 'text/plain' }),
+        arrayBuffer: vi.fn(() => new Promise(() => {
+          bodyRead();
+        })),
+      }),
+    });
+
+    const request = crawler.readUrl('http://93.184.216.34/source.txt', {
+      signal: controller.signal,
+    });
+    await vi.waitFor(() => expect(bodyRead).toHaveBeenCalled());
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+  });
+
+  it('keeps crawler timeouts active while response bodies are pending', async () => {
+    const bodyRead = vi.fn();
+    const crawler = new Crawler({
+      timeoutMs: 1,
+      fetchImpl: async () => ({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'Content-Type': 'text/plain' }),
+        arrayBuffer: vi.fn(() => new Promise(() => {
+          bodyRead();
+        })),
+      }),
+    });
+
+    await expect(crawler.readUrl('http://93.184.216.34/source.txt')).rejects.toMatchObject({
+      code: 'timeout',
+    });
+    expect(bodyRead).toHaveBeenCalled();
+  });
+
+  it('keeps crawler timeouts active when fetch ignores the timeout signal', async () => {
+    const fetchImpl = vi.fn(() => new Promise(() => undefined));
+    const crawler = new Crawler({
+      timeoutMs: 1,
+      fetchImpl,
+    });
+
+    await expect(crawler.readUrl('http://93.184.216.34/source.txt')).rejects.toMatchObject({
+      code: 'timeout',
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not start native HTTP fallback requests when the internal signal is already aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const request = new EventEmitter();
+    request.setTimeout = vi.fn();
+    request.destroy = vi.fn();
+    request.end = vi.fn();
+    const requestSpy = vi.spyOn(http, 'request').mockReturnValue(request);
+
+    await expect(crawlerInternals.fetchAddress({
+      url: 'http://example.com/',
+      parsed: new URL('http://example.com/'),
+      addresses: [{ address: '93.184.216.34', family: 4 }],
+    }, {
+      address: '93.184.216.34',
+      family: 4,
+    }, controller.signal)).rejects.toMatchObject({
+      code: 'timeout',
+    });
+
+    expect(requestSpy).toHaveBeenCalledTimes(1);
+    expect(request.destroy).toHaveBeenCalledTimes(1);
+    expect(request.end).not.toHaveBeenCalled();
   });
 
   it('blocks low quality sources before fetching', async () => {

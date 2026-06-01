@@ -32,7 +32,7 @@ async function syncSessionMessagesFromDisk(
   const persistedMessages = await loadSessionJson(sessionId);
   const latestState = useUnifiedStore.getState();
   const latestAI = latestState.data.ai;
-  if (!latestAI) {
+  if (!latestAI || !shouldPersistSession(latestAI, sessionId)) {
     return [];
   }
 

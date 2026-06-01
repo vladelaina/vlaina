@@ -172,6 +172,202 @@ describe('LocalSearchProvider', () => {
     ]);
   });
 
+  it('returns once higher-priority engines fill the limit and cancels slower lower-priority engines', async () => {
+    const abortedUrls = [];
+    const fetchImpl = vi.fn((url, options = {}) => {
+      if (String(url).includes('duckduckgo.com')) {
+        options.signal.addEventListener('abort', () => {
+          abortedUrls.push(url);
+        }, { once: true });
+        return new Promise((_resolve, reject) => {
+          options.signal.addEventListener('abort', () => {
+            reject(new DOMException('cancelled', 'AbortError'));
+          }, { once: true });
+        });
+      }
+
+      return Promise.resolve(new Response(`
+        <li class="b_algo">
+          <h2><a href="https://example.com/one">Needle Query One</a></h2>
+          <div class="b_caption"><p>Needle query first summary.</p></div>
+        </li>
+        <li class="b_algo">
+          <h2><a href="https://example.com/two">Needle Query Two</a></h2>
+          <div class="b_caption"><p>Needle query second summary.</p></div>
+        </li>
+      `, {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+      }));
+    });
+    const provider = new LocalSearchProvider({ fetchImpl, timeoutMs: 5000 });
+
+    await expect(provider.search('needle query', {
+      engines: ['bing', 'duckduckgo'],
+      limit: 2,
+    })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'Needle Query One',
+        source: 'local-web-search:bing',
+      }),
+      expect.objectContaining({
+        title: 'Needle Query Two',
+        source: 'local-web-search:bing',
+      }),
+    ]);
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(abortedUrls).toHaveLength(1);
+    expect(abortedUrls[0]).toContain('duckduckgo.com');
+  });
+
+  it('cancels search result body reads when the external signal aborts', async () => {
+    const controller = new AbortController();
+    const textStarted = vi.fn();
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      text: vi.fn(() => new Promise(() => {
+        textStarted();
+      })),
+    }));
+    const provider = new LocalSearchProvider({ fetchImpl, timeoutMs: 5000 });
+
+    const request = provider.search('needle query', {
+      engines: ['bing'],
+      limit: 5,
+      signal: controller.signal,
+    });
+    await vi.waitFor(() => expect(textStarted).toHaveBeenCalled());
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+  });
+
+  it('rejects search engine fetches promptly when the fetch implementation ignores cancellation', async () => {
+    const controller = new AbortController();
+    const fetchImpl = vi.fn(() => new Promise(() => undefined));
+    const provider = new LocalSearchProvider({ fetchImpl, timeoutMs: 5000 });
+
+    const request = provider.search('needle query', {
+      engines: ['bing'],
+      limit: 5,
+      signal: controller.signal,
+    });
+    request.catch(() => undefined);
+
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalled());
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects direct official lookup results that resolve after cancellation', async () => {
+    const controller = new AbortController();
+    const fetchImpl = vi.fn(async (url) => {
+      if (url === 'https://xqstale.com/') {
+        controller.abort();
+        return new Response('<title>XQStale</title>', {
+          status: 200,
+          headers: { 'content-type': 'text/html' },
+        });
+      }
+
+      return new Response('', {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+      });
+    });
+    const provider = new LocalSearchProvider({ fetchImpl, timeoutMs: 5000 });
+
+    await expect(provider.search('xqstale official', {
+      engines: ['bing'],
+      limit: 5,
+      signal: controller.signal,
+    })).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+  });
+
+  it('cancels the direct official lookup after search engines return usable results', async () => {
+    const abortedUrls = [];
+    const fetchImpl = vi.fn((url, options = {}) => {
+      if (url === 'https://xqtimer.com/') {
+        options.signal.addEventListener('abort', () => {
+          abortedUrls.push(url);
+        }, { once: true });
+        return new Promise((_resolve, reject) => {
+          options.signal.addEventListener('abort', () => {
+            reject(new DOMException('cancelled', 'AbortError'));
+          }, { once: true });
+        });
+      }
+
+      return Promise.resolve(new Response(`
+        <li class="b_algo">
+          <h2><a href="https://example.com/xqtimer">XQTimer official release notes</a></h2>
+          <div class="b_caption"><p>XQTimer official update summary.</p></div>
+        </li>
+      `, {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+      }));
+    });
+    const provider = new LocalSearchProvider({ fetchImpl, timeoutMs: 5000 });
+
+    await expect(provider.search('xqtimer official', {
+      engines: ['bing'],
+      limit: 5,
+    })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'XQTimer official release notes',
+        source: 'local-web-search:bing',
+      }),
+    ]);
+
+    expect(fetchImpl).toHaveBeenCalledWith('https://xqtimer.com/', expect.objectContaining({
+      signal: expect.any(AbortSignal),
+    }));
+    expect(abortedUrls).toEqual(['https://xqtimer.com/']);
+  });
+
+  it('cancels direct official lookup fetches even when they ignore cancellation', async () => {
+    const fetchImpl = vi.fn((url) => {
+      if (url === 'https://xqwait.com/') {
+        return new Promise(() => undefined);
+      }
+
+      return Promise.resolve(new Response(`
+        <li class="b_algo">
+          <h2><a href="https://example.com/xqwait">XQWait official docs</a></h2>
+          <div class="b_caption"><p>XQWait official docs summary.</p></div>
+        </li>
+      `, {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+      }));
+    });
+    const provider = new LocalSearchProvider({ fetchImpl, timeoutMs: 5000 });
+
+    await expect(provider.search('xqwait official', {
+      engines: ['bing'],
+      limit: 5,
+    })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'XQWait official docs',
+        source: 'local-web-search:bing',
+      }),
+    ]);
+
+    expect(fetchImpl).toHaveBeenCalledWith('https://xqwait.com/', expect.objectContaining({
+      signal: expect.any(AbortSignal),
+    }));
+  });
+
   it('parses Google and DuckDuckGo result links', () => {
     const googleHtml = `
       <a href="/url?q=https%3A%2F%2Fexample.com%2Fgoogle&sa=U"><h3>Google Result</h3></a>

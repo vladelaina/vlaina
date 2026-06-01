@@ -9,11 +9,16 @@ export function createHydrateAvatar(set: Set, get: Get): () => Promise<void> {
   return async () => {
     const { username } = get();
     if (!username) {
-      set({ localAvatarUrl: null });
+      if (!get().username) {
+        set({ localAvatarUrl: null });
+      }
       return;
     }
 
     const localSrc = await getLocalAvatarUrl(username);
+    if (get().username !== username) {
+      return;
+    }
     set({ localAvatarUrl: localSrc || null });
   };
 }

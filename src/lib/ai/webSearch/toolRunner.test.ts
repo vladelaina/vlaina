@@ -286,4 +286,54 @@ describe('web search tool runner', () => {
       { client, signal: controller.signal },
     )).rejects.toMatchObject({ name: 'AbortError' });
   });
+
+  it('stops before calling the search client when a status callback cancels the request', async () => {
+    const controller = new AbortController();
+    const client: WebSearchClient = {
+      webSearch: vi.fn(),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(),
+    };
+
+    await expect(runWebSearchToolCall(
+      {
+        name: WEB_SEARCH_TOOL_NAMES.search,
+        arguments: JSON.stringify({ query: 'openai' }),
+      },
+      {
+        client,
+        signal: controller.signal,
+        onStatus: () => controller.abort(),
+      },
+    )).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(client.webSearch).not.toHaveBeenCalled();
+  });
+
+  it('treats downstream abort-shaped failures as tool failures when the chat is still active', async () => {
+    const controller = new AbortController();
+    const statuses: unknown[] = [];
+    const client: WebSearchClient = {
+      webSearch: vi.fn(async () => {
+        throw new DOMException('provider internal timeout', 'AbortError');
+      }),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(),
+    };
+
+    const text = await runWebSearchToolCall(
+      {
+        name: WEB_SEARCH_TOOL_NAMES.search,
+        arguments: JSON.stringify({ query: 'openai' }),
+      },
+      { client, signal: controller.signal, onStatus: (status) => statuses.push(status) },
+    );
+
+    expect(controller.signal.aborted).toBe(false);
+    expect(text).toBe('Tool error: Web search is temporarily unavailable.');
+    expect(statuses).toEqual([
+      { phase: 'searching', query: 'openai' },
+      { phase: 'error', message: 'Web search is temporarily unavailable.' },
+    ]);
+  });
 });

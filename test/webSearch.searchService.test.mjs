@@ -34,14 +34,19 @@ describe('SearchService', () => {
       timeRange: 'week',
       engines: 'google',
       limit: 5,
+      signal: expect.any(AbortSignal),
     });
     expect(provider.search).toHaveBeenNthCalledWith(2, 'query', {
       category: 'news',
       timeRange: 'week',
       engines: undefined,
       limit: 5,
+      signal: expect.any(AbortSignal),
     });
-    expect(provider.search).toHaveBeenNthCalledWith(3, 'query', { limit: 5 });
+    expect(provider.search).toHaveBeenNthCalledWith(3, 'query', {
+      limit: 5,
+      signal: expect.any(AbortSignal),
+    });
   });
 
   it('runs fallback attempts concurrently to avoid stacked search timeouts', async () => {
@@ -77,6 +82,70 @@ describe('SearchService', () => {
     });
   });
 
+  it('cancels slower fallback attempts after one attempt returns results', async () => {
+    const aborts = [];
+    const provider = {
+      isConfigured: () => true,
+      search: vi.fn((_query, attempt) => {
+        attempt.signal.addEventListener('abort', () => {
+          aborts.push(attempt.category || 'plain');
+        }, { once: true });
+        if (attempt.category === 'news') {
+          return new Promise(() => {});
+        }
+        return Promise.resolve([
+          {
+            title: 'Plain Result',
+            url: 'https://example.com/plain',
+            snippet: '',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+        ]);
+      }),
+    };
+    const service = new SearchService({ providers: [provider] });
+
+    await expect(service.webSearch('query', {
+      category: 'news',
+      timeRange: 'week',
+    })).resolves.toEqual({
+      query: 'query',
+      results: [expect.objectContaining({ title: 'Plain Result' })],
+    });
+
+    expect(provider.search).toHaveBeenCalledTimes(2);
+    expect(aborts).toEqual(['news']);
+  });
+
+  it('rejects provider results that resolve after external cancellation', async () => {
+    const controller = new AbortController();
+    const provider = {
+      isConfigured: () => true,
+      search: vi.fn(async () => {
+        controller.abort();
+        return [
+          {
+            title: 'Late Result',
+            url: 'https://example.com/late',
+            snippet: '',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+        ];
+      }),
+    };
+    const service = new SearchService({ providers: [provider] });
+
+    await expect(service.webSearch('query', {
+      limit: 5,
+      signal: controller.signal,
+    })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(provider.search).toHaveBeenCalledTimes(1);
+  });
+
   it('does not repeat identical fallback attempts', async () => {
     const provider = {
       isConfigured: () => true,
@@ -87,7 +156,10 @@ describe('SearchService', () => {
     await service.webSearch('query', { limit: 5 });
 
     expect(provider.search).toHaveBeenCalledTimes(1);
-    expect(provider.search).toHaveBeenCalledWith('query', { limit: 5 });
+    expect(provider.search).toHaveBeenCalledWith('query', {
+      limit: 5,
+      signal: expect.any(AbortSignal),
+    });
   });
 
   it('skips engine-only fallback when no engine restriction exists', async () => {
@@ -104,8 +176,12 @@ describe('SearchService', () => {
       category: 'news',
       timeRange: 'week',
       limit: 5,
+      signal: expect.any(AbortSignal),
     });
-    expect(provider.search).toHaveBeenNthCalledWith(2, 'query', { limit: 5 });
+    expect(provider.search).toHaveBeenNthCalledWith(2, 'query', {
+      limit: 5,
+      signal: expect.any(AbortSignal),
+    });
   });
 
   it('throws unavailable when every provider attempt fails', async () => {

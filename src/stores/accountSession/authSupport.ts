@@ -162,11 +162,16 @@ export async function refreshAvatar(
   avatarUrl: string | null
 ) {
   if (!username) {
-    set({ localAvatarUrl: null });
+    if (!get().username) {
+      set({ localAvatarUrl: null });
+    }
     return;
   }
 
   const localSrc = await getLocalAvatarUrl(username);
+  if (get().username !== username) {
+    return;
+  }
   set({ localAvatarUrl: localSrc || null });
 
   if (!avatarUrl) {
@@ -179,7 +184,7 @@ export async function refreshAvatar(
         return;
       }
       const nextLocalSrc = await getLocalAvatarUrl(username);
-      if (nextLocalSrc) {
+      if (get().username === username && nextLocalSrc) {
         set({ localAvatarUrl: nextLocalSrc });
       }
     })

@@ -256,80 +256,92 @@ export function createSessionActions() {
     },
 
     promoteTemporarySession: async () => {
-      const state = useUnifiedStore.getState()
-      const ai = state.data.ai!
-      const uiState = useAIUIStore.getState()
-      const currentSessionId = uiState.currentSessionId
-
-      if (!uiState.temporaryChatEnabled || !isTemporarySessionId(currentSessionId)) {
+      const initialUIState = useAIUIStore.getState()
+      const initialSessionId = initialUIState.currentSessionId
+      if (!initialUIState.temporaryChatEnabled || !isTemporarySessionId(initialSessionId)) {
         return null
       }
-      const temporarySessionId = currentSessionId as string
+      const temporarySessionId = initialSessionId as string
 
-      const temporarySession = ai.sessions.find((session) => session.id === temporarySessionId)
-      if (!temporarySession || !isTemporarySession(temporarySession)) {
-        return null
-      }
+      return await runWithSessionMutationLock(temporarySessionId, async () => {
+        const state = useUnifiedStore.getState()
+        const ai = state.data.ai!
+        const uiState = useAIUIStore.getState()
+        const currentSessionId = uiState.currentSessionId
 
-      const now = Date.now()
-      const promotedSessionId = generateId('session-')
-      const promotedSession: ChatSession = {
-        id: promotedSessionId,
-        title: 'New',
-        modelId: temporarySession.modelId || ai.selectedModelId || '',
-        isPinned: temporarySession.isPinned,
-        createdAt: temporarySession.createdAt || now,
-        updatedAt: now
-      }
+        if (
+          !uiState.temporaryChatEnabled ||
+          currentSessionId !== temporarySessionId ||
+          !isTemporarySessionId(currentSessionId)
+        ) {
+          return null
+        }
 
-      const sessionsWithoutOtherTemporary = ai.sessions.filter((session) => {
-        if (!isTemporarySession(session)) return true
-        return session.id === temporarySessionId
-      })
-      const nextSessions = sessionsWithoutOtherTemporary.map((session) =>
-        session.id === temporarySessionId ? promotedSession : session
-      )
+        const temporarySession = ai.sessions.find((session) => session.id === temporarySessionId)
+        if (!temporarySession || !isTemporarySession(temporarySession)) {
+          return null
+        }
 
-      const nextMessages = Object.fromEntries(
-        Object.entries(ai.messages).filter(([sessionId]) =>
-          !isTemporarySessionId(sessionId) || sessionId === temporarySessionId
+        const now = Date.now()
+        const promotedSessionId = generateId('session-')
+        const promotedSession: ChatSession = {
+          id: promotedSessionId,
+          title: 'New',
+          modelId: temporarySession.modelId || ai.selectedModelId || '',
+          isPinned: temporarySession.isPinned,
+          createdAt: temporarySession.createdAt || now,
+          updatedAt: now
+        }
+
+        const sessionsWithoutOtherTemporary = ai.sessions.filter((session) => {
+          if (!isTemporarySession(session)) return true
+          return session.id === temporarySessionId
+        })
+        const nextSessions = sessionsWithoutOtherTemporary.map((session) =>
+          session.id === temporarySessionId ? promotedSession : session
         )
-      ) as Record<string, ChatMessage[]>
-      nextMessages[promotedSessionId] = nextMessages[temporarySessionId] || []
-      delete nextMessages[temporarySessionId]
-      const nextUnreadSessionIds = Array.from(new Set(
-        (ai.unreadSessionIds || [])
-          .map((sessionId) => sessionId === temporarySessionId ? promotedSessionId : sessionId)
-          .filter((sessionId) => sessionId === promotedSessionId || nextSessions.some((session) => session.id === sessionId))
-      ))
 
-      const isPromotingGenerating =
-        requestManager.isGenerating(temporarySessionId) ||
-        !!uiState.generatingSessions[temporarySessionId]
+        const nextMessages = Object.fromEntries(
+          Object.entries(ai.messages).filter(([sessionId]) =>
+            !isTemporarySessionId(sessionId) || sessionId === temporarySessionId
+          )
+        ) as Record<string, ChatMessage[]>
+        nextMessages[promotedSessionId] = nextMessages[temporarySessionId] || []
+        delete nextMessages[temporarySessionId]
+        const nextUnreadSessionIds = Array.from(new Set(
+          (ai.unreadSessionIds || [])
+            .map((sessionId) => sessionId === temporarySessionId ? promotedSessionId : sessionId)
+            .filter((sessionId) => sessionId === promotedSessionId || nextSessions.some((session) => session.id === sessionId))
+        ))
 
-      if (isPromotingGenerating) {
-        aliasSessionId(temporarySessionId, promotedSessionId)
-        requestManager.transfer(temporarySessionId, promotedSessionId)
-        uiState.moveSessionState(temporarySessionId, promotedSessionId)
-      } else {
-        uiState.clearSessionState(temporarySessionId)
-      }
-      cancelSessionJsonSave(temporarySessionId)
-      uiState.setTemporaryReturnSessionId(null)
+        const isPromotingGenerating =
+          requestManager.isGenerating(temporarySessionId) ||
+          !!uiState.generatingSessions[temporarySessionId]
 
-      state.updateAIData({
-        sessions: nextSessions,
-        messages: nextMessages,
-        unreadSessionIds: nextUnreadSessionIds,
+        if (isPromotingGenerating) {
+          aliasSessionId(temporarySessionId, promotedSessionId)
+          requestManager.transfer(temporarySessionId, promotedSessionId)
+          uiState.moveSessionState(temporarySessionId, promotedSessionId)
+        } else {
+          uiState.clearSessionState(temporarySessionId)
+        }
+        cancelSessionJsonSave(temporarySessionId)
+        uiState.setTemporaryReturnSessionId(null)
+
+        state.updateAIData({
+          sessions: nextSessions,
+          messages: nextMessages,
+          unreadSessionIds: nextUnreadSessionIds,
+        })
+        uiState.setChatSelection({
+          currentSessionId: promotedSessionId,
+          temporaryChatEnabled: false,
+        })
+
+        void saveSessionJson(promotedSessionId, nextMessages[promotedSessionId] || [])
+        void persistInlineImageSourcesForSession(promotedSessionId)
+        return promotedSessionId
       })
-      uiState.setChatSelection({
-        currentSessionId: promotedSessionId,
-        temporaryChatEnabled: false,
-      })
-
-      void saveSessionJson(promotedSessionId, nextMessages[promotedSessionId] || [])
-      void persistInlineImageSourcesForSession(promotedSessionId)
-      return promotedSessionId
     },
 
     createSession: (title = 'New') => createAIChatSession(title),

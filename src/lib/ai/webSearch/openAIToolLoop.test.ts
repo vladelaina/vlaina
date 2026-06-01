@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ChatCompletionRequest } from '@/lib/ai/types';
-import { runOpenAIWebSearchJsonToolLoop, runOpenAIWebSearchToolLoop } from './openAIToolLoop';
+import {
+  runOpenAIWebSearchJsonTextProtocolRequest,
+  runOpenAIWebSearchJsonToolLoop,
+  runOpenAIWebSearchTextProtocolTextRequest,
+  runOpenAIWebSearchToolLoop,
+} from './openAIToolLoop';
 import { extractWebSearchStatuses } from './statusMarkup';
 import type { WebPageContent } from './types';
 
@@ -1799,5 +1804,107 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(final).toContain('连续尝试了几个搜索词');
     expect(final).not.toContain('DSML');
     expect(final).not.toContain('tool_calls');
+  });
+
+  it('does not emit a final JSON tool-loop answer after cancellation during response parsing', async () => {
+    const controller = new AbortController();
+    const requestJson = vi.fn(async () => {
+      controller.abort();
+      return {
+        choices: [{
+          message: {
+            content: 'Final answer after cancellation.',
+          },
+        }],
+      };
+    });
+    const onChunk = vi.fn();
+    const onApiTranscript = vi.fn();
+
+    await expect(runOpenAIWebSearchJsonToolLoop({
+      body: {
+        model: 'test',
+        stream: true,
+        messages: [{ role: 'user', content: 'answer directly' }],
+      },
+      client: {
+        webSearch: vi.fn(),
+        readWebPage: vi.fn(),
+        readWebPages: vi.fn(),
+      },
+      requestJson,
+      onChunk,
+      onApiTranscript,
+      signal: controller.signal,
+    })).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(onChunk).not.toHaveBeenCalled();
+    expect(onApiTranscript).not.toHaveBeenCalled();
+  });
+
+  it('does not emit a direct JSON text-protocol answer after cancellation during response parsing', async () => {
+    const controller = new AbortController();
+    const requestJson = vi.fn(async () => {
+      controller.abort();
+      return {
+        choices: [{
+          message: {
+            content: 'Direct answer after cancellation.',
+          },
+        }],
+      };
+    });
+    const onChunk = vi.fn();
+    const onApiTranscript = vi.fn();
+
+    await expect(runOpenAIWebSearchJsonTextProtocolRequest({
+      body: {
+        model: 'test',
+        stream: false,
+        messages: [{ role: 'user', content: 'answer directly' }],
+      },
+      client: {
+        webSearch: vi.fn(),
+        readWebPage: vi.fn(),
+        readWebPages: vi.fn(),
+      },
+      requestJson,
+      onChunk,
+      onApiTranscript,
+      signal: controller.signal,
+    })).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(onChunk).not.toHaveBeenCalled();
+    expect(onApiTranscript).not.toHaveBeenCalled();
+  });
+
+  it('does not emit a direct text-protocol answer after cancellation during response parsing', async () => {
+    const controller = new AbortController();
+    const requestText = vi.fn(async () => {
+      controller.abort();
+      return 'Direct answer after cancellation.';
+    });
+    const onChunk = vi.fn();
+    const onApiTranscript = vi.fn();
+
+    await expect(runOpenAIWebSearchTextProtocolTextRequest({
+      body: {
+        model: 'test',
+        stream: false,
+        messages: [{ role: 'user', content: 'answer directly' }],
+      },
+      client: {
+        webSearch: vi.fn(),
+        readWebPage: vi.fn(),
+        readWebPages: vi.fn(),
+      },
+      requestText,
+      onChunk,
+      onApiTranscript,
+      signal: controller.signal,
+    })).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(onChunk).not.toHaveBeenCalled();
+    expect(onApiTranscript).not.toHaveBeenCalled();
   });
 });

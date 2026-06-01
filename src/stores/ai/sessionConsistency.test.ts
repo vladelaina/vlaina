@@ -89,4 +89,33 @@ describe('sessionConsistency', () => {
     expect(messages[0]?.versions.map((version) => version.content)).toEqual(['local']);
     expect(useUnifiedStore.getState().data.ai?.messages['session-1']?.[0]?.content).toBe('local');
   });
+
+  it('does not recreate messages when the session is deleted while disk content is loading', async () => {
+    let resolveLoad!: (messages: ChatMessage[]) => void;
+    hoisted.loadSessionJson.mockReturnValue(new Promise((resolve) => {
+      resolveLoad = resolve;
+    }));
+
+    const request = reloadSessionMessagesFromDisk('session-1');
+    await vi.waitFor(() => expect(hoisted.loadSessionJson).toHaveBeenCalledWith('session-1'));
+
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              sessions: [],
+              messages: {},
+            }
+          : state.data.ai,
+      },
+    }));
+
+    resolveLoad([createMessage('m1', 'stale disk')]);
+
+    await expect(request).resolves.toEqual([]);
+    expect(useUnifiedStore.getState().data.ai?.messages).toEqual({});
+  });
 });

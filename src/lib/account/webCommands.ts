@@ -13,6 +13,7 @@ const API_BASE = 'https://api.vlaina.com';
 const WEB_RESULT_POLL_ATTEMPTS = 10;
 const WEB_RESULT_POLL_DELAY_MS = 300;
 const TRANSIENT_ACCOUNT_RETRY_DELAYS_MS = [250, 750];
+const ACCOUNT_REQUEST_TIMEOUT_MS = 15_000;
 
 interface WebAuthResult {
   success: boolean;
@@ -109,8 +110,119 @@ function persistConnectedWebAccount(result: NormalizedWebAccountResult): void {
   });
 }
 
+function createAccountTimeoutError(): Error {
+  return new Error('Account API request timed out.');
+}
+
+function throwIfTimedOut(signal: AbortSignal): void {
+  if (!signal.aborted) return;
+  throw createAccountTimeoutError();
+}
+
+async function raceAccountRequest<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  throwIfTimedOut(signal);
+  promise.catch(() => undefined);
+
+  return await new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      signal.removeEventListener('abort', abort);
+    };
+    const settle = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback();
+    };
+    const abort = () => {
+      settle(() => reject(createAccountTimeoutError()));
+    };
+
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+
+    promise.then(
+      (value) => {
+        settle(() => {
+          try {
+            throwIfTimedOut(signal);
+            resolve(value);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+      (error) => {
+        settle(() => {
+          try {
+            throwIfTimedOut(signal);
+            reject(error);
+          } catch (timeoutError) {
+            reject(timeoutError);
+          }
+        });
+      }
+    );
+  });
+}
+
+async function withAccountRequestTimeout<T>(
+  operation: (signal: AbortSignal) => Promise<T>
+): Promise<T> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => {
+    controller.abort();
+  }, ACCOUNT_REQUEST_TIMEOUT_MS);
+
+  try {
+    return await operation(controller.signal);
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw createAccountTimeoutError();
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+async function fetchAccountResponse(input: RequestInfo | URL, init: RequestInit = {}, signal: AbortSignal): Promise<Response> {
+  throwIfTimedOut(signal);
+  const response = await raceAccountRequest(fetch(input, {
+    ...init,
+    signal,
+  }), signal);
+  throwIfTimedOut(signal);
+  return response;
+}
+
+async function readAccountJson<T>(response: Response, signal: AbortSignal): Promise<T> {
+  throwIfTimedOut(signal);
+  const data = await raceAccountRequest(response.json() as Promise<T>, signal);
+  throwIfTimedOut(signal);
+  return data;
+}
+
+async function fetchAccountJson<T>(
+  input: RequestInfo | URL,
+  init: RequestInit = {}
+): Promise<{ response: Response; data: T }> {
+  return await withAccountRequestTimeout(async (signal) => {
+    const response = await fetchAccountResponse(input, init, signal);
+    const data = await readAccountJson<T>(response, signal);
+    return { response, data };
+  });
+}
+
+async function fetchAccount(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  return await withAccountRequestTimeout((signal) => fetchAccountResponse(input, init, signal));
+}
+
 async function probeWebSession(): Promise<WebAccountStatus> {
-  const response = await fetch(`${API_BASE}/auth/session?include_budget=1`, {
+  const response = await fetchAccount(`${API_BASE}/auth/session?include_budget=1`, {
     method: 'GET',
     cache: 'no-store',
     credentials: 'include',
@@ -127,7 +239,7 @@ async function probeWebSession(): Promise<WebAccountStatus> {
     throw new Error(`Failed to verify session: HTTP ${response.status}`);
   }
 
-  const data = (await response.json()) as SessionStatusResponse;
+  const data = await withAccountRequestTimeout((signal) => readAccountJson<SessionStatusResponse>(response, signal));
   return {
     connected: data.connected === true,
     provider: normalizeAccountProvider(data.provider),
@@ -145,7 +257,7 @@ async function probeWebSession(): Promise<WebAccountStatus> {
 }
 
 async function revokeWebSession(): Promise<void> {
-  const response = await fetch(`${API_BASE}/auth/session/revoke`, {
+  const response = await fetchAccount(`${API_BASE}/auth/session/revoke`, {
     method: 'POST',
     cache: 'no-store',
     credentials: 'include',
@@ -200,7 +312,7 @@ async function retryTransientAccountNetworkError<T>(operation: () => Promise<T>)
 
 async function readJsonErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
-    const payload = (await response.json()) as { error?: string };
+    const payload = await withAccountRequestTimeout((signal) => readAccountJson<{ error?: string }>(response, signal));
     if (typeof payload.error === 'string' && payload.error.trim()) {
       return payload.error;
     }
@@ -217,13 +329,13 @@ export const webAccountCommands = {
 
     try {
       const res = await retryTransientAccountNetworkError(() =>
-        fetch(`${API_BASE}${authStartPath(provider)}`, {
+        fetchAccount(`${API_BASE}${authStartPath(provider)}`, {
           cache: 'no-store',
           credentials: 'include',
         })
       );
       if (!res.ok) return null;
-      return res.json();
+      return await withAccountRequestTimeout((signal) => readAccountJson<{ authUrl: string; state: string }>(res, signal));
     } catch {
       return null;
     }
@@ -246,14 +358,13 @@ export const webAccountCommands = {
       const endpoint = new URL(`${API_BASE}${webResultPath(provider)}`);
       endpoint.searchParams.set('state', state);
       for (let attempt = 0; attempt < WEB_RESULT_POLL_ATTEMPTS; attempt += 1) {
-        const res = await retryTransientAccountNetworkError(() =>
-          fetch(endpoint, {
+        const { data } = await retryTransientAccountNetworkError(() =>
+          fetchAccountJson<WebAuthResult>(endpoint, {
             method: 'GET',
             cache: 'no-store',
             credentials: 'include',
           })
         );
-        const data = (await res.json()) as WebAuthResult;
         if (data.pending === true && !data.success) {
           await delay(WEB_RESULT_POLL_DELAY_MS);
           continue;
@@ -273,7 +384,7 @@ export const webAccountCommands = {
     assertSupportedWebAccountOrigin();
 
     const response = await retryTransientAccountNetworkError(() =>
-      fetch(`${API_BASE}/auth/email/request-code`, {
+      fetchAccount(`${API_BASE}/auth/email/request-code`, {
         method: 'POST',
         cache: 'no-store',
         credentials: 'include',
@@ -305,8 +416,8 @@ export const webAccountCommands = {
     assertSupportedWebAccountOrigin();
 
     try {
-      const response = await retryTransientAccountNetworkError(() =>
-        fetch(`${API_BASE}/auth/email/verify-code`, {
+      const { data } = await retryTransientAccountNetworkError(() =>
+        fetchAccountJson<WebAuthResult>(`${API_BASE}/auth/email/verify-code`, {
           method: 'POST',
           cache: 'no-store',
           credentials: 'include',
@@ -317,7 +428,6 @@ export const webAccountCommands = {
           body: JSON.stringify({ email, code, target: 'web' }),
         })
       );
-      const data = (await response.json()) as WebAuthResult;
       const result = normalizeWebAuthResult(data, 'email');
       persistConnectedWebAccount(result);
       return result;

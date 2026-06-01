@@ -31,6 +31,18 @@ function streamResponse(chunks: string[]) {
   }));
 }
 
+async function waitForSenderCall(
+  sender: { send: ReturnType<typeof vi.fn> },
+  predicate: (args: unknown[]) => boolean
+) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (sender.send.mock.calls.some(predicate)) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+}
+
 describe('managed ipc stream bridge', () => {
   it('uses public managed requests for model listing only', async () => {
     const { handlers, options } = registerHarness();
@@ -116,6 +128,182 @@ describe('managed ipc stream bridge', () => {
     });
   });
 
+  it('cancels managed chat completion requests by request id', async () => {
+    const { handlers, options } = registerHarness();
+    let capturedSignal: AbortSignal | undefined;
+    options.requestManagedJson.mockImplementationOnce((_path, init) => {
+      capturedSignal = init.signal as AbortSignal | undefined;
+      return new Promise((_resolve, reject) => {
+        capturedSignal?.addEventListener('abort', () => {
+          reject(new DOMException('Aborted', 'AbortError'));
+        }, { once: true });
+      });
+    });
+
+    const request = handlers.get('desktop:managed:chat-completion')?.(
+      {},
+      'managed-json-1',
+      { model: 'deepseek-chat' },
+    ) as Promise<unknown>;
+    request.catch(() => undefined);
+
+    await Promise.resolve();
+    await handlers.get('desktop:managed:chat-completion:cancel')?.({}, 'managed-json-1');
+
+    expect(capturedSignal?.aborted).toBe(true);
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('cancels managed image generation requests by request id', async () => {
+    const { handlers, options } = registerHarness();
+    let capturedSignal: AbortSignal | undefined;
+    options.requestManagedJson.mockImplementationOnce((_path, init) => {
+      capturedSignal = init.signal as AbortSignal | undefined;
+      return new Promise((_resolve, reject) => {
+        capturedSignal?.addEventListener('abort', () => {
+          reject(new DOMException('Aborted', 'AbortError'));
+        }, { once: true });
+      });
+    });
+
+    const request = handlers.get('desktop:managed:image-generation')?.(
+      {},
+      'managed-image-generation-1',
+      { model: 'gpt-image-2', prompt: 'draw' },
+    ) as Promise<unknown>;
+    request.catch(() => undefined);
+
+    await Promise.resolve();
+    await handlers.get('desktop:managed:image-generation:cancel')?.({}, 'managed-image-generation-1');
+
+    expect(capturedSignal?.aborted).toBe(true);
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('cancels managed image edit requests by request id', async () => {
+    const { handlers, options } = registerHarness();
+    let capturedSignal: AbortSignal | undefined;
+    options.requestManagedJson.mockImplementationOnce((_path, init) => {
+      capturedSignal = init.signal as AbortSignal | undefined;
+      return new Promise((_resolve, reject) => {
+        capturedSignal?.addEventListener('abort', () => {
+          reject(new DOMException('Aborted', 'AbortError'));
+        }, { once: true });
+      });
+    });
+
+    const request = handlers.get('desktop:managed:image-edit')?.(
+      {},
+      'managed-image-edit-1',
+      {
+        bodyBase64: Buffer.from('multipart-body').toString('base64'),
+        headers: { 'Content-Type': 'multipart/form-data; boundary=test' },
+      },
+    ) as Promise<unknown>;
+    request.catch(() => undefined);
+
+    await Promise.resolve();
+    await handlers.get('desktop:managed:image-edit:cancel')?.({}, 'managed-image-edit-1');
+
+    expect(capturedSignal?.aborted).toBe(true);
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('rejects managed json results that resolve after cancellation', async () => {
+    const { handlers, options } = registerHarness();
+    let resolveRequest: ((value: unknown) => void) | undefined;
+    let capturedSignal: AbortSignal | undefined;
+    options.requestManagedJson.mockImplementationOnce((_path, init) => {
+      capturedSignal = init.signal as AbortSignal | undefined;
+      return new Promise((resolve) => {
+        resolveRequest = resolve;
+      });
+    });
+
+    const request = handlers.get('desktop:managed:chat-completion')?.(
+      {},
+      'managed-json-stale',
+      { model: 'deepseek-chat' },
+    ) as Promise<unknown>;
+    request.catch(() => undefined);
+
+    await Promise.resolve();
+    await handlers.get('desktop:managed:chat-completion:cancel')?.({}, 'managed-json-stale');
+    resolveRequest?.({ choices: [{ message: { content: 'stale' } }] });
+
+    expect(capturedSignal?.aborted).toBe(true);
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('rejects managed json requests promptly even when the transport ignores cancellation', async () => {
+    const { handlers, options } = registerHarness();
+    let capturedSignal: AbortSignal | undefined;
+    options.requestManagedJson.mockImplementationOnce((_path, init) => {
+      capturedSignal = init.signal as AbortSignal | undefined;
+      return new Promise(() => undefined);
+    });
+
+    const request = handlers.get('desktop:managed:chat-completion')?.(
+      {},
+      'managed-json-ignores-abort',
+      { model: 'deepseek-chat' },
+    ) as Promise<unknown>;
+    request.catch(() => undefined);
+
+    await Promise.resolve();
+    await handlers.get('desktop:managed:chat-completion:cancel')?.({}, 'managed-json-ignores-abort');
+
+    expect(capturedSignal?.aborted).toBe(true);
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('does not let an old managed json request clear or resolve a newer request with the same id', async () => {
+    const { handlers, options } = registerHarness();
+    const signals: AbortSignal[] = [];
+    let resolveFirst: ((value: unknown) => void) | undefined;
+    let resolveSecond: ((value: unknown) => void) | undefined;
+    options.requestManagedJson
+      .mockImplementationOnce((_path, init) => {
+        signals.push(init.signal as AbortSignal);
+        return new Promise((resolve) => {
+          resolveFirst = resolve;
+        });
+      })
+      .mockImplementationOnce((_path, init) => {
+        signals.push(init.signal as AbortSignal);
+        return new Promise((resolve) => {
+          resolveSecond = resolve;
+        });
+      });
+
+    const first = handlers.get('desktop:managed:image-generation')?.(
+      {},
+      'managed-json-reused',
+      { model: 'gpt-image-2', prompt: 'first' },
+    ) as Promise<unknown>;
+    first.catch(() => undefined);
+    await Promise.resolve();
+
+    const second = handlers.get('desktop:managed:image-generation')?.(
+      {},
+      'managed-json-reused',
+      { model: 'gpt-image-2', prompt: 'second' },
+    ) as Promise<unknown>;
+    second.catch(() => undefined);
+    await Promise.resolve();
+
+    resolveFirst?.({ data: [{ url: 'stale' }] });
+    await expect(first).rejects.toMatchObject({ name: 'AbortError' });
+
+    await handlers.get('desktop:managed:image-generation:cancel')?.({}, 'managed-json-reused');
+    resolveSecond?.({ data: [{ url: 'current-but-cancelled' }] });
+
+    expect(signals).toHaveLength(2);
+    expect(signals[0].aborted).toBe(true);
+    expect(signals[1].aborted).toBe(true);
+    await expect(second).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
   it('sanitizes managed stream message content before forwarding', async () => {
     const fetchWithStoredSession = vi.fn(async () => streamResponse([
       'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n',
@@ -163,12 +351,14 @@ describe('managed ipc stream bridge', () => {
     expect(options.fetchWithStoredSession).not.toHaveBeenCalled();
   });
 
-  it('does not let an old stream cleanup remove a newer stream with the same id', async () => {
-    let closeFirstStream!: () => void;
+  it('does not let an old stream cleanup or abort event affect a newer stream with the same id', async () => {
+    const cancelFirstStream = vi.fn();
     const signals: AbortSignal[] = [];
     const firstStream = new ReadableStream<Uint8Array>({
-      start(controller) {
-        closeFirstStream = () => controller.close();
+      start() {
+      },
+      cancel() {
+        cancelFirstStream();
       },
     });
     const secondStream = new ReadableStream<Uint8Array>({ start() {} });
@@ -187,7 +377,6 @@ describe('managed ipc stream bridge', () => {
 
     await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-1', {});
     await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-1', {});
-    closeFirstStream();
     await Promise.resolve();
     await Promise.resolve();
 
@@ -196,6 +385,36 @@ describe('managed ipc stream bridge', () => {
     expect(signals).toHaveLength(2);
     expect(signals[0].aborted).toBe(true);
     expect(signals[1].aborted).toBe(true);
+    expect(cancelFirstStream).toHaveBeenCalledTimes(1);
+    expect(sender.send).not.toHaveBeenCalledWith(
+      'desktop:managed:stream:managed-1:error',
+      { message: 'Aborted' },
+    );
+  });
+
+  it('ignores managed stream responses that resolve after initial fetch cancellation', async () => {
+    let resolveFetch: ((value: Response) => void) | undefined;
+    const signals: AbortSignal[] = [];
+    const fetchWithStoredSession = vi.fn((_url: string, init: RequestInit) => {
+      signals.push(init.signal as AbortSignal);
+      return new Promise<Response>((resolve) => {
+        resolveFetch = resolve;
+      });
+    });
+    const { handlers } = registerHarness({ fetchWithStoredSession });
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+
+    await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-fetch-late', {});
+    await vi.waitFor(() => expect(fetchWithStoredSession).toHaveBeenCalled());
+    await handlers.get('desktop:managed:chat-completion-stream:cancel')?.({}, 'managed-fetch-late');
+    resolveFetch?.(streamResponse([
+      'data: {"choices":[{"delta":{"content":"late"}}]}\n\n',
+    ]));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(signals).toHaveLength(1);
+    expect(signals[0].aborted).toBe(true);
+    expect(sender.send).not.toHaveBeenCalled();
   });
 
   it('consumes the final SSE line without a trailing newline', async () => {
@@ -206,11 +425,38 @@ describe('managed ipc stream bridge', () => {
     const sender = { isDestroyed: () => false, send: vi.fn() };
 
     await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-final', {});
-    await Promise.resolve();
-    await Promise.resolve();
+    await waitForSenderCall(sender, ([channel]) =>
+      channel === 'desktop:managed:stream:managed-final:done'
+    );
 
     expect(sender.send).toHaveBeenCalledWith('desktop:managed:stream:managed-final:chunk', 'final');
     expect(sender.send).toHaveBeenCalledWith('desktop:managed:stream:managed-final:done', { content: 'final' });
+  });
+
+  it('keeps resumed managed reasoning hidden after visible content has started', async () => {
+    const fetchWithStoredSession = vi.fn(async () => streamResponse([
+      'data: {"choices":[{"delta":{"reasoning_content":"first"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"visible"}}]}\n\n',
+      'data: {"choices":[{"delta":{"reasoning_content":"second"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":" answer"}}]}\n\n',
+      'data: [DONE]\n\n',
+    ]));
+    const { handlers } = registerHarness({ fetchWithStoredSession });
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+
+    await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-reasoning', {});
+    await waitForSenderCall(sender, ([channel]) =>
+      channel === 'desktop:managed:stream:managed-reasoning:done'
+    );
+
+    expect(sender.send).toHaveBeenCalledWith(
+      'desktop:managed:stream:managed-reasoning:chunk',
+      '<think>first</think>visible<think>second</think> answer',
+    );
+    expect(sender.send).toHaveBeenCalledWith(
+      'desktop:managed:stream:managed-reasoning:done',
+      { content: '<think>first</think>visible<think>second</think> answer' },
+    );
   });
 
   it('surfaces managed stream error payloads', async () => {
@@ -221,8 +467,9 @@ describe('managed ipc stream bridge', () => {
     const sender = { isDestroyed: () => false, send: vi.fn() };
 
     await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-error', {});
-    await Promise.resolve();
-    await Promise.resolve();
+    await waitForSenderCall(sender, ([channel]) =>
+      channel === 'desktop:managed:stream:managed-error:error'
+    );
 
     expect(sender.send).toHaveBeenCalledWith('desktop:managed:stream:managed-error:error', { message: 'upstream failed' });
   });
@@ -250,5 +497,28 @@ describe('managed ipc stream bridge', () => {
       statusCode: 502,
       errorCode: 'upstream_unavailable',
     });
+  });
+
+  it('cancels managed stream requests while HTTP error bodies are still pending without emitting stale events', async () => {
+    const textStarted = vi.fn();
+    const fetchWithStoredSession = vi.fn(async () => ({
+      ok: false,
+      status: 502,
+      text: vi.fn(() => new Promise(() => {
+        textStarted();
+      })),
+    }));
+    const { handlers } = registerHarness({ fetchWithStoredSession });
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+
+    await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-error-cancel', {});
+    await vi.waitFor(() => expect(textStarted).toHaveBeenCalled());
+    await handlers.get('desktop:managed:chat-completion-stream:cancel')?.({}, 'managed-error-cancel');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(sender.send).not.toHaveBeenCalledWith(
+      'desktop:managed:stream:managed-error-cancel:error',
+      { message: 'Aborted' },
+    );
   });
 });

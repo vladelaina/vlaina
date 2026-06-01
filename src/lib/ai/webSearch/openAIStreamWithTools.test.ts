@@ -1,0 +1,205 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const streamingMocks = vi.hoisted(() => ({
+  finishHook: null as null | (() => void),
+}));
+
+vi.mock('@/lib/ai/streaming', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/ai/streaming')>();
+  return {
+    ...actual,
+    createStreamAccumulator: (onChunk: (chunk: string) => void) => {
+      const accumulator = actual.createStreamAccumulator(onChunk);
+      return {
+        ...accumulator,
+        finish: () => {
+          streamingMocks.finishHook?.();
+          return accumulator.finish();
+        },
+      };
+    },
+  };
+});
+
+import { consumeOpenAIStreamWithTools } from './openAIStreamWithTools';
+
+function streamResponse(lines: string[]): Response {
+  const encoder = new TextEncoder();
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(lines.join('\n')));
+        controller.close();
+      },
+    }),
+  );
+}
+
+describe('consumeOpenAIStreamWithTools', () => {
+  beforeEach(() => {
+    streamingMocks.finishHook = null;
+  });
+
+  it('accumulates streamed content and tool call argument chunks', async () => {
+    const chunks: string[] = [];
+
+    const result = await consumeOpenAIStreamWithTools(
+      streamResponse([
+        'data: {"choices":[{"delta":{"content":"Checking "}}]}',
+        'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-1","type":"function","function":{"name":"web_search","arguments":"{\\"query\\":"}}]}}]}',
+        'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\\"vlaina\\"}"}}]}}]}',
+        'data: {"choices":[{"delta":{"content":"done"}}]}',
+        'data: [DONE]',
+        '',
+      ]),
+      (chunk) => chunks.push(chunk),
+    );
+
+    expect(result.content).toBe('Checking done');
+    expect(result.assistantContent).toBe('Checking done');
+    expect(result.toolCalls).toEqual([{
+      id: 'call-1',
+      type: 'function',
+      function: {
+        name: 'web_search',
+        arguments: '{"query":"vlaina"}',
+      },
+    }]);
+    expect(chunks[chunks.length - 1]).toBe('Checking done');
+  });
+
+  it('merges streamed tool call chunks that omit index but keep the same id', async () => {
+    const result = await consumeOpenAIStreamWithTools(
+      streamResponse([
+        'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-1","type":"function","function":{"name":"web_search","arguments":"{\\"query\\":"}}]}}]}',
+        'data: {"choices":[{"delta":{"tool_calls":[{"id":"call-1","function":{"arguments":"\\"vlaina"}}]}}]}',
+        'data: {"choices":[{"delta":{"tool_calls":[{"function":{"arguments":" ai\\"}"}}]}}]}',
+        'data: [DONE]',
+        '',
+      ]),
+      () => {},
+    );
+
+    expect(result.toolCalls).toEqual([{
+      id: 'call-1',
+      type: 'function',
+      function: {
+        name: 'web_search',
+        arguments: '{"query":"vlaina ai"}',
+      },
+    }]);
+  });
+
+  it('merges a later tool call id into an earlier unindexed function delta', async () => {
+    const result = await consumeOpenAIStreamWithTools(
+      streamResponse([
+        'data: {"choices":[{"delta":{"tool_calls":[{"function":{"name":"web_search","arguments":"{\\"query\\":"}}]}}]}',
+        'data: {"choices":[{"delta":{"tool_calls":[{"id":"call-late","type":"function","function":{"name":"web_search","arguments":"\\"late id\\"}"}}]}}]}',
+        'data: [DONE]',
+        '',
+      ]),
+      () => {},
+    );
+
+    expect(result.toolCalls).toEqual([{
+      id: 'call-late',
+      type: 'function',
+      function: {
+        name: 'web_search',
+        arguments: '{"query":"late id"}',
+      },
+    }]);
+  });
+
+  it('cancels and releases the stream reader when a stream error payload is received', async () => {
+    const cancel = vi.fn();
+    const encoder = new TextEncoder();
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode('data: {"error":{"message":"boom"}}\n'));
+        },
+        cancel,
+      }),
+    );
+
+    await expect(consumeOpenAIStreamWithTools(response, () => {})).rejects.toThrow('boom');
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('cancels and releases the stream reader when the signal aborts during body reads', async () => {
+    const cancel = vi.fn();
+    const controller = new AbortController();
+    const encoder = new TextEncoder();
+    const response = new Response(
+      new ReadableStream({
+        start(streamController) {
+          streamController.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"partial"}}]}\n'));
+        },
+        cancel,
+      }),
+    );
+
+    const pending = consumeOpenAIStreamWithTools(response, () => {}, { signal: controller.signal });
+    await vi.waitFor(() => {
+      expect(response.body?.locked).toBe(true);
+    });
+
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('normalizes non-abort reader failures after signal cancellation', async () => {
+    const cancel = vi.fn();
+    const controller = new AbortController();
+    const response = new Response(
+      new ReadableStream({
+        async pull() {
+          controller.abort();
+          throw new TypeError('reader closed by runtime');
+        },
+        cancel,
+      }),
+    );
+
+    await expect(consumeOpenAIStreamWithTools(response, () => {}, {
+      signal: controller.signal,
+    })).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('does not finalize a residual stream buffer after a chunk callback aborts', async () => {
+    const controller = new AbortController();
+
+    await expect(consumeOpenAIStreamWithTools(
+      streamResponse([
+        'data: {"choices":[{"delta":{"content":"stale final"}}]}',
+      ]),
+      () => controller.abort(),
+      { signal: controller.signal },
+    )).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('does not return a stream result when cancellation happens during finalization', async () => {
+    const controller = new AbortController();
+    streamingMocks.finishHook = () => controller.abort();
+
+    await expect(consumeOpenAIStreamWithTools(
+      streamResponse([
+        'data: {"choices":[{"delta":{"content":"late final"}}]}',
+        'data: [DONE]',
+        '',
+      ]),
+      () => {},
+      { signal: controller.signal },
+    )).rejects.toMatchObject({ name: 'AbortError' });
+  });
+});

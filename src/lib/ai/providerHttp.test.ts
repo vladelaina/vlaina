@@ -14,9 +14,9 @@ const mocks = vi.hoisted(() => ({
     aiProvider: {
       startRequest: vi.fn(),
       cancelRequest: vi.fn(async () => undefined),
-      onRequestChunk: vi.fn(() => vi.fn()),
-      onRequestDone: vi.fn(() => vi.fn()),
-      onRequestError: vi.fn(() => vi.fn()),
+      onRequestChunk: vi.fn((_requestId: string, _callback: (chunk: number[]) => void) => vi.fn()),
+      onRequestDone: vi.fn((_requestId: string, _callback: () => void) => vi.fn()),
+      onRequestError: vi.fn((_requestId: string, _callback: (payload: { message: string }) => void) => vi.fn()),
     },
   },
 }));
@@ -53,6 +53,93 @@ describe('providerFetch', () => {
     expect(mocks.bridge.aiProvider.cancelRequest).toHaveBeenCalledTimes(1);
   });
 
+  it('does not return desktop provider metadata after signal cancellation', async () => {
+    const controller = new AbortController();
+    mocks.bridge.aiProvider.startRequest.mockImplementationOnce(async () => {
+      controller.abort();
+      return {
+        status: 200,
+        statusText: 'OK',
+        headers: [],
+      };
+    });
+
+    const request = providerFetch('https://api.example.com/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+    });
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    expect(mocks.bridge.aiProvider.cancelRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects and cleans up when desktop provider listener registration fails', async () => {
+    const cleanupChunk = vi.fn();
+    mocks.bridge.aiProvider.onRequestChunk.mockImplementationOnce(() => cleanupChunk);
+    mocks.bridge.aiProvider.onRequestDone.mockImplementationOnce(() => {
+      throw new Error('listener registration failed');
+    });
+
+    await expect(providerFetch('https://api.example.com/v1/chat/completions', {
+      method: 'POST',
+    })).rejects.toThrow('listener registration failed');
+
+    expect(cleanupChunk).toHaveBeenCalledTimes(1);
+    expect(mocks.bridge.aiProvider.startRequest).not.toHaveBeenCalled();
+  });
+
+  it('passes desktop provider Blob request bodies as base64 when Blob.arrayBuffer is unavailable', async () => {
+    const blob = new Blob(['multipart-body']);
+    Object.defineProperty(blob, 'arrayBuffer', {
+      configurable: true,
+      value: undefined,
+    });
+    mocks.bridge.aiProvider.startRequest.mockResolvedValueOnce({
+      status: 200,
+      statusText: 'OK',
+      headers: [],
+    });
+
+    const response = await providerFetch('https://api.example.com/v1/images/edits', {
+      method: 'POST',
+      headers: { 'Content-Type': 'multipart/form-data; boundary=test' },
+      body: blob,
+    });
+
+    expect(response.status).toBe(200);
+    expect(mocks.bridge.aiProvider.startRequest).toHaveBeenCalledWith(
+      expect.any(String),
+      {
+        url: 'https://api.example.com/v1/images/edits',
+        method: 'POST',
+        headers: { 'Content-Type': 'multipart/form-data; boundary=test' },
+        bodyBase64: 'bXVsdGlwYXJ0LWJvZHk=',
+      },
+    );
+  });
+
+  it('rejects promptly when desktop provider Blob body serialization is aborted', async () => {
+    const controller = new AbortController();
+    const blob = new Blob(['multipart-body']);
+    Object.defineProperty(blob, 'arrayBuffer', {
+      configurable: true,
+      value: vi.fn(() => new Promise(() => undefined)),
+    });
+
+    const request = providerFetch('https://api.example.com/v1/images/edits', {
+      method: 'POST',
+      headers: { 'Content-Type': 'multipart/form-data; boundary=test' },
+      body: blob,
+      signal: controller.signal,
+    });
+    await Promise.resolve();
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    expect(mocks.bridge.aiProvider.startRequest).not.toHaveBeenCalled();
+    expect(mocks.bridge.aiProvider.cancelRequest).toHaveBeenCalledTimes(1);
+  });
+
   it('retries quickly failed web GET provider requests once', async () => {
     vi.useFakeTimers();
     try {
@@ -76,6 +163,78 @@ describe('providerFetch', () => {
     }
   });
 
+  it('retries abort-shaped web GET failures when the caller did not cancel', async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.bridgeValue = null;
+      const fetchMock = vi
+        .fn()
+        .mockRejectedValueOnce(new DOMException('upstream reset', 'AbortError'))
+        .mockResolvedValueOnce(new Response('{}', { status: 200 }));
+      vi.stubGlobal('fetch', fetchMock);
+
+      const request = providerFetch('https://api.example.com/v1/models', {
+        method: 'GET',
+      });
+
+      await vi.advanceTimersByTimeAsync(300);
+
+      await expect(request).resolves.toMatchObject({ status: 200 });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not retry web GET requests after the caller cancels', async () => {
+    mocks.bridgeValue = null;
+    const controller = new AbortController();
+    controller.abort();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(providerFetch('https://api.example.com/v1/models', {
+      method: 'GET',
+      signal: controller.signal,
+    })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not return web provider responses after signal cancellation', async () => {
+    mocks.bridgeValue = null;
+    const controller = new AbortController();
+    const fetchMock = vi.fn(async () => {
+      controller.abort();
+      return new Response('{}', { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(providerFetch('https://api.example.com/v1/models', {
+      method: 'GET',
+      signal: controller.signal,
+    })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects web provider requests promptly when fetch ignores cancellation', async () => {
+    mocks.bridgeValue = null;
+    const controller = new AbortController();
+    const fetchMock = vi.fn(() => new Promise(() => undefined));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const request = providerFetch('https://api.example.com/v1/models', {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    request.catch(() => undefined);
+
+    await Promise.resolve();
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('does not retry web POST provider requests', async () => {
     mocks.bridgeValue = null;
     const fetchMock = vi.fn().mockRejectedValue(new TypeError('fetch failed'));
@@ -86,5 +245,64 @@ describe('providerFetch', () => {
       body: JSON.stringify({ prompt: 'test' }),
     })).rejects.toThrow('fetch failed');
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects promptly when desktop provider stream errors before metadata returns', async () => {
+    const sendErrorRef: { current: ((payload: { message: string }) => void) | null } = { current: null };
+    const cleanupChunk = vi.fn();
+    const cleanupDone = vi.fn();
+    const cleanupError = vi.fn();
+    mocks.bridge.aiProvider.startRequest.mockImplementation(
+      () => new Promise(() => undefined),
+    );
+    mocks.bridge.aiProvider.onRequestChunk.mockImplementationOnce(() => cleanupChunk);
+    mocks.bridge.aiProvider.onRequestDone.mockImplementationOnce(() => cleanupDone);
+    mocks.bridge.aiProvider.onRequestError.mockImplementationOnce((_requestId, callback) => {
+      sendErrorRef.current = callback;
+      return cleanupError;
+    });
+
+    const request = providerFetch('https://api.example.com/v1/chat/completions', {
+      method: 'POST',
+    });
+    sendErrorRef.current?.({ message: 'provider stream failed' });
+
+    await expect(request).rejects.toThrow('provider stream failed');
+    expect(cleanupChunk).toHaveBeenCalledTimes(1);
+    expect(cleanupDone).toHaveBeenCalledTimes(1);
+    expect(cleanupError).toHaveBeenCalledTimes(1);
+    expect(mocks.bridge.aiProvider.cancelRequest).not.toHaveBeenCalled();
+  });
+
+  it('ignores desktop provider chunks that arrive after the request is aborted', async () => {
+    const controller = new AbortController();
+    const sendChunkRef: { current: ((chunk: number[]) => void) | null } = { current: null };
+    const cleanupChunk = vi.fn();
+    const cleanupDone = vi.fn();
+    const cleanupError = vi.fn();
+    mocks.bridge.aiProvider.startRequest.mockResolvedValueOnce({
+      status: 200,
+      statusText: 'OK',
+      headers: [],
+    });
+    mocks.bridge.aiProvider.onRequestChunk.mockImplementationOnce((_requestId, callback) => {
+      sendChunkRef.current = callback;
+      return cleanupChunk;
+    });
+    mocks.bridge.aiProvider.onRequestDone.mockImplementationOnce(() => cleanupDone);
+    mocks.bridge.aiProvider.onRequestError.mockImplementationOnce(() => cleanupError);
+
+    const response = await providerFetch('https://api.example.com/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+    });
+
+    controller.abort();
+    expect(() => sendChunkRef.current?.([65])).not.toThrow();
+    await expect(response.text()).rejects.toMatchObject({ name: 'AbortError' });
+    expect(cleanupChunk).toHaveBeenCalledTimes(1);
+    expect(cleanupDone).toHaveBeenCalledTimes(1);
+    expect(cleanupError).toHaveBeenCalledTimes(1);
+    expect(mocks.bridge.aiProvider.cancelRequest).toHaveBeenCalledTimes(1);
   });
 });

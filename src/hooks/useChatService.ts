@@ -24,6 +24,7 @@ import {
   needsAutoTitle,
 } from '@/lib/ai/temporaryChat';
 import { runWithSessionMutationLock } from '@/lib/ai/sessionMutationLock';
+import { resolveSessionIdAlias } from '@/lib/ai/sessionIdAliases';
 import {
   buildMentionedNotesContext,
   buildMessageImageSources,
@@ -106,6 +107,26 @@ function buildChatErrorPayload(error: unknown, managed = true) {
 
 function createEmptyResponseError(providerId: string): Error {
   return new Error(isManagedProviderId(providerId) ? 'UPSTREAM_UNAVAILABLE' : 'The model returned an empty response.');
+}
+
+function throwIfChatRequestAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw new DOMException('Aborted', 'AbortError');
+}
+
+function isChatRequestCancelled(sessionId: string, controller: AbortController): boolean {
+  return controller.signal.aborted || !requestManager.isCurrent(sessionId, controller);
+}
+
+function finishPreStartedChatRequest(
+  sessionId: string,
+  controller: AbortController,
+  setSessionLoading: (sessionId: string, loading: boolean) => void,
+) {
+  if (requestManager.isCurrent(sessionId, controller)) {
+    setSessionLoading(sessionId, false);
+  }
+  requestManager.finish(sessionId, controller);
 }
 
 const MANAGED_BUDGET_BLOCK_MAX_AGE_MS = 60_000;
@@ -264,14 +285,15 @@ export function useChatService() {
 
   const maybeGenerateAutoTitle = useCallback(
     (sessionId: string, providerId: string, modelId: string) => {
-      const session = useUnifiedStore.getState().data.ai?.sessions.find((item) => item.id === sessionId);
-      if (isTemporarySessionId(sessionId) || isTemporarySession(session)) {
+      const resolvedSessionId = resolveSessionIdAlias(sessionId);
+      const session = useUnifiedStore.getState().data.ai?.sessions.find((item) => item.id === resolvedSessionId);
+      if (isTemporarySessionId(resolvedSessionId) || isTemporarySession(session)) {
         return;
       }
       if (!session || !needsAutoTitle(session.title)) {
         return;
       }
-      void generateAutoTitle(sessionId, providerId, modelId);
+      void generateAutoTitle(resolvedSessionId, providerId, modelId);
     },
     [generateAutoTitle],
   );
@@ -330,6 +352,14 @@ export function useChatService() {
 
       const targetSessionId = activeSessionId;
       const requestStartedAt = Date.now();
+      const requestController = requestManager.start(targetSessionId);
+      const ensureRequestActive = () => {
+        if (isChatRequestCancelled(targetSessionId, requestController)) {
+          throw new DOMException('Aborted', 'AbortError');
+        }
+      };
+      setSessionLoading(targetSessionId, true);
+      setError(null);
       addChatDebugLog('chat', 'sendMessage accepted', {
         sessionId: targetSessionId,
         modelId: selectedModel.id,
@@ -341,13 +371,16 @@ export function useChatService() {
       });
 
       void runWithSessionMutationLock(targetSessionId, async () => {
+        ensureRequestActive();
         const latestMessages = await hydrateSessionMessagesFromDisk(targetSessionId);
+        ensureRequestActive();
         const targetSession = useUnifiedStore.getState().data.ai?.sessions.find((item) => item.id === targetSessionId);
         const isTemporaryTarget =
           isTemporarySessionId(targetSessionId) || isTemporarySession(targetSession);
         const requestAttachments = isTemporaryTarget
           ? await makeTemporaryAttachmentsEphemeral(attachments)
           : attachments;
+        ensureRequestActive();
 
         let storageContent = userMessageText;
         let messageImageSources: string[] = [];
@@ -382,111 +415,136 @@ export function useChatService() {
 
         if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
           writeManagedQuotaErrorMessage(targetSessionId, assistantMessageId, setError, t('chat.error.pointsExhausted'));
+          finishPreStartedChatRequest(targetSessionId, requestController, setSessionLoading);
           return;
         }
         if (isManagedProviderId(provider.id) && !isAccountConnected) {
           writeManagedAuthRequiredMessage(targetSessionId, assistantMessageId, setError);
+          finishPreStartedChatRequest(targetSessionId, requestController, setSessionLoading);
           return;
         }
+        ensureRequestActive();
 
-        try {
-          const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
-          const requestHistory = buildRequestHistory({
-            history: latestMessages,
-            modelId: selectedModel.id,
-            timezoneOffset,
-            includeTimeContext,
-            customSystemPrompt,
-          });
+        const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
+        const requestHistory = buildRequestHistory({
+          history: latestMessages,
+          modelId: selectedModel.id,
+          timezoneOffset,
+          includeTimeContext,
+          customSystemPrompt,
+        });
 
-          const mentionedNotes = await loadMentionedNotes(normalizedMentions);
-          const mentionedFolderImages = await loadMentionedFolderImageAttachments(normalizedMentions);
-          const notesContext = buildMentionedNotesContext(mentionedNotes);
-          const requestText = userMessageText;
-          const textPayload = notesContext
-            ? requestText
-              ? `${notesContext}\n\nUser request:\n${requestText}`
-              : `${notesContext}\n\nUser request: (none)`
-            : requestText;
+        void runStreamedAssistantMessage({
+          sessionId: targetSessionId,
+          assistantMessageId,
+          controller: requestController,
+          execute: async (onChunk, signal, { isActiveRequest }) => {
+            throwIfChatRequestAborted(signal);
+            const mentionedNotes = await loadMentionedNotes(normalizedMentions);
+            throwIfChatRequestAborted(signal);
+            const mentionedFolderImages = await loadMentionedFolderImageAttachments(normalizedMentions);
+            throwIfChatRequestAborted(signal);
+            const notesContext = buildMentionedNotesContext(mentionedNotes);
+            const requestText = userMessageText;
+            const textPayload = notesContext
+              ? requestText
+                ? `${notesContext}\n\nUser request:\n${requestText}`
+                : `${notesContext}\n\nUser request: (none)`
+              : requestText;
 
-          let apiMessageContent: ChatMessageContent = textPayload;
-          const apiAttachments = [...requestAttachments, ...mentionedFolderImages];
-          if (apiAttachments.length > 0) {
-            const parts: ChatMessageContentPart[] = [];
-            if (textPayload) {
-              parts.push({ type: 'text', text: textPayload });
-            }
-            for (const attachment of apiAttachments) {
-              const imagePart = await normalizeVisionAttachment(attachment);
-              if (imagePart) {
-                parts.push(imagePart);
+            let apiMessageContent: ChatMessageContent = textPayload;
+            const apiAttachments = [...requestAttachments, ...mentionedFolderImages];
+            if (apiAttachments.length > 0) {
+              const parts: ChatMessageContentPart[] = [];
+              if (textPayload) {
+                parts.push({ type: 'text', text: textPayload });
+              }
+              for (const attachment of apiAttachments) {
+                throwIfChatRequestAborted(signal);
+                const imagePart = await normalizeVisionAttachment(attachment);
+                throwIfChatRequestAborted(signal);
+                if (imagePart) {
+                  parts.push(imagePart);
+                }
+              }
+              if (parts.length > 0) {
+                apiMessageContent = parts;
               }
             }
-            if (parts.length > 0) {
-              apiMessageContent = parts;
-            }
-          }
 
-          const status = await runStreamedAssistantMessage({
-            sessionId: targetSessionId,
-            assistantMessageId,
-            execute: (onChunk, signal) =>
-              sendMessageWithEndpointFallback({
-                content: apiMessageContent,
-                history: requestHistory,
-                model: selectedModel,
-                provider,
-                onChunk,
-                signal,
-                options: {
-                  webSearchEnabled,
-                  onWebSearchStatus: (status) => {
-                    addChatDebugLog('web-search', `status:${status.phase}`, {
-                      sessionId: targetSessionId,
-                      query: status.query,
-                      urls: status.urls,
-                      resultCount: status.results?.length,
-                      metrics: status.metrics,
-                      message: status.message,
-                    }, status.phase === 'error' ? 'warn' : 'info');
-                  },
-                  onApiTranscript: (apiTranscript) => {
-                    addChatDebugLog('chat', 'api transcript updated', {
-                      sessionId: targetSessionId,
-                      messageId: assistantMessageId,
-                      transcriptMessages: apiTranscript.length,
-                    });
-                    aiActions.updateMessageApiTranscript(targetSessionId, assistantMessageId, apiTranscript);
-                  },
+            return await sendMessageWithEndpointFallback({
+              content: apiMessageContent,
+              history: requestHistory,
+              model: selectedModel,
+              provider,
+              onChunk,
+              signal,
+              options: {
+                webSearchEnabled,
+                onWebSearchStatus: (status) => {
+                  if (!isActiveRequest()) {
+                    return;
+                  }
+                  addChatDebugLog('web-search', `status:${status.phase}`, {
+                    sessionId: targetSessionId,
+                    query: status.query,
+                    urls: status.urls,
+                    resultCount: status.results?.length,
+                    metrics: status.metrics,
+                    message: status.message,
+                  }, status.phase === 'error' ? 'warn' : 'info');
                 },
-              }),
-            updateMessage: aiActions.updateMessage,
-            completeMessage: aiActions.completeMessage,
-            setSessionLoading,
-            setError,
-            buildErrorPayload: (error) => {
-              const isManaged = isManagedProviderId(provider.id);
-              markManagedAuthPromptForError(targetSessionId, error, isManaged);
-              return buildChatErrorPayload(error, isManaged);
-            },
-            createEmptyResponseError: () => createEmptyResponseError(provider.id),
-            onSuccess: () => {
-              addChatDebugLog('chat', 'sendMessage completed', {
-                sessionId: targetSessionId,
-                messageId: assistantMessageId,
-                durationMs: Date.now() - requestStartedAt,
-              });
-              refreshManagedBudgetIfNeeded(provider.id);
-              if (!isTemporaryTarget) {
-                maybeGenerateAutoTitle(targetSessionId, provider.id, selectedModel.id);
-              }
+                onApiTranscript: (apiTranscript) => {
+                  if (!isActiveRequest()) {
+                    return;
+                  }
+                  addChatDebugLog('chat', 'api transcript updated', {
+                    sessionId: targetSessionId,
+                    messageId: assistantMessageId,
+                    transcriptMessages: apiTranscript.length,
+                  });
+                  aiActions.updateMessageApiTranscript(targetSessionId, assistantMessageId, apiTranscript);
+                },
+              },
+            });
+          },
+          updateMessage: aiActions.updateMessage,
+          completeMessage: aiActions.completeMessage,
+          setSessionLoading,
+          setError,
+          buildErrorPayload: (error) => {
+            const isManaged = isManagedProviderId(provider.id);
+            markManagedAuthPromptForError(targetSessionId, error, isManaged);
+            return buildChatErrorPayload(error, isManaged);
+          },
+          createEmptyResponseError: () => createEmptyResponseError(provider.id),
+          onSuccess: ({ resolvedSessionId }) => {
+            const completionSessionId = resolvedSessionId;
+            const completionSession = useUnifiedStore
+              .getState()
+              .data.ai?.sessions.find((session) => session.id === completionSessionId);
+            const isPersistentCompletion =
+              !!completionSession &&
+              !isTemporarySessionId(completionSessionId) &&
+              !isTemporarySession(completionSession);
 
-              const current = useAIUIStore.getState().currentSessionId;
-              if (targetSessionId !== current && !isTemporaryTarget) {
-                markSessionUnread(targetSessionId);
-              }
-            },
-          });
+            addChatDebugLog('chat', 'sendMessage completed', {
+              sessionId: completionSessionId,
+              originalSessionId: targetSessionId,
+              messageId: assistantMessageId,
+              durationMs: Date.now() - requestStartedAt,
+            });
+            refreshManagedBudgetIfNeeded(provider.id);
+            if (isPersistentCompletion) {
+              maybeGenerateAutoTitle(completionSessionId, provider.id, selectedModel.id);
+            }
+
+            const current = useAIUIStore.getState().currentSessionId;
+            if (completionSessionId !== current && isPersistentCompletion) {
+              markSessionUnread(completionSessionId);
+            }
+          },
+        }).then((status) => {
           if (status === 'aborted') {
             addChatDebugLog('chat', 'sendMessage aborted', {
               sessionId: targetSessionId,
@@ -494,8 +552,12 @@ export function useChatService() {
               durationMs: Date.now() - requestStartedAt,
             }, 'warn');
           }
-        } catch (error) {
-          addChatDebugLog('chat', 'sendMessage failed before stream runner completed', {
+          return status;
+        }).catch((error) => {
+          if (isChatRequestCancelled(targetSessionId, requestController)) {
+            return 'aborted' as const;
+          }
+          addChatDebugLog('chat', 'sendMessage stream runner failed unexpectedly', {
             sessionId: targetSessionId,
             durationMs: Date.now() - requestStartedAt,
             error: error instanceof Error ? error.message : String(error),
@@ -505,8 +567,19 @@ export function useChatService() {
           const { message, xml } = buildChatErrorPayload(error, isManaged);
           setError(message);
           aiActions.updateMessage(targetSessionId, assistantMessageId, xml);
-        }
+          aiActions.completeMessage(targetSessionId, assistantMessageId);
+          return 'failed' as const;
+        });
       }).catch((error) => {
+        const cancelled = isChatRequestCancelled(targetSessionId, requestController);
+        finishPreStartedChatRequest(targetSessionId, requestController, setSessionLoading);
+        if (cancelled) {
+          addChatDebugLog('chat', 'sendMessage aborted before stream start', {
+            sessionId: targetSessionId,
+            durationMs: Date.now() - requestStartedAt,
+          }, 'warn');
+          return;
+        }
         addChatDebugLog('chat', 'sendMessage mutation failed', {
           sessionId: targetSessionId,
           durationMs: Date.now() - requestStartedAt,
@@ -551,9 +624,22 @@ export function useChatService() {
         return;
       }
 
-      await runWithSessionMutationLock(sessionId, async () => {
+      const requestStartedAt = Date.now();
+      const requestController = requestManager.start(sessionId);
+      const ensureRequestActive = () => {
+        if (isChatRequestCancelled(sessionId, requestController)) {
+          throw new DOMException('Aborted', 'AbortError');
+        }
+      };
+      setSessionLoading(sessionId, true);
+      setError(null);
+
+      void runWithSessionMutationLock(sessionId, async () => {
+        ensureRequestActive();
         const initialMessages = await hydrateSessionMessagesFromDisk(sessionId);
+        ensureRequestActive();
         if (!initialMessages.some((message) => message.id === messageId)) {
+          finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
           return;
         }
 
@@ -572,89 +658,102 @@ export function useChatService() {
 
         if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
           writeManagedQuotaErrorMessage(sessionId, assistantMessageId, setError, t('chat.error.pointsExhausted'));
+          finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
           return;
         }
         if (isManagedProviderId(provider.id) && !isAccountConnected) {
           writeManagedAuthRequiredMessage(sessionId, assistantMessageId, setError);
+          finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
           return;
         }
 
-        try {
-          const requestStartedAt = Date.now();
-          addChatDebugLog('chat', 'edit resend started', {
-            sessionId,
-            messageId,
-            modelId: selectedModel.id,
-            providerId: provider.id,
-            webSearchEnabled,
-          });
-          const state = useUnifiedStore.getState();
-          const sessionMessages = state.data.ai?.messages[sessionId] || [];
+        addChatDebugLog('chat', 'edit resend started', {
+          sessionId,
+          messageId,
+          modelId: selectedModel.id,
+          providerId: provider.id,
+          webSearchEnabled,
+        });
+        const state = useUnifiedStore.getState();
+        const sessionMessages = state.data.ai?.messages[sessionId] || [];
 
-          const userMsgIndex = sessionMessages.findIndex((message) => message.id === messageId);
-          if (userMsgIndex === -1) {
-            return;
-          }
+        const userMsgIndex = sessionMessages.findIndex((message) => message.id === messageId);
+        if (userMsgIndex === -1) {
+          finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
+          return;
+        }
 
-          const history = sessionMessages.slice(0, userMsgIndex);
-          const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
-          const requestHistory = buildRequestHistory({
-            history,
-            modelId: selectedModel.id,
-            timezoneOffset,
-            includeTimeContext,
-            customSystemPrompt,
-          });
-          const apiMessageContent = await buildStoredUserMessageContent(newContent);
+        const history = sessionMessages.slice(0, userMsgIndex);
+        const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
+        const requestHistory = buildRequestHistory({
+          history,
+          modelId: selectedModel.id,
+          timezoneOffset,
+          includeTimeContext,
+          customSystemPrompt,
+        });
+        ensureRequestActive();
 
-          const status = await runStreamedAssistantMessage({
-            sessionId,
-            assistantMessageId,
-            execute: (onChunk, signal) =>
-              sendMessageWithEndpointFallback({
-                content: apiMessageContent,
-                history: requestHistory,
-                model: selectedModel,
-                provider,
-                onChunk,
-                signal,
-                options: {
-                  webSearchEnabled,
-                  onWebSearchStatus: (status) => {
-                    addChatDebugLog('web-search', `status:${status.phase}`, {
-                      sessionId,
-                      query: status.query,
-                      urls: status.urls,
-                      resultCount: status.results?.length,
-                      metrics: status.metrics,
-                      message: status.message,
-                    }, status.phase === 'error' ? 'warn' : 'info');
-                  },
-                  onApiTranscript: (apiTranscript) => {
-                    aiActions.updateMessageApiTranscript(sessionId, assistantMessageId, apiTranscript);
-                  },
+        void runStreamedAssistantMessage({
+          sessionId,
+          assistantMessageId,
+          controller: requestController,
+          execute: async (onChunk, signal, { isActiveRequest }) => {
+            throwIfChatRequestAborted(signal);
+            const apiMessageContent = await buildStoredUserMessageContent(newContent);
+            throwIfChatRequestAborted(signal);
+            return await sendMessageWithEndpointFallback({
+              content: apiMessageContent,
+              history: requestHistory,
+              model: selectedModel,
+              provider,
+              onChunk,
+              signal,
+              options: {
+                webSearchEnabled,
+                onWebSearchStatus: (status) => {
+                  if (!isActiveRequest()) {
+                    return;
+                  }
+                  addChatDebugLog('web-search', `status:${status.phase}`, {
+                    sessionId,
+                    query: status.query,
+                    urls: status.urls,
+                    resultCount: status.results?.length,
+                    metrics: status.metrics,
+                    message: status.message,
+                  }, status.phase === 'error' ? 'warn' : 'info');
                 },
-              }),
-            updateMessage: aiActions.updateMessage,
-            completeMessage: aiActions.completeMessage,
-            setSessionLoading,
-            setError,
-            buildErrorPayload: (error) => {
-              const isManaged = isManagedProviderId(provider.id);
-              markManagedAuthPromptForError(sessionId, error, isManaged);
-              return buildChatErrorPayload(error, isManaged);
-            },
-            createEmptyResponseError: () => createEmptyResponseError(provider.id),
-            onSuccess: () => {
-              addChatDebugLog('chat', 'edit resend completed', {
-                sessionId,
-                assistantMessageId,
-                durationMs: Date.now() - requestStartedAt,
-              });
-              refreshManagedBudgetIfNeeded(provider.id);
-              maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
-            },
-          });
+                onApiTranscript: (apiTranscript) => {
+                  if (!isActiveRequest()) {
+                    return;
+                  }
+                  aiActions.updateMessageApiTranscript(sessionId, assistantMessageId, apiTranscript);
+                },
+              },
+            });
+          },
+          updateMessage: aiActions.updateMessage,
+          completeMessage: aiActions.completeMessage,
+          setSessionLoading,
+          setError,
+          buildErrorPayload: (error) => {
+            const isManaged = isManagedProviderId(provider.id);
+            markManagedAuthPromptForError(sessionId, error, isManaged);
+            return buildChatErrorPayload(error, isManaged);
+          },
+          createEmptyResponseError: () => createEmptyResponseError(provider.id),
+          onSuccess: ({ resolvedSessionId }) => {
+            addChatDebugLog('chat', 'edit resend completed', {
+              sessionId: resolvedSessionId,
+              originalSessionId: sessionId,
+              assistantMessageId,
+              durationMs: Date.now() - requestStartedAt,
+            });
+            refreshManagedBudgetIfNeeded(provider.id);
+            maybeGenerateAutoTitle(resolvedSessionId, provider.id, selectedModel.id);
+          },
+        }).then((status) => {
           if (status === 'aborted') {
             addChatDebugLog('chat', 'edit resend aborted', {
               sessionId,
@@ -662,13 +761,45 @@ export function useChatService() {
               durationMs: Date.now() - requestStartedAt,
             }, 'warn');
           }
-        } catch (error) {
+          return status;
+        }).catch((error) => {
+          if (isChatRequestCancelled(sessionId, requestController)) {
+            return 'aborted' as const;
+          }
+          addChatDebugLog('chat', 'edit resend stream runner failed unexpectedly', {
+            sessionId,
+            assistantMessageId,
+            durationMs: Date.now() - requestStartedAt,
+            error: error instanceof Error ? error.message : String(error),
+          }, 'error');
           const isManaged = isManagedProviderId(provider.id);
           markManagedAuthPromptForError(sessionId, error, isManaged);
           const { message, xml } = buildChatErrorPayload(error, isManaged);
           setError(message);
           aiActions.updateMessage(sessionId, assistantMessageId, xml);
+          aiActions.completeMessage(sessionId, assistantMessageId);
+          return 'failed' as const;
+        });
+      }).catch((error) => {
+        const cancelled = isChatRequestCancelled(sessionId, requestController);
+        finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
+        if (cancelled) {
+          addChatDebugLog('chat', 'edit resend aborted before stream start', {
+            sessionId,
+            messageId,
+            durationMs: Date.now() - requestStartedAt,
+          }, 'warn');
+          return;
         }
+        addChatDebugLog('chat', 'edit resend mutation failed', {
+          sessionId,
+          messageId,
+          error: error instanceof Error ? error.message : String(error),
+        }, 'error');
+        const isManaged = isManagedProviderId(provider.id);
+        markManagedAuthPromptForError(sessionId, error, isManaged);
+        const { message } = buildChatErrorPayload(error, isManaged);
+        setError(message);
       });
     },
     [
@@ -693,106 +824,133 @@ export function useChatService() {
       }
 
       const sessionId = currentSessionId;
-      await runWithSessionMutationLock(sessionId, async () => {
+      const provider = providers.find((item) => item.id === selectedModel.providerId);
+      if (!provider) {
+        return;
+      }
+      if (provider.enabled === false) {
+        setError(t('chat.error.channelOff'));
+        return;
+      }
+
+      const requestStartedAt = Date.now();
+      const requestController = requestManager.start(sessionId);
+      const ensureRequestActive = () => {
+        if (isChatRequestCancelled(sessionId, requestController)) {
+          throw new DOMException('Aborted', 'AbortError');
+        }
+      };
+      setSessionLoading(sessionId, true);
+      setError(null);
+
+      void runWithSessionMutationLock(sessionId, async () => {
+        ensureRequestActive();
         const latestMessages = await hydrateSessionMessagesFromDisk(sessionId);
+        ensureRequestActive();
         const messageIndex = latestMessages.findIndex((message) => message.id === messageId);
         if (messageIndex <= 0) {
+          finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
           return;
         }
 
         const promptMessage = latestMessages[messageIndex - 1];
         if (promptMessage.role !== 'user') {
+          finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
           return;
         }
 
         const history = latestMessages.slice(0, messageIndex - 1);
-        const provider = providers.find((item) => item.id === selectedModel.providerId);
-        if (!provider) {
-          return;
-        }
-        if (provider.enabled === false) {
-          setError(t('chat.error.channelOff'));
-          return;
-        }
 
         aiActions.addVersion(messageId, sessionId);
 
         if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
           writeManagedQuotaErrorMessage(sessionId, messageId, setError, t('chat.error.pointsExhausted'));
+          finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
           return;
         }
         if (isManagedProviderId(provider.id) && !isAccountConnected) {
           writeManagedAuthRequiredMessage(sessionId, messageId, setError);
+          finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
           return;
         }
 
-        try {
-          const requestStartedAt = Date.now();
-          addChatDebugLog('chat', 'regenerate started', {
-            sessionId,
-            messageId,
-            modelId: selectedModel.id,
-            providerId: provider.id,
-            webSearchEnabled,
-          });
-          const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
-          const requestHistory = buildRequestHistory({
-            history,
-            modelId: selectedModel.id,
-            timezoneOffset,
-            includeTimeContext,
-            customSystemPrompt,
-          });
-          const apiMessageContent = await buildStoredUserMessageContent(promptMessage.content);
+        addChatDebugLog('chat', 'regenerate started', {
+          sessionId,
+          messageId,
+          modelId: selectedModel.id,
+          providerId: provider.id,
+          webSearchEnabled,
+        });
+        const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
+        const requestHistory = buildRequestHistory({
+          history,
+          modelId: selectedModel.id,
+          timezoneOffset,
+          includeTimeContext,
+          customSystemPrompt,
+        });
+        ensureRequestActive();
 
-          const status = await runStreamedAssistantMessage({
-            sessionId,
-            assistantMessageId: messageId,
-            execute: (onChunk, signal) =>
-              sendMessageWithEndpointFallback({
-                content: apiMessageContent,
-                history: requestHistory,
-                model: selectedModel,
-                provider,
-                onChunk,
-                signal,
-                options: {
-                  webSearchEnabled,
-                  onWebSearchStatus: (status) => {
-                    addChatDebugLog('web-search', `status:${status.phase}`, {
-                      sessionId,
-                      query: status.query,
-                      urls: status.urls,
-                      resultCount: status.results?.length,
-                      metrics: status.metrics,
-                      message: status.message,
-                    }, status.phase === 'error' ? 'warn' : 'info');
-                  },
-                  onApiTranscript: (apiTranscript) => {
-                    aiActions.updateMessageApiTranscript(sessionId, messageId, apiTranscript);
-                  },
+        void runStreamedAssistantMessage({
+          sessionId,
+          assistantMessageId: messageId,
+          controller: requestController,
+          execute: async (onChunk, signal, { isActiveRequest }) => {
+            throwIfChatRequestAborted(signal);
+            const apiMessageContent = await buildStoredUserMessageContent(promptMessage.content);
+            throwIfChatRequestAborted(signal);
+            return await sendMessageWithEndpointFallback({
+              content: apiMessageContent,
+              history: requestHistory,
+              model: selectedModel,
+              provider,
+              onChunk,
+              signal,
+              options: {
+                webSearchEnabled,
+                onWebSearchStatus: (status) => {
+                  if (!isActiveRequest()) {
+                    return;
+                  }
+                  addChatDebugLog('web-search', `status:${status.phase}`, {
+                    sessionId,
+                    query: status.query,
+                    urls: status.urls,
+                    resultCount: status.results?.length,
+                    metrics: status.metrics,
+                    message: status.message,
+                  }, status.phase === 'error' ? 'warn' : 'info');
                 },
-              }),
-            updateMessage: aiActions.updateMessage,
-            completeMessage: aiActions.completeMessage,
-            setSessionLoading,
-            setError,
-            buildErrorPayload: (error) => {
-              const isManaged = isManagedProviderId(provider.id);
-              markManagedAuthPromptForError(sessionId, error, isManaged);
-              return buildChatErrorPayload(error, isManaged);
-            },
-            createEmptyResponseError: () => createEmptyResponseError(provider.id),
-            onSuccess: () => {
-              addChatDebugLog('chat', 'regenerate completed', {
-                sessionId,
-                messageId,
-                durationMs: Date.now() - requestStartedAt,
-              });
-              refreshManagedBudgetIfNeeded(provider.id);
-              maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
-            },
-          });
+                onApiTranscript: (apiTranscript) => {
+                  if (!isActiveRequest()) {
+                    return;
+                  }
+                  aiActions.updateMessageApiTranscript(sessionId, messageId, apiTranscript);
+                },
+              },
+            });
+          },
+          updateMessage: aiActions.updateMessage,
+          completeMessage: aiActions.completeMessage,
+          setSessionLoading,
+          setError,
+          buildErrorPayload: (error) => {
+            const isManaged = isManagedProviderId(provider.id);
+            markManagedAuthPromptForError(sessionId, error, isManaged);
+            return buildChatErrorPayload(error, isManaged);
+          },
+          createEmptyResponseError: () => createEmptyResponseError(provider.id),
+          onSuccess: ({ resolvedSessionId }) => {
+            addChatDebugLog('chat', 'regenerate completed', {
+              sessionId: resolvedSessionId,
+              originalSessionId: sessionId,
+              messageId,
+              durationMs: Date.now() - requestStartedAt,
+            });
+            refreshManagedBudgetIfNeeded(provider.id);
+            maybeGenerateAutoTitle(resolvedSessionId, provider.id, selectedModel.id);
+          },
+        }).then((status) => {
           if (status === 'aborted') {
             addChatDebugLog('chat', 'regenerate aborted', {
               sessionId,
@@ -800,13 +958,45 @@ export function useChatService() {
               durationMs: Date.now() - requestStartedAt,
             }, 'warn');
           }
-        } catch (error) {
+          return status;
+        }).catch((error) => {
+          if (isChatRequestCancelled(sessionId, requestController)) {
+            return 'aborted' as const;
+          }
+          addChatDebugLog('chat', 'regenerate stream runner failed unexpectedly', {
+            sessionId,
+            messageId,
+            durationMs: Date.now() - requestStartedAt,
+            error: error instanceof Error ? error.message : String(error),
+          }, 'error');
           const isManaged = isManagedProviderId(provider.id);
           markManagedAuthPromptForError(sessionId, error, isManaged);
           const { message, xml } = buildChatErrorPayload(error, isManaged);
           setError(message);
           aiActions.updateMessage(sessionId, messageId, xml);
+          aiActions.completeMessage(sessionId, messageId);
+          return 'failed' as const;
+        });
+      }).catch((error) => {
+        const cancelled = isChatRequestCancelled(sessionId, requestController);
+        finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
+        if (cancelled) {
+          addChatDebugLog('chat', 'regenerate aborted before stream start', {
+            sessionId,
+            messageId,
+            durationMs: Date.now() - requestStartedAt,
+          }, 'warn');
+          return;
         }
+        addChatDebugLog('chat', 'regenerate mutation failed', {
+          sessionId,
+          messageId,
+          error: error instanceof Error ? error.message : String(error),
+        }, 'error');
+        const isManaged = isManagedProviderId(provider.id);
+        markManagedAuthPromptForError(sessionId, error, isManaged);
+        const { message } = buildChatErrorPayload(error, isManaged);
+        setError(message);
       });
     },
     [

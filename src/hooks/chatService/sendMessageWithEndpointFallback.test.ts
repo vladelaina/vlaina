@@ -81,6 +81,91 @@ describe('sendMessageWithEndpointFallback', () => {
     expect(updateProvider).not.toHaveBeenCalled();
   });
 
+  it('retries abort-shaped pre-stream failures when the chat signal is still active', async () => {
+    const updateProvider = vi.fn();
+    const onChunk = vi.fn();
+    const client = {
+      sendMessage: vi
+        .fn()
+        .mockRejectedValueOnce(new DOMException('provider reset', 'AbortError'))
+        .mockResolvedValueOnce('retry ok'),
+    };
+
+    const result = await sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildModel(),
+      provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+      onChunk,
+      client,
+      updateProvider,
+      retryDelayMs: 0,
+    });
+
+    expect(result).toBe('retry ok');
+    expect(client.sendMessage).toHaveBeenCalledTimes(2);
+    expect(updateProvider).not.toHaveBeenCalled();
+  });
+
+  it('does not call the provider when the chat signal is already aborted', async () => {
+    const updateProvider = vi.fn();
+    const controller = new AbortController();
+    controller.abort();
+    const client = {
+      sendMessage: vi.fn(),
+    };
+
+    await expect(
+      sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildModel(),
+        provider: buildProvider(),
+        onChunk: vi.fn(),
+        client,
+        updateProvider,
+        retryDelayMs: 0,
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(client.sendMessage).not.toHaveBeenCalled();
+    expect(updateProvider).not.toHaveBeenCalled();
+  });
+
+  it('does not retry or fall back after the chat signal aborts during a pre-stream error', async () => {
+    const updateProvider = vi.fn();
+    const controller = new AbortController();
+    const client = {
+      sendMessage: vi.fn().mockImplementationOnce(() => {
+        controller.abort();
+        return Promise.reject({
+          type: AIErrorType.SERVER_ERROR,
+          message: 'Service unavailable',
+          statusCode: 503,
+        });
+      }),
+    };
+
+    await expect(
+      sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildModel(),
+        provider: buildProvider(),
+        onChunk: vi.fn(),
+        client,
+        updateProvider,
+        retryDelayMs: 0,
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
+    expect(updateProvider).not.toHaveBeenCalled();
+  });
+
   it('does not retry a verified endpoint after streaming output has started', async () => {
     const updateProvider = vi.fn();
     const onChunk = vi.fn();
@@ -218,6 +303,38 @@ describe('sendMessageWithEndpointFallback', () => {
     });
   });
 
+  it('falls back to Anthropic after repeated abort-shaped OpenAI pre-stream failures when still active', async () => {
+    const updateProvider = vi.fn();
+    const client = {
+      sendMessage: vi
+        .fn()
+        .mockRejectedValueOnce(new DOMException('openai stream reset', 'AbortError'))
+        .mockRejectedValueOnce(new DOMException('openai stream reset', 'AbortError'))
+        .mockResolvedValueOnce('anthropic ok'),
+    };
+
+    const result = await sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildModel(),
+      provider: buildProvider(),
+      onChunk: vi.fn(),
+      client,
+      updateProvider,
+      retryDelayMs: 0,
+    });
+
+    expect(result).toBe('anthropic ok');
+    expect(client.sendMessage).toHaveBeenCalledTimes(3);
+    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
+    expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'openai' });
+    expect(client.sendMessage.mock.calls[2][3]).toMatchObject({ endpointType: 'anthropic' });
+    expect(updateProvider).toHaveBeenCalledWith('provider-1', {
+      endpointType: 'anthropic',
+      endpointTypeCheckedAt: expect.any(Number),
+    });
+  });
+
   it('does not fall back to a non-tool endpoint when web search is enabled', async () => {
     const updateProvider = vi.fn();
     const openAIError = new Error('OpenAI-compatible chat failed');
@@ -292,6 +409,96 @@ describe('sendMessageWithEndpointFallback', () => {
       }),
     ).rejects.toThrow('stream interrupted');
 
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+    expect(updateProvider).not.toHaveBeenCalled();
+  });
+
+  it('does not record OpenAI endpoint type when the request resolves after cancellation', async () => {
+    const updateProvider = vi.fn();
+    const controller = new AbortController();
+    const client = {
+      sendMessage: vi.fn().mockImplementationOnce(() => {
+        controller.abort();
+        return Promise.resolve('late openai ok');
+      }),
+    };
+
+    await expect(
+      sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildModel(),
+        provider: buildProvider(),
+        onChunk: vi.fn(),
+        client,
+        updateProvider,
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
+    expect(updateProvider).not.toHaveBeenCalled();
+  });
+
+  it('does not record Anthropic endpoint type when fallback resolves after cancellation', async () => {
+    const updateProvider = vi.fn();
+    const controller = new AbortController();
+    const client = {
+      sendMessage: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('OpenAI-compatible chat failed'))
+        .mockImplementationOnce(() => {
+          controller.abort();
+          return Promise.resolve('late anthropic ok');
+        }),
+    };
+
+    await expect(
+      sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildModel(),
+        provider: buildProvider(),
+        onChunk: vi.fn(),
+        client,
+        updateProvider,
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(client.sendMessage).toHaveBeenCalledTimes(2);
+    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
+    expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'anthropic' });
+    expect(updateProvider).not.toHaveBeenCalled();
+  });
+
+  it('does not forward chunks that arrive after cancellation', async () => {
+    const updateProvider = vi.fn();
+    const controller = new AbortController();
+    const onChunk = vi.fn();
+    const client = {
+      sendMessage: vi.fn(async (_content, _history, _model, _provider, chunk) => {
+        controller.abort();
+        chunk?.('late chunk');
+        return 'late content';
+      }),
+    };
+
+    await expect(
+      sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildModel(),
+        provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+        onChunk,
+        client,
+        updateProvider,
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(onChunk).not.toHaveBeenCalled();
     expect(client.sendMessage).toHaveBeenCalledTimes(1);
     expect(updateProvider).not.toHaveBeenCalled();
   });

@@ -72,6 +72,7 @@ describe('webAccountCommands', () => {
       method: 'GET',
       cache: 'no-store',
       credentials: 'include',
+      signal: expect.any(AbortSignal),
       headers: {
         Accept: 'application/json',
       },
@@ -188,8 +189,44 @@ describe('webAccountCommands', () => {
       method: 'POST',
       cache: 'no-store',
       credentials: 'include',
+      signal: expect.any(AbortSignal),
     });
     expect(sessionStorage.getItem('vlaina_account_session')).toBeNull();
+  });
+
+  it('times out account requests when fetch ignores cancellation', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(() => new Promise(() => undefined));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const request = webAccountCommands.requestEmailCode('octocat@example.com');
+    const expectation = expect(request).rejects.toThrow('Account API request timed out.');
+    await vi.advanceTimersByTimeAsync(15_000);
+
+    await expectation;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns cached status when session JSON parsing times out', async () => {
+    vi.useFakeTimers();
+    sessionStorage.setItem(
+      'vlaina_account_session',
+      JSON.stringify({ provider: 'google', username: 'octocat', avatarUrl: 'https://example.com/avatar.png' })
+    );
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: vi.fn(() => new Promise(() => undefined)),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const request = webAccountCommands.probeStatus();
+    await vi.advanceTimersByTimeAsync(15_000);
+    const status = await request;
+
+    expect(status.connected).toBe(true);
+    expect(status.username).toBe('octocat');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('preserves metadata when revoke fails so logout can be retried', async () => {

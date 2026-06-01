@@ -12,6 +12,71 @@ const MIN_CONTENT_LENGTH = 160;
 const MAX_RAW_TEXT_BYTES = 1_000_000;
 const CLOUDFLARE_MARKERS = ['cf-chl', 'cloudflare ray id', 'checking your browser'];
 
+function createAbortError() {
+  return new DOMException('The web search request was cancelled.', 'AbortError');
+}
+
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return;
+  throw createAbortError();
+}
+
+async function raceWithAbort(promise, signal) {
+  if (!signal) return await promise;
+  throwIfAborted(signal);
+  promise.catch(() => undefined);
+
+  return await new Promise((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      signal.removeEventListener('abort', abort);
+    };
+    const settle = (callback) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback();
+    };
+    const abort = () => {
+      settle(() => reject(createAbortError()));
+    };
+
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+
+    promise.then(
+      (value) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            resolve(value);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+      (error) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            reject(error);
+          } catch (abortError) {
+            reject(abortError);
+          }
+        });
+      },
+    );
+  });
+}
+
+async function readResponseArrayBuffer(response, signal) {
+  throwIfAborted(signal);
+  return await raceWithAbort(response.arrayBuffer(), signal);
+}
+
 function detectSiteName(finalUrl) {
   try {
     return new URL(finalUrl).hostname.replace(/^www\./, '');
@@ -125,8 +190,12 @@ function fetchAddress(resolvedUrl, addressEntry, signal) {
     request.setTimeout(5000, () => {
       rejectRequest(new WebSearchError('timeout', 'The page request timed out.'));
     });
-    signal?.addEventListener('abort', abort, { once: true });
     request.on('close', () => signal?.removeEventListener('abort', abort));
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) {
+      abort();
+      return;
+    }
     request.end();
   });
 }
@@ -154,21 +223,17 @@ async function fetchWithVerifiedAddress(resolvedUrl, signal) {
   throw lastError;
 }
 
-async function fetchWithTimeout(fetchImpl, resolvedUrl, timeoutMs, signal) {
-  if (signal?.aborted) {
-    throw new DOMException('The web search request was cancelled.', 'AbortError');
-  }
+async function fetchWithTimeout(fetchImpl, resolvedUrl, timeoutMs, signal, consumeResponse) {
+  throwIfAborted(signal);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const combinedSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
 
   try {
-    if (!fetchImpl) {
-      return await fetchWithVerifiedAddress(resolvedUrl, combinedSignal);
-    }
-
-    return await fetchImpl(resolvedUrl.url, {
+    const response = !fetchImpl
+      ? await fetchWithVerifiedAddress(resolvedUrl, combinedSignal)
+      : await raceWithAbort(fetchImpl(resolvedUrl.url, {
       headers: {
         Accept: 'text/html,application/json,text/plain;q=0.9,*/*;q=0.8',
         'User-Agent': USER_AGENT,
@@ -176,10 +241,14 @@ async function fetchWithTimeout(fetchImpl, resolvedUrl, timeoutMs, signal) {
       redirect: 'manual',
       cache: 'no-store',
       signal: combinedSignal,
-    });
+    }), combinedSignal);
+
+    return typeof consumeResponse === 'function'
+      ? await consumeResponse(response, combinedSignal)
+      : response;
   } catch (error) {
     if (signal?.aborted) {
-      throw new DOMException('The web search request was cancelled.', 'AbortError');
+      throw createAbortError();
     }
     if (controller.signal.aborted) {
       throw new WebSearchError('timeout', 'The page request timed out.', error);
@@ -197,20 +266,42 @@ export class Crawler {
   }
 
   async readUrl(rawUrl, options = {}) {
+    throwIfAborted(options.signal);
     const contentLimit = normalizeLimit(options.contentLimit, DEFAULT_CONTENT_LIMIT, 40000);
     const preparedUrl = prepareCrawlerUrl(rawUrl);
     assertAllowedCrawlerUrl(preparedUrl);
+    throwIfAborted(options.signal);
     let currentResolution = await resolvePublicUrl(preparedUrl);
+    throwIfAborted(options.signal);
     let currentUrl = currentResolution.url;
 
     for (let redirectCount = 0; redirectCount <= 3; redirectCount += 1) {
-      const response = await fetchWithTimeout(this.fetchImpl, currentResolution, this.timeoutMs, options.signal);
+      throwIfAborted(options.signal);
+      const { response, responseBuffer } = await fetchWithTimeout(
+        this.fetchImpl,
+        currentResolution,
+        this.timeoutMs,
+        options.signal,
+        async (response, requestSignal) => {
+          throwIfAborted(requestSignal);
+          if ([301, 302, 303, 307, 308].includes(response.status) || !response.ok) {
+            return { response, responseBuffer: null };
+          }
+          return {
+            response,
+            responseBuffer: Buffer.from(await readResponseArrayBuffer(response, requestSignal)),
+          };
+        },
+      );
+      throwIfAborted(options.signal);
       if ([301, 302, 303, 307, 308].includes(response.status)) {
         const location = response.headers.get('location');
         if (!location) throw new WebSearchError('http_error', `HTTP ${response.status}`);
         const nextUrl = new URL(location, currentUrl).toString();
         assertAllowedCrawlerUrl(nextUrl);
+        throwIfAborted(options.signal);
         currentResolution = await resolvePublicUrl(nextUrl);
+        throwIfAborted(options.signal);
         currentUrl = currentResolution.url;
         continue;
       }
@@ -220,7 +311,8 @@ export class Crawler {
       }
 
       const contentType = response.headers.get('content-type') || '';
-      const responseBuffer = Buffer.from(await response.arrayBuffer());
+      throwIfAborted(options.signal);
+      throwIfAborted(options.signal);
       const rawText = decodeResponseBody(responseBuffer, response.headers.get('content-encoding'))
         .toString('utf8')
         .slice(0, MAX_RAW_TEXT_BYTES);
@@ -259,3 +351,7 @@ export class Crawler {
     throw new WebSearchError('redirect_error', 'Too many redirects.');
   }
 }
+
+export const crawlerInternals = {
+  fetchAddress,
+};

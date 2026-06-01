@@ -25,6 +25,7 @@ let managedModelsRefreshInFlight: Promise<void> | null = null;
 let managedModelsLastRefreshAttemptAt = 0;
 let managedModelsLastForcedRefreshAttemptAt = 0;
 let managedModelsCatalogVersion: string | null = null;
+let managedModelsSyncGeneration = 0;
 const locallyCreatedProviderIds = new Set<string>();
 
 async function refreshManagedBudgetIfConnected(): Promise<void> {
@@ -35,7 +36,13 @@ async function refreshManagedBudgetIfConnected(): Promise<void> {
 }
 
 async function syncManagedProviderModels(options: { refreshBudget?: boolean; suppressPersist?: boolean } = {}): Promise<void> {
+  const syncGeneration = managedModelsSyncGeneration + 1
+  managedModelsSyncGeneration = syncGeneration
   const catalog = await fetchManagedModelCatalog()
+  if (syncGeneration !== managedModelsSyncGeneration) {
+    return
+  }
+
   const models = catalog.models
   managedModelsCatalogVersion = catalog.version
   const store = useUnifiedStore.getState()

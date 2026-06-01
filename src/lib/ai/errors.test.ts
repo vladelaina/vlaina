@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getUserFacingAIError, parseHTTPError } from './errors';
+import { getUserFacingAIError, parseAPIError, parseHTTPError } from './errors';
 import { parseManagedError } from './managed/errors';
 import { AIErrorType } from './types';
 
@@ -36,6 +36,15 @@ describe('getUserFacingAIError', () => {
       type: AIErrorType.TIMEOUT,
       code: '',
       message: 'The request timed out. Please try again later.',
+    });
+  });
+
+  it('does not treat DOM abort exceptions as structured AI errors', () => {
+    expect(parseAPIError(new DOMException('provider stream aborted', 'AbortError'))).toEqual({
+      type: AIErrorType.SERVER_ERROR,
+      message: 'provider stream aborted',
+      details: undefined,
+      statusCode: undefined,
     });
   });
 

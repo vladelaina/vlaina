@@ -69,6 +69,33 @@ describe('web search IPC', () => {
     await expect(searchPromise).rejects.toMatchObject({ name: 'AbortError' });
   });
 
+  it('rejects a search result that resolves after the request was cancelled', async () => {
+    const handlers = new Map();
+    const services = {
+      searchService: {
+        webSearch: vi.fn((_query, options) => new Promise((resolve) => {
+          options.signal.addEventListener('abort', () => {
+            resolve({ query: 'catime', results: [] });
+          }, { once: true });
+        })),
+      },
+      crawler: {
+        readUrl: vi.fn(),
+      },
+    };
+    registerWebSearchIpc({
+      handleIpc: (channel, handler) => {
+        handlers.set(channel, handler);
+      },
+      services,
+    });
+
+    const searchPromise = handlers.get('desktop:web-search:search')(null, 'catime', { limit: 5 }, 'request-stale-search');
+    await expect(handlers.get('desktop:web-search:cancel')(null, 'request-stale-search')).resolves.toBe(true);
+
+    await expect(searchPromise).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
   it('passes cancellation signals into page reads', async () => {
     const handlers = new Map();
     const services = {
@@ -96,5 +123,42 @@ describe('web search IPC', () => {
     expect(services.crawler.readUrl).toHaveBeenCalledWith('https://example.com', expect.objectContaining({
       signal: expect.any(AbortSignal),
     }));
+  });
+
+  it('rejects page read results that resolve after cancellation', async () => {
+    const handlers = new Map();
+    const services = {
+      searchService: {
+        webSearch: vi.fn(),
+      },
+      crawler: {
+        readUrl: vi.fn((_url, options) => new Promise((resolve) => {
+          options.signal.addEventListener('abort', () => {
+            resolve({
+              title: 'Example',
+              url: 'https://example.com',
+              summary: '',
+              content: 'late content',
+            });
+          }, { once: true });
+        })),
+      },
+    };
+    registerWebSearchIpc({
+      handleIpc: (channel, handler) => {
+        handlers.set(channel, handler);
+      },
+      services,
+    });
+
+    const readPromise = handlers.get('desktop:web-search:read-batch')(
+      null,
+      ['https://example.com'],
+      { retries: 0 },
+      'request-stale-read',
+    );
+    await expect(handlers.get('desktop:web-search:cancel')(null, 'request-stale-read')).resolves.toBe(true);
+
+    await expect(readPromise).rejects.toMatchObject({ name: 'AbortError' });
   });
 });

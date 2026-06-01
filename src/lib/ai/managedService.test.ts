@@ -7,6 +7,8 @@ const {
   getManagedModelsVersionMock,
   managedChatCompletionMock,
   managedChatCompletionStreamMock,
+  managedImageGenerationMock,
+  managedImageEditMock,
 } = vi.hoisted(() => ({
   hasElectronDesktopBridgeMock: vi.fn(),
   clearClientSessionMock: vi.fn(),
@@ -14,6 +16,8 @@ const {
   getManagedModelsVersionMock: vi.fn(),
   managedChatCompletionMock: vi.fn(),
   managedChatCompletionStreamMock: vi.fn(),
+  managedImageGenerationMock: vi.fn(),
+  managedImageEditMock: vi.fn(),
 }));
 
 vi.mock('@/lib/desktop/backend', () => ({
@@ -27,6 +31,8 @@ vi.mock('@/lib/account/desktopCommands', () => ({
     getManagedBudget: vi.fn(),
     managedChatCompletion: managedChatCompletionMock,
     managedChatCompletionStream: managedChatCompletionStreamMock,
+    managedImageGeneration: managedImageGenerationMock,
+    managedImageEdit: managedImageEditMock,
   },
 }));
 
@@ -45,6 +51,8 @@ describe('managedService', () => {
     getManagedModelsVersionMock.mockReset();
     managedChatCompletionMock.mockReset();
     managedChatCompletionStreamMock.mockReset();
+    managedImageGenerationMock.mockReset();
+    managedImageEditMock.mockReset();
     vi.restoreAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => undefined);
     vi.spyOn(console, 'debug').mockImplementation(() => undefined);
@@ -131,6 +139,34 @@ describe('managedService', () => {
     }
   });
 
+  it('retries abort-shaped managed web GET failures when the request was not cancelled', async () => {
+    vi.useFakeTimers();
+    try {
+      hasElectronDesktopBridgeMock.mockReturnValue(false);
+      const fetchMock = vi
+        .fn()
+        .mockRejectedValueOnce(new DOMException('upstream reset', 'AbortError'))
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            success: true,
+            model_catalog_version: 'v3',
+          }),
+        });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const { fetchManagedModelsVersion } = await import('./managedService');
+      const request = fetchManagedModelsVersion();
+
+      await vi.advanceTimersByTimeAsync(300);
+
+      await expect(request).resolves.toBe('v3');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('does not retry managed web POST requests', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
     const fetchMock = vi.fn().mockRejectedValue(new TypeError('fetch failed'));
@@ -139,6 +175,125 @@ describe('managedService', () => {
     const { requestManagedChatCompletion } = await import('./managedService');
     await expect(requestManagedChatCompletion({ model: 'gpt-4o-mini' })).rejects.toThrow('fetch failed');
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports managed web JSON timeouts without treating them as user aborts', async () => {
+    vi.useFakeTimers();
+    try {
+      hasElectronDesktopBridgeMock.mockReturnValue(false);
+      const fetchMock = vi.fn((_url, init) => new Promise((_resolve, reject) => {
+        init.signal.addEventListener('abort', () => {
+          reject(new DOMException('timeout abort', 'AbortError'));
+        }, { once: true });
+      }));
+      vi.stubGlobal('fetch', fetchMock);
+
+      const { requestManagedChatCompletion } = await import('./managedService');
+      const request = requestManagedChatCompletion({ model: 'gpt-4o-mini' });
+      const expectation = expect(request).rejects.toThrow('Managed API request timed out.');
+
+      await vi.advanceTimersByTimeAsync(30_000);
+
+      await expectation;
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reports managed web JSON timeouts during response parsing', async () => {
+    vi.useFakeTimers();
+    try {
+      hasElectronDesktopBridgeMock.mockReturnValue(false);
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn(() => new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({ choices: [{ message: { content: 'late success' } }] });
+          }, 31_000);
+        })),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const { requestManagedChatCompletion } = await import('./managedService');
+      const request = requestManagedChatCompletion({ model: 'gpt-4o-mini' });
+      const expectation = expect(request).rejects.toThrow('Managed API request timed out.');
+
+      await vi.advanceTimersByTimeAsync(31_000);
+
+      await expectation;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not start managed web JSON requests when the external signal is already aborted', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const controller = new AbortController();
+    controller.abort();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { requestManagedChatCompletion } = await import('./managedService');
+
+    await expect(requestManagedChatCompletion({ model: 'gpt-4o-mini' }, controller.signal))
+      .rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects managed web JSON requests promptly when fetch ignores cancellation', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const controller = new AbortController();
+    const fetchMock = vi.fn(() => new Promise(() => undefined));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { requestManagedChatCompletion } = await import('./managedService');
+    const request = requestManagedChatCompletion({ model: 'gpt-4o-mini' }, controller.signal);
+    request.catch(() => undefined);
+
+    await Promise.resolve();
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports managed web JSON timeouts even when fetch ignores cancellation', async () => {
+    vi.useFakeTimers();
+    try {
+      hasElectronDesktopBridgeMock.mockReturnValue(false);
+      const fetchMock = vi.fn(() => new Promise(() => undefined));
+      vi.stubGlobal('fetch', fetchMock);
+
+      const { requestManagedChatCompletion } = await import('./managedService');
+      const request = requestManagedChatCompletion({ model: 'gpt-4o-mini' });
+      const expectation = expect(request).rejects.toThrow('Managed API request timed out.');
+
+      await vi.advanceTimersByTimeAsync(30_000);
+
+      await expectation;
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not return managed web JSON results after external cancellation during response parsing', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const controller = new AbortController();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn(async () => {
+        controller.abort();
+        return { choices: [{ message: { content: 'late success' } }] };
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { requestManagedChatCompletion } = await import('./managedService');
+
+    await expect(requestManagedChatCompletion({ model: 'gpt-4o-mini' }, controller.signal))
+      .rejects.toMatchObject({ name: 'AbortError' });
   });
 
   it('preserves client session when managed web auth is rejected', async () => {
@@ -310,6 +465,92 @@ describe('managedService', () => {
 
     expect(version).toBe('v1');
     expect(getManagedModelsVersionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes abort signals through desktop managed image generation requests', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(true);
+    managedImageGenerationMock.mockResolvedValue({ data: [{ url: 'https://cdn.example.com/generated.png' }] });
+    const controller = new AbortController();
+
+    const { requestManagedImageGeneration } = await import('./managedService');
+    const result = await requestManagedImageGeneration(
+      { model: 'gpt-image-2', prompt: 'draw' },
+      controller.signal,
+    );
+
+    expect(result).toEqual({ data: [{ url: 'https://cdn.example.com/generated.png' }] });
+    expect(managedImageGenerationMock).toHaveBeenCalledWith(
+      { model: 'gpt-image-2', prompt: 'draw' },
+      controller.signal,
+    );
+  });
+
+  it('passes abort signals through desktop managed image edit requests', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(true);
+    managedImageEditMock.mockResolvedValue({ data: [{ url: 'https://cdn.example.com/edited.png' }] });
+    const controller = new AbortController();
+    const body = new Blob(['multipart-body']);
+    const headers = { 'Content-Type': 'multipart/form-data; boundary=test' };
+
+    const { requestManagedImageEdit } = await import('./managedService');
+    const result = await requestManagedImageEdit(body, headers, controller.signal);
+
+    expect(result).toEqual({ data: [{ url: 'https://cdn.example.com/edited.png' }] });
+    expect(managedImageEditMock).toHaveBeenCalledWith(body, headers, controller.signal);
+  });
+
+  it('passes abort signals through managed web image generation requests', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const controller = new AbortController();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [{ url: 'https://cdn.example.com/generated.png' }] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { requestManagedImageGeneration } = await import('./managedService');
+    const result = await requestManagedImageGeneration(
+      { model: 'gpt-image-2', prompt: 'draw' },
+      controller.signal,
+    );
+
+    expect(result).toEqual({ data: [{ url: 'https://cdn.example.com/generated.png' }] });
+    expect(fetchMock).toHaveBeenCalledWith('https://api.vlaina.com/v1/images/generations', {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'include',
+      signal: expect.any(AbortSignal),
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ model: 'gpt-image-2', prompt: 'draw' }),
+    });
+    const fetchSignal = fetchMock.mock.calls[0]?.[1]?.signal as AbortSignal;
+    expect(fetchSignal.aborted).toBe(false);
+    controller.abort();
+    expect(fetchSignal.aborted).toBe(true);
+  });
+
+  it('rejects managed web binary image edits promptly when fetch ignores cancellation', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const controller = new AbortController();
+    const fetchMock = vi.fn(() => new Promise(() => undefined));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { requestManagedImageEdit } = await import('./managedService');
+    const request = requestManagedImageEdit(
+      new Blob(['multipart-body']),
+      { 'Content-Type': 'multipart/form-data; boundary=test' },
+      controller.signal,
+    );
+    request.catch(() => undefined);
+
+    await Promise.resolve();
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('streams managed chat completions on web', async () => {
@@ -519,6 +760,113 @@ describe('managedService', () => {
     controller.abort();
 
     await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('rejects managed web streams promptly when fetch ignores cancellation', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const controller = new AbortController();
+    const fetchMock = vi.fn(() => new Promise(() => undefined));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { requestManagedChatCompletionStream } = await import('./managedService');
+    const request = requestManagedChatCompletionStream(
+      {
+        model: 'gpt-5.4',
+        messages: [{ role: 'user', content: 'hello' }],
+        stream: true,
+      },
+      vi.fn(),
+      controller.signal,
+    );
+    request.catch(() => undefined);
+
+    await Promise.resolve();
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not return managed web stream content when aborted after stream consumption', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const controller = new AbortController();
+    vi.doMock('@/lib/ai/streaming', () => ({
+      consumeOpenAIStream: vi.fn(async () => {
+        controller.abort();
+        return 'late success';
+      }),
+    }));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      body: new ReadableStream(),
+    }));
+
+    try {
+      const { requestManagedChatCompletionStream } = await import('./managedService');
+
+      await expect(requestManagedChatCompletionStream(
+        {
+          model: 'gpt-5.4',
+          messages: [{ role: 'user', content: 'hello' }],
+          stream: true,
+        },
+        vi.fn(),
+        controller.signal,
+      )).rejects.toMatchObject({ name: 'AbortError' });
+    } finally {
+      vi.doUnmock('@/lib/ai/streaming');
+    }
+  });
+
+  it('reports managed web stream timeouts without treating them as user aborts', async () => {
+    vi.useFakeTimers();
+    try {
+      hasElectronDesktopBridgeMock.mockReturnValue(false);
+      const fetchMock = vi.fn((_url, init) => new Promise((_resolve, reject) => {
+        init.signal.addEventListener('abort', () => {
+          reject(new DOMException('stream timeout abort', 'AbortError'));
+        }, { once: true });
+      }));
+      vi.stubGlobal('fetch', fetchMock);
+
+      const { requestManagedChatCompletionStream } = await import('./managedService');
+      const request = requestManagedChatCompletionStream(
+        {
+          model: 'gpt-5.4',
+          messages: [{ role: 'user', content: 'hello' }],
+          stream: true,
+        },
+        vi.fn(),
+      );
+      const expectation = expect(request).rejects.toThrow('Managed API request timed out.');
+
+      await vi.advanceTimersByTimeAsync(300_000);
+
+      await expectation;
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps downstream managed web abort-shaped failures distinct from managed timeouts', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const fetchMock = vi.fn().mockRejectedValue(Object.assign(new Error('socket aborted'), { name: 'AbortError' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { requestManagedChatCompletionStream } = await import('./managedService');
+
+    await expect(requestManagedChatCompletionStream(
+      {
+        model: 'gpt-5.4',
+        messages: [{ role: 'user', content: 'hello' }],
+        stream: true,
+      },
+      vi.fn(),
+    )).rejects.toMatchObject({
+      name: 'AbortError',
+      message: 'socket aborted',
+    });
   });
 
   it('passes the managed diagnostic request id into the desktop stream bridge', async () => {

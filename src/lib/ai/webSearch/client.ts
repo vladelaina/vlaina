@@ -20,25 +20,68 @@ function createRequestId(): string {
 
 function throwIfAborted(signal?: AbortSignal): void {
   if (!signal?.aborted) return;
-  throw new DOMException('The web search request was cancelled.', 'AbortError');
+  throw createAbortError();
 }
 
-function withAbort<T>(
-  promise: Promise<T>,
+function createAbortError(): DOMException {
+  return new DOMException('The web search request was cancelled.', 'AbortError');
+}
+
+function runCancellableDesktopWebSearchRequest<T>(
   signal: AbortSignal | undefined,
-  cancelRequest: (() => void) | undefined,
+  startRequest: (requestId?: string) => Promise<T>,
+  cancelRequest: (requestId: string) => Promise<unknown>,
 ): Promise<T> {
-  if (!signal) return promise;
+  if (!signal) {
+    return startRequest();
+  }
   throwIfAborted(signal);
+
+  const requestId = createRequestId();
   return new Promise<T>((resolve, reject) => {
-    const abort = () => {
-      cancelRequest?.();
-      reject(new DOMException('The web search request was cancelled.', 'AbortError'));
-    };
-    signal.addEventListener('abort', abort, { once: true });
-    promise.then(resolve, reject).finally(() => {
+    let settled = false;
+    let didStart = false;
+    const cleanup = () => {
       signal.removeEventListener('abort', abort);
-    });
+    };
+    const settleRejected = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+    const abort = () => {
+      if (settled) return;
+      if (didStart) {
+        void cancelRequest(requestId).catch(() => {});
+      }
+      settleRejected(createAbortError());
+    };
+
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+
+    try {
+      didStart = true;
+      startRequest(requestId).then(
+        (value) => {
+          if (settled) return;
+          if (signal.aborted) {
+            abort();
+            return;
+          }
+          settled = true;
+          cleanup();
+          resolve(value);
+        },
+        settleRejected,
+      );
+    } catch (error) {
+      settleRejected(error);
+    }
   });
 }
 
@@ -49,36 +92,33 @@ export function createWebSearchClient(): WebSearchClient {
       if (!bridge?.webSearch) {
         throw new Error('Web search is temporarily unavailable.');
       }
-      throwIfAborted(signal);
-      const requestId = signal ? createRequestId() : undefined;
-      const promise = bridge.webSearch.search(query, options, requestId);
-      return withAbort(promise, signal, requestId ? () => {
-        void bridge.webSearch?.cancelRequest(requestId).catch(() => {});
-      } : undefined);
+      return runCancellableDesktopWebSearchRequest(
+        signal,
+        (requestId) => bridge.webSearch!.search(query, options, requestId),
+        (requestId) => bridge.webSearch!.cancelRequest(requestId),
+      );
     },
     async readWebPage(url, options, signal) {
       const bridge = getElectronBridge();
       if (!bridge?.webSearch) {
         throw new Error('Web search is temporarily unavailable.');
       }
-      throwIfAborted(signal);
-      const requestId = signal ? createRequestId() : undefined;
-      const promise = bridge.webSearch.read(url, options, requestId);
-      return withAbort(promise, signal, requestId ? () => {
-        void bridge.webSearch?.cancelRequest(requestId).catch(() => {});
-      } : undefined);
+      return runCancellableDesktopWebSearchRequest(
+        signal,
+        (requestId) => bridge.webSearch!.read(url, options, requestId),
+        (requestId) => bridge.webSearch!.cancelRequest(requestId),
+      );
     },
     async readWebPages(urls, options, signal) {
       const bridge = getElectronBridge();
       if (!bridge?.webSearch) {
         throw new Error('Web search is temporarily unavailable.');
       }
-      throwIfAborted(signal);
-      const requestId = signal ? createRequestId() : undefined;
-      const promise = bridge.webSearch.readBatch(urls, options, requestId);
-      return withAbort(promise, signal, requestId ? () => {
-        void bridge.webSearch?.cancelRequest(requestId).catch(() => {});
-      } : undefined);
+      return runCancellableDesktopWebSearchRequest(
+        signal,
+        (requestId) => bridge.webSearch!.readBatch(urls, options, requestId),
+        (requestId) => bridge.webSearch!.cancelRequest(requestId),
+      );
     },
   };
 }

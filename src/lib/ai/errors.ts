@@ -410,16 +410,29 @@ export function createAIError(
 }
 
 export function parseAPIError(error: any): AIError {
-  if (error && typeof error === 'object' && 'type' in error && 'message' in error) {
-      return error as AIError;
+  if (isRecord(error) && typeof error.type === 'string' && typeof error.message === 'string') {
+    if (Object.values(AIErrorType).includes(error.type as AIErrorType)) {
+      return createAIError(
+        error.type as AIErrorType,
+        error.message,
+        typeof error.details === 'string' ? error.details : undefined,
+        typeof error.statusCode === 'number' ? error.statusCode : undefined
+      )
+    }
   }
 
-  if (error instanceof Error) {
-    const message = error.message;
+  if (error instanceof Error || (isRecord(error) && typeof error.message === 'string')) {
+    const message = typeof error.message === 'string' ? error.message : ''
     const lowerMsg = message.toLowerCase();
+    const errorName = isRecord(error) && typeof error.name === 'string'
+      ? error.name
+      : '';
 
     let type = inferErrorTypeByMessage(message);
-    if (type === AIErrorType.UNKNOWN && (lowerMsg.includes('timeout') || lowerMsg.includes('abort'))) {
+    if (
+      type === AIErrorType.UNKNOWN &&
+      (lowerMsg.includes('timeout') || lowerMsg.includes('abort') || errorName === 'AbortError')
+    ) {
       type = AIErrorType.TIMEOUT;
     }
 

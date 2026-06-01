@@ -19,10 +19,6 @@ export async function providerFetch(url: string, init: ProviderFetchInit): Promi
   return fetchWithGetRetry(url, init);
 }
 
-function isAbortError(error: unknown): boolean {
-  return error instanceof Error && error.name === 'AbortError';
-}
-
 function delayProviderRetry(ms: number, signal?: AbortSignal): Promise<void> {
   if (signal?.aborted) {
     return Promise.reject(new DOMException('Aborted', 'AbortError'));
@@ -48,11 +44,14 @@ async function fetchWithGetRetry(url: string, init: ProviderFetchInit): Promise<
   for (let attempt = 0; ; attempt += 1) {
     const startedAt = Date.now();
     try {
-      return await fetch(url, init);
+      throwIfAborted(init.signal);
+      const response = await raceWithAbort(fetch(url, init), init.signal);
+      throwIfAborted(init.signal);
+      return response;
     } catch (error) {
       const retryDelayMs = shouldRetry ? PROVIDER_GET_RETRY_DELAYS_MS[attempt] : undefined;
       const failedQuickly = Date.now() - startedAt <= PROVIDER_FAST_FAILURE_RETRY_WINDOW_MS;
-      if (isAbortError(error) || init.signal?.aborted || retryDelayMs == null || !failedQuickly) {
+      if (init.signal?.aborted || retryDelayMs == null || !failedQuickly) {
         throw error;
       }
       await delayProviderRetry(retryDelayMs, init.signal);
@@ -70,10 +69,100 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-async function normalizeDesktopRequestBody(body: BodyInit | null | undefined): Promise<{
+function createAbortError(): DOMException {
+  return new DOMException('Aborted', 'AbortError');
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw createAbortError();
+}
+
+function raceWithAbort<T>(
+  promise: Promise<T>,
+  signal?: AbortSignal,
+  onAbort?: () => void,
+): Promise<T> {
+  if (!signal) {
+    return promise;
+  }
+  if (signal.aborted) {
+    onAbort?.();
+    return Promise.reject(createAbortError());
+  }
+
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      signal.removeEventListener('abort', abort);
+    };
+    const abort = () => {
+      cleanup();
+      onAbort?.();
+      reject(createAbortError());
+    };
+
+    signal.addEventListener('abort', abort, { once: true });
+    promise.then(
+      (value) => {
+        cleanup();
+        if (signal.aborted) {
+          reject(createAbortError());
+          return;
+        }
+        resolve(value);
+      },
+      (error) => {
+        cleanup();
+        if (signal.aborted) {
+          reject(createAbortError());
+          return;
+        }
+        reject(error);
+      },
+    );
+  });
+}
+
+function readBlobAsArrayBuffer(blob: Blob, signal?: AbortSignal): Promise<ArrayBuffer> {
+  const arrayBuffer = (blob as { arrayBuffer?: () => Promise<ArrayBuffer> }).arrayBuffer;
+  if (typeof arrayBuffer === 'function') {
+    return raceWithAbort(arrayBuffer.call(blob), signal);
+  }
+
+  if (typeof FileReader === 'undefined') {
+    return Promise.reject(new Error('Desktop AI provider binary requests require Blob.arrayBuffer or FileReader support.'));
+  }
+
+  const reader = new FileReader();
+  const promise = new Promise<ArrayBuffer>((resolve, reject) => {
+    reader.onload = () => {
+      if (reader.result instanceof ArrayBuffer) {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error('Desktop AI provider binary request body could not be read as bytes.'));
+    };
+    reader.onerror = () => {
+      reject(reader.error ?? new Error('Desktop AI provider binary request body could not be read.'));
+    };
+    reader.onabort = () => {
+      reject(createAbortError());
+    };
+    reader.readAsArrayBuffer(blob);
+  });
+  return raceWithAbort(promise, signal, () => {
+    try {
+      reader.abort();
+    } catch {
+    }
+  });
+}
+
+async function normalizeDesktopRequestBody(body: BodyInit | null | undefined, signal?: AbortSignal): Promise<{
   body?: string;
   bodyBase64?: string;
 }> {
+  throwIfAborted(signal);
   if (body == null) {
     return {};
   }
@@ -81,7 +170,7 @@ async function normalizeDesktopRequestBody(body: BodyInit | null | undefined): P
     return { body };
   }
   if (body instanceof Blob) {
-    return { bodyBase64: bytesToBase64(new Uint8Array(await body.arrayBuffer())) };
+    return { bodyBase64: bytesToBase64(new Uint8Array(await readBlobAsArrayBuffer(body, signal))) };
   }
   if (body instanceof ArrayBuffer) {
     return { bodyBase64: bytesToBase64(new Uint8Array(body)) };
@@ -101,7 +190,10 @@ async function desktopProviderFetch(
   const cleanupCallbacks: Array<() => void> = [];
   let didSettle = false;
   let streamController: ReadableStreamDefaultController<Uint8Array> | null = null;
-  let rejectStartOnAbort: ((error: DOMException) => void) | null = null;
+  let rejectStartOnTerminalError: ((error: Error | DOMException) => void) | null = null;
+  let terminalError: Error | DOMException | null = null;
+  let listenerRegistrationError: unknown = null;
+  let didReceiveMetadata = false;
 
   const cleanup = () => {
     cleanupCallbacks.splice(0).forEach((cleanupCallback) => cleanupCallback());
@@ -111,17 +203,18 @@ async function desktopProviderFetch(
     if (didSettle) return;
     didSettle = true;
     void aiProvider.cancelRequest(requestId).catch(() => {});
-    const abortError = new DOMException('Aborted', 'AbortError');
+    const abortError = createAbortError();
+    terminalError = abortError;
     try {
       streamController?.error(abortError);
     } catch {
     }
-    rejectStartOnAbort?.(abortError);
+    rejectStartOnTerminalError?.(abortError);
     cleanup();
   };
 
   if (init.signal?.aborted) {
-    throw new DOMException('Aborted', 'AbortError');
+    throw createAbortError();
   }
 
   init.signal?.addEventListener('abort', abortRequest, { once: true });
@@ -130,22 +223,45 @@ async function desktopProviderFetch(
   const body = new ReadableStream<Uint8Array>({
     start(controller) {
       streamController = controller;
-      cleanupCallbacks.push(
-        aiProvider.onRequestChunk(requestId, (chunk) => {
+      try {
+        cleanupCallbacks.push(aiProvider.onRequestChunk(requestId, (chunk) => {
+          if (didSettle || init.signal?.aborted) return;
           const bytes = new Uint8Array(chunk);
-          controller.enqueue(bytes);
-        }),
-        aiProvider.onRequestDone(requestId, () => {
+          try {
+            controller.enqueue(bytes);
+          } catch {
+          }
+        }));
+        cleanupCallbacks.push(aiProvider.onRequestDone(requestId, () => {
+          if (didSettle || init.signal?.aborted) return;
           didSettle = true;
-          controller.close();
+          if (!didReceiveMetadata) {
+            terminalError = new Error('AI provider request completed before response metadata was received.');
+            rejectStartOnTerminalError?.(terminalError);
+          }
+          try {
+            controller.close();
+          } catch {
+          }
           cleanup();
-        }),
-        aiProvider.onRequestError(requestId, (payload) => {
+        }));
+        cleanupCallbacks.push(aiProvider.onRequestError(requestId, (payload) => {
+          if (didSettle || init.signal?.aborted) return;
           didSettle = true;
-          controller.error(new Error(payload.message || 'AI provider request failed'));
+          const error = new Error(payload.message || 'AI provider request failed');
+          if (!didReceiveMetadata) {
+            terminalError = error;
+            rejectStartOnTerminalError?.(error);
+          }
+          controller.error(error);
           cleanup();
-        })
-      );
+        }));
+      } catch (error) {
+        didSettle = true;
+        listenerRegistrationError = error;
+        cleanup();
+        controller.error(error);
+      }
     },
     cancel() {
       abortRequest();
@@ -153,12 +269,19 @@ async function desktopProviderFetch(
   });
 
   try {
-    const abortPromise = new Promise<never>((_, reject) => {
-      rejectStartOnAbort = reject;
+    const terminalErrorPromise = new Promise<never>((_, reject) => {
+      rejectStartOnTerminalError = reject;
     });
-    const requestBody = await normalizeDesktopRequestBody(init.body);
+    terminalErrorPromise.catch(() => undefined);
+    if (listenerRegistrationError) {
+      throw listenerRegistrationError;
+    }
+    const requestBody = await normalizeDesktopRequestBody(init.body, init.signal);
+    if (terminalError) {
+      throw terminalError;
+    }
     if (didSettle) {
-      return await abortPromise;
+      return await terminalErrorPromise;
     }
 
     const startRequestPromise = aiProvider.startRequest(requestId, {
@@ -169,8 +292,10 @@ async function desktopProviderFetch(
     });
     startRequestPromise.catch(() => undefined);
 
-    const metadata = await Promise.race([startRequestPromise, abortPromise]);
-    rejectStartOnAbort = null;
+    const metadata = await Promise.race([startRequestPromise, terminalErrorPromise]);
+    throwIfAborted(init.signal);
+    didReceiveMetadata = true;
+    rejectStartOnTerminalError = null;
 
     return new Response(body, {
       status: metadata.status,

@@ -10,6 +10,15 @@ function normalizeRequestId(rawRequestId) {
   return REQUEST_ID_PATTERN.test(requestId) ? requestId : null;
 }
 
+function createAbortError() {
+  return new DOMException('The web search request was cancelled.', 'AbortError');
+}
+
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return;
+  throw createAbortError();
+}
+
 function normalizeSearchOptions(rawOptions) {
   return {
     category: typeof rawOptions?.category === 'string' ? rawOptions.category : undefined,
@@ -60,10 +69,12 @@ export function registerWebSearchIpc({
   handleIpc('desktop:web-search:search', async (_event, query, options, requestId) => {
     const request = beginRequest(requestId);
     try {
-      return await services.searchService.webSearch(query, {
+      const result = await services.searchService.webSearch(query, {
         ...normalizeSearchOptions(options),
         signal: request.signal,
       });
+      throwIfAborted(request.signal);
+      return result;
     } finally {
       request.finish();
     }
@@ -76,6 +87,7 @@ export function registerWebSearchIpc({
         ...normalizeReadOptions(options),
         signal: request.signal,
       });
+      throwIfAborted(request.signal);
       if (result?.ok && result.page) {
         return result.page;
       }
@@ -90,10 +102,12 @@ export function registerWebSearchIpc({
   handleIpc('desktop:web-search:read-batch', async (_event, urls, options, requestId) => {
     const request = beginRequest(requestId);
     try {
-      return await readUrlsBatch(services.crawler, urls, {
+      const results = await readUrlsBatch(services.crawler, urls, {
         ...normalizeReadOptions(options),
         signal: request.signal,
       });
+      throwIfAborted(request.signal);
+      return results;
     } finally {
       request.finish();
     }

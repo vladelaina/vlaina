@@ -114,6 +114,47 @@ describe('backgroundBenchmarkRunner', () => {
     expect(backgroundBenchmarkRunner.getSnapshot(provider.id)).toBeNull();
   });
 
+  it('does not let a stopped run clear or overwrite a newer run', async () => {
+    const mockedBenchmarkModels = vi.mocked(benchmarkModels);
+    let firstAbort: (() => void) | null = null;
+    mockedBenchmarkModels
+      .mockImplementationOnce(
+        async (_provider, _models, options) =>
+          await new Promise((_, reject) => {
+            firstAbort = () => {
+              options?.onProgress?.({
+                modelId: 'm-old',
+                completed: 1,
+                total: 1,
+                result: { status: 'error', error: 'old aborted', endpoint: 'chat' },
+              });
+              reject(new Error('old aborted'));
+            };
+            options?.signal?.addEventListener('abort', () => firstAbort?.(), { once: true });
+          })
+      )
+      .mockResolvedValueOnce({
+        'm-new': { status: 'success', latency: 9, endpoint: 'chat' },
+      });
+
+    expect(backgroundBenchmarkRunner.start(provider, [createModel('m-old')])).toBe(true);
+    const firstRunId = backgroundBenchmarkRunner.getSnapshot(provider.id)?.runId;
+
+    backgroundBenchmarkRunner.stop(provider.id);
+    expect(backgroundBenchmarkRunner.start(provider, [createModel('m-new')])).toBe(true);
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const snapshot = backgroundBenchmarkRunner.getSnapshot(provider.id);
+    expect(snapshot).not.toBeNull();
+    expect(snapshot?.runId).not.toBe(firstRunId);
+    expect(snapshot?.isRunning).toBe(false);
+    expect(snapshot?.overall).toBe('success');
+    expect(snapshot?.items['m-new']?.status).toBe('success');
+    expect(snapshot?.items['m-old']).toBeUndefined();
+  });
+
   it('isolates snapshot listener failures from other subscribers', async () => {
     const mockedBenchmarkModels = vi.mocked(benchmarkModels);
     mockedBenchmarkModels.mockResolvedValue({

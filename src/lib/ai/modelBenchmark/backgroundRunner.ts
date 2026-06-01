@@ -181,10 +181,27 @@ class BackgroundBenchmarkRunner {
       });
 
       const hasError = Object.values(results).some((result) => result.status === 'error');
+      const current = this.snapshots.get(provider.id);
+      if (!current || current.runId !== runId) {
+        return;
+      }
+      const finalItems = { ...current.items };
+      for (const model of models) {
+        const result = results[model.id];
+        if (!result) {
+          continue;
+        }
+        finalItems[model.id] = {
+          status: result.status,
+          latency: result.latency,
+          error: result.error,
+        };
+      }
       this.patchSnapshot(provider.id, runId, {
         isRunning: false,
         overall: hasError ? 'error' : 'success',
         completed: models.length,
+        items: finalItems,
         finishedAt: Date.now(),
       });
     } catch {

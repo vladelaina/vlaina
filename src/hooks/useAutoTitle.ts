@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import { actions as aiActions } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { buildTitleSourceFromMessages, needsAutoTitle } from '@/lib/ai/temporaryChat';
@@ -6,20 +6,20 @@ import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
 
 const AUTO_TITLE_TIMEOUT_MS = 12_000;
+const autoTitleInFlightSessionIds = new Set<string>();
 
 export function useAutoTitle() {
   const providers = useUnifiedStore((state) => state.data.ai?.providers || []);
   const models = useUnifiedStore((state) => state.data.ai?.models || []);
-  const inFlightSessionIdsRef = useRef(new Set<string>());
 
   const generateAutoTitle = useCallback(async (sessionId: string, providerId: string, modelId: string) => {
-      if (inFlightSessionIdsRef.current.has(sessionId)) return;
+      if (autoTitleInFlightSessionIds.has(sessionId)) return;
 
       const ai = useUnifiedStore.getState().data.ai;
       const session = ai?.sessions.find((item) => item.id === sessionId);
       if (!session || !needsAutoTitle(session.title)) return;
 
-      inFlightSessionIdsRef.current.add(sessionId);
+      autoTitleInFlightSessionIds.add(sessionId);
 
       try {
           const provider = providers.find(p => p.id === providerId);
@@ -51,6 +51,8 @@ ${titleSource}`;
           } finally {
             window.clearTimeout(timeoutId);
           }
+
+          if (controller.signal.aborted) return;
           
           const cleanTitle = stripThinkingContent(title)
               .replace(/^["']|["']$/g, '') 
@@ -67,7 +69,7 @@ ${titleSource}`;
         if (import.meta.env.DEV) {
         }
       } finally {
-          inFlightSessionIdsRef.current.delete(sessionId);
+          autoTitleInFlightSessionIds.delete(sessionId);
       }
   }, [models, providers]);
 

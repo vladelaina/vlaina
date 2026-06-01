@@ -1,12 +1,35 @@
 import { DEFAULT_SEARCH_LIMIT, WebSearchError, normalizeLimit } from './types.mjs';
 
+function createAbortError() {
+  return new DOMException('The web search request was cancelled.', 'AbortError');
+}
+
 function throwIfAborted(signal) {
   if (!signal?.aborted) return;
-  throw new DOMException('The web search request was cancelled.', 'AbortError');
+  throw createAbortError();
 }
 
 function isAbortError(error) {
   return error instanceof DOMException && error.name === 'AbortError';
+}
+
+function createAttemptSignal(parentSignal, controller, cleanupCallbacks) {
+  if (!parentSignal) return controller.signal;
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function') {
+    return AbortSignal.any([parentSignal, controller.signal]);
+  }
+
+  const abortFromParent = () => {
+    if (!controller.signal.aborted) controller.abort(createAbortError());
+  };
+  if (parentSignal.aborted) {
+    abortFromParent();
+  } else {
+    parentSignal.addEventListener('abort', abortFromParent, { once: true });
+    cleanupCallbacks.push(() => parentSignal.removeEventListener('abort', abortFromParent));
+  }
+
+  return controller.signal;
 }
 
 function buildSearchAttempts(options, limit) {
@@ -38,31 +61,100 @@ function buildSearchAttempts(options, limit) {
 
 function searchProviderAttempts(provider, query, attempts) {
   return new Promise((resolve, reject) => {
+    if (attempts.length === 0) {
+      resolve({ results: [], sawEmptyResult: false, lastError: null });
+      return;
+    }
+
     let remaining = attempts.length;
     let lastError = null;
     let sawEmptyResult = false;
     let settled = false;
+    const attemptControllers = new Set();
+    const cleanupCallbacks = [];
+
+    const cleanup = () => {
+      for (const cleanupCallback of cleanupCallbacks.splice(0)) {
+        cleanupCallback();
+      }
+      attemptControllers.clear();
+    };
+
+    const abortOutstandingAttempts = () => {
+      for (const controller of attemptControllers) {
+        if (!controller.signal.aborted) controller.abort(createAbortError());
+      }
+    };
+
+    const settleResolve = (value) => {
+      if (settled) return;
+      settled = true;
+      abortOutstandingAttempts();
+      cleanup();
+      resolve(value);
+    };
+
+    const settleReject = (error) => {
+      if (settled) return;
+      settled = true;
+      abortOutstandingAttempts();
+      cleanup();
+      reject(error);
+    };
 
     const finishIfDone = () => {
       if (settled || remaining > 0) return;
-      settled = true;
-      resolve({ results: [], sawEmptyResult, lastError });
+      settleResolve({ results: [], sawEmptyResult, lastError });
     };
+
+    const parentSignals = new Set(attempts.map((attempt) => attempt.signal).filter(Boolean));
+    for (const signal of parentSignals) {
+      try {
+        throwIfAborted(signal);
+      } catch (error) {
+        settleReject(error);
+        return;
+      }
+
+      const abortFromParent = () => settleReject(createAbortError());
+      signal.addEventListener('abort', abortFromParent, { once: true });
+      cleanupCallbacks.push(() => signal.removeEventListener('abort', abortFromParent));
+    }
 
     for (const attempt of attempts) {
       try {
         throwIfAborted(attempt.signal);
       } catch (error) {
-        reject(error);
+        settleReject(error);
         return;
       }
 
-      provider.search(query, attempt)
+      const controller = new AbortController();
+      attemptControllers.add(controller);
+      const attemptOptions = {
+        ...attempt,
+        signal: createAttemptSignal(attempt.signal, controller, cleanupCallbacks),
+      };
+
+      let searchPromise;
+      try {
+        searchPromise = Promise.resolve(provider.search(query, attemptOptions));
+      } catch (error) {
+        searchPromise = Promise.reject(error);
+      }
+
+      searchPromise
         .then((results) => {
+          attemptControllers.delete(controller);
           if (settled) return;
+          try {
+            throwIfAborted(attempt.signal);
+          } catch (error) {
+            settleReject(error);
+            return;
+          }
           if (Array.isArray(results) && results.length > 0) {
-            settled = true;
-            resolve({ results, sawEmptyResult: true, lastError });
+            settleResolve({ results, sawEmptyResult: true, lastError });
             return;
           }
           sawEmptyResult = true;
@@ -70,15 +162,14 @@ function searchProviderAttempts(provider, query, attempts) {
           finishIfDone();
         })
         .catch((error) => {
+          attemptControllers.delete(controller);
           if (settled) return;
           if (isAbortError(error)) {
-            settled = true;
-            reject(error);
+            settleReject(error);
             return;
           }
           if (error instanceof WebSearchError && error.code === 'invalid_query') {
-            settled = true;
-            reject(error);
+            settleReject(error);
             return;
           }
           lastError = error;
@@ -113,6 +204,7 @@ export class SearchService {
     for (const provider of this.providers) {
       throwIfAborted(options.signal);
       const result = await searchProviderAttempts(provider, normalizedQuery, attempts);
+      throwIfAborted(options.signal);
       if (result.results.length > 0) {
         return { query: normalizedQuery, results: result.results };
       }
@@ -124,6 +216,7 @@ export class SearchService {
       throw new WebSearchError('search_unavailable', 'Web search is temporarily unavailable.', lastProviderError);
     }
 
+    throwIfAborted(options.signal);
     return { query: normalizedQuery, results: [] };
   }
 }

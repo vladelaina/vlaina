@@ -1,3 +1,5 @@
+import { getSessionIdAliasesResolvingTo, resolveSessionIdAlias } from './sessionIdAliases';
+
 type SessionMutationLockRecord = {
   ownerId: string;
   token: string;
@@ -218,6 +220,28 @@ function waitForLockChange(sessionId: string): Promise<void> {
   });
 }
 
+function normalizeSessionMutationLockIds(sessionIds: string[]): string[] {
+  const normalized = new Set<string>();
+
+  sessionIds.forEach((sessionId) => {
+    const trimmedSessionId = sessionId.trim();
+    if (!trimmedSessionId) {
+      return;
+    }
+
+    const resolvedSessionId = resolveSessionIdAlias(trimmedSessionId);
+    normalized.add(trimmedSessionId);
+    if (resolvedSessionId.trim()) {
+      normalized.add(resolvedSessionId);
+      getSessionIdAliasesResolvingTo(resolvedSessionId).forEach((aliasSessionId) => {
+        normalized.add(aliasSessionId);
+      });
+    }
+  });
+
+  return Array.from(normalized).sort();
+}
+
 async function acquireSessionMutationLock(sessionId: string): Promise<() => void> {
   if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
     return () => {};
@@ -271,7 +295,7 @@ export async function runWithSessionMutationLocks<T>(
   sessionIds: string[],
   task: () => Promise<T> | T,
 ): Promise<T> {
-  const normalizedSessionIds = [...new Set(sessionIds.map((sessionId) => sessionId.trim()).filter(Boolean))].sort();
+  const normalizedSessionIds = normalizeSessionMutationLockIds(sessionIds);
   if (normalizedSessionIds.length === 0) {
     return await task();
   }

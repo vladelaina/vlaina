@@ -10,6 +10,12 @@ export interface ModelFetchResult {
   endpointType: ProviderEndpointType
 }
 
+interface ModelListResponse {
+  ok: boolean
+  status: number
+  data: unknown
+}
+
 function normalizeModelIds(values: unknown[]): string[] {
   const seen = new Set<string>()
   const ids: string[] = []
@@ -26,20 +32,68 @@ function normalizeModelIds(values: unknown[]): string[] {
   return ids
 }
 
-export async function detectProviderEndpointModels(provider: Provider, apiKey: string): Promise<ModelFetchResult> {
+function extractModelId(value: unknown): string {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (!value || typeof value !== 'object') {
+    return ''
+  }
+
+  const record = value as { id?: unknown; name?: unknown; model?: unknown }
+  if (typeof record.id === 'string') {
+    return record.id
+  }
+  if (typeof record.name === 'string') {
+    return record.name
+  }
+  if (typeof record.model === 'string') {
+    return record.model
+  }
+  return ''
+}
+
+function normalizeModelList(values: unknown): string[] {
+  return Array.isArray(values) ? normalizeModelIds(values.map(extractModelId)) : []
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
+    || !!error && typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError'
+}
+
+function createAbortError(): DOMException {
+  return new DOMException('Aborted', 'AbortError')
+}
+
+function throwIfAborted(signal?: AbortSignal | null): void {
+  if (!signal?.aborted) return
+  throw createAbortError()
+}
+
+export async function detectProviderEndpointModels(
+  provider: Provider,
+  apiKey: string,
+  signal?: AbortSignal,
+): Promise<ModelFetchResult> {
   const orderedEndpointTypes: ProviderEndpointType[] = provider.endpointType === 'anthropic'
     ? ['anthropic', 'openai']
     : ['openai', 'anthropic']
 
+  throwIfAborted(signal)
   let lastError: unknown
   for (const endpointType of orderedEndpointTypes) {
     try {
       const models = endpointType === 'anthropic'
-        ? await getAnthropicModels(provider, apiKey)
-        : await getOpenAIModels(provider, apiKey)
+        ? await getAnthropicModels(provider, apiKey, signal)
+        : await getOpenAIModels(provider, apiKey, signal)
 
+      throwIfAborted(signal)
       return { models, endpointType }
     } catch (error) {
+      if (signal?.aborted) {
+        throw createAbortError()
+      }
       lastError = error
     }
   }
@@ -47,53 +101,113 @@ export async function detectProviderEndpointModels(provider: Provider, apiKey: s
   throw lastError instanceof Error ? lastError : new Error('Failed to fetch models')
 }
 
-async function getOpenAIModels(provider: Provider, apiKey: string): Promise<string[]> {
+async function getOpenAIModels(provider: Provider, apiKey: string, signal?: AbortSignal): Promise<string[]> {
   const url = `${buildOpenAIBaseUrl(provider.apiHost)}/models`
-  const response = await fetchModelResponse(url, {
+  const response = await fetchModelListResponse(url, {
     Authorization: `Bearer ${apiKey}`,
-  })
+  }, signal)
+  throwIfAborted(signal)
 
   if (!response.ok) {
     throw new Error(`Failed to fetch OpenAI-compatible models: ${response.status}`)
   }
 
-  const data = await response.json()
-  if (data.data && Array.isArray(data.data)) {
-    return normalizeModelIds(data.data.map((model: any) => model?.id))
+  const data = response.data as { data?: unknown; models?: unknown }
+  const dataModels = normalizeModelList(data.data)
+  if (dataModels.length > 0) {
+    return dataModels
   }
-  if (data.models && Array.isArray(data.models)) {
-    return normalizeModelIds(data.models.map((model: any) => model?.name || model?.model))
+  const models = normalizeModelList(data.models)
+  if (models.length > 0) {
+    return models
   }
 
   return []
 }
 
-async function getAnthropicModels(provider: Provider, apiKey: string): Promise<string[]> {
+async function getAnthropicModels(provider: Provider, apiKey: string, signal?: AbortSignal): Promise<string[]> {
   const url = `${buildAnthropicBaseUrl(provider.apiHost)}/models`
-  const response = await fetchModelResponse(url, buildAnthropicHeaders(apiKey))
+  const response = await fetchModelListResponse(url, buildAnthropicHeaders(apiKey), signal)
+  throwIfAborted(signal)
 
   if (!response.ok) {
     throw new Error(`Failed to fetch Anthropic models: ${response.status}`)
   }
 
-  const data = await response.json()
-  if (data.data && Array.isArray(data.data)) {
-    return normalizeModelIds(data.data.map((model: any) => model?.id))
+  const data = response.data as { data?: unknown }
+  const models = normalizeModelList(data.data)
+  if (models.length > 0) {
+    return models
   }
 
   return []
 }
 
-async function fetchModelResponse(url: string, headers: Record<string, string>): Promise<Response> {
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 10000)
+async function readModelListJson(response: Response, signal: AbortSignal): Promise<unknown> {
+  throwIfAborted(signal)
+  let abort: (() => void) | undefined
+  const abortPromise = new Promise<never>((_, reject) => {
+    abort = () => reject(createAbortError())
+    signal.addEventListener('abort', abort, { once: true })
+    if (signal.aborted) {
+      abort()
+    }
+  })
+  const jsonPromise = response.json() as Promise<unknown>
+  jsonPromise.catch(() => undefined)
 
   try {
-    return await providerFetch(url, {
+    const data = await Promise.race([jsonPromise, abortPromise])
+    throwIfAborted(signal)
+    return data
+  } finally {
+    if (abort) {
+      signal.removeEventListener('abort', abort)
+    }
+  }
+}
+
+async function fetchModelListResponse(
+  url: string,
+  headers: Record<string, string>,
+  externalSignal?: AbortSignal,
+): Promise<ModelListResponse> {
+  const controller = new AbortController()
+  let didTimeout = false
+  const timeoutId = setTimeout(() => {
+    didTimeout = true
+    controller.abort()
+  }, 10000)
+  const signal = externalSignal
+    ? AbortSignal.any([externalSignal, controller.signal])
+    : controller.signal
+
+  try {
+    throwIfAborted(externalSignal)
+    const response = await providerFetch(url, {
       method: 'GET',
       headers,
-      signal: controller.signal,
+      signal,
     })
+    throwIfAborted(signal)
+
+    if (!response.ok) {
+      return { ok: false, status: response.status, data: null }
+    }
+
+    return {
+      ok: true,
+      status: response.status,
+      data: await readModelListJson(response, signal),
+    }
+  } catch (error) {
+    if (externalSignal?.aborted) {
+      throw createAbortError()
+    }
+    if (didTimeout && !externalSignal?.aborted && isAbortError(error)) {
+      throw new Error('Model listing request timed out.')
+    }
+    throw error
   } finally {
     clearTimeout(timeoutId)
   }

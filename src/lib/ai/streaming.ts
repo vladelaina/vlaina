@@ -14,6 +14,16 @@ export interface StreamAccumulator {
 interface ConsumeOpenAIStreamOptions {
   onAssistantTranscriptMessage?: (message: ApiTranscriptMessage) => void
   mapErrorPayload?: (message: string, code?: string) => Error | string
+  signal?: AbortSignal
+}
+
+function createAbortError(): DOMException {
+  return new DOMException('The AI request was cancelled.', 'AbortError')
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return
+  throw createAbortError()
 }
 
 export function createStreamAccumulator(onChunk: (chunk: string) => void): StreamAccumulator {
@@ -201,6 +211,18 @@ export async function consumeOpenAIStream(
   const decoder = new TextDecoder()
   const accumulator = createStreamAccumulator(onChunk)
   let buffer = ''
+  const cancelReader = () => {
+    void reader.cancel(createAbortError()).catch(() => undefined)
+  }
+
+  if (options?.signal?.aborted) {
+    await reader.cancel(createAbortError()).catch(() => undefined)
+    reader.releaseLock()
+    throw createAbortError()
+  }
+
+  options?.signal?.addEventListener('abort', cancelReader, { once: true })
+
   const consumeLine = (line: string) => {
     const payload = parsePayloadText(line)
     if (!payload) {
@@ -223,7 +245,9 @@ export async function consumeOpenAIStream(
 
   try {
     while (true) {
+      throwIfAborted(options?.signal)
       const { done, value } = await reader.read()
+      throwIfAborted(options?.signal)
       if (done) {
         break
       }
@@ -233,24 +257,36 @@ export async function consumeOpenAIStream(
       buffer = lines.pop() || ''
 
       for (const line of lines) {
+        throwIfAborted(options?.signal)
         consumeLine(line)
+        throwIfAborted(options?.signal)
       }
     }
 
     if (buffer.trim()) {
+      throwIfAborted(options?.signal)
       consumeLine(buffer)
+      throwIfAborted(options?.signal)
     }
 
     const finalContent = accumulator.finish()
+    throwIfAborted(options?.signal)
     const transcriptMessage = accumulator.getAssistantTranscriptMessage()
     if (transcriptMessage) {
       options?.onAssistantTranscriptMessage?.(transcriptMessage)
+      throwIfAborted(options?.signal)
     }
     return finalContent
   } catch (error) {
     await reader.cancel().catch(() => undefined)
+    if (options?.signal?.aborted && !(
+      error instanceof Error && error.name === 'AbortError'
+    )) {
+      throw createAbortError()
+    }
     throw error
   } finally {
+    options?.signal?.removeEventListener('abort', cancelReader)
     reader.releaseLock()
   }
 }

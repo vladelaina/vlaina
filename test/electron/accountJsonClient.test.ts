@@ -1,7 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDesktopAccountJsonClient } from '../../electron/accountJsonClient.mjs';
 
 describe('desktop account json client', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('logs only payload summaries for debug fetch responses', async () => {
     const logDesktopAuth = vi.fn();
     const client = createDesktopAccountJsonClient({ logDesktopAuth });
@@ -95,5 +99,49 @@ describe('desktop account json client', () => {
     });
     expect(JSON.stringify(doneLog)).not.toContain('nts_body_secret');
     expect(JSON.stringify(doneLog)).not.toContain('nts_header_secret');
+  });
+
+  it('rejects promptly when fetch ignores abort for json requests', async () => {
+    const client = createDesktopAccountJsonClient();
+    const controller = new AbortController();
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));
+
+    const request = client.fetchJson('https://api.example.com/auth/session', {
+      signal: controller.signal,
+    });
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('does not start json requests when already aborted', async () => {
+    const client = createDesktopAccountJsonClient();
+    const controller = new AbortController();
+    controller.abort();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(client.fetchJson('https://api.example.com/auth/session', {
+      signal: controller.signal,
+    })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects promptly when response text ignores abort', async () => {
+    const client = createDesktopAccountJsonClient();
+    const controller = new AbortController();
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      status: 200,
+      ok: true,
+      text: vi.fn(() => new Promise(() => undefined)),
+    })));
+
+    const request = client.fetchDesktopJson('https://api.example.com/desktop/result', {
+      signal: controller.signal,
+    });
+    await Promise.resolve();
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
   });
 });

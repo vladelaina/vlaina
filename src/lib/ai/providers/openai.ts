@@ -54,16 +54,119 @@ function rejectHtmlErrorContent(content: string): string {
   return content
 }
 
-function createHtmlRejectingChunkHandler(onChunk: (chunk: string) => void): (chunk: string) => void {
-  return (chunk) => {
-    rejectHtmlErrorContent(chunk)
-    onChunk(chunk)
-  }
-}
-
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError'
     || !!error && typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError'
+}
+
+function createAbortError(): DOMException {
+  return new DOMException('Aborted', 'AbortError')
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return
+  throw createAbortError()
+}
+
+function emitChunk(onChunk: (chunk: string) => void, signal: AbortSignal | undefined, chunk: string): void {
+  throwIfAborted(signal)
+  onChunk(chunk)
+  throwIfAborted(signal)
+}
+
+function emitApiTranscript(
+  onApiTranscript: ChatSendOptions['onApiTranscript'] | undefined,
+  signal: AbortSignal | undefined,
+  messages: ApiTranscriptMessage[]
+): void {
+  throwIfAborted(signal)
+  onApiTranscript?.(messages)
+  throwIfAborted(signal)
+}
+
+function emitWebSearchStatus(
+  onWebSearchStatus: ChatSendOptions['onWebSearchStatus'] | undefined,
+  signal: AbortSignal | undefined,
+  status: Parameters<NonNullable<ChatSendOptions['onWebSearchStatus']>>[0]
+): void {
+  throwIfAborted(signal)
+  onWebSearchStatus?.(status)
+  throwIfAborted(signal)
+}
+
+function createHtmlRejectingChunkHandler(onChunk: (chunk: string) => void, signal?: AbortSignal): (chunk: string) => void {
+  return (chunk) => {
+    rejectHtmlErrorContent(chunk)
+    emitChunk(onChunk, signal, chunk)
+  }
+}
+
+async function raceWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return await promise
+  throwIfAborted(signal)
+  promise.catch(() => undefined)
+
+  return await new Promise<T>((resolve, reject) => {
+    let settled = false
+    const cleanup = () => {
+      signal.removeEventListener('abort', abort)
+    }
+    const settle = (callback: () => void) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      callback()
+    }
+    const abort = () => {
+      settle(() => reject(createAbortError()))
+    }
+
+    signal.addEventListener('abort', abort, { once: true })
+    if (signal.aborted) {
+      abort()
+      return
+    }
+
+    promise.then(
+      (value) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal)
+            resolve(value)
+          } catch (error) {
+            reject(error)
+          }
+        })
+      },
+      (error) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal)
+            reject(error)
+          } catch (abortError) {
+            reject(abortError)
+          }
+        })
+      },
+    )
+  })
+}
+
+async function readResponseTextOrFallback(response: Response, signal?: AbortSignal): Promise<string> {
+  try {
+    throwIfAborted(signal)
+    return await raceWithAbort(response.text(), signal)
+  } catch {
+    if (signal?.aborted) {
+      throw createAbortError()
+    }
+    return 'Unknown error'
+  }
+}
+
+async function readResponseJson<T>(response: Response, signal?: AbortSignal): Promise<T> {
+  throwIfAborted(signal)
+  return await raceWithAbort(response.json() as Promise<T>, signal)
 }
 
 function createUnsupportedWebSearchError(): Error {
@@ -514,35 +617,39 @@ export class OpenAICompatibleClient implements AIClient {
         ...body,
         stream: false,
       } as unknown as Record<string, unknown>, signal)
+      throwIfAborted(signal)
       const content = this.extractManagedResponseContent(payload)
-      ;(onChunk || (() => {}))(content)
+      emitChunk(onChunk || (() => {}), signal, content)
       const apiTranscript = buildAssistantApiTranscriptFromRenderedContent(content)
       if (apiTranscript.length) {
-        options?.onApiTranscript?.(apiTranscript)
+        emitApiTranscript(options?.onApiTranscript, signal, apiTranscript)
       }
       return content
     }
 
     const content = await requestManagedChatCompletionStream(
       body as unknown as Record<string, unknown>,
-      createHtmlRejectingChunkHandler(onChunk || (() => {})),
+      createHtmlRejectingChunkHandler(onChunk || (() => {}), signal),
       signal
     )
+    throwIfAborted(signal)
     rejectHtmlErrorContent(content)
     const apiTranscript = buildAssistantApiTranscriptFromRenderedContent(content)
     if (apiTranscript.length) {
-      options?.onApiTranscript?.(apiTranscript)
+      emitApiTranscript(options?.onApiTranscript, signal, apiTranscript)
     }
     return content
   }
 
   private async sendManagedImageGeneration(
     body: Record<string, unknown>,
-    onChunk?: (chunk: string) => void
+    onChunk?: (chunk: string) => void,
+    signal?: AbortSignal
   ): Promise<string> {
-    const payload = await requestManagedImageGeneration(body)
+    const payload = await requestManagedImageGeneration(body, signal)
+    throwIfAborted(signal)
     const content = normalizeGeneratedImageMarkdown(payload)
-    ;(onChunk || (() => {}))(content)
+    emitChunk(onChunk || (() => {}), signal, content)
     return content
   }
 
@@ -586,7 +693,7 @@ export class OpenAICompatibleClient implements AIClient {
           return response
         }
 
-        const errorText = await response.text().catch(() => 'Unknown error')
+        const errorText = await readResponseTextOrFallback(response, signal)
         let errorBody
         try {
           errorBody = JSON.parse(errorText)
@@ -603,7 +710,7 @@ export class OpenAICompatibleClient implements AIClient {
         }
         throw parsedError
       } catch (error) {
-        if (signal?.aborted || isAbortError(error)) {
+        if (signal?.aborted) {
           throw error
         }
         if (hasHttpStatus(error)) {
@@ -638,8 +745,13 @@ export class OpenAICompatibleClient implements AIClient {
     signal?: AbortSignal
     options?: ChatSendOptions
   }): Promise<string> {
-    options?.onWebSearchStatus?.({ phase: 'searching', query: extractTextPrompt(body.messages[body.messages.length - 1]?.content ?? '') })
-    onChunk(buildWebSearchStatusMarkup({ phase: 'searching' }))
+    throwIfAborted(signal)
+    emitWebSearchStatus(
+      options?.onWebSearchStatus,
+      signal,
+      { phase: 'searching', query: extractTextPrompt(body.messages[body.messages.length - 1]?.content ?? '') }
+    )
+    emitChunk(onChunk, signal, buildWebSearchStatusMarkup({ phase: 'searching' }))
 
     const response = await providerFetch(`${baseUrl}/responses`, {
       method: 'POST',
@@ -654,7 +766,7 @@ export class OpenAICompatibleClient implements AIClient {
     })
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error')
+      const errorText = await readResponseTextOrFallback(response, signal)
       let errorBody
       try {
         errorBody = JSON.parse(errorText)
@@ -664,7 +776,8 @@ export class OpenAICompatibleClient implements AIClient {
       throw parseHTTPError(response.status, errorBody)
     }
 
-    const payload = await response.json() as Record<string, unknown>
+    const payload = await readResponseJson<Record<string, unknown>>(response, signal)
+    throwIfAborted(signal)
     const content = rejectHtmlErrorContent(extractXaiResponsesText(payload))
     if (!content.trim()) {
       throw new Error('The model completed web search but returned no visible answer.')
@@ -691,7 +804,7 @@ export class OpenAICompatibleClient implements AIClient {
       : ''
     const finalContent = `${statuses}${statuses && content.trim() ? '\n\n' : ''}${content}`
     if (citationUrls.length > 0) {
-      options?.onWebSearchStatus?.({
+      emitWebSearchStatus(options?.onWebSearchStatus, signal, {
         phase: 'results',
         results: citationUrls.slice(0, 5).map((url) => ({
           title: hostLabel(url),
@@ -701,14 +814,14 @@ export class OpenAICompatibleClient implements AIClient {
         })),
         metrics: { resultCount: citationUrls.length },
       })
-      options?.onWebSearchStatus?.({
+      emitWebSearchStatus(options?.onWebSearchStatus, signal, {
         phase: 'complete',
         urls: citationUrls,
         metrics: { successCount: citationUrls.length },
       })
     }
-    onChunk(finalContent)
-    options?.onApiTranscript?.([{ role: 'assistant', content }])
+    emitChunk(onChunk, signal, finalContent)
+    emitApiTranscript(options?.onApiTranscript, signal, [{ role: 'assistant', content }])
     return finalContent
   }
 
@@ -740,7 +853,7 @@ export class OpenAICompatibleClient implements AIClient {
           model: resolveApiModelId(model),
           prompt: imagePrompt,
           n: 1,
-        }, onChunk)
+        }, onChunk, signal)
       }
       if (options?.webSearchEnabled && !isGrokModel(provider, model)) {
         if (shouldUseWebSearchTextProtocol(provider, model)) {
@@ -883,6 +996,7 @@ export class OpenAICompatibleClient implements AIClient {
     onChunk: (chunk: string) => void,
     signal?: AbortSignal
   ): Promise<string> {
+    throwIfAborted(signal)
     const response = await providerFetch(url, {
       method: 'POST',
       headers,
@@ -891,7 +1005,7 @@ export class OpenAICompatibleClient implements AIClient {
     })
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error')
+      const errorText = await readResponseTextOrFallback(response, signal)
       let errorBody
       try {
         errorBody = JSON.parse(errorText)
@@ -901,9 +1015,10 @@ export class OpenAICompatibleClient implements AIClient {
       throw parseHTTPError(response.status, errorBody)
     }
 
-    const payload = await response.json() as Record<string, unknown>
+    const payload = await readResponseJson<Record<string, unknown>>(response, signal)
+    throwIfAborted(signal)
     const content = normalizeGeneratedImageMarkdown(payload)
-    onChunk(content)
+    emitChunk(onChunk, signal, content)
     return content
   }
 
@@ -914,8 +1029,9 @@ export class OpenAICompatibleClient implements AIClient {
   ): Promise<string> {
     const { body, headers } = buildImageEditMultipartBody(input);
     const payload = await requestManagedImageEdit(body, headers, signal);
+    throwIfAborted(signal);
     const content = normalizeGeneratedImageMarkdown(payload);
-    ;(onChunk || (() => {}))(content);
+    emitChunk(onChunk || (() => {}), signal, content);
     return content;
   }
 
@@ -926,6 +1042,7 @@ export class OpenAICompatibleClient implements AIClient {
     onChunk: (chunk: string) => void,
     signal?: AbortSignal
   ): Promise<string> {
+    throwIfAborted(signal)
     const multipart = buildImageEditMultipartBody(input);
     const response = await providerFetch(url, {
       method: 'POST',
@@ -938,7 +1055,7 @@ export class OpenAICompatibleClient implements AIClient {
     });
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error')
+      const errorText = await readResponseTextOrFallback(response, signal)
       let errorBody
       try {
         errorBody = JSON.parse(errorText)
@@ -948,9 +1065,10 @@ export class OpenAICompatibleClient implements AIClient {
       throw parseHTTPError(response.status, errorBody)
     }
 
-    const payload = await response.json() as Record<string, unknown>
+    const payload = await readResponseJson<Record<string, unknown>>(response, signal)
+    throwIfAborted(signal)
     const content = normalizeGeneratedImageMarkdown(payload)
-    onChunk(content)
+    emitChunk(onChunk, signal, content)
     return content
   }
 
@@ -969,10 +1087,21 @@ export class OpenAICompatibleClient implements AIClient {
       controller.abort()
     }, this.timeout)
 
-    const forwardAbort = () => controller.abort()
-    signal?.addEventListener('abort', forwardAbort)
+    const forwardAbort = () => {
+      if (!controller.signal.aborted) {
+        controller.abort()
+      }
+    }
+    signal?.addEventListener('abort', forwardAbort, { once: true })
+    if (signal?.aborted) {
+      forwardAbort()
+    }
 
     try {
+      if (controller.signal.aborted) {
+        throw createAbortError()
+      }
+
       const response = await providerFetch(url, {
         method: 'POST',
         headers,
@@ -981,7 +1110,7 @@ export class OpenAICompatibleClient implements AIClient {
       })
 
       if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error')
+        const errorText = await readResponseTextOrFallback(response, controller.signal)
         let errorBody
         try {
           errorBody = JSON.parse(errorText)
@@ -991,14 +1120,16 @@ export class OpenAICompatibleClient implements AIClient {
         throw parseHTTPError(response.status, errorBody)
       }
 
-      const result = await consumeOpenAIStream(response, createHtmlRejectingChunkHandler(onChunk), {
+      const result = await consumeOpenAIStream(response, createHtmlRejectingChunkHandler(onChunk, controller.signal), {
+        signal: controller.signal,
         onAssistantTranscriptMessage: (message) => {
-          options?.onApiTranscript?.([message])
+          emitApiTranscript(options?.onApiTranscript, controller.signal, [message])
         },
       })
+      throwIfAborted(controller.signal)
       return rejectHtmlErrorContent(result)
     } catch (error) {
-      if (isAbortError(error)) {
+      if (isAbortError(error) && (timedOut || signal?.aborted)) {
         if (timedOut) {
           throw new Error('The AI request timed out.')
         }
@@ -1030,14 +1161,16 @@ export class OpenAICompatibleClient implements AIClient {
     }
   }
 
-  async getModels(provider: Provider): Promise<string[]> {
-    const result = await this.getModelsWithEndpointDetection(provider)
+  async getModels(provider: Provider, signal?: AbortSignal): Promise<string[]> {
+    const result = await this.getModelsWithEndpointDetection(provider, signal)
     return result.models
   }
 
-  async getModelsWithEndpointDetection(provider: Provider): Promise<ModelFetchResult> {
+  async getModelsWithEndpointDetection(provider: Provider, signal?: AbortSignal): Promise<ModelFetchResult> {
     if (provider.id === MANAGED_PROVIDER_ID) {
+      throwIfAborted(signal)
       const models = await fetchManagedModels()
+      throwIfAborted(signal)
       return {
         models: models.map((model) => model.apiModelId),
         endpointType: 'openai',
@@ -1045,7 +1178,8 @@ export class OpenAICompatibleClient implements AIClient {
     }
 
     const apiKey = await this.resolveApiKey(provider)
-    return detectProviderEndpointModels(provider, apiKey)
+    throwIfAborted(signal)
+    return detectProviderEndpointModels(provider, apiKey, signal)
   }
 }
 

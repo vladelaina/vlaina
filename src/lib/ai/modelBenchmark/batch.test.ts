@@ -120,4 +120,27 @@ describe('benchmarkModels', () => {
     expect(mockedCheckModelHealth).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
   });
+
+  it('does not publish progress or results when aborted after a model check resolves', async () => {
+    const mockedCheckModelHealth = vi.mocked(checkModelHealth);
+    const controller = new AbortController();
+    const onProgress = vi.fn();
+    mockedCheckModelHealth.mockImplementation(async () => {
+      controller.abort();
+      return {
+        status: 'success',
+        latency: 10,
+        endpoint: 'chat',
+      };
+    });
+
+    const resultMap = await benchmarkModels(provider, [createModel('m-1')], {
+      signal: controller.signal,
+      batchDelayMs: 0,
+      onProgress,
+    });
+
+    expect(resultMap).toEqual({});
+    expect(onProgress).not.toHaveBeenCalled();
+  });
 });

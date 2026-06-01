@@ -36,6 +36,15 @@ function isAbortError(error: unknown): boolean {
     || !!error && typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError';
 }
 
+function createAbortError(): DOMException {
+  return new DOMException('Aborted', 'AbortError');
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw createAbortError();
+}
+
 function extractStatusCode(error: unknown): number | null {
   if (!error || typeof error !== 'object') {
     return null;
@@ -64,8 +73,8 @@ function extractErrorCode(error: unknown): string {
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
 }
 
-function isTransientPreStreamError(error: unknown): boolean {
-  if (isAbortError(error)) {
+function isTransientPreStreamError(error: unknown, signal?: AbortSignal): boolean {
+  if (isAbortError(error) && signal?.aborted) {
     return false;
   }
 
@@ -94,11 +103,11 @@ function isTransientPreStreamError(error: unknown): boolean {
 }
 
 function waitForRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
-  if (delayMs <= 0) {
-    return Promise.resolve();
-  }
   if (signal?.aborted) {
     return Promise.reject(new DOMException('Aborted', 'AbortError'));
+  }
+  if (delayMs <= 0) {
+    return Promise.resolve();
   }
 
   return new Promise((resolve, reject) => {
@@ -126,20 +135,28 @@ async function sendWithSinglePreStreamRetry(
 ): Promise<string> {
   let didReceiveChunk = false;
   const trackedOnChunk = (chunk: string) => {
+    throwIfAborted(signal);
     didReceiveChunk = true;
     onChunk(chunk);
+    throwIfAborted(signal);
   };
 
   try {
-    return await send(trackedOnChunk);
+    const result = await send(trackedOnChunk);
+    throwIfAborted(signal);
+    return result;
   } catch (error) {
-    if (!shouldRetry || didReceiveChunk || !isTransientPreStreamError(error)) {
+    throwIfAborted(signal);
+    if (!shouldRetry || didReceiveChunk || !isTransientPreStreamError(error, signal)) {
       throw error;
     }
 
     await waitForRetry(delayMs, signal);
+    throwIfAborted(signal);
     didReceiveChunk = false;
-    return send(trackedOnChunk);
+    const result = await send(trackedOnChunk);
+    throwIfAborted(signal);
+    return result;
   }
 }
 
@@ -155,6 +172,7 @@ export async function sendMessageWithEndpointFallback({
   updateProvider = aiActions.updateProvider,
   retryDelayMs = PRE_STREAM_RETRY_DELAY_MS,
 }: SendMessageWithEndpointFallbackOptions): Promise<string> {
+  throwIfAborted(signal);
   const shouldAutoRetry = options?.webSearchEnabled !== true;
 
   if (isManagedProviderId(provider.id) || (provider.endpointType && provider.endpointTypeCheckedAt)) {
@@ -188,10 +206,11 @@ export async function sendMessageWithEndpointFallback({
       retryDelayMs,
       shouldAutoRetry,
     );
+    throwIfAborted(signal);
     updateProvider(provider.id, { endpointType: 'openai', endpointTypeCheckedAt: Date.now() });
     return result;
   } catch (openAIError) {
-    if (signal?.aborted || (openAIError instanceof Error && openAIError.name === 'AbortError')) {
+    if (signal?.aborted) {
       throw openAIError;
     }
     if (didReceiveOpenAIChunk) {
@@ -217,6 +236,7 @@ export async function sendMessageWithEndpointFallback({
         retryDelayMs,
         shouldAutoRetry,
       );
+      throwIfAborted(signal);
       updateProvider(provider.id, { endpointType: 'anthropic', endpointTypeCheckedAt: Date.now() });
       return result;
     } catch (anthropicError) {

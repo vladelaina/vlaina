@@ -45,16 +45,106 @@ function bytesToBase64(bytes: Uint8Array): string {
   return window.btoa(binary);
 }
 
-async function serializeBinaryBodyForDesktop(body: BodyInit, headers: Record<string, string>): Promise<{
+function createAbortError(): DOMException {
+  return new DOMException('Aborted', 'AbortError');
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw createAbortError();
+}
+
+function raceWithAbort<T>(
+  promise: Promise<T>,
+  signal?: AbortSignal,
+  onAbort?: () => void,
+): Promise<T> {
+  if (!signal) {
+    return promise;
+  }
+  if (signal.aborted) {
+    onAbort?.();
+    return Promise.reject(createAbortError());
+  }
+
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      signal.removeEventListener('abort', abort);
+    };
+    const abort = () => {
+      cleanup();
+      onAbort?.();
+      reject(createAbortError());
+    };
+
+    signal.addEventListener('abort', abort, { once: true });
+    promise.then(
+      (value) => {
+        cleanup();
+        if (signal.aborted) {
+          reject(createAbortError());
+          return;
+        }
+        resolve(value);
+      },
+      (error) => {
+        cleanup();
+        if (signal.aborted) {
+          reject(createAbortError());
+          return;
+        }
+        reject(error);
+      },
+    );
+  });
+}
+
+function readBlobAsArrayBuffer(blob: Blob, signal?: AbortSignal): Promise<ArrayBuffer> {
+  const arrayBuffer = (blob as { arrayBuffer?: () => Promise<ArrayBuffer> }).arrayBuffer;
+  if (typeof arrayBuffer === 'function') {
+    return raceWithAbort(arrayBuffer.call(blob), signal);
+  }
+
+  if (typeof FileReader === 'undefined') {
+    return Promise.reject(new Error('Managed desktop binary requests require Blob.arrayBuffer or FileReader support.'));
+  }
+
+  const reader = new FileReader();
+  const promise = new Promise<ArrayBuffer>((resolve, reject) => {
+    reader.onload = () => {
+      if (reader.result instanceof ArrayBuffer) {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error('Managed desktop binary request body could not be read as bytes.'));
+    };
+    reader.onerror = () => {
+      reject(reader.error ?? new Error('Managed desktop binary request body could not be read.'));
+    };
+    reader.onabort = () => {
+      reject(createAbortError());
+    };
+    reader.readAsArrayBuffer(blob);
+  });
+  return raceWithAbort(promise, signal, () => {
+    try {
+      reader.abort();
+    } catch {
+    }
+  });
+}
+
+async function serializeBinaryBodyForDesktop(body: BodyInit, headers: Record<string, string>, signal?: AbortSignal): Promise<{
   bodyBase64: string;
   headers: Record<string, string>;
 }> {
+  throwIfAborted(signal);
   if (!(body instanceof Blob)) {
     throw new Error('Managed desktop binary requests require a Blob body.');
   }
 
   return {
-    bodyBase64: bytesToBase64(new Uint8Array(await body.arrayBuffer())),
+    bodyBase64: bytesToBase64(new Uint8Array(await readBlobAsArrayBuffer(body, signal))),
     headers,
   };
 }
@@ -75,6 +165,68 @@ function publicManagedStreamErrorMessage(message: string | undefined, errorCode:
     default:
       return message || 'Managed stream failed';
   }
+}
+
+async function runCancellableManagedJsonRequest<T>({
+  signal,
+  requestIdPrefix,
+  start,
+  cancel,
+}: {
+  signal?: AbortSignal;
+  requestIdPrefix: string;
+  start: (requestId?: string) => Promise<T>;
+  cancel: (requestId: string) => Promise<void>;
+}): Promise<T> {
+  if (signal?.aborted) {
+    throw createAbortError();
+  }
+  if (!signal) {
+    return await start();
+  }
+
+  const requestId = `${requestIdPrefix}-${crypto.randomUUID()}`;
+  return await new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      signal.removeEventListener('abort', abort);
+    };
+    const settleRejected = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+    const abort = () => {
+      if (settled) return;
+      void cancel(requestId).catch(() => {});
+      settleRejected(createAbortError());
+    };
+
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+
+    try {
+      start(requestId).then(
+        (value) => {
+          if (settled) return;
+          if (signal.aborted) {
+            abort();
+            return;
+          }
+          settled = true;
+          cleanup();
+          resolve(value);
+        },
+        settleRejected,
+      );
+    } catch (error) {
+      settleRejected(error);
+    }
+  });
 }
 
 export const accountCommands = {
@@ -133,29 +285,35 @@ export const accountCommands = {
   },
 
   async managedChatCompletion(body: object, signal?: AbortSignal) {
-    if (signal?.aborted) {
-      throw new DOMException('Aborted', 'AbortError');
-    }
-    const request = getDesktopAccountBridge().managedChatCompletion(body);
-    if (!signal) {
-      return await request;
-    }
-    return await new Promise<Record<string, unknown>>((resolve, reject) => {
-      const abort = () => reject(new DOMException('Aborted', 'AbortError'));
-      signal.addEventListener('abort', abort, { once: true });
-      request.then(resolve, reject).finally(() => {
-        signal.removeEventListener('abort', abort);
-      });
+    const bridge = getDesktopAccountBridge();
+    return await runCancellableManagedJsonRequest({
+      signal,
+      requestIdPrefix: 'managed-json',
+      start: (requestId) => bridge.managedChatCompletion(body, requestId),
+      cancel: (requestId) => bridge.cancelManagedChatCompletion(requestId),
     });
   },
 
-  async managedImageGeneration(body: object) {
-    return await getDesktopAccountBridge().managedImageGeneration(body);
+  async managedImageGeneration(body: object, signal?: AbortSignal) {
+    const bridge = getDesktopAccountBridge();
+    return await runCancellableManagedJsonRequest({
+      signal,
+      requestIdPrefix: 'managed-image-generation',
+      start: (requestId) => bridge.managedImageGeneration(body, requestId),
+      cancel: (requestId) => bridge.cancelManagedImageGeneration(requestId),
+    });
   },
 
-  async managedImageEdit(body: BodyInit, headers: Record<string, string>) {
-    const payload = await serializeBinaryBodyForDesktop(body, headers);
-    return await getDesktopAccountBridge().managedImageEdit(payload);
+  async managedImageEdit(body: BodyInit, headers: Record<string, string>, signal?: AbortSignal) {
+    const payload = await serializeBinaryBodyForDesktop(body, headers, signal);
+    throwIfAborted(signal);
+    const bridge = getDesktopAccountBridge();
+    return await runCancellableManagedJsonRequest({
+      signal,
+      requestIdPrefix: 'managed-image-edit',
+      start: (requestId) => bridge.managedImageEdit(payload, requestId),
+      cancel: (requestId) => bridge.cancelManagedImageEdit(requestId),
+    });
   },
 
   async managedChatCompletionStream(
@@ -166,8 +324,12 @@ export const accountCommands = {
   ) {
     const requestId = externalRequestId?.trim() || `managed-${crypto.randomUUID()}`;
     const bridge = getDesktopAccountBridge();
+    if (signal?.aborted) {
+      void bridge.cancelManagedChatCompletionStream(requestId);
+      throw createAbortError();
+    }
 
-    return await new Promise<string>(async (resolve, reject) => {
+    return await new Promise<string>((resolve, reject) => {
       let isSettled = false;
 
       const cleanupCallbacks: Array<() => void> = [];
@@ -175,6 +337,13 @@ export const accountCommands = {
         while (cleanupCallbacks.length > 0) {
           cleanupCallbacks.pop()?.();
         }
+      };
+      const addCleanupCallback = (cleanupCallback: () => void) => {
+        if (isSettled) {
+          cleanupCallback();
+          return;
+        }
+        cleanupCallbacks.push(cleanupCallback);
       };
       const settleRejected = (error: unknown) => {
         if (isSettled) return;
@@ -187,36 +356,63 @@ export const accountCommands = {
         settleRejected(new DOMException('Aborted', 'AbortError'));
       };
 
-      cleanupCallbacks.push(
-        bridge.onManagedStreamChunk(requestId, (content) => {
-          onChunk(content);
-        })
-      );
+      try {
+        addCleanupCallback(
+          bridge.onManagedStreamChunk(requestId, (content) => {
+            if (isSettled) return;
+            try {
+              throwIfAborted(signal);
+              onChunk(content);
+              throwIfAborted(signal);
+            } catch (error) {
+              if (signal?.aborted) {
+                settleAborted();
+                return;
+              }
+              settleRejected(error);
+            }
+          })
+        );
+        if (isSettled) return;
 
-      cleanupCallbacks.push(
-        bridge.onManagedStreamDone(requestId, ({ content }) => {
-          if (isSettled) return;
-          isSettled = true;
-          cleanup();
-          resolve(content);
-        })
-      );
+        addCleanupCallback(
+          bridge.onManagedStreamDone(requestId, ({ content }) => {
+            if (isSettled) return;
+            if (signal?.aborted) {
+              settleAborted();
+              return;
+            }
+            isSettled = true;
+            cleanup();
+            resolve(content);
+          })
+        );
+        if (isSettled) return;
 
-      cleanupCallbacks.push(
-        bridge.onManagedStreamError(requestId, ({ message, statusCode, errorCode }) => {
-          const error = new Error(publicManagedStreamErrorMessage(message, errorCode)) as Error & {
-            statusCode?: number;
-            errorCode?: string;
-          };
-          if (typeof statusCode === 'number') {
-            error.statusCode = statusCode;
-          }
-          if (typeof errorCode === 'string' && errorCode.trim()) {
-            error.errorCode = errorCode.trim();
-          }
-          settleRejected(error);
-        })
-      );
+        addCleanupCallback(
+          bridge.onManagedStreamError(requestId, ({ message, statusCode, errorCode }) => {
+            if (isSettled) return;
+            if (signal?.aborted) {
+              settleAborted();
+              return;
+            }
+            const error = new Error(publicManagedStreamErrorMessage(message, errorCode)) as Error & {
+              statusCode?: number;
+              errorCode?: string;
+            };
+            if (typeof statusCode === 'number') {
+              error.statusCode = statusCode;
+            }
+            if (typeof errorCode === 'string' && errorCode.trim()) {
+              error.errorCode = errorCode.trim();
+            }
+            settleRejected(error);
+          })
+        );
+      } catch (error) {
+        settleRejected(error);
+        return;
+      }
 
       if (signal?.aborted) {
         settleAborted();
@@ -228,13 +424,14 @@ export const accountCommands = {
           settleAborted();
         };
         signal.addEventListener('abort', abortHandler, { once: true });
-        cleanupCallbacks.push(() => {
+        addCleanupCallback(() => {
           signal.removeEventListener('abort', abortHandler);
         });
       }
 
       try {
-        await bridge.startManagedChatCompletionStream(requestId, body);
+        void Promise.resolve(bridge.startManagedChatCompletionStream(requestId, body))
+          .catch(settleRejected);
       } catch (error) {
         settleRejected(error);
       }

@@ -21,6 +21,11 @@ const mocks = vi.hoisted(() => {
     getManagedModelsVersion: vi.fn().mockResolvedValue({ success: true, model_catalog_version: '0' }),
     getManagedBudget: vi.fn().mockResolvedValue({ active: true }),
     managedChatCompletion: vi.fn().mockResolvedValue({ id: 'resp-1' }),
+    cancelManagedChatCompletion: vi.fn().mockResolvedValue(undefined),
+    managedImageGeneration: vi.fn().mockResolvedValue({ data: [] }),
+    cancelManagedImageGeneration: vi.fn().mockResolvedValue(undefined),
+    managedImageEdit: vi.fn().mockResolvedValue({ data: [] }),
+    cancelManagedImageEdit: vi.fn().mockResolvedValue(undefined),
     startManagedChatCompletionStream: vi.fn().mockResolvedValue(undefined),
     cancelManagedChatCompletionStream: vi.fn().mockResolvedValue(undefined),
     onManagedStreamChunk: vi.fn(),
@@ -117,6 +122,220 @@ describe('desktop account commands', () => {
     expect(result).toBe('hello world');
   });
 
+  it('cancels managed streams when a chunk callback aborts the signal', async () => {
+    const listeners: Record<string, ((payload: any) => void) | undefined> = {};
+    mocks.account.onManagedStreamChunk.mockImplementation((_requestId: string, callback: (content: string) => void) => {
+      listeners.chunk = callback;
+      return vi.fn();
+    });
+    mocks.account.onManagedStreamDone.mockImplementation((_requestId: string, callback: (payload: { content: string }) => void) => {
+      listeners.done = callback;
+      return vi.fn();
+    });
+    mocks.account.onManagedStreamError.mockImplementation((_requestId: string, callback: (payload: { message: string }) => void) => {
+      listeners.error = callback;
+      return vi.fn();
+    });
+    mocks.account.startManagedChatCompletionStream.mockImplementationOnce(async () => {
+      listeners.chunk?.('partial');
+      listeners.done?.({ content: 'stale done' });
+    });
+    const controller = new AbortController();
+    const chunks: string[] = [];
+
+    await expect(accountCommands.managedChatCompletionStream(
+      { model: 'vlaina-managed/test' },
+      (chunk) => {
+        chunks.push(chunk);
+        controller.abort();
+      },
+      controller.signal,
+      'req-chunk-abort',
+    )).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(chunks).toEqual(['partial']);
+    expect(mocks.account.cancelManagedChatCompletionStream).toHaveBeenCalledWith('req-chunk-abort');
+  });
+
+  it('rejects managed streams when a done event arrives after signal cancellation during listener setup', async () => {
+    const controller = new AbortController();
+    const cleanupChunk = vi.fn();
+    const cleanupDone = vi.fn();
+    const cleanupError = vi.fn();
+    mocks.account.onManagedStreamChunk.mockImplementation(() => cleanupChunk);
+    mocks.account.onManagedStreamDone.mockImplementation((_requestId: string, callback: (payload: { content: string }) => void) => {
+      controller.abort();
+      callback({ content: 'stale done' });
+      return cleanupDone;
+    });
+    mocks.account.onManagedStreamError.mockImplementation(() => cleanupError);
+
+    await expect(accountCommands.managedChatCompletionStream(
+      { model: 'vlaina-managed/test' },
+      vi.fn(),
+      controller.signal,
+      'req-done-after-abort',
+    )).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(mocks.account.startManagedChatCompletionStream).not.toHaveBeenCalled();
+    expect(mocks.account.cancelManagedChatCompletionStream).toHaveBeenCalledWith('req-done-after-abort');
+    expect(cleanupChunk).toHaveBeenCalledTimes(1);
+    expect(cleanupDone).toHaveBeenCalledTimes(1);
+    expect(cleanupError).not.toHaveBeenCalled();
+    expect(mocks.account.onManagedStreamError).not.toHaveBeenCalled();
+  });
+
+  it('rejects and cleans up managed streams when a chunk callback throws', async () => {
+    const cleanupChunk = vi.fn();
+    const cleanupDone = vi.fn();
+    const cleanupError = vi.fn();
+    const listeners: Record<string, ((payload: any) => void) | undefined> = {};
+    mocks.account.onManagedStreamChunk.mockImplementation((_requestId: string, callback: (content: string) => void) => {
+      listeners.chunk = callback;
+      return cleanupChunk;
+    });
+    mocks.account.onManagedStreamDone.mockImplementation((_requestId: string, callback: (payload: { content: string }) => void) => {
+      listeners.done = callback;
+      return cleanupDone;
+    });
+    mocks.account.onManagedStreamError.mockImplementation((_requestId: string, callback: (payload: { message: string }) => void) => {
+      listeners.error = callback;
+      return cleanupError;
+    });
+    mocks.account.startManagedChatCompletionStream.mockImplementationOnce(async () => {
+      listeners.chunk?.('partial');
+      listeners.done?.({ content: 'stale done' });
+    });
+
+    await expect(accountCommands.managedChatCompletionStream(
+      { model: 'vlaina-managed/test' },
+      () => {
+        throw new Error('chunk handler failed');
+      },
+      undefined,
+      'req-chunk-throw',
+    )).rejects.toThrow('chunk handler failed');
+
+    expect(cleanupChunk).toHaveBeenCalledTimes(1);
+    expect(cleanupDone).toHaveBeenCalledTimes(1);
+    expect(cleanupError).toHaveBeenCalledTimes(1);
+    expect(mocks.account.cancelManagedChatCompletionStream).not.toHaveBeenCalled();
+  });
+
+  it('cancels managed chat completions when the signal aborts', async () => {
+    mocks.account.managedChatCompletion.mockImplementationOnce(() => new Promise(() => {}));
+
+    const controller = new AbortController();
+    const request = accountCommands.managedChatCompletion(
+      { model: 'vlaina-managed/test' },
+      controller.signal,
+    );
+
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    const requestId = mocks.account.managedChatCompletion.mock.calls[0]?.[1] as string;
+    expect(requestId).toMatch(/^managed-json-/);
+    expect(mocks.account.cancelManagedChatCompletion).toHaveBeenCalledWith(requestId);
+  });
+
+  it('does not return managed chat completion results after signal cancellation', async () => {
+    const controller = new AbortController();
+    mocks.account.managedChatCompletion.mockImplementationOnce(async () => {
+      controller.abort();
+      return { id: 'late-success' };
+    });
+
+    const request = accountCommands.managedChatCompletion(
+      { model: 'vlaina-managed/test' },
+      controller.signal,
+    );
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    const requestId = mocks.account.managedChatCompletion.mock.calls[0]?.[1] as string;
+    expect(requestId).toMatch(/^managed-json-/);
+    expect(mocks.account.cancelManagedChatCompletion).toHaveBeenCalledWith(requestId);
+  });
+
+  it('cancels managed image generations when the signal aborts', async () => {
+    mocks.account.managedImageGeneration.mockImplementationOnce(() => new Promise(() => {}));
+
+    const controller = new AbortController();
+    const request = accountCommands.managedImageGeneration(
+      { model: 'vlaina-managed/image', prompt: 'draw' },
+      controller.signal,
+    );
+
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    const requestId = mocks.account.managedImageGeneration.mock.calls[0]?.[1] as string;
+    expect(requestId).toMatch(/^managed-image-generation-/);
+    expect(mocks.account.cancelManagedImageGeneration).toHaveBeenCalledWith(requestId);
+  });
+
+  it('cancels managed image edits when the signal aborts after serialization', async () => {
+    mocks.account.managedImageEdit.mockImplementationOnce(() => new Promise(() => {}));
+
+    const controller = new AbortController();
+    const request = accountCommands.managedImageEdit(
+      new Blob(['multipart-body'], { type: 'multipart/form-data; boundary=test' }),
+      { 'Content-Type': 'multipart/form-data; boundary=test' },
+      controller.signal,
+    );
+
+    while (mocks.account.managedImageEdit.mock.calls.length === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    const [payload, requestId] = mocks.account.managedImageEdit.mock.calls[0] as [
+      { bodyBase64: string; headers: Record<string, string> },
+      string,
+    ];
+    expect(payload).toEqual({
+      bodyBase64: 'bXVsdGlwYXJ0LWJvZHk=',
+      headers: { 'Content-Type': 'multipart/form-data; boundary=test' },
+    });
+    expect(requestId).toMatch(/^managed-image-edit-/);
+    expect(mocks.account.cancelManagedImageEdit).toHaveBeenCalledWith(requestId);
+  });
+
+  it('rejects promptly when managed image edit Blob serialization is aborted', async () => {
+    const controller = new AbortController();
+    const blob = new Blob(['multipart-body'], { type: 'multipart/form-data; boundary=test' });
+    Object.defineProperty(blob, 'arrayBuffer', {
+      configurable: true,
+      value: vi.fn(() => new Promise(() => undefined)),
+    });
+
+    const request = accountCommands.managedImageEdit(
+      blob,
+      { 'Content-Type': 'multipart/form-data; boundary=test' },
+      controller.signal,
+    );
+    await Promise.resolve();
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    expect(mocks.account.managedImageEdit).not.toHaveBeenCalled();
+    expect(mocks.account.cancelManagedImageEdit).not.toHaveBeenCalled();
+  });
+
+  it('does not start managed image generation requests when the signal is already aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(accountCommands.managedImageGeneration(
+      { model: 'vlaina-managed/image', prompt: 'draw' },
+      controller.signal,
+    )).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(mocks.account.managedImageGeneration).not.toHaveBeenCalled();
+    expect(mocks.account.cancelManagedImageGeneration).not.toHaveBeenCalled();
+  });
+
   it('cancels managed streams when the signal aborts', async () => {
     const listeners: Record<string, ((payload: any) => void) | undefined> = {};
     mocks.account.onManagedStreamChunk.mockImplementation((_requestId: string, callback: (content: string) => void) => {
@@ -181,6 +400,24 @@ describe('desktop account commands', () => {
       statusCode: 403,
       errorCode: 'insufficient_points',
     });
+  });
+
+  it('rejects managed streams when bridge listener registration fails', async () => {
+    const cleanup = vi.fn();
+    mocks.account.onManagedStreamChunk.mockImplementationOnce(() => cleanup);
+    mocks.account.onManagedStreamDone.mockImplementationOnce(() => {
+      throw new Error('listener registration failed');
+    });
+
+    await expect(accountCommands.managedChatCompletionStream(
+      { model: 'vlaina-managed/test' },
+      vi.fn(),
+      undefined,
+      'req-listener-failed',
+    )).rejects.toThrow('listener registration failed');
+
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(mocks.account.startManagedChatCompletionStream).not.toHaveBeenCalled();
   });
 
   it('does not start managed streams when the signal is already aborted', async () => {

@@ -355,14 +355,44 @@ const desktopApi = {
     getManagedBudget() {
       return ipcRenderer.invoke('desktop:managed:get-budget');
     },
-    managedChatCompletion(body) {
-      return ipcRenderer.invoke('desktop:managed:chat-completion', body);
+    managedChatCompletion(body, requestId) {
+      if (requestId == null) {
+        return ipcRenderer.invoke('desktop:managed:chat-completion', body);
+      }
+      return ipcRenderer.invoke(
+        'desktop:managed:chat-completion',
+        requireSafeIpcRequestId(requestId, 'managed chat completion request id'),
+        body,
+      );
     },
-    managedImageGeneration(body) {
-      return ipcRenderer.invoke('desktop:managed:image-generation', body);
+    cancelManagedChatCompletion(requestId) {
+      return ipcRenderer.invoke('desktop:managed:chat-completion:cancel', requireSafeIpcRequestId(requestId, 'managed chat completion request id'));
     },
-    managedImageEdit(payload) {
-      return ipcRenderer.invoke('desktop:managed:image-edit', payload);
+    managedImageGeneration(body, requestId) {
+      if (requestId == null) {
+        return ipcRenderer.invoke('desktop:managed:image-generation', body);
+      }
+      return ipcRenderer.invoke(
+        'desktop:managed:image-generation',
+        requireSafeIpcRequestId(requestId, 'managed image generation request id'),
+        body,
+      );
+    },
+    cancelManagedImageGeneration(requestId) {
+      return ipcRenderer.invoke('desktop:managed:image-generation:cancel', requireSafeIpcRequestId(requestId, 'managed image generation request id'));
+    },
+    managedImageEdit(payload, requestId) {
+      if (requestId == null) {
+        return ipcRenderer.invoke('desktop:managed:image-edit', payload);
+      }
+      return ipcRenderer.invoke(
+        'desktop:managed:image-edit',
+        requireSafeIpcRequestId(requestId, 'managed image edit request id'),
+        payload,
+      );
+    },
+    cancelManagedImageEdit(requestId) {
+      return ipcRenderer.invoke('desktop:managed:image-edit:cancel', requireSafeIpcRequestId(requestId, 'managed image edit request id'));
     },
     startManagedChatCompletionStream(requestId, body) {
       return ipcRenderer.invoke('desktop:managed:chat-completion-stream:start', requireSafeIpcRequestId(requestId, 'managed stream request id'), body);

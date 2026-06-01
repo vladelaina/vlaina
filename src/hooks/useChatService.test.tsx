@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useChatService } from './useChatService';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
-import type { AIModel, ChatMessage, Provider } from '@/lib/ai/types';
+import type { AIModel, ApiTranscriptMessage, ChatMessage, ChatSendOptions, Provider } from '@/lib/ai/types';
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
+import { runWithSessionMutationLock } from '@/lib/ai/sessionMutationLock';
 
 const mocked = vi.hoisted(() => ({
   saveSessionJson: vi.fn(async () => {}),
@@ -161,5 +162,148 @@ describe('useChatService session context isolation', () => {
       'session two visible answer',
     ]);
     expect(JSON.stringify(request?.history)).not.toContain('session one private');
+  });
+
+  it('releases the session mutation lock after starting a streamed request', async () => {
+    let resolveProvider!: (value: string) => void;
+    const pendingProviderResponse = new Promise<string>((resolve) => {
+      resolveProvider = resolve;
+    });
+    mocked.sendMessageWithEndpointFallback.mockImplementationOnce(async ({ onChunk }: { onChunk: (chunk: string) => void }) => {
+      onChunk('partial answer');
+      return await pendingProviderResponse;
+    });
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      const accepted = await result.current.sendMessage('long running prompt', [], []);
+      expect(accepted).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
+    });
+
+    let followUpMutationRan = false;
+    const followUpMutation = runWithSessionMutationLock('session-2', () => {
+      followUpMutationRan = true;
+    });
+
+    await waitFor(() => {
+      expect(followUpMutationRan).toBe(true);
+    });
+    await followUpMutation;
+
+    resolveProvider('final answer');
+    await waitFor(() => {
+      expect(useAIUIStore.getState().generatingSessions).toEqual({});
+    });
+  });
+
+  it('does not call the provider when stopped before pre-request hydration completes', async () => {
+    let resolvePendingHydration!: () => void;
+    const pendingHydration = new Promise<void>((resolve) => {
+      resolvePendingHydration = resolve;
+    });
+    mocked.flushPendingSessionJsonSaves.mockImplementationOnce(async () => {
+      await pendingHydration;
+    });
+
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('cancel before provider', [], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(mocked.flushPendingSessionJsonSaves).toHaveBeenCalledTimes(1);
+      expect(useAIUIStore.getState().generatingSessions).toEqual({ 'session-2': true });
+    });
+
+    act(() => {
+      result.current.stop();
+    });
+
+    await act(async () => {
+      resolvePendingHydration();
+      await pendingHydration;
+    });
+
+    await waitFor(() => {
+      expect(sendMessageWithEndpointFallback).not.toHaveBeenCalled();
+      expect(useAIUIStore.getState().generatingSessions).toEqual({});
+    });
+
+    const sessionMessages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
+    expect(sessionMessages.map((message) => message.content)).toEqual([
+      'session two visible prompt',
+      'session two visible answer',
+    ]);
+  });
+
+  it('ignores stale API transcript callbacks after a newer request supersedes the stream', async () => {
+    let resolveFirstProvider!: (value: string) => void;
+    let firstTranscriptCallback: ((messages: ApiTranscriptMessage[]) => void) | undefined;
+    const pendingFirstProviderResponse = new Promise<string>((resolve) => {
+      resolveFirstProvider = resolve;
+    });
+
+    mocked.sendMessageWithEndpointFallback
+      .mockImplementationOnce(async ({
+        onChunk,
+        options,
+      }: {
+        onChunk: (chunk: string) => void;
+        options?: ChatSendOptions;
+      }) => {
+        firstTranscriptCallback = options?.onApiTranscript;
+        onChunk('first partial answer');
+        return await pendingFirstProviderResponse;
+      })
+      .mockImplementationOnce(async ({
+        onChunk,
+        options,
+      }: {
+        onChunk: (chunk: string) => void;
+        options?: ChatSendOptions;
+      }) => {
+        onChunk('second answer');
+        options?.onApiTranscript?.([{ role: 'assistant', content: 'second transcript' }]);
+        return 'second answer';
+      });
+
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('first prompt', [], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
+      expect(firstTranscriptCallback).toBeTypeOf('function');
+    });
+
+    await act(async () => {
+      expect(await result.current.sendMessage('second prompt', [], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(2);
+      const messages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
+      expect(messages.at(-1)?.content).toBe('second answer');
+    });
+
+    act(() => {
+      firstTranscriptCallback?.([{ role: 'assistant', content: 'stale first transcript' }]);
+      resolveFirstProvider('stale first final');
+    });
+
+    await waitFor(() => {
+      expect(useAIUIStore.getState().generatingSessions).toEqual({});
+    });
+
+    const messages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
+    expect(JSON.stringify(messages)).not.toContain('stale first transcript');
+    expect(messages.some((message) => message.apiTranscript?.[0]?.content === 'second transcript')).toBe(true);
   });
 });

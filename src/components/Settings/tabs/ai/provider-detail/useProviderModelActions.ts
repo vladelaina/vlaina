@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { openaiClient } from '@/lib/ai/providers/openai';
 import type { AIModel, Provider } from '@/lib/ai/types';
 
@@ -29,6 +29,22 @@ export function useProviderModelActions({
 }) {
   const [fetchError, setFetchError] = useState('');
   const [isFetchingModels, setIsFetchingModels] = useState(false);
+  const fetchRequestRef = useRef<{
+    id: number;
+    controller: AbortController;
+  } | null>(null);
+  const nextFetchRequestIdRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      fetchRequestRef.current?.controller.abort();
+      fetchRequestRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    fetchRequestRef.current?.controller.abort();
+  }, [provider?.id, draft.apiHost, draft.apiKey]);
 
   const buildTempProvider = (): Provider | null => {
     if (!provider) return null;
@@ -53,12 +69,20 @@ export function useProviderModelActions({
     const tempProvider = buildTempProvider();
     if (!tempProvider) return;
     const currentProviderId = provider.id;
+    const requestId = nextFetchRequestIdRef.current + 1;
+    nextFetchRequestIdRef.current = requestId;
+    fetchRequestRef.current?.controller.abort();
+    const controller = new AbortController();
+    fetchRequestRef.current = { id: requestId, controller };
+    const isCurrentFetchRequest = () =>
+      fetchRequestRef.current?.id === requestId && !controller.signal.aborted;
 
     setIsFetchingModels(true);
     setFetchError('');
 
     try {
-      const result = await openaiClient.getModelsWithEndpointDetection(tempProvider);
+      const result = await openaiClient.getModelsWithEndpointDetection(tempProvider, controller.signal);
+      if (!isCurrentFetchRequest()) return;
       const modelsList = result.models;
       setFetchedModels(modelsList);
       setProviderFetchedModels(currentProviderId, modelsList);
@@ -70,9 +94,13 @@ export function useProviderModelActions({
         setFetchError('Connected, but no models were returned.');
       }
     } catch {
+      if (!isCurrentFetchRequest()) return;
       setFetchError('Unable to fetch models from the current endpoint.');
     } finally {
-      setIsFetchingModels(false);
+      if (fetchRequestRef.current?.id === requestId) {
+        fetchRequestRef.current = null;
+        setIsFetchingModels(false);
+      }
     }
   };
 

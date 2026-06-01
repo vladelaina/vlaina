@@ -34,6 +34,61 @@ function isAbortError(error: unknown): boolean {
     || !!error && typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError';
 }
 
+function throwIfAborted(signal: AbortSignal): void {
+  if (!signal.aborted) return;
+  throw new DOMException('Aborted', 'AbortError');
+}
+
+async function raceWithAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  throwIfAborted(signal);
+  promise.catch(() => undefined);
+
+  return await new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      signal.removeEventListener('abort', abort);
+    };
+    const settle = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback();
+    };
+    const abort = () => {
+      settle(() => reject(new DOMException('Aborted', 'AbortError')));
+    };
+
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+
+    promise.then(
+      (value) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            resolve(value);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+      (error) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            reject(error);
+          } catch (abortError) {
+            reject(abortError);
+          }
+        });
+      },
+    );
+  });
+}
+
 function buildBenchmarkBody(
   modelId: string,
   endpoint: BenchmarkEndpoint,
@@ -280,8 +335,25 @@ function buildBenchmarkHeaders(provider: Provider): Record<string, string> {
   };
 }
 
-async function parseResponsePayload(response: Response): Promise<unknown> {
-  const text = await response.text();
+async function readBenchmarkResponseText(
+  response: Response,
+  signal: AbortSignal,
+  fallbackOnReadError?: string,
+): Promise<string> {
+  try {
+    const text = await raceWithAbort(response.text(), signal);
+    return text;
+  } catch (error) {
+    throwIfAborted(signal);
+    if (fallbackOnReadError !== undefined) {
+      return fallbackOnReadError;
+    }
+    throw error;
+  }
+}
+
+async function parseResponsePayload(response: Response, signal: AbortSignal): Promise<unknown> {
+  const text = await readBenchmarkResponseText(response, signal);
   if (!text.trim()) {
     return null;
   }
@@ -310,6 +382,7 @@ export async function checkModelHealth(
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   let detachExternalAbort: (() => void) | undefined;
   let didTimeout = false;
+  let didAbortExternally = externalSignal?.aborted ?? false;
   if (timeoutMs > 0) {
     timeoutId = setTimeout(() => {
       didTimeout = true;
@@ -320,22 +393,30 @@ export async function checkModelHealth(
     if (externalSignal.aborted) {
       controller.abort();
     } else {
-      const forwardAbort = () => controller.abort();
+      const forwardAbort = () => {
+        didAbortExternally = true;
+        controller.abort();
+      };
       externalSignal.addEventListener('abort', forwardAbort);
       detachExternalAbort = () => externalSignal.removeEventListener('abort', forwardAbort);
     }
   }
 
   try {
+    if (controller.signal.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
+
     const response = await providerFetch(buildBenchmarkUrl(provider, endpoint), {
       method: 'POST',
       headers: buildBenchmarkHeaders(provider),
       body: JSON.stringify(buildBenchmarkBody(apiModelId, endpoint, provider.endpointType)),
       signal: controller.signal,
     });
+    throwIfAborted(controller.signal);
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
+      const errorText = await readBenchmarkResponseText(response, controller.signal, 'Unknown error');
       let errorBody: unknown;
       try {
         errorBody = JSON.parse(errorText);
@@ -345,7 +426,7 @@ export async function checkModelHealth(
       throw parseHTTPError(response.status, errorBody);
     }
 
-    const payload = await parseResponsePayload(response);
+    const payload = await parseResponsePayload(response, controller.signal);
     const upstreamErrorMessage = readErrorMessage(payload);
     if (upstreamErrorMessage) {
       throw new Error(upstreamErrorMessage);
@@ -361,7 +442,7 @@ export async function checkModelHealth(
       endpoint,
     };
   } catch (error: unknown) {
-    if (isAbortError(error)) {
+    if (isAbortError(error) && (didTimeout || didAbortExternally)) {
       return {
         status: 'error',
         error: didTimeout

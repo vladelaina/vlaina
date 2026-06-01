@@ -18,6 +18,56 @@ export function parseOpenAIPayloadText(text: string): Record<string, unknown> | 
   }
 }
 
+function parseToolCallIndex(value: unknown): number | null {
+  const parsed = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && value.trim()
+      ? Number(value)
+      : null;
+  return typeof parsed === 'number' && Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function resolveToolCallIndex(
+  deltaCall: Record<string, unknown>,
+  deltaFunction: Record<string, unknown>,
+  toolCalls: OpenAIToolCall[],
+): number {
+  const explicitIndex = parseToolCallIndex(deltaCall.index);
+  if (explicitIndex != null) {
+    return explicitIndex;
+  }
+
+  const id = typeof deltaCall.id === 'string' && deltaCall.id.trim() ? deltaCall.id : '';
+  if (id) {
+    const existingIndex = toolCalls.findIndex((call) => call?.id === id);
+    if (existingIndex >= 0) {
+      return existingIndex;
+    }
+
+    const name = typeof deltaFunction.name === 'string' ? deltaFunction.name : '';
+    const unidentifiedIndex = toolCalls.findIndex((call) =>
+      call && !call.id && (!name || !call.function.name || call.function.name === name)
+    );
+    if (unidentifiedIndex >= 0) {
+      return unidentifiedIndex;
+    }
+
+    return toolCalls.length;
+  }
+
+  const hasArguments = typeof deltaFunction.arguments === 'string';
+  const hasName = typeof deltaFunction.name === 'string' && deltaFunction.name.trim().length > 0;
+  if (hasArguments && !hasName && toolCalls.length > 0) {
+    for (let index = toolCalls.length - 1; index >= 0; index -= 1) {
+      if (toolCalls[index]) {
+        return index;
+      }
+    }
+  }
+
+  return toolCalls.length;
+}
+
 export function extractOpenAIToolCalls(payload: Record<string, unknown>, toolCalls: OpenAIToolCall[]): void {
   const choice = Array.isArray(payload.choices) ? payload.choices[0] : null;
   if (!isRecord(choice) || !isRecord(choice.delta) || !Array.isArray(choice.delta.tool_calls)) {
@@ -26,13 +76,13 @@ export function extractOpenAIToolCalls(payload: Record<string, unknown>, toolCal
 
   for (const deltaCall of choice.delta.tool_calls) {
     if (!isRecord(deltaCall)) continue;
-    const index = Number(deltaCall.index ?? toolCalls.length);
+    const deltaFunction = isRecord(deltaCall.function) ? deltaCall.function : {};
+    const index = resolveToolCallIndex(deltaCall, deltaFunction, toolCalls);
     const existing = toolCalls[index] ?? {
       id: '',
       type: 'function' as const,
       function: { name: '', arguments: '' },
     };
-    const deltaFunction = isRecord(deltaCall.function) ? deltaCall.function : {};
     toolCalls[index] = {
       id: typeof deltaCall.id === 'string' ? deltaCall.id : existing.id,
       type: 'function',

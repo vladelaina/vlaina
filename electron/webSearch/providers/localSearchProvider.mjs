@@ -59,6 +59,62 @@ function throwIfAborted(signal) {
   throw createAbortError();
 }
 
+async function raceWithAbort(promise, signal) {
+  if (!signal) return await promise;
+  throwIfAborted(signal);
+  promise.catch(() => undefined);
+
+  return await new Promise((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      signal.removeEventListener('abort', abort);
+    };
+    const settle = (callback) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback();
+    };
+    const abort = () => {
+      settle(() => reject(createAbortError()));
+    };
+
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+
+    promise.then(
+      (value) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            resolve(value);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+      (error) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            reject(error);
+          } catch (abortError) {
+            reject(abortError);
+          }
+        });
+      },
+    );
+  });
+}
+
+async function readResponseText(response, signal) {
+  throwIfAborted(signal);
+  return await raceWithAbort(response.text(), signal);
+}
+
 function buildSearchQuery(query, options) {
   const parts = [
     query,
@@ -207,15 +263,15 @@ async function fetchDirectOfficialSite(fetchImpl, query, options = {}) {
   if (!term) return [];
 
   const url = `https://${term}.com/`;
-  const controller = new AbortController();
+  const timeoutController = new AbortController();
   const timeoutMs = Math.min(Number(options.timeoutMs) || SEARCH_TIMEOUT_MS, 2500);
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const timeout = setTimeout(() => timeoutController.abort(), timeoutMs);
   const signal = options.signal
-    ? AbortSignal.any([options.signal, controller.signal])
-    : controller.signal;
+    ? AbortSignal.any([options.signal, timeoutController.signal])
+    : timeoutController.signal;
 
   try {
-    const response = await fetchImpl(url, {
+    const response = await raceWithAbort(fetchImpl(url, {
       headers: {
         Accept: 'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
@@ -223,11 +279,13 @@ async function fetchDirectOfficialSite(fetchImpl, query, options = {}) {
       },
       cache: 'no-store',
       signal,
-    });
+    }), signal);
+    throwIfAborted(signal);
 
     if (!response.ok) return [];
     const contentType = response.headers?.get?.('content-type') || '';
-    const html = contentType.includes('text/html') ? await response.text() : '';
+    const html = contentType.includes('text/html') ? await readResponseText(response, signal) : '';
+    throwIfAborted(signal);
     const title = extractHtmlTitle(html) || term;
     return [{
       title,
@@ -287,12 +345,29 @@ export class LocalSearchProvider {
     const existingUrls = new Set(officialResults.map((result) => result.url));
     const searchQuery = buildSearchQuery(query, options);
     const engines = selectSearchEngines(options.engines);
+    const directOfficialController = new AbortController();
+    let directOfficialCancelledByCompletion = false;
+    const directOfficialSignal = options.signal
+      ? AbortSignal.any([options.signal, directOfficialController.signal])
+      : directOfficialController.signal;
+    const cancelDirectOfficial = () => {
+      if (!directOfficialController.signal.aborted) {
+        directOfficialCancelledByCompletion = true;
+        directOfficialController.abort(createAbortError());
+      }
+    };
     const directOfficialPromise = fetchDirectOfficialSite(this.fetchImpl, query, {
-      signal: options.signal,
+      signal: directOfficialSignal,
       timeoutMs: this.timeoutMs,
+    }).catch((error) => {
+      if (directOfficialCancelledByCompletion || options.signal?.aborted) {
+        return [];
+      }
+      throw error;
     });
 
-    const engineAttempts = engines.map(async (engine) => {
+    const engineAttempts = engines.map((engine) => {
+      let cancelledByCompletion = false;
       const params = new URLSearchParams(engine.params(searchQuery, limit, options));
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -300,85 +375,153 @@ export class LocalSearchProvider {
         ? AbortSignal.any([options.signal, controller.signal])
         : controller.signal;
 
-      try {
-        const response = await this.fetchImpl(`${engine.url}?${params.toString()}`, {
-          headers: {
-            Accept: 'text/html,application/xhtml+xml',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'User-Agent': USER_AGENT,
-          },
-          cache: 'no-store',
-          signal,
-        });
+      const promise = (async () => {
+        try {
+          const response = await raceWithAbort(this.fetchImpl(`${engine.url}?${params.toString()}`, {
+            headers: {
+              Accept: 'text/html,application/xhtml+xml',
+              'Accept-Language': 'en-US,en;q=0.9',
+              'User-Agent': USER_AGENT,
+            },
+            cache: 'no-store',
+            signal,
+          }), signal);
 
-        if (!response.ok) {
-          throw new WebSearchError('search_unavailable', 'Web search is temporarily unavailable.');
-        }
+          if (!response.ok) {
+            throw new WebSearchError('search_unavailable', 'Web search is temporarily unavailable.');
+          }
 
-        const parsedResults = parseResults(engine.id, await response.text(), limit - officialResults.length, existingUrls, {
-          query,
-          minQueryScore: officialResults.length > 0 ? 2 : 0,
-        });
-        return {
-          engineId: engine.id,
-          results: filterLowRelevanceResults(query, parsedResults),
-        };
-      } catch (error) {
-        if (options.signal?.aborted) {
-          throw createAbortError();
+          const parsedResults = parseResults(engine.id, await readResponseText(response, signal), limit - officialResults.length, existingUrls, {
+            query,
+            minQueryScore: officialResults.length > 0 ? 2 : 0,
+          });
+          return {
+            engineId: engine.id,
+            results: filterLowRelevanceResults(query, parsedResults),
+          };
+        } catch (error) {
+          if (options.signal?.aborted && !cancelledByCompletion) {
+            throw createAbortError();
+          }
+          return {
+            engineId: engine.id,
+            error,
+          };
+        } finally {
+          clearTimeout(timeout);
         }
-        return {
-          engineId: engine.id,
-          error,
-        };
-      } finally {
-        clearTimeout(timeout);
-      }
+      })();
+      const attempt = {
+        engine,
+        settledPromise: null,
+        cancel() {
+          cancelledByCompletion = true;
+          if (!controller.signal.aborted) controller.abort(createAbortError());
+        },
+      };
+      attempt.settledPromise = promise.then(
+        (result) => ({ attempt, result }),
+        (error) => ({ attempt, error })
+      );
+      return attempt;
     });
 
-    const settledAttempts = await Promise.all(engineAttempts);
-    throwIfAborted(options.signal);
-    const byEngine = new Map(settledAttempts.map((attempt) => [attempt.engineId, attempt]));
-    const relevantResults = [];
-    const seenUrls = new Set(existingUrls);
-    let lastError = null;
-    let sawSuccessfulSearch = false;
-
-    for (const engine of engines) {
-      const attempt = byEngine.get(engine.id);
-      if (!attempt) continue;
-      if (attempt.error) {
-        lastError = attempt.error;
-        continue;
+    const settledEngineIds = new Set();
+    const cancelOutstandingEngines = () => {
+      for (const attempt of engineAttempts) {
+        if (!settledEngineIds.has(attempt.engine.id)) {
+          attempt.cancel();
+        }
       }
-      sawSuccessfulSearch = true;
-      for (const result of attempt.results || []) {
-        if (seenUrls.has(result.url)) continue;
-        seenUrls.add(result.url);
-        relevantResults.push(result);
+    };
+
+    const summarizeResolvedEngines = (byEngine) => {
+      const relevantResults = [];
+      const seenUrls = new Set(existingUrls);
+      let lastError = null;
+      let sawSuccessfulSearch = false;
+
+      for (const engine of engines) {
+        const attempt = byEngine.get(engine.id);
+        if (!attempt) {
+          break;
+        }
+        if (attempt.error) {
+          lastError = attempt.error;
+          continue;
+        }
+        sawSuccessfulSearch = true;
+        for (const result of attempt.results || []) {
+          if (seenUrls.has(result.url)) continue;
+          seenUrls.add(result.url);
+          relevantResults.push(result);
+          if (officialResults.length + relevantResults.length >= limit) {
+            break;
+          }
+        }
         if (officialResults.length + relevantResults.length >= limit) {
           break;
         }
       }
-      if (officialResults.length + relevantResults.length >= limit) {
-        break;
+
+      return {
+        hasEnoughResults: officialResults.length + relevantResults.length >= limit,
+        lastError,
+        relevantResults,
+        sawSuccessfulSearch,
+      };
+    };
+
+    try {
+      const byEngine = new Map();
+      const pending = new Set(engineAttempts.map((attempt) => attempt.settledPromise));
+      let summary = {
+        hasEnoughResults: false,
+        lastError: null,
+        relevantResults: [],
+        sawSuccessfulSearch: false,
+      };
+
+      while (pending.size > 0) {
+        const settled = await Promise.race(pending);
+        pending.delete(settled.attempt.settledPromise);
+        settledEngineIds.add(settled.attempt.engine.id);
+        if (settled.error) {
+          throw settled.error;
+        }
+        byEngine.set(settled.result.engineId, settled.result);
+        throwIfAborted(options.signal);
+        summary = summarizeResolvedEngines(byEngine);
+        if (summary.hasEnoughResults) {
+          cancelOutstandingEngines();
+          cancelDirectOfficial();
+          return [...officialResults, ...summary.relevantResults].slice(0, limit);
+        }
       }
-    }
 
-    if (relevantResults.length > 0 || officialResults.length > 0) {
-      return [...officialResults, ...relevantResults].slice(0, limit);
-    }
+      if (summary.relevantResults.length > 0 || officialResults.length > 0) {
+        throwIfAborted(options.signal);
+        cancelDirectOfficial();
+        return [...officialResults, ...summary.relevantResults].slice(0, limit);
+      }
 
-    const directOfficialResults = await directOfficialPromise;
-    if (directOfficialResults.length > 0) {
-      return directOfficialResults.slice(0, limit);
-    }
+      const directOfficialResults = await directOfficialPromise;
+      throwIfAborted(options.signal);
+      if (directOfficialResults.length > 0) {
+        return directOfficialResults.slice(0, limit);
+      }
 
-    if (sawSuccessfulSearch) {
-      return [];
-    }
+      if (summary.sawSuccessfulSearch) {
+        throwIfAborted(options.signal);
+        return [];
+      }
 
-    throw new WebSearchError('search_unavailable', 'Web search is temporarily unavailable.', lastError);
+      throw new WebSearchError('search_unavailable', 'Web search is temporarily unavailable.', summary.lastError);
+    } catch (error) {
+      cancelOutstandingEngines();
+      cancelDirectOfficial();
+      throw error;
+    }
   }
 }
 

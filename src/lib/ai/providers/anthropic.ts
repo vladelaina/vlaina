@@ -73,9 +73,82 @@ function isAbortError(error: unknown): boolean {
     || !!error && typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError'
 }
 
+function createAbortError(): DOMException {
+  return new DOMException('Aborted', 'AbortError')
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return
+  throw createAbortError()
+}
+
+async function raceWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return await promise
+  throwIfAborted(signal)
+  promise.catch(() => undefined)
+
+  return await new Promise<T>((resolve, reject) => {
+    let settled = false
+    const cleanup = () => {
+      signal.removeEventListener('abort', abort)
+    }
+    const settle = (callback: () => void) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      callback()
+    }
+    const abort = () => {
+      settle(() => reject(createAbortError()))
+    }
+
+    signal.addEventListener('abort', abort, { once: true })
+    if (signal.aborted) {
+      abort()
+      return
+    }
+
+    promise.then(
+      (value) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal)
+            resolve(value)
+          } catch (error) {
+            reject(error)
+          }
+        })
+      },
+      (error) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal)
+            reject(error)
+          } catch (abortError) {
+            reject(abortError)
+          }
+        })
+      },
+    )
+  })
+}
+
+async function readResponseTextOrFallback(response: Response, signal?: AbortSignal): Promise<string> {
+  try {
+    throwIfAborted(signal)
+    return await raceWithAbort(response.text(), signal)
+  } catch {
+    if (signal?.aborted) {
+      throw createAbortError()
+    }
+    return 'Unknown error'
+  }
+}
+
 async function consumeAnthropicStream(
   response: Response,
-  onChunk: (chunk: string) => void
+  onChunk: (chunk: string) => void,
+  signal?: AbortSignal
 ): Promise<string> {
   if (!response.body) {
     throw new Error('Response body is null')
@@ -85,6 +158,26 @@ async function consumeAnthropicStream(
   const decoder = new TextDecoder()
   let buffer = ''
   const accumulator = createStreamAccumulator(onChunk)
+  let aborted = signal?.aborted ?? false
+
+  const throwIfAborted = () => {
+    if (aborted || signal?.aborted) {
+      throw createAbortError()
+    }
+  }
+
+  const abort = () => {
+    aborted = true
+    void reader.cancel(createAbortError()).catch(() => undefined)
+  }
+
+  if (signal?.aborted) {
+    await reader.cancel(createAbortError()).catch(() => undefined)
+    reader.releaseLock()
+    throw createAbortError()
+  }
+
+  signal?.addEventListener('abort', abort, { once: true })
 
   const consumeLine = (line: string) => {
     const trimmed = line.trim()
@@ -130,20 +223,41 @@ async function consumeAnthropicStream(
     }
   }
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split(/\r?\n/)
-    buffer = lines.pop() || ''
-    lines.forEach(consumeLine)
-  }
+  try {
+    throwIfAborted()
+    while (true) {
+      const { done, value } = await reader.read()
+      throwIfAborted()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split(/\r?\n/)
+      buffer = lines.pop() || ''
+      for (const line of lines) {
+        throwIfAborted()
+        consumeLine(line)
+        throwIfAborted()
+      }
+    }
 
-  if (buffer.trim()) {
-    consumeLine(buffer)
-  }
+    if (buffer.trim()) {
+      throwIfAborted()
+      consumeLine(buffer)
+      throwIfAborted()
+    }
 
-  return accumulator.finish()
+    const finalContent = accumulator.finish()
+    throwIfAborted()
+    return finalContent
+  } catch (error) {
+    await reader.cancel().catch(() => undefined)
+    if ((aborted || signal?.aborted) && !isAbortError(error)) {
+      throw createAbortError()
+    }
+    throw error
+  } finally {
+    signal?.removeEventListener('abort', abort)
+    reader.releaseLock()
+  }
 }
 
 export async function sendAnthropicMessage({
@@ -184,8 +298,15 @@ export async function sendAnthropicMessage({
     timedOut = true
     controller.abort()
   }, timeoutMs)
-  const forwardAbort = () => controller.abort()
-  signal?.addEventListener('abort', forwardAbort)
+  const forwardAbort = () => {
+    if (!controller.signal.aborted) {
+      controller.abort()
+    }
+  }
+  signal?.addEventListener('abort', forwardAbort, { once: true })
+  if (signal?.aborted) {
+    forwardAbort()
+  }
 
   try {
     const response = await providerFetch(url, {
@@ -196,7 +317,7 @@ export async function sendAnthropicMessage({
     })
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error')
+      const errorText = await readResponseTextOrFallback(response, controller.signal)
       let errorBody
       try {
         errorBody = JSON.parse(errorText)
@@ -206,9 +327,9 @@ export async function sendAnthropicMessage({
       throw parseHTTPError(response.status, errorBody)
     }
 
-    return consumeAnthropicStream(response, onChunk)
+    return await consumeAnthropicStream(response, onChunk, controller.signal)
   } catch (error) {
-    if (isAbortError(error)) {
+    if (isAbortError(error) && (timedOut || signal?.aborted)) {
       if (timedOut) {
         throw new Error('The AI request timed out.')
       }

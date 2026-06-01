@@ -52,11 +52,11 @@ const mocked = vi.hoisted(() => {
       getState: () => managedStore,
     },
     useAccountSessionStore: (selector: (state: typeof accountState) => unknown) => selector(accountState),
-    runWithSessionMutationLock: vi.fn(async (_id: string, task: () => Promise<void> | void) => {
-      await task();
+    runWithSessionMutationLock: vi.fn(async (_id: string, task: () => Promise<unknown> | unknown) => {
+      return await task();
     }),
-    runWithSessionMutationLocks: vi.fn(async (_ids: string[], task: () => Promise<void> | void) => {
-      await task();
+    runWithSessionMutationLocks: vi.fn(async (_ids: string[], task: () => Promise<unknown> | unknown) => {
+      return await task();
     }),
   };
 });
@@ -631,6 +631,96 @@ describe('chat window selection isolation', () => {
     expect(promotedMessages?.[0]?.apiTranscript?.[0].reasoning_content).toBe('temporary hidden reasoning');
     expect(promotedMessages?.[0]?.versions[0]?.apiTranscript?.[0].reasoning_content).toBe('temporary hidden reasoning');
     expect(mocked.saveSessionJson).toHaveBeenCalledWith(promotedSessionId, promotedMessages);
+  });
+
+  it('promotes a temporary session after pending temporary mutations finish', async () => {
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              sessions: [
+                ...state.data.ai.sessions,
+                {
+                  id: 'temp-session-1',
+                  title: 'Temporary Chat',
+                  modelId: managedModel.id,
+                  createdAt: 5,
+                  updatedAt: 5,
+                },
+              ],
+              messages: {
+                ...state.data.ai.messages,
+                'temp-session-1': [],
+              },
+            }
+          : state.data.ai,
+      },
+    }));
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'temp-session-1',
+      temporaryChatEnabled: true,
+    });
+
+    let releasePromotion!: () => void;
+    const promotionCanContinue = new Promise<void>((resolve) => {
+      releasePromotion = resolve;
+    });
+    mocked.runWithSessionMutationLock.mockImplementationOnce(async (sessionId, task) => {
+      expect(sessionId).toBe('temp-session-1');
+      await promotionCanContinue;
+      return await task();
+    });
+
+    let promotedSessionId: string | null = null;
+    const promotion = actions.promoteTemporarySession().then((sessionId) => {
+      promotedSessionId = sessionId;
+    });
+    await Promise.resolve();
+
+    expect(useUnifiedStore.getState().data.ai?.sessions.some((session) => session.id === 'temp-session-1')).toBe(true);
+    expect(promotedSessionId).toBeNull();
+
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              messages: {
+                ...state.data.ai.messages,
+                'temp-session-1': [{
+                  id: 'u1',
+                  role: 'user',
+                  content: 'message committed before promotion lock released',
+                  modelId: managedModel.id,
+                  timestamp: 6,
+                  versions: [{
+                    content: 'message committed before promotion lock released',
+                    createdAt: 6,
+                    kind: 'original' as const,
+                    subsequentMessages: [],
+                  }],
+                  currentVersionIndex: 0,
+                }],
+              },
+            }
+          : state.data.ai,
+      },
+    }));
+
+    await act(async () => {
+      releasePromotion();
+      await promotion;
+    });
+
+    expect(promotedSessionId).toMatch(/^session-/);
+    expect(useUnifiedStore.getState().data.ai?.messages).not.toHaveProperty('temp-session-1');
+    expect(useUnifiedStore.getState().data.ai?.messages[promotedSessionId!]?.[0]?.content)
+      .toBe('message committed before promotion lock released');
   });
 
   it('persists inline temporary images when promoting a temporary session', async () => {

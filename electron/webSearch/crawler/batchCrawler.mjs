@@ -21,7 +21,9 @@ async function readWithRetry(crawler, url, options, retries) {
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     try {
       throwIfAborted(options.signal);
-      return await crawler.readUrl(url, options);
+      const page = await crawler.readUrl(url, options);
+      throwIfAborted(options.signal);
+      return page;
     } catch (error) {
       if (isAbortError(error)) {
         throw error;
@@ -71,5 +73,6 @@ export async function readUrlsBatch(crawler, urls, options = {}) {
   }
 
   await Promise.all(Array.from({ length: Math.min(concurrency, inputUrls.length) }, () => worker()));
+  throwIfAborted(options.signal);
   return results;
 }

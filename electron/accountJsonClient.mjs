@@ -30,6 +30,68 @@ function createJsonResponseError(payload, response, fallbackMessage) {
   return error;
 }
 
+function createAbortError() {
+  return new DOMException('Aborted', 'AbortError');
+}
+
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return;
+  throw createAbortError();
+}
+
+async function raceWithAbort(promise, signal) {
+  throwIfAborted(signal);
+  if (!signal) {
+    return await promise;
+  }
+  promise.catch(() => undefined);
+
+  return await new Promise((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      signal.removeEventListener('abort', abort);
+    };
+    const settle = (callback) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback();
+    };
+    const abort = () => {
+      settle(() => reject(createAbortError()));
+    };
+
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+
+    promise.then(
+      (value) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            resolve(value);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+      (error) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            reject(error);
+          } catch (abortError) {
+            reject(abortError);
+          }
+        });
+      },
+    );
+  });
+}
+
 function maskToken(value) {
   return typeof value === 'string' && value
     ? summarizeAuthPayload(value, 'token')
@@ -47,8 +109,10 @@ export function createDesktopAccountJsonClient(options = {}) {
   const logDesktopAuth = typeof options.logDesktopAuth === 'function'
     ? options.logDesktopAuth
     : null;
-  async function readJsonResponse(response, fallbackMessage) {
-    const text = await response.text();
+  async function readJsonResponse(response, fallbackMessage, signal) {
+    throwIfAborted(signal);
+    const text = await raceWithAbort(response.text(), signal);
+    throwIfAborted(signal);
     let payload = {};
     if (text) {
       try {
@@ -68,8 +132,11 @@ export function createDesktopAccountJsonClient(options = {}) {
   }
 
   async function fetchJson(url, init = {}) {
-    const response = await fetch(url, init);
-    const text = await response.text();
+    throwIfAborted(init.signal);
+    const response = await raceWithAbort(fetch(url, init), init.signal);
+    throwIfAborted(init.signal);
+    const text = await raceWithAbort(response.text(), init.signal);
+    throwIfAborted(init.signal);
     let payload = null;
 
     if (text) {
@@ -109,8 +176,11 @@ export function createDesktopAccountJsonClient(options = {}) {
     let response;
     let data;
     try {
-      response = await fetch(url, init);
-      data = await readJsonResponse(response, `Request failed: HTTP ${response.status}`);
+      throwIfAborted(init.signal);
+      response = await raceWithAbort(fetch(url, init), init.signal);
+      throwIfAborted(init.signal);
+      data = await readJsonResponse(response, `Request failed: HTTP ${response.status}`, init.signal);
+      throwIfAborted(init.signal);
     } catch (error) {
       throw error;
     }

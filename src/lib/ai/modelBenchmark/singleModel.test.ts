@@ -161,15 +161,80 @@ describe('checkModelHealth', () => {
     });
   });
 
-  it('classifies DOM-style abort errors as aborted benchmark requests', async () => {
+  it('does not classify downstream abort-shaped failures as user-aborted benchmark requests', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue({ name: 'AbortError', message: 'Aborted' });
 
     const result = await checkModelHealth(provider, createModel('gpt-4o-mini'));
 
     expect(result).toMatchObject({
       status: 'error',
+      error: 'Aborted',
+      endpoint: 'chat',
+    });
+  });
+
+  it('classifies external abort signals as aborted benchmark requests', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const result = await checkModelHealth(provider, createModel('gpt-4o-mini'), {
+      signal: controller.signal,
+    });
+
+    expect(result).toMatchObject({
+      status: 'error',
       error: 'Request aborted',
       endpoint: 'chat',
     });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('classifies external aborts during response body parsing as aborted benchmark requests', async () => {
+    const controller = new AbortController();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      text: vi.fn(async () => {
+        controller.abort();
+        return JSON.stringify({ choices: [{ message: { content: 'ok' } }] });
+      }),
+    } as unknown as Response);
+
+    const result = await checkModelHealth(provider, createModel('gpt-4o-mini'), {
+      signal: controller.signal,
+    });
+
+    expect(result).toMatchObject({
+      status: 'error',
+      error: 'Request aborted',
+      endpoint: 'chat',
+    });
+  });
+
+  it('classifies timeouts during response body parsing as benchmark timeouts', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        text: vi.fn(() => new Promise((resolve) => {
+          setTimeout(() => {
+            resolve(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }));
+          }, 2000);
+        })),
+      } as unknown as Response);
+
+      const pending = checkModelHealth(provider, createModel('gpt-4o-mini'), {
+        timeoutMs: 1000,
+      });
+      await vi.advanceTimersByTimeAsync(2000);
+
+      await expect(pending).resolves.toMatchObject({
+        status: 'error',
+        error: 'Request timed out (1s)',
+        endpoint: 'chat',
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
