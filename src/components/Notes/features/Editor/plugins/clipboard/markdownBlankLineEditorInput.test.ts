@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   normalizeSerializedMarkdownDocument,
   preserveMarkdownBlankLinesForEditor,
+  preserveMarkdownBlankLinesForPaste,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 
 const LEGACY_EMPTY_LINE_PLACEHOLDER = '\u200B';
@@ -11,6 +12,24 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
   it('uses editor-only blocks for ordinary markdown blank lines', () => {
     expect(preserveMarkdownBlankLinesForEditor('1\n\n2')).toBe(
       ['1', MARKDOWN_BLANK_LINE_PLACEHOLDER, '2'].join('\n')
+    );
+  });
+
+  it('keeps single structural paste blank lines as markdown separators', () => {
+    expect(preserveMarkdownBlankLinesForPaste(['# A', '', '# B'].join('\n'))).toBe(
+      ['# A', '', '# B'].join('\n')
+    );
+    expect(preserveMarkdownBlankLinesForPaste(['# A', '## B', '### C'].join('\n'))).toBe(
+      ['# A', '', '## B', '', '### C'].join('\n')
+    );
+    expect(preserveMarkdownBlankLinesForPaste(['Text', '', '$$', 'x', '$$'].join('\n'))).toBe(
+      ['Text', '', '$$', 'x', '$$'].join('\n')
+    );
+  });
+
+  it('keeps only extra paste blank lines as editor-only visible blank blocks', () => {
+    expect(preserveMarkdownBlankLinesForPaste(['# A', '', '', '# B'].join('\n'))).toBe(
+      ['# A', '', MARKDOWN_BLANK_LINE_PLACEHOLDER, '# B'].join('\n')
     );
   });
 

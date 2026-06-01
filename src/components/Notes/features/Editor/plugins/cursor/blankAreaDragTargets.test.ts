@@ -372,6 +372,20 @@ describe('blankAreaDragTargets', () => {
     }
   });
 
+  it('routes markdown blank line placeholder blocks through blank-area click handling', () => {
+    const { view, cleanup } = createView();
+    const blankLine = document.createElement('div');
+    blankLine.setAttribute('data-type', 'html-block');
+    blankLine.setAttribute('data-value', '<!--vlaina-markdown-blank-line-->');
+    view.dom.append(blankLine);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(view, createMouseDown(blankLine))).toBe('outside-editor');
+    } finally {
+      cleanup();
+    }
+  });
+
   it('allows the normal notes sidebar blank scroll root to start block selection', () => {
     const { view, cleanup } = createView();
     const sidebarScrollRoot = document.createElement('div');

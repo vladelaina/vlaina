@@ -102,6 +102,53 @@ export function preserveMarkdownBlankLinesForEditor(text: string): string {
   return normalizeUserBreakSentinels(preserved);
 }
 
+export function preserveMarkdownBlankLinesForPaste(text: string): string {
+  return compactEditorOnlyBlankLinePlaceholdersForPaste(
+    preserveMarkdownBlankLinesForEditor(text)
+  );
+}
+
+function compactEditorOnlyBlankLinePlaceholdersForPaste(text: string): string {
+  if (
+    !text.includes(EDITOR_MARKDOWN_BLANK_LINE_PLACEHOLDER)
+    && !text.includes(EDITOR_TIGHT_HEADING_PLACEHOLDER)
+  ) {
+    return text;
+  }
+
+  const lines = text.split('\n');
+  const output: string[] = [];
+
+  for (let index = 0; index < lines.length;) {
+    const line = lines[index] ?? '';
+
+    if (line.trim() === EDITOR_TIGHT_HEADING_PLACEHOLDER) {
+      output.push('');
+      index += 1;
+      continue;
+    }
+
+    if (line.trim() !== EDITOR_MARKDOWN_BLANK_LINE_PLACEHOLDER) {
+      output.push(line);
+      index += 1;
+      continue;
+    }
+
+    let end = index + 1;
+    while ((lines[end] ?? '').trim() === EDITOR_MARKDOWN_BLANK_LINE_PLACEHOLDER) {
+      end += 1;
+    }
+
+    output.push('');
+    for (let placeholderIndex = index + 1; placeholderIndex < end; placeholderIndex += 1) {
+      output.push(EDITOR_MARKDOWN_BLANK_LINE_PLACEHOLDER);
+    }
+    index = end;
+  }
+
+  return output.join('\n');
+}
+
 function createEditableListGapPlaceholderLine(lines: readonly string[], index: number): string {
   const reference = findNearestListItemLine(lines, index, 1)
     ?? findNearestListItemLine(lines, index, -1);

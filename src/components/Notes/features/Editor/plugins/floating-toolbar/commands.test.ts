@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { copySelectionToClipboard, convertBlockType, setBgColor, setTextAlignment, setTextColor, toggleBold } from './commands';
+import type { BlockRange } from '../cursor/blockSelectionUtils';
 
 const mockSetBlockType = vi.fn();
 const mockWrapIn = vi.fn();
@@ -8,7 +9,7 @@ const mockTextSelectionCreate = vi.fn();
 const blockSelectionMocks = vi.hoisted(() => ({
   clearBlockSelection: vi.fn(),
   hasSelectedBlocks: vi.fn(() => false),
-  getBlockSelectionPluginState: vi.fn(() => ({ selectedBlocks: [] })),
+  getBlockSelectionPluginState: vi.fn(() => ({ selectedBlocks: [] as BlockRange[] })),
 }));
 const blockSelectionSerializerMocks = vi.hoisted(() => ({
   serializeSelectedBlocksToText: vi.fn(() => ''),

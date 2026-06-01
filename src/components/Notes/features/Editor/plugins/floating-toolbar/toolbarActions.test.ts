@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { createToolbarActionController } from './toolbarActions';
 import { NOTES_COPY_FEEDBACK_DURATION_MS } from '../shared/copyFeedback';
+import type { BlockRange } from '../cursor/blockSelectionUtils';
 
 const commandMocks = vi.hoisted(() => ({
   copySelectionToClipboard: vi.fn(),
@@ -15,7 +16,7 @@ const cleanupMocks = vi.hoisted(() => ({
 
 const blockSelectionMocks = vi.hoisted(() => ({
   deleteSelectedBlocks: vi.fn(),
-  getBlockSelectionPluginState: vi.fn(() => ({ selectedBlocks: [] })),
+  getBlockSelectionPluginState: vi.fn(() => ({ selectedBlocks: [] as BlockRange[] })),
   blankAreaDragBoxPluginKey: {},
   clearBlocksAction: { type: 'clear-blocks' },
 }));

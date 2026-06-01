@@ -8,6 +8,7 @@ const NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR = '[data-notes-sidebar-scroll-root="tru
 const NOTES_SIDEBAR_BLANK_DRAG_ROOT_SELECTOR = '[data-notes-sidebar-blank-drag-root="true"]';
 const COVER_REGION_SELECTOR = '[data-note-cover-region="true"]';
 const NO_EDITOR_DRAG_BOX_SELECTOR = '[data-no-editor-drag-box="true"]';
+const MARKDOWN_BLANK_LINE_SELECTOR = "[data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->']";
 const TRAILING_TEXT_SELECTION_GUTTER_PX = 48;
 const TRAILING_TEXT_SELECTION_TEXT_OVERLAP_PX = 24;
 const LEADING_TEXT_SELECTION_GUTTER_PX = 32;
@@ -27,6 +28,7 @@ const TEXT_BLOCK_SURFACE_SELECTOR = [
   'p',
   'li',
   'blockquote',
+  MARKDOWN_BLANK_LINE_SELECTOR,
   'h1',
   'h2',
   'h3',
@@ -37,7 +39,7 @@ const TEXT_BLOCK_SURFACE_SELECTOR = [
 const STRUCTURED_BLOCK_SELECTOR = [
   'table',
   'pre',
-  '[data-type]',
+  `[data-type]:not(${MARKDOWN_BLANK_LINE_SELECTOR})`,
   '[data-node-view-root]',
 ].join(', ');
 
