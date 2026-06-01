@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { CropParams } from './imageSourceFragment';
+import { themeCropperTokens, themeImageBlockStyleTokens } from '@/styles/themeTokens';
 
 export function getCropViewStyles(params: CropParams): { container: CSSProperties; image: CSSProperties } {
     return {
@@ -12,11 +13,11 @@ export function getCropViewStyles(params: CropParams): { container: CSSPropertie
             position: 'absolute',
             top: 0,
             left: 0,
-            width: '100%',
-            height: 'auto',
-            display: 'block',
-            transform: `scale(${100 / params.width}) translate(-${params.x}%, -${params.y}%)`,
-            transformOrigin: 'top left',
+            width: themeImageBlockStyleTokens.widthFull,
+            height: themeImageBlockStyleTokens.heightAuto,
+            display: themeImageBlockStyleTokens.displayBlock,
+            transform: `scale(${themeCropperTokens.scaleBasePercent / params.width}) translate(-${params.x}%, -${params.y}%)`,
+            transformOrigin: themeCropperTokens.transformOriginTopLeft,
         },
     };
 }

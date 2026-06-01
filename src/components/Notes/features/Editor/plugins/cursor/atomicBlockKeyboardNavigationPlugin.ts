@@ -40,7 +40,7 @@ export const atomicBlockKeyboardNavigationPluginKey =
   new PluginKey<TransientGapState>('atomicBlockKeyboardNavigation');
 
 const EMPTY_TRANSIENT_GAP_STATE: TransientGapState = { pos: null };
-export const ATOMIC_BLOCK_KEYBOARD_SELECTION_CLASS = 'vlaina-atomic-block-keyboard-selected';
+export const ATOMIC_BLOCK_KEYBOARD_SELECTION_CLASS = 'editor-atomic-block-keyboard-selected';
 
 function getPlainVerticalDirection(event: KeyboardEvent): Direction | null {
   if (event.shiftKey || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) {

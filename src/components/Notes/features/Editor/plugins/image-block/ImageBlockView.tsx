@@ -278,8 +278,8 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                     data-dragging={isDragging ? 'true' : undefined}
                     draggable={false}
                     className={cn(
-                        'relative flex flex-col leading-none text-[0px] select-none',
-                        (isHovered || isEditingCaption || isActive) && !isBlockDragging ? 'z-10' : '',
+                        'relative flex flex-col leading-none text-[var(--vlaina-font-0)] select-none',
+                        (isHovered || isEditingCaption || isActive) && !isBlockDragging ? 'z-[var(--vlaina-z-10)]' : '',
                     )}
                     style={positionedContainerStyle}
                     onMouseEnter={handleMouseEnter}

@@ -5,7 +5,7 @@ export type NotesOverlaySource =
   | 'emoji-shortcut'
   | 'slash-menu';
 
-const NOTES_OVERLAY_OPEN_EVENT = 'vlaina:notes-overlay-open';
+const NOTES_OVERLAY_OPEN_EVENT = 'app:notes-overlay-open';
 
 export interface NotesOverlayOpenDetail {
   source: NotesOverlaySource;

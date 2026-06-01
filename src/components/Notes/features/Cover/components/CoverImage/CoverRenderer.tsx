@@ -3,6 +3,7 @@ import { CoverPlaceholderLayer } from './layers/CoverPlaceholderLayer';
 import { CoverCropperLayer } from './layers/CoverCropperLayer';
 import { CoverFrozenLayer } from './layers/CoverFrozenLayer';
 import type { CoverRendererProps } from './coverRenderer.types';
+import { themeRenderingTokens } from '@/styles/themeTokens';
 export type { CoverRendererProps, LoadedCoverMedia } from './coverRenderer.types';
 
 export const CoverRenderer = React.memo(({
@@ -58,7 +59,7 @@ export const CoverRenderer = React.memo(({
           className="absolute inset-0 h-full w-full object-cover pointer-events-none select-none"
           style={{
             objectPosition: `${positionX}% ${positionY}%`,
-            transform: 'translateZ(0)',
+            transform: themeRenderingTokens.translateZ0,
           }}
         />
       ) : null}

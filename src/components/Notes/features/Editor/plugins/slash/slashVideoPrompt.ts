@@ -5,20 +5,19 @@ import { getContentLayoutContext } from '../floating-toolbar/floatingToolbarLayo
 import { renderUrlRailEditor } from '../floating-toolbar/components/UrlRailEditor';
 import { isSupportedVideoUrl, normalizeVideoUrlInput } from '../video';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
-
-const VIDEO_PROMPT_MARGIN_PX = 12;
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 
 function getPromptPosition(view: EditorView) {
   try {
     const coords = view.coordsAtPos(view.state.selection.from);
     return {
       x: coords.left,
-      y: coords.bottom + 8,
+      y: coords.bottom + themeDomStyleTokens.editorPopupAnchorOffsetPx,
     };
   } catch {
     return {
-      x: 16,
-      y: 16,
+      x: themeDomStyleTokens.editorPopupFallbackX,
+      y: themeDomStyleTokens.editorPopupFallbackY,
     };
   }
 }
@@ -41,7 +40,7 @@ export function openSlashVideoPrompt(args: {
     view.focus();
   };
 
-  prompt.className = `slash-video-prompt !rounded-[26px] ${chatComposerPillSurfaceClass}`;
+  prompt.className = `slash-video-prompt !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
   prompt.style.position = positionRoot ? 'absolute' : 'fixed';
   (positionRoot ?? document.body).append(prompt);
   renderUrlRailEditor(prompt, {
@@ -71,15 +70,15 @@ export function openSlashVideoPrompt(args: {
   const promptWidth = prompt.offsetWidth || 320;
   const horizontalBounds = positionRoot
     ? {
-        left: layout.containerBounds?.left ?? VIDEO_PROMPT_MARGIN_PX,
+        left: layout.containerBounds?.left ?? themeDomStyleTokens.editorPopupHorizontalMarginPx,
         right: layout.containerBounds?.right ?? positionRoot.clientWidth,
       }
     : {
         left: layout.viewportBounds.left,
         right: layout.viewportBounds.right,
       };
-  const minX = horizontalBounds.left + VIDEO_PROMPT_MARGIN_PX;
-  const maxX = horizontalBounds.right - VIDEO_PROMPT_MARGIN_PX - promptWidth;
+  const minX = horizontalBounds.left + themeDomStyleTokens.editorPopupHorizontalMarginPx;
+  const maxX = horizontalBounds.right - themeDomStyleTokens.editorPopupHorizontalMarginPx - promptWidth;
   const x = maxX < minX ? minX : Math.max(minX, Math.min(containerPosition.x, maxX));
 
   prompt.style.left = `${Math.round(x)}px`;

@@ -15,14 +15,14 @@ export {
 export { joinSerializedBlocks } from './markdownBlockJoin';
 
 const BR_ONLY_PATTERN = /^<br\b[^>]*\/?>\s*(?:<\/br>)?$/i;
-const VLAINA_EMPTY_LINE_ATTR_PATTERN = '\\bdat[ae]-vla(?:ina|ian)-?(?:empty|empt)-line';
-const VLAINA_LIST_GAP_ATTR_PATTERN = '\\bdat[ae]-vla(?:ina|ian)-?list-gap';
-const VLAINA_USER_BR_ATTR_PATTERN = '\\bdat[ae]-vla(?:ina|ian)-?user-br';
-const VLAINA_BLOCKQUOTE_DEPTH_ATTR_PATTERN = '\\bdat[ae]-vla(?:ina|ian)-?blockquote-depth';
+const LEGACY_EMPTY_LINE_ATTR_PATTERN = '\\bdat[ae]-vlaina-?(?:empty|empt)-line';
+const LEGACY_LIST_GAP_ATTR_PATTERN = '\\bdat[ae]-vlaina-?list-gap';
+const LEGACY_USER_BR_ATTR_PATTERN = '\\bdat[ae]-vlaina-?user-br';
+const LEGACY_BLOCKQUOTE_DEPTH_ATTR_PATTERN = '\\bdat[ae]-vlaina-?blockquote-depth';
 const TRUE_ATTR_VALUE_PATTERN = '(?:"true"|\'true\'|true\\b)';
 const DEPTH_ATTR_VALUE_PATTERN = '(?:"(\\d+)"|\'(\\d+)\'|(\\d+)\\b)';
 const MARKED_BR_ONLY_PATTERN =
-  new RegExp(`^<br\\b(?=[^>]*${VLAINA_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
+  new RegExp(`^<br\\b(?=[^>]*${LEGACY_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
 const INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-blank-line\s*-->\s*$/i;
 const INTERNAL_TIGHT_HEADING_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-tight-heading\s*-->\s*$/i;
 const HTML_IMAGE_LINE_PATTERN = /^(?: {0,3})<img(?:\s|\/?>|$)/i;
@@ -42,22 +42,22 @@ const EDITABLE_LIST_GAP_PLACEHOLDER_PATTERN = /^[\t ]*\u2800[\t ]*$/;
 const USER_BR_SENTINEL_LINE_PATTERN =
   new RegExp(`^(\\s*(?:>\\s*)*)${USER_BR_SENTINEL}$`);
 const MARKED_EMPTY_MARKDOWN_LINE_PLACEHOLDER_PATTERN =
-  new RegExp(`^(\\s*(?:>\\s*)*(?:(?:[-+*]|\\d+[.)])\\s+(?:\\[(?: |x|X)\\]\\s+)?)?)<br\\b(?=[^>]*${VLAINA_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'gim');
+  new RegExp(`^(\\s*(?:>\\s*)*(?:(?:[-+*]|\\d+[.)])\\s+(?:\\[(?: |x|X)\\]\\s+)?)?)<br\\b(?=[^>]*${LEGACY_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'gim');
 const MARKED_EMPTY_LINE_PATTERN =
-  new RegExp(`^<br\\b(?=[^>]*${VLAINA_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
+  new RegExp(`^<br\\b(?=[^>]*${LEGACY_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
 const MARKED_EMPTY_LINE_TOKEN_PATTERN =
-  new RegExp(`[ \\t]*<br\\b(?=[^>]*${VLAINA_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>[ \\t]*(?:<\\/br>)?`, 'gi');
+  new RegExp(`[ \\t]*<br\\b(?=[^>]*${LEGACY_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>[ \\t]*(?:<\\/br>)?`, 'gi');
 const MARKED_USER_BR_PATTERN =
-  new RegExp(`^<br\\b(?=[^>]*${VLAINA_USER_BR_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
+  new RegExp(`^<br\\b(?=[^>]*${LEGACY_USER_BR_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
 const MARKED_BLOCKQUOTE_USER_BR_PATTERN =
-  new RegExp(`^(\\s*(?:>\\s*)+)<br\\b(?=[^>]*${VLAINA_USER_BR_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
+  new RegExp(`^(\\s*(?:>\\s*)+)<br\\b(?=[^>]*${LEGACY_USER_BR_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
 const MARKED_BLOCKQUOTE_USER_BR_WITH_DEPTH_PATTERN =
-  new RegExp(`^(\\s*(?:>\\s*)*)<br\\b(?=[^>]*${VLAINA_USER_BR_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})(?=[^>]*${VLAINA_BLOCKQUOTE_DEPTH_ATTR_PATTERN}=${DEPTH_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
+  new RegExp(`^(\\s*(?:>\\s*)*)<br\\b(?=[^>]*${LEGACY_USER_BR_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})(?=[^>]*${LEGACY_BLOCKQUOTE_DEPTH_ATTR_PATTERN}=${DEPTH_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
 const MARKED_BLOCKQUOTE_USER_BR_TOKEN_PATTERN =
-  new RegExp(`[ \\t]*(?:\\\\?\\u200B[ \\t]*)?<br\\b(?=[^>]*${VLAINA_USER_BR_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})(?=[^>]*${VLAINA_BLOCKQUOTE_DEPTH_ATTR_PATTERN}=${DEPTH_ATTR_VALUE_PATTERN})[^>]*\\/?>[ \\t]*(?:<\\/br>)?`, 'gi');
+  new RegExp(`[ \\t]*(?:\\\\?\\u200B[ \\t]*)?<br\\b(?=[^>]*${LEGACY_USER_BR_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})(?=[^>]*${LEGACY_BLOCKQUOTE_DEPTH_ATTR_PATTERN}=${DEPTH_ATTR_VALUE_PATTERN})[^>]*\\/?>[ \\t]*(?:<\\/br>)?`, 'gi');
 const MARKED_USER_BR_TOKEN_PATTERN =
-  new RegExp(`[ \\t]*(?:\\\\?\\u200B[ \\t]*)?<br\\b(?=[^>]*${VLAINA_USER_BR_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>[ \\t]*(?:<\\/br>)?`, 'gi');
-const MARKED_LIST_GAP_TOKEN_PATTERN = new RegExp(`[ \\t]*<br\\b(?=[^>]*${VLAINA_LIST_GAP_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>[ \\t]*(?:<\\/br>)?`, 'gi');
+  new RegExp(`[ \\t]*(?:\\\\?\\u200B[ \\t]*)?<br\\b(?=[^>]*${LEGACY_USER_BR_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>[ \\t]*(?:<\\/br>)?`, 'gi');
+const MARKED_LIST_GAP_TOKEN_PATTERN = new RegExp(`[ \\t]*<br\\b(?=[^>]*${LEGACY_LIST_GAP_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>[ \\t]*(?:<\\/br>)?`, 'gi');
 const EMPTY_LIST_ITEM_PLACEHOLDER_PATTERN =
   /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])(?:\s+\[(?: |x|X)\])?)\s+<br\b[^>]*\/?>\s*(?:<\/br>)?$/gim;
 const EDITABLE_LIST_GAP_MARKER_PLACEHOLDER_PATTERN =

@@ -1,7 +1,7 @@
 {
   "account.cancelAuthentication": "Cancel Authentication",
   "account.continueSignIn": "Continue Sign In",
-  "account.continueToVlaina": "Continue to vlaina",
+  "account.continueToApp": "Continue to vlaina",
   "account.continueWithEmail": "Continue with Email",
   "account.emailAddress": "Email Address",
   "account.enterEmailCode": "Enter the code sent to your inbox",
@@ -82,7 +82,7 @@
   "settings.feedback.error.signInRequired": "Please sign in before sending feedback",
   "settings.feedback.error.network": "Network error. Feedback was not submitted.",
   "settings.feedback.error.generic": "Failed to submit feedback",
-  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★! This is {authorSite}, developer of {vlainaSite} and {catimeSite}.",
+  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★! This is {authorSite}, developer of {appSite} and {catimeSite}.",
   "settings.about.note.curiousTitle": "You may be wondering:",
   "settings.about.note.curiousMissing": "Why does it look like some features are still missing?",
   "settings.about.note.curiousRough": "Why are some interactions still rough?",

@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { calculateCropPixels, getBaseDimensions } from '../../../utils/coverGeometry';
+import { themeCoverLayerTokens, themeRenderingTokens } from '@/styles/themeTokens';
 
 interface CoverPlaceholderLayerProps {
   displaySrc: string;
@@ -46,28 +47,28 @@ export function CoverPlaceholderLayer({
   const fallbackCrop = resolvedCrop ?? { x: 0, y: 0 };
   const fallbackSizing =
     objectFitMode === 'vertical-cover'
-      ? { width: 'auto', height: '100%' }
-      : { width: '100%', height: 'auto' };
+      ? { width: themeCoverLayerTokens.sizeAuto, height: themeCoverLayerTokens.sizeFull }
+      : { width: themeCoverLayerTokens.sizeFull, height: themeCoverLayerTokens.sizeAuto };
   const isVisible = forceVisible || !isImageReady;
   const style = {
     ...(baseDimensions && crop
       ? {
           width: `${baseDimensions.width}px`,
           height: `${baseDimensions.height}px`,
-          left: '50%',
-          top: '50%',
+          left: themeCoverLayerTokens.positionCenter,
+          top: themeCoverLayerTokens.positionCenter,
           objectPosition: undefined,
           transform: `translate(calc(-50% + ${crop.x}px), calc(-50% + ${crop.y}px)) scale(${zoom})`,
         }
       : {
           ...fallbackSizing,
-          left: '50%',
-          top: '50%',
+          left: themeCoverLayerTokens.positionCenter,
+          top: themeCoverLayerTokens.positionCenter,
           objectPosition: undefined,
           transform: `translate(calc(-50% + ${fallbackCrop.x}px), calc(-50% + ${fallbackCrop.y}px)) scale(${zoom})`,
         }),
-    transformOrigin: 'center center',
-    willChange: 'transform',
+    transformOrigin: themeCoverLayerTokens.transformOriginCenter,
+    willChange: themeRenderingTokens.transformWillChange,
   } as const;
 
   if (!hasDisplaySrc) {
@@ -82,7 +83,7 @@ export function CoverPlaceholderLayer({
       className={cn(
         'absolute max-w-none pointer-events-none select-none',
         baseDimensions ? 'object-none' : 'object-none',
-        isVisible ? 'opacity-100 placeholder-active' : 'opacity-0'
+        isVisible ? 'opacity-[var(--vlaina-opacity-100)] placeholder-active' : 'opacity-[var(--vlaina-opacity-0)]'
       )}
       style={style}
     />

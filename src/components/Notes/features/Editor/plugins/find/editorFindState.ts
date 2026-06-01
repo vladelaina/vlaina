@@ -47,8 +47,8 @@ function createEditorFindDecorations(
       Decoration.inline(range.from, range.to, {
         class:
           index === activeIndex
-            ? 'vlaina-editor-find-match vlaina-editor-find-match-active'
-            : 'vlaina-editor-find-match',
+            ? 'editor-find-match editor-find-match-active'
+            : 'editor-find-match',
       }),
     ),
   );

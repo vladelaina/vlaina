@@ -35,7 +35,7 @@ export const ChatSidebarSurface = forwardRef<HTMLDivElement, ChatSidebarSurfaceP
     <SidebarSurface
       ref={ref}
       className={cn(
-        'group/chat-sidebar-surface flex h-full flex-col bg-[var(--chat-sidebar-surface)] text-[var(--chat-sidebar-text)]',
+        'group/chat-sidebar-surface flex h-full flex-col bg-[var(--vlaina-sidebar-chat-surface)] text-[var(--vlaina-sidebar-chat-text)]',
         className
       )}
       isPeeking={isPeeking}
@@ -117,14 +117,14 @@ export function ChatSidebarHoverEmptyHint({
   return (
     <div
       className={cn(
-        'pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center opacity-0 transition-opacity duration-150 group-hover/chat-sidebar-surface:opacity-100',
+        'pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center opacity-[var(--vlaina-opacity-0)] transition-opacity duration-[var(--vlaina-duration-150)] group-hover/chat-sidebar-surface:opacity-[var(--vlaina-opacity-100)]',
         className,
       )}
       {...props}
     >
       <span
         className={cn(
-          'whitespace-nowrap rounded-full px-4 py-2 text-center text-[15px] text-[var(--chat-sidebar-text-soft)]',
+          'whitespace-nowrap rounded-full px-4 py-2 text-center text-[var(--vlaina-font-15)] text-[var(--vlaina-sidebar-chat-text-soft)]',
           chatComposerPillSurfaceClass,
         )}
       >

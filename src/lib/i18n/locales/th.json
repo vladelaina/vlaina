@@ -1,7 +1,7 @@
 {
   "account.cancelAuthentication": "ยกเลิกการยืนยันตัวตน",
   "account.continueSignIn": "ดำเนินการต่อเพื่อลงชื่อเข้าใช้",
-  "account.continueToVlaina": "ดำเนินการต่อสู่ vlaina",
+  "account.continueToApp": "ดำเนินการต่อสู่ vlaina",
   "account.continueWithEmail": "ดำเนินการต่อด้วยอีเมล",
   "account.emailAddress": "ที่อยู่อีเมล",
   "account.enterEmailCode": "ป้อนรหัสที่ส่งไปยังกล่องจดหมายของคุณ",
@@ -82,7 +82,7 @@
   "settings.feedback.error.signInRequired": "โปรดเข้าสู่ระบบก่อนส่งข้อเสนอแนะ",
   "settings.feedback.error.network": "เครือข่ายผิดพลาด ส่งข้อเสนอแนะไม่สำเร็จ",
   "settings.feedback.error.generic": "ส่งข้อเสนอแนะไม่สำเร็จ",
-  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★ นี่คือ {authorSite} ผู้พัฒนา {vlainaSite} และ {catimeSite}",
+  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★ นี่คือ {authorSite} ผู้พัฒนา {appSite} และ {catimeSite}",
   "settings.about.note.curiousTitle": "คุณอาจสงสัยว่า:",
   "settings.about.note.curiousMissing": "ทำไมดูเหมือนว่ายังมีบางฟีเจอร์ที่ยังไม่มี?",
   "settings.about.note.curiousRough": "ทำไมบางการโต้ตอบยังดูไม่เรียบร้อย?",

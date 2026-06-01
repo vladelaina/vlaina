@@ -18,19 +18,19 @@ interface BuildCodeMirrorFindHighlightRangesOptions {
 }
 
 const inactiveFindHighlight = Decoration.mark({
-  class: 'vlaina-editor-find-match',
+  class: 'editor-find-match',
 });
 
 const selectedInactiveFindHighlight = Decoration.mark({
-  class: 'vlaina-editor-find-match vlaina-editor-find-match-selected',
+  class: 'editor-find-match editor-find-match-selected',
 });
 
 const activeFindHighlight = Decoration.mark({
-  class: 'vlaina-editor-find-match vlaina-editor-find-match-active',
+  class: 'editor-find-match editor-find-match-active',
 });
 
 const selectedActiveFindHighlight = Decoration.mark({
-  class: 'vlaina-editor-find-match vlaina-editor-find-match-active vlaina-editor-find-match-selected',
+  class: 'editor-find-match editor-find-match-active editor-find-match-selected',
 });
 
 const setCodeMirrorFindHighlightRanges = StateEffect.define<

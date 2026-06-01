@@ -50,7 +50,7 @@ export function SidebarCapsulePanel({
   return (
     <div
       className={cn(
-        'mx-2 mb-2 flex min-h-0 flex-1 flex-col rounded-[22px] p-1',
+        'mx-2 mb-2 flex min-h-0 flex-1 flex-col rounded-[var(--vlaina-radius-22px)] p-1',
         chatComposerPillSurfaceClass,
         className,
       )}
@@ -64,7 +64,7 @@ export const SidebarSurface = forwardRef<HTMLDivElement, SidebarSurfaceProps>(
     return (
       <div
         ref={ref}
-        className={cn('flex h-full min-h-0 flex-col', isPeeking && 'opacity-95', className)}
+        className={cn('flex h-full min-h-0 flex-col', isPeeking && 'opacity-[var(--vlaina-opacity-95)]', className)}
         {...props}
       />
     );
@@ -111,7 +111,7 @@ export const SidebarActionButton = forwardRef<HTMLButtonElement, SidebarActionBu
         ref={ref}
         type={type}
         className={cn(
-          'flex h-[36px] w-full cursor-pointer items-center gap-2 rounded-xl bg-transparent px-3 py-1 text-[16px] leading-none shadow-none hover:shadow-none',
+          'flex h-[var(--vlaina-size-36px)] w-full cursor-pointer items-center gap-2 rounded-xl bg-transparent px-3 py-1 text-[var(--vlaina-font-base)] leading-none shadow-[var(--vlaina-shadow-none)] hover:shadow-[var(--vlaina-shadow-none)]',
           tone ? getSidebarActionButtonClass(tone) : undefined,
           className,
         )}
@@ -120,7 +120,7 @@ export const SidebarActionButton = forwardRef<HTMLButtonElement, SidebarActionBu
         {icon ? (
           <span
             className={cn(
-              'flex size-[20px] shrink-0 items-center justify-center leading-none',
+              'flex size-[var(--vlaina-size-20px)] shrink-0 items-center justify-center leading-none',
               iconClassName,
             )}
           >
@@ -152,7 +152,7 @@ export const SidebarSearchField = forwardRef<HTMLInputElement, SidebarSearchFiel
       <div className={cn('px-2 pt-2', className)}>
         <div
           className={cn(
-            'flex h-[40px] items-center gap-2 rounded-full pl-3 pr-1',
+            'flex h-[var(--vlaina-size-40px)] items-center gap-2 rounded-full pl-3 pr-1',
             chatComposerPillSurfaceClass,
             containerClassName,
           )}
@@ -166,7 +166,7 @@ export const SidebarSearchField = forwardRef<HTMLInputElement, SidebarSearchFiel
             ref={ref}
             spellCheck={false}
             className={cn(
-              'h-8 min-w-0 flex-1 bg-transparent py-0 text-[16px] leading-5 text-[var(--vlaina-color-text-soft)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]',
+              'h-8 min-w-0 flex-1 bg-transparent py-0 text-[var(--vlaina-font-base)] leading-5 text-[var(--vlaina-color-text-soft)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]',
               inputClassName,
             )}
             {...props}
@@ -176,7 +176,7 @@ export const SidebarSearchField = forwardRef<HTMLInputElement, SidebarSearchFiel
             onClick={onClose}
             aria-label={closeLabel}
             className={cn(
-              'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)]',
+              'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-[var(--vlaina-sidebar-notes-row-hover)] hover:text-[var(--vlaina-sidebar-notes-text)]',
               closeButtonClassName,
             )}
           >

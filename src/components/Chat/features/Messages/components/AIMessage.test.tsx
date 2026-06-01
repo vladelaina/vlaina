@@ -120,7 +120,7 @@ describe("AIMessage", () => {
       />,
     );
 
-    expect(document.querySelectorAll(".vlaina-dot").length).toBe(0);
+    expect(document.querySelectorAll(".chat-loading-dot").length).toBe(0);
     expect(screen.getByTestId("markdown")).toHaveAttribute("data-streaming", "true");
   });
 
@@ -136,7 +136,7 @@ describe("AIMessage", () => {
       />,
     );
 
-    expect(document.querySelectorAll(".vlaina-dot").length).toBe(0);
+    expect(document.querySelectorAll(".chat-loading-dot").length).toBe(0);
     expect(screen.getByTestId("toolbar")).toBeInTheDocument();
     expect(screen.getByTestId("markdown")).toHaveAttribute("data-streaming", "false");
   });
@@ -184,7 +184,7 @@ describe("AIMessage", () => {
     );
 
     expect(screen.getByTestId("markdown").closest('[data-chat-selection-surface="true"]'))
-      .toHaveClass("pl-[15px]");
+      .toHaveClass("pl-[var(--vlaina-space-15px)]");
     expect(screen.getByTestId("toolbar")).toHaveAttribute("data-chat-selection-excluded", "true");
   });
 

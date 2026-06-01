@@ -13,10 +13,10 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
   }
 
   const sidebarTextButtonClass =
-    'cursor-pointer bg-transparent text-[var(--chat-sidebar-text)] hover:text-[var(--chat-sidebar-text)] disabled:cursor-default';
+    'cursor-pointer bg-transparent text-[var(--vlaina-sidebar-chat-text)] hover:text-[var(--vlaina-sidebar-chat-text)] disabled:cursor-default';
 
   return (
-    <div className={`vlaina-no-drag flex shrink-0 h-10 ${className || ''}`}>
+    <div className={`app-no-drag flex shrink-0 h-10 ${className || ''}`}>
       <button
         onClick={() => void desktopWindow.minimize()}
         className={`h-full w-12 flex items-center justify-center transition-colors ${sidebarTextButtonClass}`}

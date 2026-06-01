@@ -13,7 +13,7 @@ export function VirtualModelList<T>({
 }) {
   if (items.length === 0) {
     return (
-      <div className="rounded-[18px] border border-dashed border-[var(--vlaina-border)] px-3.5 py-6 text-center text-[12px] text-[var(--notes-sidebar-text-soft)]">
+      <div className="rounded-[var(--vlaina-radius-18px)] border border-dashed border-[var(--vlaina-border)] px-3.5 py-6 text-center text-[var(--vlaina-font-xs)] text-[var(--vlaina-sidebar-notes-text-soft)]">
         {emptyState}
       </div>
     );

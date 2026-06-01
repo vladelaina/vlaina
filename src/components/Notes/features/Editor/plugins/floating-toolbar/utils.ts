@@ -1,16 +1,9 @@
 import type { ColorOption, BlockTypeConfig, BlockType } from './types';
 import { translate, type MessageKey } from '@/lib/i18n';
+import { themeColorTokens } from '@/styles/themeTokens';
 import { sanitizeEditorLinkHref } from '../links/utils/linkHref';
 
-const TOOLBAR_COLOR_HEXES = [
-  '#f1fdf3', '#e6f4e7', '#d1e9d3', '#99cda9',
-  '#e7f0d3', '#d2ea9c', '#abcb88', '#84b271',
-  '#e3fdfc', '#cbf1f4', '#a6e3e8', '#71c9cd',
-  '#fff9f9', '#ffdfe0', '#ffc1d0', '#fca9bd',
-  '#f8ddfe', '#f2c0ff', '#c09fee', '#866ec6',
-] as const;
-
-const TOOLBAR_COLOR_OPTIONS: ColorOption[] = TOOLBAR_COLOR_HEXES.map((color, index) => ({
+const TOOLBAR_COLOR_OPTIONS: ColorOption[] = themeColorTokens.toolbarColorHexes.map((color, index) => ({
   id: `custom-${index + 1}`,
   label: `Color ${index + 1}`,
   textColor: color,

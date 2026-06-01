@@ -19,7 +19,7 @@ export { collectSelectableBlockRanges } from './blockUnitResolver';
 
 function shouldIgnoreContentBoundsElement(root: HTMLElement, element: Element): boolean {
   for (let current: Element | null = element; current && root.contains(current); current = current.parentElement) {
-    if (current.matches('ul, ol, button, .vlaina-collapse-btn')) return true;
+    if (current.matches('ul, ol, button, .editor-collapse-btn')) return true;
     if (current.matches('[contenteditable="false"]') && !current.closest('.footnote-ref')) return true;
   }
   return false;

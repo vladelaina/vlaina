@@ -5,12 +5,13 @@ import { cn } from '@/lib/utils';
 import { AssetGridProps } from './types';
 import { AssetThumbnail } from './components/AssetThumbnail';
 import { useAssetHover } from './hooks/useAssetHover';
+import { themeAssetGridTokens, themeDomStyleTokens, themeImageBlockStyleTokens } from '@/styles/themeTokens';
 
-const GRID_GAP_PX = 8;
-const GRID_PADDING_PX = 8;
-const COMPACT_ITEM_SIZE_PX = 60;
-const REGULAR_ITEM_SIZE_PX = 104;
-const GRID_MAX_HEIGHT_PX = 280;
+const GRID_GAP_PX = themeAssetGridTokens.gapPx;
+const GRID_PADDING_PX = themeAssetGridTokens.paddingPx;
+const COMPACT_ITEM_SIZE_PX = themeAssetGridTokens.compactItemSizePx;
+const REGULAR_ITEM_SIZE_PX = themeAssetGridTokens.regularItemSizePx;
+const GRID_MAX_HEIGHT_PX = themeAssetGridTokens.maxHeightPx;
 
 export function AssetGrid({ onSelect, onHover, vaultPath, currentNotePath, compact, itemSize }: AssetGridProps) {
   const getAssetList = useNotesStore((state) => state.getAssetList);
@@ -26,7 +27,7 @@ export function AssetGrid({ onSelect, onHover, vaultPath, currentNotePath, compa
   );
   const resolvedItemSize = innerWidth > 0
     ? Math.max(
-        48,
+        themeAssetGridTokens.minResolvedItemSizePx,
         Math.floor((innerWidth - GRID_GAP_PX * (columnCount - 1)) / columnCount),
       )
     : baseItemSize;
@@ -84,14 +85,14 @@ export function AssetGrid({ onSelect, onHover, vaultPath, currentNotePath, compa
   return (
     <div
       ref={gridRef}
-      className={cn('relative overflow-y-auto', compact && 'vlaina-scrollbar')}
+      className={cn('relative overflow-y-auto', compact && 'app-scrollbar')}
       style={{ maxHeight: `${GRID_MAX_HEIGHT_PX}px` }}
     >
       <div
         style={{
           height: `${totalHeight}px`,
-          position: 'relative',
-          width: '100%',
+          position: themeDomStyleTokens.positionRelative,
+          width: themeImageBlockStyleTokens.widthFull,
         }}
       >
         {virtualRows.map((virtualRow) => {

@@ -12,6 +12,7 @@ import {
   estimateNotesSidebarSearchRowHeight,
 } from './sidebarSearchResultLayout';
 import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
+import { themeDomStyleTokens, themeImageBlockStyleTokens } from '@/styles/themeTokens';
 
 interface SidebarSearchResultsListProps {
   results: NotesSidebarSearchResult[];
@@ -67,7 +68,7 @@ function HighlightedSearchText({
       {parts.map((part, index) => (
         <span
           key={`${part.text}-${index}`}
-          className={part.highlighted ? 'text-blue-500' : undefined}
+          className={part.highlighted ? 'text-[var(--vlaina-color-status-info-fg)]' : undefined}
         >
           {part.text}
         </span>
@@ -99,9 +100,9 @@ function SidebarSearchResultRow({
   const hasLocationLine = Boolean(locationLabel);
   const hasContentLine = Boolean(contentSnippet);
   const rowClassName = hasContentLine
-    ? 'h-auto min-h-[58px] items-start py-2'
+    ? 'h-auto min-h-[var(--vlaina-size-58px)] items-start py-2'
     : hasLocationLine
-      ? 'h-auto min-h-[40px] items-start py-1.5'
+      ? 'h-auto min-h-[var(--vlaina-size-40px)] items-start py-1.5'
       : undefined;
   const leadingClassName =
     showFileHeader && (hasLocationLine || hasContentLine) ? 'self-start pt-0.5' : undefined;
@@ -117,11 +118,11 @@ function SidebarSearchResultRow({
           <Icon
             name="file.text"
             size={NOTES_SIDEBAR_ICON_SIZE}
-            className="text-[var(--notes-sidebar-file-icon)]"
+            className="text-[var(--vlaina-sidebar-notes-file-icon)]"
           />
         )
       ) : (
-        <span aria-hidden="true" className="block size-[20px]" />
+        <span aria-hidden="true" className="block size-[var(--vlaina-size-20px)]" />
       )}
       leadingClassName={leadingClassName}
       rowClassName={rowClassName}
@@ -133,7 +134,7 @@ function SidebarSearchResultRow({
       main={(
         <div className={cn('min-w-0', hasContentLine && 'space-y-0.5')}>
           {showFileHeader ? (
-            <div className="truncate text-[16px] leading-5 text-[var(--notes-sidebar-text)]">
+            <div className="truncate text-[var(--vlaina-font-base)] leading-5 text-[var(--vlaina-sidebar-notes-text)]">
               <HighlightedSearchText
                 text={name}
                 query={query}
@@ -142,12 +143,12 @@ function SidebarSearchResultRow({
             </div>
           ) : null}
           {locationLabel ? (
-            <div className="truncate text-[11px] leading-3 text-[var(--notes-sidebar-text-soft)]">
+            <div className="truncate text-[var(--vlaina-font-11)] leading-3 text-[var(--vlaina-sidebar-notes-text-soft)]">
               <HighlightedSearchText text={locationLabel} query={query} />
             </div>
           ) : null}
           {contentSnippet ? (
-            <div className="whitespace-normal break-words text-[12px] leading-3 text-[var(--notes-sidebar-text-soft)]">
+            <div className="whitespace-normal break-words text-[var(--vlaina-font-xs)] leading-3 text-[var(--vlaina-sidebar-notes-text-soft)]">
               <HighlightedSearchText text={contentSnippet} query={query} />
             </div>
           ) : null}
@@ -243,7 +244,7 @@ export function SidebarSearchResultsList({
   return (
     <div className="flex flex-col gap-0.5">
       {isContentScanPending ? (
-        <div className="px-3 py-1 text-[16px] text-[var(--notes-sidebar-text-soft)]">
+        <div className="px-3 py-1 text-[var(--vlaina-font-base)] text-[var(--vlaina-sidebar-notes-text-soft)]">
           {t('notes.searchingNoteContents')}
         </div>
       ) : null}
@@ -251,8 +252,8 @@ export function SidebarSearchResultsList({
         <div
           style={{
             height: `${virtualizer.getTotalSize()}px`,
-            position: 'relative',
-            width: '100%',
+            position: themeDomStyleTokens.positionRelative,
+            width: themeImageBlockStyleTokens.widthFull,
           }}
         >
           {virtualizer.getVirtualItems().map((virtualRow) => {
@@ -266,11 +267,11 @@ export function SidebarSearchResultsList({
                 key={item.result.id}
                 style={{
                   height: `${virtualRow.size}px`,
-                  left: 0,
-                  position: 'absolute',
-                  top: 0,
+                  left: themeDomStyleTokens.numericZero,
+                  position: themeDomStyleTokens.positionAbsolute,
+                  top: themeDomStyleTokens.numericZero,
                   transform: `translateY(${virtualRow.start}px)`,
-                  width: '100%',
+                  width: themeImageBlockStyleTokens.widthFull,
                 }}
               >
                 <SidebarSearchResultRow

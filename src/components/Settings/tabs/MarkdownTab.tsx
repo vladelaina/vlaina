@@ -36,11 +36,11 @@ export function MarkdownTab() {
 
   return (
     <div className="max-w-3xl pb-10">
-      <div className={cn('mb-8 flex items-center justify-between gap-4 rounded-full px-6 py-3 text-[13px] text-[var(--notes-sidebar-text-soft)]', chatComposerPillSurfaceClass)}>
+      <div className={cn('mb-8 flex items-center justify-between gap-4 rounded-full px-6 py-3 text-[var(--vlaina-font-13)] text-[var(--vlaina-sidebar-notes-text-soft)]', chatComposerPillSurfaceClass)}>
         <span>{t('settings.markdown.shortcutHint')}</span>
         <ShortcutKeys
           keys={['Ctrl', '/']}
-          keyClassName="rounded-full border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--notes-sidebar-text)] shadow-none"
+          keyClassName="rounded-full border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-2.5 py-0.5 text-[var(--vlaina-font-11)] font-medium text-[var(--vlaina-sidebar-notes-text)] shadow-[var(--vlaina-shadow-none)]"
         />
       </div>
       <SettingsSectionHeader>{t('settings.markdown.editing')}</SettingsSectionHeader>
@@ -52,7 +52,7 @@ export function MarkdownTab() {
           <SettingsSwitch
             checked={typewriterMode}
             onChange={setMarkdownTypewriterMode}
-            activeColor="bg-[var(--sidebar-row-selected-text)]"
+            activeColor="bg-[var(--vlaina-sidebar-row-selected-text)]"
           />
         </SettingsItem>
         <SettingsItem
@@ -62,7 +62,7 @@ export function MarkdownTab() {
           <SettingsSwitch
             checked={showBodyLineNumbers}
             onChange={setMarkdownBodyLineNumbers}
-            activeColor="bg-[var(--sidebar-row-selected-text)]"
+            activeColor="bg-[var(--vlaina-sidebar-row-selected-text)]"
           />
         </SettingsItem>
       </div>

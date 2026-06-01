@@ -21,7 +21,7 @@ export function renderColorPicker(
   onClose: () => void
 ): void {
   const picker = document.createElement('div');
-  picker.className = `toolbar-submenu color-picker !rounded-[26px] ${chatComposerPillSurfaceClass}`;
+  picker.className = `toolbar-submenu color-picker !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
 
   const isDark = document.documentElement.classList.contains('dark');
   const palette = isDark ? COLOR_PALETTE_DARK : COLOR_PALETTE;

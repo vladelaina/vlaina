@@ -1,25 +1,25 @@
 @keyframes aiReviewPanelFadeIn {
   from {
-    opacity: 0;
-    transform: translateY(12px);
-    filter: blur(3px);
+    opacity: var(--vlaina-opacity-0);
+    transform: translateY(var(--vlaina-translate-12px));
+    filter: var(--vlaina-filter-blur-3px);
   }
 
   to {
-    opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
+    opacity: var(--vlaina-opacity-100);
+    transform: translateY(var(--vlaina-translate-0));
+    filter: var(--vlaina-filter-blur-none);
   }
 }
 
 .floating-toolbar-inner.floating-toolbar-ai-review-mode {
   display: block;
-  width: var(--ai-review-width, min(520px, calc(100vw - 48px)));
-  max-width: var(--ai-review-width, min(520px, calc(100vw - 48px)));
-  min-height: 0;
-  padding: 0;
+  width: var(--vlaina-toolbar-ai-review-width, min(520px, calc(100vw - 48px)));
+  max-width: var(--vlaina-toolbar-ai-review-width, min(520px, calc(100vw - 48px)));
+  min-height: var(--vlaina-size-0);
+  padding: var(--vlaina-space-0);
   overflow: visible;
-  border: none;
+  border: var(--vlaina-border-width-0);
   background: transparent;
   box-shadow: none;
 }
@@ -29,22 +29,22 @@
   flex-direction: column;
   width: 100%;
   cursor: default;
-  opacity: 0;
-  animation: aiReviewPanelFadeIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: var(--vlaina-opacity-0);
+  animation: aiReviewPanelFadeIn var(--vlaina-duration-420) var(--vlaina-ease-feedback) forwards;
   will-change: opacity, transform, filter;
 }
 
 .ai-review-content {
-  border-radius: 24px;
-  padding: 20px;
+  border-radius: var(--vlaina-radius-24px);
+  padding: var(--vlaina-space-20px);
 }
 
 .ai-review-content-glass {
   position: relative;
-  border: 1px solid var(--vlaina-color-ai-review-panel-border);
+  border: var(--vlaina-border-width-1) solid var(--vlaina-color-ai-review-panel-border);
   background: var(--vlaina-color-ai-review-panel);
   box-shadow: var(--vlaina-shadow-ai-review-panel);
-  transition: all 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: all var(--vlaina-duration-200) var(--vlaina-ease-ai-review);
 }
 
 .dark .ai-review-content-glass {
@@ -54,21 +54,21 @@
 }
 
 .ai-review-result-surface {
-  min-height: var(--ai-review-result-predicted-height, 0);
-  max-height: 320px;
+  min-height: var(--vlaina-toolbar-ai-review-result-predicted-height, 0);
+  max-height: var(--vlaina-size-320px);
   overflow-y: auto;
-  padding: 0 4px 4px 0;
+  padding: var(--vlaina-space-0) var(--vlaina-space-4px) var(--vlaina-space-4px) var(--vlaina-space-0);
   color: var(--vlaina-color-text-primary);
-  font-size: 13.5px; /* Slightly adjusted */
-  line-height: 1.6;
+  font-size: var(--vlaina-font-135); /* Slightly adjusted */
+  line-height: var(--vlaina-line-height);
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .ai-review-diff-added,
 .ai-review-diff-removed {
-  border-radius: 4px;
-  padding: 0 2px;
+  border-radius: var(--vlaina-radius-4px);
+  padding: var(--vlaina-space-0) var(--vlaina-space-2px);
 }
 
 .ai-review-diff-added {
@@ -82,18 +82,18 @@
   color: var(--vlaina-color-ai-review-removed-fg);
   background: var(--vlaina-color-ai-review-removed-bg);
   text-decoration: line-through;
-  text-decoration-thickness: 1.5px;
+  text-decoration-thickness: var(--vlaina-border-width-15px);
   text-decoration-color: var(--vlaina-color-ai-review-removed-decoration);
 }
 
 .ai-review-error {
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid var(--vlaina-color-status-danger-bg);
+  padding: var(--vlaina-space-12px) var(--vlaina-space-14px);
+  border-radius: var(--vlaina-radius-14px);
+  border: var(--vlaina-border-width-1) solid var(--vlaina-color-status-danger-bg);
   background: var(--vlaina-color-status-danger-bg);
   color: var(--vlaina-color-status-danger-fg);
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: var(--vlaina-font-13);
+  line-height: var(--vlaina-leading-15);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -106,14 +106,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 16px;
-  gap: 12px;
+  margin-top: var(--vlaina-space-16px);
+  gap: var(--vlaina-space-12px);
 }
 
 .ai-review-controls-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--vlaina-space-8px);
   min-width: 0;
   flex: 1 1 auto;
 }
@@ -121,22 +121,22 @@
 .ai-review-model-selector-slot {
   display: flex;
   align-items: center;
-  transform: scale(0.95);
+  transform: scale(var(--vlaina-scale-95));
   transform-origin: left center;
   min-width: 0;
 }
 
 .ai-review-action {
-  height: 32px;
-  padding: 0 14px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 600;
+  height: var(--vlaina-size-32px);
+  padding: var(--vlaina-space-0) var(--vlaina-space-14px);
+  border-radius: var(--vlaina-radius-10px);
+  font-size: var(--vlaina-font-xs);
+  font-weight: var(--vlaina-font-weight-semibold);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: all var(--vlaina-duration-200) var(--vlaina-ease-ai-review);
 }
 
 .ai-review-action.primary {
@@ -162,19 +162,19 @@
 }
 
 .ai-review-icon-action {
-  width: 32px;
-  min-width: 32px;
-  padding: 0;
-  border-radius: 9999px;
-  font-size: 16px;
+  width: var(--vlaina-size-32px);
+  min-width: var(--vlaina-size-32px);
+  padding: var(--vlaina-space-0);
+  border-radius: var(--vlaina-radius-pill-lg);
+  font-size: var(--vlaina-font-base);
   border: none;
   background: transparent;
   box-shadow: none;
 }
 
 .ai-review-icon-action svg {
-  width: 16px;
-  height: 16px;
+  width: var(--vlaina-size-16px);
+  height: var(--vlaina-size-16px);
   display: block;
   flex: 0 0 auto;
 }
@@ -193,27 +193,27 @@
 }
 
 .ai-review-action:hover {
-  transform: translateY(-1px);
+  transform: translateY(var(--vlaina-translate--1px));
 }
 
 .ai-review-controls-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--vlaina-space-8px);
   flex: 0 0 auto;
 }
 
 .ai-review-controls-left .ai-review-icon-action,
 .ai-review-controls-right .ai-review-icon-action {
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
+  width: var(--vlaina-size-36px);
+  min-width: var(--vlaina-size-36px);
+  height: var(--vlaina-size-36px);
 }
 
 .ai-review-controls-left .ai-review-icon-action svg,
 .ai-review-controls-right .ai-review-icon-action svg {
-  width: 18px;
-  height: 18px;
+  width: var(--vlaina-size-18px);
+  height: var(--vlaina-size-18px);
 }
 
 .ai-review-controls-left .ai-review-icon-action:hover,

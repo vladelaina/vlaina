@@ -11,6 +11,7 @@ import {
 import { collapseSelectionAfterToolbarApply } from './selectionCollapse';
 import { createToolbarActionController } from './toolbarActions';
 import type { ToolbarActionControllerOptions } from './toolbarActions';
+import { themeDomStyleTokens, themeRenderingTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 export { focusSelectedCodeBlockAfterDelete } from './toolbarActions';
 
@@ -78,8 +79,8 @@ export function createToolbarEventDelegation(
 
     const rect = button.getBoundingClientRect();
     tooltip.style.left = `${rect.left + rect.width / 2}px`;
-    tooltip.style.top = `${rect.bottom + 8}px`;
-    tooltip.style.transform = 'translate(-50%, 0)';
+    tooltip.style.top = `${rect.bottom + themeDomStyleTokens.toolbarTooltipOffsetPx}px`;
+    tooltip.style.transform = themeRenderingTokens.translateCenterTop;
     tooltip.classList.add('visible');
   };
 
@@ -213,7 +214,7 @@ export function createToolbarEventDelegation(
 
     if (button.dataset.shortcut) {
       hideTooltip();
-      tooltipTimer = setTimeout(() => showTooltip(button), 500);
+      tooltipTimer = setTimeout(() => showTooltip(button), themeUiFeedbackTokens.toolbarTooltipDelayMs);
     }
   };
 

@@ -194,7 +194,7 @@ export function EmojiTab({
         <div className="relative">
           <button
             onClick={() => setShowSkinTonePicker(!showSkinTonePicker)}
-            className="w-7 h-7 flex items-center justify-center text-base opacity-60 hover:opacity-100 transition-opacity"
+            className="w-7 h-7 flex items-center justify-center text-base opacity-[var(--vlaina-opacity-60)] hover:opacity-[var(--vlaina-opacity-100)] transition-opacity"
           >
             {SKIN_TONES[skinTone].emoji}
           </button>
@@ -202,8 +202,8 @@ export function EmojiTab({
             <div
               ref={skinTonePickerRef}
               className={cn(
-                "absolute right-0 top-full mt-1 p-2 rounded-lg shadow-lg z-10",
-                "bg-white dark:bg-zinc-800 border border-[var(--vlaina-border)]",
+                "absolute right-0 top-full mt-1 p-2 rounded-lg shadow-[var(--vlaina-shadow-lg)] z-[var(--vlaina-z-10)]",
+                "bg-[var(--vlaina-color-setting-field)] border border-[var(--vlaina-border)]",
                 "flex gap-1"
               )}
             >
@@ -242,7 +242,7 @@ export function EmojiTab({
       )}
 
       {(!effectiveSearchQuery || alwaysShowCategories) && (
-        <div className="flex items-center justify-around px-2 py-1.5 border-t border-[var(--vlaina-border)] bg-zinc-50 dark:bg-zinc-800/50">
+        <div className="flex items-center justify-around px-2 py-1.5 border-t border-[var(--vlaina-border)] bg-[var(--vlaina-color-emoji-category-bg)]">
           {EMOJI_CATEGORIES.map((category) => (
             <button
               key={category.id}
@@ -253,8 +253,8 @@ export function EmojiTab({
               className={cn(
                 "w-8 h-8 flex items-center justify-center rounded-md text-lg transition-colors",
                 activeCategory === category.id
-                  ? "bg-zinc-200 dark:bg-zinc-700"
-                  : "hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                  ? "bg-[var(--vlaina-color-emoji-category-active-bg)]"
+                  : "hover:bg-[var(--vlaina-color-emoji-category-active-bg)]"
               )}
             >
               {CATEGORY_ICONS[category.id]}

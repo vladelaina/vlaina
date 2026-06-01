@@ -23,23 +23,23 @@ const scrollbarVariantClasses = {
     railAlign: 'justify-center',
     track: 'w-3',
     trackHover: 'w-3',
-    thumbOffset: 'right-[2px]',
-    thumbHoverOffset: 'right-[2px]',
+    thumbOffset: 'right-[var(--vlaina-scrollbar-thumb-offset)]',
+    thumbHoverOffset: 'right-[var(--vlaina-scrollbar-thumb-offset)]',
     thumbIdleWidth: 'w-2',
     thumbHoverWidth: 'w-2',
-    thumbDraggingWidth: 'w-[9px]',
+    thumbDraggingWidth: 'w-[var(--vlaina-size-9px)]',
   },
   compact: {
-    rail: 'w-[7px]',
+    rail: 'w-[var(--vlaina-size-7px)]',
     railHover: 'w-4',
     railAlign: 'justify-end',
-    track: 'w-[7px]',
+    track: 'w-[var(--vlaina-size-7px)]',
     trackHover: 'w-3',
     thumbOffset: 'right-0',
-    thumbHoverOffset: 'right-[2px]',
-    thumbIdleWidth: 'w-[5px]',
+    thumbHoverOffset: 'right-[var(--vlaina-scrollbar-thumb-offset)]',
+    thumbIdleWidth: 'w-[var(--vlaina-size-5px)]',
     thumbHoverWidth: 'w-2',
-    thumbDraggingWidth: 'w-[9px]',
+    thumbDraggingWidth: 'w-[var(--vlaina-size-9px)]',
   },
 } as const;
 
@@ -318,11 +318,11 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
           aria-hidden="true"
           data-no-focus-input="true"
           className={cn(
-            'absolute inset-y-0 right-0 flex cursor-default transition-[opacity,width] duration-100',
+            'absolute inset-y-0 right-0 flex cursor-default transition-[opacity,width] duration-[var(--vlaina-duration-100)]',
             isVisible ? 'pointer-events-auto' : 'pointer-events-none',
             isScrollbarExpanded ? scrollbarClasses.railHover : scrollbarClasses.rail,
             scrollbarClasses.railAlign,
-            isVisible ? 'opacity-100' : 'opacity-0',
+            isVisible ? 'opacity-[var(--vlaina-opacity-100)]' : 'opacity-[var(--vlaina-opacity-0)]',
           )}
           style={{ right: `${scrollbarInsetRight}px` }}
           onPointerEnter={() => setIsScrollbarHovered(true)}
@@ -330,13 +330,13 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
         >
           <div
             className={cn(
-              'relative h-full cursor-default transition-[width] duration-100',
+              'relative h-full cursor-default transition-[width] duration-[var(--vlaina-duration-100)]',
               isScrollbarExpanded ? scrollbarClasses.trackHover : scrollbarClasses.track,
             )}
           >
             <div
               className={cn(
-                'pointer-events-auto absolute cursor-default rounded-full transition-[width,background-color] duration-100',
+                'pointer-events-auto absolute cursor-default rounded-full transition-[width,background-color] duration-[var(--vlaina-duration-100)]',
                 isScrollbarExpanded ? scrollbarClasses.thumbHoverOffset : scrollbarClasses.thumbOffset,
                 isDragging
                   ? scrollbarThumbActiveColor

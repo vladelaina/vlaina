@@ -119,8 +119,8 @@ export function RootFolderMenu({
           onClose();
         },
         className: cn(
-          'py-1.5 text-[16px]',
-          option.value === fileTreeSortMode && 'bg-[var(--notes-sidebar-row-hover)]',
+          'py-1.5 text-[var(--vlaina-font-base)]',
+          option.value === fileTreeSortMode && 'bg-[var(--vlaina-sidebar-notes-row-hover)]',
         ),
       })),
     },

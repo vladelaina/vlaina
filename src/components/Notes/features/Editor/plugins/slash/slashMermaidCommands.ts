@@ -5,7 +5,7 @@ import { createOpenMermaidEditorState } from '../mermaid/mermaidEditorState';
 import { findInsertedNodePos, getSlashInsertViewportPosition } from './slashInsertUtils';
 
 function markSlashUserInput(view: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
-  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+  view.dom?.dispatchEvent?.(new CustomEvent('editor:block-user-input', { bubbles: true }));
 }
 
 export function insertMermaidNodeAndOpenEditor(ctx: Ctx) {

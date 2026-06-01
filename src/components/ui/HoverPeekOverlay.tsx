@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { SPRING_PREMIUM } from '@/lib/animations';
+import { themeDomStyleTokens, themeMotionTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 interface HoverPeekOverlayProps {
     children: ReactNode;
@@ -16,8 +17,8 @@ interface HoverPeekOverlayProps {
 export function HoverPeekOverlay({
     children,
     isEnabled,
-    width = 260,
-    triggerWidth = 48,
+    width = themeDomStyleTokens.hoverPeekDefaultWidthPx,
+    triggerWidth = themeDomStyleTokens.hoverPeekTriggerWidthPx,
     className,
     style,
     onPeekChange
@@ -40,14 +41,14 @@ export function HoverPeekOverlay({
     return (
         <>
             <div
-                className="fixed top-0 left-0 bottom-0 z-[40]"
+                className="fixed top-0 left-0 bottom-0 z-[var(--vlaina-z-40)]"
                 style={{ width: triggerWidth }}
                 onMouseEnter={(e) => {
                     if (e.buttons > 0) return;
 
                     peekTimerRef.current = setTimeout(() => {
                         setIsPeeking(true);
-                    }, 75);
+                    }, themeUiFeedbackTokens.hoverPeekOpenDelayMs);
                 }}
                 onMouseLeave={() => {
                     if (peekTimerRef.current) {
@@ -60,13 +61,13 @@ export function HoverPeekOverlay({
             <AnimatePresence>
                 {isPeeking && (
                     <motion.aside
-                        initial={{ x: -20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        exit={{ x: -20, opacity: 0 }}
+                        initial={{ x: themeMotionTokens.hoverPeekInitialX, opacity: themeMotionTokens.opacityHidden }}
+                        animate={{ x: themeMotionTokens.hoverPeekVisibleX, opacity: themeMotionTokens.opacityVisible }}
+                        exit={{ x: themeMotionTokens.hoverPeekInitialX, opacity: themeMotionTokens.opacityHidden }}
                         transition={SPRING_PREMIUM}
                         className={cn(
-                            "fixed top-12 left-3 bottom-3 z-[50]",
-                            "shadow-2xl border border-black/5 dark:border-white/5 rounded-2xl",
+                            "fixed top-12 left-3 bottom-3 z-[var(--vlaina-z-50)]",
+                            "shadow-[var(--vlaina-shadow-2xl)] border border-[var(--vlaina-color-subtle-border)] rounded-2xl",
                             "overflow-hidden",
                             className
                         )}

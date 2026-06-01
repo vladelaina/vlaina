@@ -31,29 +31,24 @@
 }
 
 .milkdown .code-block-container.ProseMirror-selectednode,
-.milkdown .code-block-container.vlaina-block-selected {
-  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg);
-  --vlaina-block-selection-bleed-y: 4px;
-  --vlaina-block-selection-bleed-x-start: 48px;
-  --vlaina-block-selection-bleed-x-end: 48px;
+.milkdown .code-block-container.editor-block-selected {
+  --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);
+  --vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);
   background-color: var(--vlaina-block-selection-color);
-  border-radius: 1rem;
-  box-shadow:
-    0 var(--vlaina-block-selection-bleed-y) 0 0 var(--vlaina-block-selection-color),
-    0 calc(-1 * var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-color),
-    calc(-1 * (var(--vlaina-block-selection-bleed-x-start) - var(--vlaina-block-selection-bleed-y))) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color),
-    calc(var(--vlaina-block-selection-bleed-x-end) - var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color);
+  border-radius: var(--vlaina-radius-1rem);
+  box-shadow: var(--vlaina-block-selection-shadow);
   transition: none;
 }
 
-.milkdown .code-block-container.vlaina-block-selected,
-.milkdown .code-block-container.vlaina-block-selected *,
+.milkdown .code-block-container.editor-block-selected,
+.milkdown .code-block-container.editor-block-selected *,
 .milkdown .code-block-container.ProseMirror-selectednode,
 .milkdown .code-block-container.ProseMirror-selectednode * {
   -webkit-text-fill-color: currentColor;
 }
 
-.milkdown .code-block-container.vlaina-block-selected-contained {
+.milkdown .code-block-container.editor-block-selected-contained {
   background: var(--vlaina-code-block-background);
   background-color: var(--vlaina-code-block-background);
 }
@@ -63,19 +58,19 @@
 .milkdown .code-block-container.ProseMirror-selectednode .cm-gutterElement,
 .milkdown .code-block-container.ProseMirror-selectednode .cm-lineNumbers,
 .milkdown .code-block-container.ProseMirror-selectednode .cm-gutter-filler,
-.milkdown .code-block-container.vlaina-block-selected .cm-gutters,
-.milkdown .code-block-container.vlaina-block-selected .cm-gutter,
-.milkdown .code-block-container.vlaina-block-selected .cm-gutterElement,
-.milkdown .code-block-container.vlaina-block-selected .cm-lineNumbers,
-.milkdown .code-block-container.vlaina-block-selected .cm-gutter-filler {
+.milkdown .code-block-container.editor-block-selected .cm-gutters,
+.milkdown .code-block-container.editor-block-selected .cm-gutter,
+.milkdown .code-block-container.editor-block-selected .cm-gutterElement,
+.milkdown .code-block-container.editor-block-selected .cm-lineNumbers,
+.milkdown .code-block-container.editor-block-selected .cm-gutter-filler {
   background-color: var(--vlaina-code-block-background) !important;
 }
 
-.milkdown .code-block-container.vlaina-block-selected-contained .cm-gutters,
-.milkdown .code-block-container.vlaina-block-selected-contained .cm-gutter,
-.milkdown .code-block-container.vlaina-block-selected-contained .cm-gutterElement,
-.milkdown .code-block-container.vlaina-block-selected-contained .cm-lineNumbers,
-.milkdown .code-block-container.vlaina-block-selected-contained .cm-gutter-filler {
+.milkdown .code-block-container.editor-block-selected-contained .cm-gutters,
+.milkdown .code-block-container.editor-block-selected-contained .cm-gutter,
+.milkdown .code-block-container.editor-block-selected-contained .cm-gutterElement,
+.milkdown .code-block-container.editor-block-selected-contained .cm-lineNumbers,
+.milkdown .code-block-container.editor-block-selected-contained .cm-gutter-filler {
   background: var(--vlaina-code-block-background) !important;
   background-color: var(--vlaina-code-block-background) !important;
 }
@@ -86,24 +81,24 @@
 .milkdown .code-block-container.ProseMirror-selectednode .cm-line,
 .milkdown .code-block-container.ProseMirror-selectednode .cm-activeLine,
 .milkdown .code-block-container.ProseMirror-selectednode .cm-activeLineGutter,
-.milkdown .code-block-container.vlaina-block-selected .cm-editor,
-.milkdown .code-block-container.vlaina-block-selected .cm-scroller,
-.milkdown .code-block-container.vlaina-block-selected .cm-content,
-.milkdown .code-block-container.vlaina-block-selected .cm-line,
-.milkdown .code-block-container.vlaina-block-selected .cm-activeLine,
-.milkdown .code-block-container.vlaina-block-selected .cm-activeLineGutter {
+.milkdown .code-block-container.editor-block-selected .cm-editor,
+.milkdown .code-block-container.editor-block-selected .cm-scroller,
+.milkdown .code-block-container.editor-block-selected .cm-content,
+.milkdown .code-block-container.editor-block-selected .cm-line,
+.milkdown .code-block-container.editor-block-selected .cm-activeLine,
+.milkdown .code-block-container.editor-block-selected .cm-activeLineGutter {
   background: var(--vlaina-code-block-background) !important;
   background-color: var(--vlaina-code-block-background) !important;
 }
 
-.milkdown .code-block-container.ProseMirror-selectednode .vlaina-code-block-header,
+.milkdown .code-block-container.ProseMirror-selectednode .code-block-chrome-header,
 .milkdown .code-block-container.ProseMirror-selectednode .code-block-editable,
 .milkdown .code-block-container.ProseMirror-selectednode .code-block-lazy-preview,
 .milkdown .code-block-container.ProseMirror-selectednode .code-block-lazy-line-numbers,
-.milkdown .code-block-container.vlaina-block-selected .vlaina-code-block-header,
-.milkdown .code-block-container.vlaina-block-selected .code-block-editable,
-.milkdown .code-block-container.vlaina-block-selected .code-block-lazy-preview,
-.milkdown .code-block-container.vlaina-block-selected .code-block-lazy-line-numbers {
+.milkdown .code-block-container.editor-block-selected .code-block-chrome-header,
+.milkdown .code-block-container.editor-block-selected .code-block-editable,
+.milkdown .code-block-container.editor-block-selected .code-block-lazy-preview,
+.milkdown .code-block-container.editor-block-selected .code-block-lazy-line-numbers {
   background: var(--vlaina-code-block-background) !important;
   background-color: var(--vlaina-code-block-background) !important;
 }
@@ -119,22 +114,22 @@
 }
 
 .milkdown .code-block-container .code-block-editable {
-  padding: 0.25rem 0 1rem;
+  padding: var(--vlaina-padding-code-block-editable);
 }
 
 .milkdown .code-block-container .code-block-lazy-editable {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
-  column-gap: 0;
+  column-gap: var(--vlaina-column-gap-code-block-lazy);
 }
 
 .milkdown .code-block-container .code-block-lazy-preview,
 .milkdown .code-block-container .code-block-lazy-line-numbers {
-  margin: 0;
+  margin: var(--vlaina-margin-code-block-lazy);
   font-family: var(--font-mono), monospace;
-  font-size: 0.875rem;
-  line-height: 1.75;
+  font-size: var(--vlaina-font-0875rem);
+  line-height: var(--vlaina-leading-175);
   color: var(--vlaina-code-syntax-foreground);
   text-rendering: auto;
   font-kerning: none;
@@ -144,17 +139,17 @@
 }
 
 .milkdown .code-block-container .code-block-lazy-preview {
-  min-height: 1.75rem;
+  min-height: var(--vlaina-min-height-code-block-lazy-preview);
   overflow-x: auto;
-  padding: 0 1rem;
+  padding: var(--vlaina-padding-code-block-line);
 }
 
 .milkdown .code-block-container .code-block-lazy-line-numbers {
   position: sticky;
-  left: 0;
-  z-index: 10;
-  min-width: 2.5ch;
-  padding: 0 0.5rem 0 1rem;
+  left: var(--vlaina-space-0);
+  z-index: var(--vlaina-z-10);
+  min-width: var(--vlaina-min-width-code-block-line-numbers);
+  padding: var(--vlaina-padding-code-block-line-numbers);
   color: var(--vlaina-code-syntax-muted);
   text-align: right;
   user-select: none;
@@ -171,7 +166,7 @@
 }
 
 .milkdown .code-block-container .cm-line {
-  padding: 0 1rem !important;
+  padding: var(--vlaina-padding-code-block-line) !important;
   color: var(--vlaina-code-syntax-foreground);
 }
 
@@ -196,7 +191,7 @@
   color: inherit !important;
 }
 
-.milkdown .code-block-container:not(.ProseMirror-selectednode):not(.vlaina-block-selected):not([data-pm-selected='true']) .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+.milkdown .code-block-container:not(.ProseMirror-selectednode):not(.editor-block-selected):not([data-pm-selected='true']) .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
   background: var(--vlaina-selection-bg) !important;
 }
 
@@ -204,12 +199,12 @@
   background: var(--vlaina-selection-bg) !important;
 }
 
-.milkdown .ProseMirror.vlaina-toolbar-copy-feedback-active .code-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+.milkdown .ProseMirror.editor-toolbar-copy-feedback-active .code-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
   background: transparent !important;
 }
 
 .milkdown .code-block-container.ProseMirror-selectednode .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
-.milkdown .code-block-container.vlaina-block-selected .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+.milkdown .code-block-container.editor-block-selected .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
   background: transparent !important;
 }
 
@@ -217,30 +212,30 @@
   outline: none;
 }
 
-.milkdown .ProseMirror .vlaina-block-selected .code-block-container {
+.milkdown .ProseMirror .editor-block-selected .code-block-container {
   background: var(--vlaina-code-block-background);
   background-color: var(--vlaina-code-block-background);
   color: var(--vlaina-code-syntax-foreground);
   transition: none;
 }
 
-.milkdown .ProseMirror .vlaina-block-selected .code-block-container,
-.milkdown .ProseMirror .vlaina-block-selected .code-block-container * {
+.milkdown .ProseMirror .editor-block-selected .code-block-container,
+.milkdown .ProseMirror .editor-block-selected .code-block-container * {
   -webkit-text-fill-color: currentColor;
 }
 
-.milkdown .ProseMirror .vlaina-block-selected .code-block-container .vlaina-code-block-language,
-.milkdown .ProseMirror .vlaina-block-selected .code-block-container .vlaina-code-block-language-label,
-.milkdown .ProseMirror .vlaina-block-selected .code-block-container .vlaina-code-block-copy-button {
+.milkdown .ProseMirror .editor-block-selected .code-block-container .code-block-chrome-language,
+.milkdown .ProseMirror .editor-block-selected .code-block-container .code-block-chrome-language-label,
+.milkdown .ProseMirror .editor-block-selected .code-block-container .code-block-chrome-copy-button {
   color: var(--vlaina-code-syntax-muted);
   -webkit-text-fill-color: currentColor;
 }
 
-.milkdown .ProseMirror .vlaina-block-selected .code-block-container .cm-gutters,
-.milkdown .ProseMirror .vlaina-block-selected .code-block-container .cm-gutter,
-.milkdown .ProseMirror .vlaina-block-selected .code-block-container .cm-gutterElement,
-.milkdown .ProseMirror .vlaina-block-selected .code-block-container .cm-lineNumbers,
-.milkdown .ProseMirror .vlaina-block-selected .code-block-container .cm-gutter-filler {
+.milkdown .ProseMirror .editor-block-selected .code-block-container .cm-gutters,
+.milkdown .ProseMirror .editor-block-selected .code-block-container .cm-gutter,
+.milkdown .ProseMirror .editor-block-selected .code-block-container .cm-gutterElement,
+.milkdown .ProseMirror .editor-block-selected .code-block-container .cm-lineNumbers,
+.milkdown .ProseMirror .editor-block-selected .code-block-container .cm-gutter-filler {
   background: var(--vlaina-code-block-background) !important;
   background-color: var(--vlaina-code-block-background) !important;
   transition: none !important;

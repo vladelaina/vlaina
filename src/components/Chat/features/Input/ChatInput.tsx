@@ -445,7 +445,7 @@ export const ChatInput = memo(function ChatInput({
         data-chat-input="true"
         ref={composerRootRef}
         className={cn(
-          'relative z-10',
+          'relative z-[var(--vlaina-z-10)]',
           chatComposerFrameClass,
           chatComposerSurfaceClass
         )}
@@ -457,10 +457,10 @@ export const ChatInput = memo(function ChatInput({
         {(isDragging || isBlockDropActive || isFileTreeDropActive) && (
           <div
             className={cn(
-              "absolute inset-0 z-20 flex items-center justify-center rounded-[32px] border-2 border-dashed backdrop-blur-sm pointer-events-none",
+              "absolute inset-0 z-[var(--vlaina-z-20)] flex items-center justify-center rounded-[var(--vlaina-radius-32px)] border-2 border-dashed backdrop-blur-[var(--vlaina-backdrop-blur-sm)] pointer-events-none",
               isBlockDropActive || isFileTreeDropActive
-                ? "border-[var(--vlaina-color-accent)]/60 bg-[var(--vlaina-color-accent)]/[0.08] dark:border-[var(--vlaina-color-accent)]/65 dark:bg-[var(--vlaina-color-accent)]/[0.14]"
-                : "border-[var(--chat-sidebar-icon)]/50 bg-black/[0.03] dark:border-white/15 dark:bg-white/[0.04]"
+                ? "border-[var(--vlaina-color-accent)] bg-[var(--vlaina-color-accent-soft)]"
+                : "border-[var(--vlaina-color-subtle-border-strong)] bg-[var(--vlaina-color-overlay-weak)]"
             )}
           >
             <span
@@ -468,7 +468,7 @@ export const ChatInput = memo(function ChatInput({
                 "font-medium",
                 isBlockDropActive || isFileTreeDropActive
                   ? "text-[var(--vlaina-color-accent)]"
-                  : "text-[var(--chat-sidebar-text-muted)] dark:text-[var(--chat-sidebar-text-soft)]"
+                  : "text-[var(--vlaina-sidebar-chat-text-muted)]"
               )}
             >
               {isBlockDropActive ? t('chat.dropBlocksHere') : t('chat.dropFilesHere')}

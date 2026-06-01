@@ -328,14 +328,14 @@ describe('previewStyles', () => {
 
     sourceListItem.style.lineHeight = '32px';
     sourceListItem.style.marginTop = '11px';
-    sourceNestedList.classList.add('vlaina-collapsed-content');
+    sourceNestedList.classList.add('editor-collapsed-content');
 
     const previewDom = renderAppliedPreviewDocument(state, sourceDom, document);
     const previewListItem = previewDom.querySelector<HTMLElement>('li');
     const previewNestedList = previewDom.querySelector<HTMLElement>('li > ul');
     expect(previewListItem?.style.lineHeight).toBe('32px');
     expect(previewListItem?.style.marginTop).toBe('11px');
-    expect(previewNestedList?.classList.contains('vlaina-collapsed-content')).toBe(true);
+    expect(previewNestedList?.classList.contains('editor-collapsed-content')).toBe(true);
 
     await editor.destroy();
     host.remove();
@@ -425,7 +425,7 @@ describe('previewStyles', () => {
 
     applyFormatPreview(view, 'bold');
     const userInputListener = vi.fn();
-    view.dom.addEventListener('vlaina:block-user-input', userInputListener);
+    view.dom.addEventListener('editor:block-user-input', userInputListener);
 
     expect(view.state.doc.rangeHasMark(
       findTextRange(view.state.doc, 'format').from,

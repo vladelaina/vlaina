@@ -76,8 +76,8 @@
 
 @media (max-width: 720px) {
   .floating-toolbar-inner.floating-toolbar-ai-review-mode {
-    width: min(var(--ai-review-width, calc(100vw - 24px)), calc(100vw - 24px));
-    max-width: min(var(--ai-review-width, calc(100vw - 24px)), calc(100vw - 24px));
+    width: var(--vlaina-width-toolbar-ai-panel-mobile);
+    max-width: var(--vlaina-width-toolbar-ai-panel-mobile);
   }
 
   .ai-review-model-selector-slot {

@@ -18,6 +18,7 @@ import { getSidebarContextMenuPosition } from '../common/sidebarMenuPosition';
 import { getEntryTitle } from './starredSectionUtils';
 import { useStarredEntryIcon } from './useStarredEntryIcon';
 import { useI18n } from '@/lib/i18n';
+import { themeIconTokens } from '@/styles/themeTokens';
 
 const NotesSidebarContextMenu = lazy(async () => {
   const mod = await import('../Sidebar/NotesSidebarContextMenu');
@@ -160,7 +161,7 @@ export function ExternalStarredEntryRow({
       : []),
     {
       key: 'remove-starred',
-      icon: <Icon name="misc.star" size="md" className="fill-amber-500 text-amber-500" />,
+      icon: <Icon name="misc.star" size="md" className="fill-[var(--vlaina-color-favorite-fg)] text-[var(--vlaina-color-favorite-fg)]" />,
       label: t('sidebar.removeFromStarred'),
       onClick: () => {
         onRemove();
@@ -218,20 +219,20 @@ export function ExternalStarredEntryRow({
                 icon={displayIcon}
                 notePath={entry.relativePath}
                 vaultPath={entry.vaultPath}
-                size={16}
+                size={themeIconTokens.sizeRow}
               />
             ) : (
               <Icon
                 name="file.text"
                 size={NOTES_SIDEBAR_ICON_SIZE}
-                className="text-[var(--notes-sidebar-file-icon)]"
+                className="text-[var(--vlaina-sidebar-notes-file-icon)]"
               />
             )
           ) : (
             <Icon
               name="file.folder"
-              size={16}
-              className="text-[var(--notes-sidebar-folder-icon)]"
+              size={themeIconTokens.sizeRow}
+              className="text-[var(--vlaina-sidebar-notes-folder-icon)]"
             />
           )
         }
@@ -262,7 +263,7 @@ export function ExternalStarredEntryRow({
             className={cn(
               'rounded-md p-1 focus:outline-none',
               iconButtonStyles,
-              'text-[var(--notes-sidebar-text)] hover:text-[var(--notes-sidebar-text)]',
+              'text-[var(--vlaina-sidebar-notes-text)] hover:text-[var(--vlaina-sidebar-notes-text)]',
             )}
           >
             <Icon name="common.more" size="md" />

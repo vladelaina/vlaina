@@ -1,7 +1,7 @@
 {
   "account.cancelAuthentication": "認証をキャンセル",
   "account.continueSignIn": "サインインを続行",
-  "account.continueToVlaina": "vlainaを続行",
+  "account.continueToApp": "vlainaを続行",
   "account.continueWithEmail": "メールで続行",
   "account.emailAddress": "メールアドレス",
   "account.enterEmailCode": "受信トレイに送信されたコードを入力してください",
@@ -82,7 +82,7 @@
   "settings.feedback.error.signInRequired": "ログインしてから送信してください",
   "settings.feedback.error.network": "ネットワークエラーで送信できませんでした",
   "settings.feedback.error.generic": "フィードバックの送信に失敗しました",
-  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★! こちらは {vlainaSite} と {catimeSite} の開発者 {authorSite} です。",
+  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★! こちらは {appSite} と {catimeSite} の開発者 {authorSite} です。",
   "settings.about.note.curiousTitle": "気になるかもしれないこと：",
   "settings.about.note.curiousMissing": "まだ足りない機能があるように見えるのはなぜ？",
   "settings.about.note.curiousRough": "一部の操作感がまだ粗いのはなぜ？",

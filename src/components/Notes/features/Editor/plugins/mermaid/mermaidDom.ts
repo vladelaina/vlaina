@@ -4,7 +4,7 @@ import {
   normalizeMermaidCodeForRender,
   normalizeMermaidEditorCodeInput,
 } from './mermaidFenceCode';
-import { themeColorTokens } from '@/styles/themeTokens';
+import { themeColorTokens, themeLazyLoadTokens, themeMermaidTokens } from '@/styles/themeTokens';
 
 type MermaidRender = (code: string, id: string) => Promise<string>;
 
@@ -14,7 +14,6 @@ let mermaidIdCounter = 0;
 const MERMAID_RENDER_CACHE_LIMIT = 80;
 const mermaidMarkupCache = new Map<string, string>();
 const mermaidRenderPromiseCache = new Map<string, Promise<string>>();
-const MERMAID_LAZY_RENDER_ROOT_MARGIN = '900px 0px';
 const mermaidLazyObservers = new WeakMap<HTMLElement, IntersectionObserver>();
 
 function generateMermaidId(): string {
@@ -148,12 +147,12 @@ function replaceMermaidForeignObjectLabels(markup: string) {
     text.setAttribute('fill', themeColorTokens.mermaidText);
 
     const firstLineDy = lines.length > 1
-      ? `${0.35 - ((lines.length - 1) * 0.6)}em`
-      : '0.35em';
+      ? `${themeMermaidTokens.labelFirstLineBaseDyEm - ((lines.length - 1) * themeMermaidTokens.labelLineOffsetEm)}em`
+      : themeMermaidTokens.labelSingleLineDy;
     lines.forEach((line, index) => {
       const tspan = doc.createElementNS('http://www.w3.org/2000/svg', 'tspan');
       tspan.setAttribute('x', text.getAttribute('x') || '0');
-      tspan.setAttribute('dy', index === 0 ? firstLineDy : '1.2em');
+      tspan.setAttribute('dy', index === 0 ? firstLineDy : themeMermaidTokens.labelNextLineDy);
       tspan.textContent = line;
       text.appendChild(tspan);
     });
@@ -286,7 +285,7 @@ function installLazyMermaidRender(anchor: HTMLElement, codeSnapshot: string, ren
     }
     disconnectLazyMermaidRender(anchor);
     renderMermaidElementAsync(anchor, codeSnapshot, renderKey);
-  }, { rootMargin: MERMAID_LAZY_RENDER_ROOT_MARGIN });
+  }, { rootMargin: themeLazyLoadTokens.mermaidRootMargin });
   mermaidLazyObservers.set(anchor, observer);
   observer.observe(anchor);
 }

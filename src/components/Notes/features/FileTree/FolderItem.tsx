@@ -18,6 +18,7 @@ import { TreeItemShell } from './components/TreeItemShell';
 import { useTreeItemPathActions } from './hooks/useTreeItemPathActions';
 import type { NotesSidebarMenuEntry } from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
 import { useI18n } from '@/lib/i18n';
+import { themeIconTokens } from '@/styles/themeTokens';
 
 const TreeItemMenu = lazy(async () => {
   const mod = await import('./components/TreeItemMenu');
@@ -100,9 +101,9 @@ export const FolderItem = memo(function FolderItem({
   }, [cancelPendingClick, setIsRenaming, setShowMenu]);
 
   const leading = node.expanded ? (
-    <Icon name="file.folderOpen" size={16} className="text-[var(--notes-sidebar-folder-icon)]" />
+    <Icon name="file.folderOpen" size={themeIconTokens.sizeRow} className="text-[var(--vlaina-sidebar-notes-folder-icon)]" />
   ) : (
-    <Icon name="file.folder" size={16} className="text-[var(--notes-sidebar-folder-icon)]" />
+    <Icon name="file.folder" size={themeIconTokens.sizeRow} className="text-[var(--vlaina-sidebar-notes-folder-icon)]" />
   );
   const menuEntries: NotesSidebarMenuEntry[] = [
     {
@@ -125,7 +126,7 @@ export const FolderItem = memo(function FolderItem({
     },
     {
       key: 'toggle-star',
-      icon: <Icon name="misc.star" size="md" className={isItemStarred ? 'fill-amber-500 text-amber-500' : undefined} />,
+      icon: <Icon name="misc.star" size="md" className={isItemStarred ? 'fill-[var(--vlaina-color-favorite-fg)] text-[var(--vlaina-color-favorite-fg)]' : undefined} />,
       label: isItemStarred ? t('sidebar.removeFromStarred') : t('sidebar.addToStarred'),
       onClick: () => {
         toggleFolderStarred(node.path);
@@ -204,13 +205,13 @@ export const FolderItem = memo(function FolderItem({
       itemKind="folder"
       depth={depth}
       actionFadeClassName={showStarBadge ? 'w-3 from-transparent' : undefined}
-      contentClassName={showStarBadge ? 'z-30' : undefined}
+      contentClassName={showStarBadge ? 'z-[var(--vlaina-z-30)]' : undefined}
       leading={
-        <span className="relative flex size-[20px] items-center justify-center">
+        <span className="relative flex size-[var(--vlaina-size-20px)] items-center justify-center">
           <span
             className={cn(
               'transition-none',
-              hasChildren && 'group-hover/sidebar-row:opacity-0 group-focus-within/sidebar-row:opacity-0',
+              hasChildren && 'group-hover/sidebar-row:opacity-[var(--vlaina-opacity-0)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-0)]',
             )}
           >
             {leading}
@@ -219,9 +220,9 @@ export const FolderItem = memo(function FolderItem({
             <CollapseTriangleAffordance
               collapsed={!node.expanded}
               visibility="always"
-              size={14}
-              className="absolute inset-0 opacity-0 transition-none group-hover/sidebar-row:opacity-100 group-focus-within/sidebar-row:opacity-100"
-              iconClassName="text-[var(--notes-sidebar-file-icon)]"
+              size={themeIconTokens.sizeSm}
+              className="absolute inset-0 opacity-[var(--vlaina-opacity-0)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-100)]"
+              iconClassName="text-[var(--vlaina-sidebar-notes-file-icon)]"
             />
           ) : null}
         </span>

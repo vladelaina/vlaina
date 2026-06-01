@@ -14,8 +14,8 @@ import { mathPlugin } from '../math';
 import { tocPlugin } from '../toc';
 import { videoPlugin } from '../video';
 
-const OVERLAY_ACTIVE_CLASS = 'vlaina-text-selection-overlay-active';
-const POINTER_NATIVE_SELECTION_CLASS = 'vlaina-pointer-native-selection';
+const OVERLAY_ACTIVE_CLASS = 'editor-text-selection-overlay-active';
+const POINTER_NATIVE_SELECTION_CLASS = 'editor-pointer-native-selection';
 
 function getOverlayText(view: EditorView): string {
   return Array.from(
@@ -519,10 +519,10 @@ describe('textSelectionOverlayPlugin', () => {
     view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
 
     expect(
-      view.dom.querySelector('[data-type="math-block"]')?.classList.contains('vlaina-block-selected')
+      view.dom.querySelector('[data-type="math-block"]')?.classList.contains('editor-block-selected')
     ).toBe(true);
     expect(
-      view.dom.querySelector('[data-type="math-block"]')?.classList.contains('vlaina-atomic-selected')
+      view.dom.querySelector('[data-type="math-block"]')?.classList.contains('editor-atomic-selected')
     ).toBe(true);
   });
 
@@ -531,10 +531,10 @@ describe('textSelectionOverlayPlugin', () => {
 
     view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
 
-    expect(view.dom.querySelector('table')?.classList.contains('vlaina-block-selected')).toBe(
+    expect(view.dom.querySelector('table')?.classList.contains('editor-block-selected')).toBe(
       true
     );
-    expect(view.dom.querySelector('table')?.classList.contains('vlaina-atomic-selected')).toBe(
+    expect(view.dom.querySelector('table')?.classList.contains('editor-atomic-selected')).toBe(
       true
     );
   });
@@ -560,10 +560,10 @@ describe('textSelectionOverlayPlugin', () => {
     view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, nodeType.create(attrs)));
     view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
 
-    expect(view.dom.querySelector(selector)?.classList.contains('vlaina-block-selected')).toBe(
+    expect(view.dom.querySelector(selector)?.classList.contains('editor-block-selected')).toBe(
       true
     );
-    expect(view.dom.querySelector(selector)?.classList.contains('vlaina-atomic-selected')).toBe(
+    expect(view.dom.querySelector(selector)?.classList.contains('editor-atomic-selected')).toBe(
       true
     );
   });

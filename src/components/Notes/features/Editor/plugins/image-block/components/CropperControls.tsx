@@ -30,10 +30,10 @@ export const CropperControls = ({
     return (
         <div
             className={cn(
-                "absolute bottom-4 left-1/2 -translate-x-1/2 floating-toolbar-inner image-cropper-toolbar !rounded-[26px] z-[60]",
+                "absolute bottom-4 left-1/2 -translate-x-1/2 floating-toolbar-inner image-cropper-toolbar !rounded-[var(--vlaina-radius-26px)] z-[var(--vlaina-z-60)]",
                 chatComposerPillSurfaceClass,
-                "transition-all duration-200 origin-bottom",
-                isActive ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-2 pointer-events-none"
+                "transition-all duration-[var(--vlaina-duration-200)] origin-bottom",
+                isActive ? "opacity-[var(--vlaina-opacity-100)] scale-[var(--vlaina-scale-100)] translate-y-0" : "opacity-[var(--vlaina-opacity-0)] scale-[var(--vlaina-scale-95)] translate-y-2 pointer-events-none"
             )}
             onPointerDown={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
@@ -66,7 +66,7 @@ export const CropperControls = ({
                 <button
                     onClick={onSave}
                     disabled={isSaving}
-                    className="toolbar-btn image-toolbar-btn active disabled:opacity-50 disabled:cursor-default"
+                    className="toolbar-btn image-toolbar-btn active disabled:opacity-[var(--vlaina-opacity-50)] disabled:cursor-default"
                     title={t('common.saveChanges')}
                     aria-label={t('common.saveChanges')}
                 >

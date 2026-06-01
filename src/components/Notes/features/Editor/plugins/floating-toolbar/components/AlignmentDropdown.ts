@@ -24,7 +24,7 @@ export function renderAlignmentDropdown(
   onClose: () => void
 ): void {
   const dropdown = document.createElement('div');
-  dropdown.className = `toolbar-submenu alignment-dropdown !rounded-[26px] ${chatComposerPillSurfaceClass}`;
+  dropdown.className = `toolbar-submenu alignment-dropdown !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
 
   dropdown.innerHTML = ALIGNMENT_ITEMS.map((item) => {
     const isActive = state.currentAlignment === item.type;

@@ -5,9 +5,10 @@ import { createOpenMermaidEditorState } from './mermaidEditorState';
 import { mermaidEditorPluginKey } from './mermaidEditorPluginKey';
 import { createMermaidFenceStarterCode } from './mermaidFenceCode';
 import { parseMermaidFenceLanguage } from './mermaidLanguage';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 
 function markMermaidUserInput(view: EditorView): void {
-  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+  view.dom?.dispatchEvent?.(new CustomEvent('editor:block-user-input', { bubbles: true }));
 }
 
 function getMermaidEnterViewportPosition(view: EditorView) {
@@ -15,12 +16,12 @@ function getMermaidEnterViewportPosition(view: EditorView) {
     const coords = view.coordsAtPos(view.state.selection.from);
     return {
       x: coords.left,
-      y: coords.bottom + 8,
+      y: coords.bottom + themeDomStyleTokens.editorPopupAnchorOffsetPx,
     };
   } catch {
     return {
-      x: 16,
-      y: 16,
+      x: themeDomStyleTokens.editorPopupFallbackX,
+      y: themeDomStyleTokens.editorPopupFallbackY,
     };
   }
 }

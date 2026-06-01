@@ -260,10 +260,10 @@ export function createSignIn(
     set({ isConnecting: true, error: null });
 
     const isDesktop = hasElectronDesktopBridge();
-    const win = window as Window & { __vlaina_auth_timeout?: number | ReturnType<typeof setTimeout> | null };
-    if (win.__vlaina_auth_timeout) {
-      clearTimeout(win.__vlaina_auth_timeout);
-      win.__vlaina_auth_timeout = null;
+    const win = window as Window & { __authTimeout?: number | ReturnType<typeof setTimeout> | null };
+    if (win.__authTimeout) {
+      clearTimeout(win.__authTimeout);
+      win.__authTimeout = null;
     }
     const timeoutId = setTimeout(() => {
       if (isCurrentAccountAuthAttempt(authAttemptVersion) && get().isConnecting) {
@@ -274,7 +274,7 @@ export function createSignIn(
       }
     }, isDesktop ? 300000 : 60000);
 
-    win.__vlaina_auth_timeout = timeoutId;
+    win.__authTimeout = timeoutId;
 
     if (isDesktop) {
       try {
@@ -509,10 +509,10 @@ export function createHandleAuthCallback(set: Set, get: Get): () => Promise<bool
 export function createSignOut(set: Set, _get: Get): () => Promise<void> {
   return async () => {
     invalidateAccountAuthAttempts();
-    const win = window as Window & { __vlaina_auth_timeout?: number | ReturnType<typeof setTimeout> | null };
-    if (win.__vlaina_auth_timeout) {
-      clearTimeout(win.__vlaina_auth_timeout);
-      win.__vlaina_auth_timeout = null;
+    const win = window as Window & { __authTimeout?: number | ReturnType<typeof setTimeout> | null };
+    if (win.__authTimeout) {
+      clearTimeout(win.__authTimeout);
+      win.__authTimeout = null;
     }
     clearAuthIntent();
 
@@ -535,10 +535,10 @@ export function createSignOut(set: Set, _get: Get): () => Promise<void> {
 export function createCancelConnect(set: Set, _get: Get): () => Promise<void> {
   return async () => {
     invalidateAccountAuthAttempts();
-    const win = window as Window & { __vlaina_auth_timeout?: number | ReturnType<typeof setTimeout> | null };
-    if (win.__vlaina_auth_timeout) {
-      clearTimeout(win.__vlaina_auth_timeout);
-      win.__vlaina_auth_timeout = null;
+    const win = window as Window & { __authTimeout?: number | ReturnType<typeof setTimeout> | null };
+    if (win.__authTimeout) {
+      clearTimeout(win.__authTimeout);
+      win.__authTimeout = null;
     }
     clearAuthIntent();
 

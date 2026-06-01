@@ -46,7 +46,7 @@ export function useImageBlockState({ node, view, getPos, shouldLoadImage = true 
     }, [view, getPos]);
 
     const markImageUserInput = useCallback(() => {
-        view.dom.dispatchEvent(new CustomEvent('vlaina:image-user-input', { bubbles: true }));
+        view.dom.dispatchEvent(new CustomEvent('editor:image-user-input', { bubbles: true }));
     }, [view]);
 
     return {

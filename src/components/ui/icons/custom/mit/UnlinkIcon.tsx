@@ -3,14 +3,15 @@
  * License: ISC
  */
 import { SVGProps } from 'react';
+import { themeIconTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 
 export const UnlinkIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
+    viewBox={themeIconTokens.viewBoxDefault}
+    fill={themeStyleResetTokens.fillNone}
+    stroke={themeStyleResetTokens.currentColor}
+    strokeWidth={themeIconTokens.strokeDefault}
     strokeLinecap="round"
     strokeLinejoin="round"
     {...props}

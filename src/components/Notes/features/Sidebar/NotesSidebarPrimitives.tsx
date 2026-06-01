@@ -7,6 +7,7 @@ import {
   SidebarScrollArea,
   SidebarSurface,
 } from '@/components/layout/sidebar/SidebarPrimitives';
+import { themeIconTokens } from '@/styles/themeTokens';
 
 interface NotesSidebarSurfaceProps extends HTMLAttributes<HTMLDivElement> {
   isPeeking?: boolean;
@@ -36,7 +37,7 @@ export function NotesSidebarSurface({
   return (
     <SidebarSurface
       className={cn(
-        'group/notes-sidebar-surface flex h-full flex-col bg-[var(--notes-sidebar-surface)] text-[var(--notes-sidebar-text)]',
+        'group/notes-sidebar-surface flex h-full flex-col bg-[var(--vlaina-sidebar-notes-surface)] text-[var(--vlaina-sidebar-notes-text)]',
         className
       )}
       isPeeking={isPeeking}
@@ -111,8 +112,8 @@ export function NotesSidebarSection({
           <div className="min-w-0 flex-1">
             <div className="inline-flex max-w-full items-center gap-1 align-middle">
               <span className={cn(
-                'min-w-0 truncate font-semibold text-[var(--notes-sidebar-section-label)] group-hover:text-[var(--notes-sidebar-section-label-hover)]',
-                nested ? 'text-[16px] tracking-[0.1em]' : 'text-[16px] tracking-[0.08em]'
+                'min-w-0 truncate font-semibold text-[var(--vlaina-sidebar-notes-section-label)] group-hover:text-[var(--vlaina-sidebar-notes-section-label-hover)]',
+                nested ? 'text-[var(--vlaina-font-base)] tracking-[var(--vlaina-tracking-label-md)]' : 'text-[var(--vlaina-font-base)] tracking-[var(--vlaina-tracking-label-sm)]'
               )}>
                 {title}
               </span>
@@ -120,15 +121,15 @@ export function NotesSidebarSection({
                 <CollapseTriangleAffordance
                   collapsed={!expanded}
                   visibility="hover-unless-collapsed"
-                  size={12}
-                  className="h-[18px] w-[18px] shrink-0 text-[var(--notes-sidebar-icon)] group-hover:text-[var(--notes-sidebar-icon-hover)] group-focus-within:text-[var(--notes-sidebar-icon-hover)]"
+                  size={themeIconTokens.sizeXs}
+                  className="h-[var(--vlaina-size-18px)] w-[var(--vlaina-size-18px)] shrink-0 text-[var(--vlaina-sidebar-notes-icon)] group-hover:text-[var(--vlaina-sidebar-notes-icon-hover)] group-focus-within:text-[var(--vlaina-sidebar-notes-icon-hover)]"
                 />
               ) : null}
             </div>
           </div>
           <div className="ml-2 flex shrink-0 items-center gap-1">
             {actions ? (
-              <div className="flex items-center gap-1 opacity-0 pointer-events-none transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto">
+              <div className="flex items-center gap-1 opacity-[var(--vlaina-opacity-0)] pointer-events-none transition-opacity group-hover:opacity-[var(--vlaina-opacity-100)] group-hover:pointer-events-auto group-focus-within:opacity-[var(--vlaina-opacity-100)] group-focus-within:pointer-events-auto">
                 {actions}
               </div>
             ) : null}
@@ -139,7 +140,7 @@ export function NotesSidebarSection({
       <div
         className={cn(
           'grid',
-          animated && 'transition-[grid-template-rows] duration-200 ease-out',
+          animated && 'transition-[grid-template-rows] duration-[var(--vlaina-duration-200)] ease-out',
           expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
         )}
       >
@@ -170,13 +171,13 @@ export function NotesSidebarEmptyState({
       {...props}
     >
       {icon ? (
-        <div className="flex size-10 items-center justify-center rounded-full bg-[var(--notes-sidebar-empty-surface)] text-[var(--notes-sidebar-icon)]">
+        <div className="flex size-10 items-center justify-center rounded-full bg-[var(--vlaina-sidebar-notes-empty-surface)] text-[var(--vlaina-sidebar-notes-icon)]">
           {icon}
         </div>
       ) : null}
-      <span className="text-[16px] text-[var(--notes-sidebar-text-muted)]">{title}</span>
+      <span className="text-[var(--vlaina-font-base)] text-[var(--vlaina-sidebar-notes-text-muted)]">{title}</span>
       {description ? (
-        <span className="text-[16px] text-[var(--notes-sidebar-text-soft)]">{description}</span>
+        <span className="text-[var(--vlaina-font-base)] text-[var(--vlaina-sidebar-notes-text-soft)]">{description}</span>
       ) : null}
     </div>
   );
@@ -213,36 +214,36 @@ export function NotesSidebarHoverEmptyHint({
   return (
     <div
       className={cn(
-        'pointer-events-none flex items-center justify-center transition-opacity duration-150',
+        'pointer-events-none flex items-center justify-center transition-opacity duration-[var(--vlaina-duration-150)]',
         placement === 'overlay'
-          ? 'absolute left-1/2 top-[38.2%] z-10 -translate-x-1/2 -translate-y-1/2'
-          : 'relative left-auto top-auto z-0 translate-x-0 translate-y-0',
-        visible ? 'opacity-100' : 'opacity-0 group-hover/notes-sidebar-surface:opacity-100',
+          ? 'absolute left-1/2 top-[var(--vlaina-notes-empty-overlay-top)] z-[var(--vlaina-z-10)] -translate-x-1/2 -translate-y-1/2'
+          : 'relative left-auto top-auto z-[var(--vlaina-z-0)] translate-x-0 translate-y-0',
+        visible ? 'opacity-[var(--vlaina-opacity-100)]' : 'opacity-[var(--vlaina-opacity-0)] group-hover/notes-sidebar-surface:opacity-[var(--vlaina-opacity-100)]',
         className,
       )}
       {...props}
     >
       <div className="flex w-fit max-w-full flex-col items-center gap-2 text-center">
         {title ? (
-          <span className="text-[15px] font-medium text-[var(--notes-sidebar-text)]">
+          <span className="text-[var(--vlaina-font-15)] font-medium text-[var(--vlaina-sidebar-notes-text)]">
             {title}
           </span>
         ) : null}
         {actionItems.length > 0 ? (
           <div className={cn('flex max-w-full items-center justify-center gap-1 rounded-full px-1.5 py-1', chatComposerPillSurfaceClass)}>
             {actions && actionLabel && actionLabel !== title ? (
-              <span className="px-2 text-[15px] text-[var(--notes-sidebar-text)]">
+              <span className="px-2 text-[var(--vlaina-font-15)] text-[var(--vlaina-sidebar-notes-text)]">
                 {actionLabel}
               </span>
             ) : null}
             {actionItems.map((action, index) => (
               <Fragment key={action.label}>
                 {index > 0 ? (
-                  <span className="px-0.5 text-[14px] text-[var(--notes-sidebar-text-soft)]">/</span>
+                  <span className="px-0.5 text-[var(--vlaina-font-sm)] text-[var(--vlaina-sidebar-notes-text-soft)]">/</span>
                 ) : null}
                 <button
                   type="button"
-                  className="pointer-events-auto h-7 flex-none cursor-pointer whitespace-nowrap rounded-full px-3 text-[15px] text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-accent)]/25"
+                  className="pointer-events-auto h-7 flex-none cursor-pointer whitespace-nowrap rounded-full px-3 text-[var(--vlaina-font-15)] text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-[var(--vlaina-sidebar-notes-row-hover)] hover:text-[var(--vlaina-sidebar-notes-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-color-sidebar-focus-ring)]"
                   onClick={(event) => {
                     event.stopPropagation();
                     action.onAction();
@@ -285,7 +286,7 @@ export function NotesSidebarPillEmptyHint({
         {title ? (
           <span
             className={cn(
-              'whitespace-nowrap rounded-full px-4 py-2 text-center text-[15px] text-[var(--notes-sidebar-text-soft)]',
+              'whitespace-nowrap rounded-full px-4 py-2 text-center text-[var(--vlaina-font-15)] text-[var(--vlaina-sidebar-notes-text-soft)]',
               chatComposerPillSurfaceClass,
             )}
           >
@@ -297,11 +298,11 @@ export function NotesSidebarPillEmptyHint({
             {actions.map((action, index) => (
               <Fragment key={action.label}>
                 {index > 0 ? (
-                  <span className="px-0.5 text-[14px] text-[var(--notes-sidebar-text-soft)]">/</span>
+                  <span className="px-0.5 text-[var(--vlaina-font-sm)] text-[var(--vlaina-sidebar-notes-text-soft)]">/</span>
                 ) : null}
                 <button
                   type="button"
-                  className="pointer-events-auto h-7 flex-none cursor-pointer whitespace-nowrap rounded-full px-3 text-[15px] text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-accent)]/25"
+                  className="pointer-events-auto h-7 flex-none cursor-pointer whitespace-nowrap rounded-full px-3 text-[var(--vlaina-font-15)] text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-[var(--vlaina-sidebar-notes-row-hover)] hover:text-[var(--vlaina-sidebar-notes-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-color-sidebar-focus-ring)]"
                   onClick={(event) => {
                     event.stopPropagation();
                     action.onAction();

@@ -7,6 +7,7 @@ import {
   TEXT_EDITOR_POPUP_CARD_SELECTOR,
 } from './textEditorPopupDom';
 import { resolveTextEditorPopupPlacement } from './textEditorPopupPlacement';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 
 export interface TextEditorSessionState {
   isOpen: boolean;
@@ -168,7 +169,7 @@ export function createTextEditorViewSession<
       positionRoot,
       viewportPosition: resolveViewportPosition(state),
     });
-    editorElement.style.setProperty('--math-editor-width', `${Math.round(nextPosition.width)}px`);
+    editorElement.style.setProperty('--vlaina-math-editor-width', `${Math.round(nextPosition.width)}px`);
     editorElement.style.left = `${nextPosition.x}px`;
     editorElement.style.top = `${nextPosition.y}px`;
 
@@ -225,7 +226,7 @@ export function createTextEditorViewSession<
     editorElement = document.createElement('div');
     editorElement.className = popupClassName;
     editorElement.style.position = positionRoot ? 'absolute' : 'fixed';
-    editorElement.style.zIndex = '80';
+    editorElement.style.zIndex = themeDomStyleTokens.zIndexTextEditorPopup;
     (positionRoot ?? document.body).appendChild(editorElement);
     return editorElement;
   };

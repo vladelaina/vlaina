@@ -62,7 +62,7 @@ export function RecentVaultsList({ vaults, onOpen }: RecentVaultsListProps) {
               </div>
             </TooltipTrigger>
             <TooltipContent side="top" sideOffset={10} showArrow={false}>
-              <p className="max-w-[300px] break-all">{vault.path}</p>
+              <p className="max-w-[var(--vlaina-size-300px)] break-all">{vault.path}</p>
             </TooltipContent>
           </Tooltip>
         ))}

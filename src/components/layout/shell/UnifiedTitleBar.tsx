@@ -3,6 +3,7 @@ import { Icon } from '@/components/ui/icons';
 import { WindowControls } from '@/components/layout/WindowControls';
 import { blurComposerInput, isComposerInputFocused } from '@/lib/ui/composerFocusRegistry';
 import { isMacOS } from '@/lib/desktop/platform';
+import { themeDomStyleTokens, themeIconTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 
 interface UnifiedTitleBarProps {
   leftSlot?: ReactNode;
@@ -30,7 +31,7 @@ export function UnifiedTitleBar({
     if (e.button !== 0) return;
 
     const target = e.target as Element | null;
-    if (target?.closest('button, a, input, textarea, select, [role="button"], .vlaina-no-drag')) {
+    if (target?.closest('button, a, input, textarea, select, [role="button"], .app-no-drag')) {
       return;
     }
 
@@ -45,16 +46,16 @@ export function UnifiedTitleBar({
 
   return (
     <div
-      className="vlaina-drag-region vlaina-title-bar h-10 flex items-center select-none relative z-50 flex-shrink-0"
+      className="app-drag-region app-title-bar h-10 flex items-center select-none relative z-[var(--vlaina-z-50)] flex-shrink-0"
       style={{ backgroundColor }}
       onMouseDownCapture={handleTitleBarMouseDownCapture}
     >
       {sidebarCollapsed ? (
-        <div className={`relative z-20 flex items-center h-full pr-3 bg-[var(--vlaina-bg-primary)] ${shouldReserveMacTrafficLightSpace ? 'pl-[76px]' : 'pl-2'}`}>
+        <div className={`relative z-[var(--vlaina-z-20)] flex items-center h-full pr-3 bg-[var(--vlaina-bg-primary)] ${shouldReserveMacTrafficLightSpace ? 'pl-[var(--vlaina-space-76px)]' : 'pl-2'}`}>
           <button
             type="button"
             onClick={onToggleSidebar}
-            className="vlaina-no-drag group flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[var(--chat-sidebar-text)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--chat-sidebar-text)]"
+            className="app-no-drag group flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[var(--vlaina-sidebar-chat-text)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-sidebar-chat-text)]"
           >
             <>
               {/* Sidebar glyph adapted from Lucide Icons (ISC). */}
@@ -62,10 +63,10 @@ export function UnifiedTitleBar({
                 xmlns="http://www.w3.org/2000/svg"
                 width="24"
                 height="24"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
+                fill={themeStyleResetTokens.fillNone}
+                viewBox={themeIconTokens.viewBoxDefault}
+                stroke={themeStyleResetTokens.currentColor}
+                strokeWidth={themeIconTokens.strokeDefault}
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 className="lucide lucide-text-align-start-icon lucide-text-align-start size-5 group-hover:hidden"
@@ -80,8 +81,8 @@ export function UnifiedTitleBar({
         </div>
       ) : (
         <div
-          className="h-full flex-shrink-0 z-20 group flex flex-col justify-center vlaina-drag-region"
-          style={{ width: 'var(--vlaina-shell-sidebar-width)' }}
+          className="h-full flex-shrink-0 z-[var(--vlaina-z-20)] group flex flex-col justify-center app-drag-region"
+          style={{ width: themeDomStyleTokens.shellSidebarWidth }}
         >
           {leftSlot}
         </div>
@@ -89,20 +90,20 @@ export function UnifiedTitleBar({
 
       <div
         className="absolute top-0 bottom-0 right-0 bg-[var(--vlaina-bg-primary)]"
-        style={{ left: sidebarCollapsed ? 0 : 'var(--vlaina-shell-sidebar-width)' }}
+        style={{ left: sidebarCollapsed ? 0 : themeDomStyleTokens.shellSidebarWidth }}
       />
 
-      <div className={`vlaina-drag-region vlaina-title-bar-center flex-1 flex items-center z-20 min-w-0 h-full relative ${centerOverflowVisible ? 'overflow-visible' : 'overflow-hidden'}`}>
+      <div className={`app-drag-region app-title-bar-center flex-1 flex items-center z-[var(--vlaina-z-20)] min-w-0 h-full relative ${centerOverflowVisible ? 'overflow-visible' : 'overflow-hidden'}`}>
         {centerSlot}
       </div>
 
       {rightSlot && (
-        <div className="relative z-20 flex items-center h-full bg-[var(--vlaina-bg-primary)] pr-2 vlaina-drag-region">
+        <div className="relative z-[var(--vlaina-z-20)] flex items-center h-full bg-[var(--vlaina-bg-primary)] pr-2 app-drag-region">
           {rightSlot}
         </div>
       )}
 
-      {showWindowControls ? <WindowControls className="z-50" /> : null}
+      {showWindowControls ? <WindowControls className="z-[var(--vlaina-z-50)]" /> : null}
     </div>
   );
 }

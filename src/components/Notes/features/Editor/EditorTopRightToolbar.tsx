@@ -23,6 +23,7 @@ import { canStarNotePath } from '@/stores/notes/notePathState';
 import type { NoteExportFormat } from '../Export/noteExportTypes';
 import type { AppLanguage } from '@/lib/i18n/languages';
 import { MENU_PANEL_CLASS_NAME } from '@/components/layout/sidebar/context-menu/shared';
+import { themeStyleResetTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 export interface EditorTopRightToolbarProps {
   editorFind: NoteEditorFindController;
@@ -57,10 +58,10 @@ function formatMetadataDate(value: string | number | Date | null | undefined, la
 }
 
 const exportMenuItemClassName =
-  'text-[var(--notes-sidebar-text)] transition-colors focus:bg-[var(--notes-sidebar-row-active)] focus:text-[var(--sidebar-row-selected-text)] data-[highlighted]:bg-[var(--notes-sidebar-row-active)] data-[highlighted]:text-[var(--sidebar-row-selected-text)] data-[state=open]:bg-[var(--notes-sidebar-row-active)] data-[state=open]:text-[var(--sidebar-row-selected-text)] [&>svg]:text-current';
+  'text-[var(--vlaina-sidebar-notes-text)] transition-colors focus:bg-[var(--vlaina-sidebar-notes-row-active)] focus:text-[var(--vlaina-sidebar-row-selected-text)] data-[highlighted]:bg-[var(--vlaina-sidebar-notes-row-active)] data-[highlighted]:text-[var(--vlaina-sidebar-row-selected-text)] data-[state=open]:bg-[var(--vlaina-sidebar-notes-row-active)] data-[state=open]:text-[var(--vlaina-sidebar-row-selected-text)] [&>svg]:text-current';
 
 const noteMenuSurfaceClassName = cn(
-  'vlaina-sidebar-menu-surface max-w-[calc(100vw-1rem)] backdrop-blur-lg',
+  'sidebar-menu-surface max-w-[var(--vlaina-width-viewport-minus-1rem)] backdrop-blur-[var(--vlaina-backdrop-blur-lg)]',
   MENU_PANEL_CLASS_NAME,
 );
 
@@ -97,12 +98,12 @@ export function EditorTopRightToolbar({
         title: currentNoteTitle,
       });
     } catch (error) {
-      addToast(error instanceof Error ? error.message : t('notes.exportFailed'), 'error', 4500);
+      addToast(error instanceof Error ? error.message : t('notes.exportFailed'), 'error', themeUiFeedbackTokens.errorToastDurationMs);
     }
   };
 
   return (
-    <div className="absolute top-3 right-3 z-30 flex items-start gap-2">
+    <div className="absolute top-3 right-3 z-[var(--vlaina-z-30)] flex items-start gap-2">
       <NoteEditorFindBar controller={editorFind} />
 
       {!editorFind.isOpen ? (
@@ -118,13 +119,15 @@ export function EditorTopRightToolbar({
               aria-label={starButtonLabel}
               className={cn(
                 'p-1.5 transition-colors',
-                starred ? 'text-yellow-500' : `${iconButtonStyles} hover:text-yellow-500`,
+                starred
+                  ? 'text-[var(--vlaina-color-favorite-fg)]'
+                  : `${iconButtonStyles} hover:text-[var(--vlaina-color-favorite-fg)]`,
               )}
             >
               <Icon
                 size="md"
                 name="misc.star"
-                style={{ fill: starred ? 'currentColor' : 'none' }}
+                style={{ fill: starred ? themeStyleResetTokens.currentColor : themeStyleResetTokens.fillNone }}
               />
             </button>
           ) : null}
@@ -133,7 +136,7 @@ export function EditorTopRightToolbar({
             <DropdownMenuTrigger asChild>
               <button
                 onClick={(event) => event.stopPropagation()}
-                className="cursor-pointer bg-transparent p-1.5 text-[var(--vlaina-text-tertiary)] transition-colors hover:text-[var(--sidebar-row-selected-text)] disabled:cursor-default"
+                className="cursor-pointer bg-transparent p-1.5 text-[var(--vlaina-text-tertiary)] transition-colors hover:text-[var(--vlaina-sidebar-row-selected-text)] disabled:cursor-default"
               >
                 <Icon size="md" name="common.more" />
               </button>
@@ -186,7 +189,7 @@ export function EditorTopRightToolbar({
               <DropdownMenuSeparator />
               <NoteStats currentNotePath={currentNotePath} />
               <DropdownMenuSeparator />
-              <div className="grid grid-cols-[78px_max-content] gap-1 px-2 py-1.5 text-xs text-[var(--notes-sidebar-text)]">
+              <div className="grid grid-cols-[78px_max-content] gap-1 px-2 py-1.5 text-xs text-[var(--vlaina-sidebar-notes-text)]">
                 <span className="font-medium">{t('notes.created')}</span>
                 <span className="whitespace-nowrap">{formatMetadataDate(currentNoteMetadata?.createdAt, language)}</span>
 
@@ -215,7 +218,7 @@ function NoteStats({ currentNotePath }: { currentNotePath: string | null | undef
   const textStats = useDeferredTextStats(currentNotePath, currentNoteContent);
 
   return (
-    <div className="grid grid-cols-[78px_max-content] gap-1 px-2 py-1.5 text-xs text-[var(--notes-sidebar-text)]">
+    <div className="grid grid-cols-[78px_max-content] gap-1 px-2 py-1.5 text-xs text-[var(--vlaina-sidebar-notes-text)]">
       <span className="font-medium">{t('notes.lines')}</span>
       <span className="tabular-nums">{textStats.lineCount}</span>
 

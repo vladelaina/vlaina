@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { ComponentType } from 'react';
+import { themeIconTokens } from '@/styles/themeTokens';
 
 interface TitleBarButtonProps {
   icon: ComponentType<{ className?: string; size?: number | string }>;
@@ -20,7 +21,7 @@ export function TitleBarButton({ icon: Icon, onClick, isActive, className }: Tit
         className
       )}
     >
-      <Icon size={18} />
+      <Icon size={themeIconTokens.sizeCompact} />
     </button>
   );
 }

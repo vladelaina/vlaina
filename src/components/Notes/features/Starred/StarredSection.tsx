@@ -65,15 +65,15 @@ export function StarredSection({
       className={cn(
         'w-full rounded-md transition-colors',
         !showTitle && hasEntries && 'mb-1',
-        isDragOver && 'bg-[var(--notes-sidebar-row-drag)] ring-1 ring-[var(--vlaina-accent)]',
+        isDragOver && 'bg-[var(--vlaina-sidebar-notes-row-drag)] ring-1 ring-[var(--vlaina-accent)]',
       )}
     >
       {!hasEntries ? (
         <div
           data-file-tree-starred-drop-target="true"
-          className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-[12px] text-[var(--notes-sidebar-text-soft)]"
+          className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-[var(--vlaina-font-xs)] text-[var(--vlaina-sidebar-notes-text-soft)]"
         >
-          <Icon name="misc.star" size="sm" className="fill-amber-500 text-amber-500" />
+          <Icon name="misc.star" size="sm" className="fill-[var(--vlaina-color-favorite-fg)] text-[var(--vlaina-color-favorite-fg)]" />
           <span>{t('notes.starred')}</span>
         </div>
       ) : (
@@ -118,7 +118,7 @@ export function StarredSection({
       nested={nested}
       headerClassName={nested ? 'px-2' : undefined}
       data-file-tree-starred-drop-target="true"
-      className={cn(isDragOver && 'rounded-md bg-[var(--notes-sidebar-row-drag)]')}
+      className={cn(isDragOver && 'rounded-md bg-[var(--vlaina-sidebar-notes-row-drag)]')}
     >
       {content}
     </NotesSidebarSection>

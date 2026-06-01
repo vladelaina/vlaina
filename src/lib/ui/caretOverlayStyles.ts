@@ -1,3 +1,5 @@
+import { themeCaretOverlayTokens } from '@/styles/themeTokens';
+
 export const CARET_COLOR_VAR = 'var(--vlaina-caret-color)';
 export const CARET_WIDTH_VAR = 'var(--vlaina-caret-width)';
 export const CARET_VISUAL_HEIGHT_RATIO = 1;
@@ -33,12 +35,12 @@ export function createCaretOverlayStyle({
       width: ${CARET_WIDTH_VAR};
       background: ${CARET_COLOR_VAR};
       pointer-events: none;
-      z-index: 10001;
-      animation: ${keyframesName} 1.05s steps(2, start) infinite;
+      z-index: ${themeCaretOverlayTokens.zIndex};
+      animation: ${keyframesName} ${themeCaretOverlayTokens.blinkDuration} steps(2, start) infinite;
     }
     @keyframes ${keyframesName} {
-      0%, 45% { opacity: 1; }
-      46%, 100% { opacity: 0; }
+      0%, ${themeCaretOverlayTokens.visibleKeyframeEnd} { opacity: ${themeCaretOverlayTokens.opacityVisible}; }
+      ${themeCaretOverlayTokens.hiddenKeyframeStart}, 100% { opacity: ${themeCaretOverlayTokens.opacityHidden}; }
     }
   `;
 }

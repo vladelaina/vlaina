@@ -1,4 +1,4 @@
-export const CHAT_SELECTION_STREAM_FREEZE_EVENT = 'vlaina-chat-selection-stream-freeze';
+export const CHAT_SELECTION_STREAM_FREEZE_EVENT = 'chat-selection-stream-freeze';
 
 export interface ChatSelectionStreamFreezeDetail {
   button: number;

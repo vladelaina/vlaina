@@ -19,7 +19,7 @@ import {
 import { useImageDragPreview } from './useImageDragPreview';
 
 function markImageUserInput(view: EditorView): void {
-    view.dom.dispatchEvent(new CustomEvent('vlaina:image-user-input', { bubbles: true }));
+    view.dom.dispatchEvent(new CustomEvent('editor:image-user-input', { bubbles: true }));
 }
 
 interface UseImageDragOptions {

@@ -344,7 +344,7 @@ function buildImageEditMultipartBody({
     throw new Error('Image edits require a PNG, JPEG, or WebP image attachment.');
   }
 
-  const boundary = `----vlaina-image-edit-${crypto.randomUUID()}`;
+  const boundary = `----image-edit-${crypto.randomUUID()}`;
   const chunks: Array<string | Uint8Array> = [];
   const appendField = (name: string, value: string) => {
     chunks.push(

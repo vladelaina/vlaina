@@ -74,11 +74,11 @@ describe('LanguageSelector', () => {
     expect(trigger.className).not.toContain('hover:bg-');
     expect(trigger.className).not.toContain('dark:hover:bg-');
     expect(trigger.className).not.toContain(chatComposerPillSurfaceClass);
-    expect(trigger.querySelector('.vlaina-code-block-language-label')?.className).toContain('whitespace-nowrap');
-    expect(trigger.querySelector('.vlaina-code-block-language-label')?.className).not.toContain('truncate');
+    expect(trigger.querySelector('.code-block-chrome-language-label')?.className).toContain('whitespace-nowrap');
+    expect(trigger.querySelector('.code-block-chrome-language-label')?.className).not.toContain('truncate');
 
     const searchInput = screen.getByPlaceholderText('Search language...');
-    expect(searchInput.parentElement?.className).toContain('h-[40px]');
+    expect(searchInput.parentElement?.className).toContain('h-[var(--vlaina-size-40px)]');
     expect(searchInput.parentElement?.className).toContain('rounded-full');
     expect(searchInput.parentElement?.className).toContain(chatComposerPillSurfaceClass);
 

@@ -308,14 +308,14 @@ export function SelectionInsertButton() {
   }
 
   return createPortal(
-    <div className="pointer-events-none fixed inset-0 z-[115]">
+    <div className="pointer-events-none fixed inset-0 z-[var(--vlaina-z-115)]">
       {state && (
         <button
           type="button"
           aria-label={t('chat.insertSelection')}
           data-no-focus-input="true"
           className={cn(
-            "pointer-events-auto absolute h-8 w-8 rounded-full border border-black/10 bg-white shadow-md dark:border-white/10 dark:bg-zinc-900",
+            "pointer-events-auto absolute h-8 w-8 rounded-full border border-[var(--vlaina-color-subtle-border-strong)] bg-[var(--vlaina-color-floating-surface)] shadow-[var(--vlaina-shadow-md)]",
             "flex items-center justify-center",
             transformClass,
             iconButtonStyles

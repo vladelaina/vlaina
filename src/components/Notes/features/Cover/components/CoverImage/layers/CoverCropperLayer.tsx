@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import type { LoadedCoverMedia } from '../coverRenderer.types';
 import { getBaseDimensions } from '../../../utils/coverGeometry';
 import { useCoverCropperInteraction } from '../hooks/interaction/useCoverCropperInteraction';
+import { themeCoverLayerTokens, themeRenderingTokens } from '@/styles/themeTokens';
 
 interface CoverCropperLayerProps {
   displaySrc: string;
@@ -64,13 +65,13 @@ export function CoverCropperLayer({
     if (!baseDimensions) {
       const fallbackSizing =
         objectFitMode === 'vertical-cover'
-          ? { width: 'auto', height: '100%' }
-          : { width: '100%', height: 'auto' };
+          ? { width: themeCoverLayerTokens.sizeAuto, height: themeCoverLayerTokens.sizeFull }
+          : { width: themeCoverLayerTokens.sizeFull, height: themeCoverLayerTokens.sizeAuto };
 
       return {
         ...fallbackSizing,
-        left: '50%',
-        top: '50%',
+        left: themeCoverLayerTokens.positionCenter,
+        top: themeCoverLayerTokens.positionCenter,
         transform: `translate(calc(-50% + ${crop.x}px), calc(-50% + ${crop.y}px)) scale(${zoom})`,
       };
     }
@@ -78,8 +79,8 @@ export function CoverCropperLayer({
     return {
       width: `${baseDimensions.width}px`,
       height: `${baseDimensions.height}px`,
-      left: '50%',
-      top: '50%',
+      left: themeCoverLayerTokens.positionCenter,
+      top: themeCoverLayerTokens.positionCenter,
       transform: `translate(calc(-50% + ${crop.x}px), calc(-50% + ${crop.y}px)) scale(${zoom})`,
     };
   }, [baseDimensions, crop.x, crop.y, objectFitMode, zoom]);
@@ -141,14 +142,14 @@ export function CoverCropperLayer({
       ref={setWrapperNode}
       className={cn(
         'absolute -inset-px',
-        isResizing || isSuspended ? 'opacity-0 pointer-events-none' : isImageReady ? 'opacity-100' : 'opacity-0',
+        isResizing || isSuspended ? 'opacity-[var(--vlaina-opacity-0)] pointer-events-none' : isImageReady ? 'opacity-[var(--vlaina-opacity-100)]' : 'opacity-[var(--vlaina-opacity-0)]',
         displaySrc ? 'cursor-move' : 'cursor-default'
       )}
       style={{
-        willChange: 'transform',
-        touchAction: 'none',
-        overscrollBehavior: 'none',
-        overflowAnchor: 'none',
+        willChange: themeRenderingTokens.transformWillChange,
+        touchAction: themeRenderingTokens.touchActionNone,
+        overscrollBehavior: themeRenderingTokens.overscrollBehaviorNone,
+        overflowAnchor: themeRenderingTokens.overflowAnchorNone,
       }}
       data-testid="cover-cropper"
       data-object-fit={objectFitMode}
@@ -170,10 +171,10 @@ export function CoverCropperLayer({
           className="absolute select-none pointer-events-none max-w-none"
           style={{
             ...imageStyle,
-            willChange: 'transform',
-            backfaceVisibility: 'hidden',
-            transformOrigin: 'center center',
-            userSelect: 'none',
+            willChange: themeRenderingTokens.transformWillChange,
+            backfaceVisibility: themeRenderingTokens.backfaceHidden,
+            transformOrigin: themeCoverLayerTokens.transformOriginCenter,
+            userSelect: themeRenderingTokens.userSelectNone,
           }}
         />
       ) : null}

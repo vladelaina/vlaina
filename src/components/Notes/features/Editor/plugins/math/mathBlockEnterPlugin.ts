@@ -4,9 +4,10 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { mathEditorPluginKey } from './mathEditorPluginKey';
 import { isMathBlockShortcutText } from './mathBlockFence';
 import { createOpenMathEditorState } from './mathEditorState';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 
 function markMathUserInput(view: EditorView): void {
-  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+  view.dom?.dispatchEvent?.(new CustomEvent('editor:block-user-input', { bubbles: true }));
 }
 
 function getMathBlockEnterViewportPosition(view: EditorView) {
@@ -14,12 +15,12 @@ function getMathBlockEnterViewportPosition(view: EditorView) {
     const coords = view.coordsAtPos(view.state.selection.from);
     return {
       x: coords.left,
-      y: coords.bottom + 8,
+      y: coords.bottom + themeDomStyleTokens.editorPopupAnchorOffsetPx,
     };
   } catch {
     return {
-      x: 16,
-      y: 16,
+      x: themeDomStyleTokens.editorPopupFallbackX,
+      y: themeDomStyleTokens.editorPopupFallbackY,
     };
   }
 }

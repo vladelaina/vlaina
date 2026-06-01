@@ -35,6 +35,7 @@
     "dev:dynamic": "node scripts/dev-dynamic.js",
     "quality:electron-only": "node scripts/assert-electron-only.mjs",
     "quality:language-detection": "node scripts/language-detection-gate.mjs",
+    "theme:audit": "node scripts/theme-audit.mjs",
     "websearch:ublacklist:candidates": "node scripts/web-search-import-ublacklist.mjs",
     "websearch:rules:install": "node scripts/web-search-install-source-rules.mjs",
     "quality:verify": "pnpm run quality:electron-only && pnpm run typecheck && pnpm run test && pnpm build",

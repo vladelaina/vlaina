@@ -2,7 +2,7 @@ const LINE_ENDING_PATTERN = /\r\n?/g;
 const FRONTMATTER_OPEN_PATTERN = /^---[ \t]*$/;
 const FRONTMATTER_CLOSE_PATTERN = /^---[ \t]*$/;
 const FRONTMATTER_LANGUAGE = 'yaml-frontmatter';
-const VLAINA_PREFIX = 'vlaina_';
+const MANAGED_FRONTMATTER_PREFIX = 'vlaina_';
 
 function normalizeLineEndings(value: string): string {
   return value.replace(LINE_ENDING_PATTERN, '\n');
@@ -18,9 +18,9 @@ function parseTopLevelKey(line: string): string | null {
   return match?.[1] ?? null;
 }
 
-function isVlainaFrontmatterLine(line: string): boolean {
+function isManagedFrontmatterLine(line: string): boolean {
   const key = parseTopLevelKey(line);
-  return Boolean(key && key.startsWith(VLAINA_PREFIX));
+  return Boolean(key && key.startsWith(MANAGED_FRONTMATTER_PREFIX));
 }
 
 function trimTrailingBlankLines(lines: string[]): string[] {
@@ -86,8 +86,8 @@ export function normalizeLeadingFrontmatterMarkdown(markdown: string): string {
     return normalizeLineEndings(markdown);
   }
 
-  const hasHiddenFrontmatterLines = sections.frontmatterLines.some((line) => isVlainaFrontmatterLine(line));
-  const visibleFrontmatterLines = sections.frontmatterLines.filter((line) => !isVlainaFrontmatterLine(line));
+  const hasHiddenFrontmatterLines = sections.frontmatterLines.some((line) => isManagedFrontmatterLine(line));
+  const visibleFrontmatterLines = sections.frontmatterLines.filter((line) => !isManagedFrontmatterLine(line));
   const normalizedVisibleFrontmatterLines = hasHiddenFrontmatterLines
     ? trimTrailingBlankLines(visibleFrontmatterLines)
     : visibleFrontmatterLines;
@@ -103,7 +103,7 @@ export function serializeLeadingFrontmatterMarkdown(markdown: string, referenceM
   const openFence = `\`\`\`${FRONTMATTER_LANGUAGE}`;
   const referenceSections = referenceMarkdown ? splitLeadingFrontmatter(referenceMarkdown) : null;
   const hiddenFrontmatterLines = referenceSections
-    ? referenceSections.frontmatterLines.filter((line) => isVlainaFrontmatterLine(line))
+    ? referenceSections.frontmatterLines.filter((line) => isManagedFrontmatterLine(line))
     : [];
 
   if ((lines[0] ?? '').trim() !== openFence) {
@@ -127,7 +127,7 @@ export function serializeLeadingFrontmatterMarkdown(markdown: string, referenceM
   }
 
   const frontmatterLines = lines.slice(1, closingIndex);
-  const visibleFrontmatterLines = frontmatterLines.filter((line) => !isVlainaFrontmatterLine(line));
+  const visibleFrontmatterLines = frontmatterLines.filter((line) => !isManagedFrontmatterLine(line));
   const mergedFrontmatterLines =
     visibleFrontmatterLines.length > 0 && hiddenFrontmatterLines.length > 0
       ? [...visibleFrontmatterLines, '', ...hiddenFrontmatterLines]

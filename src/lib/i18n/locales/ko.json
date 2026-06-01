@@ -1,7 +1,7 @@
 {
   "account.cancelAuthentication": "인증 취소",
   "account.continueSignIn": "로그인 계속",
-  "account.continueToVlaina": "vlaina로 계속",
+  "account.continueToApp": "vlaina로 계속",
   "account.continueWithEmail": "이메일로 계속",
   "account.emailAddress": "이메일 주소",
   "account.enterEmailCode": "받은 편지함으로 보낸 코드를 입력하세요",
@@ -82,7 +82,7 @@
   "settings.feedback.error.signInRequired": "로그인한 뒤 피드백을 보내주세요",
   "settings.feedback.error.network": "네트워크 오류로 피드백을 보내지 못했어요",
   "settings.feedback.error.generic": "피드백 전송에 실패했어요",
-  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★! 여기는 {vlainaSite}와 {catimeSite}의 개발자 {authorSite}입니다.",
+  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★! 여기는 {appSite}와 {catimeSite}의 개발자 {authorSite}입니다.",
   "settings.about.note.curiousTitle": "궁금할 수 있는 것들:",
   "settings.about.note.curiousMissing": "아직 없는 기능이 좀 있어 보이는 이유는?",
   "settings.about.note.curiousRough": "일부 상호작용이 아직 거친 이유는?",

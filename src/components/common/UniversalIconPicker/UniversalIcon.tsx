@@ -4,7 +4,7 @@ import { ICON_SIZES, IconSize } from '@/components/ui/icons/sizes';
 import { cn } from '@/lib/utils';
 import { ImageEdgeMask } from '@/components/common/ImageEdgeMask';
 import { resolveEmojiForSkinTone } from './randomEmoji';
-import { themeColorTokens } from '@/styles/themeTokens';
+import { themeColorTokens, themeDomStyleTokens, themeRenderingTokens, themeTypographyTokens } from '@/styles/themeTokens';
 
 export interface UniversalIconProps {
   icon: string;
@@ -62,7 +62,7 @@ const ImageIconRenderer = memo(function ImageIconRenderer({
   const radiusClassName = rounding || 'rounded-sm';
 
   if (hasLoadError) {
-    return <span className={className} style={{ width: resolvedSize, height: resolvedSize, display: 'inline-block' }} />;
+    return <span className={className} style={{ width: resolvedSize, height: resolvedSize, display: themeDomStyleTokens.displayInlineBlock }} />;
   }
 
   if (!maskColor) {
@@ -70,7 +70,7 @@ const ImageIconRenderer = memo(function ImageIconRenderer({
       <img
         src={src}
         className={cn('object-cover select-none pointer-events-none', radiusClassName, className)}
-        style={{ width: resolvedSize, height: resolvedSize, display: 'inline-block' }}
+        style={{ width: resolvedSize, height: resolvedSize, display: themeDomStyleTokens.displayInlineBlock }}
         draggable={false}
         alt="icon"
         onError={() => setHasLoadError(true)}
@@ -86,7 +86,7 @@ const ImageIconRenderer = memo(function ImageIconRenderer({
       <img
         src={src}
         className={cn('h-full w-full object-cover select-none pointer-events-none', radiusClassName)}
-        style={{ display: 'inline-block' }}
+        style={{ display: themeDomStyleTokens.displayInlineBlock }}
         draggable={false}
         alt="icon"
         onError={() => setHasLoadError(true)}
@@ -130,19 +130,19 @@ const IconIconRenderer = memo(function IconIconRenderer({
     <span
       className={className}
       style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        display: themeDomStyleTokens.displayInlineFlex,
+        alignItems: themeDomStyleTokens.alignCenter,
+        justifyContent: themeDomStyleTokens.justifyCenter,
         width: resolvedSize,
         height: resolvedSize,
-        lineHeight: 1,
+        lineHeight: themeTypographyTokens.iconLineHeight,
       }}
     >
       <IconComponent
-        size={isCSSVariable ? '100%' : resolvedSize}
+        size={isCSSVariable ? themeDomStyleTokens.sizeFull : resolvedSize}
         style={{
           color,
-          ...(isCSSVariable ? { width: '100%', height: '100%' } : {})
+          ...(isCSSVariable ? { width: themeDomStyleTokens.sizeFull, height: themeDomStyleTokens.sizeFull } : {})
         }}
       />
     </span>
@@ -188,7 +188,12 @@ const EmojiIconRenderer = memo(function EmojiIconRenderer({
   return (
     <span
       className={className}
-      style={{ fontSize: resolvedSize, lineHeight: 1, display: 'inline-block', userSelect: 'none' }}
+      style={{
+        fontSize: resolvedSize,
+        lineHeight: themeTypographyTokens.iconLineHeight,
+        display: themeDomStyleTokens.displayInlineBlock,
+        userSelect: themeRenderingTokens.userSelectNone,
+      }}
     >
       {displayEmoji}
     </span>

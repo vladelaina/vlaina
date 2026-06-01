@@ -29,12 +29,12 @@ export const AppMenu: React.FC<AppMenuProps> = ({ onOpenSettings, onCloseMenu })
                         void openExternalHref(membershipPlanUrl);
                     }}
                     className={cn(
-                        "flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[16px] font-medium transition-colors group/item",
+                        "flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium transition-colors group/item",
                         getSidebarIdleRowSurfaceClass('chat'),
-                        "text-[var(--chat-sidebar-text)] hover:bg-[var(--vlaina-accent-light)] hover:text-[var(--vlaina-accent)]"
+                        "text-[var(--vlaina-sidebar-chat-text)] hover:bg-[var(--vlaina-accent-light)] hover:text-[var(--vlaina-accent)]"
                     )}
                 >
-                    <Icon size="md" name="common.shootingStar" className="text-[var(--chat-sidebar-text)] transition-colors group-hover/item:text-[var(--vlaina-accent)]" />
+                    <Icon size="md" name="common.shootingStar" className="text-[var(--vlaina-sidebar-chat-text)] transition-colors group-hover/item:text-[var(--vlaina-accent)]" />
                     <span>{t('account.upgrade')}</span>
                 </button>
             ) : null}
@@ -44,12 +44,12 @@ export const AppMenu: React.FC<AppMenuProps> = ({ onOpenSettings, onCloseMenu })
                     onCloseMenu();
                 }}
                 className={cn(
-                    "flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[16px] font-medium transition-colors group/item",
+                    "flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium transition-colors group/item",
                     getSidebarIdleRowSurfaceClass('chat'),
-                    "text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)]"
+                    "text-[var(--vlaina-sidebar-chat-text)] hover:bg-[var(--vlaina-sidebar-chat-row-hover)]"
                 )}
             >
-                <Icon size="md" name="common.settings" className="text-[var(--chat-sidebar-text)]" />
+                <Icon size="md" name="common.settings" className="text-[var(--vlaina-sidebar-chat-text)]" />
                 <span>{t('account.settings')}</span>
             </button>
         </div>

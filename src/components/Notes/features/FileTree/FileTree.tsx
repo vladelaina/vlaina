@@ -14,8 +14,8 @@ export function FileTree({ rootFolder, isLoading }: FileTreeProps) {
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex items-center gap-2 px-2">
-              <div className="w-[18px] h-[18px] rounded bg-[var(--vlaina-bg-tertiary)] animate-pulse" />
-              <div className="flex-1 h-[18px] rounded bg-[var(--vlaina-bg-tertiary)] animate-pulse" />
+              <div className="w-[var(--vlaina-size-18px)] h-[var(--vlaina-size-18px)] rounded bg-[var(--vlaina-bg-tertiary)] animate-pulse" />
+              <div className="flex-1 h-[var(--vlaina-size-18px)] rounded bg-[var(--vlaina-bg-tertiary)] animate-pulse" />
             </div>
           ))}
         </div>

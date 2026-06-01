@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   readNoteMetadataFromMarkdown,
-  stripVlainaUpdatedFrontmatter,
-  stripVlainaManagedFrontmatter,
+  stripUpdatedFrontmatter,
+  stripManagedFrontmatter,
   updateNoteMetadataInMarkdown,
   writeNoteMetadataToMarkdown,
 } from './frontmatter';
@@ -158,7 +158,7 @@ describe('note frontmatter metadata', () => {
       'Visible body',
     ].join('\n');
 
-    expect(stripVlainaManagedFrontmatter(markdown)).toBe('# Exported\nVisible body');
+    expect(stripManagedFrontmatter(markdown)).toBe('# Exported\nVisible body');
   });
 
   it('strips only the managed updated timestamp for save conflict comparisons', () => {
@@ -172,7 +172,7 @@ describe('note frontmatter metadata', () => {
       '# Title',
     ].join('\n');
 
-    expect(stripVlainaUpdatedFrontmatter(markdown)).toBe([
+    expect(stripUpdatedFrontmatter(markdown)).toBe([
       '---',
       'title: User title',
       'vlaina_created: 2026-04-15 08:00:00 +08:00',
@@ -195,7 +195,7 @@ describe('note frontmatter metadata', () => {
       '# Exported',
     ].join('\n');
 
-    expect(stripVlainaManagedFrontmatter(markdown)).toBe([
+    expect(stripManagedFrontmatter(markdown)).toBe([
       '---',
       'title: User title',
       'tags:',

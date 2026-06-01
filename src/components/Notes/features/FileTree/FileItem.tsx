@@ -145,7 +145,7 @@ export const FileItem = memo(function FileItem({
         },
         {
           key: 'toggle-star',
-          icon: <Icon name="misc.star" size="md" className={isItemStarred ? 'fill-amber-500 text-amber-500' : undefined} />,
+          icon: <Icon name="misc.star" size="md" className={isItemStarred ? 'fill-[var(--vlaina-color-favorite-fg)] text-[var(--vlaina-color-favorite-fg)]' : undefined} />,
           label: isItemStarred ? t('sidebar.removeFromStarred') : t('sidebar.addToStarred'),
           onClick: () => {
             toggleStarred(node.path);
@@ -224,12 +224,12 @@ export const FileItem = memo(function FileItem({
       parentFolderPath={parentFolderPath}
       depth={depth}
       actionFadeClassName={showStarBadge ? 'w-3 from-transparent' : undefined}
-      contentClassName={showStarBadge ? 'z-30' : undefined}
+      contentClassName={showStarBadge ? 'z-[var(--vlaina-z-30)]' : undefined}
       leading={
         noteIcon ? (
           <NoteIcon icon={noteIcon} notePath={node.path} size={NOTES_SIDEBAR_ICON_SIZE} />
         ) : (
-          <Icon name="file.text" size={NOTES_SIDEBAR_ICON_SIZE} className="text-[var(--notes-sidebar-file-icon)]" />
+          <Icon name="file.text" size={NOTES_SIDEBAR_ICON_SIZE} className="text-[var(--vlaina-sidebar-notes-file-icon)]" />
         )
       }
       isActive={isActive}
@@ -264,7 +264,7 @@ export const FileItem = memo(function FileItem({
               fallbackName={displayName}
               className={getSidebarTextClass('notes')}
               titleClassName={getSidebarLabelClass('notes', { selected: isActive })}
-              hintClassName="text-[var(--notes-sidebar-text-soft)]"
+              hintClassName="text-[var(--vlaina-sidebar-notes-text-soft)]"
             />
             {showStarBadge ? (
               <SidebarStarBadge

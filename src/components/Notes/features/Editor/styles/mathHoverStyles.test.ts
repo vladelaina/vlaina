@@ -9,30 +9,37 @@ function readMathStyles() {
   );
 }
 
+function readThemeStyle() {
+  return readFileSync(resolve(process.cwd(), 'src/styles/theme.css'), 'utf8');
+}
+
 describe('math hover styles', () => {
   it('keeps clickable hover affordances for inline and block math nodes', () => {
     const css = readMathStyles();
+    const themeCss = readThemeStyle();
 
     expect(css).toContain(".milkdown [data-type='math-inline'],");
     expect(css).toContain(".milkdown [data-type='math-block'],");
     expect(css).toContain(".milkdown .mermaid-block {");
-    expect(css).toContain('--vlaina-math-hover-color: var(--vlaina-hover-filled);');
-    expect(css).toContain('--vlaina-math-hover-bleed-y: 4px;');
+    expect(themeCss).toContain('--vlaina-math-hover-color: var(--vlaina-hover-filled);');
+    expect(themeCss).toContain('--vlaina-math-hover-bleed-y-default: var(--vlaina-space-4px);');
+    expect(themeCss).toContain('--vlaina-math-hover-bleed-y: var(--vlaina-math-hover-bleed-y-default);');
     expect(css).toContain('box-decoration-break: clone;');
     expect(css).toContain(".milkdown [data-type='math-inline']:hover,");
     expect(css).toContain(".milkdown .mermaid-block:hover,");
     expect(css).toContain(".milkdown [data-type='math-block'].ProseMirror-selectednode,");
     expect(css).toContain(".milkdown .mermaid-block.ProseMirror-selectednode,");
-    expect(css).toContain('.milkdown .ProseMirror.vlaina-atomic-block-keyboard-selected,');
+    expect(css).toContain('.milkdown .ProseMirror.editor-atomic-block-keyboard-selected,');
     expect(css).toContain('caret-color: transparent;');
     expect(css).toContain('background: var(--vlaina-math-hover-color);');
     expect(css).toContain('inset 0 0 0 1px var(--vlaina-math-hover-color),');
-    expect(css).toContain('border-radius: 0;');
+    expect(css).toContain('border-radius: var(--vlaina-radius-0);');
     expect(css).toContain('cursor: pointer !important;');
   });
 
   it('keeps mermaid blocks on the shared math hover treatment without a standalone frame', () => {
     const mathCss = readMathStyles();
+    const themeCss = readThemeStyle();
     const extendedCss = readFileSync(
       resolve(process.cwd(), 'src/components/Notes/features/Editor/styles/extended.css'),
       'utf8'
@@ -42,10 +49,11 @@ describe('math hover styles', () => {
     const mermaidRule = extendedCss.match(/\.milkdown \.mermaid-block \{(?<body>[\s\S]*?)\n\}/)?.groups?.body ?? '';
 
     expect(mermaidRule).toContain('content-visibility: auto;');
-    expect(mermaidRule).toContain('contain-intrinsic-size: auto 180px;');
+    expect(mermaidRule).toContain('contain-intrinsic-size: var(--vlaina-height-mermaid-intrinsic);');
+    expect(themeCss).toContain('--vlaina-height-mermaid-intrinsic: auto var(--vlaina-size-180px);');
     expect(mermaidRule).toContain('background: transparent;');
-    expect(mermaidRule).toContain('border: 0;');
-    expect(mermaidRule).toContain('border-radius: 0;');
+    expect(mermaidRule).toContain('border: var(--vlaina-border-width-0);');
+    expect(mermaidRule).toContain('border-radius: var(--vlaina-radius-0);');
     expect(extendedCss).not.toContain('.milkdown .mermaid-block:hover,\n.milkdown .mermaid-block:focus-visible {');
     expect(extendedCss).not.toContain('border-color: var(--vlaina-accent);');
     expect(extendedCss).not.toContain('box-shadow: 0 0 0 2px var(--vlaina-accent-light);');
@@ -54,9 +62,9 @@ describe('math hover styles', () => {
   it('suppresses math and mermaid hover affordances while dragging a block selection', () => {
     const css = readMathStyles();
 
-    expect(css).toContain('.milkdown .ProseMirror.vlaina-block-selection-pending :is(');
+    expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending :is(');
     expect(css).toMatch(
-      /\[data-type='math-inline'\],\s*\[data-type='math-block'\],\s*\.mermaid-block\s*\):not\(\.vlaina-block-selected\):is\(:hover, :focus-visible\)/
+      /\[data-type='math-inline'\],\s*\[data-type='math-block'\],\s*\.mermaid-block\s*\):not\(\.editor-block-selected\):is\(:hover, :focus-visible\)/
     );
     expect(css).toContain('cursor: crosshair !important;');
     expect(css).toContain('background: transparent !important;');
@@ -66,25 +74,28 @@ describe('math hover styles', () => {
   it('keeps selected atomic blocks from regaining hover affordances after block drag ends', () => {
     const css = readMathStyles();
 
-    expect(css).toContain('.milkdown .ProseMirror.vlaina-block-selection-active :is(');
-    expect(css).toContain(').vlaina-block-selected:is(:hover, :focus-visible) * {');
+    expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-active :is(');
+    expect(css).toContain(').editor-block-selected:is(:hover, :focus-visible) * {');
     expect(css).toContain('cursor: default !important;');
     expect(css).toContain('background: transparent !important;');
     expect(css).toContain('box-shadow: none !important;');
-    expect(css).toContain('.milkdown .ProseMirror.vlaina-block-selection-pending .mermaid-block.vlaina-block-selected:is(:hover, :focus-visible) {');
-    expect(css).toContain('.milkdown .ProseMirror.vlaina-block-selection-pending .mermaid-block.vlaina-block-selected,');
+    expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending .mermaid-block.editor-block-selected:is(:hover, :focus-visible) {');
+    expect(css).toContain('.milkdown .ProseMirror.editor-block-selection-pending .mermaid-block.editor-block-selected,');
     expect(css).toContain('cursor: crosshair !important;');
-    expect(css).not.toContain('.milkdown .ProseMirror .mermaid-block.vlaina-block-selected,\n.milkdown .ProseMirror.vlaina-block-selection-pending');
-    expect(css).not.toContain('.milkdown .ProseMirror.vlaina-block-selection-active .mermaid-block.vlaina-block-selected:is(:hover, :focus-visible)');
-    expect(css).toContain('background: var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe)) !important;');
+    expect(css).not.toContain('.milkdown .ProseMirror .mermaid-block.editor-block-selected,\n.milkdown .ProseMirror.editor-block-selection-pending');
+    expect(css).not.toContain('.milkdown .ProseMirror.editor-block-selection-active .mermaid-block.editor-block-selected:is(:hover, :focus-visible)');
+    expect(css).toContain('background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;');
+    expect(css).toContain('box-shadow: var(--vlaina-block-selection-shadow) !important;');
   });
 
   it('keeps oversized block formulas inside a horizontal scroll container', () => {
     const css = readMathStyles();
+    const themeCss = readThemeStyle();
 
     expect(css).toContain(".milkdown [data-type='math-block'].math-block-wrapper {");
     expect(css).toContain('content-visibility: auto;');
-    expect(css).toContain('contain-intrinsic-size: auto 96px;');
+    expect(css).toContain('contain-intrinsic-size: var(--vlaina-height-math-block-intrinsic);');
+    expect(themeCss).toContain('--vlaina-height-math-block-intrinsic: auto var(--vlaina-size-96px);');
     expect(css).toContain('overflow-x: auto;');
     expect(css).toContain(".milkdown [data-type='math-block'].math-block-wrapper .katex-display {");
     expect(css).toContain('max-width: 100%;');

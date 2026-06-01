@@ -1,4 +1,4 @@
-const OPEN_MARKDOWN_TARGET_EVENT = 'vlaina-open-markdown-target';
+const OPEN_MARKDOWN_TARGET_EVENT = 'app-open-markdown-target';
 
 export function dispatchOpenMarkdownTargetEvent(absolutePath: string): void {
   window.dispatchEvent(

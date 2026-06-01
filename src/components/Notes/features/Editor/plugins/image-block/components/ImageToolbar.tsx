@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
+import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 interface ImageToolbarProps {
     alignment: 'left' | 'center' | 'right';
@@ -36,7 +37,10 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
 
     useEffect(() => {
         if (copied) {
-            const timer = setTimeout(() => setCopied(false), 2000);
+            const timer = setTimeout(
+                () => setCopied(false),
+                themeUiFeedbackTokens.imageToolbarCopyFeedbackDurationMs
+            );
             return () => clearTimeout(timer);
         }
     }, [copied]);
@@ -51,13 +55,13 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
 
     return (
         <div className={cn(
-            "absolute top-2 right-2 mt-0 z-[60] transition-all duration-200",
-            "floating-toolbar-inner image-toolbar !rounded-[26px]",
+            "absolute top-2 right-2 mt-0 z-[var(--vlaina-z-60)] transition-all duration-[var(--vlaina-duration-200)]",
+            "floating-toolbar-inner image-toolbar !rounded-[var(--vlaina-radius-26px)]",
             chatComposerPillSurfaceClass,
             "transform origin-top-right",
             isVisible
-                ? "opacity-100 scale-100 translate-y-0"
-                : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
+                ? "opacity-[var(--vlaina-opacity-100)] scale-[var(--vlaina-scale-100)] translate-y-0"
+                : "opacity-[var(--vlaina-opacity-0)] scale-[var(--vlaina-scale-95)] -translate-y-2 pointer-events-none"
         )}>
             <div className="flex items-center gap-0.5">
                 <ToolbarButton
@@ -121,7 +125,7 @@ function ToolbarButton({
             className={cn(
                 "toolbar-btn image-toolbar-btn",
                 active && "active",
-                danger && "hover:!text-red-500",
+                danger && "hover:!text-[var(--vlaina-color-status-danger-fg)]",
                 success && "active"
             )}
         >

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { GAP_SCALE, CONTENT_MAX_WIDTH, PADDING_DESKTOP, PADDING_MOBILE } from '@/lib/layout';
+import { themeEditorLayoutTokens } from '@/styles/themeTokens';
 
 function calculateGoldenOffset(viewportWidth: number, sidebarWidth: number, isPeeking: boolean): number {
   if (!isPeeking) return 0;
@@ -16,7 +17,7 @@ function calculateGoldenOffset(viewportWidth: number, sidebarWidth: number, isPe
 }
 
 export function useEditorLayout(isPeeking: boolean, peekOffset: number) {
-  const [viewportWidth, setViewportWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  const [viewportWidth, setViewportWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : themeEditorLayoutTokens.defaultViewportWidthPx);
 
   useEffect(() => {
     const handleResize = () => setViewportWidth(window.innerWidth);

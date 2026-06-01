@@ -1,9 +1,15 @@
 import { useEffect } from 'react';
 import { createCaretOverlayRect, createCaretOverlayStyle } from '@/lib/ui/caretOverlayStyles';
+import {
+  themeDomStyleTokens,
+  themeRenderingTokens,
+  themeStyleResetTokens,
+  themeTextAreaTokens,
+} from '@/styles/themeTokens';
 
-const STYLE_ID = 'vlaina-native-caret-overlay-style';
-const CARET_CLASS = 'vlaina-native-caret-overlay';
-const ACTIVE_ATTR = 'data-vlaina-native-caret-overlay-active';
+const STYLE_ID = 'native-caret-overlay-style';
+const CARET_CLASS = 'native-caret-overlay';
+const ACTIVE_ATTR = 'data-native-caret-overlay-active';
 
 const TEXT_INPUT_TYPES = new Set([
   '',
@@ -55,7 +61,7 @@ function ensureStyle(doc: Document): void {
   style.textContent = createCaretOverlayStyle({
     activeSelector: `[${ACTIVE_ATTR}='true']`,
     caretClass: CARET_CLASS,
-    keyframesName: 'vlaina-native-caret-blink',
+    keyframesName: 'native-caret-blink',
   });
   doc.head.appendChild(style);
 }
@@ -105,16 +111,20 @@ function getCollapsedSelectionStart(control: TextControl): number | null {
 function createMirror(control: TextControl, styles: CSSStyleDeclaration): HTMLDivElement {
   const mirror = control.ownerDocument.createElement('div');
   copyTextMetrics(styles, mirror);
-  mirror.style.position = 'fixed';
-  mirror.style.visibility = 'hidden';
-  mirror.style.pointerEvents = 'none';
-  mirror.style.whiteSpace = control instanceof HTMLTextAreaElement ? 'pre-wrap' : 'pre';
-  mirror.style.overflowWrap = control instanceof HTMLTextAreaElement ? 'break-word' : 'normal';
-  mirror.style.overflow = 'hidden';
+  mirror.style.position = themeDomStyleTokens.positionFixed;
+  mirror.style.visibility = themeRenderingTokens.visibilityHidden;
+  mirror.style.pointerEvents = themeStyleResetTokens.pointerEventsNone;
+  mirror.style.whiteSpace = control instanceof HTMLTextAreaElement
+    ? themeRenderingTokens.whiteSpacePreWrap
+    : themeRenderingTokens.whiteSpacePre;
+  mirror.style.overflowWrap = control instanceof HTMLTextAreaElement
+    ? themeRenderingTokens.overflowWrapBreakWord
+    : themeRenderingTokens.overflowWrapNormal;
+  mirror.style.overflow = themeTextAreaTokens.overflowHidden;
   mirror.style.width = `${control.getBoundingClientRect().width}px`;
-  mirror.style.top = '0';
-  mirror.style.left = '0';
-  mirror.style.zIndex = '-1';
+  mirror.style.top = themeDomStyleTokens.sizeZero;
+  mirror.style.left = themeDomStyleTokens.sizeZero;
+  mirror.style.zIndex = themeDomStyleTokens.zIndexBehindString;
   return mirror;
 }
 

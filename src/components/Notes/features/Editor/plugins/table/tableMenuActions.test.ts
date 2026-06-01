@@ -79,7 +79,7 @@ describe('table menu actions', () => {
   it('marks table menu mutations as user input when the command dispatches', () => {
     const dom = new EventTarget();
     const listener = vi.fn();
-    dom.addEventListener('vlaina:block-user-input', listener);
+    dom.addEventListener('editor:block-user-input', listener);
     const tr = {
       setSelection: vi.fn(() => tr),
     };
@@ -113,7 +113,7 @@ describe('table menu actions', () => {
     tableMocks.deleteRow.mockImplementationOnce(() => false);
     const dom = new EventTarget();
     const listener = vi.fn();
-    dom.addEventListener('vlaina:block-user-input', listener);
+    dom.addEventListener('editor:block-user-input', listener);
     const tr = {
       setSelection: vi.fn(() => tr),
     };

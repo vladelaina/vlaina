@@ -410,14 +410,14 @@ describe("chat selection surfaces", () => {
         <div data-message-item="true" data-role="assistant">
           <div data-chat-selection-surface="true" data-chat-selection-start="true">
             <p>Before</p>
-            <div class="vlaina-code-block">
-              <div class="vlaina-code-block-header" data-chat-selection-excluded="true">
-                <div class="vlaina-code-block-language">
-                  <span class="vlaina-code-block-language-label">code</span>
+            <div class="code-block-chrome">
+              <div class="code-block-chrome-header" data-chat-selection-excluded="true">
+                <div class="code-block-chrome-language">
+                  <span class="code-block-chrome-language-label">code</span>
                 </div>
                 <button>Copy</button>
               </div>
-              <div class="vlaina-code-block-body"><pre class="vlaina-code-block-line-numbers" data-chat-selection-excluded="true">1</pre><code>const value = 1;</code></div>
+              <div class="code-block-chrome-body"><pre class="code-block-chrome-line-numbers" data-chat-selection-excluded="true">1</pre><code>const value = 1;</code></div>
             </div>
           </div>
         </div>

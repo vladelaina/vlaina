@@ -2,9 +2,10 @@ import * as React from "react"
 import * as TooltipPrimitive from "@radix-ui/react-tooltip"
 
 import { cn } from "@/lib/utils"
+import { themeUiFeedbackTokens } from "@/styles/themeTokens"
 
 function TooltipProvider({
-  delayDuration = 500,
+  delayDuration = themeUiFeedbackTokens.defaultTooltipDelayMs,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
   return (
@@ -46,14 +47,14 @@ function TooltipContent({
         data-slot="tooltip-content"
         sideOffset={sideOffset}
         className={cn(
-          "bg-foreground text-background animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-[9999] w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md px-3 py-1.5 text-xs text-balance pointer-events-none",
+          "bg-[var(--foreground)] text-[var(--background)] animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-[var(--vlaina-z-max)] w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md px-3 py-1.5 text-xs text-balance pointer-events-none",
           className
         )}
         {...props}
       >
         {children}
         {showArrow && (
-          <TooltipPrimitive.Arrow className="bg-foreground fill-foreground z-[9999] size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]" />
+          <TooltipPrimitive.Arrow className="bg-[var(--foreground)] fill-[var(--foreground)] z-[var(--vlaina-z-max)] size-2.5 translate-y-[var(--vlaina-translate-tooltip-arrow-y)] rotate-45 rounded-[var(--vlaina-radius-2px)]" />
         )}
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>

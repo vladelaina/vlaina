@@ -23,7 +23,7 @@ interface MathEditorViewLike<TTransaction> {
 }
 
 function markMathUserInput(editorView: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
-  editorView.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+  editorView.dom?.dispatchEvent?.(new CustomEvent('editor:block-user-input', { bubbles: true }));
 }
 
 export function removeMathNode<TTransaction>(

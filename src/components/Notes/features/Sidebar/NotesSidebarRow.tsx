@@ -59,7 +59,7 @@ export function NotesSidebarRow({
       isHighlighted={isHighlighted}
       isDragOver={isDragOver}
       showActionsByDefault={showActionsByDefault}
-      className={cn(className, dragHandlers?.isDragging && 'opacity-100')}
+      className={cn(className, dragHandlers?.isDragging && 'opacity-[var(--vlaina-opacity-100)]')}
       contentClassName={contentClassName}
       actionFadeClassName={cn(
         styles.fade,
@@ -71,7 +71,7 @@ export function NotesSidebarRow({
       activeClassName={styles.activeRow}
       highlightClassName={styles.highlightRow}
       inactiveClassName={styles.inactiveRow}
-      dragOverClassName="bg-[var(--notes-sidebar-row-drag)] ring-1 ring-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-drag-row)]"
+      dragOverClassName="bg-[var(--vlaina-sidebar-notes-row-drag)] ring-1 ring-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-drag-row)]"
       onPointerDown={dragHandlers?.onPointerDown}
       {...props}
     >

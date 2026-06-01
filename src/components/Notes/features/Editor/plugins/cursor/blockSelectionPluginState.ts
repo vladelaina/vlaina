@@ -3,7 +3,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { DecorationSet } from '@milkdown/kit/prose/view';
 import type { BlockRange } from './blockSelectionUtils';
 
-const BLOCK_SELECTION_ACTIVE_CLASS = 'vlaina-block-selection-active';
+const BLOCK_SELECTION_ACTIVE_CLASS = 'editor-block-selection-active';
 
 export interface BlankAreaDragBoxState {
   selectedBlocks: BlockRange[];

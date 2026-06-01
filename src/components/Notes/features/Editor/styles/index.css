@@ -6,6 +6,7 @@
 
 @import '../../../../common/markdown/markdownSurface.css';
 @import './core.css';
+@import './block-selection.css';
 @import './selection-width.css';
 @import './markdown.css';
 @import './extended.css';

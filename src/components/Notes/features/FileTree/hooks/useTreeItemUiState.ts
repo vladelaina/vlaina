@@ -4,8 +4,7 @@ import { getSidebarContextMenuPosition } from '../../common/sidebarMenuPosition'
 import { registerSidebarHoverRenameTarget } from '../../common/sidebarHoverRename';
 import { getInvalidFileNameReason } from '@/stores/notes/noteUtils';
 import { useToastStore } from '@/stores/useToastStore';
-
-const INVALID_FILE_NAME_TOAST_INTERVAL_MS = 1200;
+import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 interface UseTreeItemUiStateOptions {
   path: string;
@@ -69,9 +68,9 @@ export function useTreeItemUiState({ path, name }: UseTreeItemUiStateOptions) {
     const invalidReason = value.trim() ? getInvalidFileNameReason(value) : null;
     if (invalidReason) {
       const now = Date.now();
-      if (now - lastInvalidToastAtRef.current >= INVALID_FILE_NAME_TOAST_INTERVAL_MS) {
+      if (now - lastInvalidToastAtRef.current >= themeUiFeedbackTokens.invalidFileNameToastIntervalMs) {
         lastInvalidToastAtRef.current = now;
-        addToast(invalidReason, 'error', 3500);
+        addToast(invalidReason, 'error', themeUiFeedbackTokens.invalidFileNameToastDurationMs);
       }
       return;
     }

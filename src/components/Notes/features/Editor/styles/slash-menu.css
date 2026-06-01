@@ -1,36 +1,36 @@
 .slash-menu {
   position: fixed;
-  z-index: 100;
-  min-width: 280px;
-  max-width: 360px;
-  max-height: 360px;
+  z-index: var(--vlaina-z-100);
+  min-width: var(--vlaina-size-280px);
+  max-width: var(--vlaina-size-360px);
+  max-height: var(--vlaina-size-360px);
   overflow-y: auto;
   scrollbar-gutter: stable;
-  background-color: var(--notes-sidebar-menu-bg);
-  border: 1px solid var(--notes-sidebar-menu-border);
-  border-radius: 1rem;
-  box-shadow: var(--notes-sidebar-menu-shadow);
-  padding: 0.375rem;
+  background-color: var(--vlaina-sidebar-notes-menu-bg);
+  border: var(--vlaina-border-width-1) solid var(--vlaina-sidebar-notes-menu-border);
+  border-radius: var(--vlaina-radius-1rem);
+  box-shadow: var(--vlaina-sidebar-notes-menu-shadow);
+  padding: var(--vlaina-space-0375rem);
 }
 
 .slash-menu-item {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
+  grid-template-columns: var(--vlaina-size-20px) minmax(0, 1fr);
   align-items: center;
-  column-gap: 0.5rem;
+  column-gap: var(--vlaina-space-05rem);
   width: 100%;
-  height: 36px;
-  padding: 0.25rem 0.75rem;
-  border: 0;
-  border-radius: 0.75rem;
+  height: var(--vlaina-size-36px);
+  padding: var(--vlaina-space-025rem) var(--vlaina-space-075rem);
+  border: var(--vlaina-border-width-0);
+  border-radius: var(--vlaina-radius-075rem);
   background: transparent;
   text-align: left;
   cursor: pointer;
   user-select: none;
   transition:
-    background-color 0.14s ease,
-    color 0.14s ease,
-    transform 0.14s ease;
+    background-color var(--vlaina-duration-toolbar-fast) var(--vlaina-ease-css-default),
+    color var(--vlaina-duration-toolbar-fast) var(--vlaina-ease-css-default),
+    transform var(--vlaina-duration-toolbar-fast) var(--vlaina-ease-css-default);
 }
 
 .slash-menu-item:focus {
@@ -38,37 +38,37 @@
 }
 
 .slash-menu-item:hover {
-  background-color: var(--notes-sidebar-row-hover);
+  background-color: var(--vlaina-sidebar-notes-row-hover);
 }
 
 .slash-menu-item.selected {
-  background-color: var(--notes-sidebar-row-active);
+  background-color: var(--vlaina-sidebar-notes-row-active);
 }
 
 .dark .slash-menu-item.selected {
-  background-color: var(--notes-sidebar-row-active);
+  background-color: var(--vlaina-sidebar-notes-row-active);
 }
 
 .slash-menu-item-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: var(--vlaina-size-20px);
+  height: var(--vlaina-size-20px);
   color: var(--vlaina-text-primary);
-  font-size: 16px;
-  line-height: 1;
+  font-size: var(--vlaina-font-base);
+  line-height: var(--vlaina-leading-1);
   flex-shrink: 0;
 }
 
 .slash-menu-item-icon svg {
-  width: 18px;
-  height: 18px;
+  width: var(--vlaina-size-18px);
+  height: var(--vlaina-size-18px);
 }
 
 .slash-menu-item.selected .slash-menu-item-icon,
 .slash-menu-item.selected .slash-menu-item-name {
-  color: var(--notes-sidebar-file-icon);
+  color: var(--vlaina-sidebar-notes-file-icon);
 }
 
 .slash-menu-item-content {
@@ -80,18 +80,18 @@
 .slash-menu-item-name {
   display: block;
   color: var(--vlaina-text-primary);
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 20px;
+  font-size: var(--vlaina-font-base);
+  font-weight: var(--vlaina-font-weight-semibold);
+  line-height: var(--vlaina-leading-20px);
 }
 
 .slash-menu::-webkit-scrollbar {
-  width: 8px;
+  width: var(--vlaina-size-8px);
 }
 
 .slash-menu::-webkit-scrollbar-thumb {
   background-color: var(--vlaina-color-scrollbar-thumb);
-  border-radius: 999px;
+  border-radius: var(--vlaina-radius-pill);
 }
 
 .dark .slash-menu::-webkit-scrollbar-thumb {
@@ -110,81 +110,81 @@
   background: transparent;
 }
 
-.vlaina-preview-context-menu {
+.editor-preview-context-menu {
   overflow: visible;
 }
 
-.vlaina-preview-context-menu-group {
+.editor-preview-context-menu-group {
   position: relative;
 }
 
-.vlaina-preview-context-menu-parent {
-  grid-template-columns: 20px minmax(0, 1fr) 16px;
+.editor-preview-context-menu-parent {
+  grid-template-columns: var(--vlaina-size-20px) minmax(0, 1fr) var(--vlaina-size-16px);
 }
 
-.vlaina-preview-context-menu-parent::after {
+.editor-preview-context-menu-parent::after {
   content: '›';
   color: var(--vlaina-text-secondary);
-  font-size: 18px;
-  line-height: 1;
+  font-size: var(--vlaina-font-18);
+  line-height: var(--vlaina-leading-1);
   justify-self: end;
 }
 
-.vlaina-preview-context-submenu {
+.editor-preview-context-submenu {
   display: none;
   position: absolute;
   left: 100%;
   top: 0;
-  min-width: 180px;
+  min-width: var(--vlaina-size-180px);
 }
 
-.vlaina-preview-context-menu-submenu-left .vlaina-preview-context-submenu {
+.editor-preview-context-menu-submenu-left .editor-preview-context-submenu {
   left: auto;
   right: 100%;
 }
 
-.vlaina-preview-context-menu-group:hover > .vlaina-preview-context-submenu,
-.vlaina-preview-context-menu-group:focus-within > .vlaina-preview-context-submenu {
+.editor-preview-context-menu-group:hover > .editor-preview-context-submenu,
+.editor-preview-context-menu-group:focus-within > .editor-preview-context-submenu {
   display: block;
 }
 
-.vlaina-preview-context-menu-group:hover > .slash-menu-item,
-.vlaina-preview-context-menu-group:focus-within > .slash-menu-item {
-  background-color: var(--notes-sidebar-row-active);
+.editor-preview-context-menu-group:hover > .slash-menu-item,
+.editor-preview-context-menu-group:focus-within > .slash-menu-item {
+  background-color: var(--vlaina-sidebar-notes-row-active);
 }
 
-.vlaina-preview-context-menu .slash-menu-item:hover,
-.vlaina-preview-context-menu .slash-menu-item:focus-visible,
-.vlaina-preview-context-submenu .slash-menu-item:hover,
-.vlaina-preview-context-submenu .slash-menu-item:focus-visible {
-  background-color: var(--notes-sidebar-row-active);
+.editor-preview-context-menu .slash-menu-item:hover,
+.editor-preview-context-menu .slash-menu-item:focus-visible,
+.editor-preview-context-submenu .slash-menu-item:hover,
+.editor-preview-context-submenu .slash-menu-item:focus-visible {
+  background-color: var(--vlaina-sidebar-notes-row-active);
 }
 
-.vlaina-preview-context-menu-group:hover > .slash-menu-item .slash-menu-item-icon,
-.vlaina-preview-context-menu-group:hover > .slash-menu-item .slash-menu-item-name,
-.vlaina-preview-context-menu-group:focus-within > .slash-menu-item .slash-menu-item-icon,
-.vlaina-preview-context-menu-group:focus-within > .slash-menu-item .slash-menu-item-name,
-.vlaina-preview-context-menu .slash-menu-item:hover .slash-menu-item-icon,
-.vlaina-preview-context-menu .slash-menu-item:hover .slash-menu-item-name,
-.vlaina-preview-context-menu .slash-menu-item:focus-visible .slash-menu-item-icon,
-.vlaina-preview-context-menu .slash-menu-item:focus-visible .slash-menu-item-name,
-.vlaina-preview-context-submenu .slash-menu-item:hover .slash-menu-item-icon,
-.vlaina-preview-context-submenu .slash-menu-item:hover .slash-menu-item-name,
-.vlaina-preview-context-submenu .slash-menu-item:focus-visible .slash-menu-item-icon,
-.vlaina-preview-context-submenu .slash-menu-item:focus-visible .slash-menu-item-name {
-  color: var(--notes-sidebar-file-icon);
+.editor-preview-context-menu-group:hover > .slash-menu-item .slash-menu-item-icon,
+.editor-preview-context-menu-group:hover > .slash-menu-item .slash-menu-item-name,
+.editor-preview-context-menu-group:focus-within > .slash-menu-item .slash-menu-item-icon,
+.editor-preview-context-menu-group:focus-within > .slash-menu-item .slash-menu-item-name,
+.editor-preview-context-menu .slash-menu-item:hover .slash-menu-item-icon,
+.editor-preview-context-menu .slash-menu-item:hover .slash-menu-item-name,
+.editor-preview-context-menu .slash-menu-item:focus-visible .slash-menu-item-icon,
+.editor-preview-context-menu .slash-menu-item:focus-visible .slash-menu-item-name,
+.editor-preview-context-submenu .slash-menu-item:hover .slash-menu-item-icon,
+.editor-preview-context-submenu .slash-menu-item:hover .slash-menu-item-name,
+.editor-preview-context-submenu .slash-menu-item:focus-visible .slash-menu-item-icon,
+.editor-preview-context-submenu .slash-menu-item:focus-visible .slash-menu-item-name {
+  color: var(--vlaina-sidebar-notes-file-icon);
 }
 
-.vlaina-preview-context-menu-group:hover > .vlaina-preview-context-menu-parent::after,
-.vlaina-preview-context-menu-group:focus-within > .vlaina-preview-context-menu-parent::after {
-  color: var(--notes-sidebar-file-icon);
+.editor-preview-context-menu-group:hover > .editor-preview-context-menu-parent::after,
+.editor-preview-context-menu-group:focus-within > .editor-preview-context-menu-parent::after {
+  color: var(--vlaina-sidebar-notes-file-icon);
 }
 
 .slash-video-prompt {
-  z-index: 100;
-  width: min(360px, calc(100vw - 24px));
-  background-color: var(--notes-sidebar-menu-bg);
-  border: 1px solid var(--notes-sidebar-menu-border);
-  border-radius: 1rem;
-  box-shadow: var(--notes-sidebar-menu-shadow);
+  z-index: var(--vlaina-z-100);
+  width: var(--vlaina-width-slash-video-prompt);
+  background-color: var(--vlaina-sidebar-notes-menu-bg);
+  border: var(--vlaina-border-width-1) solid var(--vlaina-sidebar-notes-menu-border);
+  border-radius: var(--vlaina-radius-1rem);
+  box-shadow: var(--vlaina-sidebar-notes-menu-shadow);
 }

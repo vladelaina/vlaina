@@ -54,7 +54,7 @@ export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
       </div>
       {quotaLabel ? (
         <span
-          className="w-0 shrink-0 overflow-hidden whitespace-nowrap text-[11px] text-[var(--vlaina-text-tertiary)] opacity-0 transition-[width,opacity] group-hover/quota:w-9 group-hover/quota:opacity-100 group-focus-within/quota:w-9 group-focus-within/quota:opacity-100"
+          className="w-0 shrink-0 overflow-hidden whitespace-nowrap text-[var(--vlaina-font-11)] text-[var(--vlaina-text-tertiary)] opacity-[var(--vlaina-opacity-0)] transition-[width,opacity] group-hover/quota:w-9 group-hover/quota:opacity-[var(--vlaina-opacity-100)] group-focus-within/quota:w-9 group-focus-within/quota:opacity-[var(--vlaina-opacity-100)]"
           aria-hidden="true"
         >
           {quotaLabel}

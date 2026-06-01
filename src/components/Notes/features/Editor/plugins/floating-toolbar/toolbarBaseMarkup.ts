@@ -208,7 +208,7 @@ export function renderToolbarBodyMarkup(state: FloatingToolbarState): string {
   });
 
   return `
-    <div class="floating-toolbar-inner !rounded-[26px] ${chatComposerPillSurfaceClass}">
+    <div class="floating-toolbar-inner !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}">
       ${parts.join('')}
     </div>
   `;

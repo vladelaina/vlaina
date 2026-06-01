@@ -214,7 +214,7 @@ describe('editorFindCommands', () => {
       preferredFrom: 17,
     });
     expect(view.dom.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'vlaina:block-user-input',
+      type: 'editor:block-user-input',
     }));
     expect(view.dispatch).toHaveBeenCalledWith(view.state.tr);
   });
@@ -258,7 +258,7 @@ describe('editorFindCommands', () => {
       preferredFrom: 2,
     });
     expect(view.dom.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'vlaina:block-user-input',
+      type: 'editor:block-user-input',
     }));
     expect(view.dispatch).toHaveBeenCalledWith(view.state.tr);
   });

@@ -3,15 +3,15 @@ import { normalizeNoteCoverMetadata } from './frontmatterCover';
 
 const LINE_ENDING_PATTERN = /\r\n?/g;
 const FRONTMATTER_DELIMITER = '---';
-const VLAINA_PREFIX = 'vlaina_';
-const KEY_COVER = `${VLAINA_PREFIX}cover`;
-const KEY_COVER_X = `${VLAINA_PREFIX}cover_x`;
-const KEY_COVER_Y = `${VLAINA_PREFIX}cover_y`;
-const KEY_COVER_HEIGHT = `${VLAINA_PREFIX}cover_height`;
-const KEY_COVER_SCALE = `${VLAINA_PREFIX}cover_scale`;
-const KEY_ICON = `${VLAINA_PREFIX}icon`;
-const KEY_CREATED = `${VLAINA_PREFIX}created`;
-const KEY_UPDATED = `${VLAINA_PREFIX}updated`;
+const MANAGED_FRONTMATTER_PREFIX = 'vlaina_';
+const KEY_COVER = `${MANAGED_FRONTMATTER_PREFIX}cover`;
+const KEY_COVER_X = `${MANAGED_FRONTMATTER_PREFIX}cover_x`;
+const KEY_COVER_Y = `${MANAGED_FRONTMATTER_PREFIX}cover_y`;
+const KEY_COVER_HEIGHT = `${MANAGED_FRONTMATTER_PREFIX}cover_height`;
+const KEY_COVER_SCALE = `${MANAGED_FRONTMATTER_PREFIX}cover_scale`;
+const KEY_ICON = `${MANAGED_FRONTMATTER_PREFIX}icon`;
+const KEY_CREATED = `${MANAGED_FRONTMATTER_PREFIX}created`;
+const KEY_UPDATED = `${MANAGED_FRONTMATTER_PREFIX}updated`;
 const FRONTMATTER_TIMESTAMP_OFFSET_MINUTES = 8 * 60;
 
 const MANAGED_KEYS = new Set([
@@ -230,7 +230,7 @@ export function readNoteMetadataFromMarkdown(markdown: string): NoteMetadataEntr
   return normalizeNoteMetadataEntry(normalized);
 }
 
-export function stripVlainaManagedFrontmatter(markdown: string): string {
+export function stripManagedFrontmatter(markdown: string): string {
   const { lines, body, hasFrontmatter } = splitLeadingFrontmatter(markdown);
   if (!hasFrontmatter) {
     return normalizeLineEndings(markdown);
@@ -239,7 +239,7 @@ export function stripVlainaManagedFrontmatter(markdown: string): string {
   const visibleFrontmatterLines = trimTrailingBlankLines(
     lines.filter((line) => {
       const key = parseTopLevelKey(line);
-      return !key || !key.startsWith(VLAINA_PREFIX);
+      return !key || !key.startsWith(MANAGED_FRONTMATTER_PREFIX);
     }),
   );
 
@@ -258,7 +258,7 @@ export function stripVlainaManagedFrontmatter(markdown: string): string {
   ].join('\n');
 }
 
-export function stripVlainaUpdatedFrontmatter(markdown: string): string {
+export function stripUpdatedFrontmatter(markdown: string): string {
   const { lines, body, hasFrontmatter } = splitLeadingFrontmatter(markdown);
   if (!hasFrontmatter) {
     return normalizeLineEndings(markdown);

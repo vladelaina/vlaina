@@ -895,7 +895,7 @@ describe('accountSession auth actions', () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(true);
     mocks.accountCommands.accountDisconnect.mockResolvedValue(undefined);
     const timeoutId = window.setTimeout(() => undefined, 1000);
-    (window as Window & { __vlaina_auth_timeout?: number | null }).__vlaina_auth_timeout = timeoutId;
+    (window as Window & { __authTimeout?: number | null }).__authTimeout = timeoutId;
     const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
     const set = vi.fn();
 
@@ -911,7 +911,7 @@ describe('accountSession auth actions', () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(true);
     mocks.accountCommands.cancelAccountAuth.mockResolvedValue(true);
     const timeoutId = window.setTimeout(() => undefined, 1000);
-    (window as Window & { __vlaina_auth_timeout?: number | null }).__vlaina_auth_timeout = timeoutId;
+    (window as Window & { __authTimeout?: number | null }).__authTimeout = timeoutId;
     sessionStorage.setItem('vlaina_auth_state', 'state');
 
     const set = vi.fn();

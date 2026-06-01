@@ -1,4 +1,5 @@
 import { ImageCropper } from './ImageCropper';
+import { themeRadiusTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 import type { CropperViewportState } from '../types';
 import type { CropParams } from '../utils/imageSourceFragment';
 
@@ -31,10 +32,10 @@ export function ImageDragOverlay({
                 left: dragPosition.x,
                 width: dragSize.width,
                 height: dragSize.height,
-                zIndex: 9999,
-                pointerEvents: 'none',
+                zIndex: 'var(--vlaina-z-max)',
+                pointerEvents: themeStyleResetTokens.pointerEventsNone,
                 boxShadow: 'var(--vlaina-shadow-drag-preview)',
-                borderRadius: '8px',
+                borderRadius: themeRadiusTokens.px8Var,
                 overflow: 'hidden',
                 backgroundColor: 'var(--vlaina-bg-primary)',
             }}

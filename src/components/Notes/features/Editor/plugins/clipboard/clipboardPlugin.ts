@@ -39,7 +39,7 @@ import {
 } from '../cursor/blockSelectionPluginState';
 import { replaceVisibleBlockSelectionWithCursor } from '../cursor/blockSelectionReplacement';
 
-export const clipboardPluginKey = new PluginKey('vlaina-clipboard');
+export const clipboardPluginKey = new PluginKey('editor-clipboard');
 const MAX_MARKDOWN_PASTE_CHARS = 1024 * 1024;
 const MAX_HTML_PASTE_CHARS = 2 * 1024 * 1024;
 const INLINE_FOOTNOTE_REFERENCE_PATTERN = /\[\^([^\]\r\n]+)\]/g;

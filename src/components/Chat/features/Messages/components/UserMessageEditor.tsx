@@ -20,6 +20,7 @@ import {
 } from './userMessageContent';
 import { useUserMessageEditorMentions } from './useUserMessageEditorMentions';
 import { useI18n } from '@/lib/i18n';
+import { themeChatComposerTokens, themeMotionTokens, themeRenderingTokens } from '@/styles/themeTokens';
 
 interface UserMessageEditorProps {
   message: ChatMessage;
@@ -86,8 +87,8 @@ export function UserMessageEditor({
 
   usePredictedTextareaHeight(editTextareaRef, {
     value: editValue,
-    minHeight: 24,
-    maxHeight: 320,
+    minHeight: themeChatComposerTokens.textareaMinHeightPx,
+    maxHeight: themeChatComposerTokens.textareaMaxHeightPx,
   });
 
   const handleSave = useCallback(() => {
@@ -139,11 +140,20 @@ export function UserMessageEditor({
 
   return (
     <motion.div
-      initial={{ opacity: 0.85, x: 12 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
+      initial={{
+        opacity: themeMotionTokens.chatUserEditInitialOpacity,
+        x: themeMotionTokens.chatUserEditInitialX,
+      }}
+      animate={{
+        opacity: themeMotionTokens.opacityVisible,
+        x: themeMotionTokens.chatUserEditVisibleX,
+      }}
+      transition={{
+        duration: themeMotionTokens.chatUserEditDuration,
+        ease: themeMotionTokens.standardEase,
+      }}
       className="w-full flex justify-end pb-4"
-      style={{ willChange: 'transform, opacity' }}
+      style={{ willChange: themeRenderingTokens.transformOpacityWillChange }}
     >
       <div className={cn('w-full', chatComposerFrameClass, chatComposerSurfaceClass)}>
         <ChatAttachmentPreviewList attachments={editAttachments} onRemove={handleRemoveEditAttachment} />
@@ -183,14 +193,14 @@ export function UserMessageEditor({
             onClick={handleCancel}
             className={cn(
               chatComposerSecondaryButtonClass,
-              'h-8 px-3.5 text-[13px] bg-[var(--vlaina-color-white)] hover:bg-[var(--vlaina-color-white)] text-[var(--vlaina-color-inverse-text)]'
+              'h-8 px-3.5 text-[var(--vlaina-font-13)] bg-[var(--vlaina-color-white)] hover:bg-[var(--vlaina-color-white)] text-[var(--vlaina-color-inverse-text)]'
             )}
           >
             {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
-            className="h-9 rounded-full bg-[var(--vlaina-accent)] px-4 text-[13px] font-semibold text-[var(--vlaina-color-white)] shadow-[var(--vlaina-shadow-accent-action)] transition-[box-shadow,transform] duration-200 hover:scale-105 active:scale-95"
+            className="h-9 rounded-full bg-[var(--vlaina-accent)] px-4 text-[var(--vlaina-font-13)] font-semibold text-[var(--vlaina-color-white)] shadow-[var(--vlaina-shadow-accent-action)] transition-[box-shadow,transform] duration-[var(--vlaina-duration-200)] hover:scale-[var(--vlaina-scale-105)] active:scale-[var(--vlaina-scale-95)]"
           >
             {t('common.send')}
           </button>

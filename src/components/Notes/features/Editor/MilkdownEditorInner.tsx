@@ -27,6 +27,7 @@ import {
   normalizeAlternativeMathBlockFences,
   preserveMarkdownBlankLinesForEditor,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { themeEditorLayoutTokens } from '@/styles/themeTokens';
 import { configureTheme } from './theme';
 import { customPlugins } from './config/plugins';
 import { notesRemarkStringifyOptions } from './config/stringifyOptions';
@@ -192,8 +193,8 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       view.dom.addEventListener('keydown', markUserInput, { capture: true });
       view.dom.addEventListener('compositionstart', markUserInput, { capture: true });
       view.dom.addEventListener('compositionend', markUserInput, { capture: true });
-      view.dom.addEventListener('vlaina:image-user-input', markUserInput);
-      view.dom.addEventListener('vlaina:block-user-input', markUserInput);
+      view.dom.addEventListener('editor:image-user-input', markUserInput);
+      view.dom.addEventListener('editor:block-user-input', markUserInput);
       view.dom.addEventListener('paste', markUserInput);
       view.dom.addEventListener('cut', markUserInput);
       view.dom.addEventListener('drop', markUserInput);
@@ -205,8 +206,8 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
         view.dom.removeEventListener('keydown', markUserInput, { capture: true });
         view.dom.removeEventListener('compositionstart', markUserInput, { capture: true });
         view.dom.removeEventListener('compositionend', markUserInput, { capture: true });
-        view.dom.removeEventListener('vlaina:image-user-input', markUserInput);
-        view.dom.removeEventListener('vlaina:block-user-input', markUserInput);
+        view.dom.removeEventListener('editor:image-user-input', markUserInput);
+        view.dom.removeEventListener('editor:block-user-input', markUserInput);
         view.dom.removeEventListener('paste', markUserInput);
         view.dom.removeEventListener('cut', markUserInput);
         view.dom.removeEventListener('drop', markUserInput);
@@ -310,7 +311,10 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
           scrollRoot.scrollTop = scrollTop;
         };
         restoreFrame = requestAnimationFrame(restoreScroll);
-        restoreTimeout = window.setTimeout(restoreScroll, 80);
+        restoreTimeout = window.setTimeout(
+          restoreScroll,
+          themeEditorLayoutTokens.restoreScrollFallbackDelayMs
+        );
       }
     } catch {
     }
@@ -425,7 +429,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       ref={editorShellRef}
       className={cn(
         "milkdown-editor",
-        showBodyLineNumbers && 'vlaina-markdown-body-line-numbers',
+        showBodyLineNumbers && 'markdown-body-line-numbers',
         EDITOR_LAYOUT_CLASS
       )}
       data-note-content-root="true"

@@ -5,6 +5,7 @@ import {
   getToolbarRoot,
   toContainerPosition,
 } from '../../floating-toolbar/floatingToolbarDom';
+import { themeLinkTooltipTokens } from '@/styles/themeTokens';
 
 export type LinkTooltipAnchor =
   | { type: 'link'; link: HTMLElement }
@@ -22,7 +23,7 @@ function getViewportAnchorPosition(
     const rect = anchor.link.getBoundingClientRect();
     return {
       x: rect.left + rect.width / 2,
-      y: rect.bottom + 8,
+      y: rect.bottom + themeLinkTooltipTokens.anchorOffsetPx,
     };
   }
 
@@ -31,7 +32,7 @@ function getViewportAnchorPosition(
 
   return {
     x: (startCoords.left + endCoords.right) / 2,
-    y: Math.max(startCoords.bottom, endCoords.bottom) + 8,
+    y: Math.max(startCoords.bottom, endCoords.bottom) + themeLinkTooltipTokens.anchorOffsetPx,
   };
 }
 
@@ -53,7 +54,7 @@ export function resolveLinkTooltipPosition(args: {
   const layout = getContentLayoutContext(view, positionRoot);
   const contentBounds = layout.containerBounds;
   const tooltipWidth = tooltipElement.offsetWidth;
-  const margin = 12;
+  const margin = themeLinkTooltipTokens.viewportMarginPx;
   const clampBounds = positionRoot
     ? {
         left: margin,
@@ -65,8 +66,8 @@ export function resolveLinkTooltipPosition(args: {
     return {
       x: containerPosition.x,
       y: containerPosition.y,
-      transform: 'translateX(-50%)',
-      transformOrigin: 'center top',
+      transform: themeLinkTooltipTokens.centeredTransform,
+      transformOrigin: themeLinkTooltipTokens.transformOrigin,
     };
   }
 
@@ -80,8 +81,8 @@ export function resolveLinkTooltipPosition(args: {
   return {
     x: centeredX,
     y: containerPosition.y,
-    transform: 'translateX(-50%)',
-    transformOrigin: 'center top',
+    transform: themeLinkTooltipTokens.centeredTransform,
+    transformOrigin: themeLinkTooltipTokens.transformOrigin,
   };
 }
 

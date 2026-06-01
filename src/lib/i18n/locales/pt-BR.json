@@ -1,7 +1,7 @@
 {
   "account.cancelAuthentication": "Cancelar Autenticação",
   "account.continueSignIn": "Continuar Login",
-  "account.continueToVlaina": "Continuar para vlaina",
+  "account.continueToApp": "Continuar para vlaina",
   "account.continueWithEmail": "Continuar com Email",
   "account.emailAddress": "Endereço de Email",
   "account.enterEmailCode": "Digite o código enviado para sua caixa de entrada",
@@ -82,7 +82,7 @@
   "settings.feedback.error.signInRequired": "Entre na conta antes de enviar feedback",
   "settings.feedback.error.network": "Erro de rede. O feedback não foi enviado.",
   "settings.feedback.error.generic": "Falha ao enviar feedback",
-  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★! Aqui é {authorSite}, desenvolvedor de {vlainaSite} e {catimeSite}.",
+  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★! Aqui é {authorSite}, desenvolvedor de {appSite} e {catimeSite}.",
   "settings.about.note.curiousTitle": "Talvez você se pergunte:",
   "settings.about.note.curiousMissing": "Por que parece que ainda faltam algumas funções?",
   "settings.about.note.curiousRough": "Por que algumas interações ainda parecem pouco polidas?",

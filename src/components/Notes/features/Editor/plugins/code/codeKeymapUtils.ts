@@ -11,7 +11,7 @@ type ProseDispatch = ((tr: Transaction) => void) | null | undefined;
 
 function markCodeUserInput(state: EditorState): void {
   const view = state as EditorState & { view?: { dom?: { dispatchEvent?: (event: Event) => boolean } } };
-  view.view?.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+  view.view?.dom?.dispatchEvent?.(new CustomEvent('editor:block-user-input', { bubbles: true }));
 }
 
 export function convertParagraphToCodeBlock(

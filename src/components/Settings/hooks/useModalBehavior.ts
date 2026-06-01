@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { themeTextAreaTokens } from '@/styles/themeTokens';
 
 interface UseModalBehaviorOptions {
   open: boolean;
@@ -32,7 +33,7 @@ export function useModalBehavior({
 
   useEffect(() => {
     if (open) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = themeTextAreaTokens.overflowHidden;
     } else {
       document.body.style.overflow = '';
     }

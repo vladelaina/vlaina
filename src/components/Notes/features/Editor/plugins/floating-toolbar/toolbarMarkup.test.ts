@@ -219,8 +219,8 @@ describe('toolbar markup', () => {
 
     expect(markup).toContain('ai-review-result-surface');
     expect(markup).toContain(chatComposerPillSurfaceClass);
-    expect(markup).toContain('!rounded-[26px]');
-    expect(markup).toContain(`ai-review-content ai-review-content-after ai-review-content-glass !rounded-[26px] ${chatComposerPillSurfaceClass}`);
+    expect(markup).toContain('!rounded-[var(--vlaina-radius-26px)]');
+    expect(markup).toContain(`ai-review-content ai-review-content-after ai-review-content-glass !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`);
     expect(markup).toContain('ai-review-diff-added');
     expect(markup).toContain('ai-review-diff-removed');
     expect(markup).toContain('Hello there');

@@ -289,7 +289,7 @@ describe('CodeBlockNodeView', () => {
   it('lets block-level delete shortcuts reach ProseMirror while the code block is selected', () => {
     const nodeView = new CodeBlockNodeView(createMockNode(false), createMockView(), () => 1);
     const insideTarget = nodeView.dom.querySelector('.code-block-editable') as HTMLElement;
-    nodeView.dom.classList.add('vlaina-block-selected');
+    nodeView.dom.classList.add('editor-block-selected');
 
     const backspace = new KeyboardEvent('keydown', {
       key: 'Backspace',
@@ -306,7 +306,7 @@ describe('CodeBlockNodeView', () => {
   it('lets block-level clipboard events and legacy shortcut keys reach ProseMirror while the code block is selected', () => {
     const nodeView = new CodeBlockNodeView(createMockNode(false), createMockView(), () => 1);
     const insideTarget = nodeView.dom.querySelector('.code-block-editable') as HTMLElement;
-    nodeView.dom.classList.add('vlaina-block-selected');
+    nodeView.dom.classList.add('editor-block-selected');
 
     const copy = new Event('copy', {
       bubbles: true,
@@ -526,7 +526,7 @@ describe('CodeBlockNodeView', () => {
     expect(view.state.tr.setSelection).toHaveBeenCalledTimes(1);
     expect(view.dispatch).toHaveBeenCalledWith(view.state.tr);
     expect(dispatchEventSpy).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'vlaina:block-user-input',
+      type: 'editor:block-user-input',
     }));
 
     nodeView.destroy();

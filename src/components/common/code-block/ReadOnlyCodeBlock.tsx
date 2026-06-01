@@ -85,21 +85,21 @@ export const ReadOnlyCodeBlock = memo(function ReadOnlyCodeBlock({
   };
 
   return (
-    <div className="vlaina-code-block relative my-4 overflow-hidden rounded-2xl group">
+    <div className="code-block-chrome relative my-4 overflow-hidden rounded-2xl group">
       <CodeBlockHeader
         copied={copied}
         getCopyText={() => codeText}
         languageControl={(
-          <span className="vlaina-code-block-language-label">
+          <span className="code-block-chrome-language-label">
             {language || 'text'}
           </span>
         )}
         onCopy={handleCopy}
       />
-      <div className="vlaina-code-block-body overflow-x-auto p-4 pt-0">
+      <div className="code-block-chrome-body overflow-x-auto p-4 pt-0">
         {showLineNumbers && (
           <pre
-            className="vlaina-code-block-line-numbers"
+            className="code-block-chrome-line-numbers"
             aria-hidden="true"
             data-chat-selection-excluded="true"
           >

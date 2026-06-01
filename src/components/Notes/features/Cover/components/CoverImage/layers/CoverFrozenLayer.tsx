@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { themeCoverLayerTokens, themeMotionTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 
 interface CoverFrozenLayerProps {
   displaySrc: string;
@@ -31,11 +32,11 @@ export function CoverFrozenLayer({
             left: frozenImageState?.left ?? 0,
             width: frozenImageState?.width ?? 0,
             height: frozenImageState?.height ?? 0,
-            maxWidth: 'none',
-            maxHeight: 'none',
-            objectFit: 'fill',
-            opacity: isVisible ? 1 : 0,
-            transition: 'none',
+            maxWidth: themeStyleResetTokens.maxSizeNone,
+            maxHeight: themeStyleResetTokens.maxSizeNone,
+            objectFit: themeCoverLayerTokens.objectFitFill,
+            opacity: isVisible ? themeMotionTokens.opacityVisible : themeMotionTokens.opacityHidden,
+            transition: themeStyleResetTokens.transitionNone,
           }}
         />
       )}

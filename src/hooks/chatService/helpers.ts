@@ -13,7 +13,7 @@ import type { FileTreeNode } from '@/stores/notes/types';
 import { isManagedProviderId } from '@/lib/ai/managedService';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
-import { stripVlainaManagedFrontmatter } from '@/stores/notes/frontmatter';
+import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 
 const SVG_DATA_URL_REGEX = /^data:image\/svg\+xml/i;
@@ -382,7 +382,7 @@ async function loadMentionReference(
   const isFolderMention = mention.kind === 'folder' || Boolean(folderNode?.isFolder);
 
   if (!isFolderMention) {
-    const content = stripVlainaManagedFrontmatter(
+    const content = stripManagedFrontmatter(
       await resolveMentionedNoteContent(mention.path),
     ).trim();
     return content ? [{ ...mention, content }] : [];
@@ -406,7 +406,7 @@ async function loadMentionReference(
   const loaded = await Promise.all(
     markdownNodes.map(async (node) => {
       const title = notesState.getDisplayName?.(node.path) ?? node.name;
-      const content = stripVlainaManagedFrontmatter(
+      const content = stripManagedFrontmatter(
         await resolveMentionedNoteContent(node.path),
       ).trim();
       return {

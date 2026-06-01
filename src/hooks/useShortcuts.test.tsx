@@ -206,7 +206,7 @@ describe('useShortcuts', () => {
 
   it('dispatches open markdown file for Ctrl+O in notes mode', () => {
     const openMarkdownListener = vi.fn();
-    window.addEventListener('vlaina-open-markdown-file', openMarkdownListener);
+    window.addEventListener('app-open-markdown-file', openMarkdownListener);
 
     try {
       renderHook(() => useShortcuts());
@@ -224,7 +224,7 @@ describe('useShortcuts', () => {
       expect(event.defaultPrevented).toBe(true);
       expect(openMarkdownListener).toHaveBeenCalledTimes(1);
     } finally {
-      window.removeEventListener('vlaina-open-markdown-file', openMarkdownListener);
+      window.removeEventListener('app-open-markdown-file', openMarkdownListener);
     }
   });
 

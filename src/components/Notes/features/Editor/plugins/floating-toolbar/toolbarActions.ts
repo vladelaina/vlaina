@@ -18,7 +18,7 @@ import { TOOLBAR_ACTIONS, type FloatingToolbarState } from './types';
 type ToolbarActionHandler = (view: EditorView) => boolean | Promise<boolean>;
 type ToggleableSubMenu = 'ai' | 'color' | 'block' | 'alignment';
 
-const COPY_FEEDBACK_SELECTION_SUPPRESS_CLASS = 'vlaina-toolbar-copy-feedback-active';
+const COPY_FEEDBACK_SELECTION_SUPPRESS_CLASS = 'editor-toolbar-copy-feedback-active';
 
 function setCopyFeedbackSelectionSuppression(view: EditorView, active: boolean): void {
   view.dom.classList.toggle(COPY_FEEDBACK_SELECTION_SUPPRESS_CLASS, active);

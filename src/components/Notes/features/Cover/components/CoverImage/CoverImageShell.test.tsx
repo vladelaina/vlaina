@@ -159,7 +159,7 @@ describe('CoverImageShell', () => {
         })}
       />
     );
-    const overlay = container.querySelector('.cursor-pointer.z-10');
+    const overlay = container.querySelector('.cursor-pointer.z-\\[var\\(--vlaina-z-10\\)\\]');
 
     expect(screen.queryByText('Click to change cover')).not.toBeInTheDocument();
     expect(overlay).not.toBeNull();
@@ -184,7 +184,7 @@ describe('CoverImageShell', () => {
     );
 
     expect(screen.queryByText('Image failed to load')).not.toBeInTheDocument();
-    const overlay = container.querySelector('.cursor-pointer.z-10');
+    const overlay = container.querySelector('.cursor-pointer.z-\\[var\\(--vlaina-z-10\\)\\]');
     expect(overlay).not.toBeNull();
     expect(container.firstElementChild).toHaveStyle({ height: '320px' });
 

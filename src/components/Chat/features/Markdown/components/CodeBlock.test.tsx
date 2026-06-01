@@ -74,7 +74,7 @@ describe("CodeBlock", () => {
       </CodeBlock>,
     );
 
-    expect(container.querySelector(".vlaina-code-block-line-numbers")?.textContent).toBe("1\n2");
+    expect(container.querySelector(".code-block-chrome-line-numbers")?.textContent).toBe("1\n2");
   });
 
   it("hides line numbers when the shared markdown code block setting is disabled", () => {
@@ -86,7 +86,7 @@ describe("CodeBlock", () => {
       </CodeBlock>,
     );
 
-    expect(container.querySelector(".vlaina-code-block-line-numbers")).toBeNull();
+    expect(container.querySelector(".code-block-chrome-line-numbers")).toBeNull();
   });
 
   it("uses language-specific highlighting when language is known", () => {

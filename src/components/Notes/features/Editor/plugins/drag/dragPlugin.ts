@@ -2,6 +2,7 @@ import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import type { DragHandleState } from './types';
 import { markEditorUserInput } from '../shared/userInputEvents';
+import { themeDomStyleTokens, themeIconTokens, themeStyleResetTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 export const dragPluginKey = new PluginKey<DragHandleState>('dragHandle');
 
@@ -9,8 +10,6 @@ export const dragPlugin = $prose(() => {
   let lastUpdateTime = 0;
   let pendingUpdate: { visible: boolean; position?: { x: number; y: number }; nodePos?: number } | null = null;
   let rafId: number | null = null;
-  
-  const THROTTLE_MS = 16;
   
   return new Plugin({
     key: dragPluginKey,
@@ -53,14 +52,14 @@ export const dragPlugin = $prose(() => {
                 const coords = view.coordsAtPos(nodePos);
                 pendingUpdate = {
                   visible: true,
-                  position: { x: coords.left - 24, y: coords.top },
+                  position: { x: coords.left - themeDomStyleTokens.editorDragHandleOffsetPx, y: coords.top },
                   nodePos
                 };
               }
             }
           }
 
-          if (now - lastUpdateTime >= THROTTLE_MS && pendingUpdate) {
+          if (now - lastUpdateTime >= themeUiFeedbackTokens.editorDragHandleThrottleMs && pendingUpdate) {
             if (rafId !== null) {
               cancelAnimationFrame(rafId);
             }
@@ -96,7 +95,7 @@ export const dragPlugin = $prose(() => {
         const handle = document.createElement('div');
         handle.className = 'drag-handle';
         // Simple drag-handle glyph is custom app artwork.
-        handle.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+        handle.innerHTML = `<svg width="${themeIconTokens.sizeEditorDragHandle}" height="${themeIconTokens.sizeEditorDragHandle}" viewBox="${themeIconTokens.viewBoxDefault}" fill="${themeStyleResetTokens.currentColor}">
           <circle cx="9" cy="6" r="2"/><circle cx="15" cy="6" r="2"/>
           <circle cx="9" cy="12" r="2"/><circle cx="15" cy="12" r="2"/>
           <circle cx="9" cy="18" r="2"/><circle cx="15" cy="18" r="2"/>
@@ -211,7 +210,7 @@ export const dragPlugin = $prose(() => {
           
           if (!state?.visible) {
             if (handleElement) {
-              handleElement.style.display = 'none';
+              handleElement.style.display = themeStyleResetTokens.displayNone;
             }
             return;
           }
@@ -221,7 +220,7 @@ export const dragPlugin = $prose(() => {
             document.body.appendChild(handleElement);
           }
           
-          handleElement.style.display = 'flex';
+          handleElement.style.display = themeDomStyleTokens.displayFlex;
           handleElement.style.left = `${state.position.x}px`;
           handleElement.style.top = `${state.position.y}px`;
         },

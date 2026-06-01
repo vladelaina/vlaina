@@ -50,10 +50,10 @@ export function AIBehaviorSettings() {
   return (
     <section className="mx-auto mb-10 max-w-5xl">
       <div className="mb-4 px-2">
-        <h3 className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">{t('settings.ai.systemPrompt')}</h3>
+        <h3 className="text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text-soft)]">{t('settings.ai.systemPrompt')}</h3>
       </div>
 
-      <div className={cn("overflow-hidden rounded-[26px] p-2", chatComposerPillSurfaceClass)}>
+      <div className={cn("overflow-hidden rounded-[var(--vlaina-radius-26px)] p-2", chatComposerPillSurfaceClass)}>
         <SettingsTextarea
           autoGrow={true}
           value={draftSystemPrompt}
@@ -65,8 +65,8 @@ export function AIBehaviorSettings() {
           maxLength={SYSTEM_PROMPT_MAX_LENGTH}
           rows={1}
           placeholder={t('settings.ai.systemPromptPlaceholder')}
-          textareaClassName="max-h-[320px] bg-transparent border-0 ring-0 focus:ring-0 text-[14px] px-4 py-3 text-[var(--notes-sidebar-text)]"
-          shellClassName="border-0 shadow-none bg-transparent dark:bg-transparent"
+          textareaClassName="max-h-[var(--vlaina-size-320px)] bg-transparent border-0 ring-0 focus:ring-0 text-[var(--vlaina-font-sm)] px-4 py-3 text-[var(--vlaina-sidebar-notes-text)]"
+          shellClassName="border-0 shadow-[var(--vlaina-shadow-none)] bg-transparent"
         />
       </div>
     </section>

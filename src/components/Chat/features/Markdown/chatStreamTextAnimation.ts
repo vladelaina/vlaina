@@ -14,15 +14,16 @@ import {
 } from '@/components/Chat/features/Layout/chatAssistantMarkdownBlockParser';
 import { CHAT_STREAM_FADE_MS } from './chatStreamTextPlugin';
 import { MARKDOWN_BLOCK_GAP } from '@/components/common/markdown/markdownMetrics';
+import { themeChatStreamTokens, themeTypographyTokens } from '@/styles/themeTokens';
 
-const BASE_CHAR_DELAY_MS = 20;
-const MIN_CHAR_DELAY_MS = 20;
-const MIN_ADAPTIVE_CHAR_DELAY_MS = 1;
-const MAX_ADAPTIVE_CHAR_DELAY_MS = 18;
-const MIN_APPEND_WINDOW_MS = 35;
-const MAX_APPEND_WINDOW_MS = 260;
-const APPEND_WINDOW_RATIO = 0.75;
-const FALLBACK_CONTENT_WIDTH = 640;
+const BASE_CHAR_DELAY_MS = themeChatStreamTokens.baseCharDelayMs;
+const MIN_CHAR_DELAY_MS = themeChatStreamTokens.minCharDelayMs;
+const MIN_ADAPTIVE_CHAR_DELAY_MS = themeChatStreamTokens.minAdaptiveCharDelayMs;
+const MAX_ADAPTIVE_CHAR_DELAY_MS = themeChatStreamTokens.maxAdaptiveCharDelayMs;
+const MIN_APPEND_WINDOW_MS = themeChatStreamTokens.minAppendWindowMs;
+const MAX_APPEND_WINDOW_MS = themeChatStreamTokens.maxAppendWindowMs;
+const APPEND_WINDOW_RATIO = themeChatStreamTokens.appendWindowRatio;
+const FALLBACK_CONTENT_WIDTH = themeChatStreamTokens.fallbackContentWidthPx;
 
 export interface ChatStreamBlock {
   births: number[];
@@ -35,14 +36,14 @@ export interface ChatStreamBlock {
   revealed: boolean;
 }
 
-const MIN_STABLE_PREFIX_CHARS = 160;
+const MIN_STABLE_PREFIX_CHARS = themeChatStreamTokens.minStablePrefixChars;
 
 function now(): number {
   return typeof performance === 'undefined' ? Date.now() : performance.now();
 }
 
 function computeCharDelay(queueLength: number): number {
-  const accelerated = BASE_CHAR_DELAY_MS / (1 + queueLength * 0.3);
+  const accelerated = BASE_CHAR_DELAY_MS / (1 + queueLength * themeChatStreamTokens.adaptiveDelayQueueScale);
   return Math.max(MIN_CHAR_DELAY_MS, accelerated);
 }
 
@@ -128,7 +129,7 @@ export function buildChatStreamSchedule(
     : [{
         kind: 'text' as const,
         extraHeight: 0,
-        lineHeight: 0,
+        lineHeight: themeTypographyTokens.streamFallbackLineHeight,
         prepared: getPreparedMarkdownTextBlock(content, 'body'),
         widthInset: 0,
       }];

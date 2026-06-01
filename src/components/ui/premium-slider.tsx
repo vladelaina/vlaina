@@ -45,7 +45,7 @@ export function PremiumSlider({
     const updateVisuals = useCallback((currentValue: number) => {
         if (!containerRef.current) return;
         const percentage = resolvePercentage(currentValue);
-        containerRef.current.style.setProperty('--slider-percentage', `${percentage}%`);
+        containerRef.current.style.setProperty('--vlaina-slider-percentage', `${percentage}%`);
     }, [resolvePercentage]);
 
     const handleInput = useCallback((e: React.FormEvent<HTMLInputElement>) => {
@@ -82,7 +82,7 @@ export function PremiumSlider({
             ref={containerRef}
             className={cn('premium-slider relative flex items-center w-full h-6 group', className)}
             style={{
-                '--slider-percentage': `${initialPercentage}%`,
+                '--vlaina-slider-percentage': `${initialPercentage}%`,
             } as React.CSSProperties}
             draggable={true}
             onDragStart={(e) => {
@@ -91,9 +91,9 @@ export function PremiumSlider({
             }}
         >
             <div
-                className="absolute w-full h-[3px] rounded-full pointer-events-none"
+                className="absolute w-full h-[var(--vlaina-size-3px)] rounded-full pointer-events-none"
                 style={{
-                    background: `linear-gradient(to right, var(--vlaina-accent) var(--slider-percentage), var(--vlaina-bg-tertiary) var(--slider-percentage))`,
+                    background: 'var(--vlaina-gradient-premium-slider-track)',
                 }}
             />
 
@@ -115,7 +115,7 @@ export function PremiumSlider({
                 onMouseUp={handleRelease}
                 onTouchEnd={handleRelease}
                 className={cn(
-                    'absolute w-full h-full opacity-0 cursor-pointer z-10',
+                    'absolute w-full h-full opacity-[var(--vlaina-opacity-0)] cursor-pointer z-[var(--vlaina-z-10)]',
                     'appearance-none bg-transparent'
                 )}
             />
@@ -123,13 +123,13 @@ export function PremiumSlider({
             <div
                 className="absolute pointer-events-none transition-none"
                 style={{
-                    left: `calc(var(--slider-percentage) - 12px)`,
+                    left: `calc(var(--vlaina-slider-percentage) - 12px)`,
                 }}
             >
                 <div
                     className={cn(
-                        'w-6 h-[18px] bg-[var(--vlaina-bg-primary)] rounded-full shadow-md border border-[var(--vlaina-border)]',
-                        'group-active:scale-[0.9] transition-transform duration-100'
+                        'w-6 h-[var(--vlaina-size-18px)] bg-[var(--vlaina-bg-primary)] rounded-full shadow-[var(--vlaina-shadow-md)] border border-[var(--vlaina-border)]',
+                        'group-active:scale-[var(--vlaina-scale-90)] transition-transform duration-[var(--vlaina-duration-100)]'
                     )}
                 />
             </div>

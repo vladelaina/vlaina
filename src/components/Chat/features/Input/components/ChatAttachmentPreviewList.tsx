@@ -35,12 +35,12 @@ export function ChatAttachmentPreviewList({ attachments, onRemove }: ChatAttachm
               <LocalImage
                 src={attachment.previewUrl}
                 alt={attachment.name || "preview"}
-                className="h-16 w-16 object-cover rounded-xl border border-black/5 dark:border-white/10 transition-opacity hover:opacity-90"
+                className="h-16 w-16 object-cover rounded-xl border border-[var(--vlaina-color-subtle-border)] transition-opacity hover:opacity-[var(--vlaina-opacity-90)]"
                 onClick={() => setActiveImageId(attachment.id)}
               />
             ) : (
-              <div className="h-16 w-16 bg-gray-100 dark:bg-zinc-800 rounded-xl flex items-center justify-center border border-black/5 dark:border-white/10">
-                <Icon name="file.attach" size="md" className="text-gray-400" />
+              <div className="h-16 w-16 bg-[var(--vlaina-color-attachment-surface)] rounded-xl flex items-center justify-center border border-[var(--vlaina-color-subtle-border)]">
+                <Icon name="file.attach" size="md" className="text-[var(--vlaina-color-muted-icon)]" />
               </div>
             )}
 
@@ -51,7 +51,7 @@ export function ChatAttachmentPreviewList({ attachments, onRemove }: ChatAttachm
                 event.stopPropagation();
                 onRemove(attachment.id);
               }}
-              className="absolute right-1 top-1 z-10 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/90 text-zinc-500 opacity-0 shadow-sm ring-1 ring-black/5 transition-[background-color,color,opacity] group-hover:opacity-100 hover:bg-zinc-100 hover:text-zinc-950 dark:bg-zinc-900/90 dark:text-zinc-400 dark:ring-white/10 dark:hover:bg-zinc-100 dark:hover:text-zinc-950"
+              className="absolute right-1 top-1 z-[var(--vlaina-z-10)] inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--vlaina-color-attachment-remove-bg)] text-[var(--vlaina-color-attachment-remove-fg)] opacity-[var(--vlaina-opacity-0)] shadow-[var(--vlaina-shadow-sm)] ring-1 ring-[var(--vlaina-color-subtle-border)] transition-[background-color,color,opacity] group-hover:opacity-[var(--vlaina-opacity-100)] hover:bg-[var(--vlaina-color-attachment-remove-bg-hover)] hover:text-[var(--vlaina-color-attachment-remove-fg-hover)]"
             >
               <Icon name="common.close" size="xs" />
             </button>

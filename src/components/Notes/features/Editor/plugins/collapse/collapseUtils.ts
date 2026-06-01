@@ -1,8 +1,8 @@
 import { createCollapseTriangleSvgMarkup } from '../../../common/collapseTriangle';
 
-export const COLLAPSED_CONTENT_CLASS = 'vlaina-collapsed-content';
+export const COLLAPSED_CONTENT_CLASS = 'editor-collapsed-content';
 
-export const COLLAPSE_TOGGLE_BUTTON_CLASS = 'vlaina-collapse-btn';
+export const COLLAPSE_TOGGLE_BUTTON_CLASS = 'editor-collapse-btn';
 
 interface CollapseToggleButtonOptions {
     className?: string;

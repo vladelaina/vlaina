@@ -1,4 +1,4 @@
-export const VLAINA_CHAT_HEADING_DRAG_MIME = 'application/x-vlaina-chat-heading+json';
+export const CHAT_HEADING_DRAG_MIME = 'application/x-vlaina-chat-heading+json';
 
 export interface ChatHeadingDragPayload {
   level: number;

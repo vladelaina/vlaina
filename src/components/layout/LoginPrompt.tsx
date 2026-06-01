@@ -4,6 +4,7 @@ import { useI18n } from '@/lib/i18n';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { cn } from '@/lib/utils';
 import { getSidebarIdleRowSurfaceClass } from './sidebar/sidebarLabelStyles';
+import { themeStyleResetTokens } from '@/styles/themeTokens';
 
 interface LoginPromptProps {
   onOpenDialog: () => void;
@@ -19,21 +20,21 @@ export const LoginPrompt: React.FC<LoginPromptProps> = ({ onOpenDialog }) => {
       <button
         type="button"
         onClick={onOpenDialog}
-        style={{ boxShadow: 'none' }}
+        style={{ boxShadow: themeStyleResetTokens.boxShadowNone }}
         className={cn(
-          'group inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 px-2.5 py-2 text-[16px] font-medium !shadow-none transition-colors hover:!shadow-none active:scale-[0.985]',
+          'group inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 px-2.5 py-2 text-[var(--vlaina-font-base)] font-medium !shadow-[var(--vlaina-shadow-none)] transition-colors hover:!shadow-[var(--vlaina-shadow-none)] active:scale-[var(--vlaina-scale-985)]',
           getSidebarIdleRowSurfaceClass('chat'),
-          'text-[var(--vlaina-color-brand-pink)] hover:bg-[var(--chat-sidebar-row-hover)]'
+          'text-[var(--vlaina-color-brand-pink)] hover:bg-[var(--vlaina-sidebar-chat-row-hover)]'
         )}
       >
         <span>ヾ(๑╹ヮ╹๑)ﾉ {signInLabel}</span>
         <Icon
           name="nav.arrowRight"
           size="sm"
-          className="text-[var(--vlaina-color-brand-pink)] transition-transform duration-200 ease-out group-hover:translate-x-1"
+          className="text-[var(--vlaina-color-brand-pink)] transition-transform duration-[var(--vlaina-duration-200)] ease-out group-hover:translate-x-1"
         />
       </button>
-      <div className="mx-2 mt-2 h-[1px] bg-[var(--vlaina-border)] opacity-40" />
+      <div className="mx-2 mt-2 h-[var(--vlaina-size-1px)] bg-[var(--vlaina-border)] opacity-[var(--vlaina-opacity-40)]" />
     </div>
   );
 };

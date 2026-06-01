@@ -1,40 +1,37 @@
 .milkdown [data-type='math-inline'],
 .milkdown [data-type='math-block'],
 .milkdown .mermaid-block {
-  --vlaina-math-hover-color: var(--vlaina-hover-filled);
-  --vlaina-math-hover-bleed-y: 4px;
-  --vlaina-math-hover-bleed-x-start: 0;
   transition:
-    background-color 0.16s ease,
-    box-shadow 0.16s ease;
+    background-color var(--vlaina-duration-160) var(--vlaina-ease-css-default),
+    box-shadow var(--vlaina-duration-160) var(--vlaina-ease-css-default);
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
 
-.milkdown .ProseMirror.vlaina-atomic-block-keyboard-selected,
-.milkdown .ProseMirror.vlaina-atomic-block-keyboard-selected * {
+.milkdown .ProseMirror.editor-atomic-block-keyboard-selected,
+.milkdown .ProseMirror.editor-atomic-block-keyboard-selected * {
   caret-color: transparent;
 }
 
 .milkdown [data-type='math-inline']:hover,
 .milkdown [data-type='math-inline']:focus-visible,
 .milkdown [data-type='math-inline'].ProseMirror-selectednode,
-.milkdown [data-type='math-inline'].vlaina-preview-context-menu-active,
+.milkdown [data-type='math-inline'].editor-preview-context-menu-active,
 .milkdown [data-type='math-block']:hover,
 .milkdown [data-type='math-block']:focus-visible,
 .milkdown [data-type='math-block'].ProseMirror-selectednode,
-.milkdown [data-type='math-block'].vlaina-preview-context-menu-active,
+.milkdown [data-type='math-block'].editor-preview-context-menu-active,
 .milkdown .mermaid-block:hover,
 .milkdown .mermaid-block:focus-visible,
 .milkdown .mermaid-block.ProseMirror-selectednode,
-.milkdown .mermaid-block.vlaina-preview-context-menu-active {
+.milkdown .mermaid-block.editor-preview-context-menu-active {
   background: var(--vlaina-math-hover-color);
   box-shadow:
     inset 0 0 0 1px var(--vlaina-math-hover-color),
     0 var(--vlaina-math-hover-bleed-y) 0 0 var(--vlaina-math-hover-color),
     0 calc(-1 * var(--vlaina-math-hover-bleed-y)) 0 0 var(--vlaina-math-hover-color),
     calc(-1 * var(--vlaina-math-hover-bleed-x-start)) 0 0 0 var(--vlaina-math-hover-color);
-  border-radius: 0;
+  border-radius: var(--vlaina-radius-0);
 }
 
 .milkdown [data-type='math-inline']:hover,
@@ -43,33 +40,33 @@
 .milkdown [data-type='math-inline']:focus-visible *,
 .milkdown [data-type='math-inline'].ProseMirror-selectednode,
 .milkdown [data-type='math-inline'].ProseMirror-selectednode *,
-.milkdown [data-type='math-inline'].vlaina-preview-context-menu-active,
-.milkdown [data-type='math-inline'].vlaina-preview-context-menu-active *,
+.milkdown [data-type='math-inline'].editor-preview-context-menu-active,
+.milkdown [data-type='math-inline'].editor-preview-context-menu-active *,
 .milkdown [data-type='math-block']:hover,
 .milkdown [data-type='math-block']:hover *,
 .milkdown [data-type='math-block']:focus-visible,
 .milkdown [data-type='math-block']:focus-visible *,
 .milkdown [data-type='math-block'].ProseMirror-selectednode,
 .milkdown [data-type='math-block'].ProseMirror-selectednode *,
-.milkdown [data-type='math-block'].vlaina-preview-context-menu-active,
-.milkdown [data-type='math-block'].vlaina-preview-context-menu-active *,
+.milkdown [data-type='math-block'].editor-preview-context-menu-active,
+.milkdown [data-type='math-block'].editor-preview-context-menu-active *,
 .milkdown .mermaid-block:hover,
 .milkdown .mermaid-block:hover *,
 .milkdown .mermaid-block:focus-visible,
 .milkdown .mermaid-block:focus-visible *,
 .milkdown .mermaid-block.ProseMirror-selectednode,
 .milkdown .mermaid-block.ProseMirror-selectednode *,
-.milkdown .mermaid-block.vlaina-preview-context-menu-active,
-.milkdown .mermaid-block.vlaina-preview-context-menu-active * {
+.milkdown .mermaid-block.editor-preview-context-menu-active,
+.milkdown .mermaid-block.editor-preview-context-menu-active * {
   cursor: pointer !important;
 }
 
-.milkdown .ProseMirror.vlaina-block-selection-pending :is(
+.milkdown .ProseMirror.editor-block-selection-pending :is(
   [data-type='math-inline'],
   [data-type='math-block'],
   .mermaid-block
 ):is(:hover, :focus-visible),
-.milkdown .ProseMirror.vlaina-block-selection-pending :is(
+.milkdown .ProseMirror.editor-block-selection-pending :is(
   [data-type='math-inline'],
   [data-type='math-block'],
   .mermaid-block
@@ -77,101 +74,97 @@
   cursor: crosshair !important;
 }
 
-.milkdown .ProseMirror.vlaina-block-selection-pending :is(
+.milkdown .ProseMirror.editor-block-selection-pending :is(
   [data-type='math-inline'],
   [data-type='math-block'],
   .mermaid-block
-):not(.vlaina-block-selected):is(:hover, :focus-visible) {
+):not(.editor-block-selected):is(:hover, :focus-visible) {
   background: transparent !important;
   box-shadow: none !important;
 }
 
-.milkdown .ProseMirror.vlaina-block-selection-active :is(
+.milkdown .ProseMirror.editor-block-selection-active :is(
   [data-type='math-inline'],
   [data-type='math-block']
-).vlaina-block-selected:is(:hover, :focus-visible),
-.milkdown .ProseMirror.vlaina-block-selection-active :is(
+).editor-block-selected:is(:hover, :focus-visible),
+.milkdown .ProseMirror.editor-block-selection-active :is(
   [data-type='math-inline'],
   [data-type='math-block']
-).vlaina-block-selected:is(:hover, :focus-visible) * {
+).editor-block-selected:is(:hover, :focus-visible) * {
   cursor: default !important;
 }
 
-.milkdown .ProseMirror.vlaina-block-selection-active :is(
+.milkdown .ProseMirror.editor-block-selection-active :is(
   [data-type='math-inline'],
   [data-type='math-block']
-).vlaina-block-selected:is(:hover, :focus-visible) {
+).editor-block-selected:is(:hover, :focus-visible) {
   background: transparent !important;
   box-shadow: none !important;
 }
 
-.milkdown .ProseMirror.vlaina-block-selection-pending .mermaid-block.vlaina-block-selected:is(:hover, :focus-visible) {
-  background: var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg)) !important;
-  box-shadow:
-    0 var(--vlaina-block-selection-bleed-y, 4px) 0 0 var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg)),
-    0 calc(-1 * var(--vlaina-block-selection-bleed-y, 4px)) 0 0 var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg)),
-    calc(-1 * (var(--vlaina-block-selection-bleed-x-start, 48px) - var(--vlaina-block-selection-bleed-y, 4px))) 0 0 var(--vlaina-block-selection-bleed-y, 4px) var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg)),
-    calc(var(--vlaina-block-selection-bleed-x-end, 48px) - var(--vlaina-block-selection-bleed-y, 4px)) 0 0 var(--vlaina-block-selection-bleed-y, 4px) var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg)) !important;
+.milkdown .ProseMirror.editor-block-selection-pending .mermaid-block.editor-block-selected:is(:hover, :focus-visible) {
+  background: var(--vlaina-block-selection-color, var(--vlaina-block-selection-color-default)) !important;
+  box-shadow: var(--vlaina-block-selection-shadow) !important;
 }
 
-.milkdown .ProseMirror.vlaina-block-selection-pending .mermaid-block.vlaina-block-selected,
-.milkdown .ProseMirror.vlaina-block-selection-pending .mermaid-block.vlaina-block-selected * {
+.milkdown .ProseMirror.editor-block-selection-pending .mermaid-block.editor-block-selected,
+.milkdown .ProseMirror.editor-block-selection-pending .mermaid-block.editor-block-selected * {
   cursor: crosshair !important;
 }
 
-.milkdown .ProseMirror .vlaina-block-selected :is(
+.milkdown .ProseMirror .editor-block-selected :is(
   [data-type='math-inline'],
   [data-type='math-block'],
   .mermaid-block
-):is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active),
-.milkdown .ProseMirror .vlaina-block-selected :is(
+):is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active),
+.milkdown .ProseMirror .editor-block-selected :is(
   [data-type='math-inline'],
   [data-type='math-block'],
   .mermaid-block
-):is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active) *,
+):is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active) *,
 .milkdown .ProseMirror :is(
   [data-type='math-inline'],
   [data-type='math-block'],
   .mermaid-block
-).vlaina-block-selected:is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active),
+).editor-block-selected:is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active),
 .milkdown .ProseMirror :is(
   [data-type='math-inline'],
   [data-type='math-block'],
   .mermaid-block
-).vlaina-block-selected:is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active) * {
+).editor-block-selected:is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active) * {
   color: var(--vlaina-text-primary) !important;
   -webkit-text-fill-color: var(--vlaina-text-primary) !important;
 }
 
-.milkdown .ProseMirror .vlaina-block-selected :is(
+.milkdown .ProseMirror .editor-block-selected :is(
   [data-type='math-inline'],
   [data-type='math-block']
-):is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active) :is(svg, svg *, .katex, .katex *, text, tspan, path, rect, circle, ellipse, line, polyline, polygon),
+):is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active) :is(svg, svg *, .katex, .katex *, text, tspan, path, rect, circle, ellipse, line, polyline, polygon),
 .milkdown .ProseMirror :is(
   [data-type='math-inline'],
   [data-type='math-block']
-).vlaina-block-selected:is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active) :is(svg, svg *, .katex, .katex *, text, tspan, path, rect, circle, ellipse, line, polyline, polygon) {
+).editor-block-selected:is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active) :is(svg, svg *, .katex, .katex *, text, tspan, path, rect, circle, ellipse, line, polyline, polygon) {
   fill: var(--vlaina-text-primary) !important;
   stroke: var(--vlaina-text-primary) !important;
 }
 
-.milkdown .ProseMirror .vlaina-block-selected :is(
+.milkdown .ProseMirror .editor-block-selected :is(
   .mermaid-block
-):is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active) :is(text, tspan, .nodeLabel, .label, .edgeLabel),
+):is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active) :is(text, tspan, .nodeLabel, .label, .edgeLabel),
 .milkdown .ProseMirror :is(
   .mermaid-block
-).vlaina-block-selected:is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active) :is(text, tspan, .nodeLabel, .label, .edgeLabel) {
+).editor-block-selected:is(:hover, :focus-visible, .ProseMirror-selectednode, .editor-preview-context-menu-active) :is(text, tspan, .nodeLabel, .label, .edgeLabel) {
   fill: var(--vlaina-text-primary) !important;
 }
 
 .milkdown [data-type='math-block'].math-block-wrapper {
   content-visibility: auto;
-  contain-intrinsic-size: auto 96px;
+  contain-intrinsic-size: var(--vlaina-height-math-block-intrinsic);
   display: block;
   width: 100%;
   max-width: 100%;
-  margin: 1rem 0;
-  padding: 1rem;
+  margin: var(--vlaina-space-1rem) var(--vlaina-space-0);
+  padding: var(--vlaina-space-1rem);
   text-align: center;
   overflow-x: auto;
   overflow-y: hidden;
@@ -181,7 +174,7 @@
 .milkdown [data-type='math-block'].math-block-wrapper .katex-display {
   display: block;
   max-width: 100%;
-  margin: 0;
+  margin: var(--vlaina-space-0);
   overflow-x: auto;
   overflow-y: hidden;
   text-align: center;
@@ -192,109 +185,77 @@
   min-width: max-content;
 }
 
-.milkdown .ProseMirror .vlaina-block-selected :is(
-  [data-type='math-inline'],
-  [data-type='math-block'],
-  .mermaid-block
-),
-.milkdown .ProseMirror .vlaina-block-selected-contained:is(
-  [data-type='math-inline'],
-  [data-type='math-block'],
-  .mermaid-block
-),
-.milkdown .ProseMirror li :is(
-  [data-type='math-inline'],
-  [data-type='math-block'],
-  .mermaid-block
-).vlaina-block-selected {
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.milkdown .ProseMirror li.vlaina-block-selected :is(
-  [data-type='math-block'],
-  .mermaid-block
-).vlaina-block-selected,
-.milkdown .ProseMirror li.vlaina-block-selected :is(
-  [data-type='math-block'],
-  .mermaid-block
-).vlaina-block-selected-contained {
-  box-shadow:
-    0 var(--vlaina-block-selection-bleed-y, 4px) 0 0 var(--vlaina-block-selection-color),
-    0 calc(-1 * var(--vlaina-block-selection-bleed-y, 4px)) 0 0 var(--vlaina-block-selection-color) !important;
-}
-
 .math-editor-popup {
-  z-index: 80;
+  z-index: var(--vlaina-z-80);
 }
 
 .math-editor-card {
-  width: min(var(--math-editor-width, calc(100vw - 48px)), calc(100vw - 48px));
-  max-width: min(var(--math-editor-width, calc(100vw - 48px)), calc(100vw - 48px));
-  border: 1px solid var(--vlaina-color-math-editor-border);
-  border-radius: 12px;
+  width: var(--vlaina-width-math-editor);
+  max-width: var(--vlaina-width-math-editor);
+  border: var(--vlaina-border-width-1) solid var(--vlaina-color-math-editor-border);
+  border-radius: var(--vlaina-radius-12px);
   background: var(--vlaina-color-setting-field);
   box-shadow: var(--vlaina-shadow-badge);
   overflow: hidden;
 }
 
 .math-editor-content {
-  padding: 16px;
+  padding: var(--vlaina-space-16px);
 }
 
 .math-editor-textarea {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid var(--vlaina-border);
-  border-radius: 18px;
+  border: var(--vlaina-border-width-1) solid var(--vlaina-border);
+  border-radius: var(--vlaina-radius-18px);
   background: var(--vlaina-color-input-surface);
   color: var(--vlaina-color-math-editor-text);
-  padding: 12px 14px;
+  padding: var(--vlaina-space-12px) var(--vlaina-space-14px);
   resize: vertical;
   outline: none;
   font-family: var(--font-mono), monospace;
-  font-size: 12px;
-  line-height: 1.6;
+  font-size: var(--vlaina-font-xs);
+  line-height: var(--vlaina-line-height);
   box-shadow: var(--vlaina-shadow-input-inset);
   transition:
-    border-color 0.18s ease,
-    background-color 0.18s ease,
-    box-shadow 0.18s ease;
+    border-color var(--vlaina-duration-input-focus) var(--vlaina-ease-css-default),
+    background-color var(--vlaina-duration-input-focus) var(--vlaina-ease-css-default),
+    box-shadow var(--vlaina-duration-input-focus) var(--vlaina-ease-css-default);
 }
 
 .math-editor-textarea:focus {
   border-color: var(--vlaina-accent);
   background: var(--vlaina-color-input-surface);
-  box-shadow: 0 0 0 2px var(--vlaina-accent-light);
+  box-shadow: var(--vlaina-shadow-math-editor-focus);
 }
 
 .math-editor-footer {
   display: flex;
   justify-content: flex-end;
-  padding: 0 16px 16px;
+  padding: var(--vlaina-space-0) var(--vlaina-space-16px) var(--vlaina-space-16px);
 }
 
 .math-editor-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--vlaina-space-8px);
 }
 
 .math-editor-action-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 32px;
-  padding: 0 12px;
-  border-radius: 6px;
-  border: 1px solid transparent;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
+  min-height: var(--vlaina-size-32px);
+  padding: var(--vlaina-space-0) var(--vlaina-space-12px);
+  border-radius: var(--vlaina-radius-6px);
+  border: var(--vlaina-border-width-1) solid transparent;
+  font-size: var(--vlaina-font-xs);
+  font-weight: var(--vlaina-font-weight-semibold);
+  line-height: var(--vlaina-leading-1);
   transition:
-    background-color 0.18s ease,
-    border-color 0.18s ease,
-    color 0.18s ease;
+    background-color var(--vlaina-duration-input-focus) var(--vlaina-ease-css-default),
+    border-color var(--vlaina-duration-input-focus) var(--vlaina-ease-css-default),
+    color var(--vlaina-duration-input-focus) var(--vlaina-ease-css-default);
 }
 
 .math-editor-action-button-secondary {
@@ -319,13 +280,13 @@
 }
 
 .math-editor-action-button:disabled {
-  opacity: 0.5;
+  opacity: var(--vlaina-opacity-50);
   cursor: not-allowed;
 }
 
 @media (max-width: 720px) {
   .math-editor-card {
-    width: min(var(--math-editor-width, calc(100vw - 24px)), calc(100vw - 24px));
-    max-width: min(var(--math-editor-width, calc(100vw - 24px)), calc(100vw - 24px));
+    width: var(--vlaina-width-math-editor-mobile);
+    max-width: var(--vlaina-width-math-editor-mobile);
   }
 }

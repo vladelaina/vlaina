@@ -31,9 +31,9 @@ export function ColorPicker({
           onMouseEnter={() => onHover?.(color)}
           className={cn(
             sizeClass,
-            "rounded-sm border-2 transition-all hover:scale-110",
+            "rounded-sm border-2 transition-all hover:scale-[var(--vlaina-scale-110)]",
             showRing && (currentColor === color || (!value && color === 'default'))
-              ? "ring-2 ring-zinc-400 dark:ring-zinc-500 ring-offset-1 dark:ring-offset-zinc-900"
+              ? "ring-2 ring-[var(--vlaina-color-control-ring)] app-ring-offset-1 ring-offset-[var(--vlaina-color-control-ring-offset)]"
               : ""
           )}
           style={{

@@ -7,6 +7,7 @@ import {
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { usePredictedTextareaHeight } from '@/hooks/usePredictedTextareaHeight';
+import { themeChatComposerTokens } from '@/styles/themeTokens';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
@@ -53,8 +54,8 @@ export function useChatComposer({
 
   const textareaHeight = usePredictedTextareaHeight(textareaRef, {
     value: message,
-    minHeight: 24,
-    maxHeight: 320,
+    minHeight: themeChatComposerTokens.textareaMinHeightPx,
+    maxHeight: themeChatComposerTokens.textareaMaxHeightPx,
   });
   const textareaHeightRef = useRef(textareaHeight);
 

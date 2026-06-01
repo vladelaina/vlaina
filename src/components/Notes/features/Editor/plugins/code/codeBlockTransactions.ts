@@ -3,7 +3,7 @@ import { isSelectionFullyInsideNode, moveSelectionAfterNode } from './codeBlockS
 import { normalizeCodeBlockLanguage } from './codeBlockLanguage';
 
 function markCodeBlockUserInput(view: EditorView): void {
-  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+  view.dom?.dispatchEvent?.(new CustomEvent('editor:block-user-input', { bubbles: true }));
 }
 
 export function updateCodeBlockLanguage(

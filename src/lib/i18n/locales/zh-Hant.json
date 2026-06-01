@@ -1,7 +1,7 @@
 {
   "account.cancelAuthentication": "取消驗證",
   "account.continueSignIn": "繼續登入",
-  "account.continueToVlaina": "繼續前往 vlaina",
+  "account.continueToApp": "繼續前往 vlaina",
   "account.continueWithEmail": "使用電子郵件繼續",
   "account.emailAddress": "電子郵件地址",
   "account.enterEmailCode": "輸入已傳送至您收件匣的驗證碼",
@@ -82,7 +82,7 @@
   "settings.feedback.error.signInRequired": "請先登入後再提交留言",
   "settings.feedback.error.network": "網路異常，留言沒有提交成功",
   "settings.feedback.error.generic": "留言提交失敗",
-  "settings.about.note.intro": "Ciallo～(∠・ω< )⌒★!這裏是{vlainaSite}和{catimeSite}的開發者{authorSite}",
+  "settings.about.note.intro": "Ciallo～(∠・ω< )⌒★!這裏是{appSite}和{catimeSite}的開發者{authorSite}",
   "settings.about.note.curiousTitle": "你可能會好奇：",
   "settings.about.note.curiousMissing": "爲什麼看起來還有一些功能還沒有？",
   "settings.about.note.curiousRough": "爲什麼有些交互做得很糙？",

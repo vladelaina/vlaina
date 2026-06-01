@@ -1,5 +1,6 @@
 import { getContentLayoutContext } from '../floating-toolbar/floatingToolbarLayout';
 import { toContainerPosition } from '../floating-toolbar/floatingToolbarDom';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 
 export function resolveTextEditorPopupPlacement(args: {
   editorView: { dom: HTMLElement };
@@ -9,7 +10,7 @@ export function resolveTextEditorPopupPlacement(args: {
   const { editorView, positionRoot, viewportPosition } = args;
   const containerPosition = toContainerPosition(viewportPosition, positionRoot);
   const layout = getContentLayoutContext(editorView as never, positionRoot);
-  const margin = 12;
+  const margin = themeDomStyleTokens.editorPopupHorizontalMarginPx;
   const bounds = layout.containerBounds
     ? {
         left: layout.containerBounds.left,

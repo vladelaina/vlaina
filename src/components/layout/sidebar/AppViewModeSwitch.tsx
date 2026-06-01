@@ -4,6 +4,7 @@ import { useI18n } from '@/lib/i18n';
 import { APP_VIEW_MODE_SWITCH_MIN_WIDTH } from '@/lib/layout/sidebarWidth';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
+import { themeIconTokens } from '@/styles/themeTokens';
 
 export function AppViewModeSwitch() {
   const { t } = useI18n();
@@ -16,12 +17,12 @@ export function AppViewModeSwitch() {
     {
       key: 'notes' as const,
       label: t('app.viewNotes'),
-      icon: <Icon name="file.text" size={18} />,
+      icon: <Icon name="file.text" size={themeIconTokens.sizeCompact} />,
     },
     {
       key: 'chat' as const,
       label: t('app.viewChat'),
-      icon: <Icon name="common.shootingStar" size={18} />,
+      icon: <Icon name="common.shootingStar" size={themeIconTokens.sizeCompact} />,
     },
   ];
 
@@ -30,7 +31,7 @@ export function AppViewModeSwitch() {
       role="tablist"
       aria-label={t('shortcut.action.toggleAppViewMode')}
       className={cn(
-        'relative mb-1.5 flex h-11 w-full shrink-0 items-center rounded-[22px] p-1.5',
+        'relative mb-1.5 flex h-11 w-full shrink-0 items-center rounded-[var(--vlaina-radius-22px)] p-1.5',
         chatComposerPillSurfaceClass,
       )}
       style={{ minWidth: APP_VIEW_MODE_SWITCH_MIN_WIDTH }}
@@ -38,7 +39,7 @@ export function AppViewModeSwitch() {
       <span
         aria-hidden="true"
         className={cn(
-          'absolute inset-y-1.5 left-1.5 w-[calc((100%_-_0.75rem)_/_2)] rounded-full bg-[var(--vlaina-accent-light)] shadow-[var(--vlaina-shadow-selection-soft)] transition-transform duration-200 ease-out',
+          'absolute inset-y-1.5 left-1.5 w-[var(--vlaina-width-view-mode-thumb)] rounded-full bg-[var(--vlaina-accent-light)] shadow-[var(--vlaina-shadow-selection-soft)] transition-transform duration-[var(--vlaina-duration-200)] ease-out',
           appViewMode === 'chat' && 'translate-x-full',
         )}
       />
@@ -52,13 +53,13 @@ export function AppViewModeSwitch() {
             aria-selected={selected}
             onClick={() => setAppViewMode(option.key)}
             className={cn(
-              'relative z-10 flex h-8 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full px-3 text-[15px] font-medium leading-none transition-colors',
+              'relative z-[var(--vlaina-z-10)] flex h-8 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full px-3 text-[var(--vlaina-font-15)] font-medium leading-none transition-colors',
               selected
                 ? 'text-[var(--vlaina-accent)]'
-                : 'text-[var(--notes-sidebar-text)] hover:text-[var(--vlaina-accent)]',
+                : 'text-[var(--vlaina-sidebar-notes-text)] hover:text-[var(--vlaina-accent)]',
             )}
           >
-            <span className="flex size-[18px] shrink-0 items-center justify-center leading-none">
+            <span className="flex size-[var(--vlaina-size-18px)] shrink-0 items-center justify-center leading-none">
               {option.icon}
             </span>
             <span className="inline-flex min-w-0 items-center truncate leading-none">{option.label}</span>

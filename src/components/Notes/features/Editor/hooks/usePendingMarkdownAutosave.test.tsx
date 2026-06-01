@@ -81,7 +81,7 @@ describe('usePendingMarkdownAutosave', () => {
 
     act(() => {
       result.current.createUserInputMarker(editorView as never, null)(
-        new CustomEvent('vlaina:block-user-input')
+        new CustomEvent('editor:block-user-input')
       );
       result.current.configureMarkdownListener(ctx, '# alpha')('# moved');
       vi.advanceTimersByTime(16);

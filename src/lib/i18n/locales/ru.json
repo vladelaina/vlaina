@@ -1,7 +1,7 @@
 {
   "account.cancelAuthentication": "Отменить аутентификацию",
   "account.continueSignIn": "Продолжить вход",
-  "account.continueToVlaina": "Продолжить в vlaina",
+  "account.continueToApp": "Продолжить в vlaina",
   "account.continueWithEmail": "Продолжить с помощью электронной почты",
   "account.emailAddress": "Адрес электронной почты",
   "account.enterEmailCode": "Введите код, отправленный на вашу почту",
@@ -82,7 +82,7 @@
   "settings.feedback.error.signInRequired": "Войдите в аккаунт перед отправкой отзыва",
   "settings.feedback.error.network": "Ошибка сети. Отзыв не был отправлен.",
   "settings.feedback.error.generic": "Не удалось отправить отзыв",
-  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★! Здесь {authorSite}, разработчик {vlainaSite} и {catimeSite}.",
+  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★! Здесь {authorSite}, разработчик {appSite} и {catimeSite}.",
   "settings.about.note.curiousTitle": "Возможно, вам интересно:",
   "settings.about.note.curiousMissing": "Почему кажется, что некоторых функций всё ещё нет?",
   "settings.about.note.curiousRough": "Почему некоторые взаимодействия пока выглядят сыровато?",

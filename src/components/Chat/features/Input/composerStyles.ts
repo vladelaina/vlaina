@@ -6,17 +6,17 @@ export const chatComposerPillSurfaceClass = [
 
 export const chatPopoverPillSurfaceClass = [
   chatComposerPillSurfaceClass,
-  "vlaina-floating-popover-shadow"
+  "floating-popover-shadow"
 ].join(" ");
 
 export const chatComposerSurfaceClass = [
   chatComposerPillSurfaceClass,
-  "rounded-[26px]",
-  "transition-shadow duration-300 ease-out"
+  "rounded-[var(--vlaina-radius-26px)]",
+  "transition-shadow duration-[var(--vlaina-duration-300)] ease-out"
 ].join(" ");
 
 export const chatComposerFrameClass = [
-  "flex flex-col justify-between min-h-[84px] pt-3"
+  "flex flex-col justify-between min-h-[var(--vlaina-size-84px)] pt-3"
 ].join(" ");
 
 export const chatComposerInputBlockClass = [
@@ -26,20 +26,20 @@ export const chatComposerInputBlockClass = [
 export const chatComposerTextareaClass = [
   "w-full resize-none bg-transparent",
   "select-none focus:select-text",
-  "text-[15px] leading-6 text-[var(--vlaina-text-primary)]",
+  "text-[var(--vlaina-font-15)] leading-6 text-[var(--vlaina-text-primary)]",
   "placeholder:text-[var(--vlaina-color-text-soft)] placeholder:select-none",
   "focus:outline-none",
-  "max-h-[320px] min-h-[24px]"
+  "max-h-[var(--vlaina-size-320px)] min-h-[var(--vlaina-size-24px)]"
 ].join(" ");
 
 export const chatComposerPrimaryButtonClass = [
   "h-9 px-4 rounded-full",
-  "bg-[var(--vlaina-color-inverse-surface)] text-[var(--vlaina-color-inverse-text)] shadow-md",
-  "hover:scale-105 active:scale-95",
-  "transition-[background-color,color,box-shadow,opacity,transform] duration-200",
+  "bg-[var(--vlaina-color-inverse-surface)] text-[var(--vlaina-color-inverse-text)] shadow-[var(--vlaina-shadow-md)]",
+  "hover:scale-[var(--vlaina-scale-105)] active:scale-[var(--vlaina-scale-95)]",
+  "transition-[background-color,color,box-shadow,opacity,transform] duration-[var(--vlaina-duration-200)]",
   "disabled:bg-[var(--vlaina-bg-secondary)]",
-  "disabled:text-[var(--vlaina-color-text-disabled)] disabled:cursor-default disabled:shadow-none",
-  "disabled:hover:scale-100 disabled:active:scale-100"
+  "disabled:text-[var(--vlaina-color-text-disabled)] disabled:cursor-default disabled:shadow-[var(--vlaina-shadow-none)]",
+  "disabled:hover:scale-[var(--vlaina-scale-100)] disabled:active:scale-[var(--vlaina-scale-100)]"
 ].join(" ");
 
 export const chatComposerSecondaryButtonClass = [

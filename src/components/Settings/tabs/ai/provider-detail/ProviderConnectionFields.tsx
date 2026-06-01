@@ -174,12 +174,12 @@ export function ProviderConnectionFields({
   };
 
   return (
-    <section className={cn("overflow-hidden rounded-[26px] p-1 mb-2", chatComposerPillSurfaceClass)}>
+    <section className={cn("overflow-hidden rounded-[var(--vlaina-radius-26px)] p-1 mb-2", chatComposerPillSurfaceClass)}>
       <div className="flex flex-col">
         {/* Channel Label */}
         <div className="flex items-center gap-4 px-7 py-5 border-b border-transparent">
           <div className="w-32 shrink-0">
-            <div className="text-[14px] font-semibold text-[var(--notes-sidebar-text)]">
+            <div className="text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)]">
               {t('settings.ai.channelName')}
             </div>
           </div>
@@ -191,7 +191,7 @@ export function ProviderConnectionFields({
               onFocus={(event) => selectDefaultChannelName(event.currentTarget)}
               onClick={(event) => selectDefaultChannelName(event.currentTarget)}
               placeholder={t('settings.ai.newChannel')}
-              className="w-full max-w-[520px]"
+              className="w-full max-w-[var(--vlaina-size-520px)]"
               inputClassName={providerInputClassName}
               shellClassName={providerInputShellClassName}
             />
@@ -201,7 +201,7 @@ export function ProviderConnectionFields({
         {/* Base URL */}
         <div className="flex items-center gap-4 px-7 py-5 border-b border-transparent">
           <div className="w-32 shrink-0">
-            <div className="text-[14px] font-semibold text-[var(--notes-sidebar-text)]">
+            <div className="text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)]">
               {t('settings.ai.baseUrl', { url: '' }).replace(/[:：]\s*$/, '')}
             </div>
           </div>
@@ -218,7 +218,7 @@ export function ProviderConnectionFields({
               spellCheck={false}
               data-lpignore="true"
               data-1p-ignore="true"
-              className="w-full max-w-[520px]"
+              className="w-full max-w-[var(--vlaina-size-520px)]"
               inputClassName={providerInputClassName}
               shellClassName={providerInputShellClassName}
             />
@@ -228,7 +228,7 @@ export function ProviderConnectionFields({
         {/* API Key */}
         <div className="flex items-center gap-4 px-7 py-5">
           <div className="w-32 shrink-0">
-            <div className="text-[14px] font-semibold text-[var(--notes-sidebar-text)]">
+            <div className="text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)]">
               {t('settings.ai.apiKey')}
             </div>
           </div>
@@ -251,15 +251,15 @@ export function ProviderConnectionFields({
               data-lpignore="true"
               data-1p-ignore="true"
               style={getApiKeyInputStyle(apiKeyDisplayValue, apiKeyTextWidthPx)}
-              className="w-full max-w-[520px]"
-              inputClassName={cn(providerInputClassName, 'pr-[5.75rem] font-mono')}
+              className="w-full max-w-[var(--vlaina-size-520px)]"
+              inputClassName={cn(providerInputClassName, 'pr-[var(--vlaina-space-575rem)] font-mono')}
               shellClassName={providerInputShellClassName}
               trailing={
                 <div className="flex items-center gap-1 pr-1">
                   <button
                     type="button"
                     onClick={handleApiKeyVisibilityToggle}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--notes-sidebar-text)]"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-sidebar-notes-text)]"
                     aria-label={apiKeyVisible ? t('settings.ai.hideApiKey') : t('settings.ai.showApiKey')}
                   >
                     <Icon name={apiKeyVisible ? 'common.eyeOff' : 'common.eye'} size="sm" />
@@ -270,7 +270,7 @@ export function ProviderConnectionFields({
                     disabled={!apiKey}
                     data-action="copy"
                     data-copied={apiKeyCopied ? 'true' : undefined}
-                    className="settings-api-key-copy-button flex h-8 w-8 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--notes-sidebar-text)] disabled:cursor-not-allowed disabled:opacity-40"
+                    className="settings-api-key-copy-button flex h-8 w-8 items-center justify-center rounded-lg text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-sidebar-notes-text)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-40)]"
                     aria-label={apiKeyCopied ? t('common.copied') : t('common.copy')}
                   >
                     <Icon name={apiKeyCopied ? 'common.check' : 'common.copy'} size="sm" />

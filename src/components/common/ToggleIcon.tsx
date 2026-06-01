@@ -10,7 +10,7 @@ interface ToggleIconProps {
 
 export function ToggleIcon({ expanded, size, className }: ToggleIconProps) {
   return (
-    <div className={cn("transition-transform duration-200", expanded ? "rotate-90" : "", className)}>
+    <div className={cn("transition-transform duration-[var(--vlaina-duration-200)]", expanded ? "rotate-90" : "", className)}>
       <Icon name="nav.chevronRight" size={size} />
     </div>
   );

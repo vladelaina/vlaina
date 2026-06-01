@@ -104,9 +104,9 @@ export function ResizablePanel({
   return (
     <aside
       className={cn(
-        "relative flex flex-col bg-[var(--vlaina-color-setting-content)] backdrop-blur-md overflow-hidden",
+        "relative flex flex-col bg-[var(--vlaina-color-setting-content)] backdrop-blur-[var(--vlaina-backdrop-blur-md)] overflow-hidden",
         isDragging && "will-change-[width]",
-        !isDragging && "transition-[width] duration-300 ease-in-out",
+        !isDragging && "transition-[width] duration-[var(--vlaina-duration-300)] ease-in-out",
         className
       )}
       style={{ width }}
@@ -114,7 +114,7 @@ export function ResizablePanel({
       <ResizeHandle
         onMouseDown={handleDragStart}
         isDragging={isDragging}
-        zIndexClassName="z-[100]"
+        zIndexClassName="z-[var(--vlaina-z-100)]"
         positionStyle={{
           right: width - RESIZE_HANDLE_HALF_WIDTH,
         }}

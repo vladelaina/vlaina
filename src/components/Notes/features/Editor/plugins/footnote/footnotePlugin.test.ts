@@ -248,7 +248,7 @@ describe('footnote reference markup', () => {
 
     const originalFootnoteSize = view.state.doc.child(1).nodeSize;
     const userInputListener = vi.fn();
-    view.dom.addEventListener('vlaina:block-user-input', userInputListener);
+    view.dom.addEventListener('editor:block-user-input', userInputListener);
 
     expect(handleFootnoteModEnterExit(view)).toBe(true);
 
@@ -259,7 +259,7 @@ describe('footnote reference markup', () => {
     expect(view.state.doc.child(2).type.name).toBe('paragraph');
     expect(view.state.selection.from).toBe(view.state.doc.child(0).nodeSize + originalFootnoteSize + 1);
 
-    view.dom.removeEventListener('vlaina:block-user-input', userInputListener);
+    view.dom.removeEventListener('editor:block-user-input', userInputListener);
     await editor.destroy();
   });
 });

@@ -38,14 +38,14 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
         ? 'bg-[var(--vlaina-color-membership-max-bg)] text-[var(--vlaina-color-membership-max-fg)]'
         : membershipTier === 'ultra'
           ? 'bg-[var(--vlaina-color-membership-ultra-bg)] text-[var(--vlaina-color-membership-ultra-fg)]'
-          : 'bg-[var(--vlaina-color-setting-field)] text-[var(--notes-sidebar-text)]';
+          : 'bg-[var(--vlaina-color-setting-field)] text-[var(--vlaina-sidebar-notes-text)]';
 
   return (
     <div className="group relative flex select-none items-start gap-3 px-3 pb-2.5 pt-3">
       <div className="relative shrink-0 group/avatar">
         <div
           className={cn(
-            'relative flex h-12 w-12 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-[var(--vlaina-border)] bg-[var(--vlaina-color-input-surface)] shadow-sm backdrop-blur-sm transition-all duration-300 hover:scale-105'
+            'relative flex h-12 w-12 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-[var(--vlaina-border)] bg-[var(--vlaina-color-input-surface)] shadow-[var(--vlaina-shadow-sm)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)] transition-all duration-[var(--vlaina-duration-300)] hover:scale-[var(--vlaina-scale-105)]'
           )}
         >
           <AccountAvatarImage
@@ -67,7 +67,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
               }
             }}
             className={cn(
-              'absolute -bottom-1 -right-1.5 z-10 inline-flex cursor-pointer select-none items-center rounded-[8px] px-1.5 py-[3px] text-[8px] font-semibold normal-case tracking-normal leading-none shadow-[var(--vlaina-shadow-badge)]',
+              'absolute -bottom-1 -right-1.5 z-[var(--vlaina-z-10)] inline-flex cursor-pointer select-none items-center rounded-[var(--vlaina-radius-8px)] px-1.5 py-[var(--vlaina-space-3px)] text-[var(--vlaina-font-8)] font-semibold normal-case tracking-normal leading-none shadow-[var(--vlaina-shadow-badge)]',
               membershipPillClassName
             )}
           >
@@ -78,7 +78,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
       <div className="flex min-w-0 flex-1 flex-col gap-1 pt-0.5">
         <div className="flex items-center justify-between">
           <span
-            className="min-w-0 flex-1 truncate pr-2 text-[11px] font-bold leading-none text-[var(--vlaina-text-primary)]"
+            className="min-w-0 flex-1 truncate pr-2 text-[var(--vlaina-font-11)] font-bold leading-none text-[var(--vlaina-text-primary)]"
           >
             {displayIdentity}
           </span>
@@ -103,10 +103,10 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
 
         {isMenuOpen && (
           <>
-            <div className="fixed inset-0 z-[60]" onClick={() => setIsMenuOpen(false)} />
+            <div className="fixed inset-0 z-[var(--vlaina-z-60)]" onClick={() => setIsMenuOpen(false)} />
             <div
               className={cn(
-                "absolute left-[calc(100%-10px)] top-8 z-[70] w-48 rounded-[22px] border-transparent p-1 animate-in fade-in-0 zoom-in-95 slide-in-from-top-1",
+                "absolute left-[var(--vlaina-offset-account-menu-anchor-x)] top-8 z-[var(--vlaina-z-70)] w-48 rounded-[var(--vlaina-radius-22px)] border-transparent p-1 animate-in fade-in-0 zoom-in-95 slide-in-from-top-1",
                 chatComposerPillSurfaceClass
               )}
             >
@@ -116,12 +116,12 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                   onSwitchAccount();
                 }}
                 className={cn(
-                  'flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[16px] font-medium transition-colors',
+                  'flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium transition-colors',
                   getSidebarIdleRowSurfaceClass('chat'),
-                  'text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)]'
+                  'text-[var(--vlaina-sidebar-chat-text)] hover:bg-[var(--vlaina-sidebar-chat-row-hover)]'
                 )}
               >
-                <Icon size="md" name="user.switch" className="text-[var(--chat-sidebar-text)]" />
+                <Icon size="md" name="user.switch" className="text-[var(--vlaina-sidebar-chat-text)]" />
                 <span className="whitespace-nowrap">{t('account.switchAccount')}</span>
               </button>
               <button
@@ -130,12 +130,12 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                   void onLogout();
                 }}
                 className={cn(
-                  'flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[16px] font-medium transition-colors',
+                  'flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium transition-colors',
                   getSidebarIdleRowSurfaceClass('chat'),
-                  'text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)]'
+                  'text-[var(--vlaina-sidebar-chat-text)] hover:bg-[var(--vlaina-sidebar-chat-row-hover)]'
                 )}
               >
-                <Icon size="md" name="user.logout" className="text-[var(--chat-sidebar-text)]" />
+                <Icon size="md" name="user.logout" className="text-[var(--vlaina-sidebar-chat-text)]" />
                 {t('account.logOut')}
               </button>
             </div>

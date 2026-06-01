@@ -1,6 +1,5 @@
 import { RefObject, useEffect, useState } from 'react';
-
-const IMAGE_PREFETCH_ROOT_MARGIN = '900px 0px';
+import { themeLazyLoadTokens } from '@/styles/themeTokens';
 
 export function useNearViewport(targetRef: RefObject<Element | null>): boolean {
     const [isNearViewport, setIsNearViewport] = useState(() => (
@@ -29,7 +28,7 @@ export function useNearViewport(targetRef: RefObject<Element | null>): boolean {
             }
         }, {
             root: null,
-            rootMargin: IMAGE_PREFETCH_ROOT_MARGIN,
+            rootMargin: themeLazyLoadTokens.imageBlockRootMargin,
             threshold: 0,
         });
 

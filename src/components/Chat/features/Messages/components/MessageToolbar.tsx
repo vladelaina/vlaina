@@ -5,11 +5,12 @@ import type { ChatMessage } from '@/lib/ai/types';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { subscribeChatMessageCopied } from '@/components/Chat/common/copyFeedback';
 import { MessageVersionNavigator } from './MessageVersionNavigator';
+import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
-const COPY_FEEDBACK_DURATION_MS = 1200;
-const COPY_FEEDBACK_CLOSING_MS = 160;
+const COPY_FEEDBACK_DURATION_MS = themeUiFeedbackTokens.copyFeedbackDurationMs;
+const COPY_FEEDBACK_CLOSING_MS = themeUiFeedbackTokens.copyFeedbackClosingMs;
 const sidebarTextIconButtonClass =
-  "text-[var(--chat-sidebar-text)] hover:text-[var(--chat-sidebar-text)]";
+  "text-[var(--vlaina-sidebar-chat-text)] hover:text-[var(--vlaina-sidebar-chat-text)]";
 
 type CopyFeedbackSource = 'manual' | 'shortcut' | null;
 
@@ -109,26 +110,26 @@ export const MessageToolbar = memo(function MessageToolbar({
 
   const isCopyFeedbackVisible = isCopied || isCopyClosing;
   const secondaryActionClass = cn(
-    "transition-opacity duration-200",
+    "transition-opacity duration-[var(--vlaina-duration-200)]",
     isCopyClosing
-      ? "opacity-0 pointer-events-none"
+      ? "opacity-[var(--vlaina-opacity-0)] pointer-events-none"
       : isCopied
         ? copyFeedbackSource === 'manual'
-          ? "opacity-100 pointer-events-auto"
-          : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"
-        : "opacity-100"
+          ? "opacity-[var(--vlaina-opacity-100)] pointer-events-auto"
+          : "opacity-[var(--vlaina-opacity-0)] pointer-events-none group-hover:opacity-[var(--vlaina-opacity-100)] group-hover:pointer-events-auto"
+        : "opacity-[var(--vlaina-opacity-100)]"
   );
 
   return (
     <div className="flex flex-col mt-1" data-chat-selection-excluded="true">
         <div
           className={cn(
-            "flex items-center gap-1 select-none transition-opacity duration-200",
+            "flex items-center gap-1 select-none transition-opacity duration-[var(--vlaina-duration-200)]",
             isCopied || forceVisible
-              ? "opacity-100"
+              ? "opacity-[var(--vlaina-opacity-100)]"
               : isCopyClosing
-                ? "opacity-0"
-                : "opacity-0 group-hover:opacity-100"
+                ? "opacity-[var(--vlaina-opacity-0)]"
+                : "opacity-[var(--vlaina-opacity-0)] group-hover:opacity-[var(--vlaina-opacity-100)]"
           )}
         >
             
@@ -153,14 +154,14 @@ export const MessageToolbar = memo(function MessageToolbar({
             {showCopyAction && (
               <button
                   onClick={handleCopy}
-                  className={cn("p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/5", iconButtonStyles, sidebarTextIconButtonClass)}
+                  className={cn("p-1.5 rounded-md hover:bg-[var(--vlaina-color-control-hover-bg)]", iconButtonStyles, sidebarTextIconButtonClass)}
               >
                   {isCopyFeedbackVisible ? <Icon name="common.check" size="md" /> : <Icon name="common.copy" size="md" />}
               </button>
             )}
 
             {!isCopyClosing && (
-              <button onClick={onRegenerate} className={cn("p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/5", iconButtonStyles, secondaryActionClass, sidebarTextIconButtonClass)}>
+              <button onClick={onRegenerate} className={cn("p-1.5 rounded-md hover:bg-[var(--vlaina-color-control-hover-bg)]", iconButtonStyles, secondaryActionClass, sidebarTextIconButtonClass)}>
                 <Icon name="common.refresh" size="md" />
               </button>
             )}

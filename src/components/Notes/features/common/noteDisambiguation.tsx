@@ -47,7 +47,7 @@ export function NoteDisambiguatedTitle({
     <span className={cn('block whitespace-normal break-all', className)}>
       <span className={cn(titleClassName, isUntitledPlaceholder && 'text-[var(--vlaina-soft-placeholder)]')}>{title}</span>
       {disambiguation ? (
-        <span className={cn('text-[11px]', hintClassName)}>{` · ${disambiguation}`}</span>
+        <span className={cn('text-[var(--vlaina-font-11)]', hintClassName)}>{` · ${disambiguation}`}</span>
       ) : null}
     </span>
   );

@@ -18,11 +18,11 @@ describe('codeBlockEditorTheme', () => {
 
     cm.dispatch({ selection: { anchor: 0, head: 5 } });
 
-    expect(cm.dom.querySelectorAll('.vlaina-code-selection-text')).toHaveLength(1);
+    expect(cm.dom.querySelectorAll('.editor-code-selection-text')).toHaveLength(1);
 
     cm.dispatch({ selection: { anchor: 5, head: 5 } });
 
-    expect(cm.dom.querySelectorAll('.vlaina-code-selection-text')).toHaveLength(0);
+    expect(cm.dom.querySelectorAll('.editor-code-selection-text')).toHaveLength(0);
 
     cm.destroy();
     host.remove();

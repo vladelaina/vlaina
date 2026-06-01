@@ -46,21 +46,21 @@ export function NoteTabContent({
       ) : (
         <Icon
           name="file.text"
-          className="pointer-events-none h-[18px] w-[18px] flex-shrink-0 text-[var(--notes-sidebar-file-icon)]"
+          className="pointer-events-none h-[var(--vlaina-size-18px)] w-[var(--vlaina-size-18px)] flex-shrink-0 text-[var(--vlaina-sidebar-notes-file-icon)]"
         />
       )}
 
       <span
         ref={labelRef}
         className={cn(
-          'pointer-events-none truncate text-[13px] text-current',
+          'pointer-events-none truncate text-[var(--vlaina-font-13)] text-current',
           isActive && 'font-semibold',
           isUntitledPlaceholder && 'text-[var(--vlaina-soft-placeholder)]',
         )}
       >
         {truncateNoteLabel(title)}
         {disambiguation ? (
-          <span className="text-[11px] text-current/65">{` · ${disambiguation}`}</span>
+          <span className="text-[var(--vlaina-font-11)] text-current/65">{` · ${disambiguation}`}</span>
         ) : null}
       </span>
 

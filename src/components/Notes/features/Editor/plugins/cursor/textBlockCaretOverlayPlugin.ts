@@ -3,10 +3,10 @@ import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { createCaretOverlayRect, createCaretOverlayStyle } from '@/lib/ui/caretOverlayStyles';
 
-const TEXTBLOCK_CARET_CLASS = 'vlaina-textblock-caret-overlay-active';
-const TEXTBLOCK_CARET_STYLE_ID = 'vlaina-textblock-caret-overlay-style';
-const TEXTBLOCK_CARET_ELEMENT_CLASS = 'vlaina-textblock-caret-overlay';
-const FORCED_LINE_END_CARET_CLASS = 'vlaina-forced-line-end-caret-active';
+const TEXTBLOCK_CARET_CLASS = 'editor-textblock-caret-overlay-active';
+const TEXTBLOCK_CARET_STYLE_ID = 'editor-textblock-caret-overlay-style';
+const TEXTBLOCK_CARET_ELEMENT_CLASS = 'editor-textblock-caret-overlay';
+const FORCED_LINE_END_CARET_CLASS = 'editor-forced-line-end-caret-active';
 const TAG_TOKEN_PATTERN_AT_CURSOR = /(?:^|[^\p{L}\p{N}_/-])#([\p{L}\p{N}_/-][\p{L}\p{N}_/-]*)$/u;
 const TAG_TOKEN_CONTINUATION_PATTERN = /^[\p{L}\p{N}_/-]$/u;
 
@@ -20,7 +20,7 @@ function ensureTextBlockCaretStyle(doc: Document): void {
   style.textContent = createCaretOverlayStyle({
     activeSelector: `.ProseMirror.${TEXTBLOCK_CARET_CLASS}`,
     caretClass: TEXTBLOCK_CARET_ELEMENT_CLASS,
-    keyframesName: 'vlaina-textblock-caret-blink',
+    keyframesName: 'editor-textblock-caret-blink',
   });
   doc.head.appendChild(style);
 }

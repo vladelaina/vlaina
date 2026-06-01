@@ -7,7 +7,7 @@ import {
 import { handleEditorImageFiles } from './handleEditorImageFiles';
 import { canInsertImageNodeAtSelection } from './imageNodeInsertion';
 
-export const imageUploadPluginKey = new PluginKey('vlaina-image-upload');
+export const imageUploadPluginKey = new PluginKey('editor-image-upload');
 
 export const imageUploadPlugin = $prose(() => {
     return new Plugin({

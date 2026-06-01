@@ -34,9 +34,9 @@ export function UnifiedSidebarContainer({
     <>
       <aside
         className={cn(
-          'flex-shrink-0 flex min-h-0 flex-col overflow-hidden select-none relative z-20 vlaina-scrollbar',
+          'flex-shrink-0 flex min-h-0 flex-col overflow-hidden select-none relative z-[var(--vlaina-z-20)] app-scrollbar',
           isDragging && 'will-change-[width]',
-          !isDragging && 'transition-[width] duration-200 ease-out',
+          !isDragging && 'transition-[width] duration-[var(--vlaina-duration-200)] ease-out',
         )}
         style={{
           backgroundColor,

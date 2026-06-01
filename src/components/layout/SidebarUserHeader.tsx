@@ -18,9 +18,9 @@ interface SidebarUserHeaderProps {
 
 function WorkspaceSwitcherFallback() {
     return (
-        <div className="vlaina-no-drag flex h-full w-[calc(100%-5.25rem)] min-w-0 items-center justify-start">
-            <span className="relative flex size-[26px] shrink-0 overflow-hidden rounded-[8px]">
-                <img src={`${import.meta.env.BASE_URL}logo.png?v=20260327`} alt="vlaina" className="h-full w-full object-cover shadow-sm" />
+        <div className="app-no-drag flex h-full w-[var(--vlaina-width-minus-titlebar-actions)] min-w-0 items-center justify-start">
+            <span className="relative flex size-[var(--vlaina-size-26px)] shrink-0 overflow-hidden rounded-[var(--vlaina-radius-8px)]">
+                <img src={`${import.meta.env.BASE_URL}logo.png?v=20260327`} alt="vlaina" className="h-full w-full object-cover shadow-[var(--vlaina-shadow-sm)]" />
             </span>
         </div>
     );
@@ -59,21 +59,21 @@ export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
         <div
             ref={headerRef}
             className={cn(
-                'vlaina-drag-region vlaina-sidebar-user-header group/sidebar-user-header relative flex h-10 w-full items-center pr-3',
-                shouldReserveMacTrafficLightSpace ? 'pl-[76px]' : 'pl-3'
+                'app-drag-region sidebar-user-header group/sidebar-user-header relative flex h-10 w-full items-center pr-3',
+                shouldReserveMacTrafficLightSpace ? 'pl-[var(--vlaina-space-76px)]' : 'pl-3'
             )}
             data-hovered={isHovered ? 'true' : undefined}
         >
             <div
                 className={cn(
-                    'vlaina-sidebar-user-header-pill flex h-8 w-full items-center justify-between rounded-full border border-transparent bg-transparent px-1 transition-[background-color,box-shadow]',
+                    'sidebar-user-header-pill flex h-8 w-full items-center justify-between rounded-full border border-transparent bg-transparent px-1 transition-[background-color,box-shadow]',
                 )}
             >
                 <Suspense fallback={<WorkspaceSwitcherFallback />}>
-                    <WorkspaceSwitcher className="h-full w-[calc(100%-5.25rem)] min-w-0 justify-start" />
+                    <WorkspaceSwitcher className="h-full w-[var(--vlaina-width-minus-titlebar-actions)] min-w-0 justify-start" />
                 </Suspense>
                 <div
-                    className="vlaina-drag-region h-full min-w-12 flex-1 cursor-grab active:cursor-grabbing"
+                    className="app-drag-region h-full min-w-12 flex-1 cursor-grab active:cursor-grabbing"
                     aria-hidden="true"
                 />
                 <Tooltip delayDuration={700}>
@@ -83,7 +83,7 @@ export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
                             onClick={toggleSidebar}
                             aria-label={t('common.collapseSidebar')}
                             className={cn(
-                                'vlaina-sidebar-user-header-collapse pointer-events-none flex h-7 w-7 items-center justify-center rounded-full bg-transparent opacity-0 transition-opacity',
+                                'sidebar-user-header-collapse pointer-events-none flex h-7 w-7 items-center justify-center rounded-full bg-transparent opacity-[var(--vlaina-opacity-0)] transition-opacity',
                                 iconButtonStyles
                             )}
                         >
@@ -95,13 +95,13 @@ export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
                         sideOffset={6}
                         showArrow={false}
                         className={cn(
-                            'flex items-center gap-1.5 rounded-[18px] px-3 py-2 text-xs text-[var(--chat-sidebar-text)]',
+                            'flex items-center gap-1.5 rounded-[var(--vlaina-radius-18px)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
                             chatComposerPillSurfaceClass
                         )}
                     >
                         <ShortcutKeys
                             keys={['Ctrl', '\\']}
-                            keyClassName="rounded-md bg-[var(--chat-sidebar-row-hover)] text-[var(--chat-sidebar-text)]"
+                            keyClassName="rounded-md bg-[var(--vlaina-sidebar-chat-row-hover)] text-[var(--vlaina-sidebar-chat-text)]"
                         />
                     </TooltipContent>
                 </Tooltip>

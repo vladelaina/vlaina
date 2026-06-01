@@ -303,7 +303,7 @@ export function getBlockSelectionDecorationClass(
   displayRanges: readonly BlockRange[],
 ): string {
   const containedSelection = resolveContainedListChildSelection(doc, range);
-  if (!containedSelection) return 'vlaina-block-selected';
+  if (!containedSelection) return 'editor-block-selected';
 
   const hasSelectedContainer = displayRanges.some((candidate) => (
     candidate.from === containedSelection.itemFrom
@@ -311,8 +311,8 @@ export function getBlockSelectionDecorationClass(
   ));
 
   return hasSelectedContainer
-    ? 'vlaina-block-selected vlaina-block-selected-contained'
-    : 'vlaina-block-selected';
+    ? 'editor-block-selected editor-block-selected-contained'
+    : 'editor-block-selected';
 }
 
 function isNodeDecorationRange(doc: EditorState['doc'], range: BlockRange): boolean {
@@ -380,7 +380,7 @@ export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks:
     const attrs = {
       class: [
         getBlockSelectionDecorationClass(doc, range, displayRanges),
-        isInlineLineSelection ? 'vlaina-block-selected-inline-line' : '',
+        isInlineLineSelection ? 'editor-block-selected-inline-line' : '',
       ].filter(Boolean).join(' '),
     };
     if (isNodeRange) {

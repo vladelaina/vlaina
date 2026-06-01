@@ -41,9 +41,9 @@ export function collectBodyLineNumberTargets(editorRoot: HTMLElement): HTMLEleme
 }
 
 function isInsideSelectedBlock(target: HTMLElement): boolean {
-  return target.classList.contains('vlaina-block-selected')
-    || target.closest('.vlaina-block-selected') !== null
-    || target.querySelector('.vlaina-block-selected') !== null;
+  return target.classList.contains('editor-block-selected')
+    || target.closest('.editor-block-selected') !== null
+    || target.querySelector('.editor-block-selected') !== null;
 }
 
 export function resolveBodyLineNumberLabels(shell: HTMLElement, markdown: string): BodyLineNumberLabel[] {
@@ -127,11 +127,11 @@ export function BodyLineNumberGutter({ markdown, revision, shellRef }: BodyLineN
   }, [markdown, revision, shellRef]);
 
   return (
-    <div className="vlaina-body-line-number-gutter" aria-hidden="true">
+    <div className="body-line-number-gutter" aria-hidden="true">
       {labels.map((label, index) => (
         <span
           key={`${label.lineNumber}-${index}`}
-          className="vlaina-body-line-number"
+          className="body-line-number"
           style={{
             left: label.left,
             top: label.top,

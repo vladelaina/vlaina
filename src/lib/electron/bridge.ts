@@ -301,7 +301,7 @@ export interface ElectronAccountApi {
   ): () => void;
 }
 
-export interface VlainaDesktopApi {
+export interface DesktopApi {
   platform: 'electron';
   getPlatform(): Promise<'electron'>;
   window: ElectronWindowApi;
@@ -322,7 +322,7 @@ export interface VlainaDesktopApi {
   account: ElectronAccountApi;
 }
 
-export function getElectronBridge(): VlainaDesktopApi | null {
+export function getElectronBridge(): DesktopApi | null {
   if (typeof window === 'undefined') {
     return null;
   }

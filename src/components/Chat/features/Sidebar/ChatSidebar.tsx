@@ -115,9 +115,9 @@ export const ChatSidebar = memo(function ChatSidebar({
       }
     };
 
-    window.addEventListener('vlaina-delete-chat', handleDeleteChat);
+    window.addEventListener('app-delete-chat', handleDeleteChat);
     return () => {
-      window.removeEventListener('vlaina-delete-chat', handleDeleteChat);
+      window.removeEventListener('app-delete-chat', handleDeleteChat);
     };
   }, [isActive]);
 

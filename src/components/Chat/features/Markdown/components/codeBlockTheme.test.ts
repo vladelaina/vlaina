@@ -31,13 +31,13 @@ describe('shared code block theme', () => {
     expect(chatCodeBlock).not.toContain('highlight.js/styles');
     expect(chatCodeBlock).toContain('@/components/common/code-block');
     expect(sharedChrome).toContain('--vlaina-code-block-background');
-    expect(sharedChrome).toContain('.vlaina-code-block-copy-button {');
-    expect(sharedChrome).toContain('opacity: 0;');
+    expect(sharedChrome).toContain('.code-block-chrome-copy-button {');
+    expect(sharedChrome).toContain('opacity: var(--vlaina-opacity-0);');
     expect(sharedChrome).toContain('pointer-events: none;');
-    expect(sharedChrome).toContain('.vlaina-code-block:hover .vlaina-code-block-copy-button,');
-    expect(sharedChrome).toContain('.vlaina-code-block:focus-within .vlaina-code-block-copy-button,');
-    expect(sharedChrome).toContain('.vlaina-code-block-copy-button[data-copied="true"] {');
-    expect(sharedChrome).toContain('opacity: 1;');
+    expect(sharedChrome).toContain('.code-block-chrome:hover .code-block-chrome-copy-button,');
+    expect(sharedChrome).toContain('.code-block-chrome:focus-within .code-block-chrome-copy-button,');
+    expect(sharedChrome).toContain('.code-block-chrome-copy-button[data-copied="true"] {');
+    expect(sharedChrome).toContain('opacity: var(--vlaina-opacity-100);');
     expect(sharedChrome).toContain('pointer-events: auto;');
 
     for (const variable of syntaxVariables) {
@@ -57,7 +57,7 @@ describe('shared code block theme', () => {
     );
 
     expect(notesHeader).toContain('@/components/common/code-block');
-    expect(notesEditorTheme).toContain('vlainaCodeBlockHighlightStyle');
+    expect(notesEditorTheme).toContain('codeBlockHighlightStyle');
     expect(notesEditorTheme).not.toContain('oneDarkTheme');
     expect(notesHighlightStyle).not.toContain('oneDarkHighlightStyle');
     expect(notesHighlightStyle).toContain('githubSyntax');

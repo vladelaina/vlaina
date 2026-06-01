@@ -8,7 +8,7 @@ import { findInsertedNodePos } from './slashInsertUtils';
 import { openSlashVideoPrompt } from './slashVideoPrompt';
 
 function markSlashUserInput(view: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
-  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+  view.dom?.dispatchEvent?.(new CustomEvent('editor:block-user-input', { bubbles: true }));
 }
 
 function insertVideoNode(ctx: Ctx, src: string) {

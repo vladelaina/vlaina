@@ -11,6 +11,7 @@ import {
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
 import type { Serializer } from '@milkdown/kit/transformer';
 import { createCaretOverlayRect, createCaretOverlayStyle } from '@/lib/ui/caretOverlayStyles';
+import { themeDomStyleTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 import { dispatchTailBlankClickAction } from './endBlankClickPlugin';
 import {
   createBlockSelectionDecorations,
@@ -64,16 +65,16 @@ const DRAG_SESSION_CURSOR = 'crosshair';
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const TRAILING_LINE_END_CLICK_GAP_PX = 8;
 const LEADING_LINE_START_CLICK_GAP_PX = 8;
-const FORCED_CARET_CLASS = 'vlaina-forced-line-end-caret-active';
-const FORCED_CARET_STYLE_ID = 'vlaina-forced-line-end-caret-style';
-const TEXTBLOCK_CARET_CLASS = 'vlaina-textblock-caret-overlay-active';
-const TEXTBLOCK_CARET_ELEMENT_SELECTOR = '.vlaina-textblock-caret-overlay';
+const FORCED_CARET_CLASS = 'editor-forced-line-end-caret-active';
+const FORCED_CARET_STYLE_ID = 'editor-forced-line-end-caret-style';
+const TEXTBLOCK_CARET_CLASS = 'editor-textblock-caret-overlay-active';
+const TEXTBLOCK_CARET_ELEMENT_SELECTOR = '.editor-textblock-caret-overlay';
 const EDITABLE_LIST_GAP_PLACEHOLDER = '\u2800';
 const MARKDOWN_BLANK_LINE_VALUE = '<!--vlaina-markdown-blank-line-->';
 const MARKDOWN_BLANK_LINE_SELECTOR = `[data-type="html-block"][data-value="${MARKDOWN_BLANK_LINE_VALUE}"]`;
 const EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER = '\u200B';
-const EDITABLE_MARKDOWN_BLANK_LINE_CLASS = 'vlaina-editable-markdown-blank-line';
-const MARKDOWN_BLANK_LINE_DEBUG_STORAGE_KEY = 'vlaina-debug-markdown-blank-line';
+const EDITABLE_MARKDOWN_BLANK_LINE_CLASS = 'editor-editable-markdown-blank-line';
+const MARKDOWN_BLANK_LINE_DEBUG_STORAGE_KEY = 'editor-debug-markdown-blank-line';
 
 interface RefinedBlankAreaPlainClickAction extends BlankAreaPlainClickAction {
   textRect?: ReturnType<typeof serializeRect>;
@@ -314,10 +315,10 @@ function resolveMarkdownBlankLineNodePos(view: EditorView, blankLine: HTMLElemen
 
 function isMarkdownBlankLineDebugEnabled(): boolean {
   const globalValue = globalThis as typeof globalThis & {
-    __vlainaDebugMarkdownBlankLine?: boolean;
+    __debugMarkdownBlankLine?: boolean;
     localStorage?: Pick<Storage, 'getItem'>;
   };
-  if (globalValue.__vlainaDebugMarkdownBlankLine === true) return true;
+  if (globalValue.__debugMarkdownBlankLine === true) return true;
   try {
     return globalValue.localStorage?.getItem(MARKDOWN_BLANK_LINE_DEBUG_STORAGE_KEY) === '1';
   } catch {
@@ -327,7 +328,7 @@ function isMarkdownBlankLineDebugEnabled(): boolean {
 
 function logMarkdownBlankLineDebug(message: string, payload: Record<string, unknown>): void {
   if (!isMarkdownBlankLineDebugEnabled()) return;
-  console.debug('[vlaina:markdown-blank-line]', message, payload);
+  console.debug('[editor:markdown-blank-line]', message, payload);
 }
 
 function handleMarkdownBlankLinePointerDown(view: EditorView, event: MouseEvent): boolean {
@@ -499,8 +500,8 @@ function ensureForcedCaretStyle(doc: Document): void {
   style.id = FORCED_CARET_STYLE_ID;
   style.textContent = createCaretOverlayStyle({
     activeSelector: `.ProseMirror.${FORCED_CARET_CLASS}, .ProseMirror.${FORCED_CARET_CLASS} *`,
-    caretClass: 'vlaina-forced-line-end-caret',
-    keyframesName: 'vlaina-forced-line-end-caret-blink',
+    caretClass: 'editor-forced-line-end-caret',
+    keyframesName: 'editor-forced-line-end-caret-blink',
   });
   doc.head.appendChild(style);
 }
@@ -527,16 +528,16 @@ function createForcedLineEdgeCaret(
     top: textRect.top,
     bottom: textRect.bottom,
   });
-  caret.className = 'vlaina-forced-line-end-caret';
+  caret.className = 'editor-forced-line-end-caret';
   caret.style.left = `${overlayRect.left}px`;
   caret.style.top = `${overlayRect.top}px`;
   caret.style.height = `${overlayRect.height}px`;
-  caret.style.zIndex = '2147483647';
+  caret.style.zIndex = themeDomStyleTokens.zIndexForcedCaret;
   const previousInlineCaretColor = view.dom.style.caretColor;
   clearTextBlockCaretOverlay(view);
   doc.body.appendChild(caret);
   view.dom.classList.add(FORCED_CARET_CLASS);
-  view.dom.style.caretColor = 'transparent';
+  view.dom.style.caretColor = themeStyleResetTokens.colorTransparent;
 
   let disposed = false;
   const scrollRoot = view.dom.closest(SCROLL_ROOT_SELECTOR);

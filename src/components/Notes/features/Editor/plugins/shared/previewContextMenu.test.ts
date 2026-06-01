@@ -107,7 +107,7 @@ describe('previewContextMenu', () => {
     });
 
     openMenu(element);
-    const menu = document.querySelector('.vlaina-preview-context-menu') as HTMLElement;
+    const menu = document.querySelector('.editor-preview-context-menu') as HTMLElement;
 
     expect(menu.style.left).toBe('300px');
     expect(menu.style.top).toBe('220px');
@@ -154,7 +154,7 @@ describe('previewContextMenu', () => {
     };
     window.dispatchEvent(new Event('resize'));
 
-    const menu = document.querySelector('.vlaina-preview-context-menu') as HTMLElement;
+    const menu = document.querySelector('.editor-preview-context-menu') as HTMLElement;
     expect(menu.style.left).toBe('400px');
     expect(menu.style.top).toBe('180px');
 
@@ -199,7 +199,7 @@ describe('previewContextMenu', () => {
     };
     window.dispatchEvent(new Event('scroll'));
 
-    const menu = document.querySelector('.vlaina-preview-context-menu') as HTMLElement;
+    const menu = document.querySelector('.editor-preview-context-menu') as HTMLElement;
     expect(menu.style.left).toBe('260px');
     expect(menu.style.top).toBe('140px');
 
@@ -232,7 +232,7 @@ describe('previewContextMenu', () => {
     });
 
     openMenu(element);
-    const menu = document.querySelector('.vlaina-preview-context-menu') as HTMLElement;
+    const menu = document.querySelector('.editor-preview-context-menu') as HTMLElement;
     Object.defineProperty(menu, 'getBoundingClientRect', {
       configurable: true,
       value: () => ({
@@ -249,7 +249,7 @@ describe('previewContextMenu', () => {
     });
     window.dispatchEvent(new Event('resize'));
 
-    expect(menu.classList.contains('vlaina-preview-context-menu-submenu-left')).toBe(true);
+    expect(menu.classList.contains('editor-preview-context-menu-submenu-left')).toBe(true);
 
     session.destroy();
   });
@@ -267,10 +267,10 @@ describe('previewContextMenu', () => {
 
     openMenu(element);
 
-    expect(document.querySelector('.vlaina-preview-context-menu')).not.toBeNull();
-    expect(document.querySelector('.vlaina-preview-context-menu')?.classList.contains('slash-menu')).toBe(true);
-    expect(document.querySelector('.vlaina-preview-context-menu')?.className).toContain(chatComposerPillSurfaceClass);
-    expect(document.querySelectorAll('.vlaina-preview-context-submenu')).toHaveLength(2);
+    expect(document.querySelector('.editor-preview-context-menu')).not.toBeNull();
+    expect(document.querySelector('.editor-preview-context-menu')?.classList.contains('slash-menu')).toBe(true);
+    expect(document.querySelector('.editor-preview-context-menu')?.className).toContain(chatComposerPillSurfaceClass);
+    expect(document.querySelectorAll('.editor-preview-context-submenu')).toHaveLength(2);
     expect(menuLabels()).toEqual(['Save as image', 'PNG', 'JPG', 'SVG', 'Insert paragraph', 'Above', 'Below']);
 
     session.destroy();
@@ -349,11 +349,11 @@ describe('previewContextMenu', () => {
 
     openMenu(element);
 
-    expect(element.classList.contains('vlaina-preview-context-menu-active')).toBe(true);
+    expect(element.classList.contains('editor-preview-context-menu-active')).toBe(true);
 
     document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
 
-    expect(element.classList.contains('vlaina-preview-context-menu-active')).toBe(false);
+    expect(element.classList.contains('editor-preview-context-menu-active')).toBe(false);
 
     session.destroy();
   });

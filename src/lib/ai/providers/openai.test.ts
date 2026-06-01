@@ -1475,20 +1475,20 @@ describe('OpenAICompatibleClient endpoint detection', () => {
   it('falls back to the cleaned user query when Claude rewrites search terms too narrowly', async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(streamResponse('data: {"choices":[{"delta":{"content":"<web_search_request>{\\"query\\":\\"Vlaina app 2026\\",\\"reason\\":\\"current info\\"}</web_search_request>"}}]}\n\ndata: [DONE]\n\n'))
-      .mockResolvedValueOnce(streamResponse('data: {"choices":[{"delta":{"content":"vlaina answer"}}]}\n\ndata: [DONE]\n\n'));
+      .mockResolvedValueOnce(streamResponse('data: {"choices":[{"delta":{"content":"<web_search_request>{\\"query\\":\\"Sample app 2026\\",\\"reason\\":\\"current info\\"}</web_search_request>"}}]}\n\ndata: [DONE]\n\n'))
+      .mockResolvedValueOnce(streamResponse('data: {"choices":[{"delta":{"content":"sample answer"}}]}\n\ndata: [DONE]\n\n'));
     vi.stubGlobal('fetch', fetchMock);
     mocks.bridge = {
       webSearch: {
         search: vi
           .fn()
-          .mockResolvedValueOnce({ query: 'Vlaina app 2026', results: [] })
+          .mockResolvedValueOnce({ query: 'Sample app 2026', results: [] })
           .mockResolvedValueOnce({
-            query: 'vlaina',
+            query: 'sample app',
             results: [{
-              title: 'vlaina',
-              url: 'https://vlaina.com',
-              snippet: 'vlaina home.',
+              title: 'sample app',
+              url: 'https://example.com',
+              snippet: 'sample app home.',
               publishedAt: null,
               source: null,
               thumbnail: null,
@@ -1496,14 +1496,14 @@ describe('OpenAICompatibleClient endpoint detection', () => {
           }),
         read: vi.fn(),
         readBatch: vi.fn(async () => [{
-          url: 'https://vlaina.com',
+          url: 'https://example.com',
           ok: true,
           page: {
-            title: 'vlaina',
+            title: 'sample app',
             summary: '',
-            siteName: 'vlaina.com',
-            finalUrl: 'https://vlaina.com',
-            content: 'Readable vlaina content.',
+            siteName: 'example.com',
+            finalUrl: 'https://example.com',
+            content: 'Readable sample app content.',
             charCount: 24,
           },
         }]),
@@ -1512,7 +1512,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     };
 
     const result = await new OpenAICompatibleClient().sendMessage(
-      '搜vlaina',
+      'Search sample app',
       [],
       buildModel({ apiModelId: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5' }),
       buildProvider({ id: 'vlaina-managed', apiHost: 'https://api.vlaina.com/v1', apiKey: '' }),
@@ -1521,12 +1521,12 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       { webSearchEnabled: true },
     );
 
-    expect(result).toContain('vlaina answer');
-    expect(result).toContain('https://vlaina.com');
-    expect(mocks.bridge.webSearch?.search).toHaveBeenNthCalledWith(1, 'Vlaina app 2026', { limit: 5 }, undefined);
-    expect(mocks.bridge.webSearch?.search).toHaveBeenNthCalledWith(2, 'vlaina', { limit: 5 }, undefined);
+    expect(result).toContain('sample answer');
+    expect(result).toContain('https://example.com');
+    expect(mocks.bridge.webSearch?.search).toHaveBeenNthCalledWith(1, 'Sample app 2026', { limit: 5 }, undefined);
+    expect(mocks.bridge.webSearch?.search).toHaveBeenNthCalledWith(2, 'sample app', { limit: 5 }, undefined);
     const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body);
-    expect(secondBody.messages.at(-1).content).toContain('Readable vlaina content.');
+    expect(secondBody.messages.at(-1).content).toContain('Readable sample app content.');
   });
 
   it('retries one transient OpenAI-compatible web search model request before failing the tool loop', async () => {

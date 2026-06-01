@@ -40,7 +40,7 @@ export function SidebarContextMenu({
         transformOrigin: 'top left',
         maxHeight: `calc(100vh - ${VIEWPORT_MENU_MARGIN * 2}px)`,
       }}
-      className={cn('fixed z-[9999]', MENU_PANEL_CLASS_NAME)}
+      className={cn('fixed z-[var(--vlaina-z-max)]', MENU_PANEL_CLASS_NAME)}
       onClick={(event) => event.stopPropagation()}
       onContextMenu={(event) => event.stopPropagation()}
     >

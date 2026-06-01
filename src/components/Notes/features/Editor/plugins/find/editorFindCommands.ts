@@ -8,6 +8,7 @@ import { revealEditorFindMatch } from './editorFindReveal';
 import type { EditorFindPluginMeta, EditorFindPluginState } from './editorFindState';
 import { getCurrentEditorBlockPositionSnapshot } from '../../utils/editorBlockPositionCache';
 import { markEditorUserInput } from '../shared/userInputEvents';
+import { themeEditorLayoutTokens } from '@/styles/themeTokens';
 
 function getScrollRoot(view: EditorView): HTMLElement | null {
   return view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
@@ -54,7 +55,7 @@ function resolveEditorFindMatchScrollTop(
     return null;
   }
 
-  const padding = 96;
+  const padding = themeEditorLayoutTokens.findScrollPaddingPx;
   const visibleTop = scrollRoot.scrollTop + padding;
   const visibleBottom = scrollRoot.scrollTop + scrollRoot.clientHeight - padding;
   if (bounds.top >= visibleTop && bounds.bottom <= visibleBottom) {
@@ -65,7 +66,10 @@ function resolveEditorFindMatchScrollTop(
     (block) => match.from >= block.from && match.to <= block.to,
   );
   const centeredScrollTop =
-    bounds.top - Math.max(32, (scrollRoot.clientHeight - (bounds.bottom - bounds.top)) / 2);
+    bounds.top - Math.max(
+      themeEditorLayoutTokens.findCenteredMinOffsetPx,
+      (scrollRoot.clientHeight - (bounds.bottom - bounds.top)) / 2,
+    );
 
   if (!containingBlock) {
     return Math.max(centeredScrollTop, 0);
@@ -78,7 +82,13 @@ function resolveEditorFindMatchScrollTop(
   }
 
   const preferredScrollTop =
-    containingBlock.documentTop - Math.max(40, Math.min(160, scrollRoot.clientHeight * 0.26));
+    containingBlock.documentTop - Math.max(
+      themeEditorLayoutTokens.findBlockTopMinOffsetPx,
+      Math.min(
+        themeEditorLayoutTokens.findBlockTopMaxOffsetPx,
+        scrollRoot.clientHeight * themeEditorLayoutTokens.findBlockTopViewportRatio,
+      ),
+    );
   return Math.max(
     0,
     Math.min(maxScrollTop, Math.max(minScrollTop, preferredScrollTop)),
@@ -103,7 +113,7 @@ function scrollEditorFindMatchIntoView(
       const scrollRoot = getScrollRoot(view);
 
       if (scrollRoot) {
-        const padding = 96;
+        const padding = themeEditorLayoutTokens.findScrollPaddingPx;
         const rootRect = scrollRoot.getBoundingClientRect();
 
         if (top >= rootRect.top + padding && bottom <= rootRect.bottom - padding) {
@@ -115,7 +125,10 @@ function scrollEditorFindMatchIntoView(
           scrollRoot.scrollTop +
           top -
           rootRect.top -
-          Math.max(32, (scrollRoot.clientHeight - (bottom - top)) / 2);
+          Math.max(
+            themeEditorLayoutTokens.findCenteredMinOffsetPx,
+            (scrollRoot.clientHeight - (bottom - top)) / 2,
+          );
 
         scrollRoot.scrollTo({
           top: Math.max(contextualScrollTop ?? centeredOffset, 0),

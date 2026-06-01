@@ -5,10 +5,11 @@ import {
   isInlineSelectableBlockRange,
   resolveSelectableBlockTargetByPos,
 } from './blockUnitResolver';
+import { themeOffscreenTokens, themeRenderingTokens } from '@/styles/themeTokens';
 
-const SOURCE_CLASS = 'vlaina-block-drag-source';
-const PREVIEW_CLASS = 'vlaina-block-drag-preview';
-const PREVIEW_LAYER_CLASS = 'vlaina-block-drag-preview-layer';
+const SOURCE_CLASS = 'editor-block-drag-source';
+const PREVIEW_CLASS = 'editor-block-drag-preview';
+const PREVIEW_LAYER_CLASS = 'editor-block-drag-preview-layer';
 const MIN_PREVIEW_WIDTH = 80;
 
 interface BlockDragPreviewOptions {
@@ -301,7 +302,7 @@ function createContentLayer(doc: Document, items: readonly PreviewItem[], captur
 function revealAfterVideoCaptures(preview: HTMLElement, captureJobs: readonly CaptureJob[]): void {
   if (captureJobs.length === 0) return;
 
-  preview.style.visibility = 'hidden';
+  preview.style.visibility = themeRenderingTokens.visibilityHidden;
   void Promise.all(captureJobs.map((job) => captureElementPreview(job))).finally(() => {
     if (!preview.isConnected) return;
     preview.style.visibility = '';
@@ -332,8 +333,8 @@ export function createBlockDragPreview({
   preview.className = PREVIEW_CLASS;
   preview.setAttribute('aria-hidden', 'true');
   preview.setAttribute('data-no-editor-drag-box', 'true');
-  preview.style.left = '-10000px';
-  preview.style.top = '-10000px';
+  preview.style.left = themeOffscreenTokens.blockDragPreviewLeft;
+  preview.style.top = themeOffscreenTokens.blockDragPreviewTop;
 
   copyCssVariables(view.dom as HTMLElement, preview);
   const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]');

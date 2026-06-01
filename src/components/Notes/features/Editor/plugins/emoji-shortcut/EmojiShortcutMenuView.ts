@@ -13,7 +13,7 @@ import { createEmojiShortcutState, getEmojiShortcutMenuPosition, getEmojiShortcu
 const EMOJI_MENU_MARGIN_PX = 12;
 
 function markEmojiShortcutUserInput(view: EditorView): void {
-  view.dom.dispatchEvent(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+  view.dom.dispatchEvent(new CustomEvent('editor:block-user-input', { bubbles: true }));
 }
 
 export class EmojiShortcutMenuView {

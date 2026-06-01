@@ -32,11 +32,11 @@ export function ManagedProviderPanel({
         <div className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-[var(--notes-sidebar-text)]">{t('settings.ai.managedTitle')}</h3>
-              <p className="text-xs text-[var(--notes-sidebar-text-soft)]">
+              <h3 className="text-sm font-semibold text-[var(--vlaina-sidebar-notes-text)]">{t('settings.ai.managedTitle')}</h3>
+              <p className="text-xs text-[var(--vlaina-sidebar-notes-text-soft)]">
                 {t('settings.ai.managedDescription')}
               </p>
-              <p className="text-xs text-[var(--notes-sidebar-text-soft)]">{t('settings.ai.baseUrl', { url: MANAGED_API_BASE })}</p>
+              <p className="text-xs text-[var(--vlaina-sidebar-notes-text-soft)]">{t('settings.ai.baseUrl', { url: MANAGED_API_BASE })}</p>
             </div>
             <div className="flex items-center gap-2">
               {isConnected ? (
@@ -44,7 +44,7 @@ export function ManagedProviderPanel({
                   <button
                     type="button"
                     onClick={() => void onRefresh()}
-                    className="h-9 px-4 text-xs font-semibold rounded-lg border border-[var(--vlaina-border)] text-[var(--notes-sidebar-text)] hover:bg-[var(--vlaina-hover)]"
+                    className="h-9 px-4 text-xs font-semibold rounded-lg border border-[var(--vlaina-border)] text-[var(--vlaina-sidebar-notes-text)] hover:bg-[var(--vlaina-hover)]"
                   >
                     {t('settings.ai.refresh')}
                   </button>
@@ -57,7 +57,7 @@ export function ManagedProviderPanel({
                   </button>
                 </>
               ) : (
-                <div className="text-xs text-[var(--notes-sidebar-text-soft)]">{t('settings.ai.chooseProvider')}</div>
+                <div className="text-xs text-[var(--vlaina-sidebar-notes-text-soft)]">{t('settings.ai.chooseProvider')}</div>
               )}
             </div>
           </div>
@@ -74,17 +74,17 @@ export function ManagedProviderPanel({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="rounded-xl border border-[var(--vlaina-border)] bg-[var(--vlaina-color-row-soft)] p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--notes-sidebar-text-soft)]">{t('settings.ai.status')}</div>
-              <div className="mt-2 text-sm font-medium text-[var(--notes-sidebar-text)]">
+              <div className="text-[var(--vlaina-font-11)] font-semibold uppercase tracking-[var(--vlaina-tracking-label-2xl)] text-[var(--vlaina-sidebar-notes-text-soft)]">{t('settings.ai.status')}</div>
+              <div className="mt-2 text-sm font-medium text-[var(--vlaina-sidebar-notes-text)]">
                 {isConnected ? t('settings.ai.connected') : t('settings.ai.notConnected')}
               </div>
             </div>
             <div className="rounded-xl border border-[var(--vlaina-border)] bg-[var(--vlaina-color-row-soft)] p-4 md:col-span-2">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--notes-sidebar-text-soft)]">{t('settings.ai.account')}</div>
-              <div className="mt-2 text-sm font-medium text-[var(--notes-sidebar-text)]">
+              <div className="text-[var(--vlaina-font-11)] font-semibold uppercase tracking-[var(--vlaina-tracking-label-2xl)] text-[var(--vlaina-sidebar-notes-text-soft)]">{t('settings.ai.account')}</div>
+              <div className="mt-2 text-sm font-medium text-[var(--vlaina-sidebar-notes-text)]">
                 {isConnected ? t('settings.ai.signedIn') : t('settings.ai.signInRequired')}
               </div>
-              <p className="mt-1 text-xs text-[var(--notes-sidebar-text-soft)]">
+              <p className="mt-1 text-xs text-[var(--vlaina-sidebar-notes-text-soft)]">
                 {t('settings.ai.budgetInAccountCard')}
               </p>
             </div>

@@ -11,6 +11,7 @@ import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
 import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
+import { themeIconTokens } from '@/styles/themeTokens';
 
 const MAX_TAG_NOTE_ICON_CACHE_ENTRIES = 300;
 const MAX_TAG_NOTE_ICON_METADATA_BYTES = 512 * 1024;
@@ -106,21 +107,21 @@ export function NotesTagsSection({
     <div className="min-w-0 w-full overflow-hidden rounded-md">
       <NotesSidebarRow
         leading={
-          <span className="relative flex size-[20px] items-center justify-center">
-            <span className="text-[16px] font-semibold leading-none text-[var(--notes-sidebar-folder-icon)] transition-none group-hover/sidebar-row:opacity-0 group-focus-within/sidebar-row:opacity-0">
+          <span className="relative flex size-[var(--vlaina-size-20px)] items-center justify-center">
+            <span className="text-[var(--vlaina-font-base)] font-semibold leading-none text-[var(--vlaina-sidebar-notes-folder-icon)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-0)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-0)]">
               #
             </span>
             <CollapseTriangleAffordance
               collapsed={!expanded}
               visibility="always"
-              size={14}
-              className="absolute inset-0 opacity-0 transition-none group-hover/sidebar-row:opacity-100 group-focus-within/sidebar-row:opacity-100"
-              iconClassName="text-[var(--notes-sidebar-file-icon)]"
+              size={themeIconTokens.sizeSm}
+              className="absolute inset-0 opacity-[var(--vlaina-opacity-0)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-100)]"
+              iconClassName="text-[var(--vlaina-sidebar-notes-file-icon)]"
             />
           </span>
         }
         main={
-          <span className="block min-w-0 max-w-full truncate text-[16px] text-[var(--notes-sidebar-text)]">
+          <span className="block min-w-0 max-w-full truncate text-[var(--vlaina-font-base)] text-[var(--vlaina-sidebar-notes-text)]">
             {t('notes.tags')}
           </span>
         }
@@ -133,25 +134,25 @@ export function NotesTagsSection({
             <div key={entry.tag}>
               <NotesSidebarRow
                 depth={1}
-                rowClassName="h-auto min-h-[36px] items-start py-1.5"
+                rowClassName="h-auto min-h-[var(--vlaina-size-36px)] items-start py-1.5"
                 leadingClassName="self-start pt-1"
                 contentClassName="min-w-0 overflow-hidden pr-2"
                 leading={
-                  <span className="relative flex size-[20px] items-center justify-center">
-                    <span className="text-[14px] font-semibold leading-none text-[var(--notes-sidebar-folder-icon)] transition-none group-hover/sidebar-row:opacity-0 group-focus-within/sidebar-row:opacity-0">
+                  <span className="relative flex size-[var(--vlaina-size-20px)] items-center justify-center">
+                    <span className="text-[var(--vlaina-font-sm)] font-semibold leading-none text-[var(--vlaina-sidebar-notes-folder-icon)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-0)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-0)]">
                       #
                     </span>
                     <CollapseTriangleAffordance
                       collapsed={!expandedTags.has(entry.tag)}
                       visibility="always"
-                      size={14}
-                      className="absolute inset-0 opacity-0 transition-none group-hover/sidebar-row:opacity-100 group-focus-within/sidebar-row:opacity-100"
-                      iconClassName="text-[var(--notes-sidebar-file-icon)]"
+                      size={themeIconTokens.sizeSm}
+                      className="absolute inset-0 opacity-[var(--vlaina-opacity-0)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-100)]"
+                      iconClassName="text-[var(--vlaina-sidebar-notes-file-icon)]"
                     />
                   </span>
                 }
                 main={
-                  <span className="block min-w-0 max-w-full whitespace-normal break-words text-[16px] leading-5 text-[var(--notes-sidebar-text)] [overflow-wrap:anywhere]">
+                  <span className="block min-w-0 max-w-full whitespace-normal break-words text-[var(--vlaina-font-base)] leading-5 text-[var(--vlaina-sidebar-notes-text)] [overflow-wrap:anywhere]">
                     {entry.tag}
                   </span>
                 }
@@ -244,7 +245,7 @@ function NotesTagFileRow({
   return (
     <NotesSidebarRow
       depth={2}
-      rowClassName="h-auto min-h-[36px] items-start py-1.5"
+      rowClassName="h-auto min-h-[var(--vlaina-size-36px)] items-start py-1.5"
       leadingClassName="self-start pt-1"
       contentClassName="min-w-0 overflow-hidden pr-2"
       leading={
@@ -254,13 +255,13 @@ function NotesTagFileRow({
           <Icon
             name="file.text"
             size={NOTES_SIDEBAR_ICON_SIZE}
-            className="text-[var(--notes-sidebar-file-icon)]"
+            className="text-[var(--vlaina-sidebar-notes-file-icon)]"
           />
         )
       }
       isActive={currentNotePath === path}
       main={
-        <span className="block min-w-0 max-w-full whitespace-normal break-words text-[16px] leading-5 text-[var(--notes-sidebar-text)] [overflow-wrap:anywhere]">
+        <span className="block min-w-0 max-w-full whitespace-normal break-words text-[var(--vlaina-font-base)] leading-5 text-[var(--vlaina-sidebar-notes-text)] [overflow-wrap:anywhere]">
           {getDisplayName(path) || path.split('/').pop()?.replace(/\.md$/i, '') || path}
         </span>
       }

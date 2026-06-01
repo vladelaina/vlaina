@@ -48,7 +48,7 @@ describe('startBlockDragSession', () => {
       onTeardown,
     });
 
-    expect(view.dom.classList.contains('vlaina-block-selection-pending')).toBe(false);
+    expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
     expect(cursorRoot.style.cursor).toBe('');
     expect(document.body.style.cursor).toBe('');
     expect(view.dom.style.cursor).toBe('');
@@ -59,7 +59,7 @@ describe('startBlockDragSession', () => {
     expect(onDragMove).not.toHaveBeenCalled();
     expect(onPlainClick).toHaveBeenCalledWith('outside-editor');
     expect(onTeardown).toHaveBeenCalledTimes(1);
-    expect(view.dom.classList.contains('vlaina-block-selection-pending')).toBe(false);
+    expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
     expect(cursorRoot.style.cursor).toBe('');
     expect(document.body.style.userSelect).toBe('');
   });
@@ -92,7 +92,7 @@ describe('startBlockDragSession', () => {
       onTeardown,
     });
 
-    expect(view.dom.classList.contains('vlaina-block-selection-pending')).toBe(false);
+    expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
     expect(cursorRoot.style.cursor).toBe('');
     expect(document.body.style.cursor).toBe('');
     expect(view.dom.style.cursor).toBe('');
@@ -124,8 +124,8 @@ describe('startBlockDragSession', () => {
       right: 40,
       bottom: 54,
     });
-    expect(view.dom.classList.contains('vlaina-block-selection-pending')).toBe(true);
-    expect(document.body.classList.contains('vlaina-block-dragging-cursor')).toBe(false);
+    expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(true);
+    expect(document.body.classList.contains('editor-block-dragging-cursor')).toBe(false);
     expect(cursorRoot.style.cursor).toBe('crosshair');
     expect(document.body.style.cursor).toBe('');
     expect(view.dom.style.cursor).toBe('crosshair');
@@ -135,8 +135,8 @@ describe('startBlockDragSession', () => {
 
     expect(onPlainClick).not.toHaveBeenCalled();
     expect(onTeardown).toHaveBeenCalledTimes(1);
-    expect(view.dom.classList.contains('vlaina-block-selection-pending')).toBe(false);
-    expect(document.body.classList.contains('vlaina-block-dragging-cursor')).toBe(false);
+    expect(view.dom.classList.contains('editor-block-selection-pending')).toBe(false);
+    expect(document.body.classList.contains('editor-block-dragging-cursor')).toBe(false);
     expect(document.body.style.userSelect).toBe('');
   });
 

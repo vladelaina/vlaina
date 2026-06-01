@@ -120,7 +120,7 @@ describe('BlockControlsViewSession', () => {
       document.dispatchEvent(new MouseEvent('mousemove', { clientY: 50, bubbles: true }));
       await nextFrame();
 
-      const controls = document.querySelector<HTMLElement>('.vlaina-block-controls');
+      const controls = document.querySelector<HTMLElement>('.editor-block-controls');
       expect(controls?.style.top).toBe('50px');
 
       mocks.targetTop = 54;
@@ -152,7 +152,7 @@ describe('BlockControlsViewSession', () => {
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 50, bubbles: true }));
       await nextFrame();
 
-      const controls = document.querySelector<HTMLElement>('.vlaina-block-controls');
+      const controls = document.querySelector<HTMLElement>('.editor-block-controls');
       expect(controls?.classList.contains('visible')).toBe(true);
 
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 140, bubbles: true }));
@@ -172,7 +172,7 @@ describe('BlockControlsViewSession', () => {
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 95, bubbles: true }));
       await nextFrame();
 
-      const controls = document.querySelector<HTMLElement>('.vlaina-block-controls');
+      const controls = document.querySelector<HTMLElement>('.editor-block-controls');
       expect(controls?.classList.contains('visible')).toBe(false);
     } finally {
       session.destroy();
@@ -187,7 +187,7 @@ describe('BlockControlsViewSession', () => {
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 50, bubbles: true }));
       await nextFrame();
 
-      const controls = document.querySelector<HTMLElement>('.vlaina-block-controls');
+      const controls = document.querySelector<HTMLElement>('.editor-block-controls');
       expect(controls?.classList.contains('visible')).toBe(true);
 
       window.dispatchEvent(new Event('blur'));
@@ -216,7 +216,7 @@ describe('BlockControlsViewSession', () => {
 
     try {
       document
-        .querySelector<HTMLElement>('.vlaina-block-control-handle')
+        .querySelector<HTMLElement>('.editor-block-control-handle')
         ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 20, bubbles: true }));
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 40, clientY: 120, buttons: 1, bubbles: true }));
       document.dispatchEvent(new MouseEvent('mouseup', { clientX: 40, clientY: 120, bubbles: true }));
@@ -240,13 +240,13 @@ describe('BlockControlsViewSession', () => {
 
     try {
       document
-        .querySelector<HTMLElement>('.vlaina-block-control-handle')
+        .querySelector<HTMLElement>('.editor-block-control-handle')
         ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 50, bubbles: true }));
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 40, clientY: 140, buttons: 1, bubbles: true }));
       document.dispatchEvent(new MouseEvent('mouseup', { clientX: 40, clientY: 140, bubbles: true }));
       await nextFrame();
 
-      const controls = document.querySelector<HTMLElement>('.vlaina-block-controls');
+      const controls = document.querySelector<HTMLElement>('.editor-block-controls');
       expect(controls?.classList.contains('visible')).toBe(false);
     } finally {
       session.destroy();
@@ -259,13 +259,13 @@ describe('BlockControlsViewSession', () => {
 
     try {
       document
-        .querySelector<HTMLElement>('.vlaina-block-control-handle')
+        .querySelector<HTMLElement>('.editor-block-control-handle')
         ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 50, bubbles: true }));
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 40, clientY: 60, buttons: 1, bubbles: true }));
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await nextFrame();
 
-      const controls = document.querySelector<HTMLElement>('.vlaina-block-controls');
+      const controls = document.querySelector<HTMLElement>('.editor-block-controls');
       expect(controls?.classList.contains('visible')).toBe(false);
     } finally {
       session.destroy();
@@ -288,12 +288,12 @@ describe('BlockControlsViewSession', () => {
 
     try {
       document
-        .querySelector<HTMLElement>('.vlaina-block-control-handle')
+        .querySelector<HTMLElement>('.editor-block-control-handle')
         ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 20, bubbles: true }));
 
       document.elementsFromPoint = vi.fn(() => []);
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 40, clientY: 120, buttons: 1, bubbles: true }));
-      const indicator = document.querySelector<HTMLElement>('.vlaina-block-drop-indicator');
+      const indicator = document.querySelector<HTMLElement>('.editor-block-drop-indicator');
       expect(indicator?.classList.contains('visible')).toBe(true);
 
       document.elementsFromPoint = vi.fn(() => [dropTarget]);
@@ -319,7 +319,7 @@ describe('BlockControlsViewSession', () => {
 
     try {
       document
-        .querySelector<HTMLElement>('.vlaina-block-control-handle')
+        .querySelector<HTMLElement>('.editor-block-control-handle')
         ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 20, bubbles: true }));
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 40, clientY: 95, buttons: 1, bubbles: true }));
       vi.mocked(resolveDropTarget).mockClear();

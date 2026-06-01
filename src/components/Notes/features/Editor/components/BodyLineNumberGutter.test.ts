@@ -69,7 +69,7 @@ describe('BodyLineNumberGutter', () => {
     const third = document.createElement('p');
 
     editorRoot.className = 'ProseMirror';
-    selected.className = 'vlaina-block-selected';
+    selected.className = 'editor-block-selected';
     shell.appendChild(editorRoot);
     editorRoot.append(first, selected, third);
 
@@ -96,7 +96,7 @@ describe('BodyLineNumberGutter', () => {
     const selectedParagraph = document.createElement('p');
 
     editorRoot.className = 'ProseMirror';
-    selectedParagraph.className = 'vlaina-block-selected';
+    selectedParagraph.className = 'editor-block-selected';
     second.appendChild(selectedParagraph);
     list.append(first, second);
     shell.appendChild(editorRoot);

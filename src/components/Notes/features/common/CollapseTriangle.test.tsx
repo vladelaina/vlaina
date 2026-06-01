@@ -20,8 +20,8 @@ describe('CollapseTriangleAffordance', () => {
     );
     const wrapper = container.querySelector('span');
 
-    expect(wrapper?.getAttribute('class') ?? '').toContain('opacity-100');
-    expect(wrapper?.getAttribute('class') ?? '').not.toContain('group-hover:opacity-100');
+    expect(wrapper?.getAttribute('class') ?? '').toContain('opacity-[var(--vlaina-opacity-100)]');
+    expect(wrapper?.getAttribute('class') ?? '').not.toContain('group-hover:opacity-[var(--vlaina-opacity-100)]');
   });
 
   it('reveals expanded triangles on hover in hover-unless-collapsed mode', () => {
@@ -30,7 +30,7 @@ describe('CollapseTriangleAffordance', () => {
     );
     const wrapper = container.querySelector('span');
 
-    expect(wrapper?.getAttribute('class') ?? '').toContain('opacity-0');
-    expect(wrapper?.getAttribute('class') ?? '').toContain('group-hover:opacity-100');
+    expect(wrapper?.getAttribute('class') ?? '').toContain('opacity-[var(--vlaina-opacity-0)]');
+    expect(wrapper?.getAttribute('class') ?? '').toContain('group-hover:opacity-[var(--vlaina-opacity-100)]');
   });
 });

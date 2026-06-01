@@ -371,7 +371,7 @@ export class FrontmatterNodeView implements NodeView {
     const target = event.target;
     if (
       this.dom.dataset.pmSelected === 'true' ||
-      this.dom.classList.contains('vlaina-block-selected')
+      this.dom.classList.contains('editor-block-selected')
     ) {
       if (event.type === 'copy' || event.type === 'cut' || event.type === 'paste') {
         return false;

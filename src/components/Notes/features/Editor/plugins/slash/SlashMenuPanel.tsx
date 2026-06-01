@@ -1,6 +1,7 @@
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import type { SlashMenuItem } from './types';
+import { themeIconTokens } from '@/styles/themeTokens';
 
 type SlashMenuPanelProps = {
   items: readonly SlashMenuItem[];
@@ -37,7 +38,7 @@ export function SlashMenuPanel({
             }}
           >
             <span className="slash-menu-item-icon" aria-hidden="true">
-              <Icon name={item.icon} size={18} />
+              <Icon name={item.icon} size={themeIconTokens.sizeCompact} />
             </span>
             <span className="slash-menu-item-content">
               <span className="slash-menu-item-name">{t(item.nameKey)}</span>

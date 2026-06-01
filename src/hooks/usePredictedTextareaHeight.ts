@@ -5,6 +5,7 @@ import {
   resolveElementTextLayoutMetrics,
   type ElementTextLayoutMetrics,
 } from '@/lib/text-layout';
+import { themeTextAreaTokens } from '@/styles/themeTokens';
 
 interface UsePredictedTextareaHeightOptions {
   maxHeight: number;
@@ -21,7 +22,7 @@ function applyFallbackHeight(
   minHeight: number,
   maxHeight: number,
 ): void {
-  textarea.style.height = 'auto';
+  textarea.style.height = themeTextAreaTokens.heightAuto;
   const nextHeight = Math.max(minHeight, Math.min(textarea.scrollHeight, maxHeight));
   textarea.style.height = `${nextHeight}px`;
 }

@@ -1,21 +1,27 @@
 export function ChatLoading() {
+    const dotAnimationDelays = [
+        'var(--vlaina-duration-0)',
+        'var(--vlaina-duration-100)',
+        'var(--vlaina-duration-200)',
+    ];
+
     return (
         <div className="flex h-6 w-fit items-center space-x-1.5 self-start rounded-full min-w-0 select-none">
             <style dangerouslySetInnerHTML={{ __html: `
-                @keyframes vlaina-typing {
-                    0%, 100% { opacity: 0.4; transform: translateY(0); }
-                    50% { opacity: 1; transform: translateY(-2px); }
+                @keyframes chat-loading-typing {
+                    0%, 100% { opacity: var(--vlaina-opacity-40); transform: translateY(var(--vlaina-translate-0)); }
+                    50% { opacity: var(--vlaina-opacity-100); transform: translateY(var(--vlaina-translate--2px)); }
                 }
-                .vlaina-dot {
-                    animation: vlaina-typing 0.8s infinite ease-in-out;
+                .chat-loading-dot {
+                    animation: chat-loading-typing var(--vlaina-duration-chat-typing) infinite var(--vlaina-ease-in-out);
                 }
             `}} />
             {[0, 1, 2].map((i) => (
                 <div
                     key={i}
-                    className="w-1.5 h-1.5 bg-[var(--vlaina-accent)] rounded-full vlaina-dot"
+                    className="w-1.5 h-1.5 bg-[var(--vlaina-accent)] rounded-full chat-loading-dot"
                     style={{
-                        animationDelay: `${i * 0.1}s`,
+                        animationDelay: dotAnimationDelays[i],
                     }}
                 />
             ))}

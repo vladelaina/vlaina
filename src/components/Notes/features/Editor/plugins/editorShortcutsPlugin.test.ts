@@ -192,7 +192,7 @@ describe('handleEditorShortcut', () => {
     expect(handleEditorShortcut(insertView as never, insertEvent)).toBe(true);
     expect(mocks.createEmptyTableNode).toHaveBeenCalledWith(insertView.state.schema, 3);
     expect(insertView.dom.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'vlaina:block-user-input',
+      type: 'editor:block-user-input',
     }));
     expect(insertView.dispatch).toHaveBeenCalledOnce();
     expectHandled(insertEvent);
@@ -201,7 +201,7 @@ describe('handleEditorShortcut', () => {
     const addRowEvent = createEvent('Enter');
     expect(handleEditorShortcut(addRowView as never, addRowEvent)).toBe(true);
     expect(addRowView.dom.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'vlaina:block-user-input',
+      type: 'editor:block-user-input',
     }));
     expect(mocks.addRowAfter).toHaveBeenCalledWith(addRowView.state, addRowView.dispatch);
     expectHandled(addRowEvent);
@@ -210,7 +210,7 @@ describe('handleEditorShortcut', () => {
     const deleteRowEvent = createEvent('Backspace', { shiftKey: true });
     expect(handleEditorShortcut(deleteRowView as never, deleteRowEvent)).toBe(true);
     expect(deleteRowView.dom.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'vlaina:block-user-input',
+      type: 'editor:block-user-input',
     }));
     expect(mocks.deleteRow).toHaveBeenCalledWith(deleteRowView.state, deleteRowView.dispatch);
     expectHandled(deleteRowEvent);
@@ -237,7 +237,7 @@ describe('handleEditorShortcut', () => {
     expect(view.state.schema.nodes.math_block.create).toHaveBeenCalledWith({ latex: '' });
     expect(view.state.tr.setMeta).toHaveBeenCalledWith(expect.anything(), { open: true });
     expect(view.dom.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'vlaina:block-user-input',
+      type: 'editor:block-user-input',
     }));
     expect(view.dispatch).toHaveBeenCalledOnce();
     expectHandled(event);
@@ -248,7 +248,7 @@ describe('handleEditorShortcut', () => {
     const indentEvent = createEvent(']');
     expect(handleEditorShortcut(indentView as never, indentEvent)).toBe(true);
     expect(indentView.dom.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'vlaina:block-user-input',
+      type: 'editor:block-user-input',
     }));
     expect(mocks.sinkListItem).toHaveBeenCalledWith(indentView.state.schema.nodes.list_item);
     expect(mocks.sinkListItemCommand).toHaveBeenCalledWith(indentView.state, indentView.dispatch);
@@ -258,7 +258,7 @@ describe('handleEditorShortcut', () => {
     const outdentEvent = createEvent('[');
     expect(handleEditorShortcut(outdentView as never, outdentEvent)).toBe(true);
     expect(outdentView.dom.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'vlaina:block-user-input',
+      type: 'editor:block-user-input',
     }));
     expect(mocks.liftListItem).toHaveBeenCalledWith(outdentView.state.schema.nodes.list_item);
     expect(mocks.liftListItemCommand).toHaveBeenCalledWith(outdentView.state, outdentView.dispatch);
@@ -284,7 +284,7 @@ describe('handleEditorShortcut', () => {
     expect(handleEditorShortcut(view as never, clearEvent)).toBe(true);
     expect(view.state.tr.removeStoredMark).toHaveBeenCalledTimes(2);
     expect(view.dom.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'vlaina:block-user-input',
+      type: 'editor:block-user-input',
     }));
     expect(view.dispatch).toHaveBeenCalledWith(view.state.tr);
     expectHandled(clearEvent);

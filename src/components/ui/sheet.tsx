@@ -37,7 +37,7 @@ function SheetOverlay({
     <SheetPrimitive.Overlay
       data-slot="sheet-overlay"
       className={cn(
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-[var(--vlaina-color-overlay)]",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-[var(--vlaina-z-50)] bg-[var(--vlaina-color-overlay)]",
         className
       )}
       {...props}
@@ -59,11 +59,11 @@ function SheetContent({
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+          "bg-[var(--background)] data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-[var(--vlaina-z-50)] flex flex-col gap-4 shadow-[var(--vlaina-shadow-lg)] transition ease-in-out data-[state=closed]:duration-[var(--vlaina-duration-300)] data-[state=open]:duration-[var(--vlaina-duration-500)]",
           side === "right" &&
-            "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-[18px]/4 border-l sm:max-w-sm",
+            "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-[var(--vlaina-size-18px)]/4 border-l sm:max-w-sm",
           side === "left" &&
-            "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-full w-[18px]/4 border-r sm:max-w-sm",
+            "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-full w-[var(--vlaina-size-18px)]/4 border-r sm:max-w-sm",
           side === "top" &&
             "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top inset-x-0 top-0 h-auto border-b",
           side === "bottom" &&
@@ -73,7 +73,7 @@ function SheetContent({
         {...props}
       >
         {children}
-        <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
+        <SheetPrimitive.Close className="ring-offset-[var(--background)] focus:ring-[var(--ring)] data-[state=open]:bg-[var(--secondary)] absolute top-4 right-4 rounded-xs opacity-[var(--vlaina-opacity-70)] transition-opacity hover:opacity-[var(--vlaina-opacity-100)] focus:ring-2 app-focus-ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
           <Icon size="md" name="common.close" />
           <span className="sr-only">{translate('common.close')}</span>
         </SheetPrimitive.Close>
@@ -109,7 +109,7 @@ function SheetTitle({
   return (
     <SheetPrimitive.Title
       data-slot="sheet-title"
-      className={cn("text-foreground font-semibold", className)}
+      className={cn("text-[var(--foreground)] font-semibold", className)}
       {...props}
     />
   )
@@ -122,7 +122,7 @@ function SheetDescription({
   return (
     <SheetPrimitive.Description
       data-slot="sheet-description"
-      className={cn("text-muted-foreground text-sm", className)}
+      className={cn("text-[var(--muted-foreground)] text-sm", className)}
       {...props}
     />
   )

@@ -40,7 +40,7 @@ export function createTreeItemStarEntry(
       <Icon
         name="misc.star"
         size="md"
-        className={isStarred ? 'fill-amber-500 text-amber-500' : undefined}
+        className={isStarred ? 'fill-[var(--vlaina-color-favorite-fg)] text-[var(--vlaina-color-favorite-fg)]' : undefined}
       />
     ),
     label: isStarred ? labels.removeFromStarred : labels.addToStarred,

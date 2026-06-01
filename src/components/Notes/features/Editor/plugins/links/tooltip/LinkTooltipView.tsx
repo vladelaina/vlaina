@@ -13,6 +13,7 @@ import {
     getLinkTooltipPositionRoot,
     type LinkTooltipAnchor,
 } from './linkTooltipPositioning';
+import { themeRenderingTokens } from '@/styles/themeTokens';
 import { installLinkTooltipEvents } from './linkTooltipEvents';
 import { LinkTooltipTimers } from './linkTooltipTimers';
 import {
@@ -41,10 +42,10 @@ export class LinkTooltipView {
     constructor(view: EditorView) {
         this.view = view;
         this.positionRoot = getLinkTooltipPositionRoot(view);
-        this.view.dom.style.whiteSpace = 'pre-wrap';
+        this.view.dom.style.whiteSpace = themeRenderingTokens.whiteSpacePreWrap;
 
         this.dom = document.createElement('div');
-        this.dom.className = 'link-tooltip-container absolute hidden z-50';
+        this.dom.className = 'link-tooltip-container absolute hidden z-[var(--vlaina-z-50)]';
         (this.positionRoot ?? document.body).appendChild(this.dom);
         this.root = createRoot(this.dom);
 

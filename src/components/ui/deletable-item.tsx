@@ -47,17 +47,17 @@ export function DeletableItem({
             onClick={handleClick}
         >
             <div className={cn(
-                "w-full h-full transition-all duration-300",
-                isDeleting ? "opacity-40 blur-[0.5px]" : "opacity-100"
+                "w-full h-full transition-all duration-[var(--vlaina-duration-300)]",
+                isDeleting ? "opacity-[var(--vlaina-opacity-40)] blur-[var(--vlaina-blur-05px)]" : "opacity-[var(--vlaina-opacity-100)]"
             )}>
                 {children}
             </div>
 
             {isDeleting ? (
                 <div
-                    className="absolute inset-0 flex items-center justify-center cursor-pointer z-30"
+                    className="absolute inset-0 flex items-center justify-center cursor-pointer z-[var(--vlaina-z-30)]"
                 >
-                    <div className="text-red-500 transition-all active:scale-90 pointer-events-none">
+                    <div className="text-[var(--vlaina-color-status-danger-fg)] transition-all active:scale-[var(--vlaina-scale-90)] pointer-events-none">
                         <Icon name="common.delete" size="lg" />
                     </div>
                 </div>
@@ -66,11 +66,11 @@ export function DeletableItem({
                     <button
                         onClick={handleDeleteTrigger}
                         className={cn(
-                            "absolute -top-1 -right-1 z-20 p-1.5 transition-all duration-200",
+                            "absolute -top-1 -right-1 z-[var(--vlaina-z-20)] p-1.5 transition-all duration-[var(--vlaina-duration-200)]",
                             "flex items-center justify-center",
-                            "text-[var(--vlaina-text-tertiary)] hover:text-red-500",
-                            "opacity-0 group-hover/item:opacity-100",
-                            "scale-90 hover:scale-100"
+                            "text-[var(--vlaina-text-tertiary)] hover:text-[var(--vlaina-color-status-danger-fg)]",
+                            "opacity-[var(--vlaina-opacity-0)] group-hover/item:opacity-[var(--vlaina-opacity-100)]",
+                            "scale-[var(--vlaina-scale-90)] hover:scale-[var(--vlaina-scale-100)]"
                         )}
                     >
                         <Icon name="common.close" size="md" />

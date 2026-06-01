@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, type ComponentPropsWithoutRef } from 'react';
+import { themeTextAreaTokens } from '@/styles/themeTokens';
 
 interface SidebarInlineRenameInputProps
   extends Omit<
@@ -30,9 +31,11 @@ export function SidebarInlineRenameInput({
       return;
     }
 
-    input.style.height = 'auto';
-    input.style.height = `${Math.min(input.scrollHeight, 96)}px`;
-    input.style.overflowY = input.scrollHeight > 96 ? 'auto' : 'hidden';
+    input.style.height = themeTextAreaTokens.heightAuto;
+    input.style.height = `${Math.min(input.scrollHeight, themeTextAreaTokens.inlineRenameMaxHeightPx)}px`;
+    input.style.overflowY = input.scrollHeight > themeTextAreaTokens.inlineRenameMaxHeightPx
+      ? themeTextAreaTokens.overflowAuto
+      : themeTextAreaTokens.overflowHidden;
   }, [value]);
 
   useEffect(() => {

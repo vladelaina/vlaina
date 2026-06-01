@@ -4,7 +4,7 @@ import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { isNoteTagToken } from '@/lib/notes/tags';
 
-export const tagTokenPluginKey = new PluginKey<DecorationSet>('vlainaTagToken');
+export const tagTokenPluginKey = new PluginKey<DecorationSet>('editorTagToken');
 
 const TAG_TOKEN_PATTERN = /(?<![\p{L}\p{N}_/-])#([\p{L}\p{N}_/-][\p{L}\p{N}_/-]*)/gu;
 const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
@@ -37,8 +37,8 @@ function createTagTokenDecorations(doc: any): DecorationSet {
 
       decorations.push(
         Decoration.inline(pos + match.index, pos + match.index + match[0].length, {
-          class: `vlaina-editor-tag-token ${chatComposerPillSurfaceClass}`,
-          'data-vlaina-editor-tag-token': 'true',
+          class: `editor-tag-token ${chatComposerPillSurfaceClass}`,
+          'data-editor-tag-token': 'true',
         }, {
           inclusiveStart: false,
           inclusiveEnd: false,
@@ -70,7 +70,7 @@ export const tagTokenPlugin = $prose(() => new Plugin({
         if (event.button !== 0) return false;
         if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false;
         const target = event.target instanceof Element ? event.target : event.target instanceof Node ? event.target.parentElement : null;
-        const token = target?.closest('[data-vlaina-editor-tag-token="true"]');
+        const token = target?.closest('[data-editor-tag-token="true"]');
         if (!(token instanceof HTMLElement) || !view.dom.contains(token)) return false;
 
         const textNode = Array.from(token.childNodes).find((node) => node.nodeType === Node.TEXT_NODE && node.textContent);

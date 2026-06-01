@@ -69,9 +69,9 @@ export function ChatInputActions({
               type="button"
               aria-label={t('chat.openActions')}
               className={cn(
-                'w-9 h-9 flex items-center justify-center rounded-full transition-[background-color,color,box-shadow,transform] duration-200',
+                'w-9 h-9 flex items-center justify-center rounded-full transition-[background-color,color,box-shadow,transform] duration-[var(--vlaina-duration-200)]',
                 iconButtonStyles,
-                'text-[var(--chat-sidebar-text)] hover:!bg-[var(--vlaina-color-white)] hover:text-[var(--vlaina-accent)] hover:!shadow-[var(--vlaina-shadow-menu-hover)] active:scale-95'
+                'text-[var(--vlaina-sidebar-chat-text)] hover:!bg-[var(--vlaina-color-white)] hover:text-[var(--vlaina-accent)] hover:!shadow-[var(--vlaina-shadow-menu-hover)] active:scale-[var(--vlaina-scale-95)]'
               )}
             >
               <Icon name="common.add" size="md" />
@@ -90,7 +90,7 @@ export function ChatInputActions({
               onRequestComposerFocus();
             }}
             className={cn(
-              "w-max min-w-52 rounded-[22px] border-transparent p-1.5 text-[var(--chat-sidebar-text)]",
+              "w-max min-w-52 rounded-[var(--vlaina-radius-22px)] border-transparent p-1.5 text-[var(--vlaina-sidebar-chat-text)]",
               chatComposerPillSurfaceClass
             )}
           >
@@ -99,8 +99,8 @@ export function ChatInputActions({
                 type="button"
                 onClick={handleEnableWebSearch}
                 className={cn(
-                  "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[16px] font-medium whitespace-nowrap transition-colors",
-                  "text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)]",
+                  "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium whitespace-nowrap transition-colors",
+                  "text-[var(--vlaina-sidebar-chat-text)] hover:bg-[var(--vlaina-sidebar-chat-row-hover)]",
                   getSidebarIdleRowSurfaceClass('chat')
                 )}
               >
@@ -112,20 +112,20 @@ export function ChatInputActions({
               type="button"
               onClick={handleTriggerMentionSelect}
               className={cn(
-                "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[16px] font-medium whitespace-nowrap transition-colors",
-                "text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)]",
+                "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium whitespace-nowrap transition-colors",
+                "text-[var(--vlaina-sidebar-chat-text)] hover:bg-[var(--vlaina-sidebar-chat-row-hover)]",
                 getSidebarIdleRowSurfaceClass('chat')
               )}
             >
-              <span className="flex size-5 items-center justify-center text-[17px] font-semibold leading-none text-[var(--vlaina-accent)]">@</span>
+              <span className="flex size-5 items-center justify-center text-[var(--vlaina-font-h6)] font-semibold leading-none text-[var(--vlaina-accent)]">@</span>
               <span>{t('chat.mentionFileOrFolder')}</span>
             </button>
             <button
               type="button"
               onClick={handleTriggerFileSelect}
               className={cn(
-                "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[16px] font-medium whitespace-nowrap transition-colors",
-                "text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)]",
+                "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium whitespace-nowrap transition-colors",
+                "text-[var(--vlaina-sidebar-chat-text)] hover:bg-[var(--vlaina-sidebar-chat-row-hover)]",
                 getSidebarIdleRowSurfaceClass('chat')
               )}
             >
@@ -140,7 +140,7 @@ export function ChatInputActions({
             aria-pressed="true"
             aria-label={t('chat.disableWebSearch')}
             onClick={handleDisableWebSearch}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-[var(--chat-sidebar-row-active)] text-[var(--sidebar-row-selected-text)] transition-[background-color,color,transform] duration-200 hover:bg-[var(--chat-sidebar-row-active)] hover:text-[var(--sidebar-row-selected-text)] active:scale-95"
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-[var(--vlaina-sidebar-chat-row-active)] text-[var(--vlaina-sidebar-row-selected-text)] transition-[background-color,color,transform] duration-[var(--vlaina-duration-200)] hover:bg-[var(--vlaina-sidebar-chat-row-active)] hover:text-[var(--vlaina-sidebar-row-selected-text)] active:scale-[var(--vlaina-scale-95)]"
           >
             <Icon name="file.public" size="md" />
           </button>
@@ -151,7 +151,7 @@ export function ChatInputActions({
         {isLoading ? (
           <button
             onClick={onStop}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] shadow-[var(--vlaina-shadow-accent-action)] transition-[box-shadow,transform] duration-200 hover:scale-105 active:scale-95"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] shadow-[var(--vlaina-shadow-accent-action)] transition-[box-shadow,transform] duration-[var(--vlaina-duration-200)] hover:scale-[var(--vlaina-scale-105)] active:scale-[var(--vlaina-scale-95)]"
           >
             <Icon name="media.stop" size="md" />
           </button>
@@ -160,11 +160,11 @@ export function ChatInputActions({
             onClick={onSend}
             disabled={!canSubmit}
             className={cn(
-              'w-9 h-9 rounded-full flex items-center justify-center transition-[background-color,color,box-shadow,opacity,transform] duration-200',
+              'w-9 h-9 rounded-full flex items-center justify-center transition-[background-color,color,box-shadow,opacity,transform] duration-[var(--vlaina-duration-200)]',
               canSubmit
-                ? 'bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] shadow-[var(--vlaina-shadow-accent-action)] hover:scale-105 active:scale-95'
+                ? 'bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] shadow-[var(--vlaina-shadow-accent-action)] hover:scale-[var(--vlaina-scale-105)] active:scale-[var(--vlaina-scale-95)]'
                 : canSend
-                  ? 'bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] opacity-60 shadow-[var(--vlaina-shadow-selection-soft)] cursor-default'
+                  ? 'bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] opacity-[var(--vlaina-opacity-60)] shadow-[var(--vlaina-shadow-selection-soft)] cursor-default'
                 : 'bg-[var(--vlaina-accent-light)] text-[var(--vlaina-color-text-soft)] cursor-default'
             )}
           >

@@ -3,6 +3,7 @@ import { Icon } from '@/components/ui/icons';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
+import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 interface CodeBlockCopyButtonProps {
   className?: string;
@@ -42,7 +43,7 @@ export function CodeBlockCopyButton({
     copiedTimerRef.current = window.setTimeout(() => {
       setOptimisticCopied(false);
       copiedTimerRef.current = null;
-    }, 1200);
+    }, themeUiFeedbackTokens.copyFeedbackDurationMs);
   };
 
   const handleCopy = async () => {
@@ -90,7 +91,7 @@ export function CodeBlockCopyButton({
         }
         void handleCopy();
       }}
-      className={cn('vlaina-code-block-copy-button', className)}
+      className={cn('code-block-chrome-copy-button', className)}
       data-copied={isCopied ? 'true' : undefined}
       aria-label={isCopied ? t('common.copied') : t('common.copyCode')}
       title={isCopied ? t('common.copied') : t('common.copyToClipboard')}
@@ -98,10 +99,10 @@ export function CodeBlockCopyButton({
       <Icon
         name={isCopied ? 'common.check' : 'common.copy'}
         size="md"
-        className={cn('transition-all duration-150', isCopied && 'scale-110 text-green-500')}
+        className={cn('transition-all duration-[var(--vlaina-duration-150)]', isCopied && 'scale-[var(--vlaina-scale-110)] text-[var(--vlaina-color-status-success-fg)]')}
       />
       {showLabels && (
-        <span className="text-[11px] font-medium uppercase tracking-wider">
+        <span className="text-[var(--vlaina-font-11)] font-medium uppercase tracking-wider">
           {isCopied ? 'Copied' : 'Copy'}
         </span>
       )}

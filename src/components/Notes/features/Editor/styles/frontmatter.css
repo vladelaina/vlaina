@@ -1,7 +1,7 @@
 .milkdown .frontmatter-block-container {
   position: relative;
-  border: 1px dashed color-mix(in srgb, var(--vlaina-border), transparent 45%);
-  border-radius: 0;
+  border: var(--vlaina-border-width-1) dashed var(--vlaina-color-frontmatter-border);
+  border-radius: var(--vlaina-radius-0);
   background: transparent;
 }
 
@@ -17,12 +17,12 @@
 }
 
 .milkdown .frontmatter-block-container .frontmatter-block-editor {
-  padding: 0.625rem 0;
+  padding: var(--vlaina-padding-frontmatter-editor);
 }
 
 .milkdown .frontmatter-block-container .cm-content {
   position: relative;
-  min-height: 1.75rem;
+  min-height: var(--vlaina-min-height-frontmatter-content);
   padding: 0 !important;
 }
 
@@ -36,14 +36,14 @@
 }
 
 .milkdown .frontmatter-block-container .cm-line {
-  padding: 0 0.875rem !important;
+  padding: var(--vlaina-padding-frontmatter-line) !important;
 }
 
 .milkdown .frontmatter-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
   background: var(--vlaina-selection-bg) !important;
 }
 
-.milkdown .frontmatter-block-container:not(.ProseMirror-selectednode):not(.vlaina-block-selected):not([data-pm-selected='true']) .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+.milkdown .frontmatter-block-container:not(.ProseMirror-selectednode):not(.editor-block-selected):not([data-pm-selected='true']) .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
   background: var(--vlaina-selection-bg) !important;
 }
 
@@ -51,7 +51,7 @@
   background: var(--vlaina-selection-bg) !important;
 }
 
-.milkdown .ProseMirror.vlaina-toolbar-copy-feedback-active .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+.milkdown .ProseMirror.editor-toolbar-copy-feedback-active .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
   background: transparent !important;
 }
 
@@ -79,21 +79,17 @@
 .milkdown .frontmatter-block-container[data-empty='true'] .cm-content::before {
   content: 'input YAML Front Matter.';
   position: absolute;
-  inset: 0 0.875rem auto 0.875rem;
+  inset: var(--vlaina-inset-frontmatter-placeholder);
   color: var(--vlaina-color-editor-frontmatter-placeholder);
   pointer-events: none;
   white-space: pre-wrap;
 }
 
-.milkdown .frontmatter-block-container.ProseMirror-selectednode {
-  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg);
-  --vlaina-block-selection-bleed-y: 4px;
-  --vlaina-block-selection-bleed-x-start: 48px;
-  --vlaina-block-selection-bleed-x-end: 48px;
+.milkdown .frontmatter-block-container.ProseMirror-selectednode,
+.milkdown .frontmatter-block-container.editor-block-selected {
+  --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);
+  --vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);
   background-color: var(--vlaina-block-selection-color);
-  box-shadow:
-    0 var(--vlaina-block-selection-bleed-y) 0 0 var(--vlaina-block-selection-color),
-    0 calc(-1 * var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-color),
-    calc(-1 * (var(--vlaina-block-selection-bleed-x-start) - var(--vlaina-block-selection-bleed-y))) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color),
-    calc(var(--vlaina-block-selection-bleed-x-end) - var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color);
+  box-shadow: var(--vlaina-block-selection-shadow);
 }

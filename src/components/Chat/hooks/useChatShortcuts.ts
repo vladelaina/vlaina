@@ -189,7 +189,7 @@ export function useChatShortcuts(
 
       if (matchesShortcutBinding(e, 'deleteChat')) {
         e.preventDefault();
-        window.dispatchEvent(new CustomEvent('vlaina-delete-chat', { detail: { id: currentId } }));
+        window.dispatchEvent(new CustomEvent('app-delete-chat', { detail: { id: currentId } }));
         return;
       }
 

@@ -37,7 +37,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -52,7 +52,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina again' }),
+                arguments: JSON.stringify({ query: 'sample app again' }),
               },
             }],
           },
@@ -60,9 +60,9 @@ describe('OpenAI web search JSON tool loop', () => {
       });
     const client = {
       webSearch: vi.fn(async () => ({
-        query: 'vlaina',
+        query: 'sample app',
         results: [{
-          title: 'Vlaina',
+          title: 'Sample App',
           url: 'https://example.com',
           snippet: 'Snippet',
           publishedAt: null,
@@ -79,7 +79,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'search vlaina' }],
+        messages: [{ role: 'user', content: 'search sample app' }],
       },
       client,
       requestJson,
@@ -90,7 +90,7 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(requestJson.mock.calls[0][0].tools).toHaveLength(3);
     expect(requestJson.mock.calls[0][0].tool_choice).toBeUndefined();
     expect(client.webSearch).toHaveBeenCalledTimes(1);
-    expect(client.webSearch).not.toHaveBeenCalledWith('vlaina again', expect.anything());
+    expect(client.webSearch).not.toHaveBeenCalledWith('sample app again', expect.anything());
     expect(final).toContain('Final answer after search.');
     expect(extractWebSearchStatuses(final).statuses.map((status) => status.phase)).toEqual([
       'searching',
@@ -111,7 +111,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -126,9 +126,9 @@ describe('OpenAI web search JSON tool loop', () => {
       });
     const client = {
       webSearch: vi.fn(async () => ({
-        query: 'vlaina',
+        query: 'sample app',
         results: [{
-          title: 'Vlaina',
+          title: 'Sample App',
           url: 'https://example.com',
           snippet: 'Snippet',
           publishedAt: null,
@@ -155,7 +155,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'search vlaina' }],
+        messages: [{ role: 'user', content: 'search sample app' }],
       },
       client,
       requestJson,
@@ -193,7 +193,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -223,9 +223,9 @@ describe('OpenAI web search JSON tool loop', () => {
       });
     const client = {
       webSearch: vi.fn(async () => ({
-        query: 'vlaina',
+        query: 'sample app',
         results: [{
-          title: 'Vlaina',
+          title: 'Sample App',
           url: 'https://example.com',
           snippet: 'Snippet',
           publishedAt: null,
@@ -248,7 +248,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'search vlaina' }],
+        messages: [{ role: 'user', content: 'search sample app' }],
       },
       client,
       requestJson,
@@ -281,7 +281,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -303,9 +303,9 @@ describe('OpenAI web search JSON tool loop', () => {
       });
     const client = {
       webSearch: vi.fn(async () => ({
-        query: 'vlaina',
+        query: 'sample app',
         results: [{
-          title: 'Vlaina',
+          title: 'Sample App',
           url: 'https://example.com',
           snippet: 'Snippet',
           publishedAt: null,
@@ -338,7 +338,7 @@ describe('OpenAI web search JSON tool loop', () => {
     const body: ChatCompletionRequest = {
       model: 'test',
       stream: true,
-      messages: [{ role: 'user', content: 'search vlaina' }],
+      messages: [{ role: 'user', content: 'search sample app' }],
     };
 
     const final = await runOpenAIWebSearchJsonToolLoop({
@@ -348,7 +348,7 @@ describe('OpenAI web search JSON tool loop', () => {
       onChunk: (chunk) => chunks.push(chunk),
     });
 
-    expect(client.webSearch).toHaveBeenCalledWith('vlaina', {
+    expect(client.webSearch).toHaveBeenCalledWith('sample app', {
       category: undefined,
       timeRange: undefined,
       limit: 5,
@@ -393,7 +393,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -411,13 +411,13 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'search vlaina' }],
+        messages: [{ role: 'user', content: 'search sample app' }],
       },
       client: {
         webSearch: vi.fn(async () => ({
-          query: 'vlaina',
+          query: 'sample app',
           results: [{
-            title: 'Vlaina',
+            title: 'Sample App',
             url: '',
             snippet: 'Snippet',
             publishedAt: null,
@@ -459,7 +459,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -481,10 +481,10 @@ describe('OpenAI web search JSON tool loop', () => {
       });
     const client = {
       webSearch: vi.fn(async () => ({
-        query: 'vlaina',
+        query: 'sample app',
         results: [
           {
-            title: 'Vlaina', url: 'https://example.com/source', snippet: 'Snippet',
+            title: 'Sample App', url: 'https://example.com/source', snippet: 'Snippet',
             publishedAt: null, source: null, thumbnail: null,
           },
           {
@@ -518,7 +518,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'search vlaina' }],
+        messages: [{ role: 'user', content: 'search sample app' }],
       },
       client,
       requestJson,
@@ -572,7 +572,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -594,9 +594,9 @@ describe('OpenAI web search JSON tool loop', () => {
       }]));
     const client = {
       webSearch: vi.fn(async () => ({
-        query: 'vlaina',
+        query: 'sample app',
         results: [{
-          title: 'Vlaina',
+          title: 'Sample App',
           url: 'https://example.com',
           snippet: 'Snippet',
           publishedAt: null,
@@ -622,7 +622,7 @@ describe('OpenAI web search JSON tool loop', () => {
     const body: ChatCompletionRequest = {
       model: 'test',
       stream: true,
-      messages: [{ role: 'user', content: 'search vlaina' }],
+      messages: [{ role: 'user', content: 'search sample app' }],
     };
 
     const final = await runOpenAIWebSearchToolLoop({
@@ -662,7 +662,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -678,7 +678,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina again' }),
+                arguments: JSON.stringify({ query: 'sample app again' }),
               },
             }],
           },
@@ -686,9 +686,9 @@ describe('OpenAI web search JSON tool loop', () => {
       }]));
     const client = {
       webSearch: vi.fn(async () => ({
-        query: 'vlaina',
+        query: 'sample app',
         results: [{
-          title: 'Vlaina',
+          title: 'Sample App',
           url: 'https://example.com',
           snippet: 'Snippet',
           publishedAt: null,
@@ -704,7 +704,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'search vlaina' }],
+        messages: [{ role: 'user', content: 'search sample app' }],
       },
       client,
       request,
@@ -732,7 +732,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -763,9 +763,9 @@ describe('OpenAI web search JSON tool loop', () => {
       }]));
     const client = {
       webSearch: vi.fn(async () => ({
-        query: 'vlaina',
+        query: 'sample app',
         results: [{
-          title: 'Vlaina',
+          title: 'Sample App',
           url: 'https://example.com',
           snippet: 'Snippet',
           publishedAt: null,
@@ -788,7 +788,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'search vlaina' }],
+        messages: [{ role: 'user', content: 'search sample app' }],
       },
       client,
       request,
@@ -820,7 +820,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'search vlaina' }],
+        messages: [{ role: 'user', content: 'search sample app' }],
       },
       client: {
         webSearch: vi.fn(),
@@ -845,7 +845,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -856,7 +856,7 @@ describe('OpenAI web search JSON tool loop', () => {
       }]));
     const client = {
       webSearch: vi.fn(async () => ({
-        query: 'vlaina',
+        query: 'sample app',
         results: [],
       })),
       readWebPage: vi.fn(),
@@ -868,7 +868,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'search vlaina' }],
+        messages: [{ role: 'user', content: 'search sample app' }],
       },
       client,
       request,
@@ -904,7 +904,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -916,7 +916,7 @@ describe('OpenAI web search JSON tool loop', () => {
       ]));
     const client = {
       webSearch: vi.fn(async () => ({
-        query: 'vlaina',
+        query: 'sample app',
         results: [],
       })),
       readWebPage: vi.fn(),
@@ -928,7 +928,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'search vlaina' }],
+        messages: [{ role: 'user', content: 'search sample app' }],
       },
       client,
       request,
@@ -958,7 +958,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -971,7 +971,7 @@ describe('OpenAI web search JSON tool loop', () => {
         { choices: [{ delta: { content: 'Final visible answer.' } }] },
       ]));
     const client = {
-      webSearch: vi.fn(async () => ({ query: 'vlaina', results: [] })),
+      webSearch: vi.fn(async () => ({ query: 'sample app', results: [] })),
       readWebPage: vi.fn(),
       readWebPages: vi.fn(),
     };
@@ -982,7 +982,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'search vlaina' }],
+        messages: [{ role: 'user', content: 'search sample app' }],
       },
       client,
       request,
@@ -1019,7 +1019,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -1041,7 +1041,7 @@ describe('OpenAI web search JSON tool loop', () => {
         }],
       });
     const client = {
-      webSearch: vi.fn(async () => ({ query: 'vlaina', results: [] })),
+      webSearch: vi.fn(async () => ({ query: 'sample app', results: [] })),
       readWebPage: vi.fn(),
       readWebPages: vi.fn(),
     };
@@ -1050,7 +1050,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'search vlaina' }],
+        messages: [{ role: 'user', content: 'search sample app' }],
       },
       client,
       requestJson,
@@ -1079,7 +1079,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -1095,9 +1095,9 @@ describe('OpenAI web search JSON tool loop', () => {
     ]));
     const client = {
       webSearch: vi.fn(async () => ({
-        query: 'vlaina',
+        query: 'sample app',
         results: [{
-          title: 'Vlaina',
+          title: 'Sample App',
           url: 'https://example.com',
           snippet: 'Snippet',
           publishedAt: null,
@@ -1124,7 +1124,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'search vlaina' }],
+        messages: [{ role: 'user', content: 'search sample app' }],
       },
       client,
       request,
@@ -1153,7 +1153,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -1177,7 +1177,7 @@ describe('OpenAI web search JSON tool loop', () => {
       }],
     });
     const client = {
-      webSearch: vi.fn(async () => ({ query: 'vlaina', results: [] })),
+      webSearch: vi.fn(async () => ({ query: 'sample app', results: [] })),
       readWebPage: vi.fn(),
       readWebPages: vi.fn(),
     };
@@ -1186,7 +1186,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'search vlaina' }],
+        messages: [{ role: 'user', content: 'search sample app' }],
       },
       client,
       requestJson,
@@ -1211,7 +1211,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -1248,7 +1248,7 @@ describe('OpenAI web search JSON tool loop', () => {
       });
     const client = {
       webSearch: vi.fn(async () => ({
-        query: 'vlaina',
+        query: 'sample app',
         results: [
           {
             title: 'Bad Source',
@@ -1297,7 +1297,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'search vlaina' }],
+        messages: [{ role: 'user', content: 'search sample app' }],
       },
       client,
       requestJson,
@@ -1328,7 +1328,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -1350,7 +1350,7 @@ describe('OpenAI web search JSON tool loop', () => {
       });
     const client = {
       webSearch: vi.fn(async () => ({
-        query: 'vlaina',
+        query: 'sample app',
         results: [{
           title: 'Unread Source',
           url: 'https://unread.example',
@@ -1373,7 +1373,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'search vlaina' }],
+        messages: [{ role: 'user', content: 'search sample app' }],
       },
       client,
       requestJson,
@@ -1400,7 +1400,7 @@ describe('OpenAI web search JSON tool loop', () => {
               type: 'function',
               function: {
                 name: 'web_search',
-                arguments: JSON.stringify({ query: 'vlaina' }),
+                arguments: JSON.stringify({ query: 'sample app' }),
               },
             }],
           },
@@ -1411,7 +1411,7 @@ describe('OpenAI web search JSON tool loop', () => {
       .mockResolvedValueOnce({ choices: [{ message: { content: 'Final answer with https://four.example' } }] });
     const client = {
       webSearch: vi.fn(async () => ({
-        query: 'vlaina',
+        query: 'sample app',
         results: [1, 2, 3, 4].map((index) => ({
           title: `Source ${index}`,
           url: `https://${['one', 'two', 'three', 'four'][index - 1]}.example`,
@@ -1449,7 +1449,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'search vlaina' }],
+        messages: [{ role: 'user', content: 'search sample app' }],
       },
       client,
       requestJson,

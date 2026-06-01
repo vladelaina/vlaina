@@ -479,7 +479,7 @@ describe('normalizeSerializedMarkdownDocument', () => {
       normalizeSerializedMarkdownDocument('1\n<br date-vlaina-empty-line="true"/>\n2\n')
     ).toBe('1\n\n2\n');
     expect(
-      normalizeSerializedMarkdownDocument('1\n<br date-vlaianempt-line="true"/>\n2\n')
+      normalizeSerializedMarkdownDocument('1\n<br date-vlainaempt-line="true"/>\n2\n')
     ).toBe('1\n\n2\n');
   });
 
@@ -705,7 +705,7 @@ describe('normalizeSerializedMarkdownDocument', () => {
       normalizeSerializedMarkdownDocument('- one\n<br date-vlaina-list-gap="true"/>\n- two\n')
     ).toBe('- one\n\n- two\n');
     expect(
-      normalizeSerializedMarkdownDocument('- one\n<br date-vlaianlist-gap="true"/>\n- two\n')
+      normalizeSerializedMarkdownDocument('- one\n<br date-vlainalist-gap="true"/>\n- two\n')
     ).toBe('- one\n\n- two\n');
   });
 

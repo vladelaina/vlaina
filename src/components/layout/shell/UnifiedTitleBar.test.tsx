@@ -29,7 +29,7 @@ describe('UnifiedTitleBar', () => {
       />
     );
 
-    expect(screen.getByRole('button').parentElement).toHaveClass('pl-[76px]');
+    expect(screen.getByRole('button').parentElement).toHaveClass('pl-[var(--vlaina-space-76px)]');
   });
 
   it('keeps the collapsed sidebar toggle compact on non-mac platforms', () => {

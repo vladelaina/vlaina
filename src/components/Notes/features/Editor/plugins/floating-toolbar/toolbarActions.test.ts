@@ -103,16 +103,16 @@ describe('toolbarActions copy feedback', () => {
 
     await controller.handleAction(view, 'copy');
 
-    expect(view.dom.classList.contains('vlaina-toolbar-copy-feedback-active')).toBe(true);
+    expect(view.dom.classList.contains('editor-toolbar-copy-feedback-active')).toBe(true);
 
     vi.advanceTimersByTime(NOTES_COPY_FEEDBACK_DURATION_MS);
 
     expect(cleanupMocks.collapseSelectionAndHideFloatingToolbar).toHaveBeenCalledWith(view);
-    expect(view.dom.classList.contains('vlaina-toolbar-copy-feedback-active')).toBe(true);
+    expect(view.dom.classList.contains('editor-toolbar-copy-feedback-active')).toBe(true);
 
     vi.advanceTimersByTime(40);
 
-    expect(view.dom.classList.contains('vlaina-toolbar-copy-feedback-active')).toBe(false);
+    expect(view.dom.classList.contains('editor-toolbar-copy-feedback-active')).toBe(false);
 
     controller.destroy();
   });
@@ -127,7 +127,7 @@ describe('toolbarActions copy feedback', () => {
 
     const action = controller.handleAction(view, 'copy');
 
-    expect(view.dom.classList.contains('vlaina-toolbar-copy-feedback-active')).toBe(true);
+    expect(view.dom.classList.contains('editor-toolbar-copy-feedback-active')).toBe(true);
 
     resolveCopy(true);
     await action;
@@ -150,7 +150,7 @@ describe('toolbarActions copy feedback', () => {
 
     vi.advanceTimersByTime(40);
 
-    expect(view.dom.classList.contains('vlaina-toolbar-copy-feedback-active')).toBe(false);
+    expect(view.dom.classList.contains('editor-toolbar-copy-feedback-active')).toBe(false);
 
     controller.destroy();
   });
@@ -161,10 +161,10 @@ describe('toolbarActions copy feedback', () => {
 
     controller.prepareAction(view, 'copy');
 
-    expect(view.dom.classList.contains('vlaina-toolbar-copy-feedback-active')).toBe(true);
+    expect(view.dom.classList.contains('editor-toolbar-copy-feedback-active')).toBe(true);
 
     controller.destroy();
-    expect(view.dom.classList.contains('vlaina-toolbar-copy-feedback-active')).toBe(false);
+    expect(view.dom.classList.contains('editor-toolbar-copy-feedback-active')).toBe(false);
   });
 
   it('clears prepared copy suppression when the copy action is canceled before click', () => {
@@ -174,7 +174,7 @@ describe('toolbarActions copy feedback', () => {
     controller.prepareAction(view, 'copy');
     controller.cancelPreparedAction('copy');
 
-    expect(view.dom.classList.contains('vlaina-toolbar-copy-feedback-active')).toBe(false);
+    expect(view.dom.classList.contains('editor-toolbar-copy-feedback-active')).toBe(false);
 
     controller.destroy();
   });
@@ -188,7 +188,7 @@ describe('toolbarActions copy feedback', () => {
     await controller.handleAction(view, 'copy');
     controller.destroy();
 
-    expect(view.dom.classList.contains('vlaina-toolbar-copy-feedback-active')).toBe(false);
+    expect(view.dom.classList.contains('editor-toolbar-copy-feedback-active')).toBe(false);
     expect(cleanupMocks.collapseSelectionAndHideFloatingToolbar).not.toHaveBeenCalled();
   });
 

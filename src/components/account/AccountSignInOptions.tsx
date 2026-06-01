@@ -36,7 +36,7 @@ export function AccountSignInOptions({
 
       <div className="flex items-center gap-4 px-4">
         <div className="h-px flex-1 bg-[var(--vlaina-divider)]" />
-        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--vlaina-text-disabled)]">{t('account.or')}</span>
+        <span className="text-[var(--vlaina-font-10)] font-black uppercase tracking-[var(--vlaina-tracking-label-3xl)] text-[var(--vlaina-text-disabled)]">{t('account.or')}</span>
         <div className="h-px flex-1 bg-[var(--vlaina-divider)]" />
       </div>
 
@@ -51,7 +51,7 @@ export function AccountSignInOptions({
         {error ? (
           <div
             className={cn(
-              'rounded-2xl px-6 py-4 text-[13px] font-medium animate-in slide-in-from-top-2 duration-300',
+              'rounded-2xl px-6 py-4 text-[var(--vlaina-font-13)] font-medium animate-in slide-in-from-top-2 duration-[var(--vlaina-duration-300)]',
               'bg-[var(--vlaina-color-brand-pink-soft)] text-[var(--vlaina-color-brand-pink)]'
             )}
           >
@@ -59,12 +59,12 @@ export function AccountSignInOptions({
           </div>
         ) : null}
 
-        <p className="px-8 text-[11px] text-center leading-relaxed text-[var(--vlaina-text-tertiary)] font-medium opacity-80">
+        <p className="px-8 text-[var(--vlaina-font-11)] text-center leading-relaxed text-[var(--vlaina-text-tertiary)] font-medium opacity-[var(--vlaina-opacity-80)]">
           {t('account.privacyAgreement')}{' '}
           <button
             type="button"
             onClick={() => void openExternalHref(privacyPolicyUrl)}
-            className="inline p-0 underline cursor-pointer opacity-80 transition-opacity hover:opacity-100"
+            className="inline p-0 underline cursor-pointer opacity-[var(--vlaina-opacity-80)] transition-opacity hover:opacity-[var(--vlaina-opacity-100)]"
           >
             {t('account.privacyPolicy')}
           </button>

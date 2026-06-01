@@ -5,6 +5,7 @@ import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { useToastStore } from '@/stores/useToastStore';
 import { SettingsSectionHeader } from '../components/SettingsControls';
+import { themeIconTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 const API_BASE = 'https://api.vlaina.com';
 const MAX_FEEDBACK_LENGTH = 2000;
@@ -72,7 +73,7 @@ export function FeedbackTab({ compact = false }: { compact?: boolean }) {
       setMessage('');
       addToast(t('settings.feedback.success'), 'success');
     } catch (error) {
-      addToast(normalizeFeedbackError(error, t), 'error', 4500);
+      addToast(normalizeFeedbackError(error, t), 'error', themeUiFeedbackTokens.errorToastDurationMs);
     } finally {
       setSubmitting(false);
     }
@@ -82,15 +83,15 @@ export function FeedbackTab({ compact = false }: { compact?: boolean }) {
     <div className="space-y-8">
       <div>
         <SettingsSectionHeader>{t('settings.feedback.title')}</SettingsSectionHeader>
-        <div className="rounded-[24px] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-glass)] p-5 shadow-[var(--vlaina-shadow-panel-soft)]">
+        <div className="rounded-[var(--vlaina-radius-24px)] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-glass)] p-5 shadow-[var(--vlaina-shadow-panel-soft)]">
           <div className="space-y-4">
             <textarea
               value={message}
               onChange={(event) => setMessage(event.target.value.slice(0, MAX_FEEDBACK_LENGTH + 200))}
               placeholder={t('settings.feedback.placeholder')}
               className={cn(
-                compact ? 'min-h-[150px]' : 'min-h-[220px]',
-                'w-full resize-y rounded-[18px] border border-[var(--vlaina-border)] bg-[var(--vlaina-color-input-surface)] px-4 py-3 text-[14px] leading-6 text-[var(--notes-sidebar-text)] outline-none transition-colors placeholder:text-[var(--notes-sidebar-text-soft)] focus:border-[var(--vlaina-accent)]'
+                compact ? 'min-h-[var(--vlaina-size-150px)]' : 'min-h-[var(--vlaina-size-220px)]',
+                'w-full resize-y rounded-[var(--vlaina-radius-18px)] border border-[var(--vlaina-border)] bg-[var(--vlaina-color-input-surface)] px-4 py-3 text-[var(--vlaina-font-sm)] leading-6 text-[var(--vlaina-sidebar-notes-text)] outline-none transition-colors placeholder:text-[var(--vlaina-sidebar-notes-text-soft)] focus:border-[var(--vlaina-accent)]'
               )}
             />
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -99,9 +100,9 @@ export function FeedbackTab({ compact = false }: { compact?: boolean }) {
                 type="button"
                 onClick={handleSubmit}
                 disabled={!canSubmit}
-                className="inline-flex h-10 items-center gap-2 rounded-full bg-[var(--vlaina-accent)] px-4 text-[13px] font-semibold text-[var(--vlaina-color-white)] transition-colors hover:bg-[var(--vlaina-accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-10 items-center gap-2 rounded-full bg-[var(--vlaina-accent)] px-4 text-[var(--vlaina-font-13)] font-semibold text-[var(--vlaina-color-white)] transition-colors hover:bg-[var(--vlaina-accent-hover)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-60)]"
               >
-                <Send size={15} />
+                <Send size={themeIconTokens.sizeSidebar} />
                 {submitting ? t('settings.feedback.submitting') : t('settings.feedback.submit')}
               </button>
             </div>

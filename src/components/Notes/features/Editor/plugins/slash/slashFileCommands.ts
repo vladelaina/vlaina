@@ -10,7 +10,7 @@ import { handleEditorImageFiles } from '../image-upload/handleEditorImageFiles';
 const MAX_PICKED_IMAGE_BYTES = 50 * 1024 * 1024;
 
 function markSlashUserInput(view: { dom?: { dispatchEvent?: (event: Event) => boolean } }): void {
-  view.dom?.dispatchEvent?.(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+  view.dom?.dispatchEvent?.(new CustomEvent('editor:block-user-input', { bubbles: true }));
 }
 
 function isInsertableImagePath(path: string) {

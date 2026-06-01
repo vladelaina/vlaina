@@ -9,6 +9,7 @@ import {
   type EmojiItem,
 } from './constants';
 import { useI18n } from '@/lib/i18n';
+import { themeDomStyleTokens, themeEmojiPickerTokens, themeRenderingTokens } from '@/styles/themeTokens';
 
 const DEFAULT_EMOJI_CATEGORY_ID = 'people';
 
@@ -107,14 +108,14 @@ export function VirtualEmojiGrid({
   }, [emojisWithSkin, recentWithSkin, categoryName, t]);
 
   const rowSizeGetter = useMemo(() => {
-    return (index: number) => rows[index].type === 'title' ? 28 : EMOJI_SIZE + ROW_GAP;
+    return (index: number) => rows[index].type === 'title' ? themeEmojiPickerTokens.virtualTitleRowHeightPx : EMOJI_SIZE + ROW_GAP;
   }, [rows]);
 
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: rowSizeGetter,
-    overscan: 5,
+    overscan: themeEmojiPickerTokens.virtualOverscanRows,
   });
 
   useEffect(() => {
@@ -173,14 +174,14 @@ export function VirtualEmojiGrid({
   return (
     <div
       ref={parentRef}
-      className={`h-[280px] overflow-auto ${SCROLLBAR_CLASSNAME}`}
-      style={{ contain: 'strict', willChange: 'scroll-position' }}
+      className={`h-[var(--vlaina-size-280px)] overflow-auto ${SCROLLBAR_CLASSNAME}`}
+      style={{ contain: themeRenderingTokens.containStrict, willChange: themeRenderingTokens.scrollPositionWillChange }}
     >
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
-          width: '100%',
-          position: 'relative',
+          width: themeDomStyleTokens.sizeFull,
+          position: themeDomStyleTokens.positionRelative,
         }}
       >
         {virtualizer.getVirtualItems().map((virtualRow) => {
@@ -189,10 +190,10 @@ export function VirtualEmojiGrid({
             <div
               key={virtualRow.index}
               style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
+                position: themeDomStyleTokens.positionAbsolute,
+                top: themeDomStyleTokens.numericZero,
+                left: themeDomStyleTokens.numericZero,
+                width: themeDomStyleTokens.sizeFull,
                 height: `${virtualRow.size}px`,
                 transform: `translateY(${virtualRow.start}px)`,
               }}
@@ -253,14 +254,14 @@ export function VirtualSearchResults({
   }, [emojisWithSkin, results.length, t]);
 
   const rowSizeGetter = useMemo(() => {
-    return (index: number) => rows[index].type === 'title' ? 28 : EMOJI_SIZE + ROW_GAP;
+    return (index: number) => rows[index].type === 'title' ? themeEmojiPickerTokens.virtualTitleRowHeightPx : EMOJI_SIZE + ROW_GAP;
   }, [rows]);
 
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: rowSizeGetter,
-    overscan: 5,
+    overscan: themeEmojiPickerTokens.virtualOverscanRows,
   });
 
   useEffect(() => {
@@ -305,7 +306,7 @@ export function VirtualSearchResults({
 
   if (results.length === 0) {
     return (
-      <div className="h-[280px] flex items-center justify-center">
+      <div className="h-[var(--vlaina-size-280px)] flex items-center justify-center">
         <div className="text-[var(--vlaina-text-tertiary)] text-sm">{t('icon.noEmojiFound')}</div>
       </div>
     );
@@ -314,14 +315,14 @@ export function VirtualSearchResults({
   return (
     <div
       ref={parentRef}
-      className={`h-[280px] overflow-auto ${SCROLLBAR_CLASSNAME}`}
-      style={{ contain: 'strict', willChange: 'scroll-position' }}
+      className={`h-[var(--vlaina-size-280px)] overflow-auto ${SCROLLBAR_CLASSNAME}`}
+      style={{ contain: themeRenderingTokens.containStrict, willChange: themeRenderingTokens.scrollPositionWillChange }}
     >
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
-          width: '100%',
-          position: 'relative',
+          width: themeDomStyleTokens.sizeFull,
+          position: themeDomStyleTokens.positionRelative,
         }}
       >
         {virtualizer.getVirtualItems().map((virtualRow) => {
@@ -330,10 +331,10 @@ export function VirtualSearchResults({
             <div
               key={virtualRow.index}
               style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
+                position: themeDomStyleTokens.positionAbsolute,
+                top: themeDomStyleTokens.numericZero,
+                left: themeDomStyleTokens.numericZero,
+                width: themeDomStyleTokens.sizeFull,
                 height: `${virtualRow.size}px`,
                 transform: `translateY(${virtualRow.start}px)`,
               }}

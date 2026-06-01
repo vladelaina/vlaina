@@ -139,7 +139,7 @@ const store = createStore<string>();`),
 type Defaults = typeof defaults;`),
   entry('declare global block', `declare global {
   interface Window {
-    __vlainaReady__: boolean;
+    __appReady__: boolean;
   }
 }`),
   entry('declare module block', `declare module '*.svg' {

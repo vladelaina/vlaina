@@ -1,4 +1,9 @@
 import React from 'react';
+import {
+    themeImageBlockStyleTokens,
+    themeMotionTokens,
+    themeStyleResetTokens,
+} from '@/styles/themeTokens';
 import type { Alignment } from '../types';
 
 export const ALIGNMENT_CLASSES: Record<Alignment, string> = {
@@ -28,12 +33,12 @@ export function getDraggingStyle({ dragPosition, dragSize }: DraggingStyleParams
         top: dragPosition.y,
         width: dragSize.width,
         height: dragSize.height,
-        zIndex: 9999,
-        pointerEvents: 'none',
-        opacity: 0.9,
-        transform: 'scale(0.95)',
+        zIndex: 'var(--vlaina-z-max)',
+        pointerEvents: themeStyleResetTokens.pointerEventsNone,
+        opacity: 'var(--vlaina-opacity-90)',
+        transform: 'scale(var(--vlaina-scale-95))',
         boxShadow: 'var(--vlaina-shadow-drag-preview)',
-        transition: 'none',
+        transition: themeStyleResetTokens.transitionNone,
     };
 }
 
@@ -49,13 +54,13 @@ export function getNormalStyle({ width, height, isActive, isReady, computedAspec
 
     return {
         width: hasActiveSize ? `${activeSize!.width}px` : width,
-        maxWidth: '100%',
-        height: hasActiveSize ? `${activeSize!.height}px` : height ? height : 'auto',
-        minHeight: isReady || height ? undefined : 100,
-        aspectRatio: hasActiveSize ? 'auto' : computedAspectRatio,
-        transition: (isActive || height) ? 'none' : 'width 0.1s ease-out, opacity 0.2s ease-out',
-        display: 'block',
-        opacity: 1,
+        maxWidth: themeImageBlockStyleTokens.maxWidthFull,
+        height: hasActiveSize ? `${activeSize!.height}px` : height ? height : themeImageBlockStyleTokens.heightAuto,
+        minHeight: isReady || height ? undefined : 'var(--vlaina-size-100px)',
+        aspectRatio: hasActiveSize ? themeImageBlockStyleTokens.aspectRatioAuto : computedAspectRatio,
+        transition: (isActive || height) ? themeStyleResetTokens.transitionNone : themeImageBlockStyleTokens.normalTransition,
+        display: themeImageBlockStyleTokens.displayBlock,
+        opacity: themeMotionTokens.opacityVisible,
     };
 }
 

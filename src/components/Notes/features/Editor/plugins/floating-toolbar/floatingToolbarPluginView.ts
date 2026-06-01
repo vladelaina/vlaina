@@ -275,7 +275,7 @@ export function createFloatingToolbarPluginView(
     ).filter((submenu) => submenu.offsetParent !== null);
 
     for (const submenu of visibleSubmenus) {
-      submenu.style.removeProperty('--toolbar-submenu-shift-x');
+      submenu.style.removeProperty('--vlaina-toolbar-submenu-shift-x');
 
       const submenuRect = submenu.getBoundingClientRect();
       let shiftX = 0;
@@ -289,7 +289,7 @@ export function createFloatingToolbarPluginView(
       }
 
       if (shiftX !== 0) {
-        submenu.style.setProperty('--toolbar-submenu-shift-x', `${shiftX}px`);
+        submenu.style.setProperty('--vlaina-toolbar-submenu-shift-x', `${shiftX}px`);
       }
     }
   };
@@ -300,7 +300,7 @@ export function createFloatingToolbarPluginView(
   ) => {
     if (!isReviewModeActive) {
       if (hasAiReviewWidthStyle) {
-        toolbarElement.style.removeProperty('--ai-review-width');
+        toolbarElement.style.removeProperty('--vlaina-toolbar-ai-review-width');
         hasAiReviewWidthStyle = false;
       }
       return;
@@ -311,7 +311,7 @@ export function createFloatingToolbarPluginView(
     );
     if (isReviewModeActive && aiReviewWidth > 0) {
       toolbarElement.style.setProperty(
-        '--ai-review-width',
+        '--vlaina-toolbar-ai-review-width',
         `${Math.round(aiReviewWidth)}px`
       );
       hasAiReviewWidthStyle = true;
@@ -319,7 +319,7 @@ export function createFloatingToolbarPluginView(
     }
 
     if (hasAiReviewWidthStyle) {
-      toolbarElement.style.removeProperty('--ai-review-width');
+      toolbarElement.style.removeProperty('--vlaina-toolbar-ai-review-width');
       hasAiReviewWidthStyle = false;
     }
   };
@@ -604,11 +604,11 @@ export function createFloatingToolbarPluginView(
       const reviewWidth = aiReviewWidth > 0 ? Math.round(aiReviewWidth) : null;
       if (reviewWidth !== null) {
         entry.element.style.setProperty(
-          '--ai-review-width',
+          '--vlaina-toolbar-ai-review-width',
           `${reviewWidth}px`
         );
       } else {
-        entry.element.style.removeProperty('--ai-review-width');
+        entry.element.style.removeProperty('--vlaina-toolbar-ai-review-width');
       }
 
       const reviewState: FloatingToolbarState = {

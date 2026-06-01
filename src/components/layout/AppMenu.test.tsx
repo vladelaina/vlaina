@@ -36,7 +36,7 @@ describe('AppMenu', () => {
     expect(menuOptions).toEqual(['Upgrade ໒꒱', 'Settings']);
     expect(upgradeButton).toHaveClass(
       'bg-transparent',
-      'text-[var(--chat-sidebar-text)]',
+      'text-[var(--vlaina-sidebar-chat-text)]',
       'hover:bg-[var(--vlaina-accent-light)]',
       'hover:text-[var(--vlaina-accent)]'
     );

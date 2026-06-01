@@ -114,14 +114,14 @@ export function SidebarContextMenuSubmenu({
           event.stopPropagation();
           openMenu();
         }}
-        className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-[16px] font-medium leading-none text-[var(--notes-sidebar-text)] outline-none transition-colors hover:bg-[var(--notes-sidebar-row-hover)]"
+        className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-[var(--vlaina-font-base)] font-medium leading-none text-[var(--vlaina-sidebar-notes-text)] outline-none transition-colors hover:bg-[var(--vlaina-sidebar-notes-row-hover)]"
       >
-        <span className="flex size-[20px] shrink-0 items-center justify-center leading-none text-[var(--notes-sidebar-text)]">
+        <span className="flex size-[var(--vlaina-size-20px)] shrink-0 items-center justify-center leading-none text-[var(--vlaina-sidebar-notes-text)]">
           {icon}
         </span>
         <span className="inline-flex min-w-0 flex-1 items-center truncate text-left leading-none">{label}</span>
-        <span className="inline-flex shrink-0 items-center leading-none text-[var(--notes-sidebar-text)]">
-          <span className="flex size-[20px] items-center justify-center leading-none">
+        <span className="inline-flex shrink-0 items-center leading-none text-[var(--vlaina-sidebar-notes-text)]">
+          <span className="flex size-[var(--vlaina-size-20px)] items-center justify-center leading-none">
             <span aria-hidden="true">›</span>
           </span>
         </span>
@@ -131,7 +131,7 @@ export function SidebarContextMenuSubmenu({
             <div
               ref={submenuRef}
               data-sidebar-context-menu-layer="true"
-              className={cn('fixed z-[10000] max-h-[calc(100vh-16px)]', MENU_PANEL_CLASS_NAME)}
+              className={cn('fixed z-[var(--vlaina-z-modal-max)] max-h-[var(--vlaina-height-context-menu-max)]', MENU_PANEL_CLASS_NAME)}
               style={{
                 top: submenuPosition.top,
                 left: submenuPosition.left,

@@ -142,7 +142,7 @@ describe('caret styles', () => {
 
     expect(source).toContain('createCaretOverlayStyle({');
     expect(source).toContain('createCaretOverlayRect({');
-    expect(source).toContain("caretClass: 'vlaina-forced-line-end-caret'");
+    expect(source).toContain("caretClass: 'editor-forced-line-end-caret'");
     expect(source).not.toContain('Math.max(12, textRect.bottom - textRect.top)');
     expect(source).not.toContain('background: var(--vlaina-caret-color, #41ace2)');
   });
@@ -162,14 +162,14 @@ describe('caret styles', () => {
     const css = readEditorCoreStyles();
     const source = readExternalTextDropCursorPlugin();
     const cursorRule = css.slice(
-      css.indexOf('.vlaina-external-text-drop-cursor {'),
-      css.indexOf('.vlaina-external-text-drop-cursor.block')
+      css.indexOf('.editor-external-text-drop-cursor {'),
+      css.indexOf('.editor-external-text-drop-cursor.block')
     );
 
     expect(cursorRule).toContain('width: var(--vlaina-caret-width);');
     expect(cursorRule).toContain('background: var(--vlaina-caret-color);');
     expect(cursorRule).toContain('transform: translateX(calc(var(--vlaina-caret-width) / -2));');
-    expect(cursorRule).not.toContain('background: var(--sidebar-row-selected-text, var(--vlaina-accent));');
+    expect(cursorRule).not.toContain('background: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent));');
     expect(source).toContain('createCaretOverlayRect(rect)');
     expect(source).not.toContain('MIN_CURSOR_HEIGHT');
   });

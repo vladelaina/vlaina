@@ -10,6 +10,12 @@ import { usePredictedTextareaHeight } from '@/hooks/usePredictedTextareaHeight';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import {
+    themeLinkTooltipTokens,
+    themeMotionTokens,
+    themeRenderingTokens,
+    themeTextAreaTokens,
+} from '@/styles/themeTokens';
+import {
     LINK_TOOLTIP_MIN_WIDTH,
     useLinkTooltipContentWidth,
 } from '../hooks/useLinkTooltipContentWidth';
@@ -42,8 +48,8 @@ export const LinkEditor = ({
 
     usePredictedTextareaHeight(inputRef, {
         value: editUrl,
-        minHeight: 0,
-        maxHeight: 100000,
+        minHeight: themeTextAreaTokens.minHeightPx,
+        maxHeight: themeTextAreaTokens.unboundedMaxHeightPx,
     });
 
     useLayoutEffect(() => {
@@ -61,8 +67,8 @@ export const LinkEditor = ({
             },
         });
 
-        const shellPadding = 40;
-        const actionWidth = editUrl.length > 0 ? 36 : 0;
+        const shellPadding = themeLinkTooltipTokens.editorShellPaddingPx;
+        const actionWidth = editUrl.length > 0 ? themeLinkTooltipTokens.editorActionWidthPx : 0;
         const nextWidth = Math.min(
             maxWidth,
             Math.max(minWidth, naturalWidth + shellPadding + actionWidth)
@@ -81,7 +87,7 @@ export const LinkEditor = ({
                 inputRef.current.focus();
                 inputRef.current.select();
             }
-        }, 50);
+        }, themeLinkTooltipTokens.editorAutofocusDelayMs);
         return () => clearTimeout(timer);
     }, [autoFocus, isNewLink]);
 
@@ -102,13 +108,21 @@ export const LinkEditor = ({
     return (
         <motion.div
             ref={containerRef}
-            initial={{ opacity: 0, y: -4, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
+            initial={{
+                opacity: themeMotionTokens.opacityHidden,
+                y: themeMotionTokens.linkEditorY,
+                scale: themeMotionTokens.linkEditorInitialScale,
+            }}
+            animate={{
+                opacity: themeMotionTokens.opacityVisible,
+                y: themeMotionTokens.linkEditorVisibleY,
+                scale: themeMotionTokens.linkEditorVisibleScale,
+            }}
             style={{
                 width: `${editorWidth}px`,
             }}
             className={cn(
-                'floating-toolbar-inner link-tooltip-editor !rounded-[26px] z-[100]',
+                'floating-toolbar-inner link-tooltip-editor !rounded-[var(--vlaina-radius-26px)] z-[var(--vlaina-z-100)]',
                 chatComposerPillSurfaceClass
             )}
             onMouseDown={(e) => e.stopPropagation()}
@@ -120,21 +134,33 @@ export const LinkEditor = ({
                     onChange={(e) => setEditUrl(e.target.value)}
                     onKeyDown={handleKeyDown}
                     rows={1}
-                    className="block w-full resize-none overflow-hidden bg-transparent border-none outline-none text-sm font-mono text-zinc-800 dark:text-zinc-100 placeholder:text-zinc-400 placeholder:font-light leading-6 py-1.5"
+                    className="block w-full resize-none overflow-hidden bg-transparent border-none outline-none text-sm font-mono text-[var(--vlaina-text-primary)] placeholder:text-[var(--vlaina-text-tertiary)] placeholder:font-light leading-6 py-1.5"
                     placeholder={t('editor.linkPlaceholder')}
                     spellCheck={false}
                     autoComplete="off"
-                    style={{ overflowWrap: 'anywhere' }}
+                    style={{ overflowWrap: themeRenderingTokens.overflowWrapAnywhere }}
                 />
             </div>
 
             <AnimatePresence>
                 {editUrl.length > 0 && (
                     <motion.button
-                        initial={{ opacity: 0, x: -4, scale: 0.8 }}
-                        animate={{ opacity: 1, x: 0, scale: 1 }}
-                        exit={{ opacity: 0, x: 4, scale: 0.8 }}
-                        whileTap={{ scale: 0.9 }}
+                        initial={{
+                            opacity: themeMotionTokens.opacityHidden,
+                            x: themeMotionTokens.linkEditorActionInitialX,
+                            scale: themeMotionTokens.linkEditorActionInitialScale,
+                        }}
+                        animate={{
+                            opacity: themeMotionTokens.opacityVisible,
+                            x: themeMotionTokens.linkEditorActionVisibleX,
+                            scale: themeMotionTokens.linkEditorActionVisibleScale,
+                        }}
+                        exit={{
+                            opacity: themeMotionTokens.opacityHidden,
+                            x: themeMotionTokens.linkEditorActionExitX,
+                            scale: themeMotionTokens.linkEditorActionInitialScale,
+                        }}
+                        whileTap={{ scale: themeMotionTokens.linkEditorActionTapScale }}
                         onClick={() => onSave(true)}
                         className="toolbar-btn link-tooltip-action-btn active shrink-0"
                     >

@@ -287,7 +287,7 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
     <button
       type="button"
       onClick={handleNoteClick}
-      className="max-w-[360px] truncate rounded px-1 py-0 text-[var(--vlaina-soft-placeholder)] transition-colors hover:text-[var(--sidebar-row-selected-text)]"
+      className="max-w-[var(--vlaina-size-360px)] truncate rounded px-1 py-0 text-[var(--vlaina-soft-placeholder)] transition-colors hover:text-[var(--vlaina-sidebar-row-selected-text)]"
     >
       {truncateNoteLabel(noteLabel)}
     </button>
@@ -296,13 +296,13 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
   return (
     <div className="h-4 flex items-center mb-1">
       {!isUnsavedDraft ? (
-        <div className="flex flex-wrap items-center gap-x-1 gap-y-0 text-[12px] leading-none opacity-0 transition-opacity duration-150 group-hover/note-title:opacity-100 group-focus-within/note-title:opacity-100">
+        <div className="flex flex-wrap items-center gap-x-1 gap-y-0 text-[var(--vlaina-font-xs)] leading-none opacity-[var(--vlaina-opacity-0)] transition-opacity duration-[var(--vlaina-duration-150)] group-hover/note-title:opacity-[var(--vlaina-opacity-100)] group-focus-within/note-title:opacity-[var(--vlaina-opacity-100)]">
           <>
             <button
               type="button"
               onClick={handleRootClick}
               className={cn(
-                'rounded px-1 py-0 text-[var(--vlaina-soft-placeholder)] transition-colors hover:text-[var(--sidebar-row-selected-text)]'
+                'rounded px-1 py-0 text-[var(--vlaina-soft-placeholder)] transition-colors hover:text-[var(--vlaina-sidebar-row-selected-text)]'
               )}
             >
               {displayInfo.rootLabel}
@@ -315,7 +315,7 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
                   type="button"
                   onClick={() => handleFolderClick(segment.fullPath)}
                   className={cn(
-                    'rounded px-1 py-0 text-[var(--vlaina-soft-placeholder)] transition-colors hover:text-[var(--sidebar-row-selected-text)]'
+                    'rounded px-1 py-0 text-[var(--vlaina-soft-placeholder)] transition-colors hover:text-[var(--vlaina-sidebar-row-selected-text)]'
                   )}
                 >
                   {segment.label}

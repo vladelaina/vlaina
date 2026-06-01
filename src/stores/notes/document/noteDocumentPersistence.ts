@@ -11,7 +11,7 @@ import {
 import { markExpectedExternalChange } from './externalChangeRegistry';
 import {
   readNoteMetadataFromMarkdown,
-  stripVlainaUpdatedFrontmatter,
+  stripUpdatedFrontmatter,
   updateNoteMetadataInMarkdown,
 } from '../frontmatter';
 import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
@@ -191,9 +191,9 @@ export async function saveNoteDocument({
     const normalizedCachedContent = normalizeSerializedMarkdownDocument(
       cachedEntry.savedContent ?? cachedEntry.content
     );
-    const comparableDiskContent = stripVlainaUpdatedFrontmatter(normalizedDiskContent);
-    const comparableCurrentContent = stripVlainaUpdatedFrontmatter(normalizedCurrentContent);
-    const comparableCachedContent = stripVlainaUpdatedFrontmatter(normalizedCachedContent);
+    const comparableDiskContent = stripUpdatedFrontmatter(normalizedDiskContent);
+    const comparableCurrentContent = stripUpdatedFrontmatter(normalizedCurrentContent);
+    const comparableCachedContent = stripUpdatedFrontmatter(normalizedCachedContent);
     if (normalizedDiskContent === normalizedCurrentContent) {
       const metadata = readNoteMetadataFromMarkdown(normalizedDiskContent);
       return {

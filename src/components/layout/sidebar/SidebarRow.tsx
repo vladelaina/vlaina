@@ -92,7 +92,7 @@ export function SidebarRow({
   return (
     <div
       className={cn(
-        'group/sidebar-row flex items-center py-[1px]',
+        'group/sidebar-row flex items-center py-[var(--vlaina-space-1px)]',
         props.onClick && 'cursor-pointer',
         className,
       )}
@@ -101,7 +101,7 @@ export function SidebarRow({
       <div
         style={rowStyle}
         className={cn(
-          'relative flex min-h-[36px] flex-1 items-center gap-2 rounded-xl px-3 py-1',
+          'relative flex min-h-[var(--vlaina-size-36px)] flex-1 items-center gap-2 rounded-xl px-3 py-1',
           SIDEBAR_LABEL_TEXT_METRICS_CLASS,
           rowClassName,
           props.onClick && 'cursor-pointer',
@@ -116,7 +116,7 @@ export function SidebarRow({
         {leading ? (
           <span
             className={cn(
-              'flex size-[20px] shrink-0 items-center justify-center leading-none',
+              'flex size-[var(--vlaina-size-20px)] shrink-0 items-center justify-center leading-none',
               leadingClassName,
             )}
           >
@@ -125,7 +125,7 @@ export function SidebarRow({
         ) : null}
 
         <div
-          className={cn('relative z-10 flex min-w-0 flex-1 items-center', hasActions && 'pr-8', contentClassName)}
+          className={cn('relative z-[var(--vlaina-z-10)] flex min-w-0 flex-1 items-center', hasActions && 'pr-8', contentClassName)}
         >
           {main}
         </div>
@@ -133,8 +133,8 @@ export function SidebarRow({
         {showTrailing ? (
           <div
             className={cn(
-              'pointer-events-none absolute right-3 top-1/2 z-10 -translate-y-1/2 transition-opacity duration-150',
-              hasActions && 'group-hover/sidebar-row:opacity-0',
+              'pointer-events-none absolute right-3 top-1/2 z-[var(--vlaina-z-10)] -translate-y-1/2 transition-opacity duration-[var(--vlaina-duration-150)]',
+              hasActions && 'group-hover/sidebar-row:opacity-[var(--vlaina-opacity-0)]',
             )}
           >
             {trailing}
@@ -144,10 +144,10 @@ export function SidebarRow({
         {hasActions ? (
           <div
             className={cn(
-              'absolute right-1 top-1/2 z-20 flex -translate-y-1/2 items-center transition-opacity duration-150',
+              'absolute right-1 top-1/2 z-[var(--vlaina-z-20)] flex -translate-y-1/2 items-center transition-opacity duration-[var(--vlaina-duration-150)]',
               showActionsByDefault
-                ? 'pointer-events-auto opacity-100'
-                : 'pointer-events-none opacity-0 group-hover/sidebar-row:pointer-events-auto group-hover/sidebar-row:opacity-100',
+                ? 'pointer-events-auto opacity-[var(--vlaina-opacity-100)]'
+                : 'pointer-events-none opacity-[var(--vlaina-opacity-0)] group-hover/sidebar-row:pointer-events-auto group-hover/sidebar-row:opacity-[var(--vlaina-opacity-100)]',
             )}
           >
             <div

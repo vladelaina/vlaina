@@ -97,7 +97,7 @@ function stabilizePreviewRootTypography(previewDom: HTMLElement, sourceDom: HTML
   });
 }
 
-const LIST_COLLAPSED_CONTENT_CLASS = 'vlaina-collapsed-content';
+const LIST_COLLAPSED_CONTENT_CLASS = 'editor-collapsed-content';
 
 const LIST_LAYOUT_SELECTOR = 'ul, ol, li, li > p, li > [data-text-align]';
 

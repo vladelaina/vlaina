@@ -6,7 +6,7 @@ import {
 } from '../document/noteContentCache';
 import { saveNoteDocument } from '../document/noteDocumentPersistence';
 import { setNoteTabDirtyState } from '../document/noteTabState';
-import { stripVlainaUpdatedFrontmatter } from '../frontmatter';
+import { stripUpdatedFrontmatter } from '../frontmatter';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import { createWorkspaceDiskSyncAction } from './workspaceDiskSyncActions';
@@ -26,8 +26,8 @@ function shouldKeepEditorContentAfterSave(editorContent: string | undefined, sav
   if (!editorContent.includes('\u2800') && !/<br\s/i.test(editorContent)) {
     return false;
   }
-  return stripVlainaUpdatedFrontmatter(normalizeSerializedMarkdownDocument(editorContent))
-    === stripVlainaUpdatedFrontmatter(savedContent);
+  return stripUpdatedFrontmatter(normalizeSerializedMarkdownDocument(editorContent))
+    === stripUpdatedFrontmatter(savedContent);
 }
 
 export function createWorkspaceDocumentActions(

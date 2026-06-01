@@ -16,7 +16,7 @@ import { useUIStore } from '@/stores/uiSlice';
 import { MessageVersionNavigator } from './MessageVersionNavigator';
 
 const userMessageActionButtonClass =
-  'p-1.5 rounded-md text-[var(--chat-sidebar-text)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--chat-sidebar-text)]';
+  'p-1.5 rounded-md text-[var(--vlaina-sidebar-chat-text)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-sidebar-chat-text)]';
 
 function isSwitchableUserVersion(version: ChatMessage['versions'][number]): boolean {
   return version.kind === 'original' || version.kind === 'edit';
@@ -74,8 +74,8 @@ function UserMessageInner({
   const textBubbleStyle = useMemo(
     () => ({
       ...(textBubbleWidth ? { width: `${textBubbleWidth}px` } : {}),
-      fontSize: 'var(--vlaina-markdown-font-size, 17px)',
-      lineHeight: 'calc(var(--vlaina-markdown-font-size, 17px) + 8px)',
+      fontSize: 'var(--vlaina-markdown-font-size, var(--vlaina-size-17px))',
+      lineHeight: 'calc(var(--vlaina-markdown-font-size, var(--vlaina-size-17px)) + var(--vlaina-size-8px))',
     }),
     [textBubbleWidth],
   );
@@ -128,7 +128,7 @@ function UserMessageInner({
             {parsedContent.imageSources.length > 0 && (
               <div
                 data-no-focus-input="true"
-                className="flex max-w-[90%] flex-wrap justify-end gap-2"
+                className="flex max-w-[var(--vlaina-size-90pct)] flex-wrap justify-end gap-2"
               >
                 {parsedContent.imageSources.map((src, index) => (
                   <div
@@ -142,7 +142,7 @@ function UserMessageInner({
                       src={src}
                       alt="attachment"
                       className={cn(
-                        'rounded-xl object-contain cursor-pointer hover:opacity-90 transition-opacity',
+                        'rounded-xl object-contain cursor-pointer hover:opacity-[var(--vlaina-opacity-90)] transition-opacity',
                         hasMultipleImages
                           ? isSvgSource(src)
                             ? 'h-auto w-36 max-h-36'
@@ -176,7 +176,7 @@ function UserMessageInner({
                 data-no-focus-input="true"
                 data-chat-selection-surface="true"
                 data-chat-selection-start="true"
-                className="inline-block max-w-[90%] select-text rounded-3xl bg-[var(--vlaina-accent)] px-4 py-1.5 text-left text-[var(--vlaina-color-white)]"
+                className="inline-block max-w-[var(--vlaina-size-90pct)] select-text rounded-3xl bg-[var(--vlaina-accent)] px-4 py-1.5 text-left text-[var(--vlaina-color-white)]"
                 style={textBubbleStyle}
               >
                 <div className="whitespace-pre-wrap break-words">{parsedContent.text}</div>
@@ -185,7 +185,7 @@ function UserMessageInner({
           </div>
 
           {!isAwaitingResponse && (
-            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 mr-1 mt-1">
+            <div className="flex items-center gap-2 opacity-[var(--vlaina-opacity-0)] group-hover:opacity-[var(--vlaina-opacity-100)] transition-opacity duration-[var(--vlaina-duration-150)] mr-1 mt-1">
               {hasMultipleVersions && onSwitchVersion && (
                 <MessageVersionNavigator
                   current={currentSwitchableIndex + 1}

@@ -1,7 +1,7 @@
 {
   "account.cancelAuthentication": "Annuler l'authentification",
   "account.continueSignIn": "Continuer la connexion",
-  "account.continueToVlaina": "Continuer vers vlaina",
+  "account.continueToApp": "Continuer vers vlaina",
   "account.continueWithEmail": "Continuer avec l'e-mail",
   "account.emailAddress": "Adresse e-mail",
   "account.enterEmailCode": "Entrez le code envoyé dans votre boîte de réception",
@@ -82,7 +82,7 @@
   "settings.feedback.error.signInRequired": "Connectez-vous avant d’envoyer un retour",
   "settings.feedback.error.network": "Erreur réseau. Le retour n’a pas été envoyé.",
   "settings.feedback.error.generic": "Échec de l’envoi du retour",
-  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★! Ici, c’est {authorSite}, développeur de {vlainaSite} et {catimeSite}.",
+  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★! Ici, c’est {authorSite}, développeur de {appSite} et {catimeSite}.",
   "settings.about.note.curiousTitle": "Vous vous demandez peut-être :",
   "settings.about.note.curiousMissing": "Pourquoi certaines fonctionnalités semblent-elles encore manquer ?",
   "settings.about.note.curiousRough": "Pourquoi certaines interactions sont-elles encore un peu brutes ?",

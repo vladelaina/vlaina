@@ -1,5 +1,6 @@
 import data from '@emoji-mart/data';
 import { COLOR_HEX, type ItemColor } from '@/lib/colors/index';
+import { themeEmojiPickerTokens } from '@/styles/themeTokens';
 
 export type TabType = 'emoji' | 'upload';
 
@@ -7,11 +8,11 @@ export const RECENT_ICONS_KEY = 'vlaina-recent-icons';
 export const SKIN_TONE_KEY = 'vlaina-emoji-skin-tone';
 export const ICON_COLOR_KEY = 'vlaina-icon-color';
 export const ACTIVE_TAB_KEY = 'vlaina-icon-picker-tab';
-export const MAX_RECENT_EMOJIS = 18;
-const MAX_RECENT_ICONS_STORAGE_CHARS = 16 * 1024;
-export const EMOJI_PER_ROW = 9;
-export const EMOJI_SIZE = 32;
-export const ROW_GAP = 2;
+export const MAX_RECENT_EMOJIS = themeEmojiPickerTokens.maxRecentEmojis;
+const MAX_RECENT_ICONS_STORAGE_CHARS = themeEmojiPickerTokens.maxRecentIconsStorageChars;
+export const EMOJI_PER_ROW = themeEmojiPickerTokens.emojisPerRow;
+export const EMOJI_SIZE = themeEmojiPickerTokens.emojiSizePx;
+export const ROW_GAP = themeEmojiPickerTokens.rowGapPx;
 
 export const SCROLLBAR_CLASSNAME = `
   [&::-webkit-scrollbar]:w-1.5

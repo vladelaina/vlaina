@@ -219,7 +219,7 @@ describe('listTabIndentPlugin', () => {
 
     const view = editor.ctx.get(editorViewCtx);
 
-    expect(view.dom.querySelectorAll('li.vlaina-list-gap-placeholder-item')).toHaveLength(1);
+    expect(view.dom.querySelectorAll('li.editor-list-gap-placeholder-item')).toHaveLength(1);
   });
 
   it('renumbers ordered list items after deleting an internal gap item', async () => {

@@ -8,7 +8,15 @@ import {
 import { createMarkdownSanitizeSchema } from '@/components/common/markdown/imagePolicy';
 import { normalizeImageWidth, serializeCropValue } from '@/components/common/markdown/imageSourceFragment';
 import { MARKDOWN_BODY_FONT_SIZE } from '@/components/common/markdown/markdownMetrics';
-import { themeColorTokens } from '@/styles/themeTokens';
+import {
+  themeColorTokens,
+  themeDomStyleTokens,
+  themeExportLayoutTokens,
+  themeFontWeightTokens,
+  themeRadiusTokens,
+  themeStyleResetTokens,
+  themeTypographyTokens,
+} from '@/styles/themeTokens';
 import {
   isPublicRemoteMediaUrl,
   sanitizeNoteLinkHref,
@@ -16,7 +24,7 @@ import {
 } from '@/lib/notes/markdown/urlSecurity';
 import { cn } from '@/lib/utils';
 
-const EXPORT_WIDTH_PX = 840;
+const EXPORT_WIDTH_PX = themeExportLayoutTokens.widthPx;
 
 const EXPORT_CSS = `
   :root {
@@ -26,94 +34,94 @@ const EXPORT_CSS = `
     background: ${themeColorTokens.exportSurface};
   }
   body {
-    margin: 0;
+    margin: ${themeExportLayoutTokens.pageMargin};
     background: ${themeColorTokens.exportSurface};
   }
-  .vlaina-note-export {
+  .note-export {
     box-sizing: border-box;
     width: ${EXPORT_WIDTH_PX}px;
-    margin: 0 auto;
-    padding: 56px 64px 72px;
+    margin: ${themeExportLayoutTokens.documentMargin};
+    padding: ${themeExportLayoutTokens.documentPadding};
     background: ${themeColorTokens.exportSurface};
   }
-  .vlaina-note-export h1.vlaina-note-export-title {
-    margin: 0 0 28px;
-    font-size: 34px;
-    line-height: 1.16;
-    font-weight: 700;
+  .note-export h1.note-export-title {
+    margin: ${themeExportLayoutTokens.titleMargin};
+    font-size: ${themeTypographyTokens.exportTitleFontSize};
+    line-height: ${themeTypographyTokens.exportTitleLineHeight};
+    font-weight: ${themeFontWeightTokens.bold};
   }
-  .vlaina-note-export-body {
+  .note-export-body {
     font-size: ${MARKDOWN_BODY_FONT_SIZE}px;
-    line-height: 1.72;
+    line-height: ${themeTypographyTokens.exportBodyLineHeight};
     overflow-wrap: anywhere;
   }
-  .vlaina-note-export-body h1,
-  .vlaina-note-export-body h2,
-  .vlaina-note-export-body h3,
-  .vlaina-note-export-body h4 {
-    margin: 1.5em 0 0.45em;
-    line-height: 1.25;
+  .note-export-body h1,
+  .note-export-body h2,
+  .note-export-body h3,
+  .note-export-body h4 {
+    margin: ${themeExportLayoutTokens.headingMargin};
+    line-height: ${themeTypographyTokens.exportHeadingLineHeight};
   }
-  .vlaina-note-export-body h1 { font-size: 28px; }
-  .vlaina-note-export-body h2 { font-size: 23px; }
-  .vlaina-note-export-body h3 { font-size: 19px; }
-  .vlaina-note-export-body p,
-  .vlaina-note-export-body ul,
-  .vlaina-note-export-body ol,
-  .vlaina-note-export-body blockquote,
-  .vlaina-note-export-body pre,
-  .vlaina-note-export-body table {
-    margin: 0.8em 0;
+  .note-export-body h1 { font-size: ${themeTypographyTokens.exportHeading1FontSize}; }
+  .note-export-body h2 { font-size: ${themeTypographyTokens.exportHeading2FontSize}; }
+  .note-export-body h3 { font-size: ${themeTypographyTokens.exportHeading3FontSize}; }
+  .note-export-body p,
+  .note-export-body ul,
+  .note-export-body ol,
+  .note-export-body blockquote,
+  .note-export-body pre,
+  .note-export-body table {
+    margin: ${themeExportLayoutTokens.blockMargin};
   }
-  .vlaina-note-export-body blockquote {
-    border-left: 4px solid ${themeColorTokens.exportBorder};
-    padding-left: 14px;
+  .note-export-body blockquote {
+    border-left: ${themeExportLayoutTokens.blockquoteBorderLeft} solid ${themeColorTokens.exportBorder};
+    padding-left: ${themeExportLayoutTokens.blockquotePaddingLeft};
     color: ${themeColorTokens.exportMutedText};
   }
-  .vlaina-note-export-body code {
+  .note-export-body code {
     font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.92em;
+    font-size: ${themeTypographyTokens.exportCodeFontSize};
     background: ${themeColorTokens.exportCodeSurface};
-    border-radius: 4px;
-    padding: 0.12em 0.28em;
+    border-radius: ${themeRadiusTokens.px4};
+    padding: ${themeExportLayoutTokens.inlineCodePadding};
   }
-  .vlaina-note-export-body pre {
+  .note-export-body pre {
     overflow: auto;
     background: ${themeColorTokens.exportCodeSurface};
-    border-radius: 6px;
-    padding: 14px 16px;
+    border-radius: ${themeRadiusTokens.px6};
+    padding: ${themeExportLayoutTokens.prePadding};
   }
-  .vlaina-note-export-body pre code {
+  .note-export-body pre code {
     background: transparent;
-    padding: 0;
+    padding: ${themeExportLayoutTokens.preCodePadding};
   }
-  .vlaina-note-export-body img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 6px;
+  .note-export-body img {
+    max-width: ${themeExportLayoutTokens.mediaMaxWidth};
+    height: ${themeExportLayoutTokens.mediaHeight};
+    border-radius: ${themeRadiusTokens.px6};
   }
-  .vlaina-note-export-body [data-text-align='center'] {
+  .note-export-body [data-text-align='center'] {
     text-align: center;
   }
-  .vlaina-note-export-body [data-text-align='right'] {
+  .note-export-body [data-text-align='right'] {
     text-align: right;
   }
-  .vlaina-note-export-body table {
-    width: 100%;
+  .note-export-body table {
+    width: ${themeExportLayoutTokens.tableWidth};
     border-collapse: collapse;
   }
-  .vlaina-note-export-body th,
-  .vlaina-note-export-body td {
-    border: 1px solid ${themeColorTokens.exportBorder};
-    padding: 7px 9px;
+  .note-export-body th,
+  .note-export-body td {
+    border: ${themeExportLayoutTokens.tableBorderWidth} solid ${themeColorTokens.exportBorder};
+    padding: ${themeExportLayoutTokens.tableCellPadding};
     vertical-align: top;
   }
-  .vlaina-note-export-body th {
+  .note-export-body th {
     background: ${themeColorTokens.exportCodeSurface};
-    font-weight: 600;
+    font-weight: ${themeFontWeightTokens.semibold};
   }
   @page {
-    margin: 0;
+    margin: ${themeExportLayoutTokens.pageMargin};
   }
 `;
 
@@ -160,7 +168,8 @@ function renderExportLink(props: any) {
 function renderExportImage(props: any) {
   const rawSrc = typeof props.src === 'string' ? props.src.trim() : '';
   const safeWidth = normalizeImageWidth(typeof props.width === 'number' ? `${props.width}px` : props.width);
-  const safeCrop = serializeCropValue(props.dataVlainaCrop ?? props['data-vlaina-crop']);
+  const rawCrop = props.dataVlainaCrop ?? props['data-vlaina-crop'];
+  const safeCrop = serializeCropValue(rawCrop);
   const align = props.align === 'left' || props.align === 'right' || props.align === 'center'
     ? props.align
     : undefined;
@@ -231,9 +240,9 @@ export function NoteExportDocument({
   className?: string;
 }) {
   return (
-    <article className={cn('vlaina-note-export', className)}>
-      <h1 className="vlaina-note-export-title">{title}</h1>
-      <div className="vlaina-note-export-body">
+    <article className={cn('note-export', className)}>
+      <h1 className="note-export-title">{title}</h1>
+      <div className="note-export-body">
         <ReactMarkdown
           remarkPlugins={READONLY_MARKDOWN_REMARK_PLUGINS}
           rehypePlugins={NOTE_EXPORT_REHYPE_PLUGINS}
@@ -256,12 +265,12 @@ export async function renderNoteExportElement(markdown: string, title: string): 
   cleanup: () => void;
 }> {
   const host = document.createElement('div');
-  host.style.position = 'absolute';
-  host.style.left = '-10000px';
-  host.style.top = '0';
+  host.style.position = themeDomStyleTokens.positionAbsolute;
+  host.style.left = themeExportLayoutTokens.hiddenHostLeft;
+  host.style.top = themeExportLayoutTokens.hiddenHostTop;
   host.style.width = `${EXPORT_WIDTH_PX}px`;
   host.style.background = themeColorTokens.exportSurface;
-  host.style.pointerEvents = 'none';
+  host.style.pointerEvents = themeStyleResetTokens.pointerEventsNone;
   document.body.appendChild(host);
 
   const style = document.createElement('style');
@@ -275,7 +284,7 @@ export async function renderNoteExportElement(markdown: string, title: string): 
   root.render(<NoteExportDocument markdown={markdown} title={title} />);
   await waitForExportRender(host);
 
-  const element = host.querySelector('.vlaina-note-export') as HTMLElement | null;
+  const element = host.querySelector('.note-export') as HTMLElement | null;
   if (!element) {
     root.unmount();
     host.remove();

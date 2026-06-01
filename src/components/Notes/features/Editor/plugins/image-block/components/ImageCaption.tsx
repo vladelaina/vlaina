@@ -66,12 +66,12 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
 
     return (
         <div className={cn(
-            "absolute bottom-2 right-2 mb-0 max-w-[calc(100%-16px)] z-[60] transition-all duration-200 select-auto",
-            "floating-toolbar-inner image-caption-toolbar !rounded-[26px]",
+            "absolute bottom-2 right-2 mb-0 max-w-[var(--vlaina-width-full-minus-16px)] z-[var(--vlaina-z-60)] transition-all duration-[var(--vlaina-duration-200)] select-auto",
+            "floating-toolbar-inner image-caption-toolbar !rounded-[var(--vlaina-radius-26px)]",
             chatComposerPillSurfaceClass,
             isVisible
-                ? "opacity-100 scale-100 translate-y-0"
-                : "opacity-0 scale-95 translate-y-2 pointer-events-none"
+                ? "opacity-[var(--vlaina-opacity-100)] scale-[var(--vlaina-scale-100)] translate-y-0"
+                : "opacity-[var(--vlaina-opacity-0)] scale-[var(--vlaina-scale-95)] translate-y-2 pointer-events-none"
         )}>
             {isEditing ? (
                 <input
@@ -90,7 +90,7 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
                     onFocus={stopPropagation}
                     onDragStart={preventDrag}
                     draggable={false}
-                    className="bg-transparent text-[13px] leading-6 text-[var(--vlaina-text-primary)] font-medium px-2 h-6 outline-none min-w-[120px] w-auto select-text cursor-text placeholder:text-[var(--vlaina-text-tertiary)]"
+                    className="bg-transparent text-[var(--vlaina-font-13)] leading-6 text-[var(--vlaina-text-primary)] font-medium px-2 h-6 outline-none min-w-[var(--vlaina-size-120px)] w-auto select-text cursor-text placeholder:text-[var(--vlaina-text-tertiary)]"
                     placeholder={t('editor.captionPlaceholder')}
                 />
             ) : (
@@ -106,7 +106,7 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
                         onEditStart();
                     }}
                 >
-                    {!originalAlt && <Icon name="common.compose" size="md" className="opacity-70" />}
+                    {!originalAlt && <Icon name="common.compose" size="md" className="opacity-[var(--vlaina-opacity-70)]" />}
                     {originalAlt || t('editor.caption')}
                 </button>
             )}

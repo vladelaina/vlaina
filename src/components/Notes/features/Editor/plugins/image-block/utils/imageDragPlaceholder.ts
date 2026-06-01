@@ -1,11 +1,12 @@
 import { Decoration, type EditorView } from '@milkdown/kit/prose/view';
+import { themeImageDragPlaceholderTokens, themeRadiusTokens } from '@/styles/themeTokens';
 import type { Alignment } from '../types';
 
-const EDITOR_PADDING = 80;
-const CONTAINER_PADDING = 60;
-const DEFAULT_PLACEHOLDER_HEIGHT = 100;
-const PLACEHOLDER_MARGIN = 8;
-const PLACEHOLDER_BORDER_RADIUS = 8;
+const EDITOR_PADDING = themeImageDragPlaceholderTokens.editorPaddingPx;
+const CONTAINER_PADDING = themeImageDragPlaceholderTokens.containerPaddingPx;
+const DEFAULT_PLACEHOLDER_HEIGHT = themeImageDragPlaceholderTokens.defaultHeightPx;
+const PLACEHOLDER_MARGIN = themeImageDragPlaceholderTokens.marginPx;
+const PLACEHOLDER_BORDER_RADIUS = themeRadiusTokens.px8Var;
 const CONTAINER_TYPES = ['bullet_list', 'ordered_list', 'list_item', 'blockquote', 'callout', 'table', 'table_row'];
 
 function calculatePlaceholderSize(
@@ -66,8 +67,8 @@ export function createPlaceholderDecoration(
         height: ${height}px;
         width: ${width}px;
         margin: ${getPlaceholderMargin(alignment)};
-        border: 3px dashed var(--vlaina-accent);
-        border-radius: ${PLACEHOLDER_BORDER_RADIUS}px;
+        border: ${themeImageDragPlaceholderTokens.borderWidth} dashed var(--vlaina-accent);
+        border-radius: ${PLACEHOLDER_BORDER_RADIUS};
         background: var(--vlaina-color-image-drag-placeholder-bg);
     `;
 

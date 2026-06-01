@@ -104,7 +104,7 @@ export const bgColorMark = $mark('bgColor', () => ({
         ...(color
           ? {
               'data-bg-color': color,
-              style: `background-color: ${color}; border-radius: 0.125rem; box-decoration-break: clone; -webkit-box-decoration-break: clone;`,
+              style: `background-color: ${color}; border-radius: var(--vlaina-radius-0125rem); box-decoration-break: clone; -webkit-box-decoration-break: clone;`,
             }
           : {}),
       },

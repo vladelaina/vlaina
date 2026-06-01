@@ -52,7 +52,7 @@ describe('imageNodeCommands', () => {
             dispatch: vi.fn(),
         };
         const listener = vi.fn();
-        view.dom.addEventListener('vlaina:image-user-input', listener);
+        view.dom.addEventListener('editor:image-user-input', listener);
 
         const updated = applyImageNodeAttrsAtPos(view, 12, { width: '70%' });
 
@@ -109,7 +109,7 @@ describe('imageNodeCommands', () => {
             dispatch: vi.fn(),
         };
         const listener = vi.fn();
-        view.dom.addEventListener('vlaina:image-user-input', listener);
+        view.dom.addEventListener('editor:image-user-input', listener);
 
         const moved = moveImageNode(view, {
             sourcePos: 51,
@@ -177,7 +177,7 @@ describe('imageNodeCommands', () => {
             dispatch: vi.fn(),
         };
         const listener = vi.fn();
-        view.dom.addEventListener('vlaina:image-user-input', listener);
+        view.dom.addEventListener('editor:image-user-input', listener);
 
         const moved = moveImageNode(view, {
             sourcePos: 49,
@@ -214,7 +214,7 @@ describe('imageNodeCommands', () => {
             dispatch: vi.fn(),
         };
         const listener = vi.fn();
-        view.dom.addEventListener('vlaina:image-user-input', listener);
+        view.dom.addEventListener('editor:image-user-input', listener);
 
         const deleted = deleteImageNodeAtPos(view, 20);
 

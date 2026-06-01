@@ -30,16 +30,16 @@ export function CollapsibleSection({
             <div className="px-2 py-1 mb-0.5">
                 <div
                     onClick={handleHeaderClick}
-                    className="group flex items-center justify-between px-2 py-1 rounded-[4px] cursor-pointer"
+                    className="group flex items-center justify-between px-2 py-1 rounded-[var(--vlaina-radius-4px)] cursor-pointer"
                 >
                     <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-semibold text-[var(--vlaina-text-secondary)] group-hover:text-[var(--vlaina-text-primary)] tracking-wider transition-colors">
+                        <span className="text-[var(--vlaina-font-11)] font-semibold text-[var(--vlaina-text-secondary)] group-hover:text-[var(--vlaina-text-primary)] tracking-wider transition-colors">
                             {title}
                         </span>
                         <ToggleIcon expanded={expanded} size="md" className="text-[var(--vlaina-text-tertiary)] group-hover:text-[var(--vlaina-text-secondary)] transition-colors" />
                     </div>
                     {actions && (
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 opacity-[var(--vlaina-opacity-0)] group-hover:opacity-[var(--vlaina-opacity-100)] transition-opacity">
                             {actions}
                         </div>
                     )}
@@ -48,7 +48,7 @@ export function CollapsibleSection({
 
             <div
                 className={cn(
-                    "grid transition-[grid-template-rows] duration-200 ease-out",
+                    "grid transition-[grid-template-rows] duration-[var(--vlaina-duration-200)] ease-out",
                     expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                 )}
             >

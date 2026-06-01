@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   parseChatHeadingDragPayload,
   serializeChatHeadingDragPayload,
-  VLAINA_CHAT_HEADING_DRAG_MIME,
+  CHAT_HEADING_DRAG_MIME,
 } from './chatHeadingDrag';
 
 describe('chatHeadingDrag', () => {
   it('uses a stable custom MIME type', () => {
-    expect(VLAINA_CHAT_HEADING_DRAG_MIME).toBe('application/x-vlaina-chat-heading+json');
+    expect(CHAT_HEADING_DRAG_MIME).toBe('application/x-vlaina-chat-heading+json');
   });
 
   it('round-trips heading drag payloads', () => {

@@ -9,8 +9,7 @@ import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useI18n } from '@/lib/i18n';
 import { getInvalidFileNameReason } from '@/stores/notes/noteUtils';
 import { useToastStore } from '@/stores/useToastStore';
-
-const INVALID_FILE_NAME_TOAST_INTERVAL_MS = 1200;
+import { themeTextAreaTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 interface TitleInputProps {
   notePath: string;
@@ -47,7 +46,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
       return;
     }
 
-    input.style.height = 'auto';
+    input.style.height = themeTextAreaTokens.heightAuto;
     input.style.height = `${input.scrollHeight}px`;
   }, []);
 
@@ -83,7 +82,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
     resizeTimeoutRef.current = window.setTimeout(() => {
       resizeTimeoutRef.current = null;
       resizeTitleInput();
-    }, 120);
+    }, themeTextAreaTokens.titleResizeFallbackDelayMs);
 
     void document.fonts?.ready.then(() => {
       scheduleResizeTitleInput();
@@ -104,12 +103,12 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
 
   const showInvalidFileNameToast = useCallback((message: string) => {
     const now = Date.now();
-    if (now - lastInvalidToastAtRef.current < INVALID_FILE_NAME_TOAST_INTERVAL_MS) {
+    if (now - lastInvalidToastAtRef.current < themeUiFeedbackTokens.invalidFileNameToastIntervalMs) {
       return;
     }
 
     lastInvalidToastAtRef.current = now;
-    addToast(message, 'error', 3500);
+    addToast(message, 'error', themeUiFeedbackTokens.invalidFileNameToastDurationMs);
   }, [addToast]);
 
   useEffect(() => {
@@ -294,7 +293,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
       onChange={handleChange}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      className="block w-full resize-none overflow-hidden bg-transparent border-none outline-none text-[34px] font-bold leading-[1.15] tracking-normal text-[var(--vlaina-text-primary)] placeholder:text-[var(--vlaina-soft-placeholder)] selection:bg-[var(--vlaina-selection-bg)] selection:text-white"
+      className="block w-full resize-none overflow-hidden bg-transparent border-none outline-none text-[var(--vlaina-font-h1)] font-bold leading-[var(--vlaina-leading-title)] tracking-normal text-[var(--vlaina-text-primary)] placeholder:text-[var(--vlaina-soft-placeholder)] selection:bg-[var(--vlaina-selection-bg)] selection:text-[var(--vlaina-color-white)]"
       placeholder={t('notes.untitled')}
     />
   );

@@ -444,7 +444,7 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
     let rectSpy: ReturnType<typeof vi.spyOn> | null = null;
 
     try {
-      (globalThis as typeof globalThis & { __vlainaDebugMarkdownBlankLine?: boolean }).__vlainaDebugMarkdownBlankLine = true;
+      (globalThis as typeof globalThis & { __debugMarkdownBlankLine?: boolean }).__debugMarkdownBlankLine = true;
       debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => undefined);
       const blankLine = view.dom.querySelector('[data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"]');
       expect(blankLine).toBeInstanceOf(HTMLElement);
@@ -524,9 +524,9 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
       expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
       expect(view.state.selection.$from.parent.textContent).toBe('\u200B');
       expect(view.state.selection.empty).toBe(true);
-      expect(view.dom.querySelector('p.vlaina-editable-markdown-blank-line')).toBeInstanceOf(HTMLParagraphElement);
+      expect(view.dom.querySelector('p.editor-editable-markdown-blank-line')).toBeInstanceOf(HTMLParagraphElement);
       expect(debugSpy).toHaveBeenCalledWith(
-        '[vlaina:markdown-blank-line]',
+        '[editor:markdown-blank-line]',
         'click converted placeholder to editable paragraph',
         expect.objectContaining({
           selectionType: 'TextSelection',
@@ -548,7 +548,7 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
     } finally {
       rectSpy?.mockRestore();
       debugSpy?.mockRestore();
-      delete (globalThis as typeof globalThis & { __vlainaDebugMarkdownBlankLine?: boolean }).__vlainaDebugMarkdownBlankLine;
+      delete (globalThis as typeof globalThis & { __debugMarkdownBlankLine?: boolean }).__debugMarkdownBlankLine;
       await editor.destroy();
     }
   });

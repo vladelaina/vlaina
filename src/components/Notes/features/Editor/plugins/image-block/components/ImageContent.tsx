@@ -67,25 +67,25 @@ export const ImageContent = ({
         return (
             <div
                 data-testid="deferred-image-placeholder"
-                className="w-full h-full min-h-[100px] flex items-center justify-center bg-gray-50 dark:bg-zinc-900 border border-dashed border-gray-200 dark:border-zinc-700 rounded-md"
+                className="w-full h-full min-h-[var(--vlaina-size-100px)] flex items-center justify-center bg-[var(--vlaina-color-editor-image-surface)] border border-dashed border-[var(--vlaina-color-editor-image-border)] rounded-md"
             >
-                <Icon name="file.image" className="size-6 text-gray-300 dark:text-zinc-600" />
+                <Icon name="file.image" className="size-6 text-[var(--vlaina-color-editor-image-placeholder)]" />
             </div>
         );
     }
 
     if ((isLoading || !resolvedSrc) && !isReady) {
         return (
-            <div className="w-full h-full min-h-[100px] flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-900 rounded-md">
-                <div className="size-6 border-2 border-gray-300 dark:border-zinc-600 border-t-[var(--vlaina-accent)] rounded-full animate-spin" />
+            <div className="w-full h-full min-h-[var(--vlaina-size-100px)] flex flex-col items-center justify-center bg-[var(--vlaina-color-editor-image-surface)] rounded-md">
+                <div className="size-6 border-2 border-[var(--vlaina-color-editor-image-placeholder)] border-t-[var(--vlaina-accent)] rounded-full animate-spin" />
             </div>
         );
     }
 
     if (loadError || mediaError) {
         return (
-            <div className="w-full h-full min-h-[100px] flex flex-col items-center justify-center border border-dashed border-gray-200 dark:border-zinc-700 rounded-md text-gray-400 dark:text-zinc-500">
-                <Icon name="file.brokenImage" className="size-8 mb-2 opacity-50" />
+            <div className="w-full h-full min-h-[var(--vlaina-size-100px)] flex flex-col items-center justify-center border border-dashed border-[var(--vlaina-color-editor-image-border)] rounded-md text-[var(--vlaina-color-editor-image-placeholder)]">
+                <Icon name="file.brokenImage" className="size-8 mb-2 opacity-[var(--vlaina-opacity-50)]" />
                 <span className="text-xs font-medium">{t('editor.imageNotFound')}</span>
             </div>
         );
@@ -95,17 +95,17 @@ export const ImageContent = ({
         return (
             <div
                 className={cn(
-                    'relative w-full overflow-hidden rounded-md bg-gray-50 dark:bg-zinc-900',
-                    !isImageLoaded && 'min-h-[100px]'
+                    'relative w-full overflow-hidden rounded-md bg-[var(--vlaina-color-editor-image-surface)]',
+                    !isImageLoaded && 'min-h-[var(--vlaina-size-100px)]'
                 )}
             >
                 {!isImageLoaded ? (
                     <div
                         data-testid="remote-image-placeholder"
                         aria-hidden="true"
-                        className="absolute inset-0 flex items-center justify-center border border-dashed border-gray-200 dark:border-zinc-700"
+                        className="absolute inset-0 flex items-center justify-center border border-dashed border-[var(--vlaina-color-editor-image-border)]"
                     >
-                        <div className="size-6 rounded-full border-2 border-gray-300 border-t-[var(--vlaina-accent)] dark:border-zinc-600" />
+                        <div className="size-6 rounded-full border-2 border-[var(--vlaina-color-editor-image-placeholder)] border-t-[var(--vlaina-accent)]" />
                     </div>
                 ) : null}
                 <img
@@ -113,8 +113,8 @@ export const ImageContent = ({
                     alt=""
                     draggable={false}
                     className={cn(
-                        'block h-auto max-w-full select-none object-contain transition-opacity duration-150',
-                        isImageLoaded ? 'opacity-100' : 'opacity-0'
+                        'block h-auto max-w-full select-none object-contain transition-opacity duration-[var(--vlaina-duration-150)]',
+                        isImageLoaded ? 'opacity-[var(--vlaina-opacity-100)]' : 'opacity-[var(--vlaina-opacity-0)]'
                     )}
                     onLoad={(event) => {
                         const image = event.currentTarget;

@@ -8,8 +8,8 @@ describe('CoverAddOverlay', () => {
     const { container } = render(<CoverAddOverlay visible onAddCover={onAddCover} />);
     const overlay = container.firstElementChild;
 
-    expect(overlay).toHaveClass('z-20');
-    expect(overlay).not.toHaveClass('z-30');
+    expect(overlay).toHaveClass('z-[var(--vlaina-z-20)]');
+    expect(overlay).not.toHaveClass('z-[var(--vlaina-z-30)]');
 
     fireEvent.mouseDown(overlay!);
     expect(onAddCover).not.toHaveBeenCalled();

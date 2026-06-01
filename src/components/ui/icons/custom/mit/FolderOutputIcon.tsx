@@ -3,16 +3,17 @@
  * License: ISC
  */
 import { forwardRef, type SVGProps } from 'react';
+import { themeIconTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 
 export const FolderOutputIcon = forwardRef<SVGSVGElement, SVGProps<SVGSVGElement>>(
   (props, ref) => (
     <svg
       ref={ref}
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
+      viewBox={themeIconTokens.viewBoxDefault}
+      fill={themeStyleResetTokens.fillNone}
+      stroke={themeStyleResetTokens.currentColor}
+      strokeWidth={themeIconTokens.strokeDefault}
       strokeLinecap="round"
       strokeLinejoin="round"
       {...props}

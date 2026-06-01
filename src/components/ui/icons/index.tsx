@@ -2,6 +2,7 @@ import { ComponentProps, forwardRef } from 'react';
 import { icons, IconName } from './registry';
 import { ICON_SIZES, IconSize } from './sizes';
 import { cn } from '@/lib/utils';
+import { themeIconTokens } from '@/styles/themeTokens';
 
 export { type IconName };
 
@@ -12,7 +13,7 @@ interface IconProps extends Omit<ComponentProps<'svg'>, 'ref'> {
 }
 
 export const Icon = forwardRef<SVGSVGElement, IconProps>(
-  ({ name, size = '1em', className, style, ...props }, ref) => {
+  ({ name, size = themeIconTokens.defaultCssSize, className, style, ...props }, ref) => {
     const IconComponent = icons[name];
 
     if (!IconComponent) {

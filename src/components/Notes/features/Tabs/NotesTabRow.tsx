@@ -28,6 +28,7 @@ import { resolveSiblingNoteParentPath } from '@/stores/notes/notePathState';
 import { NotesDragOverlay } from '../common/NotesDragOverlay';
 import { NoteTabContent } from './NoteTabContent';
 import { truncateNoteLabel } from '../common/truncateNoteLabel';
+import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 interface SortableTabProps {
   tab: { path: string; name: string; isDirty: boolean };
@@ -119,16 +120,16 @@ const SortableTab = memo(function SortableTab({
           }}
           onMouseEnter={updateLabelClipped}
           onFocus={updateLabelClipped}
-          className={cn(
+            className={cn(
             'group relative flex min-w-0 flex-shrink cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 transition-colors',
             isActive
-              ? 'text-zinc-800 dark:text-zinc-100'
-              : 'text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300',
-            isDragging && 'z-50 opacity-50'
+              ? 'text-[var(--vlaina-color-tab-active-fg)]'
+              : 'text-[var(--vlaina-color-tab-muted-fg)] hover:text-[var(--vlaina-color-tab-muted-hover-fg)]',
+            isDragging && 'z-[var(--vlaina-z-50)] opacity-[var(--vlaina-opacity-50)]'
           )}
         >
           {showSeparator && (
-            <div className="absolute left-0 top-1/2 h-[18px] w-px -translate-y-1/2 bg-zinc-200 dark:bg-zinc-700" />
+            <div className="absolute left-0 top-1/2 h-[var(--vlaina-size-18px)] w-px -translate-y-1/2 bg-[var(--vlaina-color-tab-separator)]" />
           )}
           <NoteTabContent
             tab={tab}
@@ -152,8 +153,8 @@ const SortableTab = memo(function SortableTab({
               e.stopPropagation();
             }}
             className={cn(
-              'ml-auto rounded p-0.5 opacity-0 transition-all pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100',
-              'text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400'
+              'ml-auto rounded p-0.5 opacity-[var(--vlaina-opacity-0)] transition-all pointer-events-none group-hover:pointer-events-auto group-hover:opacity-[var(--vlaina-opacity-100)] group-focus-within:pointer-events-auto group-focus-within:opacity-[var(--vlaina-opacity-100)]',
+              'text-[var(--vlaina-color-tab-close-fg)] hover:text-[var(--vlaina-color-tab-close-hover-fg)]'
             )}
           >
             <Icon name="common.close" className="h-4 w-4" />
@@ -166,14 +167,14 @@ const SortableTab = memo(function SortableTab({
           sideOffset={6}
           showArrow={false}
           className={cn(
-            'rounded-[18px] px-3 py-2 text-xs text-[var(--chat-sidebar-text)]',
+            'rounded-[var(--vlaina-radius-18px)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
             chatComposerPillSurfaceClass,
           )}
         >
           <div className="flex flex-col gap-0.5">
             <span className="text-xs font-medium">{title}</span>
             {disambiguation ? (
-              <span className="text-[11px] text-current/70">{disambiguation}</span>
+              <span className="text-[var(--vlaina-font-11)] text-current/70">{disambiguation}</span>
             ) : null}
           </div>
         </TooltipContent>
@@ -193,8 +194,8 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
   return (
     <div
       className={cn(
-        'flex min-w-0 max-w-[200px] items-center gap-2 rounded-md bg-white/90 px-3 py-1.5 shadow-md backdrop-blur-sm dark:bg-zinc-800/90',
-        isActive ? 'text-zinc-800 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400'
+        'flex min-w-0 max-w-[var(--vlaina-size-200px)] items-center gap-2 rounded-md bg-[var(--vlaina-color-tab-overlay-bg)] px-3 py-1.5 shadow-[var(--vlaina-shadow-md)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)]',
+        isActive ? 'text-[var(--vlaina-color-tab-active-fg)]' : 'text-[var(--vlaina-color-tab-muted-fg)]'
       )}
     >
       <NoteTabContent
@@ -260,7 +261,7 @@ export function NotesTabRow() {
     <div className="group/tab-row flex h-full w-full min-w-0 items-center gap-1 px-2">
       <div
         className={cn(
-          'vlaina-no-drag flex h-8 max-w-full min-w-0 items-center rounded-full px-1.5 transition-all duration-200',
+          'app-no-drag flex h-8 max-w-full min-w-0 items-center rounded-full px-1.5 transition-all duration-[var(--vlaina-duration-200)]',
           chatComposerPillSurfaceClass,
         )}
       >
@@ -294,12 +295,12 @@ export function NotesTabRow() {
       </div>
 
       {hasOpenedFolder ? (
-        <Tooltip delayDuration={500}>
+        <Tooltip delayDuration={themeUiFeedbackTokens.defaultTooltipDelayMs}>
           <TooltipTrigger asChild>
             <button
               type="button"
               onClick={handleCreateNote}
-              className="notes-tab-row-new-note-button vlaina-no-drag pointer-events-none flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-zinc-400 opacity-0 transition-all group-hover/tab-row:pointer-events-auto group-hover/tab-row:opacity-100 group-focus-within/tab-row:pointer-events-auto group-focus-within/tab-row:opacity-100 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              className="notes-tab-row-new-note-button app-no-drag pointer-events-none flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--vlaina-color-tab-muted-fg)] opacity-[var(--vlaina-opacity-0)] transition-all group-hover/tab-row:pointer-events-auto group-hover/tab-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/tab-row:pointer-events-auto group-focus-within/tab-row:opacity-[var(--vlaina-opacity-100)] hover:bg-[var(--vlaina-color-control-hover-bg)] hover:text-[var(--vlaina-color-control-hover-fg)]"
             >
               <Icon name="common.add" className="h-4 w-4" />
             </button>
@@ -309,14 +310,14 @@ export function NotesTabRow() {
             sideOffset={6}
             showArrow={false}
             className={cn(
-              'flex items-center gap-1.5 rounded-[18px] px-3 py-2 text-xs text-[var(--chat-sidebar-text)]',
+              'flex items-center gap-1.5 rounded-[var(--vlaina-radius-18px)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]',
               chatComposerPillSurfaceClass,
             )}
           >
             <span>{t('sidebar.newNote')}</span>
             <ShortcutKeys
               keys={['Ctrl', 'T']}
-              keyClassName="rounded-md bg-[var(--chat-sidebar-row-hover)] text-[var(--chat-sidebar-text)]"
+              keyClassName="rounded-md bg-[var(--vlaina-sidebar-chat-row-hover)] text-[var(--vlaina-sidebar-chat-text)]"
             />
           </TooltipContent>
         </Tooltip>

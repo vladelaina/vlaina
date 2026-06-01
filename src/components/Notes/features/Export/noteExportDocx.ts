@@ -6,6 +6,7 @@ import {
   TextRun,
 } from 'docx';
 import { stripMarkdownInline } from '@/components/common/markdown/plainText';
+import { themeExportLayoutTokens } from '@/styles/themeTokens';
 
 function createParagraph(text: string, options: Record<string, unknown> = {}) {
   return new Paragraph({
@@ -16,12 +17,12 @@ function createParagraph(text: string, options: Record<string, unknown> = {}) {
 
 function createCodeParagraph(text: string) {
   return new Paragraph({
-    spacing: { before: 80, after: 80 },
+    spacing: { before: themeExportLayoutTokens.docxCodeBeforeSpacing, after: themeExportLayoutTokens.docxCodeAfterSpacing },
     children: [
       new TextRun({
         text,
         font: 'JetBrains Mono',
-        size: 20,
+        size: themeExportLayoutTokens.docxCodeFontSizeHalfPoints,
       }),
     ],
   });
@@ -32,7 +33,7 @@ export async function createDocxExportBytes(markdown: string, title: string): Pr
     new Paragraph({
       text: title,
       heading: HeadingLevel.TITLE,
-      spacing: { after: 320 },
+      spacing: { after: themeExportLayoutTokens.docxTitleAfterSpacing },
     }),
   ];
 
@@ -80,7 +81,13 @@ export async function createDocxExportBytes(markdown: string, title: string): Pr
         level === 4 ? HeadingLevel.HEADING_4 :
         level === 5 ? HeadingLevel.HEADING_5 :
         HeadingLevel.HEADING_6;
-      children.push(createParagraph(headingMatch[2], { heading, spacing: { before: 220, after: 120 } }));
+      children.push(createParagraph(headingMatch[2], {
+        heading,
+        spacing: {
+          before: themeExportLayoutTokens.docxHeadingBeforeSpacing,
+          after: themeExportLayoutTokens.docxHeadingAfterSpacing,
+        },
+      }));
       continue;
     }
 
@@ -99,8 +106,11 @@ export async function createDocxExportBytes(markdown: string, title: string): Pr
     const quoteMatch = /^\s*>\s?(.+)$/.exec(line);
     if (quoteMatch) {
       children.push(createParagraph(quoteMatch[1], {
-        indent: { left: 360 },
-        spacing: { before: 80, after: 80 },
+        indent: { left: themeExportLayoutTokens.docxQuoteIndentLeft },
+        spacing: {
+          before: themeExportLayoutTokens.docxQuoteBeforeSpacing,
+          after: themeExportLayoutTokens.docxQuoteAfterSpacing,
+        },
       }));
       continue;
     }

@@ -36,7 +36,7 @@ function NoteMentionCandidateIcon({ candidate }: { candidate: NoteMentionCandida
       <Icon
         name="file.folder"
         size={NOTES_SIDEBAR_ICON_SIZE}
-        className="text-[var(--notes-sidebar-folder-icon)]"
+        className="text-[var(--vlaina-sidebar-notes-folder-icon)]"
       />
     );
   }
@@ -60,7 +60,7 @@ function NoteMentionCandidateIcon({ candidate }: { candidate: NoteMentionCandida
     <Icon
       name="file.text"
       size={NOTES_SIDEBAR_ICON_SIZE}
-      className="text-[var(--notes-sidebar-file-icon)]"
+      className="text-[var(--vlaina-sidebar-notes-file-icon)]"
     />
   );
 }
@@ -79,7 +79,7 @@ function StarredNoteMentionIcon({
       <Icon
         name="file.text"
         size={NOTES_SIDEBAR_ICON_SIZE}
-        className="text-[var(--notes-sidebar-file-icon)]"
+        className="text-[var(--vlaina-sidebar-notes-file-icon)]"
       />
     );
   }
@@ -114,7 +114,7 @@ function NoteMentionSection({
 
   return (
     <div>
-      <p className="px-3 pb-1.5 text-[11px] font-medium text-[var(--chat-sidebar-text-soft)]">
+      <p className="px-3 pb-1.5 text-[var(--vlaina-font-11)] font-medium text-[var(--vlaina-sidebar-chat-text-soft)]">
         {title}
       </p>
       <div className="space-y-1">
@@ -127,7 +127,7 @@ function NoteMentionSection({
               key={candidate.path}
               type="button"
               className={cn(
-                'flex h-10 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[15px] font-medium transition-colors',
+                'flex h-10 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[var(--vlaina-font-15)] font-medium transition-colors',
                 isActive
                   ? getSidebarSelectedRowSurfaceClass('chat')
                   : getSidebarIdleRowSurfaceClass('chat')
@@ -135,7 +135,7 @@ function NoteMentionSection({
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => onSelect(candidate)}
             >
-              <span className="flex size-[18px] shrink-0 items-center justify-center">
+              <span className="flex size-[var(--vlaina-size-18px)] shrink-0 items-center justify-center">
                 <NoteMentionCandidateIcon candidate={candidate} />
               </span>
               <span className="truncate">{candidate.title}</span>
@@ -165,7 +165,7 @@ export function NoteMentionPicker({
   return (
     <div
       className={cn(
-        'absolute bottom-full z-40 mb-2 max-h-72 overflow-y-auto !rounded-[26px] p-1.5 text-[var(--chat-sidebar-text)]',
+        'absolute bottom-full z-[var(--vlaina-z-40)] mb-2 max-h-72 overflow-y-auto !rounded-[var(--vlaina-radius-26px)] p-1.5 text-[var(--vlaina-sidebar-chat-text)]',
         chatComposerPillSurfaceClass,
         className ?? 'left-3 right-3',
       )}
@@ -194,7 +194,7 @@ export function NoteMentionPicker({
             />
           </>
         ) : (
-          <p className="rounded-xl px-3 py-2 text-sm font-medium text-[var(--chat-sidebar-text-soft)]">
+          <p className="rounded-xl px-3 py-2 text-sm font-medium text-[var(--vlaina-sidebar-chat-text-soft)]">
             {status === 'loading' ? 'Loading notes...' : 'No matching notes'}
           </p>
         )}

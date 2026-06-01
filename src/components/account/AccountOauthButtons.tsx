@@ -3,6 +3,7 @@ import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/c
 import { cn } from '@/lib/utils';
 import type { OauthAccountProvider } from '@/lib/account/provider';
 import { useI18n } from '@/lib/i18n';
+import { themeIconTokens } from '@/styles/themeTokens';
 
 interface AccountOauthButtonsProps {
   isCompact?: boolean;
@@ -42,26 +43,26 @@ export function AccountOauthButtons({
             void onOauthSignIn(option.provider);
           }}
           className={cn(
-            'group relative flex h-14 w-full cursor-pointer items-center justify-center gap-3 rounded-full px-5 text-[14px] font-semibold tracking-tight text-[var(--vlaina-color-text-strong)] transition-all duration-200 active:scale-[0.985] sm:h-[60px] sm:px-6 sm:text-[15px] md:h-16',
+            'group relative flex h-14 w-full cursor-pointer items-center justify-center gap-3 rounded-full px-5 text-[var(--vlaina-font-sm)] font-semibold tracking-tight text-[var(--vlaina-color-text-strong)] transition-all duration-[var(--vlaina-duration-200)] active:scale-[var(--vlaina-scale-985)] sm:h-[var(--vlaina-size-60px)] sm:px-6 sm:text-[var(--vlaina-font-15)] md:h-16',
             chatComposerPillSurfaceClass,
-            isCompact && 'h-14 text-[14px]'
+            isCompact && 'h-14 text-[var(--vlaina-font-sm)]'
           )}
         >
           <Icon
             name="common.google"
-            size={20}
+            size={themeIconTokens.sizeMd}
             className="shrink-0"
           />
 
-          <span className="opacity-90 group-hover:opacity-100 transition-opacity">
+          <span className="opacity-[var(--vlaina-opacity-90)] group-hover:opacity-[var(--vlaina-opacity-100)] transition-opacity">
             {t('account.continueWithProvider', { provider: option.label })}
           </span>
 
           <div className="absolute inset-0 overflow-hidden rounded-full pointer-events-none">
             <div
               className={cn(
-                'absolute inset-x-6 bottom-0 h-[3px] rounded-full bg-[var(--vlaina-color-brand-google-gradient)] opacity-0 transition-opacity duration-300',
-                isBusy && 'animate-pulse opacity-100'
+                'absolute inset-x-6 bottom-0 h-[var(--vlaina-size-3px)] rounded-full bg-[var(--vlaina-color-brand-google-gradient)] opacity-[var(--vlaina-opacity-0)] transition-opacity duration-[var(--vlaina-duration-300)]',
+                isBusy && 'animate-pulse opacity-[var(--vlaina-opacity-100)]'
               )}
             />
           </div>

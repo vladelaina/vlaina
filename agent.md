@@ -128,3 +128,12 @@ When changing notes Markdown parsing, rendering, or remark plugins:
 - Keep main editor plugin config and round-trip test editor config in sync.
 - Add a focused compatibility test that opens the syntax in Milkdown.
 - Preserve a source-edit fallback for editor creation failures; do not let one bad node make the note blank.
+
+## 10. Theme Contract
+
+**Keep appearance values centralized.**
+
+- Put app theme CSS variables in `src/styles/theme.css`.
+- Put runtime style constants in `src/styles/themeTokens.ts`.
+- Do not scatter raw colors, z-index, opacity, scale, shadows, radii, motion, or appearance sizes in components.
+- Run `node scripts/theme-audit.mjs` after theme-related changes.

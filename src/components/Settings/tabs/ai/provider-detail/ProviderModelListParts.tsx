@@ -77,12 +77,12 @@ export function ActionButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'inline-flex items-center justify-center gap-1.5 rounded-full border border-transparent bg-transparent text-[12px] font-semibold transition-colors duration-200',
+        'inline-flex items-center justify-center gap-1.5 rounded-full border border-transparent bg-transparent text-[var(--vlaina-font-xs)] font-semibold transition-colors duration-[var(--vlaina-duration-200)]',
         compact ? 'h-8 px-3' : 'h-9 px-4',
         chatComposerPillSurfaceClass,
         muted
-          ? 'text-[var(--notes-sidebar-text-soft)] hover:bg-transparent hover:text-[var(--sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-50'
-          : 'text-[var(--sidebar-row-selected-text)] hover:bg-transparent hover:text-[var(--sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-50'
+          ? 'text-[var(--vlaina-sidebar-notes-text-soft)] hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-50)]'
+          : 'text-[var(--vlaina-sidebar-row-selected-text)] hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-50)]'
       )}
     >
       {busy ? (
@@ -115,7 +115,7 @@ export function SectionHeader({
   return (
     <div className="flex items-center justify-between gap-2 px-1">
       <div className="flex items-center gap-2">
-      <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--notes-sidebar-text-soft)]">
+      <div className="text-[var(--vlaina-font-11)] font-bold uppercase tracking-[var(--vlaina-tracking-label-lg)] text-[var(--vlaina-sidebar-notes-text-soft)]">
         {label}
       </div>
       <button
@@ -125,7 +125,7 @@ export function SectionHeader({
           void onBenchmark();
         }}
         className={cn(
-          'flex h-6 w-6 items-center justify-center rounded-full text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-transparent hover:text-[var(--sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-35',
+          'flex h-6 w-6 items-center justify-center rounded-full text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-35)]',
           chatComposerPillSurfaceClass
         )}
       >
@@ -141,7 +141,7 @@ export function SectionHeader({
           type="button"
           disabled={actionDisabled}
           onClick={onAction}
-          className="h-6 rounded-full px-2.5 text-[11px] font-bold text-[var(--sidebar-row-selected-text)] transition-colors hover:bg-[var(--sidebar-row-selected-bg)] disabled:cursor-not-allowed disabled:opacity-35"
+          className="h-6 rounded-full px-2.5 text-[var(--vlaina-font-11)] font-bold text-[var(--vlaina-sidebar-row-selected-text)] transition-colors hover:bg-[var(--vlaina-sidebar-row-selected-bg)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-35)]"
         >
           {actionLabel}
         </button>
@@ -167,23 +167,23 @@ export function ModelRow({
 }) {
   const tone = getHealthTone(health);
   const className = cn(
-    'flex items-center gap-3 rounded-[20px] border border-transparent px-4 py-3 text-left transition-all duration-200',
-    selected && tone === 'neutral' && 'bg-[var(--vlaina-bg-secondary)] text-[var(--notes-sidebar-text)]',
-    selected && tone === 'success' && 'bg-[var(--vlaina-color-status-success-bg)] text-[var(--notes-sidebar-text)]',
-    selected && tone === 'warning' && 'bg-[var(--vlaina-color-status-warning-bg)] text-[var(--notes-sidebar-text)]',
-    selected && tone === 'error' && 'bg-[var(--vlaina-color-status-danger-bg)] text-[var(--notes-sidebar-text)]',
-    selected && tone === 'loading' && 'bg-[var(--vlaina-bg-secondary)] text-[var(--notes-sidebar-text)]',
-    !selected && tone === 'neutral' && 'bg-[var(--vlaina-color-row-soft)] text-[var(--notes-sidebar-text)] hover:bg-[var(--vlaina-hover)]',
-    !selected && tone === 'success' && 'bg-[var(--vlaina-color-status-success-bg)] text-[var(--notes-sidebar-text)] hover:bg-[var(--vlaina-color-status-success-bg)]',
-    !selected && tone === 'warning' && 'bg-[var(--vlaina-color-status-warning-bg)] text-[var(--notes-sidebar-text)] hover:bg-[var(--vlaina-color-status-warning-bg)]',
-    !selected && tone === 'error' && 'bg-[var(--vlaina-color-status-danger-bg)] text-[var(--notes-sidebar-text)] hover:bg-[var(--vlaina-color-status-danger-bg)]',
-    !selected && tone === 'loading' && 'bg-[var(--vlaina-color-row-soft)] text-[var(--notes-sidebar-text)]',
+    'flex items-center gap-3 rounded-[var(--vlaina-radius-20px)] border border-transparent px-4 py-3 text-left transition-all duration-[var(--vlaina-duration-200)]',
+    selected && tone === 'neutral' && 'bg-[var(--vlaina-bg-secondary)] text-[var(--vlaina-sidebar-notes-text)]',
+    selected && tone === 'success' && 'bg-[var(--vlaina-color-status-success-bg)] text-[var(--vlaina-sidebar-notes-text)]',
+    selected && tone === 'warning' && 'bg-[var(--vlaina-color-status-warning-bg)] text-[var(--vlaina-sidebar-notes-text)]',
+    selected && tone === 'error' && 'bg-[var(--vlaina-color-status-danger-bg)] text-[var(--vlaina-sidebar-notes-text)]',
+    selected && tone === 'loading' && 'bg-[var(--vlaina-bg-secondary)] text-[var(--vlaina-sidebar-notes-text)]',
+    !selected && tone === 'neutral' && 'bg-[var(--vlaina-color-row-soft)] text-[var(--vlaina-sidebar-notes-text)] hover:bg-[var(--vlaina-hover)]',
+    !selected && tone === 'success' && 'bg-[var(--vlaina-color-status-success-bg)] text-[var(--vlaina-sidebar-notes-text)] hover:bg-[var(--vlaina-color-status-success-bg)]',
+    !selected && tone === 'warning' && 'bg-[var(--vlaina-color-status-warning-bg)] text-[var(--vlaina-sidebar-notes-text)] hover:bg-[var(--vlaina-color-status-warning-bg)]',
+    !selected && tone === 'error' && 'bg-[var(--vlaina-color-status-danger-bg)] text-[var(--vlaina-sidebar-notes-text)] hover:bg-[var(--vlaina-color-status-danger-bg)]',
+    !selected && tone === 'loading' && 'bg-[var(--vlaina-color-row-soft)] text-[var(--vlaina-sidebar-notes-text)]',
     onClick && 'cursor-pointer'
   );
 
   const content = (
     <>
-      <div className="min-w-0 flex-1 truncate text-[14px] font-semibold">{getModelPresentationName({ name: model, apiModelId: model })}</div>
+      <div className="min-w-0 flex-1 truncate text-[var(--vlaina-font-sm)] font-semibold">{getModelPresentationName({ name: model, apiModelId: model })}</div>
       <HealthBadge health={health} />
       <div className={cn('shrink-0', decorativeTrailing && 'pointer-events-none')}>{trailing}</div>
     </>
@@ -220,14 +220,14 @@ export function ModelSearchInput({
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={t('settings.ai.filterModels')}
-      leading={<Icon name="common.search" size="sm" className="text-[var(--notes-sidebar-text-soft)]" />}
+      leading={<Icon name="common.search" size="sm" className="text-[var(--vlaina-sidebar-notes-text-soft)]" />}
       inputClassName={cn(providerInputClassName, 'pl-11', value && 'pr-20')}
       shellClassName={providerInputShellClassName}
       trailing={value ? (
         <button
           type="button"
           onClick={() => onChange('')}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--notes-sidebar-text)]"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-sidebar-notes-text)]"
         >
           <Icon name="common.close" size="sm" />
         </button>
@@ -250,7 +250,7 @@ function HealthBadge({ health }: { health?: HealthStatus }) {
     return (
       <span
         className={cn(
-          'rounded-full px-2 py-1 text-[10px] font-medium',
+          'rounded-full px-2 py-1 text-[var(--vlaina-font-10)] font-medium',
           isSlow
             ? 'bg-[var(--vlaina-color-status-warning-bg)] text-[var(--vlaina-color-status-warning-fg)]'
             : 'bg-[var(--vlaina-color-status-success-bg)] text-[var(--vlaina-color-status-success-fg)]'
@@ -262,7 +262,7 @@ function HealthBadge({ health }: { health?: HealthStatus }) {
   }
 
   return (
-    <span className="rounded-full bg-[var(--vlaina-color-status-danger-bg)] px-2 py-1 text-[10px] font-medium text-[var(--vlaina-color-status-danger-fg)]" title={health.error}>
+    <span className="rounded-full bg-[var(--vlaina-color-status-danger-bg)] px-2 py-1 text-[var(--vlaina-font-10)] font-medium text-[var(--vlaina-color-status-danger-fg)]" title={health.error}>
       {t('settings.ai.failed')}
     </span>
   );

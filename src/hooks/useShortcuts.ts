@@ -62,7 +62,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       createNote(folderPath);
     },
     openMarkdownFile: () => {
-      window.dispatchEvent(new Event('vlaina-open-markdown-file'));
+      window.dispatchEvent(new Event('app-open-markdown-file'));
     },
     saveNote: async () => {
       await saveNote({ explicit: true });

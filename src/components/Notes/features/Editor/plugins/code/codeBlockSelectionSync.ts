@@ -1,6 +1,6 @@
 type SelectionSyncCallback = () => void;
 
-export const CODE_BLOCK_SELECTION_SYNC_EVENT = 'vlaina:code-block-selection-sync';
+export const CODE_BLOCK_SELECTION_SYNC_EVENT = 'editor:code-block-selection-sync';
 
 interface SelectionSyncRegistry {
   callbacks: Set<SelectionSyncCallback>;

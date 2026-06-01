@@ -26,6 +26,7 @@ import {
   toggleCollapsedHeadingId,
   type OutlineTreeNode,
 } from './outlineCollapseTree';
+import { themeIconTokens } from '@/styles/themeTokens';
 
 interface NotesOutlineProps {
   enabled: boolean;
@@ -139,13 +140,13 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
                 <CollapseTriangleAffordance
                   collapsed={isCollapsed}
                   visibility="hover-unless-collapsed"
-                  size={12}
+                  size={themeIconTokens.sizeXs}
                   className={cn(
-                    'transition-[color,opacity] duration-150 group-hover/sidebar-row:opacity-100 group-focus-within/sidebar-row:opacity-100',
-                    isActive ? 'text-[var(--sidebar-row-selected-text)]' : getSidebarSoftTextClass('notes'),
+                    'transition-[color,opacity] duration-[var(--vlaina-duration-150)] group-hover/sidebar-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-100)]',
+                    isActive ? 'text-[var(--vlaina-sidebar-row-selected-text)]' : getSidebarSoftTextClass('notes'),
                     isActive
-                      ? 'group-hover/sidebar-row:text-[var(--sidebar-row-selected-text)] group-focus-within/sidebar-row:text-[var(--sidebar-row-selected-text)] hover:text-[var(--sidebar-row-selected-text)]'
-                      : 'group-hover/sidebar-row:text-[var(--notes-sidebar-text)] group-focus-within/sidebar-row:text-[var(--notes-sidebar-text)] hover:text-[var(--notes-sidebar-text)]',
+                      ? 'group-hover/sidebar-row:text-[var(--vlaina-sidebar-row-selected-text)] group-focus-within/sidebar-row:text-[var(--vlaina-sidebar-row-selected-text)] hover:text-[var(--vlaina-sidebar-row-selected-text)]'
+                      : 'group-hover/sidebar-row:text-[var(--vlaina-sidebar-notes-text)] group-focus-within/sidebar-row:text-[var(--vlaina-sidebar-notes-text)] hover:text-[var(--vlaina-sidebar-notes-text)]',
                   )}
                 />
               </button>
@@ -209,7 +210,7 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
         <NotesSidebarTopActions />
         <NotesSidebarScrollArea
           ref={scrollRootRef}
-          className={cn(isPeeking ? 'vlaina-scrollbar-rounded pt-4 pb-4' : 'pt-0')}
+          className={cn(isPeeking ? 'app-scrollbar-rounded pt-4 pb-4' : 'pt-0')}
           scrollbarInsetRight={SIDEBAR_CAPSULE_SCROLLBAR_INSET_RIGHT}
           data-notes-sidebar-scroll-root="true"
         >
@@ -221,7 +222,7 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
             ) : null}
             <div
               data-notes-sidebar-blank-drag-root="true"
-              className={cn('flex flex-1 items-center justify-center', headings.length === 0 && 'min-h-[160px] pb-8')}
+              className={cn('flex flex-1 items-center justify-center', headings.length === 0 && 'min-h-[var(--vlaina-size-160px)] pb-8')}
             >
               {headings.length === 0 ? (
                 <NotesSidebarPillEmptyHint

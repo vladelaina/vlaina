@@ -3,6 +3,7 @@ import { Node } from '@milkdown/kit/prose/model';
 import { createRoot, Root } from 'react-dom/client';
 import React from 'react';
 import { ImageBlockView } from './ImageBlockView';
+import { themeImageBlockStyleTokens } from '@/styles/themeTokens';
 
 export class ImageBlockNodeView implements NodeView {
     dom: HTMLElement;
@@ -22,9 +23,9 @@ export class ImageBlockNodeView implements NodeView {
         this.dom.classList.add('image-block-container');
         this.dom.contentEditable = 'false';
         this.dom.draggable = false;
-        this.dom.style.display = 'block';
-        this.dom.style.width = '100%';
-        this.dom.style.maxWidth = '100%';
+        this.dom.style.display = themeImageBlockStyleTokens.displayBlock;
+        this.dom.style.width = themeImageBlockStyleTokens.widthFull;
+        this.dom.style.maxWidth = themeImageBlockStyleTokens.maxWidthFull;
 
         this.dragStartHandler = (e: DragEvent) => {
             e.preventDefault();

@@ -22,6 +22,7 @@ import {
   getSidebarSelectedRowSurfaceClass,
   type SidebarTone,
 } from '@/components/layout/sidebar/sidebarLabelStyles'
+import { themeDomStyleTokens, themeIconTokens, themeStyleResetTokens } from '@/styles/themeTokens'
 import {
   MODEL_FAMILIES,
   getModelCategoryId,
@@ -70,49 +71,49 @@ const MODEL_SELECTOR_THEME_STYLES: Record<
   }
 > = {
   chat: {
-    triggerHover: 'hover:bg-[var(--chat-sidebar-row-hover)]',
-    triggerText: 'text-[var(--chat-sidebar-text-muted)]',
-    triggerTextActive: 'text-[var(--chat-sidebar-text)]',
-    sectionLabel: 'text-[var(--chat-sidebar-text-soft)]',
-    divider: 'border-neutral-100 dark:border-neutral-700',
-    inputText: 'text-[var(--chat-sidebar-text)]',
-    inputPlaceholder: 'placeholder:text-[var(--chat-sidebar-text-soft)]',
-    settingsButton: 'text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)] hover:text-[var(--chat-sidebar-text)]',
-    categoryHover: 'hover:bg-[var(--chat-sidebar-row-hover)]',
-    optionText: 'text-[var(--chat-sidebar-text)]',
-    optionTextActive: 'text-[var(--sidebar-row-selected-text)]',
-    emptyText: 'text-[var(--chat-sidebar-text-soft)]',
+    triggerHover: 'hover:bg-[var(--vlaina-sidebar-chat-row-hover)]',
+    triggerText: 'text-[var(--vlaina-sidebar-chat-text-muted)]',
+    triggerTextActive: 'text-[var(--vlaina-sidebar-chat-text)]',
+    sectionLabel: 'text-[var(--vlaina-sidebar-chat-text-soft)]',
+    divider: 'border-[var(--vlaina-border)]',
+    inputText: 'text-[var(--vlaina-sidebar-chat-text)]',
+    inputPlaceholder: 'placeholder:text-[var(--vlaina-sidebar-chat-text-soft)]',
+    settingsButton: 'text-[var(--vlaina-sidebar-chat-text)] hover:bg-[var(--vlaina-sidebar-chat-row-hover)] hover:text-[var(--vlaina-sidebar-chat-text)]',
+    categoryHover: 'hover:bg-[var(--vlaina-sidebar-chat-row-hover)]',
+    optionText: 'text-[var(--vlaina-sidebar-chat-text)]',
+    optionTextActive: 'text-[var(--vlaina-sidebar-row-selected-text)]',
+    emptyText: 'text-[var(--vlaina-sidebar-chat-text-soft)]',
   },
   notes: {
-    triggerHover: 'hover:bg-[var(--notes-sidebar-row-hover)]',
-    triggerText: 'text-[var(--notes-sidebar-text-muted)]',
-    triggerTextActive: 'text-[var(--notes-sidebar-text)]',
-    sectionLabel: 'text-[var(--notes-sidebar-text-soft)]',
-    divider: 'border-[var(--notes-sidebar-menu-border)]',
-    inputText: 'text-[var(--notes-sidebar-text)]',
-    inputPlaceholder: 'placeholder:text-[var(--notes-sidebar-text-soft)]',
-    settingsButton: 'text-[var(--notes-sidebar-text)] hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)]',
-    categoryHover: 'hover:bg-[var(--notes-sidebar-row-hover)]',
-    optionText: 'text-[var(--notes-sidebar-text)]',
-    optionTextActive: 'text-[var(--sidebar-row-selected-text)]',
-    emptyText: 'text-[var(--notes-sidebar-text-soft)]',
+    triggerHover: 'hover:bg-[var(--vlaina-sidebar-notes-row-hover)]',
+    triggerText: 'text-[var(--vlaina-sidebar-notes-text-muted)]',
+    triggerTextActive: 'text-[var(--vlaina-sidebar-notes-text)]',
+    sectionLabel: 'text-[var(--vlaina-sidebar-notes-text-soft)]',
+    divider: 'border-[var(--vlaina-sidebar-notes-menu-border)]',
+    inputText: 'text-[var(--vlaina-sidebar-notes-text)]',
+    inputPlaceholder: 'placeholder:text-[var(--vlaina-sidebar-notes-text-soft)]',
+    settingsButton: 'text-[var(--vlaina-sidebar-notes-text)] hover:bg-[var(--vlaina-sidebar-notes-row-hover)] hover:text-[var(--vlaina-sidebar-notes-text)]',
+    categoryHover: 'hover:bg-[var(--vlaina-sidebar-notes-row-hover)]',
+    optionText: 'text-[var(--vlaina-sidebar-notes-text)]',
+    optionTextActive: 'text-[var(--vlaina-sidebar-row-selected-text)]',
+    emptyText: 'text-[var(--vlaina-sidebar-notes-text-soft)]',
   },
 }
 
-const ModelOption = memo(({ 
-    model, 
-    isSelected, 
-    isFocused, 
-    onSelect, 
+const ModelOption = memo(({
+    model,
+    isSelected,
+    isFocused,
+    onSelect,
     onTogglePinned,
     onHover,
     theme,
     showFamilyIcon,
-}: { 
-    model: AIModel; 
-    isSelected: boolean; 
-    isFocused: boolean; 
-    onSelect: (id: string) => void; 
+}: {
+    model: AIModel;
+    isSelected: boolean;
+    isFocused: boolean;
+    onSelect: (id: string) => void;
     onTogglePinned: (id: string, pinned: boolean) => void;
     onHover: (id: string) => void;
     theme: ModelSelectorTheme;
@@ -131,7 +132,7 @@ const ModelOption = memo(({
             onClick={() => onSelect(model.id)}
             onMouseEnter={() => onHover(model.id)}
             className={cn(
-                "flex w-max min-w-full cursor-pointer items-center justify-between px-3 py-2 text-left transition-colors duration-75",
+                "flex w-max min-w-full cursor-pointer items-center justify-between px-3 py-2 text-left transition-colors duration-[var(--vlaina-duration-75)]",
                 "group/model-option",
                 isSelected
                   ? getSidebarSelectedRowSurfaceClass(sidebarTone)
@@ -145,12 +146,12 @@ const ModelOption = memo(({
                     <img
                         src={family.icon}
                         alt=""
-                        className="mr-2 h-4 w-4 flex-shrink-0 rounded-[3px] object-contain"
+                        className="mr-2 h-4 w-4 flex-shrink-0 rounded-[var(--vlaina-radius-3px)] object-contain"
                         draggable={false}
                     />
                 )}
                 <span className={cn(
-                    "whitespace-nowrap text-[15px] font-semibold tracking-tight",
+                    "whitespace-nowrap text-[var(--vlaina-font-15)] font-semibold tracking-tight",
                     isSelected
                       ? styles.optionTextActive
                       : styles.optionText
@@ -160,10 +161,10 @@ const ModelOption = memo(({
                 {model.priceTier && (
                     <span
                         className={cn(
-                            "ml-2 rounded-md border px-1 py-0.5 text-[8px] font-semibold leading-none tracking-[0.04em]",
+                            "ml-2 rounded-md border px-1 py-0.5 text-[var(--vlaina-font-8)] font-semibold leading-none tracking-[var(--vlaina-tracking-label-xs)]",
                             isSelected
-                              ? "border-[var(--sidebar-row-selected-text)]/30 text-[var(--sidebar-row-selected-text)]"
-                              : "border-current/15 text-[var(--chat-sidebar-text-soft)] dark:text-[var(--notes-sidebar-text-soft)]"
+                              ? "border-[var(--vlaina-color-sidebar-focus-ring)] text-[var(--vlaina-sidebar-row-selected-text)]"
+                              : "border-[var(--vlaina-color-subtle-border-strong)] text-[var(--vlaina-sidebar-chat-text-soft)]"
                         )}
                         title={`Price tier ${model.priceTier}`}
                     >
@@ -190,10 +191,10 @@ const ModelOption = memo(({
                         onTogglePinned(model.id, !model.pinned);
                     }}
                     className={cn(
-                        "flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-amber-500 transition-opacity",
+                        "flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-[var(--vlaina-color-favorite-fg)] transition-opacity",
                         model.pinned
-                          ? "pointer-events-auto opacity-100"
-                          : "pointer-events-none opacity-0 text-amber-500/70 hover:text-amber-500 group-hover/model-option:pointer-events-auto group-hover/model-option:opacity-100"
+                          ? "pointer-events-auto opacity-[var(--vlaina-opacity-100)]"
+                          : "pointer-events-none opacity-[var(--vlaina-opacity-0)] text-[var(--vlaina-color-favorite-fg-muted)] hover:text-[var(--vlaina-color-favorite-fg)] group-hover/model-option:pointer-events-auto group-hover/model-option:opacity-[var(--vlaina-opacity-100)]"
                     )}
                 >
                     <Icon
@@ -274,7 +275,7 @@ export function ModelSelector({
 
   const filteredModels = useMemo(() => {
       const term = deferredSearchQuery.toLowerCase();
-      return enabledModels.filter(model => 
+      return enabledModels.filter(model =>
           model.name.toLowerCase().includes(term) ||
           model.apiModelId.toLowerCase().includes(term)
       );
@@ -674,7 +675,7 @@ export function ModelSelector({
   }, [focusedModelId, isOpen, selectedModelId, visibleModelIds]);
 
   const dropdownContent = isOpen ? (
-        <div 
+        <div
           ref={dropdownContentRef}
           className={cn(
             isEmbedded
@@ -683,12 +684,12 @@ export function ModelSelector({
                 ? "absolute top-full mt-1"
                 : "absolute bottom-full mb-1",
             !isEmbedded && (dropdownAlign === 'left' ? "left-0" : "right-0"),
-            "w-[27rem]",
-            "max-w-[calc(100vw-24px)]",
-            "rounded-[26px]",
+            "w-[var(--vlaina-size-27rem)]",
+            "max-w-[var(--vlaina-width-model-selector-max)]",
+            "rounded-[var(--vlaina-radius-26px)]",
             chatComposerPillSurfaceClass,
-            "backdrop-blur-lg z-50 overflow-hidden flex flex-col",
-            "animate-in fade-in duration-75 zoom-in-95" 
+            "backdrop-blur-[var(--vlaina-backdrop-blur-lg)] z-[var(--vlaina-z-50)] overflow-hidden flex flex-col",
+            "animate-in fade-in duration-[var(--vlaina-duration-75)] zoom-in-95"
           )}
           style={isEmbedded
             ? embeddedDropdownStyle ?? {
@@ -749,9 +750,9 @@ export function ModelSelector({
                         aria-label={category.name}
                         onClick={() => handleSelectCategory(category.id)}
                         className={cn(
-                          "relative flex h-12 w-12 cursor-pointer items-center justify-center transition-[background-color,box-shadow] duration-150",
+                          "relative flex h-12 w-12 cursor-pointer items-center justify-center transition-[background-color,box-shadow] duration-[var(--vlaina-duration-150)]",
                           isActive
-                            ? "rounded-2xl bg-[var(--vlaina-color-setting-field)] shadow-md"
+                            ? "rounded-2xl bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-md)]"
                             : cn("rounded-2xl bg-transparent", styles.categoryHover)
                         )}
                       >
@@ -759,14 +760,14 @@ export function ModelSelector({
                           <Icon
                             name={category.count > 0 ? "misc.starSolid" : "misc.star"}
                             size={isActive ? 32 : "md"}
-                            className="text-amber-500"
+                            className="text-[var(--vlaina-color-favorite-fg)]"
                           />
                         ) : category.icon ? (
                           <img
                             src={category.icon}
                             alt=""
                             className={cn(
-                              "rounded-[4px] object-contain",
+                              "rounded-[var(--vlaina-radius-4px)] object-contain",
                               isActive ? "h-8 w-8" : "h-5 w-5"
                             )}
                             draggable={false}
@@ -798,8 +799,8 @@ export function ModelSelector({
                 <div
                   style={{
                     height: `${virtualizer.getTotalSize()}px`,
-                    minWidth: '100%',
-                    position: 'relative',
+                    minWidth: themeDomStyleTokens.sizeFull,
+                    position: themeDomStyleTokens.positionRelative,
                   }}
                 >
                   {virtualizer.getVirtualItems().map((virtualRow) => {
@@ -813,16 +814,16 @@ export function ModelSelector({
                         key={row.id}
                         style={{
                           height: `${virtualRow.size}px`,
-                          left: 0,
-                          position: 'absolute',
-                          top: 0,
+                          left: themeDomStyleTokens.numericZero,
+                          position: themeDomStyleTokens.positionAbsolute,
+                          top: themeDomStyleTokens.numericZero,
                           transform: `translateY(${virtualRow.start}px)`,
-                          minWidth: '100%',
+                          minWidth: themeDomStyleTokens.sizeFull,
                         }}
                       >
                         {row.type === 'label' ? (
                           <div className="px-1">
-                            <div className={cn("px-2 pt-2 pb-1 text-[11px] font-medium", styles.sectionLabel)}>
+                            <div className={cn("px-2 pt-2 pb-1 text-[var(--vlaina-font-11)] font-medium", styles.sectionLabel)}>
                               {row.providerName}
                             </div>
                             <div className={cn("border-t", styles.divider)} />
@@ -854,7 +855,7 @@ export function ModelSelector({
       <button
         onClick={toggleSelector}
         className={cn(
-          "flex h-8 cursor-pointer items-center gap-2 rounded-full px-2.5 transition-[background-color,color,box-shadow] duration-200 group",
+          "flex h-8 cursor-pointer items-center gap-2 rounded-full px-2.5 transition-[background-color,color,box-shadow] duration-[var(--vlaina-duration-200)] group",
           chatComposerPillSurfaceClass,
           selectedModel ? styles.triggerTextActive : styles.triggerText
         )}
@@ -863,22 +864,22 @@ export function ModelSelector({
           <img
             src={selectedModelFamily.icon}
             alt=""
-            className="h-[18px] w-[18px] flex-shrink-0 rounded-[3px] object-contain"
+            className="h-[var(--vlaina-size-18px)] w-[var(--vlaina-size-18px)] flex-shrink-0 rounded-[var(--vlaina-radius-3px)] object-contain"
             draggable={false}
           />
         ) : (
-          <Icon name="misc.box" size={18} className="flex-shrink-0 text-[var(--chat-sidebar-icon)]" />
+          <Icon name="misc.box" size={themeIconTokens.sizeCompact} className="flex-shrink-0 text-[var(--vlaina-sidebar-chat-icon)]" />
         )}
-        <span className="whitespace-nowrap text-[15px] font-semibold tracking-tight">
+        <span className="whitespace-nowrap text-[var(--vlaina-font-15)] font-semibold tracking-tight">
           {selectedModel ? getModelPresentationName(selectedModel) : t('chat.selectModel')}
         </span>
         {/* Chevron glyph adapted from Lucide Icons (ISC). */}
         <svg
-          className={cn("h-4 w-4 flex-shrink-0 opacity-60 transition-transform duration-200", isOpen && "rotate-180")}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          viewBox="0 0 24 24"
+          className={cn("h-4 w-4 flex-shrink-0 opacity-[var(--vlaina-opacity-60)] transition-transform duration-[var(--vlaina-duration-200)]", isOpen && "rotate-180")}
+          fill={themeStyleResetTokens.fillNone}
+          stroke={themeStyleResetTokens.currentColor}
+          strokeWidth={themeIconTokens.strokeDefault}
+          viewBox={themeIconTokens.viewBoxDefault}
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>

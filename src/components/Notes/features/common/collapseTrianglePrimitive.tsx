@@ -1,6 +1,7 @@
 import type { HTMLAttributes, SVGAttributes } from 'react';
 import { cn } from '@/lib/utils';
 import { COLLAPSE_TRIANGLE_PATH, COLLAPSE_TRIANGLE_VIEW_BOX } from './collapseTriangle';
+import { themeIconTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 
 type CollapseTriangleVisibility = 'always' | 'hover' | 'hover-unless-collapsed';
 
@@ -20,18 +21,18 @@ function getVisibilityClassName(
   visibility: CollapseTriangleVisibility,
   collapsed: boolean
 ): string {
-  if (visibility === 'always') return 'opacity-100';
+  if (visibility === 'always') return 'opacity-[var(--vlaina-opacity-100)]';
   if (visibility === 'hover') {
-    return 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100';
+    return 'opacity-[var(--vlaina-opacity-0)] group-hover:opacity-[var(--vlaina-opacity-100)] group-focus-within:opacity-[var(--vlaina-opacity-100)]';
   }
   return collapsed
-    ? 'opacity-100'
-    : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100';
+    ? 'opacity-[var(--vlaina-opacity-100)]'
+    : 'opacity-[var(--vlaina-opacity-0)] group-hover:opacity-[var(--vlaina-opacity-100)] group-focus-within:opacity-[var(--vlaina-opacity-100)]';
 }
 
 export function CollapseTriangleIcon({
   collapsed = false,
-  size = 16,
+  size = themeIconTokens.sizeCollapseTriangle,
   className,
   style,
   ...props
@@ -41,9 +42,9 @@ export function CollapseTriangleIcon({
       width={size}
       height={size}
       viewBox={COLLAPSE_TRIANGLE_VIEW_BOX}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.25"
+      fill={themeStyleResetTokens.fillNone}
+      stroke={themeStyleResetTokens.currentColor}
+      strokeWidth={themeIconTokens.strokeCollapseTriangle}
       strokeLinecap="round"
       strokeLinejoin="round"
       className={cn(collapsed && '-rotate-90', className)}
@@ -58,7 +59,7 @@ export function CollapseTriangleIcon({
 
 export function CollapseTriangleAffordance({
   collapsed,
-  size = 16,
+  size = themeIconTokens.sizeCollapseTriangle,
   visibility = 'always',
   className,
   iconClassName,

@@ -15,12 +15,13 @@ import {
 } from '@/components/Chat/features/Messages/components/chatSelectionStreamFreeze';
 import {
   serializeChatHeadingDragPayload,
-  VLAINA_CHAT_HEADING_DRAG_MIME,
+  CHAT_HEADING_DRAG_MIME,
 } from '@/lib/drag/chatHeadingDrag';
 import 'katex/dist/katex.min.css';
 import '@/components/common/markdown/markdownSurface.css';
 import { readonlyMarkdownUrlTransform } from '@/components/common/markdown/urlTransform';
 import { compactLargeDataImageMarkdown } from './chatInlineImageTokens';
+import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 interface MarkdownRendererProps {
   content: string;
@@ -44,8 +45,6 @@ const SELECTION_EXCLUDED_SELECTOR = [
   'select',
   'a',
 ].join(',');
-const STREAM_SELECTION_RELEASE_DELAY_MS = 250;
-const STREAM_SELECTION_SETTLE_DELAY_MS = 120;
 
 function getActiveSelectionTextLength(): number {
   const selection = window.getSelection();
@@ -284,7 +283,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
           return;
         }
         releaseSelectionFreeze('selection-grace');
-      }, STREAM_SELECTION_RELEASE_DELAY_MS);
+      }, themeUiFeedbackTokens.chatThinkingSelectionReleaseDelayMs);
     }, [clearReleaseSelectionFreezeTimeout, releaseSelectionFreeze]);
 
     const unlockSelectionContentIfIdle = useCallback(() => {
@@ -317,7 +316,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       unlockTimeoutRef.current = window.setTimeout(() => {
         unlockTimeoutRef.current = null;
         unlockSelectionContentIfIdle();
-      }, STREAM_SELECTION_SETTLE_DELAY_MS);
+      }, themeUiFeedbackTokens.chatThinkingSelectionSettleDelayMs);
     }, [unlockSelectionContentIfIdle]);
 
     useEffect(() => {
@@ -410,7 +409,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       if (!payload) return;
 
       event.dataTransfer.setData(
-        VLAINA_CHAT_HEADING_DRAG_MIME,
+        CHAT_HEADING_DRAG_MIME,
         serializeChatHeadingDragPayload(payload),
       );
     }, []);
@@ -506,7 +505,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
             data-chat-markdown-live={shouldAnimateStream ? 'true' : undefined}
             onDragStartCapture={handleMarkdownDragStartCapture}
             className={[
-              'vlaina-markdown-surface max-w-full break-words',
+              'markdown-surface max-w-full break-words',
               shouldAnimateStream ? 'chat-markdown-live' : '',
             ]
               .filter(Boolean)

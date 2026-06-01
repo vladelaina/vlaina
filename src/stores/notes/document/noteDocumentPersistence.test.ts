@@ -101,7 +101,7 @@ describe('saveNoteDocument', () => {
       notesPath: '/vault',
       currentNote: {
         path: 'alpha.md',
-        content: ['# Alpha', '<br date-vlaianempt-line="true"/>', 'Body'].join('\n'),
+        content: ['# Alpha', '<br data-vlaina-empty-line="true"/>', 'Body'].join('\n'),
       },
       cache: new Map(),
     });
@@ -110,7 +110,7 @@ describe('saveNoteDocument', () => {
       '/vault/alpha.md',
       ['---', 'vlaina_updated: 2026-04-15 18:00:00 +08:00', '---', '', '# Alpha', '', 'Body'].join('\n')
     );
-    expect(result.content).not.toContain('vlaian');
+    expect(result.content).not.toContain('data-vlaina-empty-line');
 
     vi.useRealTimers();
   });
@@ -420,7 +420,7 @@ describe('saveNoteDocument', () => {
   });
 
   it('cleans internal editor break markers when loading markdown', async () => {
-    adapter.readFile.mockResolvedValue(['# Alpha', '<br date-vlaianempt-line="true"/>', 'Body'].join('\n'));
+    adapter.readFile.mockResolvedValue(['# Alpha', '<br data-vlaina-empty-line="true"/>', 'Body'].join('\n'));
     adapter.stat.mockResolvedValue({ modifiedAt: 123 });
 
     const result = await loadNoteDocument({

@@ -22,6 +22,7 @@ import {
   CHAT_SIDEBAR_SESSION_ROW_VERTICAL_PADDING_CLASS,
   CHAT_SIDEBAR_TITLE_WRAP_CLASS,
 } from './chatSidebarLayout';
+import { themeIconTokens } from '@/styles/themeTokens';
 
 interface ChatSidebarSessionRowProps {
   session: ChatSession;
@@ -53,7 +54,7 @@ function getChatSessionTitleClass({
 }) {
   return cn(
     isActive
-      ? 'text-[var(--sidebar-row-selected-text)]'
+      ? 'text-[var(--vlaina-sidebar-row-selected-text)]'
       : getSidebarLabelClass('chat', { emphasized: isGenerating || isUnread })
   );
 }
@@ -152,7 +153,7 @@ function ChatSidebarSessionRowInner({
       icon: (
         <Icon
           name={session.isPinned ? 'common.unpinPrimer' : 'common.pinPrimer'}
-          size={16}
+          size={themeIconTokens.sizeRow}
         />
       ),
       label: session.isPinned ? t('sidebar.unpin') : t('sidebar.pin'),
@@ -176,9 +177,9 @@ function ChatSidebarSessionRowInner({
   const statusIndicator = isGenerating && !isActive ? (
     null
   ) : isUnread ? (
-    <div className="h-2 w-2 rounded-full bg-[var(--chat-sidebar-status-warning)]" />
+    <div className="h-2 w-2 rounded-full bg-[var(--vlaina-sidebar-chat-status-warning)]" />
   ) : session.isPinned ? (
-    <Icon name="common.pinPrimer" size={14} className="text-[var(--chat-sidebar-text)]" />
+    <Icon name="common.pinPrimer" size={themeIconTokens.sizeSm} className="text-[var(--vlaina-sidebar-chat-text)]" />
   ) : null;
   const titleClassName = getChatSessionTitleClass({
     isActive,
@@ -230,7 +231,7 @@ function ChatSidebarSessionRowInner({
             onSubmit={() => onCommitRename(session.id, displayTitle)}
             onCancel={onCancelRename}
             className={cn(
-              'w-full min-w-0 border-none bg-transparent p-0 text-[16px] leading-5 outline-none',
+              'w-full min-w-0 border-none bg-transparent p-0 text-[var(--vlaina-font-base)] leading-5 outline-none',
               titleClassName
             )}
           />
@@ -263,7 +264,7 @@ function ChatSidebarSessionRowInner({
           className={cn(
             'p-1 rounded-md focus:outline-none',
             iconButtonStyles,
-            'text-[var(--chat-sidebar-text)] hover:text-[var(--chat-sidebar-text)]',
+            'text-[var(--vlaina-sidebar-chat-text)] hover:text-[var(--vlaina-sidebar-chat-text)]',
           )}
         >
           <Icon name="common.more" size="md" />

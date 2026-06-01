@@ -59,7 +59,7 @@ export function ErrorBlock({ content, showLoginPrompt = false, showBillingPrompt
         data-no-focus-input="true"
         data-chat-selection-surface="true"
         data-chat-selection-start="true"
-        className="text-sm text-[var(--vlaina-color-brand-pink)] opacity-90 leading-relaxed select-text whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+        className="text-sm text-[var(--vlaina-color-brand-pink)] opacity-[var(--vlaina-opacity-90)] leading-relaxed select-text whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
       >
         {renderWithLinks(content)}
       </div>
@@ -72,7 +72,7 @@ export function ErrorBlock({ content, showLoginPrompt = false, showBillingPrompt
           }}
           data-no-focus-input="true"
           className={cn(
-            "group mt-3 inline-flex h-9 cursor-pointer items-center gap-2 rounded-full px-3.5 text-sm font-medium text-[var(--chat-sidebar-text)] transition-all duration-200 active:scale-[0.985]",
+            "group mt-3 inline-flex h-9 cursor-pointer items-center gap-2 rounded-full px-3.5 text-sm font-medium text-[var(--vlaina-sidebar-chat-text)] transition-all duration-[var(--vlaina-duration-200)] active:scale-[var(--vlaina-scale-985)]",
             chatComposerPillSurfaceClass
           )}
         >
@@ -80,7 +80,7 @@ export function ErrorBlock({ content, showLoginPrompt = false, showBillingPrompt
           <Icon
             name="nav.arrowRight"
             size="sm"
-            className="text-[var(--chat-sidebar-text-soft)] transition-transform duration-200 ease-out group-hover:translate-x-1"
+            className="text-[var(--vlaina-sidebar-chat-text-soft)] transition-transform duration-[var(--vlaina-duration-200)] ease-out group-hover:translate-x-1"
           />
         </button>
       )}

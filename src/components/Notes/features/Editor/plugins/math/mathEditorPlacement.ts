@@ -1,3 +1,5 @@
+import { themeDomStyleTokens } from '@/styles/themeTokens';
+
 const MATH_NODE_SELECTOR = '[data-type="math-block"], [data-type="math-inline"]';
 
 export function resolveMathAnchorElement(target: EventTarget | null, fallback: Node | null) {
@@ -18,12 +20,15 @@ export function resolveMathAnchorElement(target: EventTarget | null, fallback: N
 
 export function getMathAnchorViewportPosition(anchorElement: HTMLElement | null) {
   if (!anchorElement) {
-    return { x: 16, y: 16 };
+    return {
+      x: themeDomStyleTokens.editorPopupFallbackX,
+      y: themeDomStyleTokens.editorPopupFallbackY,
+    };
   }
 
   const rect = anchorElement.getBoundingClientRect();
   return {
     x: rect.left,
-    y: rect.bottom + 8,
+    y: rect.bottom + themeDomStyleTokens.editorPopupAnchorOffsetPx,
   };
 }

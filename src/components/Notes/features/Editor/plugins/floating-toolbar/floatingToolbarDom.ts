@@ -1,4 +1,5 @@
 import { translate } from '@/lib/i18n';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const TOOLBAR_ROOT_SELECTOR = '[data-note-toolbar-root="true"]';
@@ -97,7 +98,7 @@ export function clampToolbarX(
     };
   }
 
-  const margin = 12;
+  const margin = themeDomStyleTokens.editorPopupHorizontalMarginPx;
   const minX = contentBounds
     ? Math.max(margin, contentBounds.left + margin)
     : margin;
@@ -158,13 +159,13 @@ export function showToolbar(
   const left = `${position.x}px`;
   const top = `${position.y}px`;
   const transform = isReviewMode
-    ? `translateX(0) translateY(${placement === 'top' ? '-100%' : '0'})`
-    : `translateX(-50%) translateY(${placement === 'top' ? '-100%' : '0'})`;
+    ? `translateX(var(--vlaina-translate-0)) translateY(${placement === 'top' ? 'var(--vlaina-translate--100pct)' : 'var(--vlaina-translate-0)'})`
+    : `translateX(var(--vlaina-translate--50pct)) translateY(${placement === 'top' ? 'var(--vlaina-translate--100pct)' : 'var(--vlaina-translate-0)'})`;
   if (toolbarElement.dataset.reviewMode !== reviewMode) {
     toolbarElement.dataset.reviewMode = reviewMode;
   }
-  if (toolbarElement.style.position !== 'absolute') {
-    toolbarElement.style.position = 'absolute';
+  if (toolbarElement.style.position !== themeDomStyleTokens.positionAbsolute) {
+    toolbarElement.style.position = themeDomStyleTokens.positionAbsolute;
   }
   if (toolbarElement.style.left !== left) {
     toolbarElement.style.left = left;

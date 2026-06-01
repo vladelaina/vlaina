@@ -201,7 +201,7 @@ describe('callout editor behavior', () => {
     view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, callout));
     view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 2)));
     const userInputListener = vi.fn();
-    view.dom.addEventListener('vlaina:block-user-input', userInputListener);
+    view.dom.addEventListener('editor:block-user-input', userInputListener);
 
     expect(handleEmptyCalloutExit(view)).toBe(true);
     expect(userInputListener).toHaveBeenCalledTimes(1);
@@ -209,7 +209,7 @@ describe('callout editor behavior', () => {
     expect(view.state.doc.firstChild?.type.name).toBe('paragraph');
     expect(view.state.selection.from).toBe(1);
 
-    view.dom.removeEventListener('vlaina:block-user-input', userInputListener);
+    view.dom.removeEventListener('editor:block-user-input', userInputListener);
     await editor.destroy();
   });
 
@@ -228,7 +228,7 @@ describe('callout editor behavior', () => {
 
     const originalCalloutSize = view.state.doc.firstChild?.nodeSize ?? 0;
     const userInputListener = vi.fn();
-    view.dom.addEventListener('vlaina:block-user-input', userInputListener);
+    view.dom.addEventListener('editor:block-user-input', userInputListener);
 
     expect(handleCalloutModEnterExit(view)).toBe(true);
     expect(userInputListener).toHaveBeenCalledTimes(1);
@@ -238,7 +238,7 @@ describe('callout editor behavior', () => {
     expect(view.state.doc.child(1).type.name).toBe('paragraph');
     expect(view.state.selection.from).toBe(originalCalloutSize + 1);
 
-    view.dom.removeEventListener('vlaina:block-user-input', userInputListener);
+    view.dom.removeEventListener('editor:block-user-input', userInputListener);
     await editor.destroy();
   });
 });

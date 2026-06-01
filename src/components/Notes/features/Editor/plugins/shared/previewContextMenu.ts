@@ -10,6 +10,7 @@ import { suppressPreviewEditorOpen } from './previewContextMenuSuppression';
 import { markEditorUserInput } from './userInputEvents';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { translate } from '@/lib/i18n';
+import { themeIconTokens, themeRenderingTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 
 type InsertDirection = 'above' | 'below';
 type PreviewContextMenuIcon = 'image' | 'paragraph' | 'arrow-up' | 'arrow-down';
@@ -80,17 +81,17 @@ function insertParagraph(
 
 // Inline context-menu icons are adapted from Lucide Icons (ISC).
 const MENU_ICONS: Record<PreviewContextMenuIcon, string> = {
-  image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="8.5" cy="10.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>',
-  paragraph: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 4v16"></path><path d="M17 4v16"></path><path d="M19 4H9.5a4.5 4.5 0 0 0 0 9H13"></path></svg>',
-  'arrow-up': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 19V5"></path><path d="m5 12 7-7 7 7"></path></svg>',
-  'arrow-down': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"></path><path d="m19 12-7 7-7-7"></path></svg>',
+  image: `<svg viewBox="${themeIconTokens.viewBoxDefault}" fill="${themeStyleResetTokens.fillNone}" stroke="${themeStyleResetTokens.currentColor}" stroke-width="${themeIconTokens.strokeDefault}"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="8.5" cy="10.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>`,
+  paragraph: `<svg viewBox="${themeIconTokens.viewBoxDefault}" fill="${themeStyleResetTokens.fillNone}" stroke="${themeStyleResetTokens.currentColor}" stroke-width="${themeIconTokens.strokeDefault}"><path d="M13 4v16"></path><path d="M17 4v16"></path><path d="M19 4H9.5a4.5 4.5 0 0 0 0 9H13"></path></svg>`,
+  'arrow-up': `<svg viewBox="${themeIconTokens.viewBoxDefault}" fill="${themeStyleResetTokens.fillNone}" stroke="${themeStyleResetTokens.currentColor}" stroke-width="${themeIconTokens.strokeDefault}"><path d="m12 19V5"></path><path d="m5 12 7-7 7 7"></path></svg>`,
+  'arrow-down': `<svg viewBox="${themeIconTokens.viewBoxDefault}" fill="${themeStyleResetTokens.fillNone}" stroke="${themeStyleResetTokens.currentColor}" stroke-width="${themeIconTokens.strokeDefault}"><path d="M12 5v14"></path><path d="m19 12-7 7-7-7"></path></svg>`,
 };
 
 function positionMenu(menu: HTMLElement, element: HTMLElement) {
   const rect = element.getBoundingClientRect();
   menu.style.left = `${rect.left + rect.width / 2}px`;
   menu.style.top = `${rect.top + rect.height / 2}px`;
-  menu.style.transform = 'translate(-50%, -50%)';
+  menu.style.transform = themeRenderingTokens.translateCenter;
   updateSubmenuDirection(menu);
 }
 
@@ -100,7 +101,7 @@ function updateSubmenuDirection(menu: HTMLElement) {
   const spaceRight = window.innerWidth - rect.right;
   const spaceLeft = rect.left;
   menu.classList.toggle(
-    'vlaina-preview-context-menu-submenu-left',
+    'editor-preview-context-menu-submenu-left',
     spaceRight < submenuWidth && spaceLeft > spaceRight
   );
 }
@@ -115,7 +116,7 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
   const closeMenu = () => {
     menu?.remove();
     menu = null;
-    element.classList.remove('vlaina-preview-context-menu-active');
+    element.classList.remove('editor-preview-context-menu-active');
     detachTransientListeners();
   };
 
@@ -152,8 +153,8 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
   const createMenu = () => {
     closeMenu();
     menu = document.createElement('div');
-    menu.className = `slash-menu vlaina-preview-context-menu !rounded-[26px] ${chatComposerPillSurfaceClass}`;
-    element.classList.add('vlaina-preview-context-menu-active');
+    menu.className = `slash-menu editor-preview-context-menu !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
+    element.classList.add('editor-preview-context-menu-active');
 
     document.body.appendChild(menu);
     attachTransientListeners();
@@ -181,17 +182,17 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
 
   const createSubmenu = (label: string, items: HTMLElement[], icon: PreviewContextMenuIcon) => {
     const group = document.createElement('div');
-    group.className = 'vlaina-preview-context-menu-group';
+    group.className = 'editor-preview-context-menu-group';
     const parentButton = createMenuButton(
       label,
       () => undefined,
       icon
     );
-    parentButton.classList.add('vlaina-preview-context-menu-parent');
+    parentButton.classList.add('editor-preview-context-menu-parent');
     parentButton.setAttribute('aria-haspopup', 'menu');
 
     const submenu = document.createElement('div');
-    submenu.className = `slash-menu vlaina-preview-context-submenu !rounded-[26px] ${chatComposerPillSurfaceClass}`;
+    submenu.className = `slash-menu editor-preview-context-submenu !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
     submenu.setAttribute('role', 'menu');
     items.forEach((item) => submenu.appendChild(item));
 

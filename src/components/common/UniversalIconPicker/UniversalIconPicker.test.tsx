@@ -33,7 +33,7 @@ describe('UniversalIconPicker', () => {
     );
 
     const pickerShell = Array.from(container.querySelectorAll('div'))
-      .find((element) => element.className.includes('!rounded-[26px]'));
+      .find((element) => element.className.includes('!rounded-[var(--vlaina-radius-26px)]'));
     expect(pickerShell?.className).toContain(chatComposerPillSurfaceClass);
   });
 

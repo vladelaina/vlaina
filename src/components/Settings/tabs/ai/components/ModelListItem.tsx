@@ -33,7 +33,7 @@ export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: Mod
 
   return (
     <div className={cn(
-        "flex items-center gap-2.5 px-3 py-2 rounded-md border transition-colors duration-150",
+        "flex items-center gap-2.5 px-3 py-2 rounded-md border transition-colors duration-[var(--vlaina-duration-150)]",
         showAddAction
             ? "bg-[var(--vlaina-color-setting-field)] border-[var(--vlaina-border)] hover:bg-[var(--vlaina-hover-filled)]"
             : "bg-[var(--vlaina-bg-secondary)] border-[var(--vlaina-border)]"
@@ -42,8 +42,8 @@ export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: Mod
             <div className={cn(
                 "text-sm truncate",
                 showAddAction
-                    ? "font-medium text-[var(--notes-sidebar-text)]"
-                    : "font-medium text-[var(--notes-sidebar-text-soft)]"
+                    ? "font-medium text-[var(--vlaina-sidebar-notes-text)]"
+                    : "font-medium text-[var(--vlaina-sidebar-notes-text-soft)]"
             )}>
                 {modelId}
             </div>
@@ -55,7 +55,7 @@ export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: Mod
                     <div className="size-3 rounded-full border-2 border-[var(--vlaina-border)] border-t-[var(--vlaina-accent)] animate-spin" />
                 )}
                 {health.status === 'success' && (
-                    <span className="text-[10px] font-mono text-[var(--vlaina-color-status-success-fg)] bg-[var(--vlaina-color-status-success-bg)] px-1.5 py-0.5 rounded">
+                    <span className="text-[var(--vlaina-font-10)] font-mono text-[var(--vlaina-color-status-success-fg)] bg-[var(--vlaina-color-status-success-bg)] px-1.5 py-0.5 rounded">
                         {formatBenchmarkLatency(health.latency)}
                     </span>
                 )}
@@ -79,13 +79,13 @@ export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: Mod
             ) : (
                 <div className="text-[var(--vlaina-color-status-success-fg)] px-1.5 flex items-center gap-1.5">
                     <Icon name="common.check" className="w-4 h-4" />
-                    <span className="text-[11px] font-medium">{t('common.added')}</span>
+                    <span className="text-[var(--vlaina-font-11)] font-medium">{t('common.added')}</span>
                 </div>
             )
         ) : showAddAction ? (
             <button 
                 onClick={onAdd} 
-                className="p-1 rounded-md text-[var(--notes-sidebar-text-soft)] hover:text-[var(--notes-sidebar-text)] hover:bg-[var(--vlaina-hover-filled)] transition-colors"
+                className="p-1 rounded-md text-[var(--vlaina-sidebar-notes-text-soft)] hover:text-[var(--vlaina-sidebar-notes-text)] hover:bg-[var(--vlaina-hover-filled)] transition-colors"
                 title={t('common.add')}
             >
                 <Icon name="common.add" className="w-4 h-4" />

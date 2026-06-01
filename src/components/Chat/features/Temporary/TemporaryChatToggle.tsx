@@ -107,8 +107,8 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
               :
             temporaryChatEnabled
               ? 'text-[var(--vlaina-accent)] hover:text-[var(--vlaina-accent)]'
-              : 'text-[var(--chat-sidebar-text)] hover:bg-transparent hover:text-[var(--vlaina-accent)] dark:hover:bg-transparent',
-            isDisabled && 'cursor-default pointer-events-none opacity-95'
+              : 'text-[var(--vlaina-sidebar-chat-text)] hover:bg-transparent hover:text-[var(--vlaina-accent)] dark:hover:bg-transparent',
+            isDisabled && 'cursor-default pointer-events-none opacity-[var(--vlaina-opacity-95)]'
           )}
         >
           <Icon
@@ -122,7 +122,7 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
         sideOffset={6}
         showArrow={false}
         className={cn(
-          "flex rounded-[18px] px-3 py-2 text-xs text-[var(--chat-sidebar-text)]",
+          "flex rounded-[var(--vlaina-radius-18px)] px-3 py-2 text-xs text-[var(--vlaina-sidebar-chat-text)]",
           isPromoteMode ? 'items-center gap-1.5' : 'flex-col items-center gap-1.5',
           chatComposerPillSurfaceClass
         )}
@@ -134,7 +134,7 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
             <span>{toggleTooltipLabel}</span>
             <ShortcutKeys
               keys={['Ctrl', 'Shift', 'J']}
-              keyClassName="rounded-md bg-[var(--chat-sidebar-row-hover)] text-[var(--chat-sidebar-text)]"
+              keyClassName="rounded-md bg-[var(--vlaina-sidebar-chat-row-hover)] text-[var(--vlaina-sidebar-chat-text)]"
             />
           </>
         )}

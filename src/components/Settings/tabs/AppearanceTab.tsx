@@ -1,4 +1,4 @@
-import type { ChangeEvent, MouseEvent, PointerEvent } from 'react';
+import type { ChangeEvent, CSSProperties, MouseEvent, PointerEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import type { IconName } from '@/components/ui/icons';
@@ -52,10 +52,10 @@ function ColorModeToggle({ colorMode, onChange }: ColorModeToggleProps) {
   const colorModeIndex = Math.max(0, COLOR_MODE_OPTIONS.findIndex((option) => option.value === colorMode));
 
   return (
-    <div className="relative flex h-8 w-[126px] items-center">
+    <div className="relative flex h-8 w-[var(--vlaina-size-126px)] items-center">
       <span
         aria-hidden="true"
-        className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-[var(--vlaina-accent-light)] shadow-[var(--vlaina-shadow-selection-soft)] transition-transform duration-200 ease-out"
+        className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-[var(--vlaina-accent-light)] shadow-[var(--vlaina-shadow-selection-soft)] transition-transform duration-[var(--vlaina-duration-200)] ease-out"
         style={{ transform: `translateX(${colorModeIndex * 100}%)` }}
       />
       {COLOR_MODE_OPTIONS.map((option) => {
@@ -68,10 +68,10 @@ function ColorModeToggle({ colorMode, onChange }: ColorModeToggleProps) {
             aria-pressed={isActive}
             onClick={() => onChange(option.value)}
             className={cn(
-              "relative z-10 flex h-8 flex-1 items-center justify-center rounded-full transition-colors",
+              "relative z-[var(--vlaina-z-10)] flex h-8 flex-1 items-center justify-center rounded-full transition-colors",
               isActive
                 ? "text-[var(--vlaina-accent)]"
-                : "text-[var(--notes-sidebar-text)] hover:text-[var(--vlaina-accent)]"
+                : "text-[var(--vlaina-sidebar-notes-text)] hover:text-[var(--vlaina-accent)]"
             )}
           >
             <Icon name={option.iconName} size="sm" />
@@ -96,25 +96,25 @@ function ThemeDropdown({ themeId, onChange }: ThemeDropdownProps) {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex h-8 min-w-[132px] items-center justify-between gap-3 rounded-full px-2.5 text-[13px] font-medium text-[var(--notes-sidebar-text)] transition-colors hover:bg-[var(--vlaina-accent-light)] hover:text-[var(--vlaina-accent)]"
+          className="flex h-8 min-w-[var(--vlaina-size-132px)] items-center justify-between gap-3 rounded-full px-2.5 text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text)] transition-colors hover:bg-[var(--vlaina-accent-light)] hover:text-[var(--vlaina-accent)]"
         >
           <span className="flex min-w-0 items-center gap-2">
             <span className="truncate">{t(`settings.appearance.theme.${activeTheme.id}`)}</span>
           </span>
-          <Icon name="nav.chevronDown" size="sm" className="text-[var(--notes-sidebar-text-soft)]" />
+          <Icon name="nav.chevronDown" size="sm" className="text-[var(--vlaina-sidebar-notes-text-soft)]" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="z-[120] min-w-[170px] rounded-2xl border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] p-1.5 shadow-[var(--vlaina-shadow-floating-panel)]"
+        className="z-[var(--vlaina-z-120)] min-w-[var(--vlaina-size-170px)] rounded-2xl border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] p-1.5 shadow-[var(--vlaina-shadow-floating-panel)]"
       >
         {THEME_OPTIONS.map((theme) => (
           <DropdownMenuItem
             key={theme.id}
             onSelect={() => onChange(theme.id)}
             className={cn(
-              "rounded-xl px-3 py-2 text-[13px] text-[var(--chat-sidebar-text)] focus:bg-[var(--sidebar-row-selected-bg)] focus:text-[var(--sidebar-row-selected-text)]",
-              themeId === theme.id && "text-[var(--sidebar-row-selected-text)]"
+              "rounded-xl px-3 py-2 text-[var(--vlaina-font-13)] text-[var(--vlaina-sidebar-chat-text)] focus:bg-[var(--vlaina-sidebar-row-selected-bg)] focus:text-[var(--vlaina-sidebar-row-selected-text)]",
+              themeId === theme.id && "text-[var(--vlaina-sidebar-row-selected-text)]"
             )}
           >
             <span className="truncate">{t(`settings.appearance.theme.${theme.id}`)}</span>
@@ -140,7 +140,7 @@ function ThemeAppearanceControl({
 }: ThemeAppearanceControlProps) {
   return (
     <div className={cn(
-      "flex h-11 items-center rounded-[22px] p-1.5",
+      "flex h-11 items-center rounded-[var(--vlaina-radius-22px)] p-1.5",
       chatComposerPillSurfaceClass,
     )}>
       <ColorModeToggle colorMode={colorMode} onChange={onColorModeChange} />
@@ -254,10 +254,11 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
       onChange={handleFontSizeChange}
       onPointerDown={beginFontSizePreview}
       onMouseDown={beginFontSizePreview}
-      className="h-1.5 w-44 rounded-lg appearance-none cursor-pointer accent-[var(--sidebar-row-selected-text)]"
+      className="h-1.5 w-44 rounded-lg appearance-none cursor-pointer accent-[var(--vlaina-sidebar-row-selected-text)]"
       style={{
-        background: `linear-gradient(to right, var(--sidebar-row-selected-text) 0%, var(--sidebar-row-selected-text) ${progressPercent}%, var(--vlaina-bg-tertiary) ${progressPercent}%, var(--vlaina-bg-tertiary) 100%)`,
-      }}
+        '--vlaina-appearance-font-size-progress': progressPercent,
+        background: 'var(--vlaina-gradient-appearance-font-size-slider)',
+      } as CSSProperties}
     />
   );
 
@@ -267,26 +268,26 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
     >
       <div className={cn(
         "mb-4 flex items-center justify-between px-2",
-        isPreviewingFontSize && "pointer-events-none opacity-0",
+        isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]",
       )}>
-        <span className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">
+        <span className="text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text-soft)]">
           {t('settings.appearance.fontSize')}
         </span>
       </div>
 
       <div
         className={cn(
-          "mb-3 flex items-center justify-between rounded-[22px] px-6 py-4",
+          "mb-3 flex items-center justify-between rounded-[var(--vlaina-radius-22px)] px-6 py-4",
           isPreviewingFontSize
-            ? "border border-transparent !bg-transparent !shadow-none hover:!shadow-none"
+            ? "border border-transparent !bg-transparent !shadow-[var(--vlaina-shadow-none)] hover:!shadow-[var(--vlaina-shadow-none)]"
             : chatComposerPillSurfaceClass,
         )}
       >
         <div className={cn(
           "flex-1 pr-8",
-          isPreviewingFontSize && "pointer-events-none opacity-0",
+          isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]",
         )}>
-          <div className="text-[14px] font-semibold text-[var(--notes-sidebar-text)] mb-0.5">
+          <div className="text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)] mb-0.5">
             {t('settings.appearance.baseFontSize')}
           </div>
         </div>
@@ -297,13 +298,13 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
             size="md"
             name="editor.type"
             className={cn(
-              "text-[var(--notes-sidebar-text-soft)]",
-              isPreviewingFontSize && "pointer-events-none opacity-0",
+              "text-[var(--vlaina-sidebar-notes-text-soft)]",
+              isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]",
             )}
           />
           {fontSizeSlider}
           <span className={cn(
-            "w-10 text-sm font-medium text-right tabular-nums text-[var(--notes-sidebar-text)]",
+            "w-10 text-sm font-medium text-right tabular-nums text-[var(--vlaina-sidebar-notes-text)]",
             isPreviewingFontSize && "pointer-events-none",
           )}>
             {displayedFontSize}px
@@ -313,8 +314,8 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
             onClick={handleResetFontSize}
             disabled={fontSize === UI_FONT_SIZE_DEFAULT}
             className={cn(
-              "rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--sidebar-row-selected-text)] transition-colors hover:bg-[var(--sidebar-row-selected-bg)] disabled:pointer-events-none disabled:text-[var(--notes-sidebar-text-soft)] disabled:opacity-45",
-              isPreviewingFontSize && "pointer-events-none opacity-0",
+              "rounded-full px-3 py-1.5 text-[var(--vlaina-font-xs)] font-medium text-[var(--vlaina-sidebar-row-selected-text)] transition-colors hover:bg-[var(--vlaina-sidebar-row-selected-bg)] disabled:pointer-events-none disabled:text-[var(--vlaina-sidebar-notes-text-soft)] disabled:opacity-[var(--vlaina-opacity-45)]",
+              isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]",
             )}
           >
             {t('common.reset')}
@@ -325,7 +326,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
       <SettingsSectionHeader>{t('settings.appearance.display')}</SettingsSectionHeader>
       <SettingsItem
         title={t('settings.appearance.theme')}
-        className={cn(isPreviewingFontSize && "pointer-events-none opacity-0")}
+        className={cn(isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]")}
       >
         <ThemeAppearanceControl
           colorMode={colorMode}

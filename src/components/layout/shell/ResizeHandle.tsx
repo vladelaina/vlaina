@@ -14,7 +14,7 @@ export function ResizeHandle({
   onMouseDown,
   isDragging,
   positionStyle,
-  zIndexClassName = 'z-30',
+  zIndexClassName = 'z-[var(--vlaina-z-30)]',
   className,
 }: ResizeHandleProps) {
   return (
@@ -23,7 +23,7 @@ export function ResizeHandle({
       className={cn(
         'fixed top-0 bottom-0 cursor-col-resize bg-transparent transition-colors touch-none group flex items-center justify-center',
         zIndexClassName,
-        isDragging ? 'delay-0' : 'delay-150',
+        isDragging ? 'delay-[var(--vlaina-duration-0)]' : 'delay-[var(--vlaina-duration-150)]',
         className,
       )}
       style={{ width: RESIZE_HANDLE_HIT_WIDTH, ...positionStyle }}

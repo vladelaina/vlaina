@@ -16,6 +16,7 @@ import { isMermaidFenceLanguage } from '@/components/common/markdown/mermaidLang
 import { parseVideoUrl } from '@/components/common/markdown/videoUrl';
 import { translate, useI18n } from '@/lib/i18n';
 import { resolveCompactedChatImageSrc } from './chatInlineImageTokens';
+import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 type ImageGalleryItem = { id: string; src: string };
 
@@ -172,7 +173,7 @@ function MarkdownImage({
       return;
     }
 
-    const timer = window.setTimeout(() => setCopied(false), 1200);
+    const timer = window.setTimeout(() => setCopied(false), themeUiFeedbackTokens.copyFeedbackDurationMs);
     return () => window.clearTimeout(timer);
   }, [copied]);
 
@@ -200,7 +201,7 @@ function MarkdownImage({
         <LocalImage
           src={src}
           alt={alt || 'image'}
-          className="block max-h-[420px] w-auto max-w-full object-contain"
+          className="block max-h-[var(--vlaina-size-420px)] w-auto max-w-full object-contain"
           style={safeWidth ? { width: safeWidth } : undefined}
           data-vlaina-crop={safeCrop || undefined}
           onResolvedSrc={setResolvedImageSrc}
@@ -209,7 +210,7 @@ function MarkdownImage({
           }}
         />
         <span
-          className="absolute right-2 top-2 z-10 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+          className="absolute right-2 top-2 z-[var(--vlaina-z-10)] flex items-center gap-1 opacity-[var(--vlaina-opacity-0)] transition-opacity duration-[var(--vlaina-duration-150)] group-hover:opacity-[var(--vlaina-opacity-100)]"
           data-no-focus-input="true"
         >
           <button
@@ -332,13 +333,13 @@ export function createMarkdownComponents({
 
       return <p {...props}>{children}</p>;
     },
-    img({ src, alt, align, width, dataVlainaCrop, 'data-vlaina-crop': dataVlainaCropKebab }: MarkdownImageProps) {
+    img({ src, alt, align, width, dataVlainaCrop: cropDataProp, 'data-vlaina-crop': cropDataAttr }: MarkdownImageProps) {
       const rawSrc = typeof src === 'string' ? src : null;
       const normalizedRawSrc = normalizeRenderableImageSrc(rawSrc);
       if (!normalizedRawSrc) {
         return (
           <span
-            className="inline-block rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-500 dark:bg-zinc-800 dark:text-gray-400"
+            className="inline-block rounded-md bg-[var(--vlaina-color-unavailable-bg)] px-2 py-1 text-xs text-[var(--vlaina-color-unavailable-fg)]"
             data-chat-selection-excluded="true"
           >
             [{translate('chat.imageUnavailable')}]
@@ -360,7 +361,7 @@ export function createMarkdownComponents({
           alt={typeof alt === 'string' ? alt : 'image'}
           align={align}
           width={typeof width === 'number' ? `${width}px` : width}
-          crop={dataVlainaCrop ?? dataVlainaCropKebab ?? null}
+          crop={cropDataProp ?? cropDataAttr ?? null}
           imageGallery={imageGallery}
           getImageGallery={getImageGallery}
           currentImageId={currentImageId}

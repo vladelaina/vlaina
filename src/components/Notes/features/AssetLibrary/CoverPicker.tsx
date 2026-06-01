@@ -8,9 +8,7 @@ import { CoverPickerProps, CoverPickerTab } from './types';
 import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { useI18n } from '@/lib/i18n';
-
-const COVER_PREVIEW_DELAY_MS = 180;
-const ASSET_LOAD_AFTER_OPEN_DELAY_MS = 120;
+import { themeLazyLoadTokens } from '@/styles/themeTokens';
 
 export function CoverPicker({
   isOpen,
@@ -76,11 +74,11 @@ export function CoverPicker({
       timeoutId = setTimeout(() => {
         timeoutId = null;
         if ('requestIdleCallback' in window) {
-          idleId = window.requestIdleCallback(runLoad, { timeout: 600 });
+          idleId = window.requestIdleCallback(runLoad, { timeout: themeLazyLoadTokens.coverAssetIdleLoadTimeoutMs });
         } else {
           runLoad();
         }
-      }, ASSET_LOAD_AFTER_OPEN_DELAY_MS);
+      }, themeLazyLoadTokens.coverAssetLoadAfterOpenDelayMs);
 
       return () => {
         cancelled = true;
@@ -95,7 +93,7 @@ export function CoverPicker({
       const timer = setTimeout(() => {
         setActiveTab('library');
         setIsUploading(false);
-      }, 200);
+      }, themeLazyLoadTokens.coverPickerResetAfterCloseDelayMs);
       return () => clearTimeout(timer);
     }
   }, [currentNotePath, hasAssets, isOpen, vaultPath, loadAssets]);
@@ -126,7 +124,7 @@ export function CoverPicker({
       if (latestPreviewAssetRef.current === assetPath) {
         onPreview?.(assetPath);
       }
-    }, COVER_PREVIEW_DELAY_MS);
+    }, themeLazyLoadTokens.coverPreviewDelayMs);
   }, [onPreview]);
 
   const handleUploadComplete = useCallback((assetPath: string) => {
@@ -199,7 +197,7 @@ export function CoverPicker({
 
       <PopoverContent
         className={cn(
-          "w-[340px] !rounded-[26px] p-0 flex flex-col overflow-hidden z-50 pointer-events-auto select-none backdrop-blur-lg",
+          "w-[var(--vlaina-size-340px)] !rounded-[var(--vlaina-radius-26px)] p-0 flex flex-col overflow-hidden z-[var(--vlaina-z-50)] pointer-events-auto select-none backdrop-blur-[var(--vlaina-backdrop-blur-lg)]",
           chatComposerPillSurfaceClass,
         )}
         align="end"
@@ -217,7 +215,7 @@ export function CoverPicker({
                 className={cn(
                   "text-xs font-medium px-2 py-1 rounded transition-colors",
                   activeTab === 'library'
-                    ? "bg-[var(--vlaina-accent)]/10 text-[var(--vlaina-accent)]"
+                    ? "bg-[var(--vlaina-color-accent-soft-bg)] text-[var(--vlaina-accent)]"
                     : "text-[var(--vlaina-text-secondary)] hover:text-[var(--vlaina-text-primary)]"
                 )}
               >
@@ -230,7 +228,7 @@ export function CoverPicker({
                 className={cn(
                   "text-xs font-medium px-2 py-1 rounded transition-colors",
                   activeTab === 'upload'
-                    ? "bg-[var(--vlaina-accent)]/10 text-[var(--vlaina-accent)]"
+                    ? "bg-[var(--vlaina-color-accent-soft-bg)] text-[var(--vlaina-accent)]"
                     : "text-[var(--vlaina-text-secondary)] hover:text-[var(--vlaina-text-primary)]"
                 )}
               >

@@ -10,6 +10,7 @@ import { downloadImageWithPrompt } from "@/components/Chat/common/imageDownload"
 import { chatPopoverPillSurfaceClass } from "@/components/Chat/features/Input/composerStyles";
 import { useI18n } from "@/lib/i18n";
 import { convertToBase64, type Attachment } from "@/lib/storage/attachmentStorage";
+import { themeChatImageViewerTokens, themeCropperTokens, themeStyleResetTokens } from "@/styles/themeTokens";
 
 interface ChatImageViewerProps {
   open: boolean;
@@ -21,9 +22,9 @@ interface ChatImageViewerProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const MIN_ZOOM = 0.2;
-const MAX_ZOOM = 5;
-const ZOOM_STEP = 0.12;
+const MIN_ZOOM = themeChatImageViewerTokens.minZoom;
+const MAX_ZOOM = themeChatImageViewerTokens.maxZoom;
+const ZOOM_STEP = themeChatImageViewerTokens.zoomStep;
 const TRANSPARENT_IMAGE_DATA_URL =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 const VIEWER_CONTROL_SELECTOR = '[data-chat-image-viewer-control="true"]';
@@ -34,11 +35,15 @@ const imageViewerToolbarButtonClass =
   "inline-flex h-9 w-9 items-center justify-center rounded-full bg-transparent text-[var(--vlaina-color-text-strong)] transition-colors hover:bg-[var(--vlaina-hover)]";
 
 function getViewerFitBounds(viewportSize: { width: number; height: number }) {
-  const horizontalPadding = viewportSize.width < 640 ? 28 : 96;
-  const verticalPadding = viewportSize.height < 640 ? 96 : 140;
+  const horizontalPadding = viewportSize.width < themeChatImageViewerTokens.fitPaddingBreakpointPx
+    ? themeChatImageViewerTokens.fitHorizontalPaddingCompactPx
+    : themeChatImageViewerTokens.fitHorizontalPaddingWidePx;
+  const verticalPadding = viewportSize.height < themeChatImageViewerTokens.fitPaddingBreakpointPx
+    ? themeChatImageViewerTokens.fitVerticalPaddingCompactPx
+    : themeChatImageViewerTokens.fitVerticalPaddingWidePx;
   return {
-    maxWidth: Math.max(1, viewportSize.width - horizontalPadding),
-    maxHeight: Math.max(1, viewportSize.height - verticalPadding),
+    maxWidth: Math.max(themeChatImageViewerTokens.minViewportSizePx, viewportSize.width - horizontalPadding),
+    maxHeight: Math.max(themeChatImageViewerTokens.minViewportSizePx, viewportSize.height - verticalPadding),
   };
 }
 
@@ -60,8 +65,8 @@ function resolveInitialViewerZoom({
   const targetHeight = Math.min(naturalHeight || mediaHeight, maxHeight);
   return clampZoom(Math.min(
     1,
-    targetWidth / Math.max(mediaWidth, 1),
-    targetHeight / Math.max(mediaHeight, 1),
+        targetWidth / Math.max(mediaWidth, themeChatImageViewerTokens.minViewportSizePx),
+        targetHeight / Math.max(mediaHeight, themeChatImageViewerTokens.minViewportSizePx),
   ));
 }
 
@@ -150,14 +155,17 @@ export function ChatImageViewer({
 }: ChatImageViewerProps) {
   const { t } = useI18n();
   const [isMounted, setIsMounted] = useState(false);
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [crop, setCrop] = useState({ x: themeCropperTokens.defaultCropX, y: themeCropperTokens.defaultCropY });
   const [zoom, setZoom] = useState(1);
   const [copied, setCopied] = useState(false);
   const [aspectRatio, setAspectRatio] = useState(1);
   const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
   const [mediaSize, setMediaSize] = useState<{ width: number; height: number; naturalWidth: number; naturalHeight: number } | null>(null);
   const [mediaReady, setMediaReady] = useState(false);
-  const [viewportSize, setViewportSize] = useState({ width: 1440, height: 900 });
+  const [viewportSize, setViewportSize] = useState({
+    width: themeChatImageViewerTokens.defaultViewportWidthPx,
+    height: themeChatImageViewerTokens.defaultViewportHeightPx,
+  });
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(-1);
   const [resolvedActiveSrc, setResolvedActiveSrc] = useState(src);
   const imageElementRef = useRef<HTMLImageElement | null>(null);
@@ -287,7 +295,7 @@ export function ChatImageViewer({
   const previewMetrics = useMemo(() => {
     const { maxHeight, maxWidth } = getViewerFitBounds(viewportSize);
     const safeAspect = aspectRatio > 0 ? aspectRatio : 1;
-    const viewportAspect = viewportSize.width / Math.max(viewportSize.height, 1);
+    const viewportAspect = viewportSize.width / Math.max(viewportSize.height, themeChatImageViewerTokens.minViewportSizePx);
     const fitWidthAtZoomOne = mediaSize?.width || (
       safeAspect >= viewportAspect
         ? viewportSize.width
@@ -305,11 +313,11 @@ export function ChatImageViewer({
     const initialZoom = clampZoom(
       Math.min(
         1,
-        targetWidth / Math.max(fitWidthAtZoomOne, 1),
-        targetHeight / Math.max(fitHeightAtZoomOne, 1)
+        targetWidth / Math.max(fitWidthAtZoomOne, themeChatImageViewerTokens.minViewportSizePx),
+        targetHeight / Math.max(fitHeightAtZoomOne, themeChatImageViewerTokens.minViewportSizePx)
       )
     );
-    const minZoom = Math.max(0.2, Number((initialZoom * 0.35).toFixed(2)));
+    const minZoom = Math.max(MIN_ZOOM, Number((initialZoom * themeChatImageViewerTokens.previewMinZoomScale).toFixed(2)));
     return {
       initialZoom,
       minZoom,
@@ -317,8 +325,8 @@ export function ChatImageViewer({
   }, [aspectRatio, imageSize?.height, imageSize?.width, mediaSize, viewportSize.height, viewportSize.width]);
   const cropperViewportSize = useMemo(
     () => ({
-      width: Math.max(1, viewportSize.width),
-      height: Math.max(1, viewportSize.height),
+      width: Math.max(themeChatImageViewerTokens.minViewportSizePx, viewportSize.width),
+      height: Math.max(themeChatImageViewerTokens.minViewportSizePx, viewportSize.height),
     }),
     [viewportSize.height, viewportSize.width],
   );
@@ -342,8 +350,8 @@ export function ChatImageViewer({
       );
     }
 
-    const safeAspect = aspectRatio > 0 ? aspectRatio : 1;
-    const viewportAspect = viewportSize.width / Math.max(viewportSize.height, 1);
+    const safeAspect = aspectRatio > 0 ? aspectRatio : themeChatImageViewerTokens.minViewportSizePx;
+    const viewportAspect = viewportSize.width / Math.max(viewportSize.height, themeChatImageViewerTokens.minViewportSizePx);
     const baseWidth =
       safeAspect >= viewportAspect
         ? viewportSize.width
@@ -411,7 +419,7 @@ export function ChatImageViewer({
     if (!open) {
       return;
     }
-    setCrop({ x: 0, y: 0 });
+    setCrop({ x: themeCropperTokens.defaultCropX, y: themeCropperTokens.defaultCropY });
     setMediaSize(null);
     setMediaReady(false);
   }, [activeSrc, open]);
@@ -427,7 +435,7 @@ export function ChatImageViewer({
 
   useEffect(() => {
     if (!copied) return;
-    const timer = window.setTimeout(() => setCopied(false), 1200);
+    const timer = window.setTimeout(() => setCopied(false), themeChatImageViewerTokens.copiedResetDelayMs);
     return () => window.clearTimeout(timer);
   }, [copied]);
 
@@ -449,7 +457,7 @@ export function ChatImageViewer({
         role="dialog"
         aria-modal="true"
         aria-label={activeAlt || "Image preview"}
-        className="fixed inset-0 z-[121]"
+        className="fixed inset-0 z-[var(--vlaina-z-121)]"
         data-no-focus-input="true"
         data-chat-image-viewer-surface="true"
         onPointerDownCapture={handleDialogPointerDownCapture}
@@ -466,7 +474,7 @@ export function ChatImageViewer({
           data-no-focus-input="true"
           data-chat-image-viewer-control="true"
           className={cn(
-            "absolute right-12 top-12 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-all hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-color-text-strong)]",
+            "absolute right-12 top-12 z-[var(--vlaina-z-10)] inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-all hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-color-text-strong)]",
             iconButtonStyles
           )}
           onClick={(event) => {
@@ -478,7 +486,7 @@ export function ChatImageViewer({
         </button>
 
         {hasPrevious && (
-          <div className="absolute inset-y-0 left-4 z-10 flex items-center">
+          <div className="absolute inset-y-0 left-4 z-[var(--vlaina-z-10)] flex items-center">
             <button
               type="button"
               aria-label={t('chat.previousImage')}
@@ -499,7 +507,7 @@ export function ChatImageViewer({
         )}
 
         {hasNext && (
-          <div className="absolute inset-y-0 right-4 z-10 flex items-center">
+          <div className="absolute inset-y-0 right-4 z-[var(--vlaina-z-10)] flex items-center">
             <button
               type="button"
               aria-label={t('chat.nextImage')}
@@ -522,8 +530,8 @@ export function ChatImageViewer({
         <div className="relative h-full w-full">
           <div
             className={cn(
-              "absolute inset-0 transition-opacity duration-100",
-              mediaReady ? "opacity-100" : "opacity-0"
+              "absolute inset-0 transition-opacity duration-[var(--vlaina-duration-100)]",
+              mediaReady ? "opacity-[var(--vlaina-opacity-100)]" : "opacity-[var(--vlaina-opacity-0)]"
             )}
           >
             <Cropper
@@ -535,7 +543,7 @@ export function ChatImageViewer({
               maxZoom={MAX_ZOOM}
               showGrid={false}
               zoomWithScroll={true}
-              zoomSpeed={0.12}
+              zoomSpeed={ZOOM_STEP}
               restrictPosition={false}
               objectFit="contain"
               setImageRef={(ref) => {
@@ -545,8 +553,8 @@ export function ChatImageViewer({
                 if (cropperImageSrc === TRANSPARENT_IMAGE_DATA_URL) {
                   return;
                 }
-                const width = mediaSize.naturalWidth || mediaSize.width || 1;
-                const height = mediaSize.naturalHeight || mediaSize.height || 1;
+                const width = mediaSize.naturalWidth || mediaSize.width || themeChatImageViewerTokens.minViewportSizePx;
+                const height = mediaSize.naturalHeight || mediaSize.height || themeChatImageViewerTokens.minViewportSizePx;
                 const nextZoom = resolveInitialViewerZoom({
                   mediaHeight: mediaSize.height || height,
                   mediaWidth: mediaSize.width || width,
@@ -562,27 +570,27 @@ export function ChatImageViewer({
                   naturalWidth: width,
                   naturalHeight: height,
                 });
-                setCrop({ x: 0, y: 0 });
+                setCrop({ x: themeCropperTokens.defaultCropX, y: themeCropperTokens.defaultCropY });
                 setZoom(nextZoom);
                 setMediaReady(true);
               }}
               onCropChange={setCrop}
               onZoomChange={(value) => setZoom(clampZoom(value))}
               style={{
-                containerStyle: { backgroundColor: "transparent" },
+                containerStyle: { backgroundColor: themeStyleResetTokens.backgroundTransparent },
                 cropAreaStyle: {
-                  border: "none",
-                  boxShadow: "none",
-                  color: "transparent",
-                  outline: "none",
-                  background: "transparent",
-                  pointerEvents: "none",
+                  border: themeStyleResetTokens.borderNone,
+                  boxShadow: themeStyleResetTokens.boxShadowNone,
+                  color: themeStyleResetTokens.colorTransparent,
+                  outline: themeStyleResetTokens.outlineNone,
+                  background: themeStyleResetTokens.backgroundTransparent,
+                  pointerEvents: themeStyleResetTokens.pointerEventsNone,
                 },
               }}
             />
           </div>
 
-          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center">
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[var(--vlaina-z-10)] flex justify-center">
             <div
               data-chat-image-viewer-control="true"
               className={cn(
@@ -603,7 +611,7 @@ export function ChatImageViewer({
               >
                 <Icon name="common.remove" size="md" />
               </button>
-              <span className="min-w-[50px] px-1.5 text-center text-xs font-semibold tabular-nums text-[var(--vlaina-color-text-strong)]">
+              <span className="min-w-[var(--vlaina-size-50px)] px-1.5 text-center text-xs font-semibold tabular-nums text-[var(--vlaina-color-text-strong)]">
                 {percentLabel}
               </span>
               <button
@@ -620,7 +628,7 @@ export function ChatImageViewer({
               </button>
               <div className="mx-1 h-6 w-px bg-[var(--vlaina-border)]" />
               {imageSizeLabel && (
-                <span className="min-w-[78px] px-3 text-center text-[11px] font-medium tabular-nums text-[var(--vlaina-color-text-soft)]">
+                <span className="min-w-[var(--vlaina-size-78px)] px-3 text-center text-[var(--vlaina-font-11)] font-medium tabular-nums text-[var(--vlaina-color-text-soft)]">
                   {imageSizeLabel}
                 </span>
               )}

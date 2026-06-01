@@ -361,7 +361,7 @@ describe('toolbar interactions', () => {
 
     copyButton.dispatchEvent(new Event('pointerdown', { bubbles: true }));
 
-    expect(view.dom.classList.contains('vlaina-toolbar-copy-feedback-active')).toBe(true);
+    expect(view.dom.classList.contains('editor-toolbar-copy-feedback-active')).toBe(true);
 
     delegation.destroy();
   });
@@ -380,12 +380,12 @@ describe('toolbar interactions', () => {
     delegation.update(view, {} as any);
 
     copyButton.dispatchEvent(new Event('pointerdown', { bubbles: true }));
-    expect(view.dom.classList.contains('vlaina-toolbar-copy-feedback-active')).toBe(true);
+    expect(view.dom.classList.contains('editor-toolbar-copy-feedback-active')).toBe(true);
 
     document.dispatchEvent(new Event('pointerup'));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(view.dom.classList.contains('vlaina-toolbar-copy-feedback-active')).toBe(false);
+    expect(view.dom.classList.contains('editor-toolbar-copy-feedback-active')).toBe(false);
 
     delegation.destroy();
   });

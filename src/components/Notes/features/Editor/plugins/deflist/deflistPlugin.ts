@@ -114,11 +114,11 @@ function createDeflistDecorations(doc: Node): DecorationSet {
 
                 if (isTermValid) {
                     // Mark current node as DD
-                    const classes = ['vlaina-dl-desc'];
+                    const classes = ['editor-dl-desc'];
 
                     // If the immediate previous node was empty, we need to pull up more
                     if (lastNode && lastNode.textContent.trim().length === 0) {
-                        classes.push('vlaina-dl-gap-fix');
+                        classes.push('editor-dl-gap-fix');
                     }
 
                     decorations.push(
@@ -130,7 +130,7 @@ function createDeflistDecorations(doc: Node): DecorationSet {
                     // Mark previous node as DT
                     decorations.push(
                         Decoration.node(lastNonEmptyPos, lastNonEmptyPos + lastNonEmptyNode!.nodeSize, {
-                            class: 'vlaina-dl-term',
+                            class: 'editor-dl-term',
                         })
                     );
                 }

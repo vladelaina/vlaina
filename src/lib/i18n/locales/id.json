@@ -1,7 +1,7 @@
 {
   "account.cancelAuthentication": "Batalkan Otentikasi",
   "account.continueSignIn": "Lanjutkan Masuk",
-  "account.continueToVlaina": "Lanjutkan ke vlaina",
+  "account.continueToApp": "Lanjutkan ke vlaina",
   "account.continueWithEmail": "Lanjutkan dengan Email",
   "account.emailAddress": "Alamat Email",
   "account.enterEmailCode": "Masukkan kode yang dikirim ke kotak masuk Anda",
@@ -82,7 +82,7 @@
   "settings.feedback.error.signInRequired": "Masuk dulu sebelum mengirim masukan",
   "settings.feedback.error.network": "Kesalahan jaringan. Masukan belum terkirim.",
   "settings.feedback.error.generic": "Gagal mengirim masukan",
-  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★ Ini {authorSite}, pengembang {vlainaSite} dan {catimeSite}.",
+  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★ Ini {authorSite}, pengembang {appSite} dan {catimeSite}.",
   "settings.about.note.curiousTitle": "Mungkin kamu bertanya-tanya:",
   "settings.about.note.curiousMissing": "Mengapa sepertinya masih ada fitur yang belum tersedia?",
   "settings.about.note.curiousRough": "Mengapa beberapa interaksi masih terasa kasar?",

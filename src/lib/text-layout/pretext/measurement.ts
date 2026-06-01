@@ -1,4 +1,8 @@
 import { isCJK } from './analysis.js'
+import {
+  themeDomStyleTokens,
+  themeRenderingTokens,
+} from '@/styles/themeTokens'
 
 export type SegmentMetrics = {
   width: number
@@ -146,9 +150,9 @@ function getEmojiCorrection(font: string, fontSize: number): number {
   ) {
     const span = document.createElement('span')
     span.style.font = font
-    span.style.display = 'inline-block'
-    span.style.visibility = 'hidden'
-    span.style.position = 'absolute'
+    span.style.display = themeDomStyleTokens.displayInlineBlock
+    span.style.visibility = themeRenderingTokens.visibilityHidden
+    span.style.position = themeDomStyleTokens.positionAbsolute
     span.textContent = '\u{1F600}'
     document.body.appendChild(span)
     const domW = span.getBoundingClientRect().width

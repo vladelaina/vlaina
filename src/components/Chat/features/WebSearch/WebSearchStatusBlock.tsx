@@ -3,6 +3,7 @@ import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/c
 import type { WebSearchStatus } from '@/lib/ai/webSearch/types';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { themeIconTokens } from '@/styles/themeTokens';
 
 interface WebSearchStatusBlockProps {
   statuses: WebSearchStatus[];
@@ -93,7 +94,7 @@ export function WebSearchStatusBlock({ statuses, isWaitingForAnswer = false }: W
     <div
       data-chat-selection-excluded="true"
       className={cn(
-        'mb-3 max-w-full select-none rounded-[22px] px-3 py-2 text-[12px] text-[var(--vlaina-text-secondary)]',
+        'mb-3 max-w-full select-none rounded-[var(--vlaina-radius-22px)] px-3 py-2 text-[var(--vlaina-font-xs)] text-[var(--vlaina-text-secondary)]',
         chatComposerPillSurfaceClass,
       )}
     >
@@ -105,7 +106,7 @@ export function WebSearchStatusBlock({ statuses, isWaitingForAnswer = false }: W
               className="absolute inset-0 rounded-full border border-transparent border-t-[var(--vlaina-accent)] animate-spin"
             />
           )}
-          <Icon name="file.public" size={14} />
+          <Icon name="file.public" size={themeIconTokens.sizeSm} />
         </span>
         <span>{phaseLabel(status)}</span>
         {status.query && <span className="min-w-0 truncate text-[var(--vlaina-text-tertiary)]">"{status.query}"</span>}
@@ -124,13 +125,13 @@ export function WebSearchStatusBlock({ statuses, isWaitingForAnswer = false }: W
                 href={source.url}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex h-7 max-w-[220px] cursor-pointer items-center gap-1.5 rounded-full bg-[var(--vlaina-accent-light)] px-2.5 text-[12px] font-medium text-[var(--vlaina-accent)] transition-opacity hover:opacity-80"
+                className="inline-flex h-7 max-w-[var(--vlaina-size-220px)] cursor-pointer items-center gap-1.5 rounded-full bg-[var(--vlaina-accent-light)] px-2.5 text-[var(--vlaina-font-xs)] font-medium text-[var(--vlaina-accent)] transition-opacity hover:opacity-[var(--vlaina-opacity-80)]"
               >
                 <span className="min-w-0 truncate">{source.label}</span>
                 {source.detail && source.detail !== source.label && (
                   <span className="sr-only">{source.detail}</span>
                 )}
-                <Icon name="nav.external" size={12} />
+                <Icon name="nav.external" size={themeIconTokens.sizeXs} />
               </a>
             );
           })}

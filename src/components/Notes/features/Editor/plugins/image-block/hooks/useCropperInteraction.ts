@@ -3,6 +3,7 @@ import type { Area } from 'react-easy-crop';
 import type { CropParams } from '../utils/imageSourceFragment';
 import type { CropArea } from '../types';
 import { resolveCropperMaxZoom } from '../utils/cropperViewport';
+import { themeCropperTokens } from '@/styles/themeTokens';
 
 const AUTO_SAVE_DELAY_MS = 500;
 
@@ -145,7 +146,10 @@ export function useCropperInteraction({
             setZoom(restoredZoom);
         } else {
             setZoom(minZoomLimit);
-            setCrop({ x: 0, y: 0 });
+            setCrop({
+                x: themeCropperTokens.defaultCropX,
+                y: themeCropperTokens.defaultCropY,
+            });
         }
         onCancel();
     };
@@ -156,7 +160,12 @@ export function useCropperInteraction({
 
         const pc = isValidCropArea(lastPercentageCrop.current)
             ? lastPercentageCrop.current
-            : { x: 0, y: 0, width: 100, height: 100 };
+            : {
+                x: themeCropperTokens.defaultCropX,
+                y: themeCropperTokens.defaultCropY,
+                width: themeCropperTokens.defaultCropWidth,
+                height: themeCropperTokens.defaultCropHeight,
+            };
         const cropRatio = (pc.width / pc.height) * originalAspectRatioRef.current;
         onSave(pc, cropRatio);
     };

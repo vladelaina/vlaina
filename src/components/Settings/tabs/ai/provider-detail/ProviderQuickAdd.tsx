@@ -138,7 +138,7 @@ export function ProviderQuickAdd({
           shellClassName={providerInputShellClassName}
         />
         {showSuggestions ? (
-          <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[22px] border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-floating-panel)]">
+          <div className="absolute left-0 right-0 top-[var(--vlaina-offset-dropdown-below-input)] z-[var(--vlaina-z-20)] overflow-hidden rounded-[var(--vlaina-radius-22px)] border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-floating-panel)]">
             <div className="max-h-64 overflow-y-auto p-1.5">
               {suggestions.map((modelId, index) => (
                 <button
@@ -151,10 +151,10 @@ export function ProviderQuickAdd({
                   onClick={() => submit(modelId)}
                   onMouseEnter={() => setHighlightedIndex(index)}
                   className={cn(
-                    'flex w-full items-center rounded-[16px] px-3.5 py-2.5 text-left text-[13px] font-medium transition-colors',
+                    'flex w-full items-center rounded-[var(--vlaina-radius-16px)] px-3.5 py-2.5 text-left text-[var(--vlaina-font-13)] font-medium transition-colors',
                     index === highlightedIndex
-                      ? 'bg-[var(--vlaina-hover-filled)] text-[var(--notes-sidebar-text)]'
-                      : 'text-[var(--notes-sidebar-text-soft)] hover:bg-[var(--vlaina-hover)] hover:text-[var(--notes-sidebar-text)]'
+                      ? 'bg-[var(--vlaina-hover-filled)] text-[var(--vlaina-sidebar-notes-text)]'
+                      : 'text-[var(--vlaina-sidebar-notes-text-soft)] hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-sidebar-notes-text)]'
                   )}
                 >
                   <span className="truncate">{modelId}</span>
@@ -170,7 +170,7 @@ export function ProviderQuickAdd({
         aria-label={t('settings.ai.addModels')}
         onClick={() => submit()}
         className={cn(
-          'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-transparent hover:text-[var(--sidebar-row-selected-text)]',
+          'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)]',
           chatComposerPillSurfaceClass
         )}
       >

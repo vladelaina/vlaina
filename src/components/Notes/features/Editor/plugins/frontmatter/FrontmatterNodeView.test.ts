@@ -189,7 +189,7 @@ describe('FrontmatterNodeView', () => {
     const nodeView = new FrontmatterNodeView(node, view, () => 0);
     const insideTarget = nodeView.dom.querySelector('.frontmatter-block-editor') as HTMLElement;
 
-    nodeView.dom.classList.add('vlaina-block-selected');
+    nodeView.dom.classList.add('editor-block-selected');
 
     const copy = new Event('copy', { bubbles: true, cancelable: true });
     Object.defineProperty(copy, 'target', { value: insideTarget });

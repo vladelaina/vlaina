@@ -87,7 +87,7 @@ describe("MessageList", () => {
 
     const scrollable = document.querySelector('[data-chat-scrollable="true"]');
     expect(scrollable).not.toBeNull();
-    expect(scrollable).toHaveClass("opacity-0");
+    expect(scrollable).toHaveClass("opacity-[var(--vlaina-opacity-0)]");
     expect(scrollable).toHaveClass("pointer-events-none");
     expect(scrollable).toHaveStyle({ overflowAnchor: "none" });
     expect(messageItemSpy).not.toHaveBeenCalled();

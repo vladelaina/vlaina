@@ -43,7 +43,7 @@ describe('CoverRenderer', () => {
 
     const placeholder = container.querySelector('img[alt="Cover"]');
     expect(placeholder).not.toBeNull();
-    expect(placeholder?.className.includes('opacity-100')).toBe(true);
+    expect(placeholder?.className.includes('opacity-[var(--vlaina-opacity-100)]')).toBe(true);
     expect(placeholder?.className.includes('placeholder-active')).toBe(true);
 
     const cropper = container.querySelector('[data-testid="cover-cropper"]');
@@ -66,7 +66,7 @@ describe('CoverRenderer', () => {
 
     const cropper = container.querySelector('[data-testid="cover-cropper"]');
     expect(cropper).not.toBeNull();
-    expect(cropper?.className.includes('opacity-0')).toBe(true);
+    expect(cropper?.className.includes('opacity-[var(--vlaina-opacity-0)]')).toBe(true);
     expect(cropper?.className.includes('pointer-events-none')).toBe(true);
 
     const frozen = container.querySelector('img[alt="Frozen Cover"]');
@@ -279,7 +279,7 @@ describe('CoverRenderer', () => {
     expect(backdrop).not.toBeNull();
     expect(backdrop?.className).toContain('object-cover');
     expect(backdrop?.style.objectPosition).toBe('33% 67%');
-    expect(cropper?.className.includes('opacity-100')).toBe(true);
+    expect(cropper?.className.includes('opacity-[var(--vlaina-opacity-100)]')).toBe(true);
     expect(cropper?.className.includes('pointer-events-none')).toBe(false);
   });
 

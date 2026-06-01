@@ -1,0 +1,643 @@
+/**
+ * Editor block selection rendering and interaction guards.
+ */
+
+/* Interaction guards while dragging a block selection. */
+.milkdown .ProseMirror.editor-block-selection-pending :is(
+  a,
+  button,
+  [role='button'],
+  .heading-toggle-btn,
+  .editor-block-control-btn,
+  .editor-collapse-btn,
+  .callout-icon-button,
+  .video-external-action,
+  .footnote-ref,
+  .milkdown-table-block .column-header-drag-control,
+  .milkdown-table-block .edge-create-zone
+) {
+  pointer-events: none !important;
+}
+
+.milkdown .ProseMirror.editor-block-selection-pending :is(
+  .heading-toggle-btn,
+  .editor-collapse-btn
+) {
+  opacity: var(--vlaina-opacity-0) !important;
+}
+
+.milkdown .ProseMirror.editor-block-selection-pending :is(
+  .callout-icon-button,
+  .video-external-action,
+  .milkdown-table-block .column-header-drag-control,
+  .milkdown-table-block .edge-create-zone
+) {
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.milkdown.editor-block-selection-line-fill-host,
+.milkdown .editor-block-selection-line-fill-host {
+  position: relative;
+}
+
+/* Shared selected-block frame defaults. */
+.milkdown .ProseMirror .editor-block-selected {
+  --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
+  --vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-default);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);
+  --vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);
+  --vlaina-block-selection-fill-top: var(--vlaina-block-selection-fill-edge-default);
+  --vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-fill-edge-default);
+  position: relative;
+  z-index: var(--vlaina-z-1);
+  background-color: var(--vlaina-block-selection-color);
+  box-shadow: var(--vlaina-block-selection-shadow);
+  border-radius: var(--vlaina-radius-8px);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  color: var(--vlaina-editor-block-selection-fg);
+  transition: none !important;
+}
+
+/* Text-like Markdown blocks use an inset fill so adjacent selected rows keep a visible gap. */
+.milkdown .ProseMirror :where(
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  blockquote,
+  hr,
+  li,
+  dl,
+  dt,
+  dd,
+  .definition-list,
+  .definition-term,
+  .definition-desc,
+  .footnote-def,
+  .toc-block,
+  .callout,
+  [data-type='html-block']
+):is(.editor-block-selected, .ProseMirror-selectednode):not(:has(> :where(
+  .code-block-container,
+  .image-block-container,
+  .video-block,
+  [data-type='math-block'],
+  .mermaid-block,
+  .milkdown-table-block
+))),
+.milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected {
+  --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
+  --vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-default);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);
+  --vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);
+  --vlaina-block-selection-fill-top: var(--vlaina-block-selection-fill-edge-default);
+  --vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-fill-edge-default);
+  isolation: isolate;
+  position: relative;
+  z-index: var(--vlaina-z-1);
+  background-color: transparent;
+  box-shadow: none;
+  border-radius: var(--vlaina-radius-8px);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  color: var(--vlaina-editor-block-selection-fg);
+  transition: none !important;
+}
+
+.milkdown .ProseMirror :where(
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  blockquote,
+  hr,
+  li,
+  dl,
+  dt,
+  dd,
+  .definition-list,
+  .definition-term,
+  .definition-desc,
+  .footnote-def,
+  .toc-block,
+  .callout,
+  [data-type='html-block']
+):is(.editor-block-selected, .ProseMirror-selectednode):not(:has(> :where(
+  .code-block-container,
+  .image-block-container,
+  .video-block,
+  [data-type='math-block'],
+  .mermaid-block,
+  .milkdown-table-block
+)))::after,
+.milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected::after {
+  content: '';
+  position: absolute;
+  top: var(--vlaina-block-selection-fill-top);
+  right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
+  bottom: var(--vlaina-block-selection-fill-bottom);
+  left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
+  z-index: var(--vlaina-z-behind);
+  border-radius: var(--vlaina-radius-8px);
+  background: var(--vlaina-block-selection-color);
+  pointer-events: none;
+}
+
+/* Only the shared edges between adjacent selected blocks are pulled inward. */
+.milkdown .ProseMirror :where(
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  blockquote,
+  hr,
+  li,
+  dl,
+  dt,
+  dd,
+  .definition-list,
+  .definition-term,
+  .definition-desc,
+  .footnote-def,
+  .toc-block,
+  .callout,
+  [data-type='html-block']
+):is(.editor-block-selected, .ProseMirror-selectednode):not(:has(> :where(
+  .code-block-container,
+  .image-block-container,
+  .video-block,
+  [data-type='math-block'],
+  .mermaid-block,
+  .milkdown-table-block
+))):has(+ :is(.editor-block-selected, .ProseMirror-selectednode)),
+.milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected:has(+ :is(.editor-block-selected, .ProseMirror-selectednode)) {
+  --vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-gap-y);
+}
+
+.milkdown .ProseMirror :is(.editor-block-selected, .ProseMirror-selectednode) + :where(
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  blockquote,
+  hr,
+  li,
+  dl,
+  dt,
+  dd,
+  .definition-list,
+  .definition-term,
+  .definition-desc,
+  .footnote-def,
+  .toc-block,
+  .callout,
+  [data-type='html-block']
+):is(.editor-block-selected, .ProseMirror-selectednode):not(:has(> :where(
+  .code-block-container,
+  .image-block-container,
+  .video-block,
+  [data-type='math-block'],
+  .mermaid-block,
+  .milkdown-table-block
+))),
+.milkdown .ProseMirror :is(.editor-block-selected, .ProseMirror-selectednode) + [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected {
+  --vlaina-block-selection-fill-top: var(--vlaina-block-selection-gap-y);
+}
+
+.milkdown .editor-block-selection-line-fill-layer {
+  position: absolute;
+  inset: 0;
+  z-index: var(--vlaina-z-0);
+  pointer-events: none;
+}
+
+.milkdown .editor-block-selection-line-fill {
+  --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
+  --vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-default);
+  position: absolute;
+  z-index: var(--vlaina-z-0);
+  border-radius: var(--vlaina-radius-8px);
+  background: var(--vlaina-block-selection-color);
+  box-shadow: var(--vlaina-block-selection-shadow-y);
+  pointer-events: none;
+}
+
+/* Rich blocks use the expanded vertical rhythm from the shared theme scale. */
+.milkdown .ProseMirror :is(
+  .code-block-container,
+  .frontmatter-block-container,
+  .image-block-container,
+  .video-block,
+  [data-type='math-block'],
+  .mermaid-block,
+  .milkdown-table-block,
+  table
+):is(.editor-block-selected, .ProseMirror-selectednode) {
+  --vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-rich);
+}
+
+/* Selection foreground for text-like blocks and their inline descendants. */
+.milkdown .ProseMirror .editor-block-selected:not(.code-block-container):not(.mermaid-block),
+.milkdown .ProseMirror .editor-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {
+  color: var(--vlaina-editor-block-selection-fg);
+  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg);
+}
+
+.milkdown .ProseMirror :where(
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  blockquote,
+  hr,
+  li,
+  dl,
+  dt,
+  dd,
+  .definition-list,
+  .definition-term,
+  .definition-desc,
+  .footnote-def,
+  .toc-block,
+  .callout,
+  [data-type='html-block']
+):is(.editor-block-selected, .ProseMirror-selectednode):not(:has(> :where(
+  .code-block-container,
+  .image-block-container,
+  .video-block,
+  [data-type='math-block'],
+  .mermaid-block,
+  .milkdown-table-block
+))) *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {
+  color: var(--vlaina-editor-block-selection-fg);
+  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg);
+}
+
+.milkdown .ProseMirror li.editor-block-selected::marker,
+.milkdown .ProseMirror li:has(> p.editor-block-selected)::marker {
+  color: var(--vlaina-editor-block-selection-fg);
+}
+
+/* Markdown-specific selected block details. */
+.milkdown .ProseMirror li.editor-list-gap-placeholder-item.editor-block-selected,
+.milkdown .ProseMirror li.editor-list-gap-placeholder-item > .editor-block-selected {
+  --vlaina-block-selection-bleed-x-start: calc(
+    var(--vlaina-list-row-selection-bleed-x-start) -
+    var(--vlaina-list-gap-placeholder-outdent)
+  );
+}
+
+.milkdown .ProseMirror li[data-item-type="task"].editor-block-selected::before,
+.milkdown .ProseMirror li[data-item-type="task"]:has(> p.editor-block-selected)::before,
+.milkdown .ProseMirror .editor-block-selected li[data-item-type="task"]::before {
+  border-color: var(--vlaina-editor-block-selection-fg) !important;
+  background-color: transparent !important;
+}
+
+.milkdown .ProseMirror li[data-item-type="task"][data-checked="true"] > .editor-block-selected {
+  color: var(--vlaina-editor-block-selection-fg) !important;
+  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
+}
+
+.milkdown .ProseMirror blockquote.editor-block-selected::before,
+.milkdown .ProseMirror blockquote:has(> .editor-block-selected)::before,
+.milkdown .ProseMirror .editor-block-selected blockquote::before {
+  background: var(--vlaina-editor-block-selection-fg) !important;
+}
+
+.milkdown .ProseMirror hr.ProseMirror-selectednode,
+.milkdown .ProseMirror hr.editor-block-selected {
+  background-color: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.milkdown .ProseMirror hr.ProseMirror-selectednode::after,
+.milkdown .ProseMirror hr.editor-block-selected::after {
+  top: var(--vlaina-block-selection-fill-top);
+  right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
+  bottom: var(--vlaina-block-selection-fill-bottom);
+  left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
+  z-index: var(--vlaina-z-0);
+}
+
+.milkdown .ProseMirror hr.ProseMirror-selectednode::before,
+.milkdown .ProseMirror hr.editor-block-selected::before {
+  z-index: var(--vlaina-z-1);
+  border-top-color: var(--vlaina-accent);
+  box-shadow: var(--vlaina-shadow-hr-selected);
+}
+
+.milkdown .ProseMirror p.editor-block-selected {
+  --vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-default);
+}
+
+.milkdown .ProseMirror .editor-block-selected .editor-tag-token,
+.milkdown .ProseMirror .editor-block-selected.editor-tag-token {
+  color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent)) !important;
+  -webkit-text-fill-color: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent)) !important;
+}
+
+.milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].editor-block-selected {
+  --vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-default);
+  --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
+  border-radius: var(--vlaina-radius-8px);
+}
+
+.milkdown .ProseMirror .editor-block-selected-inline-line {
+  background-color: transparent;
+  box-shadow: none;
+  border-radius: var(--vlaina-radius-0);
+}
+
+/* List selection geometry. */
+.milkdown .ProseMirror li.editor-block-selected,
+.milkdown .ProseMirror li .editor-block-selected {
+  --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-48px);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
+  --vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-default);
+}
+
+.milkdown .ProseMirror :is(ul, ol) > li.editor-block-selected,
+.milkdown .ProseMirror :is(ul, ol) > li .editor-block-selected {
+  --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-48px);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
+}
+
+.milkdown .ProseMirror ul > li.editor-block-selected,
+.milkdown .ProseMirror ul > li .editor-block-selected,
+.milkdown .ProseMirror li[data-item-type="task"].editor-block-selected,
+.milkdown .ProseMirror li[data-item-type="task"] .editor-block-selected {
+  --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-72px);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
+}
+
+.milkdown .ProseMirror ol > li.editor-block-selected,
+.milkdown .ProseMirror ol > li .editor-block-selected {
+  --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-72px);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
+}
+
+.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) > li.editor-block-selected,
+.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) > li .editor-block-selected {
+  --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-72px);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
+}
+
+.milkdown .ProseMirror :is(ul, ol) ol > li.editor-block-selected,
+.milkdown .ProseMirror :is(ul, ol) ol > li .editor-block-selected {
+  --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-96px);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
+}
+
+.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) :is(ul, ol) > li.editor-block-selected,
+.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) :is(ul, ol) > li .editor-block-selected {
+  --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-104px);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
+}
+
+.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) ol > li.editor-block-selected,
+.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) ol > li .editor-block-selected {
+  --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-128px);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
+}
+
+.milkdown .ProseMirror li.editor-block-selected .editor-block-selected {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.milkdown .ProseMirror li.editor-block-selected .editor-block-selected::after {
+  display: none;
+}
+
+.milkdown .ProseMirror li.editor-block-selected:has(> .code-block-container) {
+  --vlaina-list-contained-block-selection-bleed-y: var(--vlaina-block-selection-list-contained-bleed-y);
+  position: relative;
+  z-index: var(--vlaina-z-0);
+}
+
+.milkdown .ProseMirror li.editor-block-selected:has(> .code-block-container)::after {
+  content: '';
+  position: absolute;
+  right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
+  bottom: calc(-1 * var(--vlaina-list-contained-block-selection-bleed-y));
+  left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
+  z-index: var(--vlaina-z-0);
+  height: calc(var(--vlaina-list-contained-block-selection-bleed-y) + var(--vlaina-space-8px));
+  border-bottom-right-radius: var(--vlaina-radius-8px);
+  border-bottom-left-radius: var(--vlaina-radius-8px);
+  background: var(--vlaina-block-selection-color);
+  pointer-events: none;
+}
+
+.milkdown .ProseMirror li.editor-block-selected:has(> .code-block-container) > * {
+  position: relative;
+  z-index: var(--vlaina-z-1);
+}
+
+/* Rich block selection frames and inner background resets. */
+.milkdown .ProseMirror .image-block-container.ProseMirror-selectednode,
+.milkdown .ProseMirror .image-block-container.editor-block-selected {
+  --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);
+  --vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);
+  background-color: var(--vlaina-block-selection-color);
+  border-radius: var(--vlaina-radius-8px);
+  box-shadow: var(--vlaina-block-selection-shadow);
+}
+
+.milkdown .ProseMirror p.editor-block-selected:has(> .image-block-container) {
+  --vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-rich);
+}
+
+.milkdown .ProseMirror .video-block.ProseMirror-selectednode::after,
+.milkdown .ProseMirror .video-block.editor-block-selected::after {
+  display: none;
+}
+
+.milkdown .ProseMirror .video-block.ProseMirror-selectednode,
+.milkdown .ProseMirror .video-block.editor-block-selected {
+  --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);
+  --vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);
+  background-color: var(--vlaina-block-selection-color);
+  box-shadow: var(--vlaina-block-selection-shadow);
+}
+
+.milkdown .ProseMirror .editor-block-selected :is(
+  .image-block-container,
+  .video-block,
+  [data-type='math-block'],
+  [data-type='math-inline'],
+  .mermaid-block,
+  .milkdown-table-block,
+  table
+) {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.milkdown .ProseMirror .editor-block-selected-contained:is(
+  .image-block-container,
+  .video-block,
+  [data-type='math-block'],
+  [data-type='math-inline'],
+  .mermaid-block,
+  .milkdown-table-block,
+  table
+) {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Table block selection uses a pseudo-frame so scrollbars and content stay readable. */
+.milkdown .ProseMirror .milkdown-table-block.editor-block-selected .table-content-host,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-content-host {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.milkdown .ProseMirror .milkdown-table-block.editor-block-selected,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode {
+  --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);
+  --vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);
+  --vlaina-block-selection-top-reserve: var(--vlaina-block-selection-top-reserve-default);
+  --vlaina-block-selection-scrollbar-reserve: var(--vlaina-block-selection-scrollbar-reserve-default);
+  background: transparent !important;
+  background-color: transparent !important;
+  border-radius: var(--vlaina-radius-8px);
+  box-shadow: none !important;
+}
+
+.milkdown .ProseMirror .milkdown-table-block.editor-block-selected:has(.table-wrapper[style*="--table-block-table-min-width: 0px"]),
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode:has(.table-wrapper[style*="--table-block-table-min-width: 0px"]) {
+  --vlaina-block-selection-top-reserve: var(--vlaina-block-selection-bleed-y);
+  --vlaina-block-selection-scrollbar-reserve: var(--table-block-scrollbar-reserve, var(--vlaina-block-selection-table-scrollbar-reserve));
+}
+
+.milkdown .ProseMirror .milkdown-table-block.editor-block-selected::before,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--vlaina-block-selection-top-reserve, var(--vlaina-block-selection-top-reserve-default)) - var(--vlaina-block-selection-bleed-y));
+  right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
+  bottom: calc(var(--vlaina-block-selection-scrollbar-reserve, var(--vlaina-block-selection-scrollbar-reserve-default)) - var(--vlaina-block-selection-bleed-y));
+  left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
+  z-index: var(--vlaina-z-0);
+  border-radius: var(--vlaina-radius-8px);
+  background: var(--vlaina-block-selection-color);
+  pointer-events: none;
+}
+
+.milkdown .ProseMirror .milkdown-table-block.editor-block-selected > *,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode > * {
+  position: relative;
+  z-index: var(--vlaina-z-1);
+}
+
+.milkdown .ProseMirror .milkdown-table-block.editor-block-selected .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-scroll,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-scroll {
+  margin-top: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  margin-bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  padding-top: var(--vlaina-block-selection-bleed-y);
+  padding-bottom: var(--vlaina-block-selection-bleed-y);
+}
+
+.milkdown .ProseMirror .milkdown-table-block.editor-block-selected .table-scroll-track,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-scroll-track {
+  position: relative;
+  background: transparent !important;
+  background-color: transparent !important;
+  border-radius: var(--vlaina-radius-8px);
+}
+
+.milkdown .ProseMirror .milkdown-table-block.editor-block-selected .table-content-host,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-content-host {
+  position: relative;
+  z-index: var(--vlaina-z-0);
+}
+
+.milkdown .ProseMirror .milkdown-table-block.editor-block-selected .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-content-host::before,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-content-host::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
+  bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
+  z-index: var(--vlaina-z-0);
+  border-radius: var(--vlaina-radius-8px);
+  background: var(--vlaina-block-selection-color);
+  pointer-events: none;
+}
+
+.milkdown .ProseMirror .milkdown-table-block.editor-block-selected .table-scroll-spacer,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-scroll-spacer {
+  position: relative;
+  z-index: var(--vlaina-z-1);
+}
+
+.milkdown .ProseMirror .milkdown-table-block.editor-block-selected .table-content-host > *,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-content-host > * {
+  position: relative;
+  z-index: var(--vlaina-z-1);
+}
+
+.milkdown .ProseMirror .milkdown-table-block.editor-block-selected :is(th, td),
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode :is(th, td) {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.milkdown .ProseMirror li :is(
+  .image-block-container,
+  .video-block,
+  [data-type='math-block'],
+  [data-type='math-inline'],
+  .mermaid-block,
+  .milkdown-table-block,
+  table
+).editor-block-selected {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.milkdown .ProseMirror li.editor-block-selected :is(
+  [data-type='math-block'],
+  .mermaid-block
+).editor-block-selected,
+.milkdown .ProseMirror li.editor-block-selected :is(
+  [data-type='math-block'],
+  .mermaid-block
+).editor-block-selected-contained {
+  box-shadow: var(--vlaina-block-selection-shadow-y) !important;
+}
+
+/* Hide native caret while a block selection is active. */
+.milkdown .ProseMirror.editor-block-selection-active {
+  caret-color: transparent !important;
+}

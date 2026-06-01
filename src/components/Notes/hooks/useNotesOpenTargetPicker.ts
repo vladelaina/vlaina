@@ -10,8 +10,8 @@ import {
 } from '../features/OpenTarget/openTargetSelection';
 import { flushCurrentTitleCommit } from '../features/Editor/utils/titleCommitRegistry';
 
-const OPEN_MARKDOWN_TARGET_FILE_EVENT = 'vlaina-open-markdown-target-file';
-const OPEN_MARKDOWN_TARGET_FOLDER_EVENT = 'vlaina-open-markdown-target-folder';
+const OPEN_MARKDOWN_TARGET_FILE_EVENT = 'app-open-markdown-target-file';
+const OPEN_MARKDOWN_TARGET_FOLDER_EVENT = 'app-open-markdown-target-folder';
 
 export function useNotesOpenTargetPicker({
   active,
@@ -99,13 +99,13 @@ export function useNotesOpenTargetPicker({
       await openMarkdownTarget(filePath);
     };
 
-    window.addEventListener('vlaina-open-markdown-file', handleOpenMarkdownFile);
+    window.addEventListener('app-open-markdown-file', handleOpenMarkdownFile);
     window.addEventListener(OPEN_MARKDOWN_TARGET_FILE_EVENT, handleOpenMarkdownTargetFile);
     window.addEventListener(OPEN_MARKDOWN_TARGET_FOLDER_EVENT, handleOpenMarkdownTargetFolder);
     const unsubscribeDesktopShortcut = onDesktopOpenMarkdownFileShortcut(handleOpenMarkdownFile);
     const unsubscribeDesktopOpenFile = onDesktopOpenMarkdownFile(handleDesktopOpenMarkdownFile);
     return () => {
-      window.removeEventListener('vlaina-open-markdown-file', handleOpenMarkdownFile);
+      window.removeEventListener('app-open-markdown-file', handleOpenMarkdownFile);
       window.removeEventListener(OPEN_MARKDOWN_TARGET_FILE_EVENT, handleOpenMarkdownTargetFile);
       window.removeEventListener(OPEN_MARKDOWN_TARGET_FOLDER_EVENT, handleOpenMarkdownTargetFolder);
       unsubscribeDesktopShortcut();

@@ -1,5 +1,5 @@
-export const BLOCK_DRAGGING_CURSOR_CLASS = 'vlaina-block-dragging-cursor';
-export const BLOCK_DRAGGING_ACTIVE_CLASS = 'vlaina-block-drag-active';
+export const BLOCK_DRAGGING_CURSOR_CLASS = 'editor-block-dragging-cursor';
+export const BLOCK_DRAGGING_ACTIVE_CLASS = 'editor-block-drag-active';
 
 type BlockDragVisualSnapshot = {
   selectionDragging: boolean;

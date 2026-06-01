@@ -4,11 +4,11 @@ import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import {
   parseChatHeadingDragPayload,
-  VLAINA_CHAT_HEADING_DRAG_MIME,
+  CHAT_HEADING_DRAG_MIME,
 } from '@/lib/drag/chatHeadingDrag';
 import { createCaretOverlayRect } from '@/lib/ui/caretOverlayStyles';
 
-const EXTERNAL_TEXT_DROP_CURSOR_CLASS = 'vlaina-external-text-drop-cursor';
+const EXTERNAL_TEXT_DROP_CURSOR_CLASS = 'editor-external-text-drop-cursor';
 
 type EditorViewWithDragging = EditorView & {
   dragging?: unknown;
@@ -36,7 +36,7 @@ export function hasExternalTextDrag(dataTransfer: DataTransfer | null | undefine
   const types = Array.from(dataTransfer.types ?? []);
   if (types.includes('Files')) return false;
   return (
-    types.includes(VLAINA_CHAT_HEADING_DRAG_MIME) ||
+    types.includes(CHAT_HEADING_DRAG_MIME) ||
     types.includes('text/plain') ||
     types.includes('text/html') ||
     types.includes('text/uri-list')
@@ -101,7 +101,7 @@ function getSingleHeadingFromHtml(dataTransfer: DataTransfer | null | undefined)
 function getHeadingDropPayload(dataTransfer: DataTransfer | null | undefined): HeadingDropPayload | null {
   if (!dataTransfer) return null;
 
-  const customPayload = parseChatHeadingDragPayload(dataTransfer.getData(VLAINA_CHAT_HEADING_DRAG_MIME));
+  const customPayload = parseChatHeadingDragPayload(dataTransfer.getData(CHAT_HEADING_DRAG_MIME));
   if (customPayload) return customPayload;
 
   return getSingleHeadingFromHtml(dataTransfer);
@@ -111,7 +111,7 @@ function hasHeadingDropPayload(dataTransfer: DataTransfer | null | undefined): b
   if (!dataTransfer) return false;
 
   const types = Array.from(dataTransfer.types ?? []);
-  return types.includes(VLAINA_CHAT_HEADING_DRAG_MIME) || Boolean(getSingleHeadingFromHtml(dataTransfer));
+  return types.includes(CHAT_HEADING_DRAG_MIME) || Boolean(getSingleHeadingFromHtml(dataTransfer));
 }
 
 function isInternalTextSelectionDrag(view: EditorView): boolean {

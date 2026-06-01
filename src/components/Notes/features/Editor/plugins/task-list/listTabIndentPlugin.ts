@@ -6,7 +6,7 @@ import { $prose } from '@milkdown/kit/utils';
 
 export const listTabIndentPluginKey = new PluginKey('listTabIndent');
 const EDITABLE_LIST_GAP_PLACEHOLDER = '\u2800';
-const LIST_GAP_PLACEHOLDER_CLASS = 'vlaina-list-gap-placeholder-item';
+const LIST_GAP_PLACEHOLDER_CLASS = 'editor-list-gap-placeholder-item';
 
 function isSelectionInsideListItem(view: EditorView): boolean {
     const listItemType = view.state.schema.nodes.list_item;

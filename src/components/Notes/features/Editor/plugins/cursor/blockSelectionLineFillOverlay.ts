@@ -2,8 +2,8 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { getBlockSelectionPluginState } from './blockSelectionPluginState';
 import { getBlockRangesKey, normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
 
-const LINE_FILL_LAYER_CLASS = 'vlaina-block-selection-line-fill-layer';
-const LINE_FILL_CLASS = 'vlaina-block-selection-line-fill';
+const LINE_FILL_LAYER_CLASS = 'editor-block-selection-line-fill-layer';
+const LINE_FILL_CLASS = 'editor-block-selection-line-fill';
 const ROW_MERGE_TOLERANCE_PX = 2;
 const FALLBACK_BLOCK_SELECTION_BLEED_X_PX = 48;
 
@@ -32,7 +32,7 @@ function readCssPx(style: CSSStyleDeclaration, property: string, fallback = 0): 
 }
 
 function resolveBlockSelectionBleedXEnd(paragraph: HTMLElement): number {
-  const selectedElement = paragraph.querySelector<HTMLElement>('.vlaina-block-selected') ?? paragraph;
+  const selectedElement = paragraph.querySelector<HTMLElement>('.editor-block-selected') ?? paragraph;
   return readCssPx(
     window.getComputedStyle(selectedElement),
     '--vlaina-block-selection-bleed-x-end',
@@ -41,7 +41,7 @@ function resolveBlockSelectionBleedXEnd(paragraph: HTMLElement): number {
 }
 
 function resolveBlockSelectionBleedXStart(paragraph: HTMLElement): number {
-  const selectedElement = paragraph.querySelector<HTMLElement>('.vlaina-block-selected') ?? paragraph;
+  const selectedElement = paragraph.querySelector<HTMLElement>('.editor-block-selected') ?? paragraph;
   return readCssPx(
     window.getComputedStyle(selectedElement),
     '--vlaina-block-selection-bleed-x-start',
@@ -177,7 +177,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
   let lastDoc: EditorView['state']['doc'] | null = null;
   let lastSelectionKey: string | null = null;
   if (host instanceof HTMLElement) {
-    host.classList.add('vlaina-block-selection-line-fill-host');
+    host.classList.add('editor-block-selection-line-fill-host');
   }
   const layer = doc.createElement('div');
   layer.className = LINE_FILL_LAYER_CLASS;
@@ -234,7 +234,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
     update,
     destroy() {
       if (host instanceof HTMLElement) {
-        host.classList.remove('vlaina-block-selection-line-fill-host');
+        host.classList.remove('editor-block-selection-line-fill-host');
       }
       layer.remove();
     },

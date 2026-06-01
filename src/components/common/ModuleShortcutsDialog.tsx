@@ -7,6 +7,7 @@ import { ModuleShortcutId, ModuleShortcutSection, getModuleShortcutPreset } from
 import { useDialogWindowDrag } from '@/hooks/useDialogWindowDrag';
 import { useI18n } from '@/lib/i18n';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { themeBackdropTokens, themeIconTokens } from '@/styles/themeTokens';
 
 interface ModuleShortcutsDialogProps {
   module: ModuleShortcutId;
@@ -96,7 +97,7 @@ export function ModuleShortcutsDialog({
   const resolvedTitle = title ?? preset.title;
   const resolvedDescription = preset.description;
   const resolvedSections = sections ?? preset.sections;
-  const shortcutKeyClassName = 'rounded-md bg-[var(--chat-sidebar-row-hover)] text-[var(--chat-sidebar-text)] shadow-none';
+  const shortcutKeyClassName = 'rounded-md bg-[var(--vlaina-sidebar-chat-row-hover)] text-[var(--vlaina-sidebar-chat-text)] shadow-[var(--vlaina-shadow-none)]';
   const normalizedSearchQuery = normalizeSearchValue(searchQuery);
   const compactSearchQuery = compactSearchValue(searchQuery);
   const filteredSections = useMemo(() => {
@@ -154,21 +155,25 @@ export function ModuleShortcutsDialog({
       <DialogContent
         showCloseButton={false}
         useBlurBackdrop
-        blurBackdropProps={{ overlayClassName: 'bg-[var(--vlaina-color-drop-overlay)]', blurPx: 6, duration: 0.05 }}
+        blurBackdropProps={{
+          overlayClassName: 'bg-[var(--vlaina-color-drop-overlay)]',
+          blurPx: themeBackdropTokens.moduleShortcutsBlurPx,
+          duration: themeBackdropTokens.moduleShortcutsDurationSeconds,
+        }}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
         }}
         onPointerDownOutside={handlePointerDownOutside}
         onInteractOutside={handleInteractOutside}
-        className="sm:max-w-lg rounded-[20px] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-setting-field)] p-4 shadow-[var(--vlaina-shadow-floating-panel)] overflow-hidden duration-75"
+        className="sm:max-w-lg rounded-[var(--vlaina-radius-20px)] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-setting-field)] p-4 shadow-[var(--vlaina-shadow-floating-panel)] overflow-hidden duration-[var(--vlaina-duration-75)]"
       >
         <div
-          className="vlaina-drag-region flex min-w-0 items-center justify-between gap-3 px-1 pb-4 cursor-grab active:cursor-grabbing select-none"
+          className="app-drag-region flex min-w-0 items-center justify-between gap-3 px-1 pb-4 cursor-grab active:cursor-grabbing select-none"
           onMouseDown={handleDragHandleMouseDown}
         >
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2">
-              <DialogTitle className="min-w-0 truncate text-[20px] font-semibold tracking-[-0.03em] text-[var(--vlaina-color-text-strong)]">
+              <DialogTitle className="min-w-0 truncate text-[var(--vlaina-font-20)] font-semibold tracking-[var(--vlaina-tracking-tight-display)] text-[var(--vlaina-color-text-strong)]">
                 {resolvedTitle}
               </DialogTitle>
               <DialogDescription className="sr-only">
@@ -180,14 +185,14 @@ export function ModuleShortcutsDialog({
                 keyClassName={shortcutKeyClassName}
               />
               <div
-                className="vlaina-no-drag relative ml-1 flex h-[34px] min-w-[96px] max-w-[240px] flex-1 items-center gap-2 rounded-full px-3 cursor-auto select-text"
+                className="app-no-drag relative ml-1 flex h-[var(--vlaina-size-34px)] min-w-[var(--vlaina-size-96px)] max-w-[var(--vlaina-size-240px)] flex-1 items-center gap-2 rounded-full px-3 cursor-auto select-text"
                 onMouseDown={(event) => event.stopPropagation()}
               >
                 <div className={cn('absolute inset-0 rounded-full', chatComposerPillSurfaceClass)} />
                 <Icon
                   name="common.search"
-                  size={16}
-                  className="relative z-[1] shrink-0 text-[var(--vlaina-color-text-soft)]"
+                  size={themeIconTokens.sizeRow}
+                  className="relative z-[var(--vlaina-z-1)] shrink-0 text-[var(--vlaina-color-text-soft)]"
                 />
                 <input
                   ref={searchInputRef}
@@ -198,7 +203,7 @@ export function ModuleShortcutsDialog({
                   placeholder={t('sidebar.search')}
                   aria-label={`${t('sidebar.search')} ${resolvedTitle}`}
                   spellCheck={false}
-                  className="relative z-[1] h-6 min-w-0 flex-1 bg-transparent py-0 text-[13px] leading-5 text-[var(--chat-sidebar-text)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]"
+                  className="relative z-[var(--vlaina-z-1)] h-6 min-w-0 flex-1 bg-transparent py-0 text-[var(--vlaina-font-13)] leading-5 text-[var(--vlaina-sidebar-chat-text)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]"
                 />
                 {searchQuery ? (
                   <button
@@ -208,7 +213,7 @@ export function ModuleShortcutsDialog({
                       searchInputRef.current?.focus({ preventScroll: true });
                     }}
                     aria-label={t('common.close')}
-                    className="relative z-[1] inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-[var(--chat-sidebar-row-hover)] hover:text-[var(--chat-sidebar-text)]"
+                    className="relative z-[var(--vlaina-z-1)] inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-[var(--vlaina-sidebar-chat-row-hover)] hover:text-[var(--vlaina-sidebar-chat-text)]"
                   >
                     <Icon name="common.close" size="sm" />
                   </button>
@@ -221,17 +226,17 @@ export function ModuleShortcutsDialog({
             onMouseDown={(event) => {
               event.stopPropagation();
             }}
-            className="vlaina-no-drag inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-color-text-strong)]"
+            className="app-no-drag inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-color-text-strong)]"
           >
             <Icon name="common.close" size="md" />
             <span className="sr-only">{t('common.close')}</span>
           </DialogClose>
         </div>
 
-        <div className="max-h-[65vh] overflow-y-auto space-y-3 pr-1">
+        <div className="max-h-[var(--vlaina-size-65vh)] overflow-y-auto space-y-3 pr-1">
           {filteredSections.length > 0 ? filteredSections.map((section) => (
-            <section key={section.title} className="rounded-[16px]">
-              <h3 className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--vlaina-color-text-soft)]">
+            <section key={section.title} className="rounded-[var(--vlaina-radius-16px)]">
+              <h3 className="px-3 pb-2 text-[var(--vlaina-font-11)] font-semibold uppercase tracking-[var(--vlaina-tracking-label-xl)] text-[var(--vlaina-color-text-soft)]">
                 {section.title}
               </h3>
 
@@ -244,7 +249,7 @@ export function ModuleShortcutsDialog({
                       'hover:bg-[var(--vlaina-hover)]'
                     )}
                   >
-                    <span className="min-w-0 flex-1 text-[14px] font-medium text-[var(--chat-sidebar-text)]">
+                    <span className="min-w-0 flex-1 text-[var(--vlaina-font-sm)] font-medium text-[var(--vlaina-sidebar-chat-text)]">
                       {shortcut.action}
                     </span>
                     <ShortcutKeys
@@ -257,7 +262,7 @@ export function ModuleShortcutsDialog({
               </div>
             </section>
           )) : (
-            <div className="px-3 py-8 text-center text-[13px] font-medium text-[var(--vlaina-color-text-soft)]">
+            <div className="px-3 py-8 text-center text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-color-text-soft)]">
               {t('shortcut.noResults')}
             </div>
           )}

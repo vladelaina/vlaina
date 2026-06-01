@@ -4,11 +4,11 @@ import { $prose } from '@milkdown/kit/utils';
 import { hasSelectedBlocks } from '../cursor/blockSelectionPluginState';
 import { ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES } from '../shared/blockNodeTypes';
 
-export const TEXT_SELECTION_OVERLAY_CLASS = 'vlaina-text-selection-overlay';
-const TEXT_SELECTION_OVERLAY_ACTIVE_CLASS = 'vlaina-text-selection-overlay-active';
-const POINTER_NATIVE_SELECTION_CLASS = 'vlaina-pointer-native-selection';
-const KEYBOARD_SELECTION_PENDING_CLASS = 'vlaina-keyboard-selection-pending';
-const POINTER_NATIVE_SELECTION_META = 'vlainaTextSelectionPointerNative';
+export const TEXT_SELECTION_OVERLAY_CLASS = 'editor-text-selection-overlay';
+const TEXT_SELECTION_OVERLAY_ACTIVE_CLASS = 'editor-text-selection-overlay-active';
+const POINTER_NATIVE_SELECTION_CLASS = 'editor-pointer-native-selection';
+const KEYBOARD_SELECTION_PENDING_CLASS = 'editor-keyboard-selection-pending';
+const POINTER_NATIVE_SELECTION_META = 'editorTextSelectionPointerNative';
 const EDITOR_ONLY_TEXT_SELECTION_PLACEHOLDERS = new Set(['\u200B', '\u200C', '\u2800']);
 const VISIBLE_TEXT_PATTERN = /\S/u;
 const LINE_BREAK_PATTERN = /[\n\r\u2028\u2029]/u;
@@ -19,7 +19,7 @@ interface TextSelectionOverlayState {
   usePointerNativeSelection: boolean;
 }
 
-const textSelectionOverlayPluginKey = new PluginKey<TextSelectionOverlayState>('vlainaTextSelectionOverlay');
+const textSelectionOverlayPluginKey = new PluginKey<TextSelectionOverlayState>('editorTextSelectionOverlay');
 const NAVIGATION_KEYS_THAT_CLEAR_NATIVE_SELECTION = new Set([
   'ArrowDown',
   'ArrowLeft',
@@ -135,7 +135,7 @@ function createTextSelectionDecorationState(
       pos + node.nodeSize <= selection.to
     ) {
       decorations.push(Decoration.node(pos, pos + node.nodeSize, {
-        class: 'vlaina-block-selected vlaina-atomic-selected',
+        class: 'editor-block-selected editor-atomic-selected',
       }));
       return false;
     }

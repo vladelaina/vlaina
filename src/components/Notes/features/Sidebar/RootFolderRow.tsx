@@ -27,6 +27,7 @@ import {
   registerSidebarHoverRenameTarget,
   setHoveredSidebarRenamePath,
 } from '../common/sidebarHoverRename';
+import { themeIconTokens } from '@/styles/themeTokens';
 
 const INTERNAL_ROOT_AUTO_EXPAND_DELAY_MS = 120;
 const EXTERNAL_ROOT_AUTO_EXPAND_DELAY_MS = 560;
@@ -201,11 +202,11 @@ export function RootFolderRow({
         <NotesSidebarRow
           data-file-tree-root-drop-target="true"
           leading={
-            <span className="relative flex size-[20px] items-center justify-center">
+            <span className="relative flex size-[var(--vlaina-size-20px)] items-center justify-center">
               <Icon
                 name="file.folderOpen"
-                size={16}
-                className="text-[var(--notes-sidebar-folder-icon)]"
+                size={themeIconTokens.sizeRow}
+                className="text-[var(--vlaina-sidebar-notes-folder-icon)]"
               />
             </span>
           }
@@ -290,26 +291,26 @@ export function RootFolderRow({
         onContextMenu={handleContextMenu}
         onDoubleClick={handleRenameFromDoubleClick}
         leading={
-          <span className="relative flex size-[20px] items-center justify-center">
+          <span className="relative flex size-[var(--vlaina-size-20px)] items-center justify-center">
             <span
               className={cn(
                 'transition-none',
-                hasChildren && 'group-hover/sidebar-row:opacity-0 group-focus-within/sidebar-row:opacity-0',
+                hasChildren && 'group-hover/sidebar-row:opacity-[var(--vlaina-opacity-0)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-0)]',
               )}
             >
               <Icon
                 name={displayExpanded ? 'file.folderOpen' : 'file.folder'}
-                size={16}
-                className="text-[var(--notes-sidebar-folder-icon)]"
+                size={themeIconTokens.sizeRow}
+                className="text-[var(--vlaina-sidebar-notes-folder-icon)]"
               />
             </span>
             {hasChildren ? (
               <CollapseTriangleAffordance
                 collapsed={!expanded}
                 visibility="always"
-                size={14}
-                className="absolute inset-0 opacity-0 transition-none group-hover/sidebar-row:opacity-100 group-focus-within/sidebar-row:opacity-100"
-                iconClassName="text-[var(--notes-sidebar-file-icon)]"
+                size={themeIconTokens.sizeSm}
+                className="absolute inset-0 opacity-[var(--vlaina-opacity-0)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-100)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-100)]"
+                iconClassName="text-[var(--vlaina-sidebar-notes-file-icon)]"
               />
             ) : null}
           </span>
@@ -348,7 +349,7 @@ export function RootFolderRow({
             className={cn(
               'rounded-md p-1 focus:outline-none',
               iconButtonStyles,
-              'text-[var(--notes-sidebar-text)] hover:text-[var(--notes-sidebar-text)]',
+              'text-[var(--vlaina-sidebar-notes-text)] hover:text-[var(--vlaina-sidebar-notes-text)]',
             )}
           >
             <Icon name="common.more" size="md" />

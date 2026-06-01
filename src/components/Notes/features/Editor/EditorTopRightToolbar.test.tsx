@@ -243,8 +243,8 @@ describe('EditorTopRightToolbar', () => {
 
     expect(getByTestId('note-menu-content').className).toContain(MENU_PANEL_CLASS_NAME);
     expect(getByTestId('note-export-menu-content').className).toContain(MENU_PANEL_CLASS_NAME);
-    expect(getByTestId('note-menu-content').className).toContain('vlaina-sidebar-menu-surface');
-    expect(getByTestId('note-export-menu-content').className).toContain('vlaina-sidebar-menu-surface');
+    expect(getByTestId('note-menu-content').className).toContain('sidebar-menu-surface');
+    expect(getByTestId('note-export-menu-content').className).toContain('sidebar-menu-surface');
   });
 
   it('uses the sidebar selected surface for export previews', () => {
@@ -261,7 +261,7 @@ describe('EditorTopRightToolbar', () => {
       />,
     );
 
-    expect(getByText('Export').className).toContain('data-[state=open]:bg-[var(--notes-sidebar-row-active)]');
-    expect(getByText('Export').className).toContain('data-[state=open]:text-[var(--sidebar-row-selected-text)]');
+    expect(getByText('Export').className).toContain('data-[state=open]:bg-[var(--vlaina-sidebar-notes-row-active)]');
+    expect(getByText('Export').className).toContain('data-[state=open]:text-[var(--vlaina-sidebar-row-selected-text)]');
   });
 });

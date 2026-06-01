@@ -47,7 +47,7 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
         }
       }}
       className={cn(
-        "group relative flex items-center gap-1.5 px-3 h-full cursor-pointer min-w-0 max-w-[180px]",
+        "group relative flex items-center gap-1.5 px-3 h-full cursor-pointer min-w-0 max-w-[var(--vlaina-size-180px)]",
         "border-r border-[var(--vlaina-border)] transition-colors",
         isActive
           ? "bg-[var(--vlaina-bg-primary)]"
@@ -55,7 +55,7 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
       )}
     >
       {isActive && (
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--vlaina-accent)]" />
+        <div className="absolute bottom-0 left-0 right-0 h-[var(--vlaina-size-2px)] bg-[var(--vlaina-accent)]" />
       )}
 
       {icon ? (
@@ -66,14 +66,14 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
         <Icon
           name="file.text"
           className={cn(
-            "w-[18px] h-[18px] flex-shrink-0",
-            "text-[var(--notes-sidebar-file-icon)]"
+            "w-[var(--vlaina-size-18px)] h-[var(--vlaina-size-18px)] flex-shrink-0",
+            "text-[var(--vlaina-sidebar-notes-file-icon)]"
           )}
         />
       )}
 
       <span className={cn(
-        "text-[12px] truncate",
+        "text-[var(--vlaina-font-xs)] truncate",
         isUntitledPlaceholder
           ? "text-[var(--vlaina-soft-placeholder)]"
           : isActive
@@ -82,7 +82,7 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
       )}>
         {truncateNoteLabel(title)}
         {disambiguation ? (
-          <span className="text-[11px] text-current/65">{` · ${disambiguation}`}</span>
+          <span className="text-[var(--vlaina-font-11)] text-current/65">{` · ${disambiguation}`}</span>
         ) : null}
       </span>
 
@@ -96,7 +96,7 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
           onTabClose(tab.path);
         }}
         className={cn(
-          "p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity ml-auto",
+          "p-0.5 rounded opacity-[var(--vlaina-opacity-0)] group-hover:opacity-[var(--vlaina-opacity-100)] transition-opacity ml-auto",
           "hover:bg-[var(--vlaina-hover-filled)] text-[var(--vlaina-icon-secondary)]"
         )}
       >
@@ -126,7 +126,7 @@ export function NoteTabs({
   return (
     <div
       className={cn(
-        "flex items-center h-[36px] overflow-x-auto vlaina-scrollbar",
+        "flex items-center h-[var(--vlaina-size-36px)] overflow-x-auto app-scrollbar",
         "bg-[var(--vlaina-bg-secondary)] border-b border-[var(--vlaina-border)]"
       )}
     >

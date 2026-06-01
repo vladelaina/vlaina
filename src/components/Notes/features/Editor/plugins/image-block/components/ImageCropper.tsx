@@ -8,6 +8,7 @@ import { useCropperState } from '../hooks/useCropperState';
 import { useCropperInteraction } from '../hooks/useCropperInteraction';
 import { resolveCropperMaxZoom } from '../utils/cropperViewport';
 import type { CropArea, CropperViewportState, LoadedMediaSize, ResizeDirection } from '../types';
+import { themeImageBlockStyleTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 
 interface ImageCropperProps {
     imageSrc: string;
@@ -77,10 +78,13 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
             <div
                 ref={containerRef}
                 className={cn(
-                    "relative overflow-hidden z-0 select-none",
+                    "relative overflow-hidden z-[var(--vlaina-z-0)] select-none",
                     isCtrlPressed && "cursor-move"
                 )}
-                style={{ width: '100%', height: '100%' }}
+                style={{
+                    width: themeImageBlockStyleTokens.widthFull,
+                    height: themeImageBlockStyleTokens.sizeFull,
+                }}
             >
                 {imageSrc && (
                     <Cropper
@@ -102,17 +106,17 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                         objectFit="cover"
                         style={{
                             containerStyle: {
-                                borderRadius: '0',
+                                borderRadius: themeStyleResetTokens.borderRadiusNone,
                                 pointerEvents: (isActive || isCtrlPressed) ? 'auto' : 'none'
                             },
                             cropAreaStyle: { 
-                                border: 'none', 
-                                boxShadow: 'none', 
-                                color: 'transparent',
-                                outline: 'none',
-                                background: 'transparent'
+                                border: themeStyleResetTokens.borderNone,
+                                boxShadow: themeStyleResetTokens.boxShadowNone,
+                                color: themeStyleResetTokens.colorTransparent,
+                                outline: themeStyleResetTokens.outlineNone,
+                                background: themeStyleResetTokens.backgroundTransparent
                             },
-                            mediaStyle: { borderRadius: '0' }
+                            mediaStyle: { borderRadius: themeStyleResetTokens.borderRadiusNone }
                         }}
                         onInteractionEnd={handleInteractionEnd}
                     />

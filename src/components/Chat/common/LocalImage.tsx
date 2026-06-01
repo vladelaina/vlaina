@@ -7,6 +7,7 @@ import {
     inferAttachmentMimeTypeFromFilename,
 } from '@/lib/storage/attachmentUrl';
 import { getPrimaryAttachmentPath } from '@/lib/storage/attachmentPaths';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 
 interface LocalImageProps {
     src: string;
@@ -40,7 +41,7 @@ function uint8ArrayToBase64(data: Uint8Array): string {
     return window.btoa(binary);
 }
 
-export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style, 'data-vlaina-crop': dataVlainaCrop }: LocalImageProps) {
+export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style, 'data-vlaina-crop': cropData }: LocalImageProps) {
     const [displaySrc, setDisplaySrc] = useState<string | null>(null);
     const [error, setError] = useState(false);
     const onResolvedSrcRef = useRef(onResolvedSrc);
@@ -98,10 +99,13 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
         return (
             <span
                 className={cn(
-                    'inline-flex items-center justify-center text-xs text-gray-500 dark:text-gray-400',
+                    'inline-flex items-center justify-center text-xs text-[var(--vlaina-color-unavailable-fg)]',
                     className,
                 )}
-                style={{ minHeight: '100px', minWidth: '100px' }}
+                style={{
+                    minHeight: themeDomStyleTokens.localImageUnavailableSize,
+                    minWidth: themeDomStyleTokens.localImageUnavailableSize,
+                }}
             >
                 {translate('chat.imageUnavailable')}
             </span>
@@ -115,7 +119,10 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
                     'inline-block bg-transparent',
                     className,
                 )}
-                style={{ minHeight: '72px', minWidth: '72px' }}
+                style={{
+                    minHeight: themeDomStyleTokens.localImageLoadingSize,
+                    minWidth: themeDomStyleTokens.localImageLoadingSize,
+                }}
             />
         );
     }
@@ -128,7 +135,7 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
             onClick={onClick}
             onError={() => setError(true)}
             style={style}
-            data-vlaina-crop={dataVlainaCrop}
+            data-vlaina-crop={cropData}
         />
     );
 }

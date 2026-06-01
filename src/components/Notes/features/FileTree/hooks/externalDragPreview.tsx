@@ -1,6 +1,13 @@
 import { createRoot, type Root } from 'react-dom/client';
 import { Icon, type IconName } from '@/components/ui/icons';
 import { getBaseName, getStorageAdapter } from '@/lib/storage/adapter';
+import {
+  themeDomStyleTokens,
+  themeIconTokens,
+  themeMotionTokens,
+  themeRenderingTokens,
+  themeStyleResetTokens,
+} from '@/styles/themeTokens';
 
 const PREVIEW_OFFSET_X = 20;
 const PREVIEW_OFFSET_Y = 14;
@@ -22,20 +29,20 @@ export interface ExternalDragPreviewHandle {
 }
 
 function applyPreviewElementStyles(element: HTMLElement) {
-  element.style.position = 'fixed';
-  element.style.left = '0';
-  element.style.top = '0';
+  element.style.position = themeDomStyleTokens.positionFixed;
+  element.style.left = themeDomStyleTokens.sizeZero;
+  element.style.top = themeDomStyleTokens.sizeZero;
   element.style.minWidth = `${PREVIEW_MIN_WIDTH_PX}px`;
   element.style.maxWidth = `${PREVIEW_MAX_WIDTH_PX}px`;
-  element.style.pointerEvents = 'none';
-  element.style.zIndex = '9999';
-  element.style.margin = '0';
-  element.style.opacity = '0.92';
-  element.style.transform = 'translate3d(-9999px, -9999px, 0)';
-  element.style.boxShadow = 'var(--vlaina-shadow-floating-panel)';
-  element.style.borderRadius = '0.75rem';
-  element.style.filter = 'saturate(1.02)';
-  element.style.willChange = 'transform';
+  element.style.pointerEvents = themeStyleResetTokens.pointerEventsNone;
+  element.style.zIndex = themeDomStyleTokens.zIndexMax;
+  element.style.margin = themeDomStyleTokens.marginNone;
+  element.style.opacity = String(themeMotionTokens.opacityPreview);
+  element.style.transform = themeRenderingTokens.translate3dOffscreen;
+  element.style.boxShadow = themeDomStyleTokens.externalDragPreviewShadow;
+  element.style.borderRadius = themeDomStyleTokens.previewBorderRadius;
+  element.style.filter = themeDomStyleTokens.previewSaturateFilter;
+  element.style.willChange = themeRenderingTokens.transformWillChange;
 }
 
 function getKindIconName(kind: ExternalDragPreviewKind): IconName {
@@ -52,17 +59,17 @@ function getKindIconName(kind: ExternalDragPreviewKind): IconName {
 
 function ExternalDragPreviewCard({ count, kind, label }: ExternalDragPreviewState) {
   return (
-    <div className="flex h-[36px] items-center gap-2 rounded-xl bg-[var(--notes-sidebar-surface)] px-3 py-1 text-[16px] text-[var(--notes-sidebar-text)]">
-      <span className="flex size-[20px] shrink-0 items-center justify-center">
+    <div className="flex h-[var(--vlaina-size-36px)] items-center gap-2 rounded-xl bg-[var(--vlaina-sidebar-notes-surface)] px-3 py-1 text-[var(--vlaina-font-base)] text-[var(--vlaina-sidebar-notes-text)]">
+      <span className="flex size-[var(--vlaina-size-20px)] shrink-0 items-center justify-center">
         <Icon
           name={getKindIconName(kind)}
-          size={16}
-          className={kind === 'folder' ? 'text-[var(--notes-sidebar-folder-icon)]' : 'text-[var(--notes-sidebar-file-icon)]'}
+          size={themeIconTokens.sizeRow}
+          className={kind === 'folder' ? 'text-[var(--vlaina-sidebar-notes-folder-icon)]' : 'text-[var(--vlaina-sidebar-notes-file-icon)]'}
         />
       </span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {count > 1 ? (
-        <span className="shrink-0 rounded-full bg-[var(--notes-sidebar-row-hover)] px-2 py-[1px] text-[16px] font-medium text-[var(--notes-sidebar-text-muted)]">
+        <span className="shrink-0 rounded-full bg-[var(--vlaina-sidebar-notes-row-hover)] px-2 py-[var(--vlaina-space-1px)] text-[var(--vlaina-font-base)] font-medium text-[var(--vlaina-sidebar-notes-text-muted)]">
           {count}
         </span>
       ) : null}
@@ -96,7 +103,7 @@ export function createExternalDragPreview(paths: string[]): ExternalDragPreviewH
   document.body.appendChild(hostElement);
 
   const previousBodyCursor = document.body.style.cursor;
-  document.body.style.cursor = 'grabbing';
+  document.body.style.cursor = themeDomStyleTokens.cursorGrabbing;
 
   const root: Root = createRoot(hostElement);
   const storage = getStorageAdapter();

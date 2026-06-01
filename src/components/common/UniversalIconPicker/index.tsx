@@ -241,15 +241,12 @@ export function UniversalIconPicker({
     <div
       ref={containerRef}
       className={cn(
-        "flex flex-col gap-1 w-[352px] select-none",
-        !embedded && "absolute z-50",
+        "flex flex-col gap-1 w-[var(--vlaina-size-352px)] select-none",
+        !embedded && "absolute z-[var(--vlaina-z-50)]",
       )}
     >
       {onSizeChange && currentSize !== undefined && (
-        <div
-          className="flex items-center px-4 py-1"
-          style={{ '--track-color': 'var(--vlaina-bg-tertiary)' } as React.CSSProperties}
-        >
+        <div className="flex items-center px-4 py-1">
           <PremiumSlider
             min={minSize}
             max={maxSize}
@@ -264,7 +261,7 @@ export function UniversalIconPicker({
 
       <div className={cn(
         "flex flex-col overflow-hidden",
-        surface && cn("!rounded-[26px] backdrop-blur-lg", chatComposerPillSurfaceClass)
+        surface && cn("!rounded-[var(--vlaina-radius-26px)] backdrop-blur-[var(--vlaina-backdrop-blur-lg)]", chatComposerPillSurfaceClass)
       )}>
         <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-[var(--vlaina-border)] overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-4">
@@ -276,7 +273,7 @@ export function UniversalIconPicker({
                 handleTabChange('emoji');
               }}
               className={cn(
-                "text-sm font-medium pb-1 border-b-2 transition-all active:scale-95 whitespace-nowrap",
+                "text-sm font-medium pb-1 border-b-2 transition-all active:scale-[var(--vlaina-scale-95)] whitespace-nowrap",
                 activeTab === 'emoji'
                   ? "text-[var(--vlaina-text-primary)] border-[var(--vlaina-accent)]"
                   : "text-[var(--vlaina-text-tertiary)] border-transparent hover:text-[var(--vlaina-text-primary)]"
@@ -293,7 +290,7 @@ export function UniversalIconPicker({
                   handleTabChange('upload');
                 }}
                 className={cn(
-                  "text-sm font-medium pb-1 border-b-2 transition-all active:scale-95 whitespace-nowrap",
+                  "text-sm font-medium pb-1 border-b-2 transition-all active:scale-[var(--vlaina-scale-95)] whitespace-nowrap",
                   activeTab === 'upload'
                     ? "text-[var(--vlaina-text-primary)] border-[var(--vlaina-accent)]"
                     : "text-[var(--vlaina-text-tertiary)] border-transparent hover:text-[var(--vlaina-text-primary)]"
@@ -309,7 +306,7 @@ export function UniversalIconPicker({
                 e.stopPropagation();
                 handleRandom();
               }}
-              className={cn("p-1 -ml-1 flex items-center justify-center transition-all active:scale-90", iconButtonStyles)}
+              className={cn("p-1 -ml-1 flex items-center justify-center transition-all active:scale-[var(--vlaina-scale-90)]", iconButtonStyles)}
             >
               <Icon name="misc.shuffle" size="md" />
             </button>
@@ -320,7 +317,7 @@ export function UniversalIconPicker({
               onPointerDown={handleRemoveEvent}
               onMouseDown={handleRemoveEvent}
               onClick={handleRemoveEvent}
-              className="text-xs font-medium transition-all active:scale-95 text-[var(--vlaina-text-tertiary)] hover:text-[var(--vlaina-color-status-danger-fg)]"
+              className="text-xs font-medium transition-all active:scale-[var(--vlaina-scale-95)] text-[var(--vlaina-text-tertiary)] hover:text-[var(--vlaina-color-status-danger-fg)]"
             >
               {t('common.remove')}
             </button>

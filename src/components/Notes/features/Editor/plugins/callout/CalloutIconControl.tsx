@@ -5,6 +5,7 @@ import { useI18n } from '@/lib/i18n';
 import type { IconData } from './types';
 import { DEFAULT_CALLOUT_ICON } from './types';
 import { getCalloutIconValue } from './calloutIconUtils';
+import { themeIconTokens } from '@/styles/themeTokens';
 
 const UniversalIconPicker = lazy(async () => {
   const mod = await import('@/components/common/UniversalIconPicker/index');
@@ -79,7 +80,7 @@ export function CalloutIconControl({ icon, onChange }: CalloutIconControlProps) 
           setIsOpen(true);
         }}
       >
-        <AppIcon icon={displayedIcon} size={20} />
+        <AppIcon icon={displayedIcon} size={themeIconTokens.sizeMd} />
       </button>
 
       {isOpen && (

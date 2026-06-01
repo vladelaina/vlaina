@@ -221,7 +221,7 @@ export function useNotesOutline(enabled: boolean) {
     tr.setSelection(TextSelection.create(tr.doc, textFrom + normalizedText.length));
     tr.scrollIntoView();
 
-    view.dom.dispatchEvent(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+    view.dom.dispatchEvent(new CustomEvent('editor:block-user-input', { bubbles: true }));
     view.dispatch(tr);
     view.focus();
     return true;

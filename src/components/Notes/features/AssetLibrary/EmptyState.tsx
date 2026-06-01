@@ -18,7 +18,7 @@ export function EmptyState({ onUploadClick, compact }: EmptyStateProps) {
       
       <p className={cn(
         "text-[var(--vlaina-text-secondary)] text-center mb-3",
-        compact ? "text-xs" : "text-sm mb-4 max-w-[200px]"
+        compact ? "text-xs" : "text-sm mb-4 max-w-[var(--vlaina-size-200px)]"
       )}>
         {compact ? t('asset.noImagesYet') : t('asset.uploadImagesForCovers')}
       </p>

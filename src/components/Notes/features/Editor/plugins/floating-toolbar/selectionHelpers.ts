@@ -1,6 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType, TextAlignment } from './types';
 import { BARE_DOMAIN_HREF_PATTERN } from '../links/utils/constants';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 
 type MarkLike = {
   type: { name: string };
@@ -411,7 +412,9 @@ export function calculatePositionForRange(view: EditorView, from: number, to: nu
   const viewportBottom =
     typeof window !== 'undefined' ? window.innerHeight : Number.POSITIVE_INFINITY;
   const placement = viewportBottom - end.bottom < 80 ? 'top' : 'bottom';
-  const finalY = placement === 'bottom' ? end.bottom + 8 : start.top - 8;
+  const finalY = placement === 'bottom'
+    ? end.bottom + themeDomStyleTokens.editorPopupAnchorOffsetPx
+    : start.top - themeDomStyleTokens.editorPopupAnchorOffsetPx;
 
   return { x, y: finalY, placement };
 }
@@ -437,7 +440,7 @@ export function calculateBottomPositionForRange(view: EditorView, from: number, 
 
   return {
     x: start.left,
-    y: end.bottom + 8,
+    y: end.bottom + themeDomStyleTokens.editorPopupAnchorOffsetPx,
     placement: 'bottom',
   };
 }

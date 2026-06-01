@@ -16,7 +16,7 @@ import type { VaultInfo } from '@/stores/useVaultStore';
 
 const E2E_LOCAL_STORAGE_KEY = 'vlaina:e2e:enabled';
 
-export interface VlainaE2EBridge {
+export interface E2EBridge {
   waitForUnifiedLoaded(): Promise<void>;
   getUnifiedData(): UnifiedData;
   reloadUnified(): Promise<void>;

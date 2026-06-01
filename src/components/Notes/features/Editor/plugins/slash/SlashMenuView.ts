@@ -20,7 +20,7 @@ const SLASH_MENU_MAX_HEIGHT_PX = 360;
 const SLASH_MENU_MIN_HEIGHT_PX = 160;
 
 function markSlashUserInput(view: EditorView): void {
-  view.dom.dispatchEvent(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+  view.dom.dispatchEvent(new CustomEvent('editor:block-user-input', { bubbles: true }));
 }
 
 export class SlashMenuView {
@@ -148,7 +148,7 @@ export class SlashMenuView {
     }
 
     const menu = document.createElement('div');
-    menu.className = `slash-menu !rounded-[26px] ${chatComposerPillSurfaceClass}`;
+    menu.className = `slash-menu !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
     menu.style.position = this.positionRoot ? 'absolute' : 'fixed';
     (this.positionRoot ?? document.body).appendChild(menu);
     this.root = createRoot(menu);

@@ -71,7 +71,7 @@ describe('textEditorPopupDom', () => {
   it('uses the shared composer pill surface for formula and diagram popups', () => {
     const { card } = createTextEditorPopupElements();
 
-    expect(card.className).toContain('!rounded-[26px]');
+    expect(card.className).toContain('!rounded-[var(--vlaina-radius-26px)]');
     expect(card.className).toContain(chatComposerPillSurfaceClass);
   });
 

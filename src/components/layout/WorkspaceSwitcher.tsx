@@ -91,7 +91,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
 
   return (
     <div
-      className={cn('vlaina-no-drag flex min-w-0 items-center', className)}
+      className={cn('app-no-drag flex min-w-0 items-center', className)}
     >
       <Popover.Root
         open={isOpen}
@@ -100,14 +100,14 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
         <Popover.Trigger asChild>
           <button
             type="button"
-            className="group relative flex h-full min-w-0 flex-1 cursor-pointer items-center justify-start overflow-visible rounded-[10px] bg-transparent text-[var(--vlaina-text-primary)] outline-none select-none"
+            className="group relative flex h-full min-w-0 flex-1 cursor-pointer items-center justify-start overflow-visible rounded-[var(--vlaina-radius-10px)] bg-transparent text-[var(--vlaina-text-primary)] outline-none select-none"
           >
-            <span className="relative flex size-[26px] shrink-0 overflow-hidden rounded-[8px]">
+            <span className="relative flex size-[var(--vlaina-size-26px)] shrink-0 overflow-hidden rounded-[var(--vlaina-radius-8px)]">
               <AccountAvatarImage
                 src={displayAvatar}
                 fallbackSrc={fallbackAvatarUrl}
                 alt={displayName}
-                className="h-full w-full object-cover shadow-sm"
+                className="h-full w-full object-cover shadow-[var(--vlaina-shadow-sm)]"
               />
             </span>
           </button>
@@ -116,8 +116,8 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
         <Popover.Portal>
           <Popover.Content
             className={cn(
-              'z-50 w-[260px] rounded-[26px] p-1.5 text-[var(--chat-sidebar-text)] select-none animate-in fade-in-0 zoom-in-95 duration-200 data-[side=bottom]:slide-in-from-top-2',
-              'vlaina-user-menu-popover border !border-transparent !bg-white dark:!bg-white'
+              'z-[var(--vlaina-z-50)] w-[var(--vlaina-size-260px)] rounded-[var(--vlaina-radius-26px)] p-1.5 text-[var(--vlaina-sidebar-chat-text)] select-none animate-in fade-in-0 zoom-in-95 duration-[var(--vlaina-duration-200)] data-[side=bottom]:slide-in-from-top-2',
+              'user-menu-popover border !border-transparent !bg-white dark:!bg-white'
             )}
             sideOffset={8}
             align="start"
@@ -129,7 +129,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
                 <UserIdentityCard onLogout={handleLogout} onSwitchAccount={handleSwitchAccount} />
               )}
 
-              {isConnected && <div className="mx-3 my-1 h-[1px] bg-[var(--vlaina-border)] opacity-50" />}
+              {isConnected && <div className="mx-3 my-1 h-[var(--vlaina-size-1px)] bg-[var(--vlaina-border)] opacity-[var(--vlaina-opacity-50)]" />}
 
               <AppMenu onOpenSettings={handleOpenSettings} onCloseMenu={() => setIsOpen(false)} />
             </div>

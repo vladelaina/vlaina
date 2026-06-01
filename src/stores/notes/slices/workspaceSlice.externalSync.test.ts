@@ -711,7 +711,7 @@ describe('workspaceSlice external sync', () => {
   it('cleans internal editor break markers when disk sync reloads the current note', async () => {
     storageAdapter.exists.mockResolvedValue(true);
     storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
-    storageAdapter.readFile.mockResolvedValue(['# updated', '<br date-vlaianempt-line="true"/>', 'Body'].join('\n'));
+    storageAdapter.readFile.mockResolvedValue(['# updated', '<br data-vlaina-empty-line="true"/>', 'Body'].join('\n'));
 
     const store = createNotesStore({
       currentNote: { path: 'docs/alpha.md', content: '# alpha' },

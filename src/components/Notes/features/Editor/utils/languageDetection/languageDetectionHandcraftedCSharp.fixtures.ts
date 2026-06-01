@@ -8,11 +8,11 @@ class Program {
     Console.WriteLine("hello");
   }
 }`),
-  entry('namespace block class', `namespace Vlaina.Editor {
+  entry('namespace block class', `namespace Sample.Editor {
   class NoteStore {
   }
 }`),
-  entry('file scoped namespace', `namespace Vlaina.Editor;
+  entry('file scoped namespace', `namespace Sample.Editor;
 
 class NoteStore {
 }`),
@@ -90,7 +90,7 @@ class Example {
   private readonly int _size = 4;
 }`),
   entry('const field', `class Example {
-  private const string AppName = "vlaina";
+  private const string AppName = "sample";
 }`),
   entry('static readonly field', `class Example {
   private static readonly object SyncRoot = new();

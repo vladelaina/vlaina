@@ -1,5 +1,6 @@
 import { forwardRef, type HTMLAttributes, type MouseEventHandler } from 'react';
 import { cn } from '@/lib/utils';
+import { themeBackdropTokens } from '@/styles/themeTokens';
 
 export interface BlurBackdropProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onClick'> {
   onClick?: MouseEventHandler<HTMLDivElement>;
@@ -15,9 +16,9 @@ export const BlurBackdrop = forwardRef<HTMLDivElement, BlurBackdropProps>(functi
     onClick,
     className,
     overlayClassName = 'bg-[var(--vlaina-color-drop-overlay)]',
-    zIndex = 100,
-    blurPx = 6,
-    duration = 0.2,
+    zIndex = themeBackdropTokens.zIndex,
+    blurPx = themeBackdropTokens.blurPx,
+    duration = themeBackdropTokens.durationSeconds,
     style,
     ...props
   },
@@ -27,7 +28,7 @@ export const BlurBackdrop = forwardRef<HTMLDivElement, BlurBackdropProps>(functi
     <div
       ref={ref}
       className={cn(
-        'fixed inset-0 opacity-0 transition-opacity data-[state=open]:opacity-100',
+        'fixed inset-0 opacity-[var(--vlaina-opacity-0)] transition-opacity data-[state=open]:opacity-[var(--vlaina-opacity-100)]',
         overlayClassName,
         className,
       )}

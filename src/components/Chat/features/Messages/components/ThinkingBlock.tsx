@@ -20,10 +20,8 @@ import { PrimerLightbulbIcon } from "@/components/ui/icons/custom/mit/PrimerLigh
 import {
   addChatSelectionStreamFreezeListener,
 } from "./chatSelectionStreamFreeze";
+import { themeDomStyleTokens, themeIconTokens, themeStyleResetTokens, themeUiFeedbackTokens } from "@/styles/themeTokens";
 import "@/components/common/markdown/markdownSurface.css";
-
-const STREAM_SELECTION_RELEASE_DELAY_MS = 250;
-const STREAM_SELECTION_SETTLE_DELAY_MS = 120;
 
 function getActiveSelectionTextLength(): number {
   const selection = window.getSelection();
@@ -231,12 +229,12 @@ export function ThinkingBlock({
           contentRef.current.style.transform = `translateY(${translateY}px)`;
           setHasOverflow(true);
         } else {
-          contentRef.current.style.transform = "translateY(0)";
+          contentRef.current.style.transform = "translateY(var(--vlaina-translate-0))";
           setHasOverflow(false);
         }
       });
     } else if (contentRef.current) {
-      contentRef.current.style.transform = "translateY(0)";
+      contentRef.current.style.transform = "translateY(var(--vlaina-translate-0))";
       setHasOverflow(false);
     }
   }, [renderedThinking, isCollapsed]);
@@ -302,7 +300,7 @@ export function ThinkingBlock({
         return;
       }
       releaseSelectionFreeze('selection-grace');
-    }, STREAM_SELECTION_RELEASE_DELAY_MS);
+    }, themeUiFeedbackTokens.chatThinkingSelectionReleaseDelayMs);
   };
 
   const beginSelectionFreeze = (target: EventTarget | null, button: number) => {
@@ -365,7 +363,7 @@ export function ThinkingBlock({
     unlockTimeoutRef.current = window.setTimeout(() => {
       unlockTimeoutRef.current = null;
       clearSelectionFreezeIfIdle();
-    }, STREAM_SELECTION_SETTLE_DELAY_MS);
+    }, themeUiFeedbackTokens.chatThinkingSelectionSettleDelayMs);
   };
 
   useEffect(() => {
@@ -394,9 +392,9 @@ export function ThinkingBlock({
 
   const getMaxHeight = () => {
     if (isCollapsed) {
-      return "0px";
+      return themeDomStyleTokens.sizeZeroPx;
     }
-    return contentHeight ? `${contentHeight}px` : "none";
+    return contentHeight ? `${contentHeight}px` : themeStyleResetTokens.maxSizeNone;
   };
 
   const titleText = activelyThinking ? "Thought..." : "Reasoning";
@@ -404,8 +402,8 @@ export function ThinkingBlock({
   return (
     <div
       data-chat-thinking-block="true"
-      className={`flex mb-4 flex-col w-full ${activelyThinking || !isCollapsed ? "text-neutral-800 dark:text-neutral-200" : "text-neutral-600 dark:text-neutral-400"}
-         hover:text-neutral-800 dark:hover:text-neutral-200`}
+      className={`flex mb-4 flex-col w-full ${activelyThinking || !isCollapsed ? "text-[var(--vlaina-text-primary)]" : "text-[var(--vlaina-text-secondary)]"}
+         hover:text-[var(--vlaina-text-primary)]`}
     >
       <button
         type="button"
@@ -418,34 +416,34 @@ export function ThinkingBlock({
         <div className="relative w-4 h-4 mr-2">
           <PrimerLightbulbIcon
             className={`h-4 w-4 absolute left-0 top-0 ${
-              isCollapsed ? "opacity-100" : "opacity-0"
-            } group-hover/thinking:opacity-0`}
+              isCollapsed ? "opacity-[var(--vlaina-opacity-100)]" : "opacity-[var(--vlaina-opacity-0)]"
+            } group-hover/thinking:opacity-[var(--vlaina-opacity-0)]`}
           />
           {/* Chevron glyph adapted from Lucide Icons (ISC). */}
           <svg
             className={`h-4 w-4 absolute top-0 left-0 ${
               isCollapsed
-                ? "-rotate-90 opacity-0 group-hover/thinking:opacity-100"
-                : "rotate-0 opacity-100"
+                ? "-rotate-90 opacity-[var(--vlaina-opacity-0)] group-hover/thinking:opacity-[var(--vlaina-opacity-100)]"
+                : "rotate-0 opacity-[var(--vlaina-opacity-100)]"
             }`}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
+            viewBox={themeIconTokens.viewBoxDefault}
+            fill={themeStyleResetTokens.fillNone}
+            stroke={themeStyleResetTokens.currentColor}
+            strokeWidth={themeIconTokens.strokeDefault}
             strokeLinecap="round"
             strokeLinejoin="round"
           >
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
         </div>
-        <span className="text-[15px] font-medium">
+        <span className="text-[var(--vlaina-font-15)] font-medium">
           {titleText}
         </span>
       </button>
       <div
         ref={wrapperRef}
         data-chat-thinking-collapsed={isCollapsed ? "true" : undefined}
-        className={`text-[15px] text-neutral-500 dark:text-neutral-400 rounded-md
+        className={`text-[var(--vlaina-font-15)] text-[var(--vlaina-text-secondary)] rounded-md
           relative mt-1 ml-6
           ${isCollapsed ? "overflow-hidden" : "overflow-y-auto"}`}
         style={{
@@ -462,7 +460,7 @@ export function ThinkingBlock({
           onPointerDownCapture={handleSelectionPointerDown}
           onMouseDownCapture={handleSelectionMouseDown}
           className={[
-            "vlaina-markdown-surface opacity-90 max-w-none",
+            "markdown-surface opacity-[var(--vlaina-opacity-90)] max-w-none",
             isCollapsed ? "select-none" : "select-text",
             activelyThinking ? "chat-markdown-live" : "",
           ].filter(Boolean).join(" ")}
@@ -476,7 +474,7 @@ export function ThinkingBlock({
           />
         </div>
         {isCollapsed && hasOverflow && (
-          <div className="absolute inset-x-0 -top-1 h-8 pointer-events-none bg-gradient-to-b from-white dark:from-neutral-900 to-transparent" />
+          <div className="absolute inset-x-0 -top-1 h-8 pointer-events-none bg-gradient-to-b from-[var(--vlaina-bg-primary)] to-transparent" />
         )}
       </div>
     </div>

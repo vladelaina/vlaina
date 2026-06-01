@@ -144,11 +144,11 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
           </div>
         );
       case 'success':
-        return <Icon name="common.checkCircle" className={cn(iconSize, "text-green-500")} />;
+        return <Icon name="common.checkCircle" className={cn(iconSize, "text-[var(--vlaina-color-status-success-fg)]")} />;
       case 'duplicate':
-        return <Icon name="file.image" className={cn(iconSize, "text-blue-500")} />;
+        return <Icon name="file.image" className={cn(iconSize, "text-[var(--vlaina-color-status-info-fg)]")} />;
       case 'error':
-        return <Icon name="common.error" className={cn(iconSize, "text-red-500")} />;
+        return <Icon name="common.error" className={cn(iconSize, "text-[var(--vlaina-color-status-danger-fg)]")} />;
       default:
         return <Icon name="common.upload" className={cn(iconSize, "text-[var(--vlaina-accent)]")} />;
     }
@@ -171,14 +171,14 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
       onDragLeave={handleDragLeave}
       className={cn(
         "flex flex-col items-center justify-center rounded-lg cursor-pointer",
-        "border-2 border-dashed transition-all duration-200",
+        "border-2 border-dashed transition-all duration-[var(--vlaina-duration-200)]",
         compact ? "p-4" : "p-8",
-        status === 'dragging' && "border-[var(--vlaina-accent)] bg-[var(--vlaina-accent)]/5",
-        status === 'uploading' && "border-[var(--vlaina-accent)] bg-[var(--vlaina-accent)]/5",
-        status === 'success' && "border-green-500 bg-green-500/5",
-        status === 'duplicate' && "border-blue-500 bg-blue-500/5",
-        status === 'error' && "border-red-500 bg-red-500/5",
-        status === 'idle' && "border-[var(--vlaina-accent)]/40 bg-[var(--vlaina-accent)]/5 hover:border-[var(--vlaina-accent)] hover:bg-[var(--vlaina-accent)]/10"
+        status === 'dragging' && "border-[var(--vlaina-accent)] bg-[var(--vlaina-color-accent-muted-bg)]",
+        status === 'uploading' && "border-[var(--vlaina-accent)] bg-[var(--vlaina-color-accent-muted-bg)]",
+        status === 'success' && "border-[var(--vlaina-color-status-success-border)] bg-[var(--vlaina-color-status-success-bg)]",
+        status === 'duplicate' && "border-[var(--vlaina-color-status-info-border)] bg-[var(--vlaina-color-status-info-bg)]",
+        status === 'error' && "border-[var(--vlaina-color-status-danger-border)] bg-[var(--vlaina-color-status-danger-bg)]",
+        status === 'idle' && "border-[var(--vlaina-color-accent-border-muted)] bg-[var(--vlaina-color-accent-muted-bg)] hover:border-[var(--vlaina-accent)] hover:bg-[var(--vlaina-color-accent-soft-bg)]"
       )}
     >
       {getStatusIcon()}
@@ -187,7 +187,7 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
         <p className={cn(
           "text-center",
           compact ? "mt-2 text-xs" : "mt-4 text-sm",
-          status === 'error' ? "text-red-500" : "text-[var(--vlaina-text-secondary)]"
+          status === 'error' ? "text-[var(--vlaina-color-status-danger-fg)]" : "text-[var(--vlaina-text-secondary)]"
         )}>
           {statusText}
         </p>

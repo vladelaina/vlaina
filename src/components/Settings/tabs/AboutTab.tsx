@@ -11,7 +11,7 @@ import { useI18n, type AppLanguage, type MessageKey, type MessageValues } from '
 import { APP_VERSION } from '@/lib/appVersion';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { FeedbackTab } from './FeedbackTab';
-import { themeColorTokens } from '@/styles/themeTokens';
+import { themeColorTokens, themeIconTokens, themeQrTokens } from '@/styles/themeTokens';
 import {
   type CommunitySettings,
 } from './aboutCommunitySettings';
@@ -35,8 +35,8 @@ const githubRepositoryUrl = 'https://github.com/vladelaina/vlaina';
 const discordInviteUrl = 'https://discord.gg/nvsh9QpTqS';
 const appLogoUrl = `${import.meta.env.BASE_URL}logo.png`;
 const communityPillClassName =
-  'inline-flex h-8 items-center gap-2 rounded-full px-3 text-[12px] font-semibold text-[var(--notes-sidebar-text)] transition-all duration-200';
-const richTokenPattern = /(\{vlainaSite\}|\{catimeSite\}|\{authorSite\}|\{clockTopic\})/g;
+  'inline-flex h-8 items-center gap-2 rounded-full px-3 text-[var(--vlaina-font-xs)] font-semibold text-[var(--vlaina-sidebar-notes-text)] transition-all duration-[var(--vlaina-duration-200)]';
+const richTokenPattern = /(\{appSite\}|\{catimeSite\}|\{authorSite\}|\{clockTopic\})/g;
 
 const cnyEquivalentByLanguage: Record<AppLanguage, { currency: string; amount: number; locale: string }> = {
   en: { currency: 'USD', amount: 441, locale: 'en-US' },
@@ -77,7 +77,7 @@ function ExternalTextLink({ href, children }: { href: string; children: ReactNod
 
 function renderRichText(text: string): ReactNode[] {
   const tokens: Record<string, ReactNode> = {
-    '{vlainaSite}': <ExternalTextLink href="https://vlaina.com">vlaina</ExternalTextLink>,
+    '{appSite}': <ExternalTextLink href="https://vlaina.com">vlaina</ExternalTextLink>,
     '{catimeSite}': <ExternalTextLink href="https://cati.me">Catime</ExternalTextLink>,
     '{authorSite}': <ExternalTextLink href="https://vladelaina.com">vladelaina</ExternalTextLink>,
     '{clockTopic}': <ExternalTextLink href="https://github.com/topics/clock">Topics clock</ExternalTextLink>,
@@ -118,9 +118,9 @@ function CommunityQrPill({
           light: themeColorTokens.transparentWhite,
         },
         errorCorrectionLevel: 'M',
-        margin: 1,
+        margin: themeQrTokens.marginModules,
         type: 'svg',
-        width: 144,
+        width: themeQrTokens.widthPx,
       }))
       .then((svg) => {
         if (!cancelled) {
@@ -149,20 +149,23 @@ function CommunityQrPill({
         <span>{label}</span>
       </button>
       <div className={cn(
-        'pointer-events-none absolute left-1/2 top-full z-20 mt-3 w-[168px] -translate-x-1/2 rounded-[26px] p-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100',
+        'pointer-events-none absolute left-1/2 top-full z-[var(--vlaina-z-20)] mt-3 w-[var(--vlaina-size-168px)] -translate-x-1/2 rounded-[var(--vlaina-radius-26px)] p-3 opacity-[var(--vlaina-opacity-0)] transition-opacity duration-[var(--vlaina-duration-150)] group-hover:opacity-[var(--vlaina-opacity-100)] group-focus-within:opacity-[var(--vlaina-opacity-100)]',
         chatComposerPillSurfaceClass
       )}>
         {detail ? (
-          <div className="mb-1 truncate text-center text-[12px] font-bold tabular-nums text-[var(--notes-sidebar-text)]">
+          <div className="mb-1 truncate text-center text-[var(--vlaina-font-xs)] font-bold tabular-nums text-[var(--vlaina-sidebar-notes-text)]">
             {detail}
           </div>
         ) : null}
-        <div className="flex aspect-square w-full items-center justify-center rounded-[20px] text-[var(--notes-sidebar-text-soft)]">
+        <div className="flex aspect-square w-full items-center justify-center rounded-[var(--vlaina-radius-20px)] text-[var(--vlaina-sidebar-notes-text-soft)]">
           {qrDataUrl ? (
-            <img src={qrDataUrl} alt={title} className="h-full w-full rounded-[16px] object-contain" draggable={false} />
+            <img src={qrDataUrl} alt={title} className="h-full w-full rounded-[var(--vlaina-radius-16px)] object-contain" draggable={false} />
           ) : (
-            <div className="flex flex-col items-center gap-2 text-[12px] font-medium">
-              <QrCode size={34} strokeWidth={1.7} />
+            <div className="flex flex-col items-center gap-2 text-[var(--vlaina-font-xs)] font-medium">
+              <QrCode
+                size={themeIconTokens.sizeQrPlaceholder}
+                strokeWidth={themeIconTokens.strokeQrPlaceholder}
+              />
             </div>
           )}
         </div>
@@ -181,7 +184,7 @@ function DiscordPill() {
       aria-label={t('settings.about.openDiscord')}
       className={cn(communityPillClassName, chatComposerPillSurfaceClass)}
     >
-      <FaDiscord size={15} className="text-[var(--vlaina-brand-discord)]" />
+      <FaDiscord size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-brand-discord)]" />
       <span>{t('settings.about.discord')}</span>
     </button>
   );
@@ -197,7 +200,7 @@ function GithubPill() {
       aria-label={t('settings.about.openGithub')}
       className={cn(communityPillClassName, chatComposerPillSurfaceClass)}
     >
-      <FaGithub size={15} className="text-[var(--notes-sidebar-text)]" />
+      <FaGithub size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-sidebar-notes-text)]" />
       <span>{t('settings.about.github')}</span>
     </button>
   );
@@ -213,14 +216,14 @@ function CommunityPills({ community }: { community: CommunitySettings }) {
       <CommunityQrPill
         title={t('settings.about.qqGroup')}
         label="QQ"
-        icon={<FaQq size={15} className="text-[var(--vlaina-brand-qq)]" />}
+        icon={<FaQq size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-brand-qq)]" />}
         qrText={community.qqQrCodeText}
         detail={community.qqGroupNumber || undefined}
       />
       <CommunityQrPill
         title={t('settings.about.wechatGroup')}
         label="WeChat"
-        icon={<FaWeixin size={15} className="text-[var(--vlaina-brand-wechat)]" />}
+        icon={<FaWeixin size={themeIconTokens.sizeSidebar} className="text-[var(--vlaina-brand-wechat)]" />}
         qrText={community.wechatQrCodeText}
       />
     </div>
@@ -233,53 +236,53 @@ function DeveloperNotePanel() {
   const noteText = (key: MessageKey, values?: MessageValues) => renderRichText(t(key, values));
 
   return (
-    <div className="rounded-[24px] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-glass)] p-5 shadow-[var(--vlaina-shadow-panel-soft)]">
-      <div className="space-y-4 text-[14px] leading-7 text-[var(--notes-sidebar-text)]">
-        <p className="text-[22px] font-semibold leading-8 text-[var(--notes-sidebar-text)]">
+    <div className="rounded-[var(--vlaina-radius-24px)] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-glass)] p-5 shadow-[var(--vlaina-shadow-panel-soft)]">
+      <div className="space-y-4 text-[var(--vlaina-font-sm)] leading-7 text-[var(--vlaina-sidebar-notes-text)]">
+        <p className="text-[var(--vlaina-font-h4)] font-semibold leading-8 text-[var(--vlaina-sidebar-notes-text)]">
           {noteText('settings.about.note.intro')}
         </p>
         <p>{t('settings.about.note.curiousTitle')}</p>
-        <ol className="list-decimal space-y-2 pl-5 text-[14px] leading-7 text-[var(--notes-sidebar-text)]">
+        <ol className="list-decimal space-y-2 pl-5 text-[var(--vlaina-font-sm)] leading-7 text-[var(--vlaina-sidebar-notes-text)]">
           <li><strong>{t('settings.about.note.curiousMissing')}</strong></li>
           <li><strong>{t('settings.about.note.curiousRough')}</strong></li>
           <li><strong>{t('settings.about.note.curiousPaid')}</strong></li>
         </ol>
         <p>{t('settings.about.note.originStory')}</p>
         <p>{noteText('settings.about.note.migrationStory', { catimeSize: '200 KB', catimeStars: '4,000', targetSize: '20 MB' })}</p>
-        <h2 className="text-[16px] font-semibold leading-7 text-[var(--notes-sidebar-text)]">
+        <h2 className="text-[var(--vlaina-font-base)] font-semibold leading-7 text-[var(--vlaina-sidebar-notes-text)]">
           {t('settings.about.note.releaseHeading')}
         </h2>
         <p>{noteText('settings.about.note.releaseReason')}</p>
-        <h2 className="text-[16px] font-semibold leading-7 text-[var(--notes-sidebar-text)]">
+        <h2 className="text-[var(--vlaina-font-base)] font-semibold leading-7 text-[var(--vlaina-sidebar-notes-text)]">
           {t('settings.about.note.donationHeading')}
         </h2>
         <p>{t('settings.about.note.donationReason')}</p>
         <p>{noteText('settings.about.note.catimeStory', { catimeStars: '4,000' })}</p>
-        <h2 className="text-[16px] font-semibold leading-7 text-[var(--notes-sidebar-text)]">
+        <h2 className="text-[var(--vlaina-font-base)] font-semibold leading-7 text-[var(--vlaina-sidebar-notes-text)]">
           {t('settings.about.note.earnHeading')}
         </h2>
         <p>{noteText('settings.about.note.catimeIncome', { catimeIncome })}</p>
         <p>{t('settings.about.note.graduated')}</p>
-        <h2 className="text-[16px] font-semibold leading-7 text-[var(--notes-sidebar-text)]">
+        <h2 className="text-[var(--vlaina-font-base)] font-semibold leading-7 text-[var(--vlaina-sidebar-notes-text)]">
           {t('settings.about.note.jobHeading')}
         </h2>
         <p>{noteText('settings.about.note.jobStory')}</p>
         <p>{noteText('settings.about.note.afterWorkStory')}</p>
-        <h2 className="text-[16px] font-semibold leading-7 text-[var(--notes-sidebar-text)]">
+        <h2 className="text-[var(--vlaina-font-base)] font-semibold leading-7 text-[var(--vlaina-sidebar-notes-text)]">
           {t('settings.about.note.weekendHeading')}
         </h2>
         <p>{t('settings.about.note.weekendStory')}</p>
         <p>{t('settings.about.note.resignationStory')}</p>
-        <h3 className="text-[14px] font-semibold leading-6 text-[var(--notes-sidebar-text)]">
+        <h3 className="text-[var(--vlaina-font-sm)] font-semibold leading-6 text-[var(--vlaina-sidebar-notes-text)]">
           {t('settings.about.note.resignationQuoteHeading')}
         </h3>
-        <div className="rounded-[18px] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-muted)] px-4 py-3 text-[13px] leading-6 text-[var(--notes-sidebar-text-soft)]">
+        <div className="rounded-[var(--vlaina-radius-18px)] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-muted)] px-4 py-3 text-[var(--vlaina-font-13)] leading-6 text-[var(--vlaina-sidebar-notes-text-soft)]">
           <p className="mt-3 whitespace-pre-wrap">
             {noteText('settings.about.note.resignationQuote')}
           </p>
         </div>
         <p>{t('settings.about.note.newProject')}</p>
-        <h2 className="text-[16px] font-semibold leading-7 text-[var(--notes-sidebar-text)]">
+        <h2 className="text-[var(--vlaina-font-base)] font-semibold leading-7 text-[var(--vlaina-sidebar-notes-text)]">
           {t('settings.about.note.paidHeading')}
         </h2>
         <p>{t('settings.about.note.paidAnswer')}</p>
@@ -353,17 +356,17 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
         <img
           src={appLogoUrl}
           alt="vlaina"
-          className="h-32 w-32 shrink-0 rounded-[28px] object-contain"
+          className="h-32 w-32 shrink-0 rounded-[var(--vlaina-radius-28px)] object-contain"
           draggable={false}
         />
         <div className="min-w-0 pt-1">
           <a
             {...getExternalLinkProps('https://vlaina.com')}
-            className="inline-block max-w-full truncate text-[22px] font-semibold leading-7 text-[var(--vlaina-accent)]"
+            className="inline-block max-w-full truncate text-[var(--vlaina-font-h4)] font-semibold leading-7 text-[var(--vlaina-accent)]"
           >
             vlaina
           </a>
-          <div className="mt-1 truncate text-[13px] font-normal leading-5 text-[var(--notes-sidebar-text-soft)] tabular-nums">
+          <div className="mt-1 truncate text-[var(--vlaina-font-13)] font-normal leading-5 text-[var(--vlaina-sidebar-notes-text-soft)] tabular-nums">
             {currentVersion || APP_VERSION}
           </div>
         </div>
@@ -381,9 +384,9 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
               type="button"
               onClick={checkForUpdates}
               disabled={status === 'checking'}
-              className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-4 text-[13px] font-medium text-[var(--notes-sidebar-text)] transition-colors hover:bg-[var(--vlaina-hover-filled)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-4 text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text)] transition-colors hover:bg-[var(--vlaina-hover-filled)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-60)]"
             >
-              <RefreshCw size={15} className={cn(status === 'checking' && 'animate-spin')} />
+              <RefreshCw size={themeIconTokens.sizeSidebar} className={cn(status === 'checking' && 'animate-spin')} />
               {t('common.check')}
             </button>
             {hasUpdate ? (
@@ -391,9 +394,9 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
                 type="button"
                 onClick={openUpdateDownload}
                 title={updateInfo?.platformAssetName || undefined}
-                className="inline-flex h-10 items-center gap-2 rounded-full bg-[var(--vlaina-accent)] px-4 text-[13px] font-semibold text-[var(--vlaina-color-white)] transition-colors hover:bg-[var(--vlaina-accent-hover)]"
+                className="inline-flex h-10 items-center gap-2 rounded-full bg-[var(--vlaina-accent)] px-4 text-[var(--vlaina-font-13)] font-semibold text-[var(--vlaina-color-white)] transition-colors hover:bg-[var(--vlaina-accent-hover)]"
               >
-                <ExternalLink size={15} />
+                <ExternalLink size={themeIconTokens.sizeSidebar} />
                 {t('settings.about.updateAction')}
               </button>
             ) : null}
@@ -411,9 +414,9 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
           <button
             type="button"
             onClick={() => void openExternalHref(privacyPolicyUrl)}
-            className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-4 text-[13px] font-medium text-[var(--notes-sidebar-text)] transition-colors hover:bg-[var(--vlaina-hover-filled)]"
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-4 text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text)] transition-colors hover:bg-[var(--vlaina-hover-filled)]"
           >
-            <ExternalLink size={15} />
+            <ExternalLink size={themeIconTokens.sizeSidebar} />
             {t('common.open')}
           </button>
         </SettingsItem>

@@ -4,6 +4,7 @@ import { parseVideoUrl } from './videoUrl';
 import type { IframeVideoUrl } from './videoUrl';
 import { isPublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { translate } from '@/lib/i18n';
+import { themeImageBlockStyleTokens } from '@/styles/themeTokens';
 
 function createVideoMessage(className: string, message: string): HTMLElement {
   const container = document.createElement('div');
@@ -87,8 +88,8 @@ export function createVideoDom(attrs: VideoAttrs): HTMLElement {
     video.src = parsed.embedUrl;
     video.controls = true;
     video.preload = 'none';
-    video.style.maxWidth = '100%';
-    video.style.height = 'auto';
+    video.style.maxWidth = themeImageBlockStyleTokens.maxWidthFull;
+    video.style.height = themeImageBlockStyleTokens.heightAuto;
     if (attrs.title) video.title = attrs.title;
     video.addEventListener('error', () => {
     });

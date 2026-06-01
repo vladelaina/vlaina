@@ -1,5 +1,6 @@
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { translate } from '@/lib/i18n';
+import { themeTextAreaTokens } from '@/styles/themeTokens';
 
 export interface TextEditorPopupElements {
   card: HTMLElement;
@@ -26,7 +27,7 @@ export function createTextEditorPopupElements(
   placeholder = ''
 ): TextEditorPopupElements {
   const card = document.createElement('div');
-  card.className = `text-editor-card math-editor-card !rounded-[26px] ${chatComposerPillSurfaceClass}`;
+  card.className = `text-editor-card math-editor-card !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}`;
 
   const content = document.createElement('div');
   content.className = 'text-editor-content math-editor-content';
@@ -73,8 +74,8 @@ export function resizeTextEditorPopupTextareaToContent(args: {
       ? Number.POSITIVE_INFINITY
       : window.innerHeight || document.documentElement.clientHeight;
 
-  textarea.style.height = 'auto';
-  textarea.style.overflowY = 'hidden';
+  textarea.style.height = themeTextAreaTokens.heightAuto;
+  textarea.style.overflowY = themeTextAreaTokens.overflowHidden;
 
   const cardRect = card.getBoundingClientRect();
   const textareaRect = textarea.getBoundingClientRect();
@@ -87,7 +88,9 @@ export function resizeTextEditorPopupTextareaToContent(args: {
     : contentHeight;
 
   textarea.style.height = `${Math.max(0, constrainedHeight)}px`;
-  textarea.style.overflowY = constrainedHeight < contentHeight ? 'auto' : 'hidden';
+  textarea.style.overflowY = constrainedHeight < contentHeight
+    ? themeTextAreaTokens.overflowAuto
+    : themeTextAreaTokens.overflowHidden;
 }
 
 export function mountTextEditorPopup(args: MountTextEditorPopupArgs): TextEditorPopupElements {

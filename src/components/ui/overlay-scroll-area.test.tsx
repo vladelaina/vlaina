@@ -41,7 +41,7 @@ describe('OverlayScrollArea', () => {
   it('toggles the configured body class while dragging the thumb', () => {
     render(
       <div style={{ height: 120 }}>
-        <OverlayScrollArea draggingBodyClassName="vlaina-overlay-scrollbar-dragging">
+        <OverlayScrollArea draggingBodyClassName="app-overlay-scrollbar-dragging">
           <div style={{ height: 480 }}>content</div>
         </OverlayScrollArea>
       </div>
@@ -60,10 +60,10 @@ describe('OverlayScrollArea', () => {
     });
 
     fireEvent.pointerDown(thumb!, { button: 0, clientY: 10, pointerId: 1 });
-    expect(document.body.classList.contains('vlaina-overlay-scrollbar-dragging')).toBe(true);
+    expect(document.body.classList.contains('app-overlay-scrollbar-dragging')).toBe(true);
 
     fireEvent.pointerUp(window, { pointerId: 1 });
-    expect(document.body.classList.contains('vlaina-overlay-scrollbar-dragging')).toBe(false);
+    expect(document.body.classList.contains('app-overlay-scrollbar-dragging')).toBe(false);
   });
 
   it('supports a compact scrollbar variant without changing the default sizing', () => {
@@ -83,10 +83,10 @@ describe('OverlayScrollArea', () => {
     const compactTrack = compactRail?.firstElementChild as HTMLDivElement | null;
     const compactThumb = compactTrack?.firstElementChild as HTMLDivElement | null;
 
-    expect(compactRail?.className).toContain('w-[7px]');
+    expect(compactRail?.className).toContain('w-[var(--vlaina-size-7px)]');
     expect(compactRail?.className).toContain('justify-end');
-    expect(compactTrack?.className).toContain('w-[7px]');
-    expect(compactThumb?.className).toContain('w-[5px]');
+    expect(compactTrack?.className).toContain('w-[var(--vlaina-size-7px)]');
+    expect(compactThumb?.className).toContain('w-[var(--vlaina-size-5px)]');
 
     rerender(
       <div style={{ height: 120 }}>
@@ -130,7 +130,7 @@ describe('OverlayScrollArea', () => {
 
     expect(thumb?.className).toContain('bg-[#efefef]');
     expect(thumb?.className).toContain('right-0');
-    expect(thumb?.className).toContain('w-[5px]');
+    expect(thumb?.className).toContain('w-[var(--vlaina-size-5px)]');
   });
 
   it('recomputes scroll metrics when the scroll area is hovered', () => {

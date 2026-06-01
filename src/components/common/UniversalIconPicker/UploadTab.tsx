@@ -16,6 +16,7 @@ import {
     type SidebarMenuEntry,
 } from '@/components/layout/sidebar/context-menu/SidebarContextMenuContent';
 import type { SidebarMenuPosition } from '@/components/layout/sidebar/context-menu/shared';
+import { themeIconTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 
 export interface CustomIcon {
     id: string;
@@ -164,13 +165,13 @@ export function UploadTab({
     }, [contextMenu, onDeleteCustomIcon, onPreview, t]);
 
     return (
-        <div className="h-[320px] flex flex-col relative">
+        <div className="h-[var(--vlaina-size-320px)] flex flex-col relative">
             <input {...getInputProps()} />
             {imageSrc ? (
                 <div className="flex flex-col flex-1 px-5 pt-3 pb-6">
                     <div
                         {...getRootProps({ onClick: (e) => e.stopPropagation() })}
-                        className="relative flex-1 bg-[var(--vlaina-color-inverse-surface)] rounded-lg overflow-hidden mb-6 group/cropper flex items-center justify-center h-[180px]"
+                        className="relative flex-1 bg-[var(--vlaina-color-inverse-surface)] rounded-lg overflow-hidden mb-6 group/cropper flex items-center justify-center h-[var(--vlaina-size-180px)]"
                     >
                         {shouldPreserve ? (
                             <>
@@ -179,9 +180,9 @@ export function UploadTab({
                                     className="max-w-full max-h-full object-contain"
                                     alt="Preview"
                                 />
-                                <div className="absolute bottom-3 left-3 bg-[var(--vlaina-color-overlay)] text-[var(--vlaina-color-inverse-text)] text-[10px] px-2 py-1 rounded-full backdrop-blur-sm border border-[var(--vlaina-color-panel-border)] flex items-center gap-1.5 pointer-events-none">
+                                <div className="absolute bottom-3 left-3 bg-[var(--vlaina-color-overlay)] text-[var(--vlaina-color-inverse-text)] text-[var(--vlaina-font-10)] px-2 py-1 rounded-full backdrop-blur-[var(--vlaina-backdrop-blur-sm)] border border-[var(--vlaina-color-panel-border)] flex items-center gap-1.5 pointer-events-none">
                                     <span className="relative flex h-2 w-2">
-                                        <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping", isGif ? "bg-[var(--vlaina-color-status-success-fg)]" : "bg-[var(--vlaina-color-status-info-fg)]")}></span>
+                                        <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-[var(--vlaina-opacity-75)] animate-ping", isGif ? "bg-[var(--vlaina-color-status-success-fg)]" : "bg-[var(--vlaina-color-status-info-fg)]")}></span>
                                         <span className={cn("relative inline-flex rounded-full h-2 w-2", isGif ? "bg-[var(--vlaina-color-status-success-fg)]" : "bg-[var(--vlaina-color-status-info-fg)]")}></span>
                                     </span>
                                     {isGif ? t('icon.animationPreserved') : t('icon.originalFormat')}
@@ -211,10 +212,10 @@ export function UploadTab({
                                 open();
                             }}
                             className={cn(
-                                "absolute top-3 right-3 z-10 p-2",
+                                "absolute top-3 right-3 z-[var(--vlaina-z-10)] p-2",
                                 "text-[var(--vlaina-color-text-soft)] hover:text-[var(--vlaina-color-inverse-text)] transition-all",
-                                "opacity-0 group-hover/cropper:opacity-100",
-                                "active:scale-95"
+                                "opacity-[var(--vlaina-opacity-0)] group-hover/cropper:opacity-[var(--vlaina-opacity-100)]",
+                                "active:scale-[var(--vlaina-scale-95)]"
                             )}
                         >
                             <Icon name="common.upload" size="md" />
@@ -224,7 +225,7 @@ export function UploadTab({
                     <div className="flex flex-col gap-6">
                         {!isGif && (
                             <div className="flex items-center gap-4">
-                                <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--vlaina-text-tertiary)] w-10">{t('icon.zoom')}</span>
+                                <span className="text-[var(--vlaina-font-11)] font-medium uppercase tracking-wider text-[var(--vlaina-text-tertiary)] w-10">{t('icon.zoom')}</span>
                                 <PremiumSlider
                                     min={1}
                                     max={3}
@@ -247,26 +248,26 @@ export function UploadTab({
                                 size="sm"
                                 onClick={handleSave}
                                 disabled={isUploading}
-                                className="bg-[var(--vlaina-accent)] hover:bg-[var(--vlaina-accent-hover)] text-[var(--vlaina-color-white)] px-8 h-9 rounded-full font-medium shadow-sm transition-all active:scale-95 inline-flex items-center justify-center min-w-[80px]"
+                                className="bg-[var(--vlaina-accent)] hover:bg-[var(--vlaina-accent-hover)] text-[var(--vlaina-color-white)] px-8 h-9 rounded-full font-medium shadow-[var(--vlaina-shadow-sm)] transition-all active:scale-[var(--vlaina-scale-95)] inline-flex items-center justify-center min-w-[var(--vlaina-size-80px)]"
                             >
                                 {isUploading ? (
                                     <svg
-                                        className="animate-spin w-[18px] h-[18px] text-current"
+                                        className="animate-spin w-[var(--vlaina-size-18px)] h-[var(--vlaina-size-18px)] text-current"
                                         xmlns="http://www.w3.org/2000/svg"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
+                                        fill={themeStyleResetTokens.fillNone}
+                                        viewBox={themeIconTokens.viewBoxDefault}
                                     >
                                         <circle
-                                            className="opacity-25"
+                                            className="opacity-[var(--vlaina-opacity-25)]"
                                             cx="12"
                                             cy="12"
                                             r="10"
-                                            stroke="currentColor"
-                                            strokeWidth="3"
+                                            stroke={themeStyleResetTokens.currentColor}
+                                            strokeWidth={themeIconTokens.strokeUploadSpinner}
                                         />
                                         <path
-                                            className="opacity-100"
-                                            fill="currentColor"
+                                            className="opacity-[var(--vlaina-opacity-100)]"
+                                            fill={themeStyleResetTokens.currentColor}
                                             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                                         />
                                     </svg>
@@ -282,27 +283,27 @@ export function UploadTab({
                             {...getRootProps()}
                             onClick={open}
                             className={cn(
-                                "relative group border border-dashed rounded-lg px-3 py-2.5 flex items-center gap-2.5 cursor-pointer transition-all duration-300",
-                                "hover:bg-[var(--vlaina-hover)] hover:border-[var(--vlaina-accent)]/50",
-                                isDragActive ? "border-[var(--vlaina-accent)] bg-[var(--vlaina-accent-light)] scale-[0.99]" : "border-[var(--vlaina-border)]"
+                                "relative group border border-dashed rounded-lg px-3 py-2.5 flex items-center gap-2.5 cursor-pointer transition-all duration-[var(--vlaina-duration-300)]",
+                                "hover:bg-[var(--vlaina-hover)] hover:border-[var(--vlaina-color-accent-border-hover)]",
+                                isDragActive ? "border-[var(--vlaina-accent)] bg-[var(--vlaina-accent-light)] scale-[var(--vlaina-scale-99)]" : "border-[var(--vlaina-border)]"
                             )}
                         >
                             <div className="p-1.5 bg-[var(--vlaina-bg-tertiary)] rounded-md transition-colors group-hover:bg-[var(--vlaina-accent-light)] group-hover:text-[var(--vlaina-accent)] text-[var(--vlaina-text-tertiary)] shrink-0">
                                 <Icon size="sm" name="common.upload" />
                             </div>
 
-                            <span className="text-[10px] text-[var(--vlaina-text-tertiary)] leading-none">
+                            <span className="text-[var(--vlaina-font-10)] text-[var(--vlaina-text-tertiary)] leading-none">
                                 {t('icon.supports')} <span className="font-medium text-[var(--vlaina-text-secondary)]">PNG</span>, <span className="font-medium text-[var(--vlaina-accent)]">GIF</span> & <span className="font-medium text-[var(--vlaina-accent)]">WebP</span>
                             </span>
                         </div>
                     </div>
 
                     <div className="flex-1 flex flex-col min-h-0 bg-[var(--vlaina-bg-primary)] px-3">
-                        <div className="flex-1 overflow-y-auto vlaina-scrollbar pr-1 grid grid-cols-7 gap-2 content-start pb-2">
+                        <div className="flex-1 overflow-y-auto app-scrollbar pr-1 grid grid-cols-7 gap-2 content-start pb-2">
                             {customIcons.map((emoji) => (
                                 <div
                                     key={emoji.id}
-                                    className="relative aspect-square flex items-center justify-center cursor-pointer transition-all active:scale-95"
+                                    className="relative aspect-square flex items-center justify-center cursor-pointer transition-all active:scale-[var(--vlaina-scale-95)]"
                                     onClick={() => handleLibraryItemClick(emoji.url)}
                                     onContextMenu={(event) => handleLibraryItemContextMenu(event, emoji)}
                                     onMouseEnter={() => onPreview?.(emoji.url)}
@@ -310,7 +311,7 @@ export function UploadTab({
                                 >
                                     <UniversalIcon
                                         icon={emoji.url}
-                                        size={44}
+                                        size={themeIconTokens.sizeUploadPreview}
                                         className="w-full h-full object-contain"
                                         imageLoader={imageLoader}
                                     />

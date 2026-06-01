@@ -38,7 +38,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-[var(--vlaina-color-overlay)]",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-[var(--vlaina-z-50)] bg-[var(--vlaina-color-overlay)]",
         className
       )}
       {...props}
@@ -65,7 +65,7 @@ function DialogContent({
       {useBlurBackdrop ? (
         <DialogPrimitive.Overlay asChild>
           <BlurBackdrop
-            className={cn("z-50", blurBackdropProps?.className)}
+            className={cn("z-[var(--vlaina-z-50)]", blurBackdropProps?.className)}
             overlayClassName={blurBackdropProps?.overlayClassName}
             zIndex={blurBackdropProps?.zIndex ?? 50}
             blurPx={blurBackdropProps?.blurPx}
@@ -75,11 +75,11 @@ function DialogContent({
       ) : (
         <DialogOverlay />
       )}
-      <div className={cn("fixed inset-0 z-50 flex items-center justify-center p-4", containerClassName)}>
+      <div className={cn("fixed inset-0 z-[var(--vlaina-z-50)] flex items-center justify-center p-4", containerClassName)}>
         <DialogPrimitive.Content
           data-slot="dialog-content"
           className={cn(
-            "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 relative grid w-full max-w-[calc(100%-2rem)] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
+            "bg-[var(--background)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 relative grid w-full max-w-[var(--vlaina-width-dialog-default)] gap-4 rounded-lg border border-[var(--border)] p-6 shadow-[var(--vlaina-shadow-lg)] duration-[var(--vlaina-duration-200)] sm:max-w-lg",
             className
           )}
           {...props}
@@ -88,7 +88,7 @@ function DialogContent({
           {showCloseButton && (
             <DialogPrimitive.Close
               data-slot="dialog-close"
-              className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[18px]"
+              className="ring-offset-[var(--background)] focus:ring-[var(--ring)] data-[state=open]:bg-[var(--accent)] data-[state=open]:text-[var(--muted-foreground)] absolute top-4 right-4 rounded-xs opacity-[var(--vlaina-opacity-70)] transition-opacity hover:opacity-[var(--vlaina-opacity-100)] focus:ring-2 app-focus-ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--vlaina-size-18px)]"
             >
               <Icon name="common.close" />
               <span className="sr-only">{translate('common.close')}</span>
@@ -130,7 +130,7 @@ function DialogTitle({
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("text-[20px] leading-none font-semibold tracking-tight", className)}
+      className={cn("text-[var(--vlaina-font-20)] leading-none font-semibold tracking-tight", className)}
       {...props}
     />
   )
@@ -143,7 +143,7 @@ function DialogDescription({
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("text-muted-foreground text-[13px]", className)}
+      className={cn("text-[var(--muted-foreground)] text-[var(--vlaina-font-13)]", className)}
       {...props}
     />
   )

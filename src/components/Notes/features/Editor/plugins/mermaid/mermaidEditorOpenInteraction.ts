@@ -1,5 +1,6 @@
 import { resolveMermaidEditorOpenState } from './mermaidEditorOpenResolver';
 import type { MermaidEditorState } from './types';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 
 const MERMAID_NODE_SELECTOR = '[data-type="mermaid"]';
 
@@ -33,13 +34,16 @@ export function resolveMermaidAnchorElement(target: EventTarget | null, fallback
 
 export function getMermaidAnchorViewportPosition(anchorElement: HTMLElement | null) {
   if (!anchorElement) {
-    return { x: 16, y: 16 };
+    return {
+      x: themeDomStyleTokens.editorPopupFallbackX,
+      y: themeDomStyleTokens.editorPopupFallbackY,
+    };
   }
 
   const rect = anchorElement.getBoundingClientRect();
   return {
     x: rect.left,
-    y: rect.bottom + 8,
+    y: rect.bottom + themeDomStyleTokens.editorPopupAnchorOffsetPx,
   };
 }
 

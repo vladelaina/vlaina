@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/icons';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
+import { themeBackdropTokens } from '@/styles/themeTokens';
 
 interface AccountLoginDialogProps {
   open: boolean;
@@ -33,12 +34,12 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
       <DialogContent
         showCloseButton={false}
         useBlurBackdrop
-        containerClassName="z-[1001]"
-        blurBackdropProps={{ 
-          overlayClassName: 'bg-[var(--vlaina-color-backdrop-soft)] backdrop-blur-sm', 
-          zIndex: 1000,
-          blurPx: 8, 
-          duration: 0.05 
+        containerClassName="z-[var(--vlaina-z-1001)]"
+        blurBackdropProps={{
+          overlayClassName: 'bg-[var(--vlaina-color-backdrop-soft)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)]',
+          zIndex: themeBackdropTokens.accountDialogZIndex,
+          blurPx: themeBackdropTokens.accountDialogBlurPx,
+          duration: themeBackdropTokens.accountDialogDurationSeconds,
         }}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
@@ -51,8 +52,8 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
           event.preventDefault();
         }}
         className={cn(
-          "w-full max-w-[min(460px,calc(100vw-1.5rem))] border-none p-0 overflow-visible bg-transparent shadow-none select-none",
-          "transition-all duration-75 ease-in-out"
+          "w-full max-w-[var(--vlaina-width-account-dialog-max)] border-none p-0 overflow-visible bg-transparent shadow-[var(--vlaina-shadow-none)] select-none",
+          "transition-all duration-[var(--vlaina-duration-75)] ease-in-out"
         )}
       >
         <DialogTitle className="sr-only">{t('account.signInTitle')}</DialogTitle>
@@ -60,13 +61,13 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
           {t('account.signInDescription')}
         </DialogDescription>
         <div className={cn(
-          "relative w-full rounded-[36px] px-5 py-6 sm:rounded-[48px] sm:px-8 sm:py-9 md:rounded-[56px] md:p-12",
+          "relative w-full rounded-[var(--vlaina-radius-36px)] px-5 py-6 sm:rounded-[var(--vlaina-radius-48px)] sm:px-8 sm:py-9 md:rounded-[var(--vlaina-radius-56px)] md:p-12",
           chatComposerPillSurfaceClass
         )}>
           <DialogClose
             ref={closeButtonRef}
             className={cn(
-              "absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--notes-sidebar-text-soft)] transition-all hover:text-[var(--vlaina-color-text-strong)] sm:right-5 sm:top-5",
+              "absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-sidebar-notes-text-soft)] transition-all hover:text-[var(--vlaina-color-text-strong)] sm:right-5 sm:top-5",
               "hover:bg-[var(--vlaina-hover-filled)]"
             )}
           >
@@ -74,7 +75,7 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
           </DialogClose>
 
           <div className="mb-7 flex items-center justify-center text-center sm:mb-10 md:mb-12">
-            <h2 className="text-[24px] font-black leading-none tracking-tight text-[var(--vlaina-color-text-strong)] sm:text-[26px] md:text-[28px]">
+            <h2 className="text-[var(--vlaina-font-24)] font-black leading-none tracking-tight text-[var(--vlaina-color-text-strong)] sm:text-[var(--vlaina-font-26)] md:text-[var(--vlaina-font-28)]">
               {t('account.signIn')}
             </h2>
           </div>
@@ -91,11 +92,11 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
           </div>
 
           {isConnecting && (
-            <div className="mt-8 text-center animate-in fade-in duration-500">
+            <div className="mt-8 text-center animate-in fade-in duration-[var(--vlaina-duration-500)]">
               <button
                 type="button"
                 onClick={() => cancelConnect()}
-                className="text-[11px] font-black uppercase tracking-widest text-[var(--notes-sidebar-text-soft)] hover:text-[var(--vlaina-color-text-strong)] transition-colors"
+                className="text-[var(--vlaina-font-11)] font-black uppercase tracking-widest text-[var(--vlaina-sidebar-notes-text-soft)] hover:text-[var(--vlaina-color-text-strong)] transition-colors"
               >
                 {t('account.cancelAuthentication')}
               </button>

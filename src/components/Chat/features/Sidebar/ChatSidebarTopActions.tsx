@@ -41,7 +41,7 @@ export function ChatSidebarTopActions({
           onClick={action.onClick}
           icon={action.icon}
           label={action.label}
-          iconClassName="text-[var(--notes-sidebar-file-icon)]"
+          iconClassName="text-[var(--vlaina-sidebar-notes-file-icon)]"
         />
       ))}
     </SidebarActionGroup>

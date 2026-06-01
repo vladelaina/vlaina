@@ -35,6 +35,7 @@ import {
   forwardCodeBlockUpdate,
 } from './codeBlockNodeViewUtils';
 import { subscribeCodeBlockSelectionSync } from './codeBlockSelectionSync';
+import { themeLazyLoadTokens } from '@/styles/themeTokens';
 
 type CodeBlockNodeViewOptions = {
   lazyCodeMirror?: boolean;
@@ -125,7 +126,7 @@ export class CodeBlockNodeView implements NodeView {
     this.dom = document.createElement('div');
     this.dom.classList.add(
       'code-block-container',
-      'vlaina-code-block',
+      'editor-code-block',
       'my-4',
       'rounded-2xl',
       'overflow-hidden',
@@ -180,7 +181,7 @@ export class CodeBlockNodeView implements NodeView {
       if (entries.some((entry) => entry.isIntersecting)) {
         this.initializeCodeMirror();
       }
-    }, { rootMargin: '2200px 0px' });
+    }, { rootMargin: themeLazyLoadTokens.codeBlockRootMargin });
     this.intersectionObserver.observe(this.dom);
   }
 
@@ -333,7 +334,7 @@ export class CodeBlockNodeView implements NodeView {
     const tr = forwardCodeBlockUpdate(update, this.view, this.getPos);
     if (tr) {
       if (update.docChanged) {
-        this.view.dom.dispatchEvent(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
+        this.view.dom.dispatchEvent(new CustomEvent('editor:block-user-input', { bubbles: true }));
       }
       this.view.dispatch(tr);
       if (update.docChanged) {
@@ -621,7 +622,7 @@ export class CodeBlockNodeView implements NodeView {
 
   stopEvent(event: Event) {
     const target = event.target;
-    if (this.dom.dataset.pmSelected === 'true' || this.dom.classList.contains('vlaina-block-selected')) {
+    if (this.dom.dataset.pmSelected === 'true' || this.dom.classList.contains('editor-block-selected')) {
       if (event.type === 'copy' || event.type === 'cut' || event.type === 'paste') {
         return false;
       }

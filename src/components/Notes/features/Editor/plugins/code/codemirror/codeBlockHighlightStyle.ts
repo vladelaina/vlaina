@@ -1,5 +1,6 @@
 import { HighlightStyle } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
+import { themeFontWeightTokens } from '@/styles/themeTokens';
 
 const githubSyntax = {
   foreground: 'var(--vlaina-code-syntax-foreground)',
@@ -18,7 +19,7 @@ const githubSyntax = {
   invalid: 'var(--vlaina-code-syntax-invalid)',
 };
 
-export const vlainaCodeBlockHighlightStyle = HighlightStyle.define([
+export const codeBlockHighlightStyle = HighlightStyle.define([
   {
     tag: [tags.comment, tags.meta],
     color: githubSyntax.muted,
@@ -66,7 +67,7 @@ export const vlainaCodeBlockHighlightStyle = HighlightStyle.define([
   {
     tag: [tags.heading],
     color: githubSyntax.markup,
-    fontWeight: '700',
+    fontWeight: themeFontWeightTokens.bold,
   },
   {
     tag: [tags.list],
@@ -83,7 +84,7 @@ export const vlainaCodeBlockHighlightStyle = HighlightStyle.define([
   {
     tag: tags.strong,
     color: githubSyntax.foreground,
-    fontWeight: '700',
+    fontWeight: themeFontWeightTokens.bold,
   },
   {
     tag: tags.emphasis,

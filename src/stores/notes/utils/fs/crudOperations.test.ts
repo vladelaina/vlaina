@@ -102,7 +102,7 @@ describe('createNoteImpl', () => {
       '/vault',
       undefined,
       'alpha',
-      ['# Alpha', '<br date-vlaianempt-line="true"/>', 'Body'].join('\n'),
+      ['# Alpha', '<br data-vlaina-empty-line="true"/>', 'Body'].join('\n'),
       {
         rootFolder: {
           id: '',
@@ -121,7 +121,7 @@ describe('createNoteImpl', () => {
       '/vault/alpha.md',
       ['---', 'vlaina_created: 2026-04-15 18:00:00 +08:00', 'vlaina_updated: 2026-04-15 18:00:00 +08:00', '---', '', '# Alpha', '', 'Body'].join('\n')
     );
-    expect(result.content).not.toContain('vlaian');
+    expect(result.content).not.toContain('data-vlaina-empty-line');
 
     vi.useRealTimers();
   });

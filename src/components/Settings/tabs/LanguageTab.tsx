@@ -50,20 +50,20 @@ export function LanguageTab() {
               type="button"
               onClick={() => setLanguagePreference(option.value)}
               className={cn(
-                'group flex min-h-[56px] cursor-pointer items-center justify-between gap-4 rounded-[22px] px-6 py-3 text-left transition-all duration-200 border border-transparent',
+                'group flex min-h-[var(--vlaina-size-56px)] cursor-pointer items-center justify-between gap-4 rounded-[var(--vlaina-radius-22px)] px-6 py-3 text-left transition-all duration-[var(--vlaina-duration-200)] border border-transparent',
                 selected
-                  ? 'bg-[var(--sidebar-row-selected-bg)]'
+                  ? 'bg-[var(--vlaina-sidebar-row-selected-bg)]'
                   : chatComposerPillSurfaceClass,
               )}
             >
               <div className="flex min-w-0 flex-col">
-                <span className={cn('truncate text-[14px]', getSidebarLabelClass('notes', { selected }))}>
+                <span className={cn('truncate text-[var(--vlaina-font-sm)]', getSidebarLabelClass('notes', { selected }))}>
                   {option.label}
                 </span>
                 {option.description ? (
                   <span className={cn(
-                    'truncate text-[11px]',
-                    selected ? 'text-[var(--sidebar-row-selected-text)]/70' : 'text-[var(--notes-sidebar-text-soft)]'
+                    'truncate text-[var(--vlaina-font-11)]',
+                    selected ? 'text-[var(--vlaina-sidebar-row-selected-text-muted)]' : 'text-[var(--vlaina-sidebar-notes-text-soft)]'
                   )}>
                     {option.description}
                   </span>

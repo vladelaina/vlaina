@@ -1,4 +1,4 @@
-export const DELETE_CURRENT_NOTE_EVENT = 'vlaina-delete-current-note';
+export const DELETE_CURRENT_NOTE_EVENT = 'app-delete-current-note';
 
 export function dispatchDeleteCurrentNoteEvent() {
   window.dispatchEvent(new Event(DELETE_CURRENT_NOTE_EVENT));

@@ -5,10 +5,6 @@
 .milkdown {
   min-height: 100%;
   outline: none;
-  --vlaina-editor-block-selection-base: var(--vlaina-color-editor-block-selection);
-  --vlaina-editor-block-selection-bg: var(--vlaina-color-editor-block-selection-bg);
-  --vlaina-editor-block-selection-fg: var(--vlaina-color-editor-block-selection-fg);
-  --vlaina-editor-block-selection-handle: var(--vlaina-color-editor-block-selection-handle);
 }
 
 /* Reset potential focus outlines during interactions */
@@ -26,7 +22,7 @@
 .milkdown-editor {
   background-color: var(--vlaina-bg-primary);
   scroll-behavior: smooth;
-  min-height: calc(100vh - 200px);
+  min-height: var(--vlaina-height-editor-min);
   cursor: text;
   position: relative;
 }
@@ -42,64 +38,30 @@
   pointer-events: none !important;
 }
 
-body.vlaina-overlay-scrollbar-dragging,
-body.vlaina-overlay-scrollbar-dragging * {
+body.app-overlay-scrollbar-dragging,
+body.app-overlay-scrollbar-dragging * {
   cursor: default !important;
 }
 
-body.vlaina-block-dragging-cursor,
-body.vlaina-block-dragging-cursor .milkdown,
-body.vlaina-block-dragging-cursor .milkdown *,
-body.vlaina-block-dragging-cursor [data-editor-drag-box='true'] {
+body.editor-block-dragging-cursor,
+body.editor-block-dragging-cursor .milkdown,
+body.editor-block-dragging-cursor .milkdown *,
+body.editor-block-dragging-cursor [data-editor-drag-box='true'] {
   cursor: crosshair !important;
 }
 
-body.vlaina-block-drag-active,
-body.vlaina-block-drag-active .milkdown,
-body.vlaina-block-drag-active .milkdown *,
-body.vlaina-block-drag-active .vlaina-block-drag-preview-layer,
-body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
+body.editor-block-drag-active,
+body.editor-block-drag-active .milkdown,
+body.editor-block-drag-active .milkdown *,
+body.editor-block-drag-active .editor-block-drag-preview-layer,
+body.editor-block-drag-active .editor-block-drag-preview-layer * {
   cursor: grabbing !important;
-}
-
-.milkdown .ProseMirror.vlaina-block-selection-pending :is(
-  a,
-  button,
-  [role='button'],
-  .heading-toggle-btn,
-  .vlaina-block-control-btn,
-  .vlaina-collapse-btn,
-  .callout-icon-button,
-  .video-external-action,
-  .footnote-ref,
-  .milkdown-table-block .column-header-drag-control,
-  .milkdown-table-block .edge-create-zone
-) {
-  pointer-events: none !important;
-}
-
-.milkdown .ProseMirror.vlaina-block-selection-pending :is(
-  .heading-toggle-btn,
-  .vlaina-collapse-btn
-) {
-  opacity: 0 !important;
-}
-
-.milkdown .ProseMirror.vlaina-block-selection-pending :is(
-  .callout-icon-button,
-  .video-external-action,
-  .milkdown-table-block .column-header-drag-control,
-  .milkdown-table-block .edge-create-zone
-) {
-  background: transparent !important;
-  box-shadow: none !important;
-  transform: none !important;
 }
 
 /* ProseMirror editor needs min-height to be clickable */
 .milkdown .ProseMirror {
-  min-height: calc(100vh - 250px);
-  padding-bottom: 50vh;
+  min-height: var(--vlaina-height-prosemirror-min);
+  padding-bottom: var(--vlaina-height-prosemirror-bottom-padding);
 }
 
 /* Focus & Cursor */
@@ -112,32 +74,27 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
   caret-color: transparent;
 }
 
-.milkdown-editor.vlaina-markdown-body-line-numbers .vlaina-body-line-number-gutter {
+.milkdown-editor.markdown-body-line-numbers .body-line-number-gutter {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: var(--vlaina-z-2);
   pointer-events: none;
 }
 
-.milkdown-editor.vlaina-markdown-body-line-numbers .vlaina-body-line-number {
+.milkdown-editor.markdown-body-line-numbers .body-line-number {
   position: absolute;
-  width: 2.5rem;
+  width: var(--vlaina-width-body-line-number);
   color: var(--vlaina-text-tertiary);
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
-  font-size: 12.5px;
+  font-size: var(--vlaina-font-125);
   font-variant-numeric: tabular-nums;
-  font-weight: 500;
+  font-weight: var(--vlaina-font-weight-medium);
   line-height: inherit;
-  opacity: 0.86;
+  opacity: var(--vlaina-opacity-86);
   pointer-events: none;
   text-align: right;
-  transform: translateY(-50%);
+  transform: translateY(var(--vlaina-translate--50pct));
   user-select: none;
-}
-
-.milkdown.vlaina-block-selection-line-fill-host,
-.milkdown .vlaina-block-selection-line-fill-host {
-  position: relative;
 }
 
 /* Selection */
@@ -152,515 +109,167 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
   color: var(--vlaina-color-white) !important;
 }
 
-/* Notion-like drag block selection highlight */
-.milkdown .ProseMirror .vlaina-block-selected {
-  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg);
-  --vlaina-block-selection-bleed-y: 4px;
-  --vlaina-block-selection-bleed-x-start: 48px;
-  --vlaina-block-selection-bleed-x-end: 48px;
-  position: relative;
-  z-index: 1;
-  background-color: var(--vlaina-block-selection-color);
-  box-shadow:
-    0 var(--vlaina-block-selection-bleed-y) 0 0 var(--vlaina-block-selection-color),
-    0 calc(-1 * var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-color),
-    calc(-1 * (var(--vlaina-block-selection-bleed-x-start) - var(--vlaina-block-selection-bleed-y))) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color),
-    calc(var(--vlaina-block-selection-bleed-x-end) - var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color);
-  border-radius: 8px;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-  color: var(--vlaina-editor-block-selection-fg);
-  transition: none !important;
-}
-
-.milkdown .vlaina-block-selection-line-fill-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-}
-
-.milkdown .vlaina-block-selection-line-fill {
-  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg);
-  --vlaina-block-selection-bleed-y: 4px;
-  position: absolute;
-  z-index: 0;
-  border-radius: 8px;
-  background: var(--vlaina-block-selection-color);
-  box-shadow:
-    0 var(--vlaina-block-selection-bleed-y) 0 0 var(--vlaina-block-selection-color),
-    0 calc(-1 * var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-color);
-  pointer-events: none;
-}
-
-.milkdown .ProseMirror .vlaina-block-selected:not(.code-block-container):not(.mermaid-block),
-.milkdown .ProseMirror .vlaina-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {
-  color: var(--vlaina-editor-block-selection-fg);
-  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg);
-}
-
-.milkdown .ProseMirror li:has(> p.vlaina-block-selected)::marker {
-  color: var(--vlaina-editor-block-selection-fg);
-}
-
-.milkdown .ProseMirror li[data-item-type="task"].vlaina-block-selected::before,
-.milkdown .ProseMirror li[data-item-type="task"]:has(> p.vlaina-block-selected)::before,
-.milkdown .ProseMirror .vlaina-block-selected li[data-item-type="task"]::before {
-  border-color: var(--vlaina-editor-block-selection-fg) !important;
-  background-color: transparent !important;
-}
-
-.milkdown .ProseMirror blockquote.vlaina-block-selected::before,
-.milkdown .ProseMirror blockquote:has(> .vlaina-block-selected)::before,
-.milkdown .ProseMirror .vlaina-block-selected blockquote::before {
-  background: var(--vlaina-editor-block-selection-fg) !important;
-}
-
-.milkdown .ProseMirror p.vlaina-block-selected {
-  --vlaina-block-selection-bleed-y: 0px;
-}
-
-.milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].ProseMirror-selectednode,
-.milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].vlaina-block-selected {
-  --vlaina-block-selection-bleed-y: 0px;
-  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg, #bedffe);
-  background-color: var(--vlaina-block-selection-color);
-  box-shadow:
-    0 var(--vlaina-block-selection-bleed-y) 0 0 var(--vlaina-block-selection-color),
-    0 calc(-1 * var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-color),
-    calc(-1 * (var(--vlaina-block-selection-bleed-x-start, 48px) - var(--vlaina-block-selection-bleed-y))) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color),
-    calc(var(--vlaina-block-selection-bleed-x-end, 48px) - var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color);
-  border-radius: 8px;
-}
-
-.milkdown .ProseMirror .vlaina-block-selected-inline-line {
-  background-color: transparent;
-  box-shadow: none;
-  border-radius: 0;
-}
-
-/* List selection compatibility:
-   decoration class may be on LI itself or on a child block (e.g. LI > P). */
-.milkdown .ProseMirror li.vlaina-block-selected,
-.milkdown .ProseMirror li .vlaina-block-selected {
-  --vlaina-list-row-selection-bleed-x-start: 48px;
-  --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
-  --vlaina-block-selection-bleed-y: 0px;
-}
-
-.milkdown .ProseMirror li :is(
-  .code-block-container,
-  .image-block-container,
-  .video-block,
-  [data-type='math-block'],
-  .mermaid-block,
-  .milkdown-table-block,
-  table
-).vlaina-block-selected {
-  --vlaina-block-selection-bleed-y: 4px;
-}
-
-.milkdown .ProseMirror :is(ul, ol) > li.vlaina-block-selected,
-.milkdown .ProseMirror :is(ul, ol) > li .vlaina-block-selected {
-  --vlaina-list-row-selection-bleed-x-start: 48px;
-  --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
-}
-
-.milkdown .ProseMirror ul > li.vlaina-block-selected,
-.milkdown .ProseMirror ul > li .vlaina-block-selected,
-.milkdown .ProseMirror li[data-item-type="task"].vlaina-block-selected,
-.milkdown .ProseMirror li[data-item-type="task"] .vlaina-block-selected {
-  --vlaina-list-row-selection-bleed-x-start: 72px;
-  --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
-}
-
-.milkdown .ProseMirror ol > li.vlaina-block-selected,
-.milkdown .ProseMirror ol > li .vlaina-block-selected {
-  --vlaina-list-row-selection-bleed-x-start: 72px;
-  --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
-}
-
-.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) > li.vlaina-block-selected,
-.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) > li .vlaina-block-selected {
-  --vlaina-list-row-selection-bleed-x-start: 72px;
-  --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
-}
-
-.milkdown .ProseMirror :is(ul, ol) ol > li.vlaina-block-selected,
-.milkdown .ProseMirror :is(ul, ol) ol > li .vlaina-block-selected {
-  --vlaina-list-row-selection-bleed-x-start: 96px;
-  --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
-}
-
-.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) :is(ul, ol) > li.vlaina-block-selected,
-.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) :is(ul, ol) > li .vlaina-block-selected {
-  --vlaina-list-row-selection-bleed-x-start: 104px;
-  --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
-}
-
-.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) ol > li.vlaina-block-selected,
-.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) ol > li .vlaina-block-selected {
-  --vlaina-list-row-selection-bleed-x-start: 128px;
-  --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
-}
-
-.milkdown .ProseMirror li.vlaina-block-selected .vlaina-block-selected {
-  background-color: transparent;
-  box-shadow: none;
-}
-
-.milkdown .ProseMirror li.vlaina-block-selected:has(> .code-block-container) {
-  --vlaina-list-contained-block-selection-bleed-y: 8px;
-  position: relative;
-  z-index: 0;
-}
-
-.milkdown .ProseMirror li.vlaina-block-selected:has(> .code-block-container)::after {
-  content: '';
-  position: absolute;
-  right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
-  bottom: calc(-1 * var(--vlaina-list-contained-block-selection-bleed-y));
-  left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
-  z-index: 0;
-  height: calc(var(--vlaina-list-contained-block-selection-bleed-y) + 8px);
-  border-bottom-right-radius: 8px;
-  border-bottom-left-radius: 8px;
-  background: var(--vlaina-block-selection-color);
-  pointer-events: none;
-}
-
-.milkdown .ProseMirror li.vlaina-block-selected:has(> .code-block-container) > * {
-  position: relative;
-  z-index: 1;
-}
-
-.milkdown .ProseMirror .image-block-container.vlaina-block-selected {
-  --vlaina-block-selection-bleed-y: 0px;
-}
-
-.milkdown .ProseMirror p.vlaina-block-selected:has(> .image-block-container) {
-  --vlaina-block-selection-bleed-y: 0px;
-}
-
-.milkdown .ProseMirror .vlaina-block-selected :is(
-  .image-block-container,
-  .video-block,
-  [data-type='math-block'],
-  [data-type='math-inline'],
-  .milkdown-table-block,
-  table
-) {
-  background: transparent !important;
-  background-color: transparent !important;
-  box-shadow: none !important;
-}
-
-.milkdown .ProseMirror .vlaina-block-selected-contained:is(
-  .image-block-container,
-  .video-block,
-  [data-type='math-block'],
-  [data-type='math-inline'],
-  .milkdown-table-block,
-  table
-) {
-  background: transparent !important;
-  background-color: transparent !important;
-  box-shadow: none !important;
-}
-
-.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected .table-content-host,
-.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-content-host {
-  background: transparent !important;
-  background-color: transparent !important;
-  box-shadow: none !important;
-}
-
-.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected,
-.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode {
-  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg);
-  --vlaina-block-selection-bleed-y: 4px;
-  --vlaina-block-selection-bleed-x-start: 48px;
-  --vlaina-block-selection-bleed-x-end: 48px;
-  --vlaina-block-selection-top-reserve: 0px;
-  --vlaina-block-selection-scrollbar-reserve: 0px;
-  background: transparent !important;
-  background-color: transparent !important;
-  border-radius: 8px;
-  box-shadow: none !important;
-}
-
-.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected:has(.table-wrapper[style*="--table-block-table-min-width: 0px"]),
-.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode:has(.table-wrapper[style*="--table-block-table-min-width: 0px"]) {
-  --vlaina-block-selection-top-reserve: var(--vlaina-block-selection-bleed-y);
-  --vlaina-block-selection-scrollbar-reserve: var(--table-block-scrollbar-reserve, 14px);
-}
-
-.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected::before,
-.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode::before {
-  content: '';
-  position: absolute;
-  top: calc(var(--vlaina-block-selection-top-reserve, 0px) - var(--vlaina-block-selection-bleed-y));
-  right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
-  bottom: calc(var(--vlaina-block-selection-scrollbar-reserve, 0px) - var(--vlaina-block-selection-bleed-y));
-  left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
-  z-index: 0;
-  border-radius: 8px;
-  background: var(--vlaina-block-selection-color);
-  pointer-events: none;
-}
-
-.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected > *,
-.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode > * {
-  position: relative;
-  z-index: 1;
-}
-
-.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-scroll,
-.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-scroll {
-  margin-top: calc(-1 * var(--vlaina-block-selection-bleed-y));
-  margin-bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));
-  padding-top: var(--vlaina-block-selection-bleed-y);
-  padding-bottom: var(--vlaina-block-selection-bleed-y);
-}
-
-.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected .table-scroll-track,
-.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-scroll-track {
-  position: relative;
-  background: transparent !important;
-  background-color: transparent !important;
-  border-radius: 8px;
-}
-
-.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected .table-content-host,
-.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-content-host {
-  position: relative;
-  z-index: 0;
-}
-
-.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-content-host::before,
-.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-content-host::before {
-  content: '';
-  position: absolute;
-  top: calc(-1 * var(--vlaina-block-selection-bleed-y));
-  right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
-  bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));
-  left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
-  z-index: 0;
-  border-radius: 8px;
-  background: var(--vlaina-block-selection-color);
-  pointer-events: none;
-}
-
-.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected .table-scroll-spacer,
-.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-scroll-spacer {
-  position: relative;
-  z-index: 1;
-}
-
-.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected .table-content-host > *,
-.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-content-host > * {
-  position: relative;
-  z-index: 1;
-}
-
-.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected :is(th, td),
-.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode :is(th, td) {
-  background: transparent !important;
-  background-color: transparent !important;
-}
-
-.milkdown .ProseMirror li :is(
-  .image-block-container,
-  .video-block,
-  [data-type='math-block'],
-  [data-type='math-inline'],
-  .milkdown-table-block,
-  table
-).vlaina-block-selected {
-  background: transparent !important;
-  background-color: transparent !important;
-  box-shadow: none !important;
-}
-
-.milkdown .ProseMirror li.vlaina-block-selected :is(
-  [data-type='math-block'],
-  .mermaid-block
-).vlaina-block-selected,
-.milkdown .ProseMirror li.vlaina-block-selected :is(
-  [data-type='math-block'],
-  .mermaid-block
-).vlaina-block-selected-contained {
-  box-shadow:
-    0 var(--vlaina-block-selection-bleed-y, 4px) 0 0 var(--vlaina-block-selection-color),
-    0 calc(-1 * var(--vlaina-block-selection-bleed-y, 4px)) 0 0 var(--vlaina-block-selection-color) !important;
-}
-
-/* Hide text caret while drag block selection is active */
-.milkdown .ProseMirror.vlaina-block-selection-active {
-  caret-color: transparent !important;
-}
-
 /* Block controls (selected block drag handle) */
-.vlaina-block-controls {
+.editor-block-controls {
   position: fixed;
-  z-index: 60;
+  z-index: var(--vlaina-z-60);
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: var(--vlaina-space-0);
   pointer-events: none;
-  opacity: 0;
-  transform: translateY(-50%);
-  transition: opacity 120ms ease;
+  opacity: var(--vlaina-opacity-0);
+  transform: translateY(var(--vlaina-translate--50pct));
+  transition: opacity var(--vlaina-duration-120) var(--vlaina-ease-css-default);
 }
 
-.vlaina-block-controls.visible,
-.vlaina-block-controls.dragging {
-  opacity: 1;
+.editor-block-controls.visible,
+.editor-block-controls.dragging {
+  opacity: var(--vlaina-opacity-100);
   pointer-events: auto;
 }
 
-.vlaina-block-controls .vlaina-block-control-btn {
-  width: 24px;
-  height: 24px;
-  border: 0;
+.editor-block-controls .editor-block-control-btn {
+  width: var(--vlaina-size-24px);
+  height: var(--vlaina-size-24px);
+  border: var(--vlaina-border-width-0);
   background: transparent;
   color: var(--vlaina-text-tertiary);
-  border-radius: 0;
+  border-radius: var(--vlaina-radius-0);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  padding: var(--vlaina-space-0);
   cursor: pointer;
-  transition: color 120ms ease, opacity 120ms ease;
+  transition: color var(--vlaina-duration-120) var(--vlaina-ease-css-default), opacity var(--vlaina-duration-120) var(--vlaina-ease-css-default);
 }
 
-.vlaina-block-controls .vlaina-block-control-btn:hover {
+.editor-block-controls .editor-block-control-btn:hover {
   color: var(--vlaina-text-primary);
   background: transparent;
 }
 
-.vlaina-block-controls.visible .vlaina-block-control-handle,
-.vlaina-block-controls.dragging .vlaina-block-control-handle {
+.editor-block-controls.visible .editor-block-control-handle,
+.editor-block-controls.dragging .editor-block-control-handle {
   color: var(--vlaina-editor-block-selection-handle);
 }
 
-.vlaina-block-controls.visible .vlaina-block-control-handle:hover {
+.editor-block-controls.visible .editor-block-control-handle:hover {
   color: var(--vlaina-editor-block-selection-handle);
 }
 
-.vlaina-block-controls .vlaina-block-control-btn:active {
+.editor-block-controls .editor-block-control-btn:active {
   background: transparent;
-  opacity: 0.75;
+  opacity: var(--vlaina-opacity-75);
 }
 
-.vlaina-block-controls .vlaina-block-control-handle {
+.editor-block-controls .editor-block-control-handle {
   cursor: grab;
 }
 
-.vlaina-block-controls.dragging .vlaina-block-control-handle,
-.vlaina-block-controls .vlaina-block-control-handle:active {
+.editor-block-controls.dragging .editor-block-control-handle,
+.editor-block-controls .editor-block-control-handle:active {
   cursor: grabbing;
 }
 
-.vlaina-block-controls.dragging {
-  opacity: 1;
+.editor-block-controls.dragging {
+  opacity: var(--vlaina-opacity-100);
 }
 
-.vlaina-block-drop-indicator {
+.editor-block-drop-indicator {
   position: fixed;
-  height: 2px;
-  background: var(--sidebar-row-selected-text, var(--vlaina-accent));
-  border-radius: 1px;
+  height: var(--vlaina-size-2px);
+  background: var(--vlaina-sidebar-row-selected-text, var(--vlaina-accent));
+  border-radius: var(--vlaina-radius-1px);
   pointer-events: none;
-  z-index: 59;
-  opacity: 0;
-  transition: opacity 80ms linear;
+  z-index: var(--vlaina-z-59);
+  opacity: var(--vlaina-opacity-0);
+  transition: opacity var(--vlaina-duration-80) var(--vlaina-ease-linear);
 }
 
-.vlaina-block-drop-indicator.visible {
-  opacity: 1;
+.editor-block-drop-indicator.visible {
+  opacity: var(--vlaina-opacity-100);
 }
 
-.vlaina-external-text-drop-cursor {
+.editor-external-text-drop-cursor {
   position: fixed;
   width: var(--vlaina-caret-width);
-  min-height: 0;
+  min-height: var(--vlaina-size-0);
   background: var(--vlaina-caret-color);
   border-radius: calc(var(--vlaina-caret-width) / 2);
-  box-shadow: 0 0 0 1px color-mix(in srgb, white 72%, transparent);
+  box-shadow: var(--vlaina-shadow-external-drop-cursor);
   pointer-events: none;
-  z-index: 61;
-  opacity: 0;
+  z-index: var(--vlaina-z-61);
+  opacity: var(--vlaina-opacity-0);
   transform: translateX(calc(var(--vlaina-caret-width) / -2));
-  transition: opacity 60ms linear;
+  transition: opacity var(--vlaina-duration-60) var(--vlaina-ease-linear);
 }
 
-.vlaina-external-text-drop-cursor.block {
-  height: 2px;
-  min-height: 0;
+.editor-external-text-drop-cursor.block {
+  height: var(--vlaina-size-2px);
+  min-height: var(--vlaina-size-0);
   transform: none;
-  transition: opacity 60ms linear;
+  transition: opacity var(--vlaina-duration-60) var(--vlaina-ease-linear);
 }
 
-.vlaina-external-text-drop-cursor.visible {
-  opacity: 1;
+.editor-external-text-drop-cursor.visible {
+  opacity: var(--vlaina-opacity-100);
 }
 
-.milkdown .ProseMirror .vlaina-block-drag-source {
-  opacity: 0.38;
-  transition: opacity 120ms ease;
+.milkdown .ProseMirror .editor-block-drag-source {
+  opacity: var(--vlaina-opacity-38);
+  transition: opacity var(--vlaina-duration-120) var(--vlaina-ease-css-default);
 }
 
-.vlaina-block-drag-preview {
+.editor-block-drag-preview {
   position: fixed;
-  left: -10000px;
-  top: -10000px;
-  z-index: 70;
+  left: var(--vlaina-space--10000px);
+  top: var(--vlaina-space--10000px);
+  z-index: var(--vlaina-z-70);
   pointer-events: none;
   isolation: isolate;
   will-change: transform;
   transform: translateZ(0);
-  opacity: 1;
+  opacity: var(--vlaina-opacity-100);
   background: transparent;
-  border: 0;
-  border-radius: 0;
+  border: var(--vlaina-border-width-0);
+  border-radius: var(--vlaina-radius-0);
   box-shadow: none;
   overflow: visible;
 }
 
-.vlaina-block-drag-preview-layer {
-  --vlaina-block-drag-preview-fg: color-mix(in srgb, var(--vlaina-text-primary, currentColor) 40%, white 60%);
+.editor-block-drag-preview-layer {
+  --vlaina-block-drag-preview-fg: var(--vlaina-color-block-drag-preview-fg);
   position: relative;
-  z-index: 2;
+  z-index: var(--vlaina-z-2);
   background: transparent;
   color: var(--vlaina-block-drag-preview-fg);
   -webkit-text-fill-color: var(--vlaina-block-drag-preview-fg);
 }
 
-.vlaina-block-drag-preview-layer > * {
+.editor-block-drag-preview-layer > * {
   pointer-events: none !important;
 }
 
-.vlaina-block-drag-preview-layer * {
+.editor-block-drag-preview-layer * {
   color: var(--vlaina-block-drag-preview-fg) !important;
   -webkit-text-fill-color: var(--vlaina-block-drag-preview-fg) !important;
 }
 
-.vlaina-block-drag-preview-layer :is(ol, ul) {
-  margin-block: 0;
-  padding-inline-start: 1.75rem;
+.editor-block-drag-preview-layer :is(ol, ul) {
+  margin-block: var(--vlaina-space-0);
+  padding-inline-start: var(--vlaina-size-175rem);
   list-style-position: outside;
 }
 
-.vlaina-block-drag-preview-layer ol {
+.editor-block-drag-preview-layer ol {
   list-style-type: decimal;
 }
 
-.vlaina-block-drag-preview-layer ul {
+.editor-block-drag-preview-layer ul {
   list-style-type: disc;
 }
 
-.vlaina-block-drag-preview-layer li::marker {
+.editor-block-drag-preview-layer li::marker {
   color: var(--vlaina-block-drag-preview-fg);
 }
 
@@ -669,12 +278,12 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
   display: block;
   width: 100%;
   max-width: none;
-  margin: 8px 0 0;
+  margin: var(--vlaina-space-8px) var(--vlaina-space-0) var(--vlaina-space-0);
   overflow-anchor: none;
 }
 
 .milkdown .milkdown-table-block:first-child {
-  margin-top: 0;
+  margin-top: var(--vlaina-space-0);
 }
 
 .milkdown .milkdown-table-block .table-wrapper {
@@ -725,7 +334,7 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
   flex: none;
   min-width: var(--table-block-table-min-width, 100%);
   max-width: none;
-  margin: 0;
+  margin: var(--vlaina-space-0);
   cursor: text;
 }
 
@@ -737,7 +346,7 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
   content: '';
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: var(--vlaina-z-2);
   background: var(--vlaina-accent-light);
   pointer-events: none;
 }
@@ -745,7 +354,7 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 .milkdown .milkdown-table-block .column-header-drag-overlay {
   position: absolute;
   inset: 0;
-  z-index: 16;
+  z-index: var(--vlaina-z-16);
   pointer-events: none;
 }
 
@@ -754,18 +363,18 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
-  border: 1px solid color-mix(in srgb, var(--crepe-color-outline), transparent 42%);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--vlaina-color-setting-field), transparent 6%);
+  padding: var(--vlaina-space-0);
+  border: var(--vlaina-border-width-1) solid var(--vlaina-color-table-drag-control-border);
+  border-radius: var(--vlaina-radius-pill);
+  background: var(--vlaina-color-table-drag-control-bg);
   box-shadow: var(--vlaina-shadow-badge);
-  color: color-mix(in srgb, var(--vlaina-border), var(--vlaina-color-text-strong) 24%);
+  color: var(--vlaina-color-table-drag-control-fg);
   pointer-events: auto;
   cursor: ew-resize;
-  z-index: 1;
-  opacity: 0.92;
+  z-index: var(--vlaina-z-1);
+  opacity: var(--vlaina-opacity-92);
   touch-action: none;
-  transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease, color 120ms ease, opacity 120ms ease;
+  transition: border-color var(--vlaina-duration-120) var(--vlaina-ease-css-default), background-color var(--vlaina-duration-120) var(--vlaina-ease-css-default), box-shadow var(--vlaina-duration-120) var(--vlaina-ease-css-default), color var(--vlaina-duration-120) var(--vlaina-ease-css-default), opacity var(--vlaina-duration-120) var(--vlaina-ease-css-default);
 }
 
 .milkdown .milkdown-table-block .column-header-drag-control:active {
@@ -774,19 +383,19 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 
 .milkdown .milkdown-table-block .column-header-drag-control:hover,
 .milkdown .milkdown-table-block .column-header-drag-control[data-active='true'] {
-  border-color: color-mix(in srgb, var(--crepe-color-outline), transparent 26%);
+  border-color: var(--vlaina-color-table-drag-control-border-hover);
   background: var(--vlaina-color-setting-field);
   box-shadow: var(--vlaina-shadow-badge);
-  color: color-mix(in srgb, var(--vlaina-border), var(--vlaina-color-text-strong) 42%);
-  opacity: 1;
+  color: var(--vlaina-color-table-drag-control-fg-active);
+  opacity: var(--vlaina-opacity-100);
 }
 
 .milkdown .milkdown-table-block .column-header-drag-control:focus-visible {
-  border-color: color-mix(in srgb, var(--crepe-color-outline), transparent 20%);
+  border-color: var(--vlaina-color-table-drag-control-border-focus);
   background: var(--vlaina-color-setting-field);
   box-shadow: var(--vlaina-shadow-badge);
-  color: color-mix(in srgb, var(--vlaina-border), var(--vlaina-color-text-strong) 42%);
-  opacity: 1;
+  color: var(--vlaina-color-table-drag-control-fg-active);
+  opacity: var(--vlaina-opacity-100);
   outline: none;
 }
 
@@ -801,55 +410,55 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 
 .milkdown .milkdown-table-block .column-header-drag-control__grip {
   position: relative;
-  width: 16px;
-  height: 4px;
+  width: var(--vlaina-size-16px);
+  height: var(--vlaina-size-4px);
   pointer-events: none;
 }
 
 .milkdown .milkdown-table-block .column-header-drag-control__grip::before {
   content: '';
   position: absolute;
-  left: 0;
-  top: 0;
-  width: 4px;
-  height: 4px;
-  border-radius: 999px;
+  left: var(--vlaina-space-0);
+  top: var(--vlaina-space-0);
+  width: var(--vlaina-size-4px);
+  height: var(--vlaina-size-4px);
+  border-radius: var(--vlaina-radius-pill);
   background: currentColor;
-  box-shadow: 6px 0 currentColor, 12px 0 currentColor;
+  box-shadow: var(--vlaina-shadow-table-grip-dots);
 }
 
 .milkdown .milkdown-table-block .column-header-drag-indicator {
   position: absolute;
-  width: 3px;
-  transform: translateX(-50%);
-  border-radius: 999px;
+  width: var(--vlaina-size-3px);
+  transform: translateX(var(--vlaina-translate--50pct));
+  border-radius: var(--vlaina-radius-pill);
   background: var(--vlaina-accent);
   box-shadow: var(--vlaina-shadow-selection-soft);
   pointer-events: none;
-  z-index: 2;
+  z-index: var(--vlaina-z-2);
 }
 
 .milkdown .milkdown-table-block .column-header-drag-source-highlight {
   position: absolute;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--crepe-color-primary), transparent 92%);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--crepe-color-primary), transparent 76%);
+  border-radius: var(--vlaina-radius-10px);
+  background: var(--vlaina-color-table-column-source-highlight-bg);
+  box-shadow: var(--vlaina-shadow-table-column-source-highlight);
   pointer-events: none;
-  z-index: 0;
+  z-index: var(--vlaina-z-0);
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu {
   position: absolute;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 6px;
-  border: 1px solid transparent;
-  border-radius: 22px;
+  gap: var(--vlaina-space-2px);
+  padding: var(--vlaina-space-6px);
+  border: var(--vlaina-border-width-1) solid transparent;
+  border-radius: var(--vlaina-radius-22px);
   background: var(--vlaina-color-white);
   box-shadow: var(--vlaina-shadow-raised-soft);
   pointer-events: auto;
-  z-index: 4;
+  z-index: var(--vlaina-z-4);
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__item {
@@ -857,29 +466,29 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
   width: 100%;
   align-items: center;
   justify-content: flex-start;
-  padding: 8px 10px;
-  border: 0;
-  border-radius: 12px;
+  padding: var(--vlaina-space-8px) var(--vlaina-space-10px);
+  border: var(--vlaina-border-width-0);
+  border-radius: var(--vlaina-radius-12px);
   background: transparent;
-  color: var(--notes-sidebar-text);
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1.35;
+  color: var(--vlaina-sidebar-notes-text);
+  font-size: var(--vlaina-font-15);
+  font-weight: var(--vlaina-font-weight-medium);
+  line-height: var(--vlaina-leading-135);
   text-align: left;
   cursor: pointer;
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__item {
-  color: var(--notes-sidebar-text) !important;
-  -webkit-text-fill-color: var(--notes-sidebar-text) !important;
+  color: var(--vlaina-sidebar-notes-text) !important;
+  -webkit-text-fill-color: var(--vlaina-sidebar-notes-text) !important;
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__item:hover {
-  background: var(--notes-sidebar-row-hover);
+  background: var(--vlaina-sidebar-notes-row-hover);
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__item:focus-visible {
-  background: var(--notes-sidebar-row-hover);
+  background: var(--vlaina-sidebar-notes-row-hover);
   outline: none;
 }
 
@@ -907,10 +516,10 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__divider {
-  height: 1px;
-  margin: 4px 2px;
-  background: var(--notes-sidebar-menu-border);
-  opacity: 0.7;
+  height: var(--vlaina-size-1px);
+  margin: var(--vlaina-space-4px) var(--vlaina-space-2px);
+  background: var(--vlaina-sidebar-notes-menu-border);
+  opacity: var(--vlaina-opacity-70);
 }
 
 .milkdown .milkdown-table-block.readonly .column-header-drag-overlay {
@@ -919,8 +528,8 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 
 .milkdown .milkdown-table-block .handle {
   position: absolute;
-  font-size: 14px;
-  transition: opacity 0.16s ease-in-out;
+  font-size: var(--vlaina-font-sm);
+  transition: opacity var(--vlaina-duration-160) var(--vlaina-ease-in-out);
 }
 
 .milkdown .milkdown-table-block .line-handle {
@@ -929,13 +538,13 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 }
 
 .milkdown .milkdown-table-block .handle[data-show='false'] {
-  opacity: 0;
+  opacity: var(--vlaina-opacity-0);
 }
 
 .milkdown .milkdown-table-block .edge-create-zone {
   position: absolute;
-  z-index: 15;
-  opacity: 0;
+  z-index: var(--vlaina-z-15);
+  opacity: var(--vlaina-opacity-0);
   background-color: transparent !important;
   transition: none;
 }
@@ -945,14 +554,14 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 }
 
 .milkdown .milkdown-table-block .edge-create-zone:hover {
-  opacity: 0;
+  opacity: var(--vlaina-opacity-0);
   background-color: transparent !important;
 }
 
 .milkdown .milkdown-table-block .edge-create-zone[data-axis='col'] {
-  top: 0;
-  left: 0;
-  width: 18px;
+  top: var(--vlaina-space-0);
+  left: var(--vlaina-space-0);
+  width: var(--vlaina-size-18px);
   cursor: col-resize;
 }
 
@@ -961,9 +570,9 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 }
 
 .milkdown .milkdown-table-block .edge-create-zone[data-axis='row'] {
-  left: 0;
-  top: 0;
-  height: 18px;
+  left: var(--vlaina-space-0);
+  top: var(--vlaina-space-0);
+  height: var(--vlaina-size-18px);
   cursor: row-resize;
 }
 
@@ -972,10 +581,10 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
 }
 
 .milkdown .milkdown-table-block .edge-create-zone[data-axis='both'] {
-  top: 0;
-  left: 0;
-  width: 30px;
-  height: 30px;
+  top: var(--vlaina-space-0);
+  left: var(--vlaina-space-0);
+  width: var(--vlaina-size-30px);
+  height: var(--vlaina-size-30px);
   cursor: nwse-resize;
 }
 

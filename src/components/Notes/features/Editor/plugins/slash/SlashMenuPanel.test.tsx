@@ -17,9 +17,9 @@ describe('SlashMenuPanel', () => {
     );
 
     expect(menuViewSource).toContain('chatComposerPillSurfaceClass');
-    expect(menuViewSource).toContain('!rounded-[26px]');
+    expect(menuViewSource).toContain('!rounded-[var(--vlaina-radius-26px)]');
     expect(videoPromptSource).toContain('chatComposerPillSurfaceClass');
-    expect(videoPromptSource).toContain('!rounded-[26px]');
+    expect(videoPromptSource).toContain('!rounded-[var(--vlaina-radius-26px)]');
   });
 
   it('renders options without groups or descriptions and selected state', () => {

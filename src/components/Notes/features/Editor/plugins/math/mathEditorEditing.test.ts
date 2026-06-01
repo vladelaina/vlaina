@@ -38,7 +38,7 @@ describe('mathEditorEditing', () => {
       attrs: { latex: 'x', id: 'node-1' },
     });
     const listener = vi.fn();
-    editorView.dom.addEventListener('vlaina:block-user-input', listener);
+    editorView.dom.addEventListener('editor:block-user-input', listener);
 
     const updated = applyMathNodeLatex(editorView, 7, 'x+1');
 
@@ -86,7 +86,7 @@ describe('mathEditorEditing', () => {
       attrs: { latex: '' },
     });
     const listener = vi.fn();
-    editorView.dom.addEventListener('vlaina:block-user-input', listener);
+    editorView.dom.addEventListener('editor:block-user-input', listener);
 
     const removed = removeMathNode(editorView, 4);
 

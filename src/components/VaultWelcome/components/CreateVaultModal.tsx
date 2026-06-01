@@ -5,6 +5,7 @@ import { openDialog, hasNativeDialogs } from '@/lib/storage/dialog';
 import { joinPath, isWeb } from '@/lib/storage/adapter';
 import { BlurBackdrop } from '@/components/common/BlurBackdrop';
 import { useI18n } from '@/lib/i18n';
+import { themeBackdropTokens, themeDomStyleTokens, themeMotionTokens } from '@/styles/themeTokens';
 
 interface CreateVaultModalProps {
   isOpen: boolean;
@@ -81,22 +82,37 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
         <>
           <BlurBackdrop
             onClick={onClose}
-            overlayClassName="bg-black/20"
-            zIndex={9999}
-            blurPx={8}
-            duration={0.3}
+            overlayClassName="bg-[var(--vlaina-color-backdrop-soft)]"
+            zIndex={themeBackdropTokens.createVaultZIndex}
+            blurPx={themeBackdropTokens.createVaultBlurPx}
+            duration={themeBackdropTokens.createVaultDurationSeconds}
           />
           <div
-            className="fixed inset-0 z-[10000] flex items-center justify-center"
+            className="fixed inset-0 z-[var(--vlaina-z-modal-max)] flex items-center justify-center"
             onKeyDown={handleKeyDown}
           >
             <motion.div
               className="vault-modal"
               onClick={(e) => e.stopPropagation()}
-              initial={{ opacity: 0, scale: 0.96, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 12 }}
-              transition={{ duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
+              initial={{
+                opacity: themeMotionTokens.opacityHidden,
+                scale: themeMotionTokens.vaultModalInitialScale,
+                y: themeMotionTokens.vaultModalY,
+              }}
+              animate={{
+                opacity: themeMotionTokens.opacityVisible,
+                scale: themeMotionTokens.vaultModalVisibleScale,
+                y: themeMotionTokens.vaultModalVisibleY,
+              }}
+              exit={{
+                opacity: themeMotionTokens.opacityHidden,
+                scale: themeMotionTokens.vaultModalInitialScale,
+                y: themeMotionTokens.vaultModalY,
+              }}
+              transition={{
+                duration: themeMotionTokens.vaultModalDuration,
+                ease: themeMotionTokens.vaultModalEase,
+              }}
             >
               <h2 className="vault-modal__title">{t('vault.createNewVault')}</h2>
 
@@ -142,7 +158,11 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
                     title={parentPath}
                     onClick={() => !parentPath && !isWebPlatform && handleBrowse()}
                     readOnly={!parentPath && !isWebPlatform}
-                    style={{ cursor: !parentPath && !isWebPlatform ? 'pointer' : 'text' }}
+                    style={{
+                      cursor: !parentPath && !isWebPlatform
+                        ? themeDomStyleTokens.cursorPointer
+                        : themeDomStyleTokens.cursorText,
+                    }}
                   />
                   {hasNativeDialogs() && (
                     <button className="vault-modal__browse-btn" onClick={handleBrowse}>

@@ -148,7 +148,7 @@ describe("MarkdownRenderer", () => {
 
     expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-remark-count", "4");
     expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-rehype-count", "3");
-    expect(screen.getByTestId("react-markdown").parentElement).toHaveClass("vlaina-markdown-surface");
+    expect(screen.getByTestId("react-markdown").parentElement).toHaveClass("markdown-surface");
   });
 
   it("marks visible streaming markdown for the live transition layer", () => {

@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
+import { themeMotionTokens } from '@/styles/themeTokens';
 
 interface ProviderCardDraft {
   name?: string;
@@ -72,32 +73,32 @@ function ChannelObject({
         onMiddleClick?.();
       }}
       className={cn(
-        'group/channel relative min-h-[112px] rounded-[26px] border transition-all duration-200 cursor-pointer border-transparent',
+        'group/channel relative min-h-[var(--vlaina-size-112px)] rounded-[var(--vlaina-radius-26px)] border transition-all duration-[var(--vlaina-duration-200)] cursor-pointer border-transparent',
         active
-          ? 'bg-[var(--sidebar-row-selected-bg)]'
+          ? 'bg-[var(--vlaina-sidebar-row-selected-bg)]'
           : chatComposerPillSurfaceClass
       )}
     >
       <div className="block w-full px-5 pb-3 pt-5 text-left">
         <div className="min-w-0 pr-7">
           <div className={cn(
-            "truncate text-[14px] font-bold",
-            active ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--notes-sidebar-text)]"
+            "truncate text-[var(--vlaina-font-sm)] font-bold",
+            active ? "text-[var(--vlaina-sidebar-row-selected-text)]" : "text-[var(--vlaina-sidebar-notes-text)]"
           )}>
             {name}
           </div>
         </div>
         <div className={cn(
-          "mt-1 line-clamp-1 pr-7 text-[12px]",
-          active ? "text-[var(--sidebar-row-selected-text)]/80" : "text-[var(--notes-sidebar-text-soft)]"
+          "mt-1 line-clamp-1 pr-7 text-[var(--vlaina-font-xs)]",
+          active ? "text-[var(--vlaina-sidebar-row-selected-text-soft)]" : "text-[var(--vlaina-sidebar-notes-text-soft)]"
         )}>
           {baseUrl ? formatChannelBaseUrl(baseUrl) : t('settings.ai.notConfiguredYet')}
         </div>
       </div>
 
       <div className={cn(
-        "flex items-center justify-between px-5 pb-5 text-[11px] font-bold",
-        active ? "text-[var(--sidebar-row-selected-text)]/70" : "text-[var(--notes-sidebar-text-soft)]"
+        "flex items-center justify-between px-5 pb-5 text-[var(--vlaina-font-11)] font-bold",
+        active ? "text-[var(--vlaina-sidebar-row-selected-text-muted)]" : "text-[var(--vlaina-sidebar-notes-text-soft)]"
       )}>
         <span>{t('settings.ai.modelCount', { count: modelCount })}</span>
         <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
@@ -108,15 +109,15 @@ function ChannelObject({
               onDelete?.();
             }}
             aria-label={t('settings.ai.deleteChannelNamed', { name })}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] opacity-0 transition-all duration-200 hover:bg-transparent hover:text-[var(--vlaina-color-status-danger-fg)] hover:shadow-none group-hover/channel:opacity-100 focus-visible:opacity-100 dark:hover:bg-transparent"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--vlaina-sidebar-notes-text-soft)] opacity-[var(--vlaina-opacity-0)] transition-all duration-[var(--vlaina-duration-200)] hover:bg-transparent hover:text-[var(--vlaina-color-status-danger-fg)] hover:shadow-[var(--vlaina-shadow-none)] group-hover/channel:opacity-[var(--vlaina-opacity-100)] focus-visible:opacity-[var(--vlaina-opacity-100)] dark:hover:bg-transparent"
           >
             <Icon name="common.close" size="xs" />
           </button>
           <SettingsSwitch
             checked={enabled}
             onChange={(nextEnabled) => onToggleEnabled?.(nextEnabled)}
-            className="origin-right scale-[0.84]"
-            activeColor="bg-[var(--sidebar-row-selected-text)]"
+            className="origin-right scale-[var(--vlaina-scale-84)]"
+            activeColor="bg-[var(--vlaina-sidebar-row-selected-text)]"
           />
         </div>
       </div>
@@ -133,13 +134,13 @@ function CreateChannelObject({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       aria-label={t('settings.ai.newChannel')}
       className={cn(
-        "flex min-h-[112px] items-center justify-center rounded-[26px] border border-transparent transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.98]",
+        "flex min-h-[var(--vlaina-size-112px)] items-center justify-center rounded-[var(--vlaina-radius-26px)] border border-transparent transition-all duration-[var(--vlaina-duration-200)] shadow-[var(--vlaina-shadow-sm)] hover:shadow-[var(--vlaina-shadow-md)] active:scale-[var(--vlaina-scale-98)]",
         chatComposerPillSurfaceClass
       )}
     >
       <div className="flex flex-col items-center gap-1">
-        <div className="text-[24px] font-light leading-none text-[var(--notes-sidebar-text-soft)]">+</div>
-        <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--notes-sidebar-text-soft)]">{t('settings.ai.newChannel')}</div>
+        <div className="text-[var(--vlaina-font-24)] font-light leading-none text-[var(--vlaina-sidebar-notes-text-soft)]">+</div>
+        <div className="text-[var(--vlaina-font-10)] font-bold uppercase tracking-widest text-[var(--vlaina-sidebar-notes-text-soft)]">{t('settings.ai.newChannel')}</div>
       </div>
     </button>
   );
@@ -288,7 +289,7 @@ export function AITab() {
   const hasCustomProviders = customProviders.length > 0;
 
   return (
-    <div className="h-full bg-[var(--vlaina-color-setting-panel)] text-[var(--notes-sidebar-text)]">
+    <div className="h-full bg-[var(--vlaina-color-setting-panel)] text-[var(--vlaina-sidebar-notes-text)]">
       <ConfirmDialog
         isOpen={!!pendingDelete}
         title={t('settings.ai.deleteChannelTitle', { name: pendingDelete?.name || t('settings.ai.thisChannel') })}
@@ -305,7 +306,7 @@ export function AITab() {
 
         <section className="mx-auto max-w-5xl">
           <div className="mb-4 px-2">
-            <h3 className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">
+            <h3 className="text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text-soft)]">
               {t('settings.ai.customChannels')}
             </h3>
           </div>
@@ -314,10 +315,22 @@ export function AITab() {
             {hasCustomProviders ? (
               <motion.div
                 key="channels-populated"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                initial={{
+                  opacity: themeMotionTokens.opacityHidden,
+                  y: themeMotionTokens.aiChannelPopulatedInitialY,
+                }}
+                animate={{
+                  opacity: themeMotionTokens.opacityVisible,
+                  y: themeMotionTokens.toastVisibleY,
+                }}
+                exit={{
+                  opacity: themeMotionTokens.opacityHidden,
+                  y: themeMotionTokens.aiChannelPopulatedExitY,
+                }}
+                transition={{
+                  duration: themeMotionTokens.aiChannelPopulatedDuration,
+                  ease: themeMotionTokens.standardEase,
+                }}
                 className="mb-5"
               >
                 <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-4">
@@ -352,25 +365,40 @@ export function AITab() {
             ) : (
               <motion.div
                 key="channels-empty"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                initial={{
+                  opacity: themeMotionTokens.opacityHidden,
+                  y: themeMotionTokens.aiChannelEmptyInitialY,
+                }}
+                animate={{
+                  opacity: themeMotionTokens.opacityVisible,
+                  y: themeMotionTokens.toastVisibleY,
+                }}
+                exit={{
+                  opacity: themeMotionTokens.opacityHidden,
+                  y: themeMotionTokens.aiChannelEmptyExitY,
+                }}
+                transition={{
+                  duration: themeMotionTokens.aiChannelEmptyDuration,
+                  ease: themeMotionTokens.standardEase,
+                }}
                 className="mb-8 px-1"
               >
                 <motion.button
                   type="button"
                   onClick={handleAddCustomProvider}
                   aria-label={t('settings.ai.newChannel')}
-                  transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{
+                    duration: themeMotionTokens.aiChannelEmptyDuration,
+                    ease: themeMotionTokens.standardEase,
+                  }}
                   className={cn(
-                    "w-full rounded-[26px] border border-transparent px-6 py-8 text-left transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.98]",
+                    "w-full rounded-[var(--vlaina-radius-26px)] border border-transparent px-6 py-8 text-left transition-all duration-[var(--vlaina-duration-200)] shadow-[var(--vlaina-shadow-sm)] hover:shadow-[var(--vlaina-shadow-md)] active:scale-[var(--vlaina-scale-98)]",
                     chatComposerPillSurfaceClass
                   )}
                 >
                   <div className="mx-auto flex w-fit flex-col items-center gap-3">
-                    <div className="h-[10px] w-[128px] rounded-full bg-[var(--vlaina-bg-tertiary)]" />
-                    <div className="h-[10px] w-[88px] rounded-full bg-[var(--vlaina-bg-secondary)]" />
+                    <div className="h-[var(--vlaina-size-10px)] w-[var(--vlaina-size-128px)] rounded-full bg-[var(--vlaina-bg-tertiary)]" />
+                    <div className="h-[var(--vlaina-size-10px)] w-[var(--vlaina-size-88px)] rounded-full bg-[var(--vlaina-bg-secondary)]" />
                   </div>
                 </motion.button>
               </motion.div>

@@ -30,6 +30,7 @@ import { ModelSelector } from '@/components/Chat/features/Input/ModelSelector';
 import { Icon } from '@/components/ui/icons';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { useI18n } from '@/lib/i18n';
+import { themeChatLayoutTokens, themeIconTokens, themeMotionTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 
 interface ChatViewProps {
   mode?: 'full' | 'embedded';
@@ -365,7 +366,7 @@ export function ChatView({
       onMouseDownCapture={handleChatAreaMouseDownCapture}
     >
       {isEmbedded && (
-        <div className="relative z-20 flex h-10 flex-none items-center gap-2 bg-[var(--vlaina-bg-primary)] px-3">
+        <div className="relative z-[var(--vlaina-z-20)] flex h-10 flex-none items-center gap-2 bg-[var(--vlaina-bg-primary)] px-3">
           <button
             type="button"
             aria-label={t('chat.openChatSidebar')}
@@ -373,17 +374,17 @@ export function ChatView({
               event.preventDefault();
               openEmbeddedSidebar();
             }}
-            className="group flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[var(--chat-sidebar-text)] transition-colors hover:bg-[var(--vlaina-bg-primary)] hover:text-[var(--chat-sidebar-text)] dark:hover:bg-white/10"
+            className="group flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[var(--vlaina-sidebar-chat-text)] transition-colors hover:bg-[var(--vlaina-color-control-hover-bg)] hover:text-[var(--vlaina-sidebar-chat-text)]"
           >
             {/* Sidebar glyph adapted from Lucide Icons (ISC). */}
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="24"
               height="24"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
+              fill={themeStyleResetTokens.fillNone}
+              viewBox={themeIconTokens.viewBoxDefault}
+              stroke={themeStyleResetTokens.currentColor}
+              strokeWidth={themeIconTokens.strokeDefault}
               strokeLinecap="round"
               strokeLinejoin="round"
               className="lucide lucide-text-align-start-icon lucide-text-align-start size-5 group-hover:hidden"
@@ -416,7 +417,7 @@ export function ChatView({
                   onCloseEmbeddedPanel();
                 }}
                 className={cn(
-                  "flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-[var(--chat-sidebar-text)] transition-colors hover:text-[var(--sidebar-row-selected-text)]",
+                  "flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-[var(--vlaina-sidebar-chat-text)] transition-colors hover:text-[var(--vlaina-sidebar-row-selected-text)]",
                   chatComposerPillSurfaceClass
                 )}
               >
@@ -430,34 +431,37 @@ export function ChatView({
       <AnimatePresence>
         {isEmbedded && isEmbeddedSidebarOpen && (
           <div
-            className="absolute inset-0 z-40"
+            className="absolute inset-0 z-[var(--vlaina-z-40)]"
             aria-hidden={!isEmbeddedSidebarOpen}
             onMouseDownCapture={(event) => event.stopPropagation()}
           >
             <motion.button
               type="button"
               aria-label={t('chat.closeChatSidebar')}
-              className="absolute inset-0 h-full w-full bg-black/[0.035]"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+              className="absolute inset-0 h-full w-full bg-[var(--vlaina-color-overlay-weak)]"
+              initial={{ opacity: themeMotionTokens.opacityHidden }}
+              animate={{ opacity: themeMotionTokens.opacityVisible }}
+              exit={{ opacity: themeMotionTokens.opacityHidden }}
+              transition={{
+                duration: themeMotionTokens.chatEmbeddedOverlayDuration,
+                ease: themeMotionTokens.standardEase,
+              }}
               onPointerDown={(event) => {
                 event.preventDefault();
                 closeEmbeddedSidebar();
               }}
             />
             <motion.div
-              className="relative h-full transform-gpu overflow-hidden rounded-r-[48px] shadow-none will-change-transform"
-              style={{ width: 'min(clamp(16rem, 80%, 21rem), 86vw)' }}
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
+              className="relative h-full transform-gpu overflow-hidden rounded-r-[var(--vlaina-chat-embedded-sidebar-radius)] shadow-[var(--vlaina-shadow-none)] will-change-transform"
+              style={{ width: themeChatLayoutTokens.embeddedSidebarWidth }}
+              initial={{ x: themeMotionTokens.chatEmbeddedSidebarHiddenX }}
+              animate={{ x: themeMotionTokens.chatEmbeddedSidebarVisibleX }}
+              exit={{ x: themeMotionTokens.chatEmbeddedSidebarHiddenX }}
               transition={{
                 type: 'spring',
-                stiffness: 520,
-                damping: 44,
-                mass: 0.82,
+                stiffness: themeMotionTokens.chatEmbeddedSidebarSpringStiffness,
+                damping: themeMotionTokens.chatEmbeddedSidebarSpringDamping,
+                mass: themeMotionTokens.chatEmbeddedSidebarSpringMass,
               }}
             >
               <ChatSidebar embedded onRequestClose={closeEmbeddedSidebar} />
@@ -468,7 +472,7 @@ export function ChatView({
 
       {!isEmbedded && showInChatArea && (
         <div className={cn(
-          "absolute right-4 z-30 pointer-events-auto",
+          "absolute right-4 z-[var(--vlaina-z-30)] pointer-events-auto",
           "top-3"
         )}>
           <TemporaryChatToggle />
@@ -494,14 +498,14 @@ export function ChatView({
 
       <div 
           className={cn(
-              "w-full z-10 flex flex-col",
+              "w-full z-[var(--vlaina-z-10)] flex flex-col",
               isEmpty ? "flex-1 justify-center items-center" : "flex-none pb-6"
           )}
       >
           {isEmpty ? <WelcomeScreen /> : null}
 
           <div 
-            className="w-full max-w-[850px] mx-auto px-4 pointer-events-auto"
+            className="w-full max-w-[var(--vlaina-size-850px)] mx-auto px-4 pointer-events-auto"
           >
               <ChatInput 
                 active={active}

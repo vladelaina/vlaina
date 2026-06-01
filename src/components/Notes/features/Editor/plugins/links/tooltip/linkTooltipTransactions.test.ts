@@ -11,7 +11,7 @@ describe('link tooltip transactions', () => {
         const dispatch = vi.fn();
         const dom = new EventTarget();
         const listener = vi.fn();
-        dom.addEventListener('vlaina:block-user-input', listener);
+        dom.addEventListener('editor:block-user-input', listener);
         const view = {
             dom,
             posAtDOM: vi.fn(() => 3),
@@ -50,7 +50,7 @@ describe('link tooltip transactions', () => {
         const dispatch = vi.fn();
         const dom = new EventTarget();
         const listener = vi.fn();
-        dom.addEventListener('vlaina:block-user-input', listener);
+        dom.addEventListener('editor:block-user-input', listener);
         const view = {
             dom,
             state: {

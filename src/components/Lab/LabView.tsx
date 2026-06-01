@@ -24,9 +24,9 @@ export function LabView() {
           <Icon name="nav.chevronLeft" size="md" />
         </button>
 
-        <div className="h-4 w-[1px] bg-[var(--vlaina-border)] mx-1 shrink-0" />
+        <div className="h-4 w-[var(--vlaina-size-1px)] bg-[var(--vlaina-border)] mx-1 shrink-0" />
 
-        <div className="min-w-0 flex-1 overflow-x-auto vlaina-scrollbar">
+        <div className="min-w-0 flex-1 overflow-x-auto app-scrollbar">
           <div className="flex items-center gap-1 min-w-max pr-4">
             {LAB_MODULES.map((module) => (
               <button
@@ -47,14 +47,14 @@ export function LabView() {
       </div>
 
       <div className="flex-1 overflow-hidden relative bg-[var(--vlaina-bg-secondary)]">
-        <div className="absolute inset-0 overflow-y-auto vlaina-scrollbar p-8">
+        <div className="absolute inset-0 overflow-y-auto app-scrollbar p-8">
           {ActiveComponent ? (
             <ActiveComponent />
           ) : (
             <div className="flex min-h-full items-center justify-center">
               <div className="rounded-3xl border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-8 py-10 text-center shadow-[var(--vlaina-shadow-panel-soft)]">
-                <div className="text-[15px] font-semibold text-[var(--vlaina-color-text-strong)]">{t('lab.noModules')}</div>
-                <div className="mt-2 text-[13px] text-[var(--vlaina-color-text-soft)]">{t('lab.empty')}</div>
+                <div className="text-[var(--vlaina-font-15)] font-semibold text-[var(--vlaina-color-text-strong)]">{t('lab.noModules')}</div>
+                <div className="mt-2 text-[var(--vlaina-font-13)] text-[var(--vlaina-color-text-soft)]">{t('lab.empty')}</div>
               </div>
             </div>
           )}

@@ -38,7 +38,7 @@ describe('mermaidEditorEditing', () => {
       attrs: { code: 'graph TD', id: 'node-1' },
     });
     const listener = vi.fn();
-    editorView.dom.addEventListener('vlaina:block-user-input', listener);
+    editorView.dom.addEventListener('editor:block-user-input', listener);
 
     const updated = applyMermaidNodeCode(editorView, 7, 'graph TD\nA --> B');
 
@@ -86,7 +86,7 @@ describe('mermaidEditorEditing', () => {
       attrs: { code: '' },
     });
     const listener = vi.fn();
-    editorView.dom.addEventListener('vlaina:block-user-input', listener);
+    editorView.dom.addEventListener('editor:block-user-input', listener);
 
     const removed = removeMermaidNode(editorView, 4);
 

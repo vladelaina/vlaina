@@ -566,8 +566,8 @@ describe('SidebarContent search highlight cleanup', () => {
   it('opens files and folders from the empty hint actions', () => {
     const openFileHandler = vi.fn();
     const openFolderHandler = vi.fn();
-    window.addEventListener('vlaina-open-markdown-target-file', openFileHandler);
-    window.addEventListener('vlaina-open-markdown-target-folder', openFolderHandler);
+    window.addEventListener('app-open-markdown-target-file', openFileHandler);
+    window.addEventListener('app-open-markdown-target-folder', openFolderHandler);
 
     try {
       const { getByTestId } = render(
@@ -589,8 +589,8 @@ describe('SidebarContent search highlight cleanup', () => {
       expect(openFileHandler).toHaveBeenCalledTimes(1);
       expect(openFolderHandler).toHaveBeenCalledTimes(1);
     } finally {
-      window.removeEventListener('vlaina-open-markdown-target-file', openFileHandler);
-      window.removeEventListener('vlaina-open-markdown-target-folder', openFolderHandler);
+      window.removeEventListener('app-open-markdown-target-file', openFileHandler);
+      window.removeEventListener('app-open-markdown-target-folder', openFolderHandler);
     }
   });
 

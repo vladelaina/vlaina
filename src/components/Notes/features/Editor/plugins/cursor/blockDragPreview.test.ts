@@ -358,7 +358,7 @@ describe('createBlockDragPreview', () => {
     expect(preview).not.toBeNull();
     expect(preview?.element.textContent).toBe('A');
     expect(preview?.element.style.width).toBe('80px');
-    expect(paragraph.classList.contains('vlaina-block-drag-source')).toBe(false);
+    expect(paragraph.classList.contains('editor-block-drag-source')).toBe(false);
 
     preview?.destroy();
     getClientRectsSpy.mockRestore();

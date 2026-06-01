@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { guessLanguage } from '../../../utils/languageGuesser';
 import { codeBlockLanguages } from '../codeBlockLanguageLoader';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import { themeIconTokens } from '@/styles/themeTokens';
 
 interface LanguageSelectorProps {
     language: string;
@@ -100,7 +101,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
             <PopoverAnchor asChild>
                 <button
                     type="button"
-                    className="inline-flex min-h-7 cursor-pointer items-center justify-center rounded-full px-1 transition-colors duration-150 select-none"
+                    className="inline-flex min-h-7 cursor-pointer items-center justify-center rounded-full px-1 transition-colors duration-[var(--vlaina-duration-150)] select-none"
                     onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -108,7 +109,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                     }}
                     onPointerDown={(e) => e.stopPropagation()}
                 >
-                    <span className="vlaina-code-block-language-label whitespace-nowrap">
+                    <span className="code-block-chrome-language-label whitespace-nowrap">
                         {displayName}
                     </span>
                 </button>
@@ -117,7 +118,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                 align="start"
                 sideOffset={8}
                 className={cn(
-                    "w-[220px] overflow-hidden flex flex-col p-0 !rounded-[26px]",
+                    "w-[var(--vlaina-size-220px)] overflow-hidden flex flex-col p-0 !rounded-[var(--vlaina-radius-26px)]",
                     chatComposerPillSurfaceClass,
                 )}
                 onOpenAutoFocus={(e) => e.preventDefault()}
@@ -127,15 +128,15 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                 <div className="px-2 pt-2 pb-1">
                     <div
                         className={cn(
-                            "relative flex h-[40px] items-center gap-2 rounded-full pl-3 pr-1",
+                            "relative flex h-[var(--vlaina-size-40px)] items-center gap-2 rounded-full pl-3 pr-1",
                             chatComposerPillSurfaceClass,
                         )}
                     >
-                        <Icon size={18} name="common.search" className="text-[var(--vlaina-color-text-soft)]" />
+                        <Icon size={themeIconTokens.sizeCompact} name="common.search" className="text-[var(--vlaina-color-text-soft)]" />
                         <input
                             ref={searchInputRef}
                             spellCheck={false}
-                            className="h-8 min-w-0 flex-1 bg-transparent py-0 text-[16px] leading-5 text-[var(--vlaina-color-text-soft)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]"
+                            className="h-8 min-w-0 flex-1 bg-transparent py-0 text-[var(--vlaina-font-base)] leading-5 text-[var(--vlaina-color-text-soft)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]"
                             placeholder={t('editor.searchLanguage')}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -149,14 +150,14 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                                 handleAutoDetect();
                             }}
                             title={t('editor.autoDetectLanguage')}
-                            className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-blue-500/10 hover:text-blue-500"
+                            className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-[var(--vlaina-color-status-info-bg)] hover:text-[var(--vlaina-color-status-info-fg)]"
                         >
                             <Icon size="md" name="common.sparkle" />
                         </button>
                     </div>
                 </div>
 
-                <div ref={scrollRef} className="max-h-[240px] overflow-y-auto p-1 vlaina-scrollbar">
+                <div ref={scrollRef} className="max-h-[var(--vlaina-size-240px)] overflow-y-auto p-1 app-scrollbar">
                     {filteredLanguages.length > 0 ? (
                         filteredLanguages.map((lang, index) => {
                             return (
@@ -172,10 +173,10 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                                     className={cn(
                                         "flex w-full cursor-pointer items-center gap-2 rounded-full px-3 py-2 text-left text-xs transition-colors",
                                         language === lang.id
-                                            ? "bg-[var(--notes-sidebar-row-active)] text-[var(--sidebar-row-selected-text)] font-[550]"
+                                            ? "bg-[var(--vlaina-sidebar-notes-row-active)] text-[var(--vlaina-sidebar-row-selected-text)] font-[var(--vlaina-font-weight-semibold-plus)]"
                                             : index === activeIndex
-                                                ? "bg-[var(--notes-sidebar-row-hover)] text-[var(--notes-sidebar-text)]"
-                                                : "text-[var(--notes-sidebar-text-muted)] hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)]"
+                                                ? "bg-[var(--vlaina-sidebar-notes-row-hover)] text-[var(--vlaina-sidebar-notes-text)]"
+                                                : "text-[var(--vlaina-sidebar-notes-text-muted)] hover:bg-[var(--vlaina-sidebar-notes-row-hover)] hover:text-[var(--vlaina-sidebar-notes-text)]"
                                     )}
                                 >
                                     <span>{lang.name.toLowerCase()}</span>
@@ -183,7 +184,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                             );
                         })
                     ) : (
-                        <div className="px-4 py-8 text-center text-xs text-gray-400 italic">
+                        <div className="px-4 py-8 text-center text-xs text-[var(--vlaina-text-tertiary)] italic">
                             {t('editor.noLanguagesFound')}
                         </div>
                     )}

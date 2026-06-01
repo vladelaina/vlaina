@@ -25,6 +25,7 @@ import {
   createVerticalEdgeAutoScroll,
   resolveVerticalEdgeAutoScrollDelta,
 } from './edgeAutoScroll';
+import { themeDomStyleTokens, themeRenderingTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 
 interface BlankAreaSelectionPlainClickResult {
   zone: BlockDragStartZone;
@@ -52,20 +53,20 @@ interface StartBlankAreaSelectionSessionOptions {
 function createDragBox(doc: Document, dragBoxColor: string): HTMLDivElement {
   const box = doc.createElement('div');
   box.setAttribute('data-editor-drag-box', 'true');
-  box.style.position = 'fixed';
-  box.style.pointerEvents = 'none';
-  box.style.zIndex = '9999';
-  box.style.border = '0';
+  box.style.position = themeDomStyleTokens.positionFixed;
+  box.style.pointerEvents = themeStyleResetTokens.pointerEventsNone;
+  box.style.zIndex = themeDomStyleTokens.zIndexMax;
+  box.style.border = themeDomStyleTokens.borderNone;
   box.style.background = dragBoxColor;
-  box.style.borderRadius = '0';
-  box.style.left = '0px';
-  box.style.top = '0px';
-  box.style.transform = 'translate3d(0px, 0px, 0)';
-  box.style.transformOrigin = '0 0';
-  box.style.willChange = 'transform, width, height';
-  box.style.contain = 'layout paint style';
-  box.style.width = '0px';
-  box.style.height = '0px';
+  box.style.borderRadius = themeStyleResetTokens.borderRadiusNone;
+  box.style.left = themeDomStyleTokens.sizeZeroPx;
+  box.style.top = themeDomStyleTokens.sizeZeroPx;
+  box.style.transform = themeRenderingTokens.translate3dZeroPx;
+  box.style.transformOrigin = `${themeDomStyleTokens.sizeZero} ${themeDomStyleTokens.sizeZero}`;
+  box.style.willChange = themeRenderingTokens.transformSizeWillChange;
+  box.style.contain = themeRenderingTokens.containLayoutPaintStyle;
+  box.style.width = themeDomStyleTokens.sizeZeroPx;
+  box.style.height = themeDomStyleTokens.sizeZeroPx;
   return box;
 }
 

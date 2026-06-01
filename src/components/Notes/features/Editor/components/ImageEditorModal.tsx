@@ -62,13 +62,13 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden bg-[var(--vlaina-bg-primary)] border-[var(--vlaina-border)]">
+            <DialogContent className="sm:max-w-[var(--vlaina-size-600px)] p-0 overflow-hidden bg-[var(--vlaina-bg-primary)] border-[var(--vlaina-border)]">
                 <DialogHeader className="p-4 border-b border-[var(--vlaina-border)]">
                     <DialogTitle className="text-sm font-medium">{t('notes.editImage')}</DialogTitle>
                 </DialogHeader>
 
                 <div className="p-0">
-                    <div className="relative h-[400px] w-full bg-black/5">
+                    <div className="relative h-[var(--vlaina-size-400px)] w-full bg-[var(--vlaina-color-overlay-weak)]">
                         <Cropper
                             image={imageSrc}
                             crop={crop}
@@ -99,7 +99,7 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
                     </div>
                 </div>
 
-                <DialogFooter className="p-4 border-t border-[var(--vlaina-border)] flex justify-between sm:justify-between items-center bg-[var(--vlaina-bg-secondary)]/30">
+                <DialogFooter className="p-4 border-t border-[var(--vlaina-border)] flex justify-between sm:justify-between items-center bg-[var(--vlaina-color-secondary-panel-bg)]">
                     <Button
                         variant="ghost"
                         size="sm"
@@ -113,8 +113,8 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
                         onClick={handleSave}
                         disabled={isSaving}
                         className={cn(
-                            "bg-[var(--vlaina-accent)] hover:bg-[var(--vlaina-accent-hover)] text-white px-6 rounded-lg font-medium shadow-sm transition-all active:scale-95",
-                            isSaving && "opacity-70 cursor-not-allowed"
+                            "bg-[var(--vlaina-accent)] hover:bg-[var(--vlaina-accent-hover)] text-[var(--vlaina-color-white)] px-6 rounded-lg font-medium shadow-[var(--vlaina-shadow-sm)] transition-all active:scale-[var(--vlaina-scale-95)]",
+                            isSaving && "opacity-[var(--vlaina-opacity-70)] cursor-not-allowed"
                         )}
                     >
                         {isSaving ? t('common.saving') : t('common.saveChanges')}

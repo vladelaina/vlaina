@@ -3,6 +3,7 @@ import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { loadImageThumbnailAsBlob } from '@/lib/assets/io/reader';
 import { resolveVaultAssetPath } from '@/lib/assets/core/paths';
+import { themeDomStyleTokens, themeLazyLoadTokens } from '@/styles/themeTokens';
 
 const MAX_CONCURRENT_THUMBNAIL_LOADS = 2;
 
@@ -111,7 +112,10 @@ export const AssetThumbnail = memo(function AssetThumbnail({
           observer.disconnect();
         }
       },
-      { rootMargin: '80px', threshold: 0.01 }
+      {
+        rootMargin: themeLazyLoadTokens.assetThumbnailRootMargin,
+        threshold: themeLazyLoadTokens.assetThumbnailThreshold,
+      }
     );
 
     observer.observe(imgRef.current);
@@ -143,7 +147,7 @@ export const AssetThumbnail = memo(function AssetThumbnail({
       className={cn(
         "relative aspect-square rounded-lg overflow-hidden cursor-pointer",
         "bg-[var(--vlaina-bg-tertiary)] border border-transparent",
-        "hover:border-[var(--vlaina-accent)] transition-all duration-200",
+        "hover:border-[var(--vlaina-accent)] transition-all duration-[var(--vlaina-duration-200)]",
         "group"
       )}
       onClick={onSelect}
@@ -153,11 +157,11 @@ export const AssetThumbnail = memo(function AssetThumbnail({
           <img
             src={src}
             alt={displayName}
-            loading="lazy"
-            decoding="async"
+            loading={themeDomStyleTokens.iframeLoadingLazy}
+            decoding={themeDomStyleTokens.imageDecodingAsync}
             className={cn(
-              "w-full h-full object-cover transition-opacity duration-200",
-              isLoaded ? "opacity-100" : "opacity-0"
+              "w-full h-full object-cover transition-opacity duration-[var(--vlaina-duration-200)]",
+              isLoaded ? "opacity-[var(--vlaina-opacity-100)]" : "opacity-[var(--vlaina-opacity-0)]"
             )}
             onLoad={() => setIsLoaded(true)}
             onError={handleImageError}
@@ -177,13 +181,13 @@ export const AssetThumbnail = memo(function AssetThumbnail({
       {!compact && (
         <div
           className={cn(
-            "absolute inset-0 bg-black/60 flex flex-col justify-end p-2",
-            "transition-opacity duration-200",
-            isHovered ? "opacity-100" : "opacity-0"
+            "absolute inset-0 bg-[var(--vlaina-color-image-overlay-bg)] flex flex-col justify-end p-2",
+            "transition-opacity duration-[var(--vlaina-duration-200)]",
+            isHovered ? "opacity-[var(--vlaina-opacity-100)]" : "opacity-[var(--vlaina-opacity-0)]"
           )}
         >
-          <p className="text-white text-xs truncate font-medium">{displayName}</p>
-          <p className="text-white/70 text-xs">{formatSize(size)}</p>
+          <p className="text-[var(--vlaina-color-image-overlay-fg)] text-xs truncate font-medium">{displayName}</p>
+          <p className="text-[var(--vlaina-color-image-overlay-muted-fg)] text-xs">{formatSize(size)}</p>
         </div>
       )}
     </div>

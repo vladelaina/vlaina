@@ -21,7 +21,7 @@ interface IconSelectorProps {
   compact?: boolean;
   trigger?: React.ReactNode;
   hideColorPicker?: boolean;
-  
+
   customIcons?: CustomIcon[];
   onUploadFile?: (file: File) => Promise<{ success: boolean; url?: string; error?: string }>;
   onDeleteCustomIcon?: (id: string) => void;
@@ -29,7 +29,7 @@ interface IconSelectorProps {
 }
 
 const QUICK_ICONS = [
-  'coffee', 'book', 'code', 'briefcase', 'heart', 'flame', 
+  'coffee', 'book', 'code', 'briefcase', 'heart', 'flame',
   'music', 'gamepad', 'home', 'car', 'plane', 'wallet',
 ];
 
@@ -68,7 +68,7 @@ export function IconSelector({
             <PopoverTrigger asChild>
               {trigger ? trigger : (
                 <button
-                  className="w-[18px] h-[18px] flex items-center justify-center rounded hover:bg-[var(--vlaina-hover)] transition-colors"
+                  className="w-[var(--vlaina-size-18px)] h-[var(--vlaina-size-18px)] flex items-center justify-center rounded hover:bg-[var(--vlaina-hover)] transition-colors"
                   title={t('icon.changeIcon')}
                   onMouseEnter={() => handlePreview(value || null)}
                   onMouseLeave={() => handlePreview(null)}
@@ -81,9 +81,9 @@ export function IconSelector({
                 </button>
               )}
             </PopoverTrigger>
-            <PopoverContent 
-                className="w-auto p-0 border-none bg-transparent shadow-none animate-none transition-none data-[state=open]:animate-none data-[state=closed]:animate-none data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100" 
-                side="bottom" 
+            <PopoverContent
+                className="w-auto p-0 border-none bg-transparent shadow-[var(--vlaina-shadow-none)] animate-none transition-none data-[state=open]:animate-none data-[state=closed]:animate-none data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100"
+                side="bottom"
                 align="start"
                 data-no-auto-close
             >
@@ -114,15 +114,15 @@ export function IconSelector({
           onMouseEnter={() => handlePreview(null)}
           className={cn(
             "w-6 h-6 rounded-md flex items-center justify-center transition-all",
-            !value 
-              ? "bg-[var(--vlaina-hover-filled)] text-[var(--vlaina-color-text-secondary)]" 
+            !value
+              ? "bg-[var(--vlaina-hover-filled)] text-[var(--vlaina-color-text-secondary)]"
               : "text-[var(--vlaina-color-text-soft)] hover:bg-[var(--vlaina-hover)]"
           )}
           title={t('icon.clearIcon')}
         >
           <Icon size="md" name="common.block" />
         </button>
-        
+
         {QUICK_ICONS.slice(0, 6).map((name) => (
             <button
               key={name}
@@ -130,15 +130,15 @@ export function IconSelector({
               onMouseEnter={() => handlePreview(name)}
               className={cn(
                 "w-6 h-6 rounded-md flex items-center justify-center transition-all",
-                 value === name 
-                  ? "bg-[var(--vlaina-hover-filled)] text-[var(--vlaina-color-text-strong)]" 
+                 value === name
+                  ? "bg-[var(--vlaina-hover-filled)] text-[var(--vlaina-color-text-strong)]"
                   : "text-[var(--vlaina-color-text-soft)] hover:bg-[var(--vlaina-hover)]"
               )}
             >
                <AppIcon icon={name} size="md" color={colorHex} />
             </button>
         ))}
-        
+
         <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild>
                 <button
@@ -151,9 +151,9 @@ export function IconSelector({
                     <Icon size="md" name="common.more" />
                 </button>
             </PopoverTrigger>
-            <PopoverContent 
-                className="w-auto p-0 border-none bg-transparent shadow-none" 
-                side="right" 
+            <PopoverContent
+                className="w-auto p-0 border-none bg-transparent shadow-[var(--vlaina-shadow-none)]"
+                side="right"
                 align="start"
                 data-no-auto-close
             >

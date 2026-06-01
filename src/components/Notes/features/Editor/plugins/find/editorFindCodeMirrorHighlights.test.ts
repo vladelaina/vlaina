@@ -63,8 +63,8 @@ describe('editorFindCodeMirrorHighlights', () => {
       { from: 6, to: 11, active: true },
     ]);
 
-    expect(cm.dom.querySelectorAll('.vlaina-editor-find-match')).toHaveLength(2);
-    expect(cm.dom.querySelectorAll('.vlaina-editor-find-match-active')).toHaveLength(1);
+    expect(cm.dom.querySelectorAll('.editor-find-match')).toHaveLength(2);
+    expect(cm.dom.querySelectorAll('.editor-find-match-active')).toHaveLength(1);
 
     cm.destroy();
     host.remove();
@@ -88,13 +88,13 @@ describe('editorFindCodeMirrorHighlights', () => {
     ]);
     cm.dispatch({ selection: { anchor: 1, head: 4 } });
 
-    expect(cm.dom.querySelectorAll('.vlaina-editor-find-match-selected')).toHaveLength(1);
-    expect(cm.dom.querySelectorAll('.vlaina-editor-find-match-active.vlaina-editor-find-match-selected')).toHaveLength(0);
+    expect(cm.dom.querySelectorAll('.editor-find-match-selected')).toHaveLength(1);
+    expect(cm.dom.querySelectorAll('.editor-find-match-active.editor-find-match-selected')).toHaveLength(0);
 
     cm.dispatch({ selection: { anchor: 6, head: 11 } });
 
-    expect(cm.dom.querySelectorAll('.vlaina-editor-find-match-selected')).toHaveLength(1);
-    expect(cm.dom.querySelectorAll('.vlaina-editor-find-match-active.vlaina-editor-find-match-selected')).toHaveLength(1);
+    expect(cm.dom.querySelectorAll('.editor-find-match-selected')).toHaveLength(1);
+    expect(cm.dom.querySelectorAll('.editor-find-match-active.editor-find-match-selected')).toHaveLength(1);
 
     cm.destroy();
     host.remove();

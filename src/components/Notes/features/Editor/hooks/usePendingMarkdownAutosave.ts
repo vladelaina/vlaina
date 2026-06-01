@@ -10,6 +10,7 @@ import {
 } from '../utils/pendingMarkdownUpdate';
 import { hasCommittedCompositionText } from '../utils/compositionMarkdown';
 import { usePendingMarkdownFlusher } from './usePendingMarkdownFlusher';
+import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 interface MilkdownToken<T> {
   readonly __milkdownType?: T;
@@ -33,10 +34,6 @@ const CONTENT_EDITING_KEYS = new Set([
 ]);
 const ALLOW_SYNTHETIC_USER_EVENTS =
   import.meta.env.MODE === 'test' || Boolean(import.meta.env.VITEST);
-const DEFAULT_CONTENT_COMMIT_THROTTLE_MS = 120;
-const TEST_CONTENT_COMMIT_THROTTLE_MS = 0;
-const COMPOSITION_SETTLE_MS = 220;
-
 interface PendingMarkdownAutosaveOptions {
   currentNotePath: string | undefined;
   currentNoteDiskRevision: number;
@@ -49,9 +46,9 @@ function getContentCommitThrottleMs(): number {
   if (import.meta.env.MODE === 'test' || Boolean(import.meta.env.VITEST)) {
     const override = (globalThis as { __VL_TEST_CONTENT_COMMIT_THROTTLE_MS__?: number })
       .__VL_TEST_CONTENT_COMMIT_THROTTLE_MS__;
-    return typeof override === 'number' ? override : TEST_CONTENT_COMMIT_THROTTLE_MS;
+    return typeof override === 'number' ? override : themeUiFeedbackTokens.editorPendingMarkdownTestCommitThrottleMs;
   }
-  return DEFAULT_CONTENT_COMMIT_THROTTLE_MS;
+  return themeUiFeedbackTokens.editorPendingMarkdownCommitThrottleMs;
 }
 
 function publishLiveMarkdownPreview(path: string | undefined, content: string) {
@@ -59,7 +56,7 @@ function publishLiveMarkdownPreview(path: string | undefined, content: string) {
     return;
   }
 
-  window.dispatchEvent(new CustomEvent('vlaina:note-markdown-preview', {
+  window.dispatchEvent(new CustomEvent('editor:note-markdown-preview', {
     detail: { path, content },
   }));
 }
@@ -68,7 +65,7 @@ function isContentEditingUserEvent(event: Event): boolean {
   if (event.type === 'compositionstart' || event.type === 'compositionend') {
     return true;
   }
-  if (event.type.startsWith('vlaina:')) {
+  if (event.type.startsWith('editor:')) {
     return true;
   }
   if (!event.isTrusted && !ALLOW_SYNTHETIC_USER_EVENTS) {
@@ -234,7 +231,7 @@ export function usePendingMarkdownAutosave({
 
   const configureMarkdownListener = useCallback((ctx: MilkdownContext, initialContent: string) => {
     const initTime = Date.now();
-    const INIT_PERIOD = 500;
+    const INIT_PERIOD = themeUiFeedbackTokens.editorInitNoiseWindowMs;
 
     const processMarkdown = (
       markdown: string,
@@ -319,7 +316,7 @@ export function usePendingMarkdownAutosave({
         if (hasCommittedCompositionText(deferredMarkdown, latestCompositionData)) {
           processMarkdown(deferredMarkdown, deferredUserInputVersion);
         }
-      }, COMPOSITION_SETTLE_MS);
+      }, themeUiFeedbackTokens.editorCompositionSettleMs);
     };
 
     return (markdown: string) => {

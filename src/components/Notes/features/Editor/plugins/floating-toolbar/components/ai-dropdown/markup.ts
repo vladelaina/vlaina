@@ -36,7 +36,7 @@ function buildShortcutHint(item: AiMenuItem): string {
 
 function buildRootMarkup(groups: readonly AiMenuGroup[]): string {
   return `
-    <div class="ai-dropdown-root !rounded-[26px] ${chatComposerPillSurfaceClass}">
+    <div class="ai-dropdown-root !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}">
       ${groups.map((group, index) => `
         ${group.rootAction ? `
           <button
@@ -70,7 +70,7 @@ function buildRootMarkup(groups: readonly AiMenuGroup[]): string {
 
 function buildItemsMarkup(group: AiMenuGroup): string {
   return `
-    <div class="ai-dropdown-children !rounded-[26px] ${chatComposerPillSurfaceClass}" data-ai-category-panel="${group.id}">
+    <div class="ai-dropdown-children !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}" data-ai-category-panel="${group.id}">
       ${group.items.map((item) => `
         <button
           class="ai-dropdown-item"

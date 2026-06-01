@@ -341,7 +341,7 @@ describe('fileTreePointerDragState', () => {
       expect(dropTarget.textContent).toBe('Archive');
       expect(screen.getAllByTestId('source')).toHaveLength(2);
       const preview = screen.getAllByTestId('source')[1] as HTMLElement;
-      expect(preview.style.backgroundColor).toBe('var(--notes-sidebar-surface)');
+      expect(preview.style.backgroundColor).toBe('var(--vlaina-sidebar-notes-surface)');
       expect(preview.style.boxShadow).toBe('none');
     });
 

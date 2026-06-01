@@ -6,6 +6,7 @@ import {
   createAppliedPreviewState,
   renderAppliedPreviewDocument,
 } from './appliedPreviewState';
+import { themeStyleResetTokens } from '@/styles/themeTokens';
 import {
   convertBlockType,
   setBgColor,
@@ -117,7 +118,7 @@ function renderAppliedPreview(
   const parent = view.dom.parentElement;
   const previewDom = preview.dom;
   previewDom.classList.add('toolbar-applied-preview-overlay');
-  previewDom.style.pointerEvents = 'none';
+  previewDom.style.pointerEvents = themeStyleResetTokens.pointerEventsNone;
 
   previewOverlay = {
     key,
@@ -129,7 +130,7 @@ function renderAppliedPreview(
   };
 
   parent.insertBefore(previewDom, view.dom);
-  view.dom.style.display = 'none';
+  view.dom.style.display = themeStyleResetTokens.displayNone;
   view.dom.setAttribute('data-toolbar-preview-hidden', 'true');
   return true;
 }
@@ -148,7 +149,7 @@ function renderSelectionHiddenPreview(view: EditorView, key: string): boolean {
 
   const previewDom = renderAppliedPreviewDocument(view.state, view.dom, view.dom.ownerDocument);
   previewDom.classList.add('toolbar-applied-preview-overlay', 'toolbar-selection-hidden-preview');
-  previewDom.style.pointerEvents = 'none';
+  previewDom.style.pointerEvents = themeStyleResetTokens.pointerEventsNone;
 
   previewOverlay = {
     key,
@@ -160,7 +161,7 @@ function renderSelectionHiddenPreview(view: EditorView, key: string): boolean {
   };
 
   view.dom.parentElement.insertBefore(previewDom, view.dom);
-  view.dom.style.display = 'none';
+  view.dom.style.display = themeStyleResetTokens.displayNone;
   view.dom.setAttribute('data-toolbar-preview-hidden', 'true');
   return true;
 }

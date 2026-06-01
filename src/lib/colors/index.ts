@@ -1,4 +1,4 @@
-import { themeColorTokens } from '@/styles/themeTokens';
+import { themeColorTokens, themeEventColorTokens } from '@/styles/themeTokens';
 
 export type ItemColor = 'red' | 'amber' | 'yellow' | 'green' | 'blue' | 'purple' | 'brown' | 'default';
 
@@ -77,18 +77,18 @@ export interface EventInlineStyles {
 function generateEventInlineStyles(def: ColorDefinition): EventInlineStyles {
   const { hex, darkText } = def;
   const textColor = darkText || hex;
-  
+
   return {
-    bg: hexToRgba(hex, 0.10),
-    bgDark: hexToRgba(hex, 0.20),
+    bg: hexToRgba(hex, themeEventColorTokens.eventBgAlpha),
+    bgDark: hexToRgba(hex, themeEventColorTokens.eventBgDarkAlpha),
     text: hex,
     textDark: textColor,
-    border: hexToRgba(hex, 0.40),
-    borderDark: hexToRgba(hex, 0.50),
-    ring: hexToRgba(hex, 0.30),
-    ringDark: hexToRgba(hex, 0.20),
-    fill: hexToRgba(hex, 0.30),
-    fillDark: hexToRgba(hex, 0.40),
+    border: hexToRgba(hex, themeEventColorTokens.eventBorderAlpha),
+    borderDark: hexToRgba(hex, themeEventColorTokens.eventBorderDarkAlpha),
+    ring: hexToRgba(hex, themeEventColorTokens.eventRingAlpha),
+    ringDark: hexToRgba(hex, themeEventColorTokens.eventRingDarkAlpha),
+    fill: hexToRgba(hex, themeEventColorTokens.eventFillAlpha),
+    fillDark: hexToRgba(hex, themeEventColorTokens.eventFillDarkAlpha),
     accent: hex,
   };
 }
@@ -113,14 +113,14 @@ export interface AllDayInlineStyles {
 function generateAllDayInlineStyles(def: ColorDefinition): AllDayInlineStyles {
   const { hex, darkText } = def;
   const textColor = darkText || hex;
-  
+
   return {
-    bg: hexToRgba(hex, 0.15),
-    bgDark: hexToRgba(hex, 0.25),
+    bg: hexToRgba(hex, themeEventColorTokens.allDayBgAlpha),
+    bgDark: hexToRgba(hex, themeEventColorTokens.allDayBgDarkAlpha),
     text: hex,
     textDark: textColor,
-    border: hexToRgba(hex, 0.50),
-    borderDark: hexToRgba(hex, 0.60),
+    border: hexToRgba(hex, themeEventColorTokens.allDayBorderAlpha),
+    borderDark: hexToRgba(hex, themeEventColorTokens.allDayBorderDarkAlpha),
   };
 }
 
@@ -156,7 +156,7 @@ export const COLOR_PICKER_OPTIONS: readonly ColorOption[] = COLOR_DEFINITIONS.ma
   label: def.name === 'default' ? 'Default' : def.name.charAt(0).toUpperCase() + def.name.slice(1),
 }));
 
-export const RAINBOW_GRADIENT = `linear-gradient(135deg, ${COLOR_DEFINITIONS.slice(0, 6).map(c => c.hex).join(', ')})`;
+export const RAINBOW_GRADIENT = `linear-gradient(${themeEventColorTokens.rainbowGradientAngle}, ${COLOR_DEFINITIONS.slice(0, themeEventColorTokens.rainbowGradientColorCount).map(c => c.hex).join(', ')})`;
 
 export interface ContextMenuColorOption {
   name: ItemColor;

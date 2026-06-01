@@ -296,9 +296,9 @@ export function SidebarContent({
       setLiveNoteContent({ path: detail.path, content: detail.content });
     };
 
-    window.addEventListener('vlaina:note-markdown-preview', handleLiveMarkdownPreview);
+    window.addEventListener('editor:note-markdown-preview', handleLiveMarkdownPreview);
     return () => {
-      window.removeEventListener('vlaina:note-markdown-preview', handleLiveMarkdownPreview);
+      window.removeEventListener('editor:note-markdown-preview', handleLiveMarkdownPreview);
     };
   }, [active, currentNote?.content, currentNote?.path, currentNotePath]);
 
@@ -505,11 +505,11 @@ export function SidebarContent({
   };
 
   const handleOpenMarkdownFile = () => {
-    window.dispatchEvent(new Event('vlaina-open-markdown-target-file'));
+    window.dispatchEvent(new Event('app-open-markdown-target-file'));
   };
 
   const handleOpenFolder = () => {
-    window.dispatchEvent(new Event('vlaina-open-markdown-target-folder'));
+    window.dispatchEvent(new Event('app-open-markdown-target-folder'));
   };
 
   return (
@@ -546,7 +546,7 @@ export function SidebarContent({
 
         <NotesSidebarScrollArea
           ref={scrollRootRef}
-          className={cn(isPeeking ? 'vlaina-scrollbar-rounded pt-4 pb-4' : 'pt-0')}
+          className={cn(isPeeking ? 'app-scrollbar-rounded pt-4 pb-4' : 'pt-0')}
           scrollbarInsetRight={SIDEBAR_CAPSULE_SCROLLBAR_INSET_RIGHT}
           data-notes-sidebar-scroll-root="true"
           onScroll={handleScroll}
@@ -591,7 +591,7 @@ export function SidebarContent({
                 data-notes-sidebar-blank-drag-root="true"
                 className={cn(
                   'flex flex-1 justify-center',
-                  hasFileTreeEntries ? 'min-h-0 items-center' : 'min-h-[160px] items-center',
+                  hasFileTreeEntries ? 'min-h-0 items-center' : 'min-h-[var(--vlaina-size-160px)] items-center',
                 )}
               >
                 {shouldShowInlineEmptyHint ? (
@@ -608,7 +608,7 @@ export function SidebarContent({
         </NotesSidebarScrollArea>
       </SidebarCapsulePanel>
       {shouldShowFloatingEmptyHint && !sidebarCollapsed ? (
-        <div className="pointer-events-none fixed bottom-5 left-4 z-50 flex w-[calc(var(--vlaina-shell-sidebar-width)-32px)] justify-center">
+        <div className="pointer-events-none fixed bottom-5 left-4 z-[var(--vlaina-z-50)] flex w-[var(--vlaina-width-sidebar-content-inner)] justify-center">
           <NotesSidebarHoverEmptyHint
             actions={[
               { label: t('notes.file'), onAction: handleOpenMarkdownFile },

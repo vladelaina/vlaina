@@ -28,6 +28,7 @@ import { useI18n } from '@/lib/i18n';
 import { clearRemoteImageMemoryCache } from './features/Editor/plugins/image-block/utils/remoteImageMemoryCache';
 import { preloadMarkdownEditor } from './features/Editor/preloadMarkdownEditor';
 import { shouldAutoCreateBlankDraft } from './autoCreateBlankDraftPolicy';
+import { themeBackdropTokens, themeEditorLayoutTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 const EmbeddedChatView = lazy(async () => {
   const mod = await import('@/components/Chat/ChatView');
@@ -186,7 +187,7 @@ export function NotesView({
     }
 
     lastPresentedNotesErrorRef.current = notesError;
-    addToast(notesError, 'error', 4500);
+    addToast(notesError, 'error', themeUiFeedbackTokens.errorToastDurationMs);
   }, [active, addToast, notesError]);
 
   const activeVaultPath = active ? currentVault?.path ?? null : null;
@@ -380,7 +381,7 @@ export function NotesView({
         .catch((_error) => {
           autoCreateBlankNoteRef.current = false;
         });
-    }, 0);
+    }, themeEditorLayoutTokens.autoCreateBlankDraftDelayMs);
 
     return () => {
       window.clearTimeout(timeoutId);
@@ -443,9 +444,9 @@ export function NotesView({
           <BlurBackdrop
             className="pointer-events-none"
             overlayClassName="bg-[var(--vlaina-color-drop-overlay)]"
-            zIndex={70}
-            blurPx={6}
-            duration={0.18}
+            zIndex={themeBackdropTokens.notesBlankWorkspaceDropZIndex}
+            blurPx={themeBackdropTokens.notesBlankWorkspaceDropBlurPx}
+            duration={themeBackdropTokens.notesBlankWorkspaceDropDurationSeconds}
             data-testid="blank-workspace-drop-overlay"
           />
         )}
@@ -504,7 +505,7 @@ export function NotesView({
           }
         }}
       />
-      
+
       <ConfirmDialog
         isOpen={Boolean(pendingDraftDiscardPath)}
         onClose={cancelPendingDraftDiscard}

@@ -12,6 +12,7 @@ import { createEmptyTableNode } from './table/pipeTableShortcut';
 import { mathEditorPluginKey } from './math/mathEditorPluginKey';
 import { createOpenMathEditorState } from './math/mathEditorState';
 import { markEditorUserInput } from './shared/userInputEvents';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 
 function isModShortcut(event: KeyboardEvent): boolean {
   return (event.ctrlKey || event.metaKey) && !event.altKey && !event.isComposing;
@@ -100,9 +101,12 @@ function createMathBlock(view: EditorView): boolean {
 function getViewportPosition(view: EditorView) {
   try {
     const coords = view.coordsAtPos(view.state.selection.from);
-    return { x: coords.left, y: coords.bottom + 8 };
+    return { x: coords.left, y: coords.bottom + themeDomStyleTokens.editorPopupAnchorOffsetPx };
   } catch {
-    return { x: 16, y: 16 };
+    return {
+      x: themeDomStyleTokens.editorPopupFallbackX,
+      y: themeDomStyleTokens.editorPopupFallbackY,
+    };
   }
 }
 

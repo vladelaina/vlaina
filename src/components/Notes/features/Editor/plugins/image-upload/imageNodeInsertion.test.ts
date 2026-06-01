@@ -81,7 +81,7 @@ describe('imageNodeInsertion', () => {
         expect(replaceSelectionWith).toHaveBeenCalledWith(imageNode);
         expect(scrollIntoView).toHaveBeenCalled();
         expect(view.dom.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
-            type: 'vlaina:image-user-input',
+            type: 'editor:image-user-input',
         }));
         expect(dispatch).toHaveBeenCalledWith(tr);
     });

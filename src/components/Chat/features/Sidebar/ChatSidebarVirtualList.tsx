@@ -6,6 +6,7 @@ import {
   CHAT_SIDEBAR_ESTIMATED_SESSION_ROW_HEIGHT,
   CHAT_SIDEBAR_VIRTUALIZATION_THRESHOLD,
 } from './chatSidebarLayout';
+import { themeDomStyleTokens, themeImageBlockStyleTokens } from '@/styles/themeTokens';
 
 interface ChatSidebarVirtualListProps {
   active?: boolean;
@@ -132,8 +133,8 @@ export function ChatSidebarVirtualList({
     <div
       style={{
         height: `${virtualizer.getTotalSize()}px`,
-        position: 'relative',
-        width: '100%',
+        position: themeDomStyleTokens.positionRelative,
+        width: themeImageBlockStyleTokens.widthFull,
       }}
     >
       {virtualizer.getVirtualItems().map((virtualRow) => {
@@ -149,11 +150,11 @@ export function ChatSidebarVirtualList({
             data-chat-sidebar-session-id={session.id}
             ref={virtualizer.measureElement}
             style={{
-              left: 0,
-              position: 'absolute',
-              top: 0,
+              left: themeDomStyleTokens.numericZero,
+              position: themeDomStyleTokens.positionAbsolute,
+              top: themeDomStyleTokens.numericZero,
               transform: `translateY(${virtualRow.start}px)`,
-              width: '100%',
+              width: themeImageBlockStyleTokens.widthFull,
             }}
           >
             {renderSessionRow(session)}

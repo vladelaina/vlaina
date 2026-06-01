@@ -9,7 +9,7 @@ describe('shouldSuppressEditorNativeDragStart', () => {
     const editor = document.createElement('div');
     const paragraph = document.createElement('p');
     const placeholderBreak = document.createElement('br');
-    placeholderBreak.dataset.vlainaEmptyLine = 'true';
+    placeholderBreak.dataset.editorEmptyLine = 'true';
     paragraph.append(placeholderBreak);
     editor.append(paragraph);
 
@@ -76,7 +76,7 @@ describe('shouldSuppressEditorNativeDragStart', () => {
   it('does not suppress drag outside the editor', () => {
     const editor = document.createElement('div');
     const outside = document.createElement('br');
-    outside.dataset.vlainaEmptyLine = 'true';
+    outside.dataset.editorEmptyLine = 'true';
 
     expect(shouldSuppressEditorNativeDragStart(editor, outside)).toBe(false);
   });

@@ -18,7 +18,7 @@ export function createAiDropdownController(): AiDropdownController {
       const overflowThreshold = 4;
       const isScrollable = element.scrollHeight - element.clientHeight > overflowThreshold;
       element.dataset.scrollable = isScrollable ? 'true' : 'false';
-      element.classList.toggle('vlaina-scrollbar', isScrollable);
+      element.classList.toggle('app-scrollbar', isScrollable);
     });
   };
 
@@ -48,7 +48,7 @@ export function createAiDropdownController(): AiDropdownController {
     const availableHeight = Math.max(0, window.innerHeight - rect.top - viewportPadding);
     const nextHeight = Math.min(naturalHeight, availableHeight);
 
-    dropdown.style.setProperty('--ai-dropdown-panel-max-height', `${nextHeight}px`);
+    dropdown.style.setProperty('--vlaina-toolbar-ai-dropdown-panel-max-height', `${nextHeight}px`);
     scheduleScrollableStateSync(dropdown);
   };
 

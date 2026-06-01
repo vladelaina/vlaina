@@ -129,13 +129,13 @@ describe('deleteSelectedBlocks', () => {
     const blocks = collectSelectableBlockRanges(view.state.doc);
     const userInputListener = vi.fn();
 
-    view.dom.addEventListener('vlaina:block-user-input', userInputListener);
+    view.dom.addEventListener('editor:block-user-input', userInputListener);
 
     expect(deleteSelectedBlocks(view, [blocks[0]], (tr) => tr)).toBe(true);
     expect(userInputListener).toHaveBeenCalledTimes(1);
     expect(view.state.doc.textContent).toBe('B');
 
-    view.dom.removeEventListener('vlaina:block-user-input', userInputListener);
+    view.dom.removeEventListener('editor:block-user-input', userInputListener);
     await editor.destroy();
   });
 

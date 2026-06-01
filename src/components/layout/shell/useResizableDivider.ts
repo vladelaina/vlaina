@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { themeDomStyleTokens, themeRenderingTokens } from '@/styles/themeTokens';
 
 export interface ResizableSnapOptions {
   threshold: number;
@@ -80,17 +81,17 @@ export function useResizableDivider({
     setIsDragging(true);
     notifyDragState(true);
 
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = themeRenderingTokens.userSelectNone;
+    document.body.style.cursor = themeDomStyleTokens.cursorColumnResize;
 
     if (!useOverlay) return;
 
     const overlay = document.createElement('div');
     overlay.id = 'resize-overlay';
-    overlay.style.position = 'fixed';
-    overlay.style.inset = '0';
-    overlay.style.zIndex = '99999';
-    overlay.style.cursor = 'col-resize';
+    overlay.style.position = themeDomStyleTokens.positionFixed;
+    overlay.style.inset = themeDomStyleTokens.sizeZero;
+    overlay.style.zIndex = themeDomStyleTokens.zIndexResizeOverlay;
+    overlay.style.cursor = themeDomStyleTokens.cursorColumnResize;
     document.body.appendChild(overlay);
     didCreateOverlayRef.current = true;
   }, [allowDoubleClickReset, applyDefaultWidth, notifyDragState, useOverlay, width]);

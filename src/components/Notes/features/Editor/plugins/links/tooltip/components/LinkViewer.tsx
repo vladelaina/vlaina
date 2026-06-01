@@ -37,7 +37,7 @@ export const LinkViewer = ({
                 maxWidth: `${maxWidth}px`,
             }}
             className={cn(
-                'floating-toolbar-inner link-tooltip-viewer !rounded-[26px] animate-in fade-in duration-100',
+                'floating-toolbar-inner link-tooltip-viewer !rounded-[var(--vlaina-radius-26px)] animate-in fade-in duration-[var(--vlaina-duration-100)]',
                 chatComposerPillSurfaceClass
             )}
             onMouseDown={(e) => e.stopPropagation()}
@@ -49,7 +49,7 @@ export const LinkViewer = ({
                 <span className="flex size-5 shrink-0 items-center justify-center rounded transition-colors">
                     <Icon size="md" name="nav.external" />
                 </span>
-                <span className="min-w-0 flex-1 whitespace-normal break-all text-left text-[13px] font-medium leading-5 text-[var(--vlaina-text-tertiary)] transition-colors group-hover:text-[var(--vlaina-text-primary)]">
+                <span className="min-w-0 flex-1 whitespace-normal break-all text-left text-[var(--vlaina-font-13)] font-medium leading-5 text-[var(--vlaina-text-tertiary)] transition-colors group-hover:text-[var(--vlaina-text-primary)]">
                     {displayUrl}
                 </span>
             </button>
@@ -59,7 +59,7 @@ export const LinkViewer = ({
             <div className="flex items-center gap-0.5">
                 <button onClick={onCopy} className={actionButtonClass}>
                     {showCopied
-                        ? <Icon size="md" name="common.check" className="text-[var(--vlaina-accent)] scale-110" />
+                        ? <Icon size="md" name="common.check" className="text-[var(--vlaina-accent)] scale-[var(--vlaina-scale-110)]" />
                         : <Icon size="md" name="common.copy" />}
                 </button>
 
@@ -79,7 +79,7 @@ export const LinkViewer = ({
 
                 <button
                     onClick={onRemove}
-                    className={cn(actionButtonClass, 'hover:!text-red-500')}
+                    className={cn(actionButtonClass, 'hover:!text-[var(--vlaina-color-status-danger-fg)]')}
                 >
                     <Icon size="md" name="common.delete" />
                 </button>

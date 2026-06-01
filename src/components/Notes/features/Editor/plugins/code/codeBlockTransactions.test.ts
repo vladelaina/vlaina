@@ -38,7 +38,7 @@ describe('codeBlockTransactions', () => {
       },
     });
     const listener = vi.fn();
-    view.dom.addEventListener('vlaina:block-user-input', listener);
+    view.dom.addEventListener('editor:block-user-input', listener);
 
     updateCodeBlockLanguage(view, 10, 'JavaScript');
 
@@ -75,7 +75,7 @@ describe('codeBlockTransactions', () => {
       selection: { from: 11, to: 11 },
     });
     const listener = vi.fn();
-    view.dom.addEventListener('vlaina:block-user-input', listener);
+    view.dom.addEventListener('editor:block-user-input', listener);
 
     toggleCodeBlockCollapsed(view, 10, false);
 

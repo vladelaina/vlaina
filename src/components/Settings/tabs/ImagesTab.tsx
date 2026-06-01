@@ -96,7 +96,7 @@ export function ImagesTab() {
 
             <div className="mb-4 flex items-center justify-between px-2">
                 <div className="flex items-center gap-1.5">
-                    <span className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">
+                    <span className="text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text-soft)]">
                         {t('settings.images.storageLocation')}
                     </span>
                     <button
@@ -104,12 +104,12 @@ export function ImagesTab() {
                         onClick={resetImageStorageLocation}
                         aria-label={t('common.reset')}
                         title={t('common.reset')}
-                        className="inline-flex size-6 items-center justify-center rounded-full text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--notes-sidebar-text)]"
+                        className="inline-flex size-6 items-center justify-center rounded-full text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-sidebar-notes-text)]"
                     >
                         <Icon name="common.refresh" className="size-3.5" />
                     </button>
                 </div>
-                <code className="rounded-full bg-[var(--vlaina-bg-tertiary)] px-3 py-1 text-[11px] text-[var(--notes-sidebar-text-soft)]">
+                <code className="rounded-full bg-[var(--vlaina-bg-tertiary)] px-3 py-1 text-[var(--vlaina-font-11)] text-[var(--vlaina-sidebar-notes-text-soft)]">
                     {storagePreview}
                 </code>
             </div>
@@ -124,22 +124,22 @@ export function ImagesTab() {
                             key={option.id}
                             onClick={() => setImageStorageMode(option.id)}
                             className={cn(
-                                "group relative flex w-full items-center gap-4 rounded-[22px] px-6 py-4 text-left transition-all duration-200 border border-transparent",
+                                "group relative flex w-full items-center gap-4 rounded-[var(--vlaina-radius-22px)] px-6 py-4 text-left transition-all duration-[var(--vlaina-duration-200)] border border-transparent",
                                 isSelected
-                                    ? "bg-[var(--sidebar-row-selected-bg)]"
+                                    ? "bg-[var(--vlaina-sidebar-row-selected-bg)]"
                                     : chatComposerPillSurfaceClass
                             )}
                         >
                             <div className="flex-1 min-w-0">
                                 <div className={cn(
-                                    "text-[14px] font-semibold",
-                                    isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--notes-sidebar-text)]"
+                                    "text-[var(--vlaina-font-sm)] font-semibold",
+                                    isSelected ? "text-[var(--vlaina-sidebar-row-selected-text)]" : "text-[var(--vlaina-sidebar-notes-text)]"
                                 )}>
                                     {t(option.labelKey)}
                                 </div>
                                 <div className={cn(
-                                    "text-[12px] mt-0.5",
-                                    isSelected ? "text-[var(--sidebar-row-selected-text)]/80" : "text-[var(--notes-sidebar-text-soft)]"
+                                    "text-[var(--vlaina-font-xs)] mt-0.5",
+                                    isSelected ? "text-[var(--vlaina-sidebar-row-selected-text-soft)]" : "text-[var(--vlaina-sidebar-notes-text-soft)]"
                                 )}>
                                     {getStorageOptionDescription(
                                         option,
@@ -167,8 +167,8 @@ export function ImagesTab() {
                                 onChange={(e) => setImageVaultSubfolderName(e.target.value)}
                                 placeholder="assets"
                                 className="w-48"
-                                inputClassName="h-9 px-4 rounded-xl text-[13px]"
-                                shellClassName="rounded-xl shadow-none"
+                                inputClassName="h-9 px-4 rounded-xl text-[var(--vlaina-font-13)]"
+                                shellClassName="rounded-xl shadow-[var(--vlaina-shadow-none)]"
                             />
                         </SettingsItem>
                     )}
@@ -184,8 +184,8 @@ export function ImagesTab() {
                                 onChange={(e) => setImageSubfolderName(e.target.value)}
                                 placeholder="assets"
                                 className="w-48"
-                                inputClassName="h-9 px-4 rounded-xl text-[13px]"
-                                shellClassName="rounded-xl shadow-none"
+                                inputClassName="h-9 px-4 rounded-xl text-[var(--vlaina-font-13)]"
+                                shellClassName="rounded-xl shadow-[var(--vlaina-shadow-none)]"
                             />
                         </SettingsItem>
                     )}
@@ -193,7 +193,7 @@ export function ImagesTab() {
             )}
 
             <div className="mt-8 mb-4 px-2">
-                <h3 className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">
+                <h3 className="text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text-soft)]">
                     {t('settings.images.filenameFormat')}
                 </h3>
             </div>
@@ -232,23 +232,23 @@ function FilenameFormatOption({ id, label, description, icon }: { id: 'original'
             type="button"
             onClick={() => setImageFilenameFormat(id)}
             className={cn(
-                "group relative flex w-full items-center gap-4 rounded-[22px] px-6 py-4 text-left transition-all duration-200 border border-transparent",
+                "group relative flex w-full items-center gap-4 rounded-[var(--vlaina-radius-22px)] px-6 py-4 text-left transition-all duration-[var(--vlaina-duration-200)] border border-transparent",
                 isSelected
-                    ? "bg-[var(--sidebar-row-selected-bg)]"
+                    ? "bg-[var(--vlaina-sidebar-row-selected-bg)]"
                     : chatComposerPillSurfaceClass
             )}
         >
             <div className="flex-1 min-w-0">
                 <div className={cn(
-                    "text-[14px] font-semibold",
-                    isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--notes-sidebar-text)]"
+                    "text-[var(--vlaina-font-sm)] font-semibold",
+                    isSelected ? "text-[var(--vlaina-sidebar-row-selected-text)]" : "text-[var(--vlaina-sidebar-notes-text)]"
                 )}>
                     {label}
                 </div>
                 {hasDescription && (
                     <div className={cn(
-                        "text-[12px] mt-0.5",
-                        isSelected ? "text-[var(--sidebar-row-selected-text)]/80" : "text-[var(--notes-sidebar-text-soft)]"
+                        "text-[var(--vlaina-font-xs)] mt-0.5",
+                        isSelected ? "text-[var(--vlaina-sidebar-row-selected-text-soft)]" : "text-[var(--vlaina-sidebar-notes-text-soft)]"
                     )}>
                         {description}
                     </div>
@@ -258,7 +258,7 @@ function FilenameFormatOption({ id, label, description, icon }: { id: 'original'
             {icon && (
                 <Icon name={icon} className={cn(
                     "size-5 flex-shrink-0 transition-colors",
-                    isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--notes-sidebar-text-soft)]"
+                    isSelected ? "text-[var(--vlaina-sidebar-row-selected-text)]" : "text-[var(--vlaina-sidebar-notes-text-soft)]"
                 )} />
             )}
         </button>

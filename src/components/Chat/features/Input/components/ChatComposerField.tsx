@@ -67,7 +67,7 @@ export function ChatComposerField({
           onScroll={onScroll}
           placeholder={placeholder}
           rows={1}
-          className={cn(chatComposerTextareaClass, 'relative z-10 w-full')}
+          className={cn(chatComposerTextareaClass, 'relative z-[var(--vlaina-z-10)] w-full')}
         />
         <MentionPreviewOverlay
           mentionPreviewParts={mentionPreviewParts}

@@ -104,7 +104,7 @@ export function TreeItemShell({
             className={cn(
               'rounded-md p-1 focus:outline-none',
               iconButtonStyles,
-              'text-[var(--notes-sidebar-text)] hover:text-[var(--notes-sidebar-text)]',
+              'text-[var(--vlaina-sidebar-notes-text)] hover:text-[var(--vlaina-sidebar-notes-text)]',
             )}
           >
             <Icon name="common.more" size="md" />

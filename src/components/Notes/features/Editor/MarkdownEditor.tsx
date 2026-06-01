@@ -31,11 +31,13 @@ import {
   getStableCoverSignature,
   type RenderedCoverSnapshot,
 } from './utils/coverRenderStability';
+import { themeEditorLayoutTokens, themeRenderingTokens } from '@/styles/themeTokens';
 import 'katex/dist/katex.min.css';
 import './styles/index.css';
 
-const MERMAID_PREWARM_DELAY_MS = import.meta.env.DEV ? 45000 : 5000;
-const EDITOR_INIT_FALLBACK_DELAY_MS = 2500;
+const MERMAID_PREWARM_DELAY_MS = import.meta.env.DEV
+  ? themeEditorLayoutTokens.mermaidPrewarmDelayMsDev
+  : themeEditorLayoutTokens.mermaidPrewarmDelayMsProd;
 
 export function canPersistNoteScrollPosition(scrollRoot: HTMLElement | null): scrollRoot is HTMLElement {
   return Boolean(
@@ -170,7 +172,7 @@ export function MarkdownEditor({
     const timeoutId = window.setTimeout(() => {
       setEditorInitTimedOutPath(currentNotePath);
       onEditorViewReady?.();
-    }, EDITOR_INIT_FALLBACK_DELAY_MS);
+    }, themeEditorLayoutTokens.editorInitFallbackDelayMs);
 
     return () => {
       window.clearTimeout(timeoutId);
@@ -191,7 +193,7 @@ export function MarkdownEditor({
       };
 
       if (typeof window.requestIdleCallback === 'function') {
-        idleId = window.requestIdleCallback(preload, { timeout: 3000 });
+        idleId = window.requestIdleCallback(preload, { timeout: themeEditorLayoutTokens.mermaidIdlePrewarmTimeoutMs });
         return;
       }
 
@@ -354,7 +356,7 @@ export function MarkdownEditor({
     timeoutId = window.setTimeout(() => {
       restoreSession.restore('timeout');
       restoreSession.finish();
-    }, 160);
+    }, themeEditorLayoutTokens.scrollRestoreTimeoutFallbackDelayMs);
 
     return () => {
       restoreSession.stop();
@@ -388,11 +390,11 @@ export function MarkdownEditor({
       <OverlayScrollArea
         ref={scrollRootRef}
         className={cn(
-          'flex-1 relative transition-opacity duration-75',
-          isSidebarSearchJumpPending && 'opacity-0 pointer-events-none',
+          'flex-1 relative transition-opacity duration-[var(--vlaina-duration-75)]',
+          isSidebarSearchJumpPending && 'opacity-[var(--vlaina-opacity-0)] pointer-events-none',
         )}
         viewportClassName="flex flex-col items-center relative"
-        draggingBodyClassName="vlaina-overlay-scrollbar-dragging"
+        draggingBodyClassName="app-overlay-scrollbar-dragging"
         scrollbarVariant="compact"
         data-note-scroll-root="true"
       >
@@ -406,7 +408,7 @@ export function MarkdownEditor({
             aria-hidden="true"
             className="relative w-full shrink-0"
             data-note-cover-placeholder="true"
-            style={{ height: reservedCoverHeight, overflowAnchor: 'none' }}
+            style={{ height: reservedCoverHeight, overflowAnchor: themeRenderingTokens.overflowAnchorNone }}
           />
         ) : null}
 
@@ -414,7 +416,7 @@ export function MarkdownEditor({
           className="w-full flex flex-col items-center"
           style={{
             marginLeft: contentOffset,
-            transition: 'margin-left 180ms cubic-bezier(0.25, 0.8, 0.25, 1)',
+            transition: themeEditorLayoutTokens.contentOffsetTransition,
           }}
         >
           {hasRenderableNote ? (
@@ -445,8 +447,8 @@ export function MarkdownEditor({
           ) : (
             <div
               className={cn(
-                'milkdown-editor min-h-[420px]',
-                showBodyLineNumbers && 'vlaina-markdown-body-line-numbers',
+                'milkdown-editor min-h-[var(--vlaina-size-420px)]',
+                showBodyLineNumbers && 'markdown-body-line-numbers',
                 EDITOR_LAYOUT_CLASS
               )}
               data-note-placeholder-root="true"
@@ -514,7 +516,7 @@ function MarkdownSourceFallback({
     saveTimerRef.current = window.setTimeout(() => {
       saveTimerRef.current = null;
       void saveNote({ explicit: false });
-    }, 800);
+    }, themeEditorLayoutTokens.autoSaveDebounceMs);
   }, [saveNote]);
 
   const flushSave = useCallback(() => {
@@ -528,8 +530,8 @@ function MarkdownSourceFallback({
   return (
     <div
       className={cn(
-        'milkdown-editor min-h-[420px]',
-        showBodyLineNumbers && 'vlaina-markdown-body-line-numbers',
+        'milkdown-editor min-h-[var(--vlaina-size-420px)]',
+        showBodyLineNumbers && 'markdown-body-line-numbers',
         EDITOR_LAYOUT_CLASS
       )}
       data-note-content-root="true"
@@ -561,7 +563,7 @@ function MarkdownSourceFallback({
         onBlur={flushSave}
         spellCheck={false}
         aria-label="Markdown source editor"
-        className="min-h-[420px] w-full resize-none bg-transparent px-0 py-2 font-mono text-sm leading-6 text-[var(--vlaina-text-primary)] outline-none"
+        className="min-h-[var(--vlaina-size-420px)] w-full resize-none bg-transparent px-0 py-2 font-mono text-sm leading-6 text-[var(--vlaina-text-primary)] outline-none"
       />
     </div>
   );

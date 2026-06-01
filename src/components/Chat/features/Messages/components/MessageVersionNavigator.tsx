@@ -23,7 +23,7 @@ export function MessageVersionNavigator({
   return (
     <div
       className={cn(
-        'flex items-center text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-900 dark:hover:text-neutral-200',
+        'flex items-center text-xs font-medium text-[var(--vlaina-text-tertiary)] transition-colors hover:text-[var(--vlaina-text-primary)]',
         className,
       )}
     >
@@ -32,7 +32,7 @@ export function MessageVersionNavigator({
         aria-label="Previous message version"
         onClick={onPrevious}
         disabled={previousDisabled}
-        className={cn('grid h-6 w-6 place-items-center rounded-full disabled:opacity-30 hover:bg-black/5 dark:hover:bg-white/5', iconButtonStyles)}
+        className={cn('grid h-6 w-6 place-items-center rounded-full disabled:opacity-[var(--vlaina-opacity-30)] hover:bg-[var(--vlaina-color-control-hover-bg)]', iconButtonStyles)}
       >
         <Icon name="nav.chevronLeft" size="md" />
       </button>
@@ -42,7 +42,7 @@ export function MessageVersionNavigator({
         aria-label="Next message version"
         onClick={onNext}
         disabled={nextDisabled}
-        className={cn('grid h-6 w-6 place-items-center rounded-full disabled:opacity-30 hover:bg-black/5 dark:hover:bg-white/5', iconButtonStyles)}
+        className={cn('grid h-6 w-6 place-items-center rounded-full disabled:opacity-[var(--vlaina-opacity-30)] hover:bg-[var(--vlaina-color-control-hover-bg)]', iconButtonStyles)}
       >
         <Icon name="nav.chevronRight" size="md" />
       </button>

@@ -1,8 +1,8 @@
 .milkdown p:has(> .image-block-container) {
-  font-size: 0;
-  line-height: 0;
-  margin-top: 1rem;
-  margin-bottom: 1rem;
+  font-size: var(--vlaina-font-0);
+  line-height: var(--vlaina-leading-0);
+  margin-top: var(--vlaina-space-1rem);
+  margin-bottom: var(--vlaina-space-1rem);
 }
 
 .milkdown p:has(> .image-block-container):first-child {
@@ -21,16 +21,16 @@
 }
 
 .milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'] {
-  min-height: calc(1em + 8px);
-  margin: 0;
-  padding: 0;
+  min-height: var(--vlaina-height-markdown-blank-line);
+  margin: var(--vlaina-space-0);
+  padding: var(--vlaina-space-0);
 }
 
-.milkdown .ProseMirror > p.vlaina-editable-markdown-blank-line,
+.milkdown .ProseMirror > p.editor-editable-markdown-blank-line,
 .milkdown .ProseMirror > p:has(> br.ProseMirror-trailingBreak:only-child):not(.is-editor-empty) {
-  min-height: calc(1em + 8px);
-  margin: 0;
-  padding: 0;
+  min-height: var(--vlaina-height-markdown-blank-line);
+  margin: var(--vlaina-space-0);
+  padding: var(--vlaina-space-0);
 }
 
 .milkdown .ProseMirror p.is-editor-empty:first-child::before {
@@ -80,22 +80,22 @@
 
 .heading-toggle-btn {
   position: absolute;
-  left: var(--collapse-pos-heading);
-  top: calc((1em + var(--heading-line-extra, 8px)) / 2);
-  transform: translateY(-50%);
-  width: 18px;
-  height: 18px;
+  left: var(--vlaina-editor-collapse-pos-heading);
+  top: calc((1em + var(--vlaina-markdown-heading-line-extra, var(--vlaina-size-8px))) / 2);
+  transform: translateY(var(--vlaina-translate--50pct));
+  width: var(--vlaina-size-18px);
+  height: var(--vlaina-size-18px);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.15s, background-color 0.15s;
-  border-radius: 4px;
+  opacity: var(--vlaina-opacity-0);
+  transition: opacity var(--vlaina-duration-150), background-color var(--vlaina-duration-150);
+  border-radius: var(--vlaina-radius-4px);
   color: var(--vlaina-text-tertiary);
   user-select: none;
   pointer-events: auto;
-  z-index: 2;
+  z-index: var(--vlaina-z-2);
 }
 
 .heading-toggle-btn:hover {
@@ -108,27 +108,27 @@
 .milkdown h4:hover .heading-toggle-btn,
 .milkdown h5:hover .heading-toggle-btn,
 .milkdown h6:hover .heading-toggle-btn {
-  opacity: 1;
+  opacity: var(--vlaina-opacity-100);
 }
 
 .heading-toggle-btn[data-collapsed="true"] {
-  opacity: 1 !important;
+  opacity: var(--vlaina-opacity-100) !important;
 }
 
 .heading-toggle-btn[data-collapsed="true"] svg {
-  transform: rotate(-90deg);
+  transform: rotate(var(--vlaina-rotate--90deg));
 }
 
 .heading-toggle-btn svg {
-  transition: transform 0.15s ease;
+  transition: transform var(--vlaina-duration-150) var(--vlaina-ease-css-default);
 }
 
 .heading-collapsed-content {
   display: none !important;
 }
 
-.vlaina-markdown-surface .milkdown a,
-.vlaina-markdown-surface .milkdown a:hover {
+.markdown-surface .milkdown a,
+.markdown-surface .milkdown a:hover {
   border-bottom: none;
   transition: none;
 }
@@ -136,16 +136,16 @@
 .milkdown .ProseMirror code:not(pre code) {
   display: inline;
   vertical-align: baseline;
-  margin: 0;
-  padding: 0.2em 0.4em;
-  border: 0;
-  border-radius: 6px;
+  margin: var(--vlaina-space-0);
+  padding: var(--vlaina-space-02em) var(--vlaina-space-04em);
+  border: var(--vlaina-border-width-0);
+  border-radius: var(--vlaina-radius-6px);
   background-color: var(--vlaina-color-editor-inline-code-bg);
   color: inherit;
   caret-color: transparent;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
   font-size: inherit;
-  font-weight: 400;
+  font-weight: var(--vlaina-font-weight-normal);
   line-height: inherit;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
@@ -183,36 +183,27 @@
   text-align: left;
 }
 
-.milkdown .ProseMirror li.vlaina-list-gap-placeholder-item {
-  --vlaina-list-gap-placeholder-outdent: 2rem;
+.milkdown .ProseMirror li.editor-list-gap-placeholder-item {
   list-style-type: none;
   margin-left: calc(-1 * var(--vlaina-list-gap-placeholder-outdent));
-  min-height: 1.45em;
-  padding-left: 0;
+  min-height: var(--vlaina-size-145em);
+  padding-left: var(--vlaina-space-0);
   width: calc(100% + var(--vlaina-list-gap-placeholder-outdent));
 }
 
-.milkdown .ProseMirror li.vlaina-list-gap-placeholder-item::marker {
+.milkdown .ProseMirror li.editor-list-gap-placeholder-item::marker {
   color: transparent;
-  font-size: 0;
+  font-size: var(--vlaina-font-0);
 }
 
-.milkdown .ProseMirror li.vlaina-list-gap-placeholder-item > p {
+.milkdown .ProseMirror li.editor-list-gap-placeholder-item > p {
   color: transparent;
   -webkit-text-fill-color: transparent;
   caret-color: transparent;
-  min-height: 1.45em;
+  min-height: var(--vlaina-size-145em);
 }
 
-.milkdown .ProseMirror li.vlaina-list-gap-placeholder-item.vlaina-block-selected,
-.milkdown .ProseMirror li.vlaina-list-gap-placeholder-item > .vlaina-block-selected {
-  --vlaina-block-selection-bleed-x-start: calc(
-    var(--vlaina-list-row-selection-bleed-x-start, 72px) -
-    var(--vlaina-list-gap-placeholder-outdent)
-  );
-}
-
-.milkdown .ProseMirror li[data-item-type="task"].vlaina-list-gap-placeholder-item::before {
+.milkdown .ProseMirror li[data-item-type="task"].editor-list-gap-placeholder-item::before {
   display: none;
 }
 
@@ -225,10 +216,10 @@
   align-items: flex-start;
   flex-wrap: wrap;
   /* Keep horizontal spacing between checkbox and text, avoid extra vertical row gap */
-  column-gap: 0.5rem;
-  row-gap: 0;
+  column-gap: var(--vlaina-space-05rem);
+  row-gap: var(--vlaina-space-0);
   position: relative;
-  padding-left: 0;
+  padding-left: var(--vlaina-space-0);
 }
 
 /* Ensure nested lists take full width to force wrap */
@@ -236,9 +227,9 @@
 .milkdown li[data-item-type="task"]>ol {
   flex-basis: 100%;
   width: 100%;
-  margin-left: 0;
-  margin-top: 6px;
-  margin-bottom: 0;
+  margin-left: var(--vlaina-space-0);
+  margin-top: var(--vlaina-space-6px);
+  margin-bottom: var(--vlaina-space-0);
   /* Remove extra indentation, let ul padding handle it */
 }
 
@@ -247,27 +238,27 @@
   content: '';
   display: inline-block;
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
+  width: var(--vlaina-size-16px);
+  height: var(--vlaina-size-16px);
   /* (Line height 23px - Checkbox 16px) / 2 = 3.5px */
-  margin-top: 3.5px;
+  margin-top: var(--vlaina-space-35px);
   /* Pull checkbox left to align with list markers (bullets/numbers)
      while keeping the LI content box aligned for collapse buttons */
-  margin-left: -1.5rem;
-  border: 2px solid var(--vlaina-text-tertiary);
-  border-radius: 4px;
+  margin-left: var(--vlaina-space--15rem);
+  border: var(--vlaina-border-width-2) solid var(--vlaina-text-tertiary);
+  border-radius: var(--vlaina-radius-4px);
   /* Soften corners for Apple-like feel */
   background-color: transparent;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--vlaina-duration-150) var(--vlaina-ease-css-default);
 }
 
 /* Checked state */
 .milkdown li[data-item-type="task"][data-checked="true"]::before {
   background-color: var(--vlaina-accent);
   border-color: var(--vlaina-accent);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
-  background-size: 12px;
+  background-image: var(--vlaina-task-checkbox-check-icon);
+  background-size: var(--vlaina-size-12px);
   background-position: center;
   background-repeat: no-repeat;
 }
@@ -278,16 +269,11 @@
   color: var(--vlaina-text-tertiary);
 }
 
-.milkdown .ProseMirror li[data-item-type="task"][data-checked="true"] > .vlaina-block-selected {
-  color: var(--vlaina-editor-block-selection-fg) !important;
-  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg) !important;
-}
-
 /* Task list paragraph should fill available space for proper click handling */
 .milkdown li[data-item-type="task"]>p {
   flex: 1;
-  min-width: 0;
-  margin: 0;
+  min-width: var(--vlaina-size-0);
+  margin: var(--vlaina-space-0);
   /* Remove potential margin to ensure perfect alignment */
 }
 
@@ -306,43 +292,39 @@
 
 .milkdown li[data-item-type="task"]:has(> [data-text-align="center"])::before,
 .milkdown li[data-item-type="task"]:has(> [data-text-align="right"])::before {
-  margin-left: 0;
+  margin-left: var(--vlaina-space-0);
 }
 
 .milkdown li[data-item-type="task"]:has(> [data-text-align="center"])>[data-text-align],
 .milkdown li[data-item-type="task"]:has(> [data-text-align="right"])>[data-text-align] {
   flex: 0 1 auto;
   width: fit-content;
-  max-width: calc(100% - 24px);
+  max-width: var(--vlaina-width-task-align-max);
 }
 
-.milkdown .ProseMirror hr.ProseMirror-selectednode::before {
-  border-top-color: var(--vlaina-accent);
-  box-shadow: 0 0 0 2px var(--vlaina-accent-light);
-}
 /* Editor image node containers add block-editor interaction affordances. */
 .milkdown .image-block-container {
   display: block;
   width: 100%;
-  margin: 0;
+  margin: var(--vlaina-space-0);
   cursor: default;
 }
 
 .milkdown [data-type='html-block'] table {
   width: max-content;
   max-width: 100%;
-  border: 0;
+  border: var(--vlaina-border-width-0);
   border-collapse: collapse;
-  border-spacing: 0;
-  border-radius: 0;
+  border-spacing: var(--vlaina-space-0);
+  border-radius: var(--vlaina-radius-0);
   overflow: visible;
 }
 
 .milkdown [data-type='html-block'] th,
 .milkdown [data-type='html-block'] td {
-  min-width: 0;
-  padding: 6px 13px;
-  border: 1px solid var(--vlaina-border);
+  min-width: var(--vlaina-size-0);
+  padding: var(--vlaina-space-6px) var(--vlaina-space-13px);
+  border: var(--vlaina-border-width-1) solid var(--vlaina-border);
   text-align: inherit;
   word-break: normal;
   overflow-wrap: normal;
@@ -353,23 +335,23 @@
 }
 
 .milkdown [data-type='html-block'] img {
-  border-radius: 0;
+  border-radius: var(--vlaina-radius-0);
 }
 
 .milkdown [data-type='html-block'] sub,
 .milkdown [data-type='html-block'] sup {
   position: relative;
-  font-size: 75%;
-  line-height: 0;
+  font-size: var(--vlaina-font-75pct);
+  line-height: var(--vlaina-leading-0);
   vertical-align: baseline;
 }
 
 .milkdown [data-type='html-block'] sub {
-  bottom: -0.25em;
+  bottom: var(--vlaina-space--025em);
 }
 
 .milkdown [data-type='html-block'] sup {
-  top: -0.5em;
+  top: var(--vlaina-space--05em);
 }
 
 .milkdown table tr:hover {
@@ -391,16 +373,16 @@
 /* Tooltip Animation */
 @keyframes tooltip-fade-in {
   from {
-    opacity: 0;
-    transform: translateY(-3px);
+    opacity: var(--vlaina-opacity-0);
+    transform: translateY(var(--vlaina-translate--3px));
   }
 
   to {
-    opacity: 1;
-    transform: translateY(0);
+    opacity: var(--vlaina-opacity-100);
+    transform: translateY(var(--vlaina-translate-0));
   }
 }
 
 .tooltip-anim {
-  animation: tooltip-fade-in 0.2s ease;
+  animation: tooltip-fade-in var(--vlaina-duration-200) var(--vlaina-ease-css-default);
 }

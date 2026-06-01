@@ -114,14 +114,14 @@ describe('applyBlockMove content integrity', () => {
     const blocks = collectSelectableBlockRanges(view.state.doc);
     const userInputListener = vi.fn();
 
-    view.dom.addEventListener('vlaina:block-user-input', userInputListener);
+    view.dom.addEventListener('editor:block-user-input', userInputListener);
 
     expect(applyBlockMove(view, [blocks[0]], view.state.doc.content.size)).toBe(true);
     expect(userInputListener).toHaveBeenCalledTimes(1);
     expect(normalizeMarkdown(serializer(view.state.doc))).toBe('B\n\nC\n\nA');
     expectSemanticContentPreserved(markdown, serializer(view.state.doc));
 
-    view.dom.removeEventListener('vlaina:block-user-input', userInputListener);
+    view.dom.removeEventListener('editor:block-user-input', userInputListener);
     await editor.destroy();
   });
 

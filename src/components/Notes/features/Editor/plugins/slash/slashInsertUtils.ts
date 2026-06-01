@@ -1,5 +1,6 @@
 import type { Ctx } from '@milkdown/kit/ctx';
 import { editorViewCtx } from '@milkdown/kit/core';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 
 export function getSlashInsertViewportPosition(ctx: Ctx) {
   const view = ctx.get(editorViewCtx);
@@ -7,12 +8,12 @@ export function getSlashInsertViewportPosition(ctx: Ctx) {
     const coords = view.coordsAtPos(view.state.selection.from);
     return {
       x: coords.left,
-      y: coords.bottom + 8,
+      y: coords.bottom + themeDomStyleTokens.editorPopupAnchorOffsetPx,
     };
   } catch {
     return {
-      x: 16,
-      y: 16,
+      x: themeDomStyleTokens.editorPopupFallbackX,
+      y: themeDomStyleTokens.editorPopupFallbackY,
     };
   }
 }

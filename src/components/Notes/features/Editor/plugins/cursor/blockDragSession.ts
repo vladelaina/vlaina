@@ -3,7 +3,7 @@ import { createDragSelectionRect, type RectBounds } from './blockSelectionUtils'
 
 export type BlockDragStartZone = 'outside-editor' | 'below-last-block';
 
-const BLOCK_SELECTION_PENDING_CLASS = 'vlaina-block-selection-pending';
+const BLOCK_SELECTION_PENDING_CLASS = 'editor-block-selection-pending';
 
 interface StartBlockDragSessionOptions {
   view: EditorView;

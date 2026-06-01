@@ -96,7 +96,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
   };
   return (
     <section className="space-y-4">
-      <div className={cn("overflow-hidden rounded-[26px] p-1", chatComposerPillSurfaceClass)}>
+      <div className={cn("overflow-hidden rounded-[var(--vlaina-radius-26px)] p-1", chatComposerPillSurfaceClass)}>
         <div className="space-y-5 px-6 py-6">
           {hasFetchedModels ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -121,7 +121,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
             </div>
           ) : (
             <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0 text-[14px] font-bold text-[var(--notes-sidebar-text)]">{t('settings.ai.models')}</div>
+              <div className="min-w-0 text-[var(--vlaina-font-sm)] font-bold text-[var(--vlaina-sidebar-notes-text)]">{t('settings.ai.models')}</div>
               <button
                 type="button"
                 disabled={!props.canUseConnectionActions || props.isFetchingModels}
@@ -129,12 +129,12 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                   void props.onFetchModels();
                 }}
                 className={cn(
-                  'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-transparent bg-transparent px-3.5 text-[12px] font-medium text-[var(--sidebar-row-selected-text)] transition-colors hover:bg-transparent hover:text-[var(--sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-50',
+                  'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-transparent bg-transparent px-3.5 text-[var(--vlaina-font-xs)] font-medium text-[var(--vlaina-sidebar-row-selected-text)] transition-colors hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-[var(--vlaina-opacity-50)]',
                   chatComposerPillSurfaceClass
                 )}
               >
                 {props.isFetchingModels ? (
-                  <span className="h-3 w-3 rounded-full border-2 border-[var(--vlaina-border)] border-t-[var(--sidebar-row-selected-text)] animate-spin" />
+                  <span className="h-3 w-3 rounded-full border-2 border-[var(--vlaina-border)] border-t-[var(--vlaina-sidebar-row-selected-text)] animate-spin" />
                 ) : (
                   <Icon name="common.download" size="xs" />
                 )}
@@ -163,10 +163,10 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
           ) : null}
 
           {props.quickAddError ? (
-            <div className="text-[12px] text-[var(--vlaina-color-status-danger-fg)] px-1">{props.quickAddError}</div>
+            <div className="text-[var(--vlaina-font-xs)] text-[var(--vlaina-color-status-danger-fg)] px-1">{props.quickAddError}</div>
           ) : null}
           {props.fetchError ? (
-            <div className="text-[12px] text-[var(--vlaina-color-status-danger-fg)] px-1">{props.fetchError}</div>
+            <div className="text-[var(--vlaina-font-xs)] text-[var(--vlaina-color-status-danger-fg)] px-1">{props.fetchError}</div>
           ) : null}
 
           {hasFetchedModels ? (

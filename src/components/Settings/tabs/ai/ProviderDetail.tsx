@@ -12,6 +12,7 @@ import { useProviderModelActions } from './provider-detail/useProviderModelActio
 import { useProviderModelFilters } from './provider-detail/useProviderModelFilters';
 import type { OauthAccountProvider } from '@/lib/account/provider';
 import { SETTINGS_BEFORE_CLOSE_EVENT } from '../../settingsEvents';
+import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 const EMPTY_FETCHED_MODELS: string[] = [];
 
@@ -300,7 +301,7 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
         apiKeyCopiedTimerRef.current = window.setTimeout(() => {
           setApiKeyCopied(false);
           apiKeyCopiedTimerRef.current = null;
-        }, 1500);
+        }, themeUiFeedbackTokens.providerApiKeyCopyDurationMs);
       }
     } catch {}
   };

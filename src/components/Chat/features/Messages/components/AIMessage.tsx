@@ -9,6 +9,7 @@ import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { WebSearchStatusBlock } from '@/components/Chat/features/WebSearch/WebSearchStatusBlock';
 import { useAccountSessionStore } from '@/stores/accountSession';
+import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 interface ChatImageGalleryItem {
   id: string;
@@ -136,7 +137,7 @@ export function AIMessage({
     copiedCodeBlockTimerRef.current = window.setTimeout(() => {
       setCopiedCodeBlockId((currentBlockId) => currentBlockId === blockId ? null : currentBlockId);
       copiedCodeBlockTimerRef.current = null;
-    }, 1200);
+    }, themeUiFeedbackTokens.copyFeedbackDurationMs);
   }, []);
 
   if (shouldHideManagedAuthError && stripThinkingContent(contentWithoutError).trim().length === 0) {
@@ -144,7 +145,7 @@ export function AIMessage({
   }
 
   return (
-    <div className="w-full pl-[15px]" data-chat-selection-surface="true">
+    <div className="w-full pl-[var(--vlaina-space-15px)]" data-chat-selection-surface="true">
         <div className="[&>*:last-child]:mb-0">
             <WebSearchStatusBlock
                 statuses={webSearchStatuses}

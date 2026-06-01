@@ -10,6 +10,7 @@ import { type ItemColor, COLOR_HEX } from '@/lib/colors';
 import { ICON_SIZES, IconSize } from '@/components/ui/icons/sizes';
 import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
 import { useI18n } from '@/lib/i18n';
+import { themeDomStyleTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 
 const IconPicker = lazy(async () => {
   const mod = await import('@/components/common/UniversalIconPicker/index');
@@ -22,7 +23,7 @@ interface HeroIconHeaderProps {
   onIconChange: (icon: string | null) => void;
   onColorChange?: (color: ItemColor) => void;
   initialColor?: ItemColor;
-  
+
   title?: string;
   renderTitle?: () => React.ReactNode;
 
@@ -53,26 +54,26 @@ const resolvePixelSize = (size: number | IconSize) => {
   return size as number;
 };
 
-function HeaderIcon({ 
-  itemId, 
-  originalIcon, 
+function HeaderIcon({
+  itemId,
+  originalIcon,
   sizeVar,
   imageLoader
-}: { 
-  itemId: string, 
-  originalIcon: string | null, 
+}: {
+  itemId: string,
+  originalIcon: string | null,
   sizeVar: string,
   imageLoader?: (src: string) => Promise<string>
 }) {
     const universalPreviewTarget = useUIStore(s => s.universalPreviewTarget);
     const universalPreviewIcon = useUIStore(s => s.universalPreviewIcon);
     const universalPreviewColor = useUIStore(s => s.universalPreviewColor);
-    
+
     const isPreviewing = universalPreviewTarget === itemId;
     const previewIcon = (isPreviewing && universalPreviewIcon) ? universalPreviewIcon : null;
-    
+
     const finalIcon = previewIcon ?? originalIcon;
-    
+
     let finalColorHex: string | undefined;
     if (isPreviewing && universalPreviewColor) {
         finalColorHex = COLOR_HEX[universalPreviewColor as ItemColor] || COLOR_HEX['default'];
@@ -81,8 +82,8 @@ function HeaderIcon({
     if (!finalIcon) return null;
 
     return (
-        <AppIcon 
-          icon={finalIcon} 
+        <AppIcon
+          icon={finalIcon}
           color={finalColorHex}
           size={sizeVar}
           imageLoader={imageLoader}
@@ -123,17 +124,17 @@ export function HeroIconHeader({
   const resolvedIconSize = resolvePixelSize(iconSize);
 
   const { handlePreview, handlePreviewTone, clearPreview } = useIconPreview(id);
-  
+
   const universalPreviewTarget = useUIStore(s => s.universalPreviewTarget);
   const universalPreviewIconSize = useUIStore(s => s.universalPreviewIconSize);
   const isPreviewing = universalPreviewTarget === id;
-  const effectiveSize = (!compact && isPreviewing && universalPreviewIconSize !== null) 
-    ? universalPreviewIconSize 
+  const effectiveSize = (!compact && isPreviewing && universalPreviewIconSize !== null)
+    ? universalPreviewIconSize
     : resolvedIconSize;
 
   useEffect(() => {
     if (headerRef.current) {
-      headerRef.current.style.setProperty('--header-icon-size', `${effectiveSize}px`);
+      headerRef.current.style.setProperty('--vlaina-hero-icon-header-size', `${effectiveSize}px`);
     }
   }, [effectiveSize]);
 
@@ -173,8 +174,8 @@ export function HeroIconHeader({
 
   const handleLocalSizeChange = useCallback((newSize: number) => {
     if (sliderValue === undefined && headerRef.current) {
-      headerRef.current.style.transition = 'none';
-      headerRef.current.style.setProperty('--header-icon-size', `${newSize}px`);
+      headerRef.current.style.transition = themeStyleResetTokens.transitionNone;
+      headerRef.current.style.setProperty('--vlaina-hero-icon-header-size', `${newSize}px`);
     }
     onSizeChange?.(newSize);
   }, [onSizeChange, sliderValue]);
@@ -191,25 +192,25 @@ export function HeroIconHeader({
     <div
       ref={headerRef}
       className={cn(
-        "relative transition-[margin-top] duration-75 ease-out w-full",
+        "relative transition-[margin-top] duration-[var(--vlaina-duration-75)] ease-out w-full",
         !compact && "max-w-3xl mx-auto px-10",
         !compact && coverLayoutActive && "pointer-events-none",
         className
       )}
       style={{
-        '--header-icon-size': `${resolvedIconSize}px`,
-        marginTop: coverLayoutActive ? `calc(var(--header-icon-size) * -0.618)` : undefined,
+        '--vlaina-hero-icon-header-size': `${resolvedIconSize}px`,
+        marginTop: coverLayoutActive ? `calc(var(--vlaina-hero-icon-header-size) * -0.618)` : undefined,
       } as React.CSSProperties}
     >
       {children}
-      
+
       <div className={cn(compact ? "flex items-center gap-3 py-2" : "pointer-events-none")}>
         <div
           className={cn(
-              "duration-150 relative",
+              "duration-[var(--vlaina-duration-150)] relative",
               "transition-[padding,opacity]",
               !compact && "w-fit",
-              !compact && "z-30",
+              !compact && "z-[var(--vlaina-z-30)]",
               !compact && "pointer-events-auto",
               !compact && "pb-2",
               !compact && (coverLayoutActive ? "pt-0" : "pt-10")
@@ -220,7 +221,7 @@ export function HeroIconHeader({
           {committedIcon || showIconPicker ? (
               <div
                   className="relative flex items-center"
-                  style={{ height: 'var(--header-icon-size)' }}
+                  style={{ height: themeDomStyleTokens.heroIconHeaderSize }}
               >
                   <button
                       ref={iconButtonRef}
@@ -228,25 +229,25 @@ export function HeroIconHeader({
                         notifyNotesOverlayOpen('header-icon-picker');
                         setShowIconPicker(true);
                       }}
-                      className="hover:scale-105 transition-transform cursor-pointer flex items-center group"
+                      className="hover:scale-[var(--vlaina-scale-105)] transition-transform cursor-pointer flex items-center group"
                       style={{
-                          marginLeft: !compact ? `calc(var(--header-icon-size) * -0.1)` : 0
+                          marginLeft: !compact ? `calc(var(--vlaina-hero-icon-header-size) * -0.1)` : 0
                       }}
                   >
-                      <HeaderIcon 
+                      <HeaderIcon
                           key={committedIcon || 'empty'}
-                          itemId={id} 
+                          itemId={id}
                           originalIcon={committedIcon}
-                          sizeVar="var(--header-icon-size)" 
+                          sizeVar="var(--vlaina-hero-icon-header-size)"
                           imageLoader={imageLoader}
                       />
                   </button>
               </div>
           ) : (
               <div className={cn(
-                  "flex items-center gap-2 transition-all duration-150",
+                  "flex items-center gap-2 transition-all duration-[var(--vlaina-duration-150)]",
                   compact ? "h-8" : "h-14",
-                  isHoveringHeader ? "opacity-100" : (compact ? "opacity-50" : "opacity-0")
+                  isHoveringHeader ? "opacity-[var(--vlaina-opacity-100)]" : (compact ? "opacity-[var(--vlaina-opacity-50)]" : "opacity-[var(--vlaina-opacity-0)]")
               )}>
                   <button
                       ref={iconButtonRef}
@@ -260,7 +261,7 @@ export function HeroIconHeader({
                           onIconChange(randomIcon);
                           setShowIconPicker(true);
                       }}
-                      className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--vlaina-soft-placeholder)] hover:text-[var(--sidebar-row-selected-text)] transition-colors")}
+                      className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--vlaina-soft-placeholder)] hover:text-[var(--vlaina-sidebar-row-selected-text)] transition-colors")}
                   >
                       <Icon size="md" name="misc.activity" />
                       {!compact && <span>{t('icon.addIcon')}</span>}
@@ -270,8 +271,8 @@ export function HeroIconHeader({
 
           {showIconPicker && (
               <div
-                className="absolute z-[9999] top-full mt-2"
-                style={{ left: !compact ? `calc(var(--header-icon-size) * -0.1)` : 0 }}
+                className="absolute z-[var(--vlaina-z-max)] top-full mt-2"
+                style={{ left: !compact ? `calc(var(--vlaina-hero-icon-header-size) * -0.1)` : 0 }}
                 data-no-auto-close="true"
               >
                   <Suspense fallback={null}>
@@ -281,10 +282,10 @@ export function HeroIconHeader({
                         onPreviewSkinTone={handlePreviewTone}
                         onRemove={handleRemoveIcon}
                         onClose={handlePickerClose}
-                        
+
                         hasIcon={!!committedIcon}
                         currentIcon={committedIcon || undefined}
-                        
+
                         currentSize={!compact ? currentSliderValue : undefined}
                         minSize={!compact ? minIconSize : undefined}
                         maxSize={!compact ? maxIconSize : undefined}
@@ -310,7 +311,7 @@ export function HeroIconHeader({
              )}
           </div>
         )}
-      
+
       </div>
 
       {!compact && (

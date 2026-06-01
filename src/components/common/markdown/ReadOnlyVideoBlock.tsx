@@ -2,6 +2,7 @@ import { translate } from '@/lib/i18n';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { isPublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { parseVideoUrl } from './videoUrl';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 
 interface ReadOnlyVideoBlockProps {
   src: string;
@@ -13,8 +14,8 @@ interface ReadOnlyVideoBlockProps {
 export function ReadOnlyVideoBlock({
   src,
   title = '',
-  width = 560,
-  height = 315,
+  width = themeDomStyleTokens.iframeDefaultWidth,
+  height = themeDomStyleTokens.iframeDefaultHeight,
 }: ReadOnlyVideoBlockProps) {
   const parsed = parseVideoUrl(src);
 
@@ -82,12 +83,12 @@ export function ReadOnlyVideoBlock({
       <iframe
         width={width}
         height={height}
-        frameBorder="0"
+        frameBorder={themeDomStyleTokens.iframeFrameBorder}
         allow="clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowFullScreen
         referrerPolicy="strict-origin-when-cross-origin"
-        scrolling="no"
-        loading="lazy"
+        scrolling={themeDomStyleTokens.iframeScrollingNone}
+        loading={themeDomStyleTokens.iframeLoadingLazy}
         title={title || parsed.type}
         src={parsed.embedUrl}
       />

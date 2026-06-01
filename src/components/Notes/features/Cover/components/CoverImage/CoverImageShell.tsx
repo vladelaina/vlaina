@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils';
 import { CoverPicker } from '../../../AssetLibrary';
 import { CoverRenderer } from './CoverRenderer';
 import type { CoverImageControllerModel } from './coverImage.types';
+import { themeRenderingTokens } from '@/styles/themeTokens';
 
 export function CoverImageShell({
   url,
@@ -36,7 +37,7 @@ export function CoverImageShell({
     return (
       <div
         className={cn(
-          'relative w-full shrink-0 animate-in fade-in-0 duration-150 ease-out motion-reduce:animate-none',
+          'relative w-full shrink-0 animate-in fade-in-0 duration-[var(--vlaina-duration-150)] ease-out motion-reduce:animate-none',
           shouldHoldCoverSpace && 'bg-[var(--vlaina-bg-secondary)] overflow-hidden'
         )}
         data-note-cover-region="true"
@@ -66,9 +67,9 @@ export function CoverImageShell({
     <div
       className={cn(
         'relative w-full bg-[var(--vlaina-bg-primary)] shrink-0 select-none overflow-hidden group',
-        'animate-in fade-in-0 duration-150 ease-out motion-reduce:animate-none'
+        'animate-in fade-in-0 duration-[var(--vlaina-duration-150)] ease-out motion-reduce:animate-none'
       )}
-      style={{ height: coverHeight, overflowAnchor: 'none' }}
+      style={{ height: coverHeight, overflowAnchor: themeRenderingTokens.overflowAnchorNone }}
       ref={containerRef}
       data-note-cover-region="true"
     >
@@ -81,16 +82,16 @@ export function CoverImageShell({
 
       {!displaySrc && (
         <div
-          className="absolute inset-0 cursor-pointer z-10"
+          className="absolute inset-0 cursor-pointer z-[var(--vlaina-z-10)]"
           onMouseDown={() => !readOnly && onOpenPicker()}
         />
       )}
 
-      {readOnly && <div className="absolute inset-0 z-20" />}
+      {readOnly && <div className="absolute inset-0 z-[var(--vlaina-z-20)]" />}
 
       {!readOnly && (
         <div
-          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-10 opacity-0 hover:opacity-100 transition-opacity"
+          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-[var(--vlaina-z-10)] opacity-[var(--vlaina-opacity-0)] hover:opacity-[var(--vlaina-opacity-100)] transition-opacity"
           onMouseDown={onResizeMouseDown}
           onDoubleClick={onResetHeight}
         />

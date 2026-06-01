@@ -641,7 +641,7 @@ export function AppContent() {
 
   const showLabEntry = import.meta.env.DEV && effectiveAppViewMode !== 'lab';
   const mainOverlay = showLabEntry ? (
-    <div className="pointer-events-none absolute bottom-3 right-3 z-30 flex flex-col items-end gap-2">
+    <div className="pointer-events-none absolute bottom-3 right-3 z-[var(--vlaina-z-30)] flex flex-col items-end gap-2">
       <Tooltip delayDuration={700}>
         <TooltipTrigger asChild>
           <button
@@ -649,7 +649,7 @@ export function AppContent() {
             onClick={() => setAppViewMode('lab')}
             aria-label="Open Design Lab"
             className={cn(
-              'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-sm backdrop-blur-sm transition-colors hover:bg-[var(--vlaina-hover)]',
+              'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-sm)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)] transition-colors hover:bg-[var(--vlaina-hover)]',
               iconButtonStyles
             )}
           >
@@ -657,7 +657,7 @@ export function AppContent() {
           </button>
         </TooltipTrigger>
         <TooltipContent side="left" sideOffset={8}>
-          <span className="text-xs">Open Design Lab</span>
+          <span className="text-[var(--vlaina-font-xs)]">Open Design Lab</span>
         </TooltipContent>
       </Tooltip>
     </div>

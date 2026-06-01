@@ -1,10 +1,11 @@
 import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { EditorSelection, Prec, RangeSetBuilder, StateField } from '@codemirror/state';
 import { Decoration, EditorView as CodeMirror } from '@codemirror/view';
-import { vlainaCodeBlockHighlightStyle } from './codeBlockHighlightStyle';
+import { themeCodeBlockEditorTokens, themeStyleResetTokens } from '@/styles/themeTokens';
+import { codeBlockHighlightStyle } from './codeBlockHighlightStyle';
 
 const selectedTextDecoration = Decoration.mark({
-  class: 'vlaina-code-selection-text',
+  class: 'editor-code-selection-text',
 });
 
 function buildSelectedTextDecorations(selection: EditorSelection) {
@@ -37,21 +38,21 @@ const codeBlockSelectedTextField = StateField.define({
 
 export function createCodeBlockEditorTheme() {
   return [
-    syntaxHighlighting(vlainaCodeBlockHighlightStyle),
+    syntaxHighlighting(codeBlockHighlightStyle),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     Prec.highest(codeBlockSelectedTextField),
     CodeMirror.theme({
       '&': {
         backgroundColor: 'var(--vlaina-code-block-background)',
         color: 'var(--vlaina-code-syntax-foreground)',
-        fontSize: '0.875rem',
+        fontSize: themeCodeBlockEditorTokens.fontSize,
       },
       '.cm-editor': {
         backgroundColor: 'var(--vlaina-code-block-background)',
       },
       '.cm-scroller': {
         fontFamily: 'var(--font-mono), monospace',
-        lineHeight: '1.75',
+        lineHeight: themeCodeBlockEditorTokens.lineHeight,
         overflowX: 'auto',
         textRendering: 'auto',
         fontKerning: 'none',
@@ -66,41 +67,41 @@ export function createCodeBlockEditorTheme() {
         fontFeatureSettings: 'inherit',
       },
       '.cm-content': {
-        padding: '0',
-        minHeight: '1.75rem',
-        caretColor: 'transparent !important',
+        padding: themeCodeBlockEditorTokens.contentPadding,
+        minHeight: themeCodeBlockEditorTokens.contentMinHeight,
+        caretColor: themeStyleResetTokens.colorTransparentImportant,
       },
       '.cm-line': {
-        padding: '0 1rem',
+        padding: themeCodeBlockEditorTokens.linePadding,
       },
       '.cm-gutters': {
         position: 'sticky',
-        left: 0,
-        zIndex: 10,
-        paddingLeft: '0.5rem',
+        left: themeCodeBlockEditorTokens.contentPadding,
+        zIndex: themeCodeBlockEditorTokens.gutterZIndex,
+        paddingLeft: themeCodeBlockEditorTokens.gutterPaddingLeft,
         color: 'var(--vlaina-code-syntax-muted)',
         backgroundColor: 'var(--vlaina-code-block-background) !important',
-        borderRight: 'none !important',
-        border: 'none !important',
+        borderRight: themeStyleResetTokens.borderNoneImportant,
+        border: themeStyleResetTokens.borderNoneImportant,
       },
       '.cm-gutter, .cm-lineNumbers, .cm-gutterElement, .cm-gutter-filler': {
         backgroundColor: 'var(--vlaina-code-block-background) !important',
-        borderRight: 'none !important',
-        border: 'none !important',
+        borderRight: themeStyleResetTokens.borderNoneImportant,
+        border: themeStyleResetTokens.borderNoneImportant,
       },
       '.cm-activeLine, .cm-activeLineGutter': {
-        backgroundColor: 'transparent',
+        backgroundColor: themeStyleResetTokens.backgroundTransparent,
       },
       '&.cm-focused': {
-        outline: 'none',
+        outline: themeStyleResetTokens.outlineNone,
       },
       '&.cm-focused .cm-selectionBackground': {
         backgroundColor: 'var(--vlaina-selection-bg)',
       },
       '.cm-selectionBackground': {
-        backgroundColor: 'transparent',
+        backgroundColor: themeStyleResetTokens.backgroundTransparent,
       },
-      '.vlaina-code-selection-text, .vlaina-code-selection-text *': {
+      '.editor-code-selection-text, .editor-code-selection-text *': {
         color: 'var(--vlaina-color-white) !important',
         WebkitTextFillColor: 'var(--vlaina-color-white) !important',
       },

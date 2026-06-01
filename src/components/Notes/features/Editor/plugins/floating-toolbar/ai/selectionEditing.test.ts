@@ -116,7 +116,7 @@ describe('selectionEditing', () => {
     });
     expect(view.state.tr.insertText).not.toHaveBeenCalled();
     expect(view.dom.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'vlaina:block-user-input',
+      type: 'editor:block-user-input',
     }));
     expect(view.dispatch).toHaveBeenCalledTimes(1);
     expect(mockCollapseSelectionAfterToolbarApply).toHaveBeenCalledWith(view);
@@ -142,7 +142,7 @@ describe('selectionEditing', () => {
     expect(view.state.tr.insertText).toHaveBeenCalledWith('Updated body', 8, 14);
     expect(view.state.tr.replaceRange).not.toHaveBeenCalled();
     expect(view.dom.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'vlaina:block-user-input',
+      type: 'editor:block-user-input',
     }));
     expect(view.dispatch).toHaveBeenCalledTimes(1);
     expect(mockCollapseSelectionAfterToolbarApply).toHaveBeenCalledWith(view);

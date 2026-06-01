@@ -18,7 +18,7 @@ export function MentionPreviewOverlay({
 
   return (
     <div
-      className="pointer-events-none absolute inset-0 z-20 whitespace-pre-wrap break-words text-[15px] leading-6"
+      className="pointer-events-none absolute inset-0 z-[var(--vlaina-z-20)] whitespace-pre-wrap break-words text-[var(--vlaina-font-15)] leading-6"
       style={{ transform: `translateY(${-textareaScrollTop}px)` }}
       aria-hidden="true"
     >
@@ -58,7 +58,7 @@ function MentionPreviewToken({
       {part.text}
       <button
         type="button"
-        className="absolute -right-1 -top-1 z-10 rounded-full bg-[var(--vlaina-accent)] px-1 text-[10px] leading-4 text-[var(--vlaina-color-white)] opacity-0 shadow-[var(--vlaina-shadow-selection-soft)] transition-opacity group-hover:opacity-100"
+        className="absolute -right-1 -top-1 z-[var(--vlaina-z-10)] rounded-full bg-[var(--vlaina-accent)] px-1 text-[var(--vlaina-font-10)] leading-4 text-[var(--vlaina-color-white)] opacity-[var(--vlaina-opacity-0)] shadow-[var(--vlaina-shadow-selection-soft)] transition-opacity group-hover:opacity-[var(--vlaina-opacity-100)]"
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => onRemoveMention(part.mention.path, part.start)}
       >

@@ -25,6 +25,7 @@ import {
   restoreCachedMeasuredHeights,
 } from '@/components/Chat/features/Layout/chatMessageFrames';
 import { normalizeChatContainerWidth } from '@/components/Chat/features/Layout/chatWidthBuckets';
+import { themeRenderingTokens } from '@/styles/themeTokens';
 
 interface ChatImageGalleryItem {
   id: string;
@@ -570,7 +571,7 @@ export const MessageList = memo(function MessageList({
   );
 
   const content = (
-    <div className="w-full max-w-[850px] mx-auto px-4">
+    <div className="w-full max-w-[var(--vlaina-size-850px)] mx-auto px-4">
       {!isEmpty && (
         <div
           className="relative w-full min-h-full"
@@ -636,10 +637,10 @@ export const MessageList = memo(function MessageList({
       <OverlayScrollArea
         ref={containerRef}
         data-chat-scrollable="true"
-        style={{ overflowAnchor: 'none' }}
+        style={{ overflowAnchor: themeRenderingTokens.overflowAnchorNone }}
         className={cn(
-          'transition-opacity duration-500',
-          isEmpty ? 'pointer-events-none opacity-0' : 'opacity-100',
+          'transition-opacity duration-[var(--vlaina-duration-500)]',
+          isEmpty ? 'pointer-events-none opacity-[var(--vlaina-opacity-0)]' : 'opacity-[var(--vlaina-opacity-100)]',
           isLayoutCentered && 'hidden',
         )}
         viewportClassName="h-full"
@@ -653,10 +654,10 @@ export const MessageList = memo(function MessageList({
   return (
       <div
         data-chat-scrollable="true"
-        style={{ overflowAnchor: 'none' }}
+        style={{ overflowAnchor: themeRenderingTokens.overflowAnchorNone }}
         className={cn(
-          'flex-1 overflow-y-auto transition-opacity duration-500',
-          isEmpty ? 'pointer-events-none opacity-0' : 'opacity-100',
+          'flex-1 overflow-y-auto transition-opacity duration-[var(--vlaina-duration-500)]',
+          isEmpty ? 'pointer-events-none opacity-[var(--vlaina-opacity-0)]' : 'opacity-[var(--vlaina-opacity-100)]',
           isLayoutCentered && 'hidden',
         )}
         ref={containerRef}

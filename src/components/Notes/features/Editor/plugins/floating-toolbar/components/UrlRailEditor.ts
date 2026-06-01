@@ -1,3 +1,5 @@
+import { themeUiFeedbackTokens } from '@/styles/themeTokens';
+
 interface UrlRailEditorOptions {
   value?: string;
   placeholder?: string;
@@ -59,7 +61,7 @@ export function renderUrlRailEditor(
         return;
       }
       input.classList.remove('error-shake');
-    }, 500);
+    }, themeUiFeedbackTokens.urlRailValidationErrorDurationMs);
   };
 
   const applyValue = () => {

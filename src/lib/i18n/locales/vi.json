@@ -1,7 +1,7 @@
 {
   "account.cancelAuthentication": "Hủy xác thực",
   "account.continueSignIn": "Tiếp tục đăng nhập",
-  "account.continueToVlaina": "Tiếp tục đến vlaina",
+  "account.continueToApp": "Tiếp tục đến vlaina",
   "account.continueWithEmail": "Tiếp tục với Email",
   "account.emailAddress": "Địa chỉ Email",
   "account.enterEmailCode": "Nhập mã được gửi đến hộp thư của bạn",
@@ -82,7 +82,7 @@
   "settings.feedback.error.signInRequired": "Vui lòng đăng nhập trước khi gửi góp ý",
   "settings.feedback.error.network": "Lỗi mạng. Góp ý chưa được gửi.",
   "settings.feedback.error.generic": "Gửi góp ý thất bại",
-  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★! Đây là {authorSite}, nhà phát triển của {vlainaSite} và {catimeSite}.",
+  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★! Đây là {authorSite}, nhà phát triển của {appSite} và {catimeSite}.",
   "settings.about.note.curiousTitle": "Có thể bạn sẽ thắc mắc:",
   "settings.about.note.curiousMissing": "Vì sao trông như vẫn còn thiếu một số tính năng?",
   "settings.about.note.curiousRough": "Vì sao một số tương tác vẫn còn thô?",

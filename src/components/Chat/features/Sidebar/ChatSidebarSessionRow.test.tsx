@@ -170,8 +170,8 @@ describe('ChatSidebarSessionRow', () => {
 
     const title = screen.getByText('Alpha chat');
 
-    expect(title).toHaveClass('text-[var(--sidebar-row-selected-text)]');
-    expect(title).not.toHaveClass('font-[550]');
+    expect(title).toHaveClass('text-[var(--vlaina-sidebar-row-selected-text)]');
+    expect(title).not.toHaveClass('font-[var(--vlaina-font-weight-semibold-plus)]');
     expect(title).not.toHaveClass('font-medium');
   });
 });

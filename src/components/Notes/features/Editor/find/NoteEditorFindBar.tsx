@@ -4,6 +4,7 @@ import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import type { NoteEditorFindController } from './types';
 import { useI18n } from '@/lib/i18n';
+import { themeMotionTokens } from '@/styles/themeTokens';
 
 interface NoteEditorFindBarProps {
   controller: NoteEditorFindController;
@@ -33,11 +34,11 @@ function FindToolbarButton({
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
       className={cn(
-        'inline-flex h-8 w-8 items-center justify-center rounded-xl transition-all active:scale-90',
+        'inline-flex h-8 w-8 items-center justify-center rounded-xl transition-all active:scale-[var(--vlaina-scale-90)]',
         active
           ? 'text-[var(--vlaina-color-status-info-fg)] bg-[var(--vlaina-color-status-info-bg)]'
           : 'text-[var(--vlaina-color-text-soft)] hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-color-text-strong)]',
-        disabled && 'cursor-not-allowed opacity-20 hover:bg-transparent',
+        disabled && 'cursor-not-allowed opacity-[var(--vlaina-opacity-20)] hover:bg-transparent',
         className
       )}
     >
@@ -84,17 +85,25 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
   return (
     <motion.div
       ref={containerRef}
-      initial={{ scale: 0.98, opacity: 0, y: -10 }}
+      initial={{
+        scale: themeMotionTokens.noteFindInitialScale,
+        opacity: themeMotionTokens.opacityHidden,
+        y: themeMotionTokens.noteFindInitialY,
+      }}
       animate={{
-        scale: 1,
-        opacity: 1,
-        y: 0,
+        scale: themeMotionTokens.noteFindVisibleScale,
+        opacity: themeMotionTokens.opacityVisible,
+        y: themeMotionTokens.noteFindVisibleY,
         boxShadow: hasQuery ? 'var(--vlaina-shadow-floating-panel)' : 'var(--vlaina-shadow-panel-soft)',
       }}
       transition={{
-        default: { type: 'spring', stiffness: 500, damping: 35 },
+        default: {
+          type: 'spring',
+          stiffness: themeMotionTokens.noteFindSpringStiffness,
+          damping: themeMotionTokens.noteFindSpringDamping,
+        },
       }}
-      className="w-[min(400px,calc(100vw-2rem))] max-w-full rounded-[22px] bg-[var(--vlaina-color-setting-field)] border border-[var(--vlaina-color-panel-border)] backdrop-blur-3xl shadow-2xl p-1.5"
+      className="w-[var(--vlaina-width-note-find-bar)] max-w-full rounded-[var(--vlaina-radius-22px)] bg-[var(--vlaina-color-setting-field)] border border-[var(--vlaina-color-panel-border)] backdrop-blur-[var(--vlaina-backdrop-blur-3xl)] shadow-[var(--vlaina-shadow-2xl)] p-1.5"
     >
       <div
         className={cn(
@@ -109,15 +118,15 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
           onKeyDown={controller.handleQueryKeyDown}
           placeholder={t('notes.find')}
           spellCheck={false}
-          className="h-8 min-w-0 flex-1 bg-transparent py-0 text-[15px] font-medium leading-5 text-[var(--vlaina-color-text-strong)] outline-none placeholder:text-[var(--vlaina-color-text-soft)] tracking-tight"
+          className="h-8 min-w-0 flex-1 bg-transparent py-0 text-[var(--vlaina-font-15)] font-medium leading-5 text-[var(--vlaina-color-text-strong)] outline-none placeholder:text-[var(--vlaina-color-text-soft)] tracking-tight"
         />
 
         <div className="flex items-center gap-1.5">
-          <div className="flex min-w-[132px] items-center justify-end gap-1">
+          <div className="flex min-w-[var(--vlaina-size-132px)] items-center justify-end gap-1">
             <span
               className={cn(
-                'shrink-0 px-1 text-[11px] font-bold tabular-nums uppercase tracking-tighter transition-opacity',
-                hasQuery ? 'text-[var(--vlaina-color-text-soft)] opacity-100' : 'text-[var(--vlaina-color-text-disabled)] opacity-0',
+                'shrink-0 px-1 text-[var(--vlaina-font-11)] font-bold tabular-nums uppercase tracking-tighter transition-opacity',
+                hasQuery ? 'text-[var(--vlaina-color-text-soft)] opacity-[var(--vlaina-opacity-100)]' : 'text-[var(--vlaina-color-text-disabled)] opacity-[var(--vlaina-opacity-0)]',
               )}
             >
               {matchLabel}
@@ -157,9 +166,18 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
       <AnimatePresence>
         {controller.isReplaceOpen && (
           <motion.div 
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
+            initial={{
+              height: themeMotionTokens.noteFindReplaceCollapsedHeight,
+              opacity: themeMotionTokens.opacityHidden,
+            }}
+            animate={{
+              height: themeMotionTokens.noteFindReplaceExpandedHeight,
+              opacity: themeMotionTokens.opacityVisible,
+            }}
+            exit={{
+              height: themeMotionTokens.noteFindReplaceCollapsedHeight,
+              opacity: themeMotionTokens.opacityHidden,
+            }}
             className="overflow-hidden"
           >
             <div className="flex items-center gap-3 px-2 py-3 border-t border-[var(--vlaina-border)] mt-1">
@@ -170,7 +188,7 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
                 onKeyDown={controller.handleReplaceKeyDown}
                 placeholder={t('notes.replaceWith')}
                 spellCheck={false}
-                className="h-8 min-w-0 flex-1 bg-transparent px-3 py-0 text-[14px] font-medium leading-5 text-[var(--vlaina-text-primary)] outline-none placeholder:text-[var(--vlaina-color-text-soft)] tracking-tight"
+                className="h-8 min-w-0 flex-1 bg-transparent px-3 py-0 text-[var(--vlaina-font-sm)] font-medium leading-5 text-[var(--vlaina-text-primary)] outline-none placeholder:text-[var(--vlaina-color-text-soft)] tracking-tight"
               />
 
               <div className="flex items-center gap-1.5 pr-1">
@@ -180,8 +198,8 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => controller.replaceAll()}
                   className={cn(
-                    'px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-[var(--vlaina-color-text-soft)] transition-all rounded-xl hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-color-text-strong)]',
-                    !controller.canReplace && 'opacity-20 cursor-not-allowed',
+                    'px-3 py-1.5 text-[var(--vlaina-font-11)] font-bold uppercase tracking-widest text-[var(--vlaina-color-text-soft)] transition-all rounded-xl hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-color-text-strong)]',
+                    !controller.canReplace && 'opacity-[var(--vlaina-opacity-20)] cursor-not-allowed',
                   )}
                 >
                   {t('notes.replaceAll')}
@@ -192,8 +210,8 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => controller.replaceCurrent()}
                   className={cn(
-                    'px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] rounded-xl transition-all active:scale-95 shadow-none',
-                    !controller.canReplace && 'opacity-50 grayscale cursor-not-allowed',
+                    'px-4 py-1.5 text-[var(--vlaina-font-11)] font-bold uppercase tracking-widest bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] rounded-xl transition-all active:scale-[var(--vlaina-scale-95)] shadow-[var(--vlaina-shadow-none)]',
+                    !controller.canReplace && 'opacity-[var(--vlaina-opacity-50)] grayscale cursor-not-allowed',
                   )}
                 >
                   {t('notes.replace')}

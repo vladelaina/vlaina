@@ -1,7 +1,7 @@
 {
   "account.cancelAuthentication": "Kimlik Doğrulamayı İptal Et",
   "account.continueSignIn": "Girişe Devam Et",
-  "account.continueToVlaina": "vlaina'ya Devam Et",
+  "account.continueToApp": "vlaina'ya Devam Et",
   "account.continueWithEmail": "E-posta ile Devam Et",
   "account.emailAddress": "E-posta Adresi",
   "account.enterEmailCode": "Gelen kutunuza gönderilen kodu girin",
@@ -82,7 +82,7 @@
   "settings.feedback.error.signInRequired": "Geri bildirim göndermeden önce giriş yap",
   "settings.feedback.error.network": "Ağ hatası. Geri bildirim gönderilmedi.",
   "settings.feedback.error.generic": "Geri bildirim gönderilemedi",
-  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★! Burası {vlainaSite} ve {catimeSite} geliştiricisi {authorSite}.",
+  "settings.about.note.intro": "Ciallo~ (∠・ω< )⌒★! Burası {appSite} ve {catimeSite} geliştiricisi {authorSite}.",
   "settings.about.note.curiousTitle": "Merak ediyor olabilirsiniz:",
   "settings.about.note.curiousMissing": "Neden bazı özellikler hâlâ eksik gibi görünüyor?",
   "settings.about.note.curiousRough": "Neden bazı etkileşimler hâlâ biraz ham?",
