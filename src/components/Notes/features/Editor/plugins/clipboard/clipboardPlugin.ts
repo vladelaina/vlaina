@@ -9,7 +9,7 @@ import type { Parser, Serializer } from '@milkdown/kit/transformer';
 import {
     normalizeAlternativeMathBlockFences,
     normalizeLenientMarkdownLineMarkers,
-    preserveMarkdownBlankLinesForEditor,
+    preserveMarkdownBlankLinesForPaste,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { normalizeCanonicalMarkdownSpacingForPaste } from '@/lib/notes/markdown/markdownCanonicalSpacing';
 import { collapseSelectionAndHideFloatingToolbar } from './copyCleanup';
@@ -660,7 +660,7 @@ export const clipboardPlugin = $prose((ctx) => {
         const pasteMarkdown = shouldCompactLenientListGaps
             ? normalizeCanonicalMarkdownSpacingForPaste(withThematicBreaks)
             : withThematicBreaks;
-        const editorInput = preserveMarkdownBlankLinesForEditor(pasteMarkdown);
+        const editorInput = preserveMarkdownBlankLinesForPaste(pasteMarkdown);
         try {
             parsedDoc = parser(editorInput);
         } catch {

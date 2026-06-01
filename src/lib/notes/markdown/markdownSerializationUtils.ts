@@ -8,7 +8,10 @@ import {
 } from './markdownHeadingSpacing';
 import { normalizeCanonicalMarkdownSpacingForPersistence } from './markdownCanonicalSpacing';
 import { preserveParagraphSoftBreaksAsHardBreaks } from './markdownSoftBreaks';
-export { preserveMarkdownBlankLinesForEditor } from './markdownEditorBlankLines';
+export {
+  preserveMarkdownBlankLinesForEditor,
+  preserveMarkdownBlankLinesForPaste,
+} from './markdownEditorBlankLines';
 export { joinSerializedBlocks } from './markdownBlockJoin';
 
 const BR_ONLY_PATTERN = /^<br\b[^>]*\/?>\s*(?:<\/br>)?$/i;

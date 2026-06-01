@@ -220,6 +220,19 @@ body.vlaina-block-drag-active .vlaina-block-drag-preview-layer * {
   --vlaina-block-selection-bleed-y: 0px;
 }
 
+.milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].ProseMirror-selectednode,
+.milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].vlaina-block-selected {
+  --vlaina-block-selection-bleed-y: 0px;
+  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg, #bedffe);
+  background-color: var(--vlaina-block-selection-color);
+  box-shadow:
+    0 var(--vlaina-block-selection-bleed-y) 0 0 var(--vlaina-block-selection-color),
+    0 calc(-1 * var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-color),
+    calc(-1 * (var(--vlaina-block-selection-bleed-x-start, 48px) - var(--vlaina-block-selection-bleed-y))) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color),
+    calc(var(--vlaina-block-selection-bleed-x-end, 48px) - var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color);
+  border-radius: 8px;
+}
+
 .milkdown .ProseMirror .vlaina-block-selected-inline-line {
   background-color: transparent;
   box-shadow: none;

@@ -266,14 +266,36 @@ describe('editor embedded CodeMirror selection styles', () => {
 
   it('renders markdown source blank lines as editor-only blank line blocks', () => {
     const markdownCss = readStyleFile('markdown.css');
+    const coreCss = readStyleFile('core.css');
     const editorBlankLineRule = extractCssRule(
       markdownCss,
       ".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->']"
+    );
+    const editableBlankLineRule = extractCssRule(
+      markdownCss,
+      '.milkdown .ProseMirror > p.vlaina-editable-markdown-blank-line'
+    );
+    const trailingBreakBlankLineRule = extractCssRule(
+      markdownCss,
+      '.milkdown .ProseMirror > p:has(> br.ProseMirror-trailingBreak:only-child):not(.is-editor-empty)'
+    );
+    const selectedBlankLineRule = extractCssRule(
+      coreCss,
+      ".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].ProseMirror-selectednode"
     );
 
     expect(editorBlankLineRule).toContain('min-height: calc(1em + 8px);');
     expect(editorBlankLineRule).toContain('margin: 0;');
     expect(editorBlankLineRule).toContain('padding: 0;');
+    expect(editableBlankLineRule).toContain('min-height: calc(1em + 8px);');
+    expect(editableBlankLineRule).toContain('margin: 0;');
+    expect(editableBlankLineRule).toContain('padding: 0;');
+    expect(trailingBreakBlankLineRule).toContain('min-height: calc(1em + 8px);');
+    expect(trailingBreakBlankLineRule).toContain('margin: 0;');
+    expect(trailingBreakBlankLineRule).toContain('padding: 0;');
+    expect(selectedBlankLineRule).toContain(".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'].vlaina-block-selected");
+    expect(selectedBlankLineRule).toContain('--vlaina-block-selection-bleed-y: 0px;');
+    expect(selectedBlankLineRule).toContain('background-color: var(--vlaina-block-selection-color);');
   });
 
   it('keeps list selection overlays wide enough to cover native markers', () => {
@@ -533,7 +555,7 @@ describe('editor embedded CodeMirror selection styles', () => {
     const css = readStyleFile('selection-width.css');
 
     expect(css).toContain(
-      '.milkdown .ProseMirror > p:not([data-text-align]):not(.is-editor-empty):not(.vlaina-block-selected):not(:has(> br.ProseMirror-trailingBreak:only-child)):not(:has(> .image-block-container)) {'
+      '.milkdown .ProseMirror > p:not([data-text-align]):not(.is-editor-empty):not(.vlaina-block-selected):not(.vlaina-editable-markdown-blank-line):not(:has(> br.ProseMirror-trailingBreak:only-child)):not(:has(> .image-block-container)) {'
     );
     expect(css).toContain('width: fit-content;');
     expect(css).toContain('max-width: 100%;');

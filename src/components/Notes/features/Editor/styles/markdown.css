@@ -26,6 +26,13 @@
   padding: 0;
 }
 
+.milkdown .ProseMirror > p.vlaina-editable-markdown-blank-line,
+.milkdown .ProseMirror > p:has(> br.ProseMirror-trailingBreak:only-child):not(.is-editor-empty) {
+  min-height: calc(1em + 8px);
+  margin: 0;
+  padding: 0;
+}
+
 .milkdown .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   color: var(--vlaina-soft-placeholder);
