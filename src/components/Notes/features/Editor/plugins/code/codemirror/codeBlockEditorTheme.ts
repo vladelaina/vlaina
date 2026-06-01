@@ -42,12 +42,12 @@ export function createCodeBlockEditorTheme() {
     Prec.highest(codeBlockSelectedTextField),
     CodeMirror.theme({
       '&': {
-        backgroundColor: 'var(--vlaina-code-block-background, #f5f5f5)',
-        color: 'var(--vlaina-code-syntax-foreground, #24292e)',
+        backgroundColor: 'var(--vlaina-code-block-background)',
+        color: 'var(--vlaina-code-syntax-foreground)',
         fontSize: '0.875rem',
       },
       '.cm-editor': {
-        backgroundColor: 'var(--vlaina-code-block-background, #f5f5f5)',
+        backgroundColor: 'var(--vlaina-code-block-background)',
       },
       '.cm-scroller': {
         fontFamily: 'var(--font-mono), monospace',
@@ -78,13 +78,13 @@ export function createCodeBlockEditorTheme() {
         left: 0,
         zIndex: 10,
         paddingLeft: '0.5rem',
-        color: 'var(--vlaina-code-syntax-muted, #6a737d)',
-        backgroundColor: 'var(--vlaina-code-block-background, #f5f5f5) !important',
+        color: 'var(--vlaina-code-syntax-muted)',
+        backgroundColor: 'var(--vlaina-code-block-background) !important',
         borderRight: 'none !important',
         border: 'none !important',
       },
       '.cm-gutter, .cm-lineNumbers, .cm-gutterElement, .cm-gutter-filler': {
-        backgroundColor: 'var(--vlaina-code-block-background, #f5f5f5) !important',
+        backgroundColor: 'var(--vlaina-code-block-background) !important',
         borderRight: 'none !important',
         border: 'none !important',
       },
@@ -95,14 +95,14 @@ export function createCodeBlockEditorTheme() {
         outline: 'none',
       },
       '&.cm-focused .cm-selectionBackground': {
-        backgroundColor: 'var(--vlaina-selection-bg, #2781db)',
+        backgroundColor: 'var(--vlaina-selection-bg)',
       },
       '.cm-selectionBackground': {
         backgroundColor: 'transparent',
       },
       '.vlaina-code-selection-text, .vlaina-code-selection-text *': {
-        color: '#ffffff !important',
-        WebkitTextFillColor: '#ffffff !important',
+        color: 'var(--vlaina-color-white) !important',
+        WebkitTextFillColor: 'var(--vlaina-color-white) !important',
       },
       '.cm-cursor, .cm-dropCursor, &.cm-focused .cm-cursor, &.cm-focused .cm-dropCursor': {
         borderLeftColor: 'var(--vlaina-caret-color) !important',

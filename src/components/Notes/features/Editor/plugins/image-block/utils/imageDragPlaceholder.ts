@@ -66,9 +66,9 @@ export function createPlaceholderDecoration(
         height: ${height}px;
         width: ${width}px;
         margin: ${getPlaceholderMargin(alignment)};
-        border: 3px dashed var(--vlaina-accent, #3b82f6);
+        border: 3px dashed var(--vlaina-accent);
         border-radius: ${PLACEHOLDER_BORDER_RADIUS}px;
-        background: rgba(59, 130, 246, 0.1);
+        background: var(--vlaina-color-image-drag-placeholder-bg);
     `;
 
     return Decoration.widget(pos, placeholder, {

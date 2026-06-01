@@ -259,7 +259,7 @@ export function ProviderConnectionFields({
                   <button
                     type="button"
                     onClick={handleApiKeyVisibilityToggle}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-zinc-200/50 hover:text-[var(--notes-sidebar-text)] dark:hover:bg-white/10"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--notes-sidebar-text)]"
                     aria-label={apiKeyVisible ? t('settings.ai.hideApiKey') : t('settings.ai.showApiKey')}
                   >
                     <Icon name={apiKeyVisible ? 'common.eyeOff' : 'common.eye'} size="sm" />
@@ -270,7 +270,7 @@ export function ProviderConnectionFields({
                     disabled={!apiKey}
                     data-action="copy"
                     data-copied={apiKeyCopied ? 'true' : undefined}
-                    className="settings-api-key-copy-button flex h-8 w-8 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-zinc-200/50 hover:text-[var(--notes-sidebar-text)] disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/10"
+                    className="settings-api-key-copy-button flex h-8 w-8 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--notes-sidebar-text)] disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label={apiKeyCopied ? t('common.copied') : t('common.copy')}
                   >
                     <Icon name={apiKeyCopied ? 'common.check' : 'common.copy'} size="sm" />

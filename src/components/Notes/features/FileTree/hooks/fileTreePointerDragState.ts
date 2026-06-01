@@ -127,7 +127,7 @@ function createPreviewStarBadge() {
   badge.style.justifyContent = 'center';
   badge.style.width = '18px';
   badge.style.height = '18px';
-  badge.style.color = '#f59e0b';
+  badge.style.color = 'var(--vlaina-color-status-warning-fg)';
   badge.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M9.1 2.5a1 1 0 0 1 1.8 0l1.6 3.3 3.6.5a1 1 0 0 1 .6 1.7l-2.6 2.5.6 3.6a1 1 0 0 1-1.5 1.1L10 13.5l-3.2 1.7a1 1 0 0 1-1.5-1.1l.6-3.6L3.3 8a1 1 0 0 1 .6-1.7l3.6-.5 1.6-3.3Z"/></svg>';
   return badge;
 }

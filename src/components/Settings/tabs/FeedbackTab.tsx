@@ -82,7 +82,7 @@ export function FeedbackTab({ compact = false }: { compact?: boolean }) {
     <div className="space-y-8">
       <div>
         <SettingsSectionHeader>{t('settings.feedback.title')}</SettingsSectionHeader>
-        <div className="rounded-[24px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.64),rgba(255,255,255,0.38))] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.04)] dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(28,28,28,0.92),rgba(24,24,24,0.84))]">
+        <div className="rounded-[24px] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-glass)] p-5 shadow-[var(--vlaina-shadow-panel-soft)]">
           <div className="space-y-4">
             <textarea
               value={message}
@@ -90,7 +90,7 @@ export function FeedbackTab({ compact = false }: { compact?: boolean }) {
               placeholder={t('settings.feedback.placeholder')}
               className={cn(
                 compact ? 'min-h-[150px]' : 'min-h-[220px]',
-                'w-full resize-y rounded-[18px] border border-zinc-200 bg-white/80 px-4 py-3 text-[14px] leading-6 text-[var(--notes-sidebar-text)] outline-none transition-colors placeholder:text-[var(--notes-sidebar-text-soft)] focus:border-[#1E96EB] dark:border-white/10 dark:bg-[#242424]/80'
+                'w-full resize-y rounded-[18px] border border-[var(--vlaina-border)] bg-[var(--vlaina-color-input-surface)] px-4 py-3 text-[14px] leading-6 text-[var(--notes-sidebar-text)] outline-none transition-colors placeholder:text-[var(--notes-sidebar-text-soft)] focus:border-[var(--vlaina-accent)]'
               )}
             />
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -99,7 +99,7 @@ export function FeedbackTab({ compact = false }: { compact?: boolean }) {
                 type="button"
                 onClick={handleSubmit}
                 disabled={!canSubmit}
-                className="inline-flex h-10 items-center gap-2 rounded-full bg-[#1E96EB] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#167fd0] disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-10 items-center gap-2 rounded-full bg-[var(--vlaina-accent)] px-4 text-[13px] font-semibold text-[var(--vlaina-color-white)] transition-colors hover:bg-[var(--vlaina-accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Send size={15} />
                 {submitting ? t('settings.feedback.submitting') : t('settings.feedback.submit')}

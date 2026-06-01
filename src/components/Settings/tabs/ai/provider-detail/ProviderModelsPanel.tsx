@@ -129,12 +129,12 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                   void props.onFetchModels();
                 }}
                 className={cn(
-                  'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-transparent bg-transparent px-3.5 text-[12px] font-medium text-[var(--sidebar-row-selected-text)] transition-colors hover:bg-transparent hover:text-[#41a8ea] disabled:cursor-not-allowed disabled:opacity-50',
+                  'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-transparent bg-transparent px-3.5 text-[12px] font-medium text-[var(--sidebar-row-selected-text)] transition-colors hover:bg-transparent hover:text-[var(--sidebar-row-selected-text)] disabled:cursor-not-allowed disabled:opacity-50',
                   chatComposerPillSurfaceClass
                 )}
               >
                 {props.isFetchingModels ? (
-                  <span className="h-3 w-3 rounded-full border-2 border-zinc-300 border-t-[var(--sidebar-row-selected-text)] animate-spin" />
+                  <span className="h-3 w-3 rounded-full border-2 border-[var(--vlaina-border)] border-t-[var(--sidebar-row-selected-text)] animate-spin" />
                 ) : (
                   <Icon name="common.download" size="xs" />
                 )}
@@ -163,10 +163,10 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
           ) : null}
 
           {props.quickAddError ? (
-            <div className="text-[12px] text-red-500 px-1">{props.quickAddError}</div>
+            <div className="text-[12px] text-[var(--vlaina-color-status-danger-fg)] px-1">{props.quickAddError}</div>
           ) : null}
           {props.fetchError ? (
-            <div className="text-[12px] text-red-500 px-1">{props.fetchError}</div>
+            <div className="text-[12px] text-[var(--vlaina-color-status-danger-fg)] px-1">{props.fetchError}</div>
           ) : null}
 
           {hasFetchedModels ? (

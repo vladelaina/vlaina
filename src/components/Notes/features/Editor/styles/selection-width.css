@@ -38,11 +38,11 @@
 }
 
 .milkdown .ProseMirror .vlaina-text-selection-overlay {
-  background-color: var(--vlaina-selection-bg, #2781db);
+  background-color: var(--vlaina-selection-bg);
   box-shadow: none;
   border-radius: 3px;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+  color: var(--vlaina-color-white) !important;
+  -webkit-text-fill-color: var(--vlaina-color-white) !important;
   line-height: inherit;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
@@ -50,6 +50,6 @@
 
 .milkdown .ProseMirror .vlaina-text-selection-overlay::selection {
   background-color: transparent !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+  color: var(--vlaina-color-white) !important;
+  -webkit-text-fill-color: var(--vlaina-color-white) !important;
 }

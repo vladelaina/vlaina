@@ -42,11 +42,11 @@ export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
       aria-label={t('billing.managedQuotaRemaining', { quota: quotaLabel })}
     >
       <div className="min-w-0 flex-1">
-        <div className="h-1.5 overflow-hidden rounded-full bg-[#e9e6df]">
+        <div className="h-1.5 overflow-hidden rounded-full bg-[var(--vlaina-color-quota-track)]">
           <div
             className={cn(
               'h-full rounded-full transition-all',
-              budgetError && !isRefreshingBudget ? 'bg-[var(--vlaina-border)]' : 'bg-[#4ade80]'
+              budgetError && !isRefreshingBudget ? 'bg-[var(--vlaina-border)]' : 'bg-[var(--vlaina-color-success)]'
             )}
             style={{ width: progressWidth }}
           />

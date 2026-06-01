@@ -170,7 +170,7 @@ export function UploadTab({
                 <div className="flex flex-col flex-1 px-5 pt-3 pb-6">
                     <div
                         {...getRootProps({ onClick: (e) => e.stopPropagation() })}
-                        className="relative flex-1 bg-zinc-950 rounded-lg overflow-hidden mb-6 group/cropper flex items-center justify-center h-[180px]"
+                        className="relative flex-1 bg-[var(--vlaina-color-inverse-surface)] rounded-lg overflow-hidden mb-6 group/cropper flex items-center justify-center h-[180px]"
                     >
                         {shouldPreserve ? (
                             <>
@@ -179,10 +179,10 @@ export function UploadTab({
                                     className="max-w-full max-h-full object-contain"
                                     alt="Preview"
                                 />
-                                <div className="absolute bottom-3 left-3 bg-black/60 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm border border-white/10 flex items-center gap-1.5 pointer-events-none">
+                                <div className="absolute bottom-3 left-3 bg-[var(--vlaina-color-overlay)] text-[var(--vlaina-color-inverse-text)] text-[10px] px-2 py-1 rounded-full backdrop-blur-sm border border-[var(--vlaina-color-panel-border)] flex items-center gap-1.5 pointer-events-none">
                                     <span className="relative flex h-2 w-2">
-                                        <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping", isGif ? "bg-green-400" : "bg-blue-400")}></span>
-                                        <span className={cn("relative inline-flex rounded-full h-2 w-2", isGif ? "bg-green-500" : "bg-blue-500")}></span>
+                                        <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping", isGif ? "bg-[var(--vlaina-color-status-success-fg)]" : "bg-[var(--vlaina-color-status-info-fg)]")}></span>
+                                        <span className={cn("relative inline-flex rounded-full h-2 w-2", isGif ? "bg-[var(--vlaina-color-status-success-fg)]" : "bg-[var(--vlaina-color-status-info-fg)]")}></span>
                                     </span>
                                     {isGif ? t('icon.animationPreserved') : t('icon.originalFormat')}
                                 </div>
@@ -212,7 +212,7 @@ export function UploadTab({
                             }}
                             className={cn(
                                 "absolute top-3 right-3 z-10 p-2",
-                                "text-white/40 hover:text-white transition-all",
+                                "text-[var(--vlaina-color-text-soft)] hover:text-[var(--vlaina-color-inverse-text)] transition-all",
                                 "opacity-0 group-hover/cropper:opacity-100",
                                 "active:scale-95"
                             )}
@@ -247,7 +247,7 @@ export function UploadTab({
                                 size="sm"
                                 onClick={handleSave}
                                 disabled={isUploading}
-                                className="bg-[#1e96eb] hover:bg-[#1a85d1] text-white px-8 h-9 rounded-full font-medium shadow-sm transition-all active:scale-95 inline-flex items-center justify-center min-w-[80px]"
+                                className="bg-[var(--vlaina-accent)] hover:bg-[var(--vlaina-accent-hover)] text-[var(--vlaina-color-white)] px-8 h-9 rounded-full font-medium shadow-sm transition-all active:scale-95 inline-flex items-center justify-center min-w-[80px]"
                             >
                                 {isUploading ? (
                                     <svg
@@ -283,21 +283,21 @@ export function UploadTab({
                             onClick={open}
                             className={cn(
                                 "relative group border border-dashed rounded-lg px-3 py-2.5 flex items-center gap-2.5 cursor-pointer transition-all duration-300",
-                                "hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 hover:border-[#1e96eb]/50",
-                                isDragActive ? "border-[#1e96eb] bg-[#1e96eb]/5 scale-[0.99]" : "border-zinc-200 dark:border-zinc-800"
+                                "hover:bg-[var(--vlaina-hover)] hover:border-[var(--vlaina-accent)]/50",
+                                isDragActive ? "border-[var(--vlaina-accent)] bg-[var(--vlaina-accent-light)] scale-[0.99]" : "border-[var(--vlaina-border)]"
                             )}
                         >
-                            <div className="p-1.5 bg-[var(--vlaina-bg-tertiary)] rounded-md transition-colors group-hover:bg-[#1e96eb]/10 group-hover:text-[#1e96eb] text-[var(--vlaina-text-tertiary)] shrink-0">
+                            <div className="p-1.5 bg-[var(--vlaina-bg-tertiary)] rounded-md transition-colors group-hover:bg-[var(--vlaina-accent-light)] group-hover:text-[var(--vlaina-accent)] text-[var(--vlaina-text-tertiary)] shrink-0">
                                 <Icon size="sm" name="common.upload" />
                             </div>
 
                             <span className="text-[10px] text-[var(--vlaina-text-tertiary)] leading-none">
-                                {t('icon.supports')} <span className="font-medium text-[var(--vlaina-text-secondary)]">PNG</span>, <span className="font-medium text-[#1e96eb]">GIF</span> & <span className="font-medium text-[#1e96eb]">WebP</span>
+                                {t('icon.supports')} <span className="font-medium text-[var(--vlaina-text-secondary)]">PNG</span>, <span className="font-medium text-[var(--vlaina-accent)]">GIF</span> & <span className="font-medium text-[var(--vlaina-accent)]">WebP</span>
                             </span>
                         </div>
                     </div>
 
-                    <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-900 px-3">
+                    <div className="flex-1 flex flex-col min-h-0 bg-[var(--vlaina-bg-primary)] px-3">
                         <div className="flex-1 overflow-y-auto vlaina-scrollbar pr-1 grid grid-cols-7 gap-2 content-start pb-2">
                             {customIcons.map((emoji) => (
                                 <div

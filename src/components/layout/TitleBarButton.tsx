@@ -15,8 +15,8 @@ export function TitleBarButton({ icon: Icon, onClick, isActive, className }: Tit
       className={cn(
         "h-full px-3 flex items-center justify-center transition-colors",
         isActive
-          ? "text-zinc-500 dark:text-zinc-400"
-          : "text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400",
+          ? "text-[var(--vlaina-color-titlebar-button-active)]"
+          : "text-[var(--vlaina-color-titlebar-button)] hover:text-[var(--vlaina-color-titlebar-button-hover)]",
         className
       )}
     >

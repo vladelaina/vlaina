@@ -138,7 +138,7 @@ export function ProviderQuickAdd({
           shellClassName={providerInputShellClassName}
         />
         {showSuggestions ? (
-          <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[22px] border border-zinc-200/90 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+          <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[22px] border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-floating-panel)]">
             <div className="max-h-64 overflow-y-auto p-1.5">
               {suggestions.map((modelId, index) => (
                 <button
@@ -153,8 +153,8 @@ export function ProviderQuickAdd({
                   className={cn(
                     'flex w-full items-center rounded-[16px] px-3.5 py-2.5 text-left text-[13px] font-medium transition-colors',
                     index === highlightedIndex
-                      ? 'bg-zinc-100 text-zinc-950'
-                      : 'text-zinc-700 hover:bg-zinc-50 hover:text-zinc-950'
+                      ? 'bg-[var(--vlaina-hover-filled)] text-[var(--notes-sidebar-text)]'
+                      : 'text-[var(--notes-sidebar-text-soft)] hover:bg-[var(--vlaina-hover)] hover:text-[var(--notes-sidebar-text)]'
                   )}
                 >
                   <span className="truncate">{modelId}</span>
@@ -170,7 +170,7 @@ export function ProviderQuickAdd({
         aria-label={t('settings.ai.addModels')}
         onClick={() => submit()}
         className={cn(
-          'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-zinc-500 transition-colors hover:bg-transparent hover:text-[#41a8ea]',
+          'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-transparent hover:text-[var(--sidebar-row-selected-text)]',
           chatComposerPillSurfaceClass
         )}
       >

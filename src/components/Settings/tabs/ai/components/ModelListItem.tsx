@@ -35,15 +35,15 @@ export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: Mod
     <div className={cn(
         "flex items-center gap-2.5 px-3 py-2 rounded-md border transition-colors duration-150",
         showAddAction
-            ? "bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800"
-            : "bg-neutral-50 dark:bg-neutral-900/60 border-neutral-200 dark:border-neutral-800"
+            ? "bg-[var(--vlaina-color-setting-field)] border-[var(--vlaina-border)] hover:bg-[var(--vlaina-hover-filled)]"
+            : "bg-[var(--vlaina-bg-secondary)] border-[var(--vlaina-border)]"
     )}>
         <div className="flex-1 min-w-0">
             <div className={cn(
                 "text-sm truncate",
                 showAddAction
-                    ? "font-medium text-gray-800 dark:text-gray-100"
-                    : "font-medium text-gray-600 dark:text-gray-400"
+                    ? "font-medium text-[var(--notes-sidebar-text)]"
+                    : "font-medium text-[var(--notes-sidebar-text-soft)]"
             )}>
                 {modelId}
             </div>
@@ -52,15 +52,15 @@ export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: Mod
         {health && (
             <div className="flex items-center gap-1.5 mr-2">
                 {health.status === 'loading' && (
-                    <div className="size-3 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                    <div className="size-3 rounded-full border-2 border-[var(--vlaina-border)] border-t-[var(--vlaina-accent)] animate-spin" />
                 )}
                 {health.status === 'success' && (
-                    <span className="text-[10px] font-mono text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] font-mono text-[var(--vlaina-color-status-success-fg)] bg-[var(--vlaina-color-status-success-bg)] px-1.5 py-0.5 rounded">
                         {formatBenchmarkLatency(health.latency)}
                     </span>
                 )}
                 {health.status === 'error' && (
-                    <div className="text-red-500 cursor-help" title={health.error}>
+                    <div className="text-[var(--vlaina-color-status-danger-fg)] cursor-help" title={health.error}>
                         <Icon name="common.error" size="sm" />
                     </div>
                 )}
@@ -71,13 +71,13 @@ export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: Mod
             onRemove ? (
                 <button 
                     onClick={onRemove} 
-                    className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors" 
+                    className="p-1.5 text-[var(--vlaina-color-status-danger-fg)] hover:bg-[var(--vlaina-color-status-danger-bg)] rounded-md transition-colors" 
                     title={t('common.remove')}
                 >
                     <Icon name="common.delete" className="w-4 h-4" />
                 </button>
             ) : (
-                <div className="text-green-600 dark:text-green-500 px-1.5 flex items-center gap-1.5">
+                <div className="text-[var(--vlaina-color-status-success-fg)] px-1.5 flex items-center gap-1.5">
                     <Icon name="common.check" className="w-4 h-4" />
                     <span className="text-[11px] font-medium">{t('common.added')}</span>
                 </div>
@@ -85,7 +85,7 @@ export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: Mod
         ) : showAddAction ? (
             <button 
                 onClick={onAdd} 
-                className="p-1 rounded-md text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                className="p-1 rounded-md text-[var(--notes-sidebar-text-soft)] hover:text-[var(--notes-sidebar-text)] hover:bg-[var(--vlaina-hover-filled)] transition-colors"
                 title={t('common.add')}
             >
                 <Icon name="common.add" className="w-4 h-4" />

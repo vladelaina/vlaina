@@ -1,7 +1,7 @@
 export const chatComposerPillSurfaceClass = [
-  "border !border-transparent !bg-white dark:!bg-white",
-  "!shadow-[0_4px_16px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)]",
-  "hover:!shadow-[0_6px_20px_rgba(0,0,0,0.055),inset_0_1px_0_rgba(255,255,255,0.7)]"
+  "border !border-transparent !bg-[var(--vlaina-color-white)]",
+  "!shadow-[var(--vlaina-shadow-raised-soft)]",
+  "hover:!shadow-[var(--vlaina-shadow-menu-hover)]"
 ].join(" ");
 
 export const chatPopoverPillSurfaceClass = [
@@ -27,25 +27,25 @@ export const chatComposerTextareaClass = [
   "w-full resize-none bg-transparent",
   "select-none focus:select-text",
   "text-[15px] leading-6 text-[var(--vlaina-text-primary)]",
-  "placeholder:text-gray-400 dark:placeholder:text-gray-500 placeholder:select-none",
+  "placeholder:text-[var(--vlaina-color-text-soft)] placeholder:select-none",
   "focus:outline-none",
   "max-h-[320px] min-h-[24px]"
 ].join(" ");
 
 export const chatComposerPrimaryButtonClass = [
   "h-9 px-4 rounded-full",
-  "bg-black text-white shadow-md",
+  "bg-[var(--vlaina-color-inverse-surface)] text-[var(--vlaina-color-inverse-text)] shadow-md",
   "hover:scale-105 active:scale-95",
   "transition-[background-color,color,box-shadow,opacity,transform] duration-200",
-  "disabled:bg-gray-50 disabled:dark:bg-gray-800",
-  "disabled:text-gray-300 disabled:dark:text-gray-600 disabled:cursor-default disabled:shadow-none",
+  "disabled:bg-[var(--vlaina-bg-secondary)]",
+  "disabled:text-[var(--vlaina-color-text-disabled)] disabled:cursor-default disabled:shadow-none",
   "disabled:hover:scale-100 disabled:active:scale-100"
 ].join(" ");
 
 export const chatComposerSecondaryButtonClass = [
   "h-9 px-4 rounded-full",
-  "bg-gray-100 dark:bg-zinc-800",
+  "bg-[var(--vlaina-bg-tertiary)]",
   "text-[var(--vlaina-text-primary)]",
-  "hover:bg-gray-200 dark:hover:bg-zinc-700",
+  "hover:bg-[var(--vlaina-hover-filled)]",
   "transition-colors"
 ].join(" ");

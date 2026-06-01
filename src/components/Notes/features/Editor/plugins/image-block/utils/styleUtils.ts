@@ -32,7 +32,7 @@ export function getDraggingStyle({ dragPosition, dragSize }: DraggingStyleParams
         pointerEvents: 'none',
         opacity: 0.9,
         transform: 'scale(0.95)',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        boxShadow: 'var(--vlaina-shadow-drag-preview)',
         transition: 'none',
     };
 }

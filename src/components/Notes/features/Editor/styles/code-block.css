@@ -32,7 +32,7 @@
 
 .milkdown .code-block-container.ProseMirror-selectednode,
 .milkdown .code-block-container.vlaina-block-selected {
-  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg, #bedffe);
+  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg);
   --vlaina-block-selection-bleed-y: 4px;
   --vlaina-block-selection-bleed-x-start: 48px;
   --vlaina-block-selection-bleed-x-end: 48px;
@@ -135,7 +135,7 @@
   font-family: var(--font-mono), monospace;
   font-size: 0.875rem;
   line-height: 1.75;
-  color: var(--vlaina-code-syntax-foreground, #24292e);
+  color: var(--vlaina-code-syntax-foreground);
   text-rendering: auto;
   font-kerning: none;
   font-variant-ligatures: none;
@@ -155,7 +155,7 @@
   z-index: 10;
   min-width: 2.5ch;
   padding: 0 0.5rem 0 1rem;
-  color: var(--vlaina-code-syntax-muted, #6a737d);
+  color: var(--vlaina-code-syntax-muted);
   text-align: right;
   user-select: none;
   background: var(--vlaina-code-block-background);
@@ -167,16 +167,16 @@
 
 .milkdown .code-block-container .cm-content {
   padding: 0 !important;
-  color: var(--vlaina-code-syntax-foreground, #24292e);
+  color: var(--vlaina-code-syntax-foreground);
 }
 
 .milkdown .code-block-container .cm-line {
   padding: 0 1rem !important;
-  color: var(--vlaina-code-syntax-foreground, #24292e);
+  color: var(--vlaina-code-syntax-foreground);
 }
 
 .milkdown .code-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
-  background: var(--vlaina-selection-bg, #2781db) !important;
+  background: var(--vlaina-selection-bg) !important;
 }
 
 .milkdown .code-block-container .cm-content::selection,
@@ -197,11 +197,11 @@
 }
 
 .milkdown .code-block-container:not(.ProseMirror-selectednode):not(.vlaina-block-selected):not([data-pm-selected='true']) .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
-  background: var(--vlaina-selection-bg, #2781db) !important;
+  background: var(--vlaina-selection-bg) !important;
 }
 
 .milkdown .code-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
-  background: var(--vlaina-selection-bg, #2781db) !important;
+  background: var(--vlaina-selection-bg) !important;
 }
 
 .milkdown .ProseMirror.vlaina-toolbar-copy-feedback-active .code-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
@@ -220,7 +220,7 @@
 .milkdown .ProseMirror .vlaina-block-selected .code-block-container {
   background: var(--vlaina-code-block-background);
   background-color: var(--vlaina-code-block-background);
-  color: var(--vlaina-code-syntax-foreground, #24292e);
+  color: var(--vlaina-code-syntax-foreground);
   transition: none;
 }
 
@@ -232,7 +232,7 @@
 .milkdown .ProseMirror .vlaina-block-selected .code-block-container .vlaina-code-block-language,
 .milkdown .ProseMirror .vlaina-block-selected .code-block-container .vlaina-code-block-language-label,
 .milkdown .ProseMirror .vlaina-block-selected .code-block-container .vlaina-code-block-copy-button {
-  color: var(--vlaina-code-syntax-muted, #6a737d);
+  color: var(--vlaina-code-syntax-muted);
   -webkit-text-fill-color: currentColor;
 }
 

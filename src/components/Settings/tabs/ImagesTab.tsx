@@ -104,12 +104,12 @@ export function ImagesTab() {
                         onClick={resetImageStorageLocation}
                         aria-label={t('common.reset')}
                         title={t('common.reset')}
-                        className="inline-flex size-6 items-center justify-center rounded-full text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-zinc-100 hover:text-[var(--notes-sidebar-text)] dark:hover:bg-white/5"
+                        className="inline-flex size-6 items-center justify-center rounded-full text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--notes-sidebar-text)]"
                     >
                         <Icon name="common.refresh" className="size-3.5" />
                     </button>
                 </div>
-                <code className="rounded-full bg-zinc-100 dark:bg-white/5 px-3 py-1 text-[11px] text-[var(--notes-sidebar-text-soft)]">
+                <code className="rounded-full bg-[var(--vlaina-bg-tertiary)] px-3 py-1 text-[11px] text-[var(--notes-sidebar-text-soft)]">
                     {storagePreview}
                 </code>
             </div>
@@ -126,7 +126,7 @@ export function ImagesTab() {
                             className={cn(
                                 "group relative flex w-full items-center gap-4 rounded-[22px] px-6 py-4 text-left transition-all duration-200 border border-transparent",
                                 isSelected
-                                    ? "bg-[var(--sidebar-row-selected-bg)] dark:bg-[rgba(65,168,234,0.12)]"
+                                    ? "bg-[var(--sidebar-row-selected-bg)]"
                                     : chatComposerPillSurfaceClass
                             )}
                         >
@@ -234,7 +234,7 @@ function FilenameFormatOption({ id, label, description, icon }: { id: 'original'
             className={cn(
                 "group relative flex w-full items-center gap-4 rounded-[22px] px-6 py-4 text-left transition-all duration-200 border border-transparent",
                 isSelected
-                    ? "bg-[var(--sidebar-row-selected-bg)] dark:bg-[rgba(65,168,234,0.12)]"
+                    ? "bg-[var(--sidebar-row-selected-bg)]"
                     : chatComposerPillSurfaceClass
             )}
         >

@@ -1,3 +1,5 @@
+import { themeColorTokens } from '@/styles/themeTokens';
+
 export type ItemColor = 'red' | 'amber' | 'yellow' | 'green' | 'blue' | 'purple' | 'brown' | 'default';
 
 interface ColorDefinition {
@@ -8,14 +10,14 @@ interface ColorDefinition {
 }
 
 export const COLOR_DEFINITIONS: readonly ColorDefinition[] = [
-  { name: 'red',     hex: '#FE002D', priority: 0, darkText: '#FF6B6B' },
-  { name: 'amber',   hex: '#f59e0b', priority: 1, darkText: '#fbbf24' },
-  { name: 'yellow',  hex: '#FEC900', priority: 2, darkText: '#FFE066' },
-  { name: 'green',   hex: '#63DA38', priority: 3, darkText: '#8AE86B' },
-  { name: 'blue',    hex: '#008BFE', priority: 4, darkText: '#66B3FF' },
-  { name: 'purple',  hex: '#AD46FF', priority: 5, darkText: '#C77FFF' },
-  { name: 'brown',   hex: '#B47D58', priority: 6, darkText: '#D4A882' },
-  { name: 'default', hex: '#9F9FA9', priority: 7, darkText: '#B8B8C0' },
+  { name: 'red',     hex: themeColorTokens.eventRed, priority: 0, darkText: themeColorTokens.eventRedDarkText },
+  { name: 'amber',   hex: themeColorTokens.eventAmber, priority: 1, darkText: themeColorTokens.eventAmberDarkText },
+  { name: 'yellow',  hex: themeColorTokens.eventYellow, priority: 2, darkText: themeColorTokens.eventYellowDarkText },
+  { name: 'green',   hex: themeColorTokens.eventGreen, priority: 3, darkText: themeColorTokens.eventGreenDarkText },
+  { name: 'blue',    hex: themeColorTokens.eventBlue, priority: 4, darkText: themeColorTokens.eventBlueDarkText },
+  { name: 'purple',  hex: themeColorTokens.eventPurple, priority: 5, darkText: themeColorTokens.eventPurpleDarkText },
+  { name: 'brown',   hex: themeColorTokens.eventBrown, priority: 6, darkText: themeColorTokens.eventBrownDarkText },
+  { name: 'default', hex: themeColorTokens.eventDefault, priority: 7, darkText: themeColorTokens.eventDefaultDarkText },
 ] as const;
 
 export const ALL_COLORS: readonly ItemColor[] = COLOR_DEFINITIONS.map(c => c.name);

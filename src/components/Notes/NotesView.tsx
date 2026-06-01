@@ -442,7 +442,7 @@ export function NotesView({
         {isBlankWorkspaceDropActive && (
           <BlurBackdrop
             className="pointer-events-none"
-            overlayClassName="bg-white/20 dark:bg-white/5"
+            overlayClassName="bg-[var(--vlaina-color-drop-overlay)]"
             zIndex={70}
             blurPx={6}
             duration={0.18}
@@ -471,7 +471,7 @@ export function NotesView({
             maxWidth={760}
             storageKey="vlaina_notes_chat_panel_width_v2"
             onDragStateChange={handleChatPanelDragStateChange}
-            className="h-full border-l border-[#eff3f4] bg-[var(--vlaina-bg-primary)]"
+            className="h-full border-l border-[var(--vlaina-color-border-shell)] bg-[var(--vlaina-bg-primary)]"
           >
             <div data-notes-chat-panel="true" className="h-full min-h-0 relative">
               <Suspense fallback={null}>

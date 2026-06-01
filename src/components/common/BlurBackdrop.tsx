@@ -14,7 +14,7 @@ export const BlurBackdrop = forwardRef<HTMLDivElement, BlurBackdropProps>(functi
   {
     onClick,
     className,
-    overlayClassName = 'bg-white/20 dark:bg-white/5',
+    overlayClassName = 'bg-[var(--vlaina-color-drop-overlay)]',
     zIndex = 100,
     blurPx = 6,
     duration = 0.2,

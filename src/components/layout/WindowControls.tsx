@@ -35,9 +35,9 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
 
       <button
         onClick={() => void desktopWindow.close()}
-        className={`h-full w-12 flex items-center justify-center hover:bg-red-500 transition-colors group ${sidebarTextButtonClass}`}
+        className={`h-full w-12 flex items-center justify-center hover:bg-[var(--vlaina-color-danger)] transition-colors group ${sidebarTextButtonClass}`}
       >
-        <Icon size="md" name="window.close" className="group-hover:text-white" />
+        <Icon size="md" name="window.close" className="group-hover:text-[var(--vlaina-color-white)]" />
       </button>
     </div>
   );

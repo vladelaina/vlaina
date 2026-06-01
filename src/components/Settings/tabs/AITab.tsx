@@ -74,7 +74,7 @@ function ChannelObject({
       className={cn(
         'group/channel relative min-h-[112px] rounded-[26px] border transition-all duration-200 cursor-pointer border-transparent',
         active
-          ? 'bg-[var(--sidebar-row-selected-bg)] dark:bg-[rgba(65,168,234,0.12)]'
+          ? 'bg-[var(--sidebar-row-selected-bg)]'
           : chatComposerPillSurfaceClass
       )}
     >
@@ -108,7 +108,7 @@ function ChannelObject({
               onDelete?.();
             }}
             aria-label={t('settings.ai.deleteChannelNamed', { name })}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] opacity-0 transition-all duration-200 hover:bg-transparent hover:text-red-500 hover:shadow-none group-hover/channel:opacity-100 focus-visible:opacity-100 dark:hover:bg-transparent"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] opacity-0 transition-all duration-200 hover:bg-transparent hover:text-[var(--vlaina-color-status-danger-fg)] hover:shadow-none group-hover/channel:opacity-100 focus-visible:opacity-100 dark:hover:bg-transparent"
           >
             <Icon name="common.close" size="xs" />
           </button>
@@ -288,7 +288,7 @@ export function AITab() {
   const hasCustomProviders = customProviders.length > 0;
 
   return (
-    <div className="h-full bg-[#fcfcfc] dark:bg-[#1E1E1E] text-[var(--notes-sidebar-text)]">
+    <div className="h-full bg-[var(--vlaina-color-setting-panel)] text-[var(--notes-sidebar-text)]">
       <ConfirmDialog
         isOpen={!!pendingDelete}
         title={t('settings.ai.deleteChannelTitle', { name: pendingDelete?.name || t('settings.ai.thisChannel') })}
@@ -369,8 +369,8 @@ export function AITab() {
                   )}
                 >
                   <div className="mx-auto flex w-fit flex-col items-center gap-3">
-                    <div className="h-[10px] w-[128px] rounded-full bg-zinc-200/80 dark:bg-white/12" />
-                    <div className="h-[10px] w-[88px] rounded-full bg-zinc-100 dark:bg-white/7" />
+                    <div className="h-[10px] w-[128px] rounded-full bg-[var(--vlaina-bg-tertiary)]" />
+                    <div className="h-[10px] w-[88px] rounded-full bg-[var(--vlaina-bg-secondary)]" />
                   </div>
                 </motion.button>
               </motion.div>

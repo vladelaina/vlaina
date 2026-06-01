@@ -35,8 +35,8 @@ function FindToolbarButton({
       className={cn(
         'inline-flex h-8 w-8 items-center justify-center rounded-xl transition-all active:scale-90',
         active
-          ? 'text-blue-500 bg-blue-500/10'
-          : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100',
+          ? 'text-[var(--vlaina-color-status-info-fg)] bg-[var(--vlaina-color-status-info-bg)]'
+          : 'text-[var(--vlaina-color-text-soft)] hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-color-text-strong)]',
         disabled && 'cursor-not-allowed opacity-20 hover:bg-transparent',
         className
       )}
@@ -89,12 +89,12 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
         scale: 1,
         opacity: 1,
         y: 0,
-        boxShadow: hasQuery ? '0 20px 50px rgba(0,0,0,0.1)' : '0 10px 30px rgba(0,0,0,0.08)',
+        boxShadow: hasQuery ? 'var(--vlaina-shadow-floating-panel)' : 'var(--vlaina-shadow-panel-soft)',
       }}
       transition={{
         default: { type: 'spring', stiffness: 500, damping: 35 },
       }}
-      className="w-[min(400px,calc(100vw-2rem))] max-w-full rounded-[22px] bg-white/95 dark:bg-zinc-900/95 border border-black/[0.05] dark:border-white/[0.05] backdrop-blur-3xl shadow-2xl p-1.5"
+      className="w-[min(400px,calc(100vw-2rem))] max-w-full rounded-[22px] bg-[var(--vlaina-color-setting-field)] border border-[var(--vlaina-color-panel-border)] backdrop-blur-3xl shadow-2xl p-1.5"
     >
       <div
         className={cn(
@@ -109,7 +109,7 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
           onKeyDown={controller.handleQueryKeyDown}
           placeholder={t('notes.find')}
           spellCheck={false}
-          className="h-8 min-w-0 flex-1 bg-transparent py-0 text-[15px] font-medium leading-5 text-zinc-900 outline-none placeholder:text-zinc-400/60 tracking-tight dark:text-zinc-100"
+          className="h-8 min-w-0 flex-1 bg-transparent py-0 text-[15px] font-medium leading-5 text-[var(--vlaina-color-text-strong)] outline-none placeholder:text-[var(--vlaina-color-text-soft)] tracking-tight"
         />
 
         <div className="flex items-center gap-1.5">
@@ -117,12 +117,12 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
             <span
               className={cn(
                 'shrink-0 px-1 text-[11px] font-bold tabular-nums uppercase tracking-tighter transition-opacity',
-                hasQuery ? 'text-zinc-400/80 opacity-100' : 'text-zinc-300/70 opacity-0',
+                hasQuery ? 'text-[var(--vlaina-color-text-soft)] opacity-100' : 'text-[var(--vlaina-color-text-disabled)] opacity-0',
               )}
             >
               {matchLabel}
             </span>
-            <div className="flex items-center gap-0.5 border-l border-black/[0.05] pl-1 dark:border-white/[0.05]">
+            <div className="flex items-center gap-0.5 border-l border-[var(--vlaina-border)] pl-1">
               <FindToolbarButton
                 label={t('notes.previous')}
                 icon="nav.chevronUp"
@@ -148,7 +148,7 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
               label={t('common.close')}
               icon="common.close"
               onClick={() => controller.close()}
-              className="hover:text-red-500 hover:bg-red-500/5"
+              className="hover:text-[var(--vlaina-color-status-danger-fg)] hover:bg-[var(--vlaina-color-status-danger-bg)]"
             />
           </div>
         </div>
@@ -162,7 +162,7 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="flex items-center gap-3 px-2 py-3 border-t border-black/[0.03] dark:border-white/[0.03] mt-1">
+            <div className="flex items-center gap-3 px-2 py-3 border-t border-[var(--vlaina-border)] mt-1">
               <input
                 ref={controller.replaceInputRef}
                 value={controller.replaceValue}
@@ -170,7 +170,7 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
                 onKeyDown={controller.handleReplaceKeyDown}
                 placeholder={t('notes.replaceWith')}
                 spellCheck={false}
-                className="h-8 min-w-0 flex-1 bg-transparent px-3 py-0 text-[14px] font-medium leading-5 text-zinc-700 outline-none placeholder:text-zinc-400/60 tracking-tight dark:text-zinc-300"
+                className="h-8 min-w-0 flex-1 bg-transparent px-3 py-0 text-[14px] font-medium leading-5 text-[var(--vlaina-text-primary)] outline-none placeholder:text-[var(--vlaina-color-text-soft)] tracking-tight"
               />
 
               <div className="flex items-center gap-1.5 pr-1">
@@ -180,7 +180,7 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => controller.replaceAll()}
                   className={cn(
-                    'px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-zinc-400 transition-all rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100',
+                    'px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-[var(--vlaina-color-text-soft)] transition-all rounded-xl hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-color-text-strong)]',
                     !controller.canReplace && 'opacity-20 cursor-not-allowed',
                   )}
                 >
@@ -192,7 +192,7 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => controller.replaceCurrent()}
                   className={cn(
-                    'px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest bg-blue-500 text-white rounded-xl transition-all active:scale-95 shadow-none',
+                    'px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] rounded-xl transition-all active:scale-95 shadow-none',
                     !controller.canReplace && 'opacity-50 grayscale cursor-not-allowed',
                   )}
                 >

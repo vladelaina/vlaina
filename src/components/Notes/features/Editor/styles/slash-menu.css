@@ -42,11 +42,11 @@
 }
 
 .slash-menu-item.selected {
-  background-color: var(--notes-sidebar-row-active, #f2f2f2);
+  background-color: var(--notes-sidebar-row-active);
 }
 
 .dark .slash-menu-item.selected {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--notes-sidebar-row-active);
 }
 
 .slash-menu-item-icon {
@@ -90,20 +90,20 @@
 }
 
 .slash-menu::-webkit-scrollbar-thumb {
-  background-color: #efefef;
+  background-color: var(--vlaina-color-scrollbar-thumb);
   border-radius: 999px;
 }
 
 .dark .slash-menu::-webkit-scrollbar-thumb {
-  background-color: rgba(150, 150, 150, 0.15);
+  background-color: var(--vlaina-color-scrollbar-thumb);
 }
 
 .slash-menu::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(120, 120, 120, 0.5);
+  background-color: var(--vlaina-color-scrollbar-thumb-hover);
 }
 
 .dark .slash-menu::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(150, 150, 150, 0.4);
+  background-color: var(--vlaina-color-scrollbar-thumb-hover);
 }
 
 .slash-menu::-webkit-scrollbar-track {
@@ -150,14 +150,14 @@
 
 .vlaina-preview-context-menu-group:hover > .slash-menu-item,
 .vlaina-preview-context-menu-group:focus-within > .slash-menu-item {
-  background-color: var(--notes-sidebar-row-active, #f2f2f2);
+  background-color: var(--notes-sidebar-row-active);
 }
 
 .vlaina-preview-context-menu .slash-menu-item:hover,
 .vlaina-preview-context-menu .slash-menu-item:focus-visible,
 .vlaina-preview-context-submenu .slash-menu-item:hover,
 .vlaina-preview-context-submenu .slash-menu-item:focus-visible {
-  background-color: var(--notes-sidebar-row-active, #f2f2f2);
+  background-color: var(--notes-sidebar-row-active);
 }
 
 .vlaina-preview-context-menu-group:hover > .slash-menu-item .slash-menu-item-icon,

@@ -8,6 +8,7 @@ import {
 import { createMarkdownSanitizeSchema } from '@/components/common/markdown/imagePolicy';
 import { normalizeImageWidth, serializeCropValue } from '@/components/common/markdown/imageSourceFragment';
 import { MARKDOWN_BODY_FONT_SIZE } from '@/components/common/markdown/markdownMetrics';
+import { themeColorTokens } from '@/styles/themeTokens';
 import {
   isPublicRemoteMediaUrl,
   sanitizeNoteLinkHref,
@@ -21,19 +22,19 @@ const EXPORT_CSS = `
   :root {
     color-scheme: light;
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    color: #171717;
-    background: #ffffff;
+    color: ${themeColorTokens.exportText};
+    background: ${themeColorTokens.exportSurface};
   }
   body {
     margin: 0;
-    background: #ffffff;
+    background: ${themeColorTokens.exportSurface};
   }
   .vlaina-note-export {
     box-sizing: border-box;
     width: ${EXPORT_WIDTH_PX}px;
     margin: 0 auto;
     padding: 56px 64px 72px;
-    background: #ffffff;
+    background: ${themeColorTokens.exportSurface};
   }
   .vlaina-note-export h1.vlaina-note-export-title {
     margin: 0 0 28px;
@@ -65,20 +66,20 @@ const EXPORT_CSS = `
     margin: 0.8em 0;
   }
   .vlaina-note-export-body blockquote {
-    border-left: 4px solid #d4d4d4;
+    border-left: 4px solid ${themeColorTokens.exportBorder};
     padding-left: 14px;
-    color: #525252;
+    color: ${themeColorTokens.exportMutedText};
   }
   .vlaina-note-export-body code {
     font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 0.92em;
-    background: #f5f5f5;
+    background: ${themeColorTokens.exportCodeSurface};
     border-radius: 4px;
     padding: 0.12em 0.28em;
   }
   .vlaina-note-export-body pre {
     overflow: auto;
-    background: #f5f5f5;
+    background: ${themeColorTokens.exportCodeSurface};
     border-radius: 6px;
     padding: 14px 16px;
   }
@@ -103,12 +104,12 @@ const EXPORT_CSS = `
   }
   .vlaina-note-export-body th,
   .vlaina-note-export-body td {
-    border: 1px solid #d4d4d4;
+    border: 1px solid ${themeColorTokens.exportBorder};
     padding: 7px 9px;
     vertical-align: top;
   }
   .vlaina-note-export-body th {
-    background: #f5f5f5;
+    background: ${themeColorTokens.exportCodeSurface};
     font-weight: 600;
   }
   @page {
@@ -259,7 +260,7 @@ export async function renderNoteExportElement(markdown: string, title: string): 
   host.style.left = '-10000px';
   host.style.top = '0';
   host.style.width = `${EXPORT_WIDTH_PX}px`;
-  host.style.background = '#fff';
+  host.style.background = themeColorTokens.exportSurface;
   host.style.pointerEvents = 'none';
   document.body.appendChild(host);
 

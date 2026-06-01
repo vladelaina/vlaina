@@ -751,7 +751,7 @@ export function ModelSelector({
                         className={cn(
                           "relative flex h-12 w-12 cursor-pointer items-center justify-center transition-[background-color,box-shadow] duration-150",
                           isActive
-                            ? "rounded-2xl bg-[#fcfcfc] shadow-md"
+                            ? "rounded-2xl bg-[var(--vlaina-color-setting-field)] shadow-md"
                             : cn("rounded-2xl bg-transparent", styles.categoryHover)
                         )}
                       >

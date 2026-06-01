@@ -154,13 +154,13 @@ export function ModuleShortcutsDialog({
       <DialogContent
         showCloseButton={false}
         useBlurBackdrop
-        blurBackdropProps={{ overlayClassName: 'bg-white/20 dark:bg-white/5', blurPx: 6, duration: 0.05 }}
+        blurBackdropProps={{ overlayClassName: 'bg-[var(--vlaina-color-drop-overlay)]', blurPx: 6, duration: 0.05 }}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
         }}
         onPointerDownOutside={handlePointerDownOutside}
         onInteractOutside={handleInteractOutside}
-        className="sm:max-w-lg rounded-[20px] border border-black/5 bg-white p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)] overflow-hidden duration-75 dark:border-white/5 dark:bg-[#1E1E1E] dark:shadow-[0_24px_60px_rgba(0,0,0,0.35)]"
+        className="sm:max-w-lg rounded-[20px] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-setting-field)] p-4 shadow-[var(--vlaina-shadow-floating-panel)] overflow-hidden duration-75"
       >
         <div
           className="vlaina-drag-region flex min-w-0 items-center justify-between gap-3 px-1 pb-4 cursor-grab active:cursor-grabbing select-none"
@@ -168,7 +168,7 @@ export function ModuleShortcutsDialog({
         >
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2">
-              <DialogTitle className="min-w-0 truncate text-[20px] font-semibold tracking-[-0.03em] text-zinc-900 dark:text-zinc-100">
+              <DialogTitle className="min-w-0 truncate text-[20px] font-semibold tracking-[-0.03em] text-[var(--vlaina-color-text-strong)]">
                 {resolvedTitle}
               </DialogTitle>
               <DialogDescription className="sr-only">
@@ -221,7 +221,7 @@ export function ModuleShortcutsDialog({
             onMouseDown={(event) => {
               event.stopPropagation();
             }}
-            className="vlaina-no-drag inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-white/5 dark:hover:text-zinc-200"
+            className="vlaina-no-drag inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-color-text-strong)]"
           >
             <Icon name="common.close" size="md" />
             <span className="sr-only">{t('common.close')}</span>
@@ -231,7 +231,7 @@ export function ModuleShortcutsDialog({
         <div className="max-h-[65vh] overflow-y-auto space-y-3 pr-1">
           {filteredSections.length > 0 ? filteredSections.map((section) => (
             <section key={section.title} className="rounded-[16px]">
-              <h3 className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">
+              <h3 className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--vlaina-color-text-soft)]">
                 {section.title}
               </h3>
 
@@ -241,10 +241,10 @@ export function ModuleShortcutsDialog({
                     key={`${section.title}-${shortcut.action}-${index}`}
                     className={cn(
                       'flex items-center justify-between gap-3 rounded-xl px-3 py-2 transition-colors',
-                      'hover:bg-zinc-50 dark:hover:bg-white/5'
+                      'hover:bg-[var(--vlaina-hover)]'
                     )}
                   >
-                    <span className="min-w-0 flex-1 text-[14px] font-medium text-zinc-600 dark:text-zinc-300">
+                    <span className="min-w-0 flex-1 text-[14px] font-medium text-[var(--chat-sidebar-text)]">
                       {shortcut.action}
                     </span>
                     <ShortcutKeys
@@ -257,7 +257,7 @@ export function ModuleShortcutsDialog({
               </div>
             </section>
           )) : (
-            <div className="px-3 py-8 text-center text-[13px] font-medium text-zinc-400 dark:text-zinc-500">
+            <div className="px-3 py-8 text-center text-[13px] font-medium text-[var(--vlaina-color-text-soft)]">
               {t('shortcut.noResults')}
             </div>
           )}

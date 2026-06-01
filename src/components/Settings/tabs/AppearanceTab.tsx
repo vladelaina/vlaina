@@ -42,10 +42,6 @@ const COLOR_MODE_OPTIONS = [
   },
 ] as const;
 
-function normalizeColorMode(mode: unknown): ColorMode {
-  return mode === 'light' || mode === 'dark' ? mode : 'system';
-}
-
 interface ColorModeToggleProps {
   colorMode: ColorMode;
   onChange: (mode: ColorMode) => void;
@@ -59,7 +55,7 @@ function ColorModeToggle({ colorMode, onChange }: ColorModeToggleProps) {
     <div className="relative flex h-8 w-[126px] items-center">
       <span
         aria-hidden="true"
-        className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-[var(--vlaina-accent-light)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_6px_16px_-12px_rgba(30,150,235,0.85)] transition-transform duration-200 ease-out"
+        className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-[var(--vlaina-accent-light)] shadow-[var(--vlaina-shadow-selection-soft)] transition-transform duration-200 ease-out"
         style={{ transform: `translateX(${colorModeIndex * 100}%)` }}
       />
       {COLOR_MODE_OPTIONS.map((option) => {
@@ -110,7 +106,7 @@ function ThemeDropdown({ themeId, onChange }: ThemeDropdownProps) {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="z-[120] min-w-[170px] rounded-2xl border-zinc-200/80 bg-white p-1.5 shadow-[0_16px_40px_rgba(15,23,42,0.12)] dark:border-white/10 dark:bg-[#202020]"
+        className="z-[120] min-w-[170px] rounded-2xl border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] p-1.5 shadow-[var(--vlaina-shadow-floating-panel)]"
       >
         {THEME_OPTIONS.map((theme) => (
           <DropdownMenuItem
@@ -148,7 +144,7 @@ function ThemeAppearanceControl({
       chatComposerPillSurfaceClass,
     )}>
       <ColorModeToggle colorMode={colorMode} onChange={onColorModeChange} />
-      <div className="mx-2 h-5 w-px bg-zinc-200/80 dark:bg-white/10" />
+      <div className="mx-2 h-5 w-px bg-[var(--vlaina-divider)]" />
       <ThemeDropdown themeId={themeId} onChange={onThemeChange} />
     </div>
   );
@@ -260,7 +256,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
       onMouseDown={beginFontSizePreview}
       className="h-1.5 w-44 rounded-lg appearance-none cursor-pointer accent-[var(--sidebar-row-selected-text)]"
       style={{
-        background: `linear-gradient(to right, var(--sidebar-row-selected-text) 0%, var(--sidebar-row-selected-text) ${progressPercent}%, rgb(228 228 231) ${progressPercent}%, rgb(228 228 231) 100%)`,
+        background: `linear-gradient(to right, var(--sidebar-row-selected-text) 0%, var(--sidebar-row-selected-text) ${progressPercent}%, var(--vlaina-bg-tertiary) ${progressPercent}%, var(--vlaina-bg-tertiary) 100%)`,
       }}
     />
   );
@@ -317,7 +313,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
             onClick={handleResetFontSize}
             disabled={fontSize === UI_FONT_SIZE_DEFAULT}
             className={cn(
-              "rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--sidebar-row-selected-text)] transition-colors hover:bg-[var(--sidebar-row-selected-bg)] disabled:pointer-events-none disabled:text-[var(--notes-sidebar-text-soft)] disabled:opacity-45 dark:hover:bg-[rgba(65,168,234,0.14)]",
+              "rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--sidebar-row-selected-text)] transition-colors hover:bg-[var(--sidebar-row-selected-bg)] disabled:pointer-events-none disabled:text-[var(--notes-sidebar-text-soft)] disabled:opacity-45",
               isPreviewingFontSize && "pointer-events-none opacity-0",
             )}
           >

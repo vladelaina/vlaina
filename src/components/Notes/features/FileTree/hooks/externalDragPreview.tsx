@@ -32,7 +32,7 @@ function applyPreviewElementStyles(element: HTMLElement) {
   element.style.margin = '0';
   element.style.opacity = '0.92';
   element.style.transform = 'translate3d(-9999px, -9999px, 0)';
-  element.style.boxShadow = '0 14px 32px rgba(15, 23, 42, 0.18)';
+  element.style.boxShadow = 'var(--vlaina-shadow-floating-panel)';
   element.style.borderRadius = '0.75rem';
   element.style.filter = 'saturate(1.02)';
   element.style.willChange = 'transform';

@@ -9,6 +9,7 @@ import { createDocxExportBytes } from './noteExportDocx';
 import { renderNoteExportElement, renderNoteExportHtml } from './noteExportHtml';
 import { resolveExportMarkdownAssetSources } from './noteExportMarkdown';
 import type { NoteExportFormat, NoteExportRequest, NoteExportResult } from './noteExportTypes';
+import { themeColorTokens } from '@/styles/themeTokens';
 
 const EXPORT_EXTENSIONS: Record<NoteExportFormat, string> = {
   docx: 'docx',
@@ -104,7 +105,7 @@ async function createPngBytes(markdown: string, title: string): Promise<Uint8Arr
   const { element, cleanup } = await renderNoteExportElement(markdown, title);
   try {
     const dataUrl = await toPng(element, {
-      backgroundColor: '#ffffff',
+      backgroundColor: themeColorTokens.exportSurface,
       cacheBust: true,
       pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
     });

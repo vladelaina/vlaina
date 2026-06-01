@@ -33,7 +33,7 @@ export function ImageDragOverlay({
                 height: dragSize.height,
                 zIndex: 9999,
                 pointerEvents: 'none',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+                boxShadow: 'var(--vlaina-shadow-drag-preview)',
                 borderRadius: '8px',
                 overflow: 'hidden',
                 backgroundColor: 'var(--vlaina-bg-primary)',

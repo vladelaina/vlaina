@@ -1,32 +1,32 @@
 .milkdown .ProseMirror .vlaina-editor-find-match {
   border-radius: 4px;
-  background: rgba(255, 221, 87, 0.82);
+  background: var(--vlaina-color-find-match-bg);
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
 
 .milkdown .ProseMirror .vlaina-editor-find-match-active {
-  background: rgba(255, 176, 32, 0.96);
-  box-shadow: inset 0 0 0 1px rgba(120, 53, 15, 0.2), 0 0 0 1px rgba(255, 176, 32, 0.45);
+  background: var(--vlaina-color-find-match-active-bg);
+  box-shadow: var(--vlaina-shadow-find-match-active);
 }
 
 .milkdown .ProseMirror .code-block-container .vlaina-editor-find-match-selected {
   background: transparent;
   box-shadow: none;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+  color: var(--vlaina-color-white) !important;
+  -webkit-text-fill-color: var(--vlaina-color-white) !important;
 }
 
 .milkdown .ProseMirror .code-block-container .vlaina-editor-find-match-selected * {
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+  color: var(--vlaina-color-white) !important;
+  -webkit-text-fill-color: var(--vlaina-color-white) !important;
 }
 
 .dark .milkdown .ProseMirror .vlaina-editor-find-match {
-  background: rgba(250, 204, 21, 0.5);
+  background: var(--vlaina-color-find-match-bg);
 }
 
 .dark .milkdown .ProseMirror .vlaina-editor-find-match-active {
-  background: rgba(251, 191, 36, 0.82);
-  box-shadow: inset 0 0 0 1px rgba(255, 251, 235, 0.08), 0 0 0 1px rgba(251, 191, 36, 0.38);
+  background: var(--vlaina-color-find-match-active-bg);
+  box-shadow: var(--vlaina-shadow-find-match-active);
 }

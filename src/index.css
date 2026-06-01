@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./styles/theme.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -20,10 +21,10 @@
   --vlaina-font-h4: 22px;
   --vlaina-font-h5: 19px;
   --vlaina-font-h6: 17px;
-  --vlaina-font-base: 15px;
+  --vlaina-font-base: 16px;
   --vlaina-font-sm: 14px;
   --vlaina-font-xs: 12px;
-  --vlaina-line-height: calc(1em + 8px);
+  --vlaina-line-height: 1.6;
 }
 
 body {
@@ -73,7 +74,7 @@ summary,
 .vlaina-sidebar-user-header:focus-within .vlaina-sidebar-user-header-pill,
 .vlaina-sidebar-user-header[data-hovered="true"] .vlaina-sidebar-user-header-pill {
   background-color: var(--vlaina-color-white);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  box-shadow: var(--vlaina-shadow-raised-soft);
 }
 
 .vlaina-sidebar-user-header:hover .vlaina-sidebar-user-header-collapse,
@@ -131,166 +132,6 @@ html, body, #root {
   --font-mono: 'JetBrains Mono', 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
 }
 
-:root {
-  --radius: 0.5rem;
-
-  --vlaina-color-white: #ffffff;
-  --vlaina-color-surface-main: #fcfcfc;
-  --vlaina-color-surface-shell-sidebar: var(--vlaina-color-surface-main);
-  --vlaina-color-surface-sidebar: var(--vlaina-color-surface-main);
-  --vlaina-color-surface-menu: var(--vlaina-color-surface-main);
-  --vlaina-color-surface-secondary: #fbfbfc;
-  --vlaina-color-surface-tertiary: #f4f5f7;
-  --vlaina-color-surface-hover: rgba(0, 0, 0, 0.04);
-  --vlaina-color-surface-active: rgba(0, 0, 0, 0.08);
-  --vlaina-color-surface-row-hover: #f8f8f8;
-  --vlaina-color-surface-row-active: #f2f2f2;
-  --vlaina-color-surface-empty: #f1f1f2;
-  --vlaina-color-text-strong: #121212;
-  --vlaina-color-text-primary: #2c2c2b;
-  --vlaina-color-text-sidebar: #27262b;
-  --vlaina-color-text-hover: #27262b;
-  --vlaina-color-text-secondary: #636363;
-  --vlaina-color-text-muted: #636363;
-  --vlaina-color-text-soft: #636363;
-  --vlaina-color-text-tertiary: #636363;
-  --vlaina-color-text-disabled: #636363;
-  --vlaina-color-soft-placeholder: #e1e1e1;
-  --vlaina-color-editor-block-selection: var(--vlaina-color-accent);
-  --vlaina-color-editor-block-selection-bg: #bedffe;
-  --vlaina-color-editor-block-selection-fg: #fefbf9;
-  --vlaina-color-editor-block-selection-drag-box: rgb(190 223 254 / 0.42);
-  --vlaina-color-editor-block-selection-handle: var(--vlaina-color-text-primary);
-  --vlaina-color-sidebar-pin: #636363;
-  --vlaina-color-border: #e3e2e4;
-  --vlaina-color-border-shell: #eff3f4;
-  --vlaina-color-accent: #1e96eb;
-  --vlaina-color-accent-hover: #0c7fd9;
-  --vlaina-color-accent-light: rgba(30, 150, 235, 0.1);
-  --vlaina-color-brand-pink: #f08aa6;
-  --vlaina-color-caret: #41ace2;
-  --vlaina-color-selection: #2781db;
-  --vlaina-color-info: #3b82f6;
-  --vlaina-color-success: #22c55e;
-  --vlaina-color-warning: #f59e0b;
-  --vlaina-color-danger: #ef4444;
-  --vlaina-color-menu-border: rgba(17, 24, 39, 0.08);
-  --vlaina-shadow-menu: 0 12px 36px -12px rgba(15, 23, 42, 0.24);
-  --vlaina-code-block-background: #f5f5f5;
-  --vlaina-code-syntax-foreground: #24292e;
-  --vlaina-code-syntax-muted: #6a737d;
-  --vlaina-code-syntax-keyword: #d73a49;
-  --vlaina-code-syntax-name: #6f42c1;
-  --vlaina-code-syntax-function: #6f42c1;
-  --vlaina-code-syntax-constant: #005cc5;
-  --vlaina-code-syntax-type: #d73a49;
-  --vlaina-code-syntax-operator: #24292e;
-  --vlaina-code-syntax-string: #032f62;
-  --vlaina-code-syntax-variable: #e36209;
-  --vlaina-code-syntax-tag: #22863a;
-  --vlaina-code-syntax-markup: #005cc5;
-  --vlaina-code-syntax-list: #735c0f;
-  --vlaina-code-syntax-invalid: #b31d28;
-  --vlaina-code-block-copy-color: #6a737d;
-
-  --background: var(--vlaina-color-surface-main);
-  --foreground: var(--vlaina-color-text-strong);
-  --card: var(--vlaina-color-surface-main);
-  --card-foreground: var(--vlaina-color-text-strong);
-  --popover: var(--vlaina-color-surface-main);
-  --popover-foreground: var(--vlaina-color-text-strong);
-  --primary: var(--vlaina-color-accent);
-  --primary-foreground: var(--vlaina-color-white);
-  --secondary: var(--vlaina-color-surface-tertiary);
-  --secondary-foreground: var(--vlaina-color-text-strong);
-  --muted: var(--vlaina-color-surface-tertiary);
-  --muted-foreground: var(--vlaina-color-text-secondary);
-  --accent: var(--vlaina-color-surface-tertiary);
-  --accent-foreground: var(--vlaina-color-accent);
-  --destructive: #eb5757;
-  --border: var(--vlaina-color-border);
-  --input: var(--vlaina-color-border);
-  --ring: var(--vlaina-color-accent);
-  --sidebar: var(--vlaina-color-surface-shell-sidebar);
-  --sidebar-foreground: var(--vlaina-color-text-strong);
-  --sidebar-primary: var(--vlaina-color-accent);
-  --sidebar-primary-foreground: var(--vlaina-color-white);
-  --sidebar-accent: var(--vlaina-color-surface-tertiary);
-  --sidebar-accent-foreground: var(--vlaina-color-accent);
-  --sidebar-border: var(--vlaina-color-border-shell);
-  --sidebar-ring: var(--vlaina-color-accent);
-}
-
-.dark {
-  --vlaina-color-surface-main: #101010;
-  --vlaina-color-surface-shell-sidebar: #161616;
-  --vlaina-color-surface-sidebar: #171717;
-  --vlaina-color-surface-menu: #1f1f1f;
-  --vlaina-color-surface-secondary: #161616;
-  --vlaina-color-surface-tertiary: #2c2c2c;
-  --vlaina-color-surface-hover: rgba(255, 255, 255, 0.06);
-  --vlaina-color-surface-active: rgba(255, 255, 255, 0.1);
-  --vlaina-color-surface-row-hover: #1e1e1e;
-  --vlaina-color-surface-row-active: #232323;
-  --vlaina-color-surface-empty: rgba(255, 255, 255, 0.05);
-  --vlaina-color-text-strong: #eeeeee;
-  --vlaina-color-text-primary: #eeeeee;
-  --vlaina-color-text-sidebar: #f3f4f6;
-  --vlaina-color-text-hover: #d1d5db;
-  --vlaina-color-text-secondary: #636363;
-  --vlaina-color-text-muted: #636363;
-  --vlaina-color-text-soft: #636363;
-  --vlaina-color-text-tertiary: #636363;
-  --vlaina-color-text-disabled: #636363;
-  --vlaina-color-soft-placeholder: #e1e1e1;
-  --vlaina-color-editor-block-selection: var(--vlaina-color-accent);
-  --vlaina-color-editor-block-selection-bg: #bedffe;
-  --vlaina-color-editor-block-selection-fg: #fefbf9;
-  --vlaina-color-editor-block-selection-drag-box: rgb(190 223 254 / 0.42);
-  --vlaina-color-editor-block-selection-handle: var(--vlaina-color-text-primary);
-  --vlaina-color-sidebar-pin: #636363;
-  --vlaina-color-border: #333333;
-  --vlaina-color-border-shell: #333333;
-  --vlaina-color-accent-hover: #5eabf7;
-  --vlaina-color-accent-light: rgba(30, 150, 235, 0.15);
-  --vlaina-color-brand-pink: #f08aa6;
-  --vlaina-color-info: #60a5fa;
-  --vlaina-color-success: #4ade80;
-  --vlaina-color-warning: #fbbf24;
-  --vlaina-color-danger: #f87171;
-  --vlaina-color-menu-border: rgba(255, 255, 255, 0.08);
-  --vlaina-shadow-menu: 0 16px 40px -14px rgba(0, 0, 0, 0.45);
-  --vlaina-code-block-background: #262626;
-  --vlaina-code-block-copy-color: rgb(163, 163, 163);
-
-  --background: var(--vlaina-color-surface-main);
-  --foreground: var(--vlaina-color-text-strong);
-  --card: var(--vlaina-color-surface-main);
-  --card-foreground: var(--vlaina-color-text-strong);
-  --popover: var(--vlaina-color-surface-main);
-  --popover-foreground: var(--vlaina-color-text-strong);
-  --primary: var(--vlaina-color-accent);
-  --primary-foreground: var(--vlaina-color-white);
-  --secondary: var(--vlaina-color-surface-tertiary);
-  --secondary-foreground: var(--vlaina-color-text-strong);
-  --muted: var(--vlaina-color-surface-tertiary);
-  --muted-foreground: var(--vlaina-color-text-secondary);
-  --accent: var(--vlaina-color-surface-tertiary);
-  --accent-foreground: var(--vlaina-color-accent);
-  --destructive: #eb5757;
-  --border: var(--vlaina-color-border);
-  --input: var(--vlaina-color-border);
-  --ring: var(--vlaina-color-accent);
-  --sidebar: var(--vlaina-color-surface-shell-sidebar);
-  --sidebar-foreground: var(--vlaina-color-text-strong);
-  --sidebar-primary: var(--vlaina-color-accent);
-  --sidebar-primary-foreground: var(--vlaina-color-white);
-  --sidebar-accent: var(--vlaina-color-surface-tertiary);
-  --sidebar-accent-foreground: var(--vlaina-color-accent);
-  --sidebar-border: var(--vlaina-color-border-shell);
-  --sidebar-ring: var(--vlaina-color-accent);
-}
-
 @layer base {
   * { @apply border-border outline-ring/50; }
   body { @apply bg-background text-foreground; }
@@ -307,17 +148,12 @@ html, body, #root {
 
 .vlaina-icon-shadow-button:hover {
   background: transparent;
-  box-shadow: 0 6px 18px -10px rgb(0 0 0 / 0.35);
-}
-
-.dark .vlaina-icon-shadow-button:hover {
-  background: transparent;
-  box-shadow: 0 8px 20px -12px rgb(0 0 0 / 0.55);
+  box-shadow: var(--vlaina-shadow-icon-hover);
 }
 
 .settings-api-key-copy-button[data-copied="true"] {
-  background-color: rgb(39 131 222 / 0.12);
-  color: var(--vlaina-accent, #3b82f6);
+  background-color: var(--vlaina-accent-soft);
+  color: var(--vlaina-accent);
 }
 
 .settings-api-key-copy-button[data-copied="true"] svg {
@@ -335,7 +171,7 @@ html, body, #root {
   background: transparent;
   border: none;
   border-radius: 4px;
-  color: var(--vlaina-text-primary, #18181b);
+  color: var(--vlaina-text-primary);
   cursor: pointer;
   transition:
     background-color 0.14s cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -357,17 +193,17 @@ html, body, #root {
 }
 
 .toolbar-btn:hover {
-  background-color: var(--vlaina-hover, #f4f4f5);
+  background-color: var(--vlaina-hover);
 }
 
 .toolbar-btn.active {
-  color: var(--vlaina-accent, #2783de);
-  background-color: rgb(39 131 222 / 0.12);
+  color: var(--vlaina-accent);
+  background-color: var(--vlaina-accent-soft);
 }
 
 .toolbar-btn[data-action="copy"].active {
-  background-color: rgb(39 131 222 / 0.12);
-  color: var(--vlaina-accent, #3b82f6);
+  background-color: var(--vlaina-accent-soft);
+  color: var(--vlaina-accent);
 }
 
 .toolbar-btn[data-action="copy"].active svg {
@@ -375,18 +211,14 @@ html, body, #root {
   animation: toolbar-copy-feedback-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.dark .toolbar-btn {
-  color: var(--vlaina-text-primary, #fafafa);
-}
-
 .dark .toolbar-btn:hover {
-  background-color: rgb(255 255 255 / 0.08);
+  background-color: var(--vlaina-hover);
 }
 
 .dark .toolbar-btn.active,
 .dark .toolbar-btn[data-action="copy"].active {
-  background-color: rgb(96 165 250 / 0.16);
-  color: #60a5fa;
+  background-color: var(--vlaina-accent-soft);
+  color: var(--vlaina-color-info);
 }
 
 .toolbar-btn:active {
@@ -406,99 +238,17 @@ html, body, #root {
 
 .vlaina-sidebar-menu-surface {
   border-radius: 22px !important;
-  box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
+  box-shadow: var(--vlaina-shadow-raised-soft) !important;
 }
 
 .vlaina-sidebar-menu-surface:hover {
-  box-shadow:
-    0 6px 20px rgba(0, 0, 0, 0.055),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
+  box-shadow: var(--vlaina-shadow-menu-hover) !important;
 }
 
 .vlaina-floating-popover-shadow,
 .vlaina-floating-popover-shadow:hover,
 .vlaina-user-menu-popover {
-  box-shadow:
-    0 8px 24px rgba(15, 23, 42, 0.08),
-    0 2px 8px rgba(15, 23, 42, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
-}
-
-/* ============================================
-   vlaina Notes Theme Variables
-   ============================================ */
-
-:root {
-  --vlaina-bg-primary: var(--vlaina-color-surface-main);
-  --vlaina-bg-secondary: var(--vlaina-color-surface-secondary);
-  --vlaina-bg-tertiary: var(--vlaina-color-surface-tertiary);
-  --vlaina-bg-hover: var(--vlaina-color-surface-hover);
-  --vlaina-bg-active: var(--vlaina-color-surface-active);
-  --vlaina-text-primary: var(--vlaina-color-text-primary);
-  --vlaina-text-secondary: var(--vlaina-color-text-secondary);
-  --vlaina-text-tertiary: var(--vlaina-color-text-tertiary);
-  --vlaina-text-disabled: var(--vlaina-color-text-disabled);
-  --vlaina-soft-placeholder: var(--vlaina-color-soft-placeholder);
-  --vlaina-border: var(--vlaina-color-border);
-  --vlaina-divider: var(--vlaina-color-border);
-  --vlaina-shell-divider: var(--vlaina-color-border-shell);
-  --vlaina-accent: var(--vlaina-color-accent);
-  --vlaina-accent-hover: var(--vlaina-color-accent-hover);
-  --vlaina-accent-light: var(--vlaina-color-accent-light);
-  --vlaina-icon-primary: var(--vlaina-color-text-secondary);
-  --vlaina-icon-secondary: var(--vlaina-color-text-tertiary);
-  --vlaina-icon-active: var(--vlaina-color-accent);
-  --vlaina-caret-color: var(--vlaina-color-caret);
-  --vlaina-caret-width: 2px;
-  --vlaina-selection-bg: var(--vlaina-color-selection);
-  --vlaina-hover: var(--vlaina-color-surface-hover);
-  --vlaina-hover-filled: var(--vlaina-color-surface-tertiary);
-  --vlaina-sidebar-width: 270px;
-  --vlaina-sidebar-bg: var(--vlaina-color-surface-shell-sidebar);
-  --sidebar-row-selected-bg: #ecf6ff;
-  --sidebar-row-selected-text: #41a8ea;
-  --vlaina-header-height: 52px;
-  --vlaina-font-base: 16px;
-  --vlaina-line-height: 1.6;
-  --chat-sidebar-surface: var(--vlaina-color-surface-sidebar);
-  --chat-sidebar-row-hover: var(--vlaina-color-surface-row-hover);
-  --chat-sidebar-row-active: var(--sidebar-row-selected-bg);
-  --chat-sidebar-text: #050505;
-  --chat-sidebar-text-muted: #636363;
-  --chat-sidebar-text-soft: #636363;
-  --chat-sidebar-icon: #636363;
-  --chat-sidebar-icon-hover: #636363;
-  --chat-sidebar-pin: var(--vlaina-color-sidebar-pin);
-  --chat-sidebar-status-info: var(--vlaina-color-info);
-  --chat-sidebar-status-warning: var(--vlaina-color-warning);
-  --chat-sidebar-fade: var(--vlaina-color-surface-sidebar);
-
-  --notes-sidebar-surface: var(--vlaina-color-surface-sidebar);
-  --notes-sidebar-row-hover: var(--vlaina-color-surface-row-hover);
-  --notes-sidebar-row-active: var(--sidebar-row-selected-bg);
-  --notes-sidebar-row-drag: var(--vlaina-color-accent-light);
-  --notes-sidebar-text: #050505;
-  --notes-sidebar-text-muted: #636363;
-  --notes-sidebar-text-soft: #636363;
-  --notes-sidebar-section-label: #050505;
-  --notes-sidebar-section-label-hover: #050505;
-  --notes-sidebar-icon: #636363;
-  --notes-sidebar-icon-hover: #636363;
-  --notes-sidebar-outline-icon: var(--vlaina-color-caret);
-  --notes-sidebar-chat-icon: var(--vlaina-color-caret);
-  --notes-sidebar-file-icon: var(--vlaina-color-caret);
-  --notes-sidebar-folder-icon: #54aeff;
-  --notes-sidebar-status-info: var(--vlaina-color-info);
-  --notes-sidebar-status-success: var(--vlaina-color-success);
-  --notes-sidebar-status-warning: var(--vlaina-color-warning);
-  --notes-sidebar-status-danger: var(--vlaina-color-danger);
-  --notes-sidebar-empty-surface: var(--vlaina-color-surface-empty);
-  --notes-sidebar-menu-bg: var(--vlaina-color-surface-menu);
-  --notes-sidebar-menu-border: var(--vlaina-color-menu-border);
-  --notes-sidebar-menu-shadow: var(--vlaina-shadow-menu);
-  --notes-sidebar-fade: var(--vlaina-color-surface-sidebar);
+  box-shadow: var(--vlaina-shadow-popover) !important;
 }
 
 input,
@@ -617,34 +367,26 @@ textarea,
 }
 
 ::-webkit-scrollbar-thumb, .vlaina-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #efefef;
+  background-color: var(--vlaina-color-scrollbar-thumb);
   border-radius: 10px;
   border: 3.5px solid transparent; 
   background-clip: content-box;
   cursor: default;
 }
 
-.dark ::-webkit-scrollbar-thumb, .dark .vlaina-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(150, 150, 150, 0.15);
-}
-
 ::-webkit-scrollbar-thumb:hover, .vlaina-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(120, 120, 120, 0.5);
+  background-color: var(--vlaina-color-scrollbar-thumb-hover);
   border: 1px solid transparent; 
 }
 
-.dark ::-webkit-scrollbar-thumb:hover, .dark .vlaina-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(150, 150, 150, 0.4);
-}
-
 ::selection {
-  background-color: var(--vlaina-selection-bg, #2781db);
-  color: #ffffff;
+  background-color: var(--vlaina-selection-bg);
+  color: var(--vlaina-color-white);
 }
 
 ::-moz-selection {
-  background-color: var(--vlaina-selection-bg, #2781db);
-  color: #ffffff;
+  background-color: var(--vlaina-selection-bg);
+  color: var(--vlaina-color-white);
 }
 
 ::-webkit-scrollbar-corner, .vlaina-scrollbar::-webkit-scrollbar-corner {

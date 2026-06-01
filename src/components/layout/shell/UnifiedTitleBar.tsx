@@ -45,16 +45,16 @@ export function UnifiedTitleBar({
 
   return (
     <div
-      className="vlaina-drag-region vlaina-title-bar h-10 dark:bg-zinc-900 flex items-center select-none relative z-50 flex-shrink-0"
+      className="vlaina-drag-region vlaina-title-bar h-10 flex items-center select-none relative z-50 flex-shrink-0"
       style={{ backgroundColor }}
       onMouseDownCapture={handleTitleBarMouseDownCapture}
     >
       {sidebarCollapsed ? (
-        <div className={`relative z-20 flex items-center h-full pr-3 bg-[var(--vlaina-bg-primary)] dark:bg-zinc-800 ${shouldReserveMacTrafficLightSpace ? 'pl-[76px]' : 'pl-2'}`}>
+        <div className={`relative z-20 flex items-center h-full pr-3 bg-[var(--vlaina-bg-primary)] ${shouldReserveMacTrafficLightSpace ? 'pl-[76px]' : 'pl-2'}`}>
           <button
             type="button"
             onClick={onToggleSidebar}
-            className="vlaina-no-drag group flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[var(--chat-sidebar-text)] transition-colors hover:bg-[var(--vlaina-bg-primary)] hover:text-[var(--chat-sidebar-text)] dark:hover:bg-white/10"
+            className="vlaina-no-drag group flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[var(--chat-sidebar-text)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--chat-sidebar-text)]"
           >
             <>
               {/* Sidebar glyph adapted from Lucide Icons (ISC). */}
@@ -88,7 +88,7 @@ export function UnifiedTitleBar({
       )}
 
       <div
-        className="absolute top-0 bottom-0 right-0 bg-[var(--vlaina-bg-primary)] dark:bg-zinc-800"
+        className="absolute top-0 bottom-0 right-0 bg-[var(--vlaina-bg-primary)]"
         style={{ left: sidebarCollapsed ? 0 : 'var(--vlaina-shell-sidebar-width)' }}
       />
 
@@ -97,7 +97,7 @@ export function UnifiedTitleBar({
       </div>
 
       {rightSlot && (
-        <div className="relative z-20 flex items-center h-full bg-[var(--vlaina-bg-primary)] dark:bg-zinc-800 pr-2 vlaina-drag-region">
+        <div className="relative z-20 flex items-center h-full bg-[var(--vlaina-bg-primary)] pr-2 vlaina-drag-region">
           {rightSlot}
         </div>
       )}

@@ -15,16 +15,16 @@ export function LabView() {
 
   return (
     <div className="h-full flex flex-col bg-[var(--vlaina-bg-primary)] overflow-hidden">
-      <div className="flex items-center gap-4 px-6 py-3 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-zinc-900 flex-none h-14 min-w-0">
+      <div className="flex items-center gap-4 px-6 py-3 border-b border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] flex-none h-14 min-w-0">
         <button
           onClick={() => setAppViewMode('notes')}
-          className="shrink-0 p-1.5 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+          className="shrink-0 p-1.5 hover:bg-[var(--vlaina-hover)] rounded-lg text-[var(--vlaina-color-text-soft)] hover:text-[var(--vlaina-color-text-strong)] transition-colors"
           title={t('lab.exit')}
         >
           <Icon name="nav.chevronLeft" size="md" />
         </button>
 
-        <div className="h-4 w-[1px] bg-gray-200 dark:bg-gray-700 mx-1 shrink-0" />
+        <div className="h-4 w-[1px] bg-[var(--vlaina-border)] mx-1 shrink-0" />
 
         <div className="min-w-0 flex-1 overflow-x-auto vlaina-scrollbar">
           <div className="flex items-center gap-1 min-w-max pr-4">
@@ -35,8 +35,8 @@ export function LabView() {
                 className={cn(
                   'shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-all',
                   activeLabId === module.id
-                    ? 'bg-purple-50 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400'
-                    : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5'
+                    ? 'bg-[var(--vlaina-color-status-info-bg)] text-[var(--vlaina-color-status-info-fg)]'
+                    : 'text-[var(--vlaina-color-text-soft)] hover:text-[var(--vlaina-color-text-strong)] hover:bg-[var(--vlaina-hover)]'
                 )}
               >
                 {module.label}
@@ -46,15 +46,15 @@ export function LabView() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden relative bg-gray-50 dark:bg-[#090909]">
+      <div className="flex-1 overflow-hidden relative bg-[var(--vlaina-bg-secondary)]">
         <div className="absolute inset-0 overflow-y-auto vlaina-scrollbar p-8">
           {ActiveComponent ? (
             <ActiveComponent />
           ) : (
             <div className="flex min-h-full items-center justify-center">
-              <div className="rounded-3xl border border-zinc-200/80 bg-white px-8 py-10 text-center shadow-[0_20px_60px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-zinc-900">
-                <div className="text-[15px] font-semibold text-zinc-950 dark:text-zinc-100">{t('lab.noModules')}</div>
-                <div className="mt-2 text-[13px] text-zinc-500 dark:text-zinc-400">{t('lab.empty')}</div>
+              <div className="rounded-3xl border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-8 py-10 text-center shadow-[var(--vlaina-shadow-panel-soft)]">
+                <div className="text-[15px] font-semibold text-[var(--vlaina-color-text-strong)]">{t('lab.noModules')}</div>
+                <div className="mt-2 text-[13px] text-[var(--vlaina-color-text-soft)]">{t('lab.empty')}</div>
               </div>
             </div>
           )}

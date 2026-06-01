@@ -11,6 +11,7 @@ import { useI18n, type AppLanguage, type MessageKey, type MessageValues } from '
 import { APP_VERSION } from '@/lib/appVersion';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { FeedbackTab } from './FeedbackTab';
+import { themeColorTokens } from '@/styles/themeTokens';
 import {
   type CommunitySettings,
 } from './aboutCommunitySettings';
@@ -113,8 +114,8 @@ function CommunityQrPill({
     void import('qrcode')
       .then((QRCode) => QRCode.toString(qrText, {
         color: {
-          dark: '#97c7ecff',
-          light: '#ffffff00',
+          dark: themeColorTokens.qrForeground,
+          light: themeColorTokens.transparentWhite,
         },
         errorCorrectionLevel: 'M',
         margin: 1,
@@ -180,7 +181,7 @@ function DiscordPill() {
       aria-label={t('settings.about.openDiscord')}
       className={cn(communityPillClassName, chatComposerPillSurfaceClass)}
     >
-      <FaDiscord size={15} className="text-[#5865F2]" />
+      <FaDiscord size={15} className="text-[var(--vlaina-brand-discord)]" />
       <span>{t('settings.about.discord')}</span>
     </button>
   );
@@ -212,14 +213,14 @@ function CommunityPills({ community }: { community: CommunitySettings }) {
       <CommunityQrPill
         title={t('settings.about.qqGroup')}
         label="QQ"
-        icon={<FaQq size={15} className="text-[#12B7F5]" />}
+        icon={<FaQq size={15} className="text-[var(--vlaina-brand-qq)]" />}
         qrText={community.qqQrCodeText}
         detail={community.qqGroupNumber || undefined}
       />
       <CommunityQrPill
         title={t('settings.about.wechatGroup')}
         label="WeChat"
-        icon={<FaWeixin size={15} className="text-[#07C160]" />}
+        icon={<FaWeixin size={15} className="text-[var(--vlaina-brand-wechat)]" />}
         qrText={community.wechatQrCodeText}
       />
     </div>
@@ -232,7 +233,7 @@ function DeveloperNotePanel() {
   const noteText = (key: MessageKey, values?: MessageValues) => renderRichText(t(key, values));
 
   return (
-    <div className="rounded-[24px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.64),rgba(255,255,255,0.38))] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.04)] dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(28,28,28,0.92),rgba(24,24,24,0.84))]">
+    <div className="rounded-[24px] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-glass)] p-5 shadow-[var(--vlaina-shadow-panel-soft)]">
       <div className="space-y-4 text-[14px] leading-7 text-[var(--notes-sidebar-text)]">
         <p className="text-[22px] font-semibold leading-8 text-[var(--notes-sidebar-text)]">
           {noteText('settings.about.note.intro')}
@@ -272,7 +273,7 @@ function DeveloperNotePanel() {
         <h3 className="text-[14px] font-semibold leading-6 text-[var(--notes-sidebar-text)]">
           {t('settings.about.note.resignationQuoteHeading')}
         </h3>
-        <div className="rounded-[18px] border border-white/10 bg-black/5 px-4 py-3 text-[13px] leading-6 text-[var(--notes-sidebar-text-soft)] dark:bg-white/5">
+        <div className="rounded-[18px] border border-[var(--vlaina-color-panel-border)] bg-[var(--vlaina-color-panel-muted)] px-4 py-3 text-[13px] leading-6 text-[var(--notes-sidebar-text-soft)]">
           <p className="mt-3 whitespace-pre-wrap">
             {noteText('settings.about.note.resignationQuote')}
           </p>
@@ -373,14 +374,14 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
         <SettingsItem
           title={t('settings.about.updates')}
           description={statusLabel || undefined}
-          className="hover:!shadow-[0_4px_16px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)]"
+          className="hover:!shadow-[var(--vlaina-shadow-raised-soft)]"
         >
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={checkForUpdates}
               disabled={status === 'checking'}
-              className="inline-flex h-10 items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 text-[13px] font-medium text-[var(--notes-sidebar-text)] transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-[#242424] dark:hover:bg-white/10"
+              className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-4 text-[13px] font-medium text-[var(--notes-sidebar-text)] transition-colors hover:bg-[var(--vlaina-hover-filled)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <RefreshCw size={15} className={cn(status === 'checking' && 'animate-spin')} />
               {t('common.check')}
@@ -390,7 +391,7 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
                 type="button"
                 onClick={openUpdateDownload}
                 title={updateInfo?.platformAssetName || undefined}
-                className="inline-flex h-10 items-center gap-2 rounded-full bg-[#1E96EB] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#167fd0]"
+                className="inline-flex h-10 items-center gap-2 rounded-full bg-[var(--vlaina-accent)] px-4 text-[13px] font-semibold text-[var(--vlaina-color-white)] transition-colors hover:bg-[var(--vlaina-accent-hover)]"
               >
                 <ExternalLink size={15} />
                 {t('settings.about.updateAction')}
@@ -406,11 +407,11 @@ export function AboutTab({ community }: { community: CommunitySettings }) {
 
       <div>
         <SettingsSectionHeader>{t('settings.about.privacy')}</SettingsSectionHeader>
-        <SettingsItem title={t('settings.about.openPrivacyPolicy')} className="hover:!shadow-[0_4px_16px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)]">
+        <SettingsItem title={t('settings.about.openPrivacyPolicy')} className="hover:!shadow-[var(--vlaina-shadow-raised-soft)]">
           <button
             type="button"
             onClick={() => void openExternalHref(privacyPolicyUrl)}
-            className="inline-flex h-10 items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 text-[13px] font-medium text-[var(--notes-sidebar-text)] transition-colors hover:bg-zinc-50 dark:border-white/10 dark:bg-[#242424] dark:hover:bg-white/10"
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] px-4 text-[13px] font-medium text-[var(--notes-sidebar-text)] transition-colors hover:bg-[var(--vlaina-hover-filled)]"
           >
             <ExternalLink size={15} />
             {t('common.open')}

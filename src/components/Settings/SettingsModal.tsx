@@ -128,7 +128,7 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
                 "relative w-[1080px] h-[720px] max-w-full max-h-[90vh] rounded-[32px] flex overflow-hidden pointer-events-auto select-none transition-[background-color,box-shadow] duration-100",
                 isAppearanceFontPreviewing
                   ? "bg-transparent shadow-none ring-0"
-                  : "bg-[#fcfcfc] dark:bg-[#1C1C1C] shadow-2xl ring-1 ring-black/5 dark:ring-white/5",
+                  : "bg-[var(--vlaina-color-setting-panel)] shadow-2xl ring-1 ring-black/5 dark:ring-white/5",
               )}
               onMouseDownCapture={(e) => {
                 if (e.button === 1) {
@@ -150,8 +150,8 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
                 onClick={handleClose}
                 aria-label={t('common.close')}
                 className={cn(
-                  "absolute right-5 top-5 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-transparent hover:text-[#41a8ea]",
-                  "dark:text-zinc-500 dark:hover:bg-transparent dark:hover:text-[#41a8ea]",
+                  "absolute right-5 top-5 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-transparent hover:text-[var(--sidebar-row-selected-text)]",
+                  "dark:hover:bg-transparent dark:hover:text-[var(--sidebar-row-selected-text)]",
                   chatComposerPillSurfaceClass,
                   isAppearanceFontPreviewing && "pointer-events-none opacity-0",
                 )}
@@ -161,7 +161,7 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
 
               {/* Sidebar Section */}
               <div className={cn(
-                "w-[260px] flex-shrink-0 bg-transparent flex flex-col border-r border-zinc-100/50 transition-opacity duration-100 dark:border-white/5",
+                "w-[260px] flex-shrink-0 bg-transparent flex flex-col border-r border-[var(--vlaina-color-border-shell)] transition-opacity duration-100",
                 isAppearanceFontPreviewing && "pointer-events-none opacity-0",
               )}>
                 <div className="flex min-h-0 flex-1 px-4 pb-6 pt-10">
@@ -179,7 +179,7 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
                                     className={cn(
                                       "flex min-h-[44px] w-full items-center gap-3.5 px-4 py-3 text-sm leading-none transition-all duration-300 ease-out rounded-[18px]",
                                       isActive
-                                        ? "bg-[var(--sidebar-row-selected-bg)] text-[var(--sidebar-row-selected-text)] font-[550] shadow-[0_2px_8px_rgba(30,150,235,0.06)]"
+                                        ? "bg-[var(--sidebar-row-selected-bg)] text-[var(--sidebar-row-selected-text)] font-[550] shadow-[var(--vlaina-shadow-selection-soft)]"
                                         : "text-[var(--notes-sidebar-text)] hover:bg-[var(--notes-sidebar-row-hover)] font-medium"
                                     )}
                                   >
@@ -215,7 +215,7 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
                 "flex-1 flex flex-col min-w-0 relative transition-[background-color,backdrop-filter] duration-100",
                 isAppearanceFontPreviewing
                   ? "bg-transparent backdrop-blur-none"
-                  : "bg-white/50 backdrop-blur-sm dark:bg-[#1E1E1E]/50",
+                  : "bg-[var(--vlaina-color-setting-content)] backdrop-blur-sm",
               )}>
                 <div className="flex-1 overflow-y-auto w-full vlaina-scrollbar">
                   <div className={cn(
