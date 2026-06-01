@@ -499,7 +499,7 @@ export function registerDesktopIpc({
           }
 
           while (true) {
-            const { done, value } = await reader.read();
+            const { done, value } = await raceWithAbort(reader.read(), controller.signal);
             if (controller.signal.aborted) {
               throw createAbortError();
             }
@@ -515,7 +515,7 @@ export function registerDesktopIpc({
 
           sendRequestEvent('done');
         } catch (error) {
-          await reader.cancel().catch(() => {});
+          void reader.cancel(createAbortError()).catch(() => {});
           throw error;
         } finally {
           controller.signal.removeEventListener('abort', cancelReader);

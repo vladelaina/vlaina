@@ -169,4 +169,51 @@ describe('useAutoTitle', () => {
 
     expect(useUnifiedStore.getState().data.ai?.sessions[0]?.title).toBe('New');
   });
+
+  it('does not write a title generated from stale messages', async () => {
+    let resolveTitle!: (value: string) => void;
+    const pendingTitle = new Promise<string>((resolve) => {
+      resolveTitle = resolve;
+    });
+    mocked.sendMessageWithEndpointFallback.mockReturnValueOnce(pendingTitle);
+
+    const { result } = renderHook(() => useAutoTitle());
+
+    let request!: Promise<void>;
+    await act(async () => {
+      request = result.current.generateAutoTitle('session-1', provider.id, model.id);
+      await Promise.resolve();
+    });
+
+    act(() => {
+      const state = useUnifiedStore.getState();
+      const ai = state.data.ai!;
+      state.updateAIData({
+        messages: {
+          ...ai.messages,
+          'session-1': [{
+            id: 'u2',
+            role: 'user',
+            content: 'Plan a mobile UI redesign',
+            modelId: model.id,
+            timestamp: 2,
+            versions: [{
+              content: 'Plan a mobile UI redesign',
+              createdAt: 2,
+              kind: 'original',
+              subsequentMessages: [],
+            }],
+            currentVersionIndex: 0,
+          }],
+        },
+      });
+    });
+
+    await act(async () => {
+      resolveTitle('Migration Plan');
+      await request;
+    });
+
+    expect(useUnifiedStore.getState().data.ai?.sessions[0]?.title).toBe('New');
+  });
 });

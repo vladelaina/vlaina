@@ -19,6 +19,59 @@ function throwIfAborted(signal?: AbortSignal): void {
   throw createAbortError();
 }
 
+function raceWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) {
+    return promise;
+  }
+  throwIfAborted(signal);
+  promise.catch(() => undefined);
+
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      signal.removeEventListener('abort', abort);
+    };
+    const settle = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback();
+    };
+    const abort = () => {
+      settle(() => reject(createAbortError()));
+    };
+
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+
+    promise.then(
+      (value) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            resolve(value);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+      (error) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            reject(error);
+          } catch (abortError) {
+            reject(abortError);
+          }
+        });
+      },
+    );
+  });
+}
+
 export async function consumeOpenAIStreamWithTools(
   response: Response,
   onChunk: (chunk: string) => void,
@@ -61,7 +114,7 @@ export async function consumeOpenAIStreamWithTools(
   };
 
   if (signal?.aborted) {
-    await reader.cancel(createAbortError()).catch(() => undefined);
+    void reader.cancel(createAbortError()).catch(() => undefined);
     reader.releaseLock();
     throw createAbortError();
   }
@@ -71,7 +124,7 @@ export async function consumeOpenAIStreamWithTools(
   try {
     while (true) {
       throwIfAborted(signal);
-      const { done, value } = await reader.read();
+      const { done, value } = await raceWithAbort(reader.read(), signal);
       throwIfAborted(signal);
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
@@ -99,7 +152,7 @@ export async function consumeOpenAIStreamWithTools(
     throwIfAborted(signal);
     return result;
   } catch (error) {
-    await reader.cancel().catch(() => undefined);
+    void reader.cancel(createAbortError()).catch(() => undefined);
     if (signal?.aborted && !(
       error instanceof Error && error.name === 'AbortError'
     )) {

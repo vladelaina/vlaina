@@ -140,6 +140,29 @@ describe('consumeOpenAIStream', () => {
     expect(() => response.body?.getReader()).not.toThrow();
   });
 
+  it('rejects promptly when the stream reader read and cancel both ignore abort', async () => {
+    const controller = new AbortController();
+    const fakeReader = {
+      read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined)),
+      cancel: vi.fn(() => new Promise<void>(() => undefined)),
+      releaseLock: vi.fn(),
+    };
+    const response = {
+      body: {
+        getReader: () => fakeReader,
+      },
+    } as unknown as Response;
+
+    const pending = consumeOpenAIStream(response, () => {}, { signal: controller.signal });
+    await Promise.resolve();
+
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fakeReader.cancel).toHaveBeenCalled();
+    expect(fakeReader.releaseLock).toHaveBeenCalledTimes(1);
+  });
+
   it('does not finalize a residual stream buffer after a chunk callback aborts', async () => {
     const controller = new AbortController();
     const transcriptMessages: unknown[] = [];

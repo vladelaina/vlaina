@@ -543,6 +543,43 @@ describe('desktop export ipc', () => {
     );
   });
 
+  it('releases AI provider stream readers promptly when read and cancel both ignore abort', async () => {
+    const { handlers } = registerHarness();
+    const fakeReader = {
+      read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined)),
+      cancel: vi.fn(() => new Promise<void>(() => undefined)),
+      releaseLock: vi.fn(),
+    };
+    const fetchMock = vi.fn(async () => ({
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers(),
+      body: {
+        getReader: () => fakeReader,
+      },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const sender = {
+      isDestroyed: () => false,
+      send: vi.fn(),
+    };
+
+    await handlers.get('desktop:ai-provider:request:start')?.(
+      { sender },
+      'request-reader-hangs',
+      { url: 'https://api.example.com/v1/chat/completions', method: 'POST' },
+    );
+    await vi.waitFor(() => expect(fakeReader.read).toHaveBeenCalled());
+    await handlers.get('desktop:ai-provider:request:cancel')?.({}, 'request-reader-hangs');
+
+    await vi.waitFor(() => expect(fakeReader.releaseLock).toHaveBeenCalledTimes(1));
+    expect(fakeReader.cancel).toHaveBeenCalled();
+    expect(sender.send).not.toHaveBeenCalledWith(
+      'desktop:ai-provider:request:request-reader-hangs:error',
+      { message: 'Aborted' },
+    );
+  });
+
   it('renders PDF HTML through a temporary file instead of a data URL', async () => {
     hoisted.windows.length = 0;
     const { handlers } = registerHarness();

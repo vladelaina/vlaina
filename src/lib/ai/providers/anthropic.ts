@@ -172,7 +172,7 @@ async function consumeAnthropicStream(
   }
 
   if (signal?.aborted) {
-    await reader.cancel(createAbortError()).catch(() => undefined)
+    void reader.cancel(createAbortError()).catch(() => undefined)
     reader.releaseLock()
     throw createAbortError()
   }
@@ -226,7 +226,7 @@ async function consumeAnthropicStream(
   try {
     throwIfAborted()
     while (true) {
-      const { done, value } = await reader.read()
+      const { done, value } = await raceWithAbort(reader.read(), signal)
       throwIfAborted()
       if (done) break
       buffer += decoder.decode(value, { stream: true })
@@ -249,7 +249,7 @@ async function consumeAnthropicStream(
     throwIfAborted()
     return finalContent
   } catch (error) {
-    await reader.cancel().catch(() => undefined)
+    void reader.cancel(createAbortError()).catch(() => undefined)
     if ((aborted || signal?.aborted) && !isAbortError(error)) {
       throw createAbortError()
     }

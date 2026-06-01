@@ -9,6 +9,65 @@ const AVATAR_RETRY_COOLDOWN_MS = 5 * 60 * 1000;
 const pendingDownloads = new Map<string, Promise<string | null>>();
 const failedDownloads = new Map<string, number>();
 
+function createAbortError(): DOMException {
+    return new DOMException('Aborted', 'AbortError');
+}
+
+function throwIfAborted(signal: AbortSignal): void {
+    if (!signal.aborted) return;
+    throw createAbortError();
+}
+
+async function raceWithAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+    throwIfAborted(signal);
+    promise.catch(() => undefined);
+
+    return await new Promise<T>((resolve, reject) => {
+        let settled = false;
+        const cleanup = () => {
+            signal.removeEventListener('abort', abort);
+        };
+        const settle = (callback: () => void) => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            callback();
+        };
+        const abort = () => {
+            settle(() => reject(createAbortError()));
+        };
+
+        signal.addEventListener('abort', abort, { once: true });
+        if (signal.aborted) {
+            abort();
+            return;
+        }
+
+        promise.then(
+            (value) => {
+                settle(() => {
+                    try {
+                        throwIfAborted(signal);
+                        resolve(value);
+                    } catch (error) {
+                        reject(error);
+                    }
+                });
+            },
+            (error) => {
+                settle(() => {
+                    try {
+                        throwIfAborted(signal);
+                        reject(error);
+                    } catch (abortError) {
+                        reject(abortError);
+                    }
+                });
+            }
+        );
+    });
+}
+
 function getAvatarFilename(username: string): string {
     const safeUsername = username.replace(/[^a-zA-Z0-9_-]/g, '_');
     return `avatar_${safeUsername}.png`;
@@ -32,19 +91,18 @@ export async function downloadAndSaveAvatar(url: string, username: string): Prom
     }
 
     const downloadPromise = (async () => {
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), AVATAR_FETCH_TIMEOUT_MS);
-            const response = await fetch(url, { signal: controller.signal }).finally(() => {
-                clearTimeout(timeoutId);
-            });
+            timeoutId = setTimeout(() => controller.abort(), AVATAR_FETCH_TIMEOUT_MS);
+            const response = await raceWithAbort(fetch(url, { signal: controller.signal }), controller.signal);
 
             if (!response.ok) {
                 throw new Error(`Failed to fetch avatar: ${response.statusText}`);
             }
 
-            const blob = await response.blob();
-            const arrayBuffer = await blob.arrayBuffer();
+            const blob = await raceWithAbort(response.blob(), controller.signal);
+            const arrayBuffer = await raceWithAbort(blob.arrayBuffer(), controller.signal);
             const uint8Array = new Uint8Array(arrayBuffer);
 
             const storage = getStorageAdapter();
@@ -66,6 +124,9 @@ export async function downloadAndSaveAvatar(url: string, username: string): Prom
             failedDownloads.set(downloadKey, Date.now());
             return null;
         } finally {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
             pendingDownloads.delete(username);
         }
     })();

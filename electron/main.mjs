@@ -45,6 +45,7 @@ let pendingOpenMarkdownPath = null;
 const readOnlyNetworkRetryDelaysMs = [300];
 const readOnlyFastFailureRetryWindowMs = 2000;
 const managedReadOnlyRequestTimeoutMs = 15_000;
+const desktopAccountRequestTimeoutMs = 15_000;
 
 const supportedTrayLanguages = new Set([
   'en',
@@ -423,12 +424,17 @@ async function requestManagedPublicJson(pathname, init = {}) {
 }
 
 async function createElectronBillingCheckout(tier) {
-  const response = await fetchWithStoredSession(`${apiBaseUrl}/billing/checkout`, {
+  const { requestInit, cleanup } = createTimedRequestInit({
     method: 'POST',
     cache: 'no-store',
     body: JSON.stringify({ tier }),
-  });
-  return await readJsonResponse(response, `Failed to create checkout session: HTTP ${response.status}`);
+  }, desktopAccountRequestTimeoutMs);
+  try {
+    const response = await fetchWithStoredSession(`${apiBaseUrl}/billing/checkout`, requestInit);
+    return await readJsonResponse(response, `Failed to create checkout session: HTTP ${response.status}`, requestInit.signal);
+  } finally {
+    cleanup();
+  }
 }
 
 async function submitElectronFeedback(message) {

@@ -94,6 +94,7 @@ import {
   createCancelConnect,
   createSignIn,
   createSignOut,
+  invalidateAccountSessionAuthState,
   selectRelevantElectronAuthEntries,
   createVerifyEmailCode,
 } from './authActions';
@@ -600,6 +601,72 @@ describe('accountSession auth actions', () => {
     expect(set).toHaveBeenLastCalledWith({ isConnecting: false, error: null });
   });
 
+  it('ignores a successful desktop sign-in result after the connection attempt is cancelled', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    let resolveAuth!: (value: unknown) => void;
+    mocks.accountCommands.accountAuth.mockReturnValue(
+      new Promise((resolve) => {
+        resolveAuth = resolve;
+      }),
+    );
+    mocks.accountCommands.cancelAccountAuth.mockResolvedValue(true);
+    const checkStatus = vi.fn().mockResolvedValue(undefined);
+    const set = vi.fn();
+    const get = vi.fn(() => ({ isConnecting: true, checkStatus }));
+
+    const signInPromise = createSignIn(set as never, get as never)('google');
+    await createCancelConnect(set as never, get as never)();
+
+    resolveAuth({ success: true });
+    await expect(signInPromise).resolves.toBe(false);
+
+    expect(checkStatus).not.toHaveBeenCalled();
+    expect(set).toHaveBeenCalledWith({ isConnecting: false, error: null });
+    expect(set).not.toHaveBeenCalledWith(expect.objectContaining({ error: 'Authorization failed' }));
+  });
+
+  it('ignores a successful desktop sign-in result after external auth state invalidation', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    let resolveAuth!: (value: unknown) => void;
+    mocks.accountCommands.accountAuth.mockReturnValue(
+      new Promise((resolve) => {
+        resolveAuth = resolve;
+      }),
+    );
+    const checkStatus = vi.fn().mockResolvedValue(undefined);
+    const set = vi.fn();
+    const get = vi.fn(() => ({ isConnecting: true, checkStatus }));
+
+    const signInPromise = createSignIn(set as never, get as never)('google');
+    invalidateAccountSessionAuthState();
+
+    resolveAuth({ success: true });
+    await expect(signInPromise).resolves.toBe(false);
+
+    expect(checkStatus).not.toHaveBeenCalled();
+    expect(set).not.toHaveBeenCalledWith({ isConnecting: false, error: null });
+  });
+
+  it('does not let an older desktop sign-in timeout cancel a newer attempt', async () => {
+    vi.useFakeTimers();
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.accountCommands.accountAuth.mockReturnValue(new Promise(() => undefined));
+    mocks.accountCommands.cancelAccountAuth.mockResolvedValue(true);
+    const set = vi.fn();
+    const get = vi.fn(() => ({ isConnecting: true }));
+
+    void createSignIn(set as never, get as never)('google');
+    void createSignIn(set as never, get as never)('google');
+    await vi.advanceTimersByTimeAsync(299999);
+
+    expect(mocks.accountCommands.cancelAccountAuth).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(mocks.accountCommands.cancelAccountAuth).toHaveBeenCalledTimes(1);
+    expect(set).toHaveBeenLastCalledWith({ isConnecting: false, error: null });
+  });
+
   it('requestEmailCode rejects invalid or duplicate emails before any network call', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     const set = vi.fn();
@@ -616,6 +683,65 @@ describe('accountSession auth actions', () => {
     expect(mocks.webAccountCommands.requestEmailCode).not.toHaveBeenCalled();
     expect(set).toHaveBeenNthCalledWith(1, { error: 'Invalid email address' });
     expect(set).toHaveBeenNthCalledWith(2, { error: 'You are already signed in with this email' });
+  });
+
+  it('requesting a new email code invalidates an older pending verification result', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    let resolveVerify!: (value: { success: boolean; username?: string; error?: string }) => void;
+    mocks.webAccountCommands.verifyEmailCode.mockReturnValue(
+      new Promise((resolve) => {
+        resolveVerify = resolve;
+      }),
+    );
+    mocks.webAccountCommands.requestEmailCode.mockResolvedValue(true);
+    const checkStatus = vi.fn().mockResolvedValue(undefined);
+    const set = vi.fn();
+    const get = vi.fn(() => ({
+      isConnected: false,
+      primaryEmail: null,
+      checkStatus,
+    }));
+
+    const verifyPromise = createVerifyEmailCode(set as never, get as never)(
+      'vla@example.com',
+      '123456',
+    );
+    await expect(createRequestEmailCode(set as never, get as never)('vla@example.com')).resolves.toBe(true);
+
+    resolveVerify({ success: true, username: 'vla' });
+    await expect(verifyPromise).resolves.toBe(false);
+
+    expect(checkStatus).not.toHaveBeenCalled();
+    expect(set).not.toHaveBeenCalledWith({ isConnecting: false, error: null });
+  });
+
+  it('ignores an older email code request failure after a newer auth attempt starts', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    let rejectRequest!: (error: Error) => void;
+    mocks.webAccountCommands.requestEmailCode.mockReturnValue(
+      new Promise((_resolve, reject) => {
+        rejectRequest = reject;
+      }),
+    );
+    mocks.webAccountCommands.startAuth.mockResolvedValue({
+      authUrl: '#new-auth',
+      state: 'state-new',
+    });
+    const set = vi.fn();
+    const get = vi.fn(() => ({
+      isConnected: false,
+      primaryEmail: null,
+      isConnecting: true,
+    }));
+
+    const requestPromise = createRequestEmailCode(set as never, get as never)('vla@example.com');
+    await expect(createSignIn(set as never, get as never)('google')).resolves.toBe(true);
+
+    rejectRequest(new Error('network down'));
+    await expect(requestPromise).resolves.toBe(false);
+
+    expect(mocks.normalizeAuthError).not.toHaveBeenCalledWith('network down');
+    expect(set).not.toHaveBeenCalledWith({ error: 'normalized:network down' });
   });
 
   it('verifyEmailCode checks status on successful desktop verification', async () => {
@@ -705,6 +831,64 @@ describe('accountSession auth actions', () => {
     expect(mocks.webAccountCommands.completeAuth).toHaveBeenCalledWith('google', 'expected-state');
     expect(checkStatus).toHaveBeenCalledTimes(1);
     expect(set).toHaveBeenLastCalledWith({ isConnecting: false, error: null });
+  });
+
+  it('handleAuthCallback normalizes completion failures and clears connecting state', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    sessionStorage.setItem('vlaina_auth_state', 'expected-state');
+    sessionStorage.setItem('vlaina_auth_provider', 'google');
+    mocks.webAccountCommands.handleAuthCallback.mockReturnValue({
+      provider: 'google',
+      state: 'expected-state',
+      error: null,
+    });
+    mocks.webAccountCommands.completeAuth.mockRejectedValue(new Error('network down'));
+    const set = vi.fn();
+    const get = vi.fn(() => ({ checkStatus: vi.fn() }));
+
+    const result = await createHandleAuthCallback(set as never, get as never)();
+
+    expect(result).toBe(false);
+    expect(mocks.normalizeAuthError).toHaveBeenCalledWith('network down');
+    expect(set).toHaveBeenLastCalledWith({
+      error: 'normalized:network down',
+      isConnecting: false,
+    });
+  });
+
+  it('ignores stale oauth completion failures after a newer auth attempt starts', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    sessionStorage.setItem('vlaina_auth_state', 'expected-state');
+    sessionStorage.setItem('vlaina_auth_provider', 'google');
+    mocks.webAccountCommands.handleAuthCallback.mockReturnValue({
+      provider: 'google',
+      state: 'expected-state',
+      error: null,
+    });
+    let rejectComplete!: (error: Error) => void;
+    mocks.webAccountCommands.completeAuth.mockReturnValue(
+      new Promise((_resolve, reject) => {
+        rejectComplete = reject;
+      }),
+    );
+    mocks.webAccountCommands.startAuth.mockResolvedValue({
+      authUrl: '#new-auth-attempt',
+      state: 'new-state',
+    });
+    const set = vi.fn();
+    const get = vi.fn(() => ({ checkStatus: vi.fn(), isConnecting: true }));
+
+    const callbackPromise = createHandleAuthCallback(set as never, get as never)();
+    await expect(createSignIn(set as never, get as never)('google')).resolves.toBe(true);
+
+    rejectComplete(new Error('old failure'));
+    await expect(callbackPromise).resolves.toBe(false);
+
+    expect(mocks.normalizeAuthError).not.toHaveBeenCalledWith('old failure');
+    expect(set).not.toHaveBeenCalledWith({
+      error: 'normalized:old failure',
+      isConnecting: false,
+    });
   });
 
   it('signOut clears pending auth timeout and applies disconnected state after desktop disconnect', async () => {

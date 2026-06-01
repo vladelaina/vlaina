@@ -69,6 +69,10 @@ export function useUnifiedExternalSync() {
       return useAIUIStore.getState().currentSessionId === sessionId;
     };
 
+    const isGeneratingSession = (sessionId: string) => {
+      return useAIUIStore.getState().generatingSessions[sessionId] === true;
+    };
+
     const invalidateCachedSession = (sessionId: string) => {
       const store = useUnifiedStore.getState();
       const ai = store.data.ai;
@@ -113,6 +117,7 @@ export function useUnifiedExternalSync() {
         if (canReloadSessionMessagesRef.current) {
           for (const sessionId of pendingSessionIds) {
             if (!shouldReloadSession(sessionId)) {
+              invalidateCachedSession(sessionId);
               continue;
             }
 
@@ -164,6 +169,11 @@ export function useUnifiedExternalSync() {
 
       if (event.kind === 'chat-session' && event.sessionId) {
         if (!shouldReloadSession(event.sessionId)) {
+          if (isGeneratingSession(event.sessionId)) {
+            pendingSessionReloadIdsRef.current.add(event.sessionId);
+            scheduleReload();
+            return;
+          }
           invalidateCachedSession(event.sessionId);
           return;
         }

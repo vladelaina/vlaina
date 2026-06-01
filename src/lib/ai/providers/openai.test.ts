@@ -416,6 +416,38 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(() => response.body?.getReader()).not.toThrow();
   });
 
+  it('rejects Anthropic streams promptly when reader read and cancel both ignore abort', async () => {
+    const controller = new AbortController();
+    const fakeReader = {
+      read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined)),
+      cancel: vi.fn(() => new Promise<void>(() => undefined)),
+      releaseLock: vi.fn(),
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: {
+        getReader: () => fakeReader,
+      },
+    }));
+
+    const request = new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel(),
+      buildProvider({ endpointType: 'anthropic' }),
+      vi.fn(),
+      controller.signal,
+    );
+    await vi.waitFor(() => expect(fakeReader.read).toHaveBeenCalled());
+
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fakeReader.cancel).toHaveBeenCalled();
+    expect(fakeReader.releaseLock).toHaveBeenCalledTimes(1);
+  });
+
   it('normalizes upstream Anthropic abort-shaped stream failures without treating them as chat cancellation', async () => {
     const stream = new ReadableStream({
       start(controller) {

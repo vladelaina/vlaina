@@ -168,6 +168,47 @@ describe('useUnifiedExternalSync', () => {
     hook.unmount();
   });
 
+  it('does not invalidate an inactive session while that session is generating', async () => {
+    const reloadFromDisk = vi.fn(async () => undefined);
+    useUnifiedStore.setState({ reloadFromDisk });
+    useAIUIStore.setState({
+      currentSessionId: 'session-1',
+      generatingSessions: { 'session-2': true },
+    });
+
+    const hook = renderHook(() => useUnifiedExternalSync());
+
+    await act(async () => {
+      hoisted.listener?.({
+        kind: 'chat-session',
+        sessionId: 'session-2',
+        sourceId: 'other-window',
+        stamp: 7,
+        nonce: 'n7',
+      });
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(hoisted.reloadSessionMessagesFromDisk).not.toHaveBeenCalled();
+    expect(useUnifiedStore.getState().data.ai?.messages).toEqual({
+      'session-1': [createMessage('a')],
+      'session-2': [createMessage('b')],
+    });
+
+    await act(async () => {
+      useAIUIStore.setState({ generatingSessions: {} });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.reloadSessionMessagesFromDisk).not.toHaveBeenCalled();
+    expect(useUnifiedStore.getState().data.ai?.messages).toEqual({
+      'session-1': [createMessage('a')],
+    });
+    expect(reloadFromDisk).not.toHaveBeenCalled();
+
+    hook.unmount();
+  });
+
   it('reloads unified data while generation is active and defers only active session messages', async () => {
     const reloadFromDisk = vi.fn(async () => undefined);
     useUnifiedStore.setState({ reloadFromDisk });

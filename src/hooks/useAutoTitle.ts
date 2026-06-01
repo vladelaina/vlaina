@@ -61,8 +61,16 @@ ${titleSource}`;
           const latestSession = useUnifiedStore
               .getState()
               .data.ai?.sessions.find((item) => item.id === sessionId);
+          const latestMessages = useUnifiedStore.getState().data.ai?.messages[sessionId] || [];
+          const latestTitleSource = buildTitleSourceFromMessages(latestMessages);
 
-          if (cleanTitle && !needsAutoTitle(cleanTitle) && latestSession && needsAutoTitle(latestSession.title)) {
+          if (
+            cleanTitle
+            && !needsAutoTitle(cleanTitle)
+            && latestSession
+            && needsAutoTitle(latestSession.title)
+            && latestTitleSource === titleSource
+          ) {
               aiActions.updateSession(sessionId, { title: cleanTitle });
           }
       } catch (error) {

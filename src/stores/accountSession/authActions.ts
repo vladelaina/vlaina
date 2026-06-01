@@ -24,6 +24,7 @@ type Get = StoreApi<AccountSessionState & AccountSessionActions>['getState'];
 let checkStatusPromise: Promise<void> | null = null;
 let checkStatusPromiseVersion = 0;
 let accountSessionMutationVersion = 0;
+let accountAuthAttemptVersion = 0;
 let lastCheckStatusSyncAt = 0;
 
 const ACCOUNT_STATUS_REFRESH_INTERVAL_MS = 30_000;
@@ -31,6 +32,25 @@ const ACCOUNT_STATUS_REFRESH_INTERVAL_MS = 30_000;
 function invalidateAccountSessionChecks(): void {
   accountSessionMutationVersion += 1;
   checkStatusPromise = null;
+}
+
+function startAccountAuthAttempt(): number {
+  accountAuthAttemptVersion += 1;
+  invalidateAccountSessionChecks();
+  return accountAuthAttemptVersion;
+}
+
+function invalidateAccountAuthAttempts(): void {
+  accountAuthAttemptVersion += 1;
+  invalidateAccountSessionChecks();
+}
+
+export function invalidateAccountSessionAuthState(): void {
+  invalidateAccountAuthAttempts();
+}
+
+function isCurrentAccountAuthAttempt(version: number): boolean {
+  return version === accountAuthAttemptVersion;
 }
 
 function isValidEmail(value: string): boolean {
@@ -236,12 +256,17 @@ export function createSignIn(
   get: Get
 ): (provider: Exclude<AccountProvider, 'email'>) => Promise<boolean> {
   return async (provider) => {
-    invalidateAccountSessionChecks();
+    const authAttemptVersion = startAccountAuthAttempt();
     set({ isConnecting: true, error: null });
 
     const isDesktop = hasElectronDesktopBridge();
+    const win = window as Window & { __vlaina_auth_timeout?: number | ReturnType<typeof setTimeout> | null };
+    if (win.__vlaina_auth_timeout) {
+      clearTimeout(win.__vlaina_auth_timeout);
+      win.__vlaina_auth_timeout = null;
+    }
     const timeoutId = setTimeout(() => {
-      if (get().isConnecting) {
+      if (isCurrentAccountAuthAttempt(authAttemptVersion) && get().isConnecting) {
         if (isDesktop) {
           void accountCommands.cancelAccountAuth().catch(() => undefined);
         }
@@ -249,17 +274,22 @@ export function createSignIn(
       }
     }, isDesktop ? 300000 : 60000);
 
-    (window as Window & { __vlaina_auth_timeout?: number | ReturnType<typeof setTimeout> | null }).__vlaina_auth_timeout =
-      timeoutId;
+    win.__vlaina_auth_timeout = timeoutId;
 
     if (isDesktop) {
       try {
         const result = await accountCommands.accountAuth(provider);
         clearTimeout(timeoutId);
+        if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+          return false;
+        }
 
         if (result?.success) {
           invalidateAccountSessionChecks();
           await get().checkStatus({ force: true });
+          if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+            return false;
+          }
           set({ isConnecting: false, error: null });
           return true;
         }
@@ -272,6 +302,9 @@ export function createSignIn(
         return false;
       } catch (error) {
         clearTimeout(timeoutId);
+        if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+          return false;
+        }
         const message = error instanceof Error ? error.message : String(error);
         set({
           error: isAuthorizationCancellation(message) ? null : normalizeAuthError(message),
@@ -284,6 +317,9 @@ export function createSignIn(
     try {
       const authData = await webAccountCommands.startAuth(provider);
       clearTimeout(timeoutId);
+      if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+        return false;
+      }
       if (!authData) {
         set({ error: 'Failed to start account sign-in', isConnecting: false });
         return false;
@@ -293,6 +329,9 @@ export function createSignIn(
         sessionStorage.setItem(AUTH_STATE_STORAGE_KEY, authData.state);
         sessionStorage.setItem(AUTH_PROVIDER_STORAGE_KEY, provider);
       } catch {
+        if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+          return false;
+        }
         set({ error: 'Unable to store sign-in state in this browser session', isConnecting: false });
         return false;
       }
@@ -300,6 +339,9 @@ export function createSignIn(
       return true;
     } catch (error) {
       clearTimeout(timeoutId);
+      if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+        return false;
+      }
       const message = error instanceof Error ? error.message : String(error);
       set({ error: normalizeAuthError(message), isConnecting: false });
       return false;
@@ -321,16 +363,23 @@ export function createRequestEmailCode(set: Set, get: Get): (email: string) => P
       return false;
     }
 
+    const authAttemptVersion = startAccountAuthAttempt();
     set({ error: null });
     try {
       const ok = hasElectronDesktopBridge()
         ? await accountCommands.requestEmailAuthCode(email)
         : await webAccountCommands.requestEmailCode(email);
+      if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+        return false;
+      }
       if (!ok) {
         set({ error: 'Failed to send verification code' });
       }
       return ok;
     } catch (error) {
+      if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+        return false;
+      }
       const message = error instanceof Error ? error.message : String(error);
       set({ error: normalizeAuthError(message) });
       return false;
@@ -340,13 +389,20 @@ export function createRequestEmailCode(set: Set, get: Get): (email: string) => P
 
 export function createVerifyEmailCode(set: Set, get: Get): (email: string, code: string) => Promise<boolean> {
   return async (email: string, code: string) => {
+    const authAttemptVersion = startAccountAuthAttempt();
     set({ error: null });
     try {
       if (hasElectronDesktopBridge()) {
         const result = await accountCommands.verifyEmailAuthCode(email, code);
+        if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+          return false;
+        }
         if (result?.success) {
           invalidateAccountSessionChecks();
           await get().checkStatus({ force: true });
+          if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+            return false;
+          }
           set({ isConnecting: false, error: null });
           return true;
         }
@@ -355,9 +411,15 @@ export function createVerifyEmailCode(set: Set, get: Get): (email: string, code:
       }
 
       const result = await webAccountCommands.verifyEmailCode(email, code);
+      if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+        return false;
+      }
       if (result.success && result.username) {
         invalidateAccountSessionChecks();
         await get().checkStatus({ force: true });
+        if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+          return false;
+        }
         set({ isConnecting: false, error: null });
         return true;
       }
@@ -365,6 +427,9 @@ export function createVerifyEmailCode(set: Set, get: Get): (email: string, code:
       set({ error: normalizeAuthError(result.error || 'Email sign-in failed') });
       return false;
     } catch (error) {
+      if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+        return false;
+      }
       const message = error instanceof Error ? error.message : String(error);
       set({ error: normalizeAuthError(message) });
       return false;
@@ -379,6 +444,7 @@ export function createHandleAuthCallback(set: Set, get: Get): () => Promise<bool
     const callback = parseAuthCallback();
     if (!callback) return false;
 
+    const authAttemptVersion = startAccountAuthAttempt();
     set({ isConnecting: true, error: null });
 
     const savedState = sessionStorage.getItem(AUTH_STATE_STORAGE_KEY);
@@ -408,26 +474,41 @@ export function createHandleAuthCallback(set: Set, get: Get): () => Promise<bool
       return false;
     }
 
-    const result = await webAccountCommands.completeAuth(callback.provider, callback.state);
-    if (result.success && result.username) {
-      invalidateAccountSessionChecks();
-      await get().checkStatus({ force: true });
-      set({ isConnecting: false, error: null });
-      return true;
-    }
+    try {
+      const result = await webAccountCommands.completeAuth(callback.provider, callback.state);
+      if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+        return false;
+      }
+      if (result.success && result.username) {
+        invalidateAccountSessionChecks();
+        await get().checkStatus({ force: true });
+        if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+          return false;
+        }
+        set({ isConnecting: false, error: null });
+        return true;
+      }
 
-    const errorMessage = result.error || 'Account sign-in failed';
-    set({
-      error: isAuthorizationCancellation(errorMessage) ? null : normalizeAuthError(errorMessage),
-      isConnecting: false,
-    });
-    return false;
+      const errorMessage = result.error || 'Account sign-in failed';
+      set({
+        error: isAuthorizationCancellation(errorMessage) ? null : normalizeAuthError(errorMessage),
+        isConnecting: false,
+      });
+      return false;
+    } catch (error) {
+      if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
+        return false;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      set({ error: normalizeAuthError(message), isConnecting: false });
+      return false;
+    }
   };
 }
 
 export function createSignOut(set: Set, _get: Get): () => Promise<void> {
   return async () => {
-    invalidateAccountSessionChecks();
+    invalidateAccountAuthAttempts();
     const win = window as Window & { __vlaina_auth_timeout?: number | ReturnType<typeof setTimeout> | null };
     if (win.__vlaina_auth_timeout) {
       clearTimeout(win.__vlaina_auth_timeout);
@@ -453,6 +534,7 @@ export function createSignOut(set: Set, _get: Get): () => Promise<void> {
 
 export function createCancelConnect(set: Set, _get: Get): () => Promise<void> {
   return async () => {
+    invalidateAccountAuthAttempts();
     const win = window as Window & { __vlaina_auth_timeout?: number | ReturnType<typeof setTimeout> | null };
     if (win.__vlaina_auth_timeout) {
       clearTimeout(win.__vlaina_auth_timeout);

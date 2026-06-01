@@ -417,6 +417,34 @@ describe('managed ipc stream bridge', () => {
     expect(sender.send).not.toHaveBeenCalled();
   });
 
+  it('releases managed stream readers promptly when read and cancel both ignore abort', async () => {
+    const fakeReader = {
+      read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined)),
+      cancel: vi.fn(() => new Promise<void>(() => undefined)),
+      releaseLock: vi.fn(),
+    };
+    const fetchWithStoredSession = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      body: {
+        getReader: () => fakeReader,
+      },
+    }));
+    const { handlers } = registerHarness({ fetchWithStoredSession });
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+
+    await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-reader-hangs', {});
+    await vi.waitFor(() => expect(fakeReader.read).toHaveBeenCalled());
+    await handlers.get('desktop:managed:chat-completion-stream:cancel')?.({}, 'managed-reader-hangs');
+
+    await vi.waitFor(() => expect(fakeReader.releaseLock).toHaveBeenCalledTimes(1));
+    expect(fakeReader.cancel).toHaveBeenCalled();
+    expect(sender.send).not.toHaveBeenCalledWith(
+      'desktop:managed:stream:managed-reader-hangs:error',
+      { message: 'Aborted' },
+    );
+  });
+
   it('consumes the final SSE line without a trailing newline', async () => {
     const fetchWithStoredSession = vi.fn(async () => streamResponse([
       'data: {"choices":[{"delta":{"content":"final"}}]}',

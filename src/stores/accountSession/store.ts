@@ -5,6 +5,7 @@ import {
   createCheckStatus,
   createCancelConnect,
   createHandleAuthCallback,
+  invalidateAccountSessionAuthState,
   createRequestEmailCode,
   createSignIn,
   createSignOut,
@@ -54,6 +55,7 @@ function registerAccountAuthInvalidationListener(): void {
   }
 
   window.addEventListener(ACCOUNT_AUTH_INVALIDATED_EVENT, () => {
+    invalidateAccountSessionAuthState();
     useManagedAIStore.getState().clearBudget();
     useAccountSessionStore.setState({
       isConnected: false,
@@ -89,6 +91,7 @@ function registerAccountPersistenceListener(): void {
       return;
     }
 
+    invalidateAccountSessionAuthState();
     const identity = loadPersistedUser();
     if (identity.isConnected !== true) {
       useManagedAIStore.getState().clearBudget();
@@ -108,6 +111,7 @@ function registerAccountPersistenceListener(): void {
 }
 
 function applyPersistedAccountIdentity(identity: Partial<AccountSessionStore>): void {
+  invalidateAccountSessionAuthState();
   if (identity.isConnected !== true) {
     useManagedAIStore.getState().clearBudget();
   }

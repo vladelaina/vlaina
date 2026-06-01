@@ -50,6 +50,10 @@ function canMessageUseVersionKind(message: ChatMessage, kind: MessageVersion['ki
   return kind === 'original'
 }
 
+function hasSession(ai: { sessions: Array<{ id: string }> }, sessionId: string): boolean {
+  return ai.sessions.some((session) => session.id === sessionId)
+}
+
 interface AddMessageOptions {
   persistUnified?: boolean
   touchSession?: boolean
@@ -115,8 +119,10 @@ export function createMessageActions() {
     ) => {
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
-      const targetSessionId = sessionId || useAIUIStore.getState().currentSessionId
-      if (!targetSessionId) return
+      const rawSessionId = sessionId || useAIUIStore.getState().currentSessionId
+      if (!rawSessionId) return
+      const targetSessionId = resolveSessionIdAlias(rawSessionId)
+      if (!hasSession(ai, targetSessionId)) return
       const persistUnified = options?.persistUnified !== false
       const touchSession = options?.touchSession !== false
 
@@ -159,6 +165,7 @@ export function createMessageActions() {
       const ai = state.data.ai!
       const sessionMessages = ai.messages[targetSessionId] || []
 
+      if (!hasSession(ai, targetSessionId)) return
       if (sessionMessages.length === 0) return
 
       const newMessages = sessionMessages.map((message) => {
@@ -201,6 +208,7 @@ export function createMessageActions() {
       const ai = state.data.ai!
       const sessionMessages = ai.messages[targetSessionId] || []
 
+      if (!hasSession(ai, targetSessionId)) return
       if (sessionMessages.length === 0) return
 
       const newMessages = sessionMessages.map((message) => {
@@ -237,6 +245,7 @@ export function createMessageActions() {
       const targetSessionId = resolveSessionIdAlias(sessionId)
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
+      if (!hasSession(ai, targetSessionId)) return
       const sessionMessages = ai.messages[targetSessionId]
       if (sessionMessages && shouldPersistSession(ai, targetSessionId)) {
         void saveSessionJson(targetSessionId, sessionMessages)
@@ -246,8 +255,10 @@ export function createMessageActions() {
     addVersion: (id: string, sessionId?: string) => {
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
-      const targetSessionId = sessionId || useAIUIStore.getState().currentSessionId
-      if (!targetSessionId) return
+      const rawSessionId = sessionId || useAIUIStore.getState().currentSessionId
+      if (!rawSessionId) return
+      const targetSessionId = resolveSessionIdAlias(rawSessionId)
+      if (!hasSession(ai, targetSessionId)) return
 
       const sessionMessages = ai.messages[targetSessionId] || []
       let didAddVersion = false
@@ -284,9 +295,11 @@ export function createMessageActions() {
     },
 
     editMessageAndBranch: (sessionId: string, messageId: string, newContent: string) => {
+      const targetSessionId = resolveSessionIdAlias(sessionId)
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
-      const messages = ai.messages[sessionId] || []
+      if (!hasSession(ai, targetSessionId)) return
+      const messages = ai.messages[targetSessionId] || []
       const index = messages.findIndex((message) => message.id === messageId)
       if (index === -1) return
 
@@ -316,18 +329,20 @@ export function createMessageActions() {
       }
 
       state.updateAIData({
-        messages: { ...ai.messages, [sessionId]: newMessages }
+        messages: { ...ai.messages, [targetSessionId]: newMessages }
       }, true)
 
-      if (shouldPersistSession(ai, sessionId)) {
-        saveSessionJson(sessionId, newMessages)
+      if (shouldPersistSession(ai, targetSessionId)) {
+        saveSessionJson(targetSessionId, newMessages)
       }
     },
 
     switchMessageVersion: (sessionId: string, messageId: string, targetIndex: number) => {
+      const targetSessionId = resolveSessionIdAlias(sessionId)
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
-      const messages = ai.messages[sessionId] || []
+      if (!hasSession(ai, targetSessionId)) return
+      const messages = ai.messages[targetSessionId] || []
       const index = messages.findIndex((message) => message.id === messageId)
       if (index === -1) return
 
@@ -361,11 +376,11 @@ export function createMessageActions() {
       const finalMessages = [...newMessages, ...restoredFuture]
 
       state.updateAIData({
-        messages: { ...ai.messages, [sessionId]: finalMessages }
+        messages: { ...ai.messages, [targetSessionId]: finalMessages }
       }, true)
 
-      if (shouldPersistSession(ai, sessionId)) {
-        saveSessionJson(sessionId, finalMessages)
+      if (shouldPersistSession(ai, targetSessionId)) {
+        saveSessionJson(targetSessionId, finalMessages)
       }
     },
   }

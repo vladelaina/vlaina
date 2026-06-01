@@ -3,6 +3,7 @@ import { createMessageActions } from './messageActions';
 import { useAIUIStore } from './chatState';
 import { useUnifiedStore } from '../unified/useUnifiedStore';
 import type { ChatMessage } from '@/lib/ai/types';
+import { aliasSessionId, clearSessionIdAliases } from '@/lib/ai/sessionIdAliases';
 import { saveSessionJson } from '@/lib/storage/chatStorage';
 
 vi.mock('@/lib/storage/chatStorage', () => ({
@@ -89,6 +90,7 @@ function seedMessages(messages: ChatMessage[]) {
 describe('message actions API transcript handling', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearSessionIdAliases();
   });
 
   it('clears the active top-level transcript when adding a regeneration version', () => {
@@ -295,5 +297,76 @@ describe('message actions API transcript handling', () => {
       { role: 'tool', tool_call_id: 'call-1', content: 'result' },
     ]);
     expect(message.versions[0].apiTranscript).toEqual(message.apiTranscript);
+  });
+
+  it('routes added messages through promoted temporary session aliases', () => {
+    seedMessages([]);
+    aliasSessionId('temp-session-1', 'session-1');
+
+    const addedId = createMessageActions().addMessage({
+      role: 'user',
+      content: 'after promotion',
+      modelId: 'model-1',
+    }, 'temp-session-1');
+
+    const ai = useUnifiedStore.getState().data.ai!;
+    expect(addedId).toMatch(/^msg-/);
+    expect(ai.messages['session-1']).toHaveLength(1);
+    expect(ai.messages['session-1'][0].content).toBe('after promotion');
+    expect(ai.messages['temp-session-1']).toBeUndefined();
+    expect(saveSessionJson).toHaveBeenCalledWith('session-1', ai.messages['session-1']);
+  });
+
+  it('routes version mutations through promoted temporary session aliases', () => {
+    seedMessages([
+      createUserMessage('prompt-1', 'prompt'),
+      createAssistantMessage(),
+    ]);
+    const actions = createMessageActions();
+    aliasSessionId('temp-session-1', 'session-1');
+
+    actions.addVersion('assistant-1', 'temp-session-1');
+    actions.switchMessageVersion('temp-session-1', 'assistant-1', 0);
+    actions.editMessageAndBranch('temp-session-1', 'prompt-1', 'edited prompt');
+
+    const ai = useUnifiedStore.getState().data.ai!;
+    expect(ai.messages['temp-session-1']).toBeUndefined();
+    expect(ai.messages['session-1']).toHaveLength(1);
+    expect(ai.messages['session-1'][0].content).toBe('edited prompt');
+    expect(ai.messages['session-1'][0].currentVersionIndex).toBe(1);
+    expect(ai.messages['session-1'][0].versions[0].subsequentMessages[0].id).toBe('assistant-1');
+  });
+
+  it('does not recreate orphan message buckets for deleted sessions', () => {
+    seedMessages([]);
+    useUnifiedStore.setState((state) => ({
+      data: {
+        ...state.data,
+        ai: {
+          ...state.data.ai!,
+          sessions: [],
+          messages: {},
+        },
+      },
+    }));
+    const actions = createMessageActions();
+
+    actions.addMessage({
+      role: 'user',
+      content: 'stale user message',
+      modelId: 'model-1',
+    }, 'session-1');
+    actions.updateMessage('session-1', 'assistant-1', 'stale stream chunk');
+    actions.updateMessageApiTranscript('session-1', 'assistant-1', [
+      { role: 'assistant', content: 'stale transcript' },
+    ]);
+    actions.completeMessage('session-1', 'assistant-1');
+    actions.addVersion('assistant-1', 'session-1');
+    actions.editMessageAndBranch('session-1', 'prompt-1', 'edited after delete');
+    actions.switchMessageVersion('session-1', 'assistant-1', 0);
+
+    const ai = useUnifiedStore.getState().data.ai!;
+    expect(ai.messages).toEqual({});
+    expect(saveSessionJson).not.toHaveBeenCalled();
   });
 });

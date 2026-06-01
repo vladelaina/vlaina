@@ -3,6 +3,7 @@ import { createElectronBillingCheckout, hasElectronDesktopBridge } from '@/lib/d
 const API_BASE = 'https://api.vlaina.com'
 const BILLING_GET_RETRY_DELAYS_MS = [300]
 const BILLING_FAST_FAILURE_RETRY_WINDOW_MS = 2000
+const BILLING_REQUEST_TIMEOUT_MS = 15_000
 
 export type BillingPlanTier = 'plus' | 'pro' | 'max' | 'ultra'
 
@@ -46,9 +47,95 @@ function assertSupportedBillingOrigin(): void {
   }
 }
 
-async function readJsonErrorMessage(response: Response, fallback: string): Promise<string> {
+function createBillingTimeoutError(): Error {
+  return new Error('Billing API request timed out.')
+}
+
+function throwIfBillingTimedOut(signal: AbortSignal): void {
+  if (!signal.aborted) return
+  throw createBillingTimeoutError()
+}
+
+async function raceBillingRequest<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  throwIfBillingTimedOut(signal)
+  promise.catch(() => undefined)
+
+  return await new Promise<T>((resolve, reject) => {
+    let settled = false
+    const cleanup = () => {
+      signal.removeEventListener('abort', abort)
+    }
+    const settle = (callback: () => void) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      callback()
+    }
+    const abort = () => {
+      settle(() => reject(createBillingTimeoutError()))
+    }
+
+    signal.addEventListener('abort', abort, { once: true })
+    if (signal.aborted) {
+      abort()
+      return
+    }
+
+    promise.then(
+      (value) => {
+        settle(() => {
+          try {
+            throwIfBillingTimedOut(signal)
+            resolve(value)
+          } catch (error) {
+            reject(error)
+          }
+        })
+      },
+      (error) => {
+        settle(() => {
+          try {
+            throwIfBillingTimedOut(signal)
+            reject(error)
+          } catch (timeoutError) {
+            reject(timeoutError)
+          }
+        })
+      }
+    )
+  })
+}
+
+async function withBillingRequestTimeout<T>(
+  operation: (signal: AbortSignal) => Promise<T>
+): Promise<T> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => {
+    controller.abort()
+  }, BILLING_REQUEST_TIMEOUT_MS)
+
   try {
-    const payload = (await response.json()) as { error?: string }
+    return await operation(controller.signal)
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw createBillingTimeoutError()
+    }
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+async function readBillingJson<T>(response: Response, signal: AbortSignal): Promise<T> {
+  throwIfBillingTimedOut(signal)
+  const data = await raceBillingRequest(response.json() as Promise<T>, signal)
+  throwIfBillingTimedOut(signal)
+  return data
+}
+
+async function readJsonErrorMessage(response: Response, fallback: string, signal: AbortSignal): Promise<string> {
+  try {
+    const payload = await readBillingJson<{ error?: string }>(response, signal)
     if (typeof payload.error === 'string' && payload.error.trim()) {
       return payload.error.trim()
     }
@@ -60,24 +147,51 @@ async function readJsonErrorMessage(response: Response, fallback: string): Promi
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError'
+    || !!error && typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError'
 }
 
-function delayBillingRetry(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+function delayBillingRetry(ms: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) {
+    return Promise.reject(createBillingTimeoutError())
+  }
+
+  return new Promise((resolve, reject) => {
+    let timeout: ReturnType<typeof setTimeout>
+    const abort = () => {
+      clearTimeout(timeout)
+      reject(createBillingTimeoutError())
+    }
+    const complete = () => {
+      signal.removeEventListener('abort', abort)
+      resolve()
+    }
+    signal.addEventListener('abort', abort, { once: true })
+    timeout = setTimeout(complete, ms)
+  })
 }
 
-async function fetchReadOnlyBilling(url: string, init: RequestInit): Promise<Response> {
+async function fetchBilling(url: string, init: RequestInit, signal: AbortSignal): Promise<Response> {
+  throwIfBillingTimedOut(signal)
+  const response = await raceBillingRequest(fetch(url, {
+    ...init,
+    signal,
+  }), signal)
+  throwIfBillingTimedOut(signal)
+  return response
+}
+
+async function fetchReadOnlyBilling(url: string, init: RequestInit, signal: AbortSignal): Promise<Response> {
   for (let attempt = 0; ; attempt += 1) {
     const startedAt = Date.now()
     try {
-      return await fetch(url, init)
+      return await fetchBilling(url, init, signal)
     } catch (error) {
       const retryDelayMs = BILLING_GET_RETRY_DELAYS_MS[attempt]
       const failedQuickly = Date.now() - startedAt <= BILLING_FAST_FAILURE_RETRY_WINDOW_MS
-      if (isAbortError(error) || retryDelayMs == null || !failedQuickly) {
+      if (signal.aborted || isAbortError(error) || retryDelayMs == null || !failedQuickly) {
         throw error
       }
-      await delayBillingRetry(retryDelayMs)
+      await delayBillingRetry(retryDelayMs, signal)
     }
   }
 }
@@ -96,24 +210,26 @@ export async function fetchBillingPlans(): Promise<{
 }> {
   assertSupportedBillingOrigin()
 
-  const response = await fetchReadOnlyBilling(`${API_BASE}/billing/plans`, {
-    method: 'GET',
-    cache: 'no-store',
-    credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-    },
+  return await withBillingRequestTimeout(async (signal) => {
+    const response = await fetchReadOnlyBilling(`${API_BASE}/billing/plans`, {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+      },
+    }, signal)
+
+    if (!response.ok) {
+      throw new Error(await readJsonErrorMessage(response, `Failed to load membership plans: HTTP ${response.status}`, signal))
+    }
+
+    const data = await readBillingJson<BillingPlansResponse>(response, signal)
+    return {
+      checkoutEnabled: data.checkoutEnabled === true,
+      plans: Array.isArray(data.plans) ? data.plans : [],
+    }
   })
-
-  if (!response.ok) {
-    throw new Error(await readJsonErrorMessage(response, `Failed to load membership plans: HTTP ${response.status}`))
-  }
-
-  const data = (await response.json()) as BillingPlansResponse
-  return {
-    checkoutEnabled: data.checkoutEnabled === true,
-    plans: Array.isArray(data.plans) ? data.plans : [],
-  }
 }
 
 export async function createBillingCheckout(tier: BillingPlanTier): Promise<string> {
@@ -124,21 +240,23 @@ export async function createBillingCheckout(tier: BillingPlanTier): Promise<stri
 
   assertSupportedBillingOrigin()
 
-  const response = await fetch(`${API_BASE}/billing/checkout`, {
-    method: 'POST',
-    cache: 'no-store',
-    credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ tier }),
+  return await withBillingRequestTimeout(async (signal) => {
+    const response = await fetchBilling(`${API_BASE}/billing/checkout`, {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ tier }),
+    }, signal)
+
+    if (!response.ok) {
+      throw new Error(await readJsonErrorMessage(response, `Failed to create checkout session: HTTP ${response.status}`, signal))
+    }
+
+    const data = await readBillingJson<BillingCheckoutResponse>(response, signal)
+    return normalizeCheckoutUrl(data)
   })
-
-  if (!response.ok) {
-    throw new Error(await readJsonErrorMessage(response, `Failed to create checkout session: HTTP ${response.status}`))
-  }
-
-  const data = (await response.json()) as BillingCheckoutResponse
-  return normalizeCheckoutUrl(data)
 }
