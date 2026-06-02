@@ -12,10 +12,10 @@ const schemePattern = /^([A-Za-z][A-Za-z0-9+.-]*):/
 const windowsAbsolutePathPattern = /^[A-Za-z]:[\\/]/
 const safeLinkSchemes = new Set(['http:', 'https:', 'mailto:'])
 
-function sanitizeLinkHref(value: unknown) {
+export function sanitizeLinkHref(value: unknown) {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
-  if (!trimmed || controlOrBidiPattern.test(trimmed) || windowsAbsolutePathPattern.test(trimmed)) return null
+  if (!trimmed || trimmed.startsWith('//') || controlOrBidiPattern.test(trimmed) || windowsAbsolutePathPattern.test(trimmed)) return null
 
   const scheme = schemePattern.exec(trimmed)?.[1]?.toLowerCase()
   if (!scheme) return trimmed
@@ -93,13 +93,24 @@ export interface UpdateLinkCommandPayload {
   href?: string
   title?: string
 }
+
+function sanitizeLinkPayload(payload: UpdateLinkCommandPayload) {
+  if (payload.href === undefined) return payload
+  const href = sanitizeLinkHref(payload.href)
+  if (!href) return null
+  return { ...payload, href }
+}
+
 /// A command to toggle the link mark.
 /// You can pass the `href` and `title` to the link.
 export const toggleLinkCommand = $command(
   'ToggleLink',
   (ctx) =>
-    (payload: UpdateLinkCommandPayload = {}) =>
-      toggleMark(linkSchema.type(ctx), payload)
+    (payload: UpdateLinkCommandPayload = {}) => {
+      const attrs = sanitizeLinkPayload(payload)
+      if (!attrs) return () => false
+      return toggleMark(linkSchema.type(ctx), attrs)
+    }
 )
 
 withMeta(toggleLinkCommand, {
@@ -138,9 +149,11 @@ export const updateLinkCommand = $command(
       const start = pos
       const end = pos + node.nodeSize
       const { tr } = state
+      const attrs = sanitizeLinkPayload({ ...mark.attrs, ...payload })
+      if (!attrs) return false
       const linkMark = linkSchema
         .type(ctx)
-        .create({ ...mark.attrs, ...payload })
+        .create(attrs)
       if (!linkMark) return false
 
       dispatch(

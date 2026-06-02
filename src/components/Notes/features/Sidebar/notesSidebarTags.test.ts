@@ -63,6 +63,22 @@ describe('notesSidebarTags', () => {
     ].join('\n'))).toEqual(['project-a', '中文标签']);
   });
 
+  it('does not index tags from markdown metadata or hidden structural ranges', () => {
+    expect(extractNotesSidebarTags([
+      '---',
+      'tags: #frontmatter',
+      '---',
+      '',
+      'Body #visible.',
+      'Link [label](https://example.test/#fragment).',
+      'Nested [outer [inner]](assets/#nested-target.md).',
+      'Autolink <https://example.test/#autolink>.',
+      '<span data-tag="#attribute">visible text</span>',
+      '<!-- #comment -->',
+      'Inline ``#multi-code``.',
+    ].join('\n'))).toEqual(['visible']);
+  });
+
   it('builds tag counts by note rather than duplicate mentions in one note', () => {
     const entries = buildNotesSidebarTagScopeEntries({ rootFolder });
     const contents = new Map([

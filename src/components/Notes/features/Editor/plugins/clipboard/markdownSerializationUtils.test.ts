@@ -751,6 +751,16 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ).toBe('<span data-note="keep"><em>plain</em></span>');
   });
 
+  it('keeps nested supported inline html tags intact', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(
+        '<span style="color: #123456"><em>nested</em></span> <mark style="background-color: #fff"><strong>bold</strong></mark>'
+      )
+    ).toBe(
+      '<span style="color: #123456"><em>nested</em></span> <mark style="background-color: #fff"><strong>bold</strong></mark>'
+    );
+  });
+
   it('canonicalizes strong text before inline code when the editor cannot keep the mark boundary stable', () => {
     expect(normalizeSerializedMarkdownDocument('Use **bold with `code`** here.')).toBe(
       'Use **bold with** `code` here.'
@@ -843,20 +853,20 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ).toBe('|   |   |\n| --- | --- |\n|   | 2 |\n');
   });
 
-  it('restores escaped abbreviation definition syntax outside protected blocks', () => {
+  it('keeps escaped abbreviation definition syntax literal in persisted markdown', () => {
     expect(normalizeSerializedMarkdownDocument('\\*\\[HTML]: HyperText Markup Language\n')).toBe(
-      '*[HTML]: HyperText Markup Language\n'
+      '\\*\\[HTML]: HyperText Markup Language\n'
     );
     expect(normalizeSerializedMarkdownDocument('\\*[HTML]: HyperText Markup Language\n')).toBe(
-      '*[HTML]: HyperText Markup Language\n'
+      '\\*[HTML]: HyperText Markup Language\n'
     );
     expect(
       normalizeSerializedMarkdownDocument(['```md', '\\*\\[HTML]: literal', '```'].join('\n'))
     ).toBe(['```md', '\\*\\[HTML]: literal', '```'].join('\n'));
   });
 
-  it('restores escaped highlight syntax outside protected blocks', () => {
-    expect(normalizeSerializedMarkdownDocument('\\==highlight==\n')).toBe('==highlight==\n');
+  it('keeps escaped highlight syntax literal in persisted markdown', () => {
+    expect(normalizeSerializedMarkdownDocument('\\==highlight==\n')).toBe('\\==highlight==\n');
     expect(
       normalizeSerializedMarkdownDocument(['```md', '\\==literal==', '```'].join('\n'))
     ).toBe(['```md', '\\==literal==', '```'].join('\n'));

@@ -182,7 +182,7 @@ describe('desktop runtime adapters', () => {
     expect(mocks.bridge.dialog.save).toHaveBeenCalledWith({ title: 'Save' });
     expect(mocks.bridge.dialog.confirm).toHaveBeenCalledWith('Continue?', { kind: 'warning' });
     expect(mocks.bridge.dialog.message).toHaveBeenCalledWith('Saved', { title: 'Done' });
-    expect(mocks.bridge.shell.openExternal).toHaveBeenCalledWith('https://example.com');
+    expect(mocks.bridge.shell.openExternal).toHaveBeenCalledWith('https://example.com/');
     expect(mocks.bridge.shell.revealItem).toHaveBeenCalledWith('/tmp/file.md');
     expect(mocks.bridge.shell.trashItem).toHaveBeenCalledWith('/tmp/file.md');
     expect(mocks.bridge.fs.writeBinaryFile).toHaveBeenCalledWith('/tmp/file.bin', new Uint8Array([7, 8]));
@@ -247,7 +247,23 @@ describe('desktop runtime adapters', () => {
       'Electron fs bridge is not available.',
     );
 
-    expect(windowOpen).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
+    expect(windowOpen).toHaveBeenCalledWith('https://example.com/', '_blank', 'noopener,noreferrer');
+    windowOpen.mockRestore();
+  });
+
+  it('rejects unsafe external URLs before reaching the desktop shell or browser fallback', async () => {
+    await expect(openExternalUrl('javascript:alert(1)')).rejects.toThrow('Unsupported external URL.');
+    await expect(openExternalUrl('file:///tmp/secret')).rejects.toThrow('Unsupported external URL.');
+    await expect(openExternalUrl('https://example.com/\u202Ecod.exe')).rejects.toThrow('Unsupported external URL.');
+
+    expect(mocks.bridge.shell.openExternal).not.toHaveBeenCalled();
+
+    mocks.getElectronBridge.mockReturnValue(null as never);
+    const windowOpen = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    await expect(openExternalUrl('data:text/html,alert(1)')).rejects.toThrow('Unsupported external URL.');
+
+    expect(windowOpen).not.toHaveBeenCalled();
     windowOpen.mockRestore();
   });
 });

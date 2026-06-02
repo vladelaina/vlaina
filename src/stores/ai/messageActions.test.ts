@@ -317,6 +317,72 @@ describe('message actions API transcript handling', () => {
     expect(saveSessionJson).toHaveBeenCalledWith('session-1', ai.messages['session-1']);
   });
 
+  it('derives user message image sources only from markdown image tokens', () => {
+    seedMessages([]);
+
+    createMessageActions().addMessage({
+      role: 'user',
+      content: [
+        '<img src="https://example.com/html.png">',
+        '![real](https://example.com/markdown.png)',
+      ].join('\n'),
+      modelId: 'model-1',
+    }, 'session-1');
+
+    const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
+    expect(message.imageSources).toEqual(['https://example.com/markdown.png']);
+  });
+
+  it('filters provided user message image source caches before storing', () => {
+    seedMessages([]);
+
+    createMessageActions().addMessage({
+      role: 'user',
+      content: [
+        '![unsafe](http://127.0.0.1:3000/secret.png)',
+        '![safe](attachment://safe.png)',
+      ].join('\n'),
+      imageSources: [
+        'http://127.0.0.1:3000/secret.png',
+        'data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+',
+        'attachment://safe.png',
+      ],
+      modelId: 'model-1',
+    }, 'session-1');
+
+    const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
+    expect(message.imageSources).toEqual(['attachment://safe.png']);
+  });
+
+  it('keeps assistant html images in derived message image sources', () => {
+    seedMessages([createAssistantMessage()]);
+
+    createMessageActions().updateMessage(
+      'session-1',
+      'assistant-1',
+      '<img src="https://example.com/html.png">\n![real](https://example.com/markdown.png)',
+    );
+
+    const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
+    expect(message.imageSources).toEqual([
+      'https://example.com/html.png',
+      'https://example.com/markdown.png',
+    ]);
+  });
+
+  it('keeps user edit version image sources aligned with markdown attachments', () => {
+    seedMessages([createUserMessage('prompt-1', 'initial'), createAssistantMessage()]);
+
+    createMessageActions().editMessageAndBranch(
+      'session-1',
+      'prompt-1',
+      '<img src="https://example.com/html.png">\n![real](https://example.com/markdown.png)',
+    );
+
+    const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
+    expect(message.imageSources).toEqual(['https://example.com/markdown.png']);
+  });
+
   it('routes version mutations through promoted temporary session aliases', () => {
     seedMessages([
       createUserMessage('prompt-1', 'prompt'),

@@ -71,6 +71,7 @@ function sanitizeElement(element: Element): Node | null {
       const protocols = tagName === 'a' ? GITHUB_ALLOWED_LINK_PROTOCOLS : GITHUB_ALLOWED_MEDIA_PROTOCOLS;
       const normalizedUrl = normalizeGithubUrl(value, protocols, {
         allowPlainRelative: tagName !== 'a',
+        allowProtocolRelative: tagName !== 'a',
         blockLocalNetwork: tagName !== 'a',
       });
       if (normalizedUrl) {
@@ -132,7 +133,7 @@ export function sanitizeHtml(html: string): string {
     const output = document.createElement('template');
     sanitizeChildren(template.content, output.content);
     return output.innerHTML;
-  } catch (e) {
-    return html;
+  } catch {
+    return '';
   }
 }

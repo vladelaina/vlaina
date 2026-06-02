@@ -8,6 +8,10 @@ function isRemoteOrVirtualAsset(path: string): boolean {
     );
 }
 
+function getLocalAssetPath(path: string): string {
+    return path.split('?')[0] ?? '';
+}
+
 export function getImageAssetKey(src: unknown): string | null {
     if (typeof src !== 'string') return null;
 
@@ -19,5 +23,6 @@ export function getImageAssetKey(src: unknown): string | null {
         return null;
     }
 
-    return baseSrc;
+    const localPath = getLocalAssetPath(baseSrc);
+    return localPath || null;
 }

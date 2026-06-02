@@ -1,5 +1,6 @@
 import type { FileTreeNode, StarredEntry } from '@/stores/notes/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 
 export interface NoteMentionCandidate {
   path: string;
@@ -38,7 +39,7 @@ export function collectMentionCandidates(nodes: FileTreeNode[], result: NoteMent
         isCurrent: false,
       });
       collectMentionCandidates(node.children, result);
-    } else if (node.path.toLowerCase().endsWith('.md')) {
+    } else if (isSupportedMarkdownPath(node.path)) {
       result.push({
         path: node.path,
         title: '',
@@ -100,7 +101,7 @@ export function buildMentionPreviewParts(
     let nextMatch: (typeof labels)[number] | null = null;
 
     for (const label of labels) {
-      const index = value.indexOf(label.label, cursor);
+      const index = findMentionLabelIndex(value, label.label, cursor);
       if (index < 0) {
         continue;
       }
@@ -150,17 +151,35 @@ export function buildMentionPreviewParts(
   return parts;
 }
 
-export function valueContainsMentionLabel(value: string, title: string): boolean {
-  const label = `@${title}`;
-  let index = value.indexOf(label);
+function isMentionWordCharacter(value: string): boolean {
+  return /^[\p{L}\p{N}_]$/u.test(value);
+}
+
+function hasMentionStartBoundary(value: string, index: number): boolean {
+  if (index === 0) {
+    return true;
+  }
+  return !isMentionWordCharacter(value[index - 1] ?? '');
+}
+
+function hasMentionEndBoundary(value: string, end: number): boolean {
+  return end === value.length || !isMentionWordCharacter(value[end] ?? '');
+}
+
+function findMentionLabelIndex(value: string, label: string, fromIndex = 0): number {
+  let index = value.indexOf(label, fromIndex);
   while (index >= 0) {
     const end = index + label.length;
-    if (end === value.length || /\s/.test(value[end] ?? '')) {
-      return true;
+    if (hasMentionStartBoundary(value, index) && hasMentionEndBoundary(value, end)) {
+      return index;
     }
     index = value.indexOf(label, index + label.length);
   }
-  return false;
+  return -1;
+}
+
+export function valueContainsMentionLabel(value: string, title: string): boolean {
+  return findMentionLabelIndex(value, `@${title}`) >= 0;
 }
 
 export function insertMentionAtTrigger(

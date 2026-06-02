@@ -126,4 +126,32 @@ describe('deleteNoteItemToRecoverableLocation', () => {
       '/vault/docs 1',
     );
   });
+
+  it('skips unsafe entry names when copying folders to recoverable trash', async () => {
+    hoisted.rename.mockRejectedValue(new Error('cross-device rename failed'));
+    hoisted.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault/docs') {
+        return [
+          { name: 'safe.md', isDirectory: false, isFile: true },
+          { name: '../secret.md', isDirectory: false, isFile: true },
+          { name: 'nested/evil.md', isDirectory: false, isFile: true },
+          { name: 'bad\\evil.md', isDirectory: false, isFile: true },
+          { name: '..', isDirectory: true, isFile: false },
+        ];
+      }
+
+      return [];
+    });
+
+    await deleteNoteItemToRecoverableLocation('/vault', 'docs', 'folder');
+
+    expect(hoisted.copyFile).toHaveBeenCalledWith(
+      '/vault/docs/safe.md',
+      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/1000-i/docs/safe.md',
+    );
+    expect(hoisted.copyFile).not.toHaveBeenCalledWith('/vault/docs/../secret.md', expect.any(String));
+    expect(hoisted.copyFile).not.toHaveBeenCalledWith('/vault/docs/nested/evil.md', expect.any(String));
+    expect(hoisted.listDir).not.toHaveBeenCalledWith('/vault/docs/..');
+    expect(hoisted.deleteDir).toHaveBeenCalledWith('/vault/docs', true);
+  });
 });

@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import DOMPurify from 'dompurify';
 import { translate } from '@/lib/i18n';
 import { generateMermaidId, renderMermaid as renderMermaidMarkup } from './mermaidRenderer';
+import { sanitizeMermaidMarkup } from './mermaidSanitizer';
 
 async function renderReadOnlyMermaid(code: string) {
   const markup = await renderMermaidMarkup(code, generateMermaidId());
-  return DOMPurify.sanitize(markup, {
-    USE_PROFILES: { html: true, svg: true, svgFilters: true },
-    FORBID_TAGS: ['foreignObject', 'script', 'iframe', 'object', 'embed'],
-  });
+  return sanitizeMermaidMarkup(markup);
 }
 
 interface ReadOnlyMermaidBlockProps {
@@ -71,7 +68,6 @@ export function ReadOnlyMermaidBlock({ code }: ReadOnlyMermaidBlockProps) {
       <div
         className="mermaid-block"
         data-type="mermaid"
-        data-code={normalizedCode}
         data-chat-selection-excluded="true"
       >
         <div className="mermaid-placeholder">{translate('editor.mermaidPlaceholder')}</div>
@@ -83,7 +79,6 @@ export function ReadOnlyMermaidBlock({ code }: ReadOnlyMermaidBlockProps) {
     <div
       className="mermaid-block"
       data-type="mermaid"
-      data-code={normalizedCode}
       data-chat-selection-excluded="true"
       dangerouslySetInnerHTML={{ __html: markup }}
     />

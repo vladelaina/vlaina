@@ -1,9 +1,9 @@
 import { $node, $command, $prose } from '@milkdown/kit/utils';
 import { Plugin, TextSelection } from '@milkdown/kit/prose/state';
 import type { VideoAttrs } from './types';
-import { createVideoDom } from './videoDom';
+import { createVideoDom, getVideoElementAttrs } from './videoDom';
 import { VideoNodeView } from './videoNodeView';
-import { normalizeVideoUrlInput, parseVideoUrl } from './videoUrl';
+import { parseVideoUrl, sanitizeVideoUrlInput } from './videoUrl';
 import { markEditorUserInput } from '../shared/userInputEvents';
 
 export const videoSchema = $node('video', () => ({
@@ -20,11 +20,14 @@ export const videoSchema = $node('video', () => ({
     tag: 'div[data-type="video"]',
     getAttrs: (dom) => {
       const el = dom as HTMLElement;
+      const attrs = getVideoElementAttrs(el);
+      const src = sanitizeVideoUrlInput(attrs.src, { allowEmpty: true });
+      if (src === null) return false;
       return {
-        src: el.dataset.src || '',
-        title: el.dataset.title || '',
-        width: parseInt(el.dataset.width || '560', 10),
-        height: parseInt(el.dataset.height || '315', 10),
+        src,
+        title: attrs.title || '',
+        width: attrs.width || 560,
+        height: attrs.height || 315,
       };
     },
   }],
@@ -40,7 +43,8 @@ export const videoSchema = $node('video', () => ({
       return false;
     },
     runner: (state, node, type) => {
-      const src = (node.url as string) || '';
+      const src = sanitizeVideoUrlInput((node.url as string) || '');
+      if (!src) return;
       const title = (node.title as string) || (node.alt as string) || '';
       state.addNode(type, { src, title });
     },
@@ -48,8 +52,8 @@ export const videoSchema = $node('video', () => ({
   toMarkdown: {
     match: (node) => node.type.name === 'video',
     runner: (state, node) => {
-      const src = normalizeVideoUrlInput(String(node.attrs.src || ''));
-      if (!src || !parseVideoUrl(src)) {
+      const src = sanitizeVideoUrlInput(String(node.attrs.src || ''));
+      if (!src) {
         state.addNode('paragraph', []);
         return;
       }
@@ -64,7 +68,10 @@ export const videoSchema = $node('video', () => ({
 }));
 
 export const insertVideoCommand = $command('insertVideo', () => (src: string = '') => {
-  return (state: any, dispatch?: ((tr: any) => void) | null) => {
+  return (state: any, dispatch?: ((tr: any) => void) | null, view?: any) => {
+    const safeSrc = sanitizeVideoUrlInput(src, { allowEmpty: true });
+    if (safeSrc === null) return false;
+
     const { schema } = state;
     const videoType = schema.nodes.video;
     const paragraphType = schema.nodes.paragraph;
@@ -72,7 +79,7 @@ export const insertVideoCommand = $command('insertVideo', () => (src: string = '
     if (!videoType) return false;
 
     if (dispatch) {
-      const node = videoType.create({ src });
+      const node = videoType.create({ src: safeSrc });
       const tr = state.tr.replaceSelectionWith(node);
       const afterVideoPos = tr.selection.from;
       const nextNode = tr.doc.nodeAt(afterVideoPos);
@@ -82,7 +89,7 @@ export const insertVideoCommand = $command('insertVideo', () => (src: string = '
         tr.insert(afterVideoPos, paragraphType.create());
         tr.setSelection(TextSelection.create(tr.doc, afterVideoPos + 1));
       }
-      markEditorUserInput(state.view);
+      markEditorUserInput(view);
       dispatch(tr.scrollIntoView());
     }
 

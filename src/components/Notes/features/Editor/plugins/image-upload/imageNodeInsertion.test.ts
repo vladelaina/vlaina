@@ -15,6 +15,15 @@ describe('imageNodeInsertion', () => {
         });
     });
 
+    it('builds alt text from the image filename without URL metadata', () => {
+        expect(buildImageNodeAttrs('.\\assets\\demo-image.png?cache=1#preview')).toEqual({
+            src: '.\\assets\\demo-image.png?cache=1#preview',
+            alt: 'demo-image',
+            align: 'center',
+            width: null,
+        });
+    });
+
     it('detects when the current selection can accept an image node', () => {
         const replaceSelectionWith = vi.fn(function () {
             return { docChanged: true };

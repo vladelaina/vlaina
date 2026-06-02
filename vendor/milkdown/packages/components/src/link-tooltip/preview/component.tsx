@@ -1,4 +1,5 @@
 import { defineComponent, type Ref, h } from 'vue'
+import { sanitizeLinkHref } from '@milkdown/preset-commonmark'
 
 import type { LinkTooltipConfig } from '../slices'
 
@@ -59,6 +60,8 @@ export const PreviewLink = defineComponent<PreviewLinkProps>({
     }
 
     return () => {
+      const safeHref = sanitizeLinkHref(src.value)
+
       return (
         <div class="link-preview">
           <Icon
@@ -66,7 +69,7 @@ export const PreviewLink = defineComponent<PreviewLinkProps>({
             icon={config.value.linkIcon}
             onClick={onClickPreview}
           />
-          <a href={src.value} target="_blank" class="link-display">
+          <a href={safeHref ?? undefined} target="_blank" rel="noreferrer" class="link-display">
             {src.value}
           </a>
           <Icon

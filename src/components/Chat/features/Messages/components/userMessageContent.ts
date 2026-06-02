@@ -1,8 +1,10 @@
 import type { Attachment } from '@/lib/storage/attachmentStorage';
+import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
 import {
   extractMarkdownImageSources,
   stripMarkdownImageTokens,
 } from '@/components/Chat/common/messageClipboard';
+import { formatMarkdownImage } from '@/lib/markdown/markdownImageMarkdown';
 
 export interface ParsedUserMessageContent {
   text: string;
@@ -69,12 +71,16 @@ export function parseUserMessageContentWithKnownImages(
   content: string,
   imageSources: string[] | undefined,
 ): ParsedUserMessageContent {
-  if (!imageSources || imageSources.length === 0) {
+  const safeImageSources = imageSources
+    ?.map((src) => normalizeRenderableImageSrc(src))
+    .filter((src): src is string => Boolean(src)) ?? [];
+
+  if (safeImageSources.length === 0) {
     return parseUserMessageContent(content);
   }
 
   let cursor = 0;
-  for (const source of imageSources) {
+  for (const source of safeImageSources) {
     const wrappedToken = `![image](<${source}>)`;
     const plainToken = `![image](${source})`;
     if (content.startsWith(wrappedToken, cursor)) {
@@ -83,7 +89,7 @@ export function parseUserMessageContentWithKnownImages(
       cursor += plainToken.length;
     } else {
       return {
-        imageSources,
+        imageSources: safeImageSources,
         text: stripMarkdownImageTokens(content).trim(),
       };
     }
@@ -94,7 +100,7 @@ export function parseUserMessageContentWithKnownImages(
   }
 
   return {
-    imageSources,
+    imageSources: safeImageSources,
     text: content.slice(cursor).trim(),
   };
 }
@@ -104,7 +110,7 @@ export function composeUserMessageContent(text: string, attachments: Attachment[
   const imageMarkdown = attachments
     .map((attachment) => attachment.assetUrl?.trim() || attachment.previewUrl?.trim())
     .filter((src): src is string => !!src)
-    .map((src) => `![image](<${src}>)`)
+    .map((src) => formatMarkdownImage(src))
     .join('\n');
   const hasText = normalizedText.trim().length > 0;
 

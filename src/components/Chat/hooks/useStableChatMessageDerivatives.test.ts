@@ -133,4 +133,34 @@ describe('useStableChatMessageDerivatives', () => {
       { id: 'a1:0', src: 'data:image/png;base64,aGk=' },
     ]);
   });
+
+  it('ignores assistant image examples inside code blocks and inline code', () => {
+    const assistant = createMessage(
+      'a1',
+      'assistant',
+      [
+        '`![inline](https://example.com/inline.png)`',
+        '```html',
+        '<img src="https://example.com/code-html.png">',
+        '![code](https://example.com/code.png)',
+        '```',
+        '![real](https://example.com/real.png)',
+        '<img src="https://example.com/real-html.png">',
+      ].join('\n'),
+    );
+
+    const view = renderHook(
+      ({ messages }) => useStableChatMessageDerivatives(messages),
+      {
+        initialProps: {
+          messages: [assistant] as ChatMessage[],
+        },
+      },
+    );
+
+    expect(view.result.current.imageGallery).toEqual([
+      { id: 'a1:0', src: 'https://example.com/real.png' },
+      { id: 'a1:1', src: 'https://example.com/real-html.png' },
+    ]);
+  });
 });

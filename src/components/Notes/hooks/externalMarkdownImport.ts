@@ -9,11 +9,20 @@ import type { StarredKind } from '@/stores/notes/types';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 import { resolveStarredRelativePathForVault } from '@/stores/notes/starred';
 import { resolveUniquePath } from '@/stores/notes/utils/fs/pathOperations';
+import { isSafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
 import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetSelection';
 
 const MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES = 2000;
 const MAX_EXTERNAL_MARKDOWN_IMPORT_DEPTH = 24;
 const MAX_EXTERNAL_MARKDOWN_FILE_SIZE = 10 * 1024 * 1024;
+const SKIPPED_EXTERNAL_MARKDOWN_DIRECTORY_NAMES = new Set([
+  'node_modules',
+  'vendor',
+  'dist',
+  'build',
+  'target',
+  '__pycache__',
+]);
 
 interface ExternalMarkdownImportResult {
   importedNotePaths: string[];
@@ -29,6 +38,10 @@ export interface ExternalMarkdownStarredTarget {
 
 interface ExternalMarkdownImportBudget {
   visitedEntries: number;
+}
+
+function shouldSkipExternalMarkdownDirectory(name: string) {
+  return name.startsWith('.') || SKIPPED_EXTERNAL_MARKDOWN_DIRECTORY_NAMES.has(name);
 }
 
 async function statExternalMarkdownPath(absolutePath: string) {
@@ -98,6 +111,10 @@ async function importExternalMarkdownDirectory(
     }
     budget.visitedEntries += 1;
 
+    if (!isSafeVaultPathSegment(entry.name)) {
+      continue;
+    }
+
     if (entry.name.startsWith('.')) {
       continue;
     }
@@ -105,6 +122,9 @@ async function importExternalMarkdownDirectory(
     const sourceEntryPath = await joinPath(sourcePath, entry.name);
 
     if (entry.isDirectory) {
+      if (shouldSkipExternalMarkdownDirectory(entry.name)) {
+        continue;
+      }
       copiedMarkdownCount += await importExternalMarkdownDirectory(
         sourceEntryPath,
         vaultPath,
@@ -155,6 +175,9 @@ export async function importExternalMarkdownEntries(
 
     const info = await statExternalMarkdownPath(absolutePath);
     if (info?.isDirectory) {
+      if (shouldSkipExternalMarkdownDirectory(getBaseName(absolutePath))) {
+        continue;
+      }
       await importExternalMarkdownDirectory(
         absolutePath,
         vaultPath,

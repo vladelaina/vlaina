@@ -28,6 +28,7 @@ function createView() {
           parentOffset: 5,
           parent: {
             type: { name: 'paragraph' },
+            attrs: {},
             textContent: '[toc]',
             content: { size: 5 },
             nodeSize: 7,
@@ -87,6 +88,14 @@ describe('handleTocShortcutEnter', () => {
   it('returns false when the paragraph text is not a toc shortcut', () => {
     const { view } = createView();
     view.state.selection.$from.parent.textContent = '[to]';
+
+    expect(handleTocShortcutEnter(view as never)).toBe(false);
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('returns false when the toc shortcut was escaped in markdown', () => {
+    const { view } = createView();
+    view.state.selection.$from.parent.attrs = { vlainaEscapedBlockSyntax: 'toc' };
 
     expect(handleTocShortcutEnter(view as never)).toBe(false);
     expect(view.dispatch).not.toHaveBeenCalled();

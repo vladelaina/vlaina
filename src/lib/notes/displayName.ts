@@ -1,3 +1,5 @@
+import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from './markdownFile';
+
 export function getNoteTitleFromPath(path: string | undefined): string {
   if (!path) return 'Untitled';
 
@@ -9,11 +11,14 @@ export function getNoteTitleFromPath(path: string | undefined): string {
 }
 
 export function stripMarkdownExtension(name: string): string {
-  return name.replace(/\.md$/i, '');
+  return stripSupportedMarkdownExtension(name);
 }
 
 export function ensureMarkdownFileName(name: string): string {
-  const normalized = stripMarkdownExtension(name.trim());
+  const normalized = name.trim();
+  if (isSupportedMarkdownPath(normalized)) {
+    return normalized;
+  }
   return normalized ? `${normalized}.md` : 'Untitled.md';
 }
 

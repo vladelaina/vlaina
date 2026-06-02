@@ -18,13 +18,16 @@ import {
   slashCommandDefinitions,
 } from './slashCommandDefinitions';
 
-function createDoc(nodes: Array<{ type: string; id?: string }>) {
+function createDoc(nodes: Array<{ type: string; id?: string; label?: string }>) {
   return {
     descendants(callback: (node: any) => void) {
       for (const node of nodes) {
         callback({
           type: { name: node.type },
-          attrs: node.id ? { id: node.id } : {},
+          attrs: {
+            ...(node.id ? { id: node.id } : {}),
+            ...(node.label ? { label: node.label } : {}),
+          },
         });
       }
     },
@@ -111,6 +114,17 @@ describe('footnote id helpers', () => {
     const ids = collectFootnoteIds(createDoc([
       { type: 'footnote_ref', id: '1' },
       { type: 'footnote_def', id: '2' },
+      { type: 'paragraph' },
+    ]));
+
+    expect(Array.from(ids.refs)).toEqual(['1']);
+    expect(Array.from(ids.defs)).toEqual(['2']);
+  });
+
+  it('collects active GFM footnote labels separately', () => {
+    const ids = collectFootnoteIds(createDoc([
+      { type: 'footnote_reference', label: '1' },
+      { type: 'footnote_definition', label: '2' },
       { type: 'paragraph' },
     ]));
 

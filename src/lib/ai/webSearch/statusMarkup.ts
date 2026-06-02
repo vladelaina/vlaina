@@ -1,16 +1,23 @@
 import type { WebSearchStatus } from './types';
+import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity';
 
 const WEB_SEARCH_STATUS_REGEX = /<web-search-status>([\s\S]*?)<\/web-search-status>/gi;
 const VALID_PHASES = new Set(['searching', 'results', 'reading', 'complete', 'error']);
 const MAX_STATUS_JSON_LENGTH = 20000;
+const UNSAFE_URL_CHARS_REGEX = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
-function isSafeHttpUrl(value: unknown): value is string {
-  if (typeof value !== 'string') return false;
+export function sanitizeWebSearchSourceUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed || UNSAFE_URL_CHARS_REGEX.test(trimmed)) return null;
+
   try {
-    const parsed = new URL(value);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    if (isLocalNetworkHttpUrl(trimmed)) return null;
+    return trimmed;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -23,15 +30,21 @@ function sanitizeStatus(value: unknown): WebSearchStatus | null {
   if (typeof input.query === 'string') status.query = input.query.slice(0, 500);
   if (typeof input.message === 'string') status.message = input.message.slice(0, 500);
   if (Array.isArray(input.urls)) {
-    status.urls = input.urls.filter(isSafeHttpUrl).slice(0, 8);
+    status.urls = input.urls
+      .map(sanitizeWebSearchSourceUrl)
+      .filter((url): url is string => Boolean(url))
+      .slice(0, 8);
   }
   if (Array.isArray(input.results)) {
     status.results = input.results
-      .filter((result): result is Record<string, unknown> =>
-        Boolean(result) && typeof result === 'object' && !Array.isArray(result) && isSafeHttpUrl(result.url))
-      .slice(0, 5)
       .map((result) => {
-        const url = String(result.url);
+        if (!result || typeof result !== 'object' || Array.isArray(result)) return null;
+        const url = sanitizeWebSearchSourceUrl((result as Record<string, unknown>).url);
+        return url ? { result: result as Record<string, unknown>, url } : null;
+      })
+      .filter((entry): entry is { result: Record<string, unknown>; url: string } => Boolean(entry))
+      .slice(0, 5)
+      .map(({ result, url }) => {
         return {
           title: typeof result.title === 'string' ? result.title.slice(0, 300) : url,
           url,
@@ -42,11 +55,15 @@ function sanitizeStatus(value: unknown): WebSearchStatus | null {
   }
   if (Array.isArray(input.failedSources)) {
     status.failedSources = input.failedSources
-      .filter((source): source is Record<string, unknown> =>
-        Boolean(source) && typeof source === 'object' && !Array.isArray(source) && isSafeHttpUrl(source.url))
+      .map((source) => {
+        if (!source || typeof source !== 'object' || Array.isArray(source)) return null;
+        const url = sanitizeWebSearchSourceUrl((source as Record<string, unknown>).url);
+        return url ? { source: source as Record<string, unknown>, url } : null;
+      })
+      .filter((entry): entry is { source: Record<string, unknown>; url: string } => Boolean(entry))
       .slice(0, 4)
-      .map((source) => ({
-        url: String(source.url),
+      .map(({ source, url }) => ({
+        url,
         message: typeof source.message === 'string' ? source.message.slice(0, 200) : 'Unable to read this page.',
       }));
   }

@@ -1,7 +1,9 @@
 import { Icon } from '@/components/ui/icons';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { sanitizeWebSearchSourceUrl } from '@/lib/ai/webSearch/statusMarkup';
 import type { WebSearchStatus } from '@/lib/ai/webSearch/types';
 import { useI18n } from '@/lib/i18n';
+import { getExternalLinkProps } from '@/lib/navigation/externalLinks';
 import { cn } from '@/lib/utils';
 import { themeIconTokens } from '@/styles/themeTokens';
 
@@ -34,17 +36,19 @@ function uniqueSourceItems(
   const items: Array<{ url: string; label: string; detail?: string }> = [];
 
   for (const result of results) {
-    if (seen.has(result.url)) continue;
-    seen.add(result.url);
+    const url = sanitizeWebSearchSourceUrl(result.url);
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
     items.push({
-      url: result.url,
-      label: result.title?.trim() || hostLabel(result.url),
-      detail: result.url,
+      url,
+      label: result.title?.trim() || hostLabel(url),
+      detail: url,
     });
   }
 
-  for (const url of urls) {
-    if (seen.has(url)) continue;
+  for (const rawUrl of urls) {
+    const url = sanitizeWebSearchSourceUrl(rawUrl);
+    if (!url || seen.has(url)) continue;
     seen.add(url);
     items.push({ url, label: hostLabel(url), detail: url });
   }
@@ -89,6 +93,12 @@ export function WebSearchStatusBlock({ statuses, isWaitingForAnswer = false }: W
   const isSearching = isWaitingForAnswer;
   const showStatusMessage = shouldShowStatusMessage(status);
   const sourceItems = sourceItemsFromStatuses(statuses);
+  const failedSources = (status.failedSources ?? [])
+    .map((source) => {
+      const url = sanitizeWebSearchSourceUrl(source.url);
+      return url ? { ...source, url } : null;
+    })
+    .filter((source): source is NonNullable<typeof source> => Boolean(source));
 
   return (
     <div
@@ -122,9 +132,7 @@ export function WebSearchStatusBlock({ statuses, isWaitingForAnswer = false }: W
             return (
               <a
                 key={source.url}
-                href={source.url}
-                target="_blank"
-                rel="noreferrer"
+                {...getExternalLinkProps(source.url)}
                 className="inline-flex h-7 max-w-[var(--vlaina-size-220px)] cursor-pointer items-center gap-1.5 rounded-full bg-[var(--vlaina-accent-light)] px-2.5 text-[var(--vlaina-font-xs)] font-medium text-[var(--vlaina-accent)] transition-opacity hover:opacity-[var(--vlaina-opacity-80)]"
               >
                 <span className="min-w-0 truncate">{source.label}</span>
@@ -138,10 +146,10 @@ export function WebSearchStatusBlock({ statuses, isWaitingForAnswer = false }: W
         </div>
       )}
 
-      {status.failedSources && status.failedSources.length > 0 && (
+      {failedSources.length > 0 && (
         <div className="mt-2 space-y-1 text-[var(--vlaina-text-tertiary)]">
           <div className="font-medium text-[var(--vlaina-text-secondary)]">{t('chat.skippedSources')}</div>
-          {status.failedSources.slice(0, 4).map((source) => (
+          {failedSources.slice(0, 4).map((source) => (
             <div key={source.url} className="flex min-w-0 gap-2">
               <span className="shrink-0">{source.message}</span>
               <span className="min-w-0 truncate">{source.url}</span>

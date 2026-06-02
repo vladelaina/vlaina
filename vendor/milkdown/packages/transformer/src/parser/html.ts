@@ -9,6 +9,7 @@ const GFM_TYPE_7_HTML_TAG_LINE_PATTERN = /^<\/?([A-Za-z][A-Za-z0-9-]*)(?:\s[^>]*
 const GFM_TYPE_7_EXCLUDED_TAGS = new Set(['script', 'style', 'pre'])
 const LOCALLY_PARSED_HTML_BLOCK_EXCLUDED_TAGS = new Set(['img'])
 const LOCALLY_PARSED_HTML_TAGS = new Set(['sup', 'sub', 'mark', 'u'])
+const RAW_HTML_TAG_TEXT_PATTERN = /<\/?[A-Za-z][A-Za-z0-9:-]*(?:\s[^<>]*)?>|&lt;\/?[A-Za-z][A-Za-z0-9:-]*(?:\s[^&<>]*)?&gt;/i
 
 function escapeHtmlText(value: string): string {
   return value
@@ -46,6 +47,37 @@ function hasStrongInlineSyntax(nodes: MarkdownNode[]): boolean {
   })
 }
 
+function hasRawHtmlTagText(nodes: MarkdownNode[]): boolean {
+  return nodes.some((node) => {
+    if (
+      (node.type === 'text' || node.type === 'html') &&
+      RAW_HTML_TAG_TEXT_PATTERN.test(String(node.value ?? ''))
+    )
+      return true
+    return Array.isArray(node.children) && hasRawHtmlTagText(node.children)
+  })
+}
+
+function getSourceSlice(
+  markdown: string | undefined,
+  startNode: MarkdownNode,
+  endNode: MarkdownNode
+): string | null {
+  const start = startNode.position?.start?.offset
+  const end = endNode.position?.end?.offset
+  if (
+    !markdown ||
+    typeof start !== 'number' ||
+    typeof end !== 'number' ||
+    start < 0 ||
+    end <= start ||
+    end > markdown.length
+  )
+    return null
+
+  return markdown.slice(start, end)
+}
+
 function isGfmHtmlBlock(value: string): boolean {
   const firstLine = value.trim().split(/\r?\n/, 1)[0]?.trim() ?? ''
   if (GFM_TYPE_1_HTML_BLOCK_PATTERN.test(firstLine)) return true
@@ -71,10 +103,18 @@ function markGfmHtmlBlock(node: MarkdownNode): MarkdownNode {
     : node
 }
 
-export function mergePairedInlineHtml(node: MarkdownNode): MarkdownNode {
-  if (!Array.isArray(node.children)) return node
+function restoreRawHtmlFromSource(node: MarkdownNode, markdown?: string): MarkdownNode {
+  if (node.type !== 'html' || !RAW_HTML_TAG_TEXT_PATTERN.test(String(node.value ?? '')))
+    return node
 
-  node.children = node.children.map(mergePairedInlineHtml)
+  const rawSource = getSourceSlice(markdown, node, node)
+  return rawSource ? ({ ...node, value: rawSource } as MarkdownNode) : node
+}
+
+export function mergePairedInlineHtml(node: MarkdownNode, markdown?: string): MarkdownNode {
+  if (!Array.isArray(node.children)) return restoreRawHtmlFromSource(node, markdown)
+
+  node.children = node.children.map((child) => mergePairedInlineHtml(child, markdown))
 
   const mergedChildren: MarkdownNode[] = []
   for (let index = 0; index < node.children.length; index += 1) {
@@ -87,7 +127,7 @@ export function mergePairedInlineHtml(node: MarkdownNode): MarkdownNode {
     }
 
     const tagName = openTagMatch[1]?.toLowerCase()
-    if (!tagName || LOCALLY_PARSED_HTML_TAGS.has(tagName)) {
+    if (!tagName) {
       mergedChildren.push(child)
       continue
     }
@@ -107,6 +147,22 @@ export function mergePairedInlineHtml(node: MarkdownNode): MarkdownNode {
     }
 
     const innerNodes = node.children.slice(index + 1, closeIndex)
+    const rawSource = hasRawHtmlTagText(innerNodes)
+      ? getSourceSlice(markdown, child, node.children[closeIndex])
+      : null
+    if (rawSource) {
+      mergedChildren.push({
+        type: 'html',
+        value: rawSource,
+      } as MarkdownNode)
+      index = closeIndex
+      continue
+    }
+
+    if (LOCALLY_PARSED_HTML_TAGS.has(tagName)) {
+      mergedChildren.push(child)
+      continue
+    }
     if (tagName === 'span') {
       const hasStyle = /\sstyle\s*=|^<span\s+style\s*=/i.test(value)
       const hasMarkdown = hasMarkdownInlineSyntax(innerNodes)

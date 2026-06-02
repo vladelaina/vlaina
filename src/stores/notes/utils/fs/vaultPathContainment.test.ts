@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { normalizeVaultRelativePath, resolveVaultRelativeFullPath } from './vaultPathContainment';
+import {
+  isSafeVaultPathSegment,
+  normalizeVaultRelativePath,
+  resolveVaultRelativeFullPath,
+} from './vaultPathContainment';
 
 vi.mock('@/lib/storage/adapter', () => ({
   isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
@@ -7,6 +11,18 @@ vi.mock('@/lib/storage/adapter', () => ({
 }));
 
 describe('vaultPathContainment', () => {
+  it('accepts only single safe relative path segments', () => {
+    expect(isSafeVaultPathSegment('alpha.md')).toBe(true);
+    expect(isSafeVaultPathSegment('nested')).toBe(true);
+    expect(isSafeVaultPathSegment('')).toBe(false);
+    expect(isSafeVaultPathSegment('.')).toBe(false);
+    expect(isSafeVaultPathSegment('..')).toBe(false);
+    expect(isSafeVaultPathSegment('../secret.md')).toBe(false);
+    expect(isSafeVaultPathSegment('docs/secret.md')).toBe(false);
+    expect(isSafeVaultPathSegment('docs\\secret.md')).toBe(false);
+    expect(isSafeVaultPathSegment('secret\0.md')).toBe(false);
+  });
+
   it('normalizes safe vault-relative paths', () => {
     expect(normalizeVaultRelativePath('docs\\alpha.md')).toBe('docs/alpha.md');
     expect(normalizeVaultRelativePath('./docs//alpha.md')).toBe('docs/alpha.md');

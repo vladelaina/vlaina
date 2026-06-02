@@ -1,9 +1,8 @@
 import type { Node } from '@milkdown/prose/model'
 import type { NodeViewConstructor } from '@milkdown/prose/view'
 
-import { imageSchema } from '@milkdown/preset-commonmark'
+import { imageSchema, sanitizeImageSrc } from '@milkdown/preset-commonmark'
 import { $view } from '@milkdown/utils'
-import DOMPurify from 'dompurify'
 import { createApp, ref, watchEffect } from 'vue'
 
 import { withMeta } from '../__internal__/meta'
@@ -14,7 +13,9 @@ export const inlineImageView = $view(
   imageSchema.node,
   (ctx): NodeViewConstructor => {
     return (initialNode, view, getPos) => {
-      const src = ref(initialNode.attrs.src)
+      const src = ref(
+        sanitizeImageSrc(initialNode.attrs.src, { allowEmpty: true }) ?? ''
+      )
       const alt = ref(initialNode.attrs.alt)
       const title = ref(initialNode.attrs.title)
       const selected = ref(false)
@@ -23,13 +24,13 @@ export const inlineImageView = $view(
         if (!view.editable) return
         const pos = getPos()
         if (pos == null) return
-        view.dispatch(
-          view.state.tr.setNodeAttribute(
-            pos,
-            attr,
-            attr === 'src' ? DOMPurify.sanitize(value as string) : value
-          )
-        )
+        if (attr === 'src') {
+          const src = sanitizeImageSrc(value, { allowEmpty: true })
+          if (src == null) return
+          view.dispatch(view.state.tr.setNodeAttribute(pos, attr, src))
+          return
+        }
+        view.dispatch(view.state.tr.setNodeAttribute(pos, attr, value))
       }
 
       const config = ctx.get(inlineImageConfig.key)
@@ -54,16 +55,18 @@ export const inlineImageView = $view(
       })
       const proxyDomURL = config.proxyDomURL
       const bindAttrs = (node: Node) => {
-        if (!proxyDomURL) {
-          src.value = node.attrs.src
+        const safeSrc =
+          sanitizeImageSrc(node.attrs.src, { allowEmpty: true }) ?? ''
+        if (!proxyDomURL || !safeSrc) {
+          src.value = safeSrc
         } else {
-          const proxiedURL = proxyDomURL(node.attrs.src)
+          const proxiedURL = proxyDomURL(safeSrc)
           if (typeof proxiedURL === 'string') {
-            src.value = proxiedURL
+            src.value = sanitizeImageSrc(proxiedURL, { allowEmpty: true }) ?? ''
           } else {
             proxiedURL
               .then((url) => {
-                src.value = url
+                src.value = sanitizeImageSrc(url, { allowEmpty: true }) ?? ''
               })
               .catch(console.error)
           }

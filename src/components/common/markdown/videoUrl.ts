@@ -42,10 +42,15 @@ function buildBilibiliEmbedUrl(args: {
   return `https://player.bilibili.com/player.html?${params.toString()}`;
 }
 
-function extractBilibiliBvid(url: string) {
-  return url.match(/bilibili\.com\/video\/(BV[a-zA-Z0-9]+)/)?.[1]
-    ?? url.match(/[?&]bvid=(BV[a-zA-Z0-9]+)/)?.[1]
-    ?? null;
+function extractBilibiliBvid(parsedUrl: URL) {
+  const hostname = parsedUrl.hostname.replace(/^www\./, '');
+  if (hostname === 'bilibili.com') {
+    return parsedUrl.pathname.match(/^\/video\/(BV[a-zA-Z0-9]+)/)?.[1] ?? null;
+  }
+  if (hostname === 'player.bilibili.com') {
+    return parsedUrl.searchParams.get('bvid')?.match(/^BV[a-zA-Z0-9]+$/)?.[0] ?? null;
+  }
+  return null;
 }
 
 function parsePositiveNumber(value: unknown) {
@@ -68,6 +73,7 @@ function isPublicHttpVideoUrl(url: string) {
 function extractYouTubeVideoId(rawUrl: string) {
   try {
     const parsedUrl = new URL(rawUrl);
+    if (!isPublicHttpVideoUrl(parsedUrl.toString())) return null;
     const hostname = parsedUrl.hostname.replace(/^www\./, '');
     if (hostname === 'youtu.be') {
       return parsedUrl.pathname.split('/').filter(Boolean)[0] ?? null;
@@ -99,14 +105,15 @@ export function parseVideoUrl(url: string): ParsedVideoUrl | null {
     };
   }
 
-  const bilibiliBvid = extractBilibiliBvid(url);
-  if (bilibiliBvid) {
-    let page: number | null = null;
-    try {
-      const parsedUrl = new URL(url);
+  try {
+    const parsedUrl = new URL(url);
+    const bilibiliBvid = isPublicHttpVideoUrl(parsedUrl.toString())
+      ? extractBilibiliBvid(parsedUrl)
+      : null;
+    if (bilibiliBvid) {
       const cid = parsePositiveNumber(parsedUrl.searchParams.get('cid'));
       const aid = parsePositiveNumber(parsedUrl.searchParams.get('aid'));
-      page = parsePositiveNumber(parsedUrl.searchParams.get('p') ?? parsedUrl.searchParams.get('page'));
+      const page = parsePositiveNumber(parsedUrl.searchParams.get('p') ?? parsedUrl.searchParams.get('page'));
       if (parsedUrl.hostname === 'player.bilibili.com' && cid) {
         return {
           type: 'bilibili',
@@ -118,14 +125,13 @@ export function parseVideoUrl(url: string): ParsedVideoUrl | null {
           }),
         };
       }
-    } catch {
-      // Fall through to the bvid-only embed URL.
-    }
 
-    return {
-      type: 'bilibili',
-      embedUrl: buildBilibiliEmbedUrl({ bvid: bilibiliBvid, page: page ?? undefined }),
-    };
+      return {
+        type: 'bilibili',
+        embedUrl: buildBilibiliEmbedUrl({ bvid: bilibiliBvid, page: page ?? undefined }),
+      };
+    }
+  } catch {
   }
 
   if (url.match(/\.(mp4|webm|ogg)(\?.*)?$/i) && isPublicHttpVideoUrl(url)) {
@@ -140,4 +146,16 @@ export function parseVideoUrl(url: string): ParsedVideoUrl | null {
 
 export function isSupportedVideoUrl(url: string) {
   return parseVideoUrl(url) !== null;
+}
+
+export function sanitizeVideoUrlInput(
+  input: unknown,
+  options: { allowEmpty?: boolean } = {}
+) {
+  if (typeof input !== 'string') return null;
+  if (options.allowEmpty && input.trim() === '') return '';
+
+  const url = normalizeVideoUrlInput(input);
+  if (!url || !parseVideoUrl(url)) return null;
+  return url;
 }

@@ -2,7 +2,11 @@ import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { resolveUniqueName } from '@/lib/naming/uniqueName';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 import { ensureSystemDirectory, getVaultSystemStorePath } from '../../systemStoragePaths';
-import { normalizeVaultRelativePath, resolveVaultRelativeFullPath } from './vaultPathContainment';
+import {
+  isSafeVaultPathSegment,
+  normalizeVaultRelativePath,
+  resolveVaultRelativeFullPath,
+} from './vaultPathContainment';
 
 const RECOVERABLE_TRASH_ROOT = 'trash';
 
@@ -38,6 +42,10 @@ async function copyDirectory(sourcePath: string, targetPath: string): Promise<vo
   const entries = await storage.listDir(sourcePath);
 
   for (const entry of entries) {
+    if (!isSafeVaultPathSegment(entry.name)) {
+      continue;
+    }
+
     const nextSourcePath = await joinPath(sourcePath, entry.name);
     const nextTargetPath = await joinPath(targetPath, entry.name);
     if (entry.isDirectory) {

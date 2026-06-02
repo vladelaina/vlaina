@@ -9,6 +9,10 @@ import {
   estimateAssistantMessageHeight,
   estimateChatLoadingHeight,
 } from './chatAssistantMessageLayout';
+import {
+  extractMarkdownImageSources,
+  stripMarkdownImageTokens,
+} from '@/components/Chat/common/messageClipboard';
 
 const USER_BUBBLE_MAX_RATIO = 0.9;
 const USER_BUBBLE_PADDING_X = 32;
@@ -22,16 +26,8 @@ type EstimatedChatMessageHeightOptions = {
   isStreaming: boolean;
 };
 
-function stripRenderableImageTokens(content: string): string {
-  return content
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '$1')
-    .replace(/<img\b[^>]*>/gi, '');
-}
-
 function countRenderableImages(content: string): number {
-  const markdownImageMatches = content.match(/!\[[^\]]*\]\(([^)]+)\)/g) || [];
-  const htmlImageMatches = content.match(/<img\b[^>]*>/gi) || [];
-  return markdownImageMatches.length + htmlImageMatches.length;
+  return extractMarkdownImageSources(content).length;
 }
 
 function estimateUserMessageHeight(
@@ -42,7 +38,7 @@ function estimateUserMessageHeight(
   const contentWidth = getChatContentWidth(containerWidth);
   const bubbleWidth = Math.max(120, Math.floor(contentWidth * USER_BUBBLE_MAX_RATIO));
   const textWidth = Math.max(1, bubbleWidth - USER_BUBBLE_PADDING_X);
-  const text = stripRenderableImageTokens(message.content).trim();
+  const text = stripMarkdownImageTokens(message.content).trim();
   const imageCount = countRenderableImages(message.content);
 
   let height = 0;

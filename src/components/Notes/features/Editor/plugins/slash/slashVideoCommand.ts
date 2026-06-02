@@ -3,7 +3,7 @@ import { editorViewCtx } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { getElectronBridge } from '@/lib/electron/bridge';
-import { parseVideoUrl } from '../video';
+import { parseVideoUrl, sanitizeVideoUrlInput } from '../video';
 import { findInsertedNodePos } from './slashInsertUtils';
 import { openSlashVideoPrompt } from './slashVideoPrompt';
 
@@ -12,6 +12,9 @@ function markSlashUserInput(view: { dom?: { dispatchEvent?: (event: Event) => bo
 }
 
 function insertVideoNode(ctx: Ctx, src: string) {
+  const safeSrc = sanitizeVideoUrlInput(src);
+  if (!safeSrc) return null;
+
   const view = ctx.get(editorViewCtx);
   const { state, dispatch } = view;
   const videoType = state.schema.nodes.video;
@@ -21,7 +24,7 @@ function insertVideoNode(ctx: Ctx, src: string) {
   }
 
   try {
-    const videoNode = videoType.create({ src });
+    const videoNode = videoType.create({ src: safeSrc });
     const tr = state.tr.replaceSelectionWith(videoNode);
     const preferredPos = tr.mapping.map(state.selection.from, -1);
     const nodePos = findInsertedNodePos({
@@ -70,44 +73,31 @@ export function shouldSkipResolvedVideoUpdate(previousSrc: string, nextSrc: stri
   return previousEmbed !== null && previousEmbed === nextEmbed;
 }
 
-function updateInsertedVideoNodeSrc(args: {
+export function updateInsertedVideoNodeSrc(args: {
   view: EditorView;
   insertedPos: number | null;
   previousSrc: string;
   nextSrc: string;
 }) {
   const { view, insertedPos, previousSrc, nextSrc } = args;
+  const safeNextSrc = sanitizeVideoUrlInput(nextSrc);
+  if (!safeNextSrc) return false;
+
   const videoType = view.state.schema.nodes.video;
-  if (!videoType || previousSrc === nextSrc) {
+  if (!videoType || previousSrc === safeNextSrc) {
     return false;
   }
-  if (shouldSkipResolvedVideoUpdate(previousSrc, nextSrc)) {
-    return false;
-  }
-
-  let nodePos: number | null = null;
-  const directNode = typeof insertedPos === 'number' ? view.state.doc.nodeAt(insertedPos) : null;
-  if (directNode?.type === videoType && directNode.attrs.src === previousSrc) {
-    nodePos = insertedPos;
-  }
-
-  if (nodePos === null) {
-    view.state.doc.descendants((node: any, pos: number) => {
-      if (nodePos !== null) return false;
-      if (node.type === videoType && node.attrs.src === previousSrc) {
-        nodePos = pos;
-        return false;
-      }
-      return undefined;
-    });
-  }
-
-  if (nodePos === null) {
+  if (shouldSkipResolvedVideoUpdate(previousSrc, safeNextSrc)) {
     return false;
   }
 
+  if (typeof insertedPos !== 'number') {
+    return false;
+  }
+
+  const nodePos = insertedPos;
   const node = view.state.doc.nodeAt(nodePos);
-  if (!node || node.type !== videoType) {
+  if (!node || node.type !== videoType || node.attrs.src !== previousSrc) {
     return false;
   }
 
@@ -115,7 +105,7 @@ function updateInsertedVideoNodeSrc(args: {
   view.dispatch(
     view.state.tr.setNodeMarkup(nodePos, undefined, {
       ...node.attrs,
-      src: nextSrc,
+      src: safeNextSrc,
     })
   );
   return true;

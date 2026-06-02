@@ -1,6 +1,8 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from '@/lib/notes/markdownFile';
 import type { FileTreeNode } from './types';
 import { sortFileTree } from './fileTreeSorting';
+import { isSafeVaultPathSegment } from './utils/fs/vaultPathContainment';
 
 const MAX_FILE_TREE_ENTRIES = 5000;
 const MAX_FILE_TREE_DEPTH = 24;
@@ -32,7 +34,11 @@ export async function isGitRepositoryDirectory(fullPath: string) {
   }
 }
 
-export async function buildFileTreeLevel(basePath: string, relativePath: string = ''): Promise<FileTreeNode[]> {
+export async function buildFileTreeLevel(
+  basePath: string,
+  relativePath: string = '',
+  budget?: FileTreeBuildBudget,
+): Promise<FileTreeNode[]> {
   const storage = getStorageAdapter();
   const fullPath = relativePath ? await joinPath(basePath, relativePath) : basePath;
   const entries = await storage.listDir(fullPath);
@@ -40,6 +46,14 @@ export async function buildFileTreeLevel(basePath: string, relativePath: string 
   const nodes: FileTreeNode[] = [];
 
   for (const entry of entries) {
+    if (budget && budget.visitedEntries >= MAX_FILE_TREE_ENTRIES) {
+      break;
+    }
+    if (budget) {
+      budget.visitedEntries += 1;
+    }
+
+    if (!isSafeVaultPathSegment(entry.name)) continue;
     if (entry.name.startsWith('.')) continue;
 
     const entryPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
@@ -59,10 +73,10 @@ export async function buildFileTreeLevel(basePath: string, relativePath: string 
         expanded: false,
         ...(isGitRepository ? { isGitRepository: true } : {}),
       });
-    } else if (isFile && entry.name.toLowerCase().endsWith('.md')) {
+    } else if (isFile && isSupportedMarkdownPath(entry.name)) {
       nodes.push({
         id: entryPath,
-        name: entry.name.replace(/\.md$/i, ''),
+        name: stripSupportedMarkdownExtension(entry.name),
         path: entryPath,
         isFolder: false,
       });
@@ -81,8 +95,7 @@ async function buildFileTreeWithBudget(
     return [];
   }
 
-  const nodes = await buildFileTreeLevel(basePath, relativePath);
-  budget.visitedEntries += nodes.length;
+  const nodes = await buildFileTreeLevel(basePath, relativePath, budget);
 
   const depth = relativePath.split('/').filter(Boolean).length;
   if (depth >= MAX_FILE_TREE_DEPTH) {

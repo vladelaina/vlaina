@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shouldSkipResolvedVideoUpdate } from './slashVideoCommand';
+import { shouldSkipResolvedVideoUpdate, updateInsertedVideoNodeSrc } from './slashVideoCommand';
 
 describe('slash video resolved URL updates', () => {
   it('skips resolved Bilibili URLs that only add aid and cid', () => {
@@ -33,5 +33,44 @@ describe('slash video resolved URL updates', () => {
         'https://example.com/video.mp4'
       )
     ).toBe(false);
+  });
+
+  it('does not scan unrelated video nodes when the inserted position is missing', () => {
+    const videoType = { name: 'video' };
+    const existingVideo = {
+      type: videoType,
+      attrs: {
+        src: 'https://example.com/video.webm',
+      },
+    };
+    const dispatchCalls: unknown[] = [];
+    const view = {
+      dom: document.createElement('div'),
+      state: {
+        schema: {
+          nodes: {
+            video: videoType,
+          },
+        },
+        doc: {
+          nodeAt: () => existingVideo,
+        },
+        tr: {
+          setNodeMarkup: () => ({}),
+        },
+      },
+      dispatch: (tr: unknown) => {
+        dispatchCalls.push(tr);
+      },
+    };
+
+    expect(updateInsertedVideoNodeSrc({
+      view: view as never,
+      insertedPos: null,
+      previousSrc: 'https://example.com/video.webm',
+      nextSrc: 'https://example.com/video.mp4',
+    })).toBe(false);
+
+    expect(dispatchCalls).toEqual([]);
   });
 });

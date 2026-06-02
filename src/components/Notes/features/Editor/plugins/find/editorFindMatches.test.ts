@@ -171,6 +171,31 @@ describe('editorFindMatches', () => {
     }
   });
 
+  it('does not include markdown image alt text in editor find matches', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, ['![target image](image.png)', '', 'visible target body'].join('\n'));
+      })
+      .use(commonmark);
+
+    await editor.create();
+
+    try {
+      const view = editor.ctx.get(editorViewCtx);
+      const range = findSubstringRange(view.state.doc, 'target');
+
+      expect(buildEditorFindMatches(view.state.doc, 'target')).toEqual([
+        {
+          from: range.from,
+          to: range.to,
+          ranges: [range],
+        },
+      ]);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
   it('caps match collection for extremely common queries', () => {
     const matches = buildEditorFindMatches(
       doc(

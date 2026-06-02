@@ -11,11 +11,18 @@ const { adapter } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/storage/adapter', () => ({
+  getParentPath: (path: string) => {
+    const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '');
+    const lastSlashIndex = normalized.lastIndexOf('/');
+    if (lastSlashIndex === -1) return null;
+    const parent = normalized.slice(0, lastSlashIndex) || '/';
+    return path.includes('\\') ? parent.replace(/\//g, '\\') : parent;
+  },
   getStorageAdapter: () => adapter,
   joinPath: (...segments: string[]) => Promise.resolve(segments.filter(Boolean).join('/')),
 }));
 
-import { looksLikeVaultRoot } from './currentVaultExternalPathSyncUtils';
+import { isDirectChildPath, looksLikeVaultRoot } from './currentVaultExternalPathSyncUtils';
 
 describe('currentVaultExternalPathSyncUtils', () => {
   beforeEach(() => {
@@ -34,5 +41,10 @@ describe('currentVaultExternalPathSyncUtils', () => {
     adapter.exists.mockResolvedValue(false);
 
     await expect(looksLikeVaultRoot('C:/vault-new')).resolves.toBe(false);
+  });
+
+  it('matches Windows direct child paths case-insensitively', () => {
+    expect(isDirectChildPath('C:\\Users\\Me', 'c:\\users\\me\\Vault')).toBe(true);
+    expect(isDirectChildPath('C:\\Users\\Me', 'c:\\users\\other\\Vault')).toBe(false);
   });
 });

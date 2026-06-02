@@ -190,4 +190,34 @@ describe('attachmentStorage', () => {
     expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/appdata/.vlaina/attachments/demo image.png');
   });
 
+  it('does not resolve remote attachment-looking asset URLs when converting to base64', async () => {
+    await expect(convertToBase64({
+      id: 'a',
+      path: '',
+      previewUrl: 'blob:preview',
+      assetUrl: 'https://example.test/attachments/demo.png',
+      name: 'demo.png',
+      type: 'image/png',
+      size: 2,
+    })).rejects.toThrow('Cannot convert attachment to Base64');
+
+    expect(mocks.adapter.getBasePath).not.toHaveBeenCalled();
+    expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('does not delete local files from remote attachment-looking asset URLs', async () => {
+    await deleteAttachment({
+      id: 'a',
+      path: '',
+      previewUrl: 'blob:preview',
+      assetUrl: 'https://example.test/attachments/demo.png',
+      name: 'demo.png',
+      type: 'image/png',
+      size: 2,
+    });
+
+    expect(mocks.adapter.getBasePath).not.toHaveBeenCalled();
+    expect(mocks.adapter.deleteFile).not.toHaveBeenCalled();
+  });
+
 });

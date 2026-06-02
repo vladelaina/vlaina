@@ -5,7 +5,8 @@ import { replaceVisibleBlockSelectionWithCursor } from '../cursor/blockSelection
 import { markEditorImageUserInput } from '../shared/userInputEvents';
 
 export function buildImageNodeAttrs(src: string) {
-    const fileName = src.split('/').pop() || src;
+    const pathOnly = src.split(/[?#]/, 1)[0] || src;
+    const fileName = pathOnly.split(/[\\/]/).pop() || pathOnly;
     const alt = fileName.replace(/\.[^/.]+$/, '');
 
     return {

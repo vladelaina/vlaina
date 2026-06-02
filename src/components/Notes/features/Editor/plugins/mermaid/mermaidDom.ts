@@ -1,10 +1,10 @@
-import DOMPurify from 'dompurify';
+import { sanitizeMermaidMarkup } from '@/components/common/markdown/mermaidSanitizer';
 import { translate } from '@/lib/i18n';
 import {
   normalizeMermaidCodeForRender,
   normalizeMermaidEditorCodeInput,
 } from './mermaidFenceCode';
-import { themeColorTokens, themeLazyLoadTokens, themeMermaidTokens } from '@/styles/themeTokens';
+import { themeLazyLoadTokens } from '@/styles/themeTokens';
 
 type MermaidRender = (code: string, id: string) => Promise<string>;
 
@@ -15,6 +15,7 @@ const MERMAID_RENDER_CACHE_LIMIT = 80;
 const mermaidMarkupCache = new Map<string, string>();
 const mermaidRenderPromiseCache = new Map<string, Promise<string>>();
 const mermaidLazyObservers = new WeakMap<HTMLElement, IntersectionObserver>();
+const disposedMermaidElements = new WeakSet<HTMLElement>();
 
 function generateMermaidId(): string {
   return `mermaid-${Date.now()}-${mermaidIdCounter++}`;
@@ -36,6 +37,7 @@ async function defaultRenderMermaid(code: string, id: string) {
 }
 
 function setMermaidElementCode(element: HTMLElement, code: string) {
+  disposedMermaidElements.delete(element);
   mermaidElementCode.set(element, code);
   element.dataset.renderKey = `mermaid-render-${mermaidRenderKeyCounter++}`;
   delete element.dataset.code;
@@ -112,94 +114,6 @@ async function resolveMermaidMarkup(
   return promise;
 }
 
-function sanitizeMermaidMarkup(markup: string) {
-  return DOMPurify.sanitize(replaceMermaidForeignObjectLabels(markup), {
-    USE_PROFILES: { html: true, svg: true, svgFilters: true },
-    FORBID_TAGS: ['foreignObject', 'script', 'iframe', 'object', 'embed'],
-  });
-}
-
-function replaceMermaidForeignObjectLabels(markup: string) {
-  if (!markup.includes('<foreignObject')) {
-    return markup;
-  }
-
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(markup, 'image/svg+xml');
-  if (doc.querySelector('parsererror')) {
-    return markup;
-  }
-
-  doc.querySelectorAll('foreignObject').forEach((foreignObject) => {
-    foreignObject.querySelectorAll('script, style').forEach((node) => node.remove());
-    const labelElement = foreignObject.querySelector('.nodeLabel');
-    const lines = extractMermaidLabelLines(labelElement);
-    if (lines.length === 0) {
-      foreignObject.remove();
-      return;
-    }
-
-    const text = doc.createElementNS('http://www.w3.org/2000/svg', 'text');
-    text.setAttribute('class', 'nodeLabel');
-    text.setAttribute('x', resolveForeignObjectCenterCoord(foreignObject, 'x', 'width'));
-    text.setAttribute('y', resolveForeignObjectCenterCoord(foreignObject, 'y', 'height'));
-    text.setAttribute('text-anchor', 'middle');
-    text.setAttribute('fill', themeColorTokens.mermaidText);
-
-    const firstLineDy = lines.length > 1
-      ? `${themeMermaidTokens.labelFirstLineBaseDyEm - ((lines.length - 1) * themeMermaidTokens.labelLineOffsetEm)}em`
-      : themeMermaidTokens.labelSingleLineDy;
-    lines.forEach((line, index) => {
-      const tspan = doc.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-      tspan.setAttribute('x', text.getAttribute('x') || '0');
-      tspan.setAttribute('dy', index === 0 ? firstLineDy : themeMermaidTokens.labelNextLineDy);
-      tspan.textContent = line;
-      text.appendChild(tspan);
-    });
-
-    foreignObject.replaceWith(text);
-  });
-
-  return new XMLSerializer().serializeToString(doc.documentElement);
-}
-
-function extractMermaidLabelLines(labelElement: Element | null) {
-  if (!labelElement) {
-    return [];
-  }
-
-  const paragraphs = Array.from(labelElement.querySelectorAll('p'))
-    .flatMap(extractElementTextLines)
-    .filter((line) => line.length > 0);
-  if (paragraphs.length > 0) {
-    return paragraphs;
-  }
-
-  return extractElementTextLines(labelElement);
-}
-
-function extractElementTextLines(element: Element) {
-  const clone = element.cloneNode(true) as Element;
-  clone.querySelectorAll('br').forEach((br) => {
-    br.replaceWith(clone.ownerDocument.createTextNode('\n'));
-  });
-  return (clone.textContent || '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-}
-
-function resolveForeignObjectCenterCoord(
-  foreignObject: Element,
-  startAttr: 'x' | 'y',
-  sizeAttr: 'width' | 'height'
-) {
-  const start = Number.parseFloat(foreignObject.getAttribute(startAttr) || '0');
-  const size = Number.parseFloat(foreignObject.getAttribute(sizeAttr) || '0');
-  const center = start + (Number.isFinite(size) ? size / 2 : 0);
-  return Number.isFinite(center) ? String(center) : '0';
-}
-
 export async function renderMermaidEditorLivePreview(args: {
   anchor: HTMLElement | null;
   code: string;
@@ -234,7 +148,12 @@ export async function renderMermaidEditorLivePreview(args: {
   }
 
   const markup = await resolveMermaidMarkup(renderCodeSnapshot, render);
-  if (!anchor.isConnected || getMermaidElementCode(anchor) !== codeSnapshot || anchor.dataset.renderKey !== renderKey) {
+  if (
+    disposedMermaidElements.has(anchor) ||
+    !anchor.isConnected ||
+    getMermaidElementCode(anchor) !== codeSnapshot ||
+    anchor.dataset.renderKey !== renderKey
+  ) {
     return false;
   }
 
@@ -254,6 +173,7 @@ function disconnectLazyMermaidRender(anchor: HTMLElement) {
 }
 
 export function disposeMermaidElement(anchor: HTMLElement) {
+  disposedMermaidElements.add(anchor);
   disconnectLazyMermaidRender(anchor);
 }
 
@@ -265,6 +185,7 @@ function renderMermaidElementAsync(anchor: HTMLElement, codeSnapshot: string, re
   const renderCodeSnapshot = getMermaidRenderCode(codeSnapshot);
   resolveMermaidMarkup(renderCodeSnapshot).then((markup) => {
     if (
+      disposedMermaidElements.has(anchor) ||
       getMermaidElementCode(anchor) !== codeSnapshot ||
       anchor.dataset.renderKey !== renderKey
     ) {

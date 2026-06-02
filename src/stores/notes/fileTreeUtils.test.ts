@@ -20,6 +20,7 @@ vi.mock('@/lib/storage/adapter', () => ({
     listDir: mocks.listDir,
     exists: mocks.exists,
   }),
+  isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
   joinPath: async (...segments: string[]) => segments.filter(Boolean).join('/'),
 }));
 
@@ -126,6 +127,111 @@ describe('fileTreeUtils structural sharing', () => {
         children: [],
       },
     ]);
+  });
+
+  it('includes every supported markdown extension in the tree', async () => {
+    mocks.listDir.mockResolvedValue([
+      { name: 'alpha.md', path: '/vault/alpha.md', isDirectory: false, isFile: true },
+      { name: 'beta.markdown', path: '/vault/beta.markdown', isDirectory: false, isFile: true },
+      { name: 'gamma.mdown', path: '/vault/gamma.mdown', isDirectory: false, isFile: true },
+      { name: 'delta.mkd', path: '/vault/delta.mkd', isDirectory: false, isFile: true },
+      { name: 'image.png', path: '/vault/image.png', isDirectory: false, isFile: true },
+    ]);
+
+    await expect(buildFileTree('/vault')).resolves.toEqual([
+      {
+        id: 'alpha.md',
+        name: 'alpha',
+        path: 'alpha.md',
+        isFolder: false,
+      },
+      {
+        id: 'beta.markdown',
+        name: 'beta',
+        path: 'beta.markdown',
+        isFolder: false,
+      },
+      {
+        id: 'delta.mkd',
+        name: 'delta',
+        path: 'delta.mkd',
+        isFolder: false,
+      },
+      {
+        id: 'gamma.mdown',
+        name: 'gamma',
+        path: 'gamma.mdown',
+        isFolder: false,
+      },
+    ]);
+  });
+
+  it('caps root-level file tree entry processing before building nodes', async () => {
+    mocks.listDir.mockResolvedValue(
+      Array.from({ length: 6000 }, (_, index) => ({
+        name: `folder-${String(index).padStart(4, '0')}`,
+        path: `/vault/folder-${String(index).padStart(4, '0')}`,
+        isDirectory: true,
+        isFile: false,
+      })),
+    );
+
+    const tree = await buildFileTree('/vault');
+
+    expect(tree).toHaveLength(5000);
+    expect(mocks.exists).toHaveBeenCalledTimes(5000);
+    expect(mocks.exists).not.toHaveBeenCalledWith('/vault/folder-5000/.git');
+    expect(mocks.listDir).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores unsafe storage entry names while building the tree', async () => {
+    mocks.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault') {
+        return [
+          { name: 'safe.md', path: '/vault/safe.md', isDirectory: false, isFile: true },
+          { name: '../secret.md', path: '/vault/../secret.md', isDirectory: false, isFile: true },
+          { name: 'nested/evil.md', path: '/vault/nested/evil.md', isDirectory: false, isFile: true },
+          { name: 'bad\\evil.md', path: '/vault/bad/evil.md', isDirectory: false, isFile: true },
+          { name: 'docs', path: '/vault/docs', isDirectory: true, isFile: false },
+          { name: '..', path: '/vault/..', isDirectory: true, isFile: false },
+        ];
+      }
+
+      if (path === '/vault/docs') {
+        return [
+          { name: 'inside.md', path: '/vault/docs/inside.md', isDirectory: false, isFile: true },
+        ];
+      }
+
+      return [];
+    });
+
+    const tree = await buildFileTree('/vault');
+
+    expect(tree).toEqual([
+      {
+        id: 'docs',
+        name: 'docs',
+        path: 'docs',
+        isFolder: true,
+        expanded: false,
+        children: [
+          {
+            id: 'docs/inside.md',
+            name: 'inside',
+            path: 'docs/inside.md',
+            isFolder: false,
+          },
+        ],
+      },
+      {
+        id: 'safe.md',
+        name: 'safe',
+        path: 'safe.md',
+        isFolder: false,
+      },
+    ]);
+    expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/..');
   });
 
   it('marks git repository folders without exposing the .git directory', async () => {

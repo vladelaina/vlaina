@@ -1,13 +1,27 @@
 const MARKDOWN_EXTENSIONS = new Set(['md', 'markdown', 'mdown', 'mkd']);
 
-export function isSupportedMarkdownPath(path: string): boolean {
+export function getSupportedMarkdownExtension(path: string): string | null {
   const name = path.replace(/\\/g, '/').split('/').pop() ?? '';
   const dotIndex = name.lastIndexOf('.');
   if (dotIndex <= 0) {
-    return false;
+    return null;
   }
 
-  return MARKDOWN_EXTENSIONS.has(name.slice(dotIndex + 1).toLowerCase());
+  const extension = name.slice(dotIndex + 1).toLowerCase();
+  return MARKDOWN_EXTENSIONS.has(extension) ? extension : null;
+}
+
+export function isSupportedMarkdownPath(path: string): boolean {
+  return getSupportedMarkdownExtension(path) != null;
+}
+
+export function stripSupportedMarkdownExtension(name: string): string {
+  const extension = getSupportedMarkdownExtension(name);
+  if (!extension) {
+    return name;
+  }
+
+  return name.slice(0, -(extension.length + 1));
 }
 
 export function ensureSupportedMarkdownPath(path: string): void {

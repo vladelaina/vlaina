@@ -134,7 +134,8 @@ export function sanitizeGithubStyle(value: string): string | null {
     const propertyValue = rawDeclaration.slice(separatorIndex + 1).trim();
     if (!GITHUB_ALLOWED_STYLE_PROPERTIES.has(property)) continue;
     if (!propertyValue || /[\u0000-\u001F\u007F]/.test(propertyValue)) continue;
-    if (/url\s*\(|expression\s*\(|@import|javascript:/i.test(propertyValue)) continue;
+    if (/\\|\/\*|\*\//.test(propertyValue)) continue;
+    if (/(?:\b(?:url|image-set|cross-fade|paint|expression)|-webkit-image-set)\s*\(|@import|javascript:/i.test(propertyValue)) continue;
     declarations.push(`${property}: ${propertyValue}`);
   }
 
@@ -183,7 +184,7 @@ function getGithubProtocolMarker(value: string): string {
 export function normalizeGithubUrl(
   value: string,
   allowedProtocols: ReadonlySet<string>,
-  options: { blockLocalNetwork?: boolean; allowPlainRelative?: boolean } = {},
+  options: { blockLocalNetwork?: boolean; allowPlainRelative?: boolean; allowProtocolRelative?: boolean } = {},
 ): string | null {
   const trimmed = value.trimStart();
   if (!trimmed || /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/.test(trimmed)) {
@@ -192,7 +193,13 @@ export function normalizeGithubUrl(
 
   const marker = getGithubProtocolMarker(trimmed);
   if (GITHUB_ALLOWED_RELATIVE_PROTOCOL_MARKERS.has(marker)) {
+    if (trimmed.startsWith('//') && options.allowProtocolRelative === false) {
+      return null;
+    }
     if (options.blockLocalNetwork && trimmed.startsWith('//') && isLocalNetworkHttpUrl(`https:${trimmed}`)) {
+      return null;
+    }
+    if (marker === '/' && !trimmed.startsWith('//') && options.allowPlainRelative && sanitizeNoteMediaSrc(trimmed) !== trimmed) {
       return null;
     }
     return trimmed;

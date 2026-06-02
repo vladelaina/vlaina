@@ -275,6 +275,25 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
+  it('does not pair ignored rename endpoints with note paths', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['/vault/.vlaina/external-path-events.json', '/vault/docs/beta.md'],
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+    expect(hoisted.notesState.applyExternalPathDeletion).not.toHaveBeenCalled();
+    expect(hoisted.notesState.invalidateNoteCache).toHaveBeenCalledWith('docs/beta.md');
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
   it('reloads the tree for a standalone external create after the rename window expires', async () => {
     const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
 

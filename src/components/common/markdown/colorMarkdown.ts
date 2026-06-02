@@ -1,4 +1,5 @@
 import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
+import { findDelimitedTextMatches, type MarkdownSourcePosition } from './delimitedMarkdown';
 
 export interface ColorMarkdownMdastNode {
   type: string;
@@ -9,9 +10,10 @@ export interface ColorMarkdownMdastNode {
     hName?: string;
     hProperties?: Record<string, unknown>;
   };
+  position?: MarkdownSourcePosition;
 }
 
-function extractCssDeclaration(style: string, property: string): string | null {
+export function extractCssColorDeclaration(style: string, property: string): string | null {
   for (const declaration of style.split(';')) {
     const separatorIndex = declaration.indexOf(':');
     if (separatorIndex < 0) continue;
@@ -88,24 +90,34 @@ export function createBgColorMdastNode(
 function parseInlineColorHtml(value: string): ColorMarkdownMdastNode | null {
   const underlineMatch = value.match(/^<u>([\s\S]*?)<\/u>$/i);
   if (underlineMatch) {
+    if (containsRawHtmlTag(underlineMatch[1])) return null;
     return createUnderlineMdastNode([{ type: 'text', value: decodeMarkdownHtmlText(underlineMatch[1]) }]);
   }
 
   const textColorMatch = value.match(/^<span\b[^>]*\bstyle=["']([^"']+)["'][^>]*>([\s\S]*?)<\/span>$/i);
   if (textColorMatch) {
-    const color = extractCssDeclaration(textColorMatch[1], 'color');
+    if (containsRawHtmlTag(textColorMatch[2])) return null;
+    const color = extractCssColorDeclaration(textColorMatch[1], 'color');
     if (!color) return null;
     return createTextColorMdastNode(color, [{ type: 'text', value: decodeMarkdownHtmlText(textColorMatch[2]) }]);
   }
 
   const bgColorMatch = value.match(/^<mark\b[^>]*\bstyle=["']([^"']+)["'][^>]*>([\s\S]*?)<\/mark>$/i);
   if (bgColorMatch) {
-    const color = extractCssDeclaration(bgColorMatch[1], 'background-color');
+    if (containsRawHtmlTag(bgColorMatch[2])) return null;
+    const color = extractCssColorDeclaration(bgColorMatch[1], 'background-color');
     if (!color) return null;
     return createBgColorMdastNode(color, [{ type: 'text', value: decodeMarkdownHtmlText(bgColorMatch[2]) }]);
   }
 
   return null;
+}
+
+export function containsRawHtmlTag(value: string): boolean {
+  return (
+    /<\/?[A-Za-z][A-Za-z0-9:-]*(?:\s[^<>]*)?>/.test(value) ||
+    /&lt;\/?[A-Za-z][A-Za-z0-9:-]*(?:\s[^&<>]*)?&gt;/i.test(value)
+  );
 }
 
 function parseSplitInlineColorHtmlMark(
@@ -156,7 +168,7 @@ export function remarkInlineColorHtml() {
   };
 }
 
-export function replaceUnderlineMarkdown(tree: ColorMarkdownMdastNode): void {
+export function replaceUnderlineMarkdown(tree: ColorMarkdownMdastNode, markdown = ''): void {
   const underlineRegex = /\+\+([^+]+)\+\+/g;
 
   function visitNode(node: ColorMarkdownMdastNode, parent?: ColorMarkdownMdastNode, index?: number): void {
@@ -168,18 +180,11 @@ export function replaceUnderlineMarkdown(tree: ColorMarkdownMdastNode): void {
 
     if (node.type !== 'text' || !node.value || !parent || index === undefined) return;
 
-    const matches: Array<{ start: number; end: number; content: string }> = [];
-    let match: RegExpExecArray | null;
-    underlineRegex.lastIndex = 0;
-
-    while ((match = underlineRegex.exec(node.value)) !== null) {
-      matches.push({
-        start: match.index,
-        end: match.index + match[0].length,
-        content: match[1],
-      });
-    }
-
+    const matches = findDelimitedTextMatches(node.value, underlineRegex, {
+      markdown,
+      position: node.position,
+      openDelimiterLength: 2,
+    });
     if (matches.length === 0) return;
 
     const nextNodes: ColorMarkdownMdastNode[] = [];
@@ -204,7 +209,7 @@ export function replaceUnderlineMarkdown(tree: ColorMarkdownMdastNode): void {
 }
 
 export function remarkUnderline() {
-  return (tree: ColorMarkdownMdastNode) => {
-    replaceUnderlineMarkdown(tree);
+  return (tree: ColorMarkdownMdastNode, file?: { value?: unknown }) => {
+    replaceUnderlineMarkdown(tree, typeof file?.value === 'string' ? file.value : '');
   };
 }

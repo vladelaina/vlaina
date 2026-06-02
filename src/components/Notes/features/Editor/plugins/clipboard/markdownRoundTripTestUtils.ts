@@ -106,21 +106,31 @@ async function openMarkdownThroughSyntaxEditor(markdown: string): Promise<Editor
 
 export function collectDocText(value: unknown): string {
   if (!value || typeof value !== 'object') return '';
-  const node = value as { attrs?: unknown; text?: unknown; content?: unknown };
+  const node = value as { attrs?: unknown; text?: unknown; type?: unknown; content?: unknown };
   const ownText = typeof node.text === 'string' ? node.text : '';
-  const attrsText = collectAttrsText(node.attrs);
+  const attrsText = collectAttrsText(node.attrs, node.type);
   const childText = Array.isArray(node.content)
     ? node.content.map(collectDocText).join('')
     : '';
   return ownText + attrsText + childText;
 }
 
-function collectAttrsText(attrs: unknown): string {
+function collectAttrsText(attrs: unknown, nodeType: unknown): string {
   if (!attrs || typeof attrs !== 'object') return '';
-  return Object.entries(attrs as Record<string, unknown>)
+  const record = attrs as Record<string, unknown>;
+  const namedText = Object.entries(record)
     .filter(([key]) => key === 'alt' || key === 'title')
     .map(([, value]) => typeof value === 'string' ? value : '')
     .join('');
+  const htmlText = (nodeType === 'html' || nodeType === 'html_block') && typeof record.value === 'string'
+    ? extractHtmlText(record.value)
+    : '';
+  return namedText + htmlText;
+}
+
+function extractHtmlText(html: string): string {
+  if (typeof DOMParser === 'undefined') return '';
+  return new DOMParser().parseFromString(html, 'text/html').body.textContent ?? '';
 }
 
 function expectPersistedMarkdownToBeClean(markdown: string): void {

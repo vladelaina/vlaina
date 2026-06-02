@@ -1,21 +1,23 @@
 import { createRoot } from 'react-dom/client';
 import ReactMarkdown from 'react-markdown';
+import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import {
   READONLY_MARKDOWN_REMARK_PLUGINS,
 } from '@/components/common/markdown/markdownPipeline';
-import { createMarkdownSanitizeSchema } from '@/components/common/markdown/imagePolicy';
+import {
+  createMarkdownSanitizeSchema,
+  rehypeImageSrcsetSanitizer,
+} from '@/components/common/markdown/imagePolicy';
+import { KATEX_SHARED_RENDER_OPTIONS } from '@/components/common/markdown/katexOptions';
+import { rehypeKatexSourceSanitizer } from '@/components/common/markdown/katexSourceSanitizer';
 import { normalizeImageWidth, serializeCropValue } from '@/components/common/markdown/imageSourceFragment';
-import { MARKDOWN_BODY_FONT_SIZE } from '@/components/common/markdown/markdownMetrics';
 import {
   themeColorTokens,
   themeDomStyleTokens,
   themeExportLayoutTokens,
-  themeFontWeightTokens,
-  themeRadiusTokens,
   themeStyleResetTokens,
-  themeTypographyTokens,
 } from '@/styles/themeTokens';
 import {
   isPublicRemoteMediaUrl,
@@ -23,107 +25,7 @@ import {
   sanitizeNoteMediaSrc,
 } from '@/lib/notes/markdown/urlSecurity';
 import { cn } from '@/lib/utils';
-
-const EXPORT_WIDTH_PX = themeExportLayoutTokens.widthPx;
-
-const EXPORT_CSS = `
-  :root {
-    color-scheme: light;
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    color: ${themeColorTokens.exportText};
-    background: ${themeColorTokens.exportSurface};
-  }
-  body {
-    margin: ${themeExportLayoutTokens.pageMargin};
-    background: ${themeColorTokens.exportSurface};
-  }
-  .note-export {
-    box-sizing: border-box;
-    width: ${EXPORT_WIDTH_PX}px;
-    margin: ${themeExportLayoutTokens.documentMargin};
-    padding: ${themeExportLayoutTokens.documentPadding};
-    background: ${themeColorTokens.exportSurface};
-  }
-  .note-export h1.note-export-title {
-    margin: ${themeExportLayoutTokens.titleMargin};
-    font-size: ${themeTypographyTokens.exportTitleFontSize};
-    line-height: ${themeTypographyTokens.exportTitleLineHeight};
-    font-weight: ${themeFontWeightTokens.bold};
-  }
-  .note-export-body {
-    font-size: ${MARKDOWN_BODY_FONT_SIZE}px;
-    line-height: ${themeTypographyTokens.exportBodyLineHeight};
-    overflow-wrap: anywhere;
-  }
-  .note-export-body h1,
-  .note-export-body h2,
-  .note-export-body h3,
-  .note-export-body h4 {
-    margin: ${themeExportLayoutTokens.headingMargin};
-    line-height: ${themeTypographyTokens.exportHeadingLineHeight};
-  }
-  .note-export-body h1 { font-size: ${themeTypographyTokens.exportHeading1FontSize}; }
-  .note-export-body h2 { font-size: ${themeTypographyTokens.exportHeading2FontSize}; }
-  .note-export-body h3 { font-size: ${themeTypographyTokens.exportHeading3FontSize}; }
-  .note-export-body p,
-  .note-export-body ul,
-  .note-export-body ol,
-  .note-export-body blockquote,
-  .note-export-body pre,
-  .note-export-body table {
-    margin: ${themeExportLayoutTokens.blockMargin};
-  }
-  .note-export-body blockquote {
-    border-left: ${themeExportLayoutTokens.blockquoteBorderLeft} solid ${themeColorTokens.exportBorder};
-    padding-left: ${themeExportLayoutTokens.blockquotePaddingLeft};
-    color: ${themeColorTokens.exportMutedText};
-  }
-  .note-export-body code {
-    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: ${themeTypographyTokens.exportCodeFontSize};
-    background: ${themeColorTokens.exportCodeSurface};
-    border-radius: ${themeRadiusTokens.px4};
-    padding: ${themeExportLayoutTokens.inlineCodePadding};
-  }
-  .note-export-body pre {
-    overflow: auto;
-    background: ${themeColorTokens.exportCodeSurface};
-    border-radius: ${themeRadiusTokens.px6};
-    padding: ${themeExportLayoutTokens.prePadding};
-  }
-  .note-export-body pre code {
-    background: transparent;
-    padding: ${themeExportLayoutTokens.preCodePadding};
-  }
-  .note-export-body img {
-    max-width: ${themeExportLayoutTokens.mediaMaxWidth};
-    height: ${themeExportLayoutTokens.mediaHeight};
-    border-radius: ${themeRadiusTokens.px6};
-  }
-  .note-export-body [data-text-align='center'] {
-    text-align: center;
-  }
-  .note-export-body [data-text-align='right'] {
-    text-align: right;
-  }
-  .note-export-body table {
-    width: ${themeExportLayoutTokens.tableWidth};
-    border-collapse: collapse;
-  }
-  .note-export-body th,
-  .note-export-body td {
-    border: ${themeExportLayoutTokens.tableBorderWidth} solid ${themeColorTokens.exportBorder};
-    padding: ${themeExportLayoutTokens.tableCellPadding};
-    vertical-align: top;
-  }
-  .note-export-body th {
-    background: ${themeColorTokens.exportCodeSurface};
-    font-weight: ${themeFontWeightTokens.semibold};
-  }
-  @page {
-    margin: ${themeExportLayoutTokens.pageMargin};
-  }
-`;
+import { EXPORT_DOCUMENT_CSS, EXPORT_WIDTH_PX } from './noteExportHtmlStyles';
 
 const BASE_EXPORT_MARKDOWN_SANITIZE_SCHEMA = createMarkdownSanitizeSchema();
 
@@ -139,6 +41,9 @@ const NOTE_EXPORT_MARKDOWN_SANITIZE_SCHEMA = {
 const NOTE_EXPORT_REHYPE_PLUGINS = [
   rehypeRaw,
   [rehypeSanitize, NOTE_EXPORT_MARKDOWN_SANITIZE_SCHEMA],
+  rehypeImageSrcsetSanitizer,
+  [rehypeKatex, KATEX_SHARED_RENDER_OPTIONS],
+  rehypeKatexSourceSanitizer,
 ] as any[];
 
 const SAFE_EXPORT_DATA_IMAGE_PATTERN = /^data:image\/(?:gif|jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/i;
@@ -274,7 +179,7 @@ export async function renderNoteExportElement(markdown: string, title: string): 
   document.body.appendChild(host);
 
   const style = document.createElement('style');
-  style.textContent = EXPORT_CSS;
+  style.textContent = EXPORT_DOCUMENT_CSS;
   host.appendChild(style);
 
   const mount = document.createElement('div');
@@ -310,7 +215,7 @@ export async function renderNoteExportHtml(markdown: string, title: string): Pro
       '<meta charset="utf-8" />',
       '<meta name="viewport" content="width=device-width, initial-scale=1" />',
       `<title>${escapeHtml(title)}</title>`,
-      `<style>${EXPORT_CSS}</style>`,
+      `<style>${EXPORT_DOCUMENT_CSS}</style>`,
       '</head>',
       '<body>',
       element.outerHTML,

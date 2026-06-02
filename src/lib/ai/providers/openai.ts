@@ -26,6 +26,7 @@ import {
 import { buildWebSearchStatusMarkup, stripWebSearchStatusMarkup } from '@/lib/ai/webSearch/statusMarkup'
 import { isStandaloneImageGenerationModel } from '@/lib/ai/modelCapabilities'
 import { addChatDebugLog } from '@/lib/debug/chatDebugLog'
+import { escapeMarkdownAngleDestination, formatMarkdownImage } from '@/lib/markdown/markdownImageMarkdown'
 
 function summarizeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error || 'Unknown error')
@@ -389,14 +390,6 @@ function normalizeGeneratedImageAlt(value: unknown, index: number): string {
   return normalized || `Generated image ${index + 1}`
 }
 
-function escapeMarkdownImageAlt(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/]/g, '\\]')
-}
-
-function escapeMarkdownAngleTarget(value: string): string {
-  return value.replace(/[\u0000-\u001f\u007f\s<>]+/g, '')
-}
-
 function normalizeGeneratedImageMarkdown(payload: Record<string, unknown>): string {
   const data = Array.isArray(payload.data) ? payload.data : []
   const markdown = data.flatMap((item, index) => {
@@ -409,9 +402,9 @@ function normalizeGeneratedImageMarkdown(payload: Record<string, unknown>): stri
       : typeof record.b64_json === 'string' && record.b64_json.trim()
         ? `data:image/png;base64,${record.b64_json.trim()}`
         : ''
-    const safeTarget = escapeMarkdownAngleTarget(url)
-    return safeTarget
-      ? [`![${escapeMarkdownImageAlt(normalizeGeneratedImageAlt(record.revised_prompt, index))}](<${safeTarget}>)`]
+    const destination = escapeMarkdownAngleDestination(url, { stripWhitespace: true })
+    return destination
+      ? [formatMarkdownImage(destination, normalizeGeneratedImageAlt(record.revised_prompt, index))]
       : []
   })
 

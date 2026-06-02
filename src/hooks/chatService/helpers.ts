@@ -6,7 +6,13 @@ import {
   extractMarkdownImageSources,
   stripMarkdownImageTokens,
 } from '@/components/Chat/common/messageClipboard';
+import {
+  isSvgDataUrl,
+  rasterizeSvgDataUrlToPng,
+} from '@/components/Chat/common/svgRasterize';
+import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { extractStoredAttachmentFilename } from '@/lib/storage/attachmentUrl';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { findNode } from '@/stores/notes/fileTreeUtils';
 import type { FileTreeNode } from '@/stores/notes/types';
@@ -15,17 +21,29 @@ import { useAccountSessionStore } from '@/stores/accountSession';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
+import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from '@/lib/notes/markdownFile';
+import {
+  normalizeVaultRelativePath,
+  resolveVaultRelativeFullPath,
+} from '@/stores/notes/utils/fs/vaultPathContainment';
+import {
+  escapeMarkdownAngleDestination,
+  formatMarkdownImage,
+} from '@/lib/markdown/markdownImageMarkdown';
 
-const SVG_DATA_URL_REGEX = /^data:image\/svg\+xml/i;
 const IMAGE_NAME_REGEX = /\.(png|jpe?g|webp|gif|bmp|avif|svg)(?:$|[?#])/i;
 const MAX_NOTE_MENTION_COUNT = 3;
 const MAX_NOTE_MENTION_CHARS = 12000;
 const MAX_NOTE_MENTION_READ_BYTES = 512 * 1024;
 const MAX_FOLDER_MENTION_NOTES = 20;
+const MAX_FOLDER_MARKDOWN_SCAN_DEPTH = 6;
+const MAX_FOLDER_MARKDOWN_SCAN_ENTRIES = 500;
 const MAX_FOLDER_LISTING_ENTRIES = 80;
 const MAX_FOLDER_IMAGE_ATTACHMENTS = 8;
 const MAX_FOLDER_IMAGE_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 const STREAM_CHUNK_FLUSH_MAX_DELAY_MS = 40;
+const PROMPT_LABEL_UNSAFE_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]+/g;
+const MAX_PROMPT_LABEL_LENGTH = 240;
 const IMAGE_EXTENSION_MIME_TYPES: Record<string, string> = {
   avif: 'image/avif',
   bmp: 'image/bmp',
@@ -83,10 +101,6 @@ export function isImageAttachment(attachment: Attachment): boolean {
 export function getAttachmentMessageImageSrc(attachment: Attachment): string {
   const mimeType = attachment.type?.trim().toLowerCase() ?? '';
   const previewUrl = attachment.previewUrl?.trim() ?? '';
-  if (mimeType === 'image/svg+xml' && previewUrl.startsWith('data:image/')) {
-    return previewUrl;
-  }
-
   const attachmentPath = attachment.path?.trim() ?? '';
   const pathFilename = attachmentPath.split(/[\\/]/).pop()?.trim();
   if (pathFilename) {
@@ -95,24 +109,20 @@ export function getAttachmentMessageImageSrc(attachment: Attachment): string {
 
   const assetUrl = attachment.assetUrl?.trim() ?? '';
   if (assetUrl) {
-    try {
-      const url = new URL(assetUrl);
-      const marker = '/attachments/';
-      const markerIndex = url.pathname.lastIndexOf(marker);
-      if (markerIndex !== -1) {
-        const filename = decodeURIComponent(url.pathname.slice(markerIndex + marker.length)).trim();
-        if (filename && !/[\\/]/.test(filename)) {
-          return `attachment://${encodeURIComponent(filename)}`;
-        }
-      }
-    } catch {}
+    const storedFilename = extractStoredAttachmentFilename(assetUrl);
+    if (storedFilename) {
+      return `attachment://${encodeURIComponent(storedFilename)}`;
+    }
     return assetUrl;
+  }
+  if (mimeType === 'image/svg+xml' && previewUrl.startsWith('data:image/')) {
+    return previewUrl;
   }
   return previewUrl;
 }
 
 export function toImageMarkdown(src: string): string {
-  return `![image](<${src}>)`;
+  return formatMarkdownImage(src);
 }
 
 function inferImageMimeType(src: string): string {
@@ -185,46 +195,124 @@ function isAbsolutePath(path: string): boolean {
   return /^[A-Za-z]:[\\/]/.test(path) || path.startsWith('/');
 }
 
-async function resolveMentionedNoteContent(notePath: string): Promise<string> {
-  const notesState = useNotesStore.getState();
+function normalizeAbsoluteMentionPath(path: string): string {
+  return path.replace(/\\/g, '/').replace(/\/+$/g, '');
+}
 
-  if (notesState.currentNote?.path === notePath) {
+function getStarredAbsoluteMentionPath(entry: {
+  kind: 'note' | 'folder';
+  vaultPath: string;
+  relativePath: string;
+}): string | null {
+  const vaultPath = normalizeAbsoluteMentionPath(entry.vaultPath);
+  const relativePath = normalizeVaultRelativePath(entry.relativePath);
+  if (!vaultPath || !isAbsolutePath(vaultPath) || !relativePath) {
+    return null;
+  }
+  return vaultPath === '/'
+    ? `/${relativePath}`
+    : `${vaultPath}/${relativePath}`.replace(/\/+/g, '/');
+}
+
+function resolveStarredAbsoluteMentionPath(
+  mentionPath: string,
+  kind: 'note' | 'folder',
+): string | null {
+  const targetPath = normalizeAbsoluteMentionPath(mentionPath);
+  const entries = useNotesStore.getState().starredEntries ?? [];
+  for (const entry of entries) {
+    if (entry.kind !== kind) {
+      continue;
+    }
+    const absolutePath = getStarredAbsoluteMentionPath(entry);
+    if (absolutePath && normalizeAbsoluteMentionPath(absolutePath) === targetPath) {
+      return absolutePath;
+    }
+  }
+  return null;
+}
+
+async function resolveMentionedPath(
+  mentionPath: string,
+  kind: 'note' | 'folder',
+): Promise<{ cachePath: string; fullPath: string } | null> {
+  if (isAbsolutePath(mentionPath)) {
+    const fullPath = resolveStarredAbsoluteMentionPath(mentionPath, kind);
+    return fullPath ? { cachePath: fullPath, fullPath } : null;
+  }
+
+  const notesPath = useNotesStore.getState().notesPath;
+  if (!notesPath) {
+    return null;
+  }
+
+  try {
+    const { relativePath, fullPath } = await resolveVaultRelativeFullPath(notesPath, mentionPath);
+    return { cachePath: relativePath, fullPath };
+  } catch {
+    return null;
+  }
+}
+
+function isSafeFolderEntryName(name: string): boolean {
+  return (
+    !!name &&
+    name !== '.' &&
+    name !== '..' &&
+    !name.startsWith('.') &&
+    !name.includes('\0') &&
+    !/[\\/]/.test(name)
+  );
+}
+
+async function readResolvedMentionedNoteContent(
+  resolvedPath: { cachePath: string; fullPath: string },
+  cacheAliases: readonly string[] = [],
+): Promise<string> {
+  const notesState = useNotesStore.getState();
+  const cachePaths = Array.from(new Set([
+    resolvedPath.cachePath,
+    resolvedPath.fullPath,
+    ...cacheAliases,
+  ]));
+
+  if (notesState.currentNote && cachePaths.includes(notesState.currentNote.path)) {
     return notesState.currentNote.content || '';
   }
 
-  const cached = notesState.noteContentsCache.get(notePath);
-  if (cached?.content.trim()) {
-    return cached.content;
+  for (const cachePath of cachePaths) {
+    const cached = notesState.noteContentsCache.get(cachePath);
+    if (cached?.content.trim()) {
+      return cached.content;
+    }
   }
 
   const storage = getStorageAdapter();
   try {
-    if (isAbsolutePath(notePath)) {
-      const fileInfo = await storage.stat(notePath).catch(() => null);
-      if (typeof fileInfo?.size === 'number' && fileInfo.size > MAX_NOTE_MENTION_READ_BYTES) {
-        return '';
-      }
-      return await storage.readFile(notePath);
-    }
-    if (!notesState.notesPath) {
-      return '';
-    }
-    const fullPath = await joinPath(notesState.notesPath, notePath);
-    const fileInfo = await storage.stat(fullPath).catch(() => null);
+    const fileInfo = await storage.stat(resolvedPath.fullPath).catch(() => null);
     if (typeof fileInfo?.size === 'number' && fileInfo.size > MAX_NOTE_MENTION_READ_BYTES) {
       return '';
     }
-    return await storage.readFile(fullPath);
+    const content = await storage.readFile(resolvedPath.fullPath);
+    return typeof content === 'string' ? content : '';
   } catch {
     return '';
   }
+}
+
+async function resolveMentionedNoteContent(notePath: string): Promise<string> {
+  const resolvedPath = await resolveMentionedPath(notePath, 'note');
+  if (!resolvedPath) {
+    return '';
+  }
+  return readResolvedMentionedNoteContent(resolvedPath, [notePath]);
 }
 
 function collectMarkdownNodes(nodes: readonly FileTreeNode[], result: FileTreeNode[] = []): FileTreeNode[] {
   for (const node of nodes) {
     if (node.isFolder) {
       collectMarkdownNodes(node.children, result);
-    } else if (node.path.toLowerCase().endsWith('.md')) {
+    } else if (isSupportedMarkdownPath(node.path)) {
       result.push(node);
     }
   }
@@ -232,14 +320,125 @@ function collectMarkdownNodes(nodes: readonly FileTreeNode[], result: FileTreeNo
 }
 
 async function resolveMentionedFolderPath(folderPath: string): Promise<string | null> {
-  if (isAbsolutePath(folderPath)) {
-    return folderPath;
+  return (await resolveMentionedPath(folderPath, 'folder'))?.fullPath ?? null;
+}
+
+interface FolderMarkdownScanEntry {
+  cachePath: string;
+  fullPath: string;
+  relativePath: string;
+}
+
+interface FolderMarkdownScanBudget {
+  visitedEntries: number;
+}
+
+function joinRelativePath(basePath: string, name: string): string {
+  return basePath ? `${basePath}/${name}` : name;
+}
+
+async function collectFolderMarkdownScanEntries(
+  folderFullPath: string,
+  folderCachePath: string,
+  relativePrefix: string,
+  budget: FolderMarkdownScanBudget,
+  depth = 0,
+  result: FolderMarkdownScanEntry[] = [],
+): Promise<FolderMarkdownScanEntry[]> {
+  if (
+    depth > MAX_FOLDER_MARKDOWN_SCAN_DEPTH ||
+    budget.visitedEntries >= MAX_FOLDER_MARKDOWN_SCAN_ENTRIES ||
+    result.length >= MAX_FOLDER_MENTION_NOTES
+  ) {
+    return result;
   }
-  const notesPath = useNotesStore.getState().notesPath;
-  if (!notesPath) {
-    return null;
+
+  const storage = getStorageAdapter();
+  const entries = await storage.listDir(folderFullPath).catch(() => []);
+  const visibleEntries = entries
+    .filter((entry) => isSafeFolderEntryName(entry.name))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  for (const entry of visibleEntries) {
+    if (
+      budget.visitedEntries >= MAX_FOLDER_MARKDOWN_SCAN_ENTRIES ||
+      result.length >= MAX_FOLDER_MENTION_NOTES
+    ) {
+      break;
+    }
+    budget.visitedEntries += 1;
+
+    const childFullPath = await joinPath(folderFullPath, entry.name);
+    const childCachePath = joinRelativePath(folderCachePath, entry.name);
+    const childRelativePath = joinRelativePath(relativePrefix, entry.name);
+
+    if (entry.isDirectory) {
+      await collectFolderMarkdownScanEntries(
+        childFullPath,
+        childCachePath,
+        childRelativePath,
+        budget,
+        depth + 1,
+        result,
+      );
+      continue;
+    }
+
+    if (entry.isFile && isSupportedMarkdownPath(entry.name)) {
+      result.push({
+        cachePath: childCachePath,
+        fullPath: childFullPath,
+        relativePath: childRelativePath,
+      });
+    }
   }
-  return await joinPath(notesPath, folderPath);
+
+  return result;
+}
+
+function buildFolderMarkdownTitle(folderTitle: string, relativePath: string): string {
+  const folderLabel = folderTitle.replace(/\/+$/, '') || 'folder';
+  const segments = relativePath.split('/').filter(Boolean);
+  if (segments.length === 0) {
+    return folderLabel;
+  }
+
+  const last = segments[segments.length - 1];
+  segments[segments.length - 1] = stripSupportedMarkdownExtension(last);
+  return `${folderLabel}/${segments.join('/')}`;
+}
+
+async function loadScannedFolderMarkdownReferences(
+  mention: NoteMentionReference
+): Promise<Array<NoteMentionReference & { content: string }>> {
+  const folderPath = await resolveMentionedPath(mention.path, 'folder');
+  if (!folderPath) {
+    return [];
+  }
+
+  const entries = await collectFolderMarkdownScanEntries(
+    folderPath.fullPath,
+    folderPath.cachePath,
+    '',
+    { visitedEntries: 0 },
+  );
+  const loaded = await Promise.all(
+    entries.map(async (entry) => {
+      const content = stripManagedFrontmatter(
+        await readResolvedMentionedNoteContent({
+          cachePath: entry.cachePath,
+          fullPath: entry.fullPath,
+        }),
+      ).trim();
+      return {
+        path: entry.cachePath,
+        title: buildFolderMarkdownTitle(mention.title, entry.relativePath),
+        kind: 'note' as const,
+        content,
+      };
+    }),
+  );
+  return loaded.filter((note) => note.content.length > 0);
 }
 
 function formatFolderEntrySize(size: number | undefined): string {
@@ -253,6 +452,14 @@ function formatFolderEntrySize(size: number | undefined): string {
     return `, ${(size / 1024).toFixed(1)} KB`;
   }
   return `, ${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatPromptLabel(value: string, fallback: string): string {
+  const label = value
+    .replace(PROMPT_LABEL_UNSAFE_PATTERN, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return (label || fallback).slice(0, MAX_PROMPT_LABEL_LENGTH);
 }
 
 async function loadFolderListingReference(
@@ -270,7 +477,7 @@ async function loadFolderListingReference(
       ...mention,
       kind: 'folder',
       content: [
-        `Folder: ${mention.path}`,
+        `Folder: ${formatPromptLabel(mention.path, 'folder')}`,
         '',
         'Folder listing is empty or unavailable.',
       ].join('\n'),
@@ -278,7 +485,7 @@ async function loadFolderListingReference(
   }
 
   const visibleEntries = entries
-    .filter((entry) => !entry.name.startsWith('.'))
+    .filter((entry) => isSafeFolderEntryName(entry.name))
     .sort((a, b) => {
       if (a.isDirectory !== b.isDirectory) {
         return a.isDirectory ? -1 : 1;
@@ -288,7 +495,7 @@ async function loadFolderListingReference(
   const listedEntries = visibleEntries.slice(0, MAX_FOLDER_LISTING_ENTRIES);
   const lines = listedEntries.map((entry) => {
     const kind = entry.isDirectory ? 'folder' : 'file';
-    return `- ${entry.name} (${kind}${formatFolderEntrySize(entry.size)})`;
+    return `- ${formatPromptLabel(entry.name, 'unnamed')} (${kind}${formatFolderEntrySize(entry.size)})`;
   });
   const hiddenCount = Math.max(visibleEntries.length - listedEntries.length, 0);
 
@@ -296,7 +503,7 @@ async function loadFolderListingReference(
     ...mention,
     kind: 'folder',
     content: [
-      `Folder: ${mention.path}`,
+      `Folder: ${formatPromptLabel(mention.path, 'folder')}`,
       '',
       'Directory listing:',
       '',
@@ -345,7 +552,7 @@ async function loadFolderImageAttachmentsForMention(
   const entries = await storage.listDir(folderPath).catch(() => []);
   const imageEntries = entries
     .filter((entry) =>
-      !entry.name.startsWith('.') &&
+      isSafeFolderEntryName(entry.name) &&
       entry.isFile &&
       IMAGE_NAME_REGEX.test(entry.name)
     )
@@ -356,15 +563,16 @@ async function loadFolderImageAttachmentsForMention(
     if (attachments.length >= MAX_FOLDER_IMAGE_ATTACHMENTS) {
       break;
     }
+    const entryPath = await joinPath(folderPath, entry.name);
     const stat = typeof entry.size === 'number'
       ? entry
-      : await storage.stat(entry.path).catch(() => null);
+      : await storage.stat(entryPath).catch(() => null);
     const size = typeof stat?.size === 'number' ? stat.size : entry.size;
     if (typeof size === 'number' && size > MAX_FOLDER_IMAGE_ATTACHMENT_BYTES) {
       continue;
     }
     attachments.push(createFolderImageAttachment({
-      path: entry.path,
+      path: entryPath,
       name: entry.name,
       size,
     }));
@@ -391,7 +599,8 @@ async function loadMentionReference(
   if (!folderNode?.isFolder) {
     if (mention.kind === 'folder') {
       const listing = await loadFolderListingReference(mention);
-      return listing ? [listing] : [];
+      const scannedReferences = await loadScannedFolderMarkdownReferences(mention);
+      return listing ? [listing, ...scannedReferences] : scannedReferences;
     }
     return [];
   }
@@ -400,7 +609,8 @@ async function loadMentionReference(
     .slice(0, MAX_FOLDER_MENTION_NOTES);
   const listing = await loadFolderListingReference(mention);
   if (markdownNodes.length === 0) {
-    return listing ? [listing] : [];
+    const scannedReferences = await loadScannedFolderMarkdownReferences(mention);
+    return listing ? [listing, ...scannedReferences] : scannedReferences;
   }
 
   const loaded = await Promise.all(
@@ -451,7 +661,7 @@ export function buildMentionedNotesContext(
 
   const sections = mentionedNotes.map((note) => {
     const boundedContent = note.content.slice(0, MAX_NOTE_MENTION_CHARS);
-    return `## ${note.title}\n${boundedContent}`;
+    return `## ${formatPromptLabel(note.title, note.path || 'note')}\n${boundedContent}`;
   });
 
   return [
@@ -463,81 +673,6 @@ export function buildMentionedNotesContext(
   ].join('\n');
 }
 
-function decodeSvgDataUrl(dataUrl: string): string | null {
-  const commaIndex = dataUrl.indexOf(',');
-  if (commaIndex < 0) {
-    return null;
-  }
-  const meta = dataUrl.slice(0, commaIndex);
-  const payload = dataUrl.slice(commaIndex + 1);
-  try {
-    if (/;base64/i.test(meta)) {
-      return window.atob(payload);
-    }
-    return decodeURIComponent(payload);
-  } catch {
-    return null;
-  }
-}
-
-function pickSvgRenderSize(svgText: string): { width: number; height: number } {
-  const clamp = (value: number) => Math.max(1, Math.min(4096, Math.round(value)));
-  const parsePositive = (value: string | undefined) => {
-    if (!value) return null;
-    const parsed = Number.parseFloat(value);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-  };
-
-  const widthMatch = /\bwidth=["']\s*([0-9.]+)(?:px)?\s*["']/i.exec(svgText);
-  const heightMatch = /\bheight=["']\s*([0-9.]+)(?:px)?\s*["']/i.exec(svgText);
-  const widthFromAttr = parsePositive(widthMatch?.[1]);
-  const heightFromAttr = parsePositive(heightMatch?.[1]);
-  if (widthFromAttr && heightFromAttr) {
-    return { width: clamp(widthFromAttr), height: clamp(heightFromAttr) };
-  }
-
-  const viewBoxMatch = /\bviewBox=["']\s*[-0-9.]+\s+[-0-9.]+\s+([0-9.]+)\s+([0-9.]+)\s*["']/i.exec(svgText);
-  const widthFromViewBox = parsePositive(viewBoxMatch?.[1]);
-  const heightFromViewBox = parsePositive(viewBoxMatch?.[2]);
-  if (widthFromViewBox && heightFromViewBox) {
-    return { width: clamp(widthFromViewBox), height: clamp(heightFromViewBox) };
-  }
-
-  return { width: 1024, height: 1024 };
-}
-
-function rasterizeSvgDataUrlToPng(dataUrl: string): Promise<string> {
-  if (typeof window === 'undefined') {
-    return Promise.resolve(dataUrl);
-  }
-
-  const svgText = decodeSvgDataUrl(dataUrl);
-  const { width, height } = pickSvgRenderSize(svgText ?? '');
-
-  return new Promise((resolve) => {
-    const image = new Image();
-    image.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(dataUrl);
-          return;
-        }
-        ctx.clearRect(0, 0, width, height);
-        ctx.drawImage(image, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/png'));
-      } catch {
-        resolve(dataUrl);
-      }
-    };
-    image.onerror = () => resolve(dataUrl);
-    image.src = dataUrl;
-  });
-}
-
 export async function normalizeVisionAttachment(
   attachment: Attachment
 ): Promise<ChatMessageContentPart | null> {
@@ -547,9 +682,12 @@ export async function normalizeVisionAttachment(
 
   try {
     const base64 = await convertToBase64(attachment);
-    const normalizedBase64 = SVG_DATA_URL_REGEX.test(base64.trim())
+    const normalizedBase64 = isSvgDataUrl(base64)
       ? await rasterizeSvgDataUrlToPng(base64)
       : base64;
+    if (!normalizedBase64) {
+      return null;
+    }
 
     return {
       type: 'image_url',
@@ -642,17 +780,44 @@ export function refreshManagedBudgetIfNeeded(providerId: string): void {
   void useManagedAIStore.getState().refreshBudget();
 }
 
-export function buildMessageImageSources(attachments: Attachment[]): { content: string; imageSources: string[] } {
-  const imageSources: string[] = [];
-  const content = attachments
-    .filter(isImageAttachment)
-    .map((attachment) => getAttachmentMessageImageSrc(attachment))
-    .filter((src) => src.length > 0)
-    .map((src) => {
-      imageSources.push(src);
-      return toImageMarkdown(src);
-    })
-    .join('\n\n');
+async function getRenderableMessageImageSrc(attachment: Attachment): Promise<string | null> {
+  const rawSrc = getAttachmentMessageImageSrc(attachment);
+  const normalizedSrc = normalizeRenderableImageSrc(rawSrc);
+  if (normalizedSrc) {
+    return normalizedSrc;
+  }
 
-  return { content, imageSources };
+  const mimeType = attachment.type?.trim().toLowerCase() ?? '';
+  if (mimeType !== 'image/svg+xml' || !rawSrc.trim().startsWith('data:image/svg+xml')) {
+    return null;
+  }
+
+  const rasterizedSrc = await rasterizeSvgDataUrlToPng(rawSrc);
+  return normalizeRenderableImageSrc(rasterizedSrc);
+}
+
+export async function buildMessageImageSources(attachments: Attachment[]): Promise<{ content: string; imageSources: string[] }> {
+  const imageSources: string[] = [];
+  const markdownParts: string[] = [];
+
+  for (const attachment of attachments) {
+    if (!isImageAttachment(attachment)) {
+      continue;
+    }
+
+    const src = await getRenderableMessageImageSrc(attachment);
+    if (!src) {
+      continue;
+    }
+
+    const markdownSrc = escapeMarkdownAngleDestination(src);
+    if (!markdownSrc) {
+      continue;
+    }
+
+    imageSources.push(markdownSrc);
+    markdownParts.push(toImageMarkdown(markdownSrc));
+  }
+
+  return { content: markdownParts.join('\n\n'), imageSources };
 }

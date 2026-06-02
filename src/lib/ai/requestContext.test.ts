@@ -67,6 +67,26 @@ describe('requestContext', () => {
     expect(sanitized[0].content).toBe('[Image]\n\ndescribe it');
   });
 
+  it('sanitizes only renderable markdown image tokens in history', () => {
+    const content = [
+      'Look ![outer [nested]](<asset://file(one).png> "Title") and ![plain](asset://two(2).png "Title")',
+      '```md',
+      '![example](asset://code.png)',
+      '```',
+      String.raw`\![literal](asset://escaped.png)`,
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).toBe([
+      'Look [Image] and [Image]',
+      '```md',
+      '![example](asset://code.png)',
+      '```',
+      String.raw`\![literal](asset://escaped.png)`,
+    ].join('\n'));
+  });
+
   it('removes web search status markup from model history', () => {
     const history = [
       createMessage({

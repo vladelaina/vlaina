@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { findUrls } from './autolinkPlugin';
+import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
+import { commonmark } from '@milkdown/kit/preset/commonmark';
+import type { Decoration } from '@milkdown/kit/prose/view';
+import { autolinkPlugin, autolinkPluginKey, findUrls } from './autolinkPlugin';
 
 describe('autolinkPlugin findUrls', () => {
     it('detects bare domains with supported TLDs', () => {
@@ -66,5 +69,34 @@ describe('autolinkPlugin findUrls', () => {
                 href: 'https://example.com/a_(b)',
             },
         ]);
+    });
+
+    it('decorates ordinary URLs without touching inline or block code', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, [
+                    'Open https://example.com and `https://code.example`.',
+                    '',
+                    '```',
+                    'https://block.example',
+                    '```',
+                ].join('\n'));
+            })
+            .use(commonmark)
+            .use(autolinkPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        const decorations = autolinkPluginKey.getState(view.state)?.find() ?? [];
+
+        expect(decorations.map((decoration: Decoration) => ({
+            text: view.state.doc.textBetween(decoration.from, decoration.to),
+            href: (decoration.type as any).attrs?.href,
+        }))).toEqual([{
+            text: 'https://example.com',
+            href: 'https://example.com',
+        }]);
+
+        await editor.destroy();
     });
 });

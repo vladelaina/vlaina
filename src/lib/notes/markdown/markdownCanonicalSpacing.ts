@@ -3,11 +3,10 @@ import {
   decodeMarkdownHtmlText,
   escapeMarkdownHtmlText,
 } from './markdownHtmlText';
+import { consumeLeadingCalloutEmoji } from './calloutEmoji';
 
 const LIST_ITEM_MARKER_PATTERN = /^(?:\s*)(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?/;
-const CALLOUT_BLOCKQUOTE_START_PATTERN = /^(?: {0,3})>[ \t]*\p{Emoji}/u;
 const BLOCKQUOTE_LIST_ITEM_PATTERN = /^(?: {0,3})>[ \t]*(?:[-+*]|\d+[.)])\s+/;
-const ESCAPED_TOC_MARKER_PATTERN = /(^|\n)\\\[TOC\](?=\n|$)/g;
 const STRONG_TRAILING_INLINE_CODE_PATTERN = /(\*\*|__)([^\n`]*?\S)\s+(`[^`\n]+`)\1/g;
 const CUSTOM_INLINE_HTML_TEXT_PATTERN =
   /<(sup|sub|u|mark)\b([^>]*)>([\s\S]*?)<\/\1>|<(span|mark)\b([^>]*)\bstyle=(["'])([^"']*)(\6)([^>]*)>([\s\S]*?)<\/\4>/gi;
@@ -70,9 +69,7 @@ export function normalizeCanonicalMarkdownSpacing(
   });
 
   return normalizeCustomInlineHtmlText(
-    normalizeInlineCodeMarkBoundaries(
-      normalized.replace(ESCAPED_TOC_MARKER_PATTERN, '$1[TOC]')
-    )
+    normalizeInlineCodeMarkBoundaries(normalized)
   );
 }
 
@@ -85,14 +82,14 @@ export function normalizeCanonicalMarkdownSpacingForPersistence(text: string): s
 }
 
 function normalizeCalloutBlockquoteListSpacing(lines: string[]): string[] {
-  if (!lines.some((line) => CALLOUT_BLOCKQUOTE_START_PATTERN.test(line))) return lines;
+  if (!lines.some(isCalloutBlockquoteStartLine)) return lines;
 
   const output: string[] = [];
   let inCalloutBlockquote = false;
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? '';
-    if (CALLOUT_BLOCKQUOTE_START_PATTERN.test(line)) {
+    if (isCalloutBlockquoteStartLine(line)) {
       inCalloutBlockquote = true;
     } else if (inCalloutBlockquote && line.trim() !== '' && !line.trimStart().startsWith('>')) {
       inCalloutBlockquote = false;
@@ -113,6 +110,11 @@ function normalizeCalloutBlockquoteListSpacing(lines: string[]): string[] {
   return output;
 }
 
+function isCalloutBlockquoteStartLine(line: string): boolean {
+  const match = /^(?: {0,3})>[ \t]*(.*)$/.exec(line);
+  return !!match && consumeLeadingCalloutEmoji(match[1] ?? '') !== null;
+}
+
 function normalizeInlineCodeMarkBoundaries(markdown: string): string {
   return mapMarkdownOutsideProtectedSegments(markdown, (segment) =>
     segment.replace(STRONG_TRAILING_INLINE_CODE_PATTERN, '$1$2$1 $3')
@@ -127,6 +129,7 @@ function normalizeCustomInlineHtmlText(markdown: string): string {
         const tag = simpleTag || styledTag;
         const text = simpleTag ? simpleText : styledText;
         if (!isSupportedInlineHtmlTag(tag, styleValue)) return match;
+        if (NESTED_HTML_PATTERN.test(text)) return match;
 
         const attrs = simpleTag
           ? simpleAttrs

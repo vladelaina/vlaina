@@ -8,34 +8,46 @@ const HTML_DECLARATION_OPEN_PATTERN = /^(?: {0,3})<![A-Z]/i;
 const HTML_CDATA_OPEN_PATTERN = /^(?: {0,3})<!\[CDATA\[/;
 const BLOCKQUOTE_PREFIX_PATTERN = /^(?: {0,3}>[ \t]?)*(.*)$/;
 const INDENTED_CODE_LINE_PATTERN = /^(?: {4,}|\t)/;
+const FRONTMATTER_DELIMITER = '---';
 
 type FenceState = { marker: string; length: number };
+
+interface ProtectedSegmentOptions {
+  protectHtmlBlocks?: boolean;
+  protectHtmlComments?: boolean;
+}
 
 export function mapMarkdownOutsideProtectedBlocks(
   text: string,
   transformLine: (line: string, index: number, lines: readonly string[]) => string,
+  options?: ProtectedSegmentOptions,
 ): string {
   return mapMarkdownOutsideProtectedSegments(
     text,
     (segment, startIndex, lines) => segment
       .split('\n')
       .map((line, offset) => transformLine(line, startIndex + offset, lines))
-      .join('\n')
+      .join('\n'),
+    options,
   );
 }
 
 export function mapMarkdownOutsideProtectedSegments(
   text: string,
   transformSegment: (segment: string, startIndex: number, lines: readonly string[]) => string,
+  options: ProtectedSegmentOptions = {},
 ): string {
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
   const nextNonBlankContentByIndex = getNextNonBlankMarkdownBlockContentByIndex(lines);
+  const frontmatterEndIndex = getLeadingFrontmatterEndIndex(lines);
+  const protectHtmlBlocks = options.protectHtmlBlocks !== false;
   const output: string[] = [];
   let segment: string[] = [];
   let segmentStartIndex = 0;
   let activeFence: FenceState | null = null;
   let activeHtmlBlock: RegExp | null = null;
   let activeIndentedCode = false;
+  const protectHtmlComments = options.protectHtmlComments !== false;
 
   const flushSegment = (nextIndex: number) => {
     if (segment.length === 0) {
@@ -48,6 +60,12 @@ export function mapMarkdownOutsideProtectedSegments(
   };
 
   lines.forEach((line, index) => {
+    if (frontmatterEndIndex !== null && index <= frontmatterEndIndex) {
+      flushSegment(index + 1);
+      output.push(line);
+      return;
+    }
+
     if (activeIndentedCode) {
       const content = getMarkdownBlockContent(line);
       if (isIndentedCodeBlockLine(content) || keepsIndentedCodeBlockOpen(content, nextNonBlankContentByIndex[index])) {
@@ -58,7 +76,7 @@ export function mapMarkdownOutsideProtectedSegments(
       activeIndentedCode = false;
     }
 
-    if (activeHtmlBlock) {
+    if (protectHtmlBlocks && activeHtmlBlock) {
       flushSegment(index + 1);
       output.push(line);
       activeHtmlBlock = nextHtmlBlockState(line, activeHtmlBlock);
@@ -80,7 +98,9 @@ export function mapMarkdownOutsideProtectedSegments(
       return;
     }
 
-    const htmlBlock = getMarkdownRawHtmlBlockClosePattern(content);
+    const htmlBlock = protectHtmlBlocks
+      ? getMarkdownRawHtmlBlockClosePattern(content, { protectHtmlComments })
+      : null;
     if (htmlBlock) {
       flushSegment(index + 1);
       output.push(line);
@@ -136,6 +156,20 @@ function getMarkdownBlockContent(line: string): string {
   return BLOCKQUOTE_PREFIX_PATTERN.exec(line)?.[1] ?? line;
 }
 
+function getLeadingFrontmatterEndIndex(lines: readonly string[]): number | null {
+  if ((lines[0] ?? '').trim() !== FRONTMATTER_DELIMITER) {
+    return null;
+  }
+
+  for (let index = 1; index < lines.length; index += 1) {
+    if ((lines[index] ?? '').trim() === FRONTMATTER_DELIMITER) {
+      return index;
+    }
+  }
+
+  return null;
+}
+
 function isIndentedCodeBlockLine(line: string): boolean {
   return INDENTED_CODE_LINE_PATTERN.test(line);
 }
@@ -164,12 +198,15 @@ function getNextNonBlankMarkdownBlockContentByIndex(lines: readonly string[]): A
   return nextNonBlankContentByIndex;
 }
 
-function getMarkdownRawHtmlBlockClosePattern(line: string): RegExp | null {
+function getMarkdownRawHtmlBlockClosePattern(
+  line: string,
+  options: { protectHtmlComments?: boolean } = {},
+): RegExp | null {
   const rawBlockMatch = HTML_RAW_BLOCK_OPEN_PATTERN.exec(line);
   if (rawBlockMatch) {
     return new RegExp(`</${rawBlockMatch[1]}>`, 'i');
   }
-  if (HTML_COMMENT_OPEN_PATTERN.test(line)) return /-->/;
+  if (options.protectHtmlComments !== false && HTML_COMMENT_OPEN_PATTERN.test(line)) return /-->/;
   if (HTML_PROCESSING_OPEN_PATTERN.test(line)) return /\?>/;
   if (HTML_DECLARATION_OPEN_PATTERN.test(line)) return />/;
   if (HTML_CDATA_OPEN_PATTERN.test(line)) return /\]\]>/;

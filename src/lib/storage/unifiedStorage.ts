@@ -15,6 +15,7 @@ import {
 import { aiProviderSecretCommands } from '@/lib/desktop/secretsCommands';
 import { translate } from '@/lib/i18n';
 import { useToastStore } from '@/stores/useToastStore';
+import { replaceMarkdownImageTokens } from '@/lib/markdown/markdownImageTokens';
 import {
   createDefaultUnifiedData,
   type CustomIcon,
@@ -180,8 +181,7 @@ function serializeAIProviderChannelFile(
 function buildRecoveredSessionTitle(messages: ChatMessage[]): string {
   const firstUserMessage = messages.find((message) => message.role === 'user');
   const source = firstUserMessage?.content || messages[0]?.content || '';
-  const normalized = source
-    .replace(/!\[.*?\]\(.*?\)/g, ' ')
+  const normalized = replaceMarkdownImageTokens(source, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 

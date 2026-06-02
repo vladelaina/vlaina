@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import {
   buildMessageImageSources,
+  buildMentionedNotesContext,
   buildStoredUserMessageContent,
   loadMentionedFolderImageAttachments,
   loadMentionedNotes,
@@ -12,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   isConnected: false,
   refreshBudget: vi.fn().mockResolvedValue(undefined),
   flushCurrentPendingEditorMarkdown: vi.fn(),
+  rasterizeSvgDataUrlToPng: vi.fn(),
   storage: {
     listDir: vi.fn(),
     stat: vi.fn(),
@@ -22,6 +24,13 @@ const mocks = vi.hoisted(() => ({
     noteContentsCache: new Map<string, { content: string }>(),
     notesPath: '/vault',
     rootFolder: null as null | { children: unknown[] },
+    starredEntries: [] as Array<{
+      id: string;
+      kind: 'note' | 'folder';
+      vaultPath: string;
+      relativePath: string;
+      addedAt: number;
+    }>,
     getDisplayName: vi.fn((path: string) => path.split('/').pop()?.replace(/\.md$/i, '') ?? path),
   },
 }));
@@ -52,8 +61,14 @@ vi.mock('@/stores/notes/pendingEditorMarkdownFlusher', () => ({
   flushCurrentPendingEditorMarkdown: mocks.flushCurrentPendingEditorMarkdown,
 }));
 
+vi.mock('@/components/Chat/common/svgRasterize', () => ({
+  isSvgDataUrl: (value: string) => value.trim().toLowerCase().startsWith('data:image/svg+xml'),
+  rasterizeSvgDataUrlToPng: mocks.rasterizeSvgDataUrlToPng,
+}));
+
 vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => mocks.storage,
+  isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
   joinPath: async (...segments: string[]) => segments.filter(Boolean).join('/').replace(/\/+/g, '/'),
 }));
 
@@ -75,6 +90,8 @@ describe('chat service helpers', () => {
     mocks.isConnected = false;
     mocks.refreshBudget.mockClear();
     mocks.flushCurrentPendingEditorMarkdown.mockReset();
+    mocks.rasterizeSvgDataUrlToPng.mockReset();
+    mocks.rasterizeSvgDataUrlToPng.mockResolvedValue('data:image/png;base64,RASTER');
     mocks.storage.listDir.mockReset();
     mocks.storage.stat.mockReset();
     mocks.storage.readFile.mockReset();
@@ -82,6 +99,7 @@ describe('chat service helpers', () => {
     mocks.notesState.noteContentsCache = new Map();
     mocks.notesState.notesPath = '/vault';
     mocks.notesState.rootFolder = null;
+    mocks.notesState.starredEntries = [];
     mocks.notesState.getDisplayName.mockClear();
   });
 
@@ -109,16 +127,56 @@ describe('chat service helpers', () => {
     expect(mocks.refreshBudget).toHaveBeenCalledTimes(1);
   });
 
-  it('stores local attachment references without exposing file URLs in chat content', () => {
-    const result = buildMessageImageSources([createAttachment()]);
+  it('stores local attachment references without exposing file URLs in chat content', async () => {
+    const result = await buildMessageImageSources([createAttachment()]);
 
     expect(result.imageSources).toEqual(['attachment://demo%20image.png']);
     expect(result.content).toBe('![image](<attachment://demo%20image.png>)');
     expect(result.content).not.toContain('file://');
   });
 
-  it('falls back to inline preview data when no persisted attachment path exists', () => {
-    const result = buildMessageImageSources([
+  it('stores file attachment asset URLs without exposing file URLs in chat content', async () => {
+    const result = await buildMessageImageSources([
+      createAttachment({
+        path: '',
+        assetUrl: 'file:///home/user/.vlaina/attachments/demo%20image.png?cache=1',
+        previewUrl: 'blob:preview',
+      }),
+    ]);
+
+    expect(result.imageSources).toEqual(['attachment://demo%20image.png']);
+    expect(result.content).toBe('![image](<attachment://demo%20image.png>)');
+    expect(result.content).not.toContain('file://');
+  });
+
+  it('does not rewrite remote attachment-looking asset URLs as stored attachment sources', async () => {
+    const result = await buildMessageImageSources([
+      createAttachment({
+        path: '',
+        assetUrl: 'https://example.test/attachments/demo.png',
+        previewUrl: 'blob:preview',
+      }),
+    ]);
+
+    expect(result.imageSources).toEqual(['https://example.test/attachments/demo.png']);
+    expect(result.content).toBe('![image](<https://example.test/attachments/demo.png>)');
+  });
+
+  it('stores image sources using the same escaped markdown target as the message content', async () => {
+    const result = await buildMessageImageSources([
+      createAttachment({
+        path: '',
+        assetUrl: 'https://example.test/a>b.png',
+        previewUrl: 'blob:preview',
+      }),
+    ]);
+
+    expect(result.imageSources).toEqual(['https://example.test/a%3Eb.png']);
+    expect(result.content).toBe('![image](<https://example.test/a%3Eb.png>)');
+  });
+
+  it('falls back to inline preview data when no persisted attachment path exists', async () => {
+    const result = await buildMessageImageSources([
       createAttachment({
         path: '',
         assetUrl: '',
@@ -130,6 +188,55 @@ describe('chat service helpers', () => {
     expect(result.content).toBe('![image](<data:image/png;base64,INLINE>)');
   });
 
+  it('stores persisted SVG attachments by attachment reference instead of inline SVG data', async () => {
+    const result = await buildMessageImageSources([
+      createAttachment({
+        path: '/home/user/.vlaina/attachments/diagram.svg',
+        assetUrl: 'file:///home/user/.vlaina/attachments/diagram.svg',
+        previewUrl: 'data:image/svg+xml;base64,PHN2Zz4=',
+        name: 'diagram.svg',
+        type: 'image/svg+xml',
+      }),
+    ]);
+
+    expect(result.imageSources).toEqual(['attachment://diagram.svg']);
+    expect(result.content).toBe('![image](<attachment://diagram.svg>)');
+    expect(result.content).not.toContain('data:image/svg+xml');
+    expect(mocks.rasterizeSvgDataUrlToPng).not.toHaveBeenCalled();
+  });
+
+  it('rasterizes temporary SVG attachments before storing user message image markdown', async () => {
+    const result = await buildMessageImageSources([
+      createAttachment({
+        path: '',
+        assetUrl: '',
+        previewUrl: 'data:image/svg+xml;base64,PHN2Zz4=',
+        name: 'diagram.svg',
+        type: 'image/svg+xml',
+      }),
+    ]);
+
+    expect(mocks.rasterizeSvgDataUrlToPng).toHaveBeenCalledWith('data:image/svg+xml;base64,PHN2Zz4=');
+    expect(result.imageSources).toEqual(['data:image/png;base64,RASTER']);
+    expect(result.content).toBe('![image](<data:image/png;base64,RASTER>)');
+  });
+
+  it('drops temporary SVG attachments when rasterization fails', async () => {
+    mocks.rasterizeSvgDataUrlToPng.mockResolvedValueOnce(null);
+
+    const result = await buildMessageImageSources([
+      createAttachment({
+        path: '',
+        assetUrl: '',
+        previewUrl: 'data:image/svg+xml;base64,PHN2Zz4=',
+        name: 'diagram.svg',
+        type: 'image/svg+xml',
+      }),
+    ]);
+
+    expect(result).toEqual({ content: '', imageSources: [] });
+  });
+
   it('converts stored user image markdown into vision message parts for resend paths', async () => {
     const content = '![image](<data:image/png;base64,INLINE>)\n\nDescribe this';
 
@@ -137,6 +244,19 @@ describe('chat service helpers', () => {
       { type: 'text', text: 'Describe this' },
       { type: 'image_url', image_url: { url: 'data:image/png;base64,INLINE' } },
     ]);
+  });
+
+  it('keeps referenced note titles on one prompt line', () => {
+    const context = buildMentionedNotesContext([
+      {
+        path: 'docs/alpha.md',
+        title: 'Alpha\n## Injected heading',
+        content: 'safe body',
+      },
+    ]);
+
+    expect(context).toContain('## Alpha ## Injected heading\nsafe body');
+    expect(context).not.toContain('\n## Injected heading');
   });
 });
 
@@ -147,7 +267,11 @@ describe('loadMentionedNotes', () => {
     mocks.notesState.noteContentsCache = new Map();
     mocks.notesState.notesPath = '/vault';
     mocks.notesState.rootFolder = null;
-    mocks.notesState.getDisplayName.mockClear();
+    mocks.notesState.starredEntries = [];
+    mocks.notesState.getDisplayName.mockReset();
+    mocks.notesState.getDisplayName.mockImplementation((path: string) =>
+      path.split('/').pop()?.replace(/\.md$/i, '') ?? path,
+    );
   });
 
   it('flushes pending editor markdown before reading the current note mention', async () => {
@@ -250,6 +374,118 @@ describe('loadMentionedNotes', () => {
     ]);
   });
 
+  it('includes non-md markdown notes when loading folder mentions', async () => {
+    mocks.notesState.rootFolder = {
+      children: [
+        {
+          id: 'docs',
+          name: 'docs',
+          path: 'docs',
+          isFolder: true,
+          expanded: true,
+          children: [
+            { id: 'docs/alpha.markdown', name: 'alpha.markdown', path: 'docs/alpha.markdown', isFolder: false },
+            { id: 'docs/beta.mdown', name: 'beta.mdown', path: 'docs/beta.mdown', isFolder: false },
+            { id: 'docs/skip.txt', name: 'skip.txt', path: 'docs/skip.txt', isFolder: false },
+          ],
+        },
+      ],
+    };
+    mocks.notesState.noteContentsCache = new Map([
+      ['docs/alpha.markdown', { content: '# Alpha' }],
+      ['docs/beta.mdown', { content: '# Beta' }],
+    ]);
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs', title: 'Docs', kind: 'folder' },
+    ]);
+
+    expect(notes.slice(1)).toEqual([
+      { path: 'docs/alpha.markdown', title: 'Docs/alpha.markdown', kind: 'note', content: '# Alpha' },
+      { path: 'docs/beta.mdown', title: 'Docs/beta.mdown', kind: 'note', content: '# Beta' },
+    ]);
+  });
+
+  it('scans a mentioned folder for markdown notes when the file tree is unavailable', async () => {
+    mocks.notesState.rootFolder = null;
+    mocks.storage.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault/docs') {
+        return [
+          { name: 'alpha.markdown', path: '/outside/ignored.markdown', isDirectory: false, isFile: true, size: 32 },
+          { name: 'nested', path: '/outside/ignored', isDirectory: true, isFile: false },
+          { name: 'skip.txt', path: '/vault/docs/skip.txt', isDirectory: false, isFile: true, size: 16 },
+        ];
+      }
+      if (path === '/vault/docs/nested') {
+        return [
+          { name: 'beta.mdown', path: '/vault/docs/nested/beta.mdown', isDirectory: false, isFile: true },
+          { name: 'huge.md', path: '/vault/docs/nested/huge.md', isDirectory: false, isFile: true },
+        ];
+      }
+      return [];
+    });
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isFile: true,
+      isDirectory: false,
+      size: path.endsWith('/huge.md') ? 600 * 1024 : 64,
+    }));
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path === '/vault/docs/alpha.markdown') return '# Alpha';
+      if (path === '/vault/docs/nested/beta.mdown') return '# Beta';
+      return '# Unexpected';
+    });
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs', title: 'Docs', kind: 'folder' },
+    ]);
+
+    expect(notes[0]).toMatchObject({
+      path: 'docs',
+      title: 'Docs',
+      kind: 'folder',
+    });
+    expect(notes.slice(1)).toEqual([
+      { path: 'docs/alpha.markdown', title: 'Docs/alpha', kind: 'note', content: '# Alpha' },
+      { path: 'docs/nested/beta.mdown', title: 'Docs/nested/beta', kind: 'note', content: '# Beta' },
+    ]);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/outside/ignored.markdown');
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/nested/huge.md');
+  });
+
+  it('scans starred external folder mentions for markdown notes', async () => {
+    mocks.notesState.rootFolder = null;
+    mocks.notesState.starredEntries = [{
+      id: 'external-folder',
+      kind: 'folder',
+      vaultPath: '/external',
+      relativePath: 'docs',
+      addedAt: 1,
+    }];
+    mocks.storage.listDir.mockImplementation(async (path: string) => {
+      if (path === '/external/docs') {
+        return [
+          { name: 'alpha.md', path: '/external/docs/alpha.md', isDirectory: false, isFile: true, size: 32 },
+        ];
+      }
+      return [];
+    });
+    mocks.storage.stat.mockResolvedValue({ isFile: true, isDirectory: false, size: 32 });
+    mocks.storage.readFile.mockResolvedValue('# External Alpha');
+
+    const notes = await loadMentionedNotes([
+      { path: '/external/docs', title: 'External Docs/', kind: 'folder' },
+    ]);
+
+    expect(notes.slice(1)).toEqual([
+      {
+        path: '/external/docs/alpha.md',
+        title: 'External Docs/alpha',
+        kind: 'note',
+        content: '# External Alpha',
+      },
+    ]);
+  });
+
   it('includes a directory listing for folder mentions without markdown notes', async () => {
     mocks.notesState.rootFolder = {
       children: [
@@ -293,6 +529,27 @@ describe('loadMentionedNotes', () => {
     expect(notes[0]?.content).toContain('Directory listing:');
     expect(notes[0]?.content).toContain('- icons (folder)');
     expect(notes[0]?.content).toContain('- cover.png (file, 2.0 KB)');
+  });
+
+  it('keeps folder listing names on one prompt line', async () => {
+    mocks.notesState.rootFolder = null;
+    mocks.storage.listDir.mockResolvedValue([
+      {
+        name: 'cover\n## Injected.md',
+        path: '/vault/assets/cover.md',
+        isDirectory: false,
+        isFile: true,
+        size: 12,
+      },
+    ]);
+
+    const notes = await loadMentionedNotes([
+      { path: 'assets', title: 'assets/', kind: 'folder' },
+    ]);
+
+    expect(notes[0]?.content).toContain('Folder: assets');
+    expect(notes[0]?.content).toContain('- cover ## Injected.md (file, 12 B)');
+    expect(notes[0]?.content).not.toContain('\n## Injected');
   });
 });
 
@@ -416,6 +673,25 @@ describe('loadMentionedFolderImageAttachments', () => {
       name: 'cover.png',
       size: 4096,
     });
+  });
+
+  it('builds folder image paths from the resolved folder path instead of entry paths', async () => {
+    mocks.storage.listDir.mockResolvedValue([
+      {
+        name: 'cover.png',
+        path: '/outside/cover.png',
+        isDirectory: false,
+        isFile: true,
+        size: 2048,
+      },
+    ]);
+
+    const attachments = await loadMentionedFolderImageAttachments([
+      { path: 'assets', title: 'assets/', kind: 'folder' },
+    ]);
+
+    expect(attachments[0]?.path).toBe('/vault/assets/cover.png');
+    expect(attachments[0]?.id).toBe('folder-image:/vault/assets/cover.png');
   });
 
   it('does not attach images for note mentions', async () => {

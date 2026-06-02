@@ -1,5 +1,7 @@
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { resolveExistingVaultAssetPath } from '@/lib/assets/core/paths';
+import { mapMarkdownOutsideProtectedSegments } from '@/lib/notes/markdown/markdownProtectedBlocks';
+import { findExportMarkdownAssetSourceTokens } from './noteExportMarkdownAssetTokens';
 
 const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
   gif: 'image/gif',
@@ -10,9 +12,6 @@ const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
   webp: 'image/webp',
 };
 const MAX_EXPORT_IMAGE_BYTES = 50 * 1024 * 1024;
-
-const MARKDOWN_IMAGE_PATTERN = /(!\[[^\]]*]\()(\s*)(<([^>\n]+)>|([^\s)]+))([^)]*)(\))/g;
-const HTML_IMAGE_SRC_PATTERN = /(<img\b[^>]*\bsrc=["'])(img:[^"']+)(["'][^>]*>)/gi;
 
 function getImageMimeType(path: string): string {
   const extension = path.split('.').pop()?.toLowerCase() ?? '';
@@ -41,65 +40,42 @@ async function resolveAssetUrl(
   src: string,
   notesPath: string,
   notePath: string,
+  fallbackSrc = src,
 ): Promise<string> {
   if (!src.startsWith('img:') || !notesPath) {
-    return src;
+    return fallbackSrc;
   }
 
   const bridge = getElectronBridge();
   if (!bridge) {
-    return src;
+    return fallbackSrc;
   }
 
   const assetPath = src.slice(4);
   try {
     const absolutePath = await resolveExistingVaultAssetPath(notesPath, assetPath, notePath);
     if (!absolutePath) {
-      return src;
+      return fallbackSrc;
     }
 
     if (!isExportableImagePath(absolutePath)) {
-      return src;
+      return fallbackSrc;
     }
 
     const fileInfo = await bridge.fs.stat(absolutePath).catch(() => null);
     if (!isExportableImageSize(fileInfo?.size ?? null)) {
-      return src;
+      return fallbackSrc;
     }
 
     const bytes = await bridge.fs.readBinaryFile(absolutePath);
     if (!isExportableImageSize(bytes.byteLength)) {
-      return src;
+      return fallbackSrc;
     }
 
     return `data:${getImageMimeType(absolutePath)};base64,${bytesToBase64(bytes)}`;
   } catch {
-    return src;
+    return fallbackSrc;
   }
-}
-
-async function replaceAsync(
-  value: string,
-  pattern: RegExp,
-  replacer: (...args: string[]) => Promise<string>,
-): Promise<string> {
-  const matches = Array.from(value.matchAll(pattern));
-  if (matches.length === 0) {
-    return value;
-  }
-
-  let cursor = 0;
-  const parts: string[] = [];
-
-  for (const match of matches) {
-    const index = match.index ?? 0;
-    parts.push(value.slice(cursor, index));
-    parts.push(await replacer(...(match as unknown as string[])));
-    cursor = index + match[0].length;
-  }
-
-  parts.push(value.slice(cursor));
-  return parts.join('');
 }
 
 export async function resolveExportMarkdownAssetSources(
@@ -107,23 +83,43 @@ export async function resolveExportMarkdownAssetSources(
   notesPath: string,
   notePath: string,
 ): Promise<string> {
-  const withMarkdownImages = await replaceAsync(
-    markdown,
-    MARKDOWN_IMAGE_PATTERN,
-    async (_full, prefix, leadingSpace, wrappedSrc, angleSrc, bareSrc, rest, suffix) => {
-      const src = angleSrc || bareSrc || wrappedSrc;
-      const resolvedSrc = await resolveAssetUrl(src, notesPath, notePath);
-      const destination = angleSrc ? `<${resolvedSrc}>` : resolvedSrc;
-      return `${prefix}${leadingSpace}${destination}${rest}${suffix}`;
-    },
+  const segments: string[] = [];
+  const protectedMarkdown = mapMarkdownOutsideProtectedSegments(markdown, (segment) => {
+    const marker = `\0vlaina-export-segment-${segments.length}\0`;
+    segments.push(segment);
+    return marker;
+  }, { protectHtmlBlocks: false });
+
+  const resolvedSegments = await Promise.all(
+    segments.map((segment) => resolveExportMarkdownAssetSegment(segment, notesPath, notePath))
   );
 
-  return replaceAsync(
-    withMarkdownImages,
-    HTML_IMAGE_SRC_PATTERN,
-    async (_full, prefix, src, suffix) => {
-      const resolvedSrc = await resolveAssetUrl(src, notesPath, notePath);
-      return `${prefix}${resolvedSrc}${suffix}`;
-    },
+  return resolvedSegments.reduce(
+    (output, segment, index) => output.replace(`\0vlaina-export-segment-${index}\0`, segment),
+    protectedMarkdown,
   );
+}
+
+async function resolveExportMarkdownAssetSegment(
+  markdown: string,
+  notesPath: string,
+  notePath: string,
+): Promise<string> {
+  const tokens = findExportMarkdownAssetSourceTokens(markdown);
+  if (tokens.length === 0) {
+    return markdown;
+  }
+
+  const parts: string[] = [];
+  let cursor = 0;
+  for (const token of tokens) {
+    if (token.start < cursor) {
+      continue;
+    }
+    parts.push(markdown.slice(cursor, token.start));
+    parts.push(await resolveAssetUrl(token.lookupSrc ?? token.src, notesPath, notePath, token.src));
+    cursor = token.end;
+  }
+  parts.push(markdown.slice(cursor));
+  return parts.join('');
 }

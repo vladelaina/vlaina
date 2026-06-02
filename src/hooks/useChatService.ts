@@ -385,7 +385,7 @@ export function useChatService() {
         let storageContent = userMessageText;
         let messageImageSources: string[] = [];
         if (requestAttachments.length > 0) {
-          const builtImages = buildMessageImageSources(requestAttachments);
+          const builtImages = await buildMessageImageSources(requestAttachments);
           const imageMarkdown = builtImages.content;
           messageImageSources = builtImages.imageSources;
           storageContent = imageMarkdown + (userMessageText ? `\n\n${userMessageText}` : '');

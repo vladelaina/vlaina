@@ -260,14 +260,22 @@ export class WebAdapter implements StorageAdapter {
     
     if (fileExists) return true;
     
-    return new Promise<boolean>((resolve) => {
+    const dirExists = await new Promise<boolean>((resolve) => {
       const tx = db.transaction(STORE_DIRS, 'readonly');
       const store = tx.objectStore(STORE_DIRS);
       const request = store.get(normalizedPath);
-      
+
       request.onsuccess = () => resolve(!!request.result);
       request.onerror = () => resolve(false);
     });
+
+    if (dirExists) return true;
+
+    if (await this.hasStoredChildPath(normalizedPath)) {
+      return true;
+    }
+
+    return false;
   }
 
   async mkdir(path: string, recursive = false): Promise<void> {
@@ -329,51 +337,94 @@ export class WebAdapter implements StorageAdapter {
 
     const prefix = normalizedPath === '/' ? '/' : `${normalizedPath}/`;
 
+    const addEntry = (entry: FileInfo) => {
+      if (seenPaths.has(entry.path)) return;
+      seenPaths.add(entry.path);
+      results.push(entry);
+    };
+
+    const isHiddenPath = (parts: string[]) => !options?.includeHidden && parts.some((part) => part.startsWith('.'));
+
+    const addImplicitDirectories = (parts: string[]) => {
+      let currentPath = normalizedPath === '/' ? '' : normalizedPath;
+      for (const part of parts) {
+        currentPath = currentPath ? `${currentPath}/${part}` : `/${part}`;
+        addEntry({
+          name: part,
+          path: currentPath,
+          isDirectory: true,
+          isFile: false,
+        });
+      }
+    };
+
     for (const file of files) {
       if (!file.path.startsWith(prefix)) continue;
-      
+
       const relativePath = file.path.slice(prefix.length);
       const parts = relativePath.split('/');
-      
-      if (parts.length === 1 || options?.recursive) {
-        const name = parts[0];
-        
-        if (!options?.includeHidden && name.startsWith('.')) continue;
-        
-        if (!seenPaths.has(file.path)) {
-          seenPaths.add(file.path);
-          results.push({
-            name: file.path.split('/').pop() || '',
-            path: file.path,
-            isDirectory: false,
-            isFile: true,
-            size: file.size,
-            modifiedAt: file.modifiedAt,
-          });
-        }
+
+      if (isHiddenPath(parts)) continue;
+
+      if (parts.length === 1) {
+        addEntry({
+          name: file.path.split('/').pop() || '',
+          path: file.path,
+          isDirectory: false,
+          isFile: true,
+          size: file.size,
+          modifiedAt: file.modifiedAt,
+        });
+        continue;
+      }
+
+      if (options?.recursive) {
+        addImplicitDirectories(parts.slice(0, -1));
+        addEntry({
+          name: file.path.split('/').pop() || '',
+          path: file.path,
+          isDirectory: false,
+          isFile: true,
+          size: file.size,
+          modifiedAt: file.modifiedAt,
+        });
+      } else {
+        addEntry({
+          name: parts[0],
+          path: normalizedPath === '/' ? `/${parts[0]}` : `${normalizedPath}/${parts[0]}`,
+          isDirectory: true,
+          isFile: false,
+        });
       }
     }
 
     for (const dir of dirs) {
       if (!dir.path.startsWith(prefix)) continue;
-      
+
       const relativePath = dir.path.slice(prefix.length);
       const parts = relativePath.split('/');
-      
-      if (parts.length === 1 || options?.recursive) {
-        const name = parts[0];
-        
-        if (!options?.includeHidden && name.startsWith('.')) continue;
-        
-        if (!seenPaths.has(dir.path)) {
-          seenPaths.add(dir.path);
-          results.push({
-            name: dir.path.split('/').pop() || '',
-            path: dir.path,
-            isDirectory: true,
-            isFile: false,
-          });
-        }
+
+      if (isHiddenPath(parts)) continue;
+
+      if (parts.length === 1) {
+        addEntry({
+          name: dir.path.split('/').pop() || '',
+          path: dir.path,
+          isDirectory: true,
+          isFile: false,
+        });
+        continue;
+      }
+
+      if (options?.recursive) {
+        addImplicitDirectories(parts);
+      } else {
+        addEntry({
+          name: parts[0],
+          path: normalizedPath === '/' ? `/${parts[0]}` : `${normalizedPath}/${parts[0]}`,
+          isDirectory: true,
+          isFile: false,
+        });
       }
     }
 
@@ -497,7 +548,16 @@ export class WebAdapter implements StorageAdapter {
         isFile: false,
       };
     }
-    
+
+    if (await this.hasStoredChildPath(normalizedPath)) {
+      return {
+        name: normalizedPath.split('/').pop() || '',
+        path: normalizedPath,
+        isDirectory: true,
+        isFile: false,
+      };
+    }
+
     return null;
   }
 
@@ -530,5 +590,36 @@ export class WebAdapter implements StorageAdapter {
     if (parts.length <= 1) return null;
     parts.pop();
     return '/' + parts.join('/');
+  }
+
+  private async hasStoredChildPath(normalizedPath: string): Promise<boolean> {
+    const db = await this.getDB();
+    const prefix = normalizedPath === '/' ? '/' : `${normalizedPath}/`;
+
+    const hasFileChild = await new Promise<boolean>((resolve) => {
+      const tx = db.transaction(STORE_FILES, 'readonly');
+      const store = tx.objectStore(STORE_FILES);
+      const request = store.getAll();
+
+      request.onsuccess = () => {
+        const files = (request.result || []) as StoredFile[];
+        resolve(files.some((file) => file.path.startsWith(prefix)));
+      };
+      request.onerror = () => resolve(false);
+    });
+
+    if (hasFileChild) return true;
+
+    return new Promise<boolean>((resolve) => {
+      const tx = db.transaction(STORE_DIRS, 'readonly');
+      const store = tx.objectStore(STORE_DIRS);
+      const request = store.getAll();
+
+      request.onsuccess = () => {
+        const dirs = (request.result || []) as StoredDir[];
+        resolve(dirs.some((dir) => dir.path.startsWith(prefix)));
+      };
+      request.onerror = () => resolve(false);
+    });
   }
 }

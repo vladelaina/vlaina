@@ -4,6 +4,8 @@ import type { EditorState, Transaction } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { CodeBlockNodeView } from '../code/CodeBlockNodeView';
 import { getMermaidElementCode } from '../mermaid/mermaidDom';
+import { getMathElementLatex } from '../math/mathSchema';
+import { getVideoElementAttrs } from '../video/videoDom';
 
 const previewCleanupCallbacks = new WeakMap<HTMLElement, () => void>();
 
@@ -327,7 +329,7 @@ function preserveSourceFrontmatterNodeViews(previewDom: HTMLElement, sourceDom: 
 function getRenderedAtomSignature(element: HTMLElement): string | null {
   const type = element.dataset.type;
   if (type === 'math-inline' || type === 'math-block') {
-    return `${type}:${element.dataset.latex ?? ''}`;
+    return `${type}:${getMathElementLatex(element)}`;
   }
 
   if (type === 'mermaid') {
@@ -335,12 +337,13 @@ function getRenderedAtomSignature(element: HTMLElement): string | null {
   }
 
   if (type === 'video') {
+    const attrs = getVideoElementAttrs(element);
     return JSON.stringify([
       type,
-      element.dataset.src ?? '',
-      element.dataset.title ?? '',
-      element.dataset.width ?? '',
-      element.dataset.height ?? '',
+      attrs.src,
+      attrs.title ?? '',
+      attrs.width ?? '',
+      attrs.height ?? '',
     ]);
   }
 

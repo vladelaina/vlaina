@@ -706,6 +706,7 @@ declare module '@milkdown/kit/preset/commonmark' {
   export const emphasisSchema: any;
   export const inlineCodeSchema: any;
   export const linkSchema: any;
+  export function sanitizeImageSrc(value: unknown, options?: { allowEmpty?: boolean }): string | null;
   export const blockquoteSchema: any;
   export const hrSchema: any;
   export const imageSchema: any;
