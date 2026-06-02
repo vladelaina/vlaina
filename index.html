@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" style="background: #ffffff;">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="%BASE_URL%logo.png?v=20260327" />
@@ -10,9 +10,25 @@
     />
     <title>vlaina</title>
     <meta name="description" content="A local-first notes and chat workspace" />
+    <style>
+      :root {
+        background: #ffffff;
+      }
+
+      body {
+        background: #ffffff;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root,
+        body {
+          background: #050505;
+        }
+      }
+    </style>
   </head>
 
-  <body style="background: #ffffff;">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

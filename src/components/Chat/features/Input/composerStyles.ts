@@ -1,5 +1,5 @@
 export const chatComposerPillSurfaceClass = [
-  "border !border-transparent !bg-[var(--vlaina-color-white)]",
+  "border !border-transparent !bg-[var(--vlaina-color-pill-surface)]",
   "!shadow-[var(--vlaina-shadow-raised-soft)]",
   "hover:!shadow-[var(--vlaina-shadow-menu-hover)]"
 ].join(" ");

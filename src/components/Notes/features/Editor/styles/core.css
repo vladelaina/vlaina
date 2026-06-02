@@ -455,7 +455,7 @@ body.editor-block-drag-active .editor-block-drag-preview-layer * {
   padding: var(--vlaina-space-6px);
   border: var(--vlaina-border-width-1) solid transparent;
   border-radius: var(--vlaina-radius-22px);
-  background: var(--vlaina-color-white);
+  background: var(--vlaina-color-floating-surface);
   box-shadow: var(--vlaina-shadow-raised-soft);
   pointer-events: auto;
   z-index: var(--vlaina-z-4);

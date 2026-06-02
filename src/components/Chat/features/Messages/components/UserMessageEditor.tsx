@@ -193,7 +193,7 @@ export function UserMessageEditor({
             onClick={handleCancel}
             className={cn(
               chatComposerSecondaryButtonClass,
-              'h-8 px-3.5 text-[var(--vlaina-font-13)] bg-[var(--vlaina-color-white)] hover:bg-[var(--vlaina-color-white)] text-[var(--vlaina-color-inverse-text)]'
+              'h-8 px-3.5 text-[var(--vlaina-font-13)] bg-[var(--vlaina-color-pill-surface)] hover:bg-[var(--vlaina-color-pill-surface-hover)] text-[var(--vlaina-text-primary)]'
             )}
           >
             {t('common.cancel')}

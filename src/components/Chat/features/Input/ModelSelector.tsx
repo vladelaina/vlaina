@@ -52,6 +52,7 @@ const MODEL_SELECTOR_ROW_HEIGHT = 40
 const MODEL_SELECTOR_DROPDOWN_WIDTH = 432
 const MODEL_SELECTOR_DROPDOWN_MAX_HEIGHT = 'min(460px, calc(100vh - 96px))'
 const MODEL_SELECTOR_LIST_HEIGHT = 'min(386px, calc(100vh - 170px))'
+const monochromeModelIconClass = 'dark:invert dark:brightness-[1.08] dark:contrast-[0.92] dark:opacity-[0.92]'
 
 const MODEL_SELECTOR_THEME_STYLES: Record<
   ModelSelectorTheme,
@@ -146,7 +147,10 @@ const ModelOption = memo(({
                     <img
                         src={family.icon}
                         alt=""
-                        className="mr-2 h-4 w-4 flex-shrink-0 rounded-[var(--vlaina-radius-3px)] object-contain"
+                        className={cn(
+                          "mr-2 h-4 w-4 flex-shrink-0 rounded-[var(--vlaina-radius-3px)] object-contain",
+                          family.monochromeIcon && monochromeModelIconClass
+                        )}
                         draggable={false}
                     />
                 )}
@@ -313,6 +317,7 @@ export function ModelSelector({
               id: family.id,
               name: family.name,
               icon: family.icon,
+              monochromeIcon: family.monochromeIcon,
               kind: 'family',
               count,
           });
@@ -768,7 +773,8 @@ export function ModelSelector({
                             alt=""
                             className={cn(
                               "rounded-[var(--vlaina-radius-4px)] object-contain",
-                              isActive ? "h-8 w-8" : "h-5 w-5"
+                              isActive ? "h-8 w-8" : "h-5 w-5",
+                              category.monochromeIcon && monochromeModelIconClass
                             )}
                             draggable={false}
                           />
@@ -864,7 +870,10 @@ export function ModelSelector({
           <img
             src={selectedModelFamily.icon}
             alt=""
-            className="h-[var(--vlaina-size-18px)] w-[var(--vlaina-size-18px)] flex-shrink-0 rounded-[var(--vlaina-radius-3px)] object-contain"
+            className={cn(
+              "h-[var(--vlaina-size-18px)] w-[var(--vlaina-size-18px)] flex-shrink-0 rounded-[var(--vlaina-radius-3px)] object-contain",
+              selectedModelFamily.monochromeIcon && monochromeModelIconClass
+            )}
             draggable={false}
           />
         ) : (

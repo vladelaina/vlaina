@@ -50,7 +50,7 @@ summary,
 .sidebar-user-header:hover .sidebar-user-header-pill,
 .sidebar-user-header:focus-within .sidebar-user-header-pill,
 .sidebar-user-header[data-hovered="true"] .sidebar-user-header-pill {
-  background-color: var(--vlaina-color-white);
+  background-color: var(--vlaina-color-pill-surface);
   box-shadow: var(--vlaina-shadow-raised-soft);
 }
 

@@ -42,6 +42,7 @@ export type ModelFamily = {
   id: ModelFamilyId
   name: string
   icon: string
+  monochromeIcon?: boolean
   matcher: (value: string) => boolean
 }
 
@@ -49,6 +50,7 @@ export type ModelCategory = {
   id: ModelCategoryId
   name: string
   icon: string | null
+  monochromeIcon?: boolean
   kind: 'favorites' | 'family' | 'custom'
   count: number
 }
@@ -58,6 +60,7 @@ export const MODEL_FAMILIES: ModelFamily[] = [
     id: 'openai',
     name: 'OpenAI',
     icon: openaiIcon,
+    monochromeIcon: true,
     matcher: (value) => (
       value.includes('gpt') ||
       value.includes('chatgpt') ||
@@ -81,6 +84,7 @@ export const MODEL_FAMILIES: ModelFamily[] = [
     id: 'grok',
     name: 'Grok',
     icon: grokIcon,
+    monochromeIcon: true,
     matcher: (value) => value.includes('grok'),
   },
   {
@@ -99,6 +103,7 @@ export const MODEL_FAMILIES: ModelFamily[] = [
     id: 'moonshot',
     name: 'Kimi',
     icon: kimiIcon,
+    monochromeIcon: true,
     matcher: (value) => value.includes('moonshot') || value.includes('kimi'),
   },
   {
@@ -135,12 +140,14 @@ export const MODEL_FAMILIES: ModelFamily[] = [
     id: 'longcat',
     name: 'LongCat',
     icon: longcatIcon,
+    monochromeIcon: true,
     matcher: (value) => /long[\s._-]?cat/.test(value),
   },
   {
     id: 'mimo',
     name: 'Xiaomi',
     icon: mimoIcon,
+    monochromeIcon: true,
     matcher: (value) => value.includes('mimo') || value.includes('xiaomi'),
   },
   {

@@ -1,0 +1,21 @@
+.dark .milkdown {
+  --crepe-color-background: #050505;
+  --crepe-color-on-background: #f2f2f3;
+  --crepe-color-surface: #151517;
+  --crepe-color-surface-low: #101012;
+  --crepe-color-on-surface: #ededee;
+  --crepe-color-on-surface-variant: #b4b4b8;
+  --crepe-color-outline: #3a3a40;
+  --crepe-color-primary: #41a8ea;
+  --crepe-color-secondary: #1d3444;
+  --crepe-color-on-secondary: #cfefff;
+  --crepe-color-inverse: #f4f4f5;
+  --crepe-color-on-inverse: #18181b;
+  --crepe-color-inline-code: #ff8fa3;
+  --crepe-color-error: #f87171;
+  --crepe-color-hover: #1d1d20;
+  --crepe-color-selected: rgb(65 168 234 / 0.22);
+  --crepe-color-inline-area: #171719;
+  --crepe-shadow-1: 0 14px 32px rgb(0 0 0 / 0.38), 0 3px 10px rgb(0 0 0 / 0.24), inset 0 1px 0 rgb(255 255 255 / 0.06);
+  --crepe-shadow-2: 0 20px 44px rgb(0 0 0 / 0.45), 0 6px 14px rgb(0 0 0 / 0.26), inset 0 1px 0 rgb(255 255 255 / 0.07);
+}

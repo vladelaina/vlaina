@@ -149,7 +149,7 @@ const checks = [
   {
     name: 'CSS custom property definitions outside the theme contract must be protocol/framework scoped',
     fileFilter: (file) => isCss(file),
-    pattern: /^\s*--(?!vlaina-|font-|radius|shadow|blur|color-|text-|default-|spacing|background|foreground|card|popover|primary|secondary|muted|accent|destructive|border|input|ring|chart|sidebar|tw-|tracking-|leading-|ease-)[A-Za-z0-9_-]+\s*:/gm,
+    pattern: /^\s*--(?!vlaina-|crepe-|font-|radius|shadow|blur|color-|text-|default-|spacing|background|foreground|card|popover|primary|secondary|muted|accent|destructive|border|input|ring|chart|sidebar|tw-|tracking-|leading-|ease-)[A-Za-z0-9_-]+\s*:/gm,
   },
   {
     name: 'Legacy scattered theme variable names must not return',

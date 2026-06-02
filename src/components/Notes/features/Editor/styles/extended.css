@@ -43,7 +43,7 @@
 .milkdown .ProseMirror .editor-tag-token.editor-text-selection-overlay {
   border-radius: var(--vlaina-radius-3px) !important;
   box-shadow: none !important;
-  background: var(--vlaina-color-white) !important;
+  background: var(--vlaina-color-pill-surface) !important;
 }
 
 .milkdown .ProseMirror .editor-tag-token:has(+ .editor-tag-token) {
@@ -121,7 +121,7 @@
   padding: var(--vlaina-space-035rem) var(--vlaina-space-065rem);
   border: var(--vlaina-border-width-1) solid transparent;
   border-radius: var(--vlaina-radius-pill-lg);
-  background: var(--vlaina-color-white);
+  background: var(--vlaina-color-floating-surface);
   color: var(--vlaina-text-primary);
   box-shadow: var(--vlaina-shadow-raised-soft);
   font-family: var(--vlaina-font-sans, inherit);
