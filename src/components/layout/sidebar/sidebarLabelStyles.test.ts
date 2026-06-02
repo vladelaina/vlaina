@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getSidebarLabelClass, getSidebarToneStyles } from './sidebarLabelStyles';
+import { getSidebarLabelClass, getSidebarSelectedRowSurfaceClass, getSidebarToneStyles } from './sidebarLabelStyles';
 
 describe('sidebarLabelStyles', () => {
   it('uses one selected row surface for notes and chat sidebars', () => {
@@ -14,5 +14,10 @@ describe('sidebarLabelStyles', () => {
     expect(getSidebarLabelClass('chat', { selected: true })).toContain(
       'text-[var(--vlaina-sidebar-row-selected-text)]'
     );
+  });
+
+  it('keeps selected rows flat on hover', () => {
+    expect(getSidebarSelectedRowSurfaceClass('notes')).toContain('hover:shadow-[var(--vlaina-shadow-none)]');
+    expect(getSidebarSelectedRowSurfaceClass('chat')).toContain('hover:shadow-[var(--vlaina-shadow-none)]');
   });
 });

@@ -91,6 +91,7 @@ export function getSidebarSelectedRowSurfaceClass(tone: SidebarTone) {
     SIDEBAR_ROW_RADIUS_CLASS,
     styles.activeRow,
     'text-[var(--vlaina-sidebar-row-selected-text)]',
+    'shadow-[var(--vlaina-shadow-none)] hover:shadow-[var(--vlaina-shadow-none)]',
   );
 }
 

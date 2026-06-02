@@ -64,7 +64,7 @@ export function NotesSidebarRow({
       actionFadeClassName={cn(
         styles.fade,
         isHighlighted && styles.fadeHover,
-        isActive && !isHighlighted && styles.fadeActive,
+        isActive && !isHighlighted && 'from-transparent',
         !isActive && !isHighlighted && styles.groupFadeHover,
         actionFadeClassName,
       )}
