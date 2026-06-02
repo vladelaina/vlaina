@@ -515,7 +515,11 @@ describe('unifiedStorage electron save', () => {
         body: { showLineNumbers: false },
         codeBlock: { showLineNumbers: true },
       },
-      ui: { lastAppViewMode: 'chat' },
+      ui: {
+        lastAppViewMode: 'chat',
+        colorMode: 'system',
+        themeId: 'default',
+      },
     });
     expect(mainPayload.data.customIcons.map((icon: { id: string }) => icon.id)).toEqual([
       '/app/.vlaina/assets/icons/b.png',
@@ -756,7 +760,11 @@ describe('unifiedStorage electron save', () => {
         body: { showLineNumbers: false },
         codeBlock: { showLineNumbers: true },
       },
-      ui: { lastAppViewMode: 'chat' },
+      ui: {
+        lastAppViewMode: 'chat',
+        colorMode: 'system',
+        themeId: 'default',
+      },
     });
   });
 
@@ -836,7 +844,11 @@ describe('unifiedStorage electron save', () => {
         body: { showLineNumbers: false },
         codeBlock: { showLineNumbers: true },
       },
-      ui: { lastAppViewMode: 'chat' },
+      ui: {
+        lastAppViewMode: 'chat',
+        colorMode: 'system',
+        themeId: 'default',
+      },
     });
     expect(payload.data.customIcons.map((icon: { id: string }) => icon.id)).toEqual([
       '/app/.vlaina/assets/icons/local.png',
@@ -1164,6 +1176,7 @@ describe('unifiedStorage electron save', () => {
   it('recovers visible sessions from message files when AI session metadata is invalid', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const messageContent = '![outer [nested]](<asset://file(one).png> "Title") Please keep this important chat';
     mocks.storage.listDir.mockImplementation(async (path: string) => {
       if (path.endsWith('/chat/sessions')) {
         return [
@@ -1203,11 +1216,11 @@ describe('unifiedStorage electron save', () => {
             {
               id: 'm1',
               role: 'user',
-              content: 'Please keep this important chat',
+              content: messageContent,
               modelId: 'provider::model-a',
               timestamp: 10,
               versions: [{
-                content: 'Please keep this important chat',
+                content: messageContent,
                 createdAt: 10,
                 subsequentMessages: [],
               }],

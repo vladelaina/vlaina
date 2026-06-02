@@ -1,8 +1,10 @@
 import { getParentPath, getStorageAdapter } from '@/lib/storage/adapter';
-import { normalizeFsPath } from './notesExternalSyncUtils';
+import { getFsPathComparisonKey, normalizeFsPath } from './notesExternalSyncUtils';
 
 export function isDirectChildPath(parentPath: string, absolutePath: string) {
-  return getParentPath(absolutePath) === parentPath;
+  const normalizedParentPath = normalizeFsPath(parentPath);
+  const normalizedAbsoluteParentPath = normalizeFsPath(getParentPath(absolutePath) ?? '');
+  return getFsPathComparisonKey(normalizedAbsoluteParentPath) === getFsPathComparisonKey(normalizedParentPath);
 }
 
 export async function looksLikeVaultRoot(path: string) {

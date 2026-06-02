@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  getMathElementLatex,
   parseMathAttrs,
   parseMathBlockFromMarkdown,
   parseMathInlineFromMarkdown,
@@ -10,7 +11,7 @@ import {
 } from './mathSchema';
 
 describe('mathSchema', () => {
-  it('parses latex attrs from wrapper dataset', () => {
+  it('parses legacy latex attrs from wrapper dataset', () => {
     const dom = document.createElement('div');
     dom.dataset.latex = '\\frac{1}{2}';
 
@@ -19,26 +20,34 @@ describe('mathSchema', () => {
     });
   });
 
-  it('serializes block math with wrapper attrs', () => {
+  it('serializes block math without leaking source latex into wrapper attrs', () => {
+    const latex = 'x% hidden_secret_marker';
     const dom = serializeMathBlockNode({
-      attrs: { latex: 'x^2' },
+      attrs: { latex },
     } as never) as HTMLElement;
 
     expect(dom.tagName).toBe('DIV');
     expect(dom.dataset.type).toBe('math-block');
-    expect(dom.dataset.latex).toBe('x^2');
+    expect(dom.dataset.latex).toBeUndefined();
     expect(dom.className).toBe('math-block-wrapper');
+    expect(getMathElementLatex(dom)).toBe(latex);
+    expect(dom.outerHTML).not.toContain('data-latex');
+    expect(dom.outerHTML).not.toContain('hidden_secret_marker');
   });
 
-  it('serializes inline math with wrapper attrs', () => {
+  it('serializes inline math without leaking source latex into wrapper attrs', () => {
+    const latex = 'x% inline_hidden_marker';
     const dom = serializeMathInlineNode({
-      attrs: { latex: 'x+y' },
+      attrs: { latex },
     } as never) as HTMLElement;
 
     expect(dom.tagName).toBe('SPAN');
     expect(dom.dataset.type).toBe('math-inline');
-    expect(dom.dataset.latex).toBe('x+y');
+    expect(dom.dataset.latex).toBeUndefined();
     expect(dom.className).toBe('math-inline-wrapper');
+    expect(getMathElementLatex(dom)).toBe(latex);
+    expect(dom.outerHTML).not.toContain('data-latex');
+    expect(dom.outerHTML).not.toContain('inline_hidden_marker');
   });
 
   it('parses block math markdown nodes into math_block attrs', () => {

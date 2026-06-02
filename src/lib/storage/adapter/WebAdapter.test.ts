@@ -65,6 +65,80 @@ describe('WebAdapter', () => {
     ]);
   });
 
+  it('lists implicit parent directories for stored deep files', async () => {
+    await adapter.writeFile('/vault/docs/a.md', 'hello');
+
+    await expect(adapter.exists('/vault/docs')).resolves.toBe(true);
+    await expect(adapter.stat('/vault/docs')).resolves.toMatchObject({
+      name: 'docs',
+      path: '/vault/docs',
+      isDirectory: true,
+      isFile: false,
+    });
+    await expect(adapter.listDir('/vault')).resolves.toEqual([
+      expect.objectContaining({
+        name: 'docs',
+        path: '/vault/docs',
+        isDirectory: true,
+      }),
+    ]);
+    await expect(adapter.listDir('/vault/docs')).resolves.toEqual([
+      expect.objectContaining({
+        name: 'a.md',
+        path: '/vault/docs/a.md',
+        isFile: true,
+      }),
+    ]);
+  });
+
+  it('includes implicit directories in recursive listings without duplicating them', async () => {
+    await adapter.writeFile('/vault/docs/guides/a.md', 'hello');
+
+    await expect(adapter.listDir('/vault', { recursive: true })).resolves.toEqual([
+      expect.objectContaining({
+        name: 'docs',
+        path: '/vault/docs',
+        isDirectory: true,
+      }),
+      expect.objectContaining({
+        name: 'guides',
+        path: '/vault/docs/guides',
+        isDirectory: true,
+      }),
+      expect.objectContaining({
+        name: 'a.md',
+        path: '/vault/docs/guides/a.md',
+        isFile: true,
+      }),
+    ]);
+  });
+
+  it('renames implicit parent directories with their stored child files', async () => {
+    await adapter.writeFile('/vault/docs/a.md', 'hello');
+
+    await adapter.rename('/vault/docs', '/vault/archive');
+
+    await expect(adapter.exists('/vault/docs')).resolves.toBe(false);
+    await expect(adapter.readFile('/vault/archive/a.md')).resolves.toBe('hello');
+    await expect(adapter.listDir('/vault')).resolves.toEqual([
+      expect.objectContaining({
+        name: 'archive',
+        path: '/vault/archive',
+        isDirectory: true,
+      }),
+    ]);
+  });
+
+  it('recursively deletes implicit parent directories with their stored child files', async () => {
+    await adapter.writeFile('/vault/docs/a.md', 'hello');
+
+    await adapter.deleteDir('/vault/docs', true);
+
+    await expect(adapter.exists('/vault/docs')).resolves.toBe(false);
+    await expect(adapter.exists('/vault/docs/a.md')).resolves.toBe(false);
+    await expect(adapter.listDir('/vault')).resolves.toEqual([]);
+  });
+
   it('rejects non-recursive deletion of non-empty directories', async () => {
     await adapter.writeFile('/vault/notes/a.md', 'hello', { recursive: true });
 

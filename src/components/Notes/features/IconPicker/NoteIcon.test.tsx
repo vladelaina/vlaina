@@ -74,4 +74,17 @@ describe('NoteIcon', () => {
     expect(mocked.loadImageAsBlob).toHaveBeenCalledWith('/vault/assets/icons/demo.png');
     expect(mocked.loadAppIconImageSrc).not.toHaveBeenCalled();
   });
+
+  it('does not load an empty path when a relative note icon cannot be resolved', async () => {
+    mocked.resolveExistingVaultAssetPath.mockResolvedValue('');
+
+    render(<NoteIcon icon="img:assets/icons/missing.png" notePath="/vault/demo.md" size={20} />);
+
+    await waitFor(() => {
+      expect(mocked.resolveExistingVaultAssetPath).toHaveBeenCalled();
+    });
+
+    expect(mocked.loadImageAsBlob).not.toHaveBeenCalled();
+    expect(screen.queryByRole('img', { name: 'icon' })).not.toBeInTheDocument();
+  });
 });

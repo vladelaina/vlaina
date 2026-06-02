@@ -93,6 +93,10 @@ export const definitionDescSchema = $node('definition_desc', () => ({
 // This handles the case where lack of remark-deflist causes DLs to be parsed as paragraphs
 const deflistVisualPluginKey = new PluginKey<DecorationSet>('deflist-visual');
 
+function isEscapedDefinitionListDescription(node: Node): boolean {
+    return node.attrs?.vlainaEscapedBlockSyntax === 'definitionListDescription';
+}
+
 function createDeflistDecorations(doc: Node): DecorationSet {
     const decorations: Decoration[] = [];
     let lastNonEmptyNode: Node | null = null;
@@ -104,12 +108,17 @@ function createDeflistDecorations(doc: Node): DecorationSet {
             const isEmpty = node.textContent.trim().length === 0;
 
             // Check if current node looks like a Definition Description
-            if (node.type.name === 'paragraph' && node.textContent.startsWith(': ')) {
+            if (
+                node.type.name === 'paragraph' &&
+                !isEscapedDefinitionListDescription(node) &&
+                node.textContent.startsWith(': ')
+            ) {
 
                 // HEURISTIC: A true Definition List usually follows a short Term.
                 // If the previous paragraph is very long, it's likely just normal text, not a Term.
                 const isTermValid = lastNonEmptyNode &&
                     lastNonEmptyNode.type.name === 'paragraph' &&
+                    !isEscapedDefinitionListDescription(lastNonEmptyNode) &&
                     lastNonEmptyNode.textContent.length < 80;
 
                 if (isTermValid) {

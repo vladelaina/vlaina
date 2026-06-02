@@ -121,10 +121,10 @@ it('should serialize localized image markdown as standard markdown', async () =>
 
   const view = editor.ctx.get(editorViewCtx)
 
-  typeText(view, '！【猫】（/cat.png）')
+  typeText(view, '！【猫】（./cat.png）')
 
   const markdown = editor.action(getMarkdown())
-  expect(markdown).toBe('![猫](/cat.png)\n')
+  expect(markdown).toBe('![猫](./cat.png)\n')
 })
 
 it('should serialize fullwidth emphasis marker as standard markdown', async () => {

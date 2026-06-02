@@ -503,6 +503,40 @@ describe("AIMessage", () => {
     expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Answer with multiple sources.");
   });
 
+  it("drops unsafe web search status source URLs before rendering links", () => {
+    const content = [
+      '<web-search-status>{"phase":"results","query":"security","urls":["https://safe.example/from-url","http://router/admin"],"results":[{"title":"Local Admin","url":"http://127.0.0.1:3000/admin","snippet":"Bad","publishedAt":null},{"title":"Safe Source","url":"https://safe.example/article","snippet":"Good","publishedAt":null},{"title":"Bidi Source","url":"https://example.com/\\u202Ecod.exe","snippet":"Bad","publishedAt":null}]}</web-search-status>',
+      '<web-search-status>{"phase":"complete","failedSources":[{"url":"http://localhost/debug","message":"Unsafe skipped"},{"url":"https://safe.example/fail","message":"Safe skipped"}]}</web-search-status>',
+      "Answer with filtered sources.",
+    ].join("\n");
+
+    render(
+      <AIMessage
+        msg={createMessage(content)}
+        imageGallery={[]}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    const safeSource = screen.getByRole("link", { name: /Safe Source/ });
+    expect(safeSource).toHaveAttribute("href", "https://safe.example/article");
+    expect(screen.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
+      "https://safe.example/article",
+      "https://safe.example/from-url",
+    ]);
+    expect(screen.queryByText("Local Admin")).not.toBeInTheDocument();
+    expect(screen.queryByText("Bidi Source")).not.toBeInTheDocument();
+    expect(screen.queryByText("http://router/admin")).not.toBeInTheDocument();
+    expect(screen.queryByText("Unsafe skipped")).not.toBeInTheDocument();
+    expect(screen.queryByText("http://localhost/debug")).not.toBeInTheDocument();
+    expect(screen.getByText("Safe skipped")).toBeInTheDocument();
+    expect(screen.getByText("https://safe.example/fail")).toBeInTheDocument();
+    expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Answer with filtered sources.");
+  });
+
   it("stores copied code block feedback above the markdown renderer", () => {
     render(
       <AIMessage

@@ -3,93 +3,14 @@ import { findSelectedNodeOfType } from '@milkdown/prose'
 import { InputRule } from '@milkdown/prose/inputrules'
 import { $command, $inputRule, $nodeAttr, $nodeSchema } from '@milkdown/utils'
 
-import { withMeta } from '../__internal__'
+import { isPublicRemoteMediaUrl, sanitizeMediaSrc, withMeta } from '../__internal__'
 
-const controlOrBidiPattern = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/
-const schemePattern = /^([A-Za-z][A-Za-z0-9+.-]*):/
-const windowsAbsolutePathPattern = /^[A-Za-z]:[\\/]/
-const unixAbsolutePathPattern = /^\//
-const safeMediaSchemes = new Set(['http:', 'https:', 'blob:'])
-
-function parseIPv4(hostname: string) {
-  const parts = hostname.split('.')
-  if (parts.length !== 4) return null
-  const octets = parts.map((part) => Number(part))
-  if (octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) return null
-  return octets
-}
-
-function isPrivateHttpUrl(value: string) {
-  try {
-    const url = new URL(value, window.location.href)
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false
-    const hostname = url.hostname.replace(/^\[|\]$/g, '').toLowerCase()
-    const ipv4 = parseIPv4(hostname)
-    const mappedIPv6 = hostname.startsWith('::ffff:')
-      ? hostname.slice('::ffff:'.length).split(':')
-      : null
-    const mappedIPv4 = mappedIPv6?.length === 2
-      ? [
-          (Number.parseInt(mappedIPv6[0], 16) >> 8) & 255,
-          Number.parseInt(mappedIPv6[0], 16) & 255,
-          (Number.parseInt(mappedIPv6[1], 16) >> 8) & 255,
-          Number.parseInt(mappedIPv6[1], 16) & 255,
-        ]
-      : null
-    return (
-      hostname === 'localhost'
-      || hostname === '::1'
-      || hostname.startsWith('fe80:')
-      || hostname.startsWith('fc')
-      || hostname.startsWith('fd')
-      || Boolean(mappedIPv4 && (
-        mappedIPv4[0] === 0
-        || mappedIPv4[0] === 10
-        || mappedIPv4[0] === 127
-        || (mappedIPv4[0] === 169 && mappedIPv4[1] === 254)
-        || (mappedIPv4[0] === 172 && mappedIPv4[1] >= 16 && mappedIPv4[1] <= 31)
-        || (mappedIPv4[0] === 192 && mappedIPv4[1] === 168)
-      ))
-      || Boolean(ipv4 && (
-        ipv4[0] === 0
-        || ipv4[0] === 10
-        || ipv4[0] === 127
-        || (ipv4[0] === 169 && ipv4[1] === 254)
-        || (ipv4[0] === 172 && ipv4[1] >= 16 && ipv4[1] <= 31)
-        || (ipv4[0] === 192 && ipv4[1] === 168)
-      ))
-    )
-  } catch {
-    return false
-  }
-}
-
-function isPublicRemoteMediaUrl(value: string) {
-  if (!value.startsWith('//') && !/^https?:/i.test(value)) return false
-  const normalized = value.startsWith('//') ? `https:${value}` : value
-  try {
-    const url = new URL(normalized, window.location.href)
-    return (
-      (url.protocol === 'http:' || url.protocol === 'https:')
-      && !isPrivateHttpUrl(normalized)
-    )
-  } catch {
-    return false
-  }
-}
-
-function sanitizeMediaSrc(value: unknown) {
-  if (typeof value !== 'string') return null
-  const trimmed = value.trim()
-  if (!trimmed || controlOrBidiPattern.test(trimmed) || windowsAbsolutePathPattern.test(trimmed) || (unixAbsolutePathPattern.test(trimmed) && !trimmed.startsWith('//'))) return null
-  if (trimmed.startsWith('//')) return isPrivateHttpUrl(`https:${trimmed}`) ? null : trimmed
-
-  const scheme = schemePattern.exec(trimmed)?.[1]?.toLowerCase()
-  if (!scheme) return trimmed
-  const normalizedScheme = `${scheme}:`
-  if (!safeMediaSchemes.has(normalizedScheme)) return null
-  if ((normalizedScheme === 'http:' || normalizedScheme === 'https:') && isPrivateHttpUrl(trimmed)) return null
-  return trimmed
+export function sanitizeImageSrc(
+  value: unknown,
+  options: { allowEmpty?: boolean } = {}
+) {
+  if (options.allowEmpty && value === '') return ''
+  return sanitizeMediaSrc(value)
 }
 
 /// HTML attributes for image node.
@@ -121,7 +42,7 @@ export const imageSchema = $nodeSchema('image', (ctx) => {
         tag: 'img[src]',
         getAttrs: (dom) => {
           if (!(dom instanceof HTMLElement)) throw expectDomTypeError(dom)
-          const src = sanitizeMediaSrc(dom.getAttribute('src'))
+          const src = sanitizeImageSrc(dom.getAttribute('src'))
           if (!src) return false
 
           return {
@@ -133,7 +54,7 @@ export const imageSchema = $nodeSchema('image', (ctx) => {
       },
     ],
     toDOM: (node) => {
-      const src = sanitizeMediaSrc(node.attrs.src)
+      const src = sanitizeImageSrc(node.attrs.src)
       return [
         'img',
         { ...ctx.get(imageAttr.key)(node), ...node.attrs, src: src && !isPublicRemoteMediaUrl(src) ? src : undefined },
@@ -142,7 +63,7 @@ export const imageSchema = $nodeSchema('image', (ctx) => {
     parseMarkdown: {
       match: ({ type }) => type === 'image',
       runner: (state, node, type) => {
-        const url = sanitizeMediaSrc(node.url)
+        const url = sanitizeImageSrc(node.url)
         if (!url) return
         const alt = node.alt as string
         const title = node.title as string
@@ -156,7 +77,7 @@ export const imageSchema = $nodeSchema('image', (ctx) => {
     toMarkdown: {
       match: (node) => node.type.name === 'image',
       runner: (state, node) => {
-        const src = sanitizeMediaSrc(node.attrs.src)
+        const src = sanitizeImageSrc(node.attrs.src)
         if (!src) return
         state.addNode('image', undefined, undefined, {
           title: node.attrs.title,
@@ -192,9 +113,13 @@ export const insertImageCommand = $command(
   (ctx) =>
     (payload: UpdateImageCommandPayload = {}) =>
     (state, dispatch) => {
+      const { src: inputSrc, alt = '', title = '' } = payload
+      const src =
+        inputSrc === undefined
+          ? ''
+          : sanitizeImageSrc(inputSrc, { allowEmpty: true })
+      if (src == null) return false
       if (!dispatch) return true
-
-      const { src = '', alt = '', title = '' } = payload
 
       const node = imageSchema.type(ctx).create({ src, alt, title })
       if (!node) return true
@@ -226,7 +151,11 @@ export const updateImageCommand = $command(
 
       const newAttrs = { ...node.attrs }
       const { src, alt, title } = payload
-      if (src !== undefined) newAttrs.src = src
+      if (src !== undefined) {
+        const safeSrc = sanitizeImageSrc(src, { allowEmpty: true })
+        if (safeSrc == null) return false
+        newAttrs.src = safeSrc
+      }
       if (alt !== undefined) newAttrs.alt = alt
       if (title !== undefined) newAttrs.title = title
 
@@ -252,9 +181,9 @@ export const insertImageInputRule = $inputRule(
       (state, match, start, end) => {
         const matched = match[0]
         const alt = match.groups?.alt ?? ''
-        const src = match.groups?.filename ?? ''
+        const src = sanitizeImageSrc(match.groups?.filename ?? '')
         const title = match.groups?.title ?? ''
-        if (matched)
+        if (matched && src)
           return state.tr.replaceWith(
             start,
             end,

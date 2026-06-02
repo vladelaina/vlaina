@@ -27,6 +27,7 @@ export function NoteIcon({ notePath, vaultPath: vaultPathOverride, ...props }: N
     }
     if (!vaultPath) return src;
     const fullPath = await resolveExistingVaultAssetPath(vaultPath, relativePath, notePath);
+    if (!fullPath) return '';
     return await loadImageAsBlob(fullPath);
   }, [notePath, vaultPath]);
 

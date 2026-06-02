@@ -1,5 +1,6 @@
 import { defaultSchema } from 'rehype-sanitize';
-import { isAppFileAttachmentUrl } from '@/lib/storage/attachmentUrl';
+import { extractStoredAttachmentFilename, isAppFileAttachmentUrl } from '@/lib/storage/attachmentUrl';
+import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity';
 
 const IMAGE_PROTOCOL_WHITELIST = new Set([
   'http:',
@@ -11,14 +12,27 @@ const IMAGE_PROTOCOL_WHITELIST = new Set([
   'app-file:',
 ]);
 
-const RELATIVE_PREFIXES = ['/', './', '../'];
+const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
+const RELATIVE_PREFIXES = ['./', '../'];
+const SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+const IMAGE_EXTENSION_PATTERN = /\.(?:png|jpe?g|webp|gif|bmp|avif)(?:[?#].*)?$/i;
 const SAFE_DATA_IMAGE_PATTERN = /^data:image\/(?:png|jpeg|jpg|webp|gif|bmp|avif);base64,[A-Za-z0-9+/=]+$/i;
-const SAFE_COLOR_STYLE_PATTERN = /^(?:color|background-color):\s*(?:#[0-9a-f]{3,8}|(?:rgb|rgba|hsl|hsla)\(\s*[-+.\d%]+\s*(?:,\s*[-+.\d%]+\s*){2,3}\)|var\(--[A-Za-z0-9_-]+\)|[A-Za-z]+)$/i;
-const SAFE_TEXT_ALIGN_STYLE_PATTERN = /^text-align:\s*(?:center|right)$/i;
-const SAFE_TOC_INDENT_STYLE_PATTERN = /^padding-left:\s*(?:0|16|32|48|64|80)px$/i;
+const SAFE_COLOR_STYLE_PATTERN = /^(?:color|background-color)\s*:\s*(?:#[0-9a-f]{3,8}|(?:rgb|rgba|hsl|hsla)\(\s*[-+.\d%]+\s*(?:,\s*[-+.\d%]+\s*){2,3}\)|var\(--[A-Za-z0-9_-]+\)|[A-Za-z]+)$/i;
+const SAFE_TEXT_ALIGN_STYLE_PATTERN = /^text-align\s*:\s*(?:center|right)$/i;
+const SAFE_TOC_INDENT_STYLE_PATTERN = /^padding-left\s*:\s*(?:0|16|32|48|64|80)px$/i;
 
 function isRelativePath(value: string): boolean {
+  if (value.startsWith('//')) {
+    return false;
+  }
   return RELATIVE_PREFIXES.some((prefix) => value.startsWith(prefix));
+}
+
+function isBareRelativeImagePath(value: string): boolean {
+  if (value.startsWith('/') || SCHEME_PATTERN.test(value)) {
+    return false;
+  }
+  return value.includes('/') || IMAGE_EXTENSION_PATTERN.test(value);
 }
 
 function isAllowedAssetUrl(url: URL): boolean {
@@ -40,15 +54,15 @@ export function normalizeRenderableImageSrc(src: string | null | undefined): str
   }
 
   const trimmed = src.trim();
-  if (!trimmed) {
+  if (!trimmed || CONTROL_OR_BIDI_PATTERN.test(trimmed)) {
     return null;
   }
 
-  if (/\s/.test(trimmed)) {
+  if (!isBareRelativeImagePath(trimmed) && /\s/.test(trimmed)) {
     return null;
   }
 
-  if (isRelativePath(trimmed)) {
+  if (isRelativePath(trimmed) || isBareRelativeImagePath(trimmed)) {
     return trimmed;
   }
 
@@ -61,16 +75,91 @@ export function normalizeRenderableImageSrc(src: string | null | undefined): str
     if (parsed.protocol === 'asset:') {
       return isAllowedAssetUrl(parsed) ? trimmed : null;
     }
+    if (parsed.protocol === 'attachment:') {
+      return extractStoredAttachmentFilename(trimmed) ? trimmed : null;
+    }
     if (parsed.protocol === 'app-file:') {
-      return isAppFileAttachmentUrl(parsed) ? trimmed : null;
+      return isAppFileAttachmentUrl(parsed) && extractStoredAttachmentFilename(trimmed) ? trimmed : null;
     }
     if (!IMAGE_PROTOCOL_WHITELIST.has(parsed.protocol)) {
+      return null;
+    }
+    if ((parsed.protocol === 'http:' || parsed.protocol === 'https:') && isLocalNetworkHttpUrl(trimmed)) {
       return null;
     }
     return trimmed;
   } catch {
     return null;
   }
+}
+
+function normalizeSrcsetCandidate(candidate: string): string | null {
+  const parts = candidate.trim().split(/\s+/).filter(Boolean);
+  const source = normalizeRenderableImageSrc(parts[0]);
+  if (!source || parts.length > 2) {
+    return null;
+  }
+
+  const descriptor = parts[1];
+  if (descriptor && !/^\d+(?:\.\d+)?(?:w|x)$/.test(descriptor)) {
+    return null;
+  }
+
+  return descriptor ? `${source} ${descriptor}` : source;
+}
+
+export function normalizeRenderableImageSrcset(value: string | null | undefined): string | null {
+  if (!value || CONTROL_OR_BIDI_PATTERN.test(value)) {
+    return null;
+  }
+
+  const candidates = value.split(',').map((candidate) => candidate.trim()).filter(Boolean);
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  const normalizedCandidates: string[] = [];
+  for (const candidate of candidates) {
+    const normalized = normalizeSrcsetCandidate(candidate);
+    if (!normalized) {
+      return null;
+    }
+    normalizedCandidates.push(normalized);
+  }
+
+  return normalizedCandidates.join(', ');
+}
+
+function sanitizeImageSrcsetProperties(node: any): void {
+  if (!node || typeof node !== 'object') {
+    return;
+  }
+
+  if (node.type === 'element' && node.properties && typeof node.properties === 'object') {
+    for (const key of ['srcSet', 'srcset']) {
+      if (!Object.prototype.hasOwnProperty.call(node.properties, key)) {
+        continue;
+      }
+      const normalized = normalizeRenderableImageSrcset(String(node.properties[key] || ''));
+      if (normalized) {
+        node.properties[key] = normalized;
+      } else {
+        delete node.properties[key];
+      }
+    }
+  }
+
+  if (Array.isArray(node.children)) {
+    for (const child of node.children) {
+      sanitizeImageSrcsetProperties(child);
+    }
+  }
+}
+
+export function rehypeImageSrcsetSanitizer() {
+  return (tree: any) => {
+    sanitizeImageSrcsetProperties(tree);
+  };
 }
 
 export function createMarkdownSanitizeSchema() {
@@ -83,6 +172,7 @@ export function createMarkdownSanitizeSchema() {
   const colorStyleAttribute: [string, RegExp] = ['style', SAFE_COLOR_STYLE_PATTERN];
   const textAlignStyleAttribute: [string, RegExp] = ['style', SAFE_TEXT_ALIGN_STYLE_PATTERN];
   const tocIndentStyleAttribute: [string, RegExp] = ['style', SAFE_TOC_INDENT_STYLE_PATTERN];
+  const generatedDivTypeAttribute: [string, 'toc', 'callout'] = ['dataType', 'toc', 'callout'];
   const alignedBlockAttributes = ['dataTextAlign', textAlignStyleAttribute] as const;
 
   return {
@@ -128,7 +218,9 @@ export function createMarkdownSanitizeSchema() {
       h4: Array.from(new Set([...(attributes.h4 || []), ...alignedBlockAttributes, 'id'])),
       h5: Array.from(new Set([...(attributes.h5 || []), ...alignedBlockAttributes, 'id'])),
       h6: Array.from(new Set([...(attributes.h6 || []), ...alignedBlockAttributes, 'id'])),
-      div: Array.from(new Set([...(attributes.div || []), 'className', 'data*'])),
+      div: Array.from(new Set([...(attributes.div || []), 'className'])).concat([
+        generatedDivTypeAttribute,
+      ]),
     },
   };
 }

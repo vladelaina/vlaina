@@ -23,6 +23,10 @@ export function getImageSourceBase(rawSrc: string): string {
     return rawSrc.split('#')[0] ?? '';
 }
 
+function getLocalImageSourcePath(baseSrc: string): string {
+    return baseSrc.split('?')[0] ?? '';
+}
+
 export function isVirtualImageSource(src: string): boolean {
     return (
         src.startsWith('http://') ||
@@ -85,23 +89,24 @@ export async function resolveImageSourcePathCandidates(
         return [baseSrc];
     }
 
-    if (deps.isAbsolutePath(baseSrc)) {
+    const localSrc = getLocalImageSourcePath(baseSrc);
+    if (!localSrc || deps.isAbsolutePath(localSrc)) {
         return [];
     }
 
     const currentNoteDir = await resolveCurrentNoteDirectory(notesPath, currentNotePath, deps);
     const currentNoteAssetRoot = resolveCurrentNoteAssetRoot(notesPath, currentNotePath, currentNoteDir, deps);
 
-    if (baseSrc.startsWith('./') || baseSrc.startsWith('../')) {
+    if (localSrc.startsWith('./') || localSrc.startsWith('../')) {
         if (currentNoteDir) {
             const candidate = normalizeContainedAssetPath(
-                await deps.joinPath(currentNoteDir, baseSrc),
+                await deps.joinPath(currentNoteDir, localSrc),
                 currentNoteAssetRoot,
             );
             return candidate ? [candidate] : [];
         }
         if (!notesPath) return [];
-        const candidate = normalizeContainedAssetPath(await deps.joinPath(notesPath, baseSrc), notesPath);
+        const candidate = normalizeContainedAssetPath(await deps.joinPath(notesPath, localSrc), notesPath);
         return candidate ? [candidate] : [];
     }
 
@@ -109,7 +114,7 @@ export async function resolveImageSourcePathCandidates(
 
     if (currentNoteDir) {
         const noteRelativeCandidate = normalizeContainedAssetPath(
-            await deps.joinPath(currentNoteDir, baseSrc),
+            await deps.joinPath(currentNoteDir, localSrc),
             currentNoteAssetRoot,
         );
         if (noteRelativeCandidate) {
@@ -118,7 +123,7 @@ export async function resolveImageSourcePathCandidates(
     }
 
     if (notesPath) {
-        const vaultPath = normalizeContainedAssetPath(await deps.joinPath(notesPath, baseSrc), notesPath);
+        const vaultPath = normalizeContainedAssetPath(await deps.joinPath(notesPath, localSrc), notesPath);
         if (vaultPath && !candidates.includes(vaultPath)) {
             candidates.push(vaultPath);
         }

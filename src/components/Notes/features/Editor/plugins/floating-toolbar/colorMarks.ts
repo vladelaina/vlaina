@@ -2,6 +2,10 @@ import { $mark, $remark, $inputRule } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
 import { escapeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 import { remarkUnderline } from '@/components/common/markdown/colorMarkdown';
+import {
+  createCustomInlineTextProtectionPlugin,
+  createDelimitedMarkHandler,
+} from '../customInlineMarkStringify';
 import { remarkInlineColorHtmlPlugin, sanitizeCssColorValue } from './colorMarkdownHtml';
 
 type UndoableInputRule = InputRule & { undoable?: boolean };
@@ -153,10 +157,10 @@ export const underlineMark = $mark('underline', () => ({
       const text = node.text || '';
       if (text.includes('+')) {
         state.addNode('html', undefined, `<u>${escapeMarkdownHtmlText(text)}</u>`);
+        return true;
       } else {
-        state.addNode('text', undefined, `++${text}++`);
+        state.withMark(_mark, 'underline');
       }
-      return true;
     },
   },
 }));
@@ -183,11 +187,15 @@ export const underlineInputRule = $inputRule(() => {
   return rule;
 });
 export const remarkUnderlinePlugin = $remark('remarkUnderline', () => remarkUnderline);
+export const underlineStringifyPlugin = createCustomInlineTextProtectionPlugin({
+  underline: createDelimitedMarkHandler('++'),
+});
 export const colorMarksPlugin = [
   remarkInlineColorHtmlPlugin,
   textColorMark,
   bgColorMark,
   remarkUnderlinePlugin,
+  underlineStringifyPlugin,
   underlineMark,
   underlineInputRule,
 ].flat();

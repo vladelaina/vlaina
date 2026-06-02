@@ -124,6 +124,11 @@ describe('markdown syntax persistence matrix', () => {
       markdown: 'Use ==highlight==, X^2^, and H~2~O.',
     },
     {
+      name: 'escaped custom inline mark delimiters',
+      markdown: 'Use \\==literal==, X\\^2^, H\\~2~O, and \\++under++.',
+      expected: 'Use \\==literal==, X\\^2^, H\\~2\\~O, and \\++under++.',
+    },
+    {
       name: 'html superscript and subscript serialize to markdown syntax',
       markdown: 'Use <sup>up</sup>, and <sub>down</sub>.',
       expected: 'Use ^up^, and ~down~.',
@@ -161,6 +166,11 @@ describe('markdown syntax persistence matrix', () => {
         '<mark style="background-color: #ecf6ff">a * b &amp; c</mark>',
       ].join(' '),
       expectedText: 'Use literal [text] "quote" a * b & c',
+    },
+    {
+      name: 'custom inline color html with nested inline markdown',
+      markdown: '<span style="color : #123456"><em>nested</em></span> <mark style="background-color : #ecf6ff"><strong>bold</strong></mark>',
+      expectedText: 'nested bold',
     },
     {
       name: 'unsupported inline span html stays standard markdown html',
@@ -313,6 +323,27 @@ describe('markdown syntax persistence matrix', () => {
     {
       name: 'table of contents marker',
       markdown: ['[TOC]', '', '# Heading'].join('\n'),
+    },
+    {
+      name: 'escaped table of contents marker',
+      markdown: ['\\[TOC]', '', '# Heading'].join('\n'),
+    },
+    {
+      name: 'definition list',
+      markdown: ['Term', '', ': Definition'].join('\n'),
+    },
+    {
+      name: 'escaped definition list marker',
+      markdown: ['Term', '', '\\: Definition'].join('\n'),
+    },
+    {
+      name: 'abbreviation definition and usage',
+      markdown: ['*[HTML]: HyperText Markup Language', '', 'HTML demo'].join('\n'),
+      expectedText: 'HTML demo',
+    },
+    {
+      name: 'escaped abbreviation definition',
+      markdown: ['\\*[HTML]: HyperText Markup Language', '', 'HTML demo'].join('\n'),
     },
     {
       name: 'block alignment comments',

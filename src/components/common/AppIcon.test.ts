@@ -28,6 +28,11 @@ describe('AppIcon image loading', () => {
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/app/.vlaina/assets/icons/demo.png');
   });
 
+  it('loads global icon assets without treating query params as part of the filename', async () => {
+    await expect(loadAppIconImageSrc('img:/app/.vlaina/assets/icons/demo.png?cache=1#preview')).resolves.toBe('blob:icon');
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/app/.vlaina/assets/icons/demo.png');
+  });
+
   it('rejects absolute and traversing note-controlled icon paths', async () => {
     await expect(loadAppIconImageSrc('img:/etc/passwd')).resolves.toBeNull();
     await expect(loadAppIconImageSrc('img:/app/.vlaina/assets/icons/../../secret.png')).resolves.toBeNull();

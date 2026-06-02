@@ -1,6 +1,7 @@
 import {
   memo,
   useEffect,
+  useMemo,
   useState,
   useRef,
   type MouseEvent as ReactMouseEvent,
@@ -59,19 +60,63 @@ interface ThinkingBlockProps {
 }
 
 interface ThinkingMarkdownContentProps {
-  components: ReturnType<typeof createMarkdownComponents>;
+  componentOptions: Parameters<typeof createMarkdownComponents>[0];
   freezeRef: React.RefObject<boolean>;
   isStreaming: boolean;
   renderedThinking: string;
   streamBlocks: ReturnType<typeof useChatStreamBlocks>;
 }
 
+interface StreamingThinkingMarkdownBlockProps {
+  block: ReturnType<typeof useChatStreamBlocks>[number];
+  componentOptions: Parameters<typeof createMarkdownComponents>[0];
+}
+
+const StreamingThinkingMarkdownBlock = memo(function StreamingThinkingMarkdownBlock({
+  block,
+  componentOptions,
+}: StreamingThinkingMarkdownBlockProps) {
+  const components = useMemo(() => createMarkdownComponents({
+    ...componentOptions,
+    codeBlockIndexOffset: block.codeBlockIndexOffset,
+    imageIndexOffset: block.imageIndexOffset,
+  }), [block.codeBlockIndexOffset, block.content, block.imageIndexOffset, componentOptions]);
+  const rehypePlugins = useMemo(() => [
+    ...CHAT_MARKDOWN_REHYPE_PLUGINS,
+    [createChatStreamTextPlugin, {
+      births: block.births,
+      charDelay: block.charDelay,
+      nowMs: block.nowMs,
+      revealed: block.revealed,
+    }],
+  ], [block.births, block.charDelay, block.nowMs, block.revealed]);
+
+  return (
+    <ReactMarkdown
+      remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
+      rehypePlugins={rehypePlugins}
+      components={components}
+      urlTransform={readonlyMarkdownUrlTransform}
+    >
+      {block.content}
+    </ReactMarkdown>
+  );
+}, (prevProps, nextProps) => (
+  prevProps.block === nextProps.block &&
+  prevProps.componentOptions === nextProps.componentOptions
+));
+
 const ThinkingMarkdownContent = memo(function ThinkingMarkdownContent({
-  components,
+  componentOptions,
   isStreaming,
   renderedThinking,
   streamBlocks,
 }: ThinkingMarkdownContentProps) {
+  const components = useMemo(
+    () => createMarkdownComponents(componentOptions),
+    [componentOptions, renderedThinking],
+  );
+
   if (!isStreaming) {
     return (
       <ReactMarkdown
@@ -88,23 +133,11 @@ const ThinkingMarkdownContent = memo(function ThinkingMarkdownContent({
   return (
     <>
       {streamBlocks.map((block) => (
-        <ReactMarkdown
+        <StreamingThinkingMarkdownBlock
           key={block.key}
-          remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
-          rehypePlugins={[
-            ...CHAT_MARKDOWN_REHYPE_PLUGINS,
-            [createChatStreamTextPlugin, {
-              births: block.births,
-              charDelay: block.charDelay,
-              nowMs: block.nowMs,
-              revealed: block.revealed,
-            }],
-          ]}
-          components={components}
-          urlTransform={readonlyMarkdownUrlTransform}
-        >
-          {block.content}
-        </ReactMarkdown>
+          block={block}
+          componentOptions={componentOptions}
+        />
       ))}
     </>
   );
@@ -113,7 +146,7 @@ const ThinkingMarkdownContent = memo(function ThinkingMarkdownContent({
     return true;
   }
   return (
-    prevProps.components === nextProps.components &&
+    prevProps.componentOptions === nextProps.componentOptions &&
     prevProps.isStreaming === nextProps.isStreaming &&
     prevProps.renderedThinking === nextProps.renderedThinking &&
     prevProps.streamBlocks === nextProps.streamBlocks
@@ -253,7 +286,9 @@ export function ThinkingBlock({
     suspendStreamAnimation,
     selectionStreamClockPausedRef,
   );
-  const markdownComponents = createMarkdownComponents({ codeBlockIdBase: "thinking-code" });
+  const componentOptions = useMemo<Parameters<typeof createMarkdownComponents>[0]>(() => ({
+    codeBlockIdBase: "thinking-code",
+  }), []);
 
   const handleToggle = () => {
     setIsCollapsed((collapsed) => !collapsed);
@@ -466,7 +501,7 @@ export function ThinkingBlock({
           ].filter(Boolean).join(" ")}
         >
           <ThinkingMarkdownContent
-            components={markdownComponents}
+            componentOptions={componentOptions}
             freezeRef={selectionRenderFrozenRef}
             isStreaming={activelyThinking}
             renderedThinking={renderedThinking}

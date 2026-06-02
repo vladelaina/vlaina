@@ -6,6 +6,37 @@ import { isPublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { translate } from '@/lib/i18n';
 import { themeImageBlockStyleTokens } from '@/styles/themeTokens';
 
+const videoElementAttrs = new WeakMap<HTMLElement, VideoAttrs>();
+
+function parseVideoSize(value: string | undefined, fallback: number) {
+  const parsed = Number.parseInt(value || '', 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+export function setVideoElementAttrs(element: HTMLElement, attrs: VideoAttrs) {
+  videoElementAttrs.set(element, {
+    src: attrs.src,
+    title: attrs.title || '',
+    width: attrs.width || 560,
+    height: attrs.height || 315,
+  });
+  delete element.dataset.src;
+  delete element.dataset.title;
+}
+
+export function getVideoElementAttrs(element: HTMLElement): VideoAttrs {
+  const attrs = videoElementAttrs.get(element);
+  if (attrs) {
+    return attrs;
+  }
+  return {
+    src: element.dataset.src || '',
+    title: element.dataset.title || '',
+    width: parseVideoSize(element.dataset.width, 560),
+    height: parseVideoSize(element.dataset.height, 315),
+  };
+}
+
 function createVideoMessage(className: string, message: string): HTMLElement {
   const container = document.createElement('div');
   container.className = className;
@@ -60,8 +91,7 @@ export function createVideoDom(attrs: VideoAttrs): HTMLElement {
 
   const wrapper = document.createElement('div');
   wrapper.setAttribute('data-type', 'video');
-  wrapper.setAttribute('data-src', attrs.src);
-  wrapper.setAttribute('data-title', attrs.title || '');
+  setVideoElementAttrs(wrapper, attrs);
   wrapper.setAttribute('data-width', String(attrs.width || 560));
   wrapper.setAttribute('data-height', String(attrs.height || 315));
   wrapper.contentEditable = 'false';

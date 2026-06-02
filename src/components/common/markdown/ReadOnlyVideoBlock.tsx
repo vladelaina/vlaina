@@ -24,8 +24,6 @@ export function ReadOnlyVideoBlock({
       <div
         className="video-block"
         data-type="video"
-        data-src={src}
-        data-title={title}
         data-chat-selection-excluded="true"
       >
         <div className="video-error">
@@ -40,8 +38,6 @@ export function ReadOnlyVideoBlock({
       <div
         className="video-block"
         data-type="video"
-        data-src={src}
-        data-title={title}
         data-chat-selection-excluded="true"
       >
         <div className="video-placeholder">{translate('editor.video.remoteBlocked')}</div>
@@ -63,8 +59,6 @@ export function ReadOnlyVideoBlock({
       <div
         className="video-block"
         data-type="video"
-        data-src={src}
-        data-title={title}
         data-chat-selection-excluded="true"
       >
         <video src={parsed.embedUrl} controls preload="none" title={title || undefined} />
@@ -76,8 +70,6 @@ export function ReadOnlyVideoBlock({
     <div
       className="video-block"
       data-type="video"
-      data-src={src}
-      data-title={title}
       data-chat-selection-excluded="true"
     >
       <iframe

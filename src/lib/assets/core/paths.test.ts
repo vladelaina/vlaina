@@ -40,6 +40,14 @@ describe('asset path resolution', () => {
       .resolves.toBe('/vault/daily/assets/a.png');
   });
 
+  it('resolves asset paths with query and fragment against the local file path', async () => {
+    await expect(resolveVaultAssetPathCandidates('/vault', 'assets/a.png?cache=1#preview', 'daily/note.md'))
+      .resolves.toEqual([
+        '/vault/daily/assets/a.png',
+        '/vault/assets/a.png',
+      ]);
+  });
+
   it('offers a vault-root fallback for bare asset paths in nested notes', async () => {
     await expect(resolveVaultAssetPathCandidates('/vault', 'assets/a.png', 'daily/note.md'))
       .resolves.toEqual([

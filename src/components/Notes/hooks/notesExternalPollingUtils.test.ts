@@ -53,6 +53,42 @@ describe('notesExternalPollingUtils', () => {
     });
   });
 
+  it('detects unique file moves across parent folders', () => {
+    const previous = [
+      folder('docs', [file('docs/alpha.md')]),
+      folder('archive'),
+    ];
+    const next = [
+      folder('docs'),
+      folder('archive', [file('archive/alpha.md')]),
+    ];
+
+    expect(detectExternalTreePathChanges(previous, next)).toEqual({
+      renames: [{ oldPath: 'docs/alpha.md', newPath: 'archive/alpha.md' }],
+      deletions: [],
+      hasAdditions: false,
+      hasChanges: true,
+    });
+  });
+
+  it('does not infer cross-folder file moves with different names', () => {
+    const previous = [
+      folder('docs', [file('docs/alpha.md')]),
+      folder('archive'),
+    ];
+    const next = [
+      folder('docs'),
+      folder('archive', [file('archive/beta.md')]),
+    ];
+
+    expect(detectExternalTreePathChanges(previous, next)).toEqual({
+      renames: [],
+      deletions: ['docs/alpha.md'],
+      hasAdditions: true,
+      hasChanges: true,
+    });
+  });
+
   it('collapses nested deletions to the top-level removed folder', () => {
     const previous = [folder('docs', [folder('docs/guide', [file('docs/guide/intro.md')])])];
     const next: FileTreeNode[] = [];

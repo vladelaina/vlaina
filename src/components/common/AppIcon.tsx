@@ -8,7 +8,8 @@ import { joinPath } from '@/lib/storage/adapter';
 export async function loadAppIconImageSrc(src: string): Promise<string | null> {
   if (!src.startsWith('img:')) return src;
 
-  const path = src.substring(4);
+  const path = src.substring(4).split(/[?#]/, 1)[0] ?? '';
+  if (!path) return null;
   const { metadata } = await getPaths();
   const iconsRoot = await joinPath(metadata, 'assets', 'icons');
   const safePath = normalizeContainedAssetPath(path, iconsRoot);

@@ -63,6 +63,7 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
         }
         if (!vaultPath) return src;
         const fullPath = await resolveExistingVaultAssetPath(vaultPath, relativePath, currentNotePath);
+        if (!fullPath) return '';
         return await loadImageAsBlob(fullPath);
     }, [currentNotePath, vaultPath]);
 

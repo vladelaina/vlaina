@@ -1,4 +1,5 @@
 import { renderLatex } from './katex';
+import { setMathElementLatex } from './mathSchema';
 
 export function renderMathEditorLivePreview(args: {
   anchor: HTMLElement | null;
@@ -10,7 +11,7 @@ export function renderMathEditorLivePreview(args: {
     return false;
   }
 
-  anchor.dataset.latex = latex;
+  setMathElementLatex(anchor, latex);
   const { html } = renderLatex(latex, displayMode);
   anchor.innerHTML = html;
   return true;

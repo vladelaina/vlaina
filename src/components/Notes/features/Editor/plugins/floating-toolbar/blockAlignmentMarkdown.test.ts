@@ -226,6 +226,29 @@ describe('blockAlignmentMarkdown', () => {
     expect(tree.children[0].align).toBeUndefined();
   });
 
+  it('keeps alignment-looking text inside code nodes', () => {
+    const tree: any = {
+      type: 'root',
+      children: [
+        {
+          type: 'code',
+          lang: 'html',
+          value: '<!--align:center-->',
+        },
+      ],
+    };
+
+    applyAlignmentCommentsToTree(tree);
+
+    expect(tree.children).toEqual([
+      {
+        type: 'code',
+        lang: 'html',
+        value: '<!--align:center-->',
+      },
+    ]);
+  });
+
   it('does not override an existing alignment with a stale comment', () => {
     const tree: any = {
       type: 'root',

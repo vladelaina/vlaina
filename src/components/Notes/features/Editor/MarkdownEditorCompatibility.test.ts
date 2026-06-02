@@ -100,4 +100,13 @@ describe('MarkdownEditor compatibility', () => {
     expect(view.state.doc.textContent.replace(/\s+/g, '')).toContain(expectedText.replace(/\s+/g, ''));
     await editor.destroy();
   });
+
+  it('does not decorate escaped definition-list markers as definition lists', async () => {
+    const editor = await createEditor(['Term', '', '\\: Definition'].join('\n'));
+
+    const view = editor.ctx.get(editorViewCtx);
+    expect(view.dom.querySelector('.editor-dl-term')).toBeNull();
+    expect(view.dom.querySelector('.editor-dl-desc')).toBeNull();
+    await editor.destroy();
+  });
 });

@@ -1,7 +1,9 @@
-import { $node, $nodeAttr } from '@milkdown/kit/utils';
+import { $node } from '@milkdown/kit/utils';
 import { type DOMOutputSpec, type Node } from '@milkdown/kit/prose/model';
 import type { MathBlockAttrs, MathInlineAttrs } from './types';
 import { renderLatex } from './katex';
+
+const mathElementLatex = new WeakMap<HTMLElement, string>();
 
 function emptyMathMarkup() {
   return '<span class="math-empty" aria-hidden="true">\u200b</span>';
@@ -14,9 +16,18 @@ function renderLatexIntoElement(element: HTMLElement, latex: string, displayMode
   element.innerHTML = html;
 }
 
+export function setMathElementLatex(element: HTMLElement, latex: string) {
+  mathElementLatex.set(element, latex);
+  delete element.dataset.latex;
+}
+
+export function getMathElementLatex(element: HTMLElement) {
+  return mathElementLatex.get(element) ?? element.dataset.latex ?? '';
+}
+
 export function parseMathAttrs(dom: HTMLElement) {
   return {
-    latex: dom.dataset.latex || '',
+    latex: getMathElementLatex(dom),
   };
 }
 
@@ -31,7 +42,7 @@ export function createMathNodeDOM(args: {
 
   const wrapper = document.createElement(tagName);
   wrapper.setAttribute('data-type', dataType);
-  wrapper.setAttribute('data-latex', latex);
+  setMathElementLatex(wrapper, latex);
   wrapper.className = className;
   renderLatexIntoElement(wrapper, latex, displayMode);
 
@@ -89,22 +100,6 @@ export function serializeMathInlineToMarkdown(
 ) {
   state.addNode('inlineMath', undefined, String(node.attrs?.latex || ''));
 }
-
-export const mathBlockIdAttr = $nodeAttr('math_block', () => ({
-  latex: {
-    default: '',
-    get: (dom: HTMLElement) => dom.dataset.latex || '',
-    set: (value: string) => ({ 'data-latex': value }),
-  },
-}));
-
-export const mathInlineIdAttr = $nodeAttr('math_inline', () => ({
-  latex: {
-    default: '',
-    get: (dom: HTMLElement) => dom.dataset.latex || '',
-    set: (value: string) => ({ 'data-latex': value }),
-  },
-}));
 
 export const mathBlockSchema = $node('math_block', () => ({
   group: 'block',

@@ -300,6 +300,31 @@ describe('notesSidebarSearchResults', () => {
     expect(results[3].contentSnippet).toContain('alpha release checklist is still open.');
   });
 
+  it('searches markdown content using visible inline text instead of link targets', () => {
+    const index = [{
+      path: 'links.md',
+      name: 'links.md',
+      preview: '',
+    }];
+    const results = queryNotesSidebarSearch(index, 'target', () => [
+      '![target image](assets/diagram.png)',
+      '[visible [target label]](assets/file(target).md#hidden-target)',
+      '`target code`',
+      'Plain target text.',
+      '<span data-value="target">hidden attribute target</span>',
+    ].join('\n'));
+
+    expect(results.map((result) => result.contentSnippet)).toEqual([
+      'target code',
+      'Plain target text.',
+      'visible [target label]',
+    ]);
+    expect(results.map((result) => result.contentMatchOrdinal)).toEqual([1, 2, 0]);
+    expect(results.map((result) => result.contentSnippet).join(' ')).not.toContain('hidden-target');
+    expect(results.map((result) => result.contentSnippet).join(' ')).not.toContain('data-value');
+    expect(results.map((result) => result.contentSnippet)).not.toContain('target image');
+  });
+
   it('does not run content search for a single-character query', () => {
     const index = buildNotesSidebarSearchIndex(rootFolder, () => '');
     const results = queryNotesSidebarSearch(index, 'x', (path) =>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
+import { stripMarkdownExtension } from '@/lib/notes/displayName';
 import { NotesSidebarRow } from './NotesSidebarRow';
 import type { NotesSidebarTagEntry, NotesSidebarTagPath } from './notesSidebarTags';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
@@ -262,7 +263,7 @@ function NotesTagFileRow({
       isActive={currentNotePath === path}
       main={
         <span className="block min-w-0 max-w-full whitespace-normal break-words text-[var(--vlaina-font-base)] leading-5 text-[var(--vlaina-sidebar-notes-text)] [overflow-wrap:anywhere]">
-          {getDisplayName(path) || path.split('/').pop()?.replace(/\.md$/i, '') || path}
+          {getDisplayName(path) || stripMarkdownExtension(path.split('/').pop() ?? '') || path}
         </span>
       }
       onClick={() => onOpenNote(target)}

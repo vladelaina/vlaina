@@ -32,6 +32,14 @@ describe('imageSourcePath', () => {
         expect(getImageSourceBase('./assets/demo.png#preview')).toBe('./assets/demo.png');
     });
 
+    it('resolves local sources with query params against the image file path', async () => {
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: './assets/demo.png?cache=1#preview',
+            notesPath: '/vault',
+            currentNotePath: 'daily/2026-03-31.md',
+        }, deps)).resolves.toEqual(['/vault/daily/assets/demo.png']);
+    });
+
     it('detects virtual image sources', () => {
         expect(isVirtualImageSource('https://example.com/demo.png')).toBe(true);
         expect(isVirtualImageSource('blob:http://localhost/demo')).toBe(true);

@@ -14,6 +14,7 @@ import {
 } from '@/components/Chat/features/Layout/chatAssistantMarkdownBlockParser';
 import { CHAT_STREAM_FADE_MS } from './chatStreamTextPlugin';
 import { MARKDOWN_BLOCK_GAP } from '@/components/common/markdown/markdownMetrics';
+import { countFencedCodeBlocks, countRenderableImages } from './chatStreamTextMetadata';
 import { themeChatStreamTokens, themeTypographyTokens } from '@/styles/themeTokens';
 
 const BASE_CHAR_DELAY_MS = themeChatStreamTokens.baseCharDelayMs;
@@ -90,30 +91,6 @@ function findStableMarkdownSplit(content: string): number {
   }
 
   return splitIndex;
-}
-
-function countFencedCodeBlocks(markdown: string): number {
-  let count = 0;
-  let activeFence: MarkdownFenceState | null = null;
-  for (const line of markdown.split('\n')) {
-    if (activeFence) {
-      if (isMarkdownFenceClose(line, activeFence)) {
-        activeFence = null;
-      }
-      continue;
-    }
-
-    const fence = getMarkdownFenceState(line);
-    if (fence) {
-      count += 1;
-      activeFence = fence;
-    }
-  }
-  return count;
-}
-
-function countMarkdownImages(markdown: string): number {
-  return markdown.match(/!\[[^\]]*]\([^)]+\)/g)?.length ?? 0;
 }
 
 export function buildChatStreamSchedule(
@@ -282,7 +259,7 @@ export function useChatStreamBlocks(
           charDelay: charDelayRef.current,
           codeBlockIndexOffset: countFencedCodeBlocks(stableContent),
           content: activeContent,
-          imageIndexOffset: countMarkdownImages(stableContent),
+          imageIndexOffset: countRenderableImages(stableContent),
           key: 'stream',
           nowMs: renderNow,
           revealed: birthsRef.current.length === 0 || renderNow - lastBirth >= CHAT_STREAM_FADE_MS,

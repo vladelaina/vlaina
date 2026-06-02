@@ -3,14 +3,17 @@ import { applyAbbrDefinitionsToTree } from './abbrMarkdown';
 import { applyAlignmentCommentsToTree } from './blockAlignment';
 import { applyDefinitionListsToTree } from './definitionListMarkdown';
 import { applyTocShortcutsToTree } from './tocMarkdown';
+import { consumeLeadingCalloutEmoji } from './calloutEmoji';
 import {
   createBgColorMdastNode,
   createTextColorMdastNode,
   createUnderlineMdastNode,
+  containsRawHtmlTag,
+  extractCssColorDeclaration,
   replaceInlineColorHtmlMark,
   replaceUnderlineMarkdown,
-  sanitizeCssColorValue,
 } from './colorMarkdown';
+import { findDelimitedTextMatches } from './delimitedMarkdown';
 
 export interface MdastNode {
   type: string;
@@ -24,6 +27,10 @@ export interface MdastNode {
     start?: { offset?: number };
     end?: { offset?: number };
   };
+}
+
+export interface RemarkNotesInlineExtensionsOptions {
+  stripAbbrDefinitions?: boolean;
 }
 
 function iconDataFromCalloutValue(value: string | null | undefined) {
@@ -74,8 +81,7 @@ function getCalloutIconFromBlockquote(node: MdastNode): string | null {
   const markerIcon = decodeCalloutIconComment(text.value || '');
   if (markerIcon) return markerIcon;
 
-  const emojiMatch = (text.value || '').match(/^([\p{Emoji}]+)\s*/u);
-  return emojiMatch?.[1] ?? null;
+  return consumeLeadingCalloutEmoji(text.value || '')?.icon ?? null;
 }
 
 function transformCalloutBlockquotes(tree: MdastNode) {
@@ -99,7 +105,7 @@ function transformCalloutBlockquotes(tree: MdastNode) {
         const markerIcon = decodeCalloutIconComment(firstText.value || '');
         const remainingText = markerIcon
           ? (firstText.value || '').replace(/^\s*\[!callout-icon:[^\]]+\]\s*/u, '')
-          : (firstText.value || '').replace(/^[\p{Emoji}]+\s*/u, '');
+          : (consumeLeadingCalloutEmoji(firstText.value || '')?.rest ?? firstText.value ?? '');
         if (remainingText) {
           firstText.value = remainingText;
         } else {
@@ -192,29 +198,21 @@ function replaceInlineColorHtmlContainerMark(tree: MdastNode) {
       if (closeIndex <= index + 1) continue;
 
       const content = node.children.slice(index + 1, closeIndex);
-      const canCollapseToColorMark = content.every((contentNode) => contentNode.type === 'text');
+      const canCollapseToColorMark = content.every((contentNode) => (
+        contentNode.type === 'text' &&
+        typeof contentNode.value === 'string' &&
+        !containsRawHtmlTag(contentNode.value)
+      ));
       if (!canCollapseToColorMark && (textColorOpen || bgColorOpen)) {
         continue;
       }
 
       let nextNode: MdastNode | null = null;
       if (textColorOpen) {
-        const color = sanitizeCssColorValue(
-          textColorOpen[1]
-            .split(';')
-            .map((part) => part.trim())
-            .find((part) => part.toLowerCase().startsWith('color:'))
-            ?.slice('color:'.length)
-        );
+        const color = extractCssColorDeclaration(textColorOpen[1], 'color');
         if (color) nextNode = createTextColorMdastNode(color, content) as MdastNode;
       } else if (bgColorOpen) {
-        const color = sanitizeCssColorValue(
-          bgColorOpen[1]
-            .split(';')
-            .map((part) => part.trim())
-            .find((part) => part.toLowerCase().startsWith('background-color:'))
-            ?.slice('background-color:'.length)
-        );
+        const color = extractCssColorDeclaration(bgColorOpen[1], 'background-color');
         if (color) nextNode = createBgColorMdastNode(color, content) as MdastNode;
       } else if (underlineOpen) {
         nextNode = createUnderlineMdastNode(content) as MdastNode;
@@ -229,7 +227,13 @@ function replaceInlineColorHtmlContainerMark(tree: MdastNode) {
   visit(tree);
 }
 
-function replaceDelimitedTextMark(tree: MdastNode, type: string, regex: RegExp) {
+function replaceDelimitedTextMark(
+  tree: MdastNode,
+  type: string,
+  regex: RegExp,
+  markdown: string,
+  delimiterLength: number
+) {
   function visit(node: MdastNode, parent?: MdastNode, index?: number): void {
     if (node.children) {
       for (let i = node.children.length - 1; i >= 0; i -= 1) {
@@ -239,18 +243,11 @@ function replaceDelimitedTextMark(tree: MdastNode, type: string, regex: RegExp) 
 
     if (node.type !== 'text' || !node.value || !parent || index === undefined) return;
 
-    const matches: Array<{ start: number; end: number; content: string }> = [];
-    let match: RegExpExecArray | null;
-    regex.lastIndex = 0;
-
-    while ((match = regex.exec(node.value)) !== null) {
-      matches.push({
-        start: match.index,
-        end: match.index + match[0].length,
-        content: match[1],
-      });
-    }
-
+    const matches = findDelimitedTextMatches(node.value, regex, {
+      markdown,
+      position: node.position,
+      openDelimiterLength: delimiterLength,
+    });
     if (matches.length === 0) return;
 
     const nextChildren: MdastNode[] = [];
@@ -364,21 +361,21 @@ function replaceSingleTildeDeleteMark(tree: MdastNode, markdown: string) {
   visit(tree);
 }
 
-export function remarkNotesInlineExtensions() {
+export function remarkNotesInlineExtensions(options: RemarkNotesInlineExtensionsOptions = {}) {
   return (tree: MdastNode, file?: { value?: unknown }) => {
     const markdown = typeof file?.value === 'string' ? file.value : '';
-    applyDefinitionListsToTree(tree);
-    applyTocShortcutsToTree(tree);
-    applyAbbrDefinitionsToTree(tree);
+    applyDefinitionListsToTree(tree, markdown);
+    applyTocShortcutsToTree(tree, markdown);
+    applyAbbrDefinitionsToTree(tree, { markdown, stripDefinitions: options.stripAbbrDefinitions });
     applyAlignmentCommentsToTree(tree);
     transformCalloutBlockquotes(tree);
-    replaceDelimitedTextMark(tree, 'highlight', /==([^=]+)==/g);
-    replaceDelimitedTextMark(tree, 'superscript', /(?<!\^)\^([^^\s](?:[^^]*?[^^\s])?)\^(?!\^)/g);
-    replaceDelimitedTextMark(tree, 'subscript', /(?<!~)~([^~\s](?:[^~]*?[^~\s])?)~(?!~)/g);
+    replaceDelimitedTextMark(tree, 'highlight', /==([^=]+)==/g, markdown, 2);
+    replaceDelimitedTextMark(tree, 'superscript', /(?<!\^)\^([^^\s](?:[^^]*?[^^\s])?)\^(?!\^)/g, markdown, 1);
+    replaceDelimitedTextMark(tree, 'subscript', /(?<!~)~([^~\s](?:[^~]*?[^~\s])?)~(?!~)/g, markdown, 1);
     if (markdown) {
       replaceSingleTildeDeleteMark(tree, markdown);
     }
-    replaceUnderlineMarkdown(tree);
+    replaceUnderlineMarkdown(tree, markdown);
     replaceInlineColorHtmlMark(tree);
     replaceInlineHtmlMark(tree, 'highlight', /^<mark>([\s\S]*?)<\/mark>$/i);
     replaceInlineHtmlMark(tree, 'superscript', /^<sup>([\s\S]*?)<\/sup>$/i);

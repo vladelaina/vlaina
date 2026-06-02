@@ -116,6 +116,22 @@ describe("CodeBlock", () => {
     expect(mocks.highlightAuto).toHaveBeenCalledWith("just text");
   });
 
+  it("skips auto-highlight for large unknown code blocks", () => {
+    mocks.getLanguage.mockReturnValue(false);
+    const largeCode = `<script>${"x".repeat(20_001)}</script>`;
+
+    const { container } = render(
+      <CodeBlock className="language-unknown">
+        {largeCode}
+      </CodeBlock>,
+    );
+
+    expect(mocks.highlight).not.toHaveBeenCalled();
+    expect(mocks.highlightAuto).not.toHaveBeenCalled();
+    expect(container.querySelector("script")).toBeNull();
+    expect(container.querySelector("code")?.textContent).toBe(largeCode);
+  });
+
   it("memoizes highlighting for identical rerenders and recomputes only on content change", () => {
     const { rerender } = render(
       <CodeBlock className="language-ts">

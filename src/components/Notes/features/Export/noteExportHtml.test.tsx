@@ -20,9 +20,11 @@ describe('renderNoteExportHtml', () => {
         '<svg><script>alert(2)</script></svg>',
         '<a href="javascript:alert(3)" onclick="alert(4)">bad</a>',
         '<a href="file:///etc/passwd">file</a>',
+        '<a href="//example.com/protocol-relative">protocol</a>',
         '<a href="https://example.com" onclick="alert(5)">safe</a>',
         '<a href="mailto:user@example.com">mail</a>',
         '<img src="assets/demo.png" onerror="alert(6)" alt="demo">',
+        '[protocol markdown](//example.com/markdown)',
       ].join('\n'),
       'Unsafe <Title>',
     );
@@ -35,9 +37,26 @@ describe('renderNoteExportHtml', () => {
     expect(doc.querySelector('[onerror]')).toBeNull();
     expect(doc.querySelector('a[href^="javascript:"]')).toBeNull();
     expect(doc.querySelector('a[href^="file:"]')).toBeNull();
+    expect(doc.querySelector('a[href^="//"]')).toBeNull();
+    expect(doc.body.textContent).toContain('protocol');
+    expect(doc.body.textContent).toContain('protocol markdown');
     expect(doc.querySelector('a[href="https://example.com"]')?.textContent).toBe('safe');
     expect(doc.querySelector('a[href="mailto:user@example.com"]')?.textContent).toBe('mail');
     expect(doc.querySelector('img[src="assets/demo.png"]')?.getAttribute('alt')).toBe('demo');
+  });
+
+  it('strips arbitrary raw div data attributes from exported markdown', async () => {
+    const html = await renderNoteExportHtml(
+      '<div data-token="hidden_export_marker" data-track="1">safe div</div>',
+      'Data Attributes',
+    );
+    const doc = parseExportHtml(html);
+    const div = doc.querySelector('.note-export-body > div');
+
+    expect(div?.textContent).toBe('safe div');
+    expect(div?.getAttribute('data-token')).toBeNull();
+    expect(div?.getAttribute('data-track')).toBeNull();
+    expect(html).not.toContain('hidden_export_marker');
   });
 
   it('blocks exported images that can execute code or trigger external loads', async () => {
@@ -65,5 +84,19 @@ describe('renderNoteExportHtml', () => {
     expect(html).not.toContain('http://127.0.0.1/pixel.png');
     expect(html).not.toContain('blob:https://example.com/id');
     expect(html).not.toContain('/etc/passwd');
+  });
+
+  it('renders exported math with shared KaTeX settings without source annotations', async () => {
+    const html = await renderNoteExportHtml(
+      'Inline $\\R$ and hidden $x% hidden_export_marker$',
+      'Math',
+    );
+    const doc = parseExportHtml(html);
+
+    expect(doc.querySelector('.katex')).toBeInstanceOf(HTMLElement);
+    expect(doc.querySelector('style')?.textContent).toContain('.katex');
+    expect(html).toContain('mathbb');
+    expect(html).not.toContain('application/x-tex');
+    expect(html).not.toContain('hidden_export_marker');
   });
 });

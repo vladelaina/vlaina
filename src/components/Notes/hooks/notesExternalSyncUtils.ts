@@ -1,33 +1,42 @@
 import type { DesktopWatchEvent } from '@/lib/desktop/watch';
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { APP_CONFIG_FOLDER } from '@/stores/notes/constants';
 
 export function normalizeFsPath(path: string): string {
   return normalizeNotePathKey(path) ?? path;
 }
 
+export function getFsPathComparisonKey(path: string): string {
+  return /^[a-z]:\//i.test(path) ? path.toLowerCase() : path;
+}
+
 export function isInsideVault(vaultPath: string, absolutePath: string): boolean {
   const normalizedVaultPath = normalizeFsPath(vaultPath);
   const normalizedAbsolutePath = normalizeFsPath(absolutePath);
+  const vaultPathKey = getFsPathComparisonKey(normalizedVaultPath);
+  const absolutePathKey = getFsPathComparisonKey(normalizedAbsolutePath);
   if (normalizedVaultPath === '/') {
     return normalizedAbsolutePath === '/' || normalizedAbsolutePath.startsWith('/');
   }
 
   return (
-    normalizedAbsolutePath === normalizedVaultPath ||
-    normalizedAbsolutePath.startsWith(`${normalizedVaultPath}/`)
+    absolutePathKey === vaultPathKey ||
+    absolutePathKey.startsWith(`${vaultPathKey}/`)
   );
 }
 
 export function toVaultRelativePath(vaultPath: string, absolutePath: string): string | null {
   const normalizedVaultPath = normalizeFsPath(vaultPath);
   const normalizedAbsolutePath = normalizeFsPath(absolutePath);
+  const vaultPathKey = getFsPathComparisonKey(normalizedVaultPath);
+  const absolutePathKey = getFsPathComparisonKey(normalizedAbsolutePath);
 
   if (!isInsideVault(normalizedVaultPath, normalizedAbsolutePath)) {
     return null;
   }
 
-  if (normalizedAbsolutePath === normalizedVaultPath) {
+  if (absolutePathKey === vaultPathKey) {
     return '';
   }
 
@@ -51,7 +60,7 @@ export function isIgnoredWatchPath(relativePath: string): boolean {
 }
 
 export function isMarkdownPath(relativePath: string): boolean {
-  return relativePath.toLowerCase().endsWith('.md');
+  return isSupportedMarkdownPath(relativePath);
 }
 
 function toRelevantRelativePath(vaultPath: string, absolutePath: string): string | null {

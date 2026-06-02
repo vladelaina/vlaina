@@ -1,4 +1,5 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import {
   RECENT_NOTES_KEY,
   NOTE_ICON_SIZE_KEY,
@@ -9,6 +10,7 @@ import type { FileTreeSortMode, MetadataFile, NoteCoverMetadata, NoteMetadataEnt
 import { normalizeNoteMetadataEntry, readNoteMetadataFromMarkdown } from './frontmatter';
 import { ensureSystemDirectory, getVaultSystemStorePath } from './systemStoragePaths';
 import { normalizeRecentNotePaths, normalizeWorkspaceState } from './persistenceValidation';
+import { isSafeVaultPathSegment } from './utils/fs/vaultPathContainment';
 
 export type { MetadataFile, NoteMetadataEntry };
 
@@ -174,6 +176,10 @@ async function collectMarkdownPaths(
     }
     budget.visitedEntries += 1;
 
+    if (!isSafeVaultPathSegment(entry.name)) {
+      continue;
+    }
+
     if (entry.name.startsWith('.')) {
       continue;
     }
@@ -188,7 +194,7 @@ async function collectMarkdownPaths(
       continue;
     }
 
-    if (entry.isFile === true && entry.name.toLowerCase().endsWith('.md')) {
+    if (entry.isFile === true && isSupportedMarkdownPath(entry.name)) {
       collected.push(entryPath);
     }
   }

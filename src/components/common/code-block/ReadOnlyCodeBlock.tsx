@@ -14,6 +14,7 @@ interface ReadOnlyCodeBlockProps {
 }
 
 const LANGUAGE_CLASS_PATTERN = /language-([\w+-]+)/;
+const MAX_AUTO_HIGHLIGHT_CHARS = 20_000;
 
 function escapeHtml(input: string): string {
   return input
@@ -67,6 +68,9 @@ export const ReadOnlyCodeBlock = memo(function ReadOnlyCodeBlock({
     try {
       if (language && markdownHighlighter.getLanguage(language)) {
         return markdownHighlighter.highlight(codeText, { language }).value;
+      }
+      if (codeText.length > MAX_AUTO_HIGHLIGHT_CHARS) {
+        return escapeHtml(codeText);
       }
       return markdownHighlighter.highlightAuto(codeText).value;
     } catch {

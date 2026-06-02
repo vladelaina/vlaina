@@ -22,7 +22,7 @@ import {
 } from './notesExternalPollingUtils';
 import { createCurrentNoteExternalSync } from './notesExternalCurrentNoteSync';
 import { createNotesExternalSyncTimers } from './notesExternalSyncTimers';
-import { classifyWatchEventPaths } from './notesExternalWatchEventDebug';
+import { classifyWatchEventPaths, hasBlockedRenameEndpoint } from './notesExternalWatchEventDebug';
 
 const PENDING_RENAME_TTL_MS = 180;
 
@@ -382,10 +382,13 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
       return;
     }
 
-    const renamePaths = getRelativeRenameWatchPaths(vaultPath, {
-      ...event,
-      paths: unexpectedPaths,
-    });
+    const isBlockedRenameEvent = hasBlockedRenameEndpoint(event, pathDetails);
+    const renamePaths = isBlockedRenameEvent
+      ? null
+      : getRelativeRenameWatchPaths(vaultPath, {
+          ...event,
+          paths: unexpectedPaths,
+        });
     if (renamePaths) {
       const { oldPath, newPath } = renamePaths;
 

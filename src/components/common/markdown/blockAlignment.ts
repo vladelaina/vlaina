@@ -68,7 +68,9 @@ function visitAlignmentComments(node: AlignmentAwareMdastNode): void {
 
   for (let index = 0; index < node.children.length; index += 1) {
     const child = node.children[index];
-    const childAlignment = extractTextAlignmentComment(child.value);
+    const childAlignment = child.type === 'html'
+      ? extractTextAlignmentComment(child.value)
+      : null;
 
     if (childAlignment) {
       const previousSibling = nextChildren[nextChildren.length - 1];

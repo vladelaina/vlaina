@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   Editor,
+  commandsCtx,
   defaultValueCtx,
   editorViewCtx,
   remarkStringifyOptionsCtx,
@@ -12,10 +13,11 @@ import {
   isSupportedVideoUrl,
   normalizeVideoUrlInput,
   parseVideoUrl,
+  sanitizeVideoUrlInput,
   sanitizeVideoDebugPayload,
 } from './index';
-import { createVideoDom } from './videoDom';
-import { videoPlugin } from './videoPlugin';
+import { createVideoDom, getVideoElementAttrs } from './videoDom';
+import { insertVideoCommand, videoPlugin } from './videoPlugin';
 
 async function serializeVideoNode(src: string, title = '') {
   const editor = Editor.make()
@@ -40,6 +42,16 @@ async function serializeVideoNode(src: string, title = '') {
   const markdown = editor.ctx.get(serializerCtx)(doc).trim();
   await editor.destroy();
   return markdown;
+}
+
+function findFirstVideoNode(doc: any) {
+  let video: any = null;
+  doc.descendants((node: any) => {
+    if (node.type.name !== 'video') return true;
+    video = node;
+    return false;
+  });
+  return video;
 }
 
 describe('videoPlugin URL support', () => {
@@ -80,11 +92,15 @@ describe('videoPlugin URL support', () => {
 
   it('rejects non-video URLs instead of creating a blank embed', () => {
     expect(isSupportedVideoUrl('https://example.com/article')).toBe(false);
+    expect(isSupportedVideoUrl('https://example.com/path/bilibili.com/video/BV1xx411c7mD')).toBe(false);
+    expect(isSupportedVideoUrl('https://example.com/?next=https://www.bilibili.com/video/BV1xx411c7mD')).toBe(false);
   });
 
   it('rejects local file and private-network direct video URLs', () => {
     expect(parseVideoUrl('file:///tmp/secret.mp4')).toBeNull();
     expect(parseVideoUrl('data:video/mp4;base64,AAAA')).toBeNull();
+    expect(parseVideoUrl('ftp://youtube.com/watch?v=dQw4w9WgXcQ')).toBeNull();
+    expect(parseVideoUrl('file://bilibili.com/video/BV1xx411c7mD')).toBeNull();
     expect(parseVideoUrl('http://localhost:3000/secret.mp4')).toBeNull();
     expect(parseVideoUrl('http://127.0.0.1:3000/secret.mp4')).toBeNull();
     expect(parseVideoUrl('http://192.168.1.8/secret.mp4')).toBeNull();
@@ -104,6 +120,17 @@ describe('videoPlugin URL support', () => {
     expect(isSupportedVideoUrl(`https://example.com/${'a'.repeat(2050)}.mp4`)).toBe(false);
     expect(isSupportedVideoUrl('https://example.com/\u202Ecod.mp4')).toBe(false);
     expect(isSupportedVideoUrl('https://example.com/\u0000video.mp4')).toBe(false);
+  });
+
+  it('sanitizes video URLs before they enter editor state', () => {
+    expect(sanitizeVideoUrlInput('  https://example.com/video.mp4  ')).toBe('https://example.com/video.mp4');
+    expect(sanitizeVideoUrlInput('', { allowEmpty: true })).toBe('');
+
+    expect(sanitizeVideoUrlInput('')).toBeNull();
+    expect(sanitizeVideoUrlInput('https://example.com/article')).toBeNull();
+    expect(sanitizeVideoUrlInput('javascript:alert(1)')).toBeNull();
+    expect(sanitizeVideoUrlInput('ftp://youtube.com/watch?v=dQw4w9WgXcQ')).toBeNull();
+    expect(sanitizeVideoUrlInput('http://127.0.0.1:3000/secret.mp4')).toBeNull();
   });
 
   it('redacts video URL debug payloads', () => {
@@ -168,6 +195,44 @@ describe('videoPlugin URL support', () => {
     addEventListenerSpy.mockRestore();
   });
 
+  it('stores editor video source metadata without leaking it into wrapper attributes', () => {
+    const src = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&token=secret';
+    const dom = createVideoDom({
+      src,
+      title: 'private title',
+      width: 640,
+      height: 360,
+    });
+
+    expect(dom).not.toHaveAttribute('data-src');
+    expect(dom).not.toHaveAttribute('data-title');
+    expect(dom).toHaveAttribute('data-width', '640');
+    expect(dom).toHaveAttribute('data-height', '360');
+    expect(getVideoElementAttrs(dom)).toEqual({
+      src,
+      title: 'private title',
+      width: 640,
+      height: 360,
+    });
+    expect(dom.outerHTML).not.toContain('token=secret');
+    expect(dom.outerHTML).not.toContain('private title');
+  });
+
+  it('keeps parsing legacy video wrapper attributes', () => {
+    const dom = document.createElement('div');
+    dom.dataset.src = 'https://example.com/video.mp4';
+    dom.dataset.title = 'Legacy video';
+    dom.dataset.width = '640';
+    dom.dataset.height = '360';
+
+    expect(getVideoElementAttrs(dom)).toEqual({
+      src: 'https://example.com/video.mp4',
+      title: 'Legacy video',
+      width: 640,
+      height: 360,
+    });
+  });
+
   it('serializes supported video nodes as markdown image syntax', async () => {
     await expect(serializeVideoNode(' https://example.com/video.mp4 ', 'Demo video')).resolves.toBe(
       '![video](https://example.com/video.mp4 "Demo video")'
@@ -178,5 +243,37 @@ describe('videoPlugin URL support', () => {
     await expect(serializeVideoNode('javascript:alert(1)')).resolves.toBe('');
     await expect(serializeVideoNode('http://127.0.0.1:3000/secret.mp4')).resolves.toBe('');
     await expect(serializeVideoNode('https://example.com/article')).resolves.toBe('');
+  });
+
+  it('does not insert unsupported video command URLs into the document', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark);
+
+    for (const plugin of videoPlugin) {
+      editor.use(plugin);
+    }
+
+    await editor.create();
+
+    const commands = editor.ctx.get(commandsCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const userInputListener = vi.fn();
+    view.dom.addEventListener('editor:block-user-input', userInputListener);
+
+    expect(commands.call(insertVideoCommand.key, 'javascript:alert(1)')).toBe(false);
+    expect(findFirstVideoNode(view.state.doc)).toBeNull();
+    expect(userInputListener).not.toHaveBeenCalled();
+
+    expect(commands.call(insertVideoCommand.key, ' https://example.com/video.mp4 ')).toBe(true);
+    const video = findFirstVideoNode(view.state.doc);
+    expect(video?.type.name).toBe('video');
+    expect(video?.attrs.src).toBe('https://example.com/video.mp4');
+    expect(userInputListener).toHaveBeenCalledTimes(1);
+
+    view.dom.removeEventListener('editor:block-user-input', userInputListener);
+    await editor.destroy();
   });
 });

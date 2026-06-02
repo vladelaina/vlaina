@@ -17,6 +17,9 @@ import {
     normalizeTextAlignment,
     updateSchemaFactory,
 } from './themeSchemaUtils';
+import {
+    readEscapedMarkdownBlockSyntax,
+} from '@/components/common/markdown/escapedBlockSyntax';
 
 export function applyTextSchemaOverrides(ctx: Ctx) {
     updateSchemaFactory(ctx, paragraphSchema.key, (prev: any) => ({
@@ -24,6 +27,7 @@ export function applyTextSchemaOverrides(ctx: Ctx) {
         attrs: {
             ...(prev.attrs || {}),
             align: { default: 'left' },
+            vlainaEscapedBlockSyntax: { default: null },
         },
         toDOM: (node: any) => [
             'p',
@@ -43,7 +47,12 @@ export function applyTextSchemaOverrides(ctx: Ctx) {
             match: (node: any) => node.type === 'paragraph',
             runner: (state: any, node: any, type: any) => {
                 const align = readMarkdownNodeAlignment(node);
-                state.openNode(type, align !== 'left' ? { align } : undefined);
+                const escapedBlockSyntax = readEscapedMarkdownBlockSyntax(node);
+                const attrs = {
+                    ...(align !== 'left' ? { align } : {}),
+                    ...(escapedBlockSyntax ? { vlainaEscapedBlockSyntax: escapedBlockSyntax } : {}),
+                };
+                state.openNode(type, Object.keys(attrs).length > 0 ? attrs : undefined);
                 state.next(node.children);
                 state.closeNode();
             },

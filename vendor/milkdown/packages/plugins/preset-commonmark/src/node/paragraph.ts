@@ -37,7 +37,14 @@ export const paragraphSchema = $nodeSchema('paragraph', (ctx) => ({
       const view = ctx.get(editorViewCtx)
       const lastNode = view.state?.doc.lastChild
 
-      state.openNode('paragraph')
+      const escapedBlockSyntax = node.attrs?.vlainaEscapedBlockSyntax
+      state.openNode(
+        'paragraph',
+        undefined,
+        typeof escapedBlockSyntax === 'string'
+          ? { vlainaEscapedBlockSyntax: escapedBlockSyntax }
+          : undefined
+      )
       if (
         (!node.content || node.content.size === 0) &&
         node !== lastNode &&

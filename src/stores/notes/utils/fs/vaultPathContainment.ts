@@ -1,5 +1,15 @@
 import { isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 
+export function isSafeVaultPathSegment(segment: string | undefined): segment is string {
+  return (
+    !!segment &&
+    segment !== '.' &&
+    segment !== '..' &&
+    !segment.includes('\0') &&
+    !/[\\/]/.test(segment)
+  );
+}
+
 export function normalizeVaultRelativePath(
   path: string | undefined,
   options: { allowEmpty?: boolean } = {},

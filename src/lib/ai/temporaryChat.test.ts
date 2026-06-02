@@ -44,6 +44,26 @@ describe("buildTitleSourceFromMessages", () => {
     expect(buildTitleSourceFromMessages(messages)).toBe("Plan trip to Tokyo");
   });
 
+  it("removes only renderable markdown image tokens from title source", () => {
+    const messages: ChatMessage[] = [
+      createMessage({
+        role: "user",
+        content: [
+          '![outer [nested]](<asset://file(one).png> "Title")',
+          "```md",
+          "![example](asset://code.png)",
+          "```",
+          String.raw`\![literal](asset://escaped.png)`,
+          "Plan trip to Tokyo",
+        ].join("\n"),
+      }),
+    ];
+
+    expect(buildTitleSourceFromMessages(messages)).toBe(
+      "```md ![example](asset://code.png) ``` \\![literal](asset://escaped.png) Plan trip to Tokyo",
+    );
+  });
+
   it("removes rendered thinking content from title source messages", () => {
     const messages: ChatMessage[] = [
       createMessage({

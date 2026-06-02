@@ -1,5 +1,6 @@
 import type { ChatMessage, ChatSession } from '@/lib/ai/types';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
+import { replaceMarkdownImageTokens } from '@/lib/markdown/markdownImageTokens';
 
 export const TEMP_SESSION_PREFIX = 'temp-session-';
 
@@ -67,7 +68,6 @@ export function hasUserMessage(messages: ChatMessage[]): boolean {
   return messages.some((message) => message.role === 'user');
 }
 
-const IMAGE_MARKDOWN_REGEX = /!\[.*?\]\(.*?\)/g;
 const TITLE_SOURCE_MAX_LENGTH = 1200;
 const AUTO_TITLE_PLACEHOLDERS = new Set(['New', 'New Chat']);
 
@@ -80,8 +80,7 @@ export function buildTitleSourceFromMessages(messages: ChatMessage[]): string {
   const userSnippets = messages
     .filter((message) => message.role === 'user')
     .map((message) =>
-      stripThinkingContent(message.content)
-        .replace(IMAGE_MARKDOWN_REGEX, ' ')
+      replaceMarkdownImageTokens(stripThinkingContent(message.content), ' ')
         .replace(/\s+/g, ' ')
         .trim()
     )

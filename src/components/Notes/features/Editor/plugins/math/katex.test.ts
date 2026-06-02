@@ -22,6 +22,15 @@ describe('katex utils', () => {
     expect(result.html).toContain('katex');
   });
 
+  it('removes raw TeX source annotations from rendered markup', () => {
+    const result = renderLatex('x% hidden_secret_marker', false);
+
+    expect(result.error).toBeNull();
+    expect(result.html).toContain('katex');
+    expect(result.html).not.toContain('application/x-tex');
+    expect(result.html).not.toContain('hidden_secret_marker');
+  });
+
   it('supports configured macros during rendering', () => {
     const result = renderLatex('\\R', false);
 

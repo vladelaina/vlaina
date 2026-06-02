@@ -74,6 +74,22 @@ describe('useLocalImage', () => {
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/assets/demo.png');
   });
 
+  it('loads local image files without treating query params as part of the filename', async () => {
+    hoisted.loadImageAsBlob.mockResolvedValueOnce('blob:local-image');
+
+    const { result } = renderHook(() =>
+      useLocalImage('./assets/demo.png?cache=1#preview', '/vault', 'daily/demo.md')
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.resolvedSrc).toBe('blob:local-image');
+    expect(result.current.error).toBeNull();
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/daily/assets/demo.png');
+  });
+
   it('does not render note-controlled unsupported media schemes', async () => {
     const { result } = renderHook(() =>
       useLocalImage('asset://localhost/secret.png', '/vault', 'daily/demo.md')

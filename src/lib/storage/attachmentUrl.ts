@@ -1,8 +1,22 @@
 const ATTACHMENT_DIR_MARKER = '/attachments/';
+const ATTACHMENT_FILENAME_UNSAFE_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
+
+function stripUrlSuffix(value: string): string {
+  const queryIndex = value.indexOf('?');
+  const hashIndex = value.indexOf('#');
+  const suffixIndex = [queryIndex, hashIndex].filter((index) => index !== -1).sort((a, b) => a - b)[0];
+  return suffixIndex === undefined ? value : value.slice(0, suffixIndex);
+}
 
 export function sanitizeAttachmentFilename(value: string): string | null {
   const normalized = value.trim();
-  if (!normalized || normalized === '.' || normalized === '..' || /[\\/]/.test(normalized)) {
+  if (
+    !normalized ||
+    normalized === '.' ||
+    normalized === '..' ||
+    /[\\/]/.test(normalized) ||
+    ATTACHMENT_FILENAME_UNSAFE_PATTERN.test(normalized)
+  ) {
     return null;
   }
   return normalized;
@@ -17,7 +31,10 @@ export function decodeAttachmentFilename(value: string): string | null {
 }
 
 export function isAppFileAttachmentUrl(url: URL): boolean {
-  return url.protocol === 'app-file:' && url.hostname === 'attachment' && url.pathname.trim().length > 1;
+  if (url.protocol !== 'app-file:' || url.hostname !== 'attachment') {
+    return false;
+  }
+  return decodeAttachmentFilename(url.pathname.replace(/^\/+/, '')) !== null;
 }
 
 export function isStoredAttachmentSrc(src: string | null | undefined): boolean {
@@ -30,11 +47,11 @@ export function extractStoredAttachmentFilename(src: string | null | undefined):
   if (!trimmed) return null;
 
   if (trimmed.startsWith('attachment://')) {
-    return decodeAttachmentFilename(trimmed.slice('attachment://'.length));
+    return decodeAttachmentFilename(stripUrlSuffix(trimmed.slice('attachment://'.length)));
   }
 
   if (trimmed.startsWith('app-file://attachment/')) {
-    return decodeAttachmentFilename(trimmed.slice('app-file://attachment/'.length));
+    return decodeAttachmentFilename(stripUrlSuffix(trimmed.slice('app-file://attachment/'.length)));
   }
 
   if (/^[^/\\]+\.[a-z0-9]+$/i.test(trimmed)) {
@@ -43,6 +60,7 @@ export function extractStoredAttachmentFilename(src: string | null | undefined):
 
   try {
     const url = new URL(trimmed);
+    if (url.protocol !== 'file:') return null;
     const markerIndex = url.pathname.lastIndexOf(ATTACHMENT_DIR_MARKER);
     if (markerIndex === -1) return null;
     return decodeAttachmentFilename(url.pathname.slice(markerIndex + ATTACHMENT_DIR_MARKER.length));

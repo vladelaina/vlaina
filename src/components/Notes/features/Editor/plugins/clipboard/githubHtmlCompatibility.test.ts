@@ -168,7 +168,8 @@ describe('GitHub README HTML compatibility', () => {
       '<a href="https://example.com/a b">space</a>',
       '<a href="  https://example.com/leading">leading</a>',
       '<a href="https://example.com/trailing ">trailing</a>',
-      '<img src="/images/a b.png">',
+      '<img src="images/a b.png">',
+      '<img src="/images/root.png">',
       '<source srcset="  images/a.webp 1x ">',
       '<a href="https://example.com/a\tb">tab</a>',
       '<img src="/images/a\nb.png">',
@@ -177,7 +178,8 @@ describe('GitHub README HTML compatibility', () => {
     expect(result).toContain('href="https://example.com/a b"');
     expect(result).toContain('href="https://example.com/leading"');
     expect(result).toContain('href="https://example.com/trailing "');
-    expect(result).toContain('src="/images/a b.png"');
+    expect(result).toContain('src="images/a b.png"');
+    expect(result).not.toContain('/images/root.png');
     expect(result).toContain('srcset="images/a.webp 1x "');
     expect(result).toContain('<a>tab</a>');
     expect(result).toContain('<img>');
@@ -185,7 +187,7 @@ describe('GitHub README HTML compatibility', () => {
     expect(result).not.toContain('a\nb');
   });
 
-  it('matches Selma protocol marker behavior for URL attributes', () => {
+  it('matches the note sanitizer protocol marker behavior for URL attributes', () => {
     const result = sanitizeHtml([
       '<a href="//example.com/protocol-relative">protocol relative</a>',
       '<img src="//example.com/a.png">',
@@ -194,7 +196,7 @@ describe('GitHub README HTML compatibility', () => {
       '<img src="MAILTO:user@example.com">',
     ].join(''));
 
-    expect(result).toContain('href="//example.com/protocol-relative"');
+    expect(result).toContain('<a>protocol relative</a>');
     expect(result).toContain('src="//example.com/a.png"');
     expect(result).toContain('href="HTTPS://example.com/Upper"');
     expect(result).toContain('href="MAILTO:user@example.com"');

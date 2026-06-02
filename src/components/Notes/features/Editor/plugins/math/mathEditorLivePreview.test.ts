@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderMathEditorLivePreview } from './mathEditorLivePreview';
+import { getMathElementLatex } from './mathSchema';
 
 describe('mathEditorLivePreview', () => {
   it('updates the existing math anchor dom without requiring a document transaction', () => {
@@ -14,7 +15,8 @@ describe('mathEditorLivePreview', () => {
       displayMode: false,
     })).toBe(true);
 
-    expect(anchor.dataset.latex).toBe('x+1');
+    expect(anchor.dataset.latex).toBeUndefined();
+    expect(getMathElementLatex(anchor)).toBe('x+1');
     expect(anchor.innerHTML).not.toBe('old');
     expect(anchor.textContent).toContain('x');
   });

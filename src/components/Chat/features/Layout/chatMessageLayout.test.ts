@@ -54,6 +54,20 @@ describe('estimateChatMessageHeight', () => {
     expect(waitingHeight).toBeLessThan(idleHeight);
   });
 
+  it('does not reserve user image height for markdown examples in code', () => {
+    const contentWithExample = 'Use this example:\n\n```md\n![example](attachment://code.png)\n```\n\nDone';
+    const textOnlyHeight = estimateChatMessageHeight(
+      createMessage('user', contentWithExample),
+      { containerWidth: 900, isStreaming: false },
+    );
+    const realImageHeight = estimateChatMessageHeight(
+      createMessage('user', `![image](<attachment://real.png>)\n\n${contentWithExample}`),
+      { containerWidth: 900, isStreaming: false },
+    );
+
+    expect(realImageHeight - textOnlyHeight).toBeGreaterThan(240);
+  });
+
   it('accounts for assistant code fences and images', () => {
     const plainHeight = estimateChatMessageHeight(
       createMessage('assistant', 'hello world'),

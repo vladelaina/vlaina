@@ -1,5 +1,5 @@
 import fc from 'fast-check';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { sanitizeHtml } from './sanitizer';
 
 describe('sanitizeHtml', () => {
@@ -29,6 +29,22 @@ describe('sanitizeHtml', () => {
     expect(result).not.toContain('data-token');
   });
 
+  it('does not return unsanitized html when sanitizer setup fails', () => {
+    const createElement = document.createElement.bind(document);
+    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName, options) => {
+      if (tagName === 'template') {
+        throw new Error('template unavailable');
+      }
+      return createElement(tagName, options);
+    });
+
+    try {
+      expect(sanitizeHtml('<img src="javascript:alert(1)" onerror="alert(1)">')).toBe('');
+    } finally {
+      createElementSpy.mockRestore();
+    }
+  });
+
   it('keeps iframe embeds in a forced sandbox', () => {
     const result = sanitizeHtml(
       '<iframe src="https://example.com/embed" srcdoc="<script>alert(1)</script>" allowfullscreen></iframe>',
@@ -47,22 +63,36 @@ describe('sanitizeHtml', () => {
 
   it('rejects dangerous links and image sources', () => {
     const result = sanitizeHtml(
-      '<a href="javascript:alert(1)" target="_blank">bad</a><img src="javascript:alert(1)"><a href="#anchor">anchor</a>',
+      '<a href="javascript:alert(1)" target="_blank">bad</a><a href="//example.com/path">protocol</a><img src="javascript:alert(1)"><a href="#anchor">anchor</a>',
     );
 
     expect(result).toContain('<a>bad</a>');
+    expect(result).toContain('<a>protocol</a>');
     expect(result).toContain('<img>');
     expect(result).toContain('<a href="#anchor">anchor</a>');
     expect(result).not.toContain('javascript:');
+    expect(result).not.toContain('//example.com');
   });
 
   it('keeps constrained editor-style inline styles while dropping executable CSS', () => {
     const result = sanitizeHtml(
-      '<span style="color:red; font-size:2rem; background:yellow; background-image:url(javascript:alert(1)); position:fixed">x</span>',
+      [
+        '<span style="color:red; font-size:2rem; background:yellow;',
+        'background-image:url(javascript:alert(1));',
+        "background:image-set('https://example.test/image-set.png' 1x);",
+        "background:-webkit-image-set('https://example.test/webkit-image-set.png' 1x);",
+        'border:u\\72l(https://example.test/a.png);',
+        'margin:u/**/rl(https://example.test/a.png);',
+        'padding:exp\\72 ession(alert(1));',
+        'position:fixed">x</span>',
+      ].join(''),
     );
 
     expect(result).toBe('<span style="color: red; font-size: 2rem; background: yellow">x</span>');
     expect(result).not.toContain('javascript:');
+    expect(result).not.toContain('example.test');
+    expect(result).not.toContain('image-set');
+    expect(result).not.toContain('expression');
     expect(result).not.toContain('position');
   });
 
@@ -121,6 +151,11 @@ describe('sanitizeHtml', () => {
   it('blocks local-network image sources that would be auto-loaded on open', () => {
     const result = sanitizeHtml([
       '<img src="http://localhost:3000/secret.png">',
+      '<img src="http://localhost./secret.png">',
+      '<img src="http://assets.localhost/secret.png">',
+      '<img src="http://printer.local/secret.png">',
+      '<img src="http://router/secret.png">',
+      '<img src="http://100.64.0.1/secret.png">',
       '<img src="http://127.0.0.1:3000/secret.png">',
       '<img src="//127.0.0.1:3000/secret.png">',
       '<img src="http://192.168.1.8/secret.png">',
@@ -128,18 +163,33 @@ describe('sanitizeHtml', () => {
       '<img src="https://example.com/safe.png">',
     ].join(''));
 
-    expect(result).toBe('<img><img><img><img><img><img src="https://example.com/safe.png">');
+    expect(result).toBe('<img><img><img><img><img><img><img><img><img><img><img src="https://example.com/safe.png">');
+  });
+
+  it('blocks root-path raw media urls while keeping safe media relatives', () => {
+    const result = sanitizeHtml([
+      '<img src="/etc/passwd">',
+      '<iframe src="/admin"></iframe>',
+      '<video poster="/private.png"><source src="/private.mp4"></video>',
+      '<img src="./images/safe.png">',
+      '<img src="../images/safe.png">',
+      '<img src="//example.com/safe.png">',
+    ].join(''));
+
+    expect(result).toBe('<img><img src="./images/safe.png"><img src="../images/safe.png"><img src="//example.com/safe.png">');
   });
 
   it('blocks executable and network source srcset values that would be auto-loaded on open', () => {
     const result = sanitizeHtml([
       '<picture><source srcset="data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+ 1x"><img src="https://example.com/safe.png"></picture>',
       '<picture><source srcset="//127.0.0.1:3000/secret.png 1x"><img src="https://example.com/safe.png"></picture>',
+      '<picture><source srcset="safe.webp 1x, safe@2x.webp 2x"><img src="https://example.com/safe.png"></picture>',
       '<picture><source srcset="images/safe.webp 1x, ../images/safe@2x.webp 2x"><img src="https://example.com/safe.png"></picture>',
     ].join(''));
 
     expect(result).not.toContain('data:image');
     expect(result).not.toContain('127.0.0.1');
+    expect(result).toContain('srcset="safe.webp 1x, safe@2x.webp 2x"');
     expect(result).toContain('srcset="images/safe.webp 1x, ../images/safe@2x.webp 2x"');
   });
 
@@ -163,6 +213,9 @@ describe('sanitizeHtml', () => {
   it('rejects local-network iframe targets that would reach device services', () => {
     expect(sanitizeHtml('<iframe src="http://0.0.0.0:8080/embed"></iframe>')).toBe('');
     expect(sanitizeHtml('<iframe src="http://[::1]:8080/embed"></iframe>')).toBe('');
+    expect(sanitizeHtml('<iframe src="http://assets.localhost/embed"></iframe>')).toBe('');
+    expect(sanitizeHtml('<iframe src="http://router/embed"></iframe>')).toBe('');
+    expect(sanitizeHtml('<iframe src="http://[ff02::1]/embed"></iframe>')).toBe('');
   });
 
   it('removes event handlers regardless of casing', () => {

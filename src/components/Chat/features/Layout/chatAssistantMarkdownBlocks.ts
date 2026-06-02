@@ -2,7 +2,7 @@ import {
   estimateMarkdownBlockHeight,
   type MarkdownMeasurementBlock,
 } from './chatAssistantMarkdownTypography';
-import { extractMessageImageSources, stripMarkdownImageTokens } from '@/components/Chat/common/messageClipboard';
+import { extractMessageImageSources, stripMessageImageTokens } from '@/components/Chat/common/messageClipboard';
 import { MARKDOWN_BLOCK_GAP } from '@/components/common/markdown/markdownMetrics';
 import {
   getMarkdownFenceState,
@@ -10,7 +10,6 @@ import {
   parseMarkdownMeasurementBlocks,
   type MarkdownFenceState,
 } from './chatAssistantMarkdownBlockParser';
-const HTML_IMAGE_RE = /<img\b[^>]*>/gi;
 
 export type ParsedAssistantMarkdown = {
   blocks: MarkdownMeasurementBlock[];
@@ -24,7 +23,7 @@ export type ParsedAssistantMarkdown = {
 };
 
 export function stripRenderableImageTokens(content: string): string {
-  return stripMarkdownImageTokens(content).replace(HTML_IMAGE_RE, '');
+  return stripMessageImageTokens(content);
 }
 
 function countRenderableImages(content: string): number {

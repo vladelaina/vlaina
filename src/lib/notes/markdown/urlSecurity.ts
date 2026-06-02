@@ -4,9 +4,14 @@ const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[A-Za-z]:[\\/]/;
 const UNIX_ABSOLUTE_PATH_PATTERN = /^\//;
 const SAFE_LINK_SCHEMES = new Set(['http:', 'https:', 'mailto:']);
 const SAFE_MEDIA_SCHEMES = new Set(['http:', 'https:', 'blob:']);
+const FALLBACK_URL_BASE = 'https://vlaina.local/';
 
 function hasUnsafeUrlCharacters(value: string): boolean {
   return CONTROL_OR_BIDI_PATTERN.test(value);
+}
+
+function getUrlBase(): string {
+  return typeof window !== 'undefined' ? window.location.href : FALLBACK_URL_BASE;
 }
 
 function parseIPv4(hostname: string): [number, number, number, number] | null {
@@ -25,9 +30,23 @@ function isPrivateIPv4(hostname: string): boolean {
     a === 0
     || a === 10
     || a === 127
+    || (a === 100 && b >= 64 && b <= 127)
     || (a === 169 && b === 254)
     || (a === 172 && b >= 16 && b <= 31)
     || (a === 192 && b === 168)
+    || (a === 198 && (b === 18 || b === 19))
+    || a >= 224
+  );
+}
+
+function isLocalNetworkHostname(hostname: string): boolean {
+  const normalized = hostname.replace(/\.+$/g, '');
+  return (
+    normalized === 'localhost'
+    || normalized.endsWith('.localhost')
+    || normalized.endsWith('.local')
+    || normalized.endsWith('.home.arpa')
+    || (!normalized.includes('.') && !normalized.includes(':'))
   );
 }
 
@@ -50,19 +69,21 @@ function isPrivateIPv6(hostname: string): boolean {
     }
   }
   return (
-    normalized === '::1'
+    normalized === '::'
+    || normalized === '::1'
     || normalized.startsWith('fe80:')
     || normalized.startsWith('fc')
     || normalized.startsWith('fd')
+    || normalized.startsWith('ff')
   );
 }
 
 export function isLocalNetworkHttpUrl(value: string): boolean {
   try {
-    const url = new URL(value, window.location.href);
+    const url = new URL(value, getUrlBase());
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
     const hostname = url.hostname.toLowerCase();
-    return hostname === 'localhost' || isPrivateIPv4(hostname) || isPrivateIPv6(hostname);
+    return isLocalNetworkHostname(hostname) || isPrivateIPv4(hostname) || isPrivateIPv6(hostname);
   } catch {
     return false;
   }
@@ -72,11 +93,12 @@ export function isPublicRemoteMediaUrl(value: unknown): boolean {
   if (typeof value !== 'string') return false;
   const trimmed = value.trim();
   if (!trimmed) return false;
+  if (hasUnsafeUrlCharacters(trimmed)) return false;
   if (!trimmed.startsWith('//') && !/^https?:/i.test(trimmed)) return false;
 
   const normalized = trimmed.startsWith('//') ? `https:${trimmed}` : trimmed;
   try {
-    const url = new URL(normalized, window.location.href);
+    const url = new URL(normalized, getUrlBase());
     return (
       (url.protocol === 'http:' || url.protocol === 'https:')
       && !isLocalNetworkHttpUrl(normalized)
@@ -89,7 +111,12 @@ export function isPublicRemoteMediaUrl(value: unknown): boolean {
 export function sanitizeNoteLinkHref(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
-  if (!trimmed || hasUnsafeUrlCharacters(trimmed) || WINDOWS_ABSOLUTE_PATH_PATTERN.test(trimmed)) return null;
+  if (
+    !trimmed
+    || trimmed.startsWith('//')
+    || hasUnsafeUrlCharacters(trimmed)
+    || WINDOWS_ABSOLUTE_PATH_PATTERN.test(trimmed)
+  ) return null;
 
   const scheme = SCHEME_PATTERN.exec(trimmed)?.[1]?.toLowerCase();
   if (!scheme) return trimmed;

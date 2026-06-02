@@ -7,6 +7,7 @@ import {
   collapseSyntheticBlankLinesBetweenAdjacentHeadings,
 } from './markdownHeadingSpacing';
 import { normalizeCanonicalMarkdownSpacingForPersistence } from './markdownCanonicalSpacing';
+import { isMarkdownImageOnlyLine } from './markdownImageLine';
 import { preserveParagraphSoftBreaksAsHardBreaks } from './markdownSoftBreaks';
 export {
   preserveMarkdownBlankLinesForEditor,
@@ -26,7 +27,6 @@ const MARKED_BR_ONLY_PATTERN =
 const INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-blank-line\s*-->\s*$/i;
 const INTERNAL_TIGHT_HEADING_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-tight-heading\s*-->\s*$/i;
 const HTML_IMAGE_LINE_PATTERN = /^(?: {0,3})<img(?:\s|\/?>|$)/i;
-const MARKDOWN_IMAGE_LINE_PATTERN = /^\s{0,3}!\[[^\]]*]\([^)]*\)\s*$/;
 const MARKDOWN_ESCAPE_PATTERN = /\\([\\`*_{}[\]()#+\-.!])/g;
 const LIST_GAP_SENTINEL = '\u0000VLAINA_LIST_GAP_SENTINEL\u0000';
 const USER_BR_SENTINEL = '\u0000VLAINA_USER_BR_SENTINEL\u0000';
@@ -93,7 +93,6 @@ const MISSING_BLOCKQUOTE_SPACE_PATTERN =
 const CJK_ATX_HEADING_WITHOUT_SPACE_PATTERN =
   /^((?:(?: {0,3}>[ \t]?)* {0,3})#{1,6})([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}].*)$/u;
 const MAX_CACHED_MARKDOWN_NORMALIZATION_LENGTH = 1_000_000;
-const ESCAPED_ABBR_DEFINITION_PATTERN = /^([ \t]*)\\\*(?:\\)?\[([^\]]+)]:/gm;
 const ESCAPED_HIGHLIGHT_PATTERN = /\\==([^=\n]+)==/g;
 const ESCAPED_URL_SCHEME_PATTERN = /\b([A-Za-z][A-Za-z0-9+.-]*)\\:(?=\/\/)/g;
 const MARKDOWN_AUTOLINK_LITERAL_PATTERN =
@@ -809,8 +808,8 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
     normalizeLeakedInternalArtifacts(afterListItems)
   );
   const afterEmptyAtxHeadings = normalizeEmptyAtxHeadingMarkers(afterLeakedInternalArtifacts);
-  const afterEscapedHighlight = normalizeEscapedHighlightSyntax(afterEmptyAtxHeadings);
-  const afterAbbreviationDefinitions = normalizeEscapedAbbreviationDefinitions(afterEscapedHighlight);
+  const afterEscapedHighlight = afterEmptyAtxHeadings;
+  const afterAbbreviationDefinitions = afterEscapedHighlight;
   const afterTableCellBreaks = normalizeTableCellBreakPlaceholders(afterAbbreviationDefinitions);
   const afterStandaloneBreakHtml = normalizeStandaloneBreakHtmlToMarkdown(afterTableCellBreaks);
   const output = normalizeUrlSerializationArtifacts(
@@ -844,12 +843,6 @@ function normalizeEmptyAtxHeadingMarkers(text: string): string {
     segment.replace(EMPTY_ATX_HEADING_MARKER_PATTERN, (_match, indent: string, marker: string) =>
       `${indent}${marker} ${marker}`
     )
-  );
-}
-
-function normalizeEscapedAbbreviationDefinitions(text: string): string {
-  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
-    segment.replace(ESCAPED_ABBR_DEFINITION_PATTERN, '$1*[$2]:')
   );
 }
 
@@ -985,18 +978,8 @@ function isListContextSpacerLine(line: string): boolean {
 }
 
 function normalizeEditorBreakPlaceholders(text: string): string {
-  const textWithoutEditableListGapLines = text.split('\n').map((line) => {
-    if (EDITABLE_LIST_GAP_PLACEHOLDER_PATTERN.test(line)) {
-      return LIST_GAP_SENTINEL;
-    }
-    if (EDITABLE_LIST_GAP_MARKER_PLACEHOLDER_PATTERN.test(line)) {
-      return LIST_GAP_SENTINEL;
-    }
-    return line;
-  }).join('\n');
-
   return mapMarkdownOutsideProtectedBlocks(
-    textWithoutEditableListGapLines,
+    text,
     (line) => {
       const trimmed = line.trim();
       if (INVISIBLE_LIST_GAP_PLACEHOLDER_PATTERN.test(line)) {
@@ -1048,14 +1031,22 @@ function normalizeEditorBreakPlaceholders(text: string): string {
             ))}${USER_BR_SENTINEL}`
         )
         .replace(MARKED_USER_BR_TOKEN_PATTERN, `\n${USER_BR_SENTINEL}\n`);
-    }
+    },
   );
 }
 
 function normalizeInternalMarkdownBlankLineComments(text: string): string {
   if (!text.includes('vlaina-markdown-blank-line')) return text;
 
-  const lines = text.split('\n');
+  return mapMarkdownOutsideProtectedSegments(
+    text,
+    (segment) => normalizeInternalMarkdownBlankLineCommentSegment(segment),
+    { protectHtmlComments: false },
+  );
+}
+
+function normalizeInternalMarkdownBlankLineCommentSegment(segment: string): string {
+  const lines = segment.split('\n');
   const output: string[] = [];
   let previousWasInternalBlankLine = false;
 
@@ -1092,7 +1083,7 @@ function hasStructuralBlankAfterImage(lines: readonly string[]): boolean {
   for (let index = lines.length - 2; index >= 0; index -= 1) {
     const line = lines[index] ?? '';
     if (line.trim() === '') continue;
-    return HTML_IMAGE_LINE_PATTERN.test(line) || MARKDOWN_IMAGE_LINE_PATTERN.test(line);
+    return HTML_IMAGE_LINE_PATTERN.test(line) || isMarkdownImageOnlyLine(line);
   }
 
   return false;
@@ -1101,7 +1092,15 @@ function hasStructuralBlankAfterImage(lines: readonly string[]): boolean {
 function normalizeInternalTightHeadingComments(text: string): string {
   if (!text.includes('vlaina-markdown-tight-heading')) return text;
 
-  const lines = text.split('\n');
+  return mapMarkdownOutsideProtectedSegments(
+    text,
+    (segment) => normalizeInternalTightHeadingCommentSegment(segment),
+    { protectHtmlComments: false },
+  );
+}
+
+function normalizeInternalTightHeadingCommentSegment(segment: string): string {
+  const lines = segment.split('\n');
   const output: string[] = [];
 
   for (let index = 0; index < lines.length; index += 1) {

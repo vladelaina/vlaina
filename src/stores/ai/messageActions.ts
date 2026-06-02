@@ -7,7 +7,11 @@ import {
 } from '@/lib/storage/chatStorage'
 import { shouldPersistSession } from '@/lib/ai/temporaryChat'
 import { resolveSessionIdAlias } from '@/lib/ai/sessionIdAliases'
-import { extractMessageImageSources } from '@/components/Chat/common/messageClipboard'
+import {
+  extractMarkdownImageSources,
+  extractMessageImageSources,
+} from '@/components/Chat/common/messageClipboard'
+import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy'
 import { useUnifiedStore } from '../unified/useUnifiedStore'
 import { useAIUIStore } from './chatState'
 
@@ -48,6 +52,29 @@ function canMessageUseVersionKind(message: ChatMessage, kind: MessageVersion['ki
     return kind === 'original' || kind === 'edit'
   }
   return kind === 'original'
+}
+
+function extractStoredImageSources(role: ChatMessage['role'], content: string): string[] {
+  return role === 'user'
+    ? extractMarkdownImageSources(content)
+    : extractMessageImageSources(content)
+}
+
+function sanitizeProvidedImageSources(imageSources: string[] | undefined): string[] {
+  return (imageSources ?? [])
+    .map((src) => normalizeRenderableImageSrc(src))
+    .filter((src): src is string => Boolean(src))
+}
+
+function getNewMessageImageSources(message: Omit<ChatMessage, 'id' | 'timestamp' | 'versions' | 'currentVersionIndex'>): string[] | undefined {
+  const providedSources = sanitizeProvidedImageSources(message.imageSources)
+  if (message.role !== 'user') {
+    return providedSources.length > 0 ? providedSources : undefined
+  }
+
+  return providedSources.length > 0
+    ? providedSources
+    : extractMarkdownImageSources(message.content || '')
 }
 
 function hasSession(ai: { sessions: Array<{ id: string }> }, sessionId: string): boolean {
@@ -129,12 +156,7 @@ export function createMessageActions() {
       const createdAt = Date.now()
       const newMessage: ChatMessage = {
         ...message,
-        imageSources:
-          message.role === 'user'
-            ? (message.imageSources && message.imageSources.length > 0
-                ? message.imageSources
-                : extractMessageImageSources(message.content || ''))
-            : message.imageSources,
+        imageSources: getNewMessageImageSources(message),
         id: message.id || generateId('msg-'),
         timestamp: createdAt,
         versions: [createMessageVersion(message.content || '', createdAt, 'original', message.apiTranscript)],
@@ -181,7 +203,7 @@ export function createMessageActions() {
         return {
           ...message,
           content,
-          imageSources: extractMessageImageSources(content),
+          imageSources: extractStoredImageSources(message.role, content),
           versions,
           currentVersionIndex
         }
@@ -323,7 +345,7 @@ export function createMessageActions() {
         ...targetMessage,
         content: newContent,
         apiTranscript: undefined,
-        imageSources: extractMessageImageSources(newContent),
+        imageSources: extractMarkdownImageSources(newContent),
         versions: limited.versions,
         currentVersionIndex: limited.currentVersionIndex
       }
@@ -368,7 +390,7 @@ export function createMessageActions() {
         ...targetMessage,
         content: targetVersion.content,
         apiTranscript: targetVersion.apiTranscript,
-        imageSources: extractMessageImageSources(targetVersion.content),
+        imageSources: extractStoredImageSources(targetMessage.role, targetVersion.content),
         currentVersionIndex: limited.currentVersionIndex,
         versions: limited.versions
       }

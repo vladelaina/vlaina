@@ -221,7 +221,7 @@ export class ParserState extends Stack<Node, ParserStackElement> {
     const tree = mergePairedInlineHtml(remark.runSync(
       remark.parse(normalizedMarkdown),
       normalizedMarkdown
-    ) as MarkdownNode)
+    ) as MarkdownNode, normalizedMarkdown)
     this.next(tree)
 
     return this

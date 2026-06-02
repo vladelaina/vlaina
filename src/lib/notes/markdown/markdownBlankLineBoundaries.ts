@@ -1,3 +1,5 @@
+import { isMarkdownImageOnlyLine } from './markdownImageLine';
+
 const LIST_ITEM_MARKER_PATTERN = /^(\s*(?:>\s*)*)(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?/;
 const TABLE_DELIMITER_ROW_PATTERN =
   /^\s*\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?\s*$/;
@@ -11,7 +13,6 @@ const HTML_BLOCK_TAG_PATTERN =
   /^(?: {0,3})<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|img|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i;
 const ALIGNMENT_COMMENT_PATTERN = /^<!--\s*align:(?:left|center|right)\s*-->$/;
 const HTML_IMAGE_LINE_PATTERN = /^(?: {0,3})<img(?:\s|\/?>|$)/i;
-const MARKDOWN_IMAGE_PATTERN = /^\s{0,3}!\[[^\]]*]\([^)]*\)\s*$/;
 const REFERENCE_DEFINITION_PATTERN = /^\s{0,3}\[[^\]]+]:\s+\S+/;
 const DEFINITION_LIST_MARKER_PATTERN = /^\s{0,3}:\s+\S/;
 
@@ -200,7 +201,7 @@ function isHtmlImageLine(line: string | null): boolean {
 }
 
 function isMarkdownImageLine(line: string | null): boolean {
-  return line !== null && MARKDOWN_IMAGE_PATTERN.test(line);
+  return isMarkdownImageOnlyLine(line);
 }
 
 function isReferenceDefinitionLine(line: string | null): boolean {

@@ -164,22 +164,52 @@ function matchFileRenames(removedFiles: string[], addedFiles: string[]) {
   const matchedRemoved = new Set<string>();
   const matchedAdded = new Set<string>();
   const candidatesByParent = new Map<string, { removed: string[]; added: string[] }>();
+  const getParentPath = (path: string) => path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+  const getFileName = (path: string) => path.includes('/') ? path.slice(path.lastIndexOf('/') + 1) : path;
 
   for (const filePath of removedFiles) {
-    const parentPath = filePath.includes('/') ? filePath.slice(0, filePath.lastIndexOf('/')) : '';
+    const parentPath = getParentPath(filePath);
     const entry = candidatesByParent.get(parentPath) ?? { removed: [], added: [] };
     entry.removed.push(filePath);
     candidatesByParent.set(parentPath, entry);
   }
 
   for (const filePath of addedFiles) {
-    const parentPath = filePath.includes('/') ? filePath.slice(0, filePath.lastIndexOf('/')) : '';
+    const parentPath = getParentPath(filePath);
     const entry = candidatesByParent.get(parentPath) ?? { removed: [], added: [] };
     entry.added.push(filePath);
     candidatesByParent.set(parentPath, entry);
   }
 
   for (const { removed, added } of candidatesByParent.values()) {
+    if (removed.length !== 1 || added.length !== 1) {
+      continue;
+    }
+
+    renames.push({ oldPath: removed[0], newPath: added[0] });
+    matchedRemoved.add(removed[0]);
+    matchedAdded.add(added[0]);
+  }
+
+  const unmatchedRemoved = removedFiles.filter((path) => !matchedRemoved.has(path));
+  const unmatchedAdded = addedFiles.filter((path) => !matchedAdded.has(path));
+  const candidatesByName = new Map<string, { removed: string[]; added: string[] }>();
+
+  for (const filePath of unmatchedRemoved) {
+    const fileName = getFileName(filePath);
+    const entry = candidatesByName.get(fileName) ?? { removed: [], added: [] };
+    entry.removed.push(filePath);
+    candidatesByName.set(fileName, entry);
+  }
+
+  for (const filePath of unmatchedAdded) {
+    const fileName = getFileName(filePath);
+    const entry = candidatesByName.get(fileName) ?? { removed: [], added: [] };
+    entry.added.push(filePath);
+    candidatesByName.set(fileName, entry);
+  }
+
+  for (const { removed, added } of candidatesByName.values()) {
     if (removed.length !== 1 || added.length !== 1) {
       continue;
     }

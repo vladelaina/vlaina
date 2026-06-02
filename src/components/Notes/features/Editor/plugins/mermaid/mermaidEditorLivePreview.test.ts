@@ -12,7 +12,12 @@ vi.mock('./mermaidRenderer', () => ({
   renderMermaid: vi.fn(async () => '<svg data-rendered="initial"></svg>'),
 }));
 
-import { createMermaidElement, getMermaidElementCode, renderMermaidEditorLivePreview } from './mermaidDom';
+import {
+  createMermaidElement,
+  disposeMermaidElement,
+  getMermaidElementCode,
+  renderMermaidEditorLivePreview,
+} from './mermaidDom';
 import { renderMermaid } from './mermaidRenderer';
 
 describe('mermaidEditorLivePreview', () => {
@@ -99,6 +104,24 @@ describe('mermaidEditorLivePreview', () => {
       );
     });
     expect(element.outerHTML).not.toContain('secret source');
+  });
+
+  it('does not write an async initial render into a disposed Mermaid element', async () => {
+    let resolveRender: (markup: string) => void = () => undefined;
+    vi.mocked(renderMermaid).mockImplementationOnce(
+      () => new Promise((resolve) => {
+        resolveRender = resolve;
+      })
+    );
+
+    const element = createMermaidElement('sequenceDiagram\nAlice->Bob: Disposed render');
+    disposeMermaidElement(element);
+    resolveRender('<svg data-rendered="disposed"></svg>');
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(element.querySelector('[data-rendered="disposed"]')).toBeNull();
   });
 
   it('renders whitespace-only Mermaid elements as empty diagrams', () => {

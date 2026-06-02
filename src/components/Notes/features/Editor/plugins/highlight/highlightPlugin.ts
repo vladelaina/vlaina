@@ -2,11 +2,13 @@ import { $mark, $inputRule } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
 import { toggleMark } from '@milkdown/kit/prose/commands';
 import { $command, $remark } from '@milkdown/kit/utils';
-import { remarkStringifyOptionsCtx } from '@milkdown/kit/core';
-import type { MilkdownPlugin } from '@milkdown/kit/ctx';
 import {
   escapeMarkdownHtmlText,
 } from '@/lib/notes/markdown/markdownHtmlText';
+import {
+  createCustomInlineTextProtectionPlugin,
+  createDelimitedMarkHandler,
+} from '../customInlineMarkStringify';
 import { remarkHighlight } from './highlightMarkdownTransforms';
 
 type UndoableInputRule = InputRule & { undoable?: boolean };
@@ -17,41 +19,11 @@ function shouldUseHtmlFallback(text: string, delimiter: string): boolean {
   return text.includes(delimiter) || /[<>&]/.test(text);
 }
 
-function createDelimitedMarkHandler(delimiter: string) {
-  return (node: any, _: unknown, state: any, info: any) => {
-    const exit = state.enter(node.type);
-    const tracker = state.createTracker(info);
-    let value = tracker.move(delimiter);
-    value += tracker.move(
-      state.containerPhrasing(node, {
-        before: value,
-        after: delimiter,
-        ...tracker.current(),
-      })
-    );
-    value += tracker.move(delimiter);
-    exit();
-    return value;
-  };
-}
-
-export const highlightStringifyPlugin: MilkdownPlugin = (ctx) => {
-  return () => {
-    ctx.update(remarkStringifyOptionsCtx, (options) => {
-      const handlers =
-        options.handlers && typeof options.handlers === 'object' ? options.handlers : {};
-
-      return {
-        ...options,
-        handlers: {
-          ...handlers,
-          superscript: createDelimitedMarkHandler('^'),
-          subscript: createDelimitedMarkHandler('~'),
-        },
-      };
-    });
-  };
-};
+export const highlightStringifyPlugin = createCustomInlineTextProtectionPlugin({
+  highlight: createDelimitedMarkHandler('=='),
+  superscript: createDelimitedMarkHandler('^'),
+  subscript: createDelimitedMarkHandler('~'),
+});
 
 export const highlightMark = $mark('highlight', () => ({
   parseDOM: [
@@ -74,10 +46,10 @@ export const highlightMark = $mark('highlight', () => ({
       const text = node.text || '';
       if (text.includes('=')) {
         state.addNode('html', undefined, `<mark>${escapeMarkdownHtmlText(text)}</mark>`);
+        return true;
       } else {
-        state.addNode('text', undefined, `==${text}==`);
+        state.withMark(_mark, 'highlight');
       }
-      return true;
     }
   }
 }));

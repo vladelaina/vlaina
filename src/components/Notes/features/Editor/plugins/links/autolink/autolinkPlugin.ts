@@ -5,6 +5,8 @@ import { URL_PATTERNS } from '../utils/constants';
 
 export const autolinkPluginKey = new PluginKey('autolink');
 const AUTOLINK_TRIGGER_TEXT_PATTERN = /[:/.@]/;
+const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
+const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
 
 interface LinkMatch {
     start: number;
@@ -87,7 +89,15 @@ export function findUrls(text: string, offset: number): LinkMatch[] {
 function createAutolinkDecorations(doc: any): DecorationSet {
     const decorations: Decoration[] = [];
 
-    doc.descendants((node: any, pos: number) => {
+    doc.descendants((node: any, pos: number, parent: any) => {
+        if (parent && SKIPPED_TEXT_PARENT_TYPES.has(parent.type?.name)) {
+            return;
+        }
+
+        if (node.marks?.some((mark: any) => SKIPPED_MARK_TYPES.has(mark.type?.name))) {
+            return;
+        }
+
         if (node.isText) {
             const text = node.text || '';
             const matches = findUrls(text, pos);

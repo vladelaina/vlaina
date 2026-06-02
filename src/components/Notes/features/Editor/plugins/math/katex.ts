@@ -1,20 +1,14 @@
 import katex from 'katex';
 import { translate } from '@/lib/i18n';
+import { KATEX_SHARED_RENDER_OPTIONS } from '@/components/common/markdown/katexOptions';
+import { removeKatexSourceAnnotationsFromHtml } from '@/components/common/markdown/katexSourceSanitizer';
 import 'katex/contrib/mhchem';
 
 const MAX_LATEX_CHARS = 10000;
 const MAX_RENDER_CACHE_ENTRIES = 500;
 const KATEX_RENDER_OPTIONS = {
+  ...KATEX_SHARED_RENDER_OPTIONS,
   throwOnError: true,
-  strict: false,
-  trust: false,
-  macros: {
-    '\\R': '\\mathbb{R}',
-    '\\N': '\\mathbb{N}',
-    '\\Z': '\\mathbb{Z}',
-    '\\Q': '\\mathbb{Q}',
-    '\\C': '\\mathbb{C}',
-  },
 } as const;
 const successfulRenderCache = new Map<string, RenderResult>();
 
@@ -239,10 +233,10 @@ export function renderLatex(latex: string, displayMode: boolean): RenderResult {
   }
 
   try {
-    const html = katex.renderToString(latex, {
+    const html = removeKatexSourceAnnotationsFromHtml(katex.renderToString(latex, {
       ...KATEX_RENDER_OPTIONS,
       displayMode,
-    });
+    }));
     return cacheSuccessfulRenderResult(latex, displayMode, {
       html,
       error: null,

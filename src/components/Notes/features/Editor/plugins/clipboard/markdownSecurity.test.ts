@@ -57,6 +57,7 @@ describe('markdown security when opening notes', () => {
       '[data](data:text/html;base64,PHNjcmlwdD4=)',
       '[file](file:///etc/passwd)',
       '[windows](C:\\Windows\\win.ini)',
+      '[protocol](//example.com/path)',
       '[safe](https://example.com/docs)',
       '[mail](mailto:user@example.com)',
       '[relative](docs/safe.md)',
@@ -70,8 +71,10 @@ describe('markdown security when opening notes', () => {
     expect(hrefs.some((href) => href?.startsWith('javascript:'))).toBe(false);
     expect(hrefs.some((href) => href?.startsWith('data:'))).toBe(false);
     expect(hrefs.some((href) => href?.startsWith('file:'))).toBe(false);
+    expect(hrefs.some((href) => href?.startsWith('//'))).toBe(false);
     expect(result.persisted).not.toContain('javascript:alert');
     expect(result.persisted).not.toContain('file:///etc/passwd');
+    expect(result.persisted).not.toContain('](//example.com');
   });
 
   it('only auto-loads sanitized relative and public remote image sources', async () => {

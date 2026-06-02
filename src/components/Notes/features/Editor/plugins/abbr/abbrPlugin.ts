@@ -9,6 +9,21 @@ import {
 
 export const abbrPluginKey = new PluginKey('abbr');
 
+const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
+const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
+
+function shouldSkipTextNode(node: any, parent: any): boolean {
+  if (parent && SKIPPED_TEXT_PARENT_TYPES.has(parent.type?.name)) {
+    return true;
+  }
+
+  if (parent?.attrs?.vlainaEscapedBlockSyntax === 'abbrDefinition') {
+    return true;
+  }
+
+  return node.marks?.some((mark: any) => SKIPPED_MARK_TYPES.has(mark.type?.name)) ?? false;
+}
+
 export const abbrMark = $mark('abbr', () => ({
   attrs: {
     title: { default: '' },
@@ -41,11 +56,13 @@ export const abbrMark = $mark('abbr', () => ({
 function extractAbbrDefinitions(doc: any): AbbrDefinition[] {
   const definitions: AbbrDefinition[] = [];
   
-  doc.descendants((node: any) => {
-    if (node.isText) {
-      const text = node.text || '';
-      definitions.push(...extractAbbrDefinitionsFromText(text));
+  doc.descendants((node: any, _pos: number, parent: any) => {
+    if (!node.isText || shouldSkipTextNode(node, parent)) {
+      return;
     }
+
+    const text = node.text || '';
+    definitions.push(...extractAbbrDefinitionsFromText(text));
   });
   
   return definitions;
@@ -60,23 +77,29 @@ function findAbbrUsages(doc: any, definitions: AbbrDefinition[]): { start: numbe
   const pattern = createAbbrUsagePattern(definitions);
   if (!pattern) return usages;
   
-  doc.descendants((node: any, pos: number) => {
-    if (node.isText) {
-      const text = node.text || '';
-      let match;
-      
-      pattern.lastIndex = 0;
-      while ((match = pattern.exec(text)) !== null) {
-        const abbr = match[1];
-        const fullText = abbrMap.get(abbr);
-        
-        if (fullText) {
-          usages.push({
-            start: pos + match.index,
-            end: pos + match.index + abbr.length,
-            fullText
-          });
-        }
+  doc.descendants((node: any, pos: number, parent: any) => {
+    if (!node.isText || shouldSkipTextNode(node, parent)) {
+      return;
+    }
+
+    const text = node.text || '';
+    if (extractAbbrDefinitionsFromText(text).length > 0) {
+      return;
+    }
+
+    let match;
+
+    pattern.lastIndex = 0;
+    while ((match = pattern.exec(text)) !== null) {
+      const abbr = match[1];
+      const fullText = abbrMap.get(abbr);
+
+      if (fullText) {
+        usages.push({
+          start: pos + match.index,
+          end: pos + match.index + abbr.length,
+          fullText
+        });
       }
     }
   });

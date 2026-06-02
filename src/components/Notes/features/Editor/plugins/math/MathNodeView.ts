@@ -2,7 +2,7 @@ import type { Node } from '@milkdown/kit/prose/model';
 import type { EditorView, NodeView } from '@milkdown/kit/prose/view';
 import { attachPreviewContextMenu, type PreviewContextMenuSession } from '../shared/previewContextMenu';
 import { renderMathEditorLivePreview } from './mathEditorLivePreview';
-import { createMathNodeDOM } from './mathSchema';
+import { createMathNodeDOM, getMathElementLatex } from './mathSchema';
 
 export class MathNodeView implements NodeView {
   dom: HTMLElement;
@@ -42,7 +42,7 @@ export class MathNodeView implements NodeView {
     const latex = String(node.attrs.latex || '');
     const displayMode = node.type.name === 'math_block';
 
-    if (this.dom.dataset.latex !== latex) {
+    if (getMathElementLatex(this.dom) !== latex) {
       renderMathEditorLivePreview({
         anchor: this.dom,
         latex,

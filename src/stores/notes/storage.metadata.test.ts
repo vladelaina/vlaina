@@ -109,6 +109,60 @@ describe('notes metadata storage', () => {
     });
   });
 
+  it('scans metadata from every supported markdown extension', async () => {
+    adapter.listDir.mockResolvedValue([
+      { name: 'alpha.md', isFile: true },
+      { name: 'beta.markdown', isFile: true },
+      { name: 'gamma.mdown', isFile: true },
+      { name: 'delta.mkd', isFile: true },
+      { name: 'image.png', isFile: true },
+    ]);
+    adapter.readFile.mockResolvedValue('# Note');
+
+    await expect(loadNoteMetadata('/vault-extensions')).resolves.toEqual({
+      version: 2,
+      notes: {},
+    });
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/alpha.md');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/beta.markdown');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/gamma.mdown');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/delta.mkd');
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/vault-extensions/image.png');
+  });
+
+  it('ignores unsafe storage entry names during metadata scans', async () => {
+    adapter.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault-unsafe') {
+        return [
+          { name: 'alpha.md', isFile: true },
+          { name: '../secret.md', isFile: true },
+          { name: 'nested/evil.md', isFile: true },
+          { name: 'bad\\evil.md', isFile: true },
+          { name: '..', isDirectory: true },
+          { name: 'docs', isDirectory: true },
+        ];
+      }
+
+      if (path === '/vault-unsafe/docs') {
+        return [{ name: 'beta.md', isFile: true }];
+      }
+
+      return [];
+    });
+    adapter.readFile.mockResolvedValue('# Note');
+
+    await expect(loadNoteMetadata('/vault-unsafe')).resolves.toEqual({
+      version: 2,
+      notes: {},
+    });
+    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-unsafe/..');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-unsafe/alpha.md');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-unsafe/docs/beta.md');
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/vault-unsafe/../secret.md');
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/vault-unsafe/nested/evil.md');
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/vault-unsafe/bad\\evil.md');
+  });
+
   it('reuses cached metadata when file stats are unchanged', async () => {
     adapter.listDir.mockResolvedValue([
       { name: 'alpha.md', isFile: true },

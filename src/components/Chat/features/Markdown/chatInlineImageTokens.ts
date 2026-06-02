@@ -1,3 +1,5 @@
+import { parseMarkdownImageTokens } from '@/components/Chat/common/messageImageTokens';
+
 const INLINE_IMAGE_TOKEN_PREFIX = 'asset://localhost/chat-inline-image/';
 const LARGE_DATA_IMAGE_MIN_LENGTH = 50_000;
 
@@ -13,6 +15,17 @@ function shouldCompactImageSrc(src: string): boolean {
 
 function createToken(index: number): string {
   return `${INLINE_IMAGE_TOKEN_PREFIX}${index}`;
+}
+
+function replaceMarkdownImageTarget(markdownToken: string, src: string, token: string): string | null {
+  const targetMarkerIndex = markdownToken.indexOf('](');
+  const searchStart = targetMarkerIndex === -1 ? 0 : targetMarkerIndex + 2;
+  const srcStart = markdownToken.indexOf(src, searchStart);
+  if (srcStart === -1) {
+    return null;
+  }
+
+  return `${markdownToken.slice(0, srcStart)}${token}${markdownToken.slice(srcStart + src.length)}`;
 }
 
 export function resolveCompactedChatImageSrc(
@@ -36,22 +49,34 @@ export function compactLargeDataImageMarkdown(markdown: string): CompactedChatMa
 
   const imageSrcByToken = new Map<string, string>();
   let replaced = 0;
-  const compacted = markdown.replace(
-    /!\[([^\]]*)]\((<)?(data:image\/[^)\s>]+)(>)?\)/g,
-    (full, alt: string, open: string | undefined, src: string, close: string | undefined) => {
-      if (!shouldCompactImageSrc(src)) {
-        return full;
-      }
+  const tokens = parseMarkdownImageTokens(markdown);
+  const parts: string[] = [];
+  let cursor = 0;
 
-      const token = createToken(replaced);
-      replaced += 1;
-      imageSrcByToken.set(token, src);
-      return `![${alt}](${open ? '<' : ''}${token}${close ? '>' : ''})`;
-    },
-  );
+  for (const imageToken of tokens) {
+    const src = imageToken.src;
+    if (!src || !shouldCompactImageSrc(src)) {
+      continue;
+    }
+
+    const original = markdown.slice(imageToken.start, imageToken.end);
+    const token = createToken(replaced);
+    const compactedToken = replaceMarkdownImageTarget(original, src, token);
+    if (!compactedToken) {
+      continue;
+    }
+
+    parts.push(markdown.slice(cursor, imageToken.start));
+    parts.push(compactedToken);
+    cursor = imageToken.end;
+    replaced += 1;
+    imageSrcByToken.set(token, src);
+  }
+
+  parts.push(markdown.slice(cursor));
 
   return {
-    markdown: compacted,
+    markdown: replaced > 0 ? parts.join('') : markdown,
     imageSrcByToken,
     replaced,
   };

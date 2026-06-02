@@ -2,8 +2,8 @@ import type { ApiTranscriptMessage, ChatMessage, ChatMessageContent } from './ty
 import { TIME_SYSTEM_PROMPT, IMAGE_PLACEHOLDER } from './prompts';
 import { extractWebSearchStatuses } from './webSearch/statusMarkup';
 import { stripThinkingContent } from './stripThinkingContent';
+import { replaceMarkdownImageTokens } from '@/lib/markdown/markdownImageTokens';
 
-const IMAGE_MARKDOWN_REGEX = /!\[.*?\]\(.*?\)/g;
 const ERROR_TAG_GLOBAL_REGEX = /<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/gi;
 const REQUEST_HISTORY_MESSAGE_OVERHEAD = 48;
 const MAX_REQUEST_HISTORY_MESSAGES = 32;
@@ -38,7 +38,7 @@ export function sanitizeHistory(messages: ChatMessage[]): ChatMessage[] {
     return {
       ...msg,
       content: extractWebSearchStatuses(
-        stripThinkingContent(contentWithoutUiErrors).replace(IMAGE_MARKDOWN_REGEX, IMAGE_PLACEHOLDER)
+        replaceMarkdownImageTokens(stripThinkingContent(contentWithoutUiErrors), IMAGE_PLACEHOLDER)
       ).content,
       apiTranscript: msg.apiTranscript ?? msg.versions?.[msg.currentVersionIndex]?.apiTranscript,
     };

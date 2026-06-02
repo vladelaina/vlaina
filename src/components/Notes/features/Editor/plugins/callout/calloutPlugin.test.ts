@@ -189,6 +189,50 @@ describe('callout editor behavior', () => {
     await editor.destroy();
   });
 
+  it('keeps ordinary numbered blockquotes as blockquotes instead of callouts', async () => {
+    const editor = createEditor('> 1. Keep this as a quoted list item');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+
+    expect(view.state.doc.firstChild?.type.name).toBe('blockquote');
+    expect(view.state.doc.firstChild?.type.name).not.toBe('callout');
+    expect(serializer(view.state.doc).trim()).toBe('> 1. Keep this as a quoted list item');
+
+    await editor.destroy();
+  });
+
+  it('keeps ascii-leading blockquotes as blockquotes instead of callouts', async () => {
+    const editor = createEditor('> Note: keep this as a quote');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+
+    expect(view.state.doc.firstChild?.type.name).toBe('blockquote');
+    expect(view.state.doc.firstChild?.type.name).not.toBe('callout');
+    expect(serializer(view.state.doc).trim()).toBe('> Note: keep this as a quote');
+
+    await editor.destroy();
+  });
+
+  it('keeps text-presentation symbol blockquotes as blockquotes instead of callouts', async () => {
+    const editor = createEditor('> © Copyright\n\n> ™ Trademark');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+
+    expect(view.state.doc.child(0).type.name).toBe('blockquote');
+    expect(view.state.doc.child(1).type.name).toBe('blockquote');
+    expect(view.state.doc.child(0).type.name).not.toBe('callout');
+    expect(view.state.doc.child(1).type.name).not.toBe('callout');
+    expect(serializer(view.state.doc).trim()).toBe('> © Copyright\n\n> ™ Trademark');
+
+    await editor.destroy();
+  });
+
   it('turns an empty callout into a normal paragraph on exit', async () => {
     const editor = createEditor('');
     await editor.create();

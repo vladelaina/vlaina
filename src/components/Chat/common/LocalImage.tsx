@@ -8,6 +8,10 @@ import {
 } from '@/lib/storage/attachmentUrl';
 import { getPrimaryAttachmentPath } from '@/lib/storage/attachmentPaths';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
+import {
+    isSvgDataUrl,
+    rasterizeSvgDataUrlToPng,
+} from './svgRasterize';
 
 interface LocalImageProps {
     src: string;
@@ -41,6 +45,10 @@ function uint8ArrayToBase64(data: Uint8Array): string {
     return window.btoa(binary);
 }
 
+async function normalizeDisplaySrc(src: string): Promise<string | null> {
+    return isSvgDataUrl(src) ? await rasterizeSvgDataUrlToPng(src) : src;
+}
+
 export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style, 'data-vlaina-crop': cropData }: LocalImageProps) {
     const [displaySrc, setDisplaySrc] = useState<string | null>(null);
     const [error, setError] = useState(false);
@@ -58,8 +66,15 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
 
         const loadLocalImage = async () => {
             if (isDirectRenderableSrc(src)) {
-                setDisplaySrc(src);
-                onResolvedSrcRef.current?.(src);
+                const nextSrc = await normalizeDisplaySrc(src);
+                if (!active) return;
+                if (!nextSrc) {
+                    setError(true);
+                    onResolvedSrcRef.current?.(null);
+                    return;
+                }
+                setDisplaySrc(nextSrc);
+                onResolvedSrcRef.current?.(nextSrc);
                 return;
             }
 
@@ -77,11 +92,15 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
                 const base64 = uint8ArrayToBase64(data);
                 const mime = inferAttachmentMimeTypeFromFilename(filename);
 
-                if (active) {
-                    const nextSrc = `data:${mime};base64,${base64}`;
-                    setDisplaySrc(nextSrc);
-                    onResolvedSrcRef.current?.(nextSrc);
+                const nextSrc = await normalizeDisplaySrc(`data:${mime};base64,${base64}`);
+                if (!active) return;
+                if (!nextSrc) {
+                    setError(true);
+                    onResolvedSrcRef.current?.(null);
+                    return;
                 }
+                setDisplaySrc(nextSrc);
+                onResolvedSrcRef.current?.(nextSrc);
             } catch {
                 if (active) {
                     setError(true);

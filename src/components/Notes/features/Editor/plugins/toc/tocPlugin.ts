@@ -244,6 +244,9 @@ export const tocSchema = $node('toc', () => ({
       }
 
       if (node.type === 'paragraph') {
+        if ((node as { data?: { vlainaEscapedTocShortcut?: unknown } }).data?.vlainaEscapedTocShortcut) {
+          return false;
+        }
         const children = node.children as Array<{ type: string; value?: string }> | undefined;
         if (children?.length === 1 && children[0].type === 'text') {
           const text = children[0].value || '';
@@ -298,6 +301,10 @@ export function handleTocShortcutEnter(view: EditorView): boolean {
   }
 
   if ($from.parentOffset !== $from.parent.content.size) {
+    return false;
+  }
+
+  if ($from.parent.attrs?.vlainaEscapedBlockSyntax === 'toc') {
     return false;
   }
 

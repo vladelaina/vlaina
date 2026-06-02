@@ -1,3 +1,5 @@
+import { isLocalNetworkHttpUrl } from '../__internal__'
+
 export const githubAllowedHtmlTags = new Set([
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'br', 'b', 'i', 'strong', 'em', 'a',
   'pre', 'code', 'img', 'tt', 'div', 'ins', 'del', 'sup', 'sub', 'p',
@@ -121,59 +123,6 @@ const allowedStyleProperties = new Set([
   'width',
 ])
 
-function parseIPv4(hostname: string) {
-  const parts = hostname.split('.')
-  if (parts.length !== 4) return null
-  const octets = parts.map((part) => Number(part))
-  if (octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) return null
-  return octets
-}
-
-function isLocalNetworkHttpUrl(value: string) {
-  try {
-    const url = new URL(value, window.location.href)
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false
-    const hostname = url.hostname.replace(/^\[|\]$/g, '').toLowerCase()
-    const ipv4 = parseIPv4(hostname)
-    const mappedIPv6 = hostname.startsWith('::ffff:')
-      ? hostname.slice('::ffff:'.length).split(':')
-      : null
-    const mappedIPv4 = mappedIPv6?.length === 2
-      ? [
-          (Number.parseInt(mappedIPv6[0], 16) >> 8) & 255,
-          Number.parseInt(mappedIPv6[0], 16) & 255,
-          (Number.parseInt(mappedIPv6[1], 16) >> 8) & 255,
-          Number.parseInt(mappedIPv6[1], 16) & 255,
-        ]
-      : null
-    return (
-      hostname === 'localhost'
-      || hostname === '::1'
-      || hostname.startsWith('fe80:')
-      || hostname.startsWith('fc')
-      || hostname.startsWith('fd')
-      || Boolean(mappedIPv4 && (
-        mappedIPv4[0] === 0
-        || mappedIPv4[0] === 10
-        || mappedIPv4[0] === 127
-        || (mappedIPv4[0] === 169 && mappedIPv4[1] === 254)
-        || (mappedIPv4[0] === 172 && mappedIPv4[1] >= 16 && mappedIPv4[1] <= 31)
-        || (mappedIPv4[0] === 192 && mappedIPv4[1] === 168)
-      ))
-      || Boolean(ipv4 && (
-        ipv4[0] === 0
-        || ipv4[0] === 10
-        || ipv4[0] === 127
-        || (ipv4[0] === 169 && ipv4[1] === 254)
-        || (ipv4[0] === 172 && ipv4[1] >= 16 && ipv4[1] <= 31)
-        || (ipv4[0] === 192 && ipv4[1] === 168)
-      ))
-    )
-  } catch {
-    return false
-  }
-}
-
 function isAllowedAttribute(tagName: string, attributeName: string) {
   if (attributeName.startsWith('on')) return false
   if (attributeName === 'class' || attributeName === 'id') return false
@@ -190,7 +139,8 @@ function sanitizeStyle(value: string) {
     const propertyValue = rawDeclaration.slice(separatorIndex + 1).trim()
     if (!allowedStyleProperties.has(property)) continue
     if (!propertyValue || /[\u0000-\u001F\u007F]/.test(propertyValue)) continue
-    if (/url\s*\(|expression\s*\(|@import|javascript:/i.test(propertyValue)) continue
+    if (/\\|\/\*|\*\//.test(propertyValue)) continue
+    if (/(?:\b(?:url|image-set|cross-fade|paint|expression)|-webkit-image-set)\s*\(|@import|javascript:/i.test(propertyValue)) continue
     declarations.push(`${property}: ${propertyValue}`)
   }
   return declarations.length > 0 ? declarations.join('; ') : null
@@ -236,13 +186,17 @@ function isSafePlainRelativeMediaUrl(value: string) {
   )
 }
 
-function normalizeUrl(value: string, protocols: ReadonlySet<string>, options: { blockLocalNetwork?: boolean; allowPlainRelative?: boolean } = {}) {
+function normalizeUrl(value: string, protocols: ReadonlySet<string>, options: { blockLocalNetwork?: boolean; allowPlainRelative?: boolean; allowProtocolRelative?: boolean } = {}) {
   const trimmed = value.trimStart()
   if (!trimmed || controlOrBidiPattern.test(trimmed))
     return null
   const marker = getProtocolMarker(trimmed)
   if (relativeProtocolMarkers.has(marker)) {
+    if (trimmed.startsWith('//') && options.allowProtocolRelative === false)
+      return null
     if (options.blockLocalNetwork && trimmed.startsWith('//') && isLocalNetworkHttpUrl(`https:${trimmed}`))
+      return null
+    if (marker === '/' && !trimmed.startsWith('//') && options.allowPlainRelative && !isSafePlainRelativeMediaUrl(trimmed))
       return null
     return trimmed
   }
@@ -260,7 +214,7 @@ function normalizeSrcset(value: string) {
   if (candidates.length === 0) return null
   for (const candidate of candidates) {
     const source = candidate.split(/\s+/, 1)[0]
-    if (!source || hasProtocol(source) || source.startsWith('//') || normalizeUrl(source, mediaProtocols, { blockLocalNetwork: true }) !== source)
+    if (!source || hasProtocol(source) || source.startsWith('//') || normalizeUrl(source, mediaProtocols, { blockLocalNetwork: true, allowPlainRelative: true }) !== source)
       return null
   }
   return trimmed
@@ -306,6 +260,7 @@ function sanitizeElement(element: Element): Node | null {
       const protocols = tagName === 'a' ? linkProtocols : mediaProtocols
       const normalizedUrl = normalizeUrl(value, protocols, {
         allowPlainRelative: tagName !== 'a',
+        allowProtocolRelative: tagName !== 'a',
         blockLocalNetwork: tagName !== 'a',
       })
       if (normalizedUrl)

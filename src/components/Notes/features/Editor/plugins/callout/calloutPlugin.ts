@@ -6,6 +6,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { CalloutBlockAttrs, IconData } from './types';
 import { DEFAULT_CALLOUT_ICON } from './types';
 import { CalloutNodeView } from './CalloutNodeView';
+import { consumeLeadingCalloutEmoji } from '@/components/common/markdown/calloutEmoji';
 import {
   decodeCalloutIconComment,
   encodeCalloutIconComment,
@@ -79,8 +80,8 @@ function getCalloutIconFromMarkdownBlockquote(node: MdastBlockquote): IconData |
     return iconDataFromValue(markerIcon);
   }
 
-  const emojiMatch = (text.value || '').match(/^([\p{Emoji}]+)\s*/u);
-  return emojiMatch ? iconDataFromValue(emojiMatch[1]) : null;
+  const emoji = consumeLeadingCalloutEmoji(text.value || '');
+  return emoji ? iconDataFromValue(emoji.icon) : null;
 }
 
 function isCalloutMarkdownBlockquote(node: MdastBlockquote): boolean {
@@ -192,17 +193,17 @@ export const calloutSchema = $node('callout', () => ({
       const firstText = firstPara?.type === 'paragraph' ? firstPara.children?.[0] : null;
       const text = firstText?.value || '';
       const markerIcon = firstHtmlIcon ? null : decodeCalloutIconComment(text);
-      const emojiMatch = firstHtmlIcon || markerIcon ? null : text.match(/^([\p{Emoji}]+)\s*/u);
+      const emoji = firstHtmlIcon || markerIcon ? null : consumeLeadingCalloutEmoji(text);
       const icon = firstHtmlIcon || markerIcon
         ? iconDataFromValue(firstHtmlIcon || markerIcon)
-        : iconDataFromValue(emojiMatch?.[1] || '💡');
+        : iconDataFromValue(emoji?.icon || '💡');
 
       if (firstHtmlIcon) {
         nextChildren.shift();
       } else if (firstPara?.type === 'paragraph' && firstPara.children?.length && firstText?.type === 'text') {
         const remainingText = markerIcon
           ? text.replace(/^\s*\[!callout-icon:[^\]]+\]\s*/u, '')
-          : text.replace(/^[\p{Emoji}]+\s*/u, '');
+          : (emoji?.rest ?? text);
         const updatedChildren = [...firstPara.children];
         if (remainingText) {
           updatedChildren[0] = { ...firstText, value: remainingText };
