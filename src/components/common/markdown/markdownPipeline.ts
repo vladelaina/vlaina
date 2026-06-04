@@ -9,6 +9,7 @@ import { createMarkdownSanitizeSchema, rehypeImageSrcSanitizer, rehypeImageSrcse
 import { KATEX_SHARED_RENDER_OPTIONS } from './katexOptions';
 import { rehypeKatexSourceSanitizer } from './katexSourceSanitizer';
 import { remarkNotesInlineExtensions } from './remarkNotesExtensions';
+import { rehypeDropUnsafeRawHtmlContent } from './rawHtmlSanitizer';
 
 const MARKDOWN_SANITIZE_SCHEMA = createMarkdownSanitizeSchema();
 
@@ -20,7 +21,9 @@ export const READONLY_MARKDOWN_REMARK_PLUGINS = [
 ].filter(Boolean);
 
 export const READONLY_MARKDOWN_REHYPE_PLUGINS = [
+  rehypeDropUnsafeRawHtmlContent,
   rehypeRaw,
+  rehypeDropUnsafeRawHtmlContent,
   rehypeImageSrcSanitizer,
   [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA],
   rehypeImageSrcsetSanitizer,

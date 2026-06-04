@@ -359,6 +359,32 @@ describe('resolveExportMarkdownAssetSources', () => {
     expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
   });
 
+  it('does not rewrite image-like asset refs inside raw HTML tags whose contents are dropped', async () => {
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
+    mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
+
+    const markdown = await resolveExportMarkdownAssetSources(
+      [
+        '<svg><image href="img:svg.png"></image></svg>',
+        '<noscript><img src="img:noscript.png"></noscript>',
+        '<math>![math](img:math.png)</math>',
+        '',
+        '![real](img:demo.png)',
+      ].join('\n'),
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe([
+      '<svg><image href="img:svg.png"></image></svg>',
+      '<noscript><img src="img:noscript.png"></noscript>',
+      '<math>![math](img:math.png)</math>',
+      '',
+      '![real](data:image/png;base64,aGk=)',
+    ].join('\n'));
+    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
+  });
+
   it('still embeds raw HTML image sources outside code blocks', async () => {
     mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));

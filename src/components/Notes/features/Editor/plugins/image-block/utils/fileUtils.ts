@@ -2,12 +2,13 @@ import { moveDesktopItemToTrash } from '@/lib/desktop/trash';
 import { isImageFilename } from '@/lib/assets/core/naming';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePathCandidates } from './imageSourcePath';
+import { readBoundedImageBlobResponse } from '@/lib/markdown/fetchBoundedImageBlob';
 import { sanitizeSvgBytes } from '@/lib/markdown/svgSanitizer';
 import { sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 
 const pendingDeletions = new Map<string, ReturnType<typeof setTimeout>>();
 const UNDO_GRACE_PERIOD_MS = 10000;
-const MAX_RESTORED_IMAGE_BYTES = 50 * 1024 * 1024;
+export const MAX_RESTORED_IMAGE_BYTES = 50 * 1024 * 1024;
 
 function normalizeBlobMimeType(value: string): string {
     return value.split(';')[0]?.trim().toLowerCase() ?? '';
@@ -53,7 +54,12 @@ export async function ensureImageFileExists(
         }
 
         const response = await fetch(blobUrl);
-        const blob = await response.blob();
+        const result = await readBoundedImageBlobResponse(response, {
+            maxBytes: MAX_RESTORED_IMAGE_BYTES,
+        });
+        if (result.status === 'too-large') return;
+
+        const blob = result.blob;
         const mimeType = normalizeBlobMimeType(blob.type);
         if (!mimeType.startsWith('image/')) return;
         if (blob.size > MAX_RESTORED_IMAGE_BYTES) return;

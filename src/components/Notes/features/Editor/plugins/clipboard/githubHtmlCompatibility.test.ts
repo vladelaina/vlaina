@@ -370,6 +370,7 @@ describe('GitHub README HTML compatibility', () => {
     expect(result).not.toContain('<embed');
     expect(result).not.toContain('hidden');
     expect(result).not.toContain('<math');
+    expect(result).not.toContain('<mi');
   });
 
   it('renders and preserves supported inline raw HTML from markdown notes', async () => {

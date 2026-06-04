@@ -23,8 +23,7 @@ const gfmDisallowedRawHtmlTags = new Set([
   'title', 'textarea', 'style', 'xmp', 'noembed', 'noframes',
   'script', 'plaintext',
 ])
-const gfmDisallowedRawHtmlPattern =
-  /<\/?(?:title|textarea|style|xmp|noembed|noframes|script|plaintext)(?=[\s>/]|$)/gi
+const sanitizerOnlyDropWithContentTags = new Set(['math', 'noscript', 'svg'])
 
 const allowedGlobalAttributes = new Set([
   'abbr', 'accept', 'accept-charset', 'accesskey', 'action', 'align', 'alt',
@@ -85,6 +84,7 @@ const linkProtocols = new Set(['http:', 'https:', 'mailto:'])
 const mediaProtocols = new Set(['http:', 'https:'])
 const controlOrBidiPattern = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/
 const rawHtmlTagPattern = /^<\/?([A-Za-z][A-Za-z0-9-]*)(?:\s|\/?>|$)/
+const rawHtmlFragmentTagPattern = /^<\/?([A-Za-z][A-Za-z0-9:-]*)(?:\s|\/?>|$)/
 const forcedIframeSandbox = 'allow-scripts'
 const allowedIframeSandboxTokens = new Set(['allow-scripts', 'allow-forms', 'allow-popups', 'allow-presentation'])
 const allowedStyleProperties = new Set([
@@ -309,6 +309,160 @@ function sanitizeNode(node: Node): Node | null {
   return null
 }
 
+function findRawHtmlTagEnd(content: string, start: number) {
+  let quote: string | null = null
+
+  for (let cursor = start + 1; cursor < content.length; cursor += 1) {
+    const char = content[cursor]
+    if (quote) {
+      if (char === quote)
+        quote = null
+      continue
+    }
+    if (char === '"' || char === "'") {
+      quote = char
+      continue
+    }
+    if (char === '>')
+      return cursor + 1
+  }
+
+  return -1
+}
+
+function parseRawHtmlFragmentTag(content: string, start: number) {
+  const end = findRawHtmlTagEnd(content, start)
+  if (end === -1)
+    return null
+
+  const tag = content.slice(start, end)
+  const match = rawHtmlFragmentTagPattern.exec(tag)
+  const name = match?.[1]?.toLowerCase()
+  if (!name)
+    return null
+
+  return {
+    closing: tag.startsWith('</'),
+    end,
+    name,
+    selfClosing: /\/\s*>$/.test(tag),
+  }
+}
+
+function findRawHtmlClosingTag(content: string, tagName: string, start: number) {
+  let cursor = start
+  while (cursor < content.length) {
+    const nextTagStart = content.indexOf('<', cursor)
+    if (nextTagStart === -1)
+      return null
+
+    const nextTag = parseRawHtmlFragmentTag(content, nextTagStart)
+    if (!nextTag) {
+      cursor = nextTagStart + 1
+      continue
+    }
+
+    if (nextTag.closing && nextTag.name === tagName)
+      return { end: nextTag.end }
+
+    cursor = nextTag.end
+  }
+
+  return null
+}
+
+function stripDroppedRawHtmlContent(content: string, tags: ReadonlySet<string>) {
+  let output = ''
+  let cursor = 0
+
+  while (cursor < content.length) {
+    const start = content.indexOf('<', cursor)
+    if (start === -1) {
+      output += content.slice(cursor)
+      break
+    }
+
+    const tag = parseRawHtmlFragmentTag(content, start)
+    if (!tag) {
+      output += content.slice(cursor, start + 1)
+      cursor = start + 1
+      continue
+    }
+
+    if (!tags.has(tag.name)) {
+      output += content.slice(cursor, tag.end)
+      cursor = tag.end
+      continue
+    }
+
+    output += content.slice(cursor, start)
+    if (tag.closing || tag.selfClosing) {
+      cursor = tag.end
+      continue
+    }
+    if (tag.name === 'plaintext')
+      break
+
+    const close = findRawHtmlClosingTag(content, tag.name, tag.end)
+    if (!close)
+      break
+
+    cursor = close.end
+  }
+
+  return output
+}
+
+function escapeHtmlText(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function escapeGfmDisallowedRawHtml(content: string) {
+  let output = ''
+  let cursor = 0
+
+  while (cursor < content.length) {
+    const start = content.indexOf('<', cursor)
+    if (start === -1) {
+      output += content.slice(cursor)
+      break
+    }
+
+    const tag = parseRawHtmlFragmentTag(content, start)
+    if (!tag || !gfmDisallowedRawHtmlTags.has(tag.name)) {
+      output += content.slice(cursor, start + 1)
+      cursor = start + 1
+      continue
+    }
+
+    output += content.slice(cursor, start)
+    if (tag.closing || tag.selfClosing) {
+      output += escapeHtmlText(content.slice(start, tag.end))
+      cursor = tag.end
+      continue
+    }
+    if (tag.name === 'plaintext') {
+      output += escapeHtmlText(content.slice(start))
+      break
+    }
+
+    const close = findRawHtmlClosingTag(content, tag.name, tag.end)
+    if (!close) {
+      output += escapeHtmlText(content.slice(start, tag.end))
+      cursor = tag.end
+      continue
+    }
+
+    output += escapeHtmlText(content.slice(start, close.end))
+    cursor = close.end
+  }
+
+  return output
+}
+
 export function isGithubHtmlBlock(value: string) {
   const trimmed = value.trim()
   if (!trimmed.includes('\n')) return false
@@ -332,7 +486,9 @@ export function isGfmDisallowedRawHtml(value: string) {
 
 export function sanitizeGithubHtml(value: string) {
   const template = document.createElement('template')
-  template.innerHTML = value.replace(gfmDisallowedRawHtmlPattern, (tag) => `&lt;${tag.slice(1)}`)
+  template.innerHTML = escapeGfmDisallowedRawHtml(
+    stripDroppedRawHtmlContent(value, sanitizerOnlyDropWithContentTags),
+  )
   const output = document.createElement('template')
   sanitizeChildren(template.content, output.content)
   return output.innerHTML

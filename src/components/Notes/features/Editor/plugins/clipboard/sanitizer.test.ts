@@ -271,6 +271,21 @@ describe('sanitizeHtml', () => {
     expect(result).toBe('<p>safe</p>');
   });
 
+  it('drops parser-promoted descendants from remove-content raw HTML tags', () => {
+    const result = sanitizeHtml([
+      '<svg><img src="https://example.com/svg.png"></svg>',
+      '<math><img src="https://example.com/math.png"></math>',
+      '<noscript><img src="https://example.com/noscript.png"></noscript>',
+      '<noembed><img src="https://example.com/noembed.png"></noembed>',
+      '<noframes><img src="https://example.com/noframes.png"></noframes>',
+      '<img src="https://example.com/real.png">',
+      '<plaintext><img src="https://example.com/plaintext.png"></plaintext>',
+      '<img src="https://example.com/hidden-after-plaintext.png">',
+    ].join(''));
+
+    expect(result).toBe('<img src="https://example.com/real.png">');
+  });
+
   it('keeps GitHub table attributes while discarding forbidden ones', () => {
     const result = sanitizeHtml(
       '<td width="80" height="40" colspan="2" rowspan="3" class="x" style="color:red" onclick="evil()">cell</td>',

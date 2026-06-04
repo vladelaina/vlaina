@@ -14,6 +14,7 @@ import {
 } from '@/components/common/markdown/imagePolicy';
 import { KATEX_SHARED_RENDER_OPTIONS } from '@/components/common/markdown/katexOptions';
 import { rehypeKatexSourceSanitizer } from '@/components/common/markdown/katexSourceSanitizer';
+import { rehypeDropUnsafeRawHtmlContent } from '@/components/common/markdown/rawHtmlSanitizer';
 import { normalizeImageWidth, serializeCropValue } from '@/components/common/markdown/imageSourceFragment';
 import {
   themeColorTokens,
@@ -42,7 +43,9 @@ const NOTE_EXPORT_MARKDOWN_SANITIZE_SCHEMA = {
 };
 
 const NOTE_EXPORT_REHYPE_PLUGINS = [
+  rehypeDropUnsafeRawHtmlContent,
   rehypeRaw,
+  rehypeDropUnsafeRawHtmlContent,
   rehypeImageSrcSanitizer,
   [rehypeSanitize, NOTE_EXPORT_MARKDOWN_SANITIZE_SCHEMA],
   rehypeImageSrcsetSanitizer,

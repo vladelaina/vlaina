@@ -154,6 +154,25 @@ describe('MarkdownRenderer images', () => {
     expect(container.innerHTML).not.toContain('javascript:alert');
   });
 
+  it('does not render images nested inside raw html dropped by the sanitizer', () => {
+    render(
+      <MarkdownRenderer
+        content={[
+          '<svg><image href="https://example.com/svg.png"></image></svg>',
+          '<noscript><img src="https://example.com/noscript.png"></noscript>',
+          '<math><img src="https://example.com/math.png"></math>',
+          '<noembed><img src="https://example.com/noembed.png"></noembed>',
+          '<noframes><img src="https://example.com/noframes.png"></noframes>',
+          '<img src="https://example.com/real.png" alt="real">',
+          '<plaintext><img src="https://example.com/plaintext.png"></plaintext>',
+        ].join('\n')}
+      />
+    );
+
+    expect(screen.getAllByTestId('local-image')).toHaveLength(1);
+    expect(screen.getByTestId('local-image')).toHaveAttribute('src', 'https://example.com/real.png');
+  });
+
   it('sanitizes raw cite URL attributes before rendering', () => {
     const { container } = render(
       <MarkdownRenderer

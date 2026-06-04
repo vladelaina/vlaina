@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     ensureImageFileExists,
+    MAX_RESTORED_IMAGE_BYTES,
     moveImageToTrash,
 } from './fileUtils';
 import { moveDesktopItemToTrash } from '@/lib/desktop/trash';
@@ -108,6 +109,30 @@ describe('image block file utils', () => {
 
         await ensureImageFileExists('assets/demo.png', 'blob:http://localhost/demo', '/vault', 'note.md');
 
+        expect(adapter.writeBinaryFile).not.toHaveBeenCalled();
+    });
+
+    it('stops reading streamed restore blobs once they exceed the image limit', async () => {
+        const cancel = vi.fn(async () => undefined);
+        const reader = {
+            read: vi.fn()
+                .mockResolvedValueOnce({ done: false, value: new Uint8Array(MAX_RESTORED_IMAGE_BYTES) })
+                .mockResolvedValueOnce({ done: false, value: new Uint8Array(1) }),
+            cancel,
+            releaseLock: vi.fn(),
+        };
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({ 'content-type': 'image/png' }),
+            body: {
+                getReader: () => reader,
+            },
+            blob: vi.fn(),
+        })));
+
+        await ensureImageFileExists('assets/demo.png', 'blob:http://localhost/demo', '/vault', 'note.md');
+
+        expect(cancel).toHaveBeenCalledTimes(1);
+        expect(reader.releaseLock).toHaveBeenCalledTimes(1);
         expect(adapter.writeBinaryFile).not.toHaveBeenCalled();
     });
 
