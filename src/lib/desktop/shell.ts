@@ -12,6 +12,9 @@ export function normalizeDesktopExternalUrl(url: string | null | undefined): str
   if (!trimmed || UNSAFE_EXTERNAL_URL_CHARS_REGEX.test(trimmed)) {
     return null;
   }
+  if (trimmed.includes('\\')) {
+    return null;
+  }
 
   try {
     const parsed = new URL(trimmed);

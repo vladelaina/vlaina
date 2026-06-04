@@ -10,6 +10,7 @@ import {
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import {
   getAbsoluteRenameWatchPaths,
+  isMarkdownPath,
   isRemoveWatchEvent,
   normalizeFsPath,
   toVaultRelativePath,
@@ -21,6 +22,14 @@ const BROAD_ABSOLUTE_NOTE_SYNC_POLL_MS = 5000;
 
 function isAbsoluteRenamePathInsideParent(parentPath: string, path: string) {
   return isAbsolutePath(path) && normalizeContainedAssetPath(path, parentPath) !== null;
+}
+
+function isAbsoluteRenamePathRelevant(watchedNotePath: string, oldPath: string, newPath: string) {
+  if (!isAbsolutePath(oldPath) || !isAbsolutePath(newPath)) {
+    return false;
+  }
+
+  return oldPath === watchedNotePath || isPathWithin(watchedNotePath, oldPath);
 }
 
 function shouldAvoidNativeAbsoluteNoteWatch(parentPath: string) {
@@ -38,6 +47,10 @@ function shouldAvoidNativeAbsoluteNoteWatch(parentPath: string) {
     /^\/users\/[^/]+$/i.test(normalized) ||
     /^[a-z]:\/users\/[^/]+$/i.test(normalized)
   );
+}
+
+function isPathWithin(path: string, basePath: string) {
+  return path === basePath || path.startsWith(`${basePath}/`);
 }
 
 export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | undefined) {
@@ -73,14 +86,28 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
         }
       }
 
+      const oldPath = normalizeFsPath(event.oldPath);
+      const newPath = normalizeFsPath(event.newPath);
       if (
-        !isAbsoluteRenamePathInsideParent(watchedParentPath, event.oldPath) ||
-        !isAbsoluteRenamePathInsideParent(watchedParentPath, event.newPath)
+        !isAbsoluteRenamePathInsideParent(watchedParentPath, oldPath) &&
+        !isAbsoluteRenamePathRelevant(watchedNotePath, oldPath, newPath)
       ) {
         return;
       }
 
-      await applyExternalPathRename(event.oldPath, event.newPath);
+      const isCurrentFileRename = oldPath === watchedNotePath;
+      const isCurrentFolderRename = oldPath !== watchedNotePath && isPathWithin(watchedNotePath, oldPath);
+
+      if (isCurrentFileRename && !isMarkdownPath(newPath)) {
+        await syncCurrentNoteFromDisk({ force: true });
+        return;
+      }
+
+      if (!isCurrentFolderRename && (!isMarkdownPath(oldPath) || !isMarkdownPath(newPath))) {
+        return;
+      }
+
+      await applyExternalPathRename(oldPath, newPath);
     }
 
     const unsubscribeRenameBroadcast = subscribeNotesExternalPathRename(

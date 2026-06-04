@@ -99,7 +99,7 @@ export function EmojiTab({
           onPreviewSkinToneRef.current?.(tone);
           
           const icon = currentIconRef.current;
-          if (icon && !icon.startsWith('icon:') && !icon.startsWith('img:')) {
+          if (icon && !/^icon:/i.test(icon) && !/^img:/i.test(icon)) {
             const item = EMOJI_MAP.get(icon);
             if (item) {
               const previewEmoji = tone === 0 || !item.skins || item.skins.length <= tone

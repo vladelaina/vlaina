@@ -8,6 +8,8 @@ import {
 } from '@/components/common/markdown/markdownPipeline';
 import {
   createMarkdownSanitizeSchema,
+  isRenderableDataImageSrc,
+  rehypeImageSrcSanitizer,
   rehypeImageSrcsetSanitizer,
 } from '@/components/common/markdown/imagePolicy';
 import { KATEX_SHARED_RENDER_OPTIONS } from '@/components/common/markdown/katexOptions';
@@ -20,6 +22,7 @@ import {
   themeStyleResetTokens,
 } from '@/styles/themeTokens';
 import {
+  isLocalNetworkHttpUrl,
   isPublicRemoteMediaUrl,
   sanitizeNoteLinkHref,
   sanitizeNoteMediaSrc,
@@ -40,13 +43,12 @@ const NOTE_EXPORT_MARKDOWN_SANITIZE_SCHEMA = {
 
 const NOTE_EXPORT_REHYPE_PLUGINS = [
   rehypeRaw,
+  rehypeImageSrcSanitizer,
   [rehypeSanitize, NOTE_EXPORT_MARKDOWN_SANITIZE_SCHEMA],
   rehypeImageSrcsetSanitizer,
   [rehypeKatex, KATEX_SHARED_RENDER_OPTIONS],
   rehypeKatexSourceSanitizer,
 ] as any[];
-
-const SAFE_EXPORT_DATA_IMAGE_PATTERN = /^data:image\/(?:gif|jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/i;
 
 function escapeHtml(value: string): string {
   return value
@@ -57,8 +59,21 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+function sanitizeExportLinkHref(value: unknown): string | null {
+  const safeHref = sanitizeNoteLinkHref(value);
+  if (!safeHref) {
+    return null;
+  }
+
+  if (/^https?:/i.test(safeHref) && isLocalNetworkHttpUrl(safeHref)) {
+    return null;
+  }
+
+  return safeHref;
+}
+
 function renderExportLink(props: any) {
-  const safeHref = sanitizeNoteLinkHref(props.href);
+  const safeHref = sanitizeExportLinkHref(props.href);
   if (!safeHref) {
     return <>{props.children}</>;
   }
@@ -83,7 +98,7 @@ function renderExportImage(props: any) {
     ...(align === 'center' ? { display: 'block', marginLeft: 'auto', marginRight: 'auto' } : {}),
     ...(align === 'right' ? { display: 'block', marginLeft: 'auto' } : {}),
   };
-  if (SAFE_EXPORT_DATA_IMAGE_PATTERN.test(rawSrc)) {
+  if (isRenderableDataImageSrc(rawSrc)) {
     return (
       <img
         src={rawSrc}
@@ -96,7 +111,7 @@ function renderExportImage(props: any) {
   }
 
   const safeSrc = sanitizeNoteMediaSrc(rawSrc);
-  if (!safeSrc || safeSrc.startsWith('blob:') || isPublicRemoteMediaUrl(safeSrc)) {
+  if (!safeSrc || /^blob:/i.test(safeSrc) || isPublicRemoteMediaUrl(safeSrc)) {
     return null;
   }
 
@@ -113,7 +128,7 @@ function renderExportImage(props: any) {
 
 function transformExportUrl(value: string, key: string): string {
   if (key === 'href') {
-    return sanitizeNoteLinkHref(value) ?? '';
+    return sanitizeExportLinkHref(value) ?? '';
   }
   return value;
 }

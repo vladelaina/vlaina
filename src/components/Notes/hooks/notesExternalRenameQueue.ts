@@ -1,6 +1,7 @@
 export interface PendingRenameEntry {
   oldPath: string;
   expiresAt: number;
+  kind?: string | null;
 }
 
 export const MAX_PROCESSED_RENAME_EVENT_NONCES = 200;
@@ -31,21 +32,23 @@ export function queuePendingRename(
   queue: PendingRenameEntry[],
   oldPath: string,
   now: number,
-  ttlMs: number
+  ttlMs: number,
+  kind?: string | null
 ): PendingRenameEntry[] {
-  return [...flushExpiredPendingRenames(queue, now).queue, { oldPath, expiresAt: now + ttlMs }];
+  return [...flushExpiredPendingRenames(queue, now).queue, { oldPath, expiresAt: now + ttlMs, kind }];
 }
 
 export function matchPendingRename(
   queue: PendingRenameEntry[],
   now: number
-): { queue: PendingRenameEntry[]; oldPath: string | null } {
+): { queue: PendingRenameEntry[]; oldPath: string | null; kind: string | null } {
   const { queue: nextQueue } = flushExpiredPendingRenames(queue, now);
   const [matchedEntry, ...remainingQueue] = nextQueue;
 
   return {
     queue: remainingQueue,
     oldPath: matchedEntry?.oldPath ?? null,
+    kind: matchedEntry?.kind ?? null,
   };
 }
 

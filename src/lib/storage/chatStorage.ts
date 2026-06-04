@@ -1,6 +1,8 @@
 import { getStorageAdapter, joinPath } from './adapter';
 import type { ChatMessage } from '@/lib/ai/types';
 import { normalizeApiTranscriptMessages } from '@/lib/ai/apiTranscript';
+import { normalizeRenderableImageSrc } from '@/lib/markdown/renderableImagePolicy';
+import { parseVideoUrl } from '@/lib/markdown/videoUrl';
 import { createPersistenceQueue, type PersistenceQueue } from './persistenceEngine';
 import { getStorageBasePath } from './basePath';
 import { isSafeChatSessionId } from './unifiedStorageAI';
@@ -47,7 +49,7 @@ export function serializeSessionMessages(sessionId: string, messages: ChatMessag
     version: SESSION_MESSAGES_FILE_VERSION,
     sessionId,
     updatedAt: Date.now(),
-    messages,
+    messages: normalizeSessionMessages(messages),
   };
   return JSON.stringify(payload, null, 2);
 }
@@ -193,6 +195,18 @@ function canRoleUseVersionKind(
   return kind === 'original';
 }
 
+function normalizePersistedImageSources(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const sources = value
+    .map((item) => typeof item === 'string' ? normalizeRenderableImageSrc(item) : null)
+    .filter((item): item is string => Boolean(item) && !parseVideoUrl(item));
+
+  return sources.length > 0 ? sources : undefined;
+}
+
 function normalizeSessionMessage(value: unknown): ChatMessage | null {
   if (!isRecord(value)) {
     return null;
@@ -237,13 +251,14 @@ function normalizeSessionMessage(value: unknown): ChatMessage | null {
       apiTranscript,
     };
   }
+  const imageSources = normalizePersistedImageSources(value.imageSources);
 
   return {
     id: typeof value.id === 'string' && value.id ? value.id : `msg-${crypto.randomUUID()}`,
     role,
     content,
     ...(apiTranscript ? { apiTranscript } : {}),
-    ...(Array.isArray(value.imageSources) ? { imageSources: value.imageSources.filter((item): item is string => typeof item === 'string') } : {}),
+    ...(imageSources ? { imageSources } : {}),
     modelId: typeof value.modelId === 'string' ? value.modelId : '',
     timestamp,
     versions: normalizedVersions,

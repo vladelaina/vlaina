@@ -7,9 +7,14 @@ import { writeTextToClipboard } from "@/lib/clipboard";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { copyImageSourceToClipboard } from "@/components/Chat/common/messageClipboard";
 import { downloadImageWithPrompt } from "@/components/Chat/common/imageDownload";
+import { resolveSafeChatImageSource } from "@/components/Chat/common/chatImageSourceResolution";
 import { chatPopoverPillSurfaceClass } from "@/components/Chat/features/Input/composerStyles";
+import {
+  isRenderableDataImageSrc,
+  normalizeRenderableImageSrc,
+} from "@/components/common/markdown/imagePolicy";
 import { useI18n } from "@/lib/i18n";
-import { convertToBase64, type Attachment } from "@/lib/storage/attachmentStorage";
+import { createStoredAttachmentFromSource } from "@/lib/storage/attachmentStorage";
 import { themeChatImageViewerTokens, themeCropperTokens, themeStyleResetTokens } from "@/styles/themeTokens";
 
 interface ChatImageViewerProps {
@@ -30,7 +35,8 @@ const TRANSPARENT_IMAGE_DATA_URL =
 const VIEWER_CONTROL_SELECTOR = '[data-chat-image-viewer-control="true"]';
 const CROPPER_IMAGE_SELECTOR = '.reactEasyCrop_Image';
 const VIEWER_SURFACE_SELECTOR = '[data-chat-image-viewer-surface="true"]';
-const resolvedViewerImageCache = new Map<string, Promise<string>>();
+const RESOLVED_VIEWER_IMAGE_CACHE_LIMIT = 100;
+const resolvedViewerImageCache = new Map<string, Promise<string | null>>();
 const imageViewerToolbarButtonClass =
   "inline-flex h-9 w-9 items-center justify-center rounded-full bg-transparent text-[var(--vlaina-color-text-strong)] transition-colors hover:bg-[var(--vlaina-hover)]";
 
@@ -75,7 +81,7 @@ async function copyImageOrUrl(src: string): Promise<boolean> {
   if (copied) {
     return true;
   }
-  if (src.trim().startsWith("data:image/")) {
+  if (isRenderableDataImageSrc(src)) {
     return false;
   }
   return writeTextToClipboard(src);
@@ -101,45 +107,38 @@ function normalizeComparableSrc(value: string): string {
 }
 
 function requiresAttachmentResolution(src: string): boolean {
-  const trimmed = src.trim();
-  return trimmed.startsWith("attachment://") || trimmed.startsWith("app-file://attachment/");
+  return createStoredAttachmentFromSource(src) !== null;
 }
 
-function inferAttachmentMimeType(src: string): string {
-  const normalized = src.trim().toLowerCase().split(/[?#]/)[0] ?? "";
-  if (normalized.endsWith(".png")) return "image/png";
-  if (normalized.endsWith(".jpg") || normalized.endsWith(".jpeg")) return "image/jpeg";
-  if (normalized.endsWith(".webp")) return "image/webp";
-  if (normalized.endsWith(".gif")) return "image/gif";
-  if (normalized.endsWith(".avif")) return "image/avif";
-  if (normalized.endsWith(".bmp")) return "image/bmp";
-  if (normalized.endsWith(".svg")) return "image/svg+xml";
-  return "image/*";
-}
-
-async function resolveViewerImageSource(src: string): Promise<string> {
-  if (!requiresAttachmentResolution(src)) {
+function getInitialViewerImageSource(src: string): string {
+  if (requiresAttachmentResolution(src)) {
     return src;
+  }
+  return normalizeRenderableImageSrc(src) ?? TRANSPARENT_IMAGE_DATA_URL;
+}
+
+async function resolveViewerImageSource(src: string): Promise<string | null> {
+  if (!requiresAttachmentResolution(src)) {
+    return resolveSafeChatImageSource(src, "viewer-image");
   }
 
   const cached = resolvedViewerImageCache.get(src);
   if (cached) {
+    resolvedViewerImageCache.delete(src);
+    resolvedViewerImageCache.set(src, cached);
     return cached;
   }
 
-  const attachment: Attachment = {
-    id: "viewer-image",
-    path: "",
-    previewUrl: src,
-    assetUrl: src,
-    name: "image",
-    type: inferAttachmentMimeType(src),
-    size: 0,
-  };
-  const resolved = convertToBase64(attachment).catch((error) => {
+  const resolved = resolveSafeChatImageSource(src, "viewer-image").catch((error) => {
     resolvedViewerImageCache.delete(src);
     throw error;
   });
+  if (resolvedViewerImageCache.size >= RESOLVED_VIEWER_IMAGE_CACHE_LIMIT) {
+    const oldestKey = resolvedViewerImageCache.keys().next().value;
+    if (oldestKey) {
+      resolvedViewerImageCache.delete(oldestKey);
+    }
+  }
   resolvedViewerImageCache.set(src, resolved);
   return resolved;
 }
@@ -167,7 +166,7 @@ export function ChatImageViewer({
     height: themeChatImageViewerTokens.defaultViewportHeightPx,
   });
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(-1);
-  const [resolvedActiveSrc, setResolvedActiveSrc] = useState(src);
+  const [resolvedActiveSrc, setResolvedActiveSrc] = useState(() => getInitialViewerImageSource(src));
   const imageElementRef = useRef<HTMLImageElement | null>(null);
 
   const galleryIndex = useMemo(() => {
@@ -211,18 +210,23 @@ export function ChatImageViewer({
     }
 
     let active = true;
-    const immediateSrc = activeSrc === src && previewSrc ? previewSrc : activeSrc;
+    const isStoredAttachmentSource = requiresAttachmentResolution(activeSrc);
+    const immediateSrc = activeSrc === src && previewSrc
+      ? previewSrc
+      : isStoredAttachmentSource
+        ? activeSrc
+        : normalizeRenderableImageSrc(activeSrc) ?? TRANSPARENT_IMAGE_DATA_URL;
     setResolvedActiveSrc(immediateSrc);
 
     resolveViewerImageSource(activeSrc)
       .then((resolvedSrc) => {
         if (active) {
-          setResolvedActiveSrc(resolvedSrc);
+          setResolvedActiveSrc(resolvedSrc ?? TRANSPARENT_IMAGE_DATA_URL);
         }
       })
       .catch(() => {
         if (active) {
-          setResolvedActiveSrc(activeSrc);
+          setResolvedActiveSrc(TRANSPARENT_IMAGE_DATA_URL);
         }
       });
 

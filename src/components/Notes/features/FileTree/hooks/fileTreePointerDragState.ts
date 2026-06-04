@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { SIDEBAR_SCROLL_ROOT_SELECTOR } from '../../Sidebar/context-menu/shared';
 import { useNotesStore } from '@/stores/useNotesStore';
 import {
-  createStarredEntry,
+  createStarredEntryIfValid,
   getStarredEntryKey,
   getVaultStarredPaths,
   saveStarredRegistry,
@@ -422,12 +422,17 @@ function ensureStarredPath(kind: StarredKind, relativePath: string) {
   const { notesPath, starredEntries } = state;
   if (!notesPath) return;
 
-  const key = getStarredEntryKey({ kind, vaultPath: notesPath, relativePath });
+  const nextEntry = createStarredEntryIfValid(kind, notesPath, relativePath);
+  if (!nextEntry) {
+    return;
+  }
+
+  const key = getStarredEntryKey(nextEntry);
   if (starredEntries.some((entry) => getStarredEntryKey(entry) === key)) {
     return;
   }
 
-  const updatedEntries = [...starredEntries, createStarredEntry(kind, notesPath, relativePath)];
+  const updatedEntries = [...starredEntries, nextEntry];
   const starredPaths = getVaultStarredPaths(updatedEntries, notesPath);
   useNotesStore.setState({
     starredEntries: updatedEntries,

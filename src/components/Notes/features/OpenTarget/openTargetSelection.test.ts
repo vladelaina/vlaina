@@ -2,23 +2,80 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/storage/adapter', () => {
   const normalize = (path: string) => path.replace(/\\/g, '/');
-
-  const getParentPath = (path: string): string | null => {
-    const normalized = normalize(path);
-    const parts = normalized.split('/').filter(Boolean);
-
-    if (parts.length <= 1) {
+  const getUncRoot = (normalizedPath: string): string | null => {
+    if (!normalizedPath.startsWith('//') || normalizedPath.startsWith('///')) {
       return null;
     }
 
-    parts.pop();
-    const parent = parts.join('/');
+    const serverEnd = normalizedPath.indexOf('/', 2);
+    if (serverEnd === -1) {
+      return null;
+    }
+
+    const shareStart = serverEnd + 1;
+    const shareEnd = normalizedPath.indexOf('/', shareStart);
+    const share = shareEnd === -1
+      ? normalizedPath.slice(shareStart)
+      : normalizedPath.slice(shareStart, shareEnd);
+
+    if (!share) {
+      return null;
+    }
+
+    return shareEnd === -1 ? normalizedPath : normalizedPath.slice(0, shareEnd);
+  };
+
+  const normalizeAbsolutePath = (path: string): string => {
+    const normalized = normalize(path);
+    const uncRoot = getUncRoot(normalized);
+    const driveMatch = normalized.match(/^([A-Za-z]:)(?:\/|$)/);
+    const root = uncRoot ?? (driveMatch ? `${driveMatch[1]}/` : normalized.startsWith('/') ? '/' : '');
+    if (!root) return path;
+
+    const parts: string[] = [];
+    for (const part of normalized.slice(root.length).replace(/^\/+/, '').split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') {
+        parts.pop();
+        continue;
+      }
+      parts.push(part);
+    }
+
+    const nextPath = parts.length > 0
+      ? `${root}${root.endsWith('/') ? '' : '/'}${parts.join('/')}`
+      : root;
+    return path.includes('\\') ? nextPath.replace(/\//g, '\\') : nextPath;
+  };
+
+  const getParentPath = (path: string): string | null => {
+    const normalized = normalize(path).replace(/\/+$/, '');
+    if (!normalized || normalized === '/') {
+      return null;
+    }
+
+    const uncRoot = getUncRoot(normalized);
+    if (uncRoot && normalized === uncRoot) {
+      return null;
+    }
+
+    const lastSlashIndex = normalized.lastIndexOf('/');
+    if (lastSlashIndex === -1) {
+      return null;
+    }
+
+    let parent = normalized.slice(0, lastSlashIndex);
+    if (!parent) {
+      parent = '/';
+    } else if (/^[A-Za-z]:$/.test(parent)) {
+      parent = `${parent}/`;
+    }
 
     if (path.includes('\\')) {
       return parent.replace(/\//g, '\\');
     }
 
-    return parent.startsWith('/') ? parent : `/${parent}`;
+    return parent;
   };
 
   const getBaseName = (path: string): string => {
@@ -39,6 +96,8 @@ vi.mock('@/lib/storage/adapter', () => {
     getParentPath,
     getBaseName,
     getExtension,
+    isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path) || /^\\\\[^\\]+\\[^\\]+/.test(path),
+    normalizeAbsolutePath,
   };
 });
 
@@ -80,5 +139,29 @@ describe('openTargetSelection', () => {
       vaultPath: 'C:\\vault\\docs',
       notePath: 'a.md',
     });
+  });
+
+  it('normalizes dot segments before resolving the selected file parent folder', () => {
+    expect(resolveOpenNoteTarget('/vault/docs/../alpha.md')).toEqual({
+      vaultPath: '/vault',
+      notePath: 'alpha.md',
+    });
+    expect(resolveOpenNoteTarget('C:\\vault\\docs\\..\\alpha.md')).toEqual({
+      vaultPath: 'C:\\vault',
+      notePath: 'alpha.md',
+    });
+  });
+
+  it('resolves UNC paths after normalizing dot segments', () => {
+    expect(resolveOpenNoteTarget('\\\\server\\share\\docs\\..\\alpha.md')).toEqual({
+      vaultPath: '\\\\server\\share',
+      notePath: 'alpha.md',
+    });
+  });
+
+  it('rejects relative markdown paths when resolving open targets', () => {
+    expect(() => resolveOpenNoteTarget('docs/alpha.md')).toThrow(
+      'Selected file path must be absolute',
+    );
   });
 });

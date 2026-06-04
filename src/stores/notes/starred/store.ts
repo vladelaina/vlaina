@@ -1,5 +1,5 @@
 import type { NotesStore, StarredKind } from '../types';
-import { createStarredEntry, getVaultStarredPaths } from './registry';
+import { createStarredEntryIfValid, getVaultStarredPaths } from './registry';
 import { loadStarredRegistry, saveStarredRegistry } from './persistence';
 import { createStarredEntryFromAbsoluteNotePath, findStarredEntryByPath, isStarredEntryForPath } from './entryPaths';
 import {
@@ -63,7 +63,7 @@ export function toggleStarredEntry(
 
   const relativePath = notesPath ? resolveStarredRelativePathForVault(path, notesPath) : null;
   const nextEntry = relativePath
-    ? createStarredEntry(kind, notesPath, relativePath)
+    ? createStarredEntryIfValid(kind, notesPath, relativePath)
     : kind === 'note'
       ? createStarredEntryFromAbsoluteNotePath(path)
       : null;

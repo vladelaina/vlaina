@@ -1176,7 +1176,7 @@ describe('unifiedStorage electron save', () => {
   it('recovers visible sessions from message files when AI session metadata is invalid', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const messageContent = '![outer [nested]](<asset://file(one).png> "Title") Please keep this important chat';
+    const messageContent = '![outer [nested]](<attachment://safe.png> "Title") ![video](https://example.com/movie.mp4) Please keep this important chat';
     mocks.storage.listDir.mockImplementation(async (path: string) => {
       if (path.endsWith('/chat/sessions')) {
         return [
@@ -1238,7 +1238,7 @@ describe('unifiedStorage electron save', () => {
     expect(data.ai?.sessions).toEqual([
       {
         id: 'session-1',
-        title: 'Please keep this important chat',
+        title: '![video](https://example.com/movie.mp4) Please keep this imp...',
         modelId: 'provider::model-a',
         isPinned: false,
         createdAt: 10,
@@ -1323,5 +1323,87 @@ describe('unifiedStorage electron save', () => {
 
     expect(data.ai?.sessions.map((session) => session.id)).toEqual(['session-1']);
     warnSpy.mockRestore();
+  });
+
+  it('does not recover deleted session message files from tombstoned metadata', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.storage.listDir.mockImplementation(async (path: string) => {
+      if (path.endsWith('/chat/sessions')) {
+        return [
+          { name: 'session-1.json', path: '/appdata/.vlaina/chat/sessions/session-1.json', isFile: true, isDirectory: false },
+          { name: 'session-2.json', path: '/appdata/.vlaina/chat/sessions/session-2.json', isFile: true, isDirectory: false },
+        ];
+      }
+      return [];
+    });
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/.vlaina/data.json')) {
+        return JSON.stringify({
+          version: 2,
+          lastModified: 1,
+          data: {
+            settings: {
+              timezone: { offset: 480, city: 'Beijing' },
+              markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+            },
+            customIcons: [],
+          },
+        });
+      }
+
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          version: 1,
+          updatedAt: 1,
+          data: {
+            sessions: [],
+            selectedModelId: null,
+            unreadSessionIds: [],
+            currentSessionId: null,
+            temporaryChatEnabled: false,
+            customSystemPrompt: '',
+            includeTimeContext: true,
+            webSearchEnabled: false,
+            providerIds: [],
+            deletedSessionIds: ['session-2'],
+            deletedProviderIds: [],
+          },
+        });
+      }
+
+      if (path.endsWith('/chat/sessions/session-2.json')) {
+        throw new Error('Deleted session files must not be recovered');
+      }
+
+      if (path.endsWith('/chat/sessions/session-1.json')) {
+        return JSON.stringify({
+          version: 1,
+          sessionId: 'session-1',
+          updatedAt: 2,
+          messages: [
+            {
+              id: 'm1',
+              role: 'user',
+              content: 'Recover this chat',
+              modelId: 'provider::model-a',
+              timestamp: 10,
+              versions: [{
+                content: 'Recover this chat',
+                createdAt: 10,
+                kind: 'original',
+                subsequentMessages: [],
+              }],
+              currentVersionIndex: 0,
+            },
+          ],
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    const data = await loadUnifiedData();
+
+    expect(data.ai?.sessions.map((session) => session.id)).toEqual(['session-1']);
   });
 });

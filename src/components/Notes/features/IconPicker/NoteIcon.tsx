@@ -20,7 +20,7 @@ export function NoteIcon({ notePath, vaultPath: vaultPathOverride, ...props }: N
   const vaultPath = vaultPathOverride || resolveEffectiveVaultPath({ notesPath, currentNotePath: notePath });
 
   const imageLoader = useCallback(async (src: string) => {
-    if (!src.startsWith('img:')) return src;
+    if (!/^img:/i.test(src)) return src;
     const relativePath = src.substring(4);
     if (isAbsolutePath(relativePath)) {
       return (await loadAppIconImageSrc(src)) ?? '';

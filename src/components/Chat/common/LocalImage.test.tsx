@@ -7,12 +7,14 @@ const mocks = vi.hoisted(() => ({
   joinPath: vi.fn(),
   rasterizeSvgDataUrlToPng: vi.fn(),
   readBinaryFile: vi.fn(),
+  stat: vi.fn(),
 }));
 
 vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => ({
     getBasePath: mocks.getBasePath,
     readBinaryFile: mocks.readBinaryFile,
+    stat: mocks.stat,
   }),
   joinPath: mocks.joinPath,
 }));
@@ -31,6 +33,8 @@ describe('LocalImage', () => {
     mocks.rasterizeSvgDataUrlToPng.mockResolvedValue('data:image/png;base64,RASTER');
     mocks.readBinaryFile.mockReset();
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([60, 115, 118, 103, 62]));
+    mocks.stat.mockReset();
+    mocks.stat.mockResolvedValue(null);
   });
 
   it('rasterizes inline SVG data before rendering', async () => {
@@ -48,6 +52,77 @@ describe('LocalImage', () => {
     expect(mocks.joinPath).toHaveBeenCalledWith('/appdata', '.vlaina', 'attachments', 'diagram.svg');
     expect(mocks.rasterizeSvgDataUrlToPng).toHaveBeenCalledWith('data:image/svg+xml;base64,PHN2Zz4=');
     expect(image).toHaveAttribute('src', 'data:image/png;base64,RASTER');
+  });
+
+  it('renders relative image paths with directories directly', async () => {
+    render(<LocalImage src="images/demo.png" alt="relative" />);
+
+    const image = await screen.findByAltText('relative');
+    expect(image).toHaveAttribute('src', 'images/demo.png');
+    expect(mocks.getBasePath).not.toHaveBeenCalled();
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('renders safe image protocols directly regardless of case', async () => {
+    render(<LocalImage src="HTTPS://example.com/demo.png" alt="remote" />);
+
+    const image = await screen.findByAltText('remote');
+    expect(image).toHaveAttribute('src', 'HTTPS://example.com/demo.png');
+    expect(mocks.getBasePath).not.toHaveBeenCalled();
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('normalizes case-insensitive inline raster data before rendering', async () => {
+    render(<LocalImage src="DATA:IMAGE/WEBP;BASE64,AQI=" alt="inline" />);
+
+    const image = await screen.findByAltText('inline');
+    expect(image).toHaveAttribute('src', 'data:image/webp;base64,AQI=');
+    expect(mocks.getBasePath).not.toHaveBeenCalled();
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('blocks local-network remote image sources at the component boundary', async () => {
+    render(<LocalImage src="http://127.0.0.1:3000/secret.png" alt="local" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Image unavailable')).toBeInTheDocument();
+    });
+    expect(screen.queryByAltText('local')).not.toBeInTheDocument();
+    expect(mocks.getBasePath).not.toHaveBeenCalled();
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('blocks unsupported inline data image sources at the component boundary', async () => {
+    render(<LocalImage src="data:text/html;base64,PHNjcmlwdD4=" alt="html" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Image unavailable')).toBeInTheDocument();
+    });
+    expect(screen.queryByAltText('html')).not.toBeInTheDocument();
+    expect(mocks.getBasePath).not.toHaveBeenCalled();
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('keeps bare image filenames mapped to stored attachments', async () => {
+    render(<LocalImage src="demo.png" alt="attachment" />);
+
+    const image = await screen.findByAltText('attachment');
+    expect(mocks.joinPath).toHaveBeenCalledWith('/appdata', '.vlaina', 'attachments', 'demo.png');
+    expect(mocks.readBinaryFile).toHaveBeenCalledWith('/appdata/.vlaina/attachments/demo.png');
+    expect(image).toHaveAttribute('src', 'data:image/png;base64,PHN2Zz4=');
+  });
+
+  it('shows unavailable state for oversized stored attachments before reading them', async () => {
+    mocks.stat.mockResolvedValueOnce({ size: 10 * 1024 * 1024 + 1 });
+
+    render(<LocalImage src="attachment://huge.png" alt="huge" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Image unavailable')).toBeInTheDocument();
+    });
+    expect(mocks.stat).toHaveBeenCalledWith('/appdata/.vlaina/attachments/huge.png');
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+    expect(screen.queryByAltText('huge')).not.toBeInTheDocument();
   });
 
   it('shows unavailable state when SVG rasterization fails', async () => {

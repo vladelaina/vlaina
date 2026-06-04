@@ -373,6 +373,71 @@ describe('chat window selection isolation', () => {
     );
   });
 
+  it('persists case-insensitive inline data images in cached sessions', async () => {
+    vi.useFakeTimers();
+    mocked.persistDataUrlAttachment.mockResolvedValueOnce('attachment://persisted.webp');
+    const inlineSource = 'DATA:IMAGE/WEBP;BASE64,INLINE';
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              messages: {
+                ...state.data.ai.messages,
+                'session-2': [
+                  {
+                    id: 'm2',
+                    role: 'user',
+                    content: `![image](<${inlineSource}>)\n\nDescribe`,
+                    imageSources: [inlineSource],
+                    apiTranscript: [{
+                      role: 'user',
+                      content: [
+                        { type: 'image_url', image_url: { url: inlineSource } },
+                      ],
+                    }],
+                    modelId: managedModel.id,
+                    timestamp: 2,
+                    versions: [{
+                      content: `![image](<${inlineSource}>)\n\nDescribe`,
+                      createdAt: 2,
+                      kind: 'original' as const,
+                      subsequentMessages: [],
+                    }],
+                    currentVersionIndex: 0,
+                  },
+                ],
+              },
+            }
+          : state.data.ai,
+      },
+    }));
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'session-1',
+      temporaryChatEnabled: false,
+    });
+
+    await act(async () => {
+      await actions.switchSession('session-2');
+    });
+
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    vi.useRealTimers();
+
+    const message = useUnifiedStore.getState().data.ai?.messages['session-2']?.[0];
+    expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith('data:image/webp;base64,INLINE');
+    expect(message?.content).toBe('![image](<attachment://persisted.webp>)\n\nDescribe');
+    expect(message?.imageSources).toEqual(['attachment://persisted.webp']);
+    expect(message?.apiTranscript?.[0]?.content).toEqual([
+      { type: 'image_url', image_url: { url: 'attachment://persisted.webp' } },
+    ]);
+    expect(message?.versions[0]?.content).toBe('![image](<attachment://persisted.webp>)\n\nDescribe');
+  });
+
   it('does not replace an unreadable persisted session file with an empty chat', async () => {
     mocked.loadSessionJson.mockResolvedValueOnce(null);
     mocked.hasSessionJson.mockResolvedValueOnce(true);

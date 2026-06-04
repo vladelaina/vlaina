@@ -1,4 +1,8 @@
-import { getStarredEntryAbsolutePath, normalizeStarredVaultPath } from '@/stores/notes/starred';
+import {
+  getStarredEntryAbsolutePath,
+  normalizeStarredRelativePath,
+  normalizeStarredVaultPath,
+} from '@/stores/notes/starred';
 import type { StarredEntry } from '@/stores/notes/types';
 import type { FileTreeNode, FolderNode } from '@/stores/useNotesStore';
 import { extractNoteTagOccurrences, extractNoteTags } from '@/lib/notes/tags';
@@ -70,7 +74,8 @@ function getCurrentVaultStarredFolders(
       entry.kind === 'folder' &&
       normalizeStarredVaultPath(entry.vaultPath) === normalizedCurrentVaultPath
     )
-    .map((entry) => entry.relativePath);
+    .map((entry) => normalizeStarredRelativePath(entry.relativePath))
+    .filter((path): path is string => path !== null);
 }
 
 export function buildNotesSidebarTagScopeEntries({
@@ -94,10 +99,15 @@ export function buildNotesSidebarTagScopeEntries({
         (!normalizedCurrentVaultPath ||
           normalizeStarredVaultPath(entry.vaultPath) === normalizedCurrentVaultPath)
       ) {
+        const relativePath = normalizeStarredRelativePath(entry.relativePath);
+        if (!relativePath) {
+          continue;
+        }
+
         paths.add(
           normalizedCurrentVaultPath
-            ? entry.relativePath
-            : getStarredEntryAbsolutePath(entry) ?? entry.relativePath,
+            ? relativePath
+            : getStarredEntryAbsolutePath({ ...entry, relativePath }) ?? relativePath,
         );
       }
     }

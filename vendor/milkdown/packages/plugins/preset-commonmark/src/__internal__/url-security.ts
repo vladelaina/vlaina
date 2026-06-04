@@ -4,9 +4,26 @@ const windowsAbsolutePathPattern = /^[A-Za-z]:[\\/]/
 const unixAbsolutePathPattern = /^\//
 const safeMediaSchemes = new Set(['http:', 'https:', 'blob:'])
 const fallbackUrlBase = 'https://milkdown.local/'
+const safeDataImagePattern = /^(data:image\/(?:png|jpeg|jpg|webp|gif|bmp|avif);base64,)([A-Za-z0-9+/=]+)$/i
+const maxInlineImageBytes = 10 * 1024 * 1024
 
 function getUrlBase() {
   return typeof window !== 'undefined' ? window.location.href : fallbackUrlBase
+}
+
+function hasUnsafeBackslashUrlSyntax(value: string) {
+  return value.startsWith('\\') || (schemePattern.test(value) && value.includes('\\'))
+}
+
+function getBase64DecodedByteLength(payload: string) {
+  if (payload.length % 4 === 1 || !/^[A-Za-z0-9+/]*={0,2}$/.test(payload)) return null
+
+  let padding = 0
+  if (payload.endsWith('==')) padding = 2
+  else if (payload.endsWith('=')) padding = 1
+
+  const byteLength = Math.floor((payload.length * 3) / 4) - padding
+  return byteLength >= 0 ? byteLength : null
 }
 
 function parseIPv4(hostname: string) {
@@ -34,6 +51,28 @@ function isPrivateIPv4(hostname: string) {
   )
 }
 
+function parseEmbeddedIPv4Hextets(parts: string[]) {
+  if (parts.length !== 2) return null
+  if (parts.some((part) => !/^[\da-f]{1,4}$/i.test(part))) return null
+
+  const high = Number.parseInt(parts[0], 16)
+  const low = Number.parseInt(parts[1], 16)
+  if (!Number.isFinite(high) || !Number.isFinite(low)) return null
+
+  return [
+    (high >> 8) & 255,
+    high & 255,
+    (low >> 8) & 255,
+    low & 255,
+  ].join('.')
+}
+
+function hasPrivateEmbeddedIPv4(normalized: string, prefix: string) {
+  if (!normalized.startsWith(prefix)) return false
+  const embedded = parseEmbeddedIPv4Hextets(normalized.slice(prefix.length).split(':'))
+  return embedded ? isPrivateIPv4(embedded) : false
+}
+
 function isLocalNetworkHostname(hostname: string) {
   return (
     hostname === 'localhost'
@@ -45,28 +84,12 @@ function isLocalNetworkHostname(hostname: string) {
 }
 
 function isPrivateIPv6(hostname: string) {
-  if (hostname.startsWith('::ffff:')) {
-    const parts = hostname.slice('::ffff:'.length).split(':')
-    if (parts.length === 2) {
-      const high = Number.parseInt(parts[0], 16)
-      const low = Number.parseInt(parts[1], 16)
-      if (
-        Number.isFinite(high)
-        && Number.isFinite(low)
-        && high >= 0
-        && high <= 0xffff
-        && low >= 0
-        && low <= 0xffff
-      ) {
-        const mapped = [
-          (high >> 8) & 255,
-          high & 255,
-          (low >> 8) & 255,
-          low & 255,
-        ].join('.')
-        return isPrivateIPv4(mapped)
-      }
-    }
+  if (
+    hasPrivateEmbeddedIPv4(hostname, '::ffff:')
+    || hasPrivateEmbeddedIPv4(hostname, '::ffff:0:')
+    || hasPrivateEmbeddedIPv4(hostname, '::')
+  ) {
+    return true
   }
 
   return (
@@ -93,6 +116,7 @@ export function isLocalNetworkHttpUrl(value: string) {
 export function isPublicRemoteMediaUrl(value: string) {
   const trimmed = value.trim()
   if (controlOrBidiPattern.test(trimmed)) return false
+  if (hasUnsafeBackslashUrlSyntax(trimmed)) return false
   if (!trimmed.startsWith('//') && !/^https?:/i.test(trimmed)) return false
   const normalized = trimmed.startsWith('//') ? `https:${trimmed}` : trimmed
   try {
@@ -106,15 +130,45 @@ export function isPublicRemoteMediaUrl(value: string) {
   }
 }
 
+export function getInternalImageAssetPath(value: unknown) {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  const scheme = schemePattern.exec(trimmed)?.[1]?.toLowerCase()
+  if (scheme !== 'img') return null
+
+  const assetPath = trimmed.slice(trimmed.indexOf(':') + 1)
+  if (
+    !assetPath
+    || controlOrBidiPattern.test(assetPath)
+    || assetPath.startsWith('//')
+    || assetPath.startsWith('\\')
+    || windowsAbsolutePathPattern.test(assetPath)
+    || unixAbsolutePathPattern.test(assetPath)
+  ) return null
+
+  return assetPath
+}
+
 export function sanitizeMediaSrc(value: unknown) {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
-  if (!trimmed || controlOrBidiPattern.test(trimmed) || windowsAbsolutePathPattern.test(trimmed) || (unixAbsolutePathPattern.test(trimmed) && !trimmed.startsWith('//'))) return null
+  if (!trimmed || controlOrBidiPattern.test(trimmed) || hasUnsafeBackslashUrlSyntax(trimmed) || windowsAbsolutePathPattern.test(trimmed) || (unixAbsolutePathPattern.test(trimmed) && !trimmed.startsWith('//'))) return null
   if (trimmed.startsWith('//')) return isLocalNetworkHttpUrl(`https:${trimmed}`) ? null : trimmed
 
   const scheme = schemePattern.exec(trimmed)?.[1]?.toLowerCase()
   if (!scheme) return trimmed
   const normalizedScheme = `${scheme}:`
+  if (normalizedScheme === 'img:') {
+    return getInternalImageAssetPath(trimmed) ? trimmed : null
+  }
+  if (normalizedScheme === 'data:') {
+    const match = safeDataImagePattern.exec(trimmed)
+    if (!match) return null
+    const byteLength = getBase64DecodedByteLength(match[2])
+    return byteLength !== null && byteLength <= maxInlineImageBytes
+      ? `${match[1].toLowerCase()}${match[2]}`
+      : null
+  }
   if (!safeMediaSchemes.has(normalizedScheme)) return null
   if ((normalizedScheme === 'http:' || normalizedScheme === 'https:') && isLocalNetworkHttpUrl(trimmed)) return null
   return trimmed

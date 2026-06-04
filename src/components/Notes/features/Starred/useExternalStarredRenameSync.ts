@@ -8,7 +8,7 @@ import {
   getStarredEntryAbsolutePath,
   normalizeStarredVaultPath,
 } from '@/stores/notes/starred';
-import { getAbsoluteRenameWatchPaths, normalizeFsPath } from '../../hooks/notesExternalSyncUtils';
+import { getAbsoluteRenameWatchPaths, isMarkdownPath, normalizeFsPath } from '../../hooks/notesExternalSyncUtils';
 
 function isPathWithin(path: string, basePath: string) {
   return path === basePath || path.startsWith(`${basePath}/`);
@@ -87,7 +87,12 @@ export function useExternalStarredRenameSync() {
             return;
           }
 
-          await applyExternalPathRename(oldPath, normalizeFsPath(renamePaths.newPath));
+          const newPath = normalizeFsPath(renamePaths.newPath);
+          if (!isMarkdownPath(oldPath) || !isMarkdownPath(newPath)) {
+            return;
+          }
+
+          await applyExternalPathRename(oldPath, newPath);
         },
         { recursive: false },
       ).then(

@@ -10,11 +10,11 @@ export function iconDataFromValue(value: string | null | undefined): IconData {
     return DEFAULT_CALLOUT_ICON;
   }
 
-  if (value.startsWith('img:')) {
+  if (/^img:/i.test(value)) {
     return { type: 'image', value };
   }
 
-  if (value.startsWith('icon:')) {
+  if (/^icon:/i.test(value)) {
     return { type: 'icon', value };
   }
 

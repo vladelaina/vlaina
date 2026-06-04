@@ -1,4 +1,4 @@
-import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
+import { getStorageAdapter, isAbsolutePath, normalizeAbsolutePath } from '@/lib/storage/adapter';
 import {
   safeWriteTextFile,
 } from '../storage';
@@ -61,10 +61,14 @@ export class NoteWriteConflictError extends Error {
 
 async function resolveStoredPath(notesPath: string, path: string): Promise<string> {
   if (isAbsolutePath(path)) {
-    return path;
+    return normalizeAbsolutePath(path);
   }
 
   return (await resolveVaultRelativeFullPath(notesPath, path)).fullPath;
+}
+
+function normalizeStoredNotePath(path: string): string {
+  return isAbsolutePath(path) ? normalizeAbsolutePath(path) : path;
 }
 
 function assertReadableNoteSize(size: number | null | undefined): void {
@@ -108,15 +112,16 @@ export async function loadNoteDocument({
   cache,
   allowStaleCachedContent = false,
 }: LoadNoteDocumentOptions): Promise<LoadedNoteDocument> {
-  const cachedEntry = cache.get(path);
-  const cachedContent = getCachedNoteContent(cache, path);
+  const notePath = normalizeStoredNotePath(path);
+  const cachedEntry = cache.get(notePath);
+  const cachedContent = getCachedNoteContent(cache, notePath);
   if (cachedContent !== undefined) {
     const cachedModifiedAt = cachedEntry?.modifiedAt ?? null;
     assertEditorSafeMarkdownContent(cachedContent);
     const canTrustFreshCachedContent = typeof cachedEntry?.freshUntil === 'number' && Date.now() <= cachedEntry.freshUntil;
     if (!allowStaleCachedContent && !canTrustFreshCachedContent) {
       const storage = getStorageAdapter();
-      const fullPath = await resolveStoredPath(notesPath, path);
+      const fullPath = await resolveStoredPath(notesPath, notePath);
       const fileInfo = await storage.stat(fullPath);
       assertReadableNoteSize(fileInfo?.size ?? null);
       const diskModifiedAt = fileInfo?.modifiedAt ?? null;
@@ -127,7 +132,7 @@ export async function loadNoteDocument({
         return {
           content: normalizedDiskContent,
           modifiedAt: diskModifiedAt,
-          nextCache: setCachedNoteContent(cache, path, normalizedDiskContent, diskModifiedAt, {
+          nextCache: setCachedNoteContent(cache, notePath, normalizedDiskContent, diskModifiedAt, {
             updateBaseline: true,
           }),
         };
@@ -140,14 +145,14 @@ export async function loadNoteDocument({
       modifiedAt: cachedModifiedAt,
       nextCache: normalizedCachedContent === cachedContent
         ? cache
-        : setCachedNoteContent(cache, path, normalizedCachedContent, cachedModifiedAt, {
+        : setCachedNoteContent(cache, notePath, normalizedCachedContent, cachedModifiedAt, {
           updateBaseline: !allowStaleCachedContent,
         }),
     };
   }
 
   const storage = getStorageAdapter();
-  const fullPath = await resolveStoredPath(notesPath, path);
+  const fullPath = await resolveStoredPath(notesPath, notePath);
   const fileInfo = await storage.stat(fullPath);
   assertReadableNoteSize(fileInfo?.size ?? null);
   const content = await storage.readFile(fullPath);
@@ -158,7 +163,7 @@ export async function loadNoteDocument({
   return {
     content: normalizedContent,
     modifiedAt,
-    nextCache: setCachedNoteContent(cache, path, normalizedContent, modifiedAt, {
+    nextCache: setCachedNoteContent(cache, notePath, normalizedContent, modifiedAt, {
       updateBaseline: true,
     }),
   };
@@ -171,13 +176,14 @@ export async function saveNoteDocument({
   updatedAt,
 }: SaveNoteDocumentOptions): Promise<SavedNoteDocument> {
   const storage = getStorageAdapter();
-  const fullPath = await resolveStoredPath(notesPath, currentNote.path);
+  const notePath = normalizeStoredNotePath(currentNote.path);
+  const fullPath = await resolveStoredPath(notesPath, notePath);
   const fileInfoBeforeWrite = await storage.stat(fullPath);
   assertReadableNoteSize(fileInfoBeforeWrite?.size ?? null);
   assertEditorSafeMarkdownContent(currentNote.content);
   const diskModifiedAt = fileInfoBeforeWrite?.modifiedAt ?? null;
   const normalizedCurrentContent = normalizeSerializedMarkdownDocument(currentNote.content);
-  const cachedEntry = cache.get(currentNote.path);
+  const cachedEntry = cache.get(notePath);
   const cachedModifiedAt = cachedEntry?.modifiedAt ?? null;
   const shouldCompareDiskContent =
     cachedEntry !== undefined &&
@@ -187,6 +193,7 @@ export async function saveNoteDocument({
       diskModifiedAt !== cachedModifiedAt);
   if (shouldCompareDiskContent && cachedEntry !== undefined) {
     const diskContent = await storage.readFile(fullPath);
+    assertEditorSafeMarkdownContent(diskContent);
     const normalizedDiskContent = normalizeSerializedMarkdownDocument(diskContent);
     const normalizedCachedContent = normalizeSerializedMarkdownDocument(
       cachedEntry.savedContent ?? cachedEntry.content
@@ -200,7 +207,7 @@ export async function saveNoteDocument({
         content: normalizedDiskContent,
         metadata,
         modifiedAt: diskModifiedAt,
-        nextCache: setCachedNoteContent(cache, currentNote.path, normalizedDiskContent, diskModifiedAt, {
+        nextCache: setCachedNoteContent(cache, notePath, normalizedDiskContent, diskModifiedAt, {
           updateBaseline: true,
         }),
       };
@@ -217,7 +224,7 @@ export async function saveNoteDocument({
         content: normalizedDiskContent,
         metadata,
         modifiedAt: diskModifiedAt,
-        nextCache: setCachedNoteContent(cache, currentNote.path, normalizedDiskContent, diskModifiedAt, {
+        nextCache: setCachedNoteContent(cache, notePath, normalizedDiskContent, diskModifiedAt, {
           updateBaseline: true,
         }),
       };
@@ -245,7 +252,7 @@ export async function saveNoteDocument({
         content,
         metadata,
         modifiedAt,
-        nextCache: setCachedNoteContent(cache, currentNote.path, content, modifiedAt, {
+        nextCache: setCachedNoteContent(cache, notePath, content, modifiedAt, {
           updateBaseline: true,
         }),
       };
@@ -267,7 +274,7 @@ export async function saveNoteDocument({
     content,
     metadata,
     modifiedAt,
-    nextCache: setCachedNoteContent(cache, currentNote.path, content, modifiedAt, {
+    nextCache: setCachedNoteContent(cache, notePath, content, modifiedAt, {
       updateBaseline: true,
     }),
   };

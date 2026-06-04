@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { getStorageAdapter } from '@/lib/storage/adapter';
-import { isPublicRemoteMediaUrl, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
+import { normalizePublicRemoteMediaUrl, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePathCandidates } from '../utils/imageSourcePath';
 import { resolveRemoteImageFromMemoryCache } from '../utils/remoteImageMemoryCache';
 
@@ -47,7 +47,8 @@ export function useLocalImage(
 
             try {
                 const baseSrc = getImageSourceBase(rawSrc);
-                if (sanitizeNoteMediaSrc(baseSrc) !== baseSrc) {
+                const safeBaseSrc = sanitizeNoteMediaSrc(baseSrc);
+                if (!safeBaseSrc) {
                     if (isMounted) {
                         setResolvedSrc('');
                         setIsLoading(false);
@@ -55,8 +56,9 @@ export function useLocalImage(
                     return;
                 }
 
-                if (isPublicRemoteMediaUrl(baseSrc)) {
-                    const resolvedRemoteSrc = await resolveRemoteImageFromMemoryCache(baseSrc);
+                const normalizedRemoteSrc = normalizePublicRemoteMediaUrl(safeBaseSrc);
+                if (normalizedRemoteSrc) {
+                    const resolvedRemoteSrc = await resolveRemoteImageFromMemoryCache(normalizedRemoteSrc);
                     if (isMounted) {
                         setResolvedSrc(resolvedRemoteSrc);
                         setIsLoading(false);
@@ -64,16 +66,16 @@ export function useLocalImage(
                     return;
                 }
 
-                if (isVirtualImageSource(baseSrc)) {
+                if (isVirtualImageSource(safeBaseSrc)) {
                     if (isMounted) {
-                        setResolvedSrc(baseSrc);
+                        setResolvedSrc(safeBaseSrc);
                         setIsLoading(false);
                     }
                     return;
                 }
 
                 const candidatePaths = await resolveImageSourcePathCandidates({
-                    rawSrc,
+                    rawSrc: safeBaseSrc,
                     notesPath,
                     currentNotePath,
                 });

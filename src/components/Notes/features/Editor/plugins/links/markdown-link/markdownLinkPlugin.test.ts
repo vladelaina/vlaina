@@ -30,6 +30,17 @@ function insertEmptyParagraphAfterDocumentEnd(view: any): void {
   view.dispatch(tr.setSelection(TextSelection.create(tr.doc, cursorPos)));
 }
 
+function getFirstLinkHref(view: any): string | null {
+  let href: string | null = null;
+  view.state.doc.descendants((node: any) => {
+    const link = node.marks?.find((mark: any) => mark.type.name === 'link');
+    if (!link) return true;
+    href = link.attrs.href;
+    return false;
+  });
+  return href;
+}
+
 describe('shouldHandleMarkdownLinkPaste', () => {
   it('handles single-line markdown link text', () => {
     expect(shouldHandleMarkdownLinkPaste('Read [Docs](https://example.com)')).toBe(true);
@@ -111,6 +122,46 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     await editor.destroy();
   });
 
+  it('pastes entity-encoded unsafe markdown links as plain text', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, '[Bad](javascript&colon;alert)')).toBe(true);
+
+    expect(view.state.doc.textContent).toBe('Bad');
+    const linkMark = view.state.schema.marks.link;
+    expect(view.state.doc.rangeHasMark(0, view.state.doc.content.size, linkMark)).toBe(false);
+
+    await editor.destroy();
+  });
+
+  it('pastes escaped unsafe markdown links as plain text', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, String.raw`[Bad](javascript\:alert)`)).toBe(true);
+
+    expect(view.state.doc.textContent).toBe('Bad');
+    const linkMark = view.state.schema.marks.link;
+    expect(view.state.doc.rangeHasMark(0, view.state.doc.content.size, linkMark)).toBe(false);
+
+    await editor.destroy();
+  });
+
   it('pastes protocol-relative markdown links as plain text', async () => {
     const editor = Editor.make()
       .config((ctx) => {
@@ -169,6 +220,46 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     await editor.destroy();
   });
 
+  it('pastes angle-bracket markdown link destinations with escaped brackets', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, String.raw`[Docs](<docs/a-\>.md>)`)).toBe(true);
+
+    expect(getFirstLinkHref(view)).toBe('docs/a->.md');
+    const serializer = editor.ctx.get(serializerCtx);
+    expect(serializer(view.state.doc).trim()).toBe('[Docs](docs/a->.md)');
+
+    await editor.destroy();
+  });
+
+  it('unescapes markdown punctuation in explicit link destinations', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, String.raw`[Docs](https\://example.com/a\?q\=1\&b\=2)`)).toBe(true);
+
+    expect(getFirstLinkHref(view)).toBe('https://example.com/a?q=1&b=2');
+    const serializer = editor.ctx.get(serializerCtx);
+    expect(serializer(view.state.doc).trim()).toBe(String.raw`[Docs](https://example.com/a?q=1\&b=2)`);
+
+    await editor.destroy();
+  });
+
   it('normalizes bare domains in explicit markdown links', async () => {
     const editor = Editor.make()
       .config((ctx) => {
@@ -200,6 +291,65 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     const view = editor.ctx.get(editorViewCtx);
 
     expect(simulatePasteText(view, '[Docs](docs/safe.md)')).toBe(true);
+
+    const serializer = editor.ctx.get(serializerCtx);
+    expect(serializer(view.state.doc).trim()).toBe('[Docs](docs/safe.md)');
+
+    await editor.destroy();
+  });
+
+  it('preserves explicit markdown links with balanced parentheses in the destination', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, '[Docs](docs/a(b).md)')).toBe(true);
+
+    const serializer = editor.ctx.get(serializerCtx);
+    expect(getFirstLinkHref(view)).toBe('docs/a(b).md');
+    expect(serializer(view.state.doc).trim()).toBe(String.raw`[Docs](docs/a\(b\).md)`);
+
+    await editor.destroy();
+  });
+
+  it('unescapes balanced parentheses in explicit markdown link destinations', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, String.raw`[Docs](docs/a\(b\).md)`)).toBe(true);
+
+    expect(getFirstLinkHref(view)).toBe('docs/a(b).md');
+    const serializer = editor.ctx.get(serializerCtx);
+    expect(serializer(view.state.doc).trim()).toBe(String.raw`[Docs](docs/a\(b\).md)`);
+
+    await editor.destroy();
+  });
+
+  it('decodes entity references in explicit markdown link destinations', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, '[Docs](docs&sol;safe&period;md)')).toBe(true);
 
     const serializer = editor.ctx.get(serializerCtx);
     expect(serializer(view.state.doc).trim()).toBe('[Docs](docs/safe.md)');

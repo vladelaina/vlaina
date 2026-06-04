@@ -63,6 +63,28 @@ function findImageTargetEnd(value: string, start: number): number | null {
   let parenDepth = 0;
   let quote: string | null = null;
 
+  while (cursor < value.length && /\s/.test(value[cursor])) {
+    cursor += 1;
+  }
+
+  if (value[cursor] === '<') {
+    cursor += 1;
+    while (cursor < value.length) {
+      const character = value[cursor];
+      if (character === '\n') {
+        return null;
+      }
+      if (character === '>' && !isEscaped(value, cursor)) {
+        cursor += 1;
+        break;
+      }
+      cursor += 1;
+    }
+    if (cursor >= value.length && value[cursor - 1] !== '>') {
+      return null;
+    }
+  }
+
   while (cursor < value.length) {
     const character = value[cursor];
     if (quote) {

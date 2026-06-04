@@ -65,6 +65,12 @@ describe('WebAdapter', () => {
     ]);
   });
 
+  it('rejects relative paths that escape the virtual storage root', async () => {
+    await expect(adapter.writeFile('../notes/a.md', 'hello')).rejects.toThrow('Path escapes storage root');
+    await expect(adapter.readFile('../notes/a.md')).rejects.toThrow('Path escapes storage root');
+    await expect(adapter.listDir('../notes')).rejects.toThrow('Path escapes storage root');
+  });
+
   it('lists implicit parent directories for stored deep files', async () => {
     await adapter.writeFile('/vault/docs/a.md', 'hello');
 

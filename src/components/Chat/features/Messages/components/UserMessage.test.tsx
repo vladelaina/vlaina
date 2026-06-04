@@ -35,6 +35,8 @@ vi.mock('@/components/Chat/common/LocalImage', () => ({
 vi.mock('@/components/Chat/common/messageClipboard', () => ({
   copyMessageContentToClipboard: vi.fn(async () => {}),
   extractMarkdownImageSources: vi.fn(() => []),
+  extractRenderedMarkdownImageSources: vi.fn(() => []),
+  isRenderedImageSource: vi.fn(() => true),
   stripMarkdownImageTokens: vi.fn((value: string) => value),
 }));
 

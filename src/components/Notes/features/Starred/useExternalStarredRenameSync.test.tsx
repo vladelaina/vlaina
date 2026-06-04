@@ -111,4 +111,27 @@ describe('useExternalStarredRenameSync', () => {
 
     expect(mocked.watchDesktopPath).not.toHaveBeenCalled();
   });
+
+  it('does not remap external starred notes to non-Markdown paths', async () => {
+    mocked.notesState.starredEntries = [
+      {
+        id: 'starred-external',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/alpha.md',
+        addedAt: 1,
+      },
+    ];
+
+    renderHook(() => useExternalStarredRenameSync());
+
+    await act(async () => {
+      await mocked.handlers.get('/vault-b/docs/alpha.md')?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['/vault-b/docs/alpha.md', '/vault-b/docs/alpha.png'],
+      });
+    });
+
+    expect(mocked.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+  });
 });

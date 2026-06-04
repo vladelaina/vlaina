@@ -1,4 +1,5 @@
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { getBaseName, getParentPath, isAbsolutePath, normalizePath } from '@/lib/storage/adapter';
 import type { StarredEntry, StarredKind } from '../types';
 import { createStarredEntry, getStarredEntryKey } from './registry';
@@ -27,6 +28,9 @@ export function getStarredEntryAbsolutePath(entry: StarredEntry): string | null 
 
 export function createStarredEntryFromAbsoluteNotePath(path: string): StarredEntry | null {
   if (!isAbsolutePath(path)) {
+    return null;
+  }
+  if (!isSupportedMarkdownPath(path)) {
     return null;
   }
 

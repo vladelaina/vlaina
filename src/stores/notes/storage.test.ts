@@ -74,4 +74,12 @@ describe('notes starred storage helpers', () => {
     expect(resolveStarredRelativePathForVault('C:\\vault\\docs\\alpha.md', 'C:/vault')).toBe('docs/alpha.md');
     expect(resolveStarredRelativePathForVault('/docs/alpha.md', '/')).toBe('docs/alpha.md');
   });
+
+  it('normalizes current-vault absolute starred paths before containment checks', () => {
+    expect(resolveStarredRelativePathForVault('/vault/docs/../alpha.md', '/vault')).toBe('alpha.md');
+    expect(resolveStarredRelativePathForVault('/vault/../secret.md', '/vault')).toBeNull();
+    expect(resolveStarredRelativePathForVault('/vaulted/alpha.md', '/vault')).toBeNull();
+    expect(resolveStarredRelativePathForVault('c:\\users\\me\\vault\\Docs\\Alpha.md', 'C:\\Users\\Me\\Vault')).toBe('Docs/Alpha.md');
+    expect(resolveStarredRelativePathForVault('c:\\users\\me\\vault\\..\\secret.md', 'C:\\Users\\Me\\Vault')).toBeNull();
+  });
 });

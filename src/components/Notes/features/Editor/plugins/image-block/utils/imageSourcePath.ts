@@ -1,5 +1,6 @@
 import { getParentPath, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
+import { getNoteInternalImageAssetPath } from '@/lib/notes/markdown/urlSecurity';
 
 interface ImageSourcePathDeps {
     getParentPath: (path: string) => string | null;
@@ -23,16 +24,24 @@ export function getImageSourceBase(rawSrc: string): string {
     return rawSrc.split('#')[0] ?? '';
 }
 
-function getLocalImageSourcePath(baseSrc: string): string {
-    return baseSrc.split('?')[0] ?? '';
+export function getLocalImageSourcePath(baseSrc: string): string {
+    const internalAssetPath = getNoteInternalImageAssetPath(baseSrc);
+    if (internalAssetPath) {
+        return (internalAssetPath.split('?')[0] ?? '').replace(/\\/g, '/');
+    }
+    if (/^img:/i.test(baseSrc)) {
+        return '';
+    }
+    return (baseSrc.split('?')[0] ?? '').replace(/\\/g, '/');
 }
 
 export function isVirtualImageSource(src: string): boolean {
+    const normalized = src.trim().toLowerCase();
     return (
-        src.startsWith('http://') ||
-        src.startsWith('https://') ||
-        src.startsWith('data:') ||
-        src.startsWith('blob:')
+        normalized.startsWith('http://') ||
+        normalized.startsWith('https://') ||
+        normalized.startsWith('data:') ||
+        normalized.startsWith('blob:')
     );
 }
 

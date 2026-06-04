@@ -127,6 +127,32 @@ it('should serialize localized image markdown as standard markdown', async () =>
   expect(markdown).toBe('![猫](./cat.png)\n')
 })
 
+it('should serialize angle-wrapped image input as standard markdown', async () => {
+  const editor = createEditor()
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+
+  typeText(view, '![cat](<./images/cat photo.png>)')
+
+  const markdown = editor.action(getMarkdown())
+  expect(markdown).toBe('![cat](<./images/cat photo.png>)\n')
+})
+
+it('should serialize internal image asset input as standard markdown', async () => {
+  const editor = createEditor()
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+
+  typeText(view, '![cat](img:assets/cat.png)')
+
+  const markdown = editor.action(getMarkdown())
+  expect(markdown).toBe('![cat](img:assets/cat.png)\n')
+})
+
 it('should serialize fullwidth emphasis marker as standard markdown', async () => {
   const editor = createEditor()
 

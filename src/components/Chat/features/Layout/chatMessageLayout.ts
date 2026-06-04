@@ -10,7 +10,7 @@ import {
   estimateChatLoadingHeight,
 } from './chatAssistantMessageLayout';
 import {
-  extractMarkdownImageSources,
+  extractRenderedMarkdownImageSources,
   stripMarkdownImageTokens,
 } from '@/components/Chat/common/messageClipboard';
 
@@ -27,7 +27,7 @@ type EstimatedChatMessageHeightOptions = {
 };
 
 function countRenderableImages(content: string): number {
-  return extractMarkdownImageSources(content).length;
+  return extractRenderedMarkdownImageSources(content).length;
 }
 
 function estimateUserMessageHeight(

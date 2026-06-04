@@ -39,18 +39,20 @@ export function isAppFileAttachmentUrl(url: URL): boolean {
 
 export function isStoredAttachmentSrc(src: string | null | undefined): boolean {
   const trimmed = src?.trim() ?? '';
-  return trimmed.startsWith('attachment://') || trimmed.startsWith('app-file://attachment/');
+  const lower = trimmed.toLowerCase();
+  return lower.startsWith('attachment://') || lower.startsWith('app-file://attachment/');
 }
 
 export function extractStoredAttachmentFilename(src: string | null | undefined): string | null {
   const trimmed = src?.trim() ?? '';
   if (!trimmed) return null;
+  const lower = trimmed.toLowerCase();
 
-  if (trimmed.startsWith('attachment://')) {
+  if (lower.startsWith('attachment://')) {
     return decodeAttachmentFilename(stripUrlSuffix(trimmed.slice('attachment://'.length)));
   }
 
-  if (trimmed.startsWith('app-file://attachment/')) {
+  if (lower.startsWith('app-file://attachment/')) {
     return decodeAttachmentFilename(stripUrlSuffix(trimmed.slice('app-file://attachment/'.length)));
   }
 

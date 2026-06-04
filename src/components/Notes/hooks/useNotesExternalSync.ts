@@ -109,11 +109,10 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
         return;
       }
 
-      await applyExternalPathRename(oldPath, newPath);
+      await syncActions.handleExternalPathRename(oldPath, newPath, { reload: 'immediate' });
       if (disposed || useNotesStore.getState().notesPath !== notesPath) {
         return;
       }
-      await loadFileTree(true);
     }
 
     const reconcileExternalPathEventFile = async () => {

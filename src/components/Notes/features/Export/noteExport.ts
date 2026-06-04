@@ -43,7 +43,22 @@ function getExportTitle(request: NoteExportRequest): string {
 }
 
 function dataUrlToBytes(dataUrl: string): Uint8Array {
-  const base64 = dataUrl.split(',')[1] ?? '';
+  const commaIndex = dataUrl.indexOf(',');
+  if (commaIndex < 0) {
+    throw new Error('Invalid PNG export data URL.');
+  }
+
+  const metadata = dataUrl.slice(0, commaIndex);
+  const mediaType = /^data:([^;,]+)/i.exec(metadata)?.[1]?.toLowerCase() ?? '';
+  if (mediaType !== 'image/png') {
+    throw new Error('Unexpected PNG export MIME type.');
+  }
+
+  if (!/(?:^|;)base64(?:;|$)/i.test(metadata)) {
+    throw new Error('PNG export data URL must be base64 encoded.');
+  }
+
+  const base64 = dataUrl.slice(commaIndex + 1);
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) {
@@ -137,9 +152,9 @@ export async function exportNote(request: NoteExportRequest): Promise<NoteExport
     request.notePath,
   );
 
-  const html = request.format === 'docx'
-    ? null
-    : await renderNoteExportHtml(markdown, title);
+  const html = request.format === 'html' || request.format === 'pdf'
+    ? await renderNoteExportHtml(markdown, title)
+    : null;
 
   const result =
     request.format === 'docx'

@@ -6,6 +6,8 @@ import {
     extractStoredAttachmentFilename,
     inferAttachmentMimeTypeFromFilename,
 } from '@/lib/storage/attachmentUrl';
+import { MAX_ATTACHMENT_IMAGE_BYTES } from '@/lib/storage/attachmentStorage';
+import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
 import { getPrimaryAttachmentPath } from '@/lib/storage/attachmentPaths';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
 import {
@@ -24,29 +26,64 @@ interface LocalImageProps {
 }
 
 function isRelativePath(value: string): boolean {
-    return value.startsWith('/') || value.startsWith('./') || value.startsWith('../');
+    if (value.startsWith('/')) {
+        return false;
+    }
+    if (value.startsWith('./') || value.startsWith('../')) {
+        return true;
+    }
+    if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(value)) {
+        return false;
+    }
+    return value.includes('/');
 }
 
-function isDirectRenderableSrc(value: string): boolean {
+function normalizeDirectRenderableSrc(value: string): string | null {
+    if (isSvgDataUrl(value)) {
+        return value.trim();
+    }
+
+    const safeSrc = normalizeRenderableImageSrc(value);
+    if (!safeSrc) {
+        return null;
+    }
+
+    const normalized = safeSrc.toLowerCase();
+    if (
+        normalized.startsWith('attachment:') ||
+        normalized.startsWith('app-file:') ||
+        normalized.startsWith('asset:')
+    ) {
+        return null;
+    }
+
     return (
-        value.startsWith('http://') ||
-        value.startsWith('https://') ||
-        value.startsWith('data:') ||
-        value.startsWith('blob:') ||
-        isRelativePath(value)
-    );
+        normalized.startsWith('http://') ||
+        normalized.startsWith('https://') ||
+        normalized.startsWith('data:') ||
+        normalized.startsWith('blob:') ||
+        isRelativePath(safeSrc)
+    ) ? safeSrc : null;
 }
 
 function uint8ArrayToBase64(data: Uint8Array): string {
+    const CHUNK_SIZE = 0x8000;
     let binary = '';
-    for (let i = 0; i < data.length; i++) {
-        binary += String.fromCharCode(data[i]);
+    for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+        const chunk = data.subarray(i, i + CHUNK_SIZE);
+        binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
     }
     return window.btoa(binary);
 }
 
 async function normalizeDisplaySrc(src: string): Promise<string | null> {
     return isSvgDataUrl(src) ? await rasterizeSvgDataUrlToPng(src) : src;
+}
+
+function assertStoredAttachmentSize(size: number | null | undefined): void {
+    if (typeof size === 'number' && size > MAX_ATTACHMENT_IMAGE_BYTES) {
+        throw new Error('Attachment image is too large.');
+    }
 }
 
 export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style, 'data-vlaina-crop': cropData }: LocalImageProps) {
@@ -65,8 +102,9 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
         setError(false);
 
         const loadLocalImage = async () => {
-            if (isDirectRenderableSrc(src)) {
-                const nextSrc = await normalizeDisplaySrc(src);
+            const directSrc = normalizeDirectRenderableSrc(src);
+            if (directSrc) {
+                const nextSrc = await normalizeDisplaySrc(directSrc);
                 if (!active) return;
                 if (!nextSrc) {
                     setError(true);
@@ -88,7 +126,11 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
             try {
                 const storage = getStorageAdapter();
                 const basePath = await storage.getBasePath();
-                const data = await storage.readBinaryFile(await getPrimaryAttachmentPath(basePath, filename));
+                const attachmentPath = await getPrimaryAttachmentPath(basePath, filename);
+                const info = await storage.stat(attachmentPath).catch(() => null);
+                assertStoredAttachmentSize(info?.size ?? null);
+                const data = await storage.readBinaryFile(attachmentPath);
+                assertStoredAttachmentSize(data.byteLength);
                 const base64 = uint8ArrayToBase64(data);
                 const mime = inferAttachmentMimeTypeFromFilename(filename);
 

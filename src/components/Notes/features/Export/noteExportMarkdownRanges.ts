@@ -3,7 +3,9 @@ export interface ContentRange {
   end: number;
 }
 
-const HTML_RAW_TEXT_OPEN_PATTERN = /<(script|style|textarea|title|xmp)(?:\s|>|$)/i;
+const HTML_RAW_TEXT_OPEN_PATTERN = /<(pre|script|style|textarea|title|xmp)(?:\s|>|$)/i;
+const HTML_MARKDOWN_BLOCK_OPEN_PATTERN =
+  /^(?: {0,3})<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i;
 const MARKDOWN_ESCAPABLE_PUNCTUATION = new Set(
   Array.from('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~')
 );
@@ -141,6 +143,44 @@ function getRawTextHtmlRanges(content: string): ContentRange[] {
     const end = closeMatch ? tagEnd + closeMatch.index + closeMatch[0].length : content.length;
     ranges.push({ start, end });
     cursor = end;
+  }
+
+  return ranges;
+}
+
+export function getMarkdownHtmlBlockRanges(content: string): ContentRange[] {
+  const ranges: ContentRange[] = [];
+  let offset = 0;
+  let activeStart: number | null = null;
+
+  while (offset < content.length) {
+    const lineEnd = content.indexOf('\n', offset);
+    const lineContentEnd = lineEnd === -1 ? content.length : lineEnd;
+    const nextOffset = lineEnd === -1 ? content.length : lineEnd + 1;
+    const line = content.slice(offset, lineContentEnd).replace(/\r$/, '');
+    const firstNonBlank = line.search(/\S/);
+    const startsHtmlBlock =
+      HTML_MARKDOWN_BLOCK_OPEN_PATTERN.test(line) &&
+      firstNonBlank >= 0 &&
+      !isEscapedMarkdownPunctuation(content, offset + firstNonBlank);
+
+    if (activeStart !== null) {
+      if (line.trim() === '') {
+        ranges.push({ start: activeStart, end: offset });
+        activeStart = null;
+      }
+      offset = nextOffset;
+      continue;
+    }
+
+    if (startsHtmlBlock) {
+      activeStart = offset;
+    }
+    offset = nextOffset;
+  }
+
+  if (activeStart !== null) {
+    ranges.push({ start: activeStart, end: content.length });
   }
 
   return ranges;

@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
     writeBinaryFile: vi.fn().mockResolvedValue(undefined),
     readBinaryFile: vi.fn().mockResolvedValue(new Uint8Array([72, 73])),
     deleteFile: vi.fn().mockResolvedValue(undefined),
+    stat: vi.fn().mockResolvedValue(null),
   },
   joinPath: vi.fn(),
   getElectronBridge: vi.fn(),
@@ -22,9 +23,17 @@ vi.mock('@/lib/electron/bridge', () => ({
   getElectronBridge: mocks.getElectronBridge,
 }));
 
+vi.mock('@/lib/markdown/svgSanitizer', () => ({
+  sanitizeSvgBytes: (bytes: Uint8Array) => new TextEncoder().encode(
+    new TextDecoder().decode(bytes).replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ''),
+  ),
+}));
+
 import {
   convertToBase64,
+  createStoredAttachmentFromSource,
   deleteAttachment,
+  MAX_ATTACHMENT_IMAGE_BYTES,
   persistDataUrlAttachment,
   saveAttachment,
 } from './attachmentStorage';
@@ -37,6 +46,8 @@ describe('attachmentStorage', () => {
     mocks.adapter.writeBinaryFile.mockClear();
     mocks.adapter.readBinaryFile.mockClear();
     mocks.adapter.deleteFile.mockClear();
+    mocks.adapter.stat.mockReset();
+    mocks.adapter.stat.mockResolvedValue(null);
     mocks.joinPath.mockReset();
     mocks.joinPath.mockImplementation(async (...segments: string[]) => segments.join('/'));
     mocks.getElectronBridge.mockReturnValue({
@@ -46,19 +57,6 @@ describe('attachmentStorage', () => {
     });
     vi.spyOn(Date, 'now').mockReturnValue(12345678);
     vi.spyOn(crypto, 'randomUUID').mockReturnValue('12345678-aaaa-bbbb-cccc-ddddeeeeffff');
-
-    class MockFileReader {
-      result: string | null = 'data:image/png;base64,PREVIEW';
-      onload: null | (() => void) = null;
-      onerror: null | ((error?: unknown) => void) = null;
-      readAsDataURL() {
-        queueMicrotask(() => {
-          this.onload?.();
-        });
-      }
-    }
-
-    vi.stubGlobal('FileReader', MockFileReader);
   });
 
   it('saves attachments to disk and returns file metadata', async () => {
@@ -74,12 +72,12 @@ describe('attachmentStorage', () => {
     expect(mocks.adapter.mkdir).toHaveBeenCalledWith('/appdata/.vlaina/attachments', true);
     expect(mocks.adapter.writeBinaryFile).toHaveBeenCalledWith(
       '/appdata/.vlaina/attachments/12345678-12345678.png',
-      expect.any(Uint8Array),
+      new Uint8Array([1, 2, 3]),
       { recursive: true },
     );
     expect(attachment).toMatchObject({
       path: '/appdata/.vlaina/attachments/12345678-12345678.png',
-      previewUrl: 'data:image/png;base64,PREVIEW',
+      previewUrl: 'data:image/png;base64,AQID',
       assetUrl: 'file:///appdata/.vlaina/attachments/12345678-note.png',
       name: 'note.png',
       type: 'image/png',
@@ -96,7 +94,7 @@ describe('attachmentStorage', () => {
     expect(mocks.adapter.writeBinaryFile).not.toHaveBeenCalled();
     expect(attachment).toMatchObject({
       path: '',
-      previewUrl: 'data:image/png;base64,PREVIEW',
+      previewUrl: 'data:image/png;base64,AQID',
       assetUrl: '',
       name: 'note.png',
       type: 'image/png',
@@ -104,18 +102,137 @@ describe('attachmentStorage', () => {
     });
   });
 
+  it('rejects non-image attachments before reading storage', async () => {
+    const file = new File(['hello'], 'note.txt', { type: 'text/plain' });
+
+    await expect(saveAttachment(file)).rejects.toThrow('Unsupported attachment type');
+
+    expect(mocks.adapter.getBasePath).not.toHaveBeenCalled();
+    expect(mocks.adapter.writeBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects unsupported image attachment MIME types', async () => {
+    const file = new File(['heic'], 'photo.heic', { type: 'image/heic' });
+
+    await expect(saveAttachment(file)).rejects.toThrow('Unsupported attachment type');
+
+    expect(mocks.adapter.getBasePath).not.toHaveBeenCalled();
+    expect(mocks.adapter.writeBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized image attachments before reading or writing them', async () => {
+    const file = new File(['small'], 'huge.png', { type: 'image/png' });
+    Object.defineProperty(file, 'size', {
+      configurable: true,
+      value: MAX_ATTACHMENT_IMAGE_BYTES + 1,
+    });
+    Object.defineProperty(file, 'arrayBuffer', {
+      configurable: true,
+      value: vi.fn(async () => new Uint8Array([1]).buffer),
+    });
+
+    await expect(saveAttachment(file)).rejects.toThrow('Attachment image is too large.');
+
+    expect(file.arrayBuffer).not.toHaveBeenCalled();
+    expect(mocks.adapter.getBasePath).not.toHaveBeenCalled();
+    expect(mocks.adapter.writeBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('infers supported image attachments from the filename when MIME metadata is missing', async () => {
+    const file = new File([new Uint8Array([4, 5, 6])], 'photo.webp', { type: '' });
+
+    const attachment = await saveAttachment(file, { persist: false });
+
+    expect(attachment).toMatchObject({
+      path: '',
+      previewUrl: 'data:image/webp;base64,BAUG',
+      assetUrl: '',
+      name: 'photo.webp',
+      type: 'image/webp',
+      size: 3,
+    });
+  });
+
+  it('normalizes persisted attachment extensions to match the image MIME type', async () => {
+    const file = new File([new Uint8Array([1, 2, 3])], 'note.txt', { type: 'image/png' });
+
+    await expect(saveAttachment(file)).resolves.toMatchObject({
+      path: '/appdata/.vlaina/attachments/12345678-12345678.png',
+      type: 'image/png',
+    });
+    expect(mocks.adapter.writeBinaryFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/attachments/12345678-12345678.png',
+      new Uint8Array([1, 2, 3]),
+      { recursive: true },
+    );
+  });
+
+  it('sanitizes SVG attachments before previewing and writing them', async () => {
+    const file = new File(['<svg><script>alert(1)</script><path /></svg>'], 'diagram.svg', { type: 'image/svg+xml' });
+
+    const attachment = await saveAttachment(file);
+
+    const writtenBytes = mocks.adapter.writeBinaryFile.mock.calls[0][1] as Uint8Array;
+    const writtenText = new TextDecoder().decode(writtenBytes);
+    expect(writtenText).toBe('<svg><path /></svg>');
+    expect(attachment.previewUrl).toBe(`data:image/svg+xml;base64,${window.btoa('<svg><path /></svg>')}`);
+    expect(attachment.type).toBe('image/svg+xml');
+  });
+
   it('deletes persisted attachment files', async () => {
     await deleteAttachment({
       id: 'a',
-      path: '/appdata/attachments/file.png',
+      path: '/appdata/.vlaina/attachments/file.png',
       previewUrl: 'data:image/png;base64,INLINE',
-      assetUrl: 'file:///appdata/attachments/file.png',
+      assetUrl: 'file:///appdata/.vlaina/attachments/file.png',
       name: 'file.png',
       type: 'image/png',
       size: 1,
     });
 
-    expect(mocks.adapter.deleteFile).toHaveBeenCalledWith('/appdata/attachments/file.png');
+    expect(mocks.adapter.deleteFile).toHaveBeenCalledWith('/appdata/.vlaina/attachments/file.png');
+  });
+
+  it('does not delete attachment paths outside the managed attachments directory', async () => {
+    await deleteAttachment({
+      id: 'a',
+      path: '/vault/images/file.png',
+      previewUrl: 'blob:preview',
+      assetUrl: '',
+      name: 'file.png',
+      type: 'image/png',
+      size: 1,
+    });
+
+    expect(mocks.adapter.deleteFile).not.toHaveBeenCalled();
+  });
+
+  it('does not delete nested paths inside the managed attachments directory', async () => {
+    await deleteAttachment({
+      id: 'a',
+      path: '/appdata/.vlaina/attachments/nested/file.png',
+      previewUrl: 'blob:preview',
+      assetUrl: '',
+      name: 'file.png',
+      type: 'image/png',
+      size: 1,
+    });
+
+    expect(mocks.adapter.deleteFile).not.toHaveBeenCalled();
+  });
+
+  it('deletes stored attachment URL files from the managed attachments directory', async () => {
+    await deleteAttachment({
+      id: 'a',
+      path: '',
+      previewUrl: 'attachment://demo%20image.png',
+      assetUrl: '',
+      name: 'demo image.png',
+      type: 'image/png',
+      size: 1,
+    });
+
+    expect(mocks.adapter.deleteFile).toHaveBeenCalledWith('/appdata/.vlaina/attachments/demo image.png');
   });
 
   it('persists inline data URLs into the attachments directory', async () => {
@@ -128,6 +245,47 @@ describe('attachmentStorage', () => {
       new Uint8Array([1, 2]),
       { recursive: true },
     );
+  });
+
+  it('persists inline data URLs with case-insensitive schemes', async () => {
+    await expect(persistDataUrlAttachment('DATA:IMAGE/WEBP;BASE64,AQI=')).resolves.toBe(
+      'attachment://12345678-12345678.webp',
+    );
+
+    expect(mocks.adapter.writeBinaryFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/attachments/12345678-12345678.webp',
+      new Uint8Array([1, 2]),
+      { recursive: true },
+    );
+  });
+
+  it('does not persist unsupported data URL attachments', async () => {
+    await expect(persistDataUrlAttachment('data:text/plain,hello')).resolves.toBeNull();
+    await expect(persistDataUrlAttachment('data:image/svg+xml;base64,PHN2Zz4=')).resolves.toBeNull();
+    await expect(persistDataUrlAttachment('data:image/png,not-base64')).resolves.toBeNull();
+
+    expect(mocks.adapter.writeBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('ignores malformed percent-encoded text data URLs', async () => {
+    await expect(persistDataUrlAttachment('data:text/plain,broken%ZZpayload')).resolves.toBeNull();
+
+    expect(mocks.adapter.writeBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('ignores malformed base64 data URLs', async () => {
+    await expect(persistDataUrlAttachment('data:image/png;base64,%%%%')).resolves.toBeNull();
+
+    expect(mocks.adapter.writeBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('does not persist oversized inline data URL attachments', async () => {
+    const payload = 'A'.repeat(Math.ceil((MAX_ATTACHMENT_IMAGE_BYTES + 1) / 3) * 4);
+
+    await expect(persistDataUrlAttachment(`data:image/png;base64,${payload}`)).resolves.toBeNull();
+
+    expect(mocks.adapter.getBasePath).not.toHaveBeenCalled();
+    expect(mocks.adapter.writeBinaryFile).not.toHaveBeenCalled();
   });
 
   it('falls back to preview data for assetUrl when the electron path bridge is unavailable', async () => {
@@ -143,8 +301,8 @@ describe('attachmentStorage', () => {
 
     expect(attachment).toMatchObject({
       path: '/appdata/.vlaina/attachments/12345678-12345678.png',
-      previewUrl: 'data:image/png;base64,PREVIEW',
-      assetUrl: 'data:image/png;base64,PREVIEW',
+      previewUrl: 'data:image/png;base64,AQID',
+      assetUrl: 'data:image/png;base64,AQID',
     });
   });
 
@@ -160,18 +318,140 @@ describe('attachmentStorage', () => {
     })).resolves.toBe('data:image/png;base64,INLINE');
   });
 
-  it('falls back to disk reads when preview data is not inline', async () => {
+  it('reuses existing preview data with a case-insensitive data URL scheme when converting to base64', async () => {
     await expect(convertToBase64({
       id: 'a',
-      path: '/appdata/attachments/file.bin',
+      path: '',
+      previewUrl: 'DATA:IMAGE/PNG;BASE64,INLINE',
+      assetUrl: '',
+      name: 'note.png',
+      type: 'image/png',
+      size: 1,
+    })).resolves.toBe('DATA:IMAGE/PNG;BASE64,INLINE');
+
+    expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('creates stored attachment metadata only from safe stored sources', () => {
+    expect(createStoredAttachmentFromSource('demo.jpg', 'image')).toMatchObject({
+      id: 'image',
+      path: '',
+      previewUrl: 'demo.jpg',
+      assetUrl: 'demo.jpg',
+      name: 'demo.jpg',
+      type: 'image/jpeg',
+      size: 0,
+    });
+    expect(createStoredAttachmentFromSource('attachment://demo%20image.webp')).toMatchObject({
+      previewUrl: 'attachment://demo%20image.webp',
+      assetUrl: 'attachment://demo%20image.webp',
+      name: 'demo image.webp',
+      type: 'image/webp',
+    });
+    expect(createStoredAttachmentFromSource('images/demo.jpg')).toBeNull();
+    expect(createStoredAttachmentFromSource('attachment://..%2Fsecret.png')).toBeNull();
+  });
+
+  it('reads managed attachment paths when preview data is not inline', async () => {
+    await expect(convertToBase64({
+      id: 'a',
+      path: '/appdata/.vlaina/attachments/file.png',
       previewUrl: 'blob:preview',
       assetUrl: '',
-      name: 'file.bin',
-      type: 'application/octet-stream',
+      name: 'file.png',
+      type: 'image/png',
       size: 2,
-    })).resolves.toBe('data:application/octet-stream;base64,SEk=');
+    })).resolves.toBe('data:image/png;base64,SEk=');
 
-    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/appdata/attachments/file.bin');
+    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/appdata/.vlaina/attachments/file.png');
+  });
+
+  it('reads explicitly allowed attachment paths when preview data is not inline', async () => {
+    await expect(convertToBase64({
+      id: 'a',
+      path: '/vault/assets/file.png',
+      previewUrl: 'blob:preview',
+      assetUrl: '',
+      name: 'file.png',
+      type: 'image/png',
+      size: 2,
+    }, {
+      allowPath: (path) => path.startsWith('/vault/'),
+    })).resolves.toBe('data:image/png;base64,SEk=');
+
+    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/vault/assets/file.png');
+  });
+
+  it('does not read untrusted attachment paths when converting to base64', async () => {
+    await expect(convertToBase64({
+      id: 'a',
+      path: '/etc/secret.png',
+      previewUrl: 'blob:preview',
+      assetUrl: '',
+      name: 'secret.png',
+      type: 'image/png',
+      size: 2,
+    })).rejects.toThrow('Cannot convert attachment to Base64');
+
+    expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized allowed disk attachments when converting to base64', async () => {
+    mocks.adapter.readBinaryFile.mockResolvedValueOnce({
+      byteLength: MAX_ATTACHMENT_IMAGE_BYTES + 1,
+    });
+
+    await expect(convertToBase64({
+      id: 'a',
+      path: '/vault/assets/huge.png',
+      previewUrl: 'blob:preview',
+      assetUrl: '',
+      name: 'huge.png',
+      type: 'image/png',
+      size: MAX_ATTACHMENT_IMAGE_BYTES + 1,
+    }, {
+      allowPath: (path) => path.startsWith('/vault/'),
+    })).rejects.toThrow('Cannot convert attachment to Base64');
+  });
+
+  it('rejects oversized allowed attachment paths before reading them when stat has a size', async () => {
+    mocks.adapter.stat.mockResolvedValueOnce({
+      size: MAX_ATTACHMENT_IMAGE_BYTES + 1,
+    });
+
+    await expect(convertToBase64({
+      id: 'a',
+      path: '/vault/assets/huge.png',
+      previewUrl: 'blob:preview',
+      assetUrl: '',
+      name: 'huge.png',
+      type: 'image/png',
+      size: MAX_ATTACHMENT_IMAGE_BYTES + 1,
+    }, {
+      allowPath: (path) => path.startsWith('/vault/'),
+    })).rejects.toThrow('Cannot convert attachment to Base64');
+
+    expect(mocks.adapter.stat).toHaveBeenCalledWith('/vault/assets/huge.png');
+    expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized stored attachment URLs before reading them when stat has a size', async () => {
+    mocks.adapter.stat.mockResolvedValueOnce({
+      size: MAX_ATTACHMENT_IMAGE_BYTES + 1,
+    });
+
+    await expect(convertToBase64({
+      id: 'a',
+      path: '',
+      previewUrl: 'attachment://huge.png',
+      assetUrl: 'attachment://huge.png',
+      name: 'huge.png',
+      type: 'image/png',
+      size: MAX_ATTACHMENT_IMAGE_BYTES + 1,
+    })).rejects.toThrow('Attachment image is too large.');
+
+    expect(mocks.adapter.stat).toHaveBeenCalledWith('/appdata/.vlaina/attachments/huge.png');
+    expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
   });
 
   it('resolves stored attachment URLs from the attachments directory when converting to base64', async () => {

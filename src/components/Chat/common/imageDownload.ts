@@ -1,6 +1,9 @@
 import { writeDesktopBinaryFile } from "@/lib/desktop/fs";
 import { translate } from "@/lib/i18n/runtime";
 import { saveDialog } from "@/lib/storage/dialog";
+import { fetchChatImageBlobResult } from "./chatImageFetch";
+import { resolveSafeChatImageSource } from "./chatImageSourceResolution";
+import { isSvgImageMimeType, rasterizeSvgBlobToPngBlob } from "./svgRasterize";
 
 const IMAGE_EXT_BY_MIME: Record<string, string> = {
   "image/png": "png",
@@ -8,12 +11,11 @@ const IMAGE_EXT_BY_MIME: Record<string, string> = {
   "image/webp": "webp",
   "image/gif": "gif",
   "image/bmp": "bmp",
-  "image/svg+xml": "svg",
 };
 
 function sanitizeFileStem(value: string): string {
   const trimmed = value.trim();
-  const normalized = trimmed.replace(/[<>:"/\\|?*]+/g, "_");
+  const normalized = trimmed.replace(/[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD<>:"/\\|?*]+/g, "_");
   return normalized || "image";
 }
 
@@ -66,21 +68,56 @@ async function downloadViaAnchor(src: string, filename: string): Promise<void> {
   document.body.removeChild(link);
 }
 
+async function readBlobBytes(blob: Blob): Promise<Uint8Array> {
+  if (typeof blob.arrayBuffer === "function") {
+    return new Uint8Array(await blob.arrayBuffer());
+  }
+
+  return await new Promise<Uint8Array>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (result instanceof ArrayBuffer) {
+        resolve(new Uint8Array(result));
+        return;
+      }
+      reject(new Error("Unable to read image blob."));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Unable to read image blob."));
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
 export async function downloadImageWithPrompt(src: string, alt?: string): Promise<void> {
+  const resolvedSrc = await resolveSafeChatImageSource(src, "download-image");
+  if (!resolvedSrc) {
+    return;
+  }
+
   let blob: Blob | null = null;
   try {
-    const response = await fetch(src);
-    blob = await response.blob();
+    const result = await fetchChatImageBlobResult(resolvedSrc);
+    if (result.status === "too-large") {
+      return;
+    }
+    blob = result.blob;
   } catch {
     blob = null;
   }
 
+  if (blob && isSvgImageMimeType(blob.type)) {
+    blob = await rasterizeSvgBlobToPngBlob(blob);
+    if (!blob) {
+      return;
+    }
+  }
+
   const filename = resolveFilename(alt, src, blob?.type || "");
 
-  if (blob) {
+  if (blob?.type.startsWith("image/")) {
     const defaultExt = filename.split(".").pop()?.toLowerCase() || "png";
     const extensions = Array.from(
-      new Set([defaultExt, "png", "jpg", "jpeg", "webp", "gif", "bmp", "svg"])
+      new Set([defaultExt, "png", "jpg", "jpeg", "webp", "gif", "bmp"])
     );
     const filePath = await saveDialog({
       title: translate('chat.saveImage'),
@@ -90,9 +127,14 @@ export async function downloadImageWithPrompt(src: string, alt?: string): Promis
     if (!filePath) {
       return;
     }
-    await writeDesktopBinaryFile(filePath, new Uint8Array(await blob.arrayBuffer()));
+    await writeDesktopBinaryFile(filePath, await readBlobBytes(blob));
     return;
   }
 
-  await downloadViaAnchor(src, filename);
+  const sourceExt = extensionFromSource(src)?.toLowerCase() || extensionFromSource(resolvedSrc)?.toLowerCase();
+  if (sourceExt === "svg") {
+    return;
+  }
+
+  await downloadViaAnchor(resolvedSrc, filename);
 }

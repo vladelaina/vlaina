@@ -15,6 +15,19 @@ vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => adapter,
   isAbsolutePath: (path: string) => path.startsWith('/'),
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
+  normalizeAbsolutePath: (path: string) => {
+    if (!path.startsWith('/')) return path;
+    const parts: string[] = [];
+    for (const part of path.split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') {
+        parts.pop();
+        continue;
+      }
+      parts.push(part);
+    }
+    return `/${parts.join('/')}`;
+  },
 }));
 
 vi.mock('./externalChangeRegistry', () => ({
@@ -404,9 +417,9 @@ describe('saveNoteDocument', () => {
         'vlaina_updated: 2026-04-15 18:00:00 +08:00',
         '---',
         '',
-        '==highlight==',
+        '\\==highlight==',
         '',
-        '*[ABBR]: Full phrase',
+        '\\*[ABBR]: Full phrase',
         '',
         '[^1]:',
         '',
@@ -496,6 +509,27 @@ describe('saveNoteDocument', () => {
     })).rejects.toThrow('Note file is too complex to open safely.');
   });
 
+  it('rejects externally changed disk markdown that is too complex before merge normalization', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: 200, size: 300 * 1024 });
+    adapter.readFile.mockResolvedValue(`${'x\n'.repeat(120_001)}x`);
+
+    await expect(saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: '# Local edit',
+      },
+      cache: new Map([
+        ['alpha.md', {
+          content: '# Cached baseline',
+          modifiedAt: 100,
+        }],
+      ]),
+    })).rejects.toThrow('Note file is too complex to open safely.');
+
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
   it('cleans internal user break markers when loading markdown', async () => {
     adapter.readFile.mockResolvedValue(['Line one', '<br data-vlaina-user-br="true" />', 'Line two'].join('\n'));
     adapter.stat.mockResolvedValue({ modifiedAt: 123 });
@@ -529,6 +563,25 @@ describe('saveNoteDocument', () => {
     expect(result.content).toBe(['# Alpha', '', 'Body'].join('\n'));
     expect(result.nextCache.get('alpha.md')?.content).toBe(['# Alpha', '', 'Body'].join('\n'));
     expect(result.modifiedAt).toBe(123);
+  });
+
+  it('normalizes absolute paths before reading and caching markdown', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: 321 });
+    adapter.readFile.mockResolvedValue('# External');
+
+    const result = await loadNoteDocument({
+      notesPath: '/vault',
+      path: '/external/docs/../note.md',
+      cache: new Map(),
+    });
+
+    expect(adapter.stat).toHaveBeenCalledWith('/external/note.md');
+    expect(adapter.readFile).toHaveBeenCalledWith('/external/note.md');
+    expect(result.nextCache.has('/external/docs/../note.md')).toBe(false);
+    expect(result.nextCache.get('/external/note.md')).toEqual({
+      content: '# External',
+      modifiedAt: 321,
+    });
   });
 
   it('uses freshly prefetched cached markdown without another disk stat', async () => {
@@ -727,6 +780,39 @@ describe('saveNoteDocument', () => {
     })).rejects.toThrow('Path must stay inside the current vault.');
 
     expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('normalizes absolute paths before saving and caching markdown', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    adapter.stat
+      .mockResolvedValueOnce({ modifiedAt: 100 })
+      .mockResolvedValueOnce({ modifiedAt: 101 });
+    adapter.writeFile.mockResolvedValue();
+
+    const result = await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: '/external/docs/../note.md',
+        content: '# External',
+      },
+      cache: new Map(),
+    });
+
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/external/note.md',
+      [
+        '---',
+        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
+        '---',
+        '',
+        '# External',
+      ].join('\n')
+    );
+    expect(result.nextCache.has('/external/docs/../note.md')).toBe(false);
+    expect(result.nextCache.get('/external/note.md')?.content).toBe(result.content);
+
+    vi.useRealTimers();
   });
 
   it('saves local edits when only the disk modified timestamp changed', async () => {

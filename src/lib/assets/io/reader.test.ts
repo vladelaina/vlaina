@@ -116,6 +116,9 @@ describe('asset image reader cache', () => {
       '<script>alert(1)</script>',
       '<foreignObject><iframe src="javascript:alert(1)"></iframe></foreignObject>',
       '<a href="javascript:alert(1)"><text>bad</text></a>',
+      '<image href="https://example.test/a.png" xlink:href="https://example.test/b.png"></image>',
+      '<rect filter="url(https://example.test/filter.svg#drop)" fill="url(#local-fill)" />',
+      '<text style="fill:url(#local-fill); stroke:url(https://example.test/stroke.svg#x); opacity:.8">safe</text>',
       '<circle cx="1" cy="1" r="1" />',
       '</svg>',
     ].join('');
@@ -136,15 +139,23 @@ describe('asset image reader cache', () => {
 
     expect(blobText).toContain('<svg');
     expect(blobText).toContain('<circle');
+    expect(blobText).toContain('url(#local-fill)');
     expect(blobText).not.toContain('<script');
     expect(blobText).not.toContain('foreignObject');
     expect(blobText).not.toContain('iframe');
     expect(blobText).not.toContain('javascript:');
+    expect(blobText).not.toContain('example.test');
     expect(blobText).not.toContain('onload');
   });
 
   it('sanitizes SVG images before returning base64 data URLs', async () => {
-    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><text>ok</text></svg>';
+    const svg = [
+      '<svg xmlns="http://www.w3.org/2000/svg">',
+      '<script>alert(1)</script>',
+      '<image href="https://example.test/a.png"></image>',
+      '<text>ok</text>',
+      '</svg>',
+    ].join('');
     hoisted.readBinaryFile.mockResolvedValueOnce(encodeTextBytes(svg));
 
     const dataUrl = await loadImageAsBase64('/vault/assets/icon.svg');
@@ -155,6 +166,7 @@ describe('asset image reader cache', () => {
     expect(decoded).toContain('<svg');
     expect(decoded).toContain('<text>ok</text>');
     expect(decoded).not.toContain('<script');
+    expect(decoded).not.toContain('example.test');
   });
 
   it('caches generated thumbnails by file metadata without rereading the image', async () => {
@@ -238,6 +250,10 @@ describe('asset image reader cache', () => {
       maxEdgePx: 1280,
       allowMainThreadFallback: false,
     })).resolves.toBe('blob:persistent-thumb-url');
+    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png', {
+      maxEdgePx: 1280,
+      allowMainThreadFallback: false,
+    })).resolves.toBe('blob:persistent-thumb-url');
 
     expect(hoisted.getBasePath).toHaveBeenCalledTimes(1);
     const existsPath = hoisted.exists.mock.calls[0]?.[0] as string;
@@ -307,6 +323,50 @@ describe('asset image reader cache', () => {
 
     expect(createElementSpy).not.toHaveBeenCalledWith('canvas');
     expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:original-thumbnail-url');
+  });
+
+  it('does not reuse a no-fallback original blob when main-thread thumbnail fallback is allowed later', async () => {
+    hoisted.stat.mockResolvedValue({ modifiedAt: 1, size: 3 });
+    vi.mocked(URL.createObjectURL)
+      .mockReturnValueOnce('blob:original-thumbnail-url')
+      .mockReturnValueOnce('blob:source-url')
+      .mockReturnValueOnce('blob:resized-thumbnail-url');
+    vi.stubGlobal('Worker', undefined);
+    const originalImage = globalThis.Image;
+    const originalCreateElement = document.createElement.bind(document);
+    vi.stubGlobal('Image', class {
+      naturalWidth = 640;
+      naturalHeight = 320;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(_value: string) {
+        queueMicrotask(() => this.onload?.());
+      }
+    });
+    vi.spyOn(document, 'createElement').mockImplementation((tagName, options) => {
+      if (tagName === 'canvas') {
+        return {
+          width: 0,
+          height: 0,
+          getContext: () => ({ drawImage: vi.fn() }),
+          toBlob: (callback: (blob: Blob | null) => void) => callback(new Blob(['thumb'], { type: 'image/webp' })),
+        } as unknown as HTMLCanvasElement;
+      }
+      return originalCreateElement(tagName, options);
+    });
+
+    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png', {
+      maxEdgePx: 1280,
+      allowMainThreadFallback: false,
+    })).resolves.toBe('blob:original-thumbnail-url');
+    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png', {
+      maxEdgePx: 1280,
+      allowMainThreadFallback: true,
+    })).resolves.toBe('blob:resized-thumbnail-url');
+
+    expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(2);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:source-url');
+    vi.stubGlobal('Image', originalImage);
   });
 
   it('reuses cached thumbnails when file metadata is unavailable', async () => {

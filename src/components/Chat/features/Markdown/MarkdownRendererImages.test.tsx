@@ -50,6 +50,21 @@ describe('MarkdownRenderer images', () => {
     expect(screen.getByTestId('local-image')).toHaveAttribute('src', src);
   });
 
+  it('compacts large inline base64 image html before rendering', () => {
+    const src = `data:image/png;base64,${'a'.repeat(60_000)}`;
+
+    render(<MarkdownRenderer content={`<img src="${src}" alt="Generated image">`} />);
+
+    expect(screen.getByTestId('local-image')).toHaveAttribute('src', src);
+  });
+
+  it('does not render ordinary asset protocol image markdown', () => {
+    render(<MarkdownRenderer content="![Generated image](<asset://localhost/image.png>)" />);
+
+    expect(screen.queryByTestId('local-image')).not.toBeInTheDocument();
+    expect(screen.getByText('[Image unavailable]')).toBeInTheDocument();
+  });
+
   it('still renders legacy unwrapped base64 image markdown', () => {
     render(<MarkdownRenderer content="![Generated image](data:image/png;base64,abc123)" />);
 
@@ -104,6 +119,10 @@ describe('MarkdownRenderer images', () => {
           '<source srcset="images/safe.webp 1x, https://example.com/safe@2x.webp 2x">',
           '<img src="https://example.com/safe.png" alt="safe">',
           '</picture>',
+          '<picture>',
+          '<source srcset="data:image/png;base64,abc 1x, DATA:IMAGE/WEBP;BASE64,def 2x">',
+          '<img src="https://example.com/data.png" alt="data">',
+          '</picture>',
         ].join('')}
       />
     );
@@ -111,7 +130,47 @@ describe('MarkdownRenderer images', () => {
     const sources = Array.from(container.querySelectorAll('source'));
     expect(sources[0]).not.toHaveAttribute('srcset');
     expect(sources[1]).toHaveAttribute('srcset', 'images/safe.webp 1x, https://example.com/safe@2x.webp 2x');
+    expect(sources[2]).toHaveAttribute('srcset', 'data:image/png;base64,abc 1x, data:image/webp;base64,def 2x');
     expect(container.innerHTML).not.toContain('127.0.0.1');
+  });
+
+  it('sanitizes raw media URL attributes before rendering', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={[
+          '<video src="http://127.0.0.1:3000/secret.mp4" poster="http://localhost:3000/poster.png" controls></video>',
+          '<audio src="javascript:alert(1)" controls></audio>',
+          '<picture>',
+          '<source src="http://192.168.1.8/secret.webp" srcset="//127.0.0.1:3000/secret.webp 1x">',
+          '<img src="https://example.com/fallback.png" alt="fallback">',
+          '</picture>',
+        ].join('')}
+      />
+    );
+
+    expect(container.innerHTML).not.toContain('127.0.0.1');
+    expect(container.innerHTML).not.toContain('localhost');
+    expect(container.innerHTML).not.toContain('192.168.1.8');
+    expect(container.innerHTML).not.toContain('javascript:alert');
+  });
+
+  it('sanitizes raw cite URL attributes before rendering', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={[
+          '<q cite="//example.com/protocol-relative">protocol</q>',
+          '<q cite="javascript:alert(1)">script</q>',
+          '<q cite="https://example.com/source">safe</q>',
+        ].join(' ')}
+      />
+    );
+
+    const quotes = Array.from(container.querySelectorAll('q'));
+    expect(quotes[0]).toHaveAttribute('cite', '');
+    expect(quotes[1]).not.toHaveAttribute('cite');
+    expect(quotes[2]).toHaveAttribute('cite', 'https://example.com/source');
+    expect(container.innerHTML).not.toContain('javascript:alert');
+    expect(container.innerHTML).not.toContain('//example.com/protocol-relative');
   });
 
   it('strips arbitrary raw div data attributes from read-only markdown', () => {

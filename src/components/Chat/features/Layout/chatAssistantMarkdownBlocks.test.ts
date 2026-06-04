@@ -25,6 +25,27 @@ describe('buildParsedAssistantMarkdown', () => {
     expect(parsed.tailRenderableMarkdown).toBe('Tail');
   });
 
+  it('keeps the tail split aligned with original CRLF markdown offsets', () => {
+    const markdown = [
+      'Intro',
+      '',
+      '```ts',
+      'const value = 1;',
+      '```',
+      '',
+      'Tail',
+    ].join('\r\n');
+
+    const parsed = buildParsedAssistantMarkdown(markdown, markdown);
+
+    expect(parsed.tailRenderableMarkdown).toBe('Tail');
+    expect(parsed.stableBlocks).toHaveLength(2);
+    expect(parsed.stableBlocks[1]).toMatchObject({
+      kind: 'code',
+      code: 'const value = 1;',
+    });
+  });
+
   it('does not count or strip image examples inside code spans and fenced code', () => {
     const markdown = [
       '`![inline](https://example.com/inline.png)`',
@@ -41,6 +62,23 @@ describe('buildParsedAssistantMarkdown', () => {
     expect(parsed.imageCount).toBe(2);
     expect(parsed.renderableMarkdown).toContain('![inline](https://example.com/inline.png)');
     expect(parsed.renderableMarkdown).toContain('<img src="https://example.com/code-html.png">');
+    expect(parsed.renderableMarkdown).not.toContain('![real](https://example.com/real.png)');
+    expect(parsed.renderableMarkdown).not.toContain('<img src="https://example.com/real-html.png">');
+  });
+
+  it('does not count video markdown images as rendered images', () => {
+    const markdown = [
+      '![video](https://example.com/movie.mp4)',
+      '<img src="https://example.com/clip.webm">',
+      '![real](https://example.com/real.png)',
+      '<img src="https://example.com/real-html.png">',
+    ].join('\n');
+
+    const parsed = buildParsedAssistantMarkdown(markdown, stripRenderableImageTokens(markdown));
+
+    expect(parsed.imageCount).toBe(2);
+    expect(parsed.renderableMarkdown).toContain('![video](https://example.com/movie.mp4)');
+    expect(parsed.renderableMarkdown).toContain('<img src="https://example.com/clip.webm">');
     expect(parsed.renderableMarkdown).not.toContain('![real](https://example.com/real.png)');
     expect(parsed.renderableMarkdown).not.toContain('<img src="https://example.com/real-html.png">');
   });

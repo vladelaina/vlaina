@@ -38,4 +38,24 @@ describe('parseMarkdownMeasurementBlocks', () => {
       },
     ]);
   });
+
+  it('measures video markdown as video blocks without dropping surrounding text', () => {
+    const blocks = parseMarkdownMeasurementBlocks([
+      'Intro text',
+      '![video](https://example.com/movie.mp4)',
+      '<img src="https://example.com/clip.webm">',
+      'Trailing text',
+    ].join('\n'));
+
+    expect(blocks).toHaveLength(3);
+    expect(blocks[0]?.kind).toBe('text');
+    expect(blocks[1]).toEqual({
+      kind: 'video',
+      widthInset: 0,
+    });
+    expect(blocks[2]).toEqual({
+      kind: 'video',
+      widthInset: 0,
+    });
+  });
 });

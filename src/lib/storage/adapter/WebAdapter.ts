@@ -576,6 +576,8 @@ export class WebAdapter implements StorageAdapter {
       if (part === '..') {
         if (parts.length > 0) {
           parts.pop();
+        } else if (!normalized.startsWith('/')) {
+          throw new Error(`Path escapes storage root: ${path}`);
         }
         continue;
       }

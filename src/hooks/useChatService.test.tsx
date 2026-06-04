@@ -6,6 +6,9 @@ import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import type { AIModel, ApiTranscriptMessage, ChatMessage, ChatSendOptions, Provider } from '@/lib/ai/types';
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
 import { runWithSessionMutationLock } from '@/lib/ai/sessionMutationLock';
+import { convertToBase64, deleteAttachment, type Attachment } from '@/lib/storage/attachmentStorage';
+
+const TEMPORARY_IMAGE_DATA_URL = 'data:image/png;base64,VEVNUE9SQVJZ';
 
 const mocked = vi.hoisted(() => ({
   saveSessionJson: vi.fn(async () => {}),
@@ -22,6 +25,8 @@ const mocked = vi.hoisted(() => ({
     }),
   },
   generateAutoTitle: vi.fn(async () => {}),
+  convertToBase64: vi.fn(async () => TEMPORARY_IMAGE_DATA_URL),
+  deleteAttachment: vi.fn(async () => {}),
   sendMessageWithEndpointFallback: vi.fn(async ({ onChunk }: { onChunk: (chunk: string) => void }) => {
     onChunk('assistant answer');
     return 'assistant answer';
@@ -35,6 +40,15 @@ vi.mock('@/lib/storage/chatStorage', () => ({
   loadSessionJson: mocked.loadSessionJson,
   hasPendingSessionJsonSave: vi.fn(() => false),
 }));
+
+vi.mock('@/lib/storage/attachmentStorage', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/storage/attachmentStorage')>();
+  return {
+    ...actual,
+    convertToBase64: mocked.convertToBase64,
+    deleteAttachment: mocked.deleteAttachment,
+  };
+});
 
 vi.mock('@/stores/accountSession', () => ({
   useAccountSessionStore: mocked.useAccountSessionStore,
@@ -84,6 +98,44 @@ function createMessage(id: string, role: ChatMessage['role'], content: string): 
     versions: [{ content, createdAt: 1, kind: 'original', subsequentMessages: [] }],
     currentVersionIndex: 0,
   };
+}
+
+function createAttachment(overrides: Partial<Attachment> = {}): Attachment {
+  return {
+    id: 'attachment-1',
+    path: '',
+    previewUrl: 'data:image/png;base64,PREVIEW',
+    assetUrl: '',
+    name: 'demo.png',
+    type: 'image/png',
+    size: 123,
+    ...overrides,
+  };
+}
+
+function seedTemporaryChatState() {
+  useUnifiedStore.setState((state) => ({
+    data: {
+      ...state.data,
+      ai: {
+        ...state.data.ai!,
+        sessions: [
+          { id: 'temp-session-1', title: 'Temporary Chat', modelId: model.id, createdAt: 3, updatedAt: 3 },
+          ...state.data.ai!.sessions,
+        ],
+        messages: {
+          ...state.data.ai!.messages,
+          'temp-session-1': [],
+        },
+        currentSessionId: 'temp-session-1',
+        temporaryChatEnabled: true,
+      },
+    },
+  }));
+  useAIUIStore.setState({
+    currentSessionId: 'temp-session-1',
+    temporaryChatEnabled: true,
+  });
 }
 
 function seedChatState() {
@@ -140,6 +192,8 @@ function seedChatState() {
 describe('useChatService session context isolation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocked.convertToBase64.mockResolvedValue(TEMPORARY_IMAGE_DATA_URL);
+    mocked.deleteAttachment.mockResolvedValue(undefined);
     seedChatState();
   });
 
@@ -305,5 +359,58 @@ describe('useChatService session context isolation', () => {
     const messages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
     expect(JSON.stringify(messages)).not.toContain('stale first transcript');
     expect(messages.some((message) => message.apiTranscript?.[0]?.content === 'second transcript')).toBe(true);
+  });
+
+  it('converts case-insensitive stored attachment URLs to ephemeral data URLs in temporary chat', async () => {
+    seedTemporaryChatState();
+    vi.mocked(convertToBase64).mockResolvedValueOnce(TEMPORARY_IMAGE_DATA_URL);
+    const attachment = createAttachment({
+      previewUrl: 'ATTACHMENT://demo.png',
+      assetUrl: 'APP-FILE://attachment/demo.png',
+    });
+
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('describe it', [attachment], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
+    });
+
+    expect(convertToBase64).toHaveBeenCalledWith(attachment);
+    expect(deleteAttachment).toHaveBeenCalledWith(attachment);
+    const messages = useUnifiedStore.getState().data.ai?.messages['temp-session-1'] || [];
+    const userMessage = messages.find((message) => message.role === 'user');
+    expect(userMessage?.content).toBe(`![image](<${TEMPORARY_IMAGE_DATA_URL}>)\n\ndescribe it`);
+    expect(userMessage?.content).not.toContain('ATTACHMENT://');
+    expect(userMessage?.content).not.toContain('APP-FILE://');
+  });
+
+  it('converts case-insensitive file attachment URLs to ephemeral data URLs in temporary chat', async () => {
+    seedTemporaryChatState();
+    vi.mocked(convertToBase64).mockResolvedValueOnce(TEMPORARY_IMAGE_DATA_URL);
+    const attachment = createAttachment({
+      previewUrl: '',
+      assetUrl: 'FILE:///appdata/.vlaina/attachments/demo.png',
+    });
+
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('describe it', [attachment], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
+    });
+
+    expect(convertToBase64).toHaveBeenCalledWith(attachment);
+    expect(deleteAttachment).toHaveBeenCalledWith(attachment);
+    const messages = useUnifiedStore.getState().data.ai?.messages['temp-session-1'] || [];
+    const userMessage = messages.find((message) => message.role === 'user');
+    expect(userMessage?.content).toBe(`![image](<${TEMPORARY_IMAGE_DATA_URL}>)\n\ndescribe it`);
+    expect(userMessage?.content).not.toContain('FILE://');
   });
 });

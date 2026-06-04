@@ -2,6 +2,7 @@ import { getElectronBridge } from '@/lib/electron/bridge';
 import { writeDesktopBinaryFile } from '@/lib/desktop/fs';
 import { saveDialog } from '@/lib/storage/dialog';
 import { translate } from '@/lib/i18n';
+import { sanitizeSvgMarkup } from '@/lib/markdown/svgSanitizer';
 import { themeColorTokens } from '@/styles/themeTokens';
 
 export type PreviewExportFormat = 'svg' | 'png' | 'jpg';
@@ -17,6 +18,11 @@ const EXPORT_MIME_TYPES: Record<PreviewExportFormat, string> = {
   png: 'image/png',
   jpg: 'image/jpeg',
 };
+const EXPORT_PRIMARY_MIME_TYPES: Record<PreviewExportFormat, string> = {
+  svg: 'image/svg+xml',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+};
 
 const EXPORT_FILTERS: Record<PreviewExportFormat, { name: string; extensions: string[] }[]> = {
   svg: [{ name: 'SVG Image', extensions: ['svg'] }],
@@ -24,9 +30,20 @@ const EXPORT_FILTERS: Record<PreviewExportFormat, { name: string; extensions: st
   jpg: [{ name: 'JPEG Image', extensions: ['jpg', 'jpeg'] }],
 };
 
-function dataUrlToBytes(dataUrl: string): Uint8Array {
-  const [metadata, payload = ''] = dataUrl.split(',');
-  if (metadata.endsWith(';base64')) {
+function dataUrlToBytes(dataUrl: string, format: PreviewExportFormat): Uint8Array {
+  const commaIndex = dataUrl.indexOf(',');
+  if (commaIndex < 0) {
+    throw new Error('Invalid preview export data URL.');
+  }
+
+  const metadata = dataUrl.slice(0, commaIndex);
+  const payload = dataUrl.slice(commaIndex + 1);
+  const mediaType = /^data:([^;,]+)/i.exec(metadata)?.[1]?.toLowerCase() ?? '';
+  if (mediaType !== EXPORT_PRIMARY_MIME_TYPES[format]) {
+    throw new Error('Unexpected preview export MIME type.');
+  }
+
+  if (/(?:^|;)base64(?:;|$)/i.test(metadata)) {
     const binary = atob(payload);
     const bytes = new Uint8Array(binary.length);
     for (let index = 0; index < binary.length; index += 1) {
@@ -36,6 +53,14 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
   }
 
   return new TextEncoder().encode(decodeURIComponent(payload));
+}
+
+function svgMarkupToBytes(markup: string): Uint8Array {
+  const sanitized = sanitizeSvgMarkup(markup);
+  if (!sanitized) {
+    throw new Error('Preview SVG export is empty after sanitization.');
+  }
+  return new TextEncoder().encode(`<?xml version="1.0" encoding="UTF-8"?>\n${sanitized}`);
 }
 
 function downloadInBrowser(fileName: string, bytes: Uint8Array, mimeType: string) {
@@ -71,14 +96,18 @@ function serializeExistingSvg(element: HTMLElement): Uint8Array | null {
   }
 
   const source = new XMLSerializer().serializeToString(clone);
-  return new TextEncoder().encode(`<?xml version="1.0" encoding="UTF-8"?>\n${source}`);
+  return svgMarkupToBytes(source);
 }
 
 async function createPreviewBytes(element: HTMLElement, format: PreviewExportFormat): Promise<Uint8Array> {
   const { toJpeg, toPng, toSvg } = await import('html-to-image');
 
   if (format === 'svg') {
-    return serializeExistingSvg(element) ?? dataUrlToBytes(await toSvg(element, { cacheBust: true }));
+    const existingSvg = serializeExistingSvg(element);
+    if (existingSvg) {
+      return existingSvg;
+    }
+    return svgMarkupToBytes(new TextDecoder().decode(dataUrlToBytes(await toSvg(element, { cacheBust: true }), format)));
   }
 
   const options = {
@@ -90,7 +119,8 @@ async function createPreviewBytes(element: HTMLElement, format: PreviewExportFor
   return dataUrlToBytes(
     format === 'png'
       ? await toPng(element, options)
-      : await toJpeg(element, { ...options, quality: 0.95 })
+      : await toJpeg(element, { ...options, quality: 0.95 }),
+    format
   );
 }
 

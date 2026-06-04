@@ -33,7 +33,7 @@ describe("buildTitleSourceFromMessages", () => {
     const messages: ChatMessage[] = [
       createMessage({
         role: "user",
-        content: "![image](asset://a)\n\n  Plan   trip to   Tokyo  ",
+        content: "![image](attachment://safe.png)\n\n  Plan   trip to   Tokyo  ",
       }),
       createMessage({
         role: "assistant",
@@ -49,7 +49,9 @@ describe("buildTitleSourceFromMessages", () => {
       createMessage({
         role: "user",
         content: [
-          '![outer [nested]](<asset://file(one).png> "Title")',
+          '![outer [nested]](<attachment://safe.png> "Title")',
+          '![video](https://example.com/movie.mp4)',
+          '![blocked](asset://localhost/image.png)',
           "```md",
           "![example](asset://code.png)",
           "```",
@@ -60,7 +62,7 @@ describe("buildTitleSourceFromMessages", () => {
     ];
 
     expect(buildTitleSourceFromMessages(messages)).toBe(
-      "```md ![example](asset://code.png) ``` \\![literal](asset://escaped.png) Plan trip to Tokyo",
+      "![video](https://example.com/movie.mp4) ![blocked](asset://localhost/image.png) ```md ![example](asset://code.png) ``` \\![literal](asset://escaped.png) Plan trip to Tokyo",
     );
   });
 

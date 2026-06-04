@@ -246,6 +246,53 @@ describe('notes metadata storage', () => {
     expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-heavy/node_modules');
   });
 
+  it('keeps readable sibling metadata when one nested folder cannot be listed', async () => {
+    adapter.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault-partial-failure') {
+        return [
+          { name: 'root.md', isFile: true },
+          { name: 'docs', isDirectory: true },
+          { name: 'locked', isDirectory: true },
+        ];
+      }
+
+      if (path === '/vault-partial-failure/docs') {
+        return [{ name: 'inside.md', isFile: true }];
+      }
+
+      if (path === '/vault-partial-failure/locked') {
+        throw new Error('Permission denied');
+      }
+
+      return [];
+    });
+    adapter.readFile.mockImplementation(async (path: string) => {
+      const date = path.includes('inside')
+        ? '2026-04-18T00:00:00.000Z'
+        : '2026-04-17T00:00:00.000Z';
+
+      return [
+        '---',
+        `vlaina_updated: "${date}"`,
+        '---',
+        '',
+        '# Note',
+      ].join('\n');
+    });
+
+    await expect(loadNoteMetadata('/vault-partial-failure')).resolves.toEqual({
+      version: 2,
+      notes: {
+        'root.md': {
+          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+        },
+        'docs/inside.md': {
+          updatedAt: Date.parse('2026-04-18T00:00:00.000Z'),
+        },
+      },
+    });
+  });
+
   it('creates an empty metadata file shape when needed', () => {
     expect(createEmptyMetadataFile()).toEqual({
       version: 2,
@@ -305,6 +352,29 @@ describe('notes metadata storage', () => {
         fileTreeSortMode: 'updated-desc',
       }, null, 2)
     );
+  });
+
+  it('caps merged expanded workspace folders before saving', async () => {
+    adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockResolvedValue(null);
+    adapter.readFile.mockResolvedValue(JSON.stringify({
+      currentNotePath: 'beta.md',
+      expandedFolders: Array.from({ length: 5000 }, (_, index) => `disk-${index}`),
+      fileTreeSortMode: 'name-asc',
+    }));
+
+    await saveWorkspaceState('/vault-a', {
+      currentNotePath: 'alpha.md',
+      expandedFolders: Array.from({ length: 5000 }, (_, index) => `current-${index}`),
+      fileTreeSortMode: 'updated-desc',
+    });
+
+    const [, writtenContent] = adapter.writeFile.mock.calls.at(-1) ?? [];
+    expect(JSON.parse(writtenContent as string)).toEqual({
+      currentNotePath: 'alpha.md',
+      expandedFolders: Array.from({ length: 5000 }, (_, index) => `disk-${index}`),
+      fileTreeSortMode: 'updated-desc',
+    });
   });
 
   it('sanitizes recent note paths loaded from localStorage', () => {

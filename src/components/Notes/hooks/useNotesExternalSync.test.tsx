@@ -20,6 +20,10 @@ const hoisted = vi.hoisted(() => {
     currentNote: { path: 'docs/current.md' } as { path: string } | null,
     isDirty: false,
     rootFolder: { children: [] as unknown[] } as { children: unknown[] } | null,
+    openTabs: [] as Array<{ path: string }>,
+    recentNotes: [] as string[],
+    noteContentsCache: new Map<string, unknown>(),
+    noteMetadata: { notes: {} as Record<string, unknown> },
   };
 
   return {
@@ -94,6 +98,11 @@ describe('useNotesExternalSync', () => {
     hoisted.renameBroadcastHandler = null;
     hoisted.notesState.notesPath = '/vault';
     hoisted.notesState.currentNote = { path: 'docs/current.md' };
+    hoisted.notesState.rootFolder = { children: [] };
+    hoisted.notesState.openTabs = [];
+    hoisted.notesState.recentNotes = [];
+    hoisted.notesState.noteContentsCache = new Map();
+    hoisted.notesState.noteMetadata = { notes: {} };
   });
 
   afterEach(() => {
@@ -275,6 +284,162 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
+  it('does not pair a removed Markdown file with a created folder as a rename', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { remove: { kind: 'file' } },
+        paths: ['/vault/docs/alpha.md'],
+      });
+      await hoisted.watchHandler?.({
+        type: { create: { kind: 'folder' } },
+        paths: ['/vault/docs/beta'],
+      });
+      await vi.advanceTimersByTimeAsync(401);
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+    expect(hoisted.notesState.applyExternalPathDeletion).toHaveBeenCalledWith('docs/alpha.md');
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
+  it('does not pair a created folder with a removed Markdown file as a rename', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { create: { kind: 'folder' } },
+        paths: ['/vault/docs/beta'],
+      });
+      await hoisted.watchHandler?.({
+        type: { remove: { kind: 'file' } },
+        paths: ['/vault/docs/alpha.md'],
+      });
+      await vi.advanceTimersByTimeAsync(401);
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+    expect(hoisted.notesState.applyExternalPathDeletion).toHaveBeenCalledWith('docs/alpha.md');
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
+  it('treats a Markdown file renamed to a non-Markdown file as an external deletion', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['/vault/docs/alpha.md', '/vault/docs/alpha.png'],
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+    expect(hoisted.notesState.applyExternalPathDeletion).toHaveBeenCalledWith('docs/alpha.md');
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
+  it('treats a non-Markdown file renamed to Markdown as an external Markdown addition', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['/vault/docs/alpha.png', '/vault/docs/alpha.md'],
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+    expect(hoisted.notesState.applyExternalPathDeletion).not.toHaveBeenCalled();
+    expect(hoisted.notesState.invalidateNoteCache).toHaveBeenCalledWith('docs/alpha.md');
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
+  it('does not remap Markdown state when paired remove and create events change a file to non-Markdown', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { remove: { kind: 'file' } },
+        paths: ['/vault/docs/alpha.md'],
+      });
+      await hoisted.watchHandler?.({
+        type: { create: { kind: 'file' } },
+        paths: ['/vault/docs/alpha.png'],
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+    expect(hoisted.notesState.applyExternalPathDeletion).toHaveBeenCalledWith('docs/alpha.md');
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
+  it('does not remap Markdown state when paired create and remove events change a file to Markdown', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { create: { kind: 'file' } },
+        paths: ['/vault/docs/alpha.md'],
+      });
+      await hoisted.watchHandler?.({
+        type: { remove: { kind: 'file' } },
+        paths: ['/vault/docs/alpha.png'],
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+    expect(hoisted.notesState.applyExternalPathDeletion).not.toHaveBeenCalled();
+    expect(hoisted.notesState.invalidateNoteCache).toHaveBeenCalledWith('docs/alpha.md');
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
+  it('keeps direct folder rename events even when a folder name looks like Markdown', async () => {
+    hoisted.notesState.rootFolder = {
+      children: [
+        {
+          id: 'docs/alpha.md',
+          path: 'docs/alpha.md',
+          name: 'alpha.md',
+          isFolder: true,
+          expanded: true,
+          children: [],
+        },
+      ],
+    };
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['/vault/docs/alpha.md', '/vault/docs/beta.png'],
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith('docs/alpha.md', 'docs/beta.png');
+    expect(hoisted.notesState.applyExternalPathDeletion).not.toHaveBeenCalled();
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
   it('does not pair ignored rename endpoints with note paths', async () => {
     const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
 
@@ -355,6 +520,26 @@ describe('useNotesExternalSync', () => {
 
     hook.unmount();
     expect(hoisted.unsubscribeRenameBroadcast).toHaveBeenCalled();
+  });
+
+  it('does not apply semantic rename broadcasts that move Markdown files to non-Markdown paths', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      hoisted.renameBroadcastHandler?.({
+        nonce: 'rename-event-non-markdown',
+        oldPath: 'docs/alpha.md',
+        newPath: 'docs/alpha.png',
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+    expect(hoisted.notesState.applyExternalPathDeletion).toHaveBeenCalledWith('docs/alpha.md');
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
   });
 
   it('ignores semantic rename broadcasts with paths outside the vault', async () => {

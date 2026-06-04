@@ -36,7 +36,7 @@ export function sanitizeMermaidMarkup(markup: string) {
 }
 
 function stripExternalSvgResourceReferences(markup: string) {
-  if (!/url\(|href=/i.test(markup)) {
+  if (!/url\s*\(|href\s*=/i.test(markup)) {
     return markup;
   }
 
@@ -91,7 +91,7 @@ function sanitizeSvgStyleAttribute(style: string) {
 }
 
 function containsExternalSvgUrlReference(value: string) {
-  const urlPattern = /url\(\s*(['"]?)(.*?)\1\s*\)/gi;
+  const urlPattern = /url\s*\(\s*(['"]?)(.*?)\1\s*\)/gi;
   let match: RegExpExecArray | null;
   while ((match = urlPattern.exec(value)) !== null) {
     if (!isLocalSvgReference(match[2] || '')) {

@@ -10,6 +10,12 @@ describe('imageAssetKey', () => {
         expect(getImageAssetKey('./assets/demo.png?cache=1#preview')).toBe('./assets/demo.png');
     });
 
+    it('normalizes internal img asset refs to their local asset path', () => {
+        expect(getImageAssetKey('img:assets/demo.png?cache=1#preview')).toBe('assets/demo.png');
+        expect(getImageAssetKey('IMG:assets/demo.png#preview')).toBe('assets/demo.png');
+        expect(getImageAssetKey('img:/home/user/notes/demo.png#preview')).toBeNull();
+    });
+
     it('returns null for remote sources', () => {
         expect(getImageAssetKey('https://example.com/demo.png#preview')).toBeNull();
         expect(getImageAssetKey('blob:http://localhost/123')).toBeNull();

@@ -28,6 +28,11 @@ describe('AppIcon image loading', () => {
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/app/.vlaina/assets/icons/demo.png');
   });
 
+  it('loads global icon assets with a case-insensitive image scheme', async () => {
+    await expect(loadAppIconImageSrc('IMG:/app/.vlaina/assets/icons/demo.png')).resolves.toBe('blob:icon');
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/app/.vlaina/assets/icons/demo.png');
+  });
+
   it('loads global icon assets without treating query params as part of the filename', async () => {
     await expect(loadAppIconImageSrc('img:/app/.vlaina/assets/icons/demo.png?cache=1#preview')).resolves.toBe('blob:icon');
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/app/.vlaina/assets/icons/demo.png');

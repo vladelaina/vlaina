@@ -38,6 +38,32 @@ describe('buildStoredUserMessageContent image parsing', () => {
     );
   });
 
+  it('keeps safe remote markdown images as vision attachments on resend paths', async () => {
+    const content = [
+      '![remote](https://example.com/photo.png)',
+      '',
+      'Describe the real image.',
+    ].join('\n');
+
+    await expect(buildStoredUserMessageContent(content)).resolves.toEqual([
+      {
+        type: 'text',
+        text: 'Describe the real image.',
+      },
+      { type: 'image_url', image_url: { url: 'https://example.com/photo.png' } },
+    ]);
+  });
+
+  it('does not turn video markdown into vision attachments on resend paths', async () => {
+    const content = [
+      '![video](https://example.com/movie.mp4)',
+      '',
+      'Describe this.',
+    ].join('\n');
+
+    await expect(buildStoredUserMessageContent(content)).resolves.toBe(content);
+  });
+
   it('keeps unsafe image markdown as text instead of vision attachments', async () => {
     const content = [
       '![local](http://127.0.0.1:3000/secret.png)',

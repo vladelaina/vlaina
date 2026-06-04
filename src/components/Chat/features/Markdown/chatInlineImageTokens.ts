@@ -1,7 +1,9 @@
-import { parseMarkdownImageTokens } from '@/components/Chat/common/messageImageTokens';
+import { parseMarkdownAndHtmlImageTokens } from '@/components/Chat/common/messageImageTokens';
+import { normalizeRenderableDataImageSrc } from '@/components/common/markdown/imagePolicy';
 
 const INLINE_IMAGE_TOKEN_PREFIX = 'asset://localhost/chat-inline-image/';
 const LARGE_DATA_IMAGE_MIN_LENGTH = 50_000;
+const DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i;
 
 export interface CompactedChatMarkdownImages {
   markdown: string;
@@ -9,23 +11,34 @@ export interface CompactedChatMarkdownImages {
   replaced: number;
 }
 
-function shouldCompactImageSrc(src: string): boolean {
-  return src.length >= LARGE_DATA_IMAGE_MIN_LENGTH && src.startsWith('data:image/');
+function normalizeCompactableImageSrc(src: string): string | null {
+  if (src.length < LARGE_DATA_IMAGE_MIN_LENGTH) {
+    return null;
+  }
+  return normalizeRenderableDataImageSrc(src);
 }
 
 function createToken(index: number): string {
   return `${INLINE_IMAGE_TOKEN_PREFIX}${index}`;
 }
 
-function replaceMarkdownImageTarget(markdownToken: string, src: string, token: string): string | null {
-  const targetMarkerIndex = markdownToken.indexOf('](');
-  const searchStart = targetMarkerIndex === -1 ? 0 : targetMarkerIndex + 2;
-  const srcStart = markdownToken.indexOf(src, searchStart);
-  if (srcStart === -1) {
-    return null;
+function getExistingInlineImageTokens(markdown: string): Set<string> {
+  const tokens = new Set<string>();
+  for (const match of markdown.matchAll(/asset:\/\/localhost\/chat-inline-image\/\d+/g)) {
+    tokens.add(match[0]);
   }
+  return tokens;
+}
 
-  return `${markdownToken.slice(0, srcStart)}${token}${markdownToken.slice(srcStart + src.length)}`;
+function createAvailableToken(index: number, unavailableTokens: Set<string>): { token: string; nextIndex: number } {
+  let nextIndex = index;
+  let token = createToken(nextIndex);
+  while (unavailableTokens.has(token)) {
+    nextIndex += 1;
+    token = createToken(nextIndex);
+  }
+  unavailableTokens.add(token);
+  return { token, nextIndex: nextIndex + 1 };
 }
 
 export function resolveCompactedChatImageSrc(
@@ -39,7 +52,7 @@ export function resolveCompactedChatImageSrc(
 }
 
 export function compactLargeDataImageMarkdown(markdown: string): CompactedChatMarkdownImages {
-  if (!markdown.includes('data:image/')) {
+  if (!DATA_IMAGE_TARGET_HINT_PATTERN.test(markdown)) {
     return {
       markdown,
       imageSrcByToken: new Map(),
@@ -48,26 +61,32 @@ export function compactLargeDataImageMarkdown(markdown: string): CompactedChatMa
   }
 
   const imageSrcByToken = new Map<string, string>();
+  const unavailableTokens = getExistingInlineImageTokens(markdown);
+  let tokenIndex = 0;
   let replaced = 0;
-  const tokens = parseMarkdownImageTokens(markdown);
+  const tokens = parseMarkdownAndHtmlImageTokens(markdown);
   const parts: string[] = [];
   let cursor = 0;
 
   for (const imageToken of tokens) {
-    const src = imageToken.src;
-    if (!src || !shouldCompactImageSrc(src)) {
+    if (imageToken.start < cursor) {
+      continue;
+    }
+    const src = imageToken.src ? normalizeCompactableImageSrc(imageToken.src) : null;
+    if (!src) {
+      continue;
+    }
+    if (typeof imageToken.targetStart !== 'number' || typeof imageToken.targetEnd !== 'number') {
       continue;
     }
 
-    const original = markdown.slice(imageToken.start, imageToken.end);
-    const token = createToken(replaced);
-    const compactedToken = replaceMarkdownImageTarget(original, src, token);
-    if (!compactedToken) {
-      continue;
-    }
-
+    const tokenResult = createAvailableToken(tokenIndex, unavailableTokens);
+    const token = tokenResult.token;
+    tokenIndex = tokenResult.nextIndex;
     parts.push(markdown.slice(cursor, imageToken.start));
-    parts.push(compactedToken);
+    parts.push(markdown.slice(imageToken.start, imageToken.targetStart));
+    parts.push(token);
+    parts.push(markdown.slice(imageToken.targetEnd, imageToken.end));
     cursor = imageToken.end;
     replaced += 1;
     imageSrcByToken.set(token, src);

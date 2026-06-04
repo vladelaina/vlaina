@@ -1,3 +1,5 @@
+import { normalizeSafeRasterDataImageSrc } from '@/lib/markdown/dataImagePolicy';
+
 const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const SCHEME_PATTERN = /^([A-Za-z][A-Za-z0-9+.-]*):/;
 const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[A-Za-z]:[\\/]/;
@@ -8,6 +10,10 @@ const FALLBACK_URL_BASE = 'https://vlaina.local/';
 
 function hasUnsafeUrlCharacters(value: string): boolean {
   return CONTROL_OR_BIDI_PATTERN.test(value);
+}
+
+function hasUnsafeBackslashUrlSyntax(value: string): boolean {
+  return value.startsWith('\\') || (SCHEME_PATTERN.test(value) && value.includes('\\'));
 }
 
 function getUrlBase(): string {
@@ -39,6 +45,28 @@ function isPrivateIPv4(hostname: string): boolean {
   );
 }
 
+function parseEmbeddedIPv4Hextets(parts: string[]): string | null {
+  if (parts.length !== 2) return null;
+  if (parts.some((part) => !/^[\da-f]{1,4}$/i.test(part))) return null;
+
+  const high = Number.parseInt(parts[0], 16);
+  const low = Number.parseInt(parts[1], 16);
+  if (!Number.isFinite(high) || !Number.isFinite(low)) return null;
+
+  return [
+    (high >> 8) & 255,
+    high & 255,
+    (low >> 8) & 255,
+    low & 255,
+  ].join('.');
+}
+
+function hasPrivateEmbeddedIPv4(normalized: string, prefix: string): boolean {
+  if (!normalized.startsWith(prefix)) return false;
+  const embedded = parseEmbeddedIPv4Hextets(normalized.slice(prefix.length).split(':'));
+  return embedded ? isPrivateIPv4(embedded) : false;
+}
+
 function isLocalNetworkHostname(hostname: string): boolean {
   const normalized = hostname.replace(/\.+$/g, '');
   return (
@@ -52,21 +80,12 @@ function isLocalNetworkHostname(hostname: string): boolean {
 
 function isPrivateIPv6(hostname: string): boolean {
   const normalized = hostname.replace(/^\[|\]$/g, '').toLowerCase();
-  if (normalized.startsWith('::ffff:')) {
-    const parts = normalized.slice('::ffff:'.length).split(':');
-    if (parts.length === 2) {
-      const high = Number.parseInt(parts[0], 16);
-      const low = Number.parseInt(parts[1], 16);
-      if (Number.isFinite(high) && Number.isFinite(low)) {
-        const mapped = [
-          (high >> 8) & 255,
-          high & 255,
-          (low >> 8) & 255,
-          low & 255,
-        ].join('.');
-        return isPrivateIPv4(mapped);
-      }
-    }
+  if (
+    hasPrivateEmbeddedIPv4(normalized, '::ffff:')
+    || hasPrivateEmbeddedIPv4(normalized, '::ffff:0:')
+    || hasPrivateEmbeddedIPv4(normalized, '::')
+  ) {
+    return true;
   }
   return (
     normalized === '::'
@@ -94,6 +113,7 @@ export function isPublicRemoteMediaUrl(value: unknown): boolean {
   const trimmed = value.trim();
   if (!trimmed) return false;
   if (hasUnsafeUrlCharacters(trimmed)) return false;
+  if (hasUnsafeBackslashUrlSyntax(trimmed)) return false;
   if (!trimmed.startsWith('//') && !/^https?:/i.test(trimmed)) return false;
 
   const normalized = trimmed.startsWith('//') ? `https:${trimmed}` : trimmed;
@@ -108,6 +128,14 @@ export function isPublicRemoteMediaUrl(value: unknown): boolean {
   }
 }
 
+export function normalizePublicRemoteMediaUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  if (!isPublicRemoteMediaUrl(value)) return null;
+
+  const trimmed = value.trim();
+  return trimmed.startsWith('//') ? `https:${trimmed}` : trimmed;
+}
+
 export function sanitizeNoteLinkHref(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
@@ -115,6 +143,7 @@ export function sanitizeNoteLinkHref(value: unknown): string | null {
     !trimmed
     || trimmed.startsWith('//')
     || hasUnsafeUrlCharacters(trimmed)
+    || hasUnsafeBackslashUrlSyntax(trimmed)
     || WINDOWS_ABSOLUTE_PATH_PATTERN.test(trimmed)
   ) return null;
 
@@ -124,12 +153,34 @@ export function sanitizeNoteLinkHref(value: unknown): string | null {
   return SAFE_LINK_SCHEMES.has(normalizedScheme) ? trimmed : null;
 }
 
+export function getNoteInternalImageAssetPath(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  const scheme = SCHEME_PATTERN.exec(trimmed)?.[1]?.toLowerCase();
+  if (scheme !== 'img') return null;
+
+  const assetPath = trimmed.slice(trimmed.indexOf(':') + 1);
+  if (
+    !assetPath
+    || hasUnsafeUrlCharacters(assetPath)
+    || assetPath.startsWith('//')
+    || assetPath.startsWith('\\')
+    || WINDOWS_ABSOLUTE_PATH_PATTERN.test(assetPath)
+    || UNIX_ABSOLUTE_PATH_PATTERN.test(assetPath)
+  ) {
+    return null;
+  }
+
+  return assetPath;
+}
+
 export function sanitizeNoteMediaSrc(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   if (
     !trimmed
     || hasUnsafeUrlCharacters(trimmed)
+    || hasUnsafeBackslashUrlSyntax(trimmed)
     || WINDOWS_ABSOLUTE_PATH_PATTERN.test(trimmed)
     || (UNIX_ABSOLUTE_PATH_PATTERN.test(trimmed) && !trimmed.startsWith('//'))
   ) {
@@ -143,6 +194,13 @@ export function sanitizeNoteMediaSrc(value: unknown): string | null {
   const scheme = SCHEME_PATTERN.exec(trimmed)?.[1]?.toLowerCase();
   if (!scheme) return trimmed;
   const normalizedScheme = `${scheme}:`;
+  if (normalizedScheme === 'img:') {
+    const assetPath = getNoteInternalImageAssetPath(trimmed);
+    return assetPath ? trimmed : null;
+  }
+  if (normalizedScheme === 'data:') {
+    return normalizeSafeRasterDataImageSrc(trimmed);
+  }
   if (!SAFE_MEDIA_SCHEMES.has(normalizedScheme)) return null;
   if ((normalizedScheme === 'http:' || normalizedScheme === 'https:') && isLocalNetworkHttpUrl(trimmed)) return null;
   return trimmed;

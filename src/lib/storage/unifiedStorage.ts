@@ -15,7 +15,7 @@ import {
 import { aiProviderSecretCommands } from '@/lib/desktop/secretsCommands';
 import { translate } from '@/lib/i18n';
 import { useToastStore } from '@/stores/useToastStore';
-import { replaceMarkdownImageTokens } from '@/lib/markdown/markdownImageTokens';
+import { replaceRenderableMarkdownImageTokens } from '@/lib/markdown/renderableImageTokens';
 import {
   createDefaultUnifiedData,
   type CustomIcon,
@@ -181,7 +181,7 @@ function serializeAIProviderChannelFile(
 function buildRecoveredSessionTitle(messages: ChatMessage[]): string {
   const firstUserMessage = messages.find((message) => message.role === 'user');
   const source = firstUserMessage?.content || messages[0]?.content || '';
-  const normalized = replaceMarkdownImageTokens(source, ' ')
+  const normalized = replaceRenderableMarkdownImageTokens(source, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -215,6 +215,7 @@ function buildRecoveredSession(sessionId: string, messages: ChatMessage[]): Chat
 async function recoverOrphanChatSessions(
   sessionsDir: string,
   existingSessions: ChatSession[],
+  deletedSessionIds: ReadonlySet<string> = new Set(),
 ): Promise<ChatSession[]> {
   const storage = getStorageAdapter();
   const existingSessionIds = new Set(existingSessions.map((session) => session.id));
@@ -227,7 +228,7 @@ async function recoverOrphanChatSessions(
     }
 
     const sessionId = entry.name.slice(0, -5);
-    if (existingSessionIds.has(sessionId) || isTemporarySessionId(sessionId)) {
+    if (existingSessionIds.has(sessionId) || deletedSessionIds.has(sessionId) || isTemporarySessionId(sessionId)) {
       continue;
     }
 
@@ -685,6 +686,9 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     const recoveredSessions = await recoverOrphanChatSessions(
       sessionFilesDir,
       combinedData.ai.sessions,
+      new Set(
+        (combinedData.ai.deletedSessionIds || []).filter(isSafeChatSessionId)
+      ),
     );
     if (recoveredSessions.length > 0) {
       combinedData.ai.sessions = [

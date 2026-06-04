@@ -70,7 +70,7 @@ function sanitizeElement(element: Element): Node | null {
     if (isGithubUrlAttribute(tagName, normalizedAttribute)) {
       const protocols = tagName === 'a' ? GITHUB_ALLOWED_LINK_PROTOCOLS : GITHUB_ALLOWED_MEDIA_PROTOCOLS;
       const normalizedUrl = normalizeGithubUrl(value, protocols, {
-        allowPlainRelative: tagName !== 'a',
+        allowPlainRelative: true,
         allowProtocolRelative: tagName !== 'a',
         blockLocalNetwork: tagName !== 'a',
       });

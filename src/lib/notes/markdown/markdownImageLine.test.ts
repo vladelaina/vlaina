@@ -15,6 +15,9 @@ describe('markdown image line helpers', () => {
     expect(
       isMarkdownImageOnlyLine('  ![alt `](not target)`](<assets/file(one).png>)  ')
     ).toBe(true);
+    expect(
+      isMarkdownImageOnlyLine('![angle](<assets/file) with space.png> "Demo title")')
+    ).toBe(true);
   });
 
   it('rejects escaped, indented, and inline markdown image text', () => {

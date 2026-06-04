@@ -4,6 +4,7 @@ import {
   composeUserMessageContent,
   parseUserMessageContent,
   parseUserMessageContentWithKnownImages,
+  toEditAttachment,
 } from './userMessageContent';
 
 function createAttachment(overrides: Partial<Attachment>): Attachment {
@@ -90,6 +91,22 @@ describe('userMessageContent', () => {
     });
   });
 
+  it('parses case-insensitive data image markdown separately from text', () => {
+    expect(parseUserMessageContent('![image](<DATA:IMAGE/PNG;BASE64,AAAA>)\n\nhello')).toEqual({
+      imageSources: ['data:image/png;base64,AAAA'],
+      text: 'hello',
+    });
+  });
+
+  it('infers edit attachment metadata from case-insensitive data image sources', () => {
+    expect(toEditAttachment('DATA:IMAGE/WEBP;BASE64,AAAA', 0)).toMatchObject({
+      previewUrl: 'DATA:IMAGE/WEBP;BASE64,AAAA',
+      assetUrl: 'DATA:IMAGE/WEBP;BASE64,AAAA',
+      name: 'image-1.webp',
+      type: 'image/webp',
+    });
+  });
+
   it('filters unsafe known image sources from stored user messages', () => {
     const content = [
       '![image](<http://127.0.0.1:3000/secret.png>)',
@@ -106,6 +123,30 @@ describe('userMessageContent', () => {
       imageSources: ['attachment://safe.png'],
       text: [
         '![image](<http://127.0.0.1:3000/secret.png>)',
+        '',
+        '',
+        '',
+        'hello',
+      ].join('\n'),
+    });
+  });
+
+  it('filters known video sources from stored user messages', () => {
+    const content = [
+      '![video](<https://example.com/movie.mp4>)',
+      '',
+      '![image](<attachment://safe.png>)',
+      '',
+      'hello',
+    ].join('\n');
+
+    expect(parseUserMessageContentWithKnownImages(content, [
+      'https://example.com/movie.mp4',
+      'attachment://safe.png',
+    ])).toEqual({
+      imageSources: ['attachment://safe.png'],
+      text: [
+        '![video](<https://example.com/movie.mp4>)',
         '',
         '',
         '',

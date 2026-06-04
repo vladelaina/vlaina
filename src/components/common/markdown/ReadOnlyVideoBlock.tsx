@@ -1,7 +1,7 @@
 import { translate } from '@/lib/i18n';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { isPublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
-import { parseVideoUrl } from './videoUrl';
+import { parseVideoUrl } from '@/lib/markdown/videoUrl';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
 
 interface ReadOnlyVideoBlockProps {

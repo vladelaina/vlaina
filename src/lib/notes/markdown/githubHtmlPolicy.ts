@@ -1,4 +1,4 @@
-import { isLocalNetworkHttpUrl, sanitizeNoteMediaSrc } from './urlSecurity';
+import { isLocalNetworkHttpUrl } from './urlSecurity';
 
 export const GITHUB_ALLOWED_HTML_TAGS = new Set([
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
@@ -112,6 +112,8 @@ export const GITHUB_ALLOWED_STYLE_PROPERTIES = new Set([
   'width',
 ]);
 
+const GITHUB_SRCSET_DESCRIPTOR_PATTERN = /^\d+(?:\.\d+)?(?:w|x)$/;
+
 export function isGithubAllowedAttribute(tagName: string, attributeName: string): boolean {
   const normalizedAttribute = attributeName.toLowerCase();
   if (normalizedAttribute.startsWith('on')) return false;
@@ -165,6 +167,22 @@ export function hasGithubProtocol(value: string): boolean {
   return value.includes('://');
 }
 
+function hasUnsafeGithubBackslashUrlSyntax(value: string): boolean {
+  return value.startsWith('\\') || (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(value) && value.includes('\\'));
+}
+
+function isSafeGithubPlainRelativeMediaUrl(value: string): boolean {
+  return (
+    !hasGithubProtocol(value)
+    && !/^[A-Za-z][A-Za-z0-9+.-]*:/.test(value)
+    && !value.startsWith('//')
+    && !value.startsWith('\\')
+    && !/^[A-Za-z]:[\\/]/.test(value)
+    && !value.startsWith('/')
+    && !/[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/.test(value)
+  );
+}
+
 function getGithubProtocolMarker(value: string): string {
   let position = 0;
   for (let index = 0; index < value.length; index += 1) {
@@ -190,6 +208,9 @@ export function normalizeGithubUrl(
   if (!trimmed || /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/.test(trimmed)) {
     return null;
   }
+  if (hasUnsafeGithubBackslashUrlSyntax(trimmed)) {
+    return null;
+  }
 
   const marker = getGithubProtocolMarker(trimmed);
   if (GITHUB_ALLOWED_RELATIVE_PROTOCOL_MARKERS.has(marker)) {
@@ -199,12 +220,21 @@ export function normalizeGithubUrl(
     if (options.blockLocalNetwork && trimmed.startsWith('//') && isLocalNetworkHttpUrl(`https:${trimmed}`)) {
       return null;
     }
-    if (marker === '/' && !trimmed.startsWith('//') && options.allowPlainRelative && sanitizeNoteMediaSrc(trimmed) !== trimmed) {
+    if (trimmed.startsWith('//')) {
+      return `https:${trimmed}`;
+    }
+    if (
+      marker === '/'
+      && !trimmed.startsWith('//')
+      && options.allowPlainRelative
+      && options.blockLocalNetwork
+      && !isSafeGithubPlainRelativeMediaUrl(trimmed)
+    ) {
       return null;
     }
     return trimmed;
   }
-  if (options.allowPlainRelative && sanitizeNoteMediaSrc(trimmed) === trimmed) {
+  if (options.allowPlainRelative && isSafeGithubPlainRelativeMediaUrl(trimmed)) {
     return trimmed;
   }
   if (!allowedProtocols.has(marker)) return null;
@@ -218,8 +248,14 @@ export function normalizeGithubSrcset(value: string): string | null {
   const candidates = trimmed.split(',').map((candidate) => candidate.trim()).filter(Boolean);
   if (candidates.length === 0) return null;
   for (const candidate of candidates) {
-    const source = candidate.split(/\s+/, 1)[0];
-    if (!source || hasGithubProtocol(source) || source.startsWith('//') || sanitizeNoteMediaSrc(source) !== source) {
+    const [source, ...descriptors] = candidate.split(/\s+/).filter(Boolean);
+    if (!source || !isSafeGithubPlainRelativeMediaUrl(source)) {
+      return null;
+    }
+    if (
+      descriptors.length > 1
+      || (descriptors[0] && !GITHUB_SRCSET_DESCRIPTOR_PATTERN.test(descriptors[0]))
+    ) {
       return null;
     }
   }

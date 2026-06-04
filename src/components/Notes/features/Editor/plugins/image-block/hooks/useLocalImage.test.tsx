@@ -90,6 +90,27 @@ describe('useLocalImage', () => {
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/daily/assets/demo.png');
   });
 
+  it('loads internal img asset refs through contained local paths', async () => {
+    hoisted.exists
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    hoisted.loadImageAsBlob.mockResolvedValueOnce('blob:internal-image');
+
+    const { result } = renderHook(() =>
+      useLocalImage('img:assets/demo.png?cache=1#preview', '/vault', 'daily/demo.md')
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.resolvedSrc).toBe('blob:internal-image');
+    expect(result.current.error).toBeNull();
+    expect(hoisted.exists).toHaveBeenNthCalledWith(1, '/vault/daily/assets/demo.png');
+    expect(hoisted.exists).toHaveBeenNthCalledWith(2, '/vault/assets/demo.png');
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/assets/demo.png');
+  });
+
   it('does not render note-controlled unsupported media schemes', async () => {
     const { result } = renderHook(() =>
       useLocalImage('asset://localhost/secret.png', '/vault', 'daily/demo.md')
@@ -104,9 +125,54 @@ describe('useLocalImage', () => {
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
   });
 
+  it('does not read invalid internal img asset refs', async () => {
+    const { result } = renderHook(() =>
+      useLocalImage('img:/vault/assets/demo.png', '/vault', 'daily/demo.md')
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.resolvedSrc).toBe('');
+    expect(result.current.error).toBeNull();
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+  });
+
+  it('renders safe raster data image sources after normalizing their prefix', async () => {
+    const { result } = renderHook(() =>
+      useLocalImage('DATA:IMAGE/WEBP;BASE64,AQI=', '/vault', 'daily/demo.md')
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.resolvedSrc).toBe('data:image/webp;base64,AQI=');
+    expect(result.current.error).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+  });
+
   it('renders sanitized public remote images without resolving them through local storage', async () => {
     const { result } = renderHook(() =>
       useLocalImage('https://example.com/tracker.png', '/vault', 'daily/demo.md')
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.resolvedSrc).toBe('blob:remote-image');
+    expect(result.current.error).toBeNull();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith('https://example.com/tracker.png', { cache: 'force-cache' });
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+  });
+
+  it('normalizes protocol-relative public remote images before fetching', async () => {
+    const { result } = renderHook(() =>
+      useLocalImage('//example.com/tracker.png', '/vault', 'daily/demo.md')
     );
 
     await waitFor(() => {

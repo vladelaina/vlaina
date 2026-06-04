@@ -502,6 +502,52 @@ describe('featureSlice draft metadata', () => {
     });
   });
 
+  it('updates case-insensitive symbol icon schemes when changing all icon colors', async () => {
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      currentNote: { path: notePath, content: '# Alpha' },
+      isDirty: true,
+      openTabs: [{ path: notePath, name: 'alpha', isDirty: true }],
+      noteContentsCache: new Map([[notePath, { content: '# Alpha', modifiedAt: 1 }]]),
+      noteMetadata: {
+        version: 2,
+        notes: {
+          [notePath]: { icon: 'ICON:star:red' },
+          'docs/beta.md': { icon: '👋' },
+        },
+      },
+    });
+
+    store.getState().updateAllIconColors('blue');
+
+    await vi.waitFor(() => {
+      expect(store.getState().noteMetadata?.notes[notePath]?.icon).toBe('ICON:star:blue');
+    });
+    expect(store.getState().noteMetadata?.notes['docs/beta.md']?.icon).toBe('👋');
+  });
+
+  it('does not treat case-insensitive symbol icon schemes as emoji during skin tone updates', async () => {
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      currentNote: { path: notePath, content: '# Alpha' },
+      isDirty: true,
+      openTabs: [{ path: notePath, name: 'alpha', isDirty: true }],
+      noteContentsCache: new Map([[notePath, { content: '# Alpha', modifiedAt: 1 }]]),
+      noteMetadata: {
+        version: 2,
+        notes: {
+          [notePath]: { icon: '👋' },
+          'docs/symbol.md': { icon: 'ICON:star:red' },
+        },
+      },
+    });
+
+    await store.getState().updateAllEmojiSkinTones(1);
+
+    expect(store.getState().noteMetadata?.notes['docs/symbol.md']?.icon).toBe('ICON:star:red');
+    expect(store.getState().noteMetadata?.notes[notePath]?.icon).not.toBe('ICON:star:red');
+  });
+
   it('reuses cached note contents during full-vault scans and reads only missing notes', async () => {
     mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true });
     mocks.readFile.mockResolvedValue('# Beta from disk');
@@ -745,6 +791,19 @@ describe('featureSlice starred path resolution', () => {
     expect(store.getState().starredNotes).toEqual(['docs/alpha.md']);
 
     store.getState().toggleStarred('/vault/docs/alpha.md');
+
+    expect(store.getState().starredEntries).toEqual([]);
+    expect(store.getState().starredNotes).toEqual([]);
+  });
+
+  it('ignores non-markdown note paths when toggling current-vault starred notes', () => {
+    const store = createNotesStore({
+      notesPath: '/vault',
+      starredEntries: [],
+      starredNotes: [],
+    });
+
+    expect(() => store.getState().toggleStarred('/vault/docs/image.png')).not.toThrow();
 
     expect(store.getState().starredEntries).toEqual([]);
     expect(store.getState().starredNotes).toEqual([]);

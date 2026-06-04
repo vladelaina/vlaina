@@ -21,10 +21,13 @@ describe('renderNoteExportHtml', () => {
         '<a href="javascript:alert(3)" onclick="alert(4)">bad</a>',
         '<a href="file:///etc/passwd">file</a>',
         '<a href="//example.com/protocol-relative">protocol</a>',
+        '<a href="http://127.0.0.1:3000/admin">local raw</a>',
+        '<a href="http://router/admin">router raw</a>',
         '<a href="https://example.com" onclick="alert(5)">safe</a>',
         '<a href="mailto:user@example.com">mail</a>',
         '<img src="assets/demo.png" onerror="alert(6)" alt="demo">',
         '[protocol markdown](//example.com/markdown)',
+        '[local markdown](http://localhost:3000/secret)',
       ].join('\n'),
       'Unsafe <Title>',
     );
@@ -38,8 +41,14 @@ describe('renderNoteExportHtml', () => {
     expect(doc.querySelector('a[href^="javascript:"]')).toBeNull();
     expect(doc.querySelector('a[href^="file:"]')).toBeNull();
     expect(doc.querySelector('a[href^="//"]')).toBeNull();
+    expect(doc.querySelector('a[href^="http://127.0.0.1"]')).toBeNull();
+    expect(doc.querySelector('a[href^="http://router"]')).toBeNull();
+    expect(doc.querySelector('a[href^="http://localhost"]')).toBeNull();
     expect(doc.body.textContent).toContain('protocol');
     expect(doc.body.textContent).toContain('protocol markdown');
+    expect(doc.body.textContent).toContain('local raw');
+    expect(doc.body.textContent).toContain('router raw');
+    expect(doc.body.textContent).toContain('local markdown');
     expect(doc.querySelector('a[href="https://example.com"]')?.textContent).toBe('safe');
     expect(doc.querySelector('a[href="mailto:user@example.com"]')?.textContent).toBe('mail');
     expect(doc.querySelector('img[src="assets/demo.png"]')?.getAttribute('alt')).toBe('demo');
@@ -63,10 +72,13 @@ describe('renderNoteExportHtml', () => {
     const html = await renderNoteExportHtml(
       [
         '![portable](data:image/png;base64,aGk=)',
+        '![portable bmp](data:image/bmp;base64,aGk=)',
+        '![portable avif](DATA:IMAGE/AVIF;BASE64,aGk=)',
         '![svg](data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+PC9zdmc+)',
         '![remote](https://example.com/pixel.png)',
         '![local](http://127.0.0.1/pixel.png)',
         '![blob](blob:https://example.com/id)',
+        '![blob upper](BLOB:https://example.com/id)',
         '![absolute](/etc/passwd)',
         '![relative](assets/photo.webp)',
       ].join('\n'),
@@ -77,12 +89,15 @@ describe('renderNoteExportHtml', () => {
 
     expect(imageSources).toEqual([
       'data:image/png;base64,aGk=',
+      'data:image/bmp;base64,aGk=',
+      'data:image/avif;base64,aGk=',
       'assets/photo.webp',
     ]);
     expect(html).not.toContain('image/svg+xml');
     expect(html).not.toContain('https://example.com/pixel.png');
     expect(html).not.toContain('http://127.0.0.1/pixel.png');
     expect(html).not.toContain('blob:https://example.com/id');
+    expect(html).not.toContain('BLOB:https://example.com/id');
     expect(html).not.toContain('/etc/passwd');
   });
 

@@ -1,14 +1,16 @@
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { resolveExistingVaultAssetPath } from '@/lib/assets/core/paths';
 import { mapMarkdownOutsideProtectedSegments } from '@/lib/notes/markdown/markdownProtectedBlocks';
+import { getNoteInternalImageAssetPath } from '@/lib/notes/markdown/urlSecurity';
 import { findExportMarkdownAssetSourceTokens } from './noteExportMarkdownAssetTokens';
 
 const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
+  avif: 'image/avif',
+  bmp: 'image/bmp',
   gif: 'image/gif',
   jpeg: 'image/jpeg',
   jpg: 'image/jpeg',
   png: 'image/png',
-  svg: 'image/svg+xml',
   webp: 'image/webp',
 };
 const MAX_EXPORT_IMAGE_BYTES = 50 * 1024 * 1024;
@@ -36,13 +38,24 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+function createExportSegmentMarkerPrefix(markdown: string): string {
+  let salt = 0;
+  let prefix = '';
+  do {
+    prefix = `\0vlaina-export-segment-${salt}-`;
+    salt += 1;
+  } while (markdown.includes(prefix));
+  return prefix;
+}
+
 async function resolveAssetUrl(
   src: string,
   notesPath: string,
   notePath: string,
   fallbackSrc = src,
 ): Promise<string> {
-  if (!src.startsWith('img:') || !notesPath) {
+  const assetPath = getNoteInternalImageAssetPath(src);
+  if (!assetPath || !notesPath) {
     return fallbackSrc;
   }
 
@@ -51,7 +64,6 @@ async function resolveAssetUrl(
     return fallbackSrc;
   }
 
-  const assetPath = src.slice(4);
   try {
     const absolutePath = await resolveExistingVaultAssetPath(notesPath, assetPath, notePath);
     if (!absolutePath) {
@@ -84,8 +96,9 @@ export async function resolveExportMarkdownAssetSources(
   notePath: string,
 ): Promise<string> {
   const segments: string[] = [];
+  const markerPrefix = createExportSegmentMarkerPrefix(markdown);
   const protectedMarkdown = mapMarkdownOutsideProtectedSegments(markdown, (segment) => {
-    const marker = `\0vlaina-export-segment-${segments.length}\0`;
+    const marker = `${markerPrefix}${segments.length}\0`;
     segments.push(segment);
     return marker;
   }, { protectHtmlBlocks: false });
@@ -95,7 +108,7 @@ export async function resolveExportMarkdownAssetSources(
   );
 
   return resolvedSegments.reduce(
-    (output, segment, index) => output.replace(`\0vlaina-export-segment-${index}\0`, segment),
+    (output, segment, index) => output.replace(`${markerPrefix}${index}\0`, segment),
     protectedMarkdown,
   );
 }

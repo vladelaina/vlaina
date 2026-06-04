@@ -147,6 +147,7 @@ describe('GitHub README HTML compatibility', () => {
       '<a href="/absolute-path">absolute path</a>',
       '<img src="images/a.png" longdesc="docs/image.html">',
       '<a href="readme.html">plain file</a>',
+      '<a href="README.md">plain markdown file</a>',
       '<source srcset="images/a.webp 1x, ../images/a@2x.webp 2x">',
       '<source srcset="https://example.com/a.webp 1x">',
     ].join(''));
@@ -157,7 +158,8 @@ describe('GitHub README HTML compatibility', () => {
     expect(result).toContain('href="/absolute-path"');
     expect(result).toContain('src="images/a.png"');
     expect(result).toContain('longdesc="docs/image.html"');
-    expect(result).toContain('<a>plain file</a>');
+    expect(result).toContain('href="readme.html"');
+    expect(result).toContain('href="README.md"');
     expect(result).toContain('srcset="images/a.webp 1x, ../images/a@2x.webp 2x"');
     expect(result).toContain('<source>');
     expect(result).not.toContain('https://example.com/a.webp');
@@ -191,13 +193,17 @@ describe('GitHub README HTML compatibility', () => {
     const result = sanitizeHtml([
       '<a href="//example.com/protocol-relative">protocol relative</a>',
       '<img src="//example.com/a.png">',
+      '<iframe src="//example.com/embed"></iframe>',
+      '<video src="//example.com/demo.mp4"></video>',
       '<a href="HTTPS://example.com/Upper">upper</a>',
       '<a href="MAILTO:user@example.com">mail</a>',
       '<img src="MAILTO:user@example.com">',
     ].join(''));
 
     expect(result).toContain('<a>protocol relative</a>');
-    expect(result).toContain('src="//example.com/a.png"');
+    expect(result).toContain('src="https://example.com/a.png"');
+    expect(result).toContain('<iframe src="https://example.com/embed" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>');
+    expect(result).toContain('<video src="https://example.com/demo.mp4"></video>');
     expect(result).toContain('href="HTTPS://example.com/Upper"');
     expect(result).toContain('href="MAILTO:user@example.com"');
     expect(result).toContain('<img>');

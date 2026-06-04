@@ -200,7 +200,6 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
             }];
         },
         parseDOM: [
-            ...(prev.parseDOM || []),
             {
                 tag: 'img[src]',
                 getAttrs: (dom: HTMLElement) => {
@@ -215,7 +214,8 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
                         crop: parseCropValue(dom.getAttribute('data-vlaina-crop')),
                     };
                 }
-            }
+            },
+            ...(prev.parseDOM || [])
         ],
         parseMarkdown: {
             match: (node: any) => {

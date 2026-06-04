@@ -2,7 +2,7 @@ import {
   estimateMarkdownBlockHeight,
   type MarkdownMeasurementBlock,
 } from './chatAssistantMarkdownTypography';
-import { extractMessageImageSources, stripMessageImageTokens } from '@/components/Chat/common/messageClipboard';
+import { extractRenderedMessageImageSources, stripMessageImageTokens } from '@/components/Chat/common/messageClipboard';
 import { MARKDOWN_BLOCK_GAP } from '@/components/common/markdown/markdownMetrics';
 import {
   getMarkdownFenceState,
@@ -27,18 +27,19 @@ export function stripRenderableImageTokens(content: string): string {
 }
 
 function countRenderableImages(content: string): number {
-  return extractMessageImageSources(content).length;
+  return extractRenderedMessageImageSources(content).length;
 }
 
 function findReusableMarkdownSplitIndex(markdown: string): number {
-  const normalized = markdown.replace(/\r\n?/g, '\n');
-  const lines = normalized.split('\n');
   let activeFence: MarkdownFenceState | null = null;
   let splitIndex = 0;
-  let offset = 0;
+  let lineStart = 0;
 
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index]!;
+  while (lineStart <= markdown.length) {
+    const newlineIndex = markdown.indexOf('\n', lineStart);
+    const lineEnd = newlineIndex === -1 ? markdown.length : newlineIndex;
+    const rawLine = markdown.slice(lineStart, lineEnd);
+    const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
     if (activeFence) {
       if (isMarkdownFenceClose(line, activeFence)) {
         activeFence = null;
@@ -47,14 +48,14 @@ function findReusableMarkdownSplitIndex(markdown: string): number {
       activeFence = getMarkdownFenceState(line);
     }
 
-    offset += line.length;
-    if (index < lines.length - 1) {
-      offset += 1;
+    if (!activeFence && !line.trim()) {
+      splitIndex = newlineIndex === -1 ? lineEnd : newlineIndex + 1;
     }
 
-    if (!activeFence && !line.trim()) {
-      splitIndex = offset;
+    if (newlineIndex === -1) {
+      break;
     }
+    lineStart = newlineIndex + 1;
   }
 
   return splitIndex;

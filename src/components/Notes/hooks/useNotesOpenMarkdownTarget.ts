@@ -4,11 +4,15 @@ import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { openStoredNotePath } from '@/stores/notes/openNotePath';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { normalizeVaultPath } from '@/stores/vaultConfig';
-import { resolveOpenNoteTarget } from '../features/OpenTarget/openTargetSelection';
+import {
+  isSupportedMarkdownSelection,
+  resolveOpenNoteTarget,
+} from '../features/OpenTarget/openTargetSelection';
 import { subscribeOpenMarkdownTargetEvent } from '../features/OpenTarget/openTargetEvents';
 import { flushCurrentTitleCommit } from '../features/Editor/utils/titleCommitRegistry';
 import { useNotesOpenTargetPicker } from './useNotesOpenTargetPicker';
 import { useI18n } from '@/lib/i18n';
+import { toVaultRelativePath } from './notesExternalSyncUtils';
 
 export function useNotesOpenMarkdownTarget({
   active,
@@ -107,6 +111,14 @@ export function useNotesOpenMarkdownTarget({
   }, [currentNotePath, isDirty, saveNote]);
 
   const openMarkdownTarget = useCallback(async (selected: string) => {
+    if (!isSupportedMarkdownSelection(selected)) {
+      await messageDialog(t('notes.selectMarkdownFile'), {
+        title: t('notes.unsupportedFile'),
+        kind: 'warning',
+      });
+      return;
+    }
+
     setIsOpenTargetBusy(true);
     try {
       await flushCurrentTitleCommit();
@@ -118,8 +130,28 @@ export function useNotesOpenMarkdownTarget({
 
       const target = resolveOpenNoteTarget(selected);
       const normalizedTargetVaultPath = normalizeVaultPath(target.vaultPath);
+      const normalizedCurrentVaultPath = currentVaultPath ? normalizeVaultPath(currentVaultPath) : null;
+      const normalizedNotesPath = notesPath ? normalizeVaultPath(notesPath) : '';
+      const currentVaultRelativePath = normalizedCurrentVaultPath && normalizedNotesPath === normalizedCurrentVaultPath
+        ? toVaultRelativePath(normalizedNotesPath, selected)
+        : null;
 
-      if (currentVaultPath === normalizedTargetVaultPath && notesPath === normalizedTargetVaultPath) {
+      if (currentVaultRelativePath && isSupportedMarkdownSelection(currentVaultRelativePath)) {
+        const opened = await openShortcutNoteTarget({
+          vaultPath: normalizedCurrentVaultPath,
+          notePath: currentVaultRelativePath,
+          absolutePath: selected,
+        });
+        if (!opened) {
+          await messageDialog(t('notes.openMarkdownFileFailed'), {
+            title: t('notes.openFailed'),
+            kind: 'error',
+          });
+        }
+        return;
+      }
+
+      if (normalizedCurrentVaultPath === normalizedTargetVaultPath && normalizedNotesPath === normalizedTargetVaultPath) {
         const opened = await openShortcutNoteTarget({
           vaultPath: normalizedTargetVaultPath,
           notePath: target.notePath,
@@ -141,7 +173,7 @@ export function useNotesOpenMarkdownTarget({
         startedAt: performance.now(),
       });
 
-      if (currentVaultPath === normalizedTargetVaultPath) {
+      if (normalizedCurrentVaultPath === normalizedTargetVaultPath) {
         return;
       }
 

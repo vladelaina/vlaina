@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { ensureMarkdownFileName, getNoteTitleFromPath, stripMarkdownExtension } from './displayName';
+import {
+  ensureMarkdownFileName,
+  getNoteTitleFromPath,
+  normalizeNotePathKey,
+  stripMarkdownExtension,
+} from './displayName';
 
 describe('note display name helpers', () => {
   it('strips every supported markdown extension from display titles', () => {
@@ -15,5 +20,11 @@ describe('note display name helpers', () => {
     expect(ensureMarkdownFileName('gamma.mdown')).toBe('gamma.mdown');
     expect(ensureMarkdownFileName('delta.mkd')).toBe('delta.mkd');
     expect(ensureMarkdownFileName('plain')).toBe('plain.md');
+  });
+
+  it('preserves UNC roots while normalizing path keys', () => {
+    expect(normalizeNotePathKey('\\\\server\\share\\docs\\alpha.md')).toBe('//server/share/docs/alpha.md');
+    expect(normalizeNotePathKey('//server/share//docs/')).toBe('//server/share/docs');
+    expect(normalizeNotePathKey('/vault//docs/alpha.md')).toBe('/vault/docs/alpha.md');
   });
 });

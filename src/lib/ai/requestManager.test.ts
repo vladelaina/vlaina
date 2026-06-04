@@ -36,6 +36,19 @@ describe('RequestManager', () => {
     expect(manager.isGenerating('temp-session-1')).toBe(false);
   });
 
+  it('clears aliases that resolve to a promoted session when aborting the promoted id', () => {
+    const manager = new RequestManager();
+    const controller = manager.start('temp-session-1');
+
+    aliasSessionId('temp-session-1', 'session-1');
+    manager.transfer('temp-session-1', 'session-1');
+    manager.abort('session-1');
+
+    expect(controller.signal.aborted).toBe(true);
+    expect(resolveSessionIdAlias('temp-session-1')).toBe('temp-session-1');
+    expect(manager.isGenerating('temp-session-1')).toBe(false);
+  });
+
   it('keeps aliases for an active controller when a superseded transferred request finishes', () => {
     const manager = new RequestManager();
     const firstController = manager.start('temp-session-1');

@@ -1,4 +1,5 @@
 import {
+  getMarkdownHtmlBlockRanges,
   getIgnoredInlineRanges,
   isEscapedMarkdownPunctuation,
   isOffsetInRanges,
@@ -8,12 +9,26 @@ import {
   findHtmlImageSourceTokens,
   getHtmlTagRanges,
 } from './noteExportMarkdownHtmlTokens';
+import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 import type { ExportMarkdownAssetSourceToken } from './noteExportMarkdownAssetTypes';
 
 const MARKDOWN_LINK_DESTINATION_ESCAPE_PATTERN = /\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g;
 
+interface MarkdownImageSourceMatch {
+  token: ExportMarkdownAssetSourceToken;
+  imageRange: ContentRange;
+}
+
+interface ParsedMarkdownImageTarget extends ExportMarkdownAssetSourceToken {
+  tokenEnd: number;
+}
+
 function unescapeMarkdownLinkDestination(value: string): string {
   return value.replace(MARKDOWN_LINK_DESTINATION_ESCAPE_PATTERN, '$1');
+}
+
+function normalizeMarkdownImageLookupSrc(value: string): string {
+  return decodeMarkdownHtmlText(unescapeMarkdownLinkDestination(value));
 }
 
 function getRangeEndAtOffset(offset: number, ranges: readonly ContentRange[]): number | null {
@@ -101,7 +116,7 @@ function findMarkdownTargetClose(content: string, start: number): number | null 
 function parseMarkdownImageTarget(
   content: string,
   start: number,
-): ExportMarkdownAssetSourceToken | null {
+): ParsedMarkdownImageTarget | null {
   let cursor = start;
   while (cursor < content.length && /\s/.test(content[cursor])) {
     cursor += 1;
@@ -113,7 +128,11 @@ function parseMarkdownImageTarget(
   if (content[cursor] === '<') {
     const srcStart = cursor + 1;
     let srcEnd = srcStart;
-    while (srcEnd < content.length && content[srcEnd] !== '>' && content[srcEnd] !== '\n') {
+    while (
+      srcEnd < content.length
+      && content[srcEnd] !== '\n'
+      && (content[srcEnd] !== '>' || isEscapedMarkdownPunctuation(content, srcEnd))
+    ) {
       srcEnd += 1;
     }
     if (srcEnd >= content.length || content[srcEnd] !== '>') {
@@ -121,8 +140,8 @@ function parseMarkdownImageTarget(
     }
     const tokenEnd = findMarkdownTargetClose(content, srcEnd + 1);
     const src = content.slice(srcStart, srcEnd).trim();
-    const lookupSrc = unescapeMarkdownLinkDestination(src);
-    return tokenEnd && src ? { start: srcStart, end: srcEnd, src, lookupSrc } : null;
+    const lookupSrc = normalizeMarkdownImageLookupSrc(src);
+    return tokenEnd && src ? { start: srcStart, end: srcEnd, src, lookupSrc, tokenEnd } : null;
   }
 
   const srcStart = cursor;
@@ -132,8 +151,8 @@ function parseMarkdownImageTarget(
     if (/\s/.test(char)) {
       const tokenEnd = findMarkdownTargetClose(content, cursor);
       const src = content.slice(srcStart, cursor).trim();
-      const lookupSrc = unescapeMarkdownLinkDestination(src);
-      return tokenEnd && src ? { start: srcStart, end: cursor, src, lookupSrc } : null;
+      const lookupSrc = normalizeMarkdownImageLookupSrc(src);
+      return tokenEnd && src ? { start: srcStart, end: cursor, src, lookupSrc, tokenEnd } : null;
     }
     if (char === '\\') {
       cursor += 2;
@@ -147,8 +166,8 @@ function parseMarkdownImageTarget(
     if (char === ')') {
       if (parenDepth === 0) {
         const src = content.slice(srcStart, cursor).trim();
-        const lookupSrc = unescapeMarkdownLinkDestination(src);
-        return src ? { start: srcStart, end: cursor, src, lookupSrc } : null;
+        const lookupSrc = normalizeMarkdownImageLookupSrc(src);
+        return src ? { start: srcStart, end: cursor, src, lookupSrc, tokenEnd: cursor + 1 } : null;
       }
       parenDepth -= 1;
     }
@@ -158,12 +177,12 @@ function parseMarkdownImageTarget(
   return null;
 }
 
-function findMarkdownImageSourceTokens(
+function findMarkdownImageSourceMatches(
   content: string,
   ignoredRanges: readonly ContentRange[],
   htmlTagRanges: readonly ContentRange[],
-): ExportMarkdownAssetSourceToken[] {
-  const tokens: ExportMarkdownAssetSourceToken[] = [];
+): MarkdownImageSourceMatch[] {
+  const matches: MarkdownImageSourceMatch[] = [];
   let cursor = 0;
 
   while (cursor < content.length) {
@@ -186,23 +205,33 @@ function findMarkdownImageSourceTokens(
       continue;
     }
 
-    const token = parseMarkdownImageTarget(content, labelEnd + 2);
-    if (!token) {
+    const parsed = parseMarkdownImageTarget(content, labelEnd + 2);
+    if (!parsed) {
       cursor = labelEnd + 2;
       continue;
     }
-    tokens.push(token);
-    cursor = token.end;
+    const { tokenEnd, ...token } = parsed;
+    matches.push({ token, imageRange: { start: imageStart, end: tokenEnd } });
+    cursor = tokenEnd;
   }
 
-  return tokens;
+  return matches;
 }
 
 export function findExportMarkdownAssetSourceTokens(content: string): ExportMarkdownAssetSourceToken[] {
   const ignoredRanges = getIgnoredInlineRanges(content);
+  const ignoredMarkdownRanges = [
+    ...ignoredRanges,
+    ...getMarkdownHtmlBlockRanges(content),
+  ];
   const htmlTagRanges = getHtmlTagRanges(content);
+  const markdownMatches = findMarkdownImageSourceMatches(content, ignoredMarkdownRanges, htmlTagRanges);
   return [
-    ...findMarkdownImageSourceTokens(content, ignoredRanges, htmlTagRanges),
-    ...findHtmlImageSourceTokens(content, ignoredRanges, htmlTagRanges),
+    ...markdownMatches.map((match) => match.token),
+    ...findHtmlImageSourceTokens(
+      content,
+      [...ignoredRanges, ...markdownMatches.map((match) => match.imageRange)],
+      htmlTagRanges,
+    ),
   ].sort((left, right) => left.start - right.start);
 }

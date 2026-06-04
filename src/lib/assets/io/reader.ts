@@ -1,7 +1,7 @@
-import DOMPurify from 'dompurify';
 import { getStorageAdapter, joinPath, type StorageAdapter } from '@/lib/storage/adapter';
 import { getMimeType, isImageFilename } from '../core/naming';
 import { computeBufferHash } from '../core/hashing';
+import { sanitizeSvgBytes } from '@/lib/markdown/svgSanitizer';
 
 const MAX_CACHE_SIZE = 500;
 const MAX_THUMBNAIL_CACHE_SIZE = 300;
@@ -54,15 +54,6 @@ function assertPreviewableImageSize(size: number | null | undefined): void {
 
 function isSvgImagePath(fullPath: string): boolean {
   return fullPath.toLowerCase().split(/[\\/]/).pop()?.endsWith('.svg') === true;
-}
-
-function sanitizeSvgBytes(data: Uint8Array): Uint8Array {
-  const svgText = new TextDecoder().decode(data);
-  const sanitized = DOMPurify.sanitize(svgText, {
-    USE_PROFILES: { svg: true, svgFilters: true },
-    FORBID_TAGS: ['foreignObject', 'script', 'iframe', 'object', 'embed'],
-  });
-  return new TextEncoder().encode(sanitized);
 }
 
 function prepareImageBytes(fullPath: string, data: Uint8Array): Uint8Array {
@@ -312,9 +303,11 @@ export async function loadImageThumbnailAsBlob(
   assertPreviewableImageSize(size);
   const canValidateCache = modifiedAt !== null || size !== null;
   const maxEdgePx = Math.max(1, Math.round(options?.maxEdgePx ?? DEFAULT_THUMBNAIL_MAX_EDGE_PX));
+  const allowMainThreadFallback = options?.allowMainThreadFallback ?? true;
+  const fallbackMode = allowMainThreadFallback ? 'fallback' : 'no-fallback';
   const cacheKey = canValidateCache
-    ? `${getImageCacheKey(fullPath, modifiedAt, size)}::thumb:${maxEdgePx}`
-    : `${getUnvalidatedImageCacheKey(fullPath)}::thumb:${maxEdgePx}`;
+    ? `${getImageCacheKey(fullPath, modifiedAt, size)}::thumb:${maxEdgePx}:${fallbackMode}`
+    : `${getUnvalidatedImageCacheKey(fullPath)}::thumb:${maxEdgePx}:${fallbackMode}`;
   const cached = thumbnailBlobUrlCache.get(cacheKey);
   if (cached) {
     touchBlobUrlCacheEntry(thumbnailBlobUrlCache, cacheKey, cached);
@@ -333,6 +326,18 @@ export async function loadImageThumbnailAsBlob(
     if (persistentCachePath) {
       const persistentBlobUrl = await loadPersistentThumbnailBlobUrl(storage, persistentCachePath, fullPath, maxEdgePx);
       if (persistentBlobUrl) {
+        if (thumbnailBlobUrlCache.size >= MAX_THUMBNAIL_CACHE_SIZE) {
+          const oldestKey = thumbnailBlobUrlCache.keys().next().value;
+          if (oldestKey) {
+            revokeBlobUrlCacheEntry(thumbnailBlobUrlCache.get(oldestKey));
+            thumbnailBlobUrlCache.delete(oldestKey);
+          }
+        }
+        thumbnailBlobUrlCache.set(cacheKey, {
+          url: persistentBlobUrl,
+          modifiedAt,
+          size,
+        });
         return persistentBlobUrl;
       }
     }
@@ -345,7 +350,7 @@ export async function loadImageThumbnailAsBlob(
       prepareImageBytes(fullPath, data),
       mimeType,
       maxEdgePx,
-      options?.allowMainThreadFallback ?? true,
+      allowMainThreadFallback,
       (blob) => persistThumbnailBlobInBackground(storage, persistentCachePath, fullPath, maxEdgePx, blob),
     );
 

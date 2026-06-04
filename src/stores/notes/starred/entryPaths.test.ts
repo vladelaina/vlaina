@@ -41,6 +41,10 @@ describe('starred entry path helpers', () => {
     });
   });
 
+  it('does not create external note entries from non-markdown paths', () => {
+    expect(createStarredEntryFromAbsoluteNotePath('/other/docs/image.png')).toBeNull();
+  });
+
   it('matches absolute paths against current-vault and external starred notes', () => {
     const entries = [
       createEntry('current', 'note', '/vault', 'docs/current.md'),

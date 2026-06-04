@@ -106,6 +106,41 @@ describe('useAbsoluteNoteExternalRenameSync', () => {
     hook.unmount();
   });
 
+  it('does not remap an absolute note when the file is renamed to a non-Markdown path', async () => {
+    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('/external/docs/current.md'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['/external/docs/current.md', '/external/docs/current.png'],
+      });
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalledWith({ force: true });
+
+    hook.unmount();
+  });
+
+  it('keeps absolute note folder rename sync when the parent folder moves', async () => {
+    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('/external/docs/current.md'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['/external/docs', '/external/archive'],
+      });
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith(
+      '/external/docs',
+      '/external/archive',
+    );
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).not.toHaveBeenCalled();
+
+    hook.unmount();
+  });
+
   it('syncs an open absolute note deletion without treating it as a rename', async () => {
     const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('/external/docs/current.md'));
 

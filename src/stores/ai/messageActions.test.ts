@@ -333,6 +333,22 @@ describe('message actions API transcript handling', () => {
     expect(message.imageSources).toEqual(['https://example.com/markdown.png']);
   });
 
+  it('does not cache video markdown as user message image sources', () => {
+    seedMessages([]);
+
+    createMessageActions().addMessage({
+      role: 'user',
+      content: [
+        '![video](https://example.com/movie.mp4)',
+        '![real](https://example.com/photo.png)',
+      ].join('\n'),
+      modelId: 'model-1',
+    }, 'session-1');
+
+    const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
+    expect(message.imageSources).toEqual(['https://example.com/photo.png']);
+  });
+
   it('filters provided user message image source caches before storing', () => {
     seedMessages([]);
 
@@ -345,6 +361,7 @@ describe('message actions API transcript handling', () => {
       imageSources: [
         'http://127.0.0.1:3000/secret.png',
         'data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+',
+        'https://example.com/movie.mp4',
         'attachment://safe.png',
       ],
       modelId: 'model-1',
@@ -368,6 +385,19 @@ describe('message actions API transcript handling', () => {
       'https://example.com/html.png',
       'https://example.com/markdown.png',
     ]);
+  });
+
+  it('does not cache assistant video sources as image sources', () => {
+    seedMessages([createAssistantMessage()]);
+
+    createMessageActions().updateMessage(
+      'session-1',
+      'assistant-1',
+      '<img src="https://example.com/movie.mp4">\n![real](https://example.com/markdown.png)',
+    );
+
+    const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
+    expect(message.imageSources).toEqual(['https://example.com/markdown.png']);
   });
 
   it('keeps user edit version image sources aligned with markdown attachments', () => {
