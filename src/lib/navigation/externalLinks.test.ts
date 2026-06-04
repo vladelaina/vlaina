@@ -47,6 +47,23 @@ describe("externalLinks", () => {
       expect(normalizeExternalHref("mailto:user@example.com\r\nbcc:evil@example.com")).toBeNull();
     });
 
+    it("rejects backslash URL syntax before browser normalization", () => {
+      expect(normalizeExternalHref(String.raw`https:\example.com\path`)).toBeNull();
+      expect(normalizeExternalHref(String.raw`https://example.com\@evil.test/path`)).toBeNull();
+    });
+
+    it("rejects local-network HTTP URLs before opening external links", () => {
+      expect(normalizeExternalHref("http://localhost:3000/admin")).toBeNull();
+      expect(normalizeExternalHref("http://127.0.0.1:3000/admin")).toBeNull();
+      expect(normalizeExternalHref("http://127.1/admin")).toBeNull();
+      expect(normalizeExternalHref("http://2130706433/admin")).toBeNull();
+      expect(normalizeExternalHref("http://0177.0.0.1/admin")).toBeNull();
+      expect(normalizeExternalHref("http://192.168.1.8/admin")).toBeNull();
+      expect(normalizeExternalHref("http://[::1]/admin")).toBeNull();
+      expect(normalizeExternalHref("https://example.com/admin")).toBe("https://example.com/admin");
+      expect(normalizeExternalHref("mailto:hello@example.com")).toBe("mailto:hello@example.com");
+    });
+
     it("never accepts non-http(s)/mailto prefixes for random strings", () => {
       fc.assert(
         fc.property(fc.string(), (input) => {

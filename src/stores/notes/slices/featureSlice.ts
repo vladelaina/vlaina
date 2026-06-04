@@ -37,6 +37,7 @@ function escapeRegExp(value: string): string {
 const MAX_SEARCHABLE_NOTE_BYTES = 512 * 1024;
 const MAX_SCANNED_NOTE_CONTENT_CHARS = 8 * 1024 * 1024;
 const MAX_METADATA_UPDATE_NOTE_BYTES = 10 * 1024 * 1024;
+const ICON_SYMBOL_SCHEME_PATTERN = /^icon:/i;
 
 function replaceNoteEntry(
   metadata: MetadataFile,
@@ -712,13 +713,14 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
       const updates = Object.entries(noteMetadata.notes)
         .map(([path, entry]) => {
-          if (!entry.icon?.startsWith('icon:')) {
+          if (!entry.icon || !ICON_SYMBOL_SCHEME_PATTERN.test(entry.icon)) {
             return null;
           }
 
           const parts = entry.icon.split(':');
           const iconName = parts[1];
-          const nextIcon = iconName ? `icon:${iconName}:${newColor}` : entry.icon;
+          const iconScheme = entry.icon.slice(0, 'icon:'.length);
+          const nextIcon = iconName ? `${iconScheme}${iconName}:${newColor}` : entry.icon;
           if (!iconName || nextIcon === entry.icon) {
             return null;
           }
@@ -741,7 +743,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       const updates = Object.entries(noteMetadata.notes)
         .map(([path, entry]) => {
           const icon = entry.icon;
-          if (!icon || icon.startsWith('icon:')) {
+          if (!icon || ICON_SYMBOL_SCHEME_PATTERN.test(icon)) {
             return null;
           }
 

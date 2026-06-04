@@ -122,6 +122,7 @@ const allowedStyleProperties = new Set([
   'vertical-align',
   'width',
 ])
+const srcsetDescriptorPattern = /^\d+(?:\.\d+)?(?:w|x)$/
 
 function isAllowedAttribute(tagName: string, attributeName: string) {
   if (attributeName.startsWith('on')) return false
@@ -160,6 +161,10 @@ function hasProtocol(value: string) {
   return value.includes('://')
 }
 
+function hasUnsafeBackslashUrlSyntax(value: string) {
+  return value.startsWith('\\') || (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(value) && value.includes('\\'))
+}
+
 function getProtocolMarker(value: string) {
   let position = 0
   for (let index = 0; index < value.length; index += 1) {
@@ -179,7 +184,9 @@ function getProtocolMarker(value: string) {
 function isSafePlainRelativeMediaUrl(value: string) {
   return (
     !hasProtocol(value)
+    && !/^[A-Za-z][A-Za-z0-9+.-]*:/.test(value)
     && !value.startsWith('//')
+    && !value.startsWith('\\')
     && !/^[A-Za-z]:[\\/]/.test(value)
     && !value.startsWith('/')
     && !controlOrBidiPattern.test(value)
@@ -190,13 +197,17 @@ function normalizeUrl(value: string, protocols: ReadonlySet<string>, options: { 
   const trimmed = value.trimStart()
   if (!trimmed || controlOrBidiPattern.test(trimmed))
     return null
+  if (hasUnsafeBackslashUrlSyntax(trimmed))
+    return null
   const marker = getProtocolMarker(trimmed)
   if (relativeProtocolMarkers.has(marker)) {
     if (trimmed.startsWith('//') && options.allowProtocolRelative === false)
       return null
     if (options.blockLocalNetwork && trimmed.startsWith('//') && isLocalNetworkHttpUrl(`https:${trimmed}`))
       return null
-    if (marker === '/' && !trimmed.startsWith('//') && options.allowPlainRelative && !isSafePlainRelativeMediaUrl(trimmed))
+    if (trimmed.startsWith('//'))
+      return `https:${trimmed}`
+    if (marker === '/' && !trimmed.startsWith('//') && options.allowPlainRelative && options.blockLocalNetwork && !isSafePlainRelativeMediaUrl(trimmed))
       return null
     return trimmed
   }
@@ -213,8 +224,10 @@ function normalizeSrcset(value: string) {
   const candidates = trimmed.split(',').map((candidate) => candidate.trim()).filter(Boolean)
   if (candidates.length === 0) return null
   for (const candidate of candidates) {
-    const source = candidate.split(/\s+/, 1)[0]
+    const [source, ...descriptors] = candidate.split(/\s+/).filter(Boolean)
     if (!source || hasProtocol(source) || source.startsWith('//') || normalizeUrl(source, mediaProtocols, { blockLocalNetwork: true, allowPlainRelative: true }) !== source)
+      return null
+    if (descriptors.length > 1 || (descriptors[0] && !srcsetDescriptorPattern.test(descriptors[0])))
       return null
   }
   return trimmed
@@ -259,7 +272,7 @@ function sanitizeElement(element: Element): Node | null {
     if (urlAttributesByTag[tagName]?.has(attributeName)) {
       const protocols = tagName === 'a' ? linkProtocols : mediaProtocols
       const normalizedUrl = normalizeUrl(value, protocols, {
-        allowPlainRelative: tagName !== 'a',
+        allowPlainRelative: true,
         allowProtocolRelative: tagName !== 'a',
         blockLocalNetwork: tagName !== 'a',
       })

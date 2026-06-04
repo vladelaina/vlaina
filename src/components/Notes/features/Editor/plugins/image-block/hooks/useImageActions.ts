@@ -4,6 +4,7 @@ import { useToastStore } from '@/stores/useToastStore';
 import { sanitizeFilename } from '@/lib/assets/core/naming';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { writeDesktopBinaryFile } from '@/lib/desktop/fs';
+import { fetchBoundedImageBlobResult } from '@/lib/markdown/fetchBoundedImageBlob';
 import { saveDialog } from '@/lib/storage/dialog';
 import { ensureImageFileExists } from '../utils/fileUtils';
 import { EditorView } from '@milkdown/kit/prose/view';
@@ -32,6 +33,26 @@ export function createImageDownloadDefaultName(alt: string, src: string) {
     const sanitizedBase = sanitizeFilename(alt.replace(/[\u0000-\u001f\u007f]/g, ''))
         .replace(/^\.+|\.+$/g, '') || 'image';
     return `${sanitizedBase}.${getSafeDownloadExtension(src)}`;
+}
+
+async function readBlobBytes(blob: Blob): Promise<Uint8Array> {
+    if (typeof blob.arrayBuffer === 'function') {
+        return new Uint8Array(await blob.arrayBuffer());
+    }
+
+    return await new Promise<Uint8Array>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = reader.result;
+            if (result instanceof ArrayBuffer) {
+                resolve(new Uint8Array(result));
+                return;
+            }
+            reject(new Error('Unable to read image blob.'));
+        };
+        reader.onerror = () => reject(reader.error ?? new Error('Unable to read image blob.'));
+        reader.readAsArrayBuffer(blob);
+    });
 }
 
 interface UseImageActionsProps {
@@ -99,8 +120,14 @@ export function useImageActions({
         try {
             await restoreIfNeeded();
             if (resolvedSrc) {
-                const response = await fetch(resolvedSrc);
-                const blob = await response.blob();
+                const result = await fetchBoundedImageBlobResult(resolvedSrc);
+                if (result.status === 'too-large') {
+                    return false;
+                }
+                const blob = result.blob;
+                if (!blob.type.startsWith('image/')) {
+                    return writeTextToClipboard(nodeSrc);
+                }
                 await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
                 return true;
             } else {
@@ -118,9 +145,11 @@ export function useImageActions({
             const defaultName = createImageDownloadDefaultName(nodeAlt || 'image', baseSrc);
             const filePath = await saveDialog({ defaultPath: defaultName, filters: [{ name: 'Images', extensions: ['png', 'jpg', 'webp'] }] });
             if (!filePath) return;
-            const response = await fetch(resolvedSrc);
-            const blob = await response.blob();
-            await writeDesktopBinaryFile(filePath, new Uint8Array(await blob.arrayBuffer()));
+            const result = await fetchBoundedImageBlobResult(resolvedSrc);
+            if (result.status === 'too-large') return;
+            const blob = result.blob;
+            if (!blob.type.startsWith('image/')) return;
+            await writeDesktopBinaryFile(filePath, await readBlobBytes(blob));
         } catch {
             const link = document.createElement('a');
             link.href = resolvedSrc;

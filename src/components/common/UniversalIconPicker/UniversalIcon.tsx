@@ -27,6 +27,9 @@ const resolveSize = (size?: number | string | IconSize) => {
 const defaultImageSrcCache = new Map<string, string>();
 const loaderImageSrcCaches = new WeakMap<(src: string) => Promise<string>, Map<string, string>>();
 
+const hasIconImageScheme = (value: string) => /^img:/i.test(value);
+const hasIconSymbolScheme = (value: string) => /^icon:/i.test(value);
+
 function getImageSrcCache(imageLoader?: (src: string) => Promise<string>) {
   if (!imageLoader) return defaultImageSrcCache;
 
@@ -212,7 +215,7 @@ export function UniversalIcon({
 }: UniversalIconProps) {
   const imageSrcCache = getImageSrcCache(imageLoader);
   const [loadedImage, setLoadedImage] = useState<{ icon: string; src: string | null }>(() => {
-    if (!icon.startsWith('img:')) {
+    if (!hasIconImageScheme(icon)) {
       return { icon, src: null };
     }
     return { icon, src: imageSrcCache.get(icon) ?? null };
@@ -222,7 +225,7 @@ export function UniversalIcon({
   useEffect(() => {
     let active = true;
     const load = async () => {
-      if (icon && icon.startsWith('img:')) {
+      if (icon && hasIconImageScheme(icon)) {
         const cachedSrc = imageSrcCache.get(icon);
         if (cachedSrc) {
           setLoadedImage({ icon, src: cachedSrc });
@@ -252,7 +255,7 @@ export function UniversalIcon({
 
   if (!icon) return null;
 
-  if (icon.startsWith('img:')) {
+  if (hasIconImageScheme(icon)) {
     const imgSrc = loadedImage.icon === icon
       ? loadedImage.src
       : imageSrcCache.get(icon) ?? null;
@@ -270,10 +273,10 @@ export function UniversalIcon({
     );
   }
 
-  if (icon.startsWith('icon:') || icon in icons) {
+  if (hasIconSymbolScheme(icon) || icon in icons) {
     let iconName = icon;
     let originalColor: string = themeColorTokens.iconDefault;
-    if (icon.startsWith('icon:')) {
+    if (hasIconSymbolScheme(icon)) {
       const parts = icon.split(':');
       iconName = parts[1];
       originalColor = parts[2] || themeColorTokens.iconDefault;

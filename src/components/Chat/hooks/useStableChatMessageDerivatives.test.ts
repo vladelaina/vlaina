@@ -113,6 +113,38 @@ describe('useStableChatMessageDerivatives', () => {
     expect(performance.now() - startedAt).toBeLessThan(250);
   });
 
+  it('updates the gallery when same-length image sources differ after a long shared prefix', () => {
+    const prefix = `https://example.com/${'shared-path-'.repeat(10)}`;
+    const firstSrc = `${prefix}A.png`;
+    const secondSrc = `${prefix}B.png`;
+    const assistant = createMessage('a1', 'assistant', `![image](<${firstSrc}>)`);
+
+    const view = renderHook(
+      ({ messages }) => useStableChatMessageDerivatives(messages),
+      {
+        initialProps: {
+          messages: [assistant] as ChatMessage[],
+        },
+      },
+    );
+    const firstImageGallery = view.result.current.imageGallery;
+
+    view.rerender({
+      messages: [{
+        ...assistant,
+        content: `![image](<${secondSrc}>)`,
+        versions: [{ content: `![image](<${secondSrc}>)`, createdAt: assistant.timestamp, kind: 'original' as const, subsequentMessages: [] }],
+      }],
+    });
+
+    expect(firstSrc).toHaveLength(secondSrc.length);
+    expect(firstSrc.slice(0, 96)).toBe(secondSrc.slice(0, 96));
+    expect(view.result.current.imageGallery).not.toBe(firstImageGallery);
+    expect(view.result.current.imageGallery).toEqual([
+      { id: 'a1:0', src: secondSrc },
+    ]);
+  });
+
   it('excludes non-renderable data images from the assistant gallery', () => {
     const assistant = createMessage(
       'a1',
@@ -131,6 +163,54 @@ describe('useStableChatMessageDerivatives', () => {
 
     expect(view.result.current.imageGallery).toEqual([
       { id: 'a1:0', src: 'data:image/png;base64,aGk=' },
+    ]);
+  });
+
+  it('excludes video image syntax from the assistant gallery', () => {
+    const assistant = createMessage(
+      'a1',
+      'assistant',
+      [
+        '![video](https://example.com/movie.mp4)',
+        '<img src="https://example.com/clip.webm">',
+        '![real](https://example.com/real.png)',
+      ].join('\n'),
+    );
+
+    const view = renderHook(
+      ({ messages }) => useStableChatMessageDerivatives(messages),
+      {
+        initialProps: {
+          messages: [assistant] as ChatMessage[],
+        },
+      },
+    );
+
+    expect(view.result.current.imageGallery).toEqual([
+      { id: 'a1:0', src: 'https://example.com/real.png' },
+    ]);
+  });
+
+  it('excludes video URLs from known assistant image sources', () => {
+    const assistant = {
+      ...createMessage('a1', 'assistant', ''),
+      imageSources: [
+        'https://example.com/movie.mp4',
+        'https://example.com/real.png',
+      ],
+    };
+
+    const view = renderHook(
+      ({ messages }) => useStableChatMessageDerivatives(messages),
+      {
+        initialProps: {
+          messages: [assistant] as ChatMessage[],
+        },
+      },
+    );
+
+    expect(view.result.current.imageGallery).toEqual([
+      { id: 'a1:0', src: 'https://example.com/real.png' },
     ]);
   });
 

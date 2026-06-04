@@ -4,6 +4,37 @@ function isElectronEnv(): boolean {
   return hasElectronDesktopBridge();
 }
 
+function getUncRoot(normalizedPath: string): string | null {
+  if (!normalizedPath.startsWith('//') || normalizedPath.startsWith('///')) {
+    return null;
+  }
+
+  const serverEnd = normalizedPath.indexOf('/', 2);
+  if (serverEnd === -1) {
+    return null;
+  }
+
+  const shareStart = serverEnd + 1;
+  const shareEnd = normalizedPath.indexOf('/', shareStart);
+  const share = shareEnd === -1
+    ? normalizedPath.slice(shareStart)
+    : normalizedPath.slice(shareStart, shareEnd);
+
+  if (!share) {
+    return null;
+  }
+
+  return shareEnd === -1 ? normalizedPath : normalizedPath.slice(0, shareEnd);
+}
+
+function appendPathParts(root: string, parts: string[]): string {
+  if (parts.length === 0) {
+    return root;
+  }
+
+  return `${root}${root.endsWith('/') ? '' : '/'}${parts.join('/')}`;
+}
+
 export function getPathSeparator(path?: string): string {
   if (!path) return '/';
   
@@ -19,6 +50,28 @@ export function normalizePath(path: string, forceForwardSlash = false): string {
     return path.replace(/\\/g, '/');
   }
   return path;
+}
+
+export function normalizeAbsolutePath(path: string): string {
+  const normalized = path.replace(/\\/g, '/');
+  const uncRoot = getUncRoot(normalized);
+  const driveMatch = normalized.match(/^([a-zA-Z]:)(?:\/|$)/);
+  const root = uncRoot ?? (driveMatch ? `${driveMatch[1]}/` : normalized.startsWith('/') ? '/' : '');
+  if (!root) return path;
+
+  const parts: string[] = [];
+  const rest = normalized.slice(root.length).replace(/^\/+/, '');
+  for (const part of rest.split('/')) {
+    if (!part || part === '.') continue;
+    if (part === '..') {
+      parts.pop();
+      continue;
+    }
+    parts.push(part);
+  }
+
+  const nextPath = appendPathParts(root, parts);
+  return path.includes('\\') ? nextPath.replace(/\//g, '\\') : nextPath;
 }
 
 export function joinPath(...segments: string[]): string {
@@ -43,6 +96,11 @@ export function joinPath(...segments: string[]): string {
 export function getParentPath(path: string): string | null {
   const normalized = normalizePath(path, true).replace(/\/+$/, '');
   if (!normalized || normalized === '/') {
+    return null;
+  }
+
+  const uncRoot = getUncRoot(normalized);
+  if (uncRoot && normalized === uncRoot) {
     return null;
   }
 
@@ -79,6 +137,7 @@ export function getExtension(path: string): string {
 }
 
 export function isAbsolutePath(path: string): boolean {
+  if (/^\\\\[^\\]+\\[^\\]+/.test(path)) return true;
   if (/^[a-zA-Z]:[\\/]/.test(path)) return true;
   if (path.startsWith('/')) return true;
   return false;

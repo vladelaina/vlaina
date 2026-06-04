@@ -154,4 +154,47 @@ describe('deleteNoteItemToRecoverableLocation', () => {
     expect(hoisted.listDir).not.toHaveBeenCalledWith('/vault/docs/..');
     expect(hoisted.deleteDir).toHaveBeenCalledWith('/vault/docs', true);
   });
+
+  it('cleans partial trash file copies when a file copy fallback fails', async () => {
+    hoisted.rename.mockRejectedValue(new Error('cross-device rename failed'));
+    hoisted.copyFile.mockRejectedValue(new Error('Copy failed'));
+
+    await expect(deleteNoteItemToRecoverableLocation('/vault', 'docs/note.md', 'file')).rejects.toThrow(
+      'Copy failed'
+    );
+
+    expect(hoisted.deleteFile).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/1000-i/note.md'
+    );
+    expect(hoisted.deleteFile).not.toHaveBeenCalledWith('/vault/docs/note.md');
+  });
+
+  it('cleans partial trash folder copies when a folder copy fallback fails', async () => {
+    hoisted.rename.mockRejectedValue(new Error('cross-device rename failed'));
+    hoisted.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault/docs') {
+        return [
+          { name: 'first.md', isDirectory: false, isFile: true },
+          { name: 'second.md', isDirectory: false, isFile: true },
+        ];
+      }
+
+      return [];
+    });
+    hoisted.copyFile.mockImplementation(async (sourcePath: string) => {
+      if (sourcePath.endsWith('/second.md')) {
+        throw new Error('Copy failed');
+      }
+    });
+
+    await expect(deleteNoteItemToRecoverableLocation('/vault', 'docs', 'folder')).rejects.toThrow(
+      'Copy failed'
+    );
+
+    expect(hoisted.deleteDir).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/1000-i/docs',
+      true
+    );
+    expect(hoisted.deleteDir).not.toHaveBeenCalledWith('/vault/docs', true);
+  });
 });

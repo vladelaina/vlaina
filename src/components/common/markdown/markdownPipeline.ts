@@ -5,7 +5,7 @@ import 'katex/contrib/mhchem';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import remarkCitationParser from '@/lib/ai/plugins/remarkCitationParser';
-import { createMarkdownSanitizeSchema, rehypeImageSrcsetSanitizer } from './imagePolicy';
+import { createMarkdownSanitizeSchema, rehypeImageSrcSanitizer, rehypeImageSrcsetSanitizer } from './imagePolicy';
 import { KATEX_SHARED_RENDER_OPTIONS } from './katexOptions';
 import { rehypeKatexSourceSanitizer } from './katexSourceSanitizer';
 import { remarkNotesInlineExtensions } from './remarkNotesExtensions';
@@ -21,6 +21,7 @@ export const READONLY_MARKDOWN_REMARK_PLUGINS = [
 
 export const READONLY_MARKDOWN_REHYPE_PLUGINS = [
   rehypeRaw,
+  rehypeImageSrcSanitizer,
   [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA],
   rehypeImageSrcsetSanitizer,
   [rehypeKatex, KATEX_SHARED_RENDER_OPTIONS],

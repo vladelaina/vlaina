@@ -7,11 +7,28 @@ import { getParentPath, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { dispatchOpenMarkdownTargetEvent } from '../../../../OpenTarget/openTargetEvents';
 
+const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+
 function getPathWithoutFragmentOrQuery(href: string): string {
     const hashIndex = href.indexOf('#');
     const queryIndex = href.indexOf('?');
     const endIndexes = [hashIndex, queryIndex].filter((index) => index >= 0);
     return href.slice(0, endIndexes.length > 0 ? Math.min(...endIndexes) : href.length);
+}
+
+function hasExplicitUrlScheme(value: string): boolean {
+    return EXPLICIT_URL_SCHEME_PATTERN.test(value.trim());
+}
+
+function decodeMarkdownLinkPath(path: string): string | null {
+    const decoded = path.replace(/(?:%[0-9A-Fa-f]{2})+/g, (encoded) => {
+        try {
+            return decodeURIComponent(encoded);
+        } catch {
+            return encoded;
+        }
+    });
+    return sanitizeNoteLinkHref(decoded);
 }
 
 function scrollToCurrentEditorFragment(view: EditorView | null | undefined, fragment: string): boolean {
@@ -38,10 +55,12 @@ function scrollToCurrentEditorFragment(view: EditorView | null | undefined, frag
 
 export async function resolveEditorMarkdownLinkTarget(href: string): Promise<string | null> {
     const safeHref = sanitizeNoteLinkHref(href);
-    if (!safeHref || safeHref.startsWith('//') || normalizeExternalHref(safeHref)) return null;
+    if (!safeHref || safeHref.startsWith('//') || hasExplicitUrlScheme(safeHref) || normalizeExternalHref(safeHref)) return null;
 
-    const linkPath = getPathWithoutFragmentOrQuery(safeHref).trim();
-    if (!linkPath || !isSupportedMarkdownPath(linkPath)) return null;
+    const linkPath = decodeMarkdownLinkPath(getPathWithoutFragmentOrQuery(safeHref).trim());
+    if (!linkPath || linkPath.startsWith('//') || hasExplicitUrlScheme(linkPath) || normalizeExternalHref(linkPath) || !isSupportedMarkdownPath(linkPath)) {
+        return null;
+    }
 
     const { notesPath, currentNote } = useNotesStore.getState();
     const currentNotePath = currentNote?.path;
@@ -53,7 +72,12 @@ export async function resolveEditorMarkdownLinkTarget(href: string): Promise<str
 
     if (currentNotePath && isAbsolutePath(currentNotePath)) {
         const currentDir = getParentPath(currentNotePath);
-        return currentDir ? await joinPath(currentDir, linkPath) : null;
+        if (!currentDir) return null;
+
+        const currentRoot = notesPath && normalizeContainedAssetPath(currentNotePath, notesPath)
+            ? notesPath
+            : currentDir;
+        return normalizeContainedAssetPath(await joinPath(currentDir, linkPath), currentRoot);
     }
 
     if (!notesPath) return null;

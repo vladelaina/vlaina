@@ -86,8 +86,23 @@ export function useNotesOpenTargetPicker({
     const handleDesktopOpenMarkdownFile = async (filePath: string) => {
       if (isOpenTargetBusy) return;
       setAppViewMode('notes');
+      if (!isSupportedMarkdownSelection(filePath)) {
+        await messageDialog(t('notes.selectMarkdownFile'), {
+          title: t('notes.unsupportedFile'),
+          kind: 'warning',
+        });
+        return;
+      }
+
       try {
-        await getElectronBridge()?.dragDrop?.authorizePath(filePath);
+        const dragDrop = getElectronBridge()?.dragDrop;
+        if (!dragDrop?.authorizePath) {
+          throw new Error('Desktop file authorization is unavailable.');
+        }
+        const fileInfo = await dragDrop.authorizePath(filePath);
+        if (!fileInfo?.isFile) {
+          throw new Error('Selected markdown target is not a file.');
+        }
       } catch {
         await messageDialog(t('notes.openMarkdownFileFailed'), {
           title: t('notes.openFailed'),

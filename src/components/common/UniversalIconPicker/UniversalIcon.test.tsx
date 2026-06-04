@@ -20,6 +20,18 @@ describe('UniversalIcon', () => {
     expect(imageLoader).toHaveBeenCalledTimes(1);
   });
 
+  it('loads image icons with a case-insensitive image scheme', async () => {
+    const imageLoader = vi.fn().mockResolvedValue('blob:logo');
+
+    render(<UniversalIcon icon="IMG:/app/.vlaina/assets/icons/logo.png" imageLoader={imageLoader} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:logo');
+    });
+
+    expect(imageLoader).toHaveBeenCalledWith('IMG:/app/.vlaina/assets/icons/logo.png');
+  });
+
   it('hides an image icon when the resolved image source fails to load', async () => {
     const imageLoader = vi.fn().mockResolvedValue('blob:missing');
 

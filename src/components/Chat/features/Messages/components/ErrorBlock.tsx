@@ -1,7 +1,7 @@
-import { getExternalLinkProps } from "@/lib/navigation/externalLinks";
+import type { ReactNode } from "react";
+import { getExternalLinkProps, normalizeExternalHref, openExternalHref } from "@/lib/navigation/externalLinks";
 import { SignInPromptPill } from './SignInPromptPill';
 import { Icon } from "@/components/ui/icons";
-import { openExternalHref } from "@/lib/navigation/externalLinks";
 import { markBillingReturnRefreshPending } from "@/lib/billing/returnRefresh";
 import { chatComposerPillSurfaceClass } from "@/components/Chat/features/Input/composerStyles";
 import { cn } from "@/lib/utils";
@@ -15,33 +15,39 @@ interface ErrorBlockProps {
 }
 
 const renderWithLinks = (text: string) => {
-  const urlRegex =
-    /(https?:\/\/(?!127\.|localhost|0\.0\.0\.0|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)[^\s]+)/g;
+  const urlRegex = /https?:\/\/[^\s]+/g;
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
 
-  const urls: string[] = [];
-  let match;
   while ((match = urlRegex.exec(text)) !== null) {
-    urls.push(match[0]);
+    const url = match[0];
+    const safeHref = normalizeExternalHref(url);
+    if (!safeHref) {
+      continue;
+    }
+
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    parts.push(
+      <a
+        key={`${match.index}-${url}`}
+        {...getExternalLinkProps(url)}
+        data-no-focus-input="true"
+        className="underline break-all"
+      >
+        {url}
+      </a>
+    );
+    lastIndex = match.index + url.length;
   }
 
-  urlRegex.lastIndex = 0;
-  const parts = text.split(urlRegex);
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
 
-  return parts.map((part, index) => {
-    if (urls.includes(part)) {
-      return (
-        <a
-          key={`${index}-${part}`}
-          {...getExternalLinkProps(part)}
-          data-no-focus-input="true"
-          className="underline break-all"
-        >
-          {part}
-        </a>
-      );
-    }
-    return part;
-  });
+  return parts.length > 0 ? parts : text;
 };
 
 export function ErrorBlock({ content, showLoginPrompt = false, showBillingPrompt = false }: ErrorBlockProps) {

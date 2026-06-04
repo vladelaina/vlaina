@@ -75,12 +75,20 @@ type ActiveMilkdownEditor = {
   onStatusChange?: (onChange: (status: string) => void) => unknown;
 };
 
-function replaceEditorMarkdown(ctx: Ctx, markdown: string) {
-  const view = ctx.get(editorViewCtx);
-  const parser = ctx.get(parserCtx);
-  const doc = parser(markdown);
+export function replaceEditorMarkdown(ctx: Ctx, markdown: string): boolean {
+  let view: EditorView;
+  let doc: ReturnType<Parser>;
+
+  try {
+    view = ctx.get(editorViewCtx);
+    const parser = ctx.get(parserCtx);
+    doc = parser(markdown);
+  } catch {
+    return false;
+  }
+
   if (!doc) {
-    return;
+    return false;
   }
 
   const { state } = view;
@@ -91,6 +99,7 @@ function replaceEditorMarkdown(ctx: Ctx, markdown: string) {
       new Slice(doc.content as never, 0, 0),
     ),
   );
+  return true;
 }
 
 export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
@@ -303,8 +312,12 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       );
       const nextMarkdown = preserveMarkdownBlankLinesForEditor(normalizedFrontmatter);
 
+      const replaced = runEditorAction((ctx) => replaceEditorMarkdown(ctx, nextMarkdown));
+      if (!replaced) {
+        return;
+      }
+
       lastAppliedDiskRevisionRef.current = currentNoteDiskRevision;
-      runEditorAction((ctx) => replaceEditorMarkdown(ctx, nextMarkdown));
 
       if (scrollRoot && scrollTop !== null) {
         const restoreScroll = () => {

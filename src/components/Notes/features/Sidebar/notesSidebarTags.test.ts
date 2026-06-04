@@ -180,6 +180,13 @@ describe('notesSidebarTags', () => {
           addedAt: 1,
         },
         {
+          id: 'star-traversal-note',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: '../secret.md',
+          addedAt: 4,
+        },
+        {
           id: 'star-folder',
           kind: 'folder',
           vaultPath: '/vault',
@@ -210,6 +217,13 @@ describe('notesSidebarTags', () => {
           vaultPath: '/vault',
           relativePath: 'projects/alpha.md',
           addedAt: 1,
+        },
+        {
+          id: 'star-traversal-note',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: '../secret.md',
+          addedAt: 4,
         },
         {
           id: 'star-other-note',

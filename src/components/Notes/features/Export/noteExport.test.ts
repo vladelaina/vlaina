@@ -3,14 +3,16 @@ import { exportNote } from './noteExport';
 
 const mocks = vi.hoisted(() => ({
   addToast: vi.fn(),
+  renderNoteExportElement: vi.fn(),
   renderNoteExportHtml: vi.fn(),
   resolveExportMarkdownAssetSources: vi.fn(),
   saveDialog: vi.fn(),
+  toPng: vi.fn(),
   writeDesktopBinaryFile: vi.fn(),
 }));
 
 vi.mock('html-to-image', () => ({
-  toPng: vi.fn(),
+  toPng: mocks.toPng,
 }));
 
 vi.mock('@/lib/electron/bridge', () => ({
@@ -42,7 +44,7 @@ vi.mock('./noteExportDocx', () => ({
 }));
 
 vi.mock('./noteExportHtml', () => ({
-  renderNoteExportElement: vi.fn(),
+  renderNoteExportElement: mocks.renderNoteExportElement,
   renderNoteExportHtml: mocks.renderNoteExportHtml,
 }));
 
@@ -53,14 +55,21 @@ vi.mock('./noteExportMarkdown', () => ({
 describe('exportNote', () => {
   beforeEach(() => {
     mocks.addToast.mockReset();
+    mocks.renderNoteExportElement.mockReset();
     mocks.renderNoteExportHtml.mockReset();
     mocks.resolveExportMarkdownAssetSources.mockReset();
     mocks.saveDialog.mockReset();
+    mocks.toPng.mockReset();
     mocks.writeDesktopBinaryFile.mockReset();
 
     mocks.saveDialog.mockResolvedValue('/tmp/Exported.html');
     mocks.resolveExportMarkdownAssetSources.mockImplementation(async (markdown: string) => markdown);
+    mocks.renderNoteExportElement.mockImplementation(async () => ({
+      element: document.createElement('article'),
+      cleanup: vi.fn(),
+    }));
     mocks.renderNoteExportHtml.mockImplementation(async (markdown: string) => `<html>${markdown}</html>`);
+    mocks.toPng.mockResolvedValue('data:image/png;base64,cG5n');
   });
 
   it('strips vlaina-managed frontmatter before exporting', async () => {
@@ -105,5 +114,38 @@ describe('exportNote', () => {
     expect(mocks.resolveExportMarkdownAssetSources).not.toHaveBeenCalled();
     expect(mocks.renderNoteExportHtml).not.toHaveBeenCalled();
     expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('exports PNG without rendering an intermediate HTML document', async () => {
+    mocks.saveDialog.mockResolvedValue('/tmp/Exported.png');
+
+    await exportNote({
+      format: 'png',
+      markdown: '# Exported',
+      notePath: 'Exported.md',
+      notesPath: '/vault',
+      title: 'Exported',
+    });
+
+    expect(mocks.renderNoteExportHtml).not.toHaveBeenCalled();
+    expect(mocks.renderNoteExportElement).toHaveBeenCalledWith('# Exported', 'Exported');
+    expect(mocks.writeDesktopBinaryFile.mock.calls[0]?.[0]).toBe('/tmp/Exported.png');
+    expect(new TextDecoder().decode(mocks.writeDesktopBinaryFile.mock.calls[0]?.[1])).toBe('png');
+  });
+
+  it('rejects PNG exports when html-to-image returns a non-PNG data URL', async () => {
+    mocks.toPng.mockResolvedValueOnce('data:text/html;base64,PHNjcmlwdD4=');
+
+    await expect(exportNote({
+      format: 'png',
+      markdown: '# Exported',
+      notePath: 'Exported.md',
+      notesPath: '/vault',
+      title: 'Exported',
+    })).rejects.toThrow('Unexpected PNG export MIME type.');
+
+    expect(mocks.saveDialog).not.toHaveBeenCalled();
+    expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
+    expect(mocks.addToast).not.toHaveBeenCalled();
   });
 });

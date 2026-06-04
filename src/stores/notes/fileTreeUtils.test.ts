@@ -234,6 +234,64 @@ describe('fileTreeUtils structural sharing', () => {
     expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/..');
   });
 
+  it('keeps readable sibling notes when one nested folder cannot be listed', async () => {
+    mocks.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault') {
+        return [
+          { name: 'root.md', path: '/vault/root.md', isDirectory: false, isFile: true },
+          { name: 'docs', path: '/vault/docs', isDirectory: true, isFile: false },
+          { name: 'locked', path: '/vault/locked', isDirectory: true, isFile: false },
+        ];
+      }
+
+      if (path === '/vault/docs') {
+        return [
+          { name: 'inside.md', path: '/vault/docs/inside.md', isDirectory: false, isFile: true },
+        ];
+      }
+
+      if (path === '/vault/locked') {
+        throw new Error('Permission denied');
+      }
+
+      return [];
+    });
+
+    const tree = await buildFileTree('/vault');
+
+    expect(tree).toEqual([
+      {
+        id: 'docs',
+        name: 'docs',
+        path: 'docs',
+        isFolder: true,
+        expanded: false,
+        children: [
+          {
+            id: 'docs/inside.md',
+            name: 'inside',
+            path: 'docs/inside.md',
+            isFolder: false,
+          },
+        ],
+      },
+      {
+        id: 'locked',
+        name: 'locked',
+        path: 'locked',
+        isFolder: true,
+        expanded: false,
+        children: [],
+      },
+      {
+        id: 'root.md',
+        name: 'root',
+        path: 'root.md',
+        isFolder: false,
+      },
+    ]);
+  });
+
   it('marks git repository folders without exposing the .git directory', async () => {
     mocks.exists.mockImplementation(async (path: string) => path === '/vault/project/.git');
     mocks.listDir.mockImplementation(async (path: string) => {

@@ -3,6 +3,8 @@ import { convertToBase64 } from "@/lib/storage/attachmentStorage";
 import {
   copyImageSourceToClipboard,
   copyMessageContentToClipboard,
+  extractRenderedMessageImageSources,
+  extractRenderedMarkdownImageSources,
   extractMessageImageSources,
   extractMarkdownImageSources,
   formatMessageCopyText,
@@ -10,12 +12,30 @@ import {
   stripMessageImageTokens,
 } from "./messageClipboard";
 
-vi.mock("@/lib/storage/attachmentStorage", () => ({
-  convertToBase64: vi.fn(),
+const svgMocks = vi.hoisted(() => ({
+  rasterizeSvgDataUrlToPng: vi.fn(),
+  rasterizeSvgBlobToPngBlob: vi.fn(),
+}));
+
+vi.mock("@/lib/storage/attachmentStorage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/storage/attachmentStorage")>();
+  return {
+    ...actual,
+    convertToBase64: vi.fn(),
+  };
+});
+
+vi.mock("./svgRasterize", () => ({
+  isSvgDataUrl: (value: string) => value.trim().toLowerCase().startsWith("data:image/svg+xml"),
+  isSvgImageMimeType: (value: string | null | undefined) => (value ?? "").split(";")[0].trim().toLowerCase() === "image/svg+xml",
+  rasterizeSvgDataUrlToPng: svgMocks.rasterizeSvgDataUrlToPng,
+  rasterizeSvgBlobToPngBlob: svgMocks.rasterizeSvgBlobToPngBlob,
 }));
 
 describe("messageClipboard", () => {
   beforeEach(() => {
+    svgMocks.rasterizeSvgDataUrlToPng.mockImplementation(async (value: string) => value);
+    svgMocks.rasterizeSvgBlobToPngBlob.mockImplementation(async (blob: Blob) => blob);
     Object.defineProperty(navigator, "clipboard", {
       value: {
         write: vi.fn(),
@@ -34,6 +54,8 @@ describe("messageClipboard", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.mocked(convertToBase64).mockReset();
+    svgMocks.rasterizeSvgDataUrlToPng.mockReset();
+    svgMocks.rasterizeSvgBlobToPngBlob.mockReset();
     Object.defineProperty(window, "vlainaDesktop", {
       value: undefined,
       configurable: true,
@@ -41,10 +63,10 @@ describe("messageClipboard", () => {
   });
 
   it("extracts markdown image sources from content", () => {
-    const content = "A ![x](https://a.com/1.png) B ![y](<asset://localhost/2.webp>)";
+    const content = "A ![x](https://a.com/1.png) B ![y](<asset://localhost/chat-inline-image/2>) C ![z](<asset://localhost/2.webp>)";
     expect(extractMarkdownImageSources(content)).toEqual([
       "https://a.com/1.png",
-      "asset://localhost/2.webp",
+      "asset://localhost/chat-inline-image/2",
     ]);
   });
 
@@ -53,6 +75,16 @@ describe("messageClipboard", () => {
     expect(extractMarkdownImageSources(content)).toEqual([
       "https://a.com/path/(demo)/image.svg",
     ]);
+  });
+
+  it("extracts angle-wrapped markdown image sources with spaces", () => {
+    const content = "![x](<images/image with space.png> \"Preview\")";
+
+    expect(extractMarkdownImageSources(content)).toEqual([
+      "images/image with space.png",
+    ]);
+    expect(stripMarkdownImageTokens(content)).toBe("");
+    expect(formatMessageCopyText(content)).toBe("images/image with space.png");
   });
 
   it("extracts markdown image sources with escaped destination parentheses", () => {
@@ -72,28 +104,78 @@ describe("messageClipboard", () => {
     ].join("\n"));
   });
 
+  it("decodes markdown image target entities before source extraction", () => {
+    const content = [
+      "![query](https://a.com/path?a=1&amp;b=2.png)",
+      "![angle](<https://a.com/path/with&#x2f;entity&#46;webp>)",
+      "![named](<https://a.com/path&sol;with&period;entity.webp>)",
+    ].join("\n");
+
+    expect(extractMarkdownImageSources(content)).toEqual([
+      "https://a.com/path?a=1&b=2.png",
+      "https://a.com/path/with/entity.webp",
+      "https://a.com/path/with.entity.webp",
+    ]);
+  });
+
   it("extracts message image sources from mixed markdown and html images in order", () => {
     const content = [
       'Intro <img src="https://a.com/1.png" alt="first" />',
-      '![second](<asset://localhost/2.webp>)',
+      '![second](<asset://localhost/chat-inline-image/2>)',
       "<img src='data:image/png;base64,abc' alt='third'>",
     ].join(" ");
 
     expect(extractMessageImageSources(content)).toEqual([
       "https://a.com/1.png",
-      "asset://localhost/2.webp",
+      "asset://localhost/chat-inline-image/2",
       "data:image/png;base64,abc",
     ]);
+  });
+
+  it("separates image sources that render as videos from image-only consumers", () => {
+    const content = [
+      "![video](https://example.com/movie.mp4)",
+      '<img src="https://example.com/watch.webm">',
+      "![real](https://example.com/real.png)",
+      '<img src="https://example.com/real-html.png">',
+    ].join("\n");
+
+    expect(extractMarkdownImageSources(content)).toEqual([
+      "https://example.com/movie.mp4",
+      "https://example.com/real.png",
+    ]);
+    expect(extractRenderedMarkdownImageSources(content)).toEqual([
+      "https://example.com/real.png",
+    ]);
+    expect(extractMessageImageSources(content)).toEqual([
+      "https://example.com/movie.mp4",
+      "https://example.com/watch.webm",
+      "https://example.com/real.png",
+      "https://example.com/real-html.png",
+    ]);
+    expect(extractRenderedMessageImageSources(content)).toEqual([
+      "https://example.com/real.png",
+      "https://example.com/real-html.png",
+    ]);
+    expect(stripMarkdownImageTokens(content)).toContain("![video](https://example.com/movie.mp4)");
+    expect(stripMarkdownImageTokens(content)).not.toContain("![real](https://example.com/real.png)");
+    expect(stripMessageImageTokens(content)).toContain("![video](https://example.com/movie.mp4)");
+    expect(stripMessageImageTokens(content)).toContain('<img src="https://example.com/watch.webm">');
+    expect(stripMessageImageTokens(content)).not.toContain("![real](https://example.com/real.png)");
+    expect(stripMessageImageTokens(content)).not.toContain('<img src="https://example.com/real-html.png">');
   });
 
   it("drops unsafe markdown and html image sources before downstream image handling", () => {
     const content = [
       "![script](javascript:alert(1))",
+      "![entity-script](javascript&colon;alert(1))",
+      "![numeric-script](java&#x73;cript&#58;alert(1))",
       "![svg](<data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+>)",
       "![local](http://127.0.0.1:3000/secret.png)",
       "![traversal](attachment://..%2fsecret.png)",
       "![safe](attachment://safe.png)",
       '<img src="http://router/secret.png">',
+      '<img src="javascript&colon;alert(1)">',
       '<img src="data:image/png;base64,aGk=">',
     ].join("\n");
 
@@ -139,11 +221,13 @@ describe("messageClipboard", () => {
   it("decodes html image src entities before source extraction and safety checks", () => {
     const content = [
       '<img src="https://a.com/path?a=1&amp;b=2.png" alt="entity">',
+      '<img src="https://a.com/path&sol;with&period;entity.png" alt="named">',
       '<img src="java&#x73;cript:alert(1)" alt="blocked">',
     ].join("\n");
 
     expect(extractMessageImageSources(content)).toEqual([
       "https://a.com/path?a=1&b=2.png",
+      "https://a.com/path/with.entity.png",
     ]);
   });
 
@@ -198,6 +282,15 @@ describe("messageClipboard", () => {
     ]);
   });
 
+  it("does not treat html image tags inside markdown image labels as separate images", () => {
+    const content = '![<img src="https://a.com/alt.png">](https://a.com/real.png)';
+
+    expect(extractMessageImageSources(content)).toEqual([
+      "https://a.com/real.png",
+    ]);
+    expect(stripMessageImageTokens(content)).toBe("");
+  });
+
   it("keeps escaped image syntax as ordinary text", () => {
     const content = [
       String.raw`\![literal](https://a.com/not-image.png)`,
@@ -232,8 +325,11 @@ describe("messageClipboard", () => {
   it("ignores image syntax inside raw html that does not render as markdown images", () => {
     const content = [
       '<script><img src="https://a.com/script.png"></script>',
+      '<script>![script-markdown](https://a.com/script-markdown.png)</script>',
       '<style><img src="https://a.com/style.png"></style>',
+      '<style>![style-markdown](https://a.com/style-markdown.png)</style>',
       '<textarea><img src="https://a.com/textarea.png"></textarea>',
+      '<textarea>![textarea-markdown](https://a.com/textarea-markdown.png)</textarea>',
       '<div>',
       '![inside-html-block](https://a.com/html-block.png)',
       '</div>',
@@ -274,21 +370,49 @@ describe("messageClipboard", () => {
     expect(formatMessageCopyText(content)).toBe("Hello https://a.com/1.png world [image]");
   });
 
+  it("formats copy text without case-insensitive raw data image tokens", () => {
+    const content = [
+      "Hello ![img](DATA:IMAGE/PNG;BASE64,abc)",
+      '<img src="DATA:IMAGE/PNG;BASE64,def" alt="inline">',
+    ].join("\n");
+
+    expect(formatMessageCopyText(content)).toBe([
+      "Hello [image]",
+      "[image]",
+    ].join("\n"));
+  });
+
+  it("formats copy text without raw html image tokens", () => {
+    const content = [
+      'Intro <img src="https://a.com/1.png" alt="first" />',
+      '<img src="data:image/png;base64,abc" alt="inline">',
+      '<img src="javascript:alert(1)" alt="unsafe">',
+    ].join("\n");
+
+    expect(formatMessageCopyText(content)).toBe([
+      "Intro https://a.com/1.png",
+      "[image]",
+      '<img src="javascript:alert(1)" alt="unsafe">',
+    ].join("\n"));
+  });
+
   it("keeps code-block image examples in formatted copy text", () => {
     const content = [
       "Use this syntax:",
       "```md",
       "![example](https://a.com/code.png)",
+      '<img src="https://a.com/code-html.png">',
       "```",
-      "Result: ![real](https://a.com/real.png)",
+      'Result: ![real](https://a.com/real.png) <img src="https://a.com/real-html.png">',
     ].join("\n");
 
     expect(formatMessageCopyText(content)).toBe([
       "Use this syntax:",
       "```md",
       "![example](https://a.com/code.png)",
+      '<img src="https://a.com/code-html.png">',
       "```",
-      "Result: https://a.com/real.png",
+      "Result: https://a.com/real.png https://a.com/real-html.png",
     ].join("\n"));
   });
 
@@ -343,6 +467,38 @@ describe("messageClipboard", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("copies case-insensitive data URL images through the desktop image clipboard when available", async () => {
+    const writeImage = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, "vlainaDesktop", {
+      value: {
+        platform: "electron",
+        clipboard: {
+          writeText: vi.fn(),
+          writeImage,
+        },
+      },
+      configurable: true,
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const copied = await copyImageSourceToClipboard("DATA:IMAGE/PNG;BASE64,eA==");
+
+    expect(copied).toBe(true);
+    expect(writeImage).toHaveBeenCalledWith("data:image/png;base64,eA==");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not fetch unsafe direct image sources when copying", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(copyImageSourceToClipboard("javascript:alert(1)")).resolves.toBe(false);
+    await expect(copyImageSourceToClipboard("http://127.0.0.1:3000/secret.png")).resolves.toBe(false);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("resolves stored attachment images before copying", async () => {
     const writeMock = vi.spyOn(navigator.clipboard, "write");
     vi.mocked(convertToBase64).mockResolvedValue("data:image/png;base64,eA==");
@@ -364,6 +520,79 @@ describe("messageClipboard", () => {
     expect(writeMock).toHaveBeenCalledTimes(1);
   });
 
+  it("resolves bare stored attachment filenames before copying", async () => {
+    const writeMock = vi.spyOn(navigator.clipboard, "write");
+    vi.mocked(convertToBase64).mockResolvedValue("data:image/jpeg;base64,eA==");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        blob: () => Promise.resolve(new Blob(["x"], { type: "image/jpeg" })),
+      }),
+    );
+
+    const copied = await copyImageSourceToClipboard("demo.jpg");
+
+    expect(copied).toBe(true);
+    expect(convertToBase64).toHaveBeenCalledWith(expect.objectContaining({
+      previewUrl: "demo.jpg",
+      assetUrl: "demo.jpg",
+      name: "demo.jpg",
+      type: "image/jpeg",
+    }));
+    expect(fetch).toHaveBeenCalledWith("data:image/jpeg;base64,eA==");
+    expect(writeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rasterizes stored svg attachments before copying", async () => {
+    const writeImage = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, "vlainaDesktop", {
+      value: {
+        platform: "electron",
+        clipboard: {
+          writeText: vi.fn(),
+          writeImage,
+        },
+      },
+      configurable: true,
+    });
+    vi.mocked(convertToBase64).mockResolvedValue("data:image/svg+xml;base64,PHN2Zz4=");
+    svgMocks.rasterizeSvgDataUrlToPng.mockResolvedValue("data:image/png;base64,RASTER");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const copied = await copyImageSourceToClipboard("diagram.svg");
+
+    expect(copied).toBe(true);
+    expect(svgMocks.rasterizeSvgDataUrlToPng).toHaveBeenCalledWith("data:image/svg+xml;base64,PHN2Zz4=");
+    expect(writeImage).toHaveBeenCalledWith("data:image/png;base64,RASTER");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rasterizes fetched svg images before copying to the clipboard", async () => {
+    const svgBlob = new Blob(["<svg></svg>"], { type: "image/svg+xml" });
+    const pngBlob = new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" });
+    const writeMock = vi.spyOn(navigator.clipboard, "write");
+    svgMocks.rasterizeSvgBlobToPngBlob.mockResolvedValue(pngBlob);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        blob: () => Promise.resolve(svgBlob),
+      }),
+    );
+
+    const copied = await copyImageSourceToClipboard("https://a.com/diagram.svg");
+
+    expect(copied).toBe(true);
+    expect(svgMocks.rasterizeSvgBlobToPngBlob).toHaveBeenCalledWith(svgBlob);
+    expect(writeMock).toHaveBeenCalledWith([
+      expect.objectContaining({
+        data: {
+          "image/png": pngBlob,
+        },
+      }),
+    ]);
+  });
+
   it("falls back to text copy when image copy fails", async () => {
     const writeTextMock = vi.spyOn(navigator.clipboard, "writeText");
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network")));
@@ -371,6 +600,17 @@ describe("messageClipboard", () => {
     await copyMessageContentToClipboard("Result: ![img](https://a.com/1.png)");
 
     expect(writeTextMock).toHaveBeenCalledWith("Result: https://a.com/1.png");
+  });
+
+  it("does not fetch video markdown before falling back to text copy", async () => {
+    const writeTextMock = vi.spyOn(navigator.clipboard, "writeText");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await copyMessageContentToClipboard("Result: ![video](https://example.com/movie.mp4)");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(writeTextMock).toHaveBeenCalledWith("Result: https://example.com/movie.mp4");
   });
 
   it("does not copy code-block image examples before falling back to text", async () => {

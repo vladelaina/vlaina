@@ -8,12 +8,12 @@ import { copyImageSourceToClipboard } from '@/components/Chat/common/messageClip
 import { downloadImageWithPrompt } from '@/components/Chat/common/imageDownload';
 import { ChatImageViewer } from './components/ChatImageViewer';
 import { ReadOnlyCodeBlock } from '@/components/common/code-block';
-import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
+import { isRenderableDataImageSrc, normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
 import { ReadOnlyMermaidBlock } from '@/components/common/markdown/ReadOnlyMermaidBlock';
 import { ReadOnlyVideoBlock } from '@/components/common/markdown/ReadOnlyVideoBlock';
 import { normalizeImageWidth, serializeCropValue } from '@/components/common/markdown/imageSourceFragment';
 import { isMermaidFenceLanguage } from '@/components/common/markdown/mermaidLanguage';
-import { parseVideoUrl } from '@/components/common/markdown/videoUrl';
+import { parseVideoUrl } from '@/lib/markdown/videoUrl';
 import { translate, useI18n } from '@/lib/i18n';
 import { resolveCompactedChatImageSrc } from './chatInlineImageTokens';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
@@ -133,7 +133,7 @@ async function copyImageOrUrl(src: string): Promise<boolean> {
   if (copied) {
     return true;
   }
-  if (src.trim().startsWith('data:image/')) {
+  if (isRenderableDataImageSrc(src)) {
     return false;
   }
 

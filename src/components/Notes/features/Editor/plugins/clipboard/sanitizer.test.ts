@@ -148,6 +148,22 @@ describe('sanitizeHtml', () => {
     expect(result).not.toContain('image/svg+xml');
   });
 
+  it('rejects scheme-bearing media urls even when plain relatives are allowed', () => {
+    const result = sanitizeHtml([
+      '<img src="blob:https://example.com/image">',
+      '<img src="data:image/png;base64,QUJDRA==">',
+      '<img src="mailto:user@example.com">',
+      '<img src="images/safe.png">',
+      '<source srcset="blob:https://example.com/image 1x">',
+      '<source srcset="images/safe.webp 1x">',
+    ].join(''));
+
+    expect(result).toBe('<img><img><img><img src="images/safe.png"><source><source srcset="images/safe.webp 1x">');
+    expect(result).not.toContain('blob:');
+    expect(result).not.toContain('data:');
+    expect(result).not.toContain('mailto:');
+  });
+
   it('blocks local-network image sources that would be auto-loaded on open', () => {
     const result = sanitizeHtml([
       '<img src="http://localhost:3000/secret.png">',
@@ -160,10 +176,14 @@ describe('sanitizeHtml', () => {
       '<img src="//127.0.0.1:3000/secret.png">',
       '<img src="http://192.168.1.8/secret.png">',
       '<img src="http://[::ffff:7f00:1]/secret.png">',
+      '<img src="http://[::7f00:1]/secret.png">',
+      '<img src="http://[::ffff:0:7f00:1]/secret.png">',
+      String.raw`<img src="http:\127.0.0.1\secret.png">`,
+      String.raw`<img src="\\127.0.0.1\secret.png">`,
       '<img src="https://example.com/safe.png">',
     ].join(''));
 
-    expect(result).toBe('<img><img><img><img><img><img><img><img><img><img><img src="https://example.com/safe.png">');
+    expect(result).toBe('<img><img><img><img><img><img><img><img><img><img><img><img><img><img><img src="https://example.com/safe.png">');
   });
 
   it('blocks root-path raw media urls while keeping safe media relatives', () => {
@@ -174,21 +194,27 @@ describe('sanitizeHtml', () => {
       '<img src="./images/safe.png">',
       '<img src="../images/safe.png">',
       '<img src="//example.com/safe.png">',
+      '<iframe src="//example.com/embed"></iframe>',
+      '<video src="//example.com/demo.mp4" poster="//example.com/poster.png"></video>',
     ].join(''));
 
-    expect(result).toBe('<img><img src="./images/safe.png"><img src="../images/safe.png"><img src="//example.com/safe.png">');
+    expect(result).toBe('<img><img src="./images/safe.png"><img src="../images/safe.png"><img src="https://example.com/safe.png"><iframe src="https://example.com/embed" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe><video src="https://example.com/demo.mp4" poster="https://example.com/poster.png"></video>');
   });
 
   it('blocks executable and network source srcset values that would be auto-loaded on open', () => {
     const result = sanitizeHtml([
       '<picture><source srcset="data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+ 1x"><img src="https://example.com/safe.png"></picture>',
       '<picture><source srcset="//127.0.0.1:3000/secret.png 1x"><img src="https://example.com/safe.png"></picture>',
+      '<picture><source srcset="images/descriptor-script.webp 1x javascript:alert(1)"><img src="https://example.com/safe.png"></picture>',
+      '<picture><source srcset="images/invalid-descriptor.webp invalid-descriptor"><img src="https://example.com/safe.png"></picture>',
       '<picture><source srcset="safe.webp 1x, safe@2x.webp 2x"><img src="https://example.com/safe.png"></picture>',
       '<picture><source srcset="images/safe.webp 1x, ../images/safe@2x.webp 2x"><img src="https://example.com/safe.png"></picture>',
     ].join(''));
 
     expect(result).not.toContain('data:image');
     expect(result).not.toContain('127.0.0.1');
+    expect(result).not.toContain('javascript:alert');
+    expect(result).not.toContain('invalid-descriptor');
     expect(result).toContain('srcset="safe.webp 1x, safe@2x.webp 2x"');
     expect(result).toContain('srcset="images/safe.webp 1x, ../images/safe@2x.webp 2x"');
   });

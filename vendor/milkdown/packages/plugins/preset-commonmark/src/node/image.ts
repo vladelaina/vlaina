@@ -5,6 +5,46 @@ import { $command, $inputRule, $nodeAttr, $nodeSchema } from '@milkdown/utils'
 
 import { isPublicRemoteMediaUrl, sanitizeMediaSrc, withMeta } from '../__internal__'
 
+const markdownDestinationEscapePattern = /\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g
+const namedMarkdownHtmlReferences: Record<string, string> = {
+  amp: '&',
+  colon: ':',
+  period: '.',
+  sol: '/',
+}
+
+function decodeMarkdownHtmlReference(value: string) {
+  const match = /^&(#x[0-9a-f]+|#\d+|[A-Za-z][A-Za-z0-9]+);$/i.exec(value)
+  if (!match) return value
+
+  const body = match[1]
+  if (body.startsWith('#x') || body.startsWith('#X')) {
+    const codePoint = Number.parseInt(body.slice(2), 16)
+    return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10FFFF
+      ? String.fromCodePoint(codePoint)
+      : value
+  }
+  if (body.startsWith('#')) {
+    const codePoint = Number.parseInt(body.slice(1), 10)
+    return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10FFFF
+      ? String.fromCodePoint(codePoint)
+      : value
+  }
+
+  return namedMarkdownHtmlReferences[body.toLowerCase()] ?? value
+}
+
+function decodeMarkdownHtmlText(value: string) {
+  return value.replace(/&(?:#x[0-9a-f]+|#\d+|[A-Za-z][A-Za-z0-9]+);/gi, decodeMarkdownHtmlReference)
+}
+
+function normalizeInputImageSrc(value: string) {
+  const trimmed = value.trim()
+  if (trimmed.startsWith('<') && trimmed.endsWith('>'))
+    return decodeMarkdownHtmlText(trimmed.slice(1, -1).trim().replace(markdownDestinationEscapePattern, '$1'))
+  return decodeMarkdownHtmlText(trimmed.replace(markdownDestinationEscapePattern, '$1'))
+}
+
 export function sanitizeImageSrc(
   value: unknown,
   options: { allowEmpty?: boolean } = {}
@@ -177,11 +217,11 @@ withMeta(updateImageCommand, {
 export const insertImageInputRule = $inputRule(
   (ctx) => {
     const rule = new InputRule(
-      /(?:!|！)(?:\[|【)(?<alt>.*?)(?:\]|】)(?:\(|（)(?<filename>[^\s)）]+)(?:\s+(?:"|“)(?<title>[^"”]+)(?:"|”))?(?:\)|）)/,
+      /(?:!|！)(?:\[|【)(?<alt>.*?)(?:\]|】)(?:\(|（)(?<filename><(?:\\.|[^>\n])+>|[^\s)）]+)(?:\s+(?:"|“)(?<title>[^"”]+)(?:"|”))?(?:\)|）)/,
       (state, match, start, end) => {
         const matched = match[0]
         const alt = match.groups?.alt ?? ''
-        const src = sanitizeImageSrc(match.groups?.filename ?? '')
+        const src = sanitizeImageSrc(normalizeInputImageSrc(match.groups?.filename ?? ''))
         const title = match.groups?.title ?? ''
         if (matched && src)
           return state.tr.replaceWith(

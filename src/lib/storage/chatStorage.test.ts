@@ -57,6 +57,35 @@ describe('chatStorage session message normalization', () => {
     });
   });
 
+  it('normalizes session messages before serializing them to disk', () => {
+    const payload = JSON.parse(serializeSessionMessages('session-1', [{
+      id: 'm1',
+      role: 'user',
+      content: 'Describe it',
+      modelId: 'model-1',
+      timestamp: 1,
+      versions: [{
+        content: 'Describe it',
+        createdAt: 1,
+        kind: 'original' as const,
+        subsequentMessages: [],
+      }],
+      currentVersionIndex: 0,
+      imageSources: [
+        'DATA:IMAGE/PNG;BASE64,AQI=',
+        'http://127.0.0.1:3000/secret.png',
+        'data:image/svg+xml;base64,PHN2Zz4=',
+        'https://example.com/movie.mp4',
+        'attachment://safe.png',
+      ],
+    }]));
+
+    expect(payload.messages[0].imageSources).toEqual([
+      'data:image/png;base64,AQI=',
+      'attachment://safe.png',
+    ]);
+  });
+
   it('loads only matching versioned session envelopes', () => {
     const messages = parseSessionMessagesPayload('session-1', {
       version: 1,
@@ -271,6 +300,30 @@ describe('chatStorage session message normalization', () => {
     ]);
 
     expect(messages.map((message) => message.id)).toEqual(['ok']);
+  });
+
+  it('filters persisted image source caches before exposing restored messages', () => {
+    const messages = normalizeSessionMessages([{
+      id: 'm1',
+      role: 'user',
+      content: 'Describe it',
+      modelId: 'model-1',
+      timestamp: 1,
+      imageSources: [
+        'DATA:IMAGE/PNG;BASE64,AQI=',
+        'http://127.0.0.1:3000/secret.png',
+        'data:image/svg+xml;base64,PHN2Zz4=',
+        'https://example.com/movie.mp4',
+        'attachment://safe.png',
+        'attachment://..%2Fsecret.png',
+        42,
+      ],
+    }]);
+
+    expect(messages[0]?.imageSources).toEqual([
+      'data:image/png;base64,AQI=',
+      'attachment://safe.png',
+    ]);
   });
 
   it('normalizes hidden API transcripts before they can be replayed', () => {

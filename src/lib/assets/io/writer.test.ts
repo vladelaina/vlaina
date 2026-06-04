@@ -15,14 +15,16 @@ const mocks = vi.hoisted(() => ({
     rename: vi.fn(),
     exists: vi.fn(),
     deleteFile: vi.fn(),
+    listDir: vi.fn(),
   },
 }));
 
 vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => mocks.storage,
+  joinPath: (...segments: string[]) => Promise.resolve(segments.filter(Boolean).join('/')),
 }));
 
-import { isTempFile, getTempPath, getFinalPath, writeAssetAtomic } from './writer';
+import { cleanupTempFiles, isTempFile, getTempPath, getFinalPath, writeAssetAtomic } from './writer';
 
 describe('atomicWrite', () => {
   beforeEach(() => {
@@ -31,6 +33,7 @@ describe('atomicWrite', () => {
     mocks.storage.rename.mockResolvedValue(undefined);
     mocks.storage.exists.mockResolvedValue(false);
     mocks.storage.deleteFile.mockResolvedValue(undefined);
+    mocks.storage.listDir.mockResolvedValue([]);
   });
 
   it('uses a unique temp file for each atomic write to the same target', async () => {
@@ -48,6 +51,30 @@ describe('atomicWrite', () => {
   });
 
   describe('Property 7: Temp File Cleanup', () => {
+    it('cleans temp files directly inside the asset directory', async () => {
+      mocks.storage.listDir.mockResolvedValue([
+        { name: 'image.png.tmp', path: '/vault/assets/image.png.tmp', isFile: true, isDirectory: false },
+        { name: 'image.png', path: '/vault/assets/image.png', isFile: true, isDirectory: false },
+      ]);
+
+      await expect(cleanupTempFiles('/vault/assets')).resolves.toBe(1);
+
+      expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/vault/assets/image.png.tmp');
+    });
+
+    it('does not clean unsafe temp directory entries', async () => {
+      mocks.storage.listDir.mockResolvedValue([
+        { name: '../secret.tmp', path: '/vault/secret.tmp', isFile: true, isDirectory: false },
+        { name: 'escape.tmp', path: '/vault/assets/../escape.tmp', isFile: true, isDirectory: false },
+        { name: 'nested.tmp', path: '/vault/assets/nested/nested.tmp', isFile: true, isDirectory: false },
+        { name: 'dir.tmp', path: '/vault/assets/dir.tmp', isFile: false, isDirectory: true },
+      ]);
+
+      await expect(cleanupTempFiles('/vault/assets')).resolves.toBe(0);
+
+      expect(mocks.storage.deleteFile).not.toHaveBeenCalled();
+    });
+
     describe('isTempFile', () => {
       it('correctly identifies temp files', () => {
         expect(isTempFile('photo.jpg.tmp')).toBe(true);

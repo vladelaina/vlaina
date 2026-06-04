@@ -1,4 +1,4 @@
-import { getBaseName, getParentPath } from '@/lib/storage/adapter';
+import { getBaseName, getParentPath, isAbsolutePath, normalizeAbsolutePath } from '@/lib/storage/adapter';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 
 export interface ResolvedOpenNoteTarget {
@@ -16,7 +16,12 @@ export function isSupportedMarkdownSelection(path: string): boolean {
 }
 
 export function resolveOpenNoteTarget(absoluteFilePath: string): ResolvedOpenNoteTarget {
-  const parentPath = getParentPath(absoluteFilePath);
+  const normalizedFilePath = normalizeAbsolutePath(absoluteFilePath);
+  if (!isAbsolutePath(normalizedFilePath)) {
+    throw new Error('Selected file path must be absolute');
+  }
+
+  const parentPath = getParentPath(normalizedFilePath);
 
   if (!parentPath) {
     throw new Error('Cannot determine the parent folder for the selected file');
@@ -24,6 +29,6 @@ export function resolveOpenNoteTarget(absoluteFilePath: string): ResolvedOpenNot
 
   return {
     vaultPath: parentPath,
-    notePath: getBaseName(absoluteFilePath),
+    notePath: getBaseName(normalizedFilePath),
   };
 }

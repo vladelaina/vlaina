@@ -45,6 +45,19 @@ vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => storageAdapter,
   isAbsolutePath: (path: string) => path.startsWith('/'),
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
+  normalizeAbsolutePath: (path: string) => {
+    if (!path.startsWith('/')) return path;
+    const parts: string[] = [];
+    for (const part of path.split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') {
+        parts.pop();
+        continue;
+      }
+      parts.push(part);
+    }
+    return `/${parts.join('/')}`;
+  },
   getParentPath: (path: string) => {
     const normalized = path.replace(/\/+/g, '/');
     const index = normalized.lastIndexOf('/');
@@ -342,6 +355,27 @@ describe('workspaceSlice tab history', () => {
     expect(store.getState().noteContentsCache.get('draft:blank')).toEqual({
       content: 'draft text',
       modifiedAt: null,
+    });
+  });
+
+  it('normalizes absolute note paths before opening tabs and cache entries', async () => {
+    storageAdapter.readFile.mockResolvedValue('# starred');
+    const store = createNotesStore();
+
+    await store.getState().openNoteByAbsolutePath('/other-vault/docs/../starred.md');
+
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/other-vault/starred.md');
+    expect(store.getState().currentNote).toEqual({
+      path: '/other-vault/starred.md',
+      content: '# starred',
+    });
+    expect(store.getState().openTabs).toEqual([
+      { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+    ]);
+    expect(store.getState().noteContentsCache.has('/other-vault/docs/../starred.md')).toBe(false);
+    expect(store.getState().noteContentsCache.get('/other-vault/starred.md')).toEqual({
+      content: '# starred',
+      modifiedAt: 1,
     });
   });
 
@@ -791,6 +825,7 @@ describe('workspaceSlice tab history', () => {
       content: '# beta',
       modifiedAt: 4,
     });
+    expect(store.getState().noteContentsCache.get('beta.md')?.freshUntil).toEqual(expect.any(Number));
   });
 
   it('cancels a queued note prefetch before it reads or writes cache', async () => {

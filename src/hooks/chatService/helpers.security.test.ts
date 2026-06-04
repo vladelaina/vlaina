@@ -48,8 +48,44 @@ vi.mock('@/stores/notes/pendingEditorMarkdownFlusher', () => ({
 
 vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => mocks.storage,
-  isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
-  joinPath: async (...segments: string[]) => segments.filter(Boolean).join('/').replace(/\/+/g, '/'),
+  isAbsolutePath: (path: string) =>
+    path.startsWith('/') ||
+    /^\\\\[^\\]+\\[^\\]+/.test(path) ||
+    /^[A-Za-z]:[\\/]/.test(path),
+  joinPath: async (...segments: string[]) => {
+    const filtered = segments.filter(Boolean);
+    if (filtered.length === 0) {
+      return '';
+    }
+    return filtered
+      .map((segment, index) => {
+        if (index > 0) {
+          return segment.replace(/^[/\\]+/, '');
+        }
+        return segment.replace(/[/\\]+$/, '');
+      })
+      .join('/');
+  },
+  normalizeAbsolutePath: (path: string) => {
+    const normalized = path.replace(/\\/g, '/');
+    const uncMatch = normalized.match(/^(\/\/[^/]+\/[^/]+)(?:\/|$)/);
+    const root = uncMatch?.[1] ?? (/^[A-Za-z]:\//.test(normalized) ? normalized.slice(0, 3) : normalized.startsWith('/') ? '/' : '');
+    if (!root) {
+      return path;
+    }
+    const rest = normalized.slice(root.length).replace(/^\/+/, '');
+    const parts: string[] = [];
+    for (const part of rest.split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') {
+        parts.pop();
+        continue;
+      }
+      parts.push(part);
+    }
+    const nextPath = parts.length > 0 ? `${root}${root.endsWith('/') ? '' : '/'}${parts.join('/')}` : root;
+    return path.includes('\\') ? nextPath.replace(/\//g, '\\') : nextPath;
+  },
 }));
 
 describe('chat mention path security', () => {
@@ -98,6 +134,16 @@ describe('chat mention path security', () => {
     expect(mocks.storage.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not read arbitrary UNC note mentions unless they are starred', async () => {
+    const notes = await loadMentionedNotes([
+      { path: '\\\\server\\share\\secret.md', title: 'Secret' },
+    ]);
+
+    expect(notes).toEqual([]);
+    expect(mocks.storage.stat).not.toHaveBeenCalled();
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
   it('allows absolute note mentions that match a starred external note', async () => {
     mocks.notesState.starredEntries = [{
       id: 'external',
@@ -117,6 +163,64 @@ describe('chat mention path security', () => {
     expect(mocks.storage.readFile).toHaveBeenCalledWith('/external-vault/docs/alpha.md');
     expect(notes).toEqual([
       { path: '/external-vault/docs/alpha.md', title: 'Alpha', content: '# Alpha' },
+    ]);
+  });
+
+  it('allows UNC note mentions that match a starred external note', async () => {
+    mocks.notesState.starredEntries = [{
+      id: 'external-unc',
+      kind: 'note',
+      vaultPath: '\\\\SERVER\\Share',
+      relativePath: 'Docs/Alpha.md',
+      addedAt: 1,
+    }];
+    mocks.storage.stat.mockResolvedValue({ size: 32 });
+    mocks.storage.readFile.mockResolvedValue('# Alpha');
+
+    const notes = await loadMentionedNotes([
+      { path: '\\\\server\\share\\Docs\\Alpha.md', title: 'Alpha' },
+    ]);
+
+    expect(mocks.storage.stat).toHaveBeenCalledWith('\\\\SERVER\\Share/Docs/Alpha.md');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('\\\\SERVER\\Share/Docs/Alpha.md');
+    expect(notes).toEqual([
+      { path: '\\\\server\\share\\Docs\\Alpha.md', title: 'Alpha', content: '# Alpha' },
+    ]);
+  });
+
+  it('allows UNC folder image mentions that match a starred external folder', async () => {
+    mocks.notesState.starredEntries = [{
+      id: 'external-folder-unc',
+      kind: 'folder',
+      vaultPath: '\\\\SERVER\\Share',
+      relativePath: 'Assets',
+      addedAt: 1,
+    }];
+    mocks.storage.listDir.mockResolvedValue([
+      {
+        name: 'cover.png',
+        path: '\\\\SERVER\\Share\\Assets\\cover.png',
+        isDirectory: false,
+        isFile: true,
+        size: 2048,
+      },
+    ]);
+
+    const attachments = await loadMentionedFolderImageAttachments([
+      { path: '\\\\server\\share\\Assets', title: 'Assets', kind: 'folder' },
+    ]);
+
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('\\\\SERVER\\Share/Assets');
+    expect(attachments).toEqual([
+      {
+        id: 'folder-image:\\\\SERVER\\Share/Assets/cover.png',
+        path: '\\\\SERVER\\Share/Assets/cover.png',
+        previewUrl: '',
+        assetUrl: '',
+        name: 'cover.png',
+        type: 'image/png',
+        size: 2048,
+      },
     ]);
   });
 });

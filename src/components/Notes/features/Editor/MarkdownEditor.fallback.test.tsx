@@ -1,0 +1,195 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MarkdownEditor } from './MarkdownEditor';
+
+type MockNotesState = {
+  currentNote: { path: string; content: string } | null;
+  currentNoteRevision: number;
+  currentNoteDiskRevision: number;
+  noteContentsCache: Map<string, { content: string; modifiedAt?: number | null }>;
+  displayNames: Map<string, string>;
+  openTabs: Array<{ path: string; name: string; isDirty: boolean }>;
+  draftNotes: Record<string, { parentPath: string | null; name: string }>;
+  noteMetadata: { notes: Record<string, Record<string, unknown>> } | null;
+  notesPath: string;
+  isStarred: (path: string) => boolean;
+  toggleStarred: ReturnType<typeof vi.fn>;
+  saveNote: ReturnType<typeof vi.fn>;
+  getDisplayName: (path: string) => string;
+  updateContent: (content: string) => void;
+  isDirty: boolean;
+};
+
+const mocks = vi.hoisted(() => {
+  const notesState: MockNotesState = {
+    currentNote: { path: 'alpha.md', content: '# Alpha\n\nInitial body' },
+    currentNoteRevision: 0,
+    currentNoteDiskRevision: 0,
+    noteContentsCache: new Map(),
+    displayNames: new Map([['alpha.md', 'alpha.md']]),
+    openTabs: [{ path: 'alpha.md', name: 'alpha.md', isDirty: false }],
+    draftNotes: {},
+    noteMetadata: null,
+    notesPath: '/vault',
+    isStarred: () => false,
+    toggleStarred: vi.fn(),
+    saveNote: vi.fn().mockResolvedValue(undefined),
+    getDisplayName: (path: string) => path,
+    updateContent: (content: string) => {
+      if (notesState.currentNote) {
+        notesState.currentNote = { ...notesState.currentNote, content };
+      }
+      notesState.isDirty = true;
+    },
+    isDirty: false,
+  };
+
+  return { notesState };
+});
+
+vi.mock('@/stores/useNotesStore', () => ({
+  useNotesStore: Object.assign(
+    (selector: (state: MockNotesState) => unknown) => selector(mocks.notesState),
+    {
+      getState: () => mocks.notesState,
+      subscribe: () => () => {},
+      setState: (updater: Partial<MockNotesState> | ((state: MockNotesState) => Partial<MockNotesState>)) => {
+        const patch = typeof updater === 'function' ? updater(mocks.notesState) : updater;
+        Object.assign(mocks.notesState, patch);
+      },
+    },
+  ),
+}));
+
+vi.mock('@/stores/unified/useUnifiedStore', () => ({
+  useUnifiedStore: (selector: (state: { data: { settings: { markdown: { body: { showLineNumbers: boolean } } } } }) => unknown) =>
+    selector({ data: { settings: { markdown: { body: { showLineNumbers: false } } } } }),
+}));
+
+vi.mock('@/stores/uiSlice', () => ({
+  useUIStore: Object.assign(
+    (selector: (state: { notesPreviewTitle: null; universalPreviewTarget: null; universalPreviewIcon: undefined }) => unknown) =>
+      selector({
+        notesPreviewTitle: null,
+        universalPreviewTarget: null,
+        universalPreviewIcon: undefined,
+      }),
+    {
+      getState: () => ({
+        notesPreviewTitle: null,
+        universalPreviewTarget: null,
+        universalPreviewIcon: undefined,
+      }),
+      subscribe: () => () => {},
+    },
+  ),
+}));
+
+vi.mock('@/components/ui/overlay-scroll-area', async () => {
+  const React = await import('react');
+  return {
+    OverlayScrollArea: React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+      ({
+        children,
+        viewportClassName: _viewportClassName,
+        draggingBodyClassName: _draggingBodyClassName,
+        scrollbarVariant: _scrollbarVariant,
+        ...props
+      }: React.HTMLAttributes<HTMLDivElement> & {
+        viewportClassName?: string;
+        draggingBodyClassName?: string;
+        scrollbarVariant?: string;
+      }, ref) => (
+        <div ref={ref} {...props}>
+          {children}
+        </div>
+      ),
+    ),
+  };
+});
+
+vi.mock('./EditorTopRightToolbar', () => ({
+  EditorTopRightToolbar: () => null,
+}));
+
+vi.mock('./NoteHeader', () => ({
+  NoteHeader: () => null,
+}));
+
+vi.mock('../Cover', () => ({
+  CoverAddOverlay: () => null,
+  NoteCoverCanvas: () => null,
+  useNoteCoverController: () => ({
+    cover: {
+      url: null,
+      positionX: 50,
+      positionY: 50,
+      height: undefined,
+      scale: 1,
+    },
+    isPickerOpen: false,
+    openCoverPicker: vi.fn(),
+  }),
+}));
+
+vi.mock('@/hooks/useHeldPageScroll', () => ({
+  useHeldPageScroll: vi.fn(),
+}));
+
+vi.mock('../Sidebar/sidebarSearchNavigation', () => ({
+  getSidebarSearchNavigationPendingPath: () => null,
+  isSidebarSearchNavigationPending: () => false,
+  subscribeSidebarSearchNavigationPending: () => () => {},
+}));
+
+vi.mock('./find/useNoteEditorFind', () => ({
+  useNoteEditorFind: () => ({
+    query: '',
+    setQuery: vi.fn(),
+    isOpen: false,
+    setOpen: vi.fn(),
+    close: vi.fn(),
+    next: vi.fn(),
+    previous: vi.fn(),
+    matchIndex: 0,
+    matchCount: 0,
+  }),
+}));
+
+vi.mock('./MilkdownEditorInner', () => ({
+  MilkdownEditorRuntime: () => {
+    throw new Error('Milkdown failed to create');
+  },
+}));
+
+describe('MarkdownEditor source fallback', () => {
+  beforeEach(() => {
+    mocks.notesState.currentNote = { path: 'alpha.md', content: '# Alpha\n\nInitial body' };
+    mocks.notesState.currentNoteRevision = 0;
+    mocks.notesState.currentNoteDiskRevision = 0;
+    mocks.notesState.noteContentsCache = new Map();
+    mocks.notesState.displayNames = new Map([['alpha.md', 'alpha.md']]);
+    mocks.notesState.openTabs = [{ path: 'alpha.md', name: 'alpha.md', isDirty: false }];
+    mocks.notesState.draftNotes = {};
+    mocks.notesState.noteMetadata = null;
+    mocks.notesState.isDirty = false;
+    mocks.notesState.saveNote.mockClear();
+  });
+
+  it('keeps markdown editable when the Milkdown runtime throws during render', async () => {
+    render(<MarkdownEditor />);
+
+    const sourceEditor = await screen.findByLabelText('Markdown source editor');
+    expect(sourceEditor).toHaveValue('# Alpha\n\nInitial body');
+
+    fireEvent.change(sourceEditor, { target: { value: '# Alpha\n\nEdited body' } });
+
+    expect(mocks.notesState.currentNote?.content).toBe('# Alpha\n\nEdited body');
+    expect(mocks.notesState.isDirty).toBe(true);
+
+    fireEvent.blur(sourceEditor);
+    await waitFor(() => {
+      expect(mocks.notesState.saveNote).toHaveBeenCalledWith({ explicit: false });
+    });
+  });
+});

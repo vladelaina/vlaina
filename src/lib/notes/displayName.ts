@@ -27,9 +27,14 @@ export function normalizeNotePathKey(path: string | undefined): string | undefin
 
   if (path === '') return '';
 
-  const compactedPath = path
-    .replace(/\\/g, '/')
-    .replace(/\/{2,}/g, '/');
+  const slashPath = path.replace(/\\/g, '/');
+  const uncRest = slashPath.startsWith('//') && !slashPath.startsWith('///')
+    ? slashPath.slice(2).replace(/\/{2,}/g, '/').replace(/\/+$/, '')
+    : null;
+  const uncParts = uncRest?.split('/').filter(Boolean) ?? [];
+  const compactedPath = uncParts.length >= 2
+    ? `//${uncParts.join('/')}`
+    : slashPath.replace(/\/{2,}/g, '/');
 
   if (compactedPath === '/') return '/';
 

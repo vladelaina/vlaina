@@ -1,4 +1,5 @@
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { getBaseName, getParentPath, isAbsolutePath } from '@/lib/storage/adapter';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import {
@@ -103,6 +104,44 @@ function remapStarredEntriesForAbsoluteRename(
   return { entries: deduped, changed };
 }
 
+function isKnownNoteFilePath(
+  input: {
+    currentNote: ReturnType<NotesGet>['currentNote'];
+    openTabs: ReturnType<NotesGet>['openTabs'];
+    recentNotes: ReturnType<NotesGet>['recentNotes'];
+    noteContentsCache: ReturnType<NotesGet>['noteContentsCache'];
+    noteMetadata: ReturnType<NotesGet>['noteMetadata'];
+    notesPath: ReturnType<NotesGet>['notesPath'];
+    rootFolder: ReturnType<NotesGet>['rootFolder'];
+    starredEntries: ReturnType<NotesGet>['starredEntries'];
+  },
+  path: string,
+) {
+  const node = input.rootFolder ? findNode(input.rootFolder.children, path) : null;
+  if (node) {
+    return !node.isFolder;
+  }
+
+  return Boolean(
+    input.currentNote?.path === path ||
+    input.openTabs.some((tab) => tab.path === path) ||
+    input.recentNotes.includes(path) ||
+    input.noteContentsCache.has(path) ||
+    Object.prototype.hasOwnProperty.call(input.noteMetadata?.notes ?? {}, path) ||
+    input.starredEntries.some((entry) => {
+      if (entry.kind !== 'note') {
+        return false;
+      }
+
+      if (entry.vaultPath === input.notesPath && entry.relativePath === path) {
+        return true;
+      }
+
+      return isAbsolutePath(path) && getStarredEntryAbsolutePath(entry) === path;
+    })
+  );
+}
+
 export function createWorkspaceExternalActions(
   set: NotesSet,
   get: NotesGet
@@ -123,6 +162,22 @@ export function createWorkspaceExternalActions(
         rootFolder,
         fileTreeSortMode,
       } = get();
+
+      if (
+        isKnownNoteFilePath({
+          currentNote,
+          openTabs,
+          recentNotes,
+          noteContentsCache,
+          noteMetadata,
+          notesPath,
+          rootFolder,
+          starredEntries,
+        }, oldPath) &&
+        !isSupportedMarkdownPath(newPath)
+      ) {
+        return;
+      }
 
       const nextCurrentNote = remapCurrentNoteForExternalRename(currentNote, oldPath, newPath);
       const nextOpenTabs = remapOpenTabsForExternalRename(openTabs, oldPath, newPath);

@@ -59,6 +59,19 @@ vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => storageAdapter,
   isAbsolutePath: (path: string) => path.startsWith('/'),
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
+  normalizeAbsolutePath: (path: string) => {
+    if (!path.startsWith('/')) return path;
+    const parts: string[] = [];
+    for (const part of path.split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') {
+        parts.pop();
+        continue;
+      }
+      parts.push(part);
+    }
+    return `/${parts.join('/')}`;
+  },
   normalizePath: (path: string) => path.replace(/\\/g, '/').replace(/\/+/g, '/'),
 }));
 
@@ -148,6 +161,40 @@ describe('workspaceSlice external sync', () => {
     expect(store.getState().rootFolder?.children[0]).toEqual(
       createFolder('docs', 'docs', [createFile('docs/beta.md', 'beta')]),
     );
+  });
+
+  it('does not remap a known Markdown note to a non-Markdown external rename target', async () => {
+    const initialFile = createFile('docs/alpha.md', 'alpha');
+    const store = createNotesStore({
+      rootFolder: createFolder('', 'Notes', [
+        createFolder('docs', 'docs', [initialFile]),
+      ]),
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      recentNotes: ['docs/alpha.md'],
+      displayNames: new Map([['docs/alpha.md', 'alpha']]),
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+      noteMetadata: {
+        version: 2,
+        notes: {
+          'docs/alpha.md': { createdAt: 1 },
+        },
+      },
+    });
+
+    await store.getState().applyExternalPathRename('docs/alpha.md', 'docs/alpha.png');
+
+    expect(store.getState().currentNote?.path).toBe('docs/alpha.md');
+    expect(store.getState().openTabs).toEqual([
+      { path: 'docs/alpha.md', name: 'alpha', isDirty: false },
+    ]);
+    expect(store.getState().recentNotes).toEqual(['docs/alpha.md']);
+    expect(store.getState().noteContentsCache.has('docs/alpha.md')).toBe(true);
+    expect(store.getState().noteContentsCache.has('docs/alpha.png')).toBe(false);
+    expect(store.getState().rootFolder?.children[0]).toEqual(
+      createFolder('docs', 'docs', [initialFile]),
+    );
+    expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
   });
 
   it('updates nested child paths when a folder is renamed externally', async () => {

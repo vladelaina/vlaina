@@ -8,8 +8,9 @@ import {
 import { shouldPersistSession } from '@/lib/ai/temporaryChat'
 import { resolveSessionIdAlias } from '@/lib/ai/sessionIdAliases'
 import {
-  extractMarkdownImageSources,
-  extractMessageImageSources,
+  extractRenderedMarkdownImageSources,
+  extractRenderedMessageImageSources,
+  isRenderedImageSource,
 } from '@/components/Chat/common/messageClipboard'
 import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy'
 import { useUnifiedStore } from '../unified/useUnifiedStore'
@@ -56,14 +57,14 @@ function canMessageUseVersionKind(message: ChatMessage, kind: MessageVersion['ki
 
 function extractStoredImageSources(role: ChatMessage['role'], content: string): string[] {
   return role === 'user'
-    ? extractMarkdownImageSources(content)
-    : extractMessageImageSources(content)
+    ? extractRenderedMarkdownImageSources(content)
+    : extractRenderedMessageImageSources(content)
 }
 
 function sanitizeProvidedImageSources(imageSources: string[] | undefined): string[] {
   return (imageSources ?? [])
     .map((src) => normalizeRenderableImageSrc(src))
-    .filter((src): src is string => Boolean(src))
+    .filter((src): src is string => Boolean(src) && isRenderedImageSource(src))
 }
 
 function getNewMessageImageSources(message: Omit<ChatMessage, 'id' | 'timestamp' | 'versions' | 'currentVersionIndex'>): string[] | undefined {
@@ -74,7 +75,7 @@ function getNewMessageImageSources(message: Omit<ChatMessage, 'id' | 'timestamp'
 
   return providedSources.length > 0
     ? providedSources
-    : extractMarkdownImageSources(message.content || '')
+    : extractStoredImageSources(message.role, message.content || '')
 }
 
 function hasSession(ai: { sessions: Array<{ id: string }> }, sessionId: string): boolean {
@@ -345,7 +346,7 @@ export function createMessageActions() {
         ...targetMessage,
         content: newContent,
         apiTranscript: undefined,
-        imageSources: extractMarkdownImageSources(newContent),
+        imageSources: extractStoredImageSources(targetMessage.role, newContent),
         versions: limited.versions,
         currentVersionIndex: limited.currentVersionIndex
       }

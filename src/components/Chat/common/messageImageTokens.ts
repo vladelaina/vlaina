@@ -1,5 +1,6 @@
 export {
   parseHtmlImageTokens,
+  parseMarkdownAndHtmlImageTokens,
   parseMarkdownImageTokens,
   replaceMarkdownImageTokens,
   replaceImageTokens,

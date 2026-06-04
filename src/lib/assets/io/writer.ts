@@ -1,6 +1,35 @@
-import { getStorageAdapter } from '@/lib/storage/adapter';
+import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { normalizeContainedAssetPath } from '../core/pathContainment';
 
 const TEMP_EXTENSION = '.tmp';
+
+function isSafeDirectoryEntryName(name: string): boolean {
+  return Boolean(name) && name !== '.' && name !== '..' && !/[\\/]/.test(name) && !name.includes('\0');
+}
+
+function isSameNormalizedPath(leftPath: string, rightPath: string): boolean {
+  return (
+    normalizeContainedAssetPath(leftPath, rightPath) !== null &&
+    normalizeContainedAssetPath(rightPath, leftPath) !== null
+  );
+}
+
+async function normalizeTempDirectoryEntryPath(
+  assetsDir: string,
+  entry: { name: string; path: string; isFile: boolean },
+): Promise<string | null> {
+  if (!entry.isFile || !isSafeDirectoryEntryName(entry.name) || !entry.name.endsWith(TEMP_EXTENSION)) {
+    return null;
+  }
+
+  const containedPath = normalizeContainedAssetPath(entry.path, assetsDir);
+  const expectedPath = normalizeContainedAssetPath(await joinPath(assetsDir, entry.name), assetsDir);
+  if (!containedPath || !expectedPath || !isSameNormalizedPath(containedPath, expectedPath)) {
+    return null;
+  }
+
+  return containedPath;
+}
 
 export async function writeAssetAtomic(
   targetPath: string,
@@ -32,13 +61,15 @@ export async function cleanupTempFiles(assetsDir: string): Promise<number> {
     const entries = await storage.listDir(assetsDir);
     
     for (const entry of entries) {
-      if (entry.name.endsWith(TEMP_EXTENSION)) {
-        try {
-          const fullPath = `${assetsDir}/${entry.name}`;
-          await storage.deleteFile(fullPath);
-          cleanedCount++;
-        } catch {
-        }
+      const tempPath = await normalizeTempDirectoryEntryPath(assetsDir, entry);
+      if (!tempPath) {
+        continue;
+      }
+
+      try {
+        await storage.deleteFile(tempPath);
+        cleanedCount++;
+      } catch {
       }
     }
   } catch {

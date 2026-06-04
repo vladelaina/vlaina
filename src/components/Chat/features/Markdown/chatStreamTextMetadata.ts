@@ -1,11 +1,9 @@
-import { extractMessageImageSources } from '@/components/Chat/common/messageClipboard';
+import { extractRenderedMessageImageSources } from '@/components/Chat/common/messageClipboard';
 import {
   getMarkdownFenceState,
   isMarkdownFenceClose,
   type MarkdownFenceState,
 } from '@/components/Chat/features/Layout/chatAssistantMarkdownBlockParser';
-import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
-import { parseVideoUrl } from '@/components/common/markdown/videoUrl';
 
 export function countFencedCodeBlocks(markdown: string): number {
   let count = 0;
@@ -28,8 +26,5 @@ export function countFencedCodeBlocks(markdown: string): number {
 }
 
 export function countRenderableImages(markdown: string): number {
-  return extractMessageImageSources(markdown).filter((src) => {
-    const normalized = normalizeRenderableImageSrc(src);
-    return !!normalized && !parseVideoUrl(normalized);
-  }).length;
+  return extractRenderedMessageImageSources(markdown).length;
 }

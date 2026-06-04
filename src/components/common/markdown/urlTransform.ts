@@ -3,11 +3,11 @@ import { sanitizeNoteLinkHref } from '@/lib/notes/markdown/urlSecurity';
 import { normalizeRenderableImageSrc } from './imagePolicy';
 
 export function readonlyMarkdownUrlTransform(url: string, key: string): string {
-  if (key === 'src') {
+  if (key === 'src' || key === 'poster') {
     return normalizeRenderableImageSrc(url) ?? '';
   }
 
-  if (key === 'href') {
+  if (key === 'href' || key === 'cite') {
     return sanitizeNoteLinkHref(url) ?? '';
   }
 

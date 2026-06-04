@@ -173,6 +173,23 @@ describe('callout editor behavior', () => {
     await editor.destroy();
   });
 
+  it('keeps uploaded callout icons with a case-insensitive image scheme through markdown reopen', async () => {
+    const editor = createEditor('> [!callout-icon:IMG%3Aicons%2Fdemo.png] Body');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+
+    expect(view.state.doc.firstChild?.type.name).toBe('callout');
+    expect(view.state.doc.firstChild?.attrs.icon).toEqual({
+      type: 'image',
+      value: 'IMG:icons/demo.png',
+    });
+    expect(serializer(view.state.doc).trim()).toBe('> [!callout-icon:IMG%3Aicons%2Fdemo.png] Body');
+
+    await editor.destroy();
+  });
+
   it('removes a leading uploaded icon marker even when markdown parsing preserves whitespace', async () => {
     const editor = createEditor('>   [!callout-icon:img%3Aicons%2Fdemo.png] Body');
     await editor.create();

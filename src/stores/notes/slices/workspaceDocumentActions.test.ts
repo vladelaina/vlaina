@@ -42,6 +42,19 @@ vi.mock('@/lib/storage/adapter', () => ({
   }),
   isAbsolutePath: (path: string) => path.startsWith('/'),
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
+  normalizeAbsolutePath: (path: string) => {
+    if (!path.startsWith('/')) return path;
+    const parts: string[] = [];
+    for (const part of path.split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') {
+        parts.pop();
+        continue;
+      }
+      parts.push(part);
+    }
+    return `/${parts.join('/')}`;
+  },
   normalizePath: (path: string) => path.replace(/\\/g, '/'),
   relativePath: (base: string, target: string) =>
     target.replace(/\\/g, '/').replace(`${base.replace(/\\/g, '/').replace(/\/+$/, '')}/`, ''),

@@ -1,4 +1,6 @@
 import { createAsyncPrefetchQueue } from '@/lib/asyncPrefetchQueue';
+import { readBoundedImageBlobResponse } from '@/lib/markdown/fetchBoundedImageBlob';
+import { normalizePublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 
 interface RemoteImageCacheEntry {
     src?: string;
@@ -15,7 +17,7 @@ interface RemoteImageResolveResult {
 
 const MAX_REMOTE_IMAGE_CACHE_ENTRIES = 200;
 const MAX_REMOTE_IMAGE_CACHE_BYTES = 48 * 1024 * 1024;
-const MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES = 8 * 1024 * 1024;
+export const MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES = 8 * 1024 * 1024;
 const MAX_REMOTE_IMAGE_FETCH_CONCURRENCY = 4;
 const remoteImageCache = new Map<string, RemoteImageCacheEntry>();
 const remoteImageFetchQueue = createAsyncPrefetchQueue(MAX_REMOTE_IMAGE_FETCH_CONCURRENCY);
@@ -67,18 +69,15 @@ function setRemoteImageCacheEntry(url: string, entry: RemoteImageCacheEntry): vo
     evictRemoteImageCacheIfNeeded();
 }
 
-async function cancelOversizedResponseBody(response: Response): Promise<void> {
-    try {
-        await response.body?.cancel();
-    } catch {
-        // Best-effort: the browser may have already consumed or closed the stream.
-    }
-}
-
 export async function resolveRemoteImageFromMemoryCache(url: string): Promise<string> {
+    const safeUrl = normalizePublicRemoteMediaUrl(url);
+    if (!safeUrl) {
+        return '';
+    }
+
     const now = Date.now();
     const cacheGeneration = remoteImageCacheGeneration;
-    const existing = remoteImageCache.get(url);
+    const existing = remoteImageCache.get(safeUrl);
     if (existing?.src) {
         existing.lastUsed = now;
         return existing.src;
@@ -93,31 +92,29 @@ export async function resolveRemoteImageFromMemoryCache(url: string): Promise<st
         || typeof URL === 'undefined'
         || typeof URL.createObjectURL !== 'function'
     ) {
-        setRemoteImageCacheEntry(url, { src: url, lastUsed: now });
-        return url;
+        setRemoteImageCacheEntry(safeUrl, { src: safeUrl, lastUsed: now });
+        return safeUrl;
     }
 
-    const promise = remoteImageFetchQueue.run(() => fetch(url, { cache: 'force-cache' }))
+    const promise = remoteImageFetchQueue.run(() => fetch(safeUrl, { cache: 'force-cache' }))
         .then(async (response) => {
             if (!response.ok) {
-                return { src: url };
+                return { src: safeUrl };
             }
 
-            const contentLength = Number(response.headers.get('content-length'));
-            if (
-                Number.isFinite(contentLength)
-                && contentLength > MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES
-            ) {
-                await cancelOversizedResponseBody(response);
-                return { src: url };
+            const result = await readBoundedImageBlobResponse(response, {
+                maxBytes: MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES,
+            });
+            if (result.status === 'too-large') {
+                return { src: safeUrl };
             }
 
-            const blob = await response.blob();
+            const blob = result.blob;
             if (!blob.type.startsWith('image/')) {
-                return { src: url };
+                return { src: safeUrl };
             }
             if (blob.size > MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES) {
-                return { src: url };
+                return { src: safeUrl };
             }
 
             return {
@@ -125,15 +122,15 @@ export async function resolveRemoteImageFromMemoryCache(url: string): Promise<st
                 sizeBytes: blob.size,
             };
         })
-        .catch((): RemoteImageResolveResult => ({ src: url }))
+        .catch((): RemoteImageResolveResult => ({ src: safeUrl }))
         .then((result) => {
             const { src, sizeBytes } = result;
             const objectUrl = src.startsWith('blob:') ? src : undefined;
             if (cacheGeneration !== remoteImageCacheGeneration) {
                 revokeObjectUrl(objectUrl);
-                return url;
+                return safeUrl;
             }
-            setRemoteImageCacheEntry(url, {
+            setRemoteImageCacheEntry(safeUrl, {
                 src,
                 objectUrl,
                 sizeBytes: objectUrl ? sizeBytes : undefined,
@@ -142,7 +139,7 @@ export async function resolveRemoteImageFromMemoryCache(url: string): Promise<st
             return src;
         });
 
-    remoteImageCache.set(url, { promise, lastUsed: now });
+    remoteImageCache.set(safeUrl, { promise, lastUsed: now });
     return promise;
 }
 

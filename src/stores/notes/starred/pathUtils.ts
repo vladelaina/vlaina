@@ -1,5 +1,6 @@
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { isAbsolutePath } from '@/lib/storage/adapter';
+import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 import { normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
 
 export function normalizeStarredVaultPath(path: string): string {
@@ -35,11 +36,15 @@ export function resolveStarredRelativePathForVault(
     return null;
   }
 
-  const normalizedAbsolutePath = normalizeStarredVaultPath(normalizedPath);
-  const vaultPrefix = normalizedVaultPath === '/' ? '/' : `${normalizedVaultPath}/`;
-  if (!normalizedAbsolutePath.startsWith(vaultPrefix)) {
+  const containedPath = normalizeContainedAssetPath(normalizedPath, normalizedVaultPath);
+  if (!containedPath) {
     return null;
   }
 
-  return normalizeStarredRelativePath(normalizedAbsolutePath.slice(vaultPrefix.length));
+  const normalizedAbsolutePath = normalizeStarredVaultPath(containedPath);
+  if (normalizedVaultPath === '/') {
+    return normalizeStarredRelativePath(normalizedAbsolutePath.replace(/^\/+/, ''));
+  }
+
+  return normalizeStarredRelativePath(normalizedAbsolutePath.slice(normalizedVaultPath.length + 1));
 }

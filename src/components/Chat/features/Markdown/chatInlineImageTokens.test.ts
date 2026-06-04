@@ -39,6 +39,69 @@ describe('chatInlineImageTokens', () => {
     expect(resolveCompactedChatImageSrc('asset://localhost/chat-inline-image/0', result.imageSrcByToken)).toBe(src);
   });
 
+  it('compacts large data image markdown with entity-encoded targets', () => {
+    const src = createLargeDataImage('f');
+    const encodedSrc = src.replace('data:image/', 'data&colon;image&sol;');
+
+    const result = compactLargeDataImageMarkdown(`![real](<${encodedSrc}>)`);
+
+    expect(result.replaced).toBe(1);
+    expect(result.markdown).toBe('![real](<asset://localhost/chat-inline-image/0>)');
+    expect(resolveCompactedChatImageSrc('asset://localhost/chat-inline-image/0', result.imageSrcByToken)).toBe(src);
+  });
+
+  it('compacts large data image markdown with case-insensitive data image schemes', () => {
+    const src = createLargeDataImage('g').replace('data:image/png;base64,', 'DATA:IMAGE/PNG;BASE64,');
+
+    const result = compactLargeDataImageMarkdown(`![real](<${src}>)`);
+
+    expect(result.replaced).toBe(1);
+    expect(result.markdown).toBe('![real](<asset://localhost/chat-inline-image/0>)');
+    expect(resolveCompactedChatImageSrc('asset://localhost/chat-inline-image/0', result.imageSrcByToken)).toBe(
+      createLargeDataImage('g'),
+    );
+  });
+
+  it('compacts large data image html tags by replacing only the src value', () => {
+    const src = createLargeDataImage('h');
+
+    const result = compactLargeDataImageMarkdown(`<img alt="${src}" src="${src}" data-id="keep">`);
+
+    expect(result.replaced).toBe(1);
+    expect(result.markdown).toBe(`<img alt="${src}" src="asset://localhost/chat-inline-image/0" data-id="keep">`);
+    expect(resolveCompactedChatImageSrc('asset://localhost/chat-inline-image/0', result.imageSrcByToken)).toBe(src);
+  });
+
+  it('compacts large data image html tags with entity-encoded src values', () => {
+    const src = createLargeDataImage('i');
+    const encodedSrc = src.replace('data:image/', 'data&colon;image&sol;');
+
+    const result = compactLargeDataImageMarkdown(`<img src="${encodedSrc}" alt="inline">`);
+
+    expect(result.replaced).toBe(1);
+    expect(result.markdown).toBe('<img src="asset://localhost/chat-inline-image/0" alt="inline">');
+    expect(resolveCompactedChatImageSrc('asset://localhost/chat-inline-image/0', result.imageSrcByToken)).toBe(src);
+  });
+
+  it('does not reuse existing inline image tokens from the original markdown', () => {
+    const src = createLargeDataImage('j');
+    const markdown = [
+      '![existing](<asset://localhost/chat-inline-image/0>)',
+      `![large](<${src}>)`,
+    ].join('\n');
+
+    const result = compactLargeDataImageMarkdown(markdown);
+
+    expect(result.replaced).toBe(1);
+    expect(result.markdown).toBe([
+      '![existing](<asset://localhost/chat-inline-image/0>)',
+      '![large](<asset://localhost/chat-inline-image/1>)',
+    ].join('\n'));
+    expect(resolveCompactedChatImageSrc('asset://localhost/chat-inline-image/0', result.imageSrcByToken))
+      .toBe('asset://localhost/chat-inline-image/0');
+    expect(resolveCompactedChatImageSrc('asset://localhost/chat-inline-image/1', result.imageSrcByToken)).toBe(src);
+  });
+
   it('does not compact escaped image markdown', () => {
     const src = createLargeDataImage('e');
 

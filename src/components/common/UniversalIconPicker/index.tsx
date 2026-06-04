@@ -85,7 +85,7 @@ export function UniversalIconPicker({
   const lastRandomIconRef = useRef<string | null>(null);
 
   const recentEmojis = useMemo(() =>
-    recentIcons.filter(i => !i.startsWith('icon:') && !i.startsWith('img:')).slice(0, MAX_RECENT_EMOJIS),
+    recentIcons.filter(i => !/^icon:/i.test(i) && !/^img:/i.test(i)).slice(0, MAX_RECENT_EMOJIS),
     [recentIcons]
   );
 

@@ -1,10 +1,13 @@
+import { getNoteInternalImageAssetPath } from '@/lib/notes/markdown/urlSecurity';
+
 function isRemoteOrVirtualAsset(path: string): boolean {
+    const normalized = path.toLowerCase();
     return (
-        path.startsWith('http://') ||
-        path.startsWith('https://') ||
-        path.startsWith('data:') ||
-        path.startsWith('blob:') ||
-        path.startsWith('asset:')
+        normalized.startsWith('http://') ||
+        normalized.startsWith('https://') ||
+        normalized.startsWith('data:') ||
+        normalized.startsWith('blob:') ||
+        normalized.startsWith('asset:')
     );
 }
 
@@ -21,6 +24,13 @@ export function getImageAssetKey(src: unknown): string | null {
     const baseSrc = trimmedSrc.split('#')[0] ?? '';
     if (!baseSrc || isRemoteOrVirtualAsset(baseSrc)) {
         return null;
+    }
+
+    if (/^img:/i.test(baseSrc)) {
+        const assetPath = getNoteInternalImageAssetPath(baseSrc);
+        if (!assetPath) return null;
+        const localAssetPath = getLocalAssetPath(assetPath);
+        return localAssetPath || null;
     }
 
     const localPath = getLocalAssetPath(baseSrc);

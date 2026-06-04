@@ -1,5 +1,5 @@
 import electron from 'electron';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const { app } = electron;
@@ -37,6 +37,64 @@ function isSameOrChildPath(rootPath, candidatePath) {
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
+function isMissingFsPathError(error) {
+  return Boolean(error && typeof error === 'object' && (error.code === 'ENOENT' || error.code === 'ENOTDIR'));
+}
+
+async function resolveRealFsAccessPath(resolvedPath) {
+  const unresolvedParts = [];
+  let cursor = resolvedPath;
+
+  for (;;) {
+    try {
+      const realBasePath = await realpath(cursor);
+      return unresolvedParts.length > 0
+        ? path.resolve(realBasePath, ...unresolvedParts.reverse())
+        : realBasePath;
+    } catch (error) {
+      if (!isMissingFsPathError(error)) {
+        throw error;
+      }
+
+      const parentPath = path.dirname(cursor);
+      if (parentPath === cursor) {
+        return resolvedPath;
+      }
+
+      unresolvedParts.push(path.basename(cursor));
+      cursor = parentPath;
+    }
+  }
+}
+
+function addAuthorizedFsPathKey(kind, pathKey) {
+  if (kind === 'file') {
+    authorizedFsFilePaths.add(pathKey);
+  } else if (kind === 'watch-root') {
+    authorizedFsWatchRootPaths.add(pathKey);
+  } else {
+    authorizedFsRootPaths.add(pathKey);
+  }
+}
+
+async function addAuthorizedFsPathWithRealKey(rawPath, kind) {
+  if (typeof rawPath !== 'string' || !rawPath.trim()) {
+    return;
+  }
+
+  const resolvedPath = normalizeFsPathForAccess(rawPath);
+  if (await isProtectedFsAccessPath(resolvedPath)) {
+    return;
+  }
+
+  addAuthorizedFsPathKey(kind, normalizeFsPathKey(resolvedPath));
+
+  const realAccessPath = await resolveRealFsAccessPath(resolvedPath);
+  if (!(await isProtectedFsAccessPath(realAccessPath))) {
+    addAuthorizedFsPathKey(kind, normalizeFsPathKey(realAccessPath));
+  }
+}
+
 function getAuthorizedFsPathsPath() {
   return path.join(app.getPath('userData'), '.vlaina', 'store', 'authorized-fs-paths.json');
 }
@@ -55,6 +113,15 @@ export function isProtectedAppDataPath(candidatePath, userDataPath = app.getPath
     protectedRoots.some((protectedRoot) => isSameOrChildPath(protectedRoot, candidateKey)) ||
     protectedFiles.includes(candidateKey)
   );
+}
+
+async function isProtectedFsAccessPath(candidatePath) {
+  if (isProtectedAppDataPath(candidatePath)) {
+    return true;
+  }
+
+  const realUserDataPath = await resolveRealFsAccessPath(normalizeFsPathForAccess(app.getPath('userData'))).catch(() => null);
+  return realUserDataPath ? isProtectedAppDataPath(candidatePath, realUserDataPath) : false;
 }
 
 async function readAuthorizedFsPaths() {
@@ -95,24 +162,17 @@ async function ensureAuthorizedFsPathsLoaded() {
 
   if (!authorizedFsPathsLoadPromise) {
     authorizedFsPathsLoadPromise = (async () => {
-      const appDataPath = normalizeFsPathKey(app.getPath('userData'));
-      authorizedFsRootPaths.add(appDataPath);
+      await addAuthorizedFsPathWithRealKey(app.getPath('userData'), 'root');
 
       const saved = await readAuthorizedFsPaths();
       for (const rootPath of saved.roots) {
-        if (typeof rootPath === 'string' && rootPath.trim()) {
-          authorizedFsRootPaths.add(normalizeFsPathKey(rootPath));
-        }
+        await addAuthorizedFsPathWithRealKey(rootPath, 'root');
       }
       for (const filePath of saved.files) {
-        if (typeof filePath === 'string' && filePath.trim()) {
-          authorizedFsFilePaths.add(normalizeFsPathKey(filePath));
-        }
+        await addAuthorizedFsPathWithRealKey(filePath, 'file');
       }
       for (const watchRootPath of saved.watchRoots) {
-        if (typeof watchRootPath === 'string' && watchRootPath.trim()) {
-          authorizedFsWatchRootPaths.add(normalizeFsPathKey(watchRootPath));
-        }
+        await addAuthorizedFsPathWithRealKey(watchRootPath, 'watch-root');
       }
 
       authorizedFsPathsLoaded = true;
@@ -153,11 +213,16 @@ export function isAuthorizedFsWatchPathKey(candidateKey) {
 export async function assertAuthorizedFsPath(filePath) {
   await ensureAuthorizedFsPathsLoaded();
   const resolvedPath = normalizeFsPathForAccess(filePath);
-  if (isProtectedAppDataPath(resolvedPath)) {
+  if (await isProtectedFsAccessPath(resolvedPath)) {
     throw new Error(`File path is reserved for internal desktop storage: ${resolvedPath}`);
   }
 
-  const pathKey = normalizeFsPathKey(resolvedPath);
+  const realAccessPath = await resolveRealFsAccessPath(resolvedPath);
+  if (await isProtectedFsAccessPath(realAccessPath)) {
+    throw new Error(`File path is reserved for internal desktop storage: ${resolvedPath}`);
+  }
+
+  const pathKey = normalizeFsPathKey(realAccessPath);
   if (!isAuthorizedFsPathKey(pathKey)) {
     throw new Error(`File path is not authorized for desktop access: ${resolvedPath}`);
   }
@@ -168,11 +233,16 @@ export async function assertAuthorizedFsPath(filePath) {
 export async function assertAuthorizedFsWatchPath(filePath) {
   await ensureAuthorizedFsPathsLoaded();
   const resolvedPath = normalizeFsPathForAccess(filePath);
-  if (isProtectedAppDataPath(resolvedPath)) {
+  if (await isProtectedFsAccessPath(resolvedPath)) {
     throw new Error(`File path is reserved for internal desktop storage: ${resolvedPath}`);
   }
 
-  const pathKey = normalizeFsPathKey(resolvedPath);
+  const realAccessPath = await resolveRealFsAccessPath(resolvedPath);
+  if (await isProtectedFsAccessPath(realAccessPath)) {
+    throw new Error(`File path is reserved for internal desktop storage: ${resolvedPath}`);
+  }
+
+  const pathKey = normalizeFsPathKey(realAccessPath);
   if (!isAuthorizedFsWatchPathKey(pathKey)) {
     throw new Error(`File path is not authorized for desktop watch access: ${resolvedPath}`);
   }
@@ -183,19 +253,19 @@ export async function assertAuthorizedFsWatchPath(filePath) {
 export async function authorizeFsPath(filePath, kind) {
   await ensureAuthorizedFsPathsLoaded();
   const resolvedPath = normalizeFsPathForAccess(filePath);
-  if (isProtectedAppDataPath(resolvedPath)) {
+  if (await isProtectedFsAccessPath(resolvedPath)) {
     throw new Error(`File path is reserved for internal desktop storage: ${resolvedPath}`);
   }
 
-  const pathKey = normalizeFsPathKey(resolvedPath);
-
-  if (kind === 'file') {
-    authorizedFsFilePaths.add(pathKey);
-  } else if (kind === 'watch-root') {
-    authorizedFsWatchRootPaths.add(pathKey);
-  } else {
-    authorizedFsRootPaths.add(pathKey);
+  const realAccessPath = await resolveRealFsAccessPath(resolvedPath);
+  if (await isProtectedFsAccessPath(realAccessPath)) {
+    throw new Error(`File path is reserved for internal desktop storage: ${resolvedPath}`);
   }
+  const pathKey = normalizeFsPathKey(resolvedPath);
+  const realPathKey = normalizeFsPathKey(realAccessPath);
+
+  addAuthorizedFsPathKey(kind, pathKey);
+  addAuthorizedFsPathKey(kind, realPathKey);
 
   await writeAuthorizedFsPaths();
   return resolvedPath;

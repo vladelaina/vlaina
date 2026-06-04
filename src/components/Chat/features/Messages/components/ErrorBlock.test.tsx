@@ -11,4 +11,24 @@ describe("ErrorBlock", () => {
     expect(screen.getByText("My brain needs a breather. Try again in a moment."))
       .toHaveAttribute("data-chat-selection-start", "true");
   });
+
+  it("links public HTTP URLs in readable error text", () => {
+    render(<ErrorBlock content="Read https://example.com/docs then retry." />);
+
+    expect(screen.getByRole("link", { name: "https://example.com/docs" }))
+      .toHaveAttribute("href", "https://example.com/docs");
+  });
+
+  it("does not link local-network HTTP URLs in readable error text", () => {
+    render(
+      <ErrorBlock content="Blocked http://localhost:3000/admin http://2130706433/admin http://[::1]/admin. Read https://example.com/docs" />,
+    );
+
+    expect(screen.getByText(/http:\/\/localhost:3000\/admin/)).toBeInTheDocument();
+    expect(screen.getByText(/http:\/\/2130706433\/admin/)).toBeInTheDocument();
+    expect(screen.getByText(/http:\/\/\[::1\]\/admin/)).toBeInTheDocument();
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "https://example.com/docs" }))
+      .toHaveAttribute("href", "https://example.com/docs");
+  });
 });

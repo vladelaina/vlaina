@@ -1,5 +1,6 @@
 import type { MouseEvent as ReactMouseEvent, MouseEventHandler } from "react";
 import { openExternalUrl } from "@/lib/desktop/shell";
+import { isLocalNetworkHttpUrl } from "@/lib/notes/markdown/urlSecurity";
 
 const EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 const ALLOWED_LINK_PREFIX_REGEX = /^(https?:\/\/|mailto:)/i;
@@ -11,6 +12,9 @@ export function normalizeExternalHref(href: string | null | undefined): string |
   if (UNSAFE_URL_CHARS_REGEX.test(trimmed)) {
     return null;
   }
+  if (trimmed.includes("\\")) {
+    return null;
+  }
   if (!ALLOWED_LINK_PREFIX_REGEX.test(trimmed)) {
     return null;
   }
@@ -18,6 +22,9 @@ export function normalizeExternalHref(href: string | null | undefined): string |
   try {
     const url = new URL(trimmed, window.location.href);
     if (!EXTERNAL_PROTOCOLS.has(url.protocol)) {
+      return null;
+    }
+    if ((url.protocol === "http:" || url.protocol === "https:") && isLocalNetworkHttpUrl(url.toString())) {
       return null;
     }
     return url.toString();

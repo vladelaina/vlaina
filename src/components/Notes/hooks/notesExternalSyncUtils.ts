@@ -1,4 +1,5 @@
 import type { DesktopWatchEvent } from '@/lib/desktop/watch';
+import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { APP_CONFIG_FOLDER } from '@/stores/notes/constants';
@@ -8,43 +9,35 @@ export function normalizeFsPath(path: string): string {
 }
 
 export function getFsPathComparisonKey(path: string): string {
-  return /^[a-z]:\//i.test(path) ? path.toLowerCase() : path;
+  return /^[a-z]:\//i.test(path) || path.startsWith('//') ? path.toLowerCase() : path;
 }
 
 export function isInsideVault(vaultPath: string, absolutePath: string): boolean {
   const normalizedVaultPath = normalizeFsPath(vaultPath);
   const normalizedAbsolutePath = normalizeFsPath(absolutePath);
-  const vaultPathKey = getFsPathComparisonKey(normalizedVaultPath);
-  const absolutePathKey = getFsPathComparisonKey(normalizedAbsolutePath);
-  if (normalizedVaultPath === '/') {
-    return normalizedAbsolutePath === '/' || normalizedAbsolutePath.startsWith('/');
-  }
-
-  return (
-    absolutePathKey === vaultPathKey ||
-    absolutePathKey.startsWith(`${vaultPathKey}/`)
-  );
+  return normalizeContainedAssetPath(normalizedAbsolutePath, normalizedVaultPath) !== null;
 }
 
 export function toVaultRelativePath(vaultPath: string, absolutePath: string): string | null {
   const normalizedVaultPath = normalizeFsPath(vaultPath);
   const normalizedAbsolutePath = normalizeFsPath(absolutePath);
-  const vaultPathKey = getFsPathComparisonKey(normalizedVaultPath);
-  const absolutePathKey = getFsPathComparisonKey(normalizedAbsolutePath);
-
-  if (!isInsideVault(normalizedVaultPath, normalizedAbsolutePath)) {
+  const containedAbsolutePath = normalizeContainedAssetPath(normalizedAbsolutePath, normalizedVaultPath);
+  if (!containedAbsolutePath) {
     return null;
   }
+
+  const vaultPathKey = getFsPathComparisonKey(normalizedVaultPath);
+  const absolutePathKey = getFsPathComparisonKey(containedAbsolutePath);
 
   if (absolutePathKey === vaultPathKey) {
     return '';
   }
 
   if (normalizedVaultPath === '/') {
-    return normalizedAbsolutePath.replace(/^\/+/, '');
+    return containedAbsolutePath.replace(/^\/+/, '');
   }
 
-  return normalizedAbsolutePath.slice(normalizedVaultPath.length + 1);
+  return containedAbsolutePath.slice(normalizedVaultPath.length + 1);
 }
 
 export function isIgnoredWatchPath(relativePath: string): boolean {

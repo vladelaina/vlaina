@@ -40,10 +40,26 @@ describe('notesExternalSyncUtils', () => {
     expect(toVaultRelativePath('/', '/')).toBe('');
   });
 
+  it('rejects dot-segment absolute paths that normalize outside the vault', () => {
+    expect(isInsideVault('/vault', '/vault/docs/../alpha.md')).toBe(true);
+    expect(toVaultRelativePath('/vault', '/vault/docs/../alpha.md')).toBe('alpha.md');
+    expect(isInsideVault('/vault', '/vault/../secret.md')).toBe(false);
+    expect(toVaultRelativePath('/vault', '/vault/../secret.md')).toBeNull();
+  });
+
   it('matches Windows vault watch paths case-insensitively', () => {
     expect(isInsideVault('C:\\Users\\Me\\Vault', 'c:\\users\\me\\vault\\Docs\\Alpha.md')).toBe(true);
     expect(toVaultRelativePath('C:\\Users\\Me\\Vault', 'c:\\users\\me\\vault\\Docs\\Alpha.md')).toBe('Docs/Alpha.md');
+    expect(isInsideVault('C:\\Users\\Me\\Vault', 'c:\\users\\me\\vault\\..\\secret.md')).toBe(false);
+    expect(toVaultRelativePath('C:\\Users\\Me\\Vault', 'c:\\users\\me\\vault\\..\\secret.md')).toBeNull();
     expect(toVaultRelativePath('C:\\Users\\Me\\Vault', 'c:\\users\\me\\vaulted\\Alpha.md')).toBeNull();
+  });
+
+  it('preserves UNC roots while matching vault watch paths', () => {
+    expect(isInsideVault('\\\\SERVER\\Share', '\\\\server\\share\\Docs\\Alpha.md')).toBe(true);
+    expect(toVaultRelativePath('\\\\SERVER\\Share', '\\\\server\\share\\Docs\\Alpha.md')).toBe('Docs/Alpha.md');
+    expect(isInsideVault('\\\\server\\share', '/server/share/Docs/Alpha.md')).toBe(false);
+    expect(toVaultRelativePath('\\\\server\\share', '/server/share/Docs/Alpha.md')).toBeNull();
   });
 
   it('detects create and remove watch events', () => {

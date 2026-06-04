@@ -2,6 +2,7 @@ import { StateCreator } from 'zustand';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { createAsyncPrefetchQueue } from '@/lib/asyncPrefetchQueue';
+import { normalizeAbsolutePath } from '@/lib/storage/adapter';
 import { NotesStore } from '../types';
 import { updateDisplayName } from '../displayNameUtils';
 import { resolveDraftNoteTitle } from '../draftNote';
@@ -16,6 +17,7 @@ import {
   markCachedNoteFresh,
   remapCachedNoteContents,
   setCachedNoteContent,
+  type NoteContentCache,
 } from '../document/noteContentCache';
 import { loadNoteDocument } from '../document/noteDocumentPersistence';
 import {
@@ -157,6 +159,25 @@ function mergeOpenedTab(
   return [...openTabs, { path, name: tabName, isDirty: false }];
 }
 
+function mergeLoadedNoteCacheEntry(
+  latestCache: NoteContentCache,
+  loadedCache: NoteContentCache,
+  path: string,
+  updateBaseline: boolean,
+): NoteContentCache {
+  const loadedEntry = loadedCache.get(path);
+  if (!loadedEntry) {
+    return latestCache;
+  }
+
+  return setCachedNoteContent(latestCache, path, loadedEntry.content, loadedEntry.modifiedAt, {
+    ...(updateBaseline
+      ? { updateBaseline: true }
+      : { baselineContent: loadedEntry.savedContent }),
+    freshUntil: loadedEntry.freshUntil,
+  });
+}
+
 export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSlice> = (
   set,
   get
@@ -213,7 +234,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       }
 
       const existingTabIsDirty = Boolean(get().openTabs.find((tab) => tab.path === path)?.isDirty);
-      const { content, modifiedAt } = await loadNoteDocument({
+      const { content, nextCache: loadedCache } = await loadNoteDocument({
         notesPath,
         path,
         cache: noteContentsCache,
@@ -241,9 +262,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         tabName,
         shouldOpenInNewTab,
       );
-      const nextCache = setCachedNoteContent(latestState.noteContentsCache, path, content, modifiedAt, {
-        updateBaseline: !latestExistingTab?.isDirty,
-      });
+      const nextCache = mergeLoadedNoteCacheEntry(
+        latestState.noteContentsCache,
+        loadedCache,
+        path,
+        !latestExistingTab?.isDirty,
+      );
 
       updateDisplayName(set, path, tabName);
       set({
@@ -277,7 +301,8 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
   openNoteByAbsolutePath: async (absolutePath: string, openInNewTab: boolean = false) => {
     flushCurrentPendingEditorMarkdown();
-    if (!isSupportedMarkdownPath(absolutePath)) {
+    const normalizedAbsolutePath = normalizeAbsolutePath(absolutePath);
+    if (!isSupportedMarkdownPath(normalizedAbsolutePath)) {
       set({ error: 'Only Markdown files can be opened as notes.' });
       return;
     }
@@ -292,7 +317,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       isDirty &&
       currentNote &&
       !draftNotes[currentNote.path] &&
-      currentNote.path !== absolutePath
+      currentNote.path !== normalizedAbsolutePath
     ) {
       await saveNote();
       if (get().notesPath !== notesPath) {
@@ -305,10 +330,10 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     }
 
     try {
-      const existingTabIsDirty = Boolean(get().openTabs.find((tab) => tab.path === absolutePath)?.isDirty);
-      const { content, modifiedAt } = await loadNoteDocument({
+      const existingTabIsDirty = Boolean(get().openTabs.find((tab) => tab.path === normalizedAbsolutePath)?.isDirty);
+      const { content, nextCache: loadedCache } = await loadNoteDocument({
         notesPath,
-        path: absolutePath,
+        path: normalizedAbsolutePath,
         cache: noteContentsCache,
         allowStaleCachedContent: existingTabIsDirty,
       });
@@ -318,28 +343,31 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       const latestState = get();
       const latestOpenTabs = latestState.openTabs;
       const latestCurrentNote = latestState.currentNote;
-      const latestExistingTab = latestOpenTabs.find((tab) => tab.path === absolutePath);
+      const latestExistingTab = latestOpenTabs.find((tab) => tab.path === normalizedAbsolutePath);
       const nextMetadata = setNoteEntry(
         latestState.noteMetadata ?? createEmptyMetadataFile(),
-        absolutePath,
+        normalizedAbsolutePath,
         readNoteMetadataFromMarkdown(content)
       );
-      const fileName = getNoteTitleFromPath(absolutePath);
+      const fileName = getNoteTitleFromPath(normalizedAbsolutePath);
       const tabName = fileName;
       const updatedTabs = mergeOpenedTab(
         latestOpenTabs,
         latestCurrentNote,
-        absolutePath,
+        normalizedAbsolutePath,
         tabName,
         shouldOpenInNewTab,
       );
-      const nextCache = setCachedNoteContent(latestState.noteContentsCache, absolutePath, content, modifiedAt, {
-        updateBaseline: !latestExistingTab?.isDirty,
-      });
+      const nextCache = mergeLoadedNoteCacheEntry(
+        latestState.noteContentsCache,
+        loadedCache,
+        normalizedAbsolutePath,
+        !latestExistingTab?.isDirty,
+      );
 
-      updateDisplayName(set, absolutePath, tabName);
+      updateDisplayName(set, normalizedAbsolutePath, tabName);
       set({
-        currentNote: { path: absolutePath, content },
+        currentNote: { path: normalizedAbsolutePath, content },
         currentNoteRevision: latestState.currentNoteRevision + 1,
         isDirty: latestExistingTab?.isDirty ?? false,
         error: null,
@@ -347,7 +375,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         isNewlyCreated: false,
         noteContentsCache: limitCachedNoteContents(
           nextCache,
-          getProtectedCachePaths({ ...get(), openTabs: updatedTabs, currentNote: { path: absolutePath, content } }),
+          getProtectedCachePaths({ ...get(), openTabs: updatedTabs, currentNote: { path: normalizedAbsolutePath, content } }),
           MAX_NOTE_CONTENT_CACHE_ENTRIES,
         ),
         noteMetadata: nextMetadata,

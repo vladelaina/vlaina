@@ -1,6 +1,6 @@
 import type { ChatMessage, ChatSession } from '@/lib/ai/types';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
-import { replaceMarkdownImageTokens } from '@/lib/markdown/markdownImageTokens';
+import { replaceRenderableMarkdownImageTokens } from '@/lib/markdown/renderableImageTokens';
 
 export const TEMP_SESSION_PREFIX = 'temp-session-';
 
@@ -80,7 +80,7 @@ export function buildTitleSourceFromMessages(messages: ChatMessage[]): string {
   const userSnippets = messages
     .filter((message) => message.role === 'user')
     .map((message) =>
-      replaceMarkdownImageTokens(stripThinkingContent(message.content), ' ')
+      replaceRenderableMarkdownImageTokens(stripThinkingContent(message.content), ' ')
         .replace(/\s+/g, ' ')
         .trim()
     )

@@ -56,7 +56,7 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
     } = useGlobalIconUpload();
 
     const imageLoader = useCallback(async (src: string) => {
-        if (!src.startsWith('img:')) return src;
+        if (!/^img:/i.test(src)) return src;
         const relativePath = src.substring(4);
         if (isAbsolutePath(relativePath)) {
             return (await loadAppIconImageSrc(src)) ?? '';

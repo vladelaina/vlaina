@@ -1,11 +1,17 @@
 import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 
+export interface HtmlImageSrcToken {
+  src: string;
+  valueStart: number;
+  valueEnd: number;
+}
+
 function normalizeHtmlImageSrc(rawSrc: string | undefined): string | null {
   const trimmed = rawSrc ? decodeMarkdownHtmlText(rawSrc).trim() : undefined;
   return trimmed ? trimmed : null;
 }
 
-export function parseHtmlImageSrcFromTag(tag: string): string | null {
+export function parseHtmlImageSrcTokenFromTag(tag: string): HtmlImageSrcToken | null {
   const openTag = /^<img\b/i.exec(tag);
   if (!openTag) {
     return null;
@@ -49,24 +55,33 @@ export function parseHtmlImageSrcFromTag(tag: string): string | null {
     }
 
     let rawValue = "";
+    let valueStart = cursor;
+    let valueEnd = cursor;
     const quote = tag[cursor];
     if (quote === '"' || quote === "'") {
-      const valueStart = cursor + 1;
-      const valueEnd = tag.indexOf(quote, valueStart);
-      rawValue = tag.slice(valueStart, valueEnd === -1 ? tag.length : valueEnd);
-      cursor = valueEnd === -1 ? tag.length : valueEnd + 1;
+      valueStart = cursor + 1;
+      const closingQuote = tag.indexOf(quote, valueStart);
+      valueEnd = closingQuote === -1 ? tag.length : closingQuote;
+      rawValue = tag.slice(valueStart, valueEnd);
+      cursor = closingQuote === -1 ? tag.length : closingQuote + 1;
     } else {
-      const valueStart = cursor;
+      valueStart = cursor;
       while (cursor < tag.length && !/[\s"'<>]/.test(tag[cursor])) {
         cursor += 1;
       }
-      rawValue = tag.slice(valueStart, cursor);
+      valueEnd = cursor;
+      rawValue = tag.slice(valueStart, valueEnd);
     }
 
     if (attrName === "src") {
-      return normalizeHtmlImageSrc(rawValue);
+      const src = normalizeHtmlImageSrc(rawValue);
+      return src ? { src, valueStart, valueEnd } : null;
     }
   }
 
   return null;
+}
+
+export function parseHtmlImageSrcFromTag(tag: string): string | null {
+  return parseHtmlImageSrcTokenFromTag(tag)?.src ?? null;
 }

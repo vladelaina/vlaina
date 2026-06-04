@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { saveAttachment, type Attachment } from '@/lib/storage/attachmentStorage';
+import { deleteAttachment, saveAttachment, type Attachment } from '@/lib/storage/attachmentStorage';
 import { useAIUIStore } from '@/stores/ai/chatState';
 
 export function useChatAttachments() {
@@ -159,8 +159,14 @@ export function useChatAttachments() {
   }, [hasFileDrag]);
 
   const removeAttachment = useCallback((id: string) => {
+    const removedAttachment = attachments.find((item) => item.id === id);
     setAttachments((prev) => prev.filter((item) => item.id !== id));
-  }, []);
+    if (removedAttachment) {
+      void (async () => {
+        await deleteAttachment(removedAttachment);
+      })().catch(() => {});
+    }
+  }, [attachments]);
 
   const clearAttachments = useCallback(() => {
     setAttachments([]);

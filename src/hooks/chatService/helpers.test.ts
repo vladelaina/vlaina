@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Attachment } from '@/lib/storage/attachmentStorage';
+import { MAX_ATTACHMENT_IMAGE_BYTES, type Attachment } from '@/lib/storage/attachmentStorage';
 import {
   buildMessageImageSources,
   buildMentionedNotesContext,
@@ -68,8 +68,44 @@ vi.mock('@/components/Chat/common/svgRasterize', () => ({
 
 vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => mocks.storage,
-  isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
-  joinPath: async (...segments: string[]) => segments.filter(Boolean).join('/').replace(/\/+/g, '/'),
+  isAbsolutePath: (path: string) =>
+    path.startsWith('/') ||
+    /^\\\\[^\\]+\\[^\\]+/.test(path) ||
+    /^[A-Za-z]:[\\/]/.test(path),
+  joinPath: async (...segments: string[]) => {
+    const filtered = segments.filter(Boolean);
+    if (filtered.length === 0) {
+      return '';
+    }
+    return filtered
+      .map((segment, index) => {
+        if (index > 0) {
+          return segment.replace(/^[/\\]+/, '');
+        }
+        return segment.replace(/[/\\]+$/, '');
+      })
+      .join('/');
+  },
+  normalizeAbsolutePath: (path: string) => {
+    const normalized = path.replace(/\\/g, '/');
+    const uncMatch = normalized.match(/^(\/\/[^/]+\/[^/]+)(?:\/|$)/);
+    const root = uncMatch?.[1] ?? (/^[A-Za-z]:\//.test(normalized) ? normalized.slice(0, 3) : normalized.startsWith('/') ? '/' : '');
+    if (!root) {
+      return path;
+    }
+    const rest = normalized.slice(root.length).replace(/^\/+/, '');
+    const parts: string[] = [];
+    for (const part of rest.split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') {
+        parts.pop();
+        continue;
+      }
+      parts.push(part);
+    }
+    const nextPath = parts.length > 0 ? `${root}${root.endsWith('/') ? '' : '/'}${parts.join('/')}` : root;
+    return path.includes('\\') ? nextPath.replace(/\//g, '\\') : nextPath;
+  },
 }));
 
 function createAttachment(overrides: Partial<Attachment> = {}): Attachment {
@@ -188,6 +224,35 @@ describe('chat service helpers', () => {
     expect(result.content).toBe('![image](<data:image/png;base64,INLINE>)');
   });
 
+  it('falls back to case-insensitive inline preview data when no persisted attachment path exists', async () => {
+    const result = await buildMessageImageSources([
+      createAttachment({
+        path: '',
+        assetUrl: '',
+        previewUrl: 'DATA:IMAGE/WEBP;BASE64,INLINE',
+        type: '',
+        name: 'inline.webp',
+      }),
+    ]);
+
+    expect(result.imageSources).toEqual(['data:image/webp;base64,INLINE']);
+    expect(result.content).toBe('![image](<data:image/webp;base64,INLINE>)');
+  });
+
+  it('drops oversized inline preview data before storing user message image markdown', async () => {
+    const oversizedPayload = 'A'.repeat(Math.ceil((MAX_ATTACHMENT_IMAGE_BYTES + 1) / 3) * 4);
+
+    const result = await buildMessageImageSources([
+      createAttachment({
+        path: '',
+        assetUrl: '',
+        previewUrl: `data:image/png;base64,${oversizedPayload}`,
+      }),
+    ]);
+
+    expect(result).toEqual({ content: '', imageSources: [] });
+  });
+
   it('stores persisted SVG attachments by attachment reference instead of inline SVG data', async () => {
     const result = await buildMessageImageSources([
       createAttachment({
@@ -221,6 +286,22 @@ describe('chat service helpers', () => {
     expect(result.content).toBe('![image](<data:image/png;base64,RASTER>)');
   });
 
+  it('rasterizes case-insensitive temporary SVG data attachments even when metadata is missing', async () => {
+    const result = await buildMessageImageSources([
+      createAttachment({
+        path: '',
+        assetUrl: '',
+        previewUrl: 'DATA:IMAGE/SVG+XML;BASE64,PHN2Zz4=',
+        name: 'diagram',
+        type: '',
+      }),
+    ]);
+
+    expect(mocks.rasterizeSvgDataUrlToPng).toHaveBeenCalledWith('DATA:IMAGE/SVG+XML;BASE64,PHN2Zz4=');
+    expect(result.imageSources).toEqual(['data:image/png;base64,RASTER']);
+    expect(result.content).toBe('![image](<data:image/png;base64,RASTER>)');
+  });
+
   it('drops temporary SVG attachments when rasterization fails', async () => {
     mocks.rasterizeSvgDataUrlToPng.mockResolvedValueOnce(null);
 
@@ -243,6 +324,24 @@ describe('chat service helpers', () => {
     await expect(buildStoredUserMessageContent(content)).resolves.toEqual([
       { type: 'text', text: 'Describe this' },
       { type: 'image_url', image_url: { url: 'data:image/png;base64,INLINE' } },
+    ]);
+  });
+
+  it('converts case-insensitive stored user image markdown into vision message parts', async () => {
+    const content = '![image](<DATA:IMAGE/PNG;BASE64,INLINE>)\n\nDescribe this';
+
+    await expect(buildStoredUserMessageContent(content)).resolves.toEqual([
+      { type: 'text', text: 'Describe this' },
+      { type: 'image_url', image_url: { url: 'data:image/png;base64,INLINE' } },
+    ]);
+  });
+
+  it('does not convert oversized inline image markdown into vision message parts', async () => {
+    const oversizedPayload = 'A'.repeat(Math.ceil((MAX_ATTACHMENT_IMAGE_BYTES + 1) / 3) * 4);
+    const content = `![image](<data:image/png;base64,${oversizedPayload}>)\n\nDescribe this`;
+
+    await expect(buildStoredUserMessageContent(content)).resolves.toEqual([
+      { type: 'text', text: 'Describe this' },
     ]);
   });
 
@@ -673,6 +772,31 @@ describe('loadMentionedFolderImageAttachments', () => {
       name: 'cover.png',
       size: 4096,
     });
+  });
+
+  it('skips folder image candidates when stat shows they are not files', async () => {
+    mocks.storage.listDir.mockResolvedValue([
+      {
+        name: 'cover.png',
+        path: '/vault/assets/cover.png',
+        isDirectory: false,
+        isFile: true,
+      },
+    ]);
+    mocks.storage.stat.mockResolvedValue({
+      name: 'cover.png',
+      path: '/vault/assets/cover.png',
+      isDirectory: true,
+      isFile: false,
+      size: 4096,
+    });
+
+    const attachments = await loadMentionedFolderImageAttachments([
+      { path: 'assets', title: 'assets/', kind: 'folder' },
+    ]);
+
+    expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/assets/cover.png');
+    expect(attachments).toEqual([]);
   });
 
   it('builds folder image paths from the resolved folder path instead of entry paths', async () => {

@@ -4,6 +4,7 @@ import { computeBufferHash, computeFileHash } from './core/hashing';
 import { getMimeType, generateFilename, processFilename } from './core/naming';
 import { writeAssetAtomic } from './io/writer';
 import { normalizeContainedAssetPath } from './core/pathContainment';
+import { sanitizeSvgBytes } from '@/lib/markdown/svgSanitizer';
 import {
   getAssetHashIndexEntry,
   loadAssetHashIndex,
@@ -24,12 +25,33 @@ export interface AssetConfig {
 }
 
 const MAX_ASSET_SIZE = 50 * 1024 * 1024; // 50MB
+const IMAGE_UPLOAD_EXTENSIONS_BY_MIME: Record<string, readonly string[]> = {
+  'image/avif': ['avif'],
+  'image/bmp': ['bmp'],
+  'image/gif': ['gif'],
+  'image/jpeg': ['jpg', 'jpeg'],
+  'image/png': ['png'],
+  'image/svg+xml': ['svg'],
+  'image/vnd.microsoft.icon': ['ico'],
+  'image/webp': ['webp'],
+  'image/x-icon': ['ico'],
+};
 
 function isIndexedAssetFresh(
   entry: { size?: number; modifiedAt?: number | null },
   indexed: { size: number; modifiedAt: number | null },
 ) {
   return typeof entry.size === 'number' && entry.size === indexed.size && (entry.modifiedAt ?? null) === indexed.modifiedAt;
+}
+
+async function saveAssetHashIndexBestEffort(
+  vaultPath: string,
+  index: Parameters<typeof saveAssetHashIndex>[1],
+) {
+  try {
+    await saveAssetHashIndex(vaultPath, index);
+  } catch {
+  }
 }
 
 function getOriginalStoredFilename(fileName: string): string {
@@ -60,17 +82,73 @@ function getImageExtensionFromMimeType(mimeType: string): string {
   }
 }
 
-function getUploadFilename(file: File): string {
+function normalizeUploadImageMimeType(value: string): string | null {
+  const mimeType = value.split(';')[0]?.trim().toLowerCase() ?? '';
+  return Object.prototype.hasOwnProperty.call(IMAGE_UPLOAD_EXTENSIONS_BY_MIME, mimeType) ? mimeType : null;
+}
+
+function getFileExtension(fileName: string): string {
+  return fileName.split('.').pop()?.toLowerCase() ?? '';
+}
+
+function hasUploadMimeExtension(fileName: string, mimeType: string): boolean {
+  return IMAGE_UPLOAD_EXTENSIONS_BY_MIME[mimeType]?.includes(getFileExtension(fileName)) === true;
+}
+
+function getUploadFilename(file: File, mimeType: string): string {
   const rawName = file.name.trim();
+  const extension = getImageExtensionFromMimeType(mimeType);
   if (rawName) {
-    return rawName;
+    if (hasUploadMimeExtension(rawName, mimeType)) {
+      return rawName;
+    }
+
+    const dotIndex = rawName.lastIndexOf('.');
+    return dotIndex > 0 ? `${rawName.slice(0, dotIndex)}${extension}` : `${rawName}${extension}`;
   }
 
-  return `image${getImageExtensionFromMimeType(file.type)}`;
+  return `image${extension}`;
+}
+
+function prepareUploadBytes(bytes: Uint8Array, mimeType: string): Uint8Array {
+  return mimeType === 'image/svg+xml' ? sanitizeSvgBytes(bytes) : bytes;
 }
 
 function isSameAssetName(entryName: string, fileName: string): boolean {
   return entryName.toLowerCase() === getOriginalStoredFilename(fileName).toLowerCase();
+}
+
+function isSafeAssetEntryName(name: string): boolean {
+  return Boolean(name) && name !== '.' && name !== '..' && !/[\\/]/.test(name) && !name.includes('\0');
+}
+
+function isSameNormalizedPath(leftPath: string, rightPath: string): boolean {
+  return (
+    normalizeContainedAssetPath(leftPath, rightPath) !== null &&
+    normalizeContainedAssetPath(rightPath, leftPath) !== null
+  );
+}
+
+async function normalizeAssetDirectoryEntry(
+  targetDir: string,
+  entry: { name: string; path: string; isFile: boolean; size?: number; modifiedAt?: number },
+): Promise<{ name: string; path: string; size?: number; modifiedAt?: number } | null> {
+  if (!entry.isFile || !isSafeAssetEntryName(entry.name)) {
+    return null;
+  }
+
+  const containedPath = normalizeContainedAssetPath(entry.path, targetDir);
+  const expectedPath = normalizeContainedAssetPath(await joinPath(targetDir, entry.name), targetDir);
+  if (!containedPath || !expectedPath || !isSameNormalizedPath(containedPath, expectedPath)) {
+    return null;
+  }
+
+  return {
+    name: entry.name,
+    path: containedPath,
+    size: entry.size,
+    modifiedAt: entry.modifiedAt,
+  };
 }
 
 async function hydrateAssetEntryMetadata(
@@ -135,11 +213,10 @@ export class AssetService {
       return [];
     }
 
-    const entries = await storage.listDir(targetDir);
-    const imageFiles = entries.filter((entry) => {
-      if (!entry.isFile) return false;
-      return getMimeType(entry.name).startsWith('image/');
-    });
+    const entries = (await Promise.all(
+      (await storage.listDir(targetDir)).map((entry) => normalizeAssetDirectoryEntry(targetDir, entry)),
+    )).filter((entry): entry is { name: string; path: string; size?: number; modifiedAt?: number } => Boolean(entry));
+    const imageFiles = entries.filter((entry) => getMimeType(entry.name).startsWith('image/'));
 
     const assets = imageFiles.map((entry): AssetEntry => ({
       filename: storedPathPrefix + entry.name,
@@ -169,7 +246,8 @@ export class AssetService {
       };
     }
     
-    if (!file.type.startsWith('image/')) {
+    const uploadMimeType = normalizeUploadImageMimeType(file.type);
+    if (!uploadMimeType) {
       return { 
         success: false, 
         path: null, 
@@ -182,7 +260,28 @@ export class AssetService {
 
     onProgress?.(40);
 
-    const uploadFilename = getUploadFilename(file);
+    const uploadFilename = getUploadFilename(file, uploadMimeType);
+    let preparedUploadBytesPromise: Promise<Uint8Array> | null = null;
+    const readPreparedUploadBytes = () => {
+      if (!preparedUploadBytesPromise) {
+        preparedUploadBytesPromise = file.arrayBuffer()
+          .then((buffer) => prepareUploadBytes(new Uint8Array(buffer), uploadMimeType));
+      }
+      return preparedUploadBytesPromise;
+    };
+    let uploadSize = file.size;
+    if (uploadMimeType === 'image/svg+xml') {
+      const preparedBytes = await readPreparedUploadBytes();
+      if (preparedBytes.byteLength > MAX_ASSET_SIZE) {
+        return {
+          success: false,
+          path: null,
+          isDuplicate: false,
+          error: `File is too large (${(preparedBytes.byteLength / 1024 / 1024).toFixed(1)}MB). Limit is 50MB.`,
+        };
+      }
+      uploadSize = preparedBytes.byteLength;
+    }
     const { targetDir, storedPathPrefix } = await this.resolveTarget(uploadFilename, context, config);
     const storage = getStorageAdapter();
 
@@ -194,12 +293,9 @@ export class AssetService {
     let existingFiles: string[] = [];
     try {
       const files = await storage.listDir(targetDir);
-      existingEntries = files.filter(f => f.isFile).map((entry) => ({
-        name: entry.name,
-        path: entry.path,
-        size: entry.size,
-        modifiedAt: entry.modifiedAt,
-      }));
+      existingEntries = (await Promise.all(
+        files.map((entry) => normalizeAssetDirectoryEntry(targetDir, entry)),
+      )).filter((entry): entry is { name: string; path: string; size?: number; modifiedAt?: number } => Boolean(entry));
       existingFiles = existingEntries.map(f => f.name);
     } catch (error) {
       existingFiles = existingAssets.map(a => a.filename.split('/').pop() || '');
@@ -211,12 +307,14 @@ export class AssetService {
     });
     const hydratedImageEntries = await hydrateAssetEntryMetadata(storage, sameNameImageEntries);
     const sameSizeCandidates = hydratedImageEntries.filter((entry) => {
-      if (typeof entry.size === 'number' && entry.size !== file.size) return false;
+      if (typeof entry.size === 'number' && entry.size !== uploadSize) return false;
       return getMimeType(entry.name).startsWith('image/');
     });
     let fileHash: string | null = null;
     if (sameSizeCandidates.length > 0) {
-      fileHash = await computeFileHash(file);
+      fileHash = uploadMimeType === 'image/svg+xml'
+        ? await computeBufferHash(await readPreparedUploadBytes())
+        : await computeFileHash(file);
       let hashIndex = await loadAssetHashIndex(context.vaultPath);
       let hashIndexChanged = false;
 
@@ -243,7 +341,12 @@ export class AssetService {
           continue;
         }
 
-        const candidateHash = await computeBufferHash(await storage.readBinaryFile(candidate.path));
+        const candidateBytes = await storage.readBinaryFile(candidate.path).catch(() => null);
+        if (!candidateBytes) {
+          continue;
+        }
+
+        const candidateHash = await computeBufferHash(candidateBytes);
         setAssetHashIndexEntry(hashIndex, {
           filename: candidateFilename,
           hash: candidateHash,
@@ -255,7 +358,7 @@ export class AssetService {
         hashIndexChanged = true;
 
         if (candidateHash === fileHash) {
-          await saveAssetHashIndex(context.vaultPath, hashIndex);
+          await saveAssetHashIndexBestEffort(context.vaultPath, hashIndex);
           onProgress?.(100);
           return {
             success: true,
@@ -265,7 +368,7 @@ export class AssetService {
             entry: {
               filename: candidateFilename,
               hash: candidateHash,
-              size: candidate.size ?? file.size,
+              size: candidate.size ?? uploadSize,
               mimeType: getMimeType(candidate.name),
               uploadedAt: new Date().toISOString(),
             },
@@ -274,7 +377,7 @@ export class AssetService {
       }
 
       if (hashIndexChanged) {
-        await saveAssetHashIndex(context.vaultPath, hashIndex);
+        await saveAssetHashIndexBestEffort(context.vaultPath, hashIndex);
       }
     }
 
@@ -292,7 +395,15 @@ export class AssetService {
 
     onProgress?.(60);
 
-    const buffer = new Uint8Array(await file.arrayBuffer());
+    const buffer = await readPreparedUploadBytes();
+    if (buffer.byteLength > MAX_ASSET_SIZE) {
+      return {
+        success: false,
+        path: null,
+        isDuplicate: false,
+        error: `File is too large (${(buffer.byteLength / 1024 / 1024).toFixed(1)}MB). Limit is 50MB.`,
+      };
+    }
 
     const filePath = await joinPath(targetDir, finalFilename);
 
@@ -305,7 +416,7 @@ export class AssetService {
     const newEntry: AssetEntry = {
       filename: storedFilename,
       hash: fileHash ?? '',
-      size: file.size,
+      size: uploadSize,
       mimeType: getMimeType(finalFilename),
       uploadedAt: new Date().toISOString(),
     };
@@ -315,12 +426,12 @@ export class AssetService {
       setAssetHashIndexEntry(hashIndex, {
         filename: storedFilename,
         hash: fileHash,
-        size: file.size,
+        size: uploadSize,
         modifiedAt: writtenInfo?.modifiedAt ?? null,
         mimeType: newEntry.mimeType,
         updatedAt: newEntry.uploadedAt,
       });
-      await saveAssetHashIndex(context.vaultPath, hashIndex);
+      await saveAssetHashIndexBestEffort(context.vaultPath, hashIndex);
     }
 
     onProgress?.(100);

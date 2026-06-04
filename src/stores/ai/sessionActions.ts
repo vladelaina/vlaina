@@ -26,39 +26,57 @@ import {
   runWithSessionMutationLock,
   runWithSessionMutationLocks,
 } from '@/lib/ai/sessionMutationLock'
-import { extractMarkdownImageSources } from '@/components/Chat/common/messageClipboard'
+import { parseMarkdownImageTokens } from '@/components/Chat/common/messageImageTokens'
+import { normalizeRenderableDataImageSrc } from '@/components/common/markdown/imagePolicy'
 
 let switchSessionGeneration = 0;
-const DATA_IMAGE_SOURCE_PREFIX = 'data:image/'
 const inlineImagePersistenceSessions = new Set<string>()
+type InlineImageSourceGroups = Map<string, Set<string>>
 
-function collectInlineImageSourcesFromContent(content: string | undefined) {
-  if (!content) {
-    return []
+function addInlineImageSource(groups: InlineImageSourceGroups, source: string | null | undefined) {
+  if (!source) {
+    return
   }
-  return extractMarkdownImageSources(content).filter((src) => src.startsWith(DATA_IMAGE_SOURCE_PREFIX))
+  const normalized = normalizeRenderableDataImageSrc(source)
+  if (!normalized) {
+    return
+  }
+  const aliases = groups.get(normalized) ?? new Set<string>()
+  aliases.add(normalized)
+  aliases.add(source)
+  groups.set(normalized, aliases)
 }
 
-function collectInlineImageSourcesFromApiContent(content: ChatMessageContent | null | undefined) {
+function collectInlineImageSourcesFromContent(content: string | undefined, groups: InlineImageSourceGroups) {
+  if (!content) {
+    return
+  }
+  parseMarkdownImageTokens(content).forEach((token) => addInlineImageSource(groups, token.src))
+}
+
+function collectInlineImageSourcesFromApiContent(content: ChatMessageContent | null | undefined, groups: InlineImageSourceGroups) {
   if (typeof content === 'string') {
-    return collectInlineImageSourcesFromContent(content)
+    collectInlineImageSourcesFromContent(content, groups)
+    return
   }
 
   if (!Array.isArray(content)) {
-    return []
+    return
   }
 
-  return content
-    .map((part) => part.type === 'image_url' ? part.image_url.url : null)
-    .filter((src): src is string => !!src && src.startsWith(DATA_IMAGE_SOURCE_PREFIX))
+  content.forEach((part) => {
+    if (part.type === 'image_url') {
+      addInlineImageSource(groups, part.image_url.url)
+    }
+  })
 }
 
-function collectInlineImageSourcesFromApiTranscript(apiTranscript: ApiTranscriptMessage[] | undefined) {
+function collectInlineImageSourcesFromApiTranscript(apiTranscript: ApiTranscriptMessage[] | undefined, groups: InlineImageSourceGroups) {
   if (!apiTranscript) {
-    return []
+    return
   }
 
-  return apiTranscript.flatMap((message) => collectInlineImageSourcesFromApiContent(message.content))
+  apiTranscript.forEach((message) => collectInlineImageSourcesFromApiContent(message.content, groups))
 }
 
 function replaceAllSourceReferences(content: string, replacements: Map<string, string>) {
@@ -105,23 +123,19 @@ function replaceApiTranscriptSources(
   }))
 }
 
-function collectInlineImageSources(messages: ChatMessage[], sources = new Set<string>()) {
+function collectInlineImageSources(messages: ChatMessage[], groups: InlineImageSourceGroups = new Map()) {
   messages.forEach((message) => {
-    collectInlineImageSourcesFromContent(message.content).forEach((source) => sources.add(source))
-    collectInlineImageSourcesFromApiTranscript(message.apiTranscript).forEach((source) => sources.add(source))
-    message.imageSources?.forEach((source) => {
-      if (source.startsWith(DATA_IMAGE_SOURCE_PREFIX)) {
-        sources.add(source)
-      }
-    })
+    collectInlineImageSourcesFromContent(message.content, groups)
+    collectInlineImageSourcesFromApiTranscript(message.apiTranscript, groups)
+    message.imageSources?.forEach((source) => addInlineImageSource(groups, source))
     message.versions?.forEach((version) => {
-      collectInlineImageSourcesFromContent(version.content).forEach((source) => sources.add(source))
-      collectInlineImageSourcesFromApiTranscript(version.apiTranscript).forEach((source) => sources.add(source))
-      collectInlineImageSources(version.subsequentMessages || [], sources)
+      collectInlineImageSourcesFromContent(version.content, groups)
+      collectInlineImageSourcesFromApiTranscript(version.apiTranscript, groups)
+      collectInlineImageSources(version.subsequentMessages || [], groups)
     })
   })
 
-  return sources
+  return groups
 }
 
 function applyImageSourceReplacements(messages: ChatMessage[], replacements: Map<string, string>): ChatMessage[] {
@@ -155,10 +169,10 @@ async function persistInlineImageSourcesForSession(sessionId: string) {
     }
 
     const replacements = new Map<string, string>()
-    for (const source of sources) {
+    for (const [source, aliases] of sources) {
       const persistedSource = await persistDataUrlAttachment(source).catch(() => null)
       if (persistedSource) {
-        replacements.set(source, persistedSource)
+        aliases.forEach((alias) => replacements.set(alias, persistedSource))
       }
     }
 

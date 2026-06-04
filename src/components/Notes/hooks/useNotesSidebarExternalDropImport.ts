@@ -3,7 +3,7 @@ import { getElectronBridge } from '@/lib/electron/bridge';
 import { messageDialog } from '@/lib/storage/dialog';
 import { useI18n } from '@/lib/i18n';
 import {
-  createStarredEntry,
+  createStarredEntryIfValid,
   getStarredEntryKey,
   getVaultStarredPaths,
   saveStarredRegistry,
@@ -90,12 +90,14 @@ function ensureExternalDropStarredTargets(
   let updatedEntries: StarredEntry[] = starredEntries;
 
   for (const { kind, vaultPath: targetVaultPath, relativePath } of targets) {
-    const key = getStarredEntryKey({ kind, vaultPath: targetVaultPath, relativePath });
+    const entry = createStarredEntryIfValid(kind, targetVaultPath, relativePath);
+    if (!entry) {
+      continue;
+    }
+
+    const key = getStarredEntryKey(entry);
     if (!updatedEntries.some((entry) => getStarredEntryKey(entry) === key)) {
-      updatedEntries = [
-        ...updatedEntries,
-        createStarredEntry(kind, targetVaultPath, relativePath),
-      ];
+      updatedEntries = [...updatedEntries, entry];
     }
   }
 

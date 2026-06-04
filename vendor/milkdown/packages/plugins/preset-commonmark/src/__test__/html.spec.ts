@@ -71,23 +71,66 @@ it('should keep safe bare relative source srcset candidates in github html', () 
   expect(result).toContain('srcset="safe.webp 1x, safe@2x.webp 2x"')
 })
 
+it('should reject unsafe source srcset descriptors in github html', () => {
+  const result = sanitizeGithubHtml([
+    '<source srcset="images/descriptor-script.webp 1x javascript:alert(1)">',
+    '<source srcset="images/invalid-descriptor.webp invalid-descriptor">',
+    '<source srcset="images/safe.webp 1x">',
+  ].join(''))
+
+  expect(result).toBe('<source><source><source srcset="images/safe.webp 1x">')
+  expect(result).not.toContain('javascript:')
+  expect(result).not.toContain('invalid-descriptor')
+})
+
+it('should reject scheme-bearing media urls even when plain relatives are allowed', () => {
+  const result = sanitizeGithubHtml([
+    '<img src="blob:https://example.com/image">',
+    '<img src="data:image/png;base64,QUJDRA==">',
+    '<img src="mailto:user@example.com">',
+    '<img src="images/safe.png">',
+    '<source srcset="blob:https://example.com/image 1x">',
+    '<source srcset="images/safe.webp 1x">',
+  ].join(''))
+
+  expect(result).toBe('<img><img><img><img src="images/safe.png"><source><source srcset="images/safe.webp 1x">')
+  expect(result).not.toContain('blob:')
+  expect(result).not.toContain('data:')
+  expect(result).not.toContain('mailto:')
+})
+
 it('should drop root-path raw media urls in github html', () => {
   const result = sanitizeGithubHtml([
     '<img src="/etc/passwd">',
     '<iframe src="/admin"></iframe>',
     '<video poster="/private.png"><source src="/private.mp4"></video>',
+    String.raw`<img src="http:\127.0.0.1\secret.png">`,
+    String.raw`<img src="\\127.0.0.1\secret.png">`,
     '<img src="./images/safe.png">',
     '<img src="../images/safe.png">',
     '<img src="//example.com/safe.png">',
+    '<iframe src="//example.com/embed"></iframe>',
+    '<video src="//example.com/demo.mp4"></video>',
   ].join(''))
 
-  expect(result).toBe('<img><img src="./images/safe.png"><img src="../images/safe.png"><img src="//example.com/safe.png">')
+  expect(result).toBe('<img><img><img><img src="./images/safe.png"><img src="../images/safe.png"><img src="https://example.com/safe.png"><iframe src="https://example.com/embed" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe><video src="https://example.com/demo.mp4"></video>')
 })
 
 it('should drop protocol-relative links in github html', () => {
   const result = sanitizeGithubHtml('<a href="//example.com/path">protocol</a>')
 
   expect(result).toBe('<a>protocol</a>')
+})
+
+it('should keep plain relative links in github html', () => {
+  const result = sanitizeGithubHtml([
+    '<a href="readme.md">readme</a>',
+    '<a href="docs/readme.md">docs</a>',
+    '<a href="/docs/readme.md">root</a>',
+    '<img src="/etc/passwd">',
+  ].join(''))
+
+  expect(result).toBe('<a href="readme.md">readme</a><a href="docs/readme.md">docs</a><a href="/docs/readme.md">root</a><img>')
 })
 
 it('should render protocol-relative markdown links as text', async () => {

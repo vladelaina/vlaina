@@ -17,6 +17,22 @@ vi.mock('@/lib/storage/adapter', () => ({
     return index <= 0 ? '' : name.slice(index + 1);
   },
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
+  normalizeAbsolutePath: (path: string) => {
+    const normalized = path.replace(/\\/g, '/');
+    const root = normalized.startsWith('/') ? '/' : /^[A-Za-z]:\//.test(normalized) ? normalized.slice(0, 3) : '';
+    if (!root) return path;
+    const parts: string[] = [];
+    for (const part of normalized.slice(root.length).split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') {
+        parts.pop();
+        continue;
+      }
+      parts.push(part);
+    }
+    const nextPath = `${root}${parts.join('/')}`;
+    return path.includes('\\') ? nextPath.replace(/\//g, '\\') : nextPath;
+  },
 }));
 
 vi.mock('../pendingEditorMarkdownFlusher', () => ({

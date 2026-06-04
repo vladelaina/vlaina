@@ -3,14 +3,17 @@ import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { stripWebSearchStatusMarkup } from '@/lib/ai/webSearch/statusMarkup';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { getElectronBridge } from '@/lib/electron/bridge';
-import { convertToBase64, type Attachment } from '@/lib/storage/attachmentStorage';
-import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
+import { isRenderableDataImageSrc, normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
+import { parseVideoUrl } from '@/lib/markdown/videoUrl';
+import { fetchChatImageBlob } from './chatImageFetch';
+import { resolveSafeChatImageSource } from './chatImageSourceResolution';
 import {
-  parseHtmlImageTokens,
+  parseMarkdownAndHtmlImageTokens,
   parseMarkdownImageTokens,
   stripImageTokens,
   type ImageToken,
 } from './messageImageTokens';
+import { isSvgImageMimeType, rasterizeSvgBlobToPngBlob } from './svgRasterize';
 
 function normalizeImageToken(token: ImageToken): ImageToken | null {
   const src = normalizeRenderableImageSrc(token.src);
@@ -23,6 +26,10 @@ function normalizeImageTokens(tokens: ImageToken[]): ImageToken[] {
     .filter((token): token is ImageToken => Boolean(token));
 }
 
+function normalizeRenderedImageTokens(tokens: ImageToken[]): ImageToken[] {
+  return normalizeImageTokens(tokens).filter((token) => !!token.src && isRenderedImageSource(token.src));
+}
+
 export function extractMarkdownImageSources(content: string): string[] {
   return normalizeImageTokens(parseMarkdownImageTokens(content))
     .map((token) => token.src)
@@ -30,27 +37,35 @@ export function extractMarkdownImageSources(content: string): string[] {
 }
 
 export function extractMessageImageSources(content: string): string[] {
-  const tokens = normalizeImageTokens([...parseMarkdownImageTokens(content), ...parseHtmlImageTokens(content)]).sort(
-    (a, b) => a.start - b.start
-  );
+  const tokens = normalizeImageTokens(parseMarkdownAndHtmlImageTokens(content));
 
   return tokens.map((token) => token.src).filter((src): src is string => !!src);
 }
 
+export function isRenderedImageSource(src: string): boolean {
+  return !parseVideoUrl(src);
+}
+
+export function extractRenderedMarkdownImageSources(content: string): string[] {
+  return extractMarkdownImageSources(content).filter(isRenderedImageSource);
+}
+
+export function extractRenderedMessageImageSources(content: string): string[] {
+  return extractMessageImageSources(content).filter(isRenderedImageSource);
+}
+
 export function stripMarkdownImageTokens(content: string): string {
-  return stripImageTokens(content, normalizeImageTokens(parseMarkdownImageTokens(content)));
+  return stripImageTokens(content, normalizeRenderedImageTokens(parseMarkdownImageTokens(content)));
 }
 
 export function stripMessageImageTokens(content: string): string {
-  const tokens = normalizeImageTokens([...parseMarkdownImageTokens(content), ...parseHtmlImageTokens(content)]).sort(
-    (a, b) => a.start - b.start
-  );
+  const tokens = normalizeRenderedImageTokens(parseMarkdownAndHtmlImageTokens(content));
   return stripImageTokens(content, tokens);
 }
 
 export function formatMessageCopyText(content: string): string {
   const normalizedContent = stripThinkingContent(stripWebSearchStatusMarkup(stripErrorTags(content)));
-  const tokens = normalizeImageTokens(parseMarkdownImageTokens(normalizedContent));
+  const tokens = normalizeImageTokens(parseMarkdownAndHtmlImageTokens(normalizedContent));
   if (tokens.length === 0) {
     return normalizedContent;
   }
@@ -60,7 +75,7 @@ export function formatMessageCopyText(content: string): string {
   for (const token of tokens) {
     parts.push(normalizedContent.slice(cursor, token.start));
     if (token.src) {
-      parts.push(token.src.startsWith("data:image/") ? "[image]" : token.src);
+      parts.push(isRenderableDataImageSrc(token.src) ? "[image]" : token.src);
     }
     cursor = token.end;
   }
@@ -70,8 +85,11 @@ export function formatMessageCopyText(content: string): string {
 
 export async function copyImageSourceToClipboard(src: string): Promise<boolean> {
   try {
-    const resolvedSrc = await resolveClipboardImageSource(src);
-    if (resolvedSrc.trim().startsWith("data:image/")) {
+    const resolvedSrc = await resolveSafeChatImageSource(src, "clipboard-image");
+    if (!resolvedSrc) {
+      return false;
+    }
+    if (isRenderableDataImageSrc(resolvedSrc)) {
       const desktopClipboard = getElectronBridge()?.clipboard;
       if (desktopClipboard?.writeImage) {
         try {
@@ -82,8 +100,17 @@ export async function copyImageSourceToClipboard(src: string): Promise<boolean> 
       }
     }
 
-    const response = await fetch(resolvedSrc);
-    const blob = await response.blob();
+    let blob = await fetchChatImageBlob(resolvedSrc);
+    if (!blob) {
+      return false;
+    }
+    if (isSvgImageMimeType(blob.type)) {
+      const rasterizedBlob = await rasterizeSvgBlobToPngBlob(blob);
+      if (!rasterizedBlob) {
+        return false;
+      }
+      blob = rasterizedBlob;
+    }
     const ClipboardItemCtor = (window as any).ClipboardItem;
     if (ClipboardItemCtor && blob.type.startsWith("image/")) {
       const item = new ClipboardItemCtor({ [blob.type]: blob });
@@ -95,26 +122,8 @@ export async function copyImageSourceToClipboard(src: string): Promise<boolean> 
   return false;
 }
 
-async function resolveClipboardImageSource(src: string): Promise<string> {
-  const trimmed = src.trim();
-  if (!trimmed.startsWith("attachment://") && !trimmed.startsWith("app-file://attachment/")) {
-    return src;
-  }
-
-  const attachment: Attachment = {
-    id: "clipboard-image",
-    path: "",
-    previewUrl: trimmed,
-    assetUrl: trimmed,
-    name: "image",
-    type: "image/png",
-    size: 0,
-  };
-  return convertToBase64(attachment);
-}
-
 export async function copyMessageContentToClipboard(content: string): Promise<boolean> {
-  const imageSources = extractMessageImageSources(content);
+  const imageSources = extractRenderedMessageImageSources(content);
   if (imageSources.length > 0) {
     const copied = await copyImageSourceToClipboard(imageSources[0]);
     if (copied) {

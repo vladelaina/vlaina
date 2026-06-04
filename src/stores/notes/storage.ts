@@ -167,7 +167,15 @@ async function collectMarkdownPaths(
 
   const storage = getStorageAdapter();
   const currentPath = relativePath ? await joinPath(basePath, relativePath) : basePath;
-  const entries = await storage.listDir(currentPath);
+  let entries: Awaited<ReturnType<typeof storage.listDir>>;
+  try {
+    entries = await storage.listDir(currentPath);
+  } catch (error) {
+    if (!relativePath) {
+      throw error;
+    }
+    return [];
+  }
   const collected: string[] = [];
 
   for (const entry of entries) {
@@ -405,7 +413,7 @@ export async function saveWorkspaceState(vaultPath: string, state: WorkspaceStat
           ])),
         }
       : normalizedState;
-    await safeWriteTextFile(wsPath, JSON.stringify(mergedState, null, 2));
+    await safeWriteTextFile(wsPath, JSON.stringify(normalizeWorkspaceState(mergedState), null, 2));
   } catch (error) {
   }
 }

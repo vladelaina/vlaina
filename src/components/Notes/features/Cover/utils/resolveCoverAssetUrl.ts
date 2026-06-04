@@ -84,7 +84,7 @@ async function resolveCoverAssetUrlUncached({
   thumbnailMaxEdgePx,
 }: ResolveCoverAssetUrlOptions): Promise<string> {
   const safeAssetPath = sanitizeNoteMediaSrc(assetPath);
-  if (!safeAssetPath || safeAssetPath.startsWith('blob:')) {
+  if (!safeAssetPath || /^blob:/i.test(safeAssetPath)) {
     throw new Error('cover-path-unsupported');
   }
   if (isPublicRemoteMediaUrl(safeAssetPath)) {

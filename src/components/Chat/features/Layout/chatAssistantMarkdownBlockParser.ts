@@ -26,6 +26,13 @@ import {
   setCacheEntry,
   touchCacheEntry,
 } from './chatLayoutCache';
+import {
+  parseMarkdownAndHtmlImageTokens,
+  type ImageToken,
+} from '@/components/Chat/common/messageImageTokens';
+import { stripMessageImageTokens } from '@/components/Chat/common/messageClipboard';
+import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
+import { parseVideoUrl } from '@/lib/markdown/videoUrl';
 
 const HR_RE = /^\s{0,3}([-*_])(?:\s*\1){2,}\s*$/;
 const HEADING_RE = /^\s{0,3}(#{1,6})\s+(.*)$/;
@@ -81,6 +88,18 @@ function collectSectionLines(lines: string[], start: number): { end: number; lin
   }
 
   return { end: index, lines: sectionLines };
+}
+
+function getVideoImageTokens(markdown: string): ImageToken[] {
+  return parseMarkdownAndHtmlImageTokens(markdown).filter((token) => {
+    const src = token.src ? normalizeRenderableImageSrc(token.src) : null;
+    return !!src && !!parseVideoUrl(src);
+  });
+}
+
+function stripVideoImageTokens(markdown: string): string {
+  return getVideoImageTokens(markdown)
+    .reduceRight((next, token) => `${next.slice(0, token.start)}${next.slice(token.end)}`, markdown);
 }
 
 export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasurementBlock[] {
@@ -144,6 +163,26 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
     const { end, lines: sectionLines } = collectSectionLines(lines, index);
     if (sectionLines.length === 0) {
       index = Math.max(index + 1, end);
+      continue;
+    }
+
+    const sectionMarkdown = sectionLines.join('\n');
+    const videoTokenCount = getVideoImageTokens(sectionMarkdown).length;
+    if (videoTokenCount > 0) {
+      const textWithoutMedia = stripVideoImageTokens(stripMessageImageTokens(sectionMarkdown)).trim();
+      if (textWithoutMedia) {
+        const block = buildMarkdownTextBlock(textWithoutMedia, 'body', MARKDOWN_BODY_LINE_HEIGHT);
+        if (block) {
+          blocks.push(block);
+        }
+      }
+      for (let videoIndex = 0; videoIndex < videoTokenCount; videoIndex += 1) {
+        blocks.push({
+          kind: 'video',
+          widthInset: 0,
+        });
+      }
+      index = end;
       continue;
     }
 

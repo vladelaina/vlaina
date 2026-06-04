@@ -95,7 +95,15 @@ async function buildFileTreeWithBudget(
     return [];
   }
 
-  const nodes = await buildFileTreeLevel(basePath, relativePath, budget);
+  let nodes: FileTreeNode[];
+  try {
+    nodes = await buildFileTreeLevel(basePath, relativePath, budget);
+  } catch (error) {
+    if (!relativePath) {
+      throw error;
+    }
+    return [];
+  }
 
   const depth = relativePath.split('/').filter(Boolean).length;
   if (depth >= MAX_FILE_TREE_DEPTH) {

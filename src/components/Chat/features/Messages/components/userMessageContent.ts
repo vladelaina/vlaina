@@ -1,7 +1,8 @@
 import type { Attachment } from '@/lib/storage/attachmentStorage';
-import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
+import { isRenderableDataImageSrc, normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
 import {
-  extractMarkdownImageSources,
+  extractRenderedMarkdownImageSources,
+  isRenderedImageSource,
   stripMarkdownImageTokens,
 } from '@/components/Chat/common/messageClipboard';
 import { formatMarkdownImage } from '@/lib/markdown/markdownImageMarkdown';
@@ -21,9 +22,9 @@ export function isSvgSource(src: string): boolean {
 }
 
 function inferImageMimeType(src: string): string {
-  if (src.startsWith('data:image/')) {
-    const match = /^data:(image\/[^;,]+)/.exec(src);
-    return match?.[1] ?? 'image/*';
+  if (isRenderableDataImageSrc(src)) {
+    const match = /^data:(image\/[^;,]+)/i.exec(src.trim());
+    return match?.[1]?.toLowerCase() ?? 'image/*';
   }
 
   const pathname = src.split('?')[0]?.toLowerCase() ?? '';
@@ -38,7 +39,7 @@ function inferImageMimeType(src: string): string {
 }
 
 function inferAttachmentName(src: string, index: number): string {
-  if (src.startsWith('data:image/')) {
+  if (isRenderableDataImageSrc(src)) {
     const mime = inferImageMimeType(src);
     const ext = mime.split('/')[1]?.replace('svg+xml', 'svg') || 'png';
     return `image-${index + 1}.${ext}`;
@@ -62,7 +63,7 @@ export function toEditAttachment(src: string, index: number): Attachment {
 
 export function parseUserMessageContent(content: string): ParsedUserMessageContent {
   return {
-    imageSources: extractMarkdownImageSources(content),
+    imageSources: extractRenderedMarkdownImageSources(content),
     text: stripMarkdownImageTokens(content).trim(),
   };
 }
@@ -73,7 +74,7 @@ export function parseUserMessageContentWithKnownImages(
 ): ParsedUserMessageContent {
   const safeImageSources = imageSources
     ?.map((src) => normalizeRenderableImageSrc(src))
-    .filter((src): src is string => Boolean(src)) ?? [];
+    .filter((src): src is string => Boolean(src) && isRenderedImageSource(src)) ?? [];
 
   if (safeImageSources.length === 0) {
     return parseUserMessageContent(content);

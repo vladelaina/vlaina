@@ -103,7 +103,13 @@ async function importExternalMarkdownDirectory(
   await storage.mkdir(fullPath, true);
 
   let copiedMarkdownCount = 0;
-  const entries = await storage.listDir(sourcePath);
+  let entries: Awaited<ReturnType<typeof storage.listDir>>;
+  try {
+    entries = await storage.listDir(sourcePath);
+  } catch {
+    await storage.deleteDir(fullPath, true);
+    return 0;
+  }
 
   for (const entry of entries) {
     if (budget.visitedEntries >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES) {

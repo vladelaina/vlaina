@@ -5,6 +5,7 @@ import {
   deleteAttachment,
   type Attachment,
 } from '@/lib/storage/attachmentStorage';
+import { extractStoredAttachmentFilename, isStoredAttachmentSrc } from '@/lib/storage/attachmentUrl';
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { buildRequestHistory } from '@/lib/ai/requestContext';
@@ -207,11 +208,9 @@ async function makeTemporaryAttachmentsEphemeral(attachments: Attachment[]): Pro
     attachments.map(async (attachment) => {
       const hasPersistentReference =
         !!attachment.path ||
-        attachment.previewUrl.startsWith('attachment://') ||
-        attachment.previewUrl.startsWith('app-file://attachment/') ||
-        attachment.assetUrl.startsWith('attachment://') ||
-        attachment.assetUrl.startsWith('app-file://attachment/') ||
-        (attachment.assetUrl.startsWith('file:') && attachment.assetUrl.includes('/attachments/'));
+        isStoredAttachmentSrc(attachment.previewUrl) ||
+        isStoredAttachmentSrc(attachment.assetUrl) ||
+        isStoredAttachmentFileUrl(attachment.assetUrl);
 
       if (!hasPersistentReference) {
         return attachment;
@@ -236,6 +235,19 @@ async function makeTemporaryAttachmentsEphemeral(attachments: Attachment[]): Pro
       };
     })
   );
+}
+
+function isStoredAttachmentFileUrl(src: string | null | undefined): boolean {
+  const trimmed = src?.trim() ?? '';
+  if (!trimmed) {
+    return false;
+  }
+
+  try {
+    return new URL(trimmed).protocol === 'file:' && extractStoredAttachmentFilename(trimmed) !== null;
+  } catch {
+    return false;
+  }
 }
 
 export function useChatService() {

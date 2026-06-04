@@ -68,6 +68,29 @@ describe('estimateChatMessageHeight', () => {
     expect(realImageHeight - textOnlyHeight).toBeGreaterThan(240);
   });
 
+  it('does not reserve user image stack height for video markdown', () => {
+    const videoHeight = estimateChatMessageHeight(
+      createMessage('user', '![video](https://example.com/movie.mp4)'),
+      { containerWidth: 900, isStreaming: false },
+    );
+    const emptyHeight = estimateChatMessageHeight(
+      createMessage('user', ''),
+      { containerWidth: 900, isStreaming: false },
+    );
+    const textHeight = estimateChatMessageHeight(
+      createMessage('user', 'video text'),
+      { containerWidth: 900, isStreaming: false },
+    );
+    const imageHeight = estimateChatMessageHeight(
+      createMessage('user', '![image](https://example.com/real.png)'),
+      { containerWidth: 900, isStreaming: false },
+    );
+
+    expect(videoHeight).toBe(textHeight);
+    expect(videoHeight).toBeGreaterThanOrEqual(emptyHeight);
+    expect(imageHeight).toBeGreaterThan(videoHeight);
+  });
+
   it('accounts for assistant code fences and images', () => {
     const plainHeight = estimateChatMessageHeight(
       createMessage('assistant', 'hello world'),
@@ -83,6 +106,26 @@ describe('estimateChatMessageHeight', () => {
 
     expect(richHeight).toBeGreaterThan(plainHeight);
   });
+
+  it('does not reserve assistant image stack height for video markdown', () => {
+    const videoHeight = estimateChatMessageHeight(
+      createMessage('assistant', '![video](https://example.com/movie.mp4)'),
+      { containerWidth: 900, isStreaming: false },
+    );
+    const textHeight = estimateChatMessageHeight(
+      createMessage('assistant', ''),
+      { containerWidth: 900, isStreaming: false },
+    );
+    const imageHeight = estimateChatMessageHeight(
+      createMessage('assistant', '![image](https://example.com/real.png)'),
+      { containerWidth: 900, isStreaming: false },
+    );
+
+    expect(videoHeight).toBeGreaterThan(textHeight);
+    expect(imageHeight).toBeGreaterThan(textHeight);
+    expect(videoHeight).not.toBe(imageHeight);
+  });
+
 
   it('uses the shared code block chrome height in assistant estimates', () => {
     const oneLineCodeHeight = estimateChatMessageHeight(

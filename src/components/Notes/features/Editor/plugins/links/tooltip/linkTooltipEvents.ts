@@ -1,6 +1,8 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { openEditorLinkHref } from '../utils/openEditorLinkHref';
 
+const MOUSE_CLICK_SUPPRESSION_MS = 500;
+
 function resolveTooltipEligibleLink(target: HTMLElement | null): HTMLElement | null {
     if (!target) return null;
 
@@ -39,6 +41,19 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
         setKeyboardInteraction,
         hasActiveLink,
     } = handlers;
+    let mouseOpenedLink: HTMLElement | null = null;
+    let clearMouseOpenedLinkTimer: number | null = null;
+
+    const trackMouseOpenedLink = (link: HTMLElement) => {
+        mouseOpenedLink = link;
+        if (clearMouseOpenedLinkTimer !== null) {
+            window.clearTimeout(clearMouseOpenedLinkTimer);
+        }
+        clearMouseOpenedLinkTimer = window.setTimeout(() => {
+            mouseOpenedLink = null;
+            clearMouseOpenedLinkTimer = null;
+        }, MOUSE_CLICK_SUPPRESSION_MS);
+    };
 
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
         if (event.key !== 'Escape' || dom.classList.contains('hidden')) return;
@@ -66,6 +81,30 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
+
+        const href = link.getAttribute('href') || link.getAttribute('data-href');
+        if (href) {
+            trackMouseOpenedLink(link);
+            await openEditorLinkHref(href, { view });
+        }
+    };
+
+    const handleEditorClick = async (event: MouseEvent) => {
+        const link = resolveTooltipEligibleLink(event.target as HTMLElement);
+        if (!link) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+
+        if (link === mouseOpenedLink) {
+            mouseOpenedLink = null;
+            if (clearMouseOpenedLinkTimer !== null) {
+                window.clearTimeout(clearMouseOpenedLinkTimer);
+                clearMouseOpenedLinkTimer = null;
+            }
+            return;
+        }
 
         const href = link.getAttribute('href') || link.getAttribute('data-href');
         if (href) await openEditorLinkHref(href, { view });
@@ -113,6 +152,7 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
     view.dom.addEventListener('mouseover', handleEditorMouseOver);
     view.dom.addEventListener('mouseout', handleEditorMouseOut);
     view.dom.addEventListener('mousedown', handleEditorMouseDown, true);
+    view.dom.addEventListener('click', handleEditorClick, true);
     dom.addEventListener('mouseenter', clearHideTimer);
     dom.addEventListener('mouseleave', handleTooltipMouseLeave);
     window.addEventListener('scroll', handleScroll, true);
@@ -120,9 +160,13 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
     document.addEventListener('keydown', handleGlobalKeyDown, true);
 
     return () => {
+        if (clearMouseOpenedLinkTimer !== null) {
+            window.clearTimeout(clearMouseOpenedLinkTimer);
+        }
         view.dom.removeEventListener('mouseover', handleEditorMouseOver);
         view.dom.removeEventListener('mouseout', handleEditorMouseOut);
         view.dom.removeEventListener('mousedown', handleEditorMouseDown, true);
+        view.dom.removeEventListener('click', handleEditorClick, true);
         dom.removeEventListener('mouseenter', clearHideTimer);
         dom.removeEventListener('mouseleave', handleTooltipMouseLeave);
         window.removeEventListener('scroll', handleScroll, true);

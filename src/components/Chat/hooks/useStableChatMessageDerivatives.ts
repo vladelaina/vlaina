@@ -1,6 +1,9 @@
 import { useRef } from 'react';
 import type { ChatMessage } from '@/lib/ai/types';
-import { extractMessageImageSources } from '@/components/Chat/common/messageClipboard';
+import {
+  extractRenderedMessageImageSources,
+  isRenderedImageSource,
+} from '@/components/Chat/common/messageClipboard';
 import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
 
 export interface ChatImageGalleryItem {
@@ -18,6 +21,15 @@ type DerivedState = {
   sentUserMessages: DerivedCollection<string>;
 };
 
+function hashString(value: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(36);
+}
+
 function buildImageGallery(messages: ChatMessage[]): DerivedCollection<ChatImageGalleryItem> {
   const items: ChatImageGalleryItem[] = [];
   const signatureParts: string[] = [];
@@ -29,16 +41,16 @@ function buildImageGallery(messages: ChatMessage[]): DerivedCollection<ChatImage
 
     const sources = message.imageSources && message.imageSources.length > 0
       ? message.imageSources
-      : extractMessageImageSources(message.content || '');
+      : extractRenderedMessageImageSources(message.content || '');
     const renderableSources = sources
       .map((src) => normalizeRenderableImageSrc(src))
-      .filter((src): src is string => !!src);
+      .filter((src): src is string => !!src && isRenderedImageSource(src));
 
     if (renderableSources.length === 0) {
       return;
     }
 
-    signatureParts.push(`${message.id}\u0000${renderableSources.length}\u0000${renderableSources.map((src) => `${src.length}:${src.slice(0, 96)}`).join('\u0002')}`);
+    signatureParts.push(`${message.id}\u0000${renderableSources.length}\u0000${renderableSources.map((src) => `${src.length}:${hashString(src)}`).join('\u0002')}`);
     renderableSources.forEach((src, index) => {
       items.push({
         id: `${message.id}:${index}`,

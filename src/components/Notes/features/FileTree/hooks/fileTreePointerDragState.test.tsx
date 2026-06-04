@@ -524,6 +524,37 @@ describe('fileTreePointerDragState', () => {
     });
   });
 
+  it('ignores non-markdown notes dropped on the starred target', async () => {
+    const { source, starredTarget } = setupHarness({
+      path: 'image.png',
+      showStarredTarget: true,
+    });
+
+    document.elementsFromPoint = vi.fn(() => [starredTarget as Element]);
+
+    fireEvent.pointerDown(source, {
+      button: 0,
+      clientX: 40,
+      clientY: 40,
+      pointerType: 'mouse',
+    });
+    dispatchDocumentPointerEvent('pointermove', {
+      clientX: 40,
+      clientY: 52,
+      buttons: 1,
+    });
+    dispatchDocumentPointerEvent('pointerup', {
+      clientX: 40,
+      clientY: 52,
+      buttons: 0,
+    });
+
+    await waitFor(() => {
+      expect(setStateMock).not.toHaveBeenCalled();
+      expect(moveItemMock).not.toHaveBeenCalled();
+    });
+  });
+
   it('stars a folder when dropped on the starred target', async () => {
     const { source, starredTarget } = setupHarness({
       path: 'Projects',

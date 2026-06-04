@@ -1,6 +1,7 @@
 export {
   CURRENT_STARRED_VERSION,
   createStarredEntry,
+  createStarredEntryIfValid,
   dedupeStarredEntries,
   getStarredEntryKey,
   getVaultStarredPaths,

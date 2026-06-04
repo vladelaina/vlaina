@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   mkdir: vi.fn(),
   readFile: vi.fn(),
+  realpath: vi.fn(async (filePath: string) => filePath),
   writeFile: vi.fn(),
   app: {
     getPath: vi.fn(() => '/tmp/vlaina-user-data'),
@@ -19,10 +20,12 @@ vi.mock('node:fs/promises', () => ({
   default: {
     mkdir: mocks.mkdir,
     readFile: mocks.readFile,
+    realpath: mocks.realpath,
     writeFile: mocks.writeFile,
   },
   mkdir: mocks.mkdir,
   readFile: mocks.readFile,
+  realpath: mocks.realpath,
   writeFile: mocks.writeFile,
 }));
 
@@ -33,6 +36,7 @@ describe('desktop filesystem authorization persistence', () => {
     mocks.app.getPath.mockReturnValue('/tmp/vlaina-user-data');
     mocks.mkdir.mockResolvedValue(undefined);
     mocks.readFile.mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
+    mocks.realpath.mockImplementation(async (filePath: string) => filePath);
     mocks.writeFile.mockResolvedValue(undefined);
   });
 

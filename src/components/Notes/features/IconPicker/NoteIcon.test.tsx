@@ -56,11 +56,50 @@ describe('NoteIcon', () => {
     expect(mocked.loadImageAsBlob).not.toHaveBeenCalled();
   });
 
+  it('loads absolute global custom icon images with a case-insensitive image scheme', async () => {
+    mocked.loadAppIconImageSrc.mockResolvedValue('blob:global-icon');
+
+    render(
+      <NoteIcon
+        icon="IMG:/app/.vlaina/assets/icons/demo.png"
+        notePath="/vault/demo.md"
+        size={20}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:global-icon');
+    });
+
+    expect(mocked.loadAppIconImageSrc).toHaveBeenCalledWith('IMG:/app/.vlaina/assets/icons/demo.png');
+    expect(mocked.resolveExistingVaultAssetPath).not.toHaveBeenCalled();
+    expect(mocked.loadImageAsBlob).not.toHaveBeenCalled();
+  });
+
   it('keeps resolving relative note icon images against the vault', async () => {
     mocked.resolveExistingVaultAssetPath.mockResolvedValue('/vault/assets/icons/demo.png');
     mocked.loadImageAsBlob.mockResolvedValue('blob:vault-icon');
 
     render(<NoteIcon icon="img:assets/icons/demo.png" notePath="/vault/demo.md" size={20} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:vault-icon');
+    });
+
+    expect(mocked.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
+      '/vault',
+      'assets/icons/demo.png',
+      '/vault/demo.md',
+    );
+    expect(mocked.loadImageAsBlob).toHaveBeenCalledWith('/vault/assets/icons/demo.png');
+    expect(mocked.loadAppIconImageSrc).not.toHaveBeenCalled();
+  });
+
+  it('keeps resolving relative note icon images with a case-insensitive image scheme', async () => {
+    mocked.resolveExistingVaultAssetPath.mockResolvedValue('/vault/assets/icons/demo.png');
+    mocked.loadImageAsBlob.mockResolvedValue('blob:vault-icon');
+
+    render(<NoteIcon icon="IMG:assets/icons/demo.png" notePath="/vault/demo.md" size={20} />);
 
     await waitFor(() => {
       expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:vault-icon');

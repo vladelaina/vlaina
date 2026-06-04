@@ -69,12 +69,28 @@ async function moveRecoverableItem(
     return;
   } catch {
     if (kind === 'file') {
-      await storage.copyFile(sourcePath, targetPath);
+      try {
+        await storage.copyFile(sourcePath, targetPath);
+      } catch (error) {
+        try {
+          await storage.deleteFile(targetPath);
+        } catch {
+        }
+        throw error;
+      }
       await storage.deleteFile(sourcePath);
       return;
     }
 
-    await copyDirectory(sourcePath, targetPath);
+    try {
+      await copyDirectory(sourcePath, targetPath);
+    } catch (error) {
+      try {
+        await storage.deleteDir(targetPath, true);
+      } catch {
+      }
+      throw error;
+    }
     await storage.deleteDir(sourcePath, true);
   }
 }

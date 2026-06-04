@@ -6,6 +6,12 @@ import {
 import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 import type { ExportMarkdownAssetSourceToken } from './noteExportMarkdownAssetTypes';
 
+const TAG_ASSET_ATTRIBUTES: Record<string, Set<string>> = {
+  img: new Set(['src']),
+  source: new Set(['srcset']),
+  video: new Set(['poster']),
+};
+
 function findHtmlTagEnd(content: string, start: number): number {
   let quote: string | null = null;
 
@@ -52,16 +58,73 @@ export function getHtmlTagRanges(content: string): ContentRange[] {
   return ranges;
 }
 
-function parseHtmlImageSrcRange(
+function parseSrcsetAssetTokens(value: string, valueStart: number): ExportMarkdownAssetSourceToken[] {
+  const tokens: ExportMarkdownAssetSourceToken[] = [];
+  const candidates: Array<{ start: number; end: number }> = [];
+  let candidateStart = 0;
+  let skippedDataUrlComma = false;
+
+  for (let cursor = 0; cursor < value.length; cursor += 1) {
+    if (value[cursor] !== ',') {
+      continue;
+    }
+
+    const candidatePrefix = value.slice(candidateStart, cursor).trimStart();
+    if (!skippedDataUrlComma && /^data:/i.test(candidatePrefix)) {
+      skippedDataUrlComma = true;
+      continue;
+    }
+
+    if (value.slice(candidateStart, cursor).trim()) {
+      candidates.push({ start: candidateStart, end: cursor });
+    }
+    candidateStart = cursor + 1;
+    skippedDataUrlComma = false;
+  }
+
+  if (value.slice(candidateStart).trim()) {
+    candidates.push({ start: candidateStart, end: value.length });
+  }
+
+  for (const candidate of candidates) {
+    let cursor = candidate.start;
+    while (cursor < candidate.end && /\s/.test(value[cursor])) {
+      cursor += 1;
+    }
+
+    const sourceStart = cursor;
+    while (cursor < candidate.end && !/\s/.test(value[cursor])) {
+      cursor += 1;
+    }
+    const sourceEnd = cursor;
+    const src = value.slice(sourceStart, sourceEnd);
+    if (src) {
+      tokens.push({
+        start: valueStart + sourceStart,
+        end: valueStart + sourceEnd,
+        src,
+        lookupSrc: decodeMarkdownHtmlText(src),
+      });
+    }
+  }
+
+  return tokens;
+}
+
+function parseHtmlImageAssetRanges(
   content: string,
   tagStart: number,
   tagEnd: number,
-): ExportMarkdownAssetSourceToken | null {
-  if (!/^<img\b/i.test(content.slice(tagStart, tagEnd))) {
-    return null;
+): ExportMarkdownAssetSourceToken[] {
+  const tagMatch = /^<([A-Za-z][A-Za-z0-9:-]*)\b/.exec(content.slice(tagStart, tagEnd));
+  const tagName = tagMatch?.[1]?.toLowerCase();
+  if (!tagName || !TAG_ASSET_ATTRIBUTES[tagName]) {
+    return [];
   }
 
-  let cursor = tagStart + 4;
+  const tokens: ExportMarkdownAssetSourceToken[] = [];
+  const allowedAttributes = TAG_ASSET_ATTRIBUTES[tagName];
+  let cursor = tagStart + tagMatch[0].length;
   while (cursor < tagEnd) {
     while (cursor < tagEnd && /\s/.test(content[cursor])) {
       cursor += 1;
@@ -110,13 +173,26 @@ function parseHtmlImageSrcRange(
       valueEnd = cursor;
     }
 
-    if (attrName === 'src') {
-      const src = content.slice(valueStart, valueEnd).trim();
-      return src ? { start: valueStart, end: valueEnd, src, lookupSrc: decodeMarkdownHtmlText(src) } : null;
+    if (allowedAttributes.has(attrName)) {
+      const rawSrc = content.slice(valueStart, valueEnd);
+      const lookupSrc = decodeMarkdownHtmlText(rawSrc.trim());
+      if (!lookupSrc) {
+        continue;
+      }
+      if (attrName === 'srcset') {
+        tokens.push(...parseSrcsetAssetTokens(content.slice(valueStart, valueEnd), valueStart));
+      } else {
+        tokens.push({
+          start: valueStart,
+          end: valueEnd,
+          src: rawSrc,
+          lookupSrc,
+        });
+      }
     }
   }
 
-  return null;
+  return tokens;
 }
 
 export function findHtmlImageSourceTokens(
@@ -131,7 +207,6 @@ export function findHtmlImageSourceTokens(
     ) {
       return [];
     }
-    const token = parseHtmlImageSrcRange(content, range.start, range.end);
-    return token ? [token] : [];
+    return parseHtmlImageAssetRanges(content, range.start, range.end);
   });
 }

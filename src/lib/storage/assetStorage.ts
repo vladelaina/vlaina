@@ -2,12 +2,72 @@ import { getPaths } from './paths';
 import { getStorageAdapter, joinPath } from './adapter';
 import type { CustomIcon } from '@/lib/storage/unifiedStorage';
 import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
+import { sanitizeSvgBytes } from '@/lib/markdown/svgSanitizer';
 
 const MAX_GLOBAL_ASSET_BYTES = 10 * 1024 * 1024;
 const GLOBAL_ICON_FILENAME_PATTERN = /\.(png|jpg|jpeg|gif|webp|svg)$/i;
+const GLOBAL_ICON_EXTENSIONS_BY_MIME: Record<string, readonly string[]> = {
+  'image/gif': ['gif'],
+  'image/jpeg': ['jpg', 'jpeg'],
+  'image/png': ['png'],
+  'image/svg+xml': ['svg'],
+  'image/webp': ['webp'],
+};
+
+function getFileExtension(fileName: string): string {
+  return fileName.split('.').pop()?.toLowerCase() ?? '';
+}
+
+function normalizeGlobalIconMimeType(value: string): string | null {
+  const mimeType = value.split(';')[0]?.trim().toLowerCase() ?? '';
+  return Object.prototype.hasOwnProperty.call(GLOBAL_ICON_EXTENSIONS_BY_MIME, mimeType) ? mimeType : null;
+}
+
+function prepareGlobalAssetBytes(bytes: Uint8Array, mimeType: string): Uint8Array {
+  return mimeType === 'image/svg+xml' ? sanitizeSvgBytes(bytes) : bytes;
+}
+
+function isSafeGlobalAssetEntryName(name: string): boolean {
+  return Boolean(name) && name !== '.' && name !== '..' && !/[\\/]/.test(name) && !name.includes('\0');
+}
+
+function isSameNormalizedPath(leftPath: string, rightPath: string): boolean {
+  return (
+    normalizeContainedAssetPath(leftPath, rightPath) !== null &&
+    normalizeContainedAssetPath(rightPath, leftPath) !== null
+  );
+}
+
+async function normalizeGlobalIconEntry(
+  iconsDir: string,
+  entry: { name: string; path: string; isFile: boolean; size?: number; modifiedAt?: number },
+): Promise<{ name: string; path: string; size?: number; modifiedAt?: number } | null> {
+  if (!entry.isFile || !isSafeGlobalAssetEntryName(entry.name)) {
+    return null;
+  }
+
+  const containedPath = normalizeContainedAssetPath(entry.path, iconsDir);
+  const expectedPath = normalizeContainedAssetPath(await joinPath(iconsDir, entry.name), iconsDir);
+  if (!containedPath || !expectedPath || !isSameNormalizedPath(containedPath, expectedPath)) {
+    return null;
+  }
+
+  return {
+    name: entry.name,
+    path: containedPath,
+    size: entry.size,
+    modifiedAt: entry.modifiedAt,
+  };
+}
 
 function assertGlobalAssetFile(file: File): void {
-  if (!GLOBAL_ICON_FILENAME_PATTERN.test(file.name)) {
+  const mimeType = normalizeGlobalIconMimeType(file.type);
+  const extension = getFileExtension(file.name);
+  if (
+    !mimeType
+    || !GLOBAL_ICON_FILENAME_PATTERN.test(file.name)
+    || !GLOBAL_ICON_EXTENSIONS_BY_MIME[mimeType].includes(extension)
+  ) {
     throw new Error('Only image files can be saved as custom icons.');
   }
 
@@ -18,6 +78,10 @@ function assertGlobalAssetFile(file: File): void {
 
 export async function saveGlobalAsset(file: File, folder: 'icons'): Promise<string> {
   assertGlobalAssetFile(file);
+  const mimeType = normalizeGlobalIconMimeType(file.type);
+  if (!mimeType) {
+    throw new Error('Only image files can be saved as custom icons.');
+  }
 
   const adapter = getStorageAdapter();
   const { metadata } = await getPaths();
@@ -33,11 +97,12 @@ export async function saveGlobalAsset(file: File, folder: 'icons'): Promise<stri
   const filePath = await joinPath(assetsDir, filename);
   
   const buffer = await file.arrayBuffer();
-  if (buffer.byteLength > MAX_GLOBAL_ASSET_BYTES) {
+  const bytes = prepareGlobalAssetBytes(new Uint8Array(buffer), mimeType);
+  if (bytes.byteLength > MAX_GLOBAL_ASSET_BYTES) {
     throw new Error('Custom icon image is too large.');
   }
 
-  await adapter.writeBinaryFile(filePath, new Uint8Array(buffer));
+  await adapter.writeBinaryFile(filePath, bytes);
   
   return filePath;
 }
@@ -54,12 +119,13 @@ export async function scanGlobalIcons(): Promise<CustomIcon[]> {
   try {
     const files = await adapter.listDir(iconsDir);
     
-    const imageFiles = files.filter(f =>
-      f.isFile &&
-      !f.name.startsWith('.') &&
-      GLOBAL_ICON_FILENAME_PATTERN.test(f.name) &&
-      (typeof f.size !== 'number' || f.size <= MAX_GLOBAL_ASSET_BYTES)
-    );
+    const imageFiles = (await Promise.all(files.map((file) => normalizeGlobalIconEntry(iconsDir, file))))
+      .filter((file): file is { name: string; path: string; size?: number; modifiedAt?: number } => Boolean(file))
+      .filter(f =>
+        !f.name.startsWith('.') &&
+        GLOBAL_ICON_FILENAME_PATTERN.test(f.name) &&
+        (typeof f.size !== 'number' || f.size <= MAX_GLOBAL_ASSET_BYTES)
+      );
     
     return imageFiles.map(f => ({
       id: f.path,

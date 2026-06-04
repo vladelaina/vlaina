@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     clearRemoteImageMemoryCache,
     clearRemoteImageMemoryCacheForTests,
+    MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES,
     resolveRemoteImageFromMemoryCache,
 } from './remoteImageMemoryCache';
 
@@ -47,6 +48,55 @@ describe('remoteImageMemoryCache', () => {
         await Promise.all(resolutions);
         expect(fetch).toHaveBeenCalledTimes(8);
         expect(maxActiveFetches).toBe(4);
+    });
+
+    it('does not fetch local-network URLs when called directly', async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+
+        await expect(resolveRemoteImageFromMemoryCache('http://127.0.0.1:3000/secret.png')).resolves.toBe('');
+        await expect(resolveRemoteImageFromMemoryCache('http://localhost/secret.png')).resolves.toBe('');
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(URL.createObjectURL).not.toHaveBeenCalled();
+    });
+
+    it('normalizes protocol-relative public URLs before fetching and caching', async () => {
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            ok: true,
+            headers: new Headers({ 'content-length': '12' }),
+            blob: async () => new Blob(['remote image'], { type: 'image/png' }),
+        })));
+
+        await expect(resolveRemoteImageFromMemoryCache('//example.com/remote.png')).resolves.toBe('blob:remote-image');
+        await expect(resolveRemoteImageFromMemoryCache('https://example.com/remote.png')).resolves.toBe('blob:remote-image');
+
+        expect(fetch).toHaveBeenCalledTimes(1);
+        expect(fetch).toHaveBeenCalledWith('https://example.com/remote.png', { cache: 'force-cache' });
+    });
+
+    it('stops reading streamed remote images once they exceed the cache limit', async () => {
+        const cancel = vi.fn(async () => undefined);
+        const reader = {
+            read: vi.fn()
+                .mockResolvedValueOnce({ done: false, value: new Uint8Array(MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES) })
+                .mockResolvedValueOnce({ done: false, value: new Uint8Array(1) }),
+            cancel,
+            releaseLock: vi.fn(),
+        };
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            ok: true,
+            headers: new Headers({ 'content-type': 'image/png' }),
+            body: {
+                getReader: () => reader,
+            },
+        })));
+
+        await expect(resolveRemoteImageFromMemoryCache('https://example.com/large.png')).resolves.toBe('https://example.com/large.png');
+
+        expect(cancel).toHaveBeenCalledTimes(1);
+        expect(reader.releaseLock).toHaveBeenCalledTimes(1);
+        expect(URL.createObjectURL).not.toHaveBeenCalled();
     });
 
     it('does not repopulate the cache from requests that finish after clearing', async () => {

@@ -1,3 +1,5 @@
+import { sanitizeSvgMarkup } from '@/lib/markdown/svgSanitizer';
+
 const SVG_RASTERIZE_TIMEOUT_MS = 2500;
 
 function decodeSvgDataUrl(dataUrl: string): string | null {
@@ -43,8 +45,81 @@ function pickSvgRenderSize(svgText: string): { width: number; height: number } {
   return { width: 1024, height: 1024 };
 }
 
+function sanitizeSvgDataUrl(dataUrl: string): { dataUrl: string; svgText: string } | null {
+  const svgText = decodeSvgDataUrl(dataUrl);
+  if (!svgText) {
+    return null;
+  }
+
+  const sanitized = sanitizeSvgMarkup(svgText);
+  if (!sanitized) {
+    return null;
+  }
+
+  return {
+    dataUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(sanitized)}`,
+    svgText: sanitized,
+  };
+}
+
 export function isSvgDataUrl(value: string): boolean {
-  return value.trim().toLowerCase().startsWith('data:image/svg+xml');
+  return /^data:image\/svg\+xml(?:[;,]|$)/i.test(value.trim());
+}
+
+export function isSvgImageMimeType(value: string | null | undefined): boolean {
+  return (value ?? '').split(';')[0]?.trim().toLowerCase() === 'image/svg+xml';
+}
+
+function uint8ArrayToBase64(data: Uint8Array): string {
+  const CHUNK_SIZE = 0x8000;
+  let binary = '';
+  for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+    const chunk = data.subarray(i, i + CHUNK_SIZE);
+    binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
+  }
+  return window.btoa(binary);
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return blob.arrayBuffer().then((buffer) => {
+    const mimeType = isSvgImageMimeType(blob.type) ? blob.type : 'image/svg+xml';
+    return `data:${mimeType};base64,${uint8ArrayToBase64(new Uint8Array(buffer))}`;
+  });
+}
+
+function dataUrlToBlob(dataUrl: string): Blob | null {
+  const match = /^data:([^;,]+)(;base64)?,(.*)$/i.exec(dataUrl.trim());
+  if (!match) {
+    return null;
+  }
+
+  const mimeType = match[1]?.trim().toLowerCase() || 'application/octet-stream';
+  const payload = match[3] || '';
+  try {
+    if (match[2]) {
+      const binary = window.atob(payload);
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+      return new Blob([bytes], { type: mimeType });
+    }
+    return new Blob([decodeURIComponent(payload)], { type: mimeType });
+  } catch {
+    return null;
+  }
+}
+
+export async function rasterizeSvgBlobToPngBlob(blob: Blob): Promise<Blob | null> {
+  if (!isSvgImageMimeType(blob.type)) {
+    return blob;
+  }
+
+  const rasterizedDataUrl = await rasterizeSvgDataUrlToPng(await blobToDataUrl(blob));
+  if (!rasterizedDataUrl || isSvgDataUrl(rasterizedDataUrl)) {
+    return null;
+  }
+  return dataUrlToBlob(rasterizedDataUrl);
 }
 
 export function rasterizeSvgDataUrlToPng(dataUrl: string): Promise<string | null> {
@@ -55,8 +130,11 @@ export function rasterizeSvgDataUrlToPng(dataUrl: string): Promise<string | null
     return Promise.resolve(null);
   }
 
-  const svgText = decodeSvgDataUrl(dataUrl);
-  const { width, height } = pickSvgRenderSize(svgText ?? '');
+  const sanitizedSvg = sanitizeSvgDataUrl(dataUrl);
+  if (!sanitizedSvg) {
+    return Promise.resolve(null);
+  }
+  const { width, height } = pickSvgRenderSize(sanitizedSvg.svgText);
 
   return new Promise((resolve) => {
     let settled = false;
@@ -87,6 +165,6 @@ export function rasterizeSvgDataUrlToPng(dataUrl: string): Promise<string | null
       }
     };
     image.onerror = () => finish(null);
-    image.src = dataUrl;
+    image.src = sanitizedSvg.dataUrl;
   });
 }

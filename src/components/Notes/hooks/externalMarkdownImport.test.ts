@@ -160,6 +160,65 @@ describe('importExternalMarkdownEntries', () => {
     );
   });
 
+  it('keeps importing readable markdown when one nested folder cannot be listed', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isDirectory: path === '/outside/project',
+      isFile: path !== '/outside/project',
+    }));
+    mocks.storage.listDir.mockImplementation(async (path: string) => {
+      if (path === '/outside/project') {
+        return [
+          { name: 'alpha.md', isFile: true, isDirectory: false },
+          { name: 'guides', isFile: false, isDirectory: true },
+          { name: 'locked', isFile: false, isDirectory: true },
+        ];
+      }
+
+      if (path === '/outside/project/guides') {
+        return [
+          { name: 'intro.md', isFile: true, isDirectory: false },
+        ];
+      }
+
+      if (path === '/outside/project/locked') {
+        throw new Error('Permission denied');
+      }
+
+      return [];
+    });
+    mocks.resolveUniquePath.mockImplementation(
+      async (_vaultPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
+        const relativePath = folderPath
+          ? `${folderPath}/${name}`
+          : isDirectory
+            ? `archive/${name}`
+            : name;
+        return {
+          relativePath,
+          fullPath: `/vault/${relativePath}`,
+          fileName: name,
+        };
+      },
+    );
+
+    const result = await importExternalMarkdownEntries('/vault', 'archive', ['/outside/project']);
+
+    expect(result).toEqual({
+      importedNotePaths: ['archive/project/alpha.md', 'archive/project/guides/intro.md'],
+      importedFolderPaths: ['archive/project/guides', 'archive/project'],
+      didImport: true,
+    });
+    expect(mocks.storage.copyFile).toHaveBeenCalledWith(
+      '/outside/project/alpha.md',
+      '/vault/archive/project/alpha.md',
+    );
+    expect(mocks.storage.copyFile).toHaveBeenCalledWith(
+      '/outside/project/guides/intro.md',
+      '/vault/archive/project/guides/intro.md',
+    );
+    expect(mocks.storage.deleteDir).toHaveBeenCalledWith('/vault/archive/project/locked', true);
+  });
+
   it('ignores unsafe folder entry names while importing markdown folders', async () => {
     mocks.storage.stat.mockImplementation(async (path: string) => ({
       isDirectory: path === '/outside/docs',

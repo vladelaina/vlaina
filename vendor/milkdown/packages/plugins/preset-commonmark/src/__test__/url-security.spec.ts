@@ -12,6 +12,12 @@ import {
 import { sanitizeLinkHref, toggleLinkCommand, updateLinkCommand } from '../mark/link'
 import { insertImageCommand, sanitizeImageSrc, updateImageCommand } from '../node/image'
 
+const maxInlineImageBytes = 10 * 1024 * 1024
+
+function createOversizedBase64Payload() {
+  return 'A'.repeat(Math.ceil((maxInlineImageBytes + 1) / 3) * 4)
+}
+
 function createEditor(defaultValue = '') {
   const editor = Editor.make()
   editor.config((ctx) => {
@@ -29,6 +35,17 @@ function findFirstImageInView(view: EditorView) {
     return false
   })
   return image
+}
+
+function typeText(view: EditorView, input: string) {
+  for (const text of input) {
+    const { from, to } = view.state.selection
+    let handled = false
+    view.someProp('handleTextInput', (handleTextInput) => {
+      handled = handleTextInput(view, from, to, text) || handled
+    })
+    if (!handled) view.dispatch(view.state.tr.insertText(text, from, to))
+  }
 }
 
 function findFirstLinkInView(view: EditorView) {
@@ -58,11 +75,20 @@ it('blocks local-network media URLs without a browser window', () => {
   expect(isLocalNetworkHttpUrl('http://100.64.0.1/image.png')).toBe(true)
   expect(isLocalNetworkHttpUrl('http://198.18.0.1/image.png')).toBe(true)
   expect(isLocalNetworkHttpUrl('http://[ff02::1]/image.png')).toBe(true)
+  expect(isLocalNetworkHttpUrl('http://[::7f00:1]/image.png')).toBe(true)
+  expect(isLocalNetworkHttpUrl('http://[::ffff:0:7f00:1]/image.png')).toBe(true)
   expect(isPublicRemoteMediaUrl('http://router/image.png')).toBe(false)
+  expect(isPublicRemoteMediaUrl('http://[::7f00:1]/image.png')).toBe(false)
+  expect(isPublicRemoteMediaUrl(String.raw`http:\127.0.0.1\image.png`)).toBe(false)
+  expect(isPublicRemoteMediaUrl(String.raw`\\127.0.0.1\image.png`)).toBe(false)
   expect(sanitizeMediaSrc('http://127.0.0.1:3000/image.png')).toBe(null)
   expect(sanitizeMediaSrc('//127.0.0.1:3000/image.png')).toBe(null)
   expect(sanitizeMediaSrc('http://assets.localhost/image.png')).toBe(null)
   expect(sanitizeMediaSrc('http://100.64.0.1/image.png')).toBe(null)
+  expect(sanitizeMediaSrc('http://[::7f00:1]/image.png')).toBe(null)
+  expect(sanitizeMediaSrc('http://[::ffff:0:7f00:1]/image.png')).toBe(null)
+  expect(sanitizeMediaSrc(String.raw`http:\127.0.0.1\image.png`)).toBe(null)
+  expect(sanitizeMediaSrc(String.raw`\\127.0.0.1\image.png`)).toBe(null)
 })
 
 it('allows public media URLs without a browser window', () => {
@@ -84,14 +110,27 @@ it('does not classify unsafe remote strings as public media URLs', () => {
 
 it('sanitizes image sources consistently for schema and component editors', () => {
   expect(sanitizeImageSrc('./assets/image.png')).toBe('./assets/image.png')
+  expect(sanitizeImageSrc('img:assets/image.png')).toBe('img:assets/image.png')
+  expect(sanitizeImageSrc('IMG:assets/image.png')).toBe('IMG:assets/image.png')
+  expect(sanitizeImageSrc('data:image/png;base64,aGk=')).toBe('data:image/png;base64,aGk=')
+  expect(sanitizeImageSrc('DATA:IMAGE/WEBP;BASE64,AQI=')).toBe('data:image/webp;base64,AQI=')
   expect(sanitizeImageSrc('', { allowEmpty: true })).toBe('')
   expect(sanitizeImageSrc('')).toBe(null)
 
   expect(sanitizeImageSrc('javascript:alert(1)')).toBe(null)
   expect(sanitizeImageSrc('data:image/svg+xml,<svg></svg>')).toBe(null)
+  expect(sanitizeImageSrc('data:text/html;base64,PHNjcmlwdD4=')).toBe(null)
+  expect(sanitizeImageSrc('img:/etc/passwd')).toBe(null)
+  expect(sanitizeImageSrc('img:\\secret.png')).toBe(null)
+  expect(sanitizeImageSrc('img://example.com/image.png')).toBe(null)
   expect(sanitizeImageSrc('/etc/passwd')).toBe(null)
   expect(sanitizeImageSrc('C:\\Users\\secret.png')).toBe(null)
   expect(sanitizeImageSrc('http://127.0.0.1:3000/image.png')).toBe(null)
+})
+
+it('rejects oversized inline data image sources', () => {
+  expect(sanitizeImageSrc('data:image/png;base64,aGk=')).toBe('data:image/png;base64,aGk=')
+  expect(sanitizeImageSrc(`data:image/png;base64,${createOversizedBase64Payload()}`)).toBe(null)
 })
 
 it('drops unsafe markdown image sources during parsing', async () => {
@@ -99,7 +138,12 @@ it('drops unsafe markdown image sources during parsing', async () => {
     [
       '![local](http://127.0.0.1:3000/a.png)',
       '![script](javascript:alert(1))',
+      '![entity-script](javascript&colon;alert(1))',
+      '![numeric-script](java&#x73;cript&#58;alert(1))',
       '![safe](./assets/safe.png)',
+      '![internal](img:assets/safe.png)',
+      '![bad-internal](img:/etc/passwd)',
+      '![entity-safe](https://example.com/path?a=1&amp;b=2.png)',
     ].join('\n\n')
   )
 
@@ -111,7 +155,7 @@ it('drops unsafe markdown image sources during parsing', async () => {
     if (node.type.name === 'image') sources.push(node.attrs.src)
   })
 
-  expect(sources).toEqual(['./assets/safe.png'])
+  expect(sources).toEqual(['./assets/safe.png', 'img:assets/safe.png', 'https://example.com/path?a=1&b=2.png'])
 
   await editor.destroy()
 })
@@ -122,14 +166,7 @@ it('does not create image nodes from unsafe image input rules', async () => {
   await editor.create()
 
   const view = editor.ctx.get(editorViewCtx)
-  for (const text of '![bad](javascript:alert(1))') {
-    const { from, to } = view.state.selection
-    let handled = false
-    view.someProp('handleTextInput', (handleTextInput) => {
-      handled = handleTextInput(view, from, to, text) || handled
-    })
-    if (!handled) view.dispatch(view.state.tr.insertText(text, from, to))
-  }
+  typeText(view, '![bad](javascript:alert(1))')
 
   let hasImage = false
   view.state.doc.descendants((node) => {
@@ -137,6 +174,22 @@ it('does not create image nodes from unsafe image input rules', async () => {
   })
 
   expect(hasImage).toBe(false)
+
+  await editor.destroy()
+})
+
+it('decodes image input rule destinations before safety checks', async () => {
+  const editor = createEditor()
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  typeText(view, '![bad](javascript&colon;alert(1))')
+  expect(findFirstImageInView(view)).toBe(null)
+
+  view.dispatch(view.state.tr.delete(1, view.state.doc.content.size))
+  typeText(view, '![safe](https://example.com/path?a=1&amp;b=2.png)')
+  expect(findFirstImageInView(view)?.src).toBe('https://example.com/path?a=1&b=2.png')
 
   await editor.destroy()
 })
@@ -163,6 +216,13 @@ it('does not insert or update images with unsafe command sources', async () => {
   expect(commands.call(updateImageCommand.key, { src: 'http://127.0.0.1/a.png' })).toBe(false)
   expect(findFirstImageInView(view)?.src).toBe('./assets/safe.png')
 
+  expect(commands.call(updateImageCommand.key, { src: 'img:assets/safe.png' })).toBe(true)
+  expect(findFirstImageInView(view)?.src).toBe('img:assets/safe.png')
+  expect(commands.call(updateImageCommand.key, { src: 'img:/etc/passwd' })).toBe(false)
+  expect(findFirstImageInView(view)?.src).toBe('img:assets/safe.png')
+  expect(commands.call(updateImageCommand.key, { src: `data:image/png;base64,${createOversizedBase64Payload()}` })).toBe(false)
+  expect(findFirstImageInView(view)?.src).toBe('img:assets/safe.png')
+
   await editor.destroy()
 })
 
@@ -175,6 +235,8 @@ it('sanitizes link hrefs consistently for schema and component editors', () => {
   expect(sanitizeLinkHref('javascript:alert(1)')).toBe(null)
   expect(sanitizeLinkHref('data:text/html,alert(1)')).toBe(null)
   expect(sanitizeLinkHref('//example.com/path')).toBe(null)
+  expect(sanitizeLinkHref(String.raw`https:\example.com\path`)).toBe(null)
+  expect(sanitizeLinkHref(String.raw`\\example.com\path`)).toBe(null)
   expect(sanitizeLinkHref('C:\\Users\\secret.txt')).toBe(null)
   expect(sanitizeLinkHref('https://example.com/\u202Ecod.exe')).toBe(null)
 })
@@ -197,6 +259,9 @@ it('does not add or update links with unsafe command hrefs', async () => {
   expect(findFirstLinkInView(view)).toBe('./safe.md')
 
   expect(commands.call(updateLinkCommand.key, { href: 'data:text/html,alert(1)' })).toBe(false)
+  expect(findFirstLinkInView(view)).toBe('./safe.md')
+
+  expect(commands.call(updateLinkCommand.key, { href: String.raw`https:\example.com\path` })).toBe(false)
   expect(findFirstLinkInView(view)).toBe('./safe.md')
 
   await editor.destroy()

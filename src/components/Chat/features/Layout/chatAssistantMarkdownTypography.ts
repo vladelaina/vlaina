@@ -16,6 +16,7 @@ import {
   MARKDOWN_TABLE_ROW_BORDER_Y,
   MARKDOWN_RULE_HEIGHT,
 } from '@/components/common/markdown/markdownMetrics';
+import { themeDomStyleTokens } from '@/styles/themeTokens';
 import {
   getPreparedMarkdownTextBlock,
   normalizeInlineMarkdownForMeasurement,
@@ -43,11 +44,16 @@ export type MarkdownMeasurementBlock =
       kind: 'table';
       rowCount: number;
       widthInset: number;
+    }
+  | {
+      kind: 'video';
+      widthInset: number;
     };
 
 export type { TextBlockVariant } from './chatAssistantMarkdownTypes';
 
 const ASSISTANT_ERROR_LINE_HEIGHT = MARKDOWN_BODY_LINE_HEIGHT;
+const MARKDOWN_VIDEO_MAX_WIDTH = 720;
 
 export function buildMarkdownTextBlock(
   text: string,
@@ -85,12 +91,19 @@ export function estimateMarkdownBlockHeight(block: MarkdownMeasurementBlock, con
       return MARKDOWN_TABLE_MARGIN_Y
         + MARKDOWN_TABLE_BORDER_Y
         + block.rowCount * (MARKDOWN_TABLE_LINE_HEIGHT + MARKDOWN_TABLE_CELL_PADDING_Y + MARKDOWN_TABLE_ROW_BORDER_Y);
+    case 'video':
+      return estimateVideoBlockHeight(contentWidth);
   }
 }
 
 export function estimateCodeBlockHeight(code: string): number {
   const lineCount = Math.max(code.replace(/\n$/, '').split('\n').length, 1);
   return MARKDOWN_CODE_BLOCK_HEADER_HEIGHT + MARKDOWN_CODE_BLOCK_PADDING_Y + lineCount * MARKDOWN_CODE_LINE_HEIGHT;
+}
+
+export function estimateVideoBlockHeight(contentWidth: number): number {
+  const videoWidth = Math.max(1, Math.min(contentWidth, MARKDOWN_VIDEO_MAX_WIDTH));
+  return videoWidth * (themeDomStyleTokens.iframeDefaultHeight / themeDomStyleTokens.iframeDefaultWidth);
 }
 
 export function measureErrorHeight(text: string, width: number): number {

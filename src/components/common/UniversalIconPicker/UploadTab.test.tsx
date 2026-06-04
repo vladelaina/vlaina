@@ -1,7 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ButtonHTMLAttributes } from 'react';
 import { UploadTab, type CustomIcon } from './UploadTab';
+
+const mocks = vi.hoisted(() => ({
+  lastDropzoneOptions: null as null | { onDrop: (files: File[]) => void },
+}));
 
 vi.mock('@tanstack/react-virtual', () => ({
   useVirtualizer: ({ count }: { count: number }) => ({
@@ -17,16 +21,19 @@ vi.mock('@tanstack/react-virtual', () => ({
 }));
 
 vi.mock('react-dropzone', () => ({
-  useDropzone: () => ({
-    getRootProps: () => ({}),
-    getInputProps: () => ({}),
+  useDropzone: (options: { onDrop: (files: File[]) => void }) => ({
+    getRootProps: () => ({ 'data-testid': 'dropzone-root' }),
+    getInputProps: () => {
+      mocks.lastDropzoneOptions = options;
+      return {};
+    },
     isDragActive: false,
     open: vi.fn(),
   }),
 }));
 
 vi.mock('react-easy-crop', () => ({
-  default: () => <div data-testid="cropper" />,
+  default: ({ image }: { image: string }) => <div data-testid="cropper" data-image={image} />,
 }));
 
 vi.mock('@/components/ui/button', () => ({
@@ -58,10 +65,52 @@ function buildIcon(id: string): CustomIcon {
 }
 
 describe('UploadTab', () => {
+  beforeEach(() => {
+    mocks.lastDropzoneOptions = null;
+  });
+
   it('shows an empty-state message when there are no saved icons', () => {
     render(<UploadTab onSelect={() => {}} onPreview={() => {}} onClose={() => {}} customIcons={[]} />);
 
     expect(screen.getByText('Upload an image to use it as the note icon')).toBeInTheDocument();
+  });
+
+  it('sanitizes SVG uploads before passing them to the cropper preview', async () => {
+    const svg = [
+      '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)">',
+      '<script>alert(1)</script>',
+      '<foreignObject><iframe src="javascript:alert(1)"></iframe></foreignObject>',
+      '<image href="https://example.test/a.png" xlink:href="https://example.test/b.png"></image>',
+      '<rect filter="url(https://example.test/filter.svg#drop)" fill="url(#local-fill)"></rect>',
+      '<circle cx="1" cy="1" r="1"></circle>',
+      '</svg>',
+    ].join('');
+    const file = {
+      name: 'icon.svg',
+      type: 'image/svg+xml',
+      arrayBuffer: vi.fn(async () => new TextEncoder().encode(svg).buffer),
+    } as unknown as File;
+
+    render(<UploadTab onSelect={() => {}} onPreview={() => {}} onClose={() => {}} customIcons={[]} />);
+    expect(mocks.lastDropzoneOptions).not.toBeNull();
+
+    await act(async () => {
+      mocks.lastDropzoneOptions?.onDrop([file]);
+    });
+
+    const cropper = await screen.findByTestId('cropper');
+    const image = cropper.getAttribute('data-image') ?? '';
+    const decoded = decodeURIComponent(image.slice(image.indexOf(',') + 1));
+
+    expect(image.startsWith('data:image/svg+xml;charset=utf-8,')).toBe(true);
+    expect(decoded).toContain('<svg');
+    expect(decoded).toContain('<circle');
+    expect(decoded).toContain('url(#local-fill)');
+    expect(decoded).not.toContain('<script');
+    expect(decoded).not.toContain('foreignObject');
+    expect(decoded).not.toContain('javascript:');
+    expect(decoded).not.toContain('example.test');
+    expect(decoded).not.toContain('onload');
   });
 
   it('supports preview, selection, and context-menu deletion from the custom icon library', async () => {

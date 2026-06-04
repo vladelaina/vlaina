@@ -1,3 +1,4 @@
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import type { StarredEntry, StarredKind } from '../types';
 import {
   isValidStarredVaultPath,
@@ -35,6 +36,9 @@ export function normalizeStarredEntry(value: unknown): StarredEntry | null {
 
   const relativePath = normalizeStarredRelativePath(candidate.relativePath);
   if (!relativePath) return null;
+  if (candidate.kind === 'note' && !isSupportedMarkdownPath(relativePath)) {
+    return null;
+  }
 
   return {
     id: candidate.id,
@@ -60,6 +64,35 @@ export function createStarredEntry(
   const normalizedPath = normalizeStarredRelativePath(relativePath);
   if (!normalizedPath) {
     throw new Error('Starred entry path must be a valid note or folder path');
+  }
+  if (kind === 'note' && !isSupportedMarkdownPath(normalizedPath)) {
+    throw new Error('Starred note path must be a supported Markdown file');
+  }
+
+  return {
+    id: `starred-${crypto.randomUUID()}`,
+    kind,
+    vaultPath: normalizeStarredVaultPath(vaultPath),
+    relativePath: normalizedPath,
+    addedAt: Date.now(),
+  };
+}
+
+export function createStarredEntryIfValid(
+  kind: StarredKind,
+  vaultPath: string,
+  relativePath: string
+): StarredEntry | null {
+  if (!isValidStarredVaultPath(vaultPath)) {
+    return null;
+  }
+
+  const normalizedPath = normalizeStarredRelativePath(relativePath);
+  if (!normalizedPath) {
+    return null;
+  }
+  if (kind === 'note' && !isSupportedMarkdownPath(normalizedPath)) {
+    return null;
   }
 
   return {
@@ -132,6 +165,10 @@ export function remapStarredEntriesForVault(
 
     const normalizedPath = normalizeStarredRelativePath(nextPath);
     if (!normalizedPath) {
+      changed = true;
+      return [];
+    }
+    if (entry.kind === 'note' && !isSupportedMarkdownPath(normalizedPath)) {
       changed = true;
       return [];
     }

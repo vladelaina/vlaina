@@ -47,6 +47,11 @@ describe('resolveCoverAssetUrl', () => {
     })).rejects.toThrow('cover-path-unsupported');
 
     await expect(resolveCoverAssetUrl({
+      assetPath: 'BLOB:http://localhost/cover',
+      vaultPath: '/vault-a',
+    })).rejects.toThrow('cover-path-unsupported');
+
+    await expect(resolveCoverAssetUrl({
       assetPath: 'javascript:alert(1)',
       vaultPath: '/vault-a',
     })).rejects.toThrow('cover-path-unsupported');

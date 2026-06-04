@@ -9,7 +9,9 @@ import {
 describe('attachmentUrl', () => {
   it('extracts safe attachment filenames from supported stored image URLs', () => {
     expect(extractStoredAttachmentFilename('attachment://demo%20image.png')).toBe('demo image.png');
+    expect(extractStoredAttachmentFilename('ATTACHMENT://demo%20image.png')).toBe('demo image.png');
     expect(extractStoredAttachmentFilename('app-file://attachment/demo.png')).toBe('demo.png');
+    expect(extractStoredAttachmentFilename('APP-FILE://attachment/demo.png')).toBe('demo.png');
     expect(extractStoredAttachmentFilename('file:///app/attachments/demo.png')).toBe('demo.png');
     expect(extractStoredAttachmentFilename('demo.png')).toBe('demo.png');
   });
@@ -40,9 +42,12 @@ describe('attachmentUrl', () => {
 
   it('detects stored attachment sources and mime types', () => {
     expect(isStoredAttachmentSrc('attachment://demo.png')).toBe(true);
+    expect(isStoredAttachmentSrc('ATTACHMENT://demo.png')).toBe(true);
     expect(isStoredAttachmentSrc('app-file://attachment/demo.png')).toBe(true);
+    expect(isStoredAttachmentSrc('APP-FILE://attachment/demo.png')).toBe(true);
     expect(isStoredAttachmentSrc('data:image/png;base64,a')).toBe(false);
     expect(isAppFileAttachmentUrl(new URL('app-file://attachment/demo.png'))).toBe(true);
+    expect(isAppFileAttachmentUrl(new URL('APP-FILE://attachment/demo.png'))).toBe(true);
     expect(isAppFileAttachmentUrl(new URL('app-file://attachment/folder/demo.png'))).toBe(false);
     expect(isAppFileAttachmentUrl(new URL('app-file://attachment/%2e%2e%2fdemo.png'))).toBe(false);
     expect(isAppFileAttachmentUrl(new URL('app-file://other/demo.png'))).toBe(false);

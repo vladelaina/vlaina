@@ -146,4 +146,21 @@ describe('UniversalIconPicker', () => {
     expect(screen.getByTestId('emoji-tab')).toHaveAttribute('data-skin-tone', '2');
     expect(onSkinToneChange).toHaveBeenCalledWith(2);
   });
+
+  it('keeps case-insensitive image and symbol icons out of recent emojis', async () => {
+    localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify([
+      'IMG:/app/.vlaina/assets/icons/logo.png',
+      'ICON:star:currentColor',
+      '😀',
+    ]));
+
+    render(
+      <UniversalIconPicker
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('emoji-tab')).toHaveAttribute('data-recent', '😀');
+  });
 });

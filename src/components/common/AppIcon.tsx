@@ -6,7 +6,7 @@ import { getPaths } from '@/lib/storage/paths';
 import { joinPath } from '@/lib/storage/adapter';
 
 export async function loadAppIconImageSrc(src: string): Promise<string | null> {
-  if (!src.startsWith('img:')) return src;
+  if (!/^img:/i.test(src)) return src;
 
   const path = src.substring(4).split(/[?#]/, 1)[0] ?? '';
   if (!path) return null;

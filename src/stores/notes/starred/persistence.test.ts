@@ -151,6 +151,47 @@ describe('starred persistence', () => {
     expect(JSON.parse(content)).toMatchObject({ entries: [validEntry] });
   });
 
+  it('drops non-markdown note entries while preserving folder entries', async () => {
+    const validNote = createEntry('note', 'note', 'C:/vault-a', 'alive.mkd');
+    const staleImageNote = createEntry('image', 'note', 'C:/vault-a', 'image.png');
+    const pngNamedFolder = createEntry('folder', 'folder', 'C:/vault-a', 'assets.png');
+
+    adapter.exists.mockImplementation(async (path: string) => {
+      return (
+        path === '/store/notes-starred.json' ||
+        path === 'C:/vault-a' ||
+        path === 'C:/vault-a/alive.mkd' ||
+        path === 'C:/vault-a/assets.png'
+      );
+    });
+    adapter.stat.mockImplementation(async (path: string) => {
+      if (path === 'C:/vault-a') {
+        return { isDirectory: true, isFile: false };
+      }
+      if (path === 'C:/vault-a/alive.mkd') {
+        return { isDirectory: false, isFile: true };
+      }
+      if (path === 'C:/vault-a/assets.png') {
+        return { isDirectory: true, isFile: false };
+      }
+      return null;
+    });
+    adapter.readFile.mockResolvedValue(
+      JSON.stringify({
+        version: 1,
+        entries: [validNote, staleImageNote, pngNamedFolder],
+      })
+    );
+    adapter.writeFile.mockResolvedValue();
+
+    const persistence = await import('./persistence');
+    const result = await persistence.loadStarredRegistry();
+
+    expect(result.entries).toEqual([validNote, pngNamedFolder]);
+    expect(adapter.exists).not.toHaveBeenCalledWith('C:/vault-a/image.png');
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
   it('drops traversal entries before checking targets on disk', async () => {
     adapter.exists.mockImplementation(async (path: string) => path === '/store/notes-starred.json');
     adapter.stat.mockResolvedValue(null);

@@ -60,7 +60,7 @@ describe('requestContext', () => {
 
   it('sanitizes markdown image tokens in history', () => {
     const history = [
-      createMessage({ role: 'user', content: '![image](asset://a)\n\ndescribe it' }),
+      createMessage({ role: 'user', content: '![image](attachment://safe.png)\n\ndescribe it' }),
     ];
 
     const sanitized = sanitizeHistory(history);
@@ -69,7 +69,8 @@ describe('requestContext', () => {
 
   it('sanitizes only renderable markdown image tokens in history', () => {
     const content = [
-      'Look ![outer [nested]](<asset://file(one).png> "Title") and ![plain](asset://two(2).png "Title")',
+      'Look ![outer [nested]](<attachment://safe.png> "Title") and ![plain](data:image/png;base64,REAL "Title") and ![blocked](asset://localhost/image.png)',
+      'Watch ![video](https://example.com/movie.mp4)',
       '```md',
       '![example](asset://code.png)',
       '```',
@@ -79,7 +80,8 @@ describe('requestContext', () => {
     const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
 
     expect(sanitized[0].content).toBe([
-      'Look [Image] and [Image]',
+      'Look [Image] and [Image] and ![blocked](asset://localhost/image.png)',
+      'Watch ![video](https://example.com/movie.mp4)',
       '```md',
       '![example](asset://code.png)',
       '```',

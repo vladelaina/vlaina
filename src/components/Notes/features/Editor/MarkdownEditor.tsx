@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { selectMarkdownBodyLineNumbersEnabled } from '@/stores/unified/settings/markdownSettings';
@@ -435,12 +436,22 @@ export function MarkdownEditor({
                     saveNote={saveNote}
                   />
                 ) : (
-                  <MilkdownEditorRuntime
+                  <ErrorBoundary
                     key={currentNotePath ?? 'empty'}
-                    active={active}
-                    showBodyLineNumbers={showBodyLineNumbers}
-                    onEditorViewReady={handleEditorViewReady}
-                  />
+                    fallback={(
+                      <MarkdownSourceFallback
+                        currentNotePath={currentNotePath}
+                        showBodyLineNumbers={showBodyLineNumbers}
+                        saveNote={saveNote}
+                      />
+                    )}
+                  >
+                    <MilkdownEditorRuntime
+                      active={active}
+                      showBodyLineNumbers={showBodyLineNumbers}
+                      onEditorViewReady={handleEditorViewReady}
+                    />
+                  </ErrorBoundary>
                 )}
               </Suspense>
             </>

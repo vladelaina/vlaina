@@ -7,6 +7,16 @@ import {
 export class RequestManager {
     private controllers = new Map<string, AbortController>();
 
+    private abortControllerForSession(sessionId: string): string {
+        const resolvedSessionId = resolveSessionIdAlias(sessionId);
+        const controller = this.controllers.get(resolvedSessionId);
+        if (controller) {
+            controller.abort();
+            this.controllers.delete(resolvedSessionId);
+        }
+        return resolvedSessionId;
+    }
+
     private clearAliasesForResolvedSession(sessionId: string, resolvedSessionId: string) {
         clearSessionIdAlias(sessionId);
         for (const aliasSessionId of getSessionIdAliasesResolvingTo(resolvedSessionId)) {
@@ -16,20 +26,15 @@ export class RequestManager {
 
     start(sessionId: string): AbortController {
         const resolvedSessionId = resolveSessionIdAlias(sessionId);
-        this.abort(resolvedSessionId);
+        this.abortControllerForSession(resolvedSessionId);
         const controller = new AbortController();
         this.controllers.set(resolvedSessionId, controller);
         return controller;
     }
 
     abort(sessionId: string) {
-        const resolvedSessionId = resolveSessionIdAlias(sessionId);
-        const controller = this.controllers.get(resolvedSessionId);
-        if (controller) {
-            controller.abort();
-            this.controllers.delete(resolvedSessionId);
-        }
-        clearSessionIdAlias(sessionId);
+        const resolvedSessionId = this.abortControllerForSession(sessionId);
+        this.clearAliasesForResolvedSession(sessionId, resolvedSessionId);
     }
 
     finish(sessionId: string, controller?: AbortController) {

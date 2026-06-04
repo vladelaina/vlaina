@@ -1,22 +1,34 @@
-import { convertToBase64, type Attachment } from '@/lib/storage/attachmentStorage';
+import {
+  convertToBase64,
+  isAttachmentDataUrlWithinSizeLimit,
+  type Attachment,
+} from '@/lib/storage/attachmentStorage';
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { dedupeNoteMentions } from '@/lib/ai/noteMentions';
+import { isRenderedImageSource } from '@/components/Chat/common/messageClipboard';
 import {
-  extractMarkdownImageSources,
-  stripMarkdownImageTokens,
-} from '@/components/Chat/common/messageClipboard';
+  parseMarkdownImageTokens,
+  stripImageTokens,
+  type ImageToken,
+} from '@/components/Chat/common/messageImageTokens';
 import {
   isSvgDataUrl,
   rasterizeSvgDataUrlToPng,
 } from '@/components/Chat/common/svgRasterize';
-import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
-import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { isRenderableDataImageSrc, normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
+import {
+  getStorageAdapter,
+  isAbsolutePath as isStorageAbsolutePath,
+  joinPath,
+  normalizeAbsolutePath,
+} from '@/lib/storage/adapter';
 import { extractStoredAttachmentFilename } from '@/lib/storage/attachmentUrl';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { findNode } from '@/stores/notes/fileTreeUtils';
 import type { FileTreeNode } from '@/stores/notes/types';
 import { isManagedProviderId } from '@/lib/ai/managedService';
+import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
@@ -84,8 +96,8 @@ export function isImageAttachment(attachment: Attachment): boolean {
     return true;
   }
 
-  const previewUrl = attachment.previewUrl?.trim().toLowerCase() ?? '';
-  if (previewUrl.startsWith('data:image/')) {
+  const previewUrl = attachment.previewUrl?.trim() ?? '';
+  if (/^data:image\//i.test(previewUrl)) {
     return true;
   }
 
@@ -115,7 +127,7 @@ export function getAttachmentMessageImageSrc(attachment: Attachment): string {
     }
     return assetUrl;
   }
-  if (mimeType === 'image/svg+xml' && previewUrl.startsWith('data:image/')) {
+  if (mimeType === 'image/svg+xml' && /^data:image\//i.test(previewUrl)) {
     return previewUrl;
   }
   return previewUrl;
@@ -125,9 +137,13 @@ export function toImageMarkdown(src: string): string {
   return formatMarkdownImage(src);
 }
 
+function isSizedDataImageSrc(src: string): boolean {
+  return /^data:/i.test(src.trim()) ? isAttachmentDataUrlWithinSizeLimit(src) : true;
+}
+
 function inferImageMimeType(src: string): string {
-  if (src.startsWith('data:image/')) {
-    const match = /^data:(image\/[^;,]+)/i.exec(src);
+  if (isRenderableDataImageSrc(src) || isSvgDataUrl(src)) {
+    const match = /^data:(image\/[^;,]+)/i.exec(src.trim());
     return match?.[1]?.toLowerCase() ?? 'image/*';
   }
 
@@ -144,7 +160,7 @@ function inferImageMimeType(src: string): string {
 
 function inferImageName(src: string, index: number): string {
   const fallback = `image-${index + 1}.png`;
-  if (src.startsWith('data:image/')) {
+  if (isRenderableDataImageSrc(src) || isSvgDataUrl(src)) {
     const mime = inferImageMimeType(src);
     const ext = mime.split('/')[1]?.replace('svg+xml', 'svg') || 'png';
     return `image-${index + 1}.${ext}`;
@@ -172,13 +188,47 @@ function imageSourceToAttachment(src: string, index: number): Attachment {
   };
 }
 
+function isInlineDataImageMarkdownSource(src: string | null | undefined): boolean {
+  return /^data:image\//i.test(src?.trim() ?? '');
+}
+
+function collectStoredUserMessageImages(content: string): {
+  imageSources: string[];
+  tokensToStrip: ImageToken[];
+} {
+  const imageSources: string[] = [];
+  const tokensToStrip: ImageToken[] = [];
+
+  for (const token of parseMarkdownImageTokens(content)) {
+    const rawSrc = token.src?.trim() ?? '';
+    const normalizedSrc = normalizeRenderableImageSrc(rawSrc);
+    if (normalizedSrc && isRenderedImageSource(normalizedSrc)) {
+      imageSources.push(normalizedSrc);
+      tokensToStrip.push(token);
+      continue;
+    }
+
+    if (isSvgDataUrl(rawSrc) && isSizedDataImageSrc(rawSrc)) {
+      imageSources.push(rawSrc);
+      tokensToStrip.push(token);
+      continue;
+    }
+
+    if (isInlineDataImageMarkdownSource(rawSrc)) {
+      tokensToStrip.push(token);
+    }
+  }
+
+  return { imageSources, tokensToStrip };
+}
+
 export async function buildStoredUserMessageContent(content: string): Promise<ChatMessageContent> {
-  const imageSources = extractMarkdownImageSources(content);
-  if (imageSources.length === 0) {
+  const { imageSources, tokensToStrip } = collectStoredUserMessageImages(content);
+  if (imageSources.length === 0 && tokensToStrip.length === 0) {
     return content;
   }
 
-  const text = stripMarkdownImageTokens(content).trim();
+  const text = stripImageTokens(content, tokensToStrip).trim();
   const parts: ChatMessageContentPart[] = text ? [{ type: 'text', text }] : [];
 
   for (const [index, src] of imageSources.entries()) {
@@ -191,41 +241,41 @@ export async function buildStoredUserMessageContent(content: string): Promise<Ch
   return parts.length > 0 ? parts : text;
 }
 
-function isAbsolutePath(path: string): boolean {
-  return /^[A-Za-z]:[\\/]/.test(path) || path.startsWith('/');
+function normalizeAbsoluteMentionPathForCompare(path: string): string {
+  const normalized = normalizeAbsolutePath(path.trim()).replace(/\\/g, '/');
+  const withoutTrailingSlash = normalized === '/' || /^[A-Za-z]:\/$/i.test(normalized)
+    ? normalized
+    : normalized.replace(/\/+$/g, '');
+  return /^[A-Za-z]:\//.test(withoutTrailingSlash) || withoutTrailingSlash.startsWith('//')
+    ? withoutTrailingSlash.toLowerCase()
+    : withoutTrailingSlash;
 }
 
-function normalizeAbsoluteMentionPath(path: string): string {
-  return path.replace(/\\/g, '/').replace(/\/+$/g, '');
-}
-
-function getStarredAbsoluteMentionPath(entry: {
+async function getStarredAbsoluteMentionPath(entry: {
   kind: 'note' | 'folder';
   vaultPath: string;
   relativePath: string;
-}): string | null {
-  const vaultPath = normalizeAbsoluteMentionPath(entry.vaultPath);
+}): Promise<string | null> {
+  const vaultPath = normalizeAbsolutePath(entry.vaultPath.trim());
   const relativePath = normalizeVaultRelativePath(entry.relativePath);
-  if (!vaultPath || !isAbsolutePath(vaultPath) || !relativePath) {
+  if (!vaultPath || !isStorageAbsolutePath(vaultPath) || !relativePath) {
     return null;
   }
-  return vaultPath === '/'
-    ? `/${relativePath}`
-    : `${vaultPath}/${relativePath}`.replace(/\/+/g, '/');
+  return joinPath(vaultPath, relativePath);
 }
 
-function resolveStarredAbsoluteMentionPath(
+async function resolveStarredAbsoluteMentionPath(
   mentionPath: string,
   kind: 'note' | 'folder',
-): string | null {
-  const targetPath = normalizeAbsoluteMentionPath(mentionPath);
+): Promise<string | null> {
+  const targetPath = normalizeAbsoluteMentionPathForCompare(mentionPath);
   const entries = useNotesStore.getState().starredEntries ?? [];
   for (const entry of entries) {
     if (entry.kind !== kind) {
       continue;
     }
-    const absolutePath = getStarredAbsoluteMentionPath(entry);
-    if (absolutePath && normalizeAbsoluteMentionPath(absolutePath) === targetPath) {
+    const absolutePath = await getStarredAbsoluteMentionPath(entry);
+    if (absolutePath && normalizeAbsoluteMentionPathForCompare(absolutePath) === targetPath) {
       return absolutePath;
     }
   }
@@ -236,8 +286,8 @@ async function resolveMentionedPath(
   mentionPath: string,
   kind: 'note' | 'folder',
 ): Promise<{ cachePath: string; fullPath: string } | null> {
-  if (isAbsolutePath(mentionPath)) {
-    const fullPath = resolveStarredAbsoluteMentionPath(mentionPath, kind);
+  if (isStorageAbsolutePath(mentionPath)) {
+    const fullPath = await resolveStarredAbsoluteMentionPath(mentionPath, kind);
     return fullPath ? { cachePath: fullPath, fullPath } : null;
   }
 
@@ -567,6 +617,9 @@ async function loadFolderImageAttachmentsForMention(
     const stat = typeof entry.size === 'number'
       ? entry
       : await storage.stat(entryPath).catch(() => null);
+    if (stat && stat.isFile === false) {
+      continue;
+    }
     const size = typeof stat?.size === 'number' ? stat.size : entry.size;
     if (typeof size === 'number' && size > MAX_FOLDER_IMAGE_ATTACHMENT_BYTES) {
       continue;
@@ -681,21 +734,55 @@ export async function normalizeVisionAttachment(
   }
 
   try {
-    const base64 = await convertToBase64(attachment);
+    const directImageUrl = normalizeDirectVisionImageUrl(getAttachmentMessageImageSrc(attachment));
+    if (directImageUrl) {
+      return {
+        type: 'image_url',
+        image_url: { url: directImageUrl },
+      };
+    }
+
+    const base64 = await convertToBase64(attachment, {
+      allowPath: isCurrentVaultImageAttachmentPath,
+    });
     const normalizedBase64 = isSvgDataUrl(base64)
       ? await rasterizeSvgDataUrlToPng(base64)
       : base64;
-    if (!normalizedBase64) {
+    const imageUrl = normalizeRenderableImageSrc(normalizedBase64);
+    if (!imageUrl || !isSizedDataImageSrc(imageUrl)) {
       return null;
     }
 
     return {
       type: 'image_url',
-      image_url: { url: normalizedBase64 },
+      image_url: { url: imageUrl },
     };
   } catch (error) {
     return null;
   }
+}
+
+function isCurrentVaultImageAttachmentPath(path: string): boolean {
+  const notesPath = useNotesStore.getState().notesPath?.trim();
+  return Boolean(notesPath && normalizeContainedAssetPath(path, notesPath));
+}
+
+function normalizeDirectVisionImageUrl(src: string): string | null {
+  const imageUrl = normalizeRenderableImageSrc(src);
+  if (!imageUrl || !isRenderedImageSource(imageUrl)) {
+    return null;
+  }
+
+  const normalized = imageUrl.toLowerCase();
+  if (
+    normalized.startsWith('http://') ||
+    normalized.startsWith('https://') ||
+    (isRenderableDataImageSrc(imageUrl) && isSizedDataImageSrc(imageUrl))
+  ) {
+    return imageUrl;
+  }
+
+  return null;
 }
 
 export function createChunkScheduler(onFlush: (content: string) => void) {
@@ -784,16 +871,21 @@ async function getRenderableMessageImageSrc(attachment: Attachment): Promise<str
   const rawSrc = getAttachmentMessageImageSrc(attachment);
   const normalizedSrc = normalizeRenderableImageSrc(rawSrc);
   if (normalizedSrc) {
-    return normalizedSrc;
+    return isSizedDataImageSrc(normalizedSrc) ? normalizedSrc : null;
   }
 
-  const mimeType = attachment.type?.trim().toLowerCase() ?? '';
-  if (mimeType !== 'image/svg+xml' || !rawSrc.trim().startsWith('data:image/svg+xml')) {
+  if (!isSvgDataUrl(rawSrc)) {
+    return null;
+  }
+  if (!isSizedDataImageSrc(rawSrc)) {
     return null;
   }
 
   const rasterizedSrc = await rasterizeSvgDataUrlToPng(rawSrc);
-  return normalizeRenderableImageSrc(rasterizedSrc);
+  const normalizedRasterizedSrc = normalizeRenderableImageSrc(rasterizedSrc);
+  return normalizedRasterizedSrc && isSizedDataImageSrc(normalizedRasterizedSrc)
+    ? normalizedRasterizedSrc
+    : null;
 }
 
 export async function buildMessageImageSources(attachments: Attachment[]): Promise<{ content: string; imageSources: string[] }> {

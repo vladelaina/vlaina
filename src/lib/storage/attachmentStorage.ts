@@ -1,6 +1,14 @@
 import { getElectronBridge } from '@/lib/electron/bridge';
+import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
+import { getBase64DecodedByteLength, MAX_INLINE_IMAGE_BYTES } from '@/lib/markdown/dataImagePolicy';
+import { normalizeRenderableDataImageSrc } from '@/lib/markdown/renderableImagePolicy';
+import { sanitizeSvgBytes } from '@/lib/markdown/svgSanitizer';
 import { getStorageAdapter, joinPath } from './adapter';
-import { extractStoredAttachmentFilename } from './attachmentUrl';
+import {
+    extractStoredAttachmentFilename,
+    inferAttachmentMimeTypeFromFilename,
+    sanitizeAttachmentFilename,
+} from './attachmentUrl';
 import {
     getPrimaryAttachmentDir,
     getPrimaryAttachmentPath,
@@ -16,10 +24,47 @@ export interface Attachment {
     size: number;
 }
 
+export function createStoredAttachmentFromSource(src: string, id = 'stored-attachment'): Attachment | null {
+    const filename = extractStoredAttachmentFilename(src);
+    if (!filename) {
+        return null;
+    }
+
+    const trimmed = src.trim();
+    return {
+        id,
+        path: '',
+        previewUrl: trimmed,
+        assetUrl: trimmed,
+        name: filename,
+        type: inferAttachmentMimeTypeFromFilename(filename),
+        size: 0,
+    };
+}
+
 const DATA_URL_REGEX = /^data:([^;,]+)(;base64)?,(.*)$/i;
+export const MAX_ATTACHMENT_IMAGE_BYTES = MAX_INLINE_IMAGE_BYTES;
+const SUPPORTED_ATTACHMENT_IMAGE_EXTENSIONS_BY_MIME: Record<string, readonly string[]> = {
+    'image/avif': ['avif'],
+    'image/bmp': ['bmp'],
+    'image/gif': ['gif'],
+    'image/jpeg': ['jpg', 'jpeg'],
+    'image/png': ['png'],
+    'image/svg+xml': ['svg'],
+    'image/webp': ['webp'],
+};
+const SUPPORTED_ATTACHMENT_MIME_BY_EXTENSION: Record<string, string> = Object.fromEntries(
+    Object.entries(SUPPORTED_ATTACHMENT_IMAGE_EXTENSIONS_BY_MIME).flatMap(([mimeType, extensions]) =>
+        extensions.map((extension) => [extension, mimeType])
+    )
+);
 
 interface SaveAttachmentOptions {
     persist?: boolean;
+}
+
+interface ConvertAttachmentOptions {
+    allowPath?: (path: string) => boolean | Promise<boolean>;
 }
 
 function getPathApi() {
@@ -36,8 +81,139 @@ async function buildAttachmentAssetUrl(absolutePath: string, previewUrl: string)
     return await pathApi.toFileUrl(absolutePath);
 }
 
+function getFileExtension(fileName: string): string {
+    return fileName.split('.').pop()?.trim().toLowerCase() ?? '';
+}
+
+function normalizeAttachmentImageMimeType(file: File): string | null {
+    const rawMimeType = file.type.split(';')[0]?.trim().toLowerCase() ?? '';
+    const mimeType = rawMimeType === 'image/jpg' ? 'image/jpeg' : rawMimeType;
+    if (mimeType) {
+        return Object.prototype.hasOwnProperty.call(SUPPORTED_ATTACHMENT_IMAGE_EXTENSIONS_BY_MIME, mimeType)
+            ? mimeType
+            : null;
+    }
+
+    return SUPPORTED_ATTACHMENT_MIME_BY_EXTENSION[getFileExtension(file.name)] ?? null;
+}
+
+function getAttachmentExtensionFromMimeType(mimeType: string): string {
+    if (mimeType === 'image/jpeg') {
+        return 'jpg';
+    }
+    return SUPPORTED_ATTACHMENT_IMAGE_EXTENSIONS_BY_MIME[mimeType]?.[0] ?? 'bin';
+}
+
+function getAttachmentFilename(fileName: string, mimeType: string): string {
+    const extension = getAttachmentExtensionFromMimeType(mimeType);
+    const currentExtension = getFileExtension(fileName);
+    const allowedExtensions = SUPPORTED_ATTACHMENT_IMAGE_EXTENSIONS_BY_MIME[mimeType] ?? [];
+    if (allowedExtensions.includes(currentExtension)) {
+        return `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${currentExtension}`;
+    }
+    return `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${extension}`;
+}
+
+function prepareAttachmentImageBytes(bytes: Uint8Array, mimeType: string): Uint8Array {
+    return mimeType === 'image/svg+xml' ? sanitizeSvgBytes(bytes) : bytes;
+}
+
+function assertAttachmentImageSize(byteLength: number): void {
+    if (byteLength > MAX_ATTACHMENT_IMAGE_BYTES) {
+        throw new Error('Attachment image is too large.');
+    }
+}
+
+export function isAttachmentDataUrlWithinSizeLimit(dataUrl: string): boolean {
+    const match = DATA_URL_REGEX.exec(dataUrl.trim());
+    if (!match) {
+        return false;
+    }
+
+    const mimeType = match[1]?.trim().toLowerCase() ?? '';
+    if (!Object.prototype.hasOwnProperty.call(SUPPORTED_ATTACHMENT_IMAGE_EXTENSIONS_BY_MIME, mimeType)) {
+        return false;
+    }
+
+    const payload = match[3] || '';
+    if (!match[2]) {
+        if (payload.length > MAX_ATTACHMENT_IMAGE_BYTES * 3) {
+            return false;
+        }
+        try {
+            return new TextEncoder().encode(decodeURIComponent(payload)).byteLength <= MAX_ATTACHMENT_IMAGE_BYTES;
+        } catch {
+            return false;
+        }
+    }
+
+    const byteLength = getBase64DecodedByteLength(payload);
+    return byteLength !== null && byteLength <= MAX_ATTACHMENT_IMAGE_BYTES;
+}
+
+function isSameNormalizedPath(leftPath: string, rightPath: string): boolean {
+    return (
+        normalizeContainedAssetPath(leftPath, rightPath) !== null &&
+        normalizeContainedAssetPath(rightPath, leftPath) !== null
+    );
+}
+
+async function resolvePrimaryAttachmentFilePath(path: string): Promise<string | null> {
+    const attachmentPath = path.trim();
+    const filename = sanitizeAttachmentFilename(attachmentPath.split(/[\\/]/).pop() ?? '');
+    if (!filename) {
+        return null;
+    }
+
+    const storage = getStorageAdapter();
+    const basePath = await storage.getBasePath();
+    const attachmentDir = await getPrimaryAttachmentDir(basePath);
+    const containedPath = normalizeContainedAssetPath(attachmentPath, attachmentDir);
+    if (!containedPath) {
+        return null;
+    }
+
+    const expectedPath = normalizeContainedAssetPath(
+        await getPrimaryAttachmentPath(basePath, filename),
+        attachmentDir,
+    );
+    if (!expectedPath || !isSameNormalizedPath(containedPath, expectedPath)) {
+        return null;
+    }
+
+    return containedPath;
+}
+
+async function readFileBytes(file: File): Promise<Uint8Array> {
+    if (typeof file.arrayBuffer === 'function') {
+        return new Uint8Array(await file.arrayBuffer());
+    }
+
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = reader.result;
+            if (result instanceof ArrayBuffer) {
+                resolve(new Uint8Array(result));
+                return;
+            }
+            reject(new Error('Failed to read attachment bytes'));
+        };
+        reader.onerror = () => reject(reader.error ?? new Error('Failed to read attachment bytes'));
+        reader.readAsArrayBuffer(file);
+    });
+}
+
 export async function saveAttachment(file: File, options: SaveAttachmentOptions = {}): Promise<Attachment> {
-    const base64 = await fileToBase64(file);
+    const mimeType = normalizeAttachmentImageMimeType(file);
+    if (!mimeType) {
+        throw new Error('Unsupported attachment type');
+    }
+    assertAttachmentImageSize(file.size);
+
+    const bytes = prepareAttachmentImageBytes(await readFileBytes(file), mimeType);
+    assertAttachmentImageSize(bytes.byteLength);
+    const previewUrl = `data:${mimeType};base64,${uint8ArrayToBase64(bytes)}`;
     let absolutePath = '';
     let assetUrl = '';
 
@@ -52,15 +228,10 @@ export async function saveAttachment(file: File, options: SaveAttachmentOptions 
                 await storage.mkdir(dirPath, true);
             }
 
-            const ext = file.name.split('.').pop() || 'bin';
-            const filename = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+            const filename = getAttachmentFilename(file.name, mimeType);
             absolutePath = await joinPath(dirPath, filename);
-
-            const buffer = await file.arrayBuffer();
-            const data = new Uint8Array(buffer);
-            await storage.writeBinaryFile(absolutePath, data, { recursive: true });
-
-            assetUrl = await buildAttachmentAssetUrl(absolutePath, base64);
+            await storage.writeBinaryFile(absolutePath, bytes, { recursive: true });
+            assetUrl = await buildAttachmentAssetUrl(absolutePath, previewUrl);
         } catch (e) {
         }
     }
@@ -68,10 +239,10 @@ export async function saveAttachment(file: File, options: SaveAttachmentOptions 
     return {
         id: crypto.randomUUID(),
         path: absolutePath,
-        previewUrl: base64,
+        previewUrl,
         assetUrl,
         name: file.name,
-        type: file.type || 'application/octet-stream',
+        type: mimeType,
         size: file.size,
     };
 }
@@ -80,8 +251,11 @@ export async function deleteAttachment(attachment: Attachment): Promise<void> {
     const storage = getStorageAdapter();
     const attachmentPath = attachment.path?.trim();
     if (attachmentPath) {
-        await storage.deleteFile(attachmentPath).catch(() => {});
-        return;
+        const managedPath = await resolvePrimaryAttachmentFilePath(attachmentPath);
+        if (managedPath) {
+            await storage.deleteFile(managedPath).catch(() => {});
+            return;
+        }
     }
 
     const storedFilename =
@@ -114,13 +288,23 @@ function dataUrlToBytes(dataUrl: string): { bytes: Uint8Array; mimeType: string 
     const payload = match[3] || '';
 
     if (!isBase64) {
-        return {
-            bytes: new TextEncoder().encode(decodeURIComponent(payload)),
-            mimeType,
-        };
+        try {
+            return {
+                bytes: new TextEncoder().encode(decodeURIComponent(payload)),
+                mimeType,
+            };
+        } catch {
+            return null;
+        }
     }
 
-    const binary = window.atob(payload);
+    let binary = '';
+    try {
+        binary = window.atob(payload);
+    } catch {
+        return null;
+    }
+
     const bytes = new Uint8Array(binary.length);
     for (let index = 0; index < binary.length; index += 1) {
         bytes[index] = binary.charCodeAt(index);
@@ -129,8 +313,19 @@ function dataUrlToBytes(dataUrl: string): { bytes: Uint8Array; mimeType: string 
 }
 
 export async function persistDataUrlAttachment(dataUrl: string): Promise<string | null> {
-    const decoded = dataUrlToBytes(dataUrl);
+    const normalizedDataUrl = normalizeRenderableDataImageSrc(dataUrl);
+    if (!normalizedDataUrl) {
+        return null;
+    }
+    if (!isAttachmentDataUrlWithinSizeLimit(normalizedDataUrl)) {
+        return null;
+    }
+
+    const decoded = dataUrlToBytes(normalizedDataUrl);
     if (!decoded) {
+        return null;
+    }
+    if (decoded.bytes.byteLength > MAX_ATTACHMENT_IMAGE_BYTES) {
         return null;
     }
 
@@ -149,15 +344,6 @@ export async function persistDataUrlAttachment(dataUrl: string): Promise<string 
     return `attachment://${encodeURIComponent(filename)}`;
 }
 
-function fileToBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-}
-
 function uint8ArrayToBase64(bytes: Uint8Array): string {
     const CHUNK_SIZE = 0x8000;
     let binary = '';
@@ -168,8 +354,11 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
     return window.btoa(binary);
 }
 
-export async function convertToBase64(attachment: Attachment): Promise<string> {
-    if (attachment.previewUrl.startsWith('data:')) {
+export async function convertToBase64(attachment: Attachment, options: ConvertAttachmentOptions = {}): Promise<string> {
+    if (/^data:/i.test(attachment.previewUrl.trim())) {
+        if (!isAttachmentDataUrlWithinSizeLimit(attachment.previewUrl)) {
+            throw new Error('Attachment image is too large.');
+        }
         return attachment.previewUrl;
     }
 
@@ -177,9 +366,16 @@ export async function convertToBase64(attachment: Attachment): Promise<string> {
 
     if (attachment.path) {
         try {
-            const data = await storage.readBinaryFile(attachment.path);
-            const base64 = uint8ArrayToBase64(data);
-            return `data:${attachment.type};base64,${base64}`;
+            const managedPath = await resolvePrimaryAttachmentFilePath(attachment.path);
+            const readablePath = managedPath || ((await options.allowPath?.(attachment.path)) ? attachment.path : null);
+            if (readablePath) {
+                const info = await storage.stat(readablePath).catch(() => null);
+                assertAttachmentImageSize(info?.size ?? null);
+                const data = await storage.readBinaryFile(readablePath);
+                assertAttachmentImageSize(data.byteLength);
+                const base64 = uint8ArrayToBase64(data);
+                return `data:${attachment.type};base64,${base64}`;
+            }
         } catch (e) {
         }
     }
@@ -189,7 +385,11 @@ export async function convertToBase64(attachment: Attachment): Promise<string> {
         extractStoredAttachmentFilename(attachment.assetUrl);
     if (storedFilename) {
         const basePath = await storage.getBasePath();
-        const data = await storage.readBinaryFile(await getPrimaryAttachmentPath(basePath, storedFilename));
+        const attachmentPath = await getPrimaryAttachmentPath(basePath, storedFilename);
+        const info = await storage.stat(attachmentPath).catch(() => null);
+        assertAttachmentImageSize(info?.size ?? null);
+        const data = await storage.readBinaryFile(attachmentPath);
+        assertAttachmentImageSize(data.byteLength);
         const base64 = uint8ArrayToBase64(data);
         return `data:${attachment.type};base64,${base64}`;
     }

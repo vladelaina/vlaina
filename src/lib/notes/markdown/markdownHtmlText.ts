@@ -8,11 +8,25 @@ export function escapeMarkdownHtmlText(value: string): string {
 const NAMED_HTML_TEXT_REFERENCES: Record<string, string> = {
   amp: '&',
   apos: "'",
+  comma: ',',
   colon: ':',
+  commat: '@',
+  equals: '=',
   gt: '>',
+  lpar: '(',
+  lsqb: '[',
   lt: '<',
   nbsp: '\u00A0',
+  num: '#',
+  period: '.',
+  percnt: '%',
+  plus: '+',
+  quest: '?',
   quot: '"',
+  rpar: ')',
+  rsqb: ']',
+  semi: ';',
+  sol: '/',
 };
 
 function decodeMarkdownHtmlReference(value: string): string {
