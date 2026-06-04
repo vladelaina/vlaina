@@ -133,6 +133,21 @@ it('should keep plain relative links in github html', () => {
   expect(result).toBe('<a href="readme.md">readme</a><a href="docs/readme.md">docs</a><a href="/docs/readme.md">root</a><img>')
 })
 
+it('should drop parser-promoted descendants from remove-content raw html tags', () => {
+  const result = sanitizeGithubHtml([
+    '<svg><img src="https://example.com/svg.png"></svg>',
+    '<math><img src="https://example.com/math.png"></math>',
+    '<noscript><img src="https://example.com/noscript.png"></noscript>',
+    '<noembed><img src="https://example.com/noembed.png"></noembed>',
+    '<noframes><img src="https://example.com/noframes.png"></noframes>',
+    '<img src="https://example.com/real.png">',
+    '<plaintext><img src="https://example.com/plaintext.png"></plaintext>',
+    '<img src="https://example.com/hidden-after-plaintext.png">',
+  ].join(''))
+
+  expect(result).toBe('<img src="https://example.com/real.png">')
+})
+
 it('should render protocol-relative markdown links as text', async () => {
   const editor = createEditor()
   editor.config((ctx) => {

@@ -18,6 +18,9 @@ describe('renderNoteExportHtml', () => {
       [
         '<script>alert(1)</script>',
         '<svg><script>alert(2)</script></svg>',
+        '<noscript><img src="assets/hidden-noscript.png"></noscript>',
+        '<math><img src="assets/hidden-math.png"></math>',
+        '<noembed><img src="assets/hidden-noembed.png"></noembed>',
         '<a href="javascript:alert(3)" onclick="alert(4)">bad</a>',
         '<a href="file:///etc/passwd">file</a>',
         '<a href="//example.com/protocol-relative">protocol</a>',
@@ -36,6 +39,9 @@ describe('renderNoteExportHtml', () => {
     expect(doc.querySelector('title')?.textContent).toBe('Unsafe <Title>');
     expect(doc.querySelector('script')).toBeNull();
     expect(doc.querySelector('svg')).toBeNull();
+    expect(doc.querySelector('img[src="assets/hidden-noscript.png"]')).toBeNull();
+    expect(doc.querySelector('img[src="assets/hidden-math.png"]')).toBeNull();
+    expect(doc.querySelector('img[src="assets/hidden-noembed.png"]')).toBeNull();
     expect(doc.querySelector('[onclick]')).toBeNull();
     expect(doc.querySelector('[onerror]')).toBeNull();
     expect(doc.querySelector('a[href^="javascript:"]')).toBeNull();

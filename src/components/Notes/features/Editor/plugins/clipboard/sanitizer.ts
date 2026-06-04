@@ -13,6 +13,7 @@ import {
   sanitizeGithubIframeSandbox,
   sanitizeGithubStyle,
 } from '@/lib/notes/markdown/githubHtmlPolicy';
+import { stripGithubDroppedRawHtmlContent } from '@/lib/notes/markdown/githubRawHtml';
 
 function sanitizeChildren(source: Element | DocumentFragment, target: Element | DocumentFragment): void {
   for (const child of Array.from(source.childNodes)) {
@@ -128,7 +129,7 @@ export function sanitizeHtml(html: string): string {
 
   try {
     const template = document.createElement('template');
-    template.innerHTML = html;
+    template.innerHTML = stripGithubDroppedRawHtmlContent(html);
 
     const output = document.createElement('template');
     sanitizeChildren(template.content, output.content);
