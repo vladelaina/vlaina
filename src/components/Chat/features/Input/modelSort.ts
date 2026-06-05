@@ -3,6 +3,10 @@ import { getModelDisplayName } from './modelFamilyRegistry'
 
 type SortableModel = Pick<AIModel, 'apiModelId' | 'name' | 'createdAt'>
 
+const MAX_MODEL_SORT_COMPONENT_CHARS = 4096
+const MAX_MODEL_SORT_VALUE_CHARS = 8192
+const MAX_MODEL_SORT_REGEX_MATCHES = 64
+
 const TIER_PATTERNS: Array<[RegExp, number]> = [
   [/(^|[\s._:/-])(opus|ultra)([\s._:/-]|$)/, 900],
   [/(^|[\s._:/-])(max)([\s._:/-]|$)/, 850],
@@ -24,7 +28,13 @@ const DATE_PATTERNS = [
 ]
 
 function getModelSortValue(model: SortableModel): string {
-  return `${getModelDisplayName(model)} ${model.apiModelId}`.toLowerCase()
+  const displayName = getModelSortDisplayName(model)
+  const apiModelId = model.apiModelId.slice(0, MAX_MODEL_SORT_COMPONENT_CHARS)
+  return `${displayName} ${apiModelId}`.slice(0, MAX_MODEL_SORT_VALUE_CHARS).toLowerCase()
+}
+
+function getModelSortDisplayName(model: SortableModel): string {
+  return getModelDisplayName(model).slice(0, MAX_MODEL_SORT_COMPONENT_CHARS)
 }
 
 function stripNonVersionNumbers(value: string): string {
@@ -43,8 +53,10 @@ function extractVersionParts(value: string): number[] {
   const parts: number[] = []
   const regex = /(?:^|[^\d])(\d+(?:\.\d+)?)(?!\d)/g
   let match: RegExpExecArray | null
+  let matches = 0
 
-  while ((match = regex.exec(versionValue))) {
+  while (matches < MAX_MODEL_SORT_REGEX_MATCHES && (match = regex.exec(versionValue))) {
+    matches += 1
     const part = Number(match[1])
     if (!Number.isFinite(part) || part > 100) {
       continue
@@ -111,7 +123,9 @@ function getReleaseDateScore(value: string): number {
   for (const pattern of DATE_PATTERNS) {
     pattern.lastIndex = 0
     let match: RegExpExecArray | null
-    while ((match = pattern.exec(value))) {
+    let matches = 0
+    while (matches < MAX_MODEL_SORT_REGEX_MATCHES && (match = pattern.exec(value))) {
+      matches += 1
       let score = 0
       if (pattern === DATE_PATTERNS[0]) {
         score = toDateScore(Number(match[1]), Number(match[2]), Number(match[3]))
@@ -135,8 +149,10 @@ function getParameterSizeScore(value: string): number {
   const regex = /(?:^|[^\d])(\d+(?:\.\d+)?)(t|b|m)(?=$|[^\w])/g
   let bestScore = 0
   let match: RegExpExecArray | null
+  let matches = 0
 
-  while ((match = regex.exec(value))) {
+  while (matches < MAX_MODEL_SORT_REGEX_MATCHES && (match = regex.exec(value))) {
+    matches += 1
     const amount = Number(match[1])
     if (!Number.isFinite(amount)) {
       continue
@@ -159,8 +175,10 @@ function getContextWindowScore(value: string): number {
   const regex = /(?:^|[^\d])(\d+(?:\.\d+)?)(k|m)(?=$|[^\w])/g
   let bestScore = 0
   let match: RegExpExecArray | null
+  let matches = 0
 
-  while ((match = regex.exec(value))) {
+  while (matches < MAX_MODEL_SORT_REGEX_MATCHES && (match = regex.exec(value))) {
+    matches += 1
     const amount = Number(match[1])
     if (!Number.isFinite(amount)) {
       continue
@@ -211,7 +229,7 @@ export function compareModelDisplayOrder(left: SortableModel, right: SortableMod
     return contextComparison
   }
 
-  const nameComparison = getModelDisplayName(left).localeCompare(getModelDisplayName(right), undefined, {
+  const nameComparison = getModelSortDisplayName(left).localeCompare(getModelSortDisplayName(right), undefined, {
     numeric: true,
     sensitivity: 'base',
   })

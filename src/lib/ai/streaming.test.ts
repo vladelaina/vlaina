@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   consumeOpenAIStream,
+  MAX_OPENAI_STREAM_CONTENT_CHARS,
   MAX_OPENAI_STREAM_LINE_CHARS,
 } from './streaming';
 
@@ -128,6 +129,30 @@ describe('consumeOpenAIStream', () => {
     );
 
     await expect(consumeOpenAIStream(response, () => {})).rejects.toThrow('AI stream line is too large');
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('rejects streams whose accumulated content grows too large', async () => {
+    const cancel = vi.fn();
+    const chunk = 'x'.repeat(512 * 1024);
+    const chunks = Math.ceil(MAX_OPENAI_STREAM_CONTENT_CHARS / chunk.length) + 1;
+    const encoder = new TextEncoder();
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          for (let index = 0; index < chunks; index += 1) {
+            controller.enqueue(encoder.encode(
+              `data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\n`
+            ));
+          }
+        },
+        cancel,
+      }),
+    );
+
+    await expect(consumeOpenAIStream(response, () => {})).rejects.toThrow('AI stream content is too large');
+
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(() => response.body?.getReader()).not.toThrow();
   });
