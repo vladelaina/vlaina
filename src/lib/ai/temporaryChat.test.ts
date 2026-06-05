@@ -101,4 +101,13 @@ describe("buildTitleSourceFromMessages", () => {
 
     expect(buildTitleSourceFromMessages(messages)).toHaveLength(1200);
   });
+
+  it("stops collecting title source once the output budget is reached", () => {
+    const messages: ChatMessage[] = [
+      createMessage({ role: "user", content: "x".repeat(1200) }),
+      createMessage({ role: "user", content: "this should not be included" }),
+    ];
+
+    expect(buildTitleSourceFromMessages(messages)).toBe("x".repeat(1200));
+  });
 });

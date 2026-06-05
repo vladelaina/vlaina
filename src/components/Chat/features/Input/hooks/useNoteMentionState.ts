@@ -34,6 +34,9 @@ type IndexedNoteMentionCandidate = NoteMentionCandidate & {
   lowerPath: string;
 };
 
+const MAX_VISIBLE_NOTE_MENTION_CANDIDATES = 30;
+const MAX_VISIBLE_FOLDER_MENTION_CANDIDATES = 12;
+
 interface UseNoteMentionStateOptions {
   value: string;
   onValueChange: (value: string) => void;
@@ -151,37 +154,43 @@ export function useNoteMentionState({
     }
 
     const query = mentionTrigger.query.trim().toLowerCase();
-    const candidates = allNoteCandidates.filter((candidate) => {
+    const currentNoteCandidates: IndexedNoteMentionCandidate[] = [];
+    const folderCandidates: IndexedNoteMentionCandidate[] = [];
+    const linkedNoteCandidates: IndexedNoteMentionCandidate[] = [];
+
+    for (const candidate of allNoteCandidates) {
       if (!query) {
-        return true;
+        // Continue to bucket selection below.
+      } else if (
+        !candidate.lowerTitle.includes(query)
+        && !candidate.lowerPath.includes(query)
+      ) {
+        continue;
       }
 
-      return (
-        candidate.lowerTitle.includes(query)
-        || candidate.lowerPath.includes(query)
-      );
-    });
+      if (candidate.kind === 'folder') {
+        if (folderCandidates.length < MAX_VISIBLE_FOLDER_MENTION_CANDIDATES) {
+          folderCandidates.push(candidate);
+        }
+      } else if (candidate.isCurrent) {
+        if (currentNoteCandidates.length < MAX_VISIBLE_NOTE_MENTION_CANDIDATES) {
+          currentNoteCandidates.push(candidate);
+        }
+      } else if (
+        currentNoteCandidates.length + linkedNoteCandidates.length <
+        MAX_VISIBLE_NOTE_MENTION_CANDIDATES
+      ) {
+        linkedNoteCandidates.push(candidate);
+      }
 
-    const sortedCandidates = candidates
-      .sort((a, b) => {
-        if (a.isCurrent !== b.isCurrent) {
-          return a.isCurrent ? -1 : 1;
-        }
-        if (a.kind !== b.kind) {
-          return a.kind === 'note' ? -1 : 1;
-        }
-        return a.title.localeCompare(b.title);
-      });
-    const noteCandidates = sortedCandidates.filter((candidate) => candidate.kind === 'note');
-    const folderCandidates = sortedCandidates
-      .filter((candidate) => candidate.kind === 'folder')
-      .slice(0, 12);
-    const currentNoteCandidates = noteCandidates
-      .filter((candidate) => candidate.isCurrent)
-      .slice(0, 30);
-    const linkedNoteCandidates = noteCandidates
-      .filter((candidate) => !candidate.isCurrent)
-      .slice(0, Math.max(30 - currentNoteCandidates.length, 0));
+      if (
+        currentNoteCandidates.length + linkedNoteCandidates.length >= MAX_VISIBLE_NOTE_MENTION_CANDIDATES &&
+        folderCandidates.length >= MAX_VISIBLE_FOLDER_MENTION_CANDIDATES
+      ) {
+        break;
+      }
+    }
+
     return [...currentNoteCandidates, ...folderCandidates, ...linkedNoteCandidates];
   }, [allNoteCandidates, mentionTrigger]);
 

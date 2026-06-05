@@ -1,9 +1,10 @@
 import electron from 'electron';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { decodeSecretRecord, encodeSecretRecord } from './secureSecretRecord.mjs';
 
 const { app, safeStorage } = electron;
+const MAX_PROVIDER_SECRETS_JSON_BYTES = 512 * 1024;
 let secretsStoreUpdatePromise = Promise.resolve();
 
 function isSafeProviderId(value) {
@@ -30,6 +31,10 @@ export async function readSecretsStore() {
   await mkdir(secretsDir, { recursive: true });
 
   try {
+    const fileInfo = await stat(secretsPath);
+    if (!fileInfo.isFile() || fileInfo.size > MAX_PROVIDER_SECRETS_JSON_BYTES) {
+      return { secretsDir, secretsPath, data: {} };
+    }
     const content = await readFile(secretsPath, 'utf8');
     const parsed = JSON.parse(content);
     const { record, needsMigration } = decodeSecretRecord(parsed, safeStorage);

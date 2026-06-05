@@ -260,4 +260,37 @@ describe('useVaultStore external sync', () => {
     expect(useNotesStore.getState().notesPath).toBe('C:/vault-old');
     expect(typeof useVaultStore.getState().openVault).toBe('function');
   });
+
+  it('ignores oversized cross-window recent vault storage updates', () => {
+    useVaultStore.setState({
+      currentVault: {
+        id: 'vault-1',
+        name: 'Alpha',
+        path: '/vaults/alpha',
+        lastOpened: 1,
+      },
+      recentVaults: [
+        {
+          id: 'vault-1',
+          name: 'Alpha',
+          path: '/vaults/alpha',
+          lastOpened: 1,
+        },
+      ],
+    });
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'vlaina-vaults',
+      newValue: '['.padEnd(70 * 1024, ' '),
+    }));
+
+    expect(useVaultStore.getState().recentVaults).toEqual([
+      expect.objectContaining({ id: 'vault-1', name: 'Alpha' }),
+    ]);
+    expect(useVaultStore.getState().currentVault).toMatchObject({
+      id: 'vault-1',
+      name: 'Alpha',
+      path: '/vaults/alpha',
+    });
+  });
 });

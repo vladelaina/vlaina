@@ -155,7 +155,7 @@ describe('MarkdownRenderer images', () => {
   });
 
   it('does not render images nested inside raw html dropped by the sanitizer', () => {
-    render(
+    const { container } = render(
       <MarkdownRenderer
         content={[
           '<svg><image href="https://example.com/svg.png"></image></svg>',
@@ -171,6 +171,9 @@ describe('MarkdownRenderer images', () => {
 
     expect(screen.getAllByTestId('local-image')).toHaveLength(1);
     expect(screen.getByTestId('local-image')).toHaveAttribute('src', 'https://example.com/real.png');
+    expect(container.textContent).toContain('<noembed>');
+    expect(container.textContent).toContain('<noframes>');
+    expect(container.textContent).toContain('<plaintext>');
   });
 
   it('sanitizes raw cite URL attributes before rendering', () => {

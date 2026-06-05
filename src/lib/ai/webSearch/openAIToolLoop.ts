@@ -10,6 +10,7 @@ import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { addChatDebugLog } from '@/lib/debug/chatDebugLog';
 import {
   appendWebSearchSystemInstruction,
+  canParseOpenAIToolArguments,
   extractOpenAIMessageFromJson,
 } from './openAIToolParsing';
 import type { OpenAIToolCall, OpenAIWireMessage } from './openAIToolTypes';
@@ -248,9 +249,10 @@ function isBatchReadToolName(name: string): boolean {
 }
 
 function parseToolArguments(rawArguments: string): Record<string, unknown> {
-  if (!rawArguments.trim()) return {};
+  const trimmed = rawArguments.trim();
+  if (!trimmed || !canParseOpenAIToolArguments(trimmed)) return {};
   try {
-    const parsed = JSON.parse(rawArguments) as unknown;
+    const parsed = JSON.parse(trimmed) as unknown;
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
       ? parsed as Record<string, unknown>
       : {};

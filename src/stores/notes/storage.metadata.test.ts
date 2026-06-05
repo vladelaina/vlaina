@@ -182,7 +182,7 @@ describe('notes metadata storage', () => {
     expect(adapter.readFile).toHaveBeenCalledTimes(1);
   });
 
-  it('does not cache metadata when file stats are unavailable', async () => {
+  it('does not read metadata when file stats are unavailable', async () => {
     adapter.listDir.mockResolvedValue([
       { name: 'alpha.md', isFile: true },
     ]);
@@ -192,7 +192,7 @@ describe('notes metadata storage', () => {
     await loadNoteMetadata('/vault-no-stat');
     await loadNoteMetadata('/vault-no-stat');
 
-    expect(adapter.readFile).toHaveBeenCalledTimes(2);
+    expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
   it('does not read oversized markdown files during metadata scans', async () => {
@@ -331,7 +331,7 @@ describe('notes metadata storage', () => {
 
   it('merges expanded workspace folders from disk before saving', async () => {
     adapter.exists.mockResolvedValue(true);
-    adapter.stat.mockResolvedValue(null);
+    adapter.stat.mockResolvedValue({ size: 128 });
     adapter.readFile.mockResolvedValue(JSON.stringify({
       currentNotePath: 'beta.md',
       expandedFolders: ['archive'],
@@ -356,7 +356,7 @@ describe('notes metadata storage', () => {
 
   it('caps merged expanded workspace folders before saving', async () => {
     adapter.exists.mockResolvedValue(true);
-    adapter.stat.mockResolvedValue(null);
+    adapter.stat.mockResolvedValue({ size: 128 });
     adapter.readFile.mockResolvedValue(JSON.stringify({
       currentNotePath: 'beta.md',
       expandedFolders: Array.from({ length: 5000 }, (_, index) => `disk-${index}`),
@@ -388,7 +388,7 @@ describe('notes metadata storage', () => {
 
   it('sanitizes workspace state loaded from disk', async () => {
     adapter.exists.mockResolvedValue(true);
-    adapter.stat.mockResolvedValue(null);
+    adapter.stat.mockResolvedValue({ size: 128 });
     adapter.readFile.mockResolvedValue(
       JSON.stringify({
         currentNotePath: '../secret.md',
@@ -402,6 +402,14 @@ describe('notes metadata storage', () => {
       expandedFolders: ['docs'],
       fileTreeSortMode: undefined,
     });
+  });
+
+  it('does not read workspace state files when stat has no size', async () => {
+    adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockResolvedValue(null);
+
+    await expect(loadWorkspaceState('/vault-a')).resolves.toBeNull();
+    expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
   it('does not read oversized workspace state files', async () => {

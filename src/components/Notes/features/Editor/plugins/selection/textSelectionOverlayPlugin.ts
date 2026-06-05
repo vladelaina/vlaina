@@ -12,6 +12,7 @@ const POINTER_NATIVE_SELECTION_META = 'editorTextSelectionPointerNative';
 const EDITOR_ONLY_TEXT_SELECTION_PLACEHOLDERS = new Set(['\u200B', '\u200C', '\u2800']);
 const VISIBLE_TEXT_PATTERN = /\S/u;
 const LINE_BREAK_PATTERN = /[\n\r\u2028\u2029]/u;
+const MAX_TEXT_SELECTION_OVERLAY_DECORATIONS = 1000;
 
 interface TextSelectionOverlayState {
   decorations: DecorationSet;
@@ -82,6 +83,7 @@ export function addTextSelectionOverlayDecorations(
   if (to <= from) return;
 
   const pushVisibleDecoration = (rangeFrom: number, rangeTo: number) => {
+    if (decorations.length >= MAX_TEXT_SELECTION_OVERLAY_DECORATIONS) return;
     if (rangeTo <= rangeFrom) return;
     const selectedText = text.slice(rangeFrom - nodeStart, rangeTo - nodeStart);
     if (!VISIBLE_TEXT_PATTERN.test(selectedText)) {
@@ -93,7 +95,7 @@ export function addTextSelectionOverlayDecorations(
   };
 
   let rangeStart: number | null = null;
-  for (let pos = from; pos < to; pos += 1) {
+  for (let pos = from; pos < to && decorations.length < MAX_TEXT_SELECTION_OVERLAY_DECORATIONS; pos += 1) {
     const char = text[pos - nodeStart];
     if (EDITOR_ONLY_TEXT_SELECTION_PLACEHOLDERS.has(char)) {
       if (rangeStart !== null) {
@@ -128,12 +130,19 @@ function createTextSelectionDecorationState(
 
   const decorations: Decoration[] = [];
   doc.nodesBetween(selection.from, selection.to, (node, pos) => {
+    if (decorations.length >= MAX_TEXT_SELECTION_OVERLAY_DECORATIONS) {
+      return false;
+    }
+
     if (
       selection instanceof AllSelection &&
       ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES.has(node.type.name) &&
       selection.from <= pos &&
       pos + node.nodeSize <= selection.to
     ) {
+      if (decorations.length >= MAX_TEXT_SELECTION_OVERLAY_DECORATIONS) {
+        return false;
+      }
       decorations.push(Decoration.node(pos, pos + node.nodeSize, {
         class: 'editor-block-selected editor-atomic-selected',
       }));

@@ -1,4 +1,7 @@
-import { createStreamAccumulator } from '@/lib/ai/streaming';
+import {
+  assertOpenAIStreamLineLength,
+  createStreamAccumulator,
+} from '@/lib/ai/streaming';
 import {
   extractOpenAIContentDelta,
   extractOpenAIToolCalls,
@@ -132,13 +135,16 @@ export async function consumeOpenAIStreamWithTools(
       buffer = lines.pop() || '';
       for (const line of lines) {
         throwIfAborted(signal);
+        assertOpenAIStreamLineLength(line);
         consumeLine(line);
         throwIfAborted(signal);
       }
+      assertOpenAIStreamLineLength(buffer);
     }
 
     if (buffer.trim()) {
       throwIfAborted(signal);
+      assertOpenAIStreamLineLength(buffer);
       consumeLine(buffer);
       throwIfAborted(signal);
     }

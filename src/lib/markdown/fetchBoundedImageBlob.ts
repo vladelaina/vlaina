@@ -35,9 +35,17 @@ async function cancelResponseBody(response: Response): Promise<void> {
   }
 }
 
-async function readResponseStreamBlob(response: Response, maxBytes: number): Promise<Blob | null> {
+async function readResponseStreamBlob(
+  response: Response,
+  maxBytes: number,
+  contentLength: number | null,
+): Promise<Blob | null> {
   const reader = response.body?.getReader();
   if (!reader) {
+    if (contentLength === null) {
+      return null;
+    }
+
     const blob = await response.blob();
     return blob.size <= maxBytes ? blob : null;
   }
@@ -92,7 +100,7 @@ export async function readBoundedImageBlobResponse(
     return { status: 'too-large', blob: null };
   }
 
-  const blob = await readResponseStreamBlob(response, maxBytes);
+  const blob = await readResponseStreamBlob(response, maxBytes, contentLength);
   if (!blob || blob.size > maxBytes) {
     return { status: 'too-large', blob: null };
   }

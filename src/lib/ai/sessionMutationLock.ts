@@ -11,6 +11,7 @@ const CHANNEL_NAME = 'vlaina-session-mutation-lock';
 const LOCK_TTL_MS = 15000;
 const LOCK_RENEW_MS = 5000;
 const LOCK_WAIT_MS = 350;
+const MAX_LOCK_RECORD_STORAGE_CHARS = 8 * 1024;
 
 const sourceId = (() => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -102,13 +103,19 @@ function parseLockRecord(value: string | null): SessionMutationLockRecord | null
   if (!value) {
     return null;
   }
+  if (value.length > MAX_LOCK_RECORD_STORAGE_CHARS) {
+    return null;
+  }
 
   try {
     const parsed = JSON.parse(value) as Partial<SessionMutationLockRecord>;
     if (
       typeof parsed.ownerId !== 'string' ||
+      parsed.ownerId.length > 512 ||
       typeof parsed.token !== 'string' ||
-      typeof parsed.expiresAt !== 'number'
+      parsed.token.length > 512 ||
+      typeof parsed.expiresAt !== 'number' ||
+      !Number.isFinite(parsed.expiresAt)
     ) {
       return null;
     }

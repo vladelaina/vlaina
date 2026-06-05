@@ -117,6 +117,11 @@ interface MathBlockFenceReference {
   style: MathBlockFenceStyle;
 }
 
+interface MathBlockFenceReferenceIndex {
+  byLatex: Map<string, number[]>;
+  normalizedLatexes: string[];
+}
+
 let lastNormalizedMarkdownInput: string | null = null;
 let lastNormalizedMarkdownOutput: string | null = null;
 
@@ -575,6 +580,7 @@ export function restoreMathBlockFenceStylesFromReference(markdown: string, refer
     return markdown;
   }
 
+  const referenceIndex = createMathBlockFenceReferenceIndex(references);
   let nextReferenceIndex = 0;
   return mapMarkdownOutsideProtectedSegments(markdown, (segment) => {
     const lines = segment.split('\n');
@@ -606,6 +612,7 @@ export function restoreMathBlockFenceStylesFromReference(markdown: string, refer
 
       const referenceMatch = takeMatchingMathBlockFenceReference(
         references,
+        referenceIndex,
         normalizeMathBlockLatex(content.join('\n')),
         nextReferenceIndex
       );
@@ -625,22 +632,66 @@ export function restoreMathBlockFenceStylesFromReference(markdown: string, refer
 
 function takeMatchingMathBlockFenceReference(
   references: readonly MathBlockFenceReference[],
+  referenceIndex: MathBlockFenceReferenceIndex,
   latex: string,
   startIndex: number
 ): { style: MathBlockFenceStyle | null; nextIndex: number } {
   const direct = references[startIndex];
-  if (direct && normalizeMathBlockLatex(direct.latex) === latex) {
+  if (direct && referenceIndex.normalizedLatexes[startIndex] === latex) {
     return { style: direct.style, nextIndex: startIndex + 1 };
   }
 
-  for (let index = startIndex + 1; index < references.length; index += 1) {
-    const candidate = references[index];
-    if (normalizeMathBlockLatex(candidate.latex) === latex) {
-      return { style: candidate.style, nextIndex: index + 1 };
-    }
+  const matchIndex = findNextMathBlockFenceReferenceIndex(
+    referenceIndex.byLatex.get(latex) ?? [],
+    startIndex
+  );
+  if (matchIndex !== null) {
+    return { style: references[matchIndex]?.style ?? null, nextIndex: matchIndex + 1 };
   }
 
   return { style: null, nextIndex: startIndex };
+}
+
+function createMathBlockFenceReferenceIndex(
+  references: readonly MathBlockFenceReference[]
+): MathBlockFenceReferenceIndex {
+  const byLatex = new Map<string, number[]>();
+  const normalizedLatexes: string[] = [];
+
+  references.forEach((reference, index) => {
+    const latex = normalizeMathBlockLatex(reference.latex);
+    normalizedLatexes.push(latex);
+    const indexes = byLatex.get(latex);
+    if (indexes) {
+      indexes.push(index);
+    } else {
+      byLatex.set(latex, [index]);
+    }
+  });
+
+  return { byLatex, normalizedLatexes };
+}
+
+function findNextMathBlockFenceReferenceIndex(
+  indexes: readonly number[],
+  startIndex: number
+): number | null {
+  let low = 0;
+  let high = indexes.length - 1;
+  let result: number | null = null;
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const index = indexes[mid] ?? 0;
+    if (index <= startIndex) {
+      low = mid + 1;
+    } else {
+      result = index;
+      high = mid - 1;
+    }
+  }
+
+  return result;
 }
 
 function collectMathBlockFenceReferences(markdown: string): MathBlockFenceReference[] {

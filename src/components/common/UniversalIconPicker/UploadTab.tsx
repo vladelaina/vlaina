@@ -16,34 +16,13 @@ import {
     type SidebarMenuEntry,
 } from '@/components/layout/sidebar/context-menu/SidebarContextMenuContent';
 import type { SidebarMenuPosition } from '@/components/layout/sidebar/context-menu/shared';
-import { sanitizeSvgBytes } from '@/lib/markdown/svgSanitizer';
 import { themeIconTokens, themeStyleResetTokens } from '@/styles/themeTokens';
+import { readUploadPreviewDataUrl } from './uploadPreviewDataUrl';
 
 export interface CustomIcon {
     id: string;
     url: string;
     name: string;
-}
-
-function isSvgFile(file: File): boolean {
-    return file.type.split(';')[0]?.trim().toLowerCase() === 'image/svg+xml'
-        || /\.svg$/i.test(file.name);
-}
-
-async function readUploadPreviewDataUrl(file: File): Promise<string | null> {
-    if (isSvgFile(file)) {
-        const bytes = sanitizeSvgBytes(new Uint8Array(await file.arrayBuffer()));
-        return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(new TextDecoder().decode(bytes))}`;
-    }
-
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.addEventListener('load', () => {
-            resolve(typeof reader.result === 'string' ? reader.result : null);
-        });
-        reader.addEventListener('error', () => reject(reader.error));
-        reader.readAsDataURL(file);
-    });
 }
 
 interface UploadTabProps {
@@ -80,10 +59,15 @@ export function UploadTab({
     const onDrop = useCallback((acceptedFiles: File[]) => {
         if (acceptedFiles && acceptedFiles.length > 0) {
             const file = acceptedFiles[0];
-            setOriginalFile(file);
             readUploadPreviewDataUrl(file)
-                .then((dataUrl) => setImageSrc(dataUrl))
-                .catch(() => setImageSrc(null));
+                .then((dataUrl) => {
+                    setOriginalFile(dataUrl ? file : null);
+                    setImageSrc(dataUrl);
+                })
+                .catch(() => {
+                    setOriginalFile(null);
+                    setImageSrc(null);
+                });
         }
     }, []);
 

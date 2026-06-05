@@ -34,6 +34,11 @@ function transactionMayCreateMarkdownLink(tr: unknown): boolean {
     return steps.some((step) => MARKDOWN_LINK_TRIGGER_TEXT_PATTERN.test(getInsertedStepText(step)));
 }
 
+export function isMarkdownImagePatternBeforeCursor(textBefore: string, fullMatch: string): boolean {
+    const matchStart = textBefore.length - fullMatch.length;
+    return matchStart > 0 && textBefore[matchStart - 1] === '!';
+}
+
 function docHasRawMarkdownLink(doc: ProseNode): boolean {
     let hasRawMarkdownLink = false;
     doc.descendants((node) => {
@@ -181,7 +186,7 @@ export const markdownLinkPlugin = $prose(() => {
 
                 // Calculate positions
                 const linkStart = from - fullMatch.length;
-                if (linkStart > 0 && textBefore[linkStart - 1] === '!') {
+                if (isMarkdownImagePatternBeforeCursor(textBefore, fullMatch)) {
                     return false;
                 }
 

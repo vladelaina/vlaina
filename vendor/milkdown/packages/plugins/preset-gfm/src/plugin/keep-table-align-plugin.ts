@@ -22,8 +22,6 @@ export const keepTableAlignPlugin = $prose(() => {
     appendTransaction: (_tr, oldState, state) => {
       let tr: Transaction | undefined
       const check = (node: Node, pos: number) => {
-        if (!tr) tr = state.tr
-
         if (node.type.name !== 'table_cell') return
 
         const $pos = state.doc.resolve(pos)
@@ -40,6 +38,7 @@ export const keepTableAlignPlugin = $prose(() => {
         const currentAlign = node.attrs.alignment
         if (align === currentAlign) return
 
+        if (!tr) tr = state.tr
         tr.setNodeMarkup(pos, undefined, { ...node.attrs, alignment: align })
       }
       if (oldState.doc !== state.doc) state.doc.descendants(check)

@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { useToastStore } from '@/stores/useToastStore';
 import { SettingsSectionHeader } from '../components/SettingsControls';
 import { themeIconTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
+import { readSettingsApiJson } from './settingsApiJson';
 
 const API_BASE = 'https://api.vlaina.com';
 const MAX_FEEDBACK_LENGTH = 2000;
@@ -22,7 +23,7 @@ async function submitWebFeedback(message: string) {
     body: JSON.stringify({ message }),
   });
 
-  const payload = await response.json().catch(() => ({})) as { success?: boolean; error?: string };
+  const payload = await readSettingsApiJson<{ success?: boolean; error?: string }>(response).catch(() => ({}));
   if (!response.ok || payload.success === false) {
     throw new Error(payload.error || `HTTP ${response.status}`);
   }

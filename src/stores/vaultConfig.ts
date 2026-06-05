@@ -40,7 +40,7 @@ export async function ensureVaultConfig(vaultPath: string): Promise<void> {
 
   try {
     const fileInfo = await storage.stat(configFilePath).catch(() => null);
-    if (fileInfo?.size && fileInfo.size > MAX_VAULT_CONFIG_BYTES) {
+    if (typeof fileInfo?.size !== 'number' || fileInfo.size > MAX_VAULT_CONFIG_BYTES) {
       await storage.writeFile(
         configFilePath,
         JSON.stringify(createVaultConfig(normalizedVaultPath), null, 2)

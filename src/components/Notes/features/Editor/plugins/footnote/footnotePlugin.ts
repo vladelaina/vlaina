@@ -4,10 +4,13 @@ import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FootnoteDefAttrs, FootnoteRefAttrs } from './types';
 import { markEditorUserInput } from '../shared/userInputEvents';
+import { normalizeFootnoteLabel, normalizeFootnotePreview } from './footnoteLabels';
 
 type UndoableInputRule = InputRule & { undoable?: boolean };
 
 export const footnoteInteractionPluginKey = new PluginKey('footnoteInteraction');
+const MAX_SYNCED_FOOTNOTE_REFS = 1000;
+const MAX_SYNCED_FOOTNOTE_DEFS = 1000;
 
 interface FootnoteInteractionPluginState {
   hasFootnotes: boolean;
@@ -20,9 +23,15 @@ function resolveFootnoteRef(target: EventTarget | null): HTMLElement | null {
 }
 
 function findFootnoteDefinition(editorDom: HTMLElement, id: string): HTMLElement | null {
+  id = normalizeFootnoteLabel(id);
+  if (!id) return null;
+
   const definitions = editorDom.querySelectorAll<HTMLElement>('.footnote-def[data-id], .footnote-def[data-label]');
   for (const definition of definitions) {
-    if (definition.dataset.id === id || definition.dataset.label === id) {
+    if (
+      normalizeFootnoteLabel(definition.dataset.id) === id
+      || normalizeFootnoteLabel(definition.dataset.label) === id
+    ) {
       return definition;
     }
   }
@@ -31,24 +40,46 @@ function findFootnoteDefinition(editorDom: HTMLElement, id: string): HTMLElement
 
 function getFootnoteDefinitionPreview(definition: HTMLElement): string {
   const content = definition.querySelector('.footnote-def-content');
-  const text = (content?.textContent ?? definition.textContent ?? '').replace(/\s+/g, ' ').trim();
-  const label = definition.dataset.id || definition.dataset.label || '';
+  const text = normalizeFootnotePreview(content?.textContent ?? definition.textContent ?? '');
+  const label = normalizeFootnoteLabel(definition.dataset.id || definition.dataset.label);
   const labelPrefix = label ? `[${label}]:` : '';
   return labelPrefix && text.startsWith(labelPrefix)
-    ? text.slice(labelPrefix.length).trim()
+    ? normalizeFootnotePreview(text.slice(labelPrefix.length))
     : text;
+}
+
+function collectFootnoteDefinitionPreviews(editorDom: HTMLElement): Map<string, string> {
+  const previews = new Map<string, string>();
+  const definitions = editorDom.querySelectorAll<HTMLElement>('.footnote-def[data-id], .footnote-def[data-label]');
+  let count = 0;
+
+  for (const definition of definitions) {
+    if (count >= MAX_SYNCED_FOOTNOTE_DEFS) break;
+    count += 1;
+
+    const id = normalizeFootnoteLabel(definition.dataset.id || definition.dataset.label);
+    if (!id || previews.has(id)) continue;
+    previews.set(id, getFootnoteDefinitionPreview(definition));
+  }
+
+  return previews;
 }
 
 function syncFootnoteReferencePreviews(editorDom: HTMLElement): void {
   const refs = editorDom.querySelectorAll<HTMLElement>('.footnote-ref[data-id], .footnote-ref[data-label]');
-  refs.forEach((ref) => {
-    const id = ref.dataset.id || ref.dataset.label;
-    if (!id) return;
+  const definitionPreviews = collectFootnoteDefinitionPreviews(editorDom);
+  let count = 0;
 
-    const definition = findFootnoteDefinition(editorDom, id);
-    const preview = definition ? getFootnoteDefinitionPreview(definition) : '';
+  for (const ref of refs) {
+    if (count >= MAX_SYNCED_FOOTNOTE_REFS) break;
+    count += 1;
+
+    const id = normalizeFootnoteLabel(ref.dataset.id || ref.dataset.label);
+    if (!id) continue;
+
+    const preview = definitionPreviews.get(id) ?? '';
     ref.dataset.footnoteValue = preview || `[${id}]`;
-  });
+  }
 }
 
 function findFootnoteDefinitionDepth(view: EditorView): number | null {
@@ -255,19 +286,20 @@ export const footnoteRefSchema = $node('footnote_ref', () => ({
   parseDOM: [{
     tag: 'sup.footnote-ref',
     getAttrs: (dom) => ({
-      id: (dom as HTMLElement).dataset.id || ''
+      id: normalizeFootnoteLabel((dom as HTMLElement).dataset.id)
     })
   }],
   toDOM: (node) => {
     const attrs = node.attrs as FootnoteRefAttrs;
-    const label = `[${attrs.id}]`;
+    const id = normalizeFootnoteLabel(attrs.id);
+    const label = `[${id}]`;
     return [
       'sup',
       {
         class: 'footnote-ref',
-        'data-id': attrs.id,
+        'data-id': id,
         'data-footnote-value': label,
-        'aria-label': `Footnote ${attrs.id}`,
+        'aria-label': `Footnote ${id}`,
         contenteditable: 'false'
       },
       ['span', { class: 'footnote-ref-label', contenteditable: 'false' }, label]
@@ -276,14 +308,17 @@ export const footnoteRefSchema = $node('footnote_ref', () => ({
   parseMarkdown: {
     match: (node) => node.type === 'footnoteReference',
     runner: (state, node, type) => {
-      const id = (node.identifier as string) || (node.label as string) || '';
+      const id = normalizeFootnoteLabel((node.identifier as string) || (node.label as string));
+      if (!id) return;
       state.addNode(type, { id });
     }
   },
   toMarkdown: {
     match: (node) => node.type.name === 'footnote_ref',
     runner: (state, node) => {
-      state.addNode('text', undefined, `[^${node.attrs.id}]`);
+      const id = normalizeFootnoteLabel(node.attrs.id);
+      if (!id) return;
+      state.addNode('text', undefined, `[^${id}]`);
     }
   }
 }));
@@ -298,26 +333,28 @@ export const footnoteDefSchema = $node('footnote_def', () => ({
   parseDOM: [{
     tag: 'div.footnote-def',
     getAttrs: (dom) => ({
-      id: (dom as HTMLElement).dataset.id || ''
+      id: normalizeFootnoteLabel((dom as HTMLElement).dataset.id)
     })
   }],
   toDOM: (node) => {
     const attrs = node.attrs as FootnoteDefAttrs;
+    const id = normalizeFootnoteLabel(attrs.id);
     return [
       'div',
       {
         class: 'footnote-def',
-        'data-id': attrs.id,
-        id: `fn-${attrs.id}`
+        'data-id': id,
+        id: `fn-${id}`
       },
-      ['span', { class: 'footnote-def-label', contenteditable: 'false' }, `[${attrs.id}]:`],
+      ['span', { class: 'footnote-def-label', contenteditable: 'false' }, `[${id}]:`],
       ['div', { class: 'footnote-def-content' }, 0]
     ];
   },
   parseMarkdown: {
     match: (node) => node.type === 'footnoteDefinition',
     runner: (state, node, type) => {
-      const id = (node.identifier as string) || (node.label as string) || '';
+      const id = normalizeFootnoteLabel((node.identifier as string) || (node.label as string));
+      if (!id) return;
       state.openNode(type, { id });
       state.next(node.children);
       state.closeNode();
@@ -333,7 +370,7 @@ export const footnoteRefInputRule = $inputRule(() => {
   const rule = new InputRule(
     /\[\^([^\]]+)\]$/,
     (state, match, start, end) => {
-      const id = match[1];
+      const id = normalizeFootnoteLabel(match[1]);
       if (!id) return null;
 
       const $pos = state.doc.resolve(start);
@@ -374,9 +411,12 @@ export function serializeFootnoteDefinitionToMarkdown(
     content: unknown;
   }
 ): void {
+  const id = normalizeFootnoteLabel(node.attrs.id);
+  if (!id) return;
+
   state.openNode('footnoteDefinition', undefined, {
-    label: node.attrs.id ?? '',
-    identifier: node.attrs.id ?? '',
+    label: id,
+    identifier: id,
   });
   state.next(node.content);
   state.closeNode();

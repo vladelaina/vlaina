@@ -49,6 +49,7 @@ const SEARCH_ENGINES = [
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
 const SEARCH_TIMEOUT_MS = 8000;
+const MAX_SEARCH_RESPONSE_TEXT_BYTES = 1_000_000;
 
 function createAbortError() {
   return new DOMException('The web search request was cancelled.', 'AbortError');
@@ -112,7 +113,40 @@ async function raceWithAbort(promise, signal) {
 
 async function readResponseText(response, signal) {
   throwIfAborted(signal);
-  return await raceWithAbort(response.text(), signal);
+  if (!response.body) {
+    return '';
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytesRead = 0;
+  let text = '';
+  const cancelReader = () => {
+    void reader.cancel(createAbortError()).catch(() => undefined);
+  };
+  signal?.addEventListener('abort', cancelReader, { once: true });
+
+  try {
+    while (true) {
+      const { done, value } = await raceWithAbort(reader.read(), signal);
+      throwIfAborted(signal);
+      if (done) {
+        break;
+      }
+
+      bytesRead += value.byteLength;
+      if (bytesRead > MAX_SEARCH_RESPONSE_TEXT_BYTES) {
+        void reader.cancel().catch(() => undefined);
+        throw new WebSearchError('response_too_large', 'Search response is too large.');
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+
+    return text + decoder.decode();
+  } finally {
+    signal?.removeEventListener('abort', cancelReader);
+    reader.releaseLock();
+  }
 }
 
 function buildSearchQuery(query, options) {

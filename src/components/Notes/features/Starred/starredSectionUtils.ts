@@ -2,6 +2,8 @@ import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import type { FileTreeNode, FolderNode, StarredEntry } from '@/stores/notes/types';
 import { normalizeStarredVaultPath } from '@/stores/notes/starred';
 
+const MAX_STARRED_LOOKUP_TREE_NODES = 20_000;
+
 export function getVaultLabel(
   path: string,
   recentVaults: Array<{ path: string; name: string }>,
@@ -50,10 +52,18 @@ export function sortStarredEntries(entries: StarredEntry[]) {
 }
 
 function collectNodeLookup(nodes: FileTreeNode[], lookup: Map<string, FileTreeNode>) {
-  for (const node of nodes) {
+  const stack = [...nodes].reverse();
+  let visitedNodes = 0;
+
+  while (stack.length > 0 && visitedNodes < MAX_STARRED_LOOKUP_TREE_NODES) {
+    const node = stack.pop()!;
+    visitedNodes += 1;
+
     lookup.set(node.path, node);
     if (node.isFolder) {
-      collectNodeLookup(node.children, lookup);
+      for (let index = node.children.length - 1; index >= 0; index -= 1) {
+        stack.push(node.children[index]);
+      }
     }
   }
 }

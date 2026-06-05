@@ -67,4 +67,26 @@ describe('fileTreeSorting', () => {
 
     expect(folder.children.map((node) => node.name)).toEqual(['second', 'first']);
   });
+
+  it('sorts deep nested trees without recursive traversal', () => {
+    let current: FileTreeNode = {
+      id: 'leaf.md',
+      name: 'leaf',
+      path: 'leaf.md',
+      isFolder: false,
+    };
+
+    for (let index = 2500; index >= 0; index -= 1) {
+      current = {
+        id: `folder-${index}`,
+        name: `folder-${index}`,
+        path: `folder-${index}`,
+        isFolder: true,
+        expanded: false,
+        children: [current],
+      };
+    }
+
+    expect(() => sortNestedFileTree([current])).not.toThrow();
+  });
 });

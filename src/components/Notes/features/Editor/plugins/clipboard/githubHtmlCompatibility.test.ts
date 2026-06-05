@@ -544,7 +544,11 @@ describe('GitHub README HTML compatibility', () => {
     expect(result.dom.textContent).not.toContain('hidden');
     expect(result.dom.querySelector('svg')).toBeNull();
     expect(result.dom.querySelector('meta')).toBeNull();
-    expect(result.persisted).toBe(markdown);
+    expect(result.persisted).toContain('<!-- hidden comment -->');
+    expect(result.persisted).toContain('<!doctype html>');
+    expect(result.persisted).toContain('<meta name="x" content="y">');
+    expect(result.persisted).not.toContain('<svg');
+    expect(result.persisted).not.toContain('hidden</text>');
   });
 
   it('applies GFM tagfilter before sanitizing nested disallowed raw HTML', async () => {

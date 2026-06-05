@@ -10,5 +10,7 @@ describe('slashFileCommands security helpers', () => {
   it('limits picked image size', () => {
     expect(__testing__.isInsertableImageSize(50 * 1024 * 1024)).toBe(true);
     expect(__testing__.isInsertableImageSize(51 * 1024 * 1024)).toBe(false);
+    expect(__testing__.isInsertableImageSize(null)).toBe(false);
+    expect(__testing__.isInsertableImageSize(undefined)).toBe(false);
   });
 });

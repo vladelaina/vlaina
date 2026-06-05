@@ -6,6 +6,7 @@ import {
   serializerCtx,
 } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { DOMParser as ProseDOMParser } from '@milkdown/kit/prose/model';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import {
@@ -22,6 +23,36 @@ function createEditor(defaultValue = '') {
     })
     .use(commonmark)
     .use(calloutPlugin);
+}
+
+async function parseCalloutAttrsFromDom(setup: (callout: HTMLElement) => void) {
+  const editor = createEditor('');
+  await editor.create();
+
+  const callout = document.createElement('div');
+  callout.dataset.type = 'callout';
+  setup(callout);
+
+  const paragraph = document.createElement('p');
+  paragraph.textContent = 'Body';
+  callout.append(paragraph);
+
+  const container = document.createElement('div');
+  container.append(callout);
+
+  const schema = editor.ctx.get(editorViewCtx).state.schema;
+  const doc = ProseDOMParser.fromSchema(schema).parse(container);
+  let attrs: Record<string, unknown> | null = null;
+  doc.descendants((node) => {
+    if (node.type.name === 'callout') {
+      attrs = node.attrs;
+      return false;
+    }
+    return true;
+  });
+
+  await editor.destroy();
+  return attrs;
 }
 
 function createRecorder() {
@@ -204,6 +235,39 @@ describe('callout editor behavior', () => {
     expect(view.state.doc.firstChild?.textContent).toBe('Body');
 
     await editor.destroy();
+  });
+
+  it('keeps oversized uploaded icon markers as ordinary blockquotes', async () => {
+    const editor = createEditor(`> [!callout-icon:${'a'.repeat(4097)}] Body`);
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(view.state.doc.firstChild?.type.name).toBe('blockquote');
+    expect(view.state.doc.firstChild?.textContent).toContain('[!callout-icon:');
+    expect(view.state.doc.firstChild?.textContent).toContain('Body');
+
+    await editor.destroy();
+  });
+
+  it('normalizes callout attrs parsed from DOM', async () => {
+    const oversizedIconPayload = JSON.stringify({ type: 'image', value: 'img:icons/demo.png' }) + 'x'.repeat(4096);
+
+    await expect(parseCalloutAttrsFromDom((callout) => {
+      callout.dataset.icon = oversizedIconPayload;
+      callout.dataset.bg = 'red invalid';
+    })).resolves.toMatchObject({
+      icon: { type: 'emoji', value: '💡' },
+      backgroundColor: 'yellow',
+    });
+
+    await expect(parseCalloutAttrsFromDom((callout) => {
+      callout.dataset.icon = JSON.stringify({ type: 'image', value: 'plain text' });
+      callout.dataset.bg = 'green';
+    })).resolves.toMatchObject({
+      icon: { type: 'emoji', value: 'plain text' },
+      backgroundColor: 'green',
+    });
   });
 
   it('keeps ordinary numbered blockquotes as blockquotes instead of callouts', async () => {

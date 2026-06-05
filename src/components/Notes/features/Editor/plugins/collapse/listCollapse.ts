@@ -112,6 +112,8 @@ function buildListCollapseDecorations(
             }
         });
 
+        if (!hasNestedList) return true;
+
         const isCollapsed = hasNestedList && collapsedItems.has(pos);
         const markerExtraOffset = getOrderedListMarkerExtraOffset(node);
         decorations.push(

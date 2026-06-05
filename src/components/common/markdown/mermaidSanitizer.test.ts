@@ -80,4 +80,43 @@ describe('mermaidSanitizer', () => {
     expect(label?.textContent).toBe('Subroutine');
     expect(label?.querySelector('tspan')?.getAttribute('dy')).toBe('0.35em');
   });
+
+  it('drops oversized Mermaid markup before DOM sanitization', () => {
+    const markup = `<svg><text>${'x'.repeat(2 * 1024 * 1024 + 1)}</text></svg>`;
+
+    expect(sanitizeMermaidMarkup(markup)).toBe('');
+  });
+
+  it('drops Mermaid SVG that exceeds the sanitizer depth budget', () => {
+    const markup = `${'<svg><g>'.repeat(210)}<image href="https://example.test/a.png"></image>${'</g></svg>'.repeat(210)}`;
+
+    expect(() => sanitizeMermaidMarkup(markup)).not.toThrow();
+    expect(sanitizeMermaidMarkup(markup)).toBe('');
+  });
+
+  it('drops Mermaid SVG that exceeds the sanitizer node budget', () => {
+    const markup = [
+      '<svg>',
+      Array.from({ length: 20_050 }, (_, index) => `<image href="https://example.test/${index}.png"></image>`).join(''),
+      '</svg>',
+    ].join('');
+
+    expect(sanitizeMermaidMarkup(markup)).toBe('');
+  });
+
+  it('drops oversized Mermaid foreignObject labels before label extraction walks them', () => {
+    const markup = [
+      '<svg>',
+      '<foreignObject>',
+      '<div xmlns="http://www.w3.org/1999/xhtml">',
+      '<span class="nodeLabel">',
+      Array.from({ length: 20_050 }, (_, index) => `<p>line ${index}</p>`).join(''),
+      '</span>',
+      '</div>',
+      '</foreignObject>',
+      '</svg>',
+    ].join('');
+
+    expect(sanitizeMermaidMarkup(markup)).toBe('');
+  });
 });

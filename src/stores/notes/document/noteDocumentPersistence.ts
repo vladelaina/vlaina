@@ -72,9 +72,16 @@ function normalizeStoredNotePath(path: string): string {
 }
 
 function assertReadableNoteSize(size: number | null | undefined): void {
-  if (typeof size === 'number' && size > MAX_NOTE_DOCUMENT_BYTES) {
+  if (typeof size !== 'number' || size > MAX_NOTE_DOCUMENT_BYTES) {
     throw new Error('Note file is too large to open.');
   }
+}
+
+function assertReadableNoteFileInfo(fileInfo: { isFile?: boolean; isDirectory?: boolean; size?: number | null } | null | undefined): void {
+  if (fileInfo?.isDirectory === true || fileInfo?.isFile === false) {
+    throw new Error('Note file is too large to open.');
+  }
+  assertReadableNoteSize(fileInfo?.size);
 }
 
 function assertEditorSafeMarkdownContent(content: string): void {
@@ -123,9 +130,9 @@ export async function loadNoteDocument({
       const storage = getStorageAdapter();
       const fullPath = await resolveStoredPath(notesPath, notePath);
       const fileInfo = await storage.stat(fullPath);
-      assertReadableNoteSize(fileInfo?.size ?? null);
       const diskModifiedAt = fileInfo?.modifiedAt ?? null;
       if (diskModifiedAt != null && (cachedModifiedAt == null || diskModifiedAt > cachedModifiedAt)) {
+        assertReadableNoteFileInfo(fileInfo);
         const diskContent = await storage.readFile(fullPath);
         assertEditorSafeMarkdownContent(diskContent);
         const normalizedDiskContent = normalizeSerializedMarkdownDocument(diskContent);
@@ -154,7 +161,7 @@ export async function loadNoteDocument({
   const storage = getStorageAdapter();
   const fullPath = await resolveStoredPath(notesPath, notePath);
   const fileInfo = await storage.stat(fullPath);
-  assertReadableNoteSize(fileInfo?.size ?? null);
+  assertReadableNoteFileInfo(fileInfo);
   const content = await storage.readFile(fullPath);
   assertEditorSafeMarkdownContent(content);
   const normalizedContent = normalizeSerializedMarkdownDocument(content);
@@ -179,7 +186,9 @@ export async function saveNoteDocument({
   const notePath = normalizeStoredNotePath(currentNote.path);
   const fullPath = await resolveStoredPath(notesPath, notePath);
   const fileInfoBeforeWrite = await storage.stat(fullPath);
-  assertReadableNoteSize(fileInfoBeforeWrite?.size ?? null);
+  if (typeof fileInfoBeforeWrite?.size === 'number') {
+    assertReadableNoteSize(fileInfoBeforeWrite.size);
+  }
   assertEditorSafeMarkdownContent(currentNote.content);
   const diskModifiedAt = fileInfoBeforeWrite?.modifiedAt ?? null;
   const normalizedCurrentContent = normalizeSerializedMarkdownDocument(currentNote.content);
@@ -192,6 +201,7 @@ export async function saveNoteDocument({
       cachedModifiedAt == null ||
       diskModifiedAt !== cachedModifiedAt);
   if (shouldCompareDiskContent && cachedEntry !== undefined) {
+    assertReadableNoteFileInfo(fileInfoBeforeWrite);
     const diskContent = await storage.readFile(fullPath);
     assertEditorSafeMarkdownContent(diskContent);
     const normalizedDiskContent = normalizeSerializedMarkdownDocument(diskContent);

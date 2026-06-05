@@ -9,12 +9,56 @@ export { isRenderableDataImageSrc, normalizeRenderableDataImageSrc, normalizeRen
 const SAFE_COLOR_STYLE_PATTERN = /^(?:color|background-color)\s*:\s*(?:#[0-9a-f]{3,8}|(?:rgb|rgba|hsl|hsla)\(\s*[-+.\d%]+\s*(?:,\s*[-+.\d%]+\s*){2,3}\)|var\(--[A-Za-z0-9_-]+\)|[A-Za-z]+)$/i;
 const SAFE_TEXT_ALIGN_STYLE_PATTERN = /^text-align\s*:\s*(?:center|right)$/i;
 const SAFE_TOC_INDENT_STYLE_PATTERN = /^padding-left\s*:\s*(?:0|16|32|48|64|80)px$/i;
+const MAX_IMAGE_POLICY_HAST_DEPTH = 200;
+const MAX_IMAGE_POLICY_HAST_NODES = 20_000;
 
 const DATA_IMAGE_SRC_ATTRIBUTES_BY_TAG: Record<string, readonly string[]> = {
   img: ['src'],
   source: ['src'],
   video: ['poster'],
 };
+
+function visitImagePolicyNodes(root: any, visitor: (node: any) => void): void {
+  const queue = [{ depth: 0, node: root }];
+  let visitedNodes = 1;
+
+  for (let queueIndex = 0; queueIndex < queue.length; queueIndex += 1) {
+    const current = queue[queueIndex];
+    const node = current.node;
+    if (!node || typeof node !== 'object') {
+      continue;
+    }
+
+    visitor(node);
+
+    const children = node.children;
+    if (!Array.isArray(children)) {
+      continue;
+    }
+
+    if (current.depth >= MAX_IMAGE_POLICY_HAST_DEPTH) {
+      node.children = [];
+      continue;
+    }
+
+    for (let childIndex = 0; childIndex < children.length; childIndex += 1) {
+      const child = children[childIndex];
+      if (!child) {
+        children.splice(childIndex, 1);
+        childIndex -= 1;
+        continue;
+      }
+
+      visitedNodes += 1;
+      if (visitedNodes > MAX_IMAGE_POLICY_HAST_NODES) {
+        children.splice(childIndex);
+        break;
+      }
+
+      queue.push({ depth: current.depth + 1, node: child });
+    }
+  }
+}
 
 function normalizeImageSrcProperties(node: any): void {
   if (!node || typeof node !== 'object') {
@@ -31,12 +75,6 @@ function normalizeImageSrcProperties(node: any): void {
       if (normalized) {
         node.properties[key] = normalized;
       }
-    }
-  }
-
-  if (Array.isArray(node.children)) {
-    for (const child of node.children) {
-      normalizeImageSrcProperties(child);
     }
   }
 }
@@ -59,23 +97,17 @@ function sanitizeImageSrcsetProperties(node: any): void {
       }
     }
   }
-
-  if (Array.isArray(node.children)) {
-    for (const child of node.children) {
-      sanitizeImageSrcsetProperties(child);
-    }
-  }
 }
 
 export function rehypeImageSrcSanitizer() {
   return (tree: any) => {
-    normalizeImageSrcProperties(tree);
+    visitImagePolicyNodes(tree, normalizeImageSrcProperties);
   };
 }
 
 export function rehypeImageSrcsetSanitizer() {
   return (tree: any) => {
-    sanitizeImageSrcsetProperties(tree);
+    visitImagePolicyNodes(tree, sanitizeImageSrcsetProperties);
   };
 }
 

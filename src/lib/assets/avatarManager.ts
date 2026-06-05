@@ -1,4 +1,5 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { readBoundedImageBlobResponse } from '@/lib/markdown/fetchBoundedImageBlob';
 import { normalizePublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { loadImageAsBase64 } from './io/reader';
 
@@ -97,13 +98,6 @@ function assertAvatarImageSize(size: number | null | undefined): void {
     }
 }
 
-function readContentLength(response: Response): number | null {
-    const raw = response.headers?.get?.('content-length');
-    if (!raw) return null;
-    const value = Number(raw);
-    return Number.isFinite(value) ? value : null;
-}
-
 export async function downloadAndSaveAvatar(url: string, username: string): Promise<string | null> {
     if (!url || !username) return null;
     const safeUrl = normalizePublicRemoteMediaUrl(url);
@@ -133,9 +127,15 @@ export async function downloadAndSaveAvatar(url: string, username: string): Prom
             if (!response.ok) {
                 throw new Error(`Failed to fetch avatar: ${response.statusText}`);
             }
-            assertAvatarImageSize(readContentLength(response));
 
-            const blob = await raceWithAbort(response.blob(), controller.signal);
+            const result = await raceWithAbort(
+                readBoundedImageBlobResponse(response, { maxBytes: MAX_AVATAR_IMAGE_BYTES }),
+                controller.signal,
+            );
+            if (result.status === 'too-large') {
+                throw new Error('Avatar image is too large.');
+            }
+            const blob = result.blob;
             const mimeType = normalizeAvatarMimeType(blob.type || response.headers?.get?.('content-type'));
             if (!mimeType) {
                 throw new Error('Downloaded avatar is not a supported image.');

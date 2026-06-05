@@ -92,41 +92,69 @@ export const definitionDescSchema = $node('definition_desc', () => ({
 // Visual emulation plugin for pseudo definition lists (Term \n : Definition)
 // This handles the case where lack of remark-deflist causes DLs to be parsed as paragraphs
 const deflistVisualPluginKey = new PluginKey<DecorationSet>('deflist-visual');
+const MAX_DEFLIST_VISUAL_DECORATIONS = 1000;
+const MAX_DEFLIST_TERM_CHARS = 80;
+const MAX_DEFLIST_EMPTY_SCAN_CHARS = 256;
 
 function isEscapedDefinitionListDescription(node: Node): boolean {
     return node.attrs?.vlainaEscapedBlockSyntax === 'definitionListDescription';
 }
 
-function createDeflistDecorations(doc: Node): DecorationSet {
+function getNodeTextPrefix(node: Node, maxChars: number): string {
+    const contentSize = typeof node.content?.size === 'number' ? node.content.size : maxChars;
+    return node.textBetween(0, Math.min(contentSize, maxChars), undefined, undefined);
+}
+
+function isVisuallyEmptyBlock(node: Node): boolean {
+    if (node.content.size === 0) return true;
+    if (node.content.size > MAX_DEFLIST_EMPTY_SCAN_CHARS) return false;
+    return getNodeTextPrefix(node, MAX_DEFLIST_EMPTY_SCAN_CHARS).trim().length === 0;
+}
+
+function startsWithDefinitionDescriptionPrefix(node: Node): boolean {
+    return getNodeTextPrefix(node, 2) === ': ';
+}
+
+function isValidDefinitionTerm(node: Node | null): node is Node {
+    return (
+        !!node &&
+        node.type.name === 'paragraph' &&
+        !isEscapedDefinitionListDescription(node) &&
+        getNodeTextPrefix(node, MAX_DEFLIST_TERM_CHARS).length < MAX_DEFLIST_TERM_CHARS
+    );
+}
+
+export function createDeflistDecorations(doc: Node): DecorationSet {
     const decorations: Decoration[] = [];
     let lastNonEmptyNode: Node | null = null;
     let lastNonEmptyPos = -1;
     let lastNode: Node | null = null;
 
     doc.descendants((node, pos) => {
+        if (decorations.length >= MAX_DEFLIST_VISUAL_DECORATIONS) {
+            return false;
+        }
+
         if (node.isBlock) {
-            const isEmpty = node.textContent.trim().length === 0;
+            const isEmpty = isVisuallyEmptyBlock(node);
 
             // Check if current node looks like a Definition Description
             if (
                 node.type.name === 'paragraph' &&
                 !isEscapedDefinitionListDescription(node) &&
-                node.textContent.startsWith(': ')
+                startsWithDefinitionDescriptionPrefix(node)
             ) {
 
                 // HEURISTIC: A true Definition List usually follows a short Term.
                 // If the previous paragraph is very long, it's likely just normal text, not a Term.
-                const isTermValid = lastNonEmptyNode &&
-                    lastNonEmptyNode.type.name === 'paragraph' &&
-                    !isEscapedDefinitionListDescription(lastNonEmptyNode) &&
-                    lastNonEmptyNode.textContent.length < 80;
+                const isTermValid = isValidDefinitionTerm(lastNonEmptyNode);
 
                 if (isTermValid) {
                     // Mark current node as DD
                     const classes = ['editor-dl-desc'];
 
                     // If the immediate previous node was empty, we need to pull up more
-                    if (lastNode && lastNode.textContent.trim().length === 0) {
+                    if (lastNode && isVisuallyEmptyBlock(lastNode)) {
                         classes.push('editor-dl-gap-fix');
                     }
 
@@ -142,6 +170,9 @@ function createDeflistDecorations(doc: Node): DecorationSet {
                             class: 'editor-dl-term',
                         })
                     );
+                    if (decorations.length >= MAX_DEFLIST_VISUAL_DECORATIONS) {
+                        return false;
+                    }
                 }
             }
             // Update tracking

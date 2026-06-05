@@ -124,6 +124,10 @@ describe('starred persistence', () => {
       return path === '/store/notes-starred.json' || path === 'C:/vault-a' || path === 'C:/vault-a/alive.md';
     });
     adapter.stat.mockImplementation(async (path: string) => {
+      if (path === '/store/notes-starred.json') {
+        return { isDirectory: false, isFile: true, size: 200 };
+      }
+
       if (path === 'C:/vault-a') {
         return { isDirectory: true, isFile: false };
       }
@@ -165,6 +169,10 @@ describe('starred persistence', () => {
       );
     });
     adapter.stat.mockImplementation(async (path: string) => {
+      if (path === '/store/notes-starred.json') {
+        return { isDirectory: false, isFile: true, size: 200 };
+      }
+
       if (path === 'C:/vault-a') {
         return { isDirectory: true, isFile: false };
       }
@@ -224,6 +232,16 @@ describe('starred persistence', () => {
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not parse starred registries when stat has no size', async () => {
+    adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true });
+
+    const persistence = await import('./persistence');
+    const result = await persistence.loadStarredRegistry();
+
+    expect(result.entries).toEqual([]);
+    expect(adapter.readFile).not.toHaveBeenCalled();
+  });
 
   it('keeps entries when the target still exists but stat metadata is unavailable', async () => {
     const validEntry = createEntry('1', 'note', 'C:/vault-a', 'alive.md');
@@ -241,7 +259,11 @@ describe('starred persistence', () => {
         entries: [validEntry],
       })
     );
-    adapter.stat.mockResolvedValue(null);
+    adapter.stat.mockImplementation(async (path: string) => (
+      path === '/store/notes-starred.json'
+        ? { isDirectory: false, isFile: true, size: 200 }
+        : null
+    ));
 
     const persistence = await import('./persistence');
     const result = await persistence.loadStarredRegistry();

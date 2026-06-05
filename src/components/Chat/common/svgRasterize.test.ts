@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { isSvgDataUrl, rasterizeSvgDataUrlToPng } from './svgRasterize';
+import { MAX_INLINE_IMAGE_BYTES } from '@/lib/markdown/dataImagePolicy';
+import { isSvgDataUrl, rasterizeSvgBlobToPngBlob, rasterizeSvgDataUrlToPng } from './svgRasterize';
 
 describe('svgRasterize', () => {
   afterEach(() => {
@@ -66,5 +67,57 @@ describe('svgRasterize', () => {
     expect(decoded).not.toContain('javascript:');
     expect(decoded).not.toContain('example.test');
     expect(decoded).not.toContain('onload');
+  });
+
+  it('rejects oversized SVG data URLs before creating an image decoder', async () => {
+    const ImageMock = vi.fn();
+    vi.stubGlobal('Image', ImageMock);
+    const payload = 'A'.repeat(Math.ceil((MAX_INLINE_IMAGE_BYTES + 1) / 3) * 4);
+
+    await expect(rasterizeSvgDataUrlToPng(`data:image/svg+xml;base64,${payload}`)).resolves.toBeNull();
+
+    expect(ImageMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized SVG blobs before reading them into memory', async () => {
+    const arrayBuffer = vi.fn(async () => new ArrayBuffer(0));
+    const blob = {
+      type: 'image/svg+xml',
+      size: MAX_INLINE_IMAGE_BYTES + 1,
+      arrayBuffer,
+    } as unknown as Blob;
+
+    await expect(rasterizeSvgBlobToPngBlob(blob)).resolves.toBeNull();
+
+    expect(arrayBuffer).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized rasterized PNG data URLs', async () => {
+    vi.stubGlobal('Image', class {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(_value: string) {
+        queueMicrotask(() => this.onload?.());
+      }
+    });
+
+    const originalCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation(((tagName: string, options?: ElementCreationOptions) => {
+      if (tagName === 'canvas') {
+        const oversizedPayload = 'A'.repeat(Math.ceil((MAX_INLINE_IMAGE_BYTES + 1) / 3) * 4);
+        return {
+          width: 0,
+          height: 0,
+          getContext: () => ({
+            clearRect: vi.fn(),
+            drawImage: vi.fn(),
+          }),
+          toDataURL: () => `data:image/png;base64,${oversizedPayload}`,
+        } as unknown as HTMLCanvasElement;
+      }
+      return originalCreateElement(tagName, options);
+    }) as typeof document.createElement);
+
+    await expect(rasterizeSvgDataUrlToPng('data:image/svg+xml,%3Csvg%3E%3C%2Fsvg%3E')).resolves.toBeNull();
   });
 });

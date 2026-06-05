@@ -1,5 +1,10 @@
 const SENSITIVE_KEY_PATTERN = /(token|secret|verifier|code|state|challenge)/i;
 const STATUS_CODE_PATTERN = /statuscode/i;
+const MAX_DEBUG_REQUEST_BODY_JSON_CHARS = 64 * 1024;
+const MAX_DEBUG_PAYLOAD_DEPTH = 12;
+const MAX_DEBUG_PAYLOAD_NODES = 1000;
+const MAX_DEBUG_COLLECTION_ITEMS = 100;
+const TRUNCATED_DEBUG_VALUE = '[Truncated]';
 
 function abbreviate(value) {
   if (typeof value !== 'string') {
@@ -38,7 +43,12 @@ function summarizeUrl(value) {
   }
 }
 
-export function summarizeAuthPayload(value, key = '') {
+function summarizeAuthPayloadValue(value, key, state, depth) {
+  state.nodes += 1;
+  if (state.nodes > MAX_DEBUG_PAYLOAD_NODES || depth > MAX_DEBUG_PAYLOAD_DEPTH) {
+    return TRUNCATED_DEBUG_VALUE;
+  }
+
   if (value == null || typeof value === 'number' || typeof value === 'boolean') {
     return value;
   }
@@ -51,7 +61,9 @@ export function summarizeAuthPayload(value, key = '') {
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => summarizeAuthPayload(item, key));
+    return value
+      .slice(0, MAX_DEBUG_COLLECTION_ITEMS)
+      .map((item) => summarizeAuthPayloadValue(item, key, state, depth + 1));
   }
 
   if (typeof value !== 'object') {
@@ -59,11 +71,15 @@ export function summarizeAuthPayload(value, key = '') {
   }
 
   return Object.fromEntries(
-    Object.entries(value).map(([entryKey, entryValue]) => [
+    Object.entries(value).slice(0, MAX_DEBUG_COLLECTION_ITEMS).map(([entryKey, entryValue]) => [
       entryKey,
-      summarizeAuthPayload(entryValue, entryKey),
+      summarizeAuthPayloadValue(entryValue, entryKey, state, depth + 1),
     ]),
   );
+}
+
+export function summarizeAuthPayload(value, key = '') {
+  return summarizeAuthPayloadValue(value, key, { nodes: 0 }, 0);
 }
 
 export function summarizeJsonPayload(value) {
@@ -79,6 +95,10 @@ export function summarizeJsonPayload(value) {
 export function summarizeRequestBody(body) {
   if (typeof body !== 'string') {
     return { type: typeof body };
+  }
+
+  if (body.length > MAX_DEBUG_REQUEST_BODY_JSON_CHARS) {
+    return { type: 'text', length: body.length };
   }
 
   try {

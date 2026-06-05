@@ -43,7 +43,7 @@ describe('saveNoteDocument', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     adapter.writeFile.mockResolvedValue();
-    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await saveNoteDocument({
       notesPath: '/vault',
@@ -86,7 +86,7 @@ describe('saveNoteDocument', () => {
     adapter.writeFile.mockImplementation(async () => {
       vi.advanceTimersByTime(1500);
     });
-    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await saveNoteDocument({
       notesPath: '/vault',
@@ -108,7 +108,7 @@ describe('saveNoteDocument', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     adapter.writeFile.mockResolvedValue();
-    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await saveNoteDocument({
       notesPath: '/vault',
@@ -132,7 +132,7 @@ describe('saveNoteDocument', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     adapter.writeFile.mockResolvedValue();
-    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await saveNoteDocument({
       notesPath: '/vault',
@@ -163,7 +163,7 @@ describe('saveNoteDocument', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     adapter.writeFile.mockResolvedValue();
-    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await saveNoteDocument({
       notesPath: '/vault',
@@ -196,7 +196,7 @@ describe('saveNoteDocument', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     adapter.writeFile.mockResolvedValue();
-    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await saveNoteDocument({
       notesPath: '/vault',
@@ -232,7 +232,7 @@ describe('saveNoteDocument', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     adapter.writeFile.mockResolvedValue();
-    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await saveNoteDocument({
       notesPath: '/vault',
@@ -261,7 +261,7 @@ describe('saveNoteDocument', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     adapter.writeFile.mockResolvedValue();
-    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await saveNoteDocument({
       notesPath: '/vault',
@@ -293,7 +293,7 @@ describe('saveNoteDocument', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     adapter.writeFile.mockResolvedValue();
-    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await saveNoteDocument({
       notesPath: '/vault',
@@ -326,7 +326,7 @@ describe('saveNoteDocument', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     adapter.writeFile.mockResolvedValue();
-    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await saveNoteDocument({
       notesPath: '/vault',
@@ -360,7 +360,7 @@ describe('saveNoteDocument', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     adapter.writeFile.mockResolvedValue();
-    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await saveNoteDocument({
       notesPath: '/vault',
@@ -389,7 +389,7 @@ describe('saveNoteDocument', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     adapter.writeFile.mockResolvedValue();
-    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     await saveNoteDocument({
       notesPath: '/vault',
@@ -434,7 +434,7 @@ describe('saveNoteDocument', () => {
 
   it('cleans internal editor break markers when loading markdown', async () => {
     adapter.readFile.mockResolvedValue(['# Alpha', '<br data-vlaina-empty-line="true"/>', 'Body'].join('\n'));
-    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await loadNoteDocument({
       notesPath: '/vault',
@@ -449,7 +449,7 @@ describe('saveNoteDocument', () => {
   it('preserves markdown blank lines between list items when loading markdown', async () => {
     const markdown = ['- one', '', '', '', '- two'].join('\n');
     adapter.readFile.mockResolvedValue(markdown);
-    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await loadNoteDocument({
       notesPath: '/vault',
@@ -477,6 +477,18 @@ describe('saveNoteDocument', () => {
     await expect(loadNoteDocument({
       notesPath: '/vault',
       path: 'huge.md',
+      cache: new Map(),
+    })).rejects.toThrow('Note file is too large to open.');
+
+    expect(adapter.readFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects loading markdown files before reading when stat has no size', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+
+    await expect(loadNoteDocument({
+      notesPath: '/vault',
+      path: 'alpha.md',
       cache: new Map(),
     })).rejects.toThrow('Note file is too large to open.');
 
@@ -532,7 +544,7 @@ describe('saveNoteDocument', () => {
 
   it('cleans internal user break markers when loading markdown', async () => {
     adapter.readFile.mockResolvedValue(['Line one', '<br data-vlaina-user-br="true" />', 'Line two'].join('\n'));
-    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
 
     const result = await loadNoteDocument({
       notesPath: '/vault',
@@ -546,7 +558,7 @@ describe('saveNoteDocument', () => {
 
   it('cleans internal editor break markers from cached markdown', async () => {
     const cachedContent = ['# Alpha', '<br data-vlaina-empty-line="true" />', 'Body'].join('\n');
-    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
     adapter.readFile.mockResolvedValue(cachedContent);
     const result = await loadNoteDocument({
       notesPath: '/vault',
@@ -566,7 +578,7 @@ describe('saveNoteDocument', () => {
   });
 
   it('normalizes absolute paths before reading and caching markdown', async () => {
-    adapter.stat.mockResolvedValue({ modifiedAt: 321 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 321, size: 16 });
     adapter.readFile.mockResolvedValue('# External');
 
     const result = await loadNoteDocument({
@@ -608,7 +620,7 @@ describe('saveNoteDocument', () => {
   it('revalidates cached markdown after the fresh prefetch window expires', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(2500);
-    adapter.stat.mockResolvedValue({ modifiedAt: 200 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 200, size: 16 });
     adapter.readFile.mockResolvedValue('# Updated after prefetch');
 
     const result = await loadNoteDocument({
@@ -629,7 +641,7 @@ describe('saveNoteDocument', () => {
   });
 
   it('refreshes cached markdown when the disk modified timestamp changed before opening', async () => {
-    adapter.stat.mockResolvedValue({ modifiedAt: 200 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 200, size: 16 });
     adapter.readFile.mockResolvedValue('# Updated by another window');
 
     const result = await loadNoteDocument({
@@ -653,7 +665,7 @@ describe('saveNoteDocument', () => {
   });
 
   it('keeps dirty tab cached markdown even when disk changed before opening', async () => {
-    adapter.stat.mockResolvedValue({ modifiedAt: 200 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 200, size: 16 });
     adapter.readFile.mockResolvedValue('# Updated by another window');
 
     const result = await loadNoteDocument({
@@ -674,7 +686,7 @@ describe('saveNoteDocument', () => {
   });
 
   it('refuses to overwrite a note that changed on disk after it was loaded', async () => {
-    adapter.stat.mockResolvedValue({ modifiedAt: 200 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 200, size: 16 });
     adapter.readFile.mockResolvedValue('# External edit');
 
     await expect(saveNoteDocument({
@@ -689,11 +701,28 @@ describe('saveNoteDocument', () => {
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 
+  it('does not read changed disk markdown for conflict checks when stat has no size', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: 200 });
+    adapter.readFile.mockResolvedValue('# External edit');
+
+    await expect(saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: '# Local edit',
+      },
+      cache: new Map([['alpha.md', { content: '# Loaded', modifiedAt: 100 }]]),
+    })).rejects.toThrow('Note file is too large to open.');
+
+    expect(adapter.readFile).not.toHaveBeenCalled();
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
   it('merges non-overlapping local and disk edits before saving', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     adapter.stat
-      .mockResolvedValueOnce({ modifiedAt: 200 })
+      .mockResolvedValueOnce({ modifiedAt: 200, size: 16 })
       .mockResolvedValueOnce({ modifiedAt: 201 });
     adapter.readFile.mockResolvedValue([
       '# Title',
@@ -750,7 +779,7 @@ describe('saveNoteDocument', () => {
   });
 
   it('refuses to overwrite a note whose disk content changed with the same modified timestamp', async () => {
-    adapter.stat.mockResolvedValue({ modifiedAt: 100 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 100, size: 16 });
     adapter.readFile.mockResolvedValue('# External same timestamp edit');
     let cache = setCachedNoteContent(new Map(), 'alpha.md', '# Loaded', 100, {
       updateBaseline: true,
@@ -786,7 +815,7 @@ describe('saveNoteDocument', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     adapter.stat
-      .mockResolvedValueOnce({ modifiedAt: 100 })
+      .mockResolvedValueOnce({ modifiedAt: 100, size: 16 })
       .mockResolvedValueOnce({ modifiedAt: 101 });
     adapter.writeFile.mockResolvedValue();
 
@@ -819,7 +848,7 @@ describe('saveNoteDocument', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     adapter.stat
-      .mockResolvedValueOnce({ modifiedAt: 200 })
+      .mockResolvedValueOnce({ modifiedAt: 200, size: 16 })
       .mockResolvedValueOnce({ modifiedAt: 201 });
     adapter.readFile.mockResolvedValue('# Loaded');
     adapter.writeFile.mockResolvedValue();
@@ -856,7 +885,7 @@ describe('saveNoteDocument', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-17T10:00:00.000Z'));
     adapter.stat
-      .mockResolvedValueOnce({ modifiedAt: 200 })
+      .mockResolvedValueOnce({ modifiedAt: 200, size: 16 })
       .mockResolvedValueOnce({ modifiedAt: 201 });
     adapter.readFile.mockResolvedValue([
       '---',
@@ -910,7 +939,7 @@ describe('saveNoteDocument', () => {
   });
 
   it('treats a modified timestamp with matching disk content as already saved', async () => {
-    adapter.stat.mockResolvedValue({ modifiedAt: 200 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 200, size: 16 });
     adapter.readFile.mockResolvedValue([
       '---',
       'vlaina_updated: 2026-04-15 18:00:00 +08:00',

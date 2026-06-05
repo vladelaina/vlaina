@@ -11,7 +11,7 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import { Selection as ProseSelection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { describe, expect, it } from 'vitest';
-import { listTabIndentPlugin } from './listTabIndentPlugin';
+import { buildInternalListGapDecorations, findAdjacentOrderedLists, listTabIndentPlugin } from './listTabIndentPlugin';
 
 function createEditorWithContent(content: string) {
   const editor = Editor.make() as any;
@@ -222,6 +222,40 @@ describe('listTabIndentPlugin', () => {
     expect(view.dom.querySelectorAll('li.editor-list-gap-placeholder-item')).toHaveLength(1);
   });
 
+  it('caps internal list gap placeholder decorations', async () => {
+    const editor = createEditorWithContent('');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.bullet_list.create(null, Array.from({ length: 1005 }, () => (
+        schema.nodes.list_item.create({ label: '•', listType: 'bullet' }, [
+          schema.nodes.paragraph.create(null, schema.text('\u2800')),
+        ])
+      ))),
+    ]);
+
+    expect(buildInternalListGapDecorations(view.state.doc).find()).toHaveLength(1000);
+  });
+
+  it('does not scan oversized placeholder-only list items for gap styling', async () => {
+    const editor = createEditorWithContent('');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.bullet_list.create(null, [
+        schema.nodes.list_item.create({ label: '•', listType: 'bullet' }, [
+          schema.nodes.paragraph.create(null, schema.text('\u2800'.repeat(300))),
+        ]),
+      ]),
+    ]);
+
+    expect(buildInternalListGapDecorations(view.state.doc).find()).toHaveLength(0);
+  });
+
   it('renumbers ordered list items after deleting an internal gap item', async () => {
     const editor = createEditorWithContent('');
     await editor.create();
@@ -310,6 +344,23 @@ describe('listTabIndentPlugin', () => {
     expect(nestedList.childCount).toBe(2);
     expect(nestedList.child(0).attrs.label).toBe('1.');
     expect(nestedList.child(1).attrs.label).toBe('2.');
+  });
+
+  it('scans deeply nested lists without recursive stack growth', async () => {
+    const editor = createEditorWithContent('');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    let nested = schema.nodes.paragraph.create(null, schema.text('leaf'));
+    for (let depth = 0; depth < 5000; depth += 1) {
+      nested = schema.nodes.bullet_list.create(null, [
+        schema.nodes.list_item.create({ label: '•', listType: 'bullet' }, [nested]),
+      ]);
+    }
+    const doc = schema.nodes.doc.create(null, [nested]);
+
+    expect(findAdjacentOrderedLists(doc)).toBeNull();
   });
 
   it('keeps the cursor in a newly inserted middle ordered list item', async () => {

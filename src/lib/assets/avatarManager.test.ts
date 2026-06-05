@@ -142,6 +142,31 @@ describe('avatarManager request cleanup', () => {
     expect(hoisted.writeBinaryFile).not.toHaveBeenCalled();
   });
 
+  it('stops reading streamed avatar responses once they exceed the size limit', async () => {
+    const cancel = vi.fn(async () => undefined);
+    const reader = {
+      read: vi.fn()
+        .mockResolvedValueOnce({ done: false, value: new Uint8Array(10 * 1024 * 1024) })
+        .mockResolvedValueOnce({ done: false, value: new Uint8Array(1) }),
+      cancel,
+      releaseLock: vi.fn(),
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      headers: new Headers({ 'content-type': 'image/png' }),
+      body: {
+        getReader: () => reader,
+      },
+      blob: vi.fn(),
+    })));
+
+    await expect(downloadAndSaveAvatar('https://example.com/stream.png', 'stream-user')).resolves.toBeNull();
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(reader.releaseLock).toHaveBeenCalledTimes(1);
+    expect(hoisted.writeBinaryFile).not.toHaveBeenCalled();
+  });
+
   it('saves supported avatar images with an extension matching the response MIME type', async () => {
     const avatarBlob = {
       type: 'image/webp',

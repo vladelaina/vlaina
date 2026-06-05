@@ -1,6 +1,6 @@
 import { useCallback, type RefObject } from 'react';
 import { useNoteMentionState } from './useNoteMentionState';
-import { valueContainsMentionLabel } from '../noteMentionHelpers';
+import { findMentionTitlesInValue } from '../noteMentionHelpers';
 
 interface UseNoteMentionsOptions {
   message: string;
@@ -20,9 +20,13 @@ export function useNoteMentions({
   }) => {
     const syncedMentions = new Map<string, { path: string; title: string; kind: 'note' | 'folder' }>();
     const candidatesByPath = new Map(allNoteCandidates.map((candidate) => [candidate.path, candidate]));
+    const matchedTitles = findMentionTitlesInValue(value, [
+      ...mentions.map((mention) => mention.title),
+      ...allNoteCandidates.map((candidate) => candidate.title),
+    ]);
     const retainedTitles = new Set<string>();
     for (const mention of mentions) {
-      if (valueContainsMentionLabel(value, mention.title)) {
+      if (matchedTitles.has(mention.title)) {
         const candidate = candidatesByPath.get(mention.path);
         syncedMentions.set(mention.path, {
           path: mention.path,
@@ -35,7 +39,7 @@ export function useNoteMentions({
 
     const candidatesByTitle = new Map<string, Array<{ path: string; title: string; kind: 'note' | 'folder' }>>();
     for (const candidate of allNoteCandidates) {
-      if (!retainedTitles.has(candidate.title) && valueContainsMentionLabel(value, candidate.title)) {
+      if (!retainedTitles.has(candidate.title) && matchedTitles.has(candidate.title)) {
         const candidates = candidatesByTitle.get(candidate.title) ?? [];
         candidates.push(candidate);
         candidatesByTitle.set(candidate.title, candidates);

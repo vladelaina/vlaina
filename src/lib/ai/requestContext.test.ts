@@ -145,6 +145,30 @@ describe('requestContext', () => {
     expect(sanitized[0].content).toBe('Partial answer');
   });
 
+  it('does not read older messages once the request history message budget is filled', () => {
+    const oldMessage = createMessage({ id: 'old', role: 'user', content: 'old' });
+    Object.defineProperty(oldMessage, 'content', {
+      configurable: true,
+      get() {
+        throw new Error('old message content should not be read');
+      },
+    });
+    const recentMessages = Array.from({ length: 32 }, (_, index) =>
+      createMessage({ id: `recent-${index}`, role: 'user', content: `recent-${index}` })
+    );
+
+    const result = buildRequestHistory({
+      history: [oldMessage, ...recentMessages],
+      modelId: 'model-1',
+      timezoneOffset: 8,
+      includeTimeContext: false,
+    });
+
+    expect(result.map((message) => message.content)).toEqual(
+      recentMessages.map((message) => message.content),
+    );
+  });
+
   it('compacts oversized hidden API transcripts instead of dropping reasoning content', () => {
     const result = buildRequestHistory({
       history: [
@@ -201,5 +225,38 @@ describe('requestContext', () => {
       reasoning_content: 'final hidden reasoning',
     });
     expect(JSON.stringify(result[0].apiTranscript).length).toBeLessThanOrEqual(6000);
+  });
+
+  it('normalizes hidden API transcripts before request history budgeting reads them', () => {
+    const oldestTranscriptMessage = { role: 'assistant' as const };
+    Object.defineProperty(oldestTranscriptMessage, 'content', {
+      configurable: true,
+      get() {
+        throw new Error('old transcript content should not be read');
+      },
+    });
+    const transcript = [
+      oldestTranscriptMessage,
+      ...Array.from({ length: 79 }, (_, index) => ({
+        role: 'assistant' as const,
+        content: `transcript-${index}`,
+      })),
+    ];
+
+    const result = buildRequestHistory({
+      history: [
+        createMessage({
+          role: 'assistant',
+          content: 'Visible answer',
+          apiTranscript: transcript,
+        }),
+      ],
+      modelId: 'model-1',
+      timezoneOffset: 8,
+      includeTimeContext: false,
+    });
+
+    expect(result[0]?.apiTranscript?.[0]?.content).toBe('transcript-15');
+    expect(result[0]?.apiTranscript?.at(-1)?.content).toBe('transcript-78');
   });
 });

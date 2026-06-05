@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { getHeadingPlaceholder } from './headingPlaceholder';
+import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
+import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { createHeadingPlaceholderDecorations, getHeadingPlaceholder } from './headingPlaceholder';
+
+async function createEditor(markdown = '') {
+    const editor = Editor.make()
+        .config((ctx) => {
+            ctx.set(defaultValueCtx, markdown);
+        })
+        .use(commonmark);
+
+    await editor.create();
+    return editor;
+}
 
 describe('getHeadingPlaceholder', () => {
     it('returns placeholder by heading level', () => {
@@ -15,5 +28,28 @@ describe('getHeadingPlaceholder', () => {
         expect(getHeadingPlaceholder(0)).toBe('Heading 1');
         expect(getHeadingPlaceholder(-3)).toBe('Heading 1');
         expect(getHeadingPlaceholder(9)).toBe('Heading 6');
+    });
+
+    it('caps empty heading placeholder decorations', async () => {
+        const editor = await createEditor();
+        const view = editor.ctx.get(editorViewCtx);
+        const { schema } = view.state;
+        const heading = schema.nodes.heading;
+        const nodes = Array.from({ length: 1005 }, () => heading.create({ level: 2 }));
+
+        view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, nodes));
+
+        expect(createHeadingPlaceholderDecorations(view.state.doc).find()).toHaveLength(1000);
+
+        await editor.destroy();
+    });
+
+    it('does not decorate non-empty headings', async () => {
+        const editor = await createEditor('# Heading');
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(createHeadingPlaceholderDecorations(view.state.doc).find()).toHaveLength(0);
+
+        await editor.destroy();
     });
 });

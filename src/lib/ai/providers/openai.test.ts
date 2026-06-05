@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AIErrorType, type AIModel, type ChatMessage, type Provider } from '../types';
 import { getUserFacingAIError } from '../errors';
 import { OpenAICompatibleClient } from './openai';
+import { MAX_OPENAI_STREAM_LINE_CHARS } from '@/lib/ai/streaming';
+import { MAX_PROVIDER_ERROR_BODY_BYTES, MAX_PROVIDER_JSON_RESPONSE_BODY_BYTES } from './boundedResponseText';
+import { MAX_INLINE_IMAGE_BYTES } from '@/lib/markdown/dataImagePolicy';
 
 const mocks = vi.hoisted(() => ({
   bridge: undefined as undefined | {
@@ -220,11 +223,13 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       const fetchMock = vi.fn(async () => ({
         ok: true,
         status: 200,
-        json: vi.fn(() => new Promise((resolve) => {
-          setTimeout(() => {
-            resolve({ data: [{ id: 'late-model' }] });
-          }, 11_000);
-        })),
+        body: {
+          getReader: () => ({
+            read: () => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined),
+            cancel: vi.fn(async () => undefined),
+            releaseLock: vi.fn(),
+          }),
+        },
       }));
       vi.stubGlobal('fetch', fetchMock);
 
@@ -239,6 +244,33 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('bounds oversized provider model listing responses before falling back', async () => {
+    const cancel = vi.fn();
+    const oversizedResponse = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('x'.repeat(MAX_PROVIDER_ERROR_BODY_BYTES + 1)));
+        },
+        cancel,
+      }),
+      { status: 200 },
+    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(oversizedResponse)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 'claude-sonnet-4-5' }] }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new OpenAICompatibleClient().getModelsWithEndpointDetection(buildProvider());
+
+    expect(result).toEqual({
+      models: ['claude-sonnet-4-5'],
+      endpointType: 'anthropic',
+    });
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => oversizedResponse.body?.getReader()).not.toThrow();
   });
 
   it('sanitizes model ids returned by provider model listing endpoints', async () => {
@@ -468,16 +500,46 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     });
   });
 
+  it('rejects oversized Anthropic stream lines before parsing them', async () => {
+    const cancelStream = vi.fn();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('x'.repeat(MAX_OPENAI_STREAM_LINE_CHARS + 1)));
+      },
+      cancel: cancelStream,
+    });
+    const response = new Response(stream, { status: 200 });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel(),
+      buildProvider({ endpointType: 'anthropic' }),
+      vi.fn(),
+    )).rejects.toMatchObject({
+      type: AIErrorType.UNKNOWN,
+      message: 'AI stream line is too large',
+    });
+
+    expect(cancelStream).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
+  });
+
   it('keeps Anthropic request timeout active while reading error response bodies', async () => {
     vi.useFakeTimers();
     try {
-      const textStarted = vi.fn();
+      const reader = {
+        read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined)),
+        cancel: vi.fn(async () => undefined),
+        releaseLock: vi.fn(),
+      };
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
         ok: false,
         status: 503,
-        text: vi.fn(() => new Promise(() => {
-          textStarted();
-        })),
+        body: {
+          getReader: () => reader,
+        },
       }));
       const client = new OpenAICompatibleClient();
       (client as unknown as { timeout: number }).timeout = 10;
@@ -490,13 +552,44 @@ describe('OpenAICompatibleClient endpoint detection', () => {
         vi.fn(),
       )).rejects.toThrow('The AI request timed out.');
       await vi.advanceTimersByTimeAsync(0);
-      expect(textStarted).toHaveBeenCalled();
+      expect(reader.read).toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(20);
 
       await request;
+      expect(reader.cancel).toHaveBeenCalled();
+      expect(reader.releaseLock).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('bounds oversized Anthropic error response bodies', async () => {
+    const cancel = vi.fn();
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('x'.repeat(MAX_PROVIDER_ERROR_BODY_BYTES + 1)));
+        },
+        cancel,
+      }),
+      { status: 503 },
+    );
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel(),
+      buildProvider({ endpointType: 'anthropic' }),
+      vi.fn(),
+    )).rejects.toMatchObject({
+      type: AIErrorType.SERVER_ERROR,
+      message: 'Unknown error',
+      statusCode: 503,
+    });
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
   });
 
   it('routes GPT image models to the image generation endpoint', async () => {
@@ -538,13 +631,24 @@ describe('OpenAICompatibleClient endpoint detection', () => {
 
   it('does not emit direct image results after cancellation during response parsing', async () => {
     const controller = new AbortController();
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      async json() {
+    const reader = {
+      read: vi.fn(async () => {
         controller.abort();
         return {
-          data: [{ b64_json: 'abc123', revised_prompt: 'A cancelled image' }],
+          done: false,
+          value: new TextEncoder().encode(JSON.stringify({
+            data: [{ b64_json: 'abc123', revised_prompt: 'A cancelled image' }],
+          })),
         };
+      }),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers(),
+      body: {
+        getReader: () => reader,
       },
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -589,12 +693,20 @@ describe('OpenAICompatibleClient endpoint detection', () => {
 
   it('aborts direct image response parsing while provider JSON is still pending', async () => {
     const controller = new AbortController();
-    const jsonStarted = vi.fn();
+    const readStarted = vi.fn();
+    const reader = {
+      read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => {
+        readStarted();
+      })),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    };
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: vi.fn(() => new Promise(() => {
-        jsonStarted();
-      })),
+      headers: new Headers(),
+      body: {
+        getReader: () => reader,
+      },
     });
     vi.stubGlobal('fetch', fetchMock);
     const onChunk = vi.fn();
@@ -608,11 +720,69 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       controller.signal,
     );
 
-    await vi.waitFor(() => expect(jsonStarted).toHaveBeenCalled());
+    await vi.waitFor(() => expect(readStarted).toHaveBeenCalled());
     controller.abort();
 
     await expect(request).rejects.toMatchObject({ name: 'AbortError' });
     expect(onChunk).not.toHaveBeenCalled();
+    expect(reader.cancel).toHaveBeenCalledTimes(1);
+    expect(reader.releaseLock).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects direct image generation responses when the declared JSON body is too large', async () => {
+    const cancel = vi.fn();
+    const response = new Response(
+      new ReadableStream({
+        cancel,
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-length': String(MAX_PROVIDER_JSON_RESPONSE_BODY_BYTES + 1),
+        },
+      },
+    );
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'draw a house',
+      [],
+      buildModel({ apiModelId: 'gpt-image-2', name: 'GPT Image 2' }),
+      buildProvider(),
+      vi.fn(),
+    )).rejects.toThrow('AI provider response body is too large.');
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('cancels direct provider JSON body reads when the streamed body exceeds the limit', async () => {
+    const reader = {
+      read: vi.fn(async () => ({
+        done: false,
+        value: { byteLength: MAX_PROVIDER_JSON_RESPONSE_BODY_BYTES + 1 } as Uint8Array,
+      })),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers(),
+      body: {
+        getReader: () => reader,
+      },
+    }));
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'draw a house',
+      [],
+      buildModel({ apiModelId: 'gpt-image-2', name: 'GPT Image 2' }),
+      buildProvider(),
+      vi.fn(),
+    )).rejects.toThrow('AI provider response body is too large.');
+
+    expect(reader.cancel).toHaveBeenCalledTimes(1);
+    expect(reader.releaseLock).toHaveBeenCalledTimes(1);
   });
 
   it('escapes generated image markdown alt text and target', async () => {
@@ -711,6 +881,25 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       [
         { type: 'text', text: 'edit this' },
         { type: 'image_url', image_url: { url: 'data:image/gif;base64,aGk=' } },
+      ],
+      [],
+      buildModel({ apiModelId: 'gpt-image-2', name: 'GPT Image 2' }),
+      buildProvider(),
+      vi.fn(),
+    )).rejects.toThrow('Image edits require a PNG, JPEG, or WebP image attachment.');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized image edit data URLs before decoding or calling the provider', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const oversizedPayload = 'A'.repeat(Math.ceil((MAX_INLINE_IMAGE_BYTES + 1) / 3) * 4);
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      [
+        { type: 'text', text: 'edit this' },
+        { type: 'image_url', image_url: { url: `data:image/png;base64,${oversizedPayload}` } },
       ],
       [],
       buildModel({ apiModelId: 'gpt-image-2', name: 'GPT Image 2' }),
@@ -841,14 +1030,25 @@ describe('OpenAICompatibleClient endpoint detection', () => {
 
   it('does not emit xAI native search results after cancellation during response parsing', async () => {
     const controller = new AbortController();
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      async json() {
+    const reader = {
+      read: vi.fn(async () => {
         controller.abort();
         return {
-          output_text: 'Grok answer after cancellation.',
-          citations: ['https://x.ai/news'],
+          done: false,
+          value: new TextEncoder().encode(JSON.stringify({
+            output_text: 'Grok answer after cancellation.',
+            citations: ['https://x.ai/news'],
+          })),
         };
+      }),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers(),
+      body: {
+        getReader: () => reader,
       },
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -902,12 +1102,20 @@ describe('OpenAICompatibleClient endpoint detection', () => {
 
   it('aborts xAI native search response parsing while provider JSON is still pending', async () => {
     const controller = new AbortController();
-    const jsonStarted = vi.fn();
+    const readStarted = vi.fn();
+    const reader = {
+      read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => {
+        readStarted();
+      })),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    };
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: vi.fn(() => new Promise(() => {
-        jsonStarted();
-      })),
+      headers: new Headers(),
+      body: {
+        getReader: () => reader,
+      },
     });
     vi.stubGlobal('fetch', fetchMock);
     const chunks: string[] = [];
@@ -926,12 +1134,14 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       },
     );
 
-    await vi.waitFor(() => expect(jsonStarted).toHaveBeenCalled());
+    await vi.waitFor(() => expect(readStarted).toHaveBeenCalled());
     controller.abort();
 
     await expect(request).rejects.toMatchObject({ name: 'AbortError' });
     expect(chunks).toEqual(['<web-search-status>{"phase":"searching"}</web-search-status>']);
     expect(statuses).toEqual([{ phase: 'searching', query: 'what is new with xai?' }]);
+    expect(reader.cancel).toHaveBeenCalledTimes(1);
+    expect(reader.releaseLock).toHaveBeenCalledTimes(1);
   });
 
   it('strips rendered web search statuses from xAI native search conversation input', async () => {
@@ -1292,13 +1502,24 @@ describe('OpenAICompatibleClient endpoint detection', () => {
 
   it('does not emit managed image results after cancellation during response parsing', async () => {
     const controller = new AbortController();
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      async json() {
+    const reader = {
+      read: vi.fn(async () => {
         controller.abort();
         return {
-          data: [{ b64_json: 'abc123', revised_prompt: 'A cancelled managed image' }],
+          done: false,
+          value: new TextEncoder().encode(JSON.stringify({
+            data: [{ b64_json: 'abc123', revised_prompt: 'A cancelled managed image' }],
+          })),
         };
+      }),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers(),
+      body: {
+        getReader: () => reader,
       },
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -1935,13 +2156,17 @@ describe('OpenAICompatibleClient endpoint detection', () => {
   it('keeps OpenAI-compatible request timeout active while reading error response bodies', async () => {
     vi.useFakeTimers();
     try {
-      const textStarted = vi.fn();
+      const reader = {
+        read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined)),
+        cancel: vi.fn(async () => undefined),
+        releaseLock: vi.fn(),
+      };
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
         ok: false,
         status: 503,
-        text: vi.fn(() => new Promise(() => {
-          textStarted();
-        })),
+        body: {
+          getReader: () => reader,
+        },
       }));
       const client = new OpenAICompatibleClient();
       (client as unknown as { timeout: number }).timeout = 10;
@@ -1954,13 +2179,44 @@ describe('OpenAICompatibleClient endpoint detection', () => {
         vi.fn(),
       )).rejects.toThrow('The AI request timed out.');
       await vi.advanceTimersByTimeAsync(0);
-      expect(textStarted).toHaveBeenCalled();
+      expect(reader.read).toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(20);
 
       await request;
+      expect(reader.cancel).toHaveBeenCalled();
+      expect(reader.releaseLock).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('bounds oversized OpenAI-compatible error response bodies', async () => {
+    const cancel = vi.fn();
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('x'.repeat(MAX_PROVIDER_ERROR_BODY_BYTES + 1)));
+        },
+        cancel,
+      }),
+      { status: 400 },
+    );
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel({ apiModelId: 'gpt-4o-mini' }),
+      buildProvider({ endpointType: 'openai' }),
+      vi.fn(),
+    )).rejects.toMatchObject({
+      type: AIErrorType.INVALID_REQUEST,
+      message: 'Unknown error',
+      statusCode: 400,
+    });
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
   });
 
   it('does not start OpenAI-compatible stream requests when the external signal is already aborted', async () => {

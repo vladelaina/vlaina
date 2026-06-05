@@ -14,7 +14,7 @@ import {
 } from "@/components/common/markdown/markdownPipeline";
 import { readonlyMarkdownUrlTransform } from "@/components/common/markdown/urlTransform";
 import { createMarkdownComponents } from "@/components/Chat/features/Markdown/markdownRendererComponents";
-import { useChatStreamBlocks } from "@/components/Chat/features/Markdown/chatStreamTextAnimation";
+import { canAnimateChatStreamContent, useChatStreamBlocks } from "@/components/Chat/features/Markdown/chatStreamTextAnimation";
 import { createChatStreamTextPlugin } from "@/components/Chat/features/Markdown/chatStreamTextPlugin";
 import { getChatContentWidth } from "@/components/Chat/features/Layout/chatWidthBuckets";
 import { PrimerLightbulbIcon } from "@/components/ui/icons/custom/mit/PrimerLightbulbIcon";
@@ -193,6 +193,7 @@ export function ThinkingBlock({
   }
   const renderedThinking =
     selectionFrozenThinkingRef.current ?? suspendedThinkingRef.current ?? thinking;
+  const shouldAnimateThinkingStream = activelyThinking && canAnimateChatStreamContent(renderedThinking);
 
   syncContentHeightRef.current = () => {
     if (contentRef.current) {
@@ -280,7 +281,7 @@ export function ThinkingBlock({
 
   const streamBlocks = useChatStreamBlocks(
     renderedThinking,
-    activelyThinking,
+    shouldAnimateThinkingStream,
     contentWidth,
     startTime,
     suspendStreamAnimation,
@@ -490,20 +491,20 @@ export function ThinkingBlock({
           ref={contentRef}
           data-chat-selection-surface={isCollapsed ? undefined : "true"}
           data-chat-selection-start={isCollapsed ? undefined : "true"}
-          data-chat-markdown-live={activelyThinking ? "true" : undefined}
+          data-chat-markdown-live={shouldAnimateThinkingStream ? "true" : undefined}
           data-chat-thinking-content="true"
           onPointerDownCapture={handleSelectionPointerDown}
           onMouseDownCapture={handleSelectionMouseDown}
           className={[
             "markdown-surface opacity-[var(--vlaina-opacity-90)] max-w-none",
             isCollapsed ? "select-none" : "select-text",
-            activelyThinking ? "chat-markdown-live" : "",
+            shouldAnimateThinkingStream ? "chat-markdown-live" : "",
           ].filter(Boolean).join(" ")}
         >
           <ThinkingMarkdownContent
             componentOptions={componentOptions}
             freezeRef={selectionRenderFrozenRef}
-            isStreaming={activelyThinking}
+            isStreaming={shouldAnimateThinkingStream}
             renderedThinking={renderedThinking}
             streamBlocks={streamBlocks}
           />

@@ -1,28 +1,17 @@
 import { $node, $command, $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey, Selection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import type { TocAttrs, TocItem } from './types';
+import type { TocAttrs } from './types';
 import { isTocShortcutText } from './tocShortcut';
+import {
+  createHeadingsSignature,
+  extractHeadings,
+  normalizeTocMaxLevel,
+  renderTocContent,
+  TOC_EMPTY_TEXT,
+} from './tocViewUtils';
 
 const tocViewPluginKey = new PluginKey<{ hasToc: boolean }>('tocView');
-const TOC_EMPTY_TEXT = 'No headings yet';
-
-function extractHeadings(doc: any, maxLevel: number = 6): TocItem[] {
-  const headings: TocItem[] = [];
-  
-  doc.descendants((node: any, pos: number) => {
-    if (node.type.name === 'heading') {
-      const level = node.attrs.level as number;
-      if (level <= maxLevel) {
-        const text = node.textContent;
-        const id = `heading-${pos}`;
-        headings.push({ level, text, id, pos });
-      }
-    }
-  });
-  
-  return headings;
-}
 
 function docHasTocNode(doc: { descendants: (callback: (node: { type?: { name?: string } }) => boolean | void) => void }): boolean {
   let hasToc = false;
@@ -62,50 +51,6 @@ function stepSliceContainsToc(step: unknown): boolean {
 function transactionMayInsertToc(tr: unknown): boolean {
   const steps = (tr as { steps?: readonly unknown[] }).steps ?? [];
   return steps.some(stepSliceContainsToc);
-}
-
-function createHeadingsSignature(headings: readonly TocItem[]): string {
-  return headings
-    .map((heading) => `${heading.pos}:${heading.level}:${heading.text}`)
-    .join('|');
-}
-
-function renderTocContent(contentEl: HTMLElement, headings: readonly TocItem[], maxLevel: number): void {
-  const doc = contentEl.ownerDocument;
-  const scopedHeadings = maxLevel < 6
-    ? headings.filter((heading) => heading.level <= maxLevel)
-    : headings;
-
-  if (scopedHeadings.length === 0) {
-    const empty = doc.createElement('div');
-    empty.className = 'toc-empty';
-    empty.textContent = TOC_EMPTY_TEXT;
-    contentEl.replaceChildren(empty);
-    return;
-  }
-
-  const nav = doc.createElement('nav');
-  nav.className = 'toc-nav';
-  const list = doc.createElement('ul');
-  list.className = 'toc-list';
-  nav.appendChild(list);
-
-  for (const heading of scopedHeadings) {
-    const item = doc.createElement('li');
-    item.className = `toc-item toc-level-${heading.level}`;
-    item.style.paddingLeft = `${(heading.level - 1) * 16}px`;
-
-    const link = doc.createElement('a');
-    link.className = 'toc-link';
-    link.href = '#';
-    link.dataset.headingPos = String(heading.pos);
-    link.textContent = heading.text;
-
-    item.appendChild(link);
-    list.appendChild(item);
-  }
-
-  contentEl.replaceChildren(nav);
 }
 
 export const tocViewPlugin = $prose(() => {
@@ -211,16 +156,17 @@ export const tocSchema = $node('toc', () => ({
   parseDOM: [{
     tag: 'div[data-type="toc"]',
     getAttrs: (dom) => ({
-      maxLevel: parseInt((dom as HTMLElement).dataset.maxLevel || '6', 10)
+      maxLevel: normalizeTocMaxLevel((dom as HTMLElement).dataset.maxLevel)
     })
   }],
   toDOM: (node) => {
     const attrs = node.attrs as TocAttrs;
+    const maxLevel = normalizeTocMaxLevel(attrs.maxLevel);
     return [
       'div',
       {
         'data-type': 'toc',
-        'data-max-level': String(attrs.maxLevel),
+        'data-max-level': String(maxLevel),
         class: 'toc-block'
       },
       ['div', { class: 'toc-content' }, TOC_EMPTY_TEXT]

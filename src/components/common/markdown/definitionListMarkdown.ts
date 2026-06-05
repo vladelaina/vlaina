@@ -3,6 +3,7 @@ import {
   type MarkdownSourcePosition,
 } from './delimitedMarkdown';
 import { markEscapedMarkdownBlockSyntax } from './escapedBlockSyntax';
+import { canTransformMarkdownAst } from './markdownAstBudget';
 
 export interface DefinitionListMdastNode {
   type: string;
@@ -16,13 +17,72 @@ export interface DefinitionListMdastNode {
   position?: MarkdownSourcePosition;
 }
 
-function getNodeText(node: DefinitionListMdastNode): string {
-  if (typeof node.value === 'string') return node.value;
-  return (node.children ?? []).map(getNodeText).join('');
-}
+const MAX_DEFINITION_TERM_CHARS = 80;
+const MAX_DEFINITION_DESC_PREFIX_CHARS = 2;
 
 function isParagraph(node: DefinitionListMdastNode | undefined): node is DefinitionListMdastNode {
   return node?.type === 'paragraph';
+}
+
+function getNodeTextPrefix(node: DefinitionListMdastNode, maxChars: number): string {
+  const parts: string[] = [];
+  const stack = [node];
+  let remainingChars = maxChars;
+
+  while (stack.length > 0 && remainingChars > 0) {
+    const current = stack.pop()!;
+    if (typeof current.value === 'string') {
+      const value = current.value.slice(0, remainingChars);
+      parts.push(value);
+      remainingChars -= value.length;
+      continue;
+    }
+
+    const children = current.children ?? [];
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      stack.push(children[index]);
+    }
+  }
+
+  return parts.join('');
+}
+
+function getTrimStartNodeTextPrefix(node: DefinitionListMdastNode, maxChars: number): string {
+  const parts: string[] = [];
+  const stack = [node];
+  let remainingChars = maxChars;
+  let trimming = true;
+
+  while (stack.length > 0 && remainingChars > 0) {
+    const current = stack.pop()!;
+    if (typeof current.value === 'string') {
+      const source = trimming ? current.value.trimStart() : current.value;
+      if (source.length === 0) {
+        continue;
+      }
+
+      trimming = false;
+      const value = source.slice(0, remainingChars);
+      parts.push(value);
+      remainingChars -= value.length;
+      continue;
+    }
+
+    const children = current.children ?? [];
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      stack.push(children[index]);
+    }
+  }
+
+  return parts.join('');
+}
+
+function getDefinitionTermText(node: DefinitionListMdastNode): string {
+  return getNodeTextPrefix(node, MAX_DEFINITION_TERM_CHARS).trim();
+}
+
+function hasDefinitionDescriptionPrefix(node: DefinitionListMdastNode | undefined): node is DefinitionListMdastNode {
+  return isParagraph(node) && getTrimStartNodeTextPrefix(node, MAX_DEFINITION_DESC_PREFIX_CHARS) === ': ';
 }
 
 function stripDefinitionPrefix(children: readonly DefinitionListMdastNode[]): DefinitionListMdastNode[] {
@@ -128,6 +188,10 @@ function splitCombinedDefinitionParagraph(
 }
 
 export function applyDefinitionListsToTree(tree: DefinitionListMdastNode, markdown = ''): void {
+  if (!canTransformMarkdownAst(tree)) {
+    return;
+  }
+
   function visit(node: DefinitionListMdastNode): void {
     if (!node.children?.length) return;
 
@@ -140,15 +204,15 @@ export function applyDefinitionListsToTree(tree: DefinitionListMdastNode, markdo
       }
 
       const next = node.children[index + 1];
-      const termText = isParagraph(child) ? getNodeText(child).trim() : '';
-      const descText = isParagraph(next) ? getNodeText(next).trimStart() : '';
-      if (isParagraph(next) && descText.startsWith(': ') && hasEscapedDefinitionMarker(next, markdown)) {
+      const termText = isParagraph(child) ? getDefinitionTermText(child) : '';
+      const hasDescriptionPrefix = hasDefinitionDescriptionPrefix(next);
+      if (hasDescriptionPrefix && hasEscapedDefinitionMarker(next, markdown)) {
         markEscapedMarkdownBlockSyntax(next, 'definitionListDescription');
       }
       if (
         termText.length > 0 &&
         termText.length < 80 &&
-        descText.startsWith(': ') &&
+        hasDescriptionPrefix &&
         hasUnescapedDefinitionMarker(next, markdown) &&
         child.children &&
         next?.children

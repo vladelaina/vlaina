@@ -224,7 +224,7 @@ const pasteSyntaxTodo: PasteSyntaxTodo[] = [
     name: 'video image syntax',
     markdown: '![video](https://example.com/video.mp4 "Demo video")',
     expectDoc: (doc) => {
-      expect(doc.firstChild.firstChild.type.name).toBe('image');
+      expect(doc.firstChild.type.name).toBe('video');
     },
   },
   {

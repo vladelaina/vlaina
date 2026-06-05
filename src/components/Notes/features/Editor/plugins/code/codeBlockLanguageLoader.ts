@@ -6,6 +6,9 @@ type SupportedLanguageDescription = LanguageDescription & {
   alias: readonly string[];
 };
 
+const MAX_CUSTOM_LANGUAGE_ID_CHARS = 64;
+const CUSTOM_LANGUAGE_ID_PATTERN = /^[a-z0-9][a-z0-9+._#-]*$/;
+
 export interface CodeBlockLanguageInfo {
   id: string;
   name: string;
@@ -14,6 +17,15 @@ export interface CodeBlockLanguageInfo {
 
 function getDescriptionId(description: SupportedLanguageDescription) {
   return description.alias[0] ?? description.name.toLowerCase();
+}
+
+function normalizeCustomLanguageId(languageName: string | null | undefined) {
+  const normalized = languageName?.trim().toLowerCase() ?? '';
+  if (!normalized || normalized.length > MAX_CUSTOM_LANGUAGE_ID_CHARS) {
+    return null;
+  }
+
+  return CUSTOM_LANGUAGE_ID_PATTERN.test(normalized) ? normalized : null;
 }
 
 export class CodeBlockLanguageLoader {
@@ -86,8 +98,7 @@ export class CodeBlockLanguageLoader {
       return resolvedLanguageId;
     }
 
-    const normalized = languageName?.trim().toLowerCase() ?? '';
-    return normalized || null;
+    return normalizeCustomLanguageId(languageName);
   }
 
   load(languageName: string | null | undefined) {

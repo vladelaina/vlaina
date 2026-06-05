@@ -3,6 +3,7 @@ import { type DOMOutputSpec, type Node } from '@milkdown/kit/prose/model';
 import type { MathBlockAttrs, MathInlineAttrs } from './types';
 import { renderLatex } from './katex';
 
+const MAX_LEGACY_MATH_DATA_LATEX_CHARS = 10000;
 const mathElementLatex = new WeakMap<HTMLElement, string>();
 
 function emptyMathMarkup() {
@@ -22,7 +23,13 @@ export function setMathElementLatex(element: HTMLElement, latex: string) {
 }
 
 export function getMathElementLatex(element: HTMLElement) {
-  return mathElementLatex.get(element) ?? element.dataset.latex ?? '';
+  const latex = mathElementLatex.get(element);
+  if (latex != null) return latex;
+
+  const legacyLatex = element.dataset.latex ?? '';
+  return legacyLatex.length > MAX_LEGACY_MATH_DATA_LATEX_CHARS
+    ? legacyLatex.slice(0, MAX_LEGACY_MATH_DATA_LATEX_CHARS)
+    : legacyLatex;
 }
 
 export function parseMathAttrs(dom: HTMLElement) {

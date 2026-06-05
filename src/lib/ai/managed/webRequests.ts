@@ -6,6 +6,7 @@ const MANAGED_JSON_TIMEOUT_MS = 30_000;
 const MANAGED_STREAM_TIMEOUT_MS = 300_000;
 const MANAGED_GET_RETRY_DELAYS_MS = [300];
 const MANAGED_FAST_FAILURE_RETRY_WINDOW_MS = 2000;
+const MAX_MANAGED_JSON_RESPONSE_BODY_BYTES = 64 * 1024 * 1024;
 
 interface ManagedJsonRequestInit extends RequestInit {
   timeoutMs?: number;
@@ -45,6 +46,10 @@ function createAbortError(): DOMException {
 
 function createManagedTimeoutError(): Error {
   return new Error('Managed API request timed out.');
+}
+
+function createManagedResponseTooLargeError(): Error {
+  return new Error('Managed API response body is too large.');
 }
 
 function throwIfExternallyAborted(signal?: AbortSignal | null): void {
@@ -147,12 +152,76 @@ function delayManagedRetry(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
+function readContentLength(response: Response): number | null {
+  const rawContentLength = response.headers.get('content-length');
+  if (!rawContentLength) {
+    return null;
+  }
+
+  const parsed = Number(rawContentLength);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+async function readManagedJsonText(
+  response: Response,
+  timeoutController: AbortController,
+  externalSignal?: AbortSignal | null,
+): Promise<string> {
+  throwIfManagedRequestAborted(timeoutController, externalSignal);
+
+  const contentLength = readContentLength(response);
+  if (contentLength !== null && contentLength > MAX_MANAGED_JSON_RESPONSE_BODY_BYTES) {
+    void response.body?.cancel().catch(() => undefined);
+    throw createManagedResponseTooLargeError();
+  }
+
+  if (!response.body) {
+    return '';
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const chunks: string[] = [];
+  let bytesRead = 0;
+  const cancelReader = () => {
+    void reader.cancel(createAbortError()).catch(() => undefined);
+  };
+  timeoutController.signal.addEventListener('abort', cancelReader, { once: true });
+  externalSignal?.addEventListener('abort', cancelReader, { once: true });
+
+  try {
+    while (true) {
+      const { done, value } = await raceManagedRequest(reader.read(), timeoutController, externalSignal);
+      throwIfManagedRequestAborted(timeoutController, externalSignal);
+      if (done) {
+        break;
+      }
+
+      bytesRead += value.byteLength;
+      if (bytesRead > MAX_MANAGED_JSON_RESPONSE_BODY_BYTES) {
+        void reader.cancel().catch(() => undefined);
+        throw createManagedResponseTooLargeError();
+      }
+      chunks.push(decoder.decode(value, { stream: true }));
+    }
+
+    chunks.push(decoder.decode());
+    return chunks.join('');
+  } finally {
+    timeoutController.signal.removeEventListener('abort', cancelReader);
+    externalSignal?.removeEventListener('abort', cancelReader);
+    reader.releaseLock();
+  }
+}
+
 async function readManagedJson<T>(
   response: Response,
   timeoutController: AbortController,
   externalSignal?: AbortSignal | null,
 ): Promise<T> {
-  return await raceManagedRequest(response.json() as Promise<T>, timeoutController, externalSignal);
+  const text = await readManagedJsonText(response, timeoutController, externalSignal);
+  throwIfManagedRequestAborted(timeoutController, externalSignal);
+  return JSON.parse(text) as T;
 }
 
 async function fetchManagedJsonWithRetry(

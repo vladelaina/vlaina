@@ -24,7 +24,13 @@ describe('resolveExportMarkdownAssetSources', () => {
   beforeEach(() => {
     mocks.readBinaryFile.mockReset();
     mocks.stat.mockReset();
-    mocks.stat.mockResolvedValue(null);
+    mocks.stat.mockResolvedValue({
+      name: 'demo.png',
+      path: '/vault/.vlaina/assets/demo.png',
+      isDirectory: false,
+      isFile: true,
+      size: 2,
+    });
     mocks.resolveExistingVaultAssetPath.mockReset();
   });
 
@@ -609,6 +615,20 @@ describe('resolveExportMarkdownAssetSources', () => {
     );
 
     expect(markdown).toBe('![huge](img:huge.png)');
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read local note images when stat has no size', async () => {
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
+    mocks.stat.mockResolvedValue(null);
+
+    const markdown = await resolveExportMarkdownAssetSources(
+      '![demo](img:demo.png)',
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe('![demo](img:demo.png)');
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
   });
 

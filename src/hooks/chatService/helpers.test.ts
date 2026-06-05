@@ -371,6 +371,12 @@ describe('loadMentionedNotes', () => {
     mocks.notesState.getDisplayName.mockImplementation((path: string) =>
       path.split('/').pop()?.replace(/\.md$/i, '') ?? path,
     );
+    mocks.storage.listDir.mockReset();
+    mocks.storage.listDir.mockResolvedValue([]);
+    mocks.storage.stat.mockReset();
+    mocks.storage.stat.mockResolvedValue(null);
+    mocks.storage.readFile.mockReset();
+    mocks.storage.readFile.mockResolvedValue('');
   });
 
   it('flushes pending editor markdown before reading the current note mention', async () => {
@@ -585,6 +591,19 @@ describe('loadMentionedNotes', () => {
     ]);
   });
 
+  it('does not read note mention files when stat has no size', async () => {
+    mocks.storage.stat.mockResolvedValue(null);
+    mocks.storage.readFile.mockResolvedValue('# Unexpected');
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs/alpha.md', title: 'Alpha' },
+    ]);
+
+    expect(notes).toEqual([]);
+    expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/docs/alpha.md');
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
   it('includes a directory listing for folder mentions without markdown notes', async () => {
     mocks.notesState.rootFolder = {
       children: [
@@ -790,6 +809,25 @@ describe('loadMentionedFolderImageAttachments', () => {
       isFile: false,
       size: 4096,
     });
+
+    const attachments = await loadMentionedFolderImageAttachments([
+      { path: 'assets', title: 'assets/', kind: 'folder' },
+    ]);
+
+    expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/assets/cover.png');
+    expect(attachments).toEqual([]);
+  });
+
+  it('skips folder image candidates when size is unavailable', async () => {
+    mocks.storage.listDir.mockResolvedValue([
+      {
+        name: 'cover.png',
+        path: '/vault/assets/cover.png',
+        isDirectory: false,
+        isFile: true,
+      },
+    ]);
+    mocks.storage.stat.mockResolvedValue(null);
 
     const attachments = await loadMentionedFolderImageAttachments([
       { path: 'assets', title: 'assets/', kind: 'folder' },

@@ -80,7 +80,7 @@ function buildSentUserMessages(messages: ChatMessage[]): DerivedCollection<strin
     }
 
     items.push(message.content);
-    signatureParts.push(`${message.id}\u0000${message.currentVersionIndex}\u0000${message.content}`);
+    signatureParts.push(`${message.id}\u0000${message.currentVersionIndex}\u0000${message.content.length}:${hashString(message.content)}`);
   });
 
   return {

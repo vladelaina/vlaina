@@ -5,6 +5,9 @@ interface HastNode {
   children?: HastNode[];
 }
 
+const MAX_KATEX_SOURCE_HAST_DEPTH = 200;
+const MAX_KATEX_SOURCE_HAST_NODES = 20_000;
+
 function readPropertyString(properties: Record<string, unknown> | undefined, name: string) {
   const value = properties?.[name];
   if (Array.isArray(value)) {
@@ -44,21 +47,42 @@ export function removeKatexSourceAnnotationsFromHtml(html: string) {
 }
 
 export function removeKatexSourceAnnotationsFromHast(node: HastNode): void {
-  const children = node.children;
-  if (!Array.isArray(children)) {
-    return;
-  }
+  const queue: Array<{ node: HastNode; depth: number }> = [{ node, depth: 0 }];
+  let visitedNodes = 1;
 
-  for (let index = children.length - 1; index >= 0; index -= 1) {
-    const child = children[index];
-    if (!child) {
+  for (let queueIndex = 0; queueIndex < queue.length; queueIndex += 1) {
+    const current = queue[queueIndex];
+    const children = current.node.children;
+    if (!Array.isArray(children)) {
       continue;
     }
-    if (isKatexSourceAnnotation(child)) {
-      children.splice(index, 1);
+
+    if (current.depth >= MAX_KATEX_SOURCE_HAST_DEPTH) {
+      current.node.children = [];
       continue;
     }
-    removeKatexSourceAnnotationsFromHast(child);
+
+    for (let childIndex = children.length - 1; childIndex >= 0; childIndex -= 1) {
+      const child = children[childIndex];
+      if (!child || isKatexSourceAnnotation(child)) {
+        children.splice(childIndex, 1);
+      }
+    }
+
+    for (let childIndex = 0; childIndex < children.length; childIndex += 1) {
+      const child = children[childIndex];
+      if (!child) {
+        continue;
+      }
+
+      visitedNodes += 1;
+      if (visitedNodes > MAX_KATEX_SOURCE_HAST_NODES) {
+        children.splice(childIndex);
+        break;
+      }
+
+      queue.push({ node: child, depth: current.depth + 1 });
+    }
   }
 }
 

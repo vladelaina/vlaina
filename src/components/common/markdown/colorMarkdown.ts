@@ -1,5 +1,6 @@
 import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 import { findDelimitedTextMatches, type MarkdownSourcePosition } from './delimitedMarkdown';
+import { canTransformMarkdownAst } from './markdownAstBudget';
 
 export interface ColorMarkdownMdastNode {
   type: string;
@@ -141,6 +142,8 @@ function parseSplitInlineColorHtmlMark(
 }
 
 export function replaceInlineColorHtmlMark(tree: ColorMarkdownMdastNode): void {
+  if (!canTransformMarkdownAst(tree)) return;
+
   function visit(node: ColorMarkdownMdastNode): void {
     if (!node.children?.length) return;
 
@@ -169,6 +172,8 @@ export function remarkInlineColorHtml() {
 }
 
 export function replaceUnderlineMarkdown(tree: ColorMarkdownMdastNode, markdown = ''): void {
+  if (!canTransformMarkdownAst(tree)) return;
+
   const underlineRegex = /\+\+([^+]+)\+\+/g;
 
   function visitNode(node: ColorMarkdownMdastNode, parent?: ColorMarkdownMdastNode, index?: number): void {

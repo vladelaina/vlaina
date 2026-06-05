@@ -5,15 +5,19 @@ import { writeTextToClipboard } from '@/lib/clipboard';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { isRenderableDataImageSrc, normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
 import { parseVideoUrl } from '@/lib/markdown/videoUrl';
-import { fetchChatImageBlob } from './chatImageFetch';
+import { fetchChatImageBlob, MAX_CHAT_IMAGE_FETCH_BYTES } from './chatImageFetch';
 import { resolveSafeChatImageSource } from './chatImageSourceResolution';
 import {
   parseMarkdownAndHtmlImageTokens,
   parseMarkdownImageTokens,
   stripImageTokens,
   type ImageToken,
+  type ImageTokenParseOptions,
 } from './messageImageTokens';
 import { isSvgImageMimeType, rasterizeSvgBlobToPngBlob } from './svgRasterize';
+
+const MAX_COPY_IMAGE_SCAN_TOKENS = 2000;
+const MAX_COPY_TEXT_IMAGE_TOKENS = 1000;
 
 function normalizeImageToken(token: ImageToken): ImageToken | null {
   const src = normalizeRenderableImageSrc(token.src);
@@ -30,14 +34,14 @@ function normalizeRenderedImageTokens(tokens: ImageToken[]): ImageToken[] {
   return normalizeImageTokens(tokens).filter((token) => !!token.src && isRenderedImageSource(token.src));
 }
 
-export function extractMarkdownImageSources(content: string): string[] {
-  return normalizeImageTokens(parseMarkdownImageTokens(content))
+export function extractMarkdownImageSources(content: string, options?: ImageTokenParseOptions): string[] {
+  return normalizeImageTokens(parseMarkdownImageTokens(content, options))
     .map((token) => token.src)
     .filter((src): src is string => !!src);
 }
 
-export function extractMessageImageSources(content: string): string[] {
-  const tokens = normalizeImageTokens(parseMarkdownAndHtmlImageTokens(content));
+export function extractMessageImageSources(content: string, options?: ImageTokenParseOptions): string[] {
+  const tokens = normalizeImageTokens(parseMarkdownAndHtmlImageTokens(content, options));
 
   return tokens.map((token) => token.src).filter((src): src is string => !!src);
 }
@@ -46,26 +50,26 @@ export function isRenderedImageSource(src: string): boolean {
   return !parseVideoUrl(src);
 }
 
-export function extractRenderedMarkdownImageSources(content: string): string[] {
-  return extractMarkdownImageSources(content).filter(isRenderedImageSource);
+export function extractRenderedMarkdownImageSources(content: string, options?: ImageTokenParseOptions): string[] {
+  return extractMarkdownImageSources(content, options).filter(isRenderedImageSource);
 }
 
-export function extractRenderedMessageImageSources(content: string): string[] {
-  return extractMessageImageSources(content).filter(isRenderedImageSource);
+export function extractRenderedMessageImageSources(content: string, options?: ImageTokenParseOptions): string[] {
+  return extractMessageImageSources(content, options).filter(isRenderedImageSource);
 }
 
-export function stripMarkdownImageTokens(content: string): string {
-  return stripImageTokens(content, normalizeRenderedImageTokens(parseMarkdownImageTokens(content)));
+export function stripMarkdownImageTokens(content: string, options?: ImageTokenParseOptions): string {
+  return stripImageTokens(content, normalizeRenderedImageTokens(parseMarkdownImageTokens(content, options)));
 }
 
-export function stripMessageImageTokens(content: string): string {
-  const tokens = normalizeRenderedImageTokens(parseMarkdownAndHtmlImageTokens(content));
+export function stripMessageImageTokens(content: string, options?: ImageTokenParseOptions): string {
+  const tokens = normalizeRenderedImageTokens(parseMarkdownAndHtmlImageTokens(content, options));
   return stripImageTokens(content, tokens);
 }
 
-export function formatMessageCopyText(content: string): string {
+export function formatMessageCopyText(content: string, options?: ImageTokenParseOptions): string {
   const normalizedContent = stripThinkingContent(stripWebSearchStatusMarkup(stripErrorTags(content)));
-  const tokens = normalizeImageTokens(parseMarkdownAndHtmlImageTokens(normalizedContent));
+  const tokens = normalizeImageTokens(parseMarkdownAndHtmlImageTokens(normalizedContent, options));
   if (tokens.length === 0) {
     return normalizedContent;
   }
@@ -111,6 +115,9 @@ export async function copyImageSourceToClipboard(src: string): Promise<boolean> 
       }
       blob = rasterizedBlob;
     }
+    if (blob.size > MAX_CHAT_IMAGE_FETCH_BYTES) {
+      return false;
+    }
     const ClipboardItemCtor = (window as any).ClipboardItem;
     if (ClipboardItemCtor && blob.type.startsWith("image/")) {
       const item = new ClipboardItemCtor({ [blob.type]: blob });
@@ -123,7 +130,9 @@ export async function copyImageSourceToClipboard(src: string): Promise<boolean> 
 }
 
 export async function copyMessageContentToClipboard(content: string): Promise<boolean> {
-  const imageSources = extractRenderedMessageImageSources(content);
+  const imageSources = extractRenderedMessageImageSources(content, {
+    maxTokens: MAX_COPY_IMAGE_SCAN_TOKENS,
+  });
   if (imageSources.length > 0) {
     const copied = await copyImageSourceToClipboard(imageSources[0]);
     if (copied) {
@@ -131,5 +140,7 @@ export async function copyMessageContentToClipboard(content: string): Promise<bo
     }
   }
 
-  return writeTextToClipboard(formatMessageCopyText(content));
+  return writeTextToClipboard(formatMessageCopyText(content, {
+    maxTokens: MAX_COPY_TEXT_IMAGE_TOKENS,
+  }));
 }

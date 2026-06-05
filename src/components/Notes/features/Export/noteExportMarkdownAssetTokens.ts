@@ -1,8 +1,10 @@
 import {
   getMarkdownHtmlBlockRanges,
   getIgnoredInlineRanges,
+  getRangeEndAtOffset,
   isEscapedMarkdownPunctuation,
   isOffsetInRanges,
+  normalizeContentRanges,
   type ContentRange,
 } from './noteExportMarkdownRanges';
 import {
@@ -29,11 +31,6 @@ function unescapeMarkdownLinkDestination(value: string): string {
 
 function normalizeMarkdownImageLookupSrc(value: string): string {
   return decodeMarkdownHtmlText(unescapeMarkdownLinkDestination(value));
-}
-
-function getRangeEndAtOffset(offset: number, ranges: readonly ContentRange[]): number | null {
-  const range = ranges.find((item) => offset >= item.start && offset < item.end);
-  return range?.end ?? null;
 }
 
 function findMarkdownLabelEnd(
@@ -220,17 +217,17 @@ function findMarkdownImageSourceMatches(
 
 export function findExportMarkdownAssetSourceTokens(content: string): ExportMarkdownAssetSourceToken[] {
   const ignoredRanges = getIgnoredInlineRanges(content);
-  const ignoredMarkdownRanges = [
+  const ignoredMarkdownRanges = normalizeContentRanges([
     ...ignoredRanges,
     ...getMarkdownHtmlBlockRanges(content),
-  ];
+  ]);
   const htmlTagRanges = getHtmlTagRanges(content);
   const markdownMatches = findMarkdownImageSourceMatches(content, ignoredMarkdownRanges, htmlTagRanges);
   return [
     ...markdownMatches.map((match) => match.token),
     ...findHtmlImageSourceTokens(
       content,
-      [...ignoredRanges, ...markdownMatches.map((match) => match.imageRange)],
+      normalizeContentRanges([...ignoredRanges, ...markdownMatches.map((match) => match.imageRange)]),
       htmlTagRanges,
     ),
   ].sort((left, right) => left.start - right.start);

@@ -25,7 +25,7 @@ function isExportableImagePath(path: string): boolean {
 }
 
 function isExportableImageSize(size: number | null | undefined): boolean {
-  return typeof size !== 'number' || size <= MAX_EXPORT_IMAGE_BYTES;
+  return typeof size === 'number' && size <= MAX_EXPORT_IMAGE_BYTES;
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -75,7 +75,7 @@ async function resolveAssetUrl(
     }
 
     const fileInfo = await bridge.fs.stat(absolutePath).catch(() => null);
-    if (!isExportableImageSize(fileInfo?.size ?? null)) {
+    if (!isExportableImageSize(fileInfo?.size)) {
       return fallbackSrc;
     }
 

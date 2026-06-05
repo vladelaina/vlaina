@@ -27,6 +27,8 @@ vi.mock('@/lib/electron/bridge', () => ({
 
 import { providerFetch } from './providerHttp';
 
+const MAX_DESKTOP_PROVIDER_BODY_BYTES = 64 * 1024 * 1024;
+
 describe('providerFetch', () => {
   beforeEach(() => {
     mocks.bridgeValue = mocks.bridge;
@@ -116,6 +118,28 @@ describe('providerFetch', () => {
         bodyBase64: 'bXVsdGlwYXJ0LWJvZHk=',
       },
     );
+  });
+
+  it('rejects oversized desktop provider Blob bodies before reading them', async () => {
+    const blob = new Blob(['x']);
+    const arrayBuffer = vi.fn(async () => new ArrayBuffer(1));
+    Object.defineProperty(blob, 'size', {
+      configurable: true,
+      value: MAX_DESKTOP_PROVIDER_BODY_BYTES + 1,
+    });
+    Object.defineProperty(blob, 'arrayBuffer', {
+      configurable: true,
+      value: arrayBuffer,
+    });
+
+    await expect(providerFetch('https://api.example.com/v1/images/edits', {
+      method: 'POST',
+      headers: { 'Content-Type': 'multipart/form-data; boundary=test' },
+      body: blob,
+    })).rejects.toThrow('Desktop AI provider request body is too large.');
+
+    expect(arrayBuffer).not.toHaveBeenCalled();
+    expect(mocks.bridge.aiProvider.startRequest).not.toHaveBeenCalled();
   });
 
   it('rejects promptly when desktop provider Blob body serialization is aborted', async () => {

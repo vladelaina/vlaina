@@ -22,6 +22,11 @@ vi.mock('@/lib/ai/streaming', async (importOriginal) => {
 });
 
 import { consumeOpenAIStreamWithTools } from './openAIStreamWithTools';
+import { MAX_OPENAI_STREAM_LINE_CHARS } from '@/lib/ai/streaming';
+import {
+  MAX_OPENAI_TOOL_ARGUMENT_CHARS,
+  MAX_OPENAI_TOOL_CALLS,
+} from './openAIToolParsing';
 
 function streamResponse(lines: string[]): Response {
   const encoder = new TextEncoder();
@@ -111,6 +116,34 @@ describe('consumeOpenAIStreamWithTools', () => {
     }]);
   });
 
+  it('bounds streamed tool call indexes, counts, and argument text', async () => {
+    const toolCalls = Array.from({ length: MAX_OPENAI_TOOL_CALLS + 4 }, (_, index) => ({
+      index: index === 0 ? 1_000_000 : index,
+      id: `call-${index}`,
+      type: 'function',
+      function: {
+        name: 'web_search',
+        arguments: index === 0
+          ? 'x'.repeat(MAX_OPENAI_TOOL_ARGUMENT_CHARS + 500)
+          : '{"query":"bounded"}',
+      },
+    }));
+
+    const result = await consumeOpenAIStreamWithTools(
+      streamResponse([
+        `data: ${JSON.stringify({ choices: [{ delta: { tool_calls: toolCalls } }] })}`,
+        'data: [DONE]',
+        '',
+      ]),
+      () => {},
+    );
+
+    expect(result.toolCalls).toHaveLength(MAX_OPENAI_TOOL_CALLS);
+    expect(result.toolCalls[0].id).toBe('call-0');
+    expect(result.toolCalls[0].function.arguments).toHaveLength(MAX_OPENAI_TOOL_ARGUMENT_CHARS);
+    expect(result.toolCalls.some((call) => call.id === `call-${MAX_OPENAI_TOOL_CALLS + 1}`)).toBe(false);
+  });
+
   it('cancels and releases the stream reader when a stream error payload is received', async () => {
     const cancel = vi.fn();
     const encoder = new TextEncoder();
@@ -124,6 +157,24 @@ describe('consumeOpenAIStreamWithTools', () => {
     );
 
     await expect(consumeOpenAIStreamWithTools(response, () => {})).rejects.toThrow('boom');
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('rejects oversized tool stream lines before parsing them', async () => {
+    const cancel = vi.fn();
+    const encoder = new TextEncoder();
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode('x'.repeat(MAX_OPENAI_STREAM_LINE_CHARS + 1)));
+        },
+        cancel,
+      }),
+    );
+
+    await expect(consumeOpenAIStreamWithTools(response, () => {})).rejects.toThrow('AI stream line is too large');
 
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(() => response.body?.getReader()).not.toThrow();

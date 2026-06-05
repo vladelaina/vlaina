@@ -7,7 +7,7 @@ import {
   CHAT_MARKDOWN_REHYPE_PLUGINS,
   CHAT_MARKDOWN_REMARK_PLUGINS,
 } from '@/components/common/markdown/markdownPipeline';
-import { useChatStreamBlocks } from './chatStreamTextAnimation';
+import { canAnimateChatStreamContent, useChatStreamBlocks } from './chatStreamTextAnimation';
 import { createChatStreamTextPlugin } from './chatStreamTextPlugin';
 import { getChatContentWidth } from '@/components/Chat/features/Layout/chatWidthBuckets';
 import {
@@ -238,8 +238,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     const suspendedStreamContentRef = useRef<string | null>(null);
     const [contentWidth, setContentWidth] = useState(0);
     latestStreamingRef.current = isStreaming;
-    const shouldAnimateStream = isStreaming;
-    if (shouldAnimateStream && suspendStreamAnimation) {
+    if (isStreaming && suspendStreamAnimation) {
       suspendedStreamContentRef.current ??= content;
     } else {
       suspendedStreamContentRef.current = null;
@@ -442,6 +441,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     ]);
 
     const hasMarkdownSurface = markdown.length > 0;
+    const shouldAnimateStream = isStreaming && canAnimateChatStreamContent(markdown);
 
     useLayoutEffect(() => {
       const surface = markdownSurfaceRef.current;

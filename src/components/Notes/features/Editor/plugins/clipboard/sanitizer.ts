@@ -5,6 +5,7 @@ import {
   GITHUB_DROP_WITH_CONTENT_TAGS,
   GITHUB_WRAP_CONTENT_WITH_WHITESPACE_TAGS,
   hasGithubProtocol,
+  isGithubHtmlAttributeValueAllowed,
   isGithubAllowedAttribute,
   isGithubSrcsetAttribute,
   isGithubUrlAttribute,
@@ -15,16 +16,41 @@ import {
 } from '@/lib/notes/markdown/githubHtmlPolicy';
 import { stripGithubDroppedRawHtmlContent } from '@/lib/notes/markdown/githubRawHtml';
 
-function sanitizeChildren(source: Element | DocumentFragment, target: Element | DocumentFragment): void {
-  for (const child of Array.from(source.childNodes)) {
-    const sanitizedChild = sanitizeNode(child);
+const MAX_SANITIZE_DEPTH = 200;
+const MAX_SANITIZE_NODES = 20_000;
+
+interface SanitizeContext {
+  visitedNodes: number;
+}
+
+function canVisitNode(context: SanitizeContext) {
+  context.visitedNodes += 1;
+  return context.visitedNodes <= MAX_SANITIZE_NODES;
+}
+
+function hasSanitizeBudget(context: SanitizeContext): boolean {
+  return context.visitedNodes < MAX_SANITIZE_NODES;
+}
+
+function sanitizeChildren(
+  source: Element | DocumentFragment,
+  target: Element | DocumentFragment,
+  context: SanitizeContext,
+  depth: number,
+): void {
+  for (let child = source.firstChild; child && hasSanitizeBudget(context); child = child.nextSibling) {
+    const sanitizedChild = sanitizeNode(child, context, depth);
     if (sanitizedChild) {
       target.appendChild(sanitizedChild);
     }
   }
 }
 
-function sanitizeElement(element: Element): Node | null {
+function sanitizeElement(element: Element, context: SanitizeContext, depth: number): Node | null {
+  if (depth > MAX_SANITIZE_DEPTH) {
+    return null;
+  }
+
   const tagName = element.tagName.toLowerCase();
   const attributeNames = element.getAttributeNames();
 
@@ -41,7 +67,7 @@ function sanitizeElement(element: Element): Node | null {
     if (GITHUB_WRAP_CONTENT_WITH_WHITESPACE_TAGS.has(tagName)) {
       fragment.appendChild(document.createTextNode(' '));
     }
-    sanitizeChildren(element, fragment);
+    sanitizeChildren(element, fragment, context, depth + 1);
     if (GITHUB_WRAP_CONTENT_WITH_WHITESPACE_TAGS.has(tagName)) {
       fragment.appendChild(document.createTextNode(' '));
     }
@@ -89,6 +115,10 @@ function sanitizeElement(element: Element): Node | null {
       continue;
     }
 
+    if (!isGithubHtmlAttributeValueAllowed(value)) {
+      continue;
+    }
+
     if (hasGithubProtocol(value)) {
       continue;
     }
@@ -105,20 +135,24 @@ function sanitizeElement(element: Element): Node | null {
       sanitized.setAttribute('referrerpolicy', 'no-referrer');
     }
   }
-  sanitizeChildren(element, sanitized);
+  sanitizeChildren(element, sanitized, context, depth + 1);
   if ((tagName === 'video' || tagName === 'audio') && !sanitized.hasAttribute('src') && !sanitized.querySelector('source[src]')) {
     return null;
   }
   return sanitized;
 }
 
-function sanitizeNode(node: Node): Node | null {
+function sanitizeNode(node: Node, context: SanitizeContext, depth: number): Node | null {
+  if (!canVisitNode(context)) {
+    return null;
+  }
+
   if (node.nodeType === Node.TEXT_NODE) {
     return document.createTextNode(node.textContent ?? '');
   }
 
   if (node.nodeType === Node.ELEMENT_NODE) {
-    return sanitizeElement(node as Element);
+    return sanitizeElement(node as Element, context, depth);
   }
 
   return null;
@@ -132,7 +166,7 @@ export function sanitizeHtml(html: string): string {
     template.innerHTML = stripGithubDroppedRawHtmlContent(html);
 
     const output = document.createElement('template');
-    sanitizeChildren(template.content, output.content);
+    sanitizeChildren(template.content, output.content, { visitedNodes: 0 }, 1);
     return output.innerHTML;
   } catch {
     return '';

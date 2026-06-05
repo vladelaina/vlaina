@@ -4,6 +4,7 @@ import { getElectronBridge } from '@/lib/electron/bridge';
 import { ACCOUNT_AUTH_INVALIDATED_EVENT } from './sessionEvent';
 
 let accountAuthInvalidationBridgeRegistered = false;
+const MAX_MANAGED_DESKTOP_BINARY_BODY_BYTES = 64 * 1024 * 1024;
 
 function registerAccountAuthInvalidationBridge(): void {
   if (accountAuthInvalidationBridgeRegistered || typeof window === 'undefined') {
@@ -43,6 +44,12 @@ function bytesToBase64(bytes: Uint8Array): string {
     binary += String.fromCharCode(...chunk);
   }
   return window.btoa(binary);
+}
+
+function assertManagedDesktopBinaryBodySize(byteLength: number): void {
+  if (!Number.isFinite(byteLength) || byteLength > MAX_MANAGED_DESKTOP_BINARY_BODY_BYTES) {
+    throw new Error('Managed desktop binary request body is too large.');
+  }
 }
 
 function createAbortError(): DOMException {
@@ -143,6 +150,7 @@ async function serializeBinaryBodyForDesktop(body: BodyInit, headers: Record<str
     throw new Error('Managed desktop binary requests require a Blob body.');
   }
 
+  assertManagedDesktopBinaryBodySize(body.size);
   return {
     bodyBase64: bytesToBase64(new Uint8Array(await readBlobAsArrayBuffer(body, signal))),
     headers,

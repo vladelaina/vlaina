@@ -34,6 +34,13 @@ describe('codeBlockLanguage', () => {
     expect(normalizeCodeBlockLanguage('')).toBeNull();
   });
 
+  it('keeps fallback language ids bounded and class-safe', () => {
+    expect(normalizeCodeBlockLanguage('foo.bar_baz#1+2')).toBe('foo.bar_baz#1+2');
+    expect(normalizeCodeBlockLanguage('two words')).toBeNull();
+    expect(normalizeCodeBlockLanguage('javascript" onclick="alert(1)')).toBeNull();
+    expect(normalizeCodeBlockLanguage('x'.repeat(65))).toBeNull();
+  });
+
   it('exposes catalog-only languages in the selector list', () => {
     expect(codeBlockLanguages).toEqual(
       expect.arrayContaining([

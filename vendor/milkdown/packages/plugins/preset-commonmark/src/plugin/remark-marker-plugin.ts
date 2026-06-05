@@ -4,11 +4,14 @@ import { $remark } from '@milkdown/utils'
 import { visit } from 'unist-util-visit'
 
 import { withMeta } from '../__internal__'
+import { canTransformRemarkAst } from './remark-ast-budget'
 
 /// This plugin is used to keep the marker (`_` and `*`) of emphasis and strong nodes.
 export const remarkMarker = $remark(
   'remarkMarker',
   () => () => (tree, file) => {
+    if (!canTransformRemarkAst(tree)) return
+
     const getMarker = (node: Node) => {
       return (file.value as string).charAt(node.position!.start.offset!)
     }

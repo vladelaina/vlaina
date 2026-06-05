@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ThinkingBlock } from './ThinkingBlock';
 import { dispatchChatSelectionStreamFreeze } from './chatSelectionStreamFreeze';
+import { MAX_CHAT_STREAM_ANIMATION_CHARS } from '@/components/Chat/features/Markdown/chatStreamTextAnimation';
 
 class ResizeObserverMock {
   static instances: ResizeObserverMock[] = [];
@@ -120,6 +121,20 @@ describe('ThinkingBlock', () => {
     );
 
     expect(container.querySelector('[data-chat-markdown-live="true"]')).not.toBeInTheDocument();
+  });
+
+  it('renders oversized live thinking without the markdown animation layer', () => {
+    const content = 'x'.repeat(MAX_CHAT_STREAM_ANIMATION_CHARS + 1);
+    const { container } = render(
+      <ThinkingBlock
+        content={content}
+        isStreaming
+      />,
+    );
+
+    expect(container).toHaveTextContent(content);
+    expect(container.querySelector('[data-chat-markdown-live="true"]')).not.toBeInTheDocument();
+    expect(container.querySelector('.chat-markdown-live')).not.toBeInTheDocument();
   });
 
   it('renders thinking code blocks through the shared markdown components', () => {

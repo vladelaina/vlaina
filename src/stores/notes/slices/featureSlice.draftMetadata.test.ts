@@ -81,7 +81,7 @@ describe('featureSlice draft metadata', () => {
     vi.clearAllMocks();
     mocks.readFile.mockResolvedValue('');
     mocks.safeWriteTextFile.mockResolvedValue(undefined);
-    mocks.stat.mockResolvedValue({ modifiedAt: 1 });
+    mocks.stat.mockResolvedValue({ modifiedAt: 1, size: 16 });
   });
 
   it('materializes an active draft instead of writing metadata to a draft path', async () => {
@@ -206,8 +206,8 @@ describe('featureSlice draft metadata', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
     mocks.stat
-      .mockResolvedValueOnce({ modifiedAt: 2 })
-      .mockResolvedValueOnce({ modifiedAt: 3 });
+      .mockResolvedValueOnce({ modifiedAt: 2, size: 16 })
+      .mockResolvedValueOnce({ modifiedAt: 3, size: 16 });
     mocks.readFile.mockResolvedValue(['# Alpha', '', 'Disk body'].join('\n'));
     const notePath = 'docs/alpha.md';
     const store = createNotesStore({
@@ -443,7 +443,7 @@ describe('featureSlice draft metadata', () => {
 
   it('does not overwrite current note cache when scanAllNotes finishes after a local edit', async () => {
     let resolveRead: (content: string) => void;
-    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true });
+    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
     mocks.readFile.mockImplementationOnce(() => new Promise<string>((resolve) => {
       resolveRead = resolve;
     }));
@@ -549,7 +549,7 @@ describe('featureSlice draft metadata', () => {
   });
 
   it('reuses cached note contents during full-vault scans and reads only missing notes', async () => {
-    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true });
+    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
     mocks.readFile.mockResolvedValue('# Beta from disk');
     const alphaPath = 'docs/alpha.md';
     const betaPath = 'docs/beta.md';
@@ -592,8 +592,42 @@ describe('featureSlice draft metadata', () => {
     });
   });
 
-  it('stops full-vault scans before starting later batches after cancellation', async () => {
+  it('does not read missing full-vault scan notes when stat has no size', async () => {
     mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true });
+    mocks.readFile.mockResolvedValue('# Unexpected');
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      notesPath: '/vault',
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: 'docs',
+            name: 'docs',
+            path: 'docs',
+            isFolder: true,
+            expanded: true,
+            children: [{ id: notePath, name: 'alpha', path: notePath, isFolder: false }],
+          },
+        ],
+      },
+    });
+
+    await store.getState().scanAllNotes();
+
+    expect(mocks.readFile).not.toHaveBeenCalled();
+    expect(store.getState().noteContentsCache.get(notePath)).toEqual({
+      content: '',
+      modifiedAt: 2,
+    });
+  });
+
+  it('stops full-vault scans before starting later batches after cancellation', async () => {
+    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
     const pendingReads: Array<(content: string) => void> = [];
     mocks.readFile.mockImplementation(() => new Promise<string>((resolve) => {
       pendingReads.push(resolve);

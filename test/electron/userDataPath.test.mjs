@@ -293,6 +293,44 @@ describe('Electron userData path safety', () => {
     ]);
   });
 
+  it('ignores oversized legacy starred registries during shared profile merge', async () => {
+    const defaultUserData = path.join(tempRoot, 'default-user-data');
+    const mainRepo = path.join(tempRoot, 'repo');
+    const linkedWorktree = path.join(tempRoot, 'worktrees', 'feature');
+    const worktreeGitDir = path.join(mainRepo, '.git', 'worktrees', 'feature');
+    const legacyUserData = path.join(linkedWorktree, 'temp', 'electron-user-data');
+    const sharedUserData = path.join(mainRepo, 'temp', 'electron-user-data');
+    const app = createApp({ isPackaged: false, userDataPath: defaultUserData });
+
+    await fs.promises.mkdir(worktreeGitDir, { recursive: true });
+    await fs.promises.mkdir(linkedWorktree, { recursive: true });
+    await writeFile(
+      path.join(linkedWorktree, '.git'),
+      `gitdir: ${worktreeGitDir}\n`,
+      'utf8'
+    );
+    await writeJson(path.join(sharedUserData, '.vlaina', 'store', 'notes-starred.json'), {
+      version: 1,
+      entries: [{ id: 'shared-starred', kind: 'note' }],
+    });
+    await writeJson(path.join(legacyUserData, '.vlaina', 'store', 'notes-starred.json'), {
+      version: 1,
+      entries: [{ id: 'legacy-starred', kind: 'note' }],
+      padding: 'x'.repeat(5 * 1024 * 1024),
+    });
+
+    configureDevelopmentUserDataPath({
+      app,
+      repoRoot: linkedWorktree,
+      env: {},
+    });
+
+    const merged = JSON.parse(
+      await readFile(path.join(sharedUserData, '.vlaina', 'store', 'notes-starred.json'), 'utf8')
+    );
+    expect(merged.entries.map((entry) => entry.id)).toEqual(['shared-starred']);
+  });
+
   it('backs up existing development app data before seeding from the default profile', async () => {
     const defaultUserData = path.join(tempRoot, 'default-user-data');
     const targetUserData = path.join(tempRoot, 'target-user-data');

@@ -30,7 +30,12 @@ async function readSidebarTagContent(path: string, currentVaultPath: string | nu
 
   try {
     const fileInfo = await storage.stat(fullPath).catch(() => null);
-    if (typeof fileInfo?.size === 'number' && fileInfo.size > MAX_TAG_CONTENT_READ_BYTES) {
+    if (
+      fileInfo?.isDirectory === true ||
+      fileInfo?.isFile === false ||
+      typeof fileInfo?.size !== 'number' ||
+      fileInfo.size > MAX_TAG_CONTENT_READ_BYTES
+    ) {
       return '';
     }
     return normalizeSerializedMarkdownDocument(await storage.readFile(fullPath));

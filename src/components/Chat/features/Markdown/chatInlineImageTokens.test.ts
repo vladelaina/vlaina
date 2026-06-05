@@ -111,4 +111,16 @@ describe('chatInlineImageTokens', () => {
     expect(result.replaced).toBe(0);
     expect(result.markdown).toBe(markdown);
   });
+
+  it('caps the number of compacted inline data images', () => {
+    const src = createLargeDataImage('k');
+    const markdown = Array.from({ length: 1005 }, (_, index) => `![image ${index}](<${src}>)`).join('\n');
+
+    const result = compactLargeDataImageMarkdown(markdown);
+
+    expect(result.replaced).toBe(1000);
+    expect(result.imageSrcByToken).toHaveLength(1000);
+    expect(result.markdown).toContain('![image 999](<asset://localhost/chat-inline-image/999>)');
+    expect(result.markdown).toContain(`![image 1000](<${src}>)`);
+  });
 });

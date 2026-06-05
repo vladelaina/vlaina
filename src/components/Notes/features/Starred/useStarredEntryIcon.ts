@@ -86,8 +86,17 @@ function getFreshStarredIconCacheEntry(
   return cached;
 }
 
-function canReadStarredIconMetadata(size: number | null | undefined) {
-  return typeof size !== 'number' || size <= MAX_STARRED_ICON_METADATA_BYTES;
+function canReadStarredIconMetadata(fileInfo: {
+  isFile?: boolean;
+  isDirectory?: boolean;
+  size?: number | null;
+} | null | undefined) {
+  return (
+    fileInfo?.isDirectory !== true &&
+    fileInfo?.isFile !== false &&
+    typeof fileInfo?.size === 'number' &&
+    fileInfo.size <= MAX_STARRED_ICON_METADATA_BYTES
+  );
 }
 
 export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
@@ -114,7 +123,7 @@ export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
           const fileInfo = await storage.stat(fullPath).catch(() => null);
           const modifiedAt = fileInfo?.modifiedAt ?? null;
           const size = fileInfo?.size ?? null;
-          if (!canReadStarredIconMetadata(size)) {
+          if (!canReadStarredIconMetadata(fileInfo)) {
             setStarredIconCacheEntry(cacheKey, {
               modifiedAt,
               size,

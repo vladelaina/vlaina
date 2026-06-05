@@ -4,8 +4,11 @@ import { $remark } from '@milkdown/utils'
 import { visitParents } from 'unist-util-visit-parents'
 
 import { withMeta } from '../__internal__'
+import { canTransformRemarkAst } from './remark-ast-budget'
 
 function visitEmptyLine(ast: Node) {
+  if (!canTransformRemarkAst(ast)) return
+
   return visitParents(
     ast,
     (node: Node) =>

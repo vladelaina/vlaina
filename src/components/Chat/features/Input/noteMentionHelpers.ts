@@ -28,8 +28,16 @@ export interface MentionPreviewPart {
   mention?: NoteMentionReference;
 }
 
+const MAX_MENTION_CANDIDATE_TREE_NODES = 20_000;
+
 export function collectMentionCandidates(nodes: FileTreeNode[], result: NoteMentionCandidate[]): void {
-  for (const node of nodes) {
+  const stack = [...nodes].reverse();
+  let visitedNodes = 0;
+
+  while (stack.length > 0 && visitedNodes < MAX_MENTION_CANDIDATE_TREE_NODES) {
+    const node = stack.pop()!;
+    visitedNodes += 1;
+
     if (node.isFolder) {
       const folderName = node.name || node.path.split('/').filter(Boolean).pop() || node.path;
       result.push({
@@ -38,7 +46,9 @@ export function collectMentionCandidates(nodes: FileTreeNode[], result: NoteMent
         kind: 'folder',
         isCurrent: false,
       });
-      collectMentionCandidates(node.children, result);
+      for (let index = node.children.length - 1; index >= 0; index -= 1) {
+        stack.push(node.children[index]);
+      }
     } else if (isSupportedMarkdownPath(node.path)) {
       result.push({
         path: node.path,
@@ -87,6 +97,16 @@ export function buildMentionPreviewParts(
       label: `@${mention.title}`,
     }))
     .sort((a, b) => b.label.length - a.label.length);
+  const labelsByInitial = new Map<string, typeof labels>();
+  for (const label of labels) {
+    const initial = label.label[1] ?? '';
+    const group = labelsByInitial.get(initial);
+    if (group) {
+      group.push(label);
+    } else {
+      labelsByInitial.set(initial, [label]);
+    }
+  }
 
   if (labels.length === 0) {
     return [{ key: 'text-0', type: 'text', text: value, start: 0, end: value.length }];
@@ -99,16 +119,32 @@ export function buildMentionPreviewParts(
   while (cursor < value.length) {
     let nextMatchIndex = -1;
     let nextMatch: (typeof labels)[number] | null = null;
+    let atIndex = cursor;
 
-    for (const label of labels) {
-      const index = findMentionLabelIndex(value, label.label, cursor);
-      if (index < 0) {
+    while (atIndex < value.length) {
+      atIndex = value.indexOf('@', atIndex);
+      if (atIndex < 0) {
+        break;
+      }
+      if (!hasMentionStartBoundary(value, atIndex)) {
+        atIndex += 1;
         continue;
       }
-      if (nextMatchIndex < 0 || index < nextMatchIndex) {
-        nextMatchIndex = index;
-        nextMatch = label;
+
+      const initial = value[atIndex + 1] ?? '';
+      const candidateLabels = [
+        ...(labelsByInitial.get(initial) ?? []),
+        ...(initial ? labelsByInitial.get('') ?? [] : []),
+      ];
+      nextMatch = candidateLabels.find((label) =>
+        value.startsWith(label.label, atIndex) &&
+        hasMentionEndBoundary(value, atIndex + label.label.length)
+      ) ?? null;
+      if (nextMatch) {
+        nextMatchIndex = atIndex;
+        break;
       }
+      atIndex += 1;
     }
 
     if (nextMatchIndex < 0 || !nextMatch) {
@@ -180,6 +216,72 @@ function findMentionLabelIndex(value: string, label: string, fromIndex = 0): num
 
 export function valueContainsMentionLabel(value: string, title: string): boolean {
   return findMentionLabelIndex(value, `@${title}`) >= 0;
+}
+
+interface MentionLabelTrieNode {
+  children: Map<string, MentionLabelTrieNode>;
+  titles?: string[];
+}
+
+function createMentionLabelTrie(titles: Iterable<string>): MentionLabelTrieNode {
+  const root: MentionLabelTrieNode = { children: new Map() };
+  const seenTitles = new Set<string>();
+
+  for (const title of titles) {
+    if (!title || seenTitles.has(title)) {
+      continue;
+    }
+    seenTitles.add(title);
+
+    const label = `@${title}`;
+    let node = root;
+    for (let index = 0; index < label.length; index += 1) {
+      const character = label[index];
+      let child = node.children.get(character);
+      if (!child) {
+        child = { children: new Map() };
+        node.children.set(character, child);
+      }
+      node = child;
+    }
+    node.titles = [...(node.titles ?? []), title];
+  }
+
+  return root;
+}
+
+export function findMentionTitlesInValue(value: string, titles: Iterable<string>): Set<string> {
+  const matches = new Set<string>();
+  if (!value.includes('@')) {
+    return matches;
+  }
+
+  const root = createMentionLabelTrie(titles);
+  if (root.children.size === 0) {
+    return matches;
+  }
+
+  for (let index = 0; index < value.length; index += 1) {
+    if (value[index] !== '@' || !hasMentionStartBoundary(value, index)) {
+      continue;
+    }
+
+    let node: MentionLabelTrieNode | undefined = root;
+    for (let cursor = index; cursor < value.length; cursor += 1) {
+      node = node.children.get(value[cursor]);
+      if (!node) {
+        break;
+      }
+
+      if (node.titles && hasMentionEndBoundary(value, cursor + 1)) {
+        for (const title of node.titles) {
+          matches.add(title);
+        }
+      }
+    }
+  }
+
+  return matches;
 }
 
 export function insertMentionAtTrigger(

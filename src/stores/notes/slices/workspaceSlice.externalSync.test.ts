@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
 const storageAdapter = vi.hoisted(() => ({
   exists: vi.fn<(path: string) => Promise<boolean>>(),
-  stat: vi.fn<(path: string) => Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null } | null>>(),
+  stat: vi.fn<(path: string) => Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null; size?: number | null } | null>>(),
   readFile: vi.fn<(path: string) => Promise<string>>(),
 }));
 
@@ -518,7 +518,7 @@ describe('workspaceSlice external sync', () => {
 
   it('force reloads the current note when a watcher reports a change with the same mtime', async () => {
     storageAdapter.exists.mockResolvedValue(true);
-    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 1 });
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 1, size: 16 });
     storageAdapter.readFile.mockResolvedValue('# updated');
 
     const store = createNotesStore({
@@ -536,9 +536,28 @@ describe('workspaceSlice external sync', () => {
     expect(store.getState().isDirty).toBe(false);
   });
 
-  it('ignores expected self-write events while the current note is clean', async () => {
+  it('does not force reload the current note when stat has no size', async () => {
     storageAdapter.exists.mockResolvedValue(true);
     storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
+    storageAdapter.readFile.mockResolvedValue('# unexpected');
+
+    const store = createNotesStore({
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
+
+    expect(result).toBe('ignored');
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# alpha' });
+    expect(store.getState().error).toBe('Current note is too large to reload from disk.');
+  });
+
+  it('ignores expected self-write events while the current note is clean', async () => {
+    storageAdapter.exists.mockResolvedValue(true);
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2, size: 16 });
     storageAdapter.readFile.mockResolvedValue('# saved');
 
     const store = createNotesStore({
@@ -564,7 +583,7 @@ describe('workspaceSlice external sync', () => {
 
   it('reloads a clean current note when a later external write arrives before the self-write marker expires', async () => {
     storageAdapter.exists.mockResolvedValue(true);
-    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2, size: 16 });
     storageAdapter.readFile.mockResolvedValue('# other window update');
 
     const store = createNotesStore({
@@ -591,7 +610,7 @@ describe('workspaceSlice external sync', () => {
 
   it('flushes pending editor markdown before deciding whether disk sync can reload', async () => {
     storageAdapter.exists.mockResolvedValue(true);
-    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2, size: 16 });
     storageAdapter.readFile.mockResolvedValue('# disk update');
 
     const store = createNotesStore({
@@ -632,7 +651,7 @@ describe('workspaceSlice external sync', () => {
 
   it('does not report a dirty conflict for an expected save write', async () => {
     storageAdapter.exists.mockResolvedValue(true);
-    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2, size: 16 });
     markExpectedExternalChange('/vault/docs/alpha.md');
 
     const store = createNotesStore({
@@ -664,7 +683,7 @@ describe('workspaceSlice external sync', () => {
 
   it('preserves local edits made while disk sync is reading the file', async () => {
     storageAdapter.exists.mockResolvedValue(true);
-    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2, size: 16 });
     let resolveRead: (content: string) => void;
     storageAdapter.readFile.mockImplementation(() => new Promise((resolve) => {
       resolveRead = resolve;
@@ -711,7 +730,7 @@ describe('workspaceSlice external sync', () => {
 
   it('does not mark a conflict when a concurrent disk sync already reloaded the same content', async () => {
     storageAdapter.exists.mockResolvedValue(true);
-    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2, size: 16 });
     const readResolvers: Array<(content: string) => void> = [];
     storageAdapter.readFile.mockImplementation(() => new Promise((resolve) => {
       readResolvers.push(resolve);
@@ -757,7 +776,7 @@ describe('workspaceSlice external sync', () => {
 
   it('cleans internal editor break markers when disk sync reloads the current note', async () => {
     storageAdapter.exists.mockResolvedValue(true);
-    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2, size: 16 });
     storageAdapter.readFile.mockResolvedValue(['# updated', '<br data-vlaina-empty-line="true"/>', 'Body'].join('\n'));
 
     const store = createNotesStore({
@@ -780,7 +799,7 @@ describe('workspaceSlice external sync', () => {
 
   it('ignores a stale disk sync after the workspace switches vaults', async () => {
     storageAdapter.exists.mockResolvedValue(true);
-    let resolveStat: (info: { isFile: true; modifiedAt: number }) => void;
+    let resolveStat: (info: { isFile: true; modifiedAt: number; size: number }) => void;
     storageAdapter.stat.mockImplementation(() => new Promise((resolve) => {
       resolveStat = resolve;
     }));
@@ -800,7 +819,7 @@ describe('workspaceSlice external sync', () => {
       openTabs: [],
       noteContentsCache: new Map(),
     });
-    resolveStat!({ isFile: true, modifiedAt: 2 });
+    resolveStat!({ isFile: true, modifiedAt: 2, size: 16 });
     const result = await sync;
 
     expect(result).toBe('ignored');

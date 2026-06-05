@@ -10,6 +10,13 @@ import { isSafeChatSessionId } from './unifiedStorageAI';
 const sessionQueues = new Map<string, PersistenceQueue<ChatMessage[]>>();
 const DEFAULT_DEBOUNCE_MS = 180;
 const SESSION_MESSAGES_FILE_VERSION = 1;
+const MAX_SESSION_MESSAGES_BYTES = 25 * 1024 * 1024;
+const MAX_SESSION_MESSAGE_NODES = 10_000;
+const MAX_SESSION_MESSAGE_VERSIONS = 20;
+const MAX_SESSION_MESSAGE_BRANCH_MESSAGES = 100;
+const MAX_SESSION_MESSAGE_BRANCH_DEPTH = 1;
+const MAX_SESSION_IMAGE_SOURCE_ENTRIES = 2000;
+const MAX_SESSION_IMAGE_SOURCES = 1000;
 let autoSyncTrigger: ((sessionId?: string) => void) | null = null;
 let autoSyncTriggerRegistrationId = 0;
 
@@ -54,11 +61,32 @@ export function serializeSessionMessages(sessionId: string, messages: ChatMessag
   return JSON.stringify(payload, null, 2);
 }
 
-function collectMessageIds(messages: ChatMessage[], ids = new Set<string>()): Set<string> {
-  for (const message of messages) {
-    ids.add(message.id);
-    for (const version of message.versions || []) {
-      collectMessageIds(version.subsequentMessages || [], ids);
+function collectMessageIds(messages: ChatMessage[]): Set<string> {
+  const ids = new Set<string>();
+  const stack: Array<{ depth: number; messages: ChatMessage[] }> = [{ depth: 0, messages }];
+  let visited = 0;
+
+  while (stack.length > 0 && visited < MAX_SESSION_MESSAGE_NODES) {
+    const frame = stack.pop()!;
+    for (const message of frame.messages) {
+      if (visited >= MAX_SESSION_MESSAGE_NODES) {
+        break;
+      }
+      visited += 1;
+      ids.add(message.id);
+
+      if (frame.depth >= MAX_SESSION_MESSAGE_BRANCH_DEPTH) {
+        continue;
+      }
+
+      for (const version of (message.versions || []).slice(0, MAX_SESSION_MESSAGE_VERSIONS)) {
+        if (Array.isArray(version.subsequentMessages) && version.subsequentMessages.length > 0) {
+          stack.push({
+            depth: frame.depth + 1,
+            messages: version.subsequentMessages.slice(0, MAX_SESSION_MESSAGE_BRANCH_MESSAGES),
+          });
+        }
+      }
     }
   }
 
@@ -90,7 +118,7 @@ function createVersionFromMessage(message: ChatMessage): ChatMessage['versions']
 
 function getNormalizedMessageVersions(message: ChatMessage): ChatMessage['versions'] {
   return Array.isArray(message.versions) && message.versions.length > 0
-    ? message.versions
+    ? message.versions.slice(0, MAX_SESSION_MESSAGE_VERSIONS)
     : [createVersionFromMessage(message)];
 }
 
@@ -119,12 +147,14 @@ export function mergeSessionMessages(
     return incomingMessages;
   }
 
-  const incomingById = new Map(incomingMessages.map((message) => [message.id, message]));
-  const persistedById = new Map(persistedMessages.map((message) => [message.id, message]));
-  const incomingIds = collectMessageIds(incomingMessages);
+  const incomingToMerge = incomingMessages.slice(0, MAX_SESSION_MESSAGE_NODES);
+  const persistedToMerge = persistedMessages.slice(0, MAX_SESSION_MESSAGE_NODES);
+  const incomingById = new Map(incomingToMerge.map((message) => [message.id, message]));
+  const persistedById = new Map(persistedToMerge.map((message) => [message.id, message]));
+  const incomingIds = collectMessageIds(incomingToMerge);
   const mergedById = new Map<string, ChatMessage>();
 
-  for (const incoming of incomingMessages) {
+  for (const incoming of incomingToMerge) {
     const persisted = persistedById.get(incoming.id);
     mergedById.set(
       incoming.id,
@@ -134,7 +164,7 @@ export function mergeSessionMessages(
     );
   }
 
-  for (const persisted of persistedMessages) {
+  for (const persisted of persistedToMerge) {
     if (incomingIds.has(persisted.id)) {
       continue;
     }
@@ -155,9 +185,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+interface NormalizeSessionMessagesContext {
+  messageNodes: number;
+}
+
 function normalizeMessageVersion(
   value: unknown,
   fallbackContent: string,
+  context: NormalizeSessionMessagesContext,
+  depth: number,
 ): ChatMessage['versions'][number] | null {
   if (!isRecord(value)) {
     return null;
@@ -169,8 +205,12 @@ function normalizeMessageVersion(
   if (kind !== 'regeneration' && kind !== 'edit' && kind !== 'original') {
     return null;
   }
-  const subsequentMessages = Array.isArray(value.subsequentMessages)
-    ? normalizeSessionMessages(value.subsequentMessages)
+  const subsequentMessages = Array.isArray(value.subsequentMessages) && depth < MAX_SESSION_MESSAGE_BRANCH_DEPTH
+    ? normalizeSessionMessagesInternal(
+        value.subsequentMessages.slice(0, MAX_SESSION_MESSAGE_BRANCH_MESSAGES),
+        context,
+        depth + 1,
+      )
     : [];
   const apiTranscript = normalizeApiTranscriptMessages(value.apiTranscript);
   return {
@@ -180,6 +220,27 @@ function normalizeMessageVersion(
     subsequentMessages,
     ...(apiTranscript ? { apiTranscript } : {}),
   };
+}
+
+function selectSessionMessageVersionEntries(
+  value: unknown,
+  currentVersionIndex: number,
+): Array<{ index: number; value: unknown }> {
+  if (!Array.isArray(value) || value.length === 0) {
+    return [];
+  }
+
+  const activeIndex = currentVersionIndex >= 0 && currentVersionIndex < value.length
+    ? currentVersionIndex
+    : 0;
+  const keepIndexes = new Set<number>([activeIndex]);
+  for (let index = value.length - 1; index >= 0 && keepIndexes.size < MAX_SESSION_MESSAGE_VERSIONS; index -= 1) {
+    keepIndexes.add(index);
+  }
+
+  return Array.from(keepIndexes)
+    .sort((left, right) => left - right)
+    .map((index) => ({ index, value: value[index] }));
 }
 
 function canRoleUseVersionKind(
@@ -200,14 +261,24 @@ function normalizePersistedImageSources(value: unknown): string[] | undefined {
     return undefined;
   }
 
-  const sources = value
-    .map((item) => typeof item === 'string' ? normalizeRenderableImageSrc(item) : null)
-    .filter((item): item is string => Boolean(item) && !parseVideoUrl(item));
+  const sources: string[] = [];
+  const entryLimit = Math.min(value.length, MAX_SESSION_IMAGE_SOURCE_ENTRIES);
+  for (let index = 0; index < entryLimit && sources.length < MAX_SESSION_IMAGE_SOURCES; index += 1) {
+    const item = value[index];
+    const source = typeof item === 'string' ? normalizeRenderableImageSrc(item) : null;
+    if (source && !parseVideoUrl(source)) {
+      sources.push(source);
+    }
+  }
 
   return sources.length > 0 ? sources : undefined;
 }
 
-function normalizeSessionMessage(value: unknown): ChatMessage | null {
+function normalizeSessionMessage(
+  value: unknown,
+  context: NormalizeSessionMessagesContext,
+  depth: number,
+): ChatMessage | null {
   if (!isRecord(value)) {
     return null;
   }
@@ -220,14 +291,20 @@ function normalizeSessionMessage(value: unknown): ChatMessage | null {
   const now = Date.now();
   const content = typeof value.content === 'string' ? value.content : '';
   const timestamp = typeof value.timestamp === 'number' ? value.timestamp : now;
-  const versions = Array.isArray(value.versions)
-    ? value.versions
-        .map((version) => normalizeMessageVersion(version, content))
-        .filter((version): version is ChatMessage['versions'][number] =>
-          version !== null && canRoleUseVersionKind(role, version.kind)
-        )
-    : [];
-  const normalizedVersions: ChatMessage['versions'] = versions.length > 0
+  const rawCurrentVersionIndex = typeof value.currentVersionIndex === 'number'
+    ? Math.floor(value.currentVersionIndex)
+    : 0;
+  const versionEntries = selectSessionMessageVersionEntries(value.versions, rawCurrentVersionIndex);
+  const normalizedVersionEntries = versionEntries
+    .map((entry) => ({
+      index: entry.index,
+      version: normalizeMessageVersion(entry.value, content, context, depth),
+    }))
+    .filter((entry): entry is { index: number; version: ChatMessage['versions'][number] } =>
+      entry.version !== null && canRoleUseVersionKind(role, entry.version.kind)
+    );
+  const versions = normalizedVersionEntries.map((entry) => entry.version);
+  const candidateVersions: ChatMessage['versions'] = versions.length > 0
     ? versions
     : [{
         content,
@@ -235,13 +312,11 @@ function normalizeSessionMessage(value: unknown): ChatMessage | null {
         kind: 'original',
         subsequentMessages: [],
       }];
-  const rawCurrentVersionIndex = typeof value.currentVersionIndex === 'number'
-    ? Math.floor(value.currentVersionIndex)
-    : 0;
-  const currentVersionIndex =
-    rawCurrentVersionIndex >= 0 && rawCurrentVersionIndex < normalizedVersions.length
-      ? rawCurrentVersionIndex
-      : 0;
+  const selectedCurrentVersionIndex = normalizedVersionEntries.findIndex(
+    (entry) => entry.index === rawCurrentVersionIndex,
+  );
+  const normalizedVersions = candidateVersions;
+  const currentVersionIndex = selectedCurrentVersionIndex >= 0 ? selectedCurrentVersionIndex : 0;
   const apiTranscript = normalizeApiTranscriptMessages(value.apiTranscript)
     ?? normalizedVersions[currentVersionIndex]?.apiTranscript;
 
@@ -266,14 +341,35 @@ function normalizeSessionMessage(value: unknown): ChatMessage | null {
   };
 }
 
-export function normalizeSessionMessages(value: unknown): ChatMessage[] {
+function normalizeSessionMessagesInternal(
+  value: unknown,
+  context: NormalizeSessionMessagesContext,
+  depth: number,
+): ChatMessage[] {
   if (!Array.isArray(value)) {
     return [];
   }
 
-  return value
-    .map(normalizeSessionMessage)
-    .filter((message): message is ChatMessage => message !== null);
+  const normalized: ChatMessage[] = [];
+  for (const item of value) {
+    if (context.messageNodes >= MAX_SESSION_MESSAGE_NODES) {
+      break;
+    }
+    context.messageNodes += 1;
+
+    const message = normalizeSessionMessage(item, context, depth);
+    if (!message) {
+      continue;
+    }
+
+    normalized.push(message);
+  }
+
+  return normalized;
+}
+
+export function normalizeSessionMessages(value: unknown): ChatMessage[] {
+  return normalizeSessionMessagesInternal(value, { messageNodes: 0 }, 0);
 }
 
 export function parseSessionMessagesPayload(
@@ -347,17 +443,19 @@ async function writeSessionJsonRaw(sessionId: string, messages: ChatMessage[]) {
 
   let messagesToWrite = messages;
   if (await storage.exists(path)) {
-    try {
-      const parsed: unknown = JSON.parse(await storage.readFile(path));
-      const persistedMessages = parseSessionMessagesPayload(sessionId, parsed);
-      if (!persistedMessages) {
-        throw new Error('Invalid existing session file');
+    if (await canReadSessionJson(path)) {
+      try {
+        const parsed: unknown = JSON.parse(await storage.readFile(path));
+        const persistedMessages = parseSessionMessagesPayload(sessionId, parsed);
+        if (!persistedMessages) {
+          throw new Error('Invalid existing session file');
+        }
+        messagesToWrite = mergeSessionMessages(messages, persistedMessages, {
+          preferredSource: 'incoming',
+        });
+      } catch (error) {
+        throw error;
       }
-      messagesToWrite = mergeSessionMessages(messages, persistedMessages, {
-        preferredSource: 'incoming',
-      });
-    } catch (error) {
-      throw error;
     }
   }
 
@@ -369,6 +467,16 @@ async function getSessionJsonPath(sessionId: string): Promise<string> {
   assertSafeChatSessionId(sessionId);
   const base = await getStorageBasePath();
   return joinPath(base, '.vlaina', 'chat', 'sessions', `${sessionId}.json`);
+}
+
+async function canReadSessionJson(path: string): Promise<boolean> {
+  const storage = getStorageAdapter();
+  const fileInfo = await storage.stat(path).catch(() => null);
+  return (
+    fileInfo?.isFile !== false &&
+    typeof fileInfo?.size === 'number' &&
+    fileInfo.size <= MAX_SESSION_MESSAGES_BYTES
+  );
 }
 
 export async function saveSessionJson(sessionId: string, messages: ChatMessage[]) {
@@ -446,6 +554,9 @@ export async function loadSessionJson(sessionId: string): Promise<ChatMessage[] 
   
   if (await storage.exists(path)) {
       try {
+          if (!(await canReadSessionJson(path))) {
+            return null;
+          }
           const content = await storage.readFile(path);
           const parsed: unknown = JSON.parse(content);
           return parseSessionMessagesPayload(sessionId, parsed);

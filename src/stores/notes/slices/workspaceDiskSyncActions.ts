@@ -21,6 +21,19 @@ function isCurrentDiskSyncTarget(get: NotesGet, notesPath: string, notePath: str
   return state.notesPath === notesPath && state.currentNote?.path === notePath;
 }
 
+function canReadDiskSyncNote(fileInfo: {
+  isFile?: boolean;
+  isDirectory?: boolean;
+  size?: number | null;
+} | null | undefined): boolean {
+  return (
+    fileInfo?.isDirectory !== true &&
+    fileInfo?.isFile !== false &&
+    typeof fileInfo?.size === 'number' &&
+    fileInfo.size <= MAX_NOTE_DISK_SYNC_BYTES
+  );
+}
+
 export function createWorkspaceDiskSyncAction(
   set: NotesSet,
   get: NotesGet
@@ -78,14 +91,14 @@ export function createWorkspaceDiskSyncAction(
           return 'deleted-conflict';
         }
 
-        if (fileInfo?.size && fileInfo.size > MAX_NOTE_DISK_SYNC_BYTES) {
-          set({ error: 'Current note is too large to reload from disk.' });
-          return 'ignored';
-        }
-
         const nextModifiedAt = fileInfo?.modifiedAt ?? cachedModifiedAt ?? null;
         if (!options?.force && nextModifiedAt === cachedModifiedAt) {
           return isCurrentDiskSyncTarget(get, notesPath, currentNote.path) ? 'unchanged' : 'ignored';
+        }
+
+        if (!canReadDiskSyncNote(fileInfo)) {
+          set({ error: 'Current note is too large to reload from disk.' });
+          return 'ignored';
         }
 
         let preloadedDiskContent: string | null = null;

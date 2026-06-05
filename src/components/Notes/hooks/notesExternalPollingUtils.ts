@@ -7,6 +7,8 @@ interface TreeSnapshot {
   subtreeSignatures: Map<string, string>;
 }
 
+const MAX_EXTERNAL_TREE_SNAPSHOT_NODES = 20_000;
+
 export interface ExternalTreePathChanges {
   renames: Array<{ oldPath: string; newPath: string }>;
   deletions: string[];
@@ -34,47 +36,78 @@ function flattenTreeSnapshot(nodes: FileTreeNode[]): TreeSnapshot {
   const files = new Set<string>();
   const folders = new Set<string>();
   const subtreeSignatures = new Map<string, string>();
-
-  const visit = (entries: FileTreeNode[], parentFolderPath: string | null): string[] => {
-    const descendants: string[] = [];
-
-    for (const entry of entries) {
-      if (entry.isFolder) {
-        folders.add(entry.path);
-
-        const childDescendants = visit(entry.children, entry.path);
-        childDescendants.sort();
-        subtreeSignatures.set(entry.path, childDescendants.join('|'));
-
-        if (parentFolderPath !== null) {
-          descendants.push(`d:${toRelativePath(entry.path, parentFolderPath)}`);
-          descendants.push(
-            ...childDescendants.map((descendant) => {
-              const kind = descendant.slice(0, 2);
-              const relativePath = descendant.slice(2);
-              return `${kind}${toRelativePath(`${entry.path}/${relativePath}`, parentFolderPath)}`;
-            })
-          );
-        }
-        continue;
-      }
-
-      files.add(entry.path);
-      if (parentFolderPath !== null) {
-        descendants.push(`f:${toRelativePath(entry.path, parentFolderPath)}`);
-      }
-    }
-
-    return descendants;
-  };
-
-  visit(nodes, null);
-
-  return {
+  const snapshot = {
     files,
     folders,
     subtreeSignatures,
   };
+
+  const stack: Array<{
+    descendants: string[];
+    entries: FileTreeNode[];
+    folder?: FileTreeNode;
+    index: number;
+    parentFolderPath: string | null;
+  }> = [{
+    descendants: [],
+    entries: nodes,
+    index: 0,
+    parentFolderPath: null,
+  }];
+  let visitedNodes = 0;
+
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+
+    if (frame.index >= frame.entries.length) {
+      stack.pop();
+
+      if (frame.folder) {
+        const childDescendants = [...frame.descendants].sort();
+        subtreeSignatures.set(frame.folder.path, childDescendants.join('|'));
+
+        const parent = stack[stack.length - 1];
+        if (parent?.parentFolderPath !== null && parent?.parentFolderPath !== undefined) {
+          parent.descendants.push(`d:${toRelativePath(frame.folder.path, parent.parentFolderPath)}`);
+          parent.descendants.push(
+            ...childDescendants.map((descendant) => {
+              const kind = descendant.slice(0, 2);
+              const relativePath = descendant.slice(2);
+              return `${kind}${toRelativePath(`${frame.folder!.path}/${relativePath}`, parent.parentFolderPath!)}`;
+            })
+          );
+        }
+      }
+
+      continue;
+    }
+
+    const entry = frame.entries[frame.index];
+    frame.index += 1;
+    visitedNodes += 1;
+    if (visitedNodes > MAX_EXTERNAL_TREE_SNAPSHOT_NODES) {
+      return snapshot;
+    }
+
+    if (entry.isFolder) {
+      folders.add(entry.path);
+      stack.push({
+        descendants: [],
+        entries: entry.children,
+        folder: entry,
+        index: 0,
+        parentFolderPath: entry.path,
+      });
+      continue;
+    }
+
+    files.add(entry.path);
+    if (frame.parentFolderPath !== null) {
+      frame.descendants.push(`f:${toRelativePath(entry.path, frame.parentFolderPath)}`);
+    }
+  }
+
+  return snapshot;
 }
 
 function collectDiff(previous: Set<string>, next: Set<string>) {

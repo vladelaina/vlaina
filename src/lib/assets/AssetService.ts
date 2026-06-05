@@ -307,7 +307,7 @@ export class AssetService {
     });
     const hydratedImageEntries = await hydrateAssetEntryMetadata(storage, sameNameImageEntries);
     const sameSizeCandidates = hydratedImageEntries.filter((entry) => {
-      if (typeof entry.size === 'number' && entry.size !== uploadSize) return false;
+      if (typeof entry.size !== 'number' || entry.size !== uploadSize) return false;
       return getMimeType(entry.name).startsWith('image/');
     });
     let fileHash: string | null = null;

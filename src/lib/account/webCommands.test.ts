@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { webAccountCommands } from './webCommands';
 
+const MAX_ACCOUNT_RESPONSE_BODY_BYTES = 64 * 1024;
+
 function mockLocation(url: string) {
   vi.spyOn(window, 'location', 'get').mockReturnValue(new URL(url) as unknown as Location);
 }
@@ -50,18 +52,16 @@ describe('webAccountCommands', () => {
       })
     );
 
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: vi.fn().mockResolvedValue({
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
         success: true,
         connected: true,
         provider: 'google',
         username: 'octocat',
         primaryEmail: 'octocat@example.com',
         avatarUrl: 'https://example.com/avatar.png',
-      }),
-    });
+      }), { status: 200 })
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const status = await webAccountCommands.probeStatus();
@@ -163,11 +163,9 @@ describe('webAccountCommands', () => {
   });
 
   it('does not retry email-code business errors', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      json: vi.fn().mockResolvedValue({ error: 'Invalid email address' }),
-    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: 'Invalid email address' }), { status: 400 })
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(webAccountCommands.requestEmailCode('octocat@example.com')).rejects.toThrow('Invalid email address');
@@ -213,10 +211,17 @@ describe('webAccountCommands', () => {
       'vlaina_account_session',
       JSON.stringify({ provider: 'google', username: 'octocat', avatarUrl: 'https://example.com/avatar.png' })
     );
+    const reader = {
+      read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined)),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    };
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: vi.fn(() => new Promise(() => undefined)),
+      body: {
+        getReader: () => reader,
+      },
     });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -227,6 +232,54 @@ describe('webAccountCommands', () => {
     expect(status.connected).toBe(true);
     expect(status.username).toBe('octocat');
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(reader.cancel).toHaveBeenCalledTimes(1);
+    expect(reader.releaseLock).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns cached status when the session response body is oversized', async () => {
+    sessionStorage.setItem(
+      'vlaina_account_session',
+      JSON.stringify({ provider: 'google', username: 'octocat', avatarUrl: 'https://example.com/avatar.png' })
+    );
+    const cancel = vi.fn();
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('x'.repeat(MAX_ACCOUNT_RESPONSE_BODY_BYTES + 1)));
+        },
+        cancel,
+      }),
+      { status: 200 }
+    );
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+    const status = await webAccountCommands.probeStatus();
+
+    expect(status.connected).toBe(true);
+    expect(status.username).toBe('octocat');
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('uses the HTTP fallback when account error response bodies are oversized', async () => {
+    const cancel = vi.fn();
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('x'.repeat(MAX_ACCOUNT_RESPONSE_BODY_BYTES + 1)));
+        },
+        cancel,
+      }),
+      { status: 400 }
+    );
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+    await expect(webAccountCommands.requestEmailCode('octocat@example.com')).rejects.toThrow(
+      'Failed to send verification code: HTTP 400'
+    );
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
   });
 
   it('preserves metadata when revoke fails so logout can be retried', async () => {

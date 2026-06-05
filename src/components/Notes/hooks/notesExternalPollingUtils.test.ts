@@ -24,6 +24,16 @@ function folder(path: string, children: FileTreeNode[] = []): FileTreeNode {
   };
 }
 
+function deepFolderTree(depth: number, leafPath: string): FileTreeNode[] {
+  let current: FileTreeNode = file(leafPath);
+
+  for (let index = depth; index >= 0; index -= 1) {
+    current = folder(`folder-${index}`, [current]);
+  }
+
+  return [current];
+}
+
 describe('notesExternalPollingUtils', () => {
   it('detects folder renames with descendants', () => {
     const previous = [
@@ -109,6 +119,16 @@ describe('notesExternalPollingUtils', () => {
       renames: [],
       deletions: [],
       hasAdditions: true,
+      hasChanges: true,
+    });
+  });
+
+  it('detects deep tree changes without recursive traversal', () => {
+    const previous = deepFolderTree(2500, 'folder-2500/alpha.md');
+    const next = deepFolderTree(2500, 'folder-2500/beta.md');
+
+    expect(detectExternalTreePathChanges(previous, next)).toMatchObject({
+      renames: [{ oldPath: 'folder-2500/alpha.md', newPath: 'folder-2500/beta.md' }],
       hasChanges: true,
     });
   });

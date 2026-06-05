@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { savePreview } from './previewExport';
 
 const mocks = vi.hoisted(() => ({
+  getBase64DecodedByteLength: vi.fn(),
   getElectronBridge: vi.fn(),
   saveDialog: vi.fn(),
   toJpeg: vi.fn(),
@@ -32,6 +33,10 @@ vi.mock('@/lib/i18n', () => ({
   translate: (key: string, values?: Record<string, string>) => `${key}:${values?.format ?? ''}`,
 }));
 
+vi.mock('@/lib/markdown/dataImagePolicy', () => ({
+  getBase64DecodedByteLength: mocks.getBase64DecodedByteLength,
+}));
+
 function decodeWrittenBytes(): string {
   const bytes = mocks.writeDesktopBinaryFile.mock.calls[0]?.[1] as Uint8Array | undefined;
   if (!bytes) {
@@ -43,6 +48,7 @@ function decodeWrittenBytes(): string {
 describe('savePreview', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
+    mocks.getBase64DecodedByteLength.mockReset();
     mocks.getElectronBridge.mockReset();
     mocks.saveDialog.mockReset();
     mocks.toJpeg.mockReset();
@@ -50,6 +56,15 @@ describe('savePreview', () => {
     mocks.toSvg.mockReset();
     mocks.writeDesktopBinaryFile.mockReset();
 
+    mocks.getBase64DecodedByteLength.mockImplementation((payload: string) => {
+      if (payload.length % 4 === 1 || !/^[A-Za-z0-9+/]*={0,2}$/.test(payload)) {
+        return null;
+      }
+      let padding = 0;
+      if (payload.endsWith('==')) padding = 2;
+      else if (payload.endsWith('=')) padding = 1;
+      return Math.floor((payload.length * 3) / 4) - padding;
+    });
     mocks.getElectronBridge.mockReturnValue({});
     mocks.saveDialog.mockImplementation(async (options: { defaultPath: string }) => `/tmp/${options.defaultPath}`);
     mocks.toJpeg.mockResolvedValue('data:image/jpeg;base64,anBn');
@@ -111,6 +126,28 @@ describe('savePreview', () => {
     mocks.toPng.mockResolvedValueOnce('data:text/html;base64,PHNjcmlwdD4=');
 
     await expect(savePreview(element, 'diagram', 'png')).rejects.toThrow('Unexpected preview export MIME type.');
+
+    expect(mocks.saveDialog).not.toHaveBeenCalled();
+    expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('does not save oversized raster preview output', async () => {
+    const element = document.createElement('div');
+    mocks.toPng.mockResolvedValueOnce('data:image/png;base64,cG5n');
+    mocks.getBase64DecodedByteLength.mockReturnValueOnce(Number.MAX_SAFE_INTEGER);
+
+    await expect(savePreview(element, 'diagram', 'png')).rejects.toThrow('Preview export output is too large.');
+
+    expect(mocks.saveDialog).not.toHaveBeenCalled();
+    expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('does not save oversized html-to-image SVG output', async () => {
+    const element = document.createElement('div');
+    mocks.toSvg.mockResolvedValueOnce('data:image/svg+xml;base64,PHN2Zz4=');
+    mocks.getBase64DecodedByteLength.mockReturnValueOnce(Number.MAX_SAFE_INTEGER);
+
+    await expect(savePreview(element, 'diagram', 'svg')).rejects.toThrow('Preview export output is too large.');
 
     expect(mocks.saveDialog).not.toHaveBeenCalled();
     expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();

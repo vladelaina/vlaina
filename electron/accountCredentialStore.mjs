@@ -1,9 +1,10 @@
 import electron from 'electron';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { decodeSecretRecord, encodeSecretRecord } from './secureSecretRecord.mjs';
 
 const { app, safeStorage } = electron;
+const MAX_ACCOUNT_STORE_JSON_BYTES = 256 * 1024;
 
 export function isSupportedAccountProvider(provider) {
   return provider === 'google' || provider === 'email';
@@ -20,6 +21,10 @@ export function normalizeDesktopAccountProvider(provider, fallback = null) {
 
 async function readJsonFile(filePath, fallbackValue) {
   try {
+    const fileInfo = await stat(filePath);
+    if (!fileInfo.isFile() || fileInfo.size > MAX_ACCOUNT_STORE_JSON_BYTES) {
+      return fallbackValue;
+    }
     return JSON.parse(await readFile(filePath, 'utf8'));
   } catch {
     return fallbackValue;

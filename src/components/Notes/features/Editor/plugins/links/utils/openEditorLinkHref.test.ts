@@ -123,4 +123,28 @@ describe('openEditorLinkHref', () => {
         expect(mocks.dispatchOpenMarkdownTargetEvent).not.toHaveBeenCalled();
         expect(mocks.openExternalHref).not.toHaveBeenCalled();
     });
+
+    it('ignores oversized markdown link paths before resolving them', async () => {
+        await expect(resolveEditorMarkdownLinkTarget(`${'a'.repeat(16 * 1024)}.md`))
+            .resolves.toBeNull();
+
+        await openEditorLinkHref(`${'a'.repeat(16 * 1024)}.md`);
+
+        expect(mocks.dispatchOpenMarkdownTargetEvent).not.toHaveBeenCalled();
+        expect(mocks.openExternalHref).not.toHaveBeenCalled();
+    });
+
+    it('ignores oversized same-note fragments before querying the editor DOM', async () => {
+        const view = {
+            dom: {
+                querySelector: vi.fn(),
+            },
+        };
+
+        await openEditorLinkHref(`#${'a'.repeat(2048)}`, { view: view as never });
+
+        expect(view.dom.querySelector).not.toHaveBeenCalled();
+        expect(mocks.dispatchOpenMarkdownTargetEvent).not.toHaveBeenCalled();
+        expect(mocks.openExternalHref).not.toHaveBeenCalled();
+    });
 });

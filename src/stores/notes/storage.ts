@@ -155,6 +155,18 @@ function shouldSkipMetadataDirectory(name: string) {
   return name.startsWith('.') || SKIPPED_METADATA_DIRECTORY_NAMES.has(name);
 }
 
+function isReadableBoundedFile(
+  fileInfo: { isFile?: boolean; isDirectory?: boolean; size?: number | null } | null | undefined,
+  maxBytes: number,
+): boolean {
+  return (
+    fileInfo?.isDirectory !== true &&
+    fileInfo?.isFile !== false &&
+    typeof fileInfo?.size === 'number' &&
+    fileInfo.size <= maxBytes
+  );
+}
+
 async function collectMarkdownPaths(
   basePath: string,
   relativePath: string = '',
@@ -228,7 +240,7 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
           const fileInfo = await storage.stat(fullPath).catch(() => null);
           const modifiedAt = fileInfo?.modifiedAt ?? null;
           const size = fileInfo?.size ?? null;
-          if (typeof size === 'number' && size > MAX_METADATA_READ_BYTES) {
+          if (!isReadableBoundedFile(fileInfo, MAX_METADATA_READ_BYTES)) {
             return {
               relativePath,
               metadata: {},
@@ -385,7 +397,7 @@ export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceSt
     }
 
     const fileInfo = await storage.stat(wsPath).catch(() => null);
-    if (fileInfo?.size && fileInfo.size > MAX_WORKSPACE_STATE_BYTES) {
+    if (!isReadableBoundedFile(fileInfo, MAX_WORKSPACE_STATE_BYTES)) {
       return null;
     }
 

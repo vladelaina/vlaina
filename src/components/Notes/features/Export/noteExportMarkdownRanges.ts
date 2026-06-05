@@ -51,8 +51,47 @@ function getInlineCodeRanges(content: string): ContentRange[] {
   return ranges;
 }
 
+export function normalizeContentRanges(ranges: ContentRange[]): ContentRange[] {
+  const sortedRanges = ranges.sort((left, right) =>
+    left.start === right.start ? left.end - right.end : left.start - right.start
+  );
+  const normalizedRanges: ContentRange[] = [];
+
+  for (const range of sortedRanges) {
+    const lastRange = normalizedRanges[normalizedRanges.length - 1];
+    if (lastRange && range.start <= lastRange.end) {
+      lastRange.end = Math.max(lastRange.end, range.end);
+      continue;
+    }
+    normalizedRanges.push({ ...range });
+  }
+
+  return normalizedRanges;
+}
+
+export function getRangeEndAtOffset(offset: number, ranges: readonly ContentRange[]): number | null {
+  let low = 0;
+  let high = ranges.length - 1;
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const range = ranges[mid];
+    if (offset < range.start) {
+      high = mid - 1;
+      continue;
+    }
+    if (offset >= range.end) {
+      low = mid + 1;
+      continue;
+    }
+    return range.end;
+  }
+
+  return null;
+}
+
 export function isOffsetInRanges(offset: number, ranges: readonly ContentRange[]): boolean {
-  return ranges.some((range) => offset >= range.start && offset < range.end);
+  return getRangeEndAtOffset(offset, ranges) !== null;
 }
 
 export function isEscapedMarkdownPunctuation(content: string, offset: number): boolean {
@@ -193,9 +232,9 @@ export function getMarkdownHtmlBlockRanges(content: string): ContentRange[] {
 }
 
 export function getIgnoredInlineRanges(markdown: string): ContentRange[] {
-  return [
+  return normalizeContentRanges([
     ...getInlineCodeRanges(markdown),
     ...getHtmlCommentRanges(markdown),
     ...getRawTextHtmlRanges(markdown),
-  ];
+  ]);
 }

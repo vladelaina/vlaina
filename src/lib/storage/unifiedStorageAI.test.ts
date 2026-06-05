@@ -208,4 +208,28 @@ describe('normalizeLoadedAIModels', () => {
     expect(Number.isFinite(normalized.sessions[0]?.createdAt)).toBe(true);
   });
 
+  it('bounds loaded model and session normalization', () => {
+    const normalized = normalizeLoadedAIModels(
+      providers,
+      Array.from({ length: 10_050 }, (_, index) => ({
+        apiModelId: `model-${index}`,
+        providerId: 'vlaina-managed',
+      })),
+      'vlaina-managed::model-9999',
+      Array.from({ length: 5_050 }, (_, index) => ({
+        id: `session-${index}`,
+        title: `Session ${index}`,
+        modelId: 'vlaina-managed::model-0',
+      })),
+    );
+
+    expect(normalized.models).toHaveLength(10_000);
+    expect(normalized.models[0]?.id).toBe('vlaina-managed::model-0');
+    expect(normalized.models.at(-1)?.id).toBe('vlaina-managed::model-9999');
+    expect(normalized.selectedModelId).toBe('vlaina-managed::model-9999');
+    expect(normalized.sessions).toHaveLength(5_000);
+    expect(normalized.sessions[0]?.id).toBe('session-0');
+    expect(normalized.sessions.at(-1)?.id).toBe('session-4999');
+  });
+
 });

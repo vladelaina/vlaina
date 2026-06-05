@@ -16,13 +16,31 @@ const mermaidMarkupCache = new Map<string, string>();
 const mermaidRenderPromiseCache = new Map<string, Promise<string>>();
 const mermaidLazyObservers = new WeakMap<HTMLElement, IntersectionObserver>();
 const disposedMermaidElements = new WeakSet<HTMLElement>();
+const MAX_MERMAID_RENDER_CODE_CHARS = 20_000;
+
+function escapeHtmlText(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 function generateMermaidId(): string {
   return `mermaid-${Date.now()}-${mermaidIdCounter++}`;
 }
 
 function mermaidRenderErrorMarkup(): string {
-  return `<div class="mermaid-error">${translate('editor.mermaidRenderError')}</div>`;
+  return `<div class="mermaid-error">${escapeHtmlText(translate('editor.mermaidRenderError'))}</div>`;
+}
+
+function mermaidRenderTooLargeMarkup(): string {
+  return '<div class="mermaid-error">Mermaid Error: Diagram is too large to render.</div>';
+}
+
+function mermaidEmptyMarkup(): string {
+  return `<div class="mermaid-empty">${escapeHtmlText(translate('editor.emptyDiagram'))}</div>`;
 }
 
 function normalizeMermaidRenderMarkup(markup: string): string {
@@ -50,6 +68,10 @@ export function getMermaidElementCode(element: HTMLElement) {
 
 function getMermaidRenderCode(sourceCode: string) {
   return normalizeMermaidCodeForRender(sourceCode);
+}
+
+function isMermaidRenderCodeTooLarge(code: string) {
+  return code.length > MAX_MERMAID_RENDER_CODE_CHARS;
 }
 
 async function renderMermaidHtml(
@@ -90,6 +112,10 @@ async function resolveMermaidMarkup(
   code: string,
   render?: MermaidRender
 ) {
+  if (isMermaidRenderCodeTooLarge(code)) {
+    return sanitizeMermaidMarkup(mermaidRenderTooLargeMarkup());
+  }
+
   if (render) {
     return sanitizeMermaidMarkup(await renderMermaidHtml(code, render));
   }
@@ -131,7 +157,7 @@ export async function renderMermaidEditorLivePreview(args: {
 
   if (!normalizedCode.trim()) {
     setMermaidElementCode(anchor, normalizedCode);
-    anchor.innerHTML = `<div class="mermaid-empty">${translate('editor.emptyDiagram')}</div>`;
+    anchor.innerHTML = mermaidEmptyMarkup();
     onRendered?.();
     return true;
   }
@@ -139,6 +165,12 @@ export async function renderMermaidEditorLivePreview(args: {
   const codeSnapshot = normalizedCode;
   const renderCodeSnapshot = renderCode;
   const renderKey = setMermaidElementCode(anchor, codeSnapshot);
+
+  if (isMermaidRenderCodeTooLarge(renderCodeSnapshot)) {
+    anchor.innerHTML = sanitizeMermaidMarkup(mermaidRenderTooLargeMarkup());
+    onRendered?.();
+    return true;
+  }
 
   const cachedMarkup = render ? null : readCachedMermaidMarkup(renderCodeSnapshot);
   if (cachedMarkup != null) {
@@ -220,6 +252,11 @@ export function createMermaidElement(code: string) {
   wrapper.className = 'mermaid-block';
 
   if (normalizedCode.trim()) {
+    if (isMermaidRenderCodeTooLarge(renderCode)) {
+      wrapper.innerHTML = sanitizeMermaidMarkup(mermaidRenderTooLargeMarkup());
+      return wrapper;
+    }
+
     const cachedMarkup = readCachedMermaidMarkup(renderCode);
     if (cachedMarkup != null) {
       wrapper.innerHTML = cachedMarkup;
@@ -234,7 +271,7 @@ export function createMermaidElement(code: string) {
       renderMermaidElementAsync(wrapper, codeSnapshot, renderKey);
     }
   } else {
-    wrapper.innerHTML = `<div class="mermaid-empty">${translate('editor.emptyDiagram')}</div>`;
+    wrapper.innerHTML = mermaidEmptyMarkup();
   }
 
   return wrapper;

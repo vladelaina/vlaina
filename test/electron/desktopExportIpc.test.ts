@@ -3,6 +3,10 @@ import path from 'node:path';
 import electron from 'electron';
 import { isPathInsideDirectory, registerDesktopIpc, revealItemInFolder } from '../../electron/desktopIpc.mjs';
 
+const MAX_DESKTOP_IPC_BODY_BYTES = 64 * 1024 * 1024;
+const MAX_AI_PROVIDER_RESPONSE_IPC_CHUNK_BYTES = 256 * 1024;
+const MAX_CLIPBOARD_IMAGE_DATA_URL_BYTES = 10 * 1024 * 1024;
+
 const hoisted = vi.hoisted(() => {
   const windows: any[] = [];
   const tempRoot = process.env.RUNNER_TEMP ?? process.env.TEMP ?? process.env.TMPDIR ?? '/tmp';
@@ -83,6 +87,16 @@ function registerHarness() {
   });
 
   return { handlers };
+}
+
+function createOversizedBase64Body() {
+  const encodedLength = Math.ceil((MAX_DESKTOP_IPC_BODY_BYTES + 1) / 3) * 4;
+  return `${'A'.repeat(encodedLength - 1)}=`;
+}
+
+function createOversizedClipboardImageDataUrl() {
+  const encodedLength = Math.ceil((MAX_CLIPBOARD_IMAGE_DATA_URL_BYTES + 1) / 3) * 4;
+  return `data:image/png;base64,${'A'.repeat(encodedLength - 1)}=`;
 }
 
 describe('desktop export ipc', () => {
@@ -193,6 +207,17 @@ describe('desktop export ipc', () => {
     expect(electron.clipboard.writeImage).toHaveBeenCalledTimes(1);
   });
 
+  it('rejects oversized clipboard image data URLs before native decoding', async () => {
+    const { handlers } = registerHarness();
+    vi.mocked(electron.nativeImage.createFromDataURL).mockClear();
+
+    await expect(
+      handlers.get('desktop:clipboard:write-image')?.({}, createOversizedClipboardImageDataUrl()),
+    ).rejects.toThrow('Clipboard image data URL is too large.');
+
+    expect(electron.nativeImage.createFromDataURL).not.toHaveBeenCalled();
+  });
+
   it('rejects invalid AI provider request headers before fetch', async () => {
     const { handlers } = registerHarness();
     const fetchMock = vi.fn();
@@ -271,6 +296,90 @@ describe('desktop export ipc', () => {
         body: Buffer.from('multipart-body'),
       }),
     );
+  });
+
+  it('rejects oversized base64 AI provider request bodies before fetch', async () => {
+    const { handlers } = registerHarness();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      handlers.get('desktop:ai-provider:request:start')?.(
+        { sender: { isDestroyed: () => false, send: vi.fn() } },
+        'request-oversized-base64',
+        {
+          url: 'https://api.example.com/v1/images/edits',
+          method: 'POST',
+          bodyBase64: createOversizedBase64Body(),
+        },
+      ),
+    ).rejects.toThrow('AI provider request body is too large.');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized text AI provider request bodies before fetch', async () => {
+    const { handlers } = registerHarness();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      handlers.get('desktop:ai-provider:request:start')?.(
+        { sender: { isDestroyed: () => false, send: vi.fn() } },
+        'request-oversized-text',
+        {
+          url: 'https://api.example.com/v1/chat/completions',
+          method: 'POST',
+          body: '€'.repeat(Math.floor(MAX_DESKTOP_IPC_BODY_BYTES / 3) + 1),
+        },
+      ),
+    ).rejects.toThrow('AI provider request body is too large.');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('splits large AI provider response chunks before forwarding them over IPC', async () => {
+    const { handlers } = registerHarness();
+    const responseChunk = new Uint8Array(MAX_AI_PROVIDER_RESPONSE_IPC_CHUNK_BYTES + 3);
+    responseChunk.set([1, 2, 3], MAX_AI_PROVIDER_RESPONSE_IPC_CHUNK_BYTES);
+    const fetchMock = vi.fn(async () => new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(responseChunk);
+          controller.close();
+        },
+      }),
+      { status: 200, statusText: 'OK' },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+    const sender = {
+      isDestroyed: () => false,
+      send: vi.fn(),
+    };
+
+    await expect(handlers.get('desktop:ai-provider:request:start')?.(
+      { sender },
+      'request-large-response-chunk',
+      {
+        url: 'https://api.example.com/v1/chat/completions',
+        method: 'POST',
+        body: JSON.stringify({ model: 'gpt-4o-mini', messages: [] }),
+      },
+    )).resolves.toMatchObject({
+      status: 200,
+      statusText: 'OK',
+    });
+
+    await vi.waitFor(() => expect(sender.send.mock.calls.some(
+      ([channel]) => channel === 'desktop:ai-provider:request:request-large-response-chunk:done',
+    )).toBe(true));
+    const forwardedChunks = sender.send.mock.calls
+      .filter(([channel]) => channel === 'desktop:ai-provider:request:request-large-response-chunk:chunk')
+      .map(([, payload]) => payload);
+
+    expect(forwardedChunks).toHaveLength(2);
+    expect(forwardedChunks[0]).toHaveLength(MAX_AI_PROVIDER_RESPONSE_IPC_CHUNK_BYTES);
+    expect(forwardedChunks[1]).toEqual([1, 2, 3]);
   });
 
   it('retries quickly failed AI provider transport requests once', async () => {

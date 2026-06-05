@@ -100,6 +100,26 @@ describe('useStarredEntryIcon', () => {
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 
+  it('skips starred note metadata reads when stat has no size', async () => {
+    mocked.stat.mockResolvedValue(null);
+
+    const { result } = renderHook(() =>
+      useStarredEntryIcon({
+        id: 'starred-missing-size',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/missing-size.md',
+        addedAt: 1,
+      }, true),
+    );
+
+    await waitFor(() => {
+      expect(mocked.stat).toHaveBeenCalledWith('/vault-b/docs/missing-size.md');
+    });
+    expect(result.current).toBeUndefined();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
   it('limits concurrent starred note metadata reads', async () => {
     const pendingReads: Array<() => void> = [];
     mocked.stat.mockResolvedValue({ modifiedAt: 1, size: 32 });

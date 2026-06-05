@@ -113,4 +113,44 @@ describe('abbrMarkdown', () => {
       { type: 'text', value: ' HTML' },
     ]);
   });
+
+  it('limits abbreviation definitions used for replacement', () => {
+    const definitions = Array.from({ length: 520 }, (_, index) => ({
+      abbr: `A${index}`,
+      fullText: `Definition ${index}`,
+    }));
+    const pattern = createAbbrUsagePattern(definitions);
+
+    expect('A0 A511'.match(pattern!)).toEqual(['A0', 'A511']);
+    expect('A512'.match(pattern!)).toBeNull();
+  });
+
+  it('ignores oversized abbreviation definitions', () => {
+    const tree: AbbrMdastNode = {
+      type: 'root',
+      children: [
+        paragraph(`*[${'A'.repeat(129)}]: Too long`),
+        paragraph(`*[OK]: ${'x'.repeat(2049)}`),
+        paragraph('*[MD]: Markdown'),
+        paragraph(`${'A'.repeat(129)} OK MD`),
+      ],
+    };
+
+    applyAbbrDefinitionsToTree(tree, { stripDefinitions: true });
+
+    expect(tree.children?.at(-1)?.children).toEqual([
+      { type: 'text', value: `${'A'.repeat(129)} OK ` },
+      {
+        type: 'abbr',
+        children: [{ type: 'text', value: 'MD' }],
+        data: {
+          hName: 'abbr',
+          hProperties: {
+            title: 'Markdown',
+            className: ['abbr'],
+          },
+        },
+      },
+    ]);
+  });
 });

@@ -9,11 +9,17 @@ export const tagTokenPluginKey = new PluginKey<DecorationSet>('editorTagToken');
 const TAG_TOKEN_PATTERN = /(?<![\p{L}\p{N}_/-])#([\p{L}\p{N}_/-][\p{L}\p{N}_/-]*)/gu;
 const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
 const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
+const MAX_TAG_TOKEN_DECORATIONS = 1000;
+const MAX_TAG_TOKEN_CHARS = 128;
 
-function createTagTokenDecorations(doc: any): DecorationSet {
+export function createTagTokenDecorations(doc: any): DecorationSet {
   const decorations: Decoration[] = [];
 
   doc.descendants((node: any, pos: number, parent: any) => {
+    if (decorations.length >= MAX_TAG_TOKEN_DECORATIONS) {
+      return false;
+    }
+
     if (!node.isText) {
       return;
     }
@@ -31,7 +37,7 @@ function createTagTokenDecorations(doc: any): DecorationSet {
     let match: RegExpExecArray | null;
     while ((match = TAG_TOKEN_PATTERN.exec(text)) !== null) {
       const tag = match[1]?.trim();
-      if (!tag || !isNoteTagToken(tag)) {
+      if (!tag || tag.length > MAX_TAG_TOKEN_CHARS || !isNoteTagToken(tag)) {
         continue;
       }
 
@@ -44,6 +50,9 @@ function createTagTokenDecorations(doc: any): DecorationSet {
           inclusiveEnd: false,
         }),
       );
+      if (decorations.length >= MAX_TAG_TOKEN_DECORATIONS) {
+        break;
+      }
     }
   });
 

@@ -7,6 +7,9 @@ import { $prose } from '@milkdown/kit/utils';
 export const listTabIndentPluginKey = new PluginKey('listTabIndent');
 const EDITABLE_LIST_GAP_PLACEHOLDER = '\u2800';
 const LIST_GAP_PLACEHOLDER_CLASS = 'editor-list-gap-placeholder-item';
+const MAX_LIST_GAP_PLACEHOLDER_DECORATIONS = 1000;
+const MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS = 256;
+const VISIBLE_LIST_GAP_TEXT_PATTERN = /\S/u;
 
 function isSelectionInsideListItem(view: EditorView): boolean {
     const listItemType = view.state.schema.nodes.list_item;
@@ -254,20 +257,48 @@ function handleEmptyParentListItemBackspace(view: EditorView, event: KeyboardEve
     return true;
 }
 
-function buildInternalListGapDecorations(doc: Parameters<typeof DecorationSet.create>[0]): DecorationSet {
+function isInternalListGapPlaceholderNode(node: ProseNode): boolean {
+    let hasPlaceholder = false;
+    let scannedChars = 0;
+    let hasVisibleText = false;
+
+    node.descendants((child) => {
+        if (!child.isText) return true;
+
+        const text = child.text ?? '';
+        const remainingChars = MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS - scannedChars;
+        if (remainingChars <= 0) return false;
+
+        const prefix = text.slice(0, remainingChars);
+        scannedChars += text.length;
+
+        for (const char of prefix) {
+            if (char === EDITABLE_LIST_GAP_PLACEHOLDER) {
+                hasPlaceholder = true;
+            } else if (VISIBLE_LIST_GAP_TEXT_PATTERN.test(char)) {
+                hasVisibleText = true;
+                return false;
+            }
+        }
+
+        return scannedChars < MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS;
+    });
+
+    return hasPlaceholder && !hasVisibleText && scannedChars < MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS;
+}
+
+export function buildInternalListGapDecorations(doc: Parameters<typeof DecorationSet.create>[0]): DecorationSet {
     const decorations: Decoration[] = [];
 
     doc.descendants((node, pos) => {
+        if (decorations.length >= MAX_LIST_GAP_PLACEHOLDER_DECORATIONS) return false;
         if (node.type.name !== 'list_item') return true;
-        const textWithoutPlaceholders = node.textContent
-            .replace(new RegExp(EDITABLE_LIST_GAP_PLACEHOLDER, 'g'), '')
-            .trim();
-        if (node.textContent.includes(EDITABLE_LIST_GAP_PLACEHOLDER) && textWithoutPlaceholders.length === 0) {
+        if (isInternalListGapPlaceholderNode(node)) {
             decorations.push(Decoration.node(pos, pos + node.nodeSize, {
                 class: LIST_GAP_PLACEHOLDER_CLASS,
             }));
         }
-        return true;
+        return decorations.length < MAX_LIST_GAP_PLACEHOLDER_DECORATIONS;
     });
 
     return DecorationSet.create(doc, decorations);
@@ -280,62 +311,107 @@ type AdjacentOrderedListMerge = {
     merged: ProseNode;
 };
 
-function findAdjacentOrderedLists(doc: ProseNode): AdjacentOrderedListMerge | null {
-    return findAdjacentOrderedListsInParent(doc, 0);
-}
+type OrderedListScanFrame = {
+    parent: ProseNode;
+    contentStart: number;
+    childIndex: number;
+    offset: number;
+    previous: { from: number; to: number; node: ProseNode } | null;
+    pendingCurrent: { from: number; to: number; node: ProseNode } | null;
+};
 
-function findAdjacentOrderedListsInParent(
-    parent: ProseNode,
-    contentStart: number
+function createAdjacentOrderedListMerge(
+    previous: { from: number; to: number; node: ProseNode } | null,
+    current: { from: number; to: number; node: ProseNode }
 ): AdjacentOrderedListMerge | null {
-    let previous: { from: number; to: number; node: ProseNode } | null = null;
-    let result: AdjacentOrderedListMerge | null = null;
+    if (previous?.node.type.name !== 'ordered_list' || current.node.type.name !== 'ordered_list') {
+        return null;
+    }
 
-    parent.forEach((node, offset) => {
-        if (result) return;
-        const from = contentStart + offset;
-        const current = { from, to: from + node.nodeSize, node };
-        if (node.content.size > 0) {
-            result = findAdjacentOrderedListsInParent(node, from + 1);
-            if (result) return;
-        }
-        if (previous?.node.type.name === 'ordered_list' && node.type.name === 'ordered_list') {
-            const order = typeof previous.node.attrs.order === 'number' ? previous.node.attrs.order : 1;
-            const children: ProseNode[] = [];
-            const appendChild = (child: ProseNode) => {
-                const index = children.length;
-                if (child.type.name !== 'list_item') {
-                    children.push(child);
-                    return;
-                }
-                children.push(child.type.create(
-                    {
-                        ...child.attrs,
-                        label: `${order + index}.`,
-                        listType: 'ordered',
-                    },
-                    child.content as any,
-                    child.marks
-                ));
-            };
-            previous.node.forEach((child) => appendChild(child));
-            node.forEach((child) => appendChild(child));
-            result = {
-                from: previous.from,
-                secondFrom: current.from,
-                to: current.to,
-                merged: previous.node.type.create(
-                    previous.node.attrs,
-                    children,
-                    previous.node.marks
-                ),
-            };
+    const order = typeof previous.node.attrs.order === 'number' ? previous.node.attrs.order : 1;
+    const children: ProseNode[] = [];
+    const appendChild = (child: ProseNode) => {
+        const index = children.length;
+        if (child.type.name !== 'list_item') {
+            children.push(child);
             return;
         }
-        previous = current;
-    });
+        children.push(child.type.create(
+            {
+                ...child.attrs,
+                label: `${order + index}.`,
+                listType: 'ordered',
+            },
+            child.content as any,
+            child.marks
+        ));
+    };
+    previous.node.forEach((child) => appendChild(child));
+    current.node.forEach((child) => appendChild(child));
 
-    return result;
+    return {
+        from: previous.from,
+        secondFrom: current.from,
+        to: current.to,
+        merged: previous.node.type.create(
+            previous.node.attrs,
+            children,
+            previous.node.marks
+        ),
+    };
+}
+
+export function findAdjacentOrderedLists(doc: ProseNode): AdjacentOrderedListMerge | null {
+    const stack: OrderedListScanFrame[] = [{
+        parent: doc,
+        contentStart: 0,
+        childIndex: 0,
+        offset: 0,
+        previous: null,
+        pendingCurrent: null,
+    }];
+
+    while (stack.length > 0) {
+        const frame = stack[stack.length - 1];
+        if (frame.pendingCurrent) {
+            const current = frame.pendingCurrent;
+            frame.pendingCurrent = null;
+            const merge = createAdjacentOrderedListMerge(frame.previous, current);
+            if (merge) return merge;
+            frame.previous = current;
+            continue;
+        }
+
+        if (frame.childIndex >= frame.parent.childCount) {
+            stack.pop();
+            continue;
+        }
+
+        const node = frame.parent.child(frame.childIndex);
+        const from = frame.contentStart + frame.offset;
+        const current = { from, to: from + node.nodeSize, node };
+        frame.childIndex += 1;
+        frame.offset += node.nodeSize;
+
+        if (node.content.size > 0) {
+            frame.pendingCurrent = current;
+            stack.push({
+                parent: node,
+                contentStart: from + 1,
+                childIndex: 0,
+                offset: 0,
+                previous: null,
+                pendingCurrent: null,
+            });
+            continue;
+        }
+
+        const merge = createAdjacentOrderedListMerge(frame.previous, current);
+        if (merge) return merge;
+        frame.previous = current;
+    }
+
+    return null;
 }
 
 function mapPositionThroughOrderedListMerge(pos: number, merge: AdjacentOrderedListMerge): number {

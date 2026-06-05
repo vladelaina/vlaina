@@ -11,6 +11,7 @@ export const VIRTUAL_FILE_TREE_ROW_LINE_HEIGHT = 20;
 export const VIRTUAL_FILE_TREE_ROW_BASE_VISIBLE_CHARS = 8;
 export const VIRTUAL_FILE_TREE_OVERSCAN_ROWS = 10;
 export const VIRTUAL_FILE_TREE_MIN_ROWS = 180;
+const MAX_DERIVED_FILE_TREE_ROWS = 20_000;
 
 function getVisibleCharacterCount(value: string): number {
   return Array.from(value).length;
@@ -44,39 +45,45 @@ export function flattenVisibleFileTreeRows(
   parentFolderPath = '',
 ): VirtualFileTreeRow[] {
   const rows: VirtualFileTreeRow[] = [];
+  const stack: Array<{ depth: number; node: FileTreeNode; parentPath: string }> = [];
 
-  function visit(children: FileTreeNode[], depth: number, parentPath: string) {
-    for (const node of children) {
-      rows.push({
-        node,
-        depth,
-        parentFolderPath: parentPath,
-      });
+  for (let index = nodes.length - 1; index >= 0; index -= 1) {
+    stack.push({ depth: startDepth, node: nodes[index], parentPath: parentFolderPath });
+  }
 
-      if (node.isFolder && node.expanded && node.children.length > 0) {
-        visit(node.children, depth + 1, node.path);
+  while (stack.length > 0 && rows.length < MAX_DERIVED_FILE_TREE_ROWS) {
+    const { depth, node, parentPath } = stack.pop()!;
+    rows.push({
+      node,
+      depth,
+      parentFolderPath: parentPath,
+    });
+
+    if (node.isFolder && node.expanded && node.children.length > 0) {
+      for (let index = node.children.length - 1; index >= 0; index -= 1) {
+        stack.push({ depth: depth + 1, node: node.children[index], parentPath: node.path });
       }
     }
   }
 
-  visit(nodes, startDepth, parentFolderPath);
   return rows;
 }
 
 export function countVisibleFileTreeRows(nodes: FileTreeNode[]): number {
   let count = 0;
+  const stack = [...nodes].reverse();
 
-  function visit(children: FileTreeNode[]) {
-    for (const node of children) {
-      count += 1;
+  while (stack.length > 0 && count < MAX_DERIVED_FILE_TREE_ROWS) {
+    const node = stack.pop()!;
+    count += 1;
 
-      if (node.isFolder && node.expanded && node.children.length > 0) {
-        visit(node.children);
+    if (node.isFolder && node.expanded && node.children.length > 0) {
+      for (let index = node.children.length - 1; index >= 0; index -= 1) {
+        stack.push(node.children[index]);
       }
     }
   }
 
-  visit(nodes);
   return count;
 }
 

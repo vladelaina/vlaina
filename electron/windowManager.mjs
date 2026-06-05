@@ -14,6 +14,7 @@ const MIN_RESTORED_WINDOW_HEIGHT = 600;
 const MAX_RESTORED_WINDOW_WIDTH = 8192;
 const MAX_RESTORED_WINDOW_HEIGHT = 8192;
 const WINDOW_STATE_WRITE_DELAY_MS = 250;
+const MAX_WINDOW_STATE_JSON_BYTES = 64 * 1024;
 
 function getWindowStatePath() {
   return path.join(app.getPath('userData'), '.vlaina', 'store', 'window-state.json');
@@ -52,7 +53,13 @@ function clampWindowBoundsToCurrentDisplay(bounds) {
 
 export function readStoredWindowState() {
   try {
-    const payload = JSON.parse(fs.readFileSync(getWindowStatePath(), 'utf8'));
+    const statePath = getWindowStatePath();
+    const stats = fs.statSync(statePath);
+    if (!stats.isFile() || stats.size > MAX_WINDOW_STATE_JSON_BYTES) {
+      return null;
+    }
+
+    const payload = JSON.parse(fs.readFileSync(statePath, 'utf8'));
     const bounds = normalizeStoredWindowBounds(payload?.bounds);
     if (!bounds) {
       return null;

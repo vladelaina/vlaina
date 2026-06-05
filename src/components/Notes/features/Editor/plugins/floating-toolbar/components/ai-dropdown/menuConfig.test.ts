@@ -75,4 +75,48 @@ describe('ai dropdown menu config', () => {
     ]);
     expect(translate?.items[0]?.id).toBe('translate-en');
   });
+
+  it('ignores oversized persisted usage payloads', () => {
+    localStorage.setItem(
+      'vlaina_editor_ai_menu_usage',
+      JSON.stringify({ actions: { clarify: 100 } }) + 'x'.repeat(16 * 1024),
+    );
+
+    const actions = getAiMenuGroups().find((group) => group.id === 'actions');
+    expect(actions?.items.slice(0, 3).map((item) => item.id)).toEqual([
+      'polish',
+      'rewrite',
+      'fix-grammar',
+    ]);
+  });
+
+  it('normalizes persisted usage to known menu items', () => {
+    localStorage.setItem('vlaina_editor_ai_menu_usage', JSON.stringify({
+      actions: {
+        clarify: 2.8,
+        unknown: 100,
+        polish: Number.POSITIVE_INFINITY,
+      },
+      translate: {
+        'translate-ja': 100,
+      },
+    }));
+
+    recordAiMenuItemUsage('actions', 'rewrite');
+    recordAiMenuItemUsage('unknown', 'clarify');
+    recordAiMenuItemUsage('actions', 'unknown');
+
+    const actions = getAiMenuGroups().find((group) => group.id === 'actions');
+    expect(actions?.items.slice(0, 3).map((item) => item.id)).toEqual([
+      'clarify',
+      'rewrite',
+      'polish',
+    ]);
+    expect(JSON.parse(String(localStorage.getItem('vlaina_editor_ai_menu_usage')))).toEqual({
+      actions: {
+        clarify: 2,
+        rewrite: 1,
+      },
+    });
+  });
 });

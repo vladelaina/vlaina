@@ -12,6 +12,7 @@ export interface StorageAutoSyncEvent {
 
 const CHANNEL_NAME = 'vlaina-storage-sync';
 const STORAGE_KEY = 'vlaina-storage-sync-event';
+const MAX_STORAGE_AUTO_SYNC_EVENT_CHARS = 8 * 1024;
 
 const sourceId = (() => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -91,6 +92,9 @@ function ensureStorageListener() {
 
   window.addEventListener('storage', (event) => {
     if (event.key !== STORAGE_KEY || !event.newValue) {
+      return;
+    }
+    if (event.newValue.length > MAX_STORAGE_AUTO_SYNC_EVENT_CHARS) {
       return;
     }
 

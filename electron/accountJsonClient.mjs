@@ -5,6 +5,8 @@ import {
   summarizeRequestBody,
 } from './accountAuthDebug.mjs';
 
+const MAX_DESKTOP_ACCOUNT_RESPONSE_BODY_BYTES = 64 * 1024;
+
 function createJsonResponseError(payload, response, fallbackMessage) {
   const message =
     typeof payload?.error === 'string' && payload.error.trim()
@@ -32,6 +34,14 @@ function createJsonResponseError(payload, response, fallbackMessage) {
 
 function createAbortError() {
   return new DOMException('Aborted', 'AbortError');
+}
+
+function createOversizedResponseError() {
+  return new Error('Desktop account API response body is too large.');
+}
+
+function isOversizedResponseError(error) {
+  return error?.message === 'Desktop account API response body is too large.';
 }
 
 function throwIfAborted(signal) {
@@ -105,13 +115,58 @@ function summarizeDesktopData(data) {
   };
 }
 
+async function readResponseText(response, signal) {
+  throwIfAborted(signal);
+  if (!response.body) {
+    return '';
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytesRead = 0;
+  let text = '';
+  const cancelReader = () => {
+    void reader.cancel(createAbortError()).catch(() => undefined);
+  };
+  signal?.addEventListener('abort', cancelReader, { once: true });
+
+  try {
+    while (true) {
+      const { done, value } = await raceWithAbort(reader.read(), signal);
+      throwIfAborted(signal);
+      if (done) {
+        break;
+      }
+
+      bytesRead += value.byteLength;
+      if (bytesRead > MAX_DESKTOP_ACCOUNT_RESPONSE_BODY_BYTES) {
+        void reader.cancel().catch(() => undefined);
+        throw createOversizedResponseError();
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+
+    return text + decoder.decode();
+  } finally {
+    signal?.removeEventListener('abort', cancelReader);
+    reader.releaseLock();
+  }
+}
+
 export function createDesktopAccountJsonClient(options = {}) {
   const logDesktopAuth = typeof options.logDesktopAuth === 'function'
     ? options.logDesktopAuth
     : null;
   async function readJsonResponse(response, fallbackMessage, signal) {
     throwIfAborted(signal);
-    const text = await raceWithAbort(response.text(), signal);
+    let text = '';
+    try {
+      text = await readResponseText(response, signal);
+    } catch (error) {
+      if (response.ok || !isOversizedResponseError(error)) {
+        throw error;
+      }
+    }
     throwIfAborted(signal);
     let payload = {};
     if (text) {
@@ -135,7 +190,7 @@ export function createDesktopAccountJsonClient(options = {}) {
     throwIfAborted(init.signal);
     const response = await raceWithAbort(fetch(url, init), init.signal);
     throwIfAborted(init.signal);
-    const text = await raceWithAbort(response.text(), init.signal);
+    const text = await readResponseText(response, init.signal);
     throwIfAborted(init.signal);
     let payload = null;
 

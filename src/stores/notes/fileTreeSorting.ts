@@ -74,14 +74,38 @@ export function sortNestedFileTree(
   nodes: FileTreeNode[],
   context: FileTreeSortContext = {}
 ): FileTreeNode[] {
-  const nextNodes = nodes.map((node) =>
-    node.isFolder
-      ? {
-          ...node,
-          children: sortNestedFileTree(node.children, context),
-        }
-      : node
-  );
+  const stack: Array<{
+    folder?: Extract<FileTreeNode, { isFolder: true }>;
+    index: number;
+    nodes: FileTreeNode[];
+    output: FileTreeNode[];
+  }> = [{ index: 0, nodes, output: [] }];
 
-  return sortFileTree(nextNodes, context);
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+    if (frame.index >= frame.nodes.length) {
+      const sortedNodes = sortFileTree(frame.output, context);
+      stack.pop();
+
+      if (!frame.folder) {
+        return sortedNodes;
+      }
+
+      stack[stack.length - 1]?.output.push({
+        ...frame.folder,
+        children: sortedNodes,
+      });
+      continue;
+    }
+
+    const node = frame.nodes[frame.index];
+    frame.index += 1;
+    if (node.isFolder) {
+      stack.push({ folder: node, index: 0, nodes: node.children, output: [] });
+    } else {
+      frame.output.push(node);
+    }
+  }
+
+  return [];
 }

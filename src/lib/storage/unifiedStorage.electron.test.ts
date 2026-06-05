@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => {
     exists: vi.fn().mockResolvedValue(true),
     mkdir: vi.fn().mockResolvedValue(undefined),
     readFile: vi.fn(),
+    stat: vi.fn(),
     writeFile: vi.fn().mockResolvedValue(undefined),
     listDir: vi.fn(),
     deleteFile: vi.fn().mockResolvedValue(undefined),
@@ -58,6 +59,7 @@ describe('unifiedStorage electron save', () => {
     mocks.storage.exists.mockReset();
     mocks.storage.mkdir.mockReset();
     mocks.storage.readFile.mockReset();
+    mocks.storage.stat.mockReset();
     mocks.storage.writeFile.mockReset();
     mocks.storage.listDir.mockReset();
     mocks.storage.deleteFile.mockReset();
@@ -69,6 +71,7 @@ describe('unifiedStorage electron save', () => {
 
     mocks.storage.exists.mockResolvedValue(true);
     mocks.storage.mkdir.mockResolvedValue(undefined);
+    mocks.storage.stat.mockResolvedValue({ isFile: true, isDirectory: false, size: 1024 });
     mocks.storage.writeFile.mockResolvedValue(undefined);
     mocks.storage.deleteFile.mockResolvedValue(undefined);
     mocks.joinPath.mockImplementation(async (...parts: string[]) => parts.join('/'));
@@ -679,6 +682,68 @@ describe('unifiedStorage electron save', () => {
     expect(payload.data.deletedCustomIconIds).toEqual(['/app/.vlaina/assets/icons/deleted.png']);
   });
 
+  it('does not read existing main data during save when stat has no size', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.storage.stat.mockImplementation(async (path: string) => (
+      path.endsWith('/.vlaina/data.json')
+        ? { isFile: true, isDirectory: false }
+        : { isFile: true, isDirectory: false, size: 1024 }
+    ));
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          version: 1,
+          updatedAt: 1,
+          data: {
+            sessions: [],
+            selectedModelId: null,
+            unreadSessionIds: [],
+            currentSessionId: null,
+            temporaryChatEnabled: false,
+            customSystemPrompt: '',
+            includeTimeContext: true,
+            webSearchEnabled: false,
+            providerIds: [],
+            deletedSessionIds: [],
+            deletedProviderIds: [],
+          },
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    await saveUnifiedDataImmediate({
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      },
+      customIcons: [
+        { id: '/app/.vlaina/assets/icons/local.png', url: 'img:/app/.vlaina/assets/icons/local.png', name: 'local.png', createdAt: 10 },
+      ],
+      ai: {
+        providers: [],
+        models: [],
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions: [],
+        messages: {},
+        unreadSessionIds: [],
+        selectedModelId: null,
+        currentSessionId: null,
+      },
+    });
+
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/appdata/.vlaina/data.json');
+    const mainWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
+      String(path).endsWith('/.vlaina/data.json'),
+    );
+    const payload = JSON.parse(String(mainWrite?.[1]));
+    expect(payload.data.customIcons.map((icon: { id: string }) => icon.id)).toEqual([
+      '/app/.vlaina/assets/icons/local.png',
+    ]);
+  });
+
   it('applies settings patches without overwriting unrelated settings from another window', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.readFile.mockImplementation(async (path: string) => {
@@ -1171,6 +1236,88 @@ describe('unifiedStorage electron save', () => {
     expect(data.ai?.benchmarkResults).toEqual({ 'good-provider': { items: {} } });
     expect(data.ai?.fetchedModels).toEqual({ 'good-provider': ['model-a'] });
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it('does not read AI sessions metadata when stat has no size', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.storage.stat.mockImplementation(async (path: string) => (
+      path.endsWith('/chat/sessions.json')
+        ? { isFile: true, isDirectory: false }
+        : { isFile: true, isDirectory: false, size: 1024 }
+    ));
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/.vlaina/data.json')) {
+        return JSON.stringify({
+          version: 2,
+          lastModified: 1,
+          data: {
+            settings: {
+              timezone: { offset: 480, city: 'Beijing' },
+              markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+            },
+            customIcons: [],
+          },
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    const data = await loadUnifiedData();
+
+    expect(data.ai?.sessions).toEqual([]);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions.json');
+  });
+
+  it('does not read provider channel files when stat has no size', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.storage.stat.mockImplementation(async (path: string) => (
+      path.endsWith('/chat/channels/good-provider.json')
+        ? { isFile: true, isDirectory: false }
+        : { isFile: true, isDirectory: false, size: 1024 }
+    ));
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/.vlaina/data.json')) {
+        return JSON.stringify({
+          version: 2,
+          lastModified: 1,
+          data: {
+            settings: {
+              timezone: { offset: 480, city: 'Beijing' },
+              markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+            },
+            customIcons: [],
+          },
+        });
+      }
+
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          version: 1,
+          updatedAt: 1,
+          data: {
+            sessions: [],
+            selectedModelId: null,
+            unreadSessionIds: [],
+            currentSessionId: null,
+            temporaryChatEnabled: false,
+            customSystemPrompt: '',
+            includeTimeContext: true,
+            webSearchEnabled: false,
+            providerIds: ['good-provider'],
+            deletedSessionIds: [],
+            deletedProviderIds: [],
+          },
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    const data = await loadUnifiedData();
+
+    expect(data.ai?.providers).toEqual([]);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/appdata/.vlaina/chat/channels/good-provider.json');
   });
 
   it('recovers visible sessions from message files when AI session metadata is invalid', async () => {

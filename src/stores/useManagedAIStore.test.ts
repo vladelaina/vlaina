@@ -154,6 +154,29 @@ describe('useManagedAIStore', () => {
     expect(useManagedAIStore.getState().budget).toEqual(currentBudget);
   });
 
+  it('ignores oversized budget snapshots from another window', () => {
+    const currentBudget = {
+      active: true,
+      usedPercent: 10,
+      remainingPercent: 90,
+      status: 'active',
+    };
+
+    useManagedAIStore.setState({
+      ...originalState,
+      budget: currentBudget,
+      lastBudgetSyncAt: 1_700_000_000_000,
+      lastBudgetAttemptAt: 1_700_000_000_000,
+    }, true);
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'vlaina-managed-ai-budget',
+      newValue: 'x'.repeat(33 * 1024),
+    }));
+
+    expect(useManagedAIStore.getState().budget).toEqual(currentBudget);
+  });
+
   it('clears the budget after another window clears the shared snapshot', () => {
     useManagedAIStore.setState({
       ...originalState,

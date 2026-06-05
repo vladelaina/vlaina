@@ -2,7 +2,11 @@ import { createAIError, parseAPIError, parseHTTPError } from '../errors'
 import { AIErrorType, type AIModel, type ChatMessage, type ChatMessageContent, type ChatSendOptions, type Provider } from '../types'
 import { buildAnthropicBaseUrl, resolveApiModelId } from '../utils'
 import { providerFetch } from '../providerHttp'
-import { createStreamAccumulator } from '@/lib/ai/streaming'
+import { readBoundedProviderResponseText } from './boundedResponseText'
+import {
+  assertOpenAIStreamLineLength,
+  createStreamAccumulator,
+} from '@/lib/ai/streaming'
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
 
 export const ANTHROPIC_VERSION = '2023-06-01'
@@ -134,15 +138,7 @@ async function raceWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Prom
 }
 
 async function readResponseTextOrFallback(response: Response, signal?: AbortSignal): Promise<string> {
-  try {
-    throwIfAborted(signal)
-    return await raceWithAbort(response.text(), signal)
-  } catch {
-    if (signal?.aborted) {
-      throw createAbortError()
-    }
-    return 'Unknown error'
-  }
+  return await readBoundedProviderResponseText(response, signal)
 }
 
 async function consumeAnthropicStream(
@@ -234,13 +230,16 @@ async function consumeAnthropicStream(
       buffer = lines.pop() || ''
       for (const line of lines) {
         throwIfAborted()
+        assertOpenAIStreamLineLength(line)
         consumeLine(line)
         throwIfAborted()
       }
+      assertOpenAIStreamLineLength(buffer)
     }
 
     if (buffer.trim()) {
       throwIfAborted()
+      assertOpenAIStreamLineLength(buffer)
       consumeLine(buffer)
       throwIfAborted()
     }

@@ -81,7 +81,7 @@ async function normalizeDisplaySrc(src: string): Promise<string | null> {
 }
 
 function assertStoredAttachmentSize(size: number | null | undefined): void {
-    if (typeof size === 'number' && size > MAX_ATTACHMENT_IMAGE_BYTES) {
+    if (typeof size !== 'number' || size > MAX_ATTACHMENT_IMAGE_BYTES) {
         throw new Error('Attachment image is too large.');
     }
 }
@@ -128,7 +128,7 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
                 const basePath = await storage.getBasePath();
                 const attachmentPath = await getPrimaryAttachmentPath(basePath, filename);
                 const info = await storage.stat(attachmentPath).catch(() => null);
-                assertStoredAttachmentSize(info?.size ?? null);
+                assertStoredAttachmentSize(info?.size);
                 const data = await storage.readBinaryFile(attachmentPath);
                 assertStoredAttachmentSize(data.byteLength);
                 const base64 = uint8ArrayToBase64(data);

@@ -8,6 +8,8 @@ import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { dispatchOpenMarkdownTargetEvent } from '../../../../OpenTarget/openTargetEvents';
 
 const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+const MAX_EDITOR_MARKDOWN_LINK_HREF_CHARS = 16 * 1024;
+const MAX_EDITOR_LINK_FRAGMENT_CHARS = 2 * 1024;
 
 function getPathWithoutFragmentOrQuery(href: string): string {
     const hashIndex = href.indexOf('#');
@@ -21,6 +23,10 @@ function hasExplicitUrlScheme(value: string): boolean {
 }
 
 function decodeMarkdownLinkPath(path: string): string | null {
+    if (path.length > MAX_EDITOR_MARKDOWN_LINK_HREF_CHARS) {
+        return null;
+    }
+
     const decoded = path.replace(/(?:%[0-9A-Fa-f]{2})+/g, (encoded) => {
         try {
             return decodeURIComponent(encoded);
@@ -32,6 +38,10 @@ function decodeMarkdownLinkPath(path: string): string | null {
 }
 
 function scrollToCurrentEditorFragment(view: EditorView | null | undefined, fragment: string): boolean {
+    if (fragment.length > MAX_EDITOR_LINK_FRAGMENT_CHARS) {
+        return false;
+    }
+
     let decodedFragment = '';
     try {
         decodedFragment = decodeURIComponent(fragment.replace(/^#/, '')).trim();
@@ -54,6 +64,10 @@ function scrollToCurrentEditorFragment(view: EditorView | null | undefined, frag
 }
 
 export async function resolveEditorMarkdownLinkTarget(href: string): Promise<string | null> {
+    if (href.length > MAX_EDITOR_MARKDOWN_LINK_HREF_CHARS) {
+        return null;
+    }
+
     const safeHref = sanitizeNoteLinkHref(href);
     if (!safeHref || safeHref.startsWith('//') || hasExplicitUrlScheme(safeHref) || normalizeExternalHref(safeHref)) return null;
 
@@ -94,7 +108,11 @@ export async function openEditorLinkHref(
     href: string | null | undefined,
     options: { view?: EditorView | null } = {},
 ): Promise<void> {
-    const trimmed = href?.trim() ?? '';
+    if (typeof href !== 'string' || href.length > MAX_EDITOR_MARKDOWN_LINK_HREF_CHARS) {
+        return;
+    }
+
+    const trimmed = href.trim();
     if (!trimmed) return;
 
     if (normalizeExternalHref(trimmed)) {

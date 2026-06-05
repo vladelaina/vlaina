@@ -72,18 +72,15 @@ export class ElectronAdapter implements StorageAdapter {
       return filtered;
     }
 
-    const nested = await Promise.all(
-      filtered.map(async (entry) => {
-        if (!entry.isDirectory) {
-          return [entry];
-        }
+    const nested: FileInfo[] = [];
+    for (const entry of filtered) {
+      nested.push(entry);
+      if (entry.isDirectory) {
+        nested.push(...await this.listDir(entry.path, options));
+      }
+    }
 
-        const children = await this.listDir(entry.path, options);
-        return [entry, ...children];
-      }),
-    );
-
-    return nested.flat();
+    return nested;
   }
 
   async rename(oldPath: string, newPath: string): Promise<void> {

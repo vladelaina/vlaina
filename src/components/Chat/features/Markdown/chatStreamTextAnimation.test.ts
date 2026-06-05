@@ -1,6 +1,10 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { useChatStreamBlocks } from './chatStreamTextAnimation';
+import {
+  buildChatStreamSchedule,
+  MAX_CHAT_STREAM_ANIMATION_CHARS,
+  useChatStreamBlocks,
+} from './chatStreamTextAnimation';
 
 describe('useChatStreamBlocks', () => {
   it('does not count fenced code image syntax as stable gallery images', () => {
@@ -89,5 +93,27 @@ describe('useChatStreamBlocks', () => {
       content: '![tail](tail.png)',
       imageIndexOffset: 1,
     });
+  });
+
+  it('reveals oversized streaming content without per-character animation state', () => {
+    const content = 'x'.repeat(MAX_CHAT_STREAM_ANIMATION_CHARS + 1);
+
+    const scheduled = buildChatStreamSchedule(content, 260, 1000);
+    const blocks = renderHook(() => useChatStreamBlocks(content, true)).result.current;
+
+    expect(scheduled).toMatchObject({
+      births: [],
+      content,
+      key: 'stream',
+      revealed: true,
+    });
+    expect(blocks).toEqual([
+      expect.objectContaining({
+        births: [],
+        content,
+        key: 'static',
+        revealed: true,
+      }),
+    ]);
   });
 });

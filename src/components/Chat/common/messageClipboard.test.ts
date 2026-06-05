@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { convertToBase64 } from "@/lib/storage/attachmentStorage";
+import { MAX_CHAT_IMAGE_FETCH_BYTES } from "./chatImageFetch";
 import {
   copyImageSourceToClipboard,
   copyMessageContentToClipboard,
@@ -31,6 +32,16 @@ vi.mock("./svgRasterize", () => ({
   rasterizeSvgDataUrlToPng: svgMocks.rasterizeSvgDataUrlToPng,
   rasterizeSvgBlobToPngBlob: svgMocks.rasterizeSvgBlobToPngBlob,
 }));
+
+function createFetchedImageResponse(blob: Blob): Response {
+  return {
+    headers: new Headers({
+      "content-length": String(blob.size),
+      "content-type": blob.type,
+    }),
+    blob: vi.fn(async () => blob),
+  } as unknown as Response;
+}
 
 describe("messageClipboard", () => {
   beforeEach(() => {
@@ -434,9 +445,7 @@ describe("messageClipboard", () => {
     const writeMock = vi.spyOn(navigator.clipboard, "write");
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        blob: () => Promise.resolve(new Blob(["x"], { type: "image/png" })),
-      }),
+      vi.fn().mockResolvedValue(createFetchedImageResponse(new Blob(["x"], { type: "image/png" }))),
     );
 
     const copied = await copyImageSourceToClipboard("https://a.com/1.png");
@@ -504,9 +513,7 @@ describe("messageClipboard", () => {
     vi.mocked(convertToBase64).mockResolvedValue("data:image/png;base64,eA==");
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        blob: () => Promise.resolve(new Blob(["x"], { type: "image/png" })),
-      }),
+      vi.fn().mockResolvedValue(createFetchedImageResponse(new Blob(["x"], { type: "image/png" }))),
     );
 
     const copied = await copyImageSourceToClipboard("attachment://demo.png");
@@ -525,9 +532,7 @@ describe("messageClipboard", () => {
     vi.mocked(convertToBase64).mockResolvedValue("data:image/jpeg;base64,eA==");
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        blob: () => Promise.resolve(new Blob(["x"], { type: "image/jpeg" })),
-      }),
+      vi.fn().mockResolvedValue(createFetchedImageResponse(new Blob(["x"], { type: "image/jpeg" }))),
     );
 
     const copied = await copyImageSourceToClipboard("demo.jpg");
@@ -575,9 +580,7 @@ describe("messageClipboard", () => {
     svgMocks.rasterizeSvgBlobToPngBlob.mockResolvedValue(pngBlob);
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        blob: () => Promise.resolve(svgBlob),
-      }),
+      vi.fn().mockResolvedValue(createFetchedImageResponse(svgBlob)),
     );
 
     const copied = await copyImageSourceToClipboard("https://a.com/diagram.svg");
@@ -591,6 +594,26 @@ describe("messageClipboard", () => {
         },
       }),
     ]);
+  });
+
+  it("does not copy oversized rasterized SVG output to the clipboard", async () => {
+    const svgBlob = new Blob(["<svg></svg>"], { type: "image/svg+xml" });
+    const oversizedPngBlob = {
+      type: "image/png",
+      size: MAX_CHAT_IMAGE_FETCH_BYTES + 1,
+    } as unknown as Blob;
+    const writeMock = vi.spyOn(navigator.clipboard, "write");
+    svgMocks.rasterizeSvgBlobToPngBlob.mockResolvedValue(oversizedPngBlob);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(createFetchedImageResponse(svgBlob)),
+    );
+
+    const copied = await copyImageSourceToClipboard("https://a.com/diagram.svg");
+
+    expect(copied).toBe(false);
+    expect(svgMocks.rasterizeSvgBlobToPngBlob).toHaveBeenCalledWith(svgBlob);
+    expect(writeMock).not.toHaveBeenCalled();
   });
 
   it("falls back to text copy when image copy fails", async () => {
@@ -638,9 +661,7 @@ describe("messageClipboard", () => {
     const writeMock = vi.spyOn(navigator.clipboard, "write");
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        blob: () => Promise.resolve(new Blob(["x"], { type: "image/png" })),
-      }),
+      vi.fn().mockResolvedValue(createFetchedImageResponse(new Blob(["x"], { type: "image/png" }))),
     );
 
     await copyMessageContentToClipboard([

@@ -3,6 +3,7 @@ import {
   type MarkdownSourcePosition,
 } from './delimitedMarkdown';
 import { markEscapedMarkdownBlockSyntax } from './escapedBlockSyntax';
+import { canTransformMarkdownAst } from './markdownAstBudget';
 
 export interface AbbrDefinition {
   abbr: string;
@@ -23,6 +24,9 @@ export interface AbbrMdastNode {
 
 const ABBR_DEF_REGEX = /^\*\[([^\]]+)\]:\s*(.+)$/gm;
 const SKIPPED_ABBR_NODE_TYPES = new Set(['code', 'inlineCode', 'html']);
+export const MAX_ABBR_DEFINITIONS = 512;
+const MAX_ABBR_TEXT_CHARS = 128;
+const MAX_ABBR_TITLE_CHARS = 2048;
 
 export interface ApplyAbbrDefinitionsOptions {
   markdown?: string;
@@ -45,27 +49,69 @@ export function extractAbbrDefinitionsFromText(
   text: string,
   options: Pick<ApplyAbbrDefinitionsOptions, 'markdown'> & { position?: MarkdownSourcePosition } = {}
 ): AbbrDefinition[] {
-  const definitions: AbbrDefinition[] = [];
+  const definitionsByAbbr = new Map<string, string>();
   let match: RegExpExecArray | null;
 
   ABBR_DEF_REGEX.lastIndex = 0;
   while ((match = ABBR_DEF_REGEX.exec(text)) !== null) {
     if (!isUnescapedMarkdownTextRange(text, match.index, 1, options)) continue;
-    definitions.push({
+    addBoundedAbbrDefinition(definitionsByAbbr, {
       abbr: match[1],
       fullText: match[2].trim(),
     });
   }
 
-  return definitions;
+  return Array.from(definitionsByAbbr, ([abbr, fullText]) => ({ abbr, fullText }));
 }
 
 export function createAbbrUsagePattern(definitions: readonly AbbrDefinition[]): RegExp | null {
-  if (definitions.length === 0) return null;
-  const escapedAbbrs = [...definitions]
+  const normalizedDefinitions = normalizeAbbrDefinitions(definitions);
+  if (normalizedDefinitions.length === 0) return null;
+  const escapedAbbrs = normalizedDefinitions
     .sort((a, b) => b.abbr.length - a.abbr.length)
     .map((definition) => escapeRegex(definition.abbr));
   return new RegExp(`(?<![\\p{L}\\p{N}_])(${escapedAbbrs.join('|')})(?![\\p{L}\\p{N}_])`, 'gu');
+}
+
+function isBoundedAbbrDefinition(definition: AbbrDefinition): boolean {
+  return (
+    definition.abbr.length > 0 &&
+    definition.abbr.length <= MAX_ABBR_TEXT_CHARS &&
+    definition.fullText.length > 0 &&
+    definition.fullText.length <= MAX_ABBR_TITLE_CHARS
+  );
+}
+
+function addBoundedAbbrDefinition(byAbbr: Map<string, string>, definition: AbbrDefinition): void {
+  if (!isBoundedAbbrDefinition(definition)) {
+    return;
+  }
+
+  if (byAbbr.size >= MAX_ABBR_DEFINITIONS && !byAbbr.has(definition.abbr)) {
+    return;
+  }
+  byAbbr.set(definition.abbr, definition.fullText);
+}
+
+export function appendBoundedAbbrDefinitions(
+  target: AbbrDefinition[],
+  definitions: readonly AbbrDefinition[]
+): void {
+  const byAbbr = new Map(target.map((definition) => [definition.abbr, definition.fullText]));
+  for (const definition of definitions) {
+    addBoundedAbbrDefinition(byAbbr, definition);
+  }
+
+  target.length = 0;
+  for (const [abbr, fullText] of byAbbr) {
+    target.push({ abbr, fullText });
+  }
+}
+
+function normalizeAbbrDefinitions(definitions: readonly AbbrDefinition[]): AbbrDefinition[] {
+  const normalized: AbbrDefinition[] = [];
+  appendBoundedAbbrDefinitions(normalized, definitions);
+  return normalized;
 }
 
 function collectAbbrDefinitions(tree: AbbrMdastNode, markdown = ''): AbbrDefinition[] {
@@ -75,10 +121,13 @@ function collectAbbrDefinitions(tree: AbbrMdastNode, markdown = ''): AbbrDefinit
     if (SKIPPED_ABBR_NODE_TYPES.has(node.type)) return;
 
     if (node.type === 'text' && typeof node.value === 'string') {
-      definitions.push(...extractAbbrDefinitionsFromText(node.value, {
-        markdown,
-        position: node.position,
-      }));
+      appendBoundedAbbrDefinitions(
+        definitions,
+        extractAbbrDefinitionsFromText(node.value, {
+          markdown,
+          position: node.position,
+        })
+      );
     }
 
     for (const child of node.children ?? []) {
@@ -230,9 +279,13 @@ export function applyAbbrDefinitionsToTree(
   tree: AbbrMdastNode,
   options: ApplyAbbrDefinitionsOptions = {}
 ): void {
+  if (!canTransformMarkdownAst(tree)) {
+    return;
+  }
+
   const markdown = options.markdown ?? '';
   markEscapedAbbrDefinitionParagraphs(tree, markdown);
-  const definitions = collectAbbrDefinitions(tree, markdown);
+  const definitions = normalizeAbbrDefinitions(collectAbbrDefinitions(tree, markdown));
   const usagePattern = createAbbrUsagePattern(definitions);
   if (options.stripDefinitions) {
     stripAbbrDefinitionsFromTree(tree, markdown);

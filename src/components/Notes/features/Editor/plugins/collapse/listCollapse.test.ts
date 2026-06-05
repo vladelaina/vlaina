@@ -35,6 +35,15 @@ afterEach(() => {
 });
 
 describe('listCollapsePlugin', () => {
+  it('does not create hidden toggles for flat list items', async () => {
+    const editor = await createEditor('- One\n- Two\n- Three');
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(view.dom.querySelectorAll('.editor-collapse-btn')).toHaveLength(0);
+
+    await editor.destroy();
+  });
+
   it('collapses nested list content from a list item toggle', async () => {
     const editor = await createEditor('- Parent\n  - Child');
     const view = editor.ctx.get(editorViewCtx);

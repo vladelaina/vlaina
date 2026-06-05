@@ -19,12 +19,10 @@ import { registerDesktopDialogIpc } from './desktopDialogIpc.mjs';
 import { notifyDesktopWatchRename, registerDesktopWatchIpc } from './desktopWatchIpc.mjs';
 import {
   assertAuthorizedFsPath,
+  assertAuthorizedFsRenameTarget,
   assertAuthorizedFsWatchPath,
   authorizeFsPath,
-  canRenameAuthorizedRoot,
-  isAuthorizedFsPathKey,
   normalizeFsPathForAccess,
-  normalizeFsPathKey,
   updateAuthorizedRootRename,
 } from './fsAccess.mjs';
 
@@ -34,6 +32,12 @@ const HTTP_HEADER_NAME_PATTERN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 const IPC_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
 const AI_PROVIDER_TRANSPORT_RETRY_DELAYS_MS = [300];
 const AI_PROVIDER_FAST_FAILURE_RETRY_WINDOW_MS = 2000;
+const MAX_DESKTOP_FS_READ_BYTES = 64 * 1024 * 1024;
+const MAX_DESKTOP_FS_WRITE_BYTES = MAX_DESKTOP_FS_READ_BYTES;
+const MAX_AI_PROVIDER_REQUEST_BODY_BYTES = 64 * 1024 * 1024;
+const MAX_AI_PROVIDER_REQUEST_BODY_BASE64_CHARS = Math.ceil(MAX_AI_PROVIDER_REQUEST_BODY_BYTES / 3) * 4;
+const MAX_AI_PROVIDER_RESPONSE_IPC_CHUNK_BYTES = 256 * 1024;
+const MAX_CLIPBOARD_IMAGE_DATA_URL_BYTES = 10 * 1024 * 1024;
 
 async function syncDirectoryBestEffort(dirPath) {
   let handle = null;
@@ -295,6 +299,59 @@ function requireSafeIpcRequestId(value, label) {
   return id;
 }
 
+async function assertReadableDesktopFile(filePath) {
+  const info = await stat(filePath);
+  if (!info.isFile()) {
+    throw new Error(`Desktop path must be a file: ${filePath}`);
+  }
+  if (info.size > MAX_DESKTOP_FS_READ_BYTES) {
+    throw new Error(`Desktop file is too large to read: ${filePath}`);
+  }
+}
+
+async function readDesktopFileBytes(filePath) {
+  await assertReadableDesktopFile(filePath);
+  const bytes = await readFile(filePath);
+  if (bytes.byteLength > MAX_DESKTOP_FS_READ_BYTES) {
+    throw new Error(`Desktop file is too large to read: ${filePath}`);
+  }
+  return bytes;
+}
+
+function assertWritableDesktopByteLength(byteLength) {
+  if (!Number.isSafeInteger(byteLength) || byteLength > MAX_DESKTOP_FS_WRITE_BYTES) {
+    throw new Error('Desktop content is too large to write.');
+  }
+}
+
+function normalizeDesktopBinaryWriteBytes(bytes) {
+  if (bytes instanceof Uint8Array) {
+    assertWritableDesktopByteLength(bytes.byteLength);
+    return Buffer.from(bytes);
+  }
+
+  if (Array.isArray(bytes)) {
+    assertWritableDesktopByteLength(bytes.length);
+    const normalized = new Uint8Array(bytes.length);
+    for (let index = 0; index < bytes.length; index += 1) {
+      const byte = bytes[index];
+      if (!Number.isInteger(byte) || byte < 0 || byte > 255) {
+        throw new Error('Desktop binary content must contain only byte values.');
+      }
+      normalized[index] = byte;
+    }
+    return Buffer.from(normalized);
+  }
+
+  throw new Error('Desktop binary content must be a byte array.');
+}
+
+function normalizeDesktopTextWriteContent(content) {
+  const text = String(content ?? '');
+  assertWritableDesktopByteLength(Buffer.byteLength(text, 'utf8'));
+  return text;
+}
+
 function normalizeExportPdfOptions(options) {
   const pageSize = options?.pageSize === 'Letter' ? 'Letter' : 'A4';
   return {
@@ -362,14 +419,60 @@ function normalizeAiProviderRequest(rawRequest) {
 
 function normalizeAiProviderRequestBody(rawRequest) {
   if (rawRequest.bodyBase64 != null) {
-    const bodyBase64 = String(rawRequest.bodyBase64);
+    if (typeof rawRequest.bodyBase64 !== 'string') {
+      throw new Error('Invalid AI provider base64 request body.');
+    }
+    const bodyBase64 = rawRequest.bodyBase64;
+    if (bodyBase64.length > MAX_AI_PROVIDER_REQUEST_BODY_BASE64_CHARS) {
+      throw new Error('AI provider request body is too large.');
+    }
     if (!/^[A-Za-z0-9+/]*={0,2}$/.test(bodyBase64) || bodyBase64.length % 4 !== 0) {
       throw new Error('Invalid AI provider base64 request body.');
+    }
+    const decodedByteLength = getBase64DecodedByteLength(bodyBase64);
+    if (decodedByteLength === null || decodedByteLength > MAX_AI_PROVIDER_REQUEST_BODY_BYTES) {
+      throw new Error('AI provider request body is too large.');
     }
     return Buffer.from(bodyBase64, 'base64');
   }
 
-  return rawRequest.body == null ? undefined : String(rawRequest.body);
+  if (rawRequest.body == null) {
+    return undefined;
+  }
+
+  const body = String(rawRequest.body);
+  if (Buffer.byteLength(body, 'utf8') > MAX_AI_PROVIDER_REQUEST_BODY_BYTES) {
+    throw new Error('AI provider request body is too large.');
+  }
+  return body;
+}
+
+function getBase64DecodedByteLength(payload) {
+  if (payload.length % 4 !== 0) {
+    return null;
+  }
+
+  let padding = 0;
+  if (payload.endsWith('==')) {
+    padding = 2;
+  } else if (payload.endsWith('=')) {
+    padding = 1;
+  }
+
+  const byteLength = Math.floor((payload.length * 3) / 4) - padding;
+  return byteLength >= 0 ? byteLength : null;
+}
+
+function assertClipboardImageDataUrl(dataUrl) {
+  const match = /^data:image\/[a-z0-9.+-]+;base64,([A-Za-z0-9+/=]+)$/i.exec(dataUrl);
+  if (!match) {
+    throw new Error('Invalid clipboard image data URL');
+  }
+
+  const byteLength = getBase64DecodedByteLength(match[1]);
+  if (byteLength === null || byteLength > MAX_CLIPBOARD_IMAGE_DATA_URL_BYTES) {
+    throw new Error('Clipboard image data URL is too large.');
+  }
 }
 
 function normalizeAiProviderUrl(rawUrl) {
@@ -412,6 +515,21 @@ function normalizeAiProviderHeaders(rawHeaders) {
   return headers;
 }
 
+function sendAiProviderResponseChunk(sendRequestEvent, value) {
+  if (value.byteLength <= MAX_AI_PROVIDER_RESPONSE_IPC_CHUNK_BYTES) {
+    return sendRequestEvent('chunk', Array.from(value));
+  }
+
+  for (let offset = 0; offset < value.byteLength; offset += MAX_AI_PROVIDER_RESPONSE_IPC_CHUNK_BYTES) {
+    const chunk = value.subarray(offset, offset + MAX_AI_PROVIDER_RESPONSE_IPC_CHUNK_BYTES);
+    if (!sendRequestEvent('chunk', Array.from(chunk))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export function registerDesktopIpc({
   handleIpc,
   normalizeExternalUrl,
@@ -438,9 +556,7 @@ export function registerDesktopIpc({
 
   handleIpc('desktop:clipboard:write-image', async (_event, dataUrl) => {
     const normalizedDataUrl = String(dataUrl ?? '');
-    if (!/^data:image\/[a-z0-9.+-]+;base64,/i.test(normalizedDataUrl)) {
-      throw new Error('Invalid clipboard image data URL');
-    }
+    assertClipboardImageDataUrl(normalizedDataUrl);
 
     const image = nativeImage.createFromDataURL(normalizedDataUrl);
     if (image.isEmpty()) {
@@ -507,7 +623,7 @@ export function registerDesktopIpc({
               break;
             }
 
-            if (!sendRequestEvent('chunk', Array.from(value))) {
+            if (!sendAiProviderResponseChunk(sendRequestEvent, value)) {
               controller.abort();
               throw createAbortError();
             }
@@ -579,31 +695,45 @@ export function registerDesktopIpc({
   });
 
   handleIpc('desktop:fs:write-binary', async (_event, filePath, bytes) => {
-    await writeFileAtomically(await assertAuthorizedFsPath(filePath), Buffer.from(bytes));
+    await writeFileAtomically(
+      await assertAuthorizedFsPath(filePath),
+      normalizeDesktopBinaryWriteBytes(bytes),
+    );
   });
 
   handleIpc('desktop:fs:read-binary', async (_event, filePath) => {
-    return new Uint8Array(await readFile(await assertAuthorizedFsPath(filePath)));
+    return new Uint8Array(await readDesktopFileBytes(await assertAuthorizedFsPath(filePath)));
   });
 
   handleIpc('desktop:fs:read-text', async (_event, filePath) => {
-    return readFile(await assertAuthorizedFsPath(filePath), 'utf8');
+    return (await readDesktopFileBytes(await assertAuthorizedFsPath(filePath))).toString('utf8');
   });
 
   handleIpc('desktop:fs:write-text', async (_event, filePath, content, options) => {
     const resolvedPath = await assertAuthorizedFsPath(filePath);
+    const text = normalizeDesktopTextWriteContent(content);
 
     if (options?.recursive) {
       await mkdir(path.dirname(resolvedPath), { recursive: true });
     }
 
     if (options?.append) {
-      const previous = await readFile(resolvedPath, 'utf8').catch(() => '');
-      await writeFileAtomically(resolvedPath, previous + String(content ?? ''));
+      const previous = await readDesktopFileBytes(resolvedPath)
+        .then((bytes) => bytes.toString('utf8'))
+        .catch((error) => {
+          if (error && typeof error === 'object' && error.code === 'ENOENT') {
+            return '';
+          }
+          throw error;
+        });
+      assertWritableDesktopByteLength(
+        Buffer.byteLength(previous, 'utf8') + Buffer.byteLength(text, 'utf8'),
+      );
+      await writeFileAtomically(resolvedPath, previous + text);
       return;
     }
 
-    await writeFileAtomically(resolvedPath, String(content ?? ''));
+    await writeFileAtomically(resolvedPath, text);
   });
 
   handleIpc('desktop:fs:exists', async (_event, filePath) => {
@@ -653,10 +783,7 @@ export function registerDesktopIpc({
 
   handleIpc('desktop:fs:rename', async (_event, oldPath, newPath) => {
     const resolvedOldPath = await assertAuthorizedFsPath(oldPath);
-    const resolvedNewPath = normalizeFsPathForAccess(newPath);
-    if (!isAuthorizedFsPathKey(normalizeFsPathKey(resolvedNewPath)) && !canRenameAuthorizedRoot(resolvedOldPath, resolvedNewPath)) {
-      throw new Error(`File path is not authorized for desktop access: ${resolvedNewPath}`);
-    }
+    const resolvedNewPath = await assertAuthorizedFsRenameTarget(resolvedOldPath, newPath);
     const oldInfo = await stat(resolvedOldPath);
     if (oldInfo.isDirectory() && isPathInsideDirectory(resolvedOldPath, resolvedNewPath)) {
       throw new Error(`Cannot move a directory into itself: ${resolvedOldPath}`);

@@ -1,6 +1,9 @@
 import DOMPurify from 'dompurify';
 import { themeColorTokens, themeMermaidTokens } from '@/styles/themeTokens';
 
+const MAX_MERMAID_SANITIZE_DEPTH = 200;
+const MAX_MERMAID_SANITIZE_NODES = 20_000;
+const MAX_MERMAID_MARKUP_CHARS = 2 * 1024 * 1024;
 const MERMAID_FORBIDDEN_TAGS = ['foreignObject', 'script', 'iframe', 'object', 'embed'];
 const SVG_RESOURCE_HREF_TAGS = new Set([
   'feimage',
@@ -12,6 +15,11 @@ const SVG_RESOURCE_HREF_TAGS = new Set([
   'textpath',
   'use',
 ]);
+
+interface SvgElementVisit {
+  element: Element;
+  depth: number;
+}
 const SVG_URL_REFERENCE_ATTRIBUTES = new Set([
   'clip-path',
   'color-profile',
@@ -27,6 +35,10 @@ const SVG_URL_REFERENCE_ATTRIBUTES = new Set([
 ]);
 
 export function sanitizeMermaidMarkup(markup: string) {
+  if (markup.length > MAX_MERMAID_MARKUP_CHARS) {
+    return '';
+  }
+
   return stripExternalSvgResourceReferences(
     DOMPurify.sanitize(replaceMermaidForeignObjectLabels(markup), {
       USE_PROFILES: { html: true, svg: true, svgFilters: true },
@@ -35,14 +47,53 @@ export function sanitizeMermaidMarkup(markup: string) {
   );
 }
 
+function walkBudgetedSvgElements(
+  root: DocumentFragment | Element,
+  visitElement: (element: Element) => void
+) {
+  const firstElement = root.firstElementChild;
+  if (!firstElement) {
+    return true;
+  }
+
+  let visitedNodes = 0;
+  const stack: SvgElementVisit[] = [{ element: firstElement, depth: 1 }];
+  while (stack.length > 0) {
+    const { element, depth } = stack.pop() as SvgElementVisit;
+    visitedNodes += 1;
+    if (visitedNodes > MAX_MERMAID_SANITIZE_NODES || depth > MAX_MERMAID_SANITIZE_DEPTH) {
+      return false;
+    }
+
+    const nextElement = element.nextElementSibling;
+    if (nextElement) {
+      stack.push({ element: nextElement, depth });
+    }
+
+    const firstChild = element.firstElementChild;
+    if (firstChild) {
+      stack.push({ element: firstChild, depth: depth + 1 });
+    }
+
+    visitElement(element);
+  }
+
+  return true;
+}
+
 function stripExternalSvgResourceReferences(markup: string) {
-  if (!/url\s*\(|href\s*=/i.test(markup)) {
+  if (typeof document === 'undefined') {
     return markup;
   }
 
   const template = document.createElement('template');
   template.innerHTML = markup;
-  template.content.querySelectorAll('*').forEach((element) => {
+  const shouldStripResourceReferences = /url\s*\(|href\s*=/i.test(markup);
+  const withinBudget = walkBudgetedSvgElements(template.content, (element) => {
+    if (!shouldStripResourceReferences) {
+      return;
+    }
+
     const tagName = element.localName.toLowerCase();
     if (SVG_RESOURCE_HREF_TAGS.has(tagName)) {
       removeExternalHref(element);
@@ -65,6 +116,9 @@ function stripExternalSvgResourceReferences(markup: string) {
       }
     }
   });
+  if (!withinBudget) {
+    return '';
+  }
   return template.innerHTML;
 }
 
@@ -114,6 +168,9 @@ function replaceMermaidForeignObjectLabels(markup: string) {
   const doc = parser.parseFromString(markup, 'image/svg+xml');
   if (doc.querySelector('parsererror')) {
     return markup;
+  }
+  if (!walkBudgetedSvgElements(doc.documentElement, () => undefined)) {
+    return '';
   }
 
   doc.querySelectorAll('foreignObject').forEach((foreignObject) => {

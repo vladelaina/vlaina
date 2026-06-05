@@ -102,6 +102,17 @@ describe('urlSecurity', () => {
     expect(sanitizeNoteMediaSrc('img://example.com/demo.png')).toBeNull();
   });
 
+  it('rejects oversized media URLs and internal image refs', () => {
+    const oversizedPath = `${'a'.repeat(16 * 1024)}.png`;
+
+    expect(isPublicRemoteMediaUrl(`https://example.com/${oversizedPath}`)).toBe(false);
+    expect(normalizePublicRemoteMediaUrl(`https://example.com/${oversizedPath}`)).toBeNull();
+    expect(sanitizeNoteMediaSrc(`https://example.com/${oversizedPath}`)).toBeNull();
+    expect(getNoteInternalImageAssetPath(`img:${oversizedPath}`)).toBeNull();
+    expect(sanitizeNoteMediaSrc(`img:${oversizedPath}`)).toBeNull();
+    expect(sanitizeNoteMediaSrc(oversizedPath)).toBeNull();
+  });
+
   it('rejects protocol-relative links while keeping normal relative note links', () => {
     expect(sanitizeNoteLinkHref('//example.com/path')).toBeNull();
     expect(sanitizeNoteLinkHref('docs/alpha.md')).toBe('docs/alpha.md');
@@ -110,5 +121,9 @@ describe('urlSecurity', () => {
     expect(sanitizeNoteLinkHref('#heading')).toBe('#heading');
     expect(sanitizeNoteLinkHref(String.raw`https:\example.com\path`)).toBeNull();
     expect(sanitizeNoteLinkHref(String.raw`\\example.com\path`)).toBeNull();
+  });
+
+  it('rejects oversized note link hrefs', () => {
+    expect(sanitizeNoteLinkHref(`${'a'.repeat(16 * 1024)}.md`)).toBeNull();
   });
 });

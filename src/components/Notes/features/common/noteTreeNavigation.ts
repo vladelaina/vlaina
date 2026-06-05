@@ -1,19 +1,26 @@
 import type { FileTreeNode } from '@/stores/notes/types';
 
+const MAX_NAVIGATION_TREE_NODES = 20_000;
+
 export function collectNotePathsInTreeOrder(nodes: readonly FileTreeNode[]): string[] {
   const paths: string[] = [];
+  const stack = [...nodes].reverse();
+  let visitedNodes = 0;
 
-  const visit = (entries: readonly FileTreeNode[]) => {
-    for (const entry of entries) {
-      if (entry.isFolder) {
-        visit(entry.children);
-        continue;
+  while (stack.length > 0 && visitedNodes < MAX_NAVIGATION_TREE_NODES) {
+    const entry = stack.pop()!;
+    visitedNodes += 1;
+
+    if (entry.isFolder) {
+      for (let index = entry.children.length - 1; index >= 0; index -= 1) {
+        stack.push(entry.children[index]);
       }
-      paths.push(entry.path);
+      continue;
     }
-  };
 
-  visit(nodes);
+    paths.push(entry.path);
+  }
+
   return paths;
 }
 

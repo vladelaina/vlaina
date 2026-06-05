@@ -7,47 +7,56 @@ import { hardbreakSchema } from '../node'
 
 /// This plugin is used to clear the marks around the hardbreak node.
 export const hardbreakClearMarkPlugin = $prose((ctx) => {
+  const hardbreakType = hardbreakSchema.type(ctx)
+
   return new Plugin({
     key: new PluginKey('MILKDOWN_HARDBREAK_MARKS'),
     appendTransaction: (trs, _oldState, newState) => {
       if (!trs.length) return
 
-      const [tr] = trs
-      if (!tr) return
+      let nextTr = newState.tr
+      let changed = false
 
-      const [step] = tr.steps
+      const clearHardbreakAt = (pos: number) => {
+        const node = nextTr.doc.nodeAt(pos)
+        if (node?.type !== hardbreakType || !node.marks.length) return
 
-      const isInsertHr = tr.getMeta('hardbreak')
-      if (isInsertHr) {
-        if (!(step instanceof ReplaceStep)) return
-
-        const { from } = step as unknown as { from: number }
-        return newState.tr.setNodeMarkup(
-          from,
-          hardbreakSchema.type(ctx),
-          undefined,
-          []
-        )
+        nextTr = nextTr.setNodeMarkup(pos, hardbreakType, node.attrs, [])
+        changed = true
       }
 
-      const isAddMarkStep = step instanceof AddMarkStep
-      if (isAddMarkStep) {
-        let _tr = newState.tr
-        const { from, to } = step as unknown as { from: number; to: number }
-        newState.doc.nodesBetween(from, to, (node, pos) => {
-          if (node.type === hardbreakSchema.type(ctx))
-            _tr = _tr.setNodeMarkup(
-              pos,
-              hardbreakSchema.type(ctx),
-              undefined,
-              []
-            )
+      const clearHardbreaksInRange = (from: number, to: number) => {
+        const start = Math.max(0, Math.min(from, nextTr.doc.content.size))
+        const end = Math.max(start, Math.min(to, nextTr.doc.content.size))
+
+        nextTr.doc.nodesBetween(start, end, (node, pos) => {
+          if (node.type === hardbreakType && node.marks.length) {
+            nextTr = nextTr.setNodeMarkup(pos, hardbreakType, node.attrs, [])
+            changed = true
+          }
         })
-
-        return _tr
       }
 
-      return undefined
+      for (const tr of trs) {
+        const isInsertHr = tr.getMeta('hardbreak')
+
+        for (const step of tr.steps) {
+          if (isInsertHr && step instanceof ReplaceStep) {
+            const { from } = step as unknown as { from: number }
+            clearHardbreakAt(from)
+          }
+
+          if (step instanceof AddMarkStep) {
+            const { from, to } = step as unknown as {
+              from: number
+              to: number
+            }
+            clearHardbreaksInRange(from, to)
+          }
+        }
+      }
+
+      return changed ? nextTr : undefined
     },
   })
 })

@@ -133,19 +133,117 @@ it('should keep plain relative links in github html', () => {
   expect(result).toBe('<a href="readme.md">readme</a><a href="docs/readme.md">docs</a><a href="/docs/readme.md">root</a><img>')
 })
 
-it('should drop parser-promoted descendants from remove-content raw html tags', () => {
+it('should drop parser-promoted descendants from sanitizer-only remove-content raw html tags', () => {
   const result = sanitizeGithubHtml([
     '<svg><img src="https://example.com/svg.png"></svg>',
     '<math><img src="https://example.com/math.png"></math>',
     '<noscript><img src="https://example.com/noscript.png"></noscript>',
+    '<img src="https://example.com/real.png">',
+  ].join(''))
+
+  expect(result).toBe('<img src="https://example.com/real.png">')
+})
+
+it('should drop parser-promoted raw html siblings while creating editor document', async () => {
+  const editor = createEditor()
+  editor.config((ctx) => {
+    ctx.set(defaultValueCtx, [
+      '<svg>',
+      '<img src="https://example.com/svg.png">',
+      '</svg>',
+      '<img src="https://example.com/real.png">',
+    ].join('\n\n'))
+  })
+
+  await editor.create()
+
+  const srcs = Array.from(editor.ctx.get(editorViewCtx).dom.querySelectorAll('img'))
+    .map((image) => image.getAttribute('src'))
+    .filter((src): src is string => Boolean(src))
+  expect(srcs).toEqual(['https://example.com/real.png'])
+  expect(editor.ctx.get(editorViewCtx).dom.innerHTML).not.toContain('https://example.com/svg.png')
+
+  await editor.destroy()
+})
+
+it('should keep nested parser-promoted raw html containers active while creating editor document', async () => {
+  const editor = createEditor()
+  editor.config((ctx) => {
+    ctx.set(defaultValueCtx, [
+      '<svg><svg><img src="https://example.com/hidden.png"></svg>',
+      '<img src="https://example.com/leaked.png"></svg>',
+      '<img src="https://example.com/real.png">',
+    ].join('\n\n'))
+  })
+
+  await editor.create()
+
+  const srcs = Array.from(editor.ctx.get(editorViewCtx).dom.querySelectorAll('img'))
+    .map((image) => image.getAttribute('src'))
+    .filter((src): src is string => Boolean(src))
+  expect(srcs).toEqual(['https://example.com/real.png'])
+  expect(editor.ctx.get(editorViewCtx).dom.innerHTML).not.toContain('hidden.png')
+  expect(editor.ctx.get(editorViewCtx).dom.innerHTML).not.toContain('leaked.png')
+
+  await editor.destroy()
+})
+
+it('should cap deeply nested github html during sanitization', () => {
+  const payload = `${'<div>'.repeat(250)}<p onclick="evil()">deep</p>${'</div>'.repeat(250)}`
+
+  const result = sanitizeGithubHtml(payload)
+
+  expect(result).not.toContain('onclick')
+  expect(result).not.toContain('evil()')
+})
+
+it('should cap github html node counts during sanitization', () => {
+  const payload = Array.from({ length: 20_050 }, (_, index) =>
+    `<span onclick="evil(${index})">x</span>`,
+  ).join('')
+
+  const result = sanitizeGithubHtml(payload)
+  const template = document.createElement('template')
+  template.innerHTML = result
+
+  expect(template.content.querySelectorAll('span')).toHaveLength(10_000)
+  expect(result).not.toContain('onclick')
+})
+
+it('should drop oversized github html attribute values before expensive parsing', () => {
+  const oversized = 'x'.repeat(16 * 1024 + 1)
+  const manySrcsetCandidates = Array.from({ length: 129 }, (_, index) => `safe-${index}.webp 1x`).join(', ')
+  const result = sanitizeGithubHtml([
+    `<span style="${oversized}">text</span>`,
+    `<a href="${oversized}">link</a>`,
+    `<img src="https://example.com/a.png" alt="${oversized}">`,
+    `<source srcset="${manySrcsetCandidates}">`,
+    `<iframe src="https://example.com/embed" sandbox="${oversized}"></iframe>`,
+  ].join(''))
+  const template = document.createElement('template')
+  template.innerHTML = result
+
+  expect(template.content.querySelector('span')?.hasAttribute('style')).toBe(false)
+  expect(template.content.querySelector('a')?.hasAttribute('href')).toBe(false)
+  expect(template.content.querySelector('img')?.hasAttribute('alt')).toBe(false)
+  expect(template.content.querySelector('source')?.hasAttribute('srcset')).toBe(false)
+  expect(template.content.querySelector('iframe')?.getAttribute('sandbox')).toBe('allow-scripts')
+  expect(result).not.toContain(oversized)
+})
+
+it('should keep GFM-disallowed raw html as escaped source text', () => {
+  const result = sanitizeGithubHtml([
     '<noembed><img src="https://example.com/noembed.png"></noembed>',
     '<noframes><img src="https://example.com/noframes.png"></noframes>',
-    '<img src="https://example.com/real.png">',
     '<plaintext><img src="https://example.com/plaintext.png"></plaintext>',
     '<img src="https://example.com/hidden-after-plaintext.png">',
   ].join(''))
 
-  expect(result).toBe('<img src="https://example.com/real.png">')
+  expect(result).toContain('&lt;noembed&gt;&lt;img src="https://example.com/noembed.png"&gt;&lt;/noembed&gt;')
+  expect(result).toContain('&lt;noframes&gt;&lt;img src="https://example.com/noframes.png"&gt;&lt;/noframes&gt;')
+  expect(result).toContain('&lt;plaintext&gt;&lt;img src="https://example.com/plaintext.png"&gt;&lt;/plaintext&gt;')
+  expect(result).toContain('&lt;img src="https://example.com/hidden-after-plaintext.png"&gt;')
+  expect(result).not.toContain('<img src="https://example.com/noembed.png">')
 })
 
 it('should render protocol-relative markdown links as text', async () => {

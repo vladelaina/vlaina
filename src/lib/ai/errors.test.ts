@@ -307,6 +307,28 @@ describe('parseManagedError', () => {
       statusCode: 503,
     });
   });
+
+  it('bounds managed HTTP error body reads', async () => {
+    let cancelCount = 0;
+    const encoder = new TextEncoder();
+    const error = await parseManagedError(new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode('x'.repeat(64 * 1024 + 1)));
+        },
+        cancel() {
+          cancelCount += 1;
+        },
+      }),
+      { status: 502 },
+    ));
+
+    expect(error).toMatchObject({
+      message: 'Managed API request failed: HTTP 502',
+      statusCode: 502,
+    });
+    expect(cancelCount).toBe(1);
+  });
 });
 
 describe('parseHTTPError', () => {

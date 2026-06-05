@@ -83,6 +83,12 @@ describe('loadPersistedUser', () => {
     });
   });
 
+  it('ignores oversized persisted account identity payloads', () => {
+    localStorage.setItem(ACCOUNT_USER_PERSIST_KEY, 'x'.repeat(65 * 1024));
+
+    expect(loadPersistedUser()).toEqual({});
+  });
+
   it('ignores unavailable localStorage when persisting account identity', () => {
     vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
       throw new Error('quota exceeded');

@@ -23,8 +23,17 @@ const CONSOLE_METHODS_TO_SUPPRESS: ConsoleMethodName[] = ['debug', 'error', 'inf
 const suppressedConsoleMethods = new Map<ConsoleMethodName, typeof console[ConsoleMethodName]>();
 let consoleSuppressionDepth = 0;
 
+function escapeHtmlText(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function mermaidRenderErrorMarkup(): string {
-  return `<div class="mermaid-error">${translate('editor.mermaidRenderError')}</div>`;
+  return `<div class="mermaid-error">${escapeHtmlText(translate('editor.mermaidRenderError'))}</div>`;
 }
 
 async function getMermaid() {
@@ -94,7 +103,7 @@ export async function renderMermaid(code: string, id: string): Promise<string> {
   const mermaid = await getMermaid();
 
   if (!mermaid) {
-    return `<div class="mermaid-error">${translate('editor.mermaidNotAvailable')}</div>`;
+    return `<div class="mermaid-error">${escapeHtmlText(translate('editor.mermaidNotAvailable'))}</div>`;
   }
 
   try {

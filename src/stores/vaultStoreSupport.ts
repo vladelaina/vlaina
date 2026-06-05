@@ -18,6 +18,9 @@ export const VAULTS_STORAGE_KEY = 'vlaina-vaults';
 export const CURRENT_VAULT_KEY = 'vlaina-current-vault';
 const VAULT_STATE_FILE = 'vault-state.json';
 const VAULT_STATE_VERSION = 1;
+const MAX_VAULT_STATE_BYTES = 256 * 1024;
+const MAX_RECENT_VAULTS_STORAGE_CHARS = 64 * 1024;
+const MAX_CURRENT_VAULT_ID_STORAGE_CHARS = 4096;
 
 const MAX_RECENT_VAULTS = 5;
 
@@ -25,9 +28,16 @@ function generateVaultId(): string {
   return `vault-${crypto.randomUUID()}`;
 }
 
-export function loadFromStorage<T>(key: string, defaultValue: T): T {
+export function loadFromStorage<T>(
+  key: string,
+  defaultValue: T,
+  options: { maxLength?: number } = {},
+): T {
   try {
     const saved = localStorage.getItem(key);
+    if (saved && options.maxLength && saved.length > options.maxLength) {
+      return defaultValue;
+    }
     return saved ? JSON.parse(saved) : defaultValue;
   } catch {
     return defaultValue;
@@ -70,8 +80,10 @@ async function getVaultStatePath(): Promise<string | null> {
 
 function loadLocalVaultState(): PersistedVaultState {
   return {
-    recentVaults: normalizeRecentVaults(loadFromStorage<VaultInfo[]>(VAULTS_STORAGE_KEY, [])),
-    currentVaultId: loadFromStorage<string | null>(CURRENT_VAULT_KEY, null),
+    recentVaults: loadRecentVaultsFromStorage(),
+    currentVaultId: loadFromStorage<string | null>(CURRENT_VAULT_KEY, null, {
+      maxLength: MAX_CURRENT_VAULT_ID_STORAGE_CHARS,
+    }),
     deletedVaultPaths: [],
   };
 }
@@ -123,6 +135,10 @@ async function readVaultStateFile(): Promise<PersistedVaultState | null> {
       return null;
     }
     if (!(await storage.exists(statePath))) {
+      return null;
+    }
+    const fileInfo = await storage.stat(statePath).catch(() => null);
+    if (typeof fileInfo?.size !== 'number' || fileInfo.size > MAX_VAULT_STATE_BYTES) {
       return null;
     }
     return parseVaultStateFile(JSON.parse(await storage.readFile(statePath)));
@@ -236,6 +252,30 @@ export function normalizeRecentVaults(vaults: VaultInfo[]): VaultInfo[] {
   }
 
   return normalizedVaults.slice(0, MAX_RECENT_VAULTS);
+}
+
+export function parseRecentVaultsStorageValue(value: string | null): VaultInfo[] {
+  if (!value || value.length > MAX_RECENT_VAULTS_STORAGE_CHARS) {
+    return [];
+  }
+
+  try {
+    return normalizeRecentVaults(JSON.parse(value));
+  } catch {
+    return [];
+  }
+}
+
+export function isOversizedRecentVaultsStorageValue(value: string | null): boolean {
+  return !!value && value.length > MAX_RECENT_VAULTS_STORAGE_CHARS;
+}
+
+function loadRecentVaultsFromStorage(): VaultInfo[] {
+  try {
+    return parseRecentVaultsStorageValue(localStorage.getItem(VAULTS_STORAGE_KEY));
+  } catch {
+    return [];
+  }
 }
 
 export function upsertRecentVault(recentVaults: VaultInfo[], path: string, name?: string) {

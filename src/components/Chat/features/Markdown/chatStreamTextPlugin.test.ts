@@ -301,4 +301,34 @@ describe('createChatStreamTextPlugin', () => {
     expect(paragraph.children[3].properties.className).toBe('chat-stream-char');
     expect(paragraph.children[3].properties.style).toBe('animation-name:chat-stream-char-fade;animation-duration:90ms;animation-timing-function:ease-out;animation-delay:130ms;animation-fill-mode:both');
   });
+
+  it('leaves over-depth trees unchanged instead of recursing through them', () => {
+    const paragraph: any = {
+      children: [{ type: 'text', value: 'Deep' }],
+      properties: {},
+      tagName: 'p',
+      type: 'element',
+    };
+    let current = paragraph;
+    for (let index = 0; index < 220; index += 1) {
+      current.children = [{
+        children: current.children,
+        properties: {},
+        tagName: 'span',
+        type: 'element',
+      }];
+      current = current.children[0];
+    }
+    const originalChild = paragraph.children[0];
+    const tree: any = { children: [paragraph], type: 'root' };
+
+    createChatStreamTextPlugin({
+      births: [0, 20, 40, 60],
+      charDelay: 20,
+      nowMs: 0,
+      revealed: false,
+    })(tree);
+
+    expect(paragraph.children[0]).toBe(originalChild);
+  });
 });

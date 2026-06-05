@@ -35,6 +35,16 @@ vi.mock('./svgRasterize', () => ({
 import { MAX_CHAT_IMAGE_FETCH_BYTES } from './chatImageFetch';
 import { downloadImageWithPrompt } from './imageDownload';
 
+function imageResponse(blob: Blob) {
+  return {
+    headers: new Headers({
+      'content-length': String(blob.size),
+      'content-type': blob.type,
+    }),
+    blob: async () => blob,
+  };
+}
+
 describe('imageDownload', () => {
   beforeEach(() => {
     mocks.writeDesktopBinaryFile.mockClear();
@@ -48,9 +58,7 @@ describe('imageDownload', () => {
   });
 
   it('downloads fetched images to a user-selected file path', async () => {
-    mocks.fetch.mockResolvedValue({
-      blob: async () => new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }),
-    });
+    mocks.fetch.mockResolvedValue(imageResponse(new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' })));
 
     await downloadImageWithPrompt('https://example.com/cat', 'cat');
 
@@ -106,9 +114,7 @@ describe('imageDownload', () => {
   });
 
   it('normalizes case-insensitive data image sources before downloading', async () => {
-    mocks.fetch.mockResolvedValue({
-      blob: async () => new Blob([new Uint8Array([1])], { type: 'image/png' }),
-    });
+    mocks.fetch.mockResolvedValue(imageResponse(new Blob([new Uint8Array([1])], { type: 'image/png' })));
 
     await downloadImageWithPrompt('DATA:IMAGE/PNG;BASE64,eA==', 'inline');
 
@@ -119,9 +125,7 @@ describe('imageDownload', () => {
   });
 
   it('falls back to browser anchor download when fetch returns a non-image blob', async () => {
-    mocks.fetch.mockResolvedValue({
-      blob: async () => new Blob(['<html>not an image</html>'], { type: 'text/html' }),
-    });
+    mocks.fetch.mockResolvedValue(imageResponse(new Blob(['<html>not an image</html>'], { type: 'text/html' })));
     const appendSpy = vi.spyOn(document.body, 'appendChild');
     const removeSpy = vi.spyOn(document.body, 'removeChild');
     const appendCallsBefore = appendSpy.mock.calls.length;
@@ -151,9 +155,7 @@ describe('imageDownload', () => {
 
   it('resolves bare stored attachment filenames before downloading', async () => {
     mocks.convertToBase64.mockResolvedValue('data:image/jpeg;base64,eA==');
-    mocks.fetch.mockResolvedValue({
-      blob: async () => new Blob([new Uint8Array([4, 5, 6])], { type: 'image/jpeg' }),
-    });
+    mocks.fetch.mockResolvedValue(imageResponse(new Blob([new Uint8Array([4, 5, 6])], { type: 'image/jpeg' })));
 
     await downloadImageWithPrompt('demo.jpg', '');
 
@@ -176,9 +178,7 @@ describe('imageDownload', () => {
   it('rasterizes stored svg attachments before downloading', async () => {
     mocks.convertToBase64.mockResolvedValue('data:image/svg+xml;base64,PHN2Zz4=');
     mocks.rasterizeSvgDataUrlToPng.mockResolvedValue('data:image/png;base64,RASTER');
-    mocks.fetch.mockResolvedValue({
-      blob: async () => new Blob([new Uint8Array([7, 8, 9])], { type: 'image/png' }),
-    });
+    mocks.fetch.mockResolvedValue(imageResponse(new Blob([new Uint8Array([7, 8, 9])], { type: 'image/png' })));
 
     await downloadImageWithPrompt('diagram.svg', 'diagram');
 
@@ -196,9 +196,7 @@ describe('imageDownload', () => {
   it('rasterizes fetched svg images before saving', async () => {
     const svgBlob = new Blob(['<svg></svg>'], { type: 'image/svg+xml' });
     const pngBlob = new Blob([new Uint8Array([10, 11, 12])], { type: 'image/png' });
-    mocks.fetch.mockResolvedValue({
-      blob: async () => svgBlob,
-    });
+    mocks.fetch.mockResolvedValue(imageResponse(svgBlob));
     mocks.rasterizeSvgBlobToPngBlob.mockResolvedValue(pngBlob);
 
     await downloadImageWithPrompt('https://example.com/diagram.svg', 'diagram');
@@ -228,9 +226,7 @@ describe('imageDownload', () => {
   });
 
   it('sanitizes control characters from the suggested file name', async () => {
-    mocks.fetch.mockResolvedValue({
-      blob: async () => new Blob([new Uint8Array([1])], { type: 'image/png' }),
-    });
+    mocks.fetch.mockResolvedValue(imageResponse(new Blob([new Uint8Array([1])], { type: 'image/png' })));
 
     await downloadImageWithPrompt('https://example.com/image.png', 'report\u202Egnp.exe');
 
@@ -253,6 +249,28 @@ describe('imageDownload', () => {
     await downloadImageWithPrompt('https://example.com/large.png', 'large');
 
     expect(blob).not.toHaveBeenCalled();
+    expect(mocks.saveDialog).not.toHaveBeenCalled();
+    expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
+    expect(appendSpy).not.toHaveBeenCalled();
+
+    appendSpy.mockRestore();
+  });
+
+  it('does not save oversized rasterized SVG output', async () => {
+    const svgBlob = new Blob(['<svg></svg>'], { type: 'image/svg+xml' });
+    const oversizedPngBlob = {
+      type: 'image/png',
+      size: MAX_CHAT_IMAGE_FETCH_BYTES + 1,
+      arrayBuffer: vi.fn(),
+    } as unknown as Blob;
+    mocks.fetch.mockResolvedValue(imageResponse(svgBlob));
+    mocks.rasterizeSvgBlobToPngBlob.mockResolvedValue(oversizedPngBlob);
+    const appendSpy = vi.spyOn(document.body, 'appendChild');
+
+    await downloadImageWithPrompt('https://example.com/diagram.svg', 'diagram');
+
+    expect(mocks.rasterizeSvgBlobToPngBlob).toHaveBeenCalledWith(svgBlob);
+    expect(oversizedPngBlob.arrayBuffer).not.toHaveBeenCalled();
     expect(mocks.saveDialog).not.toHaveBeenCalled();
     expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
     expect(appendSpy).not.toHaveBeenCalled();

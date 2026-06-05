@@ -465,6 +465,21 @@ describe('textSelectionOverlayPlugin', () => {
     expect(decorations).toHaveLength(2);
   });
 
+  it('caps text selection overlay decorations within a single text node', () => {
+    const decorations: Decoration[] = [];
+    const text = Array.from({ length: 1005 }, () => 'x\u200B').join('');
+
+    addTextSelectionOverlayDecorations(
+      decorations,
+      text,
+      10,
+      10,
+      10 + text.length
+    );
+
+    expect(decorations).toHaveLength(1000);
+  });
+
   it('splits text selection overlays around inline editor-only placeholder characters', async () => {
     const view = await createEditor('a\u200Bb\u200Cc\u2800d');
 
@@ -472,6 +487,14 @@ describe('textSelectionOverlayPlugin', () => {
 
     expect(getOverlayText(view)).toBe('abcd');
     expect(view.dom.querySelectorAll(`.${TEXT_SELECTION_OVERLAY_CLASS}`)).toHaveLength(4);
+  });
+
+  it('caps text selection overlay decorations across selected text nodes', async () => {
+    const view = await createEditor(Array.from({ length: 1005 }, (_, index) => `line ${index}`).join('\n\n'));
+
+    view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
+
+    expect(view.dom.querySelectorAll(`.${TEXT_SELECTION_OVERLAY_CLASS}`)).toHaveLength(1000);
   });
 
   it('clears stale native browser ranges for editor select-all overlay selections', async () => {

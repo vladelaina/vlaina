@@ -4,6 +4,7 @@ import { saveDialog } from '@/lib/storage/dialog';
 import { useToastStore } from '@/stores/useToastStore';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { writeDesktopBinaryFile } from '@/lib/desktop/fs';
+import { getBase64DecodedByteLength } from '@/lib/markdown/dataImagePolicy';
 import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { createDocxExportBytes } from './noteExportDocx';
 import { renderNoteExportElement, renderNoteExportHtml } from './noteExportHtml';
@@ -25,6 +26,7 @@ const EXPORT_FILTERS: Record<NoteExportFormat, { name: string; extensions: strin
   png: [{ name: 'PNG Image', extensions: ['png'] }],
 };
 const MAX_EXPORT_MARKDOWN_CHARS = 2 * 1024 * 1024;
+const MAX_PNG_EXPORT_BYTES = 50 * 1024 * 1024;
 
 function sanitizeFileName(value: string): string {
   return value
@@ -59,7 +61,18 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
   }
 
   const base64 = dataUrl.slice(commaIndex + 1);
+  const byteLength = getBase64DecodedByteLength(base64);
+  if (byteLength === null) {
+    throw new Error('Invalid PNG export data URL.');
+  }
+  if (byteLength > MAX_PNG_EXPORT_BYTES) {
+    throw new Error('PNG export output is too large.');
+  }
+
   const binary = atob(base64);
+  if (binary.length > MAX_PNG_EXPORT_BYTES) {
+    throw new Error('PNG export output is too large.');
+  }
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) {
     bytes[index] = binary.charCodeAt(index);

@@ -107,8 +107,29 @@ export function getInlineCodeRanges(content: string, range: ContentRange): Conte
   return ranges;
 }
 
-export function isOffsetInRanges(offset: number, ranges: ContentRange[]): boolean {
-  return ranges.some((range) => offset >= range.start && offset < range.end);
+export function getRangeEndAtOffset(offset: number, ranges: readonly ContentRange[]): number | null {
+  let low = 0;
+  let high = ranges.length - 1;
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const range = ranges[mid];
+    if (offset < range.start) {
+      high = mid - 1;
+      continue;
+    }
+    if (offset >= range.end) {
+      low = mid + 1;
+      continue;
+    }
+    return range.end;
+  }
+
+  return null;
+}
+
+export function isOffsetInRanges(offset: number, ranges: readonly ContentRange[]): boolean {
+  return getRangeEndAtOffset(offset, ranges) !== null;
 }
 
 export function isEscapedMarkdownPunctuation(content: string, offset: number, lowerBound: number): boolean {
@@ -170,6 +191,36 @@ function findHtmlTagEnd(content: string, start: number, end: number): number {
   return -1;
 }
 
+function isAsciiAlpha(char: string | undefined): boolean {
+  if (char === undefined) {
+    return false;
+  }
+  return (char >= "A" && char <= "Z") || (char >= "a" && char <= "z");
+}
+
+function isHtmlNameChar(char: string | undefined): boolean {
+  if (char === undefined) {
+    return false;
+  }
+  return isAsciiAlpha(char) || (char >= "0" && char <= "9") || char === ":" || char === "-";
+}
+
+function isHtmlTagStart(content: string, start: number, end: number): boolean {
+  let cursor = start + 1;
+  if (content[cursor] === "/") {
+    cursor += 1;
+  }
+  if (cursor >= end || !isAsciiAlpha(content[cursor])) {
+    return false;
+  }
+  cursor += 1;
+  while (cursor < end && isHtmlNameChar(content[cursor])) {
+    cursor += 1;
+  }
+  const next = content[cursor];
+  return next === undefined || /\s/.test(next) || next === "/" || next === ">";
+}
+
 export function getHtmlTagRanges(content: string, range: ContentRange): ContentRange[] {
   const ranges: ContentRange[] = [];
   let cursor = range.start;
@@ -180,6 +231,10 @@ export function getHtmlTagRanges(content: string, range: ContentRange): ContentR
       break;
     }
     if (isEscapedMarkdownPunctuation(content, start, range.start)) {
+      cursor = start + 1;
+      continue;
+    }
+    if (!isHtmlTagStart(content, start, range.end)) {
       cursor = start + 1;
       continue;
     }
@@ -243,6 +298,10 @@ export function getRawTextHtmlRanges(content: string, range: ContentRange): Cont
       break;
     }
     if (isEscapedMarkdownPunctuation(content, nextTagStart, range.start)) {
+      cursor = nextTagStart + 1;
+      continue;
+    }
+    if (!isHtmlTagStart(content, nextTagStart, range.end)) {
       cursor = nextTagStart + 1;
       continue;
     }

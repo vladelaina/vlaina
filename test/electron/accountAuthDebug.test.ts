@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { summarizeAuthPayload } from '../../electron/accountAuthDebug.mjs';
+import { summarizeAuthPayload, summarizeRequestBody } from '../../electron/accountAuthDebug.mjs';
 
 describe('desktop auth debug redaction', () => {
   it('recursively redacts token, secret, and verifier fields', () => {
@@ -44,5 +44,33 @@ describe('desktop auth debug redaction', () => {
         },
         state: 'oauth-…6789',
       });
+  });
+
+  it('does not parse oversized debug request bodies', () => {
+    const body = JSON.stringify({
+      appSessionToken: 'nts_large_secret',
+      padding: 'x'.repeat(64 * 1024),
+    });
+
+    const summary = summarizeRequestBody(body);
+
+    expect(summary).toEqual({
+      type: 'text',
+      length: body.length,
+    });
+    expect(JSON.stringify(summary)).not.toContain('nts_large_secret');
+  });
+
+  it('bounds deeply nested debug payload summaries', () => {
+    let payload = { verifier: 'verifier_secret' };
+    for (let index = 0; index < 20; index += 1) {
+      payload = { nested: payload };
+    }
+
+    const summary = summarizeRequestBody(JSON.stringify(payload));
+
+    expect(summary.type).toBe('json');
+    expect(JSON.stringify(summary)).not.toContain('verifier_secret');
+    expect(JSON.stringify(summary)).toContain('[Truncated]');
   });
 });

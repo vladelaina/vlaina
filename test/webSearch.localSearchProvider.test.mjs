@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { LocalSearchProvider, localSearchInternals } from '../electron/webSearch/localSearchProvider.mjs';
 
+function searchHtmlResponse(html) {
+  return new Response(html, {
+    status: 200,
+    headers: { 'content-type': 'text/html' },
+  });
+}
+
 describe('LocalSearchProvider', () => {
   it('parses Bing result HTML into normalized search results', () => {
     const html = `
@@ -223,12 +230,16 @@ describe('LocalSearchProvider', () => {
 
   it('cancels search result body reads when the external signal aborts', async () => {
     const controller = new AbortController();
-    const textStarted = vi.fn();
+    const reader = {
+      read: vi.fn(() => new Promise(() => undefined)),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    };
     const fetchImpl = vi.fn(async () => ({
       ok: true,
-      text: vi.fn(() => new Promise(() => {
-        textStarted();
-      })),
+      body: {
+        getReader: () => reader,
+      },
     }));
     const provider = new LocalSearchProvider({ fetchImpl, timeoutMs: 5000 });
 
@@ -237,12 +248,43 @@ describe('LocalSearchProvider', () => {
       limit: 5,
       signal: controller.signal,
     });
-    await vi.waitFor(() => expect(textStarted).toHaveBeenCalled());
+    await vi.waitFor(() => expect(reader.read).toHaveBeenCalled());
     controller.abort();
 
     await expect(request).rejects.toMatchObject({
       name: 'AbortError',
     });
+    expect(reader.cancel).toHaveBeenCalledTimes(1);
+    expect(reader.releaseLock).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds oversized search engine response bodies', async () => {
+    const cancel = vi.fn();
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('x'.repeat(1_000_001)));
+        },
+        cancel,
+      }),
+      {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+      },
+    );
+    const provider = new LocalSearchProvider({
+      fetchImpl: async () => response,
+    });
+
+    await expect(provider.search('needle query', {
+      engines: ['bing'],
+      limit: 5,
+    })).rejects.toMatchObject({
+      code: 'search_unavailable',
+      cause: expect.objectContaining({ code: 'response_too_large' }),
+    });
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
   });
 
   it('rejects search engine fetches promptly when the fetch implementation ignores cancellation', async () => {
@@ -559,17 +601,12 @@ describe('LocalSearchProvider', () => {
         if (url.startsWith('https://www.google.com/search')) {
           throw new Error('google unavailable');
         }
-        return {
-          ok: true,
-          async text() {
-            return `
+        return searchHtmlResponse(`
               <li class="b_algo">
                 <h2><a href="https://example.com/bing">Bing Fallback</a></h2>
                 <div class="b_caption"><p>Fallback summary.</p></div>
               </li>
-            `;
-          },
-        };
+            `);
       },
     });
 
@@ -590,12 +627,7 @@ describe('LocalSearchProvider', () => {
     const provider = new LocalSearchProvider({
       fetchImpl: async (url) => {
         calls.push(url);
-        return {
-          ok: true,
-          async text() {
-            return '<a href="/url?q=https%3A%2F%2Fexample.com%2Fgoogle"><h3>Google First</h3></a>';
-          },
-        };
+        return searchHtmlResponse('<a href="/url?q=https%3A%2F%2Fexample.com%2Fgoogle"><h3>Google First</h3></a>');
       },
     });
 
@@ -632,17 +664,12 @@ describe('LocalSearchProvider', () => {
 
   it('uses official source hints as pinned results while still accepting live search results', async () => {
     const provider = new LocalSearchProvider({
-      fetchImpl: async () => ({
-        ok: true,
-        async text() {
-          return `
+      fetchImpl: async () => searchHtmlResponse(`
             <li class="b_algo">
               <h2><a href="https://example.com/sqlite-upsert-news">SQLite UPSERT official syntax update</a></h2>
               <div class="b_caption"><p>SQLite UPSERT syntax official supplemental source.</p></div>
             </li>
-          `;
-        },
-      }),
+          `),
     });
 
     await expect(provider.search('SQLite UPSERT syntax official', { engines: ['bing'], timeRange: 'week', limit: 5 })).resolves.toEqual([
@@ -665,17 +692,12 @@ describe('LocalSearchProvider', () => {
     const provider = new LocalSearchProvider({
       fetchImpl: async (url) => {
         calls.push(url);
-        return {
-          ok: true,
-          async text() {
-            return `
+        return searchHtmlResponse(`
               <li class="b_algo">
                 <h2><a href="https://example.com/latest-openai-api">OpenAI API documentation recent update official</a></h2>
                 <div class="b_caption"><p>Recent OpenAI API documentation official update.</p></div>
               </li>
-            `;
-          },
-        };
+            `);
       },
     });
 
@@ -698,17 +720,12 @@ describe('LocalSearchProvider', () => {
     const provider = new LocalSearchProvider({
       fetchImpl: async (url) => {
         calls.push(url);
-        return {
-          ok: true,
-          async text() {
-            return `
+        return searchHtmlResponse(`
               <li class="b_algo">
                 <h2><a href="https://example.com/openai-api-update-cn">OpenAI API 官方文档 最新更新</a></h2>
                 <div class="b_caption"><p>OpenAI API documentation official update.</p></div>
               </li>
-            `;
-          },
-        };
+            `);
       },
     });
 

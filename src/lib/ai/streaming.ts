@@ -17,6 +17,14 @@ interface ConsumeOpenAIStreamOptions {
   signal?: AbortSignal
 }
 
+export const MAX_OPENAI_STREAM_LINE_CHARS = 1024 * 1024
+
+export function assertOpenAIStreamLineLength(line: string): void {
+  if (line.length > MAX_OPENAI_STREAM_LINE_CHARS) {
+    throw new Error('AI stream line is too large')
+  }
+}
+
 function createAbortError(): DOMException {
   return new DOMException('The AI request was cancelled.', 'AbortError')
 }
@@ -311,13 +319,16 @@ export async function consumeOpenAIStream(
 
       for (const line of lines) {
         throwIfAborted(options?.signal)
+        assertOpenAIStreamLineLength(line)
         consumeLine(line)
         throwIfAborted(options?.signal)
       }
+      assertOpenAIStreamLineLength(buffer)
     }
 
     if (buffer.trim()) {
       throwIfAborted(options?.signal)
+      assertOpenAIStreamLineLength(buffer)
       consumeLine(buffer)
       throwIfAborted(options?.signal)
     }

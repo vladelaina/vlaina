@@ -2,6 +2,7 @@ import { getElectronBridge } from '@/lib/electron/bridge';
 import { writeDesktopBinaryFile } from '@/lib/desktop/fs';
 import { saveDialog } from '@/lib/storage/dialog';
 import { translate } from '@/lib/i18n';
+import { getBase64DecodedByteLength } from '@/lib/markdown/dataImagePolicy';
 import { sanitizeSvgMarkup } from '@/lib/markdown/svgSanitizer';
 import { themeColorTokens } from '@/styles/themeTokens';
 
@@ -12,6 +13,7 @@ export const PREVIEW_EXPORT_LABELS: Record<PreviewExportFormat, string> = {
   png: 'PNG',
   jpg: 'JPG',
 };
+export const MAX_PREVIEW_EXPORT_BYTES = 50 * 1024 * 1024;
 
 const EXPORT_MIME_TYPES: Record<PreviewExportFormat, string> = {
   svg: 'image/svg+xml;charset=utf-8',
@@ -44,7 +46,17 @@ function dataUrlToBytes(dataUrl: string, format: PreviewExportFormat): Uint8Arra
   }
 
   if (/(?:^|;)base64(?:;|$)/i.test(metadata)) {
+    const byteLength = getBase64DecodedByteLength(payload);
+    if (byteLength === null) {
+      throw new Error('Invalid preview export data URL.');
+    }
+    if (byteLength > MAX_PREVIEW_EXPORT_BYTES) {
+      throw new Error('Preview export output is too large.');
+    }
     const binary = atob(payload);
+    if (binary.length > MAX_PREVIEW_EXPORT_BYTES) {
+      throw new Error('Preview export output is too large.');
+    }
     const bytes = new Uint8Array(binary.length);
     for (let index = 0; index < binary.length; index += 1) {
       bytes[index] = binary.charCodeAt(index);
@@ -52,7 +64,14 @@ function dataUrlToBytes(dataUrl: string, format: PreviewExportFormat): Uint8Arra
     return bytes;
   }
 
-  return new TextEncoder().encode(decodeURIComponent(payload));
+  if (payload.length > MAX_PREVIEW_EXPORT_BYTES * 3) {
+    throw new Error('Preview export output is too large.');
+  }
+  const bytes = new TextEncoder().encode(decodeURIComponent(payload));
+  if (bytes.byteLength > MAX_PREVIEW_EXPORT_BYTES) {
+    throw new Error('Preview export output is too large.');
+  }
+  return bytes;
 }
 
 function svgMarkupToBytes(markup: string): Uint8Array {
