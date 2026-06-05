@@ -22,6 +22,22 @@ vi.mock('node:fs/promises', () => ({
     mkdir: mocks.mkdir,
     readFile: mocks.readFile,
     realpath: mocks.realpath,
+    stat: mocks.stat,
+    writeFile: mocks.writeFile,
+  },
+  mkdir: mocks.mkdir,
+  readFile: mocks.readFile,
+  realpath: mocks.realpath,
+  stat: mocks.stat,
+  writeFile: mocks.writeFile,
+}));
+
+vi.mock('fs/promises', () => ({
+  default: {
+    mkdir: mocks.mkdir,
+    readFile: mocks.readFile,
+    realpath: mocks.realpath,
+    stat: mocks.stat,
     writeFile: mocks.writeFile,
   },
   mkdir: mocks.mkdir,
@@ -80,5 +96,56 @@ describe('desktop filesystem authorization persistence', () => {
     await expect(assertAuthorizedFsPath('/tmp/saved-vault/note.md')).rejects.toThrow(
       'File path is not authorized for desktop access',
     );
+  });
+
+  it('bounds persisted authorization entries before resolving them', async () => {
+    const {
+      MAX_AUTHORIZED_FS_PATH_CHARS,
+      MAX_AUTHORIZED_FS_PATH_ENTRIES,
+      assertAuthorizedFsPath,
+      isAuthorizedFsPathKey,
+      normalizeFsPathKey,
+      resetAuthorizedFsPathsForTests,
+    } = await import('../../electron/fsAccess.mjs');
+    resetAuthorizedFsPathsForTests();
+    const savedRoots = [
+      ...Array.from({ length: MAX_AUTHORIZED_FS_PATH_ENTRIES + 10 }, (_, index) => `/tmp/saved-${index}`),
+      `/tmp/${'x'.repeat(MAX_AUTHORIZED_FS_PATH_CHARS + 1)}`,
+    ];
+    mocks.stat.mockResolvedValue({
+      isFile: () => true,
+      size: 128,
+    });
+    mocks.readFile.mockResolvedValue(JSON.stringify({
+      roots: savedRoots,
+      files: savedRoots,
+      watchRoots: savedRoots,
+    }));
+
+    await expect(assertAuthorizedFsPath('/tmp/saved-0')).resolves.toBe('/tmp/saved-0');
+    expect(isAuthorizedFsPathKey(normalizeFsPathKey('/tmp/saved-0/note.md'))).toBe(true);
+    await expect(assertAuthorizedFsPath('/tmp/saved-0/note.md')).resolves.toBe('/tmp/saved-0/note.md');
+    await expect(assertAuthorizedFsPath(`/tmp/saved-${MAX_AUTHORIZED_FS_PATH_ENTRIES + 1}/note.md`)).rejects.toThrow(
+      'File path is not authorized for desktop access',
+    );
+
+    expect(mocks.realpath.mock.calls.length).toBeLessThanOrEqual((MAX_AUTHORIZED_FS_PATH_ENTRIES * 6) + 8);
+    expect(mocks.realpath.mock.calls.some(([filePath]) => String(filePath).length > MAX_AUTHORIZED_FS_PATH_CHARS))
+      .toBe(false);
+  });
+
+  it('rejects excessively long filesystem paths before resolving them', async () => {
+    const {
+      MAX_AUTHORIZED_FS_PATH_CHARS,
+      assertAuthorizedFsPath,
+      resetAuthorizedFsPathsForTests,
+    } = await import('../../electron/fsAccess.mjs');
+    resetAuthorizedFsPathsForTests();
+
+    await expect(assertAuthorizedFsPath(`/tmp/${'x'.repeat(MAX_AUTHORIZED_FS_PATH_CHARS + 1)}`)).rejects.toThrow(
+      'file path is too long',
+    );
+
+    expect(mocks.realpath).not.toHaveBeenCalled();
   });
 });

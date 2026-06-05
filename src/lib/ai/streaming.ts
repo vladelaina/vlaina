@@ -18,10 +18,19 @@ interface ConsumeOpenAIStreamOptions {
 }
 
 export const MAX_OPENAI_STREAM_LINE_CHARS = 1024 * 1024
+export const MAX_OPENAI_STREAM_CONTENT_CHARS = 4 * 1024 * 1024
+const THINK_OPEN_TAG = '<think>'
+const THINK_CLOSE_TAG = '</think>'
 
 export function assertOpenAIStreamLineLength(line: string): void {
   if (line.length > MAX_OPENAI_STREAM_LINE_CHARS) {
     throw new Error('AI stream line is too large')
+  }
+}
+
+function assertOpenAIStreamContentLength(length: number): void {
+  if (length > MAX_OPENAI_STREAM_CONTENT_CHARS) {
+    throw new Error('AI stream content is too large')
   }
 }
 
@@ -110,9 +119,29 @@ export function createStreamAccumulator(onChunk: (chunk: string) => void): Strea
         return
       }
 
+      let nextFullContentLength = fullContent.length
+      let nextHasStartedReasoning = hasStartedReasoning
+      let nextHasFinishedReasoning = hasFinishedReasoning
+      if (reasoning) {
+        if (!nextHasStartedReasoning || nextHasFinishedReasoning) {
+          nextFullContentLength += THINK_OPEN_TAG.length
+          nextHasStartedReasoning = true
+          nextHasFinishedReasoning = false
+        }
+        nextFullContentLength += reasoning.length
+      }
+      if (content) {
+        if (nextHasStartedReasoning && !nextHasFinishedReasoning) {
+          nextFullContentLength += THINK_CLOSE_TAG.length
+          nextHasFinishedReasoning = true
+        }
+        nextFullContentLength += content.length
+      }
+      assertOpenAIStreamContentLength(nextFullContentLength)
+
       if (reasoning) {
         if (!hasStartedReasoning || hasFinishedReasoning) {
-          fullContent += '<think>'
+          fullContent += THINK_OPEN_TAG
           hasStartedReasoning = true
           hasFinishedReasoning = false
         }
@@ -122,7 +151,7 @@ export function createStreamAccumulator(onChunk: (chunk: string) => void): Strea
 
       if (content) {
         if (hasStartedReasoning && !hasFinishedReasoning) {
-          fullContent += '</think>'
+          fullContent += THINK_CLOSE_TAG
           hasFinishedReasoning = true
         }
         assistantContent += content
@@ -133,7 +162,8 @@ export function createStreamAccumulator(onChunk: (chunk: string) => void): Strea
     },
     finish() {
       if (hasStartedReasoning && !hasFinishedReasoning) {
-        fullContent += '</think>'
+        assertOpenAIStreamContentLength(fullContent.length + THINK_CLOSE_TAG.length)
+        fullContent += THINK_CLOSE_TAG
       }
       return fullContent
     },

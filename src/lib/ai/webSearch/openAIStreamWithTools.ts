@@ -108,9 +108,9 @@ export async function consumeOpenAIStreamWithTools(
     }
     extractOpenAIToolCalls(payload, toolCalls);
     const delta = extractOpenAIContentDelta(payload);
+    accumulator.pushDelta(delta);
     if (delta.content) assistantContent += delta.content;
     if (delta.reasoning) reasoningContent += delta.reasoning;
-    accumulator.pushDelta(delta);
   };
 
   const cancelReader = () => {

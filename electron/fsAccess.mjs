@@ -8,12 +8,23 @@ const authorizedFsRootPaths = new Set();
 const authorizedFsFilePaths = new Set();
 const authorizedFsWatchRootPaths = new Set();
 const MAX_AUTHORIZED_FS_PATHS_JSON_BYTES = 512 * 1024;
+export const MAX_AUTHORIZED_FS_PATH_ENTRIES = 2048;
+export const MAX_AUTHORIZED_FS_PATH_CHARS = 8192;
+const MAX_AUTHORIZED_FS_PATH_KEYS = (MAX_AUTHORIZED_FS_PATH_ENTRIES * 2) + 8;
 let authorizedFsPathsLoaded = false;
 let authorizedFsPathsLoadPromise = null;
 let authorizedFsPathsSavePromise = Promise.resolve();
 
 function requireNonEmptyString(value, label) {
-  if (typeof value !== 'string' || !value.trim()) {
+  if (typeof value !== 'string') {
+    throw new Error(`A non-empty ${label} is required.`);
+  }
+
+  if (value.length > MAX_AUTHORIZED_FS_PATH_CHARS) {
+    throw new Error(`The ${label} is too long for desktop access.`);
+  }
+
+  if (!value.trim()) {
     throw new Error(`A non-empty ${label} is required.`);
   }
 
@@ -69,13 +80,20 @@ async function resolveRealFsAccessPath(resolvedPath) {
 }
 
 function addAuthorizedFsPathKey(kind, pathKey) {
-  if (kind === 'file') {
-    authorizedFsFilePaths.add(pathKey);
-  } else if (kind === 'watch-root') {
-    authorizedFsWatchRootPaths.add(pathKey);
-  } else {
-    authorizedFsRootPaths.add(pathKey);
+  if (typeof pathKey !== 'string' || !pathKey.trim() || pathKey.length > MAX_AUTHORIZED_FS_PATH_CHARS) {
+    return;
   }
+
+  const targetSet = kind === 'file'
+    ? authorizedFsFilePaths
+    : kind === 'watch-root'
+      ? authorizedFsWatchRootPaths
+      : authorizedFsRootPaths;
+  if (targetSet.size >= MAX_AUTHORIZED_FS_PATH_KEYS && !targetSet.has(pathKey)) {
+    return;
+  }
+
+  targetSet.add(pathKey);
 }
 
 async function addAuthorizedFsPathWithRealKey(rawPath, kind) {
@@ -98,6 +116,38 @@ async function addAuthorizedFsPathWithRealKey(rawPath, kind) {
 
 function getAuthorizedFsPathsPath() {
   return path.join(app.getPath('userData'), '.vlaina', 'store', 'authorized-fs-paths.json');
+}
+
+function normalizeAuthorizedFsPathEntries(value, maxEntries) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const entries = [];
+  for (const entry of value) {
+    if (entries.length >= maxEntries) {
+      break;
+    }
+    if (
+      typeof entry === 'string' &&
+      entry.trim() &&
+      entry.length <= MAX_AUTHORIZED_FS_PATH_CHARS
+    ) {
+      entries.push(entry);
+    }
+  }
+  return entries;
+}
+
+function getPersistedAuthorizedFsPathEntries(pathSet, maxEntries) {
+  if (maxEntries <= 0) {
+    return [];
+  }
+
+  return Array.from(pathSet)
+    .filter((entry) => entry.length <= MAX_AUTHORIZED_FS_PATH_CHARS)
+    .sort()
+    .slice(0, maxEntries);
 }
 
 export function isProtectedAppDataPath(candidatePath, userDataPath = app.getPath('userData')) {
@@ -133,10 +183,19 @@ async function readAuthorizedFsPaths() {
       return { roots: [], files: [], watchRoots: [] };
     }
     const payload = JSON.parse(await readFile(storePath, 'utf8'));
+    const roots = normalizeAuthorizedFsPathEntries(payload?.roots, MAX_AUTHORIZED_FS_PATH_ENTRIES);
+    const files = normalizeAuthorizedFsPathEntries(
+      payload?.files,
+      MAX_AUTHORIZED_FS_PATH_ENTRIES - roots.length
+    );
+    const watchRoots = normalizeAuthorizedFsPathEntries(
+      payload?.watchRoots,
+      MAX_AUTHORIZED_FS_PATH_ENTRIES - roots.length - files.length
+    );
     return {
-      roots: Array.isArray(payload?.roots) ? payload.roots : [],
-      files: Array.isArray(payload?.files) ? payload.files : [],
-      watchRoots: Array.isArray(payload?.watchRoots) ? payload.watchRoots : [],
+      roots,
+      files,
+      watchRoots,
     };
   } catch {
     return { roots: [], files: [], watchRoots: [] };
@@ -146,13 +205,25 @@ async function readAuthorizedFsPaths() {
 async function writeAuthorizedFsPaths() {
   authorizedFsPathsSavePromise = authorizedFsPathsSavePromise.catch(() => undefined).then(async () => {
     const storePath = getAuthorizedFsPathsPath();
+    const roots = getPersistedAuthorizedFsPathEntries(
+      authorizedFsRootPaths,
+      MAX_AUTHORIZED_FS_PATH_ENTRIES
+    );
+    const files = getPersistedAuthorizedFsPathEntries(
+      authorizedFsFilePaths,
+      MAX_AUTHORIZED_FS_PATH_ENTRIES - roots.length
+    );
+    const watchRoots = getPersistedAuthorizedFsPathEntries(
+      authorizedFsWatchRootPaths,
+      MAX_AUTHORIZED_FS_PATH_ENTRIES - roots.length - files.length
+    );
     await mkdir(path.dirname(storePath), { recursive: true });
     await writeFile(
       storePath,
       JSON.stringify({
-        roots: Array.from(authorizedFsRootPaths).sort(),
-        files: Array.from(authorizedFsFilePaths).sort(),
-        watchRoots: Array.from(authorizedFsWatchRootPaths).sort(),
+        roots,
+        files,
+        watchRoots,
       }, null, 2),
       'utf8',
     );
@@ -217,8 +288,8 @@ export function isAuthorizedFsWatchPathKey(candidateKey) {
 }
 
 export async function assertAuthorizedFsPath(filePath) {
-  await ensureAuthorizedFsPathsLoaded();
   const resolvedPath = normalizeFsPathForAccess(filePath);
+  await ensureAuthorizedFsPathsLoaded();
   if (await isProtectedFsAccessPath(resolvedPath)) {
     throw new Error(`File path is reserved for internal desktop storage: ${resolvedPath}`);
   }
@@ -237,8 +308,8 @@ export async function assertAuthorizedFsPath(filePath) {
 }
 
 export async function assertAuthorizedFsWatchPath(filePath) {
-  await ensureAuthorizedFsPathsLoaded();
   const resolvedPath = normalizeFsPathForAccess(filePath);
+  await ensureAuthorizedFsPathsLoaded();
   if (await isProtectedFsAccessPath(resolvedPath)) {
     throw new Error(`File path is reserved for internal desktop storage: ${resolvedPath}`);
   }
@@ -257,8 +328,8 @@ export async function assertAuthorizedFsWatchPath(filePath) {
 }
 
 export async function authorizeFsPath(filePath, kind) {
-  await ensureAuthorizedFsPathsLoaded();
   const resolvedPath = normalizeFsPathForAccess(filePath);
+  await ensureAuthorizedFsPathsLoaded();
   if (await isProtectedFsAccessPath(resolvedPath)) {
     throw new Error(`File path is reserved for internal desktop storage: ${resolvedPath}`);
   }
