@@ -5,6 +5,7 @@ import { OpenAICompatibleClient } from './openai';
 import { MAX_OPENAI_STREAM_LINE_CHARS } from '@/lib/ai/streaming';
 import { MAX_PROVIDER_ERROR_BODY_BYTES, MAX_PROVIDER_JSON_RESPONSE_BODY_BYTES } from './boundedResponseText';
 import { MAX_INLINE_IMAGE_BYTES } from '@/lib/markdown/dataImagePolicy';
+import { MAX_THINKING_TAG_MATCHES } from '@/lib/ai/stripThinkingContent';
 
 const mocks = vi.hoisted(() => ({
   bridge: undefined as undefined | {
@@ -2135,6 +2136,45 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       content: 'managed answer',
       reasoning_content: 'managed plan',
     }]);
+  });
+
+  it('bounds rendered thinking transcript extraction for managed streams', async () => {
+    const encoder = new TextEncoder();
+    const streamLines = Array.from({ length: MAX_THINKING_TAG_MATCHES + 5 }, (_, index) => [
+      `data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: `hidden-${index}` } }] })}`,
+      `data: ${JSON.stringify({ choices: [{ delta: { content: `Visible-${index}` } }] })}`,
+    ]).flat();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode([
+            ...streamLines,
+            'data: [DONE]',
+            '',
+          ].join('\n')));
+          controller.close();
+        },
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const onApiTranscript = vi.fn();
+    await new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel({ apiModelId: 'gpt-5.4' }),
+      buildProvider({ id: 'vlaina-managed', apiHost: 'https://api.vlaina.com/v1', apiKey: '' }),
+      vi.fn(),
+      undefined,
+      { onApiTranscript },
+    );
+
+    const transcript = onApiTranscript.mock.calls[0]?.[0]?.[0];
+    expect(transcript.reasoning_content).toContain(`hidden-${MAX_THINKING_TAG_MATCHES - 1}`);
+    expect(transcript.reasoning_content).not.toContain(`hidden-${MAX_THINKING_TAG_MATCHES}`);
+    expect(transcript.content).toContain(`Visible-${MAX_THINKING_TAG_MATCHES - 2}`);
+    expect(transcript.content).not.toContain(`Visible-${MAX_THINKING_TAG_MATCHES - 1}`);
   });
 
   it('does not send local chat-control options in provider request bodies', async () => {
