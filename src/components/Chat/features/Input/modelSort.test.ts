@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest'
 import type { AIModel } from '@/lib/ai/types'
 import { sortModelsForDisplay } from './modelSort'
 
-function model(apiModelId: string, name = apiModelId): AIModel {
+function model(apiModelId: string, name = apiModelId, createdAt = 0): AIModel {
   return {
     id: apiModelId,
     apiModelId,
     name,
     providerId: 'provider',
     enabled: true,
-    createdAt: 0,
+    createdAt,
   }
 }
 
@@ -129,6 +129,19 @@ describe('modelSort', () => {
       'claude-sonnet-4-1m',
       'claude-sonnet-4-128k',
       'claude-sonnet-4-32k',
+    ])
+  })
+
+  it('ignores sort signals beyond the bounded model id scan window', () => {
+    const longPrefix = 'x'.repeat(9000)
+    const sorted = sortModelsForDisplay([
+      model(`custom-a-${longPrefix}-2099-12-31-100t`, 'Custom Model', 2),
+      model(`custom-b-${longPrefix}`, 'Custom Model', 1),
+    ])
+
+    expect(sorted.map((item) => item.apiModelId)).toEqual([
+      `custom-b-${longPrefix}`,
+      `custom-a-${longPrefix}-2099-12-31-100t`,
     ])
   })
 })
