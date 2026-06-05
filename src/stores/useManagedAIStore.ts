@@ -20,6 +20,7 @@ interface ManagedAIState {
 const BUDGET_REFRESH_INTERVAL_MS = 60_000
 const BUDGET_RETRY_INTERVAL_MS = 15_000
 const BUDGET_SYNC_STORAGE_KEY = 'vlaina-managed-ai-budget'
+const MAX_BUDGET_SYNC_STORAGE_CHARS = 32 * 1024
 
 let budgetRefreshPromise: Promise<void> | null = null
 let budgetMutationVersion = 0
@@ -31,6 +32,9 @@ interface ManagedBudgetSyncPayload {
 
 function readBudgetSyncPayload(raw: string | null): ManagedBudgetSyncPayload | null {
   if (!raw) {
+    return null
+  }
+  if (raw.length > MAX_BUDGET_SYNC_STORAGE_CHARS) {
     return null
   }
 

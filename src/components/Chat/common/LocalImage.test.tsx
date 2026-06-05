@@ -34,7 +34,13 @@ describe('LocalImage', () => {
     mocks.readBinaryFile.mockReset();
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([60, 115, 118, 103, 62]));
     mocks.stat.mockReset();
-    mocks.stat.mockResolvedValue(null);
+    mocks.stat.mockResolvedValue({
+      name: 'diagram.svg',
+      path: '/appdata/.vlaina/attachments/diagram.svg',
+      isDirectory: false,
+      isFile: true,
+      size: 5,
+    });
   });
 
   it('rasterizes inline SVG data before rendering', async () => {
@@ -123,6 +129,19 @@ describe('LocalImage', () => {
     expect(mocks.stat).toHaveBeenCalledWith('/appdata/.vlaina/attachments/huge.png');
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
     expect(screen.queryByAltText('huge')).not.toBeInTheDocument();
+  });
+
+  it('shows unavailable state for stored attachments without a stat size before reading them', async () => {
+    mocks.stat.mockResolvedValueOnce(null);
+
+    render(<LocalImage src="attachment://missing-size.png" alt="missing" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Image unavailable')).toBeInTheDocument();
+    });
+    expect(mocks.stat).toHaveBeenCalledWith('/appdata/.vlaina/attachments/missing-size.png');
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+    expect(screen.queryByAltText('missing')).not.toBeInTheDocument();
   });
 
   it('shows unavailable state when SVG rasterization fails', async () => {

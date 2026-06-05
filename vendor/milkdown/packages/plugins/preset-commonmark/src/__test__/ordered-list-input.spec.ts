@@ -61,3 +61,32 @@ it('should preserve ordered list start when loading markdown', async () => {
   const markdown = editor.action(getMarkdown())
   expect(markdown).toBe('2. hello\n')
 })
+
+it('should normalize ordered list labels after converting an ordered-styled bullet list', async () => {
+  const editor = createEditor()
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  const { schema } = view.state
+  const list = schema.nodes.bullet_list.create({ spread: false }, [
+    schema.nodes.list_item.create(
+      { label: '3.', listType: 'ordered', spread: true },
+      [schema.nodes.paragraph.create(null, schema.text('three'))]
+    ),
+    schema.nodes.list_item.create(
+      { label: '1.', listType: 'ordered', spread: true },
+      [schema.nodes.paragraph.create(null, schema.text('four'))]
+    ),
+  ])
+
+  view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, list))
+
+  const normalizedList = view.state.doc.firstChild
+  expect(normalizedList?.type.name).toBe('ordered_list')
+  expect(normalizedList?.attrs.order).toBe(3)
+  expect(normalizedList?.child(0).attrs.label).toBe('3.')
+  expect(normalizedList?.child(1).attrs.label).toBe('4.')
+
+  await editor.destroy()
+})

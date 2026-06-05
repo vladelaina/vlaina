@@ -4,6 +4,7 @@ const API_BASE = 'https://api.vlaina.com'
 const BILLING_GET_RETRY_DELAYS_MS = [300]
 const BILLING_FAST_FAILURE_RETRY_WINDOW_MS = 2000
 const BILLING_REQUEST_TIMEOUT_MS = 15_000
+const MAX_BILLING_RESPONSE_BODY_BYTES = 64 * 1024
 
 export type BillingPlanTier = 'plus' | 'pro' | 'max' | 'ultra'
 
@@ -126,11 +127,49 @@ async function withBillingRequestTimeout<T>(
   }
 }
 
+async function readBillingResponseText(response: Response, signal: AbortSignal): Promise<string> {
+  throwIfBillingTimedOut(signal)
+  if (!response.body) {
+    return ''
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let bytesRead = 0
+  let text = ''
+  const cancelReader = () => {
+    void reader.cancel(createBillingTimeoutError()).catch(() => undefined)
+  }
+  signal.addEventListener('abort', cancelReader, { once: true })
+
+  try {
+    while (true) {
+      const { done, value } = await raceBillingRequest(reader.read(), signal)
+      throwIfBillingTimedOut(signal)
+      if (done) {
+        break
+      }
+
+      bytesRead += value.byteLength
+      if (bytesRead > MAX_BILLING_RESPONSE_BODY_BYTES) {
+        void reader.cancel().catch(() => undefined)
+        throw new Error('Billing API response body is too large.')
+      }
+      text += decoder.decode(value, { stream: true })
+    }
+
+    return text + decoder.decode()
+  } finally {
+    signal.removeEventListener('abort', cancelReader)
+    reader.releaseLock()
+  }
+}
+
 async function readBillingJson<T>(response: Response, signal: AbortSignal): Promise<T> {
   throwIfBillingTimedOut(signal)
-  const data = await raceBillingRequest(response.json() as Promise<T>, signal)
+  const text = await readBillingResponseText(response, signal)
   throwIfBillingTimedOut(signal)
-  return data
+  return JSON.parse(text) as T
 }
 
 async function readJsonErrorMessage(response: Response, fallback: string, signal: AbortSignal): Promise<string> {

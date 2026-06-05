@@ -2,6 +2,7 @@ import type { Provider } from '../types'
 import { buildAnthropicBaseUrl, buildOpenAIBaseUrl } from '../utils'
 import { providerFetch } from '../providerHttp'
 import { buildAnthropicHeaders } from './anthropic'
+import { readBoundedProviderResponseText } from './boundedResponseText'
 
 export type ProviderEndpointType = NonNullable<Provider['endpointType']>
 
@@ -145,26 +146,9 @@ async function getAnthropicModels(provider: Provider, apiKey: string, signal?: A
 
 async function readModelListJson(response: Response, signal: AbortSignal): Promise<unknown> {
   throwIfAborted(signal)
-  let abort: (() => void) | undefined
-  const abortPromise = new Promise<never>((_, reject) => {
-    abort = () => reject(createAbortError())
-    signal.addEventListener('abort', abort, { once: true })
-    if (signal.aborted) {
-      abort()
-    }
-  })
-  const jsonPromise = response.json() as Promise<unknown>
-  jsonPromise.catch(() => undefined)
-
-  try {
-    const data = await Promise.race([jsonPromise, abortPromise])
-    throwIfAborted(signal)
-    return data
-  } finally {
-    if (abort) {
-      signal.removeEventListener('abort', abort)
-    }
-  }
+  const text = await readBoundedProviderResponseText(response, signal, '')
+  throwIfAborted(signal)
+  return JSON.parse(text)
 }
 
 async function fetchModelListResponse(

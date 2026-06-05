@@ -1,4 +1,9 @@
 import { sanitizeSvgMarkup } from '@/lib/markdown/svgSanitizer';
+import {
+  getBase64DecodedByteLength,
+  MAX_INLINE_IMAGE_BYTES,
+  normalizeSafeRasterDataImageSrc,
+} from '@/lib/markdown/dataImagePolicy';
 
 const SVG_RASTERIZE_TIMEOUT_MS = 2500;
 
@@ -11,9 +16,18 @@ function decodeSvgDataUrl(dataUrl: string): string | null {
   const payload = dataUrl.slice(commaIndex + 1);
   try {
     if (/;base64/i.test(meta)) {
-      return window.atob(payload);
+      const byteLength = getBase64DecodedByteLength(payload);
+      if (byteLength === null || byteLength > MAX_INLINE_IMAGE_BYTES) {
+        return null;
+      }
+      const decoded = window.atob(payload);
+      return decoded.length <= MAX_INLINE_IMAGE_BYTES ? decoded : null;
     }
-    return decodeURIComponent(payload);
+    if (payload.length > MAX_INLINE_IMAGE_BYTES * 3) {
+      return null;
+    }
+    const decoded = decodeURIComponent(payload);
+    return new TextEncoder().encode(decoded).byteLength <= MAX_INLINE_IMAGE_BYTES ? decoded : null;
   } catch {
     return null;
   }
@@ -114,6 +128,9 @@ export async function rasterizeSvgBlobToPngBlob(blob: Blob): Promise<Blob | null
   if (!isSvgImageMimeType(blob.type)) {
     return blob;
   }
+  if (blob.size > MAX_INLINE_IMAGE_BYTES) {
+    return null;
+  }
 
   const rasterizedDataUrl = await rasterizeSvgDataUrlToPng(await blobToDataUrl(blob));
   if (!rasterizedDataUrl || isSvgDataUrl(rasterizedDataUrl)) {
@@ -159,7 +176,7 @@ export function rasterizeSvgDataUrlToPng(dataUrl: string): Promise<string | null
         }
         ctx.clearRect(0, 0, width, height);
         ctx.drawImage(image, 0, 0, width, height);
-        finish(canvas.toDataURL('image/png'));
+        finish(normalizeSafeRasterDataImageSrc(canvas.toDataURL('image/png')));
       } catch {
         finish(null);
       }

@@ -1,0 +1,89 @@
+import { describe, expect, it } from 'vitest';
+import { applyDefinitionListsToTree, type DefinitionListMdastNode } from './definitionListMarkdown';
+
+function paragraph(children: DefinitionListMdastNode[]): DefinitionListMdastNode {
+  return {
+    type: 'paragraph',
+    children,
+  };
+}
+
+function text(value: string): DefinitionListMdastNode {
+  return {
+    type: 'text',
+    value,
+  };
+}
+
+describe('definitionListMarkdown', () => {
+  it('converts adjacent term and description paragraphs', () => {
+    const tree: DefinitionListMdastNode = {
+      type: 'root',
+      children: [
+        paragraph([text('Term')]),
+        paragraph([text(': Definition')]),
+      ],
+    };
+
+    applyDefinitionListsToTree(tree);
+
+    expect(tree.children?.[0]).toMatchObject({
+      type: 'definitionList',
+      data: {
+        hName: 'dl',
+        hProperties: { className: ['definition-list'] },
+      },
+      children: [
+        {
+          type: 'definitionTerm',
+          children: [{ type: 'text', value: 'Term' }],
+        },
+        {
+          type: 'definitionDescription',
+          children: [
+            {
+              type: 'paragraph',
+              children: [{ type: 'text', value: 'Definition' }],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('recognizes description prefixes split across text nodes', () => {
+    const tree: DefinitionListMdastNode = {
+      type: 'root',
+      children: [
+        paragraph([text('Term')]),
+        paragraph([text(':'), text(' Definition')]),
+      ],
+    };
+
+    applyDefinitionListsToTree(tree);
+
+    expect(tree.children?.[0].type).toBe('definitionList');
+    expect(tree.children?.[0].children?.[1].children?.[0].children).toEqual([
+      { type: 'text', value: '' },
+      { type: 'text', value: ' Definition' },
+    ]);
+  });
+
+  it('does not convert oversized term paragraphs', () => {
+    const longTerm = 'A'.repeat(80);
+    const tree: DefinitionListMdastNode = {
+      type: 'root',
+      children: [
+        paragraph([text(longTerm)]),
+        paragraph([text(': Definition')]),
+      ],
+    };
+
+    applyDefinitionListsToTree(tree);
+
+    expect(tree.children).toEqual([
+      paragraph([text(longTerm)]),
+      paragraph([text(': Definition')]),
+    ]);
+  });
+});

@@ -147,7 +147,7 @@ describe("MarkdownRenderer", () => {
     render(<MarkdownRenderer content={"Visible"} />);
 
     expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-remark-count", "4");
-    expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-rehype-count", "5");
+    expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-rehype-count", "8");
     expect(screen.getByTestId("react-markdown").parentElement).toHaveClass("markdown-surface");
   });
 

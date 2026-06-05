@@ -12,6 +12,36 @@ const TAG_ASSET_ATTRIBUTES: Record<string, Set<string>> = {
   video: new Set(['poster']),
 };
 
+function isAsciiAlpha(char: string | undefined): boolean {
+  if (char === undefined) {
+    return false;
+  }
+  return (char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z');
+}
+
+function isHtmlNameChar(char: string | undefined): boolean {
+  if (char === undefined) {
+    return false;
+  }
+  return isAsciiAlpha(char) || (char >= '0' && char <= '9') || char === ':' || char === '-';
+}
+
+function isHtmlTagStart(content: string, start: number): boolean {
+  let cursor = start + 1;
+  if (content[cursor] === '/') {
+    cursor += 1;
+  }
+  if (!isAsciiAlpha(content[cursor])) {
+    return false;
+  }
+  cursor += 1;
+  while (isHtmlNameChar(content[cursor])) {
+    cursor += 1;
+  }
+  const next = content[cursor];
+  return next === undefined || /\s/.test(next) || next === '/' || next === '>';
+}
+
 function findHtmlTagEnd(content: string, start: number): number {
   let quote: string | null = null;
 
@@ -43,6 +73,10 @@ export function getHtmlTagRanges(content: string): ContentRange[] {
       break;
     }
     if (isEscapedMarkdownPunctuation(content, start)) {
+      cursor = start + 1;
+      continue;
+    }
+    if (!isHtmlTagStart(content, start)) {
       cursor = start + 1;
       continue;
     }

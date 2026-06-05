@@ -1,10 +1,21 @@
 import { $node, $command, $prose } from '@milkdown/kit/utils';
 import { Plugin, TextSelection } from '@milkdown/kit/prose/state';
 import type { VideoAttrs } from './types';
-import { createVideoDom, getVideoElementAttrs } from './videoDom';
+import { createVideoDom, getVideoElementAttrs, normalizeVideoAttrs } from './videoDom';
 import { VideoNodeView } from './videoNodeView';
 import { parseVideoUrl, sanitizeVideoUrlInput } from './videoUrl';
 import { markEditorUserInput } from '../shared/userInputEvents';
+import { remarkVideoImagesPlugin } from './videoMarkdown';
+
+function getVideoMarkdownTitle(node: { title?: unknown; alt?: unknown }): string {
+  if (typeof node.title === 'string' && node.title) {
+    return node.title;
+  }
+  if (typeof node.alt === 'string' && node.alt && node.alt !== 'video') {
+    return node.alt;
+  }
+  return '';
+}
 
 export const videoSchema = $node('video', () => ({
   group: 'block',
@@ -23,12 +34,7 @@ export const videoSchema = $node('video', () => ({
       const attrs = getVideoElementAttrs(el);
       const src = sanitizeVideoUrlInput(attrs.src, { allowEmpty: true });
       if (src === null) return false;
-      return {
-        src,
-        title: attrs.title || '',
-        width: attrs.width || 560,
-        height: attrs.height || 315,
-      };
+      return normalizeVideoAttrs({ ...attrs, src });
     },
   }],
   toDOM: (node) => {
@@ -36,7 +42,7 @@ export const videoSchema = $node('video', () => ({
   },
   parseMarkdown: {
     match: (node) => {
-      if (node.type === 'image') {
+      if (node.type === 'video' || node.type === 'image') {
         const url = node.url as string || '';
         return parseVideoUrl(url) !== null;
       }
@@ -45,8 +51,8 @@ export const videoSchema = $node('video', () => ({
     runner: (state, node, type) => {
       const src = sanitizeVideoUrlInput((node.url as string) || '');
       if (!src) return;
-      const title = (node.title as string) || (node.alt as string) || '';
-      state.addNode(type, { src, title });
+      const title = getVideoMarkdownTitle(node);
+      state.addNode(type, normalizeVideoAttrs({ src, title }));
     },
   },
   toMarkdown: {
@@ -57,10 +63,16 @@ export const videoSchema = $node('video', () => ({
         state.addNode('paragraph', []);
         return;
       }
+      const attrs = normalizeVideoAttrs({
+        src,
+        title: node.attrs.title,
+        width: node.attrs.width,
+        height: node.attrs.height,
+      });
 
       state.addNode('image', undefined, undefined, {
         url: src,
-        title: node.attrs.title || undefined,
+        title: attrs.title || undefined,
         alt: 'video',
       });
     },
@@ -108,6 +120,7 @@ export const videoNodeViewPlugin = $prose(() => {
 });
 
 export const videoPlugin = [
+  remarkVideoImagesPlugin,
   videoSchema,
   videoNodeViewPlugin,
   insertVideoCommand,

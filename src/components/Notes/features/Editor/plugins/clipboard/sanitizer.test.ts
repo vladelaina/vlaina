@@ -354,6 +354,47 @@ describe('sanitizeHtml', () => {
     expect(result).not.toContain('data-x');
   });
 
+  it('caps pathological nested clipboard html before recursive sanitizing exhausts the stack', () => {
+    const payload = `${'<section>'.repeat(250)}<p onclick="evil()">deep</p>${'</section>'.repeat(250)}`;
+
+    expect(() => sanitizeHtml(payload)).not.toThrow();
+    expect(sanitizeHtml(payload)).not.toContain('onclick');
+  });
+
+  it('caps pathological clipboard html node counts before building unbounded sanitized output', () => {
+    const payload = Array.from({ length: 20_050 }, (_, index) =>
+      `<span onclick="evil(${index})">x</span>`
+    ).join('');
+
+    const result = sanitizeHtml(payload);
+    const template = document.createElement('template');
+    template.innerHTML = result;
+
+    expect(template.content.querySelectorAll('span')).toHaveLength(10_000);
+    expect(result).not.toContain('onclick');
+  });
+
+  it('drops oversized HTML attribute values before expensive sanitizer parsing', () => {
+    const oversized = 'x'.repeat(16 * 1024 + 1);
+    const manySrcsetCandidates = Array.from({ length: 129 }, (_, index) => `safe-${index}.webp 1x`).join(', ');
+    const result = sanitizeHtml([
+      `<span style="${oversized}">text</span>`,
+      `<a href="${oversized}">link</a>`,
+      `<img src="https://example.com/a.png" alt="${oversized}">`,
+      `<source srcset="${manySrcsetCandidates}">`,
+      `<iframe src="https://example.com/embed" sandbox="${oversized}"></iframe>`,
+    ].join(''));
+    const template = document.createElement('template');
+    template.innerHTML = result;
+
+    expect(template.content.querySelector('span')?.hasAttribute('style')).toBe(false);
+    expect(template.content.querySelector('a')?.hasAttribute('href')).toBe(false);
+    expect(template.content.querySelector('img')?.hasAttribute('alt')).toBe(false);
+    expect(template.content.querySelector('source')?.hasAttribute('srcset')).toBe(false);
+    expect(template.content.querySelector('iframe')?.getAttribute('sandbox')).toBe('allow-scripts');
+    expect(result).not.toContain(oversized);
+  });
+
   it('never leaves inline event attributes in sanitized output for generated attribute names', () => {
     fc.assert(
       fc.property(

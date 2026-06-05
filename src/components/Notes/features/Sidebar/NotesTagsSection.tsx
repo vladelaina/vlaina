@@ -52,7 +52,12 @@ async function readTagNoteIcon(path: string, vaultPath: string | null): Promise<
   const fileInfo = await storage.stat(fullPath).catch(() => null);
   const modifiedAt = fileInfo?.modifiedAt ?? null;
   const size = fileInfo?.size ?? null;
-  if (typeof size === 'number' && size > MAX_TAG_NOTE_ICON_METADATA_BYTES) {
+  if (
+    fileInfo?.isDirectory === true ||
+    fileInfo?.isFile === false ||
+    typeof size !== 'number' ||
+    size > MAX_TAG_NOTE_ICON_METADATA_BYTES
+  ) {
     return { modifiedAt, size, icon: null };
   }
 

@@ -15,6 +15,7 @@ const THINK_OPEN_TAG = '<think>';
 const THINK_CLOSE_TAG = '</think>';
 const PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT = 200;
 const STREAMING_ASSISTANT_MARKDOWN_CACHE_LIMIT = 80;
+const MAX_CACHED_ASSISTANT_MARKDOWN_CHARS = 50_000;
 
 export type ThinkingSections = {
   body: string;
@@ -43,6 +44,24 @@ const streamingAssistantMarkdownCache = new Map<string, ParsedAssistantMarkdown>
 
 function getStreamingAssistantMarkdownCacheKey(message: ChatMessage): string {
   return `${message.id}\u0000${message.currentVersionIndex}`;
+}
+
+function canCacheAssistantMarkdown(markdown: string): boolean {
+  return markdown.length <= MAX_CACHED_ASSISTANT_MARKDOWN_CHARS;
+}
+
+function cacheParsedAssistantMarkdown(
+  cacheKey: string,
+  markdown: string,
+  parsed: ParsedAssistantMarkdown,
+): void {
+  if (!canCacheAssistantMarkdown(markdown)) {
+    streamingAssistantMarkdownCache.delete(cacheKey);
+    return;
+  }
+
+  setCacheEntry(parsedAssistantMarkdownCache, markdown, parsed, PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT);
+  setCacheEntry(streamingAssistantMarkdownCache, cacheKey, parsed, STREAMING_ASSISTANT_MARKDOWN_CACHE_LIMIT);
 }
 
 export function extractThinkingSections(content: string): ThinkingSections {
@@ -99,25 +118,28 @@ export function getParsedAssistantMarkdown(
   message: ChatMessage,
   markdown: string,
 ): ParsedAssistantMarkdown {
-  const cached = touchCacheEntry(parsedAssistantMarkdownCache, markdown);
-  if (cached) {
-    setCacheEntry(
-      streamingAssistantMarkdownCache,
-      getStreamingAssistantMarkdownCacheKey(message),
-      cached,
-      STREAMING_ASSISTANT_MARKDOWN_CACHE_LIMIT,
-    );
-    return cached;
+  const cacheKey = getStreamingAssistantMarkdownCacheKey(message);
+  if (canCacheAssistantMarkdown(markdown)) {
+    const cached = touchCacheEntry(parsedAssistantMarkdownCache, markdown);
+    if (cached) {
+      setCacheEntry(
+        streamingAssistantMarkdownCache,
+        cacheKey,
+        cached,
+        STREAMING_ASSISTANT_MARKDOWN_CACHE_LIMIT,
+      );
+      return cached;
+    }
   }
 
-  const cacheKey = getStreamingAssistantMarkdownCacheKey(message);
-  const incrementalSource = touchCacheEntry(streamingAssistantMarkdownCache, cacheKey);
+  const incrementalSource = canCacheAssistantMarkdown(markdown)
+    ? touchCacheEntry(streamingAssistantMarkdownCache, cacheKey)
+    : undefined;
   if (incrementalSource && markdown.startsWith(incrementalSource.rawMarkdown)) {
     const renderableMarkdown = stripRenderableImageTokens(markdown);
     if (!renderableMarkdown.startsWith(incrementalSource.renderableMarkdown)) {
       const parsed = buildParsedAssistantMarkdown(markdown, renderableMarkdown);
-      setCacheEntry(parsedAssistantMarkdownCache, markdown, parsed, PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT);
-      setCacheEntry(streamingAssistantMarkdownCache, cacheKey, parsed, STREAMING_ASSISTANT_MARKDOWN_CACHE_LIMIT);
+      cacheParsedAssistantMarkdown(cacheKey, markdown, parsed);
       return parsed;
     }
 
@@ -140,8 +162,7 @@ export function getParsedAssistantMarkdown(
       stableBlocks: [...incrementalSource.stableBlocks, ...tailParsed.stableBlocks],
       stableBlockHeightCache,
     };
-    setCacheEntry(parsedAssistantMarkdownCache, markdown, parsed, PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT);
-    setCacheEntry(streamingAssistantMarkdownCache, cacheKey, parsed, STREAMING_ASSISTANT_MARKDOWN_CACHE_LIMIT);
+    cacheParsedAssistantMarkdown(cacheKey, markdown, parsed);
     return parsed;
   }
 
@@ -149,7 +170,6 @@ export function getParsedAssistantMarkdown(
     markdown,
     stripRenderableImageTokens(markdown),
   );
-  setCacheEntry(parsedAssistantMarkdownCache, markdown, parsed, PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT);
-  setCacheEntry(streamingAssistantMarkdownCache, cacheKey, parsed, STREAMING_ASSISTANT_MARKDOWN_CACHE_LIMIT);
+  cacheParsedAssistantMarkdown(cacheKey, markdown, parsed);
   return parsed;
 }

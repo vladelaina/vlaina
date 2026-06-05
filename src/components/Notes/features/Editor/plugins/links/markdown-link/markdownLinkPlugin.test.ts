@@ -3,7 +3,7 @@ import { Editor, defaultValueCtx, editorViewCtx, serializerCtx } from '@milkdown
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
-import { markdownLinkPlugin } from './markdownLinkPlugin';
+import { isMarkdownImagePatternBeforeCursor, markdownLinkPlugin } from './markdownLinkPlugin';
 import { shouldHandleMarkdownLinkPaste } from './markdownLinkParser';
 
 function simulatePasteText(view: any, text: string): boolean {
@@ -376,5 +376,15 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     );
 
     await editor.destroy();
+  });
+});
+
+describe('markdownLinkPlugin text input', () => {
+  it('detects markdown image syntax with paragraph-relative positions', () => {
+    const textBefore = 'prefix ![Alt](image.png)';
+    const fullMatch = '[Alt](image.png)';
+
+    expect(isMarkdownImagePatternBeforeCursor(textBefore, fullMatch)).toBe(true);
+    expect(isMarkdownImagePatternBeforeCursor('[Alt](image.png)', fullMatch)).toBe(false);
   });
 });

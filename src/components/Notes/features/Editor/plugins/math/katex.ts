@@ -12,6 +12,19 @@ const KATEX_RENDER_OPTIONS = {
 } as const;
 const successfulRenderCache = new Map<string, RenderResult>();
 
+function escapeHtmlText(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderMathErrorHtml() {
+  return `<span class="math-error">${escapeHtmlText(translate('editor.errorEquation'))}</span>`;
+}
+
 export interface MathRenderErrorDetails {
   rawMessage: string;
   summary: string;
@@ -212,7 +225,7 @@ export function renderLatex(latex: string, displayMode: boolean): RenderResult {
 
   if (latex.length > MAX_LATEX_CHARS) {
     return {
-      html: `<span class="math-error">${translate('editor.errorEquation')}</span>`,
+      html: renderMathErrorHtml(),
       error: 'Equation is too large to render',
       errorDetails: {
         rawMessage: 'Equation is too large to render',
@@ -246,7 +259,7 @@ export function renderLatex(latex: string, displayMode: boolean): RenderResult {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
     const errorDetails = parseMathRenderError(errorMessage, latex);
     return {
-      html: `<span class="math-error">${translate('editor.errorEquation')}</span>`,
+      html: renderMathErrorHtml(),
       error: errorDetails.summary,
       errorDetails,
     };

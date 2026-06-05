@@ -43,6 +43,7 @@ describe('vaultConfig', () => {
 
   it('updates stale vaultPath in an existing config', async () => {
     adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockResolvedValue({ size: 64 });
     adapter.readFile.mockResolvedValue(JSON.stringify({ version: 1, created: 100, vaultPath: '/old' }));
 
     await ensureVaultConfig('/vault');
@@ -55,6 +56,7 @@ describe('vaultConfig', () => {
 
   it('repairs invalid existing config content', async () => {
     adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockResolvedValue({ size: 8 });
     adapter.readFile.mockResolvedValue('not-json');
 
     await ensureVaultConfig('/vault');
@@ -68,6 +70,19 @@ describe('vaultConfig', () => {
   it('repairs oversized existing config content without reading it', async () => {
     adapter.exists.mockResolvedValue(true);
     adapter.stat.mockResolvedValue({ size: 100 * 1024 });
+
+    await ensureVaultConfig('/vault');
+
+    expect(adapter.readFile).not.toHaveBeenCalled();
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
+      JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)
+    );
+  });
+
+  it('repairs existing config content when stat has no size', async () => {
+    adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockResolvedValue({});
 
     await ensureVaultConfig('/vault');
 

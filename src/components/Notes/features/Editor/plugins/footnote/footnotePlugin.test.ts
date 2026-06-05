@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
+import { DOMParser as ProseDOMParser } from '@milkdown/kit/prose/model';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import {
   footnotePlugin,
@@ -11,6 +12,7 @@ import {
   handleFootnoteModEnterExit,
   serializeFootnoteDefinitionToMarkdown,
 } from './footnotePlugin';
+import { normalizeFootnoteLabel, normalizeFootnotePreview } from './footnoteLabels';
 import { configureTheme } from '../../theme';
 
 function createRecorder() {
@@ -53,9 +55,32 @@ describe('footnote markdown serialization', () => {
       { method: 'closeNode', args: [] },
     ]);
   });
+
+  it('normalizes footnote ids before markdown serialization', () => {
+    const { calls, state } = createRecorder();
+    const content = { id: 'footnote-content' };
+
+    serializeFootnoteDefinitionToMarkdown(state, {
+      attrs: { id: ` ${'a'.repeat(140)}\u202E ` },
+      content,
+    });
+
+    expect(calls[0]).toEqual({
+      method: 'openNode',
+      args: ['footnoteDefinition', undefined, {
+        label: 'a'.repeat(128),
+        identifier: 'a'.repeat(128),
+      }],
+    });
+  });
 });
 
 describe('footnote reference markup', () => {
+  it('normalizes footnote labels and preview text', () => {
+    expect(normalizeFootnoteLabel(` note[1]\u202E${'x'.repeat(140)} `)).toBe(`note1${'x'.repeat(123)}`);
+    expect(normalizeFootnotePreview(` ${'x '.repeat(600)}`)).toBe('x '.repeat(256).trim());
+  });
+
   it('uses a data-backed custom tooltip instead of the native title tooltip', () => {
     const source = readFileSync(
       resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/footnote/footnotePlugin.ts'),
@@ -63,8 +88,8 @@ describe('footnote reference markup', () => {
     );
 
     expect(source).toContain("'data-footnote-value': label");
-    expect(source).toContain("'aria-label': `Footnote ${attrs.id}`");
-    expect(source).not.toContain('title: `Footnote ${attrs.id}`');
+    expect(source).toContain("'aria-label': `Footnote ${id}`");
+    expect(source).not.toContain('title: `Footnote ${id}`');
   });
 
   it('applies the custom footnote markup to the active GFM schema', async () => {
@@ -91,6 +116,46 @@ describe('footnote reference markup', () => {
     expect(definition?.getAttribute('data-type')).toBe('footnote_definition');
     expect(definition?.querySelector('.footnote-def-label')?.textContent).toBe('[1]:');
     expect(definition?.querySelector('.footnote-def-label')?.getAttribute('contenteditable')).toBe('false');
+
+    await editor.destroy();
+  });
+
+  it('normalizes GFM footnote labels from markdown and DOM attrs', async () => {
+    const longId = 'a'.repeat(140);
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, [`Text[^${longId}].`, '', `[^${longId}]: Body`].join('\n'));
+      })
+      .use(commonmark)
+      .use(gfm)
+      .use(configureTheme);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const reference = view.dom.querySelector('sup.footnote-ref');
+    const definition = view.dom.querySelector('.footnote-def');
+
+    expect(reference?.getAttribute('data-id')).toBe('a'.repeat(128));
+    expect(definition?.getAttribute('data-id')).toBe('a'.repeat(128));
+
+    const container = document.createElement('div');
+    container.innerHTML = [
+      `<p>Text<sup class="footnote-ref" data-id=" ${'b'.repeat(140)}\u202E "></sup></p>`,
+      `<div class="footnote-def" data-id=" ${'b'.repeat(140)}\u202E "><div class="footnote-def-content"><p>Body</p></div></div>`,
+    ].join('');
+    const parsed = ProseDOMParser.fromSchema(view.state.schema).parse(container);
+    const attrs: Record<string, unknown>[] = [];
+    parsed.descendants((node) => {
+      if (node.type.name === 'footnote_reference' || node.type.name === 'footnote_definition') {
+        attrs.push(node.attrs);
+      }
+      return true;
+    });
+
+    expect(attrs).toEqual([
+      { label: 'b'.repeat(128) },
+      { label: 'b'.repeat(128) },
+    ]);
 
     await editor.destroy();
   });
@@ -217,6 +282,25 @@ describe('footnote reference markup', () => {
     const reference = view.dom.querySelector('sup.footnote-ref');
 
     expect(reference?.getAttribute('data-footnote-value')).toBe('Footnote body with detail');
+
+    await editor.destroy();
+  });
+
+  it('bounds long footnote hover preview text', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, ['Text[^note].', '', `[^note]: ${'x'.repeat(600)}`].join('\n'));
+      })
+      .use(commonmark)
+      .use(gfm)
+      .use(configureTheme)
+      .use(footnotePlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const reference = view.dom.querySelector('sup.footnote-ref');
+
+    expect(reference?.getAttribute('data-footnote-value')).toBe('x'.repeat(512));
 
     await editor.destroy();
   });

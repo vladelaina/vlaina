@@ -2,6 +2,7 @@ import { parseAPIError, parseHTTPError } from '../errors';
 import { parseErrorTag } from '../errorTag';
 import { buildAnthropicBaseUrl, buildOpenAIBaseUrl, resolveApiModelId } from '../utils';
 import { providerFetch } from '../providerHttp';
+import { readBoundedProviderResponseText } from '../providers/boundedResponseText';
 import type { AIModel, Provider } from '../types';
 import { DEFAULT_BENCHMARK_TIMEOUT_MS } from './constants';
 import { inferBenchmarkEndpoint } from './endpoint';
@@ -37,56 +38,6 @@ function isAbortError(error: unknown): boolean {
 function throwIfAborted(signal: AbortSignal): void {
   if (!signal.aborted) return;
   throw new DOMException('Aborted', 'AbortError');
-}
-
-async function raceWithAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
-  throwIfAborted(signal);
-  promise.catch(() => undefined);
-
-  return await new Promise<T>((resolve, reject) => {
-    let settled = false;
-    const cleanup = () => {
-      signal.removeEventListener('abort', abort);
-    };
-    const settle = (callback: () => void) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      callback();
-    };
-    const abort = () => {
-      settle(() => reject(new DOMException('Aborted', 'AbortError')));
-    };
-
-    signal.addEventListener('abort', abort, { once: true });
-    if (signal.aborted) {
-      abort();
-      return;
-    }
-
-    promise.then(
-      (value) => {
-        settle(() => {
-          try {
-            throwIfAborted(signal);
-            resolve(value);
-          } catch (error) {
-            reject(error);
-          }
-        });
-      },
-      (error) => {
-        settle(() => {
-          try {
-            throwIfAborted(signal);
-            reject(error);
-          } catch (abortError) {
-            reject(abortError);
-          }
-        });
-      },
-    );
-  });
 }
 
 function buildBenchmarkBody(
@@ -340,16 +291,7 @@ async function readBenchmarkResponseText(
   signal: AbortSignal,
   fallbackOnReadError?: string,
 ): Promise<string> {
-  try {
-    const text = await raceWithAbort(response.text(), signal);
-    return text;
-  } catch (error) {
-    throwIfAborted(signal);
-    if (fallbackOnReadError !== undefined) {
-      return fallbackOnReadError;
-    }
-    throw error;
-  }
+  return await readBoundedProviderResponseText(response, signal, fallbackOnReadError);
 }
 
 async function parseResponsePayload(response: Response, signal: AbortSignal): Promise<unknown> {

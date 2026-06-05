@@ -27,4 +27,12 @@ describe('chatHeadingDrag', () => {
     expect(parseChatHeadingDragPayload('{"level":7,"text":"Title"}')).toBeNull();
     expect(parseChatHeadingDragPayload('{"level":1,"text":"   "}')).toBeNull();
   });
+
+  it('rejects oversized heading drag payloads before parsing', () => {
+    expect(parseChatHeadingDragPayload(`{"level":1,"text":"${'x'.repeat(16 * 1024)}"}`)).toBeNull();
+  });
+
+  it('rejects oversized heading text after parsing', () => {
+    expect(parseChatHeadingDragPayload(`{"level":1,"text":"${'x'.repeat(2_001)}"}`)).toBeNull();
+  });
 });

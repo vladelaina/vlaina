@@ -65,4 +65,88 @@ describe('markdownImageTokens', () => {
       'https://example.com/real-html.png',
     ]);
   });
+
+  it('keeps image extraction correct after many ignored inline ranges', () => {
+    const ignoredImages = Array.from(
+      { length: 1500 },
+      (_, index) => `\`![ignored ${index}](https://example.com/ignored-${index}.png)\``,
+    );
+    const markdown = [
+      ...ignoredImages,
+      '![real](https://example.com/real.png)',
+      '<img src="https://example.com/real-html.png">',
+    ].join('\n');
+
+    expect(parseMarkdownAndHtmlImageTokens(markdown).map((token) => token.src)).toEqual([
+      'https://example.com/real.png',
+      'https://example.com/real-html.png',
+    ]);
+  });
+
+  it('supports bounded combined image token parsing when requested', () => {
+    const markdown = [
+      '![one](https://example.com/one.png)',
+      '<img src="https://example.com/two.png">',
+      '![three](https://example.com/three.png)',
+    ].join('\n');
+
+    expect(parseMarkdownAndHtmlImageTokens(markdown, { maxTokens: 2 }).map((token) => token.src)).toEqual([
+      'https://example.com/one.png',
+      'https://example.com/two.png',
+    ]);
+    expect(parseMarkdownAndHtmlImageTokens(markdown).map((token) => token.src)).toHaveLength(3);
+  });
+
+  it('returns early for long text without image markers', () => {
+    const markdown = 'plain text without images\n'.repeat(10_000);
+
+    expect(parseMarkdownImageTokens(markdown)).toEqual([]);
+    expect(parseHtmlImageTokens(markdown)).toEqual([]);
+    expect(parseMarkdownAndHtmlImageTokens(markdown)).toEqual([]);
+  });
+
+  it('treats non-finite token bounds as zero except infinity', () => {
+    const markdown = [
+      '![one](https://example.com/one.png)',
+      '<img src="https://example.com/two.png">',
+    ].join('\n');
+
+    expect(parseMarkdownAndHtmlImageTokens(markdown, { maxTokens: Number.NaN })).toEqual([]);
+    expect(parseMarkdownAndHtmlImageTokens(markdown, { maxTokens: Number.NEGATIVE_INFINITY })).toEqual([]);
+    expect(parseMarkdownAndHtmlImageTokens(markdown, { maxTokens: Number.POSITIVE_INFINITY })).toHaveLength(2);
+  });
+
+  it('keeps bounded html image parsing from reading markdown image targets as html', () => {
+    const markdown = [
+      '![one](<https://example.com/<img src="https://example.com/not-html-1.png">>)',
+      '![two](<https://example.com/<img src="https://example.com/not-html-2.png">>)',
+      '<img src="https://example.com/real.png">',
+    ].join('\n');
+
+    expect(parseHtmlImageTokens(markdown, { maxTokens: 1 }).map((token) => token.src)).toEqual([
+      'https://example.com/real.png',
+    ]);
+  });
+
+  it('does not treat plain angle-bracket text as an HTML tag range', () => {
+    const markdown = '< not html ![real](https://example.com/real.png) >';
+
+    expect(parseMarkdownAndHtmlImageTokens(markdown).map((token) => token.src)).toEqual([
+      'https://example.com/real.png',
+    ]);
+  });
+
+  it('keeps raw HTML protection after invalid angle-bracket text', () => {
+    const markdown = [
+      '< not an html tag',
+      '<pre>',
+      '![hidden](https://example.com/hidden.png)',
+      '</pre>',
+      '![real](https://example.com/real.png)',
+    ].join('\n');
+
+    expect(parseMarkdownAndHtmlImageTokens(markdown).map((token) => token.src)).toEqual([
+      'https://example.com/real.png',
+    ]);
+  });
 });

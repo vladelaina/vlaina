@@ -14,6 +14,7 @@ import {
   replaceUnderlineMarkdown,
 } from './colorMarkdown';
 import { findDelimitedTextMatches } from './delimitedMarkdown';
+import { canTransformMarkdownAst } from './markdownAstBudget';
 
 export interface MdastNode {
   type: string;
@@ -33,35 +34,75 @@ export interface RemarkNotesInlineExtensionsOptions {
   stripAbbrDefinitions?: boolean;
 }
 
+const MAX_CALLOUT_ICON_VALUE_CHARS = 2048;
+const MAX_CALLOUT_ICON_MARKER_CHARS = 4096;
+const CALLOUT_ICON_TEXT_PREFIX = '[!callout-icon:';
+const CALLOUT_ICON_TEXT_SUFFIX = ']';
+const CALLOUT_ICON_COMMENT_PREFIX = '<!--callout-icon:';
+const CALLOUT_ICON_COMMENT_SUFFIX = '-->';
+
 function iconDataFromCalloutValue(value: string | null | undefined) {
-  return value || '💡';
+  return value && value.length <= MAX_CALLOUT_ICON_VALUE_CHARS ? value : '💡';
 }
 
-function decodeCalloutIconComment(value: string): string | null {
-  const trimmed = value.trim();
-  const textPrefix = '[!callout-icon:';
-  const textSuffix = ']';
-  if (trimmed.startsWith(textPrefix)) {
-    const suffixIndex = trimmed.indexOf(textSuffix, textPrefix.length);
-    if (suffixIndex > textPrefix.length) {
-      try {
-        return decodeURIComponent(trimmed.slice(textPrefix.length, suffixIndex));
-      } catch {
-        return null;
-      }
-    }
-  }
+function normalizeDecodedCalloutIconValue(value: string): string | null {
+  return value && value.length <= MAX_CALLOUT_ICON_VALUE_CHARS ? value : null;
+}
 
-  const commentPrefix = '<!--callout-icon:';
-  if (!trimmed.startsWith(commentPrefix) || !trimmed.endsWith('-->')) {
+function decodeCalloutIconMarkerValue(value: string): string | null {
+  if (value.length > MAX_CALLOUT_ICON_MARKER_CHARS) {
     return null;
   }
 
   try {
-    return decodeURIComponent(trimmed.slice(commentPrefix.length, -'-->'.length));
+    return normalizeDecodedCalloutIconValue(decodeURIComponent(value));
   } catch {
     return null;
   }
+}
+
+function findBoundedCalloutIconTextSuffix(value: string, markerStart: number): number {
+  const markerWindow = value.slice(
+    markerStart,
+    markerStart + MAX_CALLOUT_ICON_MARKER_CHARS + CALLOUT_ICON_TEXT_SUFFIX.length
+  );
+  const suffixOffset = markerWindow.indexOf(CALLOUT_ICON_TEXT_SUFFIX);
+  return suffixOffset >= 0 ? markerStart + suffixOffset : -1;
+}
+
+function decodeCalloutIconComment(value: string): string | null {
+  const trimmed = value.trim();
+  if (trimmed.startsWith(CALLOUT_ICON_TEXT_PREFIX)) {
+    const markerStart = CALLOUT_ICON_TEXT_PREFIX.length;
+    const suffixIndex = findBoundedCalloutIconTextSuffix(trimmed, markerStart);
+    if (suffixIndex > markerStart) {
+      return decodeCalloutIconMarkerValue(trimmed.slice(markerStart, suffixIndex));
+    }
+  }
+
+  if (!trimmed.startsWith(CALLOUT_ICON_COMMENT_PREFIX) || !trimmed.endsWith(CALLOUT_ICON_COMMENT_SUFFIX)) {
+    return null;
+  }
+
+  return decodeCalloutIconMarkerValue(trimmed.slice(
+    CALLOUT_ICON_COMMENT_PREFIX.length,
+    -CALLOUT_ICON_COMMENT_SUFFIX.length
+  ));
+}
+
+function removeLeadingCalloutIconMarker(value: string): string {
+  const prefixIndex = value.search(/\S/u);
+  if (prefixIndex < 0 || !value.startsWith(CALLOUT_ICON_TEXT_PREFIX, prefixIndex)) {
+    return value;
+  }
+
+  const markerStart = prefixIndex + CALLOUT_ICON_TEXT_PREFIX.length;
+  const suffixIndex = findBoundedCalloutIconTextSuffix(value, markerStart);
+  if (suffixIndex <= markerStart) {
+    return value;
+  }
+
+  return value.slice(suffixIndex + CALLOUT_ICON_TEXT_SUFFIX.length).replace(/^\s+/u, '');
 }
 
 function getCalloutIconFromBlockquote(node: MdastNode): string | null {
@@ -85,15 +126,21 @@ function getCalloutIconFromBlockquote(node: MdastNode): string | null {
 }
 
 function transformCalloutBlockquotes(tree: MdastNode) {
-  function visit(node: MdastNode): void {
-    if (node.children) {
-      for (const child of node.children) {
-        visit(child);
+  const stack = [{ node: tree, visited: false }];
+
+  while (stack.length > 0) {
+    const frame = stack.pop()!;
+    const { node } = frame;
+    if (!frame.visited) {
+      stack.push({ node, visited: true });
+      for (let index = (node.children?.length ?? 0) - 1; index >= 0; index -= 1) {
+        stack.push({ node: node.children![index], visited: false });
       }
+      continue;
     }
 
     const icon = getCalloutIconFromBlockquote(node);
-    if (!icon) return;
+    if (!icon) continue;
 
     const children = node.children ? [...node.children] : [];
     const firstChild = children[0];
@@ -104,7 +151,7 @@ function transformCalloutBlockquotes(tree: MdastNode) {
       if (firstText?.type === 'text') {
         const markerIcon = decodeCalloutIconComment(firstText.value || '');
         const remainingText = markerIcon
-          ? (firstText.value || '').replace(/^\s*\[!callout-icon:[^\]]+\]\s*/u, '')
+          ? removeLeadingCalloutIconMarker(firstText.value || '')
           : (consumeLeadingCalloutEmoji(firstText.value || '')?.rest ?? firstText.value ?? '');
         if (remainingText) {
           firstText.value = remainingText;
@@ -135,8 +182,6 @@ function transformCalloutBlockquotes(tree: MdastNode) {
       },
     };
   }
-
-  visit(tree);
 }
 
 function createInlineElementNode(type: string, children: MdastNode[]): MdastNode {
@@ -171,10 +216,32 @@ function createInlineElementNode(type: string, children: MdastNode[]): MdastNode
   return { type, children };
 }
 
+function findClosingHtmlChildIndex(
+  children: readonly MdastNode[],
+  startIndex: number,
+  tagName: string
+): number {
+  const closePattern = new RegExp(`^</${tagName}>$`, 'i');
+
+  for (let index = startIndex + 1; index < children.length; index += 1) {
+    const candidate = children[index];
+    if (
+      candidate.type === 'html' &&
+      typeof candidate.value === 'string' &&
+      closePattern.test(candidate.value.trim())
+    ) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
 function replaceInlineColorHtmlContainerMark(tree: MdastNode) {
   function visit(node: MdastNode): void {
     if (!node.children?.length) return;
 
+    const missingCloseTags = new Set<string>();
     for (let index = 0; index < node.children.length; index += 1) {
       const child = node.children[index];
       if (child.type !== 'html' || typeof child.value !== 'string') {
@@ -188,13 +255,13 @@ function replaceInlineColorHtmlContainerMark(tree: MdastNode) {
       const underlineOpen = /^<u>$/i.test(trimmed);
       const tagName = textColorOpen ? 'span' : bgColorOpen ? 'mark' : underlineOpen ? 'u' : null;
       if (!tagName) continue;
+      if (missingCloseTags.has(tagName)) continue;
 
-      const closeIndex = node.children.findIndex((candidate, candidateIndex) => (
-        candidateIndex > index &&
-        candidate.type === 'html' &&
-        typeof candidate.value === 'string' &&
-        new RegExp(`^</${tagName}>$`, 'i').test(candidate.value.trim())
-      ));
+      const closeIndex = findClosingHtmlChildIndex(node.children, index, tagName);
+      if (closeIndex === -1) {
+        missingCloseTags.add(tagName);
+        continue;
+      }
       if (closeIndex <= index + 1) continue;
 
       const content = node.children.slice(index + 1, closeIndex);
@@ -304,6 +371,7 @@ function replaceInlineHtmlContainerMark(
   function visit(node: MdastNode): void {
     if (!node.children?.length) return;
 
+    let missingClose = false;
     for (let index = 0; index < node.children.length; index += 1) {
       const child = node.children[index];
       if (child.type !== 'html' || typeof child.value !== 'string') {
@@ -317,13 +385,13 @@ function replaceInlineHtmlContainerMark(
       if (!openPattern.test(child.value.trim())) {
         continue;
       }
+      if (missingClose) continue;
 
-      const closeIndex = node.children.findIndex((candidate, candidateIndex) => (
-        candidateIndex > index &&
-        candidate.type === 'html' &&
-        typeof candidate.value === 'string' &&
-        new RegExp(`^</${tagName}>$`, 'i').test(candidate.value.trim())
-      ));
+      const closeIndex = findClosingHtmlChildIndex(node.children, index, tagName);
+      if (closeIndex === -1) {
+        missingClose = true;
+        continue;
+      }
       if (closeIndex <= index + 1) {
         continue;
       }
@@ -363,6 +431,10 @@ function replaceSingleTildeDeleteMark(tree: MdastNode, markdown: string) {
 
 export function remarkNotesInlineExtensions(options: RemarkNotesInlineExtensionsOptions = {}) {
   return (tree: MdastNode, file?: { value?: unknown }) => {
+    if (!canTransformMarkdownAst(tree)) {
+      return;
+    }
+
     const markdown = typeof file?.value === 'string' ? file.value : '';
     applyDefinitionListsToTree(tree, markdown);
     applyTocShortcutsToTree(tree, markdown);

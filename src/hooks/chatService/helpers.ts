@@ -340,7 +340,11 @@ async function readResolvedMentionedNoteContent(
   const storage = getStorageAdapter();
   try {
     const fileInfo = await storage.stat(resolvedPath.fullPath).catch(() => null);
-    if (typeof fileInfo?.size === 'number' && fileInfo.size > MAX_NOTE_MENTION_READ_BYTES) {
+    if (
+      fileInfo?.isFile === false ||
+      typeof fileInfo?.size !== 'number' ||
+      fileInfo.size > MAX_NOTE_MENTION_READ_BYTES
+    ) {
       return '';
     }
     const content = await storage.readFile(resolvedPath.fullPath);
@@ -582,6 +586,15 @@ function createFolderImageAttachment(entry: { path: string; name: string; size?:
   };
 }
 
+function isFolderImageAttachmentSize(size: number | null | undefined): boolean {
+  return (
+    typeof size === 'number' &&
+    Number.isFinite(size) &&
+    size >= 0 &&
+    size <= MAX_FOLDER_IMAGE_ATTACHMENT_BYTES
+  );
+}
+
 async function loadFolderImageAttachmentsForMention(
   mention: NoteMentionReference
 ): Promise<Attachment[]> {
@@ -621,7 +634,7 @@ async function loadFolderImageAttachmentsForMention(
       continue;
     }
     const size = typeof stat?.size === 'number' ? stat.size : entry.size;
-    if (typeof size === 'number' && size > MAX_FOLDER_IMAGE_ATTACHMENT_BYTES) {
+    if (!isFolderImageAttachmentSize(size)) {
       continue;
     }
     attachments.push(createFolderImageAttachment({

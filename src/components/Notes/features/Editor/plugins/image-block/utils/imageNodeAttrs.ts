@@ -7,7 +7,7 @@ function getSrc(attrs: NodeAttrs): string {
     return typeof attrs.src === 'string' ? attrs.src : '';
 }
 
-function normalizeAlignment(value: unknown): Alignment | null {
+export function normalizeImageAlignment(value: unknown): Alignment | null {
     if (value === 'left' || value === 'center' || value === 'right') {
         return value;
     }
@@ -20,7 +20,7 @@ function normalizeWidth(value: unknown): string | null {
 }
 
 export function getImageAlignment(attrs: NodeAttrs): Alignment {
-    return normalizeAlignment(attrs.align) ?? 'center';
+    return normalizeImageAlignment(attrs.align) ?? 'center';
 }
 
 export function getImageWidth(attrs: NodeAttrs): string | null {
@@ -33,12 +33,12 @@ export function getImageCrop(attrs: NodeAttrs) {
 
 export function mergeImageNodeAttrs(latestAttrs: NodeAttrs, incomingAttrs: NodeAttrs): NodeAttrs {
     const incomingSrc = typeof incomingAttrs.src === 'string' ? incomingAttrs.src : undefined;
-    const incomingAlign = normalizeAlignment(incomingAttrs.align);
+    const incomingAlign = normalizeImageAlignment(incomingAttrs.align);
     const incomingWidth = normalizeWidth(incomingAttrs.width);
 
     const mergedAlign =
         incomingAlign ??
-        normalizeAlignment(latestAttrs.align) ??
+        normalizeImageAlignment(latestAttrs.align) ??
         null;
     const mergedWidth =
         incomingWidth ??

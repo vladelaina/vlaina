@@ -4,6 +4,9 @@ interface ThumbnailRequest {
   maxEdgePx: number;
 }
 
+const DEFAULT_THUMBNAIL_MAX_EDGE_PX = 160;
+const MAX_THUMBNAIL_MAX_EDGE_PX = 2048;
+
 type ThumbnailResponse =
   | { ok: true; blob: Blob }
   | { ok: false; message: string };
@@ -15,7 +18,11 @@ const workerScope = globalThis as unknown as {
 
 workerScope.onmessage = async (event) => {
   try {
-    const { buffer, mimeType, maxEdgePx } = event.data;
+    const { buffer, mimeType } = event.data;
+    const roundedMaxEdgePx = Math.round(event.data.maxEdgePx);
+    const maxEdgePx = Number.isFinite(roundedMaxEdgePx)
+      ? Math.max(1, Math.min(MAX_THUMBNAIL_MAX_EDGE_PX, roundedMaxEdgePx))
+      : DEFAULT_THUMBNAIL_MAX_EDGE_PX;
     if (typeof createImageBitmap !== 'function' || typeof OffscreenCanvas === 'undefined') {
       throw new Error('Worker thumbnail APIs are unavailable');
     }

@@ -7,19 +7,32 @@ import { translate } from '@/lib/i18n';
 import { themeImageBlockStyleTokens } from '@/styles/themeTokens';
 
 const videoElementAttrs = new WeakMap<HTMLElement, VideoAttrs>();
+const DEFAULT_VIDEO_WIDTH = 560;
+const DEFAULT_VIDEO_HEIGHT = 315;
+const MAX_VIDEO_TITLE_CHARS = 256;
+const MAX_VIDEO_DIMENSION = 4096;
 
-function parseVideoSize(value: string | undefined, fallback: number) {
-  const parsed = Number.parseInt(value || '', 10);
-  return Number.isFinite(parsed) ? parsed : fallback;
+function normalizeVideoTitle(value: unknown): string {
+  return typeof value === 'string' ? value.slice(0, MAX_VIDEO_TITLE_CHARS) : '';
+}
+
+function normalizeVideoSize(value: unknown, fallback: number) {
+  const parsed = typeof value === 'number' ? value : Number.parseInt(String(value || ''), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(Math.trunc(parsed), MAX_VIDEO_DIMENSION);
+}
+
+export function normalizeVideoAttrs(attrs: VideoAttrs): VideoAttrs {
+  return {
+    src: typeof attrs.src === 'string' ? attrs.src : '',
+    title: normalizeVideoTitle(attrs.title),
+    width: normalizeVideoSize(attrs.width, DEFAULT_VIDEO_WIDTH),
+    height: normalizeVideoSize(attrs.height, DEFAULT_VIDEO_HEIGHT),
+  };
 }
 
 export function setVideoElementAttrs(element: HTMLElement, attrs: VideoAttrs) {
-  videoElementAttrs.set(element, {
-    src: attrs.src,
-    title: attrs.title || '',
-    width: attrs.width || 560,
-    height: attrs.height || 315,
-  });
+  videoElementAttrs.set(element, normalizeVideoAttrs(attrs));
   delete element.dataset.src;
   delete element.dataset.title;
 }
@@ -31,9 +44,9 @@ export function getVideoElementAttrs(element: HTMLElement): VideoAttrs {
   }
   return {
     src: element.dataset.src || '',
-    title: element.dataset.title || '',
-    width: parseVideoSize(element.dataset.width, 560),
-    height: parseVideoSize(element.dataset.height, 315),
+    title: normalizeVideoTitle(element.dataset.title),
+    width: normalizeVideoSize(element.dataset.width, DEFAULT_VIDEO_WIDTH),
+    height: normalizeVideoSize(element.dataset.height, DEFAULT_VIDEO_HEIGHT),
   };
 }
 
@@ -69,8 +82,8 @@ function createVideoIframe(args: {
 }): HTMLIFrameElement {
   const { attrs, parsed } = args;
   const iframe = document.createElement('iframe');
-  iframe.width = String(attrs.width || 560);
-  iframe.height = String(attrs.height || 315);
+  iframe.width = String(attrs.width || DEFAULT_VIDEO_WIDTH);
+  iframe.height = String(attrs.height || DEFAULT_VIDEO_HEIGHT);
   iframe.frameBorder = '0';
   iframe.allow = 'clipboard-write; encrypted-media; gyroscope; picture-in-picture';
   iframe.allowFullscreen = true;
@@ -87,13 +100,14 @@ function createVideoIframe(args: {
 }
 
 export function createVideoDom(attrs: VideoAttrs): HTMLElement {
+  attrs = normalizeVideoAttrs(attrs);
   const parsed = parseVideoUrl(attrs.src);
 
   const wrapper = document.createElement('div');
   wrapper.setAttribute('data-type', 'video');
   setVideoElementAttrs(wrapper, attrs);
-  wrapper.setAttribute('data-width', String(attrs.width || 560));
-  wrapper.setAttribute('data-height', String(attrs.height || 315));
+  wrapper.setAttribute('data-width', String(attrs.width || DEFAULT_VIDEO_WIDTH));
+  wrapper.setAttribute('data-height', String(attrs.height || DEFAULT_VIDEO_HEIGHT));
   wrapper.contentEditable = 'false';
   wrapper.className = 'video-block';
 

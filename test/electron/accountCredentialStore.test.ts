@@ -133,4 +133,20 @@ describe('accountCredentialStore', () => {
     await expect(store.readStoredAccountCredentials()).resolves.toBeNull();
     await expect(readFile(secretsPath, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
   });
+
+  it('ignores oversized account credential files', async () => {
+    const { createAccountCredentialStore } = await import('../../electron/accountCredentialStore.mjs');
+    const store = createAccountCredentialStore({
+      desktopLegacySessionHeader: 'x-app-session-token',
+    });
+    const storeDir = path.join(mocks.userDataPath, '.vlaina', 'store');
+    const metaPath = path.join(storeDir, 'account-meta.json');
+    const secretsPath = path.join(storeDir, 'account-secrets.json');
+
+    await mkdir(storeDir, { recursive: true });
+    await writeFile(metaPath, ' '.repeat(300 * 1024), 'utf8');
+    await writeFile(secretsPath, ' '.repeat(300 * 1024), 'utf8');
+
+    await expect(store.readStoredAccountCredentials()).resolves.toBeNull();
+  });
 });

@@ -32,6 +32,13 @@ import { normalizeRenderableDataImageSrc } from '@/components/common/markdown/im
 let switchSessionGeneration = 0;
 const inlineImagePersistenceSessions = new Set<string>()
 type InlineImageSourceGroups = Map<string, Set<string>>
+const INLINE_DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i
+const MAX_INLINE_IMAGE_PERSISTENCE_MESSAGE_NODES = 10_000
+const MAX_INLINE_IMAGE_PERSISTENCE_VERSIONS = 20
+const MAX_INLINE_IMAGE_PERSISTENCE_BRANCH_MESSAGES = 100
+const MAX_INLINE_IMAGE_PERSISTENCE_BRANCH_DEPTH = 1
+const MAX_INLINE_IMAGE_TOKENS_PER_CONTENT = 2000
+const MAX_INLINE_IMAGE_PERSISTENCE_SOURCES = 1000
 
 function addInlineImageSource(groups: InlineImageSourceGroups, source: string | null | undefined) {
   if (!source) {
@@ -39,6 +46,9 @@ function addInlineImageSource(groups: InlineImageSourceGroups, source: string | 
   }
   const normalized = normalizeRenderableDataImageSrc(source)
   if (!normalized) {
+    return
+  }
+  if (!groups.has(normalized) && groups.size >= MAX_INLINE_IMAGE_PERSISTENCE_SOURCES) {
     return
   }
   const aliases = groups.get(normalized) ?? new Set<string>()
@@ -51,7 +61,12 @@ function collectInlineImageSourcesFromContent(content: string | undefined, group
   if (!content) {
     return
   }
-  parseMarkdownImageTokens(content).forEach((token) => addInlineImageSource(groups, token.src))
+  if (!INLINE_DATA_IMAGE_TARGET_HINT_PATTERN.test(content)) {
+    return
+  }
+  parseMarkdownImageTokens(content, {
+    maxTokens: MAX_INLINE_IMAGE_TOKENS_PER_CONTENT,
+  }).forEach((token) => addInlineImageSource(groups, token.src))
 }
 
 function collectInlineImageSourcesFromApiContent(content: ChatMessageContent | null | undefined, groups: InlineImageSourceGroups) {
@@ -124,16 +139,37 @@ function replaceApiTranscriptSources(
 }
 
 function collectInlineImageSources(messages: ChatMessage[], groups: InlineImageSourceGroups = new Map()) {
-  messages.forEach((message) => {
-    collectInlineImageSourcesFromContent(message.content, groups)
-    collectInlineImageSourcesFromApiTranscript(message.apiTranscript, groups)
-    message.imageSources?.forEach((source) => addInlineImageSource(groups, source))
-    message.versions?.forEach((version) => {
-      collectInlineImageSourcesFromContent(version.content, groups)
-      collectInlineImageSourcesFromApiTranscript(version.apiTranscript, groups)
-      collectInlineImageSources(version.subsequentMessages || [], groups)
-    })
-  })
+  const stack: Array<{ depth: number; messages: ChatMessage[] }> = [{ depth: 0, messages }]
+  let visited = 0
+
+  while (stack.length > 0 && visited < MAX_INLINE_IMAGE_PERSISTENCE_MESSAGE_NODES) {
+    const frame = stack.pop()!
+
+    for (const message of frame.messages) {
+      if (visited >= MAX_INLINE_IMAGE_PERSISTENCE_MESSAGE_NODES) {
+        break
+      }
+      visited += 1
+
+      collectInlineImageSourcesFromContent(message.content, groups)
+      collectInlineImageSourcesFromApiTranscript(message.apiTranscript, groups)
+      message.imageSources?.forEach((source) => addInlineImageSource(groups, source))
+      message.versions?.slice(0, MAX_INLINE_IMAGE_PERSISTENCE_VERSIONS).forEach((version) => {
+        collectInlineImageSourcesFromContent(version.content, groups)
+        collectInlineImageSourcesFromApiTranscript(version.apiTranscript, groups)
+        if (
+          frame.depth < MAX_INLINE_IMAGE_PERSISTENCE_BRANCH_DEPTH &&
+          Array.isArray(version.subsequentMessages) &&
+          version.subsequentMessages.length > 0
+        ) {
+          stack.push({
+            depth: frame.depth + 1,
+            messages: version.subsequentMessages.slice(0, MAX_INLINE_IMAGE_PERSISTENCE_BRANCH_MESSAGES),
+          })
+        }
+      })
+    }
+  }
 
   return groups
 }

@@ -1,3 +1,5 @@
+import { canTransformMarkdownAst } from './markdownAstBudget';
+
 export type TextAlignment = 'left' | 'center' | 'right';
 
 export interface AlignmentAwareMdastNode {
@@ -93,6 +95,10 @@ function visitAlignmentComments(node: AlignmentAwareMdastNode): void {
 }
 
 export function applyAlignmentCommentsToTree(tree: AlignmentAwareMdastNode): void {
+  if (!canTransformMarkdownAst(tree)) {
+    return;
+  }
+
   visitAlignmentComments(tree);
 }
 

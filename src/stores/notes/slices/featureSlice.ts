@@ -39,6 +39,18 @@ const MAX_SCANNED_NOTE_CONTENT_CHARS = 8 * 1024 * 1024;
 const MAX_METADATA_UPDATE_NOTE_BYTES = 10 * 1024 * 1024;
 const ICON_SYMBOL_SCHEME_PATTERN = /^icon:/i;
 
+function canReadBoundedMarkdownFile(
+  fileInfo: { isFile?: boolean; isDirectory?: boolean; size?: number | null } | null | undefined,
+  maxBytes: number,
+): boolean {
+  return (
+    fileInfo?.isDirectory !== true &&
+    fileInfo?.isFile !== false &&
+    typeof fileInfo?.size === 'number' &&
+    fileInfo.size <= maxBytes
+  );
+}
+
 function replaceNoteEntry(
   metadata: MetadataFile,
   path: string,
@@ -204,7 +216,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         if (sourceContent === undefined) {
           const storage = getStorageAdapter();
           const fileInfo = await storage.stat(path).catch(() => null);
-          if (fileInfo?.size && fileInfo.size > MAX_METADATA_UPDATE_NOTE_BYTES) {
+          if (!canReadBoundedMarkdownFile(fileInfo, MAX_METADATA_UPDATE_NOTE_BYTES)) {
             set({ error: 'Note file is too large to update metadata.' });
             return;
           }
@@ -304,7 +316,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
       const storage = getStorageAdapter();
       const fileInfo = await storage.stat(fullPath).catch(() => null);
-      if (fileInfo?.size && fileInfo.size > MAX_METADATA_UPDATE_NOTE_BYTES) {
+      if (!canReadBoundedMarkdownFile(fileInfo, MAX_METADATA_UPDATE_NOTE_BYTES)) {
         set({ error: 'Note file is too large to update metadata.' });
         return;
       }
@@ -524,17 +536,13 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
               }
 
               let modifiedAt: number | null = null;
-              try {
-                const fileInfo = await storage.stat(fullPath);
-                if (!isScanActive()) {
-                  return { path, content: '', modifiedAt: null };
-                }
-                modifiedAt = fileInfo?.modifiedAt ?? null;
-                if (fileInfo?.size && fileInfo.size > MAX_SEARCHABLE_NOTE_BYTES) {
-                  return { path, content: '', modifiedAt };
-                }
-              } catch {
-                // Some adapters/tests may not expose stat; still read the note content.
+              const fileInfo = await storage.stat(fullPath).catch(() => null);
+              if (!isScanActive()) {
+                return { path, content: '', modifiedAt: null };
+              }
+              modifiedAt = fileInfo?.modifiedAt ?? null;
+              if (!canReadBoundedMarkdownFile(fileInfo, MAX_SEARCHABLE_NOTE_BYTES)) {
+                return { path, content: '', modifiedAt };
               }
 
               try {

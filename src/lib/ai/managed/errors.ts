@@ -1,5 +1,7 @@
 import { MANAGED_AUTH_REQUIRED_ERROR } from './constants';
 
+const MAX_MANAGED_ERROR_BODY_BYTES = 64 * 1024;
+
 function createManagedServiceError(
   message: string,
   statusCode: number,
@@ -115,12 +117,45 @@ function messageForManagedErrorCode(errorCode: string): string {
   }
 }
 
+async function readManagedErrorBody(response: Response): Promise<string> {
+  if (!response.body) {
+    return '';
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytesRead = 0;
+  let text = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      bytesRead += value.byteLength;
+      if (bytesRead > MAX_MANAGED_ERROR_BODY_BYTES) {
+        void reader.cancel().catch(() => undefined);
+        return '';
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+
+    return text + decoder.decode();
+  } catch {
+    return '';
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 export async function parseManagedError(response: Response): Promise<Error> {
-  const raw = await response.text().catch(() => '');
   if (response.status === 401) {
     return createManagedServiceError(MANAGED_AUTH_REQUIRED_ERROR, response.status);
   }
 
+  const raw = await readManagedErrorBody(response);
   if (!raw) {
     return createManagedServiceError(`Managed API request failed: HTTP ${response.status}`, response.status);
   }

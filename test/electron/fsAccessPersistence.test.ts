@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   mkdir: vi.fn(),
   readFile: vi.fn(),
   realpath: vi.fn(async (filePath: string) => filePath),
+  stat: vi.fn(),
   writeFile: vi.fn(),
   app: {
     getPath: vi.fn(() => '/tmp/vlaina-user-data'),
@@ -26,6 +27,7 @@ vi.mock('node:fs/promises', () => ({
   mkdir: mocks.mkdir,
   readFile: mocks.readFile,
   realpath: mocks.realpath,
+  stat: mocks.stat,
   writeFile: mocks.writeFile,
 }));
 
@@ -37,6 +39,7 @@ describe('desktop filesystem authorization persistence', () => {
     mocks.mkdir.mockResolvedValue(undefined);
     mocks.readFile.mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
     mocks.realpath.mockImplementation(async (filePath: string) => filePath);
+    mocks.stat.mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
     mocks.writeFile.mockResolvedValue(undefined);
   });
 
@@ -60,5 +63,22 @@ describe('desktop filesystem authorization persistence', () => {
     expect(mocks.writeFile).toHaveBeenCalledTimes(2);
     const persistedPayload = JSON.parse(String(mocks.writeFile.mock.calls[1]?.[1]));
     expect(persistedPayload.roots).toContain(expectedProjectTwoKey);
+  });
+
+  it('ignores oversized persisted authorization files before reading them', async () => {
+    const {
+      assertAuthorizedFsPath,
+      resetAuthorizedFsPathsForTests,
+    } = await import('../../electron/fsAccess.mjs');
+    resetAuthorizedFsPathsForTests();
+    mocks.stat.mockResolvedValue({
+      isFile: () => true,
+      size: 600 * 1024,
+    });
+    mocks.readFile.mockRejectedValue(new Error('oversized file must not be read'));
+
+    await expect(assertAuthorizedFsPath('/tmp/saved-vault/note.md')).rejects.toThrow(
+      'File path is not authorized for desktop access',
+    );
   });
 });

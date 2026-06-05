@@ -14,6 +14,7 @@ const WEB_RESULT_POLL_ATTEMPTS = 10;
 const WEB_RESULT_POLL_DELAY_MS = 300;
 const TRANSIENT_ACCOUNT_RETRY_DELAYS_MS = [250, 750];
 const ACCOUNT_REQUEST_TIMEOUT_MS = 15_000;
+const MAX_ACCOUNT_RESPONSE_BODY_BYTES = 64 * 1024;
 
 interface WebAuthResult {
   success: boolean;
@@ -199,11 +200,49 @@ async function fetchAccountResponse(input: RequestInfo | URL, init: RequestInit 
   return response;
 }
 
+async function readAccountResponseText(response: Response, signal: AbortSignal): Promise<string> {
+  throwIfTimedOut(signal);
+  if (!response.body) {
+    return '';
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytesRead = 0;
+  let text = '';
+  const cancelReader = () => {
+    void reader.cancel(createAccountTimeoutError()).catch(() => undefined);
+  };
+  signal.addEventListener('abort', cancelReader, { once: true });
+
+  try {
+    while (true) {
+      const { done, value } = await raceAccountRequest(reader.read(), signal);
+      throwIfTimedOut(signal);
+      if (done) {
+        break;
+      }
+
+      bytesRead += value.byteLength;
+      if (bytesRead > MAX_ACCOUNT_RESPONSE_BODY_BYTES) {
+        void reader.cancel().catch(() => undefined);
+        throw new Error('Account API response body is too large.');
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+
+    return text + decoder.decode();
+  } finally {
+    signal.removeEventListener('abort', cancelReader);
+    reader.releaseLock();
+  }
+}
+
 async function readAccountJson<T>(response: Response, signal: AbortSignal): Promise<T> {
   throwIfTimedOut(signal);
-  const data = await raceAccountRequest(response.json() as Promise<T>, signal);
+  const text = await readAccountResponseText(response, signal);
   throwIfTimedOut(signal);
-  return data;
+  return JSON.parse(text) as T;
 }
 
 async function fetchAccountJson<T>(

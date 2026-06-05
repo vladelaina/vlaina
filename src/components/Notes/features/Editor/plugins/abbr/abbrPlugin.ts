@@ -2,6 +2,7 @@ import { $mark, $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import {
+  appendBoundedAbbrDefinitions,
   createAbbrUsagePattern,
   extractAbbrDefinitionsFromText,
   type AbbrDefinition,
@@ -62,7 +63,7 @@ function extractAbbrDefinitions(doc: any): AbbrDefinition[] {
     }
 
     const text = node.text || '';
-    definitions.push(...extractAbbrDefinitionsFromText(text));
+    appendBoundedAbbrDefinitions(definitions, extractAbbrDefinitionsFromText(text));
   });
   
   return definitions;

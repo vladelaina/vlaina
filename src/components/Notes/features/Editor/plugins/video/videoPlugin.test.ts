@@ -233,6 +233,66 @@ describe('videoPlugin URL support', () => {
     });
   });
 
+  it('normalizes oversized legacy video wrapper attributes', () => {
+    const dom = document.createElement('div');
+    dom.dataset.src = 'https://example.com/video.mp4';
+    dom.dataset.title = 'x'.repeat(300);
+    dom.dataset.width = '999999';
+    dom.dataset.height = '-1';
+
+    expect(getVideoElementAttrs(dom)).toEqual({
+      src: 'https://example.com/video.mp4',
+      title: 'x'.repeat(256),
+      width: 4096,
+      height: 315,
+    });
+  });
+
+  it('normalizes video titles while parsing markdown image syntax', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, `![fallback](https://example.com/video.mp4 "${'x'.repeat(300)}")`);
+      })
+      .use(commonmark);
+
+    for (const plugin of videoPlugin) {
+      editor.use(plugin);
+    }
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const video = findFirstVideoNode(view.state.doc);
+
+    expect(video?.attrs).toMatchObject({
+      src: 'https://example.com/video.mp4',
+      title: 'x'.repeat(256),
+      width: 560,
+      height: 315,
+    });
+
+    await editor.destroy();
+  });
+
+  it('does not persist the default video alt text as a title', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '![video](https://example.com/video.mp4)');
+      })
+      .use(commonmark);
+
+    for (const plugin of videoPlugin) {
+      editor.use(plugin);
+    }
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const video = findFirstVideoNode(view.state.doc);
+
+    expect(video?.attrs.title).toBe('');
+
+    await editor.destroy();
+  });
+
   it('serializes supported video nodes as markdown image syntax', async () => {
     await expect(serializeVideoNode(' https://example.com/video.mp4 ', 'Demo video')).resolves.toBe(
       '![video](https://example.com/video.mp4 "Demo video")'

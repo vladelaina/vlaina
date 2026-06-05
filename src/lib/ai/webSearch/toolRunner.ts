@@ -5,11 +5,16 @@ import {
   formatSafeReadFailure,
   formatSearchResultsForModel,
 } from './format';
+import { canParseOpenAIToolArguments } from './openAIToolParsing';
 import { WEB_SEARCH_TOOL_NAMES } from './toolDefinitions';
 import type { WebSearchStatus } from './types';
 
 const AUTO_READ_AFTER_SEARCH_LIMIT = 3;
 const AUTO_READ_AFTER_SEARCH_CONTENT_LIMIT = 3000;
+const MAX_WEB_SEARCH_QUERY_ARG_CHARS = 1000;
+const MAX_WEB_SEARCH_URL_ARG_CHARS = 16 * 1024;
+const MAX_WEB_SEARCH_OPTION_ARG_CHARS = 64;
+const MAX_WEB_SEARCH_BATCH_URLS = 8;
 
 interface WebSearchToolCall {
   name: string;
@@ -24,12 +29,13 @@ export interface WebSearchToolRunnerOptions {
 }
 
 function parseArguments(rawArguments: string): Record<string, unknown> {
-  if (!rawArguments.trim()) {
+  const trimmed = rawArguments.trim();
+  if (!trimmed || !canParseOpenAIToolArguments(trimmed)) {
     return {};
   }
 
   try {
-    const parsed = JSON.parse(rawArguments) as unknown;
+    const parsed = JSON.parse(trimmed) as unknown;
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
       ? parsed as Record<string, unknown>
       : {};
@@ -38,17 +44,28 @@ function parseArguments(rawArguments: string): Record<string, unknown> {
   }
 }
 
-function stringArg(args: Record<string, unknown>, key: string): string {
+function stringArg(args: Record<string, unknown>, key: string, maxChars: number): string {
   const value = args[key];
-  return typeof value === 'string' ? value.trim() : '';
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  return trimmed.length <= maxChars ? trimmed : '';
 }
 
-function stringArrayArg(args: Record<string, unknown>, key: string): string[] {
+function stringArrayArg(args: Record<string, unknown>, key: string, maxChars: number, maxItems: number): string[] {
   const value = args[key];
   if (!Array.isArray(value)) {
     return [];
   }
-  return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+  const result: string[] = [];
+  for (const item of value) {
+    if (result.length >= maxItems) break;
+    if (typeof item !== 'string') continue;
+    const trimmed = item.trim();
+    if (trimmed.length > 0 && trimmed.length <= maxChars) {
+      result.push(trimmed);
+    }
+  }
+  return result;
 }
 
 function numberArg(args: Record<string, unknown>, key: string): number | undefined {
@@ -60,6 +77,14 @@ function contentLimitArg(args: Record<string, unknown>): number {
   const limit = numberArg(args, 'contentLimit');
   if (!limit) return 3000;
   return Math.min(3000, Math.max(500, Math.round(limit)));
+}
+
+function invalidToolArgumentsResult(
+  options: Pick<WebSearchToolRunnerOptions, 'onStatus' | 'signal'>,
+): string {
+  const message = 'Tool call arguments were invalid.';
+  emitStatus(options, { phase: 'error', message });
+  return `Tool error: ${message}`;
 }
 
 function normalizeToolName(name: string): string {
@@ -167,12 +192,15 @@ export async function runWebSearchToolCall(
   try {
     throwIfAborted(options.signal);
     if (toolName === WEB_SEARCH_TOOL_NAMES.search) {
-      const query = stringArg(args, 'query');
+      const query = stringArg(args, 'query', MAX_WEB_SEARCH_QUERY_ARG_CHARS);
+      if (!query) {
+        return invalidToolArgumentsResult(options);
+      }
       const startedAt = performance.now();
       emitStatus(options, { phase: 'searching', query });
       const searchOptions = {
-        category: stringArg(args, 'category') || undefined,
-        timeRange: stringArg(args, 'timeRange') || undefined,
+        category: stringArg(args, 'category', MAX_WEB_SEARCH_OPTION_ARG_CHARS) || undefined,
+        timeRange: stringArg(args, 'timeRange', MAX_WEB_SEARCH_OPTION_ARG_CHARS) || undefined,
         limit: 5,
       };
       const response = await callWebSearchClient(
@@ -237,7 +265,10 @@ export async function runWebSearchToolCall(
     }
 
     if (toolName === WEB_SEARCH_TOOL_NAMES.read) {
-      const url = stringArg(args, 'url');
+      const url = stringArg(args, 'url', MAX_WEB_SEARCH_URL_ARG_CHARS);
+      if (!url) {
+        return invalidToolArgumentsResult(options);
+      }
       const startedAt = performance.now();
       emitStatus(options, { phase: 'reading', urls: [url] });
       const readOptions = { contentLimit: contentLimitArg(args), retries: 0 };
@@ -260,7 +291,10 @@ export async function runWebSearchToolCall(
     }
 
     if (toolName === WEB_SEARCH_TOOL_NAMES.readBatch) {
-      const urls = stringArrayArg(args, 'urls').slice(0, 8);
+      const urls = stringArrayArg(args, 'urls', MAX_WEB_SEARCH_URL_ARG_CHARS, MAX_WEB_SEARCH_BATCH_URLS);
+      if (urls.length === 0) {
+        return invalidToolArgumentsResult(options);
+      }
       const startedAt = performance.now();
       emitStatus(options, { phase: 'reading', urls });
       const readOptions = { contentLimit: contentLimitArg(args), retries: 0 };

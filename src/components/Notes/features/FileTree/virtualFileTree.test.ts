@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildVirtualFileTreeRowOffsets,
+  countVisibleFileTreeRows,
   estimateVirtualFileTreeRowHeight,
+  flattenVisibleFileTreeRows,
   getVirtualFileTreeWindow,
   VIRTUAL_FILE_TREE_ROW_HEIGHT,
 } from './virtualFileTree';
@@ -14,6 +16,27 @@ function file(name: string): FileTreeNode {
     path: `${name}.md`,
     isFolder: false,
   };
+}
+
+function folder(name: string, children: FileTreeNode[] = []): FileTreeNode {
+  return {
+    id: name,
+    name,
+    path: name,
+    isFolder: true,
+    children,
+    expanded: true,
+  };
+}
+
+function deepVisibleTree(depth: number): FileTreeNode[] {
+  let current: FileTreeNode = file('leaf');
+
+  for (let index = depth; index >= 0; index -= 1) {
+    current = folder(`folder-${index}`, [current]);
+  }
+
+  return [current];
 }
 
 describe('virtualFileTree', () => {
@@ -54,5 +77,34 @@ describe('virtualFileTree', () => {
       offsetTop: 38,
       totalHeight: 174,
     });
+  });
+
+  it('flattens deep visible trees without recursive traversal', () => {
+    const nodes = deepVisibleTree(2500);
+
+    const rows = flattenVisibleFileTreeRows(nodes);
+
+    expect(rows).toHaveLength(2502);
+    expect(rows[0]).toMatchObject({ depth: 0, parentFolderPath: '' });
+    expect(rows[rows.length - 1].node.path).toBe('leaf.md');
+    expect(countVisibleFileTreeRows(nodes)).toBe(rows.length);
+  });
+
+  it('keeps visible tree rows in display order', () => {
+    const nodes = [
+      folder('docs', [
+        file('alpha'),
+        folder('guides', [file('beta')]),
+      ]),
+      file('root'),
+    ];
+
+    expect(flattenVisibleFileTreeRows(nodes).map((row) => row.node.path)).toEqual([
+      'docs',
+      'alpha.md',
+      'guides',
+      'beta.md',
+      'root.md',
+    ]);
   });
 });

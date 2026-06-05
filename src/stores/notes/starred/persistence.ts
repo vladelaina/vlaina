@@ -57,7 +57,10 @@ async function readRawStarredRegistry(): Promise<StarredRegistry | null> {
   }
 
   const starredInfo = await storage.stat(starredPath).catch(() => null);
-  if (starredInfo?.size && starredInfo.size > MAX_STARRED_REGISTRY_BYTES) {
+  if (
+    typeof starredInfo?.size !== 'number' ||
+    starredInfo.size > MAX_STARRED_REGISTRY_BYTES
+  ) {
     return { version: CURRENT_STARRED_VERSION, entries: [], deletedEntryKeys: [] };
   }
 

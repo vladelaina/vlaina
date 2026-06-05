@@ -1,5 +1,5 @@
 import electron from 'electron';
-import { mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const { app } = electron;
@@ -7,6 +7,7 @@ const { app } = electron;
 const authorizedFsRootPaths = new Set();
 const authorizedFsFilePaths = new Set();
 const authorizedFsWatchRootPaths = new Set();
+const MAX_AUTHORIZED_FS_PATHS_JSON_BYTES = 512 * 1024;
 let authorizedFsPathsLoaded = false;
 let authorizedFsPathsLoadPromise = null;
 let authorizedFsPathsSavePromise = Promise.resolve();
@@ -126,7 +127,12 @@ async function isProtectedFsAccessPath(candidatePath) {
 
 async function readAuthorizedFsPaths() {
   try {
-    const payload = JSON.parse(await readFile(getAuthorizedFsPathsPath(), 'utf8'));
+    const storePath = getAuthorizedFsPathsPath();
+    const fileInfo = await stat(storePath);
+    if (!fileInfo.isFile() || fileInfo.size > MAX_AUTHORIZED_FS_PATHS_JSON_BYTES) {
+      return { roots: [], files: [], watchRoots: [] };
+    }
+    const payload = JSON.parse(await readFile(storePath, 'utf8'));
     return {
       roots: Array.isArray(payload?.roots) ? payload.roots : [],
       files: Array.isArray(payload?.files) ? payload.files : [],
@@ -278,6 +284,24 @@ export function canRenameAuthorizedRoot(sourcePath, targetPath) {
   }
 
   return normalizeFsPathKey(path.dirname(sourcePath)) === normalizeFsPathKey(path.dirname(targetPath));
+}
+
+export async function assertAuthorizedFsRenameTarget(sourcePath, targetPath) {
+  const resolvedSourcePath = normalizeFsPathForAccess(sourcePath);
+  const resolvedTargetPath = normalizeFsPathForAccess(targetPath);
+  if (canRenameAuthorizedRoot(resolvedSourcePath, resolvedTargetPath)) {
+    if (await isProtectedFsAccessPath(resolvedTargetPath)) {
+      throw new Error(`File path is reserved for internal desktop storage: ${resolvedTargetPath}`);
+    }
+
+    const realTargetPath = await resolveRealFsAccessPath(resolvedTargetPath);
+    if (await isProtectedFsAccessPath(realTargetPath)) {
+      throw new Error(`File path is reserved for internal desktop storage: ${resolvedTargetPath}`);
+    }
+    return resolvedTargetPath;
+  }
+
+  return assertAuthorizedFsPath(resolvedTargetPath);
 }
 
 export async function updateAuthorizedRootRename(sourcePath, targetPath) {

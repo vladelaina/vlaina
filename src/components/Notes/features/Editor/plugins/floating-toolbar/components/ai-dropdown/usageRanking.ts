@@ -3,9 +3,48 @@ import type { AiMenuGroup } from './types';
 
 const STORAGE_KEY = 'vlaina_editor_ai_menu_usage';
 const SORTED_GROUP_IDS = new Set(['actions', 'tone']);
+const MAX_USAGE_STORAGE_CHARS = 16 * 1024;
+const MAX_USAGE_COUNT = 1_000_000;
 
 type UsageCounts = Record<string, number>;
 type UsageState = Record<string, UsageCounts>;
+
+const SORTED_GROUP_ITEM_IDS = new Map(
+  AI_PROMPT_GROUPS
+    .filter((group) => SORTED_GROUP_IDS.has(group.id))
+    .map((group) => [group.id, new Set(group.items.map((item) => item.id))]),
+);
+
+function normalizeUsageState(value: unknown): UsageState {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  const rawState = value as Record<string, unknown>;
+  const state: UsageState = {};
+  for (const [groupId, itemIds] of SORTED_GROUP_ITEM_IDS) {
+    const rawGroup = rawState[groupId];
+    if (!rawGroup || typeof rawGroup !== 'object' || Array.isArray(rawGroup)) {
+      continue;
+    }
+
+    const counts: UsageCounts = {};
+    const rawCounts = rawGroup as Record<string, unknown>;
+    for (const itemId of itemIds) {
+      const count = rawCounts[itemId];
+      if (typeof count !== 'number' || !Number.isFinite(count) || count <= 0) {
+        continue;
+      }
+      counts[itemId] = Math.min(Math.trunc(count), MAX_USAGE_COUNT);
+    }
+
+    if (Object.keys(counts).length > 0) {
+      state[groupId] = counts;
+    }
+  }
+
+  return state;
+}
 
 function readUsageState(): UsageState {
   if (typeof window === 'undefined') {
@@ -17,13 +56,11 @@ function readUsageState(): UsageState {
     if (!raw) {
       return {};
     }
-
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') {
+    if (raw.length > MAX_USAGE_STORAGE_CHARS) {
       return {};
     }
 
-    return parsed as UsageState;
+    return normalizeUsageState(JSON.parse(raw));
   } catch {
     return {};
   }
@@ -75,13 +112,13 @@ export function getAiMenuGroups(): readonly AiMenuGroup[] {
 }
 
 export function recordAiMenuItemUsage(groupId: string, itemId: string) {
-  if (!SORTED_GROUP_IDS.has(groupId)) {
+  if (!SORTED_GROUP_ITEM_IDS.get(groupId)?.has(itemId)) {
     return;
   }
 
   const state = readUsageState();
   const groupUsage = state[groupId] ?? {};
-  const nextCount = getItemUsage(state, groupId, itemId) + 1;
+  const nextCount = Math.min(getItemUsage(state, groupId, itemId) + 1, MAX_USAGE_COUNT);
 
   writeUsageState({
     ...state,

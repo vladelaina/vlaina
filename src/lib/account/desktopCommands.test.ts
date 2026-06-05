@@ -45,6 +45,8 @@ vi.mock('@/lib/electron/bridge', () => ({
 
 import { accountCommands } from './desktopCommands';
 
+const MAX_MANAGED_DESKTOP_BODY_BYTES = 64 * 1024 * 1024;
+
 describe('desktop account commands', () => {
   beforeEach(() => {
     mocks.getElectronBridge.mockReturnValue({ account: mocks.account });
@@ -321,6 +323,27 @@ describe('desktop account commands', () => {
     await expect(request).rejects.toMatchObject({ name: 'AbortError' });
     expect(mocks.account.managedImageEdit).not.toHaveBeenCalled();
     expect(mocks.account.cancelManagedImageEdit).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized managed image edit Blobs before reading them', async () => {
+    const blob = new Blob(['x'], { type: 'multipart/form-data; boundary=test' });
+    const arrayBuffer = vi.fn(async () => new ArrayBuffer(1));
+    Object.defineProperty(blob, 'size', {
+      configurable: true,
+      value: MAX_MANAGED_DESKTOP_BODY_BYTES + 1,
+    });
+    Object.defineProperty(blob, 'arrayBuffer', {
+      configurable: true,
+      value: arrayBuffer,
+    });
+
+    await expect(accountCommands.managedImageEdit(
+      blob,
+      { 'Content-Type': 'multipart/form-data; boundary=test' },
+    )).rejects.toThrow('Managed desktop binary request body is too large.');
+
+    expect(arrayBuffer).not.toHaveBeenCalled();
+    expect(mocks.account.managedImageEdit).not.toHaveBeenCalled();
   });
 
   it('does not start managed image generation requests when the signal is already aborted', async () => {

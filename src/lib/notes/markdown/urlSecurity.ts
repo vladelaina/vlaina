@@ -7,6 +7,9 @@ const UNIX_ABSOLUTE_PATH_PATTERN = /^\//;
 const SAFE_LINK_SCHEMES = new Set(['http:', 'https:', 'mailto:']);
 const SAFE_MEDIA_SCHEMES = new Set(['http:', 'https:', 'blob:']);
 const FALLBACK_URL_BASE = 'https://vlaina.local/';
+const MAX_NOTE_LINK_HREF_CHARS = 16 * 1024;
+const MAX_NOTE_REMOTE_MEDIA_URL_CHARS = 16 * 1024;
+const MAX_NOTE_INTERNAL_IMAGE_SRC_CHARS = 16 * 1024;
 
 function hasUnsafeUrlCharacters(value: string): boolean {
   return CONTROL_OR_BIDI_PATTERN.test(value);
@@ -112,6 +115,7 @@ export function isPublicRemoteMediaUrl(value: unknown): boolean {
   if (typeof value !== 'string') return false;
   const trimmed = value.trim();
   if (!trimmed) return false;
+  if (trimmed.length > MAX_NOTE_REMOTE_MEDIA_URL_CHARS) return false;
   if (hasUnsafeUrlCharacters(trimmed)) return false;
   if (hasUnsafeBackslashUrlSyntax(trimmed)) return false;
   if (!trimmed.startsWith('//') && !/^https?:/i.test(trimmed)) return false;
@@ -141,6 +145,7 @@ export function sanitizeNoteLinkHref(value: unknown): string | null {
   const trimmed = value.trim();
   if (
     !trimmed
+    || trimmed.length > MAX_NOTE_LINK_HREF_CHARS
     || trimmed.startsWith('//')
     || hasUnsafeUrlCharacters(trimmed)
     || hasUnsafeBackslashUrlSyntax(trimmed)
@@ -156,6 +161,7 @@ export function sanitizeNoteLinkHref(value: unknown): string | null {
 export function getNoteInternalImageAssetPath(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
+  if (trimmed.length > MAX_NOTE_INTERNAL_IMAGE_SRC_CHARS) return null;
   const scheme = SCHEME_PATTERN.exec(trimmed)?.[1]?.toLowerCase();
   if (scheme !== 'img') return null;
 
@@ -188,11 +194,12 @@ export function sanitizeNoteMediaSrc(value: unknown): string | null {
   }
 
   if (trimmed.startsWith('//')) {
+    if (trimmed.length > MAX_NOTE_REMOTE_MEDIA_URL_CHARS) return null;
     return isLocalNetworkHttpUrl(`https:${trimmed}`) ? null : trimmed;
   }
 
   const scheme = SCHEME_PATTERN.exec(trimmed)?.[1]?.toLowerCase();
-  if (!scheme) return trimmed;
+  if (!scheme) return trimmed.length <= MAX_NOTE_INTERNAL_IMAGE_SRC_CHARS ? trimmed : null;
   const normalizedScheme = `${scheme}:`;
   if (normalizedScheme === 'img:') {
     const assetPath = getNoteInternalImageAssetPath(trimmed);
@@ -201,6 +208,10 @@ export function sanitizeNoteMediaSrc(value: unknown): string | null {
   if (normalizedScheme === 'data:') {
     return normalizeSafeRasterDataImageSrc(trimmed);
   }
+  if (
+    (normalizedScheme === 'http:' || normalizedScheme === 'https:' || normalizedScheme === 'blob:') &&
+    trimmed.length > MAX_NOTE_REMOTE_MEDIA_URL_CHARS
+  ) return null;
   if (!SAFE_MEDIA_SCHEMES.has(normalizedScheme)) return null;
   if ((normalizedScheme === 'http:' || normalizedScheme === 'https:') && isLocalNetworkHttpUrl(trimmed)) return null;
   return trimmed;

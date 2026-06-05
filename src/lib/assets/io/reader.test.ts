@@ -43,7 +43,7 @@ describe('asset image reader cache', () => {
     hoisted.getBasePath.mockReset();
     hoisted.getBasePath.mockResolvedValue('/app-data');
     hoisted.stat.mockReset();
-    hoisted.stat.mockResolvedValue(null);
+    hoisted.stat.mockResolvedValue({ modifiedAt: 1, size: 3 });
     hoisted.platform = 'web';
     vi.spyOn(URL, 'createObjectURL').mockImplementation(() => 'blob:test-url');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
@@ -66,13 +66,14 @@ describe('asset image reader cache', () => {
     expect(getCachedBlobUrl('/vault/assets/cover.png')).toBeUndefined();
   });
 
-  it('reuses cached full image blobs even when file metadata is unavailable', async () => {
-    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:unvalidated-url');
+  it('rejects full image blob reads when file metadata has no size', async () => {
+    hoisted.stat.mockResolvedValueOnce(null);
 
-    await expect(loadImageAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:unvalidated-url');
-    await expect(loadImageAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:unvalidated-url');
+    await expect(loadImageAsBlob('/vault/assets/cover.png')).rejects.toThrow(
+      'Image asset is too large to preview.',
+    );
 
-    expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(1);
+    expect(hoisted.readBinaryFile).not.toHaveBeenCalled();
   });
 
   it('reloads and revokes a cached blob URL when file metadata changes', async () => {
@@ -369,14 +370,51 @@ describe('asset image reader cache', () => {
     vi.stubGlobal('Image', originalImage);
   });
 
-  it('reuses cached thumbnails when file metadata is unavailable', async () => {
-    hoisted.readBinaryFile.mockResolvedValueOnce(encodeTextBytes('<svg xmlns="http://www.w3.org/2000/svg" />'));
-    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:thumb-svg-url');
+  it('clamps oversized thumbnail edge requests before sizing a fallback canvas', async () => {
+    hoisted.stat.mockResolvedValue({ modifiedAt: 1, size: 3 });
+    vi.mocked(URL.createObjectURL)
+      .mockReturnValueOnce('blob:source-url')
+      .mockReturnValueOnce('blob:thumb-url');
+    vi.stubGlobal('Worker', undefined);
+    const originalImage = globalThis.Image;
+    const originalCreateElement = document.createElement.bind(document);
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: () => ({ drawImage: vi.fn() }),
+      toBlob: (callback: (blob: Blob | null) => void) => callback(new Blob(['thumb'], { type: 'image/webp' })),
+    } as unknown as HTMLCanvasElement;
+    vi.stubGlobal('Image', class {
+      naturalWidth = 8192;
+      naturalHeight = 4096;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(_value: string) {
+        queueMicrotask(() => this.onload?.());
+      }
+    });
+    vi.spyOn(document, 'createElement').mockImplementation((tagName, options) => (
+      tagName === 'canvas' ? canvas : originalCreateElement(tagName, options)
+    ));
 
-    await expect(loadImageThumbnailAsBlob('/vault/assets/icon.svg')).resolves.toBe('blob:thumb-svg-url');
-    await expect(loadImageThumbnailAsBlob('/vault/assets/icon.svg')).resolves.toBe('blob:thumb-svg-url');
+    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png', {
+      maxEdgePx: 999_999,
+      allowMainThreadFallback: true,
+    })).resolves.toBe('blob:thumb-url');
 
-    expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(1);
+    expect(canvas.width).toBe(2048);
+    expect(canvas.height).toBe(1024);
+    vi.stubGlobal('Image', originalImage);
+  });
+
+  it('rejects thumbnail reads when file metadata has no size', async () => {
+    hoisted.stat.mockResolvedValueOnce(null);
+
+    await expect(loadImageThumbnailAsBlob('/vault/assets/icon.svg')).rejects.toThrow(
+      'Image asset is too large to preview.',
+    );
+
+    expect(hoisted.readBinaryFile).not.toHaveBeenCalled();
   });
 
   it('coalesces concurrent thumbnail reads for the same file metadata', async () => {

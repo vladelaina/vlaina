@@ -2,6 +2,8 @@ import type { ApiTranscriptMessage, ChatMessageContent, ChatMessageContentPart }
 
 const MAX_API_TRANSCRIPT_MESSAGES = 64;
 const MAX_API_TRANSCRIPT_STRING_CHARS = 20000;
+const MAX_API_TRANSCRIPT_CONTENT_PARTS = 64;
+const MAX_API_TRANSCRIPT_TOOL_CALLS = 32;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -47,7 +49,10 @@ function normalizeContent(value: unknown): ChatMessageContent | null | undefined
     return undefined;
   }
 
-  const parts = value.map(normalizeContentPart).filter((part): part is ChatMessageContentPart => part !== null);
+  const parts = value
+    .slice(0, MAX_API_TRANSCRIPT_CONTENT_PARTS)
+    .map(normalizeContentPart)
+    .filter((part): part is ChatMessageContentPart => part !== null);
   return parts.length > 0 ? parts : undefined;
 }
 
@@ -87,6 +92,7 @@ export function normalizeApiTranscriptMessage(value: unknown): ApiTranscriptMess
 
   const toolCalls = Array.isArray(value.tool_calls)
     ? value.tool_calls
+        .slice(0, MAX_API_TRANSCRIPT_TOOL_CALLS)
         .map(normalizeApiTranscriptToolCall)
         .filter((toolCall): toolCall is NonNullable<ApiTranscriptMessage['tool_calls']>[number] => toolCall !== null)
     : [];

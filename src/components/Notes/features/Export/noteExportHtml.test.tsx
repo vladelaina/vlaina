@@ -42,6 +42,7 @@ describe('renderNoteExportHtml', () => {
     expect(doc.querySelector('img[src="assets/hidden-noscript.png"]')).toBeNull();
     expect(doc.querySelector('img[src="assets/hidden-math.png"]')).toBeNull();
     expect(doc.querySelector('img[src="assets/hidden-noembed.png"]')).toBeNull();
+    expect(doc.body.textContent).toContain('<noembed>');
     expect(doc.querySelector('[onclick]')).toBeNull();
     expect(doc.querySelector('[onerror]')).toBeNull();
     expect(doc.querySelector('a[href^="javascript:"]')).toBeNull();

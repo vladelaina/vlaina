@@ -3,7 +3,9 @@ import type { FileTreeNode } from './types';
 import {
   addNodeToTree,
   buildFileTree,
+  countFileTreeNodes,
   expandFoldersForPath,
+  findNode,
   isGitRepositoryDirectory,
   removeNodeFromTree,
   updateFolderExpanded,
@@ -66,6 +68,28 @@ function createTree(): FileTreeNode[] {
       ],
     },
   ];
+}
+
+function createDeepTree(depth: number): FileTreeNode[] {
+  let current: FileTreeNode = {
+    id: `folder-${depth}/leaf.md`,
+    name: 'leaf',
+    path: `folder-${depth}/leaf.md`,
+    isFolder: false,
+  };
+
+  for (let index = depth; index >= 0; index -= 1) {
+    current = {
+      id: `folder-${index}`,
+      name: `folder-${index}`,
+      path: `folder-${index}`,
+      isFolder: true,
+      expanded: true,
+      children: [current],
+    };
+  }
+
+  return [current];
 }
 
 describe('fileTreeUtils structural sharing', () => {
@@ -444,5 +468,20 @@ describe('fileTreeUtils structural sharing', () => {
         ],
       },
     ]);
+  });
+
+  it('counts deep file trees without recursive traversal', () => {
+    expect(countFileTreeNodes(createDeepTree(2500))).toEqual({
+      nodes: 2502,
+      folders: 2501,
+      files: 1,
+    });
+  });
+
+  it('finds nodes in deep file trees without recursive traversal', () => {
+    expect(findNode(createDeepTree(2500), 'folder-2500/leaf.md')).toMatchObject({
+      isFolder: false,
+      path: 'folder-2500/leaf.md',
+    });
   });
 });

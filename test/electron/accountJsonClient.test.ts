@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDesktopAccountJsonClient } from '../../electron/accountJsonClient.mjs';
 
+const MAX_DESKTOP_ACCOUNT_RESPONSE_BODY_BYTES = 64 * 1024;
+
 describe('desktop account json client', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -130,18 +132,75 @@ describe('desktop account json client', () => {
   it('rejects promptly when response text ignores abort', async () => {
     const client = createDesktopAccountJsonClient();
     const controller = new AbortController();
+    const reader = {
+      read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined)),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    };
     vi.stubGlobal('fetch', vi.fn(async () => ({
       status: 200,
       ok: true,
-      text: vi.fn(() => new Promise(() => undefined)),
+      body: {
+        getReader: () => reader,
+      },
+      headers: new Headers(),
     })));
 
     const request = client.fetchDesktopJson('https://api.example.com/desktop/result', {
       signal: controller.signal,
     });
-    await Promise.resolve();
+    for (let attempt = 0; attempt < 10 && reader.read.mock.calls.length === 0; attempt += 1) {
+      await Promise.resolve();
+    }
+    expect(reader.read).toHaveBeenCalledTimes(1);
     controller.abort();
 
     await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+    expect(reader.cancel).toHaveBeenCalledTimes(1);
+    expect(reader.releaseLock).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects oversized successful account json responses', async () => {
+    const client = createDesktopAccountJsonClient();
+    const cancel = vi.fn();
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('x'.repeat(MAX_DESKTOP_ACCOUNT_RESPONSE_BODY_BYTES + 1)));
+        },
+        cancel,
+      }),
+      { status: 200 },
+    );
+    vi.stubGlobal('fetch', vi.fn(async () => response));
+
+    await expect(client.fetchJson('https://api.example.com/auth/session')).rejects.toThrow(
+      'Desktop account API response body is too large.'
+    );
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('uses fallback messages for oversized account error responses', async () => {
+    const client = createDesktopAccountJsonClient();
+    const cancel = vi.fn();
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('x'.repeat(MAX_DESKTOP_ACCOUNT_RESPONSE_BODY_BYTES + 1)));
+        },
+        cancel,
+      }),
+      { status: 500 },
+    );
+
+    await expect(client.readJsonResponse(response, 'Request failed: HTTP 500')).rejects.toMatchObject({
+      message: 'Request failed: HTTP 500',
+      statusCode: 500,
+    });
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
   });
 });

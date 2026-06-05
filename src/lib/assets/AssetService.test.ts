@@ -365,7 +365,7 @@ describe('AssetService', () => {
     expect(mocks.writeAssetAtomic).not.toHaveBeenCalled();
   });
 
-  it('hashes existing image candidates when size metadata remains unavailable', async () => {
+  it('does not read existing image candidates when size metadata remains unavailable', async () => {
     const file = createImageFile('alpha.png');
     mocks.computeFileHash.mockResolvedValue('same-hash');
     mocks.computeBufferHash.mockResolvedValue('same-hash');
@@ -391,10 +391,11 @@ describe('AssetService', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(result.isDuplicate).toBe(true);
-    expect(result.path).toBe('./assets/alpha.png');
-    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png');
-    expect(mocks.writeAssetAtomic).not.toHaveBeenCalled();
+    expect(result.isDuplicate).toBe(false);
+    expect(result.path).toBe('./assets/alpha_1.png');
+    expect(mocks.computeFileHash).not.toHaveBeenCalled();
+    expect(mocks.storage.readBinaryFile).not.toHaveBeenCalled();
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha_1.png', expect.any(Uint8Array));
   });
 
   it('skips unreadable duplicate candidates instead of failing the upload', async () => {

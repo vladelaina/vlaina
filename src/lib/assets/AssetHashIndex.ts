@@ -83,7 +83,7 @@ export async function loadAssetHashIndex(vaultPath: string): Promise<AssetHashIn
     const storage = getStorageAdapter();
     const indexPath = await getIndexPath(vaultPath);
     const info = await storage.stat(indexPath).catch(() => null);
-    if (!info || (typeof info.size === 'number' && info.size > MAX_INDEX_BYTES)) {
+    if (typeof info?.size !== 'number' || info.size > MAX_INDEX_BYTES) {
       return createEmptyIndex();
     }
 

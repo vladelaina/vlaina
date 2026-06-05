@@ -152,6 +152,10 @@ describe('image block file utils', () => {
 
     it('restores image blobs with recursive directory creation', async () => {
         vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': '2',
+                'content-type': 'image/png',
+            }),
             blob: async () => ({
                 type: 'image/png',
                 size: 2,
@@ -179,6 +183,10 @@ describe('image block file utils', () => {
             '</svg>',
         ].join('');
         vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': String(svg.length),
+                'content-type': 'image/svg+xml;charset=utf-8',
+            }),
             blob: async () => ({
                 type: 'image/svg+xml;charset=utf-8',
                 size: svg.length,

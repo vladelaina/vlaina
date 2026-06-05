@@ -433,4 +433,28 @@ describe('importExternalMarkdownEntries', () => {
     expect(mocks.resolveUniquePath).not.toHaveBeenCalled();
     expect(mocks.storage.mkdir).not.toHaveBeenCalled();
   });
+
+  it('limits starred target resolution for very large dropped path lists', async () => {
+    mocks.storage.stat.mockResolvedValue({
+      isFile: true,
+      isDirectory: false,
+    });
+    const paths = Array.from({ length: 2005 }, (_, index) => `/outside/note-${index}.md`);
+
+    const result = await resolveExternalMarkdownEntriesForStarred('/vault', paths);
+
+    expect(result).toHaveLength(2000);
+    expect(result[0]).toEqual({
+      kind: 'note',
+      vaultPath: '/outside',
+      relativePath: 'note-0.md',
+    });
+    expect(result.at(-1)).toEqual({
+      kind: 'note',
+      vaultPath: '/outside',
+      relativePath: 'note-1999.md',
+    });
+    expect(mocks.storage.stat).toHaveBeenCalledTimes(2000);
+    expect(mocks.storage.stat).not.toHaveBeenCalledWith('/outside/note-2000.md');
+  });
 });

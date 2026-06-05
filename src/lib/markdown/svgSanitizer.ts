@@ -1,5 +1,8 @@
 import DOMPurify from 'dompurify';
 
+export const MAX_SVG_SANITIZE_MARKUP_CHARS = 50 * 1024 * 1024;
+const MAX_SVG_SANITIZE_DEPTH = 200;
+const MAX_SVG_SANITIZE_NODES = 20_000;
 const SVG_FORBIDDEN_TAGS = ['foreignObject', 'script', 'iframe', 'object', 'embed'];
 const SVG_RESOURCE_HREF_TAGS = new Set([
   'feimage',
@@ -11,6 +14,11 @@ const SVG_RESOURCE_HREF_TAGS = new Set([
   'textpath',
   'use',
 ]);
+
+interface SvgElementVisit {
+  element: Element;
+  depth: number;
+}
 const SVG_URL_REFERENCE_ATTRIBUTES = new Set([
   'clip-path',
   'color-profile',
@@ -62,14 +70,53 @@ function sanitizeSvgStyleAttribute(style: string): string {
   return scratch.getAttribute('style') || '';
 }
 
+function walkBudgetedSvgElements(
+  root: DocumentFragment | Element,
+  visitElement: (element: Element) => void
+): boolean {
+  const firstElement = root.firstElementChild;
+  if (!firstElement) {
+    return true;
+  }
+
+  let visitedNodes = 0;
+  const stack: SvgElementVisit[] = [{ element: firstElement, depth: 1 }];
+  while (stack.length > 0) {
+    const { element, depth } = stack.pop() as SvgElementVisit;
+    visitedNodes += 1;
+    if (visitedNodes > MAX_SVG_SANITIZE_NODES || depth > MAX_SVG_SANITIZE_DEPTH) {
+      return false;
+    }
+
+    const nextElement = element.nextElementSibling;
+    if (nextElement) {
+      stack.push({ element: nextElement, depth });
+    }
+
+    const firstChild = element.firstElementChild;
+    if (firstChild) {
+      stack.push({ element: firstChild, depth: depth + 1 });
+    }
+
+    visitElement(element);
+  }
+
+  return true;
+}
+
 function stripExternalSvgResourceReferences(markup: string): string {
-  if (!/url\s*\(|href\s*=/i.test(markup) || typeof document === 'undefined') {
+  if (typeof document === 'undefined') {
     return markup;
   }
 
   const template = document.createElement('template');
   template.innerHTML = markup;
-  template.content.querySelectorAll('*').forEach((element) => {
+  const shouldStripResourceReferences = /url\s*\(|href\s*=/i.test(markup);
+  const withinBudget = walkBudgetedSvgElements(template.content, (element) => {
+    if (!shouldStripResourceReferences) {
+      return;
+    }
+
     const tagName = element.localName.toLowerCase();
     if (SVG_RESOURCE_HREF_TAGS.has(tagName)) {
       removeExternalHref(element);
@@ -92,10 +139,17 @@ function stripExternalSvgResourceReferences(markup: string): string {
       }
     }
   });
+  if (!withinBudget) {
+    return '';
+  }
   return template.innerHTML;
 }
 
 export function sanitizeSvgMarkup(markup: string): string {
+  if (markup.length > MAX_SVG_SANITIZE_MARKUP_CHARS) {
+    return '';
+  }
+
   return stripExternalSvgResourceReferences(DOMPurify.sanitize(markup, {
     USE_PROFILES: { svg: true, svgFilters: true },
     FORBID_TAGS: SVG_FORBIDDEN_TAGS,

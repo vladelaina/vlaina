@@ -9,6 +9,7 @@ interface ProviderFetchInit {
 
 const PROVIDER_GET_RETRY_DELAYS_MS = [300];
 const PROVIDER_FAST_FAILURE_RETRY_WINDOW_MS = 2000;
+const MAX_DESKTOP_PROVIDER_REQUEST_BODY_BYTES = 64 * 1024 * 1024;
 
 export async function providerFetch(url: string, init: ProviderFetchInit): Promise<Response> {
   const bridge = getElectronBridge();
@@ -67,6 +68,38 @@ function bytesToBase64(bytes: Uint8Array): string {
     binary += String.fromCharCode(...chunk);
   }
   return btoa(binary);
+}
+
+function assertDesktopProviderRequestBodySize(byteLength: number): void {
+  if (!Number.isFinite(byteLength) || byteLength > MAX_DESKTOP_PROVIDER_REQUEST_BODY_BYTES) {
+    throw new Error('Desktop AI provider request body is too large.');
+  }
+}
+
+function assertDesktopProviderRequestTextSize(value: string): void {
+  let byteLength = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code <= 0x7f) {
+      byteLength += 1;
+    } else if (code <= 0x7ff) {
+      byteLength += 2;
+    } else if (code >= 0xd800 && code <= 0xdbff && index + 1 < value.length) {
+      const next = value.charCodeAt(index + 1);
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        byteLength += 4;
+        index += 1;
+      } else {
+        byteLength += 3;
+      }
+    } else {
+      byteLength += 3;
+    }
+
+    if (byteLength > MAX_DESKTOP_PROVIDER_REQUEST_BODY_BYTES) {
+      throw new Error('Desktop AI provider request body is too large.');
+    }
+  }
 }
 
 function createAbortError(): DOMException {
@@ -167,15 +200,19 @@ async function normalizeDesktopRequestBody(body: BodyInit | null | undefined, si
     return {};
   }
   if (typeof body === 'string') {
+    assertDesktopProviderRequestTextSize(body);
     return { body };
   }
   if (body instanceof Blob) {
+    assertDesktopProviderRequestBodySize(body.size);
     return { bodyBase64: bytesToBase64(new Uint8Array(await readBlobAsArrayBuffer(body, signal))) };
   }
   if (body instanceof ArrayBuffer) {
+    assertDesktopProviderRequestBodySize(body.byteLength);
     return { bodyBase64: bytesToBase64(new Uint8Array(body)) };
   }
   if (ArrayBuffer.isView(body)) {
+    assertDesktopProviderRequestBodySize(body.byteLength);
     return { bodyBase64: bytesToBase64(new Uint8Array(body.buffer, body.byteOffset, body.byteLength)) };
   }
   throw new Error('Unsupported desktop AI provider request body.');

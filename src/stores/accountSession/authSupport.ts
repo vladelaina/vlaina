@@ -12,6 +12,7 @@ export const AUTH_PROVIDER_STORAGE_KEY = 'vlaina_auth_provider';
 export const ACCOUNT_USER_BROADCAST_CHANNEL = 'vlaina_account_identity';
 export const ACCOUNT_USER_BROADCAST_TYPE = 'account-identity-updated';
 export const ACCOUNT_STATUS_REFRESH_KEY = 'vlaina_account_status_refresh';
+const MAX_ACCOUNT_USER_STORAGE_CHARS = 64 * 1024;
 
 export interface PersistedAccountIdentity {
   isConnected: boolean;
@@ -138,6 +139,9 @@ export function loadPersistedUser(): Partial<AccountSessionState> {
   try {
     const raw = localStorage.getItem(ACCOUNT_USER_PERSIST_KEY);
     if (!raw) {
+      return {};
+    }
+    if (raw.length > MAX_ACCOUNT_USER_STORAGE_CHARS) {
       return {};
     }
 

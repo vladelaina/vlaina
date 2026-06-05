@@ -116,47 +116,84 @@ describe('crawler error classification', () => {
 
   it('cancels response body reads when the signal aborts while the body is pending', async () => {
     const controller = new AbortController();
-    const bodyRead = vi.fn();
+    const reader = {
+      read: vi.fn(() => new Promise(() => undefined)),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    };
     const crawler = new Crawler({
       fetchImpl: async () => ({
         ok: true,
         status: 200,
         headers: new Headers({ 'Content-Type': 'text/plain' }),
-        arrayBuffer: vi.fn(() => new Promise(() => {
-          bodyRead();
-        })),
+        body: {
+          getReader: () => reader,
+        },
       }),
     });
 
     const request = crawler.readUrl('http://93.184.216.34/source.txt', {
       signal: controller.signal,
     });
-    await vi.waitFor(() => expect(bodyRead).toHaveBeenCalled());
+    await vi.waitFor(() => expect(reader.read).toHaveBeenCalled());
     controller.abort();
 
     await expect(request).rejects.toMatchObject({
       name: 'AbortError',
     });
+    expect(reader.cancel).toHaveBeenCalledTimes(1);
+    expect(reader.releaseLock).toHaveBeenCalledTimes(1);
   });
 
   it('keeps crawler timeouts active while response bodies are pending', async () => {
-    const bodyRead = vi.fn();
+    const reader = {
+      read: vi.fn(() => new Promise(() => undefined)),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    };
     const crawler = new Crawler({
       timeoutMs: 1,
       fetchImpl: async () => ({
         ok: true,
         status: 200,
         headers: new Headers({ 'Content-Type': 'text/plain' }),
-        arrayBuffer: vi.fn(() => new Promise(() => {
-          bodyRead();
-        })),
+        body: {
+          getReader: () => reader,
+        },
       }),
     });
 
     await expect(crawler.readUrl('http://93.184.216.34/source.txt')).rejects.toMatchObject({
       code: 'timeout',
     });
-    expect(bodyRead).toHaveBeenCalled();
+    expect(reader.read).toHaveBeenCalled();
+    expect(reader.cancel).toHaveBeenCalledTimes(1);
+    expect(reader.releaseLock).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds oversized crawler response bodies from custom fetch implementations', async () => {
+    const cancel = vi.fn();
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('x'.repeat(1_000_001)));
+        },
+        cancel,
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'text/plain' },
+      },
+    );
+    const crawler = new Crawler({
+      fetchImpl: async () => response,
+    });
+
+    await expect(crawler.readUrl('http://93.184.216.34/source.txt')).rejects.toMatchObject({
+      code: 'content_too_large',
+    });
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
   });
 
   it('keeps crawler timeouts active when fetch ignores the timeout signal', async () => {
@@ -264,5 +301,21 @@ describe('crawler error classification', () => {
 
     expect(page.title).toBe('Compressed Page');
     expect(page.content).toContain('Readable compressed page content.');
+  });
+
+  it('bounds compressed crawler responses after decompression', async () => {
+    const crawler = new Crawler({
+      fetchImpl: async () => new Response(zlib.gzipSync('x'.repeat(1_000_001)), {
+        status: 200,
+        headers: {
+          'Content-Encoding': 'gzip',
+          'Content-Type': 'text/plain',
+        },
+      }),
+    });
+
+    await expect(crawler.readUrl('http://93.184.216.34/compressed')).rejects.toMatchObject({
+      code: 'content_too_large',
+    });
   });
 });

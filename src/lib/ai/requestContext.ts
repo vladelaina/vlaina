@@ -3,6 +3,7 @@ import { TIME_SYSTEM_PROMPT, IMAGE_PLACEHOLDER } from './prompts';
 import { extractWebSearchStatuses } from './webSearch/statusMarkup';
 import { stripThinkingContent } from './stripThinkingContent';
 import { replaceRenderableMarkdownImageTokens } from '@/lib/markdown/renderableImageTokens';
+import { normalizeApiTranscriptMessages } from './apiTranscript';
 
 const ERROR_TAG_GLOBAL_REGEX = /<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/gi;
 const REQUEST_HISTORY_MESSAGE_OVERHEAD = 48;
@@ -29,20 +30,27 @@ export function formatTimeByOffset(offset: number, now = new Date()): string {
 }
 
 export function sanitizeHistory(messages: ChatMessage[]): ChatMessage[] {
-  return messages.map((msg) => {
-    if (typeof msg.content !== 'string') return msg;
-    const contentWithoutUiErrors = msg.role === 'assistant'
-      ? msg.content.replace(ERROR_TAG_GLOBAL_REGEX, '').trim()
-      : msg.content;
+  return messages
+    .map(sanitizeHistoryMessage)
+    .filter((msg) => msg.role !== 'assistant' || msg.content.trim().length > 0);
+}
 
-    return {
-      ...msg,
-      content: extractWebSearchStatuses(
-        replaceRenderableMarkdownImageTokens(stripThinkingContent(contentWithoutUiErrors), IMAGE_PLACEHOLDER)
-      ).content,
-      apiTranscript: msg.apiTranscript ?? msg.versions?.[msg.currentVersionIndex]?.apiTranscript,
-    };
-  }).filter((msg) => msg.role !== 'assistant' || msg.content.trim().length > 0);
+function sanitizeHistoryMessage(msg: ChatMessage): ChatMessage {
+  if (typeof msg.content !== 'string') return msg;
+  const contentWithoutUiErrors = msg.role === 'assistant'
+    ? msg.content.replace(ERROR_TAG_GLOBAL_REGEX, '').trim()
+    : msg.content;
+  const apiTranscript = normalizeApiTranscriptMessages(
+    msg.apiTranscript ?? msg.versions?.[msg.currentVersionIndex]?.apiTranscript
+  );
+
+  return {
+    ...msg,
+    content: extractWebSearchStatuses(
+      replaceRenderableMarkdownImageTokens(stripThinkingContent(contentWithoutUiErrors), IMAGE_PLACEHOLDER)
+    ).content,
+    apiTranscript,
+  };
 }
 
 function createSystemMessage(content: string, modelId: string): ChatMessage {
@@ -163,23 +171,31 @@ function trimHistoryToBudget(history: ChatMessage[], maxChars: number): ChatMess
     return [];
   }
 
-  const boundedHistory = sanitizeHistory(history)
+  const boundedHistory: ChatMessage[] = [];
+  for (let index = history.length - 1; index >= 0 && boundedHistory.length < MAX_REQUEST_HISTORY_MESSAGES; index -= 1) {
+    const message = sanitizeHistoryMessage(history[index]);
+    if (message.role === 'assistant' && message.content.trim().length === 0) {
+      continue;
+    }
+    boundedHistory.unshift(message);
+  }
+
+  const clippedHistory = boundedHistory
     .map((message) => ({
       ...message,
       content: clipContentToBudget(message.content, MAX_REQUEST_MESSAGE_CHARS),
     }))
-    .map((message) => clipTranscriptToBudget(message, MAX_REQUEST_MESSAGE_CHARS))
-    .slice(-MAX_REQUEST_HISTORY_MESSAGES);
+    .map((message) => clipTranscriptToBudget(message, MAX_REQUEST_MESSAGE_CHARS));
 
-  while (boundedHistory.length > 1 && estimateHistorySize(boundedHistory) > maxChars) {
-    boundedHistory.shift();
+  while (clippedHistory.length > 1 && estimateHistorySize(clippedHistory) > maxChars) {
+    clippedHistory.shift();
   }
 
-  if (estimateHistorySize(boundedHistory) <= maxChars) {
-    return boundedHistory;
+  if (estimateHistorySize(clippedHistory) <= maxChars) {
+    return clippedHistory;
   }
 
-  const [latestMessage] = boundedHistory;
+  const [latestMessage] = clippedHistory;
   const availableChars = Math.max(maxChars - REQUEST_HISTORY_MESSAGE_OVERHEAD, 0);
   const trimmedLatestContent = clipContentToBudget(latestMessage.content, availableChars);
 

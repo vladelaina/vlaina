@@ -7,6 +7,8 @@ import {
   CHAT_HEADING_DRAG_MIME,
 } from '@/lib/drag/chatHeadingDrag';
 import { createCaretOverlayRect } from '@/lib/ui/caretOverlayStyles';
+import type { HeadingDropPayload } from './externalHeadingDrop';
+import { parseSingleHeadingDropHtml } from './externalHeadingDrop';
 
 const EXTERNAL_TEXT_DROP_CURSOR_CLASS = 'editor-external-text-drop-cursor';
 
@@ -24,11 +26,6 @@ interface CursorRect {
 interface BlockDropTarget {
   pos: number;
   rect: CursorRect;
-}
-
-interface HeadingDropPayload {
-  level: number;
-  text: string;
 }
 
 export function hasExternalTextDrag(dataTransfer: DataTransfer | null | undefined): boolean {
@@ -81,21 +78,7 @@ function positionBlockCursor(cursor: HTMLElement, rect: CursorRect) {
 
 function getSingleHeadingFromHtml(dataTransfer: DataTransfer | null | undefined): HeadingDropPayload | null {
   const html = dataTransfer?.getData('text/html');
-  if (!html) return null;
-
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  const headings = Array.from(doc.body.querySelectorAll('h1,h2,h3,h4,h5,h6'));
-  if (headings.length !== 1) return null;
-
-  const heading = headings[0];
-  const text = heading.textContent?.trim();
-  if (!text) return null;
-  if ((doc.body.textContent ?? '').trim() !== text) return null;
-
-  const level = Number(heading.tagName.slice(1));
-  if (!Number.isInteger(level) || level < 1 || level > 6) return null;
-
-  return { level, text };
+  return html ? parseSingleHeadingDropHtml(html) : null;
 }
 
 function getHeadingDropPayload(dataTransfer: DataTransfer | null | undefined): HeadingDropPayload | null {

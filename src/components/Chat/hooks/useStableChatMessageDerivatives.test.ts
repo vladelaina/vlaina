@@ -145,6 +145,35 @@ describe('useStableChatMessageDerivatives', () => {
     ]);
   });
 
+  it('updates sent user messages when same-length content differs after a long shared prefix', () => {
+    const prefix = 'shared text '.repeat(1000);
+    const firstContent = `${prefix}A`;
+    const secondContent = `${prefix}B`;
+    const user = createMessage('u1', 'user', firstContent);
+
+    const view = renderHook(
+      ({ messages }) => useStableChatMessageDerivatives(messages),
+      {
+        initialProps: {
+          messages: [user] as ChatMessage[],
+        },
+      },
+    );
+    const firstSentUserMessages = view.result.current.sentUserMessages;
+
+    view.rerender({
+      messages: [{
+        ...user,
+        content: secondContent,
+        versions: [{ content: secondContent, createdAt: user.timestamp, kind: 'original' as const, subsequentMessages: [] }],
+      }],
+    });
+
+    expect(firstContent).toHaveLength(secondContent.length);
+    expect(view.result.current.sentUserMessages).not.toBe(firstSentUserMessages);
+    expect(view.result.current.sentUserMessages).toEqual([secondContent]);
+  });
+
   it('excludes non-renderable data images from the assistant gallery', () => {
     const assistant = createMessage(
       'a1',

@@ -47,7 +47,13 @@ describe('attachmentStorage', () => {
     mocks.adapter.readBinaryFile.mockClear();
     mocks.adapter.deleteFile.mockClear();
     mocks.adapter.stat.mockReset();
-    mocks.adapter.stat.mockResolvedValue(null);
+    mocks.adapter.stat.mockResolvedValue({
+      name: 'file.png',
+      path: '/appdata/.vlaina/attachments/file.png',
+      isDirectory: false,
+      isFile: true,
+      size: 2,
+    });
     mocks.joinPath.mockReset();
     mocks.joinPath.mockImplementation(async (...segments: string[]) => segments.join('/'));
     mocks.getElectronBridge.mockReturnValue({
@@ -435,6 +441,30 @@ describe('attachmentStorage', () => {
     expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
   });
 
+  it('rejects allowed attachment paths before reading them when stat has no size', async () => {
+    mocks.adapter.stat.mockResolvedValueOnce({
+      name: 'file.png',
+      path: '/vault/assets/file.png',
+      isDirectory: false,
+      isFile: true,
+    });
+
+    await expect(convertToBase64({
+      id: 'a',
+      path: '/vault/assets/file.png',
+      previewUrl: 'blob:preview',
+      assetUrl: '',
+      name: 'file.png',
+      type: 'image/png',
+      size: 2,
+    }, {
+      allowPath: (path) => path.startsWith('/vault/'),
+    })).rejects.toThrow('Cannot convert attachment to Base64');
+
+    expect(mocks.adapter.stat).toHaveBeenCalledWith('/vault/assets/file.png');
+    expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
+  });
+
   it('rejects oversized stored attachment URLs before reading them when stat has a size', async () => {
     mocks.adapter.stat.mockResolvedValueOnce({
       size: MAX_ATTACHMENT_IMAGE_BYTES + 1,
@@ -451,6 +481,23 @@ describe('attachmentStorage', () => {
     })).rejects.toThrow('Attachment image is too large.');
 
     expect(mocks.adapter.stat).toHaveBeenCalledWith('/appdata/.vlaina/attachments/huge.png');
+    expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects stored attachment URLs before reading them when stat has no size', async () => {
+    mocks.adapter.stat.mockResolvedValueOnce(null);
+
+    await expect(convertToBase64({
+      id: 'a',
+      path: '',
+      previewUrl: 'attachment://file.png',
+      assetUrl: 'attachment://file.png',
+      name: 'file.png',
+      type: 'image/png',
+      size: 2,
+    })).rejects.toThrow('Attachment image is too large.');
+
+    expect(mocks.adapter.stat).toHaveBeenCalledWith('/appdata/.vlaina/attachments/file.png');
     expect(mocks.adapter.readBinaryFile).not.toHaveBeenCalled();
   });
 

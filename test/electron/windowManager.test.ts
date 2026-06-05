@@ -290,6 +290,21 @@ describe('window manager reveal timing', () => {
     expect(window.maximize).toHaveBeenCalledTimes(1);
   });
 
+  it('ignores oversized stored window state on startup', () => {
+    const statePath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'window-state.json');
+    fs.mkdirSync(path.dirname(statePath), { recursive: true });
+    fs.writeFileSync(statePath, JSON.stringify({
+      bounds: { width: 1111, height: 700 },
+      isMaximized: true,
+      padding: 'x'.repeat(65 * 1024),
+    }));
+
+    const window = createHarness();
+
+    expect(window.options).toMatchObject({ width: 980, height: 640 });
+    expect(window.maximize).not.toHaveBeenCalled();
+  });
+
   it('does not maximize secondary windows from the persisted main window state', () => {
     const statePath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'window-state.json');
     fs.mkdirSync(path.dirname(statePath), { recursive: true });

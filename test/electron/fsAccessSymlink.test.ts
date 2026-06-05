@@ -17,6 +17,7 @@ vi.mock('electron', () => ({
 
 import {
   assertAuthorizedFsPath,
+  assertAuthorizedFsRenameTarget,
   authorizeFsPath,
   resetAuthorizedFsPathsForTests,
 } from '../../electron/fsAccess.mjs';
@@ -59,6 +60,35 @@ describe('desktop filesystem symlink boundary', () => {
     await expect(assertAuthorizedFsPath(path.join(authorizedRoot, 'new-note.md'))).resolves.toBe(
       path.join(authorizedRoot, 'new-note.md'),
     );
+  });
+
+  it('rejects rename targets that resolve outside authorized filesystem roots', async () => {
+    const authorizedRoot = path.join(tempDir, 'authorized');
+    const outsideRoot = path.join(tempDir, 'outside');
+    await mkdir(authorizedRoot, { recursive: true });
+    await mkdir(outsideRoot, { recursive: true });
+    await writeFile(path.join(authorizedRoot, 'note.md'), '# note', 'utf8');
+    await symlink(outsideRoot, path.join(authorizedRoot, 'linked-outside'), 'dir');
+
+    await authorizeFsPath(authorizedRoot, 'root');
+
+    await expect(assertAuthorizedFsRenameTarget(
+      path.join(authorizedRoot, 'note.md'),
+      path.join(authorizedRoot, 'linked-outside', 'moved.md'),
+    )).rejects.toThrow('File path is not authorized for desktop access');
+  });
+
+  it('keeps rename targets inside an authorized root writable when their parent is real', async () => {
+    const authorizedRoot = path.join(tempDir, 'authorized');
+    await mkdir(authorizedRoot, { recursive: true });
+    await writeFile(path.join(authorizedRoot, 'note.md'), '# note', 'utf8');
+
+    await authorizeFsPath(authorizedRoot, 'root');
+
+    await expect(assertAuthorizedFsRenameTarget(
+      path.join(authorizedRoot, 'note.md'),
+      path.join(authorizedRoot, 'renamed.md'),
+    )).resolves.toBe(path.join(authorizedRoot, 'renamed.md'));
   });
 
   it('loads saved symlink roots with their real filesystem access key', async () => {

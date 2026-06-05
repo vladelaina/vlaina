@@ -81,6 +81,13 @@ describe('web account session helpers', () => {
     });
   });
 
+  it('ignores oversized session credential payloads', () => {
+    sessionStorage.setItem('vlaina_account_session', 'x'.repeat(65 * 1024));
+
+    expect(loadWebAccountCredentials()).toBeNull();
+    expect(getCachedWebAccountStatus().connected).toBe(false);
+  });
+
   it('falls back to persisted identity when session storage is empty', () => {
     sessionStorage.clear();
     localStorage.setItem('vlaina_account_identity', JSON.stringify({
@@ -102,5 +109,12 @@ describe('web account session helpers', () => {
       membershipTier: 'pro',
       membershipName: 'Pro',
     });
+  });
+
+  it('ignores oversized persisted identity fallback payloads', () => {
+    sessionStorage.clear();
+    localStorage.setItem('vlaina_account_identity', 'x'.repeat(65 * 1024));
+
+    expect(getCachedWebAccountStatus().connected).toBe(false);
   });
 });

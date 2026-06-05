@@ -78,6 +78,10 @@ describe('useImageActions', () => {
             value: { write: clipboardWrite },
         });
         vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': '12',
+                'content-type': 'text/html',
+            }),
             blob: async () => new Blob(['not an image'], { type: 'text/html' }),
         })));
         const { result } = renderImageActions();
@@ -102,6 +106,10 @@ describe('useImageActions', () => {
             return { items };
         }));
         vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': '3',
+                'content-type': 'image/png',
+            }),
             blob: async () => new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }),
         })));
         const { result } = renderImageActions();
@@ -145,6 +153,10 @@ describe('useImageActions', () => {
 
     it('does not write downloaded non-image content to disk', async () => {
         vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': '12',
+                'content-type': 'text/html',
+            }),
             blob: async () => new Blob(['not an image'], { type: 'text/html' }),
         })));
         const { result } = renderImageActions();
@@ -162,6 +174,10 @@ describe('useImageActions', () => {
 
     it('writes downloaded image content to disk', async () => {
         vi.stubGlobal('fetch', vi.fn(async () => ({
+            headers: new Headers({
+                'content-length': '3',
+                'content-type': 'image/png',
+            }),
             blob: async () => new Blob([new Uint8Array([4, 5, 6])], { type: 'image/png' }),
         })));
         const { result } = renderImageActions();

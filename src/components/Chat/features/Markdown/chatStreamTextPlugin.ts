@@ -1,4 +1,8 @@
-import { visit } from 'unist-util-visit';
+import {
+  canTransformChatStreamHast,
+  getChatStreamHastChildren,
+  getChatStreamTimingTextLength,
+} from './chatStreamHastBudget';
 
 export const CHAT_STREAM_FADE_MS = 90;
 
@@ -22,22 +26,6 @@ function hasClass(node: any, className: string): boolean {
 
 function shouldSkip(node: any): boolean {
   return STATIC_TAGS.has(node.tagName) || hasClass(node, 'katex');
-}
-
-function getTimingTextLength(node: any): number {
-  if (node.tagName === 'img' && typeof node.properties?.alt === 'string') {
-    return Array.from(node.properties.alt).length;
-  }
-
-  let length = 0;
-  for (const child of node.children ?? []) {
-    if (child.type === 'text' && typeof child.value === 'string') {
-      length += Array.from(child.value).length;
-    } else if (child.type === 'element') {
-      length += getTimingTextLength(child);
-    }
-  }
-  return length;
 }
 
 function getBirthElapsed(
@@ -88,6 +76,98 @@ function animateElementIfNeeded(
   node.properties.style = `${existingStyle}${buildFadeAnimationStyle(firstBirth, nowMs)}`;
 }
 
+function pushDoneText(nextChildren: any[], value: string): void {
+  if (!value) {
+    return;
+  }
+
+  const previous = nextChildren[nextChildren.length - 1];
+  if (previous?.type === 'text' && typeof previous.value === 'string') {
+    previous.value += value;
+    return;
+  }
+
+  nextChildren.push({ type: 'text', value });
+}
+
+function handleTextChild(
+  child: any,
+  nextChildren: any[],
+  charIndex: number,
+  births: number[],
+  charDelay: number,
+  nowMs: number,
+  revealed: boolean,
+): number {
+  if (typeof child.value !== 'string') {
+    nextChildren.push(child);
+    return charIndex;
+  }
+
+  const textChars = Array.from(child.value);
+  if (textChars.length === 0) {
+    return charIndex;
+  }
+
+  const lastCharIndex = charIndex + textChars.length - 1;
+  if (revealed || getBirthElapsed(births, charDelay, nowMs, lastCharIndex) >= CHAT_STREAM_FADE_MS) {
+    pushDoneText(nextChildren, child.value);
+    return charIndex + textChars.length;
+  }
+
+  let doneBuffer = '';
+  let nextCharIndex = charIndex;
+
+  for (const char of textChars) {
+    const birth = births[nextCharIndex] ?? nowMs + charDelay * nextCharIndex;
+    const elapsed = nowMs - birth;
+    const isDone = revealed || elapsed >= CHAT_STREAM_FADE_MS;
+    if (isDone) {
+      doneBuffer += char;
+      nextCharIndex += 1;
+      continue;
+    }
+
+    pushDoneText(nextChildren, doneBuffer);
+    doneBuffer = '';
+    const properties: Record<string, string> = {
+      className: 'chat-stream-char',
+      style: buildFadeAnimationStyle(birth, nowMs),
+    };
+
+    nextChildren.push({
+      children: [{ type: 'text', value: char }],
+      properties,
+      tagName: 'span',
+      type: 'element',
+    });
+    nextCharIndex += 1;
+  }
+
+  pushDoneText(nextChildren, doneBuffer);
+  return nextCharIndex;
+}
+
+interface WrapFrame {
+  children: any[];
+  index: number;
+  nextChildren: any[];
+  node: any;
+  parent: WrapFrame | null;
+  startCharIndex: number;
+}
+
+function createWrapFrame(node: any, parent: WrapFrame | null, startCharIndex: number): WrapFrame {
+  return {
+    children: getChatStreamHastChildren(node),
+    index: 0,
+    nextChildren: [],
+    node,
+    parent,
+    startCharIndex,
+  };
+}
+
 export function createChatStreamTextPlugin({
   births,
   charDelay,
@@ -95,71 +175,67 @@ export function createChatStreamTextPlugin({
   revealed,
 }: ChatStreamTextPluginOptions) {
   return (tree: any) => {
+    if (!canTransformChatStreamHast(tree)) {
+      return;
+    }
+
     let charIndex = 0;
 
     const wrapText = (node: any) => {
-      const nextChildren: any[] = [];
-      const pushDoneText = (value: string) => {
-        if (!value) {
-          return;
-        }
+      const stack = [createWrapFrame(node, null, charIndex)];
 
-        const previous = nextChildren[nextChildren.length - 1];
-        if (previous?.type === 'text' && typeof previous.value === 'string') {
-          previous.value += value;
-          return;
-        }
+      while (stack.length > 0) {
+        const frame = stack[stack.length - 1]!;
 
-        nextChildren.push({ type: 'text', value });
-      };
-
-      for (const child of node.children ?? []) {
-        if (child.type === 'text') {
-          const textChars = Array.from(child.value);
-          if (textChars.length === 0) {
-            continue;
-          }
-
-          const lastCharIndex = charIndex + textChars.length - 1;
-          if (revealed || getBirthElapsed(births, charDelay, nowMs, lastCharIndex) >= CHAT_STREAM_FADE_MS) {
-            pushDoneText(child.value);
-            charIndex += textChars.length;
-            continue;
-          }
-
-          let doneBuffer = '';
-
-          for (const char of textChars) {
-            const birth = births[charIndex] ?? nowMs + charDelay * charIndex;
-            const elapsed = nowMs - birth;
-            const isDone = revealed || elapsed >= CHAT_STREAM_FADE_MS;
-            if (isDone) {
-              doneBuffer += char;
-              charIndex += 1;
-              continue;
+        if (frame.index >= frame.children.length) {
+          frame.node.children = frame.nextChildren;
+          stack.pop();
+          if (frame.parent) {
+            if (frame.startCharIndex < charIndex) {
+              animateElementIfNeeded(
+                frame.node,
+                frame.startCharIndex,
+                charIndex - 1,
+                births,
+                nowMs,
+                revealed,
+              );
+            } else {
+              const timingTextLength = getChatStreamTimingTextLength(frame.node);
+              if (timingTextLength > 0) {
+                animateElementIfNeeded(
+                  frame.node,
+                  frame.startCharIndex,
+                  frame.startCharIndex + timingTextLength - 1,
+                  births,
+                  nowMs,
+                  revealed,
+                );
+                charIndex += timingTextLength;
+              }
             }
-
-            pushDoneText(doneBuffer);
-            doneBuffer = '';
-            const properties: Record<string, string> = {
-              className: 'chat-stream-char',
-              style: buildFadeAnimationStyle(birth, nowMs),
-            };
-
-            nextChildren.push({
-              children: [{ type: 'text', value: char }],
-              properties,
-              tagName: 'span',
-              type: 'element',
-            });
-            charIndex += 1;
+            frame.parent.nextChildren.push(frame.node);
           }
+          continue;
+        }
 
-          pushDoneText(doneBuffer);
+        const child = frame.children[frame.index]!;
+        frame.index += 1;
+
+        if (child.type === 'text') {
+          charIndex = handleTextChild(
+            child,
+            frame.nextChildren,
+            charIndex,
+            births,
+            charDelay,
+            nowMs,
+            revealed,
+          );
         } else if (child.type === 'element') {
           const childStartCharIndex = charIndex;
           if (shouldSkip(child)) {
-            const timingTextLength = getTimingTextLength(child);
+            const timingTextLength = getChatStreamTimingTextLength(child);
             if (timingTextLength > 0) {
               animateElementIfNeeded(
                 child,
@@ -171,50 +247,40 @@ export function createChatStreamTextPlugin({
               );
               charIndex += timingTextLength;
             }
+            frame.nextChildren.push(child);
           } else {
-            wrapText(child);
-            if (childStartCharIndex < charIndex) {
-              animateElementIfNeeded(
-                child,
-                childStartCharIndex,
-                charIndex - 1,
-                births,
-                nowMs,
-                revealed,
-              );
-            } else {
-              const timingTextLength = getTimingTextLength(child);
-              if (timingTextLength > 0) {
-                animateElementIfNeeded(
-                  child,
-                  childStartCharIndex,
-                  childStartCharIndex + timingTextLength - 1,
-                  births,
-                  nowMs,
-                  revealed,
-                );
-                charIndex += timingTextLength;
-              }
-            }
+            stack.push(createWrapFrame(child, frame, childStartCharIndex));
           }
-          nextChildren.push(child);
         } else {
-          nextChildren.push(child);
+          frame.nextChildren.push(child);
         }
       }
-
-      node.children = nextChildren;
     };
 
-    visit(tree, 'element', (node: any) => {
+    const stack = [tree];
+    while (stack.length > 0) {
+      const node = stack.pop()!;
+      if (node?.type !== 'element') {
+        const children = getChatStreamHastChildren(node);
+        for (let index = children.length - 1; index >= 0; index -= 1) {
+          stack.push(children[index]);
+        }
+        continue;
+      }
+
       if (shouldSkip(node)) {
-        return 'skip';
+        continue;
       }
 
       if (ANIMATED_TAGS.has(node.tagName)) {
         wrapText(node);
-        return 'skip';
+        continue;
       }
-    });
+
+      const children = getChatStreamHastChildren(node);
+      for (let index = children.length - 1; index >= 0; index -= 1) {
+        stack.push(children[index]);
+      }
+    }
   };
 }

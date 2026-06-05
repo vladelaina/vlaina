@@ -58,4 +58,26 @@ describe('parseMarkdownMeasurementBlocks', () => {
       widthInset: 0,
     });
   });
+
+  it('does not measure stripped image markdown as text in video sections', () => {
+    const blocks = parseMarkdownMeasurementBlocks([
+      '![image](https://example.com/real.png)',
+      '![video](https://example.com/movie.mp4)',
+    ].join('\n'));
+
+    expect(blocks).toEqual([
+      {
+        kind: 'video',
+        widthInset: 0,
+      },
+    ]);
+  });
+
+  it('does not cache oversized markdown block parses by full content', () => {
+    const smallMarkdown = 'Small paragraph';
+    expect(parseMarkdownMeasurementBlocks(smallMarkdown)).toBe(parseMarkdownMeasurementBlocks(smallMarkdown));
+
+    const largeMarkdown = `${'Large paragraph '.repeat(4000)}\n\nTail`;
+    expect(parseMarkdownMeasurementBlocks(largeMarkdown)).not.toBe(parseMarkdownMeasurementBlocks(largeMarkdown));
+  });
 });

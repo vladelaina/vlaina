@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WEB_SEARCH_TOOL_NAMES } from './toolDefinitions';
 import { runWebSearchToolCall } from './toolRunner';
 import type { WebSearchClient } from './client';
+import { MAX_OPENAI_TOOL_ARGUMENT_CHARS } from './openAIToolParsing';
 
 describe('web search tool runner', () => {
   it('runs search and emits search/result statuses', async () => {
@@ -335,5 +336,64 @@ describe('web search tool runner', () => {
       { phase: 'searching', query: 'openai' },
       { phase: 'error', message: 'Web search is temporarily unavailable.' },
     ]);
+  });
+
+  it('rejects oversized tool arguments before calling the web search client', async () => {
+    const statuses: unknown[] = [];
+    const client: WebSearchClient = {
+      webSearch: vi.fn(),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(),
+    };
+
+    const text = await runWebSearchToolCall(
+      {
+        name: WEB_SEARCH_TOOL_NAMES.search,
+        arguments: 'x'.repeat(MAX_OPENAI_TOOL_ARGUMENT_CHARS + 1),
+      },
+      { client, onStatus: (status) => statuses.push(status) },
+    );
+
+    expect(text).toBe('Tool error: Tool call arguments were invalid.');
+    expect(statuses).toEqual([
+      { phase: 'error', message: 'Tool call arguments were invalid.' },
+    ]);
+    expect(client.webSearch).not.toHaveBeenCalled();
+    expect(client.readWebPage).not.toHaveBeenCalled();
+    expect(client.readWebPages).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized query and URL values before calling the web search client', async () => {
+    const statuses: unknown[] = [];
+    const client: WebSearchClient = {
+      webSearch: vi.fn(),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(),
+    };
+
+    const searchText = await runWebSearchToolCall(
+      {
+        name: WEB_SEARCH_TOOL_NAMES.search,
+        arguments: JSON.stringify({ query: 'x'.repeat(1001) }),
+      },
+      { client, onStatus: (status) => statuses.push(status) },
+    );
+    const readText = await runWebSearchToolCall(
+      {
+        name: WEB_SEARCH_TOOL_NAMES.read,
+        arguments: JSON.stringify({ url: 'https://example.com/'.padEnd(16 * 1024 + 1, 'x') }),
+      },
+      { client, onStatus: (status) => statuses.push(status) },
+    );
+
+    expect(searchText).toBe('Tool error: Tool call arguments were invalid.');
+    expect(readText).toBe('Tool error: Tool call arguments were invalid.');
+    expect(statuses).toEqual([
+      { phase: 'error', message: 'Tool call arguments were invalid.' },
+      { phase: 'error', message: 'Tool call arguments were invalid.' },
+    ]);
+    expect(client.webSearch).not.toHaveBeenCalled();
+    expect(client.readWebPage).not.toHaveBeenCalled();
+    expect(client.readWebPages).not.toHaveBeenCalled();
   });
 });

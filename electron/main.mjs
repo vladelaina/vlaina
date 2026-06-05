@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createDesktopAccountService } from './accountAuthFlow.mjs';
 import { readSecretsStore, updateSecretsStore } from './aiProviderSecretStore.mjs';
+import { readBoundedJsonResponse } from './boundedJsonResponse.mjs';
 import { registerDesktopIpc } from './desktopIpc.mjs';
 import { registerManagedIpc } from './managedIpc.mjs';
 import { isTrustedRendererUrl as isTrustedRendererUrlForConfig } from './rendererTrust.mjs';
@@ -913,7 +914,10 @@ async function fetchUpdateManifest() {
       throw new Error(`Update manifest request failed: HTTP ${response.status}`);
     }
 
-    return normalizeUpdateManifest(await response.json());
+    return normalizeUpdateManifest(await readBoundedJsonResponse(response, {
+      signal: controller.signal,
+      tooLargeMessage: 'Update manifest response body is too large.',
+    }));
   } finally {
     clearTimeout(timeout);
   }
@@ -1077,7 +1081,10 @@ async function resolveVideoUrl(rawUrl) {
     });
     stage = 'headers';
     stage = 'json';
-    const payload = await response.json();
+    const payload = await readBoundedJsonResponse(response, {
+      signal: controller.signal,
+      tooLargeMessage: 'Bilibili metadata response body is too large.',
+    });
     stage = 'parsed-json';
     const aid = parsePositiveNumber(payload?.data?.aid);
     const cid = parsePositiveNumber(payload?.data?.cid ?? payload?.data?.pages?.[0]?.cid);

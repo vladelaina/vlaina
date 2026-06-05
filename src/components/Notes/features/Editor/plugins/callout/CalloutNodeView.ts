@@ -4,7 +4,7 @@ import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { EditorView, NodeView } from '@milkdown/kit/prose/view';
 import type { CalloutBlockAttrs, IconData } from './types';
 import { DEFAULT_CALLOUT_ICON } from './types';
-import { iconDataFromValue } from './calloutIconUtils';
+import { iconDataFromValue, normalizeCalloutBackgroundColor, normalizeCalloutIcon } from './calloutIconUtils';
 import { CalloutIconControl } from './CalloutIconControl';
 
 export class CalloutNodeView implements NodeView {
@@ -39,10 +39,12 @@ export class CalloutNodeView implements NodeView {
 
   private syncDomAttrs() {
     const attrs = this.node.attrs as CalloutBlockAttrs;
+    const icon = normalizeCalloutIcon(attrs.icon);
+    const backgroundColor = normalizeCalloutBackgroundColor(attrs.backgroundColor);
     this.dom.dataset.type = 'callout';
-    this.dom.dataset.icon = JSON.stringify(attrs.icon);
-    this.dom.dataset.bg = attrs.backgroundColor;
-    this.dom.className = `callout callout-${attrs.backgroundColor}`;
+    this.dom.dataset.icon = JSON.stringify(icon);
+    this.dom.dataset.bg = backgroundColor;
+    this.dom.className = `callout callout-${backgroundColor}`;
   }
 
   private updateIcon(value: string) {
@@ -65,7 +67,7 @@ export class CalloutNodeView implements NodeView {
     const attrs = this.node.attrs as { icon?: IconData };
     this.root.render(
       React.createElement(CalloutIconControl, {
-        icon: attrs.icon ?? DEFAULT_CALLOUT_ICON,
+        icon: normalizeCalloutIcon(attrs.icon ?? DEFAULT_CALLOUT_ICON),
         onChange: (value: string) => this.updateIcon(value),
       })
     );

@@ -55,6 +55,7 @@ const STRONG_TOKEN_RE = /(\*\*|__)([\s\S]+?)\1/;
 const EMPHASIS_TOKEN_RE = /(\*|_)([^*_][\s\S]*?)\1/;
 const STRIKE_TOKEN_RE = /~~([\s\S]+?)~~/;
 const PREPARED_TEXT_BLOCK_CACHE_LIMIT = 400;
+const MAX_CACHED_INLINE_MARKDOWN_CHARS = 20_000;
 
 const preparedTextBlockCache = new Map<string, PreparedRichInline>();
 
@@ -230,6 +231,10 @@ export function getPreparedMarkdownTextBlock(
   text: string,
   variant: TextBlockVariant,
 ): PreparedRichInline {
+  if (text.length > MAX_CACHED_INLINE_MARKDOWN_CHARS) {
+    return prepareRichInline(tokenizeInlineMarkdown(text, variant));
+  }
+
   const key = `${variant}\u0000${text}`;
   const cached = touchCacheEntry(preparedTextBlockCache, key);
   if (cached) {

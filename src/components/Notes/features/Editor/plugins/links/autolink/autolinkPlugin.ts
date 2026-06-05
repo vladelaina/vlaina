@@ -1,9 +1,12 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
+import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity';
 import { URL_PATTERNS } from '../utils/constants';
+import { sanitizeEditorExternalLinkHref } from '../utils/linkHref';
 
 export const autolinkPluginKey = new PluginKey('autolink');
+const MAX_AUTOLINK_DECORATIONS = 1000;
 const AUTOLINK_TRIGGER_TEXT_PATTERN = /[:/.@]/;
 const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
 const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
@@ -86,10 +89,21 @@ export function findUrls(text: string, offset: number): LinkMatch[] {
     return matches;
 }
 
-function createAutolinkDecorations(doc: any): DecorationSet {
+function sanitizeAutolinkHref(href: string): string | null {
+    const safeHref = sanitizeEditorExternalLinkHref(href);
+    if (!safeHref) return null;
+    if (/^https?:\/\//i.test(safeHref) && isLocalNetworkHttpUrl(safeHref)) return null;
+    return safeHref;
+}
+
+export function createAutolinkDecorations(doc: any): DecorationSet {
     const decorations: Decoration[] = [];
 
     doc.descendants((node: any, pos: number, parent: any) => {
+        if (decorations.length >= MAX_AUTOLINK_DECORATIONS) {
+            return false;
+        }
+
         if (parent && SKIPPED_TEXT_PARENT_TYPES.has(parent.type?.name)) {
             return;
         }
@@ -114,16 +128,20 @@ function createAutolinkDecorations(doc: any): DecorationSet {
                 const isInMarkdownLink = /\]\($/.test(textBefore);
 
                 if (!hasLinkMark && !isInMarkdownLink) {
+                    const safeHref = sanitizeAutolinkHref(match.href);
+                    if (!safeHref) continue;
+
                     decorations.push(
                         Decoration.inline(match.start, match.end, {
                             class: 'autolink',
-                            'data-href': match.href,
+                            'data-href': safeHref,
                             nodeName: 'a',
-                            href: match.href,
+                            href: safeHref,
                             target: '_blank',
                             rel: 'noopener noreferrer'
                         })
                     );
+                    if (decorations.length >= MAX_AUTOLINK_DECORATIONS) break;
                 }
             }
         }

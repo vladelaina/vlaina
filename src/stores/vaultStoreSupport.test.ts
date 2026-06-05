@@ -58,6 +58,7 @@ describe('vaultStoreSupport persistence merging', () => {
         currentVaultId: 'vault-other',
         deletedVaultPaths: [],
       })),
+      stat: vi.fn(async () => ({ size: 256 })),
       writeFile: vi.fn(async () => undefined),
       mkdir: vi.fn(async () => undefined),
     };
@@ -101,6 +102,7 @@ describe('vaultStoreSupport persistence merging', () => {
         currentVaultId: 'vault-removed',
         deletedVaultPaths: [],
       })),
+      stat: vi.fn(async () => ({ size: 256 })),
       writeFile: vi.fn(async () => undefined),
       mkdir: vi.fn(async () => undefined),
     };
@@ -131,5 +133,54 @@ describe('vaultStoreSupport persistence merging', () => {
     expect(payload.recentVaults).toEqual([]);
     expect(payload.deletedVaultPaths).toEqual(['/vault/removed']);
     expect(payload.currentVaultId).toBeNull();
+  });
+
+  it('does not read vault state files when stat has no size', async () => {
+    vi.useFakeTimers();
+    const storage = {
+      getBasePath: vi.fn(async () => '/app'),
+      exists: vi.fn(async (path: string) => path === '/app/.vlaina/store/vault-state.json'),
+      readFile: vi.fn(async () => JSON.stringify({
+        version: 1,
+        recentVaults: [
+          { id: 'vault-other', name: 'Other', path: '/vault/other', lastOpened: 2 },
+        ],
+        currentVaultId: 'vault-other',
+        deletedVaultPaths: [],
+      })),
+      stat: vi.fn(async () => ({})),
+      writeFile: vi.fn(async () => undefined),
+      mkdir: vi.fn(async () => undefined),
+    };
+    vi.doMock('@/lib/storage/adapter', () => ({
+      getStorageAdapter: () => storage,
+      joinPath: (...segments: string[]) => Promise.resolve(segments.join('/')),
+      getBaseName: (path: string) => path.split('/').pop() || '',
+      getParentPath: (path: string) => path.split('/').slice(0, -1).join('/'),
+    }));
+    vi.doMock('@/lib/storage/paths', () => ({
+      ensureDirectories: () => Promise.resolve(),
+      getPaths: () => Promise.resolve({ store: '/app/.vlaina/store' }),
+    }));
+
+    const { loadPersistedVaultState } = await import('./vaultStoreSupport');
+    const state = await loadPersistedVaultState();
+
+    expect(state.recentVaults).toEqual([]);
+    expect(storage.readFile).not.toHaveBeenCalled();
+  });
+});
+
+describe('vaultStoreSupport local storage guards', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('does not parse oversized recent vault storage values', async () => {
+    const parseSpy = vi.spyOn(JSON, 'parse');
+    const { parseRecentVaultsStorageValue } = await import('./vaultStoreSupport');
+
+    expect(parseRecentVaultsStorageValue('['.padEnd(70 * 1024, ' '))).toEqual([]);
+    expect(parseSpy).not.toHaveBeenCalled();
   });
 });

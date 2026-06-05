@@ -1,3 +1,5 @@
+import { readSettingsApiJson } from './settingsApiJson';
+
 export interface CommunitySettings {
   qqGroupNumber: string;
   qqQrCodeText: string;
@@ -40,7 +42,7 @@ export function loadCommunitySettings(): Promise<CommunitySettings> {
   communitySettingsPromise = fetch(siteSettingsUrl, { cache: 'no-store' })
     .then(async (response) => {
       if (!response.ok) return emptyCommunitySettings;
-      const payload = await response.json() as unknown;
+      const payload = await readSettingsApiJson<unknown>(response);
       if (!payload || typeof payload !== 'object') return emptyCommunitySettings;
       const settings = (payload as { settings?: { community?: unknown } }).settings;
       return normalizeCommunitySettings(settings?.community);

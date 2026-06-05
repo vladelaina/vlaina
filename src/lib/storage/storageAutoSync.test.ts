@@ -68,6 +68,13 @@ describe('storageAutoSync', () => {
 
     window.dispatchEvent(new StorageEvent('storage', {
       key: 'vlaina-storage-sync-event',
+      newValue: 'x'.repeat(8 * 1024 + 1),
+    }));
+    expect(first).not.toHaveBeenCalled();
+    expect(second).not.toHaveBeenCalled();
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'vlaina-storage-sync-event',
       newValue: JSON.stringify({
         kind: 'ui-preferences',
         sourceId: 'other-window',

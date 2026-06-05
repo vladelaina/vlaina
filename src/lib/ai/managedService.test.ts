@@ -42,6 +42,17 @@ vi.mock('@/lib/account/webCommands', () => ({
   },
 }));
 
+function managedJsonResponse(payload: unknown, init: ResponseInit = {}): Response {
+  const headers = new Headers(init.headers);
+  if (!headers.has('content-type')) {
+    headers.set('content-type', 'application/json');
+  }
+  return new Response(JSON.stringify(payload), {
+    ...init,
+    headers,
+  });
+}
+
 describe('managedService', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -62,12 +73,11 @@ describe('managedService', () => {
 
   it('uses credentialed web requests for managed models', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
+    const fetchMock = vi.fn().mockResolvedValue(
+      managedJsonResponse({
         data: [{ id: 'gpt-4o-mini', display_name: 'GPT-4o Mini' }],
-      }),
-    });
+      })
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const { fetchManagedModels } = await import('./managedService');
@@ -87,13 +97,12 @@ describe('managedService', () => {
 
   it('uses lightweight web requests for managed model versions', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
+    const fetchMock = vi.fn().mockResolvedValue(
+      managedJsonResponse({
         success: true,
         model_catalog_version: 'v1',
-      }),
-    });
+      })
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const { fetchManagedModelsVersion } = await import('./managedService');
@@ -118,13 +127,10 @@ describe('managedService', () => {
       const fetchMock = vi
         .fn()
         .mockRejectedValueOnce(new TypeError('fetch failed'))
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
+        .mockResolvedValueOnce(managedJsonResponse({
             success: true,
             model_catalog_version: 'v2',
-          }),
-        });
+          }));
       vi.stubGlobal('fetch', fetchMock);
 
       const { fetchManagedModelsVersion } = await import('./managedService');
@@ -146,13 +152,10 @@ describe('managedService', () => {
       const fetchMock = vi
         .fn()
         .mockRejectedValueOnce(new DOMException('upstream reset', 'AbortError'))
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
+        .mockResolvedValueOnce(managedJsonResponse({
             success: true,
             model_catalog_version: 'v3',
-          }),
-        });
+          }));
       vi.stubGlobal('fetch', fetchMock);
 
       const { fetchManagedModelsVersion } = await import('./managedService');
@@ -205,13 +208,17 @@ describe('managedService', () => {
     vi.useFakeTimers();
     try {
       hasElectronDesktopBridgeMock.mockReturnValue(false);
+      const reader = {
+        read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined)),
+        cancel: vi.fn(async () => undefined),
+        releaseLock: vi.fn(),
+      };
       const fetchMock = vi.fn().mockResolvedValue({
         ok: true,
-        json: vi.fn(() => new Promise((resolve) => {
-          setTimeout(() => {
-            resolve({ choices: [{ message: { content: 'late success' } }] });
-          }, 31_000);
-        })),
+        headers: new Headers(),
+        body: {
+          getReader: () => reader,
+        },
       });
       vi.stubGlobal('fetch', fetchMock);
 
@@ -219,9 +226,13 @@ describe('managedService', () => {
       const request = requestManagedChatCompletion({ model: 'gpt-4o-mini' });
       const expectation = expect(request).rejects.toThrow('Managed API request timed out.');
 
-      await vi.advanceTimersByTimeAsync(31_000);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(reader.read).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(30_000);
 
       await expectation;
+      expect(reader.cancel).toHaveBeenCalledTimes(1);
+      expect(reader.releaseLock).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
@@ -281,12 +292,23 @@ describe('managedService', () => {
   it('does not return managed web JSON results after external cancellation during response parsing', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
     const controller = new AbortController();
+    const reader = {
+      read: vi.fn(async () => {
+        controller.abort();
+        return {
+          done: false,
+          value: new TextEncoder().encode(JSON.stringify({ choices: [{ message: { content: 'late success' } }] })),
+        };
+      }),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    };
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: vi.fn(async () => {
-        controller.abort();
-        return { choices: [{ message: { content: 'late success' } }] };
-      }),
+      headers: new Headers(),
+      body: {
+        getReader: () => reader,
+      },
     });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -294,15 +316,63 @@ describe('managedService', () => {
 
     await expect(requestManagedChatCompletion({ model: 'gpt-4o-mini' }, controller.signal))
       .rejects.toMatchObject({ name: 'AbortError' });
+    expect(reader.cancel).toHaveBeenCalledTimes(1);
+    expect(reader.releaseLock).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects oversized managed web JSON responses before reading the body', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const cancel = vi.fn();
+    const response = new Response(
+      new ReadableStream({
+        cancel,
+      }),
+      {
+        status: 200,
+        headers: {
+          'content-length': String(64 * 1024 * 1024 + 1),
+        },
+      }
+    );
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+    const { requestManagedChatCompletion } = await import('./managedService');
+
+    await expect(requestManagedChatCompletion({ model: 'gpt-4o-mini' }))
+      .rejects.toThrow('Managed API response body is too large.');
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('cancels managed web JSON body reads when the streamed body exceeds the limit', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const reader = {
+      read: vi.fn(async () => ({
+        done: false,
+        value: { byteLength: 64 * 1024 * 1024 + 1 } as Uint8Array,
+      })),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers(),
+      body: {
+        getReader: () => reader,
+      },
+    }));
+
+    const { requestManagedChatCompletion } = await import('./managedService');
+
+    await expect(requestManagedChatCompletion({ model: 'gpt-4o-mini' }))
+      .rejects.toThrow('Managed API response body is too large.');
+    expect(reader.cancel).toHaveBeenCalledTimes(1);
+    expect(reader.releaseLock).toHaveBeenCalledTimes(1);
   });
 
   it('preserves client session when managed web auth is rejected', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 401,
-      text: async () => '',
-    });
+    const fetchMock = vi.fn().mockResolvedValue(new Response('', { status: 401 }));
     vi.stubGlobal('fetch', fetchMock);
 
     const { fetchManagedModels, MANAGED_AUTH_REQUIRED_ERROR } = await import('./managedService');
@@ -313,11 +383,9 @@ describe('managedService', () => {
 
   it('extracts nested managed web error messages', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-      text: async () => JSON.stringify({ error: { message: 'upstream overloaded' } }),
-    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      managedJsonResponse({ error: { message: 'upstream overloaded' } }, { status: 500 })
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const { fetchManagedModels } = await import('./managedService');
@@ -328,11 +396,9 @@ describe('managedService', () => {
 
   it('sanitizes managed web forbidden business errors without clearing session', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 403,
-      text: async () => JSON.stringify({ error: 'Model is not available for this user', errorCode: 'points_exhausted' }),
-    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      managedJsonResponse({ error: 'Model is not available for this user', errorCode: 'points_exhausted' }, { status: 403 })
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const { requestManagedChatCompletion } = await import('./managedService');
@@ -343,10 +409,9 @@ describe('managedService', () => {
 
   it('sanitizes managed chat completion bodies before web requests', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
-    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      managedJsonResponse({ choices: [{ message: { content: 'ok' } }] })
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const { requestManagedChatCompletion } = await import('./managedService');
@@ -502,10 +567,9 @@ describe('managedService', () => {
   it('passes abort signals through managed web image generation requests', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
     const controller = new AbortController();
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ data: [{ url: 'https://cdn.example.com/generated.png' }] }),
-    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      managedJsonResponse({ data: [{ url: 'https://cdn.example.com/generated.png' }] })
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const { requestManagedImageGeneration } = await import('./managedService');

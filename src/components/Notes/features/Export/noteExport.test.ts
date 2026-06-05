@@ -3,6 +3,7 @@ import { exportNote } from './noteExport';
 
 const mocks = vi.hoisted(() => ({
   addToast: vi.fn(),
+  getBase64DecodedByteLength: vi.fn(),
   renderNoteExportElement: vi.fn(),
   renderNoteExportHtml: vi.fn(),
   resolveExportMarkdownAssetSources: vi.fn(),
@@ -39,6 +40,10 @@ vi.mock('@/lib/desktop/fs', () => ({
   writeDesktopBinaryFile: mocks.writeDesktopBinaryFile,
 }));
 
+vi.mock('@/lib/markdown/dataImagePolicy', () => ({
+  getBase64DecodedByteLength: mocks.getBase64DecodedByteLength,
+}));
+
 vi.mock('./noteExportDocx', () => ({
   createDocxExportBytes: vi.fn(),
 }));
@@ -55,6 +60,7 @@ vi.mock('./noteExportMarkdown', () => ({
 describe('exportNote', () => {
   beforeEach(() => {
     mocks.addToast.mockReset();
+    mocks.getBase64DecodedByteLength.mockReset();
     mocks.renderNoteExportElement.mockReset();
     mocks.renderNoteExportHtml.mockReset();
     mocks.resolveExportMarkdownAssetSources.mockReset();
@@ -62,6 +68,15 @@ describe('exportNote', () => {
     mocks.toPng.mockReset();
     mocks.writeDesktopBinaryFile.mockReset();
 
+    mocks.getBase64DecodedByteLength.mockImplementation((payload: string) => {
+      if (payload.length % 4 === 1 || !/^[A-Za-z0-9+/]*={0,2}$/.test(payload)) {
+        return null;
+      }
+      let padding = 0;
+      if (payload.endsWith('==')) padding = 2;
+      else if (payload.endsWith('=')) padding = 1;
+      return Math.floor((payload.length * 3) / 4) - padding;
+    });
     mocks.saveDialog.mockResolvedValue('/tmp/Exported.html');
     mocks.resolveExportMarkdownAssetSources.mockImplementation(async (markdown: string) => markdown);
     mocks.renderNoteExportElement.mockImplementation(async () => ({
@@ -143,6 +158,23 @@ describe('exportNote', () => {
       notesPath: '/vault',
       title: 'Exported',
     })).rejects.toThrow('Unexpected PNG export MIME type.');
+
+    expect(mocks.saveDialog).not.toHaveBeenCalled();
+    expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
+    expect(mocks.addToast).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized PNG export output before writing a file', async () => {
+    mocks.toPng.mockResolvedValueOnce('data:image/png;base64,cG5n');
+    mocks.getBase64DecodedByteLength.mockReturnValueOnce(Number.MAX_SAFE_INTEGER);
+
+    await expect(exportNote({
+      format: 'png',
+      markdown: '# Exported',
+      notePath: 'Exported.md',
+      notesPath: '/vault',
+      title: 'Exported',
+    })).rejects.toThrow('PNG export output is too large.');
 
     expect(mocks.saveDialog).not.toHaveBeenCalled();
     expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();

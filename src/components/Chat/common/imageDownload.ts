@@ -1,7 +1,7 @@
 import { writeDesktopBinaryFile } from "@/lib/desktop/fs";
 import { translate } from "@/lib/i18n/runtime";
 import { saveDialog } from "@/lib/storage/dialog";
-import { fetchChatImageBlobResult } from "./chatImageFetch";
+import { fetchChatImageBlobResult, MAX_CHAT_IMAGE_FETCH_BYTES } from "./chatImageFetch";
 import { resolveSafeChatImageSource } from "./chatImageSourceResolution";
 import { isSvgImageMimeType, rasterizeSvgBlobToPngBlob } from "./svgRasterize";
 
@@ -107,14 +107,14 @@ export async function downloadImageWithPrompt(src: string, alt?: string): Promis
 
   if (blob && isSvgImageMimeType(blob.type)) {
     blob = await rasterizeSvgBlobToPngBlob(blob);
-    if (!blob) {
+    if (!blob || blob.size > MAX_CHAT_IMAGE_FETCH_BYTES) {
       return;
     }
   }
 
   const filename = resolveFilename(alt, src, blob?.type || "");
 
-  if (blob?.type.startsWith("image/")) {
+  if (blob?.type.startsWith("image/") && blob.size <= MAX_CHAT_IMAGE_FETCH_BYTES) {
     const defaultExt = filename.split(".").pop()?.toLowerCase() || "png";
     const extensions = Array.from(
       new Set([defaultExt, "png", "jpg", "jpeg", "webp", "gif", "bmp"])

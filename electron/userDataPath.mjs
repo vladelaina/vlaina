@@ -46,6 +46,7 @@ function normalizePathForCompare(filePath) {
 }
 
 const DEVELOPMENT_PROFILE_SHELL_SEED_MARKER = '.vlaina-dev-profile-shell-seeded';
+const MAX_STARRED_REGISTRY_JSON_BYTES = 5 * 1024 * 1024;
 
 function hasProfileShellData(userDataPath) {
   try {
@@ -196,6 +197,11 @@ function readStarredEntries(userDataPath) {
   }
 
   try {
+    const fileInfo = fs.statSync(registryPath);
+    if (!fileInfo.isFile() || fileInfo.size > MAX_STARRED_REGISTRY_JSON_BYTES) {
+      return [];
+    }
+
     const parsed = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
     return Array.isArray(parsed?.entries) ? parsed.entries : [];
   } catch {

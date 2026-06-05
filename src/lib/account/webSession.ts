@@ -5,6 +5,7 @@ import { ACCOUNT_AUTH_INVALIDATED_EVENT } from './sessionEvent';
 
 const WEB_ACCOUNT_CREDS_KEY = 'vlaina_account_session';
 const ACCOUNT_USER_PERSIST_KEY = 'vlaina_account_identity';
+const MAX_WEB_ACCOUNT_STORAGE_CHARS = 64 * 1024;
 
 export interface WebAccountCredentials {
   provider: AccountProvider;
@@ -37,6 +38,7 @@ function loadPersistedWebAccountIdentity(): WebAccountCredentials | null {
   try {
     const stored = localStorage.getItem(ACCOUNT_USER_PERSIST_KEY);
     if (!stored) return null;
+    if (stored.length > MAX_WEB_ACCOUNT_STORAGE_CHARS) return null;
     const parsed = JSON.parse(stored) as {
       provider?: string | null;
       username?: string | null;
@@ -70,6 +72,7 @@ export function loadWebAccountCredentials(): WebAccountCredentials | null {
   try {
     const stored = sessionStorage.getItem(WEB_ACCOUNT_CREDS_KEY);
     if (!stored) return null;
+    if (stored.length > MAX_WEB_ACCOUNT_STORAGE_CHARS) return null;
     const parsed = JSON.parse(stored) as {
       provider?: string;
       username?: string;

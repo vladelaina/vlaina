@@ -105,6 +105,43 @@ describe('ElectronAdapter', () => {
     ]);
   });
 
+  it('walks recursive directories sequentially to avoid burst filesystem IPC calls', async () => {
+    let activeChildCalls = 0;
+    let maxActiveChildCalls = 0;
+    mocks.bridge.fs.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault') {
+        return Array.from({ length: 4 }, (_, index) => ({
+          name: `dir-${index}`,
+          path: `/vault/dir-${index}`,
+          isDirectory: true,
+          isFile: false,
+        }));
+      }
+
+      if (path.startsWith('/vault/dir-')) {
+        activeChildCalls += 1;
+        maxActiveChildCalls = Math.max(maxActiveChildCalls, activeChildCalls);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        activeChildCalls -= 1;
+        return [
+          {
+            name: 'note.md',
+            path: `${path}/note.md`,
+            isDirectory: false,
+            isFile: true,
+          },
+        ];
+      }
+
+      return [];
+    });
+
+    const adapter = new ElectronAdapter();
+
+    await expect(adapter.listDir('/vault', { recursive: true })).resolves.toHaveLength(8);
+    expect(maxActiveChildCalls).toBe(1);
+  });
+
   it('caches the electron app data base path', async () => {
     const adapter = new ElectronAdapter();
 

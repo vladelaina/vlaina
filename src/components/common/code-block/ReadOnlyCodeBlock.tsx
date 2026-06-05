@@ -14,7 +14,7 @@ interface ReadOnlyCodeBlockProps {
 }
 
 const LANGUAGE_CLASS_PATTERN = /language-([\w+-]+)/;
-const MAX_AUTO_HIGHLIGHT_CHARS = 20_000;
+const MAX_HIGHLIGHT_CHARS = 20_000;
 
 function escapeHtml(input: string): string {
   return input
@@ -50,6 +50,26 @@ function extractCodePayload(
   return { language, codeText };
 }
 
+function countCodeLines(codeText: string): number {
+  if (codeText.length === 0) return 1;
+
+  let lineCount = 1;
+  for (let index = 0; index < codeText.length; index += 1) {
+    if (codeText.charCodeAt(index) === 10) {
+      lineCount += 1;
+    }
+  }
+  return lineCount;
+}
+
+function createLineNumbersText(lineCount: number): string {
+  let lineNumbers = '';
+  for (let index = 1; index <= lineCount; index += 1) {
+    lineNumbers += index === 1 ? '1' : `\n${index}`;
+  }
+  return lineNumbers;
+}
+
 export const ReadOnlyCodeBlock = memo(function ReadOnlyCodeBlock({
   className,
   children,
@@ -59,18 +79,15 @@ export const ReadOnlyCodeBlock = memo(function ReadOnlyCodeBlock({
 }: ReadOnlyCodeBlockProps) {
   const { language, codeText } = extractCodePayload(className, children);
   const showLineNumbers = useUnifiedStore(selectCodeBlockLineNumbersEnabled);
-  const lineNumbers = useMemo(() => {
-    const lineCount = codeText.length === 0 ? 1 : codeText.split('\n').length;
-    return Array.from({ length: lineCount }, (_, index) => index + 1);
-  }, [codeText]);
+  const lineNumbers = useMemo(() => createLineNumbersText(countCodeLines(codeText)), [codeText]);
 
   const highlightedHTML = useMemo(() => {
     try {
+      if (codeText.length > MAX_HIGHLIGHT_CHARS) {
+        return escapeHtml(codeText);
+      }
       if (language && markdownHighlighter.getLanguage(language)) {
         return markdownHighlighter.highlight(codeText, { language }).value;
-      }
-      if (codeText.length > MAX_AUTO_HIGHLIGHT_CHARS) {
-        return escapeHtml(codeText);
       }
       return markdownHighlighter.highlightAuto(codeText).value;
     } catch {
@@ -107,7 +124,7 @@ export const ReadOnlyCodeBlock = memo(function ReadOnlyCodeBlock({
             aria-hidden="true"
             data-chat-selection-excluded="true"
           >
-            {lineNumbers.join('\n')}
+            {lineNumbers}
           </pre>
         )}
         {highlightedHTML ? (

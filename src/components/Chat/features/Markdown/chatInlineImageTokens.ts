@@ -3,6 +3,8 @@ import { normalizeRenderableDataImageSrc } from '@/components/common/markdown/im
 
 const INLINE_IMAGE_TOKEN_PREFIX = 'asset://localhost/chat-inline-image/';
 const LARGE_DATA_IMAGE_MIN_LENGTH = 50_000;
+const MAX_COMPACTED_INLINE_IMAGES = 1000;
+const MAX_SCANNED_INLINE_IMAGE_TOKENS = 2000;
 const DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i;
 
 export interface CompactedChatMarkdownImages {
@@ -64,11 +66,16 @@ export function compactLargeDataImageMarkdown(markdown: string): CompactedChatMa
   const unavailableTokens = getExistingInlineImageTokens(markdown);
   let tokenIndex = 0;
   let replaced = 0;
-  const tokens = parseMarkdownAndHtmlImageTokens(markdown);
+  const tokens = parseMarkdownAndHtmlImageTokens(markdown, {
+    maxTokens: MAX_SCANNED_INLINE_IMAGE_TOKENS,
+  });
   const parts: string[] = [];
   let cursor = 0;
 
   for (const imageToken of tokens) {
+    if (replaced >= MAX_COMPACTED_INLINE_IMAGES) {
+      break;
+    }
     if (imageToken.start < cursor) {
       continue;
     }

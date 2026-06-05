@@ -3,6 +3,7 @@ import {
   type MarkdownSourcePosition,
 } from './delimitedMarkdown';
 import { markEscapedMarkdownBlockSyntax } from './escapedBlockSyntax';
+import { canTransformMarkdownAst } from './markdownAstBudget';
 
 export interface TocMdastNode {
   type: string;
@@ -24,6 +25,10 @@ interface TocHeading {
   id: string;
 }
 
+const MAX_TOC_HEADINGS = 512;
+const MAX_TOC_BLOCKS = 8;
+const MAX_TOC_HEADING_TEXT_CHARS = 240;
+
 function isTocShortcutText(value: string): boolean {
   return /^(?:\[toc\]|\{:toc\})$/i.test(value.trim());
 }
@@ -42,8 +47,26 @@ function isUnescapedTocShortcutText(
 }
 
 function getNodeText(node: TocMdastNode): string {
-  if (typeof node.value === 'string') return node.value;
-  return (node.children ?? []).map(getNodeText).join('');
+  const parts: string[] = [];
+  const stack = [node];
+  let remainingChars = MAX_TOC_HEADING_TEXT_CHARS;
+
+  while (stack.length > 0 && remainingChars > 0) {
+    const current = stack.pop()!;
+    if (typeof current.value === 'string') {
+      const value = current.value.slice(0, remainingChars);
+      parts.push(value);
+      remainingChars -= value.length;
+      continue;
+    }
+
+    const children = current.children ?? [];
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      stack.push(children[index]);
+    }
+  }
+
+  return parts.join('');
 }
 
 function slugifyHeading(value: string, index: number): string {
@@ -57,17 +80,23 @@ function slugifyHeading(value: string, index: number): string {
 
 function collectHeadings(tree: TocMdastNode): TocHeading[] {
   const headings: TocHeading[] = [];
+  let headingCount = 0;
+  const stack = [tree];
 
-  function visit(node: TocMdastNode): void {
+  while (stack.length > 0) {
+    const node = stack.pop()!;
     if (node.type === 'heading') {
       const text = getNodeText(node).trim();
       if (text) {
-        const id = slugifyHeading(text, headings.length);
-        headings.push({
-          level: typeof node.depth === 'number' ? Math.max(1, Math.min(6, node.depth)) : 1,
-          text,
-          id,
-        });
+        const id = slugifyHeading(text, headingCount);
+        headingCount += 1;
+        if (headings.length < MAX_TOC_HEADINGS) {
+          headings.push({
+            level: typeof node.depth === 'number' ? Math.max(1, Math.min(6, node.depth)) : 1,
+            text,
+            id,
+          });
+        }
         node.data = {
           ...(node.data || {}),
           hProperties: {
@@ -78,12 +107,12 @@ function collectHeadings(tree: TocMdastNode): TocHeading[] {
       }
     }
 
-    for (const child of node.children ?? []) {
-      visit(child);
+    const children = node.children ?? [];
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      stack.push(children[index]);
     }
   }
 
-  visit(tree);
   return headings;
 }
 
@@ -151,44 +180,59 @@ function replaceTocShortcutParagraphs(
   headings: readonly TocHeading[],
   markdown = ''
 ): void {
-  function visit(node: TocMdastNode): void {
-    if (!node.children?.length) return;
+  let replacedTocBlocks = 0;
+  const stack: Array<{ node: TocMdastNode; index: number }> = [{ node: tree, index: 0 }];
 
-    for (let index = 0; index < node.children.length; index += 1) {
-      const child = node.children[index];
-      if (
-        child.type === 'paragraph' &&
-        child.children?.length === 1 &&
-        child.children[0].type === 'text' &&
-        typeof child.children[0].value === 'string' &&
-        isTocShortcutText(child.children[0].value)
-      ) {
-        if (isUnescapedTocShortcutText(child.children[0].value, {
-          markdown,
-          position: child.children[0].position,
-        })) {
-          node.children.splice(index, 1, createTocNode(headings));
-        } else {
-          markEscapedMarkdownBlockSyntax(child, 'toc');
-          child.data = {
-            ...(child.data || {}),
-            vlainaEscapedTocShortcut: true,
-            hProperties: {
-              ...(child.data?.hProperties || {}),
-            },
-          };
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+    const children = frame.node.children;
+    if (!children?.length || frame.index >= children.length) {
+      stack.pop();
+      continue;
+    }
+
+    const index = frame.index;
+    const child = children[index];
+    frame.index += 1;
+    if (
+      child.type === 'paragraph' &&
+      child.children?.length === 1 &&
+      child.children[0].type === 'text' &&
+      typeof child.children[0].value === 'string' &&
+      isTocShortcutText(child.children[0].value)
+    ) {
+      if (isUnescapedTocShortcutText(child.children[0].value, {
+        markdown,
+        position: child.children[0].position,
+      })) {
+        if (replacedTocBlocks < MAX_TOC_BLOCKS) {
+          children.splice(index, 1, createTocNode(headings));
+          replacedTocBlocks += 1;
         }
-        continue;
+      } else {
+        markEscapedMarkdownBlockSyntax(child, 'toc');
+        child.data = {
+          ...(child.data || {}),
+          vlainaEscapedTocShortcut: true,
+          hProperties: {
+            ...(child.data?.hProperties || {}),
+          },
+        };
       }
+      continue;
+    }
 
-      visit(child);
+    if (child.children?.length) {
+      stack.push({ node: child, index: 0 });
     }
   }
-
-  visit(tree);
 }
 
 export function applyTocShortcutsToTree(tree: TocMdastNode, markdown = ''): void {
+  if (!canTransformMarkdownAst(tree)) {
+    return;
+  }
+
   const headings = collectHeadings(tree);
   replaceTocShortcutParagraphs(tree, headings, markdown);
 }

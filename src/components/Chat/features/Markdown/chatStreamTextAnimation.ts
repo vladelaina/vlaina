@@ -25,6 +25,7 @@ const MIN_APPEND_WINDOW_MS = themeChatStreamTokens.minAppendWindowMs;
 const MAX_APPEND_WINDOW_MS = themeChatStreamTokens.maxAppendWindowMs;
 const APPEND_WINDOW_RATIO = themeChatStreamTokens.appendWindowRatio;
 const FALLBACK_CONTENT_WIDTH = themeChatStreamTokens.fallbackContentWidthPx;
+export const MAX_CHAT_STREAM_ANIMATION_CHARS = 20_000;
 
 export interface ChatStreamBlock {
   births: number[];
@@ -54,6 +55,23 @@ function clamp(value: number, min: number, max: number): number {
 
 function textLength(text: string): number {
   return Array.from(text).length;
+}
+
+export function canAnimateChatStreamContent(content: string): boolean {
+  return content.length <= MAX_CHAT_STREAM_ANIMATION_CHARS;
+}
+
+function createRevealedStreamBlock(content: string, key: string, renderNow: number): ChatStreamBlock {
+  return {
+    births: [],
+    charDelay: BASE_CHAR_DELAY_MS,
+    codeBlockIndexOffset: 0,
+    content,
+    imageIndexOffset: 0,
+    key,
+    nowMs: renderNow,
+    revealed: true,
+  };
 }
 
 function findStableMarkdownSplit(content: string): number {
@@ -99,6 +117,10 @@ export function buildChatStreamSchedule(
   startMs: number,
   renderNow: number = startMs,
 ): ChatStreamBlock {
+  if (!canAnimateChatStreamContent(content)) {
+    return createRevealedStreamBlock(content, 'stream', renderNow);
+  }
+
   const scheduleWidth = contentWidth > 0 ? contentWidth : FALLBACK_CONTENT_WIDTH;
   const parsedBlocks = parseMarkdownMeasurementBlocks(content);
   const blocks = parsedBlocks.some((block) => block.kind === 'text')
@@ -168,31 +190,31 @@ export function useChatStreamBlocks(
   _pauseClockRef?: { readonly current: boolean },
 ): ChatStreamBlock[] {
   const renderNow = now();
-  const previousContentRef = useRef(content);
-  const previousContentLengthRef = useRef(textLength(content));
+  const initializedRef = useRef(false);
+  const previousContentRef = useRef('');
+  const previousContentLengthRef = useRef(0);
   const previousArrivalTimeRef = useRef(renderNow);
-  const birthsRef = useRef<number[]>(Array.from(content).map(() => renderNow - CHAT_STREAM_FADE_MS));
+  const birthsRef = useRef<number[]>([]);
   const charDelayRef = useRef(0);
   const stableBlockRef = useRef<ChatStreamBlock | null>(null);
 
   return useMemo(() => {
-    if (!enabled) {
+    if (!enabled || !canAnimateChatStreamContent(content)) {
+      initializedRef.current = false;
       previousContentRef.current = content;
-      previousContentLengthRef.current = textLength(content);
-      birthsRef.current = Array.from(content).map(() => renderNow - CHAT_STREAM_FADE_MS);
+      previousContentLengthRef.current = 0;
+      birthsRef.current = [];
       charDelayRef.current = 0;
       stableBlockRef.current = null;
-      const blocks = content ? [{
-        births: [],
-        charDelay: BASE_CHAR_DELAY_MS,
-        codeBlockIndexOffset: 0,
-        content,
-        imageIndexOffset: 0,
-        key: 'static',
-        nowMs: renderNow,
-        revealed: true,
-      }] : [];
-      return blocks;
+      return content ? [createRevealedStreamBlock(content, 'static', renderNow)] : [];
+    }
+
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      previousContentRef.current = content;
+      previousContentLengthRef.current = textLength(content);
+      previousArrivalTimeRef.current = renderNow;
+      birthsRef.current = Array.from(content).map(() => renderNow - CHAT_STREAM_FADE_MS);
     }
 
     const previousContent = previousContentRef.current;

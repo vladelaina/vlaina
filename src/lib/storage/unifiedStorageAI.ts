@@ -1,6 +1,11 @@
 import type { AIModel, ChatSession, Provider } from '@/lib/ai/types';
 import { buildScopedModelId, generateModelGroup, generateModelName } from '@/lib/ai/utils';
 
+const MAX_LOADED_AI_MODELS = 10_000;
+const MAX_LOADED_AI_MODEL_RECORDS = 20_000;
+const MAX_LOADED_AI_SESSIONS = 5_000;
+const MAX_LOADED_AI_SESSION_RECORDS = 10_000;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
@@ -78,35 +83,43 @@ export function normalizeLoadedAIModels(
   const providerIds = new Set(providers.map((provider) => provider.id));
   const now = Date.now();
   const seenModelIds = new Set<string>();
+  const normalizedModels: AIModel[] = [];
+  let scannedModels = 0;
 
-  const normalizedModels = models
-    .flatMap((item) => {
-      if (!isRecord(item)) return [];
-      const providerId = typeof item.providerId === 'string' ? item.providerId.trim() : '';
-      const apiModelId = typeof item.apiModelId === 'string' ? item.apiModelId.trim() : '';
-      if (!providerIds.has(providerId) || !apiModelId) return [];
+  for (const item of models) {
+    if (
+      scannedModels >= MAX_LOADED_AI_MODEL_RECORDS ||
+      normalizedModels.length >= MAX_LOADED_AI_MODELS
+    ) {
+      break;
+    }
+    scannedModels += 1;
+    if (!isRecord(item)) continue;
+    const providerId = typeof item.providerId === 'string' ? item.providerId.trim() : '';
+    const apiModelId = typeof item.apiModelId === 'string' ? item.apiModelId.trim() : '';
+    if (!providerIds.has(providerId) || !apiModelId) continue;
 
-      const id = buildScopedModelId(providerId, apiModelId);
-      const normalizedId = id.toLowerCase();
-      if (seenModelIds.has(normalizedId)) return [];
-      seenModelIds.add(normalizedId);
+    const id = buildScopedModelId(providerId, apiModelId);
+    const normalizedId = id.toLowerCase();
+    if (seenModelIds.has(normalizedId)) continue;
+    seenModelIds.add(normalizedId);
 
-      return [{
-        id,
-        apiModelId,
-        name: typeof item.name === 'string' && item.name.trim()
-          ? item.name.trim()
-          : generateModelName(apiModelId),
-        providerId,
-        group: typeof item.group === 'string' && item.group.trim()
-          ? item.group.trim()
-          : generateModelGroup(apiModelId),
-        ...normalizeLoadedModelPrice(item),
-        enabled: item.enabled !== false,
-        pinned: item.pinned === true,
-        createdAt: normalizeTimestamp(item.createdAt, now),
-      }];
+    normalizedModels.push({
+      id,
+      apiModelId,
+      name: typeof item.name === 'string' && item.name.trim()
+        ? item.name.trim()
+        : generateModelName(apiModelId),
+      providerId,
+      group: typeof item.group === 'string' && item.group.trim()
+        ? item.group.trim()
+        : generateModelGroup(apiModelId),
+      ...normalizeLoadedModelPrice(item),
+      enabled: item.enabled !== false,
+      pinned: item.pinned === true,
+      createdAt: normalizeTimestamp(item.createdAt, now),
     });
+  }
 
   const availableIds = new Set(normalizedModels.map((model) => model.id));
 
@@ -117,22 +130,31 @@ export function normalizeLoadedAIModels(
   };
 
   const seenSessionIds = new Set<string>();
-  const normalizedSessions = sessions.flatMap((item) => {
-    if (!isRecord(item)) return [];
+  const normalizedSessions: ChatSession[] = [];
+  let scannedSessions = 0;
+  for (const item of sessions) {
+    if (
+      scannedSessions >= MAX_LOADED_AI_SESSION_RECORDS ||
+      normalizedSessions.length >= MAX_LOADED_AI_SESSIONS
+    ) {
+      break;
+    }
+    scannedSessions += 1;
+    if (!isRecord(item)) continue;
     const id = typeof item.id === 'string' ? item.id.trim() : '';
-    if (!isSafeChatSessionId(id) || seenSessionIds.has(id)) return [];
+    if (!isSafeChatSessionId(id) || seenSessionIds.has(id)) continue;
     seenSessionIds.add(id);
 
     const modelId = typeof item.modelId === 'string' ? item.modelId : '';
-    return [{
+    normalizedSessions.push({
       id,
       title: typeof item.title === 'string' && item.title.trim() ? item.title : 'New Chat',
       modelId: remapModelId(modelId) || modelId,
       isPinned: item.isPinned === true,
       createdAt: normalizeTimestamp(item.createdAt, now),
       updatedAt: normalizeTimestamp(item.updatedAt, now),
-    }];
-  });
+    });
+  }
 
   return {
     models: normalizedModels,

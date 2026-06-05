@@ -16,6 +16,8 @@ export const syncListOrderPlugin = $prose((ctx) => {
     _oldState: EditorState,
     newState: EditorState
   ) => {
+    if (!transactions.some((tr) => tr.docChanged)) return null
+
     // Skip if composing or not editable
     if (
       !newState.selection ||
@@ -50,6 +52,7 @@ export const syncListOrderPlugin = $prose((ctx) => {
     newState.doc.descendants(
       (node: Node, pos: number, parent: Node | null, index: number) => {
         if (node.type === bulletListType) {
+          const parentPos = pos
           const base = node.maybeChild(0)
           if (
             base?.type === listItemType &&
@@ -65,14 +68,21 @@ export const syncListOrderPlugin = $prose((ctx) => {
             node.descendants(
               (
                 child: Node,
-                pos: number,
+                childPos: number,
                 _parent: Node | null,
                 index: number
               ) => {
                 if (child.type === listItemType) {
                   const attrs = { ...child.attrs }
                   const changed = handleNodeItem(attrs, index, order)
-                  if (changed) tr = tr.setNodeMarkup(pos, undefined, attrs)
+                  if (changed) {
+                    tr = tr.setNodeMarkup(
+                      parentPos + 1 + childPos,
+                      undefined,
+                      attrs
+                    )
+                    needDispatch = true
+                  }
                 }
                 return false
               }

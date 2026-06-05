@@ -1,8 +1,46 @@
 import { WEB_SEARCH_SYSTEM_INSTRUCTION } from './toolDefinitions';
 import type { OpenAIToolCall, OpenAIWireMessage } from './openAIToolTypes';
 
+export const MAX_OPENAI_TOOL_CALLS = 16;
+export const MAX_OPENAI_TOOL_ARGUMENT_CHARS = 64 * 1024;
+
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function boundedToolString(value: unknown, maxChars: number): string {
+  return typeof value === 'string' ? value.slice(0, maxChars) : '';
+}
+
+export function canParseOpenAIToolArguments(value: string): boolean {
+  return value.length <= MAX_OPENAI_TOOL_ARGUMENT_CHARS;
+}
+
+export function limitOpenAIToolArguments(value: string): string {
+  return value.length > MAX_OPENAI_TOOL_ARGUMENT_CHARS
+    ? value.slice(0, MAX_OPENAI_TOOL_ARGUMENT_CHARS)
+    : value;
+}
+
+export function normalizeOpenAIToolArgumentsValue(value: unknown): string {
+  if (typeof value === 'string') {
+    return limitOpenAIToolArguments(value);
+  }
+
+  try {
+    return limitOpenAIToolArguments(JSON.stringify(value ?? {}));
+  } catch {
+    return '{}';
+  }
+}
+
+function appendOpenAIToolArguments(existing: string, next: unknown): string {
+  if (typeof next !== 'string' || existing.length >= MAX_OPENAI_TOOL_ARGUMENT_CHARS) {
+    return existing;
+  }
+
+  const remaining = MAX_OPENAI_TOOL_ARGUMENT_CHARS - existing.length;
+  return existing + next.slice(0, remaining);
 }
 
 export function parseOpenAIPayloadText(text: string): Record<string, unknown> | null {
@@ -24,7 +62,16 @@ function parseToolCallIndex(value: unknown): number | null {
     : typeof value === 'string' && value.trim()
       ? Number(value)
       : null;
-  return typeof parsed === 'number' && Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+  return typeof parsed === 'number'
+    && Number.isInteger(parsed)
+    && parsed >= 0
+    && parsed < MAX_OPENAI_TOOL_CALLS
+    ? parsed
+    : null;
+}
+
+function nextToolCallIndex(toolCalls: OpenAIToolCall[]): number {
+  return toolCalls.length < MAX_OPENAI_TOOL_CALLS ? toolCalls.length : -1;
 }
 
 function resolveToolCallIndex(
@@ -52,7 +99,7 @@ function resolveToolCallIndex(
       return unidentifiedIndex;
     }
 
-    return toolCalls.length;
+    return nextToolCallIndex(toolCalls);
   }
 
   const hasArguments = typeof deltaFunction.arguments === 'string';
@@ -65,7 +112,7 @@ function resolveToolCallIndex(
     }
   }
 
-  return toolCalls.length;
+  return nextToolCallIndex(toolCalls);
 }
 
 export function extractOpenAIToolCalls(payload: Record<string, unknown>, toolCalls: OpenAIToolCall[]): void {
@@ -74,23 +121,22 @@ export function extractOpenAIToolCalls(payload: Record<string, unknown>, toolCal
     return;
   }
 
-  for (const deltaCall of choice.delta.tool_calls) {
+  for (const deltaCall of choice.delta.tool_calls.slice(0, MAX_OPENAI_TOOL_CALLS)) {
     if (!isRecord(deltaCall)) continue;
     const deltaFunction = isRecord(deltaCall.function) ? deltaCall.function : {};
     const index = resolveToolCallIndex(deltaCall, deltaFunction, toolCalls);
+    if (index < 0 || index >= MAX_OPENAI_TOOL_CALLS) continue;
     const existing = toolCalls[index] ?? {
       id: '',
       type: 'function' as const,
       function: { name: '', arguments: '' },
     };
     toolCalls[index] = {
-      id: typeof deltaCall.id === 'string' ? deltaCall.id : existing.id,
+      id: boundedToolString(deltaCall.id, 512) || existing.id,
       type: 'function',
       function: {
-        name: typeof deltaFunction.name === 'string' ? deltaFunction.name : existing.function.name,
-        arguments:
-          existing.function.arguments +
-          (typeof deltaFunction.arguments === 'string' ? deltaFunction.arguments : ''),
+        name: boundedToolString(deltaFunction.name, 128) || existing.function.name,
+        arguments: appendOpenAIToolArguments(existing.function.arguments, deltaFunction.arguments),
       },
     };
   }
@@ -131,23 +177,25 @@ export function stripDsmlToolCallMarkup(content: string): string {
 function extractDsmlToolCalls(content: string): OpenAIToolCall[] {
   const calls: OpenAIToolCall[] = [];
   for (const block of content.matchAll(DSML_TOOL_CALLS_BLOCK_RE)) {
+    if (calls.length >= MAX_OPENAI_TOOL_CALLS) break;
     const blockText = block[0];
     for (const invoke of blockText.matchAll(DSML_INVOKE_RE)) {
-      const name = invoke[1]?.trim() ?? '';
+      if (calls.length >= MAX_OPENAI_TOOL_CALLS) break;
+      const name = boundedToolString(invoke[1]?.trim(), 128);
       const body = invoke[2] ?? '';
       if (!name) continue;
       const args: Record<string, string> = {};
       for (const parameter of body.matchAll(DSML_PARAMETER_RE)) {
-        const key = parameter[1]?.trim() ?? '';
+        const key = boundedToolString(parameter[1]?.trim(), 128);
         if (!key) continue;
-        args[key] = (parameter[2] ?? '').trim();
+        args[key] = limitOpenAIToolArguments((parameter[2] ?? '').trim());
       }
       calls.push({
         id: `dsml_${calls.length}`,
         type: 'function',
         function: {
           name,
-          arguments: JSON.stringify(args),
+          arguments: normalizeOpenAIToolArgumentsValue(args),
         },
       });
     }
@@ -185,20 +233,21 @@ export function extractOpenAIMessageFromJson(payload: Record<string, unknown>): 
   const rawContent = extractOpenAIText(message.content);
   const dsmlToolCalls = extractDsmlToolCalls(rawContent);
 
+  const toolCalls: OpenAIToolCall[] = [];
+  const rawToolCallCount = Math.min(rawToolCalls.length, MAX_OPENAI_TOOL_CALLS);
+  for (let index = 0; index < rawToolCallCount; index += 1) {
+    const rawCall = rawToolCalls[index];
+    if (!isRecord(rawCall) || !isRecord(rawCall.function)) continue;
+    const id = boundedToolString(rawCall.id, 512);
+    const name = boundedToolString(rawCall.function.name, 128);
+    const args = normalizeOpenAIToolArgumentsValue(rawCall.function.arguments);
+    if (!id || !name) continue;
+    toolCalls.push({ id, type: 'function', function: { name, arguments: args } });
+  }
+
   return {
     content: stripDsmlToolCallMarkup(rawContent),
     reasoningContent: extractOpenAIText(message.reasoning_content ?? message.reasoning),
-    toolCalls: rawToolCalls
-      .map((rawCall): OpenAIToolCall | null => {
-        if (!isRecord(rawCall) || !isRecord(rawCall.function)) return null;
-        const id = typeof rawCall.id === 'string' ? rawCall.id : '';
-        const name = typeof rawCall.function.name === 'string' ? rawCall.function.name : '';
-        const rawArguments = rawCall.function.arguments;
-        const args = typeof rawArguments === 'string' ? rawArguments : JSON.stringify(rawArguments ?? {});
-        if (!id || !name) return null;
-        return { id, type: 'function', function: { name, arguments: args } };
-      })
-      .filter((call): call is OpenAIToolCall => call !== null)
-      .concat(dsmlToolCalls),
+    toolCalls: toolCalls.concat(dsmlToolCalls).slice(0, MAX_OPENAI_TOOL_CALLS),
   };
 }

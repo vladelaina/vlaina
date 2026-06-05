@@ -16,6 +16,15 @@ export const GITHUB_DROP_WITH_CONTENT_TAGS = new Set([
   'noframes', 'plaintext', 'math', 'noscript', 'svg',
 ]);
 
+export const GITHUB_GFM_DISALLOWED_RAW_HTML_TAGS = new Set([
+  'title', 'textarea', 'style', 'xmp', 'noembed', 'noframes',
+  'script', 'plaintext',
+]);
+
+export const GITHUB_SANITIZER_ONLY_DROP_WITH_CONTENT_TAGS = new Set([
+  'math', 'noscript', 'svg',
+]);
+
 export const GITHUB_WRAP_CONTENT_WITH_WHITESPACE_TAGS = new Set([
   'address', 'article', 'aside', 'blockquote', 'br', 'dd', 'div', 'dl', 'dt',
   'footer', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'hgroup', 'hr',
@@ -113,6 +122,12 @@ export const GITHUB_ALLOWED_STYLE_PROPERTIES = new Set([
 ]);
 
 const GITHUB_SRCSET_DESCRIPTOR_PATTERN = /^\d+(?:\.\d+)?(?:w|x)$/;
+export const MAX_GITHUB_HTML_ATTRIBUTE_VALUE_CHARS = 16 * 1024;
+const MAX_GITHUB_SRCSET_CANDIDATES = 128;
+
+export function isGithubHtmlAttributeValueAllowed(value: string): boolean {
+  return value.length <= MAX_GITHUB_HTML_ATTRIBUTE_VALUE_CHARS;
+}
 
 export function isGithubAllowedAttribute(tagName: string, attributeName: string): boolean {
   const normalizedAttribute = attributeName.toLowerCase();
@@ -126,6 +141,8 @@ export function isGithubAllowedAttribute(tagName: string, attributeName: string)
 }
 
 export function sanitizeGithubStyle(value: string): string | null {
+  if (!isGithubHtmlAttributeValueAllowed(value)) return null;
+
   const declarations: string[] = [];
 
   for (const rawDeclaration of value.split(';')) {
@@ -146,6 +163,10 @@ export function sanitizeGithubStyle(value: string): string | null {
 
 export function sanitizeGithubIframeSandbox(value: string | null): string {
   const tokens = new Set(GITHUB_FORCED_IFRAME_SANDBOX.split(/\s+/).filter(Boolean));
+  if (value && !isGithubHtmlAttributeValueAllowed(value)) {
+    return Array.from(tokens).join(' ');
+  }
+
   for (const token of (value ?? '').split(/\s+/)) {
     const normalized = token.trim().toLowerCase();
     if (GITHUB_ALLOWED_IFRAME_SANDBOX_TOKENS.has(normalized)) {
@@ -204,6 +225,8 @@ export function normalizeGithubUrl(
   allowedProtocols: ReadonlySet<string>,
   options: { blockLocalNetwork?: boolean; allowPlainRelative?: boolean; allowProtocolRelative?: boolean } = {},
 ): string | null {
+  if (!isGithubHtmlAttributeValueAllowed(value)) return null;
+
   const trimmed = value.trimStart();
   if (!trimmed || /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/.test(trimmed)) {
     return null;
@@ -243,10 +266,12 @@ export function normalizeGithubUrl(
 }
 
 export function normalizeGithubSrcset(value: string): string | null {
+  if (!isGithubHtmlAttributeValueAllowed(value)) return null;
+
   const trimmed = value.trimStart();
   if (!trimmed || /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/.test(trimmed)) return null;
   const candidates = trimmed.split(',').map((candidate) => candidate.trim()).filter(Boolean);
-  if (candidates.length === 0) return null;
+  if (candidates.length === 0 || candidates.length > MAX_GITHUB_SRCSET_CANDIDATES) return null;
   for (const candidate of candidates) {
     const [source, ...descriptors] = candidate.split(/\s+/).filter(Boolean);
     if (!source || !isSafeGithubPlainRelativeMediaUrl(source)) {

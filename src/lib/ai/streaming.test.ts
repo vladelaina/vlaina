@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { consumeOpenAIStream } from './streaming';
+import {
+  consumeOpenAIStream,
+  MAX_OPENAI_STREAM_LINE_CHARS,
+} from './streaming';
 
 function streamResponse(lines: string[]): Response {
   const encoder = new TextEncoder();
@@ -91,6 +94,24 @@ describe('consumeOpenAIStream', () => {
 
     await expect(consumeOpenAIStream(response, () => {})).rejects.toThrow('boom');
     expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects oversized stream lines before parsing them', async () => {
+    const cancel = vi.fn();
+    const encoder = new TextEncoder();
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode('x'.repeat(MAX_OPENAI_STREAM_LINE_CHARS + 1)));
+        },
+        cancel,
+      }),
+    );
+
+    await expect(consumeOpenAIStream(response, () => {})).rejects.toThrow('AI stream line is too large');
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
   });
 
   it('cancels and releases the stream reader when the signal aborts during body reads', async () => {

@@ -99,4 +99,46 @@ describe('autolinkPlugin findUrls', () => {
 
         await editor.destroy();
     });
+
+    it('does not decorate local network URLs', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, 'Open http://127.0.0.1:3000 and https://example.com');
+            })
+            .use(commonmark)
+            .use(autolinkPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        const decorations = autolinkPluginKey.getState(view.state)?.find() ?? [];
+
+        expect(decorations.map((decoration: Decoration) => ({
+            text: view.state.doc.textBetween(decoration.from, decoration.to),
+            href: (decoration.type as any).attrs?.href,
+        }))).toEqual([{
+            text: 'https://example.com',
+            href: 'https://example.com',
+        }]);
+
+        await editor.destroy();
+    });
+
+    it('caps generated URL decorations', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, Array.from(
+                    { length: 1005 },
+                    (_, index) => `https://example-${index}.com`
+                ).join(' '));
+            })
+            .use(commonmark)
+            .use(autolinkPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(autolinkPluginKey.getState(view.state)?.find()).toHaveLength(1000);
+
+        await editor.destroy();
+    });
 });

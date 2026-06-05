@@ -18,7 +18,7 @@ function isInsertableImagePath(path: string) {
 }
 
 function isInsertableImageSize(size: number | null | undefined) {
-  return typeof size !== 'number' || size <= MAX_PICKED_IMAGE_BYTES;
+  return typeof size === 'number' && size <= MAX_PICKED_IMAGE_BYTES;
 }
 
 export async function insertImageFromFilePicker(ctx: Ctx) {
@@ -42,7 +42,7 @@ export async function insertImageFromFilePicker(ctx: Ctx) {
 
     const storage = getStorageAdapter();
     const fileInfo = await storage.stat(selectedPath).catch(() => null);
-    if (!isInsertableImageSize(fileInfo?.size ?? null)) return;
+    if (!fileInfo?.isFile || !isInsertableImageSize(fileInfo.size)) return;
 
     const bytes = await storage.readBinaryFile(selectedPath);
     if (!isInsertableImageSize(bytes.byteLength)) return;

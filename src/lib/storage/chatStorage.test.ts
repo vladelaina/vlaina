@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     exists: vi.fn().mockResolvedValue(false),
     mkdir: vi.fn().mockResolvedValue(undefined),
     readFile: vi.fn(),
+    stat: vi.fn().mockResolvedValue(null),
     writeFile: vi.fn().mockResolvedValue(undefined),
     deleteFile: vi.fn().mockResolvedValue(undefined),
   },
@@ -24,6 +25,7 @@ import {
   parseSessionMessagesPayload,
   preserveUnknownPersistedMessages,
   registerChatStorageAutoSyncTrigger,
+  loadSessionJson,
   saveSessionJson,
   serializeSessionMessages,
   setChatStorageAutoSyncTrigger,
@@ -410,6 +412,8 @@ describe('chatStorage auto sync registration', () => {
     mocks.storage.exists.mockResolvedValue(false);
     mocks.storage.mkdir.mockClear();
     mocks.storage.readFile.mockReset();
+    mocks.storage.stat.mockReset();
+    mocks.storage.stat.mockResolvedValue(null);
     mocks.storage.writeFile.mockClear();
     mocks.storage.deleteFile.mockClear();
     mocks.joinPath.mockClear();
@@ -432,5 +436,29 @@ describe('chatStorage auto sync registration', () => {
     expect(activeTrigger).toHaveBeenCalledWith('session-1');
 
     unregisterActive();
+  });
+
+  it('does not read existing session files while saving when stat has no size', async () => {
+    mocks.storage.exists.mockImplementation(async (path: string) => (
+      path === '/appdata/.vlaina/chat/sessions/session-1.json'
+    ));
+    mocks.storage.stat.mockResolvedValue({});
+
+    await saveSessionJson('session-1', [createMessage('m1')]);
+
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+    expect(mocks.storage.writeFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/chat/sessions/session-1.json',
+      expect.stringContaining('"m1"'),
+    );
+  });
+
+  it('does not load session files when stat has no size', async () => {
+    mocks.storage.exists.mockResolvedValue(true);
+    mocks.storage.stat.mockResolvedValue({});
+
+    await expect(loadSessionJson('session-1')).resolves.toBeNull();
+
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
   });
 });

@@ -12,6 +12,10 @@ import {
   encodeCalloutIconComment,
   getCalloutIconValue,
   iconDataFromValue,
+  normalizeCalloutBackgroundColor,
+  normalizeCalloutIcon,
+  parseCalloutIconDatasetValue,
+  removeLeadingCalloutIconTextMarker,
 } from './calloutIconUtils';
 import {
   getTextAlignmentComment,
@@ -111,19 +115,13 @@ function getChildrenFromExpandedCalloutContainer(node: MdastBlockquote): {
 export const calloutIdAttr = $nodeAttr('callout', () => ({
   icon: {
     default: DEFAULT_CALLOUT_ICON,
-    get: (dom: HTMLElement) => {
-      try {
-        return JSON.parse(dom.dataset.icon || '{}');
-      } catch {
-        return DEFAULT_CALLOUT_ICON;
-      }
-    },
-    set: (value: IconData) => ({ 'data-icon': JSON.stringify(value) })
+    get: (dom: HTMLElement) => parseCalloutIconDatasetValue(dom.dataset.icon),
+    set: (value: IconData) => ({ 'data-icon': JSON.stringify(normalizeCalloutIcon(value)) })
   },
   backgroundColor: {
     default: 'yellow',
-    get: (dom: HTMLElement) => dom.dataset.bg || 'yellow',
-    set: (value: string) => ({ 'data-bg': value })
+    get: (dom: HTMLElement) => normalizeCalloutBackgroundColor(dom.dataset.bg),
+    set: (value: string) => ({ 'data-bg': normalizeCalloutBackgroundColor(value) })
   }
 }));
 
@@ -140,26 +138,24 @@ export const calloutSchema = $node('callout', () => ({
     tag: 'div[data-type="callout"]',
     getAttrs: (dom) => {
       const el = dom as HTMLElement;
-      let icon: IconData = DEFAULT_CALLOUT_ICON;
-      try {
-        icon = JSON.parse(el.dataset.icon || '{}');
-      } catch {}
       return {
-        icon,
-        backgroundColor: el.dataset.bg || 'yellow'
+        icon: parseCalloutIconDatasetValue(el.dataset.icon),
+        backgroundColor: normalizeCalloutBackgroundColor(el.dataset.bg)
       };
     }
   }],
   toDOM: (node) => {
     const attrs = node.attrs as CalloutBlockAttrs;
-    const iconValue = getCalloutIconValue(attrs.icon);
+    const icon = normalizeCalloutIcon(attrs.icon);
+    const backgroundColor = normalizeCalloutBackgroundColor(attrs.backgroundColor);
+    const iconValue = getCalloutIconValue(icon);
     return [
       'div',
       {
         'data-type': 'callout',
-        'data-icon': JSON.stringify(attrs.icon),
-        'data-bg': attrs.backgroundColor,
-        class: `callout callout-${attrs.backgroundColor}`
+        'data-icon': JSON.stringify(icon),
+        'data-bg': backgroundColor,
+        class: `callout callout-${backgroundColor}`
       },
       ['div', { class: 'callout-icon', contenteditable: 'false' }, iconValue],
       ['div', { class: 'callout-content' }, 0]
@@ -202,7 +198,7 @@ export const calloutSchema = $node('callout', () => ({
         nextChildren.shift();
       } else if (firstPara?.type === 'paragraph' && firstPara.children?.length && firstText?.type === 'text') {
         const remainingText = markerIcon
-          ? text.replace(/^\s*\[!callout-icon:[^\]]+\]\s*/u, '')
+          ? removeLeadingCalloutIconTextMarker(text) ?? text
           : (emoji?.rest ?? text);
         const updatedChildren = [...firstPara.children];
         if (remainingText) {
@@ -388,7 +384,7 @@ export function serializeCalloutToMarkdown(
     content: unknown;
   }
 ): void {
-  const icon = (node.attrs.icon as IconData | undefined) ?? DEFAULT_CALLOUT_ICON;
+  const icon = normalizeCalloutIcon(node.attrs.icon);
   const iconValue = getCalloutIconValue(icon);
   const firstChild = node.firstChild;
 

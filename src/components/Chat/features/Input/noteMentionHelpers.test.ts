@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildMentionPreviewParts,
   collectMentionCandidates,
+  findMentionTitlesInValue,
   valueContainsMentionLabel,
 } from './noteMentionHelpers';
 import type { FileTreeNode } from '@/stores/notes/types';
@@ -44,6 +45,28 @@ function createTree(): FileTreeNode[] {
   ];
 }
 
+function createDeepTree(depth: number): FileTreeNode[] {
+  let current: FileTreeNode = {
+    id: `folder-${depth}/leaf.md`,
+    name: 'leaf',
+    path: `folder-${depth}/leaf.md`,
+    isFolder: false,
+  };
+
+  for (let index = depth; index >= 0; index -= 1) {
+    current = {
+      id: `folder-${index}`,
+      name: `folder-${index}`,
+      path: `folder-${index}`,
+      isFolder: true,
+      expanded: true,
+      children: [current],
+    };
+  }
+
+  return [current];
+}
+
 describe('collectMentionCandidates', () => {
   it('includes every supported markdown note in the mention list', () => {
     const candidates = [];
@@ -80,6 +103,20 @@ describe('collectMentionCandidates', () => {
       },
     ]);
   });
+
+  it('collects candidates from deep trees without recursive traversal', () => {
+    const candidates = [];
+
+    collectMentionCandidates(createDeepTree(2500), candidates);
+
+    expect(candidates[candidates.length - 1]).toEqual({
+      path: 'folder-2500/leaf.md',
+      title: '',
+      kind: 'note',
+      isCurrent: false,
+      notePath: 'folder-2500/leaf.md',
+    });
+  });
 });
 
 describe('mention label matching', () => {
@@ -103,5 +140,26 @@ describe('mention label matching', () => {
         end: 34,
       }),
     ]);
+  });
+
+  it('prefers the longest mention label when titles share a prefix', () => {
+    const parts = buildMentionPreviewParts('@TodayLater and @Today', [
+      { path: 'Today.md', title: 'Today', kind: 'note' },
+      { path: 'TodayLater.md', title: 'TodayLater', kind: 'note' },
+    ]);
+
+    expect(parts.filter((part) => part.type === 'mention').map((part) => part.text)).toEqual([
+      '@TodayLater',
+      '@Today',
+    ]);
+  });
+
+  it('finds mention titles with the same boundaries as single-label matching', () => {
+    const matches = findMentionTitlesInValue(
+      'email me@Today, then @Today and @TodayLater plus (@Docs/)',
+      ['Today', 'TodayLater', 'Docs/', 'Missing'],
+    );
+
+    expect([...matches].sort()).toEqual(['Docs/', 'Today', 'TodayLater']);
   });
 });

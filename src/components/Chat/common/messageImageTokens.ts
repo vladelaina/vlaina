@@ -6,5 +6,6 @@ export {
   replaceImageTokens,
   stripMarkdownImageTokens,
   stripImageTokens,
+  type ImageTokenParseOptions,
   type ImageToken,
 } from '@/lib/markdown/markdownImageTokens';

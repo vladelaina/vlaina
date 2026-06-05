@@ -7,6 +7,7 @@ const MAX_CACHE_SIZE = 500;
 const MAX_THUMBNAIL_CACHE_SIZE = 300;
 const MAX_LOCAL_IMAGE_BYTES = 50 * 1024 * 1024;
 const THUMBNAIL_MAX_EDGE_PX = 160;
+const MAX_THUMBNAIL_MAX_EDGE_PX = 2048;
 const DEFAULT_THUMBNAIL_MAX_EDGE_PX = THUMBNAIL_MAX_EDGE_PX;
 const PERSISTENT_THUMBNAIL_CACHE_VERSION = 'v1';
 
@@ -47,9 +48,17 @@ function assertPreviewableImagePath(fullPath: string): void {
 }
 
 function assertPreviewableImageSize(size: number | null | undefined): void {
-  if (typeof size === 'number' && size > MAX_LOCAL_IMAGE_BYTES) {
+  if (typeof size !== 'number' || size > MAX_LOCAL_IMAGE_BYTES) {
     throw new Error('Image asset is too large to preview.');
   }
+}
+
+function normalizeThumbnailMaxEdgePx(value: number | undefined): number {
+  const rounded = Math.round(value ?? DEFAULT_THUMBNAIL_MAX_EDGE_PX);
+  if (!Number.isFinite(rounded)) {
+    return DEFAULT_THUMBNAIL_MAX_EDGE_PX;
+  }
+  return Math.max(1, Math.min(MAX_THUMBNAIL_MAX_EDGE_PX, rounded));
 }
 
 function isSvgImagePath(fullPath: string): boolean {
@@ -97,7 +106,10 @@ async function loadPersistentThumbnailBlobUrl(
     if (!(await storage.exists(persistentCachePath))) {
       return null;
     }
+    const info = await storage.stat(persistentCachePath).catch(() => null);
+    assertPreviewableImageSize(info?.size);
     const bytes = await storage.readBinaryFile(persistentCachePath);
+    assertPreviewableImageSize(bytes.byteLength);
     return URL.createObjectURL(new Blob([bytes], { type: 'image/webp' }));
   } catch {
     return null;
@@ -302,7 +314,7 @@ export async function loadImageThumbnailAsBlob(
   const size = fileInfo?.size ?? null;
   assertPreviewableImageSize(size);
   const canValidateCache = modifiedAt !== null || size !== null;
-  const maxEdgePx = Math.max(1, Math.round(options?.maxEdgePx ?? DEFAULT_THUMBNAIL_MAX_EDGE_PX));
+  const maxEdgePx = normalizeThumbnailMaxEdgePx(options?.maxEdgePx);
   const allowMainThreadFallback = options?.allowMainThreadFallback ?? true;
   const fallbackMode = allowMainThreadFallback ? 'fallback' : 'no-fallback';
   const cacheKey = canValidateCache
@@ -390,7 +402,7 @@ export async function loadImageAsBase64(fullPath: string): Promise<string> {
 
   try {
     const fileInfo = await storage.stat(fullPath).catch(() => null);
-    assertPreviewableImageSize(fileInfo?.size ?? null);
+    assertPreviewableImageSize(fileInfo?.size);
     const data = await storage.readBinaryFile(fullPath);
     assertPreviewableImageSize(data.byteLength);
     const mimeType = getMimeType(fullPath);

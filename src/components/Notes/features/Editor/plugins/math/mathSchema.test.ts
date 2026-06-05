@@ -20,6 +20,15 @@ describe('mathSchema', () => {
     });
   });
 
+  it('bounds legacy latex attrs parsed from wrapper dataset', () => {
+    const dom = document.createElement('div');
+    dom.dataset.latex = 'x'.repeat(10001);
+
+    expect(parseMathAttrs(dom)).toEqual({
+      latex: 'x'.repeat(10000),
+    });
+  });
+
   it('serializes block math without leaking source latex into wrapper attrs', () => {
     const latex = 'x% hidden_secret_marker';
     const dom = serializeMathBlockNode({

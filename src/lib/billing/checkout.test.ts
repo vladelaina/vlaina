@@ -14,6 +14,16 @@ function mockLocation(url: string) {
   vi.spyOn(window, 'location', 'get').mockReturnValue(new URL(url) as unknown as Location)
 }
 
+function billingJsonResponse(payload: unknown, init: ResponseInit = {}): Response {
+  return new Response(JSON.stringify(payload), {
+    ...init,
+    headers: {
+      'content-type': 'application/json',
+      ...(init.headers ?? {}),
+    },
+  })
+}
+
 describe('billing checkout requests', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -35,14 +45,11 @@ describe('billing checkout requests', () => {
       const fetchMock = vi
         .fn()
         .mockRejectedValueOnce(new TypeError('fetch failed'))
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
+        .mockResolvedValueOnce(billingJsonResponse({
             success: true,
             checkoutEnabled: true,
             plans: [{ tier: 'pro', displayName: 'Pro', monthlyPoints: 100, planPriceMicrounits: 1000, priceUsd: 1 }],
-          }),
-        })
+          }))
       vi.stubGlobal('fetch', fetchMock)
 
       const { fetchBillingPlans } = await import('./checkout')
@@ -86,10 +93,17 @@ describe('billing checkout requests', () => {
   it('times out billing plan JSON parsing when the response body hangs', async () => {
     vi.useFakeTimers()
     hasElectronDesktopBridgeMock.mockReturnValue(true)
+    const reader = {
+      read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined)),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    }
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: vi.fn(() => new Promise(() => undefined)),
+      body: {
+        getReader: () => reader,
+      },
     })
     vi.stubGlobal('fetch', fetchMock)
 
@@ -97,11 +111,57 @@ describe('billing checkout requests', () => {
     const request = fetchBillingPlans()
     const expectation = expect(request).rejects.toThrow('Billing API request timed out.')
 
+    await vi.advanceTimersByTimeAsync(0)
+    expect(reader.read).toHaveBeenCalledTimes(1)
     await vi.advanceTimersByTimeAsync(15_000)
 
     await expectation
     expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(reader.cancel).toHaveBeenCalledTimes(1)
+    expect(reader.releaseLock).toHaveBeenCalledTimes(1)
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('bounds oversized billing response bodies', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(true)
+    const cancel = vi.fn()
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('x'.repeat(64 * 1024 + 1)))
+        },
+        cancel,
+      }),
+      { status: 200 }
+    )
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response))
+
+    const { fetchBillingPlans } = await import('./checkout')
+
+    await expect(fetchBillingPlans()).rejects.toThrow('Billing API response body is too large.')
+    expect(cancel).toHaveBeenCalledTimes(1)
+    expect(() => response.body?.getReader()).not.toThrow()
+  })
+
+  it('uses the HTTP fallback when billing error response bodies are oversized', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(true)
+    const cancel = vi.fn()
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('x'.repeat(64 * 1024 + 1)))
+        },
+        cancel,
+      }),
+      { status: 500 }
+    )
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response))
+
+    const { fetchBillingPlans } = await import('./checkout')
+
+    await expect(fetchBillingPlans()).rejects.toThrow('Failed to load membership plans: HTTP 500')
+    expect(cancel).toHaveBeenCalledTimes(1)
+    expect(() => response.body?.getReader()).not.toThrow()
   })
 
   it('times out browser checkout requests when fetch ignores cancellation', async () => {

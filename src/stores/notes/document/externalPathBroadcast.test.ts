@@ -39,7 +39,16 @@ describe('external path broadcast persistence', () => {
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
+  it('ignores event files when stat has no size', async () => {
+    adapter.stat.mockResolvedValue({});
+
+    await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([]);
+
+    expect(adapter.readFile).not.toHaveBeenCalled();
+  });
+
   it('loads only valid bounded rename events', async () => {
+    adapter.stat.mockResolvedValue({ size: 256 });
     adapter.readFile.mockResolvedValue(JSON.stringify([
       {
         type: 'rename',

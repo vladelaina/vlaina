@@ -1,4 +1,5 @@
 import { isLocalNetworkHttpUrl } from '../__internal__'
+import { prepareGithubRawHtmlForSanitizer } from './github-raw-html'
 
 export const githubAllowedHtmlTags = new Set([
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'br', 'b', 'i', 'strong', 'em', 'a',
@@ -19,11 +20,11 @@ const wrapContentWithWhitespaceTags = new Set([
   'footer', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'hgroup', 'hr',
   'li', 'nav', 'ol', 'p', 'pre', 'section', 'ul',
 ])
-const gfmDisallowedRawHtmlTags = new Set([
+export const gfmDisallowedRawHtmlTags = new Set([
   'title', 'textarea', 'style', 'xmp', 'noembed', 'noframes',
   'script', 'plaintext',
 ])
-const sanitizerOnlyDropWithContentTags = new Set(['math', 'noscript', 'svg'])
+export const sanitizerOnlyDropWithContentTags = new Set(['math', 'noscript', 'svg'])
 
 const allowedGlobalAttributes = new Set([
   'abbr', 'accept', 'accept-charset', 'accesskey', 'action', 'align', 'alt',
@@ -84,7 +85,6 @@ const linkProtocols = new Set(['http:', 'https:', 'mailto:'])
 const mediaProtocols = new Set(['http:', 'https:'])
 const controlOrBidiPattern = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/
 const rawHtmlTagPattern = /^<\/?([A-Za-z][A-Za-z0-9-]*)(?:\s|\/?>|$)/
-const rawHtmlFragmentTagPattern = /^<\/?([A-Za-z][A-Za-z0-9:-]*)(?:\s|\/?>|$)/
 const forcedIframeSandbox = 'allow-scripts'
 const allowedIframeSandboxTokens = new Set(['allow-scripts', 'allow-forms', 'allow-popups', 'allow-presentation'])
 const allowedStyleProperties = new Set([
@@ -123,6 +123,23 @@ const allowedStyleProperties = new Set([
   'width',
 ])
 const srcsetDescriptorPattern = /^\d+(?:\.\d+)?(?:w|x)$/
+const maxGithubHtmlAttributeValueChars = 16 * 1024
+const maxGithubSrcsetCandidates = 128
+const maxSanitizeDepth = 200
+const maxSanitizeNodes = 20_000
+
+interface SanitizeContext {
+  visitedNodes: number
+}
+
+function canVisitNode(context: SanitizeContext) {
+  context.visitedNodes += 1
+  return context.visitedNodes <= maxSanitizeNodes
+}
+
+function hasSanitizeBudget(context: SanitizeContext) {
+  return context.visitedNodes < maxSanitizeNodes
+}
 
 function isAllowedAttribute(tagName: string, attributeName: string) {
   if (attributeName.startsWith('on')) return false
@@ -131,7 +148,13 @@ function isAllowedAttribute(tagName: string, attributeName: string) {
   return allowedGlobalAttributes.has(attributeName) || Boolean(allowedAttributesByTag[tagName]?.has(attributeName))
 }
 
+function isHtmlAttributeValueAllowed(value: string) {
+  return value.length <= maxGithubHtmlAttributeValueChars
+}
+
 function sanitizeStyle(value: string) {
+  if (!isHtmlAttributeValueAllowed(value)) return null
+
   const declarations: string[] = []
   for (const rawDeclaration of value.split(';')) {
     const separatorIndex = rawDeclaration.indexOf(':')
@@ -149,6 +172,9 @@ function sanitizeStyle(value: string) {
 
 function sanitizeIframeSandbox(value: string | null) {
   const tokens = new Set(forcedIframeSandbox.split(/\s+/).filter(Boolean))
+  if (value && !isHtmlAttributeValueAllowed(value))
+    return Array.from(tokens).join(' ')
+
   for (const token of (value ?? '').split(/\s+/)) {
     const normalized = token.trim().toLowerCase()
     if (allowedIframeSandboxTokens.has(normalized))
@@ -194,6 +220,8 @@ function isSafePlainRelativeMediaUrl(value: string) {
 }
 
 function normalizeUrl(value: string, protocols: ReadonlySet<string>, options: { blockLocalNetwork?: boolean; allowPlainRelative?: boolean; allowProtocolRelative?: boolean } = {}) {
+  if (!isHtmlAttributeValueAllowed(value)) return null
+
   const trimmed = value.trimStart()
   if (!trimmed || controlOrBidiPattern.test(trimmed))
     return null
@@ -219,10 +247,12 @@ function normalizeUrl(value: string, protocols: ReadonlySet<string>, options: { 
 }
 
 function normalizeSrcset(value: string) {
+  if (!isHtmlAttributeValueAllowed(value)) return null
+
   const trimmed = value.trimStart()
   if (!trimmed || controlOrBidiPattern.test(trimmed)) return null
   const candidates = trimmed.split(',').map((candidate) => candidate.trim()).filter(Boolean)
-  if (candidates.length === 0) return null
+  if (candidates.length === 0 || candidates.length > maxGithubSrcsetCandidates) return null
   for (const candidate of candidates) {
     const [source, ...descriptors] = candidate.split(/\s+/).filter(Boolean)
     if (!source || hasProtocol(source) || source.startsWith('//') || normalizeUrl(source, mediaProtocols, { blockLocalNetwork: true, allowPlainRelative: true }) !== source)
@@ -233,14 +263,17 @@ function normalizeSrcset(value: string) {
   return trimmed
 }
 
-function sanitizeChildren(source: Element | DocumentFragment, target: Element | DocumentFragment) {
-  for (const child of Array.from(source.childNodes)) {
-    const sanitized = sanitizeNode(child)
+function sanitizeChildren(source: Element | DocumentFragment, target: Element | DocumentFragment, context: SanitizeContext, depth: number) {
+  for (let child = source.firstChild; child && hasSanitizeBudget(context); child = child.nextSibling) {
+    const sanitized = sanitizeNode(child, context, depth)
     if (sanitized) target.appendChild(sanitized)
   }
 }
 
-function sanitizeElement(element: Element): Node | null {
+function sanitizeElement(element: Element, context: SanitizeContext, depth: number): Node | null {
+  if (depth > maxSanitizeDepth)
+    return null
+
   const tagName = element.tagName.toLowerCase()
   const attributeNames = element.getAttributeNames()
   if (dropWithContentTags.has(tagName)) return null
@@ -249,7 +282,7 @@ function sanitizeElement(element: Element): Node | null {
     const fragment = document.createDocumentFragment()
     if (wrapContentWithWhitespaceTags.has(tagName))
       fragment.appendChild(document.createTextNode(' '))
-    sanitizeChildren(element, fragment)
+    sanitizeChildren(element, fragment, context, depth + 1)
     if (wrapContentWithWhitespaceTags.has(tagName))
       fragment.appendChild(document.createTextNode(' '))
     return fragment
@@ -285,6 +318,7 @@ function sanitizeElement(element: Element): Node | null {
       if (normalizedSrcset) sanitized.setAttribute(attributeName, normalizedSrcset)
       continue
     }
+    if (!isHtmlAttributeValueAllowed(value)) continue
     if (hasProtocol(value)) continue
     sanitized.setAttribute(attributeName, value)
   }
@@ -295,172 +329,21 @@ function sanitizeElement(element: Element): Node | null {
     if (!sanitized.hasAttribute('referrerpolicy'))
       sanitized.setAttribute('referrerpolicy', 'no-referrer')
   }
-  sanitizeChildren(element, sanitized)
+  sanitizeChildren(element, sanitized, context, depth + 1)
   if ((tagName === 'video' || tagName === 'audio') && !sanitized.hasAttribute('src') && !sanitized.querySelector('source[src]'))
     return null
   return sanitized
 }
 
-function sanitizeNode(node: Node): Node | null {
+function sanitizeNode(node: Node, context: SanitizeContext, depth: number): Node | null {
+  if (!canVisitNode(context))
+    return null
+
   if (node.nodeType === Node.TEXT_NODE)
     return document.createTextNode(node.textContent ?? '')
   if (node.nodeType === Node.ELEMENT_NODE)
-    return sanitizeElement(node as Element)
+    return sanitizeElement(node as Element, context, depth)
   return null
-}
-
-function findRawHtmlTagEnd(content: string, start: number) {
-  let quote: string | null = null
-
-  for (let cursor = start + 1; cursor < content.length; cursor += 1) {
-    const char = content[cursor]
-    if (quote) {
-      if (char === quote)
-        quote = null
-      continue
-    }
-    if (char === '"' || char === "'") {
-      quote = char
-      continue
-    }
-    if (char === '>')
-      return cursor + 1
-  }
-
-  return -1
-}
-
-function parseRawHtmlFragmentTag(content: string, start: number) {
-  const end = findRawHtmlTagEnd(content, start)
-  if (end === -1)
-    return null
-
-  const tag = content.slice(start, end)
-  const match = rawHtmlFragmentTagPattern.exec(tag)
-  const name = match?.[1]?.toLowerCase()
-  if (!name)
-    return null
-
-  return {
-    closing: tag.startsWith('</'),
-    end,
-    name,
-    selfClosing: /\/\s*>$/.test(tag),
-  }
-}
-
-function findRawHtmlClosingTag(content: string, tagName: string, start: number) {
-  let cursor = start
-  while (cursor < content.length) {
-    const nextTagStart = content.indexOf('<', cursor)
-    if (nextTagStart === -1)
-      return null
-
-    const nextTag = parseRawHtmlFragmentTag(content, nextTagStart)
-    if (!nextTag) {
-      cursor = nextTagStart + 1
-      continue
-    }
-
-    if (nextTag.closing && nextTag.name === tagName)
-      return { end: nextTag.end }
-
-    cursor = nextTag.end
-  }
-
-  return null
-}
-
-function stripDroppedRawHtmlContent(content: string, tags: ReadonlySet<string>) {
-  let output = ''
-  let cursor = 0
-
-  while (cursor < content.length) {
-    const start = content.indexOf('<', cursor)
-    if (start === -1) {
-      output += content.slice(cursor)
-      break
-    }
-
-    const tag = parseRawHtmlFragmentTag(content, start)
-    if (!tag) {
-      output += content.slice(cursor, start + 1)
-      cursor = start + 1
-      continue
-    }
-
-    if (!tags.has(tag.name)) {
-      output += content.slice(cursor, tag.end)
-      cursor = tag.end
-      continue
-    }
-
-    output += content.slice(cursor, start)
-    if (tag.closing || tag.selfClosing) {
-      cursor = tag.end
-      continue
-    }
-    if (tag.name === 'plaintext')
-      break
-
-    const close = findRawHtmlClosingTag(content, tag.name, tag.end)
-    if (!close)
-      break
-
-    cursor = close.end
-  }
-
-  return output
-}
-
-function escapeHtmlText(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-}
-
-function escapeGfmDisallowedRawHtml(content: string) {
-  let output = ''
-  let cursor = 0
-
-  while (cursor < content.length) {
-    const start = content.indexOf('<', cursor)
-    if (start === -1) {
-      output += content.slice(cursor)
-      break
-    }
-
-    const tag = parseRawHtmlFragmentTag(content, start)
-    if (!tag || !gfmDisallowedRawHtmlTags.has(tag.name)) {
-      output += content.slice(cursor, start + 1)
-      cursor = start + 1
-      continue
-    }
-
-    output += content.slice(cursor, start)
-    if (tag.closing || tag.selfClosing) {
-      output += escapeHtmlText(content.slice(start, tag.end))
-      cursor = tag.end
-      continue
-    }
-    if (tag.name === 'plaintext') {
-      output += escapeHtmlText(content.slice(start))
-      break
-    }
-
-    const close = findRawHtmlClosingTag(content, tag.name, tag.end)
-    if (!close) {
-      output += escapeHtmlText(content.slice(start, tag.end))
-      cursor = tag.end
-      continue
-    }
-
-    output += escapeHtmlText(content.slice(start, close.end))
-    cursor = close.end
-  }
-
-  return output
 }
 
 export function isGithubHtmlBlock(value: string) {
@@ -486,10 +369,11 @@ export function isGfmDisallowedRawHtml(value: string) {
 
 export function sanitizeGithubHtml(value: string) {
   const template = document.createElement('template')
-  template.innerHTML = escapeGfmDisallowedRawHtml(
-    stripDroppedRawHtmlContent(value, sanitizerOnlyDropWithContentTags),
-  )
+  template.innerHTML = prepareGithubRawHtmlForSanitizer(value, {
+    gfmDisallowedRawHtmlTags,
+    sanitizerOnlyDropWithContentTags,
+  })
   const output = document.createElement('template')
-  sanitizeChildren(template.content, output.content)
+  sanitizeChildren(template.content, output.content, { visitedNodes: 0 }, 1)
   return output.innerHTML
 }

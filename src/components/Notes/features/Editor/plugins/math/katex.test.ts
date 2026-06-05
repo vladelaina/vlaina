@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { isValidLatex, parseMathRenderError, renderLatex } from './katex';
+
+vi.mock('@/lib/i18n', () => ({
+  translate: () => '<img src=x onerror=alert(1)>&"\'',
+}));
 
 describe('katex utils', () => {
   it('renders empty inline and block latex without visible placeholder copy', () => {
@@ -94,6 +98,8 @@ describe('katex utils', () => {
 
     expect(result.error).toBeTruthy();
     expect(result.html).toContain('math-error');
+    expect(result.html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+    expect(result.html).not.toContain('<img');
     expect(result.errorDetails?.summary).toBeTruthy();
     expect(result.errorDetails?.rawMessage).toBeTruthy();
   });

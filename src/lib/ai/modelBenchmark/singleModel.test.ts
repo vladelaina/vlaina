@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MAX_PROVIDER_ERROR_BODY_BYTES } from '../providers/boundedResponseText';
 import type { AIModel, Provider } from '../types';
 import { checkModelHealth } from './singleModel';
 
@@ -192,12 +193,22 @@ describe('checkModelHealth', () => {
 
   it('classifies external aborts during response body parsing as aborted benchmark requests', async () => {
     const controller = new AbortController();
+    const reader = {
+      read: vi.fn(async () => {
+        controller.abort();
+        return {
+          done: false,
+          value: new TextEncoder().encode(JSON.stringify({ choices: [{ message: { content: 'ok' } }] })),
+        };
+      }),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    };
     vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
-      text: vi.fn(async () => {
-        controller.abort();
-        return JSON.stringify({ choices: [{ message: { content: 'ok' } }] });
-      }),
+      body: {
+        getReader: () => reader,
+      },
     } as unknown as Response);
 
     const result = await checkModelHealth(provider, createModel('gpt-4o-mini'), {
@@ -209,32 +220,65 @@ describe('checkModelHealth', () => {
       error: 'Request aborted',
       endpoint: 'chat',
     });
+    expect(reader.cancel).toHaveBeenCalledTimes(1);
+    expect(reader.releaseLock).toHaveBeenCalledTimes(1);
   });
 
   it('classifies timeouts during response body parsing as benchmark timeouts', async () => {
     vi.useFakeTimers();
     try {
+      const reader = {
+        read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined)),
+        cancel: vi.fn(async () => undefined),
+        releaseLock: vi.fn(),
+      };
       vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
-        text: vi.fn(() => new Promise((resolve) => {
-          setTimeout(() => {
-            resolve(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }));
-          }, 2000);
-        })),
+        body: {
+          getReader: () => reader,
+        },
       } as unknown as Response);
 
       const pending = checkModelHealth(provider, createModel('gpt-4o-mini'), {
         timeoutMs: 1000,
       });
-      await vi.advanceTimersByTimeAsync(2000);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(reader.read).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1000);
 
       await expect(pending).resolves.toMatchObject({
         status: 'error',
         error: 'Request timed out (1s)',
         endpoint: 'chat',
       });
+      expect(reader.cancel).toHaveBeenCalledTimes(1);
+      expect(reader.releaseLock).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('bounds oversized benchmark response bodies', async () => {
+    const cancel = vi.fn();
+    const response = new Response(
+      new ReadableStream({
+        start(streamController) {
+          streamController.enqueue(new TextEncoder().encode('x'.repeat(MAX_PROVIDER_ERROR_BODY_BYTES + 1)));
+        },
+        cancel,
+      }),
+      { status: 200 }
+    );
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
+
+    const result = await checkModelHealth(provider, createModel('gpt-4o-mini'));
+
+    expect(result).toMatchObject({
+      status: 'error',
+      error: 'Unknown error',
+      endpoint: 'chat',
+    });
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
   });
 });

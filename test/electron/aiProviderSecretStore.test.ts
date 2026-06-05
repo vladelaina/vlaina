@@ -85,4 +85,20 @@ describe('aiProviderSecretStore', () => {
     expect(await readFile(secretsPath, 'utf8')).not.toContain('../outside');
     expect(await readFile(secretsPath, 'utf8')).not.toContain('provider/slash');
   });
+
+  it('ignores oversized secret store files', async () => {
+    const { readSecretsStore } = await import('../../electron/aiProviderSecretStore.mjs');
+    const secretsPath = path.join(
+      mocks.userDataPath,
+      '.vlaina',
+      'secrets',
+      'ai-provider-secrets.json',
+    );
+    await mkdir(path.dirname(secretsPath), { recursive: true });
+    await writeFile(secretsPath, ' '.repeat(600 * 1024), 'utf8');
+
+    await expect(readSecretsStore()).resolves.toMatchObject({
+      data: {},
+    });
+  });
 });

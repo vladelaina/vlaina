@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { registerManagedIpc } from '../../electron/managedIpc.mjs';
 
+const MAX_MANAGED_IPC_BODY_BYTES = 64 * 1024 * 1024;
+const MAX_MANAGED_STREAM_LINE_CHARS = 1024 * 1024;
+
 function registerHarness(overrides: Partial<Parameters<typeof registerManagedIpc>[0]> = {}) {
   const handlers = new Map<string, (...args: unknown[]) => unknown>();
   const options = {
@@ -18,6 +21,11 @@ function registerHarness(overrides: Partial<Parameters<typeof registerManagedIpc
 
   registerManagedIpc(options);
   return { handlers, options };
+}
+
+function createOversizedBase64Body() {
+  const encodedLength = Math.ceil((MAX_MANAGED_IPC_BODY_BYTES + 1) / 3) * 4;
+  return `${'A'.repeat(encodedLength - 1)}=`;
 }
 
 function streamResponse(chunks: string[]) {
@@ -207,6 +215,19 @@ describe('managed ipc stream bridge', () => {
 
     expect(capturedSignal?.aborted).toBe(true);
     await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('rejects oversized managed image edit bodies before transport', async () => {
+    const { handlers, options } = registerHarness();
+
+    await expect(
+      handlers.get('desktop:managed:image-edit')?.({}, {
+        bodyBase64: createOversizedBase64Body(),
+        headers: { 'Content-Type': 'multipart/form-data; boundary=test' },
+      }),
+    ).rejects.toThrow('Managed binary request body is too large.');
+
+    expect(options.requestManagedJson).not.toHaveBeenCalled();
   });
 
   it('rejects managed json results that resolve after cancellation', async () => {
@@ -502,6 +523,25 @@ describe('managed ipc stream bridge', () => {
     expect(sender.send).toHaveBeenCalledWith('desktop:managed:stream:managed-error:error', { message: 'upstream failed' });
   });
 
+  it('rejects oversized managed stream lines', async () => {
+    const fetchWithStoredSession = vi.fn(async () => streamResponse([
+      'x'.repeat(MAX_MANAGED_STREAM_LINE_CHARS + 1),
+    ]));
+    const { handlers } = registerHarness({ fetchWithStoredSession });
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+
+    await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-line-too-large', {});
+    await waitForSenderCall(sender, ([channel]) =>
+      channel === 'desktop:managed:stream:managed-line-too-large:error'
+    );
+
+    expect(sender.send).toHaveBeenCalledWith('desktop:managed:stream:managed-line-too-large:error', {
+      message: 'Managed stream line is too large.',
+      statusCode: undefined,
+      errorCode: undefined,
+    });
+  });
+
   it('extracts sanitized managed HTTP error payloads for streams', async () => {
     const fetchWithStoredSession = vi.fn(async () => new Response(
       JSON.stringify({
@@ -527,23 +567,57 @@ describe('managed ipc stream bridge', () => {
     });
   });
 
+  it('bounds managed stream HTTP error body reads', async () => {
+    const cancel = vi.fn();
+    const encoder = new TextEncoder();
+    const fetchWithStoredSession = vi.fn(async () => new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode('x'.repeat(64 * 1024 + 1)));
+        },
+        cancel,
+      }),
+      { status: 502 },
+    ));
+    const { handlers } = registerHarness({ fetchWithStoredSession });
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+
+    await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-http-error-large', {});
+    await waitForSenderCall(sender, ([channel]) =>
+      channel === 'desktop:managed:stream:managed-http-error-large:error'
+    );
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(sender.send).toHaveBeenCalledWith('desktop:managed:stream:managed-http-error-large:error', {
+      message: 'Managed stream failed: HTTP 502',
+      statusCode: 502,
+      errorCode: undefined,
+    });
+  });
+
   it('cancels managed stream requests while HTTP error bodies are still pending without emitting stale events', async () => {
-    const textStarted = vi.fn();
+    const reader = {
+      read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined)),
+      cancel: vi.fn(async () => undefined),
+      releaseLock: vi.fn(),
+    };
     const fetchWithStoredSession = vi.fn(async () => ({
       ok: false,
       status: 502,
-      text: vi.fn(() => new Promise(() => {
-        textStarted();
-      })),
+      body: {
+        getReader: () => reader,
+      },
     }));
     const { handlers } = registerHarness({ fetchWithStoredSession });
     const sender = { isDestroyed: () => false, send: vi.fn() };
 
     await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-error-cancel', {});
-    await vi.waitFor(() => expect(textStarted).toHaveBeenCalled());
+    await vi.waitFor(() => expect(reader.read).toHaveBeenCalled());
     await handlers.get('desktop:managed:chat-completion-stream:cancel')?.({}, 'managed-error-cancel');
     await new Promise((resolve) => setTimeout(resolve, 0));
 
+    expect(reader.cancel).toHaveBeenCalled();
+    expect(reader.releaseLock).toHaveBeenCalledTimes(1);
     expect(sender.send).not.toHaveBeenCalledWith(
       'desktop:managed:stream:managed-error-cancel:error',
       { message: 'Aborted' },

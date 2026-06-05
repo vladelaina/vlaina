@@ -49,6 +49,14 @@ const MAIN_DATA_FILE = 'data.json';
 const MAIN_DATA_BACKUP_FILE = 'data.backup.json';
 const AI_SESSIONS_FILE_VERSION = 1;
 const AI_PROVIDER_CHANNEL_FILE_VERSION = 1;
+const MAX_MAIN_DATA_BYTES = 2 * 1024 * 1024;
+const MAX_AI_SESSIONS_BYTES = 2 * 1024 * 1024;
+const MAX_AI_PROVIDER_CHANNEL_BYTES = 2 * 1024 * 1024;
+const MAX_AI_SESSION_RECORDS = 5000;
+const MAX_AI_ID_LIST_ENTRIES = 5000;
+const MAX_AI_PROVIDER_CHANNELS = 200;
+const MAX_AI_PROVIDER_CHANNEL_MODELS = 2000;
+const MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS = 2000;
 
 interface AISessionsFileData {
   sessions: ChatSession[];
@@ -93,6 +101,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function normalizeBoundedIdList(
+  value: unknown,
+  isSafeId: (item: unknown) => item is string,
+  maxItems: number,
+): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (ids.length >= maxItems) {
+      break;
+    }
+    if (!isSafeId(item) || seen.has(item)) {
+      continue;
+    }
+    seen.add(item);
+    ids.push(item);
+  }
+  return ids;
+}
+
 function parseAISessionsFile(value: unknown): AISessionsFileData | null {
   if (!isRecord(value) || value.version !== AI_SESSIONS_FILE_VERSION || !isRecord(value.data)) {
     return null;
@@ -101,24 +133,18 @@ function parseAISessionsFile(value: unknown): AISessionsFileData | null {
   const data = value.data;
   return {
     sessions: Array.isArray(data.sessions)
-      ? (data.sessions as ChatSession[]).filter((session) => !isTemporarySession(session))
+      ? (data.sessions as ChatSession[]).slice(0, MAX_AI_SESSION_RECORDS).filter((session) => !isTemporarySession(session))
       : [],
     selectedModelId: typeof data.selectedModelId === 'string' ? data.selectedModelId : null,
-    unreadSessionIds: Array.isArray(data.unreadSessionIds)
-      ? data.unreadSessionIds.filter((sessionId): sessionId is string => typeof sessionId === 'string')
-      : [],
+    unreadSessionIds: normalizeBoundedIdList(data.unreadSessionIds, isSafeChatSessionId, MAX_AI_ID_LIST_ENTRIES),
     currentSessionId: typeof data.currentSessionId === 'string' ? data.currentSessionId : null,
     temporaryChatEnabled: false,
     customSystemPrompt: typeof data.customSystemPrompt === 'string' ? data.customSystemPrompt : '',
     includeTimeContext: data.includeTimeContext !== false,
     webSearchEnabled: data.webSearchEnabled === true,
-    providerIds: Array.isArray(data.providerIds) ? data.providerIds.filter(isSafeProviderId) : [],
-    deletedSessionIds: Array.isArray(data.deletedSessionIds)
-      ? data.deletedSessionIds.filter(isSafeChatSessionId)
-      : [],
-    deletedProviderIds: Array.isArray(data.deletedProviderIds)
-      ? data.deletedProviderIds.filter(isSafeProviderId)
-      : [],
+    providerIds: normalizeBoundedIdList(data.providerIds, isSafeProviderId, MAX_AI_PROVIDER_CHANNELS),
+    deletedSessionIds: normalizeBoundedIdList(data.deletedSessionIds, isSafeChatSessionId, MAX_AI_ID_LIST_ENTRIES),
+    deletedProviderIds: normalizeBoundedIdList(data.deletedProviderIds, isSafeProviderId, MAX_AI_ID_LIST_ENTRIES),
   };
 }
 
@@ -155,12 +181,16 @@ function parseAIProviderChannelFile(
 
   return {
     provider: data.provider as unknown as Provider,
-    models: Array.isArray(data.models) ? data.models as AIModel[] : [],
+    models: Array.isArray(data.models)
+      ? data.models.slice(0, MAX_AI_PROVIDER_CHANNEL_MODELS) as AIModel[]
+      : [],
     ...(isRecord(data.benchmarkResults)
       ? { benchmarkResults: data.benchmarkResults as unknown as ProviderBenchmarkRecord }
       : {}),
     fetchedModels: Array.isArray(data.fetchedModels)
-      ? data.fetchedModels.filter((model): model is string => typeof model === 'string')
+      ? data.fetchedModels
+        .slice(0, MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS)
+        .filter((model): model is string => typeof model === 'string')
       : [],
   };
 }
@@ -176,6 +206,23 @@ function serializeAIProviderChannelFile(
     data,
   };
   return JSON.stringify(payload, null, 2);
+}
+
+async function readBoundedTextFile(
+  storage: ReturnType<typeof getStorageAdapter>,
+  path: string,
+  maxBytes: number,
+): Promise<string | null> {
+  const fileInfo = await storage.stat(path).catch(() => null);
+  if (
+    fileInfo?.isFile === false ||
+    typeof fileInfo?.size !== 'number' ||
+    fileInfo.size > maxBytes
+  ) {
+    return null;
+  }
+
+  return storage.readFile(path);
 }
 
 function buildRecoveredSessionTitle(messages: ChatMessage[]): string {
@@ -253,7 +300,11 @@ async function readExistingAISessionsFile(
   }
 
   try {
-    const parsed: unknown = JSON.parse(await storage.readFile(sessionsPath));
+    const content = await readBoundedTextFile(storage, sessionsPath, MAX_AI_SESSIONS_BYTES);
+    if (content === null) {
+      return null;
+    }
+    const parsed: unknown = JSON.parse(content);
     return parseAISessionsFile(parsed);
   } catch {
     return null;
@@ -389,7 +440,11 @@ async function readExistingMainDataFile(
   }
 
   try {
-    const parsed: unknown = JSON.parse(await storage.readFile(path));
+    const content = await readBoundedTextFile(storage, path, MAX_MAIN_DATA_BYTES);
+    if (content === null) {
+      return null;
+    }
+    const parsed: unknown = JSON.parse(content);
     if (!isRecord(parsed) || parsed.version !== 2 || !isRecord(parsed.data)) {
       return null;
     }
@@ -613,7 +668,10 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
       }
 
       try {
-        const content = await storage.readFile(path);
+        const content = await readBoundedTextFile(storage, path, MAX_MAIN_DATA_BYTES);
+        if (content === null) {
+          return null;
+        }
         const parsed = JSON.parse(content) as DataFile;
         if (parsed.version === 2 && parsed.data) {
           return parsed.data;
@@ -654,7 +712,11 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     let providerIds: string[] = [];
     if (await storage.exists(sessionsPath)) {
         try {
-            const parsedSessionsData: unknown = JSON.parse(await storage.readFile(sessionsPath));
+            const content = await readBoundedTextFile(storage, sessionsPath, MAX_AI_SESSIONS_BYTES);
+            if (content === null) {
+              throw new Error('AI sessions file size is unavailable or too large');
+            }
+            const parsedSessionsData: unknown = JSON.parse(content);
             const sessionsData = parseAISessionsFile(parsedSessionsData);
             if (!sessionsData) {
               console.warn('[Storage] Ignoring invalid AI sessions file:', sessionsPath);
@@ -702,7 +764,11 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
             const pPath = await joinPath(channelsDir, `${id}.json`);
             if (await storage.exists(pPath)) {
                 try {
-                    const parsedProviderData: unknown = JSON.parse(await storage.readFile(pPath));
+                    const content = await readBoundedTextFile(storage, pPath, MAX_AI_PROVIDER_CHANNEL_BYTES);
+                    if (content === null) {
+                      return null;
+                    }
+                    const parsedProviderData: unknown = JSON.parse(content);
                     return parseAIProviderChannelFile(id, parsedProviderData);
                 } catch (error) {
                     return null;

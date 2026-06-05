@@ -31,6 +31,15 @@ describe('sessionMutationLock', () => {
     expect(task).toHaveBeenCalledTimes(1);
   });
 
+  it('ignores oversized localStorage lock records instead of parsing them', async () => {
+    localStorage.setItem('vlaina-session-mutation-lock:session-1', 'x'.repeat(8 * 1024 + 1));
+    const task = vi.fn(() => 'ok');
+
+    await expect(runWithSessionMutationLock('session-1', task)).resolves.toBe('ok');
+
+    expect(task).toHaveBeenCalledTimes(1);
+  });
+
   it('continues when BroadcastChannel is unavailable at runtime', async () => {
     const OriginalBroadcastChannel = globalThis.BroadcastChannel;
     vi.stubGlobal('BroadcastChannel', class {

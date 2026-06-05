@@ -77,14 +77,27 @@ export function needsAutoTitle(title: string | null | undefined): boolean {
 }
 
 export function buildTitleSourceFromMessages(messages: ChatMessage[]): string {
-  const userSnippets = messages
-    .filter((message) => message.role === 'user')
-    .map((message) =>
-      replaceRenderableMarkdownImageTokens(stripThinkingContent(message.content), ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-    )
-    .filter(Boolean);
+  const userSnippets: string[] = [];
+  let combinedLength = 0;
+
+  for (const message of messages) {
+    if (message.role !== 'user') {
+      continue;
+    }
+
+    const snippet = replaceRenderableMarkdownImageTokens(stripThinkingContent(message.content), ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!snippet) {
+      continue;
+    }
+
+    userSnippets.push(snippet);
+    combinedLength += snippet.length + (userSnippets.length > 1 ? 1 : 0);
+    if (combinedLength >= TITLE_SOURCE_MAX_LENGTH) {
+      break;
+    }
+  }
 
   if (userSnippets.length === 0) {
     return 'Image Query';

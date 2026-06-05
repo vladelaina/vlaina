@@ -74,7 +74,41 @@ async function raceWithAbort(promise, signal) {
 
 async function readResponseArrayBuffer(response, signal) {
   throwIfAborted(signal);
-  return await raceWithAbort(response.arrayBuffer(), signal);
+  if (!response.body) {
+    return new ArrayBuffer(0);
+  }
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let totalBytes = 0;
+  const cancelReader = () => {
+    void reader.cancel(createAbortError()).catch(() => undefined);
+  };
+  signal?.addEventListener('abort', cancelReader, { once: true });
+
+  try {
+    while (true) {
+      const { done, value } = await raceWithAbort(reader.read(), signal);
+      throwIfAborted(signal);
+      if (done) {
+        break;
+      }
+
+      const buffer = Buffer.from(value);
+      chunks.push(buffer);
+      totalBytes += buffer.length;
+      if (totalBytes > MAX_RAW_TEXT_BYTES) {
+        void reader.cancel().catch(() => undefined);
+        throw new WebSearchError('content_too_large', 'The page response is too large.');
+      }
+    }
+  } finally {
+    signal?.removeEventListener('abort', cancelReader);
+    reader.releaseLock();
+  }
+
+  const body = Buffer.concat(chunks, totalBytes);
+  return body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength);
 }
 
 function detectSiteName(finalUrl) {
@@ -112,10 +146,13 @@ function headersToRecord(headers) {
 function decodeResponseBody(buffer, contentEncoding) {
   const encoding = String(contentEncoding ?? '').toLowerCase();
   try {
-    if (encoding.includes('br')) return zlib.brotliDecompressSync(buffer);
-    if (encoding.includes('gzip')) return zlib.gunzipSync(buffer);
-    if (encoding.includes('deflate')) return zlib.inflateSync(buffer);
-  } catch {
+    if (encoding.includes('br')) return zlib.brotliDecompressSync(buffer, { maxOutputLength: MAX_RAW_TEXT_BYTES });
+    if (encoding.includes('gzip')) return zlib.gunzipSync(buffer, { maxOutputLength: MAX_RAW_TEXT_BYTES });
+    if (encoding.includes('deflate')) return zlib.inflateSync(buffer, { maxOutputLength: MAX_RAW_TEXT_BYTES });
+  } catch (error) {
+    if (error?.code === 'ERR_BUFFER_TOO_LARGE') {
+      throw new WebSearchError('content_too_large', 'The page response is too large.', error);
+    }
     return buffer;
   }
   return buffer;
@@ -252,6 +289,9 @@ async function fetchWithTimeout(fetchImpl, resolvedUrl, timeoutMs, signal, consu
     }
     if (controller.signal.aborted) {
       throw new WebSearchError('timeout', 'The page request timed out.', error);
+    }
+    if (error instanceof WebSearchError) {
+      throw error;
     }
     throw new WebSearchError('network_error', 'The page could not be reached.', error);
   } finally {

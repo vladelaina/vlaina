@@ -1,6 +1,10 @@
 const activeManagedStreams = new Map();
 const activeManagedJsonRequests = new Map();
 const IPC_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
+const MAX_MANAGED_BINARY_BODY_BYTES = 64 * 1024 * 1024;
+const MAX_MANAGED_BINARY_BODY_BASE64_CHARS = Math.ceil(MAX_MANAGED_BINARY_BODY_BYTES / 3) * 4;
+const MAX_MANAGED_STREAM_LINE_CHARS = 1024 * 1024;
+const MAX_MANAGED_ERROR_BODY_BYTES = 64 * 1024;
 
 function requireSafeIpcRequestId(value, label) {
   const id = String(value ?? '').trim();
@@ -129,6 +133,48 @@ function throwIfAborted(signal) {
   throw createAbortError();
 }
 
+function assertManagedStreamLineLength(line) {
+  if (line.length > MAX_MANAGED_STREAM_LINE_CHARS) {
+    throw new Error('Managed stream line is too large.');
+  }
+}
+
+async function readManagedErrorText(response, signal) {
+  if (!response.body) {
+    return '';
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytesRead = 0;
+  let text = '';
+  const cancelReader = () => {
+    void reader.cancel(createAbortError()).catch(() => {});
+  };
+  signal?.addEventListener('abort', cancelReader, { once: true });
+
+  try {
+    while (true) {
+      const { done, value } = await raceWithAbort(reader.read(), signal);
+      if (done) {
+        break;
+      }
+
+      bytesRead += value.byteLength;
+      if (bytesRead > MAX_MANAGED_ERROR_BODY_BYTES) {
+        void reader.cancel(createAbortError()).catch(() => {});
+        return '';
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+
+    return text + decoder.decode();
+  } finally {
+    signal?.removeEventListener('abort', cancelReader);
+    reader.releaseLock();
+  }
+}
+
 async function raceWithAbort(promise, signal) {
   if (!signal) return await promise;
   throwIfAborted(signal);
@@ -185,7 +231,7 @@ async function readManagedErrorPayload(response, signal) {
   let text = '';
   try {
     throwIfAborted(signal);
-    text = await raceWithAbort(response.text(), signal);
+    text = await readManagedErrorText(response, signal);
   } catch (error) {
     if (signal?.aborted) {
       throw createAbortError();
@@ -205,9 +251,19 @@ async function readManagedErrorPayload(response, signal) {
 }
 
 function normalizeManagedBinaryPayload(payload) {
-  const bodyBase64 = String(payload?.bodyBase64 ?? '');
+  if (typeof payload?.bodyBase64 !== 'string') {
+    throw new Error('Invalid managed binary request body.');
+  }
+  const bodyBase64 = payload.bodyBase64;
+  if (bodyBase64.length > MAX_MANAGED_BINARY_BODY_BASE64_CHARS) {
+    throw new Error('Managed binary request body is too large.');
+  }
   if (!/^[A-Za-z0-9+/]*={0,2}$/.test(bodyBase64) || bodyBase64.length % 4 !== 0) {
     throw new Error('Invalid managed binary request body.');
+  }
+  const decodedByteLength = getBase64DecodedByteLength(bodyBase64);
+  if (decodedByteLength === null || decodedByteLength > MAX_MANAGED_BINARY_BODY_BYTES) {
+    throw new Error('Managed binary request body is too large.');
   }
 
   const headers = {};
@@ -224,6 +280,22 @@ function normalizeManagedBinaryPayload(payload) {
   }
 
   return { body: Buffer.from(bodyBase64, 'base64'), headers };
+}
+
+function getBase64DecodedByteLength(payload) {
+  if (payload.length % 4 !== 0) {
+    return null;
+  }
+
+  let padding = 0;
+  if (payload.endsWith('==')) {
+    padding = 2;
+  } else if (payload.endsWith('=')) {
+    padding = 1;
+  }
+
+  const byteLength = Math.floor((payload.length * 3) / 4) - padding;
+  return byteLength >= 0 ? byteLength : null;
 }
 
 function sanitizeManagedChatMessage(message) {
@@ -475,6 +547,7 @@ export function registerManagedIpc({
 
             for (const line of lines) {
               try {
+                assertManagedStreamLineLength(line);
                 if (!consumeLine(line)) {
                   throw new Error('Aborted');
                 }
@@ -484,9 +557,11 @@ export function registerManagedIpc({
                 }
               }
             }
+            assertManagedStreamLineLength(buffer);
           }
 
           if (buffer.trim()) {
+            assertManagedStreamLineLength(buffer);
             if (!consumeLine(buffer)) {
               throw new Error('Aborted');
             }

@@ -42,6 +42,7 @@ const TASK_MARKER_RE = /^\s{0,3}(?:[-+*]|\d+\.)\s+\[(?: |x|X)\]\s+/;
 const TABLE_ROW_RE = /^\s*\|.*\|\s*$/;
 
 const PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT = 200;
+const MAX_CACHED_MARKDOWN_BLOCK_CHARS = 50_000;
 
 const parsedMarkdownBlocksCache = new Map<string, MarkdownMeasurementBlock[]>();
 
@@ -97,15 +98,18 @@ function getVideoImageTokens(markdown: string): ImageToken[] {
   });
 }
 
-function stripVideoImageTokens(markdown: string): string {
-  return getVideoImageTokens(markdown)
+function stripVideoImageTokens(markdown: string, videoTokens: ImageToken[]): string {
+  return videoTokens
     .reduceRight((next, token) => `${next.slice(0, token.start)}${next.slice(token.end)}`, markdown);
 }
 
 export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasurementBlock[] {
-  const cached = touchCacheEntry(parsedMarkdownBlocksCache, markdown);
-  if (cached) {
-    return cached;
+  const shouldCache = markdown.length <= MAX_CACHED_MARKDOWN_BLOCK_CHARS;
+  if (shouldCache) {
+    const cached = touchCacheEntry(parsedMarkdownBlocksCache, markdown);
+    if (cached) {
+      return cached;
+    }
   }
 
   const lines = markdown.replace(/\r\n?/g, '\n').split('\n');
@@ -167,9 +171,10 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
     }
 
     const sectionMarkdown = sectionLines.join('\n');
-    const videoTokenCount = getVideoImageTokens(sectionMarkdown).length;
+    const videoTokens = getVideoImageTokens(sectionMarkdown);
+    const videoTokenCount = videoTokens.length;
     if (videoTokenCount > 0) {
-      const textWithoutMedia = stripVideoImageTokens(stripMessageImageTokens(sectionMarkdown)).trim();
+      const textWithoutMedia = stripMessageImageTokens(stripVideoImageTokens(sectionMarkdown, videoTokens)).trim();
       if (textWithoutMedia) {
         const block = buildMarkdownTextBlock(textWithoutMedia, 'body', MARKDOWN_BODY_LINE_HEIGHT);
         if (block) {
@@ -249,6 +254,8 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
     index = end;
   }
 
-  setCacheEntry(parsedMarkdownBlocksCache, markdown, blocks, PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT);
+  if (shouldCache) {
+    setCacheEntry(parsedMarkdownBlocksCache, markdown, blocks, PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT);
+  }
   return blocks;
 }

@@ -4,6 +4,7 @@ import { $remark } from '@milkdown/utils'
 import { visit } from 'unist-util-visit'
 
 import { withMeta } from '../__internal__'
+import { canTransformRemarkAst } from './remark-ast-budget'
 
 /// This plugin is used to add inline line break for remark AST.
 /// The inline line break should be treated as a `space`.
@@ -11,6 +12,8 @@ import { withMeta } from '../__internal__'
 export const remarkLineBreak = $remark(
   'remarkLineBreak',
   () => () => (tree: Node) => {
+    if (!canTransformRemarkAst(tree)) return
+
     const find = /[\t ]*(?:\r?\n|\r)/g
     visit(
       tree,

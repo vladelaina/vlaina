@@ -1,10 +1,28 @@
 import { describe, expect, it } from "vitest";
 import { createMarkdownSanitizeSchema, isRenderableDataImageSrc, normalizeRenderableImageSrc, normalizeRenderableImageSrcset } from "./imagePolicy";
 import { MAX_INLINE_IMAGE_BYTES } from "@/lib/markdown/dataImagePolicy";
+import { rehypeImageSrcSanitizer, rehypeImageSrcsetSanitizer } from "@/components/common/markdown/imagePolicy";
 
 function createOversizedDataImageSrc(): string {
   const payload = "A".repeat(Math.ceil((MAX_INLINE_IMAGE_BYTES + 1) / 3) * 4);
   return `data:image/png;base64,${payload}`;
+}
+
+function createDeepHastTree(leaf: any): any {
+  let current = leaf;
+
+  for (let index = 0; index < 205; index += 1) {
+    current = {
+      type: "element",
+      tagName: "div",
+      children: [current],
+    };
+  }
+
+  return {
+    type: "root",
+    children: [current],
+  };
 }
 
 describe("normalizeRenderableImageSrc", () => {
@@ -130,5 +148,69 @@ describe("createMarkdownSanitizeSchema", () => {
     expect(hrefProtocols).not.toContain("file");
     expect(srcProtocols).not.toContain("file");
     expect(srcProtocols).not.toContain("app");
+  });
+});
+
+describe("rehype image sanitizers", () => {
+  it("normalizes data image source attributes without recursive traversal", () => {
+    const tree = {
+      type: "root",
+      children: [
+        {
+          type: "element",
+          tagName: "img",
+          properties: { src: " DATA:IMAGE/PNG;BASE64,abc " },
+        },
+      ],
+    };
+
+    rehypeImageSrcSanitizer()(tree);
+
+    expect(tree.children[0].properties.src).toBe("data:image/png;base64,abc");
+  });
+
+  it("removes unsafe srcset attributes without recursive traversal", () => {
+    const tree = {
+      type: "root",
+      children: [
+        {
+          type: "element",
+          tagName: "source",
+          properties: { srcset: "//127.0.0.1:3000/secret.png 1x" },
+        },
+      ],
+    };
+
+    rehypeImageSrcsetSanitizer()(tree);
+
+    expect(tree.children[0].properties).not.toHaveProperty("srcset");
+  });
+
+  it("clips over-deep image policy HAST trees before leaving unvisited descendants", () => {
+    const tree = createDeepHastTree({
+      type: "element",
+      tagName: "source",
+      properties: { srcset: "//127.0.0.1:3000/secret.png 1x" },
+    });
+
+    rehypeImageSrcsetSanitizer()(tree);
+
+    expect(JSON.stringify(tree)).not.toContain("127.0.0.1");
+  });
+
+  it("clips over-large image policy HAST sibling lists before leaving unvisited descendants", () => {
+    const tree = {
+      type: "root",
+      children: Array.from({ length: 20_001 }, () => ({
+        type: "element",
+        tagName: "source",
+        properties: { srcset: "//127.0.0.1:3000/secret.png 1x" },
+      })),
+    };
+
+    rehypeImageSrcsetSanitizer()(tree);
+
+    expect(tree.children.length).toBeLessThan(20_001);
+    expect(JSON.stringify(tree)).not.toContain("127.0.0.1");
   });
 });

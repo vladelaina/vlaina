@@ -23,6 +23,8 @@ import {
   loadPersistedVaultState,
   normalizeRecentVaults,
   normalizeVaultInfo,
+  isOversizedRecentVaultsStorageValue,
+  parseRecentVaultsStorageValue,
   persistVaultState,
   queryVaultOpenInOtherWindow,
   closeCurrentVaultAction,
@@ -678,12 +680,11 @@ function registerVaultStorageListener(): void {
       return;
     }
 
-    let recentVaults: VaultInfo[] = [];
-    try {
-      recentVaults = normalizeRecentVaults(JSON.parse(event.newValue || '[]'));
-    } catch {
-      recentVaults = [];
+    if (isOversizedRecentVaultsStorageValue(event.newValue)) {
+      return;
     }
+
+    const recentVaults = parseRecentVaultsStorageValue(event.newValue);
     const currentVault = useVaultStore.getState().currentVault;
     const refreshedCurrentVault = currentVault
       ? recentVaults.find((vault) => vault.id === currentVault.id) ?? currentVault

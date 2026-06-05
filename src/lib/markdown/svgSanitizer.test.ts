@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeSvgMarkup } from './svgSanitizer';
+import {
+  MAX_SVG_SANITIZE_MARKUP_CHARS,
+  sanitizeSvgMarkup,
+} from './svgSanitizer';
 
 function renderSanitizedSvg(markup: string) {
   const template = document.createElement('template');
@@ -29,5 +32,28 @@ describe('svgSanitizer', () => {
     expect(rect?.getAttribute('filter')).toBeNull();
     expect(rect?.getAttribute('fill')).toBe('url ( #local-fill )');
     expect(text?.getAttribute('style') || '').not.toContain('example.test');
+  });
+
+  it('drops SVG markup that exceeds the sanitizer depth budget', () => {
+    const markup = `${'<svg><g>'.repeat(210)}<image href="https://example.test/a.png"></image>${'</g></svg>'.repeat(210)}`;
+
+    expect(() => sanitizeSvgMarkup(markup)).not.toThrow();
+    expect(sanitizeSvgMarkup(markup)).toBe('');
+  });
+
+  it('drops SVG markup that exceeds the sanitizer node budget', () => {
+    const markup = [
+      '<svg xmlns="http://www.w3.org/2000/svg">',
+      Array.from({ length: 20_050 }, (_, index) => `<image href="https://example.test/${index}.png"></image>`).join(''),
+      '</svg>',
+    ].join('');
+
+    expect(sanitizeSvgMarkup(markup)).toBe('');
+  });
+
+  it('drops oversized SVG markup before DOM sanitization', () => {
+    const markup = 'x'.repeat(MAX_SVG_SANITIZE_MARKUP_CHARS + 1);
+
+    expect(sanitizeSvgMarkup(markup)).toBe('');
   });
 });

@@ -6,6 +6,7 @@ import { buildOpenAIBaseUrl, resolveApiModelId } from '../utils'
 import { sendAnthropicMessage } from './anthropic'
 import { detectProviderEndpointModels, type ModelFetchResult } from './modelDetection'
 import { providerFetch } from '../providerHttp'
+import { readBoundedProviderJsonResponse, readBoundedProviderResponseText } from './boundedResponseText'
 import {
   fetchManagedModels,
   MANAGED_PROVIDER_ID,
@@ -26,6 +27,7 @@ import {
 import { buildWebSearchStatusMarkup, stripWebSearchStatusMarkup } from '@/lib/ai/webSearch/statusMarkup'
 import { isStandaloneImageGenerationModel } from '@/lib/ai/modelCapabilities'
 import { addChatDebugLog } from '@/lib/debug/chatDebugLog'
+import { getBase64DecodedByteLength, MAX_INLINE_IMAGE_BYTES } from '@/lib/markdown/dataImagePolicy'
 import { escapeMarkdownAngleDestination, formatMarkdownImage } from '@/lib/markdown/markdownImageMarkdown'
 
 function summarizeError(error: unknown): string {
@@ -102,72 +104,12 @@ function createHtmlRejectingChunkHandler(onChunk: (chunk: string) => void, signa
   }
 }
 
-async function raceWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
-  if (!signal) return await promise
-  throwIfAborted(signal)
-  promise.catch(() => undefined)
-
-  return await new Promise<T>((resolve, reject) => {
-    let settled = false
-    const cleanup = () => {
-      signal.removeEventListener('abort', abort)
-    }
-    const settle = (callback: () => void) => {
-      if (settled) return
-      settled = true
-      cleanup()
-      callback()
-    }
-    const abort = () => {
-      settle(() => reject(createAbortError()))
-    }
-
-    signal.addEventListener('abort', abort, { once: true })
-    if (signal.aborted) {
-      abort()
-      return
-    }
-
-    promise.then(
-      (value) => {
-        settle(() => {
-          try {
-            throwIfAborted(signal)
-            resolve(value)
-          } catch (error) {
-            reject(error)
-          }
-        })
-      },
-      (error) => {
-        settle(() => {
-          try {
-            throwIfAborted(signal)
-            reject(error)
-          } catch (abortError) {
-            reject(abortError)
-          }
-        })
-      },
-    )
-  })
-}
-
 async function readResponseTextOrFallback(response: Response, signal?: AbortSignal): Promise<string> {
-  try {
-    throwIfAborted(signal)
-    return await raceWithAbort(response.text(), signal)
-  } catch {
-    if (signal?.aborted) {
-      throw createAbortError()
-    }
-    return 'Unknown error'
-  }
+  return await readBoundedProviderResponseText(response, signal)
 }
 
 async function readResponseJson<T>(response: Response, signal?: AbortSignal): Promise<T> {
-  throwIfAborted(signal)
-  return await raceWithAbort(response.json() as Promise<T>, signal)
+  return await readBoundedProviderJsonResponse<T>(response, signal)
 }
 
 function createUnsupportedWebSearchError(): Error {
@@ -313,7 +255,15 @@ function parseDataImageUrl(value: string): { bytes: Uint8Array; mimeType: string
     return null;
   }
 
+  const byteLength = getBase64DecodedByteLength(match[2]);
+  if (byteLength === null || byteLength > MAX_INLINE_IMAGE_BYTES) {
+    return null;
+  }
+
   const binary = atob(match[2]);
+  if (binary.length > MAX_INLINE_IMAGE_BYTES) {
+    return null;
+  }
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) {
     bytes[index] = binary.charCodeAt(index);

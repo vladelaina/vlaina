@@ -222,8 +222,14 @@ export async function resolveExternalMarkdownEntriesForStarred(
   absolutePaths: string[],
 ): Promise<ExternalMarkdownStarredTarget[]> {
   const targets: ExternalMarkdownStarredTarget[] = [];
+  let visitedEntries = 0;
 
   for (const absolutePath of absolutePaths) {
+    if (visitedEntries >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES) {
+      break;
+    }
+    visitedEntries += 1;
+
     const info = await statExternalMarkdownPath(absolutePath);
     const existingRelativePath = getExistingVaultRelativePath(vaultPath, absolutePath);
 

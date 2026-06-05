@@ -303,7 +303,7 @@ async function readStoredEvents(eventPath: string) {
 async function readEventFileContent(eventPath: string) {
   const storage = getStorageAdapter();
   const fileInfo = await storage.stat(eventPath).catch(() => null);
-  if (fileInfo?.size && fileInfo.size > MAX_EVENT_FILE_BYTES) {
+  if (typeof fileInfo?.size !== 'number' || fileInfo.size > MAX_EVENT_FILE_BYTES) {
     return null;
   }
 
