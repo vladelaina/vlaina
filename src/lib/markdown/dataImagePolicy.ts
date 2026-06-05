@@ -1,4 +1,5 @@
 export const MAX_INLINE_IMAGE_BYTES = 10 * 1024 * 1024;
+export const MAX_INLINE_IMAGE_BASE64_CHARS = Math.ceil(MAX_INLINE_IMAGE_BYTES / 3) * 4;
 
 const SAFE_RASTER_DATA_IMAGE_PATTERN = /^(data:image\/(?:png|jpeg|jpg|webp|gif|bmp|avif);base64,)([A-Za-z0-9+/=]+)$/i;
 
@@ -23,7 +24,13 @@ export function normalizeSafeRasterDataImageSrc(src: string | null | undefined):
     return null;
   }
 
-  const match = SAFE_RASTER_DATA_IMAGE_PATTERN.exec(src.trim());
+  const trimmed = src.trim();
+  const commaIndex = trimmed.indexOf(',');
+  if (commaIndex < 0 || trimmed.length - commaIndex - 1 > MAX_INLINE_IMAGE_BASE64_CHARS) {
+    return null;
+  }
+
+  const match = SAFE_RASTER_DATA_IMAGE_PATTERN.exec(trimmed);
   if (!match) {
     return null;
   }

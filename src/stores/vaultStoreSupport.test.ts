@@ -183,4 +183,29 @@ describe('vaultStoreSupport local storage guards', () => {
     expect(parseRecentVaultsStorageValue('['.padEnd(70 * 1024, ' '))).toEqual([]);
     expect(parseSpy).not.toHaveBeenCalled();
   });
+
+  it('skips malformed recent vault entries without dropping valid entries', async () => {
+    const { parseRecentVaultsStorageValue } = await import('./vaultStoreSupport');
+
+    expect(parseRecentVaultsStorageValue(JSON.stringify([
+      { id: 'vault-a', name: 'A', path: '/vault/a', lastOpened: 1 },
+      null,
+      { id: 'vault-bad', name: 'Bad', path: 42, lastOpened: 2 },
+      { id: 'vault-b', name: 'B', path: '/vault/b', lastOpened: 3 },
+    ]))).toEqual([
+      { id: 'vault-a', name: 'A', path: '/vault/a', lastOpened: 1 },
+      { id: 'vault-b', name: 'B', path: '/vault/b', lastOpened: 3 },
+    ]);
+  });
+
+  it('rejects overlong recent vault paths before normalization', async () => {
+    const { parseRecentVaultsStorageValue } = await import('./vaultStoreSupport');
+
+    expect(parseRecentVaultsStorageValue(JSON.stringify([
+      { id: 'vault-a', name: 'A', path: `/vault/${'a'.repeat(4096)}`, lastOpened: 1 },
+      { id: 'vault-b', name: 'B', path: '/vault/b', lastOpened: 2 },
+    ]))).toEqual([
+      { id: 'vault-b', name: 'B', path: '/vault/b', lastOpened: 2 },
+    ]);
+  });
 });

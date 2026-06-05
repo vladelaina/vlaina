@@ -25,6 +25,13 @@ export function assertOpenAIStreamLineLength(line: string): void {
   }
 }
 
+export function appendOpenAIStreamBuffer(buffer: string, next: string): string {
+  if (buffer.length + next.length > MAX_OPENAI_STREAM_LINE_CHARS) {
+    throw new Error('AI stream line is too large')
+  }
+  return buffer + next
+}
+
 function createAbortError(): DOMException {
   return new DOMException('The AI request was cancelled.', 'AbortError')
 }
@@ -313,7 +320,7 @@ export async function consumeOpenAIStream(
         break
       }
 
-      buffer += decoder.decode(value, { stream: true })
+      buffer = appendOpenAIStreamBuffer(buffer, decoder.decode(value, { stream: true }))
       const lines = buffer.split('\n')
       buffer = lines.pop() || ''
 

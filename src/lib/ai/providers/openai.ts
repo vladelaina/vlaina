@@ -17,7 +17,7 @@ import {
 } from '@/lib/ai/managedService'
 import { consumeOpenAIStream } from '@/lib/ai/streaming'
 import { normalizeApiTranscriptMessage } from '@/lib/ai/apiTranscript'
-import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
+import { parseThinkingContent, stripThinkingContent } from '@/lib/ai/stripThinkingContent'
 import {
   runOpenAIWebSearchTextProtocolRequest,
   runOpenAIWebSearchTextProtocolTextRequest,
@@ -27,7 +27,11 @@ import {
 import { buildWebSearchStatusMarkup, stripWebSearchStatusMarkup } from '@/lib/ai/webSearch/statusMarkup'
 import { isStandaloneImageGenerationModel } from '@/lib/ai/modelCapabilities'
 import { addChatDebugLog } from '@/lib/debug/chatDebugLog'
-import { getBase64DecodedByteLength, MAX_INLINE_IMAGE_BYTES } from '@/lib/markdown/dataImagePolicy'
+import {
+  getBase64DecodedByteLength,
+  MAX_INLINE_IMAGE_BYTES,
+  normalizeSafeRasterDataImageSrc,
+} from '@/lib/markdown/dataImagePolicy'
 import { escapeMarkdownAngleDestination, formatMarkdownImage } from '@/lib/markdown/markdownImageMarkdown'
 
 function summarizeError(error: unknown): string {
@@ -328,16 +332,35 @@ function buildImageEditMultipartBody({
 }
 
 function normalizeGeneratedImageAlt(value: unknown, index: number): string {
+  const fallback = `Generated image ${index + 1}`
   if (typeof value !== 'string') {
-    return `Generated image ${index + 1}`
+    return fallback
   }
 
   const normalized = value
     .replace(/[\u0000-\u001f\u007f]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+    .slice(0, 300)
 
-  return normalized || `Generated image ${index + 1}`
+  return normalized || fallback
+}
+
+function normalizeGeneratedImageUrl(value: unknown): string {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  const trimmed = value.trim()
+  return trimmed.length <= 16 * 1024 ? trimmed : ''
+}
+
+function normalizeGeneratedImageBase64(value: unknown): string {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  return normalizeSafeRasterDataImageSrc(`data:image/png;base64,${value.trim()}`) ?? ''
 }
 
 function normalizeGeneratedImageMarkdown(payload: Record<string, unknown>): string {
@@ -347,11 +370,7 @@ function normalizeGeneratedImageMarkdown(payload: Record<string, unknown>): stri
       return []
     }
     const record = item as Record<string, unknown>
-    const url = typeof record.url === 'string' && record.url.trim()
-      ? record.url.trim()
-      : typeof record.b64_json === 'string' && record.b64_json.trim()
-        ? `data:image/png;base64,${record.b64_json.trim()}`
-        : ''
+    const url = normalizeGeneratedImageUrl(record.url) || normalizeGeneratedImageBase64(record.b64_json)
     const destination = escapeMarkdownAngleDestination(url, { stripWhitespace: true })
     return destination
       ? [formatMarkdownImage(destination, normalizeGeneratedImageAlt(record.revised_prompt, index))]
@@ -362,18 +381,16 @@ function normalizeGeneratedImageMarkdown(payload: Record<string, unknown>): stri
 }
 
 function buildAssistantApiTranscriptFromRenderedContent(content: string): ApiTranscriptMessage[] {
-  const reasoningParts = Array.from(content.matchAll(/<think>([\s\S]*?)(?:<\/think>|$)/gi))
-    .map((match) => match[1] ?? '')
-    .filter(Boolean)
+  const parsed = parseThinkingContent(content)
+  const reasoningParts = parsed.parts.filter(Boolean)
 
   if (reasoningParts.length === 0) {
     return []
   }
 
-  const assistantContent = content.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, '')
   return [{
     role: 'assistant',
-    content: assistantContent,
+    content: parsed.visible,
     reasoning_content: reasoningParts.join('\n\n'),
   }]
 }

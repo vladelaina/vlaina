@@ -14,7 +14,13 @@ export interface ColorMarkdownMdastNode {
   position?: MarkdownSourcePosition;
 }
 
+export const MAX_INLINE_COLOR_HTML_CHARS = 8192;
+const MAX_INLINE_COLOR_STYLE_CHARS = 1024;
+const MAX_INLINE_COLOR_TEXT_CHARS = 8192;
+
 export function extractCssColorDeclaration(style: string, property: string): string | null {
+  if (style.length > MAX_INLINE_COLOR_STYLE_CHARS) return null;
+
   for (const declaration of style.split(';')) {
     const separatorIndex = declaration.indexOf(':');
     if (separatorIndex < 0) continue;
@@ -89,6 +95,8 @@ export function createBgColorMdastNode(
 }
 
 function parseInlineColorHtml(value: string): ColorMarkdownMdastNode | null {
+  if (value.length > MAX_INLINE_COLOR_HTML_CHARS) return null;
+
   const underlineMatch = value.match(/^<u>([\s\S]*?)<\/u>$/i);
   if (underlineMatch) {
     if (containsRawHtmlTag(underlineMatch[1])) return null;
@@ -115,6 +123,8 @@ function parseInlineColorHtml(value: string): ColorMarkdownMdastNode | null {
 }
 
 export function containsRawHtmlTag(value: string): boolean {
+  if (value.length > MAX_INLINE_COLOR_TEXT_CHARS) return true;
+
   return (
     /<\/?[A-Za-z][A-Za-z0-9:-]*(?:\s[^<>]*)?>/.test(value) ||
     /&lt;\/?[A-Za-z][A-Za-z0-9:-]*(?:\s[^&<>]*)?&gt;/i.test(value)

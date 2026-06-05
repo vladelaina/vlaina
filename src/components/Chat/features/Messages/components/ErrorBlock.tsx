@@ -14,13 +14,20 @@ interface ErrorBlockProps {
   showBillingPrompt?: boolean;
 }
 
+const MAX_ERROR_LINKS = 50;
+
 const renderWithLinks = (text: string) => {
   const urlRegex = /https?:\/\/[^\s]+/g;
   const parts: ReactNode[] = [];
   let lastIndex = 0;
+  let linkedUrls = 0;
   let match: RegExpExecArray | null;
 
   while ((match = urlRegex.exec(text)) !== null) {
+    if (linkedUrls >= MAX_ERROR_LINKS) {
+      break;
+    }
+
     const url = match[0];
     const safeHref = normalizeExternalHref(url);
     if (!safeHref) {
@@ -40,6 +47,7 @@ const renderWithLinks = (text: string) => {
         {url}
       </a>
     );
+    linkedUrls += 1;
     lastIndex = match.index + url.length;
   }
 

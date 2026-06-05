@@ -36,6 +36,7 @@ const VIEWER_CONTROL_SELECTOR = '[data-chat-image-viewer-control="true"]';
 const CROPPER_IMAGE_SELECTOR = '.reactEasyCrop_Image';
 const VIEWER_SURFACE_SELECTOR = '[data-chat-image-viewer-surface="true"]';
 const RESOLVED_VIEWER_IMAGE_CACHE_LIMIT = 100;
+const MAX_COMPARABLE_IMAGE_SRC_DECODE_CHARS = 4096;
 const resolvedViewerImageCache = new Map<string, Promise<string | null>>();
 const imageViewerToolbarButtonClass =
   "inline-flex h-9 w-9 items-center justify-center rounded-full bg-transparent text-[var(--vlaina-color-text-strong)] transition-colors hover:bg-[var(--vlaina-hover)]";
@@ -99,6 +100,9 @@ function clampZoom(value: number): number {
 
 function normalizeComparableSrc(value: string): string {
   const trimmed = value.trim();
+  if (trimmed.length > MAX_COMPARABLE_IMAGE_SRC_DECODE_CHARS) {
+    return trimmed;
+  }
   try {
     return decodeURIComponent(trimmed);
   } catch {

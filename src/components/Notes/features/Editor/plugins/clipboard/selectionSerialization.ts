@@ -14,18 +14,17 @@ import {
   serializeSliceAsVisiblePlainText,
 } from './visibleTextSerialization';
 import { serializeLeadingFrontmatterMarkdown } from '../frontmatter/frontmatterMarkdown';
+import {
+  MAX_CLIPBOARD_SERIALIZATION_NODES,
+  consumeClipboardTraversalNode,
+  createClipboardTraversalBudget,
+  getProseNodeChildren,
+  type ClipboardTraversalBudget,
+} from './clipboardTraversalBudget';
 
 type SelectionWithContent = EditorState['selection'] & {
   content?: () => Slice;
 };
-
-function getNodeChildren(node: any): any[] {
-  const children: any[] = [];
-  node?.content?.forEach?.((child: any) => {
-    children.push(child);
-  });
-  return children;
-}
 
 function isListContainerNode(node: any): boolean {
   return node?.type?.name === 'bullet_list' || node?.type?.name === 'ordered_list';
@@ -48,15 +47,27 @@ function shouldCopyTextSelectionAsPlainText(state: EditorState, slice: Slice): b
 }
 
 function hasEmptySelectedTextblock(slice: Slice): boolean {
-  const visit = (node: any): boolean => {
+  const budget = createClipboardTraversalBudget();
+  const stack = getProseNodeChildren({ content: slice.content })
+    .map((node) => ({ node, depth: 0 }));
+
+  while (stack.length > 0) {
+    const { node, depth } = stack.pop()!;
+    if (!consumeClipboardTraversalNode(budget, depth)) {
+      return true;
+    }
+
     if (node.isTextblock && node.content.size === 0) {
       return true;
     }
 
-    return getNodeChildren(node).some(visit);
-  };
+    const children = getProseNodeChildren(node);
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      stack.push({ node: children[index], depth: depth + 1 });
+    }
+  }
 
-  return getNodeChildren({ content: slice.content }).some(visit);
+  return false;
 }
 
 function isCellSelectionLike(selection: EditorState['selection']): boolean {
@@ -89,16 +100,16 @@ function serializeSingleSelectedCellContent(state: EditorState): string | null {
 }
 
 function serializeSingleCellTableSlice(slice: Slice): string | null {
-  const topLevelNodes = getNodeChildren({ content: slice.content });
+  const topLevelNodes = getProseNodeChildren({ content: slice.content });
   if (topLevelNodes.length !== 1) return null;
 
   const table = topLevelNodes[0];
   if (table?.type?.name !== 'table') return null;
 
-  const rows = getNodeChildren(table);
+  const rows = getProseNodeChildren(table);
   if (rows.length !== 1) return null;
 
-  const cells = getNodeChildren(rows[0]);
+  const cells = getProseNodeChildren(rows[0]);
   if (cells.length !== 1) return null;
 
   const cell = cells[0];
@@ -115,48 +126,43 @@ function isParagraphOnlyListItem(node: any): boolean {
     return false;
   }
 
-  const children = getNodeChildren(node);
+  const children = getProseNodeChildren(node);
   return children.length === 1 && children[0]?.type?.name === 'paragraph';
 }
 
 function resolveSingleParagraphListItemDescendant(node: any): any | null {
   let resolved: any | null = null;
-  let hasMultipleListItemContent = false;
+  const budget = createClipboardTraversalBudget();
+  const stack = [{ node, depth: 0 }];
 
-  const visit = (current: any): boolean => {
-    if (!current) {
-      return true;
+  while (stack.length > 0) {
+    const { node: current, depth } = stack.pop()!;
+    if (!consumeClipboardTraversalNode(budget, depth)) {
+      return null;
     }
-
+    if (!current) continue;
     if (isParagraphOnlyListItem(current)) {
       if (resolved) {
-        resolved = null;
-        return false;
+        return null;
       }
       resolved = current;
-      return true;
+      continue;
     }
 
-    const children = getNodeChildren(current);
+    const children = getProseNodeChildren(current);
     if (
       current.type?.name === 'list_item' &&
       children.some((child) => child.type?.name === 'paragraph' && child.content?.size > 0)
     ) {
-      hasMultipleListItemContent = true;
-      return false;
+      return null;
     }
 
-    for (const child of children) {
-      if (!visit(child)) {
-        return false;
-      }
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      stack.push({ node: children[index], depth: depth + 1 });
     }
+  }
 
-    return true;
-  };
-
-  visit(node);
-  return hasMultipleListItemContent ? null : resolved;
+  return resolved;
 }
 
 function serializeSingleListItemWithoutMarker(slice: Slice): string | null {
@@ -165,7 +171,7 @@ function serializeSingleListItemWithoutMarker(slice: Slice): string | null {
     return null;
   }
 
-  const itemChildren = getNodeChildren(listItem);
+  const itemChildren = getProseNodeChildren(listItem);
   if (itemChildren.length !== 1 || itemChildren[0]?.type?.name !== 'paragraph') {
     return null;
   }
@@ -191,8 +197,8 @@ function serializeSliceTopLevelBlocks(
   slice: Slice,
   markdownSerializer: Serializer
 ): string | null {
-  const topLevelNodes = getNodeChildren({ content: slice.content });
-  if (topLevelNodes.length === 0) {
+  const topLevelNodes = getProseNodeChildren({ content: slice.content });
+  if (topLevelNodes.length === 0 || topLevelNodes.length > MAX_CLIPBOARD_SERIALIZATION_NODES) {
     return null;
   }
 
@@ -268,11 +274,35 @@ function collectListItemsWithSelectedOwnContent(
 ): { selectedItems: any[]; startsAtSelectedItemBoundary: boolean } {
   const selectedItems: any[] = [];
   let startsAtSelectedItemBoundary = false;
+  const budget = createClipboardTraversalBudget();
+  const stack: Array<{ node: any; nodeStart: number; depth: number }> = [];
 
-  const visit = (node: any, nodeStart: number): void => {
-    if (!node) {
-      return;
+  const pushChildren = (node: any, parentStart: number, depth: number) => {
+    const children: Array<{ child: any; offset: number }> = [];
+    node.content?.forEach?.((child: any, offset: number) => {
+      children.push({ child, offset });
+    });
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      stack.push({
+        node: children[index].child,
+        nodeStart: parentStart + 1 + children[index].offset,
+        depth,
+      });
     }
+  };
+
+  listNode.forEach((child: any, offset: number) => {
+    stack.push({ node: child, nodeStart: listStart + 1 + offset, depth: 0 });
+  });
+
+  stack.reverse();
+
+  while (stack.length > 0) {
+    const { node, nodeStart, depth } = stack.pop()!;
+    if (!consumeClipboardTraversalNode(budget, depth)) {
+      return { selectedItems: [], startsAtSelectedItemBoundary: false };
+    }
+    if (!node) continue;
 
     if (node.type?.name === 'list_item') {
       const firstChild = node.firstChild;
@@ -283,30 +313,40 @@ function collectListItemsWithSelectedOwnContent(
           if (nodeStart === state.selection.from) {
             startsAtSelectedItemBoundary = true;
           }
-          selectedItems.push(cloneListNodeForClipboard(node));
-          return;
+          const cloned = cloneListNodeForClipboard(node, budget, depth);
+          if (!cloned) {
+            return { selectedItems: [], startsAtSelectedItemBoundary: false };
+          }
+          selectedItems.push(cloned);
+          continue;
         }
       }
     }
 
-    node.content?.forEach?.((child: any, offset: number) => {
-      visit(child, nodeStart + 1 + offset);
-    });
-  };
-
-  listNode.forEach((child: any, offset: number) => {
-    visit(child, listStart + 1 + offset);
-  });
+    pushChildren(node, nodeStart, depth + 1);
+  }
 
   return { selectedItems, startsAtSelectedItemBoundary };
 }
 
-function cloneListNodeForClipboard(node: any): any {
+function cloneListNodeForClipboard(
+  node: any,
+  budget: ClipboardTraversalBudget = createClipboardTraversalBudget(),
+  depth = 0
+): any | null {
+  if (!consumeClipboardTraversalNode(budget, depth)) {
+    return null;
+  }
   if (!node?.content?.size) {
     return node;
   }
 
-  const children = getNodeChildren(node).map(cloneListNodeForClipboard);
+  const children: any[] = [];
+  for (const child of getProseNodeChildren(node)) {
+    const cloned = cloneListNodeForClipboard(child, budget, depth + 1);
+    if (!cloned) return null;
+    children.push(cloned);
+  }
   const attrs = (node.type?.name === 'list_item' || isListContainerNode(node))
     ? { ...node.attrs, spread: false }
     : node.attrs;

@@ -10,6 +10,8 @@ export const ICON_COLOR_KEY = 'vlaina-icon-color';
 export const ACTIVE_TAB_KEY = 'vlaina-icon-picker-tab';
 export const MAX_RECENT_EMOJIS = themeEmojiPickerTokens.maxRecentEmojis;
 const MAX_RECENT_ICONS_STORAGE_CHARS = themeEmojiPickerTokens.maxRecentIconsStorageChars;
+const MAX_ICON_PICKER_SCALAR_STORAGE_CHARS = 64;
+const MAX_RECENT_ICON_VALUE_CHARS = 2048;
 export const EMOJI_PER_ROW = themeEmojiPickerTokens.emojisPerRow;
 export const EMOJI_SIZE = themeEmojiPickerTokens.emojiSizePx;
 export const ROW_GAP = themeEmojiPickerTokens.rowGapPx;
@@ -147,7 +149,11 @@ export function loadRecentIcons(): string[] {
     }
 
     return parsed
-      .filter((icon): icon is string => typeof icon === 'string' && icon.length > 0)
+      .filter((icon): icon is string => (
+        typeof icon === 'string' &&
+        icon.length > 0 &&
+        icon.length <= MAX_RECENT_ICON_VALUE_CHARS
+      ))
       .slice(0, MAX_RECENT_EMOJIS);
   } catch {
     return [];
@@ -156,7 +162,13 @@ export function loadRecentIcons(): string[] {
 
 export function saveRecentIcons(icons: string[]): void {
   try {
-    const validIcons = icons.filter((icon) => typeof icon === 'string' && icon.length > 0).slice(0, MAX_RECENT_EMOJIS);
+    const validIcons = icons
+      .filter((icon) => (
+        typeof icon === 'string' &&
+        icon.length > 0 &&
+        icon.length <= MAX_RECENT_ICON_VALUE_CHARS
+      ))
+      .slice(0, MAX_RECENT_EMOJIS);
     localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(validIcons));
   } catch { }
 }
@@ -171,6 +183,9 @@ export function addToRecentIcons(icon: string, current: string[]): string[] {
 export function loadSkinTone(): number {
   try {
     const saved = localStorage.getItem(SKIN_TONE_KEY);
+    if (saved && saved.length > MAX_ICON_PICKER_SCALAR_STORAGE_CHARS) {
+      return 0;
+    }
     const parsed = saved ? parseInt(saved, 10) : 0;
     return Number.isInteger(parsed) && parsed >= 0 && parsed < SKIN_TONES.length ? parsed : 0;
   } catch {
@@ -188,6 +203,9 @@ export function saveSkinTone(tone: number): void {
 export function loadIconColor(): ItemColor {
   try {
     const saved = localStorage.getItem(ICON_COLOR_KEY);
+    if (saved && saved.length > MAX_ICON_PICKER_SCALAR_STORAGE_CHARS) {
+      return 'amber';
+    }
     return (saved && saved in COLOR_HEX) ? (saved as ItemColor) : 'amber';
   } catch {
     return 'amber';
@@ -203,6 +221,9 @@ export function saveIconColor(color: ItemColor): void {
 export function loadActiveTab(): TabType {
   try {
     const saved = localStorage.getItem(ACTIVE_TAB_KEY);
+    if (saved && saved.length > MAX_ICON_PICKER_SCALAR_STORAGE_CHARS) {
+      return 'emoji';
+    }
     return (saved === 'emoji' || saved === 'upload') ? saved : 'emoji';
   } catch {
     return 'emoji';

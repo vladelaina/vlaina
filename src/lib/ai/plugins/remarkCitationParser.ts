@@ -2,15 +2,27 @@ import { visit } from "unist-util-visit";
 type Root = any;
 type RootContent = any;
 
+const MAX_CITATIONS_PER_TEXT_NODE = 200;
+const MAX_CITATION_TEXT_NODE_CHARS = 256 * 1024;
+
 export default function remarkCitationParser() {
   return (tree: Root) => {
     visit(tree, "text", (node: any, index: any, parent: any) => {
+      if (typeof node.value !== "string" || node.value.length > MAX_CITATION_TEXT_NODE_CHARS) {
+        return;
+      }
+
       const regex = /【(\d+)†L(\d+)-L(\d+)】/g;
       let match;
       let last = 0;
       const pieces: RootContent[] = [];
+      let citationCount = 0;
 
       while ((match = regex.exec(node.value))) {
+        if (citationCount >= MAX_CITATIONS_PER_TEXT_NODE) {
+          break;
+        }
+
         if (match.index > last) {
           pieces.push({
             type: "text",
@@ -28,6 +40,7 @@ export default function remarkCitationParser() {
             },
           },
         });
+        citationCount += 1;
         last = match.index + match[0].length;
       }
 
@@ -35,6 +48,10 @@ export default function remarkCitationParser() {
       const generic = /【(\d+)†[^】]*】/g;
       let gLast = 0;
       while ((match = generic.exec(remaining))) {
+        if (citationCount >= MAX_CITATIONS_PER_TEXT_NODE) {
+          break;
+        }
+
         if (match.index > gLast) {
           pieces.push({
             type: "text",
@@ -50,6 +67,7 @@ export default function remarkCitationParser() {
             },
           },
         });
+        citationCount += 1;
         gLast = match.index + match[0].length;
       }
 

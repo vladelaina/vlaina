@@ -1,4 +1,5 @@
 import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
+import { MAX_INLINE_IMAGE_BASE64_CHARS } from './dataImagePolicy';
 
 export interface HtmlImageSrcToken {
   src: string;
@@ -6,9 +7,29 @@ export interface HtmlImageSrcToken {
   valueEnd: number;
 }
 
+const MAX_HTML_IMAGE_SRC_CHARS = 16 * 1024;
+const MAX_HTML_IMAGE_DATA_SRC_CHARS = MAX_INLINE_IMAGE_BASE64_CHARS + 4096;
+const MAX_HTML_IMAGE_TAG_PREFIX_CHARS = 16 * 1024;
+const MAX_HTML_IMAGE_NON_SRC_ATTR_CHARS = 16 * 1024;
+
 function normalizeHtmlImageSrc(rawSrc: string | undefined): string | null {
-  const trimmed = rawSrc ? decodeMarkdownHtmlText(rawSrc).trim() : undefined;
+  if (!rawSrc || rawSrc.length > MAX_HTML_IMAGE_DATA_SRC_CHARS) {
+    return null;
+  }
+  if (rawSrc.length > MAX_HTML_IMAGE_SRC_CHARS && !startsWithDataImageSrc(rawSrc)) {
+    return null;
+  }
+
+  const trimmed = decodeMarkdownHtmlText(rawSrc).trim();
+  if (trimmed.length > MAX_HTML_IMAGE_SRC_CHARS && !/^data:/i.test(trimmed)) {
+    return null;
+  }
   return trimmed ? trimmed : null;
+}
+
+function startsWithDataImageSrc(value: string): boolean {
+  const prefix = value.trimStart().slice(0, 128);
+  return /^data:/i.test(decodeMarkdownHtmlText(prefix));
 }
 
 export function parseHtmlImageSrcTokenFromTag(tag: string): HtmlImageSrcToken | null {
@@ -19,6 +40,10 @@ export function parseHtmlImageSrcTokenFromTag(tag: string): HtmlImageSrcToken | 
 
   let cursor = openTag[0].length;
   while (cursor < tag.length) {
+    if (cursor > MAX_HTML_IMAGE_TAG_PREFIX_CHARS) {
+      return null;
+    }
+
     while (cursor < tag.length && /\s/.test(tag[cursor])) {
       cursor += 1;
     }
@@ -76,6 +101,9 @@ export function parseHtmlImageSrcTokenFromTag(tag: string): HtmlImageSrcToken | 
     if (attrName === "src") {
       const src = normalizeHtmlImageSrc(rawValue);
       return src ? { src, valueStart, valueEnd } : null;
+    }
+    if (rawValue.length > MAX_HTML_IMAGE_NON_SRC_ATTR_CHARS) {
+      return null;
     }
   }
 

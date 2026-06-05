@@ -1,4 +1,10 @@
-const TAG_PATTERN = /(?<![\p{L}\p{N}_/-])#([\p{L}\p{N}_/-][\p{L}\p{N}_/-]*)/gu;
+const MAX_NOTE_TAG_TOKEN_CHARS = 128;
+const MAX_NOTE_TAG_OCCURRENCES = 2000;
+const MAX_NOTE_TAG_MATCHES = 10_000;
+const MAX_EXCLUDED_RANGES = 50_000;
+
+const TAG_PATTERN = /(?<![\p{L}\p{N}_/-])#([\p{L}\p{N}_/-][\p{L}\p{N}_/-]{0,127})/gu;
+const TAG_BODY_CHARACTER_PATTERN = /^[\p{L}\p{N}_/-]$/u;
 const HEX_COLOR_PATTERN = /^(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const FENCED_CODE_BLOCK_PATTERN = /(^|\n)( {0,3})(`{3,}|~{3,})[\s\S]*?(?:\n\2\3[ \t]*(?=\n|$)|$)/g;
 const FRONTMATTER_PATTERN = /^---[ \t]*(?:\n[\s\S]*?\n---[ \t]*(?=\n|$))/;
@@ -33,9 +39,9 @@ function collectExcludedRanges(content: string): ExcludedRange[] {
 
   FENCED_CODE_BLOCK_PATTERN.lastIndex = 0;
   let fencedMatch: RegExpExecArray | null;
-  while ((fencedMatch = FENCED_CODE_BLOCK_PATTERN.exec(content)) !== null) {
+  while (ranges.length < MAX_EXCLUDED_RANGES && (fencedMatch = FENCED_CODE_BLOCK_PATTERN.exec(content)) !== null) {
     const leadingNewline = fencedMatch[1] ?? '';
-    ranges.push({
+    pushExcludedRange(ranges, {
       from: fencedMatch.index + leadingNewline.length,
       to: fencedMatch.index + fencedMatch[0].length,
     });
@@ -49,8 +55,15 @@ function collectExcludedRanges(content: string): ExcludedRange[] {
   return ranges.sort((a, b) => a.from - b.from || a.to - b.to);
 }
 
+function pushExcludedRange(ranges: ExcludedRange[], range: ExcludedRange): void {
+  if (ranges.length >= MAX_EXCLUDED_RANGES) {
+    return;
+  }
+  ranges.push(range);
+}
+
 function collectInlineCodeRanges(content: string, ranges: ExcludedRange[]): void {
-  for (let index = 0; index < content.length; index += 1) {
+  for (let index = 0; index < content.length && ranges.length < MAX_EXCLUDED_RANGES; index += 1) {
     if (content[index] !== '`') {
       continue;
     }
@@ -60,38 +73,47 @@ function collectInlineCodeRanges(content: string, ranges: ExcludedRange[]): void
       continue;
     }
     const closeIndex = content.indexOf('`'.repeat(markerLength), markerEnd);
-    if (closeIndex === -1 || content.slice(markerEnd, closeIndex).includes('\n')) {
+    if (closeIndex === -1 || rangeContainsNewline(content, markerEnd, closeIndex)) {
       index = markerEnd - 1;
       continue;
     }
-    ranges.push({ from: index, to: closeIndex + markerLength });
+    pushExcludedRange(ranges, { from: index, to: closeIndex + markerLength });
     index = closeIndex + markerLength - 1;
   }
+}
+
+function rangeContainsNewline(content: string, from: number, to: number): boolean {
+  for (let index = from; index < to; index += 1) {
+    if (content.charCodeAt(index) === 10) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function collectAutolinkRanges(content: string, ranges: ExcludedRange[]): void {
   const pattern = /<(?:(?:https?:|mailto:)[^<>\s]*|[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+)>/g;
   let match: RegExpExecArray | null;
-  while ((match = pattern.exec(content)) !== null) {
-    ranges.push({ from: match.index, to: match.index + match[0].length });
+  while (ranges.length < MAX_EXCLUDED_RANGES && (match = pattern.exec(content)) !== null) {
+    pushExcludedRange(ranges, { from: match.index, to: match.index + match[0].length });
   }
 }
 
 function collectHtmlTagRanges(content: string, ranges: ExcludedRange[]): void {
-  for (let index = 0; index < content.length; index += 1) {
+  for (let index = 0; index < content.length && ranges.length < MAX_EXCLUDED_RANGES; index += 1) {
     if (content[index] !== '<') {
       continue;
     }
     const end = scanHtmlTagEnd(content, index);
     if (end !== null) {
-      ranges.push({ from: index, to: end });
+      pushExcludedRange(ranges, { from: index, to: end });
       index = end - 1;
     }
   }
 }
 
 function collectMarkdownLinkTargetRanges(content: string, ranges: ExcludedRange[]): void {
-  for (let index = 0; index < content.length; index += 1) {
+  for (let index = 0; index < content.length && ranges.length < MAX_EXCLUDED_RANGES; index += 1) {
     if (content[index] !== '[' || isEscaped(content, index)) {
       continue;
     }
@@ -103,7 +125,7 @@ function collectMarkdownLinkTargetRanges(content: string, ranges: ExcludedRange[
     if (targetEnd === null) {
       continue;
     }
-    ranges.push({ from: labelEnd + 1, to: targetEnd + 1 });
+    pushExcludedRange(ranges, { from: labelEnd + 1, to: targetEnd + 1 });
     index = targetEnd;
   }
 }
@@ -210,12 +232,18 @@ function isIndexExcluded(index: number, ranges: readonly ExcludedRange[], startA
   return false;
 }
 
+function isOverlongTagToken(content: string, tokenEnd: number): boolean {
+  const nextCharacter = content[tokenEnd] ?? '';
+  return nextCharacter.length > 0 && TAG_BODY_CHARACTER_PATTERN.test(nextCharacter);
+}
+
 export function extractNoteTagOccurrences(content: string): NoteTagOccurrence[] {
   const excludedRanges = collectExcludedRanges(content);
   const occurrences: NoteTagOccurrence[] = [];
   const normalizedContent = content.toLocaleLowerCase();
   const tokenMatchCursors = new Map<string, TokenMatchCursor>();
   let excludedRangeCursor = 0;
+  let visibleMatches = 0;
 
   TAG_PATTERN.lastIndex = 0;
 
@@ -229,6 +257,21 @@ export function extractNoteTagOccurrences(content: string): NoteTagOccurrence[] 
     }
 
     const token = match[0];
+    if (
+      token.length > MAX_NOTE_TAG_TOKEN_CHARS + 1 ||
+      isOverlongTagToken(content, match.index + token.length)
+    ) {
+      continue;
+    }
+
+    const excluded = isIndexExcluded(match.index, excludedRanges, excludedRangeCursor);
+    if (!excluded) {
+      visibleMatches += 1;
+      if (visibleMatches > MAX_NOTE_TAG_MATCHES || occurrences.length >= MAX_NOTE_TAG_OCCURRENCES) {
+        break;
+      }
+    }
+
     const normalizedToken = token.toLocaleLowerCase();
     const tokenCursor = tokenMatchCursors.get(normalizedToken) ?? { cursor: 0, count: 0 };
     while (tokenCursor.cursor <= match.index - normalizedToken.length) {
@@ -245,7 +288,7 @@ export function extractNoteTagOccurrences(content: string): NoteTagOccurrence[] 
     tokenCursor.cursor = match.index + Math.max(1, normalizedToken.length);
     tokenMatchCursors.set(normalizedToken, tokenCursor);
 
-    if (isIndexExcluded(match.index, excludedRanges, excludedRangeCursor)) {
+    if (excluded) {
       continue;
     }
 

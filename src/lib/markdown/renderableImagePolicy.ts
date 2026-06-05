@@ -1,6 +1,6 @@
 import { extractStoredAttachmentFilename, isAppFileAttachmentUrl } from '@/lib/storage/attachmentUrl';
 import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity';
-import { normalizeSafeRasterDataImageSrc } from './dataImagePolicy';
+import { MAX_INLINE_IMAGE_BASE64_CHARS, normalizeSafeRasterDataImageSrc } from './dataImagePolicy';
 
 const IMAGE_PROTOCOL_WHITELIST = new Set([
   'http:',
@@ -15,6 +15,10 @@ const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\
 const RELATIVE_PREFIXES = ['./', '../'];
 const SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
 const IMAGE_EXTENSION_PATTERN = /\.(?:png|jpe?g|webp|gif|bmp|avif)(?:[?#].*)?$/i;
+const MAX_RENDERABLE_IMAGE_SRC_CHARS = 4096;
+const MAX_RENDERABLE_IMAGE_SRCSET_CHARS = 64 * 1024;
+const MAX_RENDERABLE_DATA_IMAGE_SRCSET_CHARS = MAX_INLINE_IMAGE_BASE64_CHARS + 4096;
+const MAX_RENDERABLE_IMAGE_SRCSET_CANDIDATES = 128;
 
 function isRelativePath(value: string): boolean {
   if (value.startsWith('//')) {
@@ -32,6 +36,14 @@ function isBareRelativeImagePath(value: string): boolean {
 
 function hasUnsafeBackslashUrlSyntax(value: string): boolean {
   return value.startsWith('\\') || (SCHEME_PATTERN.test(value) && value.includes('\\'));
+}
+
+function startsWithDataImageCandidate(value: string): boolean {
+  let index = 0;
+  while (index < value.length && index < 128 && /\s/.test(value[index])) {
+    index += 1;
+  }
+  return /^data:/i.test(value.slice(index, index + 5));
 }
 
 function isAllowedAssetUrl(url: URL): boolean {
@@ -68,6 +80,14 @@ export function normalizeRenderableImageSrc(src: string | null | undefined): str
     return null;
   }
 
+  if (/^data:/i.test(trimmed)) {
+    return normalizeRenderableDataImageSrc(trimmed);
+  }
+
+  if (trimmed.length > MAX_RENDERABLE_IMAGE_SRC_CHARS) {
+    return null;
+  }
+
   if (!isBareRelativeImagePath(trimmed) && /\s/.test(trimmed)) {
     return null;
   }
@@ -79,9 +99,6 @@ export function normalizeRenderableImageSrc(src: string | null | undefined): str
   try {
     const base = typeof window !== 'undefined' ? window.location.href : 'http://localhost';
     const parsed = new URL(trimmed, base);
-    if (parsed.protocol === 'data:') {
-      return normalizeRenderableDataImageSrc(trimmed);
-    }
     if (parsed.protocol === 'asset:') {
       return isAllowedAssetUrl(parsed) ? trimmed : null;
     }
@@ -118,7 +135,7 @@ function normalizeSrcsetCandidate(candidate: string): string | null {
   return descriptor ? `${source} ${descriptor}` : source;
 }
 
-function splitRenderableImageSrcsetCandidates(value: string): string[] {
+function splitRenderableImageSrcsetCandidates(value: string): string[] | null {
   const candidates: string[] = [];
   let candidateStart = 0;
   let skippedDataUrlComma = false;
@@ -137,6 +154,9 @@ function splitRenderableImageSrcsetCandidates(value: string): string[] {
     const candidate = value.slice(candidateStart, index).trim();
     if (candidate) {
       candidates.push(candidate);
+      if (candidates.length > MAX_RENDERABLE_IMAGE_SRCSET_CANDIDATES) {
+        return null;
+      }
     }
     candidateStart = index + 1;
     skippedDataUrlComma = false;
@@ -145,6 +165,9 @@ function splitRenderableImageSrcsetCandidates(value: string): string[] {
   const tail = value.slice(candidateStart).trim();
   if (tail) {
     candidates.push(tail);
+    if (candidates.length > MAX_RENDERABLE_IMAGE_SRCSET_CANDIDATES) {
+      return null;
+    }
   }
   return candidates;
 }
@@ -153,9 +176,14 @@ export function normalizeRenderableImageSrcset(value: string | null | undefined)
   if (!value || CONTROL_OR_BIDI_PATTERN.test(value)) {
     return null;
   }
+  if (value.length > MAX_RENDERABLE_IMAGE_SRCSET_CHARS) {
+    if (!startsWithDataImageCandidate(value) || value.length > MAX_RENDERABLE_DATA_IMAGE_SRCSET_CHARS) {
+      return null;
+    }
+  }
 
   const candidates = splitRenderableImageSrcsetCandidates(value);
-  if (candidates.length === 0) {
+  if (!candidates || candidates.length === 0) {
     return null;
   }
 

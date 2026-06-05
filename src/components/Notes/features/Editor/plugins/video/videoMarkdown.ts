@@ -1,5 +1,6 @@
 import { remarkPluginsCtx, schemaTimerCtx } from '@milkdown/core';
 import { createTimer, type MilkdownPlugin } from '@milkdown/ctx';
+import { canTransformMarkdownAst } from '@/components/common/markdown/markdownAstBudget';
 import { parseVideoUrl } from './videoUrl';
 
 interface VideoMarkdownNode {
@@ -18,6 +19,10 @@ function isVideoImageNode(node: VideoMarkdownNode | undefined): node is VideoMar
 
 export function remarkVideoImages() {
   return (tree: VideoMarkdownNode) => {
+    if (!canTransformMarkdownAst(tree)) {
+      return;
+    }
+
     const stack = [tree];
 
     while (stack.length > 0) {

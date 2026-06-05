@@ -43,6 +43,7 @@ const TABLE_ROW_RE = /^\s*\|.*\|\s*$/;
 
 const PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT = 200;
 const MAX_CACHED_MARKDOWN_BLOCK_CHARS = 50_000;
+const MAX_LAYOUT_VIDEO_IMAGE_TOKENS = 2000;
 
 const parsedMarkdownBlocksCache = new Map<string, MarkdownMeasurementBlock[]>();
 
@@ -92,7 +93,7 @@ function collectSectionLines(lines: string[], start: number): { end: number; lin
 }
 
 function getVideoImageTokens(markdown: string): ImageToken[] {
-  return parseMarkdownAndHtmlImageTokens(markdown).filter((token) => {
+  return parseMarkdownAndHtmlImageTokens(markdown, { maxTokens: MAX_LAYOUT_VIDEO_IMAGE_TOKENS }).filter((token) => {
     const src = token.src ? normalizeRenderableImageSrc(token.src) : null;
     return !!src && !!parseVideoUrl(src);
   });

@@ -13,6 +13,7 @@ export interface StorageAutoSyncEvent {
 const CHANNEL_NAME = 'vlaina-storage-sync';
 const STORAGE_KEY = 'vlaina-storage-sync-event';
 const MAX_STORAGE_AUTO_SYNC_EVENT_CHARS = 8 * 1024;
+const MAX_STORAGE_AUTO_SYNC_FIELD_CHARS = 4096;
 
 const sourceId = (() => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -38,7 +39,13 @@ function parseStorageAutoSyncEvent(value: unknown): StorageAutoSyncEvent | null 
     typeof event.sourceId !== 'string' ||
     typeof event.stamp !== 'number' ||
     !Number.isFinite(event.stamp) ||
-    typeof event.nonce !== 'string'
+    typeof event.nonce !== 'string' ||
+    event.sourceId.length > MAX_STORAGE_AUTO_SYNC_FIELD_CHARS ||
+    event.nonce.length > MAX_STORAGE_AUTO_SYNC_FIELD_CHARS ||
+    (event.sessionId !== undefined && (
+      typeof event.sessionId !== 'string' ||
+      event.sessionId.length > MAX_STORAGE_AUTO_SYNC_FIELD_CHARS
+    ))
   ) {
     return null;
   }

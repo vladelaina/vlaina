@@ -88,4 +88,32 @@ describe('storageAutoSync', () => {
     unsubscribeFirst();
     unsubscribeSecond();
   });
+
+  it('ignores oversized BroadcastChannel event fields', async () => {
+    vi.resetModules();
+    let onmessage: ((event: { data: unknown }) => void) | null = null;
+    vi.stubGlobal('BroadcastChannel', class {
+      set onmessage(value: ((event: { data: unknown }) => void) | null) {
+        onmessage = value;
+      }
+
+      postMessage() {}
+      close() {}
+    });
+    const listener = vi.fn();
+    const { subscribeStorageAutoSync } = await import('./storageAutoSync');
+
+    const unsubscribe = subscribeStorageAutoSync(listener);
+    onmessage?.({
+      data: {
+        kind: 'unified',
+        sourceId: 'other-window',
+        stamp: Date.now(),
+        nonce: 'x'.repeat(4097),
+      },
+    });
+
+    expect(listener).not.toHaveBeenCalled();
+    unsubscribe();
+  });
 });

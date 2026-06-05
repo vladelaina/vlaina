@@ -713,7 +713,10 @@ async function appendForcedReadMessages(
     };
   }
 
-  const urls = JSON.parse(toolCall.function.arguments).urls as string[];
+  const args = parseToolArguments(toolCall.function.arguments);
+  const urls = Array.isArray(args.urls)
+    ? args.urls.filter((url): url is string => typeof url === 'string' && url.trim().length > 0).slice(0, 3)
+    : [];
   for (const url of urls) attemptedUrls.add(url);
   const toolResult = await runWebSearchToolCall(toolCall.function, options);
   const allReadableUrls = getReadableResultUrls(status);

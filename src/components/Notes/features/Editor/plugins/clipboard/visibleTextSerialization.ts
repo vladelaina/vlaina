@@ -1,37 +1,65 @@
 import type { Slice } from '@milkdown/kit/prose/model';
 
-function getNodeChildren(node: any): any[] {
-  const children: any[] = [];
-  node?.content?.forEach?.((child: any) => {
-    children.push(child);
-  });
-  return children;
-}
+import {
+  consumeClipboardTraversalNode,
+  createClipboardTraversalBudget,
+  getProseNodeChildren,
+  type ClipboardTraversalBudget,
+} from './clipboardTraversalBudget';
 
-export function isVisiblePlainTextNode(node: any): boolean {
+function isVisiblePlainTextNodeWithBudget(
+  node: any,
+  budget: ClipboardTraversalBudget,
+  depth: number
+): boolean {
+  if (!consumeClipboardTraversalNode(budget, depth)) return false;
   if (!node) return true;
   if (node.isText) return true;
   if (node.type?.name === 'hard_break') return true;
   if (!node.isTextblock && !['paragraph', 'heading', 'code_block'].includes(node.type?.name)) return false;
 
-  return getNodeChildren(node).every(isVisiblePlainTextNode);
+  return getProseNodeChildren(node).every((child) => (
+    isVisiblePlainTextNodeWithBudget(child, budget, depth + 1)
+  ));
 }
 
-function serializeVisiblePlainTextNode(node: any): string {
+export function isVisiblePlainTextNode(node: any): boolean {
+  return isVisiblePlainTextNodeWithBudget(node, createClipboardTraversalBudget(), 0);
+}
+
+function serializeVisiblePlainTextNode(
+  node: any,
+  budget: ClipboardTraversalBudget,
+  depth: number
+): string | null {
+  if (!consumeClipboardTraversalNode(budget, depth)) return null;
   if (!node) return '';
   if (node.isText) return node.text ?? '';
   if (node.type?.name === 'hard_break') return '\n';
 
-  return getNodeChildren(node).map(serializeVisiblePlainTextNode).join('');
+  const pieces: string[] = [];
+  for (const child of getProseNodeChildren(node)) {
+    const piece = serializeVisiblePlainTextNode(child, budget, depth + 1);
+    if (piece === null) return null;
+    pieces.push(piece);
+  }
+  return pieces.join('');
 }
 
 export function serializeSliceAsVisiblePlainText(slice: Pick<Slice, 'content'>): string {
-  return getNodeChildren({ content: slice.content })
-    .map(serializeVisiblePlainTextNode)
-    .join('\n')
-    .replace(/\n+$/, '');
+  const budget = createClipboardTraversalBudget();
+  const pieces: string[] = [];
+  for (const child of getProseNodeChildren({ content: slice.content })) {
+    const piece = serializeVisiblePlainTextNode(child, budget, 0);
+    if (piece === null) return '';
+    pieces.push(piece);
+  }
+  return pieces.join('\n').replace(/\n+$/, '');
 }
 
 export function isVisiblePlainTextSlice(slice: Pick<Slice, 'content'>): boolean {
-  return getNodeChildren({ content: slice.content }).every(isVisiblePlainTextNode);
+  const budget = createClipboardTraversalBudget();
+  return getProseNodeChildren({ content: slice.content }).every((child) => (
+    isVisiblePlainTextNodeWithBudget(child, budget, 0)
+  ));
 }

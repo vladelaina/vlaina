@@ -34,6 +34,8 @@ const NAMED_CHARACTER_REFERENCES: Record<string, string> = {
   quot: '"',
 };
 
+export const MAX_DELIMITED_MARKDOWN_TEXT_CHARS = 100_000;
+
 function getPositionOffsets(position: MarkdownSourcePosition | undefined, markdownLength: number) {
   const start = position?.start?.offset;
   const end = position?.end?.offset;
@@ -77,8 +79,10 @@ function createTextSourceOffsetMap(
   markdown: string,
   position: MarkdownSourcePosition | undefined
 ): number[] | null {
+  if (value.length > MAX_DELIMITED_MARKDOWN_TEXT_CHARS) return null;
   const offsets = getPositionOffsets(position, markdown.length);
   if (!offsets) return null;
+  if (offsets.end - offsets.start > MAX_DELIMITED_MARKDOWN_TEXT_CHARS) return null;
 
   const map: number[] = [];
   let sourceIndex = offsets.start;
@@ -173,6 +177,10 @@ export function findDelimitedTextMatches(
   regex: RegExp,
   options: FindDelimitedTextMatchesOptions
 ): DelimitedTextMatch[] {
+  if (value.length > MAX_DELIMITED_MARKDOWN_TEXT_CHARS) {
+    return [];
+  }
+
   const hasSourcePosition = !!options.markdown && !!getPositionOffsets(options.position, options.markdown.length);
   const sourceOffsetMap = hasSourcePosition
     ? createTextSourceOffsetMap(value, options.markdown || '', options.position)
@@ -235,6 +243,10 @@ export function isUnescapedMarkdownTextRange(
   length: number,
   options: MarkdownSourceRangeOptions = {}
 ): boolean {
+  if (value.length > MAX_DELIMITED_MARKDOWN_TEXT_CHARS) {
+    return false;
+  }
+
   if (
     !Number.isInteger(start) ||
     !Number.isInteger(length) ||

@@ -2,6 +2,8 @@ import { stripMarkdownInline } from '@/components/common/markdown/plainText';
 
 const CONTENT_SNIPPET_RADIUS = 36;
 const MAX_CONTENT_MATCHES_PER_NOTE = 5;
+const MAX_CONTENT_SEARCH_LINE_CHARS = 64 * 1024;
+const MAX_CONTENT_SEARCH_SCANNED_CHARS = 1024 * 1024;
 
 export interface NotesSidebarContentMatch {
   matchIndex: number;
@@ -68,7 +70,17 @@ export function getNotesSidebarContentMatches(
 
   const matches: NotesSidebarContentMatch[] = [];
   let ordinal = 0;
+  let scannedChars = 0;
   for (const rawLine of iterateLines(content)) {
+    if (scannedChars >= MAX_CONTENT_SEARCH_SCANNED_CHARS) {
+      break;
+    }
+
+    scannedChars += rawLine.length;
+    if (rawLine.length > MAX_CONTENT_SEARCH_LINE_CHARS) {
+      continue;
+    }
+
     const plainLine = toPlainTextLine(rawLine);
     if (!plainLine) {
       continue;

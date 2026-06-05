@@ -54,6 +54,10 @@ const MAX_FOLDER_LISTING_ENTRIES = 80;
 const MAX_FOLDER_IMAGE_ATTACHMENTS = 8;
 const MAX_FOLDER_IMAGE_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 const STREAM_CHUNK_FLUSH_MAX_DELAY_MS = 40;
+const MAX_INFERRED_IMAGE_NAME_SOURCE_CHARS = 4096;
+const MAX_INFERRED_IMAGE_NAME_SEGMENT_DECODE_CHARS = 2048;
+const MAX_INFERRED_IMAGE_NAME_CHARS = 512;
+const MAX_STORED_USER_MESSAGE_IMAGE_TOKENS = 2000;
 const PROMPT_LABEL_UNSAFE_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]+/g;
 const MAX_PROMPT_LABEL_LENGTH = 240;
 const IMAGE_EXTENSION_MIME_TYPES: Record<string, string> = {
@@ -158,6 +162,24 @@ function inferImageMimeType(src: string): string {
   return 'image/*';
 }
 
+function normalizeInferredImageName(value: string, fallback: string): string {
+  const normalized = value.trim();
+  return normalized && normalized.length <= MAX_INFERRED_IMAGE_NAME_CHARS
+    ? normalized
+    : fallback;
+}
+
+function decodeInferredImageNameSegment(value: string, fallback: string): string {
+  if (value.length > MAX_INFERRED_IMAGE_NAME_SEGMENT_DECODE_CHARS) {
+    return normalizeInferredImageName(value, fallback);
+  }
+  try {
+    return normalizeInferredImageName(decodeURIComponent(value), fallback);
+  } catch {
+    return normalizeInferredImageName(value, fallback);
+  }
+}
+
 function inferImageName(src: string, index: number): string {
   const fallback = `image-${index + 1}.png`;
   if (isRenderableDataImageSrc(src) || isSvgDataUrl(src)) {
@@ -166,13 +188,15 @@ function inferImageName(src: string, index: number): string {
     return `image-${index + 1}.${ext}`;
   }
 
+  if (src.length > MAX_INFERRED_IMAGE_NAME_SOURCE_CHARS) {
+    return fallback;
+  }
+
   try {
     const url = new URL(src);
-    const base = decodeURIComponent(url.pathname.split('/').pop() || '').trim();
-    return base || fallback;
+    return decodeInferredImageNameSegment(url.pathname.split('/').pop() || '', fallback);
   } catch {
-    const base = src.split(/[?#]/)[0]?.split('/').pop()?.trim();
-    return base || fallback;
+    return normalizeInferredImageName(src.split(/[?#]/)[0]?.split('/').pop() ?? '', fallback);
   }
 }
 
@@ -199,7 +223,7 @@ function collectStoredUserMessageImages(content: string): {
   const imageSources: string[] = [];
   const tokensToStrip: ImageToken[] = [];
 
-  for (const token of parseMarkdownImageTokens(content)) {
+  for (const token of parseMarkdownImageTokens(content, { maxTokens: MAX_STORED_USER_MESSAGE_IMAGE_TOKENS })) {
     const rawSrc = token.src?.trim() ?? '';
     const normalizedSrc = normalizeRenderableImageSrc(rawSrc);
     if (normalizedSrc && isRenderedImageSource(normalizedSrc)) {

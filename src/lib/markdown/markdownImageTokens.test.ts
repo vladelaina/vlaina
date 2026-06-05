@@ -3,6 +3,7 @@ import {
   parseHtmlImageTokens,
   parseMarkdownAndHtmlImageTokens,
   parseMarkdownImageTokens,
+  stripMarkdownImageTokens,
 } from './markdownImageTokens';
 
 function parseSeparateImageTokens(markdown: string) {
@@ -116,6 +117,17 @@ describe('markdownImageTokens', () => {
     expect(parseMarkdownAndHtmlImageTokens(markdown, { maxTokens: Number.POSITIVE_INFINITY })).toHaveLength(2);
   });
 
+  it('bounds default markdown image token stripping', () => {
+    const markdown = Array.from({ length: 2001 }, (_, index) => {
+      return `![image ${index}](https://example.com/${index}.png)`;
+    }).join('\n');
+
+    const stripped = stripMarkdownImageTokens(markdown);
+
+    expect(stripped).toContain('![image 2000](https://example.com/2000.png)');
+    expect(stripped.match(/!\[image/g)).toHaveLength(1);
+  });
+
   it('keeps bounded html image parsing from reading markdown image targets as html', () => {
     const markdown = [
       '![one](<https://example.com/<img src="https://example.com/not-html-1.png">>)',
@@ -126,6 +138,17 @@ describe('markdownImageTokens', () => {
     expect(parseHtmlImageTokens(markdown, { maxTokens: 1 }).map((token) => token.src)).toEqual([
       'https://example.com/real.png',
     ]);
+  });
+
+  it('rejects oversized ordinary html image attributes before decoding src values', () => {
+    expect(parseHtmlImageTokens(`<img src="https://example.com/${'a'.repeat(16 * 1024)}.png">`)).toEqual([]);
+    expect(parseHtmlImageTokens(`<img alt="${'a'.repeat(16 * 1024 + 1)}" src="https://example.com/a.png">`)).toEqual([]);
+  });
+
+  it('keeps large html data image src values for downstream image policy checks', () => {
+    const dataSrc = `data:image/png;base64,${'A'.repeat(70 * 1024)}`;
+
+    expect(parseHtmlImageTokens(`<img src="${dataSrc}">`).map((token) => token.src)).toEqual([dataSrc]);
   });
 
   it('does not treat plain angle-bracket text as an HTML tag range', () => {

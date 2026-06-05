@@ -626,6 +626,64 @@ describe('featureSlice draft metadata', () => {
     });
   });
 
+  it('scans deeply nested full-vault notes without recursive traversal', async () => {
+    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
+    mocks.readFile.mockResolvedValue('# Deep');
+    let current: any = {
+      id: 'deep',
+      name: 'deep.md',
+      path: 'deep.md',
+      isFolder: false,
+    };
+
+    for (let depth = 0; depth < 1500; depth += 1) {
+      current = {
+        id: `folder-${depth}`,
+        name: `folder-${depth}`,
+        path: `folder-${depth}`,
+        isFolder: true,
+        expanded: true,
+        children: [current],
+      };
+    }
+
+    const store = createNotesStore({
+      notesPath: '/vault',
+      rootFolder: current,
+    });
+
+    await store.getState().scanAllNotes();
+
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/deep.md');
+    expect(store.getState().noteContentsCache.get('deep.md')?.content).toBe('# Deep');
+  });
+
+  it('caps full-vault scan paths from oversized folder trees', async () => {
+    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
+    mocks.readFile.mockResolvedValue('# Note');
+    const store = createNotesStore({
+      notesPath: '/vault',
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: Array.from({ length: 5001 }, (_, index) => ({
+          id: `note-${index}`,
+          name: `note-${index}.md`,
+          path: `note-${index}.md`,
+          isFolder: false,
+        })),
+      },
+    });
+
+    await store.getState().scanAllNotes();
+
+    expect(mocks.stat).toHaveBeenCalledTimes(5000);
+    expect(store.getState().noteContentsCache.size).toBe(5000);
+  });
+
   it('stops full-vault scans before starting later batches after cancellation', async () => {
     mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
     const pendingReads: Array<(content: string) => void> = [];

@@ -5,6 +5,7 @@ const INLINE_IMAGE_TOKEN_PREFIX = 'asset://localhost/chat-inline-image/';
 const LARGE_DATA_IMAGE_MIN_LENGTH = 50_000;
 const MAX_COMPACTED_INLINE_IMAGES = 1000;
 const MAX_SCANNED_INLINE_IMAGE_TOKENS = 2000;
+const MAX_EXISTING_INLINE_IMAGE_TOKENS = 2000;
 const DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i;
 
 export interface CompactedChatMarkdownImages {
@@ -26,7 +27,9 @@ function createToken(index: number): string {
 
 function getExistingInlineImageTokens(markdown: string): Set<string> {
   const tokens = new Set<string>();
-  for (const match of markdown.matchAll(/asset:\/\/localhost\/chat-inline-image\/\d+/g)) {
+  const pattern = /asset:\/\/localhost\/chat-inline-image\/\d+/g;
+  let match: RegExpExecArray | null;
+  while (tokens.size < MAX_EXISTING_INLINE_IMAGE_TOKENS && (match = pattern.exec(markdown)) !== null) {
     tokens.add(match[0]);
   }
   return tokens;

@@ -96,6 +96,66 @@ describe('Electron userData path safety', () => {
     expect(fs.existsSync(path.join(isolatedUserData, 'SingletonLock'))).toBe(false);
   });
 
+  it('stops development profile shell seeding before copying oversized shared files', async () => {
+    const defaultUserData = path.join(tempRoot, 'default-user-data');
+    const isolatedUserData = path.join(tempRoot, 'isolated-user-data');
+    const sharedUserData = path.join(tempRoot, 'shared-user-data');
+    const app = createApp({ isPackaged: false, userDataPath: defaultUserData });
+    const oversizedFile = path.join(sharedUserData, 'Preferences');
+
+    await fs.promises.mkdir(sharedUserData, { recursive: true });
+    await writeFile(oversizedFile, '', 'utf8');
+    await fs.promises.truncate(oversizedFile, 257 * 1024 * 1024);
+
+    const result = configureDevelopmentUserDataPath({
+      app,
+      repoRoot: path.join(tempRoot, 'repo'),
+      env: {
+        VLAINA_USER_DATA_DIR: isolatedUserData,
+        VLAINA_SHARED_USER_DATA_DIR: sharedUserData,
+      },
+    });
+
+    expect(result).toEqual({
+      changed: true,
+      userDataPath: isolatedUserData,
+      seeded: false,
+    });
+    expect(app.setPath).toHaveBeenCalledWith('userData', isolatedUserData);
+    expect(fs.existsSync(path.join(isolatedUserData, 'Preferences'))).toBe(false);
+    await expect(readFile(path.join(isolatedUserData, '.vlaina-dev-profile-shell-seeded'), 'utf8'))
+      .resolves.toContain(sharedUserData);
+  });
+
+  it('stops development profile shell seeding before descending too deeply', async () => {
+    const defaultUserData = path.join(tempRoot, 'default-user-data');
+    const isolatedUserData = path.join(tempRoot, 'isolated-user-data');
+    const sharedUserData = path.join(tempRoot, 'shared-user-data');
+    const app = createApp({ isPackaged: false, userDataPath: defaultUserData });
+    const shallowFile = path.join(sharedUserData, 'Preferences');
+    const deepParts = Array.from({ length: 34 }, (_, index) => `level-${index}`);
+    const deepFile = path.join(sharedUserData, ...deepParts, 'deep.txt');
+
+    await fs.promises.mkdir(path.dirname(deepFile), { recursive: true });
+    await writeFile(shallowFile, '{"theme":"dark"}\n', 'utf8');
+    await writeFile(deepFile, 'too deep\n', 'utf8');
+
+    configureDevelopmentUserDataPath({
+      app,
+      repoRoot: path.join(tempRoot, 'repo'),
+      env: {
+        VLAINA_USER_DATA_DIR: isolatedUserData,
+        VLAINA_SHARED_USER_DATA_DIR: sharedUserData,
+      },
+    });
+
+    await expect(readFile(path.join(isolatedUserData, 'Preferences'), 'utf8'))
+      .resolves.toContain('dark');
+    expect(fs.existsSync(path.join(isolatedUserData, ...deepParts, 'deep.txt'))).toBe(false);
+    await expect(readFile(path.join(isolatedUserData, '.vlaina-dev-profile-shell-seeded'), 'utf8'))
+      .resolves.toContain(sharedUserData);
+  });
+
   it('refuses to replace an existing isolated .vlaina directory with the shared app data link', async () => {
     const defaultUserData = path.join(tempRoot, 'default-user-data');
     const isolatedUserData = path.join(tempRoot, 'isolated-user-data');

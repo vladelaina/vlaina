@@ -1,4 +1,10 @@
 import { getCodeBlockSourceText } from '../code/codeBlockText';
+import {
+    consumeClipboardTraversalNode,
+    createClipboardTraversalBudget,
+    getProseNodeChildren,
+    type ClipboardTraversalBudget,
+} from './clipboardTraversalBudget';
 
 function escapeLinkText(text: string): string {
     return text.replace(/([[\]])/g, '\\$1');
@@ -12,7 +18,13 @@ function escapeLinkUrl(url: string): string {
 }
 
 export function serializeSliceToText(slice: any): string {
-    const processNode = (node: any): string => {
+    const budget = createClipboardTraversalBudget();
+
+    const processNode = (node: any, depth: number): string | null => {
+        if (!consumeClipboardTraversalNode(budget, depth)) {
+            return null;
+        }
+
         if (node.isText && node.text) {
             const linkMark = node.marks?.find((m: any) => m.type.name === 'link');
             if (linkMark) {
@@ -35,7 +47,9 @@ export function serializeSliceToText(slice: any): string {
 
         if (node.type.name === 'heading') {
             const level = Math.max(1, Math.min(6, Number(node.attrs?.level) || 1));
-            const content = serializeNodeContent(node).replace(/\n+$/, '');
+            const rawContent = serializeNodeContent(node, depth + 1);
+            if (rawContent === null) return null;
+            const content = rawContent.replace(/\n+$/, '');
             return '#'.repeat(level) + (content ? ' ' + content : '') + '\n';
         }
 
@@ -50,7 +64,8 @@ export function serializeSliceToText(slice: any): string {
         }
 
         if (node.content && node.content.size > 0) {
-            const content = serializeNodeContent(node);
+            const content = serializeNodeContent(node, depth + 1);
+            if (content === null) return null;
             if (node.isBlock) {
                 return content.endsWith('\n') ? content : content + '\n';
             }
@@ -60,18 +75,25 @@ export function serializeSliceToText(slice: any): string {
         return '';
     };
 
-    const serializeNodeContent = (node: any): string => {
+    const serializeNodeContent = (
+        node: any,
+        depth: number,
+    ): string | null => {
         let content = '';
-        node.content?.forEach((child: any) => {
-            content += processNode(child);
-        });
+        for (const child of getProseNodeChildren(node)) {
+            const piece = processNode(child, depth);
+            if (piece === null) return null;
+            content += piece;
+        }
         return content;
     };
 
     let result = '';
-    slice.content.forEach((node: any) => {
-        result += processNode(node);
-    });
+    for (const node of getProseNodeChildren({ content: slice.content })) {
+        const piece = processNode(node, 0);
+        if (piece === null) return '';
+        result += piece;
+    }
 
     return result.replace(/\n+$/, '');
 }

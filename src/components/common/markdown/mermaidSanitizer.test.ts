@@ -81,6 +81,37 @@ describe('mermaidSanitizer', () => {
     expect(label?.querySelector('tspan')?.getAttribute('dy')).toBe('0.35em');
   });
 
+  it('caps Mermaid foreignObject label lines before creating SVG tspans', () => {
+    const content = renderMarkup([
+      '<svg>',
+      '<foreignObject>',
+      '<div xmlns="http://www.w3.org/1999/xhtml">',
+      '<span class="nodeLabel">',
+      Array.from({ length: 100 }, (_, index) => `<p>line ${index}</p>`).join(''),
+      '</span>',
+      '</div>',
+      '</foreignObject>',
+      '</svg>',
+    ].join(''));
+
+    expect(content.querySelectorAll('text.nodeLabel tspan')).toHaveLength(64);
+  });
+
+  it('drops oversized Mermaid foreignObject label text', () => {
+    const content = renderMarkup([
+      '<svg>',
+      '<foreignObject>',
+      '<div xmlns="http://www.w3.org/1999/xhtml">',
+      `<span class="nodeLabel">${'x'.repeat(8193)}</span>`,
+      '</div>',
+      '</foreignObject>',
+      '</svg>',
+    ].join(''));
+
+    expect(content.querySelector('foreignObject')).toBeNull();
+    expect(content.querySelector('text.nodeLabel')).toBeNull();
+  });
+
   it('drops oversized Mermaid markup before DOM sanitization', () => {
     const markup = `<svg><text>${'x'.repeat(2 * 1024 * 1024 + 1)}</text></svg>`;
 

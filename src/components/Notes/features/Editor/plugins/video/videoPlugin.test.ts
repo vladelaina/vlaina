@@ -17,6 +17,7 @@ import {
   sanitizeVideoDebugPayload,
 } from './index';
 import { createVideoDom, getVideoElementAttrs } from './videoDom';
+import { remarkVideoImages } from './videoMarkdown';
 import { insertVideoCommand, videoPlugin } from './videoPlugin';
 
 async function serializeVideoNode(src: string, title = '') {
@@ -52,6 +53,32 @@ function findFirstVideoNode(doc: any) {
     return false;
   });
   return video;
+}
+
+function createVideoImageParagraph() {
+  return {
+    type: 'paragraph',
+    children: [{
+      type: 'image',
+      url: 'https://example.com/video.mp4',
+      alt: 'video',
+      title: '',
+    }],
+  };
+}
+
+function createDeepVideoMarkdownTree(leaf: any) {
+  let current = leaf;
+  for (let index = 0; index < 205; index += 1) {
+    current = {
+      type: 'blockquote',
+      children: [current],
+    };
+  }
+  return {
+    type: 'root',
+    children: [current],
+  };
 }
 
 describe('videoPlugin URL support', () => {
@@ -271,6 +298,14 @@ describe('videoPlugin URL support', () => {
     });
 
     await editor.destroy();
+  });
+
+  it('skips video image markdown transforms for over-budget trees', () => {
+    const tree = createDeepVideoMarkdownTree(createVideoImageParagraph());
+
+    remarkVideoImages()(tree);
+
+    expect(JSON.stringify(tree)).not.toContain('"type":"video"');
   });
 
   it('does not persist the default video alt text as a title', async () => {

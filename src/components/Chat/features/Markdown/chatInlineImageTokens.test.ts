@@ -65,10 +65,10 @@ describe('chatInlineImageTokens', () => {
   it('compacts large data image html tags by replacing only the src value', () => {
     const src = createLargeDataImage('h');
 
-    const result = compactLargeDataImageMarkdown(`<img alt="${src}" src="${src}" data-id="keep">`);
+    const result = compactLargeDataImageMarkdown(`<img alt="inline" src="${src}" data-id="keep">`);
 
     expect(result.replaced).toBe(1);
-    expect(result.markdown).toBe(`<img alt="${src}" src="asset://localhost/chat-inline-image/0" data-id="keep">`);
+    expect(result.markdown).toBe('<img alt="inline" src="asset://localhost/chat-inline-image/0" data-id="keep">');
     expect(resolveCompactedChatImageSrc('asset://localhost/chat-inline-image/0', result.imageSrcByToken)).toBe(src);
   });
 
@@ -100,6 +100,18 @@ describe('chatInlineImageTokens', () => {
     expect(resolveCompactedChatImageSrc('asset://localhost/chat-inline-image/0', result.imageSrcByToken))
       .toBe('asset://localhost/chat-inline-image/0');
     expect(resolveCompactedChatImageSrc('asset://localhost/chat-inline-image/1', result.imageSrcByToken)).toBe(src);
+  });
+
+  it('bounds existing inline image token collection before compacting new images', () => {
+    const src = createLargeDataImage('l');
+    const existing = Array.from(
+      { length: 2500 },
+      (_, index) => `asset://localhost/chat-inline-image/${index}`
+    ).join(' ');
+    const result = compactLargeDataImageMarkdown(`${existing}\n![large](<${src}>)`);
+
+    expect(result.replaced).toBe(1);
+    expect(result.markdown).toContain('![large](<asset://localhost/chat-inline-image/2000>)');
   });
 
   it('does not compact escaped image markdown', () => {

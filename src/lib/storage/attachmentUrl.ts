@@ -1,5 +1,8 @@
 const ATTACHMENT_DIR_MARKER = '/attachments/';
 const ATTACHMENT_FILENAME_UNSAFE_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
+export const MAX_ATTACHMENT_FILENAME_CHARS = 512;
+export const MAX_ATTACHMENT_FILENAME_ENCODED_CHARS = 2048;
+export const MAX_ATTACHMENT_SOURCE_CHARS = 4096;
 
 function stripUrlSuffix(value: string): string {
   const queryIndex = value.indexOf('?');
@@ -12,6 +15,7 @@ export function sanitizeAttachmentFilename(value: string): string | null {
   const normalized = value.trim();
   if (
     !normalized ||
+    normalized.length > MAX_ATTACHMENT_FILENAME_CHARS ||
     normalized === '.' ||
     normalized === '..' ||
     /[\\/]/.test(normalized) ||
@@ -23,6 +27,9 @@ export function sanitizeAttachmentFilename(value: string): string | null {
 }
 
 export function decodeAttachmentFilename(value: string): string | null {
+  if (value.length > MAX_ATTACHMENT_FILENAME_ENCODED_CHARS) {
+    return null;
+  }
   try {
     return sanitizeAttachmentFilename(decodeURIComponent(value));
   } catch {
@@ -39,6 +46,9 @@ export function isAppFileAttachmentUrl(url: URL): boolean {
 
 export function isStoredAttachmentSrc(src: string | null | undefined): boolean {
   const trimmed = src?.trim() ?? '';
+  if (trimmed.length > MAX_ATTACHMENT_SOURCE_CHARS) {
+    return false;
+  }
   const lower = trimmed.toLowerCase();
   return lower.startsWith('attachment://') || lower.startsWith('app-file://attachment/');
 }
@@ -46,6 +56,7 @@ export function isStoredAttachmentSrc(src: string | null | undefined): boolean {
 export function extractStoredAttachmentFilename(src: string | null | undefined): string | null {
   const trimmed = src?.trim() ?? '';
   if (!trimmed) return null;
+  if (trimmed.length > MAX_ATTACHMENT_SOURCE_CHARS) return null;
   const lower = trimmed.toLowerCase();
 
   if (lower.startsWith('attachment://')) {

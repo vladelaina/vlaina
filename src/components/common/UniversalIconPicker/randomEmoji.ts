@@ -1,4 +1,5 @@
 const SKIN_TONE_KEY = 'vlaina-emoji-skin-tone';
+const MAX_SKIN_TONE_STORAGE_CHARS = 64;
 
 const FALLBACK_RANDOM_EMOJIS = ['📝', '✨', '📌', '🎯', '📚', '🌟', '🏇'];
 const headerEmojiPoolByTone = new Map<number, string[]>();
@@ -27,6 +28,9 @@ let emojiConstantsPromise: Promise<EmojiConstantsSnapshot> | null = null;
 export function loadSkinTonePreference(): number {
   try {
     const saved = localStorage.getItem(SKIN_TONE_KEY);
+    if (saved && saved.length > MAX_SKIN_TONE_STORAGE_CHARS) {
+      return 0;
+    }
     return saved ? parseInt(saved, 10) : 0;
   } catch {
     return 0;

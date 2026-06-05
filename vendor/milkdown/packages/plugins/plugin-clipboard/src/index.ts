@@ -14,6 +14,21 @@ import { $prose } from '@milkdown/utils'
 import { isPureText } from './__internal__/is-pure-text'
 import { withMeta } from './__internal__/with-meta'
 
+const maxVscodeEditorDataChars = 16 * 1024
+
+export function parseVscodeEditorDataMode(value: string) {
+  if (!value || value.length > maxVscodeEditorDataChars) return null
+
+  try {
+    const data = JSON.parse(value) as { mode?: unknown }
+    return typeof data?.mode === 'string' && data.mode.length <= 128
+      ? data.mode
+      : null
+  } catch {
+    return null
+  }
+}
+
 /// The prosemirror plugin for clipboard.
 export const clipboard = $prose((ctx) => {
   const schema = ctx.get(schemaCtx)
@@ -41,8 +56,7 @@ export const clipboard = $prose((ctx) => {
         // if is copied from vscode, try to create a code block
         const vscodeData = clipboardData.getData('vscode-editor-data')
         if (vscodeData) {
-          const data = JSON.parse(vscodeData)
-          const language = data?.mode
+          const language = parseVscodeEditorDataMode(vscodeData)
           if (text && language) {
             const { tr } = view.state
             const codeBlock = getNodeFromSchema('code_block', schema)

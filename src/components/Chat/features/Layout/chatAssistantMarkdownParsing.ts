@@ -1,4 +1,5 @@
 import type { ChatMessage } from '@/lib/ai/types';
+import { parseThinkingContent } from '@/lib/ai/stripThinkingContent';
 import {
   buildParsedAssistantMarkdown,
   getStableMarkdownBlocksHeight,
@@ -10,9 +11,7 @@ import {
   touchCacheEntry,
 } from './chatLayoutCache';
 
-const THINK_TAG_RE = /<think>([\s\S]*?)(<\/think>|$)/gi;
 const THINK_OPEN_TAG = '<think>';
-const THINK_CLOSE_TAG = '</think>';
 const PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT = 200;
 const STREAMING_ASSISTANT_MARKDOWN_CACHE_LIMIT = 80;
 const MAX_CACHED_ASSISTANT_MARKDOWN_CHARS = 50_000;
@@ -65,28 +64,9 @@ function cacheParsedAssistantMarkdown(
 }
 
 export function extractThinkingSections(content: string): ThinkingSections {
-  const thinkingParts: string[] = [];
-  let markdown = '';
-  let cursor = 0;
-  let isComplete = true;
-  THINK_TAG_RE.lastIndex = 0;
+  const parsed = parseThinkingContent(content);
 
-  for (const match of content.matchAll(THINK_TAG_RE)) {
-    const start = match.index ?? 0;
-    markdown += content.slice(cursor, start);
-    const rawThinking = match[1] ?? '';
-    const thinking = match[2] === '</think>'
-      ? rawThinking
-      : stripTrailingTagPrefix(rawThinking, THINK_CLOSE_TAG).content;
-    thinkingParts.push(thinking);
-    cursor = start + match[0].length;
-    if (match[2] !== '</think>') {
-      isComplete = false;
-      break;
-    }
-  }
-
-  if (thinkingParts.length === 0) {
+  if (!parsed.hasThinking) {
     const stripped = stripTrailingTagPrefix(content, THINK_OPEN_TAG);
     if (stripped.stripped) {
       return {
@@ -103,14 +83,10 @@ export function extractThinkingSections(content: string): ThinkingSections {
     };
   }
 
-  if (isComplete) {
-    markdown += content.slice(cursor);
-  }
-
   return {
-    body: thinkingParts.join('\n\n'),
-    isComplete,
-    markdown,
+    body: parsed.parts.join('\n\n'),
+    isComplete: parsed.isComplete,
+    markdown: parsed.visible,
   };
 }
 

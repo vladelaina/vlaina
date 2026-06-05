@@ -1,7 +1,25 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { convertToBase64 } from '@/lib/storage/attachmentStorage';
 import { buildStoredUserMessageContent } from './helpers';
 
+const mocks = vi.hoisted(() => ({
+  convertToBase64: vi.fn(),
+}));
+
+vi.mock('@/lib/storage/attachmentStorage', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/storage/attachmentStorage')>();
+  return {
+    ...actual,
+    convertToBase64: mocks.convertToBase64,
+  };
+});
+
 describe('buildStoredUserMessageContent image parsing', () => {
+  beforeEach(() => {
+    mocks.convertToBase64.mockReset();
+    mocks.convertToBase64.mockResolvedValue('data:image/png;base64,REMOTE');
+  });
+
   it('keeps image markdown examples as text instead of vision attachments', async () => {
     const content = [
       'Use this syntax:',
@@ -86,5 +104,36 @@ describe('buildStoredUserMessageContent image parsing', () => {
       },
       { type: 'image_url', image_url: { url: 'data:image/png;base64,REAL' } },
     ]);
+  });
+
+  it('uses a fallback attachment name for oversized relative image sources', async () => {
+    const longImageSource = `images/${'a'.repeat(3000)}.png`;
+    const content = [
+      `![local](${longImageSource})`,
+      '',
+      'Describe this.',
+    ].join('\n');
+
+    await expect(buildStoredUserMessageContent(content)).resolves.toEqual([
+      { type: 'text', text: 'Describe this.' },
+      { type: 'image_url', image_url: { url: 'data:image/png;base64,REMOTE' } },
+    ]);
+    expect(convertToBase64).toHaveBeenCalledWith(expect.objectContaining({
+      assetUrl: longImageSource,
+      name: 'image-1.png',
+      previewUrl: longImageSource,
+      type: 'image/png',
+    }), expect.any(Object));
+  });
+
+  it('bounds stored user message image token collection', async () => {
+    const content = Array.from({ length: 2001 }, (_, index) => {
+      return `![image ${index}](data:image/png;base64,QUJD)`;
+    }).join('\n');
+
+    const result = await buildStoredUserMessageContent(content);
+
+    expect(Array.isArray(result) ? result.filter((part) => part.type === 'image_url') : []).toHaveLength(2000);
+    expect(JSON.stringify(result)).toContain('![image 2000](data:image/png;base64,QUJD)');
   });
 });

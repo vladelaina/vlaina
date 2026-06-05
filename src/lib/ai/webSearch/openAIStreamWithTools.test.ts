@@ -180,6 +180,25 @@ describe('consumeOpenAIStreamWithTools', () => {
     expect(() => response.body?.getReader()).not.toThrow();
   });
 
+  it('rejects tool stream buffers that grow too large before a newline arrives', async () => {
+    const cancel = vi.fn();
+    const encoder = new TextEncoder();
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode('x'.repeat(MAX_OPENAI_STREAM_LINE_CHARS)));
+          controller.enqueue(encoder.encode('x'));
+        },
+        cancel,
+      }),
+    );
+
+    await expect(consumeOpenAIStreamWithTools(response, () => {})).rejects.toThrow('AI stream line is too large');
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
+  });
+
   it('cancels and releases the stream reader when the signal aborts during body reads', async () => {
     const cancel = vi.fn();
     const controller = new AbortController();

@@ -10,15 +10,51 @@ interface FlattedNode {
   className: string[]
 }
 
-function flatNodes(nodes: RootContent[], className: string[] = []) {
-  return nodes.flatMap((node): FlattedNode[] =>
-    node.type === 'element'
-      ? flatNodes(node.children, [
-          ...className,
+export const MAX_PRISM_CODE_CHARS = 200_000
+export const MAX_PRISM_HAST_DEPTH = 200
+export const MAX_PRISM_HAST_NODES = 50_000
+
+export function canHighlightPrismCode(value: string) {
+  return value.length <= MAX_PRISM_CODE_CHARS
+}
+
+export function flatNodes(nodes: RootContent[], className: string[] = []) {
+  const output: FlattedNode[] = []
+  const stack = [{ nodes, index: 0, className, depth: 0 }]
+  let visitedNodes = 0
+
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1]
+    if (frame.index >= frame.nodes.length) {
+      stack.pop()
+      continue
+    }
+
+    const node = frame.nodes[frame.index++]
+    visitedNodes += 1
+    if (visitedNodes > MAX_PRISM_HAST_NODES || frame.depth > MAX_PRISM_HAST_DEPTH) {
+      return null
+    }
+
+    if (node.type === 'element') {
+      stack.push({
+        nodes: node.children,
+        index: 0,
+        className: [
+          ...frame.className,
           ...((node.properties?.className as string[]) || []),
-        ])
-      : [{ text: (node as Text).value, className }]
-  )
+        ],
+        depth: frame.depth + 1,
+      })
+      continue
+    }
+
+    if (node.type === 'text') {
+      output.push({ text: (node as Text).value, className: frame.className })
+    }
+  }
+
+  return output
 }
 
 export function getDecorations(doc: Node, name: string, refractor: Refractor) {
@@ -36,9 +72,24 @@ export function getDecorations(doc: Node, name: string, refractor: Refractor) {
       )
       return
     }
-    const nodes = highlight(block.node.textContent, language)
+    const code = block.node.textContent
+    if (!canHighlightPrismCode(code)) {
+      return
+    }
 
-    flatNodes(nodes.children).forEach((node) => {
+    let nodes: ReturnType<typeof highlight>
+    try {
+      nodes = highlight(code, language)
+    } catch {
+      return
+    }
+
+    const flattenedNodes = flatNodes(nodes.children)
+    if (!flattenedNodes) {
+      return
+    }
+
+    flattenedNodes.forEach((node) => {
       const to = from + node.text.length
 
       if (node.className.length) {

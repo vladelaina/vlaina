@@ -29,6 +29,7 @@ const SEARCH_ENTRY_METADATA = Symbol('notesSidebarSearchEntryMetadata');
 const SEARCH_INDEX_METADATA = Symbol('notesSidebarSearchIndexMetadata');
 const CONTENT_SEARCH_MIN_QUERY_LENGTH = 2;
 const MAX_SEARCH_RESULTS = 200;
+const MAX_SEARCH_INDEX_TREE_ENTRIES = 10_000;
 
 interface NotesSidebarSearchEntryMetadata {
   lowerName: string;
@@ -102,12 +103,19 @@ function getContentSearchEntriesByPath(index: NotesSidebarSearchEntry[]): NotesS
 function collectNotesSidebarSearchEntries(
   children: FileTreeNode[],
   getDisplayName: (path: string) => string,
-  parentPath = '',
-  bucket: NotesSidebarSearchEntry[] = [],
 ) {
-  for (const node of children) {
+  const bucket: NotesSidebarSearchEntry[] = [];
+  const stack = children
+    .slice()
+    .reverse()
+    .map((node) => ({ node, parentPath: '' }));
+
+  while (stack.length > 0 && bucket.length < MAX_SEARCH_INDEX_TREE_ENTRIES) {
+    const { node, parentPath } = stack.pop()!;
     if (node.isFolder) {
-      collectNotesSidebarSearchEntries(node.children, getDisplayName, node.path, bucket);
+      for (let index = node.children.length - 1; index >= 0; index -= 1) {
+        stack.push({ node: node.children[index], parentPath: node.path });
+      }
       continue;
     }
 

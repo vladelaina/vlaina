@@ -80,6 +80,53 @@ describe('notesSidebarSearchResults', () => {
     ]);
   });
 
+  it('builds the search index for deeply nested notes without recursive traversal', () => {
+    let current: FolderNode = {
+      id: 'deep-note',
+      name: 'deep.md',
+      path: 'deep.md',
+      isFolder: false,
+    } as FolderNode;
+
+    for (let depth = 0; depth < 1500; depth += 1) {
+      current = {
+        id: `folder-${depth}`,
+        name: `folder-${depth}`,
+        path: `folder-${depth}`,
+        isFolder: true,
+        expanded: true,
+        children: [current],
+      };
+    }
+
+    expect(buildNotesSidebarSearchIndex(current, () => '')).toEqual([
+      {
+        path: 'deep.md',
+        name: 'deep.md',
+        preview: 'folder-0/',
+      },
+    ]);
+  });
+
+  it('caps oversized tree search indexes', () => {
+    const largeRoot: FolderNode = {
+      id: 'root-large',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: Array.from({ length: 10_001 }, (_, index) => ({
+        id: `note-${index}`,
+        name: `note-${index}.md`,
+        path: `note-${index}.md`,
+        isFolder: false,
+      })),
+    };
+
+    expect(countNotesSidebarSearchEntries(largeRoot)).toBe(10_000);
+    expect(buildNotesSidebarSearchIndex(largeRoot, () => '')).toHaveLength(10_000);
+  });
+
   it('adds external starred notes to the search index without duplicating current vault notes', () => {
     const index = buildNotesSidebarSearchIndex(rootFolder, () => '', {
       currentVaultPath: '/vault',
@@ -347,6 +394,32 @@ describe('notesSidebarSearchResults', () => {
     expect(results).toHaveLength(5);
     expect(results.every((result) => result.matchKind === 'content')).toBe(true);
     expect(results.map((result) => result.contentMatchOrdinal)).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it('skips oversized content search lines before markdown inline parsing', () => {
+    const index = [{
+      path: 'large-line.md',
+      name: 'large-line.md',
+      preview: '',
+    }];
+    const results = queryNotesSidebarSearch(index, 'needle', () =>
+      `${'x'.repeat(70 * 1024)} needle\nshort needle`
+    );
+
+    expect(results.map((result) => result.contentSnippet)).toEqual(['short needle']);
+  });
+
+  it('caps scanned content per note during sidebar content search', () => {
+    const index = [{
+      path: 'large-note.md',
+      name: 'large-note.md',
+      preview: '',
+    }];
+    const results = queryNotesSidebarSearch(index, 'needle', () =>
+      `${Array.from({ length: 1024 }, () => 'x'.repeat(1024)).join('\n')}\nneedle`
+    );
+
+    expect(results).toEqual([]);
   });
 
   it('does not scan note contents when structural search results fill the result cap', () => {

@@ -6,6 +6,8 @@ import {
 } from './markdownImageTokens';
 import { parseVideoUrl } from './videoUrl';
 
+const MAX_RENDERABLE_IMAGE_REPLACEMENT_TOKENS = 2000;
+
 function normalizeImageToken(token: ImageToken): ImageToken | null {
   const src = normalizeRenderableImageSrc(token.src);
   return src ? { ...token, src } : null;
@@ -18,7 +20,11 @@ function normalizeImageTokens(tokens: ImageToken[]): ImageToken[] {
 }
 
 export function replaceRenderableMarkdownImageTokens(content: string, replacement: string): string {
-  return replaceImageTokens(content, normalizeImageTokens(parseMarkdownImageTokens(content)), replacement);
+  return replaceImageTokens(
+    content,
+    normalizeImageTokens(parseMarkdownImageTokens(content, { maxTokens: MAX_RENDERABLE_IMAGE_REPLACEMENT_TOKENS })),
+    replacement
+  );
 }
 
 export function stripRenderableMarkdownImageTokens(content: string): string {

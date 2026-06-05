@@ -97,5 +97,6 @@ describe('web search status markup', () => {
     expect(sanitizeWebSearchSourceUrl('http://10.0.0.1/admin')).toBeNull();
     expect(sanitizeWebSearchSourceUrl('http://service.local/admin')).toBeNull();
     expect(sanitizeWebSearchSourceUrl('https://example.com/\u0000path')).toBeNull();
+    expect(sanitizeWebSearchSourceUrl(`https://example.com/${'a'.repeat(4096)}`)).toBeNull();
   });
 });

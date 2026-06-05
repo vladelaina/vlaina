@@ -14,8 +14,18 @@ interface UseImageMediaLifecycleOptions {
     updateNodeAttrs: (attrs: ImageNodeAttrs) => void;
 }
 
+const MAX_CAPTION_SOURCE_CHARS = 4096;
+const MAX_CAPTION_FILENAME_SEGMENT_DECODE_CHARS = 2048;
+const MAX_CAPTION_CHARS = 512;
+
+function normalizeFilenameCaption(value: string): string | null {
+    const normalized = value.trim();
+    return normalized && normalized.length <= MAX_CAPTION_CHARS ? normalized : null;
+}
+
 function extractFilenameCaption(src: string): string | null {
     if (!src) return null;
+    if (src.length > MAX_CAPTION_SOURCE_CHARS) return null;
 
     const normalizedSrc = src.replace(/\\/g, '/');
     const filename = normalizedSrc.substring(normalizedSrc.lastIndexOf('/') + 1);
@@ -23,11 +33,12 @@ function extractFilenameCaption(src: string): string | null {
 
     const nameWithoutExt = filename.replace(/\.[^/.]+$/, '').trim();
     if (!nameWithoutExt) return null;
+    if (nameWithoutExt.length > MAX_CAPTION_FILENAME_SEGMENT_DECODE_CHARS) return null;
 
     try {
-        return decodeURIComponent(nameWithoutExt);
+        return normalizeFilenameCaption(decodeURIComponent(nameWithoutExt));
     } catch {
-        return nameWithoutExt;
+        return normalizeFilenameCaption(nameWithoutExt);
     }
 }
 

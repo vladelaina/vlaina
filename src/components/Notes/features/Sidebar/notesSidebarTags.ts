@@ -34,6 +34,7 @@ export interface NotesSidebarTagIndex {
 }
 
 const MAX_SIDEBAR_TAGS = 200;
+const MAX_SIDEBAR_TAG_SCOPE_PATHS = 10_000;
 
 function isPathInsideFolder(path: string, folderPath: string): boolean {
   if (!folderPath) {
@@ -48,9 +49,14 @@ function collectNotePaths(
   bucket: Set<string>,
   folderFilter?: (path: string) => boolean,
 ): void {
-  for (const node of nodes) {
+  const stack = [...nodes].reverse();
+
+  while (stack.length > 0 && bucket.size < MAX_SIDEBAR_TAG_SCOPE_PATHS) {
+    const node = stack.pop()!;
     if (node.isFolder) {
-      collectNotePaths(node.children, bucket, folderFilter);
+      for (let index = node.children.length - 1; index >= 0; index -= 1) {
+        stack.push(node.children[index]);
+      }
       continue;
     }
 

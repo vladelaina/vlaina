@@ -8,6 +8,10 @@ function createOversizedDataImageSrc(): string {
   return `data:image/png;base64,${payload}`;
 }
 
+function createDataImageSrc(payloadChars: number): string {
+  return `data:image/png;base64,${"A".repeat(payloadChars)}`;
+}
+
 function createDeepHastTree(leaf: any): any {
   let current = leaf;
 
@@ -111,6 +115,13 @@ describe("normalizeRenderableImageSrc", () => {
     expect(isRenderableDataImageSrc(oversizedSrc)).toBe(false);
     expect(normalizeRenderableImageSrc(oversizedSrc)).toBeNull();
   });
+
+  it("rejects oversized non-data image sources", () => {
+    const oversizedSegment = "a".repeat(4097);
+
+    expect(normalizeRenderableImageSrc(`https://example.com/${oversizedSegment}.png`)).toBeNull();
+    expect(normalizeRenderableImageSrc(`images/${oversizedSegment}.png`)).toBeNull();
+  });
 });
 
 describe("normalizeRenderableImageSrcset", () => {
@@ -130,6 +141,28 @@ describe("normalizeRenderableImageSrcset", () => {
     expect(normalizeRenderableImageSrcset("data:image/svg+xml;base64,PHN2Zz4= 1x")).toBeNull();
     expect(normalizeRenderableImageSrcset(`${createOversizedDataImageSrc()} 1x`)).toBeNull();
     expect(normalizeRenderableImageSrcset("https://example.com/a.webp 1x, http://192.168.1.8/secret.png 2x")).toBeNull();
+  });
+
+  it("allows data image srcset candidates above the ordinary srcset length limit", () => {
+    const largeDataSrc = createDataImageSrc(70 * 1024);
+
+    expect(normalizeRenderableImageSrcset(`${largeDataSrc} 1x`)).toBe(`${largeDataSrc} 1x`);
+  });
+
+  it("rejects oversized non-data srcset attributes", () => {
+    const oversizedSrcset = Array.from({ length: 128 }, (_, index) => {
+      return `https://example.com/${"a".repeat(480)}-${index}.webp 1x`;
+    }).join(", ");
+
+    expect(normalizeRenderableImageSrcset(oversizedSrcset)).toBeNull();
+  });
+
+  it("rejects srcset attributes with too many candidates", () => {
+    const oversizedCandidateList = Array.from({ length: 129 }, (_, index) => {
+      return `images/${index}.webp 1x`;
+    }).join(", ");
+
+    expect(normalizeRenderableImageSrcset(oversizedCandidateList)).toBeNull();
   });
 });
 

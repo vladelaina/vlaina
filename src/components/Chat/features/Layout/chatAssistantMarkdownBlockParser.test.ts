@@ -73,6 +73,17 @@ describe('parseMarkdownMeasurementBlocks', () => {
     ]);
   });
 
+  it('bounds video image token scans during layout parsing', () => {
+    const markdown = Array.from({ length: 2001 }, (_, index) => {
+      return `![video ${index}](https://example.com/${index}.mp4)`;
+    }).join('\n');
+
+    const blocks = parseMarkdownMeasurementBlocks(markdown);
+
+    expect(blocks.filter((block) => block.kind === 'video')).toHaveLength(2000);
+    expect(blocks.some((block) => block.kind === 'text')).toBe(true);
+  });
+
   it('does not cache oversized markdown block parses by full content', () => {
     const smallMarkdown = 'Small paragraph';
     expect(parseMarkdownMeasurementBlocks(smallMarkdown)).toBe(parseMarkdownMeasurementBlocks(smallMarkdown));

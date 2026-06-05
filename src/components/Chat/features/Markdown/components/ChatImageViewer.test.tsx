@@ -184,6 +184,47 @@ describe('ChatImageViewer', () => {
     );
   });
 
+  it('still matches short decoded gallery image sources', async () => {
+    const onOpenChange = vi.fn();
+
+    render(
+      <ChatImageViewer
+        open
+        src="https://example.com/demo%20image.png"
+        alt="preview"
+        gallery={[
+          { id: 'current', src: 'https://example.com/demo image.png' },
+          { id: 'next', src: 'https://example.com/next.png' },
+        ]}
+        onOpenChange={onOpenChange}
+      />,
+    );
+
+    await screen.findByRole('dialog', { name: 'preview' });
+    expect(await screen.findByRole('button', { name: 'Next image' })).toBeInTheDocument();
+  });
+
+  it('does not decode oversized gallery image sources for comparison', async () => {
+    const onOpenChange = vi.fn();
+    const encodedTail = `${'a'.repeat(4100)}%20image.png`;
+
+    render(
+      <ChatImageViewer
+        open
+        src={`https://example.com/${encodedTail}`}
+        alt="preview"
+        gallery={[
+          { id: 'current', src: `https://example.com/${encodedTail.replace('%20', ' ')}` },
+          { id: 'next', src: 'https://example.com/next.png' },
+        ]}
+        onOpenChange={onOpenChange}
+      />,
+    );
+
+    await screen.findByRole('dialog', { name: 'preview' });
+    expect(screen.queryByRole('button', { name: 'Next image' })).not.toBeInTheDocument();
+  });
+
   it('does not keep direct data image sources in the resolved attachment cache', async () => {
     const onOpenChange = vi.fn();
     const src = 'data:image/png;base64,AAAA';

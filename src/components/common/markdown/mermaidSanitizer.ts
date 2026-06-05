@@ -4,6 +4,8 @@ import { themeColorTokens, themeMermaidTokens } from '@/styles/themeTokens';
 const MAX_MERMAID_SANITIZE_DEPTH = 200;
 const MAX_MERMAID_SANITIZE_NODES = 20_000;
 const MAX_MERMAID_MARKUP_CHARS = 2 * 1024 * 1024;
+const MAX_MERMAID_LABEL_TEXT_CHARS = 8192;
+const MAX_MERMAID_LABEL_LINES = 64;
 const MERMAID_FORBIDDEN_TAGS = ['foreignObject', 'script', 'iframe', 'object', 'embed'];
 const SVG_RESOURCE_HREF_TAGS = new Set([
   'feimage',
@@ -211,25 +213,42 @@ function extractMermaidLabelLines(labelElement: Element | null) {
     return [];
   }
 
-  const paragraphs = Array.from(labelElement.querySelectorAll('p'))
-    .flatMap(extractElementTextLines)
-    .filter((line) => line.length > 0);
+  const paragraphs: string[] = [];
+  for (const paragraph of labelElement.querySelectorAll('p')) {
+    if (!appendElementTextLines(paragraph, paragraphs)) {
+      return [];
+    }
+    if (paragraphs.length >= MAX_MERMAID_LABEL_LINES) {
+      break;
+    }
+  }
   if (paragraphs.length > 0) {
     return paragraphs;
   }
 
-  return extractElementTextLines(labelElement);
+  const lines: string[] = [];
+  return appendElementTextLines(labelElement, lines) ? lines : [];
 }
 
-function extractElementTextLines(element: Element) {
+function appendElementTextLines(element: Element, lines: string[]) {
+  if ((element.textContent || '').length > MAX_MERMAID_LABEL_TEXT_CHARS) {
+    return false;
+  }
+
   const clone = element.cloneNode(true) as Element;
   clone.querySelectorAll('br').forEach((br) => {
     br.replaceWith(clone.ownerDocument.createTextNode('\n'));
   });
-  return (clone.textContent || '')
+  for (const line of (clone.textContent || '')
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+    .filter((line) => line.length > 0)) {
+    lines.push(line);
+    if (lines.length >= MAX_MERMAID_LABEL_LINES) {
+      break;
+    }
+  }
+  return true;
 }
 
 function resolveForeignObjectCenterCoord(

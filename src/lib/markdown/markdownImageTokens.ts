@@ -26,6 +26,8 @@ export interface ImageTokenParseOptions {
   maxTokens?: number;
 }
 
+const MAX_DEFAULT_IMAGE_TOKENS = 2000;
+
 function getMaxTokens(options?: ImageTokenParseOptions): number {
   const value = options?.maxTokens;
   if (value === undefined) return Number.POSITIVE_INFINITY;
@@ -346,7 +348,7 @@ export function stripImageTokens(content: string, tokens: ImageToken[]): string 
 }
 
 export function replaceMarkdownImageTokens(content: string, replacement: string): string {
-  return replaceImageTokens(content, parseMarkdownImageTokens(content), replacement);
+  return replaceImageTokens(content, parseMarkdownImageTokens(content, { maxTokens: MAX_DEFAULT_IMAGE_TOKENS }), replacement);
 }
 
 export function stripMarkdownImageTokens(content: string): string {

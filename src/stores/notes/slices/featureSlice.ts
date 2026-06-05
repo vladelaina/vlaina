@@ -37,6 +37,7 @@ function escapeRegExp(value: string): string {
 const MAX_SEARCHABLE_NOTE_BYTES = 512 * 1024;
 const MAX_SCANNED_NOTE_CONTENT_CHARS = 8 * 1024 * 1024;
 const MAX_METADATA_UPDATE_NOTE_BYTES = 10 * 1024 * 1024;
+const MAX_NOTE_CONTENT_SCAN_PATHS = 5000;
 const ICON_SYMBOL_SCHEME_PATTERN = /^icon:/i;
 
 function canReadBoundedMarkdownFile(
@@ -49,6 +50,39 @@ function canReadBoundedMarkdownFile(
     typeof fileInfo?.size === 'number' &&
     fileInfo.size <= maxBytes
   );
+}
+
+function collectNoteContentScanPaths(
+  nodes: readonly FileTreeNode[],
+  notesPath: string,
+  isScanActive: () => boolean,
+): { path: string; fullPath: string }[] {
+  const filePaths: { path: string; fullPath: string }[] = [];
+  const stack = [...nodes].reverse();
+
+  while (stack.length > 0 && filePaths.length < MAX_NOTE_CONTENT_SCAN_PATHS) {
+    if (!isScanActive()) {
+      return filePaths;
+    }
+
+    const node = stack.pop()!;
+    if (node.isFolder) {
+      for (let index = node.children.length - 1; index >= 0; index -= 1) {
+        stack.push(node.children[index]);
+      }
+      continue;
+    }
+
+    const relativePath = normalizeVaultRelativePath(node.path);
+    if (relativePath) {
+      filePaths.push({
+        path: relativePath,
+        fullPath: joinLocalPath(notesPath, relativePath),
+      });
+    }
+  }
+
+  return filePaths;
 }
 
 function replaceNoteEntry(
@@ -456,30 +490,8 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       try {
         const storage = getStorageAdapter();
         const scannedCache: NotesStore['noteContentsCache'] = new Map();
-        const filePaths: { path: string; fullPath: string }[] = [];
         const filePathsToRead: { path: string; fullPath: string }[] = [];
-
-        const collectPaths = (nodes: FileTreeNode[]) => {
-          for (const node of nodes) {
-            if (!isScanActive()) {
-              return;
-            }
-
-            if (node.isFolder) {
-              collectPaths(node.children);
-            } else {
-              const relativePath = normalizeVaultRelativePath(node.path);
-              if (relativePath) {
-                filePaths.push({
-                  path: relativePath,
-                  fullPath: joinLocalPath(notesPath, relativePath),
-                });
-              }
-            }
-          }
-        };
-
-        collectPaths(rootFolder.children);
+        const filePaths = collectNoteContentScanPaths(rootFolder.children, notesPath, isScanActive);
         if (!isScanActive()) {
           return;
         }

@@ -21,6 +21,9 @@ const VAULT_STATE_VERSION = 1;
 const MAX_VAULT_STATE_BYTES = 256 * 1024;
 const MAX_RECENT_VAULTS_STORAGE_CHARS = 64 * 1024;
 const MAX_CURRENT_VAULT_ID_STORAGE_CHARS = 4096;
+const MAX_VAULT_ID_CHARS = 256;
+const MAX_VAULT_NAME_CHARS = 512;
+const MAX_VAULT_PATH_CHARS = 4096;
 
 const MAX_RECENT_VAULTS = 5;
 
@@ -228,22 +231,53 @@ export function getVaultName(path: string): string {
   return parts[parts.length - 1] || 'Untitled';
 }
 
-export function normalizeVaultInfo(vault: VaultInfo): VaultInfo {
-  const normalizedPath = normalizeVaultPath(vault.path);
+function normalizeVaultTimestamp(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : Date.now();
+}
+
+export function normalizeVaultInfo(vault: VaultInfo): VaultInfo;
+export function normalizeVaultInfo(vault: unknown): VaultInfo | null;
+export function normalizeVaultInfo(vault: unknown): VaultInfo | null {
+  if (!vault || typeof vault !== 'object') {
+    return null;
+  }
+
+  const candidate = vault as Partial<VaultInfo>;
+  if (
+    typeof candidate.path !== 'string' ||
+    candidate.path.length === 0 ||
+    candidate.path.length > MAX_VAULT_PATH_CHARS
+  ) {
+    return null;
+  }
+
+  const normalizedPath = normalizeVaultPath(candidate.path);
+  const id = typeof candidate.id === 'string' && candidate.id.length <= MAX_VAULT_ID_CHARS
+    ? candidate.id
+    : generateVaultId();
+  const name = typeof candidate.name === 'string' && candidate.name.length <= MAX_VAULT_NAME_CHARS
+    ? candidate.name
+    : '';
+
   return {
-    ...vault,
-    name: vault.name || getVaultName(normalizedPath),
+    id,
+    name: name || getVaultName(normalizedPath),
     path: normalizedPath,
+    lastOpened: normalizeVaultTimestamp(candidate.lastOpened),
   };
 }
 
-export function normalizeRecentVaults(vaults: VaultInfo[]): VaultInfo[] {
+export function normalizeRecentVaults(vaults: unknown): VaultInfo[] {
+  if (!Array.isArray(vaults)) {
+    return [];
+  }
+
   const seenPaths = new Set<string>();
   const normalizedVaults: VaultInfo[] = [];
 
   for (const vault of vaults) {
     const normalizedVault = normalizeVaultInfo(vault);
-    if (seenPaths.has(normalizedVault.path)) {
+    if (!normalizedVault || seenPaths.has(normalizedVault.path)) {
       continue;
     }
 

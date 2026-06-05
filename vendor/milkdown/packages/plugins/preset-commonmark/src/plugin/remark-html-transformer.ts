@@ -8,6 +8,7 @@ import {
   sanitizerOnlyDropWithContentTags,
 } from '../node/github-html'
 import { prepareGithubRawHtmlForSanitizerFragment } from '../node/github-raw-html'
+import { canTransformRemarkAst } from './remark-ast-budget'
 
 const isParent = (node: Node): node is Node & { children: Node[] } =>
   !!(node as Node & { children: Node[] }).children
@@ -102,6 +103,8 @@ function sanitizeRawHtmlNode(node: Node, state: RawHtmlState) {
 export const remarkHtmlTransformer = $remark(
   'remarkHTMLTransformer',
   () => () => (tree: Node) => {
+    if (!canTransformRemarkAst(tree)) return
+
     flatMapWithDepth(tree, (node, _index, parent) => {
       if (!isHTML(node)) return [node]
 

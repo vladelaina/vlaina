@@ -25,6 +25,8 @@ const STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME = 'vlaina_image_vault_subfolder_nam
 const STORAGE_KEY_IMAGE_FILENAME_FORMAT = 'vlaina_image_filename_format';
 const STORAGE_KEY_LANGUAGE_PREFERENCE = 'vlaina-language-preference';
 const STORAGE_KEY_LAST_APP_VIEW_MODE = 'vlaina_last_app_view_mode';
+const MAX_UI_SCALAR_STORAGE_CHARS = 256;
+const MAX_IMAGE_SUBFOLDER_NAME_CHARS = 128;
 
 export type AppViewMode = 'notes' | 'chat' | 'lab';
 export type NotesSidebarView = 'workspace' | 'outline';
@@ -119,9 +121,17 @@ type UIPreferenceState = Pick<
   | 'notesChatPanelCollapsed'
 >;
 
+function loadScalarString(key: string): string | null {
+  const saved = localStorage.getItem(key);
+  if (saved !== null && saved.length > MAX_UI_SCALAR_STORAGE_CHARS) {
+    return null;
+  }
+  return saved;
+}
+
 function loadBoolean(key: string, defaultValue: boolean): boolean {
   try {
-    const saved = localStorage.getItem(key);
+    const saved = loadScalarString(key);
     if (saved !== null) {
       return saved === 'true';
     }
@@ -160,7 +170,7 @@ function removePreferenceString(key: string): void {
 
 function loadNumber(key: string, defaultValue: number): number {
   try {
-    const saved = localStorage.getItem(key);
+    const saved = loadScalarString(key);
     if (saved !== null) {
       const parsed = parseFloat(saved);
       return Number.isNaN(parsed) ? defaultValue : parsed;
@@ -180,7 +190,7 @@ function loadFontSize(): number {
 
 function loadImageStorageMode(): ImageStorageMode {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY_IMAGE_STORAGE_MODE);
+    const saved = loadScalarString(STORAGE_KEY_IMAGE_STORAGE_MODE);
     if (saved === 'vault' || saved === 'vaultSubfolder' || saved === 'currentFolder' || saved === 'subfolder') {
       return saved;
     }
@@ -189,10 +199,17 @@ function loadImageStorageMode(): ImageStorageMode {
   return 'subfolder';
 }
 
+function sanitizeImageSubfolderPreference(name: string | null | undefined): string | null {
+  const sanitized = (name || '').replace(/[<>:"/\\|?*]/g, '').trim();
+  if (sanitized.length > MAX_IMAGE_SUBFOLDER_NAME_CHARS) {
+    return null;
+  }
+  return sanitized;
+}
+
 function loadImageSubfolderName(): string {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY_IMAGE_SUBFOLDER_NAME);
-    if (saved) return saved;
+    return sanitizeImageSubfolderPreference(loadScalarString(STORAGE_KEY_IMAGE_SUBFOLDER_NAME)) || 'assets';
   } catch {
   }
   return 'assets';
@@ -200,8 +217,7 @@ function loadImageSubfolderName(): string {
 
 function loadImageVaultSubfolderName(): string {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME);
-    if (saved) return saved;
+    return sanitizeImageSubfolderPreference(loadScalarString(STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME)) || 'assets';
   } catch {
   }
   return 'assets';
@@ -209,7 +225,7 @@ function loadImageVaultSubfolderName(): string {
 
 function loadImageFilenameFormat(): ImageFilenameFormat {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY_IMAGE_FILENAME_FORMAT);
+    const saved = loadScalarString(STORAGE_KEY_IMAGE_FILENAME_FORMAT);
     if (saved === 'original' || saved === 'timestamp' || saved === 'sequence') {
       return saved;
     }
@@ -224,7 +240,7 @@ function loadNotesChatPanelCollapsed(): boolean {
 
 function loadLastAppViewMode(): Extract<AppViewMode, 'notes' | 'chat'> {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY_LAST_APP_VIEW_MODE);
+    const saved = loadScalarString(STORAGE_KEY_LAST_APP_VIEW_MODE);
     if (saved === 'notes' || saved === 'chat') {
       return saved;
     }
@@ -241,7 +257,7 @@ function saveLastAppViewMode(mode: AppViewMode): void {
 
 function loadLanguagePreference(): AppLanguagePreference {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY_LANGUAGE_PREFERENCE);
+    const saved = loadScalarString(STORAGE_KEY_LANGUAGE_PREFERENCE);
     const normalized = normalizeAppLanguagePreference(saved);
     if (normalized) {
       return normalized;
@@ -371,12 +387,12 @@ export const useUIStore = create<UIStore>()((set) => ({
     set({ imageStorageMode: mode });
   },
   setImageSubfolderName: (name) => {
-    const sanitized = name.replace(/[<>:"/\\|?*]/g, '').trim();
+    const sanitized = sanitizeImageSubfolderPreference(name) ?? 'assets';
     savePreferenceString(STORAGE_KEY_IMAGE_SUBFOLDER_NAME, sanitized);
     set({ imageSubfolderName: sanitized });
   },
   setImageVaultSubfolderName: (name) => {
-    const sanitized = name.replace(/[<>:"/\\|?*]/g, '').trim();
+    const sanitized = sanitizeImageSubfolderPreference(name) ?? 'assets';
     savePreferenceString(STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME, sanitized);
     set({ imageVaultSubfolderName: sanitized });
   },

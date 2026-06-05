@@ -482,6 +482,25 @@ describe('managed ipc stream bridge', () => {
     expect(sender.send).toHaveBeenCalledWith('desktop:managed:stream:managed-final:done', { content: 'final' });
   });
 
+  it('rejects managed stream buffers that grow too large before a newline arrives', async () => {
+    const fetchWithStoredSession = vi.fn(async () => streamResponse([
+      'x'.repeat(MAX_MANAGED_STREAM_LINE_CHARS),
+      'x',
+    ]));
+    const { handlers } = registerHarness({ fetchWithStoredSession });
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+
+    await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-oversized-buffer', {});
+    await waitForSenderCall(sender, ([channel]) =>
+      channel === 'desktop:managed:stream:managed-oversized-buffer:error'
+    );
+
+    expect(sender.send).toHaveBeenCalledWith(
+      'desktop:managed:stream:managed-oversized-buffer:error',
+      { message: 'Managed stream line is too large.', statusCode: undefined, errorCode: undefined },
+    );
+  });
+
   it('keeps resumed managed reasoning hidden after visible content has started', async () => {
     const fetchWithStoredSession = vi.fn(async () => streamResponse([
       'data: {"choices":[{"delta":{"reasoning_content":"first"}}]}\n\n',

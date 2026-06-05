@@ -265,6 +265,12 @@ describe('crawler error classification', () => {
     expect(prepareCrawlerUrl(`https://www.bing.com/ck/a?u=a1${encodedTarget}`)).toBe(targetUrl);
   });
 
+  it('does not unwrap oversized search redirect targets', () => {
+    const rawUrl = `https://www.bing.com/ck/a?u=a1${'a'.repeat(4097)}`;
+
+    expect(prepareCrawlerUrl(rawUrl)).toBe(rawUrl);
+  });
+
   it('keeps plain text content unchanged', async () => {
     const codeText = 'const value = input < limit ? input : limit;\n'.repeat(5);
     const crawler = new Crawler({

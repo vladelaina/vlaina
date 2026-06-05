@@ -32,4 +32,15 @@ describe('renderableImageTokens', () => {
       ),
     ).toBe('[Image]');
   });
+
+  it('bounds renderable markdown image replacement work', () => {
+    const content = Array.from({ length: 2001 }, (_, index) => {
+      return `![image ${index}](https://example.com/${index}.png)`;
+    }).join('\n');
+
+    const replaced = replaceRenderableMarkdownImageTokens(content, '[Image]');
+
+    expect(replaced.match(/\[Image\]/g)).toHaveLength(2000);
+    expect(replaced).toContain('![image 2000](https://example.com/2000.png)');
+  });
 });

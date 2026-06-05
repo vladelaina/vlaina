@@ -139,6 +139,13 @@ function assertManagedStreamLineLength(line) {
   }
 }
 
+function appendManagedStreamBuffer(buffer, next) {
+  if (buffer.length + next.length > MAX_MANAGED_STREAM_LINE_CHARS) {
+    throw new Error('Managed stream line is too large.');
+  }
+  return buffer + next;
+}
+
 async function readManagedErrorText(response, signal) {
   if (!response.body) {
     return '';
@@ -541,7 +548,7 @@ export function registerManagedIpc({
               break;
             }
 
-            buffer += decoder.decode(value, { stream: true });
+            buffer = appendManagedStreamBuffer(buffer, decoder.decode(value, { stream: true }));
             const lines = buffer.split('\n');
             buffer = lines.pop() || '';
 

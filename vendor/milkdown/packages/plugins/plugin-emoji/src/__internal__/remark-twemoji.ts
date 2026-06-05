@@ -3,6 +3,7 @@ import type { Node, RemarkPluginRaw } from '@milkdown/transformer'
 import emojiRegex from 'emoji-regex'
 
 import { type TwemojiOptions, parse } from './parse'
+import { canTransformRemarkAst } from './remark-ast-budget'
 
 const regex = emojiRegex()
 
@@ -43,6 +44,8 @@ export const twemojiPlugin: RemarkPluginRaw<TwemojiOptions> = (
   twemojiOptions
 ) => {
   function transformer(tree: Node) {
+    if (!canTransformRemarkAst(tree)) return
+
     flatMap(tree, (node) => {
       if (!isLiteral(node)) return [node]
 

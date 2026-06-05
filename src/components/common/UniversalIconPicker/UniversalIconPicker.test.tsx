@@ -2,7 +2,16 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UniversalIconPicker } from './index';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
-import { ACTIVE_TAB_KEY, RECENT_ICONS_KEY, SKIN_TONE_KEY } from './constants';
+import {
+  ACTIVE_TAB_KEY,
+  ICON_COLOR_KEY,
+  RECENT_ICONS_KEY,
+  SKIN_TONE_KEY,
+  loadActiveTab,
+  loadIconColor,
+  loadRecentIcons,
+  loadSkinTone,
+} from './constants';
 
 vi.mock('./EmojiTab', () => ({
   EmojiTab: ({ recentEmojis, skinTone }: { recentEmojis: string[]; skinTone: number }) => (
@@ -162,5 +171,17 @@ describe('UniversalIconPicker', () => {
     );
 
     expect(screen.getByTestId('emoji-tab')).toHaveAttribute('data-recent', '😀');
+  });
+
+  it('ignores oversized persisted icon picker preferences', () => {
+    localStorage.setItem(SKIN_TONE_KEY, '2'.repeat(65));
+    localStorage.setItem(ICON_COLOR_KEY, 'a'.repeat(65));
+    localStorage.setItem(ACTIVE_TAB_KEY, 'upload'.repeat(20));
+    localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(['😀', 'x'.repeat(2049)]));
+
+    expect(loadSkinTone()).toBe(0);
+    expect(loadIconColor()).toBe('amber');
+    expect(loadActiveTab()).toBe('emoji');
+    expect(loadRecentIcons()).toEqual(['😀']);
   });
 });

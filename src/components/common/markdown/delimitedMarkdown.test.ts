@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MAX_DELIMITED_MARKDOWN_TEXT_CHARS,
   findDelimitedTextMatches,
   isUnescapedMarkdownTextRange,
 } from './delimitedMarkdown';
@@ -63,5 +64,14 @@ describe('findDelimitedTextMatches', () => {
       markdown: '\\*[HTML]: Text',
       position: { start: { offset: 0 }, end: { offset: 14 } },
     })).toBe(false);
+  });
+
+  it('skips overlong text nodes before delimiter scanning', () => {
+    const value = `${'a'.repeat(MAX_DELIMITED_MARKDOWN_TEXT_CHARS + 1)} ==mark==`;
+
+    expect(findDelimitedTextMatches(value, /==([^=]+)==/g, {
+      openDelimiterLength: 2,
+    })).toEqual([]);
+    expect(isUnescapedMarkdownTextRange(value, value.length - 1, 1)).toBe(false);
   });
 });

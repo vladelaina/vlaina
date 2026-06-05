@@ -12,11 +12,12 @@ const IMAGE_EXT_BY_MIME: Record<string, string> = {
   "image/gif": "gif",
   "image/bmp": "bmp",
 };
+const MAX_DOWNLOAD_FILENAME_STEM_CHARS = 180;
 
 function sanitizeFileStem(value: string): string {
   const trimmed = value.trim();
   const normalized = trimmed.replace(/[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD<>:"/\\|?*]+/g, "_");
-  return normalized || "image";
+  return normalized ? normalized.slice(0, MAX_DOWNLOAD_FILENAME_STEM_CHARS) : "image";
 }
 
 function buildTimestampStem(): string {

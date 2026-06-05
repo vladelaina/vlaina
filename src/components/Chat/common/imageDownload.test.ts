@@ -235,6 +235,16 @@ describe('imageDownload', () => {
     }));
   });
 
+  it('bounds the suggested file name from long alt text', async () => {
+    mocks.fetch.mockResolvedValue(imageResponse(new Blob([new Uint8Array([1])], { type: 'image/png' })));
+
+    await downloadImageWithPrompt('https://example.com/image.png', 'a'.repeat(2000));
+
+    expect(mocks.saveDialog).toHaveBeenCalledWith(expect.objectContaining({
+      defaultPath: `${'a'.repeat(180)}.png`,
+    }));
+  });
+
   it('does not read, save, or anchor-download oversized fetched image responses', async () => {
     const blob = vi.fn(async () => new Blob([new Uint8Array([1])], { type: 'image/png' }));
     mocks.fetch.mockResolvedValue({

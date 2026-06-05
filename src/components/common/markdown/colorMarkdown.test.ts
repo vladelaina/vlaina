@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MAX_INLINE_COLOR_HTML_CHARS,
   replaceInlineColorHtmlMark,
   replaceUnderlineMarkdown,
   type ColorMarkdownMdastNode,
@@ -83,6 +84,40 @@ describe('colorMarkdown', () => {
     replaceInlineColorHtmlMark(tree);
 
     expect(leaf.children).toEqual(leafChildren);
+  });
+
+  it('skips overlong inline color html conversion', () => {
+    const value = `<span style="color: #123456">${'a'.repeat(MAX_INLINE_COLOR_HTML_CHARS)}</span>`;
+    const tree: ColorMarkdownMdastNode = {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [{ type: 'html', value }],
+        },
+      ],
+    };
+
+    replaceInlineColorHtmlMark(tree);
+
+    expect(tree.children?.[0].children).toEqual([{ type: 'html', value }]);
+  });
+
+  it('skips overlong inline color style declarations', () => {
+    const value = `<span style="${'a'.repeat(1100)}; color: #123456">text</span>`;
+    const tree: ColorMarkdownMdastNode = {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [{ type: 'html', value }],
+        },
+      ],
+    };
+
+    replaceInlineColorHtmlMark(tree);
+
+    expect(tree.children?.[0].children).toEqual([{ type: 'html', value }]);
   });
 
   it('skips underline conversion on over-deep trees', () => {

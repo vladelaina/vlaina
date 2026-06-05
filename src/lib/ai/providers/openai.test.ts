@@ -804,6 +804,46 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(result).toBe('![A \\] weird prompt](<data:image/png;base64,abc123>)');
   });
 
+  it('drops invalid or oversized generated image base64 payloads', async () => {
+    const oversizedPayload = 'A'.repeat(Math.ceil((MAX_INLINE_IMAGE_BYTES + 1) / 3) * 4);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        data: [
+          { b64_json: 'not base64!', revised_prompt: 'Invalid' },
+          { b64_json: oversizedPayload, revised_prompt: 'Too large' },
+        ],
+      }), { status: 200 }),
+    ));
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'draw',
+      [],
+      buildModel({ apiModelId: 'gpt-image-2', name: 'GPT Image 2' }),
+      buildProvider(),
+      vi.fn(),
+    );
+
+    expect(result).toBe('');
+  });
+
+  it('bounds generated image alt text from revised prompts', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        data: [{ b64_json: 'abc123', revised_prompt: 'a'.repeat(1000) }],
+      }), { status: 200 }),
+    ));
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'draw',
+      [],
+      buildModel({ apiModelId: 'gpt-image-2', name: 'GPT Image 2' }),
+      buildProvider(),
+      vi.fn(),
+    );
+
+    expect(result).toBe(`![${'a'.repeat(300)}](<data:image/png;base64,abc123>)`);
+  });
+
   it('recognizes standalone image model names with provider prefixes and mixed separators', async () => {
     const cases = [
       'OpenAI/GPT_Image_2',

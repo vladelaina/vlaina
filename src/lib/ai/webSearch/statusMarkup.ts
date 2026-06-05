@@ -4,12 +4,13 @@ import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity';
 const WEB_SEARCH_STATUS_REGEX = /<web-search-status>([\s\S]*?)<\/web-search-status>/gi;
 const VALID_PHASES = new Set(['searching', 'results', 'reading', 'complete', 'error']);
 const MAX_STATUS_JSON_LENGTH = 20000;
+const MAX_SOURCE_URL_LENGTH = 4096;
 const UNSAFE_URL_CHARS_REGEX = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 export function sanitizeWebSearchSourceUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
-  if (!trimmed || UNSAFE_URL_CHARS_REGEX.test(trimmed)) return null;
+  if (!trimmed || trimmed.length > MAX_SOURCE_URL_LENGTH || UNSAFE_URL_CHARS_REGEX.test(trimmed)) return null;
 
   try {
     const parsed = new URL(trimmed);

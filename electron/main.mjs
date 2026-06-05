@@ -14,6 +14,12 @@ import { configureDevelopmentUserDataPath } from './userDataPath.mjs';
 import { authorizeFsPath } from './fsAccess.mjs';
 import { installApplicationMenu } from './appMenu.mjs';
 import { createWebSearchServices, registerWebSearchIpc } from './webSearch/ipc.mjs';
+import {
+  normalizeExternalUrl,
+  normalizeHttpUrl,
+  normalizeProxyConfig,
+  summarizeUrlForLog,
+} from './externalUrlPolicy.mjs';
 
 const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, session, shell } = electron;
 
@@ -113,56 +119,6 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason) => {
   console.error('[vlaina] Unhandled rejection in Electron main process:', reason);
 });
-
-function normalizeProxyConfig(rawProxy, source) {
-  const proxy = String(rawProxy ?? '').trim();
-  if (!proxy) return null;
-
-  try {
-    const parsed = new URL(proxy);
-    if (!['http:', 'https:', 'socks4:', 'socks5:'].includes(parsed.protocol)) {
-      return null;
-    }
-    const host = parsed.hostname.includes(':') ? `[${parsed.hostname}]` : parsed.hostname;
-    const hostPort = parsed.port ? `${host}:${parsed.port}` : host;
-    const proxyRules = parsed.protocol === 'http:' || parsed.protocol === 'https:'
-      ? `http=${hostPort};https=${hostPort}`
-      : `${parsed.protocol}//${hostPort}`;
-    return {
-      proxyServer: redactUrlCredentials(parsed),
-      proxyRules,
-      source,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function redactUrlCredentials(rawUrl) {
-  try {
-    const parsed = rawUrl instanceof URL ? new URL(rawUrl.toString()) : new URL(String(rawUrl));
-    if (parsed.username || parsed.password) {
-      parsed.username = parsed.username ? 'redacted' : '';
-      parsed.password = parsed.password ? 'redacted' : '';
-    }
-    return parsed.toString();
-  } catch {
-    return '';
-  }
-}
-
-function summarizeUrlForLog(rawUrl) {
-  try {
-    const parsed = new URL(String(rawUrl));
-    parsed.search = '';
-    parsed.hash = '';
-    parsed.username = '';
-    parsed.password = '';
-    return parsed.toString();
-  } catch {
-    return '';
-  }
-}
 
 function getConfiguredProxyConfig() {
   const rawProxy = process.env.LOCAL_PROXY_URL
@@ -685,28 +641,6 @@ function createTray() {
   } catch (error) {
     tray = null;
   }
-}
-
-function normalizeExternalUrl(rawUrl) {
-  if (typeof rawUrl !== 'string' || !rawUrl.trim()) {
-    throw new Error('A non-empty URL is required.');
-  }
-
-  const parsed = new URL(rawUrl.trim());
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:' && parsed.protocol !== 'mailto:') {
-    throw new Error(`Unsupported external URL protocol: ${parsed.protocol}`);
-  }
-
-  return parsed.toString();
-}
-
-function normalizeHttpUrl(rawUrl, label) {
-  const normalized = normalizeExternalUrl(rawUrl);
-  const parsed = new URL(normalized);
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new Error(`${label} must be an HTTP or HTTPS URL.`);
-  }
-  return parsed.toString();
 }
 
 function parseVersionParts(version) {

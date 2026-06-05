@@ -33,7 +33,7 @@ it('rejects over-deep remark ASTs without recursive traversal', () => {
   expect(canTransformRemarkAst(createDeepTree(201))).toBe(false)
 })
 
-it('rejects over-large remark ASTs', () => {
+it('rejects over-large sibling lists before scheduling every child', () => {
   expect(canTransformRemarkAst({
     type: 'root',
     children: Array.from({ length: 20_001 }, (_, index) => ({

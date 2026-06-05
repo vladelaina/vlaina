@@ -46,14 +46,31 @@ function normalizePathForCompare(filePath) {
 }
 
 const DEVELOPMENT_PROFILE_SHELL_SEED_MARKER = '.vlaina-dev-profile-shell-seeded';
+const MAX_DEVELOPMENT_PROFILE_SHELL_COPY_ENTRIES = 10000;
+const MAX_DEVELOPMENT_PROFILE_SHELL_COPY_DEPTH = 32;
+const MAX_DEVELOPMENT_PROFILE_SHELL_COPY_BYTES = 256 * 1024 * 1024;
 const MAX_STARRED_REGISTRY_JSON_BYTES = 5 * 1024 * 1024;
 
 function hasProfileShellData(userDataPath) {
   try {
-    return fs.readdirSync(userDataPath).some((name) => (
-      name !== '.vlaina' &&
-      name !== DEVELOPMENT_PROFILE_SHELL_SEED_MARKER
-    ));
+    const dir = fs.opendirSync(userDataPath);
+    try {
+      for (;;) {
+        const entry = dir.readSync();
+        if (!entry) {
+          return false;
+        }
+
+        if (
+          entry.name !== '.vlaina' &&
+          entry.name !== DEVELOPMENT_PROFILE_SHELL_SEED_MARKER
+        ) {
+          return true;
+        }
+      }
+    } finally {
+      dir.closeSync();
+    }
   } catch {
     return false;
   }
@@ -90,31 +107,116 @@ function shouldCopyDevelopmentProfileShellPath(sourceUserDataPath, sourcePath) {
   return true;
 }
 
-function copyDevelopmentProfileShellPath(sourceUserDataPath, sourcePath, targetPath) {
-  if (!shouldCopyDevelopmentProfileShellPath(sourceUserDataPath, sourcePath)) {
+function createDevelopmentProfileShellCopyBudget() {
+  return {
+    entries: 0,
+    bytes: 0,
+    stopped: false,
+  };
+}
+
+function reserveDevelopmentProfileShellEntry(budget) {
+  if (budget.stopped || budget.entries >= MAX_DEVELOPMENT_PROFILE_SHELL_COPY_ENTRIES) {
+    budget.stopped = true;
+    return false;
+  }
+
+  budget.entries += 1;
+  return true;
+}
+
+function reserveDevelopmentProfileShellBytes(budget, byteLength) {
+  if (
+    budget.stopped ||
+    !Number.isSafeInteger(byteLength) ||
+    byteLength < 0 ||
+    budget.bytes + byteLength > MAX_DEVELOPMENT_PROFILE_SHELL_COPY_BYTES
+  ) {
+    budget.stopped = true;
+    return false;
+  }
+
+  budget.bytes += byteLength;
+  return true;
+}
+
+function copyDevelopmentProfileShellChildren(
+  sourceUserDataPath,
+  sourcePath,
+  targetPath,
+  budget,
+  depth
+) {
+  const dir = fs.opendirSync(sourcePath);
+  try {
+    for (;;) {
+      if (budget.stopped) {
+        return;
+      }
+
+      const entry = dir.readSync();
+      if (!entry) {
+        return;
+      }
+
+      copyDevelopmentProfileShellPath(
+        sourceUserDataPath,
+        path.join(sourcePath, entry.name),
+        path.join(targetPath, entry.name),
+        budget,
+        depth + 1
+      );
+    }
+  } finally {
+    dir.closeSync();
+  }
+}
+
+function copyDevelopmentProfileShellPath(
+  sourceUserDataPath,
+  sourcePath,
+  targetPath,
+  budget,
+  depth = 0
+) {
+  if (
+    budget.stopped ||
+    depth > MAX_DEVELOPMENT_PROFILE_SHELL_COPY_DEPTH ||
+    !shouldCopyDevelopmentProfileShellPath(sourceUserDataPath, sourcePath) ||
+    !reserveDevelopmentProfileShellEntry(budget)
+  ) {
     return;
   }
 
   const stat = fs.lstatSync(sourcePath);
   if (stat.isDirectory()) {
-    fs.mkdirSync(targetPath, { recursive: true });
-    for (const name of fs.readdirSync(sourcePath)) {
-      copyDevelopmentProfileShellPath(
-        sourceUserDataPath,
-        path.join(sourcePath, name),
-        path.join(targetPath, name)
-      );
+    if (depth >= MAX_DEVELOPMENT_PROFILE_SHELL_COPY_DEPTH) {
+      return;
     }
+
+    fs.mkdirSync(targetPath, { recursive: true });
+    copyDevelopmentProfileShellChildren(
+      sourceUserDataPath,
+      sourcePath,
+      targetPath,
+      budget,
+      depth
+    );
     return;
   }
 
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
   if (stat.isSymbolicLink()) {
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
     fs.symlinkSync(fs.readlinkSync(sourcePath), targetPath);
     return;
   }
 
   if (stat.isFile()) {
+    if (!reserveDevelopmentProfileShellBytes(budget, stat.size)) {
+      return;
+    }
+
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
     fs.copyFileSync(sourcePath, targetPath, fs.constants.COPYFILE_EXCL);
   }
 }
@@ -135,14 +237,13 @@ function seedDevelopmentProfileShell(sourceUserDataPath, targetUserDataPath) {
 
   try {
     fs.mkdirSync(resolvedTargetUserDataPath, { recursive: true });
-    for (const name of fs.readdirSync(resolvedSourceUserDataPath)) {
-      const sourcePath = path.join(resolvedSourceUserDataPath, name);
-      copyDevelopmentProfileShellPath(
-        resolvedSourceUserDataPath,
-        sourcePath,
-        path.join(resolvedTargetUserDataPath, name)
-      );
-    }
+    copyDevelopmentProfileShellChildren(
+      resolvedSourceUserDataPath,
+      resolvedSourceUserDataPath,
+      resolvedTargetUserDataPath,
+      createDevelopmentProfileShellCopyBudget(),
+      -1
+    );
     fs.writeFileSync(seedMarkerPath, `${new Date().toISOString()}\nsource=${resolvedSourceUserDataPath}\n`);
     return true;
   } catch (error) {

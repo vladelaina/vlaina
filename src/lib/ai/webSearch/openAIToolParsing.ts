@@ -3,6 +3,7 @@ import type { OpenAIToolCall, OpenAIWireMessage } from './openAIToolTypes';
 
 export const MAX_OPENAI_TOOL_CALLS = 16;
 export const MAX_OPENAI_TOOL_ARGUMENT_CHARS = 64 * 1024;
+export const MAX_DSML_TOOL_MARKUP_CHARS = 256 * 1024;
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -171,10 +172,17 @@ const DSML_PARAMETER_RE = new RegExp(
 );
 
 export function stripDsmlToolCallMarkup(content: string): string {
+  if (content.length > MAX_DSML_TOOL_MARKUP_CHARS) {
+    return content;
+  }
   return content.replace(DSML_TOOL_CALLS_BLOCK_RE, '').trim();
 }
 
 function extractDsmlToolCalls(content: string): OpenAIToolCall[] {
+  if (content.length > MAX_DSML_TOOL_MARKUP_CHARS) {
+    return [];
+  }
+
   const calls: OpenAIToolCall[] = [];
   for (const block of content.matchAll(DSML_TOOL_CALLS_BLOCK_RE)) {
     if (calls.length >= MAX_OPENAI_TOOL_CALLS) break;

@@ -31,4 +31,15 @@ describe("ErrorBlock", () => {
     expect(screen.getByRole("link", { name: "https://example.com/docs" }))
       .toHaveAttribute("href", "https://example.com/docs");
   });
+
+  it("caps linked URLs in readable error text", () => {
+    render(
+      <ErrorBlock
+        content={Array.from({ length: 60 }, (_, index) => `https://example.com/${index}`).join(" ")}
+      />,
+    );
+
+    expect(screen.getAllByRole("link")).toHaveLength(50);
+    expect(screen.getByText(/https:\/\/example.com\/59/)).toBeInTheDocument();
+  });
 });

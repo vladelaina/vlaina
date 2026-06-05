@@ -1,6 +1,8 @@
 import { DEFAULT_EXCLUDED_SITES, isHostMatched } from '../sourceQuality/searchQualityPolicy.mjs';
 import { WebSearchError } from '../types.mjs';
 
+const MAX_SEARCH_REDIRECT_TARGET_CHARS = 4096;
+
 function hostnameOf(rawUrl) {
   try {
     return new URL(rawUrl).hostname.replace(/^www\./, '').toLowerCase();
@@ -37,6 +39,9 @@ function unwrapSearchRedirect(parsedUrl) {
   const hostname = parsedUrl.hostname.replace(/^www\./, '');
   if (hostname.endsWith('bing.com') && parsedUrl.searchParams.has('u')) {
     const encodedTarget = parsedUrl.searchParams.get('u') || '';
+    if (encodedTarget.length > MAX_SEARCH_REDIRECT_TARGET_CHARS) {
+      return '';
+    }
     const target = encodedTarget.startsWith('a1') ? encodedTarget.slice(2) : encodedTarget;
     try {
       return Buffer.from(target, 'base64url').toString('utf8');
@@ -45,10 +50,12 @@ function unwrapSearchRedirect(parsedUrl) {
     }
   }
   if (hostname === 'google.com' && parsedUrl.pathname === '/url') {
-    return parsedUrl.searchParams.get('q') || '';
+    const target = parsedUrl.searchParams.get('q') || '';
+    return target.length <= MAX_SEARCH_REDIRECT_TARGET_CHARS ? target : '';
   }
   if (hostname === 'duckduckgo.com' && parsedUrl.pathname.startsWith('/l/')) {
-    return parsedUrl.searchParams.get('uddg') || '';
+    const target = parsedUrl.searchParams.get('uddg') || '';
+    return target.length <= MAX_SEARCH_REDIRECT_TARGET_CHARS ? target : '';
   }
   return '';
 }

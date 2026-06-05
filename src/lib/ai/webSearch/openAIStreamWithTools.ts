@@ -1,4 +1,5 @@
 import {
+  appendOpenAIStreamBuffer,
   assertOpenAIStreamLineLength,
   createStreamAccumulator,
 } from '@/lib/ai/streaming';
@@ -130,7 +131,7 @@ export async function consumeOpenAIStreamWithTools(
       const { done, value } = await raceWithAbort(reader.read(), signal);
       throwIfAborted(signal);
       if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      buffer = appendOpenAIStreamBuffer(buffer, decoder.decode(value, { stream: true }));
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
       for (const line of lines) {

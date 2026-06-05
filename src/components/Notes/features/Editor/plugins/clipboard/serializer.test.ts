@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { serializeSliceToText } from './serializer';
+import { MAX_CLIPBOARD_SERIALIZATION_DEPTH } from './clipboardTraversalBudget';
 
 function createTextNode(text: string, marks: any[] = []) {
     return {
@@ -119,5 +120,14 @@ describe('serializeSliceToText', () => {
         ]);
 
         expect(serializeSliceToText(slice)).toBe('[Local file](<docs/file name.md>)');
+    });
+
+    it('stops fallback serialization when node depth exceeds the clipboard budget', () => {
+        let node: any = createTextNode('deep');
+        for (let index = 0; index <= MAX_CLIPBOARD_SERIALIZATION_DEPTH + 1; index += 1) {
+            node = createInlineNode('span', [node]);
+        }
+
+        expect(serializeSliceToText(createSlice([node]))).toBe('');
     });
 });
