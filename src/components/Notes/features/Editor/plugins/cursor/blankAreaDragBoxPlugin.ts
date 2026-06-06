@@ -72,6 +72,11 @@ import {
 
 export { blankAreaDragBoxPluginKey } from './blockSelectionPluginState';
 
+const editorInteractionDecorationsCache = new WeakMap<
+  EditorState['doc'],
+  WeakMap<DecorationSet, WeakMap<DecorationSet, DecorationSet>>
+>();
+
 function snapshotSelection(state: EditorState) {
   return {
     type: state.selection.constructor.name,
@@ -101,11 +106,26 @@ function getEditorInteractionDecorations(state: EditorState): DecorationSet {
     return blockSelectionDecorations;
   }
 
+  let blockCache = editorInteractionDecorationsCache.get(state.doc);
+  if (!blockCache) {
+    blockCache = new WeakMap();
+    editorInteractionDecorationsCache.set(state.doc, blockCache);
+  }
+  let blankLineCache = blockCache.get(blockSelectionDecorations);
+  if (!blankLineCache) {
+    blankLineCache = new WeakMap();
+    blockCache.set(blockSelectionDecorations, blankLineCache);
+  }
+  const cached = blankLineCache.get(editableBlankLineDecorations);
+  if (cached) return cached;
+
   const decorations = [
     ...blockSelectionDecorations.find(),
     ...editableBlankLineDecorations.find(),
   ];
-  return DecorationSet.create(state.doc, decorations);
+  const decorationSet = DecorationSet.create(state.doc, decorations);
+  blankLineCache.set(editableBlankLineDecorations, decorationSet);
+  return decorationSet;
 }
 
 function resolveTopLevelListContainer(view: EditorView, target: EventTarget | null): HTMLElement | null {

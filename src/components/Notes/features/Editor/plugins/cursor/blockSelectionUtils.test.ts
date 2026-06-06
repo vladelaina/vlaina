@@ -501,14 +501,18 @@ describe('blockSelectionUtils', () => {
     ).toBe('editor-block-selected md-focus');
   });
 
-  it('builds contained list decoration classes with indexed display ranges for large selections', async () => {
-    const editor = await createEditor(Array.from({ length: 80 }, (_, index) => [
-      `- item ${index}`,
-      '  ```',
-      `  code ${index}`,
-      '  ```',
-    ].join('\n')).join('\n'));
+  it('builds block selection decorations for large selections', async () => {
+    const editor = await createEditor('');
     const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const list = schema.nodes.bullet_list.create(null, Array.from({ length: 80 }, (_, index) =>
+      schema.nodes.list_item.create({ label: '•', listType: 'bullet' }, [
+        schema.nodes.paragraph.create(null, schema.text(`item ${index}`)),
+        schema.nodes.code_block.create(null, schema.text(`code ${index}`)),
+      ])
+    ));
+    view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, list));
+
     const ranges: Array<{ from: number; to: number }> = [];
     view.state.doc.descendants((node, pos) => {
       if (node.type.name === 'list_item' || node.type.name === 'code_block') {
