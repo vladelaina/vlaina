@@ -258,6 +258,12 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
           }
 
           const content = await storage.readFile(fullPath);
+          if (content.length > MAX_METADATA_READ_BYTES) {
+            return {
+              relativePath,
+              metadata: {},
+            };
+          }
           const metadata = normalizeLoadedEntry(readNoteMetadataFromMarkdown(content));
           if (canUseCache) {
             nextCache.set(relativePath, {
@@ -402,6 +408,9 @@ export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceSt
     }
 
     const content = await storage.readFile(wsPath);
+    if (content.length > MAX_WORKSPACE_STATE_BYTES) {
+      return null;
+    }
     return normalizeWorkspaceState(JSON.parse(content));
   } catch (error) {
     return null;

@@ -2,7 +2,10 @@ import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
-import { addTextSelectionOverlayDecorations } from '../../selection/textSelectionOverlayPlugin';
+import {
+  MAX_TEXT_SELECTION_OVERLAY_DECORATIONS,
+  addTextSelectionOverlayDecorations,
+} from '../../selection/textSelectionOverlayPlugin';
 import { floatingToolbarKey } from '../floatingToolbarKey';
 
 function isInlineRangeSelection(selection: EditorView['state']['selection'], from: number, to: number) {
@@ -53,14 +56,21 @@ export function getAiReviewSelectionDecorations(state: EditorState): DecorationS
 
   const maxPos = state.doc.content.size;
   const decorations: Decoration[] = [];
-  reviews.forEach((review) => {
+  for (const review of reviews) {
+    if (decorations.length >= MAX_TEXT_SELECTION_OVERLAY_DECORATIONS) {
+      break;
+    }
+
     const from = Math.max(0, Math.min(review.from, maxPos));
     const to = Math.max(from, Math.min(review.to, maxPos));
     if (from === to) {
-      return;
+      continue;
     }
 
     state.doc.nodesBetween(from, to, (node, pos) => {
+      if (decorations.length >= MAX_TEXT_SELECTION_OVERLAY_DECORATIONS) {
+        return false;
+      }
       if (!node.isText) return;
 
       addTextSelectionOverlayDecorations(
@@ -70,8 +80,11 @@ export function getAiReviewSelectionDecorations(state: EditorState): DecorationS
         from,
         to
       );
+      if (decorations.length >= MAX_TEXT_SELECTION_OVERLAY_DECORATIONS) {
+        return false;
+      }
     });
-  });
+  }
 
   return decorations.length > 0
     ? DecorationSet.create(state.doc, decorations)

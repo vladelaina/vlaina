@@ -8,6 +8,7 @@ const MARKDOWN_BLANK_LINE_SELECTOR = `[data-type="html-block"][data-value="${MAR
 const EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER = '\u200B';
 const EDITABLE_MARKDOWN_BLANK_LINE_CLASS = 'editor-editable-markdown-blank-line';
 const MARKDOWN_BLANK_LINE_DEBUG_STORAGE_KEY = 'editor-debug-markdown-blank-line';
+const MAX_EDITABLE_MARKDOWN_BLANK_LINE_DECORATIONS = 1000;
 
 function resolveMarkdownBlankLineTarget(view: EditorView, target: EventTarget | null): HTMLElement | null {
   const targetElement = target instanceof HTMLElement
@@ -20,6 +21,20 @@ function resolveMarkdownBlankLineTarget(view: EditorView, target: EventTarget | 
 }
 
 function resolveMarkdownBlankLineNodePos(view: EditorView, blankLine: HTMLElement): number | null {
+  try {
+    const directPos = view.posAtDOM(blankLine, 0);
+    const directNode = view.state.doc.nodeAt(directPos);
+    if (
+      directNode?.type.name === 'html_block'
+      && directNode.attrs.value === MARKDOWN_BLANK_LINE_VALUE
+      && view.nodeDOM(directPos) === blankLine
+    ) {
+      return directPos;
+    }
+  } catch {
+    // Fall through to the document scan for custom DOM mappings.
+  }
+
   let found: number | null = null;
   view.state.doc.descendants((node, pos) => {
     if (found !== null) return false;
@@ -153,7 +168,14 @@ export function handleMarkdownBlankLineTextInput(
 
 export function createEditableMarkdownBlankLineDecorations(doc: EditorState['doc']): DecorationSet {
   const decorations: Decoration[] = [];
-  doc.forEach((node, offset) => {
+  const childCount = typeof doc.childCount === 'number' ? doc.childCount : 0;
+  let offset = 0;
+  for (
+    let index = 0;
+    index < childCount && decorations.length < MAX_EDITABLE_MARKDOWN_BLANK_LINE_DECORATIONS;
+    index += 1
+  ) {
+    const node = doc.child(index);
     if (
       node.type.name === 'paragraph'
       && node.textContent === EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER
@@ -162,6 +184,7 @@ export function createEditableMarkdownBlankLineDecorations(doc: EditorState['doc
         class: EDITABLE_MARKDOWN_BLANK_LINE_CLASS,
       }));
     }
-  });
+    offset += node.nodeSize;
+  }
   return decorations.length > 0 ? DecorationSet.create(doc, decorations) : DecorationSet.empty;
 }

@@ -70,4 +70,28 @@ describe('abbrPlugin', () => {
 
     await editor.destroy();
   });
+
+  it('caps abbreviation usage decorations in large notes', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, [
+          '*[HTML]: HyperText Markup Language',
+          '',
+          Array.from({ length: 1100 }, () => 'HTML').join(' '),
+        ].join('\n'));
+      })
+      .use(commonmark);
+
+    for (const plugin of abbrPlugin) {
+      editor.use(plugin);
+    }
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const decorations = abbrPluginKey.getState(view.state)?.find() ?? [];
+
+    expect(decorations).toHaveLength(1000);
+
+    await editor.destroy();
+  });
 });

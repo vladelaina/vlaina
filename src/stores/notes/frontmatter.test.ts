@@ -206,4 +206,48 @@ describe('note frontmatter metadata', () => {
       '# Exported',
     ].join('\n'));
   });
+
+  it('ignores an unclosed oversized leading frontmatter candidate', () => {
+    const markdown = [
+      '---',
+      ...Array.from({ length: 2050 }, (_, index) => `vlaina_icon: "hidden-${index}"`),
+      '# Body',
+    ].join('\n');
+
+    expect(readNoteMetadataFromMarkdown(markdown)).toEqual({});
+    expect(stripManagedFrontmatter(markdown)).toBe(markdown);
+  });
+
+  it('preserves an oversized unclosed frontmatter candidate when writing metadata', () => {
+    const markdown = [
+      '---',
+      ...Array.from({ length: 2050 }, (_, index) => `line_${index}: value`),
+      '# Body',
+    ].join('\n');
+
+    expect(
+      writeNoteMetadataToMarkdown(markdown, {
+        updatedAt: Date.parse('2026-04-16T00:00:00.000Z'),
+      })
+    ).toBe([
+      '---',
+      'vlaina_updated: 2026-04-16 08:00:00 +08:00',
+      '---',
+      '',
+      markdown,
+    ].join('\n'));
+  });
+
+  it('does not parse frontmatter that closes after the character budget', () => {
+    const markdown = [
+      '---',
+      `vlaina_icon: "${'x'.repeat(256 * 1024)}"`,
+      '---',
+      '',
+      '# Body',
+    ].join('\n');
+
+    expect(readNoteMetadataFromMarkdown(markdown)).toEqual({});
+    expect(stripUpdatedFrontmatter(markdown)).toBe(markdown);
+  });
 });

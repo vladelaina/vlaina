@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  MAX_BLOCK_UNIT_DOM_RANGE_RECTS,
   collectMovableBlockTargetRanges,
   collectSelectableBlockRanges,
   mapRangesToSelectableBlocks,
+  resolveDOMRangeRect,
   resolveSelectableBlockRange,
   expandKnownSelectableListItemHeaderRanges,
   expandListItemHeaderRanges,
@@ -123,6 +125,85 @@ describe('collectSelectableBlockRanges', () => {
       { from: 1, to: 7 },
       { from: 7, to: 11 },
     ]);
+  });
+});
+
+describe('resolveDOMRangeRect', () => {
+  it('returns null for oversized DOM range rect lists without iterating them', () => {
+    const editor = document.createElement('div');
+    const rectIterator = vi.fn(() => {
+      throw new Error('rects should not be iterated');
+    });
+    const createRangeSpy = vi.spyOn(document, 'createRange').mockReturnValue({
+      setStart: vi.fn(),
+      setEnd: vi.fn(),
+      getClientRects: () => ({
+        length: MAX_BLOCK_UNIT_DOM_RANGE_RECTS + 1,
+        [Symbol.iterator]: rectIterator,
+      }),
+      detach: vi.fn(),
+    } as unknown as Range);
+    const view = {
+      dom: editor,
+      domAtPos: vi.fn(() => ({ node: editor, offset: 0 })),
+    };
+
+    try {
+      expect(resolveDOMRangeRect(view as any, { from: 1, to: 2 })).toBeNull();
+      expect(rectIterator).not.toHaveBeenCalled();
+    } finally {
+      createRangeSpy.mockRestore();
+    }
+  });
+
+  it('combines small DOM range rect lists without materializing them', () => {
+    const editor = document.createElement('div');
+    const rectIterator = vi.fn(() => {
+      throw new Error('rects should not be iterated');
+    });
+    const createRangeSpy = vi.spyOn(document, 'createRange').mockReturnValue({
+      setStart: vi.fn(),
+      setEnd: vi.fn(),
+      getClientRects: () => ({
+        0: {
+          left: 10,
+          top: 20,
+          right: 40,
+          bottom: 44,
+          width: 30,
+          height: 24,
+        },
+        1: {
+          left: 8,
+          top: 46,
+          right: 64,
+          bottom: 70,
+          width: 56,
+          height: 24,
+        },
+        length: 2,
+        [Symbol.iterator]: rectIterator,
+      }),
+      detach: vi.fn(),
+    } as unknown as Range);
+    const view = {
+      dom: editor,
+      domAtPos: vi.fn(() => ({ node: editor, offset: 0 })),
+    };
+
+    try {
+      expect(resolveDOMRangeRect(view as any, { from: 1, to: 2 })).toMatchObject({
+        left: 8,
+        top: 20,
+        right: 64,
+        bottom: 70,
+        width: 56,
+        height: 50,
+      });
+      expect(rectIterator).not.toHaveBeenCalled();
+    } finally {
+      createRangeSpy.mockRestore();
+    }
   });
 });
 

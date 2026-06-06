@@ -52,11 +52,27 @@ const AI_PROVIDER_CHANNEL_FILE_VERSION = 1;
 const MAX_MAIN_DATA_BYTES = 2 * 1024 * 1024;
 const MAX_AI_SESSIONS_BYTES = 2 * 1024 * 1024;
 const MAX_AI_PROVIDER_CHANNEL_BYTES = 2 * 1024 * 1024;
-const MAX_AI_SESSION_RECORDS = 5000;
+export const MAX_AI_SESSION_RECORDS = 5000;
 const MAX_AI_ID_LIST_ENTRIES = 5000;
-const MAX_AI_PROVIDER_CHANNELS = 200;
-const MAX_AI_PROVIDER_CHANNEL_MODELS = 2000;
-const MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS = 2000;
+export const MAX_AI_PROVIDER_CHANNELS = 200;
+export const MAX_AI_PROVIDER_CHANNEL_MODELS = 2000;
+export const MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS = 2000;
+export const MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES = 10_000;
+const MAX_BOUNDED_ID_LIST_SCAN_RECORDS = 10_000;
+const MAX_AI_SESSION_METADATA_SCAN_RECORDS = 10_000;
+const MAX_AI_SESSION_TITLE_CHARS = 4096;
+const MAX_AI_SESSION_MODEL_ID_CHARS = 4096;
+const MAX_AI_PROVIDER_SAVE_SCAN_RECORDS = 10_000;
+const MAX_AI_MODEL_SAVE_SCAN_RECORDS = 20_000;
+const MAX_AI_FETCHED_MODEL_SAVE_SCAN_RECORDS = 10_000;
+const MAX_AI_MODEL_FIELD_CHARS = 4096;
+export const MAX_CUSTOM_ICONS = 2000;
+export const MAX_CUSTOM_ICON_ID_CHARS = 4096;
+export const MAX_CUSTOM_ICON_URL_CHARS = 4096;
+export const MAX_CUSTOM_ICON_NAME_CHARS = 512;
+export const MAX_DELETED_CUSTOM_ICON_IDS = 5000;
+const MAX_CUSTOM_ICON_RECORDS = 5000;
+const MAX_DELETED_CUSTOM_ICON_ID_RECORDS = 10_000;
 
 interface AISessionsFileData {
   sessions: ChatSession[];
@@ -112,10 +128,9 @@ function normalizeBoundedIdList(
 
   const ids: string[] = [];
   const seen = new Set<string>();
-  for (const item of value) {
-    if (ids.length >= maxItems) {
-      break;
-    }
+  const scanLimit = Math.min(value.length, Math.max(maxItems, MAX_BOUNDED_ID_LIST_SCAN_RECORDS));
+  for (let index = 0; index < scanLimit && ids.length < maxItems; index += 1) {
+    const item = value[index];
     if (!isSafeId(item) || seen.has(item)) {
       continue;
     }
@@ -125,6 +140,171 @@ function normalizeBoundedIdList(
   return ids;
 }
 
+function normalizeBoundedString(value: unknown, maxChars: number): string {
+  return typeof value === 'string' ? value.slice(0, maxChars) : '';
+}
+
+function normalizeChatSessionMetadata(value: unknown): ChatSession | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const id = typeof value.id === 'string' ? value.id.trim() : '';
+  if (!isSafeChatSessionId(id) || isTemporarySessionId(id)) {
+    return null;
+  }
+
+  return {
+    id,
+    title: normalizeBoundedString(value.title, MAX_AI_SESSION_TITLE_CHARS) || 'New Chat',
+    modelId: normalizeBoundedString(value.modelId, MAX_AI_SESSION_MODEL_ID_CHARS),
+    isPinned: value.isPinned === true,
+    createdAt: typeof value.createdAt === 'number' && Number.isFinite(value.createdAt)
+      ? value.createdAt
+      : Date.now(),
+    updatedAt: typeof value.updatedAt === 'number' && Number.isFinite(value.updatedAt)
+      ? value.updatedAt
+      : Date.now(),
+  };
+}
+
+function normalizeChatSessionMetadataList(value: unknown): ChatSession[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const sessions: ChatSession[] = [];
+  const seenIds = new Set<string>();
+  const scanLimit = Math.min(value.length, MAX_AI_SESSION_METADATA_SCAN_RECORDS);
+  for (let index = 0; index < scanLimit && sessions.length < MAX_AI_SESSION_RECORDS; index += 1) {
+    const session = normalizeChatSessionMetadata(value[index]);
+    if (!session || seenIds.has(session.id)) {
+      continue;
+    }
+    seenIds.add(session.id);
+    sessions.push(session);
+  }
+  return sessions;
+}
+
+function normalizeProvidersForSave(value: unknown): Provider[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const providers: Provider[] = [];
+  const seenIds = new Set<string>();
+  const scanLimit = Math.min(value.length, MAX_AI_PROVIDER_SAVE_SCAN_RECORDS);
+  for (let index = 0; index < scanLimit && providers.length < MAX_AI_PROVIDER_CHANNELS; index += 1) {
+    const item = value[index];
+    if (!isRecord(item)) {
+      continue;
+    }
+
+    const id = typeof item.id === 'string' ? item.id.trim() : '';
+    if (!isSafeProviderId(id) || seenIds.has(id)) {
+      continue;
+    }
+
+    seenIds.add(id);
+    providers.push({ ...(item as unknown as Provider), id });
+  }
+  return providers;
+}
+
+function normalizeAIModelForSave(value: unknown, providerIds: ReadonlySet<string>): AIModel | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const providerId = typeof value.providerId === 'string' ? value.providerId.trim() : '';
+  const apiModelId = typeof value.apiModelId === 'string'
+    ? value.apiModelId.trim().slice(0, MAX_AI_MODEL_FIELD_CHARS)
+    : '';
+  if (!providerIds.has(providerId) || !apiModelId) {
+    return null;
+  }
+
+  const id = typeof value.id === 'string' && value.id.trim()
+    ? value.id.trim().slice(0, MAX_AI_MODEL_FIELD_CHARS)
+    : `${providerId}::${apiModelId}`;
+
+  return {
+    ...(value as unknown as AIModel),
+    id,
+    apiModelId,
+    providerId,
+    name: normalizeBoundedString(value.name, MAX_AI_MODEL_FIELD_CHARS),
+    group: normalizeBoundedString(value.group, MAX_AI_MODEL_FIELD_CHARS),
+    enabled: value.enabled !== false,
+    pinned: value.pinned === true,
+    createdAt: typeof value.createdAt === 'number' && Number.isFinite(value.createdAt)
+      ? value.createdAt
+      : Date.now(),
+  };
+}
+
+function collectProviderModelsForSave(
+  value: unknown,
+  providerIds: ReadonlySet<string>,
+): Map<string, AIModel[]> {
+  const modelsByProvider = new Map<string, AIModel[]>();
+  for (const providerId of providerIds) {
+    modelsByProvider.set(providerId, []);
+  }
+
+  if (!Array.isArray(value) || providerIds.size === 0) {
+    return modelsByProvider;
+  }
+
+  const seenModelIdsByProvider = new Map<string, Set<string>>();
+  const scanLimit = Math.min(value.length, MAX_AI_MODEL_SAVE_SCAN_RECORDS);
+  for (let index = 0; index < scanLimit; index += 1) {
+    const model = normalizeAIModelForSave(value[index], providerIds);
+    if (!model) {
+      continue;
+    }
+
+    const models = modelsByProvider.get(model.providerId);
+    if (!models || models.length >= MAX_AI_PROVIDER_CHANNEL_MODELS) {
+      continue;
+    }
+
+    let seenModelIds = seenModelIdsByProvider.get(model.providerId);
+    if (!seenModelIds) {
+      seenModelIds = new Set<string>();
+      seenModelIdsByProvider.set(model.providerId, seenModelIds);
+    }
+    if (seenModelIds.has(model.id)) {
+      continue;
+    }
+
+    seenModelIds.add(model.id);
+    models.push(model);
+  }
+  return modelsByProvider;
+}
+
+function normalizeFetchedModelsForSave(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const models: string[] = [];
+  const seen = new Set<string>();
+  const scanLimit = Math.min(value.length, MAX_AI_FETCHED_MODEL_SAVE_SCAN_RECORDS);
+  for (let index = 0; index < scanLimit && models.length < MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS; index += 1) {
+    const item = value[index];
+    const model = typeof item === 'string' ? item.trim().slice(0, MAX_AI_MODEL_FIELD_CHARS) : '';
+    if (!model || seen.has(model)) {
+      continue;
+    }
+    seen.add(model);
+    models.push(model);
+  }
+  return models;
+}
+
 function parseAISessionsFile(value: unknown): AISessionsFileData | null {
   if (!isRecord(value) || value.version !== AI_SESSIONS_FILE_VERSION || !isRecord(value.data)) {
     return null;
@@ -132,9 +312,7 @@ function parseAISessionsFile(value: unknown): AISessionsFileData | null {
 
   const data = value.data;
   return {
-    sessions: Array.isArray(data.sessions)
-      ? (data.sessions as ChatSession[]).slice(0, MAX_AI_SESSION_RECORDS).filter((session) => !isTemporarySession(session))
-      : [],
+    sessions: normalizeChatSessionMetadataList(data.sessions),
     selectedModelId: typeof data.selectedModelId === 'string' ? data.selectedModelId : null,
     unreadSessionIds: normalizeBoundedIdList(data.unreadSessionIds, isSafeChatSessionId, MAX_AI_ID_LIST_ENTRIES),
     currentSessionId: typeof data.currentSessionId === 'string' ? data.currentSessionId : null,
@@ -222,7 +400,8 @@ async function readBoundedTextFile(
     return null;
   }
 
-  return storage.readFile(path);
+  const content = await storage.readFile(path);
+  return content.length <= maxBytes ? content : null;
 }
 
 function buildRecoveredSessionTitle(messages: ChatMessage[]): string {
@@ -268,14 +447,28 @@ async function recoverOrphanChatSessions(
   const existingSessionIds = new Set(existingSessions.map((session) => session.id));
   const entries = await storage.listDir(sessionsDir).catch(() => []);
   const recoveredSessions: ChatSession[] = [];
+  const maxRecoveredSessions = Math.max(0, MAX_AI_SESSION_RECORDS - existingSessions.length);
 
-  for (const entry of entries) {
+  for (
+    let entryIndex = 0;
+    entryIndex < entries.length && entryIndex < MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES;
+    entryIndex += 1
+  ) {
+    if (recoveredSessions.length >= maxRecoveredSessions) {
+      break;
+    }
+    const entry = entries[entryIndex];
     if (!entry.isFile || !entry.name.endsWith('.json')) {
       continue;
     }
 
     const sessionId = entry.name.slice(0, -5);
-    if (existingSessionIds.has(sessionId) || deletedSessionIds.has(sessionId) || isTemporarySessionId(sessionId)) {
+    if (
+      !isSafeChatSessionId(sessionId) ||
+      existingSessionIds.has(sessionId) ||
+      deletedSessionIds.has(sessionId) ||
+      isTemporarySessionId(sessionId)
+    ) {
       continue;
     }
 
@@ -326,7 +519,8 @@ async function mergeSessionsForSafeSave(
   existingSessionsData: AISessionsFileData | null,
   sessionFilesDir: string,
 ): Promise<{ sessions: ChatSession[]; deletedSessionIds: string[] }> {
-  const incomingById = new Map(incomingSessions.map((session) => [session.id, session]));
+  const normalizedIncomingSessions = normalizeChatSessionMetadataList(incomingSessions);
+  const incomingById = new Map(normalizedIncomingSessions.map((session) => [session.id, session]));
   const existingSessions = (existingSessionsData?.sessions || []).filter((session) => !isTemporarySession(session));
   const deletedSessionIds = new Set(existingSessionsData?.deletedSessionIds || []);
 
@@ -337,7 +531,7 @@ async function mergeSessionsForSafeSave(
   }
 
   const mergedById = new Map<string, ChatSession>();
-  for (const session of incomingSessions) {
+  for (const session of normalizedIncomingSessions) {
     if (deletedSessionIds.has(session.id)) {
       continue;
     }
@@ -404,12 +598,14 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
           : defaults.settings.ui?.themeId ?? 'default',
       },
     },
-    customIcons: Array.isArray(data.customIcons) ? data.customIcons : [],
-    deletedCustomIconIds: Array.isArray(data.deletedCustomIconIds)
-      ? data.deletedCustomIconIds.filter((id): id is string => typeof id === 'string')
-      : [],
+    customIcons: normalizeCustomIconList(data.customIcons),
+    deletedCustomIconIds: normalizeDeletedCustomIconIds(data.deletedCustomIconIds),
     ai: data.ai,
   };
+}
+
+function normalizeBoundedCustomIconString(value: unknown, maxChars: number): string | null {
+  return typeof value === 'string' && value.length > 0 && value.length <= maxChars ? value : null;
 }
 
 function normalizeCustomIcon(value: unknown): CustomIcon | null {
@@ -417,18 +613,53 @@ function normalizeCustomIcon(value: unknown): CustomIcon | null {
     return null;
   }
 
-  const { id, url, name, createdAt } = value;
-  if (
-    typeof id !== 'string' ||
-    typeof url !== 'string' ||
-    typeof name !== 'string' ||
-    typeof createdAt !== 'number' ||
-    !Number.isFinite(createdAt)
-  ) {
+  const id = normalizeBoundedCustomIconString(value.id, MAX_CUSTOM_ICON_ID_CHARS);
+  const url = normalizeBoundedCustomIconString(value.url, MAX_CUSTOM_ICON_URL_CHARS);
+  const name = normalizeBoundedCustomIconString(value.name, MAX_CUSTOM_ICON_NAME_CHARS);
+  const { createdAt } = value;
+  if (!id || !url || !name || typeof createdAt !== 'number' || !Number.isFinite(createdAt)) {
     return null;
   }
 
   return { id, url, name, createdAt };
+}
+
+function normalizeCustomIconList(value: unknown): CustomIcon[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const icons: CustomIcon[] = [];
+  const seenIds = new Set<string>();
+  const scanLimit = Math.min(value.length, MAX_CUSTOM_ICON_RECORDS);
+  for (let index = 0; index < scanLimit && icons.length < MAX_CUSTOM_ICONS; index += 1) {
+    const icon = normalizeCustomIcon(value[index]);
+    if (!icon || seenIds.has(icon.id)) {
+      continue;
+    }
+    seenIds.add(icon.id);
+    icons.push(icon);
+  }
+  return icons;
+}
+
+function normalizeDeletedCustomIconIds(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const ids: string[] = [];
+  const seenIds = new Set<string>();
+  const scanLimit = Math.min(value.length, MAX_DELETED_CUSTOM_ICON_ID_RECORDS);
+  for (let index = 0; index < scanLimit && ids.length < MAX_DELETED_CUSTOM_ICON_IDS; index += 1) {
+    const id = normalizeBoundedCustomIconString(value[index], MAX_CUSTOM_ICON_ID_CHARS);
+    if (!id || seenIds.has(id)) {
+      continue;
+    }
+    seenIds.add(id);
+    ids.push(id);
+  }
+  return ids;
 }
 
 async function readExistingMainDataFile(
@@ -459,32 +690,28 @@ function mergeCustomIconsForSafeSave(
   incomingData: UnifiedData,
   existingData: UnifiedData | null,
 ): Pick<UnifiedData, 'customIcons' | 'deletedCustomIconIds'> {
-  const incomingDeletedIds = new Set(
-    (incomingData.deletedCustomIconIds || []).filter((id): id is string => typeof id === 'string')
-  );
-  const existingDeletedIds = new Set(
-    (existingData?.deletedCustomIconIds || []).filter((id): id is string => typeof id === 'string')
-  );
+  const incomingDeletedIds = new Set(normalizeDeletedCustomIconIds(incomingData.deletedCustomIconIds));
+  const existingDeletedIds = new Set(normalizeDeletedCustomIconIds(existingData?.deletedCustomIconIds));
   const deletedIds = new Set([...existingDeletedIds, ...incomingDeletedIds]);
   const iconsById = new Map<string, CustomIcon>();
 
-  for (const icon of existingData?.customIcons || []) {
-    const normalized = normalizeCustomIcon(icon);
-    if (normalized && !deletedIds.has(normalized.id)) {
-      iconsById.set(normalized.id, normalized);
+  for (const icon of normalizeCustomIconList(existingData?.customIcons)) {
+    if (!deletedIds.has(icon.id)) {
+      iconsById.set(icon.id, icon);
     }
   }
 
-  for (const icon of incomingData.customIcons || []) {
-    const normalized = normalizeCustomIcon(icon);
-    if (normalized && !deletedIds.has(normalized.id)) {
-      iconsById.set(normalized.id, normalized);
+  for (const icon of normalizeCustomIconList(incomingData.customIcons)) {
+    if (!deletedIds.has(icon.id)) {
+      iconsById.set(icon.id, icon);
     }
   }
 
   return {
-    customIcons: Array.from(iconsById.values()).sort((a, b) => b.createdAt - a.createdAt),
-    deletedCustomIconIds: Array.from(deletedIds).filter((id) => !iconsById.has(id)),
+    customIcons: Array.from(iconsById.values()).sort((a, b) => b.createdAt - a.createdAt).slice(0, MAX_CUSTOM_ICONS),
+    deletedCustomIconIds: Array.from(deletedIds)
+      .filter((id) => !iconsById.has(id))
+      .slice(0, MAX_DELETED_CUSTOM_ICON_IDS),
   };
 }
 
@@ -855,9 +1082,9 @@ async function performSplitSave(request: UnifiedSaveRequest) {
     await storage.writeFile(mainBackupPath, mainPayload);
 
     if (ai) {
-        const requestedPersistedProviders = (ai.providers || []).filter((provider) => isSafeProviderId(provider.id));
+        const requestedPersistedProviders = normalizeProvidersForSave(ai.providers);
         const incomingDeletedProviderIds = new Set(
-          (ai.deletedProviderIds || []).filter(isSafeProviderId)
+          normalizeBoundedIdList(ai.deletedProviderIds, isSafeProviderId, MAX_AI_ID_LIST_ENTRIES)
         );
 
         const existingSessionsData = await readExistingAISessionsFile(storage, sessionsPath);
@@ -868,6 +1095,7 @@ async function performSplitSave(request: UnifiedSaveRequest) {
         const persistedProviders = requestedPersistedProviders.filter(
           (provider) => !tombstonedProviderIds.has(provider.id)
         );
+        const persistedProviderIds = new Set(persistedProviders.map((provider) => provider.id));
         await syncProviderSecrets(persistedProviders);
 
         const incomingPersistedSessions = ai.sessions.filter((session) => !isTemporarySession(session));
@@ -881,21 +1109,25 @@ async function performSplitSave(request: UnifiedSaveRequest) {
         const mergedProviderIds = Array.from(new Set([
           ...persistedProviders.map((provider) => provider.id),
           ...(existingSessionsData?.providerIds || []),
-        ])).filter((providerId) => isSafeProviderId(providerId) && !tombstonedProviderIds.has(providerId));
+        ]))
+          .filter((providerId) => isSafeProviderId(providerId) && !tombstonedProviderIds.has(providerId))
+          .slice(0, MAX_AI_PROVIDER_CHANNELS);
         const activeProviderIds = new Set(mergedProviderIds);
         const deletedProviderIds = Array.from(tombstonedProviderIds).filter(
           (providerId) => !activeProviderIds.has(providerId)
         );
-        const activeModelIds = new Set(ai.models
-          .filter((model) => activeProviderIds.has(model.providerId))
-          .map((model) => model.id));
+        const modelsByProvider = collectProviderModelsForSave(ai.models, persistedProviderIds);
+        const activeModelIds = new Set(
+          Array.from(modelsByProvider.values()).flat().map((model) => model.id)
+        );
 
         const sessionsData = {
             sessions: persistedSessions,
             selectedModelId: ai.selectedModelId && activeModelIds.has(ai.selectedModelId)
               ? ai.selectedModelId
               : null,
-            unreadSessionIds: (ai.unreadSessionIds || []).filter((sessionId) => persistedSessionIds.has(sessionId)),
+            unreadSessionIds: normalizeBoundedIdList(ai.unreadSessionIds, isSafeChatSessionId, MAX_AI_ID_LIST_ENTRIES)
+              .filter((sessionId) => persistedSessionIds.has(sessionId)),
             currentSessionId: ai.currentSessionId && persistedSessionIds.has(ai.currentSessionId)
               ? ai.currentSessionId
               : null,
@@ -910,12 +1142,12 @@ async function performSplitSave(request: UnifiedSaveRequest) {
         await storage.writeFile(sessionsPath, serializeAISessionsFile(sessionsData));
 
         for (const provider of persistedProviders) {
-            const pModels = ai.models.filter(m => m.providerId === provider.id);
+            const pModels = modelsByProvider.get(provider.id) || [];
             const pData = {
                 provider: sanitizeProviderForDisk(provider),
                 models: pModels,
                 benchmarkResults: ai.benchmarkResults?.[provider.id],
-                fetchedModels: ai.fetchedModels?.[provider.id] || []
+                fetchedModels: normalizeFetchedModelsForSave(ai.fetchedModels?.[provider.id])
             };
             const pPath = await joinPath(channelsDir, `${provider.id}.json`);
             await storage.writeFile(pPath, serializeAIProviderChannelFile(provider.id, pData));

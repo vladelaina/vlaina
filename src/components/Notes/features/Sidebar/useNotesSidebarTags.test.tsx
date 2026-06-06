@@ -55,4 +55,24 @@ describe('useNotesSidebarTags', () => {
     });
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
+
+  it('does not index sidebar tag content that is too complex after read', async () => {
+    const scanAllNotes = vi.fn(async () => undefined);
+    mocked.stat.mockResolvedValue({ isFile: true, size: 16 });
+    mocked.readFile.mockResolvedValue(`#hidden ${'x'.repeat(512 * 1024 + 1)}`);
+
+    const { result } = renderHook(() => useNotesSidebarTags({
+      rootFolder,
+      noteContentsCache: new Map(),
+      scanAllNotes,
+      currentVaultPath: '/vault',
+    }));
+
+    await waitFor(() => {
+      expect(mocked.readFile).toHaveBeenCalledWith('/vault/alpha.md');
+    });
+    await waitFor(() => {
+      expect(result.current.tags).toEqual([]);
+    });
+  });
 });

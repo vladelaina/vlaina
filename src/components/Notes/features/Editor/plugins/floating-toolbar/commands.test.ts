@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { copySelectionToClipboard, convertBlockType, setBgColor, setTextAlignment, setTextColor, toggleBold } from './commands';
+import {
+  copySelectionToClipboard,
+  convertBlockType,
+  getDomSelectedTextBlocks,
+  MAX_BLOCK_COMMAND_DOM_SELECTION_CHILDREN,
+  setBgColor,
+  setTextAlignment,
+  setTextColor,
+  toggleBold,
+} from './commands';
 import type { BlockRange } from '../cursor/blockSelectionUtils';
 
 const mockSetBlockType = vi.fn();
@@ -1276,6 +1285,116 @@ describe('floating toolbar commands', () => {
     expect(clipboardWrite).toHaveBeenCalledWith('1. one\n2. two');
     expect(blockSelectionMocks.clearBlockSelection).toHaveBeenCalledWith(view);
     expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('collects DOM selected text blocks without materializing editor children', () => {
+    const dom = document.createElement('div');
+    const paragraphElement = document.createElement('p');
+    const codeElement = document.createElement('pre');
+    const headingElement = document.createElement('h2');
+    dom.append(paragraphElement, codeElement, headingElement);
+
+    const paragraphNode = { type: { name: 'paragraph' }, attrs: {} };
+    const codeBlockNode = { type: { name: 'code_block' }, attrs: {} };
+    const headingNode = { type: { name: 'heading' }, attrs: { level: 2 } };
+    const nodesByPos = new Map<number, any>([
+      [1, paragraphNode],
+      [5, codeBlockNode],
+      [9, headingNode],
+    ]);
+    const positions = [1, 5, 9];
+    const doc: any = {
+      childCount: positions.length,
+      content: { size: 20 },
+      nodeAt: vi.fn((pos: number) => nodesByPos.get(pos) ?? null),
+      resolve: vi.fn((pos: number) => {
+        const index = Math.max(0, positions.findIndex((entry) => pos <= entry));
+        return {
+          index: vi.fn(() => index),
+          posAtIndex: vi.fn((entryIndex: number) => positions[entryIndex] ?? positions[positions.length - 1]),
+        };
+      }),
+    };
+    const view: any = {
+      dom,
+      state: { doc },
+      posAtDOM: vi.fn((node: Node) => {
+        if (node === paragraphElement) return 1;
+        if (node === codeElement) return 5;
+        return 9;
+      }),
+    };
+    const range = {
+      collapsed: false,
+      intersectsNode: vi.fn(() => true),
+    };
+    const previousGetSelection = window.getSelection;
+    Object.defineProperty(window, 'getSelection', {
+      value: vi.fn(() => ({
+        rangeCount: 1,
+        getRangeAt: vi.fn(() => range),
+      })),
+      configurable: true,
+    });
+    const arrayFromSpy = vi.spyOn(Array, 'from').mockImplementation(() => {
+      throw new Error('Array.from should not be used');
+    });
+
+    try {
+      expect(getDomSelectedTextBlocks(view)).toEqual([
+        { node: paragraphNode, pos: 1 },
+        { node: headingNode, pos: 9 },
+      ]);
+      expect(view.posAtDOM).toHaveBeenCalledTimes(3);
+    } finally {
+      arrayFromSpy.mockRestore();
+      Object.defineProperty(window, 'getSelection', {
+        value: previousGetSelection,
+        configurable: true,
+      });
+    }
+  });
+
+  it('caps DOM selection child scans for oversized editor roots', () => {
+    const dom = document.createElement('div');
+    for (let index = 0; index < MAX_BLOCK_COMMAND_DOM_SELECTION_CHILDREN + 1; index += 1) {
+      dom.appendChild(document.createElement('p'));
+    }
+    const doc: any = {
+      childCount: 1,
+      content: { size: 10 },
+      nodeAt: vi.fn(() => ({ type: { name: 'paragraph' }, attrs: {} })),
+      resolve: vi.fn(() => ({
+        index: vi.fn(() => 0),
+        posAtIndex: vi.fn(() => 1),
+      })),
+    };
+    const view: any = {
+      dom,
+      state: { doc },
+      posAtDOM: vi.fn(() => 1),
+    };
+    const previousGetSelection = window.getSelection;
+    Object.defineProperty(window, 'getSelection', {
+      value: vi.fn(() => ({
+        rangeCount: 1,
+        getRangeAt: vi.fn(() => ({
+          collapsed: false,
+          intersectsNode: vi.fn(() => true),
+        })),
+      })),
+      configurable: true,
+    });
+
+    try {
+      getDomSelectedTextBlocks(view);
+      expect(view.posAtDOM).toHaveBeenCalledTimes(MAX_BLOCK_COMMAND_DOM_SELECTION_CHILDREN);
+    } finally {
+      Object.defineProperty(window, 'getSelection', {
+        value: previousGetSelection,
+        configurable: true,
+      });
+    }
   });
 
   it('converts every selected plain text block around code blocks into headings', () => {

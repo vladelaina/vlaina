@@ -36,11 +36,13 @@ vi.mock('electron', () => ({
 describe('accountCredentialStore', () => {
   beforeEach(async () => {
     vi.resetModules();
+    vi.doUnmock('node:fs/promises');
     mocks.userDataPath = await mkdtemp(path.join(os.tmpdir(), 'vlaina-account-store-'));
     mocks.encryptionAvailable = true;
   });
 
   afterEach(async () => {
+    vi.doUnmock('node:fs/promises');
     await rm(mocks.userDataPath, { recursive: true, force: true });
   });
 
@@ -148,5 +150,25 @@ describe('accountCredentialStore', () => {
     await writeFile(secretsPath, ' '.repeat(300 * 1024), 'utf8');
 
     await expect(store.readStoredAccountCredentials()).resolves.toBeNull();
+  });
+
+  it('ignores account credential content that exceeds the limit after read', async () => {
+    const fsMocks = {
+      mkdir: vi.fn(async () => undefined),
+      readFile: vi.fn(async () => 'x'.repeat(256 * 1024 + 1)),
+      rm: vi.fn(async () => undefined),
+      stat: vi.fn(async () => ({ isFile: () => true, size: 128 })),
+      writeFile: vi.fn(async () => undefined),
+    };
+    vi.doMock('node:fs/promises', () => ({ ...fsMocks, default: fsMocks }));
+
+    const { createAccountCredentialStore } = await import('../../electron/accountCredentialStore.mjs');
+    const store = createAccountCredentialStore({
+      desktopLegacySessionHeader: 'x-app-session-token',
+    });
+
+    await expect(store.readStoredAccountCredentials()).resolves.toBeNull();
+    expect(fsMocks.readFile).toHaveBeenCalled();
+    expect(fsMocks.writeFile).not.toHaveBeenCalled();
   });
 });

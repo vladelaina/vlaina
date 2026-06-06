@@ -98,6 +98,25 @@ describe('desktop filesystem authorization persistence', () => {
     );
   });
 
+  it('ignores persisted authorization content that exceeds the limit after read', async () => {
+    const {
+      assertAuthorizedFsPath,
+      resetAuthorizedFsPathsForTests,
+    } = await import('../../electron/fsAccess.mjs');
+    resetAuthorizedFsPathsForTests();
+    mocks.stat.mockResolvedValue({
+      isFile: () => true,
+      size: 128,
+    });
+    mocks.readFile.mockResolvedValue('x'.repeat(512 * 1024 + 1));
+
+    await expect(assertAuthorizedFsPath('/tmp/saved-vault/note.md')).rejects.toThrow(
+      'File path is not authorized for desktop access',
+    );
+
+    expect(mocks.readFile).toHaveBeenCalled();
+  });
+
   it('bounds persisted authorization entries before resolving them', async () => {
     const {
       MAX_AUTHORIZED_FS_PATH_CHARS,

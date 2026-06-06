@@ -12,6 +12,7 @@ export const abbrPluginKey = new PluginKey('abbr');
 
 const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
 const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
+const MAX_ABBR_DECORATIONS = 1000;
 
 function shouldSkipTextNode(node: any, parent: any): boolean {
   if (parent && SKIPPED_TEXT_PARENT_TYPES.has(parent.type?.name)) {
@@ -79,6 +80,10 @@ function findAbbrUsages(doc: any, definitions: AbbrDefinition[]): { start: numbe
   if (!pattern) return usages;
   
   doc.descendants((node: any, pos: number, parent: any) => {
+    if (usages.length >= MAX_ABBR_DECORATIONS) {
+      return false;
+    }
+
     if (!node.isText || shouldSkipTextNode(node, parent)) {
       return;
     }
@@ -101,6 +106,9 @@ function findAbbrUsages(doc: any, definitions: AbbrDefinition[]): { start: numbe
           end: pos + match.index + abbr.length,
           fullText
         });
+        if (usages.length >= MAX_ABBR_DECORATIONS) {
+          break;
+        }
       }
     }
   });
@@ -114,6 +122,9 @@ function createAbbrDecorations(doc: any): DecorationSet {
   const usages = findAbbrUsages(doc, definitions);
   
   for (const usage of usages) {
+    if (decorations.length >= MAX_ABBR_DECORATIONS) {
+      break;
+    }
     decorations.push(
       Decoration.inline(usage.start, usage.end, {
         nodeName: 'abbr',

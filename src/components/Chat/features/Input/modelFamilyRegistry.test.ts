@@ -42,6 +42,11 @@ describe('model family registry', () => {
     expect(getModelCategoryId(createModel('my-private-model'))).toBe('custom')
   })
 
+  it('ignores family signals beyond the bounded scan window', () => {
+    expect(getModelCategoryId(createModel(`${'x'.repeat(4096)}gpt`))).toBe('custom')
+    expect(getModelCategoryId(createModel('private-model', `${'x'.repeat(4096)}claude`))).toBe('custom')
+  })
+
   it('groups Xiaomi MiMo models separately', () => {
     expect(getModelCategoryId(createModel('mimo-v2.5-pro'))).toBe('mimo')
     expect(getModelCategoryId(createModel('xiaomi/mimo-tts'))).toBe('mimo')
@@ -78,5 +83,12 @@ describe('model family registry', () => {
 
   it('keeps non-family names unchanged in presentation mode', () => {
     expect(getModelPresentationName(createModel('private-team/model-a'))).toBe('private-team/model-a')
+  })
+
+  it('caps presentation names from provider-controlled model strings', () => {
+    const presentationName = getModelPresentationName(createModel('private-model', `private-${'x'.repeat(9000)}`))
+
+    expect(presentationName).toHaveLength(8192)
+    expect(presentationName).toBe(`private-${'x'.repeat(8184)}`)
   })
 })

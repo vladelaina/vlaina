@@ -2,7 +2,11 @@ import type { Mark, Schema } from '@milkdown/prose/model'
 
 import { describe, expect, it } from 'vitest'
 
-import { SerializerState } from './state'
+import {
+  areSerializerMarkPropsEqual,
+  MAX_SERIALIZER_MARK_PROP_STRING_CHARS,
+  SerializerState,
+} from './state'
 
 const boldMark = {
   isInSet: (arr: string[]) => arr.includes('bold'),
@@ -226,6 +230,80 @@ describe('serializer-state', () => {
                 },
                 { type: 'text', value: 'world' },
               ],
+            },
+          ],
+        },
+      ],
+    })
+  })
+
+  it('keeps bounded mark prop equality compatible with ordinary JSON props', () => {
+    expect(
+      areSerializerMarkPropsEqual(
+        { type: 'link', href: 'https://example.test', title: null, isMark: true },
+        { type: 'link', href: 'https://example.test', title: null, isMark: true }
+      )
+    ).toBe(true)
+    expect(
+      areSerializerMarkPropsEqual(
+        { type: 'link', href: 'https://example.test/a', isMark: true },
+        { type: 'link', href: 'https://example.test/b', isMark: true }
+      )
+    ).toBe(false)
+  })
+
+  it('does not call toJSON while comparing mark props', () => {
+    const value = {
+      toJSON: () => {
+        throw new Error('toJSON should not be called')
+      },
+    }
+
+    expect(
+      areSerializerMarkPropsEqual(
+        { type: 'link', href: value, isMark: true },
+        { type: 'link', href: value, isMark: true }
+      )
+    ).toBe(true)
+    expect(
+      areSerializerMarkPropsEqual(
+        { type: 'link', href: value, isMark: true },
+        { type: 'link', href: { ...value }, isMark: true }
+      )
+    ).toBe(false)
+  })
+
+  it('does not merge marks when prop comparison exceeds string budget', () => {
+    const state = new SerializerState(schema)
+    const largeHref = 'https://example.test/' + 'a'.repeat(MAX_SERIALIZER_MARK_PROP_STRING_CHARS)
+
+    state.openNode('doc')
+    state.openNode('paragraph')
+    state.withMark(boldMark, 'link', undefined, { href: largeHref })
+    state.addNode('text', [], 'first')
+    state.closeMark(boldMark)
+    state.withMark(boldMark, 'link', undefined, { href: largeHref })
+    state.addNode('text', [], 'second')
+    state.closeMark(boldMark)
+    state.closeNode()
+
+    expect(state.top()).toMatchObject({
+      type: 'doc',
+      children: [
+        {
+          type: 'paragraph',
+          children: [
+            {
+              type: 'link',
+              isMark: true,
+              href: largeHref,
+              children: [{ type: 'text', value: 'first' }],
+            },
+            {
+              type: 'link',
+              isMark: true,
+              href: largeHref,
+              children: [{ type: 'text', value: 'second' }],
             },
           ],
         },

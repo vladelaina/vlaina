@@ -124,4 +124,24 @@ describe('frontmatterMarkdown', () => {
     expect(isFrontmatterFenceLanguage(getFrontmatterFenceLanguage())).toBe(true);
     expect(isFrontmatterFenceLanguage('yaml')).toBe(false);
   });
+
+  it('leaves oversized unclosed leading frontmatter candidates as markdown', () => {
+    const markdown = [
+      '---',
+      ...Array.from({ length: 2050 }, (_, index) => `line_${index}: value`),
+      '# Heading',
+    ].join('\n');
+
+    expect(normalizeLeadingFrontmatterMarkdown(markdown)).toBe(markdown);
+  });
+
+  it('leaves oversized unclosed internal frontmatter candidates as markdown', () => {
+    const markdown = [
+      `\`\`\`${getFrontmatterFenceLanguage()}`,
+      ...Array.from({ length: 2050 }, (_, index) => `line_${index}: value`),
+      '# Heading',
+    ].join('\n');
+
+    expect(serializeLeadingFrontmatterMarkdown(markdown)).toBe(markdown);
+  });
 });

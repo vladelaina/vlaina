@@ -9,6 +9,47 @@ import { getVideoElementAttrs } from '../video/videoDom';
 
 const previewCleanupCallbacks = new WeakMap<HTMLElement, () => void>();
 
+export const MAX_APPLIED_PREVIEW_DOM_SCAN_ELEMENTS = 20_000;
+export const MAX_APPLIED_PREVIEW_MATCHED_ELEMENTS = 5_000;
+
+type AppliedPreviewElementCollection = {
+  elements: HTMLElement[];
+  complete: boolean;
+};
+
+export function collectAppliedPreviewElements(
+  root: HTMLElement,
+  matches: (element: HTMLElement) => boolean,
+  options: {
+    maxScanned?: number;
+    maxMatches?: number;
+  } = {}
+): AppliedPreviewElementCollection {
+  const maxScanned = options.maxScanned ?? MAX_APPLIED_PREVIEW_DOM_SCAN_ELEMENTS;
+  const maxMatches = options.maxMatches ?? MAX_APPLIED_PREVIEW_MATCHED_ELEMENTS;
+  const elements: HTMLElement[] = [];
+  const walker = root.ownerDocument.createTreeWalker(root, 1);
+  let scanned = 0;
+
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    scanned += 1;
+    if (scanned > maxScanned) {
+      return { elements: [], complete: false };
+    }
+
+    if (!(node instanceof HTMLElement) || !matches(node)) {
+      continue;
+    }
+
+    elements.push(node);
+    if (elements.length > maxMatches) {
+      return { elements: [], complete: false };
+    }
+  }
+
+  return { elements, complete: true };
+}
+
 export function createAppliedPreviewState(
   view: EditorView,
   apply: (previewView: EditorView) => void
@@ -155,8 +196,20 @@ function stabilizePreviewListLayout(previewDom: HTMLElement, sourceDom: HTMLElem
     return;
   }
 
-  const sourceElements = Array.from(sourceDom.querySelectorAll<HTMLElement>(LIST_LAYOUT_SELECTOR));
-  const previewElements = Array.from(previewDom.querySelectorAll<HTMLElement>(LIST_LAYOUT_SELECTOR));
+  const sourceCollection = collectAppliedPreviewElements(
+    sourceDom,
+    (element) => element.matches(LIST_LAYOUT_SELECTOR)
+  );
+  const previewCollection = collectAppliedPreviewElements(
+    previewDom,
+    (element) => element.matches(LIST_LAYOUT_SELECTOR)
+  );
+  if (!sourceCollection.complete || !previewCollection.complete) {
+    return;
+  }
+
+  const { elements: sourceElements } = sourceCollection;
+  const { elements: previewElements } = previewCollection;
   if (sourceElements.length !== previewElements.length) {
     return;
   }
@@ -181,18 +234,31 @@ function stabilizePreviewListLayout(previewDom: HTMLElement, sourceDom: HTMLElem
   });
 }
 
-function getSerializedCodeBlockElements(previewDom: HTMLElement): HTMLElement[] {
-  return Array.from(previewDom.querySelectorAll<HTMLElement>('pre.code-block-wrapper, div[data-language], div')).filter((child) => {
-    if (!(child instanceof HTMLElement)) {
-      return false;
+function hasDirectPreCodeChild(element: HTMLElement): boolean {
+  for (let child = element.firstElementChild; child; child = child.nextElementSibling) {
+    if (child.tagName !== 'PRE') {
+      continue;
     }
 
-    if (child.matches('pre.code-block-wrapper')) {
+    for (let preChild = child.firstElementChild; preChild; preChild = preChild.nextElementSibling) {
+      if (preChild.tagName === 'CODE') {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function getSerializedCodeBlockElements(previewDom: HTMLElement): HTMLElement[] | null {
+  const collection = collectAppliedPreviewElements(previewDom, (element) => {
+    if (element.matches('pre.code-block-wrapper')) {
       return true;
     }
 
-    return child.querySelector(':scope > pre > code') !== null;
+    return element.tagName === 'DIV' && hasDirectPreCodeChild(element);
   });
+  return collection.complete ? collection.elements : null;
 }
 
 function getPreviewCodeBlockNodes(state: EditorState): Array<{ node: ProseMirrorNode; pos: number }> {
@@ -213,7 +279,7 @@ function renderCodeBlockNodeViewPreviews(
   view: EditorView
 ): void {
   const previewCodeBlocks = getSerializedCodeBlockElements(previewDom);
-  if (previewCodeBlocks.length === 0) {
+  if (!previewCodeBlocks || previewCodeBlocks.length === 0) {
     return;
   }
 
@@ -232,7 +298,10 @@ function renderCodeBlockNodeViewPreviews(
 
     const nodeView = new CodeBlockNodeView(entry.node, view, () => undefined);
     nodeView.dom.setAttribute('aria-hidden', 'true');
-    makePreviewCloneNonInteractive(nodeView.dom);
+    if (!makePreviewCloneNonInteractive(nodeView.dom)) {
+      nodeView.destroy();
+      return;
+    }
     previewCodeBlock.replaceWith(nodeView.dom);
     nodeViews.push(nodeView);
   });
@@ -249,24 +318,43 @@ function preserveSourceCodeBlockNodeViews(previewDom: HTMLElement, sourceDom: HT
     return false;
   }
 
-  const sourceCodeBlocks = Array.from(sourceDom.querySelectorAll<HTMLElement>('.code-block-container'));
+  const sourceCodeBlockCollection = collectAppliedPreviewElements(
+    sourceDom,
+    (element) => element.classList.contains('code-block-container')
+  );
+  if (!sourceCodeBlockCollection.complete) {
+    return false;
+  }
+
+  const { elements: sourceCodeBlocks } = sourceCodeBlockCollection;
   if (sourceCodeBlocks.length === 0) {
     return false;
   }
 
   const previewCodeBlocks = getSerializedCodeBlockElements(previewDom);
-  if (previewCodeBlocks.length !== sourceCodeBlocks.length) {
+  if (!previewCodeBlocks || previewCodeBlocks.length !== sourceCodeBlocks.length) {
     return false;
   }
 
-  previewCodeBlocks.forEach((previewCodeBlock, index) => {
+  const clones: HTMLElement[] = [];
+  for (let index = 0; index < previewCodeBlocks.length; index += 1) {
     const sourceCodeBlock = sourceCodeBlocks[index];
     if (!sourceCodeBlock) {
-      return;
+      return false;
     }
 
     const clone = sourceCodeBlock.cloneNode(true) as HTMLElement;
-    makePreviewCloneNonInteractive(clone);
+    if (!makePreviewCloneNonInteractive(clone)) {
+      return false;
+    }
+    clones.push(clone);
+  }
+
+  previewCodeBlocks.forEach((previewCodeBlock, index) => {
+    const clone = clones[index];
+    if (!clone) {
+      return;
+    }
     previewCodeBlock.replaceWith(clone);
   });
   return true;
@@ -277,15 +365,27 @@ function preserveSourceImageBlockNodeViews(previewDom: HTMLElement, sourceDom: H
     return;
   }
 
-  const sourceImages = Array.from(sourceDom.querySelectorAll<HTMLElement>('.image-block-container'));
+  const sourceImageCollection = collectAppliedPreviewElements(
+    sourceDom,
+    (element) => element.classList.contains('image-block-container')
+  );
+  if (!sourceImageCollection.complete) {
+    return;
+  }
+
+  const { elements: sourceImages } = sourceImageCollection;
   if (sourceImages.length === 0) {
     return;
   }
 
-  const previewImages = Array.from(previewDom.querySelectorAll<HTMLElement>('img'));
-  if (previewImages.length !== sourceImages.length) {
+  const previewImageCollection = collectAppliedPreviewElements(
+    previewDom,
+    (element) => element.tagName === 'IMG'
+  );
+  if (!previewImageCollection.complete || previewImageCollection.elements.length !== sourceImages.length) {
     return;
   }
+  const { elements: previewImages } = previewImageCollection;
 
   previewImages.forEach((previewImage, index) => {
     const sourceImage = sourceImages[index];
@@ -294,7 +394,9 @@ function preserveSourceImageBlockNodeViews(previewDom: HTMLElement, sourceDom: H
     }
 
     const clone = sourceImage.cloneNode(true) as HTMLElement;
-    makePreviewCloneNonInteractive(clone);
+    if (!makePreviewCloneNonInteractive(clone)) {
+      return;
+    }
     previewImage.replaceWith(clone);
   });
 }
@@ -304,15 +406,30 @@ function preserveSourceFrontmatterNodeViews(previewDom: HTMLElement, sourceDom: 
     return;
   }
 
-  const sourceFrontmatters = Array.from(sourceDom.querySelectorAll<HTMLElement>('.frontmatter-block-container'));
+  const sourceFrontmatterCollection = collectAppliedPreviewElements(
+    sourceDom,
+    (element) => element.classList.contains('frontmatter-block-container')
+  );
+  if (!sourceFrontmatterCollection.complete) {
+    return;
+  }
+
+  const { elements: sourceFrontmatters } = sourceFrontmatterCollection;
   if (sourceFrontmatters.length === 0) {
     return;
   }
 
-  const previewFrontmatters = Array.from(previewDom.querySelectorAll<HTMLElement>('[data-type="frontmatter"]'));
-  if (previewFrontmatters.length !== sourceFrontmatters.length) {
+  const previewFrontmatterCollection = collectAppliedPreviewElements(
+    previewDom,
+    (element) => element.dataset.type === 'frontmatter'
+  );
+  if (
+    !previewFrontmatterCollection.complete ||
+    previewFrontmatterCollection.elements.length !== sourceFrontmatters.length
+  ) {
     return;
   }
+  const { elements: previewFrontmatters } = previewFrontmatterCollection;
 
   previewFrontmatters.forEach((previewFrontmatter, index) => {
     const sourceFrontmatter = sourceFrontmatters[index];
@@ -321,7 +438,9 @@ function preserveSourceFrontmatterNodeViews(previewDom: HTMLElement, sourceDom: 
     }
 
     const clone = sourceFrontmatter.cloneNode(true) as HTMLElement;
-    makePreviewCloneNonInteractive(clone);
+    if (!makePreviewCloneNonInteractive(clone)) {
+      return;
+    }
     previewFrontmatter.replaceWith(clone);
   });
 }
@@ -350,12 +469,14 @@ function getRenderedAtomSignature(element: HTMLElement): string | null {
   return null;
 }
 
-function getRenderedAtomElements(root: HTMLElement): HTMLElement[] {
-  return Array.from(
-    root.querySelectorAll<HTMLElement>(
-      '[data-type="math-inline"], [data-type="math-block"], [data-type="mermaid"], [data-type="video"]'
-    )
-  );
+function isRenderedAtomElement(element: HTMLElement): boolean {
+  const type = element.dataset.type;
+  return type === 'math-inline' || type === 'math-block' || type === 'mermaid' || type === 'video';
+}
+
+function getRenderedAtomElements(root: HTMLElement): HTMLElement[] | null {
+  const collection = collectAppliedPreviewElements(root, isRenderedAtomElement);
+  return collection.complete ? collection.elements : null;
 }
 
 function preserveSourceRenderedAtomNodes(previewDom: HTMLElement, sourceDom: HTMLElement | null): void {
@@ -364,12 +485,12 @@ function preserveSourceRenderedAtomNodes(previewDom: HTMLElement, sourceDom: HTM
   }
 
   const previewAtoms = getRenderedAtomElements(previewDom);
-  if (previewAtoms.length === 0) {
+  if (!previewAtoms || previewAtoms.length === 0) {
     return;
   }
 
   const sourceAtoms = getRenderedAtomElements(sourceDom);
-  if (sourceAtoms.length !== previewAtoms.length) {
+  if (!sourceAtoms || sourceAtoms.length !== previewAtoms.length) {
     return;
   }
 
@@ -384,23 +505,41 @@ function preserveSourceRenderedAtomNodes(previewDom: HTMLElement, sourceDom: HTM
     }
 
     const clone = sourceAtom.cloneNode(true) as HTMLElement;
-    makePreviewCloneNonInteractive(clone);
+    if (!makePreviewCloneNonInteractive(clone)) {
+      return;
+    }
     previewAtom.replaceWith(clone);
   });
 }
 
-function makePreviewCloneNonInteractive(clone: HTMLElement): void {
+function isPreviewInteractiveElement(element: HTMLElement): boolean {
+  return (
+    (element.tagName === 'IFRAME' && element.hasAttribute('src')) ||
+    element.hasAttribute('contenteditable') ||
+    element.hasAttribute('tabindex')
+  );
+}
+
+function makePreviewCloneNonInteractive(clone: HTMLElement): boolean {
   clone.setAttribute('aria-hidden', 'true');
   clone.removeAttribute('contenteditable');
   clone.removeAttribute('tabindex');
-  clone.querySelectorAll<HTMLIFrameElement>('iframe[src]').forEach((iframe) => {
-    iframe.dataset.previewSrc = iframe.getAttribute('src') ?? '';
-    iframe.removeAttribute('src');
-  });
-  clone.querySelectorAll<HTMLElement>('[contenteditable], [tabindex]').forEach((element) => {
+
+  const interactiveCollection = collectAppliedPreviewElements(clone, isPreviewInteractiveElement);
+  if (!interactiveCollection.complete) {
+    return false;
+  }
+
+  interactiveCollection.elements.forEach((element) => {
+    if (element.tagName === 'IFRAME' && element.hasAttribute('src')) {
+      element.dataset.previewSrc = element.getAttribute('src') ?? '';
+      element.removeAttribute('src');
+    }
     element.removeAttribute('contenteditable');
     element.removeAttribute('tabindex');
   });
+
+  return true;
 }
 
 function addProseMirrorTrailingBreaks(

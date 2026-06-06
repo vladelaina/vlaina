@@ -81,12 +81,24 @@ function createEvent(key: string, options: Partial<KeyboardEvent> = {}) {
   };
 }
 
+function createTableNode() {
+  return {
+    type: { name: 'table' },
+    firstChild: {
+      firstChild: {
+        type: { name: 'table_header' },
+      },
+    },
+  };
+}
+
 function createTransaction() {
   const tr = {
     doc: {
-      descendants: vi.fn((callback: (node: { type: { name: string } }, pos: number) => boolean) => {
-        callback({ type: { name: 'table_cell' } }, 1);
+      descendants: vi.fn(() => {
+        throw new Error('doc.descendants should not be used after inserting shortcut tables');
       }),
+      nodeAt: vi.fn(() => createTableNode()),
     },
     mapping: { map: vi.fn((pos: number) => pos) },
     replaceRangeWith: vi.fn(() => tr),
@@ -143,7 +155,7 @@ function expectHandled(event: ReturnType<typeof createEvent>) {
 describe('handleEditorShortcut', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.createEmptyTableNode.mockReturnValue({ type: 'table' });
+    mocks.createEmptyTableNode.mockReturnValue(createTableNode());
     mocks.createOpenMathEditorState.mockReturnValue({ open: true });
     mocks.addRowAfter.mockReturnValue(true);
     mocks.deleteRow.mockReturnValue(true);
@@ -191,6 +203,9 @@ describe('handleEditorShortcut', () => {
     const insertEvent = createEvent('t');
     expect(handleEditorShortcut(insertView as never, insertEvent)).toBe(true);
     expect(mocks.createEmptyTableNode).toHaveBeenCalledWith(insertView.state.schema, 3);
+    expect(insertView.state.tr.doc.nodeAt).toHaveBeenCalledWith(1);
+    expect(insertView.state.tr.doc.descendants).not.toHaveBeenCalled();
+    expect(mocks.textSelectionCreate).toHaveBeenCalledWith(insertView.state.tr.doc, 5);
     expect(insertView.dom.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
       type: 'editor:block-user-input',
     }));

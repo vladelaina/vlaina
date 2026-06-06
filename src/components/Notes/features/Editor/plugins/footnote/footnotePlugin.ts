@@ -5,12 +5,20 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FootnoteDefAttrs, FootnoteRefAttrs } from './types';
 import { markEditorUserInput } from '../shared/userInputEvents';
 import { normalizeFootnoteLabel, normalizeFootnotePreview } from './footnoteLabels';
+import {
+  collectFootnoteElements,
+  docHasFootnoteNodes,
+  isFootnoteDefinitionElement,
+  isFootnoteReferenceElement,
+  isFootnoteReferenceNodeName,
+  MAX_SYNCED_FOOTNOTE_DEFS,
+  MAX_SYNCED_FOOTNOTE_REFS,
+  stepSliceContainsFootnote,
+} from './footnoteScan';
 
 type UndoableInputRule = InputRule & { undoable?: boolean };
 
 export const footnoteInteractionPluginKey = new PluginKey('footnoteInteraction');
-const MAX_SYNCED_FOOTNOTE_REFS = 1000;
-const MAX_SYNCED_FOOTNOTE_DEFS = 1000;
 
 interface FootnoteInteractionPluginState {
   hasFootnotes: boolean;
@@ -26,16 +34,15 @@ function findFootnoteDefinition(editorDom: HTMLElement, id: string): HTMLElement
   id = normalizeFootnoteLabel(id);
   if (!id) return null;
 
-  const definitions = editorDom.querySelectorAll<HTMLElement>('.footnote-def[data-id], .footnote-def[data-label]');
-  for (const definition of definitions) {
-    if (
-      normalizeFootnoteLabel(definition.dataset.id) === id
-      || normalizeFootnoteLabel(definition.dataset.label) === id
-    ) {
-      return definition;
-    }
-  }
-  return null;
+  return collectFootnoteElements(
+    editorDom,
+    (definition) => isFootnoteDefinitionElement(definition)
+      && (
+        normalizeFootnoteLabel(definition.dataset.id) === id
+        || normalizeFootnoteLabel(definition.dataset.label) === id
+      ),
+    1
+  )[0] ?? null;
 }
 
 function getFootnoteDefinitionPreview(definition: HTMLElement): string {
@@ -50,13 +57,9 @@ function getFootnoteDefinitionPreview(definition: HTMLElement): string {
 
 function collectFootnoteDefinitionPreviews(editorDom: HTMLElement): Map<string, string> {
   const previews = new Map<string, string>();
-  const definitions = editorDom.querySelectorAll<HTMLElement>('.footnote-def[data-id], .footnote-def[data-label]');
-  let count = 0;
+  const definitions = collectFootnoteElements(editorDom, isFootnoteDefinitionElement, MAX_SYNCED_FOOTNOTE_DEFS);
 
   for (const definition of definitions) {
-    if (count >= MAX_SYNCED_FOOTNOTE_DEFS) break;
-    count += 1;
-
     const id = normalizeFootnoteLabel(definition.dataset.id || definition.dataset.label);
     if (!id || previews.has(id)) continue;
     previews.set(id, getFootnoteDefinitionPreview(definition));
@@ -65,15 +68,11 @@ function collectFootnoteDefinitionPreviews(editorDom: HTMLElement): Map<string, 
   return previews;
 }
 
-function syncFootnoteReferencePreviews(editorDom: HTMLElement): void {
-  const refs = editorDom.querySelectorAll<HTMLElement>('.footnote-ref[data-id], .footnote-ref[data-label]');
+export function syncFootnoteReferencePreviews(editorDom: HTMLElement): void {
+  const refs = collectFootnoteElements(editorDom, isFootnoteReferenceElement, MAX_SYNCED_FOOTNOTE_REFS);
   const definitionPreviews = collectFootnoteDefinitionPreviews(editorDom);
-  let count = 0;
 
   for (const ref of refs) {
-    if (count >= MAX_SYNCED_FOOTNOTE_REFS) break;
-    count += 1;
-
     const id = normalizeFootnoteLabel(ref.dataset.id || ref.dataset.label);
     if (!id) continue;
 
@@ -92,53 +91,6 @@ function findFootnoteDefinitionDepth(view: EditorView): number | null {
     }
   }
   return null;
-}
-
-function isFootnoteReferenceNodeName(nodeName: string): boolean {
-  return nodeName === 'footnote_reference' || nodeName === 'footnote_ref';
-}
-
-function isFootnoteDefinitionNodeName(nodeName: string): boolean {
-  return nodeName === 'footnote_definition' || nodeName === 'footnote_def';
-}
-
-function docHasFootnoteNodes(doc: {
-  descendants: (callback: (node: { type?: { name?: string } }) => boolean | void) => void;
-}): boolean {
-  let hasFootnotes = false;
-  doc.descendants((node) => {
-    const nodeName = node.type?.name;
-    if (nodeName && (isFootnoteReferenceNodeName(nodeName) || isFootnoteDefinitionNodeName(nodeName))) {
-      hasFootnotes = true;
-      return false;
-    }
-    return true;
-  });
-  return hasFootnotes;
-}
-
-function stepSliceContainsFootnote(step: unknown): boolean {
-  const content = (step as {
-    slice?: {
-      content?: {
-        descendants?: (callback: (node: { type?: { name?: string } }) => boolean | void) => void;
-      };
-    };
-  }).slice?.content;
-  if (!content || typeof content.descendants !== 'function') {
-    return false;
-  }
-
-  let hasFootnotes = false;
-  content.descendants((node) => {
-    const nodeName = node.type?.name;
-    if (nodeName && (isFootnoteReferenceNodeName(nodeName) || isFootnoteDefinitionNodeName(nodeName))) {
-      hasFootnotes = true;
-      return false;
-    }
-    return true;
-  });
-  return hasFootnotes;
 }
 
 function transactionMayInsertFootnote(tr: unknown): boolean {

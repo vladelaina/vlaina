@@ -16,6 +16,7 @@ import { CHAT_STREAM_FADE_MS } from './chatStreamTextPlugin';
 import { MARKDOWN_BLOCK_GAP } from '@/components/common/markdown/markdownMetrics';
 import { countFencedCodeBlocks, countRenderableImages } from './chatStreamTextMetadata';
 import { themeChatStreamTokens, themeTypographyTokens } from '@/styles/themeTokens';
+import { createFilledCodePointTimings, getCodePointLength } from './chatStreamTextMetrics';
 
 const BASE_CHAR_DELAY_MS = themeChatStreamTokens.baseCharDelayMs;
 const MIN_CHAR_DELAY_MS = themeChatStreamTokens.minCharDelayMs;
@@ -54,7 +55,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function textLength(text: string): number {
-  return Array.from(text).length;
+  return getCodePointLength(text);
 }
 
 export function canAnimateChatStreamContent(content: string): boolean {
@@ -78,6 +79,7 @@ function findStableMarkdownSplit(content: string): number {
   const lines = content.replace(/\r\n?/g, '\n').split('\n');
   let activeFence: MarkdownFenceState | null = null;
   let splitIndex = 0;
+  let charOffset = 0;
   let offset = 0;
 
   for (let index = 0; index < lines.length; index += 1) {
@@ -91,8 +93,10 @@ function findStableMarkdownSplit(content: string): number {
     }
 
     offset += line.length;
+    charOffset += textLength(line);
     if (index < lines.length - 1) {
       offset += 1;
+      charOffset += 1;
     }
 
     if (activeFence || line.trim()) {
@@ -103,7 +107,7 @@ function findStableMarkdownSplit(content: string): number {
       continue;
     }
 
-    if (textLength(content.slice(0, offset)) >= MIN_STABLE_PREFIX_CHARS) {
+    if (charOffset >= MIN_STABLE_PREFIX_CHARS) {
       splitIndex = offset;
     }
   }
@@ -150,14 +154,14 @@ export function buildChatStreamSchedule(
     walkRichInlineLineRanges(block.prepared, availableWidth, (line: RichInlineLineRange) => {
       const materializedLine = materializeRichInlineLineRange(block.prepared, line);
       const lineText = materializedLine.fragments.map((fragment) => fragment.text).join('');
-      const chars = Array.from(lineText);
+      const charCount = textLength(lineText);
       const lineDelay = computeCharDelay(Math.max(0, lineCount - lineIndex - 1));
 
-      for (let charIndex = 0; charIndex < chars.length; charIndex += 1) {
+      for (let charIndex = 0; charIndex < charCount; charIndex += 1) {
         births.push(cursor + charIndex * lineDelay);
       }
 
-      if (chars.length > 0) {
+      if (charCount > 0) {
         cursor = births[births.length - 1]! + CHAT_STREAM_FADE_MS;
       }
 
@@ -214,7 +218,7 @@ export function useChatStreamBlocks(
       previousContentRef.current = content;
       previousContentLengthRef.current = textLength(content);
       previousArrivalTimeRef.current = renderNow;
-      birthsRef.current = Array.from(content).map(() => renderNow - CHAT_STREAM_FADE_MS);
+      birthsRef.current = createFilledCodePointTimings(content, renderNow - CHAT_STREAM_FADE_MS);
     }
 
     const previousContent = previousContentRef.current;
@@ -243,7 +247,7 @@ export function useChatStreamBlocks(
         charDelayRef.current = charDelay;
         previousContentLengthRef.current = nextLength;
       } else {
-        birthsRef.current = Array.from(content).map(() => renderNow - CHAT_STREAM_FADE_MS);
+        birthsRef.current = createFilledCodePointTimings(content, renderNow - CHAT_STREAM_FADE_MS);
         charDelayRef.current = 0;
         previousContentLengthRef.current = textLength(content);
       }

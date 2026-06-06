@@ -42,7 +42,15 @@ vi.mock('@/stores/useToastStore', () => ({
   },
 }));
 
-import { loadUnifiedData } from './unifiedStorage';
+import {
+  MAX_CUSTOM_ICON_ID_CHARS,
+  MAX_CUSTOM_ICON_NAME_CHARS,
+  MAX_CUSTOM_ICON_URL_CHARS,
+  MAX_CUSTOM_ICONS,
+  MAX_DELETED_CUSTOM_ICON_IDS,
+  MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES,
+  loadUnifiedData,
+} from './unifiedStorage';
 
 describe('unifiedStorage load bounds', () => {
   beforeEach(() => {
@@ -183,5 +191,162 @@ describe('unifiedStorage load bounds', () => {
     expect(data.ai?.models.at(-1)?.id).toBe('provider-1::model-1999');
     expect(data.ai?.fetchedModels?.['provider-1']).toHaveLength(2000);
     expect(data.ai?.fetchedModels?.['provider-1']?.at(-1)).toBe('model-1999');
+  });
+
+  it('ignores main data content that exceeds the limit after read', async () => {
+    mocks.storage.exists.mockImplementation(async (path: string) => path.endsWith('/.vlaina/data.json'));
+    mocks.storage.readFile.mockResolvedValue('x'.repeat(2 * 1024 * 1024 + 1));
+
+    const data = await loadUnifiedData();
+
+    expect(data.settings.timezone.city).toBe('Beijing');
+    expect(data.ai?.providers).toEqual([]);
+  });
+
+  it('bounds custom icon metadata loaded from main data', async () => {
+    mocks.storage.exists.mockImplementation(async (path: string) => path.endsWith('/.vlaina/data.json'));
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/.vlaina/data.json')) {
+        return JSON.stringify({
+          version: 2,
+          lastModified: 1,
+          data: {
+            settings: {
+              timezone: { offset: 480, city: 'Beijing' },
+              markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+            },
+            customIcons: [
+              {
+                id: 'icon-0',
+                url: 'img:/app/.vlaina/assets/icons/icon-0.png',
+                name: 'icon-0.png',
+                createdAt: 1,
+              },
+              {
+                id: 'icon-0',
+                url: 'img:/app/.vlaina/assets/icons/duplicate.png',
+                name: 'duplicate.png',
+                createdAt: 2,
+              },
+              {
+                id: `${'i'.repeat(MAX_CUSTOM_ICON_ID_CHARS)}x`,
+                url: 'img:/app/.vlaina/assets/icons/too-long-id.png',
+                name: 'too-long-id.png',
+                createdAt: 3,
+              },
+              {
+                id: 'too-long-url',
+                url: 'u'.repeat(MAX_CUSTOM_ICON_URL_CHARS + 1),
+                name: 'too-long-url.png',
+                createdAt: 4,
+              },
+              {
+                id: 'too-long-name',
+                url: 'img:/app/.vlaina/assets/icons/too-long-name.png',
+                name: `${'n'.repeat(MAX_CUSTOM_ICON_NAME_CHARS)}x`,
+                createdAt: 5,
+              },
+              ...Array.from({ length: MAX_CUSTOM_ICONS + 10 }, (_, index) => ({
+                id: `icon-${index + 1}`,
+                url: `img:/app/.vlaina/assets/icons/icon-${index + 1}.png`,
+                name: `icon-${index + 1}.png`,
+                createdAt: index + 10,
+              })),
+            ],
+            deletedCustomIconIds: [
+              'deleted-0',
+              'deleted-0',
+              `${'d'.repeat(MAX_CUSTOM_ICON_ID_CHARS)}x`,
+              ...Array.from({ length: MAX_DELETED_CUSTOM_ICON_IDS + 10 }, (_, index) => `deleted-${index + 1}`),
+            ],
+          },
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    const data = await loadUnifiedData();
+
+    expect(data.customIcons).toHaveLength(MAX_CUSTOM_ICONS);
+    expect(data.customIcons?.[0]?.id).toBe('icon-0');
+    expect(data.customIcons?.some((icon) => icon.id === 'too-long-url')).toBe(false);
+    expect(data.customIcons?.some((icon) => icon.id === 'too-long-name')).toBe(false);
+    expect(data.deletedCustomIconIds).toHaveLength(MAX_DELETED_CUSTOM_ICON_IDS);
+    expect(data.deletedCustomIconIds?.[0]).toBe('deleted-0');
+    expect(data.deletedCustomIconIds).not.toContain(`${'d'.repeat(MAX_CUSTOM_ICON_ID_CHARS)}x`);
+  });
+
+  it('bounds orphan chat session recovery directory scans', async () => {
+    const recoverableSessionId = `session-${MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES - 1}`;
+    const skippedSessionId = `session-${MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES}`;
+    mocks.storage.exists.mockImplementation(async (path: string) => (
+      path.endsWith('/.vlaina/data.json') ||
+      path.endsWith(`/chat/sessions/${recoverableSessionId}.json`) ||
+      path.endsWith(`/chat/sessions/${skippedSessionId}.json`)
+    ));
+    mocks.storage.listDir.mockImplementation(async (path: string) => {
+      if (!path.endsWith('/chat/sessions')) return [];
+      return Array.from({ length: MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES + 1 }, (_, index) => ({
+        name: index === MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES - 1
+          ? `${recoverableSessionId}.json`
+          : index === MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES
+            ? `${skippedSessionId}.json`
+            : `temp-session-${index}.json`,
+        path: `/appdata/.vlaina/chat/sessions/session-${index}.json`,
+        isFile: true,
+        isDirectory: false,
+      }));
+    });
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/.vlaina/data.json')) {
+        return JSON.stringify({
+          version: 2,
+          lastModified: 1,
+          data: {
+            settings: {
+              timezone: { offset: 480, city: 'Beijing' },
+              markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+            },
+            customIcons: [],
+          },
+        });
+      }
+
+      if (path.endsWith(`/chat/sessions/${recoverableSessionId}.json`)) {
+        return JSON.stringify({
+          version: 1,
+          sessionId: recoverableSessionId,
+          updatedAt: 2,
+          messages: [{
+            id: 'm1',
+            role: 'user',
+            content: 'Recover bounded orphan chat',
+            modelId: '',
+            timestamp: 10,
+            versions: [{
+              content: 'Recover bounded orphan chat',
+              createdAt: 10,
+              kind: 'original',
+              subsequentMessages: [],
+            }],
+            currentVersionIndex: 0,
+          }],
+        });
+      }
+
+      if (path.endsWith(`/chat/sessions/${skippedSessionId}.json`)) {
+        throw new Error('Out-of-budget orphan sessions must not be loaded');
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    const data = await loadUnifiedData();
+
+    expect(data.ai?.sessions.map((session) => session.id)).toEqual([recoverableSessionId]);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith(
+      `/appdata/.vlaina/chat/sessions/${skippedSessionId}.json`,
+    );
   });
 });

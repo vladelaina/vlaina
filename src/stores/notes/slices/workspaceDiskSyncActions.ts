@@ -4,6 +4,7 @@ import {
   getCachedNoteModifiedAt,
   setCachedNoteContent,
 } from '../document/noteContentCache';
+import { assertEditorSafeMarkdownContent } from '../document/noteDocumentPersistence';
 import { shouldIgnoreExpectedExternalChange } from '../document/externalChangeRegistry';
 import { setNoteTabDirtyState } from '../document/noteTabState';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
@@ -124,6 +125,7 @@ export function createWorkspaceDiskSyncAction(
           }
 
           const rawDiskContent = await storage.readFile(fullPath);
+          assertEditorSafeMarkdownContent(rawDiskContent);
           preloadedDiskContent = normalizeSerializedMarkdownDocument(rawDiskContent);
           if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
             return 'ignored';
@@ -152,9 +154,12 @@ export function createWorkspaceDiskSyncAction(
           return 'conflict';
         }
 
-        const nextContent = preloadedDiskContent ?? normalizeSerializedMarkdownDocument(
-          await storage.readFile(fullPath)
-        );
+        let nextContent = preloadedDiskContent;
+        if (nextContent === null) {
+          const rawDiskContent = await storage.readFile(fullPath);
+          assertEditorSafeMarkdownContent(rawDiskContent);
+          nextContent = normalizeSerializedMarkdownDocument(rawDiskContent);
+        }
         if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
           return 'ignored';
         }

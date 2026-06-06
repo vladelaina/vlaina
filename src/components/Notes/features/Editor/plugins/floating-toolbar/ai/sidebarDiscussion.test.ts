@@ -3,6 +3,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { useUIStore } from '@/stores/uiSlice';
 import { useToastStore } from '@/stores/useToastStore';
+import { MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS } from '@/lib/ui/composerFocusRegistry';
 import { TOOLBAR_ACTIONS } from '../types';
 import { openSidebarDiscussionForSelection } from './sidebarDiscussion';
 
@@ -37,6 +38,11 @@ import { canOpenSidebarDiscussionForSelection } from './sidebarDiscussion';
 function createView(): EditorView {
   return {
     state: {
+      selection: {
+        from: 1,
+        to: 8,
+        empty: false,
+      },
       tr: {
         setMeta: vi.fn((_key, meta) => meta),
       },
@@ -156,5 +162,42 @@ describe('openSidebarDiscussionForSelection', () => {
       'The current selection cannot be quoted to the AI chat.'
     );
     expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('does not serialize text selections that are too large to quote to chat', () => {
+    const view = {
+      ...createView(),
+      state: {
+        ...createView().state,
+        selection: {
+          from: 1,
+          to: MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS + 2,
+          empty: false,
+        },
+      },
+    } as unknown as EditorView;
+
+    const opened = openSidebarDiscussionForSelection(view);
+
+    expect(opened).toBe(false);
+    expect(getSerializedSelectionText).not.toHaveBeenCalled();
+    expect(useUIStore.getState().pendingNotesChatComposerInsert).toBeNull();
+    expect(useToastStore.getState().toasts[useToastStore.getState().toasts.length - 1]?.message).toBe(
+      'The current selection cannot be quoted to the AI chat.'
+    );
+  });
+
+  it('does not queue serialized selections that are too large to insert into chat', () => {
+    vi.mocked(getSerializedSelectionText).mockReturnValue(
+      'x'.repeat(MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS + 1)
+    );
+
+    const opened = openSidebarDiscussionForSelection(createView());
+
+    expect(opened).toBe(false);
+    expect(useUIStore.getState().pendingNotesChatComposerInsert).toBeNull();
+    expect(useToastStore.getState().toasts[useToastStore.getState().toasts.length - 1]?.message).toBe(
+      'The current selection cannot be quoted to the AI chat.'
+    );
   });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MAX_MODEL_CAPABILITY_FIELD_CHARS } from '../modelCapabilities';
 import { inferBenchmarkEndpoint } from './endpoint';
 
 describe('inferBenchmarkEndpoint', () => {
@@ -21,5 +22,9 @@ describe('inferBenchmarkEndpoint', () => {
   it('falls back to chat for normal chat model ids', () => {
     expect(inferBenchmarkEndpoint('gpt-4o-mini')).toBe('chat');
     expect(inferBenchmarkEndpoint('gemini-2.5-flash-image-preview')).toBe('chat');
+  });
+
+  it('ignores image hints beyond the bounded endpoint scan window', () => {
+    expect(inferBenchmarkEndpoint(`${'x'.repeat(MAX_MODEL_CAPABILITY_FIELD_CHARS)}-gpt-image-2`)).toBe('chat');
   });
 });

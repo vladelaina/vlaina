@@ -48,7 +48,16 @@ export async function ensureVaultConfig(vaultPath: string): Promise<void> {
       return;
     }
 
-    const parsed = JSON.parse(await storage.readFile(configFilePath));
+    const content = await storage.readFile(configFilePath);
+    if (content.length > MAX_VAULT_CONFIG_BYTES) {
+      await storage.writeFile(
+        configFilePath,
+        JSON.stringify(createVaultConfig(normalizedVaultPath), null, 2)
+      );
+      return;
+    }
+
+    const parsed = JSON.parse(content);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       await storage.writeFile(
         configFilePath,

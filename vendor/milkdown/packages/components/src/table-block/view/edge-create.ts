@@ -32,6 +32,10 @@ import {
   type EdgeCreateAnchors,
   type EdgeCreateAxis,
 } from './edge-create-state'
+import {
+  getTableDomColCount,
+  getTableDomRowCount,
+} from './table-dom-metrics'
 
 const EDGE_CREATE_THRESHOLD = 18
 const EDGE_CREATE_ACTIVATION_THRESHOLD = 6
@@ -75,25 +79,23 @@ function readCurrentTime() {
 }
 
 function getRowCount(refs: Refs) {
-  const rows = refs.contentWrapperRef.value?.querySelectorAll('tr') ?? []
-  return rows.length
+  return getTableDomRowCount(refs.contentWrapperRef.value)
 }
 
 function getColCount(refs: Refs) {
-  const cols = refs.contentWrapperRef.value?.querySelector('tr')?.children ?? []
-  return cols.length
+  return getTableDomColCount(refs.contentWrapperRef.value)
 }
 
 function syncBottomEdgeIndex(refs: Refs): boolean {
   const rowCount = getRowCount(refs)
-  if (rowCount === 0) return false
+  if (rowCount == null || rowCount === 0) return false
   refs.lineHoverIndex.value = [rowCount, 0]
   return true
 }
 
 function syncRightEdgeIndex(refs: Refs): boolean {
   const colCount = getColCount(refs)
-  if (colCount === 0) return false
+  if (colCount == null || colCount === 0) return false
   refs.lineHoverIndex.value = [0, colCount]
   return true
 }

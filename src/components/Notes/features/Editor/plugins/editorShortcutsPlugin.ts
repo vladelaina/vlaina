@@ -1,6 +1,7 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorState } from '@milkdown/kit/prose/state';
+import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { addRowAfter, deleteRow } from '@milkdown/kit/prose/tables';
 import { sinkListItem, liftListItem } from '@milkdown/kit/prose/schema-list';
@@ -45,17 +46,30 @@ function insertTable(view: EditorView): boolean {
   return true;
 }
 
+function getFirstTableCellSelectionPos(tableNode: ProseMirrorNode, tablePos: number): number | null {
+  if (tableNode.type.name !== 'table') {
+    return null;
+  }
+
+  const firstRow = tableNode.firstChild;
+  const firstCell = firstRow?.firstChild;
+  if (!firstRow || !firstCell) {
+    return null;
+  }
+  if (firstCell.type.name !== 'table_cell' && firstCell.type.name !== 'table_header') {
+    return null;
+  }
+
+  return tablePos + 1 + 1 + 2;
+}
+
 function findFirstTableCellSelection(doc: EditorState['doc'], from: number): TextSelection | null {
-  let targetPos: number | null = null;
+  const tableNode = doc.nodeAt(from);
+  if (!tableNode) {
+    return null;
+  }
 
-  doc.descendants((node, pos) => {
-    if (targetPos !== null) return false;
-    if (pos < from) return true;
-    if (node.type.name !== 'table_cell' && node.type.name !== 'table_header') return true;
-    targetPos = pos + 2;
-    return false;
-  });
-
+  const targetPos = getFirstTableCellSelectionPos(tableNode, from);
   return targetPos === null ? null : TextSelection.create(doc, targetPos);
 }
 

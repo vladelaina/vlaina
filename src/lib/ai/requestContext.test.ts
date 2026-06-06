@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { buildRequestHistory, sanitizeHistory } from './requestContext';
+import { describe, expect, it, vi } from 'vitest';
+import { buildRequestHistory, measureRequestJsonLength, sanitizeHistory } from './requestContext';
 import type { ChatMessage } from './types';
 
 function createMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
@@ -20,6 +20,27 @@ function createMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
 }
 
 describe('requestContext', () => {
+  it('measures JSON length without serializing the full value', () => {
+    const value = [
+      {
+        role: 'assistant',
+        content: 'quote " slash \\ newline \n emoji 😀 lone \uD800',
+        reasoning_content: 'hidden',
+        tool_calls: [{
+          id: 'call-1',
+          type: 'function',
+          function: { name: 'web_search', arguments: '{"query":"x"}' },
+        }],
+      },
+      undefined,
+      null,
+    ];
+    const serialized = JSON.stringify(value);
+
+    expect(measureRequestJsonLength(value, serialized.length + 1)).toBe(serialized.length);
+    expect(measureRequestJsonLength(value, 16)).toBeGreaterThan(16);
+  });
+
   it('prepends custom system prompt and time context when enabled', () => {
     const history = [
       createMessage({ role: 'user', content: 'hello there' }),
@@ -225,6 +246,55 @@ describe('requestContext', () => {
       reasoning_content: 'final hidden reasoning',
     });
     expect(JSON.stringify(result[0].apiTranscript).length).toBeLessThanOrEqual(6000);
+  });
+
+  it('builds request history transcript budgets without calling JSON.stringify', () => {
+    const stringifySpy = vi.spyOn(JSON, 'stringify').mockImplementation(() => {
+      throw new Error('JSON.stringify should not be used for request history budgeting');
+    });
+
+    try {
+      const result = buildRequestHistory({
+        history: [
+          createMessage({
+            role: 'assistant',
+            content: 'Visible answer',
+            apiTranscript: [
+              {
+                role: 'assistant',
+                content: null,
+                reasoning_content: 'hidden plan',
+                tool_calls: [{
+                  id: 'call-1',
+                  type: 'function',
+                  function: { name: 'web_search', arguments: '{"query":"x"}' },
+                }],
+              },
+              {
+                role: 'tool',
+                tool_call_id: 'call-1',
+                name: 'web_search',
+                content: 'x'.repeat(30000),
+              },
+              {
+                role: 'assistant',
+                content: 'Final answer',
+                reasoning_content: 'final hidden reasoning',
+              },
+            ],
+          }),
+        ],
+        modelId: 'model-1',
+        timezoneOffset: 8,
+        includeTimeContext: false,
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].apiTranscript).toHaveLength(3);
+      expect(result[0].apiTranscript?.[1]?.content).toContain('[Earlier content omitted]');
+    } finally {
+      stringifySpy.mockRestore();
+    }
   });
 
   it('normalizes hidden API transcripts before request history budgeting reads them', () => {

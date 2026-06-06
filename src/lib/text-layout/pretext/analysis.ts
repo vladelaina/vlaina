@@ -342,26 +342,26 @@ function getLastCodePoint(text: string): string | null {
 }
 
 function splitTrailingForwardStickyCluster(text: string): { head: string, tail: string } | null {
-  const chars = Array.from(text)
-  let splitIndex = chars.length
+  let splitIndex = text.length
 
   while (splitIndex > 0) {
-    const ch = chars[splitIndex - 1]!
+    const chStart = previousCodePointStart(text, splitIndex)
+    const ch = text.slice(chStart, splitIndex)
     if (combiningMarkRe.test(ch)) {
-      splitIndex--
+      splitIndex = chStart
       continue
     }
     if (kinsokuEnd.has(ch) || forwardStickyGlue.has(ch)) {
-      splitIndex--
+      splitIndex = chStart
       continue
     }
     break
   }
 
-  if (splitIndex <= 0 || splitIndex === chars.length) return null
+  if (splitIndex <= 0 || splitIndex === text.length) return null
   return {
-    head: chars.slice(0, splitIndex).join(''),
-    tail: chars.slice(splitIndex).join(''),
+    head: text.slice(0, splitIndex),
+    tail: text.slice(splitIndex),
   }
 }
 

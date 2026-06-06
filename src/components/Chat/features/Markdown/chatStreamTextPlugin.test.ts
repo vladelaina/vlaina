@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createChatStreamTextPlugin } from './chatStreamTextPlugin';
 
 describe('createChatStreamTextPlugin', () => {
@@ -87,6 +87,38 @@ describe('createChatStreamTextPlugin', () => {
       className: 'chat-stream-char',
       style: 'animation-name:chat-stream-char-fade;animation-duration:90ms;animation-timing-function:ease-out;animation-delay:50ms;animation-fill-mode:both',
     });
+  });
+
+  it('wraps emoji as one stream character without materializing text arrays', () => {
+    const tree: any = {
+      children: [
+        {
+          children: [{ type: 'text', value: '🙂a' }],
+          properties: {},
+          tagName: 'p',
+          type: 'element',
+        },
+      ],
+      type: 'root',
+    };
+    const arrayFromSpy = vi.spyOn(Array, 'from').mockImplementation(() => {
+      throw new Error('Array.from should not be used for stream text wrapping');
+    });
+
+    try {
+      createChatStreamTextPlugin({
+        births: [100, 120],
+        charDelay: 20,
+        nowMs: 100,
+        revealed: false,
+      })(tree);
+    } finally {
+      arrayFromSpy.mockRestore();
+    }
+
+    expect(tree.children[0].children).toHaveLength(2);
+    expect(tree.children[0].children[0].children[0].value).toBe('🙂');
+    expect(tree.children[0].children[1].children[0].value).toBe('a');
   });
 
   it('keeps the first streamed character visible on the initial paint', () => {

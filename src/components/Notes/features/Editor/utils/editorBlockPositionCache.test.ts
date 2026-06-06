@@ -8,6 +8,7 @@ import {
   getCachedEditorBlockTargets,
   getCurrentEditorBlockPositionSnapshot,
   isEditorHiddenByToolbarPreview,
+  MAX_BLOCK_POSITION_SNAPSHOT_BLOCKS,
   resolveToolbarPreviewRoot,
   setCurrentEditorBlockPositionSnapshot,
 } from './editorBlockPositionCache';
@@ -111,6 +112,83 @@ describe('editorBlockPositionCache', () => {
     scrollRoot.remove();
   });
 
+  it('scans toolbar preview children without materializing the child list', () => {
+    const host = document.createElement('div');
+    const preview = document.createElement('div');
+    const dom = document.createElement('div');
+    const first = document.createElement('p');
+    const second = document.createElement('h3');
+    const arrayFromSpy = vi.spyOn(Array, 'from');
+
+    preview.className = 'toolbar-applied-preview-overlay';
+    first.textContent = 'First';
+    second.textContent = 'Second heading';
+    first.getBoundingClientRect = () => rect(20, 44);
+    second.getBoundingClientRect = () => rect(60, 92);
+    dom.setAttribute('data-toolbar-preview-hidden', 'true');
+
+    preview.append(first, second);
+    host.append(preview, dom);
+    document.body.appendChild(host);
+
+    const doc = {
+      childCount: 2,
+      content: { size: 8 },
+      forEach(callback: (node: { nodeSize: number }, offset: number) => void) {
+        callback({ nodeSize: 4 }, 0);
+        callback({ nodeSize: 4 }, 4);
+      },
+    };
+    const view = {
+      dom,
+      state: { doc },
+    };
+
+    try {
+      const controller = createCurrentEditorBlockPositionController(view as any);
+      const snapshot = getCurrentEditorBlockPositionSnapshot();
+
+      expect(snapshot?.blocks).toHaveLength(2);
+      expect(snapshot?.headings[0]).toMatchObject({
+        id: 'outline-0-h3-second-heading',
+        level: 3,
+        text: 'Second heading',
+      });
+      expect(arrayFromSpy).not.toHaveBeenCalled();
+
+      controller.destroy();
+    } finally {
+      arrayFromSpy.mockRestore();
+      host.remove();
+    }
+  });
+
+  it('skips expensive block snapshots for very large documents', () => {
+    const dom = document.createElement('div');
+    document.body.appendChild(dom);
+
+    const doc = {
+      childCount: MAX_BLOCK_POSITION_SNAPSHOT_BLOCKS + 1,
+      content: { size: MAX_BLOCK_POSITION_SNAPSHOT_BLOCKS + 1 },
+      forEach() {
+        throw new Error('large documents should not be scanned');
+      },
+    };
+    const view = {
+      dom,
+      state: { doc },
+    };
+
+    const controller = createCurrentEditorBlockPositionController(view as any);
+    const snapshot = getCurrentEditorBlockPositionSnapshot();
+
+    expect(snapshot?.blocks).toEqual([]);
+    expect(snapshot?.headings).toEqual([]);
+
+    controller.destroy();
+    dom.remove();
+  });
+
   it('updates cached viewport rects on scroll without remeasuring every block', async () => {
     const scrollRoot = document.createElement('div');
     scrollRoot.setAttribute('data-note-scroll-root', 'true');
@@ -166,32 +244,6 @@ describe('editorBlockPositionCache', () => {
 
     controller.destroy();
     scrollRoot.remove();
-  });
-
-  it('skips expensive block snapshots for very large documents', () => {
-    const dom = document.createElement('div');
-    document.body.appendChild(dom);
-
-    const doc = {
-      childCount: 5001,
-      content: { size: 5001 },
-      forEach() {
-        throw new Error('large documents should not be scanned');
-      },
-    };
-    const view = {
-      dom,
-      state: { doc },
-    };
-
-    const controller = createCurrentEditorBlockPositionController(view as any);
-    const snapshot = getCurrentEditorBlockPositionSnapshot();
-
-    expect(snapshot?.blocks).toEqual([]);
-    expect(snapshot?.headings).toEqual([]);
-
-    controller.destroy();
-    dom.remove();
   });
 
   it('does not return block targets from a stale document snapshot', () => {

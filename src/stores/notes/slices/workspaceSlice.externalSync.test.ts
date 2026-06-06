@@ -555,6 +555,30 @@ describe('workspaceSlice external sync', () => {
     expect(store.getState().error).toBe('Current note is too large to reload from disk.');
   });
 
+  it('does not reload externally changed markdown that is too complex for the editor', async () => {
+    const complexMarkdown = 'x'.repeat(512 * 1024 + 1);
+    storageAdapter.exists.mockResolvedValue(true);
+    storageAdapter.stat.mockResolvedValue({
+      isFile: true,
+      modifiedAt: 2,
+      size: complexMarkdown.length,
+    });
+    storageAdapter.readFile.mockResolvedValue(complexMarkdown);
+
+    const store = createNotesStore({
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
+
+    expect(result).toBe('ignored');
+    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# alpha' });
+    expect(store.getState().currentNoteDiskRevision).toBe(0);
+    expect(store.getState().error).toBe('Note file is too complex to open safely.');
+  });
+
   it('ignores expected self-write events while the current note is clean', async () => {
     storageAdapter.exists.mockResolvedValue(true);
     storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2, size: 16 });

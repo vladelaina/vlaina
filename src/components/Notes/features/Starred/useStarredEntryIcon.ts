@@ -144,7 +144,9 @@ export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
           }
 
           const content = await storage.readFile(fullPath);
-          const nextIcon = readNoteMetadataFromMarkdown(content).icon ?? null;
+          const nextIcon = content.length <= MAX_STARRED_ICON_METADATA_BYTES
+            ? readNoteMetadataFromMarkdown(content).icon ?? null
+            : null;
           setStarredIconCacheEntry(cacheKey, {
             modifiedAt,
             size,

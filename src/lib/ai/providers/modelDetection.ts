@@ -17,12 +17,23 @@ interface ModelListResponse {
   data: unknown
 }
 
+export const MAX_PROVIDER_MODEL_LIST_IDS = 2048
+export const MAX_PROVIDER_MODEL_ID_CHARS = 4096
+
+function normalizeModelId(value: string): string {
+  return value.slice(0, MAX_PROVIDER_MODEL_ID_CHARS).trim()
+}
+
 function normalizeModelIds(values: unknown[]): string[] {
   const seen = new Set<string>()
   const ids: string[] = []
 
   for (const value of values) {
-    const id = typeof value === 'string' ? value.trim() : ''
+    if (ids.length >= MAX_PROVIDER_MODEL_LIST_IDS) {
+      break
+    }
+
+    const id = typeof value === 'string' ? normalizeModelId(value) : ''
     if (!id) continue
     const key = id.toLowerCase()
     if (seen.has(key)) continue
@@ -55,7 +66,19 @@ function extractModelId(value: unknown): string {
 }
 
 function normalizeModelList(values: unknown): string[] {
-  return Array.isArray(values) ? normalizeModelIds(values.map(extractModelId)) : []
+  if (!Array.isArray(values)) {
+    return []
+  }
+
+  const ids: unknown[] = []
+  for (const value of values) {
+    if (ids.length >= MAX_PROVIDER_MODEL_LIST_IDS) {
+      break
+    }
+    ids.push(extractModelId(value))
+  }
+
+  return normalizeModelIds(ids)
 }
 
 function isAbortError(error: unknown): boolean {

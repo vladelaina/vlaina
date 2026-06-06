@@ -152,7 +152,7 @@ export function emitNotesExternalPathRename(input: {
     return;
   }
 
-  const event: NotesExternalPathRenameEvent = {
+  const event = parseRenameEvent({
     type: 'rename',
     sourceId,
     stamp: Date.now(),
@@ -163,7 +163,10 @@ export function emitNotesExternalPathRename(input: {
     notesPath,
     oldPath: input.oldPath,
     newPath: input.newPath,
-  };
+  });
+  if (!event) {
+    return;
+  }
 
   ensureBroadcastChannel();
   try {
@@ -307,5 +310,6 @@ async function readEventFileContent(eventPath: string) {
     return null;
   }
 
-  return storage.readFile(eventPath).catch(() => null);
+  const content = await storage.readFile(eventPath).catch(() => null);
+  return content && content.length <= MAX_EVENT_FILE_BYTES ? content : null;
 }

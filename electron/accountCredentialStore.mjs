@@ -25,7 +25,11 @@ async function readJsonFile(filePath, fallbackValue) {
     if (!fileInfo.isFile() || fileInfo.size > MAX_ACCOUNT_STORE_JSON_BYTES) {
       return fallbackValue;
     }
-    return JSON.parse(await readFile(filePath, 'utf8'));
+    const content = await readFile(filePath, 'utf8');
+    if (Buffer.byteLength(content, 'utf8') > MAX_ACCOUNT_STORE_JSON_BYTES) {
+      return fallbackValue;
+    }
+    return JSON.parse(content);
   } catch {
     return fallbackValue;
   }

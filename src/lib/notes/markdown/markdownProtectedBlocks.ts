@@ -9,6 +9,9 @@ const HTML_CDATA_OPEN_PATTERN = /^(?: {0,3})<!\[CDATA\[/;
 const BLOCKQUOTE_PREFIX_PATTERN = /^(?: {0,3}>[ \t]?)*(.*)$/;
 const INDENTED_CODE_LINE_PATTERN = /^(?: {4,}|\t)/;
 const FRONTMATTER_DELIMITER = '---';
+const MAX_FRONTMATTER_DELIMITER_LINE_CHARS = 1024;
+const MAX_FRONTMATTER_CHARS = 256 * 1024;
+const MAX_FRONTMATTER_LINES = 2048;
 
 type FenceState = { marker: string; length: number };
 
@@ -136,13 +139,33 @@ function nextFenceState(line: string, activeFence: FenceState | null): FenceStat
   const isFenceCloser =
     activeFence?.marker === marker
     && fence.length >= activeFence.length
-    && new RegExp(`^(?: {0,3})\\${marker}{${activeFence.length},}[\\t ]*$`).test(content);
+    && isFenceClosingLine(content, marker, activeFence.length);
 
   if (isFenceCloser) return null;
   if (!activeFence && isValidMarkdownFenceOpener(marker, info)) {
     return { marker, length: fence.length };
   }
   return activeFence;
+}
+
+function isFenceClosingLine(content: string, marker: string, minimumLength: number): boolean {
+  let index = 0;
+  while (index < content.length && index <= 3 && content[index] === ' ') {
+    index += 1;
+  }
+  if (index > 3) return false;
+
+  let markerLength = 0;
+  while (content[index + markerLength] === marker) {
+    markerLength += 1;
+  }
+  if (markerLength < minimumLength) return false;
+
+  for (let cursor = index + markerLength; cursor < content.length; cursor += 1) {
+    const character = content[cursor];
+    if (character !== ' ' && character !== '\t') return false;
+  }
+  return true;
 }
 
 function nextHtmlBlockState(line: string, activeHtmlBlock: RegExp | null): RegExp | null {
@@ -157,17 +180,36 @@ function getMarkdownBlockContent(line: string): string {
 }
 
 function getLeadingFrontmatterEndIndex(lines: readonly string[]): number | null {
-  if ((lines[0] ?? '').trim() !== FRONTMATTER_DELIMITER) {
+  if (!isFrontmatterDelimiterLine(lines[0] ?? '')) {
     return null;
   }
 
+  let frontmatterChars = 0;
+  let frontmatterLines = 0;
+
   for (let index = 1; index < lines.length; index += 1) {
-    if ((lines[index] ?? '').trim() === FRONTMATTER_DELIMITER) {
+    if (frontmatterLines >= MAX_FRONTMATTER_LINES) {
+      return null;
+    }
+
+    const line = lines[index] ?? '';
+    frontmatterChars += line.length + 1;
+    if (frontmatterChars > MAX_FRONTMATTER_CHARS) {
+      return null;
+    }
+
+    if (isFrontmatterDelimiterLine(line)) {
       return index;
     }
+
+    frontmatterLines += 1;
   }
 
   return null;
+}
+
+function isFrontmatterDelimiterLine(line: string): boolean {
+  return line.length <= MAX_FRONTMATTER_DELIMITER_LINE_CHARS && line.trim() === FRONTMATTER_DELIMITER;
 }
 
 function isIndentedCodeBlockLine(line: string): boolean {

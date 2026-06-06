@@ -5,6 +5,8 @@ import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 import { sanitizeSvgBytes } from '@/lib/markdown/svgSanitizer';
 
 const MAX_GLOBAL_ASSET_BYTES = 10 * 1024 * 1024;
+export const MAX_GLOBAL_ICON_SCAN_ENTRIES = 10_000;
+export const MAX_GLOBAL_ICON_SCAN_RESULTS = 2000;
 const GLOBAL_ICON_FILENAME_PATTERN = /\.(png|jpg|jpeg|gif|webp|svg)$/i;
 const GLOBAL_ICON_EXTENSIONS_BY_MIME: Record<string, readonly string[]> = {
   'image/gif': ['gif'],
@@ -118,14 +120,20 @@ export async function scanGlobalIcons(): Promise<CustomIcon[]> {
   
   try {
     const files = await adapter.listDir(iconsDir);
-    
-    const imageFiles = (await Promise.all(files.map((file) => normalizeGlobalIconEntry(iconsDir, file))))
-      .filter((file): file is { name: string; path: string; size?: number; modifiedAt?: number } => Boolean(file))
-      .filter(f =>
-        !f.name.startsWith('.') &&
-        GLOBAL_ICON_FILENAME_PATTERN.test(f.name) &&
-        (typeof f.size !== 'number' || f.size <= MAX_GLOBAL_ASSET_BYTES)
-      );
+
+    const imageFiles: Array<{ name: string; path: string; size?: number; modifiedAt?: number }> = [];
+    const scanLimit = Math.min(files.length, MAX_GLOBAL_ICON_SCAN_ENTRIES);
+    for (let index = 0; index < scanLimit && imageFiles.length < MAX_GLOBAL_ICON_SCAN_RESULTS; index += 1) {
+      const file = await normalizeGlobalIconEntry(iconsDir, files[index]);
+      if (
+        file &&
+        !file.name.startsWith('.') &&
+        GLOBAL_ICON_FILENAME_PATTERN.test(file.name) &&
+        (typeof file.size !== 'number' || file.size <= MAX_GLOBAL_ASSET_BYTES)
+      ) {
+        imageFiles.push(file);
+      }
+    }
     
     return imageFiles.map(f => ({
       id: f.path,

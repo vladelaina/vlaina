@@ -12,6 +12,9 @@ const PREVIEW_CLASS = 'editor-block-drag-preview';
 const PREVIEW_LAYER_CLASS = 'editor-block-drag-preview-layer';
 const MIN_PREVIEW_WIDTH = 80;
 
+export const MAX_BLOCK_DRAG_PREVIEW_DOM_SCAN_ELEMENTS = 20_000;
+export const MAX_BLOCK_DRAG_PREVIEW_MATCHED_ELEMENTS = 5_000;
+
 interface BlockDragPreviewOptions {
   view: EditorView;
   ranges: readonly BlockRange[];
@@ -37,6 +40,57 @@ interface PreviewItem {
   sourceClassElement: HTMLElement | null;
   rect: DOMRect;
   content: HTMLElement;
+}
+
+type BlockDragPreviewElementCollection = {
+  elements: HTMLElement[];
+  complete: boolean;
+};
+
+export function collectBlockDragPreviewElements(
+  root: HTMLElement,
+  matches: (element: HTMLElement) => boolean,
+  options: {
+    includeRoot?: boolean;
+    maxScanned?: number;
+    maxMatches?: number;
+  } = {},
+): BlockDragPreviewElementCollection {
+  const maxScanned = options.maxScanned ?? MAX_BLOCK_DRAG_PREVIEW_DOM_SCAN_ELEMENTS;
+  const maxMatches = options.maxMatches ?? MAX_BLOCK_DRAG_PREVIEW_MATCHED_ELEMENTS;
+  const elements: HTMLElement[] = [];
+  const walker = root.ownerDocument.createTreeWalker(root, 1);
+  let scanned = 0;
+
+  const visit = (element: HTMLElement): boolean => {
+    scanned += 1;
+    if (scanned > maxScanned) {
+      return false;
+    }
+
+    if (!matches(element)) {
+      return true;
+    }
+
+    elements.push(element);
+    return elements.length <= maxMatches;
+  };
+
+  if (options.includeRoot && !visit(root)) {
+    return { elements: [], complete: false };
+  }
+
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!(node instanceof HTMLElement)) {
+      continue;
+    }
+
+    if (!visit(node)) {
+      return { elements: [], complete: false };
+    }
+  }
+
+  return { elements, complete: true };
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -68,7 +122,7 @@ function createInlineRangePreviewContent(
     const content = source.cloneNode(false);
     if (!(content instanceof HTMLElement)) return null;
     content.appendChild(domRange.cloneContents());
-    sanitizeCloneTree(content);
+    if (!sanitizeCloneTree(content)) return null;
     return content;
   } catch {
     return null;
@@ -111,7 +165,7 @@ function collectPreviewItems(view: EditorView, ranges: readonly BlockRange[]): P
 
     const clone = element.cloneNode(true);
     if (!(clone instanceof HTMLElement)) continue;
-    sanitizeCloneTree(clone);
+    if (!sanitizeCloneTree(clone)) continue;
 
     items.push({
       source: element,
@@ -134,21 +188,24 @@ function copyCssVariables(from: HTMLElement, to: HTMLElement): void {
   }
 }
 
-function sanitizeCloneTree(root: HTMLElement): void {
+function sanitizeCloneTree(root: HTMLElement): boolean {
   root.setAttribute('contenteditable', 'false');
   root.setAttribute('draggable', 'false');
   root.removeAttribute('data-no-block-controls');
   root.removeAttribute('data-no-editor-drag-box');
 
   if (root.hasAttribute('id')) root.removeAttribute('id');
-  const descendants = root.querySelectorAll<HTMLElement>('*');
-  descendants.forEach((node) => {
+  const descendants = collectBlockDragPreviewElements(root, () => true);
+  if (!descendants.complete) return false;
+
+  descendants.elements.forEach((node) => {
     if (node.hasAttribute('id')) node.removeAttribute('id');
     node.removeAttribute('data-no-block-controls');
     node.removeAttribute('data-no-editor-drag-box');
     node.setAttribute('draggable', 'false');
     if (node.tabIndex >= 0) node.tabIndex = -1;
   });
+  return true;
 }
 
 function captureElementPreview(job: CaptureJob): Promise<boolean> {
@@ -178,18 +235,40 @@ function captureElementPreview(job: CaptureJob): Promise<boolean> {
   });
 }
 
-function replaceVideoMediaForPreview(sourceRoot: HTMLElement, cloneRoot: HTMLElement, captureJobs: CaptureJob[]): void {
-  const sourceBlocks = sourceRoot.matches('.video-block')
-    ? [sourceRoot]
-    : Array.from(sourceRoot.querySelectorAll<HTMLElement>('.video-block'));
-  const cloneBlocks = cloneRoot.matches('.video-block')
-    ? [cloneRoot]
-    : Array.from(cloneRoot.querySelectorAll<HTMLElement>('.video-block'));
+function collectPreviewBlocks(root: HTMLElement, className: string): HTMLElement[] | null {
+  if (root.classList.contains(className)) {
+    return [root];
+  }
 
-  cloneBlocks.forEach((videoBlock, index) => {
+  const collection = collectBlockDragPreviewElements(
+    root,
+    (element) => element.classList.contains(className)
+  );
+  return collection.complete ? collection.elements : null;
+}
+
+function isVideoMediaElement(element: HTMLElement): boolean {
+  return element instanceof HTMLIFrameElement || element instanceof HTMLVideoElement;
+}
+
+function replaceVideoMediaForPreview(
+  sourceRoot: HTMLElement,
+  cloneRoot: HTMLElement,
+  captureJobs: CaptureJob[]
+): boolean {
+  const sourceBlocks = collectPreviewBlocks(sourceRoot, 'video-block');
+  const cloneBlocks = collectPreviewBlocks(cloneRoot, 'video-block');
+  if (!sourceBlocks || !cloneBlocks) return false;
+
+  for (let index = 0; index < cloneBlocks.length; index += 1) {
+    const videoBlock = cloneBlocks[index];
+    if (!videoBlock) continue;
+
     const sourceBlock = sourceBlocks[index];
-    const media = videoBlock.querySelectorAll('iframe, video');
-    media.forEach((node, mediaIndex) => {
+    const media = collectBlockDragPreviewElements(videoBlock, isVideoMediaElement);
+    if (!media.complete) return false;
+
+    media.elements.forEach((node, mediaIndex) => {
       const placeholder = cloneRoot.ownerDocument.createElement('div');
       placeholder.className = 'video-drag-preview-surface';
       placeholder.setAttribute('aria-hidden', 'true');
@@ -202,7 +281,9 @@ function replaceVideoMediaForPreview(sourceRoot: HTMLElement, cloneRoot: HTMLEle
         });
       }
     });
-  });
+  }
+
+  return true;
 }
 
 function createMermaidPreviewSurface(sourceBlock: HTMLElement, doc: Document, captureJobs: CaptureJob[]) {
@@ -217,7 +298,11 @@ function createMermaidPreviewSurface(sourceBlock: HTMLElement, doc: Document, ca
   return placeholder;
 }
 
-function replaceMermaidBlocksForPreview(sourceRoot: HTMLElement, cloneRoot: HTMLElement, captureJobs: CaptureJob[]): HTMLElement {
+function replaceMermaidBlocksForPreview(
+  sourceRoot: HTMLElement,
+  cloneRoot: HTMLElement,
+  captureJobs: CaptureJob[]
+): HTMLElement | null {
   if (!getElectronBridge()?.media?.capturePage) {
     return cloneRoot;
   }
@@ -226,8 +311,10 @@ function replaceMermaidBlocksForPreview(sourceRoot: HTMLElement, cloneRoot: HTML
     return createMermaidPreviewSurface(sourceRoot, cloneRoot.ownerDocument, captureJobs);
   }
 
-  const sourceBlocks = Array.from(sourceRoot.querySelectorAll<HTMLElement>('.mermaid-block'));
-  const cloneBlocks = Array.from(cloneRoot.querySelectorAll<HTMLElement>('.mermaid-block'));
+  const sourceBlocks = collectPreviewBlocks(sourceRoot, 'mermaid-block');
+  const cloneBlocks = collectPreviewBlocks(cloneRoot, 'mermaid-block');
+  if (!sourceBlocks || !cloneBlocks) return null;
+
   cloneBlocks.forEach((mermaidBlock, index) => {
     const sourceBlock = sourceBlocks[index];
     if (!sourceBlock) return;
@@ -278,7 +365,7 @@ function wrapDetachedListItemForPreview(sourceRoot: HTMLElement, cloneRoot: HTML
   const wrapper = parentList.cloneNode(false);
   if (!isListContainerElement(wrapper)) return cloneRoot;
 
-  sanitizeCloneTree(wrapper);
+  if (!sanitizeCloneTree(wrapper)) return cloneRoot;
   if (wrapper instanceof HTMLOListElement && parentList instanceof HTMLOListElement) {
     wrapper.start = resolveOrderedListItemValue(sourceRoot, parentList);
   }
@@ -292,8 +379,13 @@ function createContentLayer(doc: Document, items: readonly PreviewItem[], captur
   layer.classList.add('milkdown');
   items.forEach(({ source, content }) => {
     const clone = content;
-    replaceVideoMediaForPreview(source, clone, captureJobs);
+    if (!replaceVideoMediaForPreview(source, clone, captureJobs)) {
+      return;
+    }
     const stableMediaClone = replaceMermaidBlocksForPreview(source, clone, captureJobs);
+    if (!stableMediaClone) {
+      return;
+    }
     layer.appendChild(wrapDetachedListItemForPreview(source, stableMediaClone));
   });
   return layer;

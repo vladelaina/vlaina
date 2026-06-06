@@ -19,6 +19,24 @@ describe('electron external URL policy', () => {
       .toThrow('URL is too long');
   });
 
+  it('rejects unsafe external URL syntax before opening it in the OS shell', () => {
+    expect(() => normalizeExternalUrl('https://example.com/\u202Ecod.exe')).toThrow('URL contains unsafe characters');
+    expect(() => normalizeExternalUrl('mailto:user@example.com\r\nbcc:evil@example.com')).toThrow('URL contains unsafe characters');
+    expect(() => normalizeExternalUrl(String.raw`https:\example.com\path`)).toThrow('URL contains unsafe characters');
+    expect(() => normalizeExternalUrl(String.raw`https://example.com\@evil.test/path`)).toThrow('URL contains unsafe characters');
+  });
+
+  it('rejects local-network HTTP URLs before opening them in the OS shell', () => {
+    expect(() => normalizeExternalUrl('http://localhost:3000/admin')).toThrow('Local-network external URLs are not allowed');
+    expect(() => normalizeExternalUrl('http://127.0.0.1:3000/admin')).toThrow('Local-network external URLs are not allowed');
+    expect(() => normalizeExternalUrl('http://127.1/admin')).toThrow('Local-network external URLs are not allowed');
+    expect(() => normalizeExternalUrl('http://2130706433/admin')).toThrow('Local-network external URLs are not allowed');
+    expect(() => normalizeExternalUrl('http://0177.0.0.1/admin')).toThrow('Local-network external URLs are not allowed');
+    expect(() => normalizeExternalUrl('http://192.168.1.8/admin')).toThrow('Local-network external URLs are not allowed');
+    expect(() => normalizeExternalUrl('http://[::1]/admin')).toThrow('Local-network external URLs are not allowed');
+    expect(normalizeExternalUrl('https://example.com/admin')).toBe('https://example.com/admin');
+  });
+
   it('keeps update URLs restricted to HTTP protocols', () => {
     expect(normalizeHttpUrl('https://example.com/download', 'Download URL')).toBe('https://example.com/download');
     expect(() => normalizeHttpUrl('mailto:support@example.com', 'Download URL')).toThrow(

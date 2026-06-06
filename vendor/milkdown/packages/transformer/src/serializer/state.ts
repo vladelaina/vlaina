@@ -25,6 +25,147 @@ import { SerializerStackElement } from './stack-element'
 const isFragment = (x: Node | Fragment): x is Fragment =>
   Object.prototype.hasOwnProperty.call(x, 'size')
 
+export const MAX_SERIALIZER_MARK_PROP_DEPTH = 8
+export const MAX_SERIALIZER_MARK_PROP_KEYS = 64
+export const MAX_SERIALIZER_MARK_PROP_ARRAY_ITEMS = 256
+export const MAX_SERIALIZER_MARK_PROP_VALUES = 1024
+export const MAX_SERIALIZER_MARK_PROP_STRING_CHARS = 8192
+
+interface MarkPropCompareBudget {
+  values: number
+  stringChars: number
+}
+
+const isNonFiniteJsonNumber = (value: unknown): value is number =>
+  typeof value === 'number' && !Number.isFinite(value)
+
+const compareSerializerMarkPropValue = (
+  left: unknown,
+  right: unknown,
+  depth: number,
+  budget: MarkPropCompareBudget,
+  leftSeen: WeakSet<object>,
+  rightSeen: WeakSet<object>
+): boolean => {
+  budget.values += 1
+  if (budget.values > MAX_SERIALIZER_MARK_PROP_VALUES) return false
+
+  if (left === right) {
+    if (typeof left === 'string') {
+      budget.stringChars += left.length
+      return budget.stringChars <= MAX_SERIALIZER_MARK_PROP_STRING_CHARS
+    }
+    return true
+  }
+
+  if (isNonFiniteJsonNumber(left) && isNonFiniteJsonNumber(right)) {
+    return true
+  }
+
+  if (left === null || right === null) return false
+
+  const leftType = typeof left
+  if (leftType !== typeof right) return false
+
+  if (leftType === 'string') {
+    const leftString = left as string
+    const rightString = right as string
+    budget.stringChars += leftString.length + rightString.length
+    return (
+      budget.stringChars <= MAX_SERIALIZER_MARK_PROP_STRING_CHARS &&
+      leftString === rightString
+    )
+  }
+
+  if (leftType === 'number' || leftType === 'boolean') return left === right
+  if (leftType !== 'object') return false
+  if (depth >= MAX_SERIALIZER_MARK_PROP_DEPTH) return false
+
+  const leftObject = left as Record<string, unknown>
+  const rightObject = right as Record<string, unknown>
+  if (
+    typeof leftObject.toJSON === 'function' ||
+    typeof rightObject.toJSON === 'function'
+  ) {
+    return false
+  }
+
+  if (leftSeen.has(leftObject) || rightSeen.has(rightObject)) return false
+  leftSeen.add(leftObject)
+  rightSeen.add(rightObject)
+
+  const leftIsArray = Array.isArray(left)
+  if (leftIsArray !== Array.isArray(right)) return false
+
+  if (leftIsArray) {
+    const leftArray = left as unknown[]
+    const rightArray = right as unknown[]
+    if (
+      leftArray.length !== rightArray.length ||
+      leftArray.length > MAX_SERIALIZER_MARK_PROP_ARRAY_ITEMS
+    ) {
+      return false
+    }
+
+    for (let index = 0; index < leftArray.length; index += 1) {
+      if (
+        !compareSerializerMarkPropValue(
+          leftArray[index],
+          rightArray[index],
+          depth + 1,
+          budget,
+          leftSeen,
+          rightSeen
+        )
+      ) {
+        return false
+      }
+    }
+    return true
+  }
+
+  const leftKeys = Object.keys(leftObject)
+  const rightKeys = Object.keys(rightObject)
+  if (
+    leftKeys.length !== rightKeys.length ||
+    leftKeys.length > MAX_SERIALIZER_MARK_PROP_KEYS
+  ) {
+    return false
+  }
+
+  for (let index = 0; index < leftKeys.length; index += 1) {
+    const key = leftKeys[index]
+    if (key !== rightKeys[index]) return false
+    if (
+      !compareSerializerMarkPropValue(
+        leftObject[key],
+        rightObject[key],
+        depth + 1,
+        budget,
+        leftSeen,
+        rightSeen
+      )
+    ) {
+      return false
+    }
+  }
+
+  return true
+}
+
+export const areSerializerMarkPropsEqual = (
+  left: Record<string, unknown>,
+  right: Record<string, unknown>
+): boolean =>
+  compareSerializerMarkPropValue(
+    left,
+    right,
+    0,
+    { values: 0, stringChars: 0 },
+    new WeakSet(),
+    new WeakSet()
+  )
+
 /// State for serializer.
 /// Transform prosemirror state into remark AST.
 export class SerializerState extends Stack<
@@ -142,7 +283,7 @@ export class SerializerState extends Stack<
           child.type === last.type &&
           currChildren &&
           prevChildren &&
-          JSON.stringify(currRest) === JSON.stringify(prevRest)
+          areSerializerMarkPropsEqual(currRest, prevRest)
         ) {
           const next = {
             ...prevRest,

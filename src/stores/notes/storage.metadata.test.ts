@@ -208,6 +208,20 @@ describe('notes metadata storage', () => {
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not parse metadata content that exceeds the metadata limit after read', async () => {
+    adapter.listDir.mockResolvedValue([
+      { name: 'huge.md', isFile: true },
+    ]);
+    adapter.stat.mockResolvedValue({ modifiedAt: 7, size: 32 });
+    adapter.readFile.mockResolvedValue('x'.repeat(5 * 1024 * 1024 + 1));
+
+    await expect(loadNoteMetadata('/vault-huge-after-read')).resolves.toEqual({
+      version: 2,
+      notes: {},
+    });
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-huge-after-read/huge.md');
+  });
+
   it('does not recurse into heavy generated folders during metadata scans', async () => {
     adapter.listDir.mockImplementation(async (path: string) => {
       if (path === '/vault-heavy') {
@@ -418,6 +432,15 @@ describe('notes metadata storage', () => {
 
     await expect(loadWorkspaceState('/vault-a')).resolves.toBeNull();
     expect(adapter.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not parse workspace state content that exceeds the limit after read', async () => {
+    adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockResolvedValue({ size: 128 });
+    adapter.readFile.mockResolvedValue('x'.repeat(256 * 1024 + 1));
+
+    await expect(loadWorkspaceState('/vault-a')).resolves.toBeNull();
+    expect(adapter.readFile).toHaveBeenCalled();
   });
 
   it('drops empty cover payloads when updating metadata', () => {

@@ -169,6 +169,34 @@ describe('vaultStoreSupport persistence merging', () => {
     expect(state.recentVaults).toEqual([]);
     expect(storage.readFile).not.toHaveBeenCalled();
   });
+
+  it('does not parse vault state files that exceed the limit after read', async () => {
+    vi.useFakeTimers();
+    const storage = {
+      getBasePath: vi.fn(async () => '/app'),
+      exists: vi.fn(async (path: string) => path === '/app/.vlaina/store/vault-state.json'),
+      readFile: vi.fn(async () => 'x'.repeat(256 * 1024 + 1)),
+      stat: vi.fn(async () => ({ size: 256 })),
+      writeFile: vi.fn(async () => undefined),
+      mkdir: vi.fn(async () => undefined),
+    };
+    vi.doMock('@/lib/storage/adapter', () => ({
+      getStorageAdapter: () => storage,
+      joinPath: (...segments: string[]) => Promise.resolve(segments.join('/')),
+      getBaseName: (path: string) => path.split('/').pop() || '',
+      getParentPath: (path: string) => path.split('/').slice(0, -1).join('/'),
+    }));
+    vi.doMock('@/lib/storage/paths', () => ({
+      ensureDirectories: () => Promise.resolve(),
+      getPaths: () => Promise.resolve({ store: '/app/.vlaina/store' }),
+    }));
+
+    const { loadPersistedVaultState } = await import('./vaultStoreSupport');
+    const state = await loadPersistedVaultState();
+
+    expect(state.recentVaults).toEqual([]);
+    expect(storage.readFile).toHaveBeenCalledWith('/app/.vlaina/store/vault-state.json');
+  });
 });
 
 describe('vaultStoreSupport local storage guards', () => {

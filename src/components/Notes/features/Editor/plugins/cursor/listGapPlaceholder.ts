@@ -9,8 +9,15 @@ import {
 } from './blankAreaInteractionUtils';
 
 const EDITABLE_LIST_GAP_PLACEHOLDER = '\u2800';
+export const MAX_LIST_GAP_TEXT_HIT_CHARS = 100_000;
+export const MAX_LIST_GAP_TEXT_HIT_NODES = 512;
+export const MAX_LIST_GAP_TEXT_HIT_RECTS = 1024;
 
-function isPointInsideActualText(root: HTMLElement, clientX: number, clientY: number): boolean {
+export function resolvePointInsideActualText(root: HTMLElement, clientX: number, clientY: number): boolean | null {
+  if ((root.textContent?.length ?? 0) > MAX_LIST_GAP_TEXT_HIT_CHARS) {
+    return null;
+  }
+
   const doc = root.ownerDocument;
   const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
@@ -21,23 +28,39 @@ function isPointInsideActualText(root: HTMLElement, clientX: number, clientY: nu
     },
   });
 
+  let measuredTextNodes = 0;
+  let measuredRects = 0;
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const range = doc.createRange();
-    range.selectNodeContents(node);
-    const rects = Array.from(range.getClientRects());
-    range.detach();
+    measuredTextNodes += 1;
+    if (measuredTextNodes > MAX_LIST_GAP_TEXT_HIT_NODES) {
+      return null;
+    }
 
-    for (const rect of rects) {
-      if (rect.width <= 0 || rect.height <= 0) continue;
-      const verticalSlack = Math.max(2, Math.min(5, rect.height * 0.15));
-      if (
-        clientX >= rect.left &&
-        clientX <= rect.right &&
-        clientY >= rect.top - verticalSlack &&
-        clientY <= rect.bottom + verticalSlack
-      ) {
-        return true;
+    const range = doc.createRange();
+    try {
+      range.selectNodeContents(node);
+      const rects = range.getClientRects();
+
+      for (let index = 0; index < rects.length; index += 1) {
+        measuredRects += 1;
+        if (measuredRects > MAX_LIST_GAP_TEXT_HIT_RECTS) {
+          return null;
+        }
+
+        const rect = rects[index];
+        if (!rect || rect.width <= 0 || rect.height <= 0) continue;
+        const verticalSlack = Math.max(2, Math.min(5, rect.height * 0.15));
+        if (
+          clientX >= rect.left &&
+          clientX <= rect.right &&
+          clientY >= rect.top - verticalSlack &&
+          clientY <= rect.bottom + verticalSlack
+        ) {
+          return true;
+        }
       }
+    } finally {
+      range.detach();
     }
   }
 
@@ -49,7 +72,7 @@ function shouldResolveNearbyListGapPlaceholder(view: EditorView, event: MouseEve
   if (!target || !view.dom.contains(target)) return true;
   const textBlock = target.closest('p, li') as HTMLElement | null;
   if (!textBlock || !view.dom.contains(textBlock)) return true;
-  return !isPointInsideActualText(textBlock, event.clientX, event.clientY);
+  return resolvePointInsideActualText(textBlock, event.clientX, event.clientY) === false;
 }
 
 function isListGapPlaceholderText(text: string): boolean {

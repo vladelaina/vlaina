@@ -2,31 +2,36 @@ import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { moveImageToTrash, restoreImageFromTrash } from './utils/fileUtils';
-import { collectImageAssetKeys, diffImageAssetKeySets } from './imageAssetLifecycle';
+import { diffImageAssetKeySets, scanImageAssetKeys, scanImageNodePresence } from './imageAssetLifecycle';
 
-const imageAssetLifecyclePluginKey = new PluginKey<ReadonlySet<string>>('imageAssetLifecyclePlugin');
+interface ImageAssetLifecycleState {
+    assetKeys: ReadonlySet<string>;
+    complete: boolean;
+}
+
+const EMPTY_IMAGE_ASSET_LIFECYCLE_STATE: ImageAssetLifecycleState = {
+    assetKeys: new Set<string>(),
+    complete: true,
+};
+
+const imageAssetLifecyclePluginKey = new PluginKey<ImageAssetLifecycleState>('imageAssetLifecyclePlugin');
 
 function stepSliceContainsImage(step: unknown): boolean {
     const content = (step as {
         slice?: {
             content?: {
+                child?: (index: number) => unknown;
+                childCount?: number;
                 descendants?: (callback: (node: { type?: { name?: string } }) => boolean | void) => void;
             };
         };
     }).slice?.content;
-    if (!content || typeof content.descendants !== 'function') {
+    if (!content || (typeof content.child !== 'function' && typeof content.descendants !== 'function')) {
         return false;
     }
 
-    let hasImage = false;
-    content.descendants((node) => {
-        if (node.type?.name === 'image') {
-            hasImage = true;
-            return false;
-        }
-        return true;
-    });
-    return hasImage;
+    const result = scanImageNodePresence(content);
+    return result.found || !result.complete;
 }
 
 function transactionMayInsertImage(tr: unknown): boolean {
@@ -39,16 +44,18 @@ export const imageAssetLifecyclePlugin = $prose(() => {
         key: imageAssetLifecyclePluginKey,
         state: {
             init(_config, state) {
-                return collectImageAssetKeys(state.doc);
+                const scan = scanImageAssetKeys(state.doc);
+                return { assetKeys: scan.assetKeys, complete: scan.complete };
             },
             apply(tr, previous) {
                 if (!tr.docChanged) {
                     return previous;
                 }
-                if (previous.size === 0 && !transactionMayInsertImage(tr)) {
+                if (previous.complete && previous.assetKeys.size === 0 && !transactionMayInsertImage(tr)) {
                     return previous;
                 }
-                return collectImageAssetKeys(tr.doc);
+                const scan = scanImageAssetKeys(tr.doc);
+                return { assetKeys: scan.assetKeys, complete: scan.complete };
             },
         },
         appendTransaction(transactions, oldState, newState) {
@@ -60,8 +67,14 @@ export const imageAssetLifecyclePlugin = $prose(() => {
             );
             if (!hasRelevantDocChange) return null;
 
-            const oldAssets = imageAssetLifecyclePluginKey.getState(oldState) ?? new Set<string>();
-            const newAssets = imageAssetLifecyclePluginKey.getState(newState) ?? new Set<string>();
+            const oldAssetState = imageAssetLifecyclePluginKey.getState(oldState) ?? EMPTY_IMAGE_ASSET_LIFECYCLE_STATE;
+            const newAssetState = imageAssetLifecyclePluginKey.getState(newState) ?? EMPTY_IMAGE_ASSET_LIFECYCLE_STATE;
+            if (!oldAssetState.complete || !newAssetState.complete) {
+                return null;
+            }
+
+            const oldAssets = oldAssetState.assetKeys;
+            const newAssets = newAssetState.assetKeys;
             if (oldAssets.size === 0 && newAssets.size === 0) {
                 return null;
             }

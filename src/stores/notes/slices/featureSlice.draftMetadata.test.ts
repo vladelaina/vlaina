@@ -202,6 +202,47 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().isDirty).toBe(false);
   });
 
+  it('does not update cached metadata source content that is too complex for the editor', async () => {
+    const notePath = 'docs/alpha.md';
+    const complexMarkdown = 'x'.repeat(512 * 1024 + 1);
+    const store = createNotesStore({
+      notesPath: '/vault',
+      noteContentsCache: new Map([[notePath, { content: complexMarkdown, modifiedAt: 1 }]]),
+    });
+
+    store.getState().setNoteIcon(notePath, 'sparkles');
+
+    await vi.waitFor(() => {
+      expect(store.getState().error).toBe('Note file is too complex to open safely.');
+    });
+    expect(mocks.safeWriteTextFile).not.toHaveBeenCalled();
+    expect(store.getState().noteMetadata?.notes[notePath]).toBeUndefined();
+    expect(store.getState().noteContentsCache.get(notePath)).toEqual({
+      content: complexMarkdown,
+      modifiedAt: 1,
+    });
+  });
+
+  it('does not update uncached disk metadata source content that is too complex for the editor', async () => {
+    const notePath = 'docs/alpha.md';
+    const complexMarkdown = 'x'.repeat(512 * 1024 + 1);
+    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: complexMarkdown.length });
+    mocks.readFile.mockResolvedValue(complexMarkdown);
+    const store = createNotesStore({
+      notesPath: '/vault',
+    });
+
+    store.getState().setNoteIcon(notePath, 'sparkles');
+
+    await vi.waitFor(() => {
+      expect(store.getState().error).toBe('Note file is too complex to open safely.');
+    });
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md');
+    expect(mocks.safeWriteTextFile).not.toHaveBeenCalled();
+    expect(store.getState().noteMetadata?.notes[notePath]).toBeUndefined();
+    expect(store.getState().noteContentsCache.has(notePath)).toBe(false);
+  });
+
   it('merges vault metadata updates with newer disk edits instead of overwriting them', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
@@ -620,6 +661,40 @@ describe('featureSlice draft metadata', () => {
     await store.getState().scanAllNotes();
 
     expect(mocks.readFile).not.toHaveBeenCalled();
+    expect(store.getState().noteContentsCache.get(notePath)).toEqual({
+      content: '',
+      modifiedAt: 2,
+    });
+  });
+
+  it('does not cache full-vault scan content that exceeds the searchable note limit after read', async () => {
+    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
+    mocks.readFile.mockResolvedValue('x'.repeat(512 * 1024 + 1));
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      notesPath: '/vault',
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: 'docs',
+            name: 'docs',
+            path: 'docs',
+            isFolder: true,
+            expanded: true,
+            children: [{ id: notePath, name: 'alpha', path: notePath, isFolder: false }],
+          },
+        ],
+      },
+    });
+
+    await store.getState().scanAllNotes();
+
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md');
     expect(store.getState().noteContentsCache.get(notePath)).toEqual({
       content: '',
       modifiedAt: 2,

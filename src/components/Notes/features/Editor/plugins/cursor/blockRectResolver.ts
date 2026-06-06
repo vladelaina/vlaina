@@ -1,7 +1,10 @@
 import type { EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockRect } from './blockSelectionUtils';
-import { getFreshCachedEditorBlockTargets } from '../../utils/editorBlockPositionCache';
+import {
+  getFreshCachedEditorBlockTargets,
+  isTooLargeForBlockPositionSnapshot,
+} from '../../utils/editorBlockPositionCache';
 import { collectSelectableBlockTargets, type SelectableBlockTarget } from './blockUnitResolver';
 
 interface BlockRectResolverOptions {
@@ -17,6 +20,18 @@ export interface BlockRectResolver {
 
 export { collectSelectableBlockRanges } from './blockUnitResolver';
 
+export const MAX_BLOCK_RECT_CONTENT_TEXT_NODES = 512;
+export const MAX_BLOCK_RECT_CONTENT_RECTS = 1024;
+export const MAX_BLOCK_RECT_CONTENT_LINES = 256;
+export const MAX_BLOCK_RECT_LIST_CONTENT_CHILDREN = 1024;
+
+interface ContentLineRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
 function shouldIgnoreContentBoundsElement(root: HTMLElement, element: Element): boolean {
   for (let current: Element | null = element; current && root.contains(current); current = current.parentElement) {
     if (current.matches('ul, ol, button, .editor-collapse-btn')) return true;
@@ -25,34 +40,33 @@ function shouldIgnoreContentBoundsElement(root: HTMLElement, element: Element): 
   return false;
 }
 
-function mergeContentLineRects(rects: DOMRect[]): { left: number; top: number; right: number; bottom: number }[] {
-  const lines: { left: number; top: number; right: number; bottom: number }[] = [];
-
-  for (const rect of rects) {
-    const centerY = rect.top + rect.height / 2;
-    const line = lines.find((candidate) => (
-      centerY >= candidate.top - 2 && centerY <= candidate.bottom + 2
-    ));
-    if (line) {
-      line.left = Math.min(line.left, rect.left);
-      line.top = Math.min(line.top, rect.top);
-      line.right = Math.max(line.right, rect.right);
-      line.bottom = Math.max(line.bottom, rect.bottom);
-      continue;
-    }
-
-    lines.push({
-      left: rect.left,
-      top: rect.top,
-      right: rect.right,
-      bottom: rect.bottom,
-    });
+function appendContentLineRect(lines: ContentLineRect[], rect: DOMRect): boolean {
+  const centerY = rect.top + rect.height / 2;
+  const line = lines.find((candidate) => (
+    centerY >= candidate.top - 2 && centerY <= candidate.bottom + 2
+  ));
+  if (line) {
+    line.left = Math.min(line.left, rect.left);
+    line.top = Math.min(line.top, rect.top);
+    line.right = Math.max(line.right, rect.right);
+    line.bottom = Math.max(line.bottom, rect.bottom);
+    return true;
   }
 
-  return lines;
+  if (lines.length >= MAX_BLOCK_RECT_CONTENT_LINES) {
+    return false;
+  }
+
+  lines.push({
+    left: rect.left,
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+  });
+  return true;
 }
 
-function collectTextContentBounds(root: HTMLElement): { left: number; right: number; lineRects?: { left: number; top: number; right: number; bottom: number }[] } | null {
+export function collectTextContentBounds(root: HTMLElement): { left: number; right: number; lineRects?: ContentLineRect[] } | null {
   const doc = root.ownerDocument;
   const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
@@ -70,24 +84,42 @@ function collectTextContentBounds(root: HTMLElement): { left: number; right: num
   let left = Number.POSITIVE_INFINITY;
   let right = Number.NEGATIVE_INFINITY;
   let hasBounds = false;
-  const rects: DOMRect[] = [];
+  let textNodeCount = 0;
+  let rectCount = 0;
+  const lineRects: ContentLineRect[] = [];
 
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const range = doc.createRange();
-    range.selectNodeContents(node);
-    for (const rect of Array.from(range.getClientRects())) {
-      if (rect.width <= 0 && rect.height <= 0) continue;
-      left = Math.min(left, rect.left);
-      right = Math.max(right, rect.right);
-      rects.push(rect);
-      hasBounds = true;
+    textNodeCount += 1;
+    if (textNodeCount > MAX_BLOCK_RECT_CONTENT_TEXT_NODES) {
+      return null;
     }
-    range.detach();
+
+    const range = doc.createRange();
+    try {
+      range.selectNodeContents(node);
+      const rects = range.getClientRects();
+      if (rects.length > MAX_BLOCK_RECT_CONTENT_RECTS - rectCount) {
+        return null;
+      }
+
+      for (let index = 0; index < rects.length; index += 1) {
+        const rect = rects.item?.(index) ?? rects[index];
+        if (!rect || (rect.width <= 0 && rect.height <= 0)) continue;
+        rectCount += 1;
+        left = Math.min(left, rect.left);
+        right = Math.max(right, rect.right);
+        if (!appendContentLineRect(lineRects, rect)) {
+          return null;
+        }
+        hasBounds = true;
+      }
+    } finally {
+      range.detach();
+    }
   }
 
   if (!hasBounds) return null;
 
-  const lineRects = mergeContentLineRects(rects);
   return {
     left,
     right,
@@ -98,7 +130,9 @@ function collectTextContentBounds(root: HTMLElement): { left: number; right: num
 function resolveContentBoundsElement(element: HTMLElement): HTMLElement {
   if (element.tagName !== 'LI') return element;
 
-  for (const child of Array.from(element.children)) {
+  const childCount = Math.min(element.children.length, MAX_BLOCK_RECT_LIST_CONTENT_CHILDREN);
+  for (let index = 0; index < childCount; index += 1) {
+    const child = element.children.item(index);
     if (!(child instanceof HTMLElement)) continue;
     if (shouldIgnoreContentBoundsElement(element, child)) continue;
     return child;
@@ -116,6 +150,10 @@ function resolveContentHorizontalBounds(element: HTMLElement, rect: DOMRect): { 
 }
 
 function collectSelectableBlockRects(view: EditorView): BlockRect[] {
+  if (isTooLargeForBlockPositionSnapshot(view.state.doc)) {
+    return [];
+  }
+
   const targets = collectSelectableBlockTargets(view);
   const editorRect = view.dom.getBoundingClientRect();
   const useEditorHorizontalBounds = editorRect.width > 0;
@@ -164,6 +202,10 @@ function collectSelectionBlockRects(view: EditorView, scrollRoot: HTMLElement | 
   const cachedTargets = getFreshCachedEditorBlockTargets(view, scrollRoot);
   if (cachedTargets) {
     return mapTargetsToSelectionBlockRects(cachedTargets, editorRect);
+  }
+
+  if (isTooLargeForBlockPositionSnapshot(view.state.doc)) {
+    return [];
   }
 
   return mapTargetsToSelectionBlockRects(collectSelectableBlockTargets(view), editorRect);

@@ -1,8 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  importExternalMarkdownEntries,
-  resolveExternalMarkdownEntriesForStarred,
-} from './externalMarkdownImport';
+import { importExternalMarkdownEntries, resolveExternalMarkdownEntriesForStarred } from './externalMarkdownImport';
 
 const mocks = vi.hoisted(() => {
   const storage = {
@@ -10,6 +7,7 @@ const mocks = vi.hoisted(() => {
     copyFile: vi.fn(),
     mkdir: vi.fn(),
     listDir: vi.fn(),
+    deleteFile: vi.fn(),
     deleteDir: vi.fn(),
   };
 
@@ -27,19 +25,7 @@ vi.mock('@/lib/storage/adapter', () => ({
     const lastSlashIndex = normalized.lastIndexOf('/');
     return lastSlashIndex === -1 ? null : normalized.slice(0, lastSlashIndex) || '/';
   },
-  getExtension: (path: string) => {
-    const name = path.split(/[\\/]/).filter(Boolean).pop() || '';
-    const lastDot = name.lastIndexOf('.');
-    return lastDot === -1 ? '' : name.slice(lastDot + 1);
-  },
   isAbsolutePath: (path: string) => path.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(path),
-  relativePath: (from: string, to: string) => {
-    const normalizedFrom = from.replace(/\\/g, '/').replace(/\/+$/, '');
-    const normalizedTo = to.replace(/\\/g, '/');
-    return normalizedTo.startsWith(`${normalizedFrom}/`)
-      ? normalizedTo.slice(normalizedFrom.length + 1)
-      : normalizedTo;
-  },
   joinPath: async (...segments: string[]) => segments.filter(Boolean).join('/'),
   getStorageAdapter: () => mocks.storage,
 }));
@@ -58,6 +44,7 @@ describe('importExternalMarkdownEntries', () => {
     mocks.storage.copyFile.mockReset();
     mocks.storage.mkdir.mockReset();
     mocks.storage.listDir.mockReset();
+    mocks.storage.deleteFile.mockReset();
     mocks.storage.deleteDir.mockReset();
     mocks.resolveUniquePath.mockReset();
     mocks.markExpectedExternalChange.mockReset();
@@ -67,6 +54,7 @@ describe('importExternalMarkdownEntries', () => {
     mocks.storage.stat.mockResolvedValue({
       isFile: true,
       isDirectory: false,
+      size: 1024,
     });
     mocks.resolveUniquePath.mockResolvedValue({
       relativePath: 'imports/alpha.markdown',
@@ -107,6 +95,7 @@ describe('importExternalMarkdownEntries', () => {
     mocks.storage.stat.mockImplementation(async (path: string) => ({
       isDirectory: path === '/outside/docs' || path === '/outside/docs/guides',
       isFile: path !== '/outside/docs' && path !== '/outside/docs/guides',
+      size: path.endsWith('.md') || path.endsWith('.markdown') ? 1024 : undefined,
     }));
     mocks.storage.listDir.mockImplementation(async (path: string) => {
       if (path === '/outside/docs') {
@@ -164,6 +153,7 @@ describe('importExternalMarkdownEntries', () => {
     mocks.storage.stat.mockImplementation(async (path: string) => ({
       isDirectory: path === '/outside/project',
       isFile: path !== '/outside/project',
+      size: path.endsWith('.md') ? 1024 : undefined,
     }));
     mocks.storage.listDir.mockImplementation(async (path: string) => {
       if (path === '/outside/project') {
@@ -223,6 +213,7 @@ describe('importExternalMarkdownEntries', () => {
     mocks.storage.stat.mockImplementation(async (path: string) => ({
       isDirectory: path === '/outside/docs',
       isFile: path !== '/outside/docs',
+      size: path.endsWith('.md') ? 1024 : undefined,
     }));
     mocks.storage.listDir.mockImplementation(async (path: string) => {
       if (path === '/outside/docs') {
@@ -270,10 +261,57 @@ describe('importExternalMarkdownEntries', () => {
     expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/outside/docs/..');
   });
 
+  it('skips folder markdown entries when size cannot be verified', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isDirectory: path === '/outside/docs',
+      isFile: path !== '/outside/docs',
+    }));
+    mocks.storage.listDir.mockResolvedValue([
+      { name: 'huge.md', isFile: true, isDirectory: false },
+    ]);
+    mocks.resolveUniquePath.mockResolvedValue({
+      relativePath: 'archive/docs',
+      fullPath: '/vault/archive/docs',
+    });
+
+    const result = await importExternalMarkdownEntries('/vault', 'archive', ['/outside/docs']);
+
+    expect(result).toEqual({
+      importedNotePaths: [],
+      importedFolderPaths: [],
+      didImport: false,
+    });
+    expect(mocks.storage.copyFile).not.toHaveBeenCalled();
+    expect(mocks.storage.deleteDir).toHaveBeenCalledWith('/vault/archive/docs', true);
+  });
+
+  it('removes copied markdown when the target size exceeds the import limit', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isDirectory: false,
+      isFile: true,
+      size: path.startsWith('/vault/') ? 11 * 1024 * 1024 : 1024,
+    }));
+    mocks.resolveUniquePath.mockResolvedValue({
+      relativePath: 'imports/huge.md',
+      fullPath: '/vault/imports/huge.md',
+    });
+
+    const result = await importExternalMarkdownEntries('/vault', 'imports', ['/outside/huge.md']);
+
+    expect(result).toEqual({
+      importedNotePaths: [],
+      importedFolderPaths: [],
+      didImport: false,
+    });
+    expect(mocks.storage.copyFile).toHaveBeenCalledWith('/outside/huge.md', '/vault/imports/huge.md');
+    expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/vault/imports/huge.md');
+  });
+
   it('does not recurse into generated folders while importing markdown folders', async () => {
     mocks.storage.stat.mockImplementation(async (path: string) => ({
       isDirectory: path === '/outside/project',
       isFile: path !== '/outside/project',
+      size: path.endsWith('.md') ? 1024 : undefined,
     }));
     mocks.storage.listDir.mockImplementation(async (path: string) => {
       if (path === '/outside/project') {

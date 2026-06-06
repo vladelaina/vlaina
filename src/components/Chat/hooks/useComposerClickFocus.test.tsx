@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { useComposerClickFocus } from "./useComposerClickFocus";
+import {
+  isPointInsideReadableText,
+  MAX_CHAT_READABLE_TEXT_HIT_CHARS,
+  useComposerClickFocus,
+} from "./useComposerClickFocus";
 
 const mocked = vi.hoisted(() => ({
   focusComposerInput: vi.fn(),
@@ -70,6 +74,44 @@ describe("useComposerClickFocus", () => {
     });
 
     expect(mocked.focusComposerInput).not.toHaveBeenCalled();
+  });
+
+  it("treats oversized readable content as a text hit without scanning text nodes", () => {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = "a".repeat(MAX_CHAT_READABLE_TEXT_HIT_CHARS + 1);
+    const createTreeWalkerSpy = vi.spyOn(document, "createTreeWalker");
+
+    expect(isPointInsideReadableText(paragraph, { clientX: 0, clientY: 0 })).toBe(true);
+    expect(createTreeWalkerSpy).not.toHaveBeenCalled();
+
+    createTreeWalkerSpy.mockRestore();
+  });
+
+  it("checks readable content rects without materializing the rect list", () => {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = "assistant answer";
+    const rectIterator = vi.fn(() => {
+      throw new Error("rects should not be iterated");
+    });
+    const createRangeSpy = vi.spyOn(document, "createRange").mockReturnValue({
+      selectNodeContents: vi.fn(),
+      getClientRects: () => ({
+        0: {
+          left: 0,
+          right: 40,
+          top: 0,
+          bottom: 24,
+        },
+        length: 1,
+        [Symbol.iterator]: rectIterator,
+      }) as unknown as DOMRectList,
+      detach: vi.fn(),
+    } as unknown as Range);
+
+    expect(isPointInsideReadableText(paragraph, { clientX: 90, clientY: 12 })).toBe(false);
+    expect(rectIterator).not.toHaveBeenCalled();
+
+    createRangeSpy.mockRestore();
   });
 
   it("focuses composer when clicking blank space inside assistant readable content", () => {

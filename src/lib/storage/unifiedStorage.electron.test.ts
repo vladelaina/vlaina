@@ -47,6 +47,10 @@ vi.mock('@/stores/useToastStore', () => ({
 }));
 
 import {
+  MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS,
+  MAX_AI_PROVIDER_CHANNEL_MODELS,
+  MAX_AI_PROVIDER_CHANNELS,
+  MAX_AI_SESSION_RECORDS,
   registerUnifiedStorageAutoSyncTrigger,
   saveUnifiedDataImmediate,
   setUnifiedStorageAutoSyncTrigger,
@@ -221,6 +225,122 @@ describe('unifiedStorage electron save', () => {
         deletedProviderIds: ['stale-provider'],
       },
     });
+  });
+
+  it('bounds AI metadata written during split saves', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.storage.listDir.mockResolvedValue([]);
+    const boundedProviderId = `provider-${MAX_AI_PROVIDER_CHANNELS - 1}`;
+
+    await saveUnifiedDataImmediate({
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      },
+      customIcons: [],
+      ai: {
+        providers: [
+          ...Array.from({ length: MAX_AI_PROVIDER_CHANNELS + 2 }, (_, index) => ({
+            id: `provider-${index}`,
+            name: `Provider ${index}`,
+            type: 'newapi' as const,
+            apiHost: 'https://example.com',
+            apiKey: '',
+            enabled: true,
+            createdAt: 1,
+            updatedAt: 1,
+          })),
+          {
+            id: '../outside',
+            name: 'Unsafe',
+            type: 'newapi',
+            apiHost: 'https://example.com',
+            apiKey: '',
+            enabled: true,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        ],
+        models: [
+          ...Array.from({ length: MAX_AI_PROVIDER_CHANNEL_MODELS + 10 }, (_, index) => ({
+            id: `provider-0::model-${index}`,
+            apiModelId: `model-${index}`,
+            name: `Model ${index}`,
+            group: 'default',
+            providerId: 'provider-0',
+            enabled: true,
+            createdAt: 1,
+          })),
+          {
+            id: '../outside::model',
+            apiModelId: 'model',
+            name: 'Unsafe Model',
+            group: 'default',
+            providerId: '../outside',
+            enabled: true,
+            createdAt: 1,
+          },
+        ],
+        benchmarkResults: {},
+        fetchedModels: {
+          'provider-0': Array.from({ length: MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS + 10 }, (_, index) => (
+            index === 1 ? 'model-0' : `fetched-${index}`
+          )),
+        },
+        sessions: [
+          ...Array.from({ length: MAX_AI_SESSION_RECORDS + 10 }, (_, index) => ({
+            id: `session-${index}`,
+            title: `Session ${index}`,
+            modelId: 'provider-0::model-0',
+            createdAt: index,
+            updatedAt: index,
+          })),
+          { id: '../outside', title: 'Unsafe session', modelId: '', createdAt: 1, updatedAt: 1 },
+          { id: 'temp-session-local', title: 'Temporary session', modelId: '', createdAt: 1, updatedAt: 1 },
+        ],
+        messages: {},
+        unreadSessionIds: ['session-0', '../outside', `session-${MAX_AI_SESSION_RECORDS + 1}`],
+        selectedModelId: 'provider-0::model-0',
+        currentSessionId: 'session-0',
+        temporaryChatEnabled: false,
+        customSystemPrompt: '',
+        includeTimeContext: true,
+      },
+    });
+
+    const sessionsWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
+      String(path).endsWith('/chat/sessions.json'),
+    );
+    const sessionsPayload = JSON.parse(String(sessionsWrite?.[1]));
+    expect(sessionsPayload.data.providerIds).toHaveLength(MAX_AI_PROVIDER_CHANNELS);
+    expect(sessionsPayload.data.providerIds.at(-1)).toBe(boundedProviderId);
+    expect(sessionsPayload.data.providerIds).not.toContain(`provider-${MAX_AI_PROVIDER_CHANNELS}`);
+    expect(sessionsPayload.data.providerIds).not.toContain('../outside');
+    expect(sessionsPayload.data.sessions).toHaveLength(MAX_AI_SESSION_RECORDS);
+    expect(sessionsPayload.data.sessions[0].id).toBe(`session-${MAX_AI_SESSION_RECORDS - 1}`);
+    expect(sessionsPayload.data.sessions.at(-1).id).toBe('session-0');
+    expect(sessionsPayload.data.sessions.map((session: { id: string }) => session.id)).not.toContain('../outside');
+    expect(sessionsPayload.data.sessions.map((session: { id: string }) => session.id)).not.toContain('temp-session-local');
+    expect(sessionsPayload.data.unreadSessionIds).toEqual(['session-0']);
+    expect(sessionsPayload.data.currentSessionId).toBe('session-0');
+    expect(sessionsPayload.data.selectedModelId).toBe('provider-0::model-0');
+
+    const providerWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
+      String(path).endsWith('/chat/channels/provider-0.json'),
+    );
+    const providerPayload = JSON.parse(String(providerWrite?.[1]));
+    expect(providerPayload.data.models).toHaveLength(MAX_AI_PROVIDER_CHANNEL_MODELS);
+    expect(providerPayload.data.models.at(-1).apiModelId).toBe(`model-${MAX_AI_PROVIDER_CHANNEL_MODELS - 1}`);
+    expect(providerPayload.data.fetchedModels).toHaveLength(MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS);
+    expect(providerPayload.data.fetchedModels.at(-1)).toBe(`fetched-${MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS - 1}`);
+    expect(mocks.storage.writeFile).not.toHaveBeenCalledWith(
+      expect.stringContaining('../outside.json'),
+      expect.anything(),
+    );
+    expect(mocks.storage.writeFile).not.toHaveBeenCalledWith(
+      expect.stringContaining(`/chat/channels/provider-${MAX_AI_PROVIDER_CHANNELS}.json`),
+      expect.anything(),
+    );
   });
 
   it('preserves provider channels added by another window during a stale save', async () => {

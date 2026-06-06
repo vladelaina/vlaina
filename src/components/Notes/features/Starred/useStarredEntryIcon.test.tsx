@@ -100,6 +100,26 @@ describe('useStarredEntryIcon', () => {
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 
+  it('skips starred note metadata that exceeds the limit after read', async () => {
+    mocked.stat.mockResolvedValue({ modifiedAt: 1, size: 32 });
+    mocked.readFile.mockResolvedValue(['---', 'vlaina_icon: "💡"', '---', 'x'.repeat(512 * 1024 + 1)].join('\n'));
+
+    const { result } = renderHook(() =>
+      useStarredEntryIcon({
+        id: 'starred-large-after-read',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/large-after-read.md',
+        addedAt: 1,
+      }, true),
+    );
+
+    await waitFor(() => {
+      expect(mocked.readFile).toHaveBeenCalledWith('/vault-b/docs/large-after-read.md');
+    });
+    expect(result.current).toBeUndefined();
+  });
+
   it('skips starred note metadata reads when stat has no size', async () => {
     mocked.stat.mockResolvedValue(null);
 

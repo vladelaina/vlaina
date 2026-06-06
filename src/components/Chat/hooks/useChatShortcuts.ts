@@ -26,6 +26,8 @@ import {
   type MarkdownFenceState,
 } from '@/components/Chat/features/Layout/chatAssistantMarkdownBlockParser';
 
+export const MAX_CHAT_SHORTCUT_MESSAGE_SCAN_ELEMENTS = 20_000;
+
 interface UseChatShortcutsOptions {
   onFocusInput: () => void;
   onToggleShortcuts: () => void;
@@ -237,29 +239,40 @@ export function useChatShortcuts(
         const container = scrollRef.current;
         if (!container) return;
         
-        const items = Array.from(container.querySelectorAll('[data-message-item="true"][data-role="user"]')) as HTMLElement[];
-        if (items.length === 0) return;
-
         const currentScroll = container.scrollTop;
         const buffer = 30; 
-        
+        const ownerDocument = container.ownerDocument ?? document;
+        const walker = ownerDocument.createTreeWalker(container, NodeFilter.SHOW_ELEMENT);
         let target: HTMLElement | undefined;
+        let hasUserMessage = false;
+        let scanned = 0;
 
-        if (dir === 'prev') {
-            for (let i = items.length - 1; i >= 0; i--) {
-                if (items[i].offsetTop < currentScroll - buffer) {
-                    target = items[i];
-                    break;
-                }
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            scanned += 1;
+            if (scanned > MAX_CHAT_SHORTCUT_MESSAGE_SCAN_ELEMENTS) break;
+            if (
+                !(node instanceof HTMLElement) ||
+                node.dataset.messageItem !== 'true' ||
+                node.dataset.role !== 'user'
+            ) {
+                continue;
             }
-        } else {
-            for (let i = 0; i < items.length; i++) {
-                if (items[i].offsetTop > currentScroll + buffer) {
-                    target = items[i];
-                    break;
+
+            hasUserMessage = true;
+            if (dir === 'prev') {
+                if (node.offsetTop < currentScroll - buffer) {
+                    target = node;
                 }
+                continue;
+            }
+
+            if (node.offsetTop > currentScroll + buffer) {
+                target = node;
+                break;
             }
         }
+
+        if (!hasUserMessage) return;
         
         if (target) {
             const topPadding = 20;

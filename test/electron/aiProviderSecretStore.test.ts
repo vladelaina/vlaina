@@ -34,10 +34,12 @@ vi.mock('electron', () => ({
 describe('aiProviderSecretStore', () => {
   beforeEach(async () => {
     vi.resetModules();
+    vi.doUnmock('node:fs/promises');
     mocks.userDataPath = await mkdtemp(path.join(os.tmpdir(), 'vlaina-ai-secrets-'));
   });
 
   afterEach(async () => {
+    vi.doUnmock('node:fs/promises');
     await rm(mocks.userDataPath, { recursive: true, force: true });
   });
 
@@ -100,5 +102,21 @@ describe('aiProviderSecretStore', () => {
     await expect(readSecretsStore()).resolves.toMatchObject({
       data: {},
     });
+  });
+
+  it('ignores secret store content that exceeds the limit after read', async () => {
+    const fsMocks = {
+      mkdir: vi.fn(async () => undefined),
+      readFile: vi.fn(async () => 'x'.repeat(512 * 1024 + 1)),
+      stat: vi.fn(async () => ({ isFile: () => true, size: 128 })),
+      writeFile: vi.fn(async () => undefined),
+    };
+    vi.doMock('node:fs/promises', () => ({ ...fsMocks, default: fsMocks }));
+
+    const { readSecretsStore } = await import('../../electron/aiProviderSecretStore.mjs');
+
+    await expect(readSecretsStore()).resolves.toMatchObject({ data: {} });
+    expect(fsMocks.readFile).toHaveBeenCalled();
+    expect(fsMocks.writeFile).not.toHaveBeenCalled();
   });
 });

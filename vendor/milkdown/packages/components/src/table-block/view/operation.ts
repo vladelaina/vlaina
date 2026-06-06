@@ -103,14 +103,14 @@ export function useOperation(
 
     if (!ctx.get(editorViewCtx).editable) return
 
-    const rows = Array.from(
-      contentWrapperRef.value?.querySelectorAll('tr') ?? []
-    )
+    const shape = getTableShape()
+    if (!shape || shape.rowCount === 0 || rowIndex > shape.rowCount) return
+
     const commands = ctx.get(commandsCtx)
     const pos = getCommandPos()
     if (pos == null) return
     preserveTableScroll(() => {
-      if (rows.length === rowIndex) {
+      if (shape.rowCount === rowIndex) {
         commands.call(selectRowCommand.key, { pos, index: rowIndex - 1 })
         commands.call(addRowAfterCommand.key)
       } else {
@@ -133,14 +133,14 @@ export function useOperation(
 
     if (!ctx.get(editorViewCtx).editable) return
 
-    const cols = Array.from(
-      contentWrapperRef.value?.querySelector('tr')?.children ?? []
-    )
+    const shape = getTableShape()
+    if (!shape || shape.colCount === 0 || colIndex > shape.colCount) return
+
     const commands = ctx.get(commandsCtx)
     const pos = getCommandPos()
     if (pos == null) return
     preserveTableScroll(() => {
-      if (cols.length === colIndex) {
+      if (shape.colCount === colIndex) {
         commands.call(selectColCommand.key, { pos, index: colIndex - 1 })
         commands.call(addColAfterCommand.key)
       } else {
@@ -193,9 +193,10 @@ export function useOperation(
     if (!shape || shape.rowCount <= 1) return false
 
     const lastRowIndex = shape.rowCount - 1
-    return Array.from({ length: shape.colCount }).every((_, colIndex) =>
-      isCellEmpty(lastRowIndex, colIndex)
-    )
+    for (let colIndex = 0; colIndex < shape.colCount; colIndex += 1) {
+      if (!isCellEmpty(lastRowIndex, colIndex)) return false
+    }
+    return true
   }
 
   const canShrinkCol = () => {
@@ -203,9 +204,10 @@ export function useOperation(
     if (!shape || shape.colCount <= 1) return false
 
     const lastColIndex = shape.colCount - 1
-    return Array.from({ length: shape.rowCount }).every((_, rowIndex) =>
-      isCellEmpty(rowIndex, lastColIndex)
-    )
+    for (let rowIndex = 0; rowIndex < shape.rowCount; rowIndex += 1) {
+      if (!isCellEmpty(rowIndex, lastColIndex)) return false
+    }
+    return true
   }
 
   const onShrinkRow = () => {

@@ -27,6 +27,14 @@ const READABLE_CONTENT_SELECTOR = [
   'td',
   'th'
 ].join(', ');
+export const MAX_CHAT_READABLE_TEXT_HIT_CHARS = 100_000;
+export const MAX_CHAT_READABLE_TEXT_HIT_NODES = 512;
+export const MAX_CHAT_READABLE_TEXT_HIT_RECTS = 1024;
+
+interface ReadableTextPointer {
+  clientX: number;
+  clientY: number;
+}
 
 function getClosestElement(target: EventTarget | null, selector: string): Element | null {
   if (target instanceof Element) {
@@ -46,31 +54,54 @@ function shouldFocusComposer(target: EventTarget | null): boolean {
   return true;
 }
 
-function isPointInsideReadableText(element: Element, event: MouseEvent): boolean {
+export function isPointInsideReadableText(element: Element, event: ReadableTextPointer): boolean {
+  if ((element.textContent?.length ?? 0) > MAX_CHAT_READABLE_TEXT_HIT_CHARS) {
+    return true;
+  }
+
   const doc = element.ownerDocument;
   const walker = doc.createTreeWalker(element, NodeFilter.SHOW_TEXT);
   let textNode = walker.nextNode();
   let sawText = false;
   let sawRect = false;
+  let measuredTextNodes = 0;
+  let measuredRects = 0;
 
   while (textNode) {
     if (textNode.textContent?.trim()) {
       sawText = true;
-      const range = doc.createRange();
-      range.selectNodeContents(textNode);
-      const rects = Array.from(range.getClientRects());
-      range.detach();
-
-      if (rects.length > 0) {
-        sawRect = true;
-      }
-      if (rects.some((rect) =>
-        event.clientX >= rect.left &&
-        event.clientX <= rect.right &&
-        event.clientY >= rect.top &&
-        event.clientY <= rect.bottom
-      )) {
+      measuredTextNodes += 1;
+      if (measuredTextNodes > MAX_CHAT_READABLE_TEXT_HIT_NODES) {
         return true;
+      }
+
+      const range = doc.createRange();
+      try {
+        range.selectNodeContents(textNode);
+        const rects = range.getClientRects();
+
+        if (rects.length > 0) {
+          sawRect = true;
+        }
+        for (let index = 0; index < rects.length; index += 1) {
+          measuredRects += 1;
+          if (measuredRects > MAX_CHAT_READABLE_TEXT_HIT_RECTS) {
+            return true;
+          }
+
+          const rect = rects[index];
+          if (!rect) continue;
+          if (
+            event.clientX >= rect.left &&
+            event.clientX <= rect.right &&
+            event.clientY >= rect.top &&
+            event.clientY <= rect.bottom
+          ) {
+            return true;
+          }
+        }
+      } finally {
+        range.detach();
       }
     }
     textNode = walker.nextNode();

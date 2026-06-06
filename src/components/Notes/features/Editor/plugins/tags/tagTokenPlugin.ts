@@ -11,6 +11,56 @@ const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
 const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
 const MAX_TAG_TOKEN_DECORATIONS = 1000;
 const MAX_TAG_TOKEN_CHARS = 128;
+export const MAX_TAG_TOKEN_EDGE_RECTS = 1024;
+
+export function resolveTagTokenEdgeOffset(
+  token: HTMLElement,
+  clientX: number,
+  clientY: number,
+): { textNode: Text; offset: number } | null {
+  let textNode: Text | null = null;
+  for (let index = 0; index < token.childNodes.length; index += 1) {
+    const child = token.childNodes.item(index);
+    if (child.nodeType === Node.TEXT_NODE && child.textContent) {
+      textNode = child as Text;
+      break;
+    }
+  }
+  if (!textNode?.textContent) return null;
+
+  const range = token.ownerDocument.createRange();
+  range.selectNodeContents(textNode);
+  const rects = range.getClientRects();
+  if (rects.length > MAX_TAG_TOKEN_EDGE_RECTS) {
+    range.detach();
+    return null;
+  }
+
+  let lastRect: DOMRect | null = null;
+  let matchedRect: DOMRect | null = null;
+  for (let index = 0; index < rects.length; index += 1) {
+    const rect = rects.item(index);
+    if (!rect || rect.width <= 0 || rect.height <= 0) continue;
+    lastRect = rect;
+    if (clientY >= rect.top - 4 && clientY <= rect.bottom + 4) {
+      matchedRect = rect;
+      break;
+    }
+  }
+  range.detach();
+
+  const rect = matchedRect ?? lastRect;
+  if (!rect) return null;
+
+  const edgeSlack = Math.max(3, Math.min(8, rect.width * 0.12));
+  if (clientX >= rect.right - edgeSlack) {
+    return { textNode, offset: textNode.textContent.length };
+  }
+  if (clientX <= rect.left + edgeSlack) {
+    return { textNode, offset: 0 };
+  }
+  return null;
+}
 
 export function createTagTokenDecorations(doc: any): DecorationSet {
   const decorations: Decoration[] = [];
@@ -82,28 +132,11 @@ export const tagTokenPlugin = $prose(() => new Plugin({
         const token = target?.closest('[data-editor-tag-token="true"]');
         if (!(token instanceof HTMLElement) || !view.dom.contains(token)) return false;
 
-        const textNode = Array.from(token.childNodes).find((node) => node.nodeType === Node.TEXT_NODE && node.textContent);
-        if (!textNode?.textContent) return false;
-
-        const range = token.ownerDocument.createRange();
-        range.selectNodeContents(textNode);
-        const rects = Array.from(range.getClientRects()).filter((rect) => rect.width > 0 && rect.height > 0);
-        range.detach();
-        const rect = rects.find((candidate) => event.clientY >= candidate.top - 4 && event.clientY <= candidate.bottom + 4)
-          ?? rects[rects.length - 1];
-        if (!rect) return false;
-
-        const edgeSlack = Math.max(3, Math.min(8, rect.width * 0.12));
-        let offset: number | null = null;
-        if (event.clientX >= rect.right - edgeSlack) {
-          offset = textNode.textContent.length;
-        } else if (event.clientX <= rect.left + edgeSlack) {
-          offset = 0;
-        }
-        if (offset === null) return false;
+        const edge = resolveTagTokenEdgeOffset(token, event.clientX, event.clientY);
+        if (!edge) return false;
 
         try {
-          const pos = view.posAtDOM(textNode, offset);
+          const pos = view.posAtDOM(edge.textNode, edge.offset);
           view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos)).scrollIntoView());
           view.focus();
           event.preventDefault();

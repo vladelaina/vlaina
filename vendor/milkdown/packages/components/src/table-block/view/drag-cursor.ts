@@ -5,6 +5,8 @@ const ROOT_SELECTION_ATTR = 'data-table-resize-selection-lock'
 const ROOT_TOOLBAR_ATTR = 'data-table-resize-toolbar-suppress'
 const OVERLAY_ID = 'milkdown-table-resize-overlay'
 const TOOLBAR_SUPPRESS_MS = 180
+export const MAX_TABLE_DRAG_CURSOR_EDITOR_SCAN_ELEMENTS = 10000
+export const MAX_TABLE_DRAG_CURSOR_HIDDEN_EDITORS = 128
 
 let activeLockCount = 0
 let previousHtmlCursor = ''
@@ -47,9 +49,27 @@ function removeOverlay() {
 }
 
 function hideEditorSelections() {
-  hiddenSelectionEditors = Array.from(
-    document.querySelectorAll('.milkdown .ProseMirror')
-  ).filter((element): element is HTMLElement => element instanceof HTMLElement)
+  hiddenSelectionEditors = []
+  const walker = document.createTreeWalker(document.body, 1)
+  let scanned = 0
+
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    scanned += 1
+    if (
+      scanned > MAX_TABLE_DRAG_CURSOR_EDITOR_SCAN_ELEMENTS ||
+      hiddenSelectionEditors.length >= MAX_TABLE_DRAG_CURSOR_HIDDEN_EDITORS
+    ) {
+      break
+    }
+
+    if (
+      node instanceof HTMLElement &&
+      node.classList.contains('ProseMirror') &&
+      node.closest('.milkdown')
+    ) {
+      hiddenSelectionEditors.push(node)
+    }
+  }
 
   hiddenSelectionEditors.forEach((element) => {
     element.classList.add('ProseMirror-hideselection')

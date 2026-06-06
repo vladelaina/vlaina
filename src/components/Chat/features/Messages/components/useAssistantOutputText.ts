@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { getCodePointLength } from '@/components/Chat/features/Markdown/chatStreamTextMetrics';
 
 const ACTIVE_INPUT_WINDOW_MS = 220;
 const DEFAULT_CHARS_PER_SECOND = 38;
@@ -18,12 +19,25 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function takeTextPrefix(text: string, count: number): string {
-  return Array.from(text).slice(0, count).join('');
+export function takeAssistantOutputTextPrefix(text: string, count: number): string {
+  if (count <= 0) {
+    return '';
+  }
+
+  let length = 0;
+  let endIndex = 0;
+  for (const char of text) {
+    if (length >= count) {
+      break;
+    }
+    endIndex += char.length;
+    length += 1;
+  }
+  return text.slice(0, endIndex);
 }
 
-function textLength(text: string): number {
-  return Array.from(text).length;
+export function getAssistantOutputTextLength(text: string): number {
+  return getCodePointLength(text);
 }
 
 export function useAssistantOutputText(targetText: string, enabled: boolean, resetKey: string): string {
@@ -34,14 +48,14 @@ export function useAssistantOutputText(targetText: string, enabled: boolean, res
   const previousTargetRef = useRef(targetText);
   const targetTextRef = useRef(targetText);
   const previousResetKeyRef = useRef(resetKey);
-  const targetLengthRef = useRef(textLength(targetText));
+  const targetLengthRef = useRef(getAssistantOutputTextLength(targetText));
   const visibleLengthRef = useRef(targetLengthRef.current);
   const averageSpeedRef = useRef(DEFAULT_CHARS_PER_SECOND);
   const averageChunkSizeRef = useRef(1);
   const averageArrivalSpeedRef = useRef(DEFAULT_CHARS_PER_SECOND);
   const lastInputLengthRef = useRef(targetLengthRef.current);
   const revealRemainderRef = useRef(0);
-  const visibleLength = useMemo(() => textLength(visibleText), [visibleText]);
+  const visibleLength = useMemo(() => getAssistantOutputTextLength(visibleText), [visibleText]);
 
   const stopAnimation = () => {
     if (animationFrameRef.current !== null) {
@@ -55,7 +69,7 @@ export function useAssistantOutputText(targetText: string, enabled: boolean, res
     stopAnimation();
     previousTargetRef.current = nextText;
     targetTextRef.current = nextText;
-    targetLengthRef.current = textLength(nextText);
+    targetLengthRef.current = getAssistantOutputTextLength(nextText);
     visibleLengthRef.current = targetLengthRef.current;
     averageSpeedRef.current = DEFAULT_CHARS_PER_SECOND;
     averageChunkSizeRef.current = 1;
@@ -88,14 +102,14 @@ export function useAssistantOutputText(targetText: string, enabled: boolean, res
       return;
     }
 
-    const appendedLength = textLength(targetText.slice(previousTarget.length));
+    const appendedLength = getAssistantOutputTextLength(targetText.slice(previousTarget.length));
     if (appendedLength > LARGE_APPEND_CHARS) {
       syncVisibleText(targetText);
       return;
     }
 
     const currentTime = performance.now();
-    const nextTargetLength = textLength(targetText);
+    const nextTargetLength = getAssistantOutputTextLength(targetText);
     const inputDeltaMs = Math.max(1, currentTime - lastInputTimeRef.current);
     const deltaLength = nextTargetLength - lastInputLengthRef.current;
     const instantSpeed = deltaLength * 1000 / inputDeltaMs;
@@ -178,7 +192,7 @@ export function useAssistantOutputText(targetText: string, enabled: boolean, res
 
         const nextLength = Math.min(targetLength, inputActive ? Math.min(desiredLength, currentLength + revealCount) : currentLength + revealCount);
         visibleLengthRef.current = nextLength;
-        setVisibleText(takeTextPrefix(targetTextRef.current, nextLength));
+        setVisibleText(takeAssistantOutputTextPrefix(targetTextRef.current, nextLength));
         animationFrameRef.current = window.requestAnimationFrame(tick);
       };
 

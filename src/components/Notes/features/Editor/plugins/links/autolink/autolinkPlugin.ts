@@ -48,8 +48,11 @@ export function trimTrailingUrlPunctuation(url: string): string {
     return trimmed;
 }
 
-export function findUrls(text: string, offset: number): LinkMatch[] {
+export function findUrls(text: string, offset: number, maxMatches = Number.POSITIVE_INFINITY): LinkMatch[] {
     const matches: LinkMatch[] = [];
+    if (maxMatches <= 0) {
+        return matches;
+    }
 
     for (const pattern of URL_PATTERNS) {
         // Reset regex state
@@ -57,6 +60,10 @@ export function findUrls(text: string, offset: number): LinkMatch[] {
         let match;
 
         while ((match = pattern.exec(text)) !== null) {
+            if (matches.length >= maxMatches) {
+                return matches;
+            }
+
             let url = match[0];
             let href = url;
 
@@ -83,6 +90,9 @@ export function findUrls(text: string, offset: number): LinkMatch[] {
                 url,
                 href
             });
+            if (matches.length >= maxMatches) {
+                return matches;
+            }
         }
     }
 
@@ -114,7 +124,10 @@ export function createAutolinkDecorations(doc: any): DecorationSet {
 
         if (node.isText) {
             const text = node.text || '';
-            const matches = findUrls(text, pos);
+            if (!AUTOLINK_TRIGGER_TEXT_PATTERN.test(text)) {
+                return;
+            }
+            const matches = findUrls(text, pos, MAX_AUTOLINK_DECORATIONS - decorations.length);
 
             for (const match of matches) {
                 // Check if already inside a link mark

@@ -42,6 +42,9 @@ const STRUCTURED_BLOCK_SELECTOR = [
   `[data-type]:not(${MARKDOWN_BLANK_LINE_SELECTOR})`,
   '[data-node-view-root]',
 ].join(', ');
+export const MAX_BLANK_AREA_TEXT_HIT_CHARS = 100_000;
+export const MAX_BLANK_AREA_TEXT_HIT_NODES = 512;
+export const MAX_BLANK_AREA_TEXT_HIT_RECTS = 1024;
 
 interface TextLineRectLike {
   left: number;
@@ -58,7 +61,8 @@ interface TextSelectionGutterHit {
 
 type TextLinePointerHit =
   | { type: 'content' }
-  | ({ type: 'gutter' } & TextSelectionGutterHit);
+  | ({ type: 'gutter' } & TextSelectionGutterHit)
+  | { type: 'measurement-limit' };
 
 interface CachedTextLinePointerHitResult {
   checked: boolean;
@@ -127,7 +131,11 @@ function isIgnoredTextLineElement(element: Element): boolean {
   return Boolean(element.closest(INTERACTIVE_SELECTOR));
 }
 
-function resolveTextLinePointerHit(root: HTMLElement, clientX: number, clientY: number): TextLinePointerHit | null {
+export function resolveTextLinePointerHit(root: HTMLElement, clientX: number, clientY: number): TextLinePointerHit | null {
+  if ((root.textContent?.length ?? 0) > MAX_BLANK_AREA_TEXT_HIT_CHARS) {
+    return { type: 'measurement-limit' };
+  }
+
   const doc = root.ownerDocument;
   const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
@@ -138,22 +146,39 @@ function resolveTextLinePointerHit(root: HTMLElement, clientX: number, clientY: 
     },
   });
 
+  let measuredTextNodes = 0;
+  let measuredRects = 0;
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const range = doc.createRange();
-    range.selectNodeContents(node);
-    const rects = Array.from(range.getClientRects());
-    range.detach();
+    measuredTextNodes += 1;
+    if (measuredTextNodes > MAX_BLANK_AREA_TEXT_HIT_NODES) {
+      return { type: 'measurement-limit' };
+    }
 
-    for (const rect of rects) {
-      if (isPointInTextLineContent(rect, clientX, clientY)) {
-        return { type: 'content' };
+    const range = doc.createRange();
+    try {
+      range.selectNodeContents(node);
+      const rects = range.getClientRects();
+
+      for (let index = 0; index < rects.length; index += 1) {
+        measuredRects += 1;
+        if (measuredRects > MAX_BLANK_AREA_TEXT_HIT_RECTS) {
+          return { type: 'measurement-limit' };
+        }
+
+        const rect = rects[index];
+        if (!rect) continue;
+        if (isPointInTextLineContent(rect, clientX, clientY)) {
+          return { type: 'content' };
+        }
+        if (isPointInTrailingTextSelectionGutter(rect, clientX, clientY)) {
+          return { type: 'gutter', edge: 'trailing' };
+        }
+        if (isPointInLeadingTextSelectionGutter(rect, clientX, clientY)) {
+          return { type: 'gutter', edge: 'leading' };
+        }
       }
-      if (isPointInTrailingTextSelectionGutter(rect, clientX, clientY)) {
-        return { type: 'gutter', edge: 'trailing' };
-      }
-      if (isPointInLeadingTextSelectionGutter(rect, clientX, clientY)) {
-        return { type: 'gutter', edge: 'leading' };
-      }
+    } finally {
+      range.detach();
     }
   }
 
@@ -255,7 +280,7 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
     return null;
   }
 
-  let externalTextGutterHit: TextSelectionGutterHit | null = null;
+  let externalTextLineBlockHit = false;
   if (isSameEditorScrollRoot) {
     const cachedTextLineHit = resolveCachedTextLinePointerHit(
       view,
@@ -266,9 +291,9 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
     const textLineHit = cachedTextLineHit.checked
       ? cachedTextLineHit.hit
       : resolveTextLinePointerHit(view.dom, event.clientX, event.clientY);
-    externalTextGutterHit = textLineHit?.type === 'gutter' ? { edge: textLineHit.edge } : null;
+    externalTextLineBlockHit = textLineHit?.type === 'gutter' || textLineHit?.type === 'measurement-limit';
   }
-  if (externalTextGutterHit) {
+  if (externalTextLineBlockHit) {
     return null;
   }
 

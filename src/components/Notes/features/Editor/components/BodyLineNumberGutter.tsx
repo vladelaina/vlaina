@@ -3,6 +3,8 @@ import { getMarkdownBodySourceLineNumbers } from '../utils/bodyLineNumbers';
 
 const BODY_LINE_NUMBER_LABEL_WIDTH = 40;
 const BODY_LINE_NUMBER_LABEL_GAP = 18;
+export const MAX_BODY_LINE_NUMBER_TARGETS = 5000;
+export const MAX_BODY_LINE_NUMBER_LIST_SCAN_ELEMENTS = 10000;
 
 interface BodyLineNumberGutterProps {
   markdown: string;
@@ -19,18 +21,30 @@ interface BodyLineNumberLabel {
 export function collectBodyLineNumberTargets(editorRoot: HTMLElement): HTMLElement[] {
   const targets: HTMLElement[] = [];
 
-  for (const child of Array.from(editorRoot.children)) {
+  for (let index = 0; index < editorRoot.children.length && targets.length < MAX_BODY_LINE_NUMBER_TARGETS; index += 1) {
+    const child = editorRoot.children.item(index);
     if (!(child instanceof HTMLElement)) continue;
     if (child.classList.contains('code-block-container')) continue;
     if (child.classList.contains('frontmatter-block-container')) continue;
 
     const tagName = child.tagName.toLowerCase();
     if (tagName === 'ul' || tagName === 'ol') {
-      targets.push(
-        ...Array.from(child.querySelectorAll<HTMLElement>('li')).filter((item) =>
-          !item.closest('.code-block-container, .frontmatter-block-container')
-        )
-      );
+      const walker = child.ownerDocument.createTreeWalker(child, NodeFilter.SHOW_ELEMENT);
+      let scanned = 0;
+      for (
+        let node = walker.nextNode();
+        node && targets.length < MAX_BODY_LINE_NUMBER_TARGETS && scanned < MAX_BODY_LINE_NUMBER_LIST_SCAN_ELEMENTS;
+        node = walker.nextNode()
+      ) {
+        scanned += 1;
+        if (
+          node instanceof HTMLElement &&
+          node.tagName.toLowerCase() === 'li' &&
+          !node.closest('.code-block-container, .frontmatter-block-container')
+        ) {
+          targets.push(node);
+        }
+      }
       continue;
     }
 

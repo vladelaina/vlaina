@@ -28,18 +28,22 @@ export function extractHeadings(doc: {
   const normalizedMaxLevel = normalizeTocMaxLevel(maxLevel);
 
   doc.descendants((node: any, pos: number) => {
-    if (node.type?.name !== 'heading' || headings.length >= MAX_TOC_VIEW_HEADINGS) {
-      return;
+    if (headings.length >= MAX_TOC_VIEW_HEADINGS) {
+      return false;
+    }
+
+    if (node.type?.name !== 'heading') {
+      return true;
     }
 
     const level = normalizeHeadingLevel(node.attrs?.level, normalizedMaxLevel);
     if (level === null) {
-      return;
+      return true;
     }
 
     const text = String(node.textContent ?? '').slice(0, MAX_TOC_VIEW_HEADING_TEXT_CHARS);
     if (!text.trim()) {
-      return;
+      return true;
     }
 
     headings.push({
@@ -48,6 +52,8 @@ export function extractHeadings(doc: {
       id: `heading-${pos}`,
       pos,
     });
+
+    return headings.length < MAX_TOC_VIEW_HEADINGS;
   });
 
   return headings;

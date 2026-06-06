@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { remarkNotesInlineExtensions, type MdastNode } from './remarkNotesExtensions';
+import {
+  MAX_INLINE_HTML_CONTAINER_CHILDREN,
+  remarkNotesInlineExtensions,
+  type MdastNode,
+} from './remarkNotesExtensions';
 
 function buildDeepTree(leafChildren: MdastNode[]): {
   leaf: MdastNode;
@@ -93,6 +97,29 @@ describe('remarkNotesInlineExtensions', () => {
       { type: 'text', value: '&lt;em&gt;nested&lt;/em&gt;' },
       { type: 'html', value: '</span>' },
     ]);
+  });
+
+  it('keeps nested raw html inside simple inline html marks as html', () => {
+    const children: MdastNode[] = [
+      { type: 'html', value: '<mark><em>nested</em></mark>' },
+      { type: 'text', value: ' ' },
+      { type: 'html', value: '<sup>' },
+      { type: 'text', value: '&lt;em&gt;encoded&lt;/em&gt;' },
+      { type: 'html', value: '</sup>' },
+    ];
+    const tree: MdastNode = {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [...children],
+        },
+      ],
+    };
+
+    remarkNotesInlineExtensions()(tree);
+
+    expect(tree.children?.[0].children).toEqual(children);
   });
 
   it('transforms bounded callout icon markers', () => {
@@ -189,6 +216,42 @@ describe('remarkNotesInlineExtensions', () => {
 
     const paragraph = tree.children?.[0];
     expect(paragraph?.children?.slice(0, 500)).toEqual(unclosedSuperscriptTags);
+    expect(paragraph?.children?.at(-1)).toMatchObject({
+      type: 'subscript',
+      children: [{ type: 'text', value: 'sub' }],
+    });
+  });
+
+  it('keeps oversized inline html containers raw instead of scanning every sibling', () => {
+    const longContent = Array.from(
+      { length: MAX_INLINE_HTML_CONTAINER_CHILDREN + 1 },
+      (_, index) => ({ type: 'text', value: `part-${index}` } satisfies MdastNode),
+    );
+    const tree: MdastNode = {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [
+            { type: 'html', value: '<sup>' },
+            ...longContent,
+            { type: 'html', value: '</sup>' },
+            { type: 'html', value: '<sub>' },
+            { type: 'text', value: 'sub' },
+            { type: 'html', value: '</sub>' },
+          ],
+        },
+      ],
+    };
+
+    remarkNotesInlineExtensions()(tree);
+
+    const paragraph = tree.children?.[0];
+    expect(paragraph?.children?.[0]).toEqual({ type: 'html', value: '<sup>' });
+    expect(paragraph?.children?.[MAX_INLINE_HTML_CONTAINER_CHILDREN + 2]).toEqual({
+      type: 'html',
+      value: '</sup>',
+    });
     expect(paragraph?.children?.at(-1)).toMatchObject({
       type: 'subscript',
       children: [{ type: 'text', value: 'sub' }],

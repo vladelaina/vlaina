@@ -289,6 +289,7 @@ export function ChatView({
 
       attempts += 1;
       if (attempts >= 24) {
+        consumePendingComposerInsert(pendingComposerInsert.id);
         return;
       }
 

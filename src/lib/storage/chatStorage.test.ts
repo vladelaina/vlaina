@@ -187,6 +187,69 @@ describe('chatStorage session message normalization', () => {
     expect(merged[0]?.versions.map((version) => version.content)).toEqual(['other window edit']);
   });
 
+  it('matches API transcript versions without stringifying transcript messages', () => {
+    const transcript = [
+      {
+        role: 'assistant',
+        content: [
+          { type: 'text' as const, text: 'answer' },
+          { type: 'image_url' as const, image_url: { url: 'attachment://safe.png', detail: 'low' as const } },
+        ],
+        reasoning_content: 'hidden',
+        tool_calls: [{
+          id: 'call-1',
+          type: 'function' as const,
+          function: { name: 'web_search', arguments: '{"query":"sample"}' },
+        }],
+      },
+      { role: 'tool', tool_call_id: 'call-1', name: 'web_search', content: 'result' },
+    ];
+    const incoming = normalizeSessionMessages([{
+      id: 'm1',
+      role: 'assistant',
+      content: 'answer',
+      modelId: 'model-1',
+      timestamp: 1,
+      apiTranscript: transcript,
+      versions: [{
+        content: 'answer',
+        createdAt: 1,
+        kind: 'original' as const,
+        subsequentMessages: [],
+        apiTranscript: transcript,
+      }],
+      currentVersionIndex: 0,
+    }]);
+    const persisted = normalizeSessionMessages([{
+      id: 'm1',
+      role: 'assistant',
+      content: 'answer',
+      modelId: 'model-1',
+      timestamp: 1,
+      apiTranscript: transcript,
+      versions: [{
+        content: 'answer',
+        createdAt: 1,
+        kind: 'original' as const,
+        subsequentMessages: [],
+        apiTranscript: transcript,
+      }],
+      currentVersionIndex: 0,
+    }]);
+    const stringifySpy = vi.spyOn(JSON, 'stringify').mockImplementation(() => {
+      throw new Error('JSON.stringify should not be used for transcript comparison');
+    });
+
+    try {
+      const merged = mergeSessionMessages(incoming, persisted, { preferredSource: 'incoming' });
+
+      expect(merged[0]?.currentVersionIndex).toBe(0);
+      expect(merged[0]?.versions).toHaveLength(1);
+    } finally {
+      stringifySpy.mockRestore();
+    }
+  });
+
   it('backfills versions for legacy persisted messages', () => {
     vi.setSystemTime(new Date('2026-05-09T00:00:00Z'));
 
@@ -453,6 +516,22 @@ describe('chatStorage auto sync registration', () => {
     );
   });
 
+  it('does not merge existing session files while saving when content exceeds the limit after read', async () => {
+    mocks.storage.exists.mockImplementation(async (path: string) => (
+      path === '/appdata/.vlaina/chat/sessions/session-1.json'
+    ));
+    mocks.storage.stat.mockResolvedValue({ isFile: true, size: 200 });
+    mocks.storage.readFile.mockResolvedValue('x'.repeat(25 * 1024 * 1024 + 1));
+
+    await saveSessionJson('session-1', [createMessage('m1')]);
+
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/session-1.json');
+    expect(mocks.storage.writeFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/chat/sessions/session-1.json',
+      expect.stringContaining('"m1"'),
+    );
+  });
+
   it('does not load session files when stat has no size', async () => {
     mocks.storage.exists.mockResolvedValue(true);
     mocks.storage.stat.mockResolvedValue({});
@@ -460,5 +539,15 @@ describe('chatStorage auto sync registration', () => {
     await expect(loadSessionJson('session-1')).resolves.toBeNull();
 
     expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not load session content that exceeds the limit after read', async () => {
+    mocks.storage.exists.mockResolvedValue(true);
+    mocks.storage.stat.mockResolvedValue({ isFile: true, size: 200 });
+    mocks.storage.readFile.mockResolvedValue('x'.repeat(25 * 1024 * 1024 + 1));
+
+    await expect(loadSessionJson('session-1')).resolves.toBeNull();
+
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/session-1.json');
   });
 });

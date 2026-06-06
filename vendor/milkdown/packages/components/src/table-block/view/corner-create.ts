@@ -32,6 +32,10 @@ import {
   type EdgeCreateAnchors,
   type EdgeCreateAxis,
 } from './edge-create-state'
+import {
+  getTableDomColCount,
+  getTableDomRowCount,
+} from './table-dom-metrics'
 
 const EDGE_CREATE_THRESHOLD = 18
 const CORNER_CREATE_ACTIVATION_THRESHOLD = 6
@@ -240,15 +244,14 @@ function clearSession(current: CornerCreateSession | null = activeSession) {
 
 function syncAxisIndex(refs: Refs, axis: EdgeCreateAxis): boolean {
   if (axis === 'row') {
-    const rowCount = refs.contentWrapperRef.value?.querySelectorAll('tr').length ?? 0
-    if (rowCount === 0) return false
+    const rowCount = getTableDomRowCount(refs.contentWrapperRef.value)
+    if (rowCount == null || rowCount === 0) return false
     refs.lineHoverIndex.value = [rowCount, 0]
     return true
   }
 
-  const colCount =
-    refs.contentWrapperRef.value?.querySelector('tr')?.children.length ?? 0
-  if (colCount === 0) return false
+  const colCount = getTableDomColCount(refs.contentWrapperRef.value)
+  if (colCount == null || colCount === 0) return false
   refs.lineHoverIndex.value = [0, colCount]
   return true
 }

@@ -3,6 +3,9 @@ import { normalizeNoteCoverMetadata } from './frontmatterCover';
 
 const LINE_ENDING_PATTERN = /\r\n?/g;
 const FRONTMATTER_DELIMITER = '---';
+const MAX_FRONTMATTER_DELIMITER_LINE_CHARS = 1024;
+const MAX_FRONTMATTER_CHARS = 256 * 1024;
+const MAX_FRONTMATTER_LINES = 2048;
 const MANAGED_FRONTMATTER_PREFIX = 'vlaina_';
 const KEY_COVER = `${MANAGED_FRONTMATTER_PREFIX}cover`;
 const KEY_COVER_X = `${MANAGED_FRONTMATTER_PREFIX}cover_x`;
@@ -31,37 +34,93 @@ interface FrontmatterSections {
   hasFrontmatter: boolean;
 }
 
+interface ReadLineResult {
+  line: string;
+  contentEnd: number;
+  nextStart: number;
+  truncated: boolean;
+}
+
 function normalizeLineEndings(value: string): string {
   return value.replace(LINE_ENDING_PATTERN, '\n');
 }
 
-function splitLeadingFrontmatter(markdown: string): FrontmatterSections {
-  const normalized = normalizeLineEndings(markdown);
-  const lines = normalized.split('\n');
+function readLine(value: string, start: number, maxContentEnd = value.length): ReadLineResult {
+  let index = start;
+  while (
+    index < value.length &&
+    index < maxContentEnd &&
+    value[index] !== '\n' &&
+    value[index] !== '\r'
+  ) {
+    index += 1;
+  }
 
-  if ((lines[0] ?? '').trim() !== FRONTMATTER_DELIMITER) {
+  let nextStart = index;
+  const truncated = index >= maxContentEnd && index < value.length && value[index] !== '\n' && value[index] !== '\r';
+  if (!truncated && index < value.length) {
+    nextStart = value[index] === '\r' && value[index + 1] === '\n'
+      ? index + 2
+      : index + 1;
+  }
+
+  return {
+    line: value.slice(start, index),
+    contentEnd: index,
+    nextStart,
+    truncated,
+  };
+}
+
+function hasTrailingLineEnding(value: string): boolean {
+  return value.endsWith('\n') || value.endsWith('\r');
+}
+
+function removeLeadingBlankLine(value: string): string {
+  const newlineIndex = value.indexOf('\n');
+  const firstLine = newlineIndex >= 0 ? value.slice(0, newlineIndex) : value;
+  if (firstLine.trim() !== '') {
+    return value;
+  }
+  return newlineIndex >= 0 ? value.slice(newlineIndex + 1) : '';
+}
+
+function splitLeadingFrontmatter(markdown: string, options?: { includeBody?: boolean }): FrontmatterSections {
+  const firstLine = readLine(markdown, 0, MAX_FRONTMATTER_DELIMITER_LINE_CHARS + 1);
+
+  if (firstLine.truncated || firstLine.line.trim() !== FRONTMATTER_DELIMITER) {
     return {
       lines: [],
-      body: normalized,
+      body: options?.includeBody ? normalizeLineEndings(markdown) : '',
       hasFrontmatter: false,
     };
   }
 
-  for (let index = 1; index < lines.length; index += 1) {
-    if (lines[index].trim() !== FRONTMATTER_DELIMITER) {
-      continue;
+  const lines: string[] = [];
+  let cursor = firstLine.nextStart;
+  const frontmatterBudgetEnd = firstLine.nextStart + MAX_FRONTMATTER_CHARS + 1;
+
+  while (cursor < markdown.length && lines.length < MAX_FRONTMATTER_LINES) {
+    const line = readLine(markdown, cursor, frontmatterBudgetEnd);
+    if (line.truncated || line.contentEnd - firstLine.nextStart > MAX_FRONTMATTER_CHARS) {
+      break;
     }
 
-    return {
-      lines: lines.slice(1, index),
-      body: lines.slice(index + 1).join('\n'),
-      hasFrontmatter: true,
-    };
+    if (line.line.trim() === FRONTMATTER_DELIMITER) {
+      return {
+        lines,
+        body: options?.includeBody ? normalizeLineEndings(markdown.slice(line.nextStart)) : '',
+        hasFrontmatter: true,
+      };
+    }
+
+    lines.push(line.line);
+    cursor = line.nextStart;
   }
 
   return {
     lines: [],
-    body: normalized,
+    body: options?.includeBody ? normalizeLineEndings(markdown) : '',
     hasFrontmatter: false,
   };
 }
@@ -231,7 +290,7 @@ export function readNoteMetadataFromMarkdown(markdown: string): NoteMetadataEntr
 }
 
 export function stripManagedFrontmatter(markdown: string): string {
-  const { lines, body, hasFrontmatter } = splitLeadingFrontmatter(markdown);
+  const { lines, body, hasFrontmatter } = splitLeadingFrontmatter(markdown, { includeBody: true });
   if (!hasFrontmatter) {
     return normalizeLineEndings(markdown);
   }
@@ -244,10 +303,7 @@ export function stripManagedFrontmatter(markdown: string): string {
   );
 
   if (visibleFrontmatterLines.length === 0) {
-    const bodyLines = body.split('\n');
-    return bodyLines[0]?.trim() === ''
-      ? bodyLines.slice(1).join('\n')
-      : body;
+    return removeLeadingBlankLine(body);
   }
 
   return [
@@ -259,7 +315,7 @@ export function stripManagedFrontmatter(markdown: string): string {
 }
 
 export function stripUpdatedFrontmatter(markdown: string): string {
-  const { lines, body, hasFrontmatter } = splitLeadingFrontmatter(markdown);
+  const { lines, body, hasFrontmatter } = splitLeadingFrontmatter(markdown, { includeBody: true });
   if (!hasFrontmatter) {
     return normalizeLineEndings(markdown);
   }
@@ -269,10 +325,7 @@ export function stripUpdatedFrontmatter(markdown: string): string {
   );
 
   if (comparableFrontmatterLines.length === 0) {
-    const bodyLines = body.split('\n');
-    return bodyLines[0]?.trim() === ''
-      ? bodyLines.slice(1).join('\n')
-      : body;
+    return removeLeadingBlankLine(body);
   }
 
   return [
@@ -288,7 +341,7 @@ export function writeNoteMetadataToMarkdown(
   entry: Partial<NoteMetadataEntry> | null | undefined
 ): string {
   const normalizedEntry = normalizeNoteMetadataEntry(entry);
-  const { lines, body, hasFrontmatter } = splitLeadingFrontmatter(markdown);
+  const { lines, body, hasFrontmatter } = splitLeadingFrontmatter(markdown, { includeBody: true });
   const preservedLines = lines.filter((line) => {
     const key = parseTopLevelKey(line);
     return !key || !MANAGED_KEYS.has(key);
@@ -334,20 +387,12 @@ export function writeNoteMetadataToMarkdown(
   ].join('\n');
 
   if (!body) {
-    return normalizedMarkdownHasBodySeparator(markdown) ? `${frontmatterBlock}\n` : frontmatterBlock;
+    return hasFrontmatter && hasTrailingLineEnding(markdown) ? `${frontmatterBlock}\n` : frontmatterBlock;
   }
 
   return hasFrontmatter
     ? `${frontmatterBlock}\n${body}`
     : `${frontmatterBlock}\n\n${body}`;
-}
-
-function normalizedMarkdownHasBodySeparator(markdown: string): boolean {
-  const normalized = normalizeLineEndings(markdown);
-  if (!normalized.endsWith('\n')) return false;
-
-  const { hasFrontmatter } = splitLeadingFrontmatter(normalized);
-  return hasFrontmatter;
 }
 
 export function updateNoteMetadataInMarkdown(

@@ -2,12 +2,14 @@ const MAX_NOTE_TAG_TOKEN_CHARS = 128;
 const MAX_NOTE_TAG_OCCURRENCES = 2000;
 const MAX_NOTE_TAG_MATCHES = 10_000;
 const MAX_EXCLUDED_RANGES = 50_000;
+const MAX_FRONTMATTER_DELIMITER_LINE_CHARS = 1024;
+const MAX_FRONTMATTER_CHARS = 256 * 1024;
+const MAX_FRONTMATTER_LINES = 2048;
 
 const TAG_PATTERN = /(?<![\p{L}\p{N}_/-])#([\p{L}\p{N}_/-][\p{L}\p{N}_/-]{0,127})/gu;
 const TAG_BODY_CHARACTER_PATTERN = /^[\p{L}\p{N}_/-]$/u;
 const HEX_COLOR_PATTERN = /^(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
-const FENCED_CODE_BLOCK_PATTERN = /(^|\n)( {0,3})(`{3,}|~{3,})[\s\S]*?(?:\n\2\3[ \t]*(?=\n|$)|$)/g;
-const FRONTMATTER_PATTERN = /^---[ \t]*(?:\n[\s\S]*?\n---[ \t]*(?=\n|$))/;
+const FRONTMATTER_DELIMITER_PATTERN = /^---[ \t]*$/;
 
 export interface NoteTagOccurrence {
   tag: string;
@@ -26,33 +28,186 @@ interface TokenMatchCursor {
   count: number;
 }
 
+interface FenceInfo {
+  marker: string;
+  length: number;
+}
+
+interface ReadLineResult {
+  line: string;
+  contentEnd: number;
+  nextStart: number;
+  truncated: boolean;
+}
+
 export function isNoteTagToken(value: string): boolean {
   return !HEX_COLOR_PATTERN.test(value);
 }
 
 function collectExcludedRanges(content: string): ExcludedRange[] {
   const ranges: ExcludedRange[] = [];
-  const frontmatterMatch = FRONTMATTER_PATTERN.exec(content);
-  if (frontmatterMatch) {
-    ranges.push({ from: 0, to: frontmatterMatch[0].length });
+  const frontmatterEnd = getLeadingFrontmatterEnd(content);
+  if (frontmatterEnd !== null) {
+    ranges.push({ from: 0, to: frontmatterEnd });
   }
 
-  FENCED_CODE_BLOCK_PATTERN.lastIndex = 0;
-  let fencedMatch: RegExpExecArray | null;
-  while (ranges.length < MAX_EXCLUDED_RANGES && (fencedMatch = FENCED_CODE_BLOCK_PATTERN.exec(content)) !== null) {
-    const leadingNewline = fencedMatch[1] ?? '';
-    pushExcludedRange(ranges, {
-      from: fencedMatch.index + leadingNewline.length,
-      to: fencedMatch.index + fencedMatch[0].length,
-    });
-  }
-
+  collectFencedCodeRanges(content, ranges);
   collectInlineCodeRanges(content, ranges);
   collectAutolinkRanges(content, ranges);
   collectHtmlTagRanges(content, ranges);
   collectMarkdownLinkTargetRanges(content, ranges);
 
   return ranges.sort((a, b) => a.from - b.from || a.to - b.to);
+}
+
+function readLine(value: string, start: number, maxContentEnd = value.length): ReadLineResult {
+  let index = start;
+  while (
+    index < value.length &&
+    index < maxContentEnd &&
+    value[index] !== '\n' &&
+    value[index] !== '\r'
+  ) {
+    index += 1;
+  }
+
+  let nextStart = index;
+  const truncated = index >= maxContentEnd && index < value.length && value[index] !== '\n' && value[index] !== '\r';
+  if (!truncated && index < value.length) {
+    nextStart = value[index] === '\r' && value[index + 1] === '\n'
+      ? index + 2
+      : index + 1;
+  }
+
+  return {
+    line: value.slice(start, index),
+    contentEnd: index,
+    nextStart,
+    truncated,
+  };
+}
+
+function getLeadingFrontmatterEnd(content: string): number | null {
+  const firstLine = readLine(content, 0, MAX_FRONTMATTER_DELIMITER_LINE_CHARS + 1);
+  if (firstLine.truncated || !FRONTMATTER_DELIMITER_PATTERN.test(firstLine.line)) {
+    return null;
+  }
+
+  let cursor = firstLine.nextStart;
+  let lineCount = 0;
+  const frontmatterBudgetEnd = firstLine.nextStart + MAX_FRONTMATTER_CHARS + 1;
+
+  while (cursor < content.length && lineCount < MAX_FRONTMATTER_LINES) {
+    const line = readLine(content, cursor, frontmatterBudgetEnd);
+    if (line.truncated || line.contentEnd - firstLine.nextStart > MAX_FRONTMATTER_CHARS) {
+      break;
+    }
+
+    if (FRONTMATTER_DELIMITER_PATTERN.test(line.line)) {
+      return line.contentEnd;
+    }
+
+    lineCount += 1;
+    cursor = line.nextStart;
+  }
+
+  return null;
+}
+
+function collectFencedCodeRanges(content: string, ranges: ExcludedRange[]): void {
+  let lineStart = 0;
+
+  while (lineStart < content.length && ranges.length < MAX_EXCLUDED_RANGES) {
+    const openerLine = readLine(content, lineStart);
+    const opener = parseFenceOpener(content, lineStart, openerLine.contentEnd);
+    if (!opener) {
+      lineStart = openerLine.nextStart;
+      continue;
+    }
+
+    const blockStart = lineStart;
+    let blockEnd = openerLine.nextStart;
+    lineStart = openerLine.nextStart;
+
+    while (lineStart < content.length) {
+      const currentLineStart = lineStart;
+      const line = readLine(content, lineStart);
+      blockEnd = line.nextStart;
+      lineStart = line.nextStart;
+      if (isFenceCloser(content, currentLineStart, line.contentEnd, opener)) {
+        break;
+      }
+    }
+
+    pushExcludedRange(ranges, {
+      from: blockStart,
+      to: blockEnd,
+    });
+  }
+}
+
+function parseFenceOpener(content: string, lineStart: number, lineEnd: number): FenceInfo | null {
+  let index = lineStart;
+  let spaces = 0;
+  while (index < lineEnd && content[index] === ' ') {
+    spaces += 1;
+    if (spaces > 3) {
+      return null;
+    }
+    index += 1;
+  }
+
+  const marker = content[index];
+  if (marker !== '`' && marker !== '~') {
+    return null;
+  }
+
+  const markerEnd = scanRepeatedChar(content, index, marker);
+  const markerLength = markerEnd - index;
+  if (markerLength < 3) {
+    return null;
+  }
+
+  if (marker === '`' && content.slice(markerEnd, lineEnd).includes('`')) {
+    return null;
+  }
+
+  return { marker, length: markerLength };
+}
+
+function isFenceCloser(
+  content: string,
+  lineStart: number,
+  lineEnd: number,
+  opener: FenceInfo,
+): boolean {
+  let index = lineStart;
+  let spaces = 0;
+
+  while (index < lineEnd && content[index] === ' ') {
+    spaces += 1;
+    if (spaces > 3) {
+      return false;
+    }
+    index += 1;
+  }
+
+  let markerLength = 0;
+  while (content[index + markerLength] === opener.marker) {
+    markerLength += 1;
+  }
+  if (markerLength < opener.length) {
+    return false;
+  }
+
+  for (let cursor = index + markerLength; cursor < lineEnd; cursor += 1) {
+    const character = content[cursor];
+    if (character !== ' ' && character !== '\t') {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function pushExcludedRange(ranges: ExcludedRange[], range: ExcludedRange): void {

@@ -2,6 +2,90 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { deleteAttachment, saveAttachment, type Attachment } from '@/lib/storage/attachmentStorage';
 import { useAIUIStore } from '@/stores/ai/chatState';
 
+export const MAX_CHAT_ATTACHMENT_INPUT_FILES = 64;
+export const MAX_CHAT_ATTACHMENT_TRANSFER_ITEM_SCAN = 1024;
+
+function getTransferType(types: DataTransfer['types'], index: number): string | null {
+  const maybeTypes = types as DataTransfer['types'] & { item?: (index: number) => string | null };
+  if (typeof maybeTypes.item === 'function') {
+    return maybeTypes.item(index);
+  }
+  return maybeTypes[index] ?? null;
+}
+
+export function hasChatAttachmentFileType(types: DataTransfer['types'] | null | undefined): boolean {
+  if (!types) {
+    return false;
+  }
+
+  const length = Math.min(types.length, MAX_CHAT_ATTACHMENT_TRANSFER_ITEM_SCAN);
+  for (let index = 0; index < length; index += 1) {
+    if (getTransferType(types, index) === 'Files') {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function hasChatAttachmentTransferItem(items: DataTransferItemList | null | undefined): boolean {
+  if (!items) {
+    return false;
+  }
+
+  const length = Math.min(items.length, MAX_CHAT_ATTACHMENT_TRANSFER_ITEM_SCAN);
+  for (let index = 0; index < length; index += 1) {
+    if (items[index]?.kind === 'file') {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function collectChatAttachmentFiles(
+  files: FileList | readonly File[] | null | undefined,
+  maxFiles = MAX_CHAT_ATTACHMENT_INPUT_FILES
+): File[] {
+  if (!files) {
+    return [];
+  }
+
+  const collected: File[] = [];
+  const length = Math.min(files.length, maxFiles);
+  for (let index = 0; index < length; index += 1) {
+    const file = files[index];
+    if (file instanceof File) {
+      collected.push(file);
+    }
+  }
+  return collected;
+}
+
+export function collectChatAttachmentClipboardFiles(items: DataTransferItemList | null | undefined): File[] {
+  if (!items) {
+    return [];
+  }
+
+  const files: File[] = [];
+  const length = Math.min(items.length, MAX_CHAT_ATTACHMENT_TRANSFER_ITEM_SCAN);
+  for (let index = 0; index < length; index += 1) {
+    const item = items[index];
+    if (item?.kind !== 'file') {
+      continue;
+    }
+
+    const file = item.getAsFile();
+    if (!file) {
+      continue;
+    }
+
+    files.push(file);
+    if (files.length >= MAX_CHAT_ATTACHMENT_INPUT_FILES) {
+      break;
+    }
+  }
+  return files;
+}
+
 export function useChatAttachments() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -13,12 +97,11 @@ export function useChatAttachments() {
       return false;
     }
     const types = transfer.types;
-    if (types && Array.from(types).includes('Files')) {
+    if (hasChatAttachmentFileType(types)) {
       return true;
     }
-    const items = transfer.items;
-    if (items && items.length > 0) {
-      return Array.from(items).some((item) => item.kind === 'file');
+    if (hasChatAttachmentTransferItem(transfer.items)) {
+      return true;
     }
     return transfer.files.length > 0;
   }, []);
@@ -29,9 +112,12 @@ export function useChatAttachments() {
   );
 
   const processFiles = useCallback(async (files: File[]) => {
+    const limitedFiles = files.length > MAX_CHAT_ATTACHMENT_INPUT_FILES
+      ? files.slice(0, MAX_CHAT_ATTACHMENT_INPUT_FILES)
+      : files;
     const shouldPersist = !useAIUIStore.getState().temporaryChatEnabled;
     const results = await Promise.allSettled(
-      files.map(async (file) => saveAttachment(file, { persist: shouldPersist }))
+      limitedFiles.map(async (file) => saveAttachment(file, { persist: shouldPersist }))
     );
 
     const newAttachments: Attachment[] = [];
@@ -70,7 +156,7 @@ export function useChatAttachments() {
       event.preventDefault();
       dragDepthRef.current = 0;
       setIsDragging(false);
-      const files = Array.from(event.dataTransfer?.files ?? []);
+      const files = collectChatAttachmentFiles(event.dataTransfer?.files);
       if (files.length > 0) {
         void processFiles(files);
       }
@@ -99,10 +185,7 @@ export function useChatAttachments() {
 
   const handlePaste = useCallback(
     async (e: React.ClipboardEvent) => {
-      const files = Array.from(e.clipboardData.items)
-        .filter((item) => item.kind === 'file')
-        .map((item) => item.getAsFile())
-        .filter((file): file is File => !!file);
+      const files = collectChatAttachmentClipboardFiles(e.clipboardData.items);
 
       if (files.length > 0) {
         e.preventDefault();
@@ -121,7 +204,7 @@ export function useChatAttachments() {
       e.stopPropagation();
       dragDepthRef.current = 0;
       setIsDragging(false);
-      await processFiles(Array.from(e.dataTransfer.files));
+      await processFiles(collectChatAttachmentFiles(e.dataTransfer.files));
     },
     [hasFileDrag, processFiles]
   );
@@ -179,7 +262,7 @@ export function useChatAttachments() {
   const handleFileChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files) {
-        await processFiles(Array.from(e.target.files));
+        await processFiles(collectChatAttachmentFiles(e.target.files));
       }
       e.target.value = '';
     },

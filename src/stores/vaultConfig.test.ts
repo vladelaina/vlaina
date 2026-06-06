@@ -92,4 +92,18 @@ describe('vaultConfig', () => {
       JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)
     );
   });
+
+  it('repairs existing config content that exceeds the limit after read', async () => {
+    adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockResolvedValue({ size: 64 });
+    adapter.readFile.mockResolvedValue('x'.repeat(64 * 1024 + 1));
+
+    await ensureVaultConfig('/vault');
+
+    expect(adapter.readFile).toHaveBeenCalledWith('/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json');
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/config.json',
+      JSON.stringify({ version: 1, created: 1234, vaultPath: '/vault' }, null, 2)
+    );
+  });
 });

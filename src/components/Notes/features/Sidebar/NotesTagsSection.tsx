@@ -62,6 +62,10 @@ async function readTagNoteIcon(path: string, vaultPath: string | null): Promise<
   }
 
   const content = await storage.readFile(fullPath);
+  if (content.length > MAX_TAG_NOTE_ICON_METADATA_BYTES) {
+    return { modifiedAt, size, icon: null };
+  }
+
   return {
     modifiedAt,
     size,

@@ -1,5 +1,8 @@
 import type { AIModel } from './types'
 
+export const MAX_MODEL_ID_DERIVATION_CHARS = 4096
+export const MAX_GENERATED_MODEL_NAME_PARTS = 128
+
 export function buildScopedModelId(providerId: string, apiModelId: string): string {
   return `${providerId}::${apiModelId}`
 }
@@ -9,14 +12,15 @@ export function resolveApiModelId(model: Pick<AIModel, 'apiModelId'>): string {
 }
 
 export function generateModelName(modelId: string): string {
-  const parts = modelId.split(/[-_/]/)
+  const parts = modelId.slice(0, MAX_MODEL_ID_DERIVATION_CHARS).split(/[-_/]/, MAX_GENERATED_MODEL_NAME_PARTS)
   return parts
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
 }
 
 export function generateModelGroup(modelId: string): string {
-  const lower = modelId.toLowerCase()
+  const scanModelId = modelId.slice(0, MAX_MODEL_ID_DERIVATION_CHARS)
+  const lower = scanModelId.toLowerCase()
 
   if (lower.includes('gpt') || lower.includes('o1-') || lower.includes('dall-e') || lower.includes('chatgpt')) return 'OpenAI'
   if (lower.includes('claude') || lower.includes('anthropic')) return 'Anthropic'
@@ -43,13 +47,13 @@ export function generateModelGroup(modelId: string): string {
   if (lower.includes('perplexity') || lower.includes('sonar')) return 'Perplexity'
   if (lower.includes('command')) return 'Cohere'
 
-  let group = modelId;
-  if (modelId.includes('/')) {
-    group = modelId.split('/')[0];
-  } else if (modelId.includes(':')) {
-    group = modelId.split(':')[0];
-  } else if (modelId.includes('-')) {
-    const parts = modelId.split('-');
+  let group = scanModelId;
+  if (scanModelId.includes('/')) {
+    group = scanModelId.split('/', 1)[0];
+  } else if (scanModelId.includes(':')) {
+    group = scanModelId.split(':', 1)[0];
+  } else if (scanModelId.includes('-')) {
+    const parts = scanModelId.split('-', 1);
     if (parts[0].length > 2) {
         group = parts[0];
     }
