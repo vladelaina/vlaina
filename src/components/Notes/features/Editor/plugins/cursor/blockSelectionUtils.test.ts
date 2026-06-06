@@ -500,4 +500,31 @@ describe('blockSelectionUtils', () => {
       ]),
     ).toBe('editor-block-selected md-focus');
   });
+
+  it('builds contained list decoration classes with indexed display ranges for large selections', async () => {
+    const editor = await createEditor(Array.from({ length: 80 }, (_, index) => [
+      `- item ${index}`,
+      '  ```',
+      `  code ${index}`,
+      '  ```',
+    ].join('\n')).join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const ranges: Array<{ from: number; to: number }> = [];
+    view.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'list_item' || node.type.name === 'code_block') {
+        ranges.push({ from: pos, to: pos + node.nodeSize });
+      }
+      return true;
+    });
+
+    const decorations = createBlockSelectionDecorations(view.state.doc, ranges);
+    expect(decorations.find()).toHaveLength(ranges.length);
+    expect(
+      decorations.find().some((decoration: Decoration) =>
+        (decoration.type as any).attrs?.class === 'editor-block-selected editor-block-selected-contained'
+      ),
+    ).toBe(true);
+
+    await editor.destroy();
+  });
 });

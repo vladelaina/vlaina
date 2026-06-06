@@ -189,7 +189,7 @@ describe('editorBlockPositionCache', () => {
     dom.remove();
   });
 
-  it('updates cached viewport rects on scroll without remeasuring every block', async () => {
+  it('adjusts cached target viewport rects lazily on scroll without remeasuring or cloning every block', async () => {
     const scrollRoot = document.createElement('div');
     scrollRoot.setAttribute('data-note-scroll-root', 'true');
     scrollRoot.scrollTop = 20;
@@ -237,10 +237,14 @@ describe('editorBlockPositionCache', () => {
 
     const scrolled = getCurrentEditorBlockPositionSnapshot();
     expect(scrolled?.scrollTop).toBe(70);
-    expect(scrolled?.blocks[0]?.rect.top).toBe(50);
-    expect(scrolled?.blocks[0]?.rect.bottom).toBe(82);
+    expect(scrolled?.blocks).toBe(initial?.blocks);
+    expect(scrolled?.blockIndex).toBe(initial?.blockIndex);
+    expect(scrolled?.blocks[0]?.rect.top).toBe(100);
+    expect(scrolled?.blocks[0]?.rect.bottom).toBe(132);
     expect(scrolled?.blocks[0]?.documentTop).toBe(110);
     expect(scrolled?.headings[0]?.top).toBe(110);
+    expect(getCachedEditorBlockTargets(view as any)?.[0]?.rect.top).toBe(50);
+    expect(getCachedEditorBlockTargets(view as any)?.[0]?.rect.bottom).toBe(82);
 
     controller.destroy();
     scrollRoot.remove();

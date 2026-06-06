@@ -256,6 +256,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
   const doc = view.dom.ownerDocument;
   const host = view.dom.parentElement ?? view.dom;
   let lastDoc: EditorView['state']['doc'] | null = null;
+  let lastSelectedBlocks: readonly BlockRange[] | null = null;
   let lastSelectionKey: string | null = null;
   if (host instanceof HTMLElement) {
     host.classList.add('editor-block-selection-line-fill-host');
@@ -269,6 +270,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
     const { selectedBlocks } = getBlockSelectionPluginState(updatedView.state);
     if (selectedBlocks.length === 0) {
       lastDoc = updatedView.state.doc;
+      lastSelectedBlocks = selectedBlocks;
       lastSelectionKey = '';
       if (layer.childNodes.length > 0) {
         layer.replaceChildren();
@@ -276,11 +278,17 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
       return;
     }
 
+    if (lastDoc === updatedView.state.doc && lastSelectedBlocks === selectedBlocks) {
+      return;
+    }
+
     const selectionKey = getBlockRangesKey(selectedBlocks);
     if (lastDoc === updatedView.state.doc && lastSelectionKey === selectionKey) {
+      lastSelectedBlocks = selectedBlocks;
       return;
     }
     lastDoc = updatedView.state.doc;
+    lastSelectedBlocks = selectedBlocks;
     lastSelectionKey = selectionKey;
 
     layer.replaceChildren();

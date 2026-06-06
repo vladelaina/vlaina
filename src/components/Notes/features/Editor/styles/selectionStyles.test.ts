@@ -918,7 +918,7 @@ describe('editor embedded CodeMirror selection styles', () => {
     const css = readStyleFile('core.css');
     const source = readAiReviewSelectionSource();
 
-    expect(source).toContain("import { addTextSelectionOverlayDecorations }");
+    expect(source).toContain('addTextSelectionOverlayDecorations');
     expect(source).toContain("from '../../selection/textSelectionOverlayPlugin'");
     expect(source).toContain('addTextSelectionOverlayDecorations(');
     expect(source).toContain('node.isText');

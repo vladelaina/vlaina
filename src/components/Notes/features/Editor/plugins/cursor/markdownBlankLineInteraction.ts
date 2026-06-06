@@ -9,6 +9,7 @@ const EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER = '\u200B';
 const EDITABLE_MARKDOWN_BLANK_LINE_CLASS = 'editor-editable-markdown-blank-line';
 const MARKDOWN_BLANK_LINE_DEBUG_STORAGE_KEY = 'editor-debug-markdown-blank-line';
 const MAX_EDITABLE_MARKDOWN_BLANK_LINE_DECORATIONS = 1000;
+const editableMarkdownBlankLineDecorationsCache = new WeakMap<EditorState['doc'], DecorationSet>();
 
 function resolveMarkdownBlankLineTarget(view: EditorView, target: EventTarget | null): HTMLElement | null {
   const targetElement = target instanceof HTMLElement
@@ -167,6 +168,9 @@ export function handleMarkdownBlankLineTextInput(
 }
 
 export function createEditableMarkdownBlankLineDecorations(doc: EditorState['doc']): DecorationSet {
+  const cached = editableMarkdownBlankLineDecorationsCache.get(doc);
+  if (cached) return cached;
+
   const decorations: Decoration[] = [];
   const childCount = typeof doc.childCount === 'number' ? doc.childCount : 0;
   let offset = 0;
@@ -186,5 +190,7 @@ export function createEditableMarkdownBlankLineDecorations(doc: EditorState['doc
     }
     offset += node.nodeSize;
   }
-  return decorations.length > 0 ? DecorationSet.create(doc, decorations) : DecorationSet.empty;
+  const decorationSet = decorations.length > 0 ? DecorationSet.create(doc, decorations) : DecorationSet.empty;
+  editableMarkdownBlankLineDecorationsCache.set(doc, decorationSet);
+  return decorationSet;
 }

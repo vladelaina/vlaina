@@ -54,6 +54,22 @@ function resolveTopLevelRangeAtPos(doc: EditorState['doc'], pos: number): BlockR
   return topLevelNode ? { from: topLevelNode.from, to: topLevelNode.to } : null;
 }
 
+function findFirstRangeStartingAtOrAfter(ranges: readonly BlockRange[], from: number): number {
+  let low = 0;
+  let high = ranges.length;
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (ranges[mid].from < from) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+
+  return low;
+}
+
 function isParagraphNode(name: string): boolean {
   return name === 'paragraph';
 }
@@ -509,13 +525,17 @@ export function expandKnownSelectableListItemHeaderRanges(
   const normalized = normalizeBlockRanges(ranges);
   if (normalized.length === 0) return [];
 
+  const sortedSelectableRanges = normalizeBlockRanges(selectableRanges);
   const expanded: BlockRange[] = [...normalized];
   for (const range of normalized) {
     const listItemTo = getListItemRangeEnd(doc, range.from);
     if (listItemTo === null || range.to >= listItemTo) continue;
 
-    for (const candidate of selectableRanges) {
+    const startIndex = findFirstRangeStartingAtOrAfter(sortedSelectableRanges, range.to);
+    for (let index = startIndex; index < sortedSelectableRanges.length; index += 1) {
+      const candidate = sortedSelectableRanges[index];
       if (candidate.from < range.to) continue;
+      if (candidate.from >= listItemTo) break;
       if (candidate.to > listItemTo) continue;
       expanded.push(candidate);
     }
