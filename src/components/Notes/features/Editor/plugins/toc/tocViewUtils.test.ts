@@ -9,19 +9,15 @@ import {
 import type { TocItem } from './types';
 
 function createDoc(headings: Array<{ level: number; text: string; pos?: number }>) {
+  const nodes = headings.map((heading) => ({
+    attrs: { level: heading.level },
+    nodeSize: typeof heading.pos === 'number' && heading.pos >= 0 ? 1 : 1,
+    textContent: heading.text,
+    type: { name: 'heading' },
+  }));
   return {
-    descendants(callback: (node: any, pos: number) => boolean | void) {
-      for (const [index, heading] of headings.entries()) {
-        const result = callback({
-          type: { name: 'heading' },
-          attrs: { level: heading.level },
-          textContent: heading.text,
-        }, heading.pos ?? index);
-        if (result === false) {
-          return;
-        }
-      }
-    },
+    child: (index: number) => nodes[index],
+    childCount: nodes.length,
   };
 }
 
@@ -37,7 +33,6 @@ describe('tocViewUtils', () => {
     const headings = Array.from({ length: 520 }, (_, index) => ({
       level: 2,
       text: index === 0 ? 'A'.repeat(260) : `Heading ${index}`,
-      pos: index * 10,
     }));
 
     const items = extractHeadings(createDoc(headings));
@@ -51,27 +46,28 @@ describe('tocViewUtils', () => {
     });
     expect(items[511]).toMatchObject({
       text: 'Heading 511',
-      id: 'heading-5110',
-      pos: 5110,
+      id: 'heading-511',
+      pos: 511,
     });
   });
 
   it('stops scanning headings once the TOC item cap is reached', () => {
     let scanned = 0;
+    const nodes = Array.from({ length: 600 }, (_, index) => ({
+      attrs: { level: 2 },
+      nodeSize: 1,
+      textContent: `Heading ${index}`,
+      type: { name: 'heading' },
+    }));
     const doc = {
-      descendants(callback: (node: any, pos: number) => boolean | void) {
-        for (let index = 0; index < 600; index += 1) {
-          scanned += 1;
-          const result = callback({
-            type: { name: 'heading' },
-            attrs: { level: 2 },
-            textContent: `Heading ${index}`,
-          }, index);
-          if (result === false) {
-            return;
-          }
+      child(index: number) {
+        scanned += 1;
+        if (index >= MAX_TOC_VIEW_HEADINGS) {
+          throw new Error('TOC heading scan should stop at the heading cap');
         }
+        return nodes[index];
       },
+      childCount: nodes.length,
     };
 
     expect(extractHeadings(doc)).toHaveLength(MAX_TOC_VIEW_HEADINGS);
@@ -80,15 +76,15 @@ describe('tocViewUtils', () => {
 
   it('filters headings above maxLevel while extracting', () => {
     const items = extractHeadings(createDoc([
-      { level: 2, text: 'Shown', pos: 4 },
-      { level: 4, text: 'Hidden', pos: 8 },
+      { level: 2, text: 'Shown' },
+      { level: 4, text: 'Hidden' },
     ]), 3);
 
     expect(items).toEqual([{
       level: 2,
       text: 'Shown',
-      id: 'heading-4',
-      pos: 4,
+      id: 'heading-0',
+      pos: 0,
     }]);
   });
 
