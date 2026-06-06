@@ -64,8 +64,8 @@ describe('UploadZone', () => {
 
     expect(screen.queryByText('Drop or click to upload')).not.toBeInTheDocument();
     expect(screen.getByTestId('icon-common.upload')).toHaveClass('text-[var(--vlaina-accent)]');
-    expect(container.firstElementChild).toHaveClass('border-[var(--vlaina-accent)]/40');
-    expect(container.firstElementChild).toHaveClass('bg-[var(--vlaina-accent)]/5');
+    expect(container.firstElementChild).toHaveClass('border-[var(--vlaina-color-accent-border-muted)]');
+    expect(container.firstElementChild).toHaveClass('bg-[var(--vlaina-color-accent-muted-bg)]');
   });
 
   it('completes the upload callback even if the zone unmounts during upload', async () => {

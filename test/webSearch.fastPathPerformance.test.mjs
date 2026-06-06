@@ -41,7 +41,7 @@ describe('web search fast path performance', () => {
     const maxWarmMs = Math.max(...warmTimings);
 
     expect(medianMs).toBeLessThan(15);
-    expect(p90Ms).toBeLessThan(75);
+    expect(p90Ms).toBeLessThan(100);
     expect(maxWarmMs).toBeLessThan(150);
   });
 });

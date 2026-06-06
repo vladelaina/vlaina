@@ -3,9 +3,11 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readStyleFile(name: string) {
-  return readFileSync(
-    resolve(process.cwd(), 'src/components/Notes/features/Editor/styles', name),
-    'utf8'
+  return normalizeLineEndings(
+    readFileSync(
+      resolve(process.cwd(), 'src/components/Notes/features/Editor/styles', name),
+      'utf8'
+    )
   );
 }
 
@@ -18,7 +20,7 @@ function readThemeCompatibilityStyle() {
 }
 
 function readThemeStyle() {
-  return readFileSync(resolve(process.cwd(), 'src/styles/theme.css'), 'utf8');
+  return normalizeLineEndings(readFileSync(resolve(process.cwd(), 'src/styles/theme.css'), 'utf8'));
 }
 
 function normalizeLineEndings(value: string) {
@@ -26,19 +28,23 @@ function normalizeLineEndings(value: string) {
 }
 
 function readCommonMarkdownSurfaceStyle() {
-  return readFileSync(
-    resolve(process.cwd(), 'src/components/common/markdown/markdownSurface.css'),
-    'utf8'
+  return normalizeLineEndings(
+    readFileSync(
+      resolve(process.cwd(), 'src/components/common/markdown/markdownSurface.css'),
+      'utf8'
+    )
   );
 }
 
 function readCodeBlockThemeSource() {
-  return readFileSync(
-    resolve(
-      process.cwd(),
-      'src/components/Notes/features/Editor/plugins/code/codemirror/codeBlockEditorTheme.ts'
-    ),
-    'utf8'
+  return normalizeLineEndings(
+    readFileSync(
+      resolve(
+        process.cwd(),
+        'src/components/Notes/features/Editor/plugins/code/codemirror/codeBlockEditorTheme.ts'
+      ),
+      'utf8'
+    )
   );
 }
 

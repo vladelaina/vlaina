@@ -520,9 +520,10 @@ describe('blockSelectionUtils', () => {
     const decorations = createBlockSelectionDecorations(view.state.doc, ranges);
     expect(decorations.find()).toHaveLength(ranges.length);
     expect(
-      decorations.find().some((decoration: Decoration) =>
-        (decoration.type as any).attrs?.class === 'editor-block-selected editor-block-selected-contained'
-      ),
+      decorations.find().some((decoration: Decoration) => {
+        const classes = String((decoration.type as any).attrs?.class ?? '').split(/\s+/);
+        return classes.includes('editor-block-selected') && classes.includes('editor-block-selected-contained');
+      }),
     ).toBe(true);
 
     await editor.destroy();
