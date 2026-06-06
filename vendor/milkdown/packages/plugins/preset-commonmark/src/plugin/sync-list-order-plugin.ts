@@ -54,20 +54,111 @@ function rangeTouchesList(
   return hasList
 }
 
-export function docChangeMayAffectListOrder(
+interface ListOrderSyncRange {
+  from: number
+  to: number
+}
+
+function addListOrderSyncRange(
+  ranges: ListOrderSyncRange[],
+  from: number,
+  to: number
+) {
+  if (from >= to) return
+
+  const existing = ranges.find((range) => from >= range.from && to <= range.to)
+  if (existing) return
+
+  for (let index = ranges.length - 1; index >= 0; index -= 1) {
+    const range = ranges[index]!
+    if (range.from >= from && range.to <= to) ranges.splice(index, 1)
+  }
+
+  ranges.push({ from, to })
+}
+
+function addNearestListOrderSyncRange(
+  doc: Node,
+  pos: number,
+  listContainerTypes: readonly NodeType[],
+  ranges: ListOrderSyncRange[]
+) {
+  const resolvedPos = Math.max(0, Math.min(pos, doc.content.size))
+  const $pos = doc.resolve(resolvedPos)
+
+  for (let depth = $pos.depth; depth > 0; depth--) {
+    if (listContainerTypes.includes($pos.node(depth).type)) {
+      addListOrderSyncRange(ranges, $pos.before(depth), $pos.after(depth))
+      return
+    }
+  }
+
+  const before = $pos.nodeBefore
+  if (before && listContainerTypes.includes(before.type)) {
+    addListOrderSyncRange(
+      ranges,
+      resolvedPos - before.nodeSize,
+      resolvedPos
+    )
+  }
+
+  const after = $pos.nodeAfter
+  if (after && listContainerTypes.includes(after.type)) {
+    addListOrderSyncRange(
+      ranges,
+      resolvedPos,
+      resolvedPos + after.nodeSize
+    )
+  }
+}
+
+function collectChangedListOrderSyncRanges(
+  doc: Node,
+  from: number,
+  to: number,
+  listContainerTypes: readonly NodeType[]
+) {
+  const ranges: ListOrderSyncRange[] = []
+  const start = Math.max(0, Math.min(from - 1, doc.content.size))
+  const end = Math.max(start, Math.min(to + 1, doc.content.size))
+
+  addNearestListOrderSyncRange(doc, start, listContainerTypes, ranges)
+  addNearestListOrderSyncRange(doc, end, listContainerTypes, ranges)
+
+  doc.nodesBetween(start, end, (node, pos) => {
+    if (!listContainerTypes.includes(node.type)) return true
+    if (pos >= start && pos + node.nodeSize <= end) {
+      addListOrderSyncRange(ranges, pos, pos + node.nodeSize)
+      return false
+    }
+    return true
+  })
+
+  return ranges
+}
+
+export function getListOrderSyncRanges(
   prevDoc: Node,
   nextDoc: Node,
-  listTypes: readonly NodeType[]
+  listTypes: readonly NodeType[],
+  listContainerTypes: readonly NodeType[]
 ) {
   const diffStart = prevDoc.content.findDiffStart(nextDoc.content)
-  if (diffStart === null) return false
+  if (diffStart === null) return []
 
   const diffEnd = prevDoc.content.findDiffEnd(nextDoc.content)
-  if (!diffEnd) return true
+  if (!diffEnd) return [{ from: 0, to: nextDoc.content.size }]
 
-  return (
+  const touchesList =
     rangeTouchesList(prevDoc, diffStart, diffEnd.a, listTypes) ||
     rangeTouchesList(nextDoc, diffStart, diffEnd.b, listTypes)
+  if (!touchesList) return []
+
+  return collectChangedListOrderSyncRanges(
+    nextDoc,
+    diffStart,
+    diffEnd.b,
+    listContainerTypes
   )
 }
 
@@ -92,14 +183,19 @@ export const syncListOrderPlugin = $prose((ctx) => {
     const orderedListType = orderedListSchema.type(ctx)
     const bulletListType = bulletListSchema.type(ctx)
     const listItemType = listItemSchema.type(ctx)
-    if (
-      !docChangeMayAffectListOrder(_oldState.doc, newState.doc, [
+    const syncRanges = getListOrderSyncRanges(
+      _oldState.doc,
+      newState.doc,
+      [
         orderedListType,
         bulletListType,
         listItemType,
-      ])
+      ],
+      [orderedListType, bulletListType]
     )
+    if (syncRanges.length === 0) {
       return null
+    }
 
     const handleNodeItem = (
       attrs: Record<string, any>,
@@ -119,8 +215,13 @@ export const syncListOrderPlugin = $prose((ctx) => {
     let tr = newState.tr
     let needDispatch = false
 
-    newState.doc.descendants(
-      (node: Node, pos: number, parent: Node | null, index: number) => {
+    const syncNodeRange = (from: number, to: number) => {
+      newState.doc.nodesBetween(from, to, (
+        node: Node,
+        pos: number,
+        parent: Node | null,
+        index: number
+      ) => {
         if (node.type === bulletListType) {
           const parentPos = pos
           const base = node.maybeChild(0)
@@ -177,8 +278,12 @@ export const syncListOrderPlugin = $prose((ctx) => {
             needDispatch = true
           }
         }
-      }
-    )
+      })
+    }
+
+    syncRanges.forEach((range) => {
+      syncNodeRange(range.from, range.to)
+    })
 
     return needDispatch ? tr.setMeta('addToHistory', false) : null
   }

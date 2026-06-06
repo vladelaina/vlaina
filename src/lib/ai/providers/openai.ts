@@ -16,7 +16,7 @@ import {
   requestManagedImageGeneration,
 } from '@/lib/ai/managedService'
 import { consumeOpenAIStream } from '@/lib/ai/streaming'
-import { normalizeApiTranscriptMessage } from '@/lib/ai/apiTranscript'
+import { normalizeApiTranscriptMessages } from '@/lib/ai/apiTranscript'
 import { parseThinkingContent, stripThinkingContent } from '@/lib/ai/stripThinkingContent'
 import {
   runOpenAIWebSearchTextProtocolRequest,
@@ -542,10 +542,8 @@ export class OpenAICompatibleClient implements AIClient {
     const apiMessages: ApiTranscriptMessage[] = history.flatMap((entry) => {
       const transcript = entry.apiTranscript ?? entry.versions?.[entry.currentVersionIndex]?.apiTranscript
       if (replayApiTranscript && entry.role === 'assistant' && transcript?.length) {
-        const normalizedTranscript = transcript
-          .map(normalizeApiTranscriptMessage)
-          .filter((message): message is ApiTranscriptMessage => message !== null)
-        if (normalizedTranscript.length > 0) {
+        const normalizedTranscript = normalizeApiTranscriptMessages(transcript)
+        if (normalizedTranscript) {
           return normalizedTranscript
         }
       }

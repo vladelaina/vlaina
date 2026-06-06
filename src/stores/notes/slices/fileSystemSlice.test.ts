@@ -396,6 +396,18 @@ describe('createFileSystemSlice tree flows', () => {
       'docs/recent.md',
     ]);
   });
+
+  it('filters unsafe and non-Markdown workspace restore candidates before probing disk', () => {
+    expect(getWorkspaceRestoreCandidatePaths({
+      currentNotePath: '../secret.md',
+      starredNotes: ['docs/favorite.md', '/tmp/outside.md', 'docs/raw.txt', 'docs/favorite.md'],
+      recentNotes: ['docs/./recent.markdown', 'docs\\older.mkd', 'draft:local.md'],
+    })).toEqual([
+      'docs/favorite.md',
+      'docs/recent.markdown',
+      'docs/older.mkd',
+    ]);
+  });
 });
 
 describe('replaceCurrentTabOrAppend', () => {

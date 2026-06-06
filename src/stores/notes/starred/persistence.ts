@@ -14,6 +14,9 @@ import {
 
 const MAX_STARRED_ENTRIES = 5000;
 const MAX_STARRED_REGISTRY_BYTES = 5 * 1024 * 1024;
+const MAX_DELETED_ENTRY_KEYS = MAX_STARRED_ENTRIES;
+const MAX_DELETED_ENTRY_KEY_CHARS = 4096;
+const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 interface StarredSavePayload {
   entries: StarredEntry[];
@@ -26,10 +29,42 @@ async function getStarredRegistryPath(): Promise<string> {
   return joinPath(store, STARRED_FILE);
 }
 
+function normalizeDeletedEntryKey(value: unknown): string | null {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.length > MAX_DELETED_ENTRY_KEY_CHARS ||
+    CONTROL_OR_BIDI_PATTERN.test(value) ||
+    (!value.startsWith('note::') && !value.startsWith('folder::'))
+  ) {
+    return null;
+  }
+
+  const separatorIndex = value.indexOf('::', value.startsWith('note::') ? 6 : 8);
+  return separatorIndex > -1 ? value : null;
+}
+
 function normalizeDeletedEntryKeys(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((key): key is string => typeof key === 'string' && key.length > 0)
-    : [];
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (normalized.length >= MAX_DELETED_ENTRY_KEYS) {
+      break;
+    }
+
+    const key = normalizeDeletedEntryKey(item);
+    if (!key || seen.has(key)) {
+      continue;
+    }
+
+    normalized.push(key);
+    seen.add(key);
+  }
+  return normalized;
 }
 
 function parseStarredRegistryPayload(value: unknown): StarredRegistry {
@@ -77,10 +112,10 @@ function mergeStarredEntriesForSave(
   existingRegistry: StarredRegistry | null,
   deletedEntryKeys: string[],
 ): StarredRegistry {
-  const deletedKeys = new Set([
-    ...(existingRegistry?.deletedEntryKeys || []),
+  const deletedKeys = new Set(normalizeDeletedEntryKeys([
     ...deletedEntryKeys,
-  ]);
+    ...(existingRegistry?.deletedEntryKeys || []),
+  ]));
   const merged = dedupeStarredEntries([
     ...incomingEntries,
     ...(existingRegistry?.entries || []),

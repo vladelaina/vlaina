@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MAX_DELIMITED_MARKDOWN_MATCHES,
   MAX_DELIMITED_MARKDOWN_TEXT_CHARS,
   findDelimitedTextMatches,
   isUnescapedMarkdownTextRange,
@@ -73,5 +74,19 @@ describe('findDelimitedTextMatches', () => {
       openDelimiterLength: 2,
     })).toEqual([]);
     expect(isUnescapedMarkdownTextRange(value, value.length - 1, 1)).toBe(false);
+  });
+
+  it('bounds matches collected from one text node', () => {
+    const value = Array.from(
+      { length: MAX_DELIMITED_MARKDOWN_MATCHES + 1 },
+      (_, index) => `==mark-${index}==`,
+    ).join(' ');
+
+    const matches = findDelimitedTextMatches(value, /==([^=]+)==/g, {
+      openDelimiterLength: 2,
+    });
+
+    expect(matches).toHaveLength(MAX_DELIMITED_MARKDOWN_MATCHES);
+    expect(matches.at(-1)?.content).toBe(`mark-${MAX_DELIMITED_MARKDOWN_MATCHES - 1}`);
   });
 });

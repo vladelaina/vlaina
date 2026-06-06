@@ -58,6 +58,7 @@ const MAX_INFERRED_IMAGE_NAME_SOURCE_CHARS = 4096;
 const MAX_INFERRED_IMAGE_NAME_SEGMENT_DECODE_CHARS = 2048;
 const MAX_INFERRED_IMAGE_NAME_CHARS = 512;
 const MAX_STORED_USER_MESSAGE_IMAGE_TOKENS = 2000;
+export const MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS = 64;
 const PROMPT_LABEL_UNSAFE_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]+/g;
 const MAX_PROMPT_LABEL_LENGTH = 240;
 const IMAGE_EXTENSION_MIME_TYPES: Record<string, string> = {
@@ -388,14 +389,44 @@ async function resolveMentionedNoteContent(notePath: string): Promise<string> {
   return readResolvedMentionedNoteContent(resolvedPath, [notePath]);
 }
 
-function collectMarkdownNodes(nodes: readonly FileTreeNode[], result: FileTreeNode[] = []): FileTreeNode[] {
-  for (const node of nodes) {
+export function collectMentionFolderMarkdownNodes(nodes: readonly FileTreeNode[]): FileTreeNode[] {
+  const result: FileTreeNode[] = [];
+  const stack: Array<{ nodes: readonly FileTreeNode[]; index: number; depth: number }> = [{
+    nodes,
+    index: 0,
+    depth: 0,
+  }];
+  let visitedEntries = 0;
+
+  while (
+    stack.length > 0 &&
+    visitedEntries < MAX_FOLDER_MARKDOWN_SCAN_ENTRIES &&
+    result.length < MAX_FOLDER_MENTION_NOTES
+  ) {
+    const frame = stack[stack.length - 1];
+    if (frame.index >= frame.nodes.length) {
+      stack.pop();
+      continue;
+    }
+
+    const node = frame.nodes[frame.index];
+    frame.index += 1;
+    if (!node) continue;
+    visitedEntries += 1;
+
     if (node.isFolder) {
-      collectMarkdownNodes(node.children, result);
-    } else if (isSupportedMarkdownPath(node.path)) {
+      if (frame.depth >= MAX_FOLDER_MARKDOWN_SCAN_DEPTH) {
+        continue;
+      }
+      stack.push({ nodes: node.children, index: 0, depth: frame.depth + 1 });
+      continue;
+    }
+
+    if (isSupportedMarkdownPath(node.path)) {
       result.push(node);
     }
   }
+
   return result;
 }
 
@@ -697,8 +728,7 @@ async function loadMentionReference(
     return [];
   }
 
-  const markdownNodes = collectMarkdownNodes(folderNode.children)
-    .slice(0, MAX_FOLDER_MENTION_NOTES);
+  const markdownNodes = collectMentionFolderMarkdownNodes(folderNode.children);
   const listing = await loadFolderListingReference(mention);
   if (markdownNodes.length === 0) {
     const scannedReferences = await loadScannedFolderMarkdownReferences(mention);
@@ -931,7 +961,7 @@ export async function buildMessageImageSources(attachments: Attachment[]): Promi
   const imageSources: string[] = [];
   const markdownParts: string[] = [];
 
-  for (const attachment of attachments) {
+  for (const attachment of attachments.slice(0, MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS)) {
     if (!isImageAttachment(attachment)) {
       continue;
     }

@@ -313,6 +313,16 @@ describe('uiSlice', () => {
     expect(useUIStore.getState().imageVaultSubfolderName).toBe('vaultimages');
   });
 
+  it('falls back for unsafe image folder names before persisting', () => {
+    useUIStore.getState().setImageSubfolderName('..');
+    useUIStore.getState().setImageVaultSubfolderName('vault\u202Eimages');
+
+    expect(useUIStore.getState().imageSubfolderName).toBe('assets');
+    expect(useUIStore.getState().imageVaultSubfolderName).toBe('assets');
+    expect(localStorage.getItem('vlaina_image_subfolder_name')).toBe('assets');
+    expect(localStorage.getItem('vlaina_image_vault_subfolder_name')).toBe('assets');
+  });
+
   it('sanitizes image folder names loaded from storage', () => {
     localStorage.setItem('vlaina_image_subfolder_name', 'assets:/notes*');
     localStorage.setItem('vlaina_image_vault_subfolder_name', 'vault<>images');
@@ -321,6 +331,16 @@ describe('uiSlice', () => {
 
     expect(useUIStore.getState().imageSubfolderName).toBe('assetsnotes');
     expect(useUIStore.getState().imageVaultSubfolderName).toBe('vaultimages');
+  });
+
+  it('falls back for unsafe image folder names loaded from storage', () => {
+    localStorage.setItem('vlaina_image_subfolder_name', '.');
+    localStorage.setItem('vlaina_image_vault_subfolder_name', 'vault\u0000images');
+
+    useUIStore.getState().reloadPreferencesFromStorage();
+
+    expect(useUIStore.getState().imageSubfolderName).toBe('assets');
+    expect(useUIStore.getState().imageVaultSubfolderName).toBe('assets');
   });
 
   it('falls back when image folder names loaded from storage are oversized', () => {

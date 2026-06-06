@@ -86,3 +86,32 @@ it('should clear marks from every hardbreak touched by add-mark steps', async ()
 
   await editor.destroy()
 })
+
+it('should map touched hardbreak positions through later transaction steps', async () => {
+  const editor = createEditor('one  \ntwo')
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  const [hardbreakPos] = getHardbreakPositions(editor)
+  const strong = view.state.schema.marks.strong.create()
+
+  expect(hardbreakPos).toBeGreaterThan(0)
+
+  const tr = view.state.tr
+    .addMark(hardbreakPos!, hardbreakPos! + 1, strong)
+    .insertText('prefix ', 1)
+  const finalHardbreakPos = hardbreakPos! + 'prefix '.length
+
+  expect(markNames(tr.doc.nodeAt(finalHardbreakPos)?.marks ?? [])).toEqual([
+    'strong',
+  ])
+
+  view.dispatch(tr)
+
+  expect(getHardbreakMarksAndAttrs(editor, [finalHardbreakPos])).toEqual([
+    { marks: [], attrs: { isInline: false } },
+  ])
+
+  await editor.destroy()
+})

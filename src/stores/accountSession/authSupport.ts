@@ -2,6 +2,7 @@ import type { StoreApi } from 'zustand';
 import type { AccountProvider, AccountSessionActions, AccountSessionState, MembershipTier } from './state';
 import { ACCOUNT_USER_PERSIST_KEY } from './state';
 import { downloadAndSaveAvatar, getLocalAvatarUrl } from '@/lib/assets/avatarManager';
+import { normalizePublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { translate } from '@/lib/i18n';
 
 type Set = StoreApi<AccountSessionState & AccountSessionActions>['setState'];
@@ -13,6 +14,11 @@ export const ACCOUNT_USER_BROADCAST_CHANNEL = 'vlaina_account_identity';
 export const ACCOUNT_USER_BROADCAST_TYPE = 'account-identity-updated';
 export const ACCOUNT_STATUS_REFRESH_KEY = 'vlaina_account_status_refresh';
 const MAX_ACCOUNT_USER_STORAGE_CHARS = 64 * 1024;
+const MAX_ACCOUNT_IDENTITY_NAME_CHARS = 256;
+const MAX_ACCOUNT_IDENTITY_EMAIL_CHARS = 320;
+const MAX_ACCOUNT_IDENTITY_AVATAR_URL_CHARS = 4096;
+const MAX_ACCOUNT_IDENTITY_MEMBERSHIP_NAME_CHARS = 128;
+const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 export interface PersistedAccountIdentity {
   isConnected: boolean;
@@ -22,6 +28,27 @@ export interface PersistedAccountIdentity {
   avatarUrl: string | null;
   membershipTier: MembershipTier | null;
   membershipName: string | null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function normalizeAccountIdentityString(value: unknown, maxChars: number): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > maxChars || CONTROL_OR_BIDI_PATTERN.test(trimmed)) {
+    return null;
+  }
+  return trimmed;
+}
+
+function normalizeAccountAvatarUrl(value: unknown): string | null {
+  const trimmed = normalizeAccountIdentityString(value, MAX_ACCOUNT_IDENTITY_AVATAR_URL_CHARS);
+  return trimmed ? normalizePublicRemoteMediaUrl(trimmed) : null;
 }
 
 export function normalizeAuthError(raw: string): string {
@@ -84,7 +111,7 @@ function broadcastPersistedUser(data: PersistedAccountIdentity): void {
 }
 
 export function normalizePersistedUser(value: unknown): Partial<AccountSessionState> {
-  if (!value || typeof value !== 'object') {
+  if (!isRecord(value)) {
     return {};
   }
 
@@ -104,20 +131,27 @@ export function normalizePersistedUser(value: unknown): Partial<AccountSessionSt
   return {
     isConnected: parsed.isConnected === true,
     provider,
-    username: typeof parsed.username === 'string' ? parsed.username : null,
-    primaryEmail: typeof parsed.primaryEmail === 'string' ? parsed.primaryEmail : null,
-    avatarUrl: typeof parsed.avatarUrl === 'string' ? parsed.avatarUrl : null,
+    username: normalizeAccountIdentityString(parsed.username, MAX_ACCOUNT_IDENTITY_NAME_CHARS),
+    primaryEmail: normalizeAccountIdentityString(parsed.primaryEmail, MAX_ACCOUNT_IDENTITY_EMAIL_CHARS),
+    avatarUrl: normalizeAccountAvatarUrl(parsed.avatarUrl),
     membershipTier,
-    membershipName: typeof parsed.membershipName === 'string' ? parsed.membershipName : null,
+    membershipName: normalizeAccountIdentityString(
+      parsed.membershipName,
+      MAX_ACCOUNT_IDENTITY_MEMBERSHIP_NAME_CHARS,
+    ),
   };
 }
 
 export function persistUser(data: PersistedAccountIdentity) {
+  const normalized = {
+    ...data,
+    ...normalizePersistedUser(data),
+  } satisfies PersistedAccountIdentity;
   try {
-    localStorage.setItem(ACCOUNT_USER_PERSIST_KEY, JSON.stringify(data));
+    localStorage.setItem(ACCOUNT_USER_PERSIST_KEY, JSON.stringify(normalized));
   } catch {
   }
-  broadcastPersistedUser(data);
+  broadcastPersistedUser(normalized);
 }
 
 export function clearPersistedUser() {

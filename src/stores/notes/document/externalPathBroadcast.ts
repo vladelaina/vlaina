@@ -1,6 +1,7 @@
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { ensureSystemDirectory, getVaultSystemStorePath } from '../systemStoragePaths';
+import { normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
 
 export interface NotesExternalPathRenameEvent {
   type: 'rename';
@@ -18,6 +19,7 @@ const EVENT_FILE_NAME = 'external-path-events.json';
 const MAX_STORED_EVENTS = 20;
 const MAX_EVENT_FILE_BYTES = 256 * 1024;
 const MAX_EVENT_STRING_LENGTH = 4096;
+const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 const sourceId = (() => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -60,15 +62,30 @@ function parseRenameEvent(value: unknown): NotesExternalPathRenameEvent | null {
     return null;
   }
 
+  const notesPath = normalizeNotePathKey(event.notesPath);
+  const oldPath = normalizeExternalRenamePath(event.oldPath);
+  const newPath = normalizeExternalRenamePath(event.newPath);
+  if (!notesPath || !oldPath || !newPath || oldPath === newPath) {
+    return null;
+  }
+
   return {
     type: 'rename',
     sourceId: event.sourceId,
     nonce: event.nonce,
     stamp: event.stamp,
-    notesPath: event.notesPath,
-    oldPath: event.oldPath,
-    newPath: event.newPath,
+    notesPath,
+    oldPath,
+    newPath,
   };
+}
+
+function normalizeExternalRenamePath(path: string): string | null {
+  if (CONTROL_OR_BIDI_PATTERN.test(path)) {
+    return null;
+  }
+
+  return normalizeVaultRelativePath(path);
 }
 
 function notifyListeners(event: NotesExternalPathRenameEvent) {

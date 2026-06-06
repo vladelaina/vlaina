@@ -4,6 +4,7 @@ import {
   buildMessageImageSources,
   buildMentionedNotesContext,
   buildStoredUserMessageContent,
+  MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS,
   loadMentionedFolderImageAttachments,
   loadMentionedNotes,
   refreshManagedBudgetIfNeeded,
@@ -316,6 +317,24 @@ describe('chat service helpers', () => {
     ]);
 
     expect(result).toEqual({ content: '', imageSources: [] });
+  });
+
+  it('bounds stored user message image attachment processing', async () => {
+    const result = await buildMessageImageSources(
+      Array.from({ length: MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS + 1 }, (_, index) =>
+        createAttachment({
+          id: `attachment-${index}`,
+          path: '',
+          assetUrl: `https://example.test/image-${index}.png`,
+          previewUrl: 'blob:preview',
+          name: `image-${index}.png`,
+        })
+      ),
+    );
+
+    expect(result.imageSources).toHaveLength(MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS);
+    expect(result.imageSources.at(-1)).toBe(`https://example.test/image-${MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS - 1}.png`);
+    expect(result.content).not.toContain(`image-${MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS}.png`);
   });
 
   it('converts stored user image markdown into vision message parts for resend paths', async () => {

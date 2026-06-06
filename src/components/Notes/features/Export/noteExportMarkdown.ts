@@ -2,7 +2,10 @@ import { getElectronBridge } from '@/lib/electron/bridge';
 import { resolveExistingVaultAssetPath } from '@/lib/assets/core/paths';
 import { mapMarkdownOutsideProtectedSegments } from '@/lib/notes/markdown/markdownProtectedBlocks';
 import { getNoteInternalImageAssetPath } from '@/lib/notes/markdown/urlSecurity';
-import { findExportMarkdownAssetSourceTokens } from './noteExportMarkdownAssetTokens';
+import {
+  MAX_EXPORT_MARKDOWN_ASSET_TOKENS,
+  findExportMarkdownAssetSourceTokensWithOptions,
+} from './noteExportMarkdownAssetTokens';
 
 const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
   avif: 'image/avif',
@@ -118,7 +121,9 @@ async function resolveExportMarkdownAssetSegment(
   notesPath: string,
   notePath: string,
 ): Promise<string> {
-  const tokens = findExportMarkdownAssetSourceTokens(markdown);
+  const tokens = findExportMarkdownAssetSourceTokensWithOptions(markdown, {
+    maxTokens: MAX_EXPORT_MARKDOWN_ASSET_TOKENS,
+  });
   if (tokens.length === 0) {
     return markdown;
   }

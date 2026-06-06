@@ -89,6 +89,28 @@ describe('loadPersistedUser', () => {
     expect(loadPersistedUser()).toEqual({});
   });
 
+  it('bounds persisted account identity fields before hydrating them', () => {
+    localStorage.setItem(ACCOUNT_USER_PERSIST_KEY, JSON.stringify({
+      isConnected: true,
+      provider: 'google',
+      username: 'u'.repeat(257),
+      primaryEmail: ' user@example.com ',
+      avatarUrl: 'http://127.0.0.1:3000/avatar.png',
+      membershipTier: 'pro',
+      membershipName: `Pro\u0000Plan`,
+    }));
+
+    expect(loadPersistedUser()).toEqual({
+      isConnected: true,
+      provider: 'google',
+      username: null,
+      primaryEmail: 'user@example.com',
+      avatarUrl: null,
+      membershipTier: 'pro',
+      membershipName: null,
+    });
+  });
+
   it('ignores unavailable localStorage when persisting account identity', () => {
     vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
       throw new Error('quota exceeded');
@@ -132,6 +154,42 @@ describe('loadPersistedUser', () => {
       identity,
     });
     expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('normalizes account identity before persisting or broadcasting it', () => {
+    const postMessage = vi.fn();
+    const close = vi.fn();
+    const BroadcastChannelMock = vi.fn(function BroadcastChannel(this: { postMessage: typeof postMessage; close: typeof close }, name: string) {
+      expect(name).toBe(ACCOUNT_USER_BROADCAST_CHANNEL);
+      this.postMessage = postMessage;
+      this.close = close;
+    });
+    vi.stubGlobal('BroadcastChannel', BroadcastChannelMock);
+
+    persistUser({
+      isConnected: true,
+      provider: 'google',
+      username: ' vla ',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: 'http://192.168.1.2/avatar.png',
+      membershipTier: 'pro',
+      membershipName: 'P'.repeat(129),
+    });
+
+    const normalizedIdentity = {
+      isConnected: true,
+      provider: 'google',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: null,
+      membershipTier: 'pro',
+      membershipName: null,
+    };
+    expect(JSON.parse(localStorage.getItem(ACCOUNT_USER_PERSIST_KEY) || '{}')).toEqual(normalizedIdentity);
+    expect(postMessage).toHaveBeenCalledWith({
+      type: ACCOUNT_USER_BROADCAST_TYPE,
+      identity: normalizedIdentity,
+    });
   });
 
   it('clears persisted account identity when temporary desktop auth is used', () => {

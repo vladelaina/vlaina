@@ -56,11 +56,28 @@ describe('findTailCursorPosInRange', () => {
 });
 
 describe('isMarkdownStructuralResult', () => {
+    const createParagraph = (children: any[]) => ({
+        child: (index: number) => children[index],
+        childCount: children.length,
+        content: {
+            size: children.reduce((size, child) => size + (child.nodeSize ?? 1), 0),
+        },
+        nodeSize: children.reduce((size, child) => size + (child.nodeSize ?? 1), 2),
+        type: { name: 'paragraph' },
+    });
+
+    const createText = (marks: any[] = []) => ({
+        isText: true,
+        marks,
+        nodeSize: 1,
+        text: 'x',
+        type: { name: 'text' },
+    });
+
     it('returns true when non-paragraph block exists', () => {
         const nodes = [
             {
                 type: { name: 'bullet_list' },
-                descendants: () => {},
             },
         ] as any;
 
@@ -69,10 +86,7 @@ describe('isMarkdownStructuralResult', () => {
 
     it('returns true when paragraph has marks', () => {
         const nodes = [
-            {
-                type: { name: 'paragraph' },
-                descendants: (cb: (child: any) => unknown) => cb({ isText: true, marks: [{ type: { name: 'strong' } }] }),
-            },
+            createParagraph([createText([{ type: { name: 'strong' } }])]),
         ] as any;
 
         expect(isMarkdownStructuralResult(nodes)).toBe(true);
@@ -80,10 +94,7 @@ describe('isMarkdownStructuralResult', () => {
 
     it('returns true when paragraph has inline atomic nodes', () => {
         const nodes = [
-            {
-                type: { name: 'paragraph' },
-                descendants: (cb: (child: any) => unknown) => cb({ isText: false, type: { name: 'math_inline' } }),
-            },
+            createParagraph([{ isText: false, nodeSize: 1, type: { name: 'math_inline' } }]),
         ] as any;
 
         expect(isMarkdownStructuralResult(nodes)).toBe(true);
@@ -91,13 +102,28 @@ describe('isMarkdownStructuralResult', () => {
 
     it('returns false for plain paragraphs without marks', () => {
         const nodes = [
-            {
-                type: { name: 'paragraph' },
-                descendants: (cb: (child: any) => unknown) => cb({ isText: true, marks: [] }),
-            },
+            createParagraph([createText()]),
         ] as any;
 
         expect(isMarkdownStructuralResult(nodes)).toBe(false);
+    });
+
+    it('stops scanning a paragraph after the first structural child', () => {
+        let accessed = 0;
+        const children = [
+            { isText: false, nodeSize: 1, type: { name: 'math_inline' } },
+            createText(),
+        ];
+        const paragraph = {
+            ...createParagraph(children),
+            child(index: number) {
+                accessed += 1;
+                return children[index];
+            },
+        };
+
+        expect(isMarkdownStructuralResult([paragraph as any])).toBe(true);
+        expect(accessed).toBe(1);
     });
 });
 

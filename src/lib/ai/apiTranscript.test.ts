@@ -54,4 +54,36 @@ describe('apiTranscript normalization', () => {
     expect(transcript?.[0]?.content).toBe('message-16')
     expect(transcript?.at(-1)?.content).toBe('message-79')
   })
+
+  it('drops unsafe image URLs from transcript content parts', () => {
+    const message = normalizeApiTranscriptMessage({
+      role: 'user',
+      content: [
+        { type: 'text', text: 'inspect these images' },
+        { type: 'image_url', image_url: { url: 'https://example.com/safe.png', detail: 'low' } },
+        { type: 'image_url', image_url: { url: 'http://127.0.0.1:3000/secret.png', detail: 'high' } },
+        { type: 'image_url', image_url: { url: 'file:///tmp/secret.png' } },
+        { type: 'image_url', image_url: { url: 'attachment://safe.png' } },
+        { type: 'image_url', image_url: { url: 'data:image/svg+xml;base64,PHN2Zz4=' } },
+        { type: 'image_url', image_url: { url: 'data:image/png;base64,aGk=' } },
+      ],
+    })
+
+    expect(message?.content).toEqual([
+      { type: 'text', text: 'inspect these images' },
+      { type: 'image_url', image_url: { url: 'https://example.com/safe.png', detail: 'low' } },
+      { type: 'image_url', image_url: { url: 'data:image/png;base64,aGk=' } },
+    ])
+  })
+
+  it('uses empty content when a required transcript message contains only unsafe images', () => {
+    const message = normalizeApiTranscriptMessage({
+      role: 'user',
+      content: [
+        { type: 'image_url', image_url: { url: 'http://192.168.1.5/secret.png' } },
+      ],
+    })
+
+    expect(message).toEqual({ role: 'user', content: '' })
+  })
 })

@@ -30,6 +30,7 @@ import {
   buildMentionedNotesContext,
   buildMessageImageSources,
   buildStoredUserMessageContent,
+  MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS,
   loadMentionedNotes,
   loadMentionedFolderImageAttachments,
   normalizeNoteMentions,
@@ -313,7 +314,8 @@ export function useChatService() {
   const sendMessage = useCallback(
     async (text: string, attachments: Attachment[], noteMentions: NoteMentionReference[] = []) => {
       const isTextEmpty = !text || text.trim().length === 0;
-      const hasNoAttachments = !attachments || attachments.length === 0;
+      const normalizedAttachments = (attachments || []).slice(0, MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS);
+      const hasNoAttachments = normalizedAttachments.length === 0;
       const normalizedMentions = normalizeNoteMentions(noteMentions);
       const hasNoMentions = normalizedMentions.length === 0;
 
@@ -335,7 +337,7 @@ export function useChatService() {
         .replace(UNIVERSAL_NEWLINE_REGEX, '\n');
       const userMessageText = normalizedInput.trim();
       const mentionText = normalizedMentions.map((mention) => `@${mention.title}`).join(' ');
-      const unsupportedAttachments = attachments.filter((attachment) => !isImageAttachment(attachment));
+      const unsupportedAttachments = normalizedAttachments.filter((attachment) => !isImageAttachment(attachment));
       if (unsupportedAttachments.length > 0) {
         const { message } = buildChatErrorPayload({
           message: 'UNSUPPORTED_MODEL_INPUT',
@@ -378,7 +380,7 @@ export function useChatService() {
         providerId: provider.id,
         webSearchEnabled,
         textLength: userMessageText.length,
-        attachments: attachments.length,
+        attachments: normalizedAttachments.length,
         mentions: normalizedMentions.length,
       });
 
@@ -390,8 +392,8 @@ export function useChatService() {
         const isTemporaryTarget =
           isTemporarySessionId(targetSessionId) || isTemporarySession(targetSession);
         const requestAttachments = isTemporaryTarget
-          ? await makeTemporaryAttachmentsEphemeral(attachments)
-          : attachments;
+          ? await makeTemporaryAttachmentsEphemeral(normalizedAttachments)
+          : normalizedAttachments;
         ensureRequestActive();
 
         let storageContent = userMessageText;

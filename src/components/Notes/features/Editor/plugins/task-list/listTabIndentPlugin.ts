@@ -450,6 +450,59 @@ function preserveSelectionAfterOrderedListMerge(
     }
 }
 
+const ORDERED_LIST_NORMALIZATION_NODE_NAMES = new Set(['ordered_list', 'bullet_list', 'list_item']);
+
+function positionTouchesOrderedListNormalizationNode(doc: ProseNode, pos: number): boolean {
+    const resolvedPos = Math.max(0, Math.min(pos, doc.content.size));
+    const $pos = doc.resolve(resolvedPos);
+
+    for (let depth = $pos.depth; depth > 0; depth -= 1) {
+        if (ORDERED_LIST_NORMALIZATION_NODE_NAMES.has($pos.node(depth).type.name)) {
+            return true;
+        }
+    }
+
+    return (
+        ($pos.nodeBefore && ORDERED_LIST_NORMALIZATION_NODE_NAMES.has($pos.nodeBefore.type.name))
+        || ($pos.nodeAfter && ORDERED_LIST_NORMALIZATION_NODE_NAMES.has($pos.nodeAfter.type.name))
+    );
+}
+
+function rangeTouchesOrderedListNormalizationNode(doc: ProseNode, from: number, to: number): boolean {
+    const start = Math.max(0, Math.min(from, doc.content.size));
+    const end = Math.max(start, Math.min(to, doc.content.size));
+    if (
+        positionTouchesOrderedListNormalizationNode(doc, start)
+        || positionTouchesOrderedListNormalizationNode(doc, end)
+    ) {
+        return true;
+    }
+
+    let touchesList = false;
+    doc.nodesBetween(start, end, (node) => {
+        if (ORDERED_LIST_NORMALIZATION_NODE_NAMES.has(node.type.name)) {
+            touchesList = true;
+            return false;
+        }
+        return !touchesList;
+    });
+
+    return touchesList;
+}
+
+export function docChangeMayAffectOrderedListNormalization(prevDoc: ProseNode, nextDoc: ProseNode): boolean {
+    const diffStart = prevDoc.content.findDiffStart(nextDoc.content);
+    if (diffStart === null) return false;
+
+    const diffEnd = prevDoc.content.findDiffEnd(nextDoc.content);
+    if (!diffEnd) return true;
+
+    return (
+        rangeTouchesOrderedListNormalizationNode(prevDoc, diffStart, diffEnd.a)
+        || rangeTouchesOrderedListNormalizationNode(nextDoc, diffStart, diffEnd.b)
+    );
+}
+
 function normalizeOrderedListLabels(state: EditorState): Transaction | null {
     let tr = state.tr;
     let changed = false;
@@ -513,8 +566,9 @@ export const listTabIndentPlugin = $prose(() => {
                 return buildInternalListGapDecorations(newState.doc);
             },
         },
-        appendTransaction(transactions, _oldState, newState) {
+        appendTransaction(transactions, oldState, newState) {
             if (!transactions.some((tr) => tr.docChanged)) return null;
+            if (!docChangeMayAffectOrderedListNormalization(oldState.doc, newState.doc)) return null;
             return normalizeOrderedListsAfterChange(newState);
         },
         props: {

@@ -35,6 +35,7 @@ const NAMED_CHARACTER_REFERENCES: Record<string, string> = {
 };
 
 export const MAX_DELIMITED_MARKDOWN_TEXT_CHARS = 100_000;
+export const MAX_DELIMITED_MARKDOWN_MATCHES = 2000;
 
 function getPositionOffsets(position: MarkdownSourcePosition | undefined, markdownLength: number) {
   const start = position?.start?.offset;
@@ -194,7 +195,7 @@ export function findDelimitedTextMatches(
   let match: RegExpExecArray | null;
   regex.lastIndex = 0;
 
-  while ((match = regex.exec(value)) !== null) {
+  while (matches.length < MAX_DELIMITED_MARKDOWN_MATCHES && (match = regex.exec(value)) !== null) {
     const start = match.index;
     const end = match.index + match[0].length;
     const closeStart = end - closeDelimiterLength;

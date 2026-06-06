@@ -1,9 +1,25 @@
+import type { Transaction } from '@milkdown/prose/state'
+
 import { Plugin, PluginKey } from '@milkdown/prose/state'
 import { AddMarkStep, ReplaceStep } from '@milkdown/prose/transform'
 import { $prose } from '@milkdown/utils'
 
 import { withMeta } from '../__internal__'
 import { hardbreakSchema } from '../node'
+
+function mapStepPosToFinalDoc(
+  transactions: readonly Transaction[],
+  transactionIndex: number,
+  stepIndex: number,
+  pos: number,
+  assoc: -1 | 1
+) {
+  let mapped = transactions[transactionIndex].mapping.slice(stepIndex + 1).map(pos, assoc)
+  for (let index = transactionIndex + 1; index < transactions.length; index++) {
+    mapped = transactions[index].mapping.map(mapped, assoc)
+  }
+  return mapped
+}
 
 /// This plugin is used to clear the marks around the hardbreak node.
 export const hardbreakClearMarkPlugin = $prose((ctx) => {
@@ -37,13 +53,13 @@ export const hardbreakClearMarkPlugin = $prose((ctx) => {
         })
       }
 
-      for (const tr of trs) {
+      for (const [transactionIndex, tr] of trs.entries()) {
         const isInsertHr = tr.getMeta('hardbreak')
 
-        for (const step of tr.steps) {
+        for (const [stepIndex, step] of tr.steps.entries()) {
           if (isInsertHr && step instanceof ReplaceStep) {
             const { from } = step as unknown as { from: number }
-            clearHardbreakAt(from)
+            clearHardbreakAt(mapStepPosToFinalDoc(trs, transactionIndex, stepIndex, from, 1))
           }
 
           if (step instanceof AddMarkStep) {
@@ -51,7 +67,12 @@ export const hardbreakClearMarkPlugin = $prose((ctx) => {
               from: number
               to: number
             }
-            clearHardbreaksInRange(from, to)
+            const mappedFrom = mapStepPosToFinalDoc(trs, transactionIndex, stepIndex, from, 1)
+            const mappedTo = mapStepPosToFinalDoc(trs, transactionIndex, stepIndex, to, -1)
+            clearHardbreaksInRange(
+              Math.min(mappedFrom, mappedTo),
+              Math.max(mappedFrom, mappedTo)
+            )
           }
         }
       }

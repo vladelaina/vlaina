@@ -11,6 +11,7 @@ const controlOrBidiPattern = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFF
 const schemePattern = /^([A-Za-z][A-Za-z0-9+.-]*):/
 const windowsAbsolutePathPattern = /^[A-Za-z]:[\\/]/
 const safeLinkSchemes = new Set(['http:', 'https:', 'mailto:'])
+const maxLinkHrefChars = 16 * 1024
 
 function hasUnsafeBackslashUrlSyntax(value: string) {
   return value.startsWith('\\') || (schemePattern.test(value) && value.includes('\\'))
@@ -19,7 +20,7 @@ function hasUnsafeBackslashUrlSyntax(value: string) {
 export function sanitizeLinkHref(value: unknown) {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
-  if (!trimmed || trimmed.startsWith('//') || controlOrBidiPattern.test(trimmed) || hasUnsafeBackslashUrlSyntax(trimmed) || windowsAbsolutePathPattern.test(trimmed)) return null
+  if (!trimmed || trimmed.length > maxLinkHrefChars || trimmed.startsWith('//') || controlOrBidiPattern.test(trimmed) || hasUnsafeBackslashUrlSyntax(trimmed) || windowsAbsolutePathPattern.test(trimmed)) return null
 
   const scheme = schemePattern.exec(trimmed)?.[1]?.toLowerCase()
   if (!scheme) return trimmed

@@ -48,9 +48,11 @@ import {
   MAX_CUSTOM_ICON_URL_CHARS,
   MAX_CUSTOM_ICONS,
   MAX_DELETED_CUSTOM_ICON_IDS,
+  MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS,
   MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES,
   loadUnifiedData,
 } from './unifiedStorage';
+import { MAX_LOADED_AI_FIELD_CHARS } from './unifiedStorageAI';
 
 describe('unifiedStorage load bounds', () => {
   beforeEach(() => {
@@ -191,6 +193,97 @@ describe('unifiedStorage load bounds', () => {
     expect(data.ai?.models.at(-1)?.id).toBe('provider-1::model-1999');
     expect(data.ai?.fetchedModels?.['provider-1']).toHaveLength(2000);
     expect(data.ai?.fetchedModels?.['provider-1']?.at(-1)).toBe('model-1999');
+  });
+
+  it('bounds split AI session and provider channel string fields on load', async () => {
+    const longModelId = `${'m'.repeat(MAX_LOADED_AI_FIELD_CHARS)}x`;
+    const longPrompt = `${'p'.repeat(64 * 1024)}x`;
+    const longFetchedModel = `${'f'.repeat(MAX_LOADED_AI_FIELD_CHARS)}x`;
+
+    mocks.storage.exists.mockImplementation(async (path: string) => (
+      path.endsWith('/.vlaina/data.json') ||
+      path.endsWith('/chat/sessions.json') ||
+      path.endsWith('/chat/channels/provider-1.json')
+    ));
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/.vlaina/data.json')) {
+        return JSON.stringify({
+          version: 2,
+          lastModified: 1,
+          data: {
+            settings: {
+              timezone: { offset: 480, city: 'Beijing' },
+              markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+            },
+            customIcons: [],
+          },
+        });
+      }
+
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          version: 1,
+          updatedAt: 1,
+          data: {
+            sessions: [{
+              id: 'session-1',
+              title: 'Session',
+              modelId: longModelId,
+            }],
+            selectedModelId: longModelId,
+            currentSessionId: '../unsafe',
+            customSystemPrompt: longPrompt,
+            providerIds: ['provider-1'],
+          },
+        });
+      }
+
+      if (path.endsWith('/chat/channels/provider-1.json')) {
+        return JSON.stringify({
+          version: 1,
+          providerId: 'provider-1',
+          updatedAt: 1,
+          data: {
+            provider: {
+              id: 'provider-1',
+              name: 'Provider',
+              type: 'newapi',
+              apiHost: 'https://provider.example',
+              apiKey: '',
+              enabled: true,
+              createdAt: 1,
+              updatedAt: 1,
+            },
+            models: [{
+              apiModelId: longModelId,
+              providerId: 'provider-1',
+              enabled: true,
+              createdAt: 1,
+            }],
+            fetchedModels: [
+              longFetchedModel,
+              '',
+              ...Array.from(
+                { length: MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS + 1 },
+                (_, index) => `model-${index}`,
+              ),
+            ],
+          },
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    const data = await loadUnifiedData();
+
+    expect(data.ai?.selectedModelId).toBeNull();
+    expect(data.ai?.currentSessionId).toBeNull();
+    expect(data.ai?.customSystemPrompt).toHaveLength(64 * 1024);
+    expect(data.ai?.models[0]?.apiModelId).toHaveLength(MAX_LOADED_AI_FIELD_CHARS);
+    expect(data.ai?.sessions[0]?.modelId).toHaveLength(MAX_LOADED_AI_FIELD_CHARS);
+    expect(data.ai?.fetchedModels?.['provider-1']).toHaveLength(MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS);
+    expect(data.ai?.fetchedModels?.['provider-1']?.[0]).toHaveLength(MAX_LOADED_AI_FIELD_CHARS);
   });
 
   it('ignores main data content that exceeds the limit after read', async () => {

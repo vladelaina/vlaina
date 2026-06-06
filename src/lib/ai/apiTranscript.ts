@@ -1,6 +1,7 @@
 import type { ApiTranscriptMessage, ChatMessageContent, ChatMessageContentPart } from './types';
+import { normalizeRenderableImageSrc } from '@/lib/markdown/renderableImagePolicy';
 
-const MAX_API_TRANSCRIPT_MESSAGES = 64;
+export const MAX_API_TRANSCRIPT_MESSAGES = 64;
 const MAX_API_TRANSCRIPT_STRING_CHARS = 20000;
 const MAX_API_TRANSCRIPT_CONTENT_PARTS = 64;
 const MAX_API_TRANSCRIPT_TOOL_CALLS = 32;
@@ -15,6 +16,18 @@ function clipString(value: string): string {
     : value;
 }
 
+function normalizeApiTranscriptImageUrl(value: string): string | null {
+  const url = normalizeRenderableImageSrc(clipString(value));
+  if (!url) {
+    return null;
+  }
+
+  const normalized = url.toLowerCase();
+  return normalized.startsWith('http://') || normalized.startsWith('https://') || normalized.startsWith('data:')
+    ? url
+    : null;
+}
+
 function normalizeContentPart(value: unknown): ChatMessageContentPart | null {
   if (!isRecord(value)) return null;
 
@@ -23,11 +36,15 @@ function normalizeContentPart(value: unknown): ChatMessageContentPart | null {
   }
 
   if (value.type === 'image_url' && isRecord(value.image_url) && typeof value.image_url.url === 'string') {
+    const url = normalizeApiTranscriptImageUrl(value.image_url.url);
+    if (!url) {
+      return null;
+    }
     const detail = value.image_url.detail;
     return {
       type: 'image_url',
       image_url: {
-        url: clipString(value.image_url.url),
+        url,
         ...(detail === 'auto' || detail === 'low' || detail === 'high' ? { detail } : {}),
       },
     };
@@ -107,13 +124,13 @@ export function normalizeApiTranscriptMessage(value: unknown): ApiTranscriptMess
     normalized.name = clipString(value.name);
   }
 
-  if ((normalized.role === 'system' || normalized.role === 'user') && normalized.content === undefined) {
+  if ((normalized.role === 'system' || normalized.role === 'user') && normalized.content == null) {
     normalized.content = '';
   }
   if (normalized.role === 'tool' && !normalized.tool_call_id) {
     return null;
   }
-  if (normalized.role === 'tool' && normalized.content === undefined) {
+  if (normalized.role === 'tool' && normalized.content == null) {
     normalized.content = '';
   }
   if (

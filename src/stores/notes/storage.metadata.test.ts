@@ -394,7 +394,7 @@ describe('notes metadata storage', () => {
   it('sanitizes recent note paths loaded from localStorage', () => {
     localStorage.setItem(
       'vlaina-recent-notes',
-      JSON.stringify(['docs/alpha.md', '../secret.md', '/etc/passwd.md', 'docs/alpha.md', 'image.png'])
+      JSON.stringify(['docs/alpha.md', '../secret.md', '/etc/passwd.md', 'docs/alpha.md', 'draft:local.md', 'image.png'])
     );
 
     expect(loadRecentNotes()).toEqual(['docs/alpha.md']);
@@ -414,6 +414,22 @@ describe('notes metadata storage', () => {
     await expect(loadWorkspaceState('/vault-a')).resolves.toEqual({
       currentNotePath: null,
       expandedFolders: ['docs'],
+      fileTreeSortMode: undefined,
+    });
+  });
+
+  it('does not restore draft pseudo paths from workspace state', async () => {
+    adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockResolvedValue({ size: 128 });
+    adapter.readFile.mockResolvedValue(
+      JSON.stringify({
+        currentNotePath: 'draft:local.md',
+      })
+    );
+
+    await expect(loadWorkspaceState('/vault-a')).resolves.toEqual({
+      currentNotePath: null,
+      expandedFolders: [],
       fileTreeSortMode: undefined,
     });
   });

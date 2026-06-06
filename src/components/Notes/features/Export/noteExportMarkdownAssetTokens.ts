@@ -25,6 +25,19 @@ interface ParsedMarkdownImageTarget extends ExportMarkdownAssetSourceToken {
   tokenEnd: number;
 }
 
+export interface ExportMarkdownAssetTokenOptions {
+  maxTokens?: number;
+}
+
+export const MAX_EXPORT_MARKDOWN_ASSET_TOKENS = 2000;
+
+function getMaxTokens(options?: ExportMarkdownAssetTokenOptions): number {
+  const value = options?.maxTokens;
+  if (value === undefined) return Number.POSITIVE_INFINITY;
+  if (!Number.isFinite(value)) return value === Number.POSITIVE_INFINITY ? value : 0;
+  return Math.max(0, Math.floor(value));
+}
+
 function unescapeMarkdownLinkDestination(value: string): string {
   return value.replace(MARKDOWN_LINK_DESTINATION_ESCAPE_PATTERN, '$1');
 }
@@ -178,11 +191,12 @@ function findMarkdownImageSourceMatches(
   content: string,
   ignoredRanges: readonly ContentRange[],
   htmlTagRanges: readonly ContentRange[],
+  maxTokens = Number.POSITIVE_INFINITY,
 ): MarkdownImageSourceMatch[] {
   const matches: MarkdownImageSourceMatch[] = [];
   let cursor = 0;
 
-  while (cursor < content.length) {
+  while (cursor < content.length && matches.length < maxTokens) {
     const imageStart = content.indexOf('![', cursor);
     if (imageStart === -1) {
       break;
@@ -216,19 +230,37 @@ function findMarkdownImageSourceMatches(
 }
 
 export function findExportMarkdownAssetSourceTokens(content: string): ExportMarkdownAssetSourceToken[] {
+  return findExportMarkdownAssetSourceTokensWithOptions(content);
+}
+
+export function findExportMarkdownAssetSourceTokensWithOptions(
+  content: string,
+  options?: ExportMarkdownAssetTokenOptions,
+): ExportMarkdownAssetSourceToken[] {
+  const maxTokens = getMaxTokens(options);
+  if (maxTokens <= 0) {
+    return [];
+  }
+
   const ignoredRanges = getIgnoredInlineRanges(content);
   const ignoredMarkdownRanges = normalizeContentRanges([
     ...ignoredRanges,
     ...getMarkdownHtmlBlockRanges(content),
   ]);
   const htmlTagRanges = getHtmlTagRanges(content);
-  const markdownMatches = findMarkdownImageSourceMatches(content, ignoredMarkdownRanges, htmlTagRanges);
+  const markdownMatches = findMarkdownImageSourceMatches(
+    content,
+    ignoredMarkdownRanges,
+    htmlTagRanges,
+    maxTokens,
+  );
   return [
     ...markdownMatches.map((match) => match.token),
     ...findHtmlImageSourceTokens(
       content,
       normalizeContentRanges([...ignoredRanges, ...markdownMatches.map((match) => match.imageRange)]),
       htmlTagRanges,
+      maxTokens,
     ),
-  ].sort((left, right) => left.start - right.start);
+  ].sort((left, right) => left.start - right.start).slice(0, maxTokens);
 }

@@ -6,6 +6,9 @@ const safeMediaSchemes = new Set(['http:', 'https:', 'blob:'])
 const fallbackUrlBase = 'https://milkdown.local/'
 const safeDataImagePattern = /^(data:image\/(?:png|jpeg|jpg|webp|gif|bmp|avif);base64,)([A-Za-z0-9+/=]+)$/i
 const maxInlineImageBytes = 10 * 1024 * 1024
+const maxInlineImageBase64Chars = Math.ceil(maxInlineImageBytes / 3) * 4
+const maxRemoteMediaUrlChars = 16 * 1024
+const maxInternalImageSrcChars = 16 * 1024
 
 function getUrlBase() {
   return typeof window !== 'undefined' ? window.location.href : fallbackUrlBase
@@ -115,6 +118,7 @@ export function isLocalNetworkHttpUrl(value: string) {
 
 export function isPublicRemoteMediaUrl(value: string) {
   const trimmed = value.trim()
+  if (trimmed.length > maxRemoteMediaUrlChars) return false
   if (controlOrBidiPattern.test(trimmed)) return false
   if (hasUnsafeBackslashUrlSyntax(trimmed)) return false
   if (!trimmed.startsWith('//') && !/^https?:/i.test(trimmed)) return false
@@ -133,6 +137,7 @@ export function isPublicRemoteMediaUrl(value: string) {
 export function getInternalImageAssetPath(value: unknown) {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
+  if (trimmed.length > maxInternalImageSrcChars) return null
   const scheme = schemePattern.exec(trimmed)?.[1]?.toLowerCase()
   if (scheme !== 'img') return null
 
@@ -153,15 +158,17 @@ export function sanitizeMediaSrc(value: unknown) {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
   if (!trimmed || controlOrBidiPattern.test(trimmed) || hasUnsafeBackslashUrlSyntax(trimmed) || windowsAbsolutePathPattern.test(trimmed) || (unixAbsolutePathPattern.test(trimmed) && !trimmed.startsWith('//'))) return null
-  if (trimmed.startsWith('//')) return isLocalNetworkHttpUrl(`https:${trimmed}`) ? null : trimmed
+  if (trimmed.startsWith('//')) return trimmed.length > maxRemoteMediaUrlChars || isLocalNetworkHttpUrl(`https:${trimmed}`) ? null : trimmed
 
   const scheme = schemePattern.exec(trimmed)?.[1]?.toLowerCase()
-  if (!scheme) return trimmed
+  if (!scheme) return trimmed.length <= maxInternalImageSrcChars ? trimmed : null
   const normalizedScheme = `${scheme}:`
   if (normalizedScheme === 'img:') {
     return getInternalImageAssetPath(trimmed) ? trimmed : null
   }
   if (normalizedScheme === 'data:') {
+    const commaIndex = trimmed.indexOf(',')
+    if (commaIndex < 0 || trimmed.length - commaIndex - 1 > maxInlineImageBase64Chars) return null
     const match = safeDataImagePattern.exec(trimmed)
     if (!match) return null
     const byteLength = getBase64DecodedByteLength(match[2])
@@ -170,6 +177,7 @@ export function sanitizeMediaSrc(value: unknown) {
       : null
   }
   if (!safeMediaSchemes.has(normalizedScheme)) return null
+  if ((normalizedScheme === 'http:' || normalizedScheme === 'https:' || normalizedScheme === 'blob:') && trimmed.length > maxRemoteMediaUrlChars) return null
   if ((normalizedScheme === 'http:' || normalizedScheme === 'https:') && isLocalNetworkHttpUrl(trimmed)) return null
   return trimmed
 }

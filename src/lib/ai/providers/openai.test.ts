@@ -7,6 +7,7 @@ import { MAX_OPENAI_STREAM_LINE_CHARS } from '@/lib/ai/streaming';
 import { MAX_PROVIDER_ERROR_BODY_BYTES, MAX_PROVIDER_JSON_RESPONSE_BODY_BYTES } from './boundedResponseText';
 import { MAX_INLINE_IMAGE_BYTES } from '@/lib/markdown/dataImagePolicy';
 import { MAX_THINKING_TAG_MATCHES } from '@/lib/ai/stripThinkingContent';
+import { MAX_API_TRANSCRIPT_MESSAGES } from '@/lib/ai/apiTranscript';
 
 const mocks = vi.hoisted(() => ({
   bridge: undefined as undefined | {
@@ -1929,6 +1930,89 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       history[0].apiTranscript![2],
       { role: 'user', content: 'continue' },
     ]);
+  });
+
+  it('bounds hidden API transcript replay for DeepSeek-compatible history', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse('data: {"choices":[{"delta":{"content":"next"}}]}\n\ndata: [DONE]\n\n'),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await new OpenAICompatibleClient().sendMessage(
+      'continue',
+      [{
+        id: 'm1',
+        role: 'assistant',
+        content: 'Visible previous answer',
+        apiTranscript: Array.from({ length: MAX_API_TRANSCRIPT_MESSAGES + 16 }, (_, index) => ({
+          role: 'assistant' as const,
+          content: `transcript-${index}`,
+        })),
+        modelId: 'deepseek-chat',
+        timestamp: 1,
+        versions: [{ content: 'Visible previous answer', createdAt: 1, kind: 'original' as const, subsequentMessages: [] }],
+        currentVersionIndex: 0,
+      }],
+      buildModel({ apiModelId: 'deepseek-chat', name: 'DeepSeek Chat' }),
+      buildProvider({ name: 'DeepSeek', apiHost: 'https://api.deepseek.com', endpointType: 'openai' }),
+      vi.fn(),
+    );
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.messages).toHaveLength(MAX_API_TRANSCRIPT_MESSAGES + 1);
+    expect(body.messages[0]).toEqual({ role: 'assistant', content: 'transcript-16' });
+    expect(body.messages[MAX_API_TRANSCRIPT_MESSAGES - 1]).toEqual({
+      role: 'assistant',
+      content: `transcript-${MAX_API_TRANSCRIPT_MESSAGES + 15}`,
+    });
+    expect(body.messages.at(-1)).toEqual({ role: 'user', content: 'continue' });
+  });
+
+  it('does not replay unsafe image URLs from hidden API transcripts', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse('data: {"choices":[{"delta":{"content":"next"}}]}\n\ndata: [DONE]\n\n'),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await new OpenAICompatibleClient().sendMessage(
+      'continue',
+      [{
+        id: 'm1',
+        role: 'assistant',
+        content: 'Visible previous answer',
+        apiTranscript: [{
+          role: 'assistant',
+          content: [
+            { type: 'text', text: 'Visible previous answer' },
+            { type: 'image_url', image_url: { url: 'https://example.com/safe.png', detail: 'low' } },
+            { type: 'image_url', image_url: { url: 'http://127.0.0.1:3000/secret.png', detail: 'high' } },
+            { type: 'image_url', image_url: { url: 'file:///tmp/secret.png' } },
+          ],
+        }],
+        modelId: 'deepseek-chat',
+        timestamp: 1,
+        versions: [{ content: 'Visible previous answer', createdAt: 1, kind: 'original' as const, subsequentMessages: [] }],
+        currentVersionIndex: 0,
+      }],
+      buildModel({ apiModelId: 'deepseek-chat', name: 'DeepSeek Chat' }),
+      buildProvider({ name: 'DeepSeek', apiHost: 'https://api.deepseek.com', endpointType: 'openai' }),
+      vi.fn(),
+    );
+
+    const bodyText = fetchMock.mock.calls[0][1].body;
+    const body = JSON.parse(bodyText);
+    expect(body.messages).toEqual([
+      {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'Visible previous answer' },
+          { type: 'image_url', image_url: { url: 'https://example.com/safe.png', detail: 'low' } },
+        ],
+      },
+      { role: 'user', content: 'continue' },
+    ]);
+    expect(bodyText).not.toContain('127.0.0.1');
+    expect(bodyText).not.toContain('file:///tmp/secret.png');
   });
 
   it('does not replay hidden reasoning transcript for generic OpenAI-compatible providers', async () => {

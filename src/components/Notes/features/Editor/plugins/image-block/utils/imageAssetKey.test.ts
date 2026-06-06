@@ -27,8 +27,9 @@ describe('imageAssetKey', () => {
         expect(getImageAssetKey(null)).toBeNull();
     });
 
-    it('keeps absolute local paths', () => {
-        expect(getImageAssetKey('C:\\notes\\assets\\demo.png#preview')).toBe('C:\\notes\\assets\\demo.png');
-        expect(getImageAssetKey('/home/user/notes/demo.png#preview')).toBe('/home/user/notes/demo.png');
+    it('returns null for unsafe local paths', () => {
+        expect(getImageAssetKey('C:\\notes\\assets\\demo.png#preview')).toBeNull();
+        expect(getImageAssetKey('/home/user/notes/demo.png#preview')).toBeNull();
+        expect(getImageAssetKey('assets/evil\u202E.png')).toBeNull();
     });
 });

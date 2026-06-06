@@ -37,11 +37,22 @@ function getMarkdown(
   return serializer(doc)
 }
 
+export function splitFirstMarkdownBlock(markdown: string) {
+  const separatorIndex = markdown.indexOf('\n\n')
+  if (separatorIndex < 0)
+    return { firstBlock: markdown, rest: '' }
+
+  return {
+    firstBlock: markdown.slice(0, separatorIndex),
+    rest: markdown.slice(separatorIndex),
+  }
+}
+
 function addPlaceholder(ctx: Ctx, markdown: string) {
   const config = ctx.get(inlineSyncConfig.key)
   const holePlaceholder = config.placeholderConfig.hole
 
-  const [firstLine = '', ...rest] = markdown.split('\n\n')
+  const { firstBlock, rest } = splitFirstMarkdownBlock(markdown)
 
   const movePlaceholder = (text: string) =>
     config.movePlaceholder(holePlaceholder, text)
@@ -53,12 +64,12 @@ function addPlaceholder(ctx: Ctx, markdown: string) {
     mergeSlash
   )
 
-  let text = handleText(firstLine)
+  let text = handleText(firstBlock)
   const placeholder = calculatePlaceholder(config.placeholderConfig)(text)
 
   text = text.replace(holePlaceholder, placeholder)
 
-  text = [text, ...rest].join('\n\n')
+  text = `${text}${rest}`
 
   return [text, placeholder] as [markdown: string, placeholder: string]
 }
@@ -91,7 +102,8 @@ function collectGlobalNodes(ctx: Ctx, state: EditorState) {
   return nodes
 }
 
-const removeGlobalFromText = (text: string) => text.split('\n\n')[0] || ''
+const removeGlobalFromText = (text: string) =>
+  splitFirstMarkdownBlock(text).firstBlock
 
 function onlyHTML(node: Node) {
   return node.childCount === 1 && node.child(0).type.name === 'html'

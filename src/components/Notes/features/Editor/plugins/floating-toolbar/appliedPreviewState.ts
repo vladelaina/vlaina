@@ -6,6 +6,10 @@ import { CodeBlockNodeView } from '../code/CodeBlockNodeView';
 import { getMermaidElementCode } from '../mermaid/mermaidDom';
 import { getMathElementLatex } from '../math/mathSchema';
 import { getVideoElementAttrs } from '../video/videoDom';
+import {
+  STOP_PROSE_SCAN,
+  scanProseDescendants,
+} from '../shared/boundedProseNodeScan';
 
 const previewCleanupCallbacks = new WeakMap<HTMLElement, () => void>();
 
@@ -261,16 +265,25 @@ function getSerializedCodeBlockElements(previewDom: HTMLElement): HTMLElement[] 
   return collection.complete ? collection.elements : null;
 }
 
-function getPreviewCodeBlockNodes(state: EditorState): Array<{ node: ProseMirrorNode; pos: number }> {
+export function getPreviewCodeBlockNodes(
+  state: EditorState,
+  expectedCount: number
+): Array<{ node: ProseMirrorNode; pos: number }> | null {
+  if (expectedCount <= 0) {
+    return [];
+  }
+
   const codeBlocks: Array<{ node: ProseMirrorNode; pos: number }> = [];
 
-  state.doc.descendants((node, pos) => {
-    if (node.type.name === 'code_block') {
-      codeBlocks.push({ node, pos });
+  scanProseDescendants(state.doc, (node, pos) => {
+    if (node.type?.name === 'code_block') {
+      codeBlocks.push({ node: node as ProseMirrorNode, pos });
+      return codeBlocks.length >= expectedCount ? STOP_PROSE_SCAN : true;
     }
-  });
+    return true;
+  }, Number.POSITIVE_INFINITY);
 
-  return codeBlocks;
+  return codeBlocks.length === expectedCount ? codeBlocks : null;
 }
 
 function renderCodeBlockNodeViewPreviews(
@@ -283,8 +296,8 @@ function renderCodeBlockNodeViewPreviews(
     return;
   }
 
-  const codeBlockNodes = getPreviewCodeBlockNodes(state);
-  if (previewCodeBlocks.length !== codeBlockNodes.length) {
+  const codeBlockNodes = getPreviewCodeBlockNodes(state, previewCodeBlocks.length);
+  if (!codeBlockNodes) {
     return;
   }
 

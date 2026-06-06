@@ -13,9 +13,14 @@ import { sanitizeLinkHref, toggleLinkCommand, updateLinkCommand } from '../mark/
 import { insertImageCommand, sanitizeImageSrc, updateImageCommand } from '../node/image'
 
 const maxInlineImageBytes = 10 * 1024 * 1024
+const maxUrlChars = 16 * 1024
 
 function createOversizedBase64Payload() {
   return 'A'.repeat(Math.ceil((maxInlineImageBytes + 1) / 3) * 4)
+}
+
+function createOversizedUrlPath() {
+  return `${'a'.repeat(maxUrlChars)}.png`
 }
 
 function createEditor(defaultValue = '') {
@@ -133,6 +138,17 @@ it('rejects oversized inline data image sources', () => {
   expect(sanitizeImageSrc(`data:image/png;base64,${createOversizedBase64Payload()}`)).toBe(null)
 })
 
+it('rejects oversized media sources and link hrefs', () => {
+  const oversizedPath = createOversizedUrlPath()
+
+  expect(isPublicRemoteMediaUrl(`https://example.com/${oversizedPath}`)).toBe(false)
+  expect(sanitizeMediaSrc(`https://example.com/${oversizedPath}`)).toBe(null)
+  expect(sanitizeMediaSrc(`blob:https://example.com/${oversizedPath}`)).toBe(null)
+  expect(sanitizeImageSrc(`img:${oversizedPath}`)).toBe(null)
+  expect(sanitizeImageSrc(oversizedPath)).toBe(null)
+  expect(sanitizeLinkHref(`${'a'.repeat(maxUrlChars)}.md`)).toBe(null)
+})
+
 it('drops unsafe markdown image sources during parsing', async () => {
   const editor = createEditor(
     [
@@ -222,6 +238,8 @@ it('does not insert or update images with unsafe command sources', async () => {
   expect(findFirstImageInView(view)?.src).toBe('img:assets/safe.png')
   expect(commands.call(updateImageCommand.key, { src: `data:image/png;base64,${createOversizedBase64Payload()}` })).toBe(false)
   expect(findFirstImageInView(view)?.src).toBe('img:assets/safe.png')
+  expect(commands.call(updateImageCommand.key, { src: createOversizedUrlPath() })).toBe(false)
+  expect(findFirstImageInView(view)?.src).toBe('img:assets/safe.png')
 
   await editor.destroy()
 })
@@ -262,6 +280,9 @@ it('does not add or update links with unsafe command hrefs', async () => {
   expect(findFirstLinkInView(view)).toBe('./safe.md')
 
   expect(commands.call(updateLinkCommand.key, { href: String.raw`https:\example.com\path` })).toBe(false)
+  expect(findFirstLinkInView(view)).toBe('./safe.md')
+
+  expect(commands.call(updateLinkCommand.key, { href: `${'a'.repeat(maxUrlChars)}.md` })).toBe(false)
   expect(findFirstLinkInView(view)).toBe('./safe.md')
 
   await editor.destroy()

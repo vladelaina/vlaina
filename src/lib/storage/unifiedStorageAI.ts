@@ -5,6 +5,10 @@ const MAX_LOADED_AI_MODELS = 10_000;
 const MAX_LOADED_AI_MODEL_RECORDS = 20_000;
 const MAX_LOADED_AI_SESSIONS = 5_000;
 const MAX_LOADED_AI_SESSION_RECORDS = 10_000;
+export const MAX_LOADED_AI_PROVIDERS = 200;
+const MAX_LOADED_AI_PROVIDER_RECORDS = 500;
+export const MAX_LOADED_AI_FIELD_CHARS = 4096;
+export const MAX_LOADED_AI_NAME_CHARS = 512;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -16,6 +20,15 @@ function normalizeTimestamp(value: unknown, fallback: number): number {
 
 function normalizeEndpointType(value: unknown): Provider['endpointType'] | undefined {
   return value === 'openai' || value === 'anthropic' ? value : undefined;
+}
+
+function normalizeLoadedString(value: unknown, maxChars: number, trim = true): string {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const normalized = trim ? value.trim() : value;
+  return normalized.slice(0, maxChars);
 }
 
 export function isSafeProviderId(value: unknown): value is string {
@@ -36,26 +49,36 @@ export function normalizeLoadedAIProviders(providers: unknown[]): Provider[] {
   const now = Date.now();
   const seenIds = new Set<string>();
   const normalized: Provider[] = [];
+  let scannedProviders = 0;
 
   for (const item of providers) {
+    if (
+      scannedProviders >= MAX_LOADED_AI_PROVIDER_RECORDS ||
+      normalized.length >= MAX_LOADED_AI_PROVIDERS
+    ) {
+      break;
+    }
+    scannedProviders += 1;
     if (!isRecord(item)) continue;
 
     const id = typeof item.id === 'string' ? item.id.trim() : '';
     if (!isSafeProviderId(id) || seenIds.has(id)) continue;
     seenIds.add(id);
 
-    const name = typeof item.name === 'string' && item.name.trim()
-      ? item.name.trim()
+    const name = normalizeLoadedString(item.name, MAX_LOADED_AI_NAME_CHARS);
+    const apiHost = normalizeLoadedString(item.apiHost, MAX_LOADED_AI_FIELD_CHARS);
+    const apiKey = normalizeLoadedString(item.apiKey, MAX_LOADED_AI_FIELD_CHARS, false);
+    const icon = normalizeLoadedString(item.icon, MAX_LOADED_AI_FIELD_CHARS);
+    const displayName = name
+      ? name
       : 'Custom Provider';
-    const apiHost = typeof item.apiHost === 'string' ? item.apiHost.trim() : '';
-    const apiKey = typeof item.apiKey === 'string' ? item.apiKey : '';
     const endpointType = normalizeEndpointType(item.endpointType);
     const endpointTypeCheckedAt = normalizeTimestamp(item.endpointTypeCheckedAt, NaN);
 
     normalized.push({
       id,
-      name,
-      icon: typeof item.icon === 'string' ? item.icon : undefined,
+      name: displayName,
+      ...(icon ? { icon } : {}),
       type: 'newapi',
       ...(endpointType ? { endpointType } : {}),
       ...(Number.isFinite(endpointTypeCheckedAt) ? { endpointTypeCheckedAt } : {}),
@@ -95,8 +118,8 @@ export function normalizeLoadedAIModels(
     }
     scannedModels += 1;
     if (!isRecord(item)) continue;
-    const providerId = typeof item.providerId === 'string' ? item.providerId.trim() : '';
-    const apiModelId = typeof item.apiModelId === 'string' ? item.apiModelId.trim() : '';
+    const providerId = normalizeLoadedString(item.providerId, MAX_LOADED_AI_FIELD_CHARS);
+    const apiModelId = normalizeLoadedString(item.apiModelId, MAX_LOADED_AI_FIELD_CHARS);
     if (!providerIds.has(providerId) || !apiModelId) continue;
 
     const id = buildScopedModelId(providerId, apiModelId);
@@ -104,16 +127,14 @@ export function normalizeLoadedAIModels(
     if (seenModelIds.has(normalizedId)) continue;
     seenModelIds.add(normalizedId);
 
+    const name = normalizeLoadedString(item.name, MAX_LOADED_AI_NAME_CHARS);
+    const group = normalizeLoadedString(item.group, MAX_LOADED_AI_NAME_CHARS);
     normalizedModels.push({
       id,
       apiModelId,
-      name: typeof item.name === 'string' && item.name.trim()
-        ? item.name.trim()
-        : generateModelName(apiModelId),
+      name: name || generateModelName(apiModelId),
       providerId,
-      group: typeof item.group === 'string' && item.group.trim()
-        ? item.group.trim()
-        : generateModelGroup(apiModelId),
+      group: group || generateModelGroup(apiModelId),
       ...normalizeLoadedModelPrice(item),
       enabled: item.enabled !== false,
       pinned: item.pinned === true,
@@ -145,10 +166,11 @@ export function normalizeLoadedAIModels(
     if (!isSafeChatSessionId(id) || seenSessionIds.has(id)) continue;
     seenSessionIds.add(id);
 
-    const modelId = typeof item.modelId === 'string' ? item.modelId : '';
+    const modelId = normalizeLoadedString(item.modelId, MAX_LOADED_AI_FIELD_CHARS);
+    const title = normalizeLoadedString(item.title, MAX_LOADED_AI_FIELD_CHARS);
     normalizedSessions.push({
       id,
-      title: typeof item.title === 'string' && item.title.trim() ? item.title : 'New Chat',
+      title: title || 'New Chat',
       modelId: remapModelId(modelId) || modelId,
       isPinned: item.isPinned === true,
       createdAt: normalizeTimestamp(item.createdAt, now),

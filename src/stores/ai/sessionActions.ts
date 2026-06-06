@@ -174,19 +174,46 @@ function collectInlineImageSources(messages: ChatMessage[], groups: InlineImageS
   return groups
 }
 
-function applyImageSourceReplacements(messages: ChatMessage[], replacements: Map<string, string>): ChatMessage[] {
-  return messages.map((message) => ({
-    ...message,
-    content: replaceAllSourceReferences(message.content, replacements),
-    apiTranscript: replaceApiTranscriptSources(message.apiTranscript, replacements),
-    imageSources: message.imageSources?.map((source) => replacements.get(source) || source),
-    versions: message.versions?.map((version) => ({
-      ...version,
-      content: replaceAllSourceReferences(version.content, replacements),
-      apiTranscript: replaceApiTranscriptSources(version.apiTranscript, replacements),
-      subsequentMessages: applyImageSourceReplacements(version.subsequentMessages || [], replacements),
-    })),
-  }))
+interface InlineImageReplacementContext {
+  messageNodes: number
+}
+
+function applyImageSourceReplacements(
+  messages: ChatMessage[],
+  replacements: Map<string, string>,
+  context: InlineImageReplacementContext = { messageNodes: 0 },
+  depth = 0,
+): ChatMessage[] {
+  const nextMessages: ChatMessage[] = []
+  for (let index = 0; index < messages.length; index += 1) {
+    if (context.messageNodes >= MAX_INLINE_IMAGE_PERSISTENCE_MESSAGE_NODES) {
+      return index === 0 ? messages : nextMessages.concat(messages.slice(index))
+    }
+
+    context.messageNodes += 1
+    const message = messages[index]
+    nextMessages.push({
+      ...message,
+      content: replaceAllSourceReferences(message.content, replacements),
+      apiTranscript: replaceApiTranscriptSources(message.apiTranscript, replacements),
+      imageSources: message.imageSources?.map((source) => replacements.get(source) || source),
+      versions: message.versions?.map((version, versionIndex) => {
+        if (versionIndex >= MAX_INLINE_IMAGE_PERSISTENCE_VERSIONS) {
+          return version
+        }
+
+        return {
+          ...version,
+          content: replaceAllSourceReferences(version.content, replacements),
+          apiTranscript: replaceApiTranscriptSources(version.apiTranscript, replacements),
+          subsequentMessages: depth < MAX_INLINE_IMAGE_PERSISTENCE_BRANCH_DEPTH
+            ? applyImageSourceReplacements(version.subsequentMessages || [], replacements, context, depth + 1)
+            : version.subsequentMessages,
+        }
+      }),
+    })
+  }
+  return nextMessages
 }
 
 async function persistInlineImageSourcesForSession(sessionId: string) {
