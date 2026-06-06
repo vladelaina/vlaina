@@ -130,7 +130,7 @@ describe('clipboard paste markdown persistence', () => {
     [
       'video',
       '![video](https://example.com/video.mp4 "Demo video")',
-      '<img src="https://example.com/video.mp4" alt="video" title="Demo video" />',
+      '![video](https://example.com/video.mp4 "Demo video")',
     ],
   ] as const)('persists pasted %s markdown as html image syntax', async (_name, markdown, expected) => {
     await expect(pasteAndPersist(markdown)).resolves.toBe(expected);

@@ -42,9 +42,9 @@ function createAttachment(overrides: Partial<Attachment> = {}): Attachment {
 
 function createFileList(files: File[]): FileList {
   return {
-    length: files.length,
     item: (index: number) => files[index] ?? null,
     ...files,
+    length: files.length,
   } as unknown as FileList;
 }
 
@@ -58,12 +58,12 @@ function createClipboardItems(files: File[]): DataTransferItemList {
   } as unknown as DataTransferItem));
   items.length = MAX_CHAT_ATTACHMENT_TRANSFER_ITEM_SCAN + 20;
   return {
-    length: items.length,
     add: vi.fn(),
     clear: vi.fn(),
     item: (index: number) => items[index] ?? null,
     remove: vi.fn(),
     ...items,
+    length: items.length,
   } as unknown as DataTransferItemList;
 }
 

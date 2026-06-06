@@ -140,6 +140,7 @@ describe('BlockControlsViewSession', () => {
         scrollLeft: 0,
         scrollTop: 0,
         blocks: [],
+        blockIndex: new Map(),
         headings: [],
       });
       await nextFrame();

@@ -2,7 +2,12 @@ import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { moveImageToTrash, restoreImageFromTrash } from './utils/fileUtils';
-import { diffImageAssetKeySets, scanImageAssetKeys, scanImageNodePresence } from './imageAssetLifecycle';
+import {
+    diffImageAssetKeySets,
+    scanImageAssetKeys,
+    scanImageNodePresence,
+    type ImageAssetScanNode,
+} from './imageAssetLifecycle';
 
 interface ImageAssetLifecycleState {
     assetKeys: ReadonlySet<string>;
@@ -19,11 +24,7 @@ const imageAssetLifecyclePluginKey = new PluginKey<ImageAssetLifecycleState>('im
 function stepSliceContainsImage(step: unknown): boolean {
     const content = (step as {
         slice?: {
-            content?: {
-                child?: (index: number) => unknown;
-                childCount?: number;
-                descendants?: (callback: (node: { type?: { name?: string } }) => boolean | void) => void;
-            };
+            content?: ImageAssetScanNode;
         };
     }).slice?.content;
     if (!content || (typeof content.child !== 'function' && typeof content.descendants !== 'function')) {

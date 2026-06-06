@@ -151,14 +151,18 @@ function parseHtmlImageAssetRanges(
   tagEnd: number,
 ): ExportMarkdownAssetSourceToken[] {
   const tagMatch = /^<([A-Za-z][A-Za-z0-9:-]*)\b/.exec(content.slice(tagStart, tagEnd));
-  const tagName = tagMatch?.[1]?.toLowerCase();
+  if (!tagMatch) {
+    return [];
+  }
+  const tagName = tagMatch[1]?.toLowerCase();
   if (!tagName || !TAG_ASSET_ATTRIBUTES[tagName]) {
     return [];
   }
+  const tagPrefix = tagMatch[0];
 
   const tokens: ExportMarkdownAssetSourceToken[] = [];
   const allowedAttributes = TAG_ASSET_ATTRIBUTES[tagName];
-  let cursor = tagStart + tagMatch[0].length;
+  let cursor = tagStart + tagPrefix.length;
   while (cursor < tagEnd) {
     while (cursor < tagEnd && /\s/.test(content[cursor])) {
       cursor += 1;

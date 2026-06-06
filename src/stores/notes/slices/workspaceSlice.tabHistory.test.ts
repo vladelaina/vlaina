@@ -5,7 +5,7 @@ import type { NotesStore } from '../types';
 
 const storageAdapter = vi.hoisted(() => ({
   exists: vi.fn<(path: string) => Promise<boolean>>(),
-  stat: vi.fn<(path: string) => Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null } | null>>(),
+  stat: vi.fn<(path: string) => Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null; size?: number | null } | null>>(),
   readFile: vi.fn<(path: string) => Promise<string>>(),
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
 }));
@@ -110,7 +110,7 @@ describe('workspaceSlice tab history', () => {
     storageAdapter.stat.mockReset();
     storageAdapter.readFile.mockReset();
     storageAdapter.writeFile.mockReset();
-    storageAdapter.stat.mockResolvedValue({ modifiedAt: 1, isFile: true });
+    storageAdapter.stat.mockResolvedValue({ modifiedAt: 1, isFile: true, size: 0 });
     storageAdapter.writeFile.mockResolvedValue(undefined);
     hoisted.flushCurrentPendingEditorMarkdown.mockReset();
   });
@@ -714,7 +714,7 @@ describe('workspaceSlice tab history', () => {
 
   it('prefetches a note into cache without changing the current note or tabs', async () => {
     storageAdapter.readFile.mockResolvedValue('# prefetched');
-    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true });
+    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true, size: 0 });
 
     const store = createNotesStore({
       currentNote: { path: 'alpha.md', content: '# alpha' },
@@ -739,7 +739,7 @@ describe('workspaceSlice tab history', () => {
   it('revalidates a stale cached note during hover prefetch so the next open can stay hot', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(5_000);
-    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true });
+    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true, size: 0 });
 
     const store = createNotesStore({
       currentNote: { path: 'alpha.md', content: '# alpha' },
@@ -764,7 +764,7 @@ describe('workspaceSlice tab history', () => {
   });
 
   it('does not prefetch over a dirty background tab', async () => {
-    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true });
+    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true, size: 0 });
     storageAdapter.readFile.mockResolvedValue('# disk beta');
 
     const store = createNotesStore({
@@ -801,7 +801,7 @@ describe('workspaceSlice tab history', () => {
           resolveRead = resolve;
         })
     );
-    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true });
+    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true, size: 0 });
 
     const store = createNotesStore({
       currentNote: { path: 'alpha.md', content: '# alpha' },
@@ -836,7 +836,7 @@ describe('workspaceSlice tab history', () => {
           pendingReads.set(path, resolve);
         })
     );
-    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true });
+    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true, size: 0 });
 
     const store = createNotesStore({
       currentNote: { path: 'alpha.md', content: '# alpha' },

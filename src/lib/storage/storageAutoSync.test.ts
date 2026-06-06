@@ -104,7 +104,11 @@ describe('storageAutoSync', () => {
     const { subscribeStorageAutoSync } = await import('./storageAutoSync');
 
     const unsubscribe = subscribeStorageAutoSync(listener);
-    onmessage?.({
+    const handleMessage: ((event: { data: unknown }) => void) | null = onmessage;
+    if (!handleMessage) {
+      throw new Error('BroadcastChannel onmessage was not registered');
+    }
+    (handleMessage as (event: { data: unknown }) => void)({
       data: {
         kind: 'unified',
         sourceId: 'other-window',

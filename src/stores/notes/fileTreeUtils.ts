@@ -401,12 +401,12 @@ export function expandFoldersForPath(nodes: FileTreeNode[], targetPath: string):
     }
 
     didChange = true;
-    const nextNode = {
+    const nextNode: FileTreeNode = {
       ...entry.node,
       expanded: true,
       children: nextNodes ?? entry.node.children,
     };
-    nextNodes = entry.nodes.map((node, nodeIndex) => (
+    nextNodes = entry.nodes.map((node, nodeIndex): FileTreeNode => (
       nodeIndex === entry.index ? nextNode : node
     ));
   }

@@ -16,7 +16,7 @@ function normalizeImageToken(token: ImageToken): ImageToken | null {
 function normalizeImageTokens(tokens: ImageToken[]): ImageToken[] {
   return tokens
     .map(normalizeImageToken)
-    .filter((token): token is ImageToken => Boolean(token) && !!token.src && !parseVideoUrl(token.src));
+    .filter((token): token is ImageToken => token !== null && token.src !== null && !parseVideoUrl(token.src));
 }
 
 export function replaceRenderableMarkdownImageTokens(content: string, replacement: string): string {

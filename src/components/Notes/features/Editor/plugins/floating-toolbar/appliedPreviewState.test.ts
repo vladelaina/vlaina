@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Schema } from '@milkdown/kit/prose/model';
-import { EditorState } from '@milkdown/kit/prose/state';
+import * as ProseModel from '@milkdown/kit/prose/model';
+import * as ProseState from '@milkdown/kit/prose/state';
+import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import {
   collectAppliedPreviewElements,
   renderAppliedPreviewDocument,
@@ -41,7 +42,9 @@ describe('appliedPreviewState', () => {
   });
 
   it('renders applied preview preservation paths without broad DOM selector scans', () => {
-    const schema = new Schema({
+    const SchemaCtor = (ProseModel as any).Schema;
+    const EditorStateCtor = (ProseState as any).EditorState;
+    const schema = new SchemaCtor({
       nodes: {
         doc: { content: 'block+' },
         paragraph: {
@@ -63,7 +66,7 @@ describe('appliedPreviewState', () => {
           group: 'inline',
           atom: true,
           attrs: { src: { default: '' }, alt: { default: '' } },
-          toDOM: (node) => ['img', { src: node.attrs.src, alt: node.attrs.alt }],
+          toDOM: (node: ProseNode) => ['img', { src: node.attrs.src, alt: node.attrs.alt }],
         },
         frontmatter: {
           content: 'text*',
@@ -73,7 +76,7 @@ describe('appliedPreviewState', () => {
         text: { group: 'inline' },
       },
     });
-    const state = EditorState.create({
+    const state = EditorStateCtor.create({
       schema,
       doc: schema.node('doc', null, [
         schema.node('bullet_list', null, [

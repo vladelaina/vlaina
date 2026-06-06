@@ -84,7 +84,7 @@ describe('LanguageSelector', () => {
 
     const autoDetectButton = screen.getByTitle('Auto Detect Language');
     expect(autoDetectButton.className).toContain('rounded-full');
-    expect(autoDetectButton.className).toContain('hover:bg-blue-500/10');
-    expect(autoDetectButton.className).toContain('hover:text-blue-500');
+    expect(autoDetectButton.className).toContain('hover:bg-[var(--vlaina-color-status-info-bg)]');
+    expect(autoDetectButton.className).toContain('hover:text-[var(--vlaina-color-status-info-fg)]');
   });
 });

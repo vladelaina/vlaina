@@ -129,6 +129,7 @@ export function useNotesOpenMarkdownTarget({
       }
 
       const target = resolveOpenNoteTarget(selected);
+      const targetNotePath = target.notePath;
       const normalizedTargetVaultPath = normalizeVaultPath(target.vaultPath);
       const normalizedCurrentVaultPath = currentVaultPath ? normalizeVaultPath(currentVaultPath) : null;
       const normalizedNotesPath = notesPath ? normalizeVaultPath(notesPath) : '';
@@ -137,8 +138,10 @@ export function useNotesOpenMarkdownTarget({
         : null;
 
       if (currentVaultRelativePath && isSupportedMarkdownSelection(currentVaultRelativePath)) {
+        const currentVaultPathForTarget = normalizedCurrentVaultPath;
+        if (!currentVaultPathForTarget) return;
         const opened = await openShortcutNoteTarget({
-          vaultPath: normalizedCurrentVaultPath,
+          vaultPath: currentVaultPathForTarget,
           notePath: currentVaultRelativePath,
           absolutePath: selected,
         });
@@ -154,7 +157,7 @@ export function useNotesOpenMarkdownTarget({
       if (normalizedCurrentVaultPath === normalizedTargetVaultPath && normalizedNotesPath === normalizedTargetVaultPath) {
         const opened = await openShortcutNoteTarget({
           vaultPath: normalizedTargetVaultPath,
-          notePath: target.notePath,
+          notePath: targetNotePath,
           absolutePath: selected,
         });
         if (!opened) {
@@ -168,7 +171,7 @@ export function useNotesOpenMarkdownTarget({
 
       setPendingShortcutNoteTarget({
         vaultPath: normalizedTargetVaultPath,
-        notePath: target.notePath,
+        notePath: targetNotePath,
         absolutePath: selected,
         startedAt: performance.now(),
       });

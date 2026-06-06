@@ -7,6 +7,10 @@ function readIndexStyles() {
   return readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
 }
 
+function readThemeStyles() {
+  return readFileSync(resolve(process.cwd(), 'src/styles/theme.css'), 'utf8');
+}
+
 function readEditorCoreStyles() {
   return readFileSync(
     resolve(process.cwd(), 'src/components/Notes/features/Editor/styles/core.css'),
@@ -44,6 +48,16 @@ function readBlankAreaDragBoxPlugin() {
   );
 }
 
+function readForcedLineEdgeCaret() {
+  return readFileSync(
+    resolve(
+      process.cwd(),
+      'src/components/Notes/features/Editor/plugins/cursor/forcedLineEdgeCaret.ts'
+    ),
+    'utf8'
+  );
+}
+
 function readTextBlockCaretOverlayPlugin() {
   return readFileSync(
     resolve(
@@ -75,10 +89,11 @@ function readCaretOverlayStyles() {
 describe('caret styles', () => {
   it('uses a shared global caret color token', () => {
     const css = readIndexStyles();
+    const themeCss = readThemeStyles();
 
-    expect(css).toContain('--vlaina-color-caret: #41ace2;');
-    expect(css).toContain('--vlaina-caret-color: var(--vlaina-color-caret);');
-    expect(css).toContain('--vlaina-caret-width: 2px;');
+    expect(themeCss).toContain('--vlaina-color-caret: #41ace2;');
+    expect(themeCss).toContain('--vlaina-caret-color: var(--vlaina-color-caret);');
+    expect(themeCss).toContain('--vlaina-caret-width: 2px;');
     expect(css).toContain("[contenteditable]:not([contenteditable='false']) {");
     expect(css).toContain('caret-color: transparent;');
   });
@@ -94,7 +109,7 @@ describe('caret styles', () => {
   it('keeps embedded code block carets sourced from the shared caret token', () => {
     const source = readCodeBlockEditorTheme();
 
-    expect(source).toContain("caretColor: 'transparent !important'");
+    expect(source).toContain('caretColor: themeStyleResetTokens.colorTransparentImportant');
     expect(source).toContain("borderLeftColor: 'var(--vlaina-caret-color) !important'");
     expect(source).toContain("borderLeftWidth: 'var(--vlaina-caret-width)'");
     expect(source).not.toContain('vlaina-editor-caret');
@@ -138,11 +153,13 @@ describe('caret styles', () => {
   });
 
   it('keeps forced line-end carets sourced from the shared caret token', () => {
-    const source = readBlankAreaDragBoxPlugin();
+    const source = readForcedLineEdgeCaret();
+    const pluginSource = readBlankAreaDragBoxPlugin();
 
     expect(source).toContain('createCaretOverlayStyle({');
     expect(source).toContain('createCaretOverlayRect({');
     expect(source).toContain("caretClass: 'editor-forced-line-end-caret'");
+    expect(pluginSource).toContain('clearForcedCaretForOwner(view.dom)');
     expect(source).not.toContain('Math.max(12, textRect.bottom - textRect.top)');
     expect(source).not.toContain('background: var(--vlaina-caret-color, #41ace2)');
   });

@@ -4,9 +4,15 @@ import { downloadAndSaveAvatar, getLocalAvatarUrl } from './avatarManager';
 
 const hoisted = vi.hoisted(() => ({
   getBasePath: vi.fn(async () => '/app-data'),
-  exists: vi.fn(async () => true),
+  exists: vi.fn(async (_path: string) => true),
   mkdir: vi.fn(async () => undefined),
-  stat: vi.fn(async () => null),
+  stat: vi.fn(async (_path: string): Promise<{
+    name: string;
+    path: string;
+    isDirectory: boolean;
+    isFile: boolean;
+    modifiedAt: number;
+  } | null> => null),
   writeBinaryFile: vi.fn(async () => undefined),
   loadImageAsBase64: vi.fn(async () => 'data:image/png;base64,LOCAL'),
 }));
@@ -176,7 +182,7 @@ describe('avatarManager request cleanup', () => {
     const blob = vi.fn(async () => avatarBlob);
     const fetch = vi.fn(async () => ({
       ok: true,
-      headers: new Headers({ 'content-type': 'image/webp' }),
+      headers: new Headers({ 'content-type': 'image/webp', 'content-length': '3' }),
       blob,
     }));
     vi.stubGlobal('fetch', fetch);

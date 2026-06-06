@@ -53,6 +53,7 @@ export interface UnifiedData {
     includeTimeContext?: boolean;
     webSearchEnabled?: boolean;
     deletedProviderIds?: string[];
+    deletedSessionIds?: string[];
   };
 }
 

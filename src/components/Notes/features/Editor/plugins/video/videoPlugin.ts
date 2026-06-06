@@ -70,11 +70,13 @@ export const videoSchema = $node('video', () => ({
         height: node.attrs.height,
       });
 
+      state.openNode('paragraph');
       state.addNode('image', undefined, undefined, {
         url: src,
         title: attrs.title || undefined,
         alt: 'video',
       });
+      state.closeNode();
     },
   },
 }));

@@ -11,6 +11,10 @@ import { readSettingsApiJson } from './settingsApiJson';
 const API_BASE = 'https://api.vlaina.com';
 const MAX_FEEDBACK_LENGTH = 2000;
 
+function isFeedbackResponsePayload(value: unknown): value is { success?: boolean; error?: string } {
+  return typeof value === 'object' && value !== null;
+}
+
 async function submitWebFeedback(message: string) {
   const response = await fetch(`${API_BASE}/feedback`, {
     method: 'POST',
@@ -23,7 +27,8 @@ async function submitWebFeedback(message: string) {
     body: JSON.stringify({ message }),
   });
 
-  const payload = await readSettingsApiJson<{ success?: boolean; error?: string }>(response).catch(() => ({}));
+  const parsedPayload = await readSettingsApiJson<{ success?: boolean; error?: string }>(response).catch(() => ({}));
+  const payload = isFeedbackResponsePayload(parsedPayload) ? parsedPayload : {};
   if (!response.ok || payload.success === false) {
     throw new Error(payload.error || `HTTP ${response.status}`);
   }

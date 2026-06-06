@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { FolderNode } from '@/stores/useNotesStore';
+import type { FileTreeNode, FolderNode } from '@/stores/useNotesStore';
 import {
   buildNotesSidebarSearchIndex,
   countNotesSidebarSearchEntries,
@@ -81,12 +81,12 @@ describe('notesSidebarSearchResults', () => {
   });
 
   it('builds the search index for deeply nested notes without recursive traversal', () => {
-    let current: FolderNode = {
+    let current: FileTreeNode = {
       id: 'deep-note',
       name: 'deep.md',
       path: 'deep.md',
       isFolder: false,
-    } as FolderNode;
+    };
 
     for (let depth = 0; depth < 1500; depth += 1) {
       current = {
@@ -99,7 +99,7 @@ describe('notesSidebarSearchResults', () => {
       };
     }
 
-    expect(buildNotesSidebarSearchIndex(current, () => '')).toEqual([
+    expect(buildNotesSidebarSearchIndex(current as FolderNode, () => '')).toEqual([
       {
         path: 'deep.md',
         name: 'deep.md',

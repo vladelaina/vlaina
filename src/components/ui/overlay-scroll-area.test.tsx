@@ -128,7 +128,7 @@ describe('OverlayScrollArea', () => {
     const track = rail?.firstElementChild as HTMLDivElement | null;
     const thumb = track?.firstElementChild as HTMLDivElement | null;
 
-    expect(thumb?.className).toContain('bg-[#efefef]');
+    expect(thumb?.className).toContain('bg-[var(--vlaina-color-scrollbar-thumb)]');
     expect(thumb?.className).toContain('right-0');
     expect(thumb?.className).toContain('w-[var(--vlaina-size-5px)]');
   });
@@ -181,7 +181,7 @@ describe('OverlayScrollArea', () => {
     expect(rail?.className).toContain('w-4');
     expect(track?.className).toContain('w-3');
     expect(thumb?.className).toContain('w-2');
-    expect(thumb?.className).toContain('right-[2px]');
-    expect(thumb?.className).toContain('bg-[rgba(120,120,120,0.5)]');
+    expect(thumb?.className).toContain('right-[var(--vlaina-scrollbar-thumb-offset)]');
+    expect(thumb?.className).toContain('bg-[var(--vlaina-color-scrollbar-thumb-hover)]');
   });
 });

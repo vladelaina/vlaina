@@ -62,6 +62,8 @@ const EMPTY_LIST_ITEM_PLACEHOLDER_PATTERN =
   /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])(?:\s+\[(?: |x|X)\])?)\s+<br\b[^>]*\/?>\s*(?:<\/br>)?$/gim;
 const EDITABLE_LIST_GAP_MARKER_PLACEHOLDER_PATTERN =
   /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])(?:\s+\[(?: |x|X)\])?)\s+\u2800\s*$/;
+const SERIALIZED_EDITABLE_LIST_GAP_PLACEHOLDER_PATTERN =
+  /^\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+\u2800\s*$/;
 const STANDALONE_BR_LINE_PATTERN = /^(\s*)<br\b[^>]*\/?>\s*(?:<\/br>)?$/i;
 const BLOCKQUOTE_STANDALONE_BR_LINE_PATTERN = /^(\s*(?:>\s*)+)<br\b[^>]*\/?>\s*(?:<\/br>)?$/i;
 const INLINE_TERMINAL_LIST_BR_PATTERN =
@@ -1208,14 +1210,20 @@ function isEditorPlaceholderBlankLine(line: string): boolean {
 }
 
 function normalizeListItemBlankLines(text: string): string {
-  if (!text.includes(LIST_GAP_SENTINEL)) {
+  if (!text.includes(LIST_GAP_SENTINEL) && !text.includes('\u2800')) {
     return text;
   }
 
-  return mapMarkdownOutsideProtectedSegments(
-    text,
-    replaceListGapSentinelsWithBlankLines,
-  );
+  const normalizedSentinels = text.includes(LIST_GAP_SENTINEL)
+    ? mapMarkdownOutsideProtectedSegments(
+      text,
+      replaceListGapSentinelsWithBlankLines,
+    )
+    : text;
+
+  return normalizedSentinels.includes('\u2800')
+    ? replaceListGapSentinelsWithBlankLines(normalizedSentinels)
+    : normalizedSentinels;
 }
 
 function replaceListGapSentinelsWithBlankLines(text: string): string {
@@ -1225,7 +1233,7 @@ function replaceListGapSentinelsWithBlankLines(text: string): string {
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? '';
-    if (line !== LIST_GAP_SENTINEL) {
+    if (line !== LIST_GAP_SENTINEL && !SERIALIZED_EDITABLE_LIST_GAP_PLACEHOLDER_PATTERN.test(line)) {
       output.push(line);
       previousWasListGapSentinel = false;
       continue;

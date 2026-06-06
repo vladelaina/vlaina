@@ -11,7 +11,7 @@ describe('image block style utils', () => {
             computedAspectRatio: 'auto',
         })).toMatchObject({
             opacity: 1,
-            minHeight: 100,
+            minHeight: 'var(--vlaina-size-100px)',
         });
     });
 

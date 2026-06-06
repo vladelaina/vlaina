@@ -6,7 +6,7 @@ import {
   serializerCtx,
 } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
-import { DOMParser as ProseDOMParser } from '@milkdown/kit/prose/model';
+import { DOMParser as ProseDOMParser, type Node as ProseNode } from '@milkdown/kit/prose/model';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import {
@@ -43,7 +43,7 @@ async function parseCalloutAttrsFromDom(setup: (callout: HTMLElement) => void) {
   const schema = editor.ctx.get(editorViewCtx).state.schema;
   const doc = ProseDOMParser.fromSchema(schema).parse(container);
   let attrs: Record<string, unknown> | null = null;
-  doc.descendants((node) => {
+  doc.descendants((node: ProseNode) => {
     if (node.type.name === 'callout') {
       attrs = node.attrs;
       return false;

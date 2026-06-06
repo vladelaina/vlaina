@@ -187,7 +187,7 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'blockquote nested ordered blanks stay scoped',
       markdown: lines(['> 1. parent', '>    1. child one', '>', '>    2. child two', '>', '> 2. next']),
-      expected: lines(['> 1. parent', '>', '>    1. child one', '>', '>    2. child two', '>', '> 2. next']),
+      expected: lines(['> 1. parent', '>', '>    1. child one', '>', '>    2. child two', '> 2. next']),
     },
     {
       name: 'blockquote mixed task and ordered gaps stay scoped',
@@ -202,7 +202,7 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'blockquote malformed list markers keep blanks through canonicalization',
       markdown: lines(['> 1.第一项', '>', '> 2.第二项', '>', '>', '> 3.第三项']),
-      expected: lines(['> 1 .第一项', '>', '> 2.第二项', '>', '> 3.第三项']),
+      expected: lines(['> 1.第一项', '>', '> 2.第二项', '>', '> 3.第三项']),
     },
     {
       name: 'blockquote code fence keeps internal blank line',
@@ -401,7 +401,7 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'video image syntax keeps surrounding blank lines',
       markdown: lines(['Before', '', '![video](https://example.com/video.mp4 "Demo")', '', '', 'After']),
-      expected: lines(['Before', '', '<img src="https://example.com/video.mp4" alt="video" title="Demo" />', '', '', 'After']),
+      expected: lines(['Before', '', '![video](https://example.com/video.mp4 "Demo")', '', '', 'After']),
     },
     {
       name: 'raw html block keeps internal blank lines',

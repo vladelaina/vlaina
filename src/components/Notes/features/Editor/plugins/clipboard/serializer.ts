@@ -3,7 +3,6 @@ import {
     consumeClipboardTraversalNode,
     createClipboardTraversalBudget,
     getProseNodeChildren,
-    type ClipboardTraversalBudget,
 } from './clipboardTraversalBudget';
 
 function escapeLinkText(text: string): string {

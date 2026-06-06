@@ -114,7 +114,15 @@ async function raceWithAbort(promise, signal) {
 async function readResponseText(response, signal) {
   throwIfAborted(signal);
   if (!response.body) {
-    return '';
+    if (typeof response.text !== 'function') {
+      return '';
+    }
+    const text = await raceWithAbort(response.text(), signal);
+    throwIfAborted(signal);
+    if (Buffer.byteLength(text, 'utf8') > MAX_SEARCH_RESPONSE_TEXT_BYTES) {
+      throw new WebSearchError('response_too_large', 'Search response is too large.');
+    }
+    return text;
   }
 
   const reader = response.body.getReader();

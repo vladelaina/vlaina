@@ -13,7 +13,7 @@ export interface ImageAssetKeyScan {
     complete: boolean;
 }
 
-interface ImageAssetScanNode {
+export interface ImageAssetScanNode {
     type?: { name?: string };
     attrs?: { src?: unknown };
     childCount?: number;
@@ -116,7 +116,7 @@ export function scanImageAssetKeys(
 
     const complete = scanImageAssetNodes(doc, (node) => {
         if (node.type?.name !== 'image') return true;
-        const assetKey = getImageAssetKey(node.attrs.src);
+        const assetKey = getImageAssetKey(node.attrs?.src);
         if (assetKey) {
             if (assetKeys.size >= MAX_IMAGE_ASSET_KEYS) {
                 capped = true;

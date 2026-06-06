@@ -261,6 +261,19 @@ describe('createBlockRectResolver', () => {
       toJSON: () => ({}),
     } as DOMRect;
 
+    const blocks = [{
+      from: 0,
+      to: 3,
+      element: paragraph,
+      rect: staleRect,
+      documentTop: 120,
+      documentBottom: 144,
+      tagName: 'P',
+      headingLevel: null,
+      headingId: null,
+      headingText: null,
+    }];
+
     setCurrentEditorBlockPositionSnapshot({
       version: 1,
       view: view as any,
@@ -269,18 +282,8 @@ describe('createBlockRectResolver', () => {
       scrollRoot: null,
       scrollLeft: 0,
       scrollTop: 0,
-      blocks: [{
-        from: 0,
-        to: 3,
-        element: paragraph,
-        rect: staleRect,
-        documentTop: 120,
-        documentBottom: 144,
-        tagName: 'P',
-        headingLevel: null,
-        headingId: null,
-        headingText: null,
-      }],
+      blocks,
+      blockIndex: new Map(blocks.map((block) => [`${block.from}:${block.to}`, block])),
       headings: [],
     });
 
@@ -317,6 +320,19 @@ describe('createBlockRectResolver', () => {
       domAtPos: () => ({ node: paragraph.firstChild as Node }),
     };
 
+    const blocks = [{
+      from: 0,
+      to: 3,
+      element: paragraph,
+      rect: paragraph.getBoundingClientRect(),
+      documentTop: 40,
+      documentBottom: 64,
+      tagName: 'P',
+      headingLevel: null,
+      headingId: null,
+      headingText: null,
+    }];
+
     setCurrentEditorBlockPositionSnapshot({
       version: 1,
       view: view as any,
@@ -325,18 +341,8 @@ describe('createBlockRectResolver', () => {
       scrollRoot: null,
       scrollLeft: 0,
       scrollTop: 0,
-      blocks: [{
-        from: 0,
-        to: 3,
-        element: paragraph,
-        rect: paragraph.getBoundingClientRect(),
-        documentTop: 40,
-        documentBottom: 64,
-        tagName: 'P',
-        headingLevel: null,
-        headingId: null,
-        headingText: null,
-      }],
+      blocks,
+      blockIndex: new Map(blocks.map((block) => [`${block.from}:${block.to}`, block])),
       headings: [],
     });
 

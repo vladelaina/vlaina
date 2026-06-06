@@ -106,7 +106,7 @@ describe('collectMentionCandidates', () => {
   });
 
   it('collects candidates from deep trees without recursive traversal', () => {
-    const candidates = [];
+    const candidates: NoteMentionCandidate[] = [];
 
     collectMentionCandidates(createDeepTree(2500), candidates);
 

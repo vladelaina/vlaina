@@ -440,7 +440,7 @@ export function MarkdownEditor({
                     key={currentNotePath ?? 'empty'}
                     fallback={(
                       <MarkdownSourceFallback
-                        currentNotePath={currentNotePath}
+                        currentNotePath={currentNotePath ?? ''}
                         showBodyLineNumbers={showBodyLineNumbers}
                         saveNote={saveNote}
                       />

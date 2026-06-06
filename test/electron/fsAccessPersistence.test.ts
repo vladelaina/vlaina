@@ -123,6 +123,7 @@ describe('desktop filesystem authorization persistence', () => {
       MAX_AUTHORIZED_FS_PATH_ENTRIES,
       assertAuthorizedFsPath,
       isAuthorizedFsPathKey,
+      normalizeFsPathForAccess,
       normalizeFsPathKey,
       resetAuthorizedFsPathsForTests,
     } = await import('../../electron/fsAccess.mjs');
@@ -141,9 +142,9 @@ describe('desktop filesystem authorization persistence', () => {
       watchRoots: savedRoots,
     }));
 
-    await expect(assertAuthorizedFsPath('/tmp/saved-0')).resolves.toBe('/tmp/saved-0');
+    await expect(assertAuthorizedFsPath('/tmp/saved-0')).resolves.toBe(normalizeFsPathForAccess('/tmp/saved-0'));
     expect(isAuthorizedFsPathKey(normalizeFsPathKey('/tmp/saved-0/note.md'))).toBe(true);
-    await expect(assertAuthorizedFsPath('/tmp/saved-0/note.md')).resolves.toBe('/tmp/saved-0/note.md');
+    await expect(assertAuthorizedFsPath('/tmp/saved-0/note.md')).resolves.toBe(normalizeFsPathForAccess('/tmp/saved-0/note.md'));
     await expect(assertAuthorizedFsPath(`/tmp/saved-${MAX_AUTHORIZED_FS_PATH_ENTRIES + 1}/note.md`)).rejects.toThrow(
       'File path is not authorized for desktop access',
     );

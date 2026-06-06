@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { FolderNode } from '@/stores/useNotesStore';
+import type { FileTreeNode, FolderNode } from '@/stores/useNotesStore';
 import {
   buildNotesSidebarTags,
   buildNotesSidebarTagScopeEntries,
@@ -168,12 +168,12 @@ describe('notesSidebarTags', () => {
   });
 
   it('collects deeply nested notes without recursive traversal', () => {
-    let current: FolderNode = {
+    let current: FileTreeNode = {
       id: 'deep-note',
       name: 'deep.md',
       path: 'deep.md',
       isFolder: false,
-    } as FolderNode;
+    };
 
     for (let depth = 0; depth < 1500; depth += 1) {
       current = {
@@ -186,7 +186,7 @@ describe('notesSidebarTags', () => {
       };
     }
 
-    expect(buildNotesSidebarTagScopeEntries({ rootFolder: current })).toEqual([
+    expect(buildNotesSidebarTagScopeEntries({ rootFolder: current as FolderNode })).toEqual([
       { path: 'deep.md' },
     ]);
   });

@@ -74,7 +74,7 @@ export function parseUserMessageContentWithKnownImages(
 ): ParsedUserMessageContent {
   const safeImageSources = imageSources
     ?.map((src) => normalizeRenderableImageSrc(src))
-    .filter((src): src is string => Boolean(src) && isRenderedImageSource(src)) ?? [];
+    .filter((src): src is string => src !== null && isRenderedImageSource(src)) ?? [];
 
   if (safeImageSources.length === 0) {
     return parseUserMessageContent(content);

@@ -64,7 +64,7 @@ function extractStoredImageSources(role: ChatMessage['role'], content: string): 
 function sanitizeProvidedImageSources(imageSources: string[] | undefined): string[] {
   return (imageSources ?? [])
     .map((src) => normalizeRenderableImageSrc(src))
-    .filter((src): src is string => Boolean(src) && isRenderedImageSource(src))
+    .filter((src): src is string => src !== null && isRenderedImageSource(src))
 }
 
 function getNewMessageImageSources(message: Omit<ChatMessage, 'id' | 'timestamp' | 'versions' | 'currentVersionIndex'>): string[] | undefined {

@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
-import { DOMParser as ProseDOMParser } from '@milkdown/kit/prose/model';
+import { DOMParser as ProseDOMParser, type Node as ProseNode } from '@milkdown/kit/prose/model';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import {
   footnotePlugin,
@@ -147,7 +147,7 @@ describe('footnote reference markup', () => {
     ].join('');
     const parsed = ProseDOMParser.fromSchema(view.state.schema).parse(container);
     const attrs: Record<string, unknown>[] = [];
-    parsed.descendants((node) => {
+    parsed.descendants((node: ProseNode) => {
       if (node.type.name === 'footnote_reference' || node.type.name === 'footnote_definition') {
         attrs.push(node.attrs);
       }

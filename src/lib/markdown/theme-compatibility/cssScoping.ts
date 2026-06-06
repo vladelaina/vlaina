@@ -65,7 +65,7 @@ function rewriteColorSchemeMediaQueries(root: postcss.Root, scopeSelector: strin
 
     const parent = atRule.parent;
     if (!parent) return;
-    atRule.replaceWith(...atRule.nodes);
+    atRule.replaceWith(...(atRule.nodes ?? []));
   });
 }
 

@@ -20,6 +20,10 @@ const DIRECT_BROADCAST_CHANNEL_PATTERN = /\bnew\s+BroadcastChannel\(\s*['"]([^'"
 const DIRECT_AUTO_SYNC_KIND_PATTERN = /\bemitStorageAutoSyncEvent\(\s*\{\s*kind:\s*['"]([^'"]+)['"]/g;
 
 function isStorageContractConstant(name: string): boolean {
+  if (name.endsWith('_CLASSNAME')) {
+    return false;
+  }
+
   const parts = name.split('_');
   return (
     name === 'LOCK_KEY_PREFIX' ||

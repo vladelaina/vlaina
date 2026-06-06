@@ -7,7 +7,7 @@ import {
   remarkStringifyOptionsCtx,
   serializerCtx,
 } from '@milkdown/kit/core';
-import { DOMParser as ProseDOMParser } from '@milkdown/kit/prose/model';
+import { DOMParser as ProseDOMParser, type Node as ProseNode } from '@milkdown/kit/prose/model';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
@@ -54,7 +54,7 @@ async function parseImageAttrs(markdown: string) {
   await editor.create();
   const doc = editor.ctx.get(parserCtx)(markdown);
   const attrs: Record<string, unknown>[] = [];
-  doc.descendants((node) => {
+  doc.descendants((node: ProseNode) => {
     if (node.type.name === 'image') {
       attrs.push(node.attrs);
     }
@@ -82,7 +82,7 @@ async function parseImageAttrsFromDom(html: string) {
   template.innerHTML = html;
   const doc = ProseDOMParser.fromSchema(schema).parse(template.content);
   const attrs: Record<string, unknown>[] = [];
-  doc.descendants((node) => {
+  doc.descendants((node: ProseNode) => {
     if (node.type.name === 'image') {
       attrs.push(node.attrs);
     }

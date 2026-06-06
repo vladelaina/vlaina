@@ -62,8 +62,8 @@ export function parseThinkingContent(content: string): ParsedThinkingContent {
     const bodyStart = THINKING_OPEN_TAG_REGEX.lastIndex;
     THINKING_CLOSE_TAG_REGEX.lastIndex = bodyStart;
     const close = THINKING_CLOSE_TAG_REGEX.exec(content);
-    const bodyEnd = close?.index ?? content.length;
-    const isClosed = Boolean(close);
+    const isClosed = close !== null;
+    const bodyEnd = isClosed ? close.index : content.length;
     const availableChars = MAX_EXTRACTED_THINKING_CONTENT_CHARS - totalChars;
     if (availableChars > 0) {
       const rawPart = content.slice(bodyStart, Math.min(bodyEnd, bodyStart + availableChars));

@@ -53,16 +53,19 @@ vi.mock('@/stores/unified/useUnifiedStore', () => ({
 }));
 
 vi.mock('@/hooks/chatService/sendMessageWithEndpointFallback', () => ({
-  sendMessageWithEndpointFallback: (...args: unknown[]) => mockSendMessageWithEndpointFallback(...args),
+  sendMessageWithEndpointFallback: (...args: Parameters<typeof mockSendMessageWithEndpointFallback>) =>
+    mockSendMessageWithEndpointFallback(...args),
 }));
 
 vi.mock('../../cursor/blockSelectionPluginState', () => ({
-  hasSelectedBlocks: (...args: unknown[]) => mockHasSelectedBlocks(...args),
+  hasSelectedBlocks: (...args: Parameters<typeof mockHasSelectedBlocks>) => mockHasSelectedBlocks(...args),
 }));
 
 vi.mock('./selectionEditing', () => ({
-  getSerializedSelectionText: (...args: unknown[]) => mockGetSerializedSelectionText(...args),
-  getSerializedSelectionContext: (...args: unknown[]) => mockGetSerializedSelectionContext(...args),
+  getSerializedSelectionText: (...args: Parameters<typeof mockGetSerializedSelectionText>) =>
+    mockGetSerializedSelectionText(...args),
+  getSerializedSelectionContext: (...args: Parameters<typeof mockGetSerializedSelectionContext>) =>
+    mockGetSerializedSelectionContext(...args),
 }));
 
 import { createAiSelectionSuggestionResult } from './selectionRequest';
