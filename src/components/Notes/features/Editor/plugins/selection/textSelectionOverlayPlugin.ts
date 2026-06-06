@@ -135,7 +135,7 @@ function createTextSelectionDecorationState(
       pos + node.nodeSize <= selection.to
     ) {
       decorations.push(Decoration.node(pos, pos + node.nodeSize, {
-        class: 'editor-block-selected editor-atomic-selected',
+        class: 'editor-block-selected md-focus editor-atomic-selected',
       }));
       return false;
     }

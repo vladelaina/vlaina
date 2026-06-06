@@ -23,6 +23,7 @@ export interface ElectronShortcutsApi {
 
 export interface ElectronShellApi {
   openExternal(url: string): Promise<void>;
+  openPath(filePath: string): Promise<void>;
   trashItem(filePath: string): Promise<void>;
   revealItem(filePath: string): Promise<void>;
 }

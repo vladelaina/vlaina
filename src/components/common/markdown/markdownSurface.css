@@ -232,6 +232,7 @@
   accent-color: var(--vlaina-accent);
 }
 
+.markdown-surface .md-hr,
 .markdown-surface hr {
   border: none;
   height: var(--vlaina-size-10px);
@@ -240,6 +241,13 @@
   cursor: default;
 }
 
+.markdown-surface .md-hr > hr {
+  border: none;
+  height: 100%;
+  margin: 0;
+}
+
+.markdown-surface .md-hr:not(:has(> hr))::before,
 .markdown-surface hr::before {
   content: '';
   position: absolute;

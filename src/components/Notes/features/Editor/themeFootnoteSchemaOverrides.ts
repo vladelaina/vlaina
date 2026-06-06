@@ -24,7 +24,7 @@ export function applyFootnoteSchemaOverrides(ctx: Ctx) {
             return [
                 'sup',
                 {
-                    class: 'footnote-ref',
+                    class: 'footnote-ref md-footnote',
                     'data-id': label,
                     'data-label': label,
                     'data-type': 'footnote_reference',
@@ -55,7 +55,7 @@ export function applyFootnoteSchemaOverrides(ctx: Ctx) {
             return [
                 'div',
                 {
-                    class: 'footnote-def',
+                    class: 'footnote-def footnote-line',
                     'data-id': label,
                     'data-label': label,
                     'data-type': 'footnote_definition',

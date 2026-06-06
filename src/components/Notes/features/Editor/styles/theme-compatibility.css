@@ -1,0 +1,2433 @@
+/* External Markdown theme compatibility layer.
+   Imported Typora/Obsidian CSS is scoped to the Markdown root; this bridge only
+   exposes common content-area aliases and keeps the app shell native Vlaina. */
+
+.milkdown-editor[data-markdown-compat-layer='external'] {
+  --bg-color: var(--db, var(--background-primary, var(--vlaina-bg-primary)));
+  --text-color: var(--df, var(--text-normal, var(--vlaina-text-primary)));
+  --md-char-color: var(--df-a, var(--text-faint, var(--vlaina-text-tertiary)));
+  --meta-content-color: var(--df-a, var(--text-muted, var(--vlaina-text-secondary)));
+  --primary-color: var(--a-c, var(--interactive-accent, var(--text-accent, var(--vlaina-accent))));
+  --select-text-bg-color: var(--v-selected-c, var(--text-selection, var(--vlaina-selection-bg)));
+  --monospace: var(--v-fm-code, var(--v-fm-code-local, var(--font-monospace, var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace))));
+  --bg-code: var(--d-cb, var(--code-bg, var(--code-background, var(--vlaina-code-block-background))));
+  --text-code: var(--df, var(--code-t, var(--code-normal, var(--vlaina-code-syntax-foreground))));
+  --typora-code-frame-bg: var(--std-code-sd, var(--background-modifier-border, var(--border-light, var(--background-secondary, transparent))));
+  --typora-code-editor-bg: var(--d-cb, var(--code-bg, var(--code-background, var(--background-primary, transparent))));
+  --typora-code-border: var(--std-code-sd, var(--pn-c-a, var(--background-modifier-border, var(--vlaina-border))));
+  --typora-code-line-hover-bg: var(--bq-bg, var(--background-modifier-hover, transparent));
+  --typora-code-line-number-fg: var(--df-a, var(--text-muted, var(--vlaina-code-syntax-muted)));
+  --bg-tertiary: var(--pn-c, var(--background-secondary-alt, var(--vlaina-bg-tertiary)));
+  --border-light: var(--pn-c-a, var(--background-modifier-border, var(--vlaina-border)));
+  --border-medium: var(--pn-c-a, var(--background-modifier-border, var(--vlaina-text-tertiary)));
+  --background-primary: var(--db, var(--vlaina-bg-primary));
+  --background-primary-alt: var(--pn-c, var(--vlaina-bg-secondary));
+  --background-secondary: var(--pn-c, var(--vlaina-bg-secondary));
+  --background-secondary-alt: var(--pn-c, var(--vlaina-bg-tertiary));
+  --background-modifier-border: var(--pn-c-a, var(--vlaina-border));
+  --background-modifier-hover: var(--bq-bg-fd, var(--vlaina-hover));
+  --background-modifier-active: var(--v-selected-c, var(--vlaina-accent-soft));
+  --background-modifier-form-field: var(--db, var(--vlaina-bg-secondary));
+  --text-normal: var(--df, var(--vlaina-text-primary));
+  --text-muted: var(--df-a, var(--vlaina-text-secondary));
+  --text-faint: var(--df-a, var(--vlaina-text-tertiary));
+  --text-accent: var(--a-c, var(--vlaina-accent));
+  --text-accent-hover: var(--a-o-c, var(--vlaina-accent-hover));
+  --text-selection: var(--v-selected-c, var(--vlaina-selection-bg));
+  --interactive-accent: var(--a-c, var(--vlaina-accent));
+  --interactive-accent-hover: var(--a-o-c, var(--vlaina-accent-hover));
+  --code-background: var(--typora-code-editor-bg, var(--code-bg, var(--vlaina-code-block-background)));
+  --code-normal: var(--text-code, var(--code-t, var(--vlaina-code-syntax-foreground)));
+  --code-size: var(--vlaina-font-0875rem);
+  --font-text: var(--v-fm-text, var(--v-fm-text-local, var(--font-sans)));
+  --font-interface: var(--v-fm-bd, var(--v-fm-bd-local, var(--font-sans)));
+  --font-monospace: var(--v-fm-code, var(--v-fm-code-local, var(--font-mono)));
+  --vlaina-markdown-font-size: var(--v-f-size, var(--vlaina-size-17px));
+  --vlaina-code-block-background: var(--typora-code-editor-bg);
+  --vlaina-code-inline-background: var(--code-bg, var(--typora-code-editor-bg));
+  --vlaina-code-inline-foreground: var(--code-t, var(--text-code));
+  --vlaina-code-syntax-foreground: var(--df, var(--code-t, currentColor));
+  --vlaina-code-syntax-muted: var(--cm-comment, var(--df-a, currentColor));
+  --vlaina-code-syntax-keyword: var(--cm-keyword, var(--text-code));
+  --vlaina-code-syntax-name: var(--cm-header, var(--cm-variable, var(--text-code)));
+  --vlaina-code-syntax-function: var(--cm-header, var(--cm-def, var(--text-code)));
+  --vlaina-code-syntax-constant: var(--cm-atom, var(--cm-number, var(--text-code)));
+  --vlaina-code-syntax-type: var(--cm-tag, var(--cm-attribute, var(--text-code)));
+  --vlaina-code-syntax-operator: var(--cm-variable, var(--text-code));
+  --vlaina-code-syntax-string: var(--cm-string, var(--text-code));
+  --vlaina-code-syntax-variable: var(--cm-variable-2, var(--cm-variable, var(--text-code)));
+  --vlaina-code-syntax-tag: var(--cm-tag, var(--text-code));
+  --vlaina-code-syntax-markup: var(--cm-header, var(--text-code));
+  --vlaina-code-syntax-list: var(--cm-quote, var(--text-code));
+  --vlaina-code-syntax-invalid: var(--cm-negative, var(--text-code));
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  padding-inline: 0;
+  box-sizing: border-box;
+  color: var(--text-color, var(--text-normal, var(--vlaina-text-primary)));
+  background-color: var(--db-ext, var(--bg-color, var(--background-primary, var(--vlaina-bg-primary))));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] > .milkdown {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  box-sizing: border-box;
+  background: transparent;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] #write,
+.milkdown-editor[data-markdown-compat-layer='external'] .markdown-preview-view {
+  color: var(--text-color, var(--text-normal, var(--vlaina-text-primary)));
+  background: var(--bg-color, var(--background-primary, transparent));
+  font-family: var(--v-fm-text, var(--font-text, var(--font-sans)));
+  font-size: var(--v-f-size, var(--vlaina-markdown-font-size, inherit));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] #write {
+  --typora-code-block-selector: pre.md-fences;
+  --typora-task-list-selector: .md-task-list-item;
+  --obsidian-task-list-selector: .task-list-item;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] #write :is(h1, h2, h3, h4, h5, h6, p, li, blockquote, td, th) {
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  color: inherit;
+  background: transparent;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror code:not(pre code) {
+  background-color: var(--code-bg, var(--vlaina-code-inline-background));
+  color: var(--code-t, var(--vlaina-code-inline-foreground, inherit));
+  font-family: var(--v-fm-code, var(--font-monospace, var(--font-mono)));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container {
+  background: var(--typora-code-frame-bg) !important;
+  background-color: var(--typora-code-frame-bg) !important;
+  color: var(--text-code, var(--code-normal, var(--vlaina-code-syntax-foreground)));
+  border-color: var(--typora-code-border);
+  font-family: var(--v-fm-code, var(--font-monospace, var(--font-mono)));
+  font-size: var(--code-size, var(--vlaina-font-0875rem));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-chrome-header {
+  background: var(--typora-code-frame-bg);
+  color: var(--typora-code-line-number-fg);
+  border-bottom: var(--vlaina-border-width-1) solid var(--typora-code-border);
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-chrome-language,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-chrome-language-label,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-chrome-copy-button {
+  color: var(--typora-code-line-number-fg);
+  font-family: var(--v-fm-tag, var(--v-fm-code, var(--font-monospace, var(--font-mono))));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-chrome-copy-button:hover,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container button:hover .code-block-chrome-language-label {
+  color: var(--h-f, var(--primary-color, var(--text-code)));
+  background: var(--typora-code-line-hover-bg);
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-editable,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-editor,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-scroller,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-content,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-line,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-lazy-preview,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-lazy-line-numbers {
+  background: var(--typora-code-editor-bg) !important;
+  background-color: var(--typora-code-editor-bg) !important;
+  color: var(--text-code, var(--code-normal, var(--vlaina-code-syntax-foreground)));
+  font-family: var(--v-fm-code, var(--monospace, var(--font-monospace, var(--font-mono))));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-line,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-lazy-preview {
+  padding: var(--vlaina-space-0) var(--vlaina-space-10px) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-gutters,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-gutter,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-gutterElement,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-lineNumbers,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-gutter-filler {
+  background: var(--typora-code-editor-bg) !important;
+  background-color: var(--typora-code-editor-bg) !important;
+  color: var(--typora-code-line-number-fg) !important;
+  border-color: var(--typora-code-border) !important;
+  box-shadow: none !important;
+  font-family: var(--v-fm-tag, var(--v-fm-code, var(--font-monospace, var(--font-mono)))) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-gutters {
+  border-right: var(--vlaina-border-width-1) solid var(--pn-c, var(--typora-code-border)) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-activeLine,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-activeLineGutter,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container:not(.md-focus) .cm-line:hover {
+  background: var(--typora-code-line-hover-bg) !important;
+  background-color: var(--typora-code-line-hover-bg) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-cursor,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-dropCursor {
+  border-left-color: var(--cm-CodeMirror-cursor, var(--a-o-c, var(--primary-color))) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner :is(.cm-variable, .cm-operator, .cm-property) {
+  color: var(--cm-variable) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-variable-2 {
+  color: var(--cm-variable-2) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-keyword {
+  color: var(--cm-keyword) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-tag {
+  color: var(--cm-tag) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-attribute {
+  color: var(--cm-attribute) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-string {
+  color: var(--cm-string) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-string-2 {
+  color: var(--cm-string-2) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner :is(.cm-comment, .cm-meta, .cm-qualifier) {
+  color: var(--cm-comment, var(--cm-meta, var(--typora-code-line-number-fg))) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner :is(.cm-header, .cm-def) {
+  color: var(--cm-header) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-quote {
+  color: var(--cm-quote) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-link {
+  color: var(--cm-link) !important;
+  border-bottom: var(--vlaina-border-width-1) solid var(--cm-link) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-bracket {
+  color: var(--cm-bracket) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-atom {
+  color: var(--cm-atom) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-number {
+  color: var(--cm-number, var(--cm-atom)) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] li[data-item-type='task'] {
+  list-style: none !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] li[data-item-type='task']::before {
+  border-color: var(--background-modifier-border, var(--border-medium, var(--vlaina-text-tertiary)));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] li[data-item-type='task'][data-checked='true']::before {
+  background-color: var(--primary-color, var(--interactive-accent, var(--vlaina-accent)));
+  border-color: var(--primary-color, var(--interactive-accent, var(--vlaina-accent)));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .milkdown-table-block table,
+.milkdown-editor[data-markdown-compat-layer='external'] .milkdown-table-block :is(th, td) {
+  border-color: var(--background-modifier-border, var(--border-light, var(--vlaina-border)));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .milkdown-table-block th {
+  background: var(--background-secondary-alt, var(--bg-tertiary, transparent));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] a {
+  color: var(--primary-color, var(--text-accent, var(--vlaina-accent)));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] mark {
+  color: inherit;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) {
+  --typora-inline-code-bg: var(--code-bg, var(--d-cb, var(--vlaina-code-inline-background)));
+  --typora-inline-code-fg: var(--code-t, var(--a-o-c, var(--text-code, inherit)));
+  --typora-content-font: var(--v-fm-text, var(--v-fm-text-local, var(--font-text, var(--font-sans))));
+  --typora-heading-font: var(--v-fm-h, var(--v-fm-h-local, var(--v-fm-bd, var(--font-interface, var(--font-sans)))));
+  --typora-strong-font: var(--v-fm-bd, var(--v-fm-bd-local, var(--font-interface, var(--font-sans))));
+  --typora-tag-font: var(--v-fm-tag, var(--v-fm-tag-local, var(--font-interface, var(--font-sans))));
+  --typora-block-bg: var(--bq-bg, var(--background-secondary, transparent));
+  --typora-block-border: var(--pn-c-a, var(--background-modifier-border, var(--vlaina-border)));
+  --typora-table-bg: var(--db, var(--background-primary, transparent));
+  --typora-table-hover-bg: var(--bq-bg-fd, var(--background-modifier-hover, transparent));
+  --typora-table-head-bg: var(--db, var(--background-primary, transparent));
+  --typora-selection-bg: var(--v-selected-c, var(--text-selection, var(--vlaina-selection-bg)));
+  --typora-page-bg: var(--db, var(--background-primary, transparent));
+  --typora-outer-bg: var(--db-ext, var(--typora-page-bg));
+  --typora-page-max-width: min(100%, var(--v-write-w, 1200px));
+  --typora-page-padding-block: var(--v-write-pd-y, var(--vlaina-space-20px));
+  --typora-page-padding-inline: var(--v-write-pd-x, var(--vlaina-space-20px));
+  --typora-page-padding: var(--typora-page-padding-block) var(--typora-page-padding-inline);
+  --typora-block-gap: var(--vlaina-space-05em);
+  --typora-body-line-height: var(--line-height-normal, var(--vlaina-line-height-markdown-body));
+  --typora-heading-bg: linear-gradient(90deg, var(--h-bg-start, transparent), var(--h-bg-end, transparent));
+  --typora-heading-shadow: var(--h-box-sd, transparent);
+  --typora-heading-border-color: var(--h-box-sd, transparent);
+  --typora-heading-title-font: var(--v-fw-tt, var(--v-fw-bd, var(--vlaina-font-weight-bold))) 1em var(--typora-heading-font);
+  --typora-inline-radius: var(--v-r-tag, var(--vlaina-radius-0375rem)) var(--v-r-tag-xc, var(--vlaina-radius-0375rem));
+  --typora-block-radius: var(--c-br-b, var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem)));
+  --typora-table-cell-padding: var(--tbl-cell-padding, var(--vlaina-space-05rem) var(--vlaina-space-075rem));
+  --typora-table-cell-min-width: var(--v-table-cell-min-width, 5em);
+  --typora-list-indent: var(--v-list-indent, var(--vlaina-space-15rem));
+  --typora-link-color: var(--a-c, var(--primary-color, var(--text-accent, var(--vlaina-accent))));
+  --typora-link-hover-color: var(--a-o-c, var(--interactive-accent-hover, var(--typora-link-color)));
+  --typora-kbd-bg: var(--v-btn-bg, var(--kbd-bg, var(--typora-inline-code-bg)));
+  --typora-kbd-fg: var(--kbd-c, var(--db, var(--vlaina-bg-primary)));
+  --typora-kbd-shadow: 0 var(--vlaina-space-3px, 3px) 0 0 var(--btn-raised, var(--typora-block-border)), 0 var(--vlaina-space-3px, 3px) 0 0 var(--typora-kbd-bg);
+  --typora-mark-shadow: 0 calc(var(--vlaina-space-0625rem, 0.625rem) * -1) 0 0 var(--mark-bg, var(--typora-selection-bg)) inset;
+  --typora-hr-color: var(--ac-bk-fd, var(--pn-c, var(--typora-block-border)));
+  --typora-caption-bg: var(--pn03, var(--pn-c, var(--typora-block-bg)));
+  --typora-caption-font: condensed italic 12px/1 var(--typora-tag-font);
+  font-family: var(--typora-content-font);
+  background: var(--typora-outer-bg);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) > .milkdown {
+  background: var(--typora-outer-bg);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) .ProseMirror {
+  font-family: var(--typora-content-font);
+  line-height: var(--typora-body-line-height);
+  text-rendering: optimizeLegibility;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write {
+  width: 100%;
+  max-width: var(--typora-page-max-width);
+  margin-inline: auto;
+  padding: var(--typora-page-padding);
+  min-width: 0;
+  background: var(--typora-page-bg);
+  color: var(--df, var(--text-color, inherit));
+  font-size: var(--v-f-size, var(--vlaina-markdown-font-size));
+  box-sizing: border-box;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write > * {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(p, li, blockquote, td, th, summary) {
+  color: inherit;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write > p,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .md-p {
+  margin-block: var(--typora-block-gap) 0;
+  font-size: inherit;
+  line-height: var(--typora-body-line-height);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write > :is(ul, ol) {
+  margin-block: calc(var(--typora-block-gap) * 2) var(--typora-block-gap);
+  padding-inline-start: var(--typora-list-indent);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write li {
+  margin-block: 0;
+  padding-inline-start: var(--vlaina-space-05rem, 0.5rem);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write li > p {
+  margin-block: 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(a, .external-link, .internal-link) {
+  color: var(--typora-link-color);
+  text-decoration: none;
+  border-bottom-color: transparent;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(a, .external-link, .internal-link):hover {
+  color: var(--typora-link-hover-color);
+  border-bottom-color: currentColor;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--typora-heading-font);
+  color: var(--h-f, var(--text-color, inherit));
+  background: var(--typora-heading-bg);
+  box-shadow: inset 0 calc(var(--vlaina-border-width-1) * -1) 0 var(--typora-heading-shadow);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write strong {
+  font-family: var(--typora-strong-font);
+  font-weight: var(--v-fw-bd, var(--vlaina-font-weight-semibold));
+  color: inherit;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(mark, .highlight) {
+  color: inherit;
+  background: transparent;
+  box-shadow: var(--typora-mark-shadow);
+  border-radius: 0;
+  padding-inline: var(--vlaina-space-015em, 0.15em);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(blockquote, details, .md-alert) {
+  color: inherit;
+  background: var(--typora-block-bg);
+  border-color: var(--typora-block-border);
+  border-radius: var(--typora-block-radius);
+  box-shadow: none;
+  margin-block: var(--typora-block-gap) 0;
+  padding: var(--vlaina-space-075rem, 0.75rem);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote::before {
+  content: none;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert {
+  display: block;
+  grid-template-columns: none;
+  gap: 0;
+  overflow: hidden;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert .callout-title {
+  display: flex;
+  color: var(--typora-alert-fg, inherit);
+  background: var(--typora-alert-accent, transparent);
+  border-radius: calc(var(--v-r-b, var(--vlaina-radius-05rem)) - var(--vlaina-border-width-1)) calc(var(--v-r-b-xc, var(--vlaina-radius-05rem)) - var(--vlaina-border-width-1)) 0 0;
+  margin-block: calc(var(--vlaina-space-0625rem, 0.625rem) * -1) var(--vlaina-space-075rem, 0.75rem);
+  margin-inline: calc(var(--vlaina-space-1rem, 1rem) * -1);
+  padding: var(--vlaina-space-0625rem, 0.625rem) var(--vlaina-space-1rem, 1rem);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert-note {
+  --typora-alert-accent: var(--ac-bu, var(--primary-color));
+  --typora-alert-fg: var(--db, var(--vlaina-bg-primary));
+  background: linear-gradient(180deg, var(--ac-bu-a, var(--typora-block-bg)), var(--ac-bu-fd, var(--typora-block-bg)));
+  border-color: var(--ac-bu, var(--typora-block-border));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert-tip {
+  --typora-alert-accent: var(--ac-gn, var(--primary-color));
+  --typora-alert-fg: var(--db, var(--vlaina-bg-primary));
+  background: linear-gradient(180deg, var(--ac-gn-a, var(--typora-block-bg)), var(--ac-gn-fd, var(--typora-block-bg)));
+  border-color: var(--ac-gn, var(--typora-block-border));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert-important {
+  --typora-alert-accent: var(--ac-pu, var(--primary-color));
+  --typora-alert-fg: var(--db, var(--vlaina-bg-primary));
+  background: linear-gradient(180deg, var(--ac-pu-a, var(--typora-block-bg)), var(--ac-pu-fd, var(--typora-block-bg)));
+  border-color: var(--ac-pu, var(--typora-block-border));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert-warning {
+  --typora-alert-accent: var(--ac-og, var(--primary-color));
+  --typora-alert-fg: var(--db, var(--vlaina-bg-primary));
+  background: linear-gradient(180deg, var(--ac-og-a, var(--typora-block-bg)), var(--ac-og-fd, var(--typora-block-bg)));
+  border-color: var(--ac-og, var(--typora-block-border));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .callout.md-alert-caution {
+  --typora-alert-accent: var(--ac-rd, var(--primary-color));
+  --typora-alert-fg: var(--db, var(--vlaina-bg-primary));
+  background: linear-gradient(180deg, var(--ac-rd-a, var(--typora-block-bg)), var(--ac-rd-fd, var(--typora-block-bg)));
+  border-color: var(--ac-rd, var(--typora-block-border));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(code:not(pre code), .v-std-code, .cm-inline-code) {
+  background: var(--typora-inline-code-bg);
+  color: var(--typora-inline-code-fg);
+  border-color: var(--std-code-sd, var(--typora-block-border));
+  font-family: var(--v-fm-code, var(--font-monospace, var(--font-mono)));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token, .v-badge-name, .v-badge-value, .v-stepwise, .v-coating) {
+  font-family: var(--typora-tag-font);
+  line-height: 1;
+  display: inline-block;
+  vertical-align: baseline;
+  white-space: pre;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token) {
+  color: var(--ac-t2, var(--a-c, var(--primary-color)));
+  background: var(--ac-t2-a, var(--typora-selection-bg));
+  border-color: var(--ac-t2-fd-bd, var(--typora-block-border));
+  border-radius: var(--typora-inline-radius);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-badge-name {
+  color: var(--db, var(--vlaina-bg-primary));
+  background: var(--a-o-c, var(--primary-color));
+  border: var(--c-b1, var(--vlaina-border-width-1) solid var(--typora-block-border));
+  border-radius: var(--typora-inline-radius);
+  margin-inline-end: 0;
+  padding: var(--vlaina-space-0125rem, 0.125rem) var(--vlaina-space-0125rem, 0.125rem) var(--vlaina-space-0125rem, 0.125rem) var(--vlaina-space-0375rem, 0.375rem);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-badge-value {
+  color: var(--db, var(--vlaina-bg-primary));
+  background: var(--df, var(--vlaina-text-primary));
+  border-radius: 0 calc(var(--v-r-tag-xc, var(--vlaina-radius-0375rem)) - var(--vlaina-border-width-1)) calc(var(--v-r-tag, var(--vlaina-radius-0375rem)) - var(--vlaina-border-width-1)) 0;
+  margin-inline-start: var(--vlaina-space-0375rem, 0.375rem);
+  padding: var(--vlaina-space-035rem) var(--vlaina-space-0375rem, 0.375rem);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-stepwise {
+  position: relative;
+  color: var(--df, inherit);
+  background: var(--std-code-sd, var(--typora-inline-code-bg));
+  border: var(--c-b1, var(--vlaina-border-width-1) solid var(--typora-block-border));
+  border-radius: var(--v-r-tag, var(--vlaina-radius-0375rem)) 0 0 var(--v-r-tag, var(--vlaina-radius-0375rem));
+  margin-inline-end: var(--vlaina-space-10px);
+  padding: var(--vlaina-space-035rem) var(--vlaina-space-05rem, 0.5rem);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-coating {
+  color: var(--db, var(--vlaina-bg-primary));
+  background: var(--df, var(--vlaina-text-primary));
+  border: var(--vlaina-border-width-1) solid var(--ac-gy, var(--typora-block-border));
+  border-radius: var(--c-br-s, var(--typora-inline-radius));
+  padding: var(--vlaina-space-0125rem, 0.125rem) var(--vlaina-space-05rem, 0.5rem);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .md-hr::before {
+  content: none;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .md-hr {
+  height: auto;
+  margin: 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(hr, .md-hr > hr) {
+  border-color: var(--typora-hr-color);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(kbd, a kbd) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vlaina-space-025rem, 0.25rem);
+  color: var(--typora-kbd-fg);
+  background: var(--typora-kbd-bg);
+  border: var(--c-b1, var(--vlaina-border-width-1) solid var(--typora-block-border));
+  border-radius: calc(var(--v-r-b, var(--vlaina-radius-05rem)) - var(--vlaina-border-width-1));
+  box-shadow: var(--typora-kbd-shadow);
+  font-family: var(--typora-strong-font);
+  line-height: 1;
+  padding: var(--kbd-pd, var(--vlaina-space-035rem) var(--vlaina-space-05rem, 0.5rem));
+  text-decoration: none;
+  white-space: pre-wrap;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(kbd, a kbd):active,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(kbd, a kbd).pressed {
+  transform: translateY(var(--vlaina-space-3px, 3px));
+  box-shadow: none;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(button, .btn, .copy-code-button, .code-block-chrome-copy-button) {
+  color: var(--df, inherit);
+  background: transparent;
+  border-color: var(--typora-block-border);
+  border-radius: calc(var(--v-r-s, var(--vlaina-radius-0375rem)) - var(--vlaina-border-width-1));
+  font-family: var(--typora-strong-font);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(button, .btn, .copy-code-button, .code-block-chrome-copy-button):is(:hover, .active) {
+  color: var(--typora-link-hover-color);
+  background: var(--typora-table-hover-bg);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) .milkdown-table-block,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) .milkdown-table-block .table-wrapper,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) .milkdown-table-block .table-scroll,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) .milkdown-table-block .table-content-host {
+  max-width: 100%;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) .milkdown-table-block .table-scroll-track {
+  width: max-content;
+  min-width: 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) .milkdown-table-block .table-scroll .children {
+  min-width: 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write table {
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  border-collapse: collapse;
+  border-spacing: 0;
+  border: none;
+  border-radius: 0;
+  border-color: var(--typora-block-border);
+  background: var(--typora-table-bg);
+  color: inherit;
+  font-size: inherit;
+  margin-block: var(--typora-block-gap) 0;
+  overflow: visible;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(th, td) {
+  min-width: var(--typora-table-cell-min-width);
+  padding: var(--typora-table-cell-padding);
+  border-color: var(--typora-block-border);
+  color: inherit;
+  line-height: inherit;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write th {
+  background: var(--typora-table-head-bg);
+  font-family: var(--typora-strong-font);
+  font-weight: var(--v-fw-bd, var(--vlaina-font-weight-semibold));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container {
+  display: block !important;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container img {
+  border-radius: var(--typora-block-radius);
+  background-color: var(--fig-solid-bg, transparent);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#icon'] img {
+  height: var(--typora-image-icon-height, 1em);
+  width: auto;
+  display: inline;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#icon'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#logo'] {
+  display: inline-block !important;
+  width: auto !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#logo'] img {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#card'] img {
+  border-radius: var(--typora-block-radius);
+  border: none;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#card'] {
+  width: fit-content !important;
+  max-width: 100%;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#20%'] {
+  width: min(100%, var(--typora-image-20pct-width, 20%)) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#40%'] {
+  width: min(100%, var(--typora-image-40pct-width, 40%)) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#60%'] {
+  width: min(100%, var(--typora-image-60pct-width, 60%)) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#80%'] {
+  width: min(100%, var(--typora-image-80pct-width, 80%)) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#200w'] {
+  width: min(100%, var(--typora-image-200w-width, 200px)) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#400w'] {
+  width: min(100%, var(--typora-image-400w-width, 400px)) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#600w'] {
+  width: min(100%, var(--typora-image-600w-width, 600px)) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#800w'] {
+  width: min(100%, var(--typora-image-800w-width, 800px)) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#200h'] img {
+  max-height: var(--typora-image-200h-height, 200px);
+  width: auto;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#400h'] img {
+  max-height: var(--typora-image-400h-height, 400px);
+  width: auto;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#600h'] img {
+  max-height: var(--typora-image-600h-height, 600px);
+  width: auto;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-caption, figure.table-figure) {
+  display: block;
+  max-width: 100%;
+  margin-block: var(--typora-block-gap) 0;
+  overflow: auto;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-post-card {
+  color: var(--df, inherit);
+  background: var(--pn-c, var(--typora-block-bg));
+  border-radius: var(--typora-block-radius);
+  padding: var(--vlaina-space-10px) var(--vlaina-space-20px);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) .milkdown table tr:hover,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) .milkdown table tr:hover > :is(th, td),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) .milkdown [data-type='html-block'] table tr:hover > :is(th, td) {
+  background-color: var(--typora-table-hover-bg) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) li[data-item-type='task'] > p {
+  color: inherit;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) {
+  --typora-page-max-width: min(100%, var(--v-write-w, 900px));
+  --typora-page-padding-block: var(--vlaina-space-20px);
+  --typora-page-padding-inline: var(--vlaina-space-20px);
+  --typora-heading-bg: linear-gradient(270deg, var(--h-bg-start, transparent), var(--h-bg-end, transparent));
+  --typora-vlook-heading-shadow: 1px 1px var(--typora-vlook-heading-shadow-color, #7d4018);
+  --typora-vlook-heading-padding: 5px 20px 0 5px;
+  --typora-vlook-h1-font-size: 1.875em;
+  --typora-vlook-h2-font-size: 1.625em;
+  --typora-vlook-h3-font-size: 1.5em;
+  --typora-vlook-h4-font-size: 1.375em;
+  --typora-vlook-h5-font-size: 1.25em;
+  --typora-vlook-h6-font-size: 1.125em;
+  --typora-vlook-block-padding: 0.75em;
+  --typora-vlook-code-font-size: 0.875em;
+  --typora-vlook-caption-padding: 5px 10px;
+  --typora-vlook-image-padding: 20px;
+  --typora-vlook-icon-2x-height: 2em;
+  --typora-vlook-logo-left-padding: 0 20px 0 0;
+  --typora-vlook-logo-right-padding: 0 0 0 20px;
+  --typora-vlook-highlight-padding: 1em 3.125em 1.5em;
+  --typora-vlook-highlight-font-size: 1.25em;
+  --typora-vlook-highlight-mark-width: 2.5em;
+  --typora-vlook-highlight-mark-height: 1.875em;
+  --typora-vlook-emphasis-font-size: 1.125em;
+  --typora-vlook-caption-block-padding: 0.3125em 0.625em;
+  --typora-vlook-sup-padding: 0.25em 0.5em;
+  --typora-vlook-sub-padding: 0.1875em 0.375em;
+  --typora-vlook-code-label-padding: 0.25em 0.75em 0;
+  --typora-vlook-circle-radius: 9999px;
+  --typora-vlook-checkbox-size: var(--vlaina-size-16px);
+  --typora-vlook-checkbox-mark-size: var(--vlaina-space-4px);
+  --typora-vlook-checkbox-border-width: var(--vlaina-border-width-2);
+  --typora-vlook-checkbox-radius: var(--vlaina-radius-025rem);
+  --typora-vlook-table-symbol-gap: var(--vlaina-space-10px);
+  --typora-vlook-solid-token-fg: var(--db, var(--typora-page-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write {
+  background: var(--db, var(--typora-page-bg));
+  color: var(--df, var(--text-color, inherit));
+  font: var(--v-fw-text, normal) var(--v-f-size, 16px) / var(--typora-body-line-height) var(--typora-content-font);
+  outline: none;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(h1, h2, h3, h4, h5) {
+  color: var(--h-f, var(--typora-link-color));
+  background: var(--typora-heading-bg);
+  border-block: 0;
+  border-inline-start: 15px solid var(--typora-heading-border-color);
+  border-inline-end: 5px solid var(--typora-heading-border-color);
+  border-radius: 0;
+  box-shadow: none;
+  font-family: var(--typora-heading-font);
+  font-weight: var(--v-fw-tt, var(--v-fw-bd, var(--vlaina-font-weight-bold)));
+  line-height: 1.5;
+  margin-block: 2em 0;
+  padding: var(--typora-vlook-heading-padding);
+  position: relative;
+  text-align: end;
+  text-shadow: var(--typora-vlook-heading-shadow);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write h1,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write h2 {
+  margin-block-start: 3em;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write h1 {
+  font-size: var(--typora-vlook-h1-font-size);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write h2 {
+  font-size: var(--typora-vlook-h2-font-size);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write h3 {
+  font-size: var(--typora-vlook-h3-font-size);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write h4 {
+  font-size: var(--typora-vlook-h4-font-size);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write h5 {
+  font-size: var(--typora-vlook-h5-font-size);
+  margin-block-start: 1.25em;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write h6 {
+  color: var(--h-f, inherit);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  font: var(--v-fw-bd, var(--vlaina-font-weight-semibold)) var(--typora-vlook-h6-font-size) var(--v-fm-stt, var(--typora-heading-font));
+  line-height: 1.5;
+  margin-block: 1em 0;
+  padding-inline-start: 0;
+  text-align: start;
+  text-shadow: none;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(h1 + h2, h2 + h3, h3 + h4, h4 + h5, h1 + h6, h2 + h6, h3 + h6, h4 + h6, h5 + h6, h6 + h6) {
+  margin-block-start: 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(blockquote, details, .md-alert) {
+  background: var(--bq-bg, var(--typora-block-bg));
+  border: 0;
+  border-radius: var(--typora-block-radius);
+  box-shadow: none;
+  margin-block: 0.5em 0;
+  padding: var(--typora-vlook-block-padding);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(blockquote, details, .md-alert) > :first-child {
+  margin-block-start: 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write blockquote > h6:first-child {
+  align-items: center;
+  border-radius: 0;
+  color: var(--h-f, inherit);
+  display: flex;
+  font: condensed var(--v-fw-toc, var(--v-fw-bd, bold)) 1.125em var(--v-fm-toc, var(--typora-heading-font));
+  justify-content: flex-start;
+  line-height: 1;
+  margin-block: 0 0.3125em;
+  padding-block-end: 0.3125em;
+  text-align: start;
+  width: 100%;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write blockquote > :is(p:first-child, p:first-child + p) > :is(strong, mark):only-child {
+  align-items: center;
+  border-block-end: var(--vlaina-border-width-1) solid var(--ac-bk-fd, var(--typora-block-border));
+  color: var(--h-f, var(--typora-link-color));
+  display: flex;
+  font: condensed var(--v-fw-toc, var(--v-fw-bd, bold)) 1.125em var(--v-fm-toc, var(--typora-heading-font));
+  justify-content: center;
+  margin-block-end: var(--vlaina-space-025rem, 0.25rem);
+  padding-block-end: var(--vlaina-space-05rem, 0.5rem);
+  width: 100%;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write blockquote > p:only-child > :is(strong, mark):only-child {
+  border-block-end: 0;
+  margin-block-end: 0;
+  padding-block-end: 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .code-block-container.md-fences:not([class*='md-diagram']) {
+  background-color: var(--std-code-sd, var(--typora-code-frame-bg));
+  border: 0;
+  border-radius: var(--typora-block-radius);
+  color: var(--df, inherit);
+  font-family: var(--v-fm-code, var(--font-monospace, var(--font-mono)));
+  font-size: var(--typora-vlook-code-font-size);
+  margin-block: 0.5em 0;
+  padding: 0;
+  width: 100%;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .code-block-container .cm-content,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .code-block-container .code-block-lazy-preview {
+  background-image: var(--c-blk-bg, none);
+  background-position: 100% 100%;
+  background-repeat: no-repeat;
+  background-size: auto;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .frontmatter-block-container.md-meta-block {
+  background: var(--code-bg, var(--typora-inline-code-bg));
+  border: 1px solid var(--std-code-sd, var(--typora-block-border));
+  border-radius: var(--typora-block-radius);
+  color: var(--a-c, var(--typora-link-color));
+  font: var(--v-fw-text, normal) 0.875em/1.5 var(--monospace, var(--typora-code-font, var(--font-monospace)));
+  margin-block: 0 20px;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write table {
+  border-collapse: collapse;
+  background: var(--db, var(--typora-table-bg));
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write table :is(th, td) {
+  border: 1px solid var(--pn-c-a, var(--typora-block-border));
+  line-height: 1.25;
+  min-width: var(--typora-table-cell-min-width);
+  overflow-wrap: anywhere;
+  padding: var(--typora-table-cell-padding);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write table th {
+  background: var(--db, var(--typora-table-head-bg));
+  box-shadow: 0 1px 0 0 var(--pn-c-a, var(--typora-block-border)) inset, 0 1px 0 0 var(--pn-c-a, var(--typora-block-border));
+  font: var(--v-fw-bd, bold) 1em var(--typora-strong-font);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-stepwise::before {
+  border-block: calc(1em - 1px) solid transparent;
+  border-inline-start: calc(1em - 6px) solid var(--db, var(--typora-page-bg));
+  content: "";
+  height: 0;
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-end: calc(5.5px - 1em);
+  width: 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-stepwise::after {
+  border-block: calc(1em - 2px) solid transparent;
+  border-inline-start: calc(1em - 7px) solid var(--std-code-sd, var(--typora-inline-code-bg));
+  content: "";
+  height: 0;
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: calc(7px - 1em);
+  width: 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-caption, figcaption) {
+  background: var(--typora-caption-bg);
+  border-radius: var(--v-r-s, var(--vlaina-radius-0375rem));
+  color: var(--df, inherit);
+  font: var(--typora-caption-font);
+  margin-block: 2px 0;
+  padding: var(--typora-vlook-caption-padding);
+  width: fit-content;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#padding'] img {
+  background: var(--db, var(--typora-page-bg));
+  padding: var(--typora-vlook-image-padding);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#line'] img {
+  background: var(--v-fig-grid-l, var(--fig-solid-bg, transparent));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#block'] img {
+  background: var(--v-fig-grid-b, var(--fig-solid-bg, transparent));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#icon0'] img {
+  height: auto;
+  margin-block-start: -0.1em;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#icon2x'] img {
+  height: var(--typora-vlook-icon-2x-height);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#logo'][src*='#left'] {
+  float: left;
+  padding: var(--typora-vlook-logo-left-padding);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#logo'][src*='#right'] {
+  float: right;
+  padding: var(--typora-vlook-logo-right-padding);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write {
+  --vlook-token-fg: var(--ac-t2, var(--a-c, var(--typora-link-color)));
+  --vlook-token-bg: var(--ac-t2-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-t2-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .vlook-highlight-block {
+  display: block;
+  position: relative;
+  text-align: center;
+  margin-block: 1em 0;
+  padding: var(--typora-vlook-highlight-padding);
+  font-size: var(--typora-vlook-highlight-font-size);
+  line-height: 1.5;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .vlook-highlight-block :is(mark, .highlight) {
+  box-shadow: none;
+  background: transparent;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .vlook-highlight-block::before,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .vlook-highlight-block::after {
+  content: "";
+  display: inline-block;
+  width: var(--typora-vlook-highlight-mark-width);
+  height: var(--typora-vlook-highlight-mark-height);
+  opacity: 0.3;
+  background: linear-gradient(135deg, var(--ac-t1, var(--typora-link-color)), var(--ac-t2, var(--typora-link-hover-color)));
+  vertical-align: top;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .vlook-highlight-block::before {
+  margin-inline: -3.125em 0.625em;
+  border-radius: var(--v-r-s, var(--vlaina-radius-0375rem)) 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .vlook-highlight-block::after {
+  margin-inline: 0.625em -3.125em;
+  border-radius: 0 var(--v-r-s, var(--vlaina-radius-0375rem));
+  vertical-align: bottom;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .vlook-emphasis-block {
+  display: block;
+  color: var(--df-a, var(--text-muted, inherit));
+  border-block: var(--vlaina-border-width-1) solid var(--pn-c, var(--typora-block-border));
+  margin-block: 1em;
+  padding-block: 0.5em;
+  font-size: var(--typora-vlook-emphasis-font-size);
+  line-height: 1.5;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-caption.vlook-caption-block {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin-block: 0.125em 0;
+  padding: var(--typora-vlook-caption-block-padding);
+  color: var(--df, inherit);
+  background: var(--pn03, var(--typora-caption-bg));
+  border-radius: var(--v-r-s, var(--vlaina-radius-0375rem));
+  font: normal 0.875em var(--v-fm-bd, var(--typora-strong-font));
+  line-height: 1.4;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-caption.vlook-caption-block :is(mark, .highlight) {
+  box-shadow: none;
+  background: transparent;
+  padding: 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-caption.vlook-caption-block .v-cap-1::before {
+  content: "Caption / ";
+  text-transform: uppercase;
+  color: var(--a-c, var(--typora-link-color));
+  font: condensed italic 0.75em/1 var(--v-fm-tag, var(--typora-tag-font));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .vlook-sup-line {
+  text-align: center;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .vlook-sup-line sup {
+  display: inline-block;
+  max-width: 100%;
+  color: var(--df-a, var(--text-muted, inherit));
+  background: var(--pn-c, var(--typora-block-bg));
+  border-radius: var(--v-r-s, var(--vlaina-radius-0375rem));
+  padding: var(--typora-vlook-sup-padding);
+  font: condensed italic 0.75em/1 var(--v-fm-tag, var(--typora-tag-font));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .vlook-sub-line sub {
+  display: inline-block;
+  color: var(--db, var(--typora-page-bg));
+  background: var(--df, var(--text-normal, currentColor));
+  border-radius: var(--v-r-s, var(--vlaina-radius-0375rem)) var(--v-r-s, var(--vlaina-radius-0375rem)) 0 0;
+  padding: var(--typora-vlook-sub-padding);
+  font: italic 0.75em/1 var(--v-fm-code, var(--font-monospace));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).wn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.wn {
+  --vlook-token-fg: var(--ac-wn, var(--a-c));
+  --vlook-token-bg: var(--ac-wn-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-wn-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).rd,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.rd {
+  --vlook-token-fg: var(--ac-rd, var(--a-c));
+  --vlook-token-bg: var(--ac-rd-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-rd-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).og,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.og {
+  --vlook-token-fg: var(--ac-og, var(--a-c));
+  --vlook-token-bg: var(--ac-og-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-og-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).tu,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.tu {
+  --vlook-token-fg: var(--ac-tu, var(--a-c));
+  --vlook-token-bg: var(--ac-tu-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-tu-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).ye,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.ye {
+  --vlook-token-fg: var(--ac-ye, var(--a-c));
+  --vlook-token-bg: var(--ac-ye-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-ye-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).lm,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.lm {
+  --vlook-token-fg: var(--ac-lm, var(--a-c));
+  --vlook-token-bg: var(--ac-lm-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-lm-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).gn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.gn {
+  --vlook-token-fg: var(--ac-gn, var(--a-c));
+  --vlook-token-bg: var(--ac-gn-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-gn-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).mn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.mn {
+  --vlook-token-fg: var(--ac-mn, var(--a-c));
+  --vlook-token-bg: var(--ac-mn-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-mn-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).ol,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.ol {
+  --vlook-token-fg: var(--ac-ol, var(--a-c));
+  --vlook-token-bg: var(--ac-ol-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-ol-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).aq,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.aq {
+  --vlook-token-fg: var(--ac-aq, var(--a-c));
+  --vlook-token-bg: var(--ac-aq-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-aq-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).sk,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.sk {
+  --vlook-token-fg: var(--ac-sk, var(--a-c));
+  --vlook-token-bg: var(--ac-sk-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-sk-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).cy,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.cy {
+  --vlook-token-fg: var(--ac-cy, var(--a-c));
+  --vlook-token-bg: var(--ac-cy-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-cy-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).bu,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.bu {
+  --vlook-token-fg: var(--ac-bu, var(--a-c));
+  --vlook-token-bg: var(--ac-bu-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-bu-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).se,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.se {
+  --vlook-token-fg: var(--ac-se, var(--a-c));
+  --vlook-token-bg: var(--ac-se-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-se-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).la,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.la {
+  --vlook-token-fg: var(--ac-la, var(--a-c));
+  --vlook-token-bg: var(--ac-la-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-la-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).vn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.vn {
+  --vlook-token-fg: var(--ac-vn, var(--a-c));
+  --vlook-token-bg: var(--ac-vn-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-vn-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).cf,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.cf {
+  --vlook-token-fg: var(--ac-cf, var(--a-c));
+  --vlook-token-bg: var(--ac-cf-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-cf-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).au,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.au {
+  --vlook-token-fg: var(--ac-au, var(--a-c));
+  --vlook-token-bg: var(--ac-au-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-au-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).pu,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.pu {
+  --vlook-token-fg: var(--ac-pu, var(--a-c));
+  --vlook-token-bg: var(--ac-pu-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-pu-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).ro,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.ro {
+  --vlook-token-fg: var(--ac-ro, var(--a-c));
+  --vlook-token-bg: var(--ac-ro-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-ro-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).pl,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.pl {
+  --vlook-token-fg: var(--ac-pl, var(--a-c));
+  --vlook-token-bg: var(--ac-pl-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-pl-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).pk,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.pk {
+  --vlook-token-fg: var(--ac-pk, var(--a-c));
+  --vlook-token-bg: var(--ac-pk-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-pk-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).gd,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.gd {
+  --vlook-token-fg: var(--ac-gd, var(--a-c));
+  --vlook-token-bg: var(--ac-gd-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-gd-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).bn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.bn {
+  --vlook-token-fg: var(--ac-bn, var(--a-c));
+  --vlook-token-bg: var(--ac-bn-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-bn-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).gy,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.gy {
+  --vlook-token-fg: var(--ac-gy, var(--a-c));
+  --vlook-token-bg: var(--ac-gy-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-gy-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).wt,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.wt {
+  --vlook-token-fg: var(--df, var(--a-c));
+  --vlook-token-bg: var(--ac-wt-fd-bd, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-wt-a, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).bk,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.bk {
+  --vlook-token-fg: var(--ac-bk, var(--a-c));
+  --vlook-token-bg: var(--ac-bk-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-bk-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).t1,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.t1 {
+  --vlook-token-fg: var(--ac-t1, var(--a-c));
+  --vlook-token-bg: var(--ac-t1-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-t1-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).t2,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.t2 {
+  --vlook-token-fg: var(--ac-t2, var(--a-o-c));
+  --vlook-token-bg: var(--ac-t2-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-t2-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).wn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).rd,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).og,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).tu,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).ye,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).lm,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).gn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).mn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).ol,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).aq,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).sk,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).cy,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).bu,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).se,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).la,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).vn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).cf,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).au,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).pu,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).ro,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).pl,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).pk,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).gd,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).bn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).gy,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).wt,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).bk,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).t1,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).t2 {
+  color: var(--vlook-token-fg);
+  background: var(--vlook-token-bg);
+  border-color: var(--vlook-token-faint);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-badge-name:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2) {
+  color: var(--typora-vlook-solid-token-fg);
+  background: var(--vlook-token-fg);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-tag, .editor-tag-token).em:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2) {
+  color: var(--typora-vlook-solid-token-fg);
+  background: var(--vlook-token-fg);
+  border-color: var(--vlook-token-fg);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-badge-value.hastwo {
+  border-radius: 0;
+  margin-inline: var(--vlaina-space-0375rem, 0.375rem);
+  padding-inline-start: var(--vlaina-space-05rem, 0.5rem);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-stepwise:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2) {
+  color: var(--df, inherit);
+  background: var(--vlook-token-faint);
+  border-color: var(--vlook-token-fg);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-stepwise:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2)::after {
+  border-inline-start-color: var(--vlook-token-faint);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-coating:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2) {
+  color: var(--typora-vlook-solid-token-fg);
+  background: var(--vlook-token-fg);
+  border-color: var(--vlook-token-fg);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-coating.em {
+  text-shadow: 0 var(--vlaina-border-width-1) var(--df, currentColor);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2) {
+  background: var(--db, var(--typora-page-bg));
+  border-color: var(--vlook-token-fg);
+  box-shadow: inset 0 0 0 calc(var(--vlaina-border-width-1) * 4) var(--vlook-token-faint);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q.em:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2) {
+  background: linear-gradient(var(--vlook-token-faint), var(--vlook-token-faint)), linear-gradient(var(--db, var(--typora-page-bg)), var(--db, var(--typora-page-bg)));
+  box-shadow: none;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2) :is(a, .v-std-code, .v-cap-1 > span) {
+  color: var(--vlook-token-fg);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-q:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2) mark {
+  box-shadow: inset 0 -0.625em 0 0 var(--vlook-token-faint);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .callout.md-alert {
+  border-width: calc(var(--vlaina-border-width-1) * 2);
+  padding-block-start: 0.625em;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .callout.md-alert .callout-title {
+  color: var(--db, var(--typora-page-bg));
+  font: condensed var(--v-fw-toc, var(--v-fw-bd, bold)) 1em/1 var(--v-fm-toc, var(--typora-tag-font));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .callout.md-alert-note {
+  background: linear-gradient(180deg, var(--ac-bu, var(--typora-alert-accent)) 2.625em, var(--ac-bu-a, var(--typora-block-bg)) 2.625em, var(--ac-bu-fd, var(--typora-block-bg)));
+  border-color: var(--ac-bu, var(--typora-block-border));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .callout.md-alert-tip {
+  background: linear-gradient(180deg, var(--ac-gn, var(--typora-alert-accent)) 2.625em, var(--ac-gn-a, var(--typora-block-bg)) 2.625em, var(--ac-gn-fd, var(--typora-block-bg)));
+  border-color: var(--ac-gn, var(--typora-block-border));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .callout.md-alert-important {
+  background: linear-gradient(180deg, var(--ac-pu, var(--typora-alert-accent)) 2.625em, var(--ac-pu-a, var(--typora-block-bg)) 2.625em, var(--ac-pu-fd, var(--typora-block-bg)));
+  border-color: var(--ac-pu, var(--typora-block-border));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .callout.md-alert-warning {
+  background: linear-gradient(180deg, var(--ac-og, var(--typora-alert-accent)) 2.625em, var(--ac-og-a, var(--typora-block-bg)) 2.625em, var(--ac-og-fd, var(--typora-block-bg)));
+  border-color: var(--ac-og, var(--typora-block-border));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .callout.md-alert-caution {
+  background: linear-gradient(180deg, var(--ac-rd, var(--typora-alert-accent)) 2.625em, var(--ac-rd-a, var(--typora-block-bg)) 2.625em, var(--ac-rd-fd, var(--typora-block-bg)));
+  border-color: var(--ac-rd, var(--typora-block-border));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .code-block-container.md-fences::before {
+  content: attr(lang);
+  display: block;
+  color: var(--df-a, var(--text-muted, inherit));
+  background: var(--std-code-sd, var(--typora-code-frame-bg));
+  border-radius: calc(var(--v-r-b, var(--vlaina-radius-05rem)) - var(--vlaina-border-width-1)) calc(var(--v-r-b-xc, var(--vlaina-radius-05rem)) - var(--vlaina-border-width-1)) 0 0;
+  padding: var(--typora-vlook-code-label-padding);
+  text-align: end;
+  font: italic var(--v-fw-bd, bold) 0.875em var(--v-fm-bd, var(--typora-strong-font));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .code-block-container.md-fences[lang=""]::before {
+  content: none;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(table.v-freeze.auto, .milkdown-table-block.v-freeze.auto table) tbody > tr > :first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--db, var(--typora-table-bg));
+  border-inline: none;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(table.v-freeze.auto, .milkdown-table-block.v-freeze.auto table) tr > :first-child::before,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(table.v-freeze.auto, .milkdown-table-block.v-freeze.auto table) tr > :first-child::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  width: var(--vlaina-border-width-1);
+  background: var(--pn-c-a, var(--typora-block-border));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(table.v-freeze.auto, .milkdown-table-block.v-freeze.auto table) tr > :first-child::before {
+  inset-inline-start: 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(table.v-freeze.auto, .milkdown-table-block.v-freeze.auto table) tr > :first-child::after {
+  inset-inline-end: calc(var(--vlaina-border-width-1) * -2);
+  width: calc(var(--vlaina-border-width-1) * 2);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write table .v-empty-cell {
+  min-width: 0;
+  padding: var(--vlaina-border-width-1);
+  background: var(--pn-c-a, var(--typora-block-border));
+  border-color: var(--pn-c-a, var(--typora-block-border));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-col-fmt-bold {
+  font: var(--v-fw-bd, bold) 1em var(--v-fm-bd, var(--typora-strong-font));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-col-fmt-em {
+  font-style: italic;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-col-fmt-mark {
+  color: var(--df, inherit);
+  background: var(--mark-bg, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-col-fmt-num {
+  text-align: end;
+  font-family: var(--v-fm-code, var(--font-monospace));
+  font-size: var(--typora-vlook-code-font-size);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-col-fmt-num > span {
+  vertical-align: middle;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-col-fmt-num-positive {
+  color: var(--ac-rd, var(--typora-link-color));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-col-fmt-num-negative {
+  color: var(--ac-gn, var(--typora-link-color));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-col-fmt-currency {
+  color: var(--df-a, var(--text-muted, inherit));
+  float: inline-start;
+  font: condensed var(--v-fw-tag, var(--v-fw-bd, bold)) 1em/1.5 var(--v-fm-tag, var(--typora-tag-font));
+  padding-inline-end: var(--typora-vlook-table-symbol-gap);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-col-fmt-percent,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-col-fmt-num-decimal {
+  color: var(--df-a, var(--text-muted, inherit));
+  font-size: var(--vlaina-font-075rem);
+  vertical-align: top;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-col-fmt-chkbox {
+  text-align: center;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-col-fmt-chkbox::before {
+  background: var(--db, var(--typora-table-bg));
+  border: var(--typora-vlook-checkbox-border-width) solid var(--vlook-token-fg, var(--typora-link-color));
+  border-radius: var(--typora-vlook-checkbox-radius);
+  box-sizing: border-box;
+  content: "";
+  display: inline-block;
+  height: var(--typora-vlook-checkbox-size);
+  margin-inline-end: var(--vlaina-space-4px);
+  vertical-align: middle;
+  width: var(--typora-vlook-checkbox-size);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-col-fmt-chkbox[data-vlook-checkbox='checked']::before {
+  background: var(--ac-gn, var(--typora-link-color));
+  border-color: var(--ac-gn, var(--typora-link-color));
+  box-shadow: inset 0 0 0 var(--typora-vlook-checkbox-mark-size) var(--db, var(--typora-page-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-col-fmt-chkbox[data-vlook-checkbox='pending']::before {
+  background: var(--ac-gy, var(--df-a, currentColor));
+  border-color: var(--ac-gy, var(--df-a, currentColor));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-col-fmt-chkbox[data-vlook-checkbox='failed']::before {
+  background: var(--ac-rd, var(--typora-link-color));
+  border-color: var(--ac-rd, var(--typora-link-color));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[align='left'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[data-align='left'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#left'] {
+  float: left;
+  margin-inline: 0 1.25em;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[align='right'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[data-align='right'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#right'] {
+  float: right;
+  margin-inline: 1.25em 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[width='20%'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[data-width='20%'] {
+  width: min(100%, 20%) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[width='40%'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[data-width='40%'] {
+  width: min(100%, 40%) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[width='60%'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[data-width='60%'] {
+  width: min(100%, 60%) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[width='80%'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[data-width='80%'] {
+  width: min(100%, 80%) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#border'] img {
+  border: var(--vlaina-border-width-1) solid var(--img-bd-invert, var(--typora-block-border));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#shadow'] img {
+  box-shadow: var(--v-fl-sd, var(--shadow-lg, 0 0 0 var(--vlaina-border-width-1) var(--typora-block-border)));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#circle'] img {
+  border-radius: var(--typora-vlook-circle-radius);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#invert'] img {
+  filter: var(--v-invert-dark, invert(1));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container {
+  position: relative;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write p:has(> .image-block-container) {
+  display: block;
+  margin-block: 0.5em 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write p:has(> .image-block-container + .image-block-container) > .image-block-container {
+  margin-inline-end: var(--vlaina-space-20px, 20px);
+  margin-block-end: var(--vlaina-space-20px, 20px);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[data-alt]:not([data-alt='']):not([src*='#logo']):not([src*='#icon']):not([src*='#card'])::after {
+  content: "Caption / " attr(data-alt);
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin-block: var(--vlaina-space-2px, 2px) 0;
+  padding: var(--typora-vlook-caption-padding);
+  color: var(--df, inherit);
+  background: var(--pn03, var(--typora-caption-bg));
+  border-radius: var(--v-r-s, var(--vlaina-radius-0375rem));
+  font: var(--typora-caption-font);
+  line-height: 1;
+  text-transform: none;
+  white-space: pre-wrap;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#card'] {
+  width: fit-content !important;
+  max-width: 100%;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#card'] > div {
+  width: 100% !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#card'] img {
+  width: 100%;
+  border-radius: var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem)) 0 0;
+  border: none;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#card'][src*='#border'] {
+  padding: var(--vlaina-border-width-1);
+  border-radius: var(--typora-block-radius);
+  background: linear-gradient(180deg, var(--ac-gy-fd, var(--typora-block-border)), var(--ac-gy, var(--typora-block-border)), var(--ac-gy-fd, var(--typora-block-border)));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#cardd'] img {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#cardd'][data-alt]:not([data-alt=''])::after {
+  content: attr(data-alt);
+  display: block;
+  width: auto;
+  padding: var(--typora-vlook-card-body-padding, var(--vlaina-space-1rem));
+  color: var(--df, inherit);
+  background: linear-gradient(180deg, var(--ac-gy-fd, transparent), var(--pn-c, var(--typora-block-bg)) var(--vlaina-space-20px, 20px), var(--pn-c, var(--typora-block-bg)));
+  border-radius: 0 0 var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem));
+  font: normal 0.875em/1.5 var(--typora-content-font);
+  white-space: pre-wrap;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-post-card {
+  display: block;
+  position: static;
+  overflow: hidden;
+  transform: none;
+  color: var(--df, inherit);
+  background: linear-gradient(180deg, var(--ac-gy-fd, transparent), var(--pn-c, var(--typora-block-bg)) var(--vlaina-space-20px, 20px), var(--pn-c, var(--typora-block-bg)));
+  border-radius: 0 0 var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem));
+  box-shadow: none;
+  padding: var(--vlaina-space-10px) var(--vlaina-space-20px);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-post-card > .v-card-title {
+  font: var(--v-fw-tt, var(--vlaina-font-weight-semibold)) 1.125em var(--typora-heading-font);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-post-card > .v-card-title + .v-card-text {
+  padding-block-start: var(--typora-vlook-card-caption-gap, var(--vlaina-size-5px));
+  font-size: var(--typora-vlook-card-text-font-size, var(--vlaina-font-0875rem));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#blur'] img {
+  filter: var(--typora-vlook-image-blur-filter, var(--vlaina-filter-blur-xs));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#gray'] img {
+  filter: saturate(20%);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#aged'] img {
+  filter: sepia(1);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#invert'] img {
+  filter: invert(1);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container:is([src*='#invert!'], [src*='#blur!'], [src*='#gray!'], [src*='#aged!']) img:hover {
+  filter: none;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='darksrc=invert'][src*='#line'] img {
+  background: var(--v-fig-grid-l-invert, var(--v-fig-grid-l, var(--fig-solid-bg, transparent)));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='darksrc=invert'][src*='#block'] img {
+  background: var(--v-fig-grid-b-invert, var(--v-fig-grid-b, var(--fig-solid-bg, transparent)));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#800h'] {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#200h'] img {
+  height: var(--typora-image-200h-height, 200px);
+  max-width: unset;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#400h'] img {
+  height: var(--typora-image-400h-height, 400px);
+  max-width: unset;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#600h'] img {
+  height: var(--typora-image-600h-height, 600px);
+  max-width: unset;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#800h'] img {
+  height: var(--typora-image-800h-height, 800px);
+  max-width: unset;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#logo'][src*='#border'] img {
+  border: var(--vlaina-border-width-2, 2px) solid var(--df-a, var(--typora-block-border));
+  border-radius: var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#logo'][src*='#round'] img {
+  border-radius: var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .image-block-container[src*='#logo'][src*='#round2s'] img {
+  border-radius: var(--typora-block-radius);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write blockquote:has(.image-block-container[src*='#card']) {
+  padding: 0;
+  border: none;
+  border-radius: var(--typora-block-radius);
+  overflow: hidden;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write blockquote:has(.image-block-container[src*='#card']) > p {
+  margin: 0;
+  background: transparent;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write blockquote:has(.image-block-container[src*='#card']) .image-block-container {
+  width: 100% !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write blockquote:has(.image-block-container[src*='#card']) + blockquote,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write blockquote p:has(.image-block-container[src*='#card']) + blockquote {
+  margin-block-start: 0;
+  padding: var(--vlaina-space-10px);
+  color: var(--df, inherit);
+  background: var(--pn-c, var(--typora-block-bg));
+  border: none;
+  border-radius: 0 0 var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .md-hr + :is(blockquote, details, .md-alert),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write hr + :is(blockquote, details, .md-alert) {
+  display: inline-block;
+  min-width: 49%;
+  max-width: 49%;
+  vertical-align: top;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .md-hr + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write hr + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) {
+  margin-inline-start: 2%;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr, hr + hr) + :is(blockquote, details, .md-alert),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr, hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr, hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) {
+  display: inline-block;
+  min-width: 32%;
+  max-width: 32%;
+  vertical-align: top;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr, hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr, hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) {
+  margin-inline-start: 2%;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr, hr + hr + hr) + :is(blockquote, details, .md-alert),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr, hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr, hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr, hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) {
+  display: inline-block;
+  min-width: 23.5%;
+  max-width: 23.5%;
+  vertical-align: top;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr, hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr, hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr, hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) {
+  margin-inline-start: 2%;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr + .md-hr, hr + hr + hr + hr) + :is(blockquote, details, .md-alert),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr + .md-hr, hr + hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr + .md-hr, hr + hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr + .md-hr, hr + hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr + .md-hr, hr + hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) {
+  display: inline-block;
+  min-width: 19.2%;
+  max-width: 19.2%;
+  vertical-align: top;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr + .md-hr, hr + hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr + .md-hr, hr + hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr + .md-hr, hr + hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr + .md-hr, hr + hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) {
+  margin-inline-start: 1%;
+}
+
+@media (max-width: 767px) {
+  :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .md-hr + :is(blockquote, details, .md-alert),
+  :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write hr + :is(blockquote, details, .md-alert),
+  :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .md-hr + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+  :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write hr + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+  :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr, .md-hr + .md-hr + .md-hr, .md-hr + .md-hr + .md-hr + .md-hr, hr + hr, hr + hr + hr, hr + hr + hr + hr) + :is(blockquote, details, .md-alert),
+  :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr, .md-hr + .md-hr + .md-hr, .md-hr + .md-hr + .md-hr + .md-hr, hr + hr, hr + hr + hr, hr + hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+  :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr, .md-hr + .md-hr + .md-hr, .md-hr + .md-hr + .md-hr + .md-hr, hr + hr, hr + hr + hr, hr + hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+  :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr, .md-hr + .md-hr + .md-hr + .md-hr, hr + hr + hr, hr + hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert),
+  :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr + .md-hr, hr + hr + hr + hr) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) + :is(blockquote, details, .md-alert) {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    margin-inline-start: 0;
+  }
+}
+
+/* VLOOK's CSS includes a browser/export runtime around Typora. In Vlaina the
+   compatibility layer only maps the static Markdown content surface. */
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) {
+  --typora-page-max-width: min(100%, var(--v-write-w, var(--vlaina-size-1080px)));
+  --typora-vlook-card-body-padding: var(--vlaina-space-1rem);
+  --typora-vlook-card-caption-gap: var(--vlaina-size-5px);
+  --typora-vlook-card-text-font-size: var(--vlaina-font-0875rem);
+  --typora-vlook-html-min-height: var(--vlaina-size-200px, 200px);
+  --typora-vlook-image-blur-filter: blur(var(--vlaina-size-10px));
+  --typora-vlook-backdrop-filter: blur(var(--vlaina-size-10px));
+  --typora-vlook-media-landscape-width: min(100%, var(--v-media-w, 80%));
+  --typora-vlook-media-portrait-width: min(100%, var(--v-media-pt-w, 330px));
+  --typora-vlook-button-width: var(--v-tb-btn-w, var(--vlaina-size-44px, 44px));
+  --typora-vlook-button-height: var(--vlaina-size-30px, 30px);
+  --typora-vlook-button-gap: var(--vlaina-space-2px, 2px);
+  --typora-vlook-button-bg: var(--v-ui-bg, var(--a-c, var(--typora-link-color)));
+  --typora-vlook-button-bg-hover: var(--a-o-c, var(--typora-link-hover-color));
+  --typora-vlook-button-fg: var(--db, var(--typora-page-bg));
+  --typora-vlook-button-active-shadow: 0 0 0 var(--vlaina-border-width-2) var(--btn-raised, var(--typora-block-border));
+  --typora-vlook-tab-height: var(--vlaina-size-44px, 44px);
+  --typora-vlook-tab-item-height: var(--vlaina-size-36px, 36px);
+  --typora-vlook-tab-separator-height: 1em;
+  --typora-vlook-sticky-z-index: var(--vlaina-z-4);
+  --typora-vlook-inline-control-size: var(--vlaina-size-30px);
+  --typora-vlook-mini-control-size: var(--vlaina-size-30px);
+  --typora-vlook-mini-control-padding: var(--vlaina-space-2px);
+  --typora-vlook-info-max-width: calc(100% - var(--vlaina-size-10px));
+  --typora-vlook-info-padding: var(--vlaina-size-5px) var(--vlaina-space-10px);
+  --typora-vlook-column-gap: var(--vlaina-size-2rem);
+  --typora-vlook-column-rule: var(--vlaina-border-width-1) solid var(--pn-c-a, var(--typora-block-border));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write {
+  width: 100% !important;
+  max-width: var(--typora-page-max-width) !important;
+  min-width: 0 !important;
+  margin-inline: auto !important;
+  padding-inline: var(--typora-page-padding-inline) !important;
+  overflow-x: visible !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write.done::before,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write.done::after {
+  content: none !important;
+  display: none !important;
+  width: auto !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: none !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(figure, pre, blockquote, details, summary, .v-caption, .md-alert, .milkdown-table-block) {
+  overflow-wrap: break-word;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-htmlblock, [data-type='html-block'].md-htmlblock) {
+  margin-block: 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-htmlblock, [data-type='html-block'].md-htmlblock):has(:is(iframe, video, object, embed)) {
+  min-height: var(--typora-vlook-html-min-height);
+  border-radius: var(--v-r-b, var(--vlaina-radius-05rem)) 0 var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tab-box {
+  display: block;
+  max-width: 100%;
+  margin-block: 0.5em 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tab-box > :is(blockquote, details, .md-alert) {
+  margin-block-start: 0.5em;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tab-box > :is(blockquote, details, .md-alert) :is(blockquote, details) {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-htmlblock, .video-block, .v-caption.iframe) :is(iframe, video, object, embed),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(iframe, video, object, embed):is([src*='bilibili.com/player'], [src*='douyin.com/player'], [src*='ixigua.com/iframe'], [src*='qq.com/txp/iframe'], [src*='youtube.com/embed']) {
+  aspect-ratio: 16 / 9;
+  display: block;
+  width: var(--typora-vlook-media-landscape-width) !important;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  border: 0;
+  border-radius: var(--typora-block-radius);
+  background: var(--pn-c, var(--typora-block-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-htmlblock, .video-block, .v-caption.iframe) :is(iframe, video, object, embed)[src*='#pt'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(iframe, video, object, embed):is([src*='bilibili.com/player'], [src*='douyin.com/player'], [src*='ixigua.com/iframe'], [src*='qq.com/txp/iframe'], [src*='youtube.com/embed'])[src*='#pt'] {
+  aspect-ratio: 9 / 16;
+  width: var(--typora-vlook-media-portrait-width) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .milkdown-table-block.table-figure {
+  container: table-fixed-height / inline-size;
+  margin-block: 0.5em 0;
+  max-width: 100%;
+  overflow: visible;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .milkdown-table-block.table-figure .table-wrapper {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-inline: 0 !important;
+  overflow: visible;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .milkdown-table-block.table-figure .table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .milkdown-table-block.table-figure .table-content-host {
+  display: flex;
+  flex: none;
+  max-width: none;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .milkdown-table-block.table-figure table.children {
+  width: auto !important;
+  max-width: none;
+  vertical-align: text-top;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-row-g-btn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-svg-input-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--typora-vlook-inline-control-size);
+  height: var(--typora-vlook-inline-control-size);
+  color: var(--vlook-token-fg, var(--a-c, var(--typora-link-color)));
+  line-height: 1;
+  vertical-align: middle;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-row-g-btn {
+  cursor: pointer;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-row-g-btn :is(svg, use),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-svg-input-checkbox :is(svg, use) {
+  fill: currentColor;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tbl-row-g-btn:is(:active, .pressed) {
+  color: var(--df-a, var(--text-muted, currentColor));
+  transform: scale(var(--vlaina-scale-90));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-fig-content, .v-caption) :is(img, svg) {
+  max-width: 100%;
+  height: auto;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-fig-content, .v-caption) :is(img[src*='#padding'], svg[data-inject-url*='#padding']) {
+  background: var(--db, var(--typora-page-bg));
+  padding: var(--typora-vlook-image-padding);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-fig-content, .v-caption) :is(img[src*='#line'], svg[data-inject-url*='#line']) {
+  background: var(--v-fig-grid-l, var(--fig-solid-bg, transparent));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-fig-content, .v-caption) :is(img[src*='#block'], svg[data-inject-url*='#block']) {
+  background: var(--v-fig-grid-b, var(--fig-solid-bg, transparent));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-fig-content, .v-caption) :is(img[src*='#blur'], svg[data-inject-url*='#blur']) {
+  filter: var(--typora-vlook-image-blur-filter, var(--vlaina-filter-blur-xs));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-fig-content, .v-caption) :is(img[src*='#gray'], svg[data-inject-url*='#gray']) {
+  filter: var(--vlaina-filter-grayscale-full);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-fig-content, .v-caption) :is(img[src*='#aged'], svg[data-inject-url*='#aged']) {
+  filter: sepia(var(--vlaina-scale-100));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-fig-content, .v-caption) :is(img[src*='#invert'], svg[data-inject-url*='#invert']) {
+  filter: var(--v-invert-dark, invert(var(--vlaina-scale-100)));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-fig-content, .v-caption) :is(img[src*='#invert!'], img[src*='#blur!'], img[src*='#gray!'], img[src*='#aged!'], svg[data-inject-url*='#invert!'], svg[data-inject-url*='#blur!'], svg[data-inject-url*='#gray!'], svg[data-inject-url*='#aged!']):hover {
+  filter: none;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write table tr > :is(th, td):first-child {
+  min-width: var(--typora-vlook-table-first-cell-min-width, 8em);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-caption.table, figure.table-figure:not(:has(.v-caption)), .milkdown-table-block.table-figure:not(:has(.v-caption))) {
+  display: block;
+  overflow: auto;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-cap-cntr {
+  display: block;
+  max-width: 100%;
+  margin-block: 0.5em 0;
+  text-align: center;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-cap-cntr > .v-caption:not(:only-child) {
+  margin-block-end: var(--vlaina-space-8px, 8px);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-caption {
+  display: inline-block;
+  max-width: 100%;
+  overflow-x: auto;
+  text-align: center;
+  vertical-align: top;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-caption:is(.iframe, .mermaid) {
+  width: 100%;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-caption.full {
+  position: static !important;
+  inset: auto !important;
+  z-index: auto !important;
+  width: 100% !important;
+  height: auto !important;
+  margin: 0 auto !important;
+  background: transparent !important;
+  transform: none !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-caption > :is(.md-fences, .code-block-container) {
+  margin: 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-caption.codeblock {
+  width: 100%;
+  background-color: var(--std-code-sd, var(--typora-code-frame-bg));
+  border-radius: var(--typora-block-radius);
+  box-shadow: inset 0 0 0 var(--vlaina-border-width-2) var(--std-code-sd, var(--typora-code-frame-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-cap-1, .v-cap-2) {
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+  margin-block: var(--vlaina-space-2px, 2px);
+  padding: var(--typora-vlook-caption-block-padding);
+  color: var(--df, inherit);
+  background: var(--pn03, var(--typora-caption-bg));
+  border-radius: var(--c-br-s, var(--vlaina-radius-0375rem));
+  font: condensed normal var(--typora-vlook-card-text-font-size, var(--vlaina-font-0875rem)) var(--v-fm-tag, var(--typora-tag-font));
+  line-height: 1;
+  white-space: pre-wrap;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-cap-2 {
+  padding-block-start: 0;
+  color: var(--df-a, var(--text-muted, inherit));
+  background: transparent;
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+  font-size: var(--vlaina-font-075em, 0.75em);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-cap-1.none {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-cap-1 > span {
+  color: var(--h-f, var(--typora-link-color));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--typora-vlook-button-width);
+  height: var(--typora-vlook-button-height);
+  padding: 0;
+  color: var(--typora-vlook-button-fg);
+  background: var(--typora-vlook-button-bg);
+  border: 0;
+  border-radius: var(--b-br-s, var(--v-r-s, var(--vlaina-radius-0375rem)));
+  font: condensed normal 1em/1.5 var(--v-fm-tag, var(--typora-tag-font));
+  text-decoration: none;
+  vertical-align: middle;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-btn:is(:hover, .selected, .current) {
+  color: var(--typora-vlook-button-bg);
+  background: var(--typora-vlook-button-fg);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-btn:is(:active, .pressed) {
+  color: var(--typora-vlook-button-fg);
+  background: var(--typora-vlook-button-bg-hover);
+  box-shadow: var(--typora-vlook-button-active-shadow);
+  transform: scale(var(--typora-vlook-button-active-scale, 0.9));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-btn.disabled {
+  pointer-events: none;
+  opacity: var(--typora-vlook-disabled-opacity, 0.4);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-btn-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--typora-vlook-button-gap);
+  max-width: 100%;
+  height: var(--typora-vlook-button-height);
+  border-radius: var(--b-br-s, var(--v-r-s, var(--vlaina-radius-0375rem)));
+  vertical-align: middle;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-btn-group.float {
+  height: calc(var(--typora-vlook-button-height) + var(--vlaina-space-2px, 2px));
+  padding-inline: var(--typora-vlook-button-gap);
+  background: var(--typora-vlook-button-bg);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-btn-group:is(:hover, :has(.selected)) {
+  box-shadow: var(--v-fl-sd, var(--typora-vlook-button-active-shadow));
+  outline: var(--vlaina-border-width-2) solid var(--v-selected-c, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-audio-mini-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--typora-vlook-mini-control-size);
+  height: var(--typora-vlook-mini-control-size);
+  padding: var(--typora-vlook-mini-control-padding);
+  color: var(--typora-vlook-button-fg);
+  background: var(--v-btn-bg, var(--typora-vlook-button-bg));
+  border-radius: var(--b-br-b, var(--typora-block-radius));
+  line-height: 1;
+  text-align: center;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-audio-mini-control:is(:hover, .playing) {
+  color: var(--typora-vlook-button-fg);
+  background: var(--a-o-c, var(--typora-vlook-button-bg-hover));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-audio-mini-control:is(:active, .pressed) {
+  background: var(--df-a, var(--typora-vlook-button-bg-hover));
+  transform: scale(var(--vlaina-scale-90));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-audio-mini-control.disabled {
+  cursor: not-allowed;
+  opacity: var(--typora-vlook-disabled-opacity, var(--vlaina-opacity-40));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-audio-mini-control :is(svg, use) {
+  fill: currentColor;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tab-group {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  max-width: 100%;
+  height: var(--typora-vlook-tab-height);
+  margin: 0 auto;
+  overflow-x: auto;
+  color: var(--df, inherit);
+  background: var(--pn-c, var(--typora-block-bg));
+  border-radius: var(--v-r-s, var(--vlaina-radius-0375rem)) var(--v-r-s-xc, var(--vlaina-radius-0375rem));
+  box-shadow: 0 0 var(--vlaina-size-5px) var(--vlaina-size-5px) var(--db, transparent);
+  font-family: var(--v-fm-bd, var(--typora-strong-font));
+  position: sticky;
+  top: var(--v-sticky-top, 0);
+  z-index: var(--typora-vlook-sticky-z-index);
+  white-space: nowrap;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-backdrop-blurs {
+  backdrop-filter: var(--typora-vlook-backdrop-filter);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-tab-group.v-backdrop-blurs.enabled {
+  background-color: var(--pn-c, var(--typora-block-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .tab-group-wrap {
+  display: flex;
+  align-items: center;
+  max-width: 100%;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .tab-group-wrap > span {
+  display: inline-flex;
+  position: relative;
+  align-items: center;
+  height: var(--typora-vlook-tab-item-height);
+  margin-inline: var(--vlaina-space-2px, 2px);
+  padding-inline: var(--vlaina-space-10px, 10px);
+  color: var(--a-c, var(--typora-link-color));
+  border-radius: calc(var(--v-r-s, var(--vlaina-radius-0375rem)) - var(--vlaina-space-4px, 4px)) calc(var(--v-r-s-xc, var(--vlaina-radius-0375rem)) - var(--vlaina-space-4px, 4px));
+  font: condensed var(--v-fw-toc, var(--v-fw-bd, bold)) 1em var(--v-fm-toc, var(--typora-tag-font));
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .tab-group-wrap > span::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: calc(var(--vlaina-space-10px, 10px) * -1);
+  width: var(--vlaina-border-width-1);
+  height: var(--typora-vlook-tab-separator-height);
+  background-color: var(--df, currentColor);
+  opacity: var(--typora-vlook-tab-separator-opacity, 0.25);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .tab-group-wrap > span:first-child::before,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .tab-group-wrap > :is(.current, [class*='alert-'])::before,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .tab-group-wrap > :is(.current, [class*='alert-']) + span::before,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .tab-group-wrap > span:hover::before,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .tab-group-wrap > span:hover + span::before {
+  opacity: 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .tab-group-wrap > span:is(:hover, .current) {
+  color: var(--df, inherit);
+  background: var(--db, var(--typora-page-bg));
+  box-shadow: 0 0 var(--vlaina-space-4px, 4px) 0 var(--pn-c-a, var(--typora-block-border));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .tab-group-wrap > .alert-note {
+  color: var(--ac-bu, var(--typora-link-color));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .tab-group-wrap > .alert-tip {
+  color: var(--ac-gn, var(--typora-link-color));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .tab-group-wrap > .alert-important {
+  color: var(--ac-pu, var(--typora-link-color));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .tab-group-wrap > .alert-warning {
+  color: var(--ac-og, var(--typora-link-color));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .tab-group-wrap > .alert-caution {
+  color: var(--ac-rd, var(--typora-link-color));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-info-tips, .v-tool-tips) {
+  display: inline-block;
+  position: static !important;
+  width: max-content;
+  max-width: var(--typora-vlook-info-max-width);
+  padding: var(--typora-vlook-info-padding);
+  color: var(--df, inherit);
+  background: var(--ac-t2-a, var(--typora-selection-bg));
+  border: var(--vlaina-border-width-1) solid var(--ac-t2, var(--typora-link-color));
+  border-radius: 0 var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem));
+  font: normal var(--typora-vlook-card-text-font-size, var(--vlaina-font-0875rem)) var(--v-fm-bd, var(--typora-strong-font));
+  line-height: 1.5;
+  text-align: center;
+  white-space: pre-wrap;
+  cursor: default;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-info-tips.bubble {
+  color: var(--db, var(--typora-page-bg));
+  background: var(--df, var(--text-normal, currentColor));
+  border: 0;
+  border-radius: var(--typora-block-radius);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .v-info-tips:is(.error-hash, .error-address) {
+  color: var(--db, var(--typora-page-bg));
+  background: var(--ac-rd, var(--typora-link-color));
+  border-color: var(--ac-rd, var(--typora-link-color));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.v-info-tips, .v-tool-tips) kbd {
+  color: var(--typora-kbd-fg);
+  background: var(--typora-kbd-bg);
+  box-shadow: var(--typora-kbd-shadow);
+  border: 0;
+  border-radius: var(--vlaina-radius-4px);
+  font: var(--v-fw-bd, var(--vlaina-font-weight-semibold)) var(--vlaina-font-075rem) / 1.5 var(--v-fm-code, var(--font-monospace));
+  margin: var(--vlaina-space-1px);
+  padding: var(--kbd-pd, var(--vlaina-space-035rem) var(--vlaina-space-05rem));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr, hr):has(+ :is(ul, ol)),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr, hr):has(+ :is(.md-hr, hr) + :is(ul, ol)),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr, hr):has(+ :is(.md-hr, hr) + :is(.md-hr, hr) + :is(ul, ol)),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr, hr):has(+ :is(.md-hr, hr) + :is(.md-hr, hr) + :is(.md-hr, hr) + :is(ul, ol)) {
+  visibility: hidden;
+  height: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .md-hr + :is(ul, ol),
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write hr + :is(ul, ol) {
+  column-count: 2;
+  column-gap: var(--typora-vlook-column-gap);
+  column-rule: var(--typora-vlook-column-rule);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr, hr + hr) + :is(ul, ol) {
+  column-count: 3;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr, hr + hr + hr) + :is(ul, ol) {
+  column-count: 4;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr + .md-hr + .md-hr, hr + hr + hr + hr) + :is(ul, ol) {
+  column-count: 5;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr, hr) + :is(ul, ol) > li,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr, hr) + :is(.md-hr, hr) + :is(ul, ol) > li,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr, hr) + :is(.md-hr, hr) + :is(.md-hr, hr) + :is(ul, ol) > li,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr, hr) + :is(.md-hr, hr) + :is(.md-hr, hr) + :is(.md-hr, hr) + :is(ul, ol) > li {
+  break-inside: avoid;
+}
+
+@media (max-width: 767px) {
+  :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write .md-hr + :is(ul, ol),
+  :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write hr + :is(ul, ol),
+  :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-']) #write :is(.md-hr + .md-hr, .md-hr + .md-hr + .md-hr, .md-hr + .md-hr + .md-hr + .md-hr, hr + hr, hr + hr + hr, hr + hr + hr + hr) + :is(ul, ol) {
+    column-count: 1;
+    column-rule: 0;
+  }
+}

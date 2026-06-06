@@ -50,9 +50,14 @@ export function createCustomInlineTextProtectionPlugin(
   return (ctx) => {
     return () => {
       ctx.update(remarkStringifyOptionsCtx, (options) => {
-        const handlers =
-          options.handlers && typeof options.handlers === 'object' ? options.handlers : {};
-        const textHandler = handlers.text;
+        const handlers = (
+          options.handlers && typeof options.handlers === 'object'
+            ? options.handlers
+            : {}
+        ) as Record<string, unknown>;
+        const textHandler = typeof handlers.text === 'function'
+          ? handlers.text as (node: any, parent: unknown, state: any, info: any) => string
+          : null;
 
         return {
           ...options,
@@ -60,7 +65,7 @@ export function createCustomInlineTextProtectionPlugin(
             ...handlers,
             text: (node: any, parent: unknown, state: any, info: any) => {
               const value = textHandler
-                ? textHandler(node, parent as never, state, info)
+                ? textHandler(node, parent, state, info)
                 : state.safe(node.value, { ...info, encode: [] });
               const escapedBlockSyntax = getMdastEscapedBlockSyntax(parent);
               return protectEscapedMarkdownBlockSyntaxText(

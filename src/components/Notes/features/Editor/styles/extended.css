@@ -408,6 +408,17 @@ body.editor-block-drag-active .milkdown .video-block video {
   font-size: var(--vlaina-font-095rem);
 }
 
+.milkdown .callout-title {
+  display: inline-flex;
+  align-items: flex-start;
+  flex-shrink: 0;
+  min-width: var(--vlaina-size-0);
+}
+
+.milkdown .callout-title-inner {
+  display: none;
+}
+
 .milkdown .callout-icon {
   flex-shrink: 0;
   font-size: var(--vlaina-font-125em);

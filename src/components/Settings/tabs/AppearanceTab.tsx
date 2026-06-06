@@ -1,17 +1,28 @@
 import type { ChangeEvent, CSSProperties, MouseEvent, PointerEvent } from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import type { IconName } from '@/components/ui/icons';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   UI_FONT_SIZE_DEFAULT,
   UI_FONT_SIZE_MAX,
   UI_FONT_SIZE_MIN,
   useUIStore,
 } from '@/stores/uiSlice';
+import { useToastStore } from '@/stores/useToastStore';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { openPathInFileManager } from '@/lib/desktop/shell';
 import { useI18n } from '@/lib/i18n';
+import {
+  ensureImportedMarkdownThemesDirectory,
+  listImportedMarkdownThemesFromDirectory,
+  syncImportedMarkdownThemesFromDirectory,
+} from '@/lib/markdown/theme-compatibility/importedThemeStorage';
+import type { ImportedMarkdownThemeMetadata } from '@/lib/markdown/theme-compatibility/types';
 import { cn } from '@/lib/utils';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { themeUiFeedbackTokens } from '@/styles/themeTokens';
+import { selectMarkdownImportedThemeId } from '@/stores/unified/settings/markdownSettings';
 import { SettingsItem, SettingsSectionHeader } from '../components/SettingsControls';
 import {
   DropdownMenu,
@@ -20,11 +31,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-const THEME_OPTIONS = [
-  { id: 'default' },
-] as const;
-
-type ThemeId = typeof THEME_OPTIONS[number]['id'];
 type ColorMode = 'system' | 'light' | 'dark';
 
 const COLOR_MODE_OPTIONS = [
@@ -83,23 +89,30 @@ function ColorModeToggle({ colorMode, onChange }: ColorModeToggleProps) {
 }
 
 interface ThemeDropdownProps {
-  themeId: string;
-  onChange: (themeId: ThemeId) => void;
+  importedThemeId: string | null;
+  importedThemes: ImportedMarkdownThemeMetadata[];
+  onChange: (themeId: string | null) => void;
+  onRefresh: () => void;
 }
 
-function ThemeDropdown({ themeId, onChange }: ThemeDropdownProps) {
+function ThemeDropdown({ importedThemeId, importedThemes, onChange, onRefresh }: ThemeDropdownProps) {
   const { t } = useI18n();
-  const activeTheme = THEME_OPTIONS.find((theme) => theme.id === themeId) ?? THEME_OPTIONS[0];
+  const activeTheme = importedThemeId
+    ? importedThemes.find((theme) => theme.id === importedThemeId) ?? null
+    : null;
+  const activeThemeName = activeTheme?.name ?? t('settings.appearance.theme.default');
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={(open) => {
+      if (open) onRefresh();
+    }}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
           className="flex h-8 min-w-[var(--vlaina-size-132px)] items-center justify-between gap-3 rounded-full px-2.5 text-[var(--vlaina-font-13)] font-medium text-[var(--vlaina-sidebar-notes-text)] transition-colors hover:bg-[var(--vlaina-accent-light)] hover:text-[var(--vlaina-accent)]"
         >
           <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate">{t(`settings.appearance.theme.${activeTheme.id}`)}</span>
+            <span className="truncate">{activeThemeName}</span>
           </span>
           <Icon name="nav.chevronDown" size="sm" className="text-[var(--vlaina-sidebar-notes-text-soft)]" />
         </button>
@@ -108,16 +121,25 @@ function ThemeDropdown({ themeId, onChange }: ThemeDropdownProps) {
         align="end"
         className="z-[var(--vlaina-z-120)] min-w-[var(--vlaina-size-170px)] rounded-2xl border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] p-1.5 shadow-[var(--vlaina-shadow-floating-panel)]"
       >
-        {THEME_OPTIONS.map((theme) => (
+        <DropdownMenuItem
+          onSelect={() => onChange(null)}
+          className={cn(
+            "rounded-xl px-3 py-2 text-[var(--vlaina-font-13)] text-[var(--vlaina-sidebar-chat-text)] focus:bg-[var(--vlaina-sidebar-row-selected-bg)] focus:text-[var(--vlaina-sidebar-row-selected-text)]",
+            importedThemeId === null && "text-[var(--vlaina-sidebar-row-selected-text)]"
+          )}
+        >
+          <span className="truncate">{t('settings.appearance.theme.default')}</span>
+        </DropdownMenuItem>
+        {importedThemes.map((theme) => (
           <DropdownMenuItem
             key={theme.id}
             onSelect={() => onChange(theme.id)}
             className={cn(
               "rounded-xl px-3 py-2 text-[var(--vlaina-font-13)] text-[var(--vlaina-sidebar-chat-text)] focus:bg-[var(--vlaina-sidebar-row-selected-bg)] focus:text-[var(--vlaina-sidebar-row-selected-text)]",
-              themeId === theme.id && "text-[var(--vlaina-sidebar-row-selected-text)]"
+              importedThemeId === theme.id && "text-[var(--vlaina-sidebar-row-selected-text)]"
             )}
           >
-            <span className="truncate">{t(`settings.appearance.theme.${theme.id}`)}</span>
+            <span className="min-w-0 flex-1 truncate">{theme.name}</span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
@@ -127,16 +149,20 @@ function ThemeDropdown({ themeId, onChange }: ThemeDropdownProps) {
 
 interface ThemeAppearanceControlProps {
   colorMode: ColorMode;
-  themeId: string;
+  importedThemeId: string | null;
+  importedThemes: ImportedMarkdownThemeMetadata[];
   onColorModeChange: (mode: ColorMode) => void;
-  onThemeChange: (themeId: ThemeId) => void;
+  onThemeChange: (themeId: string | null) => void;
+  onThemeRefresh: () => void;
 }
 
 function ThemeAppearanceControl({
   colorMode,
-  themeId,
+  importedThemeId,
+  importedThemes,
   onColorModeChange,
   onThemeChange,
+  onThemeRefresh,
 }: ThemeAppearanceControlProps) {
   return (
     <div className={cn(
@@ -145,7 +171,12 @@ function ThemeAppearanceControl({
     )}>
       <ColorModeToggle colorMode={colorMode} onChange={onColorModeChange} />
       <div className="mx-2 h-5 w-px bg-[var(--vlaina-divider)]" />
-      <ThemeDropdown themeId={themeId} onChange={onThemeChange} />
+      <ThemeDropdown
+        importedThemeId={importedThemeId}
+        importedThemes={importedThemes}
+        onChange={onThemeChange}
+        onRefresh={onThemeRefresh}
+      />
     </div>
   );
 }
@@ -163,11 +194,13 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
     const mode = state.data.settings.ui?.colorMode;
     return mode === 'light' || mode === 'dark' ? mode : 'system';
   });
-  const themeId = useUnifiedStore((state) => state.data.settings.ui?.themeId || 'default');
+  const importedThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
   const setColorMode = useUnifiedStore((state) => state.setColorMode);
-  const setThemeId = useUnifiedStore((state) => state.setThemeId);
+  const setMarkdownImportedThemeId = useUnifiedStore((state) => state.setMarkdownImportedThemeId);
+  const addToast = useToastStore((state) => state.addToast);
   const [isPreviewingFontSize, setIsPreviewingFontSize] = useState(false);
   const [draftFontSize, setDraftFontSize] = useState(fontSize);
+  const [importedThemes, setImportedThemes] = useState<ImportedMarkdownThemeMetadata[]>([]);
   const draftFontSizeRef = useRef(fontSize);
   const previewingFontSizeRef = useRef(false);
 
@@ -242,6 +275,49 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
     setDraftFontSize(UI_FONT_SIZE_DEFAULT);
     resetFontSize();
   };
+
+  const refreshImportedThemes = useCallback(async () => {
+    try {
+      const result = await syncImportedMarkdownThemesFromDirectory();
+      setImportedThemes(result.themes);
+    } catch {
+      try {
+        setImportedThemes(await listImportedMarkdownThemesFromDirectory());
+      } catch {
+        setImportedThemes([]);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void listImportedMarkdownThemesFromDirectory()
+      .then((themes) => {
+        if (!cancelled) {
+          setImportedThemes(themes);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setImportedThemes([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleOpenThemeDirectory = useCallback(async () => {
+    try {
+      const directoryPath = await ensureImportedMarkdownThemesDirectory();
+      await openPathInFileManager(directoryPath);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('settings.appearance.openThemeFolderFailed');
+      addToast(message, 'error', themeUiFeedbackTokens.errorToastDurationMs);
+    }
+  }, [addToast, t]);
 
   const fontSizeSlider = (
     <input
@@ -328,12 +404,35 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
         title={t('settings.appearance.theme')}
         className={cn(isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]")}
       >
-        <ThemeAppearanceControl
-          colorMode={colorMode}
-          themeId={themeId}
-          onColorModeChange={setColorMode}
-          onThemeChange={setThemeId}
-        />
+        <div className="flex flex-shrink-0 items-center gap-2">
+          <ThemeAppearanceControl
+            colorMode={colorMode}
+            importedThemeId={importedThemeId}
+            importedThemes={importedThemes}
+            onColorModeChange={setColorMode}
+            onThemeChange={setMarkdownImportedThemeId}
+            onThemeRefresh={() => void refreshImportedThemes()}
+          />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label={t('settings.appearance.openThemeFolder')}
+                onClick={() => void handleOpenThemeDirectory()}
+                className={cn(
+                  "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors",
+                  "hover:bg-[var(--vlaina-accent-light)] hover:text-[var(--vlaina-accent)]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--vlaina-color-setting-field)]",
+                )}
+              >
+                <Icon name="file.folderOpenArrow" size="sm" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" sideOffset={6}>
+              {t('settings.appearance.openThemeFolder')}
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </SettingsItem>
     </div>
   );

@@ -34,6 +34,9 @@ const resolvedViewerImageCache = new Map<string, Promise<string>>();
 const imageViewerToolbarButtonClass =
   "inline-flex h-9 w-9 items-center justify-center rounded-full bg-transparent text-[var(--vlaina-color-text-strong)] transition-colors hover:bg-[var(--vlaina-hover)]";
 
+type ViewerPoint = { x: number; y: number };
+type ViewerSize = { width: number; height: number };
+
 function getViewerFitBounds(viewportSize: { width: number; height: number }) {
   const horizontalPadding = viewportSize.width < themeChatImageViewerTokens.fitPaddingBreakpointPx
     ? themeChatImageViewerTokens.fitHorizontalPaddingCompactPx
@@ -155,14 +158,14 @@ export function ChatImageViewer({
 }: ChatImageViewerProps) {
   const { t } = useI18n();
   const [isMounted, setIsMounted] = useState(false);
-  const [crop, setCrop] = useState({ x: themeCropperTokens.defaultCropX, y: themeCropperTokens.defaultCropY });
+  const [crop, setCrop] = useState<ViewerPoint>({ x: themeCropperTokens.defaultCropX, y: themeCropperTokens.defaultCropY });
   const [zoom, setZoom] = useState(1);
   const [copied, setCopied] = useState(false);
   const [aspectRatio, setAspectRatio] = useState(1);
   const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
   const [mediaSize, setMediaSize] = useState<{ width: number; height: number; naturalWidth: number; naturalHeight: number } | null>(null);
   const [mediaReady, setMediaReady] = useState(false);
-  const [viewportSize, setViewportSize] = useState({
+  const [viewportSize, setViewportSize] = useState<ViewerSize>({
     width: themeChatImageViewerTokens.defaultViewportWidthPx,
     height: themeChatImageViewerTokens.defaultViewportHeightPx,
   });

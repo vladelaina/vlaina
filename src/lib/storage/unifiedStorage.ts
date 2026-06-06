@@ -22,6 +22,7 @@ import {
   type DataFile,
   type UnifiedData,
 } from './unifiedStorageTypes';
+import { isSafeImportedMarkdownThemeId } from '@/lib/markdown/theme-compatibility/types';
 
 export type {
   CustomIcon,
@@ -35,6 +36,7 @@ export interface UnifiedSavePatch {
     markdown?: Omit<Partial<UnifiedData['settings']['markdown']>, 'body' | 'codeBlock'> & {
       codeBlock?: Partial<UnifiedData['settings']['markdown']['codeBlock']>;
       body?: Partial<NonNullable<UnifiedData['settings']['markdown']['body']>>;
+      theme?: Partial<NonNullable<UnifiedData['settings']['markdown']['theme']>>;
     };
     ui?: Partial<NonNullable<UnifiedData['settings']['ui']>>;
   };
@@ -321,6 +323,7 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
   const timezoneOffset = settings?.timezone?.offset;
   const timezoneCity = settings?.timezone?.city;
   const typewriterMode = settings?.markdown?.typewriterMode;
+  const markdownTheme = settings?.markdown?.theme;
   const showBodyLineNumbers = settings?.markdown?.body?.showLineNumbers;
   const showLineNumbers = settings?.markdown?.codeBlock?.showLineNumbers;
   const lastAppViewMode = settings?.ui?.lastAppViewMode;
@@ -337,6 +340,13 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
       },
       markdown: {
         typewriterMode: typewriterMode === true,
+        theme: {
+          importedThemeId: typeof markdownTheme?.importedThemeId === 'string'
+            && markdownTheme.importedThemeId.trim()
+            && isSafeImportedMarkdownThemeId(markdownTheme.importedThemeId.trim())
+            ? markdownTheme.importedThemeId.trim()
+            : null,
+        },
         body: {
           showLineNumbers: showBodyLineNumbers === true,
         },
@@ -459,6 +469,12 @@ function mergeUnifiedSavePatches(
                   ...right.settings?.markdown?.body,
                 }
               : undefined,
+            theme: left.settings?.markdown?.theme || right.settings?.markdown?.theme
+              ? {
+                  ...left.settings?.markdown?.theme,
+                  ...right.settings?.markdown?.theme,
+                }
+              : undefined,
           }
         : undefined,
       ui: left.settings?.ui || right.settings?.ui
@@ -500,6 +516,12 @@ function mergeSettingsForSafeSave(
                 ...patch.settings.markdown.body,
               }
             : baseSettings.markdown.body,
+          theme: patch.settings.markdown.theme
+            ? {
+                ...baseSettings.markdown.theme,
+                ...patch.settings.markdown.theme,
+              }
+            : baseSettings.markdown.theme,
         }
       : baseSettings.markdown,
     ui: patch.settings.ui

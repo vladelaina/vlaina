@@ -13,11 +13,16 @@ export interface TimezoneInfo {
   city: string;
 }
 
+export interface MarkdownThemeSettings {
+  importedThemeId?: string | null;
+}
+
 export interface UnifiedData {
   settings: {
     timezone: TimezoneInfo;
     markdown: {
       typewriterMode: boolean;
+      theme?: Partial<MarkdownThemeSettings>;
       body?: {
         showLineNumbers?: boolean;
       };
@@ -63,6 +68,9 @@ export function createDefaultUnifiedData(): UnifiedData {
       timezone: { offset: DEFAULT_TIMEZONE, city: 'Beijing' },
       markdown: {
         typewriterMode: false,
+        theme: {
+          importedThemeId: null,
+        },
         body: {
           showLineNumbers: false,
         },

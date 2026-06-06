@@ -246,7 +246,8 @@ export const hrAutoParagraphPlugin = $prose(() => {
           if (event.button !== 0) return false;
           if (!(event.target instanceof HTMLElement)) return false;
 
-          const hrElement = event.target.closest('hr');
+          const hrWrapper = event.target.closest('.md-hr') as HTMLElement | null;
+          const hrElement = hrWrapper ?? event.target.closest('hr');
           if (!hrElement || !view.dom.contains(hrElement)) return false;
 
           try {

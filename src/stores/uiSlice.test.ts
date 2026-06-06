@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SIDEBAR_MIN_WIDTH } from '@/lib/layout/sidebarWidth';
+import { DEFAULT_SETTINGS } from '@/lib/config';
 import { useUIStore } from './uiSlice';
 import { useUnifiedStore } from './unified/useUnifiedStore';
 import { useAIUIStore } from './ai/chatState';
@@ -90,6 +91,8 @@ describe('uiSlice', () => {
   });
 
   it('persists appearance mode and theme settings in unified settings', () => {
+    expect(DEFAULT_SETTINGS.ui.colorMode).toBe('system');
+
     useUnifiedStore.getState().setColorMode('dark');
     useUnifiedStore.getState().setThemeId('default');
 

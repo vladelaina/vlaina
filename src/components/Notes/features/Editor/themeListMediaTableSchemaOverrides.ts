@@ -14,7 +14,7 @@ import {
     parseCropValue,
     serializeCropValue,
 } from './plugins/image-block/utils/imageSourceFragment';
-import { escapeHtmlAttr, getDomAttrs, updateSchemaFactory } from './themeSchemaUtils';
+import { escapeHtmlAttr, getDomAttrs, mergeDomClassNames, updateSchemaFactory } from './themeSchemaUtils';
 
 interface MarkdownHtmlImageAttrs {
     src: string;
@@ -166,8 +166,22 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
             const numericValue = node.attrs.listType === 'ordered'
                 ? Number.parseInt(label, 10)
                 : Number.NaN;
+            const isTaskItem = typeof node.attrs.checked === 'boolean';
+            const taskState = isTaskItem ? (node.attrs.checked ? 'x' : ' ') : undefined;
 
             return ['li', {
+                ...(isTaskItem ? {
+                    class: mergeDomClassNames(
+                        'md-task-list-item',
+                        'task-list-item',
+                        'HyperMD-task-line',
+                        node.attrs.checked ? 'is-checked' : undefined
+                    ),
+                    'data-item-type': 'task',
+                    'data-checked': String(node.attrs.checked),
+                    'data-task': taskState,
+                    'aria-checked': String(node.attrs.checked),
+                } : {}),
                 'data-label': node.attrs.label,
                 'data-list-type': node.attrs.listType,
                 'data-spread': node.attrs.spread,
@@ -191,11 +205,13 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
             const width = normalizeImageWidth(node.attrs.width);
             const crop = serializeCropValue(node.attrs.crop);
             return ['img', {
+                class: 'md-image image-embed',
                 src: safeSrc || undefined,
                 alt: node.attrs.alt,
                 title: node.attrs.title,
                 align: node.attrs.align,
                 width,
+                'data-src': safeSrc || undefined,
                 'data-vlaina-crop': crop || undefined,
             }];
         },

@@ -29,7 +29,14 @@ describe('mathSchema', () => {
     expect(dom.tagName).toBe('DIV');
     expect(dom.dataset.type).toBe('math-block');
     expect(dom.dataset.latex).toBeUndefined();
-    expect(dom.className).toBe('math-block-wrapper');
+    expect(dom.classList.contains('math-block-wrapper')).toBe(true);
+    expect(dom.classList.contains('math')).toBe(true);
+    expect(dom.classList.contains('mathjax-block')).toBe(true);
+    expect(dom.classList.contains('md-math-block')).toBe(true);
+    expect(dom.classList.contains('md-fences-math')).toBe(true);
+    expect(dom.classList.contains('md-math-container')).toBe(true);
+    expect(dom.classList.contains('md-diagram-panel-preview')).toBe(true);
+    expect(dom.getAttribute('lang')).toBe('math');
     expect(getMathElementLatex(dom)).toBe(latex);
     expect(dom.outerHTML).not.toContain('data-latex');
     expect(dom.outerHTML).not.toContain('hidden_secret_marker');
@@ -44,7 +51,8 @@ describe('mathSchema', () => {
     expect(dom.tagName).toBe('SPAN');
     expect(dom.dataset.type).toBe('math-inline');
     expect(dom.dataset.latex).toBeUndefined();
-    expect(dom.className).toBe('math-inline-wrapper');
+    expect(dom.classList.contains('math-inline-wrapper')).toBe(true);
+    expect(dom.classList.contains('math')).toBe(true);
     expect(getMathElementLatex(dom)).toBe(latex);
     expect(dom.outerHTML).not.toContain('data-latex');
     expect(dom.outerHTML).not.toContain('inline_hidden_marker');

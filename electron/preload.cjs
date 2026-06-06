@@ -112,6 +112,9 @@ const desktopApi = {
     openExternal(url) {
       return ipcRenderer.invoke('desktop:shell:open-external', url);
     },
+    openPath(filePath) {
+      return ipcRenderer.invoke('desktop:shell:open-path', filePath);
+    },
     trashItem(filePath) {
       return ipcRenderer.invoke('desktop:shell:trash-item', filePath);
     },

@@ -8,6 +8,14 @@ function renderMarkup(markup: string) {
 }
 
 describe('mermaidSanitizer', () => {
+  it('adds the VLOOK Mermaid SVG alias without dropping existing SVG classes', () => {
+    const content = renderMarkup('<svg class="flowchart"><text>safe</text></svg>');
+    const svg = content.querySelector('svg');
+
+    expect(svg?.classList.contains('flowchart')).toBe(true);
+    expect(svg?.classList.contains('mermaid-svg')).toBe(true);
+  });
+
   it('drops external SVG resource references after DOMPurify sanitization', () => {
     const content = renderMarkup([
       '<svg>',

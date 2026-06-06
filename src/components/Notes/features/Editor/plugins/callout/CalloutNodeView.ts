@@ -6,6 +6,12 @@ import type { CalloutBlockAttrs, IconData } from './types';
 import { DEFAULT_CALLOUT_ICON } from './types';
 import { iconDataFromValue } from './calloutIconUtils';
 import { CalloutIconControl } from './CalloutIconControl';
+import {
+  getCalloutCompatibilityClassName,
+  getCalloutTitleCompatibilityClassName,
+  getObsidianCalloutRgb,
+  getObsidianCalloutType,
+} from './calloutThemeCompatibility';
 
 export class CalloutNodeView implements NodeView {
   dom: HTMLElement;
@@ -14,7 +20,9 @@ export class CalloutNodeView implements NodeView {
   private node: ProseNode;
   private readonly view: EditorView;
   private readonly getPos: () => number | undefined;
+  private readonly titleDOM: HTMLElement;
   private readonly iconDOM: HTMLElement;
+  private readonly titleInnerDOM: HTMLElement;
   private readonly root: Root;
 
   constructor(node: ProseNode, view: EditorView, getPos: () => number | undefined) {
@@ -23,14 +31,21 @@ export class CalloutNodeView implements NodeView {
     this.getPos = getPos;
 
     this.dom = document.createElement('div');
+    this.titleDOM = document.createElement('div');
     this.iconDOM = document.createElement('div');
+    this.titleInnerDOM = document.createElement('div');
     this.contentDOM = document.createElement('div');
 
+    this.titleDOM.className = 'callout-title';
+    this.titleDOM.contentEditable = 'false';
     this.iconDOM.className = 'callout-icon';
     this.iconDOM.contentEditable = 'false';
+    this.titleInnerDOM.className = 'callout-title-inner';
+    this.titleInnerDOM.setAttribute('aria-hidden', 'true');
     this.contentDOM.className = 'callout-content';
 
-    this.dom.append(this.iconDOM, this.contentDOM);
+    this.titleDOM.append(this.iconDOM, this.titleInnerDOM);
+    this.dom.append(this.titleDOM, this.contentDOM);
     this.root = createRoot(this.iconDOM);
 
     this.syncDomAttrs();
@@ -42,7 +57,11 @@ export class CalloutNodeView implements NodeView {
     this.dom.dataset.type = 'callout';
     this.dom.dataset.icon = JSON.stringify(attrs.icon);
     this.dom.dataset.bg = attrs.backgroundColor;
-    this.dom.className = `callout callout-${attrs.backgroundColor}`;
+    this.dom.dataset.callout = getObsidianCalloutType(attrs.backgroundColor);
+    this.dom.dataset.calloutMetadata = '';
+    this.dom.className = getCalloutCompatibilityClassName(attrs.backgroundColor);
+    this.titleDOM.className = getCalloutTitleCompatibilityClassName(attrs.backgroundColor);
+    this.dom.style.setProperty('--callout-color', getObsidianCalloutRgb(attrs.backgroundColor));
   }
 
   private updateIcon(value: string) {

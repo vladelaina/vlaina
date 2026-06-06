@@ -37,7 +37,7 @@ function createTagTokenDecorations(doc: any): DecorationSet {
 
       decorations.push(
         Decoration.inline(pos + match.index, pos + match.index + match[0].length, {
-          class: `editor-tag-token ${chatComposerPillSurfaceClass}`,
+          class: `editor-tag-token tag cm-hashtag cm-meta v-tag ${chatComposerPillSurfaceClass}`,
           'data-editor-tag-token': 'true',
         }, {
           inclusiveStart: false,

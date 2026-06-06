@@ -291,6 +291,8 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                     <ImageContent
                         isLoading={isLoading}
                         loadError={hasLoadError}
+                        sourceSrc={nodeSrc}
+                        sourceAlt={nodeAlt}
                         resolvedSrc={resolvedSrc}
                         isRemoteImageSource={isRemoteImageSource}
                         isDeferred={isImageLoadDeferred}

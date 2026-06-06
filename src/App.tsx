@@ -2,6 +2,8 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { AppContent } from '@/AppContent';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
+import { MarkdownThemeDirectorySync } from '@/components/markdown-theme/MarkdownThemeDirectorySync';
+import { MarkdownThemeLoader } from '@/components/markdown-theme/MarkdownThemeLoader';
 import { ThemeProvider } from '@/components/theme-provider';
 import { useBillingReturnRefresh } from '@/hooks/useBillingReturnRefresh';
 import { useElectronCloseGuard } from '@/hooks/useElectronCloseGuard';
@@ -11,6 +13,7 @@ import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { useDocumentLanguage, useI18n } from '@/lib/i18n';
+import { normalizeColorModePreference, syncDocumentColorModeClass } from '@/lib/theme/colorModeSync';
 
 const ConfirmDialog = lazy(async () => {
   const mod = await import('@/components/common/ConfirmDialog');
@@ -29,7 +32,9 @@ function AppThemeSync() {
   const colorMode = useUnifiedStore((state) => state.data.settings.ui?.colorMode);
 
   useEffect(() => {
-    setTheme(colorMode === 'light' || colorMode === 'dark' ? colorMode : 'system');
+    const normalizedColorMode = normalizeColorModePreference(colorMode);
+    setTheme(normalizedColorMode);
+    return syncDocumentColorModeClass(normalizedColorMode);
   }, [colorMode, setTheme]);
 
   return null;
@@ -136,6 +141,8 @@ function App() {
   return (
     <ThemeProvider>
       <AppThemeSync />
+      <MarkdownThemeDirectorySync />
+      <MarkdownThemeLoader />
       <ErrorBoundary>
         <AppContent />
         <Suspense fallback={null}>

@@ -30,6 +30,16 @@ export function getDomAttrs(attrs: Record<string, string | undefined> = {}) {
     return result;
 }
 
+export function mergeDomClassNames(...values: Array<unknown>): string | undefined {
+    const classes = values
+        .flatMap((value) => typeof value === 'string' ? value.split(/\s+/) : [])
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+    if (classes.length === 0) return undefined;
+    return Array.from(new Set(classes)).join(' ');
+}
+
 export function getDomTextAlignment(dom: HTMLElement): TextAlignment {
     return normalizeTextAlignment(
         dom.getAttribute('data-text-align') ||

@@ -75,6 +75,7 @@ export class CodeBlockNodeView implements NodeView {
   private collapsedState: boolean | null = null;
   private findHighlightStateKey = '[]';
   private mirroredOuterSelection = false;
+  private languageClassName: string | null = null;
 
   private readonly clearEditorSelectionOnBlur = (event: FocusEvent) => {
     if (!this.cm) {
@@ -126,19 +127,25 @@ export class CodeBlockNodeView implements NodeView {
     this.dom = document.createElement('div');
     this.dom.classList.add(
       'code-block-container',
+      'el-pre',
       'editor-code-block',
+      'md-fences',
+      'HyperMD-codeblock',
+      'HyperMD-codeblock-bg',
+      'cm-line',
       'my-4',
       'rounded-2xl',
       'overflow-hidden',
       'group/code'
     );
+    this.syncThemeCompatibilityAttrs();
 
     this.headerDOM = document.createElement('div');
     this.headerDOM.contentEditable = 'false';
     this.dom.appendChild(this.headerDOM);
 
     this.editorDOM = document.createElement('div');
-    this.editorDOM.className = 'code-block-editable';
+    this.editorDOM.className = 'code-block-editable CodeMirror cm-s-inner cm-s-obsidian';
     this.dom.appendChild(this.editorDOM);
 
     this.root = createRoot(this.headerDOM);
@@ -169,7 +176,7 @@ export class CodeBlockNodeView implements NodeView {
     }
 
     this.placeholderDOM = document.createElement('pre');
-    this.placeholderDOM.className = 'code-block-lazy-preview';
+    this.placeholderDOM.className = 'code-block-lazy-preview CodeMirror-code';
     this.placeholderDOM.textContent = this.node.textContent;
     this.editorDOM.appendChild(this.placeholderDOM);
     this.syncCollapsedState();
@@ -284,6 +291,22 @@ export class CodeBlockNodeView implements NodeView {
 
   private getWrapStateKey(node: Node) {
     return node.attrs.wrap ? '1' : '0';
+  }
+
+  private syncThemeCompatibilityAttrs() {
+    const language = typeof this.node.attrs.language === 'string' ? this.node.attrs.language : '';
+    this.dom.dataset.language = language;
+    this.dom.setAttribute('lang', language);
+
+    if (this.languageClassName) {
+      this.dom.classList.remove(this.languageClassName);
+      this.languageClassName = null;
+    }
+
+    if (language) {
+      this.languageClassName = `language-${language}`;
+      this.dom.classList.add(this.languageClassName);
+    }
   }
 
   private render() {
@@ -524,6 +547,7 @@ export class CodeBlockNodeView implements NodeView {
     }
 
     this.node = node;
+    this.syncThemeCompatibilityAttrs();
     if (!this.cm && this.placeholderDOM) {
       this.placeholderDOM.textContent = node.textContent;
       if (this.lineNumberPlaceholderDOM) {
@@ -587,7 +611,7 @@ export class CodeBlockNodeView implements NodeView {
 
   selectNode() {
     this.selected = true;
-    this.dom.classList.add('ProseMirror-selectednode');
+    this.dom.classList.add('ProseMirror-selectednode', 'md-focus');
     if (!this.node.attrs.collapsed) {
       this.initializeCodeMirror();
       this.cm?.focus();
@@ -596,7 +620,7 @@ export class CodeBlockNodeView implements NodeView {
 
   deselectNode() {
     this.selected = false;
-    this.dom.classList.remove('ProseMirror-selectednode');
+    this.dom.classList.remove('ProseMirror-selectednode', 'md-focus');
   }
 
   setSelection(anchor: number, head: number) {

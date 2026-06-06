@@ -91,7 +91,7 @@ export function CodeBlockCopyButton({
         }
         void handleCopy();
       }}
-      className={cn('code-block-chrome-copy-button', className)}
+      className={cn('code-block-chrome-copy-button copy-code-button', className)}
       data-copied={isCopied ? 'true' : undefined}
       aria-label={isCopied ? t('common.copied') : t('common.copyCode')}
       title={isCopied ? t('common.copied') : t('common.copyToClipboard')}

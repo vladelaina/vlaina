@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import path from 'node:path';
 import electron from 'electron';
-import { isPathInsideDirectory, registerDesktopIpc, revealItemInFolder } from '../../electron/desktopIpc.mjs';
+import {
+  isPathInsideDirectory,
+  openPathInFileManager,
+  registerDesktopIpc,
+  revealItemInFolder,
+} from '../../electron/desktopIpc.mjs';
 
 const hoisted = vi.hoisted(() => {
   const windows: any[] = [];
@@ -191,6 +196,61 @@ describe('desktop export ipc', () => {
 
     expect(electron.nativeImage.createFromDataURL).toHaveBeenCalledWith(imageDataUrl);
     expect(electron.clipboard.writeImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens directories on Linux with an explicit file manager command', async () => {
+    const child = {
+      once: vi.fn(),
+      unref: vi.fn(),
+    };
+    const spawnDetached = vi.fn(() => child);
+    const shellImpl = {
+      openPath: vi.fn(),
+      showItemInFolder: vi.fn(),
+    };
+
+    await openPathInFileManager('/vault/.vlaina/themes', {
+      platform: 'linux',
+      shellImpl,
+      spawnDetached,
+      envPath: '/usr/bin',
+      exists: (candidatePath: string) => candidatePath === '/usr/bin/nautilus',
+    });
+
+    expect(spawnDetached).toHaveBeenCalledWith('/usr/bin/nautilus', ['--new-window', '/vault/.vlaina/themes'], {
+      detached: true,
+      stdio: 'ignore',
+    });
+    expect(shellImpl.openPath).not.toHaveBeenCalled();
+    expect(child.unref).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the native shell open path behavior outside Linux', async () => {
+    const shellImpl = {
+      openPath: vi.fn().mockResolvedValue(''),
+      showItemInFolder: vi.fn(),
+    };
+
+    await openPathInFileManager('/vault/.vlaina/themes', {
+      platform: 'darwin',
+      shellImpl,
+      spawnDetached: vi.fn(),
+    });
+
+    expect(shellImpl.openPath).toHaveBeenCalledWith('/vault/.vlaina/themes');
+  });
+
+  it('surfaces native shell open path errors outside Linux', async () => {
+    const shellImpl = {
+      openPath: vi.fn().mockResolvedValue('Cannot open path'),
+      showItemInFolder: vi.fn(),
+    };
+
+    await expect(openPathInFileManager('/vault/.vlaina/themes', {
+      platform: 'darwin',
+      shellImpl,
+      spawnDetached: vi.fn(),
+    })).rejects.toThrow('Cannot open path');
   });
 
   it('rejects invalid AI provider request headers before fetch', async () => {

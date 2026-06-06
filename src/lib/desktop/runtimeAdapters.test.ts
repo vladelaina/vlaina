@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => {
     },
     shell: {
       openExternal: vi.fn().mockResolvedValue(undefined),
+      openPath: vi.fn().mockResolvedValue(undefined),
       trashItem: vi.fn().mockResolvedValue(undefined),
       revealItem: vi.fn().mockResolvedValue(undefined),
     },
@@ -96,7 +97,7 @@ import {
   setDesktopAIProviderSecret,
 } from './secrets';
 import { aiProviderSecretCommands } from './secretsCommands';
-import { openExternalUrl, revealItemInFolder } from './shell';
+import { openExternalUrl, openPathInFileManager, revealItemInFolder } from './shell';
 import { moveDesktopItemToTrash } from './trash';
 import { watchDesktopPath } from './watch';
 import { desktopWindow } from './window';
@@ -173,6 +174,7 @@ describe('desktop runtime adapters', () => {
     expect(await showDesktopConfirm('Continue?', { kind: 'warning' })).toBe(true);
     await showDesktopMessage('Saved', { title: 'Done' });
     await openExternalUrl('https://example.com');
+    await openPathInFileManager('/tmp/themes');
     await revealItemInFolder('/tmp/file.md');
     await moveDesktopItemToTrash('/tmp/file.md');
     await writeDesktopBinaryFile('/tmp/file.bin', new Uint8Array([7, 8]));
@@ -183,6 +185,7 @@ describe('desktop runtime adapters', () => {
     expect(mocks.bridge.dialog.confirm).toHaveBeenCalledWith('Continue?', { kind: 'warning' });
     expect(mocks.bridge.dialog.message).toHaveBeenCalledWith('Saved', { title: 'Done' });
     expect(mocks.bridge.shell.openExternal).toHaveBeenCalledWith('https://example.com/');
+    expect(mocks.bridge.shell.openPath).toHaveBeenCalledWith('/tmp/themes');
     expect(mocks.bridge.shell.revealItem).toHaveBeenCalledWith('/tmp/file.md');
     expect(mocks.bridge.shell.trashItem).toHaveBeenCalledWith('/tmp/file.md');
     expect(mocks.bridge.fs.writeBinaryFile).toHaveBeenCalledWith('/tmp/file.bin', new Uint8Array([7, 8]));
@@ -237,6 +240,9 @@ describe('desktop runtime adapters', () => {
     await expect(showDesktopConfirm('Continue?')).resolves.toBe(false);
     await expect(showDesktopMessage('Saved')).resolves.toBeUndefined();
     await expect(openExternalUrl('https://example.com')).resolves.toBeUndefined();
+    await expect(openPathInFileManager('/tmp/themes')).rejects.toThrow(
+      'Open folder is only available in the desktop app.',
+    );
     await expect(revealItemInFolder('/tmp/file.md')).rejects.toThrow(
       'Open file location is only available in the desktop app.',
     );

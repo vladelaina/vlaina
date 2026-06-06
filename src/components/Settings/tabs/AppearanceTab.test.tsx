@@ -1,0 +1,209 @@
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ReactElement, ReactNode } from 'react';
+import { AppearanceTab } from './AppearanceTab';
+
+const mocks = vi.hoisted(() => ({
+  uiState: {
+    fontSize: 17,
+    setFontSize: vi.fn(),
+    resetFontSize: vi.fn(),
+  },
+  unifiedState: {
+    data: {
+      settings: {
+        ui: {
+          colorMode: 'system',
+        },
+        markdown: {
+          typewriterMode: false,
+          theme: {
+            importedThemeId: null,
+          },
+          body: {
+            showLineNumbers: false,
+          },
+          codeBlock: {
+            showLineNumbers: false,
+          },
+        },
+      },
+    },
+    setColorMode: vi.fn(),
+    setMarkdownImportedThemeId: vi.fn(),
+  },
+  addToast: vi.fn(),
+  ensureImportedMarkdownThemesDirectory: vi.fn(),
+  listImportedMarkdownThemesFromDirectory: vi.fn(),
+  syncImportedMarkdownThemesFromDirectory: vi.fn(),
+  openPathInFileManager: vi.fn(),
+}));
+
+vi.mock('@/components/ui/icons', () => ({
+  Icon: ({ name }: { name: string }) => <span aria-hidden="true" data-testid={`icon-${name}`} />,
+}));
+
+vi.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children: ReactNode }) => <>{children}</>,
+  TooltipTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock('@/components/ui/dropdown-menu', async () => {
+  const React = await vi.importActual<typeof import('react')>('react');
+  const DropdownContext = React.createContext<((open: boolean) => void) | null>(null);
+
+  return {
+    DropdownMenu: ({
+      children,
+      onOpenChange,
+    }: {
+      children: ReactNode;
+      onOpenChange?: (open: boolean) => void;
+    }) => (
+      <DropdownContext.Provider value={onOpenChange ?? null}>
+        {children}
+      </DropdownContext.Provider>
+    ),
+    DropdownMenuTrigger: ({
+      children,
+    }: {
+      asChild?: boolean;
+      children: ReactElement<{ onClick?: (event: unknown) => void }>;
+    }) => {
+      const onOpenChange = React.useContext(DropdownContext);
+      return React.cloneElement(children, {
+        onClick: (event: unknown) => {
+          children.props.onClick?.(event);
+          onOpenChange?.(true);
+        },
+      });
+    },
+    DropdownMenuContent: ({ children }: { children: ReactNode }) => <div role="menu">{children}</div>,
+    DropdownMenuItem: ({
+      children,
+      onSelect,
+    }: {
+      children: ReactNode;
+      onSelect?: () => void;
+    }) => (
+      <button type="button" role="menuitem" onClick={() => onSelect?.()}>
+        {children}
+      </button>
+    ),
+  };
+});
+
+vi.mock('@/stores/uiSlice', () => ({
+  UI_FONT_SIZE_DEFAULT: 17,
+  UI_FONT_SIZE_MAX: 28,
+  UI_FONT_SIZE_MIN: 14,
+  useUIStore: (selector: (state: typeof mocks.uiState) => unknown) => selector(mocks.uiState),
+}));
+
+vi.mock('@/stores/useToastStore', () => ({
+  useToastStore: (selector: (state: { addToast: typeof mocks.addToast }) => unknown) =>
+    selector({ addToast: mocks.addToast }),
+}));
+
+vi.mock('@/stores/unified/useUnifiedStore', () => ({
+  useUnifiedStore: (selector: (state: typeof mocks.unifiedState) => unknown) => selector(mocks.unifiedState),
+}));
+
+vi.mock('@/lib/desktop/shell', () => ({
+  openPathInFileManager: (...args: unknown[]) => mocks.openPathInFileManager(...args),
+}));
+
+vi.mock('@/lib/i18n', () => ({
+  useI18n: () => ({
+    t: (key: string) => ({
+      'common.reset': 'Reset',
+      'settings.appearance.baseFontSize': 'Base font size',
+      'settings.appearance.darkMode': 'Dark',
+      'settings.appearance.display': 'Display',
+      'settings.appearance.fontSize': 'Font Size',
+      'settings.appearance.lightMode': 'Light',
+      'settings.appearance.openThemeFolder': 'Open theme folder',
+      'settings.appearance.openThemeFolderFailed': 'Failed to open theme folder.',
+      'settings.appearance.systemMode': 'System',
+      'settings.appearance.theme': 'Theme',
+      'settings.appearance.theme.default': 'Default',
+    }[key] ?? key),
+  }),
+}));
+
+vi.mock('@/lib/markdown/theme-compatibility/importedThemeStorage', () => ({
+  ensureImportedMarkdownThemesDirectory: (...args: unknown[]) =>
+    mocks.ensureImportedMarkdownThemesDirectory(...args),
+  listImportedMarkdownThemesFromDirectory: (...args: unknown[]) =>
+    mocks.listImportedMarkdownThemesFromDirectory(...args),
+  syncImportedMarkdownThemesFromDirectory: (...args: unknown[]) =>
+    mocks.syncImportedMarkdownThemesFromDirectory(...args),
+}));
+
+const directoryTheme = {
+  id: 'vlook-fancy',
+  name: 'vlook-fancy',
+  platform: 'typora' as const,
+  cssFile: 'vlook-fancy.css',
+  sourcePath: '/app/.vlaina/themes/vlook-fancy.css',
+  sourceModifiedAt: 10,
+  sourceSize: 100,
+  createdAt: 1,
+  updatedAt: 2,
+};
+
+describe('AppearanceTab theme entry', () => {
+  beforeEach(() => {
+    mocks.uiState.fontSize = 17;
+    mocks.unifiedState.data.settings.ui.colorMode = 'system';
+    mocks.unifiedState.data.settings.markdown.theme.importedThemeId = null;
+    mocks.ensureImportedMarkdownThemesDirectory.mockResolvedValue('/app/.vlaina/themes');
+    mocks.listImportedMarkdownThemesFromDirectory.mockResolvedValue([directoryTheme]);
+    mocks.syncImportedMarkdownThemesFromDirectory.mockResolvedValue({
+      directoryPath: '/app/.vlaina/themes',
+      themes: [directoryTheme],
+      activeThemeId: 'vlook-fancy',
+    });
+    mocks.openPathInFileManager.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  it('shows directory themes without exposing a compatibility-layer selector', async () => {
+    render(<AppearanceTab />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('menuitem', { name: 'vlook-fancy' })).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Theme')).toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(['markdown', 'css'].join('\\s+'), 'i'))).not.toBeInTheDocument();
+    expect(screen.queryByText(/typora/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/obsidian/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'vlook-fancy' }));
+
+    expect(mocks.unifiedState.setMarkdownImportedThemeId).toHaveBeenCalledWith('vlook-fancy');
+  });
+
+  it('refreshes directory themes from the dropdown and opens the fixed theme folder', async () => {
+    render(<AppearanceTab />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Default' }));
+
+    await waitFor(() => {
+      expect(mocks.syncImportedMarkdownThemesFromDirectory).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByLabelText('Open theme folder'));
+
+    await waitFor(() => {
+      expect(mocks.ensureImportedMarkdownThemesDirectory).toHaveBeenCalledTimes(1);
+      expect(mocks.openPathInFileManager).toHaveBeenCalledWith('/app/.vlaina/themes');
+    });
+  });
+});

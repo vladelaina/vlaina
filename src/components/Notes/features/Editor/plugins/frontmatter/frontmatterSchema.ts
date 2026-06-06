@@ -10,7 +10,7 @@ export function serializeFrontmatterNode(_node: Node): DOMOutputSpec {
     'div',
     {
       'data-type': 'frontmatter',
-      class: 'frontmatter-block-container',
+      class: 'frontmatter-block-container md-meta-block',
     },
     0,
   ];

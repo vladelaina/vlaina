@@ -1,7 +1,11 @@
 import type { Ctx } from '@milkdown/kit/ctx';
 import {
+    blockquoteSchema,
     codeBlockSchema,
     headingSchema,
+    htmlBlockSchema,
+    inlineCodeSchema,
+    hrSchema,
     linkSchema,
     paragraphSchema,
 } from '@milkdown/kit/preset/commonmark';
@@ -14,12 +18,22 @@ import {
     getAlignedBlockDomAttrs,
     getDomAttrs,
     getDomTextAlignment,
+    mergeDomClassNames,
     normalizeTextAlignment,
     updateSchemaFactory,
 } from './themeSchemaUtils';
 import {
     readEscapedMarkdownBlockSyntax,
 } from '@/components/common/markdown/escapedBlockSyntax';
+
+function getHeadingCompatibilityClass(level: unknown): string {
+    const normalizedLevel = typeof level === 'number' && level >= 1 && level <= 6 ? level : 1;
+    return `HyperMD-header HyperMD-header-${normalizedLevel} cm-header cm-header-${normalizedLevel} cm-line`;
+}
+
+function isExternalLinkHref(href: string | null): boolean {
+    return typeof href === 'string' && /^(?:https?:|mailto:)/i.test(href.trim());
+}
 
 export function applyTextSchemaOverrides(ctx: Ctx) {
     updateSchemaFactory(ctx, paragraphSchema.key, (prev: any) => ({
@@ -31,7 +45,13 @@ export function applyTextSchemaOverrides(ctx: Ctx) {
         },
         toDOM: (node: any) => [
             'p',
-            getAlignedBlockDomAttrs(node.attrs.align),
+            (() => {
+                const attrs = getAlignedBlockDomAttrs(node.attrs.align);
+                return {
+                    ...attrs,
+                    class: mergeDomClassNames(attrs.class, 'md-p cm-line'),
+                };
+            })(),
             0
         ],
         parseDOM: [
@@ -77,7 +97,11 @@ export function applyTextSchemaOverrides(ctx: Ctx) {
         },
         toDOM: (node: any) => {
             const level = node.attrs.level;
-            return [`h${level}`, getAlignedBlockDomAttrs(node.attrs.align), 0];
+            const attrs = getAlignedBlockDomAttrs(node.attrs.align);
+            return [`h${level}`, {
+                ...attrs,
+                class: mergeDomClassNames(attrs.class, getHeadingCompatibilityClass(level)),
+            }, 0];
         },
         parseDOM: [
             ...Array.from({ length: 6 }, (_, index) => ({
@@ -117,8 +141,62 @@ export function applyTextSchemaOverrides(ctx: Ctx) {
         ...prev,
         toDOM: (node: any) => {
             const safeHref = sanitizeNoteLinkHref(node.attrs.href);
-            return ['a', getDomAttrs({ ...node.attrs, href: safeHref ?? undefined }), 0];
+            const attrs = getDomAttrs({ ...node.attrs, href: safeHref ?? undefined });
+            const isExternalLink = isExternalLinkHref(safeHref);
+            const className = mergeDomClassNames(
+                attrs.class,
+                isExternalLink ? 'external-link' : 'internal-link'
+            );
+
+            if (className) {
+                attrs.class = className;
+            } else {
+                delete attrs.class;
+            }
+
+            return ['a', attrs, 0];
         }
+    }));
+
+    updateSchemaFactory(ctx, inlineCodeSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: (mark: any) => {
+            const attrs = typeof prev.toDOM === 'function' ? prev.toDOM(mark)?.[1] : {};
+            return ['code', {
+                ...(typeof attrs === 'object' && attrs ? attrs : {}),
+                class: mergeDomClassNames(
+                    typeof attrs === 'object' && attrs ? attrs.class : undefined,
+                    'v-std-code cm-inline-code'
+                ),
+            }, 0];
+        },
+    }));
+
+    updateSchemaFactory(ctx, blockquoteSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: (node: any) => {
+            const inheritedAttrs = typeof prev.toDOM === 'function' ? prev.toDOM(node)?.[1] : {};
+            return ['blockquote', {
+                ...(typeof inheritedAttrs === 'object' && inheritedAttrs ? inheritedAttrs : {}),
+                class: mergeDomClassNames(
+                    typeof inheritedAttrs === 'object' && inheritedAttrs ? inheritedAttrs.class : undefined,
+                    'v-q HyperMD-quote cm-hmd-indent-in-quote cm-line'
+                ),
+            }, 0];
+        },
+    }));
+
+    updateSchemaFactory(ctx, hrSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: () => [
+            'div',
+            {
+                class: 'md-hr',
+                'data-type': 'hr',
+                contenteditable: 'false',
+            },
+            ['hr']
+        ],
     }));
 
     updateSchemaFactory(ctx, codeBlockSchema.key, (prev: any) => ({
@@ -128,5 +206,16 @@ export function applyTextSchemaOverrides(ctx: Ctx) {
             getDomAttrs({ 'data-language': node.attrs.language }),
             ['pre', ['code', { spellcheck: 'false' }, 0]]
         ]
+    }));
+
+    updateSchemaFactory(ctx, htmlBlockSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: (node: any) => {
+            const dom = prev.toDOM(node);
+            if (dom instanceof HTMLElement) {
+                dom.classList.add('md-htmlblock', 'md-htmlblock-container');
+            }
+            return dom;
+        },
     }));
 }

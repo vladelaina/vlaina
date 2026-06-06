@@ -46,6 +46,7 @@ import { titleNavigationPlugin } from '../plugins/cursor/titleNavigationPlugin';
 import { typewriterModePlugin } from '../plugins/cursor/typewriterModePlugin';
 import { editorShortcutsPlugin } from '../plugins/editorShortcutsPlugin';
 import { tagTokenPlugin } from '../plugins/tags/tagTokenPlugin';
+import { themeCompatibilityDecorationsPlugin } from '../themeCompatibilityDecorations';
 
 export const customPluginGroups = [
   {
@@ -110,6 +111,7 @@ export const customPluginGroups = [
       taskListClickPlugin,
       listTabIndentPlugin,
       listCollapsePlugin,
+      themeCompatibilityDecorationsPlugin,
       clipboardPlugin,
       imageUploadPlugin,
       ...imageBlockPlugin,

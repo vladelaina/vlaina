@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildMentionPreviewParts,
   collectMentionCandidates,
+  type NoteMentionCandidate,
   valueContainsMentionLabel,
 } from './noteMentionHelpers';
 import type { FileTreeNode } from '@/stores/notes/types';
@@ -46,7 +47,7 @@ function createTree(): FileTreeNode[] {
 
 describe('collectMentionCandidates', () => {
   it('includes every supported markdown note in the mention list', () => {
-    const candidates = [];
+    const candidates: NoteMentionCandidate[] = [];
 
     collectMentionCandidates(createTree(), candidates);
 

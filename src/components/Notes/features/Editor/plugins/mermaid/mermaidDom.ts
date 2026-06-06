@@ -217,7 +217,7 @@ export function createMermaidElement(code: string) {
   const wrapper = document.createElement('div');
   wrapper.setAttribute('data-type', 'mermaid');
   setMermaidElementCode(wrapper, normalizedCode);
-  wrapper.className = 'mermaid-block';
+  wrapper.className = 'mermaid-block theme-mermaid md-fences md-diagram md-fences-advanced md-diagram-panel md-diagram-panel-preview';
 
   if (normalizedCode.trim()) {
     const cachedMarkup = readCachedMermaidMarkup(renderCode);

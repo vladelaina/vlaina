@@ -13,6 +13,10 @@ function readBlockSelectionStyle() {
   return readStyleFile('block-selection.css');
 }
 
+function readThemeCompatibilityStyle() {
+  return readStyleFile('theme-compatibility.css');
+}
+
 function readThemeStyle() {
   return readFileSync(resolve(process.cwd(), 'src/styles/theme.css'), 'utf8');
 }
@@ -228,6 +232,42 @@ function readMilkdownLinkTooltipThemeSource() {
 }
 
 describe('editor embedded CodeMirror selection styles', () => {
+  it('keeps the Typora compatibility bridge scoped to imported external themes', () => {
+    const css = readThemeCompatibilityStyle();
+
+    expect(css).toContain(":where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora)");
+    expect(css).toContain('--typora-inline-code-bg');
+    expect(css).toContain('--typora-table-hover-bg');
+    expect(css).toContain("#write .callout.md-alert");
+    expect(css).toContain("#write .md-hr::before");
+    expect(css).toContain(".milkdown table tr:hover > :is(th, td)");
+    expect(css).not.toContain(".theme-vlaina.theme-typora");
+  });
+
+  it('keeps VLOOK static content compatibility scoped to imported Typora themes', () => {
+    const css = readThemeCompatibilityStyle();
+    const scope = ":where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-'])";
+
+    expect(css).toContain(`${scope} #write {`);
+    expect(css).toContain('--typora-page-max-width: min(100%, var(--v-write-w, var(--vlaina-size-1080px)));');
+    expect(css).toContain('max-width: var(--typora-page-max-width) !important;');
+    expect(css).toContain(`${scope} #write.done::before,`);
+    expect(css).toContain(`${scope} #write :is(.md-htmlblock, .video-block, .v-caption.iframe) :is(iframe, video, object, embed),`);
+    expect(css).toContain(`${scope} #write .milkdown-table-block.table-figure {`);
+    expect(css).toContain(`${scope} #write .v-caption.full {`);
+    expect(css).toContain(`${scope} #write .v-btn {`);
+    expect(css).toContain(`${scope} #write .v-tab-group {`);
+    expect(css).toContain(`${scope} #write .v-tab-box {`);
+    expect(css).toContain(`${scope} #write .v-tbl-row-g-btn,`);
+    expect(css).toContain(`${scope} #write .v-svg-input-checkbox {`);
+    expect(css).toContain(`${scope} #write :is(.v-fig-content, .v-caption) :is(img, svg) {`);
+    expect(css).toContain(`${scope} #write .v-audio-mini-control {`);
+    expect(css).toContain(`${scope} #write .v-backdrop-blurs {`);
+    expect(css).toContain(`${scope} #write :is(.v-info-tips, .v-tool-tips) {`);
+    expect(css).toContain(`${scope} #write .md-hr + :is(ul, ol),`);
+    expect(css).toContain('--typora-vlook-column-gap: var(--vlaina-size-2rem);');
+  });
+
   it('scopes body line number gutter styles behind the markdown body line number class', () => {
     const coreCss = readStyleFile('core.css');
 
@@ -404,6 +444,7 @@ describe('editor embedded CodeMirror selection styles', () => {
       'h6',
       'blockquote',
       'hr',
+      '.md-hr',
       'li',
       'dl',
       'dt',
@@ -529,8 +570,9 @@ describe('editor embedded CodeMirror selection styles', () => {
     );
 
     expect(blockSelectionCss).toContain('.milkdown .ProseMirror hr.ProseMirror-selectednode::before,');
-    expect(blockSelectionCss).toContain('.milkdown .ProseMirror hr.editor-block-selected::before {');
-    expect(blockSelectionCss).toContain('.milkdown .ProseMirror hr.ProseMirror-selectednode,\n.milkdown .ProseMirror hr.editor-block-selected {');
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror hr.editor-block-selected::before,');
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror .md-hr.editor-block-selected::before {');
+    expect(blockSelectionCss).toContain('.milkdown .ProseMirror hr.ProseMirror-selectednode,\n.milkdown .ProseMirror hr.editor-block-selected,\n.milkdown .ProseMirror .md-hr.ProseMirror-selectednode,\n.milkdown .ProseMirror .md-hr.editor-block-selected {');
     expect(hrSelectedRule).not.toContain('min-height');
     expect(hrSelectedFillRule).toContain('top: var(--vlaina-block-selection-fill-top);');
     expect(hrSelectedFillRule).toContain('right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));');
@@ -821,7 +863,7 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(sharedSource).toContain("'video'");
     expect(sharedSource).toContain("'toc'");
     expect(source).toContain('Decoration.node(pos, pos + node.nodeSize, {');
-    expect(source).toContain("class: 'editor-block-selected editor-atomic-selected'");
+    expect(source).toContain("class: 'editor-block-selected md-focus editor-atomic-selected'");
     expect(source).toContain("class: TEXT_SELECTION_OVERLAY_CLASS");
     expect(source).toContain('node.isText');
     expect(source).toContain('selection instanceof TextSelection');

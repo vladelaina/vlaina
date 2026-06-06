@@ -43,7 +43,12 @@ export function createMathNodeDOM(args: {
   const wrapper = document.createElement(tagName);
   wrapper.setAttribute('data-type', dataType);
   setMathElementLatex(wrapper, latex);
-  wrapper.className = className;
+  if (dataType === 'math-block') {
+    wrapper.setAttribute('lang', 'math');
+    wrapper.className = `${className} math mathjax-block md-math-block md-fences-math md-math-container md-diagram-panel-preview`;
+  } else {
+    wrapper.className = `${className} math`;
+  }
   renderLatexIntoElement(wrapper, latex, displayMode);
 
   return wrapper;

@@ -8,9 +8,9 @@
 }
 
 /* Reset potential focus outlines during interactions */
-.milkdown,
-.milkdown .ProseMirror,
-.milkdown-editor,
+.milkdown-editor.theme-vlaina,
+.milkdown-editor.theme-vlaina .milkdown,
+.milkdown-editor.theme-vlaina .ProseMirror,
 .heading-hash-hover,
 .heading-level-menu,
 .heading-level-item {
@@ -98,13 +98,13 @@ body.editor-block-drag-active .editor-block-drag-preview-layer * {
 }
 
 /* Selection */
-.milkdown .ProseMirror::selection {
+.milkdown-editor.theme-vlaina .ProseMirror::selection {
   background-color: var(--vlaina-selection-bg) !important;
   color: var(--vlaina-color-white) !important;
   -webkit-text-fill-color: var(--vlaina-color-white) !important;
 }
 
-.milkdown .ProseMirror::-moz-selection {
+.milkdown-editor.theme-vlaina .ProseMirror::-moz-selection {
   background-color: var(--vlaina-selection-bg) !important;
   color: var(--vlaina-color-white) !important;
 }

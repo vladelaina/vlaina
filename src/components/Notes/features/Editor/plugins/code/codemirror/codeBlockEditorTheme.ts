@@ -1,12 +1,18 @@
 import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { EditorSelection, Prec, RangeSetBuilder, StateField } from '@codemirror/state';
-import { Decoration, EditorView as CodeMirror } from '@codemirror/view';
+import { Decoration, EditorView as CodeMirror, highlightSpecialChars } from '@codemirror/view';
 import { themeCodeBlockEditorTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 import { codeBlockHighlightStyle } from './codeBlockHighlightStyle';
+import { codeBlockCompatibilityHighlightStyle } from './codeBlockCompatibilityHighlightStyle';
 
 const selectedTextDecoration = Decoration.mark({
   class: 'editor-code-selection-text',
 });
+
+const CODE_BLOCK_LINE_CLASS = 'HyperMD-codeblock HyperMD-codeblock-bg cm-hmd-codeblock';
+const CODE_BLOCK_BEGIN_LINE_CLASS = `${CODE_BLOCK_LINE_CLASS} HyperMD-codeblock-begin HyperMD-codeblock-begin-bg`;
+const CODE_BLOCK_END_LINE_CLASS = `${CODE_BLOCK_LINE_CLASS} HyperMD-codeblock-end HyperMD-codeblock-end-bg`;
+const CODE_BLOCK_SINGLE_LINE_CLASS = `${CODE_BLOCK_BEGIN_LINE_CLASS} HyperMD-codeblock-end HyperMD-codeblock-end-bg`;
 
 function buildSelectedTextDecorations(selection: EditorSelection) {
   const builder = new RangeSetBuilder<Decoration>();
@@ -36,11 +42,45 @@ const codeBlockSelectedTextField = StateField.define({
   provide: (field) => CodeMirror.decorations.from(field),
 });
 
+function buildCodeBlockLineDecorations(state: { doc: { lines: number; line: (lineNumber: number) => { from: number } } }) {
+  const builder = new RangeSetBuilder<Decoration>();
+  const lineCount = Math.max(1, state.doc.lines);
+
+  for (let lineNumber = 1; lineNumber <= lineCount; lineNumber += 1) {
+    const line = state.doc.line(lineNumber);
+    const isFirst = lineNumber === 1;
+    const isLast = lineNumber === lineCount;
+    const className = isFirst && isLast
+      ? CODE_BLOCK_SINGLE_LINE_CLASS
+      : isFirst
+        ? CODE_BLOCK_BEGIN_LINE_CLASS
+        : isLast
+          ? CODE_BLOCK_END_LINE_CLASS
+          : CODE_BLOCK_LINE_CLASS;
+
+    builder.add(line.from, line.from, Decoration.line({ class: className }));
+  }
+
+  return builder.finish();
+}
+
+const codeBlockCompatibilityLineField = StateField.define({
+  create: buildCodeBlockLineDecorations,
+  update(value, tr) {
+    if (!tr.docChanged) return value;
+    return buildCodeBlockLineDecorations(tr.state);
+  },
+  provide: (field) => CodeMirror.decorations.from(field),
+});
+
 export function createCodeBlockEditorTheme() {
   return [
     syntaxHighlighting(codeBlockHighlightStyle),
+    syntaxHighlighting(codeBlockCompatibilityHighlightStyle),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+    highlightSpecialChars(),
     Prec.highest(codeBlockSelectedTextField),
+    Prec.highest(codeBlockCompatibilityLineField),
     CodeMirror.theme({
       '&': {
         backgroundColor: 'var(--vlaina-code-block-background)',

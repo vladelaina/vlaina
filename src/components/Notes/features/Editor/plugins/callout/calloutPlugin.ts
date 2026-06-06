@@ -14,6 +14,11 @@ import {
   iconDataFromValue,
 } from './calloutIconUtils';
 import {
+  getCalloutCompatibilityAttrs,
+  getCalloutCompatibilityClassName,
+  getCalloutTitleCompatibilityClassName,
+} from './calloutThemeCompatibility';
+import {
   getTextAlignmentComment,
   isTextAlignment,
 } from '../floating-toolbar/blockAlignmentMarkdown';
@@ -159,9 +164,15 @@ export const calloutSchema = $node('callout', () => ({
         'data-type': 'callout',
         'data-icon': JSON.stringify(attrs.icon),
         'data-bg': attrs.backgroundColor,
-        class: `callout callout-${attrs.backgroundColor}`
+        ...getCalloutCompatibilityAttrs(attrs),
+        class: getCalloutCompatibilityClassName(attrs.backgroundColor)
       },
-      ['div', { class: 'callout-icon', contenteditable: 'false' }, iconValue],
+      [
+        'div',
+        { class: getCalloutTitleCompatibilityClassName(attrs.backgroundColor), contenteditable: 'false' },
+        ['div', { class: 'callout-icon', contenteditable: 'false' }, iconValue],
+        ['div', { class: 'callout-title-inner', 'aria-hidden': 'true' }]
+      ],
       ['div', { class: 'callout-content' }, 0]
     ];
   },

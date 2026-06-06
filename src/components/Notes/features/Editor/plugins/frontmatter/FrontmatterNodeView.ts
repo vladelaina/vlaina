@@ -68,7 +68,7 @@ export class FrontmatterNodeView implements NodeView {
     this.getPos = getPos;
 
     this.dom = document.createElement('div');
-    this.dom.classList.add('frontmatter-block-container', 'my-4');
+    this.dom.classList.add('frontmatter-block-container', 'md-meta-block', 'my-4');
 
     this.editorDOM = document.createElement('div');
     this.editorDOM.className = 'frontmatter-block-editor';
@@ -338,13 +338,13 @@ export class FrontmatterNodeView implements NodeView {
 
   selectNode() {
     this.selected = true;
-    this.dom.classList.add('ProseMirror-selectednode');
+    this.dom.classList.add('ProseMirror-selectednode', 'md-focus');
     this.cm.focus();
   }
 
   deselectNode() {
     this.selected = false;
-    this.dom.classList.remove('ProseMirror-selectednode');
+    this.dom.classList.remove('ProseMirror-selectednode', 'md-focus');
   }
 
   setSelection(anchor: number, head: number) {
