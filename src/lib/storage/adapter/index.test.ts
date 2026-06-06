@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   electronJoin: vi.fn().mockResolvedValue('C:\\data\\vlaina'),
+  electronToFileUrl: vi.fn().mockResolvedValue('file:///C:/data/vlaina/theme.css'),
   electronCtor: vi.fn(),
   webCtor: vi.fn(),
 }));
@@ -22,7 +23,7 @@ vi.mock('./WebAdapter', () => ({
   },
 }));
 
-import { getPlatform, getStorageAdapter, isElectron, isWeb, joinPath, resetStorageAdapter } from './index';
+import { getPlatform, getStorageAdapter, isElectron, isWeb, joinPath, resetStorageAdapter, toFileUrl } from './index';
 
 describe('storage adapter index', () => {
   beforeEach(() => {
@@ -30,6 +31,7 @@ describe('storage adapter index', () => {
     mocks.electronCtor.mockClear();
     mocks.webCtor.mockClear();
     mocks.electronJoin.mockClear();
+    mocks.electronToFileUrl.mockClear();
     delete (window as any).vlainaDesktop;
   });
 
@@ -79,6 +81,7 @@ describe('storage adapter index', () => {
       platform: 'electron',
       path: {
         join: mocks.electronJoin,
+        toFileUrl: mocks.electronToFileUrl,
       },
     };
 
@@ -86,7 +89,23 @@ describe('storage adapter index', () => {
     expect(mocks.electronJoin).toHaveBeenCalledWith('C:\\data', 'vlaina');
   });
 
+  it('routes toFileUrl through the electron path bridge in electron runtime', async () => {
+    (window as any).vlainaDesktop = {
+      platform: 'electron',
+      path: {
+        toFileUrl: mocks.electronToFileUrl,
+      },
+    };
+
+    await expect(toFileUrl('C:\\data\\vlaina\\theme.css')).resolves.toBe('file:///C:/data/vlaina/theme.css');
+    expect(mocks.electronToFileUrl).toHaveBeenCalledWith('C:\\data\\vlaina\\theme.css');
+  });
+
   it('falls back to simple path joining on web', async () => {
     await expect(joinPath('/data', 'vlaina', 'chat')).resolves.toBe('/data/vlaina/chat');
+  });
+
+  it('leaves file paths unchanged on web when converting to file URLs', async () => {
+    await expect(toFileUrl('/data/vlaina/theme.css')).resolves.toBe('/data/vlaina/theme.css');
   });
 });

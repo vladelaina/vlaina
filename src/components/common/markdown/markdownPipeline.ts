@@ -18,7 +18,7 @@ export const READONLY_MARKDOWN_REMARK_PLUGINS = [
   remarkMath,
   [remarkNotesInlineExtensions, { stripAbbrDefinitions: true }],
   remarkCitationParser,
-].filter(Boolean);
+].filter(Boolean) as any[];
 
 export const READONLY_MARKDOWN_REHYPE_PLUGINS = [
   rehypeDropUnsafeRawHtmlContent,

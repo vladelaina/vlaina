@@ -20,12 +20,13 @@ export class ImageBlockNodeView implements NodeView {
         this.getPos = getPos;
 
         this.dom = document.createElement('div');
-        this.dom.classList.add('image-block-container');
+        this.dom.classList.add('image-block-container', 'md-image', 'image-embed');
         this.dom.contentEditable = 'false';
         this.dom.draggable = false;
         this.dom.style.display = themeImageBlockStyleTokens.displayBlock;
         this.dom.style.width = themeImageBlockStyleTokens.widthFull;
         this.dom.style.maxWidth = themeImageBlockStyleTokens.maxWidthFull;
+        this.syncDomAttrs();
 
         this.dragStartHandler = (e: DragEvent) => {
             e.preventDefault();
@@ -35,6 +36,53 @@ export class ImageBlockNodeView implements NodeView {
 
         this.root = createRoot(this.dom);
         this.render();
+    }
+
+    private syncDomAttrs() {
+        const src = typeof this.node.attrs.src === 'string' ? this.node.attrs.src : '';
+        const align = typeof this.node.attrs.align === 'string' ? this.node.attrs.align : '';
+        const width = typeof this.node.attrs.width === 'string' ? this.node.attrs.width : '';
+        const alt = typeof this.node.attrs.alt === 'string' ? this.node.attrs.alt : '';
+        const title = typeof this.node.attrs.title === 'string' ? this.node.attrs.title : '';
+        if (src) {
+            this.dom.dataset.src = src;
+            this.dom.setAttribute('src', src);
+            this.dom.setAttribute('data-inject-url', src);
+        } else {
+            delete this.dom.dataset.src;
+            this.dom.removeAttribute('src');
+            this.dom.removeAttribute('data-inject-url');
+        }
+
+        if (align) {
+            this.dom.dataset.align = align;
+            this.dom.setAttribute('align', align);
+        } else {
+            delete this.dom.dataset.align;
+            this.dom.removeAttribute('align');
+        }
+
+        if (width) {
+            this.dom.dataset.width = width;
+            this.dom.setAttribute('width', width);
+        } else {
+            delete this.dom.dataset.width;
+            this.dom.removeAttribute('width');
+        }
+
+        if (alt) {
+            this.dom.dataset.alt = alt;
+        } else {
+            delete this.dom.dataset.alt;
+        }
+
+        if (title) {
+            this.dom.dataset.title = title;
+            this.dom.setAttribute('title', title);
+        } else {
+            delete this.dom.dataset.title;
+            this.dom.removeAttribute('title');
+        }
     }
 
     render() {
@@ -50,6 +98,7 @@ export class ImageBlockNodeView implements NodeView {
     update(node: Node) {
         if (node.type !== this.node.type) return false;
         this.node = node;
+        this.syncDomAttrs();
         this.render();
         return true;
     }

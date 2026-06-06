@@ -72,6 +72,7 @@
   h6,
   blockquote,
   hr,
+  .md-hr,
   li,
   dl,
   dt,
@@ -120,6 +121,7 @@
   h6,
   blockquote,
   hr,
+  .md-hr,
   li,
   dl,
   dt,
@@ -163,6 +165,7 @@
   h6,
   blockquote,
   hr,
+  .md-hr,
   li,
   dl,
   dt,
@@ -196,6 +199,7 @@
   h6,
   blockquote,
   hr,
+  .md-hr,
   li,
   dl,
   dt,
@@ -268,6 +272,7 @@
   h6,
   blockquote,
   hr,
+  .md-hr,
   li,
   dl,
   dt,
@@ -324,14 +329,18 @@
 }
 
 .milkdown .ProseMirror hr.ProseMirror-selectednode,
-.milkdown .ProseMirror hr.editor-block-selected {
+.milkdown .ProseMirror hr.editor-block-selected,
+.milkdown .ProseMirror .md-hr.ProseMirror-selectednode,
+.milkdown .ProseMirror .md-hr.editor-block-selected {
   background-color: transparent;
   box-shadow: none;
   overflow: visible;
 }
 
 .milkdown .ProseMirror hr.ProseMirror-selectednode::after,
-.milkdown .ProseMirror hr.editor-block-selected::after {
+.milkdown .ProseMirror hr.editor-block-selected::after,
+.milkdown .ProseMirror .md-hr.ProseMirror-selectednode::after,
+.milkdown .ProseMirror .md-hr.editor-block-selected::after {
   top: var(--vlaina-block-selection-fill-top);
   right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
   bottom: var(--vlaina-block-selection-fill-bottom);
@@ -340,7 +349,9 @@
 }
 
 .milkdown .ProseMirror hr.ProseMirror-selectednode::before,
-.milkdown .ProseMirror hr.editor-block-selected::before {
+.milkdown .ProseMirror hr.editor-block-selected::before,
+.milkdown .ProseMirror .md-hr.ProseMirror-selectednode::before,
+.milkdown .ProseMirror .md-hr.editor-block-selected::before {
   z-index: var(--vlaina-z-1);
   border-top-color: var(--vlaina-accent);
   box-shadow: var(--vlaina-shadow-hr-selected);

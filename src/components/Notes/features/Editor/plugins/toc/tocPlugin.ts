@@ -65,44 +65,50 @@ export const tocViewPlugin = $prose(() => {
 
       editorView.dom.addEventListener('click', handleTocClick);
 
+      const syncTocBlocks = (view: EditorView) => {
+        if (!tocViewPluginKey.getState(view.state)?.hasToc) {
+          lastDoc = view.state.doc;
+          lastHeadingSignature = '';
+          lastTocCount = 0;
+          return;
+        }
+
+        const { doc } = view.state;
+        const tocElements = collectTocBlocks(view.dom);
+        if (tocElements.length === 0) {
+          lastDoc = doc;
+          lastHeadingSignature = '';
+          lastTocCount = 0;
+          return;
+        }
+
+        const headings = extractHeadings(doc, 6);
+        const headingSignature = createHeadingsSignature(headings);
+        if (
+          lastDoc === doc
+          && lastHeadingSignature === headingSignature
+          && lastTocCount === tocElements.length
+        ) {
+          return;
+        }
+
+        lastDoc = doc;
+        lastHeadingSignature = headingSignature;
+        lastTocCount = tocElements.length;
+
+        for (const el of tocElements) {
+          const maxLevel = parseInt(el.getAttribute('data-max-level') || '6', 10);
+          const contentEl = el.querySelector<HTMLElement>('.toc-content');
+          if (!contentEl) continue;
+          renderTocContent(contentEl, headings, maxLevel);
+        }
+      };
+
+      syncTocBlocks(editorView);
+
       return {
         update(view) {
-          if (!tocViewPluginKey.getState(view.state)?.hasToc) {
-            lastDoc = view.state.doc;
-            lastHeadingSignature = '';
-            lastTocCount = 0;
-            return;
-          }
-
-          const { doc } = view.state;
-          const tocElements = collectTocBlocks(view.dom);
-          if (tocElements.length === 0) {
-            lastDoc = doc;
-            lastHeadingSignature = '';
-            lastTocCount = 0;
-            return;
-          }
-
-          const headings = extractHeadings(doc, 6);
-          const headingSignature = createHeadingsSignature(headings);
-          if (
-            lastDoc === doc
-            && lastHeadingSignature === headingSignature
-            && lastTocCount === tocElements.length
-          ) {
-            return;
-          }
-
-          lastDoc = doc;
-          lastHeadingSignature = headingSignature;
-          lastTocCount = tocElements.length;
-
-          for (const el of tocElements) {
-            const maxLevel = parseInt(el.getAttribute('data-max-level') || '6', 10);
-            const contentEl = el.querySelector<HTMLElement>('.toc-content');
-            if (!contentEl) continue;
-            renderTocContent(contentEl, headings, maxLevel);
-          }
+          syncTocBlocks(view);
         },
         destroy() {
           editorView.dom.removeEventListener('click', handleTocClick);
@@ -133,9 +139,9 @@ export const tocSchema = $node('toc', () => ({
       {
         'data-type': 'toc',
         'data-max-level': String(maxLevel),
-        class: 'toc-block'
+        class: 'toc-block md-toc'
       },
-      ['div', { class: 'toc-content' }, TOC_EMPTY_TEXT]
+      ['div', { class: 'toc-content md-toc-content' }, TOC_EMPTY_TEXT]
     ];
   },
   parseMarkdown: {
@@ -152,7 +158,7 @@ export const tocSchema = $node('toc', () => ({
         }).data?.hProperties;
         const className = hProperties?.className;
         const classes = Array.isArray(className) ? className : [];
-        return hProperties?.dataType === 'toc' || classes.includes('toc-block');
+        return hProperties?.dataType === 'toc' || classes.includes('toc-block') || classes.includes('md-toc');
       }
 
       if (node.type === 'paragraph') {

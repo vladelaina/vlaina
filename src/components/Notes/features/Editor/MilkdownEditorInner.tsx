@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTheme } from 'next-themes';
 import {
   Editor,
   rootCtx,
@@ -19,6 +20,13 @@ import { Slice } from '@milkdown/kit/prose/model';
 import type { Parser } from '@milkdown/kit/transformer';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { useNotesStore } from '@/stores/useNotesStore';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import {
+  selectMarkdownImportedThemeId,
+  selectMarkdownTypewriterModeEnabled,
+} from '@/stores/unified/settings/markdownSettings';
+import { readImportedMarkdownTheme } from '@/lib/markdown/theme-compatibility/importedThemeStorage';
+import type { MarkdownThemePlatform } from '@/lib/markdown/theme-compatibility/types';
 import { cn } from '@/lib/utils';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
@@ -44,6 +52,11 @@ import {
 } from './utils/editorBlockPositionCache';
 import { normalizeLeadingFrontmatterMarkdown } from './plugins/frontmatter/frontmatterMarkdown';
 import { BodyLineNumberGutter } from './components/BodyLineNumberGutter';
+import {
+  applyMarkdownThemeRuntimeAttributes,
+  resolveMarkdownThemeViewport,
+  resolveTyporaRuntimePlatformClasses,
+} from './markdownThemeRuntime';
 
 interface MilkdownEditorInnerProps {
   active?: boolean;
@@ -113,6 +126,14 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
   const currentNoteDiskRevision = useNotesStore(s => s.currentNoteDiskRevision);
+  const importedMarkdownThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
+  const typewriterMode = useUnifiedStore(selectMarkdownTypewriterModeEnabled);
+  const { resolvedTheme } = useTheme();
+  const markdownThemeColorScheme = resolvedTheme === 'dark' ? 'dark' : 'light';
+  const [importedMarkdownThemePlatform, setImportedMarkdownThemePlatform] = useState<MarkdownThemePlatform | null>(null);
+  const [markdownThemeViewport, setMarkdownThemeViewport] = useState(() =>
+    resolveMarkdownThemeViewport(typeof window === 'undefined' ? 1024 : window.innerWidth)
+  );
   const currentNoteContentRef = useRef(useNotesStore.getState().currentNote?.content ?? '');
   const lastAppliedDiskRevisionRef = useRef(currentNoteDiskRevision);
   const isDraftNote = isDraftNotePath(currentNotePath);
@@ -141,6 +162,11 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const initialContent = useMemo(() => {
     return normalizeAlternativeMathBlockFences(currentNoteContentRef.current);
   }, []);
+  const typoraRuntimePlatformClasses = useMemo(() => {
+    return importedMarkdownThemePlatform === 'typora'
+      ? resolveTyporaRuntimePlatformClasses().join(' ')
+      : '';
+  }, [importedMarkdownThemePlatform]);
 
   useEffect(() => {
     onEditorViewReadyRef.current = onEditorViewReady;
@@ -153,6 +179,64 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   useEffect(() => {
     currentNoteContentRef.current = currentNoteContent;
   }, [currentNoteContent]);
+
+  useEffect(() => {
+    const updateViewport = () => {
+      setMarkdownThemeViewport(resolveMarkdownThemeViewport(window.innerWidth));
+    };
+
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!importedMarkdownThemeId) {
+      setImportedMarkdownThemePlatform(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void readImportedMarkdownTheme(importedMarkdownThemeId).then((theme) => {
+      if (!cancelled) {
+        setImportedMarkdownThemePlatform(theme?.platform ?? null);
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setImportedMarkdownThemePlatform(null);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [importedMarkdownThemeId]);
+
+  useEffect(() => {
+    const shell = editorShellRef.current;
+    if (!shell) return;
+
+    const root = shell.querySelector<HTMLElement>('[data-markdown-theme-root="true"], #write, .ProseMirror');
+    for (const element of [shell, root].filter((element): element is HTMLElement => Boolean(element))) {
+      applyMarkdownThemeRuntimeAttributes(element, {
+        importedThemeId: importedMarkdownThemeId,
+        importedThemePlatform: importedMarkdownThemePlatform,
+        colorScheme: markdownThemeColorScheme,
+        viewport: markdownThemeViewport,
+        typewriterMode,
+      });
+    }
+  }, [
+    activatedRevision,
+    importedMarkdownThemeId,
+    importedMarkdownThemePlatform,
+    markdownThemeColorScheme,
+    markdownThemeViewport,
+    typewriterMode,
+  ]);
 
   useEffect(() => {
     const handleBlur = () => {
@@ -443,9 +527,29 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       className={cn(
         "milkdown-editor",
         showBodyLineNumbers && 'markdown-body-line-numbers',
-        EDITOR_LAYOUT_CLASS
+        !importedMarkdownThemeId && 'theme-vlaina',
+        importedMarkdownThemeId && 'theme-external-markdown',
+        importedMarkdownThemePlatform === 'typora' && 'theme-typora typora-export typora-export-content typora-node',
+        typoraRuntimePlatformClasses,
+        importedMarkdownThemePlatform === 'obsidian' && 'theme-obsidian',
+        markdownThemeColorScheme === 'dark' && 'theme-dark',
+        markdownThemeColorScheme === 'light' && 'theme-light',
+        'is-live-preview',
+        'max',
+        'is-readable-line-width',
+        markdownThemeViewport === 'mobile' && 'is-mobile',
+        markdownThemeViewport === 'tablet' && 'is-tablet',
+        markdownThemeViewport === 'desktop' && 'is-desktop',
+        typewriterMode && 'ty-on-typewriter-mode',
+        importedMarkdownThemeId ? 'w-full shrink-0' : EDITOR_LAYOUT_CLASS
       )}
       data-note-content-root="true"
+      data-markdown-theme-root="true"
+      data-markdown-theme-platform={importedMarkdownThemeId ? importedMarkdownThemePlatform ?? 'external' : 'vlaina'}
+      data-markdown-compat={importedMarkdownThemeId ? 'external' : 'native'}
+      data-markdown-compat-layer={importedMarkdownThemeId ? 'external' : 'native'}
+      data-markdown-imported-theme={importedMarkdownThemeId ?? undefined}
+      data-theme={markdownThemeColorScheme}
     >
       {showBodyLineNumbers && (
         <BodyLineNumberGutter

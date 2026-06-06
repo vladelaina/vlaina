@@ -177,7 +177,7 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
 
               {/* Sidebar Section */}
               <div className={cn(
-                "w-[var(--vlaina-size-260px)] flex-shrink-0 bg-transparent flex flex-col border-r border-[var(--vlaina-color-border-shell)] transition-opacity duration-[var(--vlaina-duration-100)]",
+                "w-[var(--vlaina-size-260px)] flex-shrink-0 bg-[var(--vlaina-sidebar-notes-surface)] flex flex-col border-r border-[var(--vlaina-color-border-shell)] transition-opacity duration-[var(--vlaina-duration-100)]",
                 isAppearanceFontPreviewing && "pointer-events-none opacity-[var(--vlaina-opacity-0)]",
               )}>
                 <div className="flex min-h-0 flex-1 px-4 pb-6 pt-10">

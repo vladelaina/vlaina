@@ -580,6 +580,9 @@ describe('textSelectionOverlayPlugin', () => {
       view.dom.querySelector('[data-type="math-block"]')?.classList.contains('editor-block-selected')
     ).toBe(true);
     expect(
+      view.dom.querySelector('[data-type="math-block"]')?.classList.contains('md-focus')
+    ).toBe(true);
+    expect(
       view.dom.querySelector('[data-type="math-block"]')?.classList.contains('editor-atomic-selected')
     ).toBe(true);
   });
@@ -590,6 +593,9 @@ describe('textSelectionOverlayPlugin', () => {
     view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
 
     expect(view.dom.querySelector('table')?.classList.contains('editor-block-selected')).toBe(
+      true
+    );
+    expect(view.dom.querySelector('table')?.classList.contains('md-focus')).toBe(
       true
     );
     expect(view.dom.querySelector('table')?.classList.contains('editor-atomic-selected')).toBe(
@@ -619,6 +625,9 @@ describe('textSelectionOverlayPlugin', () => {
     view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
 
     expect(view.dom.querySelector(selector)?.classList.contains('editor-block-selected')).toBe(
+      true
+    );
+    expect(view.dom.querySelector(selector)?.classList.contains('md-focus')).toBe(
       true
     );
     expect(view.dom.querySelector(selector)?.classList.contains('editor-atomic-selected')).toBe(

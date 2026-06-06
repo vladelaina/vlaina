@@ -162,7 +162,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
 
   it('does not fall back to another endpoint after model listing is externally aborted', async () => {
     const controller = new AbortController();
-    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+    const fetchMock = vi.fn((_url: string, _init?: RequestInit) => {
       controller.abort();
       return Promise.reject(new DOMException('cancelled', 'AbortError'));
     });

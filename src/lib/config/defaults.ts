@@ -15,6 +15,9 @@ export const DEFAULT_SETTINGS = {
   },
   markdown: {
     typewriterMode: false,
+    theme: {
+      importedThemeId: null,
+    },
     body: {
       showLineNumbers: false,
     },

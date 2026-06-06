@@ -39,6 +39,7 @@ interface UnifiedStoreActions {
   setMarkdownCodeBlockLineNumbers: (showLineNumbers: boolean) => void;
   setMarkdownBodyLineNumbers: (showLineNumbers: boolean) => void;
   setMarkdownTypewriterMode: (typewriterMode: boolean) => void;
+  setMarkdownImportedThemeId: (importedThemeId: string | null) => void;
   setLastAppViewMode: (mode: 'notes' | 'chat') => void;
   setColorMode: (mode: NonNullable<UnifiedData['settings']['ui']>['colorMode']) => void;
   setThemeId: (themeId: string) => void;

@@ -12,6 +12,8 @@ import { themeImageBlockStyleTokens, themeStyleResetTokens } from '@/styles/them
 
 interface ImageCropperProps {
     imageSrc: string;
+    sourceSrc?: string;
+    sourceAlt?: string;
     initialCropParams: CropParams | null;
     containerSize: { width: number; height: number };
     onSave: (percentageCrop: CropArea, ratio: number) => void;
@@ -26,6 +28,8 @@ interface ImageCropperProps {
 
 export const ImageCropper: React.FC<ImageCropperProps> = ({
     imageSrc,
+    sourceSrc,
+    sourceAlt,
     initialCropParams,
     containerSize,
     onSave,
@@ -89,6 +93,11 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                 {imageSrc && (
                     <Cropper
                         image={imageSrc}
+                        mediaProps={{
+                            'data-src': sourceSrc || undefined,
+                            'data-inject-url': sourceSrc || undefined,
+                            alt: sourceAlt ?? '',
+                        }}
                         crop={crop}
                         zoom={zoom}
                         cropSize={containerSize}

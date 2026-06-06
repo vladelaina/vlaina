@@ -52,3 +52,12 @@ export async function revealItemInFolder(filePath: string): Promise<void> {
 
   await bridge.shell.revealItem(filePath);
 }
+
+export async function openPathInFileManager(filePath: string): Promise<void> {
+  const bridge = getElectronBridge();
+  if (!bridge) {
+    throw new Error('Open folder is only available in the desktop app.');
+  }
+
+  await bridge.shell.openPath(filePath);
+}

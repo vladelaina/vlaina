@@ -10,6 +10,8 @@ import type { CropArea, LoadedMediaSize, CropperViewportState, ResizeDirection }
 interface ImageContentProps {
     isLoading: boolean;
     loadError: boolean;
+    sourceSrc?: string;
+    sourceAlt?: string;
     resolvedSrc?: string;
     isRemoteImageSource: boolean;
     isDeferred: boolean;
@@ -29,6 +31,8 @@ interface ImageContentProps {
 export const ImageContent = ({
     isLoading,
     loadError,
+    sourceSrc,
+    sourceAlt,
     resolvedSrc,
     isRemoteImageSource,
     isDeferred,
@@ -62,6 +66,11 @@ export const ImageContent = ({
     const shouldRenderPlainRemoteImage = isRemoteImageSource && !isActive && !cropParams;
     const shouldRenderCropPreview = !isActive && !!cropParams;
     const cropPreviewStyles = cropParams ? getCropViewStyles(cropParams) : null;
+    const imageThemeAttrs = {
+        'data-src': sourceSrc || undefined,
+        'data-inject-url': sourceSrc || undefined,
+        alt: sourceAlt ?? '',
+    };
 
     if (isDeferred && !isReady) {
         return (
@@ -109,8 +118,8 @@ export const ImageContent = ({
                     </div>
                 ) : null}
                 <img
+                    {...imageThemeAttrs}
                     src={resolvedSrc}
-                    alt=""
                     draggable={false}
                     className={cn(
                         'block h-auto max-w-full select-none object-contain transition-opacity duration-[var(--vlaina-duration-150)]',
@@ -139,8 +148,8 @@ export const ImageContent = ({
                 style={cropPreviewStyles.container}
             >
                 <img
+                    {...imageThemeAttrs}
                     src={resolvedSrc}
-                    alt=""
                     draggable={false}
                     className="select-none"
                     style={cropPreviewStyles.image}
@@ -162,6 +171,8 @@ export const ImageContent = ({
     return (
         <ImageCropper
             imageSrc={resolvedSrc!}
+            sourceSrc={sourceSrc}
+            sourceAlt={sourceAlt}
             initialCropParams={cropParams}
             containerSize={containerSize}
             onSave={onSave}

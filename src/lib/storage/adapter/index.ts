@@ -54,3 +54,15 @@ export async function joinPath(...segments: string[]): Promise<string> {
 
   return simpleJoin(...segments);
 }
+
+export async function toFileUrl(path: string): Promise<string> {
+  if (isElectron()) {
+    const bridge = getElectronBridge();
+    if (!bridge) {
+      throw new Error('Electron path bridge is not available.');
+    }
+    return bridge.path.toFileUrl(path);
+  }
+
+  return path;
+}

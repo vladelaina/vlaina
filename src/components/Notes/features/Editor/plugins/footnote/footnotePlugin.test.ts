@@ -106,6 +106,7 @@ describe('footnote reference markup', () => {
     const reference = view.dom.querySelector('sup.footnote-ref');
     const definition = view.dom.querySelector('.footnote-def');
 
+    expect(reference?.classList.contains('md-footnote')).toBe(true);
     expect(reference?.getAttribute('data-type')).toBe('footnote_reference');
     expect(reference?.getAttribute('data-footnote-value')).toBe('[1]');
     expect(reference?.getAttribute('contenteditable')).toBe('false');
@@ -114,6 +115,7 @@ describe('footnote reference markup', () => {
     expect(reference?.querySelector('.footnote-ref-label')?.getAttribute('contenteditable')).toBe('false');
     expect(reference?.getAttribute('title')).toBeNull();
     expect(definition?.getAttribute('data-type')).toBe('footnote_definition');
+    expect(definition?.classList.contains('footnote-line')).toBe(true);
     expect(definition?.querySelector('.footnote-def-label')?.textContent).toBe('[1]:');
     expect(definition?.querySelector('.footnote-def-label')?.getAttribute('contenteditable')).toBe('false');
 

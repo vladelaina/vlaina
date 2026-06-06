@@ -133,6 +133,40 @@ describe('CodeBlockNodeView', () => {
     expect(nodeView.contentDOM).toBeUndefined();
   });
 
+  it('adds Typora and Obsidian code block alias classes and language attributes', () => {
+    const nodeView = new CodeBlockNodeView(createMockNode(false), createMockView(), () => 1);
+
+    expect(nodeView.dom.classList.contains('code-block-container')).toBe(true);
+    expect(nodeView.dom.classList.contains('md-fences')).toBe(true);
+    expect(nodeView.dom.classList.contains('HyperMD-codeblock')).toBe(true);
+    expect(nodeView.dom.classList.contains('HyperMD-codeblock-bg')).toBe(true);
+    expect(nodeView.dom.classList.contains('cm-line')).toBe(true);
+    expect(nodeView.dom.classList.contains('language-ts')).toBe(true);
+    expect(nodeView.dom.dataset.language).toBe('ts');
+    expect(nodeView.dom.getAttribute('lang')).toBe('ts');
+    expect(nodeView.dom.querySelector('.code-block-editable.CodeMirror.cm-s-inner.cm-s-obsidian')).toBeInstanceOf(HTMLElement);
+
+    nodeView.destroy();
+  });
+
+  it('syncs code block language aliases when the node language changes', () => {
+    const node = createMockNode(false);
+    const nodeView = new CodeBlockNodeView(node, createMockView(), () => 1);
+    const nextNode = {
+      ...node,
+      attrs: { collapsed: false, language: 'python', lineNumbers: true, wrap: false },
+    } as unknown as ProseNode;
+
+    nodeView.update(nextNode);
+
+    expect(nodeView.dom.classList.contains('language-ts')).toBe(false);
+    expect(nodeView.dom.classList.contains('language-python')).toBe(true);
+    expect(nodeView.dom.dataset.language).toBe('python');
+    expect(nodeView.dom.getAttribute('lang')).toBe('python');
+
+    nodeView.destroy();
+  });
+
   it('keeps lazy collapsed code blocks hidden before CodeMirror initializes', () => {
     class TestIntersectionObserver {
       observe = vi.fn();
@@ -366,10 +400,12 @@ describe('CodeBlockNodeView', () => {
 
     nodeView.selectNode();
     expect(nodeView.dom.classList.contains('ProseMirror-selectednode')).toBe(true);
+    expect(nodeView.dom.classList.contains('md-focus')).toBe(true);
     expect(focusSpy).toHaveBeenCalledTimes(1);
 
     nodeView.deselectNode();
     expect(nodeView.dom.classList.contains('ProseMirror-selectednode')).toBe(false);
+    expect(nodeView.dom.classList.contains('md-focus')).toBe(false);
   });
 
   it('does not apply a CodeMirror selection when the block is collapsed', () => {

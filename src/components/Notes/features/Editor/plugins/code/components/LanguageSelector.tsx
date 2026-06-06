@@ -109,7 +109,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                     }}
                     onPointerDown={(e) => e.stopPropagation()}
                 >
-                    <span className="code-block-chrome-language-label whitespace-nowrap">
+                    <span className="code-block-chrome-language-label code-block-flair whitespace-nowrap">
                         {displayName}
                     </span>
                 </button>

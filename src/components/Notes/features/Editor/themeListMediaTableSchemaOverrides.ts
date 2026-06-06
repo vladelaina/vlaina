@@ -16,7 +16,7 @@ import {
 } from './plugins/image-block/utils/imageSourceFragment';
 import { normalizeImageAlignment } from './plugins/image-block/utils/imageNodeAttrs';
 import { getMarkdownHtmlImageAttrs } from './markdownHtmlImage';
-import { escapeHtmlAttr, getDomAttrs, updateSchemaFactory } from './themeSchemaUtils';
+import { escapeHtmlAttr, getDomAttrs, mergeDomClassNames, updateSchemaFactory } from './themeSchemaUtils';
 
 export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
     updateSchemaFactory(ctx, orderedListSchema.key, (prev: any) => ({
@@ -60,8 +60,22 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
             const numericValue = node.attrs.listType === 'ordered'
                 ? Number.parseInt(label, 10)
                 : Number.NaN;
+            const isTaskItem = typeof node.attrs.checked === 'boolean';
+            const taskState = isTaskItem ? (node.attrs.checked ? 'x' : ' ') : undefined;
 
             return ['li', {
+                ...(isTaskItem ? {
+                    class: mergeDomClassNames(
+                        'md-task-list-item',
+                        'task-list-item',
+                        'HyperMD-task-line',
+                        node.attrs.checked ? 'is-checked' : undefined
+                    ),
+                    'data-item-type': 'task',
+                    'data-checked': String(node.attrs.checked),
+                    'data-task': taskState,
+                    'aria-checked': String(node.attrs.checked),
+                } : {}),
                 'data-label': node.attrs.label,
                 'data-list-type': node.attrs.listType,
                 'data-spread': node.attrs.spread,
@@ -86,11 +100,13 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
             const crop = serializeCropValue(node.attrs.crop);
             const align = normalizeImageAlignment(node.attrs.align);
             return ['img', {
+                class: 'md-image image-embed',
                 src: safeSrc || undefined,
                 alt: node.attrs.alt,
                 title: node.attrs.title,
                 align: align || 'center',
                 width,
+                'data-src': safeSrc || undefined,
                 'data-vlaina-crop': crop || undefined,
             }];
         },

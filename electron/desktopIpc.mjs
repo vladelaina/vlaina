@@ -234,6 +234,27 @@ function getLinuxItemRevealer(options = {}) {
   return { command: 'xdg-open', args: [], target: 'folder' };
 }
 
+function getLinuxDirectoryOpener(options = {}) {
+  const candidates = [
+    { command: 'nautilus', args: ['--new-window'] },
+    { command: 'dolphin', args: [] },
+    { command: 'thunar', args: [] },
+    { command: 'nemo', args: [] },
+    { command: 'pcmanfm', args: [] },
+    { command: 'caja', args: [] },
+    { command: 'io.elementary.files', args: [] },
+  ];
+
+  for (const candidate of candidates) {
+    const commandPath = findCommandOnPath(candidate.command, options.envPath, options.exists);
+    if (commandPath) {
+      return { command: commandPath, args: candidate.args };
+    }
+  }
+
+  return null;
+}
+
 function openItemWithLinuxFileManager(filePath, options = {}) {
   const { command, args, target } = options.opener ?? getLinuxItemRevealer(options);
   const spawnDetached = options.spawnDetached ?? spawn;
@@ -255,6 +276,32 @@ function openItemWithLinuxFileManager(filePath, options = {}) {
     }
     void fallbackShell.openPath?.(path.dirname(filePath));
   });
+  child.unref?.();
+}
+
+export async function openPathInFileManager(filePath, options = {}) {
+  const platform = options.platform ?? process.platform;
+  const shellImpl = options.shellImpl ?? shell;
+
+  if (platform !== 'linux') {
+    const errorMessage = await shellImpl.openPath(filePath);
+    if (errorMessage) {
+      throw new Error(errorMessage);
+    }
+    return;
+  }
+
+  const opener = options.opener ?? getLinuxDirectoryOpener(options);
+  if (!opener) {
+    throw new Error('No supported Linux file manager was found for opening folders.');
+  }
+
+  const spawnDetached = options.spawnDetached ?? spawn;
+  const child = spawnDetached(opener.command, [...opener.args, filePath], {
+    detached: true,
+    stdio: 'ignore',
+  });
+  child.once?.('error', () => {});
   child.unref?.();
 }
 
@@ -539,6 +586,11 @@ export function registerDesktopIpc({
 }) {
   handleIpc('desktop:shell:open-external', async (_event, url) => {
     await shell.openExternal(normalizeExternalUrl(url));
+  });
+
+  handleIpc('desktop:shell:open-path', async (_event, filePath) => {
+    const resolvedPath = await assertAuthorizedFsPath(filePath);
+    await openPathInFileManager(resolvedPath);
   });
 
   handleIpc('desktop:shell:trash-item', async (_event, filePath) => {

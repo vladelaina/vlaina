@@ -136,6 +136,23 @@ const languageDetectorAllowlist = [
   'src/components/Notes/features/Editor/utils/languageDetection/detectors/',
 ];
 
+const markdownThemeCompatibilityCssFile = 'src/components/Notes/features/Editor/styles/theme-compatibility.css';
+const markdownThemeCompatibilityRuntimeCustomProperties = new Set([
+  '--callout-color',
+]);
+
+function isMarkdownThemeCompatibilityCustomPropertyDefinition({ file, match }) {
+  return file === markdownThemeCompatibilityCssFile
+    && typeof match?.[0] === 'string'
+    && /^\s*--[A-Za-z0-9_-]+\s*:/.test(match[0]);
+}
+
+function isMarkdownThemeCompatibilityRuntimeCustomPropertyWrite({ match }) {
+  return typeof match?.[0] === 'string'
+    && Array.from(markdownThemeCompatibilityRuntimeCustomProperties)
+      .some((property) => match[0].includes(`'${property}`));
+}
+
 // Standard Tailwind utilities are allowed because src/index.css maps them through
 // Tailwind v4 @theme inline variables backed by the centralized --vlaina-* tokens.
 const legacyVarPattern = /--(?:notes-sidebar|chat-sidebar|sidebar-row-selected|toolbar-tooltip|toolbar-submenu|block-dropdown|collapse-pos|collapse-gutter|collapse-marker|header-icon-size|track-color|slider-percentage|appearance-font-size-progress|math-editor-width|ai-review-width|ai-dropdown-panel)-[A-Za-z0-9_-]+/g;
@@ -145,11 +162,13 @@ const checks = [
     name: 'Runtime CSS variable writes must use app/theme protocol names',
     fileFilter: (file) => isScript(file),
     pattern: /(?:setProperty|removeProperty)\('--(?!vlaina-|table-block-)[A-Za-z0-9_-]+/g,
+    ignoreMatch: isMarkdownThemeCompatibilityRuntimeCustomPropertyWrite,
   },
   {
     name: 'CSS custom property definitions outside the theme contract must be protocol/framework scoped',
     fileFilter: (file) => isCss(file),
     pattern: /^\s*--(?!vlaina-|crepe-|font-|radius|shadow|blur|color-|text-|default-|spacing|background|foreground|card|popover|primary|secondary|muted|accent|destructive|border|input|ring|chart|sidebar|tw-|tracking-|leading-|ease-)[A-Za-z0-9_-]+\s*:/gm,
+    ignoreMatch: isMarkdownThemeCompatibilityCustomPropertyDefinition,
   },
   {
     name: 'Legacy scattered theme variable names must not return',

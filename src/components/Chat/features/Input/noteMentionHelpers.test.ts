@@ -3,6 +3,7 @@ import {
   buildMentionPreviewParts,
   collectMentionCandidates,
   findMentionTitlesInValue,
+  type NoteMentionCandidate,
   valueContainsMentionLabel,
 } from './noteMentionHelpers';
 import type { FileTreeNode } from '@/stores/notes/types';
@@ -69,7 +70,7 @@ function createDeepTree(depth: number): FileTreeNode[] {
 
 describe('collectMentionCandidates', () => {
   it('includes every supported markdown note in the mention list', () => {
-    const candidates = [];
+    const candidates: NoteMentionCandidate[] = [];
 
     collectMentionCandidates(createTree(), candidates);
 

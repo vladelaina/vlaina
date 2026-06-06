@@ -335,7 +335,7 @@ export function getBlockSelectionDecorationClass(
   displayRanges: readonly BlockRange[],
 ): string {
   const containedSelection = resolveContainedListChildSelection(doc, range);
-  if (!containedSelection) return 'editor-block-selected';
+  if (!containedSelection) return 'editor-block-selected md-focus';
 
   const hasSelectedContainer = displayRanges.some((candidate) => (
     candidate.from === containedSelection.itemFrom
@@ -343,8 +343,8 @@ export function getBlockSelectionDecorationClass(
   ));
 
   return hasSelectedContainer
-    ? 'editor-block-selected editor-block-selected-contained'
-    : 'editor-block-selected';
+    ? 'editor-block-selected md-focus editor-block-selected-contained'
+    : 'editor-block-selected md-focus';
 }
 
 function isNodeDecorationRange(doc: EditorState['doc'], range: BlockRange): boolean {

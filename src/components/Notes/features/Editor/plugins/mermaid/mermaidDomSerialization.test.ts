@@ -37,6 +37,12 @@ describe('mermaid DOM serialization', () => {
     const element = fragment.firstChild;
 
     expect(element).toBeInstanceOf(HTMLElement);
+    expect((element as HTMLElement).classList.contains('mermaid-block')).toBe(true);
+    expect((element as HTMLElement).classList.contains('md-fences')).toBe(true);
+    expect((element as HTMLElement).classList.contains('md-diagram')).toBe(true);
+    expect((element as HTMLElement).classList.contains('md-fences-advanced')).toBe(true);
+    expect((element as HTMLElement).classList.contains('md-diagram-panel')).toBe(true);
+    expect((element as HTMLElement).classList.contains('md-diagram-panel-preview')).toBe(true);
     expect(getMermaidElementCode(element as HTMLElement)).toBe(
       ['sequenceDiagram', 'Alice->Bob: secret token'].join('\n')
     );

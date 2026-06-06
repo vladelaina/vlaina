@@ -42,7 +42,10 @@ function renderImageContent(overrides: Partial<Parameters<typeof ImageContent>[0
 
 describe('ImageContent', () => {
   it('renders plain public remote images outside crop mode', () => {
-    const { container, props } = renderImageContent();
+    const { container, props } = renderImageContent({
+      sourceSrc: './assets/card.png#cardd#40%',
+      sourceAlt: 'Card caption',
+    });
 
     expect(screen.queryByTestId('image-cropper')).toBeNull();
     expect(screen.getByTestId('remote-image-placeholder')).toBeInTheDocument();
@@ -53,6 +56,9 @@ describe('ImageContent', () => {
     fireEvent.load(image!);
 
     expect(image).toHaveAttribute('src', 'https://example.com/image.png');
+    expect(image).toHaveAttribute('data-src', './assets/card.png#cardd#40%');
+    expect(image).toHaveAttribute('data-inject-url', './assets/card.png#cardd#40%');
+    expect(image).toHaveAttribute('alt', 'Card caption');
     expect(screen.queryByTestId('remote-image-placeholder')).toBeNull();
     expect(props.onMediaLoaded).toHaveBeenCalledTimes(1);
   });
@@ -106,6 +112,8 @@ describe('ImageContent', () => {
         ratio: 2,
       },
       isActive: false,
+      sourceSrc: './assets/cropped.png#line',
+      sourceAlt: 'Cropped caption',
     });
 
     expect(screen.queryByTestId('image-cropper')).toBeNull();
@@ -117,6 +125,9 @@ describe('ImageContent', () => {
       transform: 'scale(2) translate(-25%, -10%)',
       transformOrigin: 'top left',
     });
+    expect(image).toHaveAttribute('data-src', './assets/cropped.png#line');
+    expect(image).toHaveAttribute('data-inject-url', './assets/cropped.png#line');
+    expect(image).toHaveAttribute('alt', 'Cropped caption');
 
     fireEvent.load(image!);
 

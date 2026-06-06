@@ -144,7 +144,7 @@ function createTextSelectionDecorationState(
         return false;
       }
       decorations.push(Decoration.node(pos, pos + node.nodeSize, {
-        class: 'editor-block-selected editor-atomic-selected',
+        class: 'editor-block-selected md-focus editor-atomic-selected',
       }));
       return false;
     }

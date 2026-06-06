@@ -14,6 +14,8 @@ import { createApp, type App } from 'vue'
 import { withMeta } from '../../__internal__/meta'
 import { TableBlock } from './component'
 
+const VLOOK_TABLE_COMPATIBILITY_CLASSES = ['v-freeze', 'auto'] as const
+
 export class TableNodeView implements NodeView {
   dom: HTMLElement
   contentDOM: HTMLElement
@@ -23,6 +25,20 @@ export class TableNodeView implements NodeView {
     this.dom.classList.toggle('readonly', !this.view.editable)
   }
 
+  private syncCompatibilityTableClasses() {
+    const contentTable = this.contentDOM.parentElement
+    if (!(contentTable instanceof HTMLTableElement)) return
+
+    const hasFreeze = this.dom.classList.contains('v-freeze')
+    for (const className of VLOOK_TABLE_COMPATIBILITY_CLASSES) {
+      const shouldMirror =
+        className === 'auto'
+          ? hasFreeze && this.dom.classList.contains(className)
+          : this.dom.classList.contains(className)
+      contentTable.classList.toggle(className, shouldMirror)
+    }
+  }
+
   constructor(
     public ctx: Ctx,
     public node: ProseNode,
@@ -30,7 +46,8 @@ export class TableNodeView implements NodeView {
     public getPos: () => number | undefined
   ) {
     const dom = document.createElement('div')
-    dom.className = 'milkdown-table-block'
+    dom.className = 'milkdown-table-block table-figure'
+    this.dom = dom
 
     const contentDOM = document.createElement('tbody')
     this.contentDOM = contentDOM
@@ -43,13 +60,14 @@ export class TableNodeView implements NodeView {
       getPos,
       onMount: (div: HTMLElement) => {
         div.appendChild(contentDOM)
+        this.syncCompatibilityTableClasses()
       },
     })
     app.mount(dom)
     this.app = app
 
-    this.dom = dom
     this.syncEditableClass()
+    this.syncCompatibilityTableClasses()
   }
 
   update(node: ProseNode) {
@@ -57,6 +75,7 @@ export class TableNodeView implements NodeView {
 
     this.node = node
     this.syncEditableClass()
+    this.syncCompatibilityTableClasses()
 
     return true
   }

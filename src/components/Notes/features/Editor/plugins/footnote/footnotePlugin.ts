@@ -248,7 +248,7 @@ export const footnoteRefSchema = $node('footnote_ref', () => ({
     return [
       'sup',
       {
-        class: 'footnote-ref',
+        class: 'footnote-ref md-footnote',
         'data-id': id,
         'data-footnote-value': label,
         'aria-label': `Footnote ${id}`,
@@ -294,7 +294,7 @@ export const footnoteDefSchema = $node('footnote_def', () => ({
     return [
       'div',
       {
-        class: 'footnote-def',
+        class: 'footnote-def footnote-line',
         'data-id': id,
         id: `fn-${id}`
       },

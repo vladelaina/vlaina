@@ -635,6 +635,9 @@ describe('unifiedStorage electron save', () => {
       timezone: { offset: 480, city: 'Beijing' },
       markdown: {
         typewriterMode: false,
+        theme: {
+          importedThemeId: null,
+        },
         body: { showLineNumbers: false },
         codeBlock: { showLineNumbers: true },
       },
@@ -942,6 +945,9 @@ describe('unifiedStorage electron save', () => {
       timezone: { offset: -300, city: 'New York' },
       markdown: {
         typewriterMode: false,
+        theme: {
+          importedThemeId: null,
+        },
         body: { showLineNumbers: false },
         codeBlock: { showLineNumbers: true },
       },
@@ -1026,6 +1032,9 @@ describe('unifiedStorage electron save', () => {
       timezone: { offset: -300, city: 'New York' },
       markdown: {
         typewriterMode: true,
+        theme: {
+          importedThemeId: null,
+        },
         body: { showLineNumbers: false },
         codeBlock: { showLineNumbers: true },
       },

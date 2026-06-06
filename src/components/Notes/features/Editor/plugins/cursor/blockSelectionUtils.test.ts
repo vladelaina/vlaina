@@ -385,7 +385,7 @@ describe('blockSelectionUtils', () => {
     }))).toEqual([{
       from: 1,
       to: 6,
-      class: 'editor-block-selected editor-block-selected-inline-line',
+      class: 'editor-block-selected md-focus editor-block-selected-inline-line',
     }]);
     expect(view.state.doc.resolve(7).nodeBefore?.type.name).toBe('hardbreak');
 
@@ -409,7 +409,7 @@ describe('blockSelectionUtils', () => {
     const decorations = createBlockSelectionDecorations(view.state.doc, [{ from: 1, to: hardBreakPos + 1 }]);
 
     expect(decorations.find().map((decoration: Decoration) => (decoration.type as any).attrs?.class)).toEqual([
-      'editor-block-selected editor-block-selected-inline-line',
+      'editor-block-selected md-focus editor-block-selected-inline-line',
     ]);
 
     await editor.destroy();
@@ -492,12 +492,12 @@ describe('blockSelectionUtils', () => {
         { from: 1, to: 13 },
         { from: 6, to: 12 },
       ]),
-    ).toBe('editor-block-selected editor-block-selected-contained');
+    ).toBe('editor-block-selected md-focus editor-block-selected-contained');
 
     expect(
       getBlockSelectionDecorationClass(doc, { from: 6, to: 12 }, [
         { from: 6, to: 12 },
       ]),
-    ).toBe('editor-block-selected');
+    ).toBe('editor-block-selected md-focus');
   });
 });

@@ -18,6 +18,11 @@ import {
   removeLeadingCalloutIconTextMarker,
 } from './calloutIconUtils';
 import {
+  getCalloutCompatibilityAttrs,
+  getCalloutCompatibilityClassName,
+  getCalloutTitleCompatibilityClassName,
+} from './calloutThemeCompatibility';
+import {
   getTextAlignmentComment,
   isTextAlignment,
 } from '../floating-toolbar/blockAlignmentMarkdown';
@@ -155,9 +160,15 @@ export const calloutSchema = $node('callout', () => ({
         'data-type': 'callout',
         'data-icon': JSON.stringify(icon),
         'data-bg': backgroundColor,
-        class: `callout callout-${backgroundColor}`
+        ...getCalloutCompatibilityAttrs({ ...attrs, icon, backgroundColor }),
+        class: getCalloutCompatibilityClassName(backgroundColor)
       },
-      ['div', { class: 'callout-icon', contenteditable: 'false' }, iconValue],
+      [
+        'div',
+        { class: getCalloutTitleCompatibilityClassName(attrs.backgroundColor), contenteditable: 'false' },
+        ['div', { class: 'callout-icon', contenteditable: 'false' }, iconValue],
+        ['div', { class: 'callout-title-inner', 'aria-hidden': 'true' }]
+      ],
       ['div', { class: 'callout-content' }, 0]
     ];
   },

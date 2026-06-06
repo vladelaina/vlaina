@@ -3,6 +3,7 @@ import type { UnifiedSavePatch } from '@/lib/storage/unifiedStorage';
 import {
   updateMarkdownBodyLineNumbers,
   updateMarkdownCodeBlockLineNumbers,
+  updateMarkdownImportedThemeId,
   updateMarkdownTypewriterMode,
 } from '../settings/markdownSettings';
 
@@ -53,6 +54,25 @@ export function createMarkdownSettingsActions(set: SetState, persist: Persist) {
           settings: {
             markdown: {
               typewriterMode,
+            },
+          },
+        });
+        return { data: newData };
+      });
+    },
+    setMarkdownImportedThemeId: (importedThemeId: string | null) => {
+      set((state) => {
+        const normalizedThemeId = typeof importedThemeId === 'string' && importedThemeId.trim()
+          ? importedThemeId.trim()
+          : null;
+        const newData = updateMarkdownImportedThemeId(state.data, normalizedThemeId);
+        const nextTheme = newData.settings.markdown.theme;
+        persist(newData, {
+          settings: {
+            markdown: {
+              theme: {
+                importedThemeId: nextTheme?.importedThemeId ?? null,
+              },
             },
           },
         });

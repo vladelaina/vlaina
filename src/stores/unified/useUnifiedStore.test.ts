@@ -3,6 +3,7 @@ import { retainLoadedSessionMessages } from './useUnifiedStore';
 import {
   resolveMarkdownSettings,
   updateMarkdownBodyLineNumbers,
+  updateMarkdownImportedThemeId,
   updateMarkdownTypewriterMode,
 } from './settings/markdownSettings';
 import type { UnifiedData } from '@/lib/storage/unifiedStorage';
@@ -111,8 +112,43 @@ describe('markdownSettings', () => {
       codeBlock: { showLineNumbers: false },
     } as Partial<UnifiedData['settings']['markdown']>)).toEqual({
       typewriterMode: false,
+      theme: {
+        importedThemeId: null,
+      },
       body: { showLineNumbers: false },
       codeBlock: { showLineNumbers: false },
+    });
+  });
+
+  it('ignores legacy markdown theme compatibility while preserving safe imported ids', () => {
+    expect(resolveMarkdownSettings({
+      theme: {
+        compatibility: 'not-a-platform',
+        importedThemeId: ' clean-light ',
+      } as never,
+      codeBlock: { showLineNumbers: false },
+    }).theme).toEqual({
+      importedThemeId: 'clean-light',
+    });
+  });
+
+  it('preserves safe imported markdown theme ids and rejects unsafe ids', () => {
+    expect(resolveMarkdownSettings({
+      theme: {
+        importedThemeId: 'clean-light',
+      },
+      codeBlock: { showLineNumbers: false },
+    }).theme).toEqual({
+      importedThemeId: 'clean-light',
+    });
+
+    expect(resolveMarkdownSettings({
+      theme: {
+        importedThemeId: '../bad',
+      },
+      codeBlock: { showLineNumbers: false },
+    }).theme).toEqual({
+      importedThemeId: null,
     });
   });
 
@@ -120,11 +156,14 @@ describe('markdownSettings', () => {
     const data: UnifiedData = {
       settings: {
         timezone: { offset: 0, city: 'UTC' },
-        markdown: {
-          typewriterMode: false,
-          body: { showLineNumbers: false },
-          codeBlock: { showLineNumbers: false },
-        },
+          markdown: {
+            typewriterMode: false,
+            theme: {
+              importedThemeId: null,
+            },
+            body: { showLineNumbers: false },
+            codeBlock: { showLineNumbers: false },
+          },
       },
       customIcons: [],
       ai: undefined,
@@ -132,6 +171,9 @@ describe('markdownSettings', () => {
 
     expect(updateMarkdownTypewriterMode(data, true).settings.markdown).toEqual({
       typewriterMode: true,
+      theme: {
+        importedThemeId: null,
+      },
       body: { showLineNumbers: false },
       codeBlock: { showLineNumbers: false },
     });
@@ -141,11 +183,14 @@ describe('markdownSettings', () => {
     const data: UnifiedData = {
       settings: {
         timezone: { offset: 0, city: 'UTC' },
-        markdown: {
-          typewriterMode: false,
-          body: { showLineNumbers: false },
-          codeBlock: { showLineNumbers: true },
-        },
+          markdown: {
+            typewriterMode: false,
+            theme: {
+              importedThemeId: null,
+            },
+            body: { showLineNumbers: false },
+            codeBlock: { showLineNumbers: true },
+          },
       },
       customIcons: [],
       ai: undefined,
@@ -153,8 +198,44 @@ describe('markdownSettings', () => {
 
     expect(updateMarkdownBodyLineNumbers(data, true).settings.markdown).toEqual({
       typewriterMode: false,
+      theme: {
+        importedThemeId: null,
+      },
       body: { showLineNumbers: true },
       codeBlock: { showLineNumbers: true },
+    });
+  });
+
+  it('updates imported theme id without changing markdown layout settings', () => {
+    const data: UnifiedData = {
+      settings: {
+        timezone: { offset: 0, city: 'UTC' },
+        markdown: {
+          typewriterMode: true,
+          theme: {
+            importedThemeId: null,
+          },
+          body: { showLineNumbers: true },
+          codeBlock: { showLineNumbers: false },
+        },
+      },
+      customIcons: [],
+      ai: undefined,
+    };
+
+    const withImportedTheme = updateMarkdownImportedThemeId(data, ' minimal ');
+    const nativeWithImportedTheme = updateMarkdownImportedThemeId(data, 'clean-light');
+
+    expect(withImportedTheme.settings.markdown).toEqual({
+      typewriterMode: true,
+      theme: {
+        importedThemeId: 'minimal',
+      },
+      body: { showLineNumbers: true },
+      codeBlock: { showLineNumbers: false },
+    });
+    expect(nativeWithImportedTheme.settings.markdown.theme).toEqual({
+      importedThemeId: 'clean-light',
     });
   });
 });

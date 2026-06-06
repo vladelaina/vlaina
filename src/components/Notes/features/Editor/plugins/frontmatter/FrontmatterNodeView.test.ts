@@ -66,6 +66,29 @@ describe('FrontmatterNodeView', () => {
     document.body.innerHTML = '';
   });
 
+  it('adds the Typora frontmatter alias class to the node view root', () => {
+    const nodeView = new FrontmatterNodeView(createMockNode('title: note'), createMockView(), () => 0);
+
+    expect(nodeView.dom.classList.contains('frontmatter-block-container')).toBe(true);
+    expect(nodeView.dom.classList.contains('md-meta-block')).toBe(true);
+
+    nodeView.destroy();
+  });
+
+  it('mirrors node selection to ProseMirror and Typora focus classes', () => {
+    const nodeView = new FrontmatterNodeView(createMockNode('title: note'), createMockView(), () => 0);
+
+    nodeView.selectNode();
+    expect(nodeView.dom.classList.contains('ProseMirror-selectednode')).toBe(true);
+    expect(nodeView.dom.classList.contains('md-focus')).toBe(true);
+
+    nodeView.deselectNode();
+    expect(nodeView.dom.classList.contains('ProseMirror-selectednode')).toBe(false);
+    expect(nodeView.dom.classList.contains('md-focus')).toBe(false);
+
+    nodeView.destroy();
+  });
+
   it('does not re-dispatch or schedule measurement for unchanged content', () => {
     const node = createMockNode('title: note');
     const nodeView = new FrontmatterNodeView(node, createMockView(), () => 0);

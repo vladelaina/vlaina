@@ -41,12 +41,27 @@ export function sanitizeMermaidMarkup(markup: string) {
     return '';
   }
 
-  return stripExternalSvgResourceReferences(
-    DOMPurify.sanitize(replaceMermaidForeignObjectLabels(markup), {
-      USE_PROFILES: { html: true, svg: true, svgFilters: true },
-      FORBID_TAGS: MERMAID_FORBIDDEN_TAGS,
-    })
+  return addMermaidCompatibilitySvgClass(
+    stripExternalSvgResourceReferences(
+      DOMPurify.sanitize(replaceMermaidForeignObjectLabels(markup), {
+        USE_PROFILES: { html: true, svg: true, svgFilters: true },
+        FORBID_TAGS: MERMAID_FORBIDDEN_TAGS,
+      })
+    )
   );
+}
+
+function addMermaidCompatibilitySvgClass(markup: string) {
+  if (!/<svg\b/i.test(markup)) {
+    return markup;
+  }
+
+  const template = document.createElement('template');
+  template.innerHTML = markup;
+  template.content.querySelectorAll('svg').forEach((svg) => {
+    svg.classList.add('mermaid-svg');
+  });
+  return template.innerHTML;
 }
 
 function walkBudgetedSvgElements(

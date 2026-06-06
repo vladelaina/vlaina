@@ -53,6 +53,14 @@ export class MermaidNodeView implements NodeView {
     return true;
   }
 
+  selectNode() {
+    this.dom.classList.add('ProseMirror-selectednode', 'md-focus');
+  }
+
+  deselectNode() {
+    this.dom.classList.remove('ProseMirror-selectednode', 'md-focus');
+  }
+
   destroy() {
     disposeMermaidElement(this.dom);
     this.contextMenu.destroy();

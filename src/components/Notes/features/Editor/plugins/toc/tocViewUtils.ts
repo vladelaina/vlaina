@@ -74,25 +74,25 @@ export function renderTocContent(contentEl: HTMLElement, headings: readonly TocI
 
   if (scopedHeadings.length === 0) {
     const empty = doc.createElement('div');
-    empty.className = 'toc-empty';
+    empty.className = 'toc-empty md-toc-empty';
     empty.textContent = TOC_EMPTY_TEXT;
     contentEl.replaceChildren(empty);
     return;
   }
 
   const nav = doc.createElement('nav');
-  nav.className = 'toc-nav';
+  nav.className = 'toc-nav md-toc-content';
   const list = doc.createElement('ul');
   list.className = 'toc-list';
   nav.appendChild(list);
 
   for (const heading of scopedHeadings) {
     const item = doc.createElement('li');
-    item.className = `toc-item toc-level-${heading.level}`;
+    item.className = `toc-item toc-level-${heading.level} md-toc-item md-toc-h${heading.level}`;
     item.style.paddingLeft = `${(heading.level - 1) * 16}px`;
 
     const link = doc.createElement('a');
-    link.className = 'toc-link';
+    link.className = 'toc-link md-toc-inner';
     link.href = '#';
     link.dataset.headingPos = String(heading.pos);
     link.textContent = heading.text;

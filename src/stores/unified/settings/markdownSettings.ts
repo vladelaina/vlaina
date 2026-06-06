@@ -1,9 +1,12 @@
 import { DEFAULT_SETTINGS } from '@/lib/config';
 import type { UnifiedData } from '@/lib/storage/unifiedStorage';
+import type { MarkdownThemeSettings } from '@/lib/storage/unifiedStorageTypes';
+import { isSafeImportedMarkdownThemeId } from '@/lib/markdown/theme-compatibility/types';
 
 export type MarkdownSettings = UnifiedData['settings']['markdown'];
 export type CodeBlockMarkdownSettings = MarkdownSettings['codeBlock'];
 export type ResolvedMarkdownSettings = MarkdownSettings & {
+  theme: MarkdownThemeSettings;
   body: {
     showLineNumbers: boolean;
   };
@@ -12,9 +15,25 @@ export type ResolvedMarkdownSettings = MarkdownSettings & {
   };
 };
 
+export function resolveMarkdownThemeSettings(
+  settings?: Partial<MarkdownThemeSettings> | null
+): MarkdownThemeSettings {
+  const importedThemeId = typeof settings?.importedThemeId === 'string'
+    ? settings.importedThemeId.trim()
+    : null;
+  return {
+    importedThemeId: importedThemeId && isSafeImportedMarkdownThemeId(importedThemeId)
+      ? importedThemeId
+      : null,
+  };
+}
+
 export function createDefaultMarkdownSettings(): ResolvedMarkdownSettings {
   return {
     ...DEFAULT_SETTINGS.markdown,
+    theme: {
+      ...DEFAULT_SETTINGS.markdown.theme,
+    },
     body: {
       ...DEFAULT_SETTINGS.markdown.body,
     },
@@ -32,6 +51,7 @@ export function resolveMarkdownSettings(
   return {
     ...defaults,
     ...settings,
+    theme: resolveMarkdownThemeSettings(settings?.theme),
     body: {
       ...defaults.body,
       ...settings?.body,
@@ -53,6 +73,14 @@ export function selectCodeBlockLineNumbersEnabled(state: { data: UnifiedData }):
 
 export function selectMarkdownTypewriterModeEnabled(state: { data: UnifiedData }): boolean {
   return selectMarkdownSettings(state).typewriterMode;
+}
+
+export function selectMarkdownThemeSettings(state: { data: UnifiedData }): MarkdownThemeSettings {
+  return selectMarkdownSettings(state).theme;
+}
+
+export function selectMarkdownImportedThemeId(state: { data: UnifiedData }): string | null {
+  return selectMarkdownThemeSettings(state).importedThemeId ?? null;
 }
 
 export function selectMarkdownBodyLineNumbersEnabled(state: { data: UnifiedData }): boolean {
@@ -114,6 +142,31 @@ export function updateMarkdownTypewriterMode(
       markdown: {
         ...markdown,
         typewriterMode,
+      },
+    },
+  };
+}
+
+export function updateMarkdownImportedThemeId(
+  data: UnifiedData,
+  importedThemeId: string | null
+): UnifiedData {
+  const markdown = resolveMarkdownSettings(data.settings.markdown);
+  const normalizedThemeId = typeof importedThemeId === 'string' && importedThemeId.trim()
+    && isSafeImportedMarkdownThemeId(importedThemeId.trim())
+    ? importedThemeId.trim()
+    : null;
+
+  return {
+    ...data,
+    settings: {
+      ...data.settings,
+      markdown: {
+        ...markdown,
+        theme: {
+          ...markdown.theme,
+          importedThemeId: normalizedThemeId,
+        },
       },
     },
   };
