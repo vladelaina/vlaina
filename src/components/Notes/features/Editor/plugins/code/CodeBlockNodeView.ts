@@ -270,11 +270,17 @@ export class CodeBlockNodeView implements NodeView {
   private createLineNumberPlaceholder(text: string) {
     const lineNumbers = document.createElement('pre');
     lineNumbers.className = 'code-block-lazy-line-numbers';
-    const lineCount = Math.max(1, text.split('\n').length);
-    lineNumbers.textContent = Array.from(
-      { length: lineCount },
-      (_value, index) => String(index + 1),
-    ).join('\n');
+    let lineCount = 1;
+    for (let index = 0; index < text.length; index += 1) {
+      if (text[index] === '\n') {
+        lineCount += 1;
+      }
+    }
+    let textContent = '1';
+    for (let line = 2; line <= lineCount; line += 1) {
+      textContent += `\n${line}`;
+    }
+    lineNumbers.textContent = textContent;
     return lineNumbers;
   }
 

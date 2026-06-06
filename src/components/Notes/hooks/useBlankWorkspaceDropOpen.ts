@@ -6,38 +6,15 @@ import { useI18n } from '@/lib/i18n';
 import { createExternalDragPreview, type ExternalDragPreviewHandle } from '../features/FileTree/hooks/externalDragPreview';
 import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetSelection';
 import { SIDEBAR_SCROLL_ROOT_SELECTOR } from '../features/Sidebar/context-menu/shared';
+import {
+  getDroppedExternalPaths,
+  hasExternalDroppedFiles,
+} from './externalDropPayload';
 
 interface UseBlankWorkspaceDropOpenOptions {
   enabled: boolean;
   openMarkdownTarget: (absolutePath: string) => Promise<void>;
   openVault: (path: string) => Promise<boolean>;
-}
-
-function getDroppedPaths(event: DragEvent): string[] {
-  const dragDrop = getElectronBridge()?.dragDrop;
-  const fileList = Array.from(event.dataTransfer?.files ?? []);
-  return fileList
-    .map((file) => {
-      const legacyPath = ((file as File & { path?: string }).path ?? '').trim();
-      if (legacyPath) {
-        return legacyPath;
-      }
-
-      try {
-        return dragDrop?.getPathForFile(file).trim() || '';
-      } catch {
-        return '';
-      }
-    })
-    .filter(Boolean);
-}
-
-function getDataTransferTypes(event: DragEvent): string[] {
-  return Array.from(event.dataTransfer?.types ?? []);
-}
-
-function hasExternalFiles(event: DragEvent): boolean {
-  return getDataTransferTypes(event).includes('Files') || (event.dataTransfer?.files?.length ?? 0) > 0;
 }
 
 function isOverNotesSidebar(event: DragEvent) {
@@ -76,8 +53,8 @@ export function useBlankWorkspaceDropOpen({
 
     const handleDragEnter = (event: DragEvent) => {
       const overNotesSidebar = isOverNotesSidebar(event);
-      const externalFiles = hasExternalFiles(event);
-      const paths = getDroppedPaths(event);
+      const externalFiles = hasExternalDroppedFiles(event.dataTransfer);
+      const paths = getDroppedExternalPaths(event.dataTransfer);
 
       if (overNotesSidebar || !externalFiles) {
         return;
@@ -94,8 +71,8 @@ export function useBlankWorkspaceDropOpen({
     };
 
     const handleDragOver = (event: DragEvent) => {
-      const externalFiles = hasExternalFiles(event);
-      const paths = getDroppedPaths(event);
+      const externalFiles = hasExternalDroppedFiles(event.dataTransfer);
+      const paths = getDroppedExternalPaths(event.dataTransfer);
 
       if (isOverNotesSidebar(event) || !externalFiles) {
         return;
@@ -119,8 +96,8 @@ export function useBlankWorkspaceDropOpen({
 
     const handleDrop = (event: DragEvent) => {
       const overNotesSidebar = isOverNotesSidebar(event);
-      const externalFiles = hasExternalFiles(event);
-      const paths = getDroppedPaths(event);
+      const externalFiles = hasExternalDroppedFiles(event.dataTransfer);
+      const paths = getDroppedExternalPaths(event.dataTransfer);
 
       if (overNotesSidebar || !externalFiles) {
         return;

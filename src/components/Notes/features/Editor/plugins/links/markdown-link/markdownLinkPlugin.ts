@@ -10,6 +10,10 @@ import {
     MARKDOWN_LINK_REGEX,
     shouldHandleMarkdownLinkPaste,
 } from './markdownLinkParser';
+import {
+    STOP_PROSE_SCAN,
+    scanProseDescendants,
+} from '../../shared/boundedProseNodeScan';
 
 export const markdownLinkPluginKey = new PluginKey('markdown-link-paste');
 const MAX_MARKDOWN_LINK_DOC_SCAN_SIZE = 1024 * 1024;
@@ -39,16 +43,15 @@ export function isMarkdownImagePatternBeforeCursor(textBefore: string, fullMatch
     return matchStart > 0 && textBefore[matchStart - 1] === '!';
 }
 
-function docHasRawMarkdownLink(doc: ProseNode): boolean {
+export function docHasRawMarkdownLink(doc: ProseNode): boolean {
     let hasRawMarkdownLink = false;
-    doc.descendants((node) => {
-        if (hasRawMarkdownLink) return false;
+    scanProseDescendants(doc, (node) => {
         if (!node.isText || !node.text) return true;
 
         MARKDOWN_LINK_PATTERN_GLOBAL.lastIndex = 0;
         hasRawMarkdownLink = MARKDOWN_LINK_PATTERN_GLOBAL.test(node.text);
-        return !hasRawMarkdownLink;
-    });
+        return hasRawMarkdownLink ? STOP_PROSE_SCAN : true;
+    }, Number.POSITIVE_INFINITY);
     return hasRawMarkdownLink;
 }
 

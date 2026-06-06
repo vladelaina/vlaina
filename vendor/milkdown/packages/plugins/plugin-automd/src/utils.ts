@@ -32,13 +32,19 @@ export function mergeSlash(str: string) {
 }
 
 export function swap(text: string, first: number, last: number) {
-  const arr = text.split('')
-  const temp = arr[first]
-  if (arr[first] && arr[last]) {
-    arr[first] = arr[last] as string
-    arr[last] = temp as string
-  }
-  return arr.join('').toString()
+  const firstChar = text.charAt(first)
+  const lastChar = text.charAt(last)
+  if (!firstChar || !lastChar || first === last) return text
+
+  const lower = Math.min(first, last)
+  const upper = Math.max(first, last)
+  const lowerChar = text.charAt(lower)
+  const upperChar = text.charAt(upper)
+
+  return `${text.slice(0, lower)}${upperChar}${text.slice(
+    lower + 1,
+    upper
+  )}${lowerChar}${text.slice(upper + 1)}`
 }
 
 export function replacePunctuation(holePlaceholder: string) {
@@ -67,25 +73,31 @@ export function calculatePlaceholder(placeholder: SyncNodePlaceholder) {
 
 export function calcOffset(node: Node, from: number, placeholder: string) {
   let offset = from
-  let find = false
-  node.descendants((n) => {
-    if (find) return false
-    if (!n.textContent.includes(placeholder)) {
-      offset += n.nodeSize
-      return false
-    }
-    if (n.isText) {
-      const i = n.text?.indexOf(placeholder)
-      if (i != null && i >= 0) {
-        find = true
-        offset += i
-        return false
+
+  const scan = (current: Node): boolean => {
+    for (let index = 0; index < current.childCount; index++) {
+      const n = current.child(index)
+      if (!n.textContent.includes(placeholder)) {
+        offset += n.nodeSize
+        continue
       }
+      if (n.isText) {
+        const i = n.text?.indexOf(placeholder)
+        if (i != null && i >= 0) {
+          offset += i
+          return true
+        }
+      }
+
+      // enter the node
+      offset += 1
+      if (scan(n)) return true
+      offset += n.nodeSize
     }
 
-    // enter the node
-    offset += 1
-    return true
-  })
+    return false
+  }
+
+  scan(node)
   return offset
 }

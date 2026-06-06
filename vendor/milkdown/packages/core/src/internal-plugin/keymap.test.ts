@@ -1,7 +1,19 @@
 import { Clock, Container, Ctx } from '@milkdown/ctx'
 import { expect, test, vi } from 'vitest'
 
-import { KeymapManager } from './keymap'
+import { KeymapManager, getTextDeleteSize } from './keymap'
+
+test('should get grapheme delete sizes without materializing segment arrays', () => {
+  const family = '👨‍👩‍👧‍👦'
+  const arrayFrom = vi.spyOn(Array, 'from').mockImplementation(() => {
+    throw new Error('segments should not be materialized')
+  })
+
+  expect(getTextDeleteSize(`hello${family}`, -1)).toBe(family.length)
+  expect(getTextDeleteSize(`${family}hello`, 1)).toBe(family.length)
+
+  arrayFrom.mockRestore()
+})
 
 test('should work with basic keymap', async () => {
   const km = new KeymapManager()

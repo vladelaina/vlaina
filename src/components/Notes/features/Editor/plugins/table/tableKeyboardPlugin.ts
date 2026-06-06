@@ -9,6 +9,10 @@ import {
   getPipeShortcutCells,
 } from './pipeTableShortcut';
 import {
+  STOP_PROSE_SCAN,
+  scanProseDescendants,
+} from '../shared/boundedProseNodeScan';
+import {
   type AdjacentTableParagraphDeleteRange,
   findAdjacentHeadingParagraphDeleteRange,
   findAdjacentTableParagraphDeleteRange,
@@ -76,22 +80,74 @@ function dispatchDeleteRangeWithHeadingTextSelection(
   view.dispatch(tr.setSelection(TextSelection.create(tr.doc, cursorPos)).scrollIntoView());
 }
 
+export function findFirstTableBodyCellPos(
+  doc: EditorView['state']['doc'],
+  tableFrom: number,
+): number | null {
+  let targetPos: number | null = null;
+
+  scanProseDescendants(doc, (node, pos) => {
+    if (pos < tableFrom) return true;
+    if (node.type?.name !== 'table_cell') return true;
+
+    targetPos = pos + 2;
+    return STOP_PROSE_SCAN;
+  }, Number.POSITIVE_INFINITY);
+
+  return targetPos;
+}
+
 function findFirstTableBodyCellSelection(
   doc: EditorView['state']['doc'],
   tableFrom: number,
 ) {
-  let targetPos: number | null = null;
-
-  doc.descendants((node, pos) => {
-    if (targetPos !== null) return false;
-    if (pos < tableFrom) return true;
-    if (node.type.name !== 'table_cell') return true;
-
-    targetPos = pos + 2;
-    return false;
-  });
+  const targetPos = findFirstTableBodyCellPos(doc, tableFrom);
 
   return targetPos === null ? null : TextSelection.create(doc, targetPos);
+}
+
+export function findAdjacentTableCellPos(
+  table: EditorView['state']['doc'],
+  tableStart: number,
+  currentCellPos: number,
+  direction: -1 | 1,
+): number | null {
+  let firstCellPos: number | null = null;
+  let previousCellPos: number | null = null;
+  let targetPos: number | null = null;
+  let foundCurrent = false;
+
+  scanProseDescendants(table, (node, pos) => {
+    if (node.type?.name !== 'table_cell' && node.type?.name !== 'table_header') {
+      return true;
+    }
+
+    const cellPos = tableStart + pos;
+    firstCellPos ??= cellPos;
+
+    if (direction < 0) {
+      if (cellPos === currentCellPos) {
+        targetPos = previousCellPos;
+        return STOP_PROSE_SCAN;
+      }
+      previousCellPos = cellPos;
+      return true;
+    }
+
+    if (foundCurrent) {
+      targetPos = cellPos;
+      return STOP_PROSE_SCAN;
+    }
+    if (cellPos === currentCellPos) {
+      foundCurrent = true;
+    }
+    return true;
+  }, Number.POSITIVE_INFINITY);
+
+  if (direction > 0 && !foundCurrent) {
+    return firstCellPos;
+  }
+  return targetPos;
 }
 
 export const tableKeyboardPlugin = $prose(() => {
@@ -285,25 +341,12 @@ export const tableKeyboardPlugin = $prose(() => {
 
           if (!table) return false;
 
-          let targetPos: number | null = null;
-          const cells: number[] = [];
-
-          table.descendants((node, pos) => {
-            if (node.type.name === 'table_cell' || node.type.name === 'table_header') {
-              cells.push(tableStart + pos);
-            }
-            return true;
-          });
-
-          const currentIndex = cells.indexOf(cellPos);
-
-          if (event.shiftKey) {
-            if (currentIndex > 0) {
-              targetPos = cells[currentIndex - 1];
-            }
-          } else if (currentIndex < cells.length - 1) {
-            targetPos = cells[currentIndex + 1];
-          }
+          const targetPos = findAdjacentTableCellPos(
+            table,
+            tableStart,
+            cellPos,
+            event.shiftKey ? -1 : 1,
+          );
 
           if (targetPos !== null) {
             const $target = doc.resolve(targetPos + 1);

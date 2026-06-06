@@ -4,8 +4,7 @@ import { AllSelection, Selection, TextSelection } from '@milkdown/kit/prose/stat
 import { CellSelection } from '@milkdown/kit/prose/tables';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
-import { clipboardPlugin } from './clipboardPlugin';
-import { createStandaloneTocPasteNode } from './clipboardPlugin';
+import { clipboardPlugin, createStandaloneTocPasteNode } from './clipboardPlugin';
 import { dispatchTailBlankClickAction, endBlankClickPlugin } from '../cursor/endBlankClickPlugin';
 import { mermaidPlugin } from '../mermaid';
 import { mathPlugin } from '../math';

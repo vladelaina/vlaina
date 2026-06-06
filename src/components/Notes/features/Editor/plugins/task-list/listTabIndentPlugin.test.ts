@@ -11,7 +11,67 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import { Selection as ProseSelection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { describe, expect, it } from 'vitest';
-import { buildInternalListGapDecorations, findAdjacentOrderedLists, listTabIndentPlugin } from './listTabIndentPlugin';
+import {
+  MAX_LIST_GAP_PLACEHOLDER_DECORATIONS,
+  buildInternalListGapDecorations,
+  collectInternalListGapDecorations,
+  findAdjacentOrderedLists,
+  listTabIndentPlugin,
+} from './listTabIndentPlugin';
+
+interface FakeListGapNode {
+  child?: (index: number) => FakeListGapNode | null | undefined;
+  childCount?: number;
+  content?: { size?: number };
+  isText?: boolean;
+  nodeSize?: number;
+  text?: string;
+  textContent?: string;
+  type?: { name?: string };
+}
+
+function createFakeTextNode(text: string): FakeListGapNode {
+  return {
+    isText: true,
+    nodeSize: text.length,
+    text,
+    textContent: text,
+    type: { name: 'text' },
+  };
+}
+
+function createFakeNode(type: string, children: FakeListGapNode[] = []): FakeListGapNode {
+  return {
+    child: (index) => children[index],
+    childCount: children.length,
+    content: {
+      size: children.reduce((size, child) => size + (child.nodeSize ?? 1), 0),
+    },
+    nodeSize: children.reduce((size, child) => size + (child.nodeSize ?? 1), 2),
+    textContent: children.map((child) => child.textContent ?? '').join(''),
+    type: { name: type },
+  };
+}
+
+function createFakeListGapItem(): FakeListGapNode {
+  return createFakeNode('list_item', [
+    createFakeNode('paragraph', [createFakeTextNode('\u2800')]),
+  ]);
+}
+
+function createFakeDoc(children: FakeListGapNode[], onAccess?: () => void): FakeListGapNode {
+  return {
+    childCount: children.length,
+    child(index) {
+      onAccess?.();
+      return children[index];
+    },
+    content: {
+      size: children.reduce((size, child) => size + (child.nodeSize ?? 1), 0),
+    },
+    type: { name: 'doc' },
+  };
+}
 
 function createEditorWithContent(content: string) {
   const editor = Editor.make() as any;
@@ -237,6 +297,21 @@ describe('listTabIndentPlugin', () => {
     ]);
 
     expect(buildInternalListGapDecorations(view.state.doc).find()).toHaveLength(1000);
+  });
+
+  it('stops scanning list gap placeholder items after the decoration cap is reached', () => {
+    let accessed = 0;
+    const children = Array.from(
+      { length: MAX_LIST_GAP_PLACEHOLDER_DECORATIONS + 2 },
+      () => createFakeListGapItem()
+    );
+
+    const decorations = collectInternalListGapDecorations(createFakeDoc(children, () => {
+      accessed += 1;
+    }) as any);
+
+    expect(decorations).toHaveLength(MAX_LIST_GAP_PLACEHOLDER_DECORATIONS);
+    expect(accessed).toBe(MAX_LIST_GAP_PLACEHOLDER_DECORATIONS);
   });
 
   it('does not scan oversized placeholder-only list items for gap styling', async () => {

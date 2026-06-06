@@ -122,11 +122,11 @@ function replaceBlockSelectionBeforePaste(view: EditorView): boolean {
     return true;
 }
 
-function hasClipboardPayload(event: ClipboardEvent): boolean {
+export function hasClipboardPayload(event: ClipboardEvent): boolean {
     const clipboardData = event.clipboardData;
     if (!clipboardData) return false;
     if (clipboardData.getData('text/plain') || clipboardData.getData('text/html')) return true;
-    return Array.from(clipboardData.types ?? []).length > 0;
+    return (clipboardData.types?.length ?? 0) > 0;
 }
 
 export function createStandaloneTocPasteNode(schema: {

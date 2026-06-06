@@ -5,6 +5,12 @@ import { $node, $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
+import {
+    DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
+    SKIP_PROSE_DESCENDANTS,
+    STOP_PROSE_SCAN,
+    scanProseDescendants,
+} from '../shared/boundedProseNodeScan';
 
 // Definition List container
 export const definitionListSchema = $node('definition_list', () => ({
@@ -92,7 +98,8 @@ export const definitionDescSchema = $node('definition_desc', () => ({
 // Visual emulation plugin for pseudo definition lists (Term \n : Definition)
 // This handles the case where lack of remark-deflist causes DLs to be parsed as paragraphs
 const deflistVisualPluginKey = new PluginKey<DecorationSet>('deflist-visual');
-const MAX_DEFLIST_VISUAL_DECORATIONS = 1000;
+export const MAX_DEFLIST_VISUAL_DECORATIONS = 1000;
+export const MAX_DEFLIST_VISUAL_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 const MAX_DEFLIST_TERM_CHARS = 80;
 const MAX_DEFLIST_EMPTY_SCAN_CHARS = 256;
 
@@ -130,19 +137,20 @@ export function createDeflistDecorations(doc: Node): DecorationSet {
     let lastNonEmptyPos = -1;
     let lastNode: Node | null = null;
 
-    doc.descendants((node, pos) => {
+    scanProseDescendants(doc, (node, pos) => {
         if (decorations.length >= MAX_DEFLIST_VISUAL_DECORATIONS) {
-            return false;
+            return STOP_PROSE_SCAN;
         }
 
         if (node.isBlock) {
-            const isEmpty = isVisuallyEmptyBlock(node);
+            const blockNode = node as Node;
+            const isEmpty = isVisuallyEmptyBlock(blockNode);
 
             // Check if current node looks like a Definition Description
             if (
-                node.type.name === 'paragraph' &&
-                !isEscapedDefinitionListDescription(node) &&
-                startsWithDefinitionDescriptionPrefix(node)
+                blockNode.type.name === 'paragraph' &&
+                !isEscapedDefinitionListDescription(blockNode) &&
+                startsWithDefinitionDescriptionPrefix(blockNode)
             ) {
 
                 // HEURISTIC: A true Definition List usually follows a short Term.
@@ -159,7 +167,7 @@ export function createDeflistDecorations(doc: Node): DecorationSet {
                     }
 
                     decorations.push(
-                        Decoration.node(pos, pos + node.nodeSize, {
+                        Decoration.node(pos, pos + blockNode.nodeSize, {
                             class: classes.join(' '),
                         })
                     );
@@ -171,21 +179,21 @@ export function createDeflistDecorations(doc: Node): DecorationSet {
                         })
                     );
                     if (decorations.length >= MAX_DEFLIST_VISUAL_DECORATIONS) {
-                        return false;
+                        return STOP_PROSE_SCAN;
                     }
                 }
             }
             // Update tracking
-            lastNode = node;
+            lastNode = blockNode;
             if (!isEmpty) {
-                lastNonEmptyNode = node;
+                lastNonEmptyNode = blockNode;
                 lastNonEmptyPos = pos;
             }
 
-            return false;
+            return SKIP_PROSE_DESCENDANTS;
         }
         return true;
-    });
+    }, MAX_DEFLIST_VISUAL_DOC_SCAN_NODES);
 
     return DecorationSet.create(doc, decorations);
 }

@@ -3,11 +3,15 @@ import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import { Plugin, PluginKey, TextSelection, type EditorState, type Selection, type Transaction } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
+import {
+    STOP_PROSE_SCAN,
+    scanProseDescendants,
+} from '../shared/boundedProseNodeScan';
 
 export const listTabIndentPluginKey = new PluginKey('listTabIndent');
 const EDITABLE_LIST_GAP_PLACEHOLDER = '\u2800';
 const LIST_GAP_PLACEHOLDER_CLASS = 'editor-list-gap-placeholder-item';
-const MAX_LIST_GAP_PLACEHOLDER_DECORATIONS = 1000;
+export const MAX_LIST_GAP_PLACEHOLDER_DECORATIONS = 1000;
 const MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS = 256;
 const VISIBLE_LIST_GAP_TEXT_PATTERN = /\S/u;
 
@@ -262,12 +266,12 @@ function isInternalListGapPlaceholderNode(node: ProseNode): boolean {
     let scannedChars = 0;
     let hasVisibleText = false;
 
-    node.descendants((child) => {
+    scanProseDescendants(node, (child) => {
         if (!child.isText) return true;
 
         const text = child.text ?? '';
         const remainingChars = MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS - scannedChars;
-        if (remainingChars <= 0) return false;
+        if (remainingChars <= 0) return STOP_PROSE_SCAN;
 
         const prefix = text.slice(0, remainingChars);
         scannedChars += text.length;
@@ -277,31 +281,36 @@ function isInternalListGapPlaceholderNode(node: ProseNode): boolean {
                 hasPlaceholder = true;
             } else if (VISIBLE_LIST_GAP_TEXT_PATTERN.test(char)) {
                 hasVisibleText = true;
-                return false;
+                return STOP_PROSE_SCAN;
             }
         }
 
-        return scannedChars < MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS;
+        return scannedChars < MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS ? true : STOP_PROSE_SCAN;
     });
 
     return hasPlaceholder && !hasVisibleText && scannedChars < MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS;
 }
 
-export function buildInternalListGapDecorations(doc: Parameters<typeof DecorationSet.create>[0]): DecorationSet {
+export function collectInternalListGapDecorations(doc: Parameters<typeof DecorationSet.create>[0]): Decoration[] {
     const decorations: Decoration[] = [];
 
-    doc.descendants((node, pos) => {
-        if (decorations.length >= MAX_LIST_GAP_PLACEHOLDER_DECORATIONS) return false;
-        if (node.type.name !== 'list_item') return true;
-        if (isInternalListGapPlaceholderNode(node)) {
+    scanProseDescendants(doc, (node, pos) => {
+        if (decorations.length >= MAX_LIST_GAP_PLACEHOLDER_DECORATIONS) return STOP_PROSE_SCAN;
+        if (node.type?.name !== 'list_item') return true;
+        if (typeof node.nodeSize !== 'number') return true;
+        if (isInternalListGapPlaceholderNode(node as ProseNode)) {
             decorations.push(Decoration.node(pos, pos + node.nodeSize, {
                 class: LIST_GAP_PLACEHOLDER_CLASS,
             }));
         }
-        return decorations.length < MAX_LIST_GAP_PLACEHOLDER_DECORATIONS;
+        return decorations.length < MAX_LIST_GAP_PLACEHOLDER_DECORATIONS ? true : STOP_PROSE_SCAN;
     });
 
-    return DecorationSet.create(doc, decorations);
+    return decorations;
+}
+
+export function buildInternalListGapDecorations(doc: Parameters<typeof DecorationSet.create>[0]): DecorationSet {
+    return DecorationSet.create(doc, collectInternalListGapDecorations(doc));
 }
 
 type AdjacentOrderedListMerge = {

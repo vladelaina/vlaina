@@ -388,6 +388,18 @@ describe("useChatShortcuts", () => {
     ].join("\n"))).toBe("echo second");
   });
 
+  it("extracts the last fenced code block without splitting the full message into lines", () => {
+    const split = vi.spyOn(String.prototype, "split").mockImplementation(() => {
+      throw new Error("Markdown should be scanned line by line");
+    });
+
+    try {
+      expect(extractLastFencedCodeBlock("```ts\r\nconst value = 1;\r\n```")).toBe("const value = 1;");
+    } finally {
+      split.mockRestore();
+    }
+  });
+
   it("copies the last code block without closing on shorter fence content", () => {
     setup({
       state: createState({

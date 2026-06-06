@@ -19,11 +19,21 @@ export function useNoteMentions({
     value: string;
   }) => {
     const syncedMentions = new Map<string, { path: string; title: string; kind: 'note' | 'folder' }>();
-    const candidatesByPath = new Map(allNoteCandidates.map((candidate) => [candidate.path, candidate]));
-    const matchedTitles = findMentionTitlesInValue(value, [
-      ...mentions.map((mention) => mention.title),
-      ...allNoteCandidates.map((candidate) => candidate.title),
-    ]);
+    const candidatesByPath = new Map<string, { path: string; title: string; kind: 'note' | 'folder' }>();
+    for (const candidate of allNoteCandidates) {
+      candidatesByPath.set(candidate.path, candidate);
+    }
+
+    function* mentionTitles() {
+      for (const mention of mentions) {
+        yield mention.title;
+      }
+      for (const candidate of allNoteCandidates) {
+        yield candidate.title;
+      }
+    }
+
+    const matchedTitles = findMentionTitlesInValue(value, mentionTitles());
     const retainedTitles = new Set<string>();
     for (const mention of mentions) {
       if (matchedTitles.has(mention.title)) {
@@ -56,7 +66,12 @@ export function useNoteMentions({
         });
       }
     }
-    return Array.from(syncedMentions.values());
+
+    const result: Array<{ path: string; title: string; kind: 'note' | 'folder' }> = [];
+    for (const mention of syncedMentions.values()) {
+      result.push(mention);
+    }
+    return result;
   }, []);
 
   const {
