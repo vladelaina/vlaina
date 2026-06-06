@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   collectMovableBlockTargetRanges,
   collectSelectableBlockRanges,
@@ -176,6 +176,23 @@ describe('resolveSelectableBlockRange', () => {
     expect(resolveSelectableBlockRange(doc, 3)).toEqual({ from: 1, to: 7 });
     expect(resolveSelectableBlockRange(doc, 7)).toEqual({ from: 7, to: 11 });
     expect(resolveSelectableBlockRange(doc, 99)).toEqual({ from: 7, to: 11 });
+  });
+
+  it('reuses selectable ranges for repeated lookups on the same immutable document', () => {
+    const doc = createStructuredDoc() as any;
+    const originalForEach = doc.forEach.bind(doc);
+    doc.forEach = vi.fn(originalForEach);
+
+    expect(resolveSelectableBlockRange(doc, 0)).toEqual({ from: 0, to: 5 });
+    expect(resolveSelectableBlockRange(doc, 12)).toEqual({ from: 6, to: 14 });
+    expect(resolveSelectableBlockRange(doc, 99)).toEqual({ from: 19, to: 25 });
+    expect(doc.forEach).toHaveBeenCalledTimes(1);
+
+    const nextDoc = createDoc([createNode('paragraph', 4), createNode('paragraph', 6)]) as any;
+    const nextForEach = nextDoc.forEach.bind(nextDoc);
+    nextDoc.forEach = vi.fn(nextForEach);
+    expect(resolveSelectableBlockRange(nextDoc, 4)).toEqual({ from: 4, to: 10 });
+    expect(nextDoc.forEach).toHaveBeenCalledTimes(1);
   });
 });
 

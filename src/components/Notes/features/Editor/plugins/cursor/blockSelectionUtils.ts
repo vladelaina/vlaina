@@ -163,12 +163,37 @@ export function preferNestedBlockRanges(ranges: readonly BlockRange[]): BlockRan
   const normalized = normalizeBlockRanges(ranges);
   if (normalized.length <= 1) return normalized;
 
-  return normalized.filter((range) => !normalized.some((candidate) => (
-    candidate !== range
-    && candidate.from >= range.from
-    && candidate.to <= range.to
-    && (candidate.from > range.from || candidate.to < range.to)
-  )));
+  const deepestFirst = [...normalized].sort((left, right) => (
+    left.from === right.from ? left.to - right.to : right.from - left.from
+  ));
+  const kept: BlockRange[] = [];
+  let minNestedTo = Number.POSITIVE_INFINITY;
+
+  for (const range of deepestFirst) {
+    if (minNestedTo <= range.to) {
+      continue;
+    }
+    kept.push(range);
+    minNestedTo = Math.min(minNestedTo, range.to);
+  }
+
+  return normalizeBlockRanges(kept);
+}
+
+function findFirstRangeStartingAfter(ranges: readonly BlockRange[], from: number): number {
+  let low = 0;
+  let high = ranges.length;
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (ranges[mid].from <= from) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+
+  return low;
 }
 
 export function preferNestedBlockRangesUnlessHeaderIntersects(
@@ -180,28 +205,35 @@ export function preferNestedBlockRangesUnlessHeaderIntersects(
   const nestedPreferred = preferNestedBlockRanges(normalized);
   if (nestedPreferred.length === normalized.length) return nestedPreferred;
 
-  const shouldPreserveParent = normalized.some((parent) => {
-    const parentHasSelectedChild = nestedPreferred.some((child) => (
-      child.from >= parent.from
-      && child.to <= parent.to
-      && (child.from > parent.from || child.to < parent.to)
-    ));
-    if (!parentHasSelectedChild) return false;
+  const nestedKeys = new Set(nestedPreferred.map((range) => `${range.from}:${range.to}`));
+  const candidateParents = normalized.filter((range) => !nestedKeys.has(`${range.from}:${range.to}`));
+  const selectedChildren = nestedPreferred.sort((left, right) => (
+    left.from === right.from ? left.to - right.to : left.from - right.from
+  ));
+  const blockTopByRange = new Map(blocks.map((block) => [`${block.from}:${block.to}`, block.top]));
 
-    const firstChildTop = blocks
-      .filter((block) => (
-        block.from >= parent.from
-        && block.to <= parent.to
-        && (block.from > parent.from || block.to < parent.to)
-      ))
-      .reduce<number | null>((top, block) => (
-        top === null ? block.top : Math.min(top, block.top)
-      ), null);
+  const preservedParents: BlockRange[] = [];
+  for (const parent of candidateParents) {
+    let firstChildTop: number | null = null;
+    const startIndex = findFirstRangeStartingAfter(selectedChildren, parent.from);
+    for (let index = startIndex; index < selectedChildren.length; index += 1) {
+      const child = selectedChildren[index];
+      if (child.from >= parent.to) break;
+      if (child.to > parent.to) continue;
 
-    return firstChildTop !== null && selectionRect.top < firstChildTop;
-  });
+      const childTop = blockTopByRange.get(`${child.from}:${child.to}`);
+      if (childTop === undefined) continue;
+      firstChildTop = firstChildTop === null ? childTop : Math.min(firstChildTop, childTop);
+    }
 
-  return shouldPreserveParent ? pruneContainedBlockRanges(normalized) : nestedPreferred;
+    if (firstChildTop !== null && selectionRect.top < firstChildTop) {
+      preservedParents.push(parent);
+    }
+  }
+
+  return preservedParents.length > 0
+    ? pruneContainedBlockRanges([...nestedPreferred, ...preservedParents])
+    : nestedPreferred;
 }
 
 export function getBlockRangesKey(ranges: readonly BlockRange[]): string {

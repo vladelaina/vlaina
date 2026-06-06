@@ -11,12 +11,16 @@ import {
   LIST_CONTAINER_NODE_NAMES,
 } from '../shared/blockNodeTypes';
 
+type EditorDoc = EditorState['doc'];
+
 export interface SelectableBlockTarget {
   range: BlockRange;
   element: HTMLElement;
   subElement?: HTMLElement;
   rect: DOMRect;
 }
+
+const selectableBlockRangesCache = new WeakMap<EditorDoc, BlockRange[]>();
 
 function isNonDraggableBlockNode(name: string): boolean {
   return name === 'frontmatter';
@@ -336,7 +340,7 @@ function resolveTargetRect(element: HTMLElement, range?: BlockRange, view?: Edit
   return createDOMRectFromBounds(baseRect.left, top, baseRect.right, bottom);
 }
 
-export function collectSelectableBlockRanges(doc: EditorState['doc']): BlockRange[] {
+function collectSelectableBlockRangesUncached(doc: EditorDoc): BlockRange[] {
   const ranges: BlockRange[] = [];
   doc.forEach((node, offset) => {
     if (isListContainerNode(node.type.name)) {
@@ -360,14 +364,23 @@ export function collectSelectableBlockRanges(doc: EditorState['doc']): BlockRang
   return ranges;
 }
 
-export function isInlineSelectableBlockRange(doc: EditorState['doc'], range: BlockRange): boolean {
+export function collectSelectableBlockRanges(doc: EditorDoc): BlockRange[] {
+  const cached = selectableBlockRangesCache.get(doc);
+  if (cached) return cached;
+
+  const ranges = collectSelectableBlockRangesUncached(doc);
+  selectableBlockRangesCache.set(doc, ranges);
+  return ranges;
+}
+
+export function isInlineSelectableBlockRange(doc: EditorDoc, range: BlockRange): boolean {
   const topLevelNode = resolveTopLevelNodeAtPos(doc, range.from);
   if (!topLevelNode || topLevelNode.name !== 'paragraph') return false;
   return range.from > topLevelNode.from || range.to < topLevelNode.to;
 }
 
 export function mapInlineSelectableRangesToMovableBlocks(
-  doc: EditorState['doc'],
+  doc: EditorDoc,
   ranges: readonly BlockRange[],
 ): BlockRange[] {
   if (ranges.length === 0) return [];
@@ -378,11 +391,27 @@ export function mapInlineSelectableRangesToMovableBlocks(
   return normalizeBlockRanges(movableRanges);
 }
 
-export function collectMovableBlockTargetRanges(doc: EditorState['doc']): BlockRange[] {
+export function collectMovableBlockTargetRanges(doc: EditorDoc): BlockRange[] {
   return mapInlineSelectableRangesToMovableBlocks(doc, collectSelectableBlockRanges(doc));
 }
 
-export function resolveSelectableBlockRange(doc: EditorState['doc'], pos: number): BlockRange | null {
+function findFirstRangeStartingAfter(ranges: readonly BlockRange[], pos: number): number {
+  let low = 0;
+  let high = ranges.length;
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (ranges[mid].from <= pos) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+
+  return low;
+}
+
+export function resolveSelectableBlockRange(doc: EditorDoc, pos: number): BlockRange | null {
   const docSize = doc.content.size;
   const safePos = Math.max(0, Math.min(pos, docSize));
   const ranges = collectSelectableBlockRanges(doc);
@@ -390,32 +419,36 @@ export function resolveSelectableBlockRange(doc: EditorState['doc'], pos: number
 
   let bestRange: BlockRange | null = null;
   let minSize = Number.POSITIVE_INFINITY;
+  const firstAfterPos = findFirstRangeStartingAfter(ranges, safePos);
 
-  for (const range of ranges) {
+  for (let index = firstAfterPos - 1; index >= 0; index -= 1) {
+    const range = ranges[index];
     if (safePos >= range.from && safePos < range.to) {
       const size = range.to - range.from;
       if (size < minSize) {
         minSize = size;
         bestRange = range;
       }
+      continue;
     }
+
+    if (range.to <= safePos && bestRange) break;
   }
 
   if (bestRange) {
     return bestRange;
   }
 
-  for (const range of ranges) {
-    if (safePos < range.from) {
-      return range;
-    }
+  const nextRange = ranges[firstAfterPos];
+  if (nextRange && safePos < nextRange.from) {
+    return nextRange;
   }
   const last = ranges[ranges.length - 1];
   return last;
 }
 
 export function mapRangesToSelectableBlocks(
-  doc: EditorState['doc'],
+  doc: EditorDoc,
   ranges: readonly BlockRange[],
 ): BlockRange[] {
   if (ranges.length === 0) return [];
@@ -431,14 +464,14 @@ export function mapRangesToSelectableBlocks(
   return normalizeBlockRanges(resolved);
 }
 
-export function isNonDraggableBlockRange(doc: EditorState['doc'], range: BlockRange): boolean {
+export function isNonDraggableBlockRange(doc: EditorDoc, range: BlockRange): boolean {
   const topLevelNode = resolveTopLevelNodeAtPos(doc, range.from);
   if (!topLevelNode) return false;
   return topLevelNode.from === range.from && isNonDraggableBlockNode(topLevelNode.name);
 }
 
 export function expandListItemHeaderRanges(
-  doc: EditorState['doc'],
+  doc: EditorDoc,
   ranges: readonly BlockRange[],
 ): BlockRange[] {
   const normalized = mapRangesToSelectableBlocks(doc, ranges);
@@ -460,7 +493,7 @@ export function expandListItemHeaderRanges(
 }
 
 export function expandKnownSelectableListItemHeaderRanges(
-  doc: EditorState['doc'],
+  doc: EditorDoc,
   ranges: readonly BlockRange[],
   selectableRanges: readonly BlockRange[],
 ): BlockRange[] {

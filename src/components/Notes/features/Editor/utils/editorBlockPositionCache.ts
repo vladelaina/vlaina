@@ -43,6 +43,7 @@ export interface EditorBlockPositionSnapshot {
   scrollLeft: number;
   scrollTop: number;
   blocks: EditorBlockPositionEntry[];
+  blockIndex: Map<string, EditorBlockPositionEntry>;
   headings: EditorHeadingPositionEntry[];
 }
 
@@ -58,6 +59,14 @@ const TOOLBAR_PREVIEW_HIDDEN_ATTRIBUTE = 'data-toolbar-preview-hidden';
 const TOOLBAR_PREVIEW_OVERLAY_CLASS = 'toolbar-applied-preview-overlay';
 const MAX_BLOCK_POSITION_SNAPSHOT_BLOCKS = 5000;
 const TEXT_MUTATION_REFRESH_DELAY_MS = 120;
+
+function getBlockRangeKey(from: number, to: number): string {
+  return `${from}:${to}`;
+}
+
+function createBlockIndex(blocks: readonly EditorBlockPositionEntry[]): Map<string, EditorBlockPositionEntry> {
+  return new Map(blocks.map((block) => [getBlockRangeKey(block.from, block.to), block]));
+}
 
 export function isEditorHiddenByToolbarPreview(view: Pick<EditorView, 'dom'>): boolean {
   return view.dom instanceof HTMLElement && view.dom.getAttribute(TOOLBAR_PREVIEW_HIDDEN_ATTRIBUTE) === 'true';
@@ -133,6 +142,7 @@ function createEmptySnapshot(view: EditorView): EditorBlockPositionSnapshot | nu
     scrollLeft: scrollRoot?.scrollLeft ?? 0,
     scrollTop: scrollRoot?.scrollTop ?? 0,
     blocks: [],
+    blockIndex: new Map(),
     headings: [],
   };
 }
@@ -215,6 +225,7 @@ function createPreviewSnapshot(
     scrollLeft,
     scrollTop,
     blocks,
+    blockIndex: createBlockIndex(blocks),
     headings,
   };
 }
@@ -292,6 +303,7 @@ function createSnapshot(view: EditorView): EditorBlockPositionSnapshot | null {
     scrollLeft,
     scrollTop,
     blocks,
+    blockIndex: createBlockIndex(blocks),
     headings,
   };
 }
@@ -317,6 +329,10 @@ function createScrollAdjustedSnapshot(
 ): EditorBlockPositionSnapshot {
   const deltaX = scrollLeft - snapshot.scrollLeft;
   const deltaY = scrollTop - snapshot.scrollTop;
+  const blocks = snapshot.blocks.map((block) => ({
+    ...block,
+    rect: shiftRect(block.rect, deltaX, deltaY),
+  }));
   currentVersion += 1;
 
   return {
@@ -324,10 +340,8 @@ function createScrollAdjustedSnapshot(
     version: currentVersion,
     scrollLeft,
     scrollTop,
-    blocks: snapshot.blocks.map((block) => ({
-      ...block,
-      rect: shiftRect(block.rect, deltaX, deltaY),
-    })),
+    blocks,
+    blockIndex: createBlockIndex(blocks),
   };
 }
 
@@ -377,9 +391,9 @@ export function getCachedEditorBlockTargets(
   }
 
   const filteredBlocks = ranges
-    ? snapshot.blocks.filter((block) =>
-        ranges.some((range) => range.from === block.from && range.to === block.to),
-      )
+    ? ranges
+        .map((range) => snapshot.blockIndex.get(getBlockRangeKey(range.from, range.to)))
+        .filter((block): block is EditorBlockPositionEntry => Boolean(block))
     : snapshot.blocks;
 
   return filteredBlocks.map((block) => ({
@@ -429,7 +443,7 @@ export function getCachedEditorBlockTargetByPos(
     return null;
   }
 
-  const block = snapshot.blocks.find((entry) => entry.from === range.from && entry.to === range.to);
+  const block = snapshot.blockIndex.get(getBlockRangeKey(range.from, range.to));
   if (!block) {
     return null;
   }

@@ -130,6 +130,21 @@ describe('blockSelectionUtils', () => {
     ])).toEqual([{ from: 26, to: 28 }]);
   });
 
+  it('prefers deepest nested ranges across sibling containers', () => {
+    expect(preferNestedBlockRanges([
+      { from: 0, to: 100 },
+      { from: 10, to: 40 },
+      { from: 18, to: 24 },
+      { from: 50, to: 90 },
+      { from: 60, to: 70 },
+      { from: 92, to: 98 },
+    ])).toEqual([
+      { from: 18, to: 24 },
+      { from: 60, to: 70 },
+      { from: 92, to: 98 },
+    ]);
+  });
+
   it('keeps nested preference when a drag rect stays inside a selected child block', () => {
     const blocks: BlockRect[] = [
       { from: 26, to: 28, left: 0, top: 120, right: 100, bottom: 180 },
@@ -160,6 +175,29 @@ describe('blockSelectionUtils', () => {
       blocks,
       { left: 0, top: 90, right: 100, bottom: 170 },
     )).toEqual([{ from: 22, to: 29 }]);
+  });
+
+  it('preserves only intersected parent containers when checking nested header overlap', () => {
+    const blocks: BlockRect[] = [
+      { from: 10, to: 14, left: 0, top: 40, right: 100, bottom: 60 },
+      { from: 0, to: 20, left: 0, top: 20, right: 100, bottom: 60 },
+      { from: 40, to: 44, left: 0, top: 120, right: 100, bottom: 140 },
+      { from: 30, to: 50, left: 0, top: 100, right: 100, bottom: 140 },
+    ];
+
+    expect(preferNestedBlockRangesUnlessHeaderIntersects(
+      [
+        { from: 0, to: 20 },
+        { from: 10, to: 14 },
+        { from: 30, to: 50 },
+        { from: 40, to: 44 },
+      ],
+      blocks,
+      { left: 0, top: 110, right: 100, bottom: 140 },
+    )).toEqual([
+      { from: 10, to: 14 },
+      { from: 30, to: 50 },
+    ]);
   });
 
   it('converts drag rectangles into document space across scroll changes', () => {

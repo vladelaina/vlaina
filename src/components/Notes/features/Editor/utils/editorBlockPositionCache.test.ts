@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createCurrentEditorBlockPositionController,
   clearCurrentEditorBlockPositionSnapshot,
+  type EditorBlockPositionEntry,
+  type EditorBlockPositionSnapshot,
   getCachedEditorBlockTargetByPos,
   getCachedEditorBlockTargets,
   getCurrentEditorBlockPositionSnapshot,
@@ -22,6 +24,15 @@ function rect(top: number, bottom: number, width = 320): DOMRect {
     y: top,
     toJSON: () => ({}),
   } as DOMRect;
+}
+
+function withBlockIndex(
+  snapshot: Omit<EditorBlockPositionSnapshot, 'blockIndex'>,
+): EditorBlockPositionSnapshot {
+  return {
+    ...snapshot,
+    blockIndex: new Map(snapshot.blocks.map((block: EditorBlockPositionEntry) => [`${block.from}:${block.to}`, block])),
+  };
 }
 
 describe('editorBlockPositionCache', () => {
@@ -196,7 +207,7 @@ describe('editorBlockPositionCache', () => {
       state: { doc: newDoc },
     };
 
-    setCurrentEditorBlockPositionSnapshot({
+    setCurrentEditorBlockPositionSnapshot(withBlockIndex({
       version: 1,
       view: view as any,
       doc: oldDoc as any,
@@ -217,7 +228,7 @@ describe('editorBlockPositionCache', () => {
         headingText: null,
       }],
       headings: [],
-    });
+    }));
 
     try {
       expect(getCachedEditorBlockTargets(view as any)).toBeNull();
@@ -250,7 +261,7 @@ describe('editorBlockPositionCache', () => {
       state: { doc },
     };
 
-    setCurrentEditorBlockPositionSnapshot({
+    setCurrentEditorBlockPositionSnapshot(withBlockIndex({
       version: 1,
       view: view as any,
       doc: doc as any,
@@ -271,7 +282,7 @@ describe('editorBlockPositionCache', () => {
         headingText: null,
       }],
       headings: [],
-    });
+    }));
 
     try {
       scrollRoot.scrollTop = 80;

@@ -19,6 +19,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Test artifacts
+test-results/
+
 # Local env files
 *.local
 .env

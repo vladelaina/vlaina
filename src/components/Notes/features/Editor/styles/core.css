@@ -118,7 +118,6 @@ body.editor-block-drag-active .editor-block-drag-preview-layer * {
   gap: var(--vlaina-space-0);
   pointer-events: none;
   opacity: var(--vlaina-opacity-0);
-  transform: translateY(var(--vlaina-translate--50pct));
   transition: opacity var(--vlaina-duration-120) var(--vlaina-ease-css-default);
 }
 

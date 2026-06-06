@@ -59,9 +59,9 @@ function readFloatingToolbarPluginViewSource() {
   );
 }
 
-function readBlankAreaDragBoxSource() {
+function readBlankAreaInteractionUtilsSource() {
   return readFileSync(
-    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/cursor', 'blankAreaDragBoxPlugin.ts'),
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/cursor', 'blankAreaInteractionUtils.ts'),
     'utf8'
   );
 }
@@ -674,7 +674,7 @@ describe('editor embedded CodeMirror selection styles', () => {
   it('keeps editor block selection color independent from global gray text tokens', () => {
     const css = readBlockSelectionStyle();
     const themeCss = readThemeStyle();
-    const source = readBlankAreaDragBoxSource();
+    const source = readBlankAreaInteractionUtilsSource();
     const lineFillSource = readBlockSelectionLineFillOverlaySource();
 
     expect(themeCss).toContain('--vlaina-editor-block-selection-base: var(--vlaina-color-editor-block-selection);');

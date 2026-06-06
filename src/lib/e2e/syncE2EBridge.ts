@@ -9,6 +9,9 @@ import { flushPendingSave } from '@/lib/storage/unifiedStorage';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { getVaultSystemStorePath } from '@/stores/notes/systemStoragePaths';
 import { flushStarredRegistry } from '@/stores/notes/starred';
+import { getCurrentEditorView } from '@/components/Notes/features/Editor/utils/editorViewRegistry';
+import { collectSelectableBlockTargets } from '@/components/Notes/features/Editor/plugins/cursor/blockUnitResolver';
+import { dispatchBlockSelectionAction } from '@/components/Notes/features/Editor/plugins/cursor/blockSelectionPluginState';
 import type { UnifiedData } from '@/lib/storage/unifiedStorageTypes';
 import type { NotesState, StarredEntry } from '@/stores/notes/types';
 import type { ManagedBudgetStatus } from '@/lib/ai/managedService';
@@ -50,6 +53,13 @@ export interface E2EBridge {
   removeRecentVault(id: string): Promise<boolean>;
   readVaultConfig(path: string): Promise<unknown>;
   openAbsoluteNote(path: string): Promise<void>;
+  getNoteSelectableBlocks(): Array<{
+    text: string;
+    tagName: string;
+    from: number;
+    to: number;
+  }>;
+  selectNoteBlocksByText(texts: string[]): Promise<number>;
   getNotesState(): Pick<NotesState, 'currentNote' | 'isDirty' | 'error' | 'openTabs'>;
   getNotesPreferences(): Pick<NotesState, 'noteIconSize' | 'recentNotes'>;
   getStarredState(): Pick<
@@ -224,6 +234,29 @@ export function installSyncE2EBridge(): void {
     },
     openAbsoluteNote: async (path) => {
       await useNotesStore.getState().openNoteByAbsolutePath(path, true);
+    },
+    getNoteSelectableBlocks: () => {
+      const view = getCurrentEditorView();
+      if (!view) return [];
+      return collectSelectableBlockTargets(view).map((target) => ({
+        text: target.element.textContent?.trim() ?? '',
+        tagName: target.element.tagName,
+        from: target.range.from,
+        to: target.range.to,
+      }));
+    },
+    selectNoteBlocksByText: async (texts) => {
+      const view = getCurrentEditorView();
+      if (!view) return 0;
+      const targets = collectSelectableBlockTargets(view);
+      const ranges = texts.flatMap((text) => {
+        const target = targets.find((candidate) => candidate.element.textContent?.includes(text));
+        return target ? [target.range] : [];
+      });
+      dispatchBlockSelectionAction(view, ranges.length > 0
+        ? { type: 'set-blocks', blocks: ranges }
+        : { type: 'clear-blocks' });
+      return ranges.length;
     },
     getNotesState: () => {
       const { currentNote, isDirty, error, openTabs } = useNotesStore.getState();

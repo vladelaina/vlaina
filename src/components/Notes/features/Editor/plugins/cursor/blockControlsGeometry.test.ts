@@ -29,6 +29,21 @@ describe('setControlsPosition', () => {
     setControlsPosition(controls, nestedTarget, 44, anchor);
 
     expect(controls.style.left).toBe('12px');
-    expect(controls.style.top).toBe('50px');
+    expect(controls.style.top).toBe('38px');
+  });
+
+  it('centers the controls against the target rect using the rendered controls height', () => {
+    const controls = document.createElement('div');
+    Object.defineProperty(controls, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        height: 32,
+      }),
+    });
+    const target = createTarget(80, 40, 80, false);
+
+    setControlsPosition(controls, target, 44);
+
+    expect(controls.style.top).toBe('64px');
   });
 });

@@ -16,6 +16,7 @@ import {
 const LIST_CHILD_INDENT_PX = 24;
 const MIN_DROP_LINE_WIDTH = 24;
 const DROP_LINE_BLEED_X = 10;
+const DEFAULT_CONTROLS_HEIGHT_PX = 24;
 
 function resolveListContentLeft(item: HTMLElement, fallbackLeft: number): number {
   const firstBlock = item.firstElementChild as HTMLElement | null;
@@ -63,7 +64,8 @@ export function setControlsPosition(
 ): void {
   const listMarkerOffset = horizontalAnchor.isListItem ? 24 : 0;
   const left = Math.max(8, horizontalAnchor.rect.left - controlsLeftOffset - listMarkerOffset);
-  const top = target.rect.top + target.rect.height / 2;
+  const controlsHeight = controls.getBoundingClientRect().height || DEFAULT_CONTROLS_HEIGHT_PX;
+  const top = target.rect.top + target.rect.height / 2 - controlsHeight / 2;
   controls.style.left = `${Math.round(left)}px`;
   controls.style.top = `${Math.round(top)}px`;
 }
