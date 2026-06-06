@@ -15,10 +15,6 @@ on:
         required: true
         type: string
 
-concurrency:
-  group: publish-release-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.release_version || github.ref }}
-  cancel-in-progress: true
-
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   CSC_IDENTITY_AUTO_DISCOVERY: false
