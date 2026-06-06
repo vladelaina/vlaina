@@ -118,7 +118,8 @@ export function collectAutolinkDecorations(doc: any): Decoration[] {
             return STOP_PROSE_SCAN;
         }
 
-        if (parent && SKIPPED_TEXT_PARENT_TYPES.has(parent.type?.name)) {
+        const parentType = parent.type?.name;
+        if (parentType && SKIPPED_TEXT_PARENT_TYPES.has(parentType)) {
             return;
         }
 

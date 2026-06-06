@@ -22,7 +22,8 @@ export const MAX_ABBR_DECORATIONS = 1000;
 export const MAX_ABBR_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 
 function shouldSkipTextNode(node: BoundedProseScanNode, parent: BoundedProseScanNode): boolean {
-  if (parent && SKIPPED_TEXT_PARENT_TYPES.has(parent.type?.name)) {
+  const parentType = parent.type?.name;
+  if (parentType && SKIPPED_TEXT_PARENT_TYPES.has(parentType)) {
     return true;
   }
 

@@ -4,13 +4,13 @@ export const STOP_PROSE_SCAN = Symbol('stopProseScan');
 
 export interface BoundedProseScanNode {
   attrs?: Record<string, unknown>;
-  child?: (index: number) => BoundedProseScanNode | null | undefined;
+  child?: (index: number) => unknown;
   childCount?: number;
   content?: { size?: number };
   forEach?: (callback: (node: BoundedProseScanNode, offset: number, index: number) => void) => void;
   isBlock?: boolean;
   isText?: boolean;
-  marks?: Array<{ type?: { name?: string } }>;
+  marks?: readonly { type?: { name?: string } }[];
   nodeSize?: number;
   text?: string | null;
   textContent?: string | null;
@@ -72,7 +72,7 @@ export function scanProseDescendants(
     }
 
     const index = frame.index;
-    const node = frame.node.child?.(index);
+    const node = frame.node.child?.(index) as BoundedProseScanNode | null | undefined;
     const pos = frame.nextPos;
     frame.index += 1;
     if (!node) continue;

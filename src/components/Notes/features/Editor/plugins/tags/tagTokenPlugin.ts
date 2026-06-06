@@ -80,7 +80,8 @@ export function createTagTokenDecorations(doc: any): DecorationSet {
       return;
     }
 
-    if (parent && SKIPPED_TEXT_PARENT_TYPES.has(parent.type?.name)) {
+    const parentType = parent.type?.name;
+    if (parentType && SKIPPED_TEXT_PARENT_TYPES.has(parentType)) {
       return;
     }
 

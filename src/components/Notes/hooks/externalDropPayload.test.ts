@@ -11,8 +11,8 @@ vi.mock('@/lib/electron/bridge', () => ({
   getElectronBridge: () => null,
 }));
 
-function createDataTransfer(payload: Partial<DataTransfer>): DataTransfer {
-  return payload as DataTransfer;
+function createDataTransfer(payload: Record<string, unknown>): DataTransfer {
+  return payload as unknown as DataTransfer;
 }
 
 describe('external drop payload helpers', () => {
@@ -28,7 +28,7 @@ describe('external drop payload helpers', () => {
         if (index >= MAX_EXTERNAL_DROP_FILE_SCAN) {
           throw new Error('Read past dropped file scan cap');
         }
-        return { path: `/outside/note-${index}.md` } as File;
+        return { path: `/outside/note-${index}.md` } as unknown as File;
       },
     };
 
@@ -49,15 +49,15 @@ describe('external drop payload helpers', () => {
       },
     };
 
-    expect(hasDataTransferType(types, 'Files')).toBe(false);
-    expect(hasExternalDroppedFiles(createDataTransfer({ types: types as DOMStringList }))).toBe(false);
+    expect(hasDataTransferType(types as unknown as DOMStringList, 'Files')).toBe(false);
+    expect(hasExternalDroppedFiles(createDataTransfer({ types: types as unknown as DOMStringList }))).toBe(false);
   });
 
   it('detects file drops from normal drag types and from file list length', () => {
     expect(hasDataTransferType(['Files'], 'Files')).toBe(true);
     expect(hasExternalDroppedFiles(createDataTransfer({ types: [] as unknown as DOMStringList }))).toBe(false);
     expect(hasExternalDroppedFiles(createDataTransfer({
-      files: { length: 1, item: () => null } as FileList,
+      files: { length: 1, item: () => null } as unknown as FileList,
       types: [] as unknown as DOMStringList,
     }))).toBe(true);
   });
