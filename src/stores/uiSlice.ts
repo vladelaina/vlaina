@@ -27,6 +27,7 @@ const STORAGE_KEY_LANGUAGE_PREFERENCE = 'vlaina-language-preference';
 const STORAGE_KEY_LAST_APP_VIEW_MODE = 'vlaina_last_app_view_mode';
 const MAX_UI_SCALAR_STORAGE_CHARS = 256;
 const MAX_IMAGE_SUBFOLDER_NAME_CHARS = 128;
+const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F-\u009F\u200E\u200F\u202A-\u202E\u2066-\u2069]/;
 
 export type AppViewMode = 'notes' | 'chat' | 'lab';
 export type NotesSidebarView = 'workspace' | 'outline';
@@ -201,10 +202,15 @@ function loadImageStorageMode(): ImageStorageMode {
 
 function sanitizeImageSubfolderPreference(name: string | null | undefined): string | null {
   const sanitized = (name || '').replace(/[<>:"/\\|?*]/g, '').trim();
-  if (sanitized.length > MAX_IMAGE_SUBFOLDER_NAME_CHARS) {
+  if (
+    sanitized === '.' ||
+    sanitized === '..' ||
+    CONTROL_OR_BIDI_PATTERN.test(sanitized)
+  ) {
     return null;
   }
-  return sanitized;
+
+  return sanitized.length > MAX_IMAGE_SUBFOLDER_NAME_CHARS ? null : sanitized;
 }
 
 function loadImageSubfolderName(): string {

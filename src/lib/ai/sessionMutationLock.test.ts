@@ -2,9 +2,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { aliasSessionId, clearSessionIdAliases } from './sessionIdAliases';
 import { runWithSessionMutationLock, runWithSessionMutationLocks } from './sessionMutationLock';
 
+async function waitForBroadcastHandler(
+  getHandler: () => ((event: { data: unknown }) => void) | null,
+): Promise<(event: { data: unknown }) => void> {
+  await vi.waitFor(() => {
+    expect(getHandler()).toBeTypeOf('function');
+  });
+  return getHandler()!;
+}
+
 describe('sessionMutationLock', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     localStorage.clear();
     clearSessionIdAliases();
   });
@@ -53,6 +63,82 @@ describe('sessionMutationLock', () => {
 
     expect(task).toHaveBeenCalledTimes(1);
     vi.stubGlobal('BroadcastChannel', OriginalBroadcastChannel);
+  });
+
+  it('ignores malformed BroadcastChannel lock changes while waiting', async () => {
+    vi.resetModules();
+    let onmessage: ((event: { data: unknown }) => void) | null = null;
+    vi.stubGlobal('BroadcastChannel', class {
+      set onmessage(value: ((event: { data: unknown }) => void) | null) {
+        onmessage = value;
+      }
+
+      postMessage() {}
+      close() {}
+    });
+    const { runWithSessionMutationLock: runFreshLock } = await import('./sessionMutationLock');
+    const task = vi.fn(() => 'ok');
+
+    localStorage.setItem('vlaina-session-mutation-lock:session-1', JSON.stringify({
+      ownerId: 'other-window',
+      token: 'other-token',
+      expiresAt: Date.now() + 15000,
+    }));
+    const pending = runFreshLock('session-1', task);
+    const handleMessage = await waitForBroadcastHandler(() => onmessage);
+
+    handleMessage({ data: { sessionId: '../session-1', sourceId: 'other-window', nonce: 'ok' } });
+    handleMessage({ data: { sessionId: 'session-1', sourceId: 'other-window', nonce: 'x'.repeat(513) } });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(task).not.toHaveBeenCalled();
+
+    localStorage.removeItem('vlaina-session-mutation-lock:session-1');
+    handleMessage({ data: { sessionId: 'session-1', sourceId: 'other-window', nonce: 'ok' } });
+
+    await expect(pending).resolves.toBe('ok');
+    expect(task).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores self-emitted BroadcastChannel lock changes while waiting', async () => {
+    vi.resetModules();
+    let onmessage: ((event: { data: unknown }) => void) | null = null;
+    let lastPosted: unknown = null;
+    vi.stubGlobal('BroadcastChannel', class {
+      set onmessage(value: ((event: { data: unknown }) => void) | null) {
+        onmessage = value;
+      }
+
+      postMessage(message: unknown) {
+        lastPosted = message;
+      }
+
+      close() {}
+    });
+    const { runWithSessionMutationLock: runFreshLock } = await import('./sessionMutationLock');
+
+    await runFreshLock('session-1', () => 'seed');
+    expect(lastPosted).toEqual(expect.objectContaining({ sessionId: 'session-1' }));
+
+    const task = vi.fn(() => 'ok');
+    localStorage.setItem('vlaina-session-mutation-lock:session-1', JSON.stringify({
+      ownerId: 'other-window',
+      token: 'other-token',
+      expiresAt: Date.now() + 15000,
+    }));
+    const pending = runFreshLock('session-1', task);
+    const handleMessage = await waitForBroadcastHandler(() => onmessage);
+
+    handleMessage({ data: lastPosted });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(task).not.toHaveBeenCalled();
+
+    localStorage.removeItem('vlaina-session-mutation-lock:session-1');
+    handleMessage({ data: { sessionId: 'session-1', sourceId: 'other-window', nonce: 'ok' } });
+
+    await expect(pending).resolves.toBe('ok');
+    expect(task).toHaveBeenCalledTimes(1);
   });
 
   it('ignores empty session ids when acquiring multiple locks', async () => {

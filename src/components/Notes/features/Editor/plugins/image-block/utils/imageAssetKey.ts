@@ -1,4 +1,4 @@
-import { getNoteInternalImageAssetPath } from '@/lib/notes/markdown/urlSecurity';
+import { getNoteInternalImageAssetPath, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 
 function isRemoteOrVirtualAsset(path: string): boolean {
     const normalized = path.toLowerCase();
@@ -22,17 +22,18 @@ export function getImageAssetKey(src: unknown): string | null {
     if (!trimmedSrc) return null;
 
     const baseSrc = trimmedSrc.split('#')[0] ?? '';
-    if (!baseSrc || isRemoteOrVirtualAsset(baseSrc)) {
+    const safeSrc = sanitizeNoteMediaSrc(baseSrc);
+    if (!safeSrc || isRemoteOrVirtualAsset(safeSrc)) {
         return null;
     }
 
-    if (/^img:/i.test(baseSrc)) {
-        const assetPath = getNoteInternalImageAssetPath(baseSrc);
+    if (/^img:/i.test(safeSrc)) {
+        const assetPath = getNoteInternalImageAssetPath(safeSrc);
         if (!assetPath) return null;
         const localAssetPath = getLocalAssetPath(assetPath);
         return localAssetPath || null;
     }
 
-    const localPath = getLocalAssetPath(baseSrc);
+    const localPath = getLocalAssetPath(safeSrc);
     return localPath || null;
 }

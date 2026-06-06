@@ -64,6 +64,7 @@ const MAX_BOUNDED_ID_LIST_SCAN_RECORDS = 10_000;
 const MAX_AI_SESSION_METADATA_SCAN_RECORDS = 10_000;
 const MAX_AI_SESSION_TITLE_CHARS = 4096;
 const MAX_AI_SESSION_MODEL_ID_CHARS = 4096;
+const MAX_AI_CUSTOM_SYSTEM_PROMPT_CHARS = 64 * 1024;
 const MAX_AI_PROVIDER_SAVE_SCAN_RECORDS = 10_000;
 const MAX_AI_MODEL_SAVE_SCAN_RECORDS = 20_000;
 const MAX_AI_FETCHED_MODEL_SAVE_SCAN_RECORDS = 10_000;
@@ -307,19 +308,42 @@ function normalizeFetchedModelsForSave(value: unknown): string[] {
   return models;
 }
 
+function normalizeFetchedModelsForLoad(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const models: string[] = [];
+  const scanLimit = Math.min(value.length, MAX_AI_FETCHED_MODEL_SAVE_SCAN_RECORDS);
+  for (let index = 0; index < scanLimit && models.length < MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS; index += 1) {
+    const model = normalizeBoundedString(value[index], MAX_AI_MODEL_FIELD_CHARS).trim();
+    if (!model) {
+      continue;
+    }
+    models.push(model);
+  }
+  return models;
+}
+
 function parseAISessionsFile(value: unknown): AISessionsFileData | null {
   if (!isRecord(value) || value.version !== AI_SESSIONS_FILE_VERSION || !isRecord(value.data)) {
     return null;
   }
 
   const data = value.data;
+  const currentSessionId = typeof data.currentSessionId === 'string' && isSafeChatSessionId(data.currentSessionId)
+    ? data.currentSessionId
+    : null;
+
   return {
     sessions: normalizeChatSessionMetadataList(data.sessions),
-    selectedModelId: typeof data.selectedModelId === 'string' ? data.selectedModelId : null,
+    selectedModelId: typeof data.selectedModelId === 'string'
+      ? normalizeBoundedString(data.selectedModelId, MAX_AI_SESSION_MODEL_ID_CHARS)
+      : null,
     unreadSessionIds: normalizeBoundedIdList(data.unreadSessionIds, isSafeChatSessionId, MAX_AI_ID_LIST_ENTRIES),
-    currentSessionId: typeof data.currentSessionId === 'string' ? data.currentSessionId : null,
+    currentSessionId,
     temporaryChatEnabled: false,
-    customSystemPrompt: typeof data.customSystemPrompt === 'string' ? data.customSystemPrompt : '',
+    customSystemPrompt: normalizeBoundedString(data.customSystemPrompt, MAX_AI_CUSTOM_SYSTEM_PROMPT_CHARS),
     includeTimeContext: data.includeTimeContext !== false,
     webSearchEnabled: data.webSearchEnabled === true,
     providerIds: normalizeBoundedIdList(data.providerIds, isSafeProviderId, MAX_AI_PROVIDER_CHANNELS),
@@ -367,11 +391,7 @@ function parseAIProviderChannelFile(
     ...(isRecord(data.benchmarkResults)
       ? { benchmarkResults: data.benchmarkResults as unknown as ProviderBenchmarkRecord }
       : {}),
-    fetchedModels: Array.isArray(data.fetchedModels)
-      ? data.fetchedModels
-        .slice(0, MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS)
-        .filter((model): model is string => typeof model === 'string')
-      : [],
+    fetchedModels: normalizeFetchedModelsForLoad(data.fetchedModels),
   };
 }
 

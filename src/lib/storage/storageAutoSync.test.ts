@@ -120,4 +120,75 @@ describe('storageAutoSync', () => {
     expect(listener).not.toHaveBeenCalled();
     unsubscribe();
   });
+
+  it('ignores unsafe chat session auto-sync events', async () => {
+    vi.resetModules();
+    let onmessage: ((event: { data: unknown }) => void) | null = null;
+    vi.stubGlobal('BroadcastChannel', class {
+      set onmessage(value: ((event: { data: unknown }) => void) | null) {
+        onmessage = value;
+      }
+
+      postMessage() {}
+      close() {}
+    });
+
+    const listener = vi.fn();
+    const { subscribeStorageAutoSync } = await import('./storageAutoSync');
+    const unsubscribe = subscribeStorageAutoSync(listener);
+    const handleMessage: ((event: { data: unknown }) => void) | null = onmessage;
+    if (!handleMessage) {
+      throw new Error('BroadcastChannel onmessage was not registered');
+    }
+
+    (handleMessage as (event: { data: unknown }) => void)({
+      data: {
+        kind: 'chat-session',
+        sourceId: 'other-window',
+        stamp: Date.now(),
+        nonce: 'ok',
+        sessionId: '../unsafe',
+      },
+    });
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'vlaina-storage-sync-event',
+      newValue: JSON.stringify({
+        kind: 'chat-session',
+        sourceId: 'other-window',
+        stamp: Date.now(),
+        nonce: 'ok',
+        sessionId: 'bad/session',
+      }),
+    }));
+
+    expect(listener).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it('does not emit unsafe chat session auto-sync events', async () => {
+    vi.resetModules();
+    const postedMessages: unknown[] = [];
+    vi.stubGlobal('BroadcastChannel', class {
+      onmessage: ((event: MessageEvent) => void) | null = null;
+
+      postMessage(value: unknown) {
+        postedMessages.push(value);
+      }
+
+      close() {}
+    });
+
+    const { emitStorageAutoSyncEvent } = await import('./storageAutoSync');
+
+    emitStorageAutoSyncEvent({ kind: 'chat-session', sessionId: '../unsafe' });
+
+    expect(postedMessages).toEqual([]);
+    expect(localStorage.getItem('vlaina-storage-sync-event')).toBeNull();
+
+    emitStorageAutoSyncEvent({ kind: 'chat-session', sessionId: 'session_ok-1' });
+
+    expect(postedMessages).toHaveLength(1);
+    const stored = JSON.parse(localStorage.getItem('vlaina-storage-sync-event') || '{}') as { sessionId?: string };
+    expect(stored.sessionId).toBe('session_ok-1');
+  });
 });

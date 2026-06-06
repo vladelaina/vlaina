@@ -4,6 +4,7 @@ import {
   getManagedServiceErrorMessage,
   type ManagedBudgetStatus,
 } from '@/lib/ai/managedService'
+import { normalizeManagedBudgetPayload } from '@/lib/ai/managed/normalizers'
 
 interface ManagedAIState {
   budget: ManagedBudgetStatus | null
@@ -30,6 +31,10 @@ interface ManagedBudgetSyncPayload {
   syncedAt: number
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
 function readBudgetSyncPayload(raw: string | null): ManagedBudgetSyncPayload | null {
   if (!raw) {
     return null
@@ -40,11 +45,18 @@ function readBudgetSyncPayload(raw: string | null): ManagedBudgetSyncPayload | n
 
   try {
     const parsed = JSON.parse(raw) as Partial<ManagedBudgetSyncPayload>
-    if (!parsed || typeof parsed !== 'object' || !parsed.budget || typeof parsed.syncedAt !== 'number') {
+    if (
+      !isRecord(parsed) ||
+      !isRecord(parsed.budget) ||
+      typeof parsed.syncedAt !== 'number' ||
+      !Number.isFinite(parsed.syncedAt) ||
+      parsed.syncedAt < 0
+    ) {
       return null
     }
+
     return {
-      budget: parsed.budget,
+      budget: normalizeManagedBudgetPayload({ budget: parsed.budget }),
       syncedAt: parsed.syncedAt,
     }
   } catch {

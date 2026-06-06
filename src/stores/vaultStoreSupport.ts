@@ -24,6 +24,8 @@ const MAX_CURRENT_VAULT_ID_STORAGE_CHARS = 4096;
 const MAX_VAULT_ID_CHARS = 256;
 const MAX_VAULT_NAME_CHARS = 512;
 const MAX_VAULT_PATH_CHARS = 4096;
+const MAX_VAULT_BROADCAST_LABEL_CHARS = 512;
+const MAX_VAULT_BROADCAST_REQUEST_ID_CHARS = 128;
 
 const MAX_RECENT_VAULTS = 5;
 
@@ -375,6 +377,41 @@ let windowLabel: string | null = null;
 let vaultChannel: BroadcastChannel | null = null;
 const pendingQueries: Map<string, (label: string | null) => void> = new Map();
 
+type VaultBroadcastMessage =
+  | { type: 'query'; requestId: string; vaultPath: string }
+  | { type: 'response'; requestId: string; responseLabel: string | null };
+
+function normalizeBroadcastString(value: unknown, maxLength: number): string | null {
+  return typeof value === 'string' && value.length > 0 && value.length <= maxLength ? value : null;
+}
+
+export function parseVaultBroadcastMessage(value: unknown): VaultBroadcastMessage | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const data = value as Partial<Record<'type' | 'requestId' | 'vaultPath' | 'responseLabel', unknown>>;
+  const requestId = normalizeBroadcastString(data.requestId, MAX_VAULT_BROADCAST_REQUEST_ID_CHARS);
+  if (!requestId) {
+    return null;
+  }
+
+  if (data.type === 'query') {
+    const vaultPath = normalizeBroadcastString(data.vaultPath, MAX_VAULT_PATH_CHARS);
+    return vaultPath ? { type: 'query', requestId, vaultPath: normalizeVaultPath(vaultPath) } : null;
+  }
+
+  if (data.type === 'response') {
+    if (data.responseLabel === null || data.responseLabel === undefined) {
+      return { type: 'response', requestId, responseLabel: null };
+    }
+    const responseLabel = normalizeBroadcastString(data.responseLabel, MAX_VAULT_BROADCAST_LABEL_CHARS);
+    return responseLabel ? { type: 'response', requestId, responseLabel } : null;
+  }
+
+  return null;
+}
+
 export function setWindowVaultPath(path: string | null) {
   windowVaultPath = path;
 }
@@ -398,21 +435,24 @@ export function setupBroadcastChannel() {
   }
 
   vaultChannel.onmessage = (event) => {
-    const { type, requestId, vaultPath, responseLabel } = event.data;
+    const message = parseVaultBroadcastMessage(event.data);
+    if (!message) {
+      return;
+    }
 
-    if (type === 'query' && windowVaultPath === vaultPath && windowLabel) {
+    if (message.type === 'query' && windowVaultPath === message.vaultPath && windowLabel) {
       try {
         vaultChannel?.postMessage({
           type: 'response',
-          requestId,
+          requestId: message.requestId,
           responseLabel: windowLabel,
         });
       } catch {
       }
-    } else if (type === 'response' && pendingQueries.has(requestId)) {
-      const resolve = pendingQueries.get(requestId);
-      pendingQueries.delete(requestId);
-      resolve?.(responseLabel);
+    } else if (message.type === 'response' && pendingQueries.has(message.requestId)) {
+      const resolve = pendingQueries.get(message.requestId);
+      pendingQueries.delete(message.requestId);
+      resolve?.(message.responseLabel);
     }
   };
 }

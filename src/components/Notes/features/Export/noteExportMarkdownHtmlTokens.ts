@@ -92,42 +92,26 @@ export function getHtmlTagRanges(content: string): ContentRange[] {
   return ranges;
 }
 
-function parseSrcsetAssetTokens(value: string, valueStart: number): ExportMarkdownAssetSourceToken[] {
+function parseSrcsetAssetTokens(
+  value: string,
+  valueStart: number,
+  maxTokens = Number.POSITIVE_INFINITY,
+): ExportMarkdownAssetSourceToken[] {
   const tokens: ExportMarkdownAssetSourceToken[] = [];
-  const candidates: Array<{ start: number; end: number }> = [];
   let candidateStart = 0;
   let skippedDataUrlComma = false;
 
-  for (let cursor = 0; cursor < value.length; cursor += 1) {
-    if (value[cursor] !== ',') {
-      continue;
+  const pushCandidate = (start: number, end: number) => {
+    if (tokens.length >= maxTokens) {
+      return;
     }
-
-    const candidatePrefix = value.slice(candidateStart, cursor).trimStart();
-    if (!skippedDataUrlComma && /^data:/i.test(candidatePrefix)) {
-      skippedDataUrlComma = true;
-      continue;
-    }
-
-    if (value.slice(candidateStart, cursor).trim()) {
-      candidates.push({ start: candidateStart, end: cursor });
-    }
-    candidateStart = cursor + 1;
-    skippedDataUrlComma = false;
-  }
-
-  if (value.slice(candidateStart).trim()) {
-    candidates.push({ start: candidateStart, end: value.length });
-  }
-
-  for (const candidate of candidates) {
-    let cursor = candidate.start;
-    while (cursor < candidate.end && /\s/.test(value[cursor])) {
+    let cursor = start;
+    while (cursor < end && /\s/.test(value[cursor])) {
       cursor += 1;
     }
 
     const sourceStart = cursor;
-    while (cursor < candidate.end && !/\s/.test(value[cursor])) {
+    while (cursor < end && !/\s/.test(value[cursor])) {
       cursor += 1;
     }
     const sourceEnd = cursor;
@@ -140,6 +124,28 @@ function parseSrcsetAssetTokens(value: string, valueStart: number): ExportMarkdo
         lookupSrc: decodeMarkdownHtmlText(src),
       });
     }
+  };
+
+  for (let cursor = 0; cursor < value.length && tokens.length < maxTokens; cursor += 1) {
+    if (value[cursor] !== ',') {
+      continue;
+    }
+
+    const candidatePrefix = value.slice(candidateStart, cursor).trimStart();
+    if (!skippedDataUrlComma && /^data:/i.test(candidatePrefix)) {
+      skippedDataUrlComma = true;
+      continue;
+    }
+
+    if (value.slice(candidateStart, cursor).trim()) {
+      pushCandidate(candidateStart, cursor);
+    }
+    candidateStart = cursor + 1;
+    skippedDataUrlComma = false;
+  }
+
+  if (tokens.length < maxTokens && value.slice(candidateStart).trim()) {
+    pushCandidate(candidateStart, value.length);
   }
 
   return tokens;
@@ -149,6 +155,7 @@ function parseHtmlImageAssetRanges(
   content: string,
   tagStart: number,
   tagEnd: number,
+  maxTokens = Number.POSITIVE_INFINITY,
 ): ExportMarkdownAssetSourceToken[] {
   const tagMatch = /^<([A-Za-z][A-Za-z0-9:-]*)\b/.exec(content.slice(tagStart, tagEnd));
   if (!tagMatch) {
@@ -163,7 +170,7 @@ function parseHtmlImageAssetRanges(
   const tokens: ExportMarkdownAssetSourceToken[] = [];
   const allowedAttributes = TAG_ASSET_ATTRIBUTES[tagName];
   let cursor = tagStart + tagPrefix.length;
-  while (cursor < tagEnd) {
+  while (cursor < tagEnd && tokens.length < maxTokens) {
     while (cursor < tagEnd && /\s/.test(content[cursor])) {
       cursor += 1;
     }
@@ -218,7 +225,11 @@ function parseHtmlImageAssetRanges(
         continue;
       }
       if (attrName === 'srcset') {
-        tokens.push(...parseSrcsetAssetTokens(content.slice(valueStart, valueEnd), valueStart));
+        tokens.push(...parseSrcsetAssetTokens(
+          content.slice(valueStart, valueEnd),
+          valueStart,
+          maxTokens - tokens.length,
+        ));
       } else {
         tokens.push({
           start: valueStart,
@@ -237,14 +248,25 @@ export function findHtmlImageSourceTokens(
   content: string,
   ignoredRanges: readonly ContentRange[],
   htmlTagRanges: readonly ContentRange[],
+  maxTokens = Number.POSITIVE_INFINITY,
 ): ExportMarkdownAssetSourceToken[] {
-  return htmlTagRanges.flatMap((range) => {
+  const tokens: ExportMarkdownAssetSourceToken[] = [];
+  for (const range of htmlTagRanges) {
     if (
       isOffsetInRanges(range.start, ignoredRanges) ||
       isEscapedMarkdownPunctuation(content, range.start)
     ) {
-      return [];
+      continue;
     }
-    return parseHtmlImageAssetRanges(content, range.start, range.end);
-  });
+    tokens.push(...parseHtmlImageAssetRanges(
+      content,
+      range.start,
+      range.end,
+      maxTokens - tokens.length,
+    ));
+    if (tokens.length >= maxTokens) {
+      break;
+    }
+  }
+  return tokens;
 }

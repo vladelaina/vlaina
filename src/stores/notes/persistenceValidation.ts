@@ -1,5 +1,6 @@
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { MAX_RECENT_NOTES } from './constants';
+import { isDraftNotePath } from './draftNote';
 import type { FileTreeSortMode } from './types';
 import type { WorkspaceState } from './storage';
 import { normalizeVaultRelativePath } from './utils/fs/vaultPathContainment';
@@ -18,7 +19,7 @@ function normalizeRecentNotePath(value: unknown): string | null {
   }
 
   const normalizedPath = normalizeVaultRelativePath(value);
-  if (!normalizedPath || !isSupportedMarkdownPath(normalizedPath)) {
+  if (!normalizedPath || isDraftNotePath(normalizedPath) || !isSupportedMarkdownPath(normalizedPath)) {
     return null;
   }
 

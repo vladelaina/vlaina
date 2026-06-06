@@ -1,4 +1,5 @@
 import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import {
   buildFileTree,
   collectExpandedPaths,
@@ -18,7 +19,7 @@ import {
   loadWorkspaceState,
 } from '../storage';
 import { getVaultStarredPaths } from '../starred';
-import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
+import { normalizeVaultRelativePath, resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import type { FileSystemSlice, FileSystemSliceGet, FileSystemSliceSet } from './fileSystemSliceContracts';
 
@@ -35,11 +36,30 @@ export function getWorkspaceRestoreCandidatePaths({
   starredNotes: string[];
   recentNotes: string[];
 }): string[] {
-  return Array.from(new Set([
+  const candidates = [
     ...(currentNotePath ? [currentNotePath] : []),
     ...starredNotes,
     ...recentNotes,
-  ]));
+  ];
+  const seen = new Set<string>();
+  const normalizedCandidates: string[] = [];
+
+  for (const candidate of candidates) {
+    const normalizedPath = normalizeVaultRelativePath(candidate);
+    if (
+      !normalizedPath ||
+      isDraftNotePath(normalizedPath) ||
+      !isSupportedMarkdownPath(normalizedPath) ||
+      seen.has(normalizedPath)
+    ) {
+      continue;
+    }
+
+    seen.add(normalizedPath);
+    normalizedCandidates.push(normalizedPath);
+  }
+
+  return normalizedCandidates;
 }
 
 function getFileTreeLoadPerfNow() {

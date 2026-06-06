@@ -150,4 +150,41 @@ describe('session inline image persistence', () => {
     expect(mocked.persistDataUrlAttachment).toHaveBeenCalledTimes(1000)
     expect(mocked.persistDataUrlAttachment).toHaveBeenLastCalledWith(sources[999])
   })
+
+  it('bounds inline image replacement to the scanned branch depth', async () => {
+    const source = 'data:image/png;base64,INLINE'
+    mocked.parseMarkdownImageTokens.mockImplementation((content: string) =>
+      content.includes(source) ? [{ start: 0, end: source.length, src: source }] : []
+    )
+    const rootMessage = createMessage('m1', `root ![image](<${source}>)`)
+    rootMessage.versions[0].subsequentMessages = [
+      {
+        ...createMessage('branch-1', `branch ![image](<${source}>)`),
+        versions: [{
+          content: `branch version ![image](<${source}>)`,
+          createdAt: 1,
+          kind: 'original',
+          subsequentMessages: [
+            createMessage('branch-2', `deep branch ![image](<${source}>)`),
+          ],
+        }],
+      },
+    ]
+
+    const { createSessionActions } = await import('./sessionActions')
+    seedSession([rootMessage])
+
+    await createSessionActions().switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
+
+    const message = useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]
+    const branch = message?.versions[0]?.subsequentMessages[0]
+    const deepBranch = branch?.versions[0]?.subsequentMessages[0]
+
+    expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith(source)
+    expect(message?.content).toBe('root ![image](<attachment://persisted.png>)')
+    expect(branch?.content).toBe('branch ![image](<attachment://persisted.png>)')
+    expect(branch?.versions[0]?.content).toBe('branch version ![image](<attachment://persisted.png>)')
+    expect(deepBranch?.content).toBe(`deep branch ![image](<${source}>)`)
+  })
 })

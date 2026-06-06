@@ -7,6 +7,38 @@ describe('vaultStoreSupport broadcast channel guards', () => {
     vi.resetModules();
   });
 
+  it('rejects malformed vault broadcast messages', async () => {
+    const { parseVaultBroadcastMessage } = await import('./vaultStoreSupport');
+
+    expect(parseVaultBroadcastMessage(null)).toBeNull();
+    expect(parseVaultBroadcastMessage('query')).toBeNull();
+    expect(parseVaultBroadcastMessage({ type: 'query', requestId: '', vaultPath: '/vault' })).toBeNull();
+    expect(parseVaultBroadcastMessage({ type: 'query', requestId: 'r'.repeat(129), vaultPath: '/vault' })).toBeNull();
+    expect(parseVaultBroadcastMessage({ type: 'query', requestId: 'req-1', vaultPath: 'v'.repeat(4097) })).toBeNull();
+    expect(parseVaultBroadcastMessage({ type: 'response', requestId: 'req-1', responseLabel: 'L'.repeat(513) })).toBeNull();
+    expect(parseVaultBroadcastMessage({ type: 'unknown', requestId: 'req-1' })).toBeNull();
+  });
+
+  it('normalizes valid vault broadcast messages', async () => {
+    const { parseVaultBroadcastMessage } = await import('./vaultStoreSupport');
+
+    expect(parseVaultBroadcastMessage({ type: 'query', requestId: 'req-1', vaultPath: '\\vault\\docs' })).toEqual({
+      type: 'query',
+      requestId: 'req-1',
+      vaultPath: '/vault/docs',
+    });
+    expect(parseVaultBroadcastMessage({ type: 'response', requestId: 'req-1', responseLabel: 'Main window' })).toEqual({
+      type: 'response',
+      requestId: 'req-1',
+      responseLabel: 'Main window',
+    });
+    expect(parseVaultBroadcastMessage({ type: 'response', requestId: 'req-1', responseLabel: null })).toEqual({
+      type: 'response',
+      requestId: 'req-1',
+      responseLabel: null,
+    });
+  });
+
   it('does not throw when BroadcastChannel construction fails', async () => {
     vi.stubGlobal('BroadcastChannel', class {
       constructor() {

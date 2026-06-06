@@ -1,4 +1,5 @@
 import { getSessionIdAliasesResolvingTo, resolveSessionIdAlias } from './sessionIdAliases';
+import { isSafeChatSessionId } from '@/lib/storage/unifiedStorageAI';
 
 type SessionMutationLockRecord = {
   ownerId: string;
@@ -12,6 +13,7 @@ const LOCK_TTL_MS = 15000;
 const LOCK_RENEW_MS = 5000;
 const LOCK_WAIT_MS = 350;
 const MAX_LOCK_RECORD_STORAGE_CHARS = 8 * 1024;
+const MAX_LOCK_CHANGE_FIELD_CHARS = 512;
 
 const sourceId = (() => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -47,6 +49,37 @@ function notifyListeners(sessionId: string) {
   });
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function parseLockChangeMessage(value: unknown): string | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  if (!isSafeChatSessionId(value.sessionId)) {
+    return null;
+  }
+  if (
+    typeof value.sourceId === 'string' &&
+    (value.sourceId === sourceId || value.sourceId.length > MAX_LOCK_CHANGE_FIELD_CHARS)
+  ) {
+    return null;
+  }
+  if (value.sourceId !== undefined && typeof value.sourceId !== 'string') {
+    return null;
+  }
+  if (
+    value.nonce !== undefined &&
+    (typeof value.nonce !== 'string' || value.nonce.length > MAX_LOCK_CHANGE_FIELD_CHARS)
+  ) {
+    return null;
+  }
+
+  return value.sessionId;
+}
+
 function ensureBroadcastChannel() {
   if (broadcastChannel || typeof BroadcastChannel === 'undefined') {
     return;
@@ -55,10 +88,7 @@ function ensureBroadcastChannel() {
   try {
     broadcastChannel = new BroadcastChannel(CHANNEL_NAME);
     broadcastChannel.onmessage = (message) => {
-      const sessionId =
-        message.data && typeof message.data === 'object' && typeof message.data.sessionId === 'string'
-          ? message.data.sessionId
-          : null;
+      const sessionId = parseLockChangeMessage(message.data);
       if (!sessionId) {
         return;
       }
@@ -81,7 +111,7 @@ function ensureStorageListener() {
     }
 
     const sessionId = event.key.slice(LOCK_KEY_PREFIX.length);
-    if (!sessionId) {
+    if (!isSafeChatSessionId(sessionId)) {
       return;
     }
 

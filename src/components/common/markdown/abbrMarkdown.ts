@@ -25,6 +25,8 @@ export interface AbbrMdastNode {
 const ABBR_DEF_REGEX = /^\*\[([^\]]+)\]:\s*(.+)$/gm;
 const SKIPPED_ABBR_NODE_TYPES = new Set(['code', 'inlineCode', 'html']);
 export const MAX_ABBR_DEFINITIONS = 512;
+export const MAX_ABBR_REPLACEMENTS_PER_TEXT_NODE = 2000;
+export const MAX_ABBR_USAGE_TEXT_NODE_CHARS = 100_000;
 const MAX_ABBR_TEXT_CHARS = 128;
 const MAX_ABBR_TITLE_CHARS = 2048;
 
@@ -305,6 +307,7 @@ export function applyAbbrDefinitionsToTree(
     }
 
     if (node.type !== 'text' || !node.value || !parent || index === undefined) return;
+    if (node.value.length > MAX_ABBR_USAGE_TEXT_NODE_CHARS) return;
     if (isAbbrDefinitionText(node.value, { markdown, position: node.position })) return;
 
     const nextNodes: AbbrMdastNode[] = [];
@@ -313,7 +316,8 @@ export function applyAbbrDefinitionsToTree(
     const pattern = activePattern;
     pattern.lastIndex = 0;
 
-    while ((match = pattern.exec(node.value)) !== null) {
+    let replacementCount = 0;
+    while (replacementCount < MAX_ABBR_REPLACEMENTS_PER_TEXT_NODE && (match = pattern.exec(node.value)) !== null) {
       const abbr = match[1];
       const fullText = definitionByAbbr.get(abbr);
       if (!fullText) continue;
@@ -328,6 +332,7 @@ export function applyAbbrDefinitionsToTree(
         nextNodes.push({ type: 'text', value: node.value.slice(lastEnd, match.index) });
       }
       nextNodes.push(createAbbrNode(abbr, fullText));
+      replacementCount += 1;
       lastEnd = match.index + abbr.length;
     }
 

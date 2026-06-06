@@ -1,5 +1,6 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin } from '@milkdown/kit/prose/state';
+import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 
 function getTaskListItemAttrs(node: any): Record<string, string> | null {
@@ -32,30 +33,36 @@ function getListItemAttrs(node: any): Record<string, string> | null {
   };
 }
 
-function listContainsTaskItems(node: any): boolean {
-  let containsTask = false;
-  node.descendants?.((child: any) => {
-    if (child.type?.name === 'list_item' && typeof child.attrs?.checked === 'boolean') {
-      containsTask = true;
-      return false;
-    }
-    return true;
-  });
+export function listContainsTaskItems(node: any, cache?: WeakMap<object, boolean>): boolean {
+  if (!node || typeof node !== 'object') return false;
+
+  const cached = cache?.get(node);
+  if (cached !== undefined) return cached;
+
+  let containsTask = node.type?.name === 'list_item' && typeof node.attrs?.checked === 'boolean';
+  if (!containsTask && typeof node.forEach === 'function') {
+    node.forEach((child: any) => {
+      if (containsTask) return;
+      containsTask = listContainsTaskItems(child, cache);
+    });
+  }
+
+  cache?.set(node, containsTask);
   return containsTask;
 }
 
-function getListAttrs(node: any): Record<string, string> | null {
+function getListAttrs(node: any, taskListCache: WeakMap<object, boolean>): Record<string, string> | null {
   const classes: string[] = [];
 
   if (node.type?.name === 'bullet_list') {
     classes.push('has-list-bullet');
-    if (listContainsTaskItems(node)) {
+    if (listContainsTaskItems(node, taskListCache)) {
       classes.push('contains-task-list');
     }
     return { class: classes.join(' ') };
   }
 
-  if (node.type?.name === 'ordered_list' && listContainsTaskItems(node)) {
+  if (node.type?.name === 'ordered_list' && listContainsTaskItems(node, taskListCache)) {
     return { class: 'contains-task-list' };
   }
 
@@ -140,6 +147,7 @@ const VLOOK_ACCENT_TOKENS = [
 ] as const;
 const VLOOK_ACCENT_TOKEN_SET = new Set<string>(VLOOK_ACCENT_TOKENS);
 const VLOOK_LONG_TABLE_CELL_TEXT_LENGTH = 36;
+const THEME_COMPATIBILITY_SAFE_CONTENT_NODES = new Set(['code_block', 'frontmatter']);
 
 function getInlineTextRuns(node: any, pos: number): InlineTextRun[] {
   const runs: InlineTextRun[] = [];
@@ -510,6 +518,7 @@ function addVlookTableCellInlineDecorations(decorations: Decoration[], node: any
 
 function buildCompatibilityDecorations(doc: any): DecorationSet {
   const decorations: Decoration[] = [];
+  const taskListCache = new WeakMap<object, boolean>();
 
   doc.descendants((node: any, pos: number, _parent: any, index: number | undefined) => {
     addTyporaInlineDecorations(decorations, node, pos);
@@ -540,7 +549,7 @@ function buildCompatibilityDecorations(doc: any): DecorationSet {
       decorations.push(Decoration.node(pos, pos + node.nodeSize, tableCellAttrs));
     }
 
-    const listAttrs = getListAttrs(node);
+    const listAttrs = getListAttrs(node, taskListCache);
     if (listAttrs) {
       decorations.push(Decoration.node(pos, pos + node.nodeSize, listAttrs));
     }
@@ -561,6 +570,38 @@ function buildCompatibilityDecorations(doc: any): DecorationSet {
   return DecorationSet.create(doc, decorations);
 }
 
+function rangeIsInsideThemeCompatibilitySafeContent(doc: ProseNode, from: number, to: number): boolean {
+  const start = Math.max(0, Math.min(from, doc.content.size));
+  const end = Math.max(start, Math.min(to, doc.content.size));
+  const $start = doc.resolve(start);
+
+  for (let depth = $start.depth; depth > 0; depth -= 1) {
+    const node = $start.node(depth);
+    if (!THEME_COMPATIBILITY_SAFE_CONTENT_NODES.has(node.type.name)) {
+      continue;
+    }
+
+    const contentStart = $start.before(depth) + 1;
+    const contentEnd = $start.after(depth) - 1;
+    return start >= contentStart && end <= contentEnd;
+  }
+
+  return false;
+}
+
+export function docChangeMayAffectThemeCompatibilityDecorations(prevDoc: ProseNode, nextDoc: ProseNode): boolean {
+  const diffStart = prevDoc.content.findDiffStart(nextDoc.content);
+  if (diffStart === null) return false;
+
+  const diffEnd = prevDoc.content.findDiffEnd(nextDoc.content);
+  if (!diffEnd) return true;
+
+  return !(
+    rangeIsInsideThemeCompatibilitySafeContent(prevDoc, diffStart, diffEnd.a) &&
+    rangeIsInsideThemeCompatibilitySafeContent(nextDoc, diffStart, diffEnd.b)
+  );
+}
+
 export const themeCompatibilityDecorationsPlugin = $prose(() => {
   return new Plugin({
     state: {
@@ -569,6 +610,9 @@ export const themeCompatibilityDecorationsPlugin = $prose(() => {
       },
       apply(tr, previous, _oldState, newState) {
         if (!tr.docChanged) return previous.map(tr.mapping, tr.doc);
+        if (!docChangeMayAffectThemeCompatibilityDecorations(_oldState.doc, newState.doc)) {
+          return previous.map(tr.mapping, newState.doc);
+        }
         return buildCompatibilityDecorations(newState.doc);
       },
     },

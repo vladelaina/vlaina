@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import type { AIModel, ChatSession, Provider } from '@/lib/ai/types';
 
-import { isSafeChatSessionId, isSafeProviderId, normalizeLoadedAIModels, normalizeLoadedAIProviders } from './unifiedStorageAI';
+import {
+  MAX_LOADED_AI_FIELD_CHARS,
+  MAX_LOADED_AI_NAME_CHARS,
+  MAX_LOADED_AI_PROVIDERS,
+  isSafeChatSessionId,
+  isSafeProviderId,
+  normalizeLoadedAIModels,
+  normalizeLoadedAIProviders,
+} from './unifiedStorageAI';
 
 const providers: Provider[] = [
   {
@@ -232,4 +240,61 @@ describe('normalizeLoadedAIModels', () => {
     expect(normalized.sessions.at(-1)?.id).toBe('session-4999');
   });
 
+  it('bounds loaded provider records and string fields', () => {
+    const normalized = normalizeLoadedAIProviders(
+      Array.from({ length: MAX_LOADED_AI_PROVIDERS + 10 }, (_, index) => ({
+        id: `provider-${index}`,
+        name: `${'n'.repeat(MAX_LOADED_AI_NAME_CHARS)}x`,
+        apiHost: `${'h'.repeat(MAX_LOADED_AI_FIELD_CHARS)}x`,
+        apiKey: `${'k'.repeat(MAX_LOADED_AI_FIELD_CHARS)}x`,
+        icon: `${'i'.repeat(MAX_LOADED_AI_FIELD_CHARS)}x`,
+      })),
+    );
+
+    expect(normalized).toHaveLength(MAX_LOADED_AI_PROVIDERS);
+    expect(normalized[0]?.id).toBe('provider-0');
+    expect(normalized.at(-1)?.id).toBe(`provider-${MAX_LOADED_AI_PROVIDERS - 1}`);
+    expect(normalized[0]?.name).toHaveLength(MAX_LOADED_AI_NAME_CHARS);
+    expect(normalized[0]?.apiHost).toHaveLength(MAX_LOADED_AI_FIELD_CHARS);
+    expect(normalized[0]?.apiKey).toHaveLength(MAX_LOADED_AI_FIELD_CHARS);
+    expect(normalized[0]?.icon).toHaveLength(MAX_LOADED_AI_FIELD_CHARS);
+  });
+
+  it('bounds loaded model and session string fields', () => {
+    const provider = normalizeLoadedAIProviders([{
+      id: 'provider-1',
+      name: 'Provider',
+      apiHost: 'https://api.example.test',
+      apiKey: '',
+    }]);
+    const longApiModelId = `${'m'.repeat(MAX_LOADED_AI_FIELD_CHARS)}x`;
+    const longName = `${'n'.repeat(MAX_LOADED_AI_NAME_CHARS)}x`;
+    const longGroup = `${'g'.repeat(MAX_LOADED_AI_NAME_CHARS)}x`;
+    const longSessionTitle = `${'t'.repeat(MAX_LOADED_AI_FIELD_CHARS)}x`;
+    const longSessionModelId = `${'s'.repeat(MAX_LOADED_AI_FIELD_CHARS)}x`;
+
+    const normalized = normalizeLoadedAIModels(
+      provider,
+      [{
+        apiModelId: longApiModelId,
+        name: longName,
+        group: longGroup,
+        providerId: 'provider-1',
+      }],
+      null,
+      [{
+        id: 'session-1',
+        title: longSessionTitle,
+        modelId: longSessionModelId,
+      }],
+    );
+
+    expect(normalized.models).toHaveLength(1);
+    expect(normalized.models[0]?.apiModelId).toHaveLength(MAX_LOADED_AI_FIELD_CHARS);
+    expect(normalized.models[0]?.name).toHaveLength(MAX_LOADED_AI_NAME_CHARS);
+    expect(normalized.models[0]?.group).toHaveLength(MAX_LOADED_AI_NAME_CHARS);
+    expect(normalized.sessions).toHaveLength(1);
+    expect(normalized.sessions[0]?.title).toHaveLength(MAX_LOADED_AI_FIELD_CHARS);
+    expect(normalized.sessions[0]?.modelId).toHaveLength(MAX_LOADED_AI_FIELD_CHARS);
+  });
 });

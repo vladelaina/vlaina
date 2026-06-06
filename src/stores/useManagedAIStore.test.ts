@@ -122,6 +122,63 @@ describe('useManagedAIStore', () => {
     expect(useManagedAIStore.getState().lastBudgetSyncAt).toBe(1_700_000_000_000);
   });
 
+  it('normalizes a newer budget snapshot from another window', () => {
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'vlaina-managed-ai-budget',
+      newValue: JSON.stringify({
+        budget: {
+          active: 'true',
+          usedPercent: '20%',
+          remainingPercent: '80%',
+          status: 'active',
+        },
+        syncedAt: 1_700_000_000_000,
+      }),
+    }));
+
+    expect(useManagedAIStore.getState().budget).toEqual({
+      active: true,
+      usedPercent: 20,
+      remainingPercent: 80,
+      status: 'active',
+    });
+    expect(useManagedAIStore.getState().lastBudgetSyncAt).toBe(1_700_000_000_000);
+  });
+
+  it('ignores malformed budget snapshots from another window', () => {
+    const currentBudget = {
+      active: true,
+      usedPercent: 10,
+      remainingPercent: 90,
+      status: 'active',
+    };
+
+    useManagedAIStore.setState({
+      ...originalState,
+      budget: currentBudget,
+      lastBudgetSyncAt: 1_700_000_000_000,
+      lastBudgetAttemptAt: 1_700_000_000_000,
+    }, true);
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'vlaina-managed-ai-budget',
+      newValue: JSON.stringify({
+        budget: ['bad'],
+        syncedAt: 1_700_000_000_001,
+      }),
+    }));
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'vlaina-managed-ai-budget',
+      newValue: JSON.stringify({
+        budget: { active: true },
+        syncedAt: null,
+      }),
+    }));
+
+    expect(useManagedAIStore.getState().budget).toEqual(currentBudget);
+    expect(useManagedAIStore.getState().lastBudgetSyncAt).toBe(1_700_000_000_000);
+  });
+
   it('ignores older budget snapshots from another window', () => {
     const currentBudget = {
       active: true,

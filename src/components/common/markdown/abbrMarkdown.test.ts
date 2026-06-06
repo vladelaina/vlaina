@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MAX_ABBR_REPLACEMENTS_PER_TEXT_NODE,
+  MAX_ABBR_USAGE_TEXT_NODE_CHARS,
   applyAbbrDefinitionsToTree,
   createAbbrUsagePattern,
   type AbbrMdastNode,
@@ -152,5 +154,39 @@ describe('abbrMarkdown', () => {
         },
       },
     ]);
+  });
+
+  it('bounds abbreviation replacements from one text node', () => {
+    const tree: AbbrMdastNode = {
+      type: 'root',
+      children: [
+        paragraph('*[X]: Example'),
+        paragraph(Array.from(
+          { length: MAX_ABBR_REPLACEMENTS_PER_TEXT_NODE + 1 },
+          () => 'X',
+        ).join(' ')),
+      ],
+    };
+
+    applyAbbrDefinitionsToTree(tree, { stripDefinitions: true });
+
+    const children = tree.children?.[0].children ?? [];
+    expect(children.filter((child) => child.type === 'abbr')).toHaveLength(MAX_ABBR_REPLACEMENTS_PER_TEXT_NODE);
+    expect(children.at(-1)).toEqual({ type: 'text', value: ' X' });
+  });
+
+  it('skips abbreviation replacements in overlong text nodes', () => {
+    const value = `${'X '.repeat(Math.ceil(MAX_ABBR_USAGE_TEXT_NODE_CHARS / 2))}X`;
+    const tree: AbbrMdastNode = {
+      type: 'root',
+      children: [
+        paragraph('*[X]: Example'),
+        paragraph(value),
+      ],
+    };
+
+    applyAbbrDefinitionsToTree(tree, { stripDefinitions: true });
+
+    expect(tree.children?.[0].children).toEqual([{ type: 'text', value }]);
   });
 });

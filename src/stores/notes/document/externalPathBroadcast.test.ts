@@ -13,6 +13,7 @@ const adapter = {
 
 vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => adapter,
+  isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:\//.test(path),
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/')),
 }));
 
@@ -78,11 +79,43 @@ describe('external path broadcast persistence', () => {
         oldPath: 'docs/c.md',
         newPath: 'docs/d.md',
       },
+      {
+        type: 'rename',
+        sourceId: 'other-window',
+        nonce: 'n3',
+        stamp: 2,
+        notesPath: '/vault',
+        oldPath: '/tmp/a.md',
+        newPath: 'docs/e.md',
+      },
     ]));
 
     await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([
       expect.objectContaining({
         nonce: 'n1',
+        oldPath: 'docs/a.md',
+        newPath: 'docs/b.md',
+      }),
+    ]);
+  });
+
+  it('normalizes stored rename event paths before replaying them', async () => {
+    adapter.stat.mockResolvedValue({ size: 256 });
+    adapter.readFile.mockResolvedValue(JSON.stringify([
+      {
+        type: 'rename',
+        sourceId: 'other-window',
+        nonce: 'n1',
+        stamp: 1,
+        notesPath: '/vault//',
+        oldPath: './docs//a.md',
+        newPath: 'docs\\b.md',
+      },
+    ]));
+
+    await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([
+      expect.objectContaining({
+        notesPath: '/vault',
         oldPath: 'docs/a.md',
         newPath: 'docs/b.md',
       }),
@@ -131,6 +164,27 @@ describe('external path broadcast persistence', () => {
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 
+  it('does not persist unsafe emitted rename events', () => {
+    emitNotesExternalPathRename({
+      notesPath: '/vault',
+      oldPath: '/tmp/a.md',
+      newPath: 'docs/b.md',
+    });
+    emitNotesExternalPathRename({
+      notesPath: '/vault',
+      oldPath: 'docs/a.md',
+      newPath: 'docs//a.md',
+    });
+    emitNotesExternalPathRename({
+      notesPath: '/vault',
+      oldPath: 'docs/a.md',
+      newPath: `docs/b\u0000.md`,
+    });
+
+    expect(localStorage.getItem('vlaina-notes-external-path-event')).toBeNull();
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
   it('isolates external path rename listener failures', () => {
     const first = vi.fn(() => {
       throw new Error('listener failed');
@@ -156,5 +210,26 @@ describe('external path broadcast persistence', () => {
     expect(second).toHaveBeenCalledTimes(1);
     unsubscribeFirst();
     unsubscribeSecond();
+  });
+
+  it('ignores unsafe storage rename events before notifying listeners', () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeNotesExternalPathRename('/vault', listener);
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'vlaina-notes-external-path-event',
+      newValue: JSON.stringify({
+        type: 'rename',
+        sourceId: 'other-window',
+        nonce: 'n1',
+        stamp: Date.now(),
+        notesPath: '/vault',
+        oldPath: '../secret.md',
+        newPath: 'docs/b.md',
+      }),
+    }));
+
+    expect(listener).not.toHaveBeenCalled();
+    unsubscribe();
   });
 });

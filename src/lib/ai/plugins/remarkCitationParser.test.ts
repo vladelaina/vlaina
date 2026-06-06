@@ -53,4 +53,22 @@ describe('remarkCitationParser', () => {
 
     expect(runCitationParser(value)).toEqual([{ type: 'text', value }]);
   });
+
+  it('skips over-large markdown ASTs before walking citations', () => {
+    const children = Array.from({ length: 20_001 }, (_, index) => ({
+      type: 'text',
+      value: `\u3010${index}\u2020source\u3011`,
+    }));
+    const tree = {
+      type: 'root',
+      children,
+    };
+
+    remarkCitationParser()(tree);
+
+    expect(tree.children[0]).toEqual({
+      type: 'text',
+      value: '\u30100\u2020source\u3011',
+    });
+  });
 });

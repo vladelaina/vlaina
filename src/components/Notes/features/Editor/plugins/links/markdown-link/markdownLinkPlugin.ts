@@ -38,6 +38,61 @@ function transactionMayCreateMarkdownLink(tr: unknown): boolean {
     return steps.some((step) => MARKDOWN_LINK_TRIGGER_TEXT_PATTERN.test(getInsertedStepText(step)));
 }
 
+function textContainsRawMarkdownLink(text: string): boolean {
+    MARKDOWN_LINK_PATTERN_GLOBAL.lastIndex = 0;
+    return MARKDOWN_LINK_PATTERN_GLOBAL.test(text);
+}
+
+function positionTouchesRawMarkdownLink(doc: ProseNode, pos: number): boolean {
+    const resolvedPos = Math.max(0, Math.min(pos, doc.content.size));
+    const $pos = doc.resolve(resolvedPos);
+
+    for (let depth = $pos.depth; depth > 0; depth -= 1) {
+        const node = $pos.node(depth);
+        if (node.isTextblock && textContainsRawMarkdownLink(node.textBetween(0, node.content.size, '\n', '\ufffc'))) {
+            return true;
+        }
+    }
+
+    return (
+        ($pos.nodeBefore?.isText && textContainsRawMarkdownLink($pos.nodeBefore.text ?? ''))
+        || ($pos.nodeAfter?.isText && textContainsRawMarkdownLink($pos.nodeAfter.text ?? ''))
+    );
+}
+
+function rangeTouchesRawMarkdownLink(doc: ProseNode, from: number, to: number): boolean {
+    const start = Math.max(0, Math.min(from, doc.content.size));
+    const end = Math.max(start, Math.min(to, doc.content.size));
+    if (positionTouchesRawMarkdownLink(doc, start) || positionTouchesRawMarkdownLink(doc, end)) {
+        return true;
+    }
+
+    let touchesRawMarkdownLink = false;
+    const scanTo = Math.min(doc.content.size, Math.max(start + 1, end));
+    doc.nodesBetween(start, scanTo, (node) => {
+        if (node.isText && textContainsRawMarkdownLink(node.text ?? '')) {
+            touchesRawMarkdownLink = true;
+            return false;
+        }
+        return !touchesRawMarkdownLink;
+    });
+
+    return touchesRawMarkdownLink;
+}
+
+export function docChangeMayAffectRawMarkdownLink(prevDoc: ProseNode, nextDoc: ProseNode): boolean {
+    const diffStart = prevDoc.content.findDiffStart(nextDoc.content);
+    if (diffStart === null) return false;
+
+    const diffEnd = prevDoc.content.findDiffEnd(nextDoc.content);
+    if (!diffEnd) return true;
+
+    return (
+        rangeTouchesRawMarkdownLink(prevDoc, diffStart, diffEnd.a)
+        || rangeTouchesRawMarkdownLink(nextDoc, diffStart, diffEnd.b)
+    );
+}
+
 export function isMarkdownImagePatternBeforeCursor(textBefore: string, fullMatch: string): boolean {
     const matchStart = textBefore.length - fullMatch.length;
     return matchStart > 0 && textBefore[matchStart - 1] === '!';
@@ -66,7 +121,7 @@ export const markdownLinkPlugin = $prose(() => {
                         : false,
                 };
             },
-            apply(tr, previous) {
+            apply(tr, previous, oldState) {
                 if (!tr.docChanged) {
                     return previous;
                 }
@@ -79,6 +134,14 @@ export const markdownLinkPlugin = $prose(() => {
                     return previous;
                 }
 
+                if (
+                    previous.hasRawMarkdownLink
+                    && !transactionMayCreateMarkdownLink(tr)
+                    && !docChangeMayAffectRawMarkdownLink(oldState.doc, tr.doc)
+                ) {
+                    return previous;
+                }
+
                 return {
                     hasRawMarkdownLink: docHasRawMarkdownLink(tr.doc),
                 };
@@ -87,12 +150,23 @@ export const markdownLinkPlugin = $prose(() => {
 
         // Auto-collapse when selection moves away from a markdown link pattern
         // AND cleanup unwanted styles (code, strong) from raw markdown link syntax
-        appendTransaction(_transactions, oldState, newState) {
+        appendTransaction(transactions, oldState, newState) {
             if (newState.doc.content.size > MAX_MARKDOWN_LINK_DOC_SCAN_SIZE) {
                 return null;
             }
 
             if (!markdownLinkPluginKey.getState(newState)?.hasRawMarkdownLink) {
+                return null;
+            }
+
+            const selectionChanged = !oldState.selection.eq(newState.selection);
+            if (
+                !selectionChanged
+                && (
+                    !transactions.some((tr) => tr.docChanged)
+                    || !docChangeMayAffectRawMarkdownLink(oldState.doc, newState.doc)
+                )
+            ) {
                 return null;
             }
 
@@ -103,8 +177,7 @@ export const markdownLinkPlugin = $prose(() => {
 
             if (!linkMarkType) return null;
 
-            // Scan for markdown link patterns in text nodes
-            newState.doc.descendants((node, pos) => {
+            scanProseDescendants(newState.doc, (node, pos) => {
                 if (!node.isText || !node.text) return;
 
                 const text = node.text;
@@ -158,7 +231,7 @@ export const markdownLinkPlugin = $prose(() => {
                         }
                     }
                 }
-            });
+            }, Number.POSITIVE_INFINITY);
 
             return hasChanges ? tr : null;
         },

@@ -4,8 +4,40 @@ import * as ProseState from '@milkdown/kit/prose/state';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import {
   collectAppliedPreviewElements,
+  getPreviewCodeBlockNodes,
   renderAppliedPreviewDocument,
 } from './appliedPreviewState';
+
+type FakePreviewNode = {
+  child?: (index: number) => FakePreviewNode | null | undefined;
+  childCount?: number;
+  content?: { size?: number };
+  nodeSize?: number;
+  type?: { name?: string };
+};
+
+function createFakePreviewNode(type: string): FakePreviewNode {
+  return {
+    childCount: 0,
+    content: { size: 0 },
+    nodeSize: 1,
+    type: { name: type },
+  };
+}
+
+function createFakePreviewDoc(children: FakePreviewNode[], onAccess?: () => void): FakePreviewNode {
+  return {
+    child(index) {
+      onAccess?.();
+      return children[index];
+    },
+    childCount: children.length,
+    content: {
+      size: children.reduce((size, child) => size + (child.nodeSize ?? 1), 0),
+    },
+    type: { name: 'doc' },
+  };
+}
 
 describe('appliedPreviewState', () => {
   it('collects matched preview elements without materializing selector results', () => {
@@ -39,6 +71,31 @@ describe('appliedPreviewState', () => {
     const collection = collectAppliedPreviewElements(root, () => true, { maxScanned: 1 });
 
     expect(collection).toEqual({ complete: false, elements: [] });
+  });
+
+  it('stops collecting preview code block nodes after the expected count', () => {
+    let accessed = 0;
+    const doc = createFakePreviewDoc([
+      createFakePreviewNode('code_block'),
+      createFakePreviewNode('paragraph'),
+      createFakePreviewNode('code_block'),
+    ], () => {
+      accessed += 1;
+    });
+
+    const codeBlocks = getPreviewCodeBlockNodes({ doc } as any, 1);
+
+    expect(codeBlocks).toHaveLength(1);
+    expect(accessed).toBe(1);
+  });
+
+  it('returns null when fewer preview code block nodes are found than expected', () => {
+    const doc = createFakePreviewDoc([
+      createFakePreviewNode('paragraph'),
+      createFakePreviewNode('code_block'),
+    ]);
+
+    expect(getPreviewCodeBlockNodes({ doc } as any, 2)).toBeNull();
   });
 
   it('renders applied preview preservation paths without broad DOM selector scans', () => {

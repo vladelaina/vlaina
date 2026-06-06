@@ -1,4 +1,5 @@
 import { isStorageAutoSyncKind, type StorageAutoSyncKind } from './syncContract';
+import { isSafeChatSessionId } from './unifiedStorageAI';
 
 export type { StorageAutoSyncKind } from './syncContract';
 
@@ -42,11 +43,18 @@ function parseStorageAutoSyncEvent(value: unknown): StorageAutoSyncEvent | null 
     typeof event.nonce !== 'string' ||
     event.sourceId.length > MAX_STORAGE_AUTO_SYNC_FIELD_CHARS ||
     event.nonce.length > MAX_STORAGE_AUTO_SYNC_FIELD_CHARS ||
-    (event.sessionId !== undefined && (
-      typeof event.sessionId !== 'string' ||
-      event.sessionId.length > MAX_STORAGE_AUTO_SYNC_FIELD_CHARS
-    ))
+    event.sourceId.length === 0 ||
+    event.nonce.length === 0
   ) {
+    return null;
+  }
+
+  const sessionId = typeof event.sessionId === 'string' ? event.sessionId : undefined;
+  if (kind === 'chat-session') {
+    if (!isSafeChatSessionId(sessionId)) {
+      return null;
+    }
+  } else if (sessionId !== undefined) {
     return null;
   }
 
@@ -55,7 +63,7 @@ function parseStorageAutoSyncEvent(value: unknown): StorageAutoSyncEvent | null 
     sourceId: event.sourceId,
     stamp: event.stamp,
     nonce: event.nonce,
-    sessionId: typeof event.sessionId === 'string' ? event.sessionId : undefined,
+    sessionId,
   };
 }
 
@@ -122,6 +130,10 @@ export function emitStorageAutoSyncEvent(input: {
   kind: StorageAutoSyncKind;
   sessionId?: string;
 }) {
+  if (input.kind === 'chat-session' && !isSafeChatSessionId(input.sessionId)) {
+    return;
+  }
+
   const event: StorageAutoSyncEvent = {
     kind: input.kind,
     sourceId,
@@ -130,7 +142,7 @@ export function emitStorageAutoSyncEvent(input: {
       typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
         ? crypto.randomUUID()
         : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
-    sessionId: input.sessionId,
+    ...(input.kind === 'chat-session' ? { sessionId: input.sessionId } : {}),
   };
 
   ensureBroadcastChannel();

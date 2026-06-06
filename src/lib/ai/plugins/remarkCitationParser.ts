@@ -1,4 +1,6 @@
 import { visit } from "unist-util-visit";
+import { canTransformMarkdownAst } from "@/components/common/markdown/markdownAstBudget";
+
 type Root = any;
 type RootContent = any;
 
@@ -7,6 +9,10 @@ const MAX_CITATION_TEXT_NODE_CHARS = 256 * 1024;
 
 export default function remarkCitationParser() {
   return (tree: Root) => {
+    if (!canTransformMarkdownAst(tree)) {
+      return;
+    }
+
     visit(tree, "text", (node: any, index: any, parent: any) => {
       if (typeof node.value !== "string" || node.value.length > MAX_CITATION_TEXT_NODE_CHARS) {
         return;
