@@ -14,6 +14,7 @@ const originalElementsFromPoint = document.elementsFromPoint;
 
 const mocks = vi.hoisted(() => ({
   targetTop: 40,
+  selectedBlocks: [{ from: 1, to: 5 }],
   setControlsPosition: vi.fn((controls: HTMLElement, target: { rect: DOMRect }) => {
     controls.style.left = `${Math.round(target.rect.left - 44)}px`;
     controls.style.top = `${Math.round(target.rect.top + target.rect.height / 2)}px`;
@@ -22,7 +23,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('./blockSelectionPluginState', () => ({
   getBlockSelectionPluginState: () => ({
-    selectedBlocks: [{ from: 1, to: 5 }],
+    selectedBlocks: mocks.selectedBlocks,
   }),
 }));
 
@@ -116,6 +117,7 @@ describe('BlockControlsViewSession', () => {
     document.body.innerHTML = '';
     document.elementsFromPoint = originalElementsFromPoint;
     mocks.targetTop = 40;
+    mocks.selectedBlocks = [{ from: 1, to: 5 }];
     mocks.setControlsPosition.mockClear();
   });
 
@@ -181,6 +183,22 @@ describe('BlockControlsViewSession', () => {
 
       const controls = document.querySelector<HTMLElement>('.editor-block-controls');
       expect(controls?.classList.contains('visible')).toBe(false);
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('reuses draggable selected ranges while refreshing the handle for pointer movement', async () => {
+    const view = createView({ scrollRoot: true });
+    const session = new BlockControlsViewSession(view);
+
+    try {
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 50, bubbles: true }));
+      await nextFrame();
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 24, clientY: 52, bubbles: true }));
+      await nextFrame();
+
+      expect(getDraggableBlockRanges).toHaveBeenCalledTimes(1);
     } finally {
       session.destroy();
     }
@@ -279,7 +297,7 @@ describe('BlockControlsViewSession', () => {
     }
   });
 
-  it('hides the editor drop indicator while dragged blocks are over the notes chat drop target', () => {
+  it('hides the editor drop indicator while dragged blocks are over the notes chat drop target', async () => {
     const view = createView();
     const session = new BlockControlsViewSession(view);
     const dropTarget = document.createElement('div');
@@ -305,6 +323,7 @@ describe('BlockControlsViewSession', () => {
 
       document.elementsFromPoint = vi.fn(() => [dropTarget]);
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 500, clientY: 120, buttons: 1, bubbles: true }));
+      await nextFrame();
 
       expect(indicator?.classList.contains('visible')).toBe(false);
     } finally {

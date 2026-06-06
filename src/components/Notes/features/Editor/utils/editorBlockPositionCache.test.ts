@@ -5,6 +5,8 @@ import {
   type EditorBlockPositionEntry,
   type EditorBlockPositionSnapshot,
   getCachedEditorBlockTargetByPos,
+  getCachedEditorBlockTargetNearY,
+  getCachedEditorBlockTargetsNearY,
   getCachedEditorBlockTargets,
   getCurrentEditorBlockPositionSnapshot,
   isEditorHiddenByToolbarPreview,
@@ -292,6 +294,106 @@ describe('editorBlockPositionCache', () => {
     } finally {
       clearCurrentEditorBlockPositionSnapshot();
       dom.remove();
+    }
+  });
+
+  it('resolves the nearest fresh cached block target by viewport y without mapping every block', () => {
+    const scrollRoot = document.createElement('div');
+    scrollRoot.setAttribute('data-note-scroll-root', 'true');
+    scrollRoot.scrollTop = 40;
+    scrollRoot.getBoundingClientRect = () => rect(10, 210, 640);
+    const dom = document.createElement('div');
+    const first = document.createElement('p');
+    const second = document.createElement('p');
+    const third = document.createElement('p');
+    dom.append(first, second, third);
+    scrollRoot.appendChild(dom);
+    document.body.appendChild(scrollRoot);
+
+    const doc = { content: { size: 12 } };
+    const view = {
+      dom,
+      state: { doc },
+    };
+    const blocks = [
+      {
+        from: 0,
+        to: 4,
+        element: first,
+        rect: rect(20, 40),
+        documentTop: 50,
+        documentBottom: 70,
+        tagName: 'P',
+        headingLevel: null,
+        headingId: null,
+        headingText: null,
+      },
+      {
+        from: 4,
+        to: 8,
+        element: second,
+        rect: rect(80, 110),
+        documentTop: 110,
+        documentBottom: 140,
+        tagName: 'P',
+        headingLevel: null,
+        headingId: null,
+        headingText: null,
+      },
+      {
+        from: 8,
+        to: 12,
+        element: third,
+        rect: rect(150, 180),
+        documentTop: 180,
+        documentBottom: 210,
+        tagName: 'P',
+        headingLevel: null,
+        headingId: null,
+        headingText: null,
+      },
+    ];
+
+    setCurrentEditorBlockPositionSnapshot(withBlockIndex({
+      version: 1,
+      view: view as any,
+      doc: doc as any,
+      editorRoot: dom,
+      scrollRoot,
+      scrollLeft: 0,
+      scrollTop: 40,
+      blocks,
+      headings: [],
+    }));
+
+    try {
+      const direct = getCachedEditorBlockTargetNearY(view as any, 95);
+      expect(direct?.range).toEqual({ from: 4, to: 8 });
+      expect(direct?.rect.top).toBe(80);
+
+      const candidates = getCachedEditorBlockTargetsNearY(
+        view as any,
+        95,
+        (candidateRect, candidateY) => (
+          candidateY >= candidateRect.top - 70 &&
+          candidateY <= candidateRect.bottom + 70
+        ),
+      );
+      expect(candidates?.map((candidate) => candidate.range)).toEqual([
+        { from: 0, to: 4 },
+        { from: 4, to: 8 },
+        { from: 8, to: 12 },
+      ]);
+
+      const filtered = getCachedEditorBlockTargetNearY(
+        view as any,
+        95,
+        (block) => block.from !== 4,
+      );
+      expect(filtered?.range).toEqual({ from: 0, to: 4 });
+    } finally {
+      clearCurrentEditorBlockPositionSnapshot();
+      scrollRoot.remove();
     }
   });
 

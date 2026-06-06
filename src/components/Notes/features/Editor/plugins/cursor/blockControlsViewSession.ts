@@ -80,9 +80,12 @@ export class BlockControlsViewSession {
   private dragStartClientY: number | null = null;
   private lastDragClientX: number | null = null;
   private lastDragClientY: number | null = null;
+  private pendingDragClientX: number | null = null;
+  private pendingDragClientY: number | null = null;
   private pointerX: number | null = null;
   private pointerY: number | null = null;
   private refreshRafId = 0;
+  private dragPointerRafId = 0;
 
   private cachedTargets: HandleBlockTarget[] = [];
   private cachedSelectionKey = '';
@@ -90,6 +93,9 @@ export class BlockControlsViewSession {
   private cachedScrollLeft = Number.NaN;
   private cachedScrollTop = Number.NaN;
   private cachedSnapshotVersion = Number.NaN;
+  private cachedSelectedBlocks: readonly BlockRange[] | null = null;
+  private cachedDraggableRanges: BlockRange[] = [];
+  private cachedDraggableSelectionKey = '';
   private dragWheelListenerAttached = false;
   private readonly unsubscribeBlockPositionSnapshot: () => void;
 
@@ -125,6 +131,9 @@ export class BlockControlsViewSession {
     if (this.pointerY === null && !this.controls.classList.contains('visible') && !this.draggedRanges) {
       return;
     }
+    if (this.cachedDoc !== this.view.state.doc) {
+      this.invalidateSelectionCache();
+    }
     this.invalidateTargetCache();
     this.scheduleHandleRefresh();
   }
@@ -133,6 +142,10 @@ export class BlockControlsViewSession {
     if (this.refreshRafId !== 0) {
       window.cancelAnimationFrame(this.refreshRafId);
       this.refreshRafId = 0;
+    }
+    if (this.dragPointerRafId !== 0) {
+      window.cancelAnimationFrame(this.dragPointerRafId);
+      this.dragPointerRafId = 0;
     }
     setBlockDraggingVisualState(false);
     this.handleButton.removeEventListener('mousedown', this.handleHandleMouseDown);
@@ -153,8 +166,22 @@ export class BlockControlsViewSession {
     this.dropIndicator.remove();
   }
 
-  private getSelectedBlockRanges(): BlockRange[] {
-    return normalizeBlockRanges(getBlockSelectionPluginState(this.view.state).selectedBlocks);
+  private getDraggableSelection(): { ranges: BlockRange[]; key: string } {
+    const selectedBlocks = getBlockSelectionPluginState(this.view.state).selectedBlocks;
+    if (this.cachedSelectedBlocks === selectedBlocks) {
+      return {
+        ranges: this.cachedDraggableRanges,
+        key: this.cachedDraggableSelectionKey,
+      };
+    }
+
+    const selectedRanges = normalizeBlockRanges(selectedBlocks);
+    const ranges = getDraggableBlockRanges(this.view, selectedRanges);
+    const key = ranges.length > 0 ? getBlockRangesKey(ranges) : '';
+    this.cachedSelectedBlocks = selectedBlocks;
+    this.cachedDraggableRanges = ranges;
+    this.cachedDraggableSelectionKey = key;
+    return { ranges, key };
   }
 
   private isPointerInEditorScrollRoot(): boolean {
@@ -215,6 +242,47 @@ export class BlockControlsViewSession {
     return true;
   }
 
+  private applyDragPointerUpdate(clientX: number, clientY: number): void {
+    if (isOverNotesBlockDropTarget(this.doc, clientX, clientY)) {
+      this.hideDropIndicator();
+    } else {
+      this.updateDropTargetByPointer(clientX, clientY);
+    }
+    if (this.dragPreview) {
+      this.dragPreview.element.style.left = `${Math.round(clientX - this.dragPreview.offsetX)}px`;
+      this.dragPreview.element.style.top = `${Math.round(clientY - this.dragPreview.offsetY)}px`;
+    }
+  }
+
+  private scheduleDragPointerUpdate(clientX: number, clientY: number): void {
+    this.pendingDragClientX = clientX;
+    this.pendingDragClientY = clientY;
+    if (this.dragPointerRafId !== 0) return;
+
+    this.dragPointerRafId = window.requestAnimationFrame(() => {
+      this.dragPointerRafId = 0;
+      const nextX = this.pendingDragClientX;
+      const nextY = this.pendingDragClientY;
+      this.pendingDragClientX = null;
+      this.pendingDragClientY = null;
+      if (nextX === null || nextY === null || !this.draggedRanges) return;
+      this.applyDragPointerUpdate(nextX, nextY);
+    });
+  }
+
+  private flushDragPointerUpdate(): void {
+    if (this.dragPointerRafId !== 0) {
+      window.cancelAnimationFrame(this.dragPointerRafId);
+      this.dragPointerRafId = 0;
+    }
+    const nextX = this.pendingDragClientX;
+    const nextY = this.pendingDragClientY;
+    this.pendingDragClientX = null;
+    this.pendingDragClientY = null;
+    if (nextX === null || nextY === null || !this.draggedRanges) return;
+    this.applyDragPointerUpdate(nextX, nextY);
+  }
+
   private invalidateTargetCache(): void {
     this.cachedTargets = [];
     this.cachedSelectionKey = '';
@@ -224,12 +292,19 @@ export class BlockControlsViewSession {
     this.cachedSnapshotVersion = Number.NaN;
   }
 
+  private invalidateSelectionCache(): void {
+    this.cachedSelectedBlocks = null;
+    this.cachedDraggableRanges = [];
+    this.cachedDraggableSelectionKey = '';
+  }
+
   private getCachedHandleTargets(): HandleBlockTarget[] {
-    const selectedRanges = this.getSelectedBlockRanges();
-    const draggableRanges = getDraggableBlockRanges(this.view, selectedRanges);
+    const {
+      ranges: draggableRanges,
+      key: selectionKey,
+    } = this.getDraggableSelection();
     if (draggableRanges.length === 0) return [];
 
-    const selectionKey = getBlockRangesKey(draggableRanges);
     const nextScrollLeft = this.scrollRoot?.scrollLeft ?? 0;
     const nextScrollTop = this.scrollRoot?.scrollTop ?? 0;
     const snapshot = getCurrentEditorBlockPositionSnapshot();
@@ -296,7 +371,7 @@ export class BlockControlsViewSession {
     this.invalidateTargetCache();
     this.scheduleHandleRefresh();
     if (this.lastDragClientX !== null && this.lastDragClientY !== null) {
-      this.updateDropTargetByPointer(this.lastDragClientX, this.lastDragClientY);
+      this.scheduleDragPointerUpdate(this.lastDragClientX, this.lastDragClientY);
     } else {
       this.hideDropIndicator();
     }
@@ -308,6 +383,12 @@ export class BlockControlsViewSession {
     this.dragStartClientY = null;
     this.lastDragClientX = null;
     this.lastDragClientY = null;
+    this.pendingDragClientX = null;
+    this.pendingDragClientY = null;
+    if (this.dragPointerRafId !== 0) {
+      window.cancelAnimationFrame(this.dragPointerRafId);
+      this.dragPointerRafId = 0;
+    }
     if (this.dragPreview) {
       this.dragPreview.destroy();
       this.dragPreview = null;
@@ -321,8 +402,7 @@ export class BlockControlsViewSession {
 
   private readonly handleHandleMouseDown = (event: MouseEvent): void => {
     if (event.button !== 0) return;
-    const selected = this.getSelectedBlockRanges();
-    const draggableRanges = getDraggableBlockRanges(this.view, selected);
+    const { ranges: draggableRanges } = this.getDraggableSelection();
 
     if (draggableRanges.length === 0) return;
 
@@ -360,15 +440,7 @@ export class BlockControlsViewSession {
       this.setPointer(event.clientX, event.clientY);
       this.lastDragClientX = event.clientX;
       this.lastDragClientY = event.clientY;
-      if (isOverNotesBlockDropTarget(this.doc, event.clientX, event.clientY)) {
-        this.hideDropIndicator();
-      } else {
-        this.updateDropTargetByPointer(event.clientX, event.clientY);
-      }
-      if (this.dragPreview) {
-        this.dragPreview.element.style.left = `${Math.round(event.clientX - this.dragPreview.offsetX)}px`;
-        this.dragPreview.element.style.top = `${Math.round(event.clientY - this.dragPreview.offsetY)}px`;
-      }
+      this.scheduleDragPointerUpdate(event.clientX, event.clientY);
       event.preventDefault();
       return;
     }
@@ -393,7 +465,7 @@ export class BlockControlsViewSession {
     this.invalidateTargetCache();
     if (this.draggedRanges) {
       if (this.lastDragClientX !== null && this.lastDragClientY !== null) {
-        this.updateDropTargetByPointer(this.lastDragClientX, this.lastDragClientY);
+        this.scheduleDragPointerUpdate(this.lastDragClientX, this.lastDragClientY);
       }
       return;
     }
@@ -426,6 +498,7 @@ export class BlockControlsViewSession {
     if (!this.draggedRanges) return;
     this.setPointer(event.clientX, event.clientY);
     event.preventDefault();
+    this.flushDragPointerUpdate();
     const draggedDistance = this.dragStartClientX === null || this.dragStartClientY === null
       ? 0
       : Math.hypot(event.clientX - this.dragStartClientX, event.clientY - this.dragStartClientY);

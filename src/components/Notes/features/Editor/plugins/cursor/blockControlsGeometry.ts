@@ -10,6 +10,7 @@ import {
 import type { DropTarget, HandleBlockTarget } from './blockControlsInteractionTypes';
 import {
   getCachedEditorBlockTargetByPos,
+  getCachedEditorBlockTargetNearY,
   getCachedEditorBlockTargets,
 } from '../../utils/editorBlockPositionCache';
 
@@ -83,10 +84,16 @@ export function resolveDropTarget(view: EditorView, clientX: number, clientY: nu
     return null;
   }
 
-  const blockTargets = (getCachedEditorBlockTargets(view) ?? collectSelectableBlockTargets(view)).filter(
-    (target) => !isNonDraggableBlockRange(view.state.doc, target.range),
+  const target = getCachedEditorBlockTargetNearY(
+    view,
+    clientY,
+    (block) => !isNonDraggableBlockRange(view.state.doc, block),
+  ) ?? pickPointerBlock(
+    (getCachedEditorBlockTargets(view) ?? collectSelectableBlockTargets(view)).filter(
+      (candidate) => !isNonDraggableBlockRange(view.state.doc, candidate.range),
+    ),
+    clientY,
   );
-  const target = pickPointerBlock(blockTargets, clientY);
   if (!target) return null;
 
   const rect = target.rect;
