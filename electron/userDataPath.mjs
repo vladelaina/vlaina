@@ -303,7 +303,12 @@ function readStarredEntries(userDataPath) {
       return [];
     }
 
-    const parsed = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+    const content = fs.readFileSync(registryPath, 'utf8');
+    if (Buffer.byteLength(content, 'utf8') > MAX_STARRED_REGISTRY_JSON_BYTES) {
+      return [];
+    }
+
+    const parsed = JSON.parse(content);
     return Array.isArray(parsed?.entries) ? parsed.entries : [];
   } catch {
     return [];

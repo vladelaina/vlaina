@@ -448,12 +448,16 @@ describe("useChatShortcuts", () => {
 
     const scrollRef = { current: container } as RefObject<HTMLDivElement | null>;
     setup({ scrollRef });
+    const querySelectorAllSpy = vi.spyOn(Element.prototype, "querySelectorAll");
 
     const event = fireKeydown({ key: "ArrowUp", shiftKey: true });
 
     expect(event.defaultPrevented).toBe(true);
     expect(scrollToMock).toHaveBeenCalledWith({ top: 230, behavior: "smooth" });
     expect(mocked.getState).not.toHaveBeenCalled();
+    expect(querySelectorAllSpy).not.toHaveBeenCalled();
+
+    querySelectorAllSpy.mockRestore();
   });
 
   it("uses the same session order as the chat sidebar for Ctrl+Tab navigation", () => {

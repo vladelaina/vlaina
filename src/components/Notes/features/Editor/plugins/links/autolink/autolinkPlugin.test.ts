@@ -71,6 +71,23 @@ describe('autolinkPlugin findUrls', () => {
         ]);
     });
 
+    it('can stop URL scanning after the requested match budget', () => {
+        expect(findUrls('a.com b.com c.com', 0, 2)).toEqual([
+            {
+                start: 0,
+                end: 5,
+                url: 'a.com',
+                href: 'https://a.com',
+            },
+            {
+                start: 6,
+                end: 11,
+                url: 'b.com',
+                href: 'https://b.com',
+            },
+        ]);
+    });
+
     it('decorates ordinary URLs without touching inline or block code', async () => {
         const editor = Editor.make()
             .config((ctx) => {

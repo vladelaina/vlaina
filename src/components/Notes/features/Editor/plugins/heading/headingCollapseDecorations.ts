@@ -9,6 +9,9 @@ interface BuildHeadingCollapseDecorationsOptions<TNode extends TopLevelNodeLike>
     dispatchToggle: (view: EditorView, headingPos: number, isCollapsed: boolean) => void;
 }
 
+const MAX_HEADING_COLLAPSE_TOGGLES = 1000;
+const MAX_HEADING_COLLAPSE_CONTENT_DECORATIONS = 5000;
+
 const createToggleWidgetDecoration = (
     headingPos: number,
     isCollapsed: boolean,
@@ -45,9 +48,13 @@ export function buildHeadingCollapseDecorations<TNode extends TopLevelNodeLike>(
     dispatchToggle,
 }: BuildHeadingCollapseDecorationsOptions<TNode>): DecorationSet {
     const decorations: Decoration[] = [];
+    let toggleCount = 0;
+    let contentDecorationCount = 0;
 
-    nodes.forEach((nodeInfo, index) => {
-        if (nodeInfo.node.type.name !== 'heading') return;
+    for (let index = 0; index < nodes.length; index += 1) {
+        if (toggleCount >= MAX_HEADING_COLLAPSE_TOGGLES) break;
+        const nodeInfo = nodes[index];
+        if (nodeInfo.node.type.name !== 'heading') continue;
 
         const headingPos = nodeInfo.pos;
         const collapsedRanges = getCollapsedNodePositions(nodes, index);
@@ -58,17 +65,20 @@ export function buildHeadingCollapseDecorations<TNode extends TopLevelNodeLike>(
             decorations.push(
                 createToggleWidgetDecoration(headingPos, isCollapsed, hasContent, dispatchToggle),
             );
+            toggleCount += 1;
         }
 
-        if (!isCollapsed) return;
-        collapsedRanges.forEach((range) => {
+        if (!isCollapsed) continue;
+        for (const range of collapsedRanges) {
+            if (contentDecorationCount >= MAX_HEADING_COLLAPSE_CONTENT_DECORATIONS) break;
             decorations.push(
                 Decoration.node(range.from, range.to, {
                     class: 'heading-collapsed-content',
                 }),
             );
-        });
-    });
+            contentDecorationCount += 1;
+        }
+    }
 
     return DecorationSet.create(doc, decorations);
 }

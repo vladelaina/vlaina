@@ -22,6 +22,12 @@ import {
   getSerializedSelectionContext,
   getSerializedSelectionText,
 } from './selectionEditing';
+import {
+  AI_SELECTION_RESULT_TOO_LARGE_MESSAGE,
+  AI_SELECTION_TOO_LARGE_MESSAGE,
+  isAiSelectionRangeTooLarge,
+  isAiSelectionTextTooLarge,
+} from './selectionLimits';
 
 interface AiRequestResult {
   suggestedText: string | null;
@@ -146,6 +152,9 @@ async function requestAiEdit(
     if (normalized.length === 0) {
       return reportError('AI returned an empty result.');
     }
+    if (isAiSelectionTextTooLarge(normalized)) {
+      return reportError(AI_SELECTION_RESULT_TOO_LARGE_MESSAGE);
+    }
 
     return {
       suggestedText: normalized,
@@ -186,6 +195,13 @@ export async function createAiSelectionSuggestionResult(
   options?: AiRequestOptions
 ): Promise<AiSelectionSuggestionResult> {
   const trimmedInstruction = instruction.trim();
+  const reportSelectionError = (message: string): AiSelectionSuggestionResult => {
+    if (!options?.suppressToast) {
+      useToastStore.getState().addToast(message, 'warning');
+    }
+    return { suggestion: null, errorMessage: message };
+  };
+
   if (!selectionSource && hasSelectedBlocks(view.state)) {
     useToastStore.getState().addToast(translate('editor.ai.cannotEditSelection'), 'warning');
     return { suggestion: null, errorMessage: null };
@@ -206,7 +222,14 @@ export async function createAiSelectionSuggestionResult(
     return { suggestion: null, errorMessage: null };
   }
 
+  if (!selectionSource && isAiSelectionRangeTooLarge(from, to)) {
+    return reportSelectionError(AI_SELECTION_TOO_LARGE_MESSAGE);
+  }
+
   const selectedText = selectionSource?.originalText ?? getSerializedSelectionText(view);
+  if (isAiSelectionTextTooLarge(selectedText)) {
+    return reportSelectionError(AI_SELECTION_TOO_LARGE_MESSAGE);
+  }
   if (selectedText.trim().length === 0) {
     useToastStore.getState().addToast(translate('editor.ai.cannotEditSelection'), 'warning');
     return { suggestion: null, errorMessage: null };
@@ -268,6 +291,13 @@ export async function retryAiSelectionSuggestionResult(
   signal?: AbortSignal,
   options?: AiRequestOptions
 ): Promise<AiSelectionSuggestionResult> {
+  if (isAiSelectionTextTooLarge(suggestion.originalText)) {
+    if (!options?.suppressToast) {
+      useToastStore.getState().addToast(AI_SELECTION_TOO_LARGE_MESSAGE, 'warning');
+    }
+    return { suggestion: null, errorMessage: AI_SELECTION_TOO_LARGE_MESSAGE };
+  }
+
   const result = await requestAiEdit(
     suggestion.instruction,
     suggestion.originalText,

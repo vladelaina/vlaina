@@ -59,7 +59,12 @@ export function readStoredWindowState() {
       return null;
     }
 
-    const payload = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    const content = fs.readFileSync(statePath, 'utf8');
+    if (Buffer.byteLength(content, 'utf8') > MAX_WINDOW_STATE_JSON_BYTES) {
+      return null;
+    }
+
+    const payload = JSON.parse(content);
     const bounds = normalizeStoredWindowBounds(payload?.bounds);
     if (!bounds) {
       return null;

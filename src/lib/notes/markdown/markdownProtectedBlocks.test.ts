@@ -35,4 +35,44 @@ describe('markdown protected blocks', () => {
       mapMarkdownOutsideProtectedSegments(markdown, (segment) => segment.replace(/---/g, '***'))
     ).toBe(['***', 'Body'].join('\n'));
   });
+
+  it('does not transform fenced code blocks and resumes after the closing fence', () => {
+    const markdown = [
+      'Before - item',
+      '```ts',
+      'const value = "- hidden";',
+      '````',
+      'After - item',
+    ].join('\n');
+
+    expect(
+      mapMarkdownOutsideProtectedSegments(markdown, (segment) => segment.replace(/-/g, '*'))
+    ).toBe([
+      'Before * item',
+      '```ts',
+      'const value = "- hidden";',
+      '````',
+      'After * item',
+    ].join('\n'));
+  });
+
+  it('treats oversized leading frontmatter candidates as normal markdown', () => {
+    const markdown = [
+      '---',
+      ...Array.from({ length: 2050 }, (_, index) => `line_${index}: value`),
+      '---',
+      '- Item',
+    ].join('\n');
+
+    const expected = [
+      '***',
+      ...Array.from({ length: 2050 }, (_, index) => `line_${index}: value`),
+      '***',
+      '* Item',
+    ].join('\n');
+
+    expect(
+      mapMarkdownOutsideProtectedSegments(markdown, (segment) => segment.replace(/-/g, '*'))
+    ).toBe(expected);
+  });
 });

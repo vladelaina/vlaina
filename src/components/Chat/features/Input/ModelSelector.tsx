@@ -31,6 +31,7 @@ import {
   type ModelCategory,
   type ModelCategoryId,
 } from './modelFamilyRegistry'
+import { getModelSelectorSearchTerm, modelMatchesSelectorSearch } from './modelSelectorSearch'
 import { sortModelsForDisplay } from './modelSort'
 import { chatComposerPillSurfaceClass } from './composerStyles'
 
@@ -278,11 +279,8 @@ export function ModelSelector({
   );
 
   const filteredModels = useMemo(() => {
-      const term = deferredSearchQuery.toLowerCase();
-      return enabledModels.filter(model =>
-          model.name.toLowerCase().includes(term) ||
-          model.apiModelId.toLowerCase().includes(term)
-      );
+      const term = getModelSelectorSearchTerm(deferredSearchQuery);
+      return enabledModels.filter((model) => modelMatchesSelectorSearch(model, term));
   }, [deferredSearchQuery, enabledModels]);
 
   const sortedFilteredModels = useMemo(

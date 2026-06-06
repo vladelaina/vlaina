@@ -6,6 +6,10 @@ const LINE_FILL_LAYER_CLASS = 'editor-block-selection-line-fill-layer';
 const LINE_FILL_CLASS = 'editor-block-selection-line-fill';
 const ROW_MERGE_TOLERANCE_PX = 2;
 const FALLBACK_BLOCK_SELECTION_BLEED_X_PX = 48;
+export const MAX_BLOCK_SELECTION_LINE_FILL_RANGES = 512;
+const MAX_BLOCK_SELECTION_LINE_FILL_ROWS_PER_RANGE = 128;
+const MAX_BLOCK_SELECTION_LINE_FILL_ELEMENTS = 1024;
+export const MAX_BLOCK_SELECTION_LINE_FILL_DOM_RECTS = 1024;
 
 interface LineFillOverlay {
   update: (view: EditorView) => void;
@@ -16,6 +20,14 @@ interface RowRect {
   top: number;
   right: number;
   bottom: number;
+}
+
+interface ProseNodeLike {
+  type: { name: string };
+  attrs?: Record<string, unknown>;
+  nodeSize: number;
+  childCount: number;
+  child: (index: number) => ProseNodeLike;
 }
 
 function isHardBreakNodeName(name: string): boolean {
@@ -73,7 +85,95 @@ function trimTrailingHardBreakForMeasure(view: EditorView, range: BlockRange): B
   }
 }
 
-function collectSelectedHardBreakLineRanges(view: EditorView): BlockRange[] {
+function appendSelectedParagraphLineRanges(
+  paragraph: ProseNodeLike,
+  paragraphFrom: number,
+  selectedRange: BlockRange,
+  ranges: BlockRange[],
+): boolean {
+  const paragraphTo = paragraphFrom + paragraph.nodeSize;
+  if (!isRangeIntersecting(selectedRange, { from: paragraphFrom, to: paragraphTo })) {
+    return true;
+  }
+
+  const contentFrom = paragraphFrom + 1;
+  const contentTo = paragraphTo - 1;
+  let lineFrom = contentFrom;
+  let hasHardBreak = false;
+  let childOffset = 0;
+
+  for (
+    let childIndex = 0;
+    childIndex < paragraph.childCount && ranges.length < MAX_BLOCK_SELECTION_LINE_FILL_RANGES;
+    childIndex += 1
+  ) {
+    const child = paragraph.child(childIndex);
+    if (!isHardBreakNodeName(child.type.name)) {
+      childOffset += child.nodeSize;
+      continue;
+    }
+
+    hasHardBreak = true;
+    const lineTo = contentFrom + childOffset + child.nodeSize;
+    const lineRange = { from: lineFrom, to: lineTo };
+    if (lineTo > lineFrom && isRangeIntersecting(selectedRange, lineRange)) {
+      ranges.push(lineRange);
+    }
+    lineFrom = lineTo;
+    childOffset += child.nodeSize;
+  }
+
+  if (
+    ranges.length < MAX_BLOCK_SELECTION_LINE_FILL_RANGES &&
+    hasHardBreak &&
+    lineFrom < contentTo &&
+    isRangeIntersecting(selectedRange, { from: lineFrom, to: contentTo })
+  ) {
+    ranges.push({ from: lineFrom, to: contentTo });
+  }
+
+  return ranges.length < MAX_BLOCK_SELECTION_LINE_FILL_RANGES;
+}
+
+function collectSelectedHardBreakLineRangesFromNode(
+  node: ProseNodeLike,
+  contentStart: number,
+  selectedRange: BlockRange,
+  ranges: BlockRange[],
+): boolean {
+  let childOffset = 0;
+  for (
+    let index = 0;
+    index < node.childCount && ranges.length < MAX_BLOCK_SELECTION_LINE_FILL_RANGES;
+    index += 1
+  ) {
+    const child = node.child(index);
+    const childFrom = contentStart + childOffset;
+    const childTo = childFrom + child.nodeSize;
+    childOffset += child.nodeSize;
+
+    if (childTo <= selectedRange.from) continue;
+    if (childFrom >= selectedRange.to) break;
+
+    if (child.type.name === 'paragraph') {
+      if (!appendSelectedParagraphLineRanges(child, childFrom, selectedRange, ranges)) {
+        return false;
+      }
+      continue;
+    }
+
+    if (
+      child.childCount > 0 &&
+      !collectSelectedHardBreakLineRangesFromNode(child, childFrom + 1, selectedRange, ranges)
+    ) {
+      return false;
+    }
+  }
+
+  return ranges.length < MAX_BLOCK_SELECTION_LINE_FILL_RANGES;
+}
+
+export function collectSelectedHardBreakLineRanges(view: EditorView): BlockRange[] {
   const { selectedBlocks } = getBlockSelectionPluginState(view.state);
   if (selectedBlocks.length === 0) return [];
 
@@ -81,51 +181,24 @@ function collectSelectedHardBreakLineRanges(view: EditorView): BlockRange[] {
   const selectedRanges = normalizeBlockRanges(selectedBlocks);
 
   for (const selectedRange of selectedRanges) {
+    if (ranges.length >= MAX_BLOCK_SELECTION_LINE_FILL_RANGES) break;
+
     const from = Math.max(0, Math.min(selectedRange.from, view.state.doc.content.size));
     const to = Math.max(from, Math.min(selectedRange.to, view.state.doc.content.size));
-
-    view.state.doc.nodesBetween(from, to, (node, pos) => {
-      if (node.type.name !== 'paragraph') return true;
-
-      const paragraphFrom = pos;
-      const paragraphTo = pos + node.nodeSize;
-      if (!isRangeIntersecting(selectedRange, { from: paragraphFrom, to: paragraphTo })) {
-        return false;
-      }
-
-      const contentFrom = paragraphFrom + 1;
-      const contentTo = paragraphTo - 1;
-      let lineFrom = contentFrom;
-      let hasHardBreak = false;
-
-      node.forEach((child, childOffset) => {
-        if (!isHardBreakNodeName(child.type.name)) return;
-        hasHardBreak = true;
-
-        const lineTo = contentFrom + childOffset + child.nodeSize;
-        const lineRange = { from: lineFrom, to: lineTo };
-        if (lineTo > lineFrom && isRangeIntersecting(selectedRange, lineRange)) {
-          ranges.push(lineRange);
-        }
-        lineFrom = lineTo;
-      });
-
-      if (
-        hasHardBreak &&
-        lineFrom < contentTo &&
-        isRangeIntersecting(selectedRange, { from: lineFrom, to: contentTo })
-      ) {
-        ranges.push({ from: lineFrom, to: contentTo });
-      }
-
-      return false;
-    });
+    if (!collectSelectedHardBreakLineRangesFromNode(
+      view.state.doc,
+      0,
+      { from, to },
+      ranges,
+    )) {
+      break;
+    }
   }
 
   return normalizeBlockRanges(ranges);
 }
 
-function collectRangeRows(view: EditorView, range: BlockRange): RowRect[] {
+export function collectRangeRows(view: EditorView, range: BlockRange): RowRect[] {
   const measuredRange = trimTrailingHardBreakForMeasure(view, range);
   if (!measuredRange) return [];
 
@@ -137,7 +210,14 @@ function collectRangeRows(view: EditorView, range: BlockRange): RowRect[] {
     domRange.setEnd(end.node, end.offset);
 
     const rows: RowRect[] = [];
-    for (const rect of Array.from(domRange.getClientRects())) {
+    const rects = domRange.getClientRects();
+    if (rects.length > MAX_BLOCK_SELECTION_LINE_FILL_DOM_RECTS) {
+      return [];
+    }
+
+    for (let index = 0; index < rects.length; index += 1) {
+      const rect = rects.item?.(index) ?? rects[index];
+      if (!rect) continue;
       if (rect.height <= 0) continue;
       const centerY = rect.top + rect.height / 2;
       const existing = rows.find((row) => (
@@ -149,6 +229,7 @@ function collectRangeRows(view: EditorView, range: BlockRange): RowRect[] {
         existing.right = Math.max(existing.right, rect.right);
         existing.bottom = Math.max(existing.bottom, rect.bottom);
       } else {
+        if (rows.length >= MAX_BLOCK_SELECTION_LINE_FILL_ROWS_PER_RANGE) break;
         rows.push({ top: rect.top, right: rect.right, bottom: rect.bottom });
       }
     }
@@ -206,8 +287,10 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
     const currentHost = layer.parentElement ?? updatedView.dom;
     const hostRect = currentHost.getBoundingClientRect();
     const ranges = collectSelectedHardBreakLineRanges(updatedView);
+    let createdFills = 0;
 
     for (const range of ranges) {
+      if (createdFills >= MAX_BLOCK_SELECTION_LINE_FILL_ELEMENTS) break;
       const paragraph = resolveParagraphElement(updatedView, range);
       if (!paragraph) continue;
 
@@ -215,6 +298,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
       const fillRight = resolveLineFillRight(updatedView, paragraph);
       const rows = collectRangeRows(updatedView, range);
       for (const row of rows) {
+        if (createdFills >= MAX_BLOCK_SELECTION_LINE_FILL_ELEMENTS) break;
         if (fillRight - fillStart <= 0.5) continue;
 
         const fill = doc.createElement('div');
@@ -224,6 +308,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
         fill.style.width = `${fillRight - fillStart}px`;
         fill.style.height = `${row.bottom - row.top}px`;
         layer.appendChild(fill);
+        createdFills += 1;
       }
     }
   };

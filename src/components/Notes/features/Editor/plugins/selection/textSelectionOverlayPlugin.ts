@@ -12,7 +12,7 @@ const POINTER_NATIVE_SELECTION_META = 'editorTextSelectionPointerNative';
 const EDITOR_ONLY_TEXT_SELECTION_PLACEHOLDERS = new Set(['\u200B', '\u200C', '\u2800']);
 const VISIBLE_TEXT_PATTERN = /\S/u;
 const LINE_BREAK_PATTERN = /[\n\r\u2028\u2029]/u;
-const MAX_TEXT_SELECTION_OVERLAY_DECORATIONS = 1000;
+export const MAX_TEXT_SELECTION_OVERLAY_DECORATIONS = 1000;
 
 interface TextSelectionOverlayState {
   decorations: DecorationSet;
@@ -36,7 +36,7 @@ function isModifiedNavigationKey(event: KeyboardEvent): boolean {
   return event.shiftKey || event.ctrlKey || event.metaKey || event.altKey;
 }
 
-function getNativeSelectionMetrics() {
+export function getNativeSelectionMetrics() {
   if (typeof window === 'undefined') {
     return null;
   }
@@ -47,7 +47,7 @@ function getNativeSelectionMetrics() {
   }
 
   const range = selection.getRangeAt(0);
-  const rects = Array.from(range.getClientRects());
+  const rects = range.getClientRects();
 
   return {
     isCollapsed: selection.isCollapsed,

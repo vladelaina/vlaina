@@ -7,6 +7,7 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import type { MilkdownPlugin } from '@milkdown/kit/ctx';
 import {
   addTextSelectionOverlayDecorations,
+  getNativeSelectionMetrics,
   TEXT_SELECTION_OVERLAY_CLASS,
   textSelectionOverlayPlugin,
 } from './textSelectionOverlayPlugin';
@@ -217,6 +218,40 @@ describe('textSelectionOverlayPlugin', () => {
       Object.defineProperty(document, 'elementFromPoint', {
         configurable: true,
         value: originalElementFromPoint,
+      });
+    }
+  });
+
+  it('reads native selection rect count without materializing every rect', () => {
+    const originalGetSelection = window.getSelection;
+    const rectIterator = vi.fn(() => {
+      throw new Error('rects should not be iterated');
+    });
+
+    Object.defineProperty(window, 'getSelection', {
+      configurable: true,
+      value: () => ({
+        isCollapsed: false,
+        rangeCount: 1,
+        getRangeAt: () => ({
+          getClientRects: () => ({
+            length: 2048,
+            [Symbol.iterator]: rectIterator,
+          }),
+        }),
+      }),
+    });
+
+    try {
+      expect(getNativeSelectionMetrics()).toEqual({
+        isCollapsed: false,
+        rectCount: 2048,
+      });
+      expect(rectIterator).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(window, 'getSelection', {
+        configurable: true,
+        value: originalGetSelection,
       });
     }
   });

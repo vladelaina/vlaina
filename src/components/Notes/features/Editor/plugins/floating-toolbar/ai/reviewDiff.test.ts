@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { __testing__ } from './reviewDiff';
 
 describe('review diff', () => {
@@ -28,6 +28,30 @@ describe('review diff', () => {
     expect(markup).toContain('&lt;img src=x onerror=alert(1)&gt;');
     expect(markup).not.toContain('<script>');
     expect(markup).not.toContain('<img src=x');
+  });
+
+  it('tokenizes no-space text by code point without materializing text arrays', () => {
+    const arrayFromSpy = vi.spyOn(Array, 'from').mockImplementation((value: unknown) => {
+      if (typeof value === 'string') {
+        throw new Error('Array.from should not be used for no-space review diff text');
+      }
+      return Array.prototype.slice.call(value);
+    });
+
+    try {
+      expect(__testing__.tokenizeText('a🙂b')).toEqual(['a', '🙂', 'b']);
+    } finally {
+      arrayFromSpy.mockRestore();
+    }
+  });
+
+  it('stops tokenizing once the token budget is exhausted', () => {
+    const result = __testing__.tokenizeTextWithLimit('abcdef', 3);
+
+    expect(result).toEqual({
+      tokens: ['a', 'b', 'c'],
+      truncated: true,
+    });
   });
 
   it('falls back to whole-range replacement for very large diff matrices', () => {

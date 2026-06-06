@@ -97,4 +97,26 @@ describe('mergePairedInlineHtml', () => {
       { type: 'html', value: markdown },
     ])
   })
+
+  it('does not repeatedly scan all siblings for unmatched open tags', () => {
+    let stringReads = 0
+    const children = Array.from({ length: 400 }, () => ({
+      type: 'html',
+      value: {
+        toString() {
+          stringReads += 1
+          return '<span>'
+        },
+      },
+    })) as MarkdownNode[]
+    const tree = {
+      type: 'paragraph',
+      children,
+    } as MarkdownNode
+
+    const result = mergePairedInlineHtml(tree)
+
+    expect(result.children).toHaveLength(children.length)
+    expect(stringReads).toBeLessThanOrEqual(children.length * 2)
+  })
 })

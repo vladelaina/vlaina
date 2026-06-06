@@ -11,6 +11,8 @@ import {
   LIST_CONTAINER_NODE_NAMES,
 } from '../shared/blockNodeTypes';
 
+export const MAX_BLOCK_UNIT_DOM_RANGE_RECTS = 1024;
+
 export interface SelectableBlockTarget {
   range: BlockRange;
   element: HTMLElement;
@@ -264,7 +266,7 @@ function createDOMRectFromBounds(left: number, top: number, right: number, botto
   } as DOMRect;
 }
 
-function resolveDOMRangeRect(view: EditorView, range: BlockRange): DOMRect | null {
+export function resolveDOMRangeRect(view: EditorView, range: BlockRange): DOMRect | null {
   const doc = view.dom.ownerDocument;
   const domRange = doc.createRange();
 
@@ -278,8 +280,15 @@ function resolveDOMRangeRect(view: EditorView, range: BlockRange): DOMRect | nul
     let top = Number.POSITIVE_INFINITY;
     let right = Number.NEGATIVE_INFINITY;
     let bottom = Number.NEGATIVE_INFINITY;
+    const rects = domRange.getClientRects();
 
-    for (const rect of Array.from(domRange.getClientRects())) {
+    if (rects.length > MAX_BLOCK_UNIT_DOM_RANGE_RECTS) {
+      return null;
+    }
+
+    for (let index = 0; index < rects.length; index += 1) {
+      const rect = rects[index];
+      if (!rect) continue;
       if (rect.width <= 0 && rect.height <= 0) continue;
       left = Math.min(left, rect.left);
       top = Math.min(top, rect.top);

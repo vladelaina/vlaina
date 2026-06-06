@@ -243,6 +243,18 @@ describe('starred persistence', () => {
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not parse starred registry content that exceeds the limit after read', async () => {
+    adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
+    adapter.readFile.mockResolvedValue('x'.repeat(5 * 1024 * 1024 + 1));
+
+    const persistence = await import('./persistence');
+    const result = await persistence.loadStarredRegistry();
+
+    expect(result.entries).toEqual([]);
+    expect(adapter.readFile).toHaveBeenCalledWith('/store/notes-starred.json');
+  });
+
   it('keeps entries when the target still exists but stat metadata is unavailable', async () => {
     const validEntry = createEntry('1', 'note', 'C:/vault-a', 'alive.md');
 

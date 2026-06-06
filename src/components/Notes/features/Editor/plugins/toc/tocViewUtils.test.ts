@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   extractHeadings,
+  MAX_TOC_VIEW_HEADINGS,
   normalizeTocMaxLevel,
   renderTocContent,
   TOC_EMPTY_TEXT,
@@ -53,6 +54,28 @@ describe('tocViewUtils', () => {
       id: 'heading-5110',
       pos: 5110,
     });
+  });
+
+  it('stops scanning headings once the TOC item cap is reached', () => {
+    let scanned = 0;
+    const doc = {
+      descendants(callback: (node: any, pos: number) => boolean | void) {
+        for (let index = 0; index < 600; index += 1) {
+          scanned += 1;
+          const result = callback({
+            type: { name: 'heading' },
+            attrs: { level: 2 },
+            textContent: `Heading ${index}`,
+          }, index);
+          if (result === false) {
+            return;
+          }
+        }
+      },
+    };
+
+    expect(extractHeadings(doc)).toHaveLength(MAX_TOC_VIEW_HEADINGS);
+    expect(scanned).toBe(MAX_TOC_VIEW_HEADINGS);
   });
 
   it('filters headings above maxLevel while extracting', () => {

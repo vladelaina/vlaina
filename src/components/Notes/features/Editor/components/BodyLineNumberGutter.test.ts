@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   collectBodyLineNumberTargets,
+  MAX_BODY_LINE_NUMBER_TARGETS,
   resolveBodyLineNumberLabels,
 } from './BodyLineNumberGutter';
 
@@ -36,6 +37,33 @@ describe('BodyLineNumberGutter', () => {
       'two',
       'paragraph',
     ]);
+  });
+
+  it('collects body targets without materializing child lists', () => {
+    const editorRoot = document.createElement('div');
+    editorRoot.className = 'ProseMirror';
+    const list = document.createElement('ul');
+    for (let index = 0; index < MAX_BODY_LINE_NUMBER_TARGETS + 8; index += 1) {
+      const item = document.createElement('li');
+      item.id = `item-${index}`;
+      list.appendChild(item);
+    }
+    editorRoot.appendChild(list);
+    const arrayFromSpy = vi.spyOn(Array, 'from');
+    const querySelectorAllSpy = vi.spyOn(Element.prototype, 'querySelectorAll');
+
+    try {
+      const targets = collectBodyLineNumberTargets(editorRoot);
+
+      expect(targets).toHaveLength(MAX_BODY_LINE_NUMBER_TARGETS);
+      expect(targets[0]?.id).toBe('item-0');
+      expect(targets.at(-1)?.id).toBe(`item-${MAX_BODY_LINE_NUMBER_TARGETS - 1}`);
+      expect(arrayFromSpy).not.toHaveBeenCalled();
+      expect(querySelectorAllSpy).not.toHaveBeenCalled();
+    } finally {
+      arrayFromSpy.mockRestore();
+      querySelectorAllSpy.mockRestore();
+    }
   });
 
   it('resolves labels in an independent gutter before the editor content', () => {

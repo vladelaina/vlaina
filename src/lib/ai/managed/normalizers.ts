@@ -14,6 +14,13 @@ import type {
   ManagedModelsVersionPayload,
 } from './types';
 
+export const MAX_MANAGED_MODEL_ROWS_SCAN = 4096;
+export const MAX_MANAGED_MODELS = 2048;
+export const MAX_MANAGED_MODEL_ID_CHARS = 4096;
+export const MAX_MANAGED_MODEL_NAME_CHARS = 4096;
+export const MAX_MANAGED_MODEL_GROUP_CHARS = 1024;
+export const MAX_MANAGED_MODEL_CATALOG_VERSION_CHARS = 256;
+
 export function createManagedProvider(now: number): Provider {
   return {
     id: MANAGED_PROVIDER_ID,
@@ -33,10 +40,12 @@ export function normalizeManagedModelsPayload(payload: ManagedModelsPayload): AI
   const seen = new Set<string>();
 
   const models: AIModel[] = [];
-  for (const row of rows) {
+  const rowsToScan = Math.min(rows.length, MAX_MANAGED_MODEL_ROWS_SCAN);
+  for (let index = 0; index < rowsToScan && models.length < MAX_MANAGED_MODELS; index += 1) {
+    const row = rows[index];
     if (!row || typeof row !== 'object') continue;
     const value = row as Record<string, unknown>;
-    const id = typeof value.id === 'string' ? value.id.trim() : '';
+    const id = normalizeManagedString(value.id, MAX_MANAGED_MODEL_ID_CHARS);
     if (!id || seen.has(id.toLowerCase())) continue;
     seen.add(id.toLowerCase());
 
@@ -151,18 +160,19 @@ function readFiniteNumber(source: Record<string, unknown>, keys: string[]): numb
 
 
 function normalizeModelName(model: Record<string, unknown>, fallback: string): string {
-  const display = typeof model.display_name === 'string' ? model.display_name.trim() : '';
+  const display = normalizeManagedString(model.display_name, MAX_MANAGED_MODEL_NAME_CHARS);
   if (display) return display;
-  const name = typeof model.name === 'string' ? model.name.trim() : '';
+  const name = normalizeManagedString(model.name, MAX_MANAGED_MODEL_NAME_CHARS);
   return name || fallback;
 }
 
 function normalizeManagedModelCatalogVersion(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value.trim() : null;
+  const version = normalizeManagedString(value, MAX_MANAGED_MODEL_CATALOG_VERSION_CHARS);
+  return version || null;
 }
 
 function normalizeModelGroup(model: Record<string, unknown>, modelId: string): string {
-  const group = typeof model.group === 'string' ? model.group.trim() : '';
+  const group = normalizeManagedString(model.group, MAX_MANAGED_MODEL_GROUP_CHARS);
   if (group) return group;
   if (modelId.includes('/')) return modelId.split('/')[0] || 'other';
   if (modelId.includes(':')) return modelId.split(':')[0] || 'other';
@@ -188,4 +198,8 @@ function normalizeModelPrice(model: Record<string, unknown>): Pick<AIModel, 'pri
   }
 
   return normalized;
+}
+
+function normalizeManagedString(value: unknown, maxChars: number): string {
+  return typeof value === 'string' ? value.slice(0, maxChars).trim() : '';
 }

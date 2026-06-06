@@ -14,6 +14,8 @@ import {
   normalizeCurrentBlockToParagraph,
 } from './blockTypeConversion';
 
+export const MAX_BLOCK_COMMAND_DOM_SELECTION_CHILDREN = 5_000;
+
 function getHeadingLevel(blockType: BlockType): number | null {
   if (!blockType.startsWith('heading')) {
     return null;
@@ -151,7 +153,7 @@ function runWithSingleTextBlockSelection(view: EditorView, command: () => void):
   command();
 }
 
-function getDomSelectedTextBlocks(
+export function getDomSelectedTextBlocks(
   view: EditorView
 ): Array<{ node: { type: { name: string }; attrs?: Record<string, unknown> }; pos: number }> {
   if (typeof window === 'undefined' || !(view.dom instanceof HTMLElement)) {
@@ -171,7 +173,12 @@ function getDomSelectedTextBlocks(
   const seen = new Set<number>();
   const entries: Array<{ node: { type: { name: string }; attrs?: Record<string, unknown> }; pos: number }> = [];
 
-  for (const child of Array.from(view.dom.children)) {
+  for (
+    let index = 0;
+    index < view.dom.children.length && index < MAX_BLOCK_COMMAND_DOM_SELECTION_CHILDREN;
+    index += 1
+  ) {
+    const child = view.dom.children.item(index);
     if (!(child instanceof HTMLElement)) {
       continue;
     }

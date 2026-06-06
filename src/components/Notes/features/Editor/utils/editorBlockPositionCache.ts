@@ -56,7 +56,7 @@ let currentVersion = 0;
 const listeners = new Set<(snapshot: EditorBlockPositionSnapshot | null) => void>();
 const TOOLBAR_PREVIEW_HIDDEN_ATTRIBUTE = 'data-toolbar-preview-hidden';
 const TOOLBAR_PREVIEW_OVERLAY_CLASS = 'toolbar-applied-preview-overlay';
-const MAX_BLOCK_POSITION_SNAPSHOT_BLOCKS = 5000;
+export const MAX_BLOCK_POSITION_SNAPSHOT_BLOCKS = 5000;
 const TEXT_MUTATION_REFRESH_DELAY_MS = 120;
 
 export function isEditorHiddenByToolbarPreview(view: Pick<EditorView, 'dom'>): boolean {
@@ -111,7 +111,7 @@ function collectTopLevelBlockRanges(doc: EditorView['state']['doc']): Array<{ fr
   return ranges;
 }
 
-function isTooLargeForBlockPositionSnapshot(doc: EditorView['state']['doc']): boolean {
+export function isTooLargeForBlockPositionSnapshot(doc: EditorView['state']['doc']): boolean {
   const childCount = (doc as { childCount?: unknown }).childCount;
   return typeof childCount === 'number' && childCount > MAX_BLOCK_POSITION_SNAPSHOT_BLOCKS;
 }
@@ -150,21 +150,27 @@ function createPreviewSnapshot(
   const scrollTop = scrollRoot?.scrollTop ?? 0;
   const scrollRootTop = scrollRoot?.getBoundingClientRect().top ?? null;
   const topLevelRanges = collectTopLevelBlockRanges(view.state.doc);
-  const topLevelElements = Array.from(previewRoot.children).filter(
-    (element): element is HTMLElement => element instanceof HTMLElement,
-  );
   const blocks: EditorBlockPositionEntry[] = [];
   const headings: EditorHeadingPositionEntry[] = [];
 
-  topLevelElements.forEach((element, index) => {
+  for (
+    let index = 0;
+    index < previewRoot.children.length && index < topLevelRanges.length && blocks.length < MAX_BLOCK_POSITION_SNAPSHOT_BLOCKS;
+    index += 1
+  ) {
+    const element = previewRoot.children.item(index);
+    if (!(element instanceof HTMLElement)) {
+      continue;
+    }
+
     const range = topLevelRanges[index];
     if (!range) {
-      return;
+      continue;
     }
 
     const rect = element.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) {
-      return;
+      continue;
     }
 
     const tagName = element.tagName.toUpperCase();
@@ -190,7 +196,7 @@ function createPreviewSnapshot(
     });
 
     if (!headingLevel || !headingId || !headingText) {
-      return;
+      continue;
     }
 
     headings.push({
@@ -203,7 +209,7 @@ function createPreviewSnapshot(
       top: documentTop,
       bottom: documentBottom,
     });
-  });
+  }
 
   currentVersion += 1;
   return {

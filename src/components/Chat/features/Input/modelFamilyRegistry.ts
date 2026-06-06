@@ -57,6 +57,7 @@ export type ModelCategory = {
 
 const MAX_MODEL_FAMILY_FIELD_SCAN_CHARS = 4096
 const MAX_MODEL_FAMILY_SEARCH_VALUE_CHARS = 8192
+const MAX_MODEL_PRESENTATION_NAME_CHARS = 8192
 
 export const MODEL_FAMILIES: ModelFamily[] = [
   {
@@ -247,7 +248,7 @@ export function getModelDisplayName(model: Pick<AIModel, 'name' | 'apiModelId'>)
 }
 
 function prefixDisplayName(displayName: string, prefix: string): string {
-  const normalized = displayName.trim()
+  const normalized = displayName.slice(0, MAX_MODEL_PRESENTATION_NAME_CHARS).trim()
   const lower = normalized.toLowerCase()
   const lowerPrefix = prefix.toLowerCase()
 
@@ -270,51 +271,55 @@ function prefixDisplayName(displayName: string, prefix: string): string {
 export function getModelPresentationName(model: Pick<AIModel, 'name' | 'apiModelId'>): string {
   const rawName = model.name || model.apiModelId
   const displayName = getModelDisplayName(model)
+  const displayNameForPresentation = displayName.slice(0, MAX_MODEL_PRESENTATION_NAME_CHARS)
   const rawNameScan = rawName.slice(0, MAX_MODEL_FAMILY_FIELD_SCAN_CHARS)
   const displayNameScan = displayName.slice(0, MAX_MODEL_FAMILY_FIELD_SCAN_CHARS)
 
   if (/^gpt(?=$|[\s._:/-]|\d|[a-z])/i.test(displayNameScan)) {
-    return prefixDisplayName(displayName, 'GPT')
+    return prefixDisplayName(displayNameForPresentation, 'GPT')
   }
 
   if (/^deepseek(?=$|[\s._:/-]|[a-z])/i.test(displayNameScan)) {
-    return prefixDisplayName(displayName, 'DeepSeek')
+    return prefixDisplayName(displayNameForPresentation, 'DeepSeek')
   }
 
   if (/^minimax(?=$|[\s._:/-]|[a-z])/i.test(displayNameScan)) {
-    return prefixDisplayName(displayName, 'MiniMax')
+    return prefixDisplayName(displayNameForPresentation, 'MiniMax')
   }
 
   if (/^grok(?=$|[\s._:/-]|[a-z])/i.test(displayNameScan)) {
-    return prefixDisplayName(displayName, 'Grok')
+    return prefixDisplayName(displayNameForPresentation, 'Grok')
   }
 
   if (/llama/i.test(rawNameScan)) {
     if (/^llama(?=$|[\s._:/-]|\d|[a-z])/i.test(displayNameScan)) {
-      return prefixDisplayName(displayName, 'Llama')
+      return prefixDisplayName(displayNameForPresentation, 'Llama')
     }
 
     const slashIndex = rawNameScan.indexOf('/')
     if (slashIndex > 0 && slashIndex < rawName.length - 1) {
-      return prefixDisplayName(rawName.slice(slashIndex + 1), 'Llama')
+      return prefixDisplayName(
+        rawName.slice(slashIndex + 1, slashIndex + 1 + MAX_MODEL_PRESENTATION_NAME_CHARS),
+        'Llama',
+      )
     }
   }
 
   if (/^qwen(?=\d|[a-z])/i.test(displayNameScan)) {
-    const rest = displayName.slice(4)
+    const rest = displayNameForPresentation.slice(4)
     if (/^\d/.test(rest)) {
       return `Qwen${rest}`
     }
-    return prefixDisplayName(displayName, 'Qwen')
+    return prefixDisplayName(displayNameForPresentation, 'Qwen')
   }
 
   if (/^(moonshot|kimi)(?=$|[\s._:/-]|[a-z])/i.test(displayNameScan)) {
-    return prefixDisplayName(displayName.replace(/^moonshot/i, 'Kimi'), 'Kimi')
+    return prefixDisplayName(displayNameForPresentation.replace(/^moonshot/i, 'Kimi'), 'Kimi')
   }
 
   if (/^(glm|zhipu)(?=$|[\s._:/-]|[a-z])/i.test(displayNameScan)) {
-    return prefixDisplayName(displayName.replace(/^zhipu/i, 'GLM'), 'GLM')
+    return prefixDisplayName(displayNameForPresentation.replace(/^zhipu/i, 'GLM'), 'GLM')
   }
 
-  return displayName
+  return displayNameForPresentation
 }

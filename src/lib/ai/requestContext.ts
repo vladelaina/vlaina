@@ -11,6 +11,7 @@ const MAX_REQUEST_HISTORY_MESSAGES = 32;
 const MAX_REQUEST_HISTORY_CHARS = 24000;
 const MAX_REQUEST_MESSAGE_CHARS = 6000;
 const MAX_TRANSCRIPT_FIELD_CHARS = 1200;
+const MAX_REQUEST_JSON_DEPTH = 8;
 const CONTENT_TRUNCATION_MARKER = '\n[Earlier content omitted]\n';
 
 export function formatTimeByOffset(offset: number, now = new Date()): string {
@@ -107,16 +108,134 @@ function compactTranscriptMessage(message: ApiTranscriptMessage): ApiTranscriptM
   };
 }
 
+function measureJsonStringLength(value: string, maxChars: number): number {
+  if (maxChars <= 0) {
+    return 1;
+  }
+
+  let length = 2;
+  if (length > maxChars) {
+    return maxChars + 1;
+  }
+
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code === 0x22 || code === 0x5c) {
+      length += 2;
+    } else if (code === 0x08 || code === 0x09 || code === 0x0a || code === 0x0c || code === 0x0d) {
+      length += 2;
+    } else if (code < 0x20) {
+      length += 6;
+    } else if (code >= 0xd800 && code <= 0xdbff) {
+      const nextCode = value.charCodeAt(index + 1);
+      if (nextCode >= 0xdc00 && nextCode <= 0xdfff) {
+        length += 2;
+        index += 1;
+      } else {
+        length += 6;
+      }
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      length += 6;
+    } else {
+      length += 1;
+    }
+
+    if (length > maxChars) {
+      return maxChars + 1;
+    }
+  }
+
+  return length;
+}
+
+function measureJsonLength(value: unknown, maxChars: number, depth = 0): number {
+  if (maxChars <= 0) {
+    return 1;
+  }
+
+  if (value === null) {
+    return 4;
+  }
+
+  switch (typeof value) {
+    case 'string':
+      return measureJsonStringLength(value, maxChars);
+    case 'number':
+      return Number.isFinite(value) ? String(value).length : 4;
+    case 'boolean':
+      return value ? 4 : 5;
+    case 'object':
+      break;
+    default:
+      return maxChars + 1;
+  }
+
+  if (depth >= MAX_REQUEST_JSON_DEPTH) {
+    return maxChars + 1;
+  }
+
+  if (Array.isArray(value)) {
+    let length = 1;
+    for (let index = 0; index < value.length; index += 1) {
+      if (index > 0) {
+        length += 1;
+      }
+
+      const item = value[index];
+      length += item === undefined || typeof item === 'function' || typeof item === 'symbol'
+        ? 4
+        : measureJsonLength(item, maxChars - length, depth + 1);
+      if (length > maxChars) {
+        return maxChars + 1;
+      }
+    }
+    return length + 1;
+  }
+
+  let length = 1;
+  let hasEntry = false;
+  const record = value as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    const field = record[key];
+    if (field === undefined || typeof field === 'function' || typeof field === 'symbol') {
+      continue;
+    }
+
+    if (hasEntry) {
+      length += 1;
+    }
+    hasEntry = true;
+    length += measureJsonStringLength(key, maxChars - length) + 1;
+    if (length > maxChars) {
+      return maxChars + 1;
+    }
+
+    length += measureJsonLength(field, maxChars - length, depth + 1);
+    if (length > maxChars) {
+      return maxChars + 1;
+    }
+  }
+  return length + 1;
+}
+
+export function measureRequestJsonLength(value: unknown, maxChars: number): number {
+  if (maxChars <= 0) {
+    return 1;
+  }
+
+  return measureJsonLength(value, maxChars);
+}
+
 function compactApiTranscriptToBudget(
   transcript: ApiTranscriptMessage[],
   maxChars: number
 ): ApiTranscriptMessage[] | undefined {
-  if (JSON.stringify(transcript).length <= maxChars) {
+  if (measureRequestJsonLength(transcript, maxChars) <= maxChars) {
     return transcript;
   }
 
   const compacted = transcript.map(compactTranscriptMessage);
-  if (JSON.stringify(compacted).length <= maxChars) {
+  if (measureRequestJsonLength(compacted, maxChars) <= maxChars) {
     return compacted;
   }
 
@@ -135,7 +254,7 @@ function compactApiTranscriptToBudget(
       : {}),
   };
 
-  return JSON.stringify([minimal]).length <= maxChars ? [minimal] : undefined;
+  return measureRequestJsonLength([minimal], maxChars) <= maxChars ? [minimal] : undefined;
 }
 
 function clipTranscriptToBudget<T extends ChatMessage>(message: T, maxChars: number): T {
@@ -155,15 +274,19 @@ function clipTranscriptToBudget<T extends ChatMessage>(message: T, maxChars: num
   return rest as T;
 }
 
-function estimateHistorySize(messages: ChatMessage[]): number {
-  return messages.reduce(
-    (total, message) =>
-      total +
-      message.content.length +
-      (message.apiTranscript ? JSON.stringify(message.apiTranscript).length : 0) +
-      REQUEST_HISTORY_MESSAGE_OVERHEAD,
-    0
-  );
+function estimateHistorySize(messages: ChatMessage[], maxChars: number): number {
+  let total = 0;
+  for (const message of messages) {
+    total += message.content.length + REQUEST_HISTORY_MESSAGE_OVERHEAD;
+    if (message.apiTranscript) {
+      total += measureRequestJsonLength(message.apiTranscript, maxChars - total);
+    }
+
+    if (total > maxChars) {
+      return maxChars + 1;
+    }
+  }
+  return total;
 }
 
 function trimHistoryToBudget(history: ChatMessage[], maxChars: number): ChatMessage[] {
@@ -187,11 +310,11 @@ function trimHistoryToBudget(history: ChatMessage[], maxChars: number): ChatMess
     }))
     .map((message) => clipTranscriptToBudget(message, MAX_REQUEST_MESSAGE_CHARS));
 
-  while (clippedHistory.length > 1 && estimateHistorySize(clippedHistory) > maxChars) {
+  while (clippedHistory.length > 1 && estimateHistorySize(clippedHistory, maxChars) > maxChars) {
     clippedHistory.shift();
   }
 
-  if (estimateHistorySize(clippedHistory) <= maxChars) {
+  if (estimateHistorySize(clippedHistory, maxChars) <= maxChars) {
     return clippedHistory;
   }
 

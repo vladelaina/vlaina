@@ -83,6 +83,19 @@ describe('listCollapsePlugin', () => {
     await editor.destroy();
   });
 
+  it('caps generated list collapse toggles in large nested lists', async () => {
+    const markdown = Array.from(
+      { length: 1005 },
+      (_, index) => `- Parent ${index}\n  - Child ${index}`,
+    ).join('\n');
+    const editor = await createEditor(markdown);
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(view.dom.querySelectorAll('.editor-collapse-btn[data-has-content="true"]')).toHaveLength(1000);
+
+    await editor.destroy();
+  });
+
   it('keeps collapsed list items mapped after document edits above them', async () => {
     const editor = await createEditor('- Parent\n  - Child');
     const view = editor.ctx.get(editorViewCtx);

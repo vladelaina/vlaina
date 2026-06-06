@@ -182,7 +182,11 @@ async function readAuthorizedFsPaths() {
     if (!fileInfo.isFile() || fileInfo.size > MAX_AUTHORIZED_FS_PATHS_JSON_BYTES) {
       return { roots: [], files: [], watchRoots: [] };
     }
-    const payload = JSON.parse(await readFile(storePath, 'utf8'));
+    const content = await readFile(storePath, 'utf8');
+    if (Buffer.byteLength(content, 'utf8') > MAX_AUTHORIZED_FS_PATHS_JSON_BYTES) {
+      return { roots: [], files: [], watchRoots: [] };
+    }
+    const payload = JSON.parse(content);
     const roots = normalizeAuthorizedFsPathEntries(payload?.roots, MAX_AUTHORIZED_FS_PATH_ENTRIES);
     const files = normalizeAuthorizedFsPathEntries(
       payload?.files,

@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { getMarkdownHtmlImageAttrs } from './markdownHtmlImage';
+import { describe, expect, it, vi } from 'vitest';
+import {
+    getMarkdownHtmlImageAttrs,
+    MAX_MARKDOWN_HTML_IMAGE_CHILD_SCAN_NODES,
+} from './markdownHtmlImage';
 
 describe('markdownHtmlImage', () => {
     it('extracts attrs from a supported wrapped html image', () => {
@@ -31,5 +34,22 @@ describe('markdownHtmlImage', () => {
         const markup = `${'<span>'.repeat(40)}<img src="./assets/a.png" />${'</span>'.repeat(40)}`;
 
         expect(getMarkdownHtmlImageAttrs(markup)).toBeNull();
+    });
+
+    it('rejects too many html image child nodes without materializing childNodes', () => {
+        const arrayFromSpy = vi.spyOn(Array, 'from');
+        const markup = [
+            '<picture>',
+            '<source srcset="./assets/a.webp" />'.repeat(MAX_MARKDOWN_HTML_IMAGE_CHILD_SCAN_NODES + 1),
+            '<img src="./assets/a.png" />',
+            '</picture>',
+        ].join('');
+
+        try {
+            expect(getMarkdownHtmlImageAttrs(markup)).toBeNull();
+            expect(arrayFromSpy).not.toHaveBeenCalled();
+        } finally {
+            arrayFromSpy.mockRestore();
+        }
     });
 });

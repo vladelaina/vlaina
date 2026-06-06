@@ -8,6 +8,12 @@ import { getCurrentMarkdownParser } from '../../../utils/editorViewRegistry';
 import { markEditorUserInput } from '../../shared/userInputEvents';
 import { collapseSelectionAfterToolbarApply } from '../selectionCollapse';
 import type { AiSelectionSuggestion } from './selectionCommandTypes';
+import {
+  AI_SELECTION_RESULT_TOO_LARGE_MESSAGE,
+  AI_SELECTION_TOO_LARGE_MESSAGE,
+  isAiSelectionRangeTooLarge,
+  isAiSelectionTextTooLarge,
+} from './selectionLimits';
 
 export function getSerializedSelectionText(view: EditorView): string {
   const { from, to } = view.state.selection;
@@ -215,6 +221,19 @@ export function applyAiSelectionSuggestion(
   const maxPos = view.state.doc.content.size;
   const from = Math.max(0, Math.min(suggestion.from, maxPos));
   const to = Math.max(from, Math.min(suggestion.to, maxPos));
+  if (
+    isAiSelectionRangeTooLarge(from, to) ||
+    isAiSelectionTextTooLarge(suggestion.originalText)
+  ) {
+    useToastStore.getState().addToast(AI_SELECTION_TOO_LARGE_MESSAGE, 'warning');
+    return false;
+  }
+
+  if (isAiSelectionTextTooLarge(suggestion.suggestedText)) {
+    useToastStore.getState().addToast(AI_SELECTION_RESULT_TOO_LARGE_MESSAGE, 'warning');
+    return false;
+  }
+
   if (!isOriginalSelectionStillCurrent(view, from, to, suggestion.originalText)) {
     useToastStore.getState().addToast(
       'The selected text changed before the AI result was applied.',

@@ -23,6 +23,7 @@ vi.mock('@/lib/storage/paths', () => ({
 describe('external path broadcast persistence', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     adapter.stat.mockResolvedValue(null);
     adapter.writeFile.mockResolvedValue(undefined);
   });
@@ -45,6 +46,15 @@ describe('external path broadcast persistence', () => {
     await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([]);
 
     expect(adapter.readFile).not.toHaveBeenCalled();
+  });
+
+  it('ignores event file content that exceeds the limit after read', async () => {
+    adapter.stat.mockResolvedValue({ size: 256 });
+    adapter.readFile.mockResolvedValue('x'.repeat(256 * 1024 + 1));
+
+    await expect(readNotesExternalPathEvents('/vault')).resolves.toEqual([]);
+
+    expect(adapter.readFile).toHaveBeenCalled();
   });
 
   it('loads only valid bounded rename events', async () => {
@@ -108,6 +118,17 @@ describe('external path broadcast persistence', () => {
     })).not.toThrow();
 
     expect(localStorage.getItem('vlaina-notes-external-path-event')).toContain('docs/b.md');
+  });
+
+  it('does not persist overlong emitted rename events', () => {
+    emitNotesExternalPathRename({
+      notesPath: '/vault',
+      oldPath: 'docs/a.md',
+      newPath: `${'x'.repeat(4097)}.md`,
+    });
+
+    expect(localStorage.getItem('vlaina-notes-external-path-event')).toBeNull();
+    expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 
   it('isolates external path rename listener failures', () => {

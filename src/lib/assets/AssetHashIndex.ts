@@ -87,7 +87,12 @@ export async function loadAssetHashIndex(vaultPath: string): Promise<AssetHashIn
       return createEmptyIndex();
     }
 
-    return normalizeIndex(JSON.parse(await storage.readFile(indexPath)));
+    const content = await storage.readFile(indexPath);
+    if (content.length > MAX_INDEX_BYTES) {
+      return createEmptyIndex();
+    }
+
+    return normalizeIndex(JSON.parse(content));
   } catch {
     return createEmptyIndex();
   }

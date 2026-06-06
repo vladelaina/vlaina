@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { collectSelectableBlockRanges, createBlockRectResolver } from './blockRectResolver';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  collectSelectableBlockRanges,
+  collectTextContentBounds,
+  createBlockRectResolver,
+  MAX_BLOCK_RECT_CONTENT_RECTS,
+} from './blockRectResolver';
 import {
   createBlockRectYIndex,
   resolveIntersectedBlockRangesFromYIndex,
@@ -124,6 +129,74 @@ describe('collectSelectableBlockRanges', () => {
 });
 
 describe('createBlockRectResolver', () => {
+  it('collects text content bounds without materializing DOM rect lists', () => {
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'alpha beta';
+    const rectIterator = vi.fn(() => {
+      throw new Error('rects should not be iterated');
+    });
+    const createRangeSpy = vi.spyOn(document, 'createRange').mockReturnValue({
+      selectNodeContents: vi.fn(),
+      getClientRects: () => ({
+        length: 2,
+        item: (index: number) => [
+          {
+            left: 10,
+            right: 60,
+            top: 20,
+            bottom: 40,
+            width: 50,
+            height: 20,
+          },
+          {
+            left: 12,
+            right: 90,
+            top: 22,
+            bottom: 42,
+            width: 78,
+            height: 20,
+          },
+        ][index] as DOMRect | undefined ?? null,
+        [Symbol.iterator]: rectIterator,
+      }),
+      detach: vi.fn(),
+    } as unknown as Range);
+
+    expect(collectTextContentBounds(paragraph)).toEqual({
+      left: 10,
+      right: 90,
+    });
+    expect(rectIterator).not.toHaveBeenCalled();
+
+    createRangeSpy.mockRestore();
+  });
+
+  it('aborts text content bounds for oversized DOM rect lists without reading entries', () => {
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'alpha beta';
+    const item = vi.fn(() => {
+      throw new Error('rect entries should not be read');
+    });
+    const rectIterator = vi.fn(() => {
+      throw new Error('rects should not be iterated');
+    });
+    const createRangeSpy = vi.spyOn(document, 'createRange').mockReturnValue({
+      selectNodeContents: vi.fn(),
+      getClientRects: () => ({
+        length: MAX_BLOCK_RECT_CONTENT_RECTS + 1,
+        item,
+        [Symbol.iterator]: rectIterator,
+      }),
+      detach: vi.fn(),
+    } as unknown as Range);
+
+    expect(collectTextContentBounds(paragraph)).toBeNull();
+    expect(item).not.toHaveBeenCalled();
+    expect(rectIterator).not.toHaveBeenCalled();
+
+    createRangeSpy.mockRestore();
+  });
+
   it('uses editor horizontal bounds for block selection hit testing', () => {
     const dom = document.createElement('div');
     const paragraph = document.createElement('p');
@@ -296,6 +369,37 @@ describe('createBlockRectResolver', () => {
       document.createRange = originalCreateRange;
       clearCurrentEditorBlockPositionSnapshot();
     }
+  });
+
+  it('skips live block rect scans for very large documents without cached targets', () => {
+    const dom = document.createElement('div');
+    document.body.appendChild(dom);
+    withRect(dom, { left: 20, top: 10, width: 600, height: 300 });
+    const doc = {
+      childCount: 5001,
+      content: { size: 5001 },
+      forEach() {
+        throw new Error('large documents should not be scanned for block rects');
+      },
+    };
+    const view = {
+      dom,
+      state: { doc },
+      nodeDOM: () => null,
+      domAtPos: () => {
+        throw new Error('large documents should not resolve block DOM positions');
+      },
+    };
+
+    const resolver = createBlockRectResolver({
+      view: view as any,
+      scrollRootSelector: '[data-note-scroll-root="true"]',
+    });
+
+    expect(resolver.getTopLevelBlockRects()).toEqual([]);
+    expect(resolver.getSelectionBlockRects()).toEqual([]);
+
+    dom.remove();
   });
 
   it('uses list item text bounds for plain click edge detection', () => {

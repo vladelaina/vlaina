@@ -1,3 +1,5 @@
+export const MAX_COLUMN_HEADER_MENU_ITEM_SCAN_ELEMENTS = 256
+
 export function createColumnHeaderDragDomController() {
   let menuElement: HTMLElement | null = null
   let focusMenuOnNextRender = false
@@ -57,11 +59,20 @@ export function createColumnHeaderDragDomController() {
   const moveMenuFocus = (step: number | 'start' | 'end') => {
     if (!menuElement) return
 
-    const items = Array.from(
-      menuElement.querySelectorAll<HTMLElement>(
-        '[data-role="col-header-drag-menu-item"]'
-      )
-    )
+    const items: HTMLElement[] = []
+    const walker = menuElement.ownerDocument.createTreeWalker(menuElement, 1)
+    let scanned = 0
+
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      scanned += 1
+      if (scanned > MAX_COLUMN_HEADER_MENU_ITEM_SCAN_ELEMENTS) break
+      if (
+        node instanceof HTMLElement &&
+        node.dataset.role === 'col-header-drag-menu-item'
+      ) {
+        items.push(node)
+      }
+    }
     if (items.length === 0) return
 
     const currentIndex = items.findIndex((item) => item === document.activeElement)

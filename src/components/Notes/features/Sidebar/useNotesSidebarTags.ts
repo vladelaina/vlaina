@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { assertEditorSafeMarkdownContent } from '@/stores/notes/document/noteDocumentPersistence';
 import type { StarredEntry } from '@/stores/notes/types';
 import type { FolderNode } from '@/stores/useNotesStore';
 import {
@@ -38,7 +39,9 @@ async function readSidebarTagContent(path: string, currentVaultPath: string | nu
     ) {
       return '';
     }
-    return normalizeSerializedMarkdownDocument(await storage.readFile(fullPath));
+    const content = await storage.readFile(fullPath);
+    assertEditorSafeMarkdownContent(content);
+    return normalizeSerializedMarkdownDocument(content);
   } catch {
     return '';
   }

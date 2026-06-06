@@ -22,6 +22,7 @@ import type {
   PointerPosition,
   PressSession,
 } from './column-header-drag-types'
+import { getTableDomHeaderCells } from './table-dom-metrics'
 
 const HOVER_CLEAR_DELAY = 140
 
@@ -70,18 +71,7 @@ export function useColumnHeaderDragViewState({
   }
 
   const getHeaderCells = () => {
-    const content = contentWrapperRef.value
-    const firstRow = content?.querySelector('tr')
-    const view = firstRow?.ownerDocument.defaultView
-    const TableRowElement = view?.HTMLTableRowElement
-    const TableCellElement = view?.HTMLTableCellElement
-    if (!TableRowElement || !TableCellElement) return []
-    if (!(firstRow instanceof TableRowElement)) return []
-
-    return Array.from(firstRow.children).filter(
-      (cell): cell is HTMLTableCellElement =>
-        cell instanceof TableCellElement
-    )
+    return getTableDomHeaderCells(contentWrapperRef.value)
   }
 
   const syncControls = () => {

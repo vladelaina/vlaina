@@ -10,43 +10,9 @@ import {
   renderTocContent,
   TOC_EMPTY_TEXT,
 } from './tocViewUtils';
+import { collectTocBlocks, docHasTocNode, stepSliceContainsToc } from './tocScan';
 
 const tocViewPluginKey = new PluginKey<{ hasToc: boolean }>('tocView');
-
-function docHasTocNode(doc: { descendants: (callback: (node: { type?: { name?: string } }) => boolean | void) => void }): boolean {
-  let hasToc = false;
-  doc.descendants((node) => {
-    if (node.type?.name === 'toc') {
-      hasToc = true;
-      return false;
-    }
-    return true;
-  });
-  return hasToc;
-}
-
-function stepSliceContainsToc(step: unknown): boolean {
-  const content = (step as {
-    slice?: {
-      content?: {
-        descendants?: (callback: (node: { type?: { name?: string } }) => boolean | void) => void;
-      };
-    };
-  }).slice?.content;
-  if (!content || typeof content.descendants !== 'function') {
-    return false;
-  }
-
-  let hasToc = false;
-  content.descendants((node) => {
-    if (node.type?.name === 'toc') {
-      hasToc = true;
-      return false;
-    }
-    return true;
-  });
-  return hasToc;
-}
 
 function transactionMayInsertToc(tr: unknown): boolean {
   const steps = (tr as { steps?: readonly unknown[] }).steps ?? [];
@@ -57,7 +23,7 @@ export const tocViewPlugin = $prose(() => {
   let lastDoc: object | null = null;
   let lastHeadingSignature = '';
   let lastTocCount = -1;
-  
+
   return new Plugin({
     key: tocViewPluginKey,
     state: {
@@ -109,7 +75,7 @@ export const tocViewPlugin = $prose(() => {
           }
 
           const { doc } = view.state;
-          const tocElements = view.dom.querySelectorAll<HTMLElement>('.toc-block');
+          const tocElements = collectTocBlocks(view.dom);
           if (tocElements.length === 0) {
             lastDoc = doc;
             lastHeadingSignature = '';
@@ -131,12 +97,12 @@ export const tocViewPlugin = $prose(() => {
           lastHeadingSignature = headingSignature;
           lastTocCount = tocElements.length;
 
-          tocElements.forEach((el) => {
+          for (const el of tocElements) {
             const maxLevel = parseInt(el.getAttribute('data-max-level') || '6', 10);
             const contentEl = el.querySelector<HTMLElement>('.toc-content');
-            if (!contentEl) return;
+            if (!contentEl) continue;
             renderTocContent(contentEl, headings, maxLevel);
-          });
+          }
         },
         destroy() {
           editorView.dom.removeEventListener('click', handleTocClick);

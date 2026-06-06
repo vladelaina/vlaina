@@ -42,6 +42,10 @@ import {
   applyAiSelectionSuggestion,
   getSerializedSelectionContext,
 } from './selectionEditing';
+import {
+  AI_SELECTION_RESULT_TOO_LARGE_MESSAGE,
+  MAX_AI_SELECTION_EDIT_CHARS,
+} from './selectionLimits';
 
 function createView() {
   const tr = {
@@ -313,6 +317,37 @@ describe('selectionEditing', () => {
     expect(view.dispatch).not.toHaveBeenCalled();
     expect(mockAddToast).toHaveBeenCalledWith(
       'Clear the block selection before applying an AI edit.',
+      'warning'
+    );
+  });
+
+  it('does not parse or apply oversized AI suggestions', () => {
+    const parser = vi.fn(() => ({
+      content: { size: 2 },
+    }));
+    mockGetCurrentMarkdownParser.mockReturnValue(parser);
+
+    const view = createView();
+    mockSerializeSliceToText.mockReturnValueOnce('Body');
+
+    const applied = applyAiSelectionSuggestion(view as never, {
+      requestKey: 'request',
+      from: 8,
+      to: 14,
+      instruction: 'Edit the selected text.',
+      commandId: null,
+      toneId: null,
+      originalText: 'Body',
+      suggestedText: 'x'.repeat(MAX_AI_SELECTION_EDIT_CHARS + 1),
+    });
+
+    expect(applied).toBe(false);
+    expect(parser).not.toHaveBeenCalled();
+    expect(view.state.tr.replaceRange).not.toHaveBeenCalled();
+    expect(view.state.tr.insertText).not.toHaveBeenCalled();
+    expect(view.dispatch).not.toHaveBeenCalled();
+    expect(mockAddToast).toHaveBeenCalledWith(
+      AI_SELECTION_RESULT_TOO_LARGE_MESSAGE,
       'warning'
     );
   });

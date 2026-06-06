@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AIErrorType, type AIModel, type ChatMessage, type Provider } from '../types';
 import { getUserFacingAIError } from '../errors';
 import { OpenAICompatibleClient } from './openai';
+import { MAX_PROVIDER_MODEL_ID_CHARS, MAX_PROVIDER_MODEL_LIST_IDS } from './modelDetection';
 import { MAX_OPENAI_STREAM_LINE_CHARS } from '@/lib/ai/streaming';
 import { MAX_PROVIDER_ERROR_BODY_BYTES, MAX_PROVIDER_JSON_RESPONSE_BODY_BYTES } from './boundedResponseText';
 import { MAX_INLINE_IMAGE_BYTES } from '@/lib/markdown/dataImagePolicy';
@@ -296,6 +297,38 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       models: ['gpt-4o-mini', 'claude-sonnet-4-5'],
       endpointType: 'openai',
     });
+  });
+
+  it('bounds model ids returned by provider model listing endpoints', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: [{ id: `${'x'.repeat(MAX_PROVIDER_MODEL_ID_CHARS)}overflow` }],
+      }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new OpenAICompatibleClient().getModelsWithEndpointDetection(buildProvider());
+
+    expect(result).toEqual({
+      models: ['x'.repeat(MAX_PROVIDER_MODEL_ID_CHARS)],
+      endpointType: 'openai',
+    });
+  });
+
+  it('limits model ids returned by provider model listing endpoints', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: Array.from({ length: MAX_PROVIDER_MODEL_LIST_IDS + 5 }, (_, index) => `model-${index}`),
+      }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new OpenAICompatibleClient().getModelsWithEndpointDetection(buildProvider());
+
+    expect(result.endpointType).toBe('openai');
+    expect(result.models).toHaveLength(MAX_PROVIDER_MODEL_LIST_IDS);
+    expect(result.models[0]).toBe('model-0');
+    expect(result.models.at(-1)).toBe(`model-${MAX_PROVIDER_MODEL_LIST_IDS - 1}`);
   });
 
   it('uses alternate OpenAI-compatible model list fields when data has no valid ids', async () => {

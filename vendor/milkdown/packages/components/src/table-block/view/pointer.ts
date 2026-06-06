@@ -4,6 +4,10 @@ import { throttle } from 'lodash-es'
 import { getCurrentInstance, onBeforeUnmount } from 'vue'
 
 import type { Refs } from './types'
+import {
+  getTableDomColCount,
+  getTableDomRowCount,
+} from './table-dom-metrics'
 
 const EDGE_INTERACTION_THRESHOLD = 12
 
@@ -34,11 +38,10 @@ function showRightEdgeHandle(
   content: HTMLElement,
   yHandle: HTMLDivElement
 ) {
-  const rows = content.querySelectorAll('tr')
-  const firstRow = rows[0]
-  if (!firstRow || firstRow.children.length === 0) return false
+  const colCount = getTableDomColCount(content)
+  if (colCount == null || colCount === 0) return false
 
-  const lastColIndex = firstRow.children.length - 1
+  const lastColIndex = colCount - 1
   const frame = getContentFrame(refs, content)
   if (!frame) return false
 
@@ -58,10 +61,10 @@ function showBottomEdgeHandle(
   content: HTMLElement,
   xHandle: HTMLDivElement
 ) {
-  const rows = content.querySelectorAll('tr')
-  if (rows.length === 0) return false
+  const rowCount = getTableDomRowCount(content)
+  if (rowCount == null || rowCount === 0) return false
 
-  const lastRowIndex = rows.length - 1
+  const lastRowIndex = rowCount - 1
   const frame = getContentFrame(refs, content)
   if (!frame) return false
 

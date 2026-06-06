@@ -22,6 +22,7 @@ interface ListCollapsePluginState {
 const LIST_COLLAPSE_KEY = new PluginKey<ListCollapsePluginState>('listCollapse');
 const COLLAPSE_TYPE = 'list-item';
 const ORDERED_MARKER_BASE_CHARS = 2;
+const MAX_LIST_COLLAPSE_ITEMS = 1000;
 
 function getOrderedListMarkerExtraOffset(node: any): string {
     if (node.attrs?.listType !== 'ordered') return '';
@@ -96,8 +97,10 @@ function buildListCollapseDecorations(
     dispatchToggle: (view: EditorView, pos: number) => void,
 ): DecorationSet {
     const decorations: Decoration[] = [];
+    let decoratedItems = 0;
 
     doc.descendants((node: any, pos: number) => {
+        if (decoratedItems >= MAX_LIST_COLLAPSE_ITEMS) return false;
         if (node.type.name !== 'list_item') return true;
 
         let hasNestedList = false;
@@ -113,6 +116,7 @@ function buildListCollapseDecorations(
         });
 
         if (!hasNestedList) return true;
+        decoratedItems += 1;
 
         const isCollapsed = hasNestedList && collapsedItems.has(pos);
         const markerExtraOffset = getOrderedListMarkerExtraOffset(node);

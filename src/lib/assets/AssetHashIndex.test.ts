@@ -49,6 +49,16 @@ describe('AssetHashIndex', () => {
     expect(mocks.storage.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not parse hash index content that exceeds the limit after read', async () => {
+    mocks.storage.stat.mockResolvedValue({ size: 256 });
+    mocks.storage.readFile.mockResolvedValue('x'.repeat(2 * 1024 * 1024 + 1));
+
+    const index = await loadAssetHashIndex('/vault');
+
+    expect(index.entries).toEqual({});
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/.system/asset-hash-index.json');
+  });
+
   it('loads bounded hash index files', async () => {
     mocks.storage.stat.mockResolvedValue({ size: 256 });
     mocks.storage.readFile.mockResolvedValue(JSON.stringify({

@@ -1,3 +1,5 @@
+import { getCodePointLength } from './chatStreamTextMetrics';
+
 const MAX_CHAT_STREAM_HAST_DEPTH = 200;
 const MAX_CHAT_STREAM_HAST_NODES = 20_000;
 
@@ -32,7 +34,7 @@ export function getChatStreamTimingTextLength(node: any): number {
   while (stack.length > 0) {
     const current = stack.pop()!;
     if (current.tagName === 'img' && typeof current.properties?.alt === 'string') {
-      length += Array.from(current.properties.alt).length;
+      length += getCodePointLength(current.properties.alt);
       continue;
     }
 
@@ -40,7 +42,7 @@ export function getChatStreamTimingTextLength(node: any): number {
     for (let index = children.length - 1; index >= 0; index -= 1) {
       const child = children[index];
       if (child.type === 'text' && typeof child.value === 'string') {
-        length += Array.from(child.value).length;
+        length += getCodePointLength(child.value);
       } else if (child.type === 'element') {
         stack.push(child);
       }

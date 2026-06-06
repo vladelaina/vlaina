@@ -5,6 +5,10 @@ import { useAIUIStore } from '@/stores/ai/chatState';
 import { useToastStore } from '@/stores/useToastStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { normalizeSelectedTextForComposer } from '@/lib/ui/normalizeSelectedTextForComposer';
+import {
+  MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS,
+  canInsertTextIntoComposerValue,
+} from '@/lib/ui/composerFocusRegistry';
 import { serializeSelectedBlocksToText } from '../../cursor/blockSelectionCommands';
 import { getBlockSelectionPluginState, hasSelectedBlocks } from '../../cursor/blockSelectionPluginState';
 import { floatingToolbarKey } from '../floatingToolbarKey';
@@ -14,6 +18,20 @@ import { getCurrentMarkdownSerializer } from '../../../utils/editorViewRegistry'
 
 export function canOpenSidebarDiscussionForSelection(view: EditorView): boolean {
   return !view.state.selection.empty || hasSelectedBlocks(view.state);
+}
+
+function isRangeTooLarge(from: number, to: number): boolean {
+  return to - from > MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS;
+}
+
+function isSidebarDiscussionSelectionTooLarge(view: EditorView): boolean {
+  const { selectedBlocks } = getBlockSelectionPluginState(view.state);
+  if (selectedBlocks.length > 0) {
+    return selectedBlocks.some((range) => isRangeTooLarge(range.from, range.to));
+  }
+
+  const { from, to } = view.state.selection;
+  return isRangeTooLarge(from, to);
 }
 
 function getSerializedSidebarDiscussionText(view: EditorView): string {
@@ -28,8 +46,13 @@ function getSerializedSidebarDiscussionText(view: EditorView): string {
 }
 
 export function openSidebarDiscussionForSelection(view: EditorView): boolean {
+  if (isSidebarDiscussionSelectionTooLarge(view)) {
+    useToastStore.getState().addToast(translate('editor.ai.cannotQuoteSelection'), 'warning');
+    return false;
+  }
+
   const selectedText = normalizeSelectedTextForComposer(getSerializedSidebarDiscussionText(view));
-  if (selectedText.length === 0) {
+  if (selectedText.length === 0 || !canInsertTextIntoComposerValue('', selectedText)) {
     useToastStore.getState().addToast(translate('editor.ai.cannotQuoteSelection'), 'warning');
     return false;
   }

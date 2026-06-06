@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeManagedBudgetPayload, normalizeManagedModelsPayload } from './normalizers';
+import {
+  MAX_MANAGED_MODEL_CATALOG_VERSION_CHARS,
+  MAX_MANAGED_MODEL_GROUP_CHARS,
+  MAX_MANAGED_MODEL_ID_CHARS,
+  MAX_MANAGED_MODEL_NAME_CHARS,
+  MAX_MANAGED_MODELS,
+  normalizeManagedModelCatalogPayload,
+  normalizeManagedBudgetPayload,
+  normalizeManagedModelsPayload,
+} from './normalizers';
 
 describe('normalizeManagedModelsPayload', () => {
   it('keeps managed model price tiers from the public catalog', () => {
@@ -39,6 +48,43 @@ describe('normalizeManagedModelsPayload', () => {
 
     expect(models[0]?.priceTier).toBeUndefined();
     expect(models[0]?.priceScore).toBeUndefined();
+  });
+
+  it('limits the number of managed models normalized from a catalog payload', () => {
+    const models = normalizeManagedModelsPayload({
+      data: Array.from({ length: MAX_MANAGED_MODELS + 5 }, (_, index) => ({
+        id: `model-${String(index).padStart(4, '0')}`,
+      })),
+    });
+
+    expect(models).toHaveLength(MAX_MANAGED_MODELS);
+    expect(models[0]?.apiModelId).toBe('model-0000');
+    expect(models.at(-1)?.apiModelId).toBe(`model-${String(MAX_MANAGED_MODELS - 1).padStart(4, '0')}`);
+  });
+
+  it('caps managed model string fields before storing them', () => {
+    const models = normalizeManagedModelsPayload({
+      data: [
+        {
+          id: `${'m'.repeat(MAX_MANAGED_MODEL_ID_CHARS)}overflow`,
+          display_name: `${'n'.repeat(MAX_MANAGED_MODEL_NAME_CHARS)}overflow`,
+          group: `${'g'.repeat(MAX_MANAGED_MODEL_GROUP_CHARS)}overflow`,
+        },
+      ],
+    });
+
+    expect(models[0]?.apiModelId).toBe('m'.repeat(MAX_MANAGED_MODEL_ID_CHARS));
+    expect(models[0]?.name).toBe('n'.repeat(MAX_MANAGED_MODEL_NAME_CHARS));
+    expect(models[0]?.group).toBe('g'.repeat(MAX_MANAGED_MODEL_GROUP_CHARS));
+  });
+
+  it('caps managed model catalog versions before storing them', () => {
+    const catalog = normalizeManagedModelCatalogPayload({
+      data: [],
+      model_catalog_version: `${'v'.repeat(MAX_MANAGED_MODEL_CATALOG_VERSION_CHARS)}overflow`,
+    });
+
+    expect(catalog.version).toBe('v'.repeat(MAX_MANAGED_MODEL_CATALOG_VERSION_CHARS));
   });
 });
 

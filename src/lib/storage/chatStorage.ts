@@ -1,5 +1,5 @@
 import { getStorageAdapter, joinPath } from './adapter';
-import type { ChatMessage } from '@/lib/ai/types';
+import type { ApiTranscriptMessage, ChatMessage, ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import { normalizeApiTranscriptMessages } from '@/lib/ai/apiTranscript';
 import { normalizeRenderableImageSrc } from '@/lib/markdown/renderableImagePolicy';
 import { parseVideoUrl } from '@/lib/markdown/videoUrl';
@@ -102,10 +102,6 @@ export function preserveUnknownPersistedMessages(
   });
 }
 
-function serializeVersionForComparison(version: ChatMessage['versions'][number]): string {
-  return JSON.stringify(version);
-}
-
 function createVersionFromMessage(message: ChatMessage): ChatMessage['versions'][number] {
   return {
     content: message.content || '',
@@ -114,6 +110,108 @@ function createVersionFromMessage(message: ChatMessage): ChatMessage['versions']
     subsequentMessages: [],
     ...(message.apiTranscript ? { apiTranscript: message.apiTranscript } : {}),
   };
+}
+
+function areApiTranscriptsEquivalent(
+  left: ChatMessage['versions'][number]['apiTranscript'] | undefined,
+  right: ChatMessage['versions'][number]['apiTranscript'] | undefined,
+): boolean {
+  const normalizedLeft = normalizeApiTranscriptMessages(left);
+  const normalizedRight = normalizeApiTranscriptMessages(right);
+  if (!normalizedLeft && !normalizedRight) {
+    return true;
+  }
+  if (!normalizedLeft || !normalizedRight || normalizedLeft.length !== normalizedRight.length) {
+    return false;
+  }
+
+  for (let index = 0; index < normalizedLeft.length; index += 1) {
+    if (!areApiTranscriptMessagesEquivalent(normalizedLeft[index], normalizedRight[index])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function areApiTranscriptMessagesEquivalent(left: ApiTranscriptMessage, right: ApiTranscriptMessage): boolean {
+  return (
+    left.role === right.role &&
+    areApiTranscriptContentsEquivalent(left.content, right.content) &&
+    (left.reasoning_content ?? '') === (right.reasoning_content ?? '') &&
+    (left.tool_call_id ?? '') === (right.tool_call_id ?? '') &&
+    (left.name ?? '') === (right.name ?? '') &&
+    areApiTranscriptToolCallsEquivalent(left.tool_calls, right.tool_calls)
+  );
+}
+
+function areApiTranscriptContentsEquivalent(
+  left: ChatMessageContent | null | undefined,
+  right: ChatMessageContent | null | undefined,
+): boolean {
+  if (left === right) return true;
+  if (left == null || right == null) return left === right;
+  if (typeof left === 'string' || typeof right === 'string') return left === right;
+  if (left.length !== right.length) return false;
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (!areApiTranscriptContentPartsEquivalent(left[index], right[index])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function areApiTranscriptContentPartsEquivalent(
+  left: ChatMessageContentPart,
+  right: ChatMessageContentPart,
+): boolean {
+  if (left.type !== right.type) return false;
+  if (left.type === 'text' && right.type === 'text') {
+    return left.text === right.text;
+  }
+  if (left.type === 'image_url' && right.type === 'image_url') {
+    return (
+      left.image_url.url === right.image_url.url &&
+      (left.image_url.detail ?? '') === (right.image_url.detail ?? '')
+    );
+  }
+  return false;
+}
+
+function areApiTranscriptToolCallsEquivalent(
+  left: ApiTranscriptMessage['tool_calls'] | undefined,
+  right: ApiTranscriptMessage['tool_calls'] | undefined,
+): boolean {
+  if (!left && !right) return true;
+  if (!left || !right || left.length !== right.length) return false;
+
+  for (let index = 0; index < left.length; index += 1) {
+    const leftCall = left[index];
+    const rightCall = right[index];
+    if (
+      leftCall.id !== rightCall.id ||
+      leftCall.type !== rightCall.type ||
+      leftCall.function.name !== rightCall.function.name ||
+      leftCall.function.arguments !== rightCall.function.arguments
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function isSameMessageVersion(
+  left: ChatMessage['versions'][number],
+  right: ChatMessage['versions'][number],
+): boolean {
+  return (
+    left.content === right.content &&
+    left.createdAt === right.createdAt &&
+    left.kind === right.kind &&
+    (!Array.isArray(left.subsequentMessages) || left.subsequentMessages.length === 0) &&
+    (!Array.isArray(right.subsequentMessages) || right.subsequentMessages.length === 0) &&
+    areApiTranscriptsEquivalent(left.apiTranscript, right.apiTranscript)
+  );
 }
 
 function getNormalizedMessageVersions(message: ChatMessage): ChatMessage['versions'] {
@@ -125,9 +223,7 @@ function getNormalizedMessageVersions(message: ChatMessage): ChatMessage['versio
 function mergeMatchingMessages(preferred: ChatMessage): ChatMessage {
   const versions = getNormalizedMessageVersions(preferred);
   const preferredVersion = createVersionFromMessage(preferred);
-  const preferredVersionIndex = versions.findIndex(
-    (version) => serializeVersionForComparison(version) === serializeVersionForComparison(preferredVersion)
-  );
+  const preferredVersionIndex = versions.findIndex((version) => isSameMessageVersion(version, preferredVersion));
 
   return {
     ...preferred,
@@ -443,9 +539,10 @@ async function writeSessionJsonRaw(sessionId: string, messages: ChatMessage[]) {
 
   let messagesToWrite = messages;
   if (await storage.exists(path)) {
-    if (await canReadSessionJson(path)) {
+    const content = await readSessionJsonContent(path);
+    if (content !== null) {
       try {
-        const parsed: unknown = JSON.parse(await storage.readFile(path));
+        const parsed: unknown = JSON.parse(content);
         const persistedMessages = parseSessionMessagesPayload(sessionId, parsed);
         if (!persistedMessages) {
           throw new Error('Invalid existing session file');
@@ -477,6 +574,15 @@ async function canReadSessionJson(path: string): Promise<boolean> {
     typeof fileInfo?.size === 'number' &&
     fileInfo.size <= MAX_SESSION_MESSAGES_BYTES
   );
+}
+
+async function readSessionJsonContent(path: string): Promise<string | null> {
+  if (!(await canReadSessionJson(path))) {
+    return null;
+  }
+
+  const content = await getStorageAdapter().readFile(path);
+  return content.length <= MAX_SESSION_MESSAGES_BYTES ? content : null;
 }
 
 export async function saveSessionJson(sessionId: string, messages: ChatMessage[]) {
@@ -554,10 +660,10 @@ export async function loadSessionJson(sessionId: string): Promise<ChatMessage[] 
   
   if (await storage.exists(path)) {
       try {
-          if (!(await canReadSessionJson(path))) {
+          const content = await readSessionJsonContent(path);
+          if (content === null) {
             return null;
           }
-          const content = await storage.readFile(path);
           const parsed: unknown = JSON.parse(content);
           return parseSessionMessagesPayload(sessionId, parsed);
       } catch (error) {

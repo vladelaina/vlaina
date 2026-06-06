@@ -36,10 +36,12 @@ export interface RemarkNotesInlineExtensionsOptions {
 
 const MAX_CALLOUT_ICON_VALUE_CHARS = 2048;
 const MAX_CALLOUT_ICON_MARKER_CHARS = 4096;
+export const MAX_INLINE_HTML_CONTAINER_CHILDREN = 1024;
 const CALLOUT_ICON_TEXT_PREFIX = '[!callout-icon:';
 const CALLOUT_ICON_TEXT_SUFFIX = ']';
 const CALLOUT_ICON_COMMENT_PREFIX = '<!--callout-icon:';
 const CALLOUT_ICON_COMMENT_SUFFIX = '-->';
+const INLINE_HTML_CONTAINER_SEARCH_EXCEEDED = -2;
 
 function iconDataFromCalloutValue(value: string | null | undefined) {
   return value && value.length <= MAX_CALLOUT_ICON_VALUE_CHARS ? value : '💡';
@@ -222,8 +224,9 @@ function findClosingHtmlChildIndex(
   tagName: string
 ): number {
   const closePattern = new RegExp(`^</${tagName}>$`, 'i');
+  const maxIndex = Math.min(children.length - 1, startIndex + MAX_INLINE_HTML_CONTAINER_CHILDREN + 1);
 
-  for (let index = startIndex + 1; index < children.length; index += 1) {
+  for (let index = startIndex + 1; index <= maxIndex; index += 1) {
     const candidate = children[index];
     if (
       candidate.type === 'html' &&
@@ -232,6 +235,10 @@ function findClosingHtmlChildIndex(
     ) {
       return index;
     }
+  }
+
+  if (maxIndex < children.length - 1) {
+    return INLINE_HTML_CONTAINER_SEARCH_EXCEEDED;
   }
 
   return -1;
@@ -258,6 +265,9 @@ function replaceInlineColorHtmlContainerMark(tree: MdastNode) {
       if (missingCloseTags.has(tagName)) continue;
 
       const closeIndex = findClosingHtmlChildIndex(node.children, index, tagName);
+      if (closeIndex === INLINE_HTML_CONTAINER_SEARCH_EXCEEDED) {
+        continue;
+      }
       if (closeIndex === -1) {
         missingCloseTags.add(tagName);
         continue;
@@ -347,7 +357,7 @@ function replaceInlineHtmlMark(tree: MdastNode, type: string, pattern: RegExp) {
       const child = node.children[index];
       if (child.type === 'html' && typeof child.value === 'string') {
         const match = child.value.trim().match(pattern);
-        if (match) {
+        if (match && !containsRawHtmlTag(match[1])) {
           node.children.splice(index, 1, createInlineElementNode(type, [
             { type: 'text', value: decodeMarkdownHtmlText(match[1]) },
           ]));
@@ -360,6 +370,23 @@ function replaceInlineHtmlMark(tree: MdastNode, type: string, pattern: RegExp) {
   }
 
   visit(tree);
+}
+
+function inlineContentContainsRawHtml(nodes: readonly MdastNode[]): boolean {
+  const stack = [...nodes];
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    if (node.type === 'html') {
+      return true;
+    }
+    if (typeof node.value === 'string' && containsRawHtmlTag(node.value)) {
+      return true;
+    }
+    for (const child of node.children ?? []) {
+      stack.push(child);
+    }
+  }
+  return false;
 }
 
 function replaceInlineHtmlContainerMark(
@@ -388,6 +415,9 @@ function replaceInlineHtmlContainerMark(
       if (missingClose) continue;
 
       const closeIndex = findClosingHtmlChildIndex(node.children, index, tagName);
+      if (closeIndex === INLINE_HTML_CONTAINER_SEARCH_EXCEEDED) {
+        continue;
+      }
       if (closeIndex === -1) {
         missingClose = true;
         continue;
@@ -397,6 +427,9 @@ function replaceInlineHtmlContainerMark(
       }
 
       const content = node.children.slice(index + 1, closeIndex);
+      if (inlineContentContainsRawHtml(content)) {
+        continue;
+      }
       node.children.splice(index, closeIndex - index + 1, createInlineElementNode(type, content));
     }
   }

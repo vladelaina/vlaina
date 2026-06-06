@@ -3,6 +3,7 @@ import {
   focusVisibleTextareaAt,
   isMountedVisibleElement,
   registerComposerFocusAdapter,
+  canInsertTextIntoComposerValue,
 } from '@/lib/ui/composerFocusRegistry';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
@@ -36,6 +37,7 @@ export function useChatComposer({
   focusTrigger,
 }: UseChatComposerOptions) {
   const [message, setMessage] = useState('');
+  const messageRef = useRef(message);
   const [isComposing, setIsComposing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composerRootRef = useRef<HTMLDivElement>(null);
@@ -45,6 +47,7 @@ export function useChatComposer({
   const focusRafRef = useRef<number | null>(null);
   const submitRafRef = useRef<number | null>(null);
   const heightSyncRafRef = useRef<number | null>(null);
+  messageRef.current = message;
 
   useEffect(() => {
     if (active && focusTrigger && textareaRef.current) {
@@ -94,11 +97,19 @@ export function useChatComposer({
         if (!normalized) {
           return false;
         }
+        if (!canInsertTextIntoComposerValue(messageRef.current, normalized)) {
+          return false;
+        }
 
         hasExplicitMultilineRef.current = true;
         setMessage((prev) => {
           const separator = prev && !prev.endsWith('\n') ? '\n' : '';
-          return `${prev}${separator}${normalized}`;
+          const next = `${prev}${separator}${normalized}`;
+          if (!canInsertTextIntoComposerValue(prev, normalized)) {
+            return prev;
+          }
+          messageRef.current = next;
+          return next;
         });
 
         if (focusRafRef.current !== null) {
@@ -145,6 +156,7 @@ export function useChatComposer({
   }, []);
 
   const handleMessageChange = useCallback((nextValue: string) => {
+    messageRef.current = nextValue;
     setMessage(nextValue);
     if (!nextValue.includes('\n')) {
       hasExplicitMultilineRef.current = false;
@@ -174,6 +186,7 @@ export function useChatComposer({
       hasExplicitMultilineRef.current = false;
       isSubmittingRef.current = true;
       const clearComposer = () => {
+        messageRef.current = '';
         setMessage('');
         onAfterSend();
       };

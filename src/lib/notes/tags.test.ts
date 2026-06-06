@@ -3,8 +3,31 @@ import { describe, expect, it } from 'vitest';
 import { extractNoteTagOccurrences, extractNoteTags } from './tags';
 
 describe('note tags', () => {
+  it('excludes tags from bounded leading frontmatter', () => {
+    expect(extractNoteTags([
+      '---',
+      'tags: #hidden',
+      '---',
+      '',
+      '#visible',
+    ].join('\n'))).toEqual(['visible']);
+  });
+
   it('does not truncate oversized tag tokens into sidebar tags', () => {
     expect(extractNoteTags(`#${'a'.repeat(129)} #valid`)).toEqual(['valid']);
+  });
+
+  it('excludes fenced code blocks and resumes after the closing fence', () => {
+    expect(extractNoteTags([
+      '```ts',
+      '#hidden',
+      '```',
+      '#visible',
+      '~~~',
+      '#also-hidden',
+      '~~~',
+      '#after',
+    ].join('\n'))).toEqual(['visible', 'after']);
   });
 
   it('caps extracted tag occurrences from a single document', () => {
@@ -20,5 +43,17 @@ describe('note tags', () => {
     ).join(' ');
 
     expect(extractNoteTags(`${hiddenInlineCode} #visible`)).toContain('visible');
+  });
+
+  it('does not treat oversized leading frontmatter candidates as excluded ranges', () => {
+    const content = [
+      '---',
+      '#visible',
+      ...Array.from({ length: 2050 }, (_, index) => `line_${index}: value`),
+      '---',
+      '#after',
+    ].join('\n');
+
+    expect(extractNoteTags(content)).toEqual(['visible', 'after']);
   });
 });

@@ -3,6 +3,7 @@ import {
   getChatStreamHastChildren,
   getChatStreamTimingTextLength,
 } from './chatStreamHastBudget';
+import { getCodePointLength } from './chatStreamTextMetrics';
 
 export const CHAT_STREAM_FADE_MS = 90;
 
@@ -104,21 +105,21 @@ function handleTextChild(
     return charIndex;
   }
 
-  const textChars = Array.from(child.value);
-  if (textChars.length === 0) {
+  const textLength = getCodePointLength(child.value);
+  if (textLength === 0) {
     return charIndex;
   }
 
-  const lastCharIndex = charIndex + textChars.length - 1;
+  const lastCharIndex = charIndex + textLength - 1;
   if (revealed || getBirthElapsed(births, charDelay, nowMs, lastCharIndex) >= CHAT_STREAM_FADE_MS) {
     pushDoneText(nextChildren, child.value);
-    return charIndex + textChars.length;
+    return charIndex + textLength;
   }
 
   let doneBuffer = '';
   let nextCharIndex = charIndex;
 
-  for (const char of textChars) {
+  for (const char of child.value) {
     const birth = births[nextCharIndex] ?? nowMs + charDelay * nextCharIndex;
     const elapsed = nowMs - birth;
     const isDone = revealed || elapsed >= CHAT_STREAM_FADE_MS;

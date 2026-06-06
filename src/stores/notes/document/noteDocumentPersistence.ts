@@ -84,7 +84,7 @@ function assertReadableNoteFileInfo(fileInfo: { isFile?: boolean; isDirectory?: 
   assertReadableNoteSize(fileInfo?.size);
 }
 
-function assertEditorSafeMarkdownContent(content: string): void {
+export function assertEditorSafeMarkdownContent(content: string): void {
   if (content.length > MAX_NOTE_DOCUMENT_CHARS) {
     throw new Error('Note file is too large to open.');
   }

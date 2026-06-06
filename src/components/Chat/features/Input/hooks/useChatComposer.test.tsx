@@ -1,14 +1,29 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS } from '@/lib/ui/composerFocusRegistry';
 import { useChatComposer } from './useChatComposer';
 
-const { registerComposerFocusAdapterMock, syncHeightMock, usePredictedTextareaHeightMock } = vi.hoisted(() => ({
+const {
+  registerComposerFocusAdapterMock,
+  syncHeightMock,
+  usePredictedTextareaHeightMock,
+  testMaxComposerProgrammaticInsertChars,
+} = vi.hoisted(() => ({
   registerComposerFocusAdapterMock: vi.fn((_adapter: unknown) => vi.fn()),
   syncHeightMock: vi.fn(),
   usePredictedTextareaHeightMock: vi.fn((_ref: unknown, _options: unknown) => {}),
+  testMaxComposerProgrammaticInsertChars: 1024 * 1024,
 }));
 
 vi.mock('@/lib/ui/composerFocusRegistry', () => ({
+  MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS: testMaxComposerProgrammaticInsertChars,
+  canInsertTextIntoComposerValue: (currentText: string, text: string) => {
+    if (!text || text.length > testMaxComposerProgrammaticInsertChars) {
+      return false;
+    }
+    const separatorLength = currentText && !currentText.endsWith('\n') ? 1 : 0;
+    return currentText.length + separatorLength + text.length <= testMaxComposerProgrammaticInsertChars;
+  },
   registerComposerFocusAdapter: (adapter: unknown) => registerComposerFocusAdapterMock(adapter),
   isMountedVisibleElement: (element: HTMLElement | null) =>
     !!element && element.isConnected && element.getClientRects().length > 0,
@@ -276,6 +291,29 @@ describe('useChatComposer', () => {
       requestAnimationFrameSpy.mockRestore();
       cancelAnimationFrameSpy.mockRestore();
     }
+  });
+
+  it('rejects global composer inserts that would exceed the composer budget', () => {
+    const { result } = renderHook(() =>
+      useChatComposer({
+        onSend: vi.fn(),
+        attachments: [],
+        getNoteMentions: () => [],
+        onAfterSend: vi.fn(),
+      }),
+    );
+    const adapter = registerComposerFocusAdapterMock.mock.calls[0]?.[0] as {
+      insertText: (text: string) => boolean;
+    };
+
+    act(() => {
+      expect(adapter.insertText('x'.repeat(MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS))).toBe(true);
+    });
+    act(() => {
+      expect(adapter.insertText('next')).toBe(false);
+    });
+
+    expect(result.current.message).toBe('x'.repeat(MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS));
   });
 
   it('does not report global focus success for a hidden mounted composer', () => {

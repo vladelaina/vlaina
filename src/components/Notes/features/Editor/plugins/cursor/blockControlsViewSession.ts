@@ -6,6 +6,10 @@ import { createBlockDragPreview, type BlockDragPreviewHandle } from './blockDrag
 import { createBlockControlsDom } from './blockControlsDom';
 import { setBlockDraggingVisualState } from './blockDragVisualState';
 import { normalizeSelectedTextForComposer } from '@/lib/ui/normalizeSelectedTextForComposer';
+import {
+  MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS,
+  canInsertTextIntoComposerValue,
+} from '@/lib/ui/composerFocusRegistry';
 import { serializeSelectedBlocksToText } from './blockSelectionSerializer';
 import { getCurrentMarkdownSerializer } from '../../utils/editorViewRegistry';
 import {
@@ -41,11 +45,16 @@ function normalizeWheelDelta(delta: number, deltaMode: number, pageSize: number)
 }
 
 function serializeDraggedRangesForComposer(view: EditorView, ranges: BlockRange[]): string {
-  return normalizeSelectedTextForComposer(
+  if (ranges.some((range) => range.to - range.from > MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS)) {
+    return '';
+  }
+
+  const text = normalizeSelectedTextForComposer(
     serializeSelectedBlocksToText(view.state, ranges, {
       markdownSerializer: getCurrentMarkdownSerializer(),
     })
   );
+  return canInsertTextIntoComposerValue('', text) ? text : '';
 }
 
 function isOverNotesBlockDropTarget(doc: Document, clientX: number, clientY: number): boolean {

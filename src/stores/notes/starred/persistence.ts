@@ -64,7 +64,12 @@ async function readRawStarredRegistry(): Promise<StarredRegistry | null> {
     return { version: CURRENT_STARRED_VERSION, entries: [], deletedEntryKeys: [] };
   }
 
-  return parseStarredRegistryPayload(JSON.parse(await storage.readFile(starredPath)));
+  const content = await storage.readFile(starredPath);
+  if (content.length > MAX_STARRED_REGISTRY_BYTES) {
+    return { version: CURRENT_STARRED_VERSION, entries: [], deletedEntryKeys: [] };
+  }
+
+  return parseStarredRegistryPayload(JSON.parse(content));
 }
 
 function mergeStarredEntriesForSave(

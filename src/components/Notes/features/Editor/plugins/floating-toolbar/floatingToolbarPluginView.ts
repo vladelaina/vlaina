@@ -32,6 +32,7 @@ import {
 import { clearFormatPreview, hasActiveAppliedPreview } from './previewStyles';
 import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
 import { hasUsableTextRange, hasUsableTextSelection } from './selectionValidity';
+import { correctToolbarSubmenusToContentBounds } from './floatingToolbarSubmenus';
 
 function hasVisibleNativeRange(): boolean {
   if (typeof window === 'undefined') {
@@ -270,28 +271,7 @@ export function createFloatingToolbarPluginView(
     const contentLeft = layout.viewportBounds.left;
     const contentRight = layout.viewportBounds.right;
 
-    const visibleSubmenus = Array.from(
-      toolbar.querySelectorAll<HTMLElement>('.toolbar-submenu')
-    ).filter((submenu) => submenu.offsetParent !== null);
-
-    for (const submenu of visibleSubmenus) {
-      submenu.style.removeProperty('--vlaina-toolbar-submenu-shift-x');
-
-      const submenuRect = submenu.getBoundingClientRect();
-      let shiftX = 0;
-
-      if (submenuRect.left < contentLeft) {
-        shiftX += contentLeft - submenuRect.left;
-      }
-
-      if (submenuRect.right > contentRight) {
-        shiftX -= submenuRect.right - contentRight;
-      }
-
-      if (shiftX !== 0) {
-        submenu.style.setProperty('--vlaina-toolbar-submenu-shift-x', `${shiftX}px`);
-      }
-    }
+    correctToolbarSubmenusToContentBounds(toolbar, { left: contentLeft, right: contentRight });
   };
 
   const syncAiReviewWidth = (

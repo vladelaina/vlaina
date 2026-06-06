@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS } from '@/lib/ui/composerFocusRegistry';
 import { BlockControlsViewSession } from './blockControlsViewSession';
-import { applyBlockMove, resolveDropTarget } from './blockControlsInteractions';
+import { applyBlockMove, getDraggableBlockRanges, resolveDropTarget } from './blockControlsInteractions';
+import { getBlockDragComposerPayload } from './blockDragVisualState';
+import { serializeSelectedBlocksToText } from './blockSelectionSerializer';
 import {
   clearCurrentEditorBlockPositionSnapshot,
   setCurrentEditorBlockPositionSnapshot,
@@ -104,8 +107,12 @@ describe('BlockControlsViewSession', () => {
   afterEach(() => {
     clearCurrentEditorBlockPositionSnapshot();
     vi.mocked(applyBlockMove).mockClear();
+    vi.mocked(getDraggableBlockRanges).mockClear();
+    vi.mocked(getDraggableBlockRanges).mockReturnValue([{ from: 1, to: 5 }]);
     vi.mocked(resolveDropTarget).mockReset();
     vi.mocked(resolveDropTarget).mockReturnValue(null);
+    vi.mocked(serializeSelectedBlocksToText).mockClear();
+    vi.mocked(serializeSelectedBlocksToText).mockReturnValue('Selected block');
     document.body.innerHTML = '';
     document.elementsFromPoint = originalElementsFromPoint;
     mocks.targetTop = 40;
@@ -300,6 +307,25 @@ describe('BlockControlsViewSession', () => {
       document.dispatchEvent(new MouseEvent('mousemove', { clientX: 500, clientY: 120, buttons: 1, bubbles: true }));
 
       expect(indicator?.classList.contains('visible')).toBe(false);
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('does not serialize oversized dragged block selections for chat drop payloads', () => {
+    const view = createView();
+    const session = new BlockControlsViewSession(view);
+    vi.mocked(getDraggableBlockRanges).mockReturnValue([
+      { from: 1, to: MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS + 2 },
+    ]);
+
+    try {
+      document
+        .querySelector<HTMLElement>('.editor-block-control-handle')
+        ?.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: 20, clientY: 20, bubbles: true }));
+
+      expect(serializeSelectedBlocksToText).not.toHaveBeenCalled();
+      expect(getBlockDragComposerPayload()).toBeNull();
     } finally {
       session.destroy();
     }

@@ -13,6 +13,7 @@ import {
   applyAlignmentPreview,
   applyBgColorPreview,
   applyBlockPreview,
+  applyColorPickerIdlePreview,
   applyFormatPreview,
   applyTextColorPreview,
   clearFormatPreview,
@@ -149,6 +150,25 @@ function normalizePreviewComparisonHtml(element: Element | null | undefined): st
     .trim();
 }
 
+function createOversizedPreviewView(): any {
+  const host = document.createElement('div');
+  const dom = document.createElement('div');
+  dom.className = 'ProseMirror';
+  host.appendChild(dom);
+  document.body.appendChild(host);
+
+  return {
+    dom,
+    state: {
+      doc: {
+        content: { size: 1024 * 1024 + 1 },
+        eq: vi.fn(() => false),
+      },
+    },
+    dispatch: vi.fn(),
+  };
+}
+
 describe('previewStyles', () => {
   it('covers every toolbar format button and block dropdown item with the applied preview path', () => {
     expect(FORMAT_BUTTONS.map((button) => button.action).filter((action) => !hasFormatPreview(action))).toEqual([]);
@@ -278,6 +298,16 @@ describe('previewStyles', () => {
     clearFormatPreview(view);
     await editor.destroy();
     host.remove();
+  });
+
+  it('skips applied preview rendering for oversized documents', () => {
+    const view = createOversizedPreviewView();
+
+    applyFormatPreview(view, 'bold');
+    applyColorPickerIdlePreview(view);
+
+    expect(view.dom.parentElement?.querySelector('.toolbar-applied-preview-overlay')).toBeNull();
+    expect(view.dom.style.display).toBe('');
   });
 
   it('mirrors source list layout in applied preview documents', async () => {

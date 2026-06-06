@@ -85,6 +85,12 @@ const FILTERED_SELECTION_SELECTOR = [
   'select',
 ].join(',');
 
+export const MAX_CHAT_SELECTION_FILTER_SCAN_ELEMENTS = 10_000;
+export const MAX_CHAT_SELECTION_MESSAGE_SCAN_ELEMENTS = 20_000;
+export const MAX_CHAT_SELECTION_TEXT_NODES = 20_000;
+export const MAX_CHAT_SELECTION_TEXT_DEPTH = 512;
+export const MAX_CHAT_SELECTION_TEXT_CHARS = 200_000;
+
 const BLOCK_TEXT_TAGS = new Set([
   'ADDRESS',
   'ARTICLE',
@@ -123,35 +129,127 @@ const BLOCK_TEXT_TAGS = new Set([
   'UL',
 ]);
 
+function safeRangeIntersectsNode(range: Range, node: Node): boolean {
+  try {
+    return range.intersectsNode(node);
+  } catch {
+    return false;
+  }
+}
+
 function rangeIntersectsSelector(range: Range, root: ParentNode, selector: string): boolean {
   if (root instanceof Element && root.matches(selector)) {
-    try {
-      if (range.intersectsNode(root)) {
-        return true;
-      }
-    } catch {}
+    if (safeRangeIntersectsNode(range, root)) return true;
   }
-  const elements = root.querySelectorAll(selector);
-  for (const element of elements) {
-    try {
-      if (range.intersectsNode(element)) {
-        return true;
-      }
-    } catch {}
+
+  const ownerDocument = root instanceof Document
+    ? root
+    : root.ownerDocument ?? document;
+  const walker = ownerDocument.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+  let scanned = 0;
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    scanned += 1;
+    if (scanned > MAX_CHAT_SELECTION_FILTER_SCAN_ELEMENTS) {
+      return true;
+    }
+
+    if (node instanceof Element && node.matches(selector) && safeRangeIntersectsNode(range, node)) {
+      return true;
+    }
   }
   return false;
 }
 
-function appendNewline(buffer: string[]): void {
-  const last = buffer[buffer.length - 1];
-  if (last !== '\n') {
-    buffer.push('\n');
+function rangeIntersectsMessageItem(range: Range, root: ParentNode): boolean {
+  if (root instanceof Element && root.matches('[data-message-item="true"]')) {
+    if (safeRangeIntersectsNode(range, root)) return true;
+  }
+
+  const ownerDocument = root instanceof Document
+    ? root
+    : root.ownerDocument ?? document;
+  const walker = ownerDocument.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+  let scanned = 0;
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    scanned += 1;
+    if (scanned > MAX_CHAT_SELECTION_MESSAGE_SCAN_ELEMENTS) {
+      return true;
+    }
+
+    if (
+      node instanceof Element &&
+      node.matches('[data-message-item="true"]') &&
+      safeRangeIntersectsNode(range, node)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+interface SelectionTextExtractionState {
+  buffer: string[];
+  nodeCount: number;
+  charCount: number;
+  hasNonWhitespaceText: boolean;
+  truncated: boolean;
+}
+
+function appendText(state: SelectionTextExtractionState, text: string): void {
+  if (!text || state.truncated) return;
+  if (!state.hasNonWhitespaceText && !/\S/.test(text)) return;
+
+  const remaining = MAX_CHAT_SELECTION_TEXT_CHARS - state.charCount;
+  if (remaining <= 0) {
+    state.truncated = true;
+    return;
+  }
+
+  const nextText = text.length > remaining ? text.slice(0, remaining) : text;
+  state.buffer.push(nextText);
+  state.charCount += nextText.length;
+  if (/\S/.test(nextText)) {
+    state.hasNonWhitespaceText = true;
+  }
+  if (text.length > remaining) {
+    state.truncated = true;
   }
 }
 
-function extractTextWithBlockBreaks(node: Node, buffer: string[]): void {
+function appendNewline(state: SelectionTextExtractionState): void {
+  if (state.truncated) return;
+  const last = state.buffer[state.buffer.length - 1];
+  if (last !== '\n') {
+    appendText(state, '\n');
+  }
+}
+
+export function extractTextWithBlockBreaks(
+  node: Node,
+  range: Range,
+  state: SelectionTextExtractionState,
+  depth = 0,
+): void {
+  if (state.truncated) return;
+  state.nodeCount += 1;
+  if (state.nodeCount > MAX_CHAT_SELECTION_TEXT_NODES || depth > MAX_CHAT_SELECTION_TEXT_DEPTH) {
+    state.truncated = true;
+    return;
+  }
+  if (!safeRangeIntersectsNode(range, node)) {
+    return;
+  }
+
   if (node.nodeType === Node.TEXT_NODE) {
-    buffer.push(node.textContent ?? '');
+    const parentElement = node.parentElement;
+    if (parentElement?.closest(FILTERED_SELECTION_SELECTOR)) {
+      return;
+    }
+
+    const text = node.textContent ?? '';
+    const start = node === range.startContainer ? range.startOffset : 0;
+    const end = node === range.endContainer ? range.endOffset : text.length;
+    appendText(state, text.slice(start, end));
     return;
   }
   if (!(node instanceof Element || node instanceof DocumentFragment)) {
@@ -164,19 +262,20 @@ function extractTextWithBlockBreaks(node: Node, buffer: string[]): void {
   }
 
   if (element?.tagName === 'BR') {
-    appendNewline(buffer);
+    appendNewline(state);
     return;
   }
 
   const isBlock = element ? BLOCK_TEXT_TAGS.has(element.tagName) : false;
-  if (isBlock && buffer.some((part) => part.trim())) {
-    appendNewline(buffer);
+  if (isBlock && state.hasNonWhitespaceText) {
+    appendNewline(state);
   }
-  for (const child of Array.from(node.childNodes)) {
-    extractTextWithBlockBreaks(child, buffer);
+  for (let index = 0; index < node.childNodes.length; index += 1) {
+    extractTextWithBlockBreaks(node.childNodes.item(index), range, state, depth + 1);
+    if (state.truncated) break;
   }
   if (isBlock) {
-    appendNewline(buffer);
+    appendNewline(state);
   }
 }
 
@@ -197,10 +296,15 @@ export function getSelectionTextForComposer(selection: Selection, range: Range):
     return normalizeSelectedTextForComposer(rawText);
   }
 
-  const fragment = range.cloneContents();
-  const filteredTextParts: string[] = [];
-  extractTextWithBlockBreaks(fragment, filteredTextParts);
-  return normalizeSelectedTextForComposer(filteredTextParts.join(''));
+  const filteredTextState: SelectionTextExtractionState = {
+    buffer: [],
+    nodeCount: 0,
+    charCount: 0,
+    hasNonWhitespaceText: false,
+    truncated: false,
+  };
+  extractTextWithBlockBreaks(filterSearchRoot, range, filteredTextState);
+  return normalizeSelectedTextForComposer(filteredTextState.buffer.join(''));
 }
 
 export function isInsideMessageItem(element: Element | null): boolean {
@@ -263,16 +367,7 @@ function isSelectionInsideChatMessages(selection: Selection, range: Range): bool
     return false;
   }
 
-  const messageItems = chatScrollable.querySelectorAll('[data-message-item="true"]');
-  for (const item of messageItems) {
-    try {
-      if (range.intersectsNode(item)) {
-        return true;
-      }
-    } catch {}
-  }
-
-  return false;
+  return rangeIntersectsMessageItem(range, chatScrollable);
 }
 
 export function isSelectionFullyInsideChatMessages(selection: Selection, range: Range): boolean {
@@ -291,16 +386,7 @@ export function isSelectionFullyInsideChatMessages(selection: Selection, range: 
     return false;
   }
 
-  const messageItems = chatScrollable.querySelectorAll('[data-message-item="true"]');
-  for (const item of messageItems) {
-    try {
-      if (range.intersectsNode(item)) {
-        return true;
-      }
-    } catch {}
-  }
-
-  return false;
+  return rangeIntersectsMessageItem(range, chatScrollable);
 }
 
 export function isSameRange(a: Range, b: Range): boolean {

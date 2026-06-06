@@ -6,6 +6,9 @@ interface DiffPart {
 }
 
 const MAX_DIFF_MATRIX_CELLS = 200_000;
+const MAX_DIFF_TOKENS = MAX_DIFF_MATRIX_CELLS + 1;
+const whitespaceCharRe = /\s/u;
+const whitespaceRunRe = /\s/u;
 
 function escapeHtml(value: string): string {
   return value
@@ -16,16 +19,65 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+interface TokenizeResult {
+  tokens: string[];
+  truncated: boolean;
+}
+
 function tokenizeText(value: string): string[] {
+  return tokenizeTextWithLimit(value, Number.POSITIVE_INFINITY).tokens;
+}
+
+function tokenizeTextWithLimit(value: string, maxTokens = MAX_DIFF_TOKENS): TokenizeResult {
   if (!value) {
-    return [];
+    return { tokens: [], truncated: false };
   }
 
-  if (/\s/u.test(value)) {
-    return value.match(/(\s+|[^\s]+)/gu) ?? [];
+  const tokens: string[] = [];
+  const pushToken = (token: string) => {
+    if (!token) {
+      return true;
+    }
+    if (tokens.length >= maxTokens) {
+      return false;
+    }
+    tokens.push(token);
+    return true;
+  };
+
+  if (!whitespaceRunRe.test(value)) {
+    for (const char of value) {
+      if (!pushToken(char)) {
+        return { tokens, truncated: true };
+      }
+    }
+    return { tokens, truncated: false };
   }
 
-  return Array.from(value);
+  let runStart = 0;
+  let runIsWhitespace: boolean | null = null;
+  for (let index = 0; index < value.length;) {
+    const codePoint = value.codePointAt(index);
+    const charLength = codePoint !== undefined && codePoint > 0xffff ? 2 : 1;
+    const char = value.slice(index, index + charLength);
+    const isWhitespace = whitespaceCharRe.test(char);
+
+    if (runIsWhitespace === null) {
+      runIsWhitespace = isWhitespace;
+    } else if (isWhitespace !== runIsWhitespace) {
+      if (!pushToken(value.slice(runStart, index))) {
+        return { tokens, truncated: true };
+      }
+      runStart = index;
+      runIsWhitespace = isWhitespace;
+    }
+
+    index += charLength;
+  }
+
+  return pushToken(value.slice(runStart))
+    ? { tokens, truncated: false }
+    : { tokens, truncated: true };
 }
 
 function mergeDiffParts(parts: DiffPart[]): DiffPart[] {
@@ -49,9 +101,15 @@ function mergeDiffParts(parts: DiffPart[]): DiffPart[] {
 }
 
 function diffTokens(previousText: string, nextText: string): DiffPart[] {
-  const previousTokens = tokenizeText(previousText);
-  const nextTokens = tokenizeText(nextText);
-  if (previousTokens.length * nextTokens.length > MAX_DIFF_MATRIX_CELLS) {
+  const previousResult = tokenizeTextWithLimit(previousText);
+  const nextResult = tokenizeTextWithLimit(nextText);
+  const previousTokens = previousResult.tokens;
+  const nextTokens = nextResult.tokens;
+  if (
+    previousResult.truncated ||
+    nextResult.truncated ||
+    previousTokens.length * nextTokens.length > MAX_DIFF_MATRIX_CELLS
+  ) {
     return mergeDiffParts([
       { type: 'removed', text: previousText },
       { type: 'added', text: nextText },
@@ -129,5 +187,6 @@ export function renderAiReviewDiffMarkup(previousText: string, nextText: string)
 export const __testing__ = {
   diffTokens,
   tokenizeText,
+  tokenizeTextWithLimit,
   renderAiReviewDiffMarkup,
 };

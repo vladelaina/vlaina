@@ -36,6 +36,9 @@ export async function readSecretsStore() {
       return { secretsDir, secretsPath, data: {} };
     }
     const content = await readFile(secretsPath, 'utf8');
+    if (Buffer.byteLength(content, 'utf8') > MAX_PROVIDER_SECRETS_JSON_BYTES) {
+      return { secretsDir, secretsPath, data: {} };
+    }
     const parsed = JSON.parse(content);
     const { record, needsMigration } = decodeSecretRecord(parsed, safeStorage);
     const data = sanitizeSecretsData(record);

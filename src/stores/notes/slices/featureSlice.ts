@@ -23,7 +23,10 @@ import {
 } from '../document/noteContentCache';
 import { setNoteTabDirtyState } from '../document/noteTabState';
 import { isDraftNotePath } from '../draftNote';
-import { saveNoteDocument } from '../document/noteDocumentPersistence';
+import {
+  assertEditorSafeMarkdownContent,
+  saveNoteDocument,
+} from '../document/noteDocumentPersistence';
 import { updateNoteMetadataInMarkdown } from '../frontmatter';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { normalizeVaultRelativePath, resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
@@ -50,6 +53,19 @@ function canReadBoundedMarkdownFile(
     typeof fileInfo?.size === 'number' &&
     fileInfo.size <= maxBytes
   );
+}
+
+function isSearchableMarkdownContent(content: string): boolean {
+  if (content.length > MAX_SEARCHABLE_NOTE_BYTES) {
+    return false;
+  }
+
+  try {
+    assertEditorSafeMarkdownContent(content);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function collectNoteContentScanPaths(
@@ -231,6 +247,16 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     });
   };
 
+  const ensureMetadataSourceContentSafe = (content: string): boolean => {
+    try {
+      assertEditorSafeMarkdownContent(content);
+      return true;
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Note file is too complex to update metadata.' });
+      return false;
+    }
+  };
+
   const updateSingleNoteMetadata = async (
     path: string,
     updates: Partial<NoteMetadataEntry>
@@ -262,6 +288,10 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
             (isCurrentNote ? latestState.currentNote?.content : undefined) ??
             latestState.noteContentsCache.get(path)?.content ??
             sourceContent;
+        }
+
+        if (!ensureMetadataSourceContentSafe(sourceContent)) {
+          return;
         }
 
         const normalizedSourceContent = normalizeSerializedMarkdownDocument(sourceContent);
@@ -300,6 +330,10 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           (state.currentNote?.path === path ? state.currentNote?.content : undefined) ??
           state.noteContentsCache.get(path)?.content ??
           '';
+        if (!ensureMetadataSourceContentSafe(sourceContent)) {
+          return;
+        }
+
         const normalizedSourceContent = normalizeSerializedMarkdownDocument(sourceContent);
         const { content, metadata } = updateNoteMetadataInMarkdown(normalizedSourceContent, {
           ...updates,
@@ -365,6 +399,10 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         (isCurrentNote ? latestState.currentNote?.content : undefined) ??
         latestState.noteContentsCache.get(path)?.content ??
         sourceContent;
+    }
+
+    if (!ensureMetadataSourceContentSafe(sourceContent)) {
+      return;
     }
 
     const normalizedSourceContent = normalizeSerializedMarkdownDocument(sourceContent);
@@ -498,6 +536,11 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
         let scannedContentChars = 0;
         const addScannedEntry = (path: string, content: string, modifiedAt: number | null) => {
+          if (!isSearchableMarkdownContent(content)) {
+            scannedCache.set(path, { content: '', modifiedAt });
+            return;
+          }
+
           if (scannedContentChars >= MAX_SCANNED_NOTE_CONTENT_CHARS) {
             scannedCache.set(path, { content: '', modifiedAt });
             return;
@@ -558,7 +601,12 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
               }
 
               try {
-                const content = normalizeSerializedMarkdownDocument(await storage.readFile(fullPath));
+                const rawContent = await storage.readFile(fullPath);
+                if (!isSearchableMarkdownContent(rawContent)) {
+                  return { path, content: '', modifiedAt };
+                }
+
+                const content = normalizeSerializedMarkdownDocument(rawContent);
                 if (!isScanActive()) {
                   return { path, content: '', modifiedAt: null };
                 }

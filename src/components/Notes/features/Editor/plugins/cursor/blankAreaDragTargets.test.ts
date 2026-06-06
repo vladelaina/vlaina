@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import {
+  MAX_BLANK_AREA_TEXT_HIT_CHARS,
   isPointInTrailingTextSelectionGutter,
   resolveBlankAreaDragStartZone,
+  resolveTextLinePointerHit,
 } from './blankAreaDragTargets';
 
 function createMouseDown(
@@ -59,6 +61,15 @@ describe('blankAreaDragTargets', () => {
     expect(isPointInTrailingTextSelectionGutter(lineRect, 210, 50)).toBe(false);
     expect(isPointInTrailingTextSelectionGutter(lineRect, 310, 50)).toBe(false);
     expect(isPointInTrailingTextSelectionGutter(lineRect, 250, 90)).toBe(false);
+  });
+
+  it('skips text line hit measurement for oversized roots', () => {
+    const root = document.createElement('p');
+    root.textContent = 'a'.repeat(MAX_BLANK_AREA_TEXT_HIT_CHARS + 1);
+    const createTreeWalkerSpy = vi.spyOn(document, 'createTreeWalker');
+
+    expect(resolveTextLinePointerHit(root, 0, 0)).toEqual({ type: 'measurement-limit' });
+    expect(createTreeWalkerSpy).not.toHaveBeenCalled();
   });
 
   it('does not start block selection from the editor root near a text line end', () => {

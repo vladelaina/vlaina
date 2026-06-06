@@ -27,6 +27,8 @@ const FORMAT_MARKS: Record<string, string> = {
   highlight: 'highlight',
 };
 
+const MAX_APPLIED_PREVIEW_DOC_SIZE = 1024 * 1024;
+
 let previewOverlay: {
   key: string;
   node: HTMLElement;
@@ -70,6 +72,11 @@ function hasMatchingPreview(view: EditorView, key: string): boolean {
   );
 }
 
+function canRenderAppliedPreview(view: EditorView): boolean {
+  const docSize = view.state.doc.content.size;
+  return typeof docSize === 'number' && docSize <= MAX_APPLIED_PREVIEW_DOC_SIZE;
+}
+
 function createAppliedPreviewDom(
   view: EditorView,
   apply: (previewView: EditorView) => void
@@ -101,6 +108,11 @@ function renderAppliedPreview(
 ): boolean {
   if (!(view.dom instanceof HTMLElement) || !(view.dom.parentElement instanceof HTMLElement)) {
     void key;
+    return false;
+  }
+
+  if (!canRenderAppliedPreview(view)) {
+    clearPreviewOverlay();
     return false;
   }
 
@@ -138,6 +150,11 @@ function renderAppliedPreview(
 function renderSelectionHiddenPreview(view: EditorView, key: string): boolean {
   if (!(view.dom instanceof HTMLElement) || !(view.dom.parentElement instanceof HTMLElement)) {
     void key;
+    return false;
+  }
+
+  if (!canRenderAppliedPreview(view)) {
+    clearPreviewOverlay();
     return false;
   }
 

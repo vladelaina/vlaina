@@ -8,6 +8,8 @@ import {
 } from './chatSidebarLayout';
 import { themeDomStyleTokens, themeImageBlockStyleTokens } from '@/styles/themeTokens';
 
+export const MAX_CHAT_SIDEBAR_SESSION_ROW_SCAN_ELEMENTS = 10_000;
+
 interface ChatSidebarVirtualListProps {
   active?: boolean;
   sessions: ChatSession[];
@@ -26,6 +28,37 @@ interface ChatSidebarVirtualListProps {
   onHideSearch?: () => void;
   resetKey?: string;
   highlightedSessionId?: string | null;
+}
+
+export function findChatSidebarSessionRow(
+  root: HTMLElement | null,
+  sessionId: string,
+): HTMLElement | null {
+  if (!root) {
+    return null;
+  }
+
+  let scanned = 0;
+  if (root.dataset.chatSidebarSessionId === sessionId) {
+    return root;
+  }
+
+  const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    scanned += 1;
+    if (scanned > MAX_CHAT_SIDEBAR_SESSION_ROW_SCAN_ELEMENTS) {
+      return null;
+    }
+
+    if (
+      node instanceof HTMLElement &&
+      node.dataset.chatSidebarSessionId === sessionId
+    ) {
+      return node;
+    }
+  }
+
+  return null;
 }
 
 export function ChatSidebarVirtualList({
@@ -88,9 +121,7 @@ export function ChatSidebarVirtualList({
       return;
     }
 
-    const row = Array.from(
-      scrollRootRef.current?.querySelectorAll<HTMLElement>('[data-chat-sidebar-session-id]') ?? [],
-    ).find((element) => element.dataset.chatSidebarSessionId === highlightedSessionId);
+    const row = findChatSidebarSessionRow(scrollRootRef.current, highlightedSessionId);
     row?.scrollIntoView?.({ block: 'nearest' });
   }, [active, highlightedSessionId, scrollRootRef, sessionIds, shouldVirtualize, virtualizer]);
 

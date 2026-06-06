@@ -1,6 +1,6 @@
 import React from "react";
 import { render, fireEvent } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { SelectionInsertButton } from "./SelectionInsertButton";
 import {
   canStartChatSelection,
@@ -9,6 +9,8 @@ import {
   isInsideSelectionExcluded,
   isInsideSelectionStartSurface,
   isInsideSelectionSurface,
+  isSelectionFullyInsideChatMessages,
+  MAX_CHAT_SELECTION_TEXT_CHARS,
   resolveOutsideMoveDecision,
 } from "./chatSelectionBehavior";
 
@@ -202,6 +204,33 @@ describe("SelectionInsertButton selection lock", () => {
     selection.removeAllRanges();
     container.remove();
     unmount();
+  });
+
+  it("checks message intersections without materializing all message rows", () => {
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <div data-chat-scrollable="true">
+        <div data-message-item="true" data-role="assistant">
+          <div data-testid="assistant-body" data-chat-selection-surface="true" data-chat-selection-start="true">Answer</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const assistantBody = container.querySelector('[data-testid="assistant-body"]')!;
+    const selection = window.getSelection()!;
+    const range = document.createRange();
+    range.selectNodeContents(assistantBody);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const querySelectorAllSpy = vi.spyOn(Element.prototype, "querySelectorAll");
+
+    expect(isSelectionFullyInsideChatMessages(selection, range)).toBe(true);
+    expect(querySelectorAllSpy).not.toHaveBeenCalled();
+
+    querySelectorAllSpy.mockRestore();
+    selection.removeAllRanges();
+    container.remove();
   });
 
   it("keeps the insert button visible when the window blurs", () => {
@@ -506,6 +535,66 @@ describe("chat selection surfaces", () => {
     expect(composerText).not.toContain("Rendered diagram label");
     expect(composerText).not.toContain("Open video");
     expect(composerText).not.toContain("Image unavailable");
+
+    selection.removeAllRanges();
+    container.remove();
+  });
+
+  it("filters selection text without materializing excluded elements", () => {
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <div data-chat-scrollable="true">
+        <div data-message-item="true" data-role="assistant">
+          <div data-chat-selection-surface="true" data-chat-selection-start="true">
+            <p>Visible answer</p>
+            <span data-chat-selection-excluded="true">Hidden label</span>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const messageBody = container.querySelector('[data-chat-selection-start="true"]')!;
+    const selection = window.getSelection()!;
+    const range = document.createRange();
+    range.selectNodeContents(messageBody);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const querySelectorAllSpy = vi.spyOn(Element.prototype, "querySelectorAll");
+
+    expect(getSelectionTextForComposer(selection, range)).toBe("Visible answer");
+    expect(querySelectorAllSpy).not.toHaveBeenCalled();
+
+    querySelectorAllSpy.mockRestore();
+    selection.removeAllRanges();
+    container.remove();
+  });
+
+  it("caps filtered composer insertion text from oversized selections", () => {
+    const container = document.createElement("div");
+    const visibleText = "a".repeat(MAX_CHAT_SELECTION_TEXT_CHARS + 16);
+    container.innerHTML = `
+      <div data-chat-scrollable="true">
+        <div data-message-item="true" data-role="assistant">
+          <div data-chat-selection-surface="true" data-chat-selection-start="true">
+            <p>${visibleText}</p>
+            <span data-chat-selection-excluded="true">Hidden label</span>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const messageBody = container.querySelector('[data-chat-selection-start="true"]')!;
+    const selection = window.getSelection()!;
+    const range = document.createRange();
+    range.selectNodeContents(messageBody);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const composerText = getSelectionTextForComposer(selection, range);
+    expect(composerText).toHaveLength(MAX_CHAT_SELECTION_TEXT_CHARS);
+    expect(composerText).not.toContain("Hidden label");
 
     selection.removeAllRanges();
     container.remove();

@@ -166,6 +166,19 @@ describe('chat mention path security', () => {
     ]);
   });
 
+  it('ignores note mention content that exceeds the read limit after stat', async () => {
+    mocks.storage.stat.mockResolvedValue({ size: 32 });
+    mocks.storage.readFile.mockResolvedValue('x'.repeat(512 * 1024 + 1));
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs/huge.md', title: 'Huge' },
+    ]);
+
+    expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/docs/huge.md');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/huge.md');
+    expect(notes).toEqual([]);
+  });
+
   it('allows UNC note mentions that match a starred external note', async () => {
     mocks.notesState.starredEntries = [{
       id: 'external-unc',

@@ -111,15 +111,59 @@ function restoreRawHtmlFromSource(node: MarkdownNode, markdown?: string): Markdo
   return rawSource ? ({ ...node, value: rawSource } as MarkdownNode) : node
 }
 
+function buildInlineHtmlLookup(children: MarkdownNode[]): {
+  closeTagIndex: Map<string, { positions: number[]; cursor: number }>
+  htmlValues: string[]
+  normalizedHtmlValues: string[]
+} {
+  const closeTagIndex = new Map<string, { positions: number[]; cursor: number }>()
+  const htmlValues: string[] = []
+  const normalizedHtmlValues: string[] = []
+  for (let index = 0; index < children.length; index += 1) {
+    const child = children[index]
+    if (child?.type !== 'html') continue
+
+    const value = String(child.value ?? '').trim()
+    const normalizedValue = value.toLowerCase()
+    htmlValues[index] = value
+    normalizedHtmlValues[index] = normalizedValue
+    if (!normalizedValue.startsWith('</')) continue
+
+    const entry = closeTagIndex.get(normalizedValue)
+    if (entry) entry.positions.push(index)
+    else closeTagIndex.set(normalizedValue, { positions: [index], cursor: 0 })
+  }
+  return { closeTagIndex, htmlValues, normalizedHtmlValues }
+}
+
+function findNextInlineHtmlCloseIndex(
+  closeTagIndex: Map<string, { positions: number[]; cursor: number }>,
+  closeTag: string,
+  openIndex: number
+): number {
+  const entry = closeTagIndex.get(closeTag)
+  if (!entry) return -1
+
+  while (
+    entry.cursor < entry.positions.length &&
+    entry.positions[entry.cursor] <= openIndex
+  ) {
+    entry.cursor += 1
+  }
+
+  return entry.positions[entry.cursor] ?? -1
+}
+
 export function mergePairedInlineHtml(node: MarkdownNode, markdown?: string): MarkdownNode {
   if (!Array.isArray(node.children)) return restoreRawHtmlFromSource(node, markdown)
 
   node.children = node.children.map((child) => mergePairedInlineHtml(child, markdown))
 
+  const { closeTagIndex, htmlValues } = buildInlineHtmlLookup(node.children)
   const mergedChildren: MarkdownNode[] = []
   for (let index = 0; index < node.children.length; index += 1) {
     const child = node.children[index]
-    const value = child?.type === 'html' ? String(child.value ?? '').trim() : ''
+    const value = child?.type === 'html' ? htmlValues[index] ?? '' : ''
     const openTagMatch = HTML_OPEN_TAG_PATTERN.exec(value)
     if (!openTagMatch || HTML_SELF_CLOSING_PATTERN.test(value)) {
       mergedChildren.push(child)
@@ -132,14 +176,7 @@ export function mergePairedInlineHtml(node: MarkdownNode, markdown?: string): Ma
       continue
     }
     const closeTag = `</${tagName}>`
-    let closeIndex = -1
-    for (let cursor = index + 1; cursor < node.children.length; cursor += 1) {
-      const candidate = node.children[cursor]
-      if (candidate?.type === 'html' && String(candidate.value ?? '').trim().toLowerCase() === closeTag) {
-        closeIndex = cursor
-        break
-      }
-    }
+    const closeIndex = findNextInlineHtmlCloseIndex(closeTagIndex, closeTag, index)
 
     if (closeIndex < 0) {
       mergedChildren.push(child)

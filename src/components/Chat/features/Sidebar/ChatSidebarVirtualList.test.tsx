@@ -1,7 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { createRef, type RefObject } from 'react';
-import { ChatSidebarVirtualList } from './ChatSidebarVirtualList';
+import {
+  ChatSidebarVirtualList,
+  findChatSidebarSessionRow,
+  MAX_CHAT_SIDEBAR_SESSION_ROW_SCAN_ELEMENTS,
+} from './ChatSidebarVirtualList';
 import type { ChatSession } from '@/lib/ai/types';
 import {
   CHAT_SIDEBAR_ESTIMATED_SESSION_ROW_HEIGHT,
@@ -228,6 +232,38 @@ describe('ChatSidebarVirtualList', () => {
 
     expect(screen.getByTestId('session-row-s81')).toHaveAttribute('data-highlighted', 'true');
     expect(scrollToIndexMock).toHaveBeenCalledWith(80, { align: 'auto' });
+  });
+
+  it('finds sidebar session rows without materializing row queries', () => {
+    const root = document.createElement('div');
+    const row = document.createElement('div');
+    row.dataset.chatSidebarSessionId = 's2';
+    root.appendChild(document.createElement('div'));
+    root.appendChild(row);
+    const querySelectorAllSpy = vi.spyOn(root, 'querySelectorAll');
+    const arrayFromSpy = vi.spyOn(Array, 'from').mockImplementation(() => {
+      throw new Error('Array.from should not be used');
+    });
+
+    try {
+      expect(findChatSidebarSessionRow(root, 's2')).toBe(row);
+      expect(querySelectorAllSpy).not.toHaveBeenCalled();
+    } finally {
+      arrayFromSpy.mockRestore();
+      querySelectorAllSpy.mockRestore();
+    }
+  });
+
+  it('stops sidebar session row lookup at the scan budget', () => {
+    const root = document.createElement('div');
+    for (let index = 0; index < MAX_CHAT_SIDEBAR_SESSION_ROW_SCAN_ELEMENTS + 1; index += 1) {
+      root.appendChild(document.createElement('div'));
+    }
+    const lateRow = document.createElement('div');
+    lateRow.dataset.chatSidebarSessionId = 'late';
+    root.appendChild(lateRow);
+
+    expect(findChatSidebarSessionRow(root, 'late')).toBeNull();
   });
 
   it('renders nothing for an empty session list', () => {

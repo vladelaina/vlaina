@@ -6,6 +6,9 @@ export interface ComposerFocusAdapter {
   insertText?: (text: string) => boolean;
 }
 
+export const MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS = 1024 * 1024;
+export const MAX_COMPOSER_ROOT_SCAN_ELEMENTS = 10_000;
+
 let activeAdapter: ComposerFocusAdapter | null = null;
 
 export function isMountedVisibleElement(element: HTMLElement | null): boolean {
@@ -31,8 +34,22 @@ export function focusVisibleTextareaAt(
 }
 
 function queryComposerRoot(): HTMLElement | null {
-  return Array.from(document.querySelectorAll<HTMLElement>('[data-chat-input="true"]'))
-    .find((root) => root.getClientRects().length > 0) ?? null;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT);
+  let scanned = 0;
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    scanned += 1;
+    if (scanned > MAX_COMPOSER_ROOT_SCAN_ELEMENTS) {
+      return null;
+    }
+    if (
+      node instanceof HTMLElement &&
+      node.dataset.chatInput === 'true' &&
+      node.getClientRects().length > 0
+    ) {
+      return node;
+    }
+  }
+  return null;
 }
 
 function queryComposerTextarea(): HTMLTextAreaElement | null {
@@ -75,9 +92,18 @@ export function selectComposerInputAll(): boolean {
   return true;
 }
 
+export function canInsertTextIntoComposerValue(currentText: string, text: string): boolean {
+  if (!text || text.length > MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS) {
+    return false;
+  }
+
+  const separatorLength = currentText && !currentText.endsWith('\n') ? 1 : 0;
+  return currentText.length + separatorLength + text.length <= MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS;
+}
+
 export function insertTextIntoComposer(text: string): boolean {
   const trimmed = text.trim();
-  if (!trimmed) {
+  if (!canInsertTextIntoComposerValue('', trimmed)) {
     return false;
   }
 
@@ -96,6 +122,10 @@ export function insertTextIntoComposer(text: string): boolean {
   }
 
   const current = input.value;
+  if (!canInsertTextIntoComposerValue(current, trimmed)) {
+    return false;
+  }
+
   const separator = current && !current.endsWith('\n') ? '\n' : '';
   const next = `${current}${separator}${trimmed}`;
   const setter = Object.getOwnPropertyDescriptor(

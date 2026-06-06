@@ -12,6 +12,10 @@ const FORCED_CARET_CLASS = 'editor-forced-line-end-caret-active';
 const FORCED_CARET_STYLE_ID = 'editor-forced-line-end-caret-style';
 const TEXTBLOCK_CARET_CLASS = 'editor-textblock-caret-overlay-active';
 const TEXTBLOCK_CARET_ELEMENT_SELECTOR = '.editor-textblock-caret-overlay';
+export const MAX_FORCED_LINE_EDGE_TEXT_CHARS = 100_000;
+export const MAX_FORCED_LINE_EDGE_TEXT_NODES = 512;
+export const MAX_FORCED_LINE_EDGE_RECTS = 1024;
+export const MAX_TEXTBLOCK_CARET_OVERLAY_SCAN_ELEMENTS = 10_000;
 
 interface SerializedRect {
   left: number;
@@ -67,9 +71,23 @@ function ensureForcedCaretStyle(doc: Document): void {
   doc.head.appendChild(style);
 }
 
-function clearTextBlockCaretOverlay(view: EditorView): number {
+export function clearTextBlockCaretOverlay(view: EditorView): number {
   const doc = view.dom.ownerDocument;
-  const overlays = Array.from(doc.querySelectorAll(TEXTBLOCK_CARET_ELEMENT_SELECTOR));
+  const overlays: Element[] = [];
+  const walker = doc.createTreeWalker(doc.body, 1);
+  let scanned = 0;
+
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    scanned += 1;
+    if (scanned > MAX_TEXTBLOCK_CARET_OVERLAY_SCAN_ELEMENTS) {
+      break;
+    }
+
+    if (node instanceof Element && node.matches(TEXTBLOCK_CARET_ELEMENT_SELECTOR)) {
+      overlays.push(node);
+    }
+  }
+
   overlays.forEach((overlay) => overlay.remove());
   view.dom.classList.remove(TEXTBLOCK_CARET_CLASS);
   return overlays.length;
@@ -181,12 +199,17 @@ function isPointVerticallyInsideRect(rect: Pick<DOMRect, 'top' | 'bottom' | 'hei
   return clientY >= rect.top - verticalSlack && clientY <= rect.bottom + verticalSlack;
 }
 
-function resolveVisualLineEdgePos(
+export function resolveVisualLineEdgePos(
   view: EditorView,
   action: BlankAreaPlainClickAction,
   clientX: number,
   clientY: number,
 ): VisualLineEdgeResolution | null {
+  const blockNode = view.state.doc.nodeAt(action.blockFrom);
+  if (blockNode && blockNode.textContent.length > MAX_FORCED_LINE_EDGE_TEXT_CHARS) {
+    return null;
+  }
+
   const blockElement = resolveBlockElementAtPos(view, action.blockFrom);
   if (!blockElement) {
     return null;
@@ -203,38 +226,53 @@ function resolveVisualLineEdgePos(
   });
 
   const blockContentStart = action.blockFrom + 1;
-  const blockNode = view.state.doc.nodeAt(action.blockFrom);
   const blockContentEnd = blockNode
     ? Math.max(blockContentStart, action.blockFrom + blockNode.nodeSize - 1)
     : Math.max(blockContentStart, action.targetPos);
   let lineEdgeRect: DOMRect | null = null;
+  let measuredTextNodes = 0;
+  let measuredRects = 0;
 
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    measuredTextNodes += 1;
+    if (measuredTextNodes > MAX_FORCED_LINE_EDGE_TEXT_NODES) {
+      return null;
+    }
+
     const range = doc.createRange();
-    range.selectNodeContents(node);
-    const rects = Array.from(range.getClientRects());
-    range.detach();
+    try {
+      range.selectNodeContents(node);
+      const rects = range.getClientRects();
 
-    for (const rect of rects) {
-      if (rect.width <= 0 || rect.height <= 0) {
-        continue;
-      }
-      if (!isPointVerticallyInsideRect(rect, clientY)) {
-        continue;
-      }
+      for (let index = 0; index < rects.length; index += 1) {
+        measuredRects += 1;
+        if (measuredRects > MAX_FORCED_LINE_EDGE_RECTS) {
+          return null;
+        }
 
-      if (!lineEdgeRect) {
-        lineEdgeRect = rect;
-        continue;
-      }
+        const rect = rects[index];
+        if (!rect || rect.width <= 0 || rect.height <= 0) {
+          continue;
+        }
+        if (!isPointVerticallyInsideRect(rect, clientY)) {
+          continue;
+        }
 
-      if (action.bias === -1) {
-        if (rect.right > lineEdgeRect.right) {
+        if (!lineEdgeRect) {
+          lineEdgeRect = rect;
+          continue;
+        }
+
+        if (action.bias === -1) {
+          if (rect.right > lineEdgeRect.right) {
+            lineEdgeRect = rect;
+          }
+        } else if (rect.left < lineEdgeRect.left) {
           lineEdgeRect = rect;
         }
-      } else if (rect.left < lineEdgeRect.left) {
-        lineEdgeRect = rect;
       }
+    } finally {
+      range.detach();
     }
   }
 

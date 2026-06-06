@@ -120,7 +120,8 @@ function createHarness(
     firstChild: {
       childCount: 3,
     },
-  }
+  },
+  lineHoverIndex: [number, number] = [0, 0],
 ) {
   const commands = {
     call: vi.fn(),
@@ -147,8 +148,8 @@ function createHarness(
     tableWrapperRef: { value: undefined as HTMLDivElement | undefined } as never,
     contentWrapperRef: { value: undefined as HTMLElement | undefined } as never,
     yLineHandleRef: { value: undefined as HTMLDivElement | undefined } as never,
-    xLineHandleRef: { value: undefined as HTMLDivElement | undefined } as never,
-    lineHoverIndex: { value: [0, 0] as [number, number] } as never,
+    xLineHandleRef: { value: document.createElement('div') as HTMLDivElement | undefined } as never,
+    lineHoverIndex: { value: lineHoverIndex } as never,
   };
 
   const operation = useOperation(refs, ctx as never, getPos);
@@ -201,6 +202,51 @@ describe('table operation', () => {
     operation.onInsertColRight(1);
 
     expect(commands.call).not.toHaveBeenCalled();
+  });
+
+  it('adds rows and columns from table document shape without DOM collection scans', () => {
+    const { commands, operation } = createHarness(
+      () => 5,
+      {
+        childCount: 3,
+        firstChild: {
+          childCount: 4,
+        },
+      },
+      [3, 4],
+    );
+    const querySelectorAllSpy = vi.spyOn(Element.prototype, 'querySelectorAll');
+    const arrayFromSpy = vi.spyOn(Array, 'from').mockImplementation(() => {
+      throw new Error('Array.from should not be used');
+    });
+
+    try {
+      operation.onAddRow();
+      operation.onAddCol();
+    } finally {
+      arrayFromSpy.mockRestore();
+      querySelectorAllSpy.mockRestore();
+    }
+
+    expect(commands.call).toHaveBeenNthCalledWith(1, selectRowCommand.key, {
+      pos: 6,
+      index: 2,
+    });
+    expect(commands.call).toHaveBeenNthCalledWith(2, addRowAfterCommand.key);
+    expect(commands.call).toHaveBeenNthCalledWith(3, selectRowCommand.key, {
+      pos: 6,
+      index: 3,
+    });
+    expect(commands.call).toHaveBeenNthCalledWith(4, selectColCommand.key, {
+      pos: 6,
+      index: 3,
+    });
+    expect(commands.call).toHaveBeenNthCalledWith(5, addColAfterCommand.key);
+    expect(commands.call).toHaveBeenNthCalledWith(6, selectColCommand.key, {
+      pos: 6,
+      index: 4,
+    });
+    expect(querySelectorAllSpy).not.toHaveBeenCalled();
   });
 
   it('allows shrinking from two rows down to one row when the last row is empty', () => {

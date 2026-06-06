@@ -37,4 +37,17 @@ describe('heading collapse decorations', () => {
 
         await editor.destroy();
     });
+
+    it('caps generated heading collapse toggles in large notes', async () => {
+        const markdown = Array.from(
+            { length: 1005 },
+            (_, index) => `# Heading ${index}\n\nBody ${index}`,
+        ).join('\n\n');
+        const editor = await createEditor(markdown);
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(view.dom.querySelectorAll('.heading-toggle-btn')).toHaveLength(1000);
+
+        await editor.destroy();
+    });
 });

@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createBlockDragPreview } from './blockDragPreview';
+import {
+  collectBlockDragPreviewElements,
+  createBlockDragPreview,
+  MAX_BLOCK_DRAG_PREVIEW_DOM_SCAN_ELEMENTS,
+} from './blockDragPreview';
 
 function createNode(typeName: string, nodeSize: number, children: any[] = []) {
   return {
@@ -22,6 +26,42 @@ afterEach(() => {
 });
 
 describe('createBlockDragPreview', () => {
+  it('collects drag preview elements without materializing selector results', () => {
+    const root = document.createElement('div');
+    root.innerHTML = '<section><span data-hit="true"></span><span></span></section>';
+    const querySelectorAllSpy = vi.spyOn(root, 'querySelectorAll');
+    const arrayFromSpy = vi.spyOn(Array, 'from').mockImplementation(() => {
+      throw new Error('Array.from should not be used');
+    });
+
+    try {
+      const collection = collectBlockDragPreviewElements(
+        root,
+        (element) => element.dataset.hit === 'true'
+      );
+
+      expect(collection.complete).toBe(true);
+      expect(collection.elements).toHaveLength(1);
+      expect(collection.elements[0]?.dataset.hit).toBe('true');
+      expect(querySelectorAllSpy).not.toHaveBeenCalled();
+    } finally {
+      arrayFromSpy.mockRestore();
+      querySelectorAllSpy.mockRestore();
+    }
+  });
+
+  it('stops collecting drag preview elements at the scan budget', () => {
+    const root = document.createElement('div');
+    for (let index = 0; index < MAX_BLOCK_DRAG_PREVIEW_DOM_SCAN_ELEMENTS + 1; index += 1) {
+      root.appendChild(document.createElement('span'));
+    }
+
+    const collection = collectBlockDragPreviewElements(root, () => true);
+
+    expect(collection.complete).toBe(false);
+    expect(collection.elements).toEqual([]);
+  });
+
   it('preserves the handle-to-block gap instead of snapping under the pointer', () => {
     const editorRoot = document.createElement('div');
     const block = document.createElement('p');

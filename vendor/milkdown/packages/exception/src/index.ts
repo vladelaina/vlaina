@@ -1,15 +1,130 @@
 import { ErrorCode } from './code'
 import { MilkdownError } from './error'
 
-const functionReplacer = (_: string, value: unknown) =>
-  typeof value === 'function' ? '[Function]' : value
+export const MAX_EXCEPTION_SERIALIZED_DEPTH = 8
+export const MAX_EXCEPTION_SERIALIZED_KEYS = 64
+export const MAX_EXCEPTION_SERIALIZED_ARRAY_ITEMS = 128
+export const MAX_EXCEPTION_SERIALIZED_VALUES = 1024
+export const MAX_EXCEPTION_SERIALIZED_STRING_CHARS = 16 * 1024
+export const MAX_EXCEPTION_SERIALIZED_OUTPUT_CHARS = 24 * 1024
 
-const stringify = (x: unknown): string => JSON.stringify(x, functionReplacer)
+interface SerializeBudget {
+  values: number
+  stringChars: number
+}
+
+type SerializeContext = 'root' | 'array' | 'object'
+
+const serializeFunction = (value: Function) =>
+  `[Function: ${value.name || 'anonymous'}]`
+
+const serializeString = (value: string, budget: SerializeBudget): string => {
+  const remaining = MAX_EXCEPTION_SERIALIZED_STRING_CHARS - budget.stringChars
+  if (remaining <= 0) return JSON.stringify('[Truncated]')
+
+  budget.stringChars += Math.min(value.length, remaining)
+  return JSON.stringify(
+    value.length > remaining
+      ? `${value.slice(0, remaining)}...[truncated]`
+      : value
+  )
+}
+
+const serializeUnknown = (
+  value: unknown,
+  budget: SerializeBudget,
+  seen: WeakSet<object>,
+  depth: number,
+  context: SerializeContext
+): string | undefined => {
+  budget.values += 1
+  if (budget.values > MAX_EXCEPTION_SERIALIZED_VALUES) {
+    return JSON.stringify('[Truncated]')
+  }
+
+  if (value === null) return 'null'
+
+  const type = typeof value
+  if (type === 'string') return serializeString(value as string, budget)
+  if (type === 'number') return JSON.stringify(value) ?? 'null'
+  if (type === 'boolean') return value ? 'true' : 'false'
+  if (type === 'bigint') return JSON.stringify(`${String(value)}n`)
+  if (type === 'function') return JSON.stringify(serializeFunction(value as Function))
+  if (type === 'symbol') return JSON.stringify(String(value))
+  if (type === 'undefined') return context === 'array' ? 'null' : undefined
+  if (type !== 'object') return JSON.stringify(String(value))
+
+  if (depth >= MAX_EXCEPTION_SERIALIZED_DEPTH) {
+    return JSON.stringify('[MaxDepth]')
+  }
+
+  const object = value as object
+  if (seen.has(object)) {
+    return JSON.stringify('[Circular]')
+  }
+  seen.add(object)
+
+  if (Array.isArray(value)) {
+    const parts: string[] = []
+    const limit = Math.min(value.length, MAX_EXCEPTION_SERIALIZED_ARRAY_ITEMS)
+    for (let index = 0; index < limit; index += 1) {
+      parts.push(
+        serializeUnknown(value[index], budget, seen, depth + 1, 'array') ?? 'null'
+      )
+    }
+    if (value.length > limit) {
+      parts.push(JSON.stringify(`[${value.length - limit} more items]`))
+    }
+    return `[${parts.join(',')}]`
+  }
+
+  let keys: string[]
+  try {
+    keys = Object.keys(object)
+  } catch {
+    return JSON.stringify('[Unserializable]')
+  }
+
+  const parts: string[] = []
+  const limit = Math.min(keys.length, MAX_EXCEPTION_SERIALIZED_KEYS)
+  for (let index = 0; index < limit; index += 1) {
+    const key = keys[index]
+    const serialized = serializeUnknown(
+      (value as Record<string, unknown>)[key],
+      budget,
+      seen,
+      depth + 1,
+      'object'
+    )
+    if (serialized !== undefined) parts.push(`${JSON.stringify(key)}:${serialized}`)
+  }
+  if (keys.length > limit) {
+    parts.push(`${JSON.stringify('...')}:${JSON.stringify(`[${keys.length - limit} more keys]`)}`)
+  }
+
+  return `{${parts.join(',')}}`
+}
+
+export const stringifyForMilkdownError = (value: unknown): string => {
+  let result = serializeUnknown(
+    value,
+    { values: 0, stringChars: 0 },
+    new WeakSet(),
+    0,
+    'root'
+  ) ?? 'undefined'
+
+  if (result.length > MAX_EXCEPTION_SERIALIZED_OUTPUT_CHARS) {
+    result = `${result.slice(0, MAX_EXCEPTION_SERIALIZED_OUTPUT_CHARS)}...[truncated]`
+  }
+
+  return result
+}
 
 export function docTypeError(type: unknown) {
   return new MilkdownError(
     ErrorCode.docTypeError,
-    `Doc type error, unsupported type: ${stringify(type)}`
+    `Doc type error, unsupported type: ${stringifyForMilkdownError(type)}`
   )
 }
 
@@ -45,19 +160,26 @@ export function createNodeInParserFail(
     if (x == null) return 'null'
 
     if (Array.isArray(x)) {
-      return `[${x.map(serialize).join(', ')}]`
+      const limit = Math.min(x.length, MAX_EXCEPTION_SERIALIZED_ARRAY_ITEMS)
+      const items = x.slice(0, limit).map(serialize)
+      if (x.length > limit) items.push(`[${x.length - limit} more items]`)
+      return `[${items.join(', ')}]`
     }
 
     if (typeof x === 'object') {
       if ('toJSON' in x && typeof (x as any).toJSON === 'function') {
-        return JSON.stringify((x as any).toJSON())
+        try {
+          return stringifyForMilkdownError((x as any).toJSON())
+        } catch {
+          return '[Unserializable]'
+        }
       }
 
       if ('spec' in x) {
-        return JSON.stringify((x as any).spec)
+        return stringifyForMilkdownError((x as any).spec)
       }
 
-      return JSON.stringify(x)
+      return stringifyForMilkdownError(x)
     }
 
     if (
@@ -65,7 +187,7 @@ export function createNodeInParserFail(
       typeof x === 'number' ||
       typeof x === 'boolean'
     ) {
-      return JSON.stringify(x)
+      return stringifyForMilkdownError(x)
     }
 
     if (typeof x === 'function') {
@@ -118,14 +240,14 @@ export function stackOverFlow() {
 export function parserMatchError(node: unknown) {
   return new MilkdownError(
     ErrorCode.parserMatchError,
-    `Cannot match target parser for node: ${stringify(node)}.`
+    `Cannot match target parser for node: ${stringifyForMilkdownError(node)}.`
   )
 }
 
 export function serializerMatchError(node: unknown) {
   return new MilkdownError(
     ErrorCode.serializerMatchError,
-    `Cannot match target serializer for node: ${stringify(node)}.`
+    `Cannot match target serializer for node: ${stringifyForMilkdownError(node)}.`
   )
 }
 
@@ -139,7 +261,7 @@ export function getAtomFromSchemaFail(type: 'mark' | 'node', name: string) {
 export function expectDomTypeError(node: unknown) {
   return new MilkdownError(
     ErrorCode.expectDomTypeError,
-    `Expect to be a dom, but get: ${stringify(node)}.`
+    `Expect to be a dom, but get: ${stringifyForMilkdownError(node)}.`
   )
 }
 

@@ -1,10 +1,5 @@
 import { getElectronBridge } from '@/lib/electron/bridge';
-import {
-  getBaseName,
-  getParentPath,
-  getStorageAdapter,
-  joinPath,
-} from '@/lib/storage/adapter';
+import { getBaseName, getParentPath, getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import type { StarredKind } from '@/stores/notes/types';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 import { resolveStarredRelativePathForVault } from '@/stores/notes/starred';
@@ -72,7 +67,38 @@ async function importExternalMarkdownFile(
 
   markExpectedExternalChange(fullPath);
   await storage.copyFile(sourcePath, fullPath);
+
+  const copiedInfo = await storage.stat(fullPath).catch(() => null);
+  if (
+    !copiedInfo?.isFile ||
+    typeof copiedInfo.size !== 'number' ||
+    copiedInfo.size > MAX_EXTERNAL_MARKDOWN_FILE_SIZE
+  ) {
+    try { await storage.deleteFile(fullPath); } catch {}
+    return null;
+  }
+
   return relativePath;
+}
+
+async function isImportableExternalMarkdownFile(
+  sourcePath: string,
+  fileInfo: { isFile?: boolean; size?: number } | null | undefined,
+) {
+  if (!fileInfo?.isFile || !isSupportedMarkdownSelection(sourcePath)) {
+    return false;
+  }
+
+  if (typeof fileInfo.size === 'number') {
+    return fileInfo.size <= MAX_EXTERNAL_MARKDOWN_FILE_SIZE;
+  }
+
+  const sourceInfo = await getStorageAdapter().stat(sourcePath).catch(() => null);
+  return Boolean(
+    sourceInfo?.isFile &&
+    typeof sourceInfo.size === 'number' &&
+    sourceInfo.size <= MAX_EXTERNAL_MARKDOWN_FILE_SIZE
+  );
 }
 
 async function importExternalMarkdownDirectory(
@@ -143,16 +169,15 @@ async function importExternalMarkdownDirectory(
       continue;
     }
 
-    if (!entry.isFile || !isSupportedMarkdownSelection(sourceEntryPath)) {
-      continue;
-    }
-    if (typeof entry.size === 'number' && entry.size > MAX_EXTERNAL_MARKDOWN_FILE_SIZE) {
+    if (!await isImportableExternalMarkdownFile(sourceEntryPath, entry)) {
       continue;
     }
 
     const importedPath = await importExternalMarkdownFile(sourceEntryPath, vaultPath, relativePath);
-    importedNotePaths.push(importedPath);
-    copiedMarkdownCount += 1;
+    if (importedPath) {
+      importedNotePaths.push(importedPath);
+      copiedMarkdownCount += 1;
+    }
   }
 
   if (copiedMarkdownCount === 0) {
@@ -195,10 +220,7 @@ export async function importExternalMarkdownEntries(
       continue;
     }
 
-    if (!info?.isFile || !isSupportedMarkdownSelection(absolutePath)) {
-      continue;
-    }
-    if (typeof info.size === 'number' && info.size > MAX_EXTERNAL_MARKDOWN_FILE_SIZE) {
+    if (!await isImportableExternalMarkdownFile(absolutePath, info)) {
       continue;
     }
 
@@ -207,7 +229,9 @@ export async function importExternalMarkdownEntries(
       vaultPath,
       targetFolderPath || undefined,
     );
-    importedNotePaths.push(importedPath);
+    if (importedPath) {
+      importedNotePaths.push(importedPath);
+    }
   }
 
   return {

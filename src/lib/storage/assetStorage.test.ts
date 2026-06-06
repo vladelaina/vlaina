@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { deleteGlobalIconAsset, saveGlobalAsset, scanGlobalIcons } from './assetStorage';
+import {
+  MAX_GLOBAL_ICON_SCAN_RESULTS,
+  deleteGlobalIconAsset,
+  saveGlobalAsset,
+  scanGlobalIcons,
+} from './assetStorage';
 
 const adapter = {
   exists: vi.fn<(path: string) => Promise<boolean>>(),
@@ -100,6 +105,23 @@ describe('assetStorage', () => {
         createdAt: 1,
       },
     ]);
+  });
+
+  it('bounds custom icon directory scan results', async () => {
+    adapter.listDir.mockResolvedValue(Array.from({ length: MAX_GLOBAL_ICON_SCAN_RESULTS + 1 }, (_, index) => ({
+      name: `icon-${index}.png`,
+      path: `/app/.vlaina/assets/icons/icon-${index}.png`,
+      isDirectory: false,
+      isFile: true,
+      size: 100,
+      modifiedAt: index,
+    })));
+
+    const icons = await scanGlobalIcons();
+
+    expect(icons).toHaveLength(MAX_GLOBAL_ICON_SCAN_RESULTS);
+    expect(icons.at(-1)?.id).toBe(`/app/.vlaina/assets/icons/icon-${MAX_GLOBAL_ICON_SCAN_RESULTS - 1}.png`);
+    expect(icons.some((icon) => icon.id.endsWith(`icon-${MAX_GLOBAL_ICON_SCAN_RESULTS}.png`))).toBe(false);
   });
 
   it('saves supported custom icon uploads when MIME type and extension match', async () => {

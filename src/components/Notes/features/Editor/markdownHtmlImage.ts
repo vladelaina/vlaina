@@ -7,6 +7,7 @@ import { normalizeImageAlignment } from './plugins/image-block/utils/imageNodeAt
 
 const MAX_MARKDOWN_HTML_IMAGE_CHARS = 64 * 1024;
 const MAX_MARKDOWN_HTML_IMAGE_WRAPPER_DEPTH = 32;
+export const MAX_MARKDOWN_HTML_IMAGE_CHILD_SCAN_NODES = 1024;
 
 export interface MarkdownHtmlImageAttrs {
     src: string;
@@ -20,29 +21,34 @@ export interface MarkdownHtmlImageAttrs {
 
 const markdownHtmlImageWrapperTags = new Set(['a', 'center', 'div', 'figure', 'p', 'picture', 'span']);
 
-function getSignificantChildren(parent: ParentNode): ChildNode[] {
-    return Array.from(parent.childNodes).filter((child) => {
-        if (child.nodeType === Node.TEXT_NODE) return (child.textContent ?? '').trim() !== '';
-        return child.nodeType === Node.ELEMENT_NODE;
-    });
-}
-
 function getOnlyElementChild(parent: ParentNode): Element | null {
-    const children = getSignificantChildren(parent);
-    return children.length === 1 && children[0].nodeType === Node.ELEMENT_NODE
-        ? children[0] as Element
-        : null;
+    let elementChild: Element | null = null;
+    const childCount = Math.min(parent.childNodes.length, MAX_MARKDOWN_HTML_IMAGE_CHILD_SCAN_NODES);
+    for (let index = 0; index < childCount; index += 1) {
+        const child = parent.childNodes.item(index);
+        if (child.nodeType === Node.TEXT_NODE && (child.textContent ?? '').trim() === '') continue;
+        if (child.nodeType !== Node.ELEMENT_NODE) return null;
+        if (elementChild) return null;
+        elementChild = child as Element;
+    }
+
+    return parent.childNodes.length <= MAX_MARKDOWN_HTML_IMAGE_CHILD_SCAN_NODES ? elementChild : null;
 }
 
 function getOnlyPictureImage(element: Element): HTMLImageElement | null {
-    const children = Array.from(element.childNodes).filter((child) => {
-        if (child.nodeType === Node.TEXT_NODE) return (child.textContent ?? '').trim() !== '';
-        if (child.nodeType !== Node.ELEMENT_NODE) return false;
-        return (child as Element).tagName.toLowerCase() !== 'source';
-    });
+    let imageChild: Element | null = null;
+    const childCount = Math.min(element.childNodes.length, MAX_MARKDOWN_HTML_IMAGE_CHILD_SCAN_NODES);
+    for (let index = 0; index < childCount; index += 1) {
+        const child = element.childNodes.item(index);
+        if (child.nodeType === Node.TEXT_NODE && (child.textContent ?? '').trim() === '') continue;
+        if (child.nodeType !== Node.ELEMENT_NODE) return null;
+        if ((child as Element).tagName.toLowerCase() === 'source') continue;
+        if (imageChild) return null;
+        imageChild = child as Element;
+    }
 
-    if (children.length !== 1 || children[0].nodeType !== Node.ELEMENT_NODE) return null;
-    const image = children[0] as Element;
+    if (element.childNodes.length > MAX_MARKDOWN_HTML_IMAGE_CHILD_SCAN_NODES || !imageChild) return null;
+    const image = imageChild;
     return image.tagName.toLowerCase() === 'img' ? image as HTMLImageElement : null;
 }
 
