@@ -225,6 +225,26 @@ describe('ChatImageViewer', () => {
     expect(screen.queryByRole('button', { name: 'Next image' })).not.toBeInTheDocument();
   });
 
+  it('does not inspect gallery sources while the viewer is closed', () => {
+    const decodeURIComponentSpy = vi.spyOn(window, 'decodeURIComponent');
+
+    render(
+      <ChatImageViewer
+        open={false}
+        src="https://example.com/demo%20image.png"
+        alt="preview"
+        gallery={[
+          { id: 'current', src: 'https://example.com/demo image.png' },
+          { id: 'next', src: 'https://example.com/next.png' },
+        ]}
+        onOpenChange={() => {}}
+      />,
+    );
+
+    expect(decodeURIComponentSpy).not.toHaveBeenCalled();
+    decodeURIComponentSpy.mockRestore();
+  });
+
   it('does not keep direct data image sources in the resolved attachment cache', async () => {
     const onOpenChange = vi.fn();
     const src = 'data:image/png;base64,AAAA';
@@ -300,5 +320,65 @@ describe('ChatImageViewer', () => {
       expect(imageResolutionMocks.resolveSafeChatImageSource).toHaveBeenCalledTimes(1);
     });
     expect(convertToBase64).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not subscribe to viewport resize while closed', () => {
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
+    const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
+
+    const view = render(
+      <ChatImageViewer
+        open={false}
+        src="https://example.com/image.png"
+        alt="preview"
+        onOpenChange={() => {}}
+      />,
+    );
+
+    expect(addEventListenerSpy).not.toHaveBeenCalledWith('resize', expect.any(Function));
+
+    view.rerender(
+      <ChatImageViewer
+        open
+        src="https://example.com/image.png"
+        alt="preview"
+        onOpenChange={() => {}}
+      />,
+    );
+
+    expect(addEventListenerSpy).toHaveBeenCalledWith('resize', expect.any(Function));
+    view.unmount();
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('resize', expect.any(Function));
+
+    addEventListenerSpy.mockRestore();
+    removeEventListenerSpy.mockRestore();
+  });
+
+  it('warms adjacent stored attachment images while the gallery viewer is open', async () => {
+    vi.mocked(convertToBase64).mockImplementation(async (attachment) =>
+      `data:${attachment.type};base64,${attachment.name}`,
+    );
+
+    render(
+      <ChatImageViewer
+        open
+        src="current.jpg"
+        alt="preview"
+        currentImageId="current"
+        gallery={[
+          { id: 'previous', src: 'previous.jpg' },
+          { id: 'current', src: 'current.jpg' },
+          { id: 'next', src: 'next.jpg' },
+        ]}
+        onOpenChange={() => {}}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(imageResolutionMocks.resolveSafeChatImageSource).toHaveBeenCalledTimes(3);
+    });
+    expect(imageResolutionMocks.resolveSafeChatImageSource).toHaveBeenCalledWith('current.jpg', 'viewer-image');
+    expect(imageResolutionMocks.resolveSafeChatImageSource).toHaveBeenCalledWith('previous.jpg', 'viewer-image');
+    expect(imageResolutionMocks.resolveSafeChatImageSource).toHaveBeenCalledWith('next.jpg', 'viewer-image');
   });
 });

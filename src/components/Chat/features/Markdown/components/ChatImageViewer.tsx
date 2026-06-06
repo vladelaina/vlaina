@@ -150,6 +150,14 @@ async function resolveViewerImageSource(src: string): Promise<string | null> {
   return resolved;
 }
 
+function warmViewerImageSource(src: string | null | undefined): void {
+  if (!src || !requiresAttachmentResolution(src) || resolvedViewerImageCache.has(src)) {
+    return;
+  }
+
+  void resolveViewerImageSource(src).catch(() => undefined);
+}
+
 export function ChatImageViewer({
   open,
   src,
@@ -160,7 +168,6 @@ export function ChatImageViewer({
   onOpenChange,
 }: ChatImageViewerProps) {
   const { t } = useI18n();
-  const [isMounted, setIsMounted] = useState(false);
   const [crop, setCrop] = useState<ViewerPoint>({ x: themeCropperTokens.defaultCropX, y: themeCropperTokens.defaultCropY });
   const [zoom, setZoom] = useState(1);
   const [copied, setCopied] = useState(false);
@@ -177,6 +184,9 @@ export function ChatImageViewer({
   const imageElementRef = useRef<HTMLImageElement | null>(null);
 
   const galleryIndex = useMemo(() => {
+    if (!open) {
+      return -1;
+    }
     if (!gallery || gallery.length === 0) {
       return -1;
     }
@@ -187,8 +197,13 @@ export function ChatImageViewer({
       }
     }
     const normalizedSrc = normalizeComparableSrc(src);
-    return gallery.findIndex((item) => normalizeComparableSrc(item.src) === normalizedSrc);
-  }, [currentImageId, gallery, src]);
+    for (let index = 0; index < gallery.length; index += 1) {
+      if (normalizeComparableSrc(gallery[index]!.src) === normalizedSrc) {
+        return index;
+      }
+    }
+    return -1;
+  }, [currentImageId, gallery, open, src]);
 
   useEffect(() => {
     if (!open) {
@@ -243,11 +258,19 @@ export function ChatImageViewer({
   }, [activeSrc, open, previewSrc, src]);
 
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
+    if (!open || !gallery || activeGalleryIndex < 0) {
+      return;
+    }
+
+    warmViewerImageSource(gallery[activeGalleryIndex - 1]?.src);
+    warmViewerImageSource(gallery[activeGalleryIndex + 1]?.src);
+  }, [activeGalleryIndex, gallery, open]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
+      return;
+    }
+    if (!open) {
       return;
     }
     const updateSize = () => {
@@ -258,7 +281,7 @@ export function ChatImageViewer({
     return () => {
       window.removeEventListener("resize", updateSize);
     };
-  }, []);
+  }, [open]);
 
   useEffect(() => {
     if (!open || typeof document === "undefined") {
@@ -403,12 +426,8 @@ export function ChatImageViewer({
     };
 
     document.addEventListener("pointerdown", handleDocumentPress, true);
-    document.addEventListener("mousedown", handleDocumentPress, true);
-    document.addEventListener("click", handleDocumentPress, true);
     return () => {
       document.removeEventListener("pointerdown", handleDocumentPress, true);
-      document.removeEventListener("mousedown", handleDocumentPress, true);
-      document.removeEventListener("click", handleDocumentPress, true);
     };
   }, [isPointOnImage, onOpenChange, open]);
 
@@ -458,7 +477,7 @@ export function ChatImageViewer({
     }
   };
 
-  if (!isMounted || !open || typeof document === "undefined") {
+  if (!open || typeof document === "undefined") {
     return null;
   }
 
