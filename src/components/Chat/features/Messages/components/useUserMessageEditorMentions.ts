@@ -3,7 +3,7 @@ import {
   type RefObject,
 } from 'react';
 import { useNoteMentionState } from '@/components/Chat/features/Input/hooks/useNoteMentionState';
-import { valueContainsMentionLabel } from '@/components/Chat/features/Input/noteMentionHelpers';
+import { findMentionTitlesInValue } from '@/components/Chat/features/Input/noteMentionHelpers';
 
 interface UseUserMessageEditorMentionsOptions {
   value: string;
@@ -20,9 +20,14 @@ export function useUserMessageEditorMentions({
     allNoteCandidates: Array<{ path: string; title: string; kind: 'note' | 'folder'; isCurrent: boolean }>;
     value: string;
   }) => {
+    const matchedTitles = findMentionTitlesInValue(value, (function* () {
+      for (const candidate of allNoteCandidates) {
+        yield candidate.title;
+      }
+    })());
     const candidatesByTitle = new Map<string, typeof allNoteCandidates>();
     for (const candidate of allNoteCandidates) {
-      if (!valueContainsMentionLabel(value, candidate.title)) {
+      if (!matchedTitles.has(candidate.title)) {
         continue;
       }
       const candidates = candidatesByTitle.get(candidate.title) ?? [];
@@ -30,9 +35,14 @@ export function useUserMessageEditorMentions({
       candidatesByTitle.set(candidate.title, candidates);
     }
 
-    return Array.from(candidatesByTitle.values())
-      .filter((candidates) => candidates.length === 1)
-      .map(([candidate]) => ({ path: candidate.path, title: candidate.title, kind: candidate.kind }));
+    const syncedMentions: Array<{ path: string; title: string; kind: 'note' | 'folder' }> = [];
+    for (const candidates of candidatesByTitle.values()) {
+      if (candidates.length !== 1) continue;
+
+      const candidate = candidates[0];
+      syncedMentions.push({ path: candidate.path, title: candidate.title, kind: candidate.kind });
+    }
+    return syncedMentions;
   }, []);
 
   const {

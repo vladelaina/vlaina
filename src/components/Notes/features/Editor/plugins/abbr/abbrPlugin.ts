@@ -7,14 +7,21 @@ import {
   extractAbbrDefinitionsFromText,
   type AbbrDefinition,
 } from '@/components/common/markdown/abbrMarkdown';
+import {
+  DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
+  STOP_PROSE_SCAN,
+  scanProseDescendants,
+  type BoundedProseScanNode,
+} from '../shared/boundedProseNodeScan';
 
 export const abbrPluginKey = new PluginKey('abbr');
 
 const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
 const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
-const MAX_ABBR_DECORATIONS = 1000;
+export const MAX_ABBR_DECORATIONS = 1000;
+export const MAX_ABBR_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 
-function shouldSkipTextNode(node: any, parent: any): boolean {
+function shouldSkipTextNode(node: BoundedProseScanNode, parent: BoundedProseScanNode): boolean {
   if (parent && SKIPPED_TEXT_PARENT_TYPES.has(parent.type?.name)) {
     return true;
   }
@@ -55,33 +62,40 @@ export const abbrMark = $mark('abbr', () => ({
   },
 }));
 
-function extractAbbrDefinitions(doc: any): AbbrDefinition[] {
+export function extractAbbrDefinitions(
+  doc: BoundedProseScanNode,
+  maxNodes = MAX_ABBR_DOC_SCAN_NODES,
+): AbbrDefinition[] {
   const definitions: AbbrDefinition[] = [];
-  
-  doc.descendants((node: any, _pos: number, parent: any) => {
+
+  scanProseDescendants(doc, (node, _pos, parent) => {
     if (!node.isText || shouldSkipTextNode(node, parent)) {
       return;
     }
 
     const text = node.text || '';
     appendBoundedAbbrDefinitions(definitions, extractAbbrDefinitionsFromText(text));
-  });
-  
+  }, maxNodes);
+
   return definitions;
 }
 
-function findAbbrUsages(doc: any, definitions: AbbrDefinition[]): { start: number; end: number; fullText: string }[] {
+export function findAbbrUsages(
+  doc: BoundedProseScanNode,
+  definitions: AbbrDefinition[],
+  maxNodes = MAX_ABBR_DOC_SCAN_NODES,
+): { start: number; end: number; fullText: string }[] {
   const usages: { start: number; end: number; fullText: string }[] = [];
-  
+
   if (definitions.length === 0) return usages;
-  
+
   const abbrMap = new Map(definitions.map(d => [d.abbr, d.fullText]));
   const pattern = createAbbrUsagePattern(definitions);
   if (!pattern) return usages;
-  
-  doc.descendants((node: any, pos: number, parent: any) => {
+
+  scanProseDescendants(doc, (node, pos, parent) => {
     if (usages.length >= MAX_ABBR_DECORATIONS) {
-      return false;
+      return STOP_PROSE_SCAN;
     }
 
     if (!node.isText || shouldSkipTextNode(node, parent)) {
@@ -111,8 +125,10 @@ function findAbbrUsages(doc: any, definitions: AbbrDefinition[]): { start: numbe
         }
       }
     }
-  });
-  
+
+    return usages.length < MAX_ABBR_DECORATIONS ? undefined : STOP_PROSE_SCAN;
+  }, maxNodes);
+
   return usages;
 }
 

@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { getElectronBridge } from '@/lib/electron/bridge';
 import { messageDialog } from '@/lib/storage/dialog';
 import { useI18n } from '@/lib/i18n';
 import {
@@ -24,6 +23,10 @@ import {
   type ExternalMarkdownStarredTarget,
   resolveExternalMarkdownEntriesForStarred,
 } from './externalMarkdownImport';
+import {
+  getDroppedExternalPaths,
+  hasDataTransferType,
+} from './externalDropPayload';
 import { SIDEBAR_SCROLL_ROOT_SELECTOR } from '../features/Sidebar/context-menu/shared';
 
 interface UseNotesSidebarExternalDropImportOptions {
@@ -38,27 +41,8 @@ function getParentRelativePath(path: string) {
   return lastSlashIndex === -1 ? '' : path.slice(0, lastSlashIndex);
 }
 
-function getDroppedPaths(event: DragEvent): string[] {
-  const dragDrop = getElectronBridge()?.dragDrop;
-  const fileList = Array.from(event.dataTransfer?.files ?? []);
-  return fileList
-    .map((file) => {
-      const legacyPath = ((file as File & { path?: string }).path ?? '').trim();
-      if (legacyPath) {
-        return legacyPath;
-      }
-
-      try {
-        return dragDrop?.getPathForFile(file).trim() || '';
-      } catch {
-        return '';
-      }
-    })
-    .filter(Boolean);
-}
-
 function isFileDrag(event: DragEvent) {
-  return Array.from(event.dataTransfer?.types ?? []).includes('Files');
+  return hasDataTransferType(event.dataTransfer?.types, 'Files');
 }
 
 function getSidebarDropState(event: DragEvent) {
@@ -153,7 +137,7 @@ export function useNotesSidebarExternalDropImport({
     };
 
     const handleDragEnter = (event: DragEvent) => {
-      const paths = getDroppedPaths(event);
+      const paths = getDroppedExternalPaths(event.dataTransfer);
       const dropState = getSidebarDropState(event);
       if (!isFileDrag(event) || !dropState.isOverSidebar) {
         return;
@@ -164,7 +148,7 @@ export function useNotesSidebarExternalDropImport({
     };
 
     const handleDragOver = (event: DragEvent) => {
-      const paths = getDroppedPaths(event);
+      const paths = getDroppedExternalPaths(event.dataTransfer);
       const dropState = getSidebarDropState(event);
       if (!isFileDrag(event) || !dropState.isOverSidebar) {
         return;
@@ -181,7 +165,7 @@ export function useNotesSidebarExternalDropImport({
     };
 
     const handleDrop = (event: DragEvent) => {
-      const paths = getDroppedPaths(event);
+      const paths = getDroppedExternalPaths(event.dataTransfer);
       const dropState = getSidebarDropState(event);
       if (paths.length === 0 || !dropState.isOverSidebar) {
         return;

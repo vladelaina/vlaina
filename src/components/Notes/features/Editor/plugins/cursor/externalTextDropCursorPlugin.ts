@@ -11,6 +11,7 @@ import type { HeadingDropPayload } from './externalHeadingDrop';
 import { parseSingleHeadingDropHtml } from './externalHeadingDrop';
 
 const EXTERNAL_TEXT_DROP_CURSOR_CLASS = 'editor-external-text-drop-cursor';
+export const MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN = 1024;
 
 type EditorViewWithDragging = EditorView & {
   dragging?: unknown;
@@ -28,16 +29,35 @@ interface BlockDropTarget {
   rect: CursorRect;
 }
 
+function getDataTransferType(types: DataTransfer['types'], index: number): string | null {
+  const maybeTypes = types as DataTransfer['types'] & { item?: (index: number) => string | null };
+  if (typeof maybeTypes.item === 'function') {
+    return maybeTypes.item(index);
+  }
+  return maybeTypes[index] ?? null;
+}
+
 export function hasExternalTextDrag(dataTransfer: DataTransfer | null | undefined): boolean {
   if (!dataTransfer) return false;
-  const types = Array.from(dataTransfer.types ?? []);
-  if (types.includes('Files')) return false;
-  return (
-    types.includes(CHAT_HEADING_DRAG_MIME) ||
-    types.includes('text/plain') ||
-    types.includes('text/html') ||
-    types.includes('text/uri-list')
-  );
+  const types = dataTransfer.types;
+  if (!types) return false;
+  const length = Math.min(types.length, MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN);
+  let hasTextType = false;
+
+  for (let index = 0; index < length; index += 1) {
+    const type = getDataTransferType(types, index);
+    if (type === 'Files') return false;
+    if (
+      type === CHAT_HEADING_DRAG_MIME ||
+      type === 'text/plain' ||
+      type === 'text/html' ||
+      type === 'text/uri-list'
+    ) {
+      hasTextType = true;
+    }
+  }
+
+  return hasTextType && types.length <= MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN;
 }
 
 function getCursorRect(view: EditorView, event: DragEvent): CursorRect | null {
@@ -90,11 +110,23 @@ function getHeadingDropPayload(dataTransfer: DataTransfer | null | undefined): H
   return getSingleHeadingFromHtml(dataTransfer);
 }
 
-function hasHeadingDropPayload(dataTransfer: DataTransfer | null | undefined): boolean {
+export function hasHeadingDropPayload(dataTransfer: DataTransfer | null | undefined): boolean {
   if (!dataTransfer) return false;
 
-  const types = Array.from(dataTransfer.types ?? []);
-  return types.includes(CHAT_HEADING_DRAG_MIME) || Boolean(getSingleHeadingFromHtml(dataTransfer));
+  const types = dataTransfer.types;
+  if (!types) return false;
+  const length = Math.min(types.length, MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN);
+  let hasHtml = false;
+
+  for (let index = 0; index < length; index += 1) {
+    const type = getDataTransferType(types, index);
+    if (type === CHAT_HEADING_DRAG_MIME) return true;
+    if (type === 'text/html') {
+      hasHtml = true;
+    }
+  }
+
+  return hasHtml && types.length <= MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN && Boolean(getSingleHeadingFromHtml(dataTransfer));
 }
 
 function isInternalTextSelectionDrag(view: EditorView): boolean {

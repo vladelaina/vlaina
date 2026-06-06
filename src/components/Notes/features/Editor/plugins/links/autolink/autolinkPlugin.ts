@@ -4,9 +4,13 @@ import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity';
 import { URL_PATTERNS } from '../utils/constants';
 import { sanitizeEditorExternalLinkHref } from '../utils/linkHref';
+import {
+    STOP_PROSE_SCAN,
+    scanProseDescendants,
+} from '../../shared/boundedProseNodeScan';
 
 export const autolinkPluginKey = new PluginKey('autolink');
-const MAX_AUTOLINK_DECORATIONS = 1000;
+export const MAX_AUTOLINK_DECORATIONS = 1000;
 const AUTOLINK_TRIGGER_TEXT_PATTERN = /[:/.@]/;
 const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
 const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
@@ -106,12 +110,12 @@ function sanitizeAutolinkHref(href: string): string | null {
     return safeHref;
 }
 
-export function createAutolinkDecorations(doc: any): DecorationSet {
+export function collectAutolinkDecorations(doc: any): Decoration[] {
     const decorations: Decoration[] = [];
 
-    doc.descendants((node: any, pos: number, parent: any) => {
+    scanProseDescendants(doc, (node, pos, parent) => {
         if (decorations.length >= MAX_AUTOLINK_DECORATIONS) {
-            return false;
+            return STOP_PROSE_SCAN;
         }
 
         if (parent && SKIPPED_TEXT_PARENT_TYPES.has(parent.type?.name)) {
@@ -158,9 +162,15 @@ export function createAutolinkDecorations(doc: any): DecorationSet {
                 }
             }
         }
+
+        return decorations.length < MAX_AUTOLINK_DECORATIONS ? undefined : STOP_PROSE_SCAN;
     });
 
-    return DecorationSet.create(doc, decorations);
+    return decorations;
+}
+
+export function createAutolinkDecorations(doc: any): DecorationSet {
+    return DecorationSet.create(doc, collectAutolinkDecorations(doc));
 }
 
 function getInsertedStepText(step: unknown): string {

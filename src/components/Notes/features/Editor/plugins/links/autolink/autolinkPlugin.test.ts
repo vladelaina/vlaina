@@ -2,7 +2,45 @@ import { describe, expect, it } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import type { Decoration } from '@milkdown/kit/prose/view';
-import { autolinkPlugin, autolinkPluginKey, findUrls } from './autolinkPlugin';
+import {
+    MAX_AUTOLINK_DECORATIONS,
+    autolinkPlugin,
+    autolinkPluginKey,
+    collectAutolinkDecorations,
+    findUrls,
+} from './autolinkPlugin';
+
+interface FakeAutolinkNode {
+    child?: (index: number) => FakeAutolinkNode | null | undefined;
+    childCount?: number;
+    isText?: boolean;
+    nodeSize?: number;
+    text?: string;
+    type?: { name?: string };
+}
+
+function createTextNode(text: string): FakeAutolinkNode {
+    return {
+        isText: true,
+        nodeSize: text.length,
+        text,
+        type: { name: 'text' },
+    };
+}
+
+function createDocNode(children: FakeAutolinkNode[], onAccess?: () => void): FakeAutolinkNode & {
+    resolve: () => { marks: () => unknown[] };
+} {
+    return {
+        childCount: children.length,
+        child(index) {
+            onAccess?.();
+            return children[index];
+        },
+        resolve: () => ({ marks: () => [] }),
+        type: { name: 'doc' },
+    };
+}
 
 describe('autolinkPlugin findUrls', () => {
     it('detects bare domains with supported TLDs', () => {
@@ -157,5 +195,20 @@ describe('autolinkPlugin findUrls', () => {
         expect(autolinkPluginKey.getState(view.state)?.find()).toHaveLength(1000);
 
         await editor.destroy();
+    });
+
+    it('stops scanning document nodes after the decoration cap is reached', () => {
+        let accessed = 0;
+        const children: FakeAutolinkNode[] = [];
+        for (let index = 0; index < MAX_AUTOLINK_DECORATIONS + 2; index += 1) {
+            children.push(createTextNode(`https://example-${index}.com`));
+        }
+
+        const decorations = collectAutolinkDecorations(createDocNode(children, () => {
+            accessed += 1;
+        }));
+
+        expect(decorations).toHaveLength(MAX_AUTOLINK_DECORATIONS);
+        expect(accessed).toBe(MAX_AUTOLINK_DECORATIONS);
     });
 });

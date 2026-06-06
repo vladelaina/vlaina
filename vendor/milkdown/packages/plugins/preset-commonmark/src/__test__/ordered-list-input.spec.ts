@@ -3,7 +3,7 @@ import type { EditorView } from '@milkdown/prose/view'
 
 import { defaultValueCtx, Editor, editorViewCtx } from '@milkdown/core'
 import { getMarkdown } from '@milkdown/utils'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 
 import { commonmark } from '..'
 
@@ -60,6 +60,24 @@ it('should preserve ordered list start when loading markdown', async () => {
 
   const markdown = editor.action(getMarkdown())
   expect(markdown).toBe('2. hello\n')
+})
+
+it('should skip ordered list label synchronization for non-list edits', async () => {
+  const editor = createEditor('plain text')
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  const tr = view.state.tr.insertText('!', 1)
+  const descendants = vi.spyOn(tr.doc, 'descendants').mockImplementation(() => {
+    throw new Error('Document descendants should not be scanned')
+  })
+  const result = view.state.applyTransaction(tr)
+
+  expect(result.transactions).toHaveLength(1)
+  expect(descendants).not.toHaveBeenCalled()
+
+  await editor.destroy()
 })
 
 it('should normalize ordered list labels after converting an ordered-styled bullet list', async () => {

@@ -19,7 +19,19 @@ type SegmenterCtor = new (
 
 function countLines(text: string): number {
   if (text.length === 0) return 0;
-  return text.split(/\r\n|\r|\n/).length;
+  let count = 1;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === '\r') {
+      count += 1;
+      if (text[index + 1] === '\n') {
+        index += 1;
+      }
+    } else if (char === '\n') {
+      count += 1;
+    }
+  }
+  return count;
 }
 
 function countWords(text: string): number {
@@ -43,7 +55,11 @@ function countWords(text: string): number {
 }
 
 function countCharacters(text: string): number {
-  return Array.from(text).length;
+  let count = 0;
+  for (const _char of text) {
+    count += 1;
+  }
+  return count;
 }
 
 export function calculateTextStats(text: string): TextStats {

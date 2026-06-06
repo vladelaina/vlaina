@@ -3,13 +3,19 @@ import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { isNoteTagToken } from '@/lib/notes/tags';
+import {
+  DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
+  STOP_PROSE_SCAN,
+  scanProseDescendants,
+} from '../shared/boundedProseNodeScan';
 
 export const tagTokenPluginKey = new PluginKey<DecorationSet>('editorTagToken');
 
 const TAG_TOKEN_PATTERN = /(?<![\p{L}\p{N}_/-])#([\p{L}\p{N}_/-][\p{L}\p{N}_/-]*)/gu;
 const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
 const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
-const MAX_TAG_TOKEN_DECORATIONS = 1000;
+export const MAX_TAG_TOKEN_DECORATIONS = 1000;
+export const MAX_TAG_TOKEN_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 const MAX_TAG_TOKEN_CHARS = 128;
 export const MAX_TAG_TOKEN_EDGE_RECTS = 1024;
 
@@ -65,9 +71,9 @@ export function resolveTagTokenEdgeOffset(
 export function createTagTokenDecorations(doc: any): DecorationSet {
   const decorations: Decoration[] = [];
 
-  doc.descendants((node: any, pos: number, parent: any) => {
+  scanProseDescendants(doc, (node, pos, parent) => {
     if (decorations.length >= MAX_TAG_TOKEN_DECORATIONS) {
-      return false;
+      return STOP_PROSE_SCAN;
     }
 
     if (!node.isText) {
@@ -104,7 +110,9 @@ export function createTagTokenDecorations(doc: any): DecorationSet {
         break;
       }
     }
-  });
+
+    return decorations.length < MAX_TAG_TOKEN_DECORATIONS ? undefined : STOP_PROSE_SCAN;
+  }, MAX_TAG_TOKEN_DOC_SCAN_NODES);
 
   return decorations.length > 0
     ? DecorationSet.create(doc, decorations)

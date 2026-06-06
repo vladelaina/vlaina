@@ -37,22 +37,21 @@ interface UseChatShortcutsOptions {
 }
 
 export function extractLastFencedCodeBlock(markdown: string): string | null {
-  const lines = markdown.replace(/\r\n?/g, '\n').split('\n');
   let activeFence: MarkdownFenceState | null = null;
   let activeCodeLines: string[] = [];
   let lastCodeBlock: string | null = null;
 
-  for (const line of lines) {
+  forEachNormalizedMarkdownLine(markdown, (line) => {
     if (activeFence) {
       if (isMarkdownFenceClose(line, activeFence)) {
         lastCodeBlock = activeCodeLines.join('\n');
         activeFence = null;
         activeCodeLines = [];
-        continue;
+        return;
       }
 
       activeCodeLines.push(line);
-      continue;
+      return;
     }
 
     const fence = getMarkdownFenceState(line);
@@ -60,9 +59,34 @@ export function extractLastFencedCodeBlock(markdown: string): string | null {
       activeFence = fence;
       activeCodeLines = [];
     }
-  }
+  });
 
   return lastCodeBlock;
+}
+
+function forEachNormalizedMarkdownLine(markdown: string, visit: (line: string) => void): void {
+  let lineStart = 0;
+  for (let index = 0; index < markdown.length; index += 1) {
+    const character = markdown[index];
+    if (character !== '\n' && character !== '\r') continue;
+
+    visit(markdown.slice(lineStart, index));
+    if (character === '\r' && markdown[index + 1] === '\n') {
+      index += 1;
+    }
+    lineStart = index + 1;
+  }
+  visit(markdown.slice(lineStart));
+}
+
+function findLastAssistantMessage<T extends { role?: string }>(messages: T[]): T | null {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.role === 'assistant') {
+      return message;
+    }
+  }
+  return null;
 }
 
 export function useChatShortcuts(
@@ -197,7 +221,7 @@ export function useChatShortcuts(
 
       if (matchesShortcutBinding(e, 'copyLastResponse')) {
         e.preventDefault();
-        const lastAI = [...currentMsgs].reverse().find(m => m.role === 'assistant');
+        const lastAI = findLastAssistantMessage(currentMsgs);
         if (lastAI) {
           try {
             const copyRequest = copyMessageContentToClipboard(stripThinkingContent(lastAI.content));
@@ -217,7 +241,7 @@ export function useChatShortcuts(
 
       if (matchesShortcutBinding(e, 'copyLastCodeBlock')) {
         e.preventDefault();
-        const lastAI = [...currentMsgs].reverse().find(m => m.role === 'assistant');
+        const lastAI = findLastAssistantMessage(currentMsgs);
         if (lastAI) {
           const visibleContent = stripThinkingContent(lastAI.content);
           const lastCode = extractLastFencedCodeBlock(visibleContent);

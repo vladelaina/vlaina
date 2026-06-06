@@ -19,10 +19,22 @@ describe('deleteColumn selection normalization', () => {
                   nodeSize: 6,
                 }
               : null,
-        descendants: (callback: (node: any, pos: number) => void) => {
-          callback({ type: { name: 'table_cell' } }, 20);
-          callback({ type: { name: 'table_cell' } }, 40);
+        content: {
+          size: 100,
         },
+        resolve: () => ({
+          depth: 1,
+          before: () => 10,
+          node: (depth: number) => ({
+            descendants: (callback: (node: any, pos: number) => void) => {
+              callback({ type: { name: 'table_cell' } }, 9);
+              callback({ type: { name: 'table_cell' } }, 29);
+            },
+            type: {
+              name: depth === 1 ? 'table' : 'doc',
+            },
+          }),
+        }),
         nodesBetween: (
           from: number,
           _to: number,
@@ -45,9 +57,16 @@ describe('deleteColumn selection normalization', () => {
         map: (pos: number) => pos,
       },
       doc: {
+        content: {
+          size: 100,
+        },
         nodeAt: () => null,
-        descendants: () => {},
         nodesBetween: () => {},
+        resolve: () => ({
+          depth: 0,
+          nodeAfter: null,
+          nodeBefore: null,
+        }),
       },
     };
 

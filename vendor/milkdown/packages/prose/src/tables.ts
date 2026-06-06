@@ -12,25 +12,66 @@ function isColumnSelection(selection: any): boolean {
   )
 }
 
-export function findNearestTableTextSelectionPos(tr: any, anchorPos: number) {
-  const mappedAnchor = tr.mapping?.map(anchorPos, -1) ?? anchorPos
+function findTableAroundPos(doc: any, pos: number) {
+  const resolvedPos = Math.max(0, Math.min(pos, doc.content?.size ?? pos))
+  const $pos = doc.resolve(resolvedPos)
+
+  for (let depth = $pos.depth; depth > 0; depth--) {
+    if ($pos.node(depth).type?.name === 'table') {
+      return {
+        node: $pos.node(depth),
+        pos: $pos.before(depth),
+      }
+    }
+  }
+
+  if ($pos.nodeAfter?.type?.name === 'table') {
+    return {
+      node: $pos.nodeAfter,
+      pos: resolvedPos,
+    }
+  }
+
+  if ($pos.nodeBefore?.type?.name === 'table') {
+    return {
+      node: $pos.nodeBefore,
+      pos: resolvedPos - $pos.nodeBefore.nodeSize,
+    }
+  }
+
+  return null
+}
+
+function findNearestCellPosInTable(table: any, tablePos: number, anchorPos: number) {
   let nearestCellPos: number | null = null
   let nearestDistance = Number.POSITIVE_INFINITY
 
-  tr.doc.descendants((node: any, pos: number) => {
+  table.descendants((node: any, pos: number) => {
     if (node.type?.name !== 'table_cell' && node.type?.name !== 'table_header') {
       return true
     }
 
-    const distance = Math.abs(pos - mappedAnchor)
+    const cellPos = tablePos + 1 + pos
+    const distance = Math.abs(cellPos - anchorPos)
     if (distance < nearestDistance) {
       nearestDistance = distance
-      nearestCellPos = pos
+      nearestCellPos = cellPos
     }
 
     return true
   })
 
+  return nearestCellPos
+}
+
+export function findNearestTableTextSelectionPos(tr: any, anchorPos: number) {
+  const mappedAnchor = tr.mapping?.map(anchorPos, -1) ?? anchorPos
+  const table = findTableAroundPos(tr.doc, mappedAnchor)
+  if (!table) {
+    return null
+  }
+
+  const nearestCellPos = findNearestCellPosInTable(table.node, table.pos, mappedAnchor)
   if (nearestCellPos == null) {
     return null
   }

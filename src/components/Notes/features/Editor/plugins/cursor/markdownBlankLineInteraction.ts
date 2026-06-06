@@ -2,6 +2,10 @@ import { NodeSelection, TextSelection, type EditorState } from '@milkdown/kit/pr
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
 import { blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION } from './blockSelectionPluginState';
 import { isSameEditorScrollRoot } from './blankAreaInteractionUtils';
+import {
+  STOP_PROSE_SCAN,
+  scanProseDescendants,
+} from '../shared/boundedProseNodeScan';
 
 const MARKDOWN_BLANK_LINE_VALUE = '<!--vlaina-markdown-blank-line-->';
 const MARKDOWN_BLANK_LINE_SELECTOR = `[data-type="html-block"][data-value="${MARKDOWN_BLANK_LINE_VALUE}"]`;
@@ -21,7 +25,7 @@ function resolveMarkdownBlankLineTarget(view: EditorView, target: EventTarget | 
   return blankLine instanceof HTMLElement && view.dom.contains(blankLine) ? blankLine : null;
 }
 
-function resolveMarkdownBlankLineNodePos(view: EditorView, blankLine: HTMLElement): number | null {
+export function resolveMarkdownBlankLineNodePos(view: EditorView, blankLine: HTMLElement): number | null {
   try {
     const directPos = view.posAtDOM(blankLine, 0);
     const directNode = view.state.doc.nodeAt(directPos);
@@ -37,18 +41,30 @@ function resolveMarkdownBlankLineNodePos(view: EditorView, blankLine: HTMLElemen
   }
 
   let found: number | null = null;
-  view.state.doc.descendants((node, pos) => {
-    if (found !== null) return false;
-    if (node.type.name !== 'html_block' || node.attrs.value !== MARKDOWN_BLANK_LINE_VALUE) {
+  scanProseDescendants(view.state.doc, (node, pos) => {
+    if (node.type?.name !== 'html_block' || node.attrs?.value !== MARKDOWN_BLANK_LINE_VALUE) {
       return true;
     }
     if (view.nodeDOM(pos) === blankLine) {
       found = pos;
-      return false;
+      return STOP_PROSE_SCAN;
     }
     return true;
-  });
+  }, Number.POSITIVE_INFINITY);
   return found;
+}
+
+export function findEditableMarkdownBlankLineElement(root: HTMLElement): HTMLParagraphElement | null {
+  for (let index = 0; index < root.children.length; index += 1) {
+    const child = root.children.item(index);
+    if (
+      child instanceof HTMLParagraphElement
+      && child.textContent === EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER
+    ) {
+      return child;
+    }
+  }
+  return null;
 }
 
 function isMarkdownBlankLineDebugEnabled(): boolean {
@@ -101,10 +117,7 @@ export function handleMarkdownBlankLinePointerDown(view: EditorView, event: Mous
   view.focus();
 
   const editableBlankLine = debugEnabled
-    ? Array.from(view.dom.children).find((child): child is HTMLParagraphElement =>
-      child instanceof HTMLParagraphElement
-      && child.textContent === EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER
-    ) ?? null
+    ? findEditableMarkdownBlankLineElement(view.dom)
     : null;
   const afterRect = editableBlankLine?.getBoundingClientRect() ?? null;
   const nextTopAfter = nextElement?.getBoundingClientRect().top ?? null;

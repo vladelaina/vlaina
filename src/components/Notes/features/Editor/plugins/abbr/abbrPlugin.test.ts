@@ -4,9 +4,77 @@ import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import type { Decoration } from '@milkdown/kit/prose/view';
 import { configureTheme } from '../../theme';
-import { abbrPlugin, abbrPluginKey } from './abbrPlugin';
+import {
+  MAX_ABBR_DECORATIONS,
+  abbrPlugin,
+  abbrPluginKey,
+  extractAbbrDefinitions,
+  findAbbrUsages,
+} from './abbrPlugin';
+
+interface FakeAbbrNode {
+  child?: (index: number) => FakeAbbrNode | null | undefined;
+  childCount?: number;
+  isText?: boolean;
+  nodeSize?: number;
+  text?: string;
+}
+
+function createTextNode(text: string): FakeAbbrNode {
+  return {
+    isText: true,
+    nodeSize: text.length,
+    text,
+  };
+}
+
+function createDocNode(children: FakeAbbrNode[], onAccess?: () => void): FakeAbbrNode {
+  return {
+    childCount: children.length,
+    child(index) {
+      onAccess?.();
+      return children[index];
+    },
+  };
+}
 
 describe('abbrPlugin', () => {
+  it('stops collecting definitions when the node scan budget is exhausted', () => {
+    const doc = createDocNode([
+      createTextNode('plain text'),
+      createTextNode('*[HTML]: HyperText Markup Language'),
+    ]);
+
+    expect(extractAbbrDefinitions(doc, 1)).toEqual([]);
+  });
+
+  it('stops collecting usages when the node scan budget is exhausted', () => {
+    const doc = createDocNode([
+      createTextNode('plain text'),
+      createTextNode('HTML usage'),
+    ]);
+
+    expect(findAbbrUsages(doc, [{ abbr: 'HTML', fullText: 'HyperText Markup Language' }], 1)).toEqual([]);
+  });
+
+  it('stops scanning usage nodes after the decoration cap is reached', () => {
+    let accessed = 0;
+    const children: FakeAbbrNode[] = [];
+    for (let index = 0; index < MAX_ABBR_DECORATIONS + 2; index += 1) {
+      children.push(createTextNode('HTML '));
+    }
+
+    const usages = findAbbrUsages(
+      createDocNode(children, () => {
+        accessed += 1;
+      }),
+      [{ abbr: 'HTML', fullText: 'HyperText Markup Language' }],
+    );
+
+    expect(usages).toHaveLength(MAX_ABBR_DECORATIONS);
+    expect(accessed).toBe(MAX_ABBR_DECORATIONS);
+  });
+
   it('decorates ordinary abbreviation usage without touching definitions or code', async () => {
     const editor = Editor.make()
       .config((ctx) => {

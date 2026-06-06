@@ -1,4 +1,4 @@
-import type { Node } from '@milkdown/prose/model'
+import type { Node, NodeType } from '@milkdown/prose/model'
 import type { EditorState, Transaction } from '@milkdown/prose/state'
 
 import { Plugin, PluginKey } from '@milkdown/prose/state'
@@ -8,6 +8,68 @@ import { withMeta } from '../__internal__'
 import { bulletListSchema } from '../node'
 import { listItemSchema } from '../node/list-item'
 import { orderedListSchema } from '../node/ordered-list'
+
+function positionTouchesList(
+  doc: Node,
+  pos: number,
+  listTypes: readonly NodeType[]
+) {
+  const resolvedPos = Math.max(0, Math.min(pos, doc.content.size))
+  const $pos = doc.resolve(resolvedPos)
+
+  for (let depth = $pos.depth; depth > 0; depth--) {
+    if (listTypes.includes($pos.node(depth).type)) return true
+  }
+
+  return (
+    ($pos.nodeBefore && listTypes.includes($pos.nodeBefore.type)) ||
+    ($pos.nodeAfter && listTypes.includes($pos.nodeAfter.type))
+  )
+}
+
+function rangeTouchesList(
+  doc: Node,
+  from: number,
+  to: number,
+  listTypes: readonly NodeType[]
+) {
+  const start = Math.max(0, Math.min(from - 1, doc.content.size))
+  const end = Math.max(start, Math.min(to + 1, doc.content.size))
+  if (
+    positionTouchesList(doc, start, listTypes) ||
+    positionTouchesList(doc, end, listTypes)
+  ) {
+    return true
+  }
+
+  let hasList = false
+  doc.nodesBetween(start, end, (node) => {
+    if (listTypes.includes(node.type)) {
+      hasList = true
+      return false
+    }
+    return !hasList
+  })
+
+  return hasList
+}
+
+export function docChangeMayAffectListOrder(
+  prevDoc: Node,
+  nextDoc: Node,
+  listTypes: readonly NodeType[]
+) {
+  const diffStart = prevDoc.content.findDiffStart(nextDoc.content)
+  if (diffStart === null) return false
+
+  const diffEnd = prevDoc.content.findDiffEnd(nextDoc.content)
+  if (!diffEnd) return true
+
+  return (
+    rangeTouchesList(prevDoc, diffStart, diffEnd.a, listTypes) ||
+    rangeTouchesList(nextDoc, diffStart, diffEnd.b, listTypes)
+  )
+}
 
 /// This plugin is used to keep the label of list item up to date in ordered list.
 export const syncListOrderPlugin = $prose((ctx) => {
@@ -30,6 +92,14 @@ export const syncListOrderPlugin = $prose((ctx) => {
     const orderedListType = orderedListSchema.type(ctx)
     const bulletListType = bulletListSchema.type(ctx)
     const listItemType = listItemSchema.type(ctx)
+    if (
+      !docChangeMayAffectListOrder(_oldState.doc, newState.doc, [
+        orderedListType,
+        bulletListType,
+        listItemType,
+      ])
+    )
+      return null
 
     const handleNodeItem = (
       attrs: Record<string, any>,

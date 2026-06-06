@@ -3,8 +3,37 @@ import { Editor, defaultValueCtx, editorViewCtx, serializerCtx } from '@milkdown
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
-import { isMarkdownImagePatternBeforeCursor, markdownLinkPlugin } from './markdownLinkPlugin';
+import { docHasRawMarkdownLink, isMarkdownImagePatternBeforeCursor, markdownLinkPlugin } from './markdownLinkPlugin';
 import { shouldHandleMarkdownLinkPaste } from './markdownLinkParser';
+
+interface FakeMarkdownLinkNode {
+  child?: (index: number) => FakeMarkdownLinkNode | null | undefined;
+  childCount?: number;
+  isText?: boolean;
+  nodeSize?: number;
+  text?: string;
+  type?: { name?: string };
+}
+
+function createTextNode(text: string): FakeMarkdownLinkNode {
+  return {
+    isText: true,
+    nodeSize: text.length,
+    text,
+    type: { name: 'text' },
+  };
+}
+
+function createDocNode(children: FakeMarkdownLinkNode[], onAccess?: () => void): FakeMarkdownLinkNode {
+  return {
+    childCount: children.length,
+    child(index) {
+      onAccess?.();
+      return children[index];
+    },
+    type: { name: 'doc' },
+  };
+}
 
 function simulatePasteText(view: any, text: string): boolean {
   const event = {
@@ -42,6 +71,19 @@ function getFirstLinkHref(view: any): string | null {
 }
 
 describe('shouldHandleMarkdownLinkPaste', () => {
+  it('stops scanning for raw markdown links after the first match', () => {
+    let accessed = 0;
+    const doc = createDocNode([
+      createTextNode('[Docs](https://example.com)'),
+      createTextNode('[Later](https://later.example)'),
+    ], () => {
+      accessed += 1;
+    });
+
+    expect(docHasRawMarkdownLink(doc as any)).toBe(true);
+    expect(accessed).toBe(1);
+  });
+
   it('handles single-line markdown link text', () => {
     expect(shouldHandleMarkdownLinkPaste('Read [Docs](https://example.com)')).toBe(true);
   });

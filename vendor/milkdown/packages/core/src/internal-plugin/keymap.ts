@@ -47,7 +47,7 @@ const deleteSelectionAndSyncStoredMarks: Command = (state, dispatch) => {
   return true
 }
 
-function getTextDeleteSize(text: string, direction: -1 | 1) {
+export function getTextDeleteSize(text: string, direction: -1 | 1) {
   if (!text) return 0
 
   const segmenter =
@@ -63,10 +63,16 @@ function getTextDeleteSize(text: string, direction: -1 | 1) {
     return codePoint == null ? 0 : String.fromCodePoint(codePoint).length
   }
 
-  const segments = Array.from(segmenter.segment(text))
-  const segment =
-    direction < 0 ? segments[segments.length - 1] : segments[0]
-  return segment?.segment.length ?? 0
+  if (direction > 0) {
+    const first = segmenter.segment(text)[Symbol.iterator]().next()
+    return first.done ? 0 : first.value.segment.length
+  }
+
+  let size = 0
+  for (const segment of segmenter.segment(text)) {
+    size = segment.segment.length
+  }
+  return size
 }
 
 const deleteTextBeforeCursorAndSyncStoredMarks: Command = (state, dispatch) => {

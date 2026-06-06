@@ -6,6 +6,10 @@ import {
     COLLAPSED_CONTENT_CLASS,
     isCollapseToggleTarget
 } from './collapseUtils';
+import {
+    STOP_PROSE_SCAN,
+    scanProseDescendants,
+} from '../shared/boundedProseNodeScan';
 
 type ListCollapseActionType = 'toggle' | 'expand' | 'collapse';
 
@@ -22,7 +26,7 @@ interface ListCollapsePluginState {
 const LIST_COLLAPSE_KEY = new PluginKey<ListCollapsePluginState>('listCollapse');
 const COLLAPSE_TYPE = 'list-item';
 const ORDERED_MARKER_BASE_CHARS = 2;
-const MAX_LIST_COLLAPSE_ITEMS = 1000;
+export const MAX_LIST_COLLAPSE_ITEMS = 1000;
 
 function getOrderedListMarkerExtraOffset(node: any): string {
     if (node.attrs?.listType !== 'ordered') return '';
@@ -99,19 +103,20 @@ function buildListCollapseDecorations(
     const decorations: Decoration[] = [];
     let decoratedItems = 0;
 
-    doc.descendants((node: any, pos: number) => {
-        if (decoratedItems >= MAX_LIST_COLLAPSE_ITEMS) return false;
-        if (node.type.name !== 'list_item') return true;
+    scanProseDescendants(doc, (node, pos) => {
+        if (decoratedItems >= MAX_LIST_COLLAPSE_ITEMS) return STOP_PROSE_SCAN;
+        if (node.type?.name !== 'list_item') return true;
+        if (typeof node.forEach !== 'function') return true;
 
         let hasNestedList = false;
         let nestedListPos = -1;
         let nestedListEnd = -1;
 
-        node.forEach((child: any, offset: number) => {
-            if (child.type.name === 'bullet_list' || child.type.name === 'ordered_list') {
+        node.forEach((child, offset) => {
+            if (child.type?.name === 'bullet_list' || child.type?.name === 'ordered_list') {
                 hasNestedList = true;
                 nestedListPos = pos + 1 + offset;
-                nestedListEnd = nestedListPos + child.nodeSize;
+                nestedListEnd = nestedListPos + (child.nodeSize ?? 0);
             }
         });
 
@@ -153,7 +158,7 @@ function buildListCollapseDecorations(
             );
         }
 
-        return true;
+        return decoratedItems < MAX_LIST_COLLAPSE_ITEMS ? true : STOP_PROSE_SCAN;
     });
 
     return DecorationSet.create(doc, decorations);
