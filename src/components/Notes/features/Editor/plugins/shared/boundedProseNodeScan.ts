@@ -13,6 +13,7 @@ export interface BoundedProseScanNode {
   marks?: Array<{ type?: { name?: string } }>;
   nodeSize?: number;
   text?: string | null;
+  textContent?: string | null;
   textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string;
   type?: { name?: string };
 }

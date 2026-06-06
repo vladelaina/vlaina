@@ -1,4 +1,9 @@
 import type { TocItem } from './types';
+import {
+  STOP_PROSE_SCAN,
+  scanProseDescendants,
+  type BoundedProseScanNode,
+} from '../shared/boundedProseNodeScan';
 
 export const TOC_EMPTY_TEXT = 'No headings yet';
 
@@ -21,15 +26,13 @@ function normalizeHeadingLevel(value: unknown, maxLevel: number): number | null 
   return level <= maxLevel ? level : null;
 }
 
-export function extractHeadings(doc: {
-  descendants: (callback: (node: any, pos: number) => boolean | void) => void;
-}, maxLevel = 6): TocItem[] {
+export function extractHeadings(doc: BoundedProseScanNode, maxLevel = 6): TocItem[] {
   const headings: TocItem[] = [];
   const normalizedMaxLevel = normalizeTocMaxLevel(maxLevel);
 
-  doc.descendants((node: any, pos: number) => {
+  scanProseDescendants(doc, (node, pos) => {
     if (headings.length >= MAX_TOC_VIEW_HEADINGS) {
-      return false;
+      return STOP_PROSE_SCAN;
     }
 
     if (node.type?.name !== 'heading') {
@@ -53,7 +56,7 @@ export function extractHeadings(doc: {
       pos,
     });
 
-    return headings.length < MAX_TOC_VIEW_HEADINGS;
+    return headings.length < MAX_TOC_VIEW_HEADINGS ? true : STOP_PROSE_SCAN;
   });
 
   return headings;
