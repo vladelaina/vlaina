@@ -548,6 +548,10 @@ function rangeKey(range: BlockRange): string {
   return `${range.from}:${range.to}`;
 }
 
+function topLevelRangeKey(range: { from: number; to: number }): string {
+  return `${range.from}:${range.to}`;
+}
+
 function collapseCompleteSelectedListContainers(
   doc: EditorState['doc'],
   ranges: readonly BlockRange[],
@@ -562,6 +566,18 @@ function collapseCompleteSelectedListContainers(
   } catch {
     return [...ranges];
   }
+  const selectableRangesByTopLevelList = new Map<string, BlockRange[]>();
+  for (const range of allSelectableRanges) {
+    const topLevel = resolveTopLevelBlockInfo(doc, range.from);
+    if (!topLevel || !isListContainerName(topLevel.name)) continue;
+    const key = topLevelRangeKey(topLevel);
+    const listRanges = selectableRangesByTopLevelList.get(key);
+    if (listRanges) {
+      listRanges.push(range);
+    } else {
+      selectableRangesByTopLevelList.set(key, [range]);
+    }
+  }
   const output: BlockRange[] = [];
   let index = 0;
 
@@ -575,8 +591,7 @@ function collapseCompleteSelectedListContainers(
     }
 
     const listRange = { from: topLevel.from, to: topLevel.to };
-    const listSelectableRanges = allSelectableRanges
-      .filter((range) => range.from >= topLevel.from && range.to <= topLevel.to);
+    const listSelectableRanges = selectableRangesByTopLevelList.get(topLevelRangeKey(listRange)) ?? [];
 
     const completeListSelected =
       listSelectableRanges.length > 1

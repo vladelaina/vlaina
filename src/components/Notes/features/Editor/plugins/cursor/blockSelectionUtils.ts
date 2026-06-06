@@ -84,6 +84,10 @@ export function normalizeBlockRanges(ranges: readonly BlockRange[]): BlockRange[
   return unique;
 }
 
+function getBlockRangeKey(from: number, to: number): string {
+  return `${from}:${to}`;
+}
+
 export function pruneContainedBlockRanges(ranges: readonly BlockRange[]): BlockRange[] {
   const normalized = normalizeBlockRanges(ranges);
   if (normalized.length <= 1) return normalized;
@@ -205,12 +209,12 @@ export function preferNestedBlockRangesUnlessHeaderIntersects(
   const nestedPreferred = preferNestedBlockRanges(normalized);
   if (nestedPreferred.length === normalized.length) return nestedPreferred;
 
-  const nestedKeys = new Set(nestedPreferred.map((range) => `${range.from}:${range.to}`));
-  const candidateParents = normalized.filter((range) => !nestedKeys.has(`${range.from}:${range.to}`));
+  const nestedKeys = new Set(nestedPreferred.map((range) => getBlockRangeKey(range.from, range.to)));
+  const candidateParents = normalized.filter((range) => !nestedKeys.has(getBlockRangeKey(range.from, range.to)));
   const selectedChildren = nestedPreferred.sort((left, right) => (
     left.from === right.from ? left.to - right.to : left.from - right.from
   ));
-  const blockTopByRange = new Map(blocks.map((block) => [`${block.from}:${block.to}`, block.top]));
+  const blockTopByRange = new Map(blocks.map((block) => [getBlockRangeKey(block.from, block.to), block.top]));
 
   const preservedParents: BlockRange[] = [];
   for (const parent of candidateParents) {
@@ -221,7 +225,7 @@ export function preferNestedBlockRangesUnlessHeaderIntersects(
       if (child.from >= parent.to) break;
       if (child.to > parent.to) continue;
 
-      const childTop = blockTopByRange.get(`${child.from}:${child.to}`);
+      const childTop = blockTopByRange.get(getBlockRangeKey(child.from, child.to));
       if (childTop === undefined) continue;
       firstChildTop = firstChildTop === null ? childTop : Math.min(firstChildTop, childTop);
     }
@@ -300,6 +304,10 @@ interface ContainedListChildSelection {
   itemTo: number;
 }
 
+interface BlockSelectionDecorationContext {
+  displayRangeKeys: ReadonlySet<string>;
+}
+
 function resolveContainedListChildSelection(
   doc: EditorState['doc'],
   range: BlockRange,
@@ -333,14 +341,15 @@ export function getBlockSelectionDecorationClass(
   doc: EditorState['doc'],
   range: BlockRange,
   displayRanges: readonly BlockRange[],
+  context?: BlockSelectionDecorationContext,
 ): string {
   const containedSelection = resolveContainedListChildSelection(doc, range);
   if (!containedSelection) return 'editor-block-selected';
 
-  const hasSelectedContainer = displayRanges.some((candidate) => (
-    candidate.from === containedSelection.itemFrom
-    && candidate.to === containedSelection.itemTo
-  ));
+  const selectedContainerKey = getBlockRangeKey(containedSelection.itemFrom, containedSelection.itemTo);
+  const hasSelectedContainer = context
+    ? context.displayRangeKeys.has(selectedContainerKey)
+    : displayRanges.some((candidate) => getBlockRangeKey(candidate.from, candidate.to) === selectedContainerKey);
 
   return hasSelectedContainer
     ? 'editor-block-selected editor-block-selected-contained'
@@ -405,13 +414,16 @@ export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks:
   if (blocks.length === 0) return DecorationSet.empty;
 
   const displayRanges = getDisplayBlockRangesForDecorations(doc, blocks);
+  const context: BlockSelectionDecorationContext = {
+    displayRangeKeys: new Set(displayRanges.map((range) => getBlockRangeKey(range.from, range.to))),
+  };
 
   const decorations = displayRanges.flatMap((range) => {
     const isNodeRange = isNodeDecorationRange(doc, range);
     const isInlineLineSelection = !isNodeRange && isPartialParagraphRange(doc, range);
     const attrs = {
       class: [
-        getBlockSelectionDecorationClass(doc, range, displayRanges),
+        getBlockSelectionDecorationClass(doc, range, displayRanges, context),
         isInlineLineSelection ? 'editor-block-selected-inline-line' : '',
       ].filter(Boolean).join(' '),
     };

@@ -27,6 +27,7 @@ export function useNotesOutline(enabled: boolean) {
   const positionMapRef = useRef<Map<string, number>>(new Map());
   const editorRootRef = useRef<HTMLElement | null>(null);
   const scrollRootRef = useRef<HTMLElement | null>(null);
+  const snapshotHeadingsRef = useRef<EditorBlockPositionSnapshot['headings'] | null>(null);
   const refreshOutlineRef = useRef<((snapshot: EditorBlockPositionSnapshot | null) => void) | null>(null);
   const scrollSyncRafRef = useRef<number | null>(null);
   const jumpLockRef = useRef<{
@@ -75,6 +76,7 @@ export function useNotesOutline(enabled: boolean) {
       positionMapRef.current = new Map();
       editorRootRef.current = null;
       scrollRootRef.current = null;
+      snapshotHeadingsRef.current = null;
       jumpLockRef.current = null;
       refreshOutlineRef.current = null;
       setHeadings([]);
@@ -85,6 +87,8 @@ export function useNotesOutline(enabled: boolean) {
     const refreshOutline = (snapshot: EditorBlockPositionSnapshot | null) => {
       const editorRoot = snapshot?.editorRoot ?? null;
       const scrollRoot = snapshot?.scrollRoot ?? null;
+      const previousEditorRoot = editorRootRef.current;
+      const previousScrollRoot = scrollRootRef.current;
       scrollRootRef.current = scrollRoot;
       editorRootRef.current = editorRoot;
 
@@ -93,9 +97,19 @@ export function useNotesOutline(enabled: boolean) {
         headingMetricsRef.current = [];
         elementMapRef.current = new Map();
         positionMapRef.current = new Map();
+        snapshotHeadingsRef.current = null;
         jumpLockRef.current = null;
         setHeadings((previous) => (previous.length === 0 ? previous : []));
         setActiveId(null);
+        return;
+      }
+
+      if (
+        snapshotHeadingsRef.current === snapshot.headings
+        && previousEditorRoot === editorRoot
+        && previousScrollRoot === scrollRoot
+      ) {
+        syncActiveHeading(snapshot.scrollTop);
         return;
       }
 
@@ -119,6 +133,7 @@ export function useNotesOutline(enabled: boolean) {
       headingMetricsRef.current = metrics;
       elementMapRef.current = new Map(snapshot.headings.map((heading) => [heading.id, heading.element]));
       positionMapRef.current = new Map(snapshot.headings.map((heading) => [heading.id, heading.top]));
+      snapshotHeadingsRef.current = snapshot.headings;
 
       if (!areOutlineHeadingsEqual(headingsRef.current, nextHeadings)) {
         headingsRef.current = nextHeadings;
@@ -150,6 +165,7 @@ export function useNotesOutline(enabled: boolean) {
       }
       scrollRootRef.current = null;
       editorRootRef.current = null;
+      snapshotHeadingsRef.current = null;
       refreshOutlineRef.current = null;
     };
   }, [enabled, syncActiveHeading]);

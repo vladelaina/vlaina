@@ -94,11 +94,18 @@ function isSameSelectionSnapshot(
 function getEditorInteractionDecorations(state: EditorState): DecorationSet {
   const blockSelectionDecorations = getBlockSelectionPluginState(state).decorations;
   const editableBlankLineDecorations = createEditableMarkdownBlankLineDecorations(state.doc);
+  if (blockSelectionDecorations === DecorationSet.empty) {
+    return editableBlankLineDecorations;
+  }
+  if (editableBlankLineDecorations === DecorationSet.empty) {
+    return blockSelectionDecorations;
+  }
+
   const decorations = [
     ...blockSelectionDecorations.find(),
     ...editableBlankLineDecorations.find(),
   ];
-  return decorations.length > 0 ? DecorationSet.create(state.doc, decorations) : DecorationSet.empty;
+  return DecorationSet.create(state.doc, decorations);
 }
 
 function resolveTopLevelListContainer(view: EditorView, target: EventTarget | null): HTMLElement | null {
