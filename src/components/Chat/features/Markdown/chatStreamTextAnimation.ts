@@ -41,6 +41,21 @@ export interface ChatStreamBlock {
 
 const MIN_STABLE_PREFIX_CHARS = themeChatStreamTokens.minStablePrefixChars;
 
+interface StableMarkdownScanState {
+  activeFence: MarkdownFenceState | null;
+  charOffset: number;
+  content: string;
+  offset: number;
+  resumeLineStart: number;
+  splitIndex: number;
+}
+
+interface StableStreamBlockCache {
+  block: ChatStreamBlock;
+  codeBlockIndexOffset: number;
+  imageIndexOffset: number;
+}
+
 function now(): number {
   return typeof performance === 'undefined' ? Date.now() : performance.now();
 }
@@ -75,15 +90,38 @@ function createRevealedStreamBlock(content: string, key: string, renderNow: numb
   };
 }
 
-function findStableMarkdownSplit(content: string): number {
-  const lines = content.replace(/\r\n?/g, '\n').split('\n');
-  let activeFence: MarkdownFenceState | null = null;
-  let splitIndex = 0;
-  let charOffset = 0;
-  let offset = 0;
+function scanStableMarkdownSplit(
+  content: string,
+  startState?: StableMarkdownScanState | null,
+): StableMarkdownScanState {
+  const normalizedContent = content.replace(/\r\n?/g, '\n');
+  const canResume =
+    !!startState &&
+    normalizedContent.startsWith(startState.content.slice(0, startState.resumeLineStart));
+  let activeFence = canResume ? startState.activeFence : null;
+  let splitIndex = canResume ? startState.splitIndex : 0;
+  let charOffset = canResume ? startState.charOffset : 0;
+  let offset = canResume ? startState.offset : 0;
+  let lineStart = canResume ? startState.resumeLineStart : 0;
 
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index]!;
+  while (lineStart < normalizedContent.length) {
+    const stateBeforeLine = {
+      activeFence,
+      charOffset,
+      offset,
+      splitIndex,
+    };
+    const newlineIndex = normalizedContent.indexOf('\n', lineStart);
+    if (newlineIndex === -1) {
+      return {
+        ...stateBeforeLine,
+        content: normalizedContent,
+        resumeLineStart: lineStart,
+      };
+    }
+
+    const lineEnd = newlineIndex === -1 ? normalizedContent.length : newlineIndex;
+    const line = normalizedContent.slice(lineStart, lineEnd);
     if (activeFence) {
       if (isMarkdownFenceClose(line, activeFence)) {
         activeFence = null;
@@ -92,9 +130,9 @@ function findStableMarkdownSplit(content: string): number {
       activeFence = getMarkdownFenceState(line);
     }
 
-    offset += line.length;
+    offset = lineEnd;
     charOffset += textLength(line);
-    if (index < lines.length - 1) {
+    if (newlineIndex !== -1) {
       offset += 1;
       charOffset += 1;
     }
@@ -110,9 +148,18 @@ function findStableMarkdownSplit(content: string): number {
     if (charOffset >= MIN_STABLE_PREFIX_CHARS) {
       splitIndex = offset;
     }
+
+    lineStart = newlineIndex + 1;
   }
 
-  return splitIndex;
+  return {
+    activeFence,
+    charOffset,
+    content: normalizedContent,
+    offset,
+    resumeLineStart: lineStart,
+    splitIndex,
+  };
 }
 
 export function buildChatStreamSchedule(
@@ -200,7 +247,8 @@ export function useChatStreamBlocks(
   const previousArrivalTimeRef = useRef(renderNow);
   const birthsRef = useRef<number[]>([]);
   const charDelayRef = useRef(0);
-  const stableBlockRef = useRef<ChatStreamBlock | null>(null);
+  const stableBlockRef = useRef<StableStreamBlockCache | null>(null);
+  const stableScanRef = useRef<StableMarkdownScanState | null>(null);
 
   return useMemo(() => {
     if (!enabled || !canAnimateChatStreamContent(content)) {
@@ -210,6 +258,7 @@ export function useChatStreamBlocks(
       birthsRef.current = [];
       charDelayRef.current = 0;
       stableBlockRef.current = null;
+      stableScanRef.current = null;
       return content ? [createRevealedStreamBlock(content, 'static', renderNow)] : [];
     }
 
@@ -257,35 +306,41 @@ export function useChatStreamBlocks(
     }
 
     const lastBirth = birthsRef.current.at(-1) ?? renderNow;
-    const stableSplit = findStableMarkdownSplit(content);
+    const stableScan = scanStableMarkdownSplit(content, stableScanRef.current);
+    stableScanRef.current = stableScan;
+    const stableSplit = stableScan.splitIndex;
     if (stableSplit > 0) {
       const stableContent = content.slice(0, stableSplit);
       const activeContent = content.slice(stableSplit);
       const stableCharLength = textLength(stableContent);
       const stableKey = `stable:${stableCharLength}`;
       const stableBlock =
-        stableBlockRef.current?.key === stableKey && stableBlockRef.current.content === stableContent
+        stableBlockRef.current?.block.key === stableKey && stableBlockRef.current.block.content === stableContent
           ? stableBlockRef.current
           : {
-              births: [],
-              charDelay: 0,
-              codeBlockIndexOffset: 0,
-              content: stableContent,
-              imageIndexOffset: 0,
-              key: stableKey,
-              nowMs: renderNow,
-              revealed: true,
+              block: {
+                births: [],
+                charDelay: 0,
+                codeBlockIndexOffset: 0,
+                content: stableContent,
+                imageIndexOffset: 0,
+                key: stableKey,
+                nowMs: renderNow,
+                revealed: true,
+              },
+              codeBlockIndexOffset: countFencedCodeBlocks(stableContent),
+              imageIndexOffset: countRenderableImages(stableContent),
             };
       stableBlockRef.current = stableBlock;
 
       return [
-        stableBlock,
+        stableBlock.block,
         {
           births: birthsRef.current.slice(stableCharLength),
           charDelay: charDelayRef.current,
-          codeBlockIndexOffset: countFencedCodeBlocks(stableContent),
+          codeBlockIndexOffset: stableBlock.codeBlockIndexOffset,
           content: activeContent,
-          imageIndexOffset: countRenderableImages(stableContent),
+          imageIndexOffset: stableBlock.imageIndexOffset,
           key: 'stream',
           nowMs: renderNow,
           revealed: birthsRef.current.length === 0 || renderNow - lastBirth >= CHAT_STREAM_FADE_MS,
