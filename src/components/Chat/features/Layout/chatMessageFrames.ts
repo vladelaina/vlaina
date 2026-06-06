@@ -34,7 +34,6 @@ interface BuildChatMessageFrameLayoutOptions {
 type CachedFrameLayoutEntry = {
   layout: ChatMessageFrameLayout;
   messageSignatures: string[];
-  signature: string;
 };
 
 type CachedMeasuredHeightEntry = {
@@ -109,6 +108,23 @@ function getSharedMessagePrefixLength(
   return index;
 }
 
+function areMessageSignaturesEqual(
+  previous: string[],
+  next: string[],
+): boolean {
+  if (previous.length !== next.length) {
+    return false;
+  }
+
+  for (let index = 0; index < previous.length; index += 1) {
+    if (previous[index] !== next[index]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function getMeasuredHeightCacheKey(
   cacheKey: string | null | undefined,
   containerWidth: number,
@@ -179,9 +195,8 @@ function buildEstimatedChatMessageFrameLayout(
   const normalizedWidth = normalizeChatContainerWidth(containerWidth);
   const key = getFrameLayoutCacheKey(cacheKey, normalizedWidth, isSessionActive);
   const messageSignatures = getMessageSignatures(messages);
-  const signature = messageSignatures.join('\u0001');
   const cached = estimatedFrameLayoutCache.get(key);
-  if (cached && cached.signature === signature) {
+  if (cached && areMessageSignaturesEqual(cached.messageSignatures, messageSignatures)) {
     return cached.layout;
   }
 
@@ -223,7 +238,7 @@ function buildEstimatedChatMessageFrameLayout(
     endOffset: offset,
     items,
   };
-  setEstimatedFrameLayoutCacheEntry(key, { layout, messageSignatures, signature });
+  setEstimatedFrameLayoutCacheEntry(key, { layout, messageSignatures });
   return layout;
 }
 

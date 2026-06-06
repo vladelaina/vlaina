@@ -42,6 +42,13 @@ interface RenderedMessageRow {
   originalIndex: number;
 }
 
+interface RenderedMessageState {
+  ids: Set<string>;
+  messageById: Map<string, ChatMessage>;
+  messages: ChatMessage[];
+  rows: RenderedMessageRow[];
+}
+
 function isManagedModelMessage(modelId: string): boolean {
   return modelId === MANAGED_PROVIDER_ID || modelId.startsWith(`${MANAGED_PROVIDER_ID}:`);
 }
@@ -115,18 +122,33 @@ export const MessageList = memo(function MessageList({
   onSwitchVersion
 }: MessageListProps) {
   const isAccountConnected = useAccountSessionStore((state) => state.isConnected);
-  const renderedRows = useMemo<RenderedMessageRow[]>(
-    () => messages
-      .map((message, index) => ({ message, originalIndex: index }))
-      .filter(({ message, originalIndex }) =>
-        !shouldHideManagedAuthMessage(message, originalIndex === messages.length - 1, isAccountConnected)
-      ),
-    [isAccountConnected, messages]
-  );
-  const renderedMessages = useMemo(
-    () => renderedRows.map((row) => row.message),
-    [renderedRows]
-  );
+  const renderedState = useMemo<RenderedMessageState>(() => {
+    const rows: RenderedMessageRow[] = [];
+    const renderedMessages: ChatMessage[] = [];
+    const ids = new Set<string>();
+    const messageById = new Map<string, ChatMessage>();
+
+    for (let index = 0; index < messages.length; index += 1) {
+      const message = messages[index]!;
+      if (shouldHideManagedAuthMessage(message, index === messages.length - 1, isAccountConnected)) {
+        continue;
+      }
+
+      rows.push({ message, originalIndex: index });
+      renderedMessages.push(message);
+      ids.add(message.id);
+      messageById.set(message.id, message);
+    }
+
+    return {
+      ids,
+      messageById,
+      messages: renderedMessages,
+      rows,
+    };
+  }, [isAccountConnected, messages]);
+  const renderedRows = renderedState.rows;
+  const renderedMessages = renderedState.messages;
   const isEmpty = renderedMessages.length === 0;
   const [viewportHeight, setViewportHeight] = useState(0);
   const [viewportWidth, setViewportWidth] = useState(0);
@@ -166,10 +188,7 @@ export const MessageList = memo(function MessageList({
   measuredHeightsRef.current = measuredHeights;
   activeRef.current = active;
   lastStreamingMessageIdRef.current = lastStreamingMessageId;
-  const messageById = useMemo(
-    () => new Map(renderedMessages.map((message) => [message.id, message])),
-    [renderedMessages]
-  );
+  const messageById = renderedState.messageById;
 
   useEffect(() => {
     measuredHeightContextRef.current = {
@@ -498,13 +517,12 @@ export const MessageList = memo(function MessageList({
   }, [bindVisibleRow]);
 
   useEffect(() => {
-    const activeMessageIds = new Set(renderedMessages.map((message) => message.id));
     visibleRowRefCallbacksRef.current.forEach((_callback, messageId) => {
-      if (!activeMessageIds.has(messageId)) {
+      if (!renderedState.ids.has(messageId)) {
         visibleRowRefCallbacksRef.current.delete(messageId);
       }
     });
-  }, [renderedMessages]);
+  }, [renderedState]);
 
   const getVisibleRowRef = useCallback((messageId: string) => {
     const cached = visibleRowRefCallbacksRef.current.get(messageId);

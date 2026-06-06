@@ -321,9 +321,14 @@ export const useMessageAutoscroll = ({
       return false;
     }
 
-    return messages
-      .slice(lastUserIndex + 1)
-      .some((m) => m.role === "assistant" && m.content.trim().length > 0);
+    for (let index = lastUserIndex + 1; index < messages.length; index += 1) {
+      const message = messages[index]!;
+      if (message.role === "assistant" && message.content.trim().length > 0) {
+        return true;
+      }
+    }
+
+    return false;
   }, [getLastUserMessageIndex, messages]);
 
   const updateSpacerHeight = useCallback(() => {
@@ -364,18 +369,13 @@ export const useMessageAutoscroll = ({
         false,
         layoutWidth,
       );
-      contentHeightAfterTarget = messages
-        .slice(lastUserIndex + 1)
-        .reduce(
-          (sum, message, index) =>
-            sum +
-            estimateMessageHeight(
-              message,
-              isStreaming && lastUserIndex + 1 + index === messages.length - 1,
-              layoutWidth,
-            ),
-          0,
+      for (let index = lastUserIndex + 1; index < messages.length; index += 1) {
+        contentHeightAfterTarget += estimateMessageHeight(
+          messages[index]!,
+          isStreaming && index === messages.length - 1,
+          layoutWidth,
         );
+      }
 
       if (messages.length > lastUserIndex + 1) {
         contentHeightAfterTarget +=

@@ -55,6 +55,7 @@ export function useAssistantOutputText(targetText: string, enabled: boolean, res
   const averageArrivalSpeedRef = useRef(DEFAULT_CHARS_PER_SECOND);
   const lastInputLengthRef = useRef(targetLengthRef.current);
   const revealRemainderRef = useRef(0);
+  const visibleEndIndexRef = useRef(targetText.length);
   const visibleLength = useMemo(() => getAssistantOutputTextLength(visibleText), [visibleText]);
 
   const stopAnimation = () => {
@@ -71,6 +72,7 @@ export function useAssistantOutputText(targetText: string, enabled: boolean, res
     targetTextRef.current = nextText;
     targetLengthRef.current = getAssistantOutputTextLength(nextText);
     visibleLengthRef.current = targetLengthRef.current;
+    visibleEndIndexRef.current = nextText.length;
     averageSpeedRef.current = DEFAULT_CHARS_PER_SECOND;
     averageChunkSizeRef.current = 1;
     averageArrivalSpeedRef.current = DEFAULT_CHARS_PER_SECOND;
@@ -191,8 +193,31 @@ export function useAssistantOutputText(targetText: string, enabled: boolean, res
         }
 
         const nextLength = Math.min(targetLength, inputActive ? Math.min(desiredLength, currentLength + revealCount) : currentLength + revealCount);
+        const target = targetTextRef.current;
+        const cachedVisibleLength = currentLength;
+        const cachedEndIndex = visibleEndIndexRef.current;
+        if (
+          nextLength >= cachedVisibleLength &&
+          cachedEndIndex <= target.length
+        ) {
+          let length = cachedVisibleLength;
+          let endIndex = cachedEndIndex;
+          while (length < nextLength && endIndex < target.length) {
+            const codePoint = target.codePointAt(endIndex);
+            if (codePoint === undefined) {
+              break;
+            }
+            endIndex += codePoint > 0xffff ? 2 : 1;
+            length += 1;
+          }
+          visibleEndIndexRef.current = endIndex;
+          setVisibleText(target.slice(0, endIndex));
+        } else {
+          const nextVisibleText = takeAssistantOutputTextPrefix(target, nextLength);
+          visibleEndIndexRef.current = nextVisibleText.length;
+          setVisibleText(nextVisibleText);
+        }
         visibleLengthRef.current = nextLength;
-        setVisibleText(takeAssistantOutputTextPrefix(targetTextRef.current, nextLength));
         animationFrameRef.current = window.requestAnimationFrame(tick);
       };
 
@@ -202,6 +227,7 @@ export function useAssistantOutputText(targetText: string, enabled: boolean, res
 
   useEffect(() => {
     visibleLengthRef.current = visibleLength;
+    visibleEndIndexRef.current = visibleText.length;
   }, [visibleLength]);
 
   useEffect(() => () => stopAnimation(), []);

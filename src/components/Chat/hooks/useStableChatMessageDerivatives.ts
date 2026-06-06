@@ -116,25 +116,35 @@ export function useStableChatMessageDerivatives(messages: ChatMessage[]): {
     messageCache: new Map(),
   });
 
-  const activeMessageIds = new Set(messages.map((message) => message.id));
+  const activeMessageIds = new Set<string>();
+
+  const imageItems: ChatImageGalleryItem[] = [];
+  const imageSignatureParts: string[] = [];
+  const sentUserItems: string[] = [];
+  const sentUserSignatureParts: string[] = [];
+
+  messages.forEach((message) => {
+    activeMessageIds.add(message.id);
+    const { imageGallery, sentUserMessages } = getCachedMessageDerivatives(
+      stateRef.current.messageCache,
+      message,
+    );
+    if (imageGallery.signature) {
+      imageSignatureParts.push(imageGallery.signature);
+      imageItems.push(...imageGallery.items);
+    }
+    if (sentUserMessages.signature) {
+      sentUserSignatureParts.push(sentUserMessages.signature);
+      sentUserItems.push(...sentUserMessages.items);
+    }
+  });
+
   stateRef.current.messageCache.forEach((_cached, messageId) => {
     if (!activeMessageIds.has(messageId)) {
       stateRef.current.messageCache.delete(messageId);
     }
   });
 
-  const messageDerivatives = messages.map((message) =>
-    getCachedMessageDerivatives(stateRef.current.messageCache, message)
-  );
-
-  const imageItems: ChatImageGalleryItem[] = [];
-  const imageSignatureParts: string[] = [];
-  messageDerivatives.forEach(({ imageGallery }) => {
-    if (imageGallery.signature) {
-      imageSignatureParts.push(imageGallery.signature);
-      imageItems.push(...imageGallery.items);
-    }
-  });
   const nextImageGallery = {
     items: imageItems,
     signature: imageSignatureParts.join('\u0001'),
@@ -143,14 +153,6 @@ export function useStableChatMessageDerivatives(messages: ChatMessage[]): {
     stateRef.current.imageGallery = nextImageGallery;
   }
 
-  const sentUserItems: string[] = [];
-  const sentUserSignatureParts: string[] = [];
-  messageDerivatives.forEach(({ sentUserMessages }) => {
-    if (sentUserMessages.signature) {
-      sentUserSignatureParts.push(sentUserMessages.signature);
-      sentUserItems.push(...sentUserMessages.items);
-    }
-  });
   const nextSentUserMessages = {
     items: sentUserItems,
     signature: sentUserSignatureParts.join('\u0001'),

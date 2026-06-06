@@ -137,15 +137,7 @@ function scanStableMarkdownSplit(
       charOffset += 1;
     }
 
-    if (activeFence || line.trim()) {
-      continue;
-    }
-
-    if (offset >= content.length) {
-      continue;
-    }
-
-    if (charOffset >= MIN_STABLE_PREFIX_CHARS) {
+    if (!activeFence && !line.trim() && offset < content.length && charOffset >= MIN_STABLE_PREFIX_CHARS) {
       splitIndex = offset;
     }
 
