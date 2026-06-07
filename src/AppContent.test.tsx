@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppContent } from './AppContent';
 
 type AppViewMode = 'notes' | 'chat' | 'lab';
@@ -11,6 +11,12 @@ const mocks = vi.hoisted(() => ({
   restoreLastAppViewMode: vi.fn(),
   initializeVault: vi.fn(),
   loadUnified: vi.fn().mockResolvedValue(undefined),
+  colorMode: 'system' as 'system' | 'light' | 'dark',
+  importedMarkdownThemeId: null as string | null,
+  setColorMode: vi.fn(),
+  setMarkdownImportedThemeId: vi.fn(),
+  listImportedMarkdownThemesFromDirectory: vi.fn(),
+  syncImportedMarkdownThemesFromDirectory: vi.fn(),
   startAIStoreRuntimeEffects: vi.fn(),
   fontSize: 17,
   notesSidebarMounts: 0,
@@ -23,17 +29,20 @@ vi.mock('@/components/layout/shell/AppShell', () => ({
     sidebarContent,
     titleBarCenter,
     titleBarRight,
+    mainOverlay,
   }: {
     children: React.ReactNode;
     sidebarContent?: React.ReactNode;
     titleBarCenter?: React.ReactNode;
     titleBarRight?: React.ReactNode;
+    mainOverlay?: React.ReactNode;
   }) => (
     <div>
       <div data-testid="titlebar-center">{titleBarCenter}</div>
       <div data-testid="titlebar-right">{titleBarRight}</div>
       <aside data-testid="sidebar">{sidebarContent}</aside>
       <main>{children}</main>
+      <div data-testid="main-overlay">{mainOverlay}</div>
     </div>
   ),
 }));
@@ -169,10 +178,18 @@ vi.mock('@/stores/unified/useUnifiedStore', () => {
       settings: {
         ui: {
           lastAppViewMode: 'notes' | 'chat';
+          colorMode: 'system' | 'light' | 'dark';
+        };
+        markdown: {
+          theme: {
+            importedThemeId: string | null;
+          };
         };
       };
     };
     load: typeof mocks.loadUnified;
+    setColorMode: typeof mocks.setColorMode;
+    setMarkdownImportedThemeId: typeof mocks.setMarkdownImportedThemeId;
   };
 
   const getState = (): UnifiedState => ({
@@ -181,10 +198,18 @@ vi.mock('@/stores/unified/useUnifiedStore', () => {
       settings: {
         ui: {
           lastAppViewMode: mocks.appViewMode === 'chat' ? 'chat' : 'notes',
+          colorMode: mocks.colorMode,
+        },
+        markdown: {
+          theme: {
+            importedThemeId: mocks.importedMarkdownThemeId,
+          },
         },
       },
     },
     load: mocks.loadUnified,
+    setColorMode: mocks.setColorMode,
+    setMarkdownImportedThemeId: mocks.setMarkdownImportedThemeId,
   });
 
   const useUnifiedStore = (selector: (state: UnifiedState) => unknown) => selector(getState());
@@ -239,10 +264,40 @@ vi.mock('@/stores/useAIStore', () => ({
   startAIStoreRuntimeEffects: mocks.startAIStoreRuntimeEffects,
 }));
 
+vi.mock('@/lib/markdown/theme-compatibility/importedThemeStorage', () => ({
+  listImportedMarkdownThemesFromDirectory: (...args: unknown[]) =>
+    mocks.listImportedMarkdownThemesFromDirectory(...args),
+  syncImportedMarkdownThemesFromDirectory: (...args: unknown[]) =>
+    mocks.syncImportedMarkdownThemesFromDirectory(...args),
+}));
+
+const importedTheme = {
+  id: 'vlook-fancy',
+  name: 'vlook-fancy',
+  platform: 'typora' as const,
+  cssFile: 'vlook-fancy.css',
+  sourcePath: '/app/.vlaina/themes/vlook-fancy.css',
+  sourceModifiedAt: 10,
+  sourceSize: 100,
+  createdAt: 1,
+  updatedAt: 2,
+};
+
 describe('AppContent view switching chrome readiness', () => {
+  beforeEach(() => {
+    mocks.listImportedMarkdownThemesFromDirectory.mockResolvedValue([importedTheme]);
+    mocks.syncImportedMarkdownThemesFromDirectory.mockResolvedValue({
+      directoryPath: '/app/.vlaina/themes',
+      themes: [importedTheme],
+      activeThemeId: 'vlook-fancy',
+    });
+  });
+
   afterEach(() => {
     vi.clearAllMocks();
     mocks.appViewMode = 'notes';
+    mocks.colorMode = 'system';
+    mocks.importedMarkdownThemeId = null;
     mocks.fontSize = 17;
     mocks.notesSidebarMounts = 0;
     mocks.notesSidebarUnmounts = 0;
@@ -309,5 +364,18 @@ describe('AppContent view switching chrome readiness', () => {
       expect(document.documentElement.style.getPropertyValue('--vlaina-markdown-font-size')).toBe('17px');
     });
     expect(document.documentElement.style.fontSize).toBe('');
+  });
+
+  it('cycles imported markdown themes from the dev-only main overlay', async () => {
+    render(<AppContent />);
+
+    fireEvent.click(await screen.findByRole('button', {
+      name: 'Switch Markdown theme (default)',
+    }));
+
+    await waitFor(() => {
+      expect(mocks.setMarkdownImportedThemeId).toHaveBeenCalledWith('vlook-fancy');
+    });
+    expect(mocks.listImportedMarkdownThemesFromDirectory).toHaveBeenCalledTimes(1);
   });
 });

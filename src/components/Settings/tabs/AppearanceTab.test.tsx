@@ -141,6 +141,11 @@ vi.mock('@/lib/markdown/theme-compatibility/importedThemeStorage', () => ({
     mocks.syncImportedMarkdownThemesFromDirectory(...args),
 }));
 
+vi.mock('@/components/markdown-theme/markdownThemeCompiler', () => ({
+  preloadMarkdownThemeCompiler: vi.fn(),
+  preloadCompiledImportedMarkdownThemeStyles: vi.fn(),
+}));
+
 const directoryTheme = {
   id: 'vlook-fancy',
   name: 'vlook-fancy',

@@ -1,9 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell } from '@/components/layout/shell/AppShell';
 import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Icon } from '@/components/ui/icons';
-import { cn, iconButtonStyles } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -74,6 +72,13 @@ const LabView = import.meta.env.DEV
   })
   : null;
 
+const DevMainOverlay = import.meta.env.DEV
+  ? lazy(async () => {
+    const mod = await import('@/components/Dev/DevMainOverlay');
+    return { default: mod.DevMainOverlay };
+  })
+  : null;
+
 const NotesSidebarWrapper = lazy(async () => {
   const mod = await preloadNotesSidebarModule();
   return { default: mod.NotesSidebarWrapper };
@@ -140,13 +145,10 @@ export function AppContent() {
     fontSize,
     setSidebarWidth,
     toggleSidebar,
-    setAppViewMode,
     restoreLastAppViewMode,
   } = useUIStore();
   const unifiedLoaded = useUnifiedStore((state) => state.loaded);
   const lastConfiguredAppViewMode = useUnifiedStore((state) => state.data.settings.ui?.lastAppViewMode);
-  const colorMode = useUnifiedStore((state) => state.data.settings.ui?.colorMode);
-  const setColorMode = useUnifiedStore((state) => state.setColorMode);
   const { initialize } = useVaultStore();
   const launchViewModeRef = useRef(readWindowLaunchContext().viewMode);
   const [initialUnifiedViewWaitDone, setInitialUnifiedViewWaitDone] = useState(Boolean(launchViewModeRef.current));
@@ -641,50 +643,10 @@ export function AppContent() {
     </>
   );
 
-  const showDevOverlay = import.meta.env.DEV;
-  const showLabEntry = showDevOverlay && effectiveAppViewMode !== 'lab';
-  const isDarkModeSelected = colorMode === 'dark';
-  const mainOverlay = showDevOverlay ? (
-    <div className="pointer-events-none absolute bottom-3 right-3 z-[var(--vlaina-z-30)] flex flex-col items-end gap-2">
-      <Tooltip delayDuration={700}>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={() => setColorMode(isDarkModeSelected ? 'light' : 'dark')}
-            aria-label={isDarkModeSelected ? 'Switch to light mode' : 'Switch to dark mode'}
-            className={cn(
-              'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-sm)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)] transition-colors hover:bg-[var(--vlaina-hover)]',
-              iconButtonStyles
-            )}
-          >
-            <Icon name={isDarkModeSelected ? 'theme.light' : 'theme.dark'} size="md" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="left" sideOffset={8}>
-          <span className="text-[var(--vlaina-font-xs)]">{isDarkModeSelected ? 'Switch to light mode' : 'Switch to dark mode'}</span>
-        </TooltipContent>
-      </Tooltip>
-      {showLabEntry ? (
-      <Tooltip delayDuration={700}>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={() => setAppViewMode('lab')}
-            aria-label="Open Design Lab"
-            className={cn(
-              'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-sm)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)] transition-colors hover:bg-[var(--vlaina-hover)]',
-              iconButtonStyles
-            )}
-          >
-            <Icon name="misc.lab" size="md" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="left" sideOffset={8}>
-          <span className="text-[var(--vlaina-font-xs)]">Open Design Lab</span>
-        </TooltipContent>
-      </Tooltip>
-      ) : null}
-    </div>
+  const mainOverlay = import.meta.env.DEV && DevMainOverlay ? (
+    <Suspense fallback={null}>
+      <DevMainOverlay effectiveAppViewMode={effectiveAppViewMode} />
+    </Suspense>
   ) : null;
 
   return (
