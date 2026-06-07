@@ -1,0 +1,95 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ImportedMarkdownTheme } from '@/lib/markdown/theme-compatibility/types';
+import {
+  clearCompiledImportedMarkdownThemeStyles,
+  compileImportedMarkdownThemeStyles,
+  preloadCompiledImportedMarkdownThemeStyles,
+} from './markdownThemeCompiler';
+
+const mocks = vi.hoisted(() => ({
+  readImportedMarkdownTheme: vi.fn(),
+  scopeImportedMarkdownThemeCss: vi.fn((css: string, _platform: string, scope: string) => `${scope} { ${css} }`),
+  sanitizeImportedMarkdownThemeCss: vi.fn((css: string) => css.replace('unsafe', 'safe')),
+  buildImportedAppThemeCss: vi.fn((_css: string, id: string) => `:root[data-vlaina-imported-app-theme="${id}"] {}`),
+  buildImportedMarkdownThemePostBridgeCss: vi.fn((id: string, platform: string) => `${id}:${platform}:post`),
+}));
+
+vi.mock('@/lib/markdown/theme-compatibility/importedThemeStorage', () => ({
+  readImportedMarkdownTheme: (id: string) => mocks.readImportedMarkdownTheme(id),
+}));
+
+vi.mock('@/lib/markdown/theme-compatibility/cssScoping', () => ({
+  scopeImportedMarkdownThemeCss: (css: string, platform: string, scope: string) =>
+    mocks.scopeImportedMarkdownThemeCss(css, platform, scope),
+}));
+
+vi.mock('@/lib/markdown/theme-compatibility/cssUrls', () => ({
+  sanitizeImportedMarkdownThemeCss: (css: string) => mocks.sanitizeImportedMarkdownThemeCss(css),
+}));
+
+vi.mock('@/lib/markdown/theme-compatibility/appThemeBridge', () => ({
+  buildImportedAppThemeCss: (css: string, id: string) => mocks.buildImportedAppThemeCss(css, id),
+}));
+
+vi.mock('@/lib/markdown/theme-compatibility/postBridge', () => ({
+  buildImportedMarkdownThemePostBridgeCss: (id: string, platform: string) =>
+    mocks.buildImportedMarkdownThemePostBridgeCss(id, platform),
+}));
+
+function importedTheme(theme: Partial<ImportedMarkdownTheme> = {}): ImportedMarkdownTheme {
+  return {
+    id: 'clean-light',
+    name: 'Clean Light',
+    platform: 'typora',
+    cssFile: 'clean-light.css',
+    sourcePath: null,
+    createdAt: 1,
+    updatedAt: 1,
+    css: '#write h1 { color: unsafe; }',
+    ...theme,
+  };
+}
+
+describe('markdownThemeCompiler', () => {
+  beforeEach(() => {
+    clearCompiledImportedMarkdownThemeStyles();
+    vi.clearAllMocks();
+  });
+
+  it('caches compiled styles for repeated theme switches in the same session', async () => {
+    const theme = importedTheme();
+
+    const first = await compileImportedMarkdownThemeStyles(theme);
+    const second = await compileImportedMarkdownThemeStyles({ ...theme });
+
+    expect(second).toBe(first);
+    expect(mocks.sanitizeImportedMarkdownThemeCss).toHaveBeenCalledTimes(1);
+    expect(mocks.scopeImportedMarkdownThemeCss).toHaveBeenCalledTimes(1);
+    expect(mocks.buildImportedAppThemeCss).toHaveBeenCalledTimes(1);
+    expect(mocks.buildImportedMarkdownThemePostBridgeCss).toHaveBeenCalledTimes(1);
+    expect(first.markdownCss).toContain('safe');
+  });
+
+  it('does not reuse compiled styles when the CSS content changes', async () => {
+    const theme = importedTheme();
+
+    await compileImportedMarkdownThemeStyles(theme);
+    await compileImportedMarkdownThemeStyles({
+      ...theme,
+      css: '#write h1 { color: blue; }',
+    });
+
+    expect(mocks.scopeImportedMarkdownThemeCss).toHaveBeenCalledTimes(2);
+  });
+
+  it('deduplicates concurrent preloads for the same theme id', async () => {
+    mocks.readImportedMarkdownTheme.mockResolvedValue(importedTheme());
+
+    preloadCompiledImportedMarkdownThemeStyles('clean-light');
+    preloadCompiledImportedMarkdownThemeStyles('clean-light');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(mocks.readImportedMarkdownTheme).toHaveBeenCalledTimes(1);
+    expect(mocks.scopeImportedMarkdownThemeCss).toHaveBeenCalledTimes(1);
+  });
+});

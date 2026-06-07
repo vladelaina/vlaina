@@ -2,20 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { buildImportedMarkdownThemePostBridgeCss } from './postBridge';
 
 describe('imported markdown theme post bridge', () => {
-  it('builds a VLOOK-only Typora post bridge for DOM compatibility fixes', () => {
-    const css = buildImportedMarkdownThemePostBridgeCss('vlook-fancy', 'typora');
+  it('builds a Typora post bridge for DOM compatibility fixes', () => {
+    const css = buildImportedMarkdownThemePostBridgeCss('clean-light', 'typora');
 
-    expect(css).toContain('[data-markdown-theme-root="true"][data-markdown-imported-theme="vlook-fancy"].theme-typora#write');
-    expect(css).toContain('[data-markdown-theme-root="true"][data-markdown-imported-theme="vlook-fancy"].theme-typora #write');
+    expect(css).toContain('[data-markdown-theme-root="true"][data-markdown-imported-theme="clean-light"].theme-typora#write');
+    expect(css).toContain('[data-markdown-theme-root="true"][data-markdown-imported-theme="clean-light"].theme-typora #write');
     expect(css).toContain('--typora-page-max-width: min(100%, var(--v-write-w, var(--vlaina-size-1080px)));');
     expect(css).toContain('max-width: var(--typora-page-max-width) !important;');
     expect(css).toContain('.milkdown-table-block.table-figure .table-wrapper');
     expect(css).toContain('.v-caption.full');
     expect(css).toContain('.v-svg-input-checkbox[data-vlook-checkbox=\'checked\']::before');
+    expect(css).toContain('.vlook-column-list');
   });
 
-  it('skips non-VLOOK and non-Typora themes', () => {
-    expect(buildImportedMarkdownThemePostBridgeCss('clean-light', 'typora')).toBe('');
-    expect(buildImportedMarkdownThemePostBridgeCss('vlook-fancy', 'obsidian')).toBe('');
+  it('skips non-Typora themes', () => {
+    expect(buildImportedMarkdownThemePostBridgeCss('clean-light', 'typora')).not.toBe('');
+    expect(buildImportedMarkdownThemePostBridgeCss('obsidian-sample', 'obsidian')).toBe('');
   });
 });

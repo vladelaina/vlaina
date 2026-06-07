@@ -1,0 +1,273 @@
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[align='left'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[data-align='left'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#left'] {
+  float: left;
+  margin-inline: 0 1.25em;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[align='right'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[data-align='right'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#right'] {
+  float: right;
+  margin-inline: 1.25em 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[width='20%'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[data-width='20%'] {
+  width: min(100%, 20%) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[width='40%'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[data-width='40%'] {
+  width: min(100%, 40%) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[width='60%'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[data-width='60%'] {
+  width: min(100%, 60%) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[width='80%'],
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[data-width='80%'] {
+  width: min(100%, 80%) !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#border'] img {
+  border: var(--vlaina-border-width-1) solid var(--img-bd-invert, var(--typora-block-border));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#shadow'] img {
+  box-shadow: var(--v-fl-sd, var(--shadow-lg, 0 0 0 var(--vlaina-border-width-1) var(--typora-block-border)));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#circle'] img {
+  border-radius: var(--typora-vlook-circle-radius);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#invert'] img {
+  filter: var(--v-invert-dark, invert(1));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container {
+  position: relative;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write p:has(> .image-block-container) {
+  display: block;
+  margin-block: 0.5em 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write p:has(> .image-block-container + .image-block-container) > .image-block-container {
+  margin-inline-end: var(--vlaina-space-20px, 20px);
+  margin-block-end: var(--vlaina-space-20px, 20px);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[data-alt]:not([data-alt='']):not([src*='#logo']):not([src*='#icon']):not([src*='#card'])::after {
+  content: "Caption / " attr(data-alt);
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin-block: var(--vlaina-space-2px, 2px) 0;
+  padding: var(--typora-vlook-caption-padding);
+  color: var(--df, inherit);
+  background: var(--pn03, var(--typora-caption-bg));
+  border-radius: var(--v-r-s, var(--vlaina-radius-0375rem));
+  font: var(--typora-caption-font);
+  line-height: 1;
+  text-transform: none;
+  white-space: pre-wrap;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#card'] {
+  width: fit-content !important;
+  max-width: 100%;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#card'] > div {
+  width: 100% !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#card'] img {
+  width: 100%;
+  border-radius: var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem)) 0 0;
+  border: none;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#card'][src*='#border'] {
+  padding: var(--vlaina-border-width-1);
+  border-radius: var(--typora-block-radius);
+  background: linear-gradient(180deg, var(--ac-gy-fd, var(--typora-block-border)), var(--ac-gy, var(--typora-block-border)), var(--ac-gy-fd, var(--typora-block-border)));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#cardd'] img {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#cardd'][data-alt]:not([data-alt=''])::after {
+  content: attr(data-alt);
+  display: block;
+  width: auto;
+  padding: var(--typora-vlook-card-body-padding, var(--vlaina-space-1rem));
+  color: var(--df, inherit);
+  background: linear-gradient(180deg, var(--ac-gy-fd, transparent), var(--pn-c, var(--typora-block-bg)) var(--vlaina-space-20px, 20px), var(--pn-c, var(--typora-block-bg)));
+  border-radius: 0 0 var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem));
+  font: normal 0.875em/1.5 var(--typora-content-font);
+  white-space: pre-wrap;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-post-card {
+  display: block;
+  position: static;
+  overflow: hidden;
+  transform: none;
+  color: var(--df, inherit);
+  background: linear-gradient(180deg, var(--ac-gy-fd, transparent), var(--pn-c, var(--typora-block-bg)) var(--vlaina-space-20px, 20px), var(--pn-c, var(--typora-block-bg)));
+  border-radius: 0 0 var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem));
+  box-shadow: none;
+  padding: var(--vlaina-space-10px) var(--vlaina-space-20px);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-post-card.vlook-post-card {
+  padding: 0;
+  border: 0;
+  border-radius: var(--typora-block-radius);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-post-card.vlook-post-card > .v-card-image {
+  margin: 0;
+  padding: 0;
+  line-height: 0;
+  background: transparent;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-post-card.vlook-post-card > .v-card-image .image-block-container {
+  width: 100% !important;
+  max-width: 100%;
+  margin: 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-post-card.vlook-post-card > .v-card-image .image-block-container > div,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-post-card.vlook-post-card > .v-card-image .image-block-container > div > div {
+  width: 100% !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-post-card.vlook-post-card > .v-card-image .image-block-container img {
+  display: block;
+  width: 100%;
+  border-radius: var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem)) 0 0;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-post-card.vlook-post-card > :is(.v-card-title, .v-card-text) {
+  margin: 0;
+  padding-inline: var(--vlaina-space-20px);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-post-card.vlook-post-card > .v-card-title {
+  padding-block-start: var(--vlaina-space-16px, 16px);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-post-card.vlook-post-card > .v-card-text {
+  padding-block-end: var(--vlaina-space-16px, 16px);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-post-card > .v-card-title {
+  font: var(--v-fw-tt, var(--vlaina-font-weight-semibold)) 1.125em var(--typora-heading-font);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-post-card > .v-card-title + .v-card-text {
+  padding-block-start: var(--typora-vlook-card-caption-gap, var(--vlaina-size-5px));
+  font-size: var(--typora-vlook-card-text-font-size, var(--vlaina-font-0875rem));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#blur'] img {
+  filter: var(--typora-vlook-image-blur-filter, var(--vlaina-filter-blur-xs));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#gray'] img {
+  filter: saturate(20%);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#aged'] img {
+  filter: sepia(1);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#invert'] img {
+  filter: invert(1);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container:is([src*='#invert!'], [src*='#blur!'], [src*='#gray!'], [src*='#aged!']) img:hover {
+  filter: none;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='darksrc=invert'][src*='#line'] img {
+  background: var(--v-fig-grid-l-invert, var(--v-fig-grid-l, var(--fig-solid-bg, transparent)));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='darksrc=invert'][src*='#block'] img {
+  background: var(--v-fig-grid-b-invert, var(--v-fig-grid-b, var(--fig-solid-bg, transparent)));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#800h'] {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#200h'] img {
+  height: var(--typora-image-200h-height, 200px);
+  max-width: unset;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#400h'] img {
+  height: var(--typora-image-400h-height, 400px);
+  max-width: unset;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#600h'] img {
+  height: var(--typora-image-600h-height, 600px);
+  max-width: unset;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#800h'] img {
+  height: var(--typora-image-800h-height, 800px);
+  max-width: unset;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#logo'][src*='#border'] img {
+  border: var(--vlaina-border-width-2, 2px) solid var(--df-a, var(--typora-block-border));
+  border-radius: var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#logo'][src*='#round'] img {
+  border-radius: var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .image-block-container[src*='#logo'][src*='#round2s'] img {
+  border-radius: var(--typora-block-radius);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote:has(.image-block-container[src*='#card']) {
+  padding: 0;
+  border: none;
+  border-radius: var(--typora-block-radius);
+  overflow: hidden;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote:has(.image-block-container[src*='#card']) > p {
+  margin: 0;
+  background: transparent;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote:has(.image-block-container[src*='#card']) .image-block-container {
+  width: 100% !important;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote:has(.image-block-container[src*='#card']) + blockquote,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write blockquote p:has(.image-block-container[src*='#card']) + blockquote {
+  margin-block-start: 0;
+  padding: var(--vlaina-space-10px);
+  color: var(--df, inherit);
+  background: var(--pn-c, var(--typora-block-bg));
+  border: none;
+  border-radius: 0 0 var(--v-r-b, var(--vlaina-radius-05rem)) var(--v-r-b-xc, var(--vlaina-radius-05rem));
+}
