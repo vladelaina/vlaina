@@ -55,6 +55,7 @@ function finalizeCreatedNote({
   folderPath,
   updatedRecent,
   modifiedAt,
+  size,
   fileTreeSortMode,
   noteContentsCache,
   openTabs,
@@ -70,6 +71,7 @@ function finalizeCreatedNote({
   folderPath?: string;
   updatedRecent: CreateNoteResult['updatedRecent'];
   modifiedAt: CreateNoteResult['modifiedAt'];
+  size: CreateNoteResult['size'];
   fileTreeSortMode: NotesStore['fileTreeSortMode'];
   noteContentsCache: NotesStore['noteContentsCache'];
   openTabs: NotesStore['openTabs'];
@@ -103,6 +105,7 @@ function finalizeCreatedNote({
     isNewlyCreated: true,
     noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, content, modifiedAt, {
       updateBaseline: true,
+      size,
     }),
   });
 
@@ -205,6 +208,7 @@ export function createFileSystemCreateActions(
           folderPath,
           updatedRecent: result.updatedRecent,
           modifiedAt: result.modifiedAt,
+          size: result.size,
           fileTreeSortMode: latestState.fileTreeSortMode ?? fileTreeSortMode,
           noteContentsCache: latestState.noteContentsCache,
           openTabs: latestState.openTabs,
@@ -263,6 +267,7 @@ export function createFileSystemCreateActions(
           folderPath,
           updatedRecent: result.updatedRecent,
           modifiedAt: result.modifiedAt,
+          size: result.size,
           fileTreeSortMode: latestState.fileTreeSortMode ?? fileTreeSortMode,
           noteContentsCache: latestState.noteContentsCache,
           openTabs: latestState.openTabs,

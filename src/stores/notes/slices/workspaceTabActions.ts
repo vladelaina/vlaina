@@ -240,7 +240,7 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
         }
 
         try {
-          const { content, metadata, modifiedAt } = await saveNoteDocument({
+          const { content, metadata, modifiedAt, size } = await saveNoteDocument({
             notesPath,
             currentNote: { path, content: cachedContent },
             cache: noteContentsCache,
@@ -275,7 +275,7 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
               path,
               hasNewerEdit ? latestCachedContent : content,
               modifiedAt,
-              hasNewerEdit ? { baselineContent: content } : { updateBaseline: true },
+              hasNewerEdit ? { baselineContent: content, size } : { updateBaseline: true, size },
             ),
             isDirty: latestState.currentNote?.path === path && hasNewerEdit
               ? true

@@ -170,12 +170,17 @@ function mergeLoadedNoteCacheEntry(
     return latestCache;
   }
 
-  return setCachedNoteContent(latestCache, path, loadedEntry.content, loadedEntry.modifiedAt, {
+  const options: Parameters<typeof setCachedNoteContent>[4] = {
     ...(updateBaseline
       ? { updateBaseline: true }
       : { baselineContent: loadedEntry.savedContent }),
     freshUntil: loadedEntry.freshUntil,
-  });
+  };
+  if (loadedEntry.size !== undefined) {
+    options.size = loadedEntry.size;
+  }
+
+  return setCachedNoteContent(latestCache, path, loadedEntry.content, loadedEntry.modifiedAt, options);
 }
 
 export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSlice> = (

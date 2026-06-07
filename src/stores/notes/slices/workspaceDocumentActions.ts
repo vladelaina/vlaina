@@ -71,7 +71,7 @@ export function createWorkspaceDocumentActions(
         return;
       }
 
-      const { content, metadata, modifiedAt } = await saveNoteDocument({
+      const { content, metadata, modifiedAt, size } = await saveNoteDocument({
         notesPath,
         currentNote,
         cache: noteContentsCache,
@@ -116,7 +116,7 @@ export function createWorkspaceDocumentActions(
             currentNote.path,
             latestSaveTargetContent,
             modifiedAt,
-            { baselineContent: content },
+            { baselineContent: content, size },
           ),
           openTabs: setNoteTabDirtyState(latestState.openTabs, currentNote.path, true),
           error: null,
@@ -145,8 +145,8 @@ export function createWorkspaceDocumentActions(
           nextVisibleContent,
           modifiedAt,
           shouldKeepEditorContent
-            ? { baselineContent: content }
-            : { updateBaseline: true },
+            ? { baselineContent: content, size }
+            : { updateBaseline: true, size },
         ),
         openTabs: setNoteTabDirtyState(latestState.openTabs, currentNote.path, false),
         error: null,

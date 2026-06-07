@@ -85,7 +85,7 @@ export async function saveDraftNote({
       }
     : resolveDraftSaveLocation(selectedPath, notesPath);
   const savedPath = relativePath ?? absolutePath;
-  const { content, metadata, modifiedAt } = await saveNoteDocument({
+  const { content, metadata, modifiedAt, size } = await saveNoteDocument({
     notesPath,
     currentNote: { path: savedPath, content: currentNote.content },
     cache: noteContentsCache,
@@ -134,7 +134,7 @@ export async function saveDraftNote({
     savedPath,
     nextContent,
     modifiedAt,
-    hasNewerDraftEdit ? { baselineContent: content } : { updateBaseline: true },
+    hasNewerDraftEdit ? { baselineContent: content, size } : { updateBaseline: true, size },
   );
   const latestRecentNotes = latestState.recentNotes ?? recentNotes;
   const nextRecentNotes = relativePath ? addToRecentNotes(relativePath, latestRecentNotes) : latestRecentNotes;

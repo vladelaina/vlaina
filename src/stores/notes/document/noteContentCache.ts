@@ -10,10 +10,22 @@ export function getCachedNoteModifiedAt(cache: NoteContentCache, path: string): 
   return cache.get(path)?.modifiedAt ?? null;
 }
 
+export function getCachedNoteSize(cache: NoteContentCache, path: string): number | null {
+  return cache.get(path)?.size ?? null;
+}
+
 function defineHiddenCacheMetadata(
   entry: NoteContentCacheEntry,
-  options: { savedContent?: string; freshUntil?: number }
+  options: { savedContent?: string; freshUntil?: number; size?: number | null }
 ): void {
+  if (options.size !== undefined) {
+    Object.defineProperty(entry, 'size', {
+      configurable: true,
+      enumerable: false,
+      value: options.size,
+    });
+  }
+
   if (options.savedContent !== undefined) {
     Object.defineProperty(entry, 'savedContent', {
       configurable: true,
@@ -36,7 +48,7 @@ export function setCachedNoteContent(
   path: string,
   content: string,
   modifiedAt: number | null,
-  options: { updateBaseline?: boolean; baselineContent?: string; freshUntil?: number } = {}
+  options: { updateBaseline?: boolean; baselineContent?: string; freshUntil?: number; size?: number | null } = {}
 ): NoteContentCache {
   const current = cache.get(path);
   const savedContent = options.baselineContent ?? (options.updateBaseline
@@ -44,9 +56,15 @@ export function setCachedNoteContent(
     : current?.savedContent ?? current?.content ?? content);
   const nextSavedContent = savedContent === content ? undefined : savedContent;
   const nextFreshUntil = options.freshUntil;
+  const hasNextSize = Object.prototype.hasOwnProperty.call(options, 'size')
+    || current?.size !== undefined;
+  const nextSize = Object.prototype.hasOwnProperty.call(options, 'size')
+    ? options.size ?? null
+    : current?.size;
   if (
     current?.content === content &&
     current.modifiedAt === modifiedAt &&
+    current.size === nextSize &&
     current.savedContent === nextSavedContent &&
     current.freshUntil === nextFreshUntil
   ) {
@@ -56,6 +74,7 @@ export function setCachedNoteContent(
   const nextCache = new Map(cache);
   const nextEntry: NoteContentCacheEntry = { content, modifiedAt };
   defineHiddenCacheMetadata(nextEntry, {
+    size: hasNextSize ? nextSize : undefined,
     savedContent: nextSavedContent,
     freshUntil: nextFreshUntil,
   });

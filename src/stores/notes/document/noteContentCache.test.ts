@@ -29,4 +29,30 @@ describe('noteContentCache', () => {
     expect(entry).toEqual({ content: '# Alpha', modifiedAt: 7 });
     expect(entry?.freshUntil).toBe(1234);
   });
+
+  it('tracks disk size without making cache metadata enumerable', () => {
+    const cache = new Map([['docs/alpha.md', { content: '# Alpha', modifiedAt: 7 }]]);
+
+    const nextCache = setCachedNoteContent(cache, 'docs/alpha.md', '# Alpha', 7, {
+      size: 12,
+    });
+    const entry = nextCache.get('docs/alpha.md');
+
+    expect(nextCache).not.toBe(cache);
+    expect(entry).toEqual({ content: '# Alpha', modifiedAt: 7 });
+    expect(entry?.size).toBe(12);
+  });
+
+  it('returns a new map when cached disk size changes', () => {
+    const cache = setCachedNoteContent(new Map(), 'docs/alpha.md', '# Alpha', 7, {
+      size: 12,
+    });
+
+    const nextCache = setCachedNoteContent(cache, 'docs/alpha.md', '# Alpha', 7, {
+      size: 20,
+    });
+
+    expect(nextCache).not.toBe(cache);
+    expect(nextCache.get('docs/alpha.md')?.size).toBe(20);
+  });
 });

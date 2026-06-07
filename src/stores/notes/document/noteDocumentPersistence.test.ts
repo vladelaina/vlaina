@@ -664,6 +664,26 @@ describe('saveNoteDocument', () => {
     });
   });
 
+  it('refreshes cached markdown when disk size changed with the same modified timestamp', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: 100, size: 32 });
+    adapter.readFile.mockResolvedValue('# Updated by another window');
+
+    const result = await loadNoteDocument({
+      notesPath: '/vault',
+      path: 'alpha.md',
+      cache: setCachedNoteContent(new Map(), 'alpha.md', '# Cached before external edit', 100, {
+        updateBaseline: true,
+        size: 8,
+      }),
+    });
+
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md');
+    expect(result.content).toBe('# Updated by another window');
+    expect(result.modifiedAt).toBe(100);
+    expect(result.size).toBe(32);
+    expect(result.nextCache.get('alpha.md')?.size).toBe(32);
+  });
+
   it('keeps dirty tab cached markdown even when disk changed before opening', async () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 200, size: 16 });
     adapter.readFile.mockResolvedValue('# Updated by another window');
@@ -696,6 +716,25 @@ describe('saveNoteDocument', () => {
         content: '# Local edit',
       },
       cache: new Map([['alpha.md', { content: '# Loaded', modifiedAt: 100 }]]),
+    })).rejects.toBeInstanceOf(NoteWriteConflictError);
+
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('refuses to overwrite a note whose disk size changed with the same modified timestamp', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: 100, size: 32 });
+    adapter.readFile.mockResolvedValue('# External same timestamp edit');
+
+    await expect(saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: '# Local edit',
+      },
+      cache: setCachedNoteContent(new Map(), 'alpha.md', '# Loaded', 100, {
+        updateBaseline: true,
+        size: 8,
+      }),
     })).rejects.toBeInstanceOf(NoteWriteConflictError);
 
     expect(adapter.writeFile).not.toHaveBeenCalled();

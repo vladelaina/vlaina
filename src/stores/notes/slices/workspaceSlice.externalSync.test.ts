@@ -12,6 +12,7 @@ import {
   markExpectedExternalChange,
   shouldIgnoreExpectedExternalChange,
 } from '../document/externalChangeRegistry';
+import { setCachedNoteContent } from '../document/noteContentCache';
 
 const hoisted = vi.hoisted(() => ({
   persistRecentNotes: vi.fn(),
@@ -534,6 +535,29 @@ describe('workspaceSlice external sync', () => {
     expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# updated' });
     expect(store.getState().currentNoteDiskRevision).toBe(4);
     expect(store.getState().isDirty).toBe(false);
+  });
+
+  it('reloads the current note when disk size changes with the same mtime', async () => {
+    storageAdapter.exists.mockResolvedValue(true);
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 1, size: 16 });
+    storageAdapter.readFile.mockResolvedValue('# updated');
+
+    const store = createNotesStore({
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      currentNoteDiskRevision: 3,
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: setCachedNoteContent(new Map(), 'docs/alpha.md', '# alpha', 1, {
+        updateBaseline: true,
+        size: 8,
+      }),
+    });
+
+    const result = await store.getState().syncCurrentNoteFromDisk();
+
+    expect(result).toBe('reloaded');
+    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# updated' });
+    expect(store.getState().currentNoteDiskRevision).toBe(4);
+    expect(store.getState().noteContentsCache.get('docs/alpha.md')?.size).toBe(16);
   });
 
   it('does not force reload the current note when stat has no size', async () => {
