@@ -345,6 +345,7 @@ function resetNotesWorkspaceForVaultTransition(
     noteMetadata: preservedWorkspace?.noteMetadata ?? null,
     displayNames: preservedExternalWorkspace?.displayNames ?? new Map(),
     noteContentsCache: preservedWorkspace?.noteContentsCache ?? new Map(),
+    noteContentsCacheRevision: (currentNotesState.noteContentsCacheRevision ?? 0) + 1,
     isNewlyCreated: false,
     newlyCreatedFolderPath: null,
     assetList: [],

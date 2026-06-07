@@ -13,7 +13,9 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { describe, expect, it } from 'vitest';
 import {
   MAX_LIST_GAP_PLACEHOLDER_DECORATIONS,
+  MAX_LIST_GAP_PLACEHOLDER_CLEANUP_RANGES,
   buildInternalListGapDecorations,
+  collectInternalListGapPlaceholderCleanupRanges,
   collectInternalListGapDecorations,
   findAdjacentOrderedLists,
   listTabIndentPlugin,
@@ -312,6 +314,28 @@ describe('listTabIndentPlugin', () => {
 
     expect(decorations).toHaveLength(MAX_LIST_GAP_PLACEHOLDER_DECORATIONS);
     expect(accessed).toBe(MAX_LIST_GAP_PLACEHOLDER_DECORATIONS);
+  });
+
+  it('collects internal list gap placeholder cleanup ranges for ordinary placeholder items', () => {
+    const listItem = createFakeListGapItem();
+
+    expect(collectInternalListGapPlaceholderCleanupRanges(listItem as any, 10)).toEqual({
+      complete: true,
+      ranges: [{ from: 12, to: 13 }],
+    });
+  });
+
+  it('does not collect unbounded internal list gap placeholder cleanup ranges', () => {
+    const listItem = createFakeNode('list_item', [
+      createFakeNode('paragraph', [
+        createFakeTextNode('\u2800'.repeat(MAX_LIST_GAP_PLACEHOLDER_CLEANUP_RANGES + 1)),
+      ]),
+    ]);
+
+    const result = collectInternalListGapPlaceholderCleanupRanges(listItem as any, 10);
+
+    expect(result.complete).toBe(false);
+    expect(result.ranges.length).toBeLessThanOrEqual(MAX_LIST_GAP_PLACEHOLDER_CLEANUP_RANGES);
   });
 
   it('does not scan oversized placeholder-only list items for gap styling', async () => {

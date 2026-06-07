@@ -43,6 +43,17 @@ function streamResponse(lines: string[]): Response {
   );
 }
 
+function byteStreamResponse(chunks: Uint8Array[]): Response {
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        chunks.forEach((chunk) => controller.enqueue(chunk));
+        controller.close();
+      },
+    }),
+  );
+}
+
 describe('consumeOpenAIStreamWithTools', () => {
   beforeEach(() => {
     streamingMocks.finishHook = null;
@@ -74,6 +85,27 @@ describe('consumeOpenAIStreamWithTools', () => {
       },
     }]);
     expect(chunks[chunks.length - 1]).toBe('Checking done');
+  });
+
+  it('accumulates Responses API output text delta event shapes', async () => {
+    const chunks: string[] = [];
+
+    const result = await consumeOpenAIStreamWithTools(
+      streamResponse([
+        'data: {"type":"response.output_text.delta","delta":"hello "}',
+        'data: {"type":"output_text.delta","delta":{"text":"world"}}',
+        'data: {"type":"response.reasoning_summary_text.delta","delta":"thinking"}',
+        'data: {"type":"response.output_text.delta","delta":"!"}',
+        'data: [DONE]',
+        '',
+      ]),
+      (chunk) => chunks.push(chunk),
+    );
+
+    expect(result.content).toBe('hello world<think>thinking</think>!');
+    expect(result.assistantContent).toBe('hello world!');
+    expect(result.reasoningContent).toBe('thinking');
+    expect(chunks[chunks.length - 1]).toBe('hello world<think>thinking</think>!');
   });
 
   it('merges streamed tool call chunks that omit index but keep the same id', async () => {
@@ -200,6 +232,16 @@ describe('consumeOpenAIStreamWithTools', () => {
 
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('flushes final decoder bytes before enforcing tool stream buffer limits', async () => {
+    const encoder = new TextEncoder();
+    const response = byteStreamResponse([
+      encoder.encode('x'.repeat(MAX_OPENAI_STREAM_LINE_CHARS)),
+      new Uint8Array([0xe2]),
+    ]);
+
+    await expect(consumeOpenAIStreamWithTools(response, () => {})).rejects.toThrow('AI stream line is too large');
   });
 
   it('rejects tool streams whose accumulated assistant content grows too large', async () => {

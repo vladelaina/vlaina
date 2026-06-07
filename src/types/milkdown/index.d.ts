@@ -75,6 +75,8 @@ interface MilkdownFragmentLike {
   firstChild?: MilkdownNode | null;
   lastChild?: MilkdownNode | null;
   append?(other: MilkdownFragmentLike): MilkdownFragmentLike;
+  findDiffStart(other: MilkdownFragmentLike): number | null;
+  findDiffEnd(other: MilkdownFragmentLike): { a: number; b: number } | null;
   forEach(
     callback: (node: MilkdownNode, offset: number, index: number) => void,
   ): void;
@@ -975,6 +977,8 @@ declare module '@milkdown/kit/prose/model' {
     static fromArray(nodes: readonly Node[]): Fragment;
     static empty: Fragment;
     append(other: Fragment): Fragment;
+    findDiffStart(other: Fragment): number | null;
+    findDiffEnd(other: Fragment): { a: number; b: number } | null;
     forEach(callback: (node: Node, offset: number, index: number) => void): void;
     [key: string]: any;
   }
@@ -1289,6 +1293,8 @@ declare module '@milkdown/prose/model' {
     static fromArray(nodes: readonly Node[]): Fragment;
     static empty: Fragment;
     append(other: Fragment): Fragment;
+    findDiffStart(other: Fragment): number | null;
+    findDiffEnd(other: Fragment): { a: number; b: number } | null;
     forEach(callback: (node: Node, offset: number, index: number) => void): void;
     [key: string]: any;
   }

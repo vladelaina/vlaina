@@ -2,6 +2,27 @@ import { $prose } from '@milkdown/kit/utils';
 import { Plugin } from '@milkdown/kit/prose/state';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
+import {
+  DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
+  STOP_PROSE_SCAN,
+  scanProseDescendants,
+} from './plugins/shared/boundedProseNodeScan';
+
+export const MAX_THEME_COMPATIBILITY_DECORATIONS = 5000;
+export const MAX_THEME_COMPATIBILITY_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+
+function canAddThemeDecoration(decorations: Decoration[]): boolean {
+  return decorations.length < MAX_THEME_COMPATIBILITY_DECORATIONS;
+}
+
+function pushThemeDecoration(decorations: Decoration[], decoration: Decoration): boolean {
+  if (!canAddThemeDecoration(decorations)) {
+    return false;
+  }
+
+  decorations.push(decoration);
+  return canAddThemeDecoration(decorations);
+}
 
 function getTaskListItemAttrs(node: any): Record<string, string> | null {
   if (node.type?.name !== 'list_item' || typeof node.attrs?.checked !== 'boolean') {
@@ -227,9 +248,9 @@ function pushTyporaInlineClass(
   from: number,
   to: number,
   className: string
-) {
-  if (to <= from) return;
-  decorations.push(Decoration.inline(from, to, { class: className }));
+): boolean {
+  if (to <= from) return canAddThemeDecoration(decorations);
+  return pushThemeDecoration(decorations, Decoration.inline(from, to, { class: className }));
 }
 
 function pushTyporaInlineAttrs(
@@ -237,68 +258,80 @@ function pushTyporaInlineAttrs(
   from: number,
   to: number,
   attrs: Record<string, string>
-) {
-  if (to <= from) return;
-  decorations.push(Decoration.inline(from, to, attrs));
+): boolean {
+  if (to <= from) return canAddThemeDecoration(decorations);
+  return pushThemeDecoration(decorations, Decoration.inline(from, to, attrs));
 }
 
-function pushEmphasisRunDecorations(decorations: Decoration[], run: EmphasisRun | null) {
-  if (!run) return;
+function pushEmphasisRunDecorations(decorations: Decoration[], run: EmphasisRun | null): boolean {
+  if (!run) return canAddThemeDecoration(decorations);
   const accentToken = getVlookAccentToken(run.text);
   const hasMultipleInlineCodeRanges = run.inlineCodeRanges.length > 1;
 
   if (run.hasStrong) {
-    pushTyporaInlineClass(decorations, run.from, run.to, getCombinedClass('v-coating', accentToken, 'em'));
+    if (!pushTyporaInlineClass(decorations, run.from, run.to, getCombinedClass('v-coating', accentToken, 'em'))) {
+      return false;
+    }
   }
 
   for (const range of run.highlightRanges) {
-    pushTyporaInlineClass(decorations, range.from, range.to, getCombinedClass('v-stepwise', accentToken));
+    if (!pushTyporaInlineClass(decorations, range.from, range.to, getCombinedClass('v-stepwise', accentToken))) {
+      return false;
+    }
   }
 
-  if (!run.hasInlineCode) return;
+  if (!run.hasInlineCode) return canAddThemeDecoration(decorations);
 
   if (run.hasPlainText) {
-    pushTyporaInlineClass(decorations, run.from, run.to, getCombinedClass('v-badge-name', accentToken, hasMultipleInlineCodeRanges ? 'hastwo' : null));
-    for (const range of run.inlineCodeRanges) {
-      pushTyporaInlineClass(decorations, range.from, range.to, getCombinedClass('v-badge-value', hasMultipleInlineCodeRanges ? 'hastwo' : null));
+    if (!pushTyporaInlineClass(decorations, run.from, run.to, getCombinedClass('v-badge-name', accentToken, hasMultipleInlineCodeRanges ? 'hastwo' : null))) {
+      return false;
     }
-    return;
+    for (const range of run.inlineCodeRanges) {
+      if (!pushTyporaInlineClass(decorations, range.from, range.to, getCombinedClass('v-badge-value', hasMultipleInlineCodeRanges ? 'hastwo' : null))) {
+        return false;
+      }
+    }
+    return canAddThemeDecoration(decorations);
   }
 
   for (const range of run.inlineCodeRanges) {
-    pushTyporaInlineClass(decorations, range.from, range.to, getCombinedClass('v-tag', accentToken, 'em'));
+    if (!pushTyporaInlineClass(decorations, range.from, range.to, getCombinedClass('v-tag', accentToken, 'em'))) {
+      return false;
+    }
   }
+
+  return canAddThemeDecoration(decorations);
 }
 
-function addTyporaInlineDecorations(decorations: Decoration[], node: any, pos: number) {
+function addTyporaInlineDecorations(decorations: Decoration[], node: any, pos: number): boolean {
   const runs = getInlineTextRuns(node, pos);
   const textBlockKind = getTextBlockVlookKind(node, runs);
   if (textBlockKind === 'caption') {
     const first = runs[0];
     const last = runs[runs.length - 1];
-    pushTyporaInlineClass(decorations, first.from, last.to, 'v-cap-1');
-    return;
+    return pushTyporaInlineClass(decorations, first.from, last.to, 'v-cap-1');
   }
 
   if (textBlockKind === 'highlight' || textBlockKind === 'emphasis') {
-    return;
+    return canAddThemeDecoration(decorations);
   }
 
   let emphasisRun: EmphasisRun | null = null;
 
   const flush = () => {
-    pushEmphasisRunDecorations(decorations, emphasisRun);
+    const canContinue = pushEmphasisRunDecorations(decorations, emphasisRun);
     emphasisRun = null;
+    return canContinue;
   };
 
   for (const run of runs) {
     if (!run.hasEmphasis) {
-      flush();
+      if (!flush()) return false;
       continue;
     }
 
     if (!emphasisRun || emphasisRun.to !== run.from) {
-      flush();
+      if (!flush()) return false;
       emphasisRun = {
         from: run.from,
         to: run.to,
@@ -331,7 +364,7 @@ function addTyporaInlineDecorations(decorations: Decoration[], node: any, pos: n
     }
   }
 
-  flush();
+  return flush();
 }
 
 function getVlookParagraphAttrs(node: any, pos: number): Record<string, string> | null {
@@ -367,29 +400,29 @@ function getBlockquoteAttrs(node: any): Record<string, string> | null {
 function textNodeHasMark(node: any, markName: string): boolean {
   if (node.isText) return hasMark(node, markName);
   let matched = false;
-  node.descendants?.((child: any) => {
+  scanProseDescendants(node, (child: any) => {
     if (child.isText && hasMark(child, markName)) {
       matched = true;
-      return false;
+      return STOP_PROSE_SCAN;
     }
     return true;
-  });
+  }, MAX_THEME_COMPATIBILITY_DOC_SCAN_NODES);
   return matched;
 }
 
 function everyTextNodeHasMark(node: any, markName: string): boolean {
   let sawText = false;
   let allMatched = true;
-  node.descendants?.((child: any) => {
+  const completed = scanProseDescendants(node, (child: any) => {
     if (!child.isText || child.text === '') return true;
     sawText = true;
     if (!hasMark(child, markName)) {
       allMatched = false;
-      return false;
+      return STOP_PROSE_SCAN;
     }
     return true;
-  });
-  return sawText && allMatched;
+  }, MAX_THEME_COMPATIBILITY_DOC_SCAN_NODES);
+  return completed && sawText && allMatched;
 }
 
 function isVlookTableCheckboxText(text: string): string | null {
@@ -462,14 +495,16 @@ function getTableCellAttrs(node: any): Record<string, string> | null {
   return Object.keys(attrs).length > 0 ? attrs : null;
 }
 
-function addVlookTableCellInlineDecorations(decorations: Decoration[], node: any, pos: number) {
-  if (node.type?.name !== 'table_cell' && node.type?.name !== 'table_header') return;
+function addVlookTableCellInlineDecorations(decorations: Decoration[], node: any, pos: number): boolean {
+  if (node.type?.name !== 'table_cell' && node.type?.name !== 'table_header') {
+    return canAddThemeDecoration(decorations);
+  }
 
   const checkboxState = node.type?.name === 'table_cell'
     ? isVlookTableCheckboxText(getTextContent(node))
     : null;
 
-  node.descendants?.((child: any, childPos: number) => {
+  scanProseDescendants(node, (child: any, childPos: number) => {
     if (!child.isText) return true;
 
     const text = child.text ?? '';
@@ -479,7 +514,7 @@ function addVlookTableCellInlineDecorations(decorations: Decoration[], node: any
       const trimmed = text.trim();
       const checkboxTextStart = trimmed ? text.indexOf(trimmed) : -1;
       if (checkboxTextStart >= 0 && isVlookTableCheckboxText(trimmed) === checkboxState) {
-        pushTyporaInlineAttrs(
+        if (!pushTyporaInlineAttrs(
           decorations,
           textStart + checkboxTextStart,
           textStart + checkboxTextStart + trimmed.length,
@@ -487,85 +522,97 @@ function addVlookTableCellInlineDecorations(decorations: Decoration[], node: any
             class: 'v-svg-input-checkbox',
             'data-vlook-checkbox': checkboxState,
           }
-        );
+        )) return STOP_PROSE_SCAN;
       }
     }
 
     for (const match of text.matchAll(/[$¥€£]/g)) {
       const index = match.index ?? -1;
       if (index >= 0) {
-        pushTyporaInlineClass(decorations, textStart + index, textStart + index + match[0].length, 'v-tbl-col-fmt-currency');
+        if (!pushTyporaInlineClass(decorations, textStart + index, textStart + index + match[0].length, 'v-tbl-col-fmt-currency')) {
+          return STOP_PROSE_SCAN;
+        }
       }
     }
 
     for (const match of text.matchAll(/[％%]/g)) {
       const index = match.index ?? -1;
       if (index >= 0) {
-        pushTyporaInlineClass(decorations, textStart + index, textStart + index + match[0].length, 'v-tbl-col-fmt-percent');
+        if (!pushTyporaInlineClass(decorations, textStart + index, textStart + index + match[0].length, 'v-tbl-col-fmt-percent')) {
+          return STOP_PROSE_SCAN;
+        }
       }
     }
 
     for (const match of text.matchAll(/\.\d+/g)) {
       const index = match.index ?? -1;
       if (index >= 0) {
-        pushTyporaInlineClass(decorations, textStart + index, textStart + index + match[0].length, 'v-tbl-col-fmt-num-decimal');
+        if (!pushTyporaInlineClass(decorations, textStart + index, textStart + index + match[0].length, 'v-tbl-col-fmt-num-decimal')) {
+          return STOP_PROSE_SCAN;
+        }
       }
     }
 
     return true;
-  });
+  }, MAX_THEME_COMPATIBILITY_DOC_SCAN_NODES);
+
+  return canAddThemeDecoration(decorations);
 }
 
-function buildCompatibilityDecorations(doc: any): DecorationSet {
+export function buildCompatibilityDecorations(doc: any): DecorationSet {
   const decorations: Decoration[] = [];
   const taskListCache = new WeakMap<object, boolean>();
 
-  doc.descendants((node: any, pos: number, _parent: any, index: number | undefined) => {
-    addTyporaInlineDecorations(decorations, node, pos);
-    addVlookTableCellInlineDecorations(decorations, node, pos);
+  scanProseDescendants(doc, (node: any, pos: number, _parent: any, index: number | undefined) => {
+    if (!canAddThemeDecoration(decorations)) {
+      return STOP_PROSE_SCAN;
+    }
+
+    if (!addTyporaInlineDecorations(decorations, node, pos)) return STOP_PROSE_SCAN;
+    if (!addVlookTableCellInlineDecorations(decorations, node, pos)) return STOP_PROSE_SCAN;
 
     const firstBlockAttrs = getFirstBlockAttrs(node, index);
     if (firstBlockAttrs) {
-      decorations.push(Decoration.node(pos, pos + node.nodeSize, firstBlockAttrs));
+      if (!pushThemeDecoration(decorations, Decoration.node(pos, pos + node.nodeSize, firstBlockAttrs))) return STOP_PROSE_SCAN;
     }
 
     const paragraphAttrs = getVlookParagraphAttrs(node, pos);
     if (paragraphAttrs) {
-      decorations.push(Decoration.node(pos, pos + node.nodeSize, paragraphAttrs));
+      if (!pushThemeDecoration(decorations, Decoration.node(pos, pos + node.nodeSize, paragraphAttrs))) return STOP_PROSE_SCAN;
     }
 
     const blockquoteAttrs = getBlockquoteAttrs(node);
     if (blockquoteAttrs) {
-      decorations.push(Decoration.node(pos, pos + node.nodeSize, blockquoteAttrs));
+      if (!pushThemeDecoration(decorations, Decoration.node(pos, pos + node.nodeSize, blockquoteAttrs))) return STOP_PROSE_SCAN;
     }
 
     const tableAttrs = getTableAttrs(node);
     if (tableAttrs) {
-      decorations.push(Decoration.node(pos, pos + node.nodeSize, tableAttrs));
+      if (!pushThemeDecoration(decorations, Decoration.node(pos, pos + node.nodeSize, tableAttrs))) return STOP_PROSE_SCAN;
     }
 
     const tableCellAttrs = getTableCellAttrs(node);
     if (tableCellAttrs) {
-      decorations.push(Decoration.node(pos, pos + node.nodeSize, tableCellAttrs));
+      if (!pushThemeDecoration(decorations, Decoration.node(pos, pos + node.nodeSize, tableCellAttrs))) return STOP_PROSE_SCAN;
     }
 
     const listAttrs = getListAttrs(node, taskListCache);
     if (listAttrs) {
-      decorations.push(Decoration.node(pos, pos + node.nodeSize, listAttrs));
+      if (!pushThemeDecoration(decorations, Decoration.node(pos, pos + node.nodeSize, listAttrs))) return STOP_PROSE_SCAN;
     }
 
     const listItemAttrs = getListItemAttrs(node);
     if (listItemAttrs) {
-      decorations.push(Decoration.node(pos, pos + node.nodeSize, listItemAttrs));
+      if (!pushThemeDecoration(decorations, Decoration.node(pos, pos + node.nodeSize, listItemAttrs))) return STOP_PROSE_SCAN;
     }
 
     const taskAttrs = getTaskListItemAttrs(node);
     if (taskAttrs) {
-      decorations.push(Decoration.node(pos, pos + node.nodeSize, taskAttrs));
+      if (!pushThemeDecoration(decorations, Decoration.node(pos, pos + node.nodeSize, taskAttrs))) return STOP_PROSE_SCAN;
     }
 
     return true;
-  });
+  }, MAX_THEME_COMPATIBILITY_DOC_SCAN_NODES);
 
   return DecorationSet.create(doc, decorations);
 }

@@ -551,6 +551,24 @@ describe('GitHub README HTML compatibility', () => {
     expect(result.persisted).not.toContain('hidden</text>');
   });
 
+  it('keeps malformed sanitizer-only raw HTML active across parser-promoted siblings', async () => {
+    const markdown = [
+      '<svg <img src="https://example.com/hidden.png">',
+      '<img src="https://example.com/leaked.png">',
+      '</svg>',
+      '<img src="https://example.com/real.png">',
+    ].join('\n\n');
+
+    const result = await openGithubHtmlMarkdown(markdown);
+    const srcs = Array.from(result.dom.querySelectorAll('img'))
+      .map((image) => image.getAttribute('src'))
+      .filter((src): src is string => Boolean(src));
+
+    expect(srcs).toEqual(['https://example.com/real.png']);
+    expect(result.dom.innerHTML).not.toContain('hidden.png');
+    expect(result.dom.innerHTML).not.toContain('leaked.png');
+  });
+
   it('applies GFM tagfilter before sanitizing nested disallowed raw HTML', async () => {
     const markdown = [
       '<strong> <title> <style> <em>',

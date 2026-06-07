@@ -3,7 +3,14 @@ import { Editor, defaultValueCtx, editorViewCtx, serializerCtx } from '@milkdown
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
-import { docHasRawMarkdownLink, isMarkdownImagePatternBeforeCursor, markdownLinkPlugin } from './markdownLinkPlugin';
+import {
+  MAX_MARKDOWN_LINK_AUTO_COLLAPSE_MATCHES,
+  MAX_MARKDOWN_LINK_DOC_SCAN_NODES,
+  collectRawMarkdownLinkMatches,
+  docHasRawMarkdownLink,
+  isMarkdownImagePatternBeforeCursor,
+  markdownLinkPlugin,
+} from './markdownLinkPlugin';
 import { shouldHandleMarkdownLinkPaste } from './markdownLinkParser';
 
 interface FakeMarkdownLinkNode {
@@ -82,6 +89,28 @@ describe('shouldHandleMarkdownLinkPaste', () => {
 
     expect(docHasRawMarkdownLink(doc as any)).toBe(true);
     expect(accessed).toBe(1);
+  });
+
+  it('caps raw markdown link presence scans by node count', () => {
+    let accessed = 0;
+    const doc = createDocNode([
+      ...Array.from({ length: MAX_MARKDOWN_LINK_DOC_SCAN_NODES }, () => createTextNode('plain')),
+      createTextNode('[Later](https://later.example)'),
+    ], () => {
+      accessed += 1;
+    });
+
+    expect(docHasRawMarkdownLink(doc as any)).toBe(false);
+    expect(accessed).toBe(MAX_MARKDOWN_LINK_DOC_SCAN_NODES);
+  });
+
+  it('caps raw markdown link auto-collapse candidates collected in one pass', () => {
+    const doc = createDocNode(Array.from(
+      { length: MAX_MARKDOWN_LINK_AUTO_COLLAPSE_MATCHES + 2 },
+      (_value, index) => createTextNode(`[Link ${index}](https://example.com/${index})`)
+    ));
+
+    expect(collectRawMarkdownLinkMatches(doc as any)).toHaveLength(MAX_MARKDOWN_LINK_AUTO_COLLAPSE_MATCHES);
   });
 
   it('handles single-line markdown link text', () => {

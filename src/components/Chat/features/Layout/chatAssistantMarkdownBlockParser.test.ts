@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { parseMarkdownMeasurementBlocks } from './chatAssistantMarkdownBlockParser';
 
 describe('parseMarkdownMeasurementBlocks', () => {
@@ -37,6 +37,29 @@ describe('parseMarkdownMeasurementBlocks', () => {
         widthInset: 0,
       },
     ]);
+  });
+
+  it('normalizes CRLF and CR line breaks while parsing code blocks', () => {
+    expect(parseMarkdownMeasurementBlocks('```ts\r\nconst value = 1;\rvalue += 1;\r\n```')).toEqual(
+      parseMarkdownMeasurementBlocks('```ts\nconst value = 1;\nvalue += 1;\n```'),
+    );
+  });
+
+  it('does not materialize a full line array for code-only markdown', () => {
+    const replaceSpy = vi.spyOn(String.prototype, 'replace');
+    const splitSpy = vi.spyOn(String.prototype, 'split');
+
+    try {
+      const blocks = parseMarkdownMeasurementBlocks(`\`\`\`ts\n${'const value = 1;\n'.repeat(4000)}`);
+
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0]?.kind).toBe('code');
+      expect(replaceSpy).not.toHaveBeenCalled();
+      expect(splitSpy).not.toHaveBeenCalled();
+    } finally {
+      replaceSpy.mockRestore();
+      splitSpy.mockRestore();
+    }
   });
 
   it('measures video markdown as video blocks without dropping surrounding text', () => {

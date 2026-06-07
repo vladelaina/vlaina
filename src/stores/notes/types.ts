@@ -113,6 +113,7 @@ export interface NotesState {
   openTabs: NoteTabState[];
   recentlyClosedTabs: RecentlyClosedTabState[];
   noteContentsCache: Map<string, NoteContentCacheEntry>;
+  noteContentsCacheRevision: number;
   draftNotes: Record<string, DraftNoteEntry>;
   starredEntries: StarredEntry[];
   starredNotes: string[];
@@ -142,7 +143,7 @@ export interface NotesActions {
   adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => boolean;
   saveNote: (options?: { explicit?: boolean; suppressOpenTarget?: boolean }) => Promise<void>;
   syncCurrentNoteFromDisk: (options?: { force?: boolean; expectedExternalChange?: boolean }) => Promise<'ignored' | 'unchanged' | 'reloaded' | 'conflict' | 'deleted' | 'deleted-conflict'>;
-  invalidateNoteCache: (path: string) => void;
+  invalidateNoteCache: (path: string, options?: { includeDescendants?: boolean }) => void;
   applyExternalPathRename: (oldPath: string, newPath: string) => Promise<void>;
   applyExternalPathDeletion: (path: string) => Promise<void>;
   createNote: (folderPath?: string, options?: { asDraft?: boolean }) => Promise<string>;

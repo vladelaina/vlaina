@@ -191,6 +191,42 @@ describe('workspace document actions', () => {
     });
   });
 
+  it('invalidates descendant cached content while preserving current and dirty tabs', () => {
+    const store = createNotesStore({
+      currentNote: { path: 'docs/current.md', content: '# current' },
+      isDirty: false,
+      openTabs: [
+        { path: 'docs/current.md', name: 'current', isDirty: false },
+        { path: 'docs/dirty.md', name: 'dirty', isDirty: true },
+        { path: 'docs/clean.md', name: 'clean', isDirty: false },
+      ],
+      noteContentsCache: new Map([
+        ['docs/current.md', { content: '# current', modifiedAt: 1 }],
+        ['docs/dirty.md', { content: 'Unsaved dirty', modifiedAt: 2 }],
+        ['docs/clean.md', { content: '# clean', modifiedAt: 3 }],
+        ['docs/nested/other.md', { content: '# other', modifiedAt: 4 }],
+        ['outside.md', { content: '# outside', modifiedAt: 5 }],
+      ]),
+    });
+
+    store.getState().invalidateNoteCache('docs', { includeDescendants: true });
+
+    expect(store.getState().noteContentsCache.get('docs/current.md')).toEqual({
+      content: '# current',
+      modifiedAt: 1,
+    });
+    expect(store.getState().noteContentsCache.get('docs/dirty.md')).toEqual({
+      content: 'Unsaved dirty',
+      modifiedAt: 2,
+    });
+    expect(store.getState().noteContentsCache.has('docs/clean.md')).toBe(false);
+    expect(store.getState().noteContentsCache.has('docs/nested/other.md')).toBe(false);
+    expect(store.getState().noteContentsCache.get('outside.md')).toEqual({
+      content: '# outside',
+      modifiedAt: 5,
+    });
+  });
+
   it('flushes pending editor markdown before saving the current note snapshot', async () => {
     const store = createNotesStore({
       currentNote: { path: 'alpha.md', content: 'old' },

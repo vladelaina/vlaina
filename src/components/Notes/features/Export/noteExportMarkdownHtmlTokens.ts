@@ -12,6 +12,11 @@ const TAG_ASSET_ATTRIBUTES: Record<string, Set<string>> = {
   video: new Set(['poster']),
 };
 
+export interface HtmlTagRangeScan {
+  ranges: ContentRange[];
+  exhaustedAt: number | null;
+}
+
 function isAsciiAlpha(char: string | undefined): boolean {
   if (char === undefined) {
     return false;
@@ -63,7 +68,43 @@ function findHtmlTagEnd(content: string, start: number): number {
   return -1;
 }
 
-export function getHtmlTagRanges(content: string): ContentRange[] {
+function findHtmlCommentEnd(content: string, start: number): number {
+  const close = content.indexOf('-->', start + 4);
+  return close === -1 ? content.length : close + 3;
+}
+
+function findHtmlCdataEnd(content: string, start: number): number {
+  const close = content.indexOf(']]>', start + 9);
+  return close === -1 ? content.length : close + 3;
+}
+
+function findHtmlProcessingInstructionEnd(content: string, start: number): number {
+  const close = content.indexOf('?>', start + 2);
+  return close === -1 ? content.length : close + 2;
+}
+
+function findHtmlDeclarationEnd(content: string, start: number): number {
+  const close = content.indexOf('>', start + 2);
+  return close === -1 ? content.length : close + 1;
+}
+
+function findHtmlNonTagEnd(content: string, start: number): number | null {
+  if (content.startsWith('<!--', start)) return findHtmlCommentEnd(content, start);
+  if (content.startsWith('<![CDATA[', start)) return findHtmlCdataEnd(content, start);
+  if (content.startsWith('<?', start)) return findHtmlProcessingInstructionEnd(content, start);
+  if (content.startsWith('<!', start)) return findHtmlDeclarationEnd(content, start);
+  return null;
+}
+
+export function collectHtmlTagRanges(
+  content: string,
+  maxRanges = Number.POSITIVE_INFINITY,
+): HtmlTagRangeScan {
+  const rangeLimit = Number.isFinite(maxRanges)
+    ? Math.max(0, Math.floor(maxRanges))
+    : maxRanges === Number.POSITIVE_INFINITY ? Number.POSITIVE_INFINITY : 0;
+  if (rangeLimit <= 0) return { ranges: [], exhaustedAt: 0 };
+
   const ranges: ContentRange[] = [];
   let cursor = 0;
 
@@ -74,6 +115,11 @@ export function getHtmlTagRanges(content: string): ContentRange[] {
     }
     if (isEscapedMarkdownPunctuation(content, start)) {
       cursor = start + 1;
+      continue;
+    }
+    const nonTagEnd = findHtmlNonTagEnd(content, start);
+    if (nonTagEnd !== null) {
+      cursor = nonTagEnd;
       continue;
     }
     if (!isHtmlTagStart(content, start)) {
@@ -87,9 +133,16 @@ export function getHtmlTagRanges(content: string): ContentRange[] {
     }
     ranges.push({ start, end });
     cursor = end;
+    if (ranges.length >= rangeLimit) {
+      return { ranges, exhaustedAt: cursor };
+    }
   }
 
-  return ranges;
+  return { ranges, exhaustedAt: null };
+}
+
+export function getHtmlTagRanges(content: string): ContentRange[] {
+  return collectHtmlTagRanges(content).ranges;
 }
 
 function parseSrcsetAssetTokens(

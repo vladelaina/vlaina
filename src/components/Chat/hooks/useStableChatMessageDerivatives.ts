@@ -2,9 +2,9 @@ import { useRef } from 'react';
 import type { ChatMessage } from '@/lib/ai/types';
 import {
   extractRenderedMessageImageSources,
-  isRenderedImageSource,
+  MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+  normalizeRenderedMessageImageSources,
 } from '@/components/Chat/common/messageClipboard';
-import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
 
 export interface ChatImageGalleryItem {
   id: string;
@@ -44,10 +44,10 @@ function buildMessageImageGallery(message: ChatMessage): DerivedCollection<ChatI
 
   const sources = message.imageSources && message.imageSources.length > 0
     ? message.imageSources
-    : extractRenderedMessageImageSources(message.content || '');
-  const renderableSources = sources
-    .map((src) => normalizeRenderableImageSrc(src))
-    .filter((src): src is string => !!src && isRenderedImageSource(src));
+    : extractRenderedMessageImageSources(message.content || '', {
+        maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+      });
+  const renderableSources = normalizeRenderedMessageImageSources(sources);
 
   if (renderableSources.length === 0) {
     return { items: [], signature: '' };

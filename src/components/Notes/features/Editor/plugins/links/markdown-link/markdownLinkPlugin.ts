@@ -11,17 +11,27 @@ import {
     shouldHandleMarkdownLinkPaste,
 } from './markdownLinkParser';
 import {
+    DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
     STOP_PROSE_SCAN,
     scanProseDescendants,
 } from '../../shared/boundedProseNodeScan';
 
 export const markdownLinkPluginKey = new PluginKey('markdown-link-paste');
 const MAX_MARKDOWN_LINK_DOC_SCAN_SIZE = 1024 * 1024;
+export const MAX_MARKDOWN_LINK_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_MARKDOWN_LINK_AUTO_COLLAPSE_MATCHES = 5000;
 const MAX_MARKDOWN_LINK_PASTE_CHARS = 1024 * 1024;
 const MARKDOWN_LINK_TRIGGER_TEXT_PATTERN = /[\[\]\(\)]/;
 
 interface MarkdownLinkPluginState {
     hasRawMarkdownLink: boolean;
+}
+
+export interface RawMarkdownLinkMatch {
+    from: number;
+    linkText: string;
+    linkUrl: string;
+    to: number;
 }
 
 function getInsertedStepText(step: unknown): string {
@@ -54,9 +64,11 @@ function positionTouchesRawMarkdownLink(doc: ProseNode, pos: number): boolean {
         }
     }
 
-    return (
-        ($pos.nodeBefore?.isText && textContainsRawMarkdownLink($pos.nodeBefore.text ?? ''))
-        || ($pos.nodeAfter?.isText && textContainsRawMarkdownLink($pos.nodeAfter.text ?? ''))
+    const nodeBefore = $pos.nodeBefore;
+    const nodeAfter = $pos.nodeAfter;
+    return Boolean(
+        (nodeBefore?.isText && textContainsRawMarkdownLink(nodeBefore.text ?? ''))
+        || (nodeAfter?.isText && textContainsRawMarkdownLink(nodeAfter.text ?? ''))
     );
 }
 
@@ -106,8 +118,52 @@ export function docHasRawMarkdownLink(doc: ProseNode): boolean {
         MARKDOWN_LINK_PATTERN_GLOBAL.lastIndex = 0;
         hasRawMarkdownLink = MARKDOWN_LINK_PATTERN_GLOBAL.test(node.text);
         return hasRawMarkdownLink ? STOP_PROSE_SCAN : true;
-    }, Number.POSITIVE_INFINITY);
+    }, MAX_MARKDOWN_LINK_DOC_SCAN_NODES);
     return hasRawMarkdownLink;
+}
+
+export function collectRawMarkdownLinkMatches(
+    doc: ProseNode,
+    maxMatches = MAX_MARKDOWN_LINK_AUTO_COLLAPSE_MATCHES
+): RawMarkdownLinkMatch[] {
+    const limit = Math.max(0, Math.floor(maxMatches));
+    if (limit === 0) return [];
+
+    const matches: RawMarkdownLinkMatch[] = [];
+    let inspectedMatches = 0;
+
+    scanProseDescendants(doc, (node, pos) => {
+        if (inspectedMatches >= limit || matches.length >= limit) return STOP_PROSE_SCAN;
+        if (!node.isText || !node.text) return true;
+
+        const text = node.text;
+        MARKDOWN_LINK_PATTERN_GLOBAL.lastIndex = 0;
+
+        let match;
+        while ((match = MARKDOWN_LINK_PATTERN_GLOBAL.exec(text)) !== null) {
+            inspectedMatches += 1;
+            if (match.index > 0 && text[match.index - 1] === '!') {
+                if (inspectedMatches >= limit) return STOP_PROSE_SCAN;
+                continue;
+            }
+
+            const fullMatch = match[0];
+            matches.push({
+                from: pos + match.index,
+                linkText: match[1],
+                linkUrl: match[2],
+                to: pos + match.index + fullMatch.length,
+            });
+
+            if (inspectedMatches >= limit || matches.length >= limit) {
+                return STOP_PROSE_SCAN;
+            }
+        }
+
+        return true;
+    }, MAX_MARKDOWN_LINK_DOC_SCAN_NODES);
+
+    return matches;
 }
 
 export const markdownLinkPlugin = $prose(() => {
@@ -177,61 +233,40 @@ export const markdownLinkPlugin = $prose(() => {
 
             if (!linkMarkType) return null;
 
-            scanProseDescendants(newState.doc, (node, pos) => {
-                if (!node.isText || !node.text) return;
+            const rawMarkdownLinks = collectRawMarkdownLinkMatches(newState.doc);
+            for (const rawMarkdownLink of rawMarkdownLinks) {
+                const mapping = tr.mapping;
+                const mappedStart = mapping.map(rawMarkdownLink.from);
+                const mappedEnd = mapping.map(rawMarkdownLink.to);
+                if (mappedEnd <= mappedStart) continue;
 
-                const text = node.text;
-                MARKDOWN_LINK_PATTERN_GLOBAL.lastIndex = 0;
-
-                let match;
-                while ((match = MARKDOWN_LINK_PATTERN_GLOBAL.exec(text)) !== null) {
-                    const fullMatch = match[0];
-                    const linkText = match[1];
-                    const linkUrl = match[2];
-                    const matchStart = pos + match.index;
-                    const matchEnd = matchStart + fullMatch.length;
-                    if (match.index > 0 && text[match.index - 1] === '!') {
-                        continue;
+                // 1. SANITIZE STYLES: Remove ALL marks from the raw syntax [text](url)
+                // This "Nuclear Option" strips any background/color/bold/code styles
+                Object.values(schema.marks).forEach(markType => {
+                    if (tr.doc.rangeHasMark(mappedStart, mappedEnd, markType)) {
+                        tr.removeMark(mappedStart, mappedEnd, markType);
+                        hasChanges = true;
                     }
+                });
 
-                    // 1. SANITIZE STYLES: Remove ALL marks from the raw syntax [text](url)
-                    // This "Nuclear Option" strips any background/color/bold/code styles
-                    Object.values(schema.marks).forEach(markType => {
-                        if (tr.doc.rangeHasMark(matchStart, matchEnd, markType)) {
-                            tr.removeMark(matchStart, matchEnd, markType);
-                            hasChanges = true;
-                        }
-                    });
+                // 2. AUTO-COLLAPSE: Check if new selection is OUTSIDE this pattern
+                // Only if selection actually changed compared to old state
+                if (!oldState.selection.eq(newState.selection)) {
+                    const selFrom = newState.selection.from;
+                    const selTo = newState.selection.to;
+                    const isOutside = selTo < rawMarkdownLink.from || selFrom > rawMarkdownLink.to;
 
-                    // 2. AUTO-COLLAPSE: Check if new selection is OUTSIDE this pattern
-                    // Only if selection actually changed compared to old state
-                    if (!oldState.selection.eq(newState.selection)) {
-                        const selFrom = newState.selection.from;
-                        const selTo = newState.selection.to;
-                        const isOutside = selTo < matchStart || selFrom > matchEnd;
+                    if (isOutside) {
+                        const safeLinkUrl = sanitizeExplicitMarkdownLinkHref(getMarkdownLinkHref(rawMarkdownLink.linkUrl));
+                        const marks = safeLinkUrl ? [linkMarkType.create({ href: safeLinkUrl })] : [];
+                        tr = tr
+                            .delete(mappedStart, mappedEnd)
+                            .insert(mappedStart, schema.text(rawMarkdownLink.linkText, marks));
 
-                        if (isOutside) {
-                            // Adjust positions for any previous changes in this transaction
-                            // (Note: removeMark changes shouldn't shift positions, but delete/insert will)
-                            const mapping = tr.mapping;
-                            const mappedStart = mapping.map(matchStart);
-                            const mappedEnd = mapping.map(matchEnd);
-
-                            // Verify checking range validity after mapping
-                            // (Simple check: ensure mappedEnd > mappedStart)
-                            if (mappedEnd > mappedStart) {
-                                const safeLinkUrl = sanitizeExplicitMarkdownLinkHref(getMarkdownLinkHref(linkUrl));
-                                const marks = safeLinkUrl ? [linkMarkType.create({ href: safeLinkUrl })] : [];
-                                tr = tr
-                                    .delete(mappedStart, mappedEnd)
-                                    .insert(mappedStart, schema.text(linkText, marks));
-
-                                hasChanges = true;
-                            }
-                        }
+                        hasChanges = true;
                     }
                 }
-            }, Number.POSITIVE_INFINITY);
+            }
 
             return hasChanges ? tr : null;
         },

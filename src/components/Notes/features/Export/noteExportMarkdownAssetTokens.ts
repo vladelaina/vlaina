@@ -8,8 +8,8 @@ import {
   type ContentRange,
 } from './noteExportMarkdownRanges';
 import {
+  collectHtmlTagRanges,
   findHtmlImageSourceTokens,
-  getHtmlTagRanges,
 } from './noteExportMarkdownHtmlTokens';
 import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 import type { ExportMarkdownAssetSourceToken } from './noteExportMarkdownAssetTypes';
@@ -30,6 +30,7 @@ export interface ExportMarkdownAssetTokenOptions {
 }
 
 export const MAX_EXPORT_MARKDOWN_ASSET_TOKENS = 2000;
+export const MAX_EXPORT_HTML_TAG_SCAN_RANGES = 8000;
 
 function getMaxTokens(options?: ExportMarkdownAssetTokenOptions): number {
   const value = options?.maxTokens;
@@ -243,11 +244,19 @@ export function findExportMarkdownAssetSourceTokensWithOptions(
   }
 
   const ignoredRanges = getIgnoredInlineRanges(content);
+  const htmlTagScan = collectHtmlTagRanges(
+    content,
+    Number.isFinite(maxTokens) ? MAX_EXPORT_HTML_TAG_SCAN_RANGES : Number.POSITIVE_INFINITY,
+  );
+  const htmlTagRanges = htmlTagScan.ranges;
+  const htmlScanRemainderRanges = htmlTagScan.exhaustedAt === null
+    ? []
+    : [{ start: htmlTagScan.exhaustedAt, end: content.length }];
   const ignoredMarkdownRanges = normalizeContentRanges([
     ...ignoredRanges,
     ...getMarkdownHtmlBlockRanges(content),
+    ...htmlScanRemainderRanges,
   ]);
-  const htmlTagRanges = getHtmlTagRanges(content);
   const markdownMatches = findMarkdownImageSourceMatches(
     content,
     ignoredMarkdownRanges,

@@ -262,4 +262,24 @@ describe('parser-state', () => {
       ],
     })
   })
+
+  it('does not materialize a copied node array while advancing parser state', () => {
+    const state = new ParserState(schema)
+    state.openNode(docNodeType)
+    const nodes = Array.from({ length: 4000 }, (_, index) => ({
+      type: 'paragraphNode',
+      value: `node-${index}\n`,
+    }))
+    const flatSpy = vi.spyOn(Array.prototype, 'flat')
+
+    state.next(nodes)
+    const flatCallCount = flatSpy.mock.calls.length
+    flatSpy.mockRestore()
+
+    expect(flatCallCount).toBe(0)
+    expect(state.top()?.content).toHaveLength(1)
+    expect(state.top()?.content[0]).toMatchObject({
+      text: expect.stringContaining('node-3999'),
+    })
+  })
 })

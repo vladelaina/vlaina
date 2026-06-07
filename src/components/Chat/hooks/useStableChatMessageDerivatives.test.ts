@@ -2,6 +2,7 @@ import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { ChatMessage } from '@/lib/ai/types';
 import { useStableChatMessageDerivatives } from './useStableChatMessageDerivatives';
+import { MAX_CHAT_MESSAGE_IMAGE_SOURCES } from '@/components/Chat/common/messageClipboard';
 
 function createMessage(id: string, role: ChatMessage['role'], content: string): ChatMessage {
   const timestamp = Date.now();
@@ -241,6 +242,32 @@ describe('useStableChatMessageDerivatives', () => {
     expect(view.result.current.imageGallery).toEqual([
       { id: 'a1:0', src: 'https://example.com/real.png' },
     ]);
+  });
+
+  it('bounds assistant gallery sources derived from markdown content', () => {
+    const assistant = createMessage(
+      'a1',
+      'assistant',
+      Array.from(
+        { length: MAX_CHAT_MESSAGE_IMAGE_SOURCES + 1 },
+        (_, index) => `![image ${index}](https://example.com/${index}.png)`,
+      ).join('\n'),
+    );
+
+    const view = renderHook(
+      ({ messages }) => useStableChatMessageDerivatives(messages),
+      {
+        initialProps: {
+          messages: [assistant] as ChatMessage[],
+        },
+      },
+    );
+
+    expect(view.result.current.imageGallery).toHaveLength(MAX_CHAT_MESSAGE_IMAGE_SOURCES);
+    expect(view.result.current.imageGallery.at(-1)).toEqual({
+      id: `a1:${MAX_CHAT_MESSAGE_IMAGE_SOURCES - 1}`,
+      src: `https://example.com/${MAX_CHAT_MESSAGE_IMAGE_SOURCES - 1}.png`,
+    });
   });
 
   it('ignores assistant image examples inside code blocks and inline code', () => {

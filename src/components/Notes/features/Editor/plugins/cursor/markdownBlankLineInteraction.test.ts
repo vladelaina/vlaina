@@ -3,6 +3,7 @@ import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import {
+  MAX_MARKDOWN_BLANK_LINE_NODE_POS_SCAN_NODES,
   createEditableMarkdownBlankLineDecorations,
   findEditableMarkdownBlankLineElement,
   resolveMarkdownBlankLineNodePos,
@@ -97,5 +98,40 @@ describe('markdownBlankLineInteraction', () => {
 
     expect(resolveMarkdownBlankLineNodePos(view as any, blankLine)).toBe(2);
     expect(accessedChildren).toEqual([0, 1]);
+  });
+
+  it('caps fallback blank line node position scans by node count', () => {
+    const blankLine = document.createElement('div');
+    let accessed = 0;
+    const doc = {
+      child(index: number) {
+        accessed += 1;
+        if (index < MAX_MARKDOWN_BLANK_LINE_NODE_POS_SCAN_NODES) {
+          return {
+            attrs: {},
+            nodeSize: 1,
+            type: { name: 'paragraph' },
+          };
+        }
+        return {
+          attrs: { value: MARKDOWN_BLANK_LINE_VALUE },
+          nodeSize: 1,
+          type: { name: 'html_block' },
+        };
+      },
+      childCount: MAX_MARKDOWN_BLANK_LINE_NODE_POS_SCAN_NODES + 1,
+      nodeAt: vi.fn(),
+    };
+    const view = {
+      nodeDOM: vi.fn(() => blankLine),
+      posAtDOM: vi.fn(() => {
+        throw new Error('Force fallback scan');
+      }),
+      state: { doc },
+    };
+
+    expect(resolveMarkdownBlankLineNodePos(view as any, blankLine)).toBeNull();
+    expect(accessed).toBe(MAX_MARKDOWN_BLANK_LINE_NODE_POS_SCAN_NODES);
+    expect(view.nodeDOM).not.toHaveBeenCalled();
   });
 });

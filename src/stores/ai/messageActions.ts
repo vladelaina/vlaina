@@ -10,9 +10,9 @@ import { resolveSessionIdAlias } from '@/lib/ai/sessionIdAliases'
 import {
   extractRenderedMarkdownImageSources,
   extractRenderedMessageImageSources,
-  isRenderedImageSource,
+  MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+  normalizeRenderedMessageImageSources,
 } from '@/components/Chat/common/messageClipboard'
-import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy'
 import { useUnifiedStore } from '../unified/useUnifiedStore'
 import { useAIUIStore } from './chatState'
 
@@ -56,15 +56,14 @@ function canMessageUseVersionKind(message: ChatMessage, kind: MessageVersion['ki
 }
 
 function extractStoredImageSources(role: ChatMessage['role'], content: string): string[] {
-  return role === 'user'
-    ? extractRenderedMarkdownImageSources(content)
-    : extractRenderedMessageImageSources(content)
+  const sources = role === 'user'
+    ? extractRenderedMarkdownImageSources(content, { maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES })
+    : extractRenderedMessageImageSources(content, { maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES })
+  return normalizeRenderedMessageImageSources(sources)
 }
 
 function sanitizeProvidedImageSources(imageSources: string[] | undefined): string[] {
-  return (imageSources ?? [])
-    .map((src) => normalizeRenderableImageSrc(src))
-    .filter((src): src is string => src !== null && isRenderedImageSource(src))
+  return normalizeRenderedMessageImageSources(imageSources)
 }
 
 function getNewMessageImageSources(message: Omit<ChatMessage, 'id' | 'timestamp' | 'versions' | 'currentVersionIndex'>): string[] | undefined {
@@ -298,6 +297,7 @@ export function createMessageActions() {
           ...message,
           content: '',
           apiTranscript: undefined,
+          imageSources: extractStoredImageSources(message.role, ''),
           versions: limited.versions,
           currentVersionIndex: limited.currentVersionIndex
         }

@@ -1271,9 +1271,11 @@ function normalizeLeakedInternalArtifacts(text: string): string {
     return text;
   }
 
-  return text
-    .replace(LEAKED_LIST_GAP_SENTINEL_WITH_NEWLINES_PATTERN, '\n\n')
-    .replace(LEAKED_USER_BR_SENTINEL_PATTERN, USER_BR_SENTINEL);
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment
+      .replace(LEAKED_LIST_GAP_SENTINEL_WITH_NEWLINES_PATTERN, '\n\n')
+      .replace(LEAKED_USER_BR_SENTINEL_PATTERN, USER_BR_SENTINEL)
+  );
 }
 
 function getBlockquotePrefix(depth: number): string {

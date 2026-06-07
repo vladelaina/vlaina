@@ -1,6 +1,7 @@
 import {
   buildMarkdownTextBlock,
   type MarkdownMeasurementBlock,
+  type TextBlockVariant,
 } from './chatAssistantMarkdownTypography';
 import {
   getMarkdownFenceState,
@@ -22,10 +23,7 @@ import {
   MARKDOWN_LIST_ITEM_MARGIN_Y,
   MARKDOWN_LIST_MARGIN_Y,
 } from '@/components/common/markdown/markdownMetrics';
-import {
-  setCacheEntry,
-  touchCacheEntry,
-} from './chatLayoutCache';
+import { setCacheEntry, touchCacheEntry } from './chatLayoutCache';
 import {
   parseMarkdownAndHtmlImageTokens,
   type ImageToken,
@@ -44,52 +42,78 @@ const TABLE_ROW_RE = /^\s*\|.*\|\s*$/;
 const PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT = 200;
 const MAX_CACHED_MARKDOWN_BLOCK_CHARS = 50_000;
 const MAX_LAYOUT_VIDEO_IMAGE_TOKENS = 2000;
+const CARRIAGE_RETURN_CODE = 13;
+const LINE_FEED_CODE = 10;
+const HEADING_MEASUREMENTS: Array<{ lineHeight: number; variant: TextBlockVariant }> = [
+  { variant: 'heading-1', lineHeight: MARKDOWN_HEADING_ONE_LINE_HEIGHT },
+  { variant: 'heading-2', lineHeight: MARKDOWN_HEADING_TWO_LINE_HEIGHT },
+  { variant: 'heading-3', lineHeight: MARKDOWN_HEADING_THREE_LINE_HEIGHT },
+  { variant: 'heading-4', lineHeight: MARKDOWN_HEADING_FOUR_LINE_HEIGHT },
+  { variant: 'heading-5', lineHeight: MARKDOWN_HEADING_FIVE_LINE_HEIGHT },
+  { variant: 'heading-6', lineHeight: MARKDOWN_HEADING_SIX_LINE_HEIGHT },
+];
 
 const parsedMarkdownBlocksCache = new Map<string, MarkdownMeasurementBlock[]>();
 
-export {
-  getMarkdownFenceState,
-  isMarkdownFenceClose,
-  type MarkdownFenceState,
-};
+export { getMarkdownFenceState, isMarkdownFenceClose, type MarkdownFenceState };
 
-function getHeadingMeasurement(depth: number): {
-  lineHeight: number;
-  variant: 'heading-1' | 'heading-2' | 'heading-3' | 'heading-4' | 'heading-5' | 'heading-6';
-} {
-  switch (depth) {
-    case 1:
-      return { lineHeight: MARKDOWN_HEADING_ONE_LINE_HEIGHT, variant: 'heading-1' };
-    case 2:
-      return { lineHeight: MARKDOWN_HEADING_TWO_LINE_HEIGHT, variant: 'heading-2' };
-    case 3:
-      return { lineHeight: MARKDOWN_HEADING_THREE_LINE_HEIGHT, variant: 'heading-3' };
-    case 4:
-      return { lineHeight: MARKDOWN_HEADING_FOUR_LINE_HEIGHT, variant: 'heading-4' };
-    case 5:
-      return { lineHeight: MARKDOWN_HEADING_FIVE_LINE_HEIGHT, variant: 'heading-5' };
-    default:
-      return { lineHeight: MARKDOWN_HEADING_SIX_LINE_HEIGHT, variant: 'heading-6' };
-  }
+function getHeadingMeasurement(depth: number): { lineHeight: number; variant: TextBlockVariant } {
+  return HEADING_MEASUREMENTS[depth - 1] ?? HEADING_MEASUREMENTS[5]!;
 }
 
-function collectSectionLines(lines: string[], start: number): { end: number; lines: string[] } {
-  const sectionLines: string[] = [];
-  let index = start;
+function readNormalizedMarkdownLine(markdown: string, offset: number): { line: string; nextOffset: number } | null {
+  const length = markdown.length;
+  if (offset > length) {
+    return null;
+  }
+  if (offset === length) {
+    const lastCode = markdown.charCodeAt(length - 1);
+    return lastCode === LINE_FEED_CODE || lastCode === CARRIAGE_RETURN_CODE
+      ? { line: '', nextOffset: length + 1 }
+      : null;
+  }
 
-  while (index < lines.length) {
-    const line = lines[index]!;
+  for (let index = offset; index < length; index += 1) {
+    const code = markdown.charCodeAt(index);
+    if (code === LINE_FEED_CODE || code === CARRIAGE_RETURN_CODE) {
+      return {
+        line: markdown.slice(offset, index),
+        nextOffset: code === CARRIAGE_RETURN_CODE && markdown.charCodeAt(index + 1) === LINE_FEED_CODE
+          ? index + 2
+          : index + 1,
+      };
+    }
+  }
+
+  return {
+    line: markdown.slice(offset),
+    nextOffset: length,
+  };
+}
+
+function collectSectionLines(markdown: string, startOffset: number): { endOffset: number; lines: string[] } {
+  const sectionLines: string[] = [];
+  let offset = startOffset;
+
+  while (true) {
+    const current = readNormalizedMarkdownLine(markdown, offset);
+    if (!current) {
+      break;
+    }
+
+    const line = current.line;
     if (!line.trim()) {
       break;
     }
-    if (index !== start && (getMarkdownFenceState(line) || HEADING_RE.test(line) || HR_RE.test(line))) {
+    if (offset !== startOffset && (getMarkdownFenceState(line) || HEADING_RE.test(line) || HR_RE.test(line))) {
       break;
     }
+
     sectionLines.push(line);
-    index += 1;
+    offset = current.nextOffset;
   }
 
-  return { end: index, lines: sectionLines };
+  return { endOffset: offset, lines: sectionLines };
 }
 
 function getVideoImageTokens(markdown: string): ImageToken[] {
@@ -113,28 +137,39 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
     }
   }
 
-  const lines = markdown.replace(/\r\n?/g, '\n').split('\n');
   const blocks: MarkdownMeasurementBlock[] = [];
-  let index = 0;
+  let offset = 0;
 
-  while (index < lines.length) {
-    const line = lines[index]!;
+  while (true) {
+    const current = readNormalizedMarkdownLine(markdown, offset);
+    if (!current) {
+      break;
+    }
+
+    const line = current.line;
     if (!line.trim()) {
-      index += 1;
+      offset = current.nextOffset;
       continue;
     }
 
     const fence = getMarkdownFenceState(line);
     if (fence) {
       const codeLines: string[] = [];
-      index += 1;
-      while (index < lines.length && !isMarkdownFenceClose(lines[index]!, fence)) {
-        codeLines.push(lines[index]!);
-        index += 1;
+      offset = current.nextOffset;
+
+      while (true) {
+        const codeLine = readNormalizedMarkdownLine(markdown, offset);
+        if (!codeLine) {
+          break;
+        }
+        if (isMarkdownFenceClose(codeLine.line, fence)) {
+          offset = codeLine.nextOffset;
+          break;
+        }
+        codeLines.push(codeLine.line);
+        offset = codeLine.nextOffset;
       }
-      if (index < lines.length && isMarkdownFenceClose(lines[index]!, fence)) {
-        index += 1;
-      }
+
       blocks.push({
         kind: 'code',
         code: codeLines.join('\n'),
@@ -148,7 +183,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
         kind: 'rule',
         widthInset: 0,
       });
-      index += 1;
+      offset = current.nextOffset;
       continue;
     }
 
@@ -161,13 +196,13 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       if (block) {
         blocks.push(block);
       }
-      index += 1;
+      offset = current.nextOffset;
       continue;
     }
 
-    const { end, lines: sectionLines } = collectSectionLines(lines, index);
+    const { endOffset, lines: sectionLines } = collectSectionLines(markdown, offset);
     if (sectionLines.length === 0) {
-      index = Math.max(index + 1, end);
+      offset = current.nextOffset;
       continue;
     }
 
@@ -188,7 +223,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
           widthInset: 0,
         });
       }
-      index = end;
+      offset = endOffset;
       continue;
     }
 
@@ -206,7 +241,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       if (block) {
         blocks.push(block);
       }
-      index = end;
+      offset = endOffset;
       continue;
     }
 
@@ -220,7 +255,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
         rowCount: Math.max(1, sectionLines.length - 1),
         widthInset: 0,
       });
-      index = end;
+      offset = endOffset;
       continue;
     }
 
@@ -244,7 +279,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       if (block) {
         blocks.push(block);
       }
-      index = end;
+      offset = endOffset;
       continue;
     }
 
@@ -252,7 +287,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
     if (paragraph) {
       blocks.push(paragraph);
     }
-    index = end;
+    offset = endOffset;
   }
 
   if (shouldCache) {

@@ -1,9 +1,10 @@
+import { getRawTextHtmlRanges } from '@/lib/markdown/markdownHtmlRanges';
+
 export interface ContentRange {
   start: number;
   end: number;
 }
 
-const HTML_RAW_TEXT_OPEN_PATTERN = /<(pre|script|style|textarea|title|xmp|noembed|noframes|plaintext|math|noscript|svg)(?:\s|>|$)/i;
 const HTML_MARKDOWN_BLOCK_OPEN_PATTERN =
   /^(?: {0,3})<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i;
 const MARKDOWN_ESCAPABLE_PUNCTUATION = new Set(
@@ -130,69 +131,6 @@ function getHtmlCommentRanges(content: string): ContentRange[] {
   return ranges;
 }
 
-function findHtmlTagEnd(content: string, start: number): number {
-  let quote: string | null = null;
-
-  for (let cursor = start + 1; cursor < content.length; cursor += 1) {
-    const char = content[cursor];
-    if (quote) {
-      if (char === quote) quote = null;
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      quote = char;
-      continue;
-    }
-    if (char === '>') {
-      return cursor + 1;
-    }
-  }
-
-  return -1;
-}
-
-function getRawTextHtmlRanges(content: string): ContentRange[] {
-  const ranges: ContentRange[] = [];
-  let cursor = 0;
-
-  while (cursor < content.length) {
-    const start = content.indexOf('<', cursor);
-    if (start === -1) {
-      break;
-    }
-    if (isEscapedMarkdownPunctuation(content, start)) {
-      cursor = start + 1;
-      continue;
-    }
-
-    const tagEnd = findHtmlTagEnd(content, start);
-    if (tagEnd === -1) {
-      break;
-    }
-
-    const tag = content.slice(start, tagEnd);
-    const match = HTML_RAW_TEXT_OPEN_PATTERN.exec(tag);
-    if (!match) {
-      cursor = tagEnd;
-      continue;
-    }
-
-    const tagName = match[1].toLowerCase();
-    if (tagName === 'plaintext') {
-      ranges.push({ start, end: content.length });
-      break;
-    }
-
-    const closePattern = new RegExp(`</${tagName}>`, 'i');
-    const closeMatch = closePattern.exec(content.slice(tagEnd));
-    const end = closeMatch ? tagEnd + closeMatch.index + closeMatch[0].length : content.length;
-    ranges.push({ start, end });
-    cursor = end;
-  }
-
-  return ranges;
-}
-
 export function getMarkdownHtmlBlockRanges(content: string): ContentRange[] {
   const ranges: ContentRange[] = [];
   let offset = 0;
@@ -235,6 +173,6 @@ export function getIgnoredInlineRanges(markdown: string): ContentRange[] {
   return normalizeContentRanges([
     ...getInlineCodeRanges(markdown),
     ...getHtmlCommentRanges(markdown),
-    ...getRawTextHtmlRanges(markdown),
+    ...getRawTextHtmlRanges(markdown, { start: 0, end: markdown.length }),
   ]);
 }

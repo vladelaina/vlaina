@@ -7,6 +7,7 @@ import { getMermaidElementCode } from '../mermaid/mermaidDom';
 import { getMathElementLatex } from '../math/mathSchema';
 import { getVideoElementAttrs } from '../video/videoDom';
 import {
+  DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
   STOP_PROSE_SCAN,
   scanProseDescendants,
 } from '../shared/boundedProseNodeScan';
@@ -15,6 +16,7 @@ const previewCleanupCallbacks = new WeakMap<HTMLElement, () => void>();
 
 export const MAX_APPLIED_PREVIEW_DOM_SCAN_ELEMENTS = 20_000;
 export const MAX_APPLIED_PREVIEW_MATCHED_ELEMENTS = 5_000;
+export const MAX_APPLIED_PREVIEW_CODE_BLOCK_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 
 type AppliedPreviewElementCollection = {
   elements: HTMLElement[];
@@ -275,15 +277,15 @@ export function getPreviewCodeBlockNodes(
 
   const codeBlocks: Array<{ node: ProseMirrorNode; pos: number }> = [];
 
-  scanProseDescendants(state.doc, (node, pos) => {
+  const completed = scanProseDescendants(state.doc, (node, pos) => {
     if (node.type?.name === 'code_block') {
       codeBlocks.push({ node: node as ProseMirrorNode, pos });
       return codeBlocks.length >= expectedCount ? STOP_PROSE_SCAN : true;
     }
     return true;
-  }, Number.POSITIVE_INFINITY);
+  }, MAX_APPLIED_PREVIEW_CODE_BLOCK_SCAN_NODES);
 
-  return codeBlocks.length === expectedCount ? codeBlocks : null;
+  return completed && codeBlocks.length === expectedCount ? codeBlocks : null;
 }
 
 function renderCodeBlockNodeViewPreviews(

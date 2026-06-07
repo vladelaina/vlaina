@@ -3,6 +3,7 @@ import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/
 import { blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION } from './blockSelectionPluginState';
 import { isSameEditorScrollRoot } from './blankAreaInteractionUtils';
 import {
+  DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
   STOP_PROSE_SCAN,
   scanProseDescendants,
 } from '../shared/boundedProseNodeScan';
@@ -13,6 +14,7 @@ const EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER = '\u200B';
 const EDITABLE_MARKDOWN_BLANK_LINE_CLASS = 'editor-editable-markdown-blank-line';
 const MARKDOWN_BLANK_LINE_DEBUG_STORAGE_KEY = 'editor-debug-markdown-blank-line';
 const MAX_EDITABLE_MARKDOWN_BLANK_LINE_DECORATIONS = 1000;
+export const MAX_MARKDOWN_BLANK_LINE_NODE_POS_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 const editableMarkdownBlankLineDecorationsCache = new WeakMap<EditorState['doc'], DecorationSet>();
 
 function resolveMarkdownBlankLineTarget(view: EditorView, target: EventTarget | null): HTMLElement | null {
@@ -50,7 +52,7 @@ export function resolveMarkdownBlankLineNodePos(view: EditorView, blankLine: HTM
       return STOP_PROSE_SCAN;
     }
     return true;
-  }, Number.POSITIVE_INFINITY);
+  }, MAX_MARKDOWN_BLANK_LINE_NODE_POS_SCAN_NODES);
   return found;
 }
 

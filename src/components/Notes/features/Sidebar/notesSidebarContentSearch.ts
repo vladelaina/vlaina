@@ -1,9 +1,11 @@
 import { stripMarkdownInline } from '@/components/common/markdown/plainText';
+import { getSanitizerDroppedRawHtmlRanges, type ContentRange } from '@/lib/markdown/markdownHtmlRanges';
 
 const CONTENT_SNIPPET_RADIUS = 36;
 const MAX_CONTENT_MATCHES_PER_NOTE = 5;
 const MAX_CONTENT_SEARCH_LINE_CHARS = 64 * 1024;
 const MAX_CONTENT_SEARCH_SCANNED_CHARS = 1024 * 1024;
+const SANITIZER_DROPPED_RAW_HTML_TAG_PATTERN = /<\/?(?:math|noscript|svg)(?:[\s/>]|$)/i;
 
 export interface NotesSidebarContentMatch {
   matchIndex: number;
@@ -41,7 +43,13 @@ function toPlainTextLine(line: string): string {
     .trim();
 }
 
-function* iterateLines(content: string): Iterable<string> {
+interface ContentSearchLine {
+  end: number;
+  start: number;
+  text: string;
+}
+
+function* iterateLines(content: string): Iterable<ContentSearchLine> {
   let start = 0;
   for (let index = 0; index < content.length; index += 1) {
     const charCode = content.charCodeAt(index);
@@ -49,7 +57,11 @@ function* iterateLines(content: string): Iterable<string> {
       continue;
     }
 
-    yield content.slice(start, index);
+    yield {
+      end: index,
+      start,
+      text: content.slice(start, index),
+    };
 
     if (charCode === 13 && content.charCodeAt(index + 1) === 10) {
       index += 1;
@@ -57,7 +69,39 @@ function* iterateLines(content: string): Iterable<string> {
     start = index + 1;
   }
 
-  yield content.slice(start);
+  yield {
+    end: content.length,
+    start,
+    text: content.slice(start),
+  };
+}
+
+function getDroppedRawHtmlRangesForContentSearch(content: string): ContentRange[] {
+  if (!SANITIZER_DROPPED_RAW_HTML_TAG_PATTERN.test(content)) {
+    return [];
+  }
+
+  return getSanitizerDroppedRawHtmlRanges(content, {
+    start: 0,
+    end: Math.min(content.length, MAX_CONTENT_SEARCH_SCANNED_CHARS + MAX_CONTENT_SEARCH_LINE_CHARS),
+  });
+}
+
+function advanceRangeIndex(ranges: readonly ContentRange[], lineStart: number, rangeIndex: number): number {
+  let nextIndex = rangeIndex;
+  while (nextIndex < ranges.length && ranges[nextIndex].end <= lineStart) {
+    nextIndex += 1;
+  }
+  return nextIndex;
+}
+
+function isLineInRange(line: ContentSearchLine, range: ContentRange | undefined): boolean {
+  if (!range) {
+    return false;
+  }
+
+  const lineEnd = Math.max(line.end, line.start + 1);
+  return range.start < lineEnd && range.end > line.start;
 }
 
 export function getNotesSidebarContentMatches(
@@ -69,15 +113,26 @@ export function getNotesSidebarContentMatches(
   }
 
   const matches: NotesSidebarContentMatch[] = [];
+  const droppedRawHtmlRanges = getDroppedRawHtmlRangesForContentSearch(content);
+  let droppedRawHtmlRangeIndex = 0;
   let ordinal = 0;
   let scannedChars = 0;
-  for (const rawLine of iterateLines(content)) {
+  for (const line of iterateLines(content)) {
     if (scannedChars >= MAX_CONTENT_SEARCH_SCANNED_CHARS) {
       break;
     }
 
+    const rawLine = line.text;
     scannedChars += rawLine.length;
     if (rawLine.length > MAX_CONTENT_SEARCH_LINE_CHARS) {
+      continue;
+    }
+    droppedRawHtmlRangeIndex = advanceRangeIndex(
+      droppedRawHtmlRanges,
+      line.start,
+      droppedRawHtmlRangeIndex,
+    );
+    if (isLineInRange(line, droppedRawHtmlRanges[droppedRawHtmlRangeIndex])) {
       continue;
     }
 

@@ -56,6 +56,86 @@ describe('markdown protected blocks', () => {
     ].join('\n'));
   });
 
+  it('protects raw text and sanitizer-dropped HTML block contents', () => {
+    const markdown = [
+      'Before - item',
+      '<svg>',
+      '- hidden',
+      '</svg>',
+      '<math>',
+      '- hidden',
+      '</math>',
+      '<noscript>',
+      '- hidden',
+      '</noscript>',
+      '<xmp>',
+      '- hidden',
+      '</xmp>',
+      'After - item',
+    ].join('\n');
+
+    expect(
+      mapMarkdownOutsideProtectedSegments(markdown, (segment) => segment.replace(/-/g, '*'))
+    ).toBe([
+      'Before * item',
+      '<svg>',
+      '- hidden',
+      '</svg>',
+      '<math>',
+      '- hidden',
+      '</math>',
+      '<noscript>',
+      '- hidden',
+      '</noscript>',
+      '<xmp>',
+      '- hidden',
+      '</xmp>',
+      'After * item',
+    ].join('\n'));
+  });
+
+  it('resumes transforms after raw HTML close tags with attributes or whitespace', () => {
+    const markdown = [
+      'Before - item',
+      '<svg>',
+      '- hidden',
+      '</svg data-extra="ignored">',
+      'After - item',
+      '<math>',
+      '- hidden',
+      '</math >',
+      'Done - item',
+    ].join('\n');
+
+    expect(
+      mapMarkdownOutsideProtectedSegments(markdown, (segment) => segment.replace(/-/g, '*'))
+    ).toBe([
+      'Before * item',
+      '<svg>',
+      '- hidden',
+      '</svg data-extra="ignored">',
+      'After * item',
+      '<math>',
+      '- hidden',
+      '</math >',
+      'Done * item',
+    ].join('\n'));
+  });
+
+  it('protects plaintext HTML blocks through the document end', () => {
+    const markdown = [
+      'Before - item',
+      '<plaintext>',
+      '- hidden',
+      '</plaintext>',
+      'After - hidden',
+    ].join('\n');
+
+    expect(
+      mapMarkdownOutsideProtectedSegments(markdown, (segment) => segment.replace(/-/g, '*'))
+    ).toBe(markdown.replace('Before - item', 'Before * item'));
+  });
+
   it('treats oversized leading frontmatter candidates as normal markdown', () => {
     const markdown = [
       '---',

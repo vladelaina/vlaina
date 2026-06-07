@@ -1,8 +1,11 @@
 import type { Node as ProseNode, Slice } from '@milkdown/kit/prose/model';
 import {
+    DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
     STOP_PROSE_SCAN,
     scanProseDescendants,
 } from '../shared/boundedProseNodeScan';
+
+export const MAX_MARKDOWN_STRUCTURAL_RESULT_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 
 type TextblockLikeNode = {
     isTextblock: boolean;
@@ -91,12 +94,14 @@ export const isMarkdownStructuralResult = (nodes: ProseNode[]): boolean => {
     if (nodes.length === 0) return false;
 
     let hasStructure = false;
+    let remainingScanNodes = MAX_MARKDOWN_STRUCTURAL_RESULT_SCAN_NODES;
     for (const node of nodes) {
         if (node.type.name !== 'paragraph') {
             hasStructure = true;
             break;
         }
-        scanProseDescendants(node, (child) => {
+        const completed = scanProseDescendants(node, (child) => {
+            remainingScanNodes -= 1;
             if (!child.isText) {
                 hasStructure = true;
                 return STOP_PROSE_SCAN;
@@ -106,8 +111,9 @@ export const isMarkdownStructuralResult = (nodes: ProseNode[]): boolean => {
                 return STOP_PROSE_SCAN;
             }
             return true;
-        }, Number.POSITIVE_INFINITY);
+        }, remainingScanNodes);
         if (hasStructure) break;
+        if (!completed || remainingScanNodes <= 0) break;
     }
 
     return hasStructure;

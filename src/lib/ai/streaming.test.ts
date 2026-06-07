@@ -17,6 +17,17 @@ function streamResponse(lines: string[]): Response {
   );
 }
 
+function byteStreamResponse(chunks: Uint8Array[]): Response {
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        chunks.forEach((chunk) => controller.enqueue(chunk));
+        controller.close();
+      },
+    }),
+  );
+}
+
 describe('consumeOpenAIStream', () => {
   it('wraps OpenAI-compatible reasoning_content deltas in think tags', async () => {
     const chunks: string[] = [];
@@ -131,6 +142,16 @@ describe('consumeOpenAIStream', () => {
     await expect(consumeOpenAIStream(response, () => {})).rejects.toThrow('AI stream line is too large');
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('flushes final decoder bytes before enforcing stream buffer limits', async () => {
+    const encoder = new TextEncoder();
+    const response = byteStreamResponse([
+      encoder.encode('x'.repeat(MAX_OPENAI_STREAM_LINE_CHARS)),
+      new Uint8Array([0xe2]),
+    ]);
+
+    await expect(consumeOpenAIStream(response, () => {})).rejects.toThrow('AI stream line is too large');
   });
 
   it('rejects streams whose accumulated content grows too large', async () => {
@@ -282,6 +303,24 @@ describe('consumeOpenAIStream', () => {
 
     expect(result).toBe('choice top nested data');
     expect(chunks[chunks.length - 1]).toBe('choice top nested data');
+  });
+
+  it('parses Responses API output text delta event shapes', async () => {
+    const chunks: string[] = [];
+    const result = await consumeOpenAIStream(
+      streamResponse([
+        'data: {"type":"response.output_text.delta","delta":"hello "}',
+        'data: {"type":"output_text.delta","delta":{"text":"world"}}',
+        'data: {"type":"response.reasoning_summary_text.delta","delta":"thinking"}',
+        'data: {"type":"response.output_text.delta","delta":"!"}',
+        'data: [DONE]',
+        '',
+      ]),
+      (chunk) => chunks.push(chunk),
+    );
+
+    expect(result).toBe('hello world<think>thinking</think>!');
+    expect(chunks[chunks.length - 1]).toBe('hello world<think>thinking</think>!');
   });
 
   it('maps stream error payloads with their provider code when configured', async () => {

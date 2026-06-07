@@ -75,4 +75,72 @@ describe('useNotesSidebarTags', () => {
       expect(result.current.tags).toEqual([]);
     });
   });
+
+  it('refreshes direct-read tag content when note cache revision changes', async () => {
+    const scanAllNotes = vi.fn(async () => undefined);
+    mocked.stat.mockResolvedValue({ isFile: true, size: 32 });
+    let diskContent = 'First #old';
+    mocked.readFile.mockImplementation(async () => diskContent);
+
+    const { result, rerender } = renderHook(
+      ({ revision }) => useNotesSidebarTags({
+        rootFolder,
+        noteContentsCache: new Map(),
+        noteContentsCacheRevision: revision,
+        scanAllNotes,
+        currentVaultPath: '/vault',
+      }),
+      { initialProps: { revision: 0 } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.tags.map((entry) => entry.tag)).toEqual(['old']);
+    });
+    const initialReadCount = mocked.readFile.mock.calls.length;
+
+    diskContent = 'Second #new';
+    rerender({ revision: 1 });
+
+    await waitFor(() => {
+      expect(result.current.tags.map((entry) => entry.tag)).toEqual(['new']);
+    });
+    expect(mocked.readFile.mock.calls.length).toBeGreaterThan(initialReadCount);
+  });
+
+  it('does not fall back to stale direct-read tag content after scanned cache is pruned', async () => {
+    const scanAllNotes = vi.fn(async () => undefined);
+    mocked.stat.mockResolvedValue({ isFile: true, size: 32 });
+    mocked.readFile.mockResolvedValue('First #old');
+
+    const { result, rerender } = renderHook(
+      ({ cache }) => useNotesSidebarTags({
+        rootFolder,
+        noteContentsCache: cache,
+        noteContentsCacheRevision: 0,
+        scanAllNotes,
+        currentVaultPath: '/vault',
+      }),
+      { initialProps: { cache: new Map<string, { content: string }>() } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.tags.map((entry) => entry.tag)).toEqual(['old']);
+    });
+
+    rerender({
+      cache: new Map([
+        ['alpha.md', { content: 'Second #new' }],
+      ]),
+    });
+
+    await waitFor(() => {
+      expect(result.current.tags.map((entry) => entry.tag)).toEqual(['new']);
+    });
+
+    rerender({ cache: new Map() });
+
+    await waitFor(() => {
+      expect(result.current.tags.map((entry) => entry.tag)).toEqual(['new']);
+    });
+  });
 });

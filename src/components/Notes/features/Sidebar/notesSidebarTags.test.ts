@@ -79,6 +79,18 @@ describe('notesSidebarTags', () => {
     ].join('\n'))).toEqual(['visible']);
   });
 
+  it('does not index tags from raw text HTML contents', () => {
+    expect(extractNotesSidebarTags([
+      '#visible',
+      '<svg>#hidden-svg</svg>',
+      '<math><mtext>#hidden-math</mtext></math>',
+      '<noscript>#hidden-noscript</noscript>',
+      '<plaintext>',
+      '#hidden-plaintext',
+      '#also-hidden',
+    ].join('\n'))).toEqual(['visible']);
+  });
+
   it('builds tag counts by note rather than duplicate mentions in one note', () => {
     const entries = buildNotesSidebarTagScopeEntries({ rootFolder });
     const contents = new Map([
@@ -133,6 +145,26 @@ describe('notesSidebarTags', () => {
         count: 1,
         paths: [
           { path: 'projects/alpha.md', query: '#topic-extra', contentMatchOrdinal: 0 },
+        ],
+      },
+    ]);
+  });
+
+  it('skips escaped hash tags while preserving editor find ordinals', () => {
+    const entries = [{ path: 'projects/alpha.md' }];
+    const contents = new Map([
+      [
+        'projects/alpha.md',
+        String.raw`Escaped \#topic is searchable text, but only real #topic is a sidebar tag.`,
+      ],
+    ]);
+
+    expect(buildNotesSidebarTags(entries, (path) => contents.get(path))).toEqual([
+      {
+        tag: 'topic',
+        count: 1,
+        paths: [
+          { path: 'projects/alpha.md', query: '#topic', contentMatchOrdinal: 1 },
         ],
       },
     ]);

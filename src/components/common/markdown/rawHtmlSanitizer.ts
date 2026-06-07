@@ -1,4 +1,7 @@
-import { GITHUB_DROP_WITH_CONTENT_TAGS } from '@/lib/notes/markdown/githubHtmlPolicy';
+import {
+  GITHUB_DROP_WITH_CONTENT_TAGS,
+  GITHUB_SANITIZER_ONLY_DROP_WITH_CONTENT_TAGS,
+} from '@/lib/notes/markdown/githubHtmlPolicy';
 import { prepareGithubRawHtmlForMarkdownSanitizerFragment } from '@/lib/notes/markdown/githubRawHtml';
 
 const MAX_RAW_HTML_HAST_DEPTH = 200;
@@ -16,6 +19,8 @@ interface RawHtmlState {
   activeMode: 'drop' | 'escape' | null;
   activeTag: string | null;
 }
+
+const NO_RAW_HTML_TAGS = new Set<string>();
 
 function isDroppedRawHtmlElement(node: HastNode): boolean {
   return (
@@ -35,6 +40,36 @@ function sanitizeRawHtmlNode(node: HastNode, state: RawHtmlState): boolean {
     state.activeTag,
     state.activeMode,
     { activeDepth: state.activeDepth },
+  );
+  state.activeTag = result.activeTag;
+  state.activeMode = result.mode;
+  state.activeDepth = result.activeDepth || 1;
+  if (!result.value) {
+    return false;
+  }
+
+  node.value = result.value;
+  return true;
+}
+
+function syncTextRawHtmlState(node: HastNode, state: RawHtmlState): boolean {
+  if (node.type !== 'text' || typeof node.value !== 'string') {
+    return true;
+  }
+
+  if (state.activeTag && state.activeMode !== 'drop') {
+    return true;
+  }
+
+  const result = prepareGithubRawHtmlForMarkdownSanitizerFragment(
+    node.value,
+    state.activeTag,
+    state.activeMode,
+    {
+      activeDepth: state.activeDepth,
+      dropTags: GITHUB_SANITIZER_ONLY_DROP_WITH_CONTENT_TAGS,
+      escapeTags: NO_RAW_HTML_TAGS,
+    },
   );
   state.activeTag = result.activeTag;
   state.activeMode = result.mode;
@@ -95,6 +130,11 @@ export function dropUnsafeRawHtmlContent(node: HastNode): void {
 
     const child = children[current.index];
     if (!child) {
+      children.splice(current.index, 1);
+      continue;
+    }
+
+    if (!syncTextRawHtmlState(child, rawHtmlState)) {
       children.splice(current.index, 1);
       continue;
     }

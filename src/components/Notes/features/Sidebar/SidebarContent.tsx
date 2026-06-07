@@ -91,6 +91,9 @@ export function SidebarContent({
   const noteContentsCache = useNotesStore((s) =>
     shouldSubscribeToSearchContents ? s.noteContentsCache : EMPTY_NOTE_CONTENTS_CACHE
   );
+  const noteContentsCacheRevision = useNotesStore((s) =>
+    shouldSubscribeToSearchContents ? s.noteContentsCacheRevision : 0
+  );
   const currentDraftContent = useNotesStore((s) =>
     currentNotePath && isDraftNotePath(currentNotePath)
       ? s.noteContentsCache.get(currentNotePath)?.content ?? ''
@@ -209,6 +212,7 @@ export function SidebarContent({
   const { tags } = useNotesSidebarTags({
     rootFolder: displayRootFolder,
     noteContentsCache,
+    noteContentsCacheRevision,
     liveNoteContent:
       liveNoteContent?.path === currentNotePath
         ? liveNoteContent

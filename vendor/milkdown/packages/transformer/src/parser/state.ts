@@ -208,7 +208,14 @@ export class ParserState extends Stack<Node, ParserStackElement> {
   /// Give the node or node list back to the state and
   /// the state will find a proper runner (by `match` method in parser spec) to handle it.
   next = (nodes: MarkdownNode | MarkdownNode[] = []) => {
-    ;[nodes].flat().forEach((node) => this.#runNode(node))
+    if (Array.isArray(nodes)) {
+      for (const node of nodes) {
+        this.#runNode(node)
+      }
+      return this
+    }
+
+    this.#runNode(nodes)
     return this
   }
 

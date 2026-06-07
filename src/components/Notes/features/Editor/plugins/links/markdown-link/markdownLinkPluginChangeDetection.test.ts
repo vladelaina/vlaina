@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { Schema } from '@milkdown/kit/prose/model';
+import * as ProseModel from '@milkdown/kit/prose/model';
 import { docChangeMayAffectRawMarkdownLink } from './markdownLinkPlugin';
 
-const schema = new Schema({
+const SchemaCtor = (ProseModel as any).Schema;
+const schema = new SchemaCtor({
   nodes: {
     doc: { content: 'block+' },
     paragraph: {

@@ -9,6 +9,8 @@ import { bulletListSchema } from '../node'
 import { listItemSchema } from '../node/list-item'
 import { orderedListSchema } from '../node/ordered-list'
 
+export const MAX_LIST_ORDER_SYNC_UPDATES = 5_000
+
 function positionTouchesList(
   doc: Node,
   pos: number,
@@ -214,6 +216,21 @@ export const syncListOrderPlugin = $prose((ctx) => {
 
     let tr = newState.tr
     let needDispatch = false
+    let updateCount = 0
+
+    const canApplyUpdate = () => updateCount < MAX_LIST_ORDER_SYNC_UPDATES
+
+    const setNodeMarkup = (
+      pos: number,
+      type: NodeType | undefined,
+      attrs: Record<string, any>
+    ) => {
+      if (!canApplyUpdate()) return false
+      tr = tr.setNodeMarkup(pos, type, attrs)
+      updateCount += 1
+      needDispatch = true
+      return true
+    }
 
     const syncNodeRange = (from: number, to: number) => {
       newState.doc.nodesBetween(from, to, (
@@ -229,35 +246,37 @@ export const syncListOrderPlugin = $prose((ctx) => {
             base?.type === listItemType &&
             base.attrs.listType === 'ordered'
           ) {
+            if (!canApplyUpdate()) return false
+
             const order = Number.parseInt(base.attrs.label, 10) || 1
-            needDispatch = true
-            tr.setNodeMarkup(pos, orderedListType, {
+            if (!setNodeMarkup(pos, orderedListType, {
               order,
               spread: Boolean(node.attrs.spread),
-            })
+            })) return false
 
-            node.descendants(
-              (
-                child: Node,
-                childPos: number,
-                _parent: Node | null,
-                index: number
-              ) => {
-                if (child.type === listItemType) {
-                  const attrs = { ...child.attrs }
-                  const changed = handleNodeItem(attrs, index, order)
-                  if (changed) {
-                    tr = tr.setNodeMarkup(
-                      parentPos + 1 + childPos,
-                      undefined,
-                      attrs
-                    )
-                    needDispatch = true
-                  }
+            let childOffset = 0
+            for (
+              let childIndex = 0;
+              childIndex < node.childCount && canApplyUpdate();
+              childIndex += 1
+            ) {
+              const child = node.child(childIndex)
+              if (child.type === listItemType) {
+                const attrs = { ...child.attrs }
+                const changed = handleNodeItem(attrs, childIndex, order)
+                if (
+                  changed &&
+                  !setNodeMarkup(
+                    parentPos + 1 + childOffset,
+                    undefined,
+                    attrs
+                  )
+                ) {
+                  break
                 }
-                return false
               }
-            )
+              childOffset += child.nodeSize
+            }
           }
         } else if (
           node.type === listItemType &&
@@ -274,16 +293,18 @@ export const syncListOrderPlugin = $prose((ctx) => {
           changed = handleNodeItem(attrs, index, order) || changed
 
           if (changed) {
-            tr = tr.setNodeMarkup(pos, undefined, attrs)
-            needDispatch = true
+            if (!setNodeMarkup(pos, undefined, attrs)) return false
           }
         }
+
+        return canApplyUpdate()
       })
     }
 
-    syncRanges.forEach((range) => {
+    for (const range of syncRanges) {
+      if (!canApplyUpdate()) break
       syncNodeRange(range.from, range.to)
-    })
+    }
 
     return needDispatch ? tr.setMeta('addToHistory', false) : null
   }

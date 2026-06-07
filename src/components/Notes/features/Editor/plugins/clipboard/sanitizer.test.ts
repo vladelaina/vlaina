@@ -286,6 +286,19 @@ describe('sanitizeHtml', () => {
     expect(result).toBe('<img src="https://example.com/real.png">');
   });
 
+  it('keeps malformed dropped raw HTML tags from exposing hidden media', () => {
+    const result = sanitizeHtml([
+      '<svg <img src="https://example.com/svg.png"></svg>',
+      '<math <img src="https://example.com/math.png"></math>',
+      '<noscript <img src="https://example.com/noscript.png"></noscript>',
+      '<img src="https://example.com/real.png">',
+      '<script <img src="https://example.com/script.png">',
+      '<img src="https://example.com/after-script.png">',
+    ].join(''));
+
+    expect(result).toBe('<img src="https://example.com/real.png">');
+  });
+
   it('keeps GitHub table attributes while discarding forbidden ones', () => {
     const result = sanitizeHtml(
       '<td width="80" height="40" colspan="2" rowspan="3" class="x" style="color:red" onclick="evil()">cell</td>',

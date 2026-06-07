@@ -143,6 +143,11 @@ export async function consumeOpenAIStreamWithTools(
       assertOpenAIStreamLineLength(buffer);
     }
 
+    const finalDecoded = decoder.decode();
+    if (finalDecoded) {
+      buffer = appendOpenAIStreamBuffer(buffer, finalDecoded);
+    }
+
     if (buffer.trim()) {
       throwIfAborted(signal);
       assertOpenAIStreamLineLength(buffer);

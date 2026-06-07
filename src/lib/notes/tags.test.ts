@@ -17,6 +17,10 @@ describe('note tags', () => {
     expect(extractNoteTags(`#${'a'.repeat(129)} #valid`)).toEqual(['valid']);
   });
 
+  it('does not extract escaped markdown hash tags', () => {
+    expect(extractNoteTags(String.raw`\#escaped #visible`)).toEqual(['visible']);
+  });
+
   it('excludes fenced code blocks and resumes after the closing fence', () => {
     expect(extractNoteTags([
       '```ts',
@@ -28,6 +32,20 @@ describe('note tags', () => {
       '~~~',
       '#after',
     ].join('\n'))).toEqual(['visible', 'after']);
+  });
+
+  it('excludes tags from raw text and sanitizer-dropped HTML contents', () => {
+    expect(extractNoteTags([
+      '#visible',
+      '<svg>',
+      '#hidden-svg',
+      '</svg>',
+      '<math><mtext>#hidden-math</mtext></math>',
+      '<noscript>#hidden-noscript</noscript>',
+      '<plaintext>',
+      '#hidden-plaintext',
+      '#also-hidden',
+    ].join('\n'))).toEqual(['visible']);
   });
 
   it('caps extracted tag occurrences from a single document', () => {

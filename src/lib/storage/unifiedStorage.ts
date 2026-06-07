@@ -69,6 +69,7 @@ const MAX_AI_PROVIDER_SAVE_SCAN_RECORDS = 10_000;
 const MAX_AI_MODEL_SAVE_SCAN_RECORDS = 20_000;
 const MAX_AI_FETCHED_MODEL_SAVE_SCAN_RECORDS = 10_000;
 const MAX_AI_MODEL_FIELD_CHARS = 4096;
+export const MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES = 10_000;
 export const MAX_CUSTOM_ICONS = 2000;
 export const MAX_CUSTOM_ICON_ID_CHARS = 4096;
 export const MAX_CUSTOM_ICON_URL_CHARS = 4096;
@@ -975,6 +976,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
         includeTimeContext: true,
         webSearchEnabled: false,
         deletedProviderIds: [],
+        deletedSessionIds: [],
         messages: {}
     };
 
@@ -1007,6 +1009,8 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
               aiData.customSystemPrompt = sessionsData.customSystemPrompt;
               aiData.includeTimeContext = sessionsData.includeTimeContext;
               aiData.webSearchEnabled = sessionsData.webSearchEnabled;
+              aiData.deletedSessionIds = sessionsData.deletedSessionIds;
+              aiData.deletedProviderIds = sessionsData.deletedProviderIds;
               providerIds = sessionsData.providerIds;
             }
         } catch {
@@ -1196,7 +1200,12 @@ async function performSplitSave(request: UnifiedSaveRequest) {
         }
 
         const channelEntries = await storage.listDir(channelsDir).catch(() => []);
-        for (const entry of channelEntries) {
+        for (
+            let entryIndex = 0;
+            entryIndex < channelEntries.length && entryIndex < MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES;
+            entryIndex += 1
+        ) {
+            const entry = channelEntries[entryIndex];
             if (!entry.isFile || !entry.name.endsWith('.json')) {
                 continue;
             }
@@ -1215,7 +1224,12 @@ async function performSplitSave(request: UnifiedSaveRequest) {
 
         const ttsChannelsDir = await joinPath(chatDir, 'tts-channels');
         const ttsChannelEntries = await storage.listDir(ttsChannelsDir).catch(() => []);
-        for (const entry of ttsChannelEntries) {
+        for (
+            let entryIndex = 0;
+            entryIndex < ttsChannelEntries.length && entryIndex < MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES;
+            entryIndex += 1
+        ) {
+            const entry = ttsChannelEntries[entryIndex];
             if (!entry.isFile || !entry.name.endsWith('.json')) {
                 continue;
             }

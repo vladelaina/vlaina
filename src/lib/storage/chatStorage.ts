@@ -3,6 +3,7 @@ import type { ApiTranscriptMessage, ChatMessage, ChatMessageContent, ChatMessage
 import { normalizeApiTranscriptMessages } from '@/lib/ai/apiTranscript';
 import { normalizeRenderableImageSrc } from '@/lib/markdown/renderableImagePolicy';
 import { parseVideoUrl } from '@/lib/markdown/videoUrl';
+import { parseMarkdownAndHtmlImageTokens, parseMarkdownImageTokens } from '@/lib/markdown/markdownImageTokens';
 import { createPersistenceQueue, type PersistenceQueue } from './persistenceEngine';
 import { getStorageBasePath } from './basePath';
 import { isSafeChatSessionId } from './unifiedStorageAI';
@@ -352,11 +353,7 @@ function canRoleUseVersionKind(
   return kind === 'original';
 }
 
-function normalizePersistedImageSources(value: unknown): string[] | undefined {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-
+function normalizeImageSourceCandidates(value: readonly unknown[]): string[] | undefined {
   const sources: string[] = [];
   const entryLimit = Math.min(value.length, MAX_SESSION_IMAGE_SOURCE_ENTRIES);
   for (let index = 0; index < entryLimit && sources.length < MAX_SESSION_IMAGE_SOURCES; index += 1) {
@@ -368,6 +365,26 @@ function normalizePersistedImageSources(value: unknown): string[] | undefined {
   }
 
   return sources.length > 0 ? sources : undefined;
+}
+
+function normalizePersistedImageSources(value: unknown): string[] | undefined {
+  return Array.isArray(value) ? normalizeImageSourceCandidates(value) : undefined;
+}
+
+function extractActiveVersionImageSources(role: ChatMessage['role'], content: string): string[] | undefined {
+  if (role === 'user') {
+    return normalizeImageSourceCandidates(
+      parseMarkdownImageTokens(content, { maxTokens: MAX_SESSION_IMAGE_SOURCE_ENTRIES })
+        .map((token) => token.src),
+    );
+  }
+  if (role === 'assistant') {
+    return normalizeImageSourceCandidates(
+      parseMarkdownAndHtmlImageTokens(content, { maxTokens: MAX_SESSION_IMAGE_SOURCE_ENTRIES })
+        .map((token) => token.src),
+    );
+  }
+  return undefined;
 }
 
 function normalizeSessionMessage(
@@ -413,8 +430,12 @@ function normalizeSessionMessage(
   );
   const normalizedVersions = candidateVersions;
   const currentVersionIndex = selectedCurrentVersionIndex >= 0 ? selectedCurrentVersionIndex : 0;
-  const apiTranscript = normalizeApiTranscriptMessages(value.apiTranscript)
-    ?? normalizedVersions[currentVersionIndex]?.apiTranscript;
+  const activeVersion = normalizedVersions[currentVersionIndex] ?? normalizedVersions[0]!;
+  const activeContent = activeVersion.content;
+  const topLevelMatchesActiveVersion = content === activeContent;
+  const normalizedTopLevelApiTranscript = normalizeApiTranscriptMessages(value.apiTranscript);
+  const apiTranscript = activeVersion.apiTranscript
+    ?? (topLevelMatchesActiveVersion ? normalizedTopLevelApiTranscript : undefined);
 
   if (apiTranscript && !normalizedVersions[currentVersionIndex]?.apiTranscript) {
     normalizedVersions[currentVersionIndex] = {
@@ -422,12 +443,15 @@ function normalizeSessionMessage(
       apiTranscript,
     };
   }
-  const imageSources = normalizePersistedImageSources(value.imageSources);
+  const activeVersionImageSources = extractActiveVersionImageSources(role, activeContent);
+  const persistedImageSources = normalizePersistedImageSources(value.imageSources);
+  const imageSources = activeVersionImageSources
+    ?? (topLevelMatchesActiveVersion ? persistedImageSources : undefined);
 
   return {
     id: typeof value.id === 'string' && value.id ? value.id : `msg-${crypto.randomUUID()}`,
     role,
-    content,
+    content: activeContent,
     ...(apiTranscript ? { apiTranscript } : {}),
     ...(imageSources ? { imageSources } : {}),
     modelId: typeof value.modelId === 'string' ? value.modelId : '',

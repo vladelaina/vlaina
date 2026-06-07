@@ -26,7 +26,7 @@ import {
   runWithSessionMutationLock,
   runWithSessionMutationLocks,
 } from '@/lib/ai/sessionMutationLock'
-import { parseMarkdownImageTokens } from '@/components/Chat/common/messageImageTokens'
+import { parseMarkdownAndHtmlImageTokens, type ImageToken } from '@/components/Chat/common/messageImageTokens'
 import { normalizeRenderableDataImageSrc } from '@/components/common/markdown/imagePolicy'
 
 let switchSessionGeneration = 0;
@@ -64,7 +64,7 @@ function collectInlineImageSourcesFromContent(content: string | undefined, group
   if (!INLINE_DATA_IMAGE_TARGET_HINT_PATTERN.test(content)) {
     return
   }
-  parseMarkdownImageTokens(content, {
+  parseMarkdownAndHtmlImageTokens(content, {
     maxTokens: MAX_INLINE_IMAGE_TOKENS_PER_CONTENT,
   }).forEach((token) => addInlineImageSource(groups, token.src))
 }
@@ -80,6 +80,10 @@ function collectInlineImageSourcesFromApiContent(content: ChatMessageContent | n
   }
 
   content.forEach((part) => {
+    if (part.type === 'text') {
+      collectInlineImageSourcesFromContent(part.text, groups)
+      return
+    }
     if (part.type === 'image_url') {
       addInlineImageSource(groups, part.image_url.url)
     }
@@ -94,12 +98,47 @@ function collectInlineImageSourcesFromApiTranscript(apiTranscript: ApiTranscript
   apiTranscript.forEach((message) => collectInlineImageSourcesFromApiContent(message.content, groups))
 }
 
-function replaceAllSourceReferences(content: string, replacements: Map<string, string>) {
-  let nextContent = content
-  replacements.forEach((target, source) => {
-    nextContent = nextContent.split(source).join(target)
+function getImageTokenSourceReplacement(content: string, token: ImageToken, replacements: Map<string, string>) {
+  if (token.targetStart === undefined || token.targetEnd === undefined || token.targetStart >= token.targetEnd) {
+    return null
+  }
+  if (token.targetStart < 0 || token.targetEnd > content.length) {
+    return null
+  }
+
+  return (token.src ? replacements.get(token.src) : null)
+    ?? replacements.get(content.slice(token.targetStart, token.targetEnd))
+    ?? null
+}
+
+function replaceImageSourceReferences(content: string, replacements: Map<string, string>) {
+  if (replacements.size === 0 || !INLINE_DATA_IMAGE_TARGET_HINT_PATTERN.test(content)) {
+    return content
+  }
+
+  const tokens = parseMarkdownAndHtmlImageTokens(content, {
+    maxTokens: MAX_INLINE_IMAGE_TOKENS_PER_CONTENT,
   })
-  return nextContent
+  let parts: string[] | null = null
+  let cursor = 0
+
+  for (const token of tokens) {
+    const replacement = getImageTokenSourceReplacement(content, token, replacements)
+    if (!replacement || token.targetStart! < cursor) {
+      continue
+    }
+
+    parts ??= []
+    parts.push(content.slice(cursor, token.targetStart), replacement)
+    cursor = token.targetEnd!
+  }
+
+  if (!parts) {
+    return content
+  }
+
+  parts.push(content.slice(cursor))
+  return parts.join('')
 }
 
 function replaceApiTranscriptContent(
@@ -107,7 +146,7 @@ function replaceApiTranscriptContent(
   replacements: Map<string, string>,
 ): ChatMessageContent | null | undefined {
   if (typeof content === 'string') {
-    return replaceAllSourceReferences(content, replacements)
+    return replaceImageSourceReferences(content, replacements)
   }
 
   if (!Array.isArray(content)) {
@@ -115,6 +154,12 @@ function replaceApiTranscriptContent(
   }
 
   return content.map((part) => {
+    if (part.type === 'text') {
+      return {
+        ...part,
+        text: replaceImageSourceReferences(part.text, replacements),
+      }
+    }
     if (part.type !== 'image_url') {
       return part
     }
@@ -155,7 +200,9 @@ function collectInlineImageSources(messages: ChatMessage[], groups: InlineImageS
       collectInlineImageSourcesFromApiTranscript(message.apiTranscript, groups)
       message.imageSources?.forEach((source) => addInlineImageSource(groups, source))
       message.versions?.slice(0, MAX_INLINE_IMAGE_PERSISTENCE_VERSIONS).forEach((version) => {
-        collectInlineImageSourcesFromContent(version.content, groups)
+        if (version.content !== message.content) {
+          collectInlineImageSourcesFromContent(version.content, groups)
+        }
         collectInlineImageSourcesFromApiTranscript(version.apiTranscript, groups)
         if (
           frame.depth < MAX_INLINE_IMAGE_PERSISTENCE_BRANCH_DEPTH &&
@@ -192,9 +239,10 @@ function applyImageSourceReplacements(
 
     context.messageNodes += 1
     const message = messages[index]
+    const nextContent = replaceImageSourceReferences(message.content, replacements)
     nextMessages.push({
       ...message,
-      content: replaceAllSourceReferences(message.content, replacements),
+      content: nextContent,
       apiTranscript: replaceApiTranscriptSources(message.apiTranscript, replacements),
       imageSources: message.imageSources?.map((source) => replacements.get(source) || source),
       versions: message.versions?.map((version, versionIndex) => {
@@ -204,7 +252,9 @@ function applyImageSourceReplacements(
 
         return {
           ...version,
-          content: replaceAllSourceReferences(version.content, replacements),
+          content: version.content === message.content
+            ? nextContent
+            : replaceImageSourceReferences(version.content, replacements),
           apiTranscript: replaceApiTranscriptSources(version.apiTranscript, replacements),
           subsequentMessages: depth < MAX_INLINE_IMAGE_PERSISTENCE_BRANCH_DEPTH
             ? applyImageSourceReplacements(version.subsequentMessages || [], replacements, context, depth + 1)

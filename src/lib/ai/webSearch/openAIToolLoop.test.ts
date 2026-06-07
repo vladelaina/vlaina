@@ -1412,14 +1412,48 @@ describe('OpenAI web search JSON tool loop', () => {
     const client = {
       webSearch: vi.fn(async () => ({
         query: 'sample app',
-        results: [1, 2, 3, 4].map((index) => ({
-          title: `Source ${index}`,
-          url: `https://${['one', 'two', 'three', 'four'][index - 1]}.example`,
-          snippet: 'Snippet',
-          publishedAt: null,
-          source: null,
-          thumbnail: null,
-        })),
+        results: [
+          {
+            title: 'Source one',
+            url: 'https://one.example',
+            snippet: 'Snippet',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+          {
+            title: 'Source one duplicate',
+            url: 'https://one.example',
+            snippet: 'Snippet',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+          {
+            title: 'Source two',
+            url: 'https://two.example',
+            snippet: 'Snippet',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+          {
+            title: 'Source three',
+            url: 'https://three.example',
+            snippet: 'Snippet',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+          {
+            title: 'Source four',
+            url: 'https://four.example',
+            snippet: 'Snippet',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+        ],
       })),
       readWebPage: vi.fn(),
       readWebPages: vi

@@ -68,6 +68,24 @@ function stringArrayArg(args: Record<string, unknown>, key: string, maxChars: nu
   return result;
 }
 
+function collectUniqueSearchResultUrls(
+  results: Array<{ url?: unknown }>,
+  limit: number,
+): string[] {
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  for (const result of results) {
+    if (urls.length >= limit) break;
+    const url = result.url;
+    if (typeof url !== 'string') continue;
+    const trimmed = url.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    urls.push(trimmed);
+  }
+  return urls;
+}
+
 function numberArg(args: Record<string, unknown>, key: string): number | undefined {
   const value = args[key];
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
@@ -224,10 +242,7 @@ export async function runWebSearchToolCall(
         return searchContent;
       }
 
-      const urls = response.results
-        .map((result) => result.url)
-        .filter((url, index, urls): url is string => typeof url === 'string' && url.trim().length > 0 && urls.indexOf(url) === index)
-        .slice(0, AUTO_READ_AFTER_SEARCH_LIMIT);
+      const urls = collectUniqueSearchResultUrls(response.results, AUTO_READ_AFTER_SEARCH_LIMIT);
 
       if (urls.length === 0) {
         return searchContent;

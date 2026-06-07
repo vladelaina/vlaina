@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { Fragment, Slice } from '@milkdown/kit/prose/model';
-import { findTailCursorPosInRange, isMarkdownStructuralResult, resolvePasteRange } from './pasteCursorUtils';
+import {
+    MAX_MARKDOWN_STRUCTURAL_RESULT_SCAN_NODES,
+    findTailCursorPosInRange,
+    isMarkdownStructuralResult,
+    resolvePasteRange,
+} from './pasteCursorUtils';
 
 type FakeNode = {
     isTextblock: boolean;
@@ -124,6 +129,24 @@ describe('isMarkdownStructuralResult', () => {
 
         expect(isMarkdownStructuralResult([paragraph as any])).toBe(true);
         expect(accessed).toBe(1);
+    });
+
+    it('caps plain paragraph structural scans by node count', () => {
+        let accessed = 0;
+        const children = [
+            ...Array.from({ length: MAX_MARKDOWN_STRUCTURAL_RESULT_SCAN_NODES }, () => createText()),
+            { isText: false, nodeSize: 1, type: { name: 'math_inline' } },
+        ];
+        const paragraph = {
+            ...createParagraph(children),
+            child(index: number) {
+                accessed += 1;
+                return children[index];
+            },
+        };
+
+        expect(isMarkdownStructuralResult([paragraph as any])).toBe(false);
+        expect(accessed).toBe(MAX_MARKDOWN_STRUCTURAL_RESULT_SCAN_NODES);
     });
 });
 

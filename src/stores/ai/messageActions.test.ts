@@ -5,6 +5,7 @@ import { useUnifiedStore } from '../unified/useUnifiedStore';
 import type { ChatMessage } from '@/lib/ai/types';
 import { aliasSessionId, clearSessionIdAliases } from '@/lib/ai/sessionIdAliases';
 import { saveSessionJson } from '@/lib/storage/chatStorage';
+import { MAX_CHAT_MESSAGE_IMAGE_SOURCES } from '@/components/Chat/common/messageClipboard';
 
 vi.mock('@/lib/storage/chatStorage', () => ({
   saveSessionJson: vi.fn(async () => {}),
@@ -94,13 +95,17 @@ describe('message actions API transcript handling', () => {
   });
 
   it('clears the active top-level transcript when adding a regeneration version', () => {
-    seedMessages([createAssistantMessage()]);
+    seedMessages([{
+      ...createAssistantMessage(),
+      imageSources: ['https://example.com/old.png'],
+    }]);
 
     createMessageActions().addVersion('assistant-1', 'session-1');
 
     const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
     expect(message.content).toBe('');
     expect(message.apiTranscript).toBeUndefined();
+    expect(message.imageSources).toEqual([]);
     expect(message.currentVersionIndex).toBe(1);
     expect(message.versions[0].apiTranscript?.[0].reasoning_content).toBe('old hidden reasoning');
     expect(message.versions[1].apiTranscript).toBeUndefined();
@@ -369,6 +374,23 @@ describe('message actions API transcript handling', () => {
 
     const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
     expect(message.imageSources).toEqual(['attachment://safe.png']);
+  });
+
+  it('bounds stored user message image source caches', () => {
+    seedMessages([]);
+
+    createMessageActions().addMessage({
+      role: 'user',
+      content: Array.from(
+        { length: MAX_CHAT_MESSAGE_IMAGE_SOURCES + 1 },
+        (_, index) => `![image ${index}](https://example.com/${index}.png)`,
+      ).join('\n'),
+      modelId: 'model-1',
+    }, 'session-1');
+
+    const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
+    expect(message.imageSources).toHaveLength(MAX_CHAT_MESSAGE_IMAGE_SOURCES);
+    expect(message.imageSources?.at(-1)).toBe(`https://example.com/${MAX_CHAT_MESSAGE_IMAGE_SOURCES - 1}.png`);
   });
 
   it('keeps assistant html images in derived message image sources', () => {

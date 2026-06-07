@@ -95,6 +95,30 @@ describe('useChatStreamBlocks', () => {
     });
   });
 
+  it('keeps CRLF stable split offsets aligned with active stream markdown', () => {
+    const stable = [
+      'Stable paragraph. '.repeat(14),
+      '```ts',
+      'const value = 1;',
+      '```',
+      '',
+      '',
+    ].join('\r\n');
+    const active = '```js\r\nconsole.log(1);\r\n```';
+
+    const blocks = renderHook(() => useChatStreamBlocks(`${stable}${active}`, true)).result.current;
+
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0]).toMatchObject({
+      content: stable,
+      key: expect.stringMatching(/^stable:/),
+    });
+    expect(blocks[1]).toMatchObject({
+      codeBlockIndexOffset: 1,
+      content: active,
+    });
+  });
+
   it('reveals oversized streaming content without per-character animation state', () => {
     const content = 'x'.repeat(MAX_CHAT_STREAM_ANIMATION_CHARS + 1);
 

@@ -167,7 +167,7 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     oldKind: string | null | undefined,
     newKind: string | null | undefined
   ) => {
-    if (oldKind === 'folder' || newKind === 'folder') {
+    if (oldKind === 'folder') {
       return true;
     }
 
@@ -175,13 +175,18 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
       return false;
     }
 
+    if (newKind === 'folder') {
+      return isKnownFolderPath(oldPath);
+    }
+
     return isKnownFolderPath(oldPath);
   };
+  const isUnknownPathKind = (kind: string | null | undefined) => !kind || kind === 'any';
   const canPairPendingRenameKinds = (
     oldKind: string | null | undefined,
     newKind: string | null | undefined
   ) => {
-    if (!oldKind || !newKind) {
+    if (isUnknownPathKind(oldKind) || isUnknownPathKind(newKind)) {
       return true;
     }
 
@@ -198,6 +203,9 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
 
     return isMarkdownPath(path);
   };
+  const isPathWithin = (path: string, basePath: string) => (
+    basePath === '' || path === basePath || path.startsWith(`${basePath}/`)
+  );
 
   const applyExternalRenamePathChange = async (
     oldPath: string,
@@ -205,7 +213,11 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     oldKind?: string | null,
     newKind?: string | null
   ) => {
-    if (isFolderRename(oldPath, oldKind, newKind) || (isMarkdownPath(oldPath) && isMarkdownPath(newPath))) {
+    const hasExplicitFolderEndpoint = oldKind === 'folder' || newKind === 'folder';
+    if (
+      isFolderRename(oldPath, oldKind, newKind) ||
+      (!hasExplicitFolderEndpoint && isMarkdownPath(oldPath) && isMarkdownPath(newPath))
+    ) {
       await applyExternalPathRename(oldPath, newPath);
       return true;
     }
@@ -344,6 +356,16 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
       }
       shouldReloadTree = true;
       if (!isMarkdownPath(relativePath)) {
+        if (relativePath === '' || pathKind === 'folder' || isKnownFolderPath(relativePath)) {
+          invalidateNoteCache(relativePath, { includeDescendants: true });
+          if (
+            currentNotePath &&
+            !isAbsolutePath(currentNotePath) &&
+            isPathWithin(currentNotePath, relativePath)
+          ) {
+            shouldSyncCurrentNote = true;
+          }
+        }
         continue;
       }
       invalidateNoteCache(relativePath);

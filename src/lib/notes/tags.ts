@@ -1,3 +1,5 @@
+import { getRawTextHtmlRanges } from '../markdown/markdownHtmlRanges';
+
 const MAX_NOTE_TAG_TOKEN_CHARS = 128;
 const MAX_NOTE_TAG_OCCURRENCES = 2000;
 const MAX_NOTE_TAG_MATCHES = 10_000;
@@ -54,6 +56,7 @@ function collectExcludedRanges(content: string): ExcludedRange[] {
   collectFencedCodeRanges(content, ranges);
   collectInlineCodeRanges(content, ranges);
   collectAutolinkRanges(content, ranges);
+  collectRawTextHtmlRanges(content, ranges);
   collectHtmlTagRanges(content, ranges);
   collectMarkdownLinkTargetRanges(content, ranges);
 
@@ -254,6 +257,20 @@ function collectAutolinkRanges(content: string, ranges: ExcludedRange[]): void {
   }
 }
 
+function collectRawTextHtmlRanges(content: string, ranges: ExcludedRange[]): void {
+  const remainingRanges = MAX_EXCLUDED_RANGES - ranges.length;
+  if (remainingRanges <= 0) {
+    return;
+  }
+
+  for (const range of getRawTextHtmlRanges(content, { start: 0, end: content.length }, remainingRanges)) {
+    pushExcludedRange(ranges, { from: range.start, to: range.end });
+    if (ranges.length >= MAX_EXCLUDED_RANGES) {
+      return;
+    }
+  }
+}
+
 function collectHtmlTagRanges(content: string, ranges: ExcludedRange[]): void {
   for (let index = 0; index < content.length && ranges.length < MAX_EXCLUDED_RANGES; index += 1) {
     if (content[index] !== '<') {
@@ -419,7 +436,8 @@ export function extractNoteTagOccurrences(content: string): NoteTagOccurrence[] 
       continue;
     }
 
-    const excluded = isIndexExcluded(match.index, excludedRanges, excludedRangeCursor);
+    const excluded = isEscaped(content, match.index)
+      || isIndexExcluded(match.index, excludedRanges, excludedRangeCursor);
     if (!excluded) {
       visibleMatches += 1;
       if (visibleMatches > MAX_NOTE_TAG_MATCHES || occurrences.length >= MAX_NOTE_TAG_OCCURRENCES) {

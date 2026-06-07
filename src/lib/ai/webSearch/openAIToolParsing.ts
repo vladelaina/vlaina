@@ -152,6 +152,26 @@ export function extractOpenAIText(value: unknown): string {
   return '';
 }
 
+function extractResponsesApiContentDelta(payload: Record<string, unknown>): { reasoning?: string; content?: string } | null {
+  const type = typeof payload.type === 'string' ? payload.type.toLowerCase() : '';
+  if (!type.endsWith('.delta')) {
+    return null;
+  }
+
+  const delta = extractOpenAIText(payload.delta);
+  if (!delta) {
+    return null;
+  }
+
+  if (type.includes('reasoning') || type.includes('thinking')) {
+    return { reasoning: delta };
+  }
+  if (type.includes('output_text') || type.includes('content')) {
+    return { content: delta };
+  }
+  return null;
+}
+
 function dsmlPattern(name: string): string {
   return `<[|｜]{2}\\s*DSML\\s*[|｜]{2}\\s*${name}`;
 }
@@ -213,7 +233,9 @@ function extractDsmlToolCalls(content: string): OpenAIToolCall[] {
 
 export function extractOpenAIContentDelta(payload: Record<string, unknown>): { reasoning?: string; content?: string } {
   const choice = Array.isArray(payload.choices) ? payload.choices[0] : null;
-  if (!isRecord(choice)) return {};
+  if (!isRecord(choice)) {
+    return extractResponsesApiContentDelta(payload) ?? {};
+  }
   const source = isRecord(choice.delta) ? choice.delta : isRecord(choice.message) ? choice.message : null;
   if (!source) return {};
   return {

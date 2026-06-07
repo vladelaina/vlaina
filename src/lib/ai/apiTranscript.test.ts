@@ -64,6 +64,8 @@ describe('apiTranscript normalization', () => {
         { type: 'image_url', image_url: { url: 'http://127.0.0.1:3000/secret.png', detail: 'high' } },
         { type: 'image_url', image_url: { url: 'file:///tmp/secret.png' } },
         { type: 'image_url', image_url: { url: 'attachment://safe.png' } },
+        { type: 'image_url', image_url: { url: 'attachment://..%2Fsecret.png' } },
+        { type: 'image_url', image_url: { url: 'app-file://attachment/local.png' } },
         { type: 'image_url', image_url: { url: 'data:image/svg+xml;base64,PHN2Zz4=' } },
         { type: 'image_url', image_url: { url: 'data:image/png;base64,aGk=' } },
       ],
@@ -72,6 +74,8 @@ describe('apiTranscript normalization', () => {
     expect(message?.content).toEqual([
       { type: 'text', text: 'inspect these images' },
       { type: 'image_url', image_url: { url: 'https://example.com/safe.png', detail: 'low' } },
+      { type: 'image_url', image_url: { url: 'attachment://safe.png' } },
+      { type: 'image_url', image_url: { url: 'app-file://attachment/local.png' } },
       { type: 'image_url', image_url: { url: 'data:image/png;base64,aGk=' } },
     ])
   })

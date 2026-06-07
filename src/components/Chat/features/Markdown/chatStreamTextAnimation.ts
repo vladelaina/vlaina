@@ -94,34 +94,34 @@ function scanStableMarkdownSplit(
   content: string,
   startState?: StableMarkdownScanState | null,
 ): StableMarkdownScanState {
-  const normalizedContent = content.replace(/\r\n?/g, '\n');
   const canResume =
     !!startState &&
-    normalizedContent.startsWith(startState.content.slice(0, startState.resumeLineStart));
+    content.startsWith(startState.content.slice(0, startState.resumeLineStart));
   let activeFence = canResume ? startState.activeFence : null;
   let splitIndex = canResume ? startState.splitIndex : 0;
   let charOffset = canResume ? startState.charOffset : 0;
   let offset = canResume ? startState.offset : 0;
   let lineStart = canResume ? startState.resumeLineStart : 0;
 
-  while (lineStart < normalizedContent.length) {
+  while (lineStart < content.length) {
     const stateBeforeLine = {
       activeFence,
       charOffset,
       offset,
       splitIndex,
     };
-    const newlineIndex = normalizedContent.indexOf('\n', lineStart);
+    const newlineIndex = content.indexOf('\n', lineStart);
     if (newlineIndex === -1) {
       return {
         ...stateBeforeLine,
-        content: normalizedContent,
+        content,
         resumeLineStart: lineStart,
       };
     }
 
-    const lineEnd = newlineIndex === -1 ? normalizedContent.length : newlineIndex;
-    const line = normalizedContent.slice(lineStart, lineEnd);
+    const lineEnd = newlineIndex === -1 ? content.length : newlineIndex;
+    const rawLine = content.slice(lineStart, lineEnd);
+    const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
     if (activeFence) {
       if (isMarkdownFenceClose(line, activeFence)) {
         activeFence = null;
@@ -131,7 +131,7 @@ function scanStableMarkdownSplit(
     }
 
     offset = lineEnd;
-    charOffset += textLength(line);
+    charOffset += textLength(rawLine);
     if (newlineIndex !== -1) {
       offset += 1;
       charOffset += 1;
@@ -147,7 +147,7 @@ function scanStableMarkdownSplit(
   return {
     activeFence,
     charOffset,
-    content: normalizedContent,
+    content,
     offset,
     resumeLineStart: lineStart,
     splitIndex,

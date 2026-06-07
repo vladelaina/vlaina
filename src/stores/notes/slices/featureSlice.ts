@@ -123,6 +123,7 @@ function replaceNoteEntry(
 export interface FeatureSlice {
   recentNotes: NotesStore['recentNotes'];
   noteContentsCache: NotesStore['noteContentsCache'];
+  noteContentsCacheRevision: NotesStore['noteContentsCacheRevision'];
   starredEntries: NotesStore['starredEntries'];
   starredNotes: NotesStore['starredNotes'];
   starredFolders: NotesStore['starredFolders'];
@@ -476,6 +477,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
   return {
     recentNotes: loadRecentNotes(),
     noteContentsCache: new Map(),
+    noteContentsCacheRevision: 0,
     starredEntries: [],
     starredNotes: [],
     starredFolders: [],

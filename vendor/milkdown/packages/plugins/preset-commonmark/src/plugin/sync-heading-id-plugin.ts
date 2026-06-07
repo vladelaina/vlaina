@@ -7,6 +7,94 @@ import { $prose } from '@milkdown/utils'
 import { withMeta } from '../__internal__'
 import { headingIdGenerator, headingSchema } from '../node/heading'
 
+export const MAX_HEADING_ID_SYNC_SCAN_NODES = 20_000
+export const MAX_HEADING_ID_SYNC_UPDATES = 5_000
+
+export interface HeadingIdUpdate {
+  attrs: Record<string, unknown>
+  pos: number
+}
+
+export function collectHeadingIdUpdates(
+  doc: Node,
+  headingType: NodeType,
+  getId: (node: Node) => string,
+  maxScanNodes = MAX_HEADING_ID_SYNC_SCAN_NODES,
+  maxUpdates = MAX_HEADING_ID_SYNC_UPDATES
+): HeadingIdUpdate[] {
+  const updates: HeadingIdUpdate[] = []
+  const idMap: Record<string, number> = {}
+  let scanned = 0
+  const stack: Array<{
+    contentStart: number
+    index: number
+    node: Node
+    offset: number
+  }> = [{
+    contentStart: 0,
+    index: 0,
+    node: doc,
+    offset: 0,
+  }]
+
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1]!
+    if (frame.index >= frame.node.childCount) {
+      stack.pop()
+      continue
+    }
+
+    if (
+      scanned >= maxScanNodes ||
+      updates.length >= maxUpdates
+    ) {
+      break
+    }
+
+    const node = frame.node.child(frame.index)
+    const pos = frame.contentStart + frame.offset
+    frame.index += 1
+    frame.offset += node.nodeSize
+    scanned += 1
+
+    if (node.type === headingType) {
+      if (node.textContent.trim().length === 0) continue
+
+      const attrs = node.attrs
+      let id = getId(node)
+      if (idMap[id]) {
+        idMap[id]! += 1
+        id += `-#${idMap[id]}`
+      } else {
+        idMap[id] = 1
+      }
+
+      if (attrs.id !== id) {
+        updates.push({
+          attrs: {
+            ...attrs,
+            id,
+          },
+          pos,
+        })
+      }
+
+      continue
+    }
+
+    if (node.childCount > 0) {
+      stack.push({
+        contentStart: pos + 1,
+        index: 0,
+        node,
+        offset: 0,
+      })
+    }
+  }
+
+  return updates
+}
+
 /// This plugin is used to sync the heading id when the heading content changes.
 /// It will use the `headingIdGenerator` to generate the id.
 export const syncHeadingIdPlugin = $prose((ctx) => {
@@ -49,35 +137,15 @@ export const syncHeadingIdPlugin = $prose((ctx) => {
     if (view.composing) return
 
     const getId = ctx.get(headingIdGenerator.key)
+    const updates = collectHeadingIdUpdates(view.state.doc, headingType, getId)
+    if (updates.length === 0) return
+
     const tr = view.state.tr.setMeta('addToHistory', false)
-
-    let found = false
-    const idMap: Record<string, number> = {}
-
-    view.state.doc.descendants((node, pos) => {
-      if (node.type === headingType) {
-        if (node.textContent.trim().length === 0) return
-
-        const attrs = node.attrs
-        let id = getId(node)
-        if (idMap[id]) {
-          idMap[id]! += 1
-          id += `-#${idMap[id]}`
-        } else {
-          idMap[id] = 1
-        }
-
-        if (attrs.id !== id) {
-          found = true
-          tr.setMeta(headingIdPluginKey, true).setNodeMarkup(pos, undefined, {
-            ...attrs,
-            id,
-          })
-        }
-      }
+    updates.forEach((update) => {
+      tr.setMeta(headingIdPluginKey, true).setNodeMarkup(update.pos, undefined, update.attrs)
     })
 
-    if (found) view.dispatch(tr)
+    view.dispatch(tr)
   }
 
   return new Plugin({

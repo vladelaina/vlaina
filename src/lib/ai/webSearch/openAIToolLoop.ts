@@ -613,11 +613,29 @@ function elapsedSince(startedAt: number): number {
   return Math.max(0, Math.round(performance.now() - startedAt));
 }
 
+function collectUniqueSearchResultUrls(
+  status: WebSearchStatus,
+  options: {
+    limit?: number;
+    exclude?: Set<string>;
+  } = {},
+): string[] {
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  for (const result of status.results ?? []) {
+    if (options.limit !== undefined && urls.length >= options.limit) break;
+    const url = result.url;
+    if (typeof url !== 'string') continue;
+    const trimmed = url.trim();
+    if (!trimmed || seen.has(trimmed) || options.exclude?.has(trimmed)) continue;
+    seen.add(trimmed);
+    urls.push(trimmed);
+  }
+  return urls;
+}
+
 function getPrefetchReadUrls(status: WebSearchStatus): string[] {
-  return (status.results ?? [])
-    .map((result) => result.url)
-    .filter((url, index, urls): url is string => typeof url === 'string' && url.trim().length > 0 && urls.indexOf(url) === index)
-    .slice(0, 3);
+  return collectUniqueSearchResultUrls(status, { limit: 3 });
 }
 
 function buildForcedReadToolCall(
@@ -625,12 +643,10 @@ function buildForcedReadToolCall(
   loopIndex: number,
   attemptedUrls: Set<string>,
 ): OpenAIToolCall | null {
-  const urls = (status.results ?? [])
-    .map((result) => result.url)
-    .filter((url) => typeof url === 'string' && url.trim().length > 0)
-    .filter((url, index, allUrls) => allUrls.indexOf(url) === index)
-    .filter((url) => !attemptedUrls.has(url))
-    .slice(0, 3);
+  const urls = collectUniqueSearchResultUrls(status, {
+    exclude: attemptedUrls,
+    limit: 3,
+  });
 
   if (urls.length === 0) {
     return null;
@@ -647,10 +663,7 @@ function buildForcedReadToolCall(
 }
 
 function getReadableResultUrls(status: WebSearchStatus): string[] {
-  return (status.results ?? [])
-    .map((result) => result.url)
-    .filter((url) => typeof url === 'string' && url.trim().length > 0)
-    .filter((url, index, allUrls) => allUrls.indexOf(url) === index);
+  return collectUniqueSearchResultUrls(status);
 }
 
 function buildAssistantToolMessage(result: {

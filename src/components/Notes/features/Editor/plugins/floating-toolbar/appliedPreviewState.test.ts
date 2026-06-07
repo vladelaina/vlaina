@@ -3,6 +3,7 @@ import * as ProseModel from '@milkdown/kit/prose/model';
 import * as ProseState from '@milkdown/kit/prose/state';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import {
+  MAX_APPLIED_PREVIEW_CODE_BLOCK_SCAN_NODES,
   collectAppliedPreviewElements,
   getPreviewCodeBlockNodes,
   renderAppliedPreviewDocument,
@@ -96,6 +97,22 @@ describe('appliedPreviewState', () => {
     ]);
 
     expect(getPreviewCodeBlockNodes({ doc } as any, 2)).toBeNull();
+  });
+
+  it('returns null when preview code block node scans exceed the budget', () => {
+    let accessed = 0;
+    const doc = createFakePreviewDoc([
+      ...Array.from(
+        { length: MAX_APPLIED_PREVIEW_CODE_BLOCK_SCAN_NODES },
+        () => createFakePreviewNode('paragraph')
+      ),
+      createFakePreviewNode('code_block'),
+    ], () => {
+      accessed += 1;
+    });
+
+    expect(getPreviewCodeBlockNodes({ doc } as any, 1)).toBeNull();
+    expect(accessed).toBe(MAX_APPLIED_PREVIEW_CODE_BLOCK_SCAN_NODES);
   });
 
   it('renders applied preview preservation paths without broad DOM selector scans', () => {

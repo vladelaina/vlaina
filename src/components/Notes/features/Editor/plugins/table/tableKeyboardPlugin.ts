@@ -9,6 +9,7 @@ import {
   getPipeShortcutCells,
 } from './pipeTableShortcut';
 import {
+  DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
   STOP_PROSE_SCAN,
   scanProseDescendants,
 } from '../shared/boundedProseNodeScan';
@@ -20,6 +21,8 @@ import {
   shouldDeleteTrailingEmptyRowOnDelete,
 } from './tableDeleteShortcut';
 import { handleTableSelectAll } from './tableSelectAll';
+
+export const MAX_TABLE_KEYBOARD_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 
 function resolveTableKeydownContext(selection: Selection) {
   const { $from } = selection;
@@ -92,7 +95,7 @@ export function findFirstTableBodyCellPos(
 
     targetPos = pos + 2;
     return STOP_PROSE_SCAN;
-  }, Number.POSITIVE_INFINITY);
+  }, MAX_TABLE_KEYBOARD_DOC_SCAN_NODES);
 
   return targetPos;
 }
@@ -117,7 +120,7 @@ export function findAdjacentTableCellPos(
   let targetPos: number | null = null;
   let foundCurrent = false;
 
-  scanProseDescendants(table, (node, pos) => {
+  const completed = scanProseDescendants(table, (node, pos) => {
     if (node.type?.name !== 'table_cell' && node.type?.name !== 'table_header') {
       return true;
     }
@@ -142,9 +145,9 @@ export function findAdjacentTableCellPos(
       foundCurrent = true;
     }
     return true;
-  }, Number.POSITIVE_INFINITY);
+  }, MAX_TABLE_KEYBOARD_DOC_SCAN_NODES);
 
-  if (direction > 0 && !foundCurrent) {
+  if (direction > 0 && completed && !foundCurrent) {
     return firstCellPos;
   }
   return targetPos;

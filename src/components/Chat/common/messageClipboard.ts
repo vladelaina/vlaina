@@ -18,6 +18,8 @@ import { isSvgImageMimeType, rasterizeSvgBlobToPngBlob } from './svgRasterize';
 
 const MAX_COPY_IMAGE_SCAN_TOKENS = 2000;
 const MAX_COPY_TEXT_IMAGE_TOKENS = 1000;
+export const MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES = 2000;
+export const MAX_CHAT_MESSAGE_IMAGE_SOURCES = 1000;
 
 function normalizeImageToken(token: ImageToken): ImageToken | null {
   const src = normalizeRenderableImageSrc(token.src);
@@ -48,6 +50,22 @@ export function extractMessageImageSources(content: string, options?: ImageToken
 
 export function isRenderedImageSource(src: string): boolean {
   return !parseVideoUrl(src);
+}
+
+export function normalizeRenderedMessageImageSources(sources: readonly string[] | undefined): string[] {
+  if (!sources || sources.length === 0) {
+    return [];
+  }
+
+  const normalizedSources: string[] = [];
+  const entryLimit = Math.min(sources.length, MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES);
+  for (let index = 0; index < entryLimit && normalizedSources.length < MAX_CHAT_MESSAGE_IMAGE_SOURCES; index += 1) {
+    const src = normalizeRenderableImageSrc(sources[index]);
+    if (src && isRenderedImageSource(src)) {
+      normalizedSources.push(src);
+    }
+  }
+  return normalizedSources;
 }
 
 export function extractRenderedMarkdownImageSources(content: string, options?: ImageTokenParseOptions): string[] {

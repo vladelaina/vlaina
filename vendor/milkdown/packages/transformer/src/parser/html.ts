@@ -1,6 +1,7 @@
 import type { MarkdownNode } from '../utility'
 
 const HTML_OPEN_TAG_PATTERN = /^<([A-Za-z][A-Za-z0-9-]*)(?:\s[^>]*)?>$/
+const HTML_CLOSE_TAG_PATTERN = /^<\/([A-Za-z][A-Za-z0-9-]*)\s*>$/
 const HTML_SELF_CLOSING_PATTERN = /\/>$/
 const GFM_BLOCK_HTML_TAG_PATTERN =
   /^<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i
@@ -112,46 +113,36 @@ function restoreRawHtmlFromSource(node: MarkdownNode, markdown?: string): Markdo
 }
 
 function buildInlineHtmlLookup(children: MarkdownNode[]): {
-  closeTagIndex: Map<string, { positions: number[]; cursor: number }>
   htmlValues: string[]
-  normalizedHtmlValues: string[]
+  matchingCloseIndexes: number[]
 } {
-  const closeTagIndex = new Map<string, { positions: number[]; cursor: number }>()
   const htmlValues: string[] = []
-  const normalizedHtmlValues: string[] = []
+  const matchingCloseIndexes: number[] = []
+  const openIndexesByTag = new Map<string, number[]>()
   for (let index = 0; index < children.length; index += 1) {
     const child = children[index]
     if (child?.type !== 'html') continue
 
     const value = String(child.value ?? '').trim()
-    const normalizedValue = value.toLowerCase()
     htmlValues[index] = value
-    normalizedHtmlValues[index] = normalizedValue
-    if (!normalizedValue.startsWith('</')) continue
 
-    const entry = closeTagIndex.get(normalizedValue)
-    if (entry) entry.positions.push(index)
-    else closeTagIndex.set(normalizedValue, { positions: [index], cursor: 0 })
+    const closeMatch = HTML_CLOSE_TAG_PATTERN.exec(value)
+    if (closeMatch) {
+      const tagName = closeMatch[1]?.toLowerCase()
+      const openIndexes = tagName ? openIndexesByTag.get(tagName) : undefined
+      const openIndex = openIndexes?.pop()
+      if (openIndex !== undefined) matchingCloseIndexes[openIndex] = index
+      continue
+    }
+
+    const openMatch = HTML_OPEN_TAG_PATTERN.exec(value)
+    const tagName = openMatch?.[1]?.toLowerCase()
+    if (!tagName || HTML_SELF_CLOSING_PATTERN.test(value)) continue
+    const openIndexes = openIndexesByTag.get(tagName)
+    if (openIndexes) openIndexes.push(index)
+    else openIndexesByTag.set(tagName, [index])
   }
-  return { closeTagIndex, htmlValues, normalizedHtmlValues }
-}
-
-function findNextInlineHtmlCloseIndex(
-  closeTagIndex: Map<string, { positions: number[]; cursor: number }>,
-  closeTag: string,
-  openIndex: number
-): number {
-  const entry = closeTagIndex.get(closeTag)
-  if (!entry) return -1
-
-  while (
-    entry.cursor < entry.positions.length &&
-    entry.positions[entry.cursor] <= openIndex
-  ) {
-    entry.cursor += 1
-  }
-
-  return entry.positions[entry.cursor] ?? -1
+  return { htmlValues, matchingCloseIndexes }
 }
 
 export function mergePairedInlineHtml(node: MarkdownNode, markdown?: string): MarkdownNode {
@@ -159,7 +150,7 @@ export function mergePairedInlineHtml(node: MarkdownNode, markdown?: string): Ma
 
   node.children = node.children.map((child) => mergePairedInlineHtml(child, markdown))
 
-  const { closeTagIndex, htmlValues } = buildInlineHtmlLookup(node.children)
+  const { htmlValues, matchingCloseIndexes } = buildInlineHtmlLookup(node.children)
   const mergedChildren: MarkdownNode[] = []
   for (let index = 0; index < node.children.length; index += 1) {
     const child = node.children[index]
@@ -175,8 +166,7 @@ export function mergePairedInlineHtml(node: MarkdownNode, markdown?: string): Ma
       mergedChildren.push(child)
       continue
     }
-    const closeTag = `</${tagName}>`
-    const closeIndex = findNextInlineHtmlCloseIndex(closeTagIndex, closeTag, index)
+    const closeIndex = matchingCloseIndexes[index] ?? -1
 
     if (closeIndex < 0) {
       mergedChildren.push(child)

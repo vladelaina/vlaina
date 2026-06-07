@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { Schema } from '@milkdown/kit/prose/model';
-import { docChangeMayAffectOrderedListNormalization } from './listTabIndentPlugin';
+import * as ProseModel from '@milkdown/kit/prose/model';
+import {
+  MAX_ORDERED_LIST_LABEL_UPDATES,
+  collectOrderedListLabelUpdates,
+  docChangeMayAffectOrderedListNormalization,
+} from './listTabIndentPlugin';
 
-const schema = new Schema({
+const SchemaCtor = (ProseModel as any).Schema;
+const schema = new SchemaCtor({
   nodes: {
     doc: { content: 'block+' },
     paragraph: {
@@ -43,6 +48,14 @@ function orderedList(text: string) {
   ]);
 }
 
+function orderedListWithLabels(labels: string[]) {
+  return schema.nodes.ordered_list.create(null, labels.map((label, index) => (
+    schema.nodes.list_item.create({ label, listType: 'ordered' }, [
+      paragraph(`item ${index + 1}`),
+    ])
+  )));
+}
+
 describe('docChangeMayAffectOrderedListNormalization', () => {
   it('skips unrelated paragraph text edits', () => {
     const oldDoc = schema.nodes.doc.create(null, [
@@ -69,5 +82,32 @@ describe('docChangeMayAffectOrderedListNormalization', () => {
     ]);
 
     expect(docChangeMayAffectOrderedListNormalization(oldDoc, nextDoc)).toBe(true);
+  });
+});
+
+describe('collectOrderedListLabelUpdates', () => {
+  it('collects stale ordered list labels without touching already valid labels', () => {
+    const list = orderedListWithLabels(['1.', '99.', '3.']);
+    const doc = schema.nodes.doc.create(null, [list]);
+
+    const updates = collectOrderedListLabelUpdates(doc);
+
+    expect(updates).toHaveLength(1);
+    expect(updates[0].pos).toBe(1 + list.child(0).nodeSize);
+    expect(updates[0].attrs).toMatchObject({
+      label: '2.',
+      listType: 'ordered',
+    });
+  });
+
+  it('caps stale ordered list label updates collected in one pass', () => {
+    const doc = schema.nodes.doc.create(null, [
+      orderedListWithLabels(Array.from(
+        { length: MAX_ORDERED_LIST_LABEL_UPDATES + 2 },
+        () => '0.'
+      )),
+    ]);
+
+    expect(collectOrderedListLabelUpdates(doc)).toHaveLength(MAX_ORDERED_LIST_LABEL_UPDATES);
   });
 });

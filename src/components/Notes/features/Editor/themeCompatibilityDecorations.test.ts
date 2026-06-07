@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Schema } from '@milkdown/kit/prose/model';
+import * as ProseModel from '@milkdown/kit/prose/model';
 import {
+  MAX_THEME_COMPATIBILITY_DECORATIONS,
+  buildCompatibilityDecorations,
   docChangeMayAffectThemeCompatibilityDecorations,
   listContainsTaskItems,
 } from './themeCompatibilityDecorations';
 
-const schema = new Schema({
+const SchemaCtor = (ProseModel as any).Schema;
+const schema = new SchemaCtor({
   nodes: {
     doc: { content: 'block+' },
     paragraph: {
@@ -34,6 +37,20 @@ const schema = new Schema({
       marks: '',
       toDOM: () => ['div', { 'data-type': 'frontmatter' }, 0],
       parseDOM: [{ tag: 'div[data-type="frontmatter"]', preserveWhitespace: 'full' }],
+    },
+    bullet_list: {
+      group: 'block',
+      content: 'list_item+',
+      toDOM: () => ['ul', 0],
+      parseDOM: [{ tag: 'ul' }],
+    },
+    list_item: {
+      content: 'paragraph block*',
+      attrs: {
+        checked: { default: null },
+      },
+      toDOM: () => ['li', 0],
+      parseDOM: [{ tag: 'li' }],
     },
     text: { group: 'inline' },
   },
@@ -129,5 +146,17 @@ describe('listContainsTaskItems', () => {
     expect(listContainsTaskItems(outerList, cache)).toBe(true);
     expect(listContainsTaskItems(nestedList, cache)).toBe(true);
     expect(nestedList.forEach).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('buildCompatibilityDecorations', () => {
+  it('caps theme compatibility decorations in large notes', () => {
+    const doc = schema.nodes.doc.create(null, [
+      schema.nodes.bullet_list.create(null, Array.from({ length: MAX_THEME_COMPATIBILITY_DECORATIONS + 10 }, () => (
+        schema.nodes.list_item.create(null, [paragraph('item')])
+      ))),
+    ]);
+
+    expect(buildCompatibilityDecorations(doc).find()).toHaveLength(MAX_THEME_COMPATIBILITY_DECORATIONS);
   });
 });

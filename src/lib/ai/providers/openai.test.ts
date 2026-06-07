@@ -561,6 +561,34 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(() => response.body?.getReader()).not.toThrow();
   });
 
+  it('rejects Anthropic stream buffers that grow too large before a newline arrives', async () => {
+    const cancelStream = vi.fn();
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('x'.repeat(MAX_OPENAI_STREAM_LINE_CHARS)));
+        controller.enqueue(encoder.encode('x'));
+      },
+      cancel: cancelStream,
+    });
+    const response = new Response(stream, { status: 200 });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel(),
+      buildProvider({ endpointType: 'anthropic' }),
+      vi.fn(),
+    )).rejects.toMatchObject({
+      type: AIErrorType.UNKNOWN,
+      message: 'AI stream line is too large',
+    });
+
+    expect(cancelStream).toHaveBeenCalledTimes(1);
+    expect(() => response.body?.getReader()).not.toThrow();
+  });
+
   it('keeps Anthropic request timeout active while reading error response bodies', async () => {
     vi.useFakeTimers();
     try {

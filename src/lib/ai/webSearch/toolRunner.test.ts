@@ -98,6 +98,99 @@ describe('web search tool runner', () => {
     expect(pageText).toContain('Readable content from the page.');
   });
 
+  it('auto-reads the first unique search URLs without scanning unneeded results', async () => {
+    const unneededResult = {
+      title: 'Unneeded',
+      snippet: 'Snippet',
+      publishedAt: null,
+      source: null,
+      thumbnail: null,
+    } as { title: string; url: string; snippet: string; publishedAt: null; source: null; thumbnail: null };
+    Object.defineProperty(unneededResult, 'url', {
+      get() {
+        throw new Error('unneeded result URL was read');
+      },
+    });
+    const client: WebSearchClient = {
+      webSearch: vi.fn(async () => ({
+        query: 'sample app',
+        results: [
+          {
+            title: 'One',
+            url: 'https://one.example',
+            snippet: 'Snippet',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+          {
+            title: 'One duplicate',
+            url: 'https://one.example',
+            snippet: 'Snippet',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+          {
+            title: 'Two',
+            url: 'https://two.example',
+            snippet: 'Snippet',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+          {
+            title: 'Three',
+            url: 'https://three.example',
+            snippet: 'Snippet',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+          {
+            title: 'Four',
+            url: 'https://four.example',
+            snippet: 'Snippet',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+          unneededResult,
+        ],
+      })),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(async (urls: string[]) => urls.map((url) => ({
+        url,
+        ok: true,
+        page: {
+          title: url,
+          summary: '',
+          siteName: new URL(url).hostname,
+          finalUrl: url,
+          content: 'Readable page content.',
+          charCount: 22,
+        },
+      }))),
+    };
+
+    await runWebSearchToolCall(
+      {
+        name: WEB_SEARCH_TOOL_NAMES.search,
+        arguments: JSON.stringify({ query: 'sample app' }),
+      },
+      { client, autoReadAfterSearch: true },
+    );
+
+    expect(client.readWebPages).toHaveBeenCalledWith([
+      'https://one.example',
+      'https://two.example',
+      'https://three.example',
+    ], {
+      contentLimit: 3000,
+      retries: 0,
+    });
+  });
+
   it('accepts model-emitted aliases for batch page reads', async () => {
     const statuses: unknown[] = [];
     const client: WebSearchClient = {

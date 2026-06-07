@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MAX_EXPORT_HTML_TAG_SCAN_RANGES,
   MAX_EXPORT_MARKDOWN_ASSET_TOKENS,
   findExportMarkdownAssetSourceTokens,
   findExportMarkdownAssetSourceTokensWithOptions,
@@ -31,6 +32,66 @@ describe('findExportMarkdownAssetSourceTokens', () => {
     ]);
   });
 
+  it('keeps raw HTML protection after invalid angle-bracket text', () => {
+    const markdown = [
+      '< not an html tag',
+      '<pre>',
+      '![hidden](img:hidden.png)',
+      '</pre>',
+      '![real](img:real.png)',
+    ].join('\n');
+
+    expect(findExportMarkdownAssetSourceTokens(markdown).map((token) => token.lookupSrc)).toEqual([
+      'img:real.png',
+    ]);
+  });
+
+  it('does not hide visible assets after angle-bracket text inside HTML attributes', () => {
+    const markdown = [
+      '<span data-example="<svg>"></span>',
+      '![real](img:real.png)',
+      '<img src="img:real-html.png">',
+    ].join('\n');
+
+    expect(findExportMarkdownAssetSourceTokens(markdown).map((token) => token.lookupSrc)).toEqual([
+      'img:real.png',
+      'img:real-html.png',
+    ]);
+  });
+
+  it('does not spend the html tag scan budget on tags inside comments', () => {
+    const ignoredCommentTags = Array.from(
+      { length: MAX_EXPORT_HTML_TAG_SCAN_RANGES },
+      (_, index) => `<img src="img:comment-${index}.png">`,
+    ).join('');
+    const markdown = [
+      `<!-- ${ignoredCommentTags} -->`,
+      '<img src="img:real-html.png">',
+      '![real](img:real.png)',
+    ].join('\n');
+
+    expect(findExportMarkdownAssetSourceTokensWithOptions(markdown, {
+      maxTokens: MAX_EXPORT_MARKDOWN_ASSET_TOKENS,
+    }).map((token) => token.lookupSrc)).toEqual([
+      'img:real-html.png',
+      'img:real.png',
+    ]);
+  });
+
+  it('keeps nested raw text HTML contents ignored until the matching close tag', () => {
+    const markdown = [
+      '<svg>',
+      '<svg><img src="img:hidden-inner.png"></svg>',
+      '<img src="img:hidden-after-inner.png">',
+      '</svg>',
+      '<img src="img:real-html.png">',
+    ].join('\n');
+
+    expect(findExportMarkdownAssetSourceTokens(markdown).map((token) => token.lookupSrc)).toEqual([
+      'img:real-html.png',
+    ]);
+  });
+
   it('bounds export asset extraction work when requested', () => {
     const markdown = Array.from(
       { length: MAX_EXPORT_MARKDOWN_ASSET_TOKENS + 1 },
@@ -56,5 +117,21 @@ describe('findExportMarkdownAssetSourceTokens', () => {
 
     expect(tokens).toHaveLength(MAX_EXPORT_MARKDOWN_ASSET_TOKENS);
     expect(tokens.at(-1)?.lookupSrc).toBe(`img:image-${MAX_EXPORT_MARKDOWN_ASSET_TOKENS - 1}.png`);
+  });
+
+  it('stops markdown asset extraction after the html tag scan budget is exhausted', () => {
+    const ignoredTags = Array.from(
+      { length: MAX_EXPORT_HTML_TAG_SCAN_RANGES },
+      (_, index) => `<span data-example="![hidden ${index}](img:hidden-${index}.png)">text</span>`,
+    );
+    const markdown = [
+      ...ignoredTags,
+      '<span data-example="![hidden after](img:hidden-after.png)">text</span>',
+      '![after](img:after.png)',
+    ].join('\n');
+
+    expect(findExportMarkdownAssetSourceTokensWithOptions(markdown, {
+      maxTokens: MAX_EXPORT_MARKDOWN_ASSET_TOKENS,
+    })).toEqual([]);
   });
 });

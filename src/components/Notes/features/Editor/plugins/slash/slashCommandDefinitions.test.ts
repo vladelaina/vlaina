@@ -18,18 +18,45 @@ import {
   slashCommandDefinitions,
 } from './slashCommandDefinitions';
 
-function createDoc(nodes: Array<{ type: string; id?: string; label?: string }>) {
+function createDoc(
+  nodes: Array<{ type: string; id?: string; label?: string }>,
+  onVisit?: () => void
+) {
   return {
-    descendants(callback: (node: any) => void) {
+    descendants(callback: (node: any) => boolean | void) {
       for (const node of nodes) {
-        callback({
+        onVisit?.();
+        const result = callback({
           type: { name: node.type },
           attrs: {
             ...(node.id ? { id: node.id } : {}),
             ...(node.label ? { label: node.label } : {}),
           },
         });
+        if (result === false) break;
       }
+    },
+  };
+}
+
+function createTreeDoc(
+  nodes: Array<{ type: string; id?: string; label?: string }>,
+  onAccess?: () => void
+) {
+  return {
+    childCount: nodes.length,
+    child(index: number) {
+      const node = nodes[index];
+      if (!node) return null;
+      onAccess?.();
+      return {
+        childCount: 0,
+        type: { name: node.type },
+        attrs: {
+          ...(node.id ? { id: node.id } : {}),
+          ...(node.label ? { label: node.label } : {}),
+        },
+      };
     },
   };
 }
@@ -154,5 +181,33 @@ describe('footnote id helpers', () => {
       { type: 'footnote_ref', id: 'a-note' },
       { type: 'footnote_def', id: '2' },
     ]))).toBe('a-note');
+  });
+
+  it('caps footnote id scans by node count', () => {
+    let accessed = 0;
+    const ids = collectFootnoteIds(createTreeDoc([
+      { type: 'paragraph' },
+      { type: 'paragraph' },
+      { type: 'footnote_ref', id: 'later' },
+    ], () => {
+      accessed += 1;
+    }), 2);
+
+    expect(Array.from(ids.refs)).toEqual([]);
+    expect(accessed).toBe(2);
+  });
+
+  it('caps collected footnote ids in one pass', () => {
+    let visited = 0;
+    const ids = collectFootnoteIds(createDoc([
+      { type: 'footnote_ref', id: '1' },
+      { type: 'footnote_ref', id: '2' },
+      { type: 'footnote_ref', id: '3' },
+    ], () => {
+      visited += 1;
+    }), 10, 2);
+
+    expect(Array.from(ids.refs)).toEqual(['1', '2']);
+    expect(visited).toBe(2);
   });
 });

@@ -15,12 +15,17 @@ const isParent = (node: Node): node is Node & { children: Node[] } =>
 const isHTML = (
   node: Node
 ): node is Node & { children: Node[]; value: unknown } => node.type === 'html'
+const isText = (
+  node: Node
+): node is Node & { value: unknown } => node.type === 'text'
 
 interface RawHtmlState {
   activeDepth: number
   activeMode: 'drop' | 'escape' | null
   activeTag: string | null
 }
+
+const noRawHtmlTags = new Set<string>()
 
 function flatMapWithDepth(
   ast: Node,
@@ -35,6 +40,9 @@ function flatMapWithDepth(
   return transform(ast, 0, null)[0]
 
   function transform(node: Node, index: number, parent: Node | null) {
+    if (!syncTextRawHtmlState(node, rawHtmlState))
+      return []
+
     if (isHTML(node) && typeof node.value === 'string') {
       const sanitized = sanitizeRawHtmlNode(node, rawHtmlState)
       const out = []
@@ -96,6 +104,30 @@ function sanitizeRawHtmlNode(node: Node, state: RawHtmlState) {
   state.activeMode = result.mode
   state.activeDepth = result.activeDepth || 1
   return result.value ? [{ ...node, value: result.value }] : []
+}
+
+function syncTextRawHtmlState(node: Node, state: RawHtmlState) {
+  if (!isText(node) || typeof node.value !== 'string')
+    return true
+
+  if (state.activeTag && state.activeMode !== 'drop')
+    return true
+
+  const result = prepareGithubRawHtmlForSanitizerFragment(
+    node.value,
+    state.activeTag,
+    state.activeMode,
+    {
+      activeDepth: state.activeDepth,
+      gfmDisallowedRawHtmlTags: noRawHtmlTags,
+      sanitizerOnlyDropWithContentTags,
+    },
+  )
+  state.activeTag = result.activeTag
+  state.activeMode = result.mode
+  state.activeDepth = result.activeDepth || 1
+  node.value = result.value
+  return Boolean(result.value)
 }
 
 /// @internal

@@ -16,7 +16,20 @@ const TAG_SCAN_IDLE_DELAY_MS = 250;
 const TAG_CONTENT_READ_BATCH_SIZE = 8;
 const MAX_TAG_CONTENT_READ_BYTES = 10 * 1024 * 1024;
 
-type SidebarTagContentCache = Map<string, { content: string }>;
+type SidebarTagContentCacheEntry = {
+  content: string;
+  revision: number;
+  vaultPath: string | null;
+};
+type SidebarTagContentCache = Map<string, SidebarTagContentCacheEntry>;
+
+function isFreshSidebarTagContentEntry(
+  entry: SidebarTagContentCacheEntry | undefined,
+  revision: number,
+  vaultPath: string | null,
+) {
+  return entry?.revision === revision && entry.vaultPath === vaultPath;
+}
 
 async function readSidebarTagContent(path: string, currentVaultPath: string | null): Promise<string> {
   const storage = getStorageAdapter();
@@ -50,6 +63,7 @@ async function readSidebarTagContent(path: string, currentVaultPath: string | nu
 export function useNotesSidebarTags({
   rootFolder,
   noteContentsCache,
+  noteContentsCacheRevision = 0,
   liveNoteContent,
   scanAllNotes,
   starredEntries = [],
@@ -58,6 +72,7 @@ export function useNotesSidebarTags({
 }: {
   rootFolder: FolderNode | null;
   noteContentsCache: Map<string, { content: string }>;
+  noteContentsCacheRevision?: number;
   liveNoteContent?: { path: string; content: string } | null;
   scanAllNotes: (options?: { signal?: AbortSignal }) => Promise<unknown>;
   starredEntries?: StarredEntry[];
@@ -88,7 +103,16 @@ export function useNotesSidebarTags({
         (path) =>
           liveNoteContent?.path === path
             ? liveNoteContent.content
-            : noteContentsCache.get(path)?.content ?? sidebarTagContentCache.get(path)?.content,
+            : noteContentsCache.get(path)?.content ??
+              (
+                isFreshSidebarTagContentEntry(
+                  sidebarTagContentCache.get(path),
+                  noteContentsCacheRevision,
+                  currentVaultPath,
+                )
+                  ? sidebarTagContentCache.get(path)?.content
+                  : undefined
+              ),
       );
 
       return buildNotesSidebarTagsFromTagIndex(index);
@@ -97,6 +121,8 @@ export function useNotesSidebarTags({
       liveNoteContent?.content,
       liveNoteContent?.path,
       noteContentsCache,
+      noteContentsCacheRevision,
+      currentVaultPath,
       scopeEntries,
       sidebarTagContentCache,
     ],
@@ -123,9 +149,13 @@ export function useNotesSidebarTags({
       (entry) =>
         liveNoteContent?.path !== entry.path &&
         !noteContentsCache.has(entry.path) &&
-        !sidebarTagContentCache.has(entry.path),
+        !isFreshSidebarTagContentEntry(
+          sidebarTagContentCache.get(entry.path),
+          noteContentsCacheRevision,
+          currentVaultPath,
+        ),
     ),
-    [liveNoteContent?.path, noteContentsCache, scopeEntries, sidebarTagContentCache],
+    [currentVaultPath, liveNoteContent?.path, noteContentsCache, noteContentsCacheRevision, scopeEntries, sidebarTagContentCache],
   );
 
   const isTagIndexReady = scopeEntries.length > 0 && !missingIndexedContent;
@@ -134,9 +164,12 @@ export function useNotesSidebarTags({
     const scopedPaths = new Set(scopeEntries.map((entry) => entry.path));
     setSidebarTagContentCache((current) => {
       let changed = false;
-      const next = new Map<string, { content: string }>();
+      const next: SidebarTagContentCache = new Map();
       for (const [path, entry] of current) {
-        if (scopedPaths.has(path)) {
+        if (
+          scopedPaths.has(path) &&
+          isFreshSidebarTagContentEntry(entry, noteContentsCacheRevision, currentVaultPath)
+        ) {
           next.set(path, entry);
         } else {
           changed = true;
@@ -144,7 +177,43 @@ export function useNotesSidebarTags({
       }
       return changed ? next : current;
     });
-  }, [scopeEntries]);
+  }, [currentVaultPath, noteContentsCacheRevision, scopeEntries]);
+
+  useEffect(() => {
+    if (noteContentsCache.size === 0 || scopeEntries.length === 0) {
+      return;
+    }
+
+    setSidebarTagContentCache((current) => {
+      let changed = false;
+      const next = new Map(current);
+
+      for (const entry of scopeEntries) {
+        const cachedContent = noteContentsCache.get(entry.path)?.content;
+        if (cachedContent === undefined) {
+          continue;
+        }
+
+        const currentEntry = next.get(entry.path);
+        if (
+          currentEntry?.content === cachedContent &&
+          currentEntry.revision === noteContentsCacheRevision &&
+          currentEntry.vaultPath === currentVaultPath
+        ) {
+          continue;
+        }
+
+        next.set(entry.path, {
+          content: cachedContent,
+          revision: noteContentsCacheRevision,
+          vaultPath: currentVaultPath,
+        });
+        changed = true;
+      }
+
+      return changed ? next : current;
+    });
+  }, [currentVaultPath, noteContentsCache, noteContentsCacheRevision, scopeEntries]);
 
   useEffect(() => {
     if (!active || scopeEntries.length === 0 || !missingIndexedContent) {
@@ -156,7 +225,11 @@ export function useNotesSidebarTags({
       .filter((path) =>
         liveNoteContent?.path !== path &&
         !noteContentsCache.has(path) &&
-        !sidebarTagContentCache.has(path)
+        !isFreshSidebarTagContentEntry(
+          sidebarTagContentCache.get(path),
+          noteContentsCacheRevision,
+          currentVaultPath,
+        )
       );
     if (missingPaths.length === 0) {
       return;
@@ -164,7 +237,7 @@ export function useNotesSidebarTags({
 
     let cancelled = false;
     const loadMissingContent = async () => {
-      const loaded = new Map<string, { content: string }>();
+      const loaded: SidebarTagContentCache = new Map();
       for (let index = 0; index < missingPaths.length; index += TAG_CONTENT_READ_BATCH_SIZE) {
         const batch = missingPaths.slice(index, index + TAG_CONTENT_READ_BATCH_SIZE);
         const results = await Promise.all(
@@ -177,7 +250,11 @@ export function useNotesSidebarTags({
           return;
         }
         for (const result of results) {
-          loaded.set(result.path, { content: result.content });
+          loaded.set(result.path, {
+            content: result.content,
+            revision: noteContentsCacheRevision,
+            vaultPath: currentVaultPath,
+          });
         }
       }
       if (cancelled || loaded.size === 0) {
@@ -203,6 +280,7 @@ export function useNotesSidebarTags({
     liveNoteContent?.path,
     missingIndexedContent,
     noteContentsCache,
+    noteContentsCacheRevision,
     scopeEntries,
     sidebarTagContentCache,
   ]);

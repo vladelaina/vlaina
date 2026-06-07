@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  MAX_TABLE_KEYBOARD_DOC_SCAN_NODES,
   findAdjacentTableCellPos,
   findFirstTableBodyCellPos,
 } from './tableKeyboardPlugin';
@@ -41,6 +42,18 @@ describe('table keyboard scan helpers', () => {
     expect(child).toHaveBeenCalledTimes(2);
   });
 
+  it('caps first table body cell scans by node count', () => {
+    const children = [
+      ...Array.from({ length: MAX_TABLE_KEYBOARD_DOC_SCAN_NODES }, () => node('paragraph')),
+      node('table_cell'),
+    ];
+    const document = doc(children);
+    const child = vi.spyOn(document, 'child');
+
+    expect(findFirstTableBodyCellPos(document as never, 0)).toBeNull();
+    expect(child).toHaveBeenCalledTimes(MAX_TABLE_KEYBOARD_DOC_SCAN_NODES);
+  });
+
   it('finds the next table cell without reading later cells', () => {
     const cells = [
       node('table_header'),
@@ -77,5 +90,18 @@ describe('table keyboard scan helpers', () => {
 
     expect(findAdjacentTableCellPos(table as never, 10, 14, -1)).toBe(12);
     expect(child).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not wrap to the first cell when next-cell scan is exhausted before the current cell', () => {
+    const cells = Array.from(
+      { length: MAX_TABLE_KEYBOARD_DOC_SCAN_NODES + 1 },
+      () => node('table_cell')
+    );
+    const table = doc(cells);
+    const child = vi.spyOn(table, 'child');
+    const currentCellPos = 10 + (MAX_TABLE_KEYBOARD_DOC_SCAN_NODES * 2);
+
+    expect(findAdjacentTableCellPos(table as never, 10, currentCellPos, 1)).toBeNull();
+    expect(child).toHaveBeenCalledTimes(MAX_TABLE_KEYBOARD_DOC_SCAN_NODES);
   });
 });

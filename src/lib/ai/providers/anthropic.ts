@@ -4,6 +4,7 @@ import { buildAnthropicBaseUrl, resolveApiModelId } from '../utils'
 import { providerFetch } from '../providerHttp'
 import { readBoundedProviderResponseText } from './boundedResponseText'
 import {
+  appendOpenAIStreamBuffer,
   assertOpenAIStreamLineLength,
   createStreamAccumulator,
 } from '@/lib/ai/streaming'
@@ -225,7 +226,7 @@ async function consumeAnthropicStream(
       const { done, value } = await raceWithAbort(reader.read(), signal)
       throwIfAborted()
       if (done) break
-      buffer += decoder.decode(value, { stream: true })
+      buffer = appendOpenAIStreamBuffer(buffer, decoder.decode(value, { stream: true }))
       const lines = buffer.split(/\r?\n/)
       buffer = lines.pop() || ''
       for (const line of lines) {
@@ -235,6 +236,11 @@ async function consumeAnthropicStream(
         throwIfAborted()
       }
       assertOpenAIStreamLineLength(buffer)
+    }
+
+    const finalDecoded = decoder.decode()
+    if (finalDecoded) {
+      buffer = appendOpenAIStreamBuffer(buffer, finalDecoded)
     }
 
     if (buffer.trim()) {

@@ -1,7 +1,7 @@
 import { createEmptyMetadataFile, setNoteEntry } from '../storage';
 import {
   getCachedNoteModifiedAt,
-  removeCachedNoteContent,
+  pruneCachedNoteContents,
   setCachedNoteContent,
 } from '../document/noteContentCache';
 import { saveNoteDocument } from '../document/noteDocumentPersistence';
@@ -194,15 +194,32 @@ export function createWorkspaceDocumentActions(
 
     ...createWorkspaceDiskSyncAction(set, get),
 
-    invalidateNoteCache: (path: string) => {
+    invalidateNoteCache: (path: string, options?: { includeDescendants?: boolean }) => {
       const { currentNote, noteContentsCache, openTabs } = get();
-      if (currentNote?.path === path) {
-        return;
-      }
-      if (openTabs.some((tab) => tab.path === path && tab.isDirty)) {
-        return;
-      }
-      set({ noteContentsCache: removeCachedNoteContent(noteContentsCache, path) });
+      const noteContentsCacheRevision = get().noteContentsCacheRevision ?? 0;
+      const dirtyOpenTabPaths = new Set(
+        openTabs.filter((tab) => tab.isDirty).map((tab) => tab.path)
+      );
+      const shouldInvalidate = (cachedPath: string) => {
+        if (cachedPath === currentNote?.path || dirtyOpenTabPaths.has(cachedPath)) {
+          return false;
+        }
+
+        if (cachedPath === path) {
+          return true;
+        }
+
+        if (!options?.includeDescendants) {
+          return false;
+        }
+
+        return path ? cachedPath.startsWith(`${path}/`) : true;
+      };
+      const nextCache = pruneCachedNoteContents(noteContentsCache, shouldInvalidate);
+      set({
+        noteContentsCache: nextCache,
+        noteContentsCacheRevision: noteContentsCacheRevision + 1,
+      });
     },
 
     updateContent: (content: string) => {

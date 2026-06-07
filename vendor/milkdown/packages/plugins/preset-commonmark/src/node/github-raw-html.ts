@@ -35,10 +35,40 @@ function findRawHtmlTagEnd(content: string, start: number) {
   return -1
 }
 
+function findHtmlCommentEnd(content: string, start: number) {
+  const end = content.indexOf('-->', start + 4)
+  return end === -1 ? content.length : end + 3
+}
+
+function findHtmlCdataEnd(content: string, start: number) {
+  const end = content.indexOf(']]>', start + 9)
+  return end === -1 ? content.length : end + 3
+}
+
+function findHtmlProcessingInstructionEnd(content: string, start: number) {
+  const end = content.indexOf('?>', start + 2)
+  return end === -1 ? content.length : end + 2
+}
+
+function findHtmlDeclarationEnd(content: string, start: number) {
+  const end = content.indexOf('>', start + 2)
+  return end === -1 ? content.length : end + 1
+}
+
+function findRawHtmlNonTagEnd(content: string, start: number) {
+  if (content.startsWith('<!--', start)) return findHtmlCommentEnd(content, start)
+  if (content.startsWith('<![CDATA[', start)) return findHtmlCdataEnd(content, start)
+  if (content.startsWith('<?', start)) return findHtmlProcessingInstructionEnd(content, start)
+  if (content.startsWith('<!', start)) return findHtmlDeclarationEnd(content, start)
+  return null
+}
+
 function parseRawHtmlFragmentTag(content: string, start: number): RawHtmlTag | null {
-  const end = findRawHtmlTagEnd(content, start)
-  if (end === -1)
+  if (findRawHtmlNonTagEnd(content, start) !== null)
     return null
+
+  const tagEnd = findRawHtmlTagEnd(content, start)
+  const end = tagEnd === -1 ? content.length : tagEnd
 
   const tag = content.slice(start, end)
   const match = rawHtmlFragmentTagPattern.exec(tag)
@@ -69,7 +99,7 @@ function scanRawHtmlContainer(
 
     const nextTag = parseRawHtmlFragmentTag(content, nextTagStart)
     if (!nextTag) {
-      cursor = nextTagStart + 1
+      cursor = findRawHtmlNonTagEnd(content, nextTagStart) ?? nextTagStart + 1
       continue
     }
 
@@ -153,8 +183,10 @@ export function stripDroppedRawHtmlContentFragment(
 
     const tag = parseRawHtmlFragmentTag(content, start)
     if (!tag) {
-      output += content.slice(cursor, start + 1)
-      cursor = start + 1
+      const nonTagEnd = findRawHtmlNonTagEnd(content, start)
+      const nextCursor = nonTagEnd ?? start + 1
+      output += content.slice(cursor, nextCursor)
+      cursor = nextCursor
       continue
     }
 
@@ -220,8 +252,10 @@ export function prepareGithubRawHtmlForSanitizerFragment(
 
     const tag = parseRawHtmlFragmentTag(content, start)
     if (!tag) {
-      output += content.slice(cursor, start + 1)
-      cursor = start + 1
+      const nonTagEnd = findRawHtmlNonTagEnd(content, start)
+      const nextCursor = nonTagEnd ?? start + 1
+      output += content.slice(cursor, nextCursor)
+      cursor = nextCursor
       continue
     }
 

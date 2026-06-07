@@ -188,6 +188,52 @@ it('should keep nested parser-promoted raw html containers active while creating
   await editor.destroy()
 })
 
+it('should ignore raw html close tags inside comments while creating editor document', async () => {
+  const editor = createEditor()
+  editor.config((ctx) => {
+    ctx.set(defaultValueCtx, [
+      '<svg>',
+      '<!-- </svg> -->',
+      '<img src="https://example.com/leaked.png">',
+      '</svg>',
+      '<img src="https://example.com/real.png">',
+    ].join('\n\n'))
+  })
+
+  await editor.create()
+
+  const srcs = Array.from(editor.ctx.get(editorViewCtx).dom.querySelectorAll('img'))
+    .map((image) => image.getAttribute('src'))
+    .filter((src): src is string => Boolean(src))
+  expect(srcs).toEqual(['https://example.com/real.png'])
+  expect(editor.ctx.get(editorViewCtx).dom.innerHTML).not.toContain('leaked.png')
+
+  await editor.destroy()
+})
+
+it('should keep malformed parser-promoted raw html containers active while creating editor document', async () => {
+  const editor = createEditor()
+  editor.config((ctx) => {
+    ctx.set(defaultValueCtx, [
+      '<svg <img src="https://example.com/hidden.png">',
+      '<img src="https://example.com/leaked.png">',
+      '</svg>',
+      '<img src="https://example.com/real.png">',
+    ].join('\n\n'))
+  })
+
+  await editor.create()
+
+  const srcs = Array.from(editor.ctx.get(editorViewCtx).dom.querySelectorAll('img'))
+    .map((image) => image.getAttribute('src'))
+    .filter((src): src is string => Boolean(src))
+  expect(srcs).toEqual(['https://example.com/real.png'])
+  expect(editor.ctx.get(editorViewCtx).dom.innerHTML).not.toContain('hidden.png')
+  expect(editor.ctx.get(editorViewCtx).dom.innerHTML).not.toContain('leaked.png')
+
+  await editor.destroy()
+})
+
 it('should cap deeply nested github html during sanitization', () => {
   const payload = `${'<div>'.repeat(250)}<p onclick="evil()">deep</p>${'</div>'.repeat(250)}`
 

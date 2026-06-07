@@ -1647,10 +1647,6 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
-      if (path.endsWith('/chat/sessions/session-2.json')) {
-        throw new Error('Deleted session files must not be recovered');
-      }
-
       if (path.endsWith('/chat/sessions/session-1.json')) {
         return JSON.stringify({
           version: 1,
@@ -1675,11 +1671,36 @@ describe('unifiedStorage electron save', () => {
         });
       }
 
+      if (path.endsWith('/chat/sessions/session-2.json')) {
+        return JSON.stringify({
+          version: 1,
+          sessionId: 'session-2',
+          updatedAt: 3,
+          messages: [
+            {
+              id: 'm2',
+              role: 'user',
+              content: 'Deleted chat must stay deleted',
+              modelId: 'provider::model-a',
+              timestamp: 20,
+              versions: [{
+                content: 'Deleted chat must stay deleted',
+                createdAt: 20,
+                kind: 'original',
+                subsequentMessages: [],
+              }],
+              currentVersionIndex: 0,
+            },
+          ],
+        });
+      }
+
       throw new Error(`Unexpected read: ${path}`);
     });
 
     const data = await loadUnifiedData();
 
     expect(data.ai?.sessions.map((session) => session.id)).toEqual(['session-1']);
+    expect(data.ai?.deletedSessionIds).toEqual(['session-2']);
   });
 });

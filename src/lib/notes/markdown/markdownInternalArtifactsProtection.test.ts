@@ -20,6 +20,8 @@ describe('markdown internal artifact protection', () => {
       '<!--vlaina-markdown-blank-line-->',
       '<!--vlaina-markdown-tight-heading-->',
       '<br data-vlaina-empty-line="true" />',
+      '��VLAINA_LIST_GAP_SENTINEL��',
+      '��VLAINA_USER_BR_SENTINEL��',
       '\u2800',
       '```',
     ].join('\n');
@@ -32,6 +34,7 @@ describe('markdown internal artifact protection', () => {
       '---',
       'description: "<!--vlaina-markdown-blank-line-->"',
       'gap: "\u2800"',
+      'literal: "��VLAINA_LIST_GAP_SENTINEL��"',
       '---',
       '',
       'Body',
@@ -45,9 +48,19 @@ describe('markdown internal artifact protection', () => {
       '<pre>',
       '<!--vlaina-markdown-blank-line-->',
       '<br data-vlaina-empty-line="true" />',
+      '��VLAINA_USER_BR_SENTINEL��',
       '</pre>',
     ].join('\n');
 
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
+  it('removes leaked internal sentinels outside protected content', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['A', '��VLAINA_LIST_GAP_SENTINEL��', 'B'].join('\n'))
+    ).toBe(['A', '', 'B'].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument(['A', '��VLAINA_USER_BR_SENTINEL��', 'B'].join('\n'))
+    ).toBe(['A\\', 'B'].join('\n'));
   });
 });

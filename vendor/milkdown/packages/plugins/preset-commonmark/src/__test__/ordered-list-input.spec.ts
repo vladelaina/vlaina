@@ -6,6 +6,7 @@ import { getMarkdown } from '@milkdown/utils'
 import { expect, it, vi } from 'vitest'
 
 import { commonmark } from '..'
+import { MAX_LIST_ORDER_SYNC_UPDATES } from '../plugin/sync-list-order-plugin'
 
 function createEditor(defaultValue?: string) {
   const editor = Editor.make()
@@ -144,6 +145,32 @@ it('should normalize ordered list labels after converting an ordered-styled bull
   expect(normalizedList?.attrs.order).toBe(3)
   expect(normalizedList?.child(0).attrs.label).toBe('3.')
   expect(normalizedList?.child(1).attrs.label).toBe('4.')
+
+  await editor.destroy()
+})
+
+it('should cap ordered-styled bullet list normalization updates', async () => {
+  const editor = createEditor()
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  const { schema } = view.state
+  const list = schema.nodes.bullet_list.create(
+    { spread: false },
+    Array.from({ length: MAX_LIST_ORDER_SYNC_UPDATES + 2 }, () =>
+      schema.nodes.list_item.create(
+        { label: '1.', listType: 'ordered', spread: true },
+        [schema.nodes.paragraph.create(null, schema.text('item'))]
+      )
+    )
+  )
+
+  view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, list))
+
+  const normalizedList = view.state.doc.firstChild
+  expect(normalizedList?.type.name).toBe('ordered_list')
+  expect(normalizedList?.child(MAX_LIST_ORDER_SYNC_UPDATES + 1).attrs.label).toBe('1.')
 
   await editor.destroy()
 })

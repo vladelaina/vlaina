@@ -96,8 +96,19 @@ export function estimateMarkdownBlockHeight(block: MarkdownMeasurementBlock, con
   }
 }
 
+function countCodeBlockLines(code: string): number {
+  const end = code.endsWith('\n') ? code.length - 1 : code.length;
+  let lineCount = 1;
+  for (let index = 0; index < end; index += 1) {
+    if (code[index] === '\n') {
+      lineCount += 1;
+    }
+  }
+  return lineCount;
+}
+
 export function estimateCodeBlockHeight(code: string): number {
-  const lineCount = Math.max(code.replace(/\n$/, '').split('\n').length, 1);
+  const lineCount = countCodeBlockLines(code);
   return MARKDOWN_CODE_BLOCK_HEADER_HEIGHT + MARKDOWN_CODE_BLOCK_PADDING_Y + lineCount * MARKDOWN_CODE_LINE_HEIGHT;
 }
 

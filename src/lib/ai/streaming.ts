@@ -254,9 +254,34 @@ function parsePayloadText(text: string): Record<string, unknown> | null {
   }
 }
 
+function extractResponsesApiStreamDelta(payload: Record<string, unknown>): StreamDeltaPayload | null {
+  const type = typeof payload.type === 'string' ? payload.type.toLowerCase() : ''
+  if (!type.endsWith('.delta')) {
+    return null
+  }
+
+  const delta = extractStreamText(payload.delta)
+  if (!delta) {
+    return null
+  }
+
+  if (type.includes('reasoning') || type.includes('thinking')) {
+    return { reasoning: delta }
+  }
+  if (type.includes('output_text') || type.includes('content')) {
+    return { content: delta }
+  }
+  return null
+}
+
 function extractStreamDelta(payload: Record<string, unknown>): StreamDeltaPayload {
   const choice = Array.isArray(payload.choices) ? payload.choices[0] : null
   if (!isRecord(choice)) {
+    const responseDelta = extractResponsesApiStreamDelta(payload)
+    if (responseDelta) {
+      return responseDelta
+    }
+
     const output = isRecord(payload.output) ? payload.output : null
     const data = isRecord(payload.data) ? payload.data : null
 
@@ -361,6 +386,11 @@ export async function consumeOpenAIStream(
         throwIfAborted(options?.signal)
       }
       assertOpenAIStreamLineLength(buffer)
+    }
+
+    const finalDecoded = decoder.decode()
+    if (finalDecoded) {
+      buffer = appendOpenAIStreamBuffer(buffer, finalDecoded)
     }
 
     if (buffer.trim()) {

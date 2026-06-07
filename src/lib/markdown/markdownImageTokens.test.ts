@@ -67,6 +67,23 @@ describe('markdownImageTokens', () => {
     ]);
   });
 
+  it('keeps nested dropped raw html containers protected until the matching close', () => {
+    const markdown = [
+      '<svg>',
+      '<svg><img src="https://example.com/hidden-one.png"></svg>',
+      '<img src="https://example.com/hidden-two.png">',
+      '</svg>',
+      '<img src="https://example.com/real-html.png">',
+      '<math><math>![hidden](https://example.com/hidden-three.png)</math>![hidden](https://example.com/hidden-four.png)</math>',
+      '![real](https://example.com/real.png)',
+    ].join('\n');
+
+    expect(parseMarkdownAndHtmlImageTokens(markdown).map((token) => token.src)).toEqual([
+      'https://example.com/real-html.png',
+      'https://example.com/real.png',
+    ]);
+  });
+
   it('keeps image extraction correct after many ignored inline ranges', () => {
     const ignoredImages = Array.from(
       { length: 1500 },
@@ -138,6 +155,33 @@ describe('markdownImageTokens', () => {
     expect(parseHtmlImageTokens(markdown, { maxTokens: 1 }).map((token) => token.src)).toEqual([
       'https://example.com/real.png',
     ]);
+  });
+
+  it('does not spend the html tag scan budget on tags inside comments', () => {
+    const ignoredCommentTags = Array.from(
+      { length: 4000 },
+      (_, index) => `<img src="https://example.com/comment-${index}.png">`,
+    ).join('');
+    const markdown = [
+      `<!-- ${ignoredCommentTags} -->`,
+      '<img src="https://example.com/real.png">',
+    ].join('\n');
+
+    expect(parseHtmlImageTokens(markdown, { maxTokens: 1 }).map((token) => token.src)).toEqual([
+      'https://example.com/real.png',
+    ]);
+  });
+
+  it('does not keep scanning html after bounded markdown target protection is exhausted', () => {
+    const markdown = [
+      ...Array.from(
+        { length: 2500 },
+        (_, index) => `![image ${index}](<https://example.com/<img src="https://example.com/not-html-${index}.png"\\>>)`,
+      ),
+      '<img src="https://example.com/real.png">',
+    ].join('\n');
+
+    expect(parseHtmlImageTokens(markdown, { maxTokens: 1 })).toEqual([]);
   });
 
   it('rejects oversized ordinary html image attributes before decoding src values', () => {

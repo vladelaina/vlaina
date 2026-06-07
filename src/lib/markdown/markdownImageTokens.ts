@@ -52,6 +52,8 @@ function normalizeImageMarkdownTarget(rawTarget: string): string | null {
 
 const MARKDOWN_LINK_DESTINATION_ESCAPE_PATTERN = /\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g;
 const MARKDOWN_LINK_DESTINATION_ESCAPE_AT_PATTERN = /^\\[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]$/;
+const MAX_HTML_IMAGE_TAG_SCAN_RANGES = 4000;
+const MAX_HTML_IMAGE_MARKDOWN_PROTECTION_RANGES = 2000;
 
 function unescapeMarkdownLinkDestination(value: string): string {
   return value.replace(MARKDOWN_LINK_DESTINATION_ESCAPE_PATTERN, '$1');
@@ -175,7 +177,31 @@ function findMarkdownImageLabelEnd(
   return null;
 }
 
-function parseMarkdownImageTokensInRange(content: string, range: ContentRange, maxTokens = Number.POSITIVE_INFINITY): ImageToken[] {
+interface MarkdownImageTokenRangeScan {
+  exhausted: boolean;
+  tokens: ImageToken[];
+}
+
+function normalizeInternalTokenLimit(value: number): number {
+  if (value === Number.POSITIVE_INFINITY) {
+    return Number.POSITIVE_INFINITY;
+  }
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.max(0, Math.floor(value));
+}
+
+function collectMarkdownImageTokensInRange(
+  content: string,
+  range: ContentRange,
+  maxTokens = Number.POSITIVE_INFINITY,
+): MarkdownImageTokenRangeScan {
+  const tokenLimit = normalizeInternalTokenLimit(maxTokens);
+  if (tokenLimit <= 0) {
+    return { exhausted: true, tokens: [] };
+  }
+
   const tokens: ImageToken[] = [];
   const inlineCodeRanges = getInlineCodeRanges(content, range);
   const htmlCommentRanges = getHtmlCommentRanges(content, range);
@@ -220,13 +246,21 @@ function parseMarkdownImageTokensInRange(content: string, range: ContentRange, m
       targetStart: parsed.targetStart,
       targetEnd: parsed.targetEnd,
     });
-    if (tokens.length >= maxTokens) {
-      break;
+    if (tokens.length >= tokenLimit) {
+      return { exhausted: true, tokens };
     }
     cursor = parsed.end;
   }
 
-  return tokens;
+  return { exhausted: false, tokens };
+}
+
+function parseMarkdownImageTokensInRange(
+  content: string,
+  range: ContentRange,
+  maxTokens = Number.POSITIVE_INFINITY,
+): ImageToken[] {
+  return collectMarkdownImageTokensInRange(content, range, maxTokens).tokens;
 }
 
 function parseHtmlImageTokensInRange(
@@ -239,7 +273,11 @@ function parseHtmlImageTokensInRange(
   const inlineCodeRanges = getInlineCodeRanges(content, range);
   const htmlCommentRanges = getHtmlCommentRanges(content, range);
   const rawTextHtmlRanges = getRawTextHtmlRanges(content, range);
-  const htmlTagRanges = getHtmlTagRanges(content, range);
+  const htmlTagRanges = getHtmlTagRanges(
+    content,
+    range,
+    Number.isFinite(maxTokens) ? MAX_HTML_IMAGE_TAG_SCAN_RANGES : Number.POSITIVE_INFINITY,
+  );
 
   for (const tagRange of htmlTagRanges) {
     const start = tagRange.start;
@@ -296,7 +334,19 @@ export function parseHtmlImageTokens(content: string, options?: ImageTokenParseO
   const mayContainMarkdownImages = content.includes("![");
   for (const range of getNonFencedContentRanges(content)) {
     if (tokens.length >= maxTokens) break;
-    const markdownImageRanges = mayContainMarkdownImages ? parseMarkdownImageTokensInRange(content, range) : [];
+    const markdownImageScan = mayContainMarkdownImages
+      ? collectMarkdownImageTokensInRange(
+          content,
+          range,
+          Number.isFinite(maxTokens)
+            ? MAX_HTML_IMAGE_MARKDOWN_PROTECTION_RANGES + 1
+            : Number.POSITIVE_INFINITY,
+        )
+      : { exhausted: false, tokens: [] };
+    if (markdownImageScan.tokens.length > MAX_HTML_IMAGE_MARKDOWN_PROTECTION_RANGES || markdownImageScan.exhausted) {
+      continue;
+    }
+    const markdownImageRanges = markdownImageScan.tokens;
     tokens.push(...parseHtmlImageTokensInRange(content, range, markdownImageRanges, maxTokens - tokens.length));
   }
   return tokens;
@@ -313,9 +363,13 @@ export function parseMarkdownAndHtmlImageTokens(content: string, options?: Image
   for (const range of getNonFencedContentRanges(content)) {
     if (tokens.length >= maxTokens) break;
     const remainingTokens = maxTokens - tokens.length;
-    const markdownImageTokens = mayContainMarkdownImages
-      ? parseMarkdownImageTokensInRange(content, range, remainingTokens)
-      : [];
+    const markdownProtectionLimit = Number.isFinite(maxTokens)
+      ? Math.max(remainingTokens, MAX_HTML_IMAGE_MARKDOWN_PROTECTION_RANGES + 1)
+      : Number.POSITIVE_INFINITY;
+    const markdownImageScan = mayContainMarkdownImages
+      ? collectMarkdownImageTokensInRange(content, range, markdownProtectionLimit)
+      : { exhausted: false, tokens: [] };
+    const markdownImageTokens = markdownImageScan.tokens;
     const htmlImageTokens = parseHtmlImageTokensInRange(content, range, markdownImageTokens, remainingTokens);
     tokens.push(
       ...[...markdownImageTokens, ...htmlImageTokens]

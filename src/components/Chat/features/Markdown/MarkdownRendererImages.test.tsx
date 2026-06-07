@@ -176,6 +176,26 @@ describe('MarkdownRenderer images', () => {
     expect(container.textContent).toContain('<plaintext>');
   });
 
+  it('does not render images hidden inside malformed dropped raw html tags', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={[
+          '<svg <img src="https://example.com/svg.png"></svg>',
+          '<math <img src="https://example.com/math.png"></math>',
+          '<noscript <img src="https://example.com/noscript.png"></noscript>',
+          '<img src="https://example.com/real.png" alt="real">',
+          '<script <img src="https://example.com/script.png">',
+          '<img src="https://example.com/after-script.png" alt="after">',
+        ].join('\n')}
+      />
+    );
+
+    expect(screen.getAllByTestId('local-image')).toHaveLength(1);
+    expect(screen.getByTestId('local-image')).toHaveAttribute('src', 'https://example.com/real.png');
+    expect(container.querySelector('img[src="https://example.com/script.png"]')).toBeNull();
+    expect(container.querySelector('img[src="https://example.com/after-script.png"]')).toBeNull();
+  });
+
   it('sanitizes raw cite URL attributes before rendering', () => {
     const { container } = render(
       <MarkdownRenderer

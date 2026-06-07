@@ -3,102 +3,13 @@ import {
   GITHUB_GFM_DISALLOWED_RAW_HTML_TAGS,
   GITHUB_SANITIZER_ONLY_DROP_WITH_CONTENT_TAGS,
 } from './githubHtmlPolicy';
+import { findRawHtmlNonTagEnd, parseRawHtmlTag, scanRawHtmlContainer } from './githubRawHtmlScanner';
 
 export interface GithubRawHtmlStripResult {
   activeDepth: number;
   activeTag: string | null;
   mode: 'drop' | 'escape' | null;
   value: string;
-}
-
-interface RawHtmlTag {
-  closing: boolean;
-  end: number;
-  name: string;
-  selfClosing: boolean;
-}
-
-const RAW_HTML_TAG_PATTERN = /^<\/?([A-Za-z][A-Za-z0-9:-]*)(?:\s|\/?>|$)/;
-
-function findRawHtmlTagEnd(content: string, start: number): number {
-  let quote: string | null = null;
-
-  for (let cursor = start + 1; cursor < content.length; cursor += 1) {
-    const char = content[cursor];
-    if (quote) {
-      if (char === quote) {
-        quote = null;
-      }
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      quote = char;
-      continue;
-    }
-    if (char === '>') {
-      return cursor + 1;
-    }
-  }
-
-  return -1;
-}
-
-function parseRawHtmlTag(content: string, start: number): RawHtmlTag | null {
-  const end = findRawHtmlTagEnd(content, start);
-  if (end === -1) {
-    return null;
-  }
-
-  const tag = content.slice(start, end);
-  const match = RAW_HTML_TAG_PATTERN.exec(tag);
-  const name = match?.[1]?.toLowerCase();
-  if (!name) {
-    return null;
-  }
-
-  return {
-    closing: tag.startsWith('</'),
-    end,
-    name,
-    selfClosing: /\/\s*>$/.test(tag),
-  };
-}
-
-function scanRawHtmlContainer(
-  content: string,
-  tagName: string,
-  start: number,
-  initialDepth: number,
-): { closeEnd: number | null; depth: number } {
-  let cursor = start;
-  let depth = Math.max(1, initialDepth);
-  while (cursor < content.length) {
-    const nextTagStart = content.indexOf('<', cursor);
-    if (nextTagStart === -1) {
-      return { closeEnd: null, depth };
-    }
-
-    const nextTag = parseRawHtmlTag(content, nextTagStart);
-    if (!nextTag) {
-      cursor = nextTagStart + 1;
-      continue;
-    }
-
-    if (nextTag.name === tagName) {
-      if (nextTag.closing) {
-        depth -= 1;
-        if (depth <= 0) {
-          return { closeEnd: nextTag.end, depth: 0 };
-        }
-      } else if (!nextTag.selfClosing) {
-        depth += 1;
-      }
-    }
-
-    cursor = nextTag.end;
-  }
-
-  return { closeEnd: null, depth };
 }
 
 function escapeHtmlText(value: string): string {
@@ -178,8 +89,10 @@ export function stripGithubDroppedRawHtmlContentFragment(
 
     const tag = parseRawHtmlTag(content, start);
     if (!tag) {
-      output += content.slice(cursor, start + 1);
-      cursor = start + 1;
+      const nonTagEnd = findRawHtmlNonTagEnd(content, start);
+      const nextCursor = nonTagEnd ?? start + 1;
+      output += content.slice(cursor, nextCursor);
+      cursor = nextCursor;
       continue;
     }
 
@@ -246,8 +159,10 @@ export function prepareGithubRawHtmlForMarkdownSanitizerFragment(
 
     const tag = parseRawHtmlTag(content, start);
     if (!tag) {
-      output += content.slice(cursor, start + 1);
-      cursor = start + 1;
+      const nonTagEnd = findRawHtmlNonTagEnd(content, start);
+      const nextCursor = nonTagEnd ?? start + 1;
+      output += content.slice(cursor, nextCursor);
+      cursor = nextCursor;
       continue;
     }
 

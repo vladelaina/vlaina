@@ -4,6 +4,7 @@ import { Plugin, PluginKey, TextSelection, type EditorState, type Selection, typ
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
 import {
+    DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
     STOP_PROSE_SCAN,
     scanProseDescendants,
 } from '../shared/boundedProseNodeScan';
@@ -12,7 +13,10 @@ export const listTabIndentPluginKey = new PluginKey('listTabIndent');
 const EDITABLE_LIST_GAP_PLACEHOLDER = '\u2800';
 const LIST_GAP_PLACEHOLDER_CLASS = 'editor-list-gap-placeholder-item';
 export const MAX_LIST_GAP_PLACEHOLDER_DECORATIONS = 1000;
+export const MAX_ORDERED_LIST_LABEL_UPDATES = 5000;
+export const MAX_ORDERED_LIST_LABEL_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 const MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS = 256;
+export const MAX_LIST_GAP_PLACEHOLDER_CLEANUP_RANGES = MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS;
 const VISIBLE_LIST_GAP_TEXT_PATTERN = /\S/u;
 
 function isSelectionInsideListItem(view: EditorView): boolean {
@@ -52,27 +56,60 @@ function findSelectionListItemDepth(view: EditorView): number | null {
 
 function isInternalPlaceholderOnlyListItem(view: EditorView, listItemDepth: number): boolean {
     const listItem = view.state.selection.$from.node(listItemDepth);
-    return listItem.textContent.replace(new RegExp(EDITABLE_LIST_GAP_PLACEHOLDER, 'g'), '').trim().length === 0;
+    return isInternalListGapPlaceholderNode(listItem);
+}
+
+export function collectInternalListGapPlaceholderCleanupRanges(
+    listItem: ProseNode,
+    listItemStart: number
+): {
+    complete: boolean;
+    ranges: Array<{ from: number; to: number }>;
+} {
+    const ranges: Array<{ from: number; to: number }> = [];
+    let scannedChars = 0;
+    let exhausted = false;
+
+    const completed = scanProseDescendants(listItem, (node, pos) => {
+        if (ranges.length >= MAX_LIST_GAP_PLACEHOLDER_CLEANUP_RANGES) {
+            exhausted = true;
+            return STOP_PROSE_SCAN;
+        }
+        if (!node.isText) {
+            return true;
+        }
+
+        const text = node.text ?? '';
+        const remainingChars = MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS - scannedChars;
+        if (remainingChars <= 0 || text.length >= remainingChars) {
+            exhausted = true;
+            return STOP_PROSE_SCAN;
+        }
+        scannedChars += text.length;
+        if (!text.includes(EDITABLE_LIST_GAP_PLACEHOLDER)) return true;
+
+        for (let index = 0; index < text.length; index += 1) {
+            if (text[index] !== EDITABLE_LIST_GAP_PLACEHOLDER) continue;
+            const from = listItemStart + 1 + pos + index;
+            ranges.push({ from, to: from + 1 });
+            if (ranges.length >= MAX_LIST_GAP_PLACEHOLDER_CLEANUP_RANGES) {
+                exhausted = true;
+                return STOP_PROSE_SCAN;
+            }
+        }
+        return true;
+    });
+
+    return { complete: completed && !exhausted, ranges };
 }
 
 function removeInternalListGapPlaceholdersFromListItem(view: EditorView, listItemDepth: number): boolean {
     const { state } = view;
     const listItem = state.selection.$from.node(listItemDepth);
     const listItemStart = state.selection.$from.before(listItemDepth);
-    const ranges: Array<{ from: number; to: number }> = [];
+    const { complete, ranges } = collectInternalListGapPlaceholderCleanupRanges(listItem, listItemStart);
 
-    listItem.descendants((node, pos) => {
-        if (!node.isText || !node.text?.includes(EDITABLE_LIST_GAP_PLACEHOLDER)) {
-            return true;
-        }
-        for (let index = 0; index < node.text.length; index += 1) {
-            if (node.text[index] !== EDITABLE_LIST_GAP_PLACEHOLDER) continue;
-            const from = listItemStart + 1 + pos + index;
-            ranges.push({ from, to: from + 1 });
-        }
-        return true;
-    });
-
+    if (!complete) return false;
     if (ranges.length === 0) return false;
 
     let tr = state.tr;
@@ -462,7 +499,7 @@ function positionTouchesOrderedListNormalizationNode(doc: ProseNode, pos: number
         }
     }
 
-    return (
+    return Boolean(
         ($pos.nodeBefore && ORDERED_LIST_NORMALIZATION_NODE_NAMES.has($pos.nodeBefore.type.name))
         || ($pos.nodeAfter && ORDERED_LIST_NORMALIZATION_NODE_NAMES.has($pos.nodeAfter.type.name))
     );
@@ -503,32 +540,49 @@ export function docChangeMayAffectOrderedListNormalization(prevDoc: ProseNode, n
     );
 }
 
-function normalizeOrderedListLabels(state: EditorState): Transaction | null {
-    let tr = state.tr;
-    let changed = false;
+export function collectOrderedListLabelUpdates(doc: ProseNode): Array<{
+    attrs: Record<string, unknown>;
+    pos: number;
+}> {
+    const updates: Array<{
+        attrs: Record<string, unknown>;
+        pos: number;
+    }> = [];
 
-    state.doc.descendants((node, pos, parent, index) => {
-        if (node.type.name !== 'list_item' || parent?.type.name !== 'ordered_list') {
+    scanProseDescendants(doc, (node, pos, parent, index) => {
+        if (updates.length >= MAX_ORDERED_LIST_LABEL_UPDATES) return STOP_PROSE_SCAN;
+        if (node.type?.name !== 'list_item' || parent?.type?.name !== 'ordered_list') {
             return true;
         }
 
-        const order = typeof parent.attrs.order === 'number' ? parent.attrs.order : 1;
+        const parentAttrs = parent.attrs ?? {};
+        const nodeAttrs = node.attrs ?? {};
+        const order = typeof parentAttrs.order === 'number' ? parentAttrs.order : 1;
         const expectedLabel = `${order + (index ?? 0)}.`;
         const attrs = {
-            ...node.attrs,
+            ...nodeAttrs,
             label: expectedLabel,
             listType: 'ordered',
         };
 
-        if (node.attrs.label !== attrs.label || node.attrs.listType !== attrs.listType) {
-            tr = tr.setNodeMarkup(pos, undefined, attrs);
-            changed = true;
+        if (nodeAttrs.label !== attrs.label || nodeAttrs.listType !== attrs.listType) {
+            updates.push({ attrs, pos });
         }
 
-        return true;
-    });
+        return updates.length < MAX_ORDERED_LIST_LABEL_UPDATES ? true : STOP_PROSE_SCAN;
+    }, MAX_ORDERED_LIST_LABEL_SCAN_NODES);
 
-    return changed ? tr.setMeta('addToHistory', false) : null;
+    return updates;
+}
+
+function normalizeOrderedListLabels(state: EditorState): Transaction | null {
+    let tr = state.tr;
+    const updates = collectOrderedListLabelUpdates(state.doc);
+    for (const update of updates) {
+        tr = tr.setNodeMarkup(update.pos, undefined, update.attrs);
+    }
+
+    return updates.length > 0 ? tr.setMeta('addToHistory', false) : null;
 }
 
 function normalizeOrderedListsAfterChange(state: EditorState): Transaction | null {

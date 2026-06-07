@@ -37,6 +37,29 @@ describe('rawHtmlSanitizer', () => {
     expect(stringify(tree)).toContain('real.png');
   });
 
+  it('ignores raw html close tags inside comments while dropping containers', () => {
+    const tree = {
+      type: 'root',
+      children: [
+        {
+          type: 'raw',
+          value: [
+            '<svg>',
+            '<!-- </svg> -->',
+            '<img src="https://example.com/leaked.png">',
+            '</svg>',
+            '<img src="https://example.com/real.png">',
+          ].join(''),
+        },
+      ],
+    };
+
+    dropUnsafeRawHtmlContent(tree);
+
+    expect(stringify(tree)).not.toContain('leaked.png');
+    expect(stringify(tree)).toContain('real.png');
+  });
+
   it('keeps dropped raw html containers active across nested parent boundaries', () => {
     const tree = {
       type: 'root',
@@ -90,6 +113,23 @@ describe('rawHtmlSanitizer', () => {
 
     expect(stringify(tree)).not.toContain('hidden');
     expect(stringify(tree)).not.toContain('span');
+    expect(stringify(tree)).toContain('real.png');
+  });
+
+  it('keeps malformed dropped raw html containers active across raw siblings', () => {
+    const tree = {
+      type: 'root',
+      children: [
+        { type: 'raw', value: '<svg <img src="https://example.com/hidden.png">' },
+        { type: 'raw', value: '<img src="https://example.com/leaked.png"></svg>' },
+        { type: 'raw', value: '<img src="https://example.com/real.png">' },
+      ],
+    };
+
+    dropUnsafeRawHtmlContent(tree);
+
+    expect(stringify(tree)).not.toContain('hidden.png');
+    expect(stringify(tree)).not.toContain('leaked.png');
     expect(stringify(tree)).toContain('real.png');
   });
 

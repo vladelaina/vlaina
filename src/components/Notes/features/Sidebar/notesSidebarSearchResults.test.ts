@@ -372,6 +372,23 @@ describe('notesSidebarSearchResults', () => {
     expect(results.map((result) => result.contentSnippet)).not.toContain('target image');
   });
 
+  it('does not search content inside sanitizer-dropped raw HTML blocks', () => {
+    const index = [{
+      path: 'raw-html.md',
+      name: 'raw-html.md',
+      preview: '',
+    }];
+    const results = queryNotesSidebarSearch(index, 'needle', () => [
+      '<svg>',
+      'hidden needle',
+      '<svg><text>nested needle</text></svg>',
+      '</svg>',
+      'visible needle',
+    ].join('\n'));
+
+    expect(results.map((result) => result.contentSnippet)).toEqual(['visible needle']);
+  });
+
   it('does not run content search for a single-character query', () => {
     const index = buildNotesSidebarSearchIndex(rootFolder, () => '');
     const results = queryNotesSidebarSearch(index, 'x', (path) =>

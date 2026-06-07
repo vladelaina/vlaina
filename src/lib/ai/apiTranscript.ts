@@ -23,7 +23,11 @@ function normalizeApiTranscriptImageUrl(value: string): string | null {
   }
 
   const normalized = url.toLowerCase();
-  return normalized.startsWith('http://') || normalized.startsWith('https://') || normalized.startsWith('data:')
+  return normalized.startsWith('http://') ||
+    normalized.startsWith('https://') ||
+    normalized.startsWith('data:') ||
+    normalized.startsWith('attachment://') ||
+    normalized.startsWith('app-file://attachment/')
     ? url
     : null;
 }

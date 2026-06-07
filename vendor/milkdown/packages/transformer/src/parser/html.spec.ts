@@ -98,6 +98,23 @@ describe('mergePairedInlineHtml', () => {
     ])
   })
 
+  it('pairs same-tag nested inline html by nesting depth', () => {
+    const markdown = '<span style="color : #123456"><span style="font-weight : 600">nested</span></span>'
+    const tree = createTree(markdown, [
+      { type: 'html', value: '<span style="color : #123456">' },
+      { type: 'html', value: '<span style="font-weight : 600">' },
+      { type: 'text', value: 'nested' },
+      { type: 'html', value: '</span>' },
+      { type: 'html', value: '</span>' },
+    ])
+
+    const result = mergePairedInlineHtml(tree, markdown)
+
+    expect(paragraphChildren(result).map((node) => ({ type: node.type, value: node.value }))).toEqual([
+      { type: 'html', value: markdown },
+    ])
+  })
+
   it('does not repeatedly scan all siblings for unmatched open tags', () => {
     let stringReads = 0
     const children = Array.from({ length: 400 }, () => ({
