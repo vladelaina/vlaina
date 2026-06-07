@@ -10,7 +10,7 @@ const HTML_COMMENT_CLOSE_PATTERN = /-->\s*$/;
 const HTML_ONE_LINE_BLOCK_PATTERN =
   /^(?: {0,3})(?:<\?.*\?>|<![A-Za-z][^>]*>|<!\[CDATA\[[\s\S]*\]\]>)[ \t]*$/;
 const HTML_BLOCK_TAG_PATTERN =
-  /^(?: {0,3})<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|img|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i;
+  /^(?: {0,3})<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|img|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i;
 const ALIGNMENT_COMMENT_PATTERN = /^<!--\s*align:(?:left|center|right)\s*-->$/;
 const HTML_IMAGE_LINE_PATTERN = /^(?: {0,3})<img(?:\s|\/?>|$)/i;
 const REFERENCE_DEFINITION_PATTERN = /^\s{0,3}\[[^\]]+]:\s+\S+/;

@@ -1,8 +1,9 @@
 import type { Attachment } from '@/lib/storage/attachmentStorage';
-import { isRenderableDataImageSrc, normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
+import { isRenderableDataImageSrc } from '@/components/common/markdown/imagePolicy';
 import {
   extractRenderedMarkdownImageSources,
-  isRenderedImageSource,
+  MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+  normalizeRenderedMessageImageSources,
   stripMarkdownImageTokens,
 } from '@/components/Chat/common/messageClipboard';
 import { formatMarkdownImage } from '@/lib/markdown/markdownImageMarkdown';
@@ -63,8 +64,12 @@ export function toEditAttachment(src: string, index: number): Attachment {
 
 export function parseUserMessageContent(content: string): ParsedUserMessageContent {
   return {
-    imageSources: extractRenderedMarkdownImageSources(content),
-    text: stripMarkdownImageTokens(content).trim(),
+    imageSources: extractRenderedMarkdownImageSources(content, {
+      maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+    }),
+    text: stripMarkdownImageTokens(content, {
+      maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+    }).trim(),
   };
 }
 
@@ -72,9 +77,7 @@ export function parseUserMessageContentWithKnownImages(
   content: string,
   imageSources: string[] | undefined,
 ): ParsedUserMessageContent {
-  const safeImageSources = imageSources
-    ?.map((src) => normalizeRenderableImageSrc(src))
-    .filter((src): src is string => src !== null && isRenderedImageSource(src)) ?? [];
+  const safeImageSources = normalizeRenderedMessageImageSources(imageSources);
 
   if (safeImageSources.length === 0) {
     return parseUserMessageContent(content);
@@ -91,7 +94,9 @@ export function parseUserMessageContentWithKnownImages(
     } else {
       return {
         imageSources: safeImageSources,
-        text: stripMarkdownImageTokens(content).trim(),
+        text: stripMarkdownImageTokens(content, {
+          maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+        }).trim(),
       };
     }
 

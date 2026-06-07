@@ -529,6 +529,16 @@ describe('GitHub README HTML compatibility', () => {
     expect(result.persisted).toBe('<source srcset="images/a.webp 1x">');
   });
 
+  it('preserves GFM search HTML blocks with inline text on the opening line', async () => {
+    const markdown = '<search>Find *literal emphasis markers*\n</search>';
+
+    const result = await openGithubHtmlMarkdown(markdown);
+
+    expect(result.dom.querySelector('em')).toBeNull();
+    expect(result.dom.textContent).toContain('Find *literal emphasis markers*');
+    expect(result.persisted).toBe(markdown);
+  });
+
   it('removes sanitizer-only raw HTML without rendering the source as text', async () => {
     const markdown = [
       '<!-- hidden comment -->',

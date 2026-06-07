@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { convertToBase64 } from '@/lib/storage/attachmentStorage';
-import { buildStoredUserMessageContent } from './helpers';
+import { buildMessageImageSources, buildStoredUserMessageContent } from './helpers';
 
 const mocks = vi.hoisted(() => ({
   convertToBase64: vi.fn(),
@@ -135,5 +135,43 @@ describe('buildStoredUserMessageContent image parsing', () => {
 
     expect(Array.isArray(result) ? result.filter((part) => part.type === 'image_url') : []).toHaveLength(2000);
     expect(JSON.stringify(result)).toContain('![image 2000](data:image/png;base64,QUJD)');
+  });
+
+  it('converts vault image attachment paths instead of storing them as managed attachment references', async () => {
+    const result = await buildMessageImageSources([{
+      id: 'vault-image',
+      path: '/vault/assets/cover.png',
+      previewUrl: '',
+      assetUrl: '',
+      name: 'cover.png',
+      type: 'image/png',
+      size: 128,
+    }]);
+
+    expect(result).toEqual({
+      content: '![image](<data:image/png;base64,REMOTE>)',
+      imageSources: ['data:image/png;base64,REMOTE'],
+    });
+    expect(convertToBase64).toHaveBeenCalledWith(expect.objectContaining({
+      path: '/vault/assets/cover.png',
+    }), expect.any(Object));
+  });
+
+  it('keeps managed attachment URLs as stored references when building message images', async () => {
+    const result = await buildMessageImageSources([{
+      id: 'stored-image',
+      path: '',
+      previewUrl: '',
+      assetUrl: 'file:///appdata/.vlaina/attachments/demo%20image.png',
+      name: 'demo image.png',
+      type: 'image/png',
+      size: 128,
+    }]);
+
+    expect(result).toEqual({
+      content: '![image](<attachment://demo%20image.png>)',
+      imageSources: ['attachment://demo%20image.png'],
+    });
+    expect(convertToBase64).not.toHaveBeenCalled();
   });
 });

@@ -80,6 +80,26 @@ describe('workspaceSlice security guards', () => {
     expect(store.getState().error).toBe('Only Markdown files can be opened as notes.');
   });
 
+  it('does not open absolute markdown paths through the vault-relative note opener', async () => {
+    const store = createNotesStore();
+
+    await store.getState().openNote('/etc/secret.md');
+
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().error).toBe('Path must stay inside the current vault.');
+  });
+
+  it('does not open relative markdown paths through the absolute note opener', async () => {
+    const store = createNotesStore();
+
+    await store.getState().openNoteByAbsolutePath('docs/alpha.md');
+
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().error).toBe('Selected file path must be absolute');
+  });
+
   it('does not read vault-relative paths that traverse outside the vault', async () => {
     const store = createNotesStore();
 

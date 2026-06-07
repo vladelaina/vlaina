@@ -59,6 +59,35 @@ describe('findExportMarkdownAssetSourceTokens', () => {
     ]);
   });
 
+  it('ignores markdown image syntax inside source GFM HTML blocks', () => {
+    const markdown = [
+      '<source srcset="img:hero.webp 1x">',
+      '![hidden](img:hidden.png)',
+      '',
+      '![real](img:real.png)',
+    ].join('\n');
+
+    expect(findExportMarkdownAssetSourceTokens(markdown).map((token) => token.lookupSrc)).toEqual([
+      'img:hero.webp',
+      'img:real.png',
+    ]);
+  });
+
+  it('ignores markdown image syntax inside non-tag GFM HTML blocks', () => {
+    const markdown = [
+      '<![CDATA[',
+      '![hidden-cdata](img:hidden-cdata.png)',
+      ']]>',
+      '<?process ![hidden-processing](img:hidden-processing.png) ?>',
+      '<!DOCTYPE ![hidden-declaration](img:hidden-declaration.png)>',
+      '![real](img:real.png)',
+    ].join('\n');
+
+    expect(findExportMarkdownAssetSourceTokens(markdown).map((token) => token.lookupSrc)).toEqual([
+      'img:real.png',
+    ]);
+  });
+
   it('does not spend the html tag scan budget on tags inside comments', () => {
     const ignoredCommentTags = Array.from(
       { length: MAX_EXPORT_HTML_TAG_SCAN_RANGES },

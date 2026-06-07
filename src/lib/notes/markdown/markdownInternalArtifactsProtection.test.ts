@@ -55,6 +55,18 @@ describe('markdown internal artifact protection', () => {
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
 
+  it('preserves internal artifact-like text inside source html blocks', () => {
+    const markdown = [
+      '<source srcset="images/a.webp 1x">',
+      '<br data-vlaina-empty-line="true" />',
+      '<!--vlaina-markdown-blank-line-->',
+      '',
+      'Body',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
   it('removes leaked internal sentinels outside protected content', () => {
     expect(
       normalizeSerializedMarkdownDocument(['A', '��VLAINA_LIST_GAP_SENTINEL��', 'B'].join('\n'))

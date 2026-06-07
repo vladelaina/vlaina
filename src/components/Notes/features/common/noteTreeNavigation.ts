@@ -1,4 +1,5 @@
 import type { FileTreeNode } from '@/stores/notes/types';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 
 const MAX_NAVIGATION_TREE_NODES = 20_000;
 
@@ -18,7 +19,9 @@ export function collectNotePathsInTreeOrder(nodes: readonly FileTreeNode[]): str
       continue;
     }
 
-    paths.push(entry.path);
+    if (isSupportedMarkdownPath(entry.path)) {
+      paths.push(entry.path);
+    }
   }
 
   return paths;

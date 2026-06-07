@@ -6,7 +6,7 @@ import { mergePairedInlineHtml } from './html'
 
 function createPositionedInlineNodes(
   markdown: string,
-  parts: Array<{ type: string; value: string; source?: string }>
+  parts: Array<{ type: string; value?: string; children?: MarkdownNode[]; source?: string }>
 ): MarkdownNode[] {
   let offset = 0
   return parts.map((part) => {
@@ -24,7 +24,10 @@ function createPositionedInlineNodes(
   })
 }
 
-function createTree(markdown: string, parts: Array<{ type: string; value: string; source?: string }>): MarkdownNode {
+function createTree(
+  markdown: string,
+  parts: Array<{ type: string; value?: string; children?: MarkdownNode[]; source?: string }>
+): MarkdownNode {
   return {
     type: 'root',
     children: [
@@ -113,6 +116,34 @@ describe('mergePairedInlineHtml', () => {
     expect(paragraphChildren(result).map((node) => ({ type: node.type, value: node.value }))).toEqual([
       { type: 'html', value: markdown },
     ])
+  })
+
+  it('restores raw source for search listed-tag html blocks with inline markdown text', () => {
+    const markdown = '<search>Find *literal emphasis markers*\n</search>'
+    const tree = createTree(markdown, [
+      { type: 'html', value: '<search>' },
+      { type: 'text', value: 'Find ' },
+      {
+        type: 'emphasis',
+        children: [{ type: 'text', value: 'literal emphasis markers' }] as MarkdownNode[],
+        source: '*literal emphasis markers*',
+      },
+      { type: 'text', value: '\n' },
+      { type: 'html', value: '</search>' },
+    ])
+
+    const result = mergePairedInlineHtml(tree, markdown)
+
+    expect(result).toMatchObject({
+      type: 'root',
+      children: [
+        {
+          type: 'html',
+          value: markdown,
+          githubHtmlBlock: true,
+        },
+      ],
+    })
   })
 
   it('does not repeatedly scan all siblings for unmatched open tags', () => {

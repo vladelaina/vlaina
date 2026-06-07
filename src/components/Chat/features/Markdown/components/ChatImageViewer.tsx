@@ -36,8 +36,11 @@ const VIEWER_CONTROL_SELECTOR = '[data-chat-image-viewer-control="true"]';
 const CROPPER_IMAGE_SELECTOR = '.reactEasyCrop_Image';
 const VIEWER_SURFACE_SELECTOR = '[data-chat-image-viewer-surface="true"]';
 const RESOLVED_VIEWER_IMAGE_CACHE_LIMIT = 100;
+export const RESOLVED_VIEWER_IMAGE_CACHE_CHAR_LIMIT = 32 * 1024 * 1024;
 const MAX_COMPARABLE_IMAGE_SRC_DECODE_CHARS = 4096;
 const resolvedViewerImageCache = new Map<string, Promise<string | null>>();
+const resolvedViewerImageCacheSizes = new Map<string, number>();
+let resolvedViewerImageCacheChars = 0;
 const imageViewerToolbarButtonClass =
   "inline-flex h-9 w-9 items-center justify-center rounded-full bg-transparent text-[var(--vlaina-color-text-strong)] transition-colors hover:bg-[var(--vlaina-hover)]";
 
@@ -117,6 +120,45 @@ function requiresAttachmentResolution(src: string): boolean {
   return createStoredAttachmentFromSource(src) !== null;
 }
 
+function removeResolvedViewerImageCacheEntry(src: string): void {
+  const cachedSize = resolvedViewerImageCacheSizes.get(src) ?? 0;
+  if (cachedSize > 0) {
+    resolvedViewerImageCacheChars = Math.max(0, resolvedViewerImageCacheChars - cachedSize);
+  }
+  resolvedViewerImageCacheSizes.delete(src);
+  resolvedViewerImageCache.delete(src);
+}
+
+function pruneResolvedViewerImageCache(): void {
+  while (resolvedViewerImageCacheChars > RESOLVED_VIEWER_IMAGE_CACHE_CHAR_LIMIT) {
+    const oldestKey = resolvedViewerImageCacheSizes.keys().next().value;
+    if (!oldestKey) {
+      break;
+    }
+    removeResolvedViewerImageCacheEntry(oldestKey);
+  }
+}
+
+function rememberResolvedViewerImageCacheSize(src: string, resolvedSrc: string | null): void {
+  if (!resolvedViewerImageCache.has(src)) {
+    return;
+  }
+
+  const nextSize = resolvedSrc?.length ?? 0;
+  const previousSize = resolvedViewerImageCacheSizes.get(src) ?? 0;
+  resolvedViewerImageCacheChars = Math.max(0, resolvedViewerImageCacheChars - previousSize);
+  resolvedViewerImageCacheSizes.delete(src);
+
+  if (nextSize <= 0 || nextSize > RESOLVED_VIEWER_IMAGE_CACHE_CHAR_LIMIT) {
+    removeResolvedViewerImageCacheEntry(src);
+    return;
+  }
+
+  resolvedViewerImageCacheSizes.set(src, nextSize);
+  resolvedViewerImageCacheChars += nextSize;
+  pruneResolvedViewerImageCache();
+}
+
 function getInitialViewerImageSource(src: string): string {
   if (requiresAttachmentResolution(src)) {
     return src;
@@ -133,17 +175,27 @@ async function resolveViewerImageSource(src: string): Promise<string | null> {
   if (cached) {
     resolvedViewerImageCache.delete(src);
     resolvedViewerImageCache.set(src, cached);
+    const cachedSize = resolvedViewerImageCacheSizes.get(src);
+    if (cachedSize !== undefined) {
+      resolvedViewerImageCacheSizes.delete(src);
+      resolvedViewerImageCacheSizes.set(src, cachedSize);
+    }
     return cached;
   }
 
-  const resolved = resolveSafeChatImageSource(src, "viewer-image").catch((error) => {
-    resolvedViewerImageCache.delete(src);
-    throw error;
-  });
+  const resolved = resolveSafeChatImageSource(src, "viewer-image")
+    .then((resolvedSrc) => {
+      rememberResolvedViewerImageCacheSize(src, resolvedSrc);
+      return resolvedSrc;
+    })
+    .catch((error) => {
+      removeResolvedViewerImageCacheEntry(src);
+      throw error;
+    });
   if (resolvedViewerImageCache.size >= RESOLVED_VIEWER_IMAGE_CACHE_LIMIT) {
     const oldestKey = resolvedViewerImageCache.keys().next().value;
     if (oldestKey) {
-      resolvedViewerImageCache.delete(oldestKey);
+      removeResolvedViewerImageCacheEntry(oldestKey);
     }
   }
   resolvedViewerImageCache.set(src, resolved);

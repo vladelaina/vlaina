@@ -1,4 +1,5 @@
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import {
   getStarredEntryAbsolutePath,
   normalizeStarredVaultPath,
@@ -27,6 +28,9 @@ export function collectStarredSearchEntries(
 
   for (const entry of starredEntries) {
     if (entry.kind !== 'note') {
+      continue;
+    }
+    if (!isSupportedMarkdownPath(entry.relativePath)) {
       continue;
     }
 

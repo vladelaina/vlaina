@@ -16,6 +16,8 @@ const KEY_ICON = `${MANAGED_FRONTMATTER_PREFIX}icon`;
 const KEY_CREATED = `${MANAGED_FRONTMATTER_PREFIX}created`;
 const KEY_UPDATED = `${MANAGED_FRONTMATTER_PREFIX}updated`;
 const FRONTMATTER_TIMESTAMP_OFFSET_MINUTES = 8 * 60;
+const MAX_NOTE_ICON_CHARS = 4096;
+const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 const MANAGED_KEYS = new Set([
   KEY_COVER,
@@ -199,6 +201,19 @@ function normalizeCover(cover: NoteCoverMetadata | null | undefined): NoteCoverM
   return normalizeNoteCoverMetadata(cover);
 }
 
+function normalizeIcon(icon: unknown): string | undefined {
+  if (typeof icon !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = icon.trim();
+  if (!trimmed || trimmed.length > MAX_NOTE_ICON_CHARS || CONTROL_OR_BIDI_PATTERN.test(trimmed)) {
+    return undefined;
+  }
+
+  return trimmed;
+}
+
 export function normalizeNoteMetadataEntry(
   entry: Partial<NoteMetadataEntry> | null | undefined
 ): NoteMetadataEntry {
@@ -207,9 +222,10 @@ export function normalizeNoteMetadataEntry(
   }
 
   const normalized: NoteMetadataEntry = {};
+  const icon = normalizeIcon(entry.icon);
 
-  if (typeof entry.icon === 'string' && entry.icon) {
-    normalized.icon = entry.icon;
+  if (icon) {
+    normalized.icon = icon;
   }
 
   const cover = normalizeCover(entry.cover);
@@ -250,8 +266,9 @@ export function readNoteMetadataFromMarkdown(markdown: string): NoteMetadataEntr
   const coverValue = parsedValues.get(KEY_COVER);
   const normalized: NoteMetadataEntry = {};
 
-  if (typeof parsedValues.get(KEY_ICON) === 'string') {
-    normalized.icon = parsedValues.get(KEY_ICON) as string;
+  const icon = normalizeIcon(parsedValues.get(KEY_ICON));
+  if (icon) {
+    normalized.icon = icon;
   }
 
   if (typeof coverValue === 'string' && coverValue) {

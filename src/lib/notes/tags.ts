@@ -1,4 +1,5 @@
 import { getRawTextHtmlRanges } from '../markdown/markdownHtmlRanges';
+import { getMarkdownHtmlBlockRanges } from '../markdown/markdownRanges';
 
 const MAX_NOTE_TAG_TOKEN_CHARS = 128;
 const MAX_NOTE_TAG_OCCURRENCES = 2000;
@@ -57,6 +58,7 @@ function collectExcludedRanges(content: string): ExcludedRange[] {
   collectInlineCodeRanges(content, ranges);
   collectAutolinkRanges(content, ranges);
   collectRawTextHtmlRanges(content, ranges);
+  collectMarkdownHtmlBlockRanges(content, ranges);
   collectHtmlTagRanges(content, ranges);
   collectMarkdownLinkTargetRanges(content, ranges);
 
@@ -264,6 +266,24 @@ function collectRawTextHtmlRanges(content: string, ranges: ExcludedRange[]): voi
   }
 
   for (const range of getRawTextHtmlRanges(content, { start: 0, end: content.length }, remainingRanges)) {
+    pushExcludedRange(ranges, { from: range.start, to: range.end });
+    if (ranges.length >= MAX_EXCLUDED_RANGES) {
+      return;
+    }
+  }
+}
+
+function collectMarkdownHtmlBlockRanges(content: string, ranges: ExcludedRange[]): void {
+  const remainingRanges = MAX_EXCLUDED_RANGES - ranges.length;
+  if (remainingRanges <= 0) {
+    return;
+  }
+
+  for (const range of getMarkdownHtmlBlockRanges(
+    content,
+    { start: 0, end: content.length },
+    remainingRanges,
+  )) {
     pushExcludedRange(ranges, { from: range.start, to: range.end });
     if (ranges.length >= MAX_EXCLUDED_RANGES) {
       return;

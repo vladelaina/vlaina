@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { normalizeSessionMessages } from './chatStorage';
 
 function createRawMessage(id: string, overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -68,6 +68,63 @@ describe('chatStorage normalization bounds', () => {
     const child = messages[0]?.versions[0]?.subsequentMessages[0];
     expect(child?.id).toBe('child');
     expect(child?.versions[0]?.subsequentMessages).toEqual([]);
+  });
+
+  it('replaces non-finite restored message timestamps', () => {
+    const now = Date.UTC(2026, 5, 7, 7, 0, 0);
+    const dateNow = vi.spyOn(Date, 'now').mockReturnValue(now);
+
+    try {
+      const messages = normalizeSessionMessages([createRawMessage('m1', {
+        timestamp: Number.POSITIVE_INFINITY,
+        versions: [{
+          content: 'm1',
+          createdAt: Number.NaN,
+          kind: 'original',
+          subsequentMessages: [createRawMessage('branch', {
+            timestamp: Number.NEGATIVE_INFINITY,
+          })],
+        }],
+      })]);
+
+      expect(messages[0]?.timestamp).toBe(now);
+      expect(messages[0]?.versions[0]?.createdAt).toBe(now);
+      expect(messages[0]?.versions[0]?.subsequentMessages[0]?.timestamp).toBe(now);
+      expect(messages[0]?.versions[0]?.subsequentMessages[0]?.versions[0]?.createdAt).toBe(now);
+    } finally {
+      dateNow.mockRestore();
+    }
+  });
+
+  it('assigns unique ids to duplicate restored top-level messages', () => {
+    const messages = normalizeSessionMessages([
+      createRawMessage('duplicate', { content: 'first' }),
+      createRawMessage('duplicate', { content: 'second' }),
+    ]);
+
+    expect(messages[0]?.id).toBe('duplicate');
+    expect(messages[1]?.id).not.toBe('duplicate');
+    expect(messages[1]?.id.startsWith('msg-')).toBe(true);
+    expect(new Set(messages.map((message) => message.id))).toHaveLength(2);
+  });
+
+  it('preserves top-level ids when restored branch messages reuse them', () => {
+    const messages = normalizeSessionMessages([
+      createRawMessage('root', {
+        versions: [{
+          content: 'root',
+          createdAt: 1,
+          kind: 'original',
+          subsequentMessages: [createRawMessage('later')],
+        }],
+      }),
+      createRawMessage('later'),
+    ]);
+
+    const branch = messages[0]?.versions[0]?.subsequentMessages[0];
+    expect(messages[1]?.id).toBe('later');
+    expect(branch?.id).not.toBe('later');
+    expect(branch?.id.startsWith('msg-')).toBe(true);
   });
 
   it('bounds restored image source caches', () => {

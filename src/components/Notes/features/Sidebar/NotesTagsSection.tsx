@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
+import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import { stripMarkdownExtension } from '@/lib/notes/displayName';
 import { NotesSidebarRow } from './NotesSidebarRow';
 import type { NotesSidebarTagEntry, NotesSidebarTagPath } from './notesSidebarTags';
@@ -12,6 +12,7 @@ import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
 import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
+import { resolveVaultRelativeFullPath } from '@/stores/notes/utils/fs/vaultPathContainment';
 import { themeIconTokens } from '@/styles/themeTokens';
 
 const MAX_TAG_NOTE_ICON_CACHE_ENTRIES = 300;
@@ -42,7 +43,9 @@ async function readTagNoteIcon(path: string, vaultPath: string | null): Promise<
   const fullPath = isAbsolutePath(path)
     ? path
     : vaultPath
-      ? await joinPath(vaultPath, path)
+      ? await resolveVaultRelativeFullPath(vaultPath, path)
+          .then((result) => result.fullPath)
+          .catch(() => null)
       : null;
   if (!fullPath) {
     return { modifiedAt: null, size: null, icon: null };

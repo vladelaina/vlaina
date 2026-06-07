@@ -2,7 +2,7 @@ import { StateCreator } from 'zustand';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { createAsyncPrefetchQueue } from '@/lib/asyncPrefetchQueue';
-import { normalizeAbsolutePath } from '@/lib/storage/adapter';
+import { isAbsolutePath, normalizeAbsolutePath } from '@/lib/storage/adapter';
 import { NotesStore } from '../types';
 import { updateDisplayName } from '../displayNameUtils';
 import { resolveDraftNoteTitle } from '../draftNote';
@@ -33,6 +33,7 @@ import { createWorkspaceDocumentActions } from './workspaceDocumentActions';
 import { createWorkspaceExternalActions } from './workspaceExternalActions';
 import { createWorkspaceTabActions } from './workspaceTabActions';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
+import { normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
 
 interface PendingNotePrefetch {
   promise: Promise<void>;
@@ -209,6 +210,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       set({ error: 'Only Markdown files can be opened as notes.' });
       return;
     }
+    const normalizedPath = normalizeVaultRelativePath(path);
+    if (normalizedPath == null) {
+      set({ error: 'Path must stay inside the current vault.' });
+      return;
+    }
+    path = normalizedPath;
 
     let { notesPath, isDirty, saveNote, recentNotes, currentNote, noteContentsCache, draftNotes } = get();
     let shouldOpenInNewTab = openInNewTab;
@@ -307,6 +314,10 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   openNoteByAbsolutePath: async (absolutePath: string, openInNewTab: boolean = false) => {
     flushCurrentPendingEditorMarkdown();
     const normalizedAbsolutePath = normalizeAbsolutePath(absolutePath);
+    if (!isAbsolutePath(normalizedAbsolutePath)) {
+      set({ error: 'Selected file path must be absolute' });
+      return;
+    }
     if (!isSupportedMarkdownPath(normalizedAbsolutePath)) {
       set({ error: 'Only Markdown files can be opened as notes.' });
       return;
@@ -397,6 +408,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     if (!isSupportedMarkdownPath(path)) {
       return;
     }
+    const normalizedPath = normalizeVaultRelativePath(path);
+    if (normalizedPath == null) {
+      return;
+    }
+    path = normalizedPath;
     if (isCachedNoteFresh(get(), path)) {
       return;
     }
@@ -473,7 +489,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       return;
     }
 
-    cancelledNotePrefetches.add(getNotePrefetchKey(notesPath, path));
+    const normalizedPath = normalizeVaultRelativePath(path);
+    if (normalizedPath == null) {
+      return;
+    }
+
+    cancelledNotePrefetches.add(getNotePrefetchKey(notesPath, normalizedPath));
   },
 
   adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => {

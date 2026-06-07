@@ -5,7 +5,7 @@ import { defaultValueCtx, Editor, editorViewCtx } from '@milkdown/core'
 import { expect, it } from 'vitest'
 
 import { commonmark } from '..'
-import { sanitizeGithubHtml } from '../node/github-html'
+import { isGithubHtmlBlock, sanitizeGithubHtml } from '../node/github-html'
 
 function createEditor() {
   const editor = Editor.make()
@@ -81,6 +81,10 @@ it('should reject unsafe source srcset descriptors in github html', () => {
   expect(result).toBe('<source><source><source srcset="images/safe.webp 1x">')
   expect(result).not.toContain('javascript:')
   expect(result).not.toContain('invalid-descriptor')
+})
+
+it('should classify search listed-tag html blocks with inline text as github html blocks', () => {
+  expect(isGithubHtmlBlock('<search>Find *literal emphasis markers*\n</search>')).toBe(true)
 })
 
 it('should reject scheme-bearing media urls even when plain relatives are allowed', () => {

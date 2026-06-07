@@ -14,6 +14,18 @@ export function getCachedNoteSize(cache: NoteContentCache, path: string): number
   return cache.get(path)?.size ?? null;
 }
 
+export function createCachedNoteContentEntry(
+  content: string,
+  modifiedAt: number | null,
+  options: { size?: number | null } = {}
+): NoteContentCacheEntry {
+  const entry: NoteContentCacheEntry = { content, modifiedAt };
+  defineHiddenCacheMetadata(entry, {
+    size: Object.prototype.hasOwnProperty.call(options, 'size') ? options.size ?? null : undefined,
+  });
+  return entry;
+}
+
 function defineHiddenCacheMetadata(
   entry: NoteContentCacheEntry,
   options: { savedContent?: string; freshUntil?: number; size?: number | null }

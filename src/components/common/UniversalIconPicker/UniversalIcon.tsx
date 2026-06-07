@@ -26,6 +26,7 @@ const resolveSize = (size?: number | string | IconSize) => {
 
 const defaultImageSrcCache = new Map<string, string>();
 const loaderImageSrcCaches = new WeakMap<(src: string) => Promise<string>, Map<string, string>>();
+const MAX_IMAGE_SRC_CACHE_ENTRIES = 512;
 
 const hasIconImageScheme = (value: string) => /^img:/i.test(value);
 const hasIconSymbolScheme = (value: string) => /^icon:/i.test(value);
@@ -39,6 +40,29 @@ function getImageSrcCache(imageLoader?: (src: string) => Promise<string>) {
     loaderImageSrcCaches.set(imageLoader, cache);
   }
   return cache;
+}
+
+function getCachedImageSrc(cache: Map<string, string>, icon: string): string | null {
+  const cached = cache.get(icon);
+  if (!cached) {
+    return null;
+  }
+  cache.delete(icon);
+  cache.set(icon, cached);
+  return cached;
+}
+
+function setCachedImageSrc(cache: Map<string, string>, icon: string, src: string): void {
+  cache.delete(icon);
+  cache.set(icon, src);
+
+  while (cache.size > MAX_IMAGE_SRC_CACHE_ENTRIES) {
+    const oldestKey = cache.keys().next().value;
+    if (oldestKey === undefined) {
+      return;
+    }
+    cache.delete(oldestKey);
+  }
 }
 
 const ImageIconRenderer = memo(function ImageIconRenderer({
@@ -218,7 +242,7 @@ export function UniversalIcon({
     if (!hasIconImageScheme(icon)) {
       return { icon, src: null };
     }
-    return { icon, src: imageSrcCache.get(icon) ?? null };
+    return { icon, src: getCachedImageSrc(imageSrcCache, icon) };
   });
   const resolvedSize = resolveSize(size);
 
@@ -226,7 +250,7 @@ export function UniversalIcon({
     let active = true;
     const load = async () => {
       if (icon && hasIconImageScheme(icon)) {
-        const cachedSrc = imageSrcCache.get(icon);
+        const cachedSrc = getCachedImageSrc(imageSrcCache, icon);
         if (cachedSrc) {
           setLoadedImage({ icon, src: cachedSrc });
           return;
@@ -235,14 +259,14 @@ export function UniversalIcon({
         if (imageLoader) {
           try {
             const url = await imageLoader(icon);
-            if (url) imageSrcCache.set(icon, url);
+            if (url) setCachedImageSrc(imageSrcCache, icon, url);
             if (active) setLoadedImage({ icon, src: url || null });
           } catch {
             if (active) setLoadedImage({ icon, src: null });
           }
         } else {
           const url = icon.substring(4);
-          if (url) imageSrcCache.set(icon, url);
+          if (url) setCachedImageSrc(imageSrcCache, icon, url);
           if (active) setLoadedImage({ icon, src: url || null });
         }
       } else {
@@ -258,7 +282,7 @@ export function UniversalIcon({
   if (hasIconImageScheme(icon)) {
     const imgSrc = loadedImage.icon === icon
       ? loadedImage.src
-      : imageSrcCache.get(icon) ?? null;
+      : getCachedImageSrc(imageSrcCache, icon);
 
     return imgSrc ? (
       <ImageIconRenderer

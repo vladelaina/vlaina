@@ -81,6 +81,56 @@ function hasSession(ai: { sessions: Array<{ id: string }> }, sessionId: string):
   return ai.sessions.some((session) => session.id === sessionId)
 }
 
+const MAX_MESSAGE_ID_SCAN_NODES = 10000
+const MAX_MESSAGE_ID_CHARS = 512
+
+function collectSessionMessageIds(messages: ChatMessage[]): Set<string> {
+  const ids = new Set<string>()
+  const seenMessages = new Set<ChatMessage>()
+  const stack: ChatMessage[] = [...messages]
+
+  while (stack.length > 0 && seenMessages.size < MAX_MESSAGE_ID_SCAN_NODES) {
+    const message = stack.pop()!
+    if (seenMessages.has(message)) {
+      continue
+    }
+    seenMessages.add(message)
+    ids.add(message.id)
+
+    const versions = Array.isArray(message.versions) ? message.versions : []
+    for (const version of versions) {
+      if (Array.isArray(version.subsequentMessages)) {
+        stack.push(...version.subsequentMessages)
+      }
+    }
+  }
+
+  return ids
+}
+
+function createUniqueMessageId(messages: ChatMessage[], preferredId?: string): string {
+  const existingIds = collectSessionMessageIds(messages)
+  const normalizedPreferredId = preferredId?.trim().slice(0, MAX_MESSAGE_ID_CHARS) || ''
+  if (normalizedPreferredId && !existingIds.has(normalizedPreferredId)) {
+    return normalizedPreferredId
+  }
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const id = generateId('msg-')
+    if (!existingIds.has(id)) {
+      return id
+    }
+  }
+
+  let fallbackIndex = existingIds.size
+  let fallbackId = `msg-${Date.now()}-${fallbackIndex}`
+  while (existingIds.has(fallbackId)) {
+    fallbackIndex += 1
+    fallbackId = `msg-${Date.now()}-${fallbackIndex}`
+  }
+  return fallbackId
+}
+
 interface AddMessageOptions {
   persistUnified?: boolean
   touchSession?: boolean
@@ -152,18 +202,19 @@ export function createMessageActions() {
       if (!hasSession(ai, targetSessionId)) return
       const persistUnified = options?.persistUnified !== false
       const touchSession = options?.touchSession !== false
+      const sessionMessages = ai.messages[targetSessionId] || []
 
       const createdAt = Date.now()
+      const id = createUniqueMessageId(sessionMessages, message.id)
       const newMessage: ChatMessage = {
         ...message,
         imageSources: getNewMessageImageSources(message),
-        id: message.id || generateId('msg-'),
+        id,
         timestamp: createdAt,
         versions: [createMessageVersion(message.content || '', createdAt, 'original', message.apiTranscript)],
         currentVersionIndex: 0
       }
 
-      const sessionMessages = ai.messages[targetSessionId] || []
       const newMessages = [...sessionMessages, newMessage]
 
       state.updateAIData({

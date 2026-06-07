@@ -92,6 +92,65 @@ describe('note frontmatter metadata', () => {
     });
   });
 
+  it('drops unsafe managed icon and cover strings from untrusted frontmatter', () => {
+    const oversizedIcon = 'x'.repeat(4097);
+    const oversizedCover = `${'a'.repeat(16 * 1024)}.png`;
+
+    expect(readNoteMetadataFromMarkdown([
+      '---',
+      `vlaina_icon: "${oversizedIcon}"`,
+      'vlaina_cover: "assets/\u202Ecod.exe.png"',
+      '---',
+      '# Title',
+    ].join('\n'))).toEqual({});
+
+    expect(readNoteMetadataFromMarkdown([
+      '---',
+      'vlaina_icon: "sparkles\u202E"',
+      'vlaina_cover: "/etc/passwd"',
+      '---',
+      '# Title',
+    ].join('\n'))).toEqual({});
+
+    expect(readNoteMetadataFromMarkdown([
+      '---',
+      'vlaina_icon: "sparkles"',
+      `vlaina_cover: "${oversizedCover}"`,
+      '---',
+      '# Title',
+    ].join('\n'))).toEqual({
+      icon: 'sparkles',
+    });
+  });
+
+  it('keeps supported managed icon and cover string forms', () => {
+    expect(readNoteMetadataFromMarkdown([
+      '---',
+      'vlaina_icon: " icon:sparkles:#ffcc00 "',
+      'vlaina_cover: " @biva/1 "',
+      '---',
+      '# Title',
+    ].join('\n'))).toEqual({
+      icon: 'icon:sparkles:#ffcc00',
+      cover: {
+        assetPath: '@biva/1',
+      },
+    });
+
+    expect(readNoteMetadataFromMarkdown([
+      '---',
+      'vlaina_icon: "img:/app/.vlaina/assets/icons/demo.png"',
+      'vlaina_cover: "assets/cover.webp"',
+      '---',
+      '# Title',
+    ].join('\n'))).toEqual({
+      icon: 'img:/app/.vlaina/assets/icons/demo.png',
+      cover: {
+        assetPath: 'assets/cover.webp',
+      },
+    });
+  });
+
   it('updates managed fields without dropping markdown body content', () => {
     const markdown = '# Title\n\nBody';
 

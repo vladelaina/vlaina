@@ -47,6 +47,18 @@ describe('noteTreeNavigation', () => {
     ]);
   });
 
+  it('ignores non-Markdown file tree nodes', () => {
+    expect(collectNotePathsInTreeOrder([
+      file('asset.png'),
+      file('guide.markdown'),
+      file('draft.txt'),
+      file('reference.mkd'),
+    ])).toEqual([
+      'guide.markdown',
+      'reference.mkd',
+    ]);
+  });
+
   it('collects note paths from deep trees without recursive traversal', () => {
     expect(collectNotePathsInTreeOrder(deepTree(2500))).toEqual(['folder-2500/leaf.md']);
   });

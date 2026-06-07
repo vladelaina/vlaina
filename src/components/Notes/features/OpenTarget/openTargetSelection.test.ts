@@ -117,6 +117,8 @@ describe('openTargetSelection', () => {
   it('accepts supported Markdown extensions', () => {
     expect(isSupportedMarkdownSelection('/vault/docs/README.MD')).toBe(true);
     expect(isSupportedMarkdownSelection('/vault/docs/note.markdown')).toBe(true);
+    expect(isSupportedMarkdownSelection('/vault/docs/note.mdown')).toBe(true);
+    expect(isSupportedMarkdownSelection('/vault/docs/note.mkd')).toBe(true);
     expect(isSupportedMarkdownSelection('/vault/docs/data.txt')).toBe(false);
   });
 

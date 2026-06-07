@@ -241,6 +241,14 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
     expect(normalizeSerializedMarkdownDocument(editorInput)).toBe(markdown);
   });
 
+  it('keeps the structural separator after source html blocks', () => {
+    const markdown = ['<source srcset="images/a.webp 1x">', '', '# Next'].join('\n');
+    const editorInput = preserveMarkdownBlankLinesForEditor(markdown);
+
+    expect(editorInput).toBe(markdown);
+    expect(normalizeSerializedMarkdownDocument(editorInput)).toBe(markdown);
+  });
+
   it('matches fenced code closers by marker and length', () => {
     const markdown = ['````', '```', '', 'code', '````', '', 'after'].join('\n');
 

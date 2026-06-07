@@ -88,6 +88,23 @@ describe('asset path resolution', () => {
       .resolves.toEqual([]);
   });
 
+  it('rejects unsafe non-local asset paths before resolving candidates', async () => {
+    await expect(resolveVaultAssetPathCandidates('/vault', 'https://example.com/a.png', 'daily/note.md'))
+      .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', '//example.com/a.png', 'daily/note.md'))
+      .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', '\\\\server\\share\\a.png', 'daily/note.md'))
+      .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', 'assets/\u202Ecod.exe.png', 'daily/note.md'))
+      .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', `${'a'.repeat(16 * 1024)}.png`, 'daily/note.md'))
+      .resolves.toEqual([]);
+  });
+
   it('rejects windows parent traversal outside the vault root', async () => {
     await expect(resolveVaultAssetPathCandidates('C:\\vault', '..\\..\\secret.png', 'daily\\note.md'))
       .resolves.toEqual([]);

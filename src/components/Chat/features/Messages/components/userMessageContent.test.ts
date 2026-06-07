@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
+import { MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES } from '@/components/Chat/common/messageClipboard';
 import {
   composeUserMessageContent,
   parseUserMessageContent,
@@ -96,6 +97,20 @@ describe('userMessageContent', () => {
       imageSources: ['data:image/png;base64,AAAA'],
       text: 'hello',
     });
+  });
+
+  it('bounds image parsing for image-heavy edited user messages', () => {
+    const content = Array.from(
+      { length: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES + 1 },
+      (_, index) => `![image ${index}](https://example.com/${index}.png)`,
+    ).join('\n');
+
+    const parsed = parseUserMessageContent(content);
+
+    expect(parsed.imageSources).toHaveLength(MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES);
+    expect(parsed.text).toContain(
+      `![image ${MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES}](https://example.com/${MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES}.png)`,
+    );
   });
 
   it('infers edit attachment metadata from case-insensitive data image sources', () => {

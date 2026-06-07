@@ -119,6 +119,17 @@ export function useNotesOpenMarkdownTarget({
       return;
     }
 
+    let target: ReturnType<typeof resolveOpenNoteTarget>;
+    try {
+      target = resolveOpenNoteTarget(selected);
+    } catch (error) {
+      await messageDialog(error instanceof Error ? error.message : t('notes.openMarkdownFileFailed'), {
+        title: t('notes.openFailed'),
+        kind: 'error',
+      });
+      return;
+    }
+
     setIsOpenTargetBusy(true);
     try {
       await flushCurrentTitleCommit();
@@ -128,7 +139,6 @@ export function useNotesOpenMarkdownTarget({
         return;
       }
 
-      const target = resolveOpenNoteTarget(selected);
       const targetNotePath = target.notePath;
       const normalizedTargetVaultPath = normalizeVaultPath(target.vaultPath);
       const normalizedCurrentVaultPath = currentVaultPath ? normalizeVaultPath(currentVaultPath) : null;

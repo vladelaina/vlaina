@@ -118,12 +118,6 @@ export function isImageAttachment(attachment: Attachment): boolean {
 export function getAttachmentMessageImageSrc(attachment: Attachment): string {
   const mimeType = attachment.type?.trim().toLowerCase() ?? '';
   const previewUrl = attachment.previewUrl?.trim() ?? '';
-  const attachmentPath = attachment.path?.trim() ?? '';
-  const pathFilename = attachmentPath.split(/[\\/]/).pop()?.trim();
-  if (pathFilename) {
-    return `attachment://${encodeURIComponent(pathFilename)}`;
-  }
-
   const assetUrl = attachment.assetUrl?.trim() ?? '';
   if (assetUrl) {
     const storedFilename = extractStoredAttachmentFilename(assetUrl);
@@ -943,18 +937,37 @@ async function getRenderableMessageImageSrc(attachment: Attachment): Promise<str
     return isSizedDataImageSrc(normalizedSrc) ? normalizedSrc : null;
   }
 
-  if (!isSvgDataUrl(rawSrc)) {
+  if (!isSvgDataUrl(rawSrc) && !attachment.path?.trim()) {
     return null;
   }
-  if (!isSizedDataImageSrc(rawSrc)) {
+  if (isSvgDataUrl(rawSrc) && !isSizedDataImageSrc(rawSrc)) {
     return null;
   }
 
-  const rasterizedSrc = await rasterizeSvgDataUrlToPng(rawSrc);
-  const normalizedRasterizedSrc = normalizeRenderableImageSrc(rasterizedSrc);
-  return normalizedRasterizedSrc && isSizedDataImageSrc(normalizedRasterizedSrc)
-    ? normalizedRasterizedSrc
-    : null;
+  if (isSvgDataUrl(rawSrc)) {
+    const rasterizedSrc = await rasterizeSvgDataUrlToPng(rawSrc);
+    const normalizedRasterizedSrc = normalizeRenderableImageSrc(rasterizedSrc);
+    if (normalizedRasterizedSrc && isSizedDataImageSrc(normalizedRasterizedSrc)) {
+      return normalizedRasterizedSrc;
+    }
+  }
+
+  if (!attachment.path?.trim()) {
+    return null;
+  }
+
+  try {
+    const base64 = await convertToBase64(attachment, {
+      allowPath: isCurrentVaultImageAttachmentPath,
+    });
+    const normalizedBase64 = isSvgDataUrl(base64)
+      ? await rasterizeSvgDataUrlToPng(base64)
+      : base64;
+    const imageSrc = normalizeRenderableImageSrc(normalizedBase64);
+    return imageSrc && isSizedDataImageSrc(imageSrc) ? imageSrc : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function buildMessageImageSources(attachments: Attachment[]): Promise<{ content: string; imageSources: string[] }> {

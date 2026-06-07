@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
+import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { assertEditorSafeMarkdownContent } from '@/stores/notes/document/noteDocumentPersistence';
+import { resolveVaultRelativeFullPath } from '@/stores/notes/utils/fs/vaultPathContainment';
 import type { StarredEntry } from '@/stores/notes/types';
 import type { FolderNode } from '@/stores/useNotesStore';
 import {
@@ -36,7 +37,9 @@ async function readSidebarTagContent(path: string, currentVaultPath: string | nu
   const fullPath = isAbsolutePath(path)
     ? path
     : currentVaultPath
-      ? await joinPath(currentVaultPath, path)
+      ? await resolveVaultRelativeFullPath(currentVaultPath, path)
+          .then((result) => result.fullPath)
+          .catch(() => null)
       : null;
   if (!fullPath) {
     return '';

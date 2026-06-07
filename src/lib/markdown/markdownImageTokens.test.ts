@@ -67,6 +67,34 @@ describe('markdownImageTokens', () => {
     ]);
   });
 
+  it('ignores markdown image syntax inside source GFM HTML blocks', () => {
+    const markdown = [
+      '<source srcset="https://example.com/source.webp 1x">',
+      '![hidden](https://example.com/hidden.png)',
+      '',
+      '![real](https://example.com/real.png)',
+    ].join('\n');
+
+    expect(parseMarkdownAndHtmlImageTokens(markdown).map((token) => token.src)).toEqual([
+      'https://example.com/real.png',
+    ]);
+  });
+
+  it('ignores markdown image syntax inside non-tag GFM HTML blocks', () => {
+    const markdown = [
+      '<![CDATA[',
+      '![hidden-cdata](https://example.com/hidden-cdata.png)',
+      ']]>',
+      '<?process ![hidden-processing](https://example.com/hidden-processing.png) ?>',
+      '<!DOCTYPE ![hidden-declaration](https://example.com/hidden-declaration.png)>',
+      '![real](https://example.com/real.png)',
+    ].join('\n');
+
+    expect(parseMarkdownAndHtmlImageTokens(markdown).map((token) => token.src)).toEqual([
+      'https://example.com/real.png',
+    ]);
+  });
+
   it('keeps nested dropped raw html containers protected until the matching close', () => {
     const markdown = [
       '<svg>',

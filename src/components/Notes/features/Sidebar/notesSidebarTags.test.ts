@@ -91,6 +91,15 @@ describe('notesSidebarTags', () => {
     ].join('\n'))).toEqual(['visible']);
   });
 
+  it('does not index tags from GFM HTML block contents', () => {
+    expect(extractNotesSidebarTags([
+      '<source srcset="images/a.webp 1x">',
+      '#hidden-source',
+      '',
+      '#visible',
+    ].join('\n'))).toEqual(['visible']);
+  });
+
   it('builds tag counts by note rather than duplicate mentions in one note', () => {
     const entries = buildNotesSidebarTagScopeEntries({ rootFolder });
     const contents = new Map([
@@ -199,6 +208,68 @@ describe('notesSidebarTags', () => {
     ]);
   });
 
+  it('ignores non-Markdown file tree nodes when building tag scope', () => {
+    const mixedRoot: FolderNode = {
+      id: 'root-mixed',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [
+        {
+          id: 'asset',
+          name: 'asset.png',
+          path: 'asset.png',
+          isFolder: false,
+        },
+        {
+          id: 'note',
+          name: 'note.markdown',
+          path: 'note.markdown',
+          isFolder: false,
+        },
+      ],
+    };
+
+    expect(buildNotesSidebarTagScopeEntries({ rootFolder: mixedRoot })).toEqual([
+      { path: 'note.markdown' },
+    ]);
+  });
+
+  it('ignores unsafe file tree paths when building tag scope', () => {
+    const unsafeRoot: FolderNode = {
+      id: 'root-unsafe',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [
+        {
+          id: 'traversal',
+          name: 'secret.md',
+          path: '../secret.md',
+          isFolder: false,
+        },
+        {
+          id: 'absolute',
+          name: 'passwd.md',
+          path: '/etc/passwd.md',
+          isFolder: false,
+        },
+        {
+          id: 'safe',
+          name: 'safe.md',
+          path: './docs//safe.md',
+          isFolder: false,
+        },
+      ],
+    };
+
+    expect(buildNotesSidebarTagScopeEntries({ rootFolder: unsafeRoot })).toEqual([
+      { path: 'docs/safe.md' },
+    ]);
+  });
+
   it('collects deeply nested notes without recursive traversal', () => {
     let current: FileTreeNode = {
       id: 'deep-note',
@@ -273,6 +344,13 @@ describe('notesSidebarTags', () => {
           vaultPath: '/other',
           relativePath: 'external.md',
           addedAt: 3,
+        },
+        {
+          id: 'star-asset',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: 'image.png',
+          addedAt: 5,
         },
       ],
     });

@@ -51,7 +51,36 @@ function sanitizeHistoryMessage(msg: ChatMessage): ChatMessage {
       replaceRenderableMarkdownImageTokens(stripThinkingContent(contentWithoutUiErrors), IMAGE_PLACEHOLDER)
     ).content,
     apiTranscript,
+    versions: stripVersionApiTranscripts(msg.versions),
   };
+}
+
+function stripVersionApiTranscripts(versions: ChatMessage['versions']): ChatMessage['versions'] {
+  if (!Array.isArray(versions)) {
+    return [];
+  }
+
+  return versions.map((version) => {
+    const { apiTranscript: _apiTranscript, subsequentMessages, ...rest } = version;
+    return {
+      ...rest,
+      subsequentMessages: stripMessageApiTranscripts(subsequentMessages),
+    };
+  });
+}
+
+function stripMessageApiTranscripts(messages: ChatMessage[] | undefined): ChatMessage[] {
+  if (!Array.isArray(messages)) {
+    return [];
+  }
+
+  return messages.map((message) => {
+    const { apiTranscript: _apiTranscript, ...rest } = message;
+    return {
+      ...rest,
+      versions: stripVersionApiTranscripts(message.versions),
+    };
+  });
 }
 
 function createSystemMessage(content: string, modelId: string): ChatMessage {

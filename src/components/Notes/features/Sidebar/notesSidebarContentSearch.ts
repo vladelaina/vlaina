@@ -1,11 +1,13 @@
 import { stripMarkdownInline } from '@/components/common/markdown/plainText';
 import { getSanitizerDroppedRawHtmlRanges, type ContentRange } from '@/lib/markdown/markdownHtmlRanges';
+import { getMarkdownInvisibleHtmlBlockRanges } from '@/lib/markdown/markdownRanges';
 
 const CONTENT_SNIPPET_RADIUS = 36;
 const MAX_CONTENT_MATCHES_PER_NOTE = 5;
 const MAX_CONTENT_SEARCH_LINE_CHARS = 64 * 1024;
 const MAX_CONTENT_SEARCH_SCANNED_CHARS = 1024 * 1024;
 const SANITIZER_DROPPED_RAW_HTML_TAG_PATTERN = /<\/?(?:math|noscript|svg)(?:[\s/>]|$)/i;
+const INVISIBLE_HTML_BLOCK_PATTERN = /^(?: {0,3})(?:<!--|<\?|<![A-Z]|<!\[CDATA\[)/im;
 
 export interface NotesSidebarContentMatch {
   matchIndex: number;
@@ -87,6 +89,30 @@ function getDroppedRawHtmlRangesForContentSearch(content: string): ContentRange[
   });
 }
 
+function getInvisibleHtmlBlockRangesForContentSearch(content: string): ContentRange[] {
+  if (!INVISIBLE_HTML_BLOCK_PATTERN.test(content)) {
+    return [];
+  }
+
+  return getMarkdownInvisibleHtmlBlockRanges(content, {
+    start: 0,
+    end: Math.min(content.length, MAX_CONTENT_SEARCH_SCANNED_CHARS + MAX_CONTENT_SEARCH_LINE_CHARS),
+  });
+}
+
+function getSkippedHtmlRangesForContentSearch(content: string): ContentRange[] {
+  const droppedRanges = getDroppedRawHtmlRangesForContentSearch(content);
+  const invisibleRanges = getInvisibleHtmlBlockRangesForContentSearch(content);
+  if (droppedRanges.length === 0) {
+    return invisibleRanges;
+  }
+  if (invisibleRanges.length === 0) {
+    return droppedRanges;
+  }
+  return [...droppedRanges, ...invisibleRanges]
+    .sort((left, right) => left.start - right.start || left.end - right.end);
+}
+
 function advanceRangeIndex(ranges: readonly ContentRange[], lineStart: number, rangeIndex: number): number {
   let nextIndex = rangeIndex;
   while (nextIndex < ranges.length && ranges[nextIndex].end <= lineStart) {
@@ -113,8 +139,8 @@ export function getNotesSidebarContentMatches(
   }
 
   const matches: NotesSidebarContentMatch[] = [];
-  const droppedRawHtmlRanges = getDroppedRawHtmlRangesForContentSearch(content);
-  let droppedRawHtmlRangeIndex = 0;
+  const skippedHtmlRanges = getSkippedHtmlRangesForContentSearch(content);
+  let skippedHtmlRangeIndex = 0;
   let ordinal = 0;
   let scannedChars = 0;
   for (const line of iterateLines(content)) {
@@ -127,12 +153,12 @@ export function getNotesSidebarContentMatches(
     if (rawLine.length > MAX_CONTENT_SEARCH_LINE_CHARS) {
       continue;
     }
-    droppedRawHtmlRangeIndex = advanceRangeIndex(
-      droppedRawHtmlRanges,
+    skippedHtmlRangeIndex = advanceRangeIndex(
+      skippedHtmlRanges,
       line.start,
-      droppedRawHtmlRangeIndex,
+      skippedHtmlRangeIndex,
     );
-    if (isLineInRange(line, droppedRawHtmlRanges[droppedRawHtmlRangeIndex])) {
+    if (isLineInRange(line, skippedHtmlRanges[skippedHtmlRangeIndex])) {
       continue;
     }
 

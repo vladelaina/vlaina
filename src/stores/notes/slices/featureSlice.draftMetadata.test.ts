@@ -633,6 +633,66 @@ describe('featureSlice draft metadata', () => {
     });
   });
 
+  it('stores scanned note disk size as hidden cache metadata', async () => {
+    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
+    mocks.readFile.mockResolvedValue('# Alpha from disk');
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      notesPath: '/vault',
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: 'docs',
+            name: 'docs',
+            path: 'docs',
+            isFolder: true,
+            expanded: true,
+            children: [{ id: notePath, name: 'alpha', path: notePath, isFolder: false }],
+          },
+        ],
+      },
+    });
+
+    await store.getState().scanAllNotes();
+
+    const entry = store.getState().noteContentsCache.get(notePath);
+    expect(entry).toEqual({
+      content: '# Alpha from disk',
+      modifiedAt: 2,
+    });
+    expect(entry?.size).toBe(16);
+  });
+
+  it('does not scan non-markdown file tree nodes', async () => {
+    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
+    mocks.readFile.mockResolvedValue('# Unexpected');
+    const store = createNotesStore({
+      notesPath: '/vault',
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          { id: 'docs/image.png', name: 'image', path: 'docs/image.png', isFolder: false },
+          { id: 'docs/readme.txt', name: 'readme', path: 'docs/readme.txt', isFolder: false },
+        ],
+      },
+    });
+
+    await store.getState().scanAllNotes();
+
+    expect(mocks.stat).not.toHaveBeenCalled();
+    expect(mocks.readFile).not.toHaveBeenCalled();
+    expect(store.getState().noteContentsCache.size).toBe(0);
+  });
+
   it('does not read missing full-vault scan notes when stat has no size', async () => {
     mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true });
     mocks.readFile.mockResolvedValue('# Unexpected');
