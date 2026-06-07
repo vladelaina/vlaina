@@ -68,6 +68,10 @@ function sanitizeExportLinkHref(value: unknown): string | null {
     return null;
   }
 
+  if (safeHref.startsWith('/')) {
+    return null;
+  }
+
   if (/^https?:/i.test(safeHref) && isLocalNetworkHttpUrl(safeHref)) {
     return null;
   }

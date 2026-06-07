@@ -25,9 +25,7 @@ function normalizeApiTranscriptImageUrl(value: string): string | null {
   const normalized = url.toLowerCase();
   return normalized.startsWith('http://') ||
     normalized.startsWith('https://') ||
-    normalized.startsWith('data:') ||
-    normalized.startsWith('attachment://') ||
-    normalized.startsWith('app-file://attachment/')
+    normalized.startsWith('data:')
     ? url
     : null;
 }
@@ -81,8 +79,10 @@ function normalizeApiTranscriptToolCall(toolCall: unknown): NonNullable<ApiTrans
   if (!isRecord(toolCall) || !isRecord(toolCall.function)) return null;
   if (
     typeof toolCall.id !== 'string' ||
+    toolCall.id.length === 0 ||
     toolCall.type !== 'function' ||
     typeof toolCall.function.name !== 'string' ||
+    toolCall.function.name.length === 0 ||
     typeof toolCall.function.arguments !== 'string'
   ) {
     return null;
@@ -156,6 +156,80 @@ export function normalizeApiTranscriptMessage(value: unknown): ApiTranscriptMess
   return normalized;
 }
 
+function removeToolCalls(message: ApiTranscriptMessage): ApiTranscriptMessage {
+  const { tool_calls: _toolCalls, ...rest } = message;
+  return rest;
+}
+
+function dedupeToolCalls(toolCalls: NonNullable<ApiTranscriptMessage['tool_calls']>): NonNullable<ApiTranscriptMessage['tool_calls']> {
+  const seen = new Set<string>();
+  return toolCalls.filter((toolCall) => {
+    if (seen.has(toolCall.id)) {
+      return false;
+    }
+    seen.add(toolCall.id);
+    return true;
+  });
+}
+
+function normalizeToolCallSegments(messages: ApiTranscriptMessage[]): ApiTranscriptMessage[] {
+  const output: ApiTranscriptMessage[] = [];
+  let pending: {
+    assistant: ApiTranscriptMessage;
+    remainingToolCallIds: Set<string>;
+    toolMessages: ApiTranscriptMessage[];
+  } | null = null;
+
+  const finishPending = () => {
+    if (!pending) {
+      return;
+    }
+
+    if (pending.remainingToolCallIds.size === 0) {
+      output.push(pending.assistant, ...pending.toolMessages);
+    } else {
+      output.push(removeToolCalls(pending.assistant));
+    }
+    pending = null;
+  };
+
+  for (const message of messages) {
+    if (message.role === 'assistant' && message.tool_calls?.length) {
+      finishPending();
+      const toolCalls = dedupeToolCalls(message.tool_calls);
+      if (toolCalls.length === 0) {
+        output.push(removeToolCalls(message));
+        continue;
+      }
+
+      pending = {
+        assistant: toolCalls.length === message.tool_calls.length ? message : { ...message, tool_calls: toolCalls },
+        remainingToolCallIds: new Set(toolCalls.map((toolCall) => toolCall.id)),
+        toolMessages: [],
+      };
+      continue;
+    }
+
+    if (message.role === 'tool') {
+      if (!pending || !message.tool_call_id || !pending.remainingToolCallIds.has(message.tool_call_id)) {
+        continue;
+      }
+      pending.toolMessages.push(message);
+      pending.remainingToolCallIds.delete(message.tool_call_id);
+      if (pending.remainingToolCallIds.size === 0) {
+        finishPending();
+      }
+      continue;
+    }
+
+    finishPending();
+    output.push(message);
+  }
+
+  finishPending();
+  return output;
+}
+
 export function normalizeApiTranscriptMessages(value: unknown): ApiTranscriptMessage[] | undefined {
   if (!Array.isArray(value)) {
     return undefined;
@@ -166,5 +240,6 @@ export function normalizeApiTranscriptMessages(value: unknown): ApiTranscriptMes
     .map(normalizeApiTranscriptMessage)
     .filter((message): message is ApiTranscriptMessage => message !== null);
 
-  return normalized.length > 0 ? normalized : undefined;
+  const paired = normalizeToolCallSegments(normalized);
+  return paired.length > 0 ? paired : undefined;
 }

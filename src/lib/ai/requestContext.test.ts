@@ -356,7 +356,7 @@ describe('requestContext', () => {
     expect(result[0]?.versions[0]?.apiTranscript).toBeUndefined();
   });
 
-  it('does not leave oversized version transcripts available for provider fallback replay', () => {
+  it('does not leave orphan oversized version transcripts available for provider fallback replay', () => {
     const hugeTranscript = [{
       role: 'tool' as const,
       tool_call_id: 'call-1',
@@ -382,7 +382,7 @@ describe('requestContext', () => {
       includeTimeContext: false,
     });
 
-    expect(result[0]?.apiTranscript?.[0]?.content).toContain('[Earlier content omitted]');
+    expect(result[0]?.apiTranscript).toBeUndefined();
     expect(result[0]?.versions[0]?.apiTranscript).toBeUndefined();
     expect(JSON.stringify(result)).not.toContain('x'.repeat(5000));
   });

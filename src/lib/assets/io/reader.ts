@@ -21,6 +21,9 @@ const blobUrlCache = new Map<string, BlobUrlCacheEntry>();
 const thumbnailBlobUrlCache = new Map<string, BlobUrlCacheEntry>();
 const blobUrlLoadPromises = new Map<string, Promise<string>>();
 const thumbnailBlobUrlLoadPromises = new Map<string, Promise<string>>();
+let imageCacheGeneration = 0;
+const imagePathGenerations = new Map<string, number>();
+const IMAGE_CACHE_INVALIDATED_ERROR_MESSAGE = 'Image cache was invalidated while loading.';
 
 function touchBlobUrlCacheEntry(cache: Map<string, BlobUrlCacheEntry>, key: string, entry: BlobUrlCacheEntry) {
   cache.delete(key);
@@ -31,6 +34,39 @@ function revokeBlobUrlCacheEntry(entry: BlobUrlCacheEntry | undefined) {
   if (entry) {
     URL.revokeObjectURL(entry.url);
   }
+}
+
+function createImageCacheInvalidatedError(): Error {
+  return new Error(IMAGE_CACHE_INVALIDATED_ERROR_MESSAGE);
+}
+
+function isImageCacheInvalidatedError(error: unknown): boolean {
+  return error instanceof Error && error.message === IMAGE_CACHE_INVALIDATED_ERROR_MESSAGE;
+}
+
+function getImagePathGeneration(fullPath: string): number {
+  return imagePathGenerations.get(fullPath) ?? 0;
+}
+
+function bumpImagePathGeneration(fullPath: string): void {
+  imagePathGenerations.set(fullPath, getImagePathGeneration(fullPath) + 1);
+}
+
+function revokeLoadedUrlIfInvalidated(
+  fullPath: string,
+  loadGeneration: number,
+  loadPathGeneration: number,
+  url: string,
+): void {
+  if (
+    loadGeneration === imageCacheGeneration
+    && loadPathGeneration === getImagePathGeneration(fullPath)
+  ) {
+    return;
+  }
+
+  URL.revokeObjectURL(url);
+  throw createImageCacheInvalidatedError();
 }
 
 function getImageCacheKey(fullPath: string, modifiedAt: number | null, size: number | null) {
@@ -265,6 +301,8 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
   }
 
   const loadPromise = (async () => {
+    const loadGeneration = imageCacheGeneration;
+    const loadPathGeneration = getImagePathGeneration(fullPath);
     const data = await storage.readBinaryFile(fullPath);
     assertPreviewableImageSize(data.byteLength);
     const mimeType = getMimeType(fullPath);
@@ -272,6 +310,7 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
     assertPreviewableImageSize(bytes.byteLength);
     const blob = new Blob([bytes], { type: mimeType });
     const blobUrl = URL.createObjectURL(blob);
+    revokeLoadedUrlIfInvalidated(fullPath, loadGeneration, loadPathGeneration, blobUrl);
 
     if (blobUrlCache.size >= MAX_CACHE_SIZE) {
       const oldestKey = blobUrlCache.keys().next().value;
@@ -332,12 +371,15 @@ export async function loadImageThumbnailAsBlob(
   }
 
   const loadPromise = (async () => {
+    const loadGeneration = imageCacheGeneration;
+    const loadPathGeneration = getImagePathGeneration(fullPath);
     const persistentCachePath = canValidateCache
       ? await getPersistentThumbnailCachePath(storage, cacheKey)
       : null;
     if (persistentCachePath) {
       const persistentBlobUrl = await loadPersistentThumbnailBlobUrl(storage, persistentCachePath, fullPath, maxEdgePx);
       if (persistentBlobUrl) {
+        revokeLoadedUrlIfInvalidated(fullPath, loadGeneration, loadPathGeneration, persistentBlobUrl);
         if (thumbnailBlobUrlCache.size >= MAX_THUMBNAIL_CACHE_SIZE) {
           const oldestKey = thumbnailBlobUrlCache.keys().next().value;
           if (oldestKey) {
@@ -365,6 +407,7 @@ export async function loadImageThumbnailAsBlob(
       allowMainThreadFallback,
       (blob) => persistThumbnailBlobInBackground(storage, persistentCachePath, fullPath, maxEdgePx, blob),
     );
+    revokeLoadedUrlIfInvalidated(fullPath, loadGeneration, loadPathGeneration, blobUrl);
 
     if (thumbnailBlobUrlCache.size >= MAX_THUMBNAIL_CACHE_SIZE) {
       const oldestKey = thumbnailBlobUrlCache.keys().next().value;
@@ -387,6 +430,9 @@ export async function loadImageThumbnailAsBlob(
   try {
     return await loadPromise;
   } catch (error) {
+    if (isImageCacheInvalidatedError(error)) {
+      throw error;
+    }
     return loadImageAsBlob(fullPath);
   } finally {
     if (thumbnailBlobUrlLoadPromises.get(cacheKey) === loadPromise) {
@@ -432,6 +478,7 @@ export async function loadImageAsBase64(fullPath: string): Promise<string> {
 }
 
 export function revokeImageBlob(fullPath: string): void {
+  bumpImagePathGeneration(fullPath);
   const cached = blobUrlCache.get(fullPath);
   if (cached) {
     revokeBlobUrlCacheEntry(cached);
@@ -451,6 +498,8 @@ export function invalidateImageCache(fullPath: string): void {
 }
 
 export function clearImageCache(): void {
+  imageCacheGeneration += 1;
+  imagePathGenerations.clear();
   for (const entry of blobUrlCache.values()) {
     revokeBlobUrlCacheEntry(entry);
   }

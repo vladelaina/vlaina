@@ -570,6 +570,43 @@ async function recoverOrphanChatSessions(
   return recoveredSessions;
 }
 
+async function recoverOrphanProviderChannelIds(
+  channelsDir: string,
+  existingProviderIds: string[],
+  deletedProviderIds: ReadonlySet<string> = new Set(),
+): Promise<string[]> {
+  const providerIds = new Set(existingProviderIds);
+  const recoveredProviderIds: string[] = [];
+  if (providerIds.size >= MAX_AI_PROVIDER_CHANNELS) {
+    return recoveredProviderIds;
+  }
+
+  const entries = await getStorageAdapter().listDir(channelsDir).catch(() => []);
+  for (
+    let entryIndex = 0;
+    entryIndex < entries.length && entryIndex < MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES;
+    entryIndex += 1
+  ) {
+    if (providerIds.size >= MAX_AI_PROVIDER_CHANNELS) {
+      break;
+    }
+    const entry = entries[entryIndex];
+    if (!entry.isFile || !entry.name.endsWith('.json')) {
+      continue;
+    }
+
+    const providerId = entry.name.slice(0, -5);
+    if (!isSafeProviderId(providerId) || providerIds.has(providerId) || deletedProviderIds.has(providerId)) {
+      continue;
+    }
+
+    providerIds.add(providerId);
+    recoveredProviderIds.push(providerId);
+  }
+
+  return recoveredProviderIds;
+}
+
 async function readExistingAISessionsFile(
   storage: ReturnType<typeof getStorageAdapter>,
   sessionsPath: string,
@@ -1044,6 +1081,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     };
 
     let providerIds: string[] = [];
+    let shouldRecoverProviderChannels = false;
     if (await storage.exists(sessionsPath)) {
         try {
             const content = await readBoundedTextFile(storage, sessionsPath, MAX_AI_SESSIONS_BYTES);
@@ -1054,6 +1092,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
             const sessionsData = parseAISessionsFile(parsedSessionsData);
             if (!sessionsData) {
               console.warn('[Storage] Ignoring invalid AI sessions file:', sessionsPath);
+              shouldRecoverProviderChannels = true;
             } else {
               const loadedSessions = Array.isArray(sessionsData.sessions) ? sessionsData.sessions : [];
               const aiData = combinedData.ai;
@@ -1078,7 +1117,10 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
             }
         } catch {
             console.warn('[Storage] Ignoring invalid AI sessions file:', sessionsPath);
+            shouldRecoverProviderChannels = true;
         }
+    } else {
+      shouldRecoverProviderChannels = true;
     }
 
     const recoveredSessions = await recoverOrphanChatSessions(
@@ -1093,6 +1135,17 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
         ...recoveredSessions,
         ...combinedData.ai.sessions,
       ].sort((a, b) => b.updatedAt - a.updatedAt);
+    }
+
+    if (shouldRecoverProviderChannels) {
+      providerIds = [
+        ...providerIds,
+        ...await recoverOrphanProviderChannelIds(
+          channelsDir,
+          providerIds,
+          new Set((combinedData.ai.deletedProviderIds || []).filter(isSafeProviderId)),
+        ),
+      ].slice(0, MAX_AI_PROVIDER_CHANNELS);
     }
 
     if (providerIds.length > 0) {

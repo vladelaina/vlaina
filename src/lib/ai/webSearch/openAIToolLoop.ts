@@ -1,5 +1,5 @@
 import type { ChatCompletionRequest } from '@/lib/ai/types';
-import { buildWebSearchStatusMarkup } from './statusMarkup';
+import { buildWebSearchStatusMarkup, sanitizeWebSearchSourceUrl, sanitizeWebSearchStatus } from './statusMarkup';
 import { buildWebSearchTools, WEB_SEARCH_TOOL_NAMES } from './toolDefinitions';
 import { runWebSearchToolCall, type WebSearchToolRunnerOptions } from './toolRunner';
 import type { WebSearchStatus } from './types';
@@ -83,15 +83,19 @@ function emitWebSearchStatus(
   status: WebSearchStatus,
 ): void {
   throwIfAborted(signal);
-  onStatus?.(status);
+  const safeStatus = sanitizeWebSearchStatus(status);
+  if (safeStatus) {
+    onStatus?.(safeStatus);
+  }
   throwIfAborted(signal);
 }
 
 function appendSuccessfulReadSources(target: string[], status: WebSearchStatus): void {
   if (!hasSuccessfulRead(status)) return;
   for (const url of status.urls ?? []) {
-    if (typeof url !== 'string' || url.trim().length === 0) continue;
-    if (!target.includes(url)) target.push(url);
+    const safeUrl = sanitizeWebSearchSourceUrl(url);
+    if (!safeUrl) continue;
+    if (!target.includes(safeUrl)) target.push(safeUrl);
   }
 }
 
@@ -496,6 +500,13 @@ function buildTextProtocolSearchQueries(modelQuery: string, userText: string): s
   return queries.slice(0, 3);
 }
 
+function sanitizeSearchResults<T extends { url?: unknown }>(results: readonly T[], limit: number): Array<T & { url: string }> {
+  return results.slice(0, limit).flatMap((result) => {
+    const url = sanitizeWebSearchSourceUrl(result.url);
+    return url ? [{ ...result, url }] : [];
+  });
+}
+
 async function buildTextProtocolSearchMessages({
   body,
   query,
@@ -512,9 +523,11 @@ async function buildTextProtocolSearchMessages({
   const statusHistory: WebSearchStatus[] = [];
   const sourceUrls: string[] = [];
   const emitStatus = (status: WebSearchStatus) => {
-    statusHistory.push(status);
-    appendSuccessfulReadSources(sourceUrls, status);
-    emitWebSearchStatus(onStatus, signal, status);
+    const safeStatus = sanitizeWebSearchStatus(status);
+    if (!safeStatus) return;
+    statusHistory.push(safeStatus);
+    appendSuccessfulReadSources(sourceUrls, safeStatus);
+    emitWebSearchStatus(onStatus, signal, safeStatus);
   };
 
   throwIfAborted(signal);
@@ -533,25 +546,27 @@ async function buildTextProtocolSearchMessages({
       ? await client.webSearch(searchQuery, { limit: 5 }, signal)
       : await client.webSearch(searchQuery, { limit: 5 });
     throwIfAborted(signal);
+    const safeResults = sanitizeSearchResults(attemptResponse.results, 5);
+    const safeSearchResponse = { ...attemptResponse, results: safeResults };
     const attemptStatus: WebSearchStatus = {
-      phase: attemptResponse.results.length > 0 ? 'results' : 'error',
+      phase: safeResults.length > 0 ? 'results' : 'error',
       query: attemptResponse.query,
-      results: attemptResponse.results.slice(0, 5),
+      results: safeResults.slice(0, 5),
       metrics: {
         durationMs: elapsedSince(searchStartedAt),
-        resultCount: attemptResponse.results.length,
+        resultCount: safeResults.length,
       },
-      message: attemptResponse.results.length > 0 ? undefined : 'No relevant results were found.',
+      message: safeResults.length > 0 ? undefined : 'No relevant results were found.',
     };
     addChatDebugLog('web-search-text-protocol', 'search attempt completed', {
       query: attemptResponse.query,
-      resultCount: attemptResponse.results.length,
+      resultCount: safeResults.length,
       durationMs: attemptStatus.metrics?.durationMs,
-    }, attemptResponse.results.length > 0 ? 'info' : 'warn');
+    }, safeResults.length > 0 ? 'info' : 'warn');
     emitStatus(attemptStatus);
-    searchResponse = attemptResponse;
+    searchResponse = safeSearchResponse;
     resultsStatus = attemptStatus;
-    if (attemptResponse.results.length === 0) {
+    if (safeResults.length === 0) {
       continue;
     }
 
@@ -624,12 +639,10 @@ function collectUniqueSearchResultUrls(
   const seen = new Set<string>();
   for (const result of status.results ?? []) {
     if (options.limit !== undefined && urls.length >= options.limit) break;
-    const url = result.url;
-    if (typeof url !== 'string') continue;
-    const trimmed = url.trim();
-    if (!trimmed || seen.has(trimmed) || options.exclude?.has(trimmed)) continue;
-    seen.add(trimmed);
-    urls.push(trimmed);
+    const url = sanitizeWebSearchSourceUrl(result.url);
+    if (!url || seen.has(url) || options.exclude?.has(url)) continue;
+    seen.add(url);
+    urls.push(url);
   }
   return urls;
 }
@@ -1112,18 +1125,20 @@ export async function runOpenAIWebSearchToolLoop({
   const responseTranscript: OpenAIWireMessage[] = [];
   const readContentByUrl = new Map<string, string>();
   const emitStatus = (status: WebSearchStatus) => {
-    if (status.phase === 'results' && (status.results?.length ?? 0) > 0) {
-      latestResultsStatus = status;
+    const safeStatus = sanitizeWebSearchStatus(status);
+    if (!safeStatus) return;
+    if (safeStatus.phase === 'results' && (safeStatus.results?.length ?? 0) > 0) {
+      latestResultsStatus = safeStatus;
       latestResultsHaveSuccessfulRead = false;
       forcedReadExhausted = false;
       forcedReadAttemptedUrls = new Set();
     }
-    if (hasSuccessfulRead(status)) {
+    if (hasSuccessfulRead(safeStatus)) {
       latestResultsHaveSuccessfulRead = true;
     }
-    statusHistory.push(status);
-    appendSuccessfulReadSources(sourceUrls, status);
-    emitWebSearchStatus(onStatus, signal, status);
+    statusHistory.push(safeStatus);
+    appendSuccessfulReadSources(sourceUrls, safeStatus);
+    emitWebSearchStatus(onStatus, signal, safeStatus);
     emitChunk(onChunk, signal, withStatusPrefix(statusHistory, latestContent));
   };
   const emitContent = (content: string) => {
@@ -1335,18 +1350,20 @@ export async function runOpenAIWebSearchJsonToolLoop({
   const responseTranscript: OpenAIWireMessage[] = [];
   const readContentByUrl = new Map<string, string>();
   const emitStatus = (status: WebSearchStatus) => {
-    if (status.phase === 'results' && (status.results?.length ?? 0) > 0) {
-      latestResultsStatus = status;
+    const safeStatus = sanitizeWebSearchStatus(status);
+    if (!safeStatus) return;
+    if (safeStatus.phase === 'results' && (safeStatus.results?.length ?? 0) > 0) {
+      latestResultsStatus = safeStatus;
       latestResultsHaveSuccessfulRead = false;
       forcedReadExhausted = false;
       forcedReadAttemptedUrls = new Set();
     }
-    if (hasSuccessfulRead(status)) {
+    if (hasSuccessfulRead(safeStatus)) {
       latestResultsHaveSuccessfulRead = true;
     }
-    statusHistory.push(status);
-    appendSuccessfulReadSources(sourceUrls, status);
-    emitWebSearchStatus(onStatus, signal, status);
+    statusHistory.push(safeStatus);
+    appendSuccessfulReadSources(sourceUrls, safeStatus);
+    emitWebSearchStatus(onStatus, signal, safeStatus);
     emitChunk(onChunk, signal, withStatusPrefix(statusHistory, latestContent));
   };
 

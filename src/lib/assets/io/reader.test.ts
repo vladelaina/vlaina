@@ -93,6 +93,48 @@ describe('asset image reader cache', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:first-url');
   });
 
+  it('does not repopulate the full image cache from a load that finishes after clearing', async () => {
+    let resolveRead: ((bytes: Uint8Array) => void) | undefined;
+    hoisted.readBinaryFile.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveRead = resolve;
+    }));
+    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:late-full-url');
+
+    const load = loadImageAsBlob('/vault/assets/cover.png');
+
+    await vi.waitFor(() => {
+      expect(resolveRead).toBeDefined();
+    });
+
+    clearImageCache();
+    resolveRead?.(new Uint8Array([1, 2, 3]));
+
+    await expect(load).rejects.toThrow('Image cache was invalidated while loading.');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:late-full-url');
+    expect(getCachedBlobUrl('/vault/assets/cover.png')).toBeUndefined();
+  });
+
+  it('does not cancel unrelated image loads when invalidating a single path', async () => {
+    let resolveRead: ((bytes: Uint8Array) => void) | undefined;
+    hoisted.readBinaryFile.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveRead = resolve;
+    }));
+    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:other-url');
+
+    const load = loadImageAsBlob('/vault/assets/other.png');
+
+    await vi.waitFor(() => {
+      expect(resolveRead).toBeDefined();
+    });
+
+    invalidateImageCache('/vault/assets/cover.png');
+    resolveRead?.(new Uint8Array([1, 2, 3]));
+
+    await expect(load).resolves.toBe('blob:other-url');
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:other-url');
+    expect(getCachedBlobUrl('/vault/assets/other.png')).toBe('blob:other-url');
+  });
+
   it('rejects non-image paths without reading them', async () => {
     await expect(loadImageAsBlob('/vault/assets/secret.md')).rejects.toThrow(
       'Only image files can be loaded as note assets.',
@@ -415,6 +457,27 @@ describe('asset image reader cache', () => {
     );
 
     expect(hoisted.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('does not fall back to a full image load when a thumbnail load finishes after clearing', async () => {
+    let resolveRead: ((bytes: Uint8Array<ArrayBuffer>) => void) | undefined;
+    hoisted.readBinaryFile.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveRead = resolve;
+    }));
+    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:late-thumb-url');
+
+    const load = loadImageThumbnailAsBlob('/vault/assets/icon.svg');
+
+    await vi.waitFor(() => {
+      expect(resolveRead).toBeDefined();
+    });
+
+    clearImageCache();
+    resolveRead?.(encodeTextBytes('<svg xmlns="http://www.w3.org/2000/svg" />'));
+
+    await expect(load).rejects.toThrow('Image cache was invalidated while loading.');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:late-thumb-url');
+    expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(1);
   });
 
   it('coalesces concurrent thumbnail reads for the same file metadata', async () => {

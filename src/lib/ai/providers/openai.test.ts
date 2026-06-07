@@ -1131,6 +1131,56 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     ]);
   });
 
+  it('filters local network xAI native search citation URLs before emitting sources', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      output_text: 'Grok answer with filtered sources.',
+      citations: [
+        'https://x.ai/news',
+        'http://127.0.0.1:3000/admin',
+        'http://localhost/admin',
+        { url: 'http://192.168.1.1/router' },
+        { url: 'https://docs.x.ai/docs/guides/live-search' },
+      ],
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const statuses: unknown[] = [];
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'what is new with xai?',
+      [],
+      buildModel({ apiModelId: 'grok-4', name: 'Grok 4' }),
+      buildProvider({ name: 'xAI', apiHost: 'https://api.x.ai', endpointType: 'openai' }),
+      vi.fn(),
+      undefined,
+      {
+        webSearchEnabled: true,
+        onWebSearchStatus: (status) => statuses.push(status),
+      },
+    );
+
+    expect(statuses).toEqual([
+      { phase: 'searching', query: 'what is new with xai?' },
+      {
+        phase: 'results',
+        results: [
+          { title: 'x.ai', url: 'https://x.ai/news', snippet: '', publishedAt: null },
+          { title: 'docs.x.ai', url: 'https://docs.x.ai/docs/guides/live-search', snippet: '', publishedAt: null },
+        ],
+        metrics: { resultCount: 2 },
+      },
+      {
+        phase: 'complete',
+        urls: ['https://x.ai/news', 'https://docs.x.ai/docs/guides/live-search'],
+        metrics: { successCount: 2 },
+      },
+    ]);
+    expect(result).toContain('https://x.ai/news');
+    expect(result).toContain('https://docs.x.ai/docs/guides/live-search');
+    expect(result).not.toContain('127.0.0.1');
+    expect(result).not.toContain('localhost');
+    expect(result).not.toContain('192.168.1.1');
+  });
+
   it('does not emit xAI native search results after cancellation during response parsing', async () => {
     const controller = new AbortController();
     const reader = {
@@ -2015,6 +2065,8 @@ describe('OpenAICompatibleClient endpoint detection', () => {
             { type: 'image_url', image_url: { url: 'https://example.com/safe.png', detail: 'low' } },
             { type: 'image_url', image_url: { url: 'http://127.0.0.1:3000/secret.png', detail: 'high' } },
             { type: 'image_url', image_url: { url: 'file:///tmp/secret.png' } },
+            { type: 'image_url', image_url: { url: 'attachment://safe.png' } },
+            { type: 'image_url', image_url: { url: 'app-file://attachment/local.png' } },
           ],
         }],
         modelId: 'deepseek-chat',
@@ -2041,6 +2093,8 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     ]);
     expect(bodyText).not.toContain('127.0.0.1');
     expect(bodyText).not.toContain('file:///tmp/secret.png');
+    expect(bodyText).not.toContain('attachment://');
+    expect(bodyText).not.toContain('app-file://');
   });
 
   it('does not replay hidden reasoning transcript for generic OpenAI-compatible providers', async () => {

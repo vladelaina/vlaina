@@ -136,6 +136,12 @@ describe('Floating Toolbar Properties', () => {
       );
     });
 
+    it('should reject local-network http/https URLs', () => {
+      expect(isValidUrl('http://127.0.0.1:3000/admin')).toBe(false);
+      expect(isValidUrl('http://router/admin')).toBe(false);
+      expect(isValidUrl('http://device.home.arpa/admin')).toBe(false);
+    });
+
     it('should accept valid mailto URLs', () => {
       fc.assert(
         fc.property(

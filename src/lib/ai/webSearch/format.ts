@@ -1,4 +1,5 @@
 import type { WebPageContent, WebPageReadResult, WebSearchResponse } from './types';
+import { sanitizeWebSearchSourceUrl } from './statusMarkup';
 
 const SEARCH_RESULT_LIMIT = 5;
 const PAGE_CONTENT_LIMIT = 3000;
@@ -30,7 +31,13 @@ export function formatSafeReadFailure(code?: string): string {
 }
 
 export function formatSearchResultsForModel(response: WebSearchResponse): string {
-  if (response.results.length === 0) {
+  const safeResults = response.results
+    .slice(0, SEARCH_RESULT_LIMIT)
+    .flatMap((result) => {
+      const url = sanitizeWebSearchSourceUrl(result.url);
+      return url ? [{ ...result, url }] : [];
+    });
+  if (safeResults.length === 0) {
     return `No search results found for: ${response.query}`;
   }
 
@@ -39,7 +46,7 @@ export function formatSearchResultsForModel(response: WebSearchResponse): string
     'Candidate sources:',
   ];
 
-  response.results.slice(0, SEARCH_RESULT_LIMIT).forEach((result, index) => {
+  safeResults.forEach((result, index) => {
     lines.push(
       `${index + 1}. ${result.title}`,
       `URL: ${result.url}`,
@@ -53,9 +60,10 @@ export function formatSearchResultsForModel(response: WebSearchResponse): string
 }
 
 export function formatPageForModel(page: WebPageContent): string {
+  const safeFinalUrl = sanitizeWebSearchSourceUrl(page.finalUrl) ?? '(unavailable)';
   return [
     `Title: ${page.title}`,
-    `URL: ${page.finalUrl}`,
+    `URL: ${safeFinalUrl}`,
     `Site: ${page.siteName || '(unknown)'}`,
     `Summary: ${page.summary || '(none)'}`,
     `Characters: ${page.charCount}`,
@@ -68,9 +76,10 @@ export function formatBatchPagesForModel(results: WebPageReadResult[]): string {
   return results
     .map((result, index) => {
       if (!result.ok || !result.page) {
+        const safeUrl = sanitizeWebSearchSourceUrl(result.url) ?? '(unavailable)';
         return [
           `Page ${index + 1}: failed`,
-          `URL: ${result.url}`,
+          `URL: ${safeUrl}`,
           `Error: ${formatSafeReadFailure(result.code)}`,
         ].join('\n');
       }

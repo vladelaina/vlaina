@@ -55,6 +55,104 @@ describe('apiTranscript normalization', () => {
     expect(transcript?.at(-1)?.content).toBe('message-79')
   })
 
+  it('preserves complete tool call segments', () => {
+    const transcript = normalizeApiTranscriptMessages([
+      {
+        role: 'assistant',
+        content: null,
+        reasoning_content: 'Need search',
+        tool_calls: [{
+          id: 'call-1',
+          type: 'function',
+          function: { name: 'web_search', arguments: '{"query":"vlaina"}' },
+        }],
+      },
+      {
+        role: 'tool',
+        tool_call_id: 'call-1',
+        name: 'web_search',
+        content: 'Search result',
+      },
+      {
+        role: 'assistant',
+        content: 'Final answer',
+      },
+    ])
+
+    expect(transcript).toEqual([
+      {
+        role: 'assistant',
+        content: '',
+        reasoning_content: 'Need search',
+        tool_calls: [{
+          id: 'call-1',
+          type: 'function',
+          function: { name: 'web_search', arguments: '{"query":"vlaina"}' },
+        }],
+      },
+      {
+        role: 'tool',
+        tool_call_id: 'call-1',
+        name: 'web_search',
+        content: 'Search result',
+      },
+      {
+        role: 'assistant',
+        content: 'Final answer',
+      },
+    ])
+  })
+
+  it('drops orphan tool messages and incomplete assistant tool calls', () => {
+    const transcript = normalizeApiTranscriptMessages([
+      {
+        role: 'tool',
+        tool_call_id: 'missing-call',
+        name: 'web_search',
+        content: 'orphan result',
+      },
+      {
+        role: 'assistant',
+        content: '',
+        reasoning_content: 'Need both tools',
+        tool_calls: [
+          {
+            id: 'call-1',
+            type: 'function',
+            function: { name: 'web_search', arguments: '{"query":"one"}' },
+          },
+          {
+            id: 'call-2',
+            type: 'function',
+            function: { name: 'web_search', arguments: '{"query":"two"}' },
+          },
+        ],
+      },
+      {
+        role: 'tool',
+        tool_call_id: 'call-1',
+        name: 'web_search',
+        content: 'partial result',
+      },
+      {
+        role: 'assistant',
+        content: 'Visible answer',
+      },
+    ])
+
+    expect(transcript).toEqual([
+      {
+        role: 'assistant',
+        content: '',
+        reasoning_content: 'Need both tools',
+      },
+      {
+        role: 'assistant',
+        content: 'Visible answer',
+      },
+    ])
+  })
+
   it('drops unsafe image URLs from transcript content parts', () => {
     const message = normalizeApiTranscriptMessage({
       role: 'user',
@@ -74,8 +172,6 @@ describe('apiTranscript normalization', () => {
     expect(message?.content).toEqual([
       { type: 'text', text: 'inspect these images' },
       { type: 'image_url', image_url: { url: 'https://example.com/safe.png', detail: 'low' } },
-      { type: 'image_url', image_url: { url: 'attachment://safe.png' } },
-      { type: 'image_url', image_url: { url: 'app-file://attachment/local.png' } },
       { type: 'image_url', image_url: { url: 'data:image/png;base64,aGk=' } },
     ])
   })

@@ -620,14 +620,12 @@ async function writeSessionJsonRaw(sessionId: string, messages: ChatMessage[]) {
       try {
         const parsed: unknown = JSON.parse(content);
         const persistedMessages = parseSessionMessagesPayload(sessionId, parsed);
-        if (!persistedMessages) {
-          throw new Error('Invalid existing session file');
+        if (persistedMessages) {
+          messagesToWrite = mergeSessionMessages(messages, persistedMessages, {
+            preferredSource: 'incoming',
+          });
         }
-        messagesToWrite = mergeSessionMessages(messages, persistedMessages, {
-          preferredSource: 'incoming',
-        });
-      } catch (error) {
-        throw error;
+      } catch {
       }
     }
   }

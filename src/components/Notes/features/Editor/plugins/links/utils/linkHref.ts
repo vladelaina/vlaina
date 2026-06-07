@@ -1,4 +1,4 @@
-import { sanitizeNoteLinkHref } from '@/lib/notes/markdown/urlSecurity';
+import { isLocalNetworkHttpUrl, sanitizeNoteLinkHref } from '@/lib/notes/markdown/urlSecurity';
 import { BARE_DOMAIN_HREF_PATTERN } from './constants';
 
 const EMAIL_ADDRESS_PATTERN = /^[A-Za-z0-9.!#$%&'*+/=?^_{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
@@ -13,7 +13,9 @@ export function sanitizeEditorExternalLinkHref(value: string | null | undefined)
                 ? `mailto:${trimmed}`
                 : trimmed;
     const safeHref = sanitizeNoteLinkHref(href);
-    return safeHref && /^(https?:\/\/|mailto:)/i.test(safeHref) ? safeHref : null;
+    if (!safeHref || !/^(https?:\/\/|mailto:)/i.test(safeHref)) return null;
+    if (/^https?:\/\//i.test(safeHref) && isLocalNetworkHttpUrl(safeHref)) return null;
+    return safeHref;
 }
 
 export function sanitizeEditorLinkHref(value: string | null | undefined): string | null {

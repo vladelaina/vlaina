@@ -381,7 +381,7 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(chunks[chunks.length - 1]).toBe(final);
   });
 
-  it('keeps forced-read reminder messages in the hidden transcript when no readable URL exists', async () => {
+  it('does not force-read search results without a public URL', async () => {
     const requestJson = vi
       .fn()
       .mockResolvedValueOnce({
@@ -401,13 +401,12 @@ describe('OpenAI web search JSON tool loop', () => {
       })
       .mockResolvedValueOnce({
         choices: [{ message: { content: 'Premature answer.' } }],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: 'Final answer.' } }],
       });
     const onApiTranscript = vi.fn();
+    const readWebPage = vi.fn();
+    const readWebPages = vi.fn();
 
-    await runOpenAIWebSearchJsonToolLoop({
+    const final = await runOpenAIWebSearchJsonToolLoop({
       body: {
         model: 'test',
         stream: true,
@@ -425,21 +424,20 @@ describe('OpenAI web search JSON tool loop', () => {
             thumbnail: null,
           }],
         })),
-        readWebPage: vi.fn(),
-        readWebPages: vi.fn(),
+        readWebPage,
+        readWebPages,
       },
       requestJson,
       onChunk: vi.fn(),
       onApiTranscript,
     });
 
-    expect(requestJson).toHaveBeenCalledTimes(3);
-    const reminderMessages = requestJson.mock.calls[2][0].messages;
-    expect(reminderMessages[reminderMessages.length - 1]).toMatchObject({
-      role: 'system',
-      content: expect.stringContaining('Read one result page'),
-    });
-    expect(onApiTranscript).toHaveBeenCalledWith(expect.arrayContaining([
+    expect(requestJson).toHaveBeenCalledTimes(2);
+    expect(readWebPage).not.toHaveBeenCalled();
+    expect(readWebPages).not.toHaveBeenCalled();
+    expect(final).toContain('Premature answer.');
+    expect(final).not.toContain('Read one result page');
+    expect(onApiTranscript).not.toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({
         role: 'system',
         content: expect.stringContaining('Read one result page'),
@@ -1838,6 +1836,122 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(final).toContain('连续尝试了几个搜索词');
     expect(final).not.toContain('DSML');
     expect(final).not.toContain('tool_calls');
+  });
+
+  it('filters unsafe JSON text-protocol search URLs before reading or prompting', async () => {
+    const requestJson = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: '<web_search_request>{"query":"sample app","reason":"need sources"}</web_search_request>',
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: 'Final answer with https://example.com/safe',
+          },
+        }],
+      });
+    const statuses: unknown[] = [];
+    const client = {
+      webSearch: vi.fn(async () => ({
+        query: 'sample app',
+        results: [
+          {
+            title: 'Loopback',
+            url: 'http://127.0.0.1:3000/admin',
+            snippet: 'Bad',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+          {
+            title: 'Safe',
+            url: 'https://example.com/safe',
+            snippet: 'Good',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+          {
+            title: 'Relative',
+            url: '/internal',
+            snippet: 'Bad',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+        ],
+      })),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(async (urls: string[]) => urls.map((url) => ({
+        url,
+        ok: true,
+        page: {
+          title: 'Safe',
+          summary: '',
+          siteName: 'example.com',
+          finalUrl: url,
+          content: 'Readable safe page content.',
+          charCount: 27,
+        },
+      }))),
+    };
+
+    const final = await runOpenAIWebSearchJsonTextProtocolRequest({
+      body: {
+        model: 'test',
+        stream: false,
+        messages: [{ role: 'user', content: 'search sample app' }],
+      },
+      client,
+      requestJson,
+      onChunk: vi.fn(),
+      onStatus: (status) => statuses.push(status),
+    });
+
+    expect(client.readWebPages).toHaveBeenCalledWith(['https://example.com/safe'], {
+      contentLimit: 3000,
+      retries: 0,
+    });
+    const answerPrompt = JSON.stringify(requestJson.mock.calls[1][0].messages);
+    expect(answerPrompt).toContain('https://example.com/safe');
+    expect(answerPrompt).not.toContain('127.0.0.1');
+    expect(answerPrompt).not.toContain('/internal');
+    expect(statuses).toEqual([
+      { phase: 'searching', query: 'sample app' },
+      {
+        phase: 'results',
+        query: 'sample app',
+        results: [{
+          title: 'Safe',
+          url: 'https://example.com/safe',
+          snippet: 'Good',
+          publishedAt: null,
+        }],
+        metrics: {
+          durationMs: expect.any(Number),
+          resultCount: 1,
+        },
+      },
+      { phase: 'reading', urls: ['https://example.com/safe'] },
+      {
+        phase: 'complete',
+        urls: ['https://example.com/safe'],
+        failedSources: [],
+        metrics: {
+          durationMs: expect.any(Number),
+          failureCount: 0,
+          successCount: 1,
+        },
+      },
+    ]);
+    expect(final).toContain('https://example.com/safe');
+    expect(final).not.toContain('127.0.0.1');
+    expect(final).not.toContain('/internal');
   });
 
   it('does not emit a final JSON tool-loop answer after cancellation during response parsing', async () => {

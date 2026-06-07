@@ -23,6 +23,7 @@ describe('renderNoteExportHtml', () => {
         '<noembed><img src="assets/hidden-noembed.png"></noembed>',
         '<a href="javascript:alert(3)" onclick="alert(4)">bad</a>',
         '<a href="file:///etc/passwd">file</a>',
+        '<a href="/etc/passwd">absolute path</a>',
         '<a href="//example.com/protocol-relative">protocol</a>',
         '<a href="http://127.0.0.1:3000/admin">local raw</a>',
         '<a href="http://router/admin">router raw</a>',
@@ -30,6 +31,7 @@ describe('renderNoteExportHtml', () => {
         '<a href="mailto:user@example.com">mail</a>',
         '<img src="assets/demo.png" onerror="alert(6)" alt="demo">',
         '[protocol markdown](//example.com/markdown)',
+        '[absolute markdown](/etc/passwd)',
         '[local markdown](http://localhost:3000/secret)',
       ].join('\n'),
       'Unsafe <Title>',
@@ -47,12 +49,15 @@ describe('renderNoteExportHtml', () => {
     expect(doc.querySelector('[onerror]')).toBeNull();
     expect(doc.querySelector('a[href^="javascript:"]')).toBeNull();
     expect(doc.querySelector('a[href^="file:"]')).toBeNull();
+    expect(doc.querySelector('a[href="/etc/passwd"]')).toBeNull();
     expect(doc.querySelector('a[href^="//"]')).toBeNull();
     expect(doc.querySelector('a[href^="http://127.0.0.1"]')).toBeNull();
     expect(doc.querySelector('a[href^="http://router"]')).toBeNull();
     expect(doc.querySelector('a[href^="http://localhost"]')).toBeNull();
     expect(doc.body.textContent).toContain('protocol');
     expect(doc.body.textContent).toContain('protocol markdown');
+    expect(doc.body.textContent).toContain('absolute path');
+    expect(doc.body.textContent).toContain('absolute markdown');
     expect(doc.body.textContent).toContain('local raw');
     expect(doc.body.textContent).toContain('router raw');
     expect(doc.body.textContent).toContain('local markdown');

@@ -6,6 +6,7 @@ import {
   formatSearchResultsForModel,
 } from './format';
 import { canParseOpenAIToolArguments } from './openAIToolParsing';
+import { sanitizeWebSearchSourceUrl, sanitizeWebSearchStatus } from './statusMarkup';
 import { WEB_SEARCH_TOOL_NAMES } from './toolDefinitions';
 import type { WebSearchStatus } from './types';
 
@@ -76,14 +77,19 @@ function collectUniqueSearchResultUrls(
   const seen = new Set<string>();
   for (const result of results) {
     if (urls.length >= limit) break;
-    const url = result.url;
-    if (typeof url !== 'string') continue;
-    const trimmed = url.trim();
-    if (!trimmed || seen.has(trimmed)) continue;
-    seen.add(trimmed);
-    urls.push(trimmed);
+    const url = sanitizeWebSearchSourceUrl(result.url);
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    urls.push(url);
   }
   return urls;
+}
+
+function sanitizeSearchResults<T extends { url?: unknown }>(results: T[], limit: number): Array<T & { url: string }> {
+  return results.slice(0, limit).flatMap((result) => {
+    const url = sanitizeWebSearchSourceUrl(result.url);
+    return url ? [{ ...result, url }] : [];
+  });
 }
 
 function numberArg(args: Record<string, unknown>, key: string): number | undefined {
@@ -187,7 +193,10 @@ function emitStatus(
   status: Parameters<NonNullable<WebSearchToolRunnerOptions['onStatus']>>[0],
 ): void {
   throwIfAborted(options.signal);
-  options.onStatus?.(status);
+  const safeStatus = sanitizeWebSearchStatus(status);
+  if (safeStatus) {
+    options.onStatus?.(safeStatus);
+  }
   throwIfAborted(options.signal);
 }
 
@@ -227,22 +236,24 @@ export async function runWebSearchToolCall(
         () => client.webSearch(query, searchOptions),
       );
       throwIfAborted(options.signal);
+      const safeResults = sanitizeSearchResults(response.results, 5);
+      const safeResponse = { ...response, results: safeResults };
       emitStatus(options, {
-        phase: response.results.length > 0 ? 'results' : 'error',
+        phase: safeResults.length > 0 ? 'results' : 'error',
         query: response.query,
-        results: response.results.slice(0, 5),
+        results: safeResults.slice(0, 5),
         metrics: {
           durationMs: elapsedSince(startedAt),
-          resultCount: response.results.length,
+          resultCount: safeResults.length,
         },
-        message: response.results.length > 0 ? undefined : 'No relevant results were found.',
+        message: safeResults.length > 0 ? undefined : 'No relevant results were found.',
       });
-      const searchContent = formatSearchResultsForModel(response);
+      const searchContent = formatSearchResultsForModel(safeResponse);
       if (options.autoReadAfterSearch !== true) {
         return searchContent;
       }
 
-      const urls = collectUniqueSearchResultUrls(response.results, AUTO_READ_AFTER_SEARCH_LIMIT);
+      const urls = collectUniqueSearchResultUrls(safeResults, AUTO_READ_AFTER_SEARCH_LIMIT);
 
       if (urls.length === 0) {
         return searchContent;
@@ -280,7 +291,7 @@ export async function runWebSearchToolCall(
     }
 
     if (toolName === WEB_SEARCH_TOOL_NAMES.read) {
-      const url = stringArg(args, 'url', MAX_WEB_SEARCH_URL_ARG_CHARS);
+      const url = sanitizeWebSearchSourceUrl(stringArg(args, 'url', MAX_WEB_SEARCH_URL_ARG_CHARS));
       if (!url) {
         return invalidToolArgumentsResult(options);
       }
@@ -306,7 +317,9 @@ export async function runWebSearchToolCall(
     }
 
     if (toolName === WEB_SEARCH_TOOL_NAMES.readBatch) {
-      const urls = stringArrayArg(args, 'urls', MAX_WEB_SEARCH_URL_ARG_CHARS, MAX_WEB_SEARCH_BATCH_URLS);
+      const urls = stringArrayArg(args, 'urls', MAX_WEB_SEARCH_URL_ARG_CHARS, MAX_WEB_SEARCH_BATCH_URLS)
+        .map(sanitizeWebSearchSourceUrl)
+        .filter((url): url is string => Boolean(url));
       if (urls.length === 0) {
         return invalidToolArgumentsResult(options);
       }

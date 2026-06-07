@@ -24,7 +24,7 @@ import {
   runOpenAIWebSearchJsonToolLoop,
   runOpenAIWebSearchToolLoop,
 } from '@/lib/ai/webSearch/openAIToolLoop'
-import { buildWebSearchStatusMarkup, stripWebSearchStatusMarkup } from '@/lib/ai/webSearch/statusMarkup'
+import { buildWebSearchStatusMarkup, sanitizeWebSearchSourceUrl, stripWebSearchStatusMarkup } from '@/lib/ai/webSearch/statusMarkup'
 import { isStandaloneImageGenerationModel } from '@/lib/ai/modelCapabilities'
 import { addChatDebugLog } from '@/lib/debug/chatDebugLog'
 import {
@@ -415,16 +415,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
-function isSafeHttpUrl(value: unknown): value is string {
-  if (typeof value !== 'string') return false
-  try {
-    const parsed = new URL(value)
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
-  } catch {
-    return false
-  }
-}
-
 function hostLabel(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, '')
@@ -474,8 +464,9 @@ function extractXaiResponsesText(payload: Record<string, unknown>): string {
 }
 
 function collectXaiCitationUrlsFromValue(value: unknown, urls: string[]): void {
-  if (isSafeHttpUrl(value)) {
-    if (!urls.includes(value)) urls.push(value)
+  const safeUrl = sanitizeWebSearchSourceUrl(value)
+  if (safeUrl) {
+    if (!urls.includes(safeUrl)) urls.push(safeUrl)
     return
   }
   if (Array.isArray(value)) {
@@ -487,8 +478,9 @@ function collectXaiCitationUrlsFromValue(value: unknown, urls: string[]): void {
   if (!isRecord(value)) {
     return
   }
-  if (isSafeHttpUrl(value.url) && !urls.includes(value.url)) {
-    urls.push(value.url)
+  const recordUrl = sanitizeWebSearchSourceUrl(value.url)
+  if (recordUrl && !urls.includes(recordUrl)) {
+    urls.push(recordUrl)
   }
   for (const key of ['citations', 'citation', 'annotations', 'inline_citations', 'url_citation', 'source', 'sources', 'content', 'output']) {
     if (key in value) {

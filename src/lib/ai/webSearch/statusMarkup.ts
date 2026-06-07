@@ -22,7 +22,7 @@ export function sanitizeWebSearchSourceUrl(value: unknown): string | null {
   }
 }
 
-function sanitizeStatus(value: unknown): WebSearchStatus | null {
+export function sanitizeWebSearchStatus(value: unknown): WebSearchStatus | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const input = value as Record<string, unknown>;
   if (typeof input.phase !== 'string' || !VALID_PHASES.has(input.phase)) return null;
@@ -95,7 +95,11 @@ function unescapeStatusJson(value: string): string {
 }
 
 export function buildWebSearchStatusMarkup(status: WebSearchStatus): string {
-  return `<web-search-status>${escapeStatusJson(JSON.stringify(status))}</web-search-status>`;
+  const safeStatus = sanitizeWebSearchStatus(status);
+  if (!safeStatus) {
+    return '';
+  }
+  return `<web-search-status>${escapeStatusJson(JSON.stringify(safeStatus))}</web-search-status>`;
 }
 
 export function stripWebSearchStatusMarkup(content: string): string {
@@ -111,7 +115,7 @@ export function extractWebSearchStatuses(content: string): {
     try {
       if (String(json).length > MAX_STATUS_JSON_LENGTH) return '';
       const parsed = JSON.parse(unescapeStatusJson(json)) as WebSearchStatus;
-      const status = sanitizeStatus(parsed);
+      const status = sanitizeWebSearchStatus(parsed);
       if (status) statuses.push(status);
     } catch {
       // Ignore malformed status payloads; the assistant text should still render.

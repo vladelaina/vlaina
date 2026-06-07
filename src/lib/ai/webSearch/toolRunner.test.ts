@@ -46,14 +46,11 @@ describe('web search tool runner', () => {
           url: 'https://example.com/news',
           snippet: 'Snippet',
           publishedAt: '2026-05-06',
-          source: 'example',
-          thumbnail: null,
         }],
         metrics: {
           durationMs: expect.any(Number),
           resultCount: 1,
         },
-        message: undefined,
       },
     ]);
     expect(text).toContain('Candidate sources');
@@ -117,7 +114,7 @@ describe('web search tool runner', () => {
         results: [
           {
             title: 'One',
-            url: 'https://one.example',
+            url: 'https://example.com/one',
             snippet: 'Snippet',
             publishedAt: null,
             source: null,
@@ -125,7 +122,7 @@ describe('web search tool runner', () => {
           },
           {
             title: 'One duplicate',
-            url: 'https://one.example',
+            url: 'https://example.com/one',
             snippet: 'Snippet',
             publishedAt: null,
             source: null,
@@ -133,7 +130,7 @@ describe('web search tool runner', () => {
           },
           {
             title: 'Two',
-            url: 'https://two.example',
+            url: 'https://example.com/two',
             snippet: 'Snippet',
             publishedAt: null,
             source: null,
@@ -141,7 +138,7 @@ describe('web search tool runner', () => {
           },
           {
             title: 'Three',
-            url: 'https://three.example',
+            url: 'https://example.com/three',
             snippet: 'Snippet',
             publishedAt: null,
             source: null,
@@ -149,7 +146,7 @@ describe('web search tool runner', () => {
           },
           {
             title: 'Four',
-            url: 'https://four.example',
+            url: 'https://example.com/four',
             snippet: 'Snippet',
             publishedAt: null,
             source: null,
@@ -182,13 +179,105 @@ describe('web search tool runner', () => {
     );
 
     expect(client.readWebPages).toHaveBeenCalledWith([
-      'https://one.example',
-      'https://two.example',
-      'https://three.example',
+      'https://example.com/one',
+      'https://example.com/two',
+      'https://example.com/three',
     ], {
       contentLimit: 3000,
       retries: 0,
     });
+  });
+
+  it('filters unsafe search result URLs before emitting or auto-reading sources', async () => {
+    const statuses: unknown[] = [];
+    const client: WebSearchClient = {
+      webSearch: vi.fn(async () => ({
+        query: 'sample app',
+        results: [
+          {
+            title: 'Loopback',
+            url: 'http://127.0.0.1:3000/admin',
+            snippet: 'Bad',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+          {
+            title: 'Safe',
+            url: ' https://example.com/safe-article ',
+            snippet: 'Good',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+          {
+            title: 'Relative',
+            url: '/internal',
+            snippet: 'Bad',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+        ],
+      })),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(async (urls: string[]) => urls.map((url) => ({
+        url,
+        ok: true,
+        page: {
+          title: 'Safe',
+          summary: '',
+          siteName: 'safe.example',
+          finalUrl: url,
+          content: 'Readable page content.',
+          charCount: 22,
+        },
+      }))),
+    };
+
+    const text = await runWebSearchToolCall(
+      {
+        name: WEB_SEARCH_TOOL_NAMES.search,
+        arguments: JSON.stringify({ query: 'sample app' }),
+      },
+      { client, autoReadAfterSearch: true, onStatus: (status) => statuses.push(status) },
+    );
+
+    expect(client.readWebPages).toHaveBeenCalledWith(['https://example.com/safe-article'], {
+      contentLimit: 3000,
+      retries: 0,
+    });
+    expect(statuses).toEqual([
+      { phase: 'searching', query: 'sample app' },
+      {
+        phase: 'results',
+        query: 'sample app',
+        results: [{
+          title: 'Safe',
+          url: 'https://example.com/safe-article',
+          snippet: 'Good',
+          publishedAt: null,
+        }],
+        metrics: {
+          durationMs: expect.any(Number),
+          resultCount: 1,
+        },
+      },
+      { phase: 'reading', urls: ['https://example.com/safe-article'] },
+      {
+        phase: 'complete',
+        urls: ['https://example.com/safe-article'],
+        failedSources: [],
+        metrics: {
+          durationMs: expect.any(Number),
+          failureCount: 0,
+          successCount: 1,
+        },
+      },
+    ]);
+    expect(text).toContain('https://example.com/safe-article');
+    expect(text).not.toContain('127.0.0.1');
+    expect(text).not.toContain('/internal');
   });
 
   it('accepts model-emitted aliases for batch page reads', async () => {
@@ -337,6 +426,72 @@ describe('web search tool runner', () => {
     ]);
     expect(text).toContain('The page returned an HTTP error.');
     expect(text).not.toContain('HTTP 500 from provider');
+  });
+
+  it('rejects unsafe direct read URLs before calling the web search client', async () => {
+    const statuses: unknown[] = [];
+    const client: WebSearchClient = {
+      webSearch: vi.fn(),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(),
+    };
+
+    const text = await runWebSearchToolCall(
+      {
+        name: WEB_SEARCH_TOOL_NAMES.read,
+        arguments: JSON.stringify({ url: 'http://localhost/admin' }),
+      },
+      { client, onStatus: (status) => statuses.push(status) },
+    );
+
+    expect(text).toBe('Tool error: Tool call arguments were invalid.');
+    expect(statuses).toEqual([
+      { phase: 'error', message: 'Tool call arguments were invalid.' },
+    ]);
+    expect(client.readWebPage).not.toHaveBeenCalled();
+  });
+
+  it('drops unsafe batch read URLs and reads remaining public sources', async () => {
+    const statuses: unknown[] = [];
+    const client: WebSearchClient = {
+      webSearch: vi.fn(),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(async (urls: string[]) => urls.map((url) => ({
+        url,
+        ok: true,
+        page: {
+          title: 'OK',
+          summary: '',
+          siteName: 'safe.example',
+          finalUrl: url,
+          content: 'Readable content',
+          charCount: 16,
+        },
+      }))),
+    };
+
+    const text = await runWebSearchToolCall(
+      {
+        name: WEB_SEARCH_TOOL_NAMES.readBatch,
+        arguments: JSON.stringify({
+          urls: [
+            'http://192.168.1.1/router',
+            'https://safe.example/a',
+            'javascript:alert(1)',
+          ],
+        }),
+      },
+      { client, onStatus: (status) => statuses.push(status) },
+    );
+
+    expect(client.readWebPages).toHaveBeenCalledWith(['https://safe.example/a'], {
+      contentLimit: 3000,
+      retries: 0,
+    });
+    expect(statuses[0]).toEqual({ phase: 'reading', urls: ['https://safe.example/a'] });
+    expect(text).toContain('https://safe.example/a');
+    expect(text).not.toContain('192.168.1.1');
+    expect(text).not.toContain('javascript:');
   });
 
   it('passes cancellation signals through to the web search client', async () => {

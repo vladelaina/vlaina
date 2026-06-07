@@ -434,7 +434,7 @@ describe('chatStorage session message normalization', () => {
     expect(messages[0]?.versions[0]?.apiTranscript).toEqual(messages[0]?.apiTranscript);
   });
 
-  it('fills required transcript content fields for provider compatibility', () => {
+  it('drops orphan tool transcript messages while filling required content fields', () => {
     const messages = normalizeSessionMessages([{
       id: 'm1',
       role: 'assistant',
@@ -451,7 +451,6 @@ describe('chatStorage session message normalization', () => {
     expect(messages[0]?.apiTranscript).toEqual([
       { role: 'system', content: '' },
       { role: 'user', content: '' },
-      { role: 'tool', tool_call_id: 'call-1', content: '' },
     ]);
   });
 });
@@ -524,6 +523,22 @@ describe('chatStorage auto sync registration', () => {
     mocks.storage.readFile.mockResolvedValue('x'.repeat(25 * 1024 * 1024 + 1));
 
     await saveSessionJson('session-1', [createMessage('m1')]);
+
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/session-1.json');
+    expect(mocks.storage.writeFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/chat/sessions/session-1.json',
+      expect.stringContaining('"m1"'),
+    );
+  });
+
+  it('overwrites unreadable existing session files instead of leaving saves pending', async () => {
+    mocks.storage.exists.mockImplementation(async (path: string) => (
+      path === '/appdata/.vlaina/chat/sessions/session-1.json'
+    ));
+    mocks.storage.stat.mockResolvedValue({ isFile: true, size: 200 });
+    mocks.storage.readFile.mockResolvedValue('{broken json');
+
+    await expect(saveSessionJson('session-1', [createMessage('m1')])).resolves.toBeUndefined();
 
     expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/session-1.json');
     expect(mocks.storage.writeFile).toHaveBeenCalledWith(

@@ -77,6 +77,12 @@ describe('link tooltip transactions', () => {
         expect(sanitizeTooltipLinkHref('catim.md')).toBe('https://catim.md');
     });
 
+    it('rejects local-network HTTP links when edited from the tooltip', () => {
+        expect(sanitizeTooltipLinkHref('http://127.0.0.1:3000/admin')).toBeNull();
+        expect(sanitizeTooltipLinkHref('http://router/admin')).toBeNull();
+        expect(sanitizeTooltipLinkHref('https://example.com/docs')).toBe('https://example.com/docs');
+    });
+
     it('keeps explicit relative hrefs when edited from the tooltip', () => {
         expect(sanitizeTooltipLinkHref('/docs/readme.md')).toBe('/docs/readme.md');
         expect(sanitizeTooltipLinkHref('./docs/readme.md')).toBe('./docs/readme.md');
