@@ -171,6 +171,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     path: string,
     content: string,
     modifiedAt: number | null,
+    size: number | null,
     optimisticContent = content,
   ) => {
     const latestState = get();
@@ -190,7 +191,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         path,
         nextContent,
         modifiedAt,
-        hasNewerContent ? { baselineContent: content } : { updateBaseline: true },
+        hasNewerContent ? { baselineContent: content, size } : { updateBaseline: true, size },
       ),
       currentNote: isCurrentNote
         ? { path, content: nextContent }
@@ -219,6 +220,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       return {
         content,
         modifiedAt: getCachedNoteModifiedAt(get().noteContentsCache, path),
+        size: get().noteContentsCache.get(path)?.size ?? null,
       };
     }
 
@@ -231,6 +233,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     return {
       content: result.content,
       modifiedAt: result.modifiedAt,
+      size: result.size,
     };
   };
 
@@ -318,7 +321,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
         try {
           const result = await writeNoteContent(path, content, '', metadataUpdatedAt);
-          applyCompletedMetadataWrite(path, result.content, result.modifiedAt, content);
+          applyCompletedMetadataWrite(path, result.content, result.modifiedAt, result.size, content);
         } catch (error) {
           markMetadataWriteFailedDirty(path, error);
         }
@@ -460,7 +463,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       if (!isActiveVaultRequest(vaultPathAtStart)) {
         return;
       }
-      applyCompletedMetadataWrite(path, result.content, result.modifiedAt, content);
+      applyCompletedMetadataWrite(path, result.content, result.modifiedAt, result.size, content);
     } catch (error) {
       markMetadataWriteFailedDirty(path, error);
     }

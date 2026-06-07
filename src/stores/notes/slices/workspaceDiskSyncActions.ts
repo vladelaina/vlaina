@@ -2,6 +2,7 @@ import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import { createEmptyMetadataFile, setNoteEntry } from '../storage';
 import {
   getCachedNoteModifiedAt,
+  getCachedNoteSize,
   setCachedNoteContent,
 } from '../document/noteContentCache';
 import { assertEditorSafeMarkdownContent } from '../document/noteDocumentPersistence';
@@ -35,6 +36,14 @@ function canReadDiskSyncNote(fileInfo: {
   );
 }
 
+function getKnownFileSize(fileInfo: { size?: number | null } | null | undefined): number | null {
+  return typeof fileInfo?.size === 'number' ? fileInfo.size : null;
+}
+
+function hasKnownFileSizeChanged(cachedSize: number | null, diskSize: number | null): boolean {
+  return cachedSize !== null && diskSize !== null && cachedSize !== diskSize;
+}
+
 export function createWorkspaceDiskSyncAction(
   set: NotesSet,
   get: NotesGet
@@ -58,6 +67,7 @@ export function createWorkspaceDiskSyncAction(
         const exists = await storage.exists(fullPath);
         const fileInfo = await storage.stat(fullPath);
         const cachedModifiedAt = getCachedNoteModifiedAt(noteContentsCache, currentNote.path);
+        const cachedSize = getCachedNoteSize(noteContentsCache, currentNote.path);
         if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
           return 'ignored';
         }
@@ -93,7 +103,9 @@ export function createWorkspaceDiskSyncAction(
         }
 
         const nextModifiedAt = fileInfo?.modifiedAt ?? cachedModifiedAt ?? null;
-        if (!options?.force && nextModifiedAt === cachedModifiedAt) {
+        const nextSize = getKnownFileSize(fileInfo);
+        const knownSizeChanged = hasKnownFileSizeChanged(cachedSize, nextSize);
+        if (!options?.force && nextModifiedAt === cachedModifiedAt && !knownSizeChanged) {
           return isCurrentDiskSyncTarget(get, notesPath, currentNote.path) ? 'unchanged' : 'ignored';
         }
 
@@ -118,6 +130,7 @@ export function createWorkspaceDiskSyncAction(
                 currentNote.path,
                 latestContent,
                 nextModifiedAt,
+                { size: nextSize },
               ),
               error: null,
             });
@@ -138,7 +151,7 @@ export function createWorkspaceDiskSyncAction(
                 currentNote.path,
                 latestContent,
                 nextModifiedAt,
-                { updateBaseline: true },
+                { updateBaseline: true, size: nextSize },
               ),
               error: null,
             });
@@ -178,7 +191,7 @@ export function createWorkspaceDiskSyncAction(
               currentNote.path,
               nextContent,
               nextModifiedAt,
-              { updateBaseline: true },
+              { updateBaseline: true, size: nextSize },
             ),
             error: null,
           });
@@ -232,7 +245,7 @@ export function createWorkspaceDiskSyncAction(
             currentNote.path,
             nextContent,
             nextModifiedAt,
-            { updateBaseline: true },
+            { updateBaseline: true, size: nextSize },
           ),
           error: null,
         });

@@ -37,12 +37,14 @@ interface SaveNoteDocumentOptions {
 export interface LoadedNoteDocument {
   content: string;
   modifiedAt: number | null;
+  size: number | null;
   nextCache: NoteContentCache;
 }
 
 export interface SavedNoteDocument {
   content: string;
   modifiedAt: number | null;
+  size: number | null;
   nextCache: NoteContentCache;
   metadata: NoteMetadataEntry;
 }
@@ -82,6 +84,14 @@ function assertReadableNoteFileInfo(fileInfo: { isFile?: boolean; isDirectory?: 
     throw new Error('Note file is too large to open.');
   }
   assertReadableNoteSize(fileInfo?.size);
+}
+
+function getKnownFileSize(fileInfo: { size?: number | null } | null | undefined): number | null {
+  return typeof fileInfo?.size === 'number' ? fileInfo.size : null;
+}
+
+function hasKnownFileSizeChanged(cachedSize: number | null | undefined, diskSize: number | null): boolean {
+  return typeof cachedSize === 'number' && diskSize !== null && cachedSize !== diskSize;
 }
 
 export function assertEditorSafeMarkdownContent(content: string): void {
@@ -131,7 +141,11 @@ export async function loadNoteDocument({
       const fullPath = await resolveStoredPath(notesPath, notePath);
       const fileInfo = await storage.stat(fullPath);
       const diskModifiedAt = fileInfo?.modifiedAt ?? null;
-      if (diskModifiedAt != null && (cachedModifiedAt == null || diskModifiedAt > cachedModifiedAt)) {
+      const diskSize = getKnownFileSize(fileInfo);
+      if (
+        (diskModifiedAt != null && (cachedModifiedAt == null || diskModifiedAt > cachedModifiedAt)) ||
+        hasKnownFileSizeChanged(cachedEntry?.size, diskSize)
+      ) {
         assertReadableNoteFileInfo(fileInfo);
         const diskContent = await storage.readFile(fullPath);
         assertEditorSafeMarkdownContent(diskContent);
@@ -139,8 +153,10 @@ export async function loadNoteDocument({
         return {
           content: normalizedDiskContent,
           modifiedAt: diskModifiedAt,
+          size: diskSize,
           nextCache: setCachedNoteContent(cache, notePath, normalizedDiskContent, diskModifiedAt, {
             updateBaseline: true,
+            size: diskSize,
           }),
         };
       }
@@ -150,6 +166,7 @@ export async function loadNoteDocument({
     return {
       content: normalizedCachedContent,
       modifiedAt: cachedModifiedAt,
+      size: cachedEntry?.size ?? null,
       nextCache: normalizedCachedContent === cachedContent
         ? cache
         : setCachedNoteContent(cache, notePath, normalizedCachedContent, cachedModifiedAt, {
@@ -166,12 +183,15 @@ export async function loadNoteDocument({
   assertEditorSafeMarkdownContent(content);
   const normalizedContent = normalizeSerializedMarkdownDocument(content);
   const modifiedAt = fileInfo?.modifiedAt ?? null;
+  const size = getKnownFileSize(fileInfo);
 
   return {
     content: normalizedContent,
     modifiedAt,
+    size,
     nextCache: setCachedNoteContent(cache, notePath, normalizedContent, modifiedAt, {
       updateBaseline: true,
+      size,
     }),
   };
 }
@@ -191,15 +211,18 @@ export async function saveNoteDocument({
   }
   assertEditorSafeMarkdownContent(currentNote.content);
   const diskModifiedAt = fileInfoBeforeWrite?.modifiedAt ?? null;
+  const diskSize = getKnownFileSize(fileInfoBeforeWrite);
   const normalizedCurrentContent = normalizeSerializedMarkdownDocument(currentNote.content);
   const cachedEntry = cache.get(notePath);
   const cachedModifiedAt = cachedEntry?.modifiedAt ?? null;
+  const knownFileSizeChanged = hasKnownFileSizeChanged(cachedEntry?.size, diskSize);
   const shouldCompareDiskContent =
     cachedEntry !== undefined &&
-    diskModifiedAt != null &&
+    (diskModifiedAt != null || knownFileSizeChanged) &&
     (cachedEntry.savedContent !== undefined ||
       cachedModifiedAt == null ||
-      diskModifiedAt !== cachedModifiedAt);
+      diskModifiedAt !== cachedModifiedAt ||
+      knownFileSizeChanged);
   if (shouldCompareDiskContent && cachedEntry !== undefined) {
     assertReadableNoteFileInfo(fileInfoBeforeWrite);
     const diskContent = await storage.readFile(fullPath);
@@ -217,8 +240,10 @@ export async function saveNoteDocument({
         content: normalizedDiskContent,
         metadata,
         modifiedAt: diskModifiedAt,
+        size: diskSize,
         nextCache: setCachedNoteContent(cache, notePath, normalizedDiskContent, diskModifiedAt, {
           updateBaseline: true,
+          size: diskSize,
         }),
       };
     }
@@ -234,8 +259,10 @@ export async function saveNoteDocument({
         content: normalizedDiskContent,
         metadata,
         modifiedAt: diskModifiedAt,
+        size: diskSize,
         nextCache: setCachedNoteContent(cache, notePath, normalizedDiskContent, diskModifiedAt, {
           updateBaseline: true,
+          size: diskSize,
         }),
       };
     } else {
@@ -257,13 +284,16 @@ export async function saveNoteDocument({
 
       const fileInfo = await storage.stat(fullPath);
       const modifiedAt = fileInfo?.modifiedAt ?? null;
+      const size = getKnownFileSize(fileInfo);
 
       return {
         content,
         metadata,
         modifiedAt,
+        size,
         nextCache: setCachedNoteContent(cache, notePath, content, modifiedAt, {
           updateBaseline: true,
+          size,
         }),
       };
     }
@@ -279,13 +309,16 @@ export async function saveNoteDocument({
 
   const fileInfo = await storage.stat(fullPath);
   const modifiedAt = fileInfo?.modifiedAt ?? null;
+  const size = getKnownFileSize(fileInfo);
 
   return {
     content,
     metadata,
     modifiedAt,
+    size,
     nextCache: setCachedNoteContent(cache, notePath, content, modifiedAt, {
       updateBaseline: true,
+      size,
     }),
   };
 }

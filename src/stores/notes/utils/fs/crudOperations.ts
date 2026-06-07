@@ -65,6 +65,7 @@ export async function createNoteImpl(
         fileName,
         content: initialContent,
         modifiedAt: fileInfo?.modifiedAt ?? null,
+        size: typeof fileInfo?.size === 'number' ? fileInfo.size : null,
         updatedMetadata,
         newChildren,
         updatedRecent
