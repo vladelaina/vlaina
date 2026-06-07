@@ -195,7 +195,7 @@ export function sanitizeNoteMediaSrc(value: unknown): string | null {
 
   if (trimmed.startsWith('//')) {
     if (trimmed.length > MAX_NOTE_REMOTE_MEDIA_URL_CHARS) return null;
-    return isLocalNetworkHttpUrl(`https:${trimmed}`) ? null : trimmed;
+    return isLocalNetworkHttpUrl(`https:${trimmed}`) ? null : `https:${trimmed}`;
   }
 
   const scheme = SCHEME_PATTERN.exec(trimmed)?.[1]?.toLowerCase();

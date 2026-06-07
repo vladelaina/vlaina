@@ -105,6 +105,7 @@ it('allows public media URLs without a browser window', () => {
   expect(isPublicRemoteMediaUrl('https://example.com/image.png')).toBe(true)
   expect(isPublicRemoteMediaUrl('https://[2606:4700:4700::1111]/image.png')).toBe(true)
   expect(sanitizeMediaSrc('https://example.com/image.png')).toBe('https://example.com/image.png')
+  expect(sanitizeMediaSrc('//example.com/image.png')).toBe('https://example.com/image.png')
 })
 
 it('does not classify unsafe remote strings as public media URLs', () => {

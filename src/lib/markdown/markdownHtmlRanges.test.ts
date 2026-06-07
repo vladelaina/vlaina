@@ -24,6 +24,21 @@ describe('markdownHtmlRanges', () => {
     expect(ranges).toEqual([{ start: 0, end: outerCloseEnd }]);
   });
 
+  it('keeps blockquote raw-text HTML containers protected until the matching close tag', () => {
+    const markdown = [
+      '> <svg>',
+      '> <text>hidden</text>',
+      '> </svg>',
+      'visible',
+    ].join('\n');
+
+    const ranges = getSanitizerDroppedRawHtmlRanges(markdown, { start: 0, end: markdown.length });
+
+    const svgStart = markdown.indexOf('<svg>');
+    const svgEnd = markdown.indexOf('</svg>') + '</svg>'.length;
+    expect(ranges).toEqual([{ start: svgStart, end: svgEnd }]);
+  });
+
   it('ignores raw-text close tags inside HTML comments', () => {
     const markdown = [
       '<svg>',

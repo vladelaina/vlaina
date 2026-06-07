@@ -7,6 +7,12 @@ import {
   getHtmlTagRanges,
   getRawTextHtmlRanges,
 } from './markdownHtmlRanges';
+import {
+  getMarkdownBlockContent,
+  getMarkdownBlockContentStartOffset,
+  getMarkdownHtmlBlockClosePattern,
+  getMarkdownInvisibleHtmlBlockClosePattern,
+} from './markdownHtmlBlockClassification';
 
 export { getHtmlTagRanges, getRawTextHtmlRanges };
 
@@ -18,13 +24,6 @@ export interface ContentRange {
 const MARKDOWN_ESCAPABLE_PUNCTUATION = new Set(
   Array.from('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~')
 );
-const HTML_MARKDOWN_BLOCK_OPEN_PATTERN =
-  /^(?: {0,3})<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i;
-const HTML_COMMENT_OPEN_PATTERN = /^(?: {0,3})<!--/;
-const HTML_PROCESSING_OPEN_PATTERN = /^(?: {0,3})<\?/;
-const HTML_DECLARATION_OPEN_PATTERN = /^(?: {0,3})<![A-Z]/i;
-const HTML_CDATA_OPEN_PATTERN = /^(?: {0,3})<!\[CDATA\[/;
-
 export function getNonFencedContentRanges(content: string): ContentRange[] {
   const ranges: ContentRange[] = [];
   let rangeStart = 0;
@@ -201,11 +200,16 @@ export function getMarkdownHtmlBlockRanges(
     const lineContentEnd = lineEnd === -1 ? range.end : Math.min(lineEnd, range.end);
     const nextOffset = lineEnd === -1 ? range.end : Math.min(range.end, lineEnd + 1);
     const line = content.slice(offset, lineContentEnd).replace(/\r$/, "");
-    const firstNonBlank = line.search(/\S/);
+    const blockContent = getMarkdownBlockContent(line);
+    const blockContentStartOffset = getMarkdownBlockContentStartOffset(line);
+    const firstNonBlank = blockContent.search(/\S/);
 
     if (activeStart !== null) {
       const closePattern = activeClosePattern;
-      if ((closePattern && closePattern.test(line)) || (!closePattern && line.trim() === "")) {
+      if (
+        (closePattern && closePattern.test(blockContent))
+        || (!closePattern && blockContent.trim() === "")
+      ) {
         ranges.push({ start: activeStart, end: closePattern ? nextOffset : offset });
         if (ranges.length >= rangeLimit) {
           return ranges;
@@ -218,8 +222,9 @@ export function getMarkdownHtmlBlockRanges(
     }
 
     const closePattern =
-      firstNonBlank >= 0 && !isEscapedMarkdownPunctuation(content, offset + firstNonBlank, range.start)
-        ? getMarkdownHtmlBlockClosePattern(line)
+      firstNonBlank >= 0
+      && !isEscapedMarkdownPunctuation(content, offset + blockContentStartOffset + firstNonBlank, range.start)
+        ? getMarkdownHtmlBlockClosePattern(blockContent)
         : undefined;
     if (closePattern !== undefined) {
       activeStart = offset;
@@ -241,21 +246,6 @@ export function getMarkdownHtmlBlockRanges(
   }
 
   return ranges;
-}
-
-function getMarkdownHtmlBlockClosePattern(line: string): RegExp | null | undefined {
-  const invisibleBlockClosePattern = getMarkdownInvisibleHtmlBlockClosePattern(line);
-  if (invisibleBlockClosePattern !== undefined) return invisibleBlockClosePattern;
-  if (HTML_MARKDOWN_BLOCK_OPEN_PATTERN.test(line)) return null;
-  return undefined;
-}
-
-function getMarkdownInvisibleHtmlBlockClosePattern(line: string): RegExp | undefined {
-  if (HTML_COMMENT_OPEN_PATTERN.test(line)) return /-->/;
-  if (HTML_PROCESSING_OPEN_PATTERN.test(line)) return /\?>/;
-  if (HTML_DECLARATION_OPEN_PATTERN.test(line)) return />/;
-  if (HTML_CDATA_OPEN_PATTERN.test(line)) return /\]\]>/;
-  return undefined;
 }
 
 export function getMarkdownInvisibleHtmlBlockRanges(
@@ -282,10 +272,12 @@ export function getMarkdownInvisibleHtmlBlockRanges(
     const lineContentEnd = lineEnd === -1 ? range.end : Math.min(lineEnd, range.end);
     const nextOffset = lineEnd === -1 ? range.end : Math.min(range.end, lineEnd + 1);
     const line = content.slice(offset, lineContentEnd).replace(/\r$/, "");
-    const firstNonBlank = line.search(/\S/);
+    const blockContent = getMarkdownBlockContent(line);
+    const blockContentStartOffset = getMarkdownBlockContentStartOffset(line);
+    const firstNonBlank = blockContent.search(/\S/);
 
     if (activeStart !== null) {
-      if (activeClosePattern?.test(line)) {
+      if (activeClosePattern?.test(blockContent)) {
         ranges.push({ start: activeStart, end: nextOffset });
         if (ranges.length >= rangeLimit) {
           return ranges;
@@ -298,8 +290,9 @@ export function getMarkdownInvisibleHtmlBlockRanges(
     }
 
     const closePattern =
-      firstNonBlank >= 0 && !isEscapedMarkdownPunctuation(content, offset + firstNonBlank, range.start)
-        ? getMarkdownInvisibleHtmlBlockClosePattern(line)
+      firstNonBlank >= 0
+      && !isEscapedMarkdownPunctuation(content, offset + blockContentStartOffset + firstNonBlank, range.start)
+        ? getMarkdownInvisibleHtmlBlockClosePattern(blockContent)
         : undefined;
     if (closePattern) {
       activeStart = offset;

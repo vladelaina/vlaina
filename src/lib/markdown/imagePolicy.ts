@@ -3,6 +3,11 @@ import {
   normalizeRenderableDataImageSrc,
   normalizeRenderableImageSrcset,
 } from './renderableImagePolicy';
+import {
+  GITHUB_RAW_HTML_ATTRIBUTE_NAMES_BY_TAG,
+  GITHUB_RAW_HTML_TAGS,
+  sanitizeRawHtmlUrlProperties,
+} from './rawHtmlUrlPolicy';
 
 export { isRenderableDataImageSrc, normalizeRenderableDataImageSrc, normalizeRenderableImageSrc, normalizeRenderableImageSrcset } from './renderableImagePolicy';
 
@@ -111,6 +116,12 @@ export function rehypeImageSrcsetSanitizer() {
   };
 }
 
+export function rehypeRawHtmlUrlSanitizer() {
+  return (tree: any) => {
+    visitImagePolicyNodes(tree, sanitizeRawHtmlUrlProperties);
+  };
+}
+
 export function createMarkdownSanitizeSchema() {
   const protocols = (defaultSchema.protocols || {}) as Record<string, string[]>;
   const hrefProtocols = protocols.href || [];
@@ -126,7 +137,7 @@ export function createMarkdownSanitizeSchema() {
 
   return {
     ...defaultSchema,
-    tagNames: Array.from(new Set([...tagNames, 'abbr', 'mark', 'sup', 'sub', 'u'])),
+    tagNames: Array.from(new Set([...tagNames, ...GITHUB_RAW_HTML_TAGS, 'abbr', 'mark', 'sup', 'sub', 'u'])),
     required: {
       ...(defaultSchema.required || {}),
     },
@@ -155,10 +166,16 @@ export function createMarkdownSanitizeSchema() {
       dd: Array.from(new Set([...(attributes.dd || []), 'className'])),
       img: Array.from(new Set([
         ...(attributes.img || []),
+        ...(GITHUB_RAW_HTML_ATTRIBUTE_NAMES_BY_TAG.img || []),
         'align',
         'width',
         'dataVlainaCrop',
       ])),
+      audio: Array.from(new Set([...(attributes.audio || []), ...(GITHUB_RAW_HTML_ATTRIBUTE_NAMES_BY_TAG.audio || [])])),
+      iframe: Array.from(new Set([...(attributes.iframe || []), ...(GITHUB_RAW_HTML_ATTRIBUTE_NAMES_BY_TAG.iframe || [])])),
+      source: Array.from(new Set([...(attributes.source || []), ...(GITHUB_RAW_HTML_ATTRIBUTE_NAMES_BY_TAG.source || [])])),
+      track: Array.from(new Set([...(attributes.track || []), ...(GITHUB_RAW_HTML_ATTRIBUTE_NAMES_BY_TAG.track || [])])),
+      video: Array.from(new Set([...(attributes.video || []), ...(GITHUB_RAW_HTML_ATTRIBUTE_NAMES_BY_TAG.video || [])])),
       p: Array.from(new Set([...(attributes.p || []), 'dataTextAlign'])).concat([textAlignStyleAttribute]),
       h1: Array.from(new Set([...(attributes.h1 || []), ...alignedBlockAttributes, 'id'])),
       h2: Array.from(new Set([...(attributes.h2 || []), ...alignedBlockAttributes, 'id'])),

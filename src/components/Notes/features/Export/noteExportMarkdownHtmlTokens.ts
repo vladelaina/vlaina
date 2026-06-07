@@ -6,12 +6,6 @@ import {
 import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 import type { ExportMarkdownAssetSourceToken } from './noteExportMarkdownAssetTypes';
 
-const TAG_ASSET_ATTRIBUTES: Record<string, Set<string>> = {
-  img: new Set(['src']),
-  source: new Set(['srcset']),
-  video: new Set(['poster']),
-};
-
 export interface HtmlTagRangeScan {
   ranges: ContentRange[];
   exhaustedAt: number | null;
@@ -31,26 +25,26 @@ function isHtmlNameChar(char: string | undefined): boolean {
   return isAsciiAlpha(char) || (char >= '0' && char <= '9') || char === ':' || char === '-';
 }
 
-function isHtmlTagStart(content: string, start: number): boolean {
+function isHtmlTagStart(content: string, start: number, end = content.length): boolean {
   let cursor = start + 1;
   if (content[cursor] === '/') {
     cursor += 1;
   }
-  if (!isAsciiAlpha(content[cursor])) {
+  if (cursor >= end || !isAsciiAlpha(content[cursor])) {
     return false;
   }
   cursor += 1;
-  while (isHtmlNameChar(content[cursor])) {
+  while (cursor < end && isHtmlNameChar(content[cursor])) {
     cursor += 1;
   }
   const next = content[cursor];
   return next === undefined || /\s/.test(next) || next === '/' || next === '>';
 }
 
-function findHtmlTagEnd(content: string, start: number): number {
+function findHtmlTagEnd(content: string, start: number, end = content.length): number {
   let quote: string | null = null;
 
-  for (let cursor = start + 1; cursor < content.length; cursor += 1) {
+  for (let cursor = start + 1; cursor < end; cursor += 1) {
     const char = content[cursor];
     if (quote) {
       if (char === quote) quote = null;
@@ -68,37 +62,38 @@ function findHtmlTagEnd(content: string, start: number): number {
   return -1;
 }
 
-function findHtmlCommentEnd(content: string, start: number): number {
+function findHtmlCommentEnd(content: string, start: number, end = content.length): number {
   const close = content.indexOf('-->', start + 4);
-  return close === -1 ? content.length : close + 3;
+  return close === -1 || close + 3 > end ? end : close + 3;
 }
 
-function findHtmlCdataEnd(content: string, start: number): number {
+function findHtmlCdataEnd(content: string, start: number, end = content.length): number {
   const close = content.indexOf(']]>', start + 9);
-  return close === -1 ? content.length : close + 3;
+  return close === -1 || close + 3 > end ? end : close + 3;
 }
 
-function findHtmlProcessingInstructionEnd(content: string, start: number): number {
+function findHtmlProcessingInstructionEnd(content: string, start: number, end = content.length): number {
   const close = content.indexOf('?>', start + 2);
-  return close === -1 ? content.length : close + 2;
+  return close === -1 || close + 2 > end ? end : close + 2;
 }
 
-function findHtmlDeclarationEnd(content: string, start: number): number {
+function findHtmlDeclarationEnd(content: string, start: number, end = content.length): number {
   const close = content.indexOf('>', start + 2);
-  return close === -1 ? content.length : close + 1;
+  return close === -1 || close + 1 > end ? end : close + 1;
 }
 
-function findHtmlNonTagEnd(content: string, start: number): number | null {
-  if (content.startsWith('<!--', start)) return findHtmlCommentEnd(content, start);
-  if (content.startsWith('<![CDATA[', start)) return findHtmlCdataEnd(content, start);
-  if (content.startsWith('<?', start)) return findHtmlProcessingInstructionEnd(content, start);
-  if (content.startsWith('<!', start)) return findHtmlDeclarationEnd(content, start);
+function findHtmlNonTagEnd(content: string, start: number, end = content.length): number | null {
+  if (content.startsWith('<!--', start)) return findHtmlCommentEnd(content, start, end);
+  if (content.startsWith('<![CDATA[', start)) return findHtmlCdataEnd(content, start, end);
+  if (content.startsWith('<?', start)) return findHtmlProcessingInstructionEnd(content, start, end);
+  if (content.startsWith('<!', start)) return findHtmlDeclarationEnd(content, start, end);
   return null;
 }
 
 export function collectHtmlTagRanges(
   content: string,
   maxRanges = Number.POSITIVE_INFINITY,
+  range: ContentRange = { start: 0, end: content.length },
 ): HtmlTagRangeScan {
   const rangeLimit = Number.isFinite(maxRanges)
     ? Math.max(0, Math.floor(maxRanges))
@@ -106,28 +101,30 @@ export function collectHtmlTagRanges(
   if (rangeLimit <= 0) return { ranges: [], exhaustedAt: 0 };
 
   const ranges: ContentRange[] = [];
-  let cursor = 0;
+  const rangeStart = Math.max(0, Math.min(content.length, range.start));
+  const rangeEnd = Math.max(rangeStart, Math.min(content.length, range.end));
+  let cursor = rangeStart;
 
-  while (cursor < content.length) {
+  while (cursor < rangeEnd) {
     const start = content.indexOf('<', cursor);
-    if (start === -1) {
+    if (start === -1 || start >= rangeEnd) {
       break;
     }
     if (isEscapedMarkdownPunctuation(content, start)) {
       cursor = start + 1;
       continue;
     }
-    const nonTagEnd = findHtmlNonTagEnd(content, start);
+    const nonTagEnd = findHtmlNonTagEnd(content, start, rangeEnd);
     if (nonTagEnd !== null) {
       cursor = nonTagEnd;
       continue;
     }
-    if (!isHtmlTagStart(content, start)) {
+    if (!isHtmlTagStart(content, start, rangeEnd)) {
       cursor = start + 1;
       continue;
     }
 
-    const end = findHtmlTagEnd(content, start);
+    const end = findHtmlTagEnd(content, start, rangeEnd);
     if (end === -1) {
       break;
     }
@@ -145,65 +142,6 @@ export function getHtmlTagRanges(content: string): ContentRange[] {
   return collectHtmlTagRanges(content).ranges;
 }
 
-function parseSrcsetAssetTokens(
-  value: string,
-  valueStart: number,
-  maxTokens = Number.POSITIVE_INFINITY,
-): ExportMarkdownAssetSourceToken[] {
-  const tokens: ExportMarkdownAssetSourceToken[] = [];
-  let candidateStart = 0;
-  let skippedDataUrlComma = false;
-
-  const pushCandidate = (start: number, end: number) => {
-    if (tokens.length >= maxTokens) {
-      return;
-    }
-    let cursor = start;
-    while (cursor < end && /\s/.test(value[cursor])) {
-      cursor += 1;
-    }
-
-    const sourceStart = cursor;
-    while (cursor < end && !/\s/.test(value[cursor])) {
-      cursor += 1;
-    }
-    const sourceEnd = cursor;
-    const src = value.slice(sourceStart, sourceEnd);
-    if (src) {
-      tokens.push({
-        start: valueStart + sourceStart,
-        end: valueStart + sourceEnd,
-        src,
-        lookupSrc: decodeMarkdownHtmlText(src),
-      });
-    }
-  };
-
-  for (let cursor = 0; cursor < value.length && tokens.length < maxTokens; cursor += 1) {
-    if (value[cursor] !== ',') {
-      continue;
-    }
-
-    const candidatePrefix = value.slice(candidateStart, cursor).trimStart();
-    if (!skippedDataUrlComma && /^data:/i.test(candidatePrefix)) {
-      skippedDataUrlComma = true;
-      continue;
-    }
-
-    if (value.slice(candidateStart, cursor).trim()) {
-      pushCandidate(candidateStart, cursor);
-    }
-    candidateStart = cursor + 1;
-    skippedDataUrlComma = false;
-  }
-
-  if (tokens.length < maxTokens && value.slice(candidateStart).trim()) {
-    pushCandidate(candidateStart, value.length);
-  }
-
-  return tokens;
-}
-
 function parseHtmlImageAssetRanges(
   content: string,
   tagStart: number,
@@ -215,13 +153,12 @@ function parseHtmlImageAssetRanges(
     return [];
   }
   const tagName = tagMatch[1]?.toLowerCase();
-  if (!tagName || !TAG_ASSET_ATTRIBUTES[tagName]) {
+  if (tagName !== 'img') {
     return [];
   }
   const tagPrefix = tagMatch[0];
 
   const tokens: ExportMarkdownAssetSourceToken[] = [];
-  const allowedAttributes = TAG_ASSET_ATTRIBUTES[tagName];
   let cursor = tagStart + tagPrefix.length;
   while (cursor < tagEnd && tokens.length < maxTokens) {
     while (cursor < tagEnd && /\s/.test(content[cursor])) {
@@ -271,26 +208,18 @@ function parseHtmlImageAssetRanges(
       valueEnd = cursor;
     }
 
-    if (allowedAttributes.has(attrName)) {
+    if (attrName === 'src') {
       const rawSrc = content.slice(valueStart, valueEnd);
       const lookupSrc = decodeMarkdownHtmlText(rawSrc.trim());
       if (!lookupSrc) {
         continue;
       }
-      if (attrName === 'srcset') {
-        tokens.push(...parseSrcsetAssetTokens(
-          content.slice(valueStart, valueEnd),
-          valueStart,
-          maxTokens - tokens.length,
-        ));
-      } else {
-        tokens.push({
-          start: valueStart,
-          end: valueEnd,
-          src: rawSrc,
-          lookupSrc,
-        });
-      }
+      tokens.push({
+        start: valueStart,
+        end: valueEnd,
+        src: rawSrc,
+        lookupSrc,
+      });
     }
   }
 

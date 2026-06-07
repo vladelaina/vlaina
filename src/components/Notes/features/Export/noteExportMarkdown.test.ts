@@ -522,16 +522,7 @@ describe('resolveExportMarkdownAssetSources', () => {
     );
   });
 
-  it('embeds raw HTML picture srcset and video poster image assets', async () => {
-    mocks.resolveExistingVaultAssetPath
-      .mockResolvedValueOnce('/vault/.vlaina/assets/a.webp')
-      .mockResolvedValueOnce('/vault/.vlaina/assets/a@2x.webp')
-      .mockResolvedValueOnce('/vault/.vlaina/assets/poster.png');
-    mocks.readBinaryFile
-      .mockResolvedValueOnce(new Uint8Array([1]))
-      .mockResolvedValueOnce(new Uint8Array([2]))
-      .mockResolvedValueOnce(new Uint8Array([3]));
-
+  it('does not embed raw HTML source or video poster assets that export rendering drops', async () => {
     const markdown = await resolveExportMarkdownAssetSources(
       [
         '<picture><source srcset="img:a.webp 1x, img:a@2x.webp 2x"><img src="https://example.com/a.png"></picture>',
@@ -542,38 +533,14 @@ describe('resolveExportMarkdownAssetSources', () => {
     );
 
     expect(markdown).toBe([
-      '<picture><source srcset="data:image/webp;base64,AQ== 1x, data:image/webp;base64,Ag== 2x"><img src="https://example.com/a.png"></picture>',
-      '<video src="img:movie.mp4" poster="data:image/png;base64,Aw=="></video>',
+      '<picture><source srcset="img:a.webp 1x, img:a@2x.webp 2x"><img src="https://example.com/a.png"></picture>',
+      '<video src="img:movie.mp4" poster="img:poster.png"></video>',
     ].join('\n'));
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenNthCalledWith(
-      1,
-      '/vault',
-      'a.webp',
-      'docs/demo.md',
-    );
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenNthCalledWith(
-      2,
-      '/vault',
-      'a@2x.webp',
-      'docs/demo.md',
-    );
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenNthCalledWith(
-      3,
-      '/vault',
-      'poster.png',
-      'docs/demo.md',
-    );
-    expect(mocks.resolveExistingVaultAssetPath).not.toHaveBeenCalledWith(
-      '/vault',
-      'movie.mp4',
-      'docs/demo.md',
-    );
+    expect(mocks.resolveExistingVaultAssetPath).not.toHaveBeenCalled();
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
   });
 
   it('does not rewrite img-like payload text inside raw HTML data URL srcset candidates', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/a@2x.webp');
-    mocks.readBinaryFile.mockResolvedValue(new Uint8Array([2]));
-
     const markdown = await resolveExportMarkdownAssetSources(
       '<picture><source srcset="data:image/svg+xml,img:a.webp 1x, img:a@2x.webp 2x"><img src="https://example.com/a.png"></picture>',
       '/vault',
@@ -581,14 +548,10 @@ describe('resolveExportMarkdownAssetSources', () => {
     );
 
     expect(markdown).toBe(
-      '<picture><source srcset="data:image/svg+xml,img:a.webp 1x, data:image/webp;base64,Ag== 2x"><img src="https://example.com/a.png"></picture>',
+      '<picture><source srcset="data:image/svg+xml,img:a.webp 1x, img:a@2x.webp 2x"><img src="https://example.com/a.png"></picture>',
     );
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
-      '/vault',
-      'a@2x.webp',
-      'docs/demo.md',
-    );
+    expect(mocks.resolveExistingVaultAssetPath).not.toHaveBeenCalled();
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
   });
 
   it('keeps unresolved local note images instead of failing the export', async () => {

@@ -68,6 +68,7 @@ describe('urlSecurity', () => {
     expect(normalizePublicRemoteMediaUrl('//example.com/image.png')).toBe('https://example.com/image.png');
     expect(normalizePublicRemoteMediaUrl('https://example.com/image.png')).toBe('https://example.com/image.png');
     expect(sanitizeNoteMediaSrc('https://example.com/image.png')).toBe('https://example.com/image.png');
+    expect(sanitizeNoteMediaSrc('//example.com/image.png')).toBe('https://example.com/image.png');
     expect(sanitizeNoteMediaSrc('https://[2606:4700:4700::1111]/image.png')).toBe('https://[2606:4700:4700::1111]/image.png');
   });
 

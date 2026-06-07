@@ -429,6 +429,22 @@ describe('notesSidebarSearchResults', () => {
     expect(results.map((result) => result.contentSnippet)).toEqual(['visible needle']);
   });
 
+  it('does not search content inside blockquote sanitizer-dropped raw HTML blocks', () => {
+    const index = [{
+      path: 'blockquote-raw-html.md',
+      name: 'blockquote-raw-html.md',
+      preview: '',
+    }];
+    const results = queryNotesSidebarSearch(index, 'needle', () => [
+      '> <svg>',
+      '> hidden needle',
+      '> </svg>',
+      'visible needle',
+    ].join('\n'));
+
+    expect(results.map((result) => result.contentSnippet)).toEqual(['visible needle']);
+  });
+
   it('does not search content inside invisible GFM HTML blocks', () => {
     const index = [{
       path: 'invisible-html.md',
@@ -451,6 +467,27 @@ describe('notesSidebarSearchResults', () => {
     expect(results.map((result) => result.contentSnippet)).toEqual([
       'visible html needle',
       'visible plain needle',
+    ]);
+  });
+
+  it('does not search content inside blockquote invisible GFM HTML blocks', () => {
+    const index = [{
+      path: 'blockquote-invisible-html.md',
+      name: 'blockquote-invisible-html.md',
+      preview: '',
+    }];
+    const results = queryNotesSidebarSearch(index, 'needle', () => [
+      '> <!--',
+      '> hidden comment needle',
+      '> -->',
+      '> <![CDATA[',
+      '> hidden cdata needle',
+      '> ]]>',
+      'visible needle',
+    ].join('\n'));
+
+    expect(results.map((result) => result.contentSnippet)).toEqual([
+      'visible needle',
     ]);
   });
 

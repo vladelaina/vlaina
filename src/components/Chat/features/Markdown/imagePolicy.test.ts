@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { createMarkdownSanitizeSchema, isRenderableDataImageSrc, normalizeRenderableImageSrc, normalizeRenderableImageSrcset } from "./imagePolicy";
 import { MAX_INLINE_IMAGE_BYTES } from "@/lib/markdown/dataImagePolicy";
 import { rehypeImageSrcSanitizer, rehypeImageSrcsetSanitizer } from "@/components/common/markdown/imagePolicy";
+import {
+  GITHUB_ALLOWED_ATTRIBUTES_BY_TAG,
+  GITHUB_ALLOWED_HTML_TAGS,
+} from "@/lib/notes/markdown/githubHtmlPolicy";
 
 function createOversizedDataImageSrc(): string {
   const payload = "A".repeat(Math.ceil((MAX_INLINE_IMAGE_BYTES + 1) / 3) * 4);
@@ -27,6 +31,47 @@ function createDeepHastTree(leaf: any): any {
     type: "root",
     children: [current],
   };
+}
+
+const HAST_ATTRIBUTE_NAME_BY_HTML_ATTRIBUTE: Record<string, string> = {
+  "accept-charset": "acceptCharset",
+  allowfullscreen: "allowFullScreen",
+  allowtransparency: "allowTransparency",
+  charoff: "charOff",
+  charset: "charSet",
+  colspan: "colSpan",
+  datetime: "dateTime",
+  enctype: "encType",
+  for: "htmlFor",
+  frameborder: "frameBorder",
+  hreflang: "hrefLang",
+  hspace: "hSpace",
+  ismap: "isMap",
+  itemprop: "itemProp",
+  itemscope: "itemScope",
+  itemtype: "itemType",
+  longdesc: "longDesc",
+  maxlength: "maxLength",
+  nohref: "noHref",
+  noshade: "noShade",
+  nowrap: "noWrap",
+  playsinline: "playsInline",
+  readonly: "readOnly",
+  referrerpolicy: "referrerPolicy",
+  rowspan: "rowSpan",
+  srclang: "srcLang",
+  srcset: "srcSet",
+  tabindex: "tabIndex",
+  usemap: "useMap",
+  valign: "vAlign",
+};
+
+function toHastAttributeName(attributeName: string): string {
+  return HAST_ATTRIBUTE_NAME_BY_HTML_ATTRIBUTE[attributeName] ?? attributeName.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase());
+}
+
+function getSchemaAttributeNames(attributes: Array<string | [string, ...unknown[]]> | undefined): Set<string> {
+  return new Set((attributes || []).map((attribute) => Array.isArray(attribute) ? attribute[0] : attribute));
 }
 
 describe("normalizeRenderableImageSrc", () => {
@@ -181,6 +226,24 @@ describe("createMarkdownSanitizeSchema", () => {
     expect(hrefProtocols).not.toContain("file");
     expect(srcProtocols).not.toContain("file");
     expect(srcProtocols).not.toContain("app");
+  });
+
+  it("keeps the GitHub raw HTML tag and tag-specific attribute allowlist mapped to HAST names", () => {
+    const schema = createMarkdownSanitizeSchema();
+    const tagNames = new Set(schema.tagNames || []);
+    const attributes = (schema.attributes || {}) as Record<string, Array<string | [string, ...unknown[]]>>;
+    const globalAttributes = getSchemaAttributeNames(attributes["*"]);
+
+    expect(Array.from(GITHUB_ALLOWED_HTML_TAGS).filter((tagName) => !tagNames.has(tagName))).toEqual([]);
+
+    for (const [tagName, allowedAttributes] of Object.entries(GITHUB_ALLOWED_ATTRIBUTES_BY_TAG)) {
+      const tagAttributes = getSchemaAttributeNames(attributes[tagName]);
+      const missingAttributes = Array.from(allowedAttributes)
+        .map(toHastAttributeName)
+        .filter((attributeName) => !tagAttributes.has(attributeName) && !globalAttributes.has(attributeName));
+
+      expect(missingAttributes, tagName).toEqual([]);
+    }
   });
 });
 

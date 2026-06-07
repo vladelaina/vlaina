@@ -158,7 +158,7 @@ export function sanitizeMediaSrc(value: unknown) {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
   if (!trimmed || controlOrBidiPattern.test(trimmed) || hasUnsafeBackslashUrlSyntax(trimmed) || windowsAbsolutePathPattern.test(trimmed) || (unixAbsolutePathPattern.test(trimmed) && !trimmed.startsWith('//'))) return null
-  if (trimmed.startsWith('//')) return trimmed.length > maxRemoteMediaUrlChars || isLocalNetworkHttpUrl(`https:${trimmed}`) ? null : trimmed
+  if (trimmed.startsWith('//')) return trimmed.length > maxRemoteMediaUrlChars || isLocalNetworkHttpUrl(`https:${trimmed}`) ? null : `https:${trimmed}`
 
   const scheme = schemePattern.exec(trimmed)?.[1]?.toLowerCase()
   if (!scheme) return trimmed.length <= maxInternalImageSrcChars ? trimmed : null

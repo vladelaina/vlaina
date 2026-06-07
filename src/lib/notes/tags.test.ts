@@ -48,6 +48,15 @@ describe('note tags', () => {
     ].join('\n'))).toEqual(['visible']);
   });
 
+  it('excludes tags from blockquote raw text and sanitizer-dropped HTML contents', () => {
+    expect(extractNoteTags([
+      '> <svg>',
+      '> #hidden-svg',
+      '> </svg>',
+      '#visible',
+    ].join('\n'))).toEqual(['visible']);
+  });
+
   it('excludes tags from GFM HTML block contents until a blank line', () => {
     expect(extractNoteTags([
       '<div>',
@@ -55,7 +64,20 @@ describe('note tags', () => {
       '</div>',
       '<source srcset="img:hero.webp 1x">',
       '#hidden-source',
+      '<custom-element>',
+      '#hidden-custom',
+      '</custom-element>',
       '',
+      '#visible',
+    ].join('\n'))).toEqual(['visible']);
+  });
+
+  it('excludes tags from blockquote GFM HTML block contents until a blank line', () => {
+    expect(extractNoteTags([
+      '> <custom-element>',
+      '> #hidden-custom',
+      '> </custom-element>',
+      '>',
       '#visible',
     ].join('\n'))).toEqual(['visible']);
   });

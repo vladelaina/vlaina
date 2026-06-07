@@ -207,6 +207,21 @@ describe('image markdown persistence', () => {
     );
   });
 
+  it('normalizes protocol-relative image refs when reopening markdown', async () => {
+    const attrs = await parseImageAttrs('![demo](//example.com/demo.png)');
+    expect(attrs).toMatchObject([
+      {
+        src: 'https://example.com/demo.png',
+        alt: 'demo',
+        align: 'center',
+      },
+    ]);
+
+    await expect(serializeImageAttrs(attrs[0])).resolves.toBe(
+      '<img src="https://example.com/demo.png" alt="demo" />'
+    );
+  });
+
   it('round trips html image layout attrs after reopening', async () => {
     const markdown = '<img src="./assets/demo.png" alt="demo" width="40%" align="right" title="Demo" />';
 

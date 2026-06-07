@@ -6,4 +6,5 @@ export {
   normalizeRenderableImageSrcset,
   rehypeImageSrcSanitizer,
   rehypeImageSrcsetSanitizer,
+  rehypeRawHtmlUrlSanitizer,
 } from '@/lib/markdown/imagePolicy';

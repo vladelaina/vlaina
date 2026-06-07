@@ -1,12 +1,10 @@
+import {
+  getMarkdownBlockContent,
+  getMarkdownHtmlBlockClosePattern,
+} from '@/lib/markdown/markdownHtmlBlockClassification';
+
 const FENCE_MARKER_PATTERN = /^(?: {0,3})(`{3,}|~{3,})(.*)$/;
 const HTML_RAW_BLOCK_OPEN_PATTERN = /^(?: {0,3})<(pre|script|style|textarea|title|xmp|noembed|noframes|plaintext|math|noscript|svg)(?:\s|>|$)/i;
-const HTML_BLOCK_TAG_OPEN_PATTERN =
-  /^(?: {0,3})<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i;
-const HTML_COMMENT_OPEN_PATTERN = /^(?: {0,3})<!--/;
-const HTML_PROCESSING_OPEN_PATTERN = /^(?: {0,3})<\?/;
-const HTML_DECLARATION_OPEN_PATTERN = /^(?: {0,3})<![A-Z]/i;
-const HTML_CDATA_OPEN_PATTERN = /^(?: {0,3})<!\[CDATA\[/;
-const BLOCKQUOTE_PREFIX_PATTERN = /^(?: {0,3}>[ \t]?)*(.*)$/;
 const INDENTED_CODE_LINE_PATTERN = /^(?: {4,}|\t)/;
 const FRONTMATTER_DELIMITER = '---';
 const MAX_FRONTMATTER_DELIMITER_LINE_CHARS = 1024;
@@ -176,10 +174,6 @@ function nextHtmlBlockState(line: string, activeHtmlBlock: RegExp | null): RegEx
   return closePattern.test(content) ? null : closePattern;
 }
 
-function getMarkdownBlockContent(line: string): string {
-  return BLOCKQUOTE_PREFIX_PATTERN.exec(line)?.[1] ?? line;
-}
-
 function getLeadingFrontmatterEndIndex(lines: readonly string[]): number | null {
   if (!isFrontmatterDelimiterLine(lines[0] ?? '')) {
     return null;
@@ -250,12 +244,8 @@ function getMarkdownRawHtmlBlockClosePattern(
     if (rawBlockMatch[1]?.toLowerCase() === 'plaintext') return NEVER_CLOSE_HTML_BLOCK_PATTERN;
     return new RegExp(`</${rawBlockMatch[1]}(?:\\s[^>]*)?>`, 'i');
   }
-  if (options.protectHtmlComments !== false && HTML_COMMENT_OPEN_PATTERN.test(line)) return /-->/;
-  if (HTML_PROCESSING_OPEN_PATTERN.test(line)) return /\?>/;
-  if (HTML_DECLARATION_OPEN_PATTERN.test(line)) return />/;
-  if (HTML_CDATA_OPEN_PATTERN.test(line)) return /\]\]>/;
-  if (HTML_BLOCK_TAG_OPEN_PATTERN.test(line)) return /^\s*$/;
-  return null;
+  const closePattern = getMarkdownHtmlBlockClosePattern(line, options);
+  return closePattern === undefined ? null : closePattern ?? /^\s*$/;
 }
 
 function isValidMarkdownFenceOpener(marker: string, info: string): boolean {

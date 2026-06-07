@@ -10,8 +10,10 @@ import {
 import {
   collectHtmlTagRanges,
   findHtmlImageSourceTokens,
+  type HtmlTagRangeScan,
 } from './noteExportMarkdownHtmlTokens';
 import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
+import { getNonExcludedContentRanges } from '@/lib/markdown/contentRangeExclusion';
 import type { ExportMarkdownAssetSourceToken } from './noteExportMarkdownAssetTypes';
 
 const MARKDOWN_LINK_DESTINATION_ESCAPE_PATTERN = /\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g;
@@ -230,6 +232,25 @@ function findMarkdownImageSourceMatches(
   return matches;
 }
 
+function collectVisibleHtmlTagRanges(
+  content: string,
+  ignoredRanges: readonly ContentRange[],
+  maxRanges: number,
+): HtmlTagRangeScan {
+  const ranges: ContentRange[] = [];
+  const visibleRanges = getNonExcludedContentRanges({ start: 0, end: content.length }, ignoredRanges);
+
+  for (const visibleRange of visibleRanges) {
+    const scan = collectHtmlTagRanges(content, maxRanges - ranges.length, visibleRange);
+    ranges.push(...scan.ranges);
+    if (scan.exhaustedAt !== null) {
+      return { ranges, exhaustedAt: scan.exhaustedAt };
+    }
+  }
+
+  return { ranges, exhaustedAt: null };
+}
+
 export function findExportMarkdownAssetSourceTokens(content: string): ExportMarkdownAssetSourceToken[] {
   return findExportMarkdownAssetSourceTokensWithOptions(content);
 }
@@ -244,8 +265,9 @@ export function findExportMarkdownAssetSourceTokensWithOptions(
   }
 
   const ignoredRanges = getIgnoredInlineRanges(content);
-  const htmlTagScan = collectHtmlTagRanges(
+  const htmlTagScan = collectVisibleHtmlTagRanges(
     content,
+    ignoredRanges,
     Number.isFinite(maxTokens) ? MAX_EXPORT_HTML_TAG_SCAN_RANGES : Number.POSITIVE_INFINITY,
   );
   const htmlTagRanges = htmlTagScan.ranges;

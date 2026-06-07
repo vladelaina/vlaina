@@ -113,6 +113,36 @@ describe('renderNoteExportHtml', () => {
     expect(html).not.toContain('/etc/passwd');
   });
 
+  it('keeps safe raw HTML while dropping exported raw media loaders', async () => {
+    const html = await renderNoteExportHtml(
+      [
+        '<figure><figcaption>Caption</figcaption></figure>',
+        '<time datetime="2026-05-06">today</time><wbr>',
+        '<iframe src="https://example.com/embed" sandbox="allow-scripts"></iframe>',
+        '<iframe src="http://127.0.0.1:3000/admin"></iframe>',
+        '<video src="https://example.com/movie.mp4" poster="assets/poster.png" controls></video>',
+        '<audio src="assets/audio.mp3" controls></audio>',
+        '<track src="assets/captions.vtt" kind="captions">',
+      ].join('\n'),
+      'Raw Media',
+    );
+    const doc = parseExportHtml(html);
+
+    expect(doc.querySelector('figure figcaption')?.textContent).toBe('Caption');
+    expect(doc.querySelector('time')?.getAttribute('datetime')).toBe('2026-05-06');
+    expect(doc.querySelector('wbr')).not.toBeNull();
+    expect(doc.querySelector('iframe')).toBeNull();
+    expect(doc.querySelector('video')).toBeNull();
+    expect(doc.querySelector('audio')).toBeNull();
+    expect(doc.querySelector('track')).toBeNull();
+    expect(html).not.toContain('https://example.com/embed');
+    expect(html).not.toContain('http://127.0.0.1:3000/admin');
+    expect(html).not.toContain('https://example.com/movie.mp4');
+    expect(html).not.toContain('assets/poster.png');
+    expect(html).not.toContain('assets/audio.mp3');
+    expect(html).not.toContain('assets/captions.vtt');
+  });
+
   it('renders exported math with shared KaTeX settings without source annotations', async () => {
     const html = await renderNoteExportHtml(
       'Inline $\\R$ and hidden $x% hidden_export_marker$',

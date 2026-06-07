@@ -154,6 +154,54 @@ describe('MarkdownRenderer images', () => {
     expect(container.innerHTML).not.toContain('javascript:alert');
   });
 
+  it('keeps GitHub-supported raw HTML media tags while sanitizing loadable URLs', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={[
+          '<figure><figcaption>Caption</figcaption></figure>',
+          '<time datetime="2026-05-06">today</time><wbr>',
+          '<iframe src="https://example.com/embed" sandbox="allow-same-origin allow-scripts" srcdoc="<script>alert(1)</script>"></iframe>',
+          '<iframe src="http://127.0.0.1:3000/admin"></iframe>',
+          '<video src="https://example.com/movie.mp4" poster="http://localhost:3000/poster.png" controls></video>',
+          '<audio src="http://router/audio.mp3" controls></audio>',
+          '<track src="javascript:alert(1)" kind="captions">',
+        ].join('')}
+      />
+    );
+
+    expect(container.querySelector('figure figcaption')).toHaveTextContent('Caption');
+    expect(container.querySelector('time')).toHaveAttribute('datetime', '2026-05-06');
+    expect(container.querySelector('wbr')).toBeInTheDocument();
+    expect(container.querySelector('iframe[src="https://example.com/embed"]')).toHaveAttribute('sandbox', 'allow-scripts');
+    expect(container.querySelector('iframe[src="https://example.com/embed"]')).toHaveAttribute('referrerpolicy', 'no-referrer');
+    expect(container.querySelector('iframe[src^="http://127.0.0.1"]')).toBeNull();
+    expect(container.querySelector('video')).toHaveAttribute('src', 'https://example.com/movie.mp4');
+    expect(container.querySelector('video')).not.toHaveAttribute('poster');
+    expect(container.querySelector('audio')).not.toHaveAttribute('src');
+    expect(container.querySelector('track')).not.toHaveAttribute('src');
+    expect(container.innerHTML).not.toContain('allow-same-origin');
+    expect(container.innerHTML).not.toContain('srcdoc');
+    expect(container.innerHTML).not.toContain('localhost');
+    expect(container.innerHTML).not.toContain('router');
+    expect(container.innerHTML).not.toContain('javascript:alert');
+  });
+
+  it('keeps safe relative raw HTML media sources in read-only markdown', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={[
+          '<video src="media/demo.mp4" controls><source src="media/fallback.webm" type="video/webm"><track src="media/captions.vtt" kind="captions"></video>',
+          '<audio src="./media/demo.mp3" controls></audio>',
+        ].join('')}
+      />
+    );
+
+    expect(container.querySelector('video')).toHaveAttribute('src', 'media/demo.mp4');
+    expect(container.querySelector('video source')).toHaveAttribute('src', 'media/fallback.webm');
+    expect(container.querySelector('video track')).toHaveAttribute('src', 'media/captions.vtt');
+    expect(container.querySelector('audio')).toHaveAttribute('src', './media/demo.mp3');
+  });
+
   it('does not render images nested inside raw html dropped by the sanitizer', () => {
     const { container } = render(
       <MarkdownRenderer
@@ -208,11 +256,10 @@ describe('MarkdownRenderer images', () => {
     );
 
     const quotes = Array.from(container.querySelectorAll('q'));
-    expect(quotes[0]).toHaveAttribute('cite', '');
+    expect(quotes[0]).toHaveAttribute('cite', 'https://example.com/protocol-relative');
     expect(quotes[1]).not.toHaveAttribute('cite');
     expect(quotes[2]).toHaveAttribute('cite', 'https://example.com/source');
     expect(container.innerHTML).not.toContain('javascript:alert');
-    expect(container.innerHTML).not.toContain('//example.com/protocol-relative');
   });
 
   it('strips arbitrary raw div data attributes from read-only markdown', () => {

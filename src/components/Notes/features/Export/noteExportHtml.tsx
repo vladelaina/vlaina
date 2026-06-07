@@ -11,6 +11,7 @@ import {
   isRenderableDataImageSrc,
   rehypeImageSrcSanitizer,
   rehypeImageSrcsetSanitizer,
+  rehypeRawHtmlUrlSanitizer,
 } from '@/components/common/markdown/imagePolicy';
 import { KATEX_SHARED_RENDER_OPTIONS } from '@/components/common/markdown/katexOptions';
 import { rehypeKatexSourceSanitizer } from '@/components/common/markdown/katexSourceSanitizer';
@@ -32,9 +33,13 @@ import { cn } from '@/lib/utils';
 import { EXPORT_DOCUMENT_CSS, EXPORT_WIDTH_PX } from './noteExportHtmlStyles';
 
 const BASE_EXPORT_MARKDOWN_SANITIZE_SCHEMA = createMarkdownSanitizeSchema();
+const EXPORT_BLOCKED_LOADABLE_RAW_HTML_TAGS = new Set(['audio', 'iframe', 'track', 'video']);
 
 const NOTE_EXPORT_MARKDOWN_SANITIZE_SCHEMA = {
   ...BASE_EXPORT_MARKDOWN_SANITIZE_SCHEMA,
+  tagNames: (BASE_EXPORT_MARKDOWN_SANITIZE_SCHEMA.tagNames || []).filter(
+    (tagName: string) => !EXPORT_BLOCKED_LOADABLE_RAW_HTML_TAGS.has(tagName),
+  ),
   protocols: {
     ...(BASE_EXPORT_MARKDOWN_SANITIZE_SCHEMA.protocols || {}),
     href: ['http', 'https', 'mailto'],
@@ -48,6 +53,7 @@ const NOTE_EXPORT_REHYPE_PLUGINS = [
   rehypeDropUnsafeRawHtmlContent,
   rehypeImageSrcSanitizer,
   [rehypeSanitize, NOTE_EXPORT_MARKDOWN_SANITIZE_SCHEMA],
+  rehypeRawHtmlUrlSanitizer,
   rehypeImageSrcsetSanitizer,
   [rehypeKatex, KATEX_SHARED_RENDER_OPTIONS],
   rehypeKatexSourceSanitizer,

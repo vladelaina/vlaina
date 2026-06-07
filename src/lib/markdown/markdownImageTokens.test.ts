@@ -80,6 +80,34 @@ describe('markdownImageTokens', () => {
     ]);
   });
 
+  it('ignores markdown image syntax inside GFM type-7 HTML blocks', () => {
+    const markdown = [
+      '<custom-element>',
+      '![hidden](https://example.com/hidden.png)',
+      '</custom-element>',
+      '',
+      '![real](https://example.com/real.png)',
+    ].join('\n');
+
+    expect(parseMarkdownAndHtmlImageTokens(markdown).map((token) => token.src)).toEqual([
+      'https://example.com/real.png',
+    ]);
+  });
+
+  it('ignores markdown image syntax inside blockquote GFM type-7 HTML blocks', () => {
+    const markdown = [
+      '> <custom-element>',
+      '> ![hidden](https://example.com/hidden.png)',
+      '> </custom-element>',
+      '>',
+      '![real](https://example.com/real.png)',
+    ].join('\n');
+
+    expect(parseMarkdownAndHtmlImageTokens(markdown).map((token) => token.src)).toEqual([
+      'https://example.com/real.png',
+    ]);
+  });
+
   it('ignores markdown image syntax inside non-tag GFM HTML blocks', () => {
     const markdown = [
       '<![CDATA[',
@@ -192,6 +220,21 @@ describe('markdownImageTokens', () => {
     ).join('');
     const markdown = [
       `<!-- ${ignoredCommentTags} -->`,
+      '<img src="https://example.com/real.png">',
+    ].join('\n');
+
+    expect(parseHtmlImageTokens(markdown, { maxTokens: 1 }).map((token) => token.src)).toEqual([
+      'https://example.com/real.png',
+    ]);
+  });
+
+  it('does not spend the html tag scan budget on tags inside inline code', () => {
+    const ignoredInlineTags = Array.from(
+      { length: 4000 },
+      (_, index) => `\`<span data-example="${index}"></span>\``,
+    );
+    const markdown = [
+      ...ignoredInlineTags,
       '<img src="https://example.com/real.png">',
     ].join('\n');
 

@@ -59,7 +59,7 @@ describe('findExportMarkdownAssetSourceTokens', () => {
     ]);
   });
 
-  it('ignores markdown image syntax inside source GFM HTML blocks', () => {
+  it('ignores source srcset assets and markdown image syntax inside source GFM HTML blocks', () => {
     const markdown = [
       '<source srcset="img:hero.webp 1x">',
       '![hidden](img:hidden.png)',
@@ -68,7 +68,34 @@ describe('findExportMarkdownAssetSourceTokens', () => {
     ].join('\n');
 
     expect(findExportMarkdownAssetSourceTokens(markdown).map((token) => token.lookupSrc)).toEqual([
-      'img:hero.webp',
+      'img:real.png',
+    ]);
+  });
+
+  it('ignores markdown image syntax inside GFM type-7 HTML blocks', () => {
+    const markdown = [
+      '<custom-element>',
+      '![hidden](img:hidden.png)',
+      '</custom-element>',
+      '',
+      '![real](img:real.png)',
+    ].join('\n');
+
+    expect(findExportMarkdownAssetSourceTokens(markdown).map((token) => token.lookupSrc)).toEqual([
+      'img:real.png',
+    ]);
+  });
+
+  it('ignores markdown image syntax inside blockquote GFM type-7 HTML blocks', () => {
+    const markdown = [
+      '> <custom-element>',
+      '> ![hidden](img:hidden.png)',
+      '> </custom-element>',
+      '>',
+      '![real](img:real.png)',
+    ].join('\n');
+
+    expect(findExportMarkdownAssetSourceTokens(markdown).map((token) => token.lookupSrc)).toEqual([
       'img:real.png',
     ]);
   });
@@ -95,6 +122,25 @@ describe('findExportMarkdownAssetSourceTokens', () => {
     ).join('');
     const markdown = [
       `<!-- ${ignoredCommentTags} -->`,
+      '<img src="img:real-html.png">',
+      '![real](img:real.png)',
+    ].join('\n');
+
+    expect(findExportMarkdownAssetSourceTokensWithOptions(markdown, {
+      maxTokens: MAX_EXPORT_MARKDOWN_ASSET_TOKENS,
+    }).map((token) => token.lookupSrc)).toEqual([
+      'img:real-html.png',
+      'img:real.png',
+    ]);
+  });
+
+  it('does not spend the html tag scan budget on tags inside inline code', () => {
+    const ignoredInlineTags = Array.from(
+      { length: MAX_EXPORT_HTML_TAG_SCAN_RANGES },
+      (_, index) => `\`<span data-example="${index}"></span>\``,
+    );
+    const markdown = [
+      ...ignoredInlineTags,
       '<img src="img:real-html.png">',
       '![real](img:real.png)',
     ].join('\n');
@@ -135,7 +181,7 @@ describe('findExportMarkdownAssetSourceTokens', () => {
     expect(tokens.at(-1)?.lookupSrc).toBe(`img:image-${MAX_EXPORT_MARKDOWN_ASSET_TOKENS - 1}.png`);
   });
 
-  it('bounds srcset asset extraction without building every candidate', () => {
+  it('does not extract source srcset assets that export rendering drops', () => {
     const srcset = Array.from(
       { length: MAX_EXPORT_MARKDOWN_ASSET_TOKENS + 1 },
       (_, index) => `img:image-${index}.png 1x`,
@@ -144,8 +190,7 @@ describe('findExportMarkdownAssetSourceTokens', () => {
       maxTokens: MAX_EXPORT_MARKDOWN_ASSET_TOKENS,
     });
 
-    expect(tokens).toHaveLength(MAX_EXPORT_MARKDOWN_ASSET_TOKENS);
-    expect(tokens.at(-1)?.lookupSrc).toBe(`img:image-${MAX_EXPORT_MARKDOWN_ASSET_TOKENS - 1}.png`);
+    expect(tokens).toEqual([]);
   });
 
   it('stops markdown asset extraction after the html tag scan budget is exhausted', () => {
