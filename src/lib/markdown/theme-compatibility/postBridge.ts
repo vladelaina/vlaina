@@ -1,134 +1,13 @@
-import {
-  getImportedMarkdownThemeScopeSelector,
-} from './dom';
+import { buildTyporaPostBridgeCss } from './postBridge/typoraBridge';
 import type { MarkdownThemePlatform } from './types';
-
-function getTyporaWriteSelector(importedThemeId: string): string {
-  const rootScope = `${getImportedMarkdownThemeScopeSelector(importedThemeId)}.theme-typora`;
-  return `:is(${rootScope}#write, ${rootScope} #write)`;
-}
-
-function isVlookTheme(importedThemeId: string): boolean {
-  return importedThemeId.toLowerCase().startsWith('vlook-');
-}
 
 export function buildImportedMarkdownThemePostBridgeCss(
   importedThemeId: string,
   platform: MarkdownThemePlatform
 ): string {
-  if (platform !== 'typora' || !isVlookTheme(importedThemeId)) {
+  if (platform !== 'typora') {
     return '';
   }
 
-  const write = getTyporaWriteSelector(importedThemeId);
-
-  return [
-    `${write} {`,
-    '  --typora-page-max-width: min(100%, var(--v-write-w, var(--vlaina-size-1080px)));',
-    '  box-sizing: border-box !important;',
-    '  width: 100% !important;',
-    '  max-width: var(--typora-page-max-width) !important;',
-    '  min-width: 0 !important;',
-    '  margin-inline: auto !important;',
-    '  padding-inline: var(--typora-page-padding-inline, var(--vlaina-space-20px)) !important;',
-    '  overflow-x: visible !important;',
-    '}',
-    '',
-    `${write}.done::before,`,
-    `${write}.done::after {`,
-    '  content: none !important;',
-    '  display: none !important;',
-    '  width: auto !important;',
-    '  height: 0 !important;',
-    '  min-height: 0 !important;',
-    '  margin: 0 !important;',
-    '  padding: 0 !important;',
-    '  background: none !important;',
-    '}',
-    '',
-    `${write} .milkdown-table-block.table-figure {`,
-    '  max-width: 100% !important;',
-    '  overflow: visible !important;',
-    '}',
-    '',
-    `${write} .milkdown-table-block.table-figure .table-wrapper {`,
-    '  width: 100% !important;',
-    '  max-width: 100% !important;',
-    '  margin-inline: 0 !important;',
-    '  overflow: visible !important;',
-    '}',
-    '',
-    `${write} .milkdown-table-block.table-figure .table-scroll {`,
-    '  max-width: 100% !important;',
-    '  overflow-x: auto !important;',
-    '  overflow-y: hidden !important;',
-    '}',
-    '',
-    `${write} .milkdown-table-block.table-figure .table-content-host {`,
-    '  display: flex !important;',
-    '  flex: none !important;',
-    '  max-width: none !important;',
-    '}',
-    '',
-    `${write} .milkdown-table-block.table-figure table.children {`,
-    '  width: auto !important;',
-    '  max-width: none !important;',
-    '}',
-    '',
-    `${write} .v-caption.full {`,
-    '  position: static !important;',
-    '  inset: auto !important;',
-    '  z-index: auto !important;',
-    '  width: 100% !important;',
-    '  height: auto !important;',
-    '  margin: 0 auto !important;',
-    '  background: transparent !important;',
-    '  transform: none !important;',
-    '}',
-    '',
-    `${write} .v-tbl-col-fmt-chkbox::before {`,
-    '  content: none !important;',
-    '}',
-    '',
-    `${write} .v-svg-input-checkbox {`,
-    '  position: relative !important;',
-    '  display: inline-flex !important;',
-    '  align-items: center !important;',
-    '  justify-content: center !important;',
-    '  width: var(--typora-vlook-checkbox-size, var(--vlaina-size-16px)) !important;',
-    '  height: var(--typora-vlook-checkbox-size, var(--vlaina-size-16px)) !important;',
-    '  color: transparent !important;',
-    '  font-size: 0 !important;',
-    '  line-height: 0 !important;',
-    '  vertical-align: middle !important;',
-    '  overflow: hidden !important;',
-    '}',
-    '',
-    `${write} .v-svg-input-checkbox::before {`,
-    '  content: "" !important;',
-    '  display: block !important;',
-    '  width: 100% !important;',
-    '  height: 100% !important;',
-    '  box-sizing: border-box !important;',
-    '  border: var(--typora-vlook-checkbox-border-width, var(--vlaina-border-width-2)) solid var(--vlook-token-fg, var(--a-c, var(--typora-link-color))) !important;',
-    '  border-radius: var(--typora-vlook-checkbox-radius, var(--vlaina-radius-025rem)) !important;',
-    '  background: var(--db, var(--typora-table-bg, transparent)) !important;',
-    '}',
-    '',
-    `${write} .v-svg-input-checkbox[data-vlook-checkbox='checked']::before {`,
-    '  background: var(--ac-gn, var(--typora-link-color)) !important;',
-    '  border-color: var(--ac-gn, var(--typora-link-color)) !important;',
-    '  box-shadow: inset 0 0 0 var(--typora-vlook-checkbox-mark-size, var(--vlaina-space-4px)) var(--db, var(--typora-page-bg)) !important;',
-    '}',
-    '',
-    `${write} .v-svg-input-checkbox[data-vlook-checkbox='pending']::before {`,
-    '  background: var(--ac-gy, var(--df-a, currentColor)) !important;',
-    '  border-color: var(--ac-gy, var(--df-a, currentColor)) !important;',
-    '}',
-    '',
-    `${write} .v-svg-input-checkbox[data-vlook-checkbox='failed']::before {`,
-    '  background: var(--ac-rd, var(--typora-link-color)) !important;',
-    '  border-color: var(--ac-rd, var(--typora-link-color)) !important;',
-    '}',
-  ].join('\n');
+  return buildTyporaPostBridgeCss(importedThemeId);
 }

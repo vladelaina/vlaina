@@ -1,0 +1,278 @@
+/* External Markdown theme compatibility layer.
+   Imported Typora/Obsidian CSS is scoped to the Markdown root; this bridge only
+   exposes common content-area aliases and keeps the app shell native Vlaina. */
+
+.milkdown-editor[data-markdown-compat-layer='external'] {
+  --bg-color: var(--db, var(--background-primary, var(--vlaina-bg-primary)));
+  --text-color: var(--df, var(--text-normal, var(--vlaina-text-primary)));
+  --md-char-color: var(--df-a, var(--text-faint, var(--vlaina-text-tertiary)));
+  --meta-content-color: var(--df-a, var(--text-muted, var(--vlaina-text-secondary)));
+  --primary-color: var(--a-c, var(--interactive-accent, var(--text-accent, var(--vlaina-accent))));
+  --select-text-bg-color: var(--v-selected-c, var(--text-selection, var(--vlaina-selection-bg)));
+  --monospace: var(--v-fm-code, var(--v-fm-code-local, var(--font-monospace, var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace))));
+  --bg-code: var(--d-cb, var(--code-bg, var(--code-background, var(--vlaina-code-block-background))));
+  --text-code: var(--df, var(--code-t, var(--code-normal, var(--vlaina-code-syntax-foreground))));
+  --typora-code-frame-bg: var(--std-code-sd, var(--background-modifier-border, var(--border-light, var(--background-secondary, transparent))));
+  --typora-code-editor-bg: var(--d-cb, var(--code-bg, var(--code-background, var(--background-primary, transparent))));
+  --typora-code-border: var(--std-code-sd, var(--pn-c-a, var(--background-modifier-border, var(--vlaina-border))));
+  --typora-code-line-hover-bg: var(--bq-bg, var(--background-modifier-hover, transparent));
+  --typora-code-line-number-fg: var(--df-a, var(--text-muted, var(--vlaina-code-syntax-muted)));
+  --bg-tertiary: var(--pn-c, var(--background-secondary-alt, var(--vlaina-bg-tertiary)));
+  --border-light: var(--pn-c-a, var(--background-modifier-border, var(--vlaina-border)));
+  --border-medium: var(--pn-c-a, var(--background-modifier-border, var(--vlaina-text-tertiary)));
+  --background-primary: var(--db, var(--vlaina-bg-primary));
+  --background-primary-alt: var(--pn-c, var(--vlaina-bg-secondary));
+  --background-secondary: var(--pn-c, var(--vlaina-bg-secondary));
+  --background-secondary-alt: var(--pn-c, var(--vlaina-bg-tertiary));
+  --background-modifier-border: var(--pn-c-a, var(--vlaina-border));
+  --background-modifier-hover: var(--bq-bg-fd, var(--vlaina-hover));
+  --background-modifier-active: var(--v-selected-c, var(--vlaina-accent-soft));
+  --background-modifier-form-field: var(--db, var(--vlaina-bg-secondary));
+  --text-normal: var(--df, var(--vlaina-text-primary));
+  --text-muted: var(--df-a, var(--vlaina-text-secondary));
+  --text-faint: var(--df-a, var(--vlaina-text-tertiary));
+  --text-accent: var(--a-c, var(--vlaina-accent));
+  --text-accent-hover: var(--a-o-c, var(--vlaina-accent-hover));
+  --text-selection: var(--v-selected-c, var(--vlaina-selection-bg));
+  --interactive-accent: var(--a-c, var(--vlaina-accent));
+  --interactive-accent-hover: var(--a-o-c, var(--vlaina-accent-hover));
+  --code-background: var(--typora-code-editor-bg, var(--code-bg, var(--vlaina-code-block-background)));
+  --code-normal: var(--text-code, var(--code-t, var(--vlaina-code-syntax-foreground)));
+  --code-size: var(--vlaina-font-0875rem);
+  --font-text: var(--v-fm-text, var(--v-fm-text-local, var(--font-sans)));
+  --font-interface: var(--v-fm-bd, var(--v-fm-bd-local, var(--font-sans)));
+  --font-monospace: var(--v-fm-code, var(--v-fm-code-local, var(--font-mono)));
+  --vlaina-markdown-font-size: var(--v-f-size, var(--vlaina-size-17px));
+  --vlaina-code-block-background: var(--typora-code-editor-bg);
+  --vlaina-code-inline-background: var(--code-bg, var(--typora-code-editor-bg));
+  --vlaina-code-inline-foreground: var(--code-t, var(--text-code));
+  --vlaina-code-syntax-foreground: var(--df, var(--code-t, currentColor));
+  --vlaina-code-syntax-muted: var(--cm-comment, var(--df-a, currentColor));
+  --vlaina-code-syntax-keyword: var(--cm-keyword, var(--text-code));
+  --vlaina-code-syntax-name: var(--cm-header, var(--cm-variable, var(--text-code)));
+  --vlaina-code-syntax-function: var(--cm-header, var(--cm-def, var(--text-code)));
+  --vlaina-code-syntax-constant: var(--cm-atom, var(--cm-number, var(--text-code)));
+  --vlaina-code-syntax-type: var(--cm-tag, var(--cm-attribute, var(--text-code)));
+  --vlaina-code-syntax-operator: var(--cm-variable, var(--text-code));
+  --vlaina-code-syntax-string: var(--cm-string, var(--text-code));
+  --vlaina-code-syntax-variable: var(--cm-variable-2, var(--cm-variable, var(--text-code)));
+  --vlaina-code-syntax-tag: var(--cm-tag, var(--text-code));
+  --vlaina-code-syntax-markup: var(--cm-header, var(--text-code));
+  --vlaina-code-syntax-list: var(--cm-quote, var(--text-code));
+  --vlaina-code-syntax-invalid: var(--cm-negative, var(--text-code));
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  padding-inline: 0;
+  box-sizing: border-box;
+  color: var(--text-color, var(--text-normal, var(--vlaina-text-primary)));
+  background-color: var(--db-ext, var(--bg-color, var(--background-primary, var(--vlaina-bg-primary))));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] > .milkdown {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  box-sizing: border-box;
+  background: transparent;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] #write,
+.milkdown-editor[data-markdown-compat-layer='external'] .markdown-preview-view {
+  color: var(--text-color, var(--text-normal, var(--vlaina-text-primary)));
+  background: var(--bg-color, var(--background-primary, transparent));
+  font-family: var(--v-fm-text, var(--font-text, var(--font-sans)));
+  font-size: var(--v-f-size, var(--vlaina-markdown-font-size, inherit));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] #write {
+  --typora-code-block-selector: pre.md-fences;
+  --typora-task-list-selector: .md-task-list-item;
+  --obsidian-task-list-selector: .task-list-item;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] #write :is(h1, h2, h3, h4, h5, h6, p, li, blockquote, td, th) {
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  color: inherit;
+  background: transparent;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .ProseMirror code:not(pre code) {
+  background-color: var(--code-bg, var(--vlaina-code-inline-background));
+  color: var(--code-t, var(--vlaina-code-inline-foreground, inherit));
+  font-family: var(--v-fm-code, var(--font-monospace, var(--font-mono)));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container {
+  background: var(--typora-code-frame-bg) !important;
+  background-color: var(--typora-code-frame-bg) !important;
+  color: var(--text-code, var(--code-normal, var(--vlaina-code-syntax-foreground)));
+  border-color: var(--typora-code-border);
+  font-family: var(--v-fm-code, var(--font-monospace, var(--font-mono)));
+  font-size: var(--code-size, var(--vlaina-font-0875rem));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-chrome-header {
+  background: var(--typora-code-frame-bg);
+  color: var(--typora-code-line-number-fg);
+  border-bottom: var(--vlaina-border-width-1) solid var(--typora-code-border);
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-chrome-language,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-chrome-language-label,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-chrome-copy-button {
+  color: var(--typora-code-line-number-fg);
+  font-family: var(--v-fm-tag, var(--v-fm-code, var(--font-monospace, var(--font-mono))));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-chrome-copy-button:hover,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container button:hover .code-block-chrome-language-label {
+  color: var(--h-f, var(--primary-color, var(--text-code)));
+  background: var(--typora-code-line-hover-bg);
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-editable,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-editor,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-scroller,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-content,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-line,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-lazy-preview,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-lazy-line-numbers {
+  background: var(--typora-code-editor-bg) !important;
+  background-color: var(--typora-code-editor-bg) !important;
+  color: var(--text-code, var(--code-normal, var(--vlaina-code-syntax-foreground)));
+  font-family: var(--v-fm-code, var(--monospace, var(--font-monospace, var(--font-mono))));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-line,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .code-block-lazy-preview {
+  padding: var(--vlaina-space-0) var(--vlaina-space-10px) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-gutters,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-gutter,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-gutterElement,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-lineNumbers,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-gutter-filler {
+  background: var(--typora-code-editor-bg) !important;
+  background-color: var(--typora-code-editor-bg) !important;
+  color: var(--typora-code-line-number-fg) !important;
+  border-color: var(--typora-code-border) !important;
+  box-shadow: none !important;
+  font-family: var(--v-fm-tag, var(--v-fm-code, var(--font-monospace, var(--font-mono)))) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-gutters {
+  border-right: var(--vlaina-border-width-1) solid var(--pn-c, var(--typora-code-border)) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-activeLine,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-activeLineGutter,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container:not(.md-focus) .cm-line:hover {
+  background: var(--typora-code-line-hover-bg) !important;
+  background-color: var(--typora-code-line-hover-bg) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-cursor,
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-dropCursor {
+  border-left-color: var(--cm-CodeMirror-cursor, var(--a-o-c, var(--primary-color))) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner :is(.cm-variable, .cm-operator, .cm-property) {
+  color: var(--cm-variable) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-variable-2 {
+  color: var(--cm-variable-2) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-keyword {
+  color: var(--cm-keyword) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-tag {
+  color: var(--cm-tag) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-attribute {
+  color: var(--cm-attribute) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-string {
+  color: var(--cm-string) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-string-2 {
+  color: var(--cm-string-2) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner :is(.cm-comment, .cm-meta, .cm-qualifier) {
+  color: var(--cm-comment, var(--cm-meta, var(--typora-code-line-number-fg))) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner :is(.cm-header, .cm-def) {
+  color: var(--cm-header) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-quote {
+  color: var(--cm-quote) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-link {
+  color: var(--cm-link) !important;
+  border-bottom: var(--vlaina-border-width-1) solid var(--cm-link) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-bracket {
+  color: var(--cm-bracket) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-atom {
+  color: var(--cm-atom) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .code-block-container .cm-s-inner .cm-number {
+  color: var(--cm-number, var(--cm-atom)) !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] li[data-item-type='task'] {
+  list-style: none !important;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] li[data-item-type='task']::before {
+  border-color: var(--background-modifier-border, var(--border-medium, var(--vlaina-text-tertiary)));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] li[data-item-type='task'][data-checked='true']::before {
+  background-color: var(--primary-color, var(--interactive-accent, var(--vlaina-accent)));
+  border-color: var(--primary-color, var(--interactive-accent, var(--vlaina-accent)));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .milkdown-table-block table,
+.milkdown-editor[data-markdown-compat-layer='external'] .milkdown-table-block :is(th, td) {
+  border-color: var(--background-modifier-border, var(--border-light, var(--vlaina-border)));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] .milkdown-table-block th {
+  background: var(--background-secondary-alt, var(--bg-tertiary, transparent));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] a {
+  color: var(--primary-color, var(--text-accent, var(--vlaina-accent)));
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] mark {
+  color: inherit;
+}

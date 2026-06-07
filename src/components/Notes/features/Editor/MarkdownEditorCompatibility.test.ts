@@ -211,6 +211,16 @@ describe('MarkdownEditor compatibility', () => {
       '',
       '*==step==*',
       '',
+      '*^Filters^*',
+      '',
+      '**Important Title**',
+      '',
+      '++Underline Title++',
+      '',
+      '==Standalone Highlight==',
+      '',
+      '*Standalone Emphasis*',
+      '',
       'prefix *==bu stepwise==* suffix',
       '',
       '***gn coating***',
@@ -230,6 +240,15 @@ describe('MarkdownEditor compatibility', () => {
 
     expect(view.dom.querySelector('.v-caption.vlook-caption-block')?.textContent).toBe('step');
     expect(view.dom.querySelector('.v-caption .v-cap-1')?.textContent).toBe('step');
+
+    const tabCaption = view.dom.querySelector('.vlook-tab-caption .v-tab-caption-label');
+    expect(tabCaption).toBeInstanceOf(HTMLElement);
+    expect(tabCaption?.textContent).toBe('Filters');
+
+    expect(view.dom.querySelector('.vlook-strong-block strong')?.textContent).toBe('Important Title');
+    expect(view.dom.querySelector('.vlook-underline-block u')?.textContent).toBe('Underline Title');
+    expect(view.dom.querySelector('.vlook-highlight-block mark')?.textContent).toBe('Standalone Highlight');
+    expect(view.dom.querySelector('.vlook-emphasis-block em')?.textContent).toBe('Standalone Emphasis');
 
     const stepwise = view.dom.querySelector('.v-stepwise');
     expect(stepwise?.textContent).toBe('bu stepwise');
@@ -270,7 +289,7 @@ describe('MarkdownEditor compatibility', () => {
     const editor = await createEditor([
       '| **Name** | Amount | Rate | Done | Empty | Long | Span |',
       '| --- | ---: | ---: | :---: | --- | --- | --- |',
-      '| Ada | $12.50 | -4% | [x] | | this cell contains enough words to use the VLOOK long-cell table style | ==merged look== |',
+      '| Ada | $12.50 | -4% | [x] | | this cell contains enough words to use the VLOOK long-cell table style | *<mark style="background-color: #ecf6ff">merged look</mark>* |',
     ].join('\n'));
 
     const view = editor.ctx.get(editorViewCtx);
@@ -302,6 +321,123 @@ describe('MarkdownEditor compatibility', () => {
     expect(view.dom.querySelector('td.v-empty-cell')).toBeInstanceOf(HTMLTableCellElement);
     expect(view.dom.querySelector('td.v-long')).toBeInstanceOf(HTMLTableCellElement);
     expect(view.dom.querySelector('td.v-table-colspan-all')).toBeInstanceOf(HTMLTableCellElement);
+    expect(view.dom.querySelector('td.td-span mark')).toBeInstanceOf(HTMLElement);
+
+    await destroyEditor(editor);
+  });
+
+  it('adds VLOOK static layout classes for captions, cards, media, and kbd buttons', async () => {
+    const editor = await createEditor([
+      '*==Table Data==*',
+      '',
+      '| Name | Amount |',
+      '| --- | ---: |',
+      '| Ada | 12 |',
+      '',
+      '*==Code Example==*',
+      '',
+      '```ts',
+      'const answer = 42;',
+      '```',
+      '',
+      '> ![Cover](./cover.png#card)',
+      '>',
+      '> **Card Title**',
+      '>',
+      '> Card body',
+      '',
+      '> ![Wide Cover](./wide-cover.png#cardd)',
+      '>',
+      '> **Dual Card Title**',
+      '>',
+      '> Dual card body',
+      '',
+      '[<kbd>Open</kbd>](https://example.com)',
+      '',
+      '<iframe src="https://example.com/embed"></iframe>',
+      '',
+      '<details open>',
+      '<summary>Fold Title</summary>',
+      '<p>Fold body</p>',
+      '</details>',
+      '',
+      '<div class="v-page-break"></div>',
+    ].join('\n'));
+
+    const view = editor.ctx.get(editorViewCtx);
+
+    const tableCaption = view.dom.querySelector('.v-caption.vlook-caption-block.table .v-cap-1');
+    expect(tableCaption).toBeInstanceOf(HTMLElement);
+    expect(tableCaption?.textContent).toBe('Table Data');
+    expect(view.dom.querySelector('.milkdown-table-block.table-figure.vlook-caption-target-table')).toBeInstanceOf(HTMLElement);
+
+    const codeCaption = view.dom.querySelector('.v-caption.vlook-caption-block.codeblock .v-cap-1');
+    expect(codeCaption).toBeInstanceOf(HTMLElement);
+    expect(codeCaption?.textContent).toBe('Code Example');
+    expect(view.dom.querySelector('.code-block-container.md-fences.vlook-caption-target-codeblock')).toBeInstanceOf(HTMLElement);
+    expect(view.dom.querySelector('.vlook-caption-gap')).toBeInstanceOf(HTMLElement);
+
+    const postCard = view.dom.querySelector('blockquote.v-q.v-post-card');
+    expect(postCard).toBeInstanceOf(HTMLElement);
+    expect(postCard?.classList.contains('vlook-post-card')).toBe(true);
+    expect(postCard?.querySelector('.v-card-title')?.textContent).toContain('Card Title');
+    expect(postCard?.querySelector('.v-card-text')?.textContent).toContain('Card body');
+    expect(postCard?.querySelector('.v-card-image .image-block-container[src="./cover.png#card"]')).toBeInstanceOf(HTMLElement);
+
+    const dualPostCard = view.dom.querySelector('blockquote.v-q.vlook-post-card-dual');
+    expect(dualPostCard).toBeInstanceOf(HTMLElement);
+    expect(dualPostCard?.querySelector('.v-card-title')?.textContent).toContain('Dual Card Title');
+    expect(dualPostCard?.querySelector('.v-card-image .image-block-container[src="./wide-cover.png#cardd"]')).toBeInstanceOf(HTMLElement);
+
+    const kbdButton = view.dom.querySelector('span[data-type="html"].vlook-kbd-html.v-btn kbd');
+    expect(kbdButton).toBeInstanceOf(HTMLElement);
+    expect(kbdButton?.textContent).toBe('Open');
+
+    expect(view.dom.querySelector('.md-htmlblock.v-caption.iframe.vlook-media-html-block iframe')).toBeInstanceOf(HTMLIFrameElement);
+    expect(view.dom.querySelector('.md-htmlblock details[open] > summary')).toBeInstanceOf(HTMLElement);
+    expect(view.dom.querySelector('.md-htmlblock details[open]')?.textContent).toContain('Fold body');
+    expect(view.dom.querySelector('.md-htmlblock.v-page-break.vlook-page-break')).toBeInstanceOf(HTMLElement);
+
+    await destroyEditor(editor);
+  });
+
+  it('adds VLOOK column classes across preserved blank-line placeholders', async () => {
+    const editor = await createEditor([
+      'Intro',
+      '',
+      '---',
+      '',
+      '- Alpha',
+      '- Beta',
+      '',
+      '---',
+      '',
+      '---',
+      '',
+      '> Left',
+      '',
+      '> Middle',
+      '',
+      '> Right',
+    ].join('\n'));
+
+    const view = editor.ctx.get(editorViewCtx);
+
+    const columnMarkers = Array.from(view.dom.querySelectorAll('.md-hr.v-column.vlook-column-marker'));
+    expect(columnMarkers).toHaveLength(3);
+
+    const columnGaps = Array.from(view.dom.querySelectorAll('.vlook-column-gap'));
+    expect(columnGaps.length).toBeGreaterThanOrEqual(3);
+
+    const list = view.dom.querySelector('ul.vlook-column-block.vlook-column-2.vlook-column-list.vlook-column-first');
+    expect(list).toBeInstanceOf(HTMLUListElement);
+    expect(list?.textContent).toContain('Alpha');
+
+    const quotes = Array.from(view.dom.querySelectorAll('blockquote.v-q.vlook-column-3.vlook-column-quote'));
+    expect(quotes).toHaveLength(3);
+    expect(quotes[0]?.classList.contains('vlook-column-first')).toBe(true);
+    expect(quotes[1]?.classList.contains('vlook-column-item-2')).toBe(true);
+    expect(quotes[2]?.classList.contains('vlook-column-item-3')).toBe(true);
 
     await destroyEditor(editor);
   });

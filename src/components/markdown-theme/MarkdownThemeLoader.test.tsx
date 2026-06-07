@@ -2,6 +2,7 @@ import { cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ImportedMarkdownTheme } from '@/lib/markdown/theme-compatibility/types';
 import { MarkdownThemeLoader } from './MarkdownThemeLoader';
+import { clearCompiledImportedMarkdownThemeStyles } from './markdownThemeCompiler';
 
 type MarkdownThemeMockStore = {
   setMarkdownImportedThemeId: (importedThemeId: string | null) => void;
@@ -87,6 +88,7 @@ describe('MarkdownThemeLoader', () => {
       element.remove();
     });
     document.documentElement.removeAttribute('data-vlaina-imported-app-theme');
+    clearCompiledImportedMarkdownThemeStyles();
     setMarkdownTheme('clean-light');
     mocks.readImportedMarkdownTheme.mockResolvedValue(importedTheme({}));
     mocks.store.setMarkdownImportedThemeId = vi.fn();
@@ -115,7 +117,7 @@ describe('MarkdownThemeLoader', () => {
 
   it('bridges imported theme variables into app shell tokens for shared UI surfaces', async () => {
     mocks.readImportedMarkdownTheme.mockResolvedValue(importedTheme({
-      id: 'vlook-fancy',
+      id: 'typora-sample',
       css: [
         ':root {',
         '  --db: #fff;',
@@ -135,8 +137,8 @@ describe('MarkdownThemeLoader', () => {
       const style = document.head.querySelector<HTMLStyleElement>(
         'style[data-vlaina-imported-app-theme="true"]'
       );
-      expect(document.documentElement.getAttribute('data-vlaina-imported-app-theme')).toBe('vlook-fancy');
-      expect(style?.textContent).toContain(':root[data-vlaina-imported-app-theme="vlook-fancy"]');
+      expect(document.documentElement.getAttribute('data-vlaina-imported-app-theme')).toBe('typora-sample');
+      expect(style?.textContent).toContain(':root[data-vlaina-imported-app-theme="typora-sample"]');
       expect(style?.textContent).toContain('--vlaina-color-surface-main: var(--db);');
       expect(style?.textContent).toContain('--vlaina-color-setting-panel: var(--db);');
       expect(style?.textContent).toContain('--vlaina-sidebar-row-selected-bg: var(--v-selected-c);');
@@ -144,9 +146,9 @@ describe('MarkdownThemeLoader', () => {
     });
   });
 
-  it('injects the VLOOK post bridge after imported theme CSS so DOM compatibility fixes win', async () => {
+  it('injects the Typora post bridge after imported theme CSS so DOM compatibility fixes win', async () => {
     mocks.readImportedMarkdownTheme.mockResolvedValue(importedTheme({
-      id: 'vlook-fancy',
+      id: 'typora-sample',
       platform: 'typora',
       css: [
         ':root { --db: #fff; --df: #1c1e1f; --v-write-w: 900px; }',
@@ -171,8 +173,8 @@ describe('MarkdownThemeLoader', () => {
       expect(importedStyle).toBeInstanceOf(HTMLStyleElement);
       expect(appStyle).toBeInstanceOf(HTMLStyleElement);
       expect(postBridgeStyle).toBeInstanceOf(HTMLStyleElement);
-      expect(postBridgeStyle?.id).toBe('vlaina-imported-markdown-theme-post-bridge-vlook-fancy');
-      expect(postBridgeStyle?.textContent).toContain('[data-markdown-imported-theme="vlook-fancy"].theme-typora');
+      expect(postBridgeStyle?.id).toBe('vlaina-imported-markdown-theme-post-bridge-typora-sample');
+      expect(postBridgeStyle?.textContent).toContain('[data-markdown-imported-theme="typora-sample"].theme-typora');
       expect(postBridgeStyle?.textContent).toContain('.done::before');
       expect(postBridgeStyle?.textContent).toContain('.v-caption.full');
       expect(postBridgeStyle?.textContent).toContain('max-width: var(--typora-page-max-width) !important;');
@@ -185,7 +187,7 @@ describe('MarkdownThemeLoader', () => {
     });
   });
 
-  it('does not inject a post bridge for non-VLOOK imported themes', async () => {
+  it('injects a post bridge for normal Typora imported themes', async () => {
     mocks.readImportedMarkdownTheme.mockResolvedValue(importedTheme({
       id: 'clean-light',
       platform: 'typora',
@@ -196,11 +198,16 @@ describe('MarkdownThemeLoader', () => {
 
     await waitFor(() => {
       expect(document.head.querySelector('style[data-vlaina-imported-markdown-theme="true"]')).not.toBeNull();
-      expect(document.head.querySelector('style[data-vlaina-imported-markdown-theme-post-bridge="true"]')).toBeNull();
+      const postBridgeStyle = document.head.querySelector<HTMLStyleElement>(
+        'style[data-vlaina-imported-markdown-theme-post-bridge="true"]'
+      );
+      expect(postBridgeStyle).toBeInstanceOf(HTMLStyleElement);
+      expect(postBridgeStyle?.id).toBe('vlaina-imported-markdown-theme-post-bridge-clean-light');
+      expect(postBridgeStyle?.textContent).toContain('[data-markdown-imported-theme="clean-light"].theme-typora');
     });
   });
 
-  it('removes the previous imported theme CSS while another theme is loading', async () => {
+  it('keeps the previous imported theme CSS until the next theme is ready', async () => {
     const firstTheme = importedTheme({
       id: 'clean-light',
       css: '#write h1 { color: red; }',
@@ -222,8 +229,16 @@ describe('MarkdownThemeLoader', () => {
     mocks.readImportedMarkdownTheme.mockResolvedValueOnce(secondTheme);
     view.rerender(<MarkdownThemeLoader />);
 
-    expect(document.head.querySelector('style[data-vlaina-imported-markdown-theme="true"]')).toBeNull();
-    expect(document.head.querySelector('style[data-vlaina-imported-markdown-theme-post-bridge="true"]')).toBeNull();
+    expect(document.head.querySelector('style[data-vlaina-imported-markdown-theme="true"]')?.id).toContain('clean-light');
+
+    await waitFor(() => {
+      const style = document.head.querySelector<HTMLStyleElement>(
+        'style[data-vlaina-imported-markdown-theme="true"]'
+      );
+      expect(style?.id).toContain('night');
+      expect(style?.textContent).toContain('color: blue');
+      expect(document.head.querySelectorAll('style[data-vlaina-imported-markdown-theme="true"]')).toHaveLength(1);
+    });
   });
 
   it('sanitizes unsafe CSS URLs again before injecting persisted imported CSS', async () => {

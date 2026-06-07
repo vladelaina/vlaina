@@ -19,6 +19,10 @@ import {
   syncImportedMarkdownThemesFromDirectory,
 } from '@/lib/markdown/theme-compatibility/importedThemeStorage';
 import type { ImportedMarkdownThemeMetadata } from '@/lib/markdown/theme-compatibility/types';
+import {
+  preloadCompiledImportedMarkdownThemeStyles,
+  preloadMarkdownThemeCompiler,
+} from '@/components/markdown-theme/markdownThemeCompiler';
 import { cn } from '@/lib/utils';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
@@ -93,9 +97,18 @@ interface ThemeDropdownProps {
   importedThemes: ImportedMarkdownThemeMetadata[];
   onChange: (themeId: string | null) => void;
   onRefresh: () => void;
+  onWarmup: () => void;
+  onThemePreload: (themeId: string) => void;
 }
 
-function ThemeDropdown({ importedThemeId, importedThemes, onChange, onRefresh }: ThemeDropdownProps) {
+function ThemeDropdown({
+  importedThemeId,
+  importedThemes,
+  onChange,
+  onRefresh,
+  onWarmup,
+  onThemePreload,
+}: ThemeDropdownProps) {
   const { t } = useI18n();
   const activeTheme = importedThemeId
     ? importedThemes.find((theme) => theme.id === importedThemeId) ?? null
@@ -104,7 +117,10 @@ function ThemeDropdown({ importedThemeId, importedThemes, onChange, onRefresh }:
 
   return (
     <DropdownMenu onOpenChange={(open) => {
-      if (open) onRefresh();
+      if (open) {
+        onWarmup();
+        onRefresh();
+      }
     }}>
       <DropdownMenuTrigger asChild>
         <button
@@ -133,6 +149,8 @@ function ThemeDropdown({ importedThemeId, importedThemes, onChange, onRefresh }:
         {importedThemes.map((theme) => (
           <DropdownMenuItem
             key={theme.id}
+            onFocus={() => onThemePreload(theme.id)}
+            onPointerEnter={() => onThemePreload(theme.id)}
             onSelect={() => onChange(theme.id)}
             className={cn(
               "rounded-xl px-3 py-2 text-[var(--vlaina-font-13)] text-[var(--vlaina-sidebar-chat-text)] focus:bg-[var(--vlaina-sidebar-row-selected-bg)] focus:text-[var(--vlaina-sidebar-row-selected-text)]",
@@ -154,6 +172,8 @@ interface ThemeAppearanceControlProps {
   onColorModeChange: (mode: ColorMode) => void;
   onThemeChange: (themeId: string | null) => void;
   onThemeRefresh: () => void;
+  onThemeWarmup: () => void;
+  onThemePreload: (themeId: string) => void;
 }
 
 function ThemeAppearanceControl({
@@ -163,6 +183,8 @@ function ThemeAppearanceControl({
   onColorModeChange,
   onThemeChange,
   onThemeRefresh,
+  onThemeWarmup,
+  onThemePreload,
 }: ThemeAppearanceControlProps) {
   return (
     <div className={cn(
@@ -176,6 +198,8 @@ function ThemeAppearanceControl({
         importedThemes={importedThemes}
         onChange={onThemeChange}
         onRefresh={onThemeRefresh}
+        onWarmup={onThemeWarmup}
+        onThemePreload={onThemePreload}
       />
     </div>
   );
@@ -319,6 +343,14 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
     }
   }, [addToast, t]);
 
+  const handleThemeWarmup = useCallback(() => {
+    preloadMarkdownThemeCompiler();
+  }, []);
+
+  const handleThemePreload = useCallback((themeId: string) => {
+    preloadCompiledImportedMarkdownThemeStyles(themeId);
+  }, []);
+
   const fontSizeSlider = (
     <input
       type="range"
@@ -412,6 +444,8 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
             onColorModeChange={setColorMode}
             onThemeChange={setMarkdownImportedThemeId}
             onThemeRefresh={() => void refreshImportedThemes()}
+            onThemeWarmup={handleThemeWarmup}
+            onThemePreload={handleThemePreload}
           />
           <Tooltip>
             <TooltipTrigger asChild>

@@ -1,12 +1,14 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+const EDITOR_STYLES_ROOT = resolve(
+  process.cwd(),
+  'src/components/Notes/features/Editor/styles'
+);
+
 function readStyleFile(name: string) {
-  return readFileSync(
-    resolve(process.cwd(), 'src/components/Notes/features/Editor/styles', name),
-    'utf8'
-  );
+  return readFileSync(resolve(EDITOR_STYLES_ROOT, name), 'utf8');
 }
 
 function readBlockSelectionStyle() {
@@ -14,7 +16,7 @@ function readBlockSelectionStyle() {
 }
 
 function readThemeCompatibilityStyle() {
-  return readStyleFile('theme-compatibility.css');
+  return readCssFileWithImports(resolve(EDITOR_STYLES_ROOT, 'theme-compatibility.css'));
 }
 
 function readThemeStyle() {
@@ -103,13 +105,39 @@ function readFloatingToolbarSourceFiles() {
 }
 
 function readEditorStyleSourceFiles() {
-  const root = resolve(process.cwd(), 'src/components/Notes/features/Editor/styles');
-  return readdirSync(root)
-    .filter((entry) => entry.endsWith('.css'))
-    .map((entry) => {
-      const path = resolve(root, entry);
-      return { path, source: readFileSync(path, 'utf8') };
-    });
+  const root = EDITOR_STYLES_ROOT;
+  const files: Array<{ path: string; source: string }> = [];
+
+  const visit = (dir: string) => {
+    for (const entry of readdirSync(dir)) {
+      const path = resolve(dir, entry);
+      const stat = statSync(path);
+      if (stat.isDirectory()) {
+        visit(path);
+        continue;
+      }
+
+      if (entry.endsWith('.css')) {
+        files.push({ path, source: readFileSync(path, 'utf8') });
+      }
+    }
+  };
+
+  visit(root);
+  return files;
+}
+
+function readCssFileWithImports(path: string, seen = new Set<string>()): string {
+  if (seen.has(path)) return '';
+  seen.add(path);
+
+  return readFileSync(path, 'utf8').replace(
+    /@import\s+(?:url\()?['"]([^'")]+)['"]\)?\s*;/g,
+    (match, importPath: string) => {
+      if (/^(?:[a-z]+:|\/)/i.test(importPath)) return match;
+      return readCssFileWithImports(resolve(dirname(path), importPath), seen);
+    }
+  );
 }
 
 function extractCssRule(source: string, selector: string) {
@@ -244,12 +272,12 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).not.toContain(".theme-vlaina.theme-typora");
   });
 
-  it('keeps VLOOK static content compatibility scoped to imported Typora themes', () => {
+  it('keeps Typora ecosystem semantic compatibility scoped to imported Typora themes', () => {
     const css = readThemeCompatibilityStyle();
-    const scope = ":where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora[data-markdown-imported-theme^='vlook-'])";
+    const scope = ":where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora)";
 
     expect(css).toContain(`${scope} #write {`);
-    expect(css).toContain('--typora-page-max-width: min(100%, var(--v-write-w, var(--vlaina-size-1080px)));');
+    expect(css).toContain('--typora-page-max-width: min(100%, var(--v-write-w, 1200px));');
     expect(css).toContain('max-width: var(--typora-page-max-width) !important;');
     expect(css).toContain(`${scope} #write.done::before,`);
     expect(css).toContain(`${scope} #write :is(.md-htmlblock, .video-block, .v-caption.iframe) :is(iframe, video, object, embed),`);
@@ -258,14 +286,27 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain(`${scope} #write .v-btn {`);
     expect(css).toContain(`${scope} #write .v-tab-group {`);
     expect(css).toContain(`${scope} #write .v-tab-box {`);
+    expect(css).toContain(`${scope} #write .v-post-card.vlook-post-card {`);
+    expect(css).toContain(`${scope} #write :is(blockquote, details, .md-alert) {`);
+    expect(css).toContain(`${scope} #write table :is(th, td).td-span {`);
+    expect(css).toContain(`${scope} #write .vlook-caption-gap {`);
+    expect(css).toContain(`${scope} #write .vlook-caption-target-codeblock.code-block-container.md-fences,`);
+    expect(css).toContain(`${scope} #write .v-page-break.vlook-page-break {`);
+    expect(css).toContain('break-before: page;');
     expect(css).toContain(`${scope} #write .v-tbl-row-g-btn,`);
     expect(css).toContain(`${scope} #write .v-svg-input-checkbox {`);
     expect(css).toContain(`${scope} #write :is(.v-fig-content, .v-caption) :is(img, svg) {`);
     expect(css).toContain(`${scope} #write .v-audio-mini-control {`);
     expect(css).toContain(`${scope} #write .v-backdrop-blurs {`);
     expect(css).toContain(`${scope} #write :is(.v-info-tips, .v-tool-tips) {`);
-    expect(css).toContain(`${scope} #write .md-hr + :is(ul, ol),`);
+    expect(css).toContain(`${scope} #write .vlook-column-list {`);
     expect(css).toContain('--typora-vlook-column-gap: var(--vlaina-size-2rem);');
+    expect(css).not.toContain("data-markdown-imported-theme^='vlook-'");
+    expect(css).not.toContain("#write .md-hr + :is(ul, ol)");
+    expect(css).not.toContain("#write hr + :is(ul, ol)");
+    expect(css).not.toContain("#write .md-hr + :is(blockquote, details, .md-alert)");
+    expect(css).not.toContain("#write hr + :is(blockquote, details, .md-alert)");
+    expect(css).not.toContain(":has(+ :is(ul, ol))");
   });
 
   it('scopes body line number gutter styles behind the markdown body line number class', () => {
@@ -918,7 +959,6 @@ describe('editor embedded CodeMirror selection styles', () => {
     const css = readStyleFile('core.css');
     const source = readAiReviewSelectionSource();
 
-    expect(source).toContain("import { addTextSelectionOverlayDecorations }");
     expect(source).toContain("from '../../selection/textSelectionOverlayPlugin'");
     expect(source).toContain('addTextSelectionOverlayDecorations(');
     expect(source).toContain('node.isText');

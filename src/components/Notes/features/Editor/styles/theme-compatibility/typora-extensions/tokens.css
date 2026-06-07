@@ -1,0 +1,330 @@
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).wn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.wn {
+  --vlook-token-fg: var(--ac-wn, var(--a-c));
+  --vlook-token-bg: var(--ac-wn-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-wn-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).rd,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.rd {
+  --vlook-token-fg: var(--ac-rd, var(--a-c));
+  --vlook-token-bg: var(--ac-rd-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-rd-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).og,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.og {
+  --vlook-token-fg: var(--ac-og, var(--a-c));
+  --vlook-token-bg: var(--ac-og-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-og-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).tu,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.tu {
+  --vlook-token-fg: var(--ac-tu, var(--a-c));
+  --vlook-token-bg: var(--ac-tu-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-tu-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).ye,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.ye {
+  --vlook-token-fg: var(--ac-ye, var(--a-c));
+  --vlook-token-bg: var(--ac-ye-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-ye-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).lm,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.lm {
+  --vlook-token-fg: var(--ac-lm, var(--a-c));
+  --vlook-token-bg: var(--ac-lm-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-lm-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).gn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.gn {
+  --vlook-token-fg: var(--ac-gn, var(--a-c));
+  --vlook-token-bg: var(--ac-gn-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-gn-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).mn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.mn {
+  --vlook-token-fg: var(--ac-mn, var(--a-c));
+  --vlook-token-bg: var(--ac-mn-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-mn-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).ol,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.ol {
+  --vlook-token-fg: var(--ac-ol, var(--a-c));
+  --vlook-token-bg: var(--ac-ol-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-ol-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).aq,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.aq {
+  --vlook-token-fg: var(--ac-aq, var(--a-c));
+  --vlook-token-bg: var(--ac-aq-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-aq-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).sk,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.sk {
+  --vlook-token-fg: var(--ac-sk, var(--a-c));
+  --vlook-token-bg: var(--ac-sk-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-sk-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).cy,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.cy {
+  --vlook-token-fg: var(--ac-cy, var(--a-c));
+  --vlook-token-bg: var(--ac-cy-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-cy-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).bu,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.bu {
+  --vlook-token-fg: var(--ac-bu, var(--a-c));
+  --vlook-token-bg: var(--ac-bu-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-bu-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).se,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.se {
+  --vlook-token-fg: var(--ac-se, var(--a-c));
+  --vlook-token-bg: var(--ac-se-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-se-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).la,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.la {
+  --vlook-token-fg: var(--ac-la, var(--a-c));
+  --vlook-token-bg: var(--ac-la-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-la-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).vn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.vn {
+  --vlook-token-fg: var(--ac-vn, var(--a-c));
+  --vlook-token-bg: var(--ac-vn-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-vn-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).cf,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.cf {
+  --vlook-token-fg: var(--ac-cf, var(--a-c));
+  --vlook-token-bg: var(--ac-cf-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-cf-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).au,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.au {
+  --vlook-token-fg: var(--ac-au, var(--a-c));
+  --vlook-token-bg: var(--ac-au-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-au-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).pu,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.pu {
+  --vlook-token-fg: var(--ac-pu, var(--a-c));
+  --vlook-token-bg: var(--ac-pu-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-pu-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).ro,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.ro {
+  --vlook-token-fg: var(--ac-ro, var(--a-c));
+  --vlook-token-bg: var(--ac-ro-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-ro-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).pl,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.pl {
+  --vlook-token-fg: var(--ac-pl, var(--a-c));
+  --vlook-token-bg: var(--ac-pl-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-pl-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).pk,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.pk {
+  --vlook-token-fg: var(--ac-pk, var(--a-c));
+  --vlook-token-bg: var(--ac-pk-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-pk-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).gd,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.gd {
+  --vlook-token-fg: var(--ac-gd, var(--a-c));
+  --vlook-token-bg: var(--ac-gd-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-gd-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).bn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.bn {
+  --vlook-token-fg: var(--ac-bn, var(--a-c));
+  --vlook-token-bg: var(--ac-bn-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-bn-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).gy,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.gy {
+  --vlook-token-fg: var(--ac-gy, var(--a-c));
+  --vlook-token-bg: var(--ac-gy-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-gy-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).wt,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.wt {
+  --vlook-token-fg: var(--df, var(--a-c));
+  --vlook-token-bg: var(--ac-wt-fd-bd, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-wt-a, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).bk,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.bk {
+  --vlook-token-fg: var(--ac-bk, var(--a-c));
+  --vlook-token-bg: var(--ac-bk-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-bk-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).t1,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.t1 {
+  --vlook-token-fg: var(--ac-t1, var(--a-c));
+  --vlook-token-bg: var(--ac-t1-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-t1-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .v-badge-name, .v-coating, .v-stepwise).t2,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.t2 {
+  --vlook-token-fg: var(--ac-t2, var(--a-o-c));
+  --vlook-token-bg: var(--ac-t2-a, var(--typora-selection-bg));
+  --vlook-token-faint: var(--ac-t2-fd, var(--typora-selection-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).wn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).rd,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).og,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).tu,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).ye,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).lm,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).gn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).mn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).ol,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).aq,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).sk,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).cy,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).bu,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).se,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).la,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).vn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).cf,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).au,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).pu,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).ro,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).pl,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).pk,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).gd,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).bn,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).gy,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).wt,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).bk,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).t1,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).t2 {
+  color: var(--vlook-token-fg);
+  background: var(--vlook-token-bg);
+  border-color: var(--vlook-token-faint);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-badge-name:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2) {
+  color: var(--typora-vlook-solid-token-fg);
+  background: var(--vlook-token-fg);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write :is(.v-tag, .editor-tag-token).em:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2) {
+  color: var(--typora-vlook-solid-token-fg);
+  background: var(--vlook-token-fg);
+  border-color: var(--vlook-token-fg);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-badge-value.hastwo {
+  border-radius: 0;
+  margin-inline: var(--vlaina-space-0375rem, 0.375rem);
+  padding-inline-start: var(--vlaina-space-05rem, 0.5rem);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-stepwise:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2) {
+  color: var(--df, inherit);
+  background: var(--vlook-token-faint);
+  border-color: var(--vlook-token-fg);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-stepwise:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2)::after {
+  border-inline-start-color: var(--vlook-token-faint);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write table :is(th, td).td-span {
+  white-space: nowrap;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write table :is(th, td).td-span :is(mark, .highlight) {
+  display: inline-block;
+  position: relative;
+  margin-inline-end: var(--vlaina-space-10px, 10px);
+  padding: var(--vlaina-space-5px, 5px) var(--vlaina-space-5px, 5px) var(--vlaina-space-5px, 5px) var(--vlaina-space-8px, 8px);
+  color: var(--df, inherit);
+  background: var(--std-code-sd, var(--typora-inline-code-bg));
+  border: var(--vlaina-border-width-1) solid var(--pn-c-a, var(--typora-block-border));
+  border-radius: var(--v-r-tag, var(--vlaina-radius-0375rem)) 0 0 var(--v-r-tag, var(--vlaina-radius-0375rem));
+  box-shadow: none;
+  font: condensed normal var(--vlaina-font-0875rem, 0.875rem) var(--v-fm-tag, var(--typora-tag-font));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write table :is(th, td).td-span :is(mark, .highlight)::before,
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write table :is(th, td).td-span :is(mark, .highlight)::after {
+  content: "";
+  position: absolute;
+  inset-block-start: calc(var(--vlaina-border-width-1) * -1);
+  inset-inline-end: calc(5.5px - 1em);
+  width: 0;
+  height: 0;
+  border-block: calc(1em - 1px) solid transparent;
+  border-inline-start: calc(1em - 6px) solid var(--db, var(--typora-page-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write table :is(th, td).td-span :is(mark, .highlight)::after {
+  inset-block-start: 0;
+  inset-inline-end: calc(7px - 1em);
+  border-block-width: calc(1em - 2px);
+  border-inline-start-width: calc(1em - 7px);
+  border-inline-start-color: var(--std-code-sd, var(--typora-inline-code-bg));
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-coating:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2) {
+  color: var(--typora-vlook-solid-token-fg);
+  background: var(--vlook-token-fg);
+  border-color: var(--vlook-token-fg);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-coating.em {
+  text-shadow: 0 var(--vlaina-border-width-1) var(--df, currentColor);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2) {
+  background: var(--db, var(--typora-page-bg));
+  border-color: var(--vlook-token-fg);
+  box-shadow: inset 0 0 0 calc(var(--vlaina-border-width-1) * 4) var(--vlook-token-faint);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q.em:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2) {
+  background: linear-gradient(var(--vlook-token-faint), var(--vlook-token-faint)), linear-gradient(var(--db, var(--typora-page-bg)), var(--db, var(--typora-page-bg)));
+  box-shadow: none;
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2) :is(a, .v-std-code, .v-cap-1 > span) {
+  color: var(--vlook-token-fg);
+}
+
+:where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write .v-q:is(.wn, .rd, .og, .tu, .ye, .lm, .gn, .mn, .ol, .aq, .sk, .cy, .bu, .se, .la, .vn, .cf, .au, .pu, .ro, .pl, .pk, .gd, .bn, .gy, .wt, .bk, .t1, .t2) mark {
+  box-shadow: inset 0 -0.625em 0 0 var(--vlook-token-faint);
+}
+
