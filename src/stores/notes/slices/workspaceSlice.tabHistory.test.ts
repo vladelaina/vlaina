@@ -599,6 +599,28 @@ describe('workspaceSlice tab history', () => {
     ]);
   });
 
+  it('normalizes vault-relative note paths before opening tabs and cache entries', async () => {
+    storageAdapter.readFile.mockResolvedValue('# alpha');
+    const store = createNotesStore();
+
+    await store.getState().openNote('docs\\alpha.md');
+
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md');
+    expect(store.getState().currentNote).toEqual({
+      path: 'docs/alpha.md',
+      content: '# alpha',
+    });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'docs/alpha.md', name: 'alpha', isDirty: false },
+    ]);
+    expect(store.getState().recentNotes).toEqual(['docs/alpha.md']);
+    expect(store.getState().noteContentsCache.has('docs\\alpha.md')).toBe(false);
+    expect(store.getState().noteContentsCache.get('docs/alpha.md')).toEqual({
+      content: '# alpha',
+      modifiedAt: 1,
+    });
+  });
+
   it('preserves a dirty regular tab and still switches when saving cannot clear dirty state', async () => {
     const saveNote = vi.fn(async () => {
       store.setState((state) => ({
@@ -736,6 +758,29 @@ describe('workspaceSlice tab history', () => {
     });
   });
 
+  it('normalizes vault-relative note paths before prefetching cache entries', async () => {
+    storageAdapter.readFile.mockResolvedValue('# prefetched');
+    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true, size: 0 });
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: '# alpha', modifiedAt: 1 }],
+      ]),
+    });
+
+    await store.getState().prefetchNote('docs\\beta.md');
+
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/docs/beta.md');
+    expect(store.getState().currentNote).toEqual({ path: 'alpha.md', content: '# alpha' });
+    expect(store.getState().openTabs).toEqual([{ path: 'alpha.md', name: 'alpha', isDirty: false }]);
+    expect(store.getState().noteContentsCache.has('docs\\beta.md')).toBe(false);
+    expect(store.getState().noteContentsCache.get('docs/beta.md')).toEqual({
+      content: '# prefetched',
+      modifiedAt: 4,
+    });
+  });
+
   it('revalidates a stale cached note during hover prefetch so the next open can stay hot', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(5_000);
@@ -846,21 +891,21 @@ describe('workspaceSlice tab history', () => {
 
     const firstPrefetch = store.getState().prefetchNote('block-a.md');
     const secondPrefetch = store.getState().prefetchNote('block-b.md');
-    const queuedPrefetch = store.getState().prefetchNote('queued.md');
+    const queuedPrefetch = store.getState().prefetchNote('queued\\path.md');
 
     await vi.waitFor(() => {
       expect(pendingReads.has('/vault/block-a.md')).toBe(true);
       expect(pendingReads.has('/vault/block-b.md')).toBe(true);
     });
 
-    store.getState().cancelPrefetchNote('queued.md');
+    store.getState().cancelPrefetchNote('queued\\path.md');
     pendingReads.get('/vault/block-a.md')?.('# block a');
     pendingReads.get('/vault/block-b.md')?.('# block b');
 
     await Promise.all([firstPrefetch, secondPrefetch, queuedPrefetch]);
 
-    expect(storageAdapter.readFile).not.toHaveBeenCalledWith('/vault/queued.md');
-    expect(store.getState().noteContentsCache.get('queued.md')).toBeUndefined();
+    expect(storageAdapter.readFile).not.toHaveBeenCalledWith('/vault/queued/path.md');
+    expect(store.getState().noteContentsCache.get('queued/path.md')).toBeUndefined();
     expect(store.getState().noteContentsCache.get('block-a.md')).toEqual({
       content: '# block a',
       modifiedAt: 4,

@@ -62,4 +62,28 @@ describe('UniversalIcon', () => {
       expect(screen.getByRole('img', { name: 'icon' })).toHaveAttribute('src', 'blob:next');
     });
   });
+
+  it('bounds the per-loader image source cache', async () => {
+    const imageLoader = vi.fn(async (src: string) => `blob:${src}`);
+    const icons = Array.from({ length: 513 }, (_, index) => `img:/app/.vlaina/assets/icons/${index}.png`);
+
+    const { unmount } = render(
+      <div>
+        {icons.map((icon) => (
+          <UniversalIcon key={icon} icon={icon} imageLoader={imageLoader} />
+        ))}
+      </div>
+    );
+
+    await waitFor(() => {
+      expect(imageLoader).toHaveBeenCalledTimes(513);
+    });
+
+    unmount();
+    render(<UniversalIcon icon={icons[0]} imageLoader={imageLoader} />);
+
+    await waitFor(() => {
+      expect(imageLoader).toHaveBeenCalledTimes(514);
+    });
+  });
 });

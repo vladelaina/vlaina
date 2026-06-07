@@ -1,8 +1,26 @@
 import { getParentPath, getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import { normalizeContainedAssetPath } from './pathContainment';
 
+const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
+const MAX_LOCAL_ASSET_PATH_CHARS = 16 * 1024;
+
 function getLocalAssetPath(assetPath: string): string {
   return assetPath.split(/[?#]/, 1)[0] ?? '';
+}
+
+function isSafeRelativeAssetPath(assetPath: string): boolean {
+  const trimmed = assetPath.trim();
+  return (
+    trimmed === assetPath
+    && trimmed.length > 0
+    && trimmed.length <= MAX_LOCAL_ASSET_PATH_CHARS
+    && !CONTROL_OR_BIDI_PATTERN.test(trimmed)
+    && !trimmed.startsWith('\\')
+    && !trimmed.startsWith('//')
+    && !EXPLICIT_URL_SCHEME_PATTERN.test(trimmed)
+    && !isAbsolutePath(trimmed)
+  );
 }
 
 export async function resolveVaultAssetPath(
@@ -40,7 +58,7 @@ export async function resolveVaultAssetPathCandidates(
   currentNotePath?: string,
 ): Promise<string[]> {
   const localAssetPath = getLocalAssetPath(assetPath);
-  if (!localAssetPath || isAbsolutePath(localAssetPath)) {
+  if (!isSafeRelativeAssetPath(localAssetPath)) {
     return [];
   }
 

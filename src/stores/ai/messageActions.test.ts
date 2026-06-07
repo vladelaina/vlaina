@@ -322,6 +322,76 @@ describe('message actions API transcript handling', () => {
     expect(saveSessionJson).toHaveBeenCalledWith('session-1', ai.messages['session-1']);
   });
 
+  it('assigns a unique id when adding a message with a duplicate id', () => {
+    seedMessages([createUserMessage('duplicate', 'existing')]);
+
+    const addedId = createMessageActions().addMessage({
+      id: 'duplicate',
+      role: 'user',
+      content: 'new',
+      modelId: 'model-1',
+    }, 'session-1');
+
+    const messages = useUnifiedStore.getState().data.ai!.messages['session-1'];
+    expect(addedId).toMatch(/^msg-/);
+    expect(messages.map((message) => message.id)).toEqual(['duplicate', addedId]);
+    expect(new Set(messages.map((message) => message.id))).toHaveLength(2);
+  });
+
+  it('checks hidden version branch ids before adding a message', () => {
+    seedMessages([{
+      ...createUserMessage('prompt-1', 'prompt'),
+      versions: [{
+        content: 'prompt',
+        createdAt: 1,
+        kind: 'original',
+        subsequentMessages: [createAssistantMessage()],
+      }],
+    }]);
+
+    const addedId = createMessageActions().addMessage({
+      id: 'assistant-1',
+      role: 'assistant',
+      content: 'new answer',
+      modelId: 'model-1',
+    }, 'session-1');
+
+    const messages = useUnifiedStore.getState().data.ai!.messages['session-1'];
+    expect(addedId).toMatch(/^msg-/);
+    expect(messages[1].id).toBe(addedId);
+    expect(messages[0].versions[0].subsequentMessages[0].id).toBe('assistant-1');
+  });
+
+  it('normalizes provided message ids before storing them', () => {
+    seedMessages([]);
+
+    const addedId = createMessageActions().addMessage({
+      id: `  ${'x'.repeat(600)}  `,
+      role: 'user',
+      content: 'new',
+      modelId: 'model-1',
+    }, 'session-1');
+
+    const messages = useUnifiedStore.getState().data.ai!.messages['session-1'];
+    expect(addedId).toBe('x'.repeat(512));
+    expect(messages[0].id).toBe(addedId);
+  });
+
+  it('generates an id when a provided message id is blank', () => {
+    seedMessages([]);
+
+    const addedId = createMessageActions().addMessage({
+      id: '   ',
+      role: 'user',
+      content: 'new',
+      modelId: 'model-1',
+    }, 'session-1');
+
+    const messages = useUnifiedStore.getState().data.ai!.messages['session-1'];
+    expect(addedId).toMatch(/^msg-/);
+    expect(messages[0].id).toBe(addedId);
+  });
+
   it('derives user message image sources only from markdown image tokens', () => {
     seedMessages([]);
 

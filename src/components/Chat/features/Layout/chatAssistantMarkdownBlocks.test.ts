@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES } from '@/components/Chat/common/messageClipboard';
 import { buildParsedAssistantMarkdown, stripRenderableImageTokens } from './chatAssistantMarkdownBlocks';
 
 describe('buildParsedAssistantMarkdown', () => {
@@ -81,5 +82,20 @@ describe('buildParsedAssistantMarkdown', () => {
     expect(parsed.renderableMarkdown).toContain('<img src="https://example.com/clip.webm">');
     expect(parsed.renderableMarkdown).not.toContain('![real](https://example.com/real.png)');
     expect(parsed.renderableMarkdown).not.toContain('<img src="https://example.com/real-html.png">');
+  });
+
+  it('bounds assistant image counting and stripping for pathological image-heavy markdown', () => {
+    const markdown = Array.from(
+      { length: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES + 1 },
+      (_, index) => `![image ${index}](https://example.com/${index}.png)`,
+    ).join('\n');
+
+    const renderableMarkdown = stripRenderableImageTokens(markdown);
+    const parsed = buildParsedAssistantMarkdown(markdown, renderableMarkdown);
+
+    expect(parsed.imageCount).toBe(MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES);
+    expect(renderableMarkdown).toContain(
+      `![image ${MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES}](https://example.com/${MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES}.png)`,
+    );
   });
 });

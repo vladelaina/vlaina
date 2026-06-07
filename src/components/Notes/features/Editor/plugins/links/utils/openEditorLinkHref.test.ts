@@ -53,6 +53,15 @@ describe('openEditorLinkHref', () => {
             .resolves.toBe('/vault/daily/guide/setup.md');
     });
 
+    it('resolves supported markdown extension variants', async () => {
+        await expect(resolveEditorMarkdownLinkTarget('guide/setup.markdown'))
+            .resolves.toBe('/vault/daily/guide/setup.markdown');
+        await expect(resolveEditorMarkdownLinkTarget('guide/setup.mdown'))
+            .resolves.toBe('/vault/daily/guide/setup.mdown');
+        await expect(resolveEditorMarkdownLinkTarget('guide/setup.mkd'))
+            .resolves.toBe('/vault/daily/guide/setup.mkd');
+    });
+
     it('resolves percent-encoded markdown paths relative to the current note folder', async () => {
         await expect(resolveEditorMarkdownLinkTarget('guide%20setup.md'))
             .resolves.toBe('/vault/daily/guide setup.md');

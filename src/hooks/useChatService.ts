@@ -9,7 +9,6 @@ import { extractStoredAttachmentFilename, isStoredAttachmentSrc } from '@/lib/st
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { buildRequestHistory } from '@/lib/ai/requestContext';
-import { generateId } from '@/lib/id';
 import { isManagedProviderId } from '@/lib/ai/managedService';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
@@ -416,9 +415,7 @@ export function useChatService() {
           modelId: selectedModel.id,
         }, targetSessionId);
 
-        const assistantMessageId = generateId('msg-');
-        aiActions.addMessage({
-          id: assistantMessageId,
+        const assistantMessageId = aiActions.addMessage({
           role: 'assistant',
           content: '',
           modelId: selectedModel.id,
@@ -426,6 +423,10 @@ export function useChatService() {
           persistUnified: false,
           touchSession: false,
         });
+        if (!assistantMessageId) {
+          finishPreStartedChatRequest(targetSessionId, requestController, setSessionLoading);
+          return;
+        }
 
         if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
           writeManagedQuotaErrorMessage(targetSessionId, assistantMessageId, setError, t('chat.error.pointsExhausted'));
@@ -659,9 +660,7 @@ export function useChatService() {
 
         aiActions.editMessageAndBranch(sessionId, messageId, newContent);
 
-        const assistantMessageId = generateId('msg-');
-        aiActions.addMessage({
-          id: assistantMessageId,
+        const assistantMessageId = aiActions.addMessage({
           role: 'assistant',
           content: '',
           modelId: selectedModel.id,
@@ -669,6 +668,10 @@ export function useChatService() {
           persistUnified: false,
           touchSession: false,
         });
+        if (!assistantMessageId) {
+          finishPreStartedChatRequest(sessionId, requestController, setSessionLoading);
+          return;
+        }
 
         if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
           writeManagedQuotaErrorMessage(sessionId, assistantMessageId, setError, t('chat.error.pointsExhausted'));

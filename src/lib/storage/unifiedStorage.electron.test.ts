@@ -1362,7 +1362,11 @@ describe('unifiedStorage electron save', () => {
 
     expect(data.ai?.providers.map((provider) => provider.id)).toEqual(['good-provider']);
     expect(data.ai?.models.map((model) => model.providerId)).toEqual(['good-provider']);
-    expect(data.ai?.benchmarkResults).toEqual({ 'good-provider': { items: {} } });
+    expect(data.ai?.benchmarkResults?.['good-provider']).toEqual({
+      items: {},
+      overall: 'idle',
+      updatedAt: expect.any(Number),
+    });
     expect(data.ai?.fetchedModels).toEqual({ 'good-provider': ['model-a'] });
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });

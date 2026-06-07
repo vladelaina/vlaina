@@ -1,7 +1,7 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 import { createPersistenceQueue } from './persistenceEngine';
-import type { AIModel, ChatMessage, Provider, ProviderBenchmarkRecord } from '@/lib/ai/types';
+import type { AIModel, ChatMessage, PersistedBenchmarkItem, Provider, ProviderBenchmarkRecord } from '@/lib/ai/types';
 import type { ChatSession } from '@/lib/ai/types';
 import { isTemporarySession, isTemporarySessionId } from '@/lib/ai/temporaryChat';
 import { getStorageBasePath } from './basePath';
@@ -59,6 +59,7 @@ const MAX_AI_ID_LIST_ENTRIES = 5000;
 export const MAX_AI_PROVIDER_CHANNELS = 200;
 export const MAX_AI_PROVIDER_CHANNEL_MODELS = 2000;
 export const MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS = 2000;
+export const MAX_AI_PROVIDER_CHANNEL_BENCHMARK_ITEMS = 2000;
 export const MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES = 10_000;
 const MAX_BOUNDED_ID_LIST_SCAN_RECORDS = 10_000;
 const MAX_AI_SESSION_METADATA_SCAN_RECORDS = 10_000;
@@ -69,6 +70,7 @@ const MAX_AI_PROVIDER_SAVE_SCAN_RECORDS = 10_000;
 const MAX_AI_MODEL_SAVE_SCAN_RECORDS = 20_000;
 const MAX_AI_FETCHED_MODEL_SAVE_SCAN_RECORDS = 10_000;
 const MAX_AI_MODEL_FIELD_CHARS = 4096;
+const MAX_AI_BENCHMARK_ERROR_CHARS = 4096;
 export const MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES = 10_000;
 export const MAX_CUSTOM_ICONS = 2000;
 export const MAX_CUSTOM_ICON_ID_CHARS = 4096;
@@ -326,6 +328,68 @@ function normalizeFetchedModelsForLoad(value: unknown): string[] {
   return models;
 }
 
+function isSafeBenchmarkItemKey(value: string): boolean {
+  return value !== '__proto__' && value !== 'constructor' && value !== 'prototype';
+}
+
+function normalizeBenchmarkTimestamp(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : Date.now();
+}
+
+function normalizeProviderBenchmarkItem(value: unknown): PersistedBenchmarkItem | null {
+  if (!isRecord(value) || (value.status !== 'success' && value.status !== 'error')) {
+    return null;
+  }
+
+  return {
+    status: value.status,
+    ...(typeof value.latency === 'number' && Number.isFinite(value.latency) && value.latency >= 0
+      ? { latency: value.latency }
+      : {}),
+    ...(typeof value.error === 'string'
+      ? { error: value.error.slice(0, MAX_AI_BENCHMARK_ERROR_CHARS) }
+      : {}),
+    checkedAt: normalizeBenchmarkTimestamp(value.checkedAt),
+  };
+}
+
+function normalizeProviderBenchmarkRecord(value: unknown): ProviderBenchmarkRecord | undefined {
+  if (!isRecord(value) || !isRecord(value.items)) {
+    return undefined;
+  }
+
+  const items: Record<string, PersistedBenchmarkItem> = {};
+  const entries = Object.entries(value.items);
+  const scanLimit = Math.min(entries.length, MAX_AI_PROVIDER_CHANNEL_BENCHMARK_ITEMS);
+  for (let index = 0; index < scanLimit; index += 1) {
+    const [modelId, itemValue] = entries[index];
+    const normalizedItem = normalizeProviderBenchmarkItem(itemValue);
+    const normalizedModelId = modelId.slice(0, MAX_AI_MODEL_FIELD_CHARS);
+    if (!normalizedModelId || !isSafeBenchmarkItemKey(normalizedModelId) || !normalizedItem) {
+      continue;
+    }
+    items[normalizedModelId] = normalizedItem;
+  }
+
+  const hasErrors = Object.values(items).some((item) => item.status === 'error');
+  const derivedOverall =
+    Object.keys(items).length === 0
+      ? 'idle'
+      : hasErrors
+        ? 'error'
+        : 'success';
+  const overall =
+    value.overall === 'idle' || value.overall === 'success' || value.overall === 'error'
+      ? value.overall
+      : derivedOverall;
+
+  return {
+    items,
+    overall,
+    updatedAt: normalizeBenchmarkTimestamp(value.updatedAt),
+  };
+}
+
 function parseAISessionsFile(value: unknown): AISessionsFileData | null {
   if (!isRecord(value) || value.version !== AI_SESSIONS_FILE_VERSION || !isRecord(value.data)) {
     return null;
@@ -383,15 +447,14 @@ function parseAIProviderChannelFile(
   if (!isRecord(data.provider) || data.provider.id !== expectedProviderId) {
     return null;
   }
+  const benchmarkResults = normalizeProviderBenchmarkRecord(data.benchmarkResults);
 
   return {
     provider: data.provider as unknown as Provider,
     models: Array.isArray(data.models)
       ? data.models.slice(0, MAX_AI_PROVIDER_CHANNEL_MODELS) as AIModel[]
       : [],
-    ...(isRecord(data.benchmarkResults)
-      ? { benchmarkResults: data.benchmarkResults as unknown as ProviderBenchmarkRecord }
-      : {}),
+    ...(benchmarkResults ? { benchmarkResults } : {}),
     fetchedModels: normalizeFetchedModelsForLoad(data.fetchedModels),
   };
 }
@@ -1192,7 +1255,7 @@ async function performSplitSave(request: UnifiedSaveRequest) {
             const pData = {
                 provider: sanitizeProviderForDisk(provider),
                 models: pModels,
-                benchmarkResults: ai.benchmarkResults?.[provider.id],
+                benchmarkResults: normalizeProviderBenchmarkRecord(ai.benchmarkResults?.[provider.id]),
                 fetchedModels: normalizeFetchedModelsForSave(ai.fetchedModels?.[provider.id])
             };
             const pPath = await joinPath(channelsDir, `${provider.id}.json`);

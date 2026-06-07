@@ -1,6 +1,10 @@
 import { getParentPath, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
-import { getNoteInternalImageAssetPath } from '@/lib/notes/markdown/urlSecurity';
+import {
+    getNoteInternalImageAssetPath,
+    normalizePublicRemoteMediaUrl,
+    sanitizeNoteMediaSrc,
+} from '@/lib/notes/markdown/urlSecurity';
 
 interface ImageSourcePathDeps {
     getParentPath: (path: string) => string | null;
@@ -94,11 +98,19 @@ export async function resolveImageSourcePathCandidates(
     const baseSrc = getImageSourceBase(rawSrc);
     if (!baseSrc) return [];
 
-    if (isVirtualImageSource(baseSrc)) {
-        return [baseSrc];
+    const safeBaseSrc = sanitizeNoteMediaSrc(baseSrc);
+    if (!safeBaseSrc) return [];
+
+    const normalizedRemoteSrc = normalizePublicRemoteMediaUrl(safeBaseSrc);
+    if (normalizedRemoteSrc) {
+        return [normalizedRemoteSrc];
     }
 
-    const localSrc = getLocalImageSourcePath(baseSrc);
+    if (isVirtualImageSource(safeBaseSrc)) {
+        return [safeBaseSrc];
+    }
+
+    const localSrc = getLocalImageSourcePath(safeBaseSrc);
     if (!localSrc || deps.isAbsolutePath(localSrc)) {
         return [];
     }

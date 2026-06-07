@@ -1,7 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { convertToBase64 } from '@/lib/storage/attachmentStorage';
-import { ChatImageViewer } from './ChatImageViewer';
+import {
+  ChatImageViewer,
+  RESOLVED_VIEWER_IMAGE_CACHE_CHAR_LIMIT,
+} from './ChatImageViewer';
 
 const svgMocks = vi.hoisted(() => ({
   rasterizeSvgDataUrlToPng: vi.fn(),
@@ -320,6 +323,45 @@ describe('ChatImageViewer', () => {
       expect(imageResolutionMocks.resolveSafeChatImageSource).toHaveBeenCalledTimes(1);
     });
     expect(convertToBase64).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not keep oversized stored attachment resolutions cached across reopen', async () => {
+    const oversizedDataUrl = `data:image/jpeg;base64,${'A'.repeat(RESOLVED_VIEWER_IMAGE_CACHE_CHAR_LIMIT + 1)}`;
+    vi.mocked(convertToBase64).mockResolvedValue(oversizedDataUrl);
+    const onOpenChange = vi.fn();
+    const view = render(
+      <ChatImageViewer
+        open
+        src="oversized-cache-demo.jpg"
+        alt="preview"
+        onOpenChange={onOpenChange}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(convertToBase64).toHaveBeenCalledTimes(1);
+    });
+
+    view.rerender(
+      <ChatImageViewer
+        open={false}
+        src="oversized-cache-demo.jpg"
+        alt="preview"
+        onOpenChange={onOpenChange}
+      />,
+    );
+    view.rerender(
+      <ChatImageViewer
+        open
+        src="oversized-cache-demo.jpg"
+        alt="preview"
+        onOpenChange={onOpenChange}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(convertToBase64).toHaveBeenCalledTimes(2);
+    });
   });
 
   it('does not subscribe to viewport resize while closed', () => {

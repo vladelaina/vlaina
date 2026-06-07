@@ -4,7 +4,7 @@ const HTML_OPEN_TAG_PATTERN = /^<([A-Za-z][A-Za-z0-9-]*)(?:\s[^>]*)?>$/
 const HTML_CLOSE_TAG_PATTERN = /^<\/([A-Za-z][A-Za-z0-9-]*)\s*>$/
 const HTML_SELF_CLOSING_PATTERN = /\/>$/
 const GFM_BLOCK_HTML_TAG_PATTERN =
-  /^<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i
+  /^<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i
 const GFM_TYPE_1_HTML_BLOCK_PATTERN = /^<(?:script|pre|style)(?:\s|>|$)/i
 const GFM_TYPE_7_HTML_TAG_LINE_PATTERN = /^<\/?([A-Za-z][A-Za-z0-9-]*)(?:\s[^>]*)?\/?>\s*$/
 const GFM_TYPE_7_EXCLUDED_TAGS = new Set(['script', 'style', 'pre'])
@@ -174,8 +174,18 @@ export function mergePairedInlineHtml(node: MarkdownNode, markdown?: string): Ma
     }
 
     const innerNodes = node.children.slice(index + 1, closeIndex)
+    const pairedSource = getSourceSlice(markdown, child, node.children[closeIndex])
+    if (pairedSource?.includes('\n') && isGfmHtmlBlock(pairedSource)) {
+      mergedChildren.push({
+        type: 'html',
+        value: pairedSource,
+      } as MarkdownNode)
+      index = closeIndex
+      continue
+    }
+
     const rawSource = hasRawHtmlTagText(innerNodes)
-      ? getSourceSlice(markdown, child, node.children[closeIndex])
+      ? pairedSource
       : null
     if (rawSource) {
       mergedChildren.push({

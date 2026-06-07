@@ -181,7 +181,7 @@ describe('imageSourcePath', () => {
             rawSrc: 'DATA:IMAGE/PNG;BASE64,abc',
             notesPath: '/vault',
             currentNotePath: 'note.md',
-        }, deps)).resolves.toBe('DATA:IMAGE/PNG;BASE64,abc');
+        }, deps)).resolves.toBe('data:image/png;base64,abc');
 
         await expect(resolveImageSourcePath({
             rawSrc: '/vault/assets/demo.png',
@@ -200,5 +200,39 @@ describe('imageSourcePath', () => {
             notesPath: '/vault',
             currentNotePath: 'note.md',
         }, deps)).resolves.toEqual([]);
+    });
+
+    it('rejects unsafe media sources when path resolution is called directly', async () => {
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: 'javascript:demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'note.md',
+        }, deps)).resolves.toEqual([]);
+
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: 'http://127.0.0.1:3000/demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'note.md',
+        }, deps)).resolves.toEqual([]);
+
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: 'data:image/svg+xml;base64,PHN2Zz4=',
+            notesPath: '/vault',
+            currentNotePath: 'note.md',
+        }, deps)).resolves.toEqual([]);
+
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: 'assets/\u202Ecod.exe.png',
+            notesPath: '/vault',
+            currentNotePath: 'note.md',
+        }, deps)).resolves.toEqual([]);
+    });
+
+    it('normalizes protocol-relative public image URLs', async () => {
+        await expect(resolveImageSourcePath({
+            rawSrc: '//example.com/demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'note.md',
+        }, deps)).resolves.toBe('https://example.com/demo.png');
     });
 });

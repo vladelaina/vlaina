@@ -2,6 +2,7 @@ import { StateCreator } from 'zustand';
 import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import { joinPath as joinLocalPath } from '@/lib/storage/adapter/pathUtils';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { NotesStore, FileTreeNode, MetadataFile, NoteCoverMetadata, NoteMetadataEntry } from '../types';
 import {
   createEmptyMetadataFile,
@@ -17,6 +18,7 @@ import {
   toggleStarredEntry,
 } from '../starred';
 import {
+  createCachedNoteContentEntry,
   getCachedNoteModifiedAt,
   pruneCachedNoteContents,
   setCachedNoteContent,
@@ -90,7 +92,7 @@ function collectNoteContentScanPaths(
     }
 
     const relativePath = normalizeVaultRelativePath(node.path);
-    if (relativePath) {
+    if (relativePath && isSupportedMarkdownPath(relativePath)) {
       filePaths.push({
         path: relativePath,
         fullPath: joinLocalPath(notesPath, relativePath),
@@ -540,14 +542,19 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         }
 
         let scannedContentChars = 0;
-        const addScannedEntry = (path: string, content: string, modifiedAt: number | null) => {
+        const addScannedEntry = (
+          path: string,
+          content: string,
+          modifiedAt: number | null,
+          options: { size?: number | null } = {},
+        ) => {
           if (!isSearchableMarkdownContent(content)) {
-            scannedCache.set(path, { content: '', modifiedAt });
+            scannedCache.set(path, createCachedNoteContentEntry('', modifiedAt, options));
             return;
           }
 
           if (scannedContentChars >= MAX_SCANNED_NOTE_CONTENT_CHARS) {
-            scannedCache.set(path, { content: '', modifiedAt });
+            scannedCache.set(path, createCachedNoteContentEntry('', modifiedAt, options));
             return;
           }
 
@@ -557,10 +564,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
               : '';
 
           scannedContentChars += nextContent.length;
-          scannedCache.set(path, {
-            content: nextContent,
-            modifiedAt,
-          });
+          scannedCache.set(path, createCachedNoteContentEntry(nextContent, modifiedAt, options));
         };
 
         for (const filePath of filePaths) {
@@ -570,7 +574,12 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
           const cachedEntry = noteContentsCache.get(filePath.path);
           if (cachedEntry) {
-            addScannedEntry(filePath.path, cachedEntry.content, cachedEntry.modifiedAt);
+            addScannedEntry(
+              filePath.path,
+              cachedEntry.content,
+              cachedEntry.modifiedAt,
+              cachedEntry.size !== undefined ? { size: cachedEntry.size } : {},
+            );
             continue;
           }
 
@@ -592,32 +601,34 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           const results = await Promise.allSettled(
             batch.map(async ({ path, fullPath }) => {
               if (!isScanActive()) {
-                return { path, content: '', modifiedAt: null };
+                return { path, content: '', modifiedAt: null, size: null };
               }
 
               let modifiedAt: number | null = null;
+              let size: number | null = null;
               const fileInfo = await storage.stat(fullPath).catch(() => null);
               if (!isScanActive()) {
-                return { path, content: '', modifiedAt: null };
+                return { path, content: '', modifiedAt: null, size: null };
               }
               modifiedAt = fileInfo?.modifiedAt ?? null;
+              size = typeof fileInfo?.size === 'number' ? fileInfo.size : null;
               if (!canReadBoundedMarkdownFile(fileInfo, MAX_SEARCHABLE_NOTE_BYTES)) {
-                return { path, content: '', modifiedAt };
+                return { path, content: '', modifiedAt, size };
               }
 
               try {
                 const rawContent = await storage.readFile(fullPath);
                 if (!isSearchableMarkdownContent(rawContent)) {
-                  return { path, content: '', modifiedAt };
+                  return { path, content: '', modifiedAt, size };
                 }
 
                 const content = normalizeSerializedMarkdownDocument(rawContent);
                 if (!isScanActive()) {
-                  return { path, content: '', modifiedAt: null };
+                  return { path, content: '', modifiedAt: null, size: null };
                 }
-                return { path, content, modifiedAt };
+                return { path, content, modifiedAt, size };
               } catch {
-                return { path, content: '', modifiedAt: null };
+                return { path, content: '', modifiedAt: null, size: null };
               }
             })
           );
@@ -628,7 +639,12 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
           results.forEach((result) => {
             if (result.status === 'fulfilled') {
-              addScannedEntry(result.value.path, result.value.content, result.value.modifiedAt);
+              addScannedEntry(
+                result.value.path,
+                result.value.content,
+                result.value.modifiedAt,
+                { size: result.value.size },
+              );
             }
           });
         }
@@ -641,10 +657,14 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         const cache = new Map(scannedCache);
         if (latestState.currentNote) {
           const currentEntry = latestState.noteContentsCache.get(latestState.currentNote.path);
-          cache.set(latestState.currentNote.path, {
-            content: latestState.currentNote.content,
-            modifiedAt: currentEntry?.modifiedAt ?? null,
-          });
+          cache.set(
+            latestState.currentNote.path,
+            createCachedNoteContentEntry(
+              latestState.currentNote.content,
+              currentEntry?.modifiedAt ?? null,
+              currentEntry?.size !== undefined ? { size: currentEntry.size } : {},
+            ),
+          );
         }
         latestState.openTabs.forEach((tab) => {
           if (tab.path === latestState.currentNote?.path) {

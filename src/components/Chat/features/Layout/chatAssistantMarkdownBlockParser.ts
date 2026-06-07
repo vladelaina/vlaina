@@ -210,7 +210,10 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
     const videoTokens = getVideoImageTokens(sectionMarkdown);
     const videoTokenCount = videoTokens.length;
     if (videoTokenCount > 0) {
-      const textWithoutMedia = stripMessageImageTokens(stripVideoImageTokens(sectionMarkdown, videoTokens)).trim();
+      const textWithoutMedia = stripMessageImageTokens(
+        stripVideoImageTokens(sectionMarkdown, videoTokens),
+        { maxTokens: MAX_LAYOUT_VIDEO_IMAGE_TOKENS },
+      ).trim();
       if (textWithoutMedia) {
         const block = buildMarkdownTextBlock(textWithoutMedia, 'body', MARKDOWN_BODY_LINE_HEIGHT);
         if (block) {

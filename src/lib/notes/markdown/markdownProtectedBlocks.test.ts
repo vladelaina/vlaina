@@ -136,6 +136,26 @@ describe('markdown protected blocks', () => {
     ).toBe(markdown.replace('Before - item', 'Before * item'));
   });
 
+  it('protects GFM source HTML blocks until a blank line', () => {
+    const markdown = [
+      'Before - item',
+      '<source srcset="images/a.webp 1x">',
+      '- hidden',
+      '',
+      'After - item',
+    ].join('\n');
+
+    expect(
+      mapMarkdownOutsideProtectedSegments(markdown, (segment) => segment.replace(/-/g, '*'))
+    ).toBe([
+      'Before * item',
+      '<source srcset="images/a.webp 1x">',
+      '- hidden',
+      '',
+      'After * item',
+    ].join('\n'));
+  });
+
   it('treats oversized leading frontmatter candidates as normal markdown', () => {
     const markdown = [
       '---',

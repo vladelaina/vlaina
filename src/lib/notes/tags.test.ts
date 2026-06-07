@@ -48,6 +48,29 @@ describe('note tags', () => {
     ].join('\n'))).toEqual(['visible']);
   });
 
+  it('excludes tags from GFM HTML block contents until a blank line', () => {
+    expect(extractNoteTags([
+      '<div>',
+      '#hidden-div',
+      '</div>',
+      '<source srcset="img:hero.webp 1x">',
+      '#hidden-source',
+      '',
+      '#visible',
+    ].join('\n'))).toEqual(['visible']);
+  });
+
+  it('excludes tags from non-tag GFM HTML block contents', () => {
+    expect(extractNoteTags([
+      '<![CDATA[',
+      '#hidden-cdata',
+      ']]>',
+      '<?process #hidden-processing ?>',
+      '<!DOCTYPE #hidden-declaration>',
+      '#visible',
+    ].join('\n'))).toEqual(['visible']);
+  });
+
   it('caps extracted tag occurrences from a single document', () => {
     const content = Array.from({ length: 2500 }, (_, index) => `#tag-${index}`).join(' ');
 

@@ -80,6 +80,39 @@ describe('notesSidebarSearchResults', () => {
     ]);
   });
 
+  it('ignores non-Markdown file tree nodes when building the search index', () => {
+    const mixedRoot: FolderNode = {
+      id: 'root-mixed',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [
+        {
+          id: 'asset',
+          name: 'asset.png',
+          path: 'asset.png',
+          isFolder: false,
+        },
+        {
+          id: 'note',
+          name: 'note.mdown',
+          path: 'note.mdown',
+          isFolder: false,
+        },
+      ],
+    };
+
+    expect(countNotesSidebarSearchEntries(mixedRoot)).toBe(1);
+    expect(buildNotesSidebarSearchIndex(mixedRoot, () => '')).toEqual([
+      {
+        path: 'note.mdown',
+        name: 'note.mdown',
+        preview: '',
+      },
+    ]);
+  });
+
   it('builds the search index for deeply nested notes without recursive traversal', () => {
     let current: FileTreeNode = {
       id: 'deep-note',
@@ -151,6 +184,13 @@ describe('notesSidebarSearchResults', () => {
           vaultPath: '/external',
           relativePath: 'clips',
           addedAt: 3,
+        },
+        {
+          id: 'star-asset',
+          kind: 'note',
+          vaultPath: '/external',
+          relativePath: 'clips/image.png',
+          addedAt: 4,
         },
       ],
     });
@@ -387,6 +427,31 @@ describe('notesSidebarSearchResults', () => {
     ].join('\n'));
 
     expect(results.map((result) => result.contentSnippet)).toEqual(['visible needle']);
+  });
+
+  it('does not search content inside invisible GFM HTML blocks', () => {
+    const index = [{
+      path: 'invisible-html.md',
+      name: 'invisible-html.md',
+      preview: '',
+    }];
+    const results = queryNotesSidebarSearch(index, 'needle', () => [
+      '<!--',
+      'hidden comment needle',
+      '-->',
+      '<![CDATA[',
+      'hidden cdata needle',
+      ']]>',
+      '<div>',
+      'visible html needle',
+      '</div>',
+      'visible plain needle',
+    ].join('\n'));
+
+    expect(results.map((result) => result.contentSnippet)).toEqual([
+      'visible html needle',
+      'visible plain needle',
+    ]);
   });
 
   it('does not run content search for a single-character query', () => {

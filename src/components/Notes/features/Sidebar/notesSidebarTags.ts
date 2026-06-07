@@ -6,6 +6,8 @@ import {
 import type { StarredEntry } from '@/stores/notes/types';
 import type { FileTreeNode, FolderNode } from '@/stores/useNotesStore';
 import { extractNoteTagOccurrences, extractNoteTags } from '@/lib/notes/tags';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
+import { normalizeVaultRelativePath } from '@/stores/notes/utils/fs/vaultPathContainment';
 
 export interface NotesSidebarTagPath {
   path: string;
@@ -60,8 +62,13 @@ function collectNotePaths(
       continue;
     }
 
-    if (!folderFilter || folderFilter(node.path)) {
-      bucket.add(node.path);
+    const normalizedPath = normalizeVaultRelativePath(node.path);
+    if (
+      normalizedPath &&
+      isSupportedMarkdownPath(normalizedPath) &&
+      (!folderFilter || folderFilter(normalizedPath))
+    ) {
+      bucket.add(normalizedPath);
     }
   }
 }
@@ -106,7 +113,7 @@ export function buildNotesSidebarTagScopeEntries({
           normalizeStarredVaultPath(entry.vaultPath) === normalizedCurrentVaultPath)
       ) {
         const relativePath = normalizeStarredRelativePath(entry.relativePath);
-        if (!relativePath) {
+        if (!relativePath || !isSupportedMarkdownPath(relativePath)) {
           continue;
         }
 

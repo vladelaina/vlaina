@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ChatMessage } from '@/lib/ai/types';
+import { MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES } from '@/components/Chat/common/messageClipboard';
 import {
   MARKDOWN_CODE_LINE_HEIGHT,
   MARKDOWN_CODE_BLOCK_HEADER_HEIGHT,
@@ -89,6 +90,31 @@ describe('estimateChatMessageHeight', () => {
     expect(videoHeight).toBe(textHeight);
     expect(videoHeight).toBeGreaterThanOrEqual(emptyHeight);
     expect(imageHeight).toBeGreaterThan(videoHeight);
+  });
+
+  it('bounds user image height estimation for image-heavy messages', () => {
+    const boundedHeight = estimateChatMessageHeight(
+      createMessage(
+        'user',
+        Array.from(
+          { length: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES },
+          (_, index) => `![image ${index}](https://example.com/${index}.png)`,
+        ).join('\n'),
+      ),
+      { containerWidth: 900, isStreaming: false },
+    );
+    const oversizedHeight = estimateChatMessageHeight(
+      createMessage(
+        'user',
+        Array.from(
+          { length: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES + 1 },
+          (_, index) => `![image ${index}](https://example.com/${index}.png)`,
+        ).join('\n'),
+      ),
+      { containerWidth: 900, isStreaming: false },
+    );
+
+    expect(oversizedHeight - boundedHeight).toBeLessThan(256);
   });
 
   it('accounts for assistant code fences and images', () => {

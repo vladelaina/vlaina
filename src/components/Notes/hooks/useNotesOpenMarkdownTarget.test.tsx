@@ -99,6 +99,25 @@ describe('useNotesOpenMarkdownTarget', () => {
     });
   });
 
+  it('rejects relative markdown targets before saving or opening anything', async () => {
+    const { props, result } = renderTargetHook({
+      isDirty: true,
+    });
+
+    await act(async () => {
+      await result.current.openMarkdownTarget('daily/guide/setup.md');
+    });
+
+    expect(props.saveNote).not.toHaveBeenCalled();
+    expect(props.openNote).not.toHaveBeenCalled();
+    expect(props.openVault).not.toHaveBeenCalled();
+    expect(props.openNoteByAbsolutePath).not.toHaveBeenCalled();
+    expect(messageDialog).toHaveBeenCalledWith('Selected file path must be absolute', {
+      title: 'notes.openFailed',
+      kind: 'error',
+    });
+  });
+
   it('keeps external markdown targets on the vault-switch path', async () => {
     const { props, result } = renderTargetHook();
 

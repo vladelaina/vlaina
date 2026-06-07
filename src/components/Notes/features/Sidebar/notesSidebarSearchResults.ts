@@ -2,6 +2,7 @@ import type { StarredEntry } from '@/stores/notes/types';
 import type { FileTreeNode, FolderNode } from '@/stores/useNotesStore';
 import { getNotesSidebarContentMatches } from './notesSidebarContentSearch';
 import { collectStarredSearchEntries } from './notesSidebarStarredSearchEntries';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 
 export interface NotesSidebarSearchEntry {
   path: string;
@@ -119,11 +120,13 @@ function collectNotesSidebarSearchEntries(
       continue;
     }
 
-    bucket.push(attachSearchEntryMetadata({
-      path: node.path,
-      name: getDisplayName(node.path) || node.name,
-      preview: parentPath ? `${parentPath}/` : '',
-    }));
+    if (isSupportedMarkdownPath(node.path)) {
+      bucket.push(attachSearchEntryMetadata({
+        path: node.path,
+        name: getDisplayName(node.path) || node.name,
+        preview: parentPath ? `${parentPath}/` : '',
+      }));
+    }
   }
 
   return bucket;

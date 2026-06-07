@@ -18,6 +18,7 @@ const MAX_SESSION_MESSAGE_BRANCH_MESSAGES = 100;
 const MAX_SESSION_MESSAGE_BRANCH_DEPTH = 1;
 const MAX_SESSION_IMAGE_SOURCE_ENTRIES = 2000;
 const MAX_SESSION_IMAGE_SOURCES = 1000;
+const MAX_SESSION_MESSAGE_ID_CHARS = 512;
 let autoSyncTrigger: ((sessionId?: string) => void) | null = null;
 let autoSyncTriggerRegistrationId = 0;
 
@@ -282,8 +283,42 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+function normalizeTimestamp(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : Date.now();
+}
+
 interface NormalizeSessionMessagesContext {
   messageNodes: number;
+  messageIds: Set<string>;
+  topLevelMessageIds: Set<string>;
+}
+
+function createUniqueMessageId(context: NormalizeSessionMessagesContext): string {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const id = `msg-${crypto.randomUUID()}`;
+    if (!context.messageIds.has(id)) {
+      return id;
+    }
+  }
+  return `msg-${Date.now()}-${context.messageNodes}-${context.messageIds.size}`;
+}
+
+function normalizeMessageId(value: unknown, context: NormalizeSessionMessagesContext, depth: number): string {
+  const id = typeof value === 'string'
+    ? value.trim().slice(0, MAX_SESSION_MESSAGE_ID_CHARS)
+    : '';
+  if (
+    id &&
+    !context.messageIds.has(id) &&
+    (depth === 0 || !context.topLevelMessageIds.has(id))
+  ) {
+    context.messageIds.add(id);
+    return id;
+  }
+
+  const fallbackId = createUniqueMessageId(context);
+  context.messageIds.add(fallbackId);
+  return fallbackId;
 }
 
 function normalizeMessageVersion(
@@ -297,7 +332,7 @@ function normalizeMessageVersion(
   }
 
   const content = typeof value.content === 'string' ? value.content : fallbackContent;
-  const createdAt = typeof value.createdAt === 'number' ? value.createdAt : Date.now();
+  const createdAt = normalizeTimestamp(value.createdAt);
   const kind = value.kind;
   if (kind !== 'regeneration' && kind !== 'edit' && kind !== 'original') {
     return null;
@@ -401,9 +436,8 @@ function normalizeSessionMessage(
     return null;
   }
 
-  const now = Date.now();
   const content = typeof value.content === 'string' ? value.content : '';
-  const timestamp = typeof value.timestamp === 'number' ? value.timestamp : now;
+  const timestamp = normalizeTimestamp(value.timestamp);
   const rawCurrentVersionIndex = typeof value.currentVersionIndex === 'number'
     ? Math.floor(value.currentVersionIndex)
     : 0;
@@ -449,7 +483,7 @@ function normalizeSessionMessage(
     ?? (topLevelMatchesActiveVersion ? persistedImageSources : undefined);
 
   return {
-    id: typeof value.id === 'string' && value.id ? value.id : `msg-${crypto.randomUUID()}`,
+    id: normalizeMessageId(value.id, context, depth),
     role,
     content: activeContent,
     ...(apiTranscript ? { apiTranscript } : {}),
@@ -489,7 +523,25 @@ function normalizeSessionMessagesInternal(
 }
 
 export function normalizeSessionMessages(value: unknown): ChatMessage[] {
-  return normalizeSessionMessagesInternal(value, { messageNodes: 0 }, 0);
+  const topLevelMessageIds = new Set<string>();
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      if (!isRecord(item)) {
+        continue;
+      }
+      const id = typeof item.id === 'string'
+        ? item.id.trim().slice(0, MAX_SESSION_MESSAGE_ID_CHARS)
+        : '';
+      if (id && !topLevelMessageIds.has(id)) {
+        topLevelMessageIds.add(id);
+      }
+    }
+  }
+  return normalizeSessionMessagesInternal(value, {
+    messageNodes: 0,
+    messageIds: new Set(),
+    topLevelMessageIds,
+  }, 0);
 }
 
 export function parseSessionMessagesPayload(

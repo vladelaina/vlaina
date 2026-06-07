@@ -56,6 +56,37 @@ describe('useNotesSidebarTags', () => {
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not read unsafe file tree paths while loading missing sidebar tag content', async () => {
+    const scanAllNotes = vi.fn(async () => undefined);
+    const unsafeRootFolder: FolderNode = {
+      id: 'root-unsafe',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [
+        {
+          id: 'traversal',
+          name: 'secret.md',
+          path: '../secret.md',
+          isFolder: false,
+        },
+      ],
+    };
+
+    renderHook(() => useNotesSidebarTags({
+      rootFolder: unsafeRootFolder,
+      noteContentsCache: new Map(),
+      scanAllNotes,
+      currentVaultPath: '/vault',
+    }));
+
+    await Promise.resolve();
+
+    expect(mocked.stat).not.toHaveBeenCalled();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
   it('does not index sidebar tag content that is too complex after read', async () => {
     const scanAllNotes = vi.fn(async () => undefined);
     mocked.stat.mockResolvedValue({ isFile: true, size: 16 });

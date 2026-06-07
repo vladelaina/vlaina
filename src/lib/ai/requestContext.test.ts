@@ -329,4 +329,61 @@ describe('requestContext', () => {
     expect(result[0]?.apiTranscript?.[0]?.content).toBe('transcript-15');
     expect(result[0]?.apiTranscript?.at(-1)?.content).toBe('transcript-78');
   });
+
+  it('moves active version transcripts to the bounded top-level request field', () => {
+    const apiTranscript = [{ role: 'assistant' as const, content: 'version answer', reasoning_content: 'hidden' }];
+
+    const result = buildRequestHistory({
+      history: [
+        createMessage({
+          role: 'assistant',
+          content: 'Version answer',
+          versions: [{
+            content: 'Version answer',
+            createdAt: 1,
+            kind: 'original',
+            subsequentMessages: [],
+            apiTranscript,
+          }],
+        }),
+      ],
+      modelId: 'model-1',
+      timezoneOffset: 8,
+      includeTimeContext: false,
+    });
+
+    expect(result[0]?.apiTranscript).toEqual(apiTranscript);
+    expect(result[0]?.versions[0]?.apiTranscript).toBeUndefined();
+  });
+
+  it('does not leave oversized version transcripts available for provider fallback replay', () => {
+    const hugeTranscript = [{
+      role: 'tool' as const,
+      tool_call_id: 'call-1',
+      content: 'x'.repeat(50000),
+    }];
+
+    const result = buildRequestHistory({
+      history: [
+        createMessage({
+          role: 'assistant',
+          content: 'Visible answer',
+          versions: [{
+            content: 'Visible answer',
+            createdAt: 1,
+            kind: 'original',
+            subsequentMessages: [],
+            apiTranscript: hugeTranscript,
+          }],
+        }),
+      ],
+      modelId: 'model-1',
+      timezoneOffset: 8,
+      includeTimeContext: false,
+    });
+
+    expect(result[0]?.apiTranscript?.[0]?.content).toContain('[Earlier content omitted]');
+    expect(result[0]?.versions[0]?.apiTranscript).toBeUndefined();
+    expect(JSON.stringify(result)).not.toContain('x'.repeat(5000));
+  });
 });
