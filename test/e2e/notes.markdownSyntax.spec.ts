@@ -33,6 +33,12 @@ function createMarkdownSyntaxFixture(): string {
     '',
     '## Heading Coverage',
     '',
+    'Setext Heading Level One Sentinel',
+    '=================================',
+    '',
+    'Setext Heading Level Two Sentinel',
+    '---------------------------------',
+    '',
     '### Heading Level Three Sentinel',
     '',
     '#### Heading Level Four Sentinel',
@@ -43,7 +49,9 @@ function createMarkdownSyntaxFixture(): string {
     '',
     '## Inline Marks And Links',
     '',
-    'Inline marks paragraph with **strong text**, __strong underscore text__, *emphasis text*, _emphasis underscore text_, ~~strike text~~, ==highlighted text==, ++underlined text++, ^superscript text^, ~subscript text~, `inline code`, [explicit link](https://example.com/docs), [internal note link](./linked-note.md#target-heading), www.example.org, syntax@example.com, #syntax-tag, and HTML abbreviation usage.',
+    'Inline marks paragraph with **strong text**, __strong underscore text__, *emphasis text*, _emphasis underscore text_, ~~strike text~~, ==highlighted text==, ++underlined text++, ^superscript text^, ~subscript text~, `inline code`, [explicit link](https://example.com/docs), [reference docs link][docs-ref], [internal note link](./linked-note.md#target-heading), www.example.org, syntax@example.com, #syntax-tag, and HTML abbreviation usage.',
+    '',
+    '[docs-ref]: https://example.com/reference "Reference docs title"',
     '',
     '<span style="color: #2563eb">colored text sentinel</span> and <mark style="background-color: #fde047">background color sentinel</mark> appear in this paragraph.',
     '',
@@ -57,6 +65,9 @@ function createMarkdownSyntaxFixture(): string {
     'Hard break line one sentinel  ',
     'hard break line two sentinel.',
     '',
+    'Backslash hard break line one sentinel\\',
+    'backslash hard break line two sentinel.',
+    '',
     'HTML break line one sentinel<br/>HTML break line two sentinel.',
     '',
     'Escaped syntax sentinel: \\# not a heading, \\[TOC\\], \\*not emphasis\\*, and \\!\\[not image\\](image.png).',
@@ -65,6 +76,14 @@ function createMarkdownSyntaxFixture(): string {
     '',
     '> Regular quote line one.',
     '> Regular quote line two.',
+    '',
+    '> Nested quote container sentinel.',
+    '> ',
+    '> - Nested quote bullet sentinel',
+    '> ',
+    '> ```ts',
+    '> const quoteCodeSentinel = true;',
+    '> ```',
     '',
     '> 💡 Callout body sentinel with a nested paragraph.',
     '> ',
@@ -141,6 +160,10 @@ function createMarkdownSyntaxFixture(): string {
     '  Start[E2E Start] --> Done[E2E Done]',
     '```',
     '',
+    '```sequence',
+    'Alice->Bob: Diagram alias sentinel',
+    '```',
+    '',
     '## Media',
     '',
     `![Image alt sentinel](${TINY_PNG_DATA_URL} "Image title sentinel")`,
@@ -178,6 +201,13 @@ async function expectEditorContains(page: Page, texts: string[]) {
   }
 }
 
+async function expectParagraphHasHardBreak(page: Page, text: string) {
+  await expect.poll(async () => page.evaluate(({ editorSelector, text }) => {
+    const paragraphs = Array.from(document.querySelectorAll<HTMLElement>(`${editorSelector} p`));
+    return paragraphs.some((paragraph) => paragraph.textContent?.includes(text) && paragraph.querySelector('br'));
+  }, { editorSelector: EDITOR_SELECTOR, text })).toBe(true);
+}
+
 test.describe('notes markdown syntax rendering', () => {
   test.setTimeout(120_000);
 
@@ -202,14 +232,19 @@ test.describe('notes markdown syntax rendering', () => {
 
       await expectEditorContains(page, [
         'E2E Markdown Syntax',
+        'Setext Heading Level One Sentinel',
+        'Setext Heading Level Two Sentinel',
         'Heading Level Six Sentinel',
         'Inline marks paragraph',
         'colored text sentinel',
         'background color sentinel',
         'Soft break line one sentinel',
         'hard break line two sentinel',
+        'backslash hard break line two sentinel',
         'Escaped syntax sentinel',
         'Regular quote line one.',
+        'Nested quote bullet sentinel',
+        'quoteCodeSentinel',
         'Callout body sentinel',
         'Encoded icon callout body sentinel',
         'Bullet item alpha',
@@ -237,6 +272,8 @@ test.describe('notes markdown syntax rendering', () => {
 
       await expect(page.locator(`${EDITOR_SELECTOR} .frontmatter-block-container`)).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} h1`, { hasText: 'E2E Markdown Syntax' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} h1`, { hasText: 'Setext Heading Level One Sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} h2`, { hasText: 'Setext Heading Level Two Sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} h2`, { hasText: 'Inline Marks And Links' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} h3`, { hasText: 'Heading Level Three Sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} h4`, { hasText: 'Heading Level Four Sentinel' })).toBeVisible();
@@ -244,6 +281,8 @@ test.describe('notes markdown syntax rendering', () => {
       await expect(page.locator(`${EDITOR_SELECTOR} h6`, { hasText: 'Heading Level Six Sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="toc"]`)).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} blockquote`, { hasText: 'Regular quote line one' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} blockquote li`, { hasText: 'Nested quote bullet sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} blockquote .code-block-container`, { hasText: 'quoteCodeSentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="callout"]`, { hasText: 'Callout body sentinel with a nested paragraph' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="callout"]`, { hasText: 'Encoded icon callout body sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} li[data-item-type="task"][data-checked="false"]`, { hasText: 'Task item unchecked sentinel' })).toBeVisible();
@@ -260,7 +299,8 @@ test.describe('notes markdown syntax rendering', () => {
       await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'plain code block sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="math-block"]`)).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} span[data-type="math-inline"]`)).toBeVisible();
-      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="mermaid"]`)).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="mermaid"]`).first()).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="mermaid"]`)).toHaveCount(2);
       await expect(page.locator(`${EDITOR_SELECTOR} .image-block-container, ${EDITOR_SELECTOR} img.md-image`).first()).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} .image-block-container[data-alt="Image alt sentinel"]`)).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} .image-block-container[data-alt="HTML image alt sentinel"][data-width="40%"][data-align="right"]`)).toBeVisible();
@@ -282,10 +322,12 @@ test.describe('notes markdown syntax rendering', () => {
       await expect(page.locator(`${EDITOR_SELECTOR} abbr[title="HyperText Markup Language"]`, { hasText: 'HTML' }).first()).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} [data-editor-tag-token="true"]`, { hasText: '#syntax-tag' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} a[href="https://example.com/docs"]`, { hasText: 'explicit link' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} a[href="https://example.com/reference"]`, { hasText: 'reference docs link' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} a[href="./linked-note.md#target-heading"]`, { hasText: 'internal note link' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} a.autolink[href="https://www.example.org"]`)).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} a.autolink[href="mailto:syntax@example.com"]`)).toBeVisible();
-      await expect(page.locator(`${EDITOR_SELECTOR} p`, { hasText: 'Hard break line one sentinel' }).locator('br')).toHaveCount(1);
+      await expectParagraphHasHardBreak(page, 'Hard break line one sentinel');
+      await expectParagraphHasHardBreak(page, 'Backslash hard break line one sentinel');
       await expect(page.locator(`${EDITOR_SELECTOR} p`, { hasText: 'HTML break line one sentinel' })).toContainText('HTML break line two sentinel');
       await expect(page.locator(`${EDITOR_SELECTOR} p`, { hasText: 'Escaped syntax sentinel' })).toContainText('# not a heading');
       await expect(page.locator(`${EDITOR_SELECTOR} p[data-text-align="center"]`, { hasText: 'Centered paragraph sentinel' })).toBeVisible();
@@ -310,7 +352,7 @@ test.describe('notes markdown syntax rendering', () => {
       expect(metrics.countsBySelector.frontmatter).toBeGreaterThanOrEqual(1);
       expect(metrics.countsBySelector.mathBlocks).toBeGreaterThanOrEqual(1);
       expect(metrics.countsBySelector.mathInline).toBeGreaterThanOrEqual(1);
-      expect(metrics.countsBySelector.mermaid).toBeGreaterThanOrEqual(1);
+      expect(metrics.countsBySelector.mermaid).toBeGreaterThanOrEqual(2);
       expect(metrics.countsBySelector.video).toBeGreaterThanOrEqual(1);
       expect(metrics.countsBySelector.toc).toBeGreaterThanOrEqual(1);
       expect(metrics.countsBySelector.footnoteRefs).toBeGreaterThanOrEqual(1);
