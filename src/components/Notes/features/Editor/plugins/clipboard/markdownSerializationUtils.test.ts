@@ -609,6 +609,38 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ).toBe(['---', 'title: Alpha', 'tags: test', '---', '', 'Line one\\', 'Line two'].join('\n'));
   });
 
+  it('normalizes serializer space entities before persistence', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(
+        [
+          '&#x20; Pro:   \\$76.80 / year',
+          '&#32; Max:   \\$191.90 / year',
+          '> &#x20; quoted',
+          '- &#x20; list item',
+          '1. &#32; ordered item',
+        ].join('\n')
+      )
+    ).toBe(
+      [
+        '  Pro:   \\$76.80 / year\\',
+        '  Max:   \\$191.90 / year',
+        '>   quoted',
+        '-   list item',
+        '1.   ordered item',
+      ].join('\n')
+    );
+  });
+
+  it('keeps serializer-like space entities inside protected content', () => {
+    const fenced = ['```md', '&#x20; literal', '```'].join('\n');
+    const frontmatter = ['---', 'title: "&#x20; literal"', '---', '', 'Body'].join('\n');
+    const html = ['<pre>', '&#x20; literal', '</pre>'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(fenced)).toBe(fenced);
+    expect(normalizeSerializedMarkdownDocument(frontmatter)).toBe(frontmatter);
+    expect(normalizeSerializedMarkdownDocument(html)).toBe(html);
+  });
+
   it('does not convert display math block line breaks into hard breaks', () => {
     expect(
       normalizeSerializedMarkdownDocument(['Before', '', '$$', 'a = b', 'c = d', '$$', '', 'After'].join('\n'))

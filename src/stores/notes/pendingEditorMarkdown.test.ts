@@ -36,6 +36,74 @@ describe('flushPendingEditorMarkdown', () => {
     });
   });
 
+  it('normalizes editor-only artifacts before they enter note state', () => {
+    useNotesStore.setState({
+      currentNote: { path: 'alpha.md', content: 'Old content' },
+      currentNoteRevision: 3,
+      isDirty: false,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: 'Old content', modifiedAt: 7 }]]),
+    });
+
+    const didFlush = flushPendingEditorMarkdown('alpha.md', [
+      '# Alpha',
+      '<!--vlaina-markdown-blank-line-->',
+      '&#x20; Pro:   \\$76.80 / year',
+      '&#32 Max:   \\$191.90 / year',
+    ].join('\n'));
+
+    const expected = [
+      '# Alpha',
+      '',
+      '  Pro:   \\$76.80 / year\\',
+      ' Max:   \\$191.90 / year',
+    ].join('\n');
+    const state = useNotesStore.getState();
+    expect(didFlush).toBe(true);
+    expect(state.currentNote).toEqual({ path: 'alpha.md', content: expected });
+    expect(state.noteContentsCache.get('alpha.md')).toEqual({
+      content: expected,
+      modifiedAt: 7,
+    });
+    expect(state.currentNote?.content).not.toContain('vlaina-markdown-blank-line');
+    expect(state.currentNote?.content).not.toContain('&#x20');
+    expect(state.currentNote?.content).not.toContain('&#32');
+  });
+
+  it('ignores pending markdown that only differs by editor-only artifacts after normalization', () => {
+    const currentContent = [
+      '# Alpha',
+      '',
+      '  Pro:   \\$76.80 / year\\',
+      ' Max:   \\$191.90 / year',
+    ].join('\n');
+
+    useNotesStore.setState({
+      currentNote: { path: 'alpha.md', content: currentContent },
+      currentNoteRevision: 3,
+      isDirty: false,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: currentContent, modifiedAt: 7 }]]),
+    });
+
+    const didFlush = flushPendingEditorMarkdown('alpha.md', [
+      '# Alpha',
+      '<!--vlaina-markdown-blank-line-->',
+      '&#x20; Pro:   \\$76.80 / year',
+      '&#32 Max:   \\$191.90 / year',
+    ].join('\n'));
+
+    const state = useNotesStore.getState();
+    expect(didFlush).toBe(false);
+    expect(state.currentNoteRevision).toBe(3);
+    expect(state.isDirty).toBe(false);
+    expect(state.openTabs).toEqual([{ path: 'alpha.md', name: 'alpha', isDirty: false }]);
+    expect(state.noteContentsCache.get('alpha.md')).toEqual({
+      content: currentContent,
+      modifiedAt: 7,
+    });
+  });
+
   it('keeps pending list spacing edits instead of treating them as save-normalization noise', () => {
     const savedContent = ['1. First item', '2. Second item', '3. Third item'].join('\n');
     const pendingContent = ['1. First item', '', '2. Second item', '3. Third item'].join('\n');

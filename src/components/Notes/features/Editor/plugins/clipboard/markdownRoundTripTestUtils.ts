@@ -22,6 +22,7 @@ import {
   normalizeLeadingFrontmatterMarkdown,
   serializeLeadingFrontmatterMarkdown,
 } from '../frontmatter/frontmatterMarkdown';
+import { expectPersistedMarkdownToBeClean } from './persistedMarkdownAssertions';
 import { mathPlugin } from '../math';
 import { calloutPlugin } from '../callout';
 import { footnotePlugin } from '../footnote';
@@ -131,14 +132,6 @@ function collectAttrsText(attrs: unknown, nodeType: unknown): string {
 function extractHtmlText(html: string): string {
   if (typeof DOMParser === 'undefined') return '';
   return new DOMParser().parseFromString(html, 'text/html').body.textContent ?? '';
-}
-
-function expectPersistedMarkdownToBeClean(markdown: string): void {
-  expect(markdown).not.toMatch(/data-vlaina-/);
-  expect(markdown).not.toMatch(/date-vlaina-/);
-  expect(markdown).not.toContain('\u200B');
-  expect(markdown).not.toContain('\u200C');
-  expect(markdown).not.toContain('VLAINA_LIST_GAP_SENTINEL');
 }
 
 export async function expectStableMarkdownRoundTrip(

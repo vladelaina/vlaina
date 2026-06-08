@@ -18,6 +18,7 @@ import {
   normalizeLeadingFrontmatterMarkdown,
   serializeLeadingFrontmatterMarkdown,
 } from '../frontmatter/frontmatterMarkdown';
+import { expectPersistedMarkdownToBeClean } from './persistedMarkdownAssertions';
 
 interface ReopenSnapshot {
   docJson: unknown;
@@ -84,13 +85,6 @@ function collectNodesByType(value: unknown, type: string): Array<Record<string, 
     .map((node) => node as Record<string, unknown>);
 }
 
-function expectCleanPersistedMarkdown(markdown: string): void {
-  expect(markdown).not.toContain('\u200B');
-  expect(markdown).not.toContain('\u200C');
-  expect(markdown).not.toContain('VLAINA_LIST_GAP_SENTINEL');
-  expect(markdown).not.toMatch(/data-vlaina-/);
-}
-
 describe('markdown blank line reopen regressions', () => {
   it.each([
     {
@@ -123,7 +117,7 @@ describe('markdown blank line reopen regressions', () => {
 
     expect(collectNodes(snapshot.docJson)).toContainEqual(expect.objectContaining(expectedNode));
     expect(snapshot.persisted).toBe(expectedPersisted ?? markdown);
-    expectCleanPersistedMarkdown(snapshot.persisted);
+    expectPersistedMarkdownToBeClean(snapshot.persisted);
   });
 
   it.each([
@@ -159,7 +153,7 @@ describe('markdown blank line reopen regressions', () => {
       expect.objectContaining({ checked })
     );
     expect(snapshot.persisted).toBe(expectedPersisted ?? markdown);
-    expectCleanPersistedMarkdown(snapshot.persisted);
+    expectPersistedMarkdownToBeClean(snapshot.persisted);
   });
 
   it('keeps paragraph trailing backslashes visible inside mixed markdown notes', async () => {
@@ -212,7 +206,7 @@ describe('markdown blank line reopen regressions', () => {
     const firstReopen = await reopenMarkdown(markdown);
     expect(firstReopen.texts).toEqual(texts);
     expect(firstReopen.persisted).toBe(markdown);
-    expectCleanPersistedMarkdown(firstReopen.persisted);
+    expectPersistedMarkdownToBeClean(firstReopen.persisted);
 
     const secondReopen = await reopenMarkdown(firstReopen.persisted);
     expect(secondReopen.texts).toEqual(texts);
@@ -226,7 +220,7 @@ describe('markdown blank line reopen regressions', () => {
 
     expect(snapshot.texts).toContain('');
     expect(snapshot.persisted).toBe(markdown);
-    expectCleanPersistedMarkdown(snapshot.persisted);
+    expectPersistedMarkdownToBeClean(snapshot.persisted);
   });
 
   it('parses editor-only list gap placeholder lines as editable list items', async () => {
@@ -235,7 +229,7 @@ describe('markdown blank line reopen regressions', () => {
     expect(collectNodesByType(snapshot.docJson, 'list_item')).toHaveLength(4);
     expect(snapshot.textContent).toContain('\u2800');
     expect(snapshot.persisted).toBe(['- one', '', '', '- two'].join('\n'));
-    expectCleanPersistedMarkdown(snapshot.persisted);
+    expectPersistedMarkdownToBeClean(snapshot.persisted);
   });
 
   it('parses task-list gap placeholder lines as editable list items', async () => {
@@ -244,6 +238,6 @@ describe('markdown blank line reopen regressions', () => {
     expect(collectNodesByType(snapshot.docJson, 'list_item')).toHaveLength(4);
     expect(snapshot.textContent).toContain('\u2800');
     expect(snapshot.persisted).toBe(['- [ ] one', '', '', '- [ ] two'].join('\n'));
-    expectCleanPersistedMarkdown(snapshot.persisted);
+    expectPersistedMarkdownToBeClean(snapshot.persisted);
   });
 });

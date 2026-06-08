@@ -15,6 +15,7 @@ import {
   preserveMarkdownBlankLinesForEditor,
   stripTrailingNewlines,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { expectPersistedMarkdownToBeClean } from './persistedMarkdownAssertions';
 
 interface EditorRoundTripSnapshot {
   docJson: unknown;
@@ -47,16 +48,6 @@ async function openMarkdownThroughEditor(markdown: string): Promise<EditorRoundT
     docJson,
     persisted: normalizeSerializedMarkdownDocument(serialized),
   };
-}
-
-function expectPersistedMarkdownToBeClean(markdown: string): void {
-  expect(markdown).not.toMatch(/data-vlaina-/);
-  expect(markdown).not.toMatch(/date-vlaina-/);
-  expect(markdown).not.toContain('\u200B');
-  expect(markdown).not.toContain('\u200C');
-  expect(markdown).not.toContain('VLAINA_LIST_GAP_SENTINEL');
-  expect(markdown).not.toContain('vlaina-markdown-tight-heading');
-  expect(markdown).not.toContain('vlaina-markdown-blank-line');
 }
 
 function stripInternalBlankLineDisplayNodes(value: unknown): unknown {

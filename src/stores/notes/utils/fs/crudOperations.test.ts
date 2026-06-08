@@ -127,6 +127,59 @@ describe('createNoteImpl', () => {
     vi.useRealTimers();
   });
 
+  it('cleans serialized editor-only markdown artifacts before creating a note', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    hoisted.resolveUniquePath.mockResolvedValue({
+      relativePath: 'alpha.md',
+      fullPath: '/vault/alpha.md',
+      fileName: 'alpha.md',
+    });
+
+    const result = await createNoteImpl(
+      '/vault',
+      undefined,
+      'alpha',
+      [
+        '# Alpha',
+        '<!--vlaina-markdown-blank-line-->',
+        '&#x20; Pro:   \\$76.80 / year',
+        '&#32 Max:   \\$191.90 / year',
+      ].join('\n'),
+      {
+        rootFolder: {
+          id: '',
+          name: 'Notes',
+          path: '',
+          isFolder: true,
+          children: [],
+          expanded: true,
+        },
+        recentNotes: [],
+        noteMetadata: null,
+      }
+    );
+
+    const written = String(adapter.writeFile.mock.calls[0]?.[1] ?? '');
+    expect(written).toBe([
+      '---',
+      'vlaina_created: 2026-04-15 18:00:00 +08:00',
+      'vlaina_updated: 2026-04-15 18:00:00 +08:00',
+      '---',
+      '',
+      '# Alpha',
+      '',
+      '  Pro:   \\$76.80 / year\\',
+      ' Max:   \\$191.90 / year',
+    ].join('\n'));
+    expect(written).not.toContain('vlaina-markdown-blank-line');
+    expect(written).not.toContain('&#x20');
+    expect(written).not.toContain('&#32');
+    expect(result.content).toBe(written);
+
+    vi.useRealTimers();
+  });
+
   it('converts internal user break markers before creating a note', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));

@@ -23,8 +23,6 @@ describe('resolvePendingMarkdownUpdate', () => {
       '',
       'dfdsfd',
       '',
-      '<br />',
-      '',
       'rtgyhui',
       '',
     ].join('\n');
@@ -39,8 +37,6 @@ describe('resolvePendingMarkdownUpdate', () => {
       '### strip',
       '',
       'dfdsfd',
-      '',
-      '<br />',
       '',
       'rtgyhui',
       '',
@@ -81,8 +77,6 @@ describe('resolvePendingMarkdownUpdate', () => {
       '',
       'dfdsfd',
       '',
-      '<br />',
-      '',
       'rtgyhui',
       '',
     ].join('\n');
@@ -97,8 +91,6 @@ describe('resolvePendingMarkdownUpdate', () => {
       '### strip',
       '',
       'dfdsfd',
-      '',
-      '<br />',
       '',
       'rtgyhui',
       '',
@@ -117,7 +109,7 @@ describe('resolvePendingMarkdownUpdate', () => {
     });
   });
 
-  it('keeps live editor serialization exact and leaves save-time cleanup to persistence', () => {
+  it('normalizes live editor serialization before it reaches note state', () => {
     const latestNoteContent = [
       '---',
       'vlaina_cover: "@biva/2"',
@@ -144,11 +136,48 @@ describe('resolvePendingMarkdownUpdate', () => {
       '',
       '\\*[ABBR]: Full phrase',
       '',
-      '[^1]: <br />',
+      '[^1]:',
       '',
       '| A | B |',
       '| - | - |',
-      '| <br /> | <br /> |',
+      '|   |   |',
+    ].join('\n');
+
+    expect(
+      resolvePendingMarkdownUpdate({
+        pendingMarkdown: latestNoteContent,
+        latestNoteContent,
+        liveSerializedMarkdown,
+      }),
+    ).toEqual({
+      markdownToApply: expected,
+      source: 'live-editor',
+      liveMarkdown: expected,
+    });
+  });
+
+  it('strips editor-only blank line comments and serializer space entities before note state', () => {
+    const latestNoteContent = [
+      '---',
+      'vlaina_cover: "@biva/2"',
+      '---',
+      'old body',
+    ].join('\n');
+    const liveSerializedMarkdown = [
+      '# Alpha',
+      '<!--vlaina-markdown-blank-line-->',
+      '&#x20; Pro:   \\$76.80 / year',
+      '&#32 Max:   \\$191.90 / year',
+    ].join('\n');
+
+    const expected = [
+      '---',
+      'vlaina_cover: "@biva/2"',
+      '---',
+      '# Alpha',
+      '',
+      '  Pro:   \\$76.80 / year\\',
+      ' Max:   \\$191.90 / year',
     ].join('\n');
 
     expect(

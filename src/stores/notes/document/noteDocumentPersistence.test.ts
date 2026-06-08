@@ -128,6 +128,45 @@ describe('saveNoteDocument', () => {
     vi.useRealTimers();
   });
 
+  it('cleans serialized editor-only markdown artifacts before writing markdown', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    adapter.writeFile.mockResolvedValue();
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
+
+    const result = await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: [
+          '# Alpha',
+          '<!--vlaina-markdown-blank-line-->',
+          '&#x20; Pro:   \\$76.80 / year',
+          '&#32 Max:   \\$191.90 / year',
+        ].join('\n'),
+      },
+      cache: new Map(),
+    });
+
+    const written = String(adapter.writeFile.mock.calls[0]?.[1] ?? '');
+    expect(written).toBe([
+      '---',
+      'vlaina_updated: 2026-04-15 18:00:00 +08:00',
+      '---',
+      '',
+      '# Alpha',
+      '',
+      '  Pro:   \\$76.80 / year\\',
+      ' Max:   \\$191.90 / year',
+    ].join('\n'));
+    expect(written).not.toContain('vlaina-markdown-blank-line');
+    expect(written).not.toContain('&#x20');
+    expect(written).not.toContain('&#32');
+    expect(result.content).toBe(written);
+
+    vi.useRealTimers();
+  });
+
   it('converts internal user break markers to markdown hard breaks before writing markdown', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
@@ -444,6 +483,34 @@ describe('saveNoteDocument', () => {
 
     expect(result.content).toBe(['# Alpha', '', 'Body'].join('\n'));
     expect(result.nextCache.get('alpha.md')?.content).toBe(['# Alpha', '', 'Body'].join('\n'));
+  });
+
+  it('cleans serialized editor-only markdown artifacts when loading markdown', async () => {
+    adapter.readFile.mockResolvedValue([
+      '# Alpha',
+      '<!--vlaina-markdown-blank-line-->',
+      '&#x20; Pro:   \\$76.80 / year',
+      '&#32 Max:   \\$191.90 / year',
+    ].join('\n'));
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
+
+    const result = await loadNoteDocument({
+      notesPath: '/vault',
+      path: 'alpha.md',
+      cache: new Map(),
+    });
+
+    const expected = [
+      '# Alpha',
+      '',
+      '  Pro:   \\$76.80 / year\\',
+      ' Max:   \\$191.90 / year',
+    ].join('\n');
+    expect(result.content).toBe(expected);
+    expect(result.content).not.toContain('vlaina-markdown-blank-line');
+    expect(result.content).not.toContain('&#x20');
+    expect(result.content).not.toContain('&#32');
+    expect(result.nextCache.get('alpha.md')?.content).toBe(expected);
   });
 
   it('preserves markdown blank lines between list items when loading markdown', async () => {
