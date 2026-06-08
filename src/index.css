@@ -456,6 +456,38 @@ textarea,
   cursor: pointer;
 }
 
+[data-chat-view-mode] {
+  isolation: isolate;
+  background: var(--vlaina-imported-app-background-layer, var(--vlaina-bg-primary));
+  background-attachment: var(--vlaina-imported-app-background-attachment);
+  background-clip: var(--vlaina-imported-app-background-clip);
+  background-origin: var(--vlaina-imported-app-background-origin);
+  background-position: var(--vlaina-imported-app-background-position);
+  background-repeat: var(--vlaina-imported-app-background-repeat);
+  background-size: var(--vlaina-imported-app-background-size);
+}
+
+[data-chat-view-mode]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: var(--vlaina-z-0);
+  pointer-events: none;
+  background: var(--vlaina-imported-app-background-layer);
+  background-attachment: var(--vlaina-imported-app-background-attachment);
+  background-clip: var(--vlaina-imported-app-background-clip);
+  background-origin: var(--vlaina-imported-app-background-origin);
+  background-position: var(--vlaina-imported-app-background-position);
+  background-repeat: var(--vlaina-imported-app-background-repeat);
+  background-size: var(--vlaina-imported-app-background-size);
+}
+
+[data-chat-view-mode] > [data-chat-scrollable='true'],
+[data-chat-view-mode] > [data-chat-input-region='true'] {
+  position: relative;
+  z-index: var(--vlaina-z-1);
+}
+
 [data-notes-view-mode] button:not(:disabled),
 [data-notes-view-mode] [role="button"]:not([aria-disabled="true"]),
 [data-notes-view-mode] a[href] {

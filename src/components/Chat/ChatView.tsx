@@ -363,11 +363,11 @@ export function ChatView({
       data-chat-view-mode={mode}
       data-notes-block-drop-target={isEmbedded ? 'true' : undefined}
       data-file-tree-chat-drop-target={isEmbedded ? 'true' : undefined}
-      className="h-full w-full flex flex-col bg-[var(--vlaina-bg-primary)] relative overflow-hidden"
+      className="h-full w-full flex flex-col relative overflow-hidden"
       onMouseDownCapture={handleChatAreaMouseDownCapture}
     >
       {isEmbedded && (
-        <div className="relative z-[var(--vlaina-z-20)] flex h-10 flex-none items-center gap-2 bg-[var(--vlaina-bg-primary)] px-3">
+        <div className="relative z-[var(--vlaina-z-20)] flex h-10 flex-none items-center gap-2 bg-transparent px-3">
           <button
             type="button"
             aria-label={t('chat.openChatSidebar')}
@@ -498,6 +498,7 @@ export function ChatView({
       />
 
       <div 
+          data-chat-input-region="true"
           className={cn(
               "w-full z-[var(--vlaina-z-10)] flex flex-col",
               isEmpty ? "flex-1 justify-center items-center" : "flex-none pb-6"
