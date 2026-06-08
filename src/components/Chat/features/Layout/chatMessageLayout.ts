@@ -10,9 +10,9 @@ import {
   estimateChatLoadingHeight,
 } from './chatAssistantMessageLayout';
 import {
-  extractRenderedMarkdownImageSources,
+  extractRenderedMessageImageSources,
   MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
-  stripMarkdownImageTokens,
+  stripMessageImageTokens,
 } from '@/components/Chat/common/messageClipboard';
 
 const USER_BUBBLE_MAX_RATIO = 0.9;
@@ -51,7 +51,7 @@ function estimateLongTextRemainderHeight(content: string): number {
 }
 
 function countRenderableImages(content: string): number {
-  return extractRenderedMarkdownImageSources(clampEstimatedText(content), {
+  return extractRenderedMessageImageSources(clampEstimatedText(content), {
     maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
   }).length;
 }
@@ -64,7 +64,7 @@ function estimateUserMessageHeight(
   const contentWidth = getChatContentWidth(containerWidth);
   const bubbleWidth = Math.max(120, Math.floor(contentWidth * USER_BUBBLE_MAX_RATIO));
   const textWidth = Math.max(1, bubbleWidth - USER_BUBBLE_PADDING_X);
-  const text = stripMarkdownImageTokens(clampEstimatedText(message.content), {
+  const text = stripMessageImageTokens(clampEstimatedText(message.content), {
     maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
   }).trim();
   const imageCount = countRenderableImages(message.content);

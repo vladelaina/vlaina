@@ -2,6 +2,7 @@ import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { ensureSystemDirectory, getVaultSystemStorePath } from '../systemStoragePaths';
 import { normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
+import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 
 export interface NotesExternalPathRenameEvent {
   type: 'rename';
@@ -85,7 +86,12 @@ function normalizeExternalRenamePath(path: string): string | null {
     return null;
   }
 
-  return normalizeVaultRelativePath(path);
+  const normalizedPath = normalizeVaultRelativePath(path);
+  if (!normalizedPath || hasInternalNotePathSegment(normalizedPath)) {
+    return null;
+  }
+
+  return normalizedPath;
 }
 
 function notifyListeners(event: NotesExternalPathRenameEvent) {

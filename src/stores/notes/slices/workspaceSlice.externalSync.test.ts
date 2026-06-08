@@ -360,6 +360,67 @@ describe('workspaceSlice external sync', () => {
     expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith(store.getState().starredEntries);
   });
 
+  it('removes external absolute starred notes when their file is deleted outside the current vault', async () => {
+    const keepEntry = {
+      id: 'external-keep',
+      kind: 'note' as const,
+      vaultPath: '/vault-b',
+      relativePath: 'docs/keep.md',
+      addedAt: 1,
+    };
+    const store = createNotesStore({
+      starredEntries: [
+        keepEntry,
+        {
+          id: 'external-remove',
+          kind: 'note',
+          vaultPath: '/vault-b',
+          relativePath: 'docs/remove.md',
+          addedAt: 1,
+        },
+      ],
+    });
+
+    await store.getState().applyExternalPathDeletion('/vault-b/docs/remove.md');
+
+    expect(store.getState().starredEntries).toEqual([keepEntry]);
+    expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith([keepEntry]);
+  });
+
+  it('removes external absolute starred child entries when their folder is deleted outside the current vault', async () => {
+    const keepEntry = {
+      id: 'external-keep',
+      kind: 'note' as const,
+      vaultPath: '/vault-b',
+      relativePath: 'outside.md',
+      addedAt: 1,
+    };
+    const store = createNotesStore({
+      starredEntries: [
+        keepEntry,
+        {
+          id: 'external-child-note',
+          kind: 'note',
+          vaultPath: '/vault-b',
+          relativePath: 'docs/remove.md',
+          addedAt: 1,
+        },
+        {
+          id: 'external-child-folder',
+          kind: 'folder',
+          vaultPath: '/vault-b',
+          relativePath: 'docs/assets',
+          addedAt: 1,
+        },
+      ],
+    });
+
+    await store.getState().applyExternalPathDeletion('/vault-b/docs');
+
+    expect(store.getState().starredEntries).toEqual([keepEntry]);
+    expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith([keepEntry]);
+  });
+
   it('removes the in-memory tree node immediately when a file is deleted externally', async () => {
     const keepFile = createFile('docs/keep.md', 'keep');
     const removeFile = createFile('docs/remove.md', 'remove');

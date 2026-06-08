@@ -118,6 +118,8 @@ it('sanitizes image sources consistently for schema and component editors', () =
   expect(sanitizeImageSrc('./assets/image.png')).toBe('./assets/image.png')
   expect(sanitizeImageSrc('img:assets/image.png')).toBe('img:assets/image.png')
   expect(sanitizeImageSrc('IMG:assets/image.png')).toBe('IMG:assets/image.png')
+  expect(sanitizeImageSrc('img:.notes/image.png')).toBe('img:.notes/image.png')
+  expect(sanitizeImageSrc('img:%2enotes/image.png')).toBe('img:%2enotes/image.png')
   expect(sanitizeImageSrc('data:image/png;base64,aGk=')).toBe('data:image/png;base64,aGk=')
   expect(sanitizeImageSrc('DATA:IMAGE/WEBP;BASE64,AQI=')).toBe('data:image/webp;base64,AQI=')
   expect(sanitizeImageSrc('', { allowEmpty: true })).toBe('')
@@ -129,6 +131,10 @@ it('sanitizes image sources consistently for schema and component editors', () =
   expect(sanitizeImageSrc('img:/etc/passwd')).toBe(null)
   expect(sanitizeImageSrc('img:\\secret.png')).toBe(null)
   expect(sanitizeImageSrc('img://example.com/image.png')).toBe(null)
+  expect(sanitizeImageSrc('img:.vlaina/assets/image.png')).toBe(null)
+  expect(sanitizeImageSrc('img:docs/.GIT/image.png')).toBe(null)
+  expect(sanitizeImageSrc('img:%2evlaina/assets/image.png')).toBe(null)
+  expect(sanitizeImageSrc('img:docs/%252egit/image.png')).toBe(null)
   expect(sanitizeImageSrc('/etc/passwd')).toBe(null)
   expect(sanitizeImageSrc('C:\\Users\\secret.png')).toBe(null)
   expect(sanitizeImageSrc('http://127.0.0.1:3000/image.png')).toBe(null)
@@ -160,6 +166,8 @@ it('drops unsafe markdown image sources during parsing', async () => {
       '![safe](./assets/safe.png)',
       '![internal](img:assets/safe.png)',
       '![bad-internal](img:/etc/passwd)',
+      '![bad-vlaina](img:.vlaina/private.png)',
+      '![bad-git](img:docs/%2egit/config.png)',
       '![entity-safe](https://example.com/path?a=1&amp;b=2.png)',
     ].join('\n\n')
   )

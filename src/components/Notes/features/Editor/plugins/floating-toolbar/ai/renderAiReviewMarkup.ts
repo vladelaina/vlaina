@@ -3,15 +3,7 @@ import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
 import { renderAiReviewDiffMarkup } from './reviewDiff';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { translate } from '@/lib/i18n';
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+import { escapeToolbarHtml } from '../htmlEscape';
 
 export function renderAiReviewMarkup(state: FloatingToolbarState): string | null {
   if (state.subMenu !== 'aiReview' || !state.aiReview) {
@@ -19,9 +11,9 @@ export function renderAiReviewMarkup(state: FloatingToolbarState): string | null
   }
 
   const review = state.aiReview;
-  const retryLabel = translate('common.retry');
-  const cancelLabel = translate('common.cancel');
-  const applyLabel = translate('common.apply');
+  const retryLabel = escapeToolbarHtml(translate('common.retry'));
+  const cancelLabel = escapeToolbarHtml(translate('common.cancel'));
+  const applyLabel = escapeToolbarHtml(translate('common.apply'));
   const showRetryAction = !review.isLoading && (!!review.errorMessage || review.suggestedText.trim().length > 0);
   const canRenderDiff = Boolean(review.instruction) && review.suggestedText.trim().length > 0;
   const showSignInPrompt = review.errorType === 'AUTH_ERROR';
@@ -30,7 +22,7 @@ export function renderAiReviewMarkup(state: FloatingToolbarState): string | null
     : review.errorMessage
       ? showSignInPrompt
         ? '<div class="ai-review-sign-in-slot"></div>'
-        : `<div class="ai-review-error" role="alert">${escapeHtml(review.errorMessage)}</div>`
+        : `<div class="ai-review-error" role="alert">${escapeToolbarHtml(review.errorMessage)}</div>`
     : canRenderDiff
       ? `
       <div class="ai-review-result-surface">${renderAiReviewDiffMarkup(review.originalText, review.suggestedText)}</div>

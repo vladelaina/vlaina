@@ -9,6 +9,7 @@ import {
   createStreamAccumulator,
 } from '@/lib/ai/streaming'
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
+import { normalizeRenderableDataImageSrc } from '@/lib/markdown/renderableImagePolicy'
 
 export const ANTHROPIC_VERSION = '2023-06-01'
 
@@ -36,11 +37,69 @@ function extractTextContent(content: ChatMessageContent): string {
     .join('')
 }
 
+type AnthropicContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
+
+type AnthropicMessage = {
+  role: 'user' | 'assistant'
+  content: string | AnthropicContentBlock[]
+}
+
+function dataImageToAnthropicBlock(src: string): AnthropicContentBlock | null {
+  const normalized = normalizeRenderableDataImageSrc(src)
+  if (!normalized) {
+    return null
+  }
+
+  const match = /^data:(image\/[^;,]+);base64,([A-Za-z0-9+/=]+)$/i.exec(normalized)
+  if (!match) {
+    return null
+  }
+
+  const mediaType = match[1]?.toLowerCase()
+  if (!mediaType || mediaType === 'image/svg+xml') {
+    return null
+  }
+
+  return {
+    type: 'image',
+    source: {
+      type: 'base64',
+      media_type: mediaType,
+      data: match[2] || '',
+    },
+  }
+}
+
+function buildAnthropicUserContent(content: ChatMessageContent): string | AnthropicContentBlock[] {
+  if (typeof content === 'string') {
+    return content
+  }
+
+  const blocks: AnthropicContentBlock[] = []
+  for (const part of content) {
+    if (part.type === 'text') {
+      if (part.text) {
+        blocks.push({ type: 'text', text: part.text })
+      }
+      continue
+    }
+
+    const imageBlock = dataImageToAnthropicBlock(part.image_url.url)
+    if (imageBlock) {
+      blocks.push(imageBlock)
+    }
+  }
+
+  return blocks.length > 0 ? blocks : ''
+}
+
 function buildAnthropicMessages(
   message: ChatMessageContent,
   history: ChatMessage[]
-): { system?: string; messages: Array<{ role: 'user' | 'assistant'; content: string }> } {
-  const messages: Array<{ role: 'user' | 'assistant'; content: string }> = []
+): { system?: string; messages: AnthropicMessage[] } {
+  const messages: AnthropicMessage[] = []
   const systemParts: string[] = []
 
   history.forEach((entry) => {
@@ -60,7 +119,7 @@ function buildAnthropicMessages(
 
   messages.push({
     role: 'user',
-    content: extractTextContent(message),
+    content: buildAnthropicUserContent(message),
   })
 
   return {

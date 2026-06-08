@@ -1,4 +1,5 @@
 import { normalizeSafeRasterDataImageSrc } from '@/lib/markdown/dataImagePolicy';
+import { hasInternalNoteAssetUrlPathSegment } from '@/lib/assets/core/internalAssetPaths';
 
 const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 const SCHEME_PATTERN = /^([A-Za-z][A-Za-z0-9+.-]*):/;
@@ -153,6 +154,7 @@ export function sanitizeNoteLinkHref(value: unknown): string | null {
   ) return null;
 
   const scheme = SCHEME_PATTERN.exec(trimmed)?.[1]?.toLowerCase();
+  if (!scheme && hasInternalNoteAssetUrlPathSegment(trimmed)) return null;
   if (!scheme) return trimmed;
   const normalizedScheme = `${scheme}:`;
   return SAFE_LINK_SCHEMES.has(normalizedScheme) ? trimmed : null;
@@ -169,6 +171,7 @@ export function getNoteInternalImageAssetPath(value: unknown): string | null {
   if (
     !assetPath
     || hasUnsafeUrlCharacters(assetPath)
+    || hasInternalNoteAssetUrlPathSegment(assetPath)
     || assetPath.startsWith('//')
     || assetPath.startsWith('\\')
     || WINDOWS_ABSOLUTE_PATH_PATTERN.test(assetPath)
@@ -199,7 +202,12 @@ export function sanitizeNoteMediaSrc(value: unknown): string | null {
   }
 
   const scheme = SCHEME_PATTERN.exec(trimmed)?.[1]?.toLowerCase();
-  if (!scheme) return trimmed.length <= MAX_NOTE_INTERNAL_IMAGE_SRC_CHARS ? trimmed : null;
+  if (!scheme) {
+    return trimmed.length <= MAX_NOTE_INTERNAL_IMAGE_SRC_CHARS
+      && !hasInternalNoteAssetUrlPathSegment(trimmed)
+      ? trimmed
+      : null;
+  }
   const normalizedScheme = `${scheme}:`;
   if (normalizedScheme === 'img:') {
     const assetPath = getNoteInternalImageAssetPath(trimmed);

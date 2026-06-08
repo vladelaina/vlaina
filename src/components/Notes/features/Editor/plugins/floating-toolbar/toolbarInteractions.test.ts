@@ -243,6 +243,31 @@ describe('toolbar interactions', () => {
     delegation.destroy();
   });
 
+  it('escapes shortcut text before rendering the hover tooltip', () => {
+    vi.useFakeTimers();
+    const toolbar = document.createElement('div');
+    const button = document.createElement('button');
+    const view = {} as any;
+    button.dataset.action = 'copy';
+    button.dataset.shortcut = 'Ctrl+<img src=x onerror=alert(1)>';
+    toolbar.appendChild(button);
+    document.body.appendChild(toolbar);
+
+    const delegation = createToolbarEventDelegation(toolbar);
+    delegation.update(view, {} as any);
+
+    button.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    vi.runOnlyPendingTimers();
+
+    const tooltip = document.querySelector('.toolbar-tooltip') as HTMLElement;
+    expect(tooltip.querySelector('img')).toBeNull();
+    expect(tooltip.textContent).toContain('<img src=x onerror=alert(1)>');
+
+    delegation.destroy();
+    tooltip.remove();
+    vi.useRealTimers();
+  });
+
   it('does not rebuild direct format previews while moving inside the same button', () => {
     const toolbar = document.createElement('div');
     const button = document.createElement('button');

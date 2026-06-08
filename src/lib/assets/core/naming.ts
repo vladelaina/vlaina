@@ -1,4 +1,4 @@
-const DANGEROUS_CHARS = /[<>:"/\\|?*]/g;
+const DANGEROUS_CHARS = /[<>:"/\\|?*\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/g;
 
 const MAX_FILENAME_LENGTH = 200;
 
@@ -109,8 +109,9 @@ export function generateFilename(
   format: 'original' | 'timestamp' | 'sequence',
   existingNames: Set<string>
 ): string {
-  const lastDot = originalName.lastIndexOf('.');
-  const extension = lastDot > 0 ? originalName.substring(lastDot).toLowerCase() : '.png';
+  const safeOriginalName = sanitizeFilename(originalName);
+  const lastDot = safeOriginalName.lastIndexOf('.');
+  const extension = lastDot > 0 ? safeOriginalName.substring(lastDot).toLowerCase() : '.png';
 
   let baseName: string;
 

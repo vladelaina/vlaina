@@ -1,5 +1,5 @@
 import type { AIClient } from '../client'
-import type { ApiTranscriptMessage, Provider, AIModel, ChatCompletionRequest, ChatMessage, ChatMessageContent, ChatSendOptions } from '../types'
+import type { ApiTranscriptMessage, Provider, AIModel, ChatCompletionRequest, ChatMessage, ChatMessageContent, ChatMessageContentPart, ChatSendOptions } from '../types'
 import { createAIError, parseAPIError, parseHTTPError } from '../errors'
 import { AIErrorType } from '../types'
 import { buildOpenAIBaseUrl, resolveApiModelId } from '../utils'
@@ -34,6 +34,7 @@ import {
 } from '@/lib/markdown/dataImagePolicy'
 import { escapeMarkdownAngleDestination, formatMarkdownImage } from '@/lib/markdown/markdownImageMarkdown'
 import { sanitizeHistory } from '@/lib/ai/requestContext'
+import { normalizeRenderableImageSrc } from '@/lib/markdown/renderableImagePolicy'
 
 function summarizeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error || 'Unknown error')
@@ -252,6 +253,47 @@ function getFirstImageInput(content: ChatMessageContent): string | null {
 
   const imagePart = content.find((part) => part.type === 'image_url');
   return imagePart?.type === 'image_url' ? imagePart.image_url.url.trim() || null : null;
+}
+
+function normalizeProviderImageUrl(value: string): string | null {
+  const url = normalizeRenderableImageSrc(value);
+  if (!url) {
+    return null;
+  }
+
+  const normalized = url.toLowerCase();
+  return normalized.startsWith('http://') ||
+    normalized.startsWith('https://') ||
+    normalized.startsWith('data:')
+    ? url
+    : null;
+}
+
+function sanitizeCurrentMessageContent(content: ChatMessageContent): ChatMessageContent {
+  if (!Array.isArray(content)) {
+    return content;
+  }
+
+  const parts = content.flatMap((part): ChatMessageContentPart[] => {
+    if (part.type === 'text') {
+      return [part];
+    }
+
+    const url = normalizeProviderImageUrl(part.image_url.url);
+    if (!url) {
+      return [];
+    }
+
+    return [{
+      type: 'image_url',
+      image_url: {
+        url,
+        ...(part.image_url.detail ? { detail: part.image_url.detail } : {}),
+      },
+    }];
+  });
+
+  return parts.length > 0 ? parts : '';
 }
 
 function parseDataImageUrl(value: string): { bytes: Uint8Array; mimeType: string } | null {
@@ -547,7 +589,7 @@ export class OpenAICompatibleClient implements AIClient {
           : entry.content,
       }]
     })
-    apiMessages.push({ role: 'user', content: message })
+    apiMessages.push({ role: 'user', content: sanitizeCurrentMessageContent(message) })
 
     return {
       model: resolveApiModelId(model),

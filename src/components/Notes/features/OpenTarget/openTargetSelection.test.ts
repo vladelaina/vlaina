@@ -125,12 +125,36 @@ describe('openTargetSelection', () => {
     expect(isSupportedMarkdownSelection('/vault/docs/.git/config.md')).toBe(false);
     expect(isSupportedMarkdownSelection('/vault/.VLAINA/workspace.md')).toBe(false);
     expect(isSupportedMarkdownSelection('/vault/docs/.GIT/config.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/vault/docs/../.git/config.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/vault/.notes/../.vlaina/workspace.md')).toBe(false);
+  });
+
+  it('rejects markdown selections with unsafe path characters', () => {
+    expect(isSupportedMarkdownSelection('/vault/docs/secret\0.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/vault/docs/secret\u001F.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/vault/docs/secret\u202Egnp.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/vault/docs/secret\uFFFD.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/vault/docs\u202E/alpha.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/vault/.notes/alpha.md')).toBe(true);
   });
 
   it('uses the selected file parent folder as the opened vault', () => {
     expect(resolveOpenNoteTarget('/vault/projects/docs/a.md')).toEqual({
       vaultPath: '/vault/projects/docs',
       notePath: 'a.md',
+    });
+  });
+
+  it('rejects non-Markdown open targets even when called directly', () => {
+    expect(() => resolveOpenNoteTarget('/vault/docs/image.png')).toThrow(
+      'Selected file path must be a supported Markdown file',
+    );
+  });
+
+  it('resolves user dot folder markdown open targets', () => {
+    expect(resolveOpenNoteTarget('/vault/.notes/daily.md')).toEqual({
+      vaultPath: '/vault/.notes',
+      notePath: 'daily.md',
     });
   });
 
@@ -178,6 +202,18 @@ describe('openTargetSelection', () => {
     );
     expect(() => resolveOpenNoteTarget('/vault/docs/.GIT/config.md')).toThrow(
       'Selected file path must not be inside an internal notes folder',
+    );
+  });
+
+  it('rejects markdown open targets with unsafe path characters', () => {
+    expect(() => resolveOpenNoteTarget('/vault/docs/secret\0.md')).toThrow(
+      'Selected file path contains unsupported characters',
+    );
+    expect(() => resolveOpenNoteTarget('/vault/docs/secret\u202Egnp.md')).toThrow(
+      'Selected file path contains unsupported characters',
+    );
+    expect(() => resolveOpenNoteTarget('/vault/docs/secret\uFFFD.md')).toThrow(
+      'Selected file path contains unsupported characters',
     );
   });
 

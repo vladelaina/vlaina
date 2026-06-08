@@ -4,6 +4,7 @@ import { getBaseName, getParentPath, joinPath, normalizePath, relativePath } fro
 import { saveDialog } from '@/lib/storage/dialog';
 import { translate } from '@/lib/i18n/runtime';
 import type { DraftNoteEntry } from './types';
+import { hasInternalNotePathSegment } from './utils/fs/internalNotePaths';
 
 function ensureMarkdownSavePath(path: string): string {
   if (isSupportedMarkdownPath(path)) {
@@ -60,9 +61,14 @@ export function resolveDraftSaveLocation(
     normalizedNotesPath &&
     normalizedSelectedPath.startsWith(`${normalizedNotesPath}/`)
   ) {
+    const vaultRelativePath = relativePath(normalizedNotesPath, normalizedSelectedPath);
+    if (hasInternalNotePathSegment(vaultRelativePath)) {
+      throw new Error('Path must not be inside an internal notes folder.');
+    }
+
     return {
       absolutePath: selectedPath,
-      relativePath: relativePath(normalizedNotesPath, normalizedSelectedPath),
+      relativePath: vaultRelativePath,
     };
   }
 

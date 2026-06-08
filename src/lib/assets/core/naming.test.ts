@@ -17,25 +17,23 @@ import {
 } from './naming';
 
 const DANGEROUS_CHARS = '<>:"/\\|?*';
+const UNSAFE_FILENAME_CHARS_PATTERN = /[<>:"/\\|?*\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 describe('filenameService', () => {
   describe('Property 3: Filename Handling Correctness', () => {
     describe('sanitizeFilename', () => {
-      it('removes exactly the dangerous characters and preserves others', () => {
+      it('removes dangerous filename characters and preserves safe input', () => {
         fc.assert(
           fc.property(
             fc.string({ minLength: 1, maxLength: 100 }),
             (input) => {
               const result = sanitizeFilename(input);
-              
-              // Result should not contain any dangerous characters
-              for (const char of DANGEROUS_CHARS) {
-                expect(result).not.toContain(char);
-              }
-              
-              // All non-dangerous characters from input should be preserved
-              // (except leading/trailing whitespace which is trimmed)
-              const inputWithoutDangerous = input.replace(/[<>:"/\\|?*]/g, '').trim();
+
+              expect(result).not.toMatch(UNSAFE_FILENAME_CHARS_PATTERN);
+
+              const inputWithoutDangerous = input
+                .replace(/[<>:"/\\|?*\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/g, '')
+                .trim();
               if (inputWithoutDangerous) {
                 expect(result).toBe(inputWithoutDangerous);
               }
@@ -65,6 +63,13 @@ describe('filenameService', () => {
         expect(sanitizeFilename('')).toBe('untitled');
         expect(sanitizeFilename('   ')).toBe('untitled');
         expect(sanitizeFilename('<>:"/\\|?*')).toBe('untitled');
+      });
+
+      it('removes control and bidi override characters', () => {
+        expect(sanitizeFilename('safe\u0000name\u001F.png')).toBe('safename.png');
+        expect(sanitizeFilename('photo\u202Egnp.exe')).toBe('photognp.exe');
+        expect(sanitizeFilename('\u2066image\u2069.png')).toBe('image.png');
+        expect(sanitizeFilename('\uFFFD')).toBe('untitled');
       });
     });
 
@@ -184,11 +189,8 @@ describe('filenameService', () => {
             fc.string({ minLength: 0, maxLength: 300 }),
             (input) => {
               const result = processFilename(input, new Set());
-              
-              // Should not contain dangerous characters
-              for (const char of DANGEROUS_CHARS) {
-                expect(result).not.toContain(char);
-              }
+
+              expect(result).not.toMatch(UNSAFE_FILENAME_CHARS_PATTERN);
               
               // Should be within length limit
               expect(result.length).toBeLessThanOrEqual(200);
@@ -216,6 +218,13 @@ describe('filenameService', () => {
       expect(sanitizeFilename('photo_2024.jpg')).toBe('photo_2024.jpg');
       expect(sanitizeFilename('photo.png')).toBe('photo.png');
       expect(sanitizeFilename('image<test>.jpg')).toBe('imagetest.jpg');
+    });
+
+    it('sanitizes extensions used by generated upload filenames', async () => {
+      const { generateFilename } = await import('./naming');
+
+      expect(generateFilename('photo\u202Egnp.exe', 'timestamp', new Set())).toMatch(/\.exe$/);
+      expect(generateFilename('image\u0000.png', 'sequence', new Set())).toBe('1.png');
     });
   });
 });

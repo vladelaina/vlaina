@@ -109,6 +109,37 @@ describe('chatStorage active version normalization', () => {
     });
   });
 
+  it('derives user raw html image sources from the active version content', () => {
+    const messages = normalizeSessionMessages([{
+      id: 'm1',
+      role: 'user',
+      content: 'old prompt\n\n<img src="attachment://old.png">',
+      modelId: 'model-1',
+      timestamp: 1,
+      imageSources: ['attachment://old.png'],
+      currentVersionIndex: 1,
+      versions: [
+        {
+          content: 'old prompt\n\n<img src="attachment://old.png">',
+          createdAt: 1,
+          kind: 'original',
+          subsequentMessages: [],
+        },
+        {
+          content: 'new prompt\n\n<img src="attachment://active.png">',
+          createdAt: 2,
+          kind: 'edit',
+          subsequentMessages: [],
+        },
+      ],
+    }]);
+
+    expect(messages[0]).toMatchObject({
+      content: 'new prompt\n\n<img src="attachment://active.png">',
+      imageSources: ['attachment://active.png'],
+    });
+  });
+
   it('derives assistant image sources from markdown and html in the active version content', () => {
     const messages = normalizeSessionMessages([{
       id: 'm1',

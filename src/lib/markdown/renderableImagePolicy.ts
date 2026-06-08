@@ -1,5 +1,6 @@
 import { extractStoredAttachmentFilename, isAppFileAttachmentUrl } from '@/lib/storage/attachmentUrl';
 import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity';
+import { hasInternalNoteAssetUrlPathSegment } from '@/lib/assets/core/internalAssetPaths';
 import { MAX_INLINE_IMAGE_BASE64_CHARS, normalizeSafeRasterDataImageSrc } from './dataImagePolicy';
 
 const IMAGE_PROTOCOL_WHITELIST = new Set([
@@ -24,11 +25,17 @@ function isRelativePath(value: string): boolean {
   if (value.startsWith('//')) {
     return false;
   }
+  if (hasInternalNoteAssetUrlPathSegment(value)) {
+    return false;
+  }
   return RELATIVE_PREFIXES.some((prefix) => value.startsWith(prefix));
 }
 
 function isBareRelativeImagePath(value: string): boolean {
   if (value.startsWith('/') || SCHEME_PATTERN.test(value)) {
+    return false;
+  }
+  if (hasInternalNoteAssetUrlPathSegment(value)) {
     return false;
   }
   return value.includes('/') || IMAGE_EXTENSION_PATTERN.test(value);

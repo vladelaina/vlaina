@@ -3,6 +3,10 @@ import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
+import {
+  isSafeVaultPathSegment,
+  normalizeVaultRelativePath,
+} from '@/stores/notes/utils/fs/vaultPathContainment';
 
 export function normalizeFsPath(path: string): string {
   return normalizeNotePathKey(path) ?? path;
@@ -10,6 +14,14 @@ export function normalizeFsPath(path: string): string {
 
 export function getFsPathComparisonKey(path: string): string {
   return /^[a-z]:\//i.test(path) || path.startsWith('//') ? path.toLowerCase() : path;
+}
+
+export function hasUnsafeFsPathSegment(path: string): boolean {
+  return path
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean)
+    .some((segment) => !isSafeVaultPathSegment(segment));
 }
 
 export function isInsideVault(vaultPath: string, absolutePath: string): boolean {
@@ -33,11 +45,15 @@ export function toVaultRelativePath(vaultPath: string, absolutePath: string): st
     return '';
   }
 
+  const relativePath = normalizedVaultPath === '/'
+    ? containedAbsolutePath.replace(/^\/+/, '')
+    : containedAbsolutePath.slice(normalizedVaultPath.length + 1);
+
   if (normalizedVaultPath === '/') {
-    return containedAbsolutePath.replace(/^\/+/, '');
+    return normalizeVaultRelativePath(relativePath, { allowEmpty: true });
   }
 
-  return containedAbsolutePath.slice(normalizedVaultPath.length + 1);
+  return normalizeVaultRelativePath(relativePath, { allowEmpty: true });
 }
 
 export function isIgnoredWatchPath(relativePath: string): boolean {

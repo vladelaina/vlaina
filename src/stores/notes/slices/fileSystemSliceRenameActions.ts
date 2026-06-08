@@ -30,6 +30,7 @@ import {
   saveStarredRegistry,
 } from '../starred';
 import { assertValidFileName } from '../noteUtils';
+import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import {
   remapCurrentNoteForExternalRename,
   remapOpenTabsForExternalRename,
@@ -223,6 +224,9 @@ export function createFileSystemRenameActions(
         if (!isAbsolutePath(path)) {
           await get().renameNote(path, newName);
           return;
+        }
+        if (hasInternalNotePathSegment(path)) {
+          throw new Error('Path must not be inside an internal notes folder.');
         }
 
         const parentPath = getParentPath(path);

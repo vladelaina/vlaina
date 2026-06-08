@@ -103,6 +103,24 @@ it('should reject scheme-bearing media urls even when plain relatives are allowe
   expect(result).not.toContain('mailto:')
 })
 
+it('should drop internal relative media paths in github html', () => {
+  const result = sanitizeGithubHtml([
+    '<img src=".vlaina/private.png">',
+    '<img src="docs/.GIT/private.png">',
+    '<img src="%2evlaina/private.png">',
+    '<video poster="docs/%252egit/private.png"><source src=".vlaina/private.mp4"></video>',
+    '<source srcset=".vlaina/private.webp 1x, safe.webp 2x">',
+    '<img src=".notes/safe.png">',
+    '<source srcset=".notes/safe.webp 1x">',
+  ].join(''))
+
+  expect(result).toBe('<img><img><img><source><img src=".notes/safe.png"><source srcset=".notes/safe.webp 1x">')
+  expect(result).not.toContain('.vlaina')
+  expect(result).not.toContain('.GIT')
+  expect(result).not.toContain('%2evlaina')
+  expect(result).not.toContain('%252egit')
+})
+
 it('should drop root-path raw media urls in github html', () => {
   const result = sanitizeGithubHtml([
     '<img src="/etc/passwd">',

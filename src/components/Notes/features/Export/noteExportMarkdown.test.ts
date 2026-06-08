@@ -486,15 +486,8 @@ describe('resolveExportMarkdownAssetSources', () => {
       '',
       '![real](data:image/png;base64,aGk=)',
     ].join('\n'));
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(2);
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenNthCalledWith(
-      1,
-      '/vault',
-      'demo.png',
-      'docs/demo.md',
-    );
-    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenNthCalledWith(
-      2,
+    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
+    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
       '/vault',
       'demo.png',
       'docs/demo.md',
@@ -702,5 +695,29 @@ describe('resolveExportMarkdownAssetSources', () => {
       '',
       '![demo](data:image/png;base64,aGk=)',
     ].join('\n'));
+  });
+
+  it('reuses resolved data URLs for repeated local note images during one export', async () => {
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
+
+    const markdown = await resolveExportMarkdownAssetSources(
+      [
+        '![first](img:demo.png)',
+        '<img src="img:demo.png" alt="second">',
+        '![third](img:demo.png)',
+      ].join('\n'),
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe([
+      '![first](data:image/png;base64,aGk=)',
+      '<img src="data:image/png;base64,aGk=" alt="second">',
+      '![third](data:image/png;base64,aGk=)',
+    ].join('\n'));
+    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
+    expect(mocks.stat).toHaveBeenCalledTimes(1);
+    expect(mocks.readBinaryFile).toHaveBeenCalledTimes(1);
   });
 });

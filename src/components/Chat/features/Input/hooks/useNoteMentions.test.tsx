@@ -299,6 +299,56 @@ describe('useNoteMentions', () => {
     ]);
   });
 
+  it('does not expose stale starred mention candidates inside internal folders', () => {
+    hoisted.storeRef.state = {
+      ...hoisted.storeRef.state,
+      rootFolder: null,
+      starredEntries: [
+        {
+          id: 'starred-dot-note',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: '.notes/Daily.md',
+          addedAt: 1,
+        },
+        {
+          id: 'starred-internal-relative',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: '.git/config.md',
+          addedAt: 2,
+        },
+        {
+          id: 'starred-internal-vault',
+          kind: 'note',
+          vaultPath: '/other-vault/.vlaina',
+          relativePath: 'workspace.md',
+          addedAt: 3,
+        },
+      ],
+    };
+
+    const { result } = renderHook(() => {
+      const [message, setMessage] = useState('@');
+      const textareaRef = useRef<HTMLTextAreaElement>(document.createElement('textarea'));
+      const controller = useNoteMentions({
+        message,
+        textareaRef,
+        handleMessageChange: setMessage,
+      });
+
+      return { ...controller, message };
+    });
+
+    act(() => {
+      result.current.handleCaretChange(1);
+    });
+
+    expect(result.current.linkedPageCandidates.map((candidate) => candidate.path)).toEqual([
+      '.notes/Daily.md',
+    ]);
+  });
+
   it('does not repeatedly reload the note tree for the same mention trigger', () => {
     hoisted.storeRef.state = {
       ...hoisted.storeRef.state,

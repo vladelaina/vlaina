@@ -6,6 +6,7 @@ import { collapseSelectionAfterToolbarApply } from '../selectionCollapse';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { translate, type MessageKey } from '@/lib/i18n';
+import { escapeToolbarHtml } from '../htmlEscape';
 
 const ALIGNMENT_ITEMS: Array<{
   type: TextAlignment;
@@ -33,7 +34,7 @@ export function renderAlignmentDropdown(
       <button
         class="block-dropdown-item ${isActive ? 'active' : ''}"
         data-alignment="${item.type}"
-        aria-label="${translate(item.labelKey)}"
+        aria-label="${escapeToolbarHtml(translate(item.labelKey))}"
       >
         <span class="block-dropdown-item-icon">${item.icon}</span>
       </button>

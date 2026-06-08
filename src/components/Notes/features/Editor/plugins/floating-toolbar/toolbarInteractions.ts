@@ -9,6 +9,7 @@ import {
   hasFormatPreview,
 } from './previewStyles';
 import { collapseSelectionAfterToolbarApply } from './selectionCollapse';
+import { escapeToolbarHtml } from './htmlEscape';
 import { createToolbarActionController } from './toolbarActions';
 import type { ToolbarActionControllerOptions } from './toolbarActions';
 import { themeDomStyleTokens, themeRenderingTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
@@ -70,7 +71,7 @@ export function createToolbarEventDelegation(
     }
 
     const tooltip = getTooltipElement();
-    const keys = shortcut.split('+').map((k) => `<kbd>${k}</kbd>`).join('');
+    const keys = shortcut.split('+').map((k) => `<kbd>${escapeToolbarHtml(k)}</kbd>`).join('');
     tooltip.innerHTML = `
       <span class="toolbar-tooltip-shortcut">${keys}</span>
       <span class="toolbar-tooltip-arrow" aria-hidden="true"></span>

@@ -104,6 +104,8 @@ describe('fileTreeUtils structural sharing', () => {
       if (path === '/vault') {
         return [
           { name: 'node_modules', path: '/vault/node_modules', isDirectory: true, isFile: false },
+          { name: 'Node_Modules', path: '/vault/Node_Modules', isDirectory: true, isFile: false },
+          { name: 'Dist', path: '/vault/Dist', isDirectory: true, isFile: false },
           { name: 'docs', path: '/vault/docs', isDirectory: true, isFile: false },
         ];
       }
@@ -120,13 +122,35 @@ describe('fileTreeUtils structural sharing', () => {
         ];
       }
 
+      if (path === '/vault/Node_Modules') {
+        return [
+          { name: 'package.md', path: '/vault/Node_Modules/package.md', isDirectory: false, isFile: true },
+        ];
+      }
+
+      if (path === '/vault/Dist') {
+        return [
+          { name: 'bundle.md', path: '/vault/Dist/bundle.md', isDirectory: false, isFile: true },
+        ];
+      }
+
       return [];
     });
 
     const tree = await buildFileTree('/vault');
 
     expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/node_modules');
+    expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/Node_Modules');
+    expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/Dist');
     expect(tree).toEqual([
+      {
+        id: 'Dist',
+        name: 'Dist',
+        path: 'Dist',
+        isFolder: true,
+        expanded: false,
+        children: [],
+      },
       {
         id: 'docs',
         name: 'docs',
@@ -146,6 +170,14 @@ describe('fileTreeUtils structural sharing', () => {
         id: 'node_modules',
         name: 'node_modules',
         path: 'node_modules',
+        isFolder: true,
+        expanded: false,
+        children: [],
+      },
+      {
+        id: 'Node_Modules',
+        name: 'Node_Modules',
+        path: 'Node_Modules',
         isFolder: true,
         expanded: false,
         children: [],

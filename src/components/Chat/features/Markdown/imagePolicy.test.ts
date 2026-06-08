@@ -92,6 +92,7 @@ describe("normalizeRenderableImageSrc", () => {
     expect(normalizeRenderableImageSrc("image one.png")).toBe("image one.png");
     expect(normalizeRenderableImageSrc("./images/a.png")).toBe("./images/a.png");
     expect(normalizeRenderableImageSrc("../images/a.png")).toBe("../images/a.png");
+    expect(normalizeRenderableImageSrc(".notes/a.png")).toBe(".notes/a.png");
   });
 
   it("rejects dangerous and invalid protocols", () => {
@@ -115,6 +116,16 @@ describe("normalizeRenderableImageSrc", () => {
     expect(normalizeRenderableImageSrc("data:text/html;base64,PHNjcmlwdD4=")).toBeNull();
     expect(normalizeRenderableImageSrc("data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+")).toBeNull();
     expect(normalizeRenderableImageSrc("data:image/png,not-base64")).toBeNull();
+  });
+
+  it("rejects relative image paths inside internal note folders", () => {
+    expect(normalizeRenderableImageSrc(".vlaina/secret.png")).toBeNull();
+    expect(normalizeRenderableImageSrc("./.vlaina/secret.png")).toBeNull();
+    expect(normalizeRenderableImageSrc("docs/.git/secret.png")).toBeNull();
+    expect(normalizeRenderableImageSrc("docs/.GIT/secret.png")).toBeNull();
+    expect(normalizeRenderableImageSrc("%2evlaina/secret.png")).toBeNull();
+    expect(normalizeRenderableImageSrc("docs/%252egit/secret.png")).toBeNull();
+    expect(normalizeRenderableImageSrc(".notes/public.png")).toBe(".notes/public.png");
   });
 
   it("rejects stored attachment URLs with nested or traversal filenames", () => {
@@ -186,6 +197,8 @@ describe("normalizeRenderableImageSrcset", () => {
     expect(normalizeRenderableImageSrcset("data:image/svg+xml;base64,PHN2Zz4= 1x")).toBeNull();
     expect(normalizeRenderableImageSrcset(`${createOversizedDataImageSrc()} 1x`)).toBeNull();
     expect(normalizeRenderableImageSrcset("https://example.com/a.webp 1x, http://192.168.1.8/secret.png 2x")).toBeNull();
+    expect(normalizeRenderableImageSrcset(".vlaina/secret.webp 1x")).toBeNull();
+    expect(normalizeRenderableImageSrcset("docs/%252egit/secret.webp 1x")).toBeNull();
   });
 
   it("allows data image srcset candidates above the ordinary srcset length limit", () => {

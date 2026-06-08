@@ -52,6 +52,8 @@ function createExportSegmentMarkerPrefix(markdown: string): string {
   return prefix;
 }
 
+type ExportAssetUrlCache = Map<string, Promise<string>>;
+
 async function resolveAssetUrl(
   src: string,
   notesPath: string,
@@ -94,6 +96,28 @@ async function resolveAssetUrl(
   }
 }
 
+function getExportAssetUrlCacheKey(src: string, notesPath: string, notePath: string, fallbackSrc: string): string {
+  return JSON.stringify([src, notesPath, notePath, fallbackSrc]);
+}
+
+function resolveAssetUrlCached(
+  cache: ExportAssetUrlCache,
+  src: string,
+  notesPath: string,
+  notePath: string,
+  fallbackSrc = src,
+): Promise<string> {
+  const cacheKey = getExportAssetUrlCacheKey(src, notesPath, notePath, fallbackSrc);
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const resolved = resolveAssetUrl(src, notesPath, notePath, fallbackSrc);
+  cache.set(cacheKey, resolved);
+  return resolved;
+}
+
 export async function resolveExportMarkdownAssetSources(
   markdown: string,
   notesPath: string,
@@ -107,8 +131,9 @@ export async function resolveExportMarkdownAssetSources(
     return marker;
   }, { protectHtmlBlocks: false });
 
+  const assetUrlCache: ExportAssetUrlCache = new Map();
   const resolvedSegments = await Promise.all(
-    segments.map((segment) => resolveExportMarkdownAssetSegment(segment, notesPath, notePath))
+    segments.map((segment) => resolveExportMarkdownAssetSegment(segment, notesPath, notePath, assetUrlCache))
   );
 
   return resolvedSegments.reduce(
@@ -121,6 +146,7 @@ async function resolveExportMarkdownAssetSegment(
   markdown: string,
   notesPath: string,
   notePath: string,
+  assetUrlCache: ExportAssetUrlCache,
 ): Promise<string> {
   const tokens = findExportMarkdownAssetSourceTokensWithOptions(markdown, {
     maxTokens: MAX_EXPORT_MARKDOWN_ASSET_TOKENS,
@@ -136,7 +162,7 @@ async function resolveExportMarkdownAssetSegment(
       continue;
     }
     parts.push(markdown.slice(cursor, token.start));
-    parts.push(await resolveAssetUrl(token.lookupSrc ?? token.src, notesPath, notePath, token.src));
+    parts.push(await resolveAssetUrlCached(assetUrlCache, token.lookupSrc ?? token.src, notesPath, notePath, token.src));
     cursor = token.end;
   }
   parts.push(markdown.slice(cursor));

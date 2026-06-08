@@ -8,6 +8,7 @@ import { collapseSelectionAfterToolbarApply } from '../selectionCollapse';
 import { ICON_SIZES } from '@/components/ui/icons/sizes';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { themeIconTokens, themeStyleResetTokens } from '@/styles/themeTokens';
+import { escapeToolbarHtml } from '../htmlEscape';
 
 const DROPDOWN_ICON_SIZE = ICON_SIZES.md;
 
@@ -99,7 +100,7 @@ export function renderBlockDropdown(
       <button
         class="block-dropdown-item ${isActive ? 'active' : ''}"
         data-block-type="${config.type}"
-        aria-label="${getLocalizedBlockTypeLabel(config.type)}"
+        aria-label="${escapeToolbarHtml(getLocalizedBlockTypeLabel(config.type))}"
       >
         <span class="block-dropdown-item-icon">${icon}</span>
       </button>

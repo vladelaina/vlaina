@@ -13,6 +13,8 @@ import {
 } from '../previewStyles';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { translate } from '@/lib/i18n';
+import { sanitizeCssColorValue } from '../colorMarkdownHtml';
+import { escapeToolbarHtml } from '../htmlEscape';
 
 export function renderColorPicker(
   container: HTMLElement,
@@ -37,49 +39,56 @@ export function renderColorPicker(
 
     applyColorPickerIdlePreview(view);
   };
+  const getSafeColor = (color: string | undefined) => color ? sanitizeCssColorValue(color) : null;
   
   picker.innerHTML = `
     <div class="color-picker-section">
-      <div class="color-picker-label">${translate('editor.textColor')}</div>
+      <div class="color-picker-label">${escapeToolbarHtml(translate('editor.textColor'))}</div>
       <div data-type="text">
         ${defaultColor ? `
           <button 
             class="color-picker-item color-picker-item-default ${state.textColor === null ? 'active' : ''}"
-            data-color-id="${defaultColor.id}"
+            data-color-id="${escapeToolbarHtml(defaultColor.id)}"
             data-color=""
           ></button>
         ` : ''}
         <div class="color-picker-grid">
-          ${colors.map(color => `
+          ${colors.map((color) => {
+            const safeTextColor = getSafeColor(color.textColor);
+            return `
             <button 
-              class="color-picker-item ${state.textColor === color.textColor ? 'active' : ''}"
-              data-color-id="${color.id}"
-              data-color="${color.textColor || ''}"
-              style="${color.textColor ? `background-color: ${color.textColor}` : ''}"
+              class="color-picker-item ${state.textColor === safeTextColor ? 'active' : ''}"
+              data-color-id="${escapeToolbarHtml(color.id)}"
+              data-color="${escapeToolbarHtml(safeTextColor || '')}"
+              style="${safeTextColor ? `background-color: ${escapeToolbarHtml(safeTextColor)}` : ''}"
             ></button>
-          `).join('')}
+          `;
+          }).join('')}
         </div>
       </div>
     </div>
     <div class="color-picker-section">
-      <div class="color-picker-label">${translate('editor.backgroundColor')}</div>
+      <div class="color-picker-label">${escapeToolbarHtml(translate('editor.backgroundColor'))}</div>
       <div data-type="bg">
         ${defaultColor ? `
           <button 
             class="color-picker-item color-picker-item-default ${!state.textColor && state.bgColor === null ? 'active' : ''}"
-            data-color-id="${defaultColor.id}"
+            data-color-id="${escapeToolbarHtml(defaultColor.id)}"
             data-color=""
           ></button>
         ` : ''}
         <div class="color-picker-grid">
-          ${colors.map(color => `
+          ${colors.map((color) => {
+            const safeBgColor = getSafeColor(color.bgColor);
+            return `
             <button 
-              class="color-picker-item ${!state.textColor && state.bgColor === color.bgColor ? 'active' : ''}"
-              data-color-id="${color.id}"
-              data-color="${color.bgColor || ''}"
-              style="${color.bgColor ? `background-color: ${color.bgColor}` : ''}"
+              class="color-picker-item ${!state.textColor && state.bgColor === safeBgColor ? 'active' : ''}"
+              data-color-id="${escapeToolbarHtml(color.id)}"
+              data-color="${escapeToolbarHtml(safeBgColor || '')}"
+              style="${safeBgColor ? `background-color: ${escapeToolbarHtml(safeBgColor)}` : ''}"
             ></button>
-          `).join('')}
+          `;
+          }).join('')}
         </div>
       </div>
     </div>

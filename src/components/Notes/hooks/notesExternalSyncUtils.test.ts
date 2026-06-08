@@ -94,4 +94,33 @@ describe('notesExternalSyncUtils', () => {
       '/vault/.notes/alpha.md',
     ])).toEqual(['.notes/alpha.md']);
   });
+
+  it('rejects unsafe characters when converting watch paths', () => {
+    expect(toVaultRelativePath('/vault', '/vault/docs/secret\0.md')).toBeNull();
+    expect(toVaultRelativePath('/vault', '/vault/docs/secret\u202Egnp.md')).toBeNull();
+    expect(toVaultRelativePath('/vault', '/vault/docs/secret\uFFFD.md')).toBeNull();
+    expect(toVaultRelativePath('/vault', '/vault/.notes/alpha.md')).toBe('.notes/alpha.md');
+
+    expect(getRelevantRelativeWatchPaths('/vault', [
+      '/vault/.notes/alpha.md',
+      '/vault/docs/secret\0.md',
+      '/vault/docs/secret\u202Egnp.md',
+      '/vault/docs/secret\uFFFD.md',
+    ])).toEqual(['.notes/alpha.md']);
+  });
+
+  it('drops unsafe rename watch endpoints', () => {
+    expect(getRelativeRenameWatchPaths('/vault', {
+      type: { modify: { kind: 'rename', mode: 'both' } },
+      paths: ['/vault/docs/secret\u202Egnp.md', '/vault/docs/alpha.md'],
+    })).toEqual({
+      oldPath: null,
+      newPath: 'docs/alpha.md',
+    });
+
+    expect(getRelativeRenameWatchPaths('/vault', {
+      type: { modify: { kind: 'rename', mode: 'both' } },
+      paths: ['/vault/docs/secret\u202Egnp.md', '/vault/docs/secret\uFFFD.md'],
+    })).toBeNull();
+  });
 });

@@ -8,8 +8,10 @@ import {
   subscribeNotesExternalPathRename,
 } from '@/stores/notes/document/externalPathBroadcast';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
+import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import {
   getAbsoluteRenameWatchPaths,
+  hasUnsafeFsPathSegment,
   isMarkdownPath,
   isRemoveWatchEvent,
   normalizeFsPath,
@@ -63,6 +65,10 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
       return;
     }
 
+    if (hasInternalNotePathSegment(currentNotePath)) {
+      return;
+    }
+
     const parentPath = getParentPath(currentNotePath);
     if (!parentPath) {
       return;
@@ -88,6 +94,15 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
 
       const oldPath = normalizeFsPath(event.oldPath);
       const newPath = normalizeFsPath(event.newPath);
+      if (
+        hasUnsafeFsPathSegment(oldPath) ||
+        hasUnsafeFsPathSegment(newPath) ||
+        hasInternalNotePathSegment(oldPath) ||
+        hasInternalNotePathSegment(newPath)
+      ) {
+        return;
+      }
+
       if (
         !isAbsoluteRenamePathInsideParent(watchedParentPath, oldPath) &&
         !isAbsoluteRenamePathRelevant(watchedNotePath, oldPath, newPath)

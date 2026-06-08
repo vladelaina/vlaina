@@ -152,6 +152,18 @@ describe('toolbar markup', () => {
     expect(markup).not.toContain('color-indicator');
   });
 
+  it('does not inject invalid toolbar color state into markup attributes', () => {
+    const markup = renderToolbarMarkup(
+      createState({
+        textColor: 'red" onclick="alert(1)',
+      })
+    );
+
+    expect(markup).toContain('toolbar-color-icon');
+    expect(markup).not.toContain('onclick');
+    expect(markup).not.toContain('red&quot;');
+  });
+
   it('shows text color without also painting the color icon background', () => {
     const markup = renderToolbarMarkup(
       createState({
@@ -301,13 +313,14 @@ describe('toolbar markup', () => {
           originalText: '你好啊',
           suggestedText: '',
           isLoading: false,
-          errorMessage: 'Model request failed.',
+          errorMessage: 'Model request <failed>.',
         },
       })
     );
 
     expect(markup).toContain('ai-review-error');
-    expect(markup).toContain('Model request failed.');
+    expect(markup).toContain('Model request &lt;failed&gt;.');
+    expect(markup).not.toContain('Model request <failed>.');
     expect(markup).not.toContain('ai-review-result-surface');
     expect(markup).not.toContain('ai-review-diff-removed');
   });

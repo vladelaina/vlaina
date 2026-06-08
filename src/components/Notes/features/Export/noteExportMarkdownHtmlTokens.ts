@@ -11,6 +11,8 @@ export interface HtmlTagRangeScan {
   exhaustedAt: number | null;
 }
 
+const MAX_HTML_IMAGE_ATTR_CHARS = 16 * 1024;
+
 function isAsciiAlpha(char: string | undefined): boolean {
   if (char === undefined) {
     return false;
@@ -206,6 +208,11 @@ function parseHtmlImageAssetRanges(
         cursor += 1;
       }
       valueEnd = cursor;
+    }
+
+    const rawValueLength = valueEnd - valueStart;
+    if (rawValueLength > MAX_HTML_IMAGE_ATTR_CHARS) {
+      return tokens;
     }
 
     if (attrName === 'src') {

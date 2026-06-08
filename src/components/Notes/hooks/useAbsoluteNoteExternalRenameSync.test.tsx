@@ -122,6 +122,71 @@ describe('useAbsoluteNoteExternalRenameSync', () => {
     hook.unmount();
   });
 
+  it('does not remap an absolute note through unsafe rename endpoints', async () => {
+    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('/external/docs/current.md'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['/external/docs/current.md', '/external/docs/secret\u202Egnp.md'],
+      });
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).not.toHaveBeenCalled();
+
+    hook.unmount();
+  });
+
+  it('does not watch an absolute note inside internal folders', () => {
+    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('/external/.git/current.md'));
+
+    expect(hoisted.watchDesktopPath).not.toHaveBeenCalled();
+    expect(hoisted.subscribeNotesExternalPathRename).not.toHaveBeenCalled();
+
+    hook.unmount();
+  });
+
+  it('does not remap an absolute note into internal folders', async () => {
+    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('/external/docs/current.md'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['/external/docs/current.md', '/external/docs/.vlaina/current.md'],
+      });
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).not.toHaveBeenCalled();
+
+    hook.unmount();
+  });
+
+  it('keeps absolute note rename sync inside user dot folders', async () => {
+    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('/external/.notes/current.md'));
+
+    expect(hoisted.watchDesktopPath).toHaveBeenCalledWith(
+      '/external/.notes',
+      expect.any(Function),
+      { recursive: true },
+    );
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['/external/.notes/current.md', '/external/.notes/renamed.md'],
+      });
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith(
+      '/external/.notes/current.md',
+      '/external/.notes/renamed.md',
+    );
+
+    hook.unmount();
+  });
+
   it('keeps absolute note folder rename sync when the parent folder moves', async () => {
     const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('/external/docs/current.md'));
 

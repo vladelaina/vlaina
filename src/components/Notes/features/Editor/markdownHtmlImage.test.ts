@@ -26,6 +26,15 @@ describe('markdownHtmlImage', () => {
         });
     });
 
+    it('rejects raw html images that point at internal note folders', () => {
+        expect(getMarkdownHtmlImageAttrs('<img src=".vlaina/assets/demo.png" />')).toBeNull();
+        expect(getMarkdownHtmlImageAttrs('<img src="./docs/.GIT/demo.png" />')).toBeNull();
+        expect(getMarkdownHtmlImageAttrs('<img src="docs/%252egit/demo.png" />')).toBeNull();
+        expect(getMarkdownHtmlImageAttrs('<img src=".notes/demo.png" />')).toMatchObject({
+            src: '.notes/demo.png',
+        });
+    });
+
     it('rejects oversized html image fragments before parsing them', () => {
         expect(getMarkdownHtmlImageAttrs(`<img src="./assets/a.png" alt="${'x'.repeat(64 * 1024)}" />`)).toBeNull();
     });

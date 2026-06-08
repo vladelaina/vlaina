@@ -42,7 +42,7 @@ interface ExternalMarkdownImportBudget {
 function shouldSkipExternalMarkdownDirectory(name: string) {
   return (
     hasInternalNotePathSegment(name) ||
-    SKIPPED_EXTERNAL_MARKDOWN_DIRECTORY_NAMES.has(name)
+    SKIPPED_EXTERNAL_MARKDOWN_DIRECTORY_NAMES.has(name.toLowerCase())
   );
 }
 

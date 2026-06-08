@@ -94,6 +94,12 @@ describe('collectMentionFolderMarkdownNodes', () => {
       folder('docs/node_modules', [
         note('docs/node_modules/package.md'),
       ]),
+      folder('docs/Node_Modules', [
+        note('docs/Node_Modules/package.md'),
+      ]),
+      folder('docs/Dist', [
+        note('docs/Dist/bundle.md'),
+      ]),
     ];
 
     expect(collectMentionFolderMarkdownNodes(nodes).map((node) => node.path)).toEqual([

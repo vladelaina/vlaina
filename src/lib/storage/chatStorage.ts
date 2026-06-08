@@ -3,7 +3,7 @@ import type { ApiTranscriptMessage, ChatMessage, ChatMessageContent, ChatMessage
 import { normalizeApiTranscriptMessages } from '@/lib/ai/apiTranscript';
 import { normalizeRenderableImageSrc } from '@/lib/markdown/renderableImagePolicy';
 import { parseVideoUrl } from '@/lib/markdown/videoUrl';
-import { parseMarkdownAndHtmlImageTokens, parseMarkdownImageTokens } from '@/lib/markdown/markdownImageTokens';
+import { parseMarkdownAndHtmlImageTokens } from '@/lib/markdown/markdownImageTokens';
 import { createPersistenceQueue, type PersistenceQueue } from './persistenceEngine';
 import { getStorageBasePath } from './basePath';
 import { isSafeChatSessionId } from './unifiedStorageAI';
@@ -426,7 +426,7 @@ function normalizePersistedImageSources(value: unknown): string[] | undefined {
 function extractActiveVersionImageSources(role: ChatMessage['role'], content: string): string[] | undefined {
   if (role === 'user') {
     return normalizeImageSourceCandidates(
-      parseMarkdownImageTokens(content, { maxTokens: MAX_SESSION_IMAGE_SOURCE_ENTRIES })
+      parseMarkdownAndHtmlImageTokens(content, { maxTokens: MAX_SESSION_IMAGE_SOURCE_ENTRIES })
         .map((token) => token.src),
     );
   }

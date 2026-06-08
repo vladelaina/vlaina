@@ -105,6 +105,59 @@ describe('collectMentionCandidates', () => {
     ]);
   });
 
+  it('skips internal note folders while keeping user dot folders', () => {
+    const candidates: NoteMentionCandidate[] = [];
+
+    collectMentionCandidates([
+      {
+        id: '.git',
+        name: '.git',
+        path: '.git',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: '.git/config.md',
+            name: 'config',
+            path: '.git/config.md',
+            isFolder: false,
+          },
+        ],
+      },
+      {
+        id: '.notes',
+        name: '.notes',
+        path: '.notes',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: '.notes/daily.md',
+            name: 'daily',
+            path: '.notes/daily.md',
+            isFolder: false,
+          },
+        ],
+      },
+    ], candidates);
+
+    expect(candidates).toEqual([
+      {
+        path: '.notes',
+        title: '.notes/',
+        kind: 'folder',
+        isCurrent: false,
+      },
+      {
+        path: '.notes/daily.md',
+        title: '',
+        kind: 'note',
+        isCurrent: false,
+        notePath: '.notes/daily.md',
+      },
+    ]);
+  });
+
   it('collects candidates from deep trees without recursive traversal', () => {
     const candidates: NoteMentionCandidate[] = [];
 

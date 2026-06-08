@@ -149,6 +149,18 @@ describe('folder markdown mention scan budgets', () => {
             isDirectory: true,
             isFile: false,
           },
+          {
+            name: 'Node_Modules',
+            path: '/vault/docs/Node_Modules',
+            isDirectory: true,
+            isFile: false,
+          },
+          {
+            name: 'Dist',
+            path: '/vault/docs/Dist',
+            isDirectory: true,
+            isFile: false,
+          },
         ];
       }
 
@@ -211,5 +223,7 @@ describe('folder markdown mention scan budgets', () => {
     expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/.VLAINA');
     expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/.GIT');
     expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/node_modules');
+    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/Node_Modules');
+    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/Dist');
   });
 });

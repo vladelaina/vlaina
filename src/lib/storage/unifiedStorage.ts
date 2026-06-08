@@ -15,7 +15,7 @@ import {
 import { aiProviderSecretCommands } from '@/lib/desktop/secretsCommands';
 import { translate } from '@/lib/i18n';
 import { useToastStore } from '@/stores/useToastStore';
-import { replaceRenderableMarkdownImageTokens } from '@/lib/markdown/renderableImageTokens';
+import { replaceRenderableMessageImageTokens } from '@/lib/markdown/renderableImageTokens';
 import {
   createDefaultUnifiedData,
   type CustomIcon,
@@ -493,7 +493,7 @@ async function readBoundedTextFile(
 function buildRecoveredSessionTitle(messages: ChatMessage[]): string {
   const firstUserMessage = messages.find((message) => message.role === 'user');
   const source = firstUserMessage?.content || messages[0]?.content || '';
-  const normalized = replaceRenderableMarkdownImageTokens(source, ' ')
+  const normalized = replaceRenderableMessageImageTokens(source, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 

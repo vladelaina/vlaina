@@ -1,5 +1,6 @@
 import { normalizeRenderableImageSrc } from './renderableImagePolicy';
 import {
+  parseMarkdownAndHtmlImageTokens,
   parseMarkdownImageTokens,
   replaceImageTokens,
   type ImageToken,
@@ -23,6 +24,14 @@ export function replaceRenderableMarkdownImageTokens(content: string, replacemen
   return replaceImageTokens(
     content,
     normalizeImageTokens(parseMarkdownImageTokens(content, { maxTokens: MAX_RENDERABLE_IMAGE_REPLACEMENT_TOKENS })),
+    replacement
+  );
+}
+
+export function replaceRenderableMessageImageTokens(content: string, replacement: string): string {
+  return replaceImageTokens(
+    content,
+    normalizeImageTokens(parseMarkdownAndHtmlImageTokens(content, { maxTokens: MAX_RENDERABLE_IMAGE_REPLACEMENT_TOKENS })),
     replacement
   );
 }

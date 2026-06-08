@@ -1,6 +1,6 @@
 import { stripMarkdownInline } from '@/components/common/markdown/plainText';
 import { getSanitizerDroppedRawHtmlRanges, type ContentRange } from '@/lib/markdown/markdownHtmlRanges';
-import { getMarkdownInvisibleHtmlBlockRanges } from '@/lib/markdown/markdownRanges';
+import { getHtmlCommentRanges, getHtmlTagRanges, getMarkdownInvisibleHtmlBlockRanges } from '@/lib/markdown/markdownRanges';
 
 const CONTENT_SNIPPET_RADIUS = 36;
 const MAX_CONTENT_MATCHES_PER_NOTE = 5;
@@ -19,22 +19,35 @@ function normalizeContentForSearch(content: string): string {
   return content.replace(/\s+/g, ' ').trim();
 }
 
-function isHtmlNoiseLine(line: string): boolean {
-  const lowerLine = line.toLowerCase();
-
-  if (/<\/?[a-z][^>]*>/.test(lowerLine)) {
-    return true;
+function stripInlineHtmlTags(line: string): string {
+  if (!line.includes('<')) {
+    return line;
   }
 
-  return /(frameborder|allowfullscreen|default-tab=|embed-version=|theme-id=|referrerpolicy=|loading=|sandbox=|src=|href=|style=|class=|width=|height=)/.test(lowerLine);
+  const ranges = [
+    ...getHtmlCommentRanges(line, { start: 0, end: line.length }),
+    ...getHtmlTagRanges(line, { start: 0, end: line.length }),
+  ].sort((left, right) => left.start - right.start || left.end - right.end);
+  if (ranges.length === 0) {
+    return line;
+  }
+
+  const parts: string[] = [];
+  let cursor = 0;
+  for (const range of ranges) {
+    if (range.start < cursor) {
+      cursor = Math.max(cursor, range.end);
+      continue;
+    }
+    parts.push(line.slice(cursor, range.start));
+    cursor = range.end;
+  }
+  parts.push(line.slice(cursor));
+  return parts.join('');
 }
 
 function toPlainTextLine(line: string): string {
-  if (isHtmlNoiseLine(line)) {
-    return '';
-  }
-
-  return stripMarkdownInline(line, { preserveImageAlt: false })
+  return stripMarkdownInline(stripInlineHtmlTags(line), { preserveImageAlt: false })
     .replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, '$2')
     .replace(/\[\[([^\]]+)\]\]/g, '$1')
     .replace(/^\s*>\s*/g, '')

@@ -1,7 +1,7 @@
 import { translate, type MessageKey } from '@/lib/i18n';
 
-const INVALID_FILE_NAME_PATTERN = /[<>:"/\\|?*\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/i;
-const SANITIZE_FILE_NAME_PATTERN = /[<>:"/\\|?*\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/gi;
+const INVALID_FILE_NAME_PATTERN = /[<>:"/\\|?*\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069\ufffd]/i;
+const SANITIZE_FILE_NAME_PATTERN = /[<>:"/\\|?*\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069\ufffd]/gi;
 type FileNameErrorKey = Extract<MessageKey, `notes.fileNameError.${string}`>;
 
 export function sanitizeFileName(name: string): string {
