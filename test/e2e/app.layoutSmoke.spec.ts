@@ -13,6 +13,7 @@ import {
   createChatFixture,
   createVaultFilesFixture,
   getOpenBridgePages,
+  installReferenceTyporaTheme,
   launchIsolatedElectron,
   openVaultInNotes,
   setAppViewMode,
@@ -74,6 +75,18 @@ test.describe('app layout smoke', () => {
       await expect(page.locator(EDITOR_SELECTOR)).toContainText('Layout smoke sentinel paragraph', {
         timeout: 30_000,
       });
+      const importedTheme = await installReferenceTyporaTheme(page, 'vlook-fancy.css');
+      const notesBackground = await page.locator('[data-note-toolbar-root="true"]').evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          rootTheme: document.documentElement.getAttribute('data-vlaina-imported-app-theme'),
+          background: style.background,
+          backgroundImage: style.backgroundImage,
+          importedLayer: style.getPropertyValue('--vlaina-imported-app-background-layer').trim(),
+        };
+      });
+      expect(notesBackground.rootTheme).toBe(importedTheme.themeId);
+      expect(notesBackground.importedLayer).not.toBe('');
 
       let notesLayout = await collectLayoutSmokeMetrics(page);
       console.info('[layout-smoke-notes-desktop]', notesLayout);
@@ -98,6 +111,18 @@ test.describe('app layout smoke', () => {
       await expect(page.locator(CHAT_SESSION_ROW_SELECTOR, { hasText: 'E2E Layout Chat' })).toBeVisible();
       await expect(page.locator(CHAT_SCROLLABLE_SELECTOR)).toBeVisible();
       await expect(page.locator(CHAT_COMPOSER_TEXTAREA_SELECTOR)).toBeVisible();
+      const chatBackground = await page.locator(CHAT_VIEW_SELECTOR).evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          rootTheme: document.documentElement.getAttribute('data-vlaina-imported-app-theme'),
+          background: style.background,
+          backgroundImage: style.backgroundImage,
+          importedLayer: style.getPropertyValue('--vlaina-imported-app-background-layer').trim(),
+        };
+      });
+      expect(chatBackground.rootTheme).toBe(importedTheme.themeId);
+      expect(chatBackground.importedLayer).toBe(notesBackground.importedLayer);
+      expect(chatBackground.backgroundImage).toBe(notesBackground.backgroundImage);
 
       let chatLayout = await collectLayoutSmokeMetrics(page);
       console.info('[layout-smoke-chat-narrow]', chatLayout);
