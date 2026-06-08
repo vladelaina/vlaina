@@ -14,186 +14,7 @@ import {
   scrollNoteToTop,
   selectNoteBlocksByText,
 } from './notesE2E';
-
-const TINY_PNG_DATA_URL =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
-
-function createMarkdownSyntaxFixture(): string {
-  return [
-    '---',
-    'title: E2E Markdown Syntax',
-    'tags:',
-    '  - e2e',
-    '  - markdown',
-    '---',
-    '',
-    '# E2E Markdown Syntax',
-    '',
-    '[TOC]',
-    '',
-    '## Heading Coverage',
-    '',
-    'Setext Heading Level One Sentinel',
-    '=================================',
-    '',
-    'Setext Heading Level Two Sentinel',
-    '---------------------------------',
-    '',
-    '### Heading Level Three Sentinel',
-    '',
-    '#### Heading Level Four Sentinel',
-    '',
-    '##### Heading Level Five Sentinel',
-    '',
-    '###### Heading Level Six Sentinel',
-    '',
-    '## Inline Marks And Links',
-    '',
-    'Inline marks paragraph with **strong text**, __strong underscore text__, *emphasis text*, _emphasis underscore text_, ~~strike text~~, ==highlighted text==, ++underlined text++, ^superscript text^, ~subscript text~, `inline code`, [explicit link](https://example.com/docs), [reference docs link][docs-ref], [internal note link](./linked-note.md#target-heading), www.example.org, syntax@example.com, #syntax-tag, and HTML abbreviation usage.',
-    '',
-    '[docs-ref]: https://example.com/reference "Reference docs title"',
-    '',
-    '<span style="color: #2563eb">colored text sentinel</span> and <mark style="background-color: #fde047">background color sentinel</mark> appear in this paragraph.',
-    '',
-    '*[HTML]: HyperText Markup Language',
-    '',
-    '## Paragraphs And Breaks',
-    '',
-    'Soft break line one sentinel',
-    'soft break line two sentinel.',
-    '',
-    'Hard break line one sentinel  ',
-    'hard break line two sentinel.',
-    '',
-    'Backslash hard break line one sentinel\\',
-    'backslash hard break line two sentinel.',
-    '',
-    'HTML break line one sentinel<br/>HTML break line two sentinel.',
-    '',
-    'Escaped syntax sentinel: \\# not a heading, \\[TOC\\], \\*not emphasis\\*, and \\!\\[not image\\](image.png).',
-    '',
-    '## Block Quotes And Callouts',
-    '',
-    '> Regular quote line one.',
-    '> Regular quote line two.',
-    '',
-    '> Nested quote container sentinel.',
-    '> ',
-    '> - Nested quote bullet sentinel',
-    '> ',
-    '> ```ts',
-    '> const quoteCodeSentinel = true;',
-    '> ```',
-    '',
-    '> 💡 Callout body sentinel with a nested paragraph.',
-    '> ',
-    '> Second callout line sentinel.',
-    '',
-    '> [!callout-icon:%F0%9F%93%8C] Callout encoded icon sentinel.',
-    '> Encoded icon callout body sentinel.',
-    '',
-    '## Lists',
-    '',
-    '- Bullet item alpha',
-    '- Bullet item beta',
-    '  - Nested bullet beta child',
-    '+ Plus bullet item sentinel',
-    '* Star bullet item sentinel',
-    '',
-    '1. Ordered item alpha',
-    '2. Ordered item beta',
-    '',
-    'Ordered list separator paragraph sentinel.',
-    '',
-    '7. Ordered item custom start sentinel',
-    '8. Ordered item custom continuation sentinel',
-    '',
-    '- [ ] Task item unchecked sentinel',
-    '- [x] Task item checked sentinel',
-    '',
-    '## Definition Lists',
-    '',
-    'Term sentinel',
-    ': Definition description sentinel',
-    '',
-    'Second term sentinel',
-    ': Second definition description sentinel',
-    '',
-    '## Tables',
-    '',
-    '| Feature | Status | Count |',
-    '| :--- | :---: | ---: |',
-    '| Table alpha | Stable | 1 |',
-    '| Table beta | Covered | 2 |',
-    '',
-    '## Horizontal Rules',
-    '',
-    '---',
-    '',
-    '***',
-    '',
-    '___',
-    '',
-    '## Code',
-    '',
-    '```ts',
-    'const syntaxSentinel: string = "code block sentinel";',
-    'console.log(syntaxSentinel);',
-    '```',
-    '',
-    '```',
-    'plain code block sentinel',
-    '```',
-    '',
-    '## Math',
-    '',
-    '$$',
-    'E = mc^2',
-    '$$',
-    '',
-    'Inline math sentinel $a^2 + b^2 = c^2$ lives in this sentence.',
-    '',
-    '## Diagrams',
-    '',
-    '```mermaid',
-    'flowchart TD',
-    '  Start[E2E Start] --> Done[E2E Done]',
-    '```',
-    '',
-    '```sequence',
-    'Alice->Bob: Diagram alias sentinel',
-    '```',
-    '',
-    '## Media',
-    '',
-    `![Image alt sentinel](${TINY_PNG_DATA_URL} "Image title sentinel")`,
-    '',
-    `<img src="${TINY_PNG_DATA_URL}" alt="HTML image alt sentinel" width="40%" align="right" title="HTML image title sentinel" data-vlaina-crop="1,2,30,40,1" />`,
-    '',
-    '![video](https://www.youtube.com/watch?v=dQw4w9WgXcQ "Video title sentinel")',
-    '',
-    '## Footnotes',
-    '',
-    'Footnote reference sentinel[^syntax-note].',
-    '',
-    '[^syntax-note]: Footnote definition sentinel.',
-    '',
-    '## Alignment',
-    '',
-    'Centered paragraph sentinel.',
-    '<!--align:center-->',
-    '',
-    '### Right aligned heading sentinel',
-    '<!--align:right-->',
-    '',
-    '## Raw HTML',
-    '',
-    '<div class="raw-html-sentinel">Raw HTML block sentinel</div>',
-    '',
-    'Final paragraph sentinel for block selection.',
-    '',
-  ].join('\n');
-}
+import { createMarkdownSyntaxFixture } from './notesMarkdownSyntaxFixture';
 
 async function expectEditorContains(page: Page, texts: string[]) {
   for (const text of texts) {
@@ -234,10 +55,18 @@ test.describe('notes markdown syntax rendering', () => {
         'E2E Markdown Syntax',
         'Setext Heading Level One Sentinel',
         'Setext Heading Level Two Sentinel',
+        'ATX Closed Heading Sentinel',
         'Heading Level Six Sentinel',
         'Inline marks paragraph',
         'colored text sentinel',
         'background color sentinel',
+        'html mark sentinel',
+        'html sup sentinel',
+        'html sub sentinel',
+        'html underline sentinel',
+        'rgb colored text sentinel',
+        'named background color sentinel',
+        'API abbreviation sentinel',
         'Soft break line one sentinel',
         'hard break line two sentinel',
         'backslash hard break line two sentinel',
@@ -245,25 +74,35 @@ test.describe('notes markdown syntax rendering', () => {
         'Regular quote line one.',
         'Nested quote bullet sentinel',
         'quoteCodeSentinel',
-        'Callout body sentinel',
+        'Emoji callout sentinel',
         'Encoded icon callout body sentinel',
+        'HTML comment icon callout body sentinel',
         'Bullet item alpha',
+        'Third-level bullet sentinel',
         'Plus bullet item sentinel',
         'Star bullet item sentinel',
+        'Mixed list parent sentinel',
+        'Nested ordered child sentinel',
+        'Third-level mixed bullet sentinel',
         'Ordered item beta',
         'Ordered list separator paragraph sentinel',
         'Ordered item custom start sentinel',
         'Task item unchecked sentinel',
         'Task item checked sentinel',
+        'Nested task item sentinel',
         'Term sentinel',
         'Definition description sentinel',
         'Second definition description sentinel',
+        'Combined definition description sentinel',
         'Table alpha',
         'code block sentinel',
         'plain code block sentinel',
+        'indented code block sentinel',
         'Inline math sentinel',
         'Footnote reference sentinel',
         'Footnote definition sentinel',
+        'Nested footnote first paragraph sentinel',
+        'Nested footnote list item sentinel',
         'Centered paragraph sentinel',
         'Right aligned heading sentinel',
         'Raw HTML block sentinel',
@@ -274,56 +113,78 @@ test.describe('notes markdown syntax rendering', () => {
       await expect(page.locator(`${EDITOR_SELECTOR} h1`, { hasText: 'E2E Markdown Syntax' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} h1`, { hasText: 'Setext Heading Level One Sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} h2`, { hasText: 'Setext Heading Level Two Sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} h2`, { hasText: 'ATX Closed Heading Sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} h2`, { hasText: 'Inline Marks And Links' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} h3`, { hasText: 'Heading Level Three Sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} h4`, { hasText: 'Heading Level Four Sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} h5`, { hasText: 'Heading Level Five Sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} h6`, { hasText: 'Heading Level Six Sentinel' })).toBeVisible();
-      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="toc"]`)).toBeVisible();
+      const tocBlocks = page.locator(`${EDITOR_SELECTOR} div[data-type="toc"]`);
+      await expect(tocBlocks).toHaveCount(2);
+      await expect(tocBlocks.first()).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} blockquote`, { hasText: 'Regular quote line one' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} blockquote li`, { hasText: 'Nested quote bullet sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} blockquote .code-block-container`, { hasText: 'quoteCodeSentinel' })).toBeVisible();
-      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="callout"]`, { hasText: 'Callout body sentinel with a nested paragraph' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="callout"]`, { hasText: 'Emoji callout sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="callout"]`, { hasText: 'Encoded icon callout body sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="callout"]`, { hasText: 'HTML comment icon callout body sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} li[data-item-type="task"][data-checked="false"]`, { hasText: 'Task item unchecked sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} li[data-item-type="task"][data-checked="true"]`, { hasText: 'Task item checked sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} li[data-item-type="task"][data-checked="false"]`, { hasText: 'Nested task item sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} ul ul ul > li`, { hasText: 'Third-level bullet sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} ul ol > li`, { hasText: 'Nested ordered child sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} ul ol ul > li`, { hasText: 'Third-level mixed bullet sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} ul > li`, { hasText: 'Plus bullet item sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} ul > li`, { hasText: 'Star bullet item sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} ol[start="7"] > li`, { hasText: 'Ordered item custom start sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR}`, { hasText: 'Term sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR}`, { hasText: 'Definition description sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR}`, { hasText: 'Combined definition description sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} table`, { hasText: 'Table alpha' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} th`).first()).toHaveText('Feature');
       await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'syntaxSentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container[data-language="ts"]`, { hasText: 'syntaxSentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'plain code block sentinel' })).toBeVisible();
-      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="math-block"]`)).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'indented code block sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="math-block"]`)).toHaveCount(2);
       await expect(page.locator(`${EDITOR_SELECTOR} span[data-type="math-inline"]`)).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="mermaid"]`).first()).toBeVisible();
-      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="mermaid"]`)).toHaveCount(2);
+      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="mermaid"]`)).toHaveCount(5);
       await expect(page.locator(`${EDITOR_SELECTOR} .image-block-container, ${EDITOR_SELECTOR} img.md-image`).first()).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} .image-block-container[data-alt="Image alt sentinel"]`)).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} .image-block-container[data-alt="HTML image alt sentinel"][data-width="40%"][data-align="right"]`)).toBeVisible();
-      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="video"]`)).toBeVisible();
-      await expect(page.locator(`${EDITOR_SELECTOR} sup.footnote-ref`)).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} .image-block-container[data-alt="HTML single quote image sentinel"][data-width="50%"][data-align="left"]`)).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} .image-block-container[data-alt="Second markdown image sentinel"]`)).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} .image-block-container[data-alt="Markdown image escaped < sentinel"]`)).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="video"]`)).toHaveCount(4);
+      await expect(page.locator(`${EDITOR_SELECTOR} sup.footnote-ref`)).toHaveCount(2);
       await expect(page.locator(`${EDITOR_SELECTOR} div.footnote-def[data-type="footnote_definition"]`, { hasText: 'Footnote definition sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} div.footnote-def[data-type="footnote_definition"]`, { hasText: 'Nested footnote list item sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} strong`, { hasText: 'strong text' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} strong`, { hasText: 'strong underscore text' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} em`, { hasText: 'emphasis text' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} em`, { hasText: 'emphasis underscore text' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} s, ${EDITOR_SELECTOR} del`, { hasText: 'strike text' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} mark`, { hasText: 'highlighted text' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} mark`, { hasText: 'html mark sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} u`, { hasText: 'underlined text' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} u`, { hasText: 'html underline sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} sup`, { hasText: 'superscript text' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} sup`, { hasText: 'html sup sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} sub`, { hasText: 'subscript text' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} sub`, { hasText: 'html sub sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} code.v-std-code`, { hasText: 'inline code' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} span[data-text-color="#2563eb"]`, { hasText: 'colored text sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} mark[data-bg-color="#fde047"]`, { hasText: 'background color sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} span[data-text-color="rgb(37, 99, 235)"]`, { hasText: 'rgb colored text sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} mark[data-bg-color="yellow"]`, { hasText: 'named background color sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} abbr[title="HyperText Markup Language"]`, { hasText: 'HTML' }).first()).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} abbr[title="Application Programming Interface"]`, { hasText: 'API' }).first()).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} [data-editor-tag-token="true"]`, { hasText: '#syntax-tag' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} a[href="https://example.com/docs"]`, { hasText: 'explicit link' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} a[href="https://example.com/reference"]`, { hasText: 'reference docs link' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} a[href="./linked-note.md#target-heading"]`, { hasText: 'internal note link' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} a.autolink[href="https://example.com/autolink-angle"]`, { hasText: 'https://example.com/autolink-angle' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} a.autolink[href="https://www.example.org"]`)).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} a.autolink[href="mailto:syntax@example.com"]`)).toBeVisible();
       await expectParagraphHasHardBreak(page, 'Hard break line one sentinel');
@@ -343,25 +204,25 @@ test.describe('notes markdown syntax rendering', () => {
       expect(metrics.countsBySelector.sourceFallback).toBe(0);
       expect(metrics.countsBySelector.headings).toBeGreaterThanOrEqual(14);
       expect(metrics.countsBySelector.blockquotes).toBeGreaterThanOrEqual(1);
-      expect(metrics.countsBySelector.callouts).toBeGreaterThanOrEqual(2);
-      expect(metrics.countsBySelector.bulletItems).toBeGreaterThanOrEqual(5);
-      expect(metrics.countsBySelector.orderedItems).toBeGreaterThanOrEqual(4);
-      expect(metrics.countsBySelector.taskItems).toBe(2);
+      expect(metrics.countsBySelector.callouts).toBeGreaterThanOrEqual(3);
+      expect(metrics.countsBySelector.bulletItems).toBeGreaterThanOrEqual(9);
+      expect(metrics.countsBySelector.orderedItems).toBeGreaterThanOrEqual(5);
+      expect(metrics.countsBySelector.taskItems).toBe(3);
       expect(metrics.countsBySelector.tables).toBeGreaterThanOrEqual(1);
-      expect(metrics.countsBySelector.codeBlocks).toBeGreaterThanOrEqual(2);
+      expect(metrics.countsBySelector.codeBlocks).toBeGreaterThanOrEqual(3);
       expect(metrics.countsBySelector.frontmatter).toBeGreaterThanOrEqual(1);
-      expect(metrics.countsBySelector.mathBlocks).toBeGreaterThanOrEqual(1);
+      expect(metrics.countsBySelector.mathBlocks).toBeGreaterThanOrEqual(2);
       expect(metrics.countsBySelector.mathInline).toBeGreaterThanOrEqual(1);
-      expect(metrics.countsBySelector.mermaid).toBeGreaterThanOrEqual(2);
-      expect(metrics.countsBySelector.video).toBeGreaterThanOrEqual(1);
-      expect(metrics.countsBySelector.toc).toBeGreaterThanOrEqual(1);
-      expect(metrics.countsBySelector.footnoteRefs).toBeGreaterThanOrEqual(1);
-      expect(metrics.countsBySelector.footnoteDefs).toBeGreaterThanOrEqual(1);
-      expect(metrics.countsBySelector.images).toBeGreaterThanOrEqual(2);
-      expect(metrics.countsBySelector.highlights).toBeGreaterThanOrEqual(1);
-      expect(metrics.countsBySelector.superscript).toBeGreaterThanOrEqual(1);
-      expect(metrics.countsBySelector.subscript).toBeGreaterThanOrEqual(1);
-      expect(metrics.countsBySelector.abbr).toBeGreaterThanOrEqual(1);
+      expect(metrics.countsBySelector.mermaid).toBeGreaterThanOrEqual(5);
+      expect(metrics.countsBySelector.video).toBeGreaterThanOrEqual(4);
+      expect(metrics.countsBySelector.toc).toBeGreaterThanOrEqual(2);
+      expect(metrics.countsBySelector.footnoteRefs).toBeGreaterThanOrEqual(2);
+      expect(metrics.countsBySelector.footnoteDefs).toBeGreaterThanOrEqual(2);
+      expect(metrics.countsBySelector.images).toBeGreaterThanOrEqual(5);
+      expect(metrics.countsBySelector.highlights).toBeGreaterThanOrEqual(2);
+      expect(metrics.countsBySelector.superscript).toBeGreaterThanOrEqual(2);
+      expect(metrics.countsBySelector.subscript).toBeGreaterThanOrEqual(2);
+      expect(metrics.countsBySelector.abbr).toBeGreaterThanOrEqual(2);
       expect(metrics.countsBySelector.tags).toBeGreaterThanOrEqual(1);
       expect(metrics.countsBySelector.autolinks).toBeGreaterThanOrEqual(2);
       expect(metrics.countsBySelector.explicitLinks).toBeGreaterThanOrEqual(4);

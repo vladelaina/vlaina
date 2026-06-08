@@ -101,6 +101,7 @@ export interface E2EBridge {
     to: number;
   }>;
   selectNoteBlocksByText(texts: string[]): Promise<number>;
+  selectNoteBlocksByIndexes(indexes: number[]): Promise<number>;
   getNotesState(): Pick<NotesState, 'currentNote' | 'isDirty' | 'error' | 'openTabs'>;
   getNoteContentCacheEntry(path: string): {
     hasEntry: boolean;
@@ -424,6 +425,21 @@ export function installSyncE2EBridge(): void {
       dispatchBlockSelectionAction(view, ranges.length > 0
         ? { type: 'set-blocks', blocks: ranges }
         : { type: 'clear-blocks' });
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      return ranges.length;
+    },
+    selectNoteBlocksByIndexes: async (indexes) => {
+      const view = getCurrentEditorView();
+      if (!view) return 0;
+      const targets = collectSelectableBlockTargets(view);
+      const ranges = indexes.flatMap((index) => {
+        const target = targets[index];
+        return target ? [target.range] : [];
+      });
+      dispatchBlockSelectionAction(view, ranges.length > 0
+        ? { type: 'set-blocks', blocks: ranges }
+        : { type: 'clear-blocks' });
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       return ranges.length;
     },
     getNotesState: () => {

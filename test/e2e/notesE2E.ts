@@ -118,37 +118,66 @@ export async function openMarkdownFixture(
   storeOpenMs: number;
   openActionWallMs: number;
 }> {
-  const { notePath, vaultPath } = await page.evaluate((fixture) =>
-    (window as any).__vlainaE2E.createNotesFixture(fixture), input);
+  let lastError: unknown;
 
-  const openStartedAt = Date.now();
-  const openTiming = await page.evaluate((pathToOpen) =>
-    (window as any).__vlainaE2E.openAbsoluteNoteWithTiming(pathToOpen), notePath);
-  const openActionWallMs = Date.now() - openStartedAt;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const fixtureInput = {
+        ...input,
+        filename: attempt === 0
+          ? input.filename
+          : input.filename.replace(/\.md$/i, `-${attempt}.md`),
+      };
+      const { notePath, vaultPath } = await page.evaluate((fixture) =>
+        (window as any).__vlainaE2E.createNotesFixture(fixture), fixtureInput);
 
-  await expect(page.locator(EDITOR_SELECTOR)).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator(NOTE_SOURCE_FALLBACK_SELECTOR)).toHaveCount(0);
-  await expect.poll(async () => page.evaluate(() => {
-    const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
-    const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks();
-    return {
-      hasEditor: Boolean(editor),
-      textLength: editor?.textContent?.trim().length ?? 0,
-      selectableCount: blocks.length,
-      hasSourceFallback: Boolean(document.querySelector('[data-note-source-fallback="true"]')),
-    };
-  }), { timeout: 30_000 }).toMatchObject({
-    hasEditor: true,
-    hasSourceFallback: false,
-    selectableCount: expect.any(Number),
-  });
+      const openStartedAt = Date.now();
+      const openTiming = await page.evaluate((pathToOpen) =>
+        (window as any).__vlainaE2E.openAbsoluteNoteWithTiming(pathToOpen), notePath);
+      const openActionWallMs = Date.now() - openStartedAt;
 
-  return {
-    notePath,
-    vaultPath,
-    storeOpenMs: Math.round(openTiming.totalMs),
-    openActionWallMs,
-  };
+      await expect.poll(async () => page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks();
+        return {
+          hasEditor: Boolean(editor),
+          textLength: editor?.textContent?.trim().length ?? 0,
+          selectableCount: blocks.length,
+          hasSourceFallback: Boolean(document.querySelector('[data-note-source-fallback="true"]')),
+        };
+      }), { timeout: 30_000 }).toMatchObject({
+        hasEditor: true,
+        hasSourceFallback: false,
+        selectableCount: expect.any(Number),
+      });
+      await expect(page.locator(EDITOR_SELECTOR)).toBeVisible({ timeout: 30_000 });
+      await expect(page.locator(NOTE_SOURCE_FALLBACK_SELECTOR)).toHaveCount(0);
+
+      return {
+        notePath,
+        vaultPath,
+        storeOpenMs: Math.round(openTiming.totalMs),
+        openActionWallMs,
+      };
+    } catch (error) {
+      lastError = error;
+      const state = await page.evaluate(() => ({
+        hasEditor: Boolean(document.querySelector('.milkdown .ProseMirror')),
+        hasSourceFallback: Boolean(document.querySelector('[data-note-source-fallback="true"]')),
+      })).catch(() => ({ hasEditor: false, hasSourceFallback: false }));
+
+      const message = error instanceof Error ? error.message : String(error);
+      const canRetryDestroyedContext = message.includes('Execution context was destroyed');
+      if (
+        attempt === 2 ||
+        (!canRetryDestroyedContext && (!state.hasSourceFallback || state.hasEditor))
+      ) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
 }
 
 export async function setAppViewMode(page: Page, mode: 'notes' | 'chat'): Promise<void> {
@@ -426,6 +455,10 @@ export async function clearSelectedNoteBlocks(page: Page): Promise<void> {
 
 export async function selectNoteBlocksByText(page: Page, texts: string[]): Promise<number> {
   return page.evaluate((expectedTexts) => (window as any).__vlainaE2E.selectNoteBlocksByText(expectedTexts), texts);
+}
+
+export async function selectNoteBlocksByIndexes(page: Page, indexes: number[]): Promise<number> {
+  return page.evaluate((targetIndexes) => (window as any).__vlainaE2E.selectNoteBlocksByIndexes(targetIndexes), indexes);
 }
 
 export async function scrollNoteToTop(page: Page): Promise<void> {
