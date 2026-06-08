@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage } from '@/lib/ai/types';
 import {
   extractRenderedMessageImageSources,
@@ -21,6 +21,8 @@ type DerivedState = {
   sentUserMessages: DerivedCollection<string>;
   messageCache: Map<string, CachedMessageDerivatives>;
 };
+
+const DERIVATIVE_BATCH_SIZE = 80;
 
 interface CachedMessageDerivatives {
   message: ChatMessage;
@@ -104,6 +106,7 @@ export function useStableChatMessageDerivatives(messages: ChatMessage[]): {
   imageGallery: ChatImageGalleryItem[];
   sentUserMessages: string[];
 } {
+  const [, bumpRevision] = useState(0);
   const stateRef = useRef<DerivedState>({
     imageGallery: {
       items: [],
@@ -115,51 +118,88 @@ export function useStableChatMessageDerivatives(messages: ChatMessage[]): {
     },
     messageCache: new Map(),
   });
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
 
-  const activeMessageIds = new Set<string>();
+  useEffect(() => {
+    let cancelled = false;
+    let index = 0;
 
-  const imageItems: ChatImageGalleryItem[] = [];
-  const imageSignatureParts: string[] = [];
-  const sentUserItems: string[] = [];
-  const sentUserSignatureParts: string[] = [];
+    const processBatch = () => {
+      if (cancelled) {
+        return;
+      }
 
-  messages.forEach((message) => {
-    activeMessageIds.add(message.id);
-    const { imageGallery, sentUserMessages } = getCachedMessageDerivatives(
-      stateRef.current.messageCache,
-      message,
-    );
-    if (imageGallery.signature) {
-      imageSignatureParts.push(imageGallery.signature);
-      imageItems.push(...imageGallery.items);
-    }
-    if (sentUserMessages.signature) {
-      sentUserSignatureParts.push(sentUserMessages.signature);
-      sentUserItems.push(...sentUserMessages.items);
-    }
-  });
+      const latestMessages = messagesRef.current;
+      const end = Math.min(latestMessages.length, index + DERIVATIVE_BATCH_SIZE);
+      for (; index < end; index += 1) {
+        getCachedMessageDerivatives(
+          stateRef.current.messageCache,
+          latestMessages[index]!,
+        );
+      }
 
-  stateRef.current.messageCache.forEach((_cached, messageId) => {
-    if (!activeMessageIds.has(messageId)) {
-      stateRef.current.messageCache.delete(messageId);
-    }
-  });
+      if (index < latestMessages.length) {
+        window.setTimeout(processBatch, 0);
+        return;
+      }
 
-  const nextImageGallery = {
-    items: imageItems,
-    signature: imageSignatureParts.join('\u0001'),
-  };
-  if (nextImageGallery.signature !== stateRef.current.imageGallery.signature) {
-    stateRef.current.imageGallery = nextImageGallery;
-  }
+      const activeMessageIds = new Set<string>();
+      const imageItems: ChatImageGalleryItem[] = [];
+      const imageSignatureParts: string[] = [];
+      const sentUserItems: string[] = [];
+      const sentUserSignatureParts: string[] = [];
 
-  const nextSentUserMessages = {
-    items: sentUserItems,
-    signature: sentUserSignatureParts.join('\u0001'),
-  };
-  if (nextSentUserMessages.signature !== stateRef.current.sentUserMessages.signature) {
-    stateRef.current.sentUserMessages = nextSentUserMessages;
-  }
+      latestMessages.forEach((message) => {
+        activeMessageIds.add(message.id);
+        const cached = stateRef.current.messageCache.get(message.id);
+        if (!cached || cached.message !== message) {
+          return;
+        }
+        const { imageGallery, sentUserMessages } = cached;
+        if (imageGallery.signature) {
+          imageSignatureParts.push(imageGallery.signature);
+          imageItems.push(...imageGallery.items);
+        }
+        if (sentUserMessages.signature) {
+          sentUserSignatureParts.push(sentUserMessages.signature);
+          sentUserItems.push(...sentUserMessages.items);
+        }
+      });
+
+      stateRef.current.messageCache.forEach((_cached, messageId) => {
+        if (!activeMessageIds.has(messageId)) {
+          stateRef.current.messageCache.delete(messageId);
+        }
+      });
+
+      const nextImageGallery = {
+        items: imageItems,
+        signature: imageSignatureParts.join('\u0001'),
+      };
+      const nextSentUserMessages = {
+        items: sentUserItems,
+        signature: sentUserSignatureParts.join('\u0001'),
+      };
+      const imageChanged = nextImageGallery.signature !== stateRef.current.imageGallery.signature;
+      const sentChanged = nextSentUserMessages.signature !== stateRef.current.sentUserMessages.signature;
+
+      if (imageChanged) {
+        stateRef.current.imageGallery = nextImageGallery;
+      }
+      if (sentChanged) {
+        stateRef.current.sentUserMessages = nextSentUserMessages;
+      }
+      if (imageChanged || sentChanged) {
+        bumpRevision((revision) => revision + 1);
+      }
+    };
+
+    processBatch();
+    return () => {
+      cancelled = true;
+    };
+  }, [messages]);
 
   return {
     imageGallery: stateRef.current.imageGallery.items,

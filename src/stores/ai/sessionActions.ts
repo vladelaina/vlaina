@@ -22,6 +22,7 @@ import {
   stripTemporaryForMutation,
   useAIUIStore,
 } from './chatState'
+import { awaitStartedOrCancelQueuedSessionPrefetch } from './sessionPrefetchActions'
 import {
   runWithSessionMutationLock,
   runWithSessionMutationLocks,
@@ -236,6 +237,12 @@ async function persistInlineImageSourcesForSession(sessionId: string) {
   }
 }
 
+function scheduleInlineImagePersistence(sessionId: string) {
+  globalThis.setTimeout(() => {
+    void persistInlineImageSourcesForSession(sessionId)
+  }, 0)
+}
+
 export function createSessionActions() {
   return {
     toggleTemporaryChat: (enabled?: boolean) => {
@@ -431,6 +438,12 @@ export function createSessionActions() {
 
       const latestAI = useUnifiedStore.getState().data.ai!
       if (!(sessionId in latestAI.messages)) {
+        const reusedActivePrefetch = await awaitStartedOrCancelQueuedSessionPrefetch(sessionId)
+        if (switchSessionGeneration !== myGeneration) return
+        if (reusedActivePrefetch && sessionId in (useUnifiedStore.getState().data.ai?.messages ?? {})) {
+          scheduleInlineImagePersistence(sessionId)
+          return
+        }
         const loadedMessages = await loadSessionJson(sessionId)
         if (switchSessionGeneration !== myGeneration) return
         if (!loadedMessages && await hasSessionJson(sessionId)) {
@@ -445,9 +458,7 @@ export function createSessionActions() {
           }
         })
       }
-      globalThis.setTimeout(() => {
-        void persistInlineImageSourcesForSession(sessionId)
-      }, 0)
+      scheduleInlineImagePersistence(sessionId)
     },
 
     updateSession: (id: string, updates: Partial<ChatSession>) => {

@@ -87,7 +87,12 @@ function getFrameLayoutCacheKey(
 }
 
 function getMessageSignature(message: ChatMessage): string {
-  return `${message.id}\u0000${message.currentVersionIndex}\u0000${message.role}\u0000${message.content}`;
+  const content = message.content;
+  const length = content.length;
+  const sample = length <= 96
+    ? content
+    : `${content.slice(0, 32)}\u0002${content.slice(Math.max(0, Math.floor(length / 2) - 16), Math.floor(length / 2) + 16)}\u0002${content.slice(-32)}`;
+  return `${message.id}\u0000${message.currentVersionIndex}\u0000${message.role}\u0000${length}\u0000${sample}`;
 }
 
 function getMessageSignatures(messages: ChatMessage[]): string[] {

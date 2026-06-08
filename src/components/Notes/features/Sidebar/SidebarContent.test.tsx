@@ -676,6 +676,45 @@ describe('SidebarContent search highlight cleanup', () => {
     expect(hoisted.scanAllNotes).not.toHaveBeenCalled();
   });
 
+  it('does not prune hover-prefetched note contents while sidebar search is already closed', () => {
+    hoisted.shouldSearchNotesSidebarContents.mockReturnValue(false);
+    hoisted.noteContentsCache = new Map([
+      ['docs/alpha.md', { content: 'alpha body', modifiedAt: 1 }],
+    ]);
+
+    const { rerender } = render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="docs/alpha.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    hoisted.pruneNoteContentsCacheToOpenNotes.mockClear();
+    hoisted.cancelNoteContentScan.mockClear();
+    hoisted.noteContentsCache = new Map([
+      ['docs/alpha.md', { content: 'alpha body', modifiedAt: 1 }],
+      ['docs/beta.md', { content: 'beta body from hover prefetch', modifiedAt: 2 }],
+    ]);
+
+    rerender(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="docs/alpha.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(hoisted.cancelNoteContentScan).not.toHaveBeenCalled();
+    expect(hoisted.pruneNoteContentsCacheToOpenNotes).not.toHaveBeenCalled();
+  });
+
   it('prunes scanned note contents when sidebar search closes', () => {
     hoisted.shouldShowSearchResults = true;
     hoisted.shouldSearchNotesSidebarContents.mockReturnValue(true);

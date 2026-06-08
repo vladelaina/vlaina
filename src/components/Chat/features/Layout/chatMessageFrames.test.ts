@@ -134,6 +134,31 @@ describe('chatMessageFrames', () => {
     expect(second.items[1]).not.toBe(first.items[1]);
   });
 
+  it('invalidates estimated layout cache when long same-length content changes in sampled regions', () => {
+    const prefix = 'a'.repeat(2000);
+    const suffix = 'z'.repeat(2000);
+    const firstMessages = [
+      createMessage('a1', 'assistant', `${prefix}middle-a${suffix}`),
+    ];
+    const secondMessages = [
+      createMessage('a1', 'assistant', `${prefix}middle-b${suffix}`),
+    ];
+
+    const first = buildChatMessageFrameLayout(firstMessages, {
+      cacheKey: 'chat-long-same-length',
+      containerWidth: 900,
+      isSessionActive: false,
+    });
+    const second = buildChatMessageFrameLayout(secondMessages, {
+      cacheKey: 'chat-long-same-length',
+      containerWidth: 900,
+      isSessionActive: false,
+    });
+
+    expect(firstMessages[0]!.content).toHaveLength(secondMessages[0]!.content.length);
+    expect(second).not.toBe(first);
+  });
+
   it('reuses all existing frames when a new message is appended', () => {
     const firstMessages = [
       createMessage('u1', 'user', 'hello'),

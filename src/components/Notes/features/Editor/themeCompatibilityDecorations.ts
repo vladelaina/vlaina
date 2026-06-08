@@ -1,6 +1,14 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
+import {
+  DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
+  STOP_PROSE_SCAN,
+  scanProseDescendants,
+} from './plugins/shared/boundedProseNodeScan';
+
+export const MAX_THEME_COMPATIBILITY_DECORATIONS = 6000;
+export const MAX_THEME_COMPATIBILITY_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 
 function getTaskListItemAttrs(node: any): Record<string, string> | null {
   if (node.type?.name !== 'list_item' || typeof node.attrs?.checked !== 'boolean') {
@@ -221,6 +229,7 @@ function pushTyporaInlineClass(
   className: string
 ) {
   if (to <= from) return;
+  if (decorations.length >= MAX_THEME_COMPATIBILITY_DECORATIONS) return;
   decorations.push(Decoration.inline(from, to, { class: className }));
 }
 
@@ -231,7 +240,21 @@ function pushTyporaInlineAttrs(
   attrs: Record<string, string>
 ) {
   if (to <= from) return;
+  if (decorations.length >= MAX_THEME_COMPATIBILITY_DECORATIONS) return;
   decorations.push(Decoration.inline(from, to, attrs));
+}
+
+function pushCompatibilityNodeDecoration(
+  decorations: Decoration[],
+  pos: number,
+  nodeSize: number,
+  attrs: Record<string, string> | null,
+) {
+  if (!attrs || decorations.length >= MAX_THEME_COMPATIBILITY_DECORATIONS) {
+    return;
+  }
+
+  decorations.push(Decoration.node(pos, pos + nodeSize, attrs));
 }
 
 function pushEmphasisRunDecorations(decorations: Decoration[], run: EmphasisRun | null) {
@@ -511,52 +534,43 @@ function addVlookTableCellInlineDecorations(decorations: Decoration[], node: any
 function buildCompatibilityDecorations(doc: any): DecorationSet {
   const decorations: Decoration[] = [];
 
-  doc.descendants((node: any, pos: number, _parent: any, index: number | undefined) => {
+  scanProseDescendants(doc, (node: any, pos: number, _parent: any, index: number | undefined) => {
+    if (decorations.length >= MAX_THEME_COMPATIBILITY_DECORATIONS) {
+      return STOP_PROSE_SCAN;
+    }
+
     addTyporaInlineDecorations(decorations, node, pos);
     addVlookTableCellInlineDecorations(decorations, node, pos);
+    if (decorations.length >= MAX_THEME_COMPATIBILITY_DECORATIONS) {
+      return STOP_PROSE_SCAN;
+    }
 
     const firstBlockAttrs = getFirstBlockAttrs(node, index);
-    if (firstBlockAttrs) {
-      decorations.push(Decoration.node(pos, pos + node.nodeSize, firstBlockAttrs));
-    }
+    pushCompatibilityNodeDecoration(decorations, pos, node.nodeSize, firstBlockAttrs);
 
     const paragraphAttrs = getVlookParagraphAttrs(node, pos);
-    if (paragraphAttrs) {
-      decorations.push(Decoration.node(pos, pos + node.nodeSize, paragraphAttrs));
-    }
+    pushCompatibilityNodeDecoration(decorations, pos, node.nodeSize, paragraphAttrs);
 
     const blockquoteAttrs = getBlockquoteAttrs(node);
-    if (blockquoteAttrs) {
-      decorations.push(Decoration.node(pos, pos + node.nodeSize, blockquoteAttrs));
-    }
+    pushCompatibilityNodeDecoration(decorations, pos, node.nodeSize, blockquoteAttrs);
 
     const tableAttrs = getTableAttrs(node);
-    if (tableAttrs) {
-      decorations.push(Decoration.node(pos, pos + node.nodeSize, tableAttrs));
-    }
+    pushCompatibilityNodeDecoration(decorations, pos, node.nodeSize, tableAttrs);
 
     const tableCellAttrs = getTableCellAttrs(node);
-    if (tableCellAttrs) {
-      decorations.push(Decoration.node(pos, pos + node.nodeSize, tableCellAttrs));
-    }
+    pushCompatibilityNodeDecoration(decorations, pos, node.nodeSize, tableCellAttrs);
 
     const listAttrs = getListAttrs(node);
-    if (listAttrs) {
-      decorations.push(Decoration.node(pos, pos + node.nodeSize, listAttrs));
-    }
+    pushCompatibilityNodeDecoration(decorations, pos, node.nodeSize, listAttrs);
 
     const listItemAttrs = getListItemAttrs(node);
-    if (listItemAttrs) {
-      decorations.push(Decoration.node(pos, pos + node.nodeSize, listItemAttrs));
-    }
+    pushCompatibilityNodeDecoration(decorations, pos, node.nodeSize, listItemAttrs);
 
     const taskAttrs = getTaskListItemAttrs(node);
-    if (taskAttrs) {
-      decorations.push(Decoration.node(pos, pos + node.nodeSize, taskAttrs));
-    }
+    pushCompatibilityNodeDecoration(decorations, pos, node.nodeSize, taskAttrs);
 
-    return true;
-  });
+    return decorations.length < MAX_THEME_COMPATIBILITY_DECORATIONS ? true : STOP_PROSE_SCAN;
+  }, MAX_THEME_COMPATIBILITY_DOC_SCAN_NODES);
 
   return DecorationSet.create(doc, decorations);
 }

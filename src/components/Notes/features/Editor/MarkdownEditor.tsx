@@ -1,6 +1,5 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
-import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { selectMarkdownBodyLineNumbersEnabled } from '@/stores/unified/settings/markdownSettings';
@@ -17,10 +16,6 @@ import {
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 import { useNoteEditorFind } from './find/useNoteEditorFind';
 import type { EditorTopRightToolbarProps } from './EditorTopRightToolbar';
-import {
-  flushPendingEditorMarkdown,
-  setPendingEditorMarkdownFlusher,
-} from '@/stores/notes/pendingEditorMarkdown';
 import {
   getSidebarSearchNavigationPendingPath,
   isSidebarSearchNavigationPending,
@@ -83,11 +78,9 @@ export function MarkdownEditor({
   const [editorReadyTarget, setEditorReadyTarget] = useState<{
     path: string | undefined;
   } | null>(null);
-  const [editorInitTimedOutPath, setEditorInitTimedOutPath] = useState<string | null>(null);
 
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const showBodyLineNumbers = useUnifiedStore(selectMarkdownBodyLineNumbersEnabled);
-  const saveNote = useNotesStore(s => s.saveNote);
   const notesPath = useNotesStore(s => s.notesPath);
   const currentNoteTitle = useNotesStore(
     useCallback((state) => {
@@ -142,14 +135,11 @@ export function MarkdownEditor({
   const reservedCoverHeight = coverController.cover.height ?? DEFAULT_COVER_HEIGHT;
   const coverLayoutActive = Boolean(coverUrl) || coverController.isPickerOpen;
   const handleEditorViewReady = useCallback(() => {
-    setEditorInitTimedOutPath(null);
     setEditorReadyTarget({
       path: currentNotePath,
     });
     onEditorViewReady?.();
   }, [currentNotePath, onEditorViewReady]);
-  const shouldUseSourceFallback =
-    hasActiveNote && currentNotePath !== undefined && editorInitTimedOutPath === currentNotePath;
   const getCurrentNoteContent = useCallback(() => {
     if (!currentNotePath) {
       return '';
@@ -163,22 +153,6 @@ export function MarkdownEditor({
 
     return state.noteContentsCache.get(currentNotePath)?.content ?? '';
   }, [currentNotePath]);
-
-  useEffect(() => {
-    setEditorInitTimedOutPath(null);
-    if (!hasActiveNote || !currentNotePath || isEditorViewReady) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setEditorInitTimedOutPath(currentNotePath);
-      onEditorViewReady?.();
-    }, themeEditorLayoutTokens.editorInitFallbackDelayMs);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [currentNotePath, hasActiveNote, isEditorViewReady, onEditorViewReady]);
 
   useEffect(() => {
     if (!hasActiveNote) {
@@ -414,7 +388,7 @@ export function MarkdownEditor({
         ) : null}
 
         <div
-          className="w-full flex flex-col items-center"
+          className="w-full flex flex-col items-center relative"
           style={{
             marginLeft: contentOffset,
             transition: themeEditorLayoutTokens.contentOffsetTransition,
@@ -427,35 +401,28 @@ export function MarkdownEditor({
                 coverLayoutActive={coverLayoutActive}
                 onAddCover={coverController.openCoverPicker}
               />
-
-              <Suspense fallback={null}>
-                {shouldUseSourceFallback ? (
-                  <MarkdownSourceFallback
-                    currentNotePath={currentNotePath}
-                    showBodyLineNumbers={showBodyLineNumbers}
-                    saveNote={saveNote}
-                  />
-                ) : (
-                  <ErrorBoundary
-                    key={currentNotePath ?? 'empty'}
-                    fallback={(
-                      <MarkdownSourceFallback
-                        currentNotePath={currentNotePath ?? ''}
-                        showBodyLineNumbers={showBodyLineNumbers}
-                        saveNote={saveNote}
-                      />
-                    )}
-                  >
-                    <MilkdownEditorRuntime
-                      active={active}
-                      showBodyLineNumbers={showBodyLineNumbers}
-                      onEditorViewReady={handleEditorViewReady}
-                    />
-                  </ErrorBoundary>
-                )}
-              </Suspense>
             </>
-          ) : (
+          ) : null}
+
+          <div
+            aria-hidden={!hasRenderableNote}
+            className={cn(
+              hasRenderableNote
+                ? 'relative w-full flex flex-col items-center'
+                : 'absolute inset-x-0 top-0 h-px overflow-hidden opacity-0 pointer-events-none'
+            )}
+            data-note-editor-prewarm={!hasRenderableNote ? 'true' : undefined}
+          >
+            <Suspense fallback={null}>
+              <MilkdownEditorRuntime
+                active={active && hasRenderableNote}
+                showBodyLineNumbers={hasRenderableNote && showBodyLineNumbers}
+                onEditorViewReady={hasRenderableNote ? handleEditorViewReady : undefined}
+              />
+            </Suspense>
+          </div>
+
+          {!hasRenderableNote ? (
             <div
               className={cn(
                 'milkdown-editor min-h-[var(--vlaina-size-420px)]',
@@ -464,118 +431,9 @@ export function MarkdownEditor({
               )}
               data-note-placeholder-root="true"
             />
-          )}
+          ) : null}
         </div>
       </OverlayScrollArea>
-    </div>
-  );
-}
-
-function MarkdownSourceFallback({
-  currentNotePath,
-  showBodyLineNumbers,
-  saveNote,
-}: {
-  currentNotePath: string;
-  showBodyLineNumbers: boolean;
-  saveNote: (options?: { explicit?: boolean }) => Promise<void>;
-}) {
-  const updateContent = useNotesStore((state) => state.updateContent);
-  const currentNoteContent = useNotesStore(
-    useCallback((state) => (
-      state.currentNote?.path === currentNotePath ? state.currentNote.content : ''
-    ), [currentNotePath])
-  );
-  const [draft, setDraft] = useState(currentNoteContent);
-  const draftRef = useRef(currentNoteContent);
-  const isComposingRef = useRef(false);
-  const saveTimerRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    setDraft(currentNoteContent);
-    draftRef.current = currentNoteContent;
-  }, [currentNoteContent, currentNotePath]);
-
-  const flushFallbackDraft = useCallback(() => {
-    if (isComposingRef.current) {
-      return false;
-    }
-    return flushPendingEditorMarkdown(currentNotePath, draftRef.current);
-  }, [currentNotePath]);
-
-  useEffect(() => {
-    setPendingEditorMarkdownFlusher(flushFallbackDraft);
-    return () => {
-      flushFallbackDraft();
-      setPendingEditorMarkdownFlusher(null);
-    };
-  }, [flushFallbackDraft]);
-
-  useEffect(() => {
-    return () => {
-      if (saveTimerRef.current !== null) {
-        window.clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = null;
-      }
-    };
-  }, []);
-
-  const scheduleSave = useCallback(() => {
-    if (saveTimerRef.current !== null) {
-      window.clearTimeout(saveTimerRef.current);
-    }
-    saveTimerRef.current = window.setTimeout(() => {
-      saveTimerRef.current = null;
-      void saveNote({ explicit: false });
-    }, themeEditorLayoutTokens.autoSaveDebounceMs);
-  }, [saveNote]);
-
-  const flushSave = useCallback(() => {
-    if (saveTimerRef.current !== null) {
-      window.clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
-    }
-    void saveNote({ explicit: false });
-  }, [saveNote]);
-
-  return (
-    <div
-      className={cn(
-        'milkdown-editor min-h-[var(--vlaina-size-420px)]',
-        showBodyLineNumbers && 'markdown-body-line-numbers',
-        EDITOR_LAYOUT_CLASS
-      )}
-      data-note-content-root="true"
-      data-note-source-fallback="true"
-    >
-      <textarea
-        value={draft}
-        onCompositionStart={() => {
-          isComposingRef.current = true;
-        }}
-        onCompositionEnd={(event) => {
-          isComposingRef.current = false;
-          const nextValue = event.currentTarget.value;
-          setDraft(nextValue);
-          draftRef.current = nextValue;
-          updateContent(nextValue);
-          scheduleSave();
-        }}
-        onChange={(event) => {
-          const nextValue = event.currentTarget.value;
-          setDraft(nextValue);
-          draftRef.current = nextValue;
-          if (isComposingRef.current || Boolean((event.nativeEvent as InputEvent).isComposing)) {
-            return;
-          }
-          updateContent(nextValue);
-          scheduleSave();
-        }}
-        onBlur={flushSave}
-        spellCheck={false}
-        aria-label="Markdown source editor"
-        className="min-h-[var(--vlaina-size-420px)] w-full resize-none bg-transparent px-0 py-2 font-mono text-sm leading-6 text-[var(--vlaina-text-primary)] outline-none"
-      />
     </div>
   );
 }

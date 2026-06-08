@@ -26,8 +26,33 @@ type EstimatedChatMessageHeightOptions = {
   isStreaming: boolean;
 };
 
+const MAX_ESTIMATED_TEXT_SCAN_CHARS = 1600;
+const APPROXIMATE_LONG_TEXT_CHARS_PER_LINE = 72;
+const APPROXIMATE_LONG_TEXT_EXTRA_LINE_HEIGHT = 0.78;
+
+function clampEstimatedText(content: string): string {
+  if (content.length <= MAX_ESTIMATED_TEXT_SCAN_CHARS) {
+    return content;
+  }
+
+  return content.slice(0, MAX_ESTIMATED_TEXT_SCAN_CHARS);
+}
+
+function estimateLongTextRemainderHeight(content: string): number {
+  if (content.length <= MAX_ESTIMATED_TEXT_SCAN_CHARS) {
+    return 0;
+  }
+
+  const remainingChars = content.length - MAX_ESTIMATED_TEXT_SCAN_CHARS;
+  return Math.ceil(remainingChars / APPROXIMATE_LONG_TEXT_CHARS_PER_LINE)
+    * MARKDOWN_BODY_LINE_HEIGHT
+    * APPROXIMATE_LONG_TEXT_EXTRA_LINE_HEIGHT;
+}
+
 function countRenderableImages(content: string): number {
-  return extractRenderedMarkdownImageSources(content).length;
+  return extractRenderedMarkdownImageSources(clampEstimatedText(content), {
+    maxTokens: 64,
+  }).length;
 }
 
 function estimateUserMessageHeight(
@@ -38,7 +63,9 @@ function estimateUserMessageHeight(
   const contentWidth = getChatContentWidth(containerWidth);
   const bubbleWidth = Math.max(120, Math.floor(contentWidth * USER_BUBBLE_MAX_RATIO));
   const textWidth = Math.max(1, bubbleWidth - USER_BUBBLE_PADDING_X);
-  const text = stripMarkdownImageTokens(message.content).trim();
+  const text = stripMarkdownImageTokens(clampEstimatedText(message.content), {
+    maxTokens: 64,
+  }).trim();
   const imageCount = countRenderableImages(message.content);
 
   let height = 0;
@@ -56,7 +83,7 @@ function estimateUserMessageHeight(
       lineHeight: MARKDOWN_BODY_LINE_HEIGHT,
       minHeight: MARKDOWN_BODY_LINE_HEIGHT,
       prepareOptions: { whiteSpace: 'pre-wrap' },
-    }) + USER_BUBBLE_PADDING_Y;
+    }) + estimateLongTextRemainderHeight(message.content) + USER_BUBBLE_PADDING_Y;
   }
 
   if (height === 0) {

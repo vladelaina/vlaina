@@ -95,6 +95,7 @@ const MISSING_BLOCKQUOTE_SPACE_PATTERN =
 const CJK_ATX_HEADING_WITHOUT_SPACE_PATTERN =
   /^((?:(?: {0,3}>[ \t]?)* {0,3})#{1,6})([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}].*)$/u;
 const MAX_CACHED_MARKDOWN_NORMALIZATION_LENGTH = 1_000_000;
+const FAST_NORMALIZATION_MIN_LENGTH = 1_000_000;
 const ESCAPED_HIGHLIGHT_PATTERN = /\\==([^=\n]+)==/g;
 const ESCAPED_URL_SCHEME_PATTERN = /\b([A-Za-z][A-Za-z0-9+.-]*)\\:(?=\/\/)/g;
 const MARKDOWN_AUTOLINK_LITERAL_PATTERN =
@@ -104,6 +105,8 @@ const MAILTO_EMAIL_MARKDOWN_LINK_PATTERN = new RegExp(
   String.raw`(^|[^!])\[(${EMAIL_ADDRESS_SOURCE})\]\(mailto:(${EMAIL_ADDRESS_SOURCE})\)`,
   'g'
 );
+const FAST_NORMALIZATION_STRUCTURAL_LINE_PATTERN =
+  /^\s*(?:[-+*]\s+|\d+[.)]\s+|>\s*|`{3,}|~{3,}|\|.*\||[-*_][ \t]*[-*_][ \t]*[-*_])/;
 const ALTERNATIVE_MATH_BLOCK_OPEN_PATTERN = /^(\s*(?:>\s*)*)((?:\\+\[\\?)|\[\\?|\[)\s*$/;
 const ALTERNATIVE_MATH_BLOCK_STANDARD_CLOSE_PATTERN = /^(\s*(?:>\s*)*)\\\]\s*$/;
 const ALTERNATIVE_MATH_BLOCK_BRACKET_CLOSE_PATTERN = /^(\s*(?:>\s*)*)]\s*$/;
@@ -126,6 +129,73 @@ interface MathBlockFenceReferenceIndex {
 
 let lastNormalizedMarkdownInput: string | null = null;
 let lastNormalizedMarkdownOutput: string | null = null;
+
+function canUseLargePlainMarkdownNormalizationFastPath(text: string): boolean {
+  if (text.length < FAST_NORMALIZATION_MIN_LENGTH) return false;
+  if (
+    text.includes('\r') ||
+    text.includes('\\') ||
+    text.includes('<') ||
+    text.includes('\u200B') ||
+    text.includes('\u200C') ||
+    text.includes('\u2800') ||
+    text.includes('\u0000VLAINA_') ||
+    text.includes('VLAINA_') ||
+    text.includes('vlaina-') ||
+    text.includes('｜') ||
+    text.includes('＞') ||
+    text.includes('＃') ||
+    text.includes('－') ||
+    text.includes('＊') ||
+    text.includes('＋') ||
+    text.includes('、') ||
+    text.includes('．') ||
+    text.includes('（') ||
+    text.includes('）') ||
+    text.includes('［') ||
+    text.includes('］') ||
+    text.includes('【') ||
+    text.includes('】') ||
+    text.includes('•') ||
+    text.includes('‣') ||
+    text.includes('◦') ||
+    text.includes('ｘ') ||
+    text.includes('Ｘ') ||
+    text.includes('✓') ||
+    text.includes('✔') ||
+    text.includes('√')
+  ) {
+    return false;
+  }
+
+  let lineStart = 0;
+  let previousLineWasPlainText = false;
+  for (let index = 0; index <= text.length; index += 1) {
+    if (index < text.length && text[index] !== '\n') {
+      continue;
+    }
+
+    const line = text.slice(lineStart, index);
+    const trimmed = line.trim();
+    lineStart = index + 1;
+
+    if (trimmed.length === 0) {
+      previousLineWasPlainText = false;
+      continue;
+    }
+
+    if (FAST_NORMALIZATION_STRUCTURAL_LINE_PATTERN.test(line)) {
+      return false;
+    }
+
+    if (previousLineWasPlainText) {
+      return false;
+    }
+    previousLineWasPlainText = true;
+  }
+
+  return true;
+}
 
 function unescapeMarkdownPunctuation(text: string): string {
   return mapMarkdownOutsideProtectedBlocks(text, (line) => line.replace(MARKDOWN_ESCAPE_PATTERN, '$1'));
@@ -817,6 +887,10 @@ export function normalizeSerializedMarkdownBlock(text: string): string {
 export function normalizeSerializedMarkdownDocument(text: string): string {
   if (text === lastNormalizedMarkdownInput && lastNormalizedMarkdownOutput !== null) {
     return lastNormalizedMarkdownOutput;
+  }
+
+  if (canUseLargePlainMarkdownNormalizationFastPath(text)) {
+    return text;
   }
 
   const output = runMarkdownDocumentNormalizationPipeline(text).output;

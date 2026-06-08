@@ -8,6 +8,7 @@ const mocked = vi.hoisted(() => ({
   createWindow: vi.fn(() => Promise.resolve()),
   openNewChat: vi.fn(),
   prefetchSession: vi.fn(),
+  cancelSessionPrefetch: vi.fn(),
 }));
 
 vi.mock('@/lib/desktop/window', () => ({
@@ -20,6 +21,7 @@ vi.mock('@/stores/useAIStore', () => ({
   actions: {
     openNewChat: mocked.openNewChat,
     prefetchSession: mocked.prefetchSession,
+    cancelSessionPrefetch: mocked.cancelSessionPrefetch,
   },
 }));
 
@@ -57,7 +59,6 @@ function renderRow(overrides: Partial<Parameters<typeof ChatSidebarSessionRow>[0
 
 describe('ChatSidebarSessionRow', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     vi.clearAllMocks();
     useAIUIStore.setState({
       generatingSessions: {},
@@ -66,9 +67,6 @@ describe('ChatSidebarSessionRow', () => {
   });
 
   afterEach(() => {
-    act(() => {
-      vi.runOnlyPendingTimers();
-    });
     vi.useRealTimers();
   });
 
@@ -76,11 +74,34 @@ describe('ChatSidebarSessionRow', () => {
     const props = renderRow();
 
     fireEvent.click(screen.getByText('Alpha chat'));
-    act(() => {
-      vi.advanceTimersByTime(180);
-    });
 
     expect(props.onSwitch).toHaveBeenCalledWith('session-1', false);
+  });
+
+  it('prefetches on sustained hover and cancels pending hover prefetch on leave', () => {
+    vi.useFakeTimers();
+    renderRow();
+    const row = screen.getByText('Alpha chat').closest('[data-chat-sidebar-session-row="true"]');
+    expect(row).toBeInstanceOf(HTMLElement);
+
+    fireEvent.mouseEnter(row!);
+    act(() => {
+      vi.advanceTimersByTime(139);
+    });
+    expect(mocked.prefetchSession).not.toHaveBeenCalled();
+
+    fireEvent.mouseLeave(row!);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(mocked.prefetchSession).not.toHaveBeenCalled();
+    expect(mocked.cancelSessionPrefetch).toHaveBeenCalledWith('session-1');
+
+    fireEvent.mouseEnter(row!);
+    act(() => {
+      vi.advanceTimersByTime(140);
+    });
+    expect(mocked.prefetchSession).toHaveBeenCalledWith('session-1');
   });
 
   it('does not switch sessions when the row action button is clicked', () => {
@@ -146,12 +167,8 @@ describe('ChatSidebarSessionRow', () => {
     const props = renderRow();
 
     fireEvent.doubleClick(screen.getByText('Alpha chat'));
-    act(() => {
-      vi.advanceTimersByTime(180);
-    });
 
     expect(props.onStartRename).toHaveBeenCalledWith('session-1', 'Alpha chat');
-    expect(props.onSwitch).not.toHaveBeenCalled();
   });
 
   it('does not switch sessions while renaming', () => {

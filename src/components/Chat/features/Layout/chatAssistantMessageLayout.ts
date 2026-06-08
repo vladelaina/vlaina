@@ -25,6 +25,28 @@ const ASSISTANT_THINKING_BODY_GAP = 8;
 const ASSISTANT_THINKING_MARGIN_BOTTOM = 16;
 const ASSISTANT_ERROR_MARGIN_TOP = 8;
 const ASSISTANT_ERROR_MARGIN_BOTTOM = 8;
+const MAX_ASSISTANT_ESTIMATE_PARSE_CHARS = 1800;
+const ASSISTANT_LONG_TEXT_CHARS_PER_LINE = 78;
+const ASSISTANT_LONG_TEXT_EXTRA_LINE_HEIGHT = 0.78;
+
+function clampAssistantEstimateContent(content: string, isStreaming: boolean): string {
+  if (isStreaming || content.length <= MAX_ASSISTANT_ESTIMATE_PARSE_CHARS) {
+    return content;
+  }
+
+  return content.slice(0, MAX_ASSISTANT_ESTIMATE_PARSE_CHARS);
+}
+
+function estimateAssistantRemainderHeight(content: string, isStreaming: boolean): number {
+  if (isStreaming || content.length <= MAX_ASSISTANT_ESTIMATE_PARSE_CHARS) {
+    return 0;
+  }
+
+  const remainingChars = content.length - MAX_ASSISTANT_ESTIMATE_PARSE_CHARS;
+  return Math.ceil(remainingChars / ASSISTANT_LONG_TEXT_CHARS_PER_LINE)
+    * MARKDOWN_BODY_LINE_HEIGHT
+    * ASSISTANT_LONG_TEXT_EXTRA_LINE_HEIGHT;
+}
 
 function estimateThinkingHeight(
   body: string,
@@ -55,10 +77,18 @@ export function estimateAssistantMessageHeight(
   isStreaming: boolean,
 ): number {
   const contentWidth = Math.max(1, getChatContentWidth(containerWidth) - ASSISTANT_LEFT_PADDING);
-  const parsedError = parseErrorTag(message.content);
-  const contentWithoutError = stripErrorTags(message.content);
+  const estimateContent = clampAssistantEstimateContent(message.content, isStreaming);
+  const estimateMessage = estimateContent === message.content
+    ? message
+    : {
+        ...message,
+        id: `${message.id}:height-estimate:${estimateContent.length}`,
+        content: estimateContent,
+      };
+  const parsedError = parseErrorTag(estimateContent);
+  const contentWithoutError = stripErrorTags(estimateContent);
   const thinking = extractThinkingSections(contentWithoutError);
-  const parsedMarkdown = getParsedAssistantMarkdown(message, thinking.markdown);
+  const parsedMarkdown = getParsedAssistantMarkdown(estimateMessage, thinking.markdown);
 
   let height = 0;
 
@@ -100,7 +130,7 @@ export function estimateAssistantMessageHeight(
     height += ASSISTANT_TOOLBAR_HEIGHT;
   }
 
-  return Math.max(height, MARKDOWN_BODY_LINE_HEIGHT);
+  return Math.max(height + estimateAssistantRemainderHeight(message.content, isStreaming), MARKDOWN_BODY_LINE_HEIGHT);
 }
 
 export function estimateChatLoadingHeight(): number {

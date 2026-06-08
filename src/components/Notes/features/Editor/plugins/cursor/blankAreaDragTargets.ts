@@ -1,7 +1,10 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { isClickBelowLastBlock } from './endBlankClickUtils';
 import { type BlockDragStartZone } from './blockDragSession';
-import { getCachedEditorBlockTargetsNearY } from '../../utils/editorBlockPositionCache';
+import {
+  getCachedEditorBlockTargetsNearY,
+  refreshCurrentEditorBlockPositionSnapshot,
+} from '../../utils/editorBlockPositionCache';
 
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR = '[data-notes-sidebar-scroll-root="true"]';
@@ -200,9 +203,13 @@ function resolveCachedTextLinePointerHit(
   clientX: number,
   clientY: number,
 ): CachedTextLinePointerHitResult {
-  const targets = getCachedEditorBlockTargetsNearY(view, clientY, isPointNearBlockY);
+  let targets = getCachedEditorBlockTargetsNearY(view, clientY, isPointNearBlockY);
   if (!targets) {
-    return { checked: false, hit: null };
+    refreshCurrentEditorBlockPositionSnapshot(view);
+    targets = getCachedEditorBlockTargetsNearY(view, clientY, isPointNearBlockY);
+    if (!targets) {
+      return { checked: false, hit: null };
+    }
   }
 
   for (const target of targets) {

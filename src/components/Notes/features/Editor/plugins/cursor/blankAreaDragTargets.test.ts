@@ -1,11 +1,30 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import {
+  clearCurrentEditorBlockPositionSnapshot,
+  setCurrentEditorBlockPositionSnapshot,
+  type EditorBlockPositionSnapshot,
+} from '../../utils/editorBlockPositionCache';
 import {
   MAX_BLANK_AREA_TEXT_HIT_CHARS,
   isPointInTrailingTextSelectionGutter,
   resolveBlankAreaDragStartZone,
   resolveTextLinePointerHit,
 } from './blankAreaDragTargets';
+
+function rect(top: number, bottom: number, left = 100, right = 240): DOMRect {
+  return {
+    bottom,
+    height: bottom - top,
+    left,
+    right,
+    top,
+    width: right - left,
+    x: left,
+    y: top,
+    toJSON: () => {},
+  } as DOMRect;
+}
 
 function createMouseDown(
   target: HTMLElement,
@@ -46,6 +65,10 @@ function createView() {
 }
 
 describe('blankAreaDragTargets', () => {
+  afterEach(() => {
+    clearCurrentEditorBlockPositionSnapshot();
+  });
+
   it('treats the small area after line text as text-selection space', () => {
     const lineRect = {
       left: 100,
@@ -215,6 +238,69 @@ describe('blankAreaDragTargets', () => {
         width: 140,
         height: 20,
       }],
+      detach: () => {},
+    } as unknown as Range);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(editorWrapper, { clientX: 250, clientY: 50 }),
+      )).toBeNull();
+    } finally {
+      document.createRange = originalCreateRange;
+      cleanup();
+    }
+  });
+
+  it('refreshes an empty block-position snapshot before measuring an external text-line hit', () => {
+    const { view, editorWrapper, cleanup } = createView();
+    const paragraph = document.createElement('p');
+    paragraph.textContent = `${'x'.repeat(MAX_BLANK_AREA_TEXT_HIT_CHARS + 1)}\nVisible line`;
+    paragraph.getBoundingClientRect = () => rect(40, 60);
+    view.dom.append(paragraph);
+
+    const paragraphNode = { type: { name: 'paragraph' }, nodeSize: 12 };
+    const doc = {
+      childCount: 1,
+      content: { size: 12 },
+      forEach(callback: (node: typeof paragraphNode, offset: number) => void) {
+        callback(paragraphNode, 0);
+      },
+      resolve() {
+        return {
+          parent: { type: { name: 'doc' } },
+          nodeAfter: paragraphNode,
+          index: () => 0,
+          posAtIndex: () => 0,
+        };
+      },
+    };
+    Object.assign(view, {
+      state: { doc },
+      domAtPos() {
+        throw new Error('not needed');
+      },
+      nodeDOM() {
+        return paragraph;
+      },
+    });
+    setCurrentEditorBlockPositionSnapshot({
+      version: 1,
+      view,
+      doc,
+      editorRoot: view.dom,
+      scrollRoot: view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement,
+      scrollLeft: 0,
+      scrollTop: 0,
+      blocks: [],
+      blockIndex: new Map(),
+      headings: [],
+    } as EditorBlockPositionSnapshot);
+
+    const originalCreateRange = document.createRange;
+    document.createRange = () => ({
+      selectNodeContents: () => {},
+      getClientRects: () => [rect(40, 60)],
       detach: () => {},
     } as unknown as Range);
 

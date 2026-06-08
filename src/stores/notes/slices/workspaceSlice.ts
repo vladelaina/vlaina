@@ -41,6 +41,7 @@ interface PendingNotePrefetch {
 
 const pendingNotePrefetches = new Map<string, PendingNotePrefetch>();
 const cancelledNotePrefetches = new Set<string>();
+const explicitOpenCancelledNotePrefetches = new Set<string>();
 const notePrefetchQueue = createAsyncPrefetchQueue(2);
 const MAX_NOTE_CONTENT_CACHE_ENTRIES = 250;
 const HOVER_PREFETCH_FRESH_MS = 1000;
@@ -50,9 +51,15 @@ function getNotePrefetchKey(notesPath: string, path: string) {
   return `${notesPath}\0${path}`;
 }
 
-async function awaitStartedNotePrefetch(notesPath: string, path: string) {
-  const pendingPrefetch = pendingNotePrefetches.get(getNotePrefetchKey(notesPath, path));
-  if (!pendingPrefetch?.started) {
+async function awaitStartedOrCancelQueuedNotePrefetch(notesPath: string, path: string) {
+  const prefetchKey = getNotePrefetchKey(notesPath, path);
+  const pendingPrefetch = pendingNotePrefetches.get(prefetchKey);
+  if (!pendingPrefetch) {
+    return false;
+  }
+
+  if (!pendingPrefetch.started) {
+    explicitOpenCancelledNotePrefetches.add(prefetchKey);
     return false;
   }
 
@@ -228,7 +235,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     }
 
     try {
-      const reusedActivePrefetch = await awaitStartedNotePrefetch(notesPath, path);
+      const reusedActivePrefetch = await awaitStartedOrCancelQueuedNotePrefetch(notesPath, path);
       if (reusedActivePrefetch) {
         noteContentsCache = get().noteContentsCache;
       }
@@ -413,18 +420,25 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     };
     const task = notePrefetchQueue.run(async () => {
       pendingPrefetch.started = true;
-      if (cancelledNotePrefetches.has(prefetchKey)) {
+      if (cancelledNotePrefetches.has(prefetchKey) || explicitOpenCancelledNotePrefetches.has(prefetchKey)) {
+        return;
+      }
+
+      const stateBeforeLoad = get();
+      if (
+        stateBeforeLoad.notesPath !== notesPath ||
+        isCachedNoteFresh(stateBeforeLoad, path) ||
+        stateBeforeLoad.currentNote?.path === path ||
+        stateBeforeLoad.openTabs.some((tab) => tab.path === path && tab.isDirty)
+      ) {
         return;
       }
 
       const { nextCache } = await loadNoteDocument({
         notesPath,
         path,
-        cache: get().noteContentsCache,
+        cache: stateBeforeLoad.noteContentsCache,
       });
-      if (cancelledNotePrefetches.has(prefetchKey)) {
-        return;
-      }
 
       const freshCache = markCachedNoteFresh(nextCache, path, Date.now() + HOVER_PREFETCH_FRESH_MS);
       const prefetchedEntry = freshCache.get(path);
@@ -459,6 +473,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     } finally {
       pendingNotePrefetches.delete(prefetchKey);
       cancelledNotePrefetches.delete(prefetchKey);
+      explicitOpenCancelledNotePrefetches.delete(prefetchKey);
     }
   },
 
@@ -468,7 +483,13 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       return;
     }
 
-    cancelledNotePrefetches.add(getNotePrefetchKey(notesPath, path));
+    const prefetchKey = getNotePrefetchKey(notesPath, path);
+    const pendingPrefetch = pendingNotePrefetches.get(prefetchKey);
+    if (!pendingPrefetch || pendingPrefetch.started) {
+      return;
+    }
+
+    cancelledNotePrefetches.add(prefetchKey);
   },
 
   adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => {

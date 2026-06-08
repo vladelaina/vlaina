@@ -27,6 +27,10 @@ import { collectNotePathsInTreeOrder } from './features/common/noteTreeNavigatio
 import { useI18n } from '@/lib/i18n';
 import { clearRemoteImageMemoryCache } from './features/Editor/plugins/image-block/utils/remoteImageMemoryCache';
 import { preloadMarkdownEditor } from './features/Editor/preloadMarkdownEditor';
+import {
+  LargeMarkdownFirstPaintPreview,
+  createLargeMarkdownFirstPaintPreviewBlocks,
+} from './features/Editor/LargeMarkdownFirstPaintPreview';
 import { shouldAutoCreateBlankDraft } from './autoCreateBlankDraftPolicy';
 import { themeBackdropTokens, themeEditorLayoutTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
 
@@ -58,6 +62,7 @@ export function NotesView({
 }) {
   const { t } = useI18n();
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
+  const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
   const loadFileTree = useNotesStore(s => s.loadFileTree);
   const openTabs = useNotesStore(s => s.openTabs);
   const closeTab = useNotesStore(s => s.closeTab);
@@ -120,7 +125,8 @@ export function NotesView({
   const autoCreateVaultPathRef = useRef<string | null>(currentVault?.path ?? null);
   const vaultInitializingRef = useRef(false);
   const consumedPendingStarredNavigationKeyRef = useRef<string | null>(null);
-  const [canLoadMarkdownEditor, setCanLoadMarkdownEditor] = useState(false);
+  const [canLoadMarkdownEditor, setCanLoadMarkdownEditor] = useState(() => active);
+  const [primaryContentReadyPath, setPrimaryContentReadyPath] = useState<string | null>(null);
   const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
   const handleVaultInitializingChange = useCallback((initializing: boolean) => {
     vaultInitializingRef.current = initializing;
@@ -144,18 +150,44 @@ export function NotesView({
     onStartupReady?.();
   }, [currentNotePath, currentVault, isLoading, onStartupReady, openTabs.length]);
 
-  const reportNotesPrimaryContentReady = useCallback(() => {
-    onPrimaryContentReady?.();
-  }, [onPrimaryContentReady]);
-
   useEffect(() => {
-    if (!currentNotePath) {
-      setCanLoadMarkdownEditor(false);
+    if (!active) {
       return;
     }
 
-    setCanLoadMarkdownEditor(true);
-  }, [currentNotePath, openTabs.length]);
+    const timeoutId = window.setTimeout(() => {
+      void preloadMarkdownEditor();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [active]);
+
+  const reportNotesPrimaryContentReady = useCallback(() => {
+    setPrimaryContentReadyPath(currentNotePath ?? null);
+    onPrimaryContentReady?.();
+  }, [currentNotePath, onPrimaryContentReady]);
+
+  useEffect(() => {
+    if (!currentNotePath || primaryContentReadyPath === currentNotePath) {
+      return;
+    }
+
+    setPrimaryContentReadyPath(null);
+  }, [currentNotePath, primaryContentReadyPath]);
+
+  const firstPaintPreviewBlocks = useMemo(() => {
+    if (!active || !currentNotePath || primaryContentReadyPath === currentNotePath) {
+      return [];
+    }
+
+    return createLargeMarkdownFirstPaintPreviewBlocks(currentNoteContent);
+  }, [active, currentNoteContent, currentNotePath, primaryContentReadyPath]);
+
+  useEffect(() => {
+    setCanLoadMarkdownEditor(active || Boolean(currentNotePath));
+  }, [active, currentNotePath]);
 
   const {
     isOpenTargetBusy,
@@ -453,7 +485,13 @@ export function NotesView({
       </AnimatePresence>
 
       <div data-notes-view-mode="true" className="h-full w-full relative flex min-w-0">
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 relative">
+          {firstPaintPreviewBlocks.length > 0 ? (
+            <div className="absolute inset-x-0 top-0 z-[var(--vlaina-z-1)] flex justify-center pointer-events-none">
+              <LargeMarkdownFirstPaintPreview blocks={firstPaintPreviewBlocks} />
+            </div>
+          ) : null}
+
           {canLoadMarkdownEditor ? (
             <Suspense fallback={null}>
               <MarkdownEditor

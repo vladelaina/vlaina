@@ -16,7 +16,7 @@ import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { tableBlock } from '@milkdown/kit/component/table-block';
 import type { Ctx } from '@milkdown/kit/ctx';
-import { Slice } from '@milkdown/kit/prose/model';
+import { Slice, type Node as ProseNode, type Schema } from '@milkdown/kit/prose/model';
 import type { Parser } from '@milkdown/kit/transformer';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -88,14 +88,142 @@ type ActiveMilkdownEditor = {
   onStatusChange?: (onChange: (status: string) => void) => unknown;
 };
 
+type ProseMirrorJSONNode = {
+  type: string;
+  attrs?: Record<string, unknown>;
+  text?: string;
+  content?: ProseMirrorJSONNode[];
+};
+
+type MilkdownDefaultValue =
+  | string
+  | {
+      type: 'json';
+      value: ProseMirrorJSONNode;
+    };
+
+function logE2EMilkdownTiming(label: string, detail: Record<string, unknown>): void {
+  if (
+    typeof window === 'undefined' ||
+    !(window as { __vlainaE2E?: unknown }).__vlainaE2E
+  ) {
+    return;
+  }
+
+  console.info(`[notes-milkdown-timing:${label}]`, {
+    ...detail,
+    atMs: Math.round(performance.now()),
+  });
+}
+
+const LARGE_PLAIN_MARKDOWN_FAST_PARSE_MIN_LENGTH = 1_000_000;
+const MARKDOWN_BLANK_LINE_COMMENT = '<!--vlaina-markdown-blank-line-->';
+const FAST_PARSE_DISALLOWED_TEXT_PATTERN = /[`*_~[\]()<>\\|]/;
+const FAST_PARSE_HEADING_PATTERN = /^(#{1,6})[ \t]+(.+)$/;
+const FAST_PARSE_STRUCTURAL_LINE_PATTERN = /^(?: {0,3})(?:[-+*]\s+|\d+[.)]\s+|[-*_][ \t]*[-*_][ \t]*[-*_][ \t]*$)/;
+
+export function createLargePlainMarkdownDocJSON(markdown: string): ProseMirrorJSONNode | null {
+  if (markdown.length < LARGE_PLAIN_MARKDOWN_FAST_PARSE_MIN_LENGTH || markdown.includes('\r')) {
+    return null;
+  }
+
+  const content: ProseMirrorJSONNode[] = [];
+  let lineStart = 0;
+  while (lineStart < markdown.length) {
+    const nextBreak = markdown.indexOf('\n', lineStart);
+    const lineEnd = nextBreak === -1 ? markdown.length : nextBreak;
+    const line = markdown.slice(lineStart, lineEnd);
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (nextBreak === -1) {
+        break;
+      }
+      lineStart = nextBreak + 1;
+      continue;
+    }
+
+    if (trimmed === MARKDOWN_BLANK_LINE_COMMENT) {
+      content.push({
+        type: 'html_block',
+        attrs: { value: MARKDOWN_BLANK_LINE_COMMENT },
+      });
+      if (nextBreak === -1) {
+        break;
+      }
+      lineStart = nextBreak + 1;
+      continue;
+    }
+
+    const headingMatch = FAST_PARSE_HEADING_PATTERN.exec(line);
+    if (headingMatch) {
+      const text = (headingMatch[2] ?? '').replace(/[ \t]+#+[ \t]*$/, '').trimEnd();
+      if (!text || FAST_PARSE_DISALLOWED_TEXT_PATTERN.test(text)) {
+        return null;
+      }
+      content.push({
+        type: 'heading',
+        attrs: { level: Math.min(6, headingMatch[1]?.length ?? 1) },
+        content: [{ type: 'text', text: text.trimEnd() }],
+      });
+      if (nextBreak === -1) {
+        break;
+      }
+      lineStart = nextBreak + 1;
+      continue;
+    }
+
+    if (
+      /^\s/.test(line)
+      || FAST_PARSE_STRUCTURAL_LINE_PATTERN.test(line)
+      || FAST_PARSE_DISALLOWED_TEXT_PATTERN.test(line)
+    ) {
+      return null;
+    }
+
+    content.push({
+      type: 'paragraph',
+      content: [{ type: 'text', text: line }],
+    });
+
+    if (nextBreak === -1) {
+      break;
+    }
+    lineStart = nextBreak + 1;
+  }
+
+  return content.length > 0 ? { type: 'doc', content } : null;
+}
+
+function createLargePlainMarkdownDoc(schema: Schema, markdown: string): ProseNode | null {
+  const json = createLargePlainMarkdownDocJSON(markdown);
+  if (!json) {
+    return null;
+  }
+
+  try {
+    return schema.nodeFromJSON(json);
+  } catch {
+    return null;
+  }
+}
+
 export function replaceEditorMarkdown(ctx: Ctx, markdown: string): boolean {
   let view: EditorView;
-  let doc: ReturnType<Parser>;
+  let doc: ReturnType<Parser> | ProseNode | null;
 
   try {
     view = ctx.get(editorViewCtx);
-    const parser = ctx.get(parserCtx);
-    doc = parser(markdown);
+    const fastDocStartedAt = performance.now();
+    doc = createLargePlainMarkdownDoc(view.state.schema, markdown);
+    if (doc) {
+      logE2EMilkdownTiming('replace-fast-doc', {
+        inputLength: markdown.length,
+        durationMs: Math.round(performance.now() - fastDocStartedAt),
+      });
+    } else {
+      const parser = ctx.get(parserCtx);
+      doc = parser(markdown);
+    }
   } catch {
     return false;
   }
@@ -135,7 +263,11 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     resolveMarkdownThemeViewport(typeof window === 'undefined' ? 1024 : window.innerWidth)
   );
   const currentNoteContentRef = useRef(useNotesStore.getState().currentNote?.content ?? '');
-  const lastAppliedDiskRevisionRef = useRef(currentNoteDiskRevision);
+  const lastAppliedNoteRef = useRef({
+    path: currentNotePath,
+    diskRevision: currentNoteDiskRevision,
+    content: currentNoteContentRef.current,
+  });
   const isDraftNote = isDraftNotePath(currentNotePath);
   const onEditorViewReadyRef = useRef(onEditorViewReady);
   const activeRef = useRef(active);
@@ -160,7 +292,14 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   });
 
   const initialContent = useMemo(() => {
-    return normalizeAlternativeMathBlockFences(currentNoteContentRef.current);
+    const startedAt = performance.now();
+    const normalized = normalizeAlternativeMathBlockFences(currentNoteContentRef.current);
+    logE2EMilkdownTiming('initial-content', {
+      notePath: currentNotePath,
+      inputLength: currentNoteContentRef.current.length,
+      durationMs: Math.round(performance.now() - startedAt),
+    });
+    return normalized;
   }, []);
   const typoraRuntimePlatformClasses = useMemo(() => {
     return importedMarkdownThemePlatform === 'typora'
@@ -320,15 +459,38 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   ]);
 
   const { get } = useEditor((root) => {
+    const editorFactoryStartedAt = performance.now();
     const editor = Editor.make()
       .config((ctx) => {
+        const configStartedAt = performance.now();
         const normalizedFrontmatter = normalizeLeadingFrontmatterMarkdown(initialContent);
-        const defaultValue = preserveMarkdownBlankLinesForEditor(
+        const blankLineStartedAt = performance.now();
+        const defaultMarkdown = preserveMarkdownBlankLinesForEditor(
           normalizedFrontmatter
         );
+        const defaultJsonStartedAt = performance.now();
+        const defaultJson = createLargePlainMarkdownDocJSON(defaultMarkdown);
+        const defaultValue: MilkdownDefaultValue = defaultJson
+          ? { type: 'json', value: defaultJson }
+          : defaultMarkdown;
+        if (defaultJson) {
+          logE2EMilkdownTiming('default-json', {
+            notePath: currentNotePath,
+            inputLength: defaultMarkdown.length,
+            blockCount: defaultJson.content?.length ?? 0,
+            durationMs: Math.round(performance.now() - defaultJsonStartedAt),
+          });
+        }
+        logE2EMilkdownTiming('default-value', {
+          notePath: currentNotePath,
+          inputLength: initialContent.length,
+          outputLength: defaultMarkdown.length,
+          valueType: typeof defaultValue === 'string' ? 'markdown' : defaultValue.type,
+          durationMs: Math.round(performance.now() - blankLineStartedAt),
+        });
 
         ctx.set(rootCtx, root);
-        ctx.set(defaultValueCtx, defaultValue);
+        ctx.set(defaultValueCtx, defaultValue as never);
         ctx.update(remarkStringifyOptionsCtx, (prev) => ({
           ...prev,
           ...notesRemarkStringifyOptions,
@@ -339,6 +501,10 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
           .markdownUpdated((_ctx, markdown) => {
             handleMarkdownUpdated(markdown);
           });
+        logE2EMilkdownTiming('config', {
+          notePath: currentNotePath,
+          durationMs: Math.round(performance.now() - configStartedAt),
+        });
       })
       .use(commonmark)
       .use(gfm)
@@ -351,6 +517,10 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     const statusEditor = editor as unknown as ActiveMilkdownEditor;
     statusEditor.onStatusChange?.((status: string) => {
       if (status === 'Created') {
+        logE2EMilkdownTiming('created', {
+          notePath: currentNotePath,
+          totalSinceFactoryMs: Math.round(performance.now() - editorFactoryStartedAt),
+        });
         onEditorViewReadyRef.current?.();
         activateEditor(statusEditor);
       }
@@ -374,7 +544,12 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   }, [get, setEditorGetter]);
 
   useEffect(() => {
-    if (lastAppliedDiskRevisionRef.current === currentNoteDiskRevision) {
+    const lastAppliedNote = lastAppliedNoteRef.current;
+    if (
+      lastAppliedNote.path === currentNotePath &&
+      lastAppliedNote.diskRevision === currentNoteDiskRevision &&
+      lastAppliedNote.content === currentNoteContent
+    ) {
       return;
     }
 
@@ -390,18 +565,37 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
 
       const view = editor.ctx.get(editorViewCtx) as EditorView;
       const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
-      const scrollTop = scrollRoot?.scrollTop ?? null;
+      const isSameNotePath = lastAppliedNote.path === currentNotePath;
+      const scrollTop = isSameNotePath ? scrollRoot?.scrollTop ?? null : null;
+      const prepareStartedAt = performance.now();
       const normalizedFrontmatter = normalizeLeadingFrontmatterMarkdown(
         normalizeAlternativeMathBlockFences(currentNoteContent)
       );
       const nextMarkdown = preserveMarkdownBlankLinesForEditor(normalizedFrontmatter);
+      logE2EMilkdownTiming('replace-prepare', {
+        notePath: currentNotePath,
+        inputLength: currentNoteContent.length,
+        outputLength: nextMarkdown.length,
+        durationMs: Math.round(performance.now() - prepareStartedAt),
+      });
 
+      const replaceStartedAt = performance.now();
       const replaced = runEditorAction((ctx) => replaceEditorMarkdown(ctx, nextMarkdown));
+      logE2EMilkdownTiming('replace-dispatch', {
+        notePath: currentNotePath,
+        replaced,
+        durationMs: Math.round(performance.now() - replaceStartedAt),
+      });
       if (!replaced) {
         return;
       }
 
-      lastAppliedDiskRevisionRef.current = currentNoteDiskRevision;
+      lastAppliedNoteRef.current = {
+        path: currentNotePath,
+        diskRevision: currentNoteDiskRevision,
+        content: currentNoteContent,
+      };
+      onEditorViewReadyRef.current?.();
 
       if (scrollRoot && scrollTop !== null) {
         const restoreScroll = () => {
@@ -420,7 +614,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       cancelAnimationFrame(restoreFrame);
       window.clearTimeout(restoreTimeout);
     };
-  }, [activatedRevision, currentNoteContent, currentNoteDiskRevision, get]);
+  }, [activatedRevision, currentNoteContent, currentNoteDiskRevision, currentNotePath, get]);
 
   useEffect(() => {
     return () => {
@@ -454,9 +648,9 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   }, [activateEditor, active, cleanupActivatedEditor, get, currentNotePath]);
 
   const isEmptyContent = useMemo(() => {
-    const content = initialContent.trim();
+    const content = currentNoteContent.trim();
     return content.length === 0 || /^#\s*$/.test(content);
-  }, [initialContent]);
+  }, [currentNoteContent]);
 
   const shouldFocusEmptyDraftBody = isDraftNote && !isNewlyCreated && isEmptyContent;
 

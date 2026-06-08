@@ -828,6 +828,45 @@ describe('workspaceSlice tab history', () => {
     expect(store.getState().noteContentsCache.get('beta.md')?.freshUntil).toEqual(expect.any(Number));
   });
 
+  it('keeps a started hover prefetch reusable after pointer leave cancellation', async () => {
+    let readStarted = false;
+    let resolveRead: (content: string) => void = () => {
+      throw new Error('read did not start');
+    };
+    storageAdapter.readFile.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          readStarted = true;
+          resolveRead = resolve;
+        })
+    );
+    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true, size: 0 });
+
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    const prefetch = store.getState().prefetchNote('beta.md');
+    await vi.waitFor(() => {
+      expect(readStarted).toBe(true);
+    });
+
+    store.getState().cancelPrefetchNote('beta.md');
+    const open = store.getState().openNote('beta.md');
+    resolveRead('# beta');
+    await Promise.all([prefetch, open]);
+
+    expect(storageAdapter.readFile).toHaveBeenCalledTimes(1);
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md');
+    expect(store.getState().currentNote).toEqual({ path: 'beta.md', content: '# beta' });
+    expect(store.getState().noteContentsCache.get('beta.md')).toEqual({
+      content: '# beta',
+      modifiedAt: 4,
+    });
+  });
+
   it('cancels a queued note prefetch before it reads or writes cache', async () => {
     const pendingReads = new Map<string, (content: string) => void>();
     storageAdapter.readFile.mockImplementation(
@@ -867,6 +906,54 @@ describe('workspaceSlice tab history', () => {
     });
     expect(store.getState().noteContentsCache.get('block-b.md')).toEqual({
       content: '# block b',
+      modifiedAt: 4,
+    });
+  });
+
+  it('does not run a queued hover prefetch while the same note is opening directly', async () => {
+    const pendingReads = new Map<string, Array<(content: string) => void>>();
+    storageAdapter.readFile.mockImplementation(
+      (path: string) =>
+        new Promise<string>((resolve) => {
+          const resolves = pendingReads.get(path) ?? [];
+          resolves.push(resolve);
+          pendingReads.set(path, resolves);
+        })
+    );
+    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true, size: 0 });
+
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    const firstPrefetch = store.getState().prefetchNote('block-a.md');
+    const secondPrefetch = store.getState().prefetchNote('block-b.md');
+    const queuedPrefetch = store.getState().prefetchNote('queued.md');
+
+    await vi.waitFor(() => {
+      expect(pendingReads.get('/vault/block-a.md')).toHaveLength(1);
+      expect(pendingReads.get('/vault/block-b.md')).toHaveLength(1);
+    });
+
+    const openQueued = store.getState().openNote('queued.md');
+    await vi.waitFor(() => {
+      expect(pendingReads.get('/vault/queued.md')).toHaveLength(1);
+    });
+
+    pendingReads.get('/vault/block-a.md')?.[0]?.('# block a');
+    pendingReads.get('/vault/block-b.md')?.[0]?.('# block b');
+    await Promise.all([firstPrefetch, secondPrefetch, queuedPrefetch]);
+
+    expect(storageAdapter.readFile.mock.calls.filter(([path]) => path === '/vault/queued.md')).toHaveLength(1);
+
+    pendingReads.get('/vault/queued.md')?.[0]?.('# queued direct open');
+    await openQueued;
+
+    expect(store.getState().currentNote).toEqual({ path: 'queued.md', content: '# queued direct open' });
+    expect(store.getState().noteContentsCache.get('queued.md')).toEqual({
+      content: '# queued direct open',
       modifiedAt: 4,
     });
   });

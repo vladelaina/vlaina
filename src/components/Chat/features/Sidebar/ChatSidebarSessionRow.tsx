@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
+import { memo, useCallback, useState, type MouseEvent } from 'react';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { actions as aiActions } from '@/stores/useAIStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
@@ -40,8 +40,6 @@ interface ChatSidebarSessionRowProps {
   onHideSearch?: () => void;
   shouldHideSearchResults: boolean;
 }
-
-const RENAMEABLE_ROW_CLICK_DELAY_MS = 180;
 
 function getChatSessionTitleClass({
   isActive,
@@ -89,21 +87,19 @@ function ChatSidebarSessionRowInner({
   const { t } = useI18n();
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ top: 0, left: 0 });
-  const switchTimerRef = useRef<number | null>(null);
   const isGenerating = useAIUIStore((state) => !!state.generatingSessions[session.id]);
   const isUnread = useAIUIStore((state) => !!state.unreadSessions[session.id]);
   const displayTitle = session.title || 'New';
+  const cancelHoverPrefetch = useCallback(() => {
+    aiActions.cancelSessionPrefetch(session.id);
+  }, [session.id]);
   const hoverPrefetch = useSidebarHoverPrefetch(
     useCallback(() => aiActions.prefetchSession(session.id), [session.id]),
-    { enabled: !isActive && !isRenaming },
+    {
+      enabled: !isActive && !isRenaming,
+      cancel: cancelHoverPrefetch,
+    },
   );
-  const cancelPendingSwitch = useCallback(() => {
-    if (switchTimerRef.current !== null) {
-      window.clearTimeout(switchTimerRef.current);
-      switchTimerRef.current = null;
-    }
-  }, []);
-  useEffect(() => cancelPendingSwitch, [cancelPendingSwitch]);
   const handleStartRename = () => {
     onStartRename(session.id, session.title);
     setShowContextMenu(false);
@@ -127,7 +123,6 @@ function ChatSidebarSessionRowInner({
 
     event.preventDefault();
     event.stopPropagation();
-    cancelPendingSwitch();
     onStartRename(session.id, session.title);
     setShowContextMenu(false);
   };
@@ -213,14 +208,10 @@ function ChatSidebarSessionRowInner({
         if (isRenaming) {
           return;
         }
-        cancelPendingSwitch();
-        switchTimerRef.current = window.setTimeout(() => {
-          switchTimerRef.current = null;
-          onSwitch(session.id, isUnread);
-          if (shouldHideSearchResults) {
-            onHideSearch?.();
-          }
-        }, RENAMEABLE_ROW_CLICK_DELAY_MS);
+        onSwitch(session.id, isUnread);
+        if (shouldHideSearchResults) {
+          onHideSearch?.();
+        }
       }}
       onDoubleClick={handleRenameFromDoubleClick}
       main={

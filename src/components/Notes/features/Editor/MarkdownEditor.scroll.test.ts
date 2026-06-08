@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canPersistNoteScrollPosition } from './MarkdownEditor';
+import { createLargeMarkdownFirstPaintPreviewBlocks } from './LargeMarkdownFirstPaintPreview';
 
 describe('canPersistNoteScrollPosition', () => {
   it('allows visible scroll roots to persist their current scroll position', () => {
@@ -22,5 +23,39 @@ describe('canPersistNoteScrollPosition', () => {
     expect(canPersistNoteScrollPosition(scrollRoot)).toBe(false);
 
     scrollRoot.remove();
+  });
+});
+
+describe('createLargeMarkdownFirstPaintPreviewBlocks', () => {
+  it('returns no preview for small notes', () => {
+    expect(createLargeMarkdownFirstPaintPreviewBlocks('# Title\n\nBody')).toEqual([]);
+  });
+
+  it('creates a bounded rendered preview from the beginning of a large markdown note', () => {
+    const longParagraph = `Paragraph 0: ${'plain text '.repeat(400)}`;
+    const markdown = [
+      '# Large Note',
+      '',
+      '<!--vlaina-markdown-blank-line-->',
+      '',
+      longParagraph,
+      '',
+      ...Array.from({ length: 1200 }, (_, index) => `Paragraph ${index + 1}: ${'more text '.repeat(90)}`),
+    ].join('\n');
+
+    const blocks = createLargeMarkdownFirstPaintPreviewBlocks(markdown);
+
+    expect(markdown.length).toBeGreaterThan(1_000_000);
+    expect(blocks).toHaveLength(6);
+    expect(blocks[0]).toEqual({
+      key: 'h-0',
+      type: 'heading',
+      level: 1,
+      text: 'Large Note',
+    });
+    expect(blocks[1]?.type).toBe('paragraph');
+    expect(blocks[1]?.text.startsWith('Paragraph 0:')).toBe(true);
+    expect(blocks[1]?.text.endsWith('...')).toBe(true);
+    expect(blocks.every((block) => block.text.length <= 2403)).toBe(true);
   });
 });

@@ -58,7 +58,6 @@ vi.mock('./useTreeItemDragSource', () => ({
 
 describe('useFileItemState', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     mocks.openNote.mockReset();
     mocks.openNote.mockResolvedValue(undefined);
     mocks.scrollCurrentNoteToTop.mockReset();
@@ -66,9 +65,6 @@ describe('useFileItemState', () => {
   });
 
   afterEach(() => {
-    act(() => {
-      vi.runOnlyPendingTimers();
-    });
     vi.useRealTimers();
   });
 
@@ -88,12 +84,6 @@ describe('useFileItemState', () => {
         ctrlKey: false,
         metaKey: false,
       } as unknown as React.MouseEvent);
-    });
-
-    expect(mocks.scrollCurrentNoteToTop).not.toHaveBeenCalled();
-
-    act(() => {
-      vi.advanceTimersByTime(180);
     });
 
     expect(mocks.scrollCurrentNoteToTop).toHaveBeenCalledTimes(1);
@@ -118,17 +108,11 @@ describe('useFileItemState', () => {
       } as unknown as React.MouseEvent);
     });
 
-    expect(mocks.openNote).not.toHaveBeenCalled();
-
-    act(() => {
-      vi.advanceTimersByTime(180);
-    });
-
     expect(mocks.scrollCurrentNoteToTop).not.toHaveBeenCalled();
     expect(mocks.openNote).toHaveBeenCalledWith('docs/alpha.md', true);
   });
 
-  it('cancels a pending click when double-click rename starts', () => {
+  it('keeps cancelPendingClick available for double-click rename cleanup', () => {
     const { result } = renderHook(() =>
       useFileItemState({
         id: 'docs/beta.md',
@@ -145,9 +129,8 @@ describe('useFileItemState', () => {
         metaKey: false,
       } as unknown as React.MouseEvent);
       result.current.cancelPendingClick();
-      vi.advanceTimersByTime(180);
     });
 
-    expect(mocks.openNote).not.toHaveBeenCalled();
+    expect(mocks.openNote).toHaveBeenCalledWith('docs/beta.md', false);
   });
 });

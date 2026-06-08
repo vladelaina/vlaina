@@ -400,6 +400,19 @@ export function getCurrentEditorBlockPositionSnapshot(): EditorBlockPositionSnap
   return currentSnapshot;
 }
 
+export function refreshCurrentEditorBlockPositionSnapshot(
+  view: EditorView,
+): EditorBlockPositionSnapshot | null {
+  let snapshot: EditorBlockPositionSnapshot | null = null;
+  try {
+    snapshot = createSnapshot(view);
+  } catch {
+    snapshot = null;
+  }
+  publishSnapshot(snapshot);
+  return snapshot;
+}
+
 export function subscribeCurrentEditorBlockPositionSnapshot(
   listener: (snapshot: EditorBlockPositionSnapshot | null) => void,
 ): () => void {
@@ -749,7 +762,10 @@ export function createCurrentEditorBlockPositionController(
   scrollRoot?.addEventListener('scroll', handleScroll, { passive: true });
   window.addEventListener('resize', scheduleRefresh);
 
-  refresh();
+  publishSnapshot(createEmptySnapshot(view));
+  if (!isTooLargeForBlockPositionSnapshot(view.state.doc)) {
+    scheduleRefresh();
+  }
 
   return {
     refresh,

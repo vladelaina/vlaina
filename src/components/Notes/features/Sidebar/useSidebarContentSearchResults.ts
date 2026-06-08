@@ -33,6 +33,7 @@ export function useSidebarContentSearchResults({
   const contentScanPromiseRef = useRef<Promise<unknown> | null>(null);
   const contentScanAbortControllerRef = useRef<AbortController | null>(null);
   const shouldPruneAfterScanRef = useRef(false);
+  const wasContentSearchActiveRef = useRef(false);
   const [isContentScanPending, setIsContentScanPending] = useState(false);
 
   const searchIndex = useMemo(
@@ -48,6 +49,8 @@ export function useSidebarContentSearchResults({
   );
   const searchableNoteCount = contentSearchEntries.length;
   const shouldSearchContents = shouldSearchNotesSidebarContents(searchQuery);
+  const isContentSearchActive =
+    isSearchOpen && shouldSearchContents && searchableNoteCount > 0;
   const isContentIndexReady = useMemo(
     () =>
       searchableNoteCount > 0 &&
@@ -66,20 +69,27 @@ export function useSidebarContentSearchResults({
   );
 
   useEffect(() => {
-    if (
-      !isSearchOpen ||
-      !shouldSearchContents ||
-      searchableNoteCount === 0 ||
-      isContentIndexReady
-    ) {
+    const wasContentSearchActive = wasContentSearchActiveRef.current;
+    wasContentSearchActiveRef.current = isContentSearchActive;
+
+    if (!isContentSearchActive) {
       setIsContentScanPending(false);
-      if (!isSearchOpen || !shouldSearchContents) {
+      if (
+        wasContentSearchActive ||
+        contentScanPromiseRef.current ||
+        contentScanAbortControllerRef.current
+      ) {
         contentScanAbortControllerRef.current?.abort();
         contentScanAbortControllerRef.current = null;
         cancelNoteContentScan();
         shouldPruneAfterScanRef.current = true;
         pruneNoteContentsCacheToOpenNotes();
       }
+      return;
+    }
+
+    if (isContentIndexReady) {
+      setIsContentScanPending(false);
       return;
     }
 
@@ -126,11 +136,9 @@ export function useSidebarContentSearchResults({
   }, [
     cancelNoteContentScan,
     isContentIndexReady,
-    isSearchOpen,
+    isContentSearchActive,
     pruneNoteContentsCacheToOpenNotes,
     scanAllNotes,
-    searchableNoteCount,
-    shouldSearchContents,
   ]);
 
   useEffect(() => {

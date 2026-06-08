@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback } from 'react';
 import type React from 'react';
 import { useNotesStore, type NoteFile } from '@/stores/useNotesStore';
 import { useTreeItemUiState } from './useTreeItemUiState';
 import { useTreeItemDragSource } from './useTreeItemDragSource';
 import { scrollCurrentNoteToTop } from '../../Editor/utils/scrollCurrentNoteToTop';
-
-const RENAMEABLE_ROW_CLICK_DELAY_MS = 180;
 
 export function useFileItemState(node: NoteFile, dragEnabled = true) {
   const openNote = useNotesStore((state) => state.openNote);
@@ -31,35 +29,21 @@ export function useFileItemState(node: NoteFile, dragEnabled = true) {
     name: node.name,
   });
   const dragHandlers = useTreeItemDragSource(node.path, isRenaming || !dragEnabled);
-  const clickTimerRef = useRef<number | null>(null);
-
-  const cancelPendingClick = useCallback(() => {
-    if (clickTimerRef.current !== null) {
-      window.clearTimeout(clickTimerRef.current);
-      clickTimerRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => cancelPendingClick, [cancelPendingClick]);
+  const cancelPendingClick = useCallback(() => {}, []);
 
   const handleClick = useCallback(
     (event: React.MouseEvent) => {
       event.stopPropagation();
-      cancelPendingClick();
 
       const openInNewTab = event.ctrlKey || event.metaKey;
-      clickTimerRef.current = window.setTimeout(() => {
-        clickTimerRef.current = null;
+      if (!openInNewTab && currentNotePath === node.path) {
+        scrollCurrentNoteToTop();
+        return;
+      }
 
-        if (!openInNewTab && currentNotePath === node.path) {
-          scrollCurrentNoteToTop();
-          return;
-        }
-
-        void openNote(node.path, openInNewTab);
-      }, RENAMEABLE_ROW_CLICK_DELAY_MS);
+      void openNote(node.path, openInNewTab);
     },
-    [cancelPendingClick, currentNotePath, node.path, openNote]
+    [currentNotePath, node.path, openNote]
   );
 
   const handleRenameSubmit = useCallback(async () => {

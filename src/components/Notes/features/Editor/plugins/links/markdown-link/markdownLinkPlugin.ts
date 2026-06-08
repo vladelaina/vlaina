@@ -11,12 +11,14 @@ import {
     shouldHandleMarkdownLinkPaste,
 } from './markdownLinkParser';
 import {
+    DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
     STOP_PROSE_SCAN,
     scanProseDescendants,
 } from '../../shared/boundedProseNodeScan';
 
 export const markdownLinkPluginKey = new PluginKey('markdown-link-paste');
 const MAX_MARKDOWN_LINK_DOC_SCAN_SIZE = 1024 * 1024;
+export const MAX_MARKDOWN_LINK_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 const MAX_MARKDOWN_LINK_PASTE_CHARS = 1024 * 1024;
 const MARKDOWN_LINK_TRIGGER_TEXT_PATTERN = /[\[\]\(\)]/;
 
@@ -51,7 +53,7 @@ export function docHasRawMarkdownLink(doc: ProseNode): boolean {
         MARKDOWN_LINK_PATTERN_GLOBAL.lastIndex = 0;
         hasRawMarkdownLink = MARKDOWN_LINK_PATTERN_GLOBAL.test(node.text);
         return hasRawMarkdownLink ? STOP_PROSE_SCAN : true;
-    }, Number.POSITIVE_INFINITY);
+    }, MAX_MARKDOWN_LINK_DOC_SCAN_NODES);
     return hasRawMarkdownLink;
 }
 
@@ -104,7 +106,7 @@ export const markdownLinkPlugin = $prose(() => {
             if (!linkMarkType) return null;
 
             // Scan for markdown link patterns in text nodes
-            newState.doc.descendants((node, pos) => {
+            scanProseDescendants(newState.doc, (node, pos) => {
                 if (!node.isText || !node.text) return;
 
                 const text = node.text;
@@ -158,7 +160,8 @@ export const markdownLinkPlugin = $prose(() => {
                         }
                     }
                 }
-            });
+                return true;
+            }, MAX_MARKDOWN_LINK_DOC_SCAN_NODES);
 
             return hasChanges ? tr : null;
         },
