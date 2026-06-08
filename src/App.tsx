@@ -4,15 +4,20 @@ import { AppContent } from '@/AppContent';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { MarkdownThemeDirectorySync } from '@/components/markdown-theme/MarkdownThemeDirectorySync';
 import { MarkdownThemeLoader } from '@/components/markdown-theme/MarkdownThemeLoader';
+import { useImportedMarkdownThemePlatform } from '@/components/markdown-theme/useImportedMarkdownThemePlatform';
 import { ThemeProvider } from '@/components/theme-provider';
 import { useBillingReturnRefresh } from '@/hooks/useBillingReturnRefresh';
 import { useElectronCloseGuard } from '@/hooks/useElectronCloseGuard';
 import { useNativeCaretOverlay } from '@/hooks/useNativeCaretOverlay';
 import { useAccountSessionStore } from '@/stores/accountSession';
+import { selectMarkdownImportedThemeId } from '@/stores/unified/settings/markdownSettings';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { useDocumentLanguage, useI18n } from '@/lib/i18n';
+import {
+  resolveImportedMarkdownThemeColorModePreference,
+} from '@/lib/markdown/theme-compatibility/colorScheme';
 import { normalizeColorModePreference, syncDocumentColorModeClass } from '@/lib/theme/colorModeSync';
 
 const ConfirmDialog = lazy(async () => {
@@ -30,12 +35,20 @@ const ACCOUNT_FOCUS_REFRESH_THROTTLE_MS = 1500;
 function AppThemeSync() {
   const { setTheme } = useTheme();
   const colorMode = useUnifiedStore((state) => state.data.settings.ui?.colorMode);
+  const importedThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
+  const importedThemePlatform = useImportedMarkdownThemePlatform(importedThemeId);
 
   useEffect(() => {
     const normalizedColorMode = normalizeColorModePreference(colorMode);
-    setTheme(normalizedColorMode);
-    return syncDocumentColorModeClass(normalizedColorMode);
-  }, [colorMode, setTheme]);
+    const effectiveColorMode = resolveImportedMarkdownThemeColorModePreference({
+      importedThemeId,
+      importedThemePlatform,
+      appPreference: normalizedColorMode,
+    });
+
+    setTheme(effectiveColorMode);
+    return syncDocumentColorModeClass(effectiveColorMode);
+  }, [colorMode, importedThemeId, importedThemePlatform, setTheme]);
 
   return null;
 }

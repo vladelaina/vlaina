@@ -83,10 +83,10 @@
 
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write {
   width: 100% !important;
-  max-width: var(--typora-page-max-width) !important;
+  max-width: 100% !important;
   min-width: 0 !important;
-  margin-inline: auto !important;
-  padding-inline: var(--typora-page-padding-inline) !important;
+  margin-inline: 0 !important;
+  padding-inline: 0 !important;
   overflow-x: visible !important;
 }
 

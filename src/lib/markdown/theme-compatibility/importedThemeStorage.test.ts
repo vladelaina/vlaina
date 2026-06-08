@@ -7,6 +7,7 @@ import {
   listImportedMarkdownThemes,
   listImportedMarkdownThemesFromDirectory,
   readImportedMarkdownTheme,
+  readImportedMarkdownThemeMetadata,
   syncImportedMarkdownThemesFromDirectory,
 } from './importedThemeStorage';
 
@@ -159,6 +160,24 @@ describe('imported markdown theme storage', () => {
     await expect(listImportedMarkdownThemes('obsidian')).resolves.toEqual([
       expect.objectContaining({ id: 'minimal', platform: 'obsidian' }),
     ]);
+  });
+
+  it('reads imported theme metadata without reading the cached CSS body', async () => {
+    await importMarkdownThemeCss({
+      name: 'Clean Light.css',
+      platform: 'typora',
+      css: '#write { color: red; }',
+    });
+    adapter.readFile.mockClear();
+
+    await expect(readImportedMarkdownThemeMetadata('clean-light')).resolves.toEqual(expect.objectContaining({
+      id: 'clean-light',
+      platform: 'typora',
+      cssFile: 'clean-light.css',
+    }));
+
+    expect(adapter.readFile).toHaveBeenCalledWith('/app/.vlaina/store/markdown-theme-cache/themes.json');
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/store/markdown-theme-cache/clean-light.css');
   });
 
   it('deduplicates theme ids and deletes index and CSS entries together', async () => {

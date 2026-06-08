@@ -1,7 +1,10 @@
 import postcss from 'postcss';
 import { getMarkdownThemeRootScopeSelector } from './dom';
 import { isKeyframesRule } from './cssScoping/cssRules';
-import { rewriteColorSchemeMediaQueries } from './cssScoping/mediaQueries';
+import {
+  resolveFixedLightColorSchemeMediaQueries,
+  rewriteColorSchemeMediaQueries,
+} from './cssScoping/mediaQueries';
 import {
   removeImportedPageChromeSelectors,
   removeImportedRootLayoutDeclarations,
@@ -34,6 +37,10 @@ function rewriteCssSelectors(
     removeImportedRootLayoutDeclarations(rule, platform);
   });
 
-  rewriteColorSchemeMediaQueries(root, scopeSelector);
+  if (platform === 'typora') {
+    resolveFixedLightColorSchemeMediaQueries(root);
+  } else {
+    rewriteColorSchemeMediaQueries(root, scopeSelector);
+  }
   return root.toString();
 }

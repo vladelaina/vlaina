@@ -28,9 +28,10 @@ describe('imported app theme bridge', () => {
       '#write { color: var(--df); }',
     ].join('\n');
 
-    const bridged = buildImportedAppThemeCss(css, 'vlook-fancy');
+    const bridged = buildImportedAppThemeCss(css, 'vlook-fancy', 'typora');
 
     expect(bridged).toContain(':root[data-vlaina-imported-app-theme="vlook-fancy"]');
+    expect(bridged).toContain('color-scheme: light;');
     expect(bridged).toContain('--vlaina-color-surface-main: var(--db);');
     expect(bridged).toContain('--vlaina-color-surface-shell-sidebar: var(--db-ext);');
     expect(bridged).toContain('--vlaina-color-surface-sidebar: var(--db-ext);');
@@ -57,7 +58,16 @@ describe('imported app theme bridge', () => {
     expect(bridged).toContain('--font-text: var(--v-fm-text-local);');
     expect(bridged).toContain('--font-mono: var(--v-fm-code-local);');
     expect(bridged).toContain('--font-monospace: var(--v-fm-code-local);');
+    expect(bridged).toContain('--vlaina-color-panel-glass: linear-gradient(180deg, rgb(255 255 255 / 0.64), rgb(255 255 255 / 0.38));');
+    expect(bridged).toContain('--vlaina-color-ai-review-panel: var(--vlaina-color-white);');
+    expect(bridged).toContain('--vlaina-code-syntax-keyword: #d73a49;');
+    expect(bridged).toContain('--vlaina-shadow-menu: var(--v-fl-sd, 0 12px 36px -12px rgba(15, 23, 42, 0.24));');
+    expect(bridged).toContain('--vlaina-shadow-floating-panel: var(--v-fl-sd, 0 16px 40px rgba(15, 23, 42, 0.12));');
+    expect(bridged).toContain('--vlaina-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1)');
+    expect(bridged).toContain('--vlaina-filter-icon-hover: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));');
     expect(bridged).not.toContain('#write');
+    expect(bridged).not.toContain(':root[data-vlaina-imported-app-theme="vlook-fancy"].dark');
+    expect(bridged).not.toContain(':root[data-vlaina-imported-app-theme="vlook-fancy"].light');
   });
 
   it('maps Obsidian app chrome variables into the same Vlaina app shell tokens', () => {
@@ -101,9 +111,10 @@ describe('imported app theme bridge', () => {
       '.markdown-preview-view { color: var(--text-normal); }',
     ].join('\n');
 
-    const bridged = buildImportedAppThemeCss(css, 'minimal');
+    const bridged = buildImportedAppThemeCss(css, 'minimal', 'obsidian');
 
     expect(bridged).toContain(':root[data-vlaina-imported-app-theme="minimal"].dark');
+    expect(bridged).toContain('color-scheme: light dark;');
     expect(bridged).toContain('--vlaina-color-surface-main: var(--background-primary);');
     expect(bridged).toContain('--vlaina-color-surface-shell-sidebar: var(--background-secondary);');
     expect(bridged).toContain('--vlaina-color-surface-sidebar: var(--background-secondary-alt);');
@@ -133,13 +144,16 @@ describe('imported app theme bridge', () => {
     expect(bridged).toContain('--font-sans: var(--font-text-theme);');
     expect(bridged).toContain('--font-interface: var(--font-interface-theme);');
     expect(bridged).toContain('--font-mono: var(--font-monospace-theme);');
+    expect(bridged).not.toContain('--vlaina-shadow-menu: var(--v-fl-sd');
+    expect(bridged).not.toContain('--vlaina-color-panel-glass: linear-gradient(180deg, rgb(255 255 255 / 0.64)');
     expect(bridged).not.toContain('.markdown-preview-view');
   });
 
   it('does not bridge unsafe URL custom property values into the app shell', () => {
     const bridged = buildImportedAppThemeCss(
       ':root { --db: url("javascript:alert(1)"); --df: #111; --v-fm-text-local: url("./font.woff2"); }',
-      'unsafe'
+      'unsafe',
+      'typora'
     );
 
     expect(bridged).not.toContain('javascript:alert');
@@ -148,7 +162,80 @@ describe('imported app theme bridge', () => {
     expect(bridged).toContain('--vlaina-color-text-primary: var(--df);');
   });
 
-  it('keeps VLOOK prefers-color-scheme dark variables out of the light base bridge', () => {
+  it('promotes safe imported document backgrounds into the app surface', () => {
+    const bridged = buildImportedAppThemeCss(
+      [
+        ':root { --df: #1c1e1f; }',
+        'html, body { background: #f7f3e8; }',
+        'body { background-color: color-mix(in srgb, #f7f3e8 92%, white); }',
+        '#write { background: #ffffff; }',
+      ].join('\n'),
+      'paper',
+      'typora'
+    );
+
+    expect(bridged).toContain('--vlaina-imported-app-background: color-mix(in srgb, #f7f3e8 92%, white);');
+    expect(bridged).toContain('--vlaina-color-surface-main: var(--vlaina-imported-app-background);');
+    expect(bridged).not.toContain('--vlaina-imported-app-background: #ffffff;');
+    expect(bridged).not.toContain('--vlaina-imported-app-background-layer: #ffffff;');
+  });
+
+  it('promotes Typora full document background layers without treating them as color tokens', () => {
+    const bridged = buildImportedAppThemeCss(
+      [
+        ':root { --db: #f7f3e8; --d-bi: linear-gradient(90deg, #fff8 1px, transparent 1px); --df: #111; }',
+        'body.typora-export { background: var(--d-bi), var(--db); }',
+        'content > #write { background: var(--db) var(--d-bi); }',
+      ].join('\n'),
+      'paper-layer',
+      'typora'
+    );
+
+    expect(bridged).toContain('--vlaina-imported-app-background-layer: var(--db) var(--d-bi);');
+    expect(bridged).toContain('--vlaina-color-surface-main: var(--db);');
+    expect(bridged).not.toContain('--vlaina-color-surface-main: var(--vlaina-imported-app-background-layer);');
+  });
+
+  it('promotes Typora page pseudo-element texture backgrounds into app background variables', () => {
+    const bridged = buildImportedAppThemeCss(
+      [
+        ':root { --db: #fff; --db06: rgba(255, 255, 255, 0.6); --df: #111; }',
+        '@supports (backdrop-filter: blur(1px)) {',
+        '  .typora-export #write:not(.done):before, .v-welcome-page {',
+        '    backdrop-filter: blur(10px);',
+        '    background: radial-gradient(var(--db06) 4px, var(--db) 4px);',
+        '    background-size: 10px 10px;',
+        '  }',
+        '}',
+      ].join('\n'),
+      'paper-grid',
+      'typora'
+    );
+
+    expect(bridged).toContain('--vlaina-imported-app-background-layer: radial-gradient(var(--db06) 4px, var(--db) 4px);');
+    expect(bridged).toContain('--vlaina-imported-app-background-size: 10px 10px;');
+    expect(bridged).not.toContain('#write:not(.done):before');
+    expect(bridged).not.toContain('.v-welcome-page');
+  });
+
+  it('does not promote unsafe or image-like document backgrounds into color tokens', () => {
+    const bridged = buildImportedAppThemeCss(
+      [
+        'body { background: #fff url(javascript:alert(1)); }',
+        'html { background: linear-gradient(red, blue); }',
+        ':root { --df: #111; }',
+      ].join('\n'),
+      'unsafe-background',
+      'typora'
+    );
+
+    expect(bridged).toContain('--vlaina-imported-app-background-layer: linear-gradient(red, blue);');
+    expect(bridged).not.toContain('--vlaina-imported-app-background:');
+    expect(bridged).not.toContain('--vlaina-color-surface-main');
+    expect(bridged).toContain('--vlaina-color-text-primary: var(--df);');
+  });
+
+  it('keeps Typora prefers-color-scheme variables out of app dark-mode branches', () => {
     const bridged = buildImportedAppThemeCss(
       [
         ':root {',
@@ -165,19 +252,27 @@ describe('imported app theme bridge', () => {
         '    --df: var(--df-dk);',
         '  }',
         '}',
+        '@media (prefers-color-scheme: light) {',
+        '  :root {',
+        '    --df-a: #6b7280;',
+        '  }',
+        '}',
       ].join('\n'),
-      'vlook-fancy'
+      'vlook-fancy',
+      'typora'
     );
 
     expect(bridged).toContain(':root[data-vlaina-imported-app-theme="vlook-fancy"] {');
+    expect(bridged).toContain('color-scheme: light;');
     expect(bridged).toContain('--vlaina-color-surface-main: var(--db);');
-    expect(bridged).toContain(':root[data-vlaina-imported-app-theme="vlook-fancy"].dark');
-    expect(bridged).toContain('--db: var(--db-dk);');
-    expect(bridged).toContain('--df: var(--df-dk);');
+    expect(bridged).not.toContain(':root[data-vlaina-imported-app-theme="vlook-fancy"].dark');
+    expect(bridged).not.toContain(':root[data-vlaina-imported-app-theme="vlook-fancy"].light');
+    expect(bridged).not.toContain('--db: var(--db-dk);');
+    expect(bridged).not.toContain('--df: var(--df-dk);');
 
-    const baseRule = bridged.split(':root[data-vlaina-imported-app-theme="vlook-fancy"].dark')[0] ?? '';
-    expect(baseRule).toContain('--db: var(--db-lg);');
-    expect(baseRule).not.toContain('--db: var(--db-dk);');
+    expect(bridged).toContain('--db: var(--db-lg);');
+    expect(bridged).toContain('--df-a: #6b7280;');
+    expect(bridged).toContain('--vlaina-color-text-muted: var(--df-a);');
   });
 
   it('does not treat component-scoped Obsidian rules as app shell theme variables', () => {
@@ -188,7 +283,8 @@ describe('imported app theme bridge', () => {
         '.theme-light .markdown-preview-view { --background-primary: yellow; }',
         '@media print { :root { --background-primary: white; } }',
       ].join('\n'),
-      'minimal'
+      'minimal',
+      'obsidian'
     );
 
     expect(bridged).toContain('--background-primary: #101010;');
@@ -202,7 +298,8 @@ describe('imported app theme bridge', () => {
   it('avoids obvious font token self references when bridging imported variables', () => {
     const bridged = buildImportedAppThemeCss(
       ':root { --font-text: var(--font-sans); --font-interface-theme: system-ui; --font-monospace: var(--font-mono); --font-monospace-theme: monospace; }',
-      'self-reference'
+      'self-reference',
+      'obsidian'
     );
 
     expect(bridged).not.toContain('--font-sans: var(--font-text);');

@@ -2,6 +2,46 @@
    Imported Typora/Obsidian CSS is scoped to the Markdown root; this bridge only
    exposes common content-area aliases and keeps the app shell native Vlaina. */
 
+.milkdown-editor[data-markdown-compat-layer='external'][data-markdown-theme-platform='typora'][data-markdown-theme-color-scheme-mode='fixed-light'] {
+  color-scheme: light;
+  --vlaina-bg-primary: #fcfcfc;
+  --vlaina-bg-secondary: #fbfbfc;
+  --vlaina-bg-tertiary: #f4f5f7;
+  --vlaina-bg-hover: rgba(0, 0, 0, 0.04);
+  --vlaina-hover: rgba(0, 0, 0, 0.04);
+  --vlaina-accent: #1e96eb;
+  --vlaina-accent-hover: #0c7fd9;
+  --vlaina-accent-soft: rgb(39 131 222 / 0.12);
+  --vlaina-selection-bg: #2781db;
+  --vlaina-text-primary: #2c2c2b;
+  --vlaina-text-secondary: #636363;
+  --vlaina-text-tertiary: #636363;
+  --vlaina-border: #e3e2e4;
+  --vlaina-code-block-background: #f5f5f5;
+  --vlaina-code-inline-background: #f5f5f5;
+  --vlaina-code-inline-foreground: #262626;
+  --vlaina-code-syntax-foreground: #24292e;
+  --vlaina-code-syntax-muted: #6a737d;
+  --vlaina-code-syntax-keyword: #d73a49;
+  --vlaina-code-syntax-name: #6f42c1;
+  --vlaina-code-syntax-function: #6f42c1;
+  --vlaina-code-syntax-constant: #005cc5;
+  --vlaina-code-syntax-type: #d73a49;
+  --vlaina-code-syntax-operator: #24292e;
+  --vlaina-code-syntax-string: #032f62;
+  --vlaina-code-syntax-variable: #e36209;
+  --vlaina-code-syntax-tag: #22863a;
+  --vlaina-code-syntax-markup: #005cc5;
+  --vlaina-code-syntax-list: #735c0f;
+  --vlaina-code-syntax-invalid: #b31d28;
+  --vlaina-color-editor-inline-code-bg: rgba(175, 184, 193, 0.2);
+  --vlaina-color-mark-highlight-bg: #fef08a;
+  --vlaina-color-mark-highlight-fg: #2c2c2b;
+  --vlaina-color-find-match-bg: rgba(255, 221, 87, 0.82);
+  --vlaina-color-find-match-active-bg: rgba(255, 176, 32, 0.96);
+  --vlaina-color-footnote-ref-bg: #f5f5f5;
+}
+
 .milkdown-editor[data-markdown-compat-layer='external'] {
   --bg-color: var(--db, var(--background-primary, var(--vlaina-bg-primary)));
   --text-color: var(--df, var(--text-normal, var(--vlaina-text-primary)));
@@ -61,12 +101,10 @@
   --vlaina-code-syntax-list: var(--cm-quote, var(--text-code));
   --vlaina-code-syntax-invalid: var(--cm-negative, var(--text-code));
   width: 100%;
-  max-width: none;
   min-width: 0;
-  padding-inline: 0;
   box-sizing: border-box;
   color: var(--text-color, var(--text-normal, var(--vlaina-text-primary)));
-  background-color: var(--db-ext, var(--bg-color, var(--background-primary, var(--vlaina-bg-primary))));
+  background: transparent;
 }
 
 .milkdown-editor[data-markdown-compat-layer='external'] > .milkdown {
@@ -80,7 +118,7 @@
 .milkdown-editor[data-markdown-compat-layer='external'] #write,
 .milkdown-editor[data-markdown-compat-layer='external'] .markdown-preview-view {
   color: var(--text-color, var(--text-normal, var(--vlaina-text-primary)));
-  background: var(--bg-color, var(--background-primary, transparent));
+  background: transparent;
   font-family: var(--v-fm-text, var(--font-text, var(--font-sans)));
   font-size: var(--v-f-size, var(--vlaina-markdown-font-size, inherit));
 }

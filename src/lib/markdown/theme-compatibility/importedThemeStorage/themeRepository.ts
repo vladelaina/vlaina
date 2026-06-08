@@ -80,10 +80,14 @@ export async function listImportedMarkdownThemesFromDirectory(): Promise<Importe
   return sortThemes((await readThemeIndex()).filter((theme) => isThemeSourceInsideDirectory(theme, directoryPath)));
 }
 
-export async function readImportedMarkdownTheme(id: string): Promise<ImportedMarkdownTheme | null> {
+export async function readImportedMarkdownThemeMetadata(id: string): Promise<ImportedMarkdownThemeMetadata | null> {
   if (!isSafeImportedMarkdownThemeId(id)) return null;
   const themes = await readThemeIndex();
-  const metadata = themes.find((theme) => theme.id === id);
+  return themes.find((theme) => theme.id === id) ?? null;
+}
+
+export async function readImportedMarkdownTheme(id: string): Promise<ImportedMarkdownTheme | null> {
+  const metadata = await readImportedMarkdownThemeMetadata(id);
   if (!metadata) return null;
 
   const storage = getStorageAdapter();

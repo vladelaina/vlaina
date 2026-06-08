@@ -25,8 +25,7 @@ import {
   selectMarkdownImportedThemeId,
   selectMarkdownTypewriterModeEnabled,
 } from '@/stores/unified/settings/markdownSettings';
-import { readImportedMarkdownTheme } from '@/lib/markdown/theme-compatibility/importedThemeStorage';
-import type { MarkdownThemePlatform } from '@/lib/markdown/theme-compatibility/types';
+import { useImportedMarkdownThemePlatform } from '@/components/markdown-theme/useImportedMarkdownThemePlatform';
 import { cn } from '@/lib/utils';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
@@ -54,6 +53,7 @@ import { normalizeLeadingFrontmatterMarkdown } from './plugins/frontmatter/front
 import { BodyLineNumberGutter } from './components/BodyLineNumberGutter';
 import {
   applyMarkdownThemeRuntimeAttributes,
+  resolveMarkdownThemeRuntimeColorScheme,
   resolveMarkdownThemeViewport,
   resolveTyporaRuntimePlatformClasses,
 } from './markdownThemeRuntime';
@@ -129,8 +129,8 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const importedMarkdownThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
   const typewriterMode = useUnifiedStore(selectMarkdownTypewriterModeEnabled);
   const { resolvedTheme } = useTheme();
-  const markdownThemeColorScheme = resolvedTheme === 'dark' ? 'dark' : 'light';
-  const [importedMarkdownThemePlatform, setImportedMarkdownThemePlatform] = useState<MarkdownThemePlatform | null>(null);
+  const appMarkdownThemeColorScheme = resolvedTheme === 'dark' ? 'dark' : 'light';
+  const importedMarkdownThemePlatform = useImportedMarkdownThemePlatform(importedMarkdownThemeId);
   const [markdownThemeViewport, setMarkdownThemeViewport] = useState(() =>
     resolveMarkdownThemeViewport(typeof window === 'undefined' ? 1024 : window.innerWidth)
   );
@@ -167,6 +167,17 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       ? resolveTyporaRuntimePlatformClasses().join(' ')
       : '';
   }, [importedMarkdownThemePlatform]);
+  const markdownThemeRuntimeColorScheme = useMemo(() => {
+    return resolveMarkdownThemeRuntimeColorScheme({
+      importedThemeId: importedMarkdownThemeId,
+      importedThemePlatform: importedMarkdownThemePlatform,
+      appColorScheme: appMarkdownThemeColorScheme,
+    });
+  }, [
+    appMarkdownThemeColorScheme,
+    importedMarkdownThemeId,
+    importedMarkdownThemePlatform,
+  ]);
 
   useEffect(() => {
     onEditorViewReadyRef.current = onEditorViewReady;
@@ -191,31 +202,6 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-
-    if (!importedMarkdownThemeId) {
-      setImportedMarkdownThemePlatform(null);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    void readImportedMarkdownTheme(importedMarkdownThemeId).then((theme) => {
-      if (!cancelled) {
-        setImportedMarkdownThemePlatform(theme?.platform ?? null);
-      }
-    }).catch(() => {
-      if (!cancelled) {
-        setImportedMarkdownThemePlatform(null);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [importedMarkdownThemeId]);
-
-  useEffect(() => {
     const shell = editorShellRef.current;
     if (!shell) return;
 
@@ -224,7 +210,8 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       applyMarkdownThemeRuntimeAttributes(element, {
         importedThemeId: importedMarkdownThemeId,
         importedThemePlatform: importedMarkdownThemePlatform,
-        colorScheme: markdownThemeColorScheme,
+        colorScheme: markdownThemeRuntimeColorScheme.colorScheme,
+        colorSchemeMode: markdownThemeRuntimeColorScheme.mode,
         viewport: markdownThemeViewport,
         typewriterMode,
       });
@@ -233,7 +220,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     activatedRevision,
     importedMarkdownThemeId,
     importedMarkdownThemePlatform,
-    markdownThemeColorScheme,
+    markdownThemeRuntimeColorScheme,
     markdownThemeViewport,
     typewriterMode,
   ]);
@@ -532,8 +519,8 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
         importedMarkdownThemePlatform === 'typora' && 'theme-typora typora-export typora-export-content typora-node',
         typoraRuntimePlatformClasses,
         importedMarkdownThemePlatform === 'obsidian' && 'theme-obsidian',
-        markdownThemeColorScheme === 'dark' && 'theme-dark',
-        markdownThemeColorScheme === 'light' && 'theme-light',
+        markdownThemeRuntimeColorScheme.colorScheme === 'dark' && 'theme-dark',
+        markdownThemeRuntimeColorScheme.colorScheme === 'light' && 'theme-light',
         'is-live-preview',
         'max',
         'is-readable-line-width',
@@ -541,7 +528,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
         markdownThemeViewport === 'tablet' && 'is-tablet',
         markdownThemeViewport === 'desktop' && 'is-desktop',
         typewriterMode && 'ty-on-typewriter-mode',
-        importedMarkdownThemeId ? 'w-full shrink-0' : EDITOR_LAYOUT_CLASS
+        EDITOR_LAYOUT_CLASS
       )}
       data-note-content-root="true"
       data-markdown-theme-root="true"
@@ -549,7 +536,9 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       data-markdown-compat={importedMarkdownThemeId ? 'external' : 'native'}
       data-markdown-compat-layer={importedMarkdownThemeId ? 'external' : 'native'}
       data-markdown-imported-theme={importedMarkdownThemeId ?? undefined}
-      data-theme={markdownThemeColorScheme}
+      data-markdown-theme-color-scheme={markdownThemeRuntimeColorScheme.colorScheme}
+      data-markdown-theme-color-scheme-mode={markdownThemeRuntimeColorScheme.mode}
+      data-theme={markdownThemeRuntimeColorScheme.colorScheme}
     >
       {showBodyLineNumbers && (
         <BodyLineNumberGutter

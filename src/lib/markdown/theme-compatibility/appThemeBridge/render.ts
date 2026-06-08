@@ -10,17 +10,20 @@ function renderCustomProperties(properties: Map<string, string>): string {
     .join('\n');
 }
 
+interface RenderRuleOptions {
+  colorScheme?: 'light' | 'light dark';
+  extraDeclarations?: string[];
+}
+
 function renderVlainaMappings(properties: Map<string, string>): string {
-  const declarations = VLAINA_THEME_MAPPINGS.flatMap(({ target, sources }) => {
+  return VLAINA_THEME_MAPPINGS.flatMap(({ target, sources }) => {
     const source = sources.find((candidate) => canMapSourceToTarget(properties, candidate, target));
     return source ? [`  ${target}: var(${source});`] : [];
-  });
+  }).join('\n');
+}
 
-  if (declarations.length > 0) {
-    declarations.unshift('  color-scheme: light dark;');
-  }
-
-  return declarations.join('\n');
+function renderExtraDeclarations(declarations: string[]): string {
+  return declarations.map((declaration) => `  ${declaration}`).join('\n');
 }
 
 function canMapSourceToTarget(
@@ -37,10 +40,16 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-export function renderRule(selector: string, properties: Map<string, string>): string {
+export function renderRule(
+  selector: string,
+  properties: Map<string, string>,
+  options: RenderRuleOptions = {}
+): string {
   const customProperties = renderCustomProperties(properties);
   const content = [
+    options.colorScheme ? `  color-scheme: ${options.colorScheme};` : '',
     customProperties,
+    renderExtraDeclarations(options.extraDeclarations ?? []),
     renderVlainaMappings(properties),
   ].filter(Boolean).join('\n');
 

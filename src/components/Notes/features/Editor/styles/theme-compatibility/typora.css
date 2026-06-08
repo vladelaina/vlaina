@@ -38,11 +38,11 @@
   --typora-caption-bg: var(--pn03, var(--pn-c, var(--typora-block-bg)));
   --typora-caption-font: condensed italic 12px/1 var(--typora-tag-font);
   font-family: var(--typora-content-font);
-  background: var(--typora-outer-bg);
+  background: transparent;
 }
 
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) > .milkdown {
-  background: var(--typora-outer-bg);
+  background: transparent;
 }
 
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write,
@@ -54,11 +54,12 @@
 
 :where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora) #write {
   width: 100%;
-  max-width: var(--typora-page-max-width);
-  margin-inline: auto;
-  padding: var(--typora-page-padding);
+  max-width: 100%;
+  margin-inline: 0;
+  padding-block: var(--typora-page-padding-block);
+  padding-inline: 0;
   min-width: 0;
-  background: var(--typora-page-bg);
+  background: transparent;
   color: var(--df, var(--text-color, inherit));
   font-size: var(--v-f-size, var(--vlaina-markdown-font-size));
   box-sizing: border-box;

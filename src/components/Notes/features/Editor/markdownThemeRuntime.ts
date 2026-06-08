@@ -1,12 +1,21 @@
+import {
+  resolveImportedMarkdownThemeColorScheme,
+  type MarkdownThemeColorScheme,
+  type MarkdownThemeColorSchemeMode,
+} from '@/lib/markdown/theme-compatibility/colorScheme';
 import type { MarkdownThemePlatform } from '@/lib/markdown/theme-compatibility/types';
 
-export type MarkdownThemeColorScheme = 'light' | 'dark';
+export type {
+  MarkdownThemeColorScheme,
+  MarkdownThemeColorSchemeMode,
+};
 export type MarkdownThemeViewport = 'mobile' | 'tablet' | 'desktop';
 
 export interface MarkdownThemeRuntimeState {
   importedThemeId: string | null;
   importedThemePlatform: MarkdownThemePlatform | null;
   colorScheme: MarkdownThemeColorScheme;
+  colorSchemeMode?: MarkdownThemeColorSchemeMode;
   viewport: MarkdownThemeViewport;
   typewriterMode: boolean;
 }
@@ -29,6 +38,8 @@ export function resolveMarkdownThemeViewport(width: number): MarkdownThemeViewpo
   if (width < 1024) return 'tablet';
   return 'desktop';
 }
+
+export const resolveMarkdownThemeRuntimeColorScheme = resolveImportedMarkdownThemeColorScheme;
 
 export function resolveTyporaRuntimePlatformClasses(
   platform = globalThis.navigator?.platform ?? '',
@@ -61,6 +72,8 @@ export function applyMarkdownThemeRuntimeAttributes(
   element.dataset.markdownCompat = hasImportedTheme ? 'external' : 'native';
   element.dataset.markdownCompatLayer = hasImportedTheme ? 'external' : 'native';
   element.dataset.theme = state.colorScheme;
+  element.dataset.markdownThemeColorScheme = state.colorScheme;
+  element.dataset.markdownThemeColorSchemeMode = state.colorSchemeMode ?? 'app';
 
   if (state.importedThemeId) {
     element.dataset.markdownImportedTheme = state.importedThemeId;

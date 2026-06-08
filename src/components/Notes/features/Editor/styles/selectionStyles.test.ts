@@ -272,6 +272,10 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain(":where(.milkdown-editor[data-markdown-compat-layer='external'].theme-typora)");
     expect(css).toContain('--typora-inline-code-bg');
     expect(css).toContain('--typora-table-hover-bg');
+    expect(css).toContain("[data-markdown-theme-color-scheme-mode='fixed-light']");
+    expect(css).toContain('color-scheme: light;');
+    expect(css).toContain('--vlaina-code-block-background: #f5f5f5;');
+    expect(css).toContain('--vlaina-text-primary: #2c2c2b;');
     expect(css).toContain("#write .callout.md-alert");
     expect(css).toContain("#write .md-hr::before");
     expect(css).toContain(".milkdown table tr:hover > :is(th, td)");
@@ -284,7 +288,8 @@ describe('editor embedded CodeMirror selection styles', () => {
 
     expect(css).toContain(`${scope} #write {`);
     expect(css).toContain('--typora-page-max-width: min(100%, var(--v-write-w, 1200px));');
-    expect(css).toContain('max-width: var(--typora-page-max-width) !important;');
+    expect(css).toContain('max-width: 100% !important;');
+    expect(css).toContain('background: transparent !important;');
     expect(css).toContain(`${scope} #write.done::before,`);
     expect(css).toContain(`${scope} #write :is(.md-htmlblock, .video-block, .v-caption.iframe) :is(iframe, video, object, embed),`);
     expect(css).toContain(`${scope} #write .milkdown-table-block.table-figure {`);

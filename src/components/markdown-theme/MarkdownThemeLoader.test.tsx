@@ -177,7 +177,8 @@ describe('MarkdownThemeLoader', () => {
       expect(postBridgeStyle?.textContent).toContain('[data-markdown-imported-theme="typora-sample"].theme-typora');
       expect(postBridgeStyle?.textContent).toContain('.done::before');
       expect(postBridgeStyle?.textContent).toContain('.v-caption.full');
-      expect(postBridgeStyle?.textContent).toContain('max-width: var(--typora-page-max-width) !important;');
+      expect(postBridgeStyle?.textContent).toContain('max-width: 100% !important;');
+      expect(postBridgeStyle?.textContent).toContain('background: transparent !important;');
       expect(Array.from(document.head.children).indexOf(postBridgeStyle as HTMLStyleElement)).toBeGreaterThan(
         Array.from(document.head.children).indexOf(importedStyle as HTMLStyleElement)
       );
