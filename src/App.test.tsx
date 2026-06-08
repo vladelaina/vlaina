@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import App from './App';
 
 type NotesState = {
@@ -62,6 +63,8 @@ const mocks = vi.hoisted(() => {
     clearBudget: vi.fn(),
     refreshBudget: vi.fn().mockResolvedValue(undefined),
     refreshBudgetIfStale: vi.fn().mockResolvedValue(undefined),
+    readImportedMarkdownThemeMetadata: vi.fn(),
+    setTheme: vi.fn(),
   };
 });
 
@@ -76,6 +79,18 @@ vi.mock('@/lib/electron/bridge', () => ({
       onAuthLog: vi.fn(() => vi.fn()),
     },
   }),
+}));
+
+vi.mock('next-themes', () => ({
+  useTheme: () => ({
+    setTheme: mocks.setTheme,
+    resolvedTheme: 'light',
+  }),
+}));
+
+vi.mock('@/lib/markdown/theme-compatibility/importedThemeStorage', () => ({
+  readImportedMarkdownThemeMetadata: (...args: unknown[]) =>
+    mocks.readImportedMarkdownThemeMetadata(...args),
 }));
 
 vi.mock('@/lib/storage/unifiedStorage', () => ({
@@ -211,6 +226,14 @@ vi.mock('@/stores/notes/workspacePersistence', () => ({
   saveWorkspaceSnapshot: (...args: unknown[]) => mocks.saveWorkspaceSnapshot(...args),
 }));
 
+vi.mock('@/components/markdown-theme/MarkdownThemeDirectorySync', () => ({
+  MarkdownThemeDirectorySync: () => null,
+}));
+
+vi.mock('@/components/markdown-theme/MarkdownThemeLoader', () => ({
+  MarkdownThemeLoader: () => null,
+}));
+
 vi.mock('@/components/theme-provider', () => ({
   ThemeProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -339,6 +362,30 @@ describe('App close flow', () => {
     mocks.clearBudget.mockClear();
     mocks.refreshBudget.mockClear();
     mocks.refreshBudgetIfStale.mockClear();
+    mocks.readImportedMarkdownThemeMetadata.mockReset();
+    mocks.readImportedMarkdownThemeMetadata.mockResolvedValue(null);
+    mocks.setTheme.mockClear();
+    document.documentElement.className = '';
+    document.documentElement.removeAttribute('style');
+    useUnifiedStore.setState((state) => ({
+      data: {
+        ...state.data,
+        settings: {
+          ...state.data.settings,
+          markdown: {
+            ...state.data.settings.markdown,
+            theme: {
+              importedThemeId: null,
+            },
+          },
+          ui: {
+            ...state.data.settings.ui,
+            colorMode: 'system',
+            themeId: 'default',
+          },
+        },
+      },
+    }));
     window.localStorage.clear();
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
   });
@@ -366,6 +413,108 @@ describe('App close flow', () => {
     await waitFor(() => {
       expect(mocks.checkStatus).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('syncs the app root to dark for the native theme when the user selects dark mode', async () => {
+    useUnifiedStore.setState((state) => ({
+      data: {
+        ...state.data,
+        settings: {
+          ...state.data.settings,
+          ui: {
+            ...state.data.settings.ui,
+            colorMode: 'dark',
+          },
+        },
+      },
+    }));
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(document.documentElement.classList.contains('dark')).toBe(true);
+      expect(document.documentElement.classList.contains('light')).toBe(false);
+    });
+    expect(mocks.setTheme).toHaveBeenCalledWith('dark');
+    expect(mocks.readImportedMarkdownThemeMetadata).not.toHaveBeenCalled();
+  });
+
+  it('keeps Typora imported themes fixed to a light app root even when the user selects dark mode', async () => {
+    useUnifiedStore.setState((state) => ({
+      data: {
+        ...state.data,
+        settings: {
+          ...state.data.settings,
+          markdown: {
+            ...state.data.settings.markdown,
+            theme: {
+              importedThemeId: 'vlook-fancy',
+            },
+          },
+          ui: {
+            ...state.data.settings.ui,
+            colorMode: 'dark',
+          },
+        },
+      },
+    }));
+    mocks.readImportedMarkdownThemeMetadata.mockResolvedValue({
+      id: 'vlook-fancy',
+      name: 'VLOOK Fancy',
+      platform: 'typora',
+      cssFile: 'vlook-fancy.css',
+      createdAt: 1,
+      updatedAt: 1,
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(document.documentElement.classList.contains('light')).toBe(true);
+      expect(document.documentElement.classList.contains('dark')).toBe(false);
+    });
+    await waitFor(() => {
+      expect(mocks.readImportedMarkdownThemeMetadata).toHaveBeenCalledWith('vlook-fancy');
+    });
+    expect(mocks.setTheme).toHaveBeenCalledWith('light');
+  });
+
+  it('lets Obsidian imported themes follow the app root dark mode after the platform resolves', async () => {
+    useUnifiedStore.setState((state) => ({
+      data: {
+        ...state.data,
+        settings: {
+          ...state.data.settings,
+          markdown: {
+            ...state.data.settings.markdown,
+            theme: {
+              importedThemeId: 'minimal',
+            },
+          },
+          ui: {
+            ...state.data.settings.ui,
+            colorMode: 'dark',
+          },
+        },
+      },
+    }));
+    mocks.readImportedMarkdownThemeMetadata.mockResolvedValue({
+      id: 'minimal',
+      name: 'Minimal',
+      platform: 'obsidian',
+      cssFile: 'minimal.css',
+      createdAt: 1,
+      updatedAt: 1,
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(mocks.readImportedMarkdownThemeMetadata).toHaveBeenCalledWith('minimal');
+      expect(document.documentElement.classList.contains('dark')).toBe(true);
+      expect(document.documentElement.classList.contains('light')).toBe(false);
+    });
+    expect(mocks.setTheme).toHaveBeenCalledWith('dark');
   });
 
   it('flushes pending storage before closing when nothing is dirty', async () => {

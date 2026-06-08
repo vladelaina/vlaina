@@ -143,7 +143,7 @@ export async function compileImportedMarkdownThemeStyles(
         theme.platform,
         getImportedMarkdownThemeScopeSelector(theme.id)
       ),
-      appCss: buildImportedAppThemeCss(sanitizedCss, theme.id),
+      appCss: buildImportedAppThemeCss(sanitizedCss, theme.id, theme.platform),
       postBridgeCss: buildImportedMarkdownThemePostBridgeCss(theme.id, theme.platform),
     });
   }).finally(() => {

@@ -8,7 +8,8 @@ describe('imported markdown theme post bridge', () => {
     expect(css).toContain('[data-markdown-theme-root="true"][data-markdown-imported-theme="clean-light"].theme-typora#write');
     expect(css).toContain('[data-markdown-theme-root="true"][data-markdown-imported-theme="clean-light"].theme-typora #write');
     expect(css).toContain('--typora-page-max-width: min(100%, var(--v-write-w, var(--vlaina-size-1080px)));');
-    expect(css).toContain('max-width: var(--typora-page-max-width) !important;');
+    expect(css).toContain('max-width: 100% !important;');
+    expect(css).toContain('background: transparent !important;');
     expect(css).toContain('.milkdown-table-block.table-figure .table-wrapper');
     expect(css).toContain('.v-caption.full');
     expect(css).toContain('.v-svg-input-checkbox[data-vlook-checkbox=\'checked\']::before');

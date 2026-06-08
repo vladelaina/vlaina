@@ -369,7 +369,7 @@ export function MarkdownEditor({
 
   return (
     <div
-      className="h-full flex flex-col bg-[var(--vlaina-bg-primary)] relative"
+      className="h-full flex flex-col relative"
       data-note-toolbar-root="true"
       onClick={handleEditorClick}
     >

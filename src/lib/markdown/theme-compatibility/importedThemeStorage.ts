@@ -8,6 +8,7 @@ export {
   listImportedMarkdownThemes,
   listImportedMarkdownThemesFromDirectory,
   readImportedMarkdownTheme,
+  readImportedMarkdownThemeMetadata,
 } from './importedThemeStorage/themeRepository';
 export {
   syncImportedMarkdownThemesFromDirectory,

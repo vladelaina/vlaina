@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   readImportedMarkdownTheme: vi.fn(),
   scopeImportedMarkdownThemeCss: vi.fn((css: string, _platform: string, scope: string) => `${scope} { ${css} }`),
   sanitizeImportedMarkdownThemeCss: vi.fn((css: string) => css.replace('unsafe', 'safe')),
-  buildImportedAppThemeCss: vi.fn((_css: string, id: string) => `:root[data-vlaina-imported-app-theme="${id}"] {}`),
+  buildImportedAppThemeCss: vi.fn((_css: string, id: string, _platform: string) => `:root[data-vlaina-imported-app-theme="${id}"] {}`),
   buildImportedMarkdownThemePostBridgeCss: vi.fn((id: string, platform: string) => `${id}:${platform}:post`),
 }));
 
@@ -28,7 +28,8 @@ vi.mock('@/lib/markdown/theme-compatibility/cssUrls', () => ({
 }));
 
 vi.mock('@/lib/markdown/theme-compatibility/appThemeBridge', () => ({
-  buildImportedAppThemeCss: (css: string, id: string) => mocks.buildImportedAppThemeCss(css, id),
+  buildImportedAppThemeCss: (css: string, id: string, platform: string) =>
+    mocks.buildImportedAppThemeCss(css, id, platform),
 }));
 
 vi.mock('@/lib/markdown/theme-compatibility/postBridge', () => ({
@@ -66,6 +67,11 @@ describe('markdownThemeCompiler', () => {
     expect(mocks.sanitizeImportedMarkdownThemeCss).toHaveBeenCalledTimes(1);
     expect(mocks.scopeImportedMarkdownThemeCss).toHaveBeenCalledTimes(1);
     expect(mocks.buildImportedAppThemeCss).toHaveBeenCalledTimes(1);
+    expect(mocks.buildImportedAppThemeCss).toHaveBeenCalledWith(
+      '#write h1 { color: safe; }',
+      'clean-light',
+      'typora'
+    );
     expect(mocks.buildImportedMarkdownThemePostBridgeCss).toHaveBeenCalledTimes(1);
     expect(first.markdownCss).toContain('safe');
   });

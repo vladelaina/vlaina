@@ -130,7 +130,7 @@ describe('markdown theme CSS scoping', () => {
 
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write table');
     expect(scoped).not.toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write.done:before');
-    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write.max { max-width: 100%; }');
+    expect(scoped).not.toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write.max');
     expect(scoped).not.toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"].ty-on-typewriter-mode#write:after');
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"].pin-outline#write .md-toc');
     expect(scoped).not.toContain('content>#write');
@@ -140,7 +140,7 @@ describe('markdown theme CSS scoping', () => {
     expect(scoped).not.toContain('body.typora-export');
   });
 
-  it('maps imported color-scheme media rules onto runtime theme classes', () => {
+  it('fixes Typora color-scheme media rules to light/original semantics', () => {
     const scoped = scopeImportedMarkdownThemeCss(
       [
         ':root { --db: var(--db-lg); --df: var(--df-lg); }',
@@ -156,10 +156,35 @@ describe('markdown theme CSS scoping', () => {
     );
 
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"] { --db: var(--db-lg); --df: var(--df-lg); }');
-    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"].theme-dark { --db: var(--db-dk); --df: var(--df-dk); }');
-    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"].theme-dark#write h1 { color: var(--h-f-dk); }');
+    expect(scoped).not.toContain('prefers-color-scheme');
+    expect(scoped).not.toContain('--db: var(--db-dk)');
+    expect(scoped).not.toContain('--df: var(--df-dk)');
+    expect(scoped).not.toContain('var(--h-f-dk)');
     expect(scoped).toContain('@media screen');
-    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"].theme-light#write h1 { color: var(--h-f-lg); }');
+    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write h1 { color: var(--h-f-lg); }');
+    expect(scoped).not.toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"].theme-dark');
+    expect(scoped).not.toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"].theme-light');
+  });
+
+  it('maps Obsidian color-scheme media rules onto runtime theme classes', () => {
+    const scoped = scopeImportedMarkdownThemeCss(
+      [
+        ':root { --background-primary: #fff; }',
+        '@media (prefers-color-scheme: dark) {',
+        '  :root { --background-primary: #101010; --text-normal: #eee; }',
+        '  .markdown-preview-view h1 { color: var(--text-normal); }',
+        '}',
+        '@media screen and (prefers-color-scheme: light) {',
+        '  .markdown-preview-view h1 { color: #111; }',
+        '}',
+      ].join('\n'),
+      'obsidian'
+    );
+
+    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="obsidian"].theme-dark { --background-primary: #101010; --text-normal: #eee; }');
+    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="obsidian"].theme-dark.markdown-preview-view h1 { color: var(--text-normal); }');
+    expect(scoped).toContain('@media screen');
+    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="obsidian"].theme-light.markdown-preview-view h1 { color: #111; }');
     expect(scoped).not.toContain('prefers-color-scheme');
   });
 
@@ -216,7 +241,7 @@ describe('markdown theme CSS scoping', () => {
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write > *');
   });
 
-  it('keeps Typora page visuals while filtering dangerous root layout declarations', () => {
+  it('keeps Typora content styles while filtering root page layout and decorations', () => {
     const scoped = scopeImportedMarkdownThemeCss(
       [
         '#write { margin-left: 120px; padding-left: 64px; max-width: 960px; overflow: visible; transform: translateX(20px); color: var(--df); --content-width: 960px; }',
@@ -235,13 +260,19 @@ describe('markdown theme CSS scoping', () => {
     const rootRule = scoped.match(/\[data-markdown-theme-root="true"\]\[data-markdown-theme-platform="typora"\]#write\s*\{[^}]*\}/)?.[0] ?? '';
     expect(rootRule).toContain('color: var(--df)');
     expect(rootRule).toContain('--content-width: 960px');
-    expect(rootRule).toContain('max-width: 960px');
-    expect(rootRule).toContain('overflow: visible');
+    expect(rootRule).not.toContain('max-width');
+    expect(rootRule).not.toContain('overflow');
     expect(rootRule).not.toContain('margin-left');
     expect(rootRule).not.toContain('padding-left');
     expect(rootRule).not.toContain('transform');
-    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write.done.max { box-shadow: 0 0 5px var(--ac-t2-fd); outline: 1px solid var(--ac-t2); border-left: 12px solid var(--ac-t2-a); border-right: 12px solid var(--ac-t2-a); background: var(--db); }');
-    expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write.fill-width { margin: 0 auto; padding: 20px; width: 100%; display: block; font-size: var(--v-f-size); background-color: var(--db); }');
+    expect(scoped).not.toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write.done.max');
+    const fillWidthRule = scoped.match(/\[data-markdown-theme-root="true"\]\[data-markdown-theme-platform="typora"\]#write\.fill-width\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(fillWidthRule).toContain('font-size: var(--v-f-size)');
+    expect(fillWidthRule).not.toContain('margin');
+    expect(fillWidthRule).not.toContain('padding');
+    expect(fillWidthRule).not.toContain('width:');
+    expect(fillWidthRule).not.toContain('display');
+    expect(fillWidthRule).not.toContain('background');
     expect(scoped).not.toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write.unsafe-root');
     expect(scoped).toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write p { margin-left: 2em; padding-left: 1em; max-width: 60ch; }');
     expect(scoped).not.toContain('[data-markdown-theme-root="true"][data-markdown-theme-platform="typora"]#write:after');
