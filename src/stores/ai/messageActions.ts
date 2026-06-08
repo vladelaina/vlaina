@@ -8,7 +8,6 @@ import {
 import { shouldPersistSession } from '@/lib/ai/temporaryChat'
 import { resolveSessionIdAlias } from '@/lib/ai/sessionIdAliases'
 import {
-  extractRenderedMarkdownImageSources,
   extractRenderedMessageImageSources,
   MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
   normalizeRenderedMessageImageSources,
@@ -55,10 +54,8 @@ function canMessageUseVersionKind(message: ChatMessage, kind: MessageVersion['ki
   return kind === 'original'
 }
 
-function extractStoredImageSources(role: ChatMessage['role'], content: string): string[] {
-  const sources = role === 'user'
-    ? extractRenderedMarkdownImageSources(content, { maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES })
-    : extractRenderedMessageImageSources(content, { maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES })
+function extractStoredImageSources(content: string): string[] {
+  const sources = extractRenderedMessageImageSources(content, { maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES })
   return normalizeRenderedMessageImageSources(sources)
 }
 
@@ -74,7 +71,7 @@ function getNewMessageImageSources(message: Omit<ChatMessage, 'id' | 'timestamp'
 
   return providedSources.length > 0
     ? providedSources
-    : extractStoredImageSources(message.role, message.content || '')
+    : extractStoredImageSources(message.content || '')
 }
 
 function hasSession(ai: { sessions: Array<{ id: string }> }, sessionId: string): boolean {
@@ -286,7 +283,7 @@ export function createMessageActions() {
         return {
           ...message,
           content,
-          imageSources: extractStoredImageSources(message.role, content),
+          imageSources: extractStoredImageSources(content),
           versions,
           currentVersionIndex
         }
@@ -380,7 +377,7 @@ export function createMessageActions() {
           ...message,
           content: '',
           apiTranscript: undefined,
-          imageSources: extractStoredImageSources(message.role, ''),
+          imageSources: extractStoredImageSources(''),
           versions: limited.versions,
           currentVersionIndex: limited.currentVersionIndex
         }
@@ -429,7 +426,7 @@ export function createMessageActions() {
         ...targetMessage,
         content: newContent,
         apiTranscript: undefined,
-        imageSources: extractStoredImageSources(targetMessage.role, newContent),
+        imageSources: extractStoredImageSources(newContent),
         versions: limited.versions,
         currentVersionIndex: limited.currentVersionIndex
       }
@@ -474,7 +471,7 @@ export function createMessageActions() {
         ...targetMessage,
         content: targetVersion.content,
         apiTranscript: targetVersion.apiTranscript,
-        imageSources: extractStoredImageSources(targetMessage.role, targetVersion.content),
+        imageSources: extractStoredImageSources(targetVersion.content),
         currentVersionIndex: limited.currentVersionIndex,
         versions: limited.versions
       }

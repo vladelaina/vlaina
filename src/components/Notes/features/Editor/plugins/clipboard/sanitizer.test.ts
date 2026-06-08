@@ -201,6 +201,55 @@ describe('sanitizeHtml', () => {
     expect(result).toBe('<img><img src="./images/safe.png"><img src="../images/safe.png"><img src="https://example.com/safe.png"><iframe src="https://example.com/embed" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe><video src="https://example.com/demo.mp4" poster="https://example.com/poster.png"></video>');
   });
 
+  it('blocks raw media paths inside internal note folders while allowing user dot folders', () => {
+    const result = sanitizeHtml([
+      '<img src=".vlaina/secret.png">',
+      '<img src="docs/.git/secret.png">',
+      '<img src="docs/.GIT/secret.png">',
+      '<img src="%2evlaina/secret.png">',
+      '<img src="docs/%252egit/secret.png">',
+      '<source srcset=".git/a.webp 1x">',
+      '<source srcset="docs/%2Egit/a.webp 1x">',
+      '<video poster=".vlaina/poster.png"><source src=".git/movie.mp4"></video>',
+      '<img src=".notes/public.png">',
+      '<source srcset=".notes/a.webp 1x">',
+      '<video poster=".notes/poster.png" src=".notes/movie.mp4"></video>',
+    ].join(''));
+
+    expect(result).toBe('<img><img><img><img><img><source><source><img src=".notes/public.png"><source srcset=".notes/a.webp 1x"><video poster=".notes/poster.png" src=".notes/movie.mp4"></video>');
+    expect(result).not.toContain('.vlaina');
+    expect(result).not.toContain('.git');
+    expect(result).not.toContain('%2evlaina');
+    expect(result).not.toContain('%252egit');
+  });
+
+  it('blocks raw link paths inside internal note folders while allowing user dot folders', () => {
+    const result = sanitizeHtml([
+      '<a href=".vlaina/workspace.md">vlaina</a>',
+      '<a href="./.vlaina/workspace.md">nested vlaina</a>',
+      '<a href="docs/.git/config.md">git</a>',
+      '<a href="docs/%252egit/config.md">encoded git</a>',
+      '<blockquote cite=".vlaina/source.md">quote</blockquote>',
+      '<q cite="docs/.GIT/source.md">inline quote</q>',
+      '<a href=".notes/public.md">notes</a>',
+      '<blockquote cite=".notes/source.md">safe quote</blockquote>',
+    ].join(''));
+
+    expect(result).toBe([
+      '<a>vlaina</a>',
+      '<a>nested vlaina</a>',
+      '<a>git</a>',
+      '<a>encoded git</a>',
+      '<blockquote>quote</blockquote>',
+      '<q>inline quote</q>',
+      '<a href=".notes/public.md">notes</a>',
+      '<blockquote cite=".notes/source.md">safe quote</blockquote>',
+    ].join(''));
+    expect(result).not.toContain('.vlaina');
+    expect(result).not.toContain('.git');
+    expect(result).not.toContain('%252egit');
+  });
+
   it('blocks executable and network source srcset values that would be auto-loaded on open', () => {
     const result = sanitizeHtml([
       '<picture><source srcset="data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+ 1x"><img src="https://example.com/safe.png"></picture>',

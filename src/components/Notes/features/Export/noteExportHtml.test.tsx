@@ -27,12 +27,19 @@ describe('renderNoteExportHtml', () => {
         '<a href="//example.com/protocol-relative">protocol</a>',
         '<a href="http://127.0.0.1:3000/admin">local raw</a>',
         '<a href="http://router/admin">router raw</a>',
+        '<a href=".vlaina/workspace.md">internal raw</a>',
+        '<a href="docs/.git/config.md">git raw</a>',
+        '<a href=".notes/alpha.md">dot raw</a>',
+        '<a href="https://example.com/.git/config.md">external git path</a>',
         '<a href="https://example.com" onclick="alert(5)">safe</a>',
         '<a href="mailto:user@example.com">mail</a>',
         '<img src="assets/demo.png" onerror="alert(6)" alt="demo">',
         '[protocol markdown](//example.com/markdown)',
         '[absolute markdown](/etc/passwd)',
         '[local markdown](http://localhost:3000/secret)',
+        '[internal markdown](.vlaina/workspace.md)',
+        '[git markdown](docs/.git/config.md)',
+        '[dot markdown](.notes/alpha.md)',
       ].join('\n'),
       'Unsafe <Title>',
     );
@@ -54,6 +61,8 @@ describe('renderNoteExportHtml', () => {
     expect(doc.querySelector('a[href^="http://127.0.0.1"]')).toBeNull();
     expect(doc.querySelector('a[href^="http://router"]')).toBeNull();
     expect(doc.querySelector('a[href^="http://localhost"]')).toBeNull();
+    expect(doc.querySelector('a[href=".vlaina/workspace.md"]')).toBeNull();
+    expect(doc.querySelector('a[href="docs/.git/config.md"]')).toBeNull();
     expect(doc.body.textContent).toContain('protocol');
     expect(doc.body.textContent).toContain('protocol markdown');
     expect(doc.body.textContent).toContain('absolute path');
@@ -61,6 +70,12 @@ describe('renderNoteExportHtml', () => {
     expect(doc.body.textContent).toContain('local raw');
     expect(doc.body.textContent).toContain('router raw');
     expect(doc.body.textContent).toContain('local markdown');
+    expect(doc.body.textContent).toContain('internal raw');
+    expect(doc.body.textContent).toContain('git raw');
+    expect(doc.body.textContent).toContain('internal markdown');
+    expect(doc.body.textContent).toContain('git markdown');
+    expect(doc.querySelector('a[href=".notes/alpha.md"]')?.textContent).toBe('dot raw');
+    expect(doc.querySelector('a[href="https://example.com/.git/config.md"]')?.textContent).toBe('external git path');
     expect(doc.querySelector('a[href="https://example.com"]')?.textContent).toBe('safe');
     expect(doc.querySelector('a[href="mailto:user@example.com"]')?.textContent).toBe('mail');
     expect(doc.querySelector('img[src="assets/demo.png"]')?.getAttribute('alt')).toBe('demo');

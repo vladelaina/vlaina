@@ -99,6 +99,25 @@ describe('useNotesOpenMarkdownTarget', () => {
     });
   });
 
+  it('rejects markdown targets with unsafe path characters before saving or opening anything', async () => {
+    const { props, result } = renderTargetHook({
+      isDirty: true,
+    });
+
+    await act(async () => {
+      await result.current.openMarkdownTarget('/vault/daily/secret\u202Egnp.md');
+    });
+
+    expect(props.saveNote).not.toHaveBeenCalled();
+    expect(props.openNote).not.toHaveBeenCalled();
+    expect(props.openVault).not.toHaveBeenCalled();
+    expect(props.openNoteByAbsolutePath).not.toHaveBeenCalled();
+    expect(messageDialog).toHaveBeenCalledWith('notes.selectMarkdownFile', {
+      title: 'notes.unsupportedFile',
+      kind: 'warning',
+    });
+  });
+
   it('rejects relative markdown targets before saving or opening anything', async () => {
     const { props, result } = renderTargetHook({
       isDirty: true,

@@ -9,6 +9,8 @@ const maxInlineImageBytes = 10 * 1024 * 1024
 const maxInlineImageBase64Chars = Math.ceil(maxInlineImageBytes / 3) * 4
 const maxRemoteMediaUrlChars = 16 * 1024
 const maxInternalImageSrcChars = 16 * 1024
+const internalImagePathSegments = new Set(['.vlaina', '.git'])
+const maxInternalImageUrlDecodeDepth = 3
 
 function getUrlBase() {
   return typeof window !== 'undefined' ? window.location.href : fallbackUrlBase
@@ -16,6 +18,34 @@ function getUrlBase() {
 
 function hasUnsafeBackslashUrlSyntax(value: string) {
   return value.startsWith('\\') || (schemePattern.test(value) && value.includes('\\'))
+}
+
+function hasInternalImagePathSegment(path: string) {
+  return path
+    .replace(/\\/g, '/')
+    .split('/')
+    .some((segment) => internalImagePathSegments.has(segment.toLowerCase()))
+}
+
+function decodeUrlPathCandidate(path: string) {
+  try {
+    return decodeURIComponent(path)
+  } catch {
+    return null
+  }
+}
+
+export function hasInternalImageUrlPathSegment(path: string) {
+  let pathCandidate = path.split(/[?#]/, 1)[0] ?? ''
+  for (let depth = 0; depth < maxInternalImageUrlDecodeDepth; depth += 1) {
+    if (hasInternalImagePathSegment(pathCandidate)) return true
+
+    const decoded = decodeUrlPathCandidate(pathCandidate)
+    if (!decoded || decoded === pathCandidate) return false
+    pathCandidate = decoded
+  }
+
+  return hasInternalImagePathSegment(pathCandidate)
 }
 
 function getBase64DecodedByteLength(payload: string) {
@@ -145,6 +175,7 @@ export function getInternalImageAssetPath(value: unknown) {
   if (
     !assetPath
     || controlOrBidiPattern.test(assetPath)
+    || hasInternalImageUrlPathSegment(assetPath)
     || assetPath.startsWith('//')
     || assetPath.startsWith('\\')
     || windowsAbsolutePathPattern.test(assetPath)

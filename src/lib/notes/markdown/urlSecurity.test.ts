@@ -91,16 +91,29 @@ describe('urlSecurity', () => {
   it('allows only relative internal image asset refs', () => {
     expect(getNoteInternalImageAssetPath('img:assets/demo.png')).toBe('assets/demo.png');
     expect(getNoteInternalImageAssetPath('IMG:assets/demo.png?cache=1')).toBe('assets/demo.png?cache=1');
+    expect(getNoteInternalImageAssetPath('img:.notes/demo.png')).toBe('.notes/demo.png');
+    expect(getNoteInternalImageAssetPath('img:%2enotes/demo.png')).toBe('%2enotes/demo.png');
     expect(sanitizeNoteMediaSrc('img:assets/demo.png')).toBe('img:assets/demo.png');
     expect(sanitizeNoteMediaSrc('IMG:assets/demo.png')).toBe('IMG:assets/demo.png');
+    expect(sanitizeNoteMediaSrc('img:.notes/demo.png')).toBe('img:.notes/demo.png');
 
     expect(getNoteInternalImageAssetPath('img:/etc/passwd')).toBeNull();
     expect(getNoteInternalImageAssetPath('img:\\secret.png')).toBeNull();
     expect(getNoteInternalImageAssetPath('img://example.com/demo.png')).toBeNull();
     expect(getNoteInternalImageAssetPath('img:C:\\Users\\secret.png')).toBeNull();
     expect(getNoteInternalImageAssetPath('img:assets/\u202Ecod.exe')).toBeNull();
+    expect(getNoteInternalImageAssetPath('img:.vlaina/assets/demo.png')).toBeNull();
+    expect(getNoteInternalImageAssetPath('img:docs/.GIT/demo.png')).toBeNull();
+    expect(getNoteInternalImageAssetPath('img:%2evlaina/assets/demo.png')).toBeNull();
+    expect(getNoteInternalImageAssetPath('img:docs/%252egit/demo.png')).toBeNull();
     expect(sanitizeNoteMediaSrc('img:/etc/passwd')).toBeNull();
     expect(sanitizeNoteMediaSrc('img://example.com/demo.png')).toBeNull();
+    expect(sanitizeNoteMediaSrc('img:.vlaina/assets/demo.png')).toBeNull();
+    expect(sanitizeNoteMediaSrc('img:docs/.GIT/demo.png')).toBeNull();
+    expect(sanitizeNoteMediaSrc('.vlaina/assets/demo.png')).toBeNull();
+    expect(sanitizeNoteMediaSrc('./docs/.GIT/demo.png')).toBeNull();
+    expect(sanitizeNoteMediaSrc('docs/%252egit/demo.png')).toBeNull();
+    expect(sanitizeNoteMediaSrc('.notes/demo.png')).toBe('.notes/demo.png');
   });
 
   it('rejects oversized media URLs and internal image refs', () => {
@@ -120,8 +133,19 @@ describe('urlSecurity', () => {
     expect(sanitizeNoteLinkHref('./docs/alpha.md')).toBe('./docs/alpha.md');
     expect(sanitizeNoteLinkHref('../docs/alpha.md')).toBe('../docs/alpha.md');
     expect(sanitizeNoteLinkHref('#heading')).toBe('#heading');
+    expect(sanitizeNoteLinkHref('.notes/alpha.md')).toBe('.notes/alpha.md');
     expect(sanitizeNoteLinkHref(String.raw`https:\example.com\path`)).toBeNull();
     expect(sanitizeNoteLinkHref(String.raw`\\example.com\path`)).toBeNull();
+  });
+
+  it('rejects relative links into internal note folders', () => {
+    expect(sanitizeNoteLinkHref('.vlaina/workspace.md')).toBeNull();
+    expect(sanitizeNoteLinkHref('./.vlaina/workspace.md')).toBeNull();
+    expect(sanitizeNoteLinkHref('docs/.git/config.md')).toBeNull();
+    expect(sanitizeNoteLinkHref('docs/.GIT/config.md')).toBeNull();
+    expect(sanitizeNoteLinkHref('%2evlaina/workspace.md')).toBeNull();
+    expect(sanitizeNoteLinkHref('docs/%252egit/config.md')).toBeNull();
+    expect(sanitizeNoteLinkHref('https://example.com/.git/config.md')).toBe('https://example.com/.git/config.md');
   });
 
   it('rejects oversized note link hrefs', () => {

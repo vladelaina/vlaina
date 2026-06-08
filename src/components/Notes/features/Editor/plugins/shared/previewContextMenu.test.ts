@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   toPng: vi.fn(),
   toSvg: vi.fn(),
   writeDesktopBinaryFile: vi.fn(),
+  translations: new Map<string, string>(),
 }));
 
 vi.mock('html-to-image', () => ({
@@ -29,6 +30,15 @@ vi.mock('@/lib/desktop/fs', () => ({
 
 vi.mock('@/lib/storage/dialog', () => ({
   saveDialog: mocks.saveDialog,
+}));
+
+vi.mock('@/lib/i18n', () => ({
+  translate: (key: string) => mocks.translations.get(key) ?? ({
+    'editor.preview.above': 'Above',
+    'editor.preview.below': 'Below',
+    'editor.preview.insertParagraph': 'Insert paragraph',
+    'editor.preview.saveAsImage': 'Save as image',
+  }[key] ?? key),
 }));
 
 function createViewStub() {
@@ -72,6 +82,7 @@ describe('previewContextMenu', () => {
     mocks.toPng.mockReset();
     mocks.toSvg.mockReset();
     mocks.writeDesktopBinaryFile.mockReset();
+    mocks.translations.clear();
 
     mocks.getElectronBridge.mockReturnValue({});
     mocks.saveDialog.mockImplementation(async (options: { defaultPath: string }) => `/tmp/${options.defaultPath}`);
@@ -272,6 +283,27 @@ describe('previewContextMenu', () => {
     expect(document.querySelector('.editor-preview-context-menu')?.className).toContain(chatComposerPillSurfaceClass);
     expect(document.querySelectorAll('.editor-preview-context-submenu')).toHaveLength(2);
     expect(menuLabels()).toEqual(['Save as image', 'PNG', 'JPG', 'SVG', 'Insert paragraph', 'Above', 'Below']);
+
+    session.destroy();
+  });
+
+  it('escapes translated labels before rendering menu markup', () => {
+    mocks.translations.set('editor.preview.saveAsImage', 'Save <img src=x onerror=alert(1)>');
+    const element = document.createElement('div');
+    document.body.appendChild(element);
+    const session = attachPreviewContextMenu({
+      element,
+      fileBaseName: 'preview',
+      getPos: () => 0,
+      node: { isInline: false } as never,
+      view: createViewStub(),
+    });
+
+    openMenu(element);
+    const menu = document.querySelector('.editor-preview-context-menu') as HTMLElement;
+
+    expect(menu.querySelector('img')).toBeNull();
+    expect(menu.textContent).toContain('Save <img src=x onerror=alert(1)>');
 
     session.destroy();
   });

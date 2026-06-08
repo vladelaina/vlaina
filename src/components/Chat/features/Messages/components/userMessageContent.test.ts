@@ -51,6 +51,13 @@ describe('userMessageContent', () => {
     });
   });
 
+  it('parses raw html images separately from user message text', () => {
+    expect(parseUserMessageContent('<img src="https://example.com/photo.png">\n\nhello')).toEqual({
+      imageSources: ['https://example.com/photo.png'],
+      text: 'hello',
+    });
+  });
+
   it('keeps code example image markdown in user message text', () => {
     const content = [
       '```md',

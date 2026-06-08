@@ -152,7 +152,7 @@ export function createEmptyMetadataFile(): MetadataFile {
 }
 
 function shouldSkipMetadataDirectory(name: string) {
-  return SKIPPED_METADATA_DIRECTORY_NAMES.has(name);
+  return SKIPPED_METADATA_DIRECTORY_NAMES.has(name.toLowerCase());
 }
 
 function shouldHideMetadataDirectory(name: string) {

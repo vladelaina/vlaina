@@ -1,10 +1,10 @@
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import { isRenderableDataImageSrc } from '@/components/common/markdown/imagePolicy';
 import {
-  extractRenderedMarkdownImageSources,
+  extractRenderedMessageImageSources,
   MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
   normalizeRenderedMessageImageSources,
-  stripMarkdownImageTokens,
+  stripMessageImageTokens,
 } from '@/components/Chat/common/messageClipboard';
 import { formatMarkdownImage } from '@/lib/markdown/markdownImageMarkdown';
 
@@ -64,10 +64,10 @@ export function toEditAttachment(src: string, index: number): Attachment {
 
 export function parseUserMessageContent(content: string): ParsedUserMessageContent {
   return {
-    imageSources: extractRenderedMarkdownImageSources(content, {
+    imageSources: extractRenderedMessageImageSources(content, {
       maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
     }),
-    text: stripMarkdownImageTokens(content, {
+    text: stripMessageImageTokens(content, {
       maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
     }).trim(),
   };
@@ -94,7 +94,7 @@ export function parseUserMessageContentWithKnownImages(
     } else {
       return {
         imageSources: safeImageSources,
-        text: stripMarkdownImageTokens(content, {
+        text: stripMessageImageTokens(content, {
           maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
         }).trim(),
       };

@@ -415,11 +415,11 @@ describe('unifiedStorage load bounds', () => {
           messages: [{
             id: 'm1',
             role: 'user',
-            content: 'Recover bounded orphan chat',
+            content: '<img src="https://example.com/orphan.png">\nRecover bounded orphan chat',
             modelId: '',
             timestamp: 10,
             versions: [{
-              content: 'Recover bounded orphan chat',
+              content: '<img src="https://example.com/orphan.png">\nRecover bounded orphan chat',
               createdAt: 10,
               kind: 'original',
               subsequentMessages: [],
@@ -439,6 +439,7 @@ describe('unifiedStorage load bounds', () => {
     const data = await loadUnifiedData();
 
     expect(data.ai?.sessions.map((session) => session.id)).toEqual([recoverableSessionId]);
+    expect(data.ai?.sessions[0]?.title).toBe('Recover bounded orphan chat');
     expect(mocks.storage.readFile).not.toHaveBeenCalledWith(
       `/appdata/.vlaina/chat/sessions/${skippedSessionId}.json`,
     );

@@ -332,6 +332,20 @@ describe('notesSidebarTags', () => {
           addedAt: 4,
         },
         {
+          id: 'star-internal-note',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: '.git/config.md',
+          addedAt: 6,
+        },
+        {
+          id: 'star-dot-note',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: '.notes/daily.md',
+          addedAt: 7,
+        },
+        {
           id: 'star-folder',
           kind: 'folder',
           vaultPath: '/vault',
@@ -355,7 +369,7 @@ describe('notesSidebarTags', () => {
       ],
     });
 
-    expect(entries.map((entry) => entry.path)).toEqual(['projects/alpha.md']);
+    expect(entries.map((entry) => entry.path)).toEqual(['.notes/daily.md', 'projects/alpha.md']);
   });
 
   it('uses absolute starred note paths as tag scope when no current vault is selected', () => {

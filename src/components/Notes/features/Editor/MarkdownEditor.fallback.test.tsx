@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MarkdownEditor } from './MarkdownEditor';
+import { themeEditorLayoutTokens } from '@/styles/themeTokens';
 
 type MockNotesState = {
   currentNote: { path: string; content: string } | null;
@@ -44,7 +45,12 @@ const mocks = vi.hoisted(() => {
     isDirty: false,
   };
 
-  return { notesState };
+  return {
+    notesState,
+    milkdownRuntimeMode: {
+      value: 'throw' as 'throw' | 'never-ready',
+    },
+  };
 });
 
 vi.mock('@/stores/useNotesStore', () => ({
@@ -158,7 +164,11 @@ vi.mock('./find/useNoteEditorFind', () => ({
 
 vi.mock('./MilkdownEditorInner', () => ({
   MilkdownEditorRuntime: () => {
-    throw new Error('Milkdown failed to create');
+    if (mocks.milkdownRuntimeMode.value === 'throw') {
+      throw new Error('Milkdown failed to create');
+    }
+
+    return <div data-testid="milkdown-never-ready" />;
   },
 }));
 
@@ -174,6 +184,11 @@ describe('MarkdownEditor source fallback', () => {
     mocks.notesState.noteMetadata = null;
     mocks.notesState.isDirty = false;
     mocks.notesState.saveNote.mockClear();
+    mocks.milkdownRuntimeMode.value = 'throw';
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('keeps markdown editable when the Milkdown runtime throws during render', async () => {
@@ -191,5 +206,21 @@ describe('MarkdownEditor source fallback', () => {
     await waitFor(() => {
       expect(mocks.notesState.saveNote).toHaveBeenCalledWith({ explicit: false });
     });
+  });
+
+  it('keeps markdown editable when the Milkdown runtime mounts but never becomes ready', async () => {
+    mocks.milkdownRuntimeMode.value = 'never-ready';
+
+    render(<MarkdownEditor />);
+
+    expect(await screen.findByTestId('milkdown-never-ready')).toBeInstanceOf(HTMLElement);
+    expect(screen.queryByLabelText('Markdown source editor')).toBeNull();
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, themeEditorLayoutTokens.editorInitFallbackDelayMs + 50));
+    });
+
+    const sourceEditor = await screen.findByLabelText('Markdown source editor');
+    expect(sourceEditor).toHaveValue('# Alpha\n\nInitial body');
   });
 });

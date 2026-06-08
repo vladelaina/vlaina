@@ -674,9 +674,16 @@ describe('loadMentionedNotes', () => {
     expect(notes[0]?.content).toContain('- cover.png (file, 2.0 KB)');
   });
 
-  it('keeps folder listing names on one prompt line', async () => {
+  it('skips folder listing names with control characters', async () => {
     mocks.notesState.rootFolder = null;
     mocks.storage.listDir.mockResolvedValue([
+      {
+        name: 'cover.md',
+        path: '/vault/assets/cover.md',
+        isDirectory: false,
+        isFile: true,
+        size: 12,
+      },
       {
         name: 'cover\n## Injected.md',
         path: '/vault/assets/cover.md',
@@ -691,8 +698,54 @@ describe('loadMentionedNotes', () => {
     ]);
 
     expect(notes[0]?.content).toContain('Folder: assets');
-    expect(notes[0]?.content).toContain('- cover ## Injected.md (file, 12 B)');
+    expect(notes[0]?.content).toContain('- cover.md (file, 12 B)');
+    expect(notes[0]?.content).not.toContain('cover ## Injected.md');
     expect(notes[0]?.content).not.toContain('\n## Injected');
+  });
+
+  it('skips folder listing and scan entries with unsafe path characters', async () => {
+    mocks.notesState.rootFolder = null;
+    mocks.storage.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault/assets') {
+        return [
+          {
+            name: 'alpha.md',
+            path: '/vault/assets/alpha.md',
+            isDirectory: false,
+            isFile: true,
+            size: 12,
+          },
+          {
+            name: 'secret\u202Egnp.md',
+            path: '/vault/assets/secret.md',
+            isDirectory: false,
+            isFile: true,
+            size: 12,
+          },
+          {
+            name: 'broken\uFFFD.md',
+            path: '/vault/assets/broken.md',
+            isDirectory: false,
+            isFile: true,
+            size: 12,
+          },
+        ];
+      }
+      return [];
+    });
+    mocks.storage.stat.mockResolvedValue({ isFile: true, isDirectory: false, size: 12 });
+    mocks.storage.readFile.mockResolvedValue('# Alpha');
+
+    const notes = await loadMentionedNotes([
+      { path: 'assets', title: 'assets/', kind: 'folder' },
+    ]);
+
+    expect(notes.map((note) => note.path)).toEqual(['assets', 'assets/alpha.md']);
+    expect(notes[0]?.content).not.toContain('secret');
+    expect(notes[0]?.content).not.toContain('broken');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/assets/alpha.md');
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/assets/secret\u202Egnp.md');
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/assets/broken\uFFFD.md');
   });
 });
 
@@ -787,6 +840,48 @@ describe('loadMentionedFolderImageAttachments', () => {
 
     expect(attachments).toHaveLength(1);
     expect(attachments[0]?.name).toBe('small.jpg');
+  });
+
+  it('skips folder image names with unsafe path characters', async () => {
+    mocks.storage.listDir.mockResolvedValue([
+      {
+        name: 'cover.png',
+        path: '/vault/assets/cover.png',
+        isDirectory: false,
+        isFile: true,
+        size: 2048,
+      },
+      {
+        name: 'secret\u202Egnp.png',
+        path: '/vault/assets/secret.png',
+        isDirectory: false,
+        isFile: true,
+        size: 2048,
+      },
+      {
+        name: 'broken\uFFFD.webp',
+        path: '/vault/assets/broken.webp',
+        isDirectory: false,
+        isFile: true,
+        size: 2048,
+      },
+    ]);
+
+    const attachments = await loadMentionedFolderImageAttachments([
+      { path: 'assets', title: 'assets/', kind: 'folder' },
+    ]);
+
+    expect(attachments).toEqual([
+      {
+        id: 'folder-image:/vault/assets/cover.png',
+        path: '/vault/assets/cover.png',
+        previewUrl: '',
+        assetUrl: '',
+        name: 'cover.png',
+        type: 'image/png',
+        size: 2048,
+      },
+    ]);
   });
 
   it('checks file size with stat when folder entries do not include size', async () => {

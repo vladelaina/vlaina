@@ -289,6 +289,7 @@ export async function saveNoteDocument({
       const { content, metadata } = updateNoteMetadataInMarkdown(mergedContent, {
         updatedAt: updatedAt ?? Date.now(),
       });
+      assertEditorSafeMarkdownContent(content);
 
       markExpectedExternalChange(fullPath);
       await safeWriteTextFile(fullPath, content);
@@ -314,6 +315,7 @@ export async function saveNoteDocument({
   const { content, metadata } = updateNoteMetadataInMarkdown(normalizedCurrentContent, {
     updatedAt: updatedAt ?? Date.now(),
   });
+  assertEditorSafeMarkdownContent(content);
 
   markExpectedExternalChange(fullPath);
   await safeWriteTextFile(fullPath, content);

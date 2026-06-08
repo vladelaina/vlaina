@@ -206,6 +206,34 @@ describe('chat mention path security', () => {
     expect(mocks.storage.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not read starred absolute note mentions when the starred vault root is internal', async () => {
+    mocks.notesState.starredEntries = [
+      {
+        id: 'app-root-note',
+        kind: 'note',
+        vaultPath: '/external/.vlaina',
+        relativePath: 'workspace.md',
+        addedAt: 1,
+      },
+      {
+        id: 'git-root-note',
+        kind: 'note',
+        vaultPath: '/external/docs/.git',
+        relativePath: 'config.md',
+        addedAt: 1,
+      },
+    ];
+
+    const notes = await loadMentionedNotes([
+      { path: '/external/.vlaina/workspace.md', title: 'Workspace' },
+      { path: '/external/docs/.git/config.md', title: 'Git Config' },
+    ]);
+
+    expect(notes).toEqual([]);
+    expect(mocks.storage.stat).not.toHaveBeenCalled();
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
   it('does not read arbitrary UNC note mentions unless they are starred', async () => {
     const notes = await loadMentionedNotes([
       { path: '\\\\server\\share\\secret.md', title: 'Secret' },
@@ -307,5 +335,22 @@ describe('chat mention path security', () => {
         size: 2048,
       },
     ]);
+  });
+
+  it('does not load starred folder images when the starred vault root is internal', async () => {
+    mocks.notesState.starredEntries = [{
+      id: 'internal-folder',
+      kind: 'folder',
+      vaultPath: '/external/.vlaina',
+      relativePath: 'assets',
+      addedAt: 1,
+    }];
+
+    const attachments = await loadMentionedFolderImageAttachments([
+      { path: '/external/.vlaina/assets', title: 'Assets', kind: 'folder' },
+    ]);
+
+    expect(attachments).toEqual([]);
+    expect(mocks.storage.listDir).not.toHaveBeenCalled();
   });
 });

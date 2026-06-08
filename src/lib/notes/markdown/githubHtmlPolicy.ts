@@ -1,4 +1,5 @@
 import { isLocalNetworkHttpUrl } from './urlSecurity';
+import { hasInternalNoteAssetUrlPathSegment } from '@/lib/assets/core/internalAssetPaths';
 
 export const GITHUB_ALLOWED_HTML_TAGS = new Set([
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
@@ -195,6 +196,7 @@ function hasUnsafeGithubBackslashUrlSyntax(value: string): boolean {
 function isSafeGithubPlainRelativeMediaUrl(value: string): boolean {
   return (
     !hasGithubProtocol(value)
+    && !hasInternalNoteAssetUrlPathSegment(value)
     && !/^[A-Za-z][A-Za-z0-9+.-]*:/.test(value)
     && !value.startsWith('//')
     && !value.startsWith('\\')
@@ -238,6 +240,9 @@ export function normalizeGithubUrl(
   const marker = getGithubProtocolMarker(trimmed);
   if (GITHUB_ALLOWED_RELATIVE_PROTOCOL_MARKERS.has(marker)) {
     if (trimmed.startsWith('//') && options.allowProtocolRelative === false) {
+      return null;
+    }
+    if (!trimmed.startsWith('//') && hasInternalNoteAssetUrlPathSegment(trimmed)) {
       return null;
     }
     if (options.blockLocalNetwork && trimmed.startsWith('//') && isLocalNetworkHttpUrl(`https:${trimmed}`)) {

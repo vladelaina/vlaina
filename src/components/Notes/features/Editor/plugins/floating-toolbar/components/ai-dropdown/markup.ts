@@ -2,6 +2,7 @@ import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { getAiMenuGroups } from './menuConfig';
 import type { AiMenuGroup, AiMenuItem } from './types';
+import { escapeToolbarHtml } from '../../htmlEscape';
 
 const IS_MAC =
   typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
@@ -31,7 +32,7 @@ function buildShortcutHint(item: AiMenuItem): string {
     return '';
   }
 
-  return `<span class="ai-dropdown-item-shortcut" aria-hidden="true">${toPlatformShortcutLabel(item.shortcut)}</span>`;
+  return `<span class="ai-dropdown-item-shortcut" aria-hidden="true">${escapeToolbarHtml(toPlatformShortcutLabel(item.shortcut))}</span>`;
 }
 
 function buildRootMarkup(groups: readonly AiMenuGroup[]): string {
@@ -43,23 +44,23 @@ function buildRootMarkup(groups: readonly AiMenuGroup[]): string {
             class="ai-dropdown-category ai-dropdown-category-action"
             data-ai-group-id="${group.id}"
             data-ai-behavior="${group.rootAction.behavior ?? 'review'}"
-            data-ai-prompt="${group.rootAction.instruction}"
-            data-ai-command-id="${group.rootAction.id}"
+            data-ai-prompt="${escapeToolbarHtml(group.rootAction.instruction)}"
+            data-ai-command-id="${escapeToolbarHtml(group.rootAction.id)}"
             data-ai-tone-id=""
             type="button"
-            aria-label="${group.rootAction.label}"
+            aria-label="${escapeToolbarHtml(group.rootAction.label)}"
           >
             ${buildItemIcon(group.rootAction.icon)}
-            <span class="ai-dropdown-category-label">${group.rootAction.label}</span>
+            <span class="ai-dropdown-category-label">${escapeToolbarHtml(group.rootAction.label)}</span>
             ${buildShortcutHint(group.rootAction)}
           </button>
         ` : `
           <button
             class="ai-dropdown-category ${index === 0 ? 'active' : ''}"
-            data-ai-category="${group.id}"
+            data-ai-category="${escapeToolbarHtml(group.id)}"
             type="button"
           >
-            <span class="ai-dropdown-category-label">${group.label}</span>
+            <span class="ai-dropdown-category-label">${escapeToolbarHtml(group.label)}</span>
             <span class="ai-dropdown-category-chevron" aria-hidden="true">›</span>
           </button>
         `}
@@ -70,20 +71,20 @@ function buildRootMarkup(groups: readonly AiMenuGroup[]): string {
 
 function buildItemsMarkup(group: AiMenuGroup): string {
   return `
-    <div class="ai-dropdown-children !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}" data-ai-category-panel="${group.id}">
+    <div class="ai-dropdown-children !rounded-[var(--vlaina-radius-26px)] ${chatComposerPillSurfaceClass}" data-ai-category-panel="${escapeToolbarHtml(group.id)}">
       ${group.items.map((item) => `
         <button
           class="ai-dropdown-item"
-          data-ai-group-id="${group.id}"
+          data-ai-group-id="${escapeToolbarHtml(group.id)}"
           data-ai-behavior="${item.behavior ?? 'review'}"
-          data-ai-prompt="${item.instruction}"
-          data-ai-command-id="${item.id}"
-          data-ai-tone-id="${group.tone ? item.id : ''}"
+          data-ai-prompt="${escapeToolbarHtml(item.instruction)}"
+          data-ai-command-id="${escapeToolbarHtml(item.id)}"
+          data-ai-tone-id="${escapeToolbarHtml(group.tone ? item.id : '')}"
           type="button"
-          aria-label="${item.label}"
+          aria-label="${escapeToolbarHtml(item.label)}"
         >
           ${buildItemIcon(item.icon)}
-          <span class="ai-dropdown-item-label">${item.label}</span>
+          <span class="ai-dropdown-item-label">${escapeToolbarHtml(item.label)}</span>
           ${buildShortcutHint(item)}
         </button>
       `).join('')}
@@ -100,7 +101,7 @@ export function createAiDropdownMarkup(): string {
       ${groups.filter((group) => !group.rootAction).map((group, index) => `
         <div
           class="ai-dropdown-panel ${index === 0 ? 'active' : ''}"
-          data-ai-panel="${group.id}"
+          data-ai-panel="${escapeToolbarHtml(group.id)}"
         >
           ${buildItemsMarkup(group)}
         </div>

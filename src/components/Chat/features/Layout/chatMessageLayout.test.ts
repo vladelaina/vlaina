@@ -92,6 +92,19 @@ describe('estimateChatMessageHeight', () => {
     expect(imageHeight).toBeGreaterThan(videoHeight);
   });
 
+  it('reserves user image stack height for raw html images', () => {
+    const textOnlyHeight = estimateChatMessageHeight(
+      createMessage('user', 'hello'),
+      { containerWidth: 900, isStreaming: false },
+    );
+    const rawHtmlImageHeight = estimateChatMessageHeight(
+      createMessage('user', '<img src="https://example.com/real.png">\n\nhello'),
+      { containerWidth: 900, isStreaming: false },
+    );
+
+    expect(rawHtmlImageHeight - textOnlyHeight).toBeGreaterThan(240);
+  });
+
   it('bounds user image height estimation for image-heavy messages', () => {
     const boundedHeight = estimateChatMessageHeight(
       createMessage(

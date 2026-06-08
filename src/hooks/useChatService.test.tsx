@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useChatService } from './useChatService';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { useNotesStore } from '@/stores/notes/useNotesStore';
 import type { AIModel, ApiTranscriptMessage, ChatMessage, ChatSendOptions, Provider } from '@/lib/ai/types';
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
 import { runWithSessionMutationLock } from '@/lib/ai/sessionMutationLock';
@@ -194,6 +195,7 @@ describe('useChatService session context isolation', () => {
     vi.clearAllMocks();
     mocked.convertToBase64.mockResolvedValue(TEMPORARY_IMAGE_DATA_URL);
     mocked.deleteAttachment.mockResolvedValue(undefined);
+    useNotesStore.setState({ notesPath: '/vault', starredEntries: [] });
     seedChatState();
   });
 
@@ -380,7 +382,7 @@ describe('useChatService session context isolation', () => {
       expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
     });
 
-    expect(convertToBase64).toHaveBeenCalledWith(attachment);
+    expect(convertToBase64).toHaveBeenCalledWith(attachment, expect.any(Object));
     expect(deleteAttachment).toHaveBeenCalledWith(attachment);
     const messages = useUnifiedStore.getState().data.ai?.messages['temp-session-1'] || [];
     const userMessage = messages.find((message) => message.role === 'user');
@@ -407,12 +409,42 @@ describe('useChatService session context isolation', () => {
       expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
     });
 
-    expect(convertToBase64).toHaveBeenCalledWith(attachment);
+    expect(convertToBase64).toHaveBeenCalledWith(attachment, expect.any(Object));
     expect(deleteAttachment).toHaveBeenCalledWith(attachment);
     const messages = useUnifiedStore.getState().data.ai?.messages['temp-session-1'] || [];
     const userMessage = messages.find((message) => message.role === 'user');
     expect(userMessage?.content).toBe(`![image](<${TEMPORARY_IMAGE_DATA_URL}>)\n\ndescribe it`);
     expect(userMessage?.content).not.toContain('FILE://');
+  });
+
+  it('uses the chat image path allowlist when converting temporary chat disk attachments', async () => {
+    seedTemporaryChatState();
+    vi.mocked(convertToBase64).mockResolvedValueOnce(TEMPORARY_IMAGE_DATA_URL);
+    const attachment = createAttachment({
+      path: '/vault/assets/demo.png',
+      previewUrl: 'blob:preview',
+      assetUrl: '',
+    });
+
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('describe it', [attachment], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
+    });
+
+    const options = vi.mocked(convertToBase64).mock.calls[0]?.[1] as
+      | { allowPath?: (path: string) => boolean }
+      | undefined;
+    expect(options?.allowPath?.('/vault/assets/demo.png')).toBe(true);
+    expect(options?.allowPath?.('/vault/.notes/demo.png')).toBe(true);
+    expect(options?.allowPath?.('/vault/.vlaina/demo.png')).toBe(false);
+    expect(options?.allowPath?.('/vault/docs/.git/demo.png')).toBe(false);
+    expect(options?.allowPath?.('/outside/demo.png')).toBe(false);
+    expect(deleteAttachment).toHaveBeenCalledWith(attachment);
   });
 
   it('drops temporary stored attachment references when conversion fails', async () => {

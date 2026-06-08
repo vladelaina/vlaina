@@ -3,6 +3,7 @@ import {
   parseHtmlImageTokens,
   parseMarkdownAndHtmlImageTokens,
   parseMarkdownImageTokens,
+  replaceImageTokens,
   stripMarkdownImageTokens,
 } from './markdownImageTokens';
 
@@ -201,6 +202,24 @@ describe('markdownImageTokens', () => {
     expect(stripped.match(/!\[image/g)).toHaveLength(1);
   });
 
+  it('replaces only valid non-overlapping token ranges', () => {
+    const content = 'before ![one](one.png) between ![two](two.png) after';
+    const oneStart = content.indexOf('![');
+    const oneEnd = content.indexOf(' between');
+    const twoStart = content.lastIndexOf('![');
+    const twoEnd = content.indexOf(' after');
+
+    expect(replaceImageTokens(content, [
+      { start: twoStart, end: twoEnd, src: 'two.png' },
+      { start: -1, end: 6, src: null },
+      { start: oneStart, end: oneEnd + 10, src: 'overlap.png' },
+      { start: oneStart, end: oneEnd, src: 'one.png' },
+      { start: content.length + 1, end: content.length + 8, src: null },
+      { start: content.length - 3, end: content.length + 20, src: null },
+      { start: 4.5, end: 8, src: null },
+    ], '[Image]')).toBe('before [Image] between [Image] after');
+  });
+
   it('keeps bounded html image parsing from reading markdown image targets as html', () => {
     const markdown = [
       '![one](<https://example.com/<img src="https://example.com/not-html-1.png">>)',
@@ -253,6 +272,30 @@ describe('markdownImageTokens', () => {
     ].join('\n');
 
     expect(parseHtmlImageTokens(markdown, { maxTokens: 1 })).toEqual([]);
+  });
+
+  it('does not keep combined scanning html after bounded markdown target protection is exhausted', () => {
+    const firstImage = '![image 0](<https://example.com/<img src="https://example.com/not-html-0.png"\\>>)'; 
+    const markdown = [
+      firstImage,
+      ...Array.from(
+        { length: 2499 },
+        (_, index) => `![image ${index + 1}](<https://example.com/<img src="https://example.com/not-html-${index + 1}.png"\\>>)`,
+      ),
+      '<img src="https://example.com/real.png">',
+    ].join('\n');
+    const targetStart = firstImage.indexOf('https://');
+    const targetEnd = firstImage.lastIndexOf('>)');
+
+    expect(parseMarkdownAndHtmlImageTokens(markdown, { maxTokens: 1 })).toEqual([
+      {
+        start: 0,
+        end: firstImage.length,
+        src: 'https://example.com/<img src="https://example.com/not-html-0.png">',
+        targetStart,
+        targetEnd,
+      },
+    ]);
   });
 
   it('rejects oversized ordinary html image attributes before decoding src values', () => {

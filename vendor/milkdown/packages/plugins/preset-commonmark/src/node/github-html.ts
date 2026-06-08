@@ -1,4 +1,4 @@
-import { isLocalNetworkHttpUrl } from '../__internal__'
+import { hasInternalImageUrlPathSegment, isLocalNetworkHttpUrl } from '../__internal__'
 import { prepareGithubRawHtmlForSanitizer } from './github-raw-html'
 
 export const githubAllowedHtmlTags = new Set([
@@ -210,6 +210,7 @@ function getProtocolMarker(value: string) {
 function isSafePlainRelativeMediaUrl(value: string) {
   return (
     !hasProtocol(value)
+    && !hasInternalImageUrlPathSegment(value)
     && !/^[A-Za-z][A-Za-z0-9+.-]*:/.test(value)
     && !value.startsWith('//')
     && !value.startsWith('\\')

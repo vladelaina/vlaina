@@ -175,6 +175,40 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
+  it('handles user dotfile note changes as normal markdown events', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: 'modify',
+        paths: ['/vault/.journal.md'],
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.notesState.invalidateNoteCache).toHaveBeenCalledWith('.journal.md');
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
+  it('handles user dot-folder note changes as normal markdown events', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: 'modify',
+        paths: ['/vault/.notes/alpha.md'],
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.notesState.invalidateNoteCache).toHaveBeenCalledWith('.notes/alpha.md');
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
   it('invalidates cached descendants and syncs the current note after an external folder change', async () => {
     hoisted.notesState.currentNote = { path: 'docs/current.md' };
     hoisted.notesState.rootFolder = {
@@ -290,6 +324,28 @@ describe('useNotesExternalSync', () => {
     });
 
     expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith('docs/alpha.md', 'docs/beta.md');
+    expect(hoisted.notesState.applyExternalPathDeletion).not.toHaveBeenCalled();
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
+  it('treats paired user dot-folder note events as an external rename', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { remove: { kind: 'file' } },
+        paths: ['/vault/.notes/alpha.md'],
+      });
+      await hoisted.watchHandler?.({
+        type: { create: { kind: 'file' } },
+        paths: ['/vault/.notes/beta.md'],
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith('.notes/alpha.md', '.notes/beta.md');
     expect(hoisted.notesState.applyExternalPathDeletion).not.toHaveBeenCalled();
     expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
 

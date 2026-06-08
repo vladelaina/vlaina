@@ -11,7 +11,11 @@ import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { getCurrentVaultPath, setCurrentVaultPath } from '@/stores/notes/storage';
-import { normalizeStarredVaultPath } from '@/stores/notes/starred';
+import {
+  getStarredEntryAbsolutePath,
+  normalizeStarredRelativePath,
+  normalizeStarredVaultPath,
+} from '@/stores/notes/starred';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { focusVisibleTextareaAt } from '@/lib/ui/composerFocusRegistry';
 import {
@@ -105,9 +109,16 @@ export function useNoteMentionState({
 
       const entryVaultPath = normalizeStarredVaultPath(entry.vaultPath);
       const isCurrentVaultEntry = !!currentVaultPath && entryVaultPath === currentVaultPath;
+      const relativePath = normalizeStarredRelativePath(entry.relativePath);
+      if (!relativePath) {
+        continue;
+      }
       const path = isCurrentVaultEntry
-        ? entry.relativePath
-        : `${entryVaultPath}/${entry.relativePath}`.replace(/\/+/g, '/');
+        ? relativePath
+        : getStarredEntryAbsolutePath({ ...entry, relativePath });
+      if (!path) {
+        continue;
+      }
       if (seenPaths.has(path)) {
         continue;
       }
@@ -116,14 +127,14 @@ export function useNoteMentionState({
       candidates.push({
         path,
         title: entry.kind === 'folder'
-          ? `${entry.relativePath.split('/').filter(Boolean).pop() ?? entry.relativePath}/`
+          ? `${relativePath.split('/').filter(Boolean).pop() ?? relativePath}/`
           : isCurrentVaultEntry
-            ? getDisplayName(entry.relativePath)
-            : getNoteTitleFromPath(entry.relativePath),
+            ? getDisplayName(relativePath)
+            : getNoteTitleFromPath(relativePath),
         kind: entry.kind,
         isCurrent: path === currentNotePath,
-        icon: entry.kind === 'note' && isCurrentVaultEntry ? getNoteIcon(entry.relativePath) : undefined,
-        notePath: entry.kind === 'note' ? entry.relativePath : undefined,
+        icon: entry.kind === 'note' && isCurrentVaultEntry ? getNoteIcon(relativePath) : undefined,
+        notePath: entry.kind === 'note' ? relativePath : undefined,
         vaultPath: entryVaultPath,
         starredEntry: isCurrentVaultEntry ? undefined : entry,
       });

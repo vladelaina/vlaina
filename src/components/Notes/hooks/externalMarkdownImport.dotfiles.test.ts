@@ -26,6 +26,7 @@ vi.mock('@/lib/storage/adapter', () => ({
     return lastSlashIndex === -1 ? null : normalized.slice(0, lastSlashIndex) || '/';
   },
   isAbsolutePath: (path: string) => path.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(path),
+  normalizeAbsolutePath: (path: string) => path.replace(/\\/g, '/'),
   joinPath: async (...segments: string[]) => segments.filter(Boolean).join('/'),
   getStorageAdapter: () => mocks.storage,
 }));

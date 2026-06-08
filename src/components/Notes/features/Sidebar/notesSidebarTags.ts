@@ -120,7 +120,11 @@ export function buildNotesSidebarTagScopeEntries({
           normalizeStarredVaultPath(entry.vaultPath) === normalizedCurrentVaultPath)
       ) {
         const relativePath = normalizeStarredRelativePath(entry.relativePath);
-        if (!relativePath || !isSupportedMarkdownPath(relativePath)) {
+        if (
+          !relativePath ||
+          hasInternalNotePathSegment(relativePath) ||
+          !isSupportedMarkdownPath(relativePath)
+        ) {
           continue;
         }
 

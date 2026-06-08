@@ -33,11 +33,15 @@ vi.mock('@/components/Chat/common/LocalImage', () => ({
 }));
 
 vi.mock('@/components/Chat/common/messageClipboard', () => ({
+  MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES: 2000,
   copyMessageContentToClipboard: vi.fn(async () => {}),
   extractMarkdownImageSources: vi.fn(() => []),
   extractRenderedMarkdownImageSources: vi.fn(() => []),
+  extractRenderedMessageImageSources: vi.fn(() => []),
   isRenderedImageSource: vi.fn(() => true),
+  normalizeRenderedMessageImageSources: vi.fn((value: string[] | undefined) => value ?? []),
   stripMarkdownImageTokens: vi.fn((value: string) => value),
+  stripMessageImageTokens: vi.fn((value: string) => value),
 }));
 
 vi.mock('@/lib/navigation/externalLinks', () => ({

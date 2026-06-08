@@ -609,6 +609,22 @@ describe('saveNoteDocument', () => {
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 
+  it('rejects final saved markdown that becomes too complex after metadata is added', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });
+
+    await expect(saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: Array.from({ length: 120_000 }, () => 'x').join('\n'),
+      },
+      cache: new Map(),
+      updatedAt: Date.parse('2026-04-15T10:00:00.000Z'),
+    })).rejects.toThrow('Note file is too complex to open safely.');
+
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
   it('cleans internal user break markers when loading markdown', async () => {
     adapter.readFile.mockResolvedValue(['Line one', '<br data-vlaina-user-br="true" />', 'Line two'].join('\n'));
     adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 16 });

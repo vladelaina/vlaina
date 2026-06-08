@@ -4,11 +4,17 @@ import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import type { StarredEntry } from '@/stores/notes/types';
+import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import {
   getStarredEntryAbsolutePath,
   normalizeStarredVaultPath,
 } from '@/stores/notes/starred';
-import { getAbsoluteRenameWatchPaths, isMarkdownPath, normalizeFsPath } from '../../hooks/notesExternalSyncUtils';
+import {
+  getAbsoluteRenameWatchPaths,
+  hasUnsafeFsPathSegment,
+  isMarkdownPath,
+  normalizeFsPath,
+} from '../../hooks/notesExternalSyncUtils';
 
 function isPathWithin(path: string, basePath: string) {
   return path === basePath || path.startsWith(`${basePath}/`);
@@ -31,6 +37,9 @@ function getExternalStarredWatchEntries(
 
     const absolutePath = getStarredEntryAbsolutePath(entry);
     if (!absolutePath || !isAbsolutePath(absolutePath)) {
+      continue;
+    }
+    if (hasInternalNotePathSegment(absolutePath)) {
       continue;
     }
 
@@ -88,6 +97,15 @@ export function useExternalStarredRenameSync() {
           }
 
           const newPath = normalizeFsPath(renamePaths.newPath);
+          if (
+            hasUnsafeFsPathSegment(oldPath) ||
+            hasUnsafeFsPathSegment(newPath) ||
+            hasInternalNotePathSegment(oldPath) ||
+            hasInternalNotePathSegment(newPath)
+          ) {
+            return;
+          }
+
           if (!isMarkdownPath(oldPath) || !isMarkdownPath(newPath)) {
             return;
           }

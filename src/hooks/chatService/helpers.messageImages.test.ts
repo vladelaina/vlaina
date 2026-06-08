@@ -108,6 +108,49 @@ describe('buildStoredUserMessageContent image parsing', () => {
     ]);
   });
 
+  it('converts rendered raw HTML image sources into vision message parts on resend paths', async () => {
+    const content = [
+      '<img src="https://example.com/photo.png" alt="photo">',
+      '',
+      '<img src="data:image/png;base64,REAL" alt="inline">',
+      '',
+      'Describe these images.',
+    ].join('\n');
+
+    await expect(buildStoredUserMessageContent(content)).resolves.toEqual([
+      {
+        type: 'text',
+        text: 'Describe these images.',
+      },
+      { type: 'image_url', image_url: { url: 'https://example.com/photo.png' } },
+      { type: 'image_url', image_url: { url: 'data:image/png;base64,REAL' } },
+    ]);
+  });
+
+  it('does not convert raw HTML images inside sanitizer-dropped containers on resend paths', async () => {
+    const content = [
+      '<svg><img src="https://example.com/hidden.png"></svg>',
+      '<noscript><img src="https://example.com/noscript.png"></noscript>',
+      '<img src="https://example.com/real.png" alt="real">',
+      '',
+      'Describe this image.',
+    ].join('\n');
+
+    await expect(buildStoredUserMessageContent(content)).resolves.toEqual([
+      {
+        type: 'text',
+        text: [
+          '<svg><img src="https://example.com/hidden.png"></svg>',
+          '<noscript><img src="https://example.com/noscript.png"></noscript>',
+          '',
+          '',
+          'Describe this image.',
+        ].join('\n'),
+      },
+      { type: 'image_url', image_url: { url: 'https://example.com/real.png' } },
+    ]);
+  });
+
   it('uses a fallback attachment name for oversized relative image sources', async () => {
     const longImageSource = `images/${'a'.repeat(3000)}.png`;
     const content = [
@@ -201,6 +244,44 @@ describe('buildStoredUserMessageContent image parsing', () => {
     expect(options?.allowPath?.('/external/other/cover.png')).toBe(false);
     expect(options?.allowPath?.('/external/assets/.vlaina/cover.png')).toBe(false);
     expect(options?.allowPath?.('/outside/cover.png')).toBe(false);
+  });
+
+  it('rejects image attachment paths from starred folders rooted in internal note directories', async () => {
+    useNotesStore.setState({
+      notesPath: '/vault',
+      starredEntries: [
+        {
+          id: 'internal-assets',
+          kind: 'folder',
+          vaultPath: '/external/.vlaina',
+          relativePath: 'assets',
+          addedAt: 1,
+        },
+        {
+          id: 'git-assets',
+          kind: 'folder',
+          vaultPath: '/external/docs/.git',
+          relativePath: 'assets',
+          addedAt: 1,
+        },
+      ],
+    });
+
+    await buildMessageImageSources([{
+      id: 'external-image',
+      path: '/external/.vlaina/assets/cover.png',
+      previewUrl: '',
+      assetUrl: '',
+      name: 'cover.png',
+      type: 'image/png',
+      size: 128,
+    }]);
+
+    const options = mocks.convertToBase64.mock.calls[0]?.[1] as
+      | { allowPath?: (path: string) => boolean }
+      | undefined;
+    expect(options?.allowPath?.('/external/.vlaina/assets/cover.png')).toBe(false);
+    expect(options?.allowPath?.('/external/docs/.git/assets/cover.png')).toBe(false);
   });
 
   it('keeps managed attachment URLs as stored references when building message images', async () => {

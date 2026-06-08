@@ -266,6 +266,22 @@ describe('fileSystemSlice rename actions', () => {
     expect(harness.getState().currentNote).toEqual({ path: oldPath, content: '# alpha' });
   });
 
+  it('rejects absolute renames inside internal folders before reaching storage', async () => {
+    const harness = createSliceHarness();
+
+    harness.getState().notesPath = '/vault-a';
+    harness.getState().currentNote = { path: '/vault-b/docs/alpha.md', content: '# alpha' };
+
+    await harness.getState().renameAbsoluteNote('/vault-b/.vlaina/workspace.md', 'workspace');
+    await harness.getState().renameAbsoluteNote('/vault-b/docs/.git/config.md', 'config');
+    await harness.getState().renameAbsoluteNote('/vault-b/docs/.GIT/config.md', 'config');
+    await harness.getState().renameAbsoluteNote('/vault-b/.VLAINA/workspace.md', 'workspace');
+
+    expect(hoisted.storageAdapter.rename).not.toHaveBeenCalled();
+    expect(harness.getState().error).toBe('Path must not be inside an internal notes folder.');
+    expect(harness.getState().currentNote).toEqual({ path: '/vault-b/docs/alpha.md', content: '# alpha' });
+  });
+
   it('preserves latest starred entries while a relative note rename is in flight', async () => {
     let resolveRename: () => void;
     hoisted.storageAdapter.rename.mockImplementation(() => new Promise<undefined>((resolve) => {

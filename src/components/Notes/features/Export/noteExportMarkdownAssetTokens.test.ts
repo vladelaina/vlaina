@@ -193,6 +193,18 @@ describe('findExportMarkdownAssetSourceTokens', () => {
     expect(tokens).toEqual([]);
   });
 
+  it('rejects oversized raw HTML image attributes before decoding src values', () => {
+    const oversized = 'a'.repeat(16 * 1024 + 1);
+
+    expect(findExportMarkdownAssetSourceTokens(`<img src="img:${oversized}.png">`)).toEqual([]);
+    expect(findExportMarkdownAssetSourceTokens([
+      `<img alt="${oversized}" src="img:hidden.png">`,
+      '<img src="img:real.png">',
+    ].join('\n')).map((token) => token.lookupSrc)).toEqual([
+      'img:real.png',
+    ]);
+  });
+
   it('stops markdown asset extraction after the html tag scan budget is exhausted', () => {
     const ignoredTags = Array.from(
       { length: MAX_EXPORT_HTML_TAG_SCAN_RANGES },

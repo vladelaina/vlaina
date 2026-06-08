@@ -30,6 +30,7 @@ import {
   buildMessageImageSources,
   buildStoredUserMessageContent,
   MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS,
+  isAllowedChatImageAttachmentPath,
   loadMentionedNotes,
   loadMentionedFolderImageAttachments,
   normalizeNoteMentions,
@@ -218,7 +219,9 @@ async function makeTemporaryAttachmentsEphemeral(attachments: Attachment[]): Pro
 
       let previewUrl: string | null = null;
       try {
-        previewUrl = await convertToBase64(attachment);
+        previewUrl = await convertToBase64(attachment, {
+          allowPath: isAllowedChatImageAttachmentPath,
+        });
       } catch {
       }
 

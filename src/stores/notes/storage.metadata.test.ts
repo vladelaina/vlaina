@@ -282,6 +282,8 @@ describe('notes metadata storage', () => {
       if (path === '/vault-heavy') {
         return [
           { name: 'node_modules', isDirectory: true },
+          { name: 'Node_Modules', isDirectory: true },
+          { name: 'Dist', isDirectory: true },
           { name: 'docs', isDirectory: true },
         ];
       }
@@ -292,6 +294,14 @@ describe('notes metadata storage', () => {
 
       if (path === '/vault-heavy/node_modules') {
         return [{ name: 'package.md', isFile: true }];
+      }
+
+      if (path === '/vault-heavy/Node_Modules') {
+        return [{ name: 'package.md', isFile: true }];
+      }
+
+      if (path === '/vault-heavy/Dist') {
+        return [{ name: 'bundle.md', isFile: true }];
       }
 
       return [];
@@ -313,6 +323,8 @@ describe('notes metadata storage', () => {
       },
     });
     expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-heavy/node_modules');
+    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-heavy/Node_Modules');
+    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-heavy/Dist');
   });
 
   it('keeps readable sibling metadata when one nested folder cannot be listed', async () => {

@@ -6,6 +6,7 @@ import {
   savePreview,
   type PreviewExportFormat,
 } from './previewExport';
+import { escapeToolbarHtml } from '../floating-toolbar/htmlEscape';
 import { suppressPreviewEditorOpen } from './previewContextMenuSuppression';
 import { markEditorUserInput } from './userInputEvents';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
@@ -169,7 +170,7 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
     button.innerHTML = `
       <span class="slash-menu-item-icon" aria-hidden="true">${icon ? MENU_ICONS[icon] : ''}</span>
       <span class="slash-menu-item-content">
-        <span class="slash-menu-item-name">${label}</span>
+        <span class="slash-menu-item-name">${escapeToolbarHtml(label)}</span>
       </span>
     `;
     button.addEventListener('mousedown', (event) => {

@@ -403,6 +403,72 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     });
   });
 
+  it('sends current safe image inputs to Anthropic as image content blocks', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse('event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"seen"}}\n\n'),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await new OpenAICompatibleClient().sendMessage(
+      [
+        { type: 'text', text: 'describe this' },
+        { type: 'image_url', image_url: { url: 'data:image/png;base64,aGk=' } },
+      ],
+      [],
+      buildModel(),
+      buildProvider({ endpointType: 'anthropic' }),
+      vi.fn(),
+    );
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.messages).toEqual([
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'describe this' },
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: 'image/png',
+              data: 'aGk=',
+            },
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('does not send local attachment image URLs to Anthropic as content blocks', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse('event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"seen"}}\n\n'),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await new OpenAICompatibleClient().sendMessage(
+      [
+        { type: 'text', text: 'describe this' },
+        { type: 'image_url', image_url: { url: 'attachment://safe.png' } },
+        { type: 'image_url', image_url: { url: 'app-file://attachment/local.png' } },
+      ],
+      [],
+      buildModel(),
+      buildProvider({ endpointType: 'anthropic' }),
+      vi.fn(),
+    );
+
+    const bodyText = fetchMock.mock.calls[0][1].body;
+    const body = JSON.parse(bodyText);
+    expect(body.messages).toEqual([
+      {
+        role: 'user',
+        content: [{ type: 'text', text: 'describe this' }],
+      },
+    ]);
+    expect(bodyText).not.toContain('attachment://');
+    expect(bodyText).not.toContain('app-file://');
+  });
+
   it('aborts Anthropic streams after response headers have returned', async () => {
     const cancelStream = vi.fn();
     const stream = new ReadableStream({
@@ -1076,6 +1142,46 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     ).rejects.toThrow('Web search is unavailable for this model.');
 
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('sanitizes current structured image URLs before OpenAI-compatible requests', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse('data: {"choices":[{"delta":{"content":"next"}}]}\n\ndata: [DONE]\n\n'),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await new OpenAICompatibleClient().sendMessage(
+      [
+        { type: 'text', text: 'describe these' },
+        { type: 'image_url', image_url: { url: 'https://example.test/safe.png', detail: 'low' } },
+        { type: 'image_url', image_url: { url: 'data:image/png;base64,aGk=' } },
+        { type: 'image_url', image_url: { url: 'http://127.0.0.1:3000/secret.png' } },
+        { type: 'image_url', image_url: { url: 'file:///tmp/secret.png' } },
+        { type: 'image_url', image_url: { url: 'attachment://safe.png' } },
+        { type: 'image_url', image_url: { url: 'app-file://attachment/local.png' } },
+      ],
+      [],
+      buildModel({ apiModelId: 'gpt-4o-mini', name: 'GPT 4o mini' }),
+      buildProvider({ endpointType: 'openai' }),
+      vi.fn(),
+    );
+
+    const bodyText = fetchMock.mock.calls[0][1].body;
+    const body = JSON.parse(bodyText);
+    expect(body.messages).toEqual([
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'describe these' },
+          { type: 'image_url', image_url: { url: 'https://example.test/safe.png', detail: 'low' } },
+          { type: 'image_url', image_url: { url: 'data:image/png;base64,aGk=' } },
+        ],
+      },
+    ]);
+    expect(bodyText).not.toContain('127.0.0.1');
+    expect(bodyText).not.toContain('file:///tmp/secret.png');
+    expect(bodyText).not.toContain('attachment://safe.png');
+    expect(bodyText).not.toContain('app-file://attachment/local.png');
   });
 
   it('uses xAI native web search for official Grok models', async () => {

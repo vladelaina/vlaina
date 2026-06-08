@@ -79,7 +79,9 @@ export function parseMarkdownAndHtmlImageTokens(content: string, options?: Image
       ? collectMarkdownImageTokensInRange(content, range, markdownProtectionLimit)
       : { exhausted: false, tokens: [] };
     const markdownImageTokens = markdownImageScan.tokens;
-    const htmlImageTokens = parseHtmlImageTokensInRange(content, range, markdownImageTokens, remainingTokens);
+    const htmlImageTokens = markdownImageScan.exhausted
+      ? []
+      : parseHtmlImageTokensInRange(content, range, markdownImageTokens, remainingTokens);
     tokens.push(
       ...[...markdownImageTokens, ...htmlImageTokens]
         .sort((a, b) => a.start - b.start)
@@ -94,11 +96,23 @@ export function replaceImageTokens(content: string, tokens: ImageToken[], replac
     return content;
   }
 
-  const sortedTokens = [...tokens].sort((a, b) => a.start - b.start);
+  const sortedTokens = [...tokens]
+    .filter((token) =>
+      Number.isSafeInteger(token.start) &&
+      Number.isSafeInteger(token.end) &&
+      token.start >= 0 &&
+      token.end > token.start &&
+      token.start < content.length &&
+      token.end <= content.length
+    )
+    .sort((a, b) => a.start === b.start ? a.end - b.end : a.start - b.start);
   const parts: string[] = [];
   let cursor = 0;
 
   for (const token of sortedTokens) {
+    if (token.start < cursor) {
+      continue;
+    }
     parts.push(content.slice(cursor, token.start), replacement);
     cursor = token.end;
   }

@@ -52,6 +52,34 @@ describe('useLocalImage', () => {
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
   });
 
+  it('does not browser-load unsafe local fallbacks while the vault path is temporarily empty', async () => {
+    const internal = renderHook(() =>
+      useLocalImage('.vlaina/assets/secret.png', '', undefined)
+    );
+    const git = renderHook(() =>
+      useLocalImage('docs/.git/secret.png', '', undefined)
+    );
+    const traversal = renderHook(() =>
+      useLocalImage('../secret.png', '', undefined)
+    );
+    const userDotFolder = renderHook(() =>
+      useLocalImage('.notes/public.png', '', undefined)
+    );
+
+    await waitFor(() => {
+      expect(internal.result.current.isLoading).toBe(false);
+      expect(git.result.current.isLoading).toBe(false);
+      expect(traversal.result.current.isLoading).toBe(false);
+      expect(userDotFolder.result.current.isLoading).toBe(false);
+    });
+
+    expect(internal.result.current.resolvedSrc).toBe('');
+    expect(git.result.current.resolvedSrc).toBe('');
+    expect(traversal.result.current.resolvedSrc).toBe('');
+    expect(userDotFolder.result.current.resolvedSrc).toBe('.notes/public.png');
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+  });
+
   it('falls back to the vault-root image path when the note-relative path is missing', async () => {
     hoisted.exists
       .mockResolvedValueOnce(false)

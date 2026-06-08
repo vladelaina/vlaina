@@ -398,7 +398,7 @@ describe('notesSidebarSearchResults', () => {
       '[visible [target label]](assets/file(target).md#hidden-target)',
       '`target code`',
       'Plain target text.',
-      '<span data-value="target">hidden attribute target</span>',
+      '<span data-value="target">visible html text</span>',
     ].join('\n'));
 
     expect(results.map((result) => result.contentSnippet)).toEqual([
@@ -410,6 +410,22 @@ describe('notesSidebarSearchResults', () => {
     expect(results.map((result) => result.contentSnippet).join(' ')).not.toContain('hidden-target');
     expect(results.map((result) => result.contentSnippet).join(' ')).not.toContain('data-value');
     expect(results.map((result) => result.contentSnippet)).not.toContain('target image');
+  });
+
+  it('searches visible inline raw HTML text without searching tag attributes', () => {
+    const index = [{
+      path: 'inline-html.md',
+      name: 'inline-html.md',
+      preview: '',
+    }];
+    const results = queryNotesSidebarSearch(index, 'needle', () => [
+      '<span data-value="needle">visible html text</span>',
+      '<span title="needle > hidden">visible split text</span>',
+      '<!-- hidden needle comment -->',
+      '<em>visible needle text</em>',
+    ].join('\n'));
+
+    expect(results.map((result) => result.contentSnippet)).toEqual(['visible needle text']);
   });
 
   it('does not search content inside sanitizer-dropped raw HTML blocks', () => {

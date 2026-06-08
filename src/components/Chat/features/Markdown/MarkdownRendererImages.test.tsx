@@ -202,6 +202,35 @@ describe('MarkdownRenderer images', () => {
     expect(container.querySelector('audio')).toHaveAttribute('src', './media/demo.mp3');
   });
 
+  it('drops internal relative raw HTML media paths in read-only markdown', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={[
+          '<img src=".vlaina/private.png" alt="hidden">',
+          '<img src="docs/.GIT/private.png" alt="hidden">',
+          '<picture>',
+          '<source src=".vlaina/private.webp" srcset="docs/%252egit/private.webp 1x">',
+          '<img src=".notes/safe.png" alt="safe">',
+          '</picture>',
+          '<video poster="%2evlaina/private.png"><source src="docs/.git/private.mp4"></video>',
+          '<track src=".vlaina/private.vtt" kind="captions">',
+        ].join('')}
+      />
+    );
+
+    expect(screen.getAllByTestId('local-image')).toHaveLength(1);
+    expect(screen.getByTestId('local-image')).toHaveAttribute('src', '.notes/safe.png');
+    expect(container.querySelector('source')).not.toHaveAttribute('src');
+    expect(container.querySelector('source')).not.toHaveAttribute('srcset');
+    expect(container.querySelector('video')).not.toHaveAttribute('poster');
+    expect(container.querySelector('video source')).not.toHaveAttribute('src');
+    expect(container.querySelector('track')).not.toHaveAttribute('src');
+    expect(container.innerHTML).not.toContain('.vlaina');
+    expect(container.innerHTML).not.toContain('.GIT');
+    expect(container.innerHTML).not.toContain('%2evlaina');
+    expect(container.innerHTML).not.toContain('%252egit');
+  });
+
   it('does not render images nested inside raw html dropped by the sanitizer', () => {
     const { container } = render(
       <MarkdownRenderer

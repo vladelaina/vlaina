@@ -5,6 +5,8 @@ import { getBlockTypeIconMarkup } from './components/BlockDropdown';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { translate } from '@/lib/i18n';
+import { escapeToolbarHtml } from './htmlEscape';
+import { sanitizeCssColorValue } from './colorMarkdownHtml';
 
 const IS_MAC =
   typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
@@ -31,8 +33,9 @@ function renderButton(
   const isActive = activeOverride ?? Boolean(config.mark && activeMarks.has(config.mark));
   const shortcutSource = shortcutOverride ?? config.shortcut ?? '';
   const shortcutLabel = shortcutSource ? toPlatformShortcutLabel(shortcutSource) : '';
-  const shortcutAttr = shortcutLabel ? `data-shortcut="${shortcutLabel}"` : '';
-  const tooltipAttr = shortcutLabel ? `data-tooltip="${shortcutLabel}"` : '';
+  const escapedShortcutLabel = escapeToolbarHtml(shortcutLabel);
+  const shortcutAttr = escapedShortcutLabel ? `data-shortcut="${escapedShortcutLabel}"` : '';
+  const tooltipAttr = escapedShortcutLabel ? `data-tooltip="${escapedShortcutLabel}"` : '';
 
   return `
     <button class="toolbar-btn has-tooltip ${isActive ? 'active' : ''}" 
@@ -83,7 +86,7 @@ function getAlignmentIcon(alignment: TextAlignment | null): string {
 }
 
 function renderAiButton(): string {
-  const label = translate('editor.ai.askAi');
+  const label = escapeToolbarHtml(translate('editor.ai.askAi'));
   return `
     <button class="toolbar-btn toolbar-ai-btn has-tooltip"
             data-action="ai"
@@ -96,10 +99,11 @@ function renderAiButton(): string {
 
 function renderBlockButton(state: FloatingToolbarState): string {
   const blockButtonActive = state.subMenu === 'block' ? 'active' : '';
+  const textTypeLabel = escapeToolbarHtml(translate('editor.textType'));
   return `
     <button class="toolbar-btn toolbar-dropdown-btn has-tooltip ${blockButtonActive}" 
             data-action="block" 
-            data-tooltip="${translate('editor.textType')}">
+            data-tooltip="${textTypeLabel}">
       ${renderBlockTypeContent(state.currentBlockType)}
       ${EDITOR_ICONS.chevronDown}
     </button>
@@ -108,10 +112,11 @@ function renderBlockButton(state: FloatingToolbarState): string {
 
 function renderAlignmentButton(state: FloatingToolbarState): string {
   const alignmentButtonActive = state.subMenu === 'alignment' ? 'active' : '';
+  const alignLabel = escapeToolbarHtml(translate('editor.align'));
   return `
     <button class="toolbar-btn toolbar-dropdown-btn has-tooltip ${alignmentButtonActive}"
             data-action="alignment"
-            data-tooltip="${translate('editor.align')}">
+            data-tooltip="${alignLabel}">
       ${getAlignmentIcon(state.currentAlignment)}
       ${EDITOR_ICONS.chevronDown}
     </button>
@@ -120,10 +125,12 @@ function renderAlignmentButton(state: FloatingToolbarState): string {
 
 function renderColorIconContent(state: FloatingToolbarState, icon: string): string {
   const styleParts: string[] = [];
-  if (state.textColor) {
-    styleParts.push(`color: ${state.textColor}`);
-  } else if (state.bgColor) {
-    styleParts.push(`background-color: ${state.bgColor}`);
+  const textColor = state.textColor ? sanitizeCssColorValue(state.textColor) : null;
+  const bgColor = state.bgColor ? sanitizeCssColorValue(state.bgColor) : null;
+  if (textColor) {
+    styleParts.push(`color: ${textColor}`);
+  } else if (bgColor) {
+    styleParts.push(`background-color: ${bgColor}`);
   }
 
   const styleAttr = styleParts.length > 0 ? ` style="${styleParts.join('; ')}"` : '';

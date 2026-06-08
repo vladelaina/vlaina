@@ -1,14 +1,26 @@
 import { useState, useEffect } from 'react';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
+import { hasInternalNoteAssetPathSegment } from '@/lib/assets/core/internalAssetPaths';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { normalizePublicRemoteMediaUrl, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
-import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePathCandidates } from '../utils/imageSourcePath';
+import { getImageSourceBase, getLocalImageSourcePath, isVirtualImageSource, resolveImageSourcePathCandidates } from '../utils/imageSourcePath';
 import { resolveRemoteImageFromMemoryCache } from '../utils/remoteImageMemoryCache';
 
 interface UseLocalImageResult {
     resolvedSrc: string;
     isLoading: boolean;
     error: Error | null;
+}
+
+function canUseVaultlessLocalImageFallback(src: string): boolean {
+    const localSrc = getLocalImageSourcePath(src);
+    if (!localSrc || hasInternalNoteAssetPathSegment(localSrc)) {
+        return false;
+    }
+    if (localSrc.startsWith('/') || /^[A-Za-z]:[\\/]/.test(localSrc)) {
+        return false;
+    }
+    return !localSrc.split('/').some((segment) => segment === '..');
 }
 
 export function useLocalImage(
@@ -113,7 +125,7 @@ export function useLocalImage(
                     }
 
                     throw lastError ?? new Error(`Failed to load image: ${rawSrc}`);
-                } else if (!notesPath) {
+                } else if (!notesPath && canUseVaultlessLocalImageFallback(safeBaseSrc)) {
                     if (isMounted) {
                         setResolvedSrc(baseSrc);
                     }

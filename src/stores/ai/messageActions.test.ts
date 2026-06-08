@@ -391,7 +391,7 @@ describe('message actions API transcript handling', () => {
     expect(messages[0].id).toBe(addedId);
   });
 
-  it('derives user message image sources only from markdown image tokens', () => {
+  it('derives user message image sources from rendered markdown and raw html image tokens', () => {
     seedMessages([]);
 
     createMessageActions().addMessage({
@@ -404,7 +404,10 @@ describe('message actions API transcript handling', () => {
     }, 'session-1');
 
     const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
-    expect(message.imageSources).toEqual(['https://example.com/markdown.png']);
+    expect(message.imageSources).toEqual([
+      'https://example.com/html.png',
+      'https://example.com/markdown.png',
+    ]);
   });
 
   it('does not cache video markdown as user message image sources', () => {
@@ -491,7 +494,7 @@ describe('message actions API transcript handling', () => {
     expect(message.imageSources).toEqual(['https://example.com/markdown.png']);
   });
 
-  it('keeps user edit version image sources aligned with markdown attachments', () => {
+  it('keeps user edit version image sources aligned with rendered attachments', () => {
     seedMessages([createUserMessage('prompt-1', 'initial'), createAssistantMessage()]);
 
     createMessageActions().editMessageAndBranch(
@@ -501,7 +504,10 @@ describe('message actions API transcript handling', () => {
     );
 
     const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
-    expect(message.imageSources).toEqual(['https://example.com/markdown.png']);
+    expect(message.imageSources).toEqual([
+      'https://example.com/html.png',
+      'https://example.com/markdown.png',
+    ]);
   });
 
   it('routes version mutations through promoted temporary session aliases', () => {

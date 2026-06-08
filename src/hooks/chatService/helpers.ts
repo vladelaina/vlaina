@@ -8,7 +8,7 @@ import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { dedupeNoteMentions } from '@/lib/ai/noteMentions';
 import { isRenderedImageSource } from '@/components/Chat/common/messageClipboard';
 import {
-  parseMarkdownImageTokens,
+  parseMarkdownAndHtmlImageTokens,
   stripImageTokens,
   type ImageToken,
 } from '@/components/Chat/common/messageImageTokens';
@@ -35,6 +35,7 @@ import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from '@/lib/notes/markdownFile';
 import {
+  isSafeVaultPathSegment,
   normalizeVaultRelativePath,
   resolveVaultRelativeFullPath,
 } from '@/stores/notes/utils/fs/vaultPathContainment';
@@ -227,7 +228,7 @@ function collectStoredUserMessageImages(content: string): {
   const imageSources: string[] = [];
   const tokensToStrip: ImageToken[] = [];
 
-  for (const token of parseMarkdownImageTokens(content, { maxTokens: MAX_STORED_USER_MESSAGE_IMAGE_TOKENS })) {
+  for (const token of parseMarkdownAndHtmlImageTokens(content, { maxTokens: MAX_STORED_USER_MESSAGE_IMAGE_TOKENS })) {
     const rawSrc = token.src?.trim() ?? '';
     const normalizedSrc = normalizeRenderableImageSrc(rawSrc);
     if (normalizedSrc && isRenderedImageSource(normalizedSrc)) {
@@ -289,6 +290,7 @@ async function getStarredAbsoluteMentionPath(entry: {
   if (
     !vaultPath ||
     !isStorageAbsolutePath(vaultPath) ||
+    isInsideInternalFolderMarkdownPath(vaultPath) ||
     !relativePath ||
     isInsideInternalFolderMarkdownPath(relativePath)
   ) {
@@ -343,40 +345,27 @@ async function resolveMentionedPath(
 
 function isSafeFolderEntryName(name: string): boolean {
   return (
-    !!name &&
-    name !== '.' &&
-    name !== '..' &&
+    isSafeVaultPathSegment(name) &&
     !name.startsWith('.') &&
-    !name.includes('\0') &&
-    !/[\\/]/.test(name)
+    !hasInternalNotePathSegment(name)
   );
 }
 
 function isSafeFolderListingEntryName(name: string): boolean {
   return (
-    !!name &&
-    name !== '.' &&
-    name !== '..' &&
-    !name.includes('\0') &&
-    !/[\\/]/.test(name) &&
+    isSafeVaultPathSegment(name) &&
     !hasInternalNotePathSegment(name)
   );
 }
 
 function isSafeFolderMarkdownEntryName(name: string): boolean {
-  return (
-    !!name &&
-    name !== '.' &&
-    name !== '..' &&
-    !name.includes('\0') &&
-    !/[\\/]/.test(name)
-  );
+  return isSafeVaultPathSegment(name);
 }
 
 function shouldSkipFolderMarkdownDirectory(name: string): boolean {
   return (
     hasInternalNotePathSegment(name) ||
-    SKIPPED_FOLDER_MARKDOWN_DIRECTORY_NAMES.has(name)
+    SKIPPED_FOLDER_MARKDOWN_DIRECTORY_NAMES.has(name.toLowerCase())
   );
 }
 
@@ -922,7 +911,11 @@ function isStarredFolderImageAttachmentPath(path: string): boolean {
 
   const starredEntries = useNotesStore.getState().starredEntries ?? [];
   return starredEntries.some((entry) => {
-    if (entry.kind !== 'folder' || isInsideInternalFolderMarkdownPath(entry.relativePath)) {
+    if (
+      entry.kind !== 'folder' ||
+      isInsideInternalFolderMarkdownPath(entry.vaultPath) ||
+      isInsideInternalFolderMarkdownPath(entry.relativePath)
+    ) {
       return false;
     }
     const folderPath = joinAbsolutePathSync(entry.vaultPath, entry.relativePath);
@@ -931,7 +924,7 @@ function isStarredFolderImageAttachmentPath(path: string): boolean {
   });
 }
 
-function isAllowedChatImageAttachmentPath(path: string): boolean {
+export function isAllowedChatImageAttachmentPath(path: string): boolean {
   return isCurrentVaultImageAttachmentPath(path) || isStarredFolderImageAttachmentPath(path);
 }
 

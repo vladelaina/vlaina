@@ -1,6 +1,7 @@
 import type { FileTreeNode, StarredEntry } from '@/stores/notes/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
+import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 
 export interface NoteMentionCandidate {
   path: string;
@@ -39,6 +40,9 @@ export function collectMentionCandidates(nodes: FileTreeNode[], result: NoteMent
     visitedNodes += 1;
 
     if (node.isFolder) {
+      if (hasInternalNotePathSegment(node.path)) {
+        continue;
+      }
       const folderName = node.name || node.path.split('/').filter(Boolean).pop() || node.path;
       result.push({
         path: node.path,
@@ -49,7 +53,7 @@ export function collectMentionCandidates(nodes: FileTreeNode[], result: NoteMent
       for (let index = node.children.length - 1; index >= 0; index -= 1) {
         stack.push(node.children[index]);
       }
-    } else if (isSupportedMarkdownPath(node.path)) {
+    } else if (isSupportedMarkdownPath(node.path) && !hasInternalNotePathSegment(node.path)) {
       result.push({
         path: node.path,
         title: '',

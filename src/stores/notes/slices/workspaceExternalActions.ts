@@ -110,6 +110,42 @@ function remapStarredEntriesForAbsoluteRename(
   return { entries: deduped, changed };
 }
 
+function pruneStarredEntriesForAbsoluteDeletion(
+  entries: StarredEntry[],
+  deletedPath: string,
+  preservedDeletedPaths: ReadonlySet<string>,
+): { entries: StarredEntry[]; changed: boolean } {
+  if (!isAbsolutePath(deletedPath)) {
+    return { entries, changed: false };
+  }
+
+  const normalizedDeletedPath = normalizeStarredVaultPath(deletedPath);
+  let changed = false;
+
+  const pruned = entries.filter((entry) => {
+    const absolutePath = getStarredEntryAbsolutePath(entry);
+    if (!absolutePath) {
+      return true;
+    }
+
+    const normalizedAbsolutePath = normalizeStarredVaultPath(absolutePath);
+    if (preservedDeletedPaths.has(normalizedAbsolutePath)) {
+      return true;
+    }
+
+    const shouldRemove = normalizedAbsolutePath === normalizedDeletedPath ||
+      normalizedAbsolutePath.startsWith(`${normalizedDeletedPath}/`);
+    if (shouldRemove) {
+      changed = true;
+      return false;
+    }
+
+    return true;
+  });
+
+  return { entries: pruned, changed };
+}
+
 function isKnownNoteFilePath(
   input: {
     currentNote: ReturnType<NotesGet>['currentNote'];
@@ -326,9 +362,15 @@ export function createWorkspaceExternalActions(
         if (relativePath === path || relativePath.startsWith(`${path}/`)) return null;
         return relativePath;
       });
+      const absoluteStarredResult = pruneStarredEntriesForAbsoluteDeletion(
+        starredResult.entries,
+        path,
+        preservedDeletedPaths,
+      );
 
-      if (starredResult.changed) {
-        void saveStarredRegistry(starredResult.entries);
+      const starredChanged = starredResult.changed || absoluteStarredResult.changed;
+      if (starredChanged) {
+        void saveStarredRegistry(absoluteStarredResult.entries);
       }
       if (nextRecentNotes !== recentNotes) {
         persistRecentNotes(nextRecentNotes);
@@ -342,7 +384,7 @@ export function createWorkspaceExternalActions(
             nextMetadata ?? noteMetadata
           )
         : rootFolder;
-      const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
+      const starredPaths = getVaultStarredPaths(absoluteStarredResult.entries, notesPath);
       set({
         openTabs: nextOpenTabs,
         displayNames: nextDisplayNames,
@@ -351,7 +393,7 @@ export function createWorkspaceExternalActions(
         noteContentsCache: nextCache,
         noteMetadata: nextMetadata ?? noteMetadata,
         rootFolder: nextRootFolder,
-        starredEntries: starredResult.entries,
+        starredEntries: absoluteStarredResult.entries,
         starredNotes: starredPaths.notes,
         starredFolders: starredPaths.folders,
         error: null,

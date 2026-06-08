@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   replaceRenderableMarkdownImageTokens,
+  replaceRenderableMessageImageTokens,
   stripRenderableMarkdownImageTokens,
 } from './renderableImageTokens';
 
@@ -31,6 +32,20 @@ describe('renderableImageTokens', () => {
         '[Image]',
       ),
     ).toBe('[Image]');
+  });
+
+  it('replaces renderable markdown and raw html message image tokens', () => {
+    const content = [
+      '<img src="https://example.com/html.png">',
+      '![image](https://example.com/real.png)',
+      '<img src="https://example.com/movie.mp4">',
+    ].join('\n');
+
+    expect(replaceRenderableMessageImageTokens(content, '[Image]')).toBe([
+      '[Image]',
+      '[Image]',
+      '<img src="https://example.com/movie.mp4">',
+    ].join('\n'));
   });
 
   it('bounds renderable markdown image replacement work', () => {

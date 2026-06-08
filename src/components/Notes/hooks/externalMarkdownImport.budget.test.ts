@@ -26,6 +26,7 @@ vi.mock('@/lib/storage/adapter', () => ({
     return lastSlashIndex === -1 ? null : normalized.slice(0, lastSlashIndex) || '/';
   },
   isAbsolutePath: (path: string) => path.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(path),
+  normalizeAbsolutePath: (path: string) => path.replace(/\\/g, '/'),
   joinPath: async (...segments: string[]) => segments.filter(Boolean).join('/'),
   getStorageAdapter: () => mocks.storage,
 }));
@@ -126,5 +127,57 @@ describe('importExternalMarkdownEntries budget', () => {
       '/outside/alpha.md',
       '/vault/imports/alpha.md',
     );
+  });
+
+  it('skips generated folder names case-insensitively before recursing', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isDirectory: path === '/outside/project',
+      isFile: path.endsWith('.md'),
+      size: path.endsWith('.md') ? 1024 : undefined,
+    }));
+    mocks.storage.listDir.mockImplementation(async (path: string) => {
+      if (path === '/outside/project') {
+        return [
+          { name: 'Node_Modules', isFile: false, isDirectory: true },
+          { name: 'Dist', isFile: false, isDirectory: true },
+          { name: 'docs', isFile: false, isDirectory: true },
+        ];
+      }
+
+      if (path === '/outside/project/docs') {
+        return [
+          { name: 'alpha.md', isFile: true, isDirectory: false, size: 1024 },
+        ];
+      }
+
+      return [
+        { name: 'hidden.md', isFile: true, isDirectory: false, size: 1024 },
+      ];
+    });
+    mocks.resolveUniquePath.mockImplementation(
+      async (_vaultPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
+        const relativePath = folderPath
+          ? `${folderPath}/${name}`
+          : isDirectory
+            ? `imports/${name}`
+            : name;
+        return {
+          relativePath,
+          fullPath: `/vault/${relativePath}`,
+          fileName: name,
+        };
+      },
+    );
+
+    const result = await importExternalMarkdownEntries('/vault', 'imports', ['/outside/project']);
+
+    expect(result).toEqual({
+      importedNotePaths: ['imports/project/docs/alpha.md'],
+      importedFolderPaths: ['imports/project/docs', 'imports/project'],
+      didImport: true,
+    });
+    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/outside/project/Node_Modules', { includeHidden: true });
+    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/outside/project/Dist', { includeHidden: true });
+    expect(mocks.storage.copyFile).toHaveBeenCalledTimes(1);
   });
 });

@@ -134,4 +134,98 @@ describe('useExternalStarredRenameSync', () => {
 
     expect(mocked.notesState.applyExternalPathRename).not.toHaveBeenCalled();
   });
+
+  it('does not remap external starred notes through unsafe rename endpoints', async () => {
+    mocked.notesState.starredEntries = [
+      {
+        id: 'starred-external',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/alpha.md',
+        addedAt: 1,
+      },
+    ];
+
+    renderHook(() => useExternalStarredRenameSync());
+
+    await act(async () => {
+      await mocked.handlers.get('/vault-b/docs/alpha.md')?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['/vault-b/docs/alpha.md', '/vault-b/docs/secret\uFFFD.md'],
+      });
+    });
+
+    expect(mocked.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+  });
+
+  it('does not watch external starred notes inside internal folders', () => {
+    mocked.notesState.starredEntries = [
+      {
+        id: 'starred-external',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: '.git/config.md',
+        addedAt: 1,
+      },
+    ];
+
+    renderHook(() => useExternalStarredRenameSync());
+
+    expect(mocked.watchDesktopPath).not.toHaveBeenCalled();
+  });
+
+  it('does not remap external starred notes into internal folders', async () => {
+    mocked.notesState.starredEntries = [
+      {
+        id: 'starred-external',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/alpha.md',
+        addedAt: 1,
+      },
+    ];
+
+    renderHook(() => useExternalStarredRenameSync());
+
+    await act(async () => {
+      await mocked.handlers.get('/vault-b/docs/alpha.md')?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['/vault-b/docs/alpha.md', '/vault-b/docs/.vlaina/alpha.md'],
+      });
+    });
+
+    expect(mocked.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+  });
+
+  it('keeps external starred note rename sync inside user dot folders', async () => {
+    mocked.notesState.starredEntries = [
+      {
+        id: 'starred-external',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: '.notes/alpha.md',
+        addedAt: 1,
+      },
+    ];
+
+    renderHook(() => useExternalStarredRenameSync());
+
+    expect(mocked.watchDesktopPath).toHaveBeenCalledWith(
+      '/vault-b/.notes/alpha.md',
+      expect.any(Function),
+      { recursive: false },
+    );
+
+    await act(async () => {
+      await mocked.handlers.get('/vault-b/.notes/alpha.md')?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: ['/vault-b/.notes/alpha.md', '/vault-b/.notes/beta.md'],
+      });
+    });
+
+    expect(mocked.notesState.applyExternalPathRename).toHaveBeenCalledWith(
+      '/vault-b/.notes/alpha.md',
+      '/vault-b/.notes/beta.md',
+    );
+  });
 });

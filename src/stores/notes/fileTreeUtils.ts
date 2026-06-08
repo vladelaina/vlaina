@@ -38,7 +38,7 @@ interface FileTreeRoute {
 }
 
 function shouldSkipDirectory(name: string) {
-  return SKIPPED_DIRECTORY_NAMES.has(name);
+  return SKIPPED_DIRECTORY_NAMES.has(name.toLowerCase());
 }
 
 function shouldHideDirectory(name: string) {
