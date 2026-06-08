@@ -53,11 +53,41 @@ function replaceHistoryImageTokens(content: string): string {
   return replaceImageTokens(content, tokens, IMAGE_PLACEHOLDER);
 }
 
+function getHistoryContentText(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (!Array.isArray(value)) {
+    return '';
+  }
+
+  return value
+    .map((part) => {
+      if (!part || typeof part !== 'object') {
+        return '';
+      }
+
+      const record = part as Record<string, unknown>;
+      if (record.type === 'text' && typeof record.text === 'string') {
+        return record.text;
+      }
+
+      if (record.type === 'image_url') {
+        return IMAGE_PLACEHOLDER;
+      }
+
+      return '';
+    })
+    .filter(Boolean)
+    .join('\n\n');
+}
+
 function sanitizeHistoryMessage(msg: ChatMessage): ChatMessage {
-  if (typeof msg.content !== 'string') return msg;
+  const rawContent = getHistoryContentText((msg as { content?: unknown }).content);
   const contentWithoutUiErrors = msg.role === 'assistant'
-    ? msg.content.replace(ERROR_TAG_GLOBAL_REGEX, '').trim()
-    : msg.content;
+    ? rawContent.replace(ERROR_TAG_GLOBAL_REGEX, '').trim()
+    : rawContent;
   const apiTranscript = normalizeApiTranscriptMessages(
     msg.apiTranscript ?? msg.versions?.[msg.currentVersionIndex]?.apiTranscript
   );

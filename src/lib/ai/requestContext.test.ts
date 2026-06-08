@@ -112,6 +112,31 @@ describe('requestContext', () => {
     ].join('\n'));
   });
 
+  it('sanitizes malformed structured history content at runtime', () => {
+    const sanitized = sanitizeHistory([
+      createMessage({
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Describe previous image' },
+          { type: 'image_url', image_url: { url: 'attachment://safe.png' } },
+          { type: 'image_url', image_url: { url: 'app-file://attachment/local.png' } },
+        ] as never,
+      }),
+      createMessage({
+        role: 'assistant',
+        content: [
+          { type: 'text', text: '<think>hidden</think>Visible answer' },
+          { type: 'image_url', image_url: { url: 'file:///tmp/secret.png' } },
+        ] as never,
+      }),
+    ]);
+
+    expect(sanitized.map((message) => message.content)).toEqual([
+      ['Describe previous image', '[Image]', '[Image]'].join('\n\n'),
+      ['Visible answer', '[Image]'].join('\n\n'),
+    ]);
+  });
+
   it('removes web search status markup from model history', () => {
     const history = [
       createMessage({

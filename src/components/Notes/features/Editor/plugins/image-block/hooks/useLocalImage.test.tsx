@@ -177,7 +177,7 @@ describe('useLocalImage', () => {
     });
 
     expect(result.current.resolvedSrc).toBe('');
-    expect(result.current.error?.message).toBe('Failed to resolve image: .vlaina/assets/secret.png');
+    expect(result.current.error).toBeNull();
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
   });
 

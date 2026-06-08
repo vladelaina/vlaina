@@ -20,6 +20,7 @@ import {
   normalizeSerializedMarkdownDocument,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { mergeNonConflictingNoteChanges } from './noteThreeWayMerge';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 
 interface LoadNoteDocumentOptions {
   notesPath: string;
@@ -75,6 +76,10 @@ function normalizeStoredNotePath(path: string): string {
 }
 
 function assertStoredNotePathAllowed(path: string): void {
+  if (!isSupportedMarkdownPath(path)) {
+    throw new Error('Only Markdown files can be opened as notes.');
+  }
+
   if (hasInternalNotePathSegment(path)) {
     throw new Error('Path must not be inside an internal notes folder.');
   }

@@ -2313,6 +2313,59 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(bodyText).not.toContain('app-file://attachment/local.png');
   });
 
+  it('sanitizes malformed structured image history before OpenAI-compatible requests', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse('data: {"choices":[{"delta":{"content":"next"}}]}\n\ndata: [DONE]\n\n'),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await new OpenAICompatibleClient().sendMessage(
+      'continue',
+      [
+        {
+          id: 'm1',
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Earlier prompt' },
+            { type: 'image_url', image_url: { url: 'attachment://safe.png' } },
+            { type: 'image_url', image_url: { url: 'app-file://attachment/local.png' } },
+          ] as never,
+          modelId: 'gpt-4o-mini',
+          timestamp: 1,
+          versions: [],
+          currentVersionIndex: 0,
+        },
+        {
+          id: 'm2',
+          role: 'assistant',
+          content: [
+            { type: 'text', text: '<think>hidden plan</think>Visible answer' },
+            { type: 'image_url', image_url: { url: 'file:///tmp/secret.png' } },
+          ] as never,
+          modelId: 'gpt-4o-mini',
+          timestamp: 2,
+          versions: [],
+          currentVersionIndex: 0,
+        },
+      ],
+      buildModel({ apiModelId: 'gpt-4o-mini', name: 'GPT 4o mini' }),
+      buildProvider({ endpointType: 'openai' }),
+      vi.fn(),
+    );
+
+    const bodyText = fetchMock.mock.calls[0][1].body;
+    const body = JSON.parse(bodyText);
+    expect(body.messages).toEqual([
+      { role: 'user', content: ['Earlier prompt', '[Image]', '[Image]'].join('\n\n') },
+      { role: 'assistant', content: ['Visible answer', '[Image]'].join('\n\n') },
+      { role: 'user', content: 'continue' },
+    ]);
+    expect(bodyText).not.toContain('attachment://safe.png');
+    expect(bodyText).not.toContain('app-file://attachment/local.png');
+    expect(bodyText).not.toContain('file:///tmp/secret.png');
+    expect(bodyText).not.toContain('hidden plan');
+  });
+
   it('falls back to visible content when a replay transcript is malformed', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       streamResponse('data: {"choices":[{"delta":{"content":"next"}}]}\n\ndata: [DONE]\n\n'),

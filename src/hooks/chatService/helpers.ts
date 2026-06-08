@@ -292,7 +292,8 @@ async function getStarredAbsoluteMentionPath(entry: {
     !isStorageAbsolutePath(vaultPath) ||
     isInsideInternalFolderMarkdownPath(vaultPath) ||
     !relativePath ||
-    isInsideInternalFolderMarkdownPath(relativePath)
+    isInsideInternalFolderMarkdownPath(relativePath) ||
+    (entry.kind === 'note' && !isSupportedMarkdownPath(relativePath))
   ) {
     return null;
   }
@@ -321,7 +322,10 @@ async function resolveMentionedPath(
   mentionPath: string,
   kind: 'note' | 'folder',
 ): Promise<{ cachePath: string; fullPath: string } | null> {
-  if (isInsideInternalFolderMarkdownPath(mentionPath)) {
+  if (
+    isInsideInternalFolderMarkdownPath(mentionPath) ||
+    (kind === 'note' && !isSupportedMarkdownPath(mentionPath))
+  ) {
     return null;
   }
 

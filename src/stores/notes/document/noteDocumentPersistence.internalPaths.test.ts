@@ -66,6 +66,17 @@ describe('note document internal paths', () => {
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not load non-markdown note documents', async () => {
+    await expect(loadNoteDocument({
+      notesPath: '/vault',
+      path: 'docs/secret.txt',
+      cache: new Map(),
+    })).rejects.toThrow('Only Markdown files can be opened as notes.');
+
+    expect(adapter.stat).not.toHaveBeenCalled();
+    expect(adapter.readFile).not.toHaveBeenCalled();
+  });
+
   it('does not return cached markdown for hidden app or git note documents', async () => {
     await expect(loadNoteDocument({
       notesPath: '/vault',
@@ -113,6 +124,21 @@ describe('note document internal paths', () => {
       },
       cache: new Map(),
     })).rejects.toThrow('Path must not be inside an internal notes folder.');
+
+    expect(adapter.stat).not.toHaveBeenCalled();
+    expect(adapter.readFile).not.toHaveBeenCalled();
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('does not save non-markdown note documents', async () => {
+    await expect(saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'docs/secret.txt',
+        content: '# Secret',
+      },
+      cache: new Map(),
+    })).rejects.toThrow('Only Markdown files can be opened as notes.');
 
     expect(adapter.stat).not.toHaveBeenCalled();
     expect(adapter.readFile).not.toHaveBeenCalled();
