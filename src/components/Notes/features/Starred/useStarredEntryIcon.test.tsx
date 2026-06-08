@@ -159,12 +159,48 @@ describe('useStarredEntryIcon', () => {
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not read icon metadata from case-variant stale internal starred entries', async () => {
+    const { result } = renderHook(() =>
+      useStarredEntryIcon({
+        id: 'starred-internal-uppercase',
+        kind: 'note',
+        vaultPath: '/vault',
+        relativePath: 'docs/.GIT/config.md',
+        addedAt: 1,
+      }, true),
+    );
+
+    await Promise.resolve();
+
+    expect(result.current).toBeUndefined();
+    expect(mocked.stat).not.toHaveBeenCalled();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
   it('does not read icon metadata from stale entries with internal vault paths', async () => {
     const { result } = renderHook(() =>
       useStarredEntryIcon({
         id: 'starred-internal-vault',
         kind: 'note',
         vaultPath: '/vault/.vlaina',
+        relativePath: 'workspace.md',
+        addedAt: 1,
+      }, true),
+    );
+
+    await Promise.resolve();
+
+    expect(result.current).toBeUndefined();
+    expect(mocked.stat).not.toHaveBeenCalled();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read icon metadata from stale entries with case-variant internal vault paths', async () => {
+    const { result } = renderHook(() =>
+      useStarredEntryIcon({
+        id: 'starred-internal-vault-uppercase',
+        kind: 'note',
+        vaultPath: '/vault/.VLAINA',
         relativePath: 'workspace.md',
         addedAt: 1,
       }, true),

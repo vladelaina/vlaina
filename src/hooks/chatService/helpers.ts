@@ -34,11 +34,11 @@ import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from '@/lib/notes/markdownFile';
-import { APP_CONFIG_FOLDER } from '@/stores/notes/constants';
 import {
   normalizeVaultRelativePath,
   resolveVaultRelativeFullPath,
 } from '@/stores/notes/utils/fs/vaultPathContainment';
+import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import {
   escapeMarkdownAngleDestination,
   formatMarkdownImage,
@@ -72,7 +72,6 @@ const IMAGE_EXTENSION_MIME_TYPES: Record<string, string> = {
   svg: 'image/svg+xml',
   webp: 'image/webp',
 };
-const INTERNAL_FOLDER_MARKDOWN_DIRECTORY_NAMES = new Set([APP_CONFIG_FOLDER, '.git']);
 const SKIPPED_FOLDER_MARKDOWN_DIRECTORY_NAMES = new Set([
   'node_modules',
   'vendor',
@@ -360,7 +359,7 @@ function isSafeFolderListingEntryName(name: string): boolean {
     name !== '..' &&
     !name.includes('\0') &&
     !/[\\/]/.test(name) &&
-    !INTERNAL_FOLDER_MARKDOWN_DIRECTORY_NAMES.has(name)
+    !hasInternalNotePathSegment(name)
   );
 }
 
@@ -376,16 +375,13 @@ function isSafeFolderMarkdownEntryName(name: string): boolean {
 
 function shouldSkipFolderMarkdownDirectory(name: string): boolean {
   return (
-    INTERNAL_FOLDER_MARKDOWN_DIRECTORY_NAMES.has(name) ||
+    hasInternalNotePathSegment(name) ||
     SKIPPED_FOLDER_MARKDOWN_DIRECTORY_NAMES.has(name)
   );
 }
 
 function isInsideInternalFolderMarkdownPath(path: string): boolean {
-  return path
-    .replace(/\\/g, '/')
-    .split('/')
-    .some((segment) => INTERNAL_FOLDER_MARKDOWN_DIRECTORY_NAMES.has(segment));
+  return hasInternalNotePathSegment(path);
 }
 
 async function readResolvedMentionedNoteContent(
@@ -883,7 +879,7 @@ export async function normalizeVisionAttachment(
     }
 
     const base64 = await convertToBase64(attachment, {
-      allowPath: isCurrentVaultImageAttachmentPath,
+      allowPath: isAllowedChatImageAttachmentPath,
     });
     const normalizedBase64 = isSvgDataUrl(base64)
       ? await rasterizeSvgDataUrlToPng(base64)
@@ -910,6 +906,33 @@ function isCurrentVaultImageAttachmentPath(path: string): boolean {
 
   const containedPath = normalizeContainedAssetPath(path, notesPath);
   return Boolean(containedPath && !isInsideInternalFolderMarkdownPath(containedPath));
+}
+
+function joinAbsolutePathSync(basePath: string, relativePath: string): string {
+  const normalizedBase = normalizeAbsolutePath(basePath.trim()).replace(/[/\\]+$/g, '');
+  const normalizedRelative = normalizeVaultRelativePath(relativePath);
+  return normalizedRelative ? `${normalizedBase}/${normalizedRelative}` : normalizedBase;
+}
+
+function isStarredFolderImageAttachmentPath(path: string): boolean {
+  const normalizedPath = normalizeAbsolutePath(path.trim());
+  if (!normalizedPath || !isStorageAbsolutePath(normalizedPath)) {
+    return false;
+  }
+
+  const starredEntries = useNotesStore.getState().starredEntries ?? [];
+  return starredEntries.some((entry) => {
+    if (entry.kind !== 'folder' || isInsideInternalFolderMarkdownPath(entry.relativePath)) {
+      return false;
+    }
+    const folderPath = joinAbsolutePathSync(entry.vaultPath, entry.relativePath);
+    const containedPath = normalizeContainedAssetPath(normalizedPath, folderPath);
+    return Boolean(containedPath && !isInsideInternalFolderMarkdownPath(containedPath));
+  });
+}
+
+function isAllowedChatImageAttachmentPath(path: string): boolean {
+  return isCurrentVaultImageAttachmentPath(path) || isStarredFolderImageAttachmentPath(path);
 }
 
 function normalizeDirectVisionImageUrl(src: string): string | null {
@@ -1040,7 +1063,7 @@ async function getRenderableMessageImageSrc(attachment: Attachment): Promise<str
 
   try {
     const base64 = await convertToBase64(attachment, {
-      allowPath: isCurrentVaultImageAttachmentPath,
+      allowPath: isAllowedChatImageAttachmentPath,
     });
     const normalizedBase64 = isSvgDataUrl(base64)
       ? await rasterizeSvgDataUrlToPng(base64)

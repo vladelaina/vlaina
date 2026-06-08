@@ -61,6 +61,10 @@ describe('resolveExternalMarkdownEntriesForStarred security', () => {
       '/vault/docs/.git/config.md',
       '/vault/.vlaina',
       '/vault/.git',
+      '/vault/.VLAINA/workspace.md',
+      '/vault/docs/.GIT/config.md',
+      '/vault/.VLAINA',
+      '/vault/.GIT',
     ]);
 
     expect(result).toEqual([]);

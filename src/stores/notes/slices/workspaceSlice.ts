@@ -33,11 +33,11 @@ import {
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { readNoteMetadataFromMarkdown } from '../frontmatter';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
-import { APP_CONFIG_FOLDER } from '../constants';
 import { createWorkspaceDocumentActions } from './workspaceDocumentActions';
 import { createWorkspaceExternalActions } from './workspaceExternalActions';
 import { createWorkspaceTabActions } from './workspaceTabActions';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
+import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import { normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
 
 interface PendingNotePrefetch {
@@ -50,7 +50,6 @@ const cancelledNotePrefetches = new Set<string>();
 const notePrefetchQueue = createAsyncPrefetchQueue(2);
 const MAX_NOTE_CONTENT_CACHE_ENTRIES = 250;
 const HOVER_PREFETCH_FRESH_MS = 1000;
-const INTERNAL_WORKSPACE_NOTE_PATH_SEGMENTS = new Set([APP_CONFIG_FOLDER, '.git']);
 let latestOpenNoteRequestId = 0;
 
 function getNotePrefetchKey(notesPath: string, path: string) {
@@ -87,10 +86,7 @@ function isCachedNoteFresh(state: NotesStore, path: string, now = Date.now()) {
 }
 
 function isInternalWorkspaceNotePath(path: string): boolean {
-  return path
-    .replace(/\\/g, '/')
-    .split('/')
-    .some((segment) => INTERNAL_WORKSPACE_NOTE_PATH_SEGMENTS.has(segment));
+  return hasInternalNotePathSegment(path);
 }
 
 function openDraftNoteFromMemory(

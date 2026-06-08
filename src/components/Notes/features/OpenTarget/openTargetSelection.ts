@@ -1,6 +1,6 @@
 import { getBaseName, getParentPath, isAbsolutePath, normalizeAbsolutePath } from '@/lib/storage/adapter';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
-import { APP_CONFIG_FOLDER } from '@/stores/notes/constants';
+import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 
 export interface ResolvedOpenNoteTarget {
   vaultPath: string;
@@ -12,13 +12,8 @@ export function getSingleOpenSelection(selection: string | string[] | null): str
   return Array.isArray(selection) ? selection[0] ?? null : selection;
 }
 
-const INTERNAL_MARKDOWN_SELECTION_SEGMENTS = new Set([APP_CONFIG_FOLDER, '.git']);
-
 function isInternalMarkdownSelectionPath(path: string): boolean {
-  return path
-    .replace(/\\/g, '/')
-    .split('/')
-    .some((segment) => INTERNAL_MARKDOWN_SELECTION_SEGMENTS.has(segment));
+  return hasInternalNotePathSegment(path);
 }
 
 export function isSupportedMarkdownSelection(path: string): boolean {

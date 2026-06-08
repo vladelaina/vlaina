@@ -150,6 +150,8 @@ describe('importExternalMarkdownEntries dotfiles', () => {
     const result = await importExternalMarkdownEntries('/vault', 'archive', [
       '/outside/.vlaina',
       '/outside/.git',
+      '/outside/.VLAINA',
+      '/outside/.GIT',
     ]);
 
     expect(result).toEqual({

@@ -33,10 +33,18 @@ describe('pathOperations internal paths', () => {
     await expect(resolveUniquePath('/vault', 'docs/.git', 'config', false)).rejects.toThrow(
       'Target folder must not be inside an internal notes folder.',
     );
+    await expect(resolveUniquePath('/vault', '.VLAINA', 'workspace', false)).rejects.toThrow(
+      'Target folder must not be inside an internal notes folder.',
+    );
+    await expect(resolveUniquePath('/vault', 'docs/.GIT', 'config', false)).rejects.toThrow(
+      'Target folder must not be inside an internal notes folder.',
+    );
   });
 
   it('rejects renames that start inside internal folders', async () => {
     await expect(resolveUniqueRenamedPath('/vault', 'docs/.git/config.md', 'config', false))
+      .rejects.toThrow('Path must not be inside an internal notes folder.');
+    await expect(resolveUniqueRenamedPath('/vault', 'docs/.GIT/config.md', 'config', false))
       .rejects.toThrow('Path must not be inside an internal notes folder.');
   });
 
@@ -44,6 +52,10 @@ describe('pathOperations internal paths', () => {
     await expect(resolveUniqueMovedPath('/vault', '.vlaina/workspace.md', 'docs', false))
       .rejects.toThrow('Path must not be inside an internal notes folder.');
     await expect(resolveUniqueMovedPath('/vault', 'docs/alpha.md', '.git', false))
+      .rejects.toThrow('Target folder must not be inside an internal notes folder.');
+    await expect(resolveUniqueMovedPath('/vault', '.VLAINA/workspace.md', 'docs', false))
+      .rejects.toThrow('Path must not be inside an internal notes folder.');
+    await expect(resolveUniqueMovedPath('/vault', 'docs/alpha.md', '.GIT', false))
       .rejects.toThrow('Target folder must not be inside an internal notes folder.');
   });
 });

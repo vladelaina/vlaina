@@ -123,6 +123,8 @@ describe('openTargetSelection', () => {
     expect(isSupportedMarkdownSelection('/vault/docs/data.txt')).toBe(false);
     expect(isSupportedMarkdownSelection('/vault/.vlaina/workspace.md')).toBe(false);
     expect(isSupportedMarkdownSelection('/vault/docs/.git/config.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/vault/.VLAINA/workspace.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/vault/docs/.GIT/config.md')).toBe(false);
   });
 
   it('uses the selected file parent folder as the opened vault', () => {
@@ -169,6 +171,12 @@ describe('openTargetSelection', () => {
       'Selected file path must not be inside an internal notes folder',
     );
     expect(() => resolveOpenNoteTarget('/vault/docs/.git/config.md')).toThrow(
+      'Selected file path must not be inside an internal notes folder',
+    );
+    expect(() => resolveOpenNoteTarget('/vault/.VLAINA/workspace.md')).toThrow(
+      'Selected file path must not be inside an internal notes folder',
+    );
+    expect(() => resolveOpenNoteTarget('/vault/docs/.GIT/config.md')).toThrow(
       'Selected file path must not be inside an internal notes folder',
     );
   });

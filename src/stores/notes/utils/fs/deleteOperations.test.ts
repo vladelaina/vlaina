@@ -99,6 +99,13 @@ describe('deleteOperations', () => {
       starredEntries: [],
       noteMetadata: null,
     })).rejects.toThrow('Path must not be inside an internal notes folder.');
+    await expect(deleteNoteImpl('/vault', 'docs/.GIT/config.md', {
+      rootFolder: null,
+      currentNote: null,
+      openTabs: [],
+      starredEntries: [],
+      noteMetadata: null,
+    })).rejects.toThrow('Path must not be inside an internal notes folder.');
 
     expect(hoisted.markExpectedExternalChange).not.toHaveBeenCalled();
     expect(hoisted.deleteNoteItemToRecoverableLocation).not.toHaveBeenCalled();
@@ -173,6 +180,13 @@ describe('deleteOperations', () => {
 
   it('rejects folder delete paths inside internal folders', async () => {
     await expect(deleteFolderImpl('/vault', '.vlaina', {
+      rootFolder: null,
+      currentNote: null,
+      openTabs: [],
+      starredEntries: [],
+      noteMetadata: null,
+    })).rejects.toThrow('Path must not be inside an internal notes folder.');
+    await expect(deleteFolderImpl('/vault', '.VLAINA', {
       rootFolder: null,
       currentNote: null,
       openTabs: [],

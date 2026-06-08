@@ -143,17 +143,20 @@ describe('workspace external actions internal paths', () => {
       noteContentsCache: new Map([
         ['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }],
         ['.vlaina/workspace.md', { content: '# hidden', modifiedAt: 1 }],
+        ['.VLAINA/workspace.md', { content: '# hidden uppercase', modifiedAt: 1 }],
       ]),
       noteMetadata: {
         version: 2,
         notes: {
           'docs/alpha.md': { createdAt: 1 },
           '.vlaina/workspace.md': { createdAt: 2 },
+          '.VLAINA/workspace.md': { createdAt: 3 },
         },
       },
     });
 
     await store.getState().applyExternalPathDeletion('.vlaina/workspace.md');
+    await store.getState().applyExternalPathDeletion('.VLAINA/workspace.md');
 
     expect(hoisted.flushCurrentPendingEditorMarkdown).not.toHaveBeenCalled();
     expect(hoisted.persistRecentNotes).not.toHaveBeenCalled();
@@ -161,7 +164,9 @@ describe('workspace external actions internal paths', () => {
     expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# alpha' });
     expect(store.getState().recentNotes).toEqual(['docs/alpha.md']);
     expect(store.getState().noteContentsCache.has('.vlaina/workspace.md')).toBe(true);
+    expect(store.getState().noteContentsCache.has('.VLAINA/workspace.md')).toBe(true);
     expect(store.getState().noteMetadata?.notes['.vlaina/workspace.md']).toEqual({ createdAt: 2 });
+    expect(store.getState().noteMetadata?.notes['.VLAINA/workspace.md']).toEqual({ createdAt: 3 });
   });
 
   it('does not remap state into an internal rename target', async () => {
@@ -190,6 +195,35 @@ describe('workspace external actions internal paths', () => {
     expect(store.getState().recentNotes).toEqual(['docs/alpha.md']);
     expect(store.getState().noteContentsCache.has('docs/.git/config.md')).toBe(false);
     expect(store.getState().noteMetadata?.notes['docs/.git/config.md']).toBeUndefined();
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not remap state into a case-variant internal rename target', async () => {
+    const store = createNotesStore({
+      rootFolder: createFolder('', 'Notes', [
+        createFolder('docs', 'docs', [createFile('docs/alpha.md', 'alpha')]),
+      ]),
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      recentNotes: ['docs/alpha.md'],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+      noteMetadata: {
+        version: 2,
+        notes: {
+          'docs/alpha.md': { createdAt: 1 },
+        },
+      },
+    });
+
+    await store.getState().applyExternalPathRename('docs/alpha.md', 'docs/.GIT/config.md');
+
+    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# alpha' });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'docs/alpha.md', name: 'alpha', isDirty: false },
+    ]);
+    expect(store.getState().recentNotes).toEqual(['docs/alpha.md']);
+    expect(store.getState().noteContentsCache.has('docs/.GIT/config.md')).toBe(false);
+    expect(store.getState().noteMetadata?.notes['docs/.GIT/config.md']).toBeUndefined();
     expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledTimes(1);
   });
 

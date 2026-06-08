@@ -5,6 +5,7 @@ import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { sanitizeNoteLinkHref } from '@/lib/notes/markdown/urlSecurity';
 import { getParentPath, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
+import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import { dispatchOpenMarkdownTargetEvent } from '../../../../OpenTarget/openTargetEvents';
 
 const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
@@ -72,7 +73,14 @@ export async function resolveEditorMarkdownLinkTarget(href: string): Promise<str
     if (!safeHref || safeHref.startsWith('//') || hasExplicitUrlScheme(safeHref) || normalizeExternalHref(safeHref)) return null;
 
     const linkPath = decodeMarkdownLinkPath(getPathWithoutFragmentOrQuery(safeHref).trim());
-    if (!linkPath || linkPath.startsWith('//') || hasExplicitUrlScheme(linkPath) || normalizeExternalHref(linkPath) || !isSupportedMarkdownPath(linkPath)) {
+    if (
+        !linkPath ||
+        linkPath.startsWith('//') ||
+        hasExplicitUrlScheme(linkPath) ||
+        normalizeExternalHref(linkPath) ||
+        hasInternalNotePathSegment(linkPath) ||
+        !isSupportedMarkdownPath(linkPath)
+    ) {
         return null;
     }
 
@@ -81,7 +89,8 @@ export async function resolveEditorMarkdownLinkTarget(href: string): Promise<str
 
     if (isAbsolutePath(linkPath)) {
         if (!notesPath) return null;
-        return normalizeContainedAssetPath(await joinPath(notesPath, linkPath.replace(/^[/\\]+/, '')), notesPath);
+        const target = normalizeContainedAssetPath(await joinPath(notesPath, linkPath.replace(/^[/\\]+/, '')), notesPath);
+        return target && !hasInternalNotePathSegment(target) ? target : null;
     }
 
     if (currentNotePath && isAbsolutePath(currentNotePath)) {
@@ -91,7 +100,8 @@ export async function resolveEditorMarkdownLinkTarget(href: string): Promise<str
         const currentRoot = notesPath && normalizeContainedAssetPath(currentNotePath, notesPath)
             ? notesPath
             : currentDir;
-        return normalizeContainedAssetPath(await joinPath(currentDir, linkPath), currentRoot);
+        const target = normalizeContainedAssetPath(await joinPath(currentDir, linkPath), currentRoot);
+        return target && !hasInternalNotePathSegment(target) ? target : null;
     }
 
     if (!notesPath) return null;
@@ -99,7 +109,7 @@ export async function resolveEditorMarkdownLinkTarget(href: string): Promise<str
     const currentNoteDir = currentNotePath ? getParentPath(currentNotePath) : null;
     const basePath = currentNoteDir ? await joinPath(notesPath, currentNoteDir) : notesPath;
     const candidate = normalizeContainedAssetPath(await joinPath(basePath, linkPath), notesPath);
-    if (candidate) return candidate;
+    if (candidate && !hasInternalNotePathSegment(candidate)) return candidate;
 
     return null;
 }

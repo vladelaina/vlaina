@@ -164,6 +164,42 @@ describe('buildStoredUserMessageContent image parsing', () => {
     expect(options?.allowPath?.('/vault/.notes/cover.png')).toBe(true);
     expect(options?.allowPath?.('/vault/.vlaina/cover.png')).toBe(false);
     expect(options?.allowPath?.('/vault/docs/.git/cover.png')).toBe(false);
+    expect(options?.allowPath?.('/vault/.VLAINA/cover.png')).toBe(false);
+    expect(options?.allowPath?.('/vault/docs/.GIT/cover.png')).toBe(false);
+    expect(options?.allowPath?.('/outside/cover.png')).toBe(false);
+  });
+
+  it('allows image attachment paths from starred external folders', async () => {
+    useNotesStore.setState({
+      notesPath: '/vault',
+      starredEntries: [
+        {
+          id: 'external-assets',
+          kind: 'folder',
+          vaultPath: '/external',
+          relativePath: 'assets',
+          addedAt: 1,
+        },
+      ],
+    });
+
+    await buildMessageImageSources([{
+      id: 'external-image',
+      path: '/external/assets/cover.png',
+      previewUrl: '',
+      assetUrl: '',
+      name: 'cover.png',
+      type: 'image/png',
+      size: 128,
+    }]);
+
+    const options = mocks.convertToBase64.mock.calls[0]?.[1] as
+      | { allowPath?: (path: string) => boolean }
+      | undefined;
+    expect(options?.allowPath?.('/external/assets/cover.png')).toBe(true);
+    expect(options?.allowPath?.('/external/assets/nested/cover.png')).toBe(true);
+    expect(options?.allowPath?.('/external/other/cover.png')).toBe(false);
+    expect(options?.allowPath?.('/external/assets/.vlaina/cover.png')).toBe(false);
     expect(options?.allowPath?.('/outside/cover.png')).toBe(false);
   });
 

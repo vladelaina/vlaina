@@ -10,7 +10,7 @@ export function hasInternalNotePathSegment(path: string | null | undefined): boo
   return path
     .replace(/\\/g, '/')
     .split('/')
-    .some((segment) => INTERNAL_NOTE_PATH_SEGMENTS.has(segment));
+    .some((segment) => INTERNAL_NOTE_PATH_SEGMENTS.has(segment.toLowerCase()));
 }
 
 export function assertNonInternalNotePath(path: string, errorMessage = 'Path must not be inside an internal notes folder.'): void {

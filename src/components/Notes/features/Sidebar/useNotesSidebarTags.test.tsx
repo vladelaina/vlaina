@@ -105,6 +105,22 @@ describe('useNotesSidebarTags', () => {
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not read sidebar tag content from case-variant internal vault paths', async () => {
+    const scanAllNotes = vi.fn(async () => undefined);
+
+    renderHook(() => useNotesSidebarTags({
+      rootFolder,
+      noteContentsCache: new Map(),
+      scanAllNotes,
+      currentVaultPath: '/vault/.VLAINA',
+    }));
+
+    await Promise.resolve();
+
+    expect(mocked.stat).not.toHaveBeenCalled();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
   it('does not index sidebar tag content that is too complex after read', async () => {
     const scanAllNotes = vi.fn(async () => undefined);
     mocked.stat.mockResolvedValue({ isFile: true, size: 16 });

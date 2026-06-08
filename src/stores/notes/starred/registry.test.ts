@@ -58,6 +58,22 @@ describe('starred registry helpers', () => {
     })).toBeNull();
     expect(createStarredEntryIfValid('note', '/vault', '.git/config.md')).toBeNull();
     expect(createStarredEntryIfValid('folder', '/vault', '.vlaina')).toBeNull();
+    expect(normalizeStarredEntry({
+      id: 'app-note-uppercase',
+      kind: 'note',
+      vaultPath: '/vault',
+      relativePath: '.VLAINA/workspace.md',
+      addedAt: 1,
+    })).toBeNull();
+    expect(normalizeStarredEntry({
+      id: 'git-folder-uppercase',
+      kind: 'folder',
+      vaultPath: '/vault',
+      relativePath: 'docs/.GIT',
+      addedAt: 1,
+    })).toBeNull();
+    expect(createStarredEntryIfValid('note', '/vault', '.GIT/config.md')).toBeNull();
+    expect(createStarredEntryIfValid('folder', '/vault', '.VLAINA')).toBeNull();
   });
 
   it('refuses to create non-markdown note entries', () => {

@@ -51,6 +51,16 @@ describe('note document internal paths', () => {
       path: 'docs/.git/config.md',
       cache: new Map(),
     })).rejects.toThrow('Path must not be inside an internal notes folder.');
+    await expect(loadNoteDocument({
+      notesPath: '/vault',
+      path: '.VLAINA/workspace.md',
+      cache: new Map(),
+    })).rejects.toThrow('Path must not be inside an internal notes folder.');
+    await expect(loadNoteDocument({
+      notesPath: '/vault',
+      path: 'docs/.GIT/config.md',
+      cache: new Map(),
+    })).rejects.toThrow('Path must not be inside an internal notes folder.');
 
     expect(adapter.stat).not.toHaveBeenCalled();
     expect(adapter.readFile).not.toHaveBeenCalled();
@@ -65,6 +75,14 @@ describe('note document internal paths', () => {
       ]),
       allowStaleCachedContent: true,
     })).rejects.toThrow('Path must not be inside an internal notes folder.');
+    await expect(loadNoteDocument({
+      notesPath: '/vault',
+      path: '.VLAINA/workspace.md',
+      cache: new Map([
+        ['.VLAINA/workspace.md', { content: '# Cached', modifiedAt: 1 }],
+      ]),
+      allowStaleCachedContent: true,
+    })).rejects.toThrow('Path must not be inside an internal notes folder.');
 
     expect(adapter.stat).not.toHaveBeenCalled();
     expect(adapter.readFile).not.toHaveBeenCalled();
@@ -75,6 +93,22 @@ describe('note document internal paths', () => {
       notesPath: '/vault',
       currentNote: {
         path: 'docs/.git/config.md',
+        content: '# Config',
+      },
+      cache: new Map(),
+    })).rejects.toThrow('Path must not be inside an internal notes folder.');
+    await expect(saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: '.VLAINA/workspace.md',
+        content: '# Config',
+      },
+      cache: new Map(),
+    })).rejects.toThrow('Path must not be inside an internal notes folder.');
+    await expect(saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'docs/.GIT/config.md',
         content: '# Config',
       },
       cache: new Map(),

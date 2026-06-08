@@ -122,11 +122,11 @@ export function usePendingMarkdownFlusher({
       return flushPendingEditorMarkdown(currentNotePath, pendingMarkdown);
     };
 
-    setPendingEditorMarkdownFlusher(flushPendingMarkdown);
+    const unregisterPendingMarkdownFlusher = setPendingEditorMarkdownFlusher(flushPendingMarkdown);
 
     return () => {
       flushPendingMarkdown({ allowFallbackSerialize: false });
-      setPendingEditorMarkdownFlusher(null);
+      unregisterPendingMarkdownFlusher();
     };
   }, [
     currentNotePath,

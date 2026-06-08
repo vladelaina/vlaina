@@ -3,7 +3,7 @@ import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from '@/lib/
 import type { FileTreeNode } from './types';
 import { sortFileTree } from './fileTreeSorting';
 import { isSafeVaultPathSegment } from './utils/fs/vaultPathContainment';
-import { APP_CONFIG_FOLDER } from './constants';
+import { hasInternalNotePathSegment } from './utils/fs/internalNotePaths';
 
 const MAX_FILE_TREE_ENTRIES = 5000;
 const MAX_FILE_TREE_DEPTH = 24;
@@ -16,8 +16,6 @@ const SKIPPED_DIRECTORY_NAMES = new Set([
   'target',
   '__pycache__',
 ]);
-const INTERNAL_DIRECTORY_NAMES = new Set([APP_CONFIG_FOLDER, '.git']);
-
 interface FileTreeBuildBudget {
   visitedEntries: number;
   skippedFolderCount: number;
@@ -44,7 +42,7 @@ function shouldSkipDirectory(name: string) {
 }
 
 function shouldHideDirectory(name: string) {
-  return INTERNAL_DIRECTORY_NAMES.has(name);
+  return hasInternalNotePathSegment(name);
 }
 
 export async function isGitRepositoryDirectory(fullPath: string) {

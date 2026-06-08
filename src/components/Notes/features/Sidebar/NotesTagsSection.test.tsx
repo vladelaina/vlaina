@@ -146,8 +146,58 @@ describe('NotesTagsSection', () => {
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not read tag note icon metadata from case-variant internal relative paths', async () => {
+    render(
+      <NotesTagsSection
+        tags={[
+          {
+            tag: 'topic',
+            count: 1,
+            paths: [{ path: 'docs/.GIT/config.md', query: '#topic', contentMatchOrdinal: 0 }],
+          },
+        ]}
+        getDisplayName={(path) => path}
+        onOpenNote={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText('topic'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fallback-icon')).toHaveTextContent('file.text');
+    });
+    expect(mocked.stat).not.toHaveBeenCalled();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
   it('does not read tag note icon metadata from internal vault paths', async () => {
     mocked.notesPath = '/vault/.vlaina';
+
+    render(
+      <NotesTagsSection
+        tags={[
+          {
+            tag: 'topic',
+            count: 1,
+            paths: [{ path: 'workspace.md', query: '#topic', contentMatchOrdinal: 0 }],
+          },
+        ]}
+        getDisplayName={(path) => path}
+        onOpenNote={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText('topic'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fallback-icon')).toHaveTextContent('file.text');
+    });
+    expect(mocked.stat).not.toHaveBeenCalled();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read tag note icon metadata from case-variant internal vault paths', async () => {
+    mocked.notesPath = '/vault/.VLAINA';
 
     render(
       <NotesTagsSection

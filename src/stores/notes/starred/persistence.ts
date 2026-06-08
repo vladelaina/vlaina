@@ -67,6 +67,15 @@ function normalizeDeletedEntryKeys(value: unknown): string[] {
   return normalized;
 }
 
+function normalizeStarredEntriesForPersistence(entries: StarredEntry[]): StarredEntry[] {
+  return dedupeStarredEntries(
+    entries
+      .slice(0, MAX_STARRED_ENTRIES)
+      .map((entry) => normalizeStarredEntry(entry))
+      .filter((entry: StarredEntry | null): entry is StarredEntry => entry !== null)
+  );
+}
+
 function parseStarredRegistryPayload(value: unknown): StarredRegistry {
   const data = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const entries = Array.isArray(data.entries)
@@ -277,8 +286,8 @@ export function saveStarredRegistry(
   options: { deletedEntries?: StarredEntry[] } = {}
 ): void {
   starredPersistenceQueue.schedule({
-    entries: dedupeStarredEntries(entries).slice(0, MAX_STARRED_ENTRIES),
-    deletedEntryKeys: (options.deletedEntries || []).map(getStarredEntryKey),
+    entries: normalizeStarredEntriesForPersistence(entries),
+    deletedEntryKeys: normalizeStarredEntriesForPersistence(options.deletedEntries || []).map(getStarredEntryKey),
   });
 }
 
