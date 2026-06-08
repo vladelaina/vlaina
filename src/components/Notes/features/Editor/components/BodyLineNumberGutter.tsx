@@ -5,6 +5,7 @@ const BODY_LINE_NUMBER_LABEL_WIDTH = 40;
 const BODY_LINE_NUMBER_LABEL_GAP = 18;
 export const MAX_BODY_LINE_NUMBER_TARGETS = 5000;
 export const MAX_BODY_LINE_NUMBER_LIST_SCAN_ELEMENTS = 10000;
+export const MAX_BODY_LINE_NUMBER_SELECTION_SCAN_ELEMENTS = 20000;
 
 interface BodyLineNumberGutterProps {
   markdown: string;
@@ -54,10 +55,37 @@ export function collectBodyLineNumberTargets(editorRoot: HTMLElement): HTMLEleme
   return targets;
 }
 
-function isInsideSelectedBlock(target: HTMLElement): boolean {
+function collectSelectedBlockDescendantTargets(editorRoot: HTMLElement): WeakSet<HTMLElement> {
+  const selectedDescendantTargets = new WeakSet<HTMLElement>();
+  const walker = editorRoot.ownerDocument.createTreeWalker(editorRoot, NodeFilter.SHOW_ELEMENT);
+  let scanned = 0;
+
+  for (
+    let node = walker.nextNode();
+    node && scanned < MAX_BODY_LINE_NUMBER_SELECTION_SCAN_ELEMENTS;
+    node = walker.nextNode()
+  ) {
+    scanned += 1;
+    if (!(node instanceof HTMLElement) || !node.classList.contains('editor-block-selected')) {
+      continue;
+    }
+
+    for (
+      let ancestor = node.parentElement;
+      ancestor && ancestor !== editorRoot;
+      ancestor = ancestor.parentElement
+    ) {
+      selectedDescendantTargets.add(ancestor);
+    }
+  }
+
+  return selectedDescendantTargets;
+}
+
+function isInsideSelectedBlock(target: HTMLElement, selectedDescendantTargets: WeakSet<HTMLElement>): boolean {
   return target.classList.contains('editor-block-selected')
     || target.closest('.editor-block-selected') !== null
-    || target.querySelector('.editor-block-selected') !== null;
+    || selectedDescendantTargets.has(target);
 }
 
 export function resolveBodyLineNumberLabels(shell: HTMLElement, markdown: string): BodyLineNumberLabel[] {
@@ -66,6 +94,7 @@ export function resolveBodyLineNumberLabels(shell: HTMLElement, markdown: string
 
   const sourceLineNumbers = getMarkdownBodySourceLineNumbers(markdown);
   const targets = collectBodyLineNumberTargets(editorRoot);
+  const selectedDescendantTargets = collectSelectedBlockDescendantTargets(editorRoot);
   const shellRect = shell.getBoundingClientRect();
   const editorRect = editorRoot.getBoundingClientRect();
   const left = Math.max(
@@ -76,7 +105,7 @@ export function resolveBodyLineNumberLabels(shell: HTMLElement, markdown: string
   return targets
     .slice(0, sourceLineNumbers.length)
     .map((target, index) => ({ target, lineNumber: sourceLineNumbers[index] }))
-    .filter(({ target }) => !isInsideSelectedBlock(target))
+    .filter(({ target }) => !isInsideSelectedBlock(target, selectedDescendantTargets))
     .map(({ target, lineNumber }) => {
       const targetRect = target.getBoundingClientRect();
       return {

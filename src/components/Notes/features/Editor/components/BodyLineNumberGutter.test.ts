@@ -134,9 +134,22 @@ describe('BodyLineNumberGutter', () => {
     setRect(editorRoot, { left: 106, top: 20 });
     setRect(first, { left: 106, top: 40, height: 24 });
     setRect(second, { left: 106, top: 72, height: 24 });
+    const firstQuerySelectorSpy = vi.spyOn(first, 'querySelector').mockImplementation(() => {
+      throw new Error('Line number labels should not scan each target subtree');
+    });
+    const secondQuerySelectorSpy = vi.spyOn(second, 'querySelector').mockImplementation(() => {
+      throw new Error('Line number labels should not scan each target subtree');
+    });
 
-    const labels = resolveBodyLineNumberLabels(shell, '- First\n- Second');
+    try {
+      const labels = resolveBodyLineNumberLabels(shell, '- First\n- Second');
 
-    expect(labels).toEqual([{ lineNumber: 1, left: 38, top: 32 }]);
+      expect(labels).toEqual([{ lineNumber: 1, left: 38, top: 32 }]);
+      expect(firstQuerySelectorSpy).not.toHaveBeenCalled();
+      expect(secondQuerySelectorSpy).not.toHaveBeenCalled();
+    } finally {
+      firstQuerySelectorSpy.mockRestore();
+      secondQuerySelectorSpy.mockRestore();
+    }
   });
 });

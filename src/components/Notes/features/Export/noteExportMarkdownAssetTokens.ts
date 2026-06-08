@@ -1,6 +1,6 @@
 import {
-  getMarkdownHtmlBlockRanges,
-  getIgnoredInlineRanges,
+  collectIgnoredInlineRanges,
+  collectMarkdownHtmlBlockRanges,
   getRangeEndAtOffset,
   isEscapedMarkdownPunctuation,
   isOffsetInRanges,
@@ -33,6 +33,8 @@ export interface ExportMarkdownAssetTokenOptions {
 
 export const MAX_EXPORT_MARKDOWN_ASSET_TOKENS = 2000;
 export const MAX_EXPORT_HTML_TAG_SCAN_RANGES = 8000;
+export const MAX_EXPORT_IGNORED_INLINE_RANGES = 8000;
+export const MAX_EXPORT_MARKDOWN_HTML_BLOCK_RANGES = 4000;
 
 function getMaxTokens(options?: ExportMarkdownAssetTokenOptions): number {
   const value = options?.maxTokens;
@@ -264,10 +266,30 @@ export function findExportMarkdownAssetSourceTokensWithOptions(
     return [];
   }
 
-  const ignoredRanges = getIgnoredInlineRanges(content);
+  const ignoredInlineScan = collectIgnoredInlineRanges(
+    content,
+    Number.isFinite(maxTokens) ? MAX_EXPORT_IGNORED_INLINE_RANGES : Number.POSITIVE_INFINITY,
+  );
+  const ignoredRanges = ignoredInlineScan.exhaustedAt === null
+    ? ignoredInlineScan.ranges
+    : normalizeContentRanges([
+        ...ignoredInlineScan.ranges,
+        { start: ignoredInlineScan.exhaustedAt, end: content.length },
+      ]);
+  const htmlBlockScan = collectMarkdownHtmlBlockRanges(
+    content,
+    Number.isFinite(maxTokens) ? MAX_EXPORT_MARKDOWN_HTML_BLOCK_RANGES : Number.POSITIVE_INFINITY,
+  );
+  const htmlBlockRemainderRanges = htmlBlockScan.exhaustedAt === null
+    ? []
+    : [{ start: htmlBlockScan.exhaustedAt, end: content.length }];
+  const ignoredHtmlRanges = normalizeContentRanges([
+    ...ignoredRanges,
+    ...htmlBlockRemainderRanges,
+  ]);
   const htmlTagScan = collectVisibleHtmlTagRanges(
     content,
-    ignoredRanges,
+    ignoredHtmlRanges,
     Number.isFinite(maxTokens) ? MAX_EXPORT_HTML_TAG_SCAN_RANGES : Number.POSITIVE_INFINITY,
   );
   const htmlTagRanges = htmlTagScan.ranges;
@@ -275,8 +297,8 @@ export function findExportMarkdownAssetSourceTokensWithOptions(
     ? []
     : [{ start: htmlTagScan.exhaustedAt, end: content.length }];
   const ignoredMarkdownRanges = normalizeContentRanges([
-    ...ignoredRanges,
-    ...getMarkdownHtmlBlockRanges(content),
+    ...ignoredHtmlRanges,
+    ...htmlBlockScan.ranges,
     ...htmlScanRemainderRanges,
   ]);
   const markdownMatches = findMarkdownImageSourceMatches(

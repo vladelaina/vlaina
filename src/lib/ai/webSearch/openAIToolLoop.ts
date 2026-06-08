@@ -339,13 +339,13 @@ function cacheReadContentForToolMessages(
     const toolMessage = toolMessages[index];
     const content = typeof toolMessage?.content === 'string' ? toolMessage.content : '';
     if (!content.trim()) return;
-    for (const url of getReadToolUrls(toolCall)) {
-      const safeUrl = sanitizeWebSearchSourceUrl(url);
-      if (!safeUrl) continue;
-      const normalized = normalizeReadCacheUrl(safeUrl);
-      if (normalized && !readContentByUrl.has(normalized)) {
-        readContentByUrl.set(normalized, content);
-      }
+    const urls = getReadToolUrls(toolCall);
+    if (urls.length !== 1) return;
+    const safeUrl = sanitizeWebSearchSourceUrl(urls[0]);
+    if (!safeUrl) return;
+    const normalized = normalizeReadCacheUrl(safeUrl);
+    if (normalized && !readContentByUrl.has(normalized)) {
+      readContentByUrl.set(normalized, content);
     }
   });
 }

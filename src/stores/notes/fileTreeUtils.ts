@@ -84,7 +84,9 @@ export async function buildFileTreeLevel(
 
     if (isDir) {
       const entryFullPath = await joinPath(fullPath, entry.name);
-      const isGitRepository = await isGitRepositoryDirectory(entryFullPath);
+      const isGitRepository = shouldSkipDirectory(entry.name)
+        ? false
+        : await isGitRepositoryDirectory(entryFullPath);
       nodes.push({
         id: entryPath,
         name: entry.name,
@@ -190,6 +192,18 @@ export function countFileTreeNodes(nodes: readonly FileTreeNode[]) {
 
 function isPathOnRoute(nodePath: string, targetPath: string): boolean {
   return targetPath === nodePath || targetPath.startsWith(`${nodePath}/`);
+}
+
+function remapPathWithinBase(path: string, oldBasePath: string, newBasePath: string): string {
+  if (path === oldBasePath) {
+    return newBasePath;
+  }
+
+  if (path.startsWith(`${oldBasePath}/`)) {
+    return `${newBasePath}${path.slice(oldBasePath.length)}`;
+  }
+
+  return path;
 }
 
 function findFileTreeRoute(nodes: FileTreeNode[], targetPath: string): FileTreeRoute | null {
@@ -488,9 +502,7 @@ export function deepUpdateNodePath(
   while (stack.length > 0) {
     const current = stack[stack.length - 1];
     if (!current.isFolder) {
-      const newPath = current.path === oldBasePath
-        ? newBasePath
-        : current.path.replace(oldBasePath, newBasePath);
+      const newPath = remapPathWithinBase(current.path, oldBasePath, newBasePath);
       clonedNodes.set(current, { ...current, id: newPath, path: newPath });
       stack.pop();
       continue;
@@ -502,9 +514,7 @@ export function deepUpdateNodePath(
       continue;
     }
 
-    const newPath = current.path === oldBasePath
-      ? newBasePath
-      : current.path.replace(oldBasePath, newBasePath);
+    const newPath = remapPathWithinBase(current.path, oldBasePath, newBasePath);
     clonedNodes.set(current, {
       ...current,
       id: newPath,

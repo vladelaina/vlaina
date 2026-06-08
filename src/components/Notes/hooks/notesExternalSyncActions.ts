@@ -6,7 +6,6 @@ import { useNotesStore } from '@/stores/notes/useNotesStore';
 import {
   flushExpiredPendingRenames,
   getNextPendingRenameDelay,
-  matchPendingRename,
   queuePendingRename,
   type PendingRenameEntry,
 } from './notesExternalRenameQueue';
@@ -121,6 +120,83 @@ function getWatchEventPathKind(event: DesktopWatchEvent): string | null {
   }
 
   return null;
+}
+
+function getParentPath(path: string): string {
+  const index = path.lastIndexOf('/');
+  return index >= 0 ? path.slice(0, index) : '';
+}
+
+function getBaseName(path: string): string {
+  const index = path.lastIndexOf('/');
+  return index >= 0 ? path.slice(index + 1) : path;
+}
+
+function getRenameEndpointScore(sourcePath: string, candidatePath: string): number {
+  let score = 0;
+  if (getParentPath(sourcePath) === getParentPath(candidatePath)) {
+    score += 2;
+  }
+  if (getBaseName(sourcePath) === getBaseName(candidatePath)) {
+    score += 1;
+  }
+  return score;
+}
+
+function takeBestPendingRename(
+  queue: PendingRenameEntry[],
+  now: number,
+  newPath: string,
+  canPairKinds: (oldKind: string | null | undefined, newKind: string | null | undefined) => boolean,
+  newKind?: string | null
+): { queue: PendingRenameEntry[]; oldPath: string | null; kind: string | null } {
+  const { queue: nextQueue } = flushExpiredPendingRenames(queue, now);
+  const compatible = nextQueue
+    .map((entry, index) => ({ entry, index, score: getRenameEndpointScore(entry.oldPath, newPath) }))
+    .filter(({ entry }) => canPairKinds(entry.kind, newKind));
+  const bestScore = compatible.reduce<number | null>(
+    (best, candidate) => best == null || candidate.score > best ? candidate.score : best,
+    null
+  );
+  const bestCandidates = compatible.filter((candidate) => candidate.score === bestScore);
+  if (bestCandidates.length !== 1) {
+    return { queue: nextQueue, oldPath: null, kind: null };
+  }
+
+  const best = bestCandidates[0];
+  return {
+    queue: nextQueue.filter((_, index) => index !== best.index),
+    oldPath: best.entry.oldPath,
+    kind: best.entry.kind ?? null,
+  };
+}
+
+function takeBestPendingCreate(
+  queue: PendingCreateEntry[],
+  now: number,
+  oldPath: string,
+  canPairKinds: (oldKind: string | null | undefined, newKind: string | null | undefined) => boolean,
+  oldKind?: string | null
+): { queue: PendingCreateEntry[]; newPath: string | null; kind: string | null } {
+  const { queue: nextQueue } = flushExpiredPendingCreates(queue, now);
+  const compatible = nextQueue
+    .map((entry, index) => ({ entry, index, score: getRenameEndpointScore(oldPath, entry.newPath) }))
+    .filter(({ entry }) => canPairKinds(oldKind, entry.kind));
+  const bestScore = compatible.reduce<number | null>(
+    (best, candidate) => best == null || candidate.score > best ? candidate.score : best,
+    null
+  );
+  const bestCandidates = compatible.filter((candidate) => candidate.score === bestScore);
+  if (bestCandidates.length !== 1) {
+    return { queue: nextQueue, newPath: null, kind: null };
+  }
+
+  const best = bestCandidates[0];
+  return {
+    queue: nextQueue.filter((_, index) => index !== best.index),
+    newPath: best.entry.newPath,
+    kind: best.entry.kind ?? null,
+  };
 }
 
 export function createNotesExternalSyncActions(options: CreateNotesExternalSyncActionsOptions) {
@@ -317,22 +393,16 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
         if (!isActiveNotesPath()) {
           return;
         }
-        const { queue, newPath, kind: newKind } = matchPendingCreate(pendingCreatesRef.current, Date.now());
+        const { queue, newPath, kind: newKind } = takeBestPendingCreate(
+          pendingCreatesRef.current,
+          Date.now(),
+          relativePath,
+          canPairPendingRenameKinds,
+          pathKind
+        );
         pendingCreatesRef.current = queue;
         if (newPath) {
-          if (canPairPendingRenameKinds(pathKind, newKind)) {
-            shouldReloadTree = await applyExternalRenamePathChange(relativePath, newPath, pathKind, newKind) || shouldReloadTree;
-          } else if (isRelevantDeletedPath(relativePath, pathKind)) {
-            pendingCreatesRef.current = queuePendingCreate(
-              pendingCreatesRef.current,
-              newPath,
-              Date.now(),
-              PENDING_RENAME_TTL_MS,
-              newKind
-            );
-            await applyExternalDeletion(relativePath);
-            shouldReloadTree = true;
-          }
+          shouldReloadTree = await applyExternalRenamePathChange(relativePath, newPath, pathKind, newKind) || shouldReloadTree;
           schedulePendingRenameFlush();
           continue;
         }
@@ -388,23 +458,21 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     let handledRename = false;
 
     for (const relativePath of relativePaths) {
-      const { queue, oldPath, kind: oldKind } = matchPendingRename(pendingRenamesRef.current, Date.now());
+      const { queue, oldPath, kind: oldKind } = takeBestPendingRename(
+        pendingRenamesRef.current,
+        Date.now(),
+        relativePath,
+        canPairPendingRenameKinds,
+        pathKind
+      );
       pendingRenamesRef.current = queue;
 
-      if (oldPath && canPairPendingRenameKinds(oldKind, pathKind)) {
+      if (oldPath) {
         handledRename = await applyExternalRenamePathChange(oldPath, relativePath, oldKind, pathKind) || handledRename;
         if (!isActiveNotesPath()) {
           return;
         }
         continue;
-      } else if (oldPath) {
-        pendingRenamesRef.current = queuePendingRename(
-          pendingRenamesRef.current,
-          oldPath,
-          Date.now(),
-          PENDING_RENAME_TTL_MS,
-          oldKind
-        );
       }
 
       pendingCreatesRef.current = queuePendingCreate(
@@ -571,35 +639,21 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
         schedulePendingRenameFlush();
         return;
       } else if (newPath) {
-        const { queue, oldPath: matchedOldPath, kind: matchedOldKind } = matchPendingRename(
+        const { queue, oldPath: matchedOldPath, kind: matchedOldKind } = takeBestPendingRename(
           pendingRenamesRef.current,
-          Date.now()
+          Date.now(),
+          newPath,
+          canPairPendingRenameKinds,
+          getWatchEventPathKind(event)
         );
         pendingRenamesRef.current = queue;
         schedulePendingRenameFlush();
 
-        if (matchedOldPath && canPairPendingRenameKinds(matchedOldKind, getWatchEventPathKind(event))) {
+        if (matchedOldPath) {
           await applyExternalRenamePathChange(matchedOldPath, newPath, matchedOldKind);
           if (!isActiveNotesPath()) {
             return;
           }
-        } else if (matchedOldPath) {
-          pendingRenamesRef.current = queuePendingRename(
-            pendingRenamesRef.current,
-            matchedOldPath,
-            Date.now(),
-            PENDING_RENAME_TTL_MS,
-            matchedOldKind
-          );
-          pendingCreatesRef.current = queuePendingCreate(
-            pendingCreatesRef.current,
-            newPath,
-            Date.now(),
-            PENDING_RENAME_TTL_MS,
-            getWatchEventPathKind(event)
-          );
-          schedulePendingRenameFlush();
-          return;
         } else {
           pendingCreatesRef.current = queuePendingCreate(
             pendingCreatesRef.current,

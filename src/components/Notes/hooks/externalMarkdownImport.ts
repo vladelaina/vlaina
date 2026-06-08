@@ -13,6 +13,8 @@ import { isSafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContain
 import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetSelection';
 
 const MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES = 2000;
+const MAX_EXTERNAL_MARKDOWN_SCAN_ENTRIES = 10_000;
+const MAX_EXTERNAL_MARKDOWN_STARRED_SCAN_ENTRIES = 10_000;
 const MAX_EXTERNAL_MARKDOWN_IMPORT_DEPTH = 24;
 const MAX_EXTERNAL_MARKDOWN_FILE_SIZE = 10 * 1024 * 1024;
 const SKIPPED_EXTERNAL_MARKDOWN_DIRECTORY_NAMES = new Set([
@@ -36,6 +38,7 @@ export interface ExternalMarkdownStarredTarget {
 }
 
 interface ExternalMarkdownImportBudget {
+  scannedEntries: number;
   visitedEntries: number;
 }
 
@@ -48,6 +51,14 @@ function shouldSkipExternalMarkdownDirectory(name: string) {
 
 function isInsideInternalExternalMarkdownPath(path: string) {
   return hasInternalNotePathSegment(path);
+}
+
+function spendExternalMarkdownScanBudget(budget: ExternalMarkdownImportBudget): boolean {
+  if (budget.scannedEntries >= MAX_EXTERNAL_MARKDOWN_SCAN_ENTRIES) {
+    return false;
+  }
+  budget.scannedEntries += 1;
+  return true;
 }
 
 async function statExternalMarkdownPath(absolutePath: string) {
@@ -166,6 +177,9 @@ async function importExternalMarkdownDirectory(
   }
 
   for (const entry of entries) {
+    if (!spendExternalMarkdownScanBudget(budget)) {
+      break;
+    }
     if (!isSafeVaultPathSegment(entry.name)) {
       continue;
     }
@@ -227,9 +241,15 @@ export async function importExternalMarkdownEntries(
 ): Promise<ExternalMarkdownImportResult> {
   const importedNotePaths: string[] = [];
   const importedFolderPaths: string[] = [];
-  const budget: ExternalMarkdownImportBudget = { visitedEntries: 0 };
+  const budget: ExternalMarkdownImportBudget = {
+    scannedEntries: 0,
+    visitedEntries: 0,
+  };
 
   for (const absolutePath of absolutePaths) {
+    if (!spendExternalMarkdownScanBudget(budget)) {
+      break;
+    }
     if (isInsideInternalExternalMarkdownPath(absolutePath)) {
       continue;
     }
@@ -288,13 +308,16 @@ export async function resolveExternalMarkdownEntriesForStarred(
   absolutePaths: string[],
 ): Promise<ExternalMarkdownStarredTarget[]> {
   const targets: ExternalMarkdownStarredTarget[] = [];
-  let visitedEntries = 0;
+  let scannedEntries = 0;
 
   for (const absolutePath of absolutePaths) {
-    if (visitedEntries >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES) {
+    if (
+      scannedEntries >= MAX_EXTERNAL_MARKDOWN_STARRED_SCAN_ENTRIES ||
+      targets.length >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES
+    ) {
       break;
     }
-    visitedEntries += 1;
+    scannedEntries += 1;
 
     if (isInsideInternalExternalMarkdownPath(absolutePath)) {
       continue;

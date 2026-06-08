@@ -14,6 +14,7 @@ const MIN_PREVIEW_WIDTH = 80;
 
 export const MAX_BLOCK_DRAG_PREVIEW_DOM_SCAN_ELEMENTS = 20_000;
 export const MAX_BLOCK_DRAG_PREVIEW_MATCHED_ELEMENTS = 5_000;
+export const MAX_BLOCK_DRAG_PREVIEW_CAPTURE_CONCURRENCY = 2;
 
 interface BlockDragPreviewOptions {
   view: EditorView;
@@ -395,10 +396,24 @@ function revealAfterVideoCaptures(preview: HTMLElement, captureJobs: readonly Ca
   if (captureJobs.length === 0) return;
 
   preview.style.visibility = themeRenderingTokens.visibilityHidden;
-  void Promise.all(captureJobs.map((job) => captureElementPreview(job))).finally(() => {
+  void runCaptureJobs(captureJobs).finally(() => {
     if (!preview.isConnected) return;
     preview.style.visibility = '';
   });
+}
+
+async function runCaptureJobs(captureJobs: readonly CaptureJob[]): Promise<void> {
+  let nextIndex = 0;
+  const workerCount = Math.min(MAX_BLOCK_DRAG_PREVIEW_CAPTURE_CONCURRENCY, captureJobs.length);
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (nextIndex < captureJobs.length) {
+      const job = captureJobs[nextIndex];
+      nextIndex += 1;
+      if (!job) continue;
+      await captureElementPreview(job);
+    }
+  });
+  await Promise.all(workers);
 }
 
 function resolvePreviewSourceWidth(view: EditorView, items: readonly PreviewItem[]): number {

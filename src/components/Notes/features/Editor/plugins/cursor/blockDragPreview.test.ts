@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   collectBlockDragPreviewElements,
   createBlockDragPreview,
+  MAX_BLOCK_DRAG_PREVIEW_CAPTURE_CONCURRENCY,
   MAX_BLOCK_DRAG_PREVIEW_DOM_SCAN_ELEMENTS,
 } from './blockDragPreview';
 
@@ -1127,6 +1128,144 @@ describe('createBlockDragPreview', () => {
       const image = preview?.element.querySelector<HTMLImageElement>('.mermaid-drag-preview-image');
       expect(image?.src).toBe('data:image/png;base64,preview');
     });
+
+    preview?.destroy();
+    rectSpy.mockRestore();
+  });
+
+  it('limits concurrent media captures while still processing every capture job', async () => {
+    const releaseCapture: Array<() => void> = [];
+    let activeCaptureCount = 0;
+    let maxActiveCaptureCount = 0;
+    const capturePage = vi.fn(() => {
+      activeCaptureCount += 1;
+      maxActiveCaptureCount = Math.max(maxActiveCaptureCount, activeCaptureCount);
+      return new Promise<string>((resolve) => {
+        releaseCapture.push(() => {
+          activeCaptureCount -= 1;
+          resolve('data:image/png;base64,preview');
+        });
+      });
+    });
+    (window as any).vlainaDesktop = {
+      media: { capturePage },
+    };
+
+    const editorRoot = document.createElement('div');
+    const mermaidBlocks = Array.from({ length: MAX_BLOCK_DRAG_PREVIEW_CAPTURE_CONCURRENCY + 3 }, (_, index) => {
+      const block = document.createElement('div');
+      block.className = 'mermaid-block';
+      block.dataset.type = 'mermaid';
+      block.textContent = `graph ${index}`;
+      editorRoot.appendChild(block);
+      return block;
+    });
+    document.body.appendChild(editorRoot);
+
+    const mermaidNodes = mermaidBlocks.map(() => createNode('mermaid', 1));
+    const view = {
+      dom: editorRoot,
+      state: {
+        doc: {
+          content: { size: mermaidNodes.length },
+          childCount: mermaidNodes.length,
+          forEach(cb: (child: any, offset: number) => void) {
+            mermaidNodes.forEach((node, offset) => cb(node, offset));
+          },
+          resolve(pos: number) {
+            return {
+              pos,
+              depth: 0,
+              parent: createNode('doc', mermaidNodes.length),
+              nodeAfter: mermaidNodes[pos] ?? null,
+              node() {
+                return createNode('doc', mermaidNodes.length);
+              },
+              before() {
+                return 0;
+              },
+            };
+          },
+        },
+      },
+      nodeDOM(pos: number) {
+        return mermaidBlocks[pos] ?? mermaidBlocks[0];
+      },
+      domAtPos(pos: number) {
+        return { node: mermaidBlocks[Math.min(pos, mermaidBlocks.length - 1)] };
+      },
+    } as any;
+
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        const blockIndex = mermaidBlocks.indexOf(this);
+        if (blockIndex >= 0) {
+          const top = 80 + blockIndex * 32;
+          return {
+            left: 120,
+            top,
+            width: 420,
+            height: 24,
+            right: 540,
+            bottom: top + 24,
+            x: 120,
+            y: top,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        if (this.dataset.noEditorDragBox === 'true') {
+          return {
+            left: 0,
+            top: 0,
+            width: 420,
+            height: 160,
+            right: 420,
+            bottom: 160,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        return {
+          left: 0,
+          top: 0,
+          width: 0,
+          height: 0,
+          right: 0,
+          bottom: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        } as DOMRect;
+      });
+
+    const preview = createBlockDragPreview({
+      view,
+      ranges: mermaidBlocks.map((_, index) => ({ from: index, to: index + 1 })),
+      clientX: 140,
+      clientY: 96,
+    });
+
+    expect(preview).not.toBeNull();
+    await vi.waitFor(() => {
+      expect(capturePage).toHaveBeenCalledTimes(MAX_BLOCK_DRAG_PREVIEW_CAPTURE_CONCURRENCY);
+    });
+    expect(maxActiveCaptureCount).toBe(MAX_BLOCK_DRAG_PREVIEW_CAPTURE_CONCURRENCY);
+
+    while (capturePage.mock.calls.length < mermaidBlocks.length) {
+      releaseCapture.shift()?.();
+      await vi.waitFor(() => {
+        expect(releaseCapture.length).toBeGreaterThan(0);
+      });
+      expect(maxActiveCaptureCount).toBe(MAX_BLOCK_DRAG_PREVIEW_CAPTURE_CONCURRENCY);
+    }
+    releaseCapture.splice(0).forEach((release) => release());
+
+    await vi.waitFor(() => {
+      expect(preview?.element.querySelectorAll('.mermaid-drag-preview-image')).toHaveLength(mermaidBlocks.length);
+    });
+    expect(capturePage).toHaveBeenCalledTimes(mermaidBlocks.length);
 
     preview?.destroy();
     rectSpy.mockRestore();

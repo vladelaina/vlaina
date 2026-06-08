@@ -142,6 +142,10 @@ describe('fileTreeUtils structural sharing', () => {
     expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/node_modules');
     expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/Node_Modules');
     expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/Dist');
+    expect(mocks.exists).not.toHaveBeenCalledWith('/vault/node_modules/.git');
+    expect(mocks.exists).not.toHaveBeenCalledWith('/vault/Node_Modules/.git');
+    expect(mocks.exists).not.toHaveBeenCalledWith('/vault/Dist/.git');
+    expect(mocks.exists).toHaveBeenCalledWith('/vault/docs/.git');
     expect(tree).toEqual([
       {
         id: 'Dist',

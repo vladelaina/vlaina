@@ -777,6 +777,39 @@ describe('AssetService', () => {
     ]);
   });
 
+  it('caps asset library directory scanning for very large folders', async () => {
+    mocks.storage.exists.mockResolvedValue(true);
+    const unscannedEntry = {
+      get name() {
+        throw new Error('unscanned asset entry name was read');
+      },
+      path: '/vault/docs/assets/image-5000.png',
+      isFile: true,
+      isDirectory: false,
+    };
+    mocks.storage.listDir.mockResolvedValue([
+      ...Array.from({ length: 5000 }, (_, index) => ({
+        name: `image-${String(index).padStart(4, '0')}.png`,
+        path: `/vault/docs/assets/image-${String(index).padStart(4, '0')}.png`,
+        isFile: true,
+        isDirectory: false,
+      })),
+      unscannedEntry,
+    ]);
+
+    const assets = await AssetService.list(
+      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      {
+        storageMode: 'subfolder',
+        subfolderName: 'assets',
+        filenameFormat: 'original',
+      },
+    );
+
+    expect(assets).toHaveLength(5000);
+    expect(assets.map((asset) => asset.filename)).not.toContain('./assets/image-5000.png');
+  });
+
   it('ignores unsafe directory entries while listing assets', async () => {
     mocks.storage.exists.mockResolvedValue(true);
     mocks.storage.listDir.mockResolvedValue([

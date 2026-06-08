@@ -26,6 +26,7 @@ export interface AssetConfig {
 }
 
 const MAX_ASSET_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_ASSET_LIST_DIRECTORY_ENTRIES = 5000;
 const IMAGE_UPLOAD_EXTENSIONS_BY_MIME: Record<string, readonly string[]> = {
   'image/avif': ['avif'],
   'image/bmp': ['bmp'],
@@ -170,6 +171,20 @@ async function hydrateAssetEntryMetadata(
   }));
 }
 
+async function normalizeAssetDirectoryEntries(
+  targetDir: string,
+  entries: Array<{ name: string; path: string; isFile: boolean; size?: number; modifiedAt?: number }>,
+): Promise<Array<{ name: string; path: string; size?: number; modifiedAt?: number }>> {
+  const normalizedEntries: Array<{ name: string; path: string; size?: number; modifiedAt?: number }> = [];
+  for (const entry of entries) {
+    const normalizedEntry = await normalizeAssetDirectoryEntry(targetDir, entry);
+    if (normalizedEntry) {
+      normalizedEntries.push(normalizedEntry);
+    }
+  }
+  return normalizedEntries;
+}
+
 function normalizeSafeSubfolderName(name: string | undefined, fallback: string): string {
   const normalized = (name || fallback).replace(/\\/g, '/').replace(/\/{2,}/g, '/');
   const parts = normalized.split('/').filter(Boolean);
@@ -223,7 +238,9 @@ export class AssetService {
     }
 
     const entries = (await Promise.all(
-      (await storage.listDir(targetDir)).map((entry) => normalizeAssetDirectoryEntry(targetDir, entry)),
+      (await storage.listDir(targetDir))
+        .slice(0, MAX_ASSET_LIST_DIRECTORY_ENTRIES)
+        .map((entry) => normalizeAssetDirectoryEntry(targetDir, entry)),
     )).filter((entry): entry is { name: string; path: string; size?: number; modifiedAt?: number } => Boolean(entry));
     const imageFiles = entries.filter((entry) => getMimeType(entry.name).startsWith('image/'));
 
@@ -302,9 +319,7 @@ export class AssetService {
     let existingFiles: string[] = [];
     try {
       const files = await storage.listDir(targetDir);
-      existingEntries = (await Promise.all(
-        files.map((entry) => normalizeAssetDirectoryEntry(targetDir, entry)),
-      )).filter((entry): entry is { name: string; path: string; size?: number; modifiedAt?: number } => Boolean(entry));
+      existingEntries = await normalizeAssetDirectoryEntries(targetDir, files);
       existingFiles = existingEntries.map(f => f.name);
     } catch (error) {
       existingFiles = existingAssets.map(a => a.filename.split('/').pop() || '');

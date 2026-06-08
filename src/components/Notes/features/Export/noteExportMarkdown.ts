@@ -54,6 +54,10 @@ function createExportSegmentMarkerPrefix(markdown: string): string {
 
 type ExportAssetUrlCache = Map<string, Promise<string>>;
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 async function resolveAssetUrl(
   src: string,
   notesPath: string,
@@ -132,14 +136,16 @@ export async function resolveExportMarkdownAssetSources(
   }, { protectHtmlBlocks: false });
 
   const assetUrlCache: ExportAssetUrlCache = new Map();
-  const resolvedSegments = await Promise.all(
-    segments.map((segment) => resolveExportMarkdownAssetSegment(segment, notesPath, notePath, assetUrlCache))
-  );
+  const resolvedSegments: string[] = [];
+  for (const segment of segments) {
+    resolvedSegments.push(await resolveExportMarkdownAssetSegment(segment, notesPath, notePath, assetUrlCache));
+  }
 
-  return resolvedSegments.reduce(
-    (output, segment, index) => output.replace(`${markerPrefix}${index}\0`, segment),
-    protectedMarkdown,
-  );
+  const markerPattern = new RegExp(`${escapeRegExp(markerPrefix)}(\\d+)\\0`, 'g');
+  return protectedMarkdown.replace(markerPattern, (_marker, rawIndex: string) => {
+    const index = Number.parseInt(rawIndex, 10);
+    return resolvedSegments[index] ?? '';
+  });
 }
 
 async function resolveExportMarkdownAssetSegment(

@@ -57,6 +57,25 @@ describe('messageClipboard bounded image parsing', () => {
     ].join('\n'));
   });
 
+  it('scrubs overflow inline data images from bounded copy text fallback', () => {
+    const content = [
+      'A ![first](https://example.com/first.png)',
+      'B <img src="data:image/png;base64,abc">',
+      'C ![third](data:image/png;base64,def)',
+      'D <img alt="overflow" src=\'data:image/png;base64,ghi\'>',
+    ].join('\n');
+
+    const copied = formatMessageCopyText(content, { maxTokens: 2 });
+
+    expect(copied).toBe([
+      'A https://example.com/first.png',
+      'B [image]',
+      'C [image]',
+      'D [image]',
+    ].join('\n'));
+    expect(copied).not.toContain('data:image');
+  });
+
   it('does not scan unbounded images before copying message text fallback', async () => {
     const videos = Array.from({ length: 2000 }, (_, index) => `![video-${index}](https://example.com/${index}.mp4)`);
     const content = [

@@ -341,6 +341,14 @@ describe('OpenAI web search JSON tool loop', () => {
         },
       ]),
     };
+    client.readWebPage.mockResolvedValueOnce({
+      title: 'One',
+      summary: '',
+      siteName: 'example.com',
+      finalUrl: 'https://example.com/one',
+      content: 'Only first page content.',
+      charCount: 24,
+    });
 
     await runOpenAIWebSearchJsonToolLoop({
       body: {
@@ -354,7 +362,10 @@ describe('OpenAI web search JSON tool loop', () => {
     });
 
     expect(client.readWebPages).toHaveBeenCalledTimes(1);
-    expect(client.readWebPage).not.toHaveBeenCalled();
+    expect(client.readWebPage).toHaveBeenCalledWith('https://example.com/one', {
+      contentLimit: 3000,
+      retries: 0,
+    });
     const repeatedReadMessages = requestJson.mock.calls[2][0].messages;
     expect(repeatedReadMessages[repeatedReadMessages.length - 1]).toMatchObject({
       role: 'tool',

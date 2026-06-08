@@ -7,6 +7,34 @@ import { $prose } from '@milkdown/utils'
 import { withMeta } from '../__internal__'
 import { hardbreakSchema } from '../node'
 
+export const MAX_HARDBREAK_CLEAR_MARK_SCAN_NODES = 20_000
+
+export function clearMarkedHardbreaksInRange(
+  tr: Transaction,
+  hardbreakType: unknown,
+  from: number,
+  to: number,
+  maxScanNodes = MAX_HARDBREAK_CLEAR_MARK_SCAN_NODES
+) {
+  let nextTr = tr
+  let changed = false
+  const start = Math.max(0, Math.min(from, nextTr.doc.content.size))
+  const end = Math.max(start, Math.min(to, nextTr.doc.content.size))
+  let scanned = 0
+
+  nextTr.doc.nodesBetween(start, end, (node, pos) => {
+    scanned += 1
+    if (scanned > maxScanNodes) return false
+    if (node.type === hardbreakType && node.marks.length) {
+      nextTr = nextTr.setNodeMarkup(pos, hardbreakType as never, node.attrs, [])
+      changed = true
+    }
+    return true
+  })
+
+  return { tr: nextTr, changed }
+}
+
 function mapStepPosToFinalDoc(
   transactions: readonly Transaction[],
   transactionIndex: number,
@@ -42,15 +70,9 @@ export const hardbreakClearMarkPlugin = $prose((ctx) => {
       }
 
       const clearHardbreaksInRange = (from: number, to: number) => {
-        const start = Math.max(0, Math.min(from, nextTr.doc.content.size))
-        const end = Math.max(start, Math.min(to, nextTr.doc.content.size))
-
-        nextTr.doc.nodesBetween(start, end, (node, pos) => {
-          if (node.type === hardbreakType && node.marks.length) {
-            nextTr = nextTr.setNodeMarkup(pos, hardbreakType, node.attrs, [])
-            changed = true
-          }
-        })
+        const result = clearMarkedHardbreaksInRange(nextTr, hardbreakType, from, to)
+        nextTr = result.tr
+        changed ||= result.changed
       }
 
       for (const [transactionIndex, tr] of trs.entries()) {

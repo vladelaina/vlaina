@@ -13,6 +13,7 @@ import {
 } from './registry';
 
 const MAX_STARRED_ENTRIES = 5000;
+const MAX_STARRED_ENTRY_SCAN_ITEMS = 20_000;
 const MAX_STARRED_REGISTRY_BYTES = 5 * 1024 * 1024;
 const MAX_DELETED_ENTRY_KEYS = MAX_STARRED_ENTRIES;
 const MAX_DELETED_ENTRY_KEY_CHARS = 4096;
@@ -68,26 +69,37 @@ function normalizeDeletedEntryKeys(value: unknown): string[] {
 }
 
 function normalizeStarredEntriesForPersistence(entries: StarredEntry[]): StarredEntry[] {
-  return dedupeStarredEntries(
-    entries
-      .slice(0, MAX_STARRED_ENTRIES)
-      .map((entry) => normalizeStarredEntry(entry))
-      .filter((entry: StarredEntry | null): entry is StarredEntry => entry !== null)
-  );
+  const normalizedEntries: StarredEntry[] = [];
+  const seen = new Set<string>();
+  const scanLimit = Math.min(entries.length, MAX_STARRED_ENTRY_SCAN_ITEMS);
+
+  for (let index = 0; index < scanLimit && normalizedEntries.length < MAX_STARRED_ENTRIES; index += 1) {
+    const entry = normalizeStarredEntry(entries[index]);
+    if (!entry) {
+      continue;
+    }
+
+    const key = getStarredEntryKey(entry);
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    normalizedEntries.push(entry);
+  }
+
+  return normalizedEntries;
 }
 
 function parseStarredRegistryPayload(value: unknown): StarredRegistry {
   const data = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const entries = Array.isArray(data.entries)
-    ? data.entries
-        .slice(0, MAX_STARRED_ENTRIES)
-        .map((entry: unknown) => normalizeStarredEntry(entry))
-        .filter((entry: StarredEntry | null): entry is StarredEntry => entry !== null)
+    ? normalizeStarredEntriesForPersistence(data.entries as StarredEntry[])
     : [];
 
   return {
     version: CURRENT_STARRED_VERSION,
-    entries: dedupeStarredEntries(entries),
+    entries,
     deletedEntryKeys: normalizeDeletedEntryKeys(data.deletedEntryKeys),
   };
 }

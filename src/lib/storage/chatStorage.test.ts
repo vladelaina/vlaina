@@ -20,6 +20,7 @@ vi.mock('@/lib/storage/adapter', () => ({
 }));
 
 import {
+  MAX_SESSION_MESSAGE_NODES,
   normalizeSessionMessages,
   mergeSessionMessages,
   parseSessionMessagesPayload,
@@ -369,6 +370,33 @@ describe('chatStorage session message normalization', () => {
     ]);
 
     expect(messages.map((message) => message.id)).toEqual(['ok']);
+  });
+
+  it('does not scan top-level persisted message ids beyond the message budget', () => {
+    const overBudgetMessage = {
+      get id() {
+        throw new Error('Out-of-budget message ids should not be scanned');
+      },
+      role: 'user',
+      content: 'out of budget',
+      modelId: 'model-1',
+      timestamp: 1,
+    };
+    const messages = [
+      ...Array.from({ length: MAX_SESSION_MESSAGE_NODES }, (_, index) => ({
+        id: `m${index}`,
+        role: 'user',
+        content: `message ${index}`,
+        modelId: 'model-1',
+        timestamp: 1,
+      })),
+      overBudgetMessage,
+    ];
+
+    const normalized = normalizeSessionMessages(messages);
+
+    expect(normalized).toHaveLength(MAX_SESSION_MESSAGE_NODES);
+    expect(normalized.at(-1)?.id).toBe(`m${MAX_SESSION_MESSAGE_NODES - 1}`);
   });
 
   it('filters persisted image source caches before exposing restored messages', () => {

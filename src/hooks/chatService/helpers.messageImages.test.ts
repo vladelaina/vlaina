@@ -179,7 +179,8 @@ describe('buildStoredUserMessageContent image parsing', () => {
     const result = await buildStoredUserMessageContent(content);
 
     expect(Array.isArray(result) ? result.filter((part) => part.type === 'image_url') : []).toHaveLength(2000);
-    expect(JSON.stringify(result)).toContain('![image 2000](data:image/png;base64,QUJD)');
+    expect(JSON.stringify(result)).not.toContain('![image 2000]');
+    expect(JSON.stringify(result)).not.toContain('data:image/png;base64,QUJD)');
   });
 
   it('converts vault image attachment paths instead of storing them as managed attachment references', async () => {

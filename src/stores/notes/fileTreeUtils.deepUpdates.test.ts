@@ -143,4 +143,36 @@ describe('fileTreeUtils deep updates', () => {
     }
     expect(cursor.isFolder ? cursor.children[0]?.path : '').toBe(expectedLeafPath);
   });
+
+  it('does not rewrite paths outside the renamed folder path boundary', () => {
+    const node: FileTreeNode = {
+      id: 'docs',
+      name: 'docs',
+      path: 'docs',
+      isFolder: true,
+      expanded: false,
+      children: [
+        {
+          id: 'docs/readme.md',
+          name: 'readme',
+          path: 'docs/readme.md',
+          isFolder: false,
+        },
+        {
+          id: 'docs-old/readme.md',
+          name: 'readme',
+          path: 'docs-old/readme.md',
+          isFolder: false,
+        },
+      ],
+    };
+
+    const updated = deepUpdateNodePath(node, 'docs', 'notes');
+
+    expect(updated.path).toBe('notes');
+    expect(updated.isFolder ? updated.children.map((child) => child.path) : []).toEqual([
+      'notes/readme.md',
+      'docs-old/readme.md',
+    ]);
+  });
 });

@@ -36,6 +36,7 @@ import { EXPORT_DOCUMENT_CSS, EXPORT_WIDTH_PX } from './noteExportHtmlStyles';
 
 const BASE_EXPORT_MARKDOWN_SANITIZE_SCHEMA = createMarkdownSanitizeSchema();
 const EXPORT_BLOCKED_LOADABLE_RAW_HTML_TAGS = new Set(['audio', 'iframe', 'track', 'video']);
+const MAX_EXPORT_IMAGE_DECODE_WAIT_COUNT = 200;
 
 const NOTE_EXPORT_MARKDOWN_SANITIZE_SCHEMA = {
   ...BASE_EXPORT_MARKDOWN_SANITIZE_SCHEMA,
@@ -158,7 +159,7 @@ async function waitForExportRender(container: HTMLElement): Promise<void> {
   await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
   await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
-  const images = Array.from(container.querySelectorAll('img'));
+  const images = Array.from(container.querySelectorAll('img')).slice(0, MAX_EXPORT_IMAGE_DECODE_WAIT_COUNT);
   await Promise.all(images.map(async (image) => {
     if (image.complete) {
       return;

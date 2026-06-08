@@ -228,6 +228,7 @@ export function createWorkspaceExternalActions(
         }, oldPath) &&
         !isSupportedMarkdownPath(newPath)
       ) {
+        await get().applyExternalPathDeletion(oldPath);
         return;
       }
 
