@@ -16,27 +16,35 @@ describe('scrollSidebarItemIntoView', () => {
   it('prefers the main file tree when a starred row has the same path', () => {
     const starredScrollIntoView = vi.fn();
     const treeScrollIntoView = vi.fn();
-
-    document.body.innerHTML = `
-      <div data-notes-sidebar-scroll-root="true">
-        <div data-file-tree-path="docs/alpha.md" data-testid="starred"></div>
-        <div data-file-tree-primary="true">
-          <div data-file-tree-path="docs/alpha.md" data-testid="tree"></div>
-        </div>
-      </div>
-    `;
-
-    const starred = document.querySelector<HTMLElement>('[data-testid="starred"]');
-    const tree = document.querySelector<HTMLElement>('[data-testid="tree"]');
-    starred!.scrollIntoView = starredScrollIntoView;
-    tree!.scrollIntoView = treeScrollIntoView;
-
-    expect(scrollSidebarItemIntoView('docs/alpha.md')).toBe(true);
-    expect(treeScrollIntoView).toHaveBeenCalledWith({
-      block: 'center',
-      behavior: 'auto',
+    const arrayFromSpy = vi.spyOn(Array, 'from').mockImplementation(() => {
+      throw new Error('Sidebar reveal should not materialize selector results');
     });
-    expect(starredScrollIntoView).not.toHaveBeenCalled();
+
+    try {
+      document.body.innerHTML = `
+        <div data-notes-sidebar-scroll-root="true">
+          <div data-file-tree-path="docs/alpha.md" data-testid="starred"></div>
+          <div data-file-tree-primary="true">
+            <div data-file-tree-path="docs/alpha.md" data-testid="tree"></div>
+          </div>
+        </div>
+      `;
+
+      const starred = document.querySelector<HTMLElement>('[data-testid="starred"]');
+      const tree = document.querySelector<HTMLElement>('[data-testid="tree"]');
+      starred!.scrollIntoView = starredScrollIntoView;
+      tree!.scrollIntoView = treeScrollIntoView;
+
+      expect(scrollSidebarItemIntoView('docs/alpha.md')).toBe(true);
+      expect(treeScrollIntoView).toHaveBeenCalledWith({
+        block: 'center',
+        behavior: 'auto',
+      });
+      expect(starredScrollIntoView).not.toHaveBeenCalled();
+      expect(arrayFromSpy).not.toHaveBeenCalled();
+    } finally {
+      arrayFromSpy.mockRestore();
+    }
   });
 
   it('does not fall back to starred rows while the main tree is mounted', () => {

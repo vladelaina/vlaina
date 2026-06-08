@@ -884,6 +884,33 @@ describe('loadMentionedFolderImageAttachments', () => {
     ]);
   });
 
+  it('caps folder image attachment directory scans before processing every entry', async () => {
+    const entries = Array.from({ length: 5000 }, (_value, index) => ({
+      name: `doc-${String(index).padStart(4, '0')}.txt`,
+      path: `/vault/assets/doc-${String(index).padStart(4, '0')}.txt`,
+      isDirectory: false,
+      isFile: true,
+      size: 1024,
+    }));
+    entries.push({
+      get name() {
+        throw new Error('image attachment scan cap was not applied');
+      },
+      path: '/vault/assets/late.png',
+      isDirectory: false,
+      isFile: true,
+      size: 2048,
+    } as never);
+    mocks.storage.listDir.mockResolvedValue(entries);
+
+    const attachments = await loadMentionedFolderImageAttachments([
+      { path: 'assets', title: 'assets/', kind: 'folder' },
+    ]);
+
+    expect(attachments).toEqual([]);
+    expect(mocks.storage.stat).not.toHaveBeenCalled();
+  });
+
   it('checks file size with stat when folder entries do not include size', async () => {
     mocks.storage.listDir.mockResolvedValue([
       {

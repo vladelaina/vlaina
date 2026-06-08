@@ -232,6 +232,8 @@ function normalizeUrl(value: string, protocols: ReadonlySet<string>, options: { 
   if (relativeProtocolMarkers.has(marker)) {
     if (trimmed.startsWith('//') && options.allowProtocolRelative === false)
       return null
+    if (!trimmed.startsWith('//') && hasInternalImageUrlPathSegment(trimmed))
+      return null
     if (options.blockLocalNetwork && trimmed.startsWith('//') && isLocalNetworkHttpUrl(`https:${trimmed}`))
       return null
     if (trimmed.startsWith('//'))

@@ -164,20 +164,31 @@ describe('workspaceSlice external sync', () => {
     );
   });
 
-  it('does not remap a known Markdown note to a non-Markdown external rename target', async () => {
+  it('removes a known Markdown note when it is externally renamed to a non-Markdown target', async () => {
+    const keepFile = createFile('docs/keep.md', 'keep');
     const initialFile = createFile('docs/alpha.md', 'alpha');
     const store = createNotesStore({
       rootFolder: createFolder('', 'Notes', [
-        createFolder('docs', 'docs', [initialFile]),
+        createFolder('docs', 'docs', [keepFile, initialFile]),
       ]),
-      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
-      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
-      recentNotes: ['docs/alpha.md'],
-      displayNames: new Map([['docs/alpha.md', 'alpha']]),
-      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+      currentNote: { path: 'docs/keep.md', content: '# keep' },
+      openTabs: [
+        { path: 'docs/keep.md', name: 'keep', isDirty: false },
+        { path: 'docs/alpha.md', name: 'alpha', isDirty: false },
+      ],
+      recentNotes: ['docs/keep.md', 'docs/alpha.md'],
+      displayNames: new Map([
+        ['docs/keep.md', 'keep'],
+        ['docs/alpha.md', 'alpha'],
+      ]),
+      noteContentsCache: new Map([
+        ['docs/keep.md', { content: '# keep', modifiedAt: 1 }],
+        ['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }],
+      ]),
       noteMetadata: {
         version: 2,
         notes: {
+          'docs/keep.md': { createdAt: 2 },
           'docs/alpha.md': { createdAt: 1 },
         },
       },
@@ -185,17 +196,18 @@ describe('workspaceSlice external sync', () => {
 
     await store.getState().applyExternalPathRename('docs/alpha.md', 'docs/alpha.png');
 
-    expect(store.getState().currentNote?.path).toBe('docs/alpha.md');
+    expect(store.getState().currentNote).toEqual({ path: 'docs/keep.md', content: '# keep' });
     expect(store.getState().openTabs).toEqual([
-      { path: 'docs/alpha.md', name: 'alpha', isDirty: false },
+      { path: 'docs/keep.md', name: 'keep', isDirty: false },
     ]);
-    expect(store.getState().recentNotes).toEqual(['docs/alpha.md']);
-    expect(store.getState().noteContentsCache.has('docs/alpha.md')).toBe(true);
+    expect(store.getState().recentNotes).toEqual(['docs/keep.md']);
+    expect(store.getState().noteContentsCache.has('docs/alpha.md')).toBe(false);
     expect(store.getState().noteContentsCache.has('docs/alpha.png')).toBe(false);
+    expect(store.getState().noteMetadata?.notes['docs/alpha.md']).toBeUndefined();
     expect(store.getState().rootFolder?.children[0]).toEqual(
-      createFolder('docs', 'docs', [initialFile]),
+      createFolder('docs', 'docs', [keepFile]),
     );
-    expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledTimes(1);
   });
 
   it('updates nested child paths when a folder is renamed externally', async () => {

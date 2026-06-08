@@ -26,6 +26,7 @@ vi.mock('@/lib/storage/adapter', () => ({
     return lastSlashIndex === -1 ? null : normalized.slice(0, lastSlashIndex) || '/';
   },
   isAbsolutePath: (path: string) => path.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(path),
+  normalizeAbsolutePath: (path: string) => path.replace(/\\/g, '/'),
   joinPath: async (...segments: string[]) => segments.filter(Boolean).join('/'),
   getStorageAdapter: () => mocks.storage,
 }));
@@ -147,6 +148,50 @@ describe('importExternalMarkdownEntries', () => {
       '/outside/docs/guides/intro.markdown',
       '/vault/archive/docs/guides/intro.markdown',
     );
+  });
+
+  it('imports every supported markdown extension from folders', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isDirectory: path === '/outside/docs',
+      isFile: path !== '/outside/docs',
+      size: /\.(?:md|markdown|mdown|mkd)$/i.test(path) ? 1024 : undefined,
+    }));
+    mocks.storage.listDir.mockResolvedValue([
+      { name: 'alpha.md', isFile: true, isDirectory: false },
+      { name: 'beta.markdown', isFile: true, isDirectory: false },
+      { name: 'gamma.mdown', isFile: true, isDirectory: false },
+      { name: 'delta.mkd', isFile: true, isDirectory: false },
+      { name: 'image.png', isFile: true, isDirectory: false },
+    ]);
+    mocks.resolveUniquePath.mockImplementation(
+      async (_vaultPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
+        const relativePath = folderPath
+          ? `${folderPath}/${name}`
+          : isDirectory
+            ? `archive/${name}`
+            : name;
+
+        return {
+          relativePath,
+          fullPath: `/vault/${relativePath}`,
+          fileName: name,
+        };
+      },
+    );
+
+    const result = await importExternalMarkdownEntries('/vault', 'archive', ['/outside/docs']);
+
+    expect(result).toEqual({
+      importedNotePaths: [
+        'archive/docs/alpha.md',
+        'archive/docs/beta.markdown',
+        'archive/docs/gamma.mdown',
+        'archive/docs/delta.mkd',
+      ],
+      importedFolderPaths: ['archive/docs'],
+      didImport: true,
+    });
+    expect(mocks.storage.copyFile).toHaveBeenCalledTimes(4);
   });
 
   it('keeps importing readable markdown when one nested folder cannot be listed', async () => {
@@ -453,6 +498,27 @@ describe('importExternalMarkdownEntries', () => {
     }]);
     expect(mocks.resolveUniquePath).not.toHaveBeenCalled();
     expect(mocks.storage.copyFile).not.toHaveBeenCalled();
+  });
+
+  it('does not spend starred target budget on unsupported dropped files before markdown', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isFile: true,
+      isDirectory: false,
+      size: path.endsWith('.md') ? 1024 : undefined,
+    }));
+
+    const paths = [
+      ...Array.from({ length: 2000 }, (_, index) => `/outside/image-${index}.png`),
+      '/outside/alpha.md',
+    ];
+    const result = await resolveExternalMarkdownEntriesForStarred('/vault', paths);
+
+    expect(result).toEqual([{
+      kind: 'note',
+      vaultPath: '/outside',
+      relativePath: 'alpha.md',
+    }]);
+    expect(mocks.storage.stat).toHaveBeenCalledWith('/outside/alpha.md');
   });
 
   it('stars outside folders without importing them into the current vault', async () => {

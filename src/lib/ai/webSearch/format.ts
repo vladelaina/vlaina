@@ -3,6 +3,12 @@ import { sanitizeWebSearchSourceUrl } from './statusMarkup';
 
 const SEARCH_RESULT_LIMIT = 5;
 const PAGE_CONTENT_LIMIT = 3000;
+const QUERY_LIMIT = 500;
+const TITLE_LIMIT = 300;
+const SUMMARY_LIMIT = 1000;
+const SITE_NAME_LIMIT = 200;
+const TIMESTAMP_LIMIT = 100;
+const SOURCE_LIMIT = 200;
 
 function clip(value: string, limit: number): string {
   return value.length > limit ? `${value.slice(0, limit)}\n[truncated]` : value;
@@ -38,21 +44,21 @@ export function formatSearchResultsForModel(response: WebSearchResponse): string
       return url ? [{ ...result, url }] : [];
     });
   if (safeResults.length === 0) {
-    return `No search results found for: ${response.query}`;
+    return `No search results found for: ${clip(response.query, QUERY_LIMIT)}`;
   }
 
   const lines = [
-    `Search query: ${response.query}`,
+    `Search query: ${clip(response.query, QUERY_LIMIT)}`,
     'Candidate sources:',
   ];
 
   safeResults.forEach((result, index) => {
     lines.push(
-      `${index + 1}. ${result.title}`,
+      `${index + 1}. ${clip(result.title, TITLE_LIMIT)}`,
       `URL: ${result.url}`,
-      `Summary: ${result.snippet || '(none)'}`,
-      `Time: ${result.publishedAt || '(unknown)'}`,
-      `Source: ${result.source || '(unknown)'}`,
+      `Summary: ${result.snippet ? clip(result.snippet, SUMMARY_LIMIT) : '(none)'}`,
+      `Time: ${result.publishedAt ? clip(result.publishedAt, TIMESTAMP_LIMIT) : '(unknown)'}`,
+      `Source: ${result.source ? clip(result.source, SOURCE_LIMIT) : '(unknown)'}`,
     );
   });
 
@@ -62,10 +68,10 @@ export function formatSearchResultsForModel(response: WebSearchResponse): string
 export function formatPageForModel(page: WebPageContent): string {
   const safeFinalUrl = sanitizeWebSearchSourceUrl(page.finalUrl) ?? '(unavailable)';
   return [
-    `Title: ${page.title}`,
+    `Title: ${clip(page.title, TITLE_LIMIT)}`,
     `URL: ${safeFinalUrl}`,
-    `Site: ${page.siteName || '(unknown)'}`,
-    `Summary: ${page.summary || '(none)'}`,
+    `Site: ${page.siteName ? clip(page.siteName, SITE_NAME_LIMIT) : '(unknown)'}`,
+    `Summary: ${page.summary ? clip(page.summary, SUMMARY_LIMIT) : '(none)'}`,
     `Characters: ${page.charCount}`,
     'Content:',
     clip(page.content, PAGE_CONTENT_LIMIT),

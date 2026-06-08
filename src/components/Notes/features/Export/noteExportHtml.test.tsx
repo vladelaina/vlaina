@@ -148,6 +148,35 @@ describe('renderNoteExportHtml', () => {
     expect(html).not.toContain('docs/%2Egit/raw.png');
   });
 
+  it('caps image decode waits while keeping all exported images in the document', async () => {
+    const originalDecode = HTMLImageElement.prototype.decode;
+    const decode = vi.fn(function (this: HTMLImageElement) {
+      if (this.getAttribute('src') === 'assets/late-200.png') {
+        throw new Error('image decode wait cap was not applied');
+      }
+      return Promise.resolve();
+    });
+    Object.defineProperty(HTMLImageElement.prototype, 'complete', {
+      configurable: true,
+      get: () => false,
+    });
+    HTMLImageElement.prototype.decode = decode;
+
+    try {
+      const html = await renderNoteExportHtml(
+        Array.from({ length: 205 }, (_value, index) => `![image ${index}](assets/late-${index}.png)`).join('\n'),
+        'Many Images',
+      );
+      const doc = parseExportHtml(html);
+
+      expect(doc.querySelectorAll('img')).toHaveLength(205);
+      expect(decode).toHaveBeenCalledTimes(200);
+      expect(decode.mock.instances.some((image) => image.getAttribute('src') === 'assets/late-200.png')).toBe(false);
+    } finally {
+      HTMLImageElement.prototype.decode = originalDecode;
+    }
+  });
+
   it('keeps safe raw HTML while dropping exported raw media loaders', async () => {
     const html = await renderNoteExportHtml(
       [

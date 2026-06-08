@@ -697,6 +697,50 @@ describe('resolveExportMarkdownAssetSources', () => {
     ].join('\n'));
   });
 
+  it('resolves export markdown segments sequentially without changing replacements', async () => {
+    let activeReads = 0;
+    let maxActiveReads = 0;
+    mocks.resolveExistingVaultAssetPath.mockImplementation(async (_notesPath, assetPath) =>
+      `/vault/docs/assets/${assetPath}`,
+    );
+    mocks.readBinaryFile.mockImplementation(async () => {
+      activeReads += 1;
+      maxActiveReads = Math.max(maxActiveReads, activeReads);
+      await Promise.resolve();
+      activeReads -= 1;
+      return new Uint8Array([104, 105]);
+    });
+
+    const markdown = await resolveExportMarkdownAssetSources(
+      [
+        '![one](img:one.png)',
+        '```',
+        'protected',
+        '```',
+        '![two](img:two.png)',
+        '```',
+        'protected',
+        '```',
+        '![three](img:three.png)',
+      ].join('\n'),
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe([
+      '![one](data:image/png;base64,aGk=)',
+      '```',
+      'protected',
+      '```',
+      '![two](data:image/png;base64,aGk=)',
+      '```',
+      'protected',
+      '```',
+      '![three](data:image/png;base64,aGk=)',
+    ].join('\n'));
+    expect(maxActiveReads).toBe(1);
+  });
+
   it('reuses resolved data URLs for repeated local note images during one export', async () => {
     mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));

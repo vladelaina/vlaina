@@ -10,6 +10,11 @@ export interface ContentRange {
   end: number;
 }
 
+export interface ContentRangeScan {
+  exhaustedAt: number | null;
+  ranges: ContentRange[];
+}
+
 const MARKDOWN_ESCAPABLE_PUNCTUATION = new Set(
   Array.from('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~')
 );
@@ -22,7 +27,16 @@ function getBacktickRunLength(content: string, start: number): number {
   return cursor - start;
 }
 
-function getInlineCodeRanges(content: string): ContentRange[] {
+function collectInlineCodeRanges(content: string, maxRanges = Number.POSITIVE_INFINITY): ContentRangeScan {
+  const rangeLimit = Number.isFinite(maxRanges)
+    ? Math.max(0, Math.floor(maxRanges))
+    : maxRanges === Number.POSITIVE_INFINITY
+      ? Number.POSITIVE_INFINITY
+      : 0;
+  if (rangeLimit <= 0) {
+    return { exhaustedAt: 0, ranges: [] };
+  }
+
   const ranges: ContentRange[] = [];
   let cursor = 0;
 
@@ -41,6 +55,9 @@ function getInlineCodeRanges(content: string): ContentRange[] {
       }
       const closeTickCount = getBacktickRunLength(content, close);
       if (closeTickCount === tickCount) {
+        if (ranges.length >= rangeLimit) {
+          return { exhaustedAt: cursor, ranges };
+        }
         ranges.push({ start: cursor, end: close + tickCount });
         cursor = close + tickCount;
         break;
@@ -52,7 +69,7 @@ function getInlineCodeRanges(content: string): ContentRange[] {
     }
   }
 
-  return ranges;
+  return { exhaustedAt: null, ranges };
 }
 
 export function normalizeContentRanges(ranges: ContentRange[]): ContentRange[] {
@@ -111,7 +128,16 @@ export function isEscapedMarkdownPunctuation(content: string, offset: number): b
   return backslashCount % 2 === 1;
 }
 
-function getHtmlCommentRanges(content: string): ContentRange[] {
+function collectHtmlCommentRanges(content: string, maxRanges = Number.POSITIVE_INFINITY): ContentRangeScan {
+  const rangeLimit = Number.isFinite(maxRanges)
+    ? Math.max(0, Math.floor(maxRanges))
+    : maxRanges === Number.POSITIVE_INFINITY
+      ? Number.POSITIVE_INFINITY
+      : 0;
+  if (rangeLimit <= 0) {
+    return { exhaustedAt: 0, ranges: [] };
+  }
+
   const ranges: ContentRange[] = [];
   let cursor = 0;
 
@@ -127,14 +153,26 @@ function getHtmlCommentRanges(content: string): ContentRange[] {
 
     const close = content.indexOf('-->', start + 4);
     const end = close === -1 ? content.length : close + 3;
+    if (ranges.length >= rangeLimit) {
+      return { exhaustedAt: start, ranges };
+    }
     ranges.push({ start, end });
     cursor = end;
   }
 
-  return ranges;
+  return { exhaustedAt: null, ranges };
 }
 
-export function getMarkdownHtmlBlockRanges(content: string): ContentRange[] {
+export function collectMarkdownHtmlBlockRanges(content: string, maxRanges = Number.POSITIVE_INFINITY): ContentRangeScan {
+  const rangeLimit = Number.isFinite(maxRanges)
+    ? Math.max(0, Math.floor(maxRanges))
+    : maxRanges === Number.POSITIVE_INFINITY
+      ? Number.POSITIVE_INFINITY
+      : 0;
+  if (rangeLimit <= 0) {
+    return { exhaustedAt: 0, ranges: [] };
+  }
+
   const ranges: ContentRange[] = [];
   let offset = 0;
   let activeStart: number | null = null;
@@ -155,6 +193,9 @@ export function getMarkdownHtmlBlockRanges(content: string): ContentRange[] {
         (closePattern && closePattern.test(blockContent))
         || (!closePattern && blockContent.trim() === '')
       ) {
+        if (ranges.length >= rangeLimit) {
+          return { exhaustedAt: activeStart, ranges };
+        }
         ranges.push({ start: activeStart, end: closePattern ? nextOffset : offset });
         activeStart = null;
         activeClosePattern = null;
@@ -172,6 +213,9 @@ export function getMarkdownHtmlBlockRanges(content: string): ContentRange[] {
       activeStart = offset;
       activeClosePattern = closePattern;
       if (closePattern?.test(line)) {
+        if (ranges.length >= rangeLimit) {
+          return { exhaustedAt: activeStart, ranges };
+        }
         ranges.push({ start: activeStart, end: nextOffset });
         activeStart = null;
         activeClosePattern = null;
@@ -180,17 +224,60 @@ export function getMarkdownHtmlBlockRanges(content: string): ContentRange[] {
     offset = nextOffset;
   }
 
-  if (activeStart !== null) {
+  if (activeStart !== null && ranges.length < rangeLimit) {
     ranges.push({ start: activeStart, end: content.length });
+  } else if (activeStart !== null) {
+    return { exhaustedAt: activeStart, ranges };
   }
 
-  return ranges;
+  return { exhaustedAt: null, ranges };
+}
+
+export function getMarkdownHtmlBlockRanges(content: string): ContentRange[] {
+  return collectMarkdownHtmlBlockRanges(content).ranges;
+}
+
+export function collectIgnoredInlineRanges(markdown: string, maxRanges = Number.POSITIVE_INFINITY): ContentRangeScan {
+  const rangeLimit = Number.isFinite(maxRanges)
+    ? Math.max(0, Math.floor(maxRanges))
+    : maxRanges === Number.POSITIVE_INFINITY
+      ? Number.POSITIVE_INFINITY
+      : 0;
+  if (rangeLimit <= 0) {
+    return { exhaustedAt: 0, ranges: [] };
+  }
+
+  const inlineCodeScan = collectInlineCodeRanges(markdown, rangeLimit);
+  let ranges = inlineCodeScan.ranges;
+  let exhaustedAt = inlineCodeScan.exhaustedAt;
+
+  if (exhaustedAt === null && ranges.length < rangeLimit) {
+    const commentScan = collectHtmlCommentRanges(markdown, rangeLimit - ranges.length);
+    ranges = [...ranges, ...commentScan.ranges];
+    exhaustedAt = commentScan.exhaustedAt;
+  }
+
+  if (exhaustedAt === null && ranges.length < rangeLimit) {
+    const rawTextLimit = rangeLimit - ranges.length;
+    const rawTextRanges = getRawTextHtmlRanges(
+      markdown,
+      { start: 0, end: markdown.length },
+      rawTextLimit + 1,
+    );
+    if (rawTextRanges.length > rawTextLimit) {
+      ranges = [...ranges, ...rawTextRanges.slice(0, rawTextLimit)];
+      exhaustedAt = rawTextRanges[rawTextLimit]?.start ?? 0;
+    } else {
+      ranges = [...ranges, ...rawTextRanges];
+    }
+  }
+
+  return {
+    exhaustedAt,
+    ranges: normalizeContentRanges(ranges),
+  };
 }
 
 export function getIgnoredInlineRanges(markdown: string): ContentRange[] {
-  return normalizeContentRanges([
-    ...getInlineCodeRanges(markdown),
-    ...getHtmlCommentRanges(markdown),
-    ...getRawTextHtmlRanges(markdown, { start: 0, end: markdown.length }),
-  ]);
+  return collectIgnoredInlineRanges(markdown).ranges;
 }

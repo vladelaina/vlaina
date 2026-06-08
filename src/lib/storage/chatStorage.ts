@@ -14,7 +14,7 @@ const deletedSessionJsons = new Set<string>();
 const DEFAULT_DEBOUNCE_MS = 180;
 const SESSION_MESSAGES_FILE_VERSION = 1;
 const MAX_SESSION_MESSAGES_BYTES = 25 * 1024 * 1024;
-const MAX_SESSION_MESSAGE_NODES = 10_000;
+export const MAX_SESSION_MESSAGE_NODES = 10_000;
 const MAX_SESSION_MESSAGE_VERSIONS = 20;
 const MAX_SESSION_MESSAGE_BRANCH_MESSAGES = 100;
 const MAX_SESSION_MESSAGE_BRANCH_DEPTH = 1;
@@ -542,7 +542,9 @@ function normalizeSessionMessagesInternal(
 export function normalizeSessionMessages(value: unknown): ChatMessage[] {
   const topLevelMessageIds = new Set<string>();
   if (Array.isArray(value)) {
-    for (const item of value) {
+    const scanLimit = Math.min(value.length, MAX_SESSION_MESSAGE_NODES);
+    for (let index = 0; index < scanLimit; index += 1) {
+      const item = value[index];
       if (!isRecord(item)) {
         continue;
       }

@@ -24,17 +24,25 @@ export function scrollSidebarItemIntoView(path: string, block: ScrollLogicalPosi
   }
 
   const escapedPath = escapeAttributeValue(path);
-  const findTreeTarget = (root: ParentNode) =>
-    Array.from(root.querySelectorAll<HTMLElement>(`[data-file-tree-path="${escapedPath}"]`))
-      .find((element) => !element.closest('[data-file-tree-starred-section="true"]')) ?? null;
-  const primaryTrees = Array.from(
-    scrollRoot.querySelectorAll<HTMLElement>('[data-file-tree-primary="true"]')
-  );
-  const target = primaryTrees.length > 0
-    ? primaryTrees
-        .map((tree) => findTreeTarget(tree))
-        .find((element): element is HTMLElement => element !== null) ?? null
-    : findTreeTarget(scrollRoot);
+  const findTreeTarget = (root: ParentNode) => {
+    const matches = root.querySelectorAll<HTMLElement>(`[data-file-tree-path="${escapedPath}"]`);
+    for (let index = 0; index < matches.length; index += 1) {
+      const element = matches.item(index);
+      if (!element.closest('[data-file-tree-starred-section="true"]')) {
+        return element;
+      }
+    }
+    return null;
+  };
+  const primaryTrees = scrollRoot.querySelectorAll<HTMLElement>('[data-file-tree-primary="true"]');
+  let target: HTMLElement | null = null;
+  if (primaryTrees.length > 0) {
+    for (let index = 0; index < primaryTrees.length && target === null; index += 1) {
+      target = findTreeTarget(primaryTrees.item(index));
+    }
+  } else {
+    target = findTreeTarget(scrollRoot);
+  }
   if (target) {
     target.scrollIntoView({
       block,

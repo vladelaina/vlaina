@@ -52,8 +52,11 @@ const MAX_NOTE_MENTION_READ_BYTES = 512 * 1024;
 const MAX_FOLDER_MENTION_NOTES = 20;
 const MAX_FOLDER_MARKDOWN_SCAN_DEPTH = 6;
 const MAX_FOLDER_MARKDOWN_SCAN_ENTRIES = 500;
+const MAX_FOLDER_MARKDOWN_LISTING_SCAN_ENTRIES = 5000;
 const MAX_FOLDER_LISTING_ENTRIES = 80;
+const MAX_FOLDER_LISTING_SCAN_ENTRIES = 5000;
 const MAX_FOLDER_IMAGE_ATTACHMENTS = 8;
+const MAX_FOLDER_IMAGE_ATTACHMENT_SCAN_ENTRIES = 5000;
 const MAX_FOLDER_IMAGE_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 const STREAM_CHUNK_FLUSH_MAX_DELAY_MS = 40;
 const MAX_INFERRED_IMAGE_NAME_SOURCE_CHARS = 4096;
@@ -224,11 +227,15 @@ function isInlineDataImageMarkdownSource(src: string | null | undefined): boolea
 function collectStoredUserMessageImages(content: string): {
   imageSources: string[];
   tokensToStrip: ImageToken[];
+  reachedImageTokenBudget: boolean;
 } {
   const imageSources: string[] = [];
   const tokensToStrip: ImageToken[] = [];
+  const parsedTokens = parseMarkdownAndHtmlImageTokens(content, {
+    maxTokens: MAX_STORED_USER_MESSAGE_IMAGE_TOKENS,
+  });
 
-  for (const token of parseMarkdownAndHtmlImageTokens(content, { maxTokens: MAX_STORED_USER_MESSAGE_IMAGE_TOKENS })) {
+  for (const token of parsedTokens) {
     const rawSrc = token.src?.trim() ?? '';
     const normalizedSrc = normalizeRenderableImageSrc(rawSrc);
     if (normalizedSrc && isRenderedImageSource(normalizedSrc)) {
@@ -248,16 +255,63 @@ function collectStoredUserMessageImages(content: string): {
     }
   }
 
-  return { imageSources, tokensToStrip };
+  return {
+    imageSources,
+    tokensToStrip,
+    reachedImageTokenBudget: parsedTokens.length >= MAX_STORED_USER_MESSAGE_IMAGE_TOKENS,
+  };
+}
+
+function scrubOverflowStoredInlineDataImageSyntax(content: string): string {
+  let output = '';
+  let cursor = 0;
+
+  while (cursor < content.length) {
+    const start = content.indexOf('![', cursor);
+    if (start === -1) {
+      output += content.slice(cursor);
+      break;
+    }
+
+    const labelEnd = content.indexOf('](', start + 2);
+    if (labelEnd === -1 || labelEnd - start > 512) {
+      output += content.slice(cursor, start + 2);
+      cursor = start + 2;
+      continue;
+    }
+
+    const targetEnd = content.indexOf(')', labelEnd + 2);
+    if (targetEnd === -1 || targetEnd - labelEnd > MAX_NOTE_MENTION_READ_BYTES) {
+      output += content.slice(cursor, start + 2);
+      cursor = start + 2;
+      continue;
+    }
+
+    const target = content.slice(labelEnd + 2, targetEnd).toLowerCase();
+    if (!target.includes('data:image/')) {
+      output += content.slice(cursor, targetEnd + 1);
+      cursor = targetEnd + 1;
+      continue;
+    }
+
+    output += content.slice(cursor, start);
+    cursor = targetEnd + 1;
+  }
+
+  return output;
 }
 
 export async function buildStoredUserMessageContent(content: string): Promise<ChatMessageContent> {
-  const { imageSources, tokensToStrip } = collectStoredUserMessageImages(content);
+  const { imageSources, tokensToStrip, reachedImageTokenBudget } = collectStoredUserMessageImages(content);
   if (imageSources.length === 0 && tokensToStrip.length === 0) {
-    return content;
+    return reachedImageTokenBudget ? scrubOverflowStoredInlineDataImageSyntax(content).trim() : content;
   }
 
-  const text = stripImageTokens(content, tokensToStrip).trim();
+  const strippedText = stripImageTokens(content, tokensToStrip);
+  const text = (reachedImageTokenBudget
+    ? scrubOverflowStoredInlineDataImageSyntax(strippedText)
+    : strippedText
+  ).trim();
   const parts: ChatMessageContentPart[] = text ? [{ type: 'text', text }] : [];
 
   for (const [index, src] of imageSources.entries()) {
@@ -511,6 +565,7 @@ async function collectFolderMarkdownScanEntries(
   const storage = getStorageAdapter();
   const entries = await storage.listDir(folderFullPath, { includeHidden: true }).catch(() => []);
   const visibleEntries = entries
+    .slice(0, MAX_FOLDER_MARKDOWN_LISTING_SCAN_ENTRIES)
     .filter((entry) => isSafeFolderMarkdownEntryName(entry.name))
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -655,7 +710,8 @@ async function loadFolderListingReference(
     };
   }
 
-  const visibleEntries = entries
+  const scannedEntries = entries.slice(0, MAX_FOLDER_LISTING_SCAN_ENTRIES);
+  const visibleEntries = scannedEntries
     .filter((entry) => isSafeFolderListingEntryName(entry.name))
     .sort((a, b) => {
       if (a.isDirectory !== b.isDirectory) {
@@ -668,7 +724,9 @@ async function loadFolderListingReference(
     const kind = entry.isDirectory ? 'folder' : 'file';
     return `- ${formatPromptLabel(entry.name, 'unnamed')} (${kind}${formatFolderEntrySize(entry.size)})`;
   });
-  const hiddenCount = Math.max(visibleEntries.length - listedEntries.length, 0);
+  const hiddenCount = entries.length > scannedEntries.length
+    ? Math.max(entries.length - listedEntries.length, 0)
+    : Math.max(visibleEntries.length - listedEntries.length, 0);
 
   return {
     ...mention,
@@ -731,6 +789,7 @@ async function loadFolderImageAttachmentsForMention(
   const storage = getStorageAdapter();
   const entries = await storage.listDir(folderPath).catch(() => []);
   const imageEntries = entries
+    .slice(0, MAX_FOLDER_IMAGE_ATTACHMENT_SCAN_ENTRIES)
     .filter((entry) =>
       isSafeFolderEntryName(entry.name) &&
       entry.isFile &&

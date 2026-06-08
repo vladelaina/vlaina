@@ -155,6 +155,33 @@ it('should keep plain relative links in github html', () => {
   expect(result).toBe('<a href="readme.md">readme</a><a href="docs/readme.md">docs</a><a href="/docs/readme.md">root</a><img>')
 })
 
+it('should drop internal relative link paths in github html', () => {
+  const result = sanitizeGithubHtml([
+    '<a href=".vlaina/workspace.md">vlaina</a>',
+    '<a href="./.vlaina/workspace.md">nested vlaina</a>',
+    '<a href="docs/.git/config.md">git</a>',
+    '<a href="docs/%252egit/config.md">encoded git</a>',
+    '<blockquote cite=".vlaina/source.md">quote</blockquote>',
+    '<q cite="docs/.GIT/source.md">inline quote</q>',
+    '<a href=".notes/public.md">notes</a>',
+    '<blockquote cite=".notes/source.md">safe quote</blockquote>',
+  ].join(''))
+
+  expect(result).toBe([
+    '<a>vlaina</a>',
+    '<a>nested vlaina</a>',
+    '<a>git</a>',
+    '<a>encoded git</a>',
+    '<blockquote>quote</blockquote>',
+    '<q>inline quote</q>',
+    '<a href=".notes/public.md">notes</a>',
+    '<blockquote cite=".notes/source.md">safe quote</blockquote>',
+  ].join(''))
+  expect(result).not.toContain('.vlaina')
+  expect(result).not.toContain('.git')
+  expect(result).not.toContain('%252egit')
+})
+
 it('should drop parser-promoted descendants from sanitizer-only remove-content raw html tags', () => {
   const result = sanitizeGithubHtml([
     '<svg><img src="https://example.com/svg.png"></svg>',

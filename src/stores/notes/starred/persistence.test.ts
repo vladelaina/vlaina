@@ -279,6 +279,45 @@ describe('starred persistence', () => {
     expect(adapter.exists).not.toHaveBeenCalledWith('C:/vault-a/../secret.md');
   });
 
+  it('does not spend the starred load entry budget on invalid entries before valid markdown entries', async () => {
+    const validEntry = createEntry('valid', 'note', 'C:/vault-a', 'alive.md');
+
+    adapter.exists.mockImplementation(async (path: string) => {
+      return (
+        path === '/store/notes-starred.json' ||
+        path === 'C:/vault-a' ||
+        path === 'C:/vault-a/alive.md'
+      );
+    });
+    adapter.stat.mockImplementation(async (path: string) => {
+      if (path === '/store/notes-starred.json') {
+        return { isDirectory: false, isFile: true, size: 400_000 };
+      }
+      if (path === 'C:/vault-a') {
+        return { isDirectory: true, isFile: false };
+      }
+      if (path === 'C:/vault-a/alive.md') {
+        return { isDirectory: false, isFile: true };
+      }
+      return null;
+    });
+    adapter.readFile.mockResolvedValue(JSON.stringify({
+      version: 1,
+      entries: [
+        ...Array.from({ length: 5000 }, (_, index) =>
+          createEntry(`image-${index}`, 'note', 'C:/vault-a', `image-${index}.png`)
+        ),
+        validEntry,
+      ],
+    }));
+
+    const persistence = await import('./persistence');
+    const result = await persistence.loadStarredRegistry();
+
+    expect(result.entries).toEqual([validEntry]);
+    expect(adapter.exists).toHaveBeenCalledWith('C:/vault-a/alive.md');
+  });
+
   it('does not parse oversized starred registries', async () => {
     adapter.exists.mockResolvedValue(true);
     adapter.stat.mockImplementation(async (path: string) => (
@@ -344,5 +383,24 @@ describe('starred persistence', () => {
 
     expect(result.entries).toEqual([validEntry]);
     expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('does not spend the starred save entry budget on invalid entries before valid markdown entries', async () => {
+    const validEntry = createEntry('valid', 'note', 'C:/vault-a', 'alive.md');
+    adapter.exists.mockResolvedValue(false);
+    adapter.writeFile.mockResolvedValue();
+
+    const persistence = await import('./persistence');
+    persistence.saveStarredRegistry([
+      ...Array.from({ length: 5000 }, (_, index) =>
+        createEntry(`image-${index}`, 'note', 'C:/vault-a', `image-${index}.png`)
+      ),
+      validEntry,
+    ]);
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    const [, content] = adapter.writeFile.mock.calls[0];
+    expect(JSON.parse(content).entries).toEqual([validEntry]);
   });
 });

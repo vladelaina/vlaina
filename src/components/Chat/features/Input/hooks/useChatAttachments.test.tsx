@@ -194,6 +194,49 @@ describe('useChatAttachments', () => {
     expect(result.current.attachments).toHaveLength(MAX_CHAT_ATTACHMENT_INPUT_FILES);
   });
 
+  it('limits total attachments across multiple file selections before saving', async () => {
+    mocks.saveAttachment.mockImplementation(async (file: File) => createAttachment({
+      id: file.name,
+      name: file.name,
+    }));
+    const firstBatch = Array.from({ length: MAX_CHAT_ATTACHMENT_INPUT_FILES - 1 }, (_value, index) =>
+      new File(['image'], `first-${index}.png`, { type: 'image/png' })
+    );
+    const secondBatch = [
+      new File(['image'], 'second-0.png', { type: 'image/png' }),
+      new File(['image'], 'second-1.png', { type: 'image/png' }),
+    ];
+    const { result } = renderHook(() => useChatAttachments());
+
+    await act(async () => {
+      await result.current.handleFileChange({
+        target: {
+          files: createFileList(firstBatch),
+          value: 'selected',
+        },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+    await act(async () => {
+      await result.current.handleFileChange({
+        target: {
+          files: createFileList(secondBatch),
+          value: 'selected',
+        },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    expect(saveAttachment).toHaveBeenCalledTimes(MAX_CHAT_ATTACHMENT_INPUT_FILES);
+    expect(saveAttachment).toHaveBeenLastCalledWith(
+      expect.objectContaining({ name: 'second-0.png' }),
+      { persist: true }
+    );
+    expect(saveAttachment).not.toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'second-1.png' }),
+      expect.anything()
+    );
+    expect(result.current.attachments).toHaveLength(MAX_CHAT_ATTACHMENT_INPUT_FILES);
+  });
+
   it('limits clipboard item scans and accepted attachment files', async () => {
     const files: File[] = [];
     for (let index = 0; index < MAX_CHAT_ATTACHMENT_INPUT_FILES + 20; index += 1) {

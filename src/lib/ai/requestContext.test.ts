@@ -112,6 +112,32 @@ describe('requestContext', () => {
     ].join('\n'));
   });
 
+  it('does not leak overflow markdown image sources after the history scan budget is reached', () => {
+    const content = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](attachment://safe-${index}.png)`),
+      'Tail ![secret](data:image/png;base64,SECRET) after',
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).not.toContain('data:image/png;base64,SECRET');
+    expect(sanitized[0].content).not.toContain('![secret]');
+    expect(sanitized[0].content).toContain('Tail [Image] after');
+  });
+
+  it('does not leak overflow HTML image sources after the history scan budget is reached', () => {
+    const content = [
+      ...Array.from({ length: 4001 }, (_, index) => `<span data-index="${index}"></span>`),
+      '<img src="attachment://secret.png" alt="secret">',
+    ].join('');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).not.toContain('attachment://secret.png');
+    expect(sanitized[0].content).not.toContain('<img');
+    expect(sanitized[0].content).toContain('[Image]');
+  });
+
   it('sanitizes malformed structured history content at runtime', () => {
     const sanitized = sanitizeHistory([
       createMessage({
