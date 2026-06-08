@@ -588,6 +588,30 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ).toBe(['| A | B |', '| --- | --- |', '| 1 | 2 |'].join('\n'));
   });
 
+  it('keeps large plain paragraph documents on the fast normalization path', () => {
+    const paragraph = 'This is a long plain paragraph for large markdown open performance. '.repeat(200);
+    const markdown = [
+      '# Large Plain Document',
+      '',
+      ...Array.from({ length: 90 }, (_value, index) => `Paragraph ${index}. ${paragraph}`),
+    ].join('\n\n');
+
+    expect(markdown.length).toBeGreaterThan(1_000_000);
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
+  it('does not fast-path large documents with soft line breaks', () => {
+    const paragraph = 'This is a long plain paragraph for large markdown normalization. '.repeat(200);
+    const markdown = [
+      '# Large Soft Break Document',
+      '',
+      ...Array.from({ length: 45 }, (_value, index) => `Paragraph ${index}. ${paragraph}\ncontinued ${index}. ${paragraph}`),
+    ].join('\n\n');
+
+    expect(markdown.length).toBeGreaterThan(1_000_000);
+    expect(normalizeSerializedMarkdownDocument(markdown)).toContain('\\\ncontinued 0.');
+  });
+
   it('canonicalizes empty atx headings so they reopen as headings', () => {
     expect(
       normalizeSerializedMarkdownDocument(['#', '##', '', 'Body'].join('\n'))

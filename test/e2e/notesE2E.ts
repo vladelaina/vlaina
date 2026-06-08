@@ -1,0 +1,563 @@
+import { expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
+export const EDITOR_SELECTOR = '.milkdown .ProseMirror';
+export const SELECTED_BLOCK_SELECTOR = `${EDITOR_SELECTOR} .editor-block-selected`;
+export const BLOCK_CONTROLS_SELECTOR = '.editor-block-controls.visible';
+export const NOTE_SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
+export const NOTE_SOURCE_FALLBACK_SELECTOR = '[data-note-source-fallback="true"]';
+export const NOTES_VIEW_SELECTOR = '[data-notes-view-mode="true"]';
+export const NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR = '[data-notes-sidebar-scroll-root="true"]';
+export const FILE_TREE_PRIMARY_SELECTOR = '[data-file-tree-primary="true"]';
+export const FILE_TREE_FILE_SELECTOR = '[data-file-tree-kind="file"]';
+export const CHAT_VIEW_SELECTOR = '[data-chat-view-mode="full"]';
+export const CHAT_SCROLLABLE_SELECTOR = '[data-chat-scrollable="true"]';
+export const CHAT_SESSION_ROW_SELECTOR = '[data-chat-sidebar-session-row="true"]';
+export const CHAT_MESSAGE_SELECTOR = '[data-message-item="true"]';
+export const CHAT_COMPOSER_TEXTAREA_SELECTOR = '[data-chat-input="true"] textarea';
+export const CHAT_IMAGE_VIEWER_SURFACE_SELECTOR = '[data-chat-image-viewer-surface="true"]';
+export const CHAT_IMAGE_VIEWER_CONTROL_SELECTOR = '[data-chat-image-viewer-control="true"]';
+export const NOTE_IMAGE_BLOCK_SELECTOR = `${EDITOR_SELECTOR} .image-block-container`;
+export const NOTE_IMAGE_TOOLBAR_SELECTOR = `${NOTE_IMAGE_BLOCK_SELECTOR} .image-toolbar`;
+export const NOTE_IMAGE_CROPPER_TOOLBAR_SELECTOR = `${NOTE_IMAGE_BLOCK_SELECTOR} .image-cropper-toolbar`;
+
+export type NoteSelectableBlock = {
+  text: string;
+  tagName: string;
+  from: number;
+  to: number;
+};
+
+export type ChatFixtureSession = {
+  title: string;
+  preloadMessages?: boolean;
+  messages: Array<{
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    modelId?: string;
+  }>;
+};
+
+export async function waitForE2EBridge(page: Page) {
+  await page.waitForFunction(() => Boolean((window as any).__vlainaE2E));
+  await page.evaluate(() => (window as any).__vlainaE2E.waitForUnifiedLoaded());
+}
+
+export async function getOpenBridgePages(app: ElectronApplication, count: number): Promise<Page[]> {
+  await expect.poll(() => app.windows().filter((page) => !page.isClosed()).length).toBeGreaterThanOrEqual(count);
+  const pages = app.windows().filter((page) => !page.isClosed()).slice(0, count);
+  await Promise.all(pages.map(waitForE2EBridge));
+  return pages;
+}
+
+export async function launchIsolatedElectron(label: string): Promise<{
+  app: ElectronApplication;
+  userDataRoot: string;
+}> {
+  const safeLabel = label.replace(/[^a-z0-9-]+/gi, '-').toLowerCase();
+  const userDataRoot = await fs.mkdtemp(path.join(os.tmpdir(), `vlaina-${safeLabel}-e2e-`));
+  const userDataDir = path.join(userDataRoot, 'user-data');
+
+  const app = await electron.launch({
+    args: ['.'],
+    env: {
+      ...process.env,
+      VITE_DEV_SERVER_URL: 'http://127.0.0.1:3100?e2e=1',
+      VLAINA_USER_DATA_DIR: userDataDir,
+      APP_API_BASE_URL: 'http://127.0.0.1:9',
+      APP_UPDATE_MANIFEST_URL: 'http://127.0.0.1:9/latest',
+      NO_PROXY: '127.0.0.1,localhost',
+      no_proxy: '127.0.0.1,localhost',
+      HTTP_PROXY: '',
+      HTTPS_PROXY: '',
+      ALL_PROXY: '',
+      http_proxy: '',
+      https_proxy: '',
+      all_proxy: '',
+    },
+  });
+
+  return { app, userDataRoot };
+}
+
+export async function closeElectron(app: ElectronApplication): Promise<void> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  await Promise.race([
+    app.close().finally(() => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }),
+    new Promise<void>((resolve) => {
+      timeoutId = setTimeout(() => {
+        app.process()?.kill('SIGKILL');
+        resolve();
+      }, 5000);
+    }),
+  ]).catch(() => {
+    app.process()?.kill('SIGKILL');
+  });
+}
+
+export async function cleanupIsolatedElectron(app: ElectronApplication, userDataRoot: string): Promise<void> {
+  await closeElectron(app);
+  await fs.rm(userDataRoot, { recursive: true, force: true }).catch(() => {});
+}
+
+export async function openMarkdownFixture(
+  page: Page,
+  input: {
+    filename: string;
+    content: string;
+  }
+): Promise<{
+  notePath: string;
+  vaultPath: string;
+  storeOpenMs: number;
+  openActionWallMs: number;
+}> {
+  const { notePath, vaultPath } = await page.evaluate((fixture) =>
+    (window as any).__vlainaE2E.createNotesFixture(fixture), input);
+
+  const openStartedAt = Date.now();
+  const openTiming = await page.evaluate((pathToOpen) =>
+    (window as any).__vlainaE2E.openAbsoluteNoteWithTiming(pathToOpen), notePath);
+  const openActionWallMs = Date.now() - openStartedAt;
+
+  await expect(page.locator(EDITOR_SELECTOR)).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator(NOTE_SOURCE_FALLBACK_SELECTOR)).toHaveCount(0);
+  await expect.poll(async () => page.evaluate(() => {
+    const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+    const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks();
+    return {
+      hasEditor: Boolean(editor),
+      textLength: editor?.textContent?.trim().length ?? 0,
+      selectableCount: blocks.length,
+      hasSourceFallback: Boolean(document.querySelector('[data-note-source-fallback="true"]')),
+    };
+  }), { timeout: 30_000 }).toMatchObject({
+    hasEditor: true,
+    hasSourceFallback: false,
+    selectableCount: expect.any(Number),
+  });
+
+  return {
+    notePath,
+    vaultPath,
+    storeOpenMs: Math.round(openTiming.totalMs),
+    openActionWallMs,
+  };
+}
+
+export async function setAppViewMode(page: Page, mode: 'notes' | 'chat'): Promise<void> {
+  await page.evaluate((nextMode) => (window as any).__vlainaE2E.setAppViewMode(nextMode), mode);
+  if (mode === 'notes') {
+    await expect(page.locator(NOTES_VIEW_SELECTOR)).toBeVisible({ timeout: 30_000 });
+  } else {
+    await expect(page.locator(CHAT_VIEW_SELECTOR)).toBeVisible({ timeout: 30_000 });
+  }
+}
+
+export async function createVaultFilesFixture(
+  page: Page,
+  input: {
+    name?: string;
+    files: Array<{ filename: string; content: string }>;
+  },
+): Promise<{ vaultPath: string; notePaths: string[] }> {
+  return page.evaluate((fixture) => (window as any).__vlainaE2E.createVaultFilesFixture(fixture), input);
+}
+
+export async function openVaultInNotes(
+  page: Page,
+  input: {
+    vaultPath: string;
+    name?: string;
+    minFileCount?: number;
+  },
+): Promise<void> {
+  await setAppViewMode(page, 'notes');
+  await page.evaluate(
+    ({ vaultPath, name }) => (window as any).__vlainaE2E.openVault(vaultPath, name),
+    { vaultPath: input.vaultPath, name: input.name },
+  );
+  await expect.poll(async () => page.evaluate(() => {
+    const vaultState = (window as any).__vlainaE2E.getVaultState();
+    return {
+      currentVaultPath: vaultState.currentVault?.path ?? null,
+      fileCount: document.querySelectorAll('[data-file-tree-kind="file"]').length,
+      hasFileTree: Boolean(document.querySelector('[data-file-tree-primary="true"]')),
+    };
+  }), { timeout: 30_000 }).toMatchObject({
+    currentVaultPath: input.vaultPath,
+    fileCount: expect.any(Number),
+  });
+  await expect.poll(async () => page.locator(FILE_TREE_FILE_SELECTOR).count(), { timeout: 30_000 })
+    .toBeGreaterThanOrEqual(input.minFileCount ?? 1);
+}
+
+export async function createChatFixture(
+  page: Page,
+  input: {
+    sessions: ChatFixtureSession[];
+    activeSessionIndex?: number;
+  },
+): Promise<{ sessionIds: string[]; activeSessionId: string | null }> {
+  return page.evaluate((fixture) => (window as any).__vlainaE2E.createChatFixture(fixture), input);
+}
+
+export async function getNoteContentCacheEntry(page: Page, notePath: string): Promise<{
+  hasEntry: boolean;
+  contentLength: number;
+  contentPreview: string;
+  freshUntil: number | null;
+  modifiedAt: number | null;
+  currentNotePath: string | null;
+  openTabPaths: string[];
+  cacheKeys: string[];
+}> {
+  return page.evaluate((pathToInspect) => (window as any).__vlainaE2E.getNoteContentCacheEntry(pathToInspect), notePath);
+}
+
+export async function pruneNoteContentsCacheToOpenNotes(page: Page): Promise<void> {
+  await page.evaluate(() => (window as any).__vlainaE2E.pruneNoteContentsCacheToOpenNotes());
+}
+
+export async function getChatSessionMessageStatus(page: Page, sessionId: string): Promise<{
+  currentSessionId: string | null;
+  hasMessages: boolean;
+  messageCount: number;
+  firstContent: string;
+  lastContent: string;
+}> {
+  return page.evaluate((targetSessionId) => {
+    const state = (window as any).__vlainaE2E.getChatState();
+    const messages = state.messages[targetSessionId] ?? [];
+    return {
+      currentSessionId: state.currentSessionId,
+      hasMessages: Object.prototype.hasOwnProperty.call(state.messages, targetSessionId),
+      messageCount: messages.length,
+      firstContent: messages[0]?.content ?? '',
+      lastContent: messages[messages.length - 1]?.content ?? '',
+    };
+  }, sessionId);
+}
+
+export async function waitForChatSession(
+  page: Page,
+  input: {
+    sessionId: string;
+    minMessageCount?: number;
+    sentinelText?: string;
+  },
+): Promise<void> {
+  await expect.poll(async () => page.evaluate(({ sessionId, sentinelText }) => {
+    const state = (window as any).__vlainaE2E.getChatState();
+    const messages = state.messages[sessionId] ?? [];
+    const visibleText = document.querySelector('[data-chat-view-mode="full"]')?.textContent ?? '';
+    return {
+      currentSessionId: state.currentSessionId,
+      messageCount: messages.length,
+      hasSentinel: sentinelText ? visibleText.includes(sentinelText) : true,
+      visibleMessageCount: document.querySelectorAll('[data-message-item="true"]').length,
+    };
+  }, input), { timeout: 30_000 }).toMatchObject({
+    currentSessionId: input.sessionId,
+    messageCount: expect.any(Number),
+    hasSentinel: true,
+  });
+  if (typeof input.minMessageCount === 'number') {
+    await expect.poll(async () => page.evaluate((sessionId) => {
+      const state = (window as any).__vlainaE2E.getChatState();
+      return state.messages[sessionId]?.length ?? 0;
+    }, input.sessionId), { timeout: 30_000 }).toBeGreaterThanOrEqual(input.minMessageCount);
+  }
+}
+
+export async function measureChatScrollFrames(page: Page, frames = 45) {
+  return page.evaluate(async (frameCount) => {
+    const scrollRoot = document.querySelector<HTMLElement>('[data-chat-scrollable="true"]');
+    if (!scrollRoot || scrollRoot.scrollHeight <= scrollRoot.clientHeight) {
+      return null;
+    }
+
+    const frameDeltas: number[] = [];
+    scrollRoot.scrollTop = 0;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const startedAt = performance.now();
+    let lastFrameAt = startedAt;
+    const maxScrollTop = scrollRoot.scrollHeight - scrollRoot.clientHeight;
+    for (let index = 1; index <= frameCount; index += 1) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const now = performance.now();
+      frameDeltas.push(now - lastFrameAt);
+      scrollRoot.scrollTop = Math.round((maxScrollTop * index) / frameCount);
+      lastFrameAt = now;
+    }
+
+    const totalMs = performance.now() - startedAt;
+    const sortedDeltas = [...frameDeltas].sort((a, b) => a - b);
+    const pick = (ratio: number) =>
+      sortedDeltas[Math.min(sortedDeltas.length - 1, Math.max(0, Math.ceil(sortedDeltas.length * ratio) - 1))] ?? 0;
+    const avg = frameDeltas.reduce((sum, value) => sum + value, 0) / Math.max(1, frameDeltas.length);
+    return {
+      frames: frameCount,
+      totalMs: Math.round(totalMs),
+      avgFrameMs: Math.round(avg * 10) / 10,
+      p95FrameMs: Math.round(pick(0.95) * 10) / 10,
+      maxFrameMs: Math.round(Math.max(...frameDeltas) * 10) / 10,
+      finalScrollTop: scrollRoot.scrollTop,
+      maxScrollTop,
+      visibleMessageCount: document.querySelectorAll('[data-message-item="true"]').length,
+    };
+  }, frames);
+}
+
+export async function collectLayoutSmokeMetrics(page: Page) {
+  return page.evaluate(() => {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const documentElement = document.documentElement;
+    const body = document.body;
+    const selectors = [
+      '[data-notes-view-mode="true"]',
+      '[data-chat-view-mode="full"]',
+      '[data-notes-sidebar-scroll-root="true"]',
+      '[data-chat-scrollable="true"]',
+      '.milkdown .ProseMirror',
+      '[data-chat-input="true"]',
+    ];
+    const surfaces = selectors.flatMap((selector) => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) return [];
+      const rect = element.getBoundingClientRect();
+      const style = window.getComputedStyle(element);
+      return [{
+        selector,
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+        left: Math.round(rect.left),
+        top: Math.round(rect.top),
+        visible: style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0,
+      }];
+    });
+    const visibleTextOverflow = Array.from(document.querySelectorAll<HTMLElement>('button, [data-file-tree-kind="file"], [data-chat-sidebar-session-row="true"]'))
+      .filter((element) => {
+        const rect = element.getBoundingClientRect();
+        const style = window.getComputedStyle(element);
+        return style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          rect.width > 0 &&
+          rect.height > 0 &&
+          (element.scrollWidth - element.clientWidth > 2 || element.scrollHeight - element.clientHeight > 4);
+      })
+      .slice(0, 10)
+      .map((element) => ({
+        tagName: element.tagName,
+        text: element.textContent?.trim().slice(0, 80) ?? '',
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight,
+      }));
+
+    return {
+      viewportWidth,
+      viewportHeight,
+      documentScrollWidth: documentElement.scrollWidth,
+      bodyScrollWidth: body.scrollWidth,
+      hasHorizontalDocumentOverflow:
+        documentElement.scrollWidth > viewportWidth + 2 ||
+        body.scrollWidth > viewportWidth + 2,
+      surfaces,
+      visibleTextOverflow,
+    };
+  });
+}
+
+export async function getBlankAreaDragTarget(page: Page, text: string) {
+  return page.evaluate(async (targetText) => {
+    const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+    const scrollRoot = editor?.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+    if (!editor || !scrollRoot) {
+      return null;
+    }
+
+    const block = Array.from(editor.querySelectorAll<HTMLElement>('p,li,blockquote,pre,table,h1,h2,h3,h4,h5,h6'))
+      .find((element) => element.textContent?.includes(targetText));
+    if (!block) {
+      return null;
+    }
+
+    block.scrollIntoView({ block: 'center', inline: 'nearest' });
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+    const rect = block.getBoundingClientRect();
+    const editorRect = editor.getBoundingClientRect();
+    const scrollRootRect = scrollRoot.getBoundingClientRect();
+    const visibleTop = Math.max(rect.top, scrollRootRect.top + 24);
+    const visibleBottom = Math.min(rect.bottom, scrollRootRect.bottom - 24);
+    const startY = visibleTop + Math.max(12, (visibleBottom - visibleTop) * 0.35);
+    const startX = Math.min(scrollRootRect.right - 24, editorRect.right + 72);
+    const hit = document.elementFromPoint(startX, startY);
+    return {
+      startX,
+      startY,
+      endX: Math.max(editorRect.left + 24, rect.left + 24),
+      endY: Math.min(scrollRootRect.bottom - 24, startY + 180),
+      hitInsideEditor: hit instanceof Node && editor.contains(hit),
+      hitTagName: hit instanceof HTMLElement ? hit.tagName : null,
+      blockTagName: block.tagName,
+      blockText: block.textContent?.trim().slice(0, 120) ?? '',
+    };
+  }, text);
+}
+
+export async function getSelectableBlocks(page: Page): Promise<NoteSelectableBlock[]> {
+  return page.evaluate(() => (window as any).__vlainaE2E.getNoteSelectableBlocks());
+}
+
+export async function clearSelectedNoteBlocks(page: Page): Promise<void> {
+  await page.evaluate(() => (window as any).__vlainaE2E.selectNoteBlocksByText([]));
+}
+
+export async function selectNoteBlocksByText(page: Page, texts: string[]): Promise<number> {
+  return page.evaluate((expectedTexts) => (window as any).__vlainaE2E.selectNoteBlocksByText(expectedTexts), texts);
+}
+
+export async function scrollNoteToTop(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+    const scrollRoot = editor?.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+    if (scrollRoot) {
+      scrollRoot.scrollTop = 0;
+    }
+  });
+}
+
+export async function scrollElementIntoViewByText(page: Page, selector: string, text: string): Promise<void> {
+  await page.evaluate(({ selector: targetSelector, text: expectedText }) => {
+    const element = Array.from(document.querySelectorAll<HTMLElement>(targetSelector))
+      .find((candidate) => candidate.textContent?.includes(expectedText));
+    element?.scrollIntoView({ block: 'center', inline: 'nearest' });
+  }, { selector, text });
+}
+
+export async function collectEditorDomMetrics(page: Page) {
+  return page.evaluate(() => {
+    const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+    const scrollRoot = editor?.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+    const blockElements = Array.from(editor?.querySelectorAll<HTMLElement>(
+      'h1,h2,h3,h4,h5,h6,p,li,blockquote,pre,table,div[data-type="callout"],div[data-type="toc"],.frontmatter-block-container,div[data-type="math-block"],div[data-type="mermaid"],div[data-type="video"],div.image-block-container'
+    ) ?? []);
+    const countsBySelector = {
+      headings: editor?.querySelectorAll('h1,h2,h3,h4,h5,h6').length ?? 0,
+      paragraphs: editor?.querySelectorAll('p').length ?? 0,
+      blockquotes: editor?.querySelectorAll('blockquote').length ?? 0,
+      callouts: editor?.querySelectorAll('div[data-type="callout"]').length ?? 0,
+      bulletItems: editor?.querySelectorAll('ul > li').length ?? 0,
+      orderedItems: editor?.querySelectorAll('ol > li').length ?? 0,
+      taskItems: editor?.querySelectorAll('li[data-item-type="task"]').length ?? 0,
+      tables: editor?.querySelectorAll('table').length ?? 0,
+      codeBlocks: editor?.querySelectorAll('.code-block-container, pre[data-language], pre.code-block-wrapper').length ?? 0,
+      frontmatter: editor?.querySelectorAll('.frontmatter-block-container, div[data-type="frontmatter"]').length ?? 0,
+      mathBlocks: editor?.querySelectorAll('div[data-type="math-block"]').length ?? 0,
+      mathInline: editor?.querySelectorAll('span[data-type="math-inline"]').length ?? 0,
+      mermaid: editor?.querySelectorAll('div[data-type="mermaid"]').length ?? 0,
+      video: editor?.querySelectorAll('div[data-type="video"]').length ?? 0,
+      toc: editor?.querySelectorAll('div[data-type="toc"]').length ?? 0,
+      footnoteRefs: editor?.querySelectorAll('sup.footnote-ref').length ?? 0,
+      footnoteDefs: editor?.querySelectorAll('div.footnote-def').length ?? 0,
+      images: editor?.querySelectorAll('.image-block-container, img.md-image, img.image-embed').length ?? 0,
+      highlights: editor?.querySelectorAll('mark.highlight, mark').length ?? 0,
+      superscript: editor?.querySelectorAll('sup.superscript, sup').length ?? 0,
+      subscript: editor?.querySelectorAll('sub.subscript, sub').length ?? 0,
+      abbr: editor?.querySelectorAll('abbr.abbr, abbr').length ?? 0,
+      tags: editor?.querySelectorAll('[data-editor-tag-token="true"]').length ?? 0,
+      autolinks: editor?.querySelectorAll('a.autolink').length ?? 0,
+      explicitLinks: editor?.querySelectorAll('a[href]').length ?? 0,
+      definitionTerms: editor?.querySelectorAll('.editor-dl-term, dt.definition-term').length ?? 0,
+      definitionDescs: editor?.querySelectorAll('.editor-dl-desc, dd.definition-desc').length ?? 0,
+      horizontalRules: editor?.querySelectorAll('[data-type="hr"], hr').length ?? 0,
+      sourceFallback: document.querySelectorAll('[data-note-source-fallback="true"]').length,
+    };
+
+    return {
+      editorTextLength: editor?.textContent?.length ?? 0,
+      editorChildCount: editor?.children.length ?? 0,
+      renderedBlockCount: blockElements.length,
+      selectableBlockCount: (window as any).__vlainaE2E.getNoteSelectableBlocks().length,
+      scrollHeight: scrollRoot?.scrollHeight ?? 0,
+      clientHeight: scrollRoot?.clientHeight ?? 0,
+      countsBySelector,
+    };
+  });
+}
+
+export async function measureScrollFrames(page: Page, frames = 45) {
+  return page.evaluate(async (frameCount) => {
+    const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+    const scrollRoot = editor?.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+    if (!scrollRoot || scrollRoot.scrollHeight <= scrollRoot.clientHeight) {
+      return null;
+    }
+
+    const frameDeltas: number[] = [];
+    scrollRoot.scrollTop = 0;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const startedAt = performance.now();
+    let lastFrameAt = startedAt;
+    const maxScrollTop = scrollRoot.scrollHeight - scrollRoot.clientHeight;
+    for (let index = 1; index <= frameCount; index += 1) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const now = performance.now();
+      frameDeltas.push(now - lastFrameAt);
+      scrollRoot.scrollTop = Math.round((maxScrollTop * index) / frameCount);
+      lastFrameAt = now;
+    }
+    const totalMs = performance.now() - startedAt;
+    const sortedDeltas = [...frameDeltas].sort((a, b) => a - b);
+    const pick = (ratio: number) =>
+      sortedDeltas[Math.min(sortedDeltas.length - 1, Math.max(0, Math.ceil(sortedDeltas.length * ratio) - 1))] ?? 0;
+    const avg = frameDeltas.reduce((sum, value) => sum + value, 0) / Math.max(1, frameDeltas.length);
+
+    return {
+      frames: frameCount,
+      totalMs: Math.round(totalMs),
+      avgFrameMs: Math.round(avg * 10) / 10,
+      p95FrameMs: Math.round(pick(0.95) * 10) / 10,
+      maxFrameMs: Math.round(Math.max(...frameDeltas) * 10) / 10,
+      finalScrollTop: scrollRoot.scrollTop,
+      maxScrollTop,
+    };
+  }, frames);
+}
+
+export async function measureRepeatedBlockScan(page: Page, iterations = 20) {
+  return page.evaluate((scanIterations) => {
+    const samples: number[] = [];
+    let blockCount = 0;
+    for (let index = 0; index < scanIterations; index += 1) {
+      const startedAt = performance.now();
+      const blocks = (window as any).__vlainaE2E.getNoteSelectableBlocks();
+      samples.push(performance.now() - startedAt);
+      blockCount = blocks.length;
+    }
+    const sorted = [...samples].sort((a, b) => a - b);
+    const pick = (ratio: number) =>
+      sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * ratio) - 1))] ?? 0;
+    const avg = samples.reduce((sum, value) => sum + value, 0) / Math.max(1, samples.length);
+    return {
+      iterations: scanIterations,
+      blockCount,
+      minMs: Math.round((sorted[0] ?? 0) * 10) / 10,
+      avgMs: Math.round(avg * 10) / 10,
+      p50Ms: Math.round(pick(0.5) * 10) / 10,
+      p95Ms: Math.round(pick(0.95) * 10) / 10,
+      maxMs: Math.round((sorted[sorted.length - 1] ?? 0) * 10) / 10,
+    };
+  }, iterations);
+}

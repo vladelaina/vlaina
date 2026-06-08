@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { ChatMessage } from '@/lib/ai/types';
 import { useStableChatMessageDerivatives } from './useStableChatMessageDerivatives';
@@ -18,7 +18,7 @@ function createMessage(id: string, role: ChatMessage['role'], content: string): 
 }
 
 describe('useStableChatMessageDerivatives', () => {
-  it('keeps derived references stable when only assistant text changes', () => {
+  it('keeps derived references stable when only assistant text changes', async () => {
     const user = createMessage('u1', 'user', 'hello');
     const assistant = createMessage('a1', 'assistant', 'first response');
 
@@ -30,6 +30,7 @@ describe('useStableChatMessageDerivatives', () => {
         },
       },
     );
+    await waitFor(() => expect(view.result.current.sentUserMessages).toEqual(['hello']));
 
     const firstImageGallery = view.result.current.imageGallery;
     const firstSentUserMessages = view.result.current.sentUserMessages;
@@ -49,7 +50,7 @@ describe('useStableChatMessageDerivatives', () => {
     expect(view.result.current.sentUserMessages).toBe(firstSentUserMessages);
   });
 
-  it('updates only the collection whose source data changed', () => {
+  it('updates only the collection whose source data changed', async () => {
     const user = createMessage('u1', 'user', 'hello');
     const assistant = createMessage('a1', 'assistant', '![image](<https://example.com/1.png>)');
     const updatedAssistant = {
@@ -66,6 +67,7 @@ describe('useStableChatMessageDerivatives', () => {
         },
       },
     );
+    await waitFor(() => expect(view.result.current.imageGallery).toHaveLength(1));
 
     const firstImageGallery = view.result.current.imageGallery;
     const firstSentUserMessages = view.result.current.sentUserMessages;
@@ -77,6 +79,9 @@ describe('useStableChatMessageDerivatives', () => {
       ],
     });
 
+    await waitFor(() => expect(view.result.current.imageGallery).toEqual([
+      { id: 'a1:0', src: 'https://example.com/2.png' },
+    ]));
     expect(view.result.current.imageGallery).not.toBe(firstImageGallery);
     expect(view.result.current.sentUserMessages).toBe(firstSentUserMessages);
 
@@ -91,11 +96,12 @@ describe('useStableChatMessageDerivatives', () => {
       ],
     });
 
+    await waitFor(() => expect(view.result.current.sentUserMessages).toEqual(['hello', 'follow up']));
     expect(view.result.current.imageGallery).toBe(secondImageGallery);
     expect(view.result.current.sentUserMessages).not.toBe(secondSentUserMessages);
   });
 
-  it('keeps large data image sources out of the gallery signature', () => {
+  it('keeps large data image sources out of the gallery signature', async () => {
     const user = createMessage('u1', 'user', 'hello');
     const assistant = createMessage('a1', 'assistant', `![image](<data:image/png;base64,${'a'.repeat(120_000)}>)`);
 
@@ -109,12 +115,12 @@ describe('useStableChatMessageDerivatives', () => {
       },
     );
 
-    expect(view.result.current.imageGallery).toHaveLength(1);
+    await waitFor(() => expect(view.result.current.imageGallery).toHaveLength(1));
     expect(view.result.current.imageGallery[0].src).toContain('data:image/png;base64,');
     expect(performance.now() - startedAt).toBeLessThan(250);
   });
 
-  it('updates the gallery when same-length image sources differ after a long shared prefix', () => {
+  it('updates the gallery when same-length image sources differ after a long shared prefix', async () => {
     const prefix = `https://example.com/${'shared-path-'.repeat(10)}`;
     const firstSrc = `${prefix}A.png`;
     const secondSrc = `${prefix}B.png`;
@@ -128,6 +134,7 @@ describe('useStableChatMessageDerivatives', () => {
         },
       },
     );
+    await waitFor(() => expect(view.result.current.imageGallery).toHaveLength(1));
     const firstImageGallery = view.result.current.imageGallery;
 
     view.rerender({
@@ -140,13 +147,13 @@ describe('useStableChatMessageDerivatives', () => {
 
     expect(firstSrc).toHaveLength(secondSrc.length);
     expect(firstSrc.slice(0, 96)).toBe(secondSrc.slice(0, 96));
-    expect(view.result.current.imageGallery).not.toBe(firstImageGallery);
-    expect(view.result.current.imageGallery).toEqual([
+    await waitFor(() => expect(view.result.current.imageGallery).toEqual([
       { id: 'a1:0', src: secondSrc },
-    ]);
+    ]));
+    expect(view.result.current.imageGallery).not.toBe(firstImageGallery);
   });
 
-  it('updates sent user messages when same-length content differs after a long shared prefix', () => {
+  it('updates sent user messages when same-length content differs after a long shared prefix', async () => {
     const prefix = 'shared text '.repeat(1000);
     const firstContent = `${prefix}A`;
     const secondContent = `${prefix}B`;
@@ -160,6 +167,7 @@ describe('useStableChatMessageDerivatives', () => {
         },
       },
     );
+    await waitFor(() => expect(view.result.current.sentUserMessages).toEqual([firstContent]));
     const firstSentUserMessages = view.result.current.sentUserMessages;
 
     view.rerender({
@@ -171,11 +179,11 @@ describe('useStableChatMessageDerivatives', () => {
     });
 
     expect(firstContent).toHaveLength(secondContent.length);
+    await waitFor(() => expect(view.result.current.sentUserMessages).toEqual([secondContent]));
     expect(view.result.current.sentUserMessages).not.toBe(firstSentUserMessages);
-    expect(view.result.current.sentUserMessages).toEqual([secondContent]);
   });
 
-  it('excludes non-renderable data images from the assistant gallery', () => {
+  it('excludes non-renderable data images from the assistant gallery', async () => {
     const assistant = createMessage(
       'a1',
       'assistant',
@@ -191,12 +199,12 @@ describe('useStableChatMessageDerivatives', () => {
       },
     );
 
-    expect(view.result.current.imageGallery).toEqual([
+    await waitFor(() => expect(view.result.current.imageGallery).toEqual([
       { id: 'a1:0', src: 'data:image/png;base64,aGk=' },
-    ]);
+    ]));
   });
 
-  it('excludes video image syntax from the assistant gallery', () => {
+  it('excludes video image syntax from the assistant gallery', async () => {
     const assistant = createMessage(
       'a1',
       'assistant',
@@ -216,12 +224,12 @@ describe('useStableChatMessageDerivatives', () => {
       },
     );
 
-    expect(view.result.current.imageGallery).toEqual([
+    await waitFor(() => expect(view.result.current.imageGallery).toEqual([
       { id: 'a1:0', src: 'https://example.com/real.png' },
-    ]);
+    ]));
   });
 
-  it('excludes video URLs from known assistant image sources', () => {
+  it('excludes video URLs from known assistant image sources', async () => {
     const assistant = {
       ...createMessage('a1', 'assistant', ''),
       imageSources: [
@@ -239,9 +247,9 @@ describe('useStableChatMessageDerivatives', () => {
       },
     );
 
-    expect(view.result.current.imageGallery).toEqual([
+    await waitFor(() => expect(view.result.current.imageGallery).toEqual([
       { id: 'a1:0', src: 'https://example.com/real.png' },
-    ]);
+    ]));
   });
 
   it('bounds assistant gallery sources derived from markdown content', () => {
@@ -270,7 +278,7 @@ describe('useStableChatMessageDerivatives', () => {
     });
   });
 
-  it('ignores assistant image examples inside code blocks and inline code', () => {
+  it('ignores assistant image examples inside code blocks and inline code', async () => {
     const assistant = createMessage(
       'a1',
       'assistant',
@@ -294,9 +302,9 @@ describe('useStableChatMessageDerivatives', () => {
       },
     );
 
-    expect(view.result.current.imageGallery).toEqual([
+    await waitFor(() => expect(view.result.current.imageGallery).toEqual([
       { id: 'a1:0', src: 'https://example.com/real.png' },
       { id: 'a1:1', src: 'https://example.com/real-html.png' },
-    ]);
+    ]));
   });
 });

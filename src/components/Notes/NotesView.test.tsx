@@ -257,11 +257,23 @@ vi.mock('@/lib/desktop/launchContext', () => ({
 }));
 
 vi.mock('./features/Editor', () => ({
-  MarkdownEditor: ({ active }: { active?: boolean }) => (
-    active
+  MarkdownEditor: ({ active }: { active?: boolean }) => {
+    const hasRenderableNote = Boolean(mocks.notesState.currentNote?.path);
+    return active && hasRenderableNote
       ? <div data-testid="markdown-editor" />
-      : <div data-testid="markdown-editor-shell" />
-  ),
+      : <div data-testid="markdown-editor-shell" />;
+  },
+}));
+
+vi.mock('./features/Editor/preloadMarkdownEditor', () => ({
+  preloadMarkdownEditor: vi.fn(async () => ({
+    MarkdownEditor: ({ active }: { active?: boolean }) => {
+      const hasRenderableNote = Boolean(mocks.notesState.currentNote?.path);
+      return active && hasRenderableNote
+        ? <div data-testid="markdown-editor" />
+        : <div data-testid="markdown-editor-shell" />;
+    },
+  })),
 }));
 
 vi.mock('@/hooks/useModuleShortcutsDialog', () => ({

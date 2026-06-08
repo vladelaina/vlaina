@@ -8,7 +8,7 @@ import { buildTyporaCompatibilityDecorations } from './themeCompatibilityDecorat
 
 export { listContainsTaskItems };
 
-export const MAX_THEME_COMPATIBILITY_DECORATIONS = 5000;
+export const MAX_THEME_COMPATIBILITY_DECORATIONS = 6000;
 export const MAX_THEME_COMPATIBILITY_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 
 const THEME_COMPATIBILITY_SAFE_CONTENT_NODES = new Set(['code_block', 'frontmatter']);

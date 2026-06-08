@@ -1,10 +1,13 @@
-import { actions as aiActions } from '@/stores/ai/providerActions';
+import { actions as providerActions } from '@/stores/ai/providerActions';
+import { createChatActions } from '@/stores/ai/chatActions';
+import { createAIChatSession, useAIUIStore } from '@/stores/ai/chatState';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { desktopWindow } from '@/lib/desktop/window';
+import { saveSessionJson } from '@/lib/storage/chatStorage';
 import { flushPendingSave } from '@/lib/storage/unifiedStorage';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { getVaultSystemStorePath } from '@/stores/notes/systemStoragePaths';
@@ -13,6 +16,7 @@ import { getCurrentEditorView } from '@/components/Notes/features/Editor/utils/e
 import { collectSelectableBlockTargets } from '@/components/Notes/features/Editor/plugins/cursor/blockUnitResolver';
 import { dispatchBlockSelectionAction } from '@/components/Notes/features/Editor/plugins/cursor/blockSelectionPluginState';
 import type { UnifiedData } from '@/lib/storage/unifiedStorageTypes';
+import type { ChatMessage, ChatSession } from '@/lib/ai/types';
 import type { NotesState, StarredEntry } from '@/stores/notes/types';
 import type { ManagedBudgetStatus } from '@/lib/ai/managedService';
 import type { VaultInfo } from '@/stores/useVaultStore';
@@ -42,6 +46,38 @@ export interface E2EBridge {
     vaultPath: string;
     notePath: string;
   }>;
+  createVaultFilesFixture(input: {
+    name?: string;
+    files: Array<{
+      filename: string;
+      content: string;
+    }>;
+  }): Promise<{
+    vaultPath: string;
+    notePaths: string[];
+  }>;
+  createChatFixture(input: {
+    sessions: Array<{
+      title: string;
+      preloadMessages?: boolean;
+      messages: Array<{
+        role: ChatMessage['role'];
+        content: string;
+        modelId?: string;
+      }>;
+    }>;
+    activeSessionIndex?: number;
+  }): Promise<{
+    sessionIds: string[];
+    activeSessionId: string | null;
+  }>;
+  switchChatSession(id: string): Promise<void>;
+  getChatState(): {
+    currentSessionId: string | null;
+    sessions: ChatSession[];
+    messages: Record<string, ChatMessage[]>;
+  };
+  setAppViewMode(mode: 'notes' | 'chat'): Promise<void>;
   initializeVaultStore(): Promise<void>;
   openVault(path: string, name?: string): Promise<boolean>;
   getVaultState(): {
@@ -53,6 +89,11 @@ export interface E2EBridge {
   removeRecentVault(id: string): Promise<boolean>;
   readVaultConfig(path: string): Promise<unknown>;
   openAbsoluteNote(path: string): Promise<void>;
+  openAbsoluteNoteWithTiming(path: string): Promise<{
+    totalMs: number;
+    currentNoteContentLength: number;
+    currentNotePath: string | null;
+  }>;
   getNoteSelectableBlocks(): Array<{
     text: string;
     tagName: string;
@@ -61,6 +102,17 @@ export interface E2EBridge {
   }>;
   selectNoteBlocksByText(texts: string[]): Promise<number>;
   getNotesState(): Pick<NotesState, 'currentNote' | 'isDirty' | 'error' | 'openTabs'>;
+  getNoteContentCacheEntry(path: string): {
+    hasEntry: boolean;
+    contentLength: number;
+    contentPreview: string;
+    freshUntil: number | null;
+    modifiedAt: number | null;
+    currentNotePath: string | null;
+    openTabPaths: string[];
+    cacheKeys: string[];
+  };
+  pruneNoteContentsCacheToOpenNotes(): void;
   getNotesPreferences(): Pick<NotesState, 'noteIconSize' | 'recentNotes'>;
   getStarredState(): Pick<
     NotesState,
@@ -156,7 +208,7 @@ export function installSyncE2EBridge(): void {
     },
     flushUnifiedSave: flushPendingSave,
     addProvider: async (input) => {
-      const id = aiActions.addProvider({
+      const id = providerActions.addProvider({
         name: input.name,
         type: 'newapi',
         endpointType: 'openai',
@@ -168,7 +220,7 @@ export function installSyncE2EBridge(): void {
       return id;
     },
     deleteProvider: async (id) => {
-      aiActions.deleteProvider(id);
+      providerActions.deleteProvider(id);
       await flushPendingSave();
     },
     setTimezone: async (offset, city) => {
@@ -210,6 +262,112 @@ export function installSyncE2EBridge(): void {
       await storage.writeFile(notePath, input?.content ?? '# Starred\n\nInitial\n', { recursive: true });
       return { vaultPath, notePath };
     },
+    createVaultFilesFixture: async (input) => {
+      const storage = getStorageAdapter();
+      const basePath = await storage.getBasePath();
+      const fixtureRoot = await joinPath(basePath, 'e2e-vaults');
+      const vaultPath = await joinPath(
+        fixtureRoot,
+        `${input.name ?? 'vault-files'}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+      );
+      await storage.mkdir(vaultPath, true);
+
+      const notePaths: string[] = [];
+      for (const file of input.files) {
+        const notePath = await joinPath(vaultPath, file.filename);
+        await storage.writeFile(notePath, file.content, { recursive: true });
+        notePaths.push(notePath);
+      }
+
+      return { vaultPath, notePaths };
+    },
+    createChatFixture: async (input) => {
+      const chatActions = createChatActions();
+      const sessionIds: string[] = [];
+
+      for (const session of input.sessions) {
+        const sessionId = createAIChatSession(session.title);
+        sessionIds.push(sessionId);
+
+        for (const message of session.messages) {
+          chatActions.addMessage(
+            {
+              role: message.role,
+              content: message.content,
+              modelId: message.modelId ?? '',
+            },
+            sessionId,
+            {
+              persistUnified: false,
+              touchSession: true,
+            },
+          );
+        }
+      }
+
+      const activeSessionId = sessionIds[input.activeSessionIndex ?? 0] ?? sessionIds[0] ?? null;
+      if (activeSessionId) {
+        await chatActions.switchSession(activeSessionId);
+        const state = useUnifiedStore.getState();
+        state.updateAIData({ currentSessionId: activeSessionId });
+        useAIUIStore.getState().setChatSelection({
+          currentSessionId: activeSessionId,
+          temporaryChatEnabled: false,
+        });
+      }
+
+      const ai = useUnifiedStore.getState().data.ai;
+      await Promise.all(sessionIds.map((sessionId) => saveSessionJson(sessionId, ai?.messages[sessionId] ?? [])));
+      const unloadedSessionIds = sessionIds.filter((sessionId, index) => {
+        if (sessionId === activeSessionId) {
+          return false;
+        }
+        return input.sessions[index]?.preloadMessages === false;
+      });
+      if (unloadedSessionIds.length > 0) {
+        const latestAI = useUnifiedStore.getState().data.ai;
+        const nextMessages = { ...(latestAI?.messages ?? {}) };
+        unloadedSessionIds.forEach((sessionId) => {
+          delete nextMessages[sessionId];
+        });
+        useUnifiedStore.getState().updateAIData({ messages: nextMessages }, true);
+      }
+      await flushPendingSave();
+      return { sessionIds, activeSessionId };
+    },
+    switchChatSession: async (id) => {
+      const chatActions = createChatActions();
+      await chatActions.switchSession(id);
+      useUnifiedStore.getState().updateAIData({ currentSessionId: id });
+      useAIUIStore.getState().setChatSelection({
+        currentSessionId: id,
+        temporaryChatEnabled: false,
+      });
+      await flushPendingSave();
+    },
+    getChatState: () => {
+      const ai = useUnifiedStore.getState().data.ai;
+      return {
+        currentSessionId: useAIUIStore.getState().currentSessionId,
+        sessions: ai?.sessions.map((session) => ({ ...session })) ?? [],
+        messages: Object.fromEntries(
+          Object.entries(ai?.messages ?? {}).map(([sessionId, messages]) => [
+            sessionId,
+            messages.map((message) => ({
+              ...message,
+              versions: message.versions.map((version) => ({
+                ...version,
+                subsequentMessages: [...(version.subsequentMessages ?? [])],
+              })),
+            })),
+          ]),
+        ),
+      };
+    },
+    setAppViewMode: async (mode) => {
+      useUIStore.getState().setAppViewMode(mode);
+      await flushPendingSave();
+    },
     initializeVaultStore: async () => {
       await useVaultStore.getState().initialize();
     },
@@ -234,6 +392,16 @@ export function installSyncE2EBridge(): void {
     },
     openAbsoluteNote: async (path) => {
       await useNotesStore.getState().openNoteByAbsolutePath(path, true);
+    },
+    openAbsoluteNoteWithTiming: async (path) => {
+      const startedAt = performance.now();
+      await useNotesStore.getState().openNoteByAbsolutePath(path, true);
+      const state = useNotesStore.getState();
+      return {
+        totalMs: performance.now() - startedAt,
+        currentNoteContentLength: state.currentNote?.content.length ?? 0,
+        currentNotePath: state.currentNote?.path ?? null,
+      };
     },
     getNoteSelectableBlocks: () => {
       const view = getCurrentEditorView();
@@ -266,6 +434,25 @@ export function installSyncE2EBridge(): void {
         error,
         openTabs: openTabs.map((tab) => ({ ...tab })),
       };
+    },
+    getNoteContentCacheEntry: (path) => {
+      const { currentNote, noteContentsCache, openTabs } = useNotesStore.getState();
+      const entry = noteContentsCache.get(path);
+      return {
+        hasEntry: Boolean(entry),
+        contentLength: entry?.content.length ?? 0,
+        contentPreview: entry?.content.slice(0, 200) ?? '',
+        freshUntil: entry?.freshUntil ?? null,
+        modifiedAt: entry?.modifiedAt ?? null,
+        currentNotePath: currentNote?.path ?? null,
+        openTabPaths: openTabs.map((tab) => tab.path),
+        cacheKeys: Array.from(noteContentsCache.keys()),
+      };
+    },
+    pruneNoteContentsCacheToOpenNotes: () => {
+      const store = useNotesStore.getState();
+      store.cancelNoteContentScan();
+      store.pruneNoteContentsCacheToOpenNotes();
     },
     getNotesPreferences: () => {
       const { noteIconSize, recentNotes } = useNotesStore.getState();

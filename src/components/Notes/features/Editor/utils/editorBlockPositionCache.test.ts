@@ -11,6 +11,7 @@ import {
   getCurrentEditorBlockPositionSnapshot,
   isEditorHiddenByToolbarPreview,
   MAX_BLOCK_POSITION_SNAPSHOT_BLOCKS,
+  refreshCurrentEditorBlockPositionSnapshot,
   resolveToolbarPreviewRoot,
   setCurrentEditorBlockPositionSnapshot,
 } from './editorBlockPositionCache';
@@ -39,6 +40,10 @@ function withBlockIndex(
 }
 
 describe('editorBlockPositionCache', () => {
+  function waitForNextFrame(): Promise<void> {
+    return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  }
+
   it('detects toolbar-applied previews that temporarily hide the live editor', () => {
     const dom = document.createElement('div');
 
@@ -65,7 +70,7 @@ describe('editorBlockPositionCache', () => {
     expect(resolveToolbarPreviewRoot({ dom })).toBeNull();
   });
 
-  it('publishes outline headings from the live toolbar preview without replacing the editor root', () => {
+  it('publishes outline headings from the live toolbar preview without replacing the editor root', async () => {
     const scrollRoot = document.createElement('div');
     scrollRoot.setAttribute('data-note-scroll-root', 'true');
     scrollRoot.scrollTop = 40;
@@ -98,6 +103,8 @@ describe('editorBlockPositionCache', () => {
     };
 
     const controller = createCurrentEditorBlockPositionController(view as any);
+    expect(getCurrentEditorBlockPositionSnapshot()?.blocks).toEqual([]);
+    await waitForNextFrame();
     const snapshot = getCurrentEditorBlockPositionSnapshot();
 
     expect(snapshot?.editorRoot).toBe(dom);
@@ -114,7 +121,7 @@ describe('editorBlockPositionCache', () => {
     scrollRoot.remove();
   });
 
-  it('scans toolbar preview children without materializing the child list', () => {
+  it('scans toolbar preview children without materializing the child list', async () => {
     const host = document.createElement('div');
     const preview = document.createElement('div');
     const dom = document.createElement('div');
@@ -148,6 +155,8 @@ describe('editorBlockPositionCache', () => {
 
     try {
       const controller = createCurrentEditorBlockPositionController(view as any);
+      expect(getCurrentEditorBlockPositionSnapshot()?.blocks).toEqual([]);
+      await waitForNextFrame();
       const snapshot = getCurrentEditorBlockPositionSnapshot();
 
       expect(snapshot?.blocks).toHaveLength(2);
@@ -156,7 +165,7 @@ describe('editorBlockPositionCache', () => {
         level: 3,
         text: 'Second heading',
       });
-      expect(arrayFromSpy).not.toHaveBeenCalled();
+      expect(arrayFromSpy.mock.calls.some(([source]) => source === preview.children)).toBe(false);
 
       controller.destroy();
     } finally {
@@ -189,6 +198,62 @@ describe('editorBlockPositionCache', () => {
 
     controller.destroy();
     dom.remove();
+  });
+
+  it('can refresh an initially empty opening snapshot on demand', () => {
+    const dom = document.createElement('div');
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'Ready';
+    paragraph.getBoundingClientRect = () => rect(30, 54);
+    dom.append(paragraph);
+    document.body.append(dom);
+
+    const paragraphNode = {
+      type: { name: 'paragraph' },
+      nodeSize: 7,
+      forEach() {},
+    };
+    const doc = {
+      childCount: 1,
+      content: { size: 7 },
+      forEach(callback: (node: typeof paragraphNode, offset: number) => void) {
+        callback(paragraphNode, 0);
+      },
+      resolve() {
+        return {
+          parent: { type: { name: 'doc' } },
+          nodeAfter: paragraphNode,
+          index: () => 0,
+          posAtIndex: () => 0,
+        };
+      },
+    };
+    const view = {
+      dom,
+      state: { doc },
+      domAtPos() {
+        throw new Error('not needed');
+      },
+      nodeDOM() {
+        return paragraph;
+      },
+    };
+
+    const controller = createCurrentEditorBlockPositionController(view as any);
+    try {
+      expect(getCurrentEditorBlockPositionSnapshot()?.blocks).toEqual([]);
+
+      const snapshot = refreshCurrentEditorBlockPositionSnapshot(view as any);
+      expect(snapshot?.blocks).toHaveLength(1);
+      expect(getCachedEditorBlockTargetsNearY(
+        view as any,
+        42,
+        (candidateRect, candidateY) => candidateY >= candidateRect.top && candidateY <= candidateRect.bottom,
+      )?.[0]?.element).toBe(paragraph);
+    } finally {
+      controller.destroy();
+      dom.remove();
+    }
   });
 
   it('adjusts cached target viewport rects lazily on scroll without remeasuring or cloning every block', async () => {
@@ -225,6 +290,8 @@ describe('editorBlockPositionCache', () => {
     };
 
     const controller = createCurrentEditorBlockPositionController(view as any);
+    expect(getCurrentEditorBlockPositionSnapshot()?.blocks).toEqual([]);
+    await waitForNextFrame();
     const initial = getCurrentEditorBlockPositionSnapshot();
     expect(initial?.blocks[0]?.rect.top).toBe(100);
     expect(initial?.blocks[0]?.documentTop).toBe(110);

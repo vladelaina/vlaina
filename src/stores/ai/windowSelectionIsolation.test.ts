@@ -31,7 +31,7 @@ const mocked = vi.hoisted(() => {
     scheduleSessionJsonSave: vi.fn(),
     cancelSessionJsonSave: vi.fn(),
     deleteSessionJson: vi.fn(async () => {}),
-    loadSessionJson: vi.fn(async (): Promise<ChatMessage[] | null> => []),
+    loadSessionJson: vi.fn(async (_sessionId: string): Promise<ChatMessage[] | null> => []),
     hasSessionJson: vi.fn(async () => false),
     persistDataUrlAttachment: vi.fn(async () => 'attachment://persisted.png'),
     deleteAttachment: vi.fn(async () => {}),
@@ -521,6 +521,259 @@ describe('chat window selection isolation', () => {
     expect(useUnifiedStore.getState().data.ai?.currentSessionId).toBe('session-1');
     expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content).toBe('prefetched');
     expect(mocked.saveUnifiedData).not.toHaveBeenCalled();
+  });
+
+  it('reuses an active session prefetch when switching to the same chat', async () => {
+    let resolveLoad: (messages: ChatMessage[]) => void = () => {
+      throw new Error('load did not start');
+    };
+    mocked.loadSessionJson.mockImplementationOnce(
+      () =>
+        new Promise<ChatMessage[]>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'session-1',
+      temporaryChatEnabled: false,
+    });
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              messages: { 'session-1': state.data.ai.messages['session-1'] },
+            }
+          : state.data.ai,
+      },
+    }));
+
+    const prefetch = actions.prefetchSession('session-2');
+    await vi.waitFor(() => {
+      expect(mocked.loadSessionJson).toHaveBeenCalledWith('session-2');
+    });
+
+    const switchSession = actions.switchSession('session-2');
+    resolveLoad([
+      {
+        id: 'm2',
+        role: 'user',
+        content: 'prefetch reused',
+        modelId: managedModel.id,
+        timestamp: 2,
+        versions: [{ content: 'prefetch reused', createdAt: 2, kind: 'original' as const, subsequentMessages: [] }],
+        currentVersionIndex: 0,
+      },
+    ]);
+
+    await act(async () => {
+      await Promise.all([prefetch, switchSession]);
+    });
+
+    expect(mocked.loadSessionJson).toHaveBeenCalledTimes(1);
+    expect(useAIUIStore.getState().currentSessionId).toBe('session-2');
+    expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content).toBe('prefetch reused');
+  });
+
+  it('cancels a queued session prefetch while switching to the same chat directly', async () => {
+    const resolveBlockers: Array<(messages: ChatMessage[]) => void> = [];
+    let resolveDirectSwitch: (messages: ChatMessage[]) => void = () => {
+      throw new Error('direct switch load did not start');
+    };
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'session-1',
+      temporaryChatEnabled: false,
+    });
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              sessions: [
+                ...state.data.ai.sessions,
+                {
+                  id: 'session-3',
+                  title: 'Third',
+                  modelId: managedModel.id,
+                  createdAt: 3,
+                  updatedAt: 30,
+                },
+                {
+                  id: 'session-4',
+                  title: 'Fourth',
+                  modelId: managedModel.id,
+                  createdAt: 4,
+                  updatedAt: 40,
+                },
+              ],
+              messages: { 'session-1': state.data.ai.messages['session-1'] },
+            }
+          : state.data.ai,
+      },
+    }));
+    mocked.loadSessionJson.mockImplementation((sessionId: string) => {
+      if (sessionId === 'session-2' || sessionId === 'session-3') {
+        return new Promise<ChatMessage[]>((resolve) => {
+          resolveBlockers.push(resolve);
+        });
+      }
+      return new Promise<ChatMessage[]>((resolve) => {
+        resolveDirectSwitch = resolve;
+      });
+    });
+
+    const prefetches = [
+      actions.prefetchSession('session-2'),
+      actions.prefetchSession('session-3'),
+      actions.prefetchSession('session-4'),
+    ];
+    await vi.waitFor(() => {
+      expect(mocked.loadSessionJson).toHaveBeenCalledWith('session-2');
+      expect(mocked.loadSessionJson).toHaveBeenCalledWith('session-3');
+    });
+
+    const switchSession = actions.switchSession('session-4');
+    await vi.waitFor(() => {
+      expect(mocked.loadSessionJson).toHaveBeenCalledWith('session-4');
+    });
+
+    expect(useAIUIStore.getState().currentSessionId).toBe('session-4');
+
+    resolveBlockers.forEach((resolve, index) => {
+      resolve([
+        {
+          id: `m${index + 2}`,
+          role: 'user',
+          content: `prefetch blocker ${index + 2}`,
+          modelId: managedModel.id,
+          timestamp: index + 2,
+          versions: [{ content: `prefetch blocker ${index + 2}`, createdAt: index + 2, kind: 'original' as const, subsequentMessages: [] }],
+          currentVersionIndex: 0,
+        },
+      ]);
+    });
+    await act(async () => {
+      await Promise.all(prefetches);
+    });
+
+    expect(mocked.loadSessionJson.mock.calls.filter(([sessionId]) => sessionId === 'session-4')).toHaveLength(1);
+
+    resolveDirectSwitch([
+      {
+        id: 'm4',
+        role: 'user',
+        content: 'direct switch load',
+        modelId: managedModel.id,
+        timestamp: 4,
+        versions: [{ content: 'direct switch load', createdAt: 4, kind: 'original' as const, subsequentMessages: [] }],
+        currentVersionIndex: 0,
+      },
+    ]);
+    await act(async () => {
+      await switchSession;
+    });
+
+    expect(useUnifiedStore.getState().data.ai?.messages['session-4']?.[0]?.content).toBe('direct switch load');
+  });
+
+  it('cancels a queued session prefetch before it reads messages', async () => {
+    const resolveBlockers = new Map<string, (messages: ChatMessage[]) => void>();
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'session-1',
+      temporaryChatEnabled: false,
+    });
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              sessions: [
+                ...state.data.ai.sessions,
+                {
+                  id: 'session-3',
+                  title: 'Third',
+                  modelId: managedModel.id,
+                  createdAt: 3,
+                  updatedAt: 30,
+                },
+                {
+                  id: 'session-4',
+                  title: 'Fourth',
+                  modelId: managedModel.id,
+                  createdAt: 4,
+                  updatedAt: 40,
+                },
+              ],
+              messages: { 'session-1': state.data.ai.messages['session-1'] },
+            }
+          : state.data.ai,
+      },
+    }));
+    mocked.loadSessionJson.mockImplementation((sessionId: string) => {
+      if (sessionId === 'session-2' || sessionId === 'session-3') {
+        return new Promise<ChatMessage[]>((resolve) => {
+          resolveBlockers.set(sessionId, resolve);
+        });
+      }
+      return Promise.resolve([
+        {
+          id: 'm4',
+          role: 'user',
+          content: 'should not load',
+          modelId: managedModel.id,
+          timestamp: 4,
+          versions: [{ content: 'should not load', createdAt: 4, kind: 'original' as const, subsequentMessages: [] }],
+          currentVersionIndex: 0,
+        },
+      ]);
+    });
+
+    const prefetches = [
+      actions.prefetchSession('session-2'),
+      actions.prefetchSession('session-3'),
+      actions.prefetchSession('session-4'),
+    ];
+    await vi.waitFor(() => {
+      expect(mocked.loadSessionJson).toHaveBeenCalledWith('session-2');
+      expect(mocked.loadSessionJson).toHaveBeenCalledWith('session-3');
+    });
+
+    actions.cancelSessionPrefetch('session-4');
+    resolveBlockers.get('session-2')?.([
+      {
+        id: 'm2',
+        role: 'user',
+        content: 'prefetch blocker 2',
+        modelId: managedModel.id,
+        timestamp: 2,
+        versions: [{ content: 'prefetch blocker 2', createdAt: 2, kind: 'original' as const, subsequentMessages: [] }],
+        currentVersionIndex: 0,
+      },
+    ]);
+    resolveBlockers.get('session-3')?.([
+      {
+        id: 'm3',
+        role: 'user',
+        content: 'prefetch blocker 3',
+        modelId: managedModel.id,
+        timestamp: 3,
+        versions: [{ content: 'prefetch blocker 3', createdAt: 3, kind: 'original' as const, subsequentMessages: [] }],
+        currentVersionIndex: 0,
+      },
+    ]);
+
+    await act(async () => {
+      await Promise.all(prefetches);
+    });
+
+    expect(mocked.loadSessionJson.mock.calls.filter(([sessionId]) => sessionId === 'session-4')).toHaveLength(0);
+    expect(useUnifiedStore.getState().data.ai?.messages).not.toHaveProperty('session-4');
   });
 
   it('keeps a chat visible when deleting its message file fails', async () => {

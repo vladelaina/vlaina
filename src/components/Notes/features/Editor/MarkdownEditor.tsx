@@ -414,7 +414,7 @@ export function MarkdownEditor({
         ) : null}
 
         <div
-          className="w-full flex flex-col items-center"
+          className="w-full flex flex-col items-center relative"
           style={{
             marginLeft: contentOffset,
             transition: themeEditorLayoutTokens.contentOffsetTransition,
@@ -455,7 +455,24 @@ export function MarkdownEditor({
                 )}
               </Suspense>
             </>
-          ) : (
+          ) : null}
+
+          {!hasRenderableNote ? (
+            <div
+              aria-hidden="true"
+              className="absolute inset-x-0 top-0 h-px overflow-hidden opacity-0 pointer-events-none"
+              data-note-editor-prewarm="true"
+            >
+              <Suspense fallback={null}>
+                <MilkdownEditorRuntime
+                  active={false}
+                  showBodyLineNumbers={false}
+                />
+              </Suspense>
+            </div>
+          ) : null}
+
+          {!hasRenderableNote ? (
             <div
               className={cn(
                 'milkdown-editor min-h-[var(--vlaina-size-420px)]',
@@ -464,7 +481,7 @@ export function MarkdownEditor({
               )}
               data-note-placeholder-root="true"
             />
-          )}
+          ) : null}
         </div>
       </OverlayScrollArea>
     </div>
