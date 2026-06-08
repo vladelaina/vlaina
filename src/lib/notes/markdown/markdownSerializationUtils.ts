@@ -36,6 +36,14 @@ const LEAKED_USER_BR_SENTINEL_PATTERN =
   /(?:�+VLAINA_USER_BR_SENTINEL�*|�*VLAINA_USER_BR_SENTINEL�+)/g;
 const LEAKED_LIST_GAP_SENTINEL_WITH_NEWLINES_PATTERN =
   new RegExp(`\\n*${LEAKED_LIST_GAP_SENTINEL_PATTERN.source}\\n*`, 'g');
+const MARKDOWN_SPACE_ENTITY_PATTERN = /&#(?:x0*20|0*32)(?:;|(?=$|[ \t]))/i;
+const LEADING_MARKDOWN_SPACE_ENTITY_RUN_PATTERN =
+  /^(?:(?:[ \t]+)|(?:&#(?:x0*20|0*32);|&#(?:x0*20|0*32)(?=$|[ \t])))+/i;
+const MARKDOWN_SPACE_ENTITY_REPLACEMENT_PATTERN =
+  /&#(?:x0*20|0*32);|&#(?:x0*20|0*32)(?:[ \t]|$)/gi;
+const BLOCKQUOTE_CONTAINER_PREFIX_PATTERN = /^(?: {0,3}>[ \t]?)/;
+const LIST_CONTAINER_PREFIX_PATTERN =
+  /^(?: {0,3}(?:[-+*]|\d{1,9}[.)])[ \t]+(?:\[(?: |x|X)\][ \t]+)?)/;
 const INVISIBLE_EMPTY_LINE_PLACEHOLDER_PATTERN = /^[\t ]*\\?\u200B[\t ]*$/;
 const INVISIBLE_LIST_GAP_PLACEHOLDER_PATTERN = /^[\t ]*\\?\u200B\\?\u200C[\t ]*$/;
 const EDITABLE_LIST_GAP_PLACEHOLDER_PATTERN = /^[\t ]*\u2800[\t ]*$/;
@@ -782,6 +790,43 @@ function normalizeUrlSerializationArtifacts(text: string): string {
   );
 }
 
+function normalizeMarkdownSpaceEntityArtifacts(text: string): string {
+  if (!MARKDOWN_SPACE_ENTITY_PATTERN.test(text)) return text;
+
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment.split('\n').map(normalizeMarkdownSpaceEntityLine).join('\n')
+  );
+}
+
+function normalizeMarkdownSpaceEntityLine(line: string): string {
+  const contentStart = getMarkdownContainerContentStart(line);
+  const leadingContent = line.slice(contentStart);
+  const match = LEADING_MARKDOWN_SPACE_ENTITY_RUN_PATTERN.exec(leadingContent);
+  if (!match) return line;
+
+  return `${line.slice(0, contentStart)}${leadingContent.replace(
+    LEADING_MARKDOWN_SPACE_ENTITY_RUN_PATTERN,
+    (prefix) => prefix.replace(MARKDOWN_SPACE_ENTITY_REPLACEMENT_PATTERN, ' ')
+  )}`;
+}
+
+function getMarkdownContainerContentStart(line: string): number {
+  let cursor = 0;
+
+  while (cursor < line.length) {
+    const blockquoteMatch = BLOCKQUOTE_CONTAINER_PREFIX_PATTERN.exec(line.slice(cursor));
+    if (!blockquoteMatch) break;
+    cursor += blockquoteMatch[0].length;
+  }
+
+  const listMatch = LIST_CONTAINER_PREFIX_PATTERN.exec(line.slice(cursor));
+  if (listMatch) {
+    cursor += listMatch[0].length;
+  }
+
+  return cursor;
+}
+
 function stripEmptyMarkdownPlaceholders(text: string): string {
   return mapMarkdownOutsideProtectedBlocks(
     normalizeEditorBreakPlaceholders(text),
@@ -830,6 +875,24 @@ export function normalizeSerializedMarkdownDocument(text: string): string {
   return output;
 }
 
+export function normalizeEditorRuntimeMarkdownArtifacts(text: string): string {
+  const afterInternalTightHeadingComments = normalizeInternalTightHeadingComments(text);
+  const afterInternalMarkdownBlankLineComments =
+    normalizeInternalMarkdownBlankLineComments(afterInternalTightHeadingComments);
+  const afterStripPlaceholders = stripEmptyMarkdownPlaceholders(afterInternalMarkdownBlankLineComments);
+  const afterEmptyParagraphBreaks = normalizeEditorEmptyParagraphBreaks(afterStripPlaceholders);
+  const afterUserBreaks = normalizeUserBreakSentinels(afterEmptyParagraphBreaks);
+  const afterListItems = normalizeListItemBlankLines(afterUserBreaks);
+  const afterLeakedInternalArtifacts = normalizeUserBreakSentinels(
+    normalizeLeakedInternalArtifacts(afterListItems)
+  );
+  const afterTableCellBreaks = normalizeTableCellBreakPlaceholders(afterLeakedInternalArtifacts);
+  const afterStandaloneBreakHtml = normalizeStandaloneBreakHtmlToMarkdown(afterTableCellBreaks);
+  const afterMarkdownSpaceEntities = normalizeMarkdownSpaceEntityArtifacts(afterStandaloneBreakHtml);
+
+  return preserveParagraphSoftBreaksAsHardBreaks(afterMarkdownSpaceEntities);
+}
+
 export function summarizeMarkdownNormalizationPipeline(text: string) {
   const pipeline = runMarkdownDocumentNormalizationPipeline(text);
   return Object.fromEntries(
@@ -865,8 +928,9 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
   const afterAbbreviationDefinitions = afterEscapedHighlight;
   const afterTableCellBreaks = normalizeTableCellBreakPlaceholders(afterAbbreviationDefinitions);
   const afterStandaloneBreakHtml = normalizeStandaloneBreakHtmlToMarkdown(afterTableCellBreaks);
+  const afterMarkdownSpaceEntities = normalizeMarkdownSpaceEntityArtifacts(afterStandaloneBreakHtml);
   const output = normalizeUrlSerializationArtifacts(
-    preserveParagraphSoftBreaksAsHardBreaks(afterStandaloneBreakHtml)
+    preserveParagraphSoftBreaksAsHardBreaks(afterMarkdownSpaceEntities)
   );
 
   return {
@@ -887,6 +951,7 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
     afterAbbreviationDefinitions,
     afterTableCellBreaks,
     afterStandaloneBreakHtml,
+    afterMarkdownSpaceEntities,
     output,
   };
 }

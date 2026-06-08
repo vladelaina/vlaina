@@ -16,6 +16,7 @@ import {
   preserveMarkdownBlankLinesForEditor,
   stripTrailingNewlines,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { expectPersistedMarkdownToBeClean } from './persistedMarkdownAssertions';
 
 const EMPTY_LINE_PLACEHOLDER = '\u200B';
 
@@ -169,14 +170,6 @@ async function expectEditorCreatedEnterBlankLines({
   expect(stripTrailingNewlines(normalizeSerializedMarkdownDocument(reopened))).toBe(expected);
 
   await editor.destroy();
-}
-
-function expectPersistedMarkdownToBeClean(markdown: string): void {
-  expect(markdown).not.toMatch(/data-vlaina-/);
-  expect(markdown).not.toMatch(/date-vlaina-/);
-  expect(markdown).not.toContain('\u200B');
-  expect(markdown).not.toContain('\u200C');
-  expect(markdown).not.toContain('VLAINA_LIST_GAP_SENTINEL');
 }
 
 describe('preserveMarkdownBlankLinesForEditor', () => {

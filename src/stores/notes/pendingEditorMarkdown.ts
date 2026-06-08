@@ -1,3 +1,4 @@
+import { normalizeEditorRuntimeMarkdownArtifacts } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { setCachedNoteContent } from './document/noteContentCache';
@@ -13,6 +14,7 @@ export function flushPendingEditorMarkdown(notePath: string | null | undefined, 
     return false;
   }
 
+  const normalizedMarkdown = normalizeEditorRuntimeMarkdownArtifacts(markdown);
   const state = useNotesStore.getState();
   const isKnownWorkspaceNote =
     state.currentNote?.path === notePath ||
@@ -27,7 +29,7 @@ export function flushPendingEditorMarkdown(notePath: string | null | undefined, 
       ? state.currentNote.content
       : state.noteContentsCache.get(notePath)?.content;
 
-  if (currentContent === markdown) {
+  if (currentContent === normalizedMarkdown) {
     return false;
   }
 
@@ -35,7 +37,7 @@ export function flushPendingEditorMarkdown(notePath: string | null | undefined, 
   useNotesStore.setState((latest) => {
     const isCurrentNote = latest.currentNote?.path === notePath;
     const nextCurrentNote = isCurrentNote && latest.currentNote
-      ? { path: latest.currentNote.path, content: markdown }
+      ? { path: latest.currentNote.path, content: normalizedMarkdown }
       : latest.currentNote;
 
     return {
@@ -53,7 +55,7 @@ export function flushPendingEditorMarkdown(notePath: string | null | undefined, 
       noteContentsCache: setCachedNoteContent(
         latest.noteContentsCache,
         notePath,
-        markdown,
+        normalizedMarkdown,
         modifiedAt,
       ),
     };

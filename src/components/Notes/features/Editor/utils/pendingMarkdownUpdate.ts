@@ -1,4 +1,5 @@
 import {
+  normalizeSerializedMarkdownDocument,
   restoreMathBlockFenceStylesFromReference,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { serializeLeadingFrontmatterMarkdown } from '../plugins/frontmatter/frontmatterMarkdown';
@@ -52,8 +53,11 @@ export function resolvePendingMarkdownUpdate({
 }
 
 export function serializeEditorMarkdownSnapshot(markdown: string, referenceMarkdown: string): string {
+  const normalizedMarkdown = normalizeSerializedMarkdownDocument(
+    restoreMathBlockFenceStylesFromReference(markdown, referenceMarkdown)
+  );
   return serializeLeadingFrontmatterMarkdown(
-    restoreMathBlockFenceStylesFromReference(markdown, referenceMarkdown),
+    normalizedMarkdown,
     referenceMarkdown,
   );
 }
