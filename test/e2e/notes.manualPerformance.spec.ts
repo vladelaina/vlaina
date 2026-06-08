@@ -2,6 +2,10 @@ import { expect, test, _electron as electron, type ElectronApplication, type Pag
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import {
+  installReferenceTyporaTheme,
+  waitForEditorAnimationFrame,
+} from './notesE2E';
 
 const EDITOR_SELECTOR = '.milkdown .ProseMirror';
 const SELECTED_BLOCK_SELECTOR = `${EDITOR_SELECTOR} .editor-block-selected`;
@@ -64,7 +68,7 @@ async function closeElectron(app: ElectronApplication): Promise<void> {
 test.describe('notes manual markdown performance', () => {
   test.setTimeout(120_000);
 
-  test('opens and renders test/e2e/notes-manual-performance.md', async () => {
+  test('opens and renders test/e2e/notes-manual-performance.md under an imported Typora theme', async () => {
     const manualMarkdown = await fs.readFile(MANUAL_MARKDOWN_PATH, 'utf8');
     expect(manualMarkdown.trim().length).toBeGreaterThan(0);
 
@@ -86,6 +90,9 @@ test.describe('notes manual markdown performance', () => {
           console.info(text);
         }
       });
+
+      const installedTheme = await installReferenceTyporaTheme(page, 'vlook-fancy.css');
+      console.info('[notes-manual-performance-typora-theme]', installedTheme);
 
       const { notePath } = await page.evaluate((content) =>
         (window as any).__vlainaE2E.createNotesFixture({
@@ -381,7 +388,8 @@ test.describe('notes manual markdown performance', () => {
       if (!firstSelectedBox) {
         throw new Error('Could not resolve selected block geometry');
       }
-      await page.mouse.move(Math.max(8, firstSelectedBox.x - 18), firstSelectedBox.y + firstSelectedBox.height / 2);
+      await page.mouse.move(firstSelectedBox.x + 8, firstSelectedBox.y + firstSelectedBox.height / 2);
+      await waitForEditorAnimationFrame(page);
       await expect(page.locator(BLOCK_CONTROLS_SELECTOR)).toBeVisible({ timeout: 10_000 });
       const blockControlsMetrics = await page.evaluate(() => {
         const controls = document.querySelector<HTMLElement>('.editor-block-controls.visible');
@@ -422,6 +430,7 @@ test.describe('notes manual markdown performance', () => {
         },
         blockControlsMetrics,
         milkdownTimingLogCount: milkdownTimings.length,
+        importedTheme: installedTheme,
       };
 
       console.info('[notes-manual-performance]', JSON.stringify(metrics, null, 2));
