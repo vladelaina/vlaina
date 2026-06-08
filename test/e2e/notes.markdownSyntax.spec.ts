@@ -58,6 +58,11 @@ test.describe('notes markdown syntax rendering', () => {
         'ATX Closed Heading Sentinel',
         'Heading Level Six Sentinel',
         'Inline marks paragraph',
+        'Reference variants',
+        'Nested inline sentinel',
+        'bold italic sentinel',
+        'inline code child',
+        'Entity sentinel',
         'colored text sentinel',
         'background color sentinel',
         'html mark sentinel',
@@ -66,6 +71,15 @@ test.describe('notes markdown syntax rendering', () => {
         'html underline sentinel',
         'rgb colored text sentinel',
         'named background color sentinel',
+        'mixed css color sentinel',
+        'mixed css background sentinel',
+        'nested color emphasis sentinel',
+        'nested background strong sentinel',
+        'Escaped custom inline mark sentinels',
+        'literal highlight',
+        'literal underline',
+        'a < b & c',
+        'unsupported inline span sentinel < text',
         'API abbreviation sentinel',
         'Soft break line one sentinel',
         'hard break line two sentinel',
@@ -85,19 +99,28 @@ test.describe('notes markdown syntax rendering', () => {
         'Nested ordered child sentinel',
         'Third-level mixed bullet sentinel',
         'Ordered item beta',
+        'Parenthesized ordered item alpha',
+        'Parenthesized ordered item beta',
         'Ordered list separator paragraph sentinel',
         'Ordered item custom start sentinel',
         'Task item unchecked sentinel',
         'Task item checked sentinel',
         'Nested task item sentinel',
+        'Task item uppercase checked sentinel',
+        'Loose task detail sentinel',
         'Term sentinel',
         'Definition description sentinel',
         'Second definition description sentinel',
         'Combined definition description sentinel',
+        'Escaped definition marker sentinel',
         'Table alpha',
         'code block sentinel',
         'plain code block sentinel',
         'indented code block sentinel',
+        'languageAliasSentinel',
+        'tildeFenceSentinel',
+        'nestedFenceSentinel',
+        'Advanced inline math sentinels',
         'Inline math sentinel',
         'Footnote reference sentinel',
         'Footnote definition sentinel',
@@ -106,6 +129,11 @@ test.describe('notes markdown syntax rendering', () => {
         'Centered paragraph sentinel',
         'Right aligned heading sentinel',
         'Raw HTML block sentinel',
+        'Inline raw HTML sentinel',
+        'han sentinel',
+        'Details summary sentinel',
+        'Details body sentinel',
+        'raw pre html sentinel',
         'Final paragraph sentinel',
       ]);
 
@@ -131,25 +159,34 @@ test.describe('notes markdown syntax rendering', () => {
       await expect(page.locator(`${EDITOR_SELECTOR} li[data-item-type="task"][data-checked="false"]`, { hasText: 'Task item unchecked sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} li[data-item-type="task"][data-checked="true"]`, { hasText: 'Task item checked sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} li[data-item-type="task"][data-checked="false"]`, { hasText: 'Nested task item sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} li[data-item-type="task"][data-checked="true"]`, { hasText: 'Task item uppercase checked sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} li[data-item-type="task"]`, { hasText: 'Loose task detail sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} ul ul ul > li`, { hasText: 'Third-level bullet sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} ul ol > li`, { hasText: 'Nested ordered child sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} ul ol ul > li`, { hasText: 'Third-level mixed bullet sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} ul > li`, { hasText: 'Plus bullet item sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} ul > li`, { hasText: 'Star bullet item sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} ol > li`, { hasText: 'Parenthesized ordered item alpha' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} ol[start="7"] > li`, { hasText: 'Ordered item custom start sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR}`, { hasText: 'Term sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR}`, { hasText: 'Definition description sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR}`, { hasText: 'Combined definition description sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} table`, { hasText: 'Table alpha' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} table`, { hasText: 'Escaped | pipe' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} table strong`, { hasText: 'Bold table sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} table code`, { hasText: 'a | b' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} th`).first()).toHaveText('Feature');
       await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'syntaxSentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container[data-language="ts"]`, { hasText: 'syntaxSentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'languageAliasSentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'tildeFenceSentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'nestedFenceSentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'plain code block sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'indented code block sentinel' })).toBeVisible();
-      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="math-block"]`)).toHaveCount(2);
-      await expect(page.locator(`${EDITOR_SELECTOR} span[data-type="math-inline"]`)).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="math-block"]`)).toHaveCount(4);
+      await expect(page.locator(`${EDITOR_SELECTOR} span[data-type="math-inline"]`)).toHaveCount(3);
       await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="mermaid"]`).first()).toBeVisible();
-      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="mermaid"]`)).toHaveCount(5);
+      await expect(page.locator(`${EDITOR_SELECTOR} div[data-type="mermaid"]`)).toHaveCount(7);
       await expect(page.locator(`${EDITOR_SELECTOR} .image-block-container, ${EDITOR_SELECTOR} img.md-image`).first()).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} .image-block-container[data-alt="Image alt sentinel"]`)).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} .image-block-container[data-alt="HTML image alt sentinel"][data-width="40%"][data-align="right"]`)).toBeVisible();
@@ -173,17 +210,31 @@ test.describe('notes markdown syntax rendering', () => {
       await expect(page.locator(`${EDITOR_SELECTOR} sup`, { hasText: 'html sup sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} sub`, { hasText: 'subscript text' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} sub`, { hasText: 'html sub sentinel' })).toBeVisible();
-      await expect(page.locator(`${EDITOR_SELECTOR} code.v-std-code`, { hasText: 'inline code' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} code.v-std-code`).getByText('inline code', { exact: true })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} strong em, ${EDITOR_SELECTOR} em strong`, { hasText: 'bold italic sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} strong code`, { hasText: 'inline code child' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} code`, { hasText: 'npm run `build`' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} span[data-text-color="#2563eb"]`, { hasText: 'colored text sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} mark[data-bg-color="#fde047"]`, { hasText: 'background color sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} span[data-text-color="rgb(37, 99, 235)"]`, { hasText: 'rgb colored text sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} mark[data-bg-color="yellow"]`, { hasText: 'named background color sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} span[data-text-color="#123456"]`, { hasText: 'mixed css color sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} mark[data-bg-color="#ecf6ff"]`, { hasText: 'mixed css background sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} em`, { hasText: 'nested color emphasis sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} strong`, { hasText: 'nested background strong sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} p`, { hasText: 'Escaped custom inline mark sentinels' })).toContainText('==literal highlight==');
+      await expect(page.locator(`${EDITOR_SELECTOR} p`, { hasText: 'Escaped custom inline mark sentinels' })).toContainText('++literal underline++');
+      await expect(page.locator(`${EDITOR_SELECTOR} p`, { hasText: 'unsupported inline span sentinel < text' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} abbr[title="HyperText Markup Language"]`, { hasText: 'HTML' }).first()).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} abbr[title="Application Programming Interface"]`, { hasText: 'API' }).first()).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} p`, { hasText: '*[ESCAPED]: Escaped abbreviation definition sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} [data-editor-tag-token="true"]`, { hasText: '#syntax-tag' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} a[href="https://example.com/docs"]`, { hasText: 'explicit link' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} a[href="https://example.com/reference"]`, { hasText: 'reference docs link' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} a[href="./linked-note.md#target-heading"]`, { hasText: 'internal note link' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} a[href="https://example.com/docs/a_(b)"]`, { hasText: 'parenthesized guide' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} a[href="docs/file name.md"]`, { hasText: 'angle local file' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} a[href="docs/file (draft).md?x=1&y=2"]`, { hasText: 'query link' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} a.autolink[href="https://example.com/autolink-angle"]`, { hasText: 'https://example.com/autolink-angle' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} a.autolink[href="https://www.example.org"]`)).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} a.autolink[href="mailto:syntax@example.com"]`)).toBeVisible();
@@ -194,6 +245,13 @@ test.describe('notes markdown syntax rendering', () => {
       await expect(page.locator(`${EDITOR_SELECTOR} p[data-text-align="center"]`, { hasText: 'Centered paragraph sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} h3[data-text-align="right"]`, { hasText: 'Right aligned heading sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} .md-htmlblock, ${EDITOR_SELECTOR} .md-htmlblock-container`, { hasText: 'Raw HTML block sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} kbd`, { hasText: 'Ctrl' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} ruby rt`, { hasText: 'han sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} details`, { hasText: 'Details body sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} pre`, { hasText: 'raw pre html sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} iframe[src="https://example.com/embed"]`)).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} video[src="xxx.mp4"]`)).toHaveCount(1);
+      await expect(page.locator(`${EDITOR_SELECTOR} audio[src="xxx.mp3"]`)).toHaveCount(1);
       await expect(page.locator(`${EDITOR_SELECTOR} [data-type="hr"]`)).toHaveCount(3);
 
       await expect(page.locator(`${EDITOR_SELECTOR} table th`, { hasText: 'Status' })).toBeVisible();
@@ -206,14 +264,14 @@ test.describe('notes markdown syntax rendering', () => {
       expect(metrics.countsBySelector.blockquotes).toBeGreaterThanOrEqual(1);
       expect(metrics.countsBySelector.callouts).toBeGreaterThanOrEqual(3);
       expect(metrics.countsBySelector.bulletItems).toBeGreaterThanOrEqual(9);
-      expect(metrics.countsBySelector.orderedItems).toBeGreaterThanOrEqual(5);
-      expect(metrics.countsBySelector.taskItems).toBe(3);
+      expect(metrics.countsBySelector.orderedItems).toBeGreaterThanOrEqual(7);
+      expect(metrics.countsBySelector.taskItems).toBeGreaterThanOrEqual(4);
       expect(metrics.countsBySelector.tables).toBeGreaterThanOrEqual(1);
-      expect(metrics.countsBySelector.codeBlocks).toBeGreaterThanOrEqual(3);
+      expect(metrics.countsBySelector.codeBlocks).toBeGreaterThanOrEqual(6);
       expect(metrics.countsBySelector.frontmatter).toBeGreaterThanOrEqual(1);
-      expect(metrics.countsBySelector.mathBlocks).toBeGreaterThanOrEqual(2);
-      expect(metrics.countsBySelector.mathInline).toBeGreaterThanOrEqual(1);
-      expect(metrics.countsBySelector.mermaid).toBeGreaterThanOrEqual(5);
+      expect(metrics.countsBySelector.mathBlocks).toBeGreaterThanOrEqual(4);
+      expect(metrics.countsBySelector.mathInline).toBeGreaterThanOrEqual(3);
+      expect(metrics.countsBySelector.mermaid).toBeGreaterThanOrEqual(7);
       expect(metrics.countsBySelector.video).toBeGreaterThanOrEqual(4);
       expect(metrics.countsBySelector.toc).toBeGreaterThanOrEqual(2);
       expect(metrics.countsBySelector.footnoteRefs).toBeGreaterThanOrEqual(2);
@@ -246,34 +304,37 @@ test.describe('notes markdown syntax rendering', () => {
       expect(selectedCount).toBeGreaterThanOrEqual(4);
       await expect(page.locator(SELECTED_BLOCK_SELECTOR).first()).toBeVisible();
 
+      const hoveredSelected = page.locator(SELECTED_BLOCK_SELECTOR, { hasText: 'Inline marks paragraph' }).first();
       await scrollNoteToTop(page);
       await scrollElementIntoViewByText(page, SELECTED_BLOCK_SELECTOR, 'Inline marks paragraph');
-      const hoveredSelected = page.locator(SELECTED_BLOCK_SELECTOR, { hasText: 'Inline marks paragraph' }).first();
-      const selectedRect = await hoveredSelected.boundingBox();
-      if (!selectedRect) {
-        throw new Error('Could not resolve selected block geometry');
-      }
-      await page.mouse.move(Math.max(8, selectedRect.x - 18), selectedRect.y + selectedRect.height / 2);
-      await expect(page.locator(BLOCK_CONTROLS_SELECTOR)).toBeVisible();
+      await hoveredSelected.scrollIntoViewIfNeeded();
 
-      const handleGeometry = await page.evaluate(() => {
-        const controls = document.querySelector<HTMLElement>('.editor-block-controls.visible');
-        const selected = Array.from(
-          document.querySelectorAll<HTMLElement>('.milkdown .ProseMirror .editor-block-selected')
-        ).find((element) => element.textContent?.includes('Inline marks paragraph'));
-        if (!controls || !selected) return null;
-        const controlsRect = controls.getBoundingClientRect();
-        const selectedRect = selected.getBoundingClientRect();
-        return {
-          controlsCenterY: controlsRect.top + controlsRect.height / 2,
-          selectedCenterY: selectedRect.top + selectedRect.height / 2,
-          controlsLeft: controlsRect.left,
-          selectedLeft: selectedRect.left,
-        };
-      });
-      expect(handleGeometry).not.toBeNull();
-      expect(Math.abs(handleGeometry!.controlsCenterY - handleGeometry!.selectedCenterY)).toBeLessThanOrEqual(2);
-      expect(handleGeometry!.controlsLeft).toBeLessThan(handleGeometry!.selectedLeft);
+      await expect.poll(async () => {
+        const selectedRect = await hoveredSelected.boundingBox();
+        if (!selectedRect) return false;
+        await page.mouse.move(Math.max(8, selectedRect.x - 18), selectedRect.y + selectedRect.height / 2);
+        await page.waitForTimeout(50);
+        const geometry = await page.evaluate(() => {
+          const controls = document.querySelector<HTMLElement>('.editor-block-controls.visible');
+          const selected = Array.from(
+            document.querySelectorAll<HTMLElement>('.milkdown .ProseMirror .editor-block-selected')
+          ).find((element) => element.textContent?.includes('Inline marks paragraph'));
+          if (!controls || !selected) return null;
+          const controlsRect = controls.getBoundingClientRect();
+          const selectedRect = selected.getBoundingClientRect();
+          return {
+            controlsCenterY: controlsRect.top + controlsRect.height / 2,
+            selectedCenterY: selectedRect.top + selectedRect.height / 2,
+            controlsLeft: controlsRect.left,
+            selectedLeft: selectedRect.left,
+          };
+        });
+        return (
+          geometry !== null &&
+          Math.abs(geometry.controlsCenterY - geometry.selectedCenterY) <= 2 &&
+          geometry.controlsLeft < geometry.selectedLeft
+        );
+      }, { timeout: 5000 }).toBe(true);
 
       await clearSelectedNoteBlocks(page);
       await expect(page.locator(SELECTED_BLOCK_SELECTOR)).toHaveCount(0);
