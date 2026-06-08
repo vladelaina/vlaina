@@ -635,8 +635,8 @@
   --vlaina-color-overlay: rgb(0 0 0 / 0.5);
   --vlaina-color-backdrop-soft: rgb(39 39 42 / 0.2);
   --vlaina-color-drop-overlay: rgb(255 255 255 / 0.2);
-  --vlaina-color-scrollbar-thumb: #efefef;
-  --vlaina-color-scrollbar-thumb-hover: rgba(120, 120, 120, 0.5);
+  --vlaina-color-scrollbar-thumb: rgb(30 150 235 / 0.38);
+  --vlaina-color-scrollbar-thumb-hover: rgb(30 150 235 / 0.68);
   --vlaina-color-setting-panel: #fcfcfc;
   --vlaina-color-setting-content: rgba(255, 255, 255, 0.5);
   --vlaina-color-setting-control: #f4f4f5;
@@ -1022,8 +1022,8 @@
   --vlaina-color-overlay: rgb(0 0 0 / 0.68);
   --vlaina-color-backdrop-soft: rgb(0 0 0 / 0.36);
   --vlaina-color-drop-overlay: rgb(255 255 255 / 0.07);
-  --vlaina-color-scrollbar-thumb: rgb(255 255 255 / 0.18);
-  --vlaina-color-scrollbar-thumb-hover: rgb(255 255 255 / 0.38);
+  --vlaina-color-scrollbar-thumb: rgb(65 168 234 / 0.34);
+  --vlaina-color-scrollbar-thumb-hover: rgb(65 168 234 / 0.62);
   --vlaina-color-setting-panel: #0b0b0c;
   --vlaina-color-setting-content: rgb(255 255 255 / 0.035);
   --vlaina-color-setting-control: #171719;

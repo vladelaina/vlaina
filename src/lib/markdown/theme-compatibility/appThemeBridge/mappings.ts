@@ -55,8 +55,6 @@ export const VLAINA_COLOR_THEME_MAPPINGS: VlainaThemeMapping[] = [
   { target: '--vlaina-color-mark-highlight-fg', sources: ['--df', '--text-normal'] },
   { target: '--vlaina-color-find-match-bg', sources: ['--mark-bg', '--text-highlight-bg', '--color-yellow'] },
   { target: '--vlaina-color-find-match-active-bg', sources: ['--ac-ye', '--color-yellow'] },
-  { target: '--vlaina-color-scrollbar-thumb', sources: ['--pn-c-a', '--scrollbar-thumb-bg', '--background-modifier-border'] },
-  { target: '--vlaina-color-scrollbar-thumb-hover', sources: ['--a-c', '--scrollbar-active-thumb-bg', '--interactive-accent', '--text-accent'] },
   { target: '--vlaina-color-setting-panel', sources: ['--db-ext', '--db', '--background-primary'] },
   { target: '--vlaina-color-setting-content', sources: ['--bq-bg-fd', '--background-secondary'] },
   { target: '--vlaina-color-setting-control', sources: ['--pn-c', '--background-secondary', '--interactive-normal'] },

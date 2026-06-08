@@ -50,7 +50,8 @@ describe('imported app theme bridge', () => {
     expect(bridged).toContain('--vlaina-color-warning: var(--ac-og);');
     expect(bridged).toContain('--vlaina-color-danger: var(--ac-rd);');
     expect(bridged).toContain('--vlaina-color-surface-hover: var(--bq-bg-fd);');
-    expect(bridged).toContain('--vlaina-color-scrollbar-thumb: var(--pn-c-a);');
+    expect(bridged).not.toContain('--vlaina-color-scrollbar-thumb:');
+    expect(bridged).not.toContain('--vlaina-color-scrollbar-thumb-hover:');
     expect(bridged).toContain('--vlaina-sidebar-text: var(--df);');
     expect(bridged).toContain('--vlaina-sidebar-notes-folder-icon: var(--ac-bu);');
     expect(bridged).toContain('--vlaina-color-table-drag-control-border: var(--pn-c-a);');
@@ -127,8 +128,8 @@ describe('imported app theme bridge', () => {
     expect(bridged).toContain('--vlaina-color-success: var(--color-green);');
     expect(bridged).toContain('--vlaina-color-warning: var(--color-orange);');
     expect(bridged).toContain('--vlaina-color-info: var(--color-blue);');
-    expect(bridged).toContain('--vlaina-color-scrollbar-thumb: var(--scrollbar-thumb-bg);');
-    expect(bridged).toContain('--vlaina-color-scrollbar-thumb-hover: var(--scrollbar-active-thumb-bg);');
+    expect(bridged).not.toContain('--vlaina-color-scrollbar-thumb:');
+    expect(bridged).not.toContain('--vlaina-color-scrollbar-thumb-hover:');
     expect(bridged).toContain('--vlaina-sidebar-text: var(--nav-item-color);');
     expect(bridged).toContain('--vlaina-sidebar-icon: var(--nav-collapse-icon-color);');
     expect(bridged).toContain('--vlaina-sidebar-row-hover: var(--nav-item-background-hover);');
