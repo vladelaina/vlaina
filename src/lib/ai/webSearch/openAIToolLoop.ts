@@ -330,22 +330,24 @@ function buildCachedReadToolMessages(
   });
 }
 
-function cacheReadContentForSources(
+function cacheReadContentForToolMessages(
   readContentByUrl: Map<string, string>,
-  sourceUrls: string[],
+  toolCalls: OpenAIToolCall[],
   toolMessages: OpenAIWireMessage[],
 ): void {
-  const content = toolMessages
-    .map((message) => typeof message.content === 'string' ? message.content : '')
-    .filter((value) => value.trim().length > 0)
-    .join('\n\n');
-  if (!content.trim()) return;
-  for (const url of sourceUrls) {
-    const normalized = normalizeReadCacheUrl(url);
-    if (normalized && !readContentByUrl.has(normalized)) {
-      readContentByUrl.set(normalized, content);
+  toolCalls.forEach((toolCall, index) => {
+    const toolMessage = toolMessages[index];
+    const content = typeof toolMessage?.content === 'string' ? toolMessage.content : '';
+    if (!content.trim()) return;
+    for (const url of getReadToolUrls(toolCall)) {
+      const safeUrl = sanitizeWebSearchSourceUrl(url);
+      if (!safeUrl) continue;
+      const normalized = normalizeReadCacheUrl(safeUrl);
+      if (normalized && !readContentByUrl.has(normalized)) {
+        readContentByUrl.set(normalized, content);
+      }
     }
-  }
+  });
 }
 
 function buildNoToolRecoveryMessages(
@@ -1293,7 +1295,7 @@ export async function runOpenAIWebSearchToolLoop({
     });
     const toolMessages = await runToolCallsInParallel(result.toolCalls, { client, onStatus: emitStatus, signal });
     throwIfAborted(signal);
-    cacheReadContentForSources(readContentByUrl, sourceUrls, toolMessages);
+    cacheReadContentForToolMessages(readContentByUrl, result.toolCalls, toolMessages);
     messages = [
       ...messages,
       assistantToolMessage,
@@ -1525,7 +1527,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
       autoReadAfterSearch,
     });
     throwIfAborted(signal);
-    cacheReadContentForSources(readContentByUrl, sourceUrls, toolMessages);
+    cacheReadContentForToolMessages(readContentByUrl, result.toolCalls, toolMessages);
     messages = [
       ...messages,
       assistantToolMessage,

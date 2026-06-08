@@ -301,6 +301,10 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     const state = get();
     const vaultPathAtStart = state.notesPath;
     const isDraftMetadataTarget = isDraftNotePath(path);
+    if (!isDraftMetadataTarget && !isSupportedMarkdownPath(path)) {
+      set({ error: 'Only Markdown files can be opened as notes.' });
+      return;
+    }
     if (hasInternalNotePathSegment(path) || (vaultPathAtStart && hasInternalNotePathSegment(vaultPathAtStart))) {
       set({ error: 'Path must not be inside an internal notes folder.' });
       return;

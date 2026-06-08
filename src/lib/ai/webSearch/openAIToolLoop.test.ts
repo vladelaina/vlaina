@@ -269,6 +269,101 @@ describe('OpenAI web search JSON tool loop', () => {
     ]);
   });
 
+  it('caches repeated JSON page reads by the requested URL content', async () => {
+    const requestJson = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: '',
+            tool_calls: [{
+              id: 'call-1',
+              type: 'function',
+              function: {
+                name: 'read_pages',
+                arguments: JSON.stringify({
+                  urls: ['https://example.com/one', 'https://example.com/two'],
+                }),
+              },
+            }],
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: '',
+            tool_calls: [{
+              id: 'call-2',
+              type: 'function',
+              function: {
+                name: 'read_url',
+                arguments: JSON.stringify({ url: 'https://example.com/one' }),
+              },
+            }],
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: 'Final answer using the first page only.',
+          },
+        }],
+      });
+    const client = {
+      webSearch: vi.fn(),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(async () => [
+        {
+          url: 'https://example.com/one',
+          ok: true,
+          page: {
+            title: 'One',
+            summary: '',
+            siteName: 'example.com',
+            finalUrl: 'https://example.com/one',
+            content: 'Only first page content.',
+            charCount: 24,
+          },
+        },
+        {
+          url: 'https://example.com/two',
+          ok: true,
+          page: {
+            title: 'Two',
+            summary: '',
+            siteName: 'example.com',
+            finalUrl: 'https://example.com/two',
+            content: 'Second page content must not be reused.',
+            charCount: 39,
+          },
+        },
+      ]),
+    };
+
+    await runOpenAIWebSearchJsonToolLoop({
+      body: {
+        model: 'test',
+        stream: true,
+        messages: [{ role: 'user', content: 'read these pages' }],
+      },
+      client,
+      requestJson,
+      onChunk: vi.fn(),
+    });
+
+    expect(client.readWebPages).toHaveBeenCalledTimes(1);
+    expect(client.readWebPage).not.toHaveBeenCalled();
+    const repeatedReadMessages = requestJson.mock.calls[2][0].messages;
+    expect(repeatedReadMessages[repeatedReadMessages.length - 1]).toMatchObject({
+      role: 'tool',
+      tool_call_id: 'call-2',
+      content: expect.stringContaining('Only first page content.'),
+    });
+    expect(repeatedReadMessages[repeatedReadMessages.length - 1].content).not.toContain('Second page content must not be reused.');
+  });
+
   it('executes requested search tools and forces a page read before the final answer', async () => {
     const requestJson = vi
       .fn()

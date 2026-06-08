@@ -253,6 +253,26 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     await editor.destroy();
   });
 
+  it('pastes internal relative markdown links as plain text', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, '[Secret](.vlaina/workspace.md) [Git](docs/.git/config.md)')).toBe(true);
+
+    expect(view.state.doc.textContent).toBe('Secret Git');
+    const linkMark = view.state.schema.marks.link;
+    expect(view.state.doc.rangeHasMark(0, view.state.doc.content.size, linkMark)).toBe(false);
+
+    await editor.destroy();
+  });
+
   it('pastes markdown links with titles using only the href for the link mark', async () => {
     const editor = Editor.make()
       .config((ctx) => {

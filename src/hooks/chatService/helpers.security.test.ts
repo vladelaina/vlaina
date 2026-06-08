@@ -124,6 +124,16 @@ describe('chat mention path security', () => {
     expect(mocks.storage.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not read non-markdown note mentions inside the active vault', async () => {
+    const notes = await loadMentionedNotes([
+      { path: 'docs/secret.txt', title: 'Secret' },
+    ]);
+
+    expect(notes).toEqual([]);
+    expect(mocks.storage.stat).not.toHaveBeenCalled();
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
   it('allows user dot-folder note mentions', async () => {
     mocks.storage.stat.mockResolvedValue({ size: 32 });
     mocks.storage.readFile.mockResolvedValue('# Alpha');
@@ -155,6 +165,24 @@ describe('chat mention path security', () => {
   it('does not read arbitrary absolute note mentions unless they are starred', async () => {
     const notes = await loadMentionedNotes([
       { path: '/etc/passwd.md', title: 'passwd' },
+    ]);
+
+    expect(notes).toEqual([]);
+    expect(mocks.storage.stat).not.toHaveBeenCalled();
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read stale starred absolute note mentions that are not markdown files', async () => {
+    mocks.notesState.starredEntries = [{
+      id: 'external-secret',
+      kind: 'note',
+      vaultPath: '/external/docs',
+      relativePath: 'secret.txt',
+      addedAt: 1,
+    }];
+
+    const notes = await loadMentionedNotes([
+      { path: '/external/docs/secret.txt', title: 'Secret' },
     ]);
 
     expect(notes).toEqual([]);

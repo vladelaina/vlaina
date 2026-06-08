@@ -171,6 +171,18 @@ describe('featureSlice internal note paths', () => {
     expect(store.getState().noteMetadata?.notes['docs/.GIT/config.md']).toBeUndefined();
   });
 
+  it('does not read or write non-markdown paths during metadata updates', () => {
+    const store = createNotesStore();
+
+    store.getState().setNoteIcon('docs/image.png', 'sparkles');
+
+    expect(store.getState().error).toBe('Only Markdown files can be opened as notes.');
+    expect(mocks.stat).not.toHaveBeenCalled();
+    expect(mocks.readFile).not.toHaveBeenCalled();
+    expect(mocks.safeWriteTextFile).not.toHaveBeenCalled();
+    expect(store.getState().noteMetadata?.notes['docs/image.png']).toBeUndefined();
+  });
+
   it('ignores stale internal cache entries for backlinks and tags', () => {
     const store = createNotesStore({
       noteContentsCache: new Map([
