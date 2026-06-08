@@ -502,6 +502,7 @@ export const themeEditorLayoutTokens = {
   defaultViewportWidthPx: 1200,
   autoCreateBlankDraftDelayMs: 0,
   autoSaveDebounceMs: 800,
+  editorInitFallbackDelayMs: 30000,
   mermaidPrewarmDelayMsDev: 45000,
   mermaidPrewarmDelayMsProd: 5000,
   mermaidIdlePrewarmTimeoutMs: 3000,

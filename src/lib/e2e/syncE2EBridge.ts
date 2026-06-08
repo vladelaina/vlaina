@@ -10,6 +10,11 @@ import { desktopWindow } from '@/lib/desktop/window';
 import { saveSessionJson } from '@/lib/storage/chatStorage';
 import { flushPendingSave } from '@/lib/storage/unifiedStorage';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import {
+  getImportedMarkdownThemesDirectoryPath,
+  syncImportedMarkdownThemesFromDirectory,
+} from '@/lib/markdown/theme-compatibility/importedThemeStorage';
+import type { ImportedMarkdownThemeMetadata } from '@/lib/markdown/theme-compatibility/types';
 import { getVaultSystemStorePath } from '@/stores/notes/systemStoragePaths';
 import { flushStarredRegistry } from '@/stores/notes/starred';
 import { getCurrentEditorView } from '@/components/Notes/features/Editor/utils/editorViewRegistry';
@@ -37,6 +42,13 @@ export interface E2EBridge {
   deleteProvider(id: string): Promise<void>;
   setTimezone(offset: number, city: string): Promise<void>;
   setMarkdownLineNumbers(showLineNumbers: boolean): Promise<void>;
+  getImportedMarkdownThemesDirectoryPath(): Promise<string>;
+  syncImportedMarkdownThemesFromDirectory(): Promise<{
+    directoryPath: string;
+    themes: ImportedMarkdownThemeMetadata[];
+    activeThemeId: string | null;
+  }>;
+  setMarkdownImportedThemeId(importedThemeId: string | null): Promise<void>;
   createWindow(options?: { viewMode?: 'notes' | 'chat' | null }): Promise<void>;
   createNotesFixture(input?: { filename?: string; content?: string }): Promise<{
     vaultPath: string;
@@ -230,6 +242,12 @@ export function installSyncE2EBridge(): void {
     },
     setMarkdownLineNumbers: async (showLineNumbers) => {
       useUnifiedStore.getState().setMarkdownCodeBlockLineNumbers(showLineNumbers);
+      await flushPendingSave();
+    },
+    getImportedMarkdownThemesDirectoryPath,
+    syncImportedMarkdownThemesFromDirectory,
+    setMarkdownImportedThemeId: async (importedThemeId) => {
+      useUnifiedStore.getState().setMarkdownImportedThemeId(importedThemeId);
       await flushPendingSave();
     },
     createWindow: async (options) => {

@@ -6,13 +6,18 @@ import {
   cleanupIsolatedElectron,
   clearSelectedNoteBlocks,
   collectEditorDomMetrics,
+  collectEditorVisibilityProblems,
   getOpenBridgePages,
   getSelectableBlocks,
+  installReferenceTyporaTheme,
   launchIsolatedElectron,
+  measureRepeatedBlockScan,
+  measureScrollFrames,
   openMarkdownFixture,
   scrollElementIntoViewByText,
   scrollNoteToTop,
   selectNoteBlocksByText,
+  waitForEditorAnimationFrame,
 } from './notesE2E';
 import { createMarkdownSyntaxFixture } from './notesMarkdownSyntaxFixture';
 
@@ -253,7 +258,8 @@ test.describe('notes markdown syntax rendering', () => {
       if (!selectedRect) {
         throw new Error('Could not resolve selected block geometry');
       }
-      await page.mouse.move(Math.max(8, selectedRect.x - 18), selectedRect.y + selectedRect.height / 2);
+      await page.mouse.move(selectedRect.x + 8, selectedRect.y + selectedRect.height / 2);
+      await waitForEditorAnimationFrame(page);
       await expect(page.locator(BLOCK_CONTROLS_SELECTOR)).toBeVisible();
 
       const handleGeometry = await page.evaluate(() => {
@@ -274,6 +280,111 @@ test.describe('notes markdown syntax rendering', () => {
       expect(handleGeometry).not.toBeNull();
       expect(Math.abs(handleGeometry!.controlsCenterY - handleGeometry!.selectedCenterY)).toBeLessThanOrEqual(2);
       expect(handleGeometry!.controlsLeft).toBeLessThan(handleGeometry!.selectedLeft);
+
+      await clearSelectedNoteBlocks(page);
+      await expect(page.locator(SELECTED_BLOCK_SELECTOR)).toHaveCount(0);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps markdown syntax visible and editor operations usable under an imported Typora theme', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-markdown-syntax-typora-theme');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      page.on('console', (message) => {
+        const text = message.text();
+        if (text.includes('[notes-milkdown-timing:')) {
+          console.info(text);
+        }
+      });
+
+      const installedTheme = await installReferenceTyporaTheme(page, 'vlook-fancy.css');
+      console.info('[notes-markdown-syntax-typora-theme]', installedTheme);
+
+      const openMetrics = await openMarkdownFixture(page, {
+        filename: 'markdown-syntax-typora-theme-e2e.md',
+        content: createMarkdownSyntaxFixture(),
+      });
+      console.info('[notes-markdown-syntax-typora-open]', openMetrics);
+
+      await expectEditorContains(page, [
+        'E2E Markdown Syntax',
+        'Inline marks paragraph',
+        'Regular quote line one.',
+        'Task item checked sentinel',
+        'Definition description sentinel',
+        'Table alpha',
+        'syntaxSentinel',
+        'Inline math sentinel',
+        'Footnote definition sentinel',
+        'Raw HTML block sentinel',
+        'Final paragraph sentinel',
+      ]);
+
+      await expect(page.locator(`${EDITOR_SELECTOR} h1`, { hasText: 'E2E Markdown Syntax' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} p`, { hasText: 'Inline marks paragraph' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} blockquote`, { hasText: 'Regular quote line one' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} li[data-item-type="task"][data-checked="true"]`, { hasText: 'Task item checked sentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} table`, { hasText: 'Table alpha' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'syntaxSentinel' })).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} span[data-type="math-inline"]`)).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} .image-block-container[data-alt="Image alt sentinel"]`)).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} div.footnote-def`, { hasText: 'Footnote definition sentinel' })).toBeVisible();
+
+      const metrics = await collectEditorDomMetrics(page);
+      const visibilityProblems = await collectEditorVisibilityProblems(page);
+      const blockScanMetrics = await measureRepeatedBlockScan(page, 10);
+      const scrollMetrics = await measureScrollFrames(page, 30);
+      console.info('[notes-markdown-syntax-typora-dom]', {
+        metrics,
+        visibilityProblems,
+        blockScanMetrics,
+        scrollMetrics,
+      });
+
+      expect(metrics.countsBySelector.sourceFallback).toBe(0);
+      expect(metrics.countsBySelector.headings).toBeGreaterThanOrEqual(14);
+      expect(metrics.countsBySelector.blockquotes).toBeGreaterThanOrEqual(1);
+      expect(metrics.countsBySelector.callouts).toBeGreaterThanOrEqual(3);
+      expect(metrics.countsBySelector.taskItems).toBe(3);
+      expect(metrics.countsBySelector.tables).toBeGreaterThanOrEqual(1);
+      expect(metrics.countsBySelector.codeBlocks).toBeGreaterThanOrEqual(3);
+      expect(metrics.countsBySelector.images).toBeGreaterThanOrEqual(5);
+      expect(metrics.selectableBlockCount).toBeGreaterThan(50);
+      expect(visibilityProblems).toEqual([]);
+      expect(blockScanMetrics.blockCount).toBe(metrics.selectableBlockCount);
+      expect(blockScanMetrics.p95Ms).toBeLessThan(250);
+      expect(scrollMetrics).not.toBeNull();
+      expect(scrollMetrics!.maxFrameMs).toBeLessThan(1_500);
+
+      const selectedCount = await selectNoteBlocksByText(page, [
+        'Inline marks paragraph',
+        'Task item checked sentinel',
+        'Final paragraph sentinel',
+      ]);
+      expect(selectedCount).toBeGreaterThanOrEqual(3);
+      await expect(page.locator(SELECTED_BLOCK_SELECTOR).first()).toBeVisible();
+
+      await scrollNoteToTop(page);
+      await scrollElementIntoViewByText(page, SELECTED_BLOCK_SELECTOR, 'Inline marks paragraph');
+      await selectNoteBlocksByText(page, [
+        'Inline marks paragraph',
+        'Task item checked sentinel',
+        'Final paragraph sentinel',
+      ]);
+      await expect(page.locator(SELECTED_BLOCK_SELECTOR, { hasText: 'Inline marks paragraph' })).toBeVisible();
+      const selectedRect = await page.locator(SELECTED_BLOCK_SELECTOR, { hasText: 'Inline marks paragraph' })
+        .first()
+        .boundingBox();
+      if (!selectedRect) {
+        throw new Error('Could not resolve Typora-themed selected block geometry');
+      }
+      await page.mouse.move(selectedRect.x + 8, selectedRect.y + selectedRect.height / 2);
+      await waitForEditorAnimationFrame(page);
+      await expect(page.locator(BLOCK_CONTROLS_SELECTOR)).toBeVisible();
 
       await clearSelectedNoteBlocks(page);
       await expect(page.locator(SELECTED_BLOCK_SELECTOR)).toHaveCount(0);

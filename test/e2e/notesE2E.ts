@@ -23,6 +23,12 @@ export const NOTE_IMAGE_BLOCK_SELECTOR = `${EDITOR_SELECTOR} .image-block-contai
 export const NOTE_IMAGE_TOOLBAR_SELECTOR = `${NOTE_IMAGE_BLOCK_SELECTOR} .image-toolbar`;
 export const NOTE_IMAGE_CROPPER_TOOLBAR_SELECTOR = `${NOTE_IMAGE_BLOCK_SELECTOR} .image-cropper-toolbar`;
 
+export type ImportedMarkdownThemeInstallResult = {
+  themeDirectoryPath: string;
+  themeId: string;
+  themeName: string;
+};
+
 export type NoteSelectableBlock = {
   text: string;
   tagName: string;
@@ -252,6 +258,60 @@ export async function getNoteContentCacheEntry(page: Page, notePath: string): Pr
 
 export async function pruneNoteContentsCacheToOpenNotes(page: Page): Promise<void> {
   await page.evaluate(() => (window as any).__vlainaE2E.pruneNoteContentsCacheToOpenNotes());
+}
+
+export async function installReferenceTyporaTheme(
+  page: Page,
+  cssFilename = 'vlook-fancy.css',
+): Promise<ImportedMarkdownThemeInstallResult> {
+  const themeDirectoryPath = await page.evaluate(() =>
+    (window as any).__vlainaE2E.getImportedMarkdownThemesDirectoryPath()
+  );
+  const referenceRoot = path.join(process.cwd(), '.reference', 'typora');
+  await fs.mkdir(themeDirectoryPath, { recursive: true });
+  await fs.copyFile(
+    path.join(referenceRoot, cssFilename),
+    path.join(themeDirectoryPath, cssFilename),
+  );
+  await fs.cp(
+    path.join(referenceRoot, 'vlook'),
+    path.join(themeDirectoryPath, 'vlook'),
+    { recursive: true },
+  ).catch(() => undefined);
+
+  const syncResult = await page.evaluate(() =>
+    (window as any).__vlainaE2E.syncImportedMarkdownThemesFromDirectory()
+  );
+  const theme = syncResult.themes.find((candidate: { sourcePath?: string | null; name: string }) =>
+    candidate.sourcePath?.replace(/\\/g, '/').endsWith(`/${cssFilename}`) ||
+    candidate.name === cssFilename.replace(/\.css$/i, '')
+  );
+
+  if (!theme) {
+    throw new Error(`Could not sync reference Typora theme ${cssFilename}`);
+  }
+
+  await page.evaluate((themeId) =>
+    (window as any).__vlainaE2E.setMarkdownImportedThemeId(themeId), theme.id);
+  await expect.poll(() => page.evaluate((themeId) => ({
+    rootTheme: document.documentElement.getAttribute('data-vlaina-imported-app-theme'),
+    markdownStyle: Boolean(document.head.querySelector(
+      `style[data-vlaina-imported-markdown-theme="true"]#vlaina-imported-markdown-theme-${CSS.escape(themeId)}`
+    )),
+    postBridgeStyle: Boolean(document.head.querySelector(
+      `style[data-vlaina-imported-markdown-theme-post-bridge="true"]#vlaina-imported-markdown-theme-post-bridge-${CSS.escape(themeId)}`
+    )),
+  }), theme.id), { timeout: 30_000 }).toMatchObject({
+    rootTheme: theme.id,
+    markdownStyle: true,
+    postBridgeStyle: true,
+  });
+
+  return {
+    themeDirectoryPath,
+    themeId: theme.id,
+    themeName: theme.name,
+  };
 }
 
 export async function getChatSessionMessageStatus(page: Page, sessionId: string): Promise<{
@@ -528,6 +588,70 @@ export async function collectEditorDomMetrics(page: Page) {
       countsBySelector,
     };
   });
+}
+
+export async function collectEditorVisibilityProblems(page: Page, limit = 50) {
+  return page.evaluate(({ editorSelector, maxProblems }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    if (!editor) {
+      return [{ selector: editorSelector, text: '', reason: 'editor-missing' }];
+    }
+
+    const textSelectors = [
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'p', 'li', 'blockquote', 'td', 'th', 'pre', 'code',
+      'strong', 'em', 's', 'del', 'mark', 'u', 'sup', 'sub',
+      'a', 'abbr', 'span[data-type]', '[data-editor-tag-token="true"]',
+      '.frontmatter-block-container',
+      'div[data-type="callout"]',
+      'div[data-type="toc"]',
+      'div[data-type="math-block"]',
+      'div[data-type="mermaid"]',
+      'div[data-type="video"]',
+      'div.footnote-def',
+    ].join(',');
+
+    const isTransparentColor = (value: string) =>
+      value === 'transparent' ||
+      /^rgba?\([^)]*,\s*0(?:\.0+)?\s*\)$/i.test(value.trim());
+
+    const blockDisplayValues = new Set(['block', 'flow-root', 'flex', 'grid', 'list-item', 'table', 'table-row', 'table-cell']);
+
+    return Array.from(editor.querySelectorAll<HTMLElement>(textSelectors))
+      .flatMap((element) => {
+        if (element.closest('div[data-type="toc"]')) return [];
+        const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+        if (!text) return [];
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        const hasVisibleTextRect = Array.from(element.getClientRects())
+          .some((clientRect) => clientRect.width >= 1 && clientRect.height >= 1);
+        const reasons: string[] = [];
+
+        if (style.display === 'none') reasons.push('display-none');
+        if (style.visibility === 'hidden' || style.visibility === 'collapse') reasons.push('visibility-hidden');
+        if (Number.parseFloat(style.opacity || '1') <= 0.01) reasons.push('opacity-zero');
+        if (isTransparentColor(style.color)) reasons.push('transparent-text');
+        if (blockDisplayValues.has(style.display) && !hasVisibleTextRect && (rect.width < 1 || rect.height < 1)) {
+          reasons.push('zero-geometry');
+        }
+
+        return reasons.length > 0
+          ? [{
+              selector: element.tagName.toLowerCase(),
+              text: text.slice(0, 120),
+              reason: reasons.join(','),
+            }]
+          : [];
+      })
+      .slice(0, maxProblems);
+  }, { editorSelector: EDITOR_SELECTOR, maxProblems: limit });
+}
+
+export async function waitForEditorAnimationFrame(page: Page): Promise<void> {
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
 }
 
 export async function measureScrollFrames(page: Page, frames = 45) {
