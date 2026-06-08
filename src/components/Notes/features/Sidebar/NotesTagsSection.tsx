@@ -12,6 +12,7 @@ import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
 import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
+import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import { resolveVaultRelativeFullPath } from '@/stores/notes/utils/fs/vaultPathContainment';
 import { themeIconTokens } from '@/styles/themeTokens';
 
@@ -39,7 +40,38 @@ function setTagNoteIconCacheEntry(cacheKey: string, entry: TagNoteIconCacheEntry
   }
 }
 
-async function readTagNoteIcon(path: string, vaultPath: string | null): Promise<TagNoteIconCacheEntry> {
+function touchTagNoteIconCacheEntry(cacheKey: string, entry: TagNoteIconCacheEntry) {
+  tagNoteIconCache.delete(cacheKey);
+  tagNoteIconCache.set(cacheKey, entry);
+}
+
+function getFreshTagNoteIconCacheEntry(
+  cacheKey: string,
+  modifiedAt: number | null,
+  size: number | null,
+): TagNoteIconCacheEntry | null {
+  const cached = tagNoteIconCache.get(cacheKey);
+  if (!cached) {
+    return null;
+  }
+
+  const canValidateCache = modifiedAt !== null || size !== null;
+  if (!canValidateCache || cached.modifiedAt !== modifiedAt || cached.size !== size) {
+    return null;
+  }
+
+  touchTagNoteIconCacheEntry(cacheKey, cached);
+  return cached;
+}
+
+async function readTagNoteIcon(path: string, vaultPath: string | null, cacheKey: string): Promise<TagNoteIconCacheEntry> {
+  if (
+    hasInternalNotePathSegment(path) ||
+    (vaultPath && hasInternalNotePathSegment(vaultPath))
+  ) {
+    return { modifiedAt: null, size: null, icon: null };
+  }
+
   const fullPath = isAbsolutePath(path)
     ? path
     : vaultPath
@@ -62,6 +94,11 @@ async function readTagNoteIcon(path: string, vaultPath: string | null): Promise<
     size > MAX_TAG_NOTE_ICON_METADATA_BYTES
   ) {
     return { modifiedAt, size, icon: null };
+  }
+
+  const freshCached = getFreshTagNoteIconCacheEntry(cacheKey, modifiedAt, size);
+  if (freshCached) {
+    return freshCached;
   }
 
   const content = await storage.readFile(fullPath);
@@ -229,14 +266,8 @@ function NotesTagFileRow({
       return;
     }
 
-    const cached = tagNoteIconCache.get(cacheKey);
-    if (cached) {
-      setFallbackIcon(cached.icon ?? undefined);
-      return;
-    }
-
     let cancelled = false;
-    void readTagNoteIcon(path, vaultPath || null)
+    void readTagNoteIcon(path, vaultPath || null, cacheKey)
       .then((entry) => {
         setTagNoteIconCacheEntry(cacheKey, entry);
         if (!cancelled) {

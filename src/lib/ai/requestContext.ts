@@ -2,7 +2,12 @@ import type { ApiTranscriptMessage, ChatMessage, ChatMessageContent } from './ty
 import { TIME_SYSTEM_PROMPT, IMAGE_PLACEHOLDER } from './prompts';
 import { extractWebSearchStatuses } from './webSearch/statusMarkup';
 import { stripThinkingContent } from './stripThinkingContent';
-import { replaceRenderableMarkdownImageTokens } from '@/lib/markdown/renderableImageTokens';
+import {
+  parseMarkdownAndHtmlImageTokens,
+  replaceImageTokens,
+  type ImageToken,
+} from '@/lib/markdown/markdownImageTokens';
+import { parseVideoUrl } from '@/lib/markdown/videoUrl';
 import { normalizeApiTranscriptMessages } from './apiTranscript';
 
 const ERROR_TAG_GLOBAL_REGEX = /<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/gi;
@@ -12,6 +17,7 @@ const MAX_REQUEST_HISTORY_CHARS = 24000;
 const MAX_REQUEST_MESSAGE_CHARS = 6000;
 const MAX_TRANSCRIPT_FIELD_CHARS = 1200;
 const MAX_REQUEST_JSON_DEPTH = 8;
+const MAX_REQUEST_HISTORY_IMAGE_TOKENS = 2000;
 const CONTENT_TRUNCATION_MARKER = '\n[Earlier content omitted]\n';
 
 export function formatTimeByOffset(offset: number, now = new Date()): string {
@@ -36,6 +42,17 @@ export function sanitizeHistory(messages: ChatMessage[]): ChatMessage[] {
     .filter((msg) => msg.role !== 'assistant' || msg.content.trim().length > 0);
 }
 
+function shouldReplaceHistoryImageToken(token: ImageToken): boolean {
+  return !token.src || !parseVideoUrl(token.src);
+}
+
+function replaceHistoryImageTokens(content: string): string {
+  const tokens = parseMarkdownAndHtmlImageTokens(content, {
+    maxTokens: MAX_REQUEST_HISTORY_IMAGE_TOKENS,
+  }).filter(shouldReplaceHistoryImageToken);
+  return replaceImageTokens(content, tokens, IMAGE_PLACEHOLDER);
+}
+
 function sanitizeHistoryMessage(msg: ChatMessage): ChatMessage {
   if (typeof msg.content !== 'string') return msg;
   const contentWithoutUiErrors = msg.role === 'assistant'
@@ -48,7 +65,7 @@ function sanitizeHistoryMessage(msg: ChatMessage): ChatMessage {
   return {
     ...msg,
     content: extractWebSearchStatuses(
-      replaceRenderableMarkdownImageTokens(stripThinkingContent(contentWithoutUiErrors), IMAGE_PLACEHOLDER)
+      replaceHistoryImageTokens(stripThinkingContent(contentWithoutUiErrors))
     ).content,
     apiTranscript,
     versions: stripVersionApiTranscripts(msg.versions),

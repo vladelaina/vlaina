@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
-import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
+import {
+  isValidStarredVaultPath,
+  normalizeStarredRelativePath,
+  normalizeStarredVaultPath,
+} from '@/stores/notes/starred';
 import type { StarredEntry } from '@/stores/notes/types';
 
 const MAX_STARRED_ICON_CACHE_ENTRIES = 300;
@@ -44,10 +48,22 @@ function scheduleStarredIconTask<T>(task: () => Promise<T>): Promise<T> {
   });
 }
 
-function getStarredIconCacheKey(entry: StarredEntry) {
-  const vaultPath = entry.vaultPath.replace(/\\/g, '/').replace(/\/+$/, '');
-  const relativePath = normalizeNotePathKey(entry.relativePath) ?? entry.relativePath;
-  return `${vaultPath}/${relativePath}`;
+function getStarredIconPathContext(entry: StarredEntry) {
+  const relativePath = normalizeStarredRelativePath(entry.relativePath);
+  if (!relativePath) {
+    return null;
+  }
+
+  const vaultPath = normalizeStarredVaultPath(entry.vaultPath);
+  if (!isValidStarredVaultPath(vaultPath)) {
+    return null;
+  }
+
+  return {
+    vaultPath,
+    relativePath,
+    cacheKey: `${vaultPath}/${relativePath}`,
+  };
 }
 
 function touchStarredIconCacheEntry(cacheKey: string, entry: StarredIconCacheEntry) {
@@ -100,12 +116,12 @@ function canReadStarredIconMetadata(fileInfo: {
 }
 
 export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
-  const cacheKey = useMemo(
-    () => getStarredIconCacheKey(entry),
+  const pathContext = useMemo(
+    () => getStarredIconPathContext(entry),
     [entry.relativePath, entry.vaultPath],
   );
   const [icon, setIcon] = useState<string | undefined>(() => {
-    const cached = starredIconCache.get(cacheKey);
+    const cached = pathContext ? starredIconCache.get(pathContext.cacheKey) : null;
     return cached?.icon ?? undefined;
   });
 
@@ -113,12 +129,17 @@ export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
     if (!enabled || entry.kind !== 'note') {
       return;
     }
+    if (!pathContext) {
+      setIcon(undefined);
+      return;
+    }
 
+    const cacheKey = pathContext.cacheKey;
     let cancelled = false;
     void (async () => {
       try {
         await scheduleStarredIconTask(async () => {
-          const fullPath = await joinPath(entry.vaultPath, entry.relativePath);
+          const fullPath = await joinPath(pathContext.vaultPath, pathContext.relativePath);
           const storage = getStorageAdapter();
           const fileInfo = await storage.stat(fullPath).catch(() => null);
           const modifiedAt = fileInfo?.modifiedAt ?? null;
@@ -171,7 +192,7 @@ export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
     return () => {
       cancelled = true;
     };
-  }, [cacheKey, enabled, entry.kind, entry.relativePath, entry.vaultPath]);
+  }, [enabled, entry.kind, pathContext]);
 
   return icon;
 }

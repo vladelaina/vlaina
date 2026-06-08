@@ -5,6 +5,19 @@ function isPathWithin(path: string, basePath: string): boolean {
   return path === basePath || path.startsWith(`${basePath}/`);
 }
 
+function isPreservedDeletedPath(
+  preservedPath: string | null | ReadonlySet<string> | undefined,
+  path: string
+): boolean {
+  if (!preservedPath) {
+    return false;
+  }
+
+  return typeof preservedPath === 'string'
+    ? preservedPath === path
+    : preservedPath.has(path);
+}
+
 export function remapPathForExternalRename(path: string, oldPath: string, newPath: string): string {
   if (path === oldPath) {
     return newPath;
@@ -47,10 +60,10 @@ export function remapOpenTabsForExternalRename(
 export function pruneOpenTabsForExternalDeletion(
   openTabs: NotesStore['openTabs'],
   deletedPath: string,
-  preservedPath?: string | null
+  preservedPath?: string | null | ReadonlySet<string>
 ): NotesStore['openTabs'] {
   return openTabs.filter((tab) => {
-    if (preservedPath && tab.path === preservedPath) {
+    if (isPreservedDeletedPath(preservedPath, tab.path)) {
       return true;
     }
     return !shouldRemoveForExternalDeletion(tab.path, deletedPath);
@@ -82,12 +95,12 @@ export function remapDisplayNamesForExternalRename(
 export function pruneDisplayNamesForExternalDeletion(
   displayNames: NotesStore['displayNames'],
   deletedPath: string,
-  preservedPath?: string | null
+  preservedPath?: string | null | ReadonlySet<string>
 ): NotesStore['displayNames'] {
   const nextDisplayNames = new Map<string, string>();
 
   for (const [path, displayName] of displayNames.entries()) {
-    if (preservedPath && path === preservedPath) {
+    if (isPreservedDeletedPath(preservedPath, path)) {
       nextDisplayNames.set(path, displayName);
       continue;
     }
@@ -139,10 +152,10 @@ export function remapExpandedFoldersForExternalRename(
 export function pruneRecentNotesForExternalDeletion(
   recentNotes: NotesStore['recentNotes'],
   deletedPath: string,
-  preservedPath?: string | null
+  preservedPath?: string | null | ReadonlySet<string>
 ): NotesStore['recentNotes'] {
   const nextRecentNotes = recentNotes.filter((path) => {
-    if (preservedPath && path === preservedPath) {
+    if (isPreservedDeletedPath(preservedPath, path)) {
       return true;
     }
 

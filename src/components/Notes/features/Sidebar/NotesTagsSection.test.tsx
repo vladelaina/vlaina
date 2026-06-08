@@ -6,6 +6,7 @@ const mocked = vi.hoisted(() => ({
   readFile: vi.fn(async () => ''),
   stat: vi.fn(async (): Promise<{ isFile?: boolean; modifiedAt?: number; size?: number } | null> => null),
   noteIcon: vi.fn(({ icon }: { icon: string }) => <span data-testid="note-icon">{icon}</span>),
+  notesPath: '/vault',
 }));
 
 vi.mock('@/lib/storage/adapter', () => ({
@@ -18,7 +19,7 @@ vi.mock('@/lib/storage/adapter', () => ({
 }));
 
 vi.mock('@/stores/useNotesStore', () => ({
-  useNotesStore: (selector: (state: { notesPath: string }) => unknown) => selector({ notesPath: '/vault' }),
+  useNotesStore: (selector: (state: { notesPath: string }) => unknown) => selector({ notesPath: mocked.notesPath }),
 }));
 
 vi.mock('@/hooks/useTitleSync', () => ({
@@ -67,6 +68,7 @@ describe('NotesTagsSection', () => {
     mocked.stat.mockReset();
     mocked.noteIcon.mockClear();
     mocked.stat.mockResolvedValue(null);
+    mocked.notesPath = '/vault';
   });
 
   it('does not parse tag note icon metadata that exceeds the limit after read', async () => {
@@ -118,5 +120,157 @@ describe('NotesTagsSection', () => {
     });
     expect(mocked.stat).not.toHaveBeenCalled();
     expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read tag note icon metadata from internal relative paths', async () => {
+    render(
+      <NotesTagsSection
+        tags={[
+          {
+            tag: 'topic',
+            count: 1,
+            paths: [{ path: 'docs/.git/config.md', query: '#topic', contentMatchOrdinal: 0 }],
+          },
+        ]}
+        getDisplayName={(path) => path}
+        onOpenNote={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText('topic'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fallback-icon')).toHaveTextContent('file.text');
+    });
+    expect(mocked.stat).not.toHaveBeenCalled();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read tag note icon metadata from internal vault paths', async () => {
+    mocked.notesPath = '/vault/.vlaina';
+
+    render(
+      <NotesTagsSection
+        tags={[
+          {
+            tag: 'topic',
+            count: 1,
+            paths: [{ path: 'workspace.md', query: '#topic', contentMatchOrdinal: 0 }],
+          },
+        ]}
+        getDisplayName={(path) => path}
+        onOpenNote={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText('topic'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fallback-icon')).toHaveTextContent('file.text');
+    });
+    expect(mocked.stat).not.toHaveBeenCalled();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
+  it('reloads cached tag note icon metadata when file metadata changes', async () => {
+    mocked.stat.mockResolvedValueOnce({ isFile: true, modifiedAt: 1, size: 32 });
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "first"\n---\n# Alpha');
+
+    const first = render(
+      <NotesTagsSection
+        tags={[
+          {
+            tag: 'cache-topic',
+            count: 1,
+            paths: [{ path: 'docs/cached-tag-icon.md', query: '#cache-topic', contentMatchOrdinal: 0 }],
+          },
+        ]}
+        getDisplayName={(path) => path}
+        onOpenNote={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText('cache-topic'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('note-icon')).toHaveTextContent('first');
+    });
+    first.unmount();
+
+    mocked.noteIcon.mockClear();
+    mocked.stat.mockResolvedValueOnce({ isFile: true, modifiedAt: 2, size: 32 });
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "second"\n---\n# Alpha');
+
+    render(
+      <NotesTagsSection
+        tags={[
+          {
+            tag: 'cache-topic',
+            count: 1,
+            paths: [{ path: 'docs/cached-tag-icon.md', query: '#cache-topic', contentMatchOrdinal: 0 }],
+          },
+        ]}
+        getDisplayName={(path) => path}
+        onOpenNote={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText('cache-topic'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('note-icon')).toHaveTextContent('second');
+    });
+    expect(mocked.readFile).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not reuse cached tag note icon metadata after the path stops being a readable file', async () => {
+    mocked.stat.mockResolvedValueOnce({ isFile: true, modifiedAt: 1, size: 32 });
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "stale"\n---\n# Alpha');
+
+    const first = render(
+      <NotesTagsSection
+        tags={[
+          {
+            tag: 'gone-topic',
+            count: 1,
+            paths: [{ path: 'docs/gone-tag-icon.md', query: '#gone-topic', contentMatchOrdinal: 0 }],
+          },
+        ]}
+        getDisplayName={(path) => path}
+        onOpenNote={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText('gone-topic'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('note-icon')).toHaveTextContent('stale');
+    });
+    first.unmount();
+
+    mocked.noteIcon.mockClear();
+    mocked.stat.mockResolvedValueOnce({ isFile: false, modifiedAt: 1, size: 32 });
+
+    render(
+      <NotesTagsSection
+        tags={[
+          {
+            tag: 'gone-topic',
+            count: 1,
+            paths: [{ path: 'docs/gone-tag-icon.md', query: '#gone-topic', contentMatchOrdinal: 0 }],
+          },
+        ]}
+        getDisplayName={(path) => path}
+        onOpenNote={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText('gone-topic'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fallback-icon')).toHaveTextContent('file.text');
+    });
+    expect(screen.queryByTestId('note-icon')).toBeNull();
+    expect(mocked.readFile).toHaveBeenCalledTimes(1);
   });
 });

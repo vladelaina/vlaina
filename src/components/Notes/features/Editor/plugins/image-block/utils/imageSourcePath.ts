@@ -1,5 +1,6 @@
 import { getParentPath, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
+import { hasInternalNoteAssetPathSegment } from '@/lib/assets/core/internalAssetPaths';
 import {
     getNoteInternalImageAssetPath,
     normalizePublicRemoteMediaUrl,
@@ -82,6 +83,14 @@ function resolveCurrentNoteAssetRoot(
     return notesPath || currentNoteDir || '';
 }
 
+function addNonInternalCandidate(candidates: string[], candidate: string | null): void {
+    if (!candidate || hasInternalNoteAssetPathSegment(candidate) || candidates.includes(candidate)) {
+        return;
+    }
+
+    candidates.push(candidate);
+}
+
 export async function resolveImageSourcePath(
     options: ResolveImageSourcePathOptions,
     deps: ImageSourcePathDeps = defaultDeps,
@@ -95,6 +104,10 @@ export async function resolveImageSourcePathCandidates(
     deps: ImageSourcePathDeps = defaultDeps,
 ): Promise<string[]> {
     const { rawSrc, notesPath, currentNotePath } = options;
+    if (hasInternalNoteAssetPathSegment(currentNotePath)) {
+        return [];
+    }
+
     const baseSrc = getImageSourceBase(rawSrc);
     if (!baseSrc) return [];
 
@@ -111,7 +124,7 @@ export async function resolveImageSourcePathCandidates(
     }
 
     const localSrc = getLocalImageSourcePath(safeBaseSrc);
-    if (!localSrc || deps.isAbsolutePath(localSrc)) {
+    if (!localSrc || deps.isAbsolutePath(localSrc) || hasInternalNoteAssetPathSegment(localSrc)) {
         return [];
     }
 
@@ -124,11 +137,11 @@ export async function resolveImageSourcePathCandidates(
                 await deps.joinPath(currentNoteDir, localSrc),
                 currentNoteAssetRoot,
             );
-            return candidate ? [candidate] : [];
+            return candidate && !hasInternalNoteAssetPathSegment(candidate) ? [candidate] : [];
         }
         if (!notesPath) return [];
         const candidate = normalizeContainedAssetPath(await deps.joinPath(notesPath, localSrc), notesPath);
-        return candidate ? [candidate] : [];
+        return candidate && !hasInternalNoteAssetPathSegment(candidate) ? [candidate] : [];
     }
 
     const candidates: string[] = [];
@@ -138,16 +151,12 @@ export async function resolveImageSourcePathCandidates(
             await deps.joinPath(currentNoteDir, localSrc),
             currentNoteAssetRoot,
         );
-        if (noteRelativeCandidate) {
-            candidates.push(noteRelativeCandidate);
-        }
+        addNonInternalCandidate(candidates, noteRelativeCandidate);
     }
 
     if (notesPath) {
         const vaultPath = normalizeContainedAssetPath(await deps.joinPath(notesPath, localSrc), notesPath);
-        if (vaultPath && !candidates.includes(vaultPath)) {
-            candidates.push(vaultPath);
-        }
+        addNonInternalCandidate(candidates, vaultPath);
     }
 
     return candidates;

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   getAbsoluteRenameWatchPaths,
+  getRelevantRelativeWatchPaths,
   getRelativeRenameWatchPaths,
   isInsideVault,
   isCreateWatchEvent,
+  isIgnoredWatchPath,
   isMarkdownPath,
   isRemoveWatchEvent,
   toVaultRelativePath,
@@ -75,5 +77,17 @@ describe('notesExternalSyncUtils', () => {
     expect(isMarkdownPath('gamma.mdown')).toBe(true);
     expect(isMarkdownPath('delta.mkd')).toBe(true);
     expect(isMarkdownPath('image.png')).toBe(false);
+  });
+
+  it('ignores hidden app, git, and temporary watch paths', () => {
+    expect(isIgnoredWatchPath('.vlaina/workspace.json')).toBe(true);
+    expect(isIgnoredWatchPath('docs/.git/config')).toBe(true);
+    expect(isIgnoredWatchPath('docs/cache.tmp')).toBe(true);
+    expect(isIgnoredWatchPath('.notes/alpha.md')).toBe(false);
+    expect(getRelevantRelativeWatchPaths('/vault', [
+      '/vault/.vlaina/workspace.json',
+      '/vault/docs/.git/config',
+      '/vault/.notes/alpha.md',
+    ])).toEqual(['.notes/alpha.md']);
   });
 });

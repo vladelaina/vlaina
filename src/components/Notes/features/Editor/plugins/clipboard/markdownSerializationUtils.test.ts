@@ -370,6 +370,12 @@ describe('normalizeSerializedMarkdownBlock', () => {
     ).toBe(['```md', '\\==literal==', '```'].join('\n'));
   });
 
+  it('does not collapse user-authored blank lines inside copied fenced code blocks', () => {
+    const markdown = ['```txt', 'before', '', '', 'after', '```'].join('\n');
+
+    expect(normalizeSerializedMarkdownBlock(markdown)).toBe(markdown);
+  });
+
   it('converts internal user br placeholders in copied blocks', () => {
     expect(
       normalizeSerializedMarkdownBlock(['Line one', '<br data-vlaina-user-br="true" />', 'Line two'].join('\n'))
@@ -714,6 +720,7 @@ describe('normalizeSerializedMarkdownDocument', () => {
       '```md',
       '<br data-vlaina-empty-line="true" />',
       '- [ ] <br />',
+      '- \u2800',
       '- one',
       '',
       '- two',
@@ -938,6 +945,12 @@ describe('normalizeSerializedMarkdownSelection', () => {
     expect(
       normalizeSerializedMarkdownSelection('export GOOGLE_GEMINI_BASE_URL="<http://example.test:8317>"')
     ).toBe('export GOOGLE_GEMINI_BASE_URL="http://example.test:8317"');
+  });
+
+  it('does not collapse user-authored blank lines inside selected fenced code blocks', () => {
+    const markdown = ['```txt', 'before', '', '', 'after', '```'].join('\n');
+
+    expect(normalizeSerializedMarkdownSelection(markdown)).toBe(markdown);
   });
 
   it('does not expose internal list gap sentinels in copied selections', () => {

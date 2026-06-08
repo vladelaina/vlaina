@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdir, mkdtemp, readFile, rm, truncate, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, truncate, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -144,5 +144,53 @@ describe('desktop filesystem ipc', () => {
       'Desktop content is too large to write',
     );
     await expect(readFile(filePath)).resolves.toHaveLength(64 * 1024 * 1024);
+  });
+
+  it('lists authorized symlinked markdown files as readable files', async () => {
+    const rootPath = path.join(tempDir, 'vault');
+    const targetPath = path.join(rootPath, 'target.md');
+    const linkPath = path.join(rootPath, 'linked.md');
+    await mkdir(rootPath, { recursive: true });
+    await writeFile(targetPath, '# target', 'utf8');
+    await symlink(targetPath, linkPath, 'file');
+    await authorizeFsPath(rootPath, 'root');
+    const { handlers } = registerHarness();
+
+    await expect(handlers.get('desktop:fs:list-dir')?.({}, rootPath)).resolves.toEqual(
+      expect.arrayContaining([
+        {
+          name: 'linked.md',
+          path: linkPath,
+          isDirectory: false,
+          isFile: true,
+        },
+      ]),
+    );
+    await expect(handlers.get('desktop:fs:read-text')?.({}, linkPath)).resolves.toBe('# target');
+  });
+
+  it('does not list symlinked files that resolve outside authorized roots as readable files', async () => {
+    const rootPath = path.join(tempDir, 'vault');
+    const outsidePath = path.join(tempDir, 'outside.md');
+    const linkPath = path.join(rootPath, 'outside.md');
+    await mkdir(rootPath, { recursive: true });
+    await writeFile(outsidePath, '# outside', 'utf8');
+    await symlink(outsidePath, linkPath, 'file');
+    await authorizeFsPath(rootPath, 'root');
+    const { handlers } = registerHarness();
+
+    await expect(handlers.get('desktop:fs:list-dir')?.({}, rootPath)).resolves.toEqual(
+      expect.arrayContaining([
+        {
+          name: 'outside.md',
+          path: linkPath,
+          isDirectory: false,
+          isFile: false,
+        },
+      ]),
+    );
+    await expect(handlers.get('desktop:fs:read-text')?.({}, linkPath)).rejects.toThrow(
+      'File path is not authorized for desktop access',
+    );
   });
 });

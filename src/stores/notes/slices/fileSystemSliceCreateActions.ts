@@ -7,6 +7,7 @@ import {
   ensureNotesFolder,
   getCurrentVaultPath,
   getNotesBasePath,
+  addToRecentNotes,
   setNoteEntry,
 } from '../storage';
 import { createNoteImpl } from '../utils/fs/crudOperations';
@@ -53,7 +54,7 @@ function finalizeCreatedNote({
   fileName,
   updatedMetadata,
   folderPath,
-  updatedRecent,
+  recentNotes,
   modifiedAt,
   size,
   fileTreeSortMode,
@@ -69,7 +70,7 @@ function finalizeCreatedNote({
   fileName: CreateNoteResult['fileName'];
   updatedMetadata: CreateNoteResult['updatedMetadata'];
   folderPath?: string;
-  updatedRecent: CreateNoteResult['updatedRecent'];
+  recentNotes: NotesStore['recentNotes'];
   modifiedAt: CreateNoteResult['modifiedAt'];
   size: CreateNoteResult['size'];
   fileTreeSortMode: NotesStore['fileTreeSortMode'];
@@ -101,7 +102,7 @@ function finalizeCreatedNote({
     currentNote: { path: relativePath, content },
     isDirty: false,
     openTabs: updatedTabs,
-    recentNotes: updatedRecent,
+    recentNotes,
     isNewlyCreated: true,
     noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, content, modifiedAt, {
       updateBaseline: true,
@@ -130,7 +131,6 @@ export function createFileSystemCreateActions(
       let {
         notesPath,
         openTabs,
-        recentNotes,
         rootFolder,
         currentNote,
         fileTreeSortMode,
@@ -184,7 +184,6 @@ export function createFileSystemCreateActions(
         const currentRootFolder = ensureRootFolderState(rootFolder);
         const result = await createNoteImpl(notesPath, folderPath, undefined, '', {
           rootFolder: currentRootFolder,
-          recentNotes,
           noteMetadata,
         });
         if (!isActiveNotesPath(get, notesPath)) {
@@ -197,6 +196,7 @@ export function createFileSystemCreateActions(
           result.relativePath,
           result.updatedMetadata.notes[result.relativePath] ?? {},
         );
+        const latestRecentNotes = addToRecentNotes(result.relativePath, latestState.recentNotes);
 
         return finalizeCreatedNote({
           set,
@@ -206,7 +206,7 @@ export function createFileSystemCreateActions(
           fileName: result.fileName,
           updatedMetadata: latestMetadata,
           folderPath,
-          updatedRecent: result.updatedRecent,
+          recentNotes: latestRecentNotes,
           modifiedAt: result.modifiedAt,
           size: result.size,
           fileTreeSortMode: latestState.fileTreeSortMode ?? fileTreeSortMode,
@@ -228,7 +228,6 @@ export function createFileSystemCreateActions(
       let {
         notesPath,
         rootFolder,
-        recentNotes,
         fileTreeSortMode,
         noteMetadata,
       } = await ensureCurrentNoteSaved(get);
@@ -243,7 +242,6 @@ export function createFileSystemCreateActions(
         const currentRootFolder = ensureRootFolderState(rootFolder);
         const result = await createNoteImpl(notesPath, folderPath, name, content, {
           rootFolder: currentRootFolder,
-          recentNotes,
           noteMetadata,
         });
         if (!isActiveNotesPath(get, notesPath)) {
@@ -256,6 +254,7 @@ export function createFileSystemCreateActions(
           result.relativePath,
           result.updatedMetadata.notes[result.relativePath] ?? {},
         );
+        const latestRecentNotes = addToRecentNotes(result.relativePath, latestState.recentNotes);
 
         return finalizeCreatedNote({
           set,
@@ -265,7 +264,7 @@ export function createFileSystemCreateActions(
           fileName: result.fileName,
           updatedMetadata: latestMetadata,
           folderPath,
-          updatedRecent: result.updatedRecent,
+          recentNotes: latestRecentNotes,
           modifiedAt: result.modifiedAt,
           size: result.size,
           fileTreeSortMode: latestState.fileTreeSortMode ?? fileTreeSortMode,
@@ -316,10 +315,12 @@ export function createFileSystemCreateActions(
           return relativePath;
         }
 
-        const currentRootFolder = ensureRootFolderState(get().rootFolder);
+        const latestState = get();
+        const latestRootFolder = ensureRootFolderState(latestState.rootFolder);
+        const latestSortMode = latestState.fileTreeSortMode ?? fileTreeSortMode;
         const nextRootFolder = buildSortedRootFolder(
-          currentRootFolder,
-          addNodeToTree(currentRootFolder.children, parentPath, {
+          latestRootFolder,
+          addNodeToTree(latestRootFolder.children, parentPath, {
             id: relativePath,
             name: fileName,
             path: relativePath,
@@ -327,8 +328,8 @@ export function createFileSystemCreateActions(
             children: [],
             expanded: false,
           }),
-          fileTreeSortMode,
-          noteMetadata,
+          latestSortMode,
+          latestState.noteMetadata ?? noteMetadata,
         );
 
         set({
@@ -337,8 +338,8 @@ export function createFileSystemCreateActions(
         });
         persistWorkspaceSnapshot(notesPath, {
           rootFolder: nextRootFolder,
-          currentNotePath: get().currentNote?.path ?? null,
-          fileTreeSortMode,
+          currentNotePath: latestState.currentNote?.path ?? null,
+          fileTreeSortMode: latestSortMode,
         });
         return relativePath;
       } catch (error) {

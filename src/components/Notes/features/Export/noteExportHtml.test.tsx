@@ -92,7 +92,17 @@ describe('renderNoteExportHtml', () => {
         '![blob](blob:https://example.com/id)',
         '![blob upper](BLOB:https://example.com/id)',
         '![absolute](/etc/passwd)',
+        '![internal](.vlaina/secret.png)',
+        '![nested internal](docs/.git/secret.png)',
+        '![encoded internal](%2evlaina/secret.png)',
+        '![encoded nested](docs%2f.git%2fsecret.png)',
         '![relative](assets/photo.webp)',
+        '![user dot](.notes/photo.webp)',
+        '![encoded user dot](%2enotes/photo.webp)',
+        '<img src=".vlaina/raw.png" alt="raw internal">',
+        '<img src="docs/.git/raw.png" alt="raw git">',
+        '<img src="docs/%2Egit/raw.png" alt="raw encoded git">',
+        '<img src=".notes/raw.png" alt="raw user dot">',
       ].join('\n'),
       'Images',
     );
@@ -104,6 +114,9 @@ describe('renderNoteExportHtml', () => {
       'data:image/bmp;base64,aGk=',
       'data:image/avif;base64,aGk=',
       'assets/photo.webp',
+      '.notes/photo.webp',
+      '%2enotes/photo.webp',
+      '.notes/raw.png',
     ]);
     expect(html).not.toContain('image/svg+xml');
     expect(html).not.toContain('https://example.com/pixel.png');
@@ -111,6 +124,13 @@ describe('renderNoteExportHtml', () => {
     expect(html).not.toContain('blob:https://example.com/id');
     expect(html).not.toContain('BLOB:https://example.com/id');
     expect(html).not.toContain('/etc/passwd');
+    expect(html).not.toContain('.vlaina/secret.png');
+    expect(html).not.toContain('docs/.git/secret.png');
+    expect(html).not.toContain('%2evlaina/secret.png');
+    expect(html).not.toContain('docs%2f.git%2fsecret.png');
+    expect(html).not.toContain('.vlaina/raw.png');
+    expect(html).not.toContain('docs/.git/raw.png');
+    expect(html).not.toContain('docs/%2Egit/raw.png');
   });
 
   it('keeps safe raw HTML while dropping exported raw media loaders', async () => {

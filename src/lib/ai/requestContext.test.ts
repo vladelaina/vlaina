@@ -88,9 +88,10 @@ describe('requestContext', () => {
     expect(sanitized[0].content).toBe('[Image]\n\ndescribe it');
   });
 
-  it('sanitizes only renderable markdown image tokens in history', () => {
+  it('sanitizes markdown and HTML image tokens in history', () => {
     const content = [
       'Look ![outer [nested]](<attachment://safe.png> "Title") and ![plain](data:image/png;base64,REAL "Title") and ![blocked](asset://localhost/image.png)',
+      'Local ![file](file:///tmp/secret.png) and <img src="app-file://attachment/local.png" alt="local">',
       'Watch ![video](https://example.com/movie.mp4)',
       '```md',
       '![example](asset://code.png)',
@@ -101,7 +102,8 @@ describe('requestContext', () => {
     const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
 
     expect(sanitized[0].content).toBe([
-      'Look [Image] and [Image] and ![blocked](asset://localhost/image.png)',
+      'Look [Image] and [Image] and [Image]',
+      'Local [Image] and [Image]',
       'Watch ![video](https://example.com/movie.mp4)',
       '```md',
       '![example](asset://code.png)',

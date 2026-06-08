@@ -3,7 +3,7 @@ import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import { joinPath as joinLocalPath } from '@/lib/storage/adapter/pathUtils';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
-import { NotesStore, FileTreeNode, MetadataFile, NoteCoverMetadata, NoteMetadataEntry } from '../types';
+import { NotesStore, FileTreeNode, MetadataFile, NoteContentCacheEntry, NoteCoverMetadata, NoteMetadataEntry } from '../types';
 import {
   createEmptyMetadataFile,
   loadGlobalNoteIconSize,
@@ -31,6 +31,7 @@ import {
 } from '../document/noteDocumentPersistence';
 import { updateNoteMetadataInMarkdown } from '../frontmatter';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
+import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import { normalizeVaultRelativePath, resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { extractNoteTags } from '@/lib/notes/tags';
@@ -70,6 +71,27 @@ function isSearchableMarkdownContent(content: string): boolean {
   }
 }
 
+function canReuseScannedNoteCacheEntry(
+  cachedEntry: NoteContentCacheEntry,
+  fileInfo: { isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null; size?: number | null } | null | undefined,
+): boolean {
+  if (!canReadBoundedMarkdownFile(fileInfo, MAX_SEARCHABLE_NOTE_BYTES)) {
+    return false;
+  }
+
+  const modifiedAt = fileInfo?.modifiedAt ?? null;
+  const size = typeof fileInfo?.size === 'number' ? fileInfo.size : null;
+  if (cachedEntry.modifiedAt !== modifiedAt) {
+    return false;
+  }
+
+  if (cachedEntry.size !== undefined) {
+    return cachedEntry.size === size;
+  }
+
+  return size === null;
+}
+
 function collectNoteContentScanPaths(
   nodes: readonly FileTreeNode[],
   notesPath: string,
@@ -85,6 +107,11 @@ function collectNoteContentScanPaths(
 
     const node = stack.pop()!;
     if (node.isFolder) {
+      const folderPath = normalizeVaultRelativePath(node.path, { allowEmpty: true });
+      if (folderPath === null || hasInternalNotePathSegment(folderPath)) {
+        continue;
+      }
+
       for (let index = node.children.length - 1; index >= 0; index -= 1) {
         stack.push(node.children[index]);
       }
@@ -92,7 +119,11 @@ function collectNoteContentScanPaths(
     }
 
     const relativePath = normalizeVaultRelativePath(node.path);
-    if (relativePath && isSupportedMarkdownPath(relativePath)) {
+    if (
+      relativePath &&
+      !hasInternalNotePathSegment(relativePath) &&
+      isSupportedMarkdownPath(relativePath)
+    ) {
       filePaths.push({
         path: relativePath,
         fullPath: joinLocalPath(notesPath, relativePath),
@@ -270,6 +301,11 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     const state = get();
     const vaultPathAtStart = state.notesPath;
     const isDraftMetadataTarget = isDraftNotePath(path);
+    if (hasInternalNotePathSegment(path) || (vaultPathAtStart && hasInternalNotePathSegment(vaultPathAtStart))) {
+      set({ error: 'Path must not be inside an internal notes folder.' });
+      return;
+    }
+
     if (!vaultPathAtStart) {
       if (isAbsolutePath(path)) {
         let latestState = state;
@@ -317,7 +353,8 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           error: null,
         });
 
-        if (isCurrentNote && latestState.isDirty) {
+        const targetTabIsDirty = latestState.openTabs.some((tab) => tab.path === path && tab.isDirty);
+        if ((isCurrentNote && latestState.isDirty) || targetTabIsDirty) {
           return;
         }
 
@@ -456,7 +493,8 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       return;
     }
 
-    if (isCurrentNote && latestState.isDirty) {
+    const targetTabIsDirty = latestState.openTabs.some((tab) => tab.path === path && tab.isDirty);
+    if ((isCurrentNote && latestState.isDirty) || targetTabIsDirty) {
       return;
     }
 
@@ -524,7 +562,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         noteContentScanController === scanController;
 
       const { notesPath, rootFolder, noteContentsCache } = get();
-      if (!rootFolder || !notesPath || !isScanActive()) {
+      if (!rootFolder || !notesPath || hasInternalNotePathSegment(notesPath) || !isScanActive()) {
         externalSignal?.removeEventListener('abort', abortFromExternalSignal);
         if (noteContentScanController === scanController) {
           noteContentScanController = null;
@@ -535,7 +573,6 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       try {
         const storage = getStorageAdapter();
         const scannedCache: NotesStore['noteContentsCache'] = new Map();
-        const filePathsToRead: { path: string; fullPath: string }[] = [];
         const filePaths = collectNoteContentScanPaths(rootFolder.children, notesPath, isScanActive);
         if (!isScanActive()) {
           return;
@@ -567,32 +604,13 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           scannedCache.set(path, createCachedNoteContentEntry(nextContent, modifiedAt, options));
         };
 
-        for (const filePath of filePaths) {
-          if (!isScanActive()) {
-            return;
-          }
-
-          const cachedEntry = noteContentsCache.get(filePath.path);
-          if (cachedEntry) {
-            addScannedEntry(
-              filePath.path,
-              cachedEntry.content,
-              cachedEntry.modifiedAt,
-              cachedEntry.size !== undefined ? { size: cachedEntry.size } : {},
-            );
-            continue;
-          }
-
-          filePathsToRead.push(filePath);
-        }
-
         const BATCH_SIZE = 10;
-        for (let i = 0; i < filePathsToRead.length; i += BATCH_SIZE) {
+        for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
           if (!isScanActive()) {
             return;
           }
 
-          const batch = filePathsToRead.slice(i, i + BATCH_SIZE);
+          const batch = filePaths.slice(i, i + BATCH_SIZE);
           if (scannedContentChars >= MAX_SCANNED_NOTE_CONTENT_CHARS) {
             batch.forEach(({ path }) => addScannedEntry(path, '', null));
             continue;
@@ -612,6 +630,11 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
               }
               modifiedAt = fileInfo?.modifiedAt ?? null;
               size = typeof fileInfo?.size === 'number' ? fileInfo.size : null;
+              const cachedEntry = noteContentsCache.get(path);
+              if (cachedEntry && canReuseScannedNoteCacheEntry(cachedEntry, fileInfo)) {
+                return { path, content: cachedEntry.content, modifiedAt, size };
+              }
+
               if (!canReadBoundedMarkdownFile(fileInfo, MAX_SEARCHABLE_NOTE_BYTES)) {
                 return { path, content: '', modifiedAt, size };
               }
@@ -673,7 +696,9 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
           const cachedEntry = latestState.noteContentsCache.get(tab.path);
           if (cachedEntry) {
-            cache.set(tab.path, cachedEntry);
+            if (tab.isDirty || !cache.has(tab.path)) {
+              cache.set(tab.path, cachedEntry);
+            }
           }
         });
         Object.keys(latestState.draftNotes).forEach((path) => {
@@ -716,6 +741,10 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     },
 
     getBacklinks: (notePath: string) => {
+      if (hasInternalNotePathSegment(notePath)) {
+        return [];
+      }
+
       const { noteContentsCache } = get();
       const results: { path: string; name: string; context: string }[] = [];
       const noteName = getNoteTitleFromPath(notePath).toLowerCase();
@@ -727,6 +756,10 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       ];
 
       noteContentsCache.forEach((entry, path) => {
+        if (hasInternalNotePathSegment(path)) {
+          return;
+        }
+
         const content = entry.content;
         if (path === notePath || !content.includes('[[')) return;
 
@@ -755,7 +788,11 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       const { noteContentsCache } = get();
       const tagCounts = new Map<string, number>();
 
-      noteContentsCache.forEach((entry) => {
+      noteContentsCache.forEach((entry, path) => {
+        if (hasInternalNotePathSegment(path)) {
+          return;
+        }
+
         for (const tag of extractNoteTags(entry.content)) {
           tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
         }
@@ -806,6 +843,10 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
       const updates = Object.entries(noteMetadata.notes)
         .map(([path, entry]) => {
+          if (hasInternalNotePathSegment(path)) {
+            return null;
+          }
+
           if (!entry.icon || !ICON_SYMBOL_SCHEME_PATTERN.test(entry.icon)) {
             return null;
           }
@@ -835,6 +876,10 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
       const updates = Object.entries(noteMetadata.notes)
         .map(([path, entry]) => {
+          if (hasInternalNotePathSegment(path)) {
+            return null;
+          }
+
           const icon = entry.icon;
           if (!icon || ICON_SYMBOL_SCHEME_PATTERN.test(icon)) {
             return null;

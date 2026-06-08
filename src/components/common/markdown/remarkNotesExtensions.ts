@@ -15,6 +15,11 @@ import {
 } from './colorMarkdown';
 import { findDelimitedTextMatches } from './delimitedMarkdown';
 import { canTransformMarkdownAst } from './markdownAstBudget';
+import {
+  createMarkdownTextSliceNode,
+  createMarkdownTextSourceMap,
+  replaceMarkdownTextNodeWithSlice,
+} from './markdownSourcePosition';
 
 export interface MdastNode {
   type: string;
@@ -92,19 +97,20 @@ function decodeCalloutIconComment(value: string): string | null {
   ));
 }
 
-function removeLeadingCalloutIconMarker(value: string): string {
+function getLeadingCalloutIconMarkerRestStart(value: string): number | null {
   const prefixIndex = value.search(/\S/u);
   if (prefixIndex < 0 || !value.startsWith(CALLOUT_ICON_TEXT_PREFIX, prefixIndex)) {
-    return value;
+    return null;
   }
 
   const markerStart = prefixIndex + CALLOUT_ICON_TEXT_PREFIX.length;
   const suffixIndex = findBoundedCalloutIconTextSuffix(value, markerStart);
   if (suffixIndex <= markerStart) {
-    return value;
+    return null;
   }
 
-  return value.slice(suffixIndex + CALLOUT_ICON_TEXT_SUFFIX.length).replace(/^\s+/u, '');
+  const afterMarker = suffixIndex + CALLOUT_ICON_TEXT_SUFFIX.length;
+  return afterMarker + (value.slice(afterMarker).match(/^\s*/u)?.[0].length ?? 0);
 }
 
 function getCalloutIconFromBlockquote(node: MdastNode): string | null {
@@ -127,7 +133,7 @@ function getCalloutIconFromBlockquote(node: MdastNode): string | null {
   return consumeLeadingCalloutEmoji(text.value || '')?.icon ?? null;
 }
 
-function transformCalloutBlockquotes(tree: MdastNode) {
+function transformCalloutBlockquotes(tree: MdastNode, markdown = '') {
   const stack = [{ node: tree, visited: false }];
 
   while (stack.length > 0) {
@@ -152,11 +158,19 @@ function transformCalloutBlockquotes(tree: MdastNode) {
       const firstText = firstChild.children?.[0];
       if (firstText?.type === 'text') {
         const markerIcon = decodeCalloutIconComment(firstText.value || '');
-        const remainingText = markerIcon
-          ? removeLeadingCalloutIconMarker(firstText.value || '')
-          : (consumeLeadingCalloutEmoji(firstText.value || '')?.rest ?? firstText.value ?? '');
-        if (remainingText) {
-          firstText.value = remainingText;
+        const consumedEmoji = markerIcon ? null : consumeLeadingCalloutEmoji(firstText.value || '');
+        const remainingTextStart = markerIcon
+          ? getLeadingCalloutIconMarkerRestStart(firstText.value || '')
+          : consumedEmoji
+            ? (firstText.value || '').length - consumedEmoji.rest.length
+            : null;
+        if (remainingTextStart !== null && remainingTextStart < (firstText.value || '').length) {
+          const sourceMap = typeof firstText.value === 'string' && firstText.value.length > 0
+            ? createMarkdownTextSourceMap(firstText.value, markdown, firstText.position)
+            : null;
+          replaceMarkdownTextNodeWithSlice(firstText, sourceMap, remainingTextStart, firstText.value?.length ?? 0);
+        } else if (remainingTextStart !== null) {
+          firstChild.children?.shift();
         } else {
           firstChild.children?.shift();
         }
@@ -327,20 +341,25 @@ function replaceDelimitedTextMark(
     });
     if (matches.length === 0) return;
 
+    const sourceMap = markdown
+      ? createMarkdownTextSourceMap(node.value, markdown, node.position)
+      : null;
     const nextChildren: MdastNode[] = [];
     let lastEnd = 0;
 
     for (const item of matches) {
       if (item.start > lastEnd) {
-        nextChildren.push({ type: 'text', value: node.value.slice(lastEnd, item.start) });
+        nextChildren.push(createMarkdownTextSliceNode(node, sourceMap, lastEnd, item.start));
       }
 
-      nextChildren.push(createInlineElementNode(type, [{ type: 'text', value: item.content }]));
+      nextChildren.push(createInlineElementNode(type, [
+        createMarkdownTextSliceNode(node, sourceMap, item.start + delimiterLength, item.end - delimiterLength),
+      ]));
       lastEnd = item.end;
     }
 
     if (lastEnd < node.value.length) {
-      nextChildren.push({ type: 'text', value: node.value.slice(lastEnd) });
+      nextChildren.push(createMarkdownTextSliceNode(node, sourceMap, lastEnd, node.value.length));
     }
 
     parent.children?.splice(index, 1, ...nextChildren);
@@ -473,7 +492,7 @@ export function remarkNotesInlineExtensions(options: RemarkNotesInlineExtensions
     applyTocShortcutsToTree(tree, markdown);
     applyAbbrDefinitionsToTree(tree, { markdown, stripDefinitions: options.stripAbbrDefinitions });
     applyAlignmentCommentsToTree(tree);
-    transformCalloutBlockquotes(tree);
+    transformCalloutBlockquotes(tree, markdown);
     replaceDelimitedTextMark(tree, 'highlight', /==([^=]+)==/g, markdown, 2);
     replaceDelimitedTextMark(tree, 'superscript', /(?<!\^)\^([^^\s](?:[^^]*?[^^\s])?)\^(?!\^)/g, markdown, 1);
     replaceDelimitedTextMark(tree, 'subscript', /(?<!~)~([^~\s](?:[^~]*?[^~\s])?)~(?!~)/g, markdown, 1);

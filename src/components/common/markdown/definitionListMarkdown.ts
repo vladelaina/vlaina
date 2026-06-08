@@ -4,6 +4,11 @@ import {
 } from './delimitedMarkdown';
 import { markEscapedMarkdownBlockSyntax } from './escapedBlockSyntax';
 import { canTransformMarkdownAst } from './markdownAstBudget';
+import {
+  createMarkdownTextSliceNode,
+  replaceMarkdownTextNodeWithSlice,
+  createMarkdownTextSourceMap,
+} from './markdownSourcePosition';
 
 export interface DefinitionListMdastNode {
   type: string;
@@ -85,18 +90,66 @@ function hasDefinitionDescriptionPrefix(node: DefinitionListMdastNode | undefine
   return isParagraph(node) && getTrimStartNodeTextPrefix(node, MAX_DEFINITION_DESC_PREFIX_CHARS) === ': ';
 }
 
-function stripDefinitionPrefix(children: readonly DefinitionListMdastNode[]): DefinitionListMdastNode[] {
+function replaceTextNodeWithSlice(
+  node: DefinitionListMdastNode,
+  markdown: string,
+  start: number,
+  end: number
+): void {
+  const sourceMap = markdown
+    ? createMarkdownTextSourceMap(node.value || '', markdown, node.position)
+    : null;
+  replaceMarkdownTextNodeWithSlice(node, sourceMap, start, end);
+}
+
+function stripDefinitionPrefix(
+  children: readonly DefinitionListMdastNode[],
+  markdown = ''
+): DefinitionListMdastNode[] {
   const nextChildren = children.map((child) => ({ ...child }));
-  const firstText = nextChildren.find((child) => child.type === 'text' && typeof child.value === 'string');
-  if (firstText?.value) {
-    firstText.value = firstText.value.replace(/^:\s*/, '');
+
+  let strippingPrefix = true;
+  let strippingPostMarkerWhitespace = false;
+  for (const child of nextChildren) {
+    if (child.type !== 'text' || typeof child.value !== 'string') {
+      if (strippingPostMarkerWhitespace) {
+        strippingPostMarkerWhitespace = false;
+      }
+      continue;
+    }
+
+    if (strippingPrefix) {
+      const markerMatch = /^(\s*):/.exec(child.value);
+      if (!markerMatch) {
+        if (/^\s*$/.test(child.value)) {
+          replaceTextNodeWithSlice(child, markdown, child.value.length, child.value.length);
+          continue;
+        }
+        return nextChildren;
+      }
+
+      replaceTextNodeWithSlice(child, markdown, markerMatch[0].length, child.value.length);
+      strippingPrefix = false;
+      strippingPostMarkerWhitespace = true;
+    }
+
+    if (strippingPostMarkerWhitespace) {
+      const whitespaceLength = child.value.match(/^\s*/)?.[0].length ?? 0;
+      if (whitespaceLength > 0) {
+        replaceTextNodeWithSlice(child, markdown, whitespaceLength, child.value.length);
+      }
+      if (child.value.length > 0) {
+        strippingPostMarkerWhitespace = false;
+      }
+    }
   }
   return nextChildren;
 }
 
 function createDefinitionListNode(
   termChildren: readonly DefinitionListMdastNode[],
-  descChildren: readonly DefinitionListMdastNode[]
+  descChildren: readonly DefinitionListMdastNode[],
+  markdown = ''
 ): DefinitionListMdastNode {
   return {
     type: 'definitionList',
@@ -121,7 +174,7 @@ function createDefinitionListNode(
         },
         children: [{
           type: 'paragraph',
-          children: stripDefinitionPrefix(descChildren),
+          children: stripDefinitionPrefix(descChildren, markdown),
         }],
       },
     ],
@@ -181,9 +234,14 @@ function splitCombinedDefinitionParagraph(
     return null;
   }
 
+  const sourceMap = markdown
+    ? createMarkdownTextSourceMap(child.value, markdown, child.position)
+    : null;
+  const descStart = match[0].length - match[2].length;
   return createDefinitionListNode(
-    [{ type: 'text', value: match[1] }],
-    [{ type: 'text', value: match[2] }]
+    [createMarkdownTextSliceNode(child, sourceMap, 0, match[1].length)],
+    [createMarkdownTextSliceNode(child, sourceMap, descStart, match[0].length)],
+    markdown
   );
 }
 
@@ -217,7 +275,7 @@ export function applyDefinitionListsToTree(tree: DefinitionListMdastNode, markdo
         child.children &&
         next?.children
       ) {
-        node.children.splice(index, 2, createDefinitionListNode(child.children, next.children));
+        node.children.splice(index, 2, createDefinitionListNode(child.children, next.children, markdown));
         continue;
       }
 

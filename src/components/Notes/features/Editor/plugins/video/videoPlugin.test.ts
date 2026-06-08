@@ -328,6 +328,27 @@ describe('videoPlugin URL support', () => {
     await editor.destroy();
   });
 
+  it('keeps video URL images inline when they are part of a paragraph', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, 'Intro ![clip](https://example.com/video.mp4) outro');
+      })
+      .use(commonmark);
+
+    for (const plugin of videoPlugin) {
+      editor.use(plugin);
+    }
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(findFirstVideoNode(view.state.doc)).toBeNull();
+    expect(view.state.doc.textContent).toContain('Intro');
+    expect(view.state.doc.textContent).toContain('outro');
+
+    await editor.destroy();
+  });
+
   it('serializes supported video nodes as markdown image syntax', async () => {
     await expect(serializeVideoNode(' https://example.com/video.mp4 ', 'Demo video')).resolves.toBe(
       '![video](https://example.com/video.mp4 "Demo video")'

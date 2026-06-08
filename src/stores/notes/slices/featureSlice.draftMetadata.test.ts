@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
 import { createFeatureSlice } from './featureSlice';
 import type { NotesStore } from '../types';
+import { createCachedNoteContentEntry } from '../document/noteContentCache';
 
 const mocks = vi.hoisted(() => ({
   readFile: vi.fn(),
@@ -616,7 +617,9 @@ describe('featureSlice draft metadata', () => {
           },
         ],
       },
-      noteContentsCache: new Map([[alphaPath, { content: '# Alpha cached', modifiedAt: 1 }]]),
+      noteContentsCache: new Map([
+        [alphaPath, createCachedNoteContentEntry('# Alpha cached', 2, { size: 16 })],
+      ]),
     });
 
     await store.getState().scanAllNotes();
@@ -625,12 +628,51 @@ describe('featureSlice draft metadata', () => {
     expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/beta.md');
     expect(store.getState().noteContentsCache.get(alphaPath)).toEqual({
       content: '# Alpha cached',
-      modifiedAt: 1,
+      modifiedAt: 2,
     });
+    expect(store.getState().noteContentsCache.get(alphaPath)?.size).toBe(16);
     expect(store.getState().noteContentsCache.get(betaPath)).toEqual({
       content: '# Beta from disk',
       modifiedAt: 2,
     });
+  });
+
+  it('reloads cached full-vault scan content when disk metadata changes', async () => {
+    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true, size: 16 });
+    mocks.readFile.mockResolvedValue('# Alpha from disk');
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      notesPath: '/vault',
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: 'docs',
+            name: 'docs',
+            path: 'docs',
+            isFolder: true,
+            expanded: true,
+            children: [{ id: notePath, name: 'alpha', path: notePath, isFolder: false }],
+          },
+        ],
+      },
+      noteContentsCache: new Map([
+        [notePath, createCachedNoteContentEntry('# Alpha cached', 1, { size: 16 })],
+      ]),
+    });
+
+    await store.getState().scanAllNotes();
+
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md');
+    expect(store.getState().noteContentsCache.get(notePath)).toEqual({
+      content: '# Alpha from disk',
+      modifiedAt: 2,
+    });
+    expect(store.getState().noteContentsCache.get(notePath)?.size).toBe(16);
   });
 
   it('stores scanned note disk size as hidden cache metadata', async () => {

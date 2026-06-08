@@ -110,6 +110,53 @@ describe('workspaceSlice security guards', () => {
     expect(store.getState().error).toBe('Path must stay inside the current vault.');
   });
 
+  it('does not open hidden app or git paths through the vault-relative note opener', async () => {
+    const store = createNotesStore();
+
+    await store.getState().openNote('.vlaina/workspace.md');
+
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
+
+    await store.getState().openNote('docs/.git/config.md');
+
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
+  });
+
+  it('does not open hidden app or git paths through the absolute note opener', async () => {
+    const store = createNotesStore();
+
+    await store.getState().openNoteByAbsolutePath('/vault/.vlaina/workspace.md');
+
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
+
+    await store.getState().openNoteByAbsolutePath('/vault/docs/.git/config.md');
+
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
+  });
+
+  it('opens user dot-folder markdown through the vault-relative note opener', async () => {
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 1, size: 8 });
+    storageAdapter.readFile.mockResolvedValue('# Alpha');
+    const store = createNotesStore();
+
+    await store.getState().openNote('.notes/alpha.md');
+
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md');
+    expect(store.getState().currentNote).toEqual({
+      path: '.notes/alpha.md',
+      content: '# Alpha',
+    });
+    expect(store.getState().error).toBeNull();
+  });
+
   it('does not read oversized markdown files into the editor', async () => {
     storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 1, size: 11 * 1024 * 1024 });
     const store = createNotesStore();

@@ -2,6 +2,7 @@ import {
   mapMarkdownOutsideProtectedBlocks,
   mapMarkdownOutsideProtectedSegments,
 } from './markdownProtectedBlocks';
+import { getMarkdownBlockContent } from '@/lib/markdown/markdownHtmlBlockClassification';
 import {
   collapseSyntheticBlankLinesAroundEmptyPlaceholders,
   collapseSyntheticBlankLinesBetweenAdjacentHeadings,
@@ -26,6 +27,8 @@ const MARKED_BR_ONLY_PATTERN =
   new RegExp(`^<br\\b(?=[^>]*${LEGACY_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
 const INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-blank-line\s*-->\s*$/i;
 const INTERNAL_TIGHT_HEADING_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-tight-heading\s*-->\s*$/i;
+const HTML_COMMENT_OPEN_PATTERN = /^(?: {0,3})<!--/;
+const HTML_COMMENT_CLOSE_PATTERN = /-->/;
 const HTML_IMAGE_LINE_PATTERN = /^(?: {0,3})<img(?:\s|\/?>|$)/i;
 const MARKDOWN_ESCAPE_PATTERN = /\\([\\`*_{}[\]()#+\-.!])/g;
 const LIST_GAP_SENTINEL = '\u0000VLAINA_LIST_GAP_SENTINEL\u0000';
@@ -1102,9 +1105,16 @@ function normalizeInternalMarkdownBlankLineCommentSegment(segment: string): stri
   const lines = segment.split('\n');
   const output: string[] = [];
   let previousWasInternalBlankLine = false;
+  let activeHtmlComment = false;
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? '';
+    if (activeHtmlComment || isMultiLineHtmlCommentOpenLine(line)) {
+      output.push(line);
+      activeHtmlComment = !isHtmlCommentCloseLine(line);
+      continue;
+    }
+
     if (!INTERNAL_MARKDOWN_BLANK_LINE_COMMENT_PATTERN.test(line)) {
       output.push(line);
       if (line.trim() !== '') {
@@ -1155,9 +1165,16 @@ function normalizeInternalTightHeadingComments(text: string): string {
 function normalizeInternalTightHeadingCommentSegment(segment: string): string {
   const lines = segment.split('\n');
   const output: string[] = [];
+  let activeHtmlComment = false;
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? '';
+    if (activeHtmlComment || isMultiLineHtmlCommentOpenLine(line)) {
+      output.push(line);
+      activeHtmlComment = !isHtmlCommentCloseLine(line);
+      continue;
+    }
+
     if (!INTERNAL_TIGHT_HEADING_COMMENT_PATTERN.test(line)) {
       output.push(line);
       continue;
@@ -1175,10 +1192,26 @@ function normalizeInternalTightHeadingCommentSegment(segment: string): string {
   return output.join('\n');
 }
 
+function isMultiLineHtmlCommentOpenLine(line: string): boolean {
+  return isHtmlCommentOpenLine(line) && !isHtmlCommentCloseLine(line);
+}
+
+function isHtmlCommentOpenLine(line: string): boolean {
+  return HTML_COMMENT_OPEN_PATTERN.test(getMarkdownBlockContent(line));
+}
+
+function isHtmlCommentCloseLine(line: string): boolean {
+  return HTML_COMMENT_CLOSE_PATTERN.test(getMarkdownBlockContent(line));
+}
+
 function normalizeUserBreakSentinels(text: string): string {
   if (!text.includes(USER_BR_SENTINEL)) return text;
 
-  const lines = text.split('\n');
+  return mapMarkdownOutsideProtectedSegments(text, normalizeUserBreakSentinelSegment);
+}
+
+function normalizeUserBreakSentinelSegment(segment: string): string {
+  const lines = segment.split('\n');
   const output: string[] = [];
 
   for (const line of lines) {
@@ -1222,7 +1255,10 @@ function normalizeListItemBlankLines(text: string): string {
     : text;
 
   return normalizedSentinels.includes('\u2800')
-    ? replaceListGapSentinelsWithBlankLines(normalizedSentinels)
+    ? mapMarkdownOutsideProtectedSegments(
+      normalizedSentinels,
+      replaceListGapSentinelsWithBlankLines,
+    )
     : normalizedSentinels;
 }
 
@@ -1258,12 +1294,19 @@ function replaceListGapSentinelsWithBlankLines(text: string): string {
 }
 
 function normalizeInternalClipboardArtifacts(text: string): string {
-  return normalizeLeakedInternalArtifacts(
-    normalizeListItemBlankLines(
-      normalizeInternalMarkdownBlankLineComments(normalizeEditorBreakPlaceholders(text))
+  return collapseInternalClipboardBlankLineRuns(
+    normalizeLeakedInternalArtifacts(
+      normalizeListItemBlankLines(
+        normalizeInternalMarkdownBlankLineComments(normalizeEditorBreakPlaceholders(text))
+      )
     )
-  )
-    .replace(/\n{3,}/g, '\n\n');
+  );
+}
+
+function collapseInternalClipboardBlankLineRuns(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment.replace(/\n{3,}/g, '\n\n')
+  );
 }
 
 function normalizeLeakedInternalArtifacts(text: string): string {

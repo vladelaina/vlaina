@@ -111,6 +111,32 @@ describe('chat mention path security', () => {
     expect(mocks.storage.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not read hidden app or git note mentions', async () => {
+    const notes = await loadMentionedNotes([
+      { path: '.vlaina/workspace.md', title: 'Workspace' },
+      { path: 'docs/.git/config.md', title: 'Git Config' },
+    ]);
+
+    expect(notes).toEqual([]);
+    expect(mocks.storage.stat).not.toHaveBeenCalled();
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
+  it('allows user dot-folder note mentions', async () => {
+    mocks.storage.stat.mockResolvedValue({ size: 32 });
+    mocks.storage.readFile.mockResolvedValue('# Alpha');
+
+    const notes = await loadMentionedNotes([
+      { path: '.notes/alpha.md', title: 'Alpha' },
+    ]);
+
+    expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/.notes/alpha.md');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md');
+    expect(notes).toEqual([
+      { path: '.notes/alpha.md', title: 'Alpha', content: '# Alpha' },
+    ]);
+  });
+
   it('does not list relative folder mentions outside the active vault', async () => {
     const notes = await loadMentionedNotes([
       { path: '../secret-folder', title: 'Secret Folder', kind: 'folder' },
@@ -127,6 +153,34 @@ describe('chat mention path security', () => {
   it('does not read arbitrary absolute note mentions unless they are starred', async () => {
     const notes = await loadMentionedNotes([
       { path: '/etc/passwd.md', title: 'passwd' },
+    ]);
+
+    expect(notes).toEqual([]);
+    expect(mocks.storage.stat).not.toHaveBeenCalled();
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read starred absolute note mentions inside hidden app or git folders', async () => {
+    mocks.notesState.starredEntries = [
+      {
+        id: 'app-note',
+        kind: 'note',
+        vaultPath: '/external',
+        relativePath: '.vlaina/workspace.md',
+        addedAt: 1,
+      },
+      {
+        id: 'git-note',
+        kind: 'note',
+        vaultPath: '/external',
+        relativePath: 'docs/.git/config.md',
+        addedAt: 1,
+      },
+    ];
+
+    const notes = await loadMentionedNotes([
+      { path: '/external/.vlaina/workspace.md', title: 'Workspace' },
+      { path: '/external/docs/.git/config.md', title: 'Git Config' },
     ]);
 
     expect(notes).toEqual([]);

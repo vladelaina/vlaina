@@ -3,7 +3,9 @@ import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { getBaseName, getParentPath, isAbsolutePath, normalizePath } from '@/lib/storage/adapter';
 import type { StarredEntry, StarredKind } from '../types';
 import { createStarredEntry, getStarredEntryKey } from './registry';
+import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import {
+  isValidStarredVaultPath,
   normalizeStarredRelativePath,
   normalizeStarredVaultPath,
   resolveStarredRelativePathForVault,
@@ -16,6 +18,10 @@ export interface StarredNoteContext {
 
 export function getStarredEntryAbsolutePath(entry: StarredEntry): string | null {
   const vaultPath = normalizeStarredVaultPath(entry.vaultPath);
+  if (!isValidStarredVaultPath(vaultPath)) {
+    return null;
+  }
+
   const relativePath = normalizeStarredRelativePath(entry.relativePath);
   if (!relativePath) {
     return null;
@@ -31,6 +37,9 @@ export function createStarredEntryFromAbsoluteNotePath(path: string): StarredEnt
     return null;
   }
   if (!isSupportedMarkdownPath(path)) {
+    return null;
+  }
+  if (hasInternalNotePathSegment(path)) {
     return null;
   }
 

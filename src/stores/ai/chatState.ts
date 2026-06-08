@@ -35,6 +35,10 @@ export interface AIUIState {
   clearSessionState: (sessionId: string) => void;
 }
 
+function saveSessionJsonInBackground(sessionId: string, messages: ChatMessage[]) {
+  void saveSessionJson(sessionId, messages).catch(() => {})
+}
+
 interface ChatMutationState {
   sessions: ChatSession[];
   messages: Record<string, ChatMessage[]>;
@@ -74,8 +78,9 @@ export const useAIUIStore = create<AIUIState>((set) => ({
     return { generatingSessions }
   }),
   markSessionUnread: (id) => {
+    const resolvedId = resolveSessionIdAlias(id)
     set((state) => ({
-      unreadSessions: { ...state.unreadSessions, [id]: true }
+      unreadSessions: { ...state.unreadSessions, [resolvedId]: true }
     }))
 
     const store = useUnifiedStore.getState()
@@ -84,12 +89,12 @@ export const useAIUIStore = create<AIUIState>((set) => ({
       return
     }
 
-    const session = ai.sessions.find((item) => item.id === id)
-    if (!session || isTemporarySessionId(id) || isTemporarySession(session)) {
+    const session = ai.sessions.find((item) => item.id === resolvedId)
+    if (!session || isTemporarySessionId(resolvedId) || isTemporarySession(session)) {
       return
     }
 
-    const nextUnreadSessionIds = uniqueSessionIds([...(ai.unreadSessionIds || []), id])
+    const nextUnreadSessionIds = uniqueSessionIds([...(ai.unreadSessionIds || []), resolvedId])
     if (nextUnreadSessionIds.length === (ai.unreadSessionIds || []).length) {
       return
     }
@@ -97,20 +102,22 @@ export const useAIUIStore = create<AIUIState>((set) => ({
     store.updateAIData({ unreadSessionIds: nextUnreadSessionIds })
   },
   markSessionRead: (id) => {
+    const resolvedId = resolveSessionIdAlias(id)
     set((state) => {
       const newUnread = { ...state.unreadSessions }
       delete newUnread[id]
+      delete newUnread[resolvedId]
       return { unreadSessions: newUnread }
     })
 
     const store = useUnifiedStore.getState()
     const ai = store.data.ai
-    if (!ai || !(ai.unreadSessionIds || []).includes(id)) {
+    if (!ai || !(ai.unreadSessionIds || []).includes(resolvedId)) {
       return
     }
 
     store.updateAIData({
-      unreadSessionIds: (ai.unreadSessionIds || []).filter((sessionId) => sessionId !== id)
+      unreadSessionIds: (ai.unreadSessionIds || []).filter((sessionId) => sessionId !== resolvedId)
     })
   },
   setError: (error: string | null) => set({ error }),
@@ -137,10 +144,15 @@ export const useAIUIStore = create<AIUIState>((set) => ({
     selectionInitialized: true,
   }),
   setTemporaryReturnSessionId: (sessionId) => set({ temporaryReturnSessionId: sessionId }),
-  setAuthPromptSessionId: (sessionId) => set({ authPromptSessionId: sessionId }),
+  setAuthPromptSessionId: (sessionId) => set({
+    authPromptSessionId: sessionId ? resolveSessionIdAlias(sessionId) : null,
+  }),
   moveSessionState: (fromSessionId, toSessionId) => set((state) => {
     const generatingSessions = { ...state.generatingSessions }
     const unreadSessions = { ...state.unreadSessions }
+    const authPromptSessionId = state.authPromptSessionId === fromSessionId
+      ? toSessionId
+      : state.authPromptSessionId
 
     if (generatingSessions[fromSessionId]) {
       delete generatingSessions[fromSessionId]
@@ -152,7 +164,7 @@ export const useAIUIStore = create<AIUIState>((set) => ({
       unreadSessions[toSessionId] = true
     }
 
-    return { generatingSessions, unreadSessions }
+    return { generatingSessions, unreadSessions, authPromptSessionId }
   }),
   clearSessionState: (sessionId) => set((state) => {
     const resolvedSessionId = resolveSessionIdAlias(sessionId)
@@ -162,7 +174,11 @@ export const useAIUIStore = create<AIUIState>((set) => ({
     delete unreadSessions[sessionId]
     delete generatingSessions[resolvedSessionId]
     delete unreadSessions[resolvedSessionId]
-    return { generatingSessions, unreadSessions }
+    const authPromptSessionId =
+      state.authPromptSessionId === sessionId || state.authPromptSessionId === resolvedSessionId
+        ? null
+        : state.authPromptSessionId
+    return { generatingSessions, unreadSessions, authPromptSessionId }
   }),
 }))
 
@@ -230,6 +246,6 @@ export function createAIChatSession(title = 'New'): string {
   })
   uiState.setChatSelection({ currentSessionId: id, temporaryChatEnabled: false })
 
-  saveSessionJson(id, [])
+  saveSessionJsonInBackground(id, [])
   return id
 }

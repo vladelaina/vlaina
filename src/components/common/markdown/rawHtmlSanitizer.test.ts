@@ -116,6 +116,27 @@ describe('rawHtmlSanitizer', () => {
     expect(stringify(tree)).toContain('real.png');
   });
 
+  it('unwraps parser-promoted containers entered while raw html content is active', () => {
+    const tree = {
+      type: 'root',
+      children: [
+        { type: 'raw', value: '<svg>' },
+        {
+          type: 'element',
+          tagName: 'span',
+          children: [
+            { type: 'raw', value: '</svg><img src="https://example.com/real.png">' },
+          ],
+        },
+      ],
+    };
+
+    dropUnsafeRawHtmlContent(tree);
+
+    expect(stringify(tree)).not.toContain('span');
+    expect(stringify(tree)).toContain('real.png');
+  });
+
   it('keeps malformed dropped raw html containers active across raw siblings', () => {
     const tree = {
       type: 'root',

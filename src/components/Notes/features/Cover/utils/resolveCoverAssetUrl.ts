@@ -1,4 +1,5 @@
 import { loadImageAsBlob, loadImageThumbnailAsBlob } from '@/lib/assets/io/reader';
+import { hasInternalNoteAssetUrlPathSegment } from '@/lib/assets/core/internalAssetPaths';
 import { resolveExistingVaultAssetPath } from '@/lib/assets/core/paths';
 import { isPublicRemoteMediaUrl, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 
@@ -87,6 +88,9 @@ async function resolveCoverAssetUrlUncached({
   if (!safeAssetPath || /^blob:/i.test(safeAssetPath)) {
     throw new Error('cover-path-unsupported');
   }
+  if (hasInternalNoteAssetUrlPathSegment(safeAssetPath)) {
+    throw new Error('cover-path-unsupported');
+  }
   if (isPublicRemoteMediaUrl(safeAssetPath)) {
     throw new Error('remote-cover-unsupported');
   }
@@ -97,6 +101,9 @@ async function resolveCoverAssetUrlUncached({
 
   const fullPath = await resolveExistingVaultAssetPath(vaultPath, safeAssetPath, currentNotePath);
   if (!fullPath) {
+    throw new Error('cover-path-unsupported');
+  }
+  if (hasInternalNoteAssetUrlPathSegment(fullPath)) {
     throw new Error('cover-path-unsupported');
   }
   if (!thumbnail) {

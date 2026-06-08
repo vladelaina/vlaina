@@ -22,6 +22,7 @@ describe('markdown internal artifact protection', () => {
       '<br data-vlaina-empty-line="true" />',
       '��VLAINA_LIST_GAP_SENTINEL��',
       '��VLAINA_USER_BR_SENTINEL��',
+      '\u0000VLAINA_USER_BR_SENTINEL\u0000',
       '\u2800',
       '```',
     ].join('\n');
@@ -43,6 +44,32 @@ describe('markdown internal artifact protection', () => {
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
 
+  it('preserves internal artifact-like comments inside multiline html comments', () => {
+    const blankLineComment = [
+      '<!--',
+      '<!--vlaina-markdown-blank-line-->',
+      '',
+      'Body',
+    ].join('\n');
+    const tightHeadingComment = [
+      '<!--',
+      '<!--vlaina-markdown-tight-heading-->',
+      '',
+      'Body',
+    ].join('\n');
+    const explicitCloseComment = [
+      '<!--',
+      '<!--vlaina-markdown-tight-heading',
+      '-->',
+      '',
+      'Body',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(blankLineComment)).toBe(blankLineComment);
+    expect(normalizeSerializedMarkdownDocument(tightHeadingComment)).toBe(tightHeadingComment);
+    expect(normalizeSerializedMarkdownDocument(explicitCloseComment)).toBe(explicitCloseComment);
+  });
+
   it('preserves internal artifact-like text inside raw html blocks', () => {
     const markdown = [
       '<pre>',
@@ -50,6 +77,19 @@ describe('markdown internal artifact protection', () => {
       '<br data-vlaina-empty-line="true" />',
       '��VLAINA_USER_BR_SENTINEL��',
       '</pre>',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
+  it('preserves internal artifact-like text after raw html close-tag text in comments', () => {
+    const markdown = [
+      '<svg>',
+      '<!-- </svg> -->',
+      '<![CDATA[</svg>]]>',
+      '<br data-vlaina-empty-line="true" />',
+      '��VLAINA_USER_BR_SENTINEL��',
+      '</svg>',
     ].join('\n');
 
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);

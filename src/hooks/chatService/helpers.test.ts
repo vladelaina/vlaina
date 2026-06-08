@@ -636,27 +636,33 @@ describe('loadMentionedNotes', () => {
         },
       ],
     };
-    mocks.storage.listDir.mockResolvedValue([
-      {
-        name: 'cover.png',
-        path: '/vault/assets/cover.png',
-        isDirectory: false,
-        isFile: true,
-        size: 2048,
-      },
-      {
-        name: 'icons',
-        path: '/vault/assets/icons',
-        isDirectory: true,
-        isFile: false,
-      },
-    ]);
+    mocks.storage.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault/assets') {
+        return [
+          {
+            name: 'cover.png',
+            path: '/vault/assets/cover.png',
+            isDirectory: false,
+            isFile: true,
+            size: 2048,
+          },
+          {
+            name: 'icons',
+            path: '/vault/assets/icons',
+            isDirectory: true,
+            isFile: false,
+          },
+        ];
+      }
+
+      return [];
+    });
 
     const notes = await loadMentionedNotes([
       { path: 'assets', title: 'assets/', kind: 'folder' },
     ]);
 
-    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/assets');
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/assets', { includeHidden: true });
     expect(notes).toHaveLength(1);
     expect(notes[0]).toMatchObject({
       path: 'assets',

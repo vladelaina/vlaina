@@ -41,6 +41,25 @@ describe('starred registry helpers', () => {
     });
   });
 
+  it('rejects starred entries inside hidden app and git directories', () => {
+    expect(normalizeStarredEntry({
+      id: 'app-note',
+      kind: 'note',
+      vaultPath: '/vault',
+      relativePath: '.vlaina/workspace.md',
+      addedAt: 1,
+    })).toBeNull();
+    expect(normalizeStarredEntry({
+      id: 'git-folder',
+      kind: 'folder',
+      vaultPath: '/vault',
+      relativePath: 'docs/.git',
+      addedAt: 1,
+    })).toBeNull();
+    expect(createStarredEntryIfValid('note', '/vault', '.git/config.md')).toBeNull();
+    expect(createStarredEntryIfValid('folder', '/vault', '.vlaina')).toBeNull();
+  });
+
   it('refuses to create non-markdown note entries', () => {
     expect(() => createStarredEntry('note', '/vault', 'image.png')).toThrow(
       'Starred note path must be a supported Markdown file',

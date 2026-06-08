@@ -82,4 +82,11 @@ describe('notes starred storage helpers', () => {
     expect(resolveStarredRelativePathForVault('c:\\users\\me\\vault\\Docs\\Alpha.md', 'C:\\Users\\Me\\Vault')).toBe('Docs/Alpha.md');
     expect(resolveStarredRelativePathForVault('c:\\users\\me\\vault\\..\\secret.md', 'C:\\Users\\Me\\Vault')).toBeNull();
   });
+
+  it('does not resolve hidden app or git paths for current-vault starred entries', () => {
+    expect(resolveStarredRelativePathForVault('/vault/.vlaina/workspace.md', '/vault')).toBeNull();
+    expect(resolveStarredRelativePathForVault('/vault/docs/.git/config.md', '/vault')).toBeNull();
+    expect(resolveStarredRelativePathForVault('.vlaina/workspace.md', '/vault')).toBeNull();
+    expect(resolveStarredRelativePathForVault('docs/.git/config.md', '/vault')).toBeNull();
+  });
 });

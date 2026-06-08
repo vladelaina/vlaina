@@ -474,7 +474,7 @@ describe('workspaceSlice tab history', () => {
       openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: true }],
       noteContentsCache: new Map([
         ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
-        ['beta.md', { content: '# beta', modifiedAt: 2 }],
+        ['beta.md', { content: '# beta', modifiedAt: 1 }],
       ]),
     });
 
@@ -508,7 +508,7 @@ describe('workspaceSlice tab history', () => {
       openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: true }],
       noteContentsCache: new Map([
         ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
-        ['beta.md', { content: '# beta', modifiedAt: 2 }],
+        ['beta.md', { content: '# beta', modifiedAt: 1 }],
       ]),
     });
 
@@ -581,7 +581,7 @@ describe('workspaceSlice tab history', () => {
       ],
       noteContentsCache: new Map([
         ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
-        ['beta.md', { content: '# beta', modifiedAt: 2 }],
+        ['beta.md', { content: '# beta', modifiedAt: 1 }],
       ]),
     });
 
@@ -640,7 +640,7 @@ describe('workspaceSlice tab history', () => {
       ],
       noteContentsCache: new Map([
         ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
-        ['beta.md', { content: '# beta', modifiedAt: 2 }],
+        ['beta.md', { content: '# beta', modifiedAt: 1 }],
       ]),
     });
 
@@ -678,7 +678,7 @@ describe('workspaceSlice tab history', () => {
       ],
       noteContentsCache: new Map([
         ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
-        ['/other-vault/starred.md', { content: '# starred', modifiedAt: 2 }],
+        ['/other-vault/starred.md', { content: '# starred', modifiedAt: 1 }],
       ]),
     });
 
@@ -715,7 +715,7 @@ describe('workspaceSlice tab history', () => {
       ],
       noteContentsCache: new Map([
         ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
-        ['/other-vault/starred.md', { content: '# starred', modifiedAt: 2 }],
+        ['/other-vault/starred.md', { content: '# starred', modifiedAt: 1 }],
       ]),
     });
 

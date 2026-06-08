@@ -4,6 +4,10 @@ import {
 } from './delimitedMarkdown';
 import { markEscapedMarkdownBlockSyntax } from './escapedBlockSyntax';
 import { canTransformMarkdownAst } from './markdownAstBudget';
+import {
+  createMarkdownTextSliceNode,
+  createMarkdownTextSourceMap,
+} from './markdownSourcePosition';
 
 export interface AbbrDefinition {
   abbr: string;
@@ -203,24 +207,42 @@ function markEscapedAbbrDefinitionParagraphs(tree: AbbrMdastNode, markdown = '')
   visit(tree);
 }
 
-function stripAbbrDefinitionLines(
-  value: string,
-  options: Pick<ApplyAbbrDefinitionsOptions, 'markdown'> & { position?: MarkdownSourcePosition }
-): string {
+function stripAbbrDefinitionLineNodes(
+  node: AbbrMdastNode,
+  markdown: string
+): AbbrMdastNode[] | null {
+  const value = node.value || '';
   const parts = value.split(/(\r?\n)/);
   let offset = 0;
-  let output = '';
+  let removedLine = false;
+  const ranges: Array<{ start: number; end: number }> = [];
 
   for (let index = 0; index < parts.length; index += 2) {
     const line = parts[index] ?? '';
     const newline = parts[index + 1] ?? '';
-    if (!isAbbrDefinitionLine(value, offset, line, options)) {
-      output += line + newline;
+    const end = offset + line.length + newline.length;
+    if (isAbbrDefinitionLine(value, offset, line, {
+      markdown,
+      position: node.position,
+    })) {
+      removedLine = true;
+    } else if (end > offset) {
+      const previous = ranges.at(-1);
+      if (previous && previous.end === offset) {
+        previous.end = end;
+      } else {
+        ranges.push({ start: offset, end });
+      }
     }
-    offset += line.length + newline.length;
+    offset = end;
   }
 
-  return output;
+  if (!removedLine) return null;
+
+  const sourceMap = markdown
+    ? createMarkdownTextSourceMap(value, markdown, node.position)
+    : null;
+  return ranges.map((range) => createMarkdownTextSliceNode(node, sourceMap, range.start, range.end));
 }
 
 function stripAbbrDefinitionsFromTree(tree: AbbrMdastNode, markdown = ''): void {
@@ -229,18 +251,19 @@ function stripAbbrDefinitionsFromTree(tree: AbbrMdastNode, markdown = ''): void 
 
     if (node.children) {
       for (let childIndex = node.children.length - 1; childIndex >= 0; childIndex -= 1) {
-        if (visit(node.children[childIndex])) {
+        const child = node.children[childIndex];
+        if (child.type === 'text' && typeof child.value === 'string') {
+          const strippedNodes = stripAbbrDefinitionLineNodes(child, markdown);
+          if (strippedNodes) {
+            node.children.splice(childIndex, 1, ...strippedNodes);
+          }
+          continue;
+        }
+
+        if (visit(child)) {
           node.children.splice(childIndex, 1);
         }
       }
-    }
-
-    if (node.type === 'text' && typeof node.value === 'string') {
-      node.value = stripAbbrDefinitionLines(node.value, {
-        markdown,
-        position: node.position,
-      });
-      return node.value.length === 0;
     }
 
     return node.type === 'paragraph' && (node.children?.length ?? 0) === 0;
@@ -311,6 +334,9 @@ export function applyAbbrDefinitionsToTree(
     if (isAbbrDefinitionText(node.value, { markdown, position: node.position })) return;
 
     const nextNodes: AbbrMdastNode[] = [];
+    const sourceMap = markdown
+      ? createMarkdownTextSourceMap(node.value, markdown, node.position)
+      : null;
     let lastEnd = 0;
     let match: RegExpExecArray | null;
     const pattern = activePattern;
@@ -329,7 +355,7 @@ export function applyAbbrDefinitionsToTree(
       }
 
       if (match.index > lastEnd) {
-        nextNodes.push({ type: 'text', value: node.value.slice(lastEnd, match.index) });
+        nextNodes.push(createMarkdownTextSliceNode(node, sourceMap, lastEnd, match.index));
       }
       nextNodes.push(createAbbrNode(abbr, fullText));
       replacementCount += 1;
@@ -338,7 +364,7 @@ export function applyAbbrDefinitionsToTree(
 
     if (nextNodes.length === 0) return;
     if (lastEnd < node.value.length) {
-      nextNodes.push({ type: 'text', value: node.value.slice(lastEnd) });
+      nextNodes.push(createMarkdownTextSliceNode(node, sourceMap, lastEnd, node.value.length));
     }
 
     parent.children?.splice(index, 1, ...nextNodes);

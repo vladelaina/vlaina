@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { assertEditorSafeMarkdownContent } from '@/stores/notes/document/noteDocumentPersistence';
+import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import { resolveVaultRelativeFullPath } from '@/stores/notes/utils/fs/vaultPathContainment';
 import type { StarredEntry } from '@/stores/notes/types';
 import type { FolderNode } from '@/stores/useNotesStore';
@@ -33,6 +34,13 @@ function isFreshSidebarTagContentEntry(
 }
 
 async function readSidebarTagContent(path: string, currentVaultPath: string | null): Promise<string> {
+  if (
+    hasInternalNotePathSegment(path) ||
+    (currentVaultPath && hasInternalNotePathSegment(currentVaultPath))
+  ) {
+    return '';
+  }
+
   const storage = getStorageAdapter();
   const fullPath = isAbsolutePath(path)
     ? path
@@ -90,13 +98,22 @@ export function useNotesSidebarTags({
   const [sidebarTagContentCache, setSidebarTagContentCache] = useState<SidebarTagContentCache>(
     () => new Map(),
   );
+  const isInternalTagVaultPath = currentVaultPath
+    ? hasInternalNotePathSegment(currentVaultPath)
+    : false;
   const scopeEntries = useMemo(
-    () => buildNotesSidebarTagScopeEntries({
-      rootFolder,
-      starredEntries,
-      currentVaultPath,
-    }),
-    [currentVaultPath, rootFolder, starredEntries],
+    () => {
+      if (isInternalTagVaultPath) {
+        return [];
+      }
+
+      return buildNotesSidebarTagScopeEntries({
+        rootFolder,
+        starredEntries,
+        currentVaultPath,
+      });
+    },
+    [currentVaultPath, isInternalTagVaultPath, rootFolder, starredEntries],
   );
   const tags = useMemo(
     () => {

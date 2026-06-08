@@ -265,4 +265,205 @@ describe('fileSystemSlice rename actions', () => {
     expect(harness.getState().error).toBe('File name contains unsupported characters.');
     expect(harness.getState().currentNote).toEqual({ path: oldPath, content: '# alpha' });
   });
+
+  it('preserves latest starred entries while a relative note rename is in flight', async () => {
+    let resolveRename: () => void;
+    hoisted.storageAdapter.rename.mockImplementation(() => new Promise<undefined>((resolve) => {
+      resolveRename = () => resolve(undefined);
+    }));
+    const harness = createSliceHarness();
+
+    harness.getState().notesPath = '/vault-a';
+    harness.getState().rootFolder = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [
+        { id: 'docs/alpha.md', name: 'alpha', path: 'docs/alpha.md', isFolder: false },
+      ],
+    };
+    harness.getState().starredEntries = [{
+      id: 'old-star',
+      kind: 'note',
+      vaultPath: '/vault-a',
+      relativePath: 'docs/old.md',
+      addedAt: 1,
+    }];
+
+    const rename = harness.getState().renameNote('docs/alpha.md', 'beta');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    harness.getState().starredEntries = [{
+      id: 'new-star',
+      kind: 'note',
+      vaultPath: '/vault-a',
+      relativePath: 'docs/alpha.md',
+      addedAt: 2,
+    }];
+
+    resolveRename!();
+    await rename;
+
+    const state = harness.getState();
+    expect(state.starredEntries).toEqual([{
+      id: 'new-star',
+      kind: 'note',
+      vaultPath: '/vault-a',
+      relativePath: 'docs/beta.md',
+      addedAt: 2,
+    }]);
+    expect(hoisted.saveStarredRegistry).toHaveBeenCalledTimes(1);
+    expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith(state.starredEntries);
+  });
+
+  it('preserves latest starred entries while a folder rename is in flight', async () => {
+    let resolveRename: () => void;
+    hoisted.storageAdapter.rename.mockImplementation(() => new Promise<undefined>((resolve) => {
+      resolveRename = () => resolve(undefined);
+    }));
+    const harness = createSliceHarness();
+
+    harness.getState().notesPath = '/vault-a';
+    harness.getState().rootFolder = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [{
+        id: 'docs',
+        name: 'docs',
+        path: 'docs',
+        isFolder: true,
+        expanded: true,
+        children: [
+          { id: 'docs/alpha.md', name: 'alpha', path: 'docs/alpha.md', isFolder: false },
+        ],
+      }],
+    };
+    harness.getState().starredEntries = [{
+      id: 'old-star',
+      kind: 'note',
+      vaultPath: '/vault-a',
+      relativePath: 'other.md',
+      addedAt: 1,
+    }];
+
+    const rename = harness.getState().renameFolder('docs', 'archive');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    harness.getState().starredEntries = [
+      {
+        id: 'folder-star',
+        kind: 'folder',
+        vaultPath: '/vault-a',
+        relativePath: 'docs',
+        addedAt: 2,
+      },
+      {
+        id: 'note-star',
+        kind: 'note',
+        vaultPath: '/vault-a',
+        relativePath: 'docs/alpha.md',
+        addedAt: 3,
+      },
+    ];
+
+    resolveRename!();
+    await rename;
+
+    const state = harness.getState();
+    expect(state.starredEntries).toEqual([
+      {
+        id: 'folder-star',
+        kind: 'folder',
+        vaultPath: '/vault-a',
+        relativePath: 'archive',
+        addedAt: 2,
+      },
+      {
+        id: 'note-star',
+        kind: 'note',
+        vaultPath: '/vault-a',
+        relativePath: 'archive/alpha.md',
+        addedAt: 3,
+      },
+    ]);
+    expect(hoisted.saveStarredRegistry).toHaveBeenCalledTimes(1);
+    expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith(state.starredEntries);
+  });
+
+  it('preserves latest starred entries and tree nodes while a move is in flight', async () => {
+    let resolveRename: () => void;
+    hoisted.storageAdapter.rename.mockImplementation(() => new Promise<undefined>((resolve) => {
+      resolveRename = () => resolve(undefined);
+    }));
+    const harness = createSliceHarness();
+
+    harness.getState().notesPath = '/vault-a';
+    harness.getState().rootFolder = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [
+        { id: 'alpha.md', name: 'alpha', path: 'alpha.md', isFolder: false },
+        {
+          id: 'target',
+          name: 'target',
+          path: 'target',
+          isFolder: true,
+          expanded: true,
+          children: [],
+        },
+      ],
+    };
+    harness.getState().starredEntries = [{
+      id: 'old-star',
+      kind: 'note',
+      vaultPath: '/vault-a',
+      relativePath: 'old.md',
+      addedAt: 1,
+    }];
+
+    const move = harness.getState().moveItem('alpha.md', 'target');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    harness.getState().rootFolder = {
+      ...harness.getState().rootFolder,
+      children: [
+        ...harness.getState().rootFolder.children,
+        { id: 'late.md', name: 'late', path: 'late.md', isFolder: false },
+      ],
+    };
+    harness.getState().starredEntries = [{
+      id: 'new-star',
+      kind: 'note',
+      vaultPath: '/vault-a',
+      relativePath: 'alpha.md',
+      addedAt: 2,
+    }];
+
+    resolveRename!();
+    await move;
+
+    const state = harness.getState();
+    expect(state.starredEntries).toEqual([{
+      id: 'new-star',
+      kind: 'note',
+      vaultPath: '/vault-a',
+      relativePath: 'target/alpha.md',
+      addedAt: 2,
+    }]);
+    expect(state.rootFolder.children.some((node: any) => node.path === 'late.md')).toBe(true);
+    expect(state.rootFolder.children.some((node: any) => node.path === 'alpha.md')).toBe(false);
+    expect(state.rootFolder.children.find((node: any) => node.path === 'target').children).toEqual([
+      { id: 'target/alpha.md', name: 'alpha', path: 'target/alpha.md', isFolder: false },
+    ]);
+    expect(hoisted.saveStarredRegistry).toHaveBeenCalledTimes(1);
+    expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith(state.starredEntries);
+  });
 });

@@ -91,6 +91,19 @@ describe('deleteOperations', () => {
     expect(hoisted.deleteNoteItemToRecoverableLocation).not.toHaveBeenCalled();
   });
 
+  it('rejects note delete paths inside internal folders', async () => {
+    await expect(deleteNoteImpl('/vault', 'docs/.git/config.md', {
+      rootFolder: null,
+      currentNote: null,
+      openTabs: [],
+      starredEntries: [],
+      noteMetadata: null,
+    })).rejects.toThrow('Path must not be inside an internal notes folder.');
+
+    expect(hoisted.markExpectedExternalChange).not.toHaveBeenCalled();
+    expect(hoisted.deleteNoteItemToRecoverableLocation).not.toHaveBeenCalled();
+  });
+
   it('does not auto-open an adjacent file when deleting the current note with no remaining tabs', async () => {
     const result = await deleteNoteImpl('/vault', 'docs/remove.md', {
       rootFolder: createFolder('', [
@@ -155,6 +168,19 @@ describe('deleteOperations', () => {
       noteMetadata: null,
     })).rejects.toThrow('Path must stay inside the current vault.');
 
+    expect(hoisted.deleteNoteItemToRecoverableLocation).not.toHaveBeenCalled();
+  });
+
+  it('rejects folder delete paths inside internal folders', async () => {
+    await expect(deleteFolderImpl('/vault', '.vlaina', {
+      rootFolder: null,
+      currentNote: null,
+      openTabs: [],
+      starredEntries: [],
+      noteMetadata: null,
+    })).rejects.toThrow('Path must not be inside an internal notes folder.');
+
+    expect(hoisted.markExpectedExternalChange).not.toHaveBeenCalled();
     expect(hoisted.deleteNoteItemToRecoverableLocation).not.toHaveBeenCalled();
   });
 

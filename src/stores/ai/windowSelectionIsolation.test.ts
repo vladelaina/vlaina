@@ -34,6 +34,16 @@ const mocked = vi.hoisted(() => {
     loadSessionJson: vi.fn(async (): Promise<ChatMessage[] | null> => []),
     hasSessionJson: vi.fn(async () => false),
     persistDataUrlAttachment: vi.fn(async () => 'attachment://persisted.png'),
+    deleteAttachment: vi.fn(async () => {}),
+    createStoredAttachmentFromSource: vi.fn((src: string) => ({
+      id: 'stored-attachment',
+      path: '',
+      previewUrl: src,
+      assetUrl: src,
+      name: 'persisted.png',
+      type: 'image/png',
+      size: 0,
+    })),
     flushPendingSessionJsonSaves: vi.fn(async () => {}),
     readWindowLaunchContext: vi.fn(() => ({
       isNewWindow: false,
@@ -82,6 +92,8 @@ vi.mock('@/lib/storage/chatStorage', () => ({
 
 vi.mock('@/lib/storage/attachmentStorage', () => ({
   persistDataUrlAttachment: mocked.persistDataUrlAttachment,
+  deleteAttachment: mocked.deleteAttachment,
+  createStoredAttachmentFromSource: mocked.createStoredAttachmentFromSource,
 }));
 
 vi.mock('@/lib/desktop/launchContext', () => ({

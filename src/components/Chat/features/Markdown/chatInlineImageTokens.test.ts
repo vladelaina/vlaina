@@ -83,6 +83,46 @@ describe('chatInlineImageTokens', () => {
     expect(resolveCompactedChatImageSrc('asset://localhost/chat-inline-image/0', result.imageSrcByToken)).toBe(src);
   });
 
+  it('does not compact large data images inside sanitizer-dropped raw HTML containers', () => {
+    const hiddenSrc = createLargeDataImage('m');
+    const realSrc = createLargeDataImage('n');
+    const markdown = [
+      '<svg>',
+      `![hidden](<${hiddenSrc}>)`,
+      `<img src="${hiddenSrc}" alt="hidden">`,
+      '</svg>',
+      `![real](<${realSrc}>)`,
+    ].join('\n');
+
+    const result = compactLargeDataImageMarkdown(markdown);
+
+    expect(result.replaced).toBe(1);
+    expect(result.markdown).toContain(`![hidden](<${hiddenSrc}>)`);
+    expect(result.markdown).toContain(`<img src="${hiddenSrc}" alt="hidden">`);
+    expect(result.markdown).toContain('![real](<asset://localhost/chat-inline-image/0>)');
+    expect(resolveCompactedChatImageSrc('asset://localhost/chat-inline-image/0', result.imageSrcByToken)).toBe(realSrc);
+  });
+
+  it('does not compact large data images inside blockquote sanitizer-dropped raw HTML containers', () => {
+    const hiddenSrc = createLargeDataImage('o');
+    const realSrc = createLargeDataImage('p');
+    const markdown = [
+      '> <svg>',
+      `> ![hidden](<${hiddenSrc}>)`,
+      `> <img src="${hiddenSrc}" alt="hidden">`,
+      '> </svg>',
+      `<img src="${realSrc}" alt="real">`,
+    ].join('\n');
+
+    const result = compactLargeDataImageMarkdown(markdown);
+
+    expect(result.replaced).toBe(1);
+    expect(result.markdown).toContain(`> ![hidden](<${hiddenSrc}>)`);
+    expect(result.markdown).toContain(`> <img src="${hiddenSrc}" alt="hidden">`);
+    expect(result.markdown).toContain('<img src="asset://localhost/chat-inline-image/0" alt="real">');
+    expect(resolveCompactedChatImageSrc('asset://localhost/chat-inline-image/0', result.imageSrcByToken)).toBe(realSrc);
+  });
+
   it('does not reuse existing inline image tokens from the original markdown', () => {
     const src = createLargeDataImage('j');
     const markdown = [

@@ -25,19 +25,6 @@ interface LocalImageProps {
     style?: CSSProperties;
 }
 
-function isRelativePath(value: string): boolean {
-    if (value.startsWith('/')) {
-        return false;
-    }
-    if (value.startsWith('./') || value.startsWith('../')) {
-        return true;
-    }
-    if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(value)) {
-        return false;
-    }
-    return value.includes('/');
-}
-
 function normalizeDirectRenderableSrc(value: string): string | null {
     if (isSvgDataUrl(value)) {
         return value.trim();
@@ -61,8 +48,7 @@ function normalizeDirectRenderableSrc(value: string): string | null {
         normalized.startsWith('http://') ||
         normalized.startsWith('https://') ||
         normalized.startsWith('data:') ||
-        normalized.startsWith('blob:') ||
-        isRelativePath(safeSrc)
+        normalized.startsWith('blob:')
     ) ? safeSrc : null;
 }
 

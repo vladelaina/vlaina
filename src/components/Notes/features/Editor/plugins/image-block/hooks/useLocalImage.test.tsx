@@ -139,6 +139,50 @@ describe('useLocalImage', () => {
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
   });
 
+  it('does not fall back to browser-loading internal local paths', async () => {
+    const { result } = renderHook(() =>
+      useLocalImage('.vlaina/assets/secret.png', '/vault', 'daily/demo.md')
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.resolvedSrc).toBe('');
+    expect(result.current.error?.message).toBe('Failed to resolve image: .vlaina/assets/secret.png');
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+  });
+
+  it('does not fall back to browser-loading unresolved local paths once a vault is available', async () => {
+    const { result } = renderHook(() =>
+      useLocalImage('../../secret.png', '/vault', 'daily/demo.md')
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.resolvedSrc).toBe('');
+    expect(result.current.error?.message).toBe('Failed to resolve image: ../../secret.png');
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+  });
+
+  it('does not fall back to browser-loading local paths when file reads fail', async () => {
+    hoisted.loadImageAsBlob.mockRejectedValueOnce(new Error('Missing image'));
+
+    const { result } = renderHook(() =>
+      useLocalImage('./assets/missing.png', '/vault', 'daily/demo.md')
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.resolvedSrc).toBe('');
+    expect(result.current.error?.message).toBe('Missing image');
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/daily/assets/missing.png');
+  });
+
   it('renders safe raster data image sources after normalizing their prefix', async () => {
     const { result } = renderHook(() =>
       useLocalImage('DATA:IMAGE/WEBP;BASE64,AQI=', '/vault', 'daily/demo.md')

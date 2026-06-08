@@ -2,6 +2,7 @@ import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { resolveUniqueName } from '@/lib/naming/uniqueName';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 import { ensureSystemDirectory, getVaultSystemStorePath } from '../../systemStoragePaths';
+import { assertNonInternalNotePath, hasInternalNotePathSegment } from './internalNotePaths';
 import {
   isSafeVaultPathSegment,
   normalizeVaultRelativePath,
@@ -39,10 +40,13 @@ function createDeleteId(): string {
 async function copyDirectory(sourcePath: string, targetPath: string): Promise<void> {
   const storage = getStorageAdapter();
   await storage.mkdir(targetPath, true);
-  const entries = await storage.listDir(sourcePath);
+  const entries = await storage.listDir(sourcePath, { includeHidden: true });
 
   for (const entry of entries) {
     if (!isSafeVaultPathSegment(entry.name)) {
+      continue;
+    }
+    if (hasInternalNotePathSegment(entry.name)) {
       continue;
     }
 
@@ -103,6 +107,7 @@ export async function deleteNoteItemToRecoverableLocation(
   const id = createDeleteId();
   const { relativePath: safeRelativePath, fullPath: originalFullPath } =
     await resolveVaultRelativeFullPath(notesPath, relativePath);
+  assertNonInternalNotePath(safeRelativePath);
   const trashDir = await getVaultSystemStorePath(notesPath, RECOVERABLE_TRASH_ROOT, id);
   const trashPath = await joinPath(trashDir, getBaseName(safeRelativePath));
 
@@ -128,6 +133,7 @@ export async function restoreNoteItemFromRecoverableLocation(
   if (!safeOriginalPath) {
     throw new Error('Restore target must stay inside the current vault.');
   }
+  assertNonInternalNotePath(safeOriginalPath, 'Restore target must not be inside an internal notes folder.');
 
   const parentPath = getParentPath(safeOriginalPath);
   const originalName = getBaseName(safeOriginalPath);

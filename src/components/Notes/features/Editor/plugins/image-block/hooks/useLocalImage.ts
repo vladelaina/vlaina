@@ -113,15 +113,18 @@ export function useLocalImage(
                     }
 
                     throw lastError ?? new Error(`Failed to load image: ${rawSrc}`);
-                } else {
+                } else if (!notesPath) {
                     if (isMounted) {
                         setResolvedSrc(baseSrc);
                     }
+                } else if (isMounted) {
+                    setResolvedSrc('');
+                    setError(new Error(`Failed to resolve image: ${rawSrc}`));
                 }
             } catch (err) {
                 if (isMounted) {
                     setError(err instanceof Error ? err : new Error('Unknown error loading image'));
-                    setResolvedSrc(getImageSourceBase(rawSrc));
+                    setResolvedSrc(notesPath ? '' : getImageSourceBase(rawSrc));
                 }
             } finally {
                 if (isMounted) {

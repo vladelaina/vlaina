@@ -25,8 +25,12 @@ import {
   parseSessionMessagesPayload,
   preserveUnknownPersistedMessages,
   registerChatStorageAutoSyncTrigger,
+  cancelSessionJsonSave,
+  flushPendingSessionJsonSave,
   loadSessionJson,
+  deleteSessionJson,
   saveSessionJson,
+  scheduleSessionJsonSave,
   serializeSessionMessages,
   setChatStorageAutoSyncTrigger,
 } from './chatStorage';
@@ -547,6 +551,36 @@ describe('chatStorage auto sync registration', () => {
     );
   });
 
+  it('overwrites existing session files that disappear after stat', async () => {
+    mocks.storage.exists.mockImplementation(async (path: string) => (
+      path === '/appdata/.vlaina/chat/sessions/session-1.json'
+    ));
+    mocks.storage.stat.mockResolvedValue({ isFile: true, size: 200 });
+    mocks.storage.readFile.mockRejectedValue(new Error('file disappeared'));
+
+    await expect(saveSessionJson('session-1', [createMessage('m1')])).resolves.toBeUndefined();
+
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/session-1.json');
+    expect(mocks.storage.writeFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/chat/sessions/session-1.json',
+      expect.stringContaining('"m1"'),
+    );
+  });
+
+  it('flushes only the requested session queue', async () => {
+    scheduleSessionJsonSave('session-1', [createMessage('m1')], 10_000);
+    scheduleSessionJsonSave('session-2', [createMessage('m2')], 10_000);
+
+    await flushPendingSessionJsonSave('session-1');
+    cancelSessionJsonSave('session-2');
+
+    expect(mocks.storage.writeFile).toHaveBeenCalledTimes(1);
+    expect(mocks.storage.writeFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/chat/sessions/session-1.json',
+      expect.stringContaining('"m1"'),
+    );
+  });
+
   it('does not load session files when stat has no size', async () => {
     mocks.storage.exists.mockResolvedValue(true);
     mocks.storage.stat.mockResolvedValue({});
@@ -564,5 +598,66 @@ describe('chatStorage auto sync registration', () => {
     await expect(loadSessionJson('session-1')).resolves.toBeNull();
 
     expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/session-1.json');
+  });
+
+  it('does not load session files that disappear after stat', async () => {
+    mocks.storage.exists.mockResolvedValue(true);
+    mocks.storage.stat.mockResolvedValue({ isFile: true, size: 200 });
+    mocks.storage.readFile.mockRejectedValue(new Error('file disappeared'));
+
+    await expect(loadSessionJson('session-1')).resolves.toBeNull();
+
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/session-1.json');
+  });
+
+  it('deletes session files even when a canceled in-flight save fails', async () => {
+    let rejectWrite!: (error: Error) => void;
+    mocks.storage.exists.mockImplementation(async (path: string) => (
+      path === '/appdata/.vlaina/chat/sessions/session-1.json'
+    ));
+    mocks.storage.writeFile.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => {
+      rejectWrite = reject;
+    }));
+
+    const saveRequest = saveSessionJson('session-1', [createMessage('m1')]).catch(() => undefined);
+    await vi.waitFor(() => {
+      expect(mocks.storage.writeFile).toHaveBeenCalledWith(
+        '/appdata/.vlaina/chat/sessions/session-1.json',
+        expect.stringContaining('"m1"'),
+      );
+    });
+
+    const deleteRequest = deleteSessionJson('session-1');
+    rejectWrite(new Error('disk busy'));
+
+    await expect(deleteRequest).resolves.toBeUndefined();
+    await saveRequest;
+    expect(mocks.storage.deleteFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/session-1.json');
+  });
+
+  it('ignores stale session saves while and after deleting the session file', async () => {
+    let resolveDelete!: () => void;
+    const sessionId = 'session-delete-guard';
+    const sessionPath = `/appdata/.vlaina/chat/sessions/${sessionId}.json`;
+    mocks.storage.exists.mockImplementation(async (path: string) => path === sessionPath);
+    mocks.storage.deleteFile.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      resolveDelete = resolve;
+    }));
+
+    const deleteRequest = deleteSessionJson(sessionId);
+    await vi.waitFor(() => expect(mocks.storage.deleteFile).toHaveBeenCalledWith(sessionPath));
+
+    await saveSessionJson(sessionId, [createMessage('during-delete')]);
+    scheduleSessionJsonSave(sessionId, [createMessage('scheduled-during-delete')], 0);
+    await Promise.resolve();
+
+    resolveDelete();
+    await deleteRequest;
+
+    await saveSessionJson(sessionId, [createMessage('after-delete')]);
+    scheduleSessionJsonSave(sessionId, [createMessage('scheduled-after-delete')], 0);
+    await Promise.resolve();
+
+    expect(mocks.storage.writeFile).not.toHaveBeenCalled();
   });
 });

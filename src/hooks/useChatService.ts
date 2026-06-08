@@ -204,7 +204,7 @@ function markManagedAuthPromptForError(sessionId: string, error: unknown, manage
 }
 
 async function makeTemporaryAttachmentsEphemeral(attachments: Attachment[]): Promise<Attachment[]> {
-  return await Promise.all(
+  const ephemeralAttachments = await Promise.all(
     attachments.map(async (attachment) => {
       const hasPersistentReference =
         !!attachment.path ||
@@ -223,7 +223,7 @@ async function makeTemporaryAttachmentsEphemeral(attachments: Attachment[]): Pro
       }
 
       if (!previewUrl) {
-        return attachment;
+        return null;
       }
 
       await deleteAttachment(attachment);
@@ -235,6 +235,8 @@ async function makeTemporaryAttachmentsEphemeral(attachments: Attachment[]): Pro
       };
     })
   );
+
+  return ephemeralAttachments.filter((attachment): attachment is Attachment => attachment !== null);
 }
 
 function isStoredAttachmentFileUrl(src: string | null | undefined): boolean {
@@ -406,6 +408,11 @@ export function useChatService() {
 
         if (!storageContent.trim() && normalizedMentions.length > 0) {
           storageContent = mentionText;
+        }
+
+        if (!storageContent.trim()) {
+          finishPreStartedChatRequest(targetSessionId, requestController, setSessionLoading);
+          return;
         }
 
         aiActions.addMessage({

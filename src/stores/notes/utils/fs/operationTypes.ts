@@ -14,45 +14,19 @@ export interface FileOperationContext {
 }
 
 export interface RenameNoteResult {
+  sourcePath: string;
   newPath: string;
-  updatedStarredEntries: NotesStore['starredEntries'];
-  updatedStarredNotes: NotesStore['starredNotes'];
-  updatedStarredFolders: NotesStore['starredFolders'];
-  updatedMetadata: NotesStore['noteMetadata'];
-  updatedTabs: NotesStore['openTabs'];
-  updatedChildren: FileTreeChildren;
-  nextCurrentNote: NotesStore['currentNote'];
 }
 
 export interface MoveItemResult {
   sourcePath: string;
   newPath: string;
-  updatedStarredEntries: NotesStore['starredEntries'];
-  updatedStarredFolders: NotesStore['starredFolders'];
-  updatedStarredNotes: NotesStore['starredNotes'];
-  updatedMetadata: NotesStore['noteMetadata'];
-  updatedTabs: NotesStore['openTabs'];
-  nextCurrentNote: NotesStore['currentNote'];
-  newChildren: FileTreeChildren;
+  targetFolderPath: string;
 }
 
 export interface DeleteOperationResult {
   updatedTabs: NotesStore['openTabs'];
-  updatedStarredEntries: NotesStore['starredEntries'];
-  updatedStarredNotes: NotesStore['starredNotes'];
-  updatedStarredFolders: NotesStore['starredFolders'];
   nextAction: FileOperationNextAction;
-  updatedMetadata: NotesStore['noteMetadata'];
   newChildren: FileTreeChildren;
   recoverableDelete: RecoverableDeletedItem;
-}
-
-export interface FolderRenameResult {
-  newPath: string;
-  updatedStarredEntries: NotesStore['starredEntries'];
-  updatedStarredFolders: NotesStore['starredFolders'];
-  updatedStarredNotes: NotesStore['starredNotes'];
-  updatedTabs: NotesStore['openTabs'];
-  updatedCurrentNote: NotesStore['currentNote'];
-  updatedMetadata: NotesStore['noteMetadata'];
 }

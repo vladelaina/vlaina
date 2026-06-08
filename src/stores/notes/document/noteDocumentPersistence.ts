@@ -14,6 +14,7 @@ import {
   stripUpdatedFrontmatter,
   updateNoteMetadataInMarkdown,
 } from '../frontmatter';
+import { APP_CONFIG_FOLDER } from '../constants';
 import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import {
   normalizeSerializedMarkdownDocument,
@@ -53,6 +54,7 @@ const MAX_NOTE_DOCUMENT_BYTES = 10 * 1024 * 1024;
 const MAX_NOTE_DOCUMENT_CHARS = 10 * 1024 * 1024;
 const MAX_NOTE_DOCUMENT_LINES = 120_000;
 const MAX_NOTE_DOCUMENT_LINE_CHARS = 512 * 1024;
+const INTERNAL_NOTE_DOCUMENT_PATH_SEGMENTS = new Set([APP_CONFIG_FOLDER, '.git']);
 
 export class NoteWriteConflictError extends Error {
   constructor() {
@@ -71,6 +73,16 @@ async function resolveStoredPath(notesPath: string, path: string): Promise<strin
 
 function normalizeStoredNotePath(path: string): string {
   return isAbsolutePath(path) ? normalizeAbsolutePath(path) : path;
+}
+
+function assertStoredNotePathAllowed(path: string): void {
+  const hasInternalSegment = path
+    .replace(/\\/g, '/')
+    .split('/')
+    .some((segment) => INTERNAL_NOTE_DOCUMENT_PATH_SEGMENTS.has(segment));
+  if (hasInternalSegment) {
+    throw new Error('Path must not be inside an internal notes folder.');
+  }
 }
 
 function assertReadableNoteSize(size: number | null | undefined): void {
@@ -130,6 +142,7 @@ export async function loadNoteDocument({
   allowStaleCachedContent = false,
 }: LoadNoteDocumentOptions): Promise<LoadedNoteDocument> {
   const notePath = normalizeStoredNotePath(path);
+  assertStoredNotePathAllowed(notePath);
   const cachedEntry = cache.get(notePath);
   const cachedContent = getCachedNoteContent(cache, notePath);
   if (cachedContent !== undefined) {
@@ -140,10 +153,13 @@ export async function loadNoteDocument({
       const storage = getStorageAdapter();
       const fullPath = await resolveStoredPath(notesPath, notePath);
       const fileInfo = await storage.stat(fullPath);
+      if (fileInfo == null || fileInfo.isDirectory === true || fileInfo.isFile === false) {
+        assertReadableNoteFileInfo(fileInfo);
+      }
       const diskModifiedAt = fileInfo?.modifiedAt ?? null;
       const diskSize = getKnownFileSize(fileInfo);
       if (
-        (diskModifiedAt != null && (cachedModifiedAt == null || diskModifiedAt > cachedModifiedAt)) ||
+        (diskModifiedAt != null && diskModifiedAt !== cachedModifiedAt) ||
         hasKnownFileSizeChanged(cachedEntry?.size, diskSize)
       ) {
         assertReadableNoteFileInfo(fileInfo);
@@ -204,6 +220,7 @@ export async function saveNoteDocument({
 }: SaveNoteDocumentOptions): Promise<SavedNoteDocument> {
   const storage = getStorageAdapter();
   const notePath = normalizeStoredNotePath(currentNote.path);
+  assertStoredNotePathAllowed(notePath);
   const fullPath = await resolveStoredPath(notesPath, notePath);
   const fileInfoBeforeWrite = await storage.stat(fullPath);
   if (typeof fileInfoBeforeWrite?.size === 'number') {

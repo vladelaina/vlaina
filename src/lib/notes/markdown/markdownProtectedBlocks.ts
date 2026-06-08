@@ -2,6 +2,7 @@ import {
   getMarkdownBlockContent,
   getMarkdownHtmlBlockClosePattern,
 } from '@/lib/markdown/markdownHtmlBlockClassification';
+import { getHtmlTagRanges } from '@/lib/markdown/markdownHtmlRanges';
 
 const FENCE_MARKER_PATTERN = /^(?: {0,3})(`{3,}|~{3,})(.*)$/;
 const HTML_RAW_BLOCK_OPEN_PATTERN = /^(?: {0,3})<(pre|script|style|textarea|title|xmp|noembed|noframes|plaintext|math|noscript|svg)(?:\s|>|$)/i;
@@ -13,6 +14,7 @@ const MAX_FRONTMATTER_LINES = 2048;
 const NEVER_CLOSE_HTML_BLOCK_PATTERN = /$a/;
 
 type FenceState = { marker: string; length: number };
+type HtmlBlockState = { closePattern: RegExp; rawTagName?: string };
 
 interface ProtectedSegmentOptions {
   protectHtmlBlocks?: boolean;
@@ -47,7 +49,7 @@ export function mapMarkdownOutsideProtectedSegments(
   let segment: string[] = [];
   let segmentStartIndex = 0;
   let activeFence: FenceState | null = null;
-  let activeHtmlBlock: RegExp | null = null;
+  let activeHtmlBlock: HtmlBlockState | null = null;
   let activeIndentedCode = false;
   const protectHtmlComments = options.protectHtmlComments !== false;
 
@@ -106,7 +108,7 @@ export function mapMarkdownOutsideProtectedSegments(
     if (htmlBlock) {
       flushSegment(index + 1);
       output.push(line);
-      activeHtmlBlock = htmlBlock.test(content) ? null : htmlBlock;
+      activeHtmlBlock = isHtmlBlockCloseLine(content, htmlBlock) ? null : htmlBlock;
       return;
     }
 
@@ -167,11 +169,11 @@ function isFenceClosingLine(content: string, marker: string, minimumLength: numb
   return true;
 }
 
-function nextHtmlBlockState(line: string, activeHtmlBlock: RegExp | null): RegExp | null {
+function nextHtmlBlockState(line: string, activeHtmlBlock: HtmlBlockState | null): HtmlBlockState | null {
   const content = getMarkdownBlockContent(line);
   const closePattern = activeHtmlBlock ?? getMarkdownRawHtmlBlockClosePattern(content);
   if (!closePattern) return null;
-  return closePattern.test(content) ? null : closePattern;
+  return isHtmlBlockCloseLine(content, closePattern) ? null : closePattern;
 }
 
 function getLeadingFrontmatterEndIndex(lines: readonly string[]): number | null {
@@ -238,14 +240,36 @@ function getNextNonBlankMarkdownBlockContentByIndex(lines: readonly string[]): A
 function getMarkdownRawHtmlBlockClosePattern(
   line: string,
   options: { protectHtmlComments?: boolean } = {},
-): RegExp | null {
+): HtmlBlockState | null {
   const rawBlockMatch = HTML_RAW_BLOCK_OPEN_PATTERN.exec(line);
   if (rawBlockMatch) {
-    if (rawBlockMatch[1]?.toLowerCase() === 'plaintext') return NEVER_CLOSE_HTML_BLOCK_PATTERN;
-    return new RegExp(`</${rawBlockMatch[1]}(?:\\s[^>]*)?>`, 'i');
+    const rawTagName = rawBlockMatch[1]?.toLowerCase() ?? '';
+    if (rawTagName === 'plaintext') {
+      return { closePattern: NEVER_CLOSE_HTML_BLOCK_PATTERN, rawTagName };
+    }
+    return {
+      closePattern: new RegExp(`</${rawTagName}(?:\\s[^>]*)?>`, 'i'),
+      rawTagName,
+    };
   }
   const closePattern = getMarkdownHtmlBlockClosePattern(line, options);
-  return closePattern === undefined ? null : closePattern ?? /^\s*$/;
+  return closePattern === undefined ? null : { closePattern: closePattern ?? /^\s*$/ };
+}
+
+function isHtmlBlockCloseLine(line: string, state: HtmlBlockState): boolean {
+  if (state.closePattern === NEVER_CLOSE_HTML_BLOCK_PATTERN) {
+    return false;
+  }
+
+  if (!state.rawTagName) {
+    return state.closePattern.test(line);
+  }
+
+  return getHtmlTagRanges(line, { start: 0, end: line.length }, 1024)
+    .some((range) => {
+      const tagNameMatch = /^<\/([A-Za-z][A-Za-z0-9:-]*)\b/i.exec(line.slice(range.start, range.end));
+      return tagNameMatch?.[1]?.toLowerCase() === state.rawTagName;
+    });
 }
 
 function isValidMarkdownFenceOpener(marker: string, info: string): boolean {

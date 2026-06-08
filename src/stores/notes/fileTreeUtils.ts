@@ -3,6 +3,7 @@ import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from '@/lib/
 import type { FileTreeNode } from './types';
 import { sortFileTree } from './fileTreeSorting';
 import { isSafeVaultPathSegment } from './utils/fs/vaultPathContainment';
+import { APP_CONFIG_FOLDER } from './constants';
 
 const MAX_FILE_TREE_ENTRIES = 5000;
 const MAX_FILE_TREE_DEPTH = 24;
@@ -15,6 +16,7 @@ const SKIPPED_DIRECTORY_NAMES = new Set([
   'target',
   '__pycache__',
 ]);
+const INTERNAL_DIRECTORY_NAMES = new Set([APP_CONFIG_FOLDER, '.git']);
 
 interface FileTreeBuildBudget {
   visitedEntries: number;
@@ -38,7 +40,11 @@ interface FileTreeRoute {
 }
 
 function shouldSkipDirectory(name: string) {
-  return name.startsWith('.') || SKIPPED_DIRECTORY_NAMES.has(name);
+  return SKIPPED_DIRECTORY_NAMES.has(name);
+}
+
+function shouldHideDirectory(name: string) {
+  return INTERNAL_DIRECTORY_NAMES.has(name);
 }
 
 export async function isGitRepositoryDirectory(fullPath: string) {
@@ -57,25 +63,26 @@ export async function buildFileTreeLevel(
 ): Promise<FileTreeNode[]> {
   const storage = getStorageAdapter();
   const fullPath = relativePath ? await joinPath(basePath, relativePath) : basePath;
-  const entries = await storage.listDir(fullPath);
+  const entries = await storage.listDir(fullPath, { includeHidden: true });
 
   const nodes: FileTreeNode[] = [];
 
   for (const entry of entries) {
+    if (!isSafeVaultPathSegment(entry.name)) continue;
+
+    const entryPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+
+    const isDir = entry.isDirectory === true;
+    const isMarkdownFile = entry.isFile === true && isSupportedMarkdownPath(entry.name);
+    if (!isDir && !isMarkdownFile) continue;
+    if (isDir && shouldHideDirectory(entry.name)) continue;
+
     if (budget && budget.visitedEntries >= MAX_FILE_TREE_ENTRIES) {
       break;
     }
     if (budget) {
       budget.visitedEntries += 1;
     }
-
-    if (!isSafeVaultPathSegment(entry.name)) continue;
-    if (entry.name.startsWith('.')) continue;
-
-    const entryPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
-
-    const isDir = entry.isDirectory === true;
-    const isFile = entry.isFile === true;
 
     if (isDir) {
       const entryFullPath = await joinPath(fullPath, entry.name);
@@ -89,7 +96,7 @@ export async function buildFileTreeLevel(
         expanded: false,
         ...(isGitRepository ? { isGitRepository: true } : {}),
       });
-    } else if (isFile && isSupportedMarkdownPath(entry.name)) {
+    } else if (isMarkdownFile) {
       nodes.push({
         id: entryPath,
         name: stripSupportedMarkdownExtension(entry.name),

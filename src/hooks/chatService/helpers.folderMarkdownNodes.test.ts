@@ -61,4 +61,38 @@ describe('collectMentionFolderMarkdownNodes', () => {
     expect(collectMentionFolderMarkdownNodes(nodes)).toHaveLength(20);
     expect(expensiveChildrenAccessed).toBe(false);
   });
+
+  it('does not spend the scan budget on unsupported files before markdown notes', () => {
+    const nodes = [
+      ...Array.from({ length: 600 }, (_value, index) => note(`docs/asset-${index}.png`)),
+      note('docs/z-alpha.md'),
+    ];
+
+    expect(collectMentionFolderMarkdownNodes(nodes).map((node) => node.path)).toEqual([
+      'docs/z-alpha.md',
+    ]);
+  });
+
+  it('includes user dot markdown while skipping internal and generated folders', () => {
+    const nodes = [
+      note('docs/.journal.md'),
+      folder('docs/.notes', [
+        note('docs/.notes/alpha.md'),
+      ]),
+      folder('docs/.vlaina', [
+        note('docs/.vlaina/workspace.md'),
+      ]),
+      folder('docs/.git', [
+        note('docs/.git/config.md'),
+      ]),
+      folder('docs/node_modules', [
+        note('docs/node_modules/package.md'),
+      ]),
+    ];
+
+    expect(collectMentionFolderMarkdownNodes(nodes).map((node) => node.path)).toEqual([
+      'docs/.journal.md',
+      'docs/.notes/alpha.md',
+    ]);
+  });
 });

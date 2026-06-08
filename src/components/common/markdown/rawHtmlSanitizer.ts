@@ -115,11 +115,10 @@ export function dropUnsafeRawHtmlContent(node: HastNode): void {
       stack.pop();
       if (
         current.enteredDroppedRawHtml &&
-        current.node.children?.length === 0 &&
         current.parentChildren &&
         typeof current.parentIndex === 'number'
       ) {
-        current.parentChildren.splice(current.parentIndex, 1);
+        current.parentChildren.splice(current.parentIndex, 1, ...(current.node.children ?? []));
         const parent = stack[stack.length - 1];
         if (parent && parent.index > current.parentIndex) {
           parent.index = current.parentIndex;

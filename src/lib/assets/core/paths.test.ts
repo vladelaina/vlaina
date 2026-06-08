@@ -80,6 +80,34 @@ describe('asset path resolution', () => {
       .resolves.toEqual([]);
   });
 
+  it('rejects internal vault asset path segments while allowing user dot folders', async () => {
+    await expect(resolveVaultAssetPathCandidates('/vault', '.vlaina/assets/a.png', 'daily/note.md'))
+      .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', 'docs/.git/a.png', 'daily/note.md'))
+      .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', 'docs/.GIT/a.png', 'daily/note.md'))
+      .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', './.git/a.png', 'daily/note.md'))
+      .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', '.notes/assets/a.png', 'daily/note.md'))
+      .resolves.toEqual([
+        '/vault/daily/.notes/assets/a.png',
+        '/vault/.notes/assets/a.png',
+      ]);
+  });
+
+  it('does not resolve assets from internal current note paths', async () => {
+    await expect(resolveVaultAssetPathCandidates('/vault', 'assets/a.png', '.vlaina/workspace.md'))
+      .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', 'assets/a.png', 'docs/.git/config.md'))
+      .resolves.toEqual([]);
+  });
+
   it('rejects absolute asset paths from note metadata', async () => {
     await expect(resolveVaultAssetPathCandidates('/vault', '/etc/passwd', 'daily/note.md'))
       .resolves.toEqual([]);

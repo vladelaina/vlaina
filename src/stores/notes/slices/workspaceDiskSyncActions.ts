@@ -11,6 +11,7 @@ import { setNoteTabDirtyState } from '../document/noteTabState';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { readNoteMetadataFromMarkdown } from '../frontmatter';
 import { isDraftNotePath } from '../draftNote';
+import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
@@ -50,12 +51,28 @@ export function createWorkspaceDiskSyncAction(
 ): Pick<WorkspaceSlice, 'syncCurrentNoteFromDisk'> {
   return {
     syncCurrentNoteFromDisk: async (options) => {
+      const initialState = get();
+      if (
+        initialState.currentNote &&
+        (
+          hasInternalNotePathSegment(initialState.notesPath) ||
+          hasInternalNotePathSegment(initialState.currentNote.path)
+        )
+      ) {
+        set({ error: 'Path must not be inside an internal notes folder.' });
+        return 'ignored';
+      }
+
       flushCurrentPendingEditorMarkdown();
       const { currentNote, notesPath, isDirty, noteContentsCache, noteMetadata, rootFolder, fileTreeSortMode } = get();
       if (!currentNote) {
         return 'ignored';
       }
       if (isDraftNotePath(currentNote.path)) {
+        return 'ignored';
+      }
+      if (hasInternalNotePathSegment(notesPath) || hasInternalNotePathSegment(currentNote.path)) {
+        set({ error: 'Path must not be inside an internal notes folder.' });
         return 'ignored';
       }
 

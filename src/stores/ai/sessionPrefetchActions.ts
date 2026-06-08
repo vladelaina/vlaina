@@ -45,13 +45,13 @@ export function createSessionPrefetchActions() {
             [sessionId]: loadedMessages || [],
           },
         }, true);
+      }).catch(() => {
+        // Hover prefetch should never surface as a user-visible chat error.
       });
 
       pendingSessionPrefetches.set(sessionId, task);
       try {
         await task;
-      } catch {
-        // Hover prefetch should never surface as a user-visible chat error.
       } finally {
         pendingSessionPrefetches.delete(sessionId);
       }

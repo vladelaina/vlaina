@@ -5,6 +5,7 @@ import {
   defaultValueCtx,
   editorViewCtx,
   remarkStringifyOptionsCtx,
+  serializerCtx,
 } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
@@ -537,6 +538,17 @@ describe('MarkdownEditor compatibility', () => {
     const view = editor.ctx.get(editorViewCtx);
     expect(view.dom.querySelector('.editor-dl-term')).toBeNull();
     expect(view.dom.querySelector('.editor-dl-desc')).toBeNull();
+    await destroyEditor(editor);
+  });
+
+  it('serializes definition lists back to markdown without nested paragraphs', async () => {
+    const markdown = ['Term', '', ': Definition'].join('\n');
+    const editor = await createEditor(markdown);
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(serializer(view.state.doc).trim()).toBe(markdown);
+
     await destroyEditor(editor);
   });
 });

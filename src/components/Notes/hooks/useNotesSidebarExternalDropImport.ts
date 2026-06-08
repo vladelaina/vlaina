@@ -25,7 +25,7 @@ import {
 } from './externalMarkdownImport';
 import {
   getDroppedExternalPaths,
-  hasDataTransferType,
+  hasExternalDroppedFiles,
 } from './externalDropPayload';
 import { SIDEBAR_SCROLL_ROOT_SELECTOR } from '../features/Sidebar/context-menu/shared';
 
@@ -42,7 +42,7 @@ function getParentRelativePath(path: string) {
 }
 
 function isFileDrag(event: DragEvent) {
-  return hasDataTransferType(event.dataTransfer?.types, 'Files');
+  return hasExternalDroppedFiles(event.dataTransfer);
 }
 
 function getSidebarDropState(event: DragEvent) {

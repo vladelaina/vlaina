@@ -2162,6 +2162,51 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(bodyText).not.toContain('reasoning_content');
   });
 
+  it('sanitizes local image markdown from direct OpenAI-compatible history', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse('data: {"choices":[{"delta":{"content":"next"}}]}\n\ndata: [DONE]\n\n'),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await new OpenAICompatibleClient().sendMessage(
+      'continue',
+      [
+        {
+          id: 'm1',
+          role: 'user',
+          content: 'Look ![file](file:///tmp/secret.png) and ![stored](attachment://safe.png)',
+          modelId: 'gpt-4o-mini',
+          timestamp: 1,
+          versions: [],
+          currentVersionIndex: 0,
+        },
+        {
+          id: 'm2',
+          role: 'assistant',
+          content: 'Seen <img src="app-file://attachment/local.png" alt="local">',
+          modelId: 'gpt-4o-mini',
+          timestamp: 2,
+          versions: [],
+          currentVersionIndex: 0,
+        },
+      ],
+      buildModel({ apiModelId: 'gpt-4o-mini', name: 'GPT 4o mini' }),
+      buildProvider({ endpointType: 'openai' }),
+      vi.fn(),
+    );
+
+    const bodyText = fetchMock.mock.calls[0][1].body;
+    const body = JSON.parse(bodyText);
+    expect(body.messages).toEqual([
+      { role: 'user', content: 'Look [Image] and [Image]' },
+      { role: 'assistant', content: 'Seen [Image]' },
+      { role: 'user', content: 'continue' },
+    ]);
+    expect(bodyText).not.toContain('file:///tmp/secret.png');
+    expect(bodyText).not.toContain('attachment://safe.png');
+    expect(bodyText).not.toContain('app-file://attachment/local.png');
+  });
+
   it('falls back to visible content when a replay transcript is malformed', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       streamResponse('data: {"choices":[{"delta":{"content":"next"}}]}\n\ndata: [DONE]\n\n'),

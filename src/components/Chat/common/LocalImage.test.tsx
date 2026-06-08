@@ -60,11 +60,13 @@ describe('LocalImage', () => {
     expect(image).toHaveAttribute('src', 'data:image/png;base64,RASTER');
   });
 
-  it('renders relative image paths with directories directly', async () => {
+  it('blocks relative image paths with directories instead of browser-loading them', async () => {
     render(<LocalImage src="images/demo.png" alt="relative" />);
 
-    const image = await screen.findByAltText('relative');
-    expect(image).toHaveAttribute('src', 'images/demo.png');
+    await waitFor(() => {
+      expect(screen.getByText('Image unavailable')).toBeInTheDocument();
+    });
+    expect(screen.queryByAltText('relative')).not.toBeInTheDocument();
     expect(mocks.getBasePath).not.toHaveBeenCalled();
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
   });

@@ -64,6 +64,47 @@ describe('resolveCoverAssetUrl', () => {
     expect(hoisted.resolveExistingVaultAssetPath).not.toHaveBeenCalled();
   });
 
+  it('rejects cover paths that point into internal notes folders', async () => {
+    await expect(resolveCoverAssetUrl({
+      assetPath: '.vlaina/assets/cover.webp',
+      vaultPath: '/vault-a',
+    })).rejects.toThrow('cover-path-unsupported');
+
+    await expect(resolveCoverAssetUrl({
+      assetPath: 'docs/.git/cover.webp',
+      vaultPath: '/vault-a',
+    })).rejects.toThrow('cover-path-unsupported');
+
+    await expect(resolveCoverAssetUrl({
+      assetPath: '%2evlaina/assets/cover.webp',
+      vaultPath: '/vault-a',
+    })).rejects.toThrow('cover-path-unsupported');
+
+    await expect(resolveCoverAssetUrl({
+      assetPath: 'docs%2f.git%2fcover.webp',
+      vaultPath: '/vault-a',
+    })).rejects.toThrow('cover-path-unsupported');
+
+    expect(hoisted.resolveExistingVaultAssetPath).not.toHaveBeenCalled();
+  });
+
+  it('keeps user dot-folder cover paths resolvable', async () => {
+    hoisted.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.notes/assets/cover.webp');
+    hoisted.loadImageAsBlob.mockResolvedValue('blob:user-dot');
+
+    const url = await resolveCoverAssetUrl({
+      assetPath: '.notes/assets/cover.webp',
+      vaultPath: '/vault-a',
+    });
+
+    expect(url).toBe('blob:user-dot');
+    expect(hoisted.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
+      '/vault-a',
+      '.notes/assets/cover.webp',
+      undefined,
+    );
+  });
+
   it('does not resolve removed built-in cover aliases', async () => {
     hoisted.resolveExistingVaultAssetPath.mockResolvedValue(null);
 
@@ -179,6 +220,18 @@ describe('resolveCoverAssetUrl', () => {
 
     await expect(resolveCoverAssetUrl({
       assetPath: '/etc/passwd',
+      vaultPath: '/vault-a',
+    })).rejects.toThrow('cover-path-unsupported');
+
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+    expect(hoisted.loadImageThumbnailAsBlob).not.toHaveBeenCalled();
+  });
+
+  it('does not read resolved cover paths inside internal notes folders', async () => {
+    hoisted.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/cover.webp');
+
+    await expect(resolveCoverAssetUrl({
+      assetPath: 'assets/cover.webp',
       vaultPath: '/vault-a',
     })).rejects.toThrow('cover-path-unsupported');
 

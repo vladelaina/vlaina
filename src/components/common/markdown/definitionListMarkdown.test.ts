@@ -65,8 +65,42 @@ describe('definitionListMarkdown', () => {
     expect(tree.children?.[0].type).toBe('definitionList');
     expect(tree.children?.[0].children?.[1].children?.[0].children).toEqual([
       { type: 'text', value: '' },
-      { type: 'text', value: ' Definition' },
+      { type: 'text', value: 'Definition' },
     ]);
+  });
+
+  it('removes description marker whitespace split across text nodes', () => {
+    const tree: DefinitionListMdastNode = {
+      type: 'root',
+      children: [
+        paragraph([text('Term')]),
+        paragraph([text('  :  '), text('Definition')]),
+      ],
+    };
+
+    applyDefinitionListsToTree(tree);
+
+    expect(tree.children?.[0]).toMatchObject({
+      type: 'definitionList',
+      children: [
+        {
+          type: 'definitionTerm',
+          children: [{ type: 'text', value: 'Term' }],
+        },
+        {
+          type: 'definitionDescription',
+          children: [
+            {
+              type: 'paragraph',
+              children: [
+                { type: 'text', value: '' },
+                { type: 'text', value: 'Definition' },
+              ],
+            },
+          ],
+        },
+      ],
+    });
   });
 
   it('does not convert oversized term paragraphs', () => {

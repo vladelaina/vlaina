@@ -12,6 +12,7 @@ vi.mock('@/lib/storage/adapter', () => ({
     readFile: mocked.readFile,
     stat: mocked.stat,
   }),
+  isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
   joinPath: async (...segments: string[]) => segments.join('/').replace(/\/+/g, '/'),
 }));
 
@@ -137,6 +138,42 @@ describe('useStarredEntryIcon', () => {
       expect(mocked.stat).toHaveBeenCalledWith('/vault-b/docs/missing-size.md');
     });
     expect(result.current).toBeUndefined();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read icon metadata from stale internal starred entries', async () => {
+    const { result } = renderHook(() =>
+      useStarredEntryIcon({
+        id: 'starred-internal',
+        kind: 'note',
+        vaultPath: '/vault',
+        relativePath: 'docs/.git/config.md',
+        addedAt: 1,
+      }, true),
+    );
+
+    await Promise.resolve();
+
+    expect(result.current).toBeUndefined();
+    expect(mocked.stat).not.toHaveBeenCalled();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read icon metadata from stale entries with internal vault paths', async () => {
+    const { result } = renderHook(() =>
+      useStarredEntryIcon({
+        id: 'starred-internal-vault',
+        kind: 'note',
+        vaultPath: '/vault/.vlaina',
+        relativePath: 'workspace.md',
+        addedAt: 1,
+      }, true),
+    );
+
+    await Promise.resolve();
+
+    expect(result.current).toBeUndefined();
+    expect(mocked.stat).not.toHaveBeenCalled();
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 

@@ -6,8 +6,14 @@ import {
   relativePath,
 } from '@/lib/storage/adapter';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
-import { updateFileNodePath, updateFolderNode } from '../fileTreeUtils';
-import { processFolderRename } from '../utils/fs/batchOperations';
+import {
+  addNodeToTree,
+  deepUpdateNodePath,
+  findNode,
+  removeNodeFromTree,
+  updateFileNodePath,
+  updateFolderNode,
+} from '../fileTreeUtils';
 import { isInvalidMoveTarget } from '../utils/fs/moveValidation';
 import { resolveUniqueRenamedPath } from '../utils/fs/pathOperations';
 import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
@@ -20,6 +26,7 @@ import {
   getVaultStarredPaths,
   normalizeStarredRelativePath,
   normalizeStarredVaultPath,
+  remapStarredEntriesForVault,
   saveStarredRegistry,
 } from '../starred';
 import { assertValidFileName } from '../noteUtils';
@@ -48,6 +55,70 @@ function remapMetadataForRename(
   );
 }
 
+function getRemappedStarredState(
+  starredEntries: ReturnType<FileSystemSliceGet>['starredEntries'],
+  notesPath: string,
+  remapPath: Parameters<typeof remapStarredEntriesForVault>[2],
+) {
+  const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, remapPath);
+  if (starredResult.changed) {
+    void saveStarredRegistry(starredResult.entries);
+  }
+
+  const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
+  return {
+    entries: starredResult.entries,
+    notes: starredPaths.notes,
+    folders: starredPaths.folders,
+  };
+}
+
+function remapStarredForNoteRename(
+  starredEntries: ReturnType<FileSystemSliceGet>['starredEntries'],
+  notesPath: string,
+  oldPath: string,
+  newPath: string,
+) {
+  return getRemappedStarredState(starredEntries, notesPath, (relativePath, kind) => (
+    kind === 'note' && relativePath === oldPath ? newPath : relativePath
+  ));
+}
+
+function remapStarredForPathRename(
+  starredEntries: ReturnType<FileSystemSliceGet>['starredEntries'],
+  notesPath: string,
+  oldPath: string,
+  newPath: string,
+) {
+  return getRemappedStarredState(starredEntries, notesPath, (relativePath) => {
+    if (relativePath === oldPath) {
+      return newPath;
+    }
+    if (relativePath.startsWith(`${oldPath}/`)) {
+      return `${newPath}${relativePath.slice(oldPath.length)}`;
+    }
+    return relativePath;
+  });
+}
+
+function moveRootFolderChildren(
+  children: NonNullable<ReturnType<FileSystemSliceGet>['rootFolder']>['children'],
+  sourcePath: string,
+  newPath: string,
+  targetFolderPath: string,
+) {
+  const nodeToMove = findNode(children, sourcePath);
+  if (!nodeToMove) {
+    return children;
+  }
+
+  const nodeWithNewPath = deepUpdateNodePath(nodeToMove, sourcePath, newPath);
+  const updatedNode = nodeToMove.isFolder
+    ? nodeWithNewPath
+    : { ...nodeWithNewPath, name: getNoteTitleFromPath(newPath) };
+  return addNodeToTree(removeNodeFromTree(children, sourcePath), targetFolderPath, updatedNode);
+}
+
 export function createFileSystemRenameActions(
   set: FileSystemSliceSet,
   get: FileSystemSliceGet,
@@ -58,21 +129,12 @@ export function createFileSystemRenameActions(
       const {
         notesPath,
         rootFolder,
-        currentNote,
-        openTabs,
-        starredEntries,
         noteMetadata,
         fileTreeSortMode,
       } = get();
 
       try {
-        const result = await renameNoteImpl(notesPath, path, newName, {
-          rootFolder,
-          currentNote,
-          openTabs,
-          starredEntries,
-          noteMetadata,
-        });
+        const result = await renameNoteImpl(notesPath, path, newName);
         if (!result) {
           return;
         }
@@ -83,41 +145,48 @@ export function createFileSystemRenameActions(
         const latestState = get();
         const updatedMetadata = remapMetadataForRename(
           latestState.noteMetadata ?? noteMetadata,
-          path,
+          result.sourcePath,
           result.newPath,
         );
         const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = applyPathRenameState({
-          oldPath: path,
+          oldPath: result.sourcePath,
           newPath: result.newPath,
           recentNotes: latestState.recentNotes,
           displayNames: latestState.displayNames,
           noteContentsCache: latestState.noteContentsCache,
         });
+        const rootFolderForUpdate = latestState.rootFolder ?? rootFolder;
         const nextRootFolder = buildSortedRootFolder(
-          latestState.rootFolder ?? rootFolder,
-          latestState.rootFolder
+          rootFolderForUpdate,
+          rootFolderForUpdate
             ? updateFileNodePath(
-                latestState.rootFolder.children,
-                path,
+                rootFolderForUpdate.children,
+                result.sourcePath,
                 result.newPath,
                 getNoteTitleFromPath(result.newPath),
               )
-            : result.updatedChildren,
+            : [],
           latestState.fileTreeSortMode ?? fileTreeSortMode,
           updatedMetadata,
         );
         const nextCurrentNote = remapCurrentNoteForExternalRename(
           latestState.currentNote,
-          path,
+          result.sourcePath,
+          result.newPath,
+        );
+        const updatedStarred = remapStarredForNoteRename(
+          latestState.starredEntries,
+          notesPath,
+          result.sourcePath,
           result.newPath,
         );
 
         set({
-          starredEntries: result.updatedStarredEntries,
-          starredNotes: result.updatedStarredNotes,
-          starredFolders: result.updatedStarredFolders,
+          starredEntries: updatedStarred.entries,
+          starredNotes: updatedStarred.notes,
+          starredFolders: updatedStarred.folders,
           noteMetadata: updatedMetadata,
-          openTabs: remapOpenTabsForExternalRename(latestState.openTabs, path, result.newPath),
+          openTabs: remapOpenTabsForExternalRename(latestState.openTabs, result.sourcePath, result.newPath),
           currentNote: nextCurrentNote,
           currentNoteRevision:
             latestState.currentNote?.path !== nextCurrentNote?.path
@@ -254,10 +323,6 @@ export function createFileSystemRenameActions(
       flushCurrentPendingEditorMarkdown();
       const {
         notesPath,
-        rootFolder,
-        currentNote,
-        openTabs,
-        starredEntries,
         noteMetadata,
       } = get();
       const storage = getStorageAdapter();
@@ -282,42 +347,41 @@ export function createFileSystemRenameActions(
         }
         emitNotesExternalPathRename({ notesPath, oldPath: safePath, newPath });
 
-        const result = await processFolderRename(notesPath, safePath, fileName, {
-          rootFolder,
-          currentNote,
-          openTabs,
-          starredEntries,
-          noteMetadata,
-        });
         const latestState = get();
         const updatedMetadata = remapMetadataForRename(
           latestState.noteMetadata ?? noteMetadata,
-          path,
+          safePath,
           newPath,
         );
         const updatedCurrentNote = remapCurrentNoteForExternalRename(
           latestState.currentNote,
-          path,
+          safePath,
           newPath,
         );
         const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = applyPathRenameState({
-          oldPath: path,
+          oldPath: safePath,
           newPath,
           recentNotes: latestState.recentNotes,
           displayNames: latestState.displayNames,
           noteContentsCache: latestState.noteContentsCache,
         });
+        const updatedStarred = remapStarredForPathRename(
+          latestState.starredEntries,
+          notesPath,
+          safePath,
+          newPath,
+        );
 
         if (!latestState.rootFolder) {
           set({
-            starredEntries: result.updatedStarredEntries,
-            starredFolders: result.updatedStarredFolders,
-            starredNotes: result.updatedStarredNotes,
+            starredEntries: updatedStarred.entries,
+            starredFolders: updatedStarred.folders,
+            starredNotes: updatedStarred.notes,
             noteMetadata: updatedMetadata,
             recentNotes: nextRecentNotes,
             displayNames: nextDisplayNames,
             noteContentsCache: nextNoteContentsCache,
-            openTabs: remapOpenTabsForExternalRename(latestState.openTabs, path, newPath),
+            openTabs: remapOpenTabsForExternalRename(latestState.openTabs, safePath, newPath),
             currentNote: updatedCurrentNote,
             currentNoteRevision:
               latestState.currentNote?.path !== updatedCurrentNote?.path
@@ -335,15 +399,15 @@ export function createFileSystemRenameActions(
         );
 
         set({
-          starredEntries: result.updatedStarredEntries,
-          starredFolders: result.updatedStarredFolders,
-          starredNotes: result.updatedStarredNotes,
+          starredEntries: updatedStarred.entries,
+          starredFolders: updatedStarred.folders,
+          starredNotes: updatedStarred.notes,
           noteMetadata: updatedMetadata,
           recentNotes: nextRecentNotes,
           displayNames: nextDisplayNames,
           noteContentsCache: nextNoteContentsCache,
           rootFolder: nextRootFolder,
-          openTabs: remapOpenTabsForExternalRename(latestState.openTabs, path, newPath),
+          openTabs: remapOpenTabsForExternalRename(latestState.openTabs, safePath, newPath),
           currentNote: updatedCurrentNote,
           currentNoteRevision:
             latestState.currentNote?.path !== updatedCurrentNote?.path
@@ -409,17 +473,31 @@ export function createFileSystemRenameActions(
           displayNames: latestState.displayNames,
           noteContentsCache: latestState.noteContentsCache,
         });
+        const latestRootFolder = latestState.rootFolder ?? rootFolder;
         const nextRootFolder = buildSortedRootFolder(
-          latestState.rootFolder ?? rootFolder,
-          result.newChildren,
+          latestRootFolder,
+          latestRootFolder
+            ? moveRootFolderChildren(
+                latestRootFolder.children,
+                result.sourcePath,
+                result.newPath,
+                result.targetFolderPath,
+              )
+            : [],
           latestState.fileTreeSortMode ?? fileTreeSortMode,
           updatedMetadata,
         );
+        const updatedStarred = remapStarredForPathRename(
+          latestState.starredEntries,
+          notesPath,
+          result.sourcePath,
+          result.newPath,
+        );
 
         set({
-          starredEntries: result.updatedStarredEntries,
-          starredNotes: result.updatedStarredNotes,
-          starredFolders: result.updatedStarredFolders,
+          starredEntries: updatedStarred.entries,
+          starredNotes: updatedStarred.notes,
+          starredFolders: updatedStarred.folders,
           noteMetadata: updatedMetadata,
           openTabs: remapOpenTabsForExternalRename(latestState.openTabs, result.sourcePath, result.newPath),
           currentNote: nextCurrentNote,

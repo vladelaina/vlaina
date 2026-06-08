@@ -4,6 +4,7 @@ import {
   remarkNotesInlineExtensions,
   type MdastNode,
 } from './remarkNotesExtensions';
+import { replaceUnderlineMarkdown } from './colorMarkdown';
 
 function buildDeepTree(leafChildren: MdastNode[]): {
   leaf: MdastNode;
@@ -120,6 +121,248 @@ describe('remarkNotesInlineExtensions', () => {
     remarkNotesInlineExtensions()(tree);
 
     expect(tree.children?.[0].children).toEqual(children);
+  });
+
+  it('keeps source positions for later inline transforms after splitting text nodes', () => {
+    const markdown = '==mark==\\^literal^ ++under++ ~sub~';
+    const tree: MdastNode = {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [{
+            type: 'text',
+            value: '==mark==^literal^ ++under++ ~sub~',
+            position: { start: { offset: 0 }, end: { offset: markdown.length } },
+          }],
+        },
+      ],
+    };
+
+    remarkNotesInlineExtensions()(tree, { value: markdown });
+
+    expect(tree.children?.[0].children).toMatchObject([
+      {
+        type: 'highlight',
+        children: [{ type: 'text', value: 'mark' }],
+      },
+      { type: 'text', value: '^literal^ ' },
+      {
+        type: 'underline',
+        children: [{ type: 'text', value: 'under' }],
+      },
+      { type: 'text', value: ' ' },
+      {
+        type: 'subscript',
+        children: [{ type: 'text', value: 'sub' }],
+      },
+    ]);
+  });
+
+  it('keeps source positions for inline transforms after abbreviation replacements', () => {
+    const markdown = [
+      '*[HTML]: HyperText Markup Language',
+      '',
+      'HTML ==mark==',
+    ].join('\n');
+    const usageOffset = markdown.indexOf('HTML ==mark==');
+    const tree: MdastNode = {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [{
+            type: 'text',
+            value: '*[HTML]: HyperText Markup Language',
+            position: { start: { offset: 0 }, end: { offset: 34 } },
+          }],
+        },
+        {
+          type: 'paragraph',
+          children: [{
+            type: 'text',
+            value: 'HTML ==mark==',
+            position: { start: { offset: usageOffset }, end: { offset: markdown.length } },
+          }],
+        },
+      ],
+    };
+
+    remarkNotesInlineExtensions()(tree, { value: markdown });
+
+    expect(tree.children?.[1].children).toMatchObject([
+      {
+        type: 'abbr',
+        children: [{ type: 'text', value: 'HTML' }],
+      },
+      { type: 'text', value: ' ' },
+      {
+        type: 'highlight',
+        children: [{ type: 'text', value: 'mark' }],
+      },
+    ]);
+  });
+
+  it('keeps source positions for inline transforms after definition-list prefixes', () => {
+    const markdown = [
+      'Term',
+      '',
+      ': ==mark==',
+    ].join('\n');
+    const tree: MdastNode = {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [{
+            type: 'text',
+            value: 'Term',
+            position: { start: { offset: 0 }, end: { offset: 4 } },
+          }],
+        },
+        {
+          type: 'paragraph',
+          children: [{
+            type: 'text',
+            value: ': ==mark==',
+            position: { start: { offset: markdown.indexOf(':') }, end: { offset: markdown.length } },
+          }],
+        },
+      ],
+    };
+
+    remarkNotesInlineExtensions()(tree, { value: markdown });
+
+    expect(tree.children?.[0]).toMatchObject({
+      type: 'definitionList',
+      children: [
+        {
+          type: 'definitionTerm',
+          children: [{ type: 'text', value: 'Term' }],
+        },
+        {
+          type: 'definitionDescription',
+          children: [{
+            type: 'paragraph',
+            children: [{
+              type: 'highlight',
+              children: [{ type: 'text', value: 'mark' }],
+            }],
+          }],
+        },
+      ],
+    });
+  });
+
+  it('keeps source positions after stripping abbreviation definition lines', () => {
+    const markdown = [
+      '*[HTML]: HyperText Markup Language',
+      'HTML ==mark==',
+    ].join('\n');
+    const tree: MdastNode = {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [{
+            type: 'text',
+            value: markdown,
+            position: { start: { offset: 0 }, end: { offset: markdown.length } },
+          }],
+        },
+      ],
+    };
+
+    remarkNotesInlineExtensions({ stripAbbrDefinitions: true })(tree, { value: markdown });
+
+    expect(tree.children?.[0].children).toMatchObject([
+      {
+        type: 'abbr',
+        children: [{ type: 'text', value: 'HTML' }],
+      },
+      { type: 'text', value: ' ' },
+      {
+        type: 'highlight',
+        children: [{ type: 'text', value: 'mark' }],
+      },
+    ]);
+  });
+
+  it('keeps source positions for inline transforms after the underline plugin runs first', () => {
+    const markdown = '++under++ ==mark==';
+    const tree: MdastNode = {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [{
+            type: 'text',
+            value: markdown,
+            position: { start: { offset: 0 }, end: { offset: markdown.length } },
+          }],
+        },
+      ],
+    };
+
+    replaceUnderlineMarkdown(tree, markdown);
+    remarkNotesInlineExtensions()(tree, { value: markdown });
+
+    expect(tree.children?.[0].children).toMatchObject([
+      {
+        type: 'underline',
+        children: [{ type: 'text', value: 'under' }],
+      },
+      { type: 'text', value: ' ' },
+      {
+        type: 'highlight',
+        children: [{ type: 'text', value: 'mark' }],
+      },
+    ]);
+  });
+
+  it('keeps source positions for inline transforms after callout icon removal', () => {
+    const markdown = '> 💡 ==mark==';
+    const textOffset = markdown.indexOf('💡');
+    const tree: MdastNode = {
+      type: 'root',
+      children: [
+        {
+          type: 'blockquote',
+          children: [
+            {
+              type: 'paragraph',
+              children: [{
+                type: 'text',
+                value: '💡 ==mark==',
+                position: { start: { offset: textOffset }, end: { offset: markdown.length } },
+              }],
+            },
+          ],
+        },
+      ],
+    };
+
+    remarkNotesInlineExtensions()(tree, { value: markdown });
+
+    expect(tree.children?.[0]).toMatchObject({
+      type: 'container',
+      children: [
+        {
+          data: { hProperties: { className: ['callout-icon'] } },
+          children: [{ type: 'text', value: '💡' }],
+        },
+        {
+          data: { hProperties: { className: ['callout-content'] } },
+          children: [{
+            type: 'paragraph',
+            children: [{
+              type: 'highlight',
+              children: [{ type: 'text', value: 'mark' }],
+            }],
+          }],
+        },
+      ],
+    });
   });
 
   it('transforms bounded callout icon markers', () => {

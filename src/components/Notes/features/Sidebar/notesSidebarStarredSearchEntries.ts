@@ -2,6 +2,7 @@ import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import {
   getStarredEntryAbsolutePath,
+  normalizeStarredRelativePath,
   normalizeStarredVaultPath,
 } from '@/stores/notes/starred';
 import type { StarredEntry } from '@/stores/notes/types';
@@ -30,20 +31,21 @@ export function collectStarredSearchEntries(
     if (entry.kind !== 'note') {
       continue;
     }
-    if (!isSupportedMarkdownPath(entry.relativePath)) {
+    const relativePath = normalizeStarredRelativePath(entry.relativePath);
+    if (!relativePath || !isSupportedMarkdownPath(relativePath)) {
       continue;
     }
 
     const isCurrentVaultEntry =
       normalizedCurrentVaultPath !== '' &&
       normalizeStarredVaultPath(entry.vaultPath) === normalizedCurrentVaultPath;
-    if (isCurrentVaultEntry && existingTreePaths.has(entry.relativePath)) {
+    if (isCurrentVaultEntry && existingTreePaths.has(relativePath)) {
       continue;
     }
 
     const entryPath = isCurrentVaultEntry
-      ? entry.relativePath
-      : getStarredEntryAbsolutePath(entry);
+      ? relativePath
+      : getStarredEntryAbsolutePath({ ...entry, relativePath });
     if (!entryPath || seenOpenPaths.has(entryPath)) {
       continue;
     }
@@ -52,7 +54,7 @@ export function collectStarredSearchEntries(
     entries.push({
       path: entryPath,
       openPath: entryPath,
-      name: getNoteTitleFromPath(entry.relativePath),
+      name: getNoteTitleFromPath(relativePath),
       preview: getParentPreview(entryPath),
       isExternal: !isCurrentVaultEntry,
       contentSearchable: false,

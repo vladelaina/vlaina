@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { convertToBase64 } from '@/lib/storage/attachmentStorage';
+import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { buildMessageImageSources, buildStoredUserMessageContent } from './helpers';
 
 const mocks = vi.hoisted(() => ({
@@ -18,6 +19,7 @@ describe('buildStoredUserMessageContent image parsing', () => {
   beforeEach(() => {
     mocks.convertToBase64.mockReset();
     mocks.convertToBase64.mockResolvedValue('data:image/png;base64,REMOTE');
+    useNotesStore.setState({ notesPath: '/vault' });
   });
 
   it('keeps image markdown examples as text instead of vision attachments', async () => {
@@ -155,6 +157,14 @@ describe('buildStoredUserMessageContent image parsing', () => {
     expect(convertToBase64).toHaveBeenCalledWith(expect.objectContaining({
       path: '/vault/assets/cover.png',
     }), expect.any(Object));
+    const options = mocks.convertToBase64.mock.calls[0]?.[1] as
+      | { allowPath?: (path: string) => boolean }
+      | undefined;
+    expect(options?.allowPath?.('/vault/assets/cover.png')).toBe(true);
+    expect(options?.allowPath?.('/vault/.notes/cover.png')).toBe(true);
+    expect(options?.allowPath?.('/vault/.vlaina/cover.png')).toBe(false);
+    expect(options?.allowPath?.('/vault/docs/.git/cover.png')).toBe(false);
+    expect(options?.allowPath?.('/outside/cover.png')).toBe(false);
   });
 
   it('keeps managed attachment URLs as stored references when building message images', async () => {

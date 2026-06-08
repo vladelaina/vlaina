@@ -371,6 +371,36 @@ function assertWritableDesktopByteLength(byteLength) {
   }
 }
 
+async function describeDesktopDirectoryEntry(parentPath, entry) {
+  const entryPath = path.join(parentPath, entry.name);
+  if (!entry.isSymbolicLink?.()) {
+    return {
+      name: entry.name,
+      path: entryPath,
+      isDirectory: entry.isDirectory(),
+      isFile: entry.isFile(),
+    };
+  }
+
+  try {
+    const authorizedEntryPath = await assertAuthorizedFsPath(entryPath);
+    const info = await stat(authorizedEntryPath);
+    return {
+      name: entry.name,
+      path: entryPath,
+      isDirectory: false,
+      isFile: info.isFile(),
+    };
+  } catch {
+    return {
+      name: entry.name,
+      path: entryPath,
+      isDirectory: false,
+      isFile: false,
+    };
+  }
+}
+
 function normalizeDesktopBinaryWriteBytes(bytes) {
   if (bytes instanceof Uint8Array) {
     assertWritableDesktopByteLength(bytes.byteLength);
@@ -825,12 +855,11 @@ export function registerDesktopIpc({
       }
       throw error;
     }
-    return entries.map((entry) => ({
-      name: entry.name,
-      path: path.join(resolvedPath, entry.name),
-      isDirectory: entry.isDirectory(),
-      isFile: entry.isFile(),
-    }));
+    const result = [];
+    for (const entry of entries) {
+      result.push(await describeDesktopDirectoryEntry(resolvedPath, entry));
+    }
+    return result;
   });
 
   handleIpc('desktop:fs:rename', async (_event, oldPath, newPath) => {

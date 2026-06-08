@@ -248,7 +248,11 @@ function isBlankLineSurroundedLine(lines: readonly string[], index: number): boo
 function normalizeUserBreakSentinels(text: string): string {
   if (!text.includes(USER_BR_SENTINEL)) return text;
 
-  const lines = text.split('\n');
+  return mapMarkdownOutsideProtectedSegments(text, normalizeUserBreakSentinelSegment);
+}
+
+function normalizeUserBreakSentinelSegment(segment: string): string {
+  const lines = segment.split('\n');
   const output: string[] = [];
 
   for (const line of lines) {

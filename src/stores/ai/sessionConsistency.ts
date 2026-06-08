@@ -1,6 +1,6 @@
 import { shouldPersistSession } from '@/lib/ai/temporaryChat';
 import {
-  flushPendingSessionJsonSaves,
+  flushPendingSessionJsonSave,
   hasPendingSessionJsonSave,
   loadSessionJson,
   mergeSessionMessages,
@@ -24,7 +24,7 @@ async function syncSessionMessagesFromDisk(
 
   if (flushPendingWrites) {
     try {
-      await flushPendingSessionJsonSaves();
+      await flushPendingSessionJsonSave(sessionId);
     } catch {
     }
   }

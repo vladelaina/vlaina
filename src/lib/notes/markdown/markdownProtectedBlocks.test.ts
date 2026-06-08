@@ -122,6 +122,32 @@ describe('markdown protected blocks', () => {
     ].join('\n'));
   });
 
+  it('does not close raw HTML blocks on close-tag text inside non-tag HTML ranges', () => {
+    const markdown = [
+      'Before - item',
+      '<svg>',
+      '<!-- </svg> -->',
+      '<![CDATA[</svg>]]>',
+      '<!bogus </svg>>',
+      '- hidden',
+      '</svg>',
+      'After - item',
+    ].join('\n');
+
+    expect(
+      mapMarkdownOutsideProtectedSegments(markdown, (segment) => segment.replace(/-/g, '*'))
+    ).toBe([
+      'Before * item',
+      '<svg>',
+      '<!-- </svg> -->',
+      '<![CDATA[</svg>]]>',
+      '<!bogus </svg>>',
+      '- hidden',
+      '</svg>',
+      'After * item',
+    ].join('\n'));
+  });
+
   it('protects plaintext HTML blocks through the document end', () => {
     const markdown = [
       'Before - item',

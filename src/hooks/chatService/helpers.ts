@@ -34,6 +34,7 @@ import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { stripManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { isSupportedMarkdownPath, stripSupportedMarkdownExtension } from '@/lib/notes/markdownFile';
+import { APP_CONFIG_FOLDER } from '@/stores/notes/constants';
 import {
   normalizeVaultRelativePath,
   resolveVaultRelativeFullPath,
@@ -71,6 +72,15 @@ const IMAGE_EXTENSION_MIME_TYPES: Record<string, string> = {
   svg: 'image/svg+xml',
   webp: 'image/webp',
 };
+const INTERNAL_FOLDER_MARKDOWN_DIRECTORY_NAMES = new Set([APP_CONFIG_FOLDER, '.git']);
+const SKIPPED_FOLDER_MARKDOWN_DIRECTORY_NAMES = new Set([
+  'node_modules',
+  'vendor',
+  'dist',
+  'build',
+  'target',
+  '__pycache__',
+]);
 
 export function resolveAssistantContent(
   returnedContent: string,
@@ -277,7 +287,12 @@ async function getStarredAbsoluteMentionPath(entry: {
 }): Promise<string | null> {
   const vaultPath = normalizeAbsolutePath(entry.vaultPath.trim());
   const relativePath = normalizeVaultRelativePath(entry.relativePath);
-  if (!vaultPath || !isStorageAbsolutePath(vaultPath) || !relativePath) {
+  if (
+    !vaultPath ||
+    !isStorageAbsolutePath(vaultPath) ||
+    !relativePath ||
+    isInsideInternalFolderMarkdownPath(relativePath)
+  ) {
     return null;
   }
   return joinPath(vaultPath, relativePath);
@@ -305,6 +320,10 @@ async function resolveMentionedPath(
   mentionPath: string,
   kind: 'note' | 'folder',
 ): Promise<{ cachePath: string; fullPath: string } | null> {
+  if (isInsideInternalFolderMarkdownPath(mentionPath)) {
+    return null;
+  }
+
   if (isStorageAbsolutePath(mentionPath)) {
     const fullPath = await resolveStarredAbsoluteMentionPath(mentionPath, kind);
     return fullPath ? { cachePath: fullPath, fullPath } : null;
@@ -332,6 +351,41 @@ function isSafeFolderEntryName(name: string): boolean {
     !name.includes('\0') &&
     !/[\\/]/.test(name)
   );
+}
+
+function isSafeFolderListingEntryName(name: string): boolean {
+  return (
+    !!name &&
+    name !== '.' &&
+    name !== '..' &&
+    !name.includes('\0') &&
+    !/[\\/]/.test(name) &&
+    !INTERNAL_FOLDER_MARKDOWN_DIRECTORY_NAMES.has(name)
+  );
+}
+
+function isSafeFolderMarkdownEntryName(name: string): boolean {
+  return (
+    !!name &&
+    name !== '.' &&
+    name !== '..' &&
+    !name.includes('\0') &&
+    !/[\\/]/.test(name)
+  );
+}
+
+function shouldSkipFolderMarkdownDirectory(name: string): boolean {
+  return (
+    INTERNAL_FOLDER_MARKDOWN_DIRECTORY_NAMES.has(name) ||
+    SKIPPED_FOLDER_MARKDOWN_DIRECTORY_NAMES.has(name)
+  );
+}
+
+function isInsideInternalFolderMarkdownPath(path: string): boolean {
+  return path
+    .replace(/\\/g, '/')
+    .split('/')
+    .some((segment) => INTERNAL_FOLDER_MARKDOWN_DIRECTORY_NAMES.has(segment));
 }
 
 async function readResolvedMentionedNoteContent(
@@ -406,9 +460,15 @@ export function collectMentionFolderMarkdownNodes(nodes: readonly FileTreeNode[]
     const node = frame.nodes[frame.index];
     frame.index += 1;
     if (!node) continue;
-    visitedEntries += 1;
 
     if (node.isFolder) {
+      visitedEntries += 1;
+      if (
+        shouldSkipFolderMarkdownDirectory(node.name) ||
+        isInsideInternalFolderMarkdownPath(node.path)
+      ) {
+        continue;
+      }
       if (frame.depth >= MAX_FOLDER_MARKDOWN_SCAN_DEPTH) {
         continue;
       }
@@ -416,7 +476,8 @@ export function collectMentionFolderMarkdownNodes(nodes: readonly FileTreeNode[]
       continue;
     }
 
-    if (isSupportedMarkdownPath(node.path)) {
+    if (isSupportedMarkdownPath(node.path) && !isInsideInternalFolderMarkdownPath(node.path)) {
+      visitedEntries += 1;
       result.push(node);
     }
   }
@@ -459,25 +520,31 @@ async function collectFolderMarkdownScanEntries(
   }
 
   const storage = getStorageAdapter();
-  const entries = await storage.listDir(folderFullPath).catch(() => []);
+  const entries = await storage.listDir(folderFullPath, { includeHidden: true }).catch(() => []);
   const visibleEntries = entries
-    .filter((entry) => isSafeFolderEntryName(entry.name))
+    .filter((entry) => isSafeFolderMarkdownEntryName(entry.name))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   for (const entry of visibleEntries) {
-    if (
-      budget.visitedEntries >= MAX_FOLDER_MARKDOWN_SCAN_ENTRIES ||
-      result.length >= MAX_FOLDER_MENTION_NOTES
-    ) {
-      break;
+    const isMarkdownFile = entry.isFile && isSupportedMarkdownPath(entry.name);
+    if (!entry.isDirectory && !isMarkdownFile) {
+      continue;
     }
-    budget.visitedEntries += 1;
-
-    const childFullPath = await joinPath(folderFullPath, entry.name);
-    const childCachePath = joinRelativePath(folderCachePath, entry.name);
-    const childRelativePath = joinRelativePath(relativePrefix, entry.name);
 
     if (entry.isDirectory) {
+      if (shouldSkipFolderMarkdownDirectory(entry.name)) {
+        continue;
+      }
+      if (
+        budget.visitedEntries >= MAX_FOLDER_MARKDOWN_SCAN_ENTRIES ||
+        result.length >= MAX_FOLDER_MENTION_NOTES
+      ) {
+        break;
+      }
+      budget.visitedEntries += 1;
+      const childFullPath = await joinPath(folderFullPath, entry.name);
+      const childCachePath = joinRelativePath(folderCachePath, entry.name);
+      const childRelativePath = joinRelativePath(relativePrefix, entry.name);
       await collectFolderMarkdownScanEntries(
         childFullPath,
         childCachePath,
@@ -489,7 +556,17 @@ async function collectFolderMarkdownScanEntries(
       continue;
     }
 
-    if (entry.isFile && isSupportedMarkdownPath(entry.name)) {
+    if (isMarkdownFile) {
+      if (
+        budget.visitedEntries >= MAX_FOLDER_MARKDOWN_SCAN_ENTRIES ||
+        result.length >= MAX_FOLDER_MENTION_NOTES
+      ) {
+        break;
+      }
+      budget.visitedEntries += 1;
+      const childFullPath = await joinPath(folderFullPath, entry.name);
+      const childCachePath = joinRelativePath(folderCachePath, entry.name);
+      const childRelativePath = joinRelativePath(relativePrefix, entry.name);
       result.push({
         cachePath: childCachePath,
         fullPath: childFullPath,
@@ -576,7 +653,7 @@ async function loadFolderListingReference(
   }
 
   const storage = getStorageAdapter();
-  const entries = await storage.listDir(folderPath).catch(() => []);
+  const entries = await storage.listDir(folderPath, { includeHidden: true }).catch(() => []);
   if (entries.length === 0) {
     return {
       ...mention,
@@ -590,7 +667,7 @@ async function loadFolderListingReference(
   }
 
   const visibleEntries = entries
-    .filter((entry) => isSafeFolderEntryName(entry.name))
+    .filter((entry) => isSafeFolderListingEntryName(entry.name))
     .sort((a, b) => {
       if (a.isDirectory !== b.isDirectory) {
         return a.isDirectory ? -1 : 1;
@@ -827,7 +904,12 @@ export async function normalizeVisionAttachment(
 
 function isCurrentVaultImageAttachmentPath(path: string): boolean {
   const notesPath = useNotesStore.getState().notesPath?.trim();
-  return Boolean(notesPath && normalizeContainedAssetPath(path, notesPath));
+  if (!notesPath) {
+    return false;
+  }
+
+  const containedPath = normalizeContainedAssetPath(path, notesPath);
+  return Boolean(containedPath && !isInsideInternalFolderMarkdownPath(containedPath));
 }
 
 function normalizeDirectVisionImageUrl(src: string): string | null {

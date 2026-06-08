@@ -1,8 +1,13 @@
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { getBaseName, getParentPath, getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import type { StarredKind } from '@/stores/notes/types';
+import { APP_CONFIG_FOLDER } from '@/stores/notes/constants';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
-import { resolveStarredRelativePathForVault } from '@/stores/notes/starred';
+import {
+  isPathInsideStarredVault,
+  normalizeStarredRelativePath,
+  resolveStarredRelativePathForVault,
+} from '@/stores/notes/starred';
 import { resolveUniquePath } from '@/stores/notes/utils/fs/pathOperations';
 import { isSafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
 import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetSelection';
@@ -18,6 +23,7 @@ const SKIPPED_EXTERNAL_MARKDOWN_DIRECTORY_NAMES = new Set([
   'target',
   '__pycache__',
 ]);
+const INTERNAL_EXTERNAL_MARKDOWN_DIRECTORY_NAMES = new Set([APP_CONFIG_FOLDER, '.git']);
 
 interface ExternalMarkdownImportResult {
   importedNotePaths: string[];
@@ -36,7 +42,17 @@ interface ExternalMarkdownImportBudget {
 }
 
 function shouldSkipExternalMarkdownDirectory(name: string) {
-  return name.startsWith('.') || SKIPPED_EXTERNAL_MARKDOWN_DIRECTORY_NAMES.has(name);
+  return (
+    INTERNAL_EXTERNAL_MARKDOWN_DIRECTORY_NAMES.has(name) ||
+    SKIPPED_EXTERNAL_MARKDOWN_DIRECTORY_NAMES.has(name)
+  );
+}
+
+function isInsideInternalExternalMarkdownPath(path: string) {
+  return path
+    .replace(/\\/g, '/')
+    .split('/')
+    .some((segment) => INTERNAL_EXTERNAL_MARKDOWN_DIRECTORY_NAMES.has(segment));
 }
 
 async function statExternalMarkdownPath(absolutePath: string) {
@@ -50,6 +66,23 @@ async function statExternalMarkdownPath(absolutePath: string) {
 
 function getExistingVaultRelativePath(vaultPath: string, absolutePath: string) {
   return resolveStarredRelativePathForVault(absolutePath, vaultPath);
+}
+
+function createExternalStarredTarget(
+  info: { isDirectory?: boolean; isFile?: boolean },
+  vaultPath: string,
+  relativePath: string,
+): ExternalMarkdownStarredTarget | null {
+  const normalizedRelativePath = normalizeStarredRelativePath(relativePath);
+  if (!normalizedRelativePath) {
+    return null;
+  }
+
+  return {
+    kind: info.isDirectory ? 'folder' : 'note',
+    vaultPath,
+    relativePath: normalizedRelativePath,
+  };
 }
 
 async function importExternalMarkdownFile(
@@ -131,23 +164,14 @@ async function importExternalMarkdownDirectory(
   let copiedMarkdownCount = 0;
   let entries: Awaited<ReturnType<typeof storage.listDir>>;
   try {
-    entries = await storage.listDir(sourcePath);
+    entries = await storage.listDir(sourcePath, { includeHidden: true });
   } catch {
     await storage.deleteDir(fullPath, true);
     return 0;
   }
 
   for (const entry of entries) {
-    if (budget.visitedEntries >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES) {
-      break;
-    }
-    budget.visitedEntries += 1;
-
     if (!isSafeVaultPathSegment(entry.name)) {
-      continue;
-    }
-
-    if (entry.name.startsWith('.')) {
       continue;
     }
 
@@ -157,6 +181,10 @@ async function importExternalMarkdownDirectory(
       if (shouldSkipExternalMarkdownDirectory(entry.name)) {
         continue;
       }
+      if (budget.visitedEntries >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES) {
+        break;
+      }
+      budget.visitedEntries += 1;
       copiedMarkdownCount += await importExternalMarkdownDirectory(
         sourceEntryPath,
         vaultPath,
@@ -168,6 +196,14 @@ async function importExternalMarkdownDirectory(
       );
       continue;
     }
+
+    if (!isSupportedMarkdownSelection(sourceEntryPath)) {
+      continue;
+    }
+    if (budget.visitedEntries >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES) {
+      break;
+    }
+    budget.visitedEntries += 1;
 
     if (!await isImportableExternalMarkdownFile(sourceEntryPath, entry)) {
       continue;
@@ -199,16 +235,19 @@ export async function importExternalMarkdownEntries(
   const budget: ExternalMarkdownImportBudget = { visitedEntries: 0 };
 
   for (const absolutePath of absolutePaths) {
-    if (budget.visitedEntries >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES) {
-      break;
+    if (isInsideInternalExternalMarkdownPath(absolutePath)) {
+      continue;
     }
-    budget.visitedEntries += 1;
 
     const info = await statExternalMarkdownPath(absolutePath);
     if (info?.isDirectory) {
       if (shouldSkipExternalMarkdownDirectory(getBaseName(absolutePath))) {
         continue;
       }
+      if (budget.visitedEntries >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES) {
+        break;
+      }
+      budget.visitedEntries += 1;
       await importExternalMarkdownDirectory(
         absolutePath,
         vaultPath,
@@ -219,6 +258,14 @@ export async function importExternalMarkdownEntries(
       );
       continue;
     }
+
+    if (!info?.isFile || !isSupportedMarkdownSelection(absolutePath)) {
+      continue;
+    }
+    if (budget.visitedEntries >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES) {
+      break;
+    }
+    budget.visitedEntries += 1;
 
     if (!await isImportableExternalMarkdownFile(absolutePath, info)) {
       continue;
@@ -254,6 +301,10 @@ export async function resolveExternalMarkdownEntriesForStarred(
     }
     visitedEntries += 1;
 
+    if (isInsideInternalExternalMarkdownPath(absolutePath)) {
+      continue;
+    }
+
     const info = await statExternalMarkdownPath(absolutePath);
     const existingRelativePath = getExistingVaultRelativePath(vaultPath, absolutePath);
 
@@ -277,7 +328,11 @@ export async function resolveExternalMarkdownEntriesForStarred(
       }
     }
 
-    if (!info?.isDirectory && !(info?.isFile && isSupportedMarkdownSelection(absolutePath))) {
+    if (isPathInsideStarredVault(absolutePath, vaultPath)) {
+      continue;
+    }
+
+    if (!info || (!info.isDirectory && !(info.isFile && isSupportedMarkdownSelection(absolutePath)))) {
       continue;
     }
 
@@ -287,11 +342,10 @@ export async function resolveExternalMarkdownEntriesForStarred(
       continue;
     }
 
-    targets.push({
-      kind: info.isDirectory ? 'folder' : 'note',
-      vaultPath: parentPath,
-      relativePath,
-    });
+    const target = createExternalStarredTarget(info, parentPath, relativePath);
+    if (target) {
+      targets.push(target);
+    }
   }
 
   return targets;

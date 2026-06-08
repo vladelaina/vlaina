@@ -51,7 +51,6 @@ export async function saveDraftNote({
     draftNotes,
     recentNotes,
     displayNames,
-    pendingDraftDiscardPath,
   } = get();
   if (!currentNote) return false;
 
@@ -185,13 +184,13 @@ export async function saveDraftNote({
     pendingDraftDiscardPath:
       latestState.pendingDraftDiscardPath === currentNote.path
         ? null
-        : latestState.pendingDraftDiscardPath ?? pendingDraftDiscardPath,
+        : latestState.pendingDraftDiscardPath,
     error: null,
   });
 
   persistWorkspaceSnapshot(notesPath, {
     rootFolder: nextRootFolder,
-    currentNotePath: relativePath ?? null,
+    currentNotePath: draftStillCurrent ? relativePath ?? null : latestState.currentNote?.path ?? null,
     fileTreeSortMode: latestSortMode,
   });
 

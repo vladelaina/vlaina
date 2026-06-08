@@ -81,26 +81,58 @@ function hasSession(ai: { sessions: Array<{ id: string }> }, sessionId: string):
   return ai.sessions.some((session) => session.id === sessionId)
 }
 
+const MAX_MESSAGE_VERSIONS = 20
+const MAX_VERSION_BRANCH_MESSAGES = 100
+const MAX_VERSION_BRANCH_DEPTH = 0
 const MAX_MESSAGE_ID_SCAN_NODES = 10000
 const MAX_MESSAGE_ID_CHARS = 512
+const MAX_MESSAGE_ID_SCAN_BRANCH_DEPTH = 1
+
+function selectMessageIdScanVersions(message: ChatMessage): MessageVersion[] {
+  const versions = Array.isArray(message.versions) ? message.versions : []
+  if (versions.length <= MAX_MESSAGE_VERSIONS) {
+    return versions
+  }
+
+  const activeIndex = getSafeCurrentVersionIndex(message, versions)
+  const keepIndexes = new Set<number>([activeIndex])
+  for (let index = versions.length - 1; index >= 0 && keepIndexes.size < MAX_MESSAGE_VERSIONS; index -= 1) {
+    keepIndexes.add(index)
+  }
+
+  return Array.from(keepIndexes)
+    .sort((left, right) => left - right)
+    .map((index) => versions[index]!)
+}
 
 function collectSessionMessageIds(messages: ChatMessage[]): Set<string> {
   const ids = new Set<string>()
   const seenMessages = new Set<ChatMessage>()
-  const stack: ChatMessage[] = [...messages]
+  const stack: Array<{ depth: number; messages: ChatMessage[] }> = [{ depth: 0, messages }]
 
   while (stack.length > 0 && seenMessages.size < MAX_MESSAGE_ID_SCAN_NODES) {
-    const message = stack.pop()!
-    if (seenMessages.has(message)) {
-      continue
-    }
-    seenMessages.add(message)
-    ids.add(message.id)
+    const frame = stack.pop()!
+    for (const message of frame.messages) {
+      if (seenMessages.size >= MAX_MESSAGE_ID_SCAN_NODES) {
+        break
+      }
+      if (seenMessages.has(message)) {
+        continue
+      }
+      seenMessages.add(message)
+      ids.add(message.id)
 
-    const versions = Array.isArray(message.versions) ? message.versions : []
-    for (const version of versions) {
-      if (Array.isArray(version.subsequentMessages)) {
-        stack.push(...version.subsequentMessages)
+      if (frame.depth >= MAX_MESSAGE_ID_SCAN_BRANCH_DEPTH) {
+        continue
+      }
+
+      for (const version of selectMessageIdScanVersions(message)) {
+        if (Array.isArray(version.subsequentMessages) && version.subsequentMessages.length > 0) {
+          stack.push({
+            depth: frame.depth + 1,
+            messages: version.subsequentMessages.slice(0, MAX_VERSION_BRANCH_MESSAGES),
+          })
+        }
       }
     }
   }
@@ -136,9 +168,9 @@ interface AddMessageOptions {
   touchSession?: boolean
 }
 
-const MAX_MESSAGE_VERSIONS = 20
-const MAX_VERSION_BRANCH_MESSAGES = 100
-const MAX_VERSION_BRANCH_DEPTH = 0
+function saveSessionJsonInBackground(sessionId: string, messages: ChatMessage[]) {
+  void saveSessionJson(sessionId, messages).catch(() => {})
+}
 
 function limitMessageVersions(
   versions: MessageVersion[],
@@ -227,7 +259,7 @@ export function createMessageActions() {
       }, !persistUnified)
 
       if (shouldPersistSession(ai, targetSessionId)) {
-        saveSessionJson(targetSessionId, newMessages)
+        saveSessionJsonInBackground(targetSessionId, newMessages)
       }
       return newMessage.id
     },
@@ -321,7 +353,7 @@ export function createMessageActions() {
       if (!hasSession(ai, targetSessionId)) return
       const sessionMessages = ai.messages[targetSessionId]
       if (sessionMessages && shouldPersistSession(ai, targetSessionId)) {
-        void saveSessionJson(targetSessionId, sessionMessages)
+        saveSessionJsonInBackground(targetSessionId, sessionMessages)
       }
     },
 
@@ -364,7 +396,7 @@ export function createMessageActions() {
       }, true)
 
       if (shouldPersistSession(ai, targetSessionId)) {
-        saveSessionJson(targetSessionId, newMessages)
+        saveSessionJsonInBackground(targetSessionId, newMessages)
       }
     },
 
@@ -407,7 +439,7 @@ export function createMessageActions() {
       }, true)
 
       if (shouldPersistSession(ai, targetSessionId)) {
-        saveSessionJson(targetSessionId, newMessages)
+        saveSessionJsonInBackground(targetSessionId, newMessages)
       }
     },
 
@@ -454,7 +486,7 @@ export function createMessageActions() {
       }, true)
 
       if (shouldPersistSession(ai, targetSessionId)) {
-        saveSessionJson(targetSessionId, finalMessages)
+        saveSessionJsonInBackground(targetSessionId, finalMessages)
       }
     },
   }

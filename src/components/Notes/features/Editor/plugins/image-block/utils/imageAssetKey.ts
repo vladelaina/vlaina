@@ -1,3 +1,4 @@
+import { hasInternalNoteAssetUrlPathSegment } from '@/lib/assets/core/internalAssetPaths';
 import { getNoteInternalImageAssetPath, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 
 function isRemoteOrVirtualAsset(path: string): boolean {
@@ -15,6 +16,14 @@ function getLocalAssetPath(path: string): string {
     return path.split('?')[0] ?? '';
 }
 
+function normalizeLocalAssetKey(path: string): string | null {
+    const localPath = getLocalAssetPath(path);
+    if (!localPath || hasInternalNoteAssetUrlPathSegment(localPath)) {
+        return null;
+    }
+    return localPath;
+}
+
 export function getImageAssetKey(src: unknown): string | null {
     if (typeof src !== 'string') return null;
 
@@ -30,10 +39,8 @@ export function getImageAssetKey(src: unknown): string | null {
     if (/^img:/i.test(safeSrc)) {
         const assetPath = getNoteInternalImageAssetPath(safeSrc);
         if (!assetPath) return null;
-        const localAssetPath = getLocalAssetPath(assetPath);
-        return localAssetPath || null;
+        return normalizeLocalAssetKey(assetPath);
     }
 
-    const localPath = getLocalAssetPath(safeSrc);
-    return localPath || null;
+    return normalizeLocalAssetKey(safeSrc);
 }

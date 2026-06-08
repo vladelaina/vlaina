@@ -9,6 +9,8 @@ import { getStorageBasePath } from './basePath';
 import { isSafeChatSessionId } from './unifiedStorageAI';
 
 const sessionQueues = new Map<string, PersistenceQueue<ChatMessage[]>>();
+const deletingSessionJsons = new Set<string>();
+const deletedSessionJsons = new Set<string>();
 const DEFAULT_DEBOUNCE_MS = 180;
 const SESSION_MESSAGES_FILE_VERSION = 1;
 const MAX_SESSION_MESSAGES_BYTES = 25 * 1024 * 1024;
@@ -19,8 +21,23 @@ const MAX_SESSION_MESSAGE_BRANCH_DEPTH = 1;
 const MAX_SESSION_IMAGE_SOURCE_ENTRIES = 2000;
 const MAX_SESSION_IMAGE_SOURCES = 1000;
 const MAX_SESSION_MESSAGE_ID_CHARS = 512;
+const MAX_DELETED_SESSION_JSON_TOMBSTONES = 4096;
 let autoSyncTrigger: ((sessionId?: string) => void) | null = null;
 let autoSyncTriggerRegistrationId = 0;
+
+function isSessionJsonDeleteBlocked(sessionId: string): boolean {
+  return deletingSessionJsons.has(sessionId) || deletedSessionJsons.has(sessionId);
+}
+
+function rememberDeletedSessionJson(sessionId: string): void {
+  deletedSessionJsons.delete(sessionId);
+  deletedSessionJsons.add(sessionId);
+  while (deletedSessionJsons.size > MAX_DELETED_SESSION_JSON_TOMBSTONES) {
+    const oldest = deletedSessionJsons.values().next().value;
+    if (typeof oldest !== 'string') break;
+    deletedSessionJsons.delete(oldest);
+  }
+}
 
 interface SessionMessagesFile {
   version: typeof SESSION_MESSAGES_FILE_VERSION;
@@ -655,12 +672,16 @@ async function readSessionJsonContent(path: string): Promise<string | null> {
     return null;
   }
 
-  const content = await getStorageAdapter().readFile(path);
+  const content = await getStorageAdapter().readFile(path).catch(() => null);
+  if (content === null) {
+    return null;
+  }
   return content.length <= MAX_SESSION_MESSAGES_BYTES ? content : null;
 }
 
 export async function saveSessionJson(sessionId: string, messages: ChatMessage[]) {
   assertSafeChatSessionId(sessionId);
+  if (isSessionJsonDeleteBlocked(sessionId)) return;
   await getSessionQueue(sessionId).saveNow(messages);
 }
 
@@ -670,6 +691,7 @@ export function scheduleSessionJsonSave(
   debounceMs = DEFAULT_DEBOUNCE_MS
 ) {
   assertSafeChatSessionId(sessionId);
+  if (isSessionJsonDeleteBlocked(sessionId)) return;
   getSessionQueue(sessionId).schedule(messages, { debounceMs });
 }
 
@@ -686,6 +708,13 @@ export function cancelSessionJsonSave(sessionId: string) {
 export function hasPendingSessionJsonSave(sessionId: string): boolean {
   assertSafeChatSessionId(sessionId);
   return sessionQueues.get(sessionId)?.hasPending() ?? false;
+}
+
+export async function flushPendingSessionJsonSave(sessionId: string): Promise<void> {
+  assertSafeChatSessionId(sessionId);
+  const queue = sessionQueues.get(sessionId);
+  if (!queue) return;
+  await queue.flush();
 }
 
 export async function flushPendingSessionJsonSaves(): Promise<void> {
@@ -706,18 +735,31 @@ export async function flushPendingSessionJsonSaves(): Promise<void> {
 
 export async function deleteSessionJson(sessionId: string): Promise<void> {
   assertSafeChatSessionId(sessionId);
+  deletingSessionJsons.add(sessionId);
   const queue = sessionQueues.get(sessionId);
   if (queue) {
     queue.cancel();
-    await queue.flush();
+    try {
+      await queue.flush();
+    } catch {
+    }
     sessionQueues.delete(sessionId);
   }
 
   const storage = getStorageAdapter();
   const path = await getSessionJsonPath(sessionId);
-  if (await storage.exists(path)) {
-    await storage.deleteFile(path);
-    autoSyncTrigger?.(sessionId);
+  let deleted = false;
+  try {
+    if (await storage.exists(path)) {
+      await storage.deleteFile(path);
+      autoSyncTrigger?.(sessionId);
+    }
+    deleted = true;
+  } finally {
+    deletingSessionJsons.delete(sessionId);
+    if (deleted) {
+      rememberDeletedSessionJson(sessionId);
+    }
   }
 }
 

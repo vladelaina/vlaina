@@ -4,6 +4,7 @@ import { computeBufferHash, computeFileHash } from './core/hashing';
 import { getMimeType, generateFilename, processFilename } from './core/naming';
 import { writeAssetAtomic } from './io/writer';
 import { normalizeContainedAssetPath } from './core/pathContainment';
+import { hasInternalNoteAssetPathSegment } from './core/internalAssetPaths';
 import { sanitizeSvgBytes } from '@/lib/markdown/svgSanitizer';
 import {
   getAssetHashIndexEntry,
@@ -172,7 +173,11 @@ async function hydrateAssetEntryMetadata(
 function normalizeSafeSubfolderName(name: string | undefined, fallback: string): string {
   const normalized = (name || fallback).replace(/\\/g, '/').replace(/\/{2,}/g, '/');
   const parts = normalized.split('/').filter(Boolean);
-  if (parts.length === 0 || parts.some((part) => part === '.' || part === '..' || part.includes('\0'))) {
+  if (
+    parts.length === 0 ||
+    parts.some((part) => part === '.' || part === '..' || part.includes('\0')) ||
+    hasInternalNoteAssetPathSegment(parts.join('/'))
+  ) {
     return fallback;
   }
 
@@ -189,6 +194,10 @@ async function resolveContainedTargetDir(rootPath: string, subfolderName: string
 }
 
 async function resolveCurrentNoteDir(vaultPath: string, currentNotePath: string): Promise<string> {
+  if (hasInternalNoteAssetPathSegment(currentNotePath)) {
+    throw new Error('Current note path must not be inside an internal notes folder.');
+  }
+
   if (isAbsolutePath(currentNotePath)) {
     return getParentPath(currentNotePath) || vaultPath;
   }

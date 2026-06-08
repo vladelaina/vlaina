@@ -13,7 +13,7 @@ const TEMPORARY_IMAGE_DATA_URL = 'data:image/png;base64,VEVNUE9SQVJZ';
 const mocked = vi.hoisted(() => ({
   saveSessionJson: vi.fn(async () => {}),
   scheduleSessionJsonSave: vi.fn(),
-  flushPendingSessionJsonSaves: vi.fn(async () => {}),
+  flushPendingSessionJsonSave: vi.fn(async () => {}),
   loadSessionJson: vi.fn(async () => null as ChatMessage[] | null),
   useAccountSessionStore: (selector: (state: { isConnected: boolean }) => unknown) =>
     selector({ isConnected: true }),
@@ -36,7 +36,7 @@ const mocked = vi.hoisted(() => ({
 vi.mock('@/lib/storage/chatStorage', () => ({
   saveSessionJson: mocked.saveSessionJson,
   scheduleSessionJsonSave: mocked.scheduleSessionJsonSave,
-  flushPendingSessionJsonSaves: mocked.flushPendingSessionJsonSaves,
+  flushPendingSessionJsonSave: mocked.flushPendingSessionJsonSave,
   loadSessionJson: mocked.loadSessionJson,
   hasPendingSessionJsonSave: vi.fn(() => false),
 }));
@@ -259,7 +259,7 @@ describe('useChatService session context isolation', () => {
     const pendingHydration = new Promise<void>((resolve) => {
       resolvePendingHydration = resolve;
     });
-    mocked.flushPendingSessionJsonSaves.mockImplementationOnce(async () => {
+    mocked.flushPendingSessionJsonSave.mockImplementationOnce(async () => {
       await pendingHydration;
     });
 
@@ -270,7 +270,8 @@ describe('useChatService session context isolation', () => {
     });
 
     await waitFor(() => {
-      expect(mocked.flushPendingSessionJsonSaves).toHaveBeenCalledTimes(1);
+      expect(mocked.flushPendingSessionJsonSave).toHaveBeenCalledTimes(1);
+      expect(mocked.flushPendingSessionJsonSave).toHaveBeenCalledWith('session-2');
       expect(useAIUIStore.getState().generatingSessions).toEqual({ 'session-2': true });
     });
 
@@ -412,5 +413,57 @@ describe('useChatService session context isolation', () => {
     const userMessage = messages.find((message) => message.role === 'user');
     expect(userMessage?.content).toBe(`![image](<${TEMPORARY_IMAGE_DATA_URL}>)\n\ndescribe it`);
     expect(userMessage?.content).not.toContain('FILE://');
+  });
+
+  it('drops temporary stored attachment references when conversion fails', async () => {
+    seedTemporaryChatState();
+    vi.mocked(convertToBase64).mockRejectedValueOnce(new Error('cannot read attachment'));
+    const attachment = createAttachment({
+      previewUrl: 'attachment://demo.png',
+      assetUrl: 'app-file://attachment/demo.png',
+    });
+
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('describe it', [attachment], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
+    });
+
+    expect(deleteAttachment).not.toHaveBeenCalled();
+    const messages = useUnifiedStore.getState().data.ai?.messages['temp-session-1'] || [];
+    const userMessage = messages.find((message) => message.role === 'user');
+    expect(userMessage?.content).toBe('describe it');
+    expect(userMessage?.content).not.toContain('attachment://');
+    expect(userMessage?.content).not.toContain('app-file://');
+    expect(sendMessageWithEndpointFallback).toHaveBeenCalledWith(expect.objectContaining({
+      content: 'describe it',
+    }));
+  });
+
+  it('does not send an empty temporary request when all stored attachments fail conversion', async () => {
+    seedTemporaryChatState();
+    vi.mocked(convertToBase64).mockRejectedValueOnce(new Error('cannot read attachment'));
+    const attachment = createAttachment({
+      previewUrl: 'attachment://demo.png',
+      assetUrl: 'app-file://attachment/demo.png',
+    });
+
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('', [attachment], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(useAIUIStore.getState().generatingSessions).toEqual({});
+    });
+
+    expect(sendMessageWithEndpointFallback).not.toHaveBeenCalled();
+    expect(deleteAttachment).not.toHaveBeenCalled();
+    expect(useUnifiedStore.getState().data.ai?.messages['temp-session-1']).toEqual([]);
   });
 });

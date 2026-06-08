@@ -190,6 +190,55 @@ describe('fileTreeUtils structural sharing', () => {
     ]);
   });
 
+  it('includes user dotfile notes while hiding internal app and git folders', async () => {
+    mocks.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault') {
+        return [
+          { name: '.journal.md', path: '/vault/.journal.md', isDirectory: false, isFile: true },
+          { name: '.notes', path: '/vault/.notes', isDirectory: true, isFile: false },
+          { name: '.vlaina', path: '/vault/.vlaina', isDirectory: true, isFile: false },
+          { name: '.git', path: '/vault/.git', isDirectory: true, isFile: false },
+        ];
+      }
+
+      if (path === '/vault/.notes') {
+        return [
+          { name: 'alpha.md', path: '/vault/.notes/alpha.md', isDirectory: false, isFile: true },
+        ];
+      }
+
+      return [];
+    });
+
+    await expect(buildFileTree('/vault')).resolves.toEqual([
+      {
+        id: '.notes',
+        name: '.notes',
+        path: '.notes',
+        isFolder: true,
+        expanded: false,
+        children: [
+          {
+            id: '.notes/alpha.md',
+            name: 'alpha',
+            path: '.notes/alpha.md',
+            isFolder: false,
+          },
+        ],
+      },
+      {
+        id: '.journal.md',
+        name: '.journal',
+        path: '.journal.md',
+        isFolder: false,
+      },
+    ]);
+    expect(mocks.listDir).toHaveBeenCalledWith('/vault', { includeHidden: true });
+    expect(mocks.listDir).toHaveBeenCalledWith('/vault/.notes', { includeHidden: true });
+    expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/.vlaina');
+    expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/.git');
+  });
+
   it('caps root-level file tree entry processing before building nodes', async () => {
     mocks.listDir.mockResolvedValue(
       Array.from({ length: 6000 }, (_, index) => ({

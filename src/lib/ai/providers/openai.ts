@@ -33,6 +33,7 @@ import {
   normalizeSafeRasterDataImageSrc,
 } from '@/lib/markdown/dataImagePolicy'
 import { escapeMarkdownAngleDestination, formatMarkdownImage } from '@/lib/markdown/markdownImageMarkdown'
+import { sanitizeHistory } from '@/lib/ai/requestContext'
 
 function summarizeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error || 'Unknown error')
@@ -784,7 +785,8 @@ export class OpenAICompatibleClient implements AIClient {
     signal?: AbortSignal,
     options?: ChatSendOptions
   ): Promise<string> {
-    const body = this.buildChatRequest(message, history, model, provider, options)
+    const safeHistory = sanitizeHistory(history)
+    const body = this.buildChatRequest(message, safeHistory, model, provider, options)
     const isImageModel = isStandaloneImageGenerationModel(model)
     const imagePrompt = isImageModel ? extractTextPrompt(message) : ''
 
@@ -877,7 +879,7 @@ export class OpenAICompatibleClient implements AIClient {
       }
       return sendAnthropicMessage({
         message,
-        history,
+        history: safeHistory,
         model,
         provider,
         apiKey,

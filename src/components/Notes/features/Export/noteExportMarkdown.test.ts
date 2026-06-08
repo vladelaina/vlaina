@@ -26,7 +26,7 @@ describe('resolveExportMarkdownAssetSources', () => {
     mocks.stat.mockReset();
     mocks.stat.mockResolvedValue({
       name: 'demo.png',
-      path: '/vault/.vlaina/assets/demo.png',
+      path: '/vault/docs/assets/demo.png',
       isDirectory: false,
       isFile: true,
       size: 2,
@@ -35,7 +35,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('embeds local note images as data URLs for portable exports', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -53,7 +53,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('embeds case-insensitive internal note image refs as data URLs', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -72,8 +72,8 @@ describe('resolveExportMarkdownAssetSources', () => {
 
   it('embeds supported bmp and avif note images as data URLs', async () => {
     mocks.resolveExistingVaultAssetPath
-      .mockResolvedValueOnce('/vault/.vlaina/assets/demo.bmp')
-      .mockResolvedValueOnce('/vault/.vlaina/assets/demo.avif');
+      .mockResolvedValueOnce('/vault/docs/assets/demo.bmp')
+      .mockResolvedValueOnce('/vault/docs/assets/demo.avif');
     mocks.readBinaryFile
       .mockResolvedValueOnce(new Uint8Array([1, 2]))
       .mockResolvedValueOnce(new Uint8Array([3, 4]));
@@ -105,10 +105,67 @@ describe('resolveExportMarkdownAssetSources', () => {
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
   });
 
+  it('does not resolve note image refs that point into internal notes folders', async () => {
+    const markdown = await resolveExportMarkdownAssetSources(
+      [
+        '![vlaina](img:.vlaina/secret.png)',
+        '<img src="img:docs/.git/secret.png" alt="git">',
+        '![encoded vlaina](img:%2evlaina/secret.png)',
+        '<img src="img:docs%2f.git%2fsecret.png" alt="encoded git">',
+        '![user dot](img:.notes/public.png)',
+        '![encoded user dot](img:%2enotes/public.png)',
+      ].join('\n'),
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe([
+      '![vlaina](img:.vlaina/secret.png)',
+      '<img src="img:docs/.git/secret.png" alt="git">',
+      '![encoded vlaina](img:%2evlaina/secret.png)',
+      '<img src="img:docs%2f.git%2fsecret.png" alt="encoded git">',
+      '![user dot](img:.notes/public.png)',
+      '![encoded user dot](img:%2enotes/public.png)',
+    ].join('\n'));
+    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(2);
+    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenNthCalledWith(
+      1,
+      '/vault',
+      '.notes/public.png',
+      'docs/demo.md',
+    );
+    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenNthCalledWith(
+      2,
+      '/vault',
+      '%2enotes/public.png',
+      'docs/demo.md',
+    );
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read resolved export image paths inside internal notes folders', async () => {
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/secret.png');
+
+    const markdown = await resolveExportMarkdownAssetSources(
+      '![secret](img:assets/secret.png)',
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe('![secret](img:assets/secret.png)');
+    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledWith(
+      '/vault',
+      'assets/secret.png',
+      'docs/demo.md',
+    );
+    expect(mocks.stat).not.toHaveBeenCalled();
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+  });
+
   it('embeds markdown images with titles and angle-wrapped paths', async () => {
     mocks.resolveExistingVaultAssetPath
-      .mockResolvedValueOnce('/vault/.vlaina/assets/demo one.jpg')
-      .mockResolvedValueOnce('/vault/.vlaina/assets/demo two.webp');
+      .mockResolvedValueOnce('/vault/docs/assets/demo one.jpg')
+      .mockResolvedValueOnce('/vault/docs/assets/demo two.webp');
     mocks.readBinaryFile
       .mockResolvedValueOnce(new Uint8Array([1, 2]))
       .mockResolvedValueOnce(new Uint8Array([3, 4]));
@@ -141,7 +198,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('decodes markdown image target entities for local asset lookup', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -159,7 +216,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('decodes markdown image target entity prefixes for local asset lookup', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -177,7 +234,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('embeds only real markdown image targets with nested label text', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/real.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/real.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -196,7 +253,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not embed html image tags inside markdown image labels as separate assets', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/real.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/real.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -215,7 +272,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('embeds markdown image targets with nested parentheses', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/real.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/real.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -233,7 +290,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('embeds markdown image targets with escaped destination parentheses', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/real.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/real.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -251,7 +308,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('embeds angle-wrapped markdown image targets with escaped destination brackets', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/real.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/real.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -286,7 +343,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not rewrite markdown image examples inside code fences', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -312,7 +369,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not rewrite image-like asset refs inside inline code, escapes, comments, or raw text HTML', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -338,7 +395,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not rewrite image-like asset refs inside raw HTML pre blocks', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -366,7 +423,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not rewrite image-like asset refs inside raw HTML tags whose contents are dropped', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -392,7 +449,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('still embeds raw HTML image sources outside code blocks', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -405,7 +462,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not embed markdown image text inside raw HTML blocks', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -445,7 +502,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('embeds only real src attributes from raw HTML image tags', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -470,7 +527,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('decodes raw HTML image src entities for local asset lookup', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -505,7 +562,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('decodes numeric raw HTML image src entities for local asset lookup', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -568,7 +625,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not inline oversized local note images', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/huge.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/huge.png');
     mocks.stat.mockResolvedValue({ size: 51 * 1024 * 1024 });
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -582,7 +639,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not read local note images when stat has no size', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.stat.mockResolvedValue(null);
 
     const markdown = await resolveExportMarkdownAssetSources(
@@ -596,7 +653,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not inline non-image local note assets', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/secret.md');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/secret.md');
 
     const markdown = await resolveExportMarkdownAssetSources(
       '![secret](img:secret.md)',
@@ -609,7 +666,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not inline local SVG note images as executable data URLs', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/icon.svg');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/icon.svg');
 
     const markdown = await resolveExportMarkdownAssetSources(
       '![icon](img:icon.svg)',
@@ -622,7 +679,7 @@ describe('resolveExportMarkdownAssetSources', () => {
   });
 
   it('does not let user-authored protected text collide with export segment markers', async () => {
-    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/demo.png');
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
     const markerLikeText = '\0vlaina-export-segment-0-0\0';
 

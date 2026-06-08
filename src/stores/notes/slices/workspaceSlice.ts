@@ -19,6 +19,10 @@ import {
   setCachedNoteContent,
   type NoteContentCache,
 } from '../document/noteContentCache';
+import {
+  getExternalPathMutationRevision,
+  wasPathExternallyMutatedSince,
+} from '../document/externalPathMutationRegistry';
 import { loadNoteDocument } from '../document/noteDocumentPersistence';
 import {
   remapCurrentNoteForExternalRename,
@@ -29,6 +33,7 @@ import {
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { readNoteMetadataFromMarkdown } from '../frontmatter';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
+import { APP_CONFIG_FOLDER } from '../constants';
 import { createWorkspaceDocumentActions } from './workspaceDocumentActions';
 import { createWorkspaceExternalActions } from './workspaceExternalActions';
 import { createWorkspaceTabActions } from './workspaceTabActions';
@@ -45,6 +50,7 @@ const cancelledNotePrefetches = new Set<string>();
 const notePrefetchQueue = createAsyncPrefetchQueue(2);
 const MAX_NOTE_CONTENT_CACHE_ENTRIES = 250;
 const HOVER_PREFETCH_FRESH_MS = 1000;
+const INTERNAL_WORKSPACE_NOTE_PATH_SEGMENTS = new Set([APP_CONFIG_FOLDER, '.git']);
 let latestOpenNoteRequestId = 0;
 
 function getNotePrefetchKey(notesPath: string, path: string) {
@@ -78,6 +84,13 @@ function getProtectedCachePaths(state: NotesStore, extraPaths: string[] = []) {
 function isCachedNoteFresh(state: NotesStore, path: string, now = Date.now()) {
   const freshUntil = state.noteContentsCache.get(path)?.freshUntil;
   return typeof freshUntil === 'number' && now <= freshUntil;
+}
+
+function isInternalWorkspaceNotePath(path: string): boolean {
+  return path
+    .replace(/\\/g, '/')
+    .split('/')
+    .some((segment) => INTERNAL_WORKSPACE_NOTE_PATH_SEGMENTS.has(segment));
 }
 
 function openDraftNoteFromMemory(
@@ -164,24 +177,49 @@ function mergeLoadedNoteCacheEntry(
   latestCache: NoteContentCache,
   loadedCache: NoteContentCache,
   path: string,
-  updateBaseline: boolean,
+  dirtyContent?: string,
 ): NoteContentCache {
   const loadedEntry = loadedCache.get(path);
   if (!loadedEntry) {
     return latestCache;
   }
 
+  const hasDirtyContent = dirtyContent !== undefined;
   const options: Parameters<typeof setCachedNoteContent>[4] = {
-    ...(updateBaseline
-      ? { updateBaseline: true }
-      : { baselineContent: loadedEntry.savedContent }),
+    ...(hasDirtyContent
+      ? { baselineContent: loadedEntry.savedContent ?? loadedEntry.content }
+      : { updateBaseline: true }),
     freshUntil: loadedEntry.freshUntil,
   };
   if (loadedEntry.size !== undefined) {
     options.size = loadedEntry.size;
   }
 
-  return setCachedNoteContent(latestCache, path, loadedEntry.content, loadedEntry.modifiedAt, options);
+  return setCachedNoteContent(
+    latestCache,
+    path,
+    hasDirtyContent ? dirtyContent : loadedEntry.content,
+    loadedEntry.modifiedAt,
+    options,
+  );
+}
+
+function resolveLatestOpenedContent(
+  state: NotesStore,
+  path: string,
+  loadedContent: string,
+): { content: string; dirtyContent?: string } {
+  const latestExistingTab = state.openTabs.find((tab) => tab.path === path);
+  if (!latestExistingTab?.isDirty) {
+    return { content: loadedContent };
+  }
+
+  const dirtyContent = state.currentNote?.path === path
+    ? state.currentNote.content
+    : state.noteContentsCache.get(path)?.content;
+  return dirtyContent === undefined
+    ? { content: loadedContent }
+    : { content: dirtyContent, dirtyContent };
 }
 
 export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSlice> = (
@@ -215,7 +253,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       set({ error: 'Path must stay inside the current vault.' });
       return;
     }
+    if (isInternalWorkspaceNotePath(normalizedPath)) {
+      set({ error: 'Path must not be inside an internal notes folder.' });
+      return;
+    }
     path = normalizedPath;
+    const pathMutationRevision = getExternalPathMutationRevision();
 
     let { notesPath, isDirty, saveNote, recentNotes, currentNote, noteContentsCache, draftNotes } = get();
     let shouldOpenInNewTab = openInNewTab;
@@ -255,10 +298,14 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       if (openRequestId !== latestOpenNoteRequestId || get().notesPath !== notesPath) {
         return;
       }
+      if (wasPathExternallyMutatedSince(path, pathMutationRevision)) {
+        return;
+      }
       const latestState = get();
       const latestOpenTabs = latestState.openTabs;
       const latestCurrentNote = latestState.currentNote;
       const latestExistingTab = latestOpenTabs.find((tab) => tab.path === path);
+      const latestOpenedContent = resolveLatestOpenedContent(latestState, path, content);
       const nextMetadata = setNoteEntry(
         latestState.noteMetadata ?? createEmptyMetadataFile(),
         path,
@@ -278,12 +325,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         latestState.noteContentsCache,
         loadedCache,
         path,
-        !latestExistingTab?.isDirty,
+        latestOpenedContent.dirtyContent,
       );
 
       updateDisplayName(set, path, tabName);
       set({
-        currentNote: { path, content },
+        currentNote: { path, content: latestOpenedContent.content },
         currentNoteRevision: latestState.currentNoteRevision + 1,
         isDirty: latestExistingTab?.isDirty ?? false,
         error: null,
@@ -292,7 +339,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         isNewlyCreated: false,
         noteContentsCache: limitCachedNoteContents(
           nextCache,
-          getProtectedCachePaths({ ...get(), openTabs: updatedTabs, currentNote: { path, content } }),
+          getProtectedCachePaths({
+            ...get(),
+            openTabs: updatedTabs,
+            currentNote: { path, content: latestOpenedContent.content },
+          }),
           MAX_NOTE_CONTENT_CACHE_ENTRIES,
         ),
         noteMetadata: nextMetadata,
@@ -322,7 +373,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       set({ error: 'Only Markdown files can be opened as notes.' });
       return;
     }
+    if (isInternalWorkspaceNotePath(normalizedAbsolutePath)) {
+      set({ error: 'Path must not be inside an internal notes folder.' });
+      return;
+    }
     const openRequestId = ++latestOpenNoteRequestId;
+    const pathMutationRevision = getExternalPathMutationRevision();
     let { notesPath, isDirty, saveNote, currentNote, noteContentsCache, draftNotes } = get();
     let shouldOpenInNewTab = openInNewTab;
     if (isDirty && currentNote && draftNotes[currentNote.path]) {
@@ -356,10 +412,14 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       if (openRequestId !== latestOpenNoteRequestId || get().notesPath !== notesPath) {
         return;
       }
+      if (wasPathExternallyMutatedSince(normalizedAbsolutePath, pathMutationRevision)) {
+        return;
+      }
       const latestState = get();
       const latestOpenTabs = latestState.openTabs;
       const latestCurrentNote = latestState.currentNote;
       const latestExistingTab = latestOpenTabs.find((tab) => tab.path === normalizedAbsolutePath);
+      const latestOpenedContent = resolveLatestOpenedContent(latestState, normalizedAbsolutePath, content);
       const nextMetadata = setNoteEntry(
         latestState.noteMetadata ?? createEmptyMetadataFile(),
         normalizedAbsolutePath,
@@ -378,12 +438,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         latestState.noteContentsCache,
         loadedCache,
         normalizedAbsolutePath,
-        !latestExistingTab?.isDirty,
+        latestOpenedContent.dirtyContent,
       );
 
       updateDisplayName(set, normalizedAbsolutePath, tabName);
       set({
-        currentNote: { path: normalizedAbsolutePath, content },
+        currentNote: { path: normalizedAbsolutePath, content: latestOpenedContent.content },
         currentNoteRevision: latestState.currentNoteRevision + 1,
         isDirty: latestExistingTab?.isDirty ?? false,
         error: null,
@@ -391,7 +451,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         isNewlyCreated: false,
         noteContentsCache: limitCachedNoteContents(
           nextCache,
-          getProtectedCachePaths({ ...get(), openTabs: updatedTabs, currentNote: { path: normalizedAbsolutePath, content } }),
+          getProtectedCachePaths({
+            ...get(),
+            openTabs: updatedTabs,
+            currentNote: { path: normalizedAbsolutePath, content: latestOpenedContent.content },
+          }),
           MAX_NOTE_CONTENT_CACHE_ENTRIES,
         ),
         noteMetadata: nextMetadata,
@@ -412,6 +476,9 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     if (normalizedPath == null) {
       return;
     }
+    if (isInternalWorkspaceNotePath(normalizedPath)) {
+      return;
+    }
     path = normalizedPath;
     if (isCachedNoteFresh(get(), path)) {
       return;
@@ -419,6 +486,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     if (openTabs.some((tab) => tab.path === path && tab.isDirty)) {
       return;
     }
+    const pathMutationRevision = getExternalPathMutationRevision();
 
     const prefetchKey = getNotePrefetchKey(notesPath, path);
     cancelledNotePrefetches.delete(prefetchKey);
@@ -444,6 +512,9 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         cache: get().noteContentsCache,
       });
       if (cancelledNotePrefetches.has(prefetchKey)) {
+        return;
+      }
+      if (wasPathExternallyMutatedSince(path, pathMutationRevision)) {
         return;
       }
 
@@ -500,6 +571,9 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => {
     const { currentNote, openTabs, noteContentsCache, noteMetadata, displayNames, recentNotes } = get();
     if (currentNote?.path !== absolutePath) {
+      return false;
+    }
+    if (isInternalWorkspaceNotePath(nextPath)) {
       return false;
     }
 

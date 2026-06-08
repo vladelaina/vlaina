@@ -39,6 +39,7 @@ export function createPersistenceQueue<T>(options: PersistenceQueueOptions<T>): 
   let debounceTimer: TimerHandle | null = null;
   let maxWaitTimer: TimerHandle | null = null;
   let consecutiveFailureCount = 0;
+  let mutationVersion = 0;
 
   const clearDebounceTimer = () => {
     if (!debounceTimer) return;
@@ -85,13 +86,16 @@ export function createPersistenceQueue<T>(options: PersistenceQueueOptions<T>): 
     writing = (async () => {
       while (pendingPayload !== null) {
         const payload = pendingPayload;
+        const payloadVersion = mutationVersion;
         pendingPayload = null;
         try {
           await options.write(payload);
           consecutiveFailureCount = 0;
         } catch (error) {
           consecutiveFailureCount += 1;
-          pendingPayload = pendingPayload ?? payload;
+          if (pendingPayload === null && mutationVersion === payloadVersion) {
+            pendingPayload = payload;
+          }
           throw error;
         }
       }
@@ -126,6 +130,7 @@ export function createPersistenceQueue<T>(options: PersistenceQueueOptions<T>): 
   };
 
   const schedule: PersistenceQueue<T>['schedule'] = (payload, runtimeOptions) => {
+    mutationVersion += 1;
     pendingPayload = payload;
 
     const debounceMs = runtimeOptions?.debounceMs ?? defaultDebounceMs;
@@ -172,11 +177,13 @@ export function createPersistenceQueue<T>(options: PersistenceQueueOptions<T>): 
   return {
     schedule,
     saveNow: async (payload: T) => {
+      mutationVersion += 1;
       pendingPayload = payload;
       await flush();
     },
     flush,
     cancel: () => {
+      mutationVersion += 1;
       pendingPayload = null;
       clearTimers();
       notifyIdleIfNeeded();

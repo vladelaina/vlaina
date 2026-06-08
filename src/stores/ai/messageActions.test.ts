@@ -299,7 +299,6 @@ describe('message actions API transcript handling', () => {
     const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
     expect(message.apiTranscript).toEqual([
       { role: 'assistant', content: 'new answer', reasoning_content: 'hidden' },
-      { role: 'tool', tool_call_id: 'call-1', content: 'result' },
     ]);
     expect(message.versions[0].apiTranscript).toEqual(message.apiTranscript);
   });

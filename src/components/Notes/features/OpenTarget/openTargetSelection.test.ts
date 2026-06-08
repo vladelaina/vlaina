@@ -119,7 +119,10 @@ describe('openTargetSelection', () => {
     expect(isSupportedMarkdownSelection('/vault/docs/note.markdown')).toBe(true);
     expect(isSupportedMarkdownSelection('/vault/docs/note.mdown')).toBe(true);
     expect(isSupportedMarkdownSelection('/vault/docs/note.mkd')).toBe(true);
+    expect(isSupportedMarkdownSelection('/vault/.notes/alpha.md')).toBe(true);
     expect(isSupportedMarkdownSelection('/vault/docs/data.txt')).toBe(false);
+    expect(isSupportedMarkdownSelection('/vault/.vlaina/workspace.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('/vault/docs/.git/config.md')).toBe(false);
   });
 
   it('uses the selected file parent folder as the opened vault', () => {
@@ -159,6 +162,15 @@ describe('openTargetSelection', () => {
       vaultPath: '\\\\server\\share',
       notePath: 'alpha.md',
     });
+  });
+
+  it('rejects markdown files inside hidden app and git folders', () => {
+    expect(() => resolveOpenNoteTarget('/vault/.vlaina/workspace.md')).toThrow(
+      'Selected file path must not be inside an internal notes folder',
+    );
+    expect(() => resolveOpenNoteTarget('/vault/docs/.git/config.md')).toThrow(
+      'Selected file path must not be inside an internal notes folder',
+    );
   });
 
   it('rejects relative markdown paths when resolving open targets', () => {

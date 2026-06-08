@@ -19,6 +19,7 @@ import {
   loadWorkspaceState,
 } from '../storage';
 import { getVaultStarredPaths } from '../starred';
+import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import { normalizeVaultRelativePath, resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import type { FileSystemSlice, FileSystemSliceGet, FileSystemSliceSet } from './fileSystemSliceContracts';
@@ -48,6 +49,7 @@ export function getWorkspaceRestoreCandidatePaths({
     const normalizedPath = normalizeVaultRelativePath(candidate);
     if (
       !normalizedPath ||
+      hasInternalNotePathSegment(normalizedPath) ||
       isDraftNotePath(normalizedPath) ||
       !isSupportedMarkdownPath(normalizedPath) ||
       seen.has(normalizedPath)

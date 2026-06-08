@@ -77,8 +77,15 @@ describe('ElectronAdapter', () => {
       if (path === '/vault') {
         return [
           { name: '.hidden', path: '/vault/.hidden', isDirectory: false, isFile: true },
+          { name: '.notes', path: '/vault/.notes', isDirectory: true, isFile: false },
           { name: 'docs', path: '/vault/docs', isDirectory: true, isFile: false },
           { name: 'a.md', path: '/vault/a.md', isDirectory: false, isFile: true },
+        ];
+      }
+
+      if (path === '/vault/.notes') {
+        return [
+          { name: 'hidden-note.md', path: '/vault/.notes/hidden-note.md', isDirectory: false, isFile: true },
         ];
       }
 
@@ -98,7 +105,23 @@ describe('ElectronAdapter', () => {
       { name: 'a.md', path: '/vault/a.md', isDirectory: false, isFile: true },
     ]);
 
+    await expect(adapter.listDir('/vault', { includeHidden: true })).resolves.toEqual([
+      { name: '.hidden', path: '/vault/.hidden', isDirectory: false, isFile: true },
+      { name: '.notes', path: '/vault/.notes', isDirectory: true, isFile: false },
+      { name: 'docs', path: '/vault/docs', isDirectory: true, isFile: false },
+      { name: 'a.md', path: '/vault/a.md', isDirectory: false, isFile: true },
+    ]);
+
     await expect(adapter.listDir('/vault', { recursive: true })).resolves.toEqual([
+      { name: 'docs', path: '/vault/docs', isDirectory: true, isFile: false },
+      { name: 'b.md', path: '/vault/docs/b.md', isDirectory: false, isFile: true },
+      { name: 'a.md', path: '/vault/a.md', isDirectory: false, isFile: true },
+    ]);
+
+    await expect(adapter.listDir('/vault', { recursive: true, includeHidden: true })).resolves.toEqual([
+      { name: '.hidden', path: '/vault/.hidden', isDirectory: false, isFile: true },
+      { name: '.notes', path: '/vault/.notes', isDirectory: true, isFile: false },
+      { name: 'hidden-note.md', path: '/vault/.notes/hidden-note.md', isDirectory: false, isFile: true },
       { name: 'docs', path: '/vault/docs', isDirectory: true, isFile: false },
       { name: 'b.md', path: '/vault/docs/b.md', isDirectory: false, isFile: true },
       { name: 'a.md', path: '/vault/a.md', isDirectory: false, isFile: true },

@@ -17,6 +17,7 @@ import { KATEX_SHARED_RENDER_OPTIONS } from '@/components/common/markdown/katexO
 import { rehypeKatexSourceSanitizer } from '@/components/common/markdown/katexSourceSanitizer';
 import { rehypeDropUnsafeRawHtmlContent } from '@/components/common/markdown/rawHtmlSanitizer';
 import { normalizeImageWidth, serializeCropValue } from '@/components/common/markdown/imageSourceFragment';
+import { hasInternalNoteAssetUrlPathSegment } from '@/lib/assets/core/internalAssetPaths';
 import {
   themeColorTokens,
   themeDomStyleTokens,
@@ -24,6 +25,7 @@ import {
   themeStyleResetTokens,
 } from '@/styles/themeTokens';
 import {
+  getNoteInternalImageAssetPath,
   isLocalNetworkHttpUrl,
   isPublicRemoteMediaUrl,
   sanitizeNoteLinkHref,
@@ -124,7 +126,13 @@ function renderExportImage(props: any) {
   }
 
   const safeSrc = sanitizeNoteMediaSrc(rawSrc);
-  if (!safeSrc || /^blob:/i.test(safeSrc) || isPublicRemoteMediaUrl(safeSrc)) {
+  const localSrc = getNoteInternalImageAssetPath(safeSrc) ?? safeSrc;
+  if (
+    !safeSrc
+    || /^blob:/i.test(safeSrc)
+    || isPublicRemoteMediaUrl(safeSrc)
+    || hasInternalNoteAssetUrlPathSegment(localSrc)
+  ) {
     return null;
   }
 

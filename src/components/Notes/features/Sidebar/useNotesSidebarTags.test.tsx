@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FolderNode } from '@/stores/useNotesStore';
 import { useNotesSidebarTags } from './useNotesSidebarTags';
@@ -79,6 +79,24 @@ describe('useNotesSidebarTags', () => {
       noteContentsCache: new Map(),
       scanAllNotes,
       currentVaultPath: '/vault',
+    }));
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(mocked.stat).not.toHaveBeenCalled();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read sidebar tag content from internal vault paths', async () => {
+    const scanAllNotes = vi.fn(async () => undefined);
+
+    renderHook(() => useNotesSidebarTags({
+      rootFolder,
+      noteContentsCache: new Map(),
+      scanAllNotes,
+      currentVaultPath: '/vault/.vlaina',
     }));
 
     await Promise.resolve();

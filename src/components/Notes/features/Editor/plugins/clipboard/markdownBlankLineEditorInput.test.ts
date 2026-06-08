@@ -162,6 +162,12 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
     ).toBe(['```html', '<br />', '```'].join('\n'));
   });
 
+  it('does not rewrite internal user break sentinel text inside fenced code blocks', () => {
+    const markdown = ['```txt', '\u0000VLAINA_USER_BR_SENTINEL\u0000', '```'].join('\n');
+
+    expect(preserveMarkdownBlankLinesForEditor(markdown)).toBe(markdown);
+  });
+
   it('does not rewrite list-like gaps inside fenced code blocks', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['```md', '- one', '', '- two', '```'].join('\n'))

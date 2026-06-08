@@ -4,6 +4,7 @@ import {
   RECENT_NOTES_KEY,
   NOTE_ICON_SIZE_KEY,
   MAX_RECENT_NOTES,
+  APP_CONFIG_FOLDER,
   WORKSPACE_FILE,
 } from './constants';
 import type { FileTreeSortMode, MetadataFile, NoteCoverMetadata, NoteMetadataEntry } from './types';
@@ -30,6 +31,7 @@ const SKIPPED_METADATA_DIRECTORY_NAMES = new Set([
   'target',
   '__pycache__',
 ]);
+const INTERNAL_METADATA_DIRECTORY_NAMES = new Set([APP_CONFIG_FOLDER, '.git']);
 
 interface CachedMetadataEntry {
   modifiedAt: number | null;
@@ -152,7 +154,11 @@ export function createEmptyMetadataFile(): MetadataFile {
 }
 
 function shouldSkipMetadataDirectory(name: string) {
-  return name.startsWith('.') || SKIPPED_METADATA_DIRECTORY_NAMES.has(name);
+  return SKIPPED_METADATA_DIRECTORY_NAMES.has(name);
+}
+
+function shouldHideMetadataDirectory(name: string) {
+  return INTERNAL_METADATA_DIRECTORY_NAMES.has(name);
 }
 
 function isReadableBoundedFile(
@@ -181,7 +187,7 @@ async function collectMarkdownPaths(
   const currentPath = relativePath ? await joinPath(basePath, relativePath) : basePath;
   let entries: Awaited<ReturnType<typeof storage.listDir>>;
   try {
-    entries = await storage.listDir(currentPath);
+    entries = await storage.listDir(currentPath, { includeHidden: true });
   } catch (error) {
     if (!relativePath) {
       throw error;
@@ -191,30 +197,32 @@ async function collectMarkdownPaths(
   const collected: string[] = [];
 
   for (const entry of entries) {
-    if (budget.visitedEntries >= MAX_METADATA_SCAN_ENTRIES) {
-      break;
-    }
-    budget.visitedEntries += 1;
-
     if (!isSafeVaultPathSegment(entry.name)) {
-      continue;
-    }
-
-    if (entry.name.startsWith('.')) {
       continue;
     }
 
     const entryPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
 
     if (entry.isDirectory === true) {
+      if (shouldHideMetadataDirectory(entry.name)) {
+        continue;
+      }
       if (shouldSkipMetadataDirectory(entry.name)) {
         continue;
       }
+      if (budget.visitedEntries >= MAX_METADATA_SCAN_ENTRIES) {
+        break;
+      }
+      budget.visitedEntries += 1;
       collected.push(...await collectMarkdownPaths(basePath, entryPath, budget, depth + 1));
       continue;
     }
 
     if (entry.isFile === true && isSupportedMarkdownPath(entry.name)) {
+      if (budget.visitedEntries >= MAX_METADATA_SCAN_ENTRIES) {
+        break;
+      }
+      budget.visitedEntries += 1;
       collected.push(entryPath);
     }
   }

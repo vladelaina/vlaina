@@ -19,7 +19,10 @@ const adapter = {
   getBasePath: vi.fn<() => Promise<string>>(),
   stat: vi.fn<(path: string) => Promise<{ modifiedAt?: number; size?: number } | null>>(),
   listDir: vi.fn<
-    (path: string) => Promise<Array<{ name: string; isDirectory?: boolean; isFile?: boolean }>>
+    (
+      path: string,
+      options?: { includeHidden?: boolean; recursive?: boolean },
+    ) => Promise<Array<{ name: string; isDirectory?: boolean; isFile?: boolean }>>
   >(),
 };
 
@@ -128,6 +131,54 @@ describe('notes metadata storage', () => {
     expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/gamma.mdown');
     expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/delta.mkd');
     expect(adapter.readFile).not.toHaveBeenCalledWith('/vault-extensions/image.png');
+  });
+
+  it('scans user dotfile notes while hiding internal app and git folders', async () => {
+    adapter.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault-dot-notes') {
+        return [
+          { name: '.journal.md', isFile: true },
+          { name: '.notes', isDirectory: true },
+          { name: '.vlaina', isDirectory: true },
+          { name: '.git', isDirectory: true },
+        ];
+      }
+
+      if (path === '/vault-dot-notes/.notes') {
+        return [{ name: 'alpha.md', isFile: true }];
+      }
+
+      return [];
+    });
+    adapter.readFile.mockImplementation(async (path: string) => {
+      const date = path.includes('alpha')
+        ? '2026-04-18T00:00:00.000Z'
+        : '2026-04-17T00:00:00.000Z';
+
+      return [
+        '---',
+        `vlaina_updated: "${date}"`,
+        '---',
+        '',
+        '# Note',
+      ].join('\n');
+    });
+
+    await expect(loadNoteMetadata('/vault-dot-notes')).resolves.toEqual({
+      version: 2,
+      notes: {
+        '.journal.md': {
+          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+        },
+        '.notes/alpha.md': {
+          updatedAt: Date.parse('2026-04-18T00:00:00.000Z'),
+        },
+      },
+    });
+    expect(adapter.listDir).toHaveBeenCalledWith('/vault-dot-notes', { includeHidden: true });
+    expect(adapter.listDir).toHaveBeenCalledWith('/vault-dot-notes/.notes', { includeHidden: true });
+    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-dot-notes/.vlaina');
+    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-dot-notes/.git');
   });
 
   it('ignores unsafe storage entry names during metadata scans', async () => {

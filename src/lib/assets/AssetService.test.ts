@@ -116,6 +116,26 @@ describe('AssetService', () => {
     expect(result.path).toBe('assets/alpha.png');
   });
 
+  it('falls back when a vault upload subfolder points into an internal notes directory', async () => {
+    const file = createImageFile('alpha.png');
+
+    const result = await AssetService.upload(
+      file,
+      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      {
+        storageMode: 'vaultSubfolder',
+        imageVaultSubfolderName: '.vlaina/assets',
+        filenameFormat: 'original',
+      },
+      [],
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/vault/assets', true);
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/assets/alpha.png', expect.any(Uint8Array));
+    expect(result.path).toBe('assets/alpha.png');
+  });
+
   it('keeps note subfolder uploads below the current note directory', async () => {
     const file = createImageFile('alpha.png');
 
@@ -135,6 +155,64 @@ describe('AssetService', () => {
     expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', expect.any(Uint8Array));
     expect(result.path).toBe('./assets/alpha.png');
     expect(mocks.computeFileHash).not.toHaveBeenCalled();
+  });
+
+  it('falls back when a note upload subfolder points into an internal notes directory', async () => {
+    const file = createImageFile('alpha.png');
+
+    const result = await AssetService.upload(
+      file,
+      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      {
+        storageMode: 'subfolder',
+        subfolderName: '.git/assets',
+        filenameFormat: 'original',
+      },
+      [],
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/vault/docs/assets', true);
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', expect.any(Uint8Array));
+    expect(result.path).toBe('./assets/alpha.png');
+  });
+
+  it('allows user dot-folder upload subfolders', async () => {
+    const file = createImageFile('alpha.png');
+
+    const result = await AssetService.upload(
+      file,
+      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      {
+        storageMode: 'subfolder',
+        subfolderName: '.notes/assets',
+        filenameFormat: 'original',
+      },
+      [],
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/vault/docs/.notes/assets', true);
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/.notes/assets/alpha.png', expect.any(Uint8Array));
+    expect(result.path).toBe('./.notes/assets/alpha.png');
+  });
+
+  it('does not upload assets beside internal note paths', async () => {
+    const file = createImageFile('alpha.png');
+
+    await expect(AssetService.upload(
+      file,
+      { vaultPath: '/vault', currentNotePath: '.vlaina/workspace.md' },
+      {
+        storageMode: 'subfolder',
+        subfolderName: 'assets',
+        filenameFormat: 'original',
+      },
+      [],
+    )).rejects.toThrow('Current note path must not be inside an internal notes folder.');
+
+    expect(mocks.storage.mkdir).not.toHaveBeenCalled();
+    expect(mocks.writeAssetAtomic).not.toHaveBeenCalled();
   });
 
   it('adds an image extension when a pasted clipboard image has no filename', async () => {

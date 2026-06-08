@@ -10,7 +10,10 @@ export function classifyWatchEventPaths(vaultPath: string, paths: string[]) {
     const normalizedPath = normalizeFsPath(path);
     const relativePath = toVaultRelativePath(vaultPath, normalizedPath);
     const ignoredByVaultRules = relativePath != null && isIgnoredWatchPath(relativePath);
-    const expectedChange = shouldIgnoreExpectedExternalChange(normalizedPath);
+    const expectedChange =
+      relativePath != null &&
+      !ignoredByVaultRules &&
+      shouldIgnoreExpectedExternalChange(normalizedPath);
     return {
       path,
       normalizedPath,

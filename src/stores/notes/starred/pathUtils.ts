@@ -1,6 +1,7 @@
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { isAbsolutePath } from '@/lib/storage/adapter';
 import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
+import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import { normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
 
 export function normalizeStarredVaultPath(path: string): string {
@@ -10,12 +11,37 @@ export function normalizeStarredVaultPath(path: string): string {
 
 export function isValidStarredVaultPath(path: string): boolean {
   const normalized = normalizeStarredVaultPath(path);
-  return Boolean(normalized) && !normalized.includes('\0') && isAbsolutePath(normalized);
+  return (
+    Boolean(normalized) &&
+    !normalized.includes('\0') &&
+    isAbsolutePath(normalized) &&
+    !hasInternalNotePathSegment(normalized)
+  );
 }
 
 export function normalizeStarredRelativePath(path: string): string | null {
   const normalized = normalizeVaultRelativePath(path);
-  return normalized && normalized !== '/' ? normalized : null;
+  if (!normalized || normalized === '/') {
+    return null;
+  }
+  if (hasInternalNotePathSegment(normalized)) {
+    return null;
+  }
+  return normalized;
+}
+
+export function isPathInsideStarredVault(path: string, vaultPath: string): boolean {
+  const normalizedPath = normalizeNotePathKey(path);
+  if (!normalizedPath || !isAbsolutePath(normalizedPath)) {
+    return false;
+  }
+
+  const normalizedVaultPath = normalizeStarredVaultPath(vaultPath);
+  if (!normalizedVaultPath || !isValidStarredVaultPath(normalizedVaultPath)) {
+    return false;
+  }
+
+  return normalizeContainedAssetPath(normalizedPath, normalizedVaultPath) != null;
 }
 
 export function resolveStarredRelativePathForVault(
@@ -32,7 +58,7 @@ export function resolveStarredRelativePathForVault(
   }
 
   const normalizedVaultPath = normalizeStarredVaultPath(vaultPath);
-  if (!normalizedVaultPath) {
+  if (!normalizedVaultPath || !isValidStarredVaultPath(normalizedVaultPath)) {
     return null;
   }
 

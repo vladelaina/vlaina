@@ -1,6 +1,10 @@
 import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 import { findDelimitedTextMatches, type MarkdownSourcePosition } from './delimitedMarkdown';
 import { canTransformMarkdownAst } from './markdownAstBudget';
+import {
+  createMarkdownTextSliceNode,
+  createMarkdownTextSourceMap,
+} from './markdownSourcePosition';
 
 export interface ColorMarkdownMdastNode {
   type: string;
@@ -202,19 +206,24 @@ export function replaceUnderlineMarkdown(tree: ColorMarkdownMdastNode, markdown 
     });
     if (matches.length === 0) return;
 
+    const sourceMap = markdown
+      ? createMarkdownTextSourceMap(node.value, markdown, node.position)
+      : null;
     const nextNodes: ColorMarkdownMdastNode[] = [];
     let lastEnd = 0;
 
     for (const item of matches) {
       if (item.start > lastEnd) {
-        nextNodes.push({ type: 'text', value: node.value.slice(lastEnd, item.start) });
+        nextNodes.push(createMarkdownTextSliceNode(node, sourceMap, lastEnd, item.start));
       }
-      nextNodes.push(createUnderlineMdastNode([{ type: 'text', value: item.content }]));
+      nextNodes.push(createUnderlineMdastNode([
+        createMarkdownTextSliceNode(node, sourceMap, item.start + 2, item.end - 2),
+      ]));
       lastEnd = item.end;
     }
 
     if (lastEnd < node.value.length) {
-      nextNodes.push({ type: 'text', value: node.value.slice(lastEnd) });
+      nextNodes.push(createMarkdownTextSliceNode(node, sourceMap, lastEnd, node.value.length));
     }
 
     parent.children?.splice(index, 1, ...nextNodes);

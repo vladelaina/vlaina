@@ -97,6 +97,66 @@ describe('WebAdapter', () => {
     ]);
   });
 
+  it('filters hidden entries by default and includes them when requested', async () => {
+    await adapter.writeFile('/vault/.journal.md', 'journal', { recursive: true });
+    await adapter.writeFile('/vault/.notes/alpha.md', 'alpha', { recursive: true });
+    await adapter.writeFile('/vault/docs/beta.md', 'beta', { recursive: true });
+
+    await expect(adapter.listDir('/vault')).resolves.toEqual([
+      expect.objectContaining({
+        name: 'docs',
+        path: '/vault/docs',
+        isDirectory: true,
+      }),
+    ]);
+
+    await expect(adapter.listDir('/vault', { includeHidden: true })).resolves.toEqual([
+      expect.objectContaining({
+        name: '.journal.md',
+        path: '/vault/.journal.md',
+        isFile: true,
+      }),
+      expect.objectContaining({
+        name: '.notes',
+        path: '/vault/.notes',
+        isDirectory: true,
+      }),
+      expect.objectContaining({
+        name: 'docs',
+        path: '/vault/docs',
+        isDirectory: true,
+      }),
+    ]);
+
+    await expect(adapter.listDir('/vault', { recursive: true, includeHidden: true })).resolves.toEqual([
+      expect.objectContaining({
+        name: '.journal.md',
+        path: '/vault/.journal.md',
+        isFile: true,
+      }),
+      expect.objectContaining({
+        name: '.notes',
+        path: '/vault/.notes',
+        isDirectory: true,
+      }),
+      expect.objectContaining({
+        name: 'alpha.md',
+        path: '/vault/.notes/alpha.md',
+        isFile: true,
+      }),
+      expect.objectContaining({
+        name: 'docs',
+        path: '/vault/docs',
+        isDirectory: true,
+      }),
+      expect.objectContaining({
+        name: 'beta.md',
+        path: '/vault/docs/beta.md',
+        isFile: true,
+      }),
+    ]);
+  });
+
   it('includes implicit directories in recursive listings without duplicating them', async () => {
     await adapter.writeFile('/vault/docs/guides/a.md', 'hello');
 

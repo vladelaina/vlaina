@@ -52,6 +52,18 @@ describe('findDelimitedTextMatches', () => {
     ]);
   });
 
+  it('skips delimiter matches when markdown source is provided without a reliable position', () => {
+    expect(findDelimitedTextMatches('==literal==', /==([^=]+)==/g, {
+      markdown: '\\==literal==',
+      openDelimiterLength: 2,
+    })).toEqual([]);
+    expect(findDelimitedTextMatches('==literal==', /==([^=]+)==/g, {
+      markdown: '\\==literal==',
+      position: { start: { offset: 0 } },
+      openDelimiterLength: 2,
+    })).toEqual([]);
+  });
+
   it('detects escaped block-level trigger characters from the original markdown source', () => {
     expect(isUnescapedMarkdownTextRange('[TOC]', 0, 1, {
       markdown: '\\[TOC]',
@@ -64,6 +76,16 @@ describe('findDelimitedTextMatches', () => {
     expect(isUnescapedMarkdownTextRange('*[HTML]: Text', 0, 1, {
       markdown: '\\*[HTML]: Text',
       position: { start: { offset: 0 }, end: { offset: 14 } },
+    })).toBe(false);
+  });
+
+  it('treats block-level trigger characters as unsafe when markdown source lacks a reliable position', () => {
+    expect(isUnescapedMarkdownTextRange('[TOC]', 0, 1, {
+      markdown: '\\[TOC]',
+    })).toBe(false);
+    expect(isUnescapedMarkdownTextRange(': Definition', 0, 1, {
+      markdown: '\\: Definition',
+      position: { start: { offset: 0 } },
     })).toBe(false);
   });
 

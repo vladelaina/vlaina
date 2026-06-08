@@ -120,6 +120,55 @@ describe('imageSourcePath', () => {
         }, deps)).resolves.toEqual([]);
     });
 
+    it('rejects internal vault image path segments while allowing user dot folders', async () => {
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: '.vlaina/assets/demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'daily/2026-03-31.md',
+        }, deps)).resolves.toEqual([]);
+
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: 'docs/.git/demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'daily/2026-03-31.md',
+        }, deps)).resolves.toEqual([]);
+
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: 'docs/.GIT/demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'daily/2026-03-31.md',
+        }, deps)).resolves.toEqual([]);
+
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: './.git/demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'daily/2026-03-31.md',
+        }, deps)).resolves.toEqual([]);
+
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: '.notes/assets/demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'daily/2026-03-31.md',
+        }, deps)).resolves.toEqual([
+            '/vault/daily/.notes/assets/demo.png',
+            '/vault/.notes/assets/demo.png',
+        ]);
+    });
+
+    it('does not resolve images from internal current note paths', async () => {
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: 'assets/demo.png',
+            notesPath: '/vault',
+            currentNotePath: '.vlaina/workspace.md',
+        }, deps)).resolves.toEqual([]);
+
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: 'assets/demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'docs/.git/config.md',
+        }, deps)).resolves.toEqual([]);
+    });
+
     it('rejects relative segments that escape an external note directory', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: '../secret.png',

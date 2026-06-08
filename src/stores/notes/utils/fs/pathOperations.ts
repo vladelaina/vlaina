@@ -2,6 +2,7 @@ import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { resolveUniqueName } from '@/lib/naming/uniqueName';
 import { ensureMarkdownFileName } from '@/lib/notes/displayName';
 import { sanitizeFileName } from '../../noteUtils';
+import { assertNonInternalNotePath } from './internalNotePaths';
 import { normalizeVaultRelativePath } from './vaultPathContainment';
 
 function normalizeDesiredFileName(name: string, isDirectory: boolean) {
@@ -27,6 +28,9 @@ async function resolveUniqueTargetPath(
   if (safeFolderPath == null) {
     throw new Error('Target folder must stay inside the current vault.');
   }
+  if (safeFolderPath) {
+    assertNonInternalNotePath(safeFolderPath, 'Target folder must not be inside an internal notes folder.');
+  }
 
   const resolvedFileName = await resolveUniqueName(
     fileName,
@@ -41,6 +45,7 @@ async function resolveUniqueTargetPath(
     { splitExtension: !isDirectory }
   );
   const relativePath = safeFolderPath ? `${safeFolderPath}/${resolvedFileName}` : resolvedFileName;
+  assertNonInternalNotePath(relativePath, 'Path must not be inside an internal notes folder.');
   const fullPath = await joinPath(basePath, relativePath);
   return { relativePath, fullPath, fileName: resolvedFileName };
 }
@@ -65,6 +70,7 @@ export async function resolveUniqueRenamedPath(
   if (!normalizedCurrentPath) {
     throw new Error('Path must stay inside the current vault.');
   }
+  assertNonInternalNotePath(normalizedCurrentPath, 'Path must not be inside an internal notes folder.');
 
   const folderPath = getParentPath(normalizedCurrentPath) || undefined;
   const fileName = normalizeDesiredFileName(nextName, isDirectory);
@@ -83,6 +89,13 @@ export async function resolveUniqueMovedPath(
     : '';
   if (!normalizedSourcePath || normalizedTargetFolderPath == null) {
     throw new Error('Path must stay inside the current vault.');
+  }
+  assertNonInternalNotePath(normalizedSourcePath, 'Path must not be inside an internal notes folder.');
+  if (normalizedTargetFolderPath) {
+    assertNonInternalNotePath(
+      normalizedTargetFolderPath,
+      'Target folder must not be inside an internal notes folder.',
+    );
   }
 
   const sourceName = normalizedSourcePath.split('/').pop() || (isDirectory ? 'Untitled' : 'Untitled.md');

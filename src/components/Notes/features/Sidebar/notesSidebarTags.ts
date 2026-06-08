@@ -7,6 +7,7 @@ import type { StarredEntry } from '@/stores/notes/types';
 import type { FileTreeNode, FolderNode } from '@/stores/useNotesStore';
 import { extractNoteTagOccurrences, extractNoteTags } from '@/lib/notes/tags';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
+import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import { normalizeVaultRelativePath } from '@/stores/notes/utils/fs/vaultPathContainment';
 
 export interface NotesSidebarTagPath {
@@ -56,6 +57,11 @@ function collectNotePaths(
   while (stack.length > 0 && bucket.size < MAX_SIDEBAR_TAG_SCOPE_PATHS) {
     const node = stack.pop()!;
     if (node.isFolder) {
+      const normalizedFolderPath = normalizeVaultRelativePath(node.path, { allowEmpty: true });
+      if (normalizedFolderPath === null || hasInternalNotePathSegment(normalizedFolderPath)) {
+        continue;
+      }
+
       for (let index = node.children.length - 1; index >= 0; index -= 1) {
         stack.push(node.children[index]);
       }
@@ -65,6 +71,7 @@ function collectNotePaths(
     const normalizedPath = normalizeVaultRelativePath(node.path);
     if (
       normalizedPath &&
+      !hasInternalNotePathSegment(normalizedPath) &&
       isSupportedMarkdownPath(normalizedPath) &&
       (!folderFilter || folderFilter(normalizedPath))
     ) {

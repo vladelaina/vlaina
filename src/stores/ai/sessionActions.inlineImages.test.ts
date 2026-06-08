@@ -9,6 +9,16 @@ const mocked = vi.hoisted(() => ({
   saveSessionJson: vi.fn(async () => {}),
   loadSessionJson: vi.fn(async (): Promise<ChatMessage[] | null> => []),
   hasSessionJson: vi.fn(async () => false),
+  deleteAttachment: vi.fn(async () => {}),
+  createStoredAttachmentFromSource: vi.fn((src: string) => ({
+    id: 'stored-attachment',
+    path: '',
+    previewUrl: src,
+    assetUrl: src,
+    name: 'persisted.png',
+    type: 'image/png',
+    size: 0,
+  })),
 }))
 
 vi.mock('@/components/Chat/common/messageImageTokens', () => ({
@@ -17,6 +27,8 @@ vi.mock('@/components/Chat/common/messageImageTokens', () => ({
 
 vi.mock('@/lib/storage/attachmentStorage', () => ({
   persistDataUrlAttachment: mocked.persistDataUrlAttachment,
+  deleteAttachment: mocked.deleteAttachment,
+  createStoredAttachmentFromSource: mocked.createStoredAttachmentFromSource,
 }))
 
 vi.mock('@/lib/storage/chatStorage', () => ({
@@ -91,6 +103,15 @@ describe('session inline image persistence', () => {
     vi.useFakeTimers()
     vi.clearAllMocks()
     mocked.persistDataUrlAttachment.mockResolvedValue('attachment://persisted.png')
+    mocked.createStoredAttachmentFromSource.mockImplementation((src: string) => ({
+      id: 'stored-attachment',
+      path: '',
+      previewUrl: src,
+      assetUrl: src,
+      name: 'persisted.png',
+      type: 'image/png',
+      size: 0,
+    }))
     mocked.loadSessionJson.mockResolvedValue([])
     mocked.hasSessionJson.mockResolvedValue(false)
   })
@@ -108,6 +129,49 @@ describe('session inline image persistence', () => {
 
     expect(mocked.parseMarkdownAndHtmlImageTokens).not.toHaveBeenCalled()
     expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
+  })
+
+  it('does not recreate a deleted session when switch loading finishes late', async () => {
+    const { createSessionActions } = await import('./sessionActions')
+    let resolveLoad!: (messages: ChatMessage[]) => void
+    mocked.loadSessionJson.mockReturnValue(new Promise((resolve) => {
+      resolveLoad = resolve
+    }))
+    seedSession([])
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              messages: { 'session-1': [] },
+            }
+          : state.data.ai,
+      },
+    }))
+
+    const switchRequest = createSessionActions().switchSession('session-2')
+    await vi.waitFor(() => expect(mocked.loadSessionJson).toHaveBeenCalledWith('session-2'))
+
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              sessions: state.data.ai.sessions.filter((session) => session.id !== 'session-2'),
+              messages: { 'session-1': [] },
+            }
+          : state.data.ai,
+      },
+    }))
+
+    resolveLoad([createMessage('stale', 'stale disk')])
+    await switchRequest
+
+    expect(useUnifiedStore.getState().data.ai?.messages).toEqual({ 'session-1': [] })
   })
 
   it('persists inline data images found in markdown content', async () => {
@@ -133,6 +197,133 @@ describe('session inline image persistence', () => {
     expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith(source)
     expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content)
       .toBe(`${plainText}\n\n![image](<attachment://persisted.png>)\n\nDescribe`)
+  })
+
+  it('keeps inline image replacements in memory when the follow-up session save rejects', async () => {
+    const source = 'data:image/png;base64,AQI='
+    mocked.parseMarkdownAndHtmlImageTokens.mockImplementation((content: string) => {
+      const targetStart = content.indexOf(source)
+      return targetStart >= 0
+        ? [{ start: 0, end: content.length, src: source, targetStart, targetEnd: targetStart + source.length }]
+        : []
+    })
+    mocked.saveSessionJson.mockRejectedValueOnce(new Error('disk busy'))
+    const { createSessionActions } = await import('./sessionActions')
+    seedSession([createMessage('m1', `![image](<${source}>)`)])
+
+    await createSessionActions().switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
+    await Promise.resolve()
+
+    expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content)
+      .toBe('![image](<attachment://persisted.png>)')
+    expect(mocked.saveSessionJson).toHaveBeenCalledWith(
+      'session-2',
+      useUnifiedStore.getState().data.ai?.messages['session-2'],
+    )
+  })
+
+  it('removes newly persisted inline attachments when the session is deleted mid-persistence', async () => {
+    const source = 'data:image/png;base64,AQI='
+    let resolvePersistence!: (value: string) => void
+    mocked.parseMarkdownAndHtmlImageTokens.mockImplementation((content: string) => {
+      const targetStart = content.indexOf(source)
+      return targetStart >= 0
+        ? [{ start: 0, end: content.length, src: source, targetStart, targetEnd: targetStart + source.length }]
+        : []
+    })
+    mocked.persistDataUrlAttachment.mockReturnValue(new Promise((resolve) => {
+      resolvePersistence = resolve
+    }))
+    const { createSessionActions } = await import('./sessionActions')
+    const actions = createSessionActions()
+    seedSession([createMessage('m1', `![image](<${source}>)`)])
+
+    await actions.switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
+    await vi.waitFor(() => expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith(source))
+
+    await actions.deleteSession('session-2')
+    resolvePersistence('attachment://orphan.png')
+
+    await vi.waitFor(() => {
+      expect(mocked.deleteAttachment).toHaveBeenCalledWith(expect.objectContaining({
+        previewUrl: 'attachment://orphan.png',
+        assetUrl: 'attachment://orphan.png',
+      }))
+    })
+    expect(useUnifiedStore.getState().data.ai?.messages['session-2']).toBeUndefined()
+    expect(mocked.saveSessionJson).not.toHaveBeenCalledWith('session-2', expect.anything())
+  })
+
+  it('reruns inline image persistence when new data images arrive while a session is already processing', async () => {
+    const firstSource = 'data:image/png;base64,QUJD'
+    const secondSource = 'data:image/png;base64,RUZH'
+    const createImageMessage = (id: string, source: string) =>
+      createMessage(id, `![image](<${source}>)`)
+    const pendingPersistence = new Map<string, (value: string) => void>()
+    mocked.parseMarkdownAndHtmlImageTokens.mockImplementation((content: string) => {
+      const tokenPattern = /!\[image\]\(<(data:image\/png;base64,[A-Z]+)>\)/g
+      return Array.from(content.matchAll(tokenPattern), (match) => {
+        const src = match[1]
+        const targetStart = match.index! + match[0].indexOf(src)
+        return {
+          start: match.index!,
+          end: match.index! + match[0].length,
+          src,
+          targetStart,
+          targetEnd: targetStart + src.length,
+        }
+      })
+    })
+    mocked.persistDataUrlAttachment.mockImplementation((source: string) =>
+      new Promise((resolve) => {
+        pendingPersistence.set(source, resolve)
+      })
+    )
+    const { createSessionActions } = await import('./sessionActions')
+    const actions = createSessionActions()
+    seedSession([createImageMessage('m1', firstSource)])
+
+    await actions.switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
+    await vi.waitFor(() => {
+      expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith(firstSource)
+    })
+
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              messages: {
+                ...state.data.ai.messages,
+                'session-2': [
+                  ...(state.data.ai.messages['session-2'] || []),
+                  createImageMessage('m2', secondSource),
+                ],
+              },
+            }
+          : state.data.ai,
+      },
+    }))
+    await actions.switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
+
+    pendingPersistence.get(firstSource)?.('attachment://first.png')
+    await vi.waitFor(() => {
+      expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith(secondSource)
+    })
+    pendingPersistence.get(secondSource)?.('attachment://second.png')
+
+    await vi.waitFor(() => {
+      expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[1]?.content)
+        .toBe('![image](<attachment://second.png>)')
+    })
+    expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content)
+      .toBe('![image](<attachment://first.png>)')
   })
 
   it('persists inline data images found in API transcript text parts', async () => {

@@ -45,6 +45,15 @@ describe('starred entry path helpers', () => {
     expect(createStarredEntryFromAbsoluteNotePath('/other/docs/image.png')).toBeNull();
   });
 
+  it('does not create or resolve entries inside internal paths', () => {
+    expect(createStarredEntryFromAbsoluteNotePath('/other/docs/.git/config.md')).toBeNull();
+    expect(createStarredEntryFromAbsoluteNotePath('/other/.vlaina/workspace.md')).toBeNull();
+    expect(getStarredEntryAbsolutePath(createEntry('git', 'note', '/vault/.git', 'config.md')))
+      .toBeNull();
+    expect(getStarredEntryAbsolutePath(createEntry('app', 'note', '/vault', '.vlaina/workspace.md')))
+      .toBeNull();
+  });
+
   it('matches absolute paths against current-vault and external starred notes', () => {
     const entries = [
       createEntry('current', 'note', '/vault', 'docs/current.md'),

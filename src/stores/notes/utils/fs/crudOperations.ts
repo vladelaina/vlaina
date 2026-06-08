@@ -1,5 +1,5 @@
 import { resolveUniquePath } from './pathOperations';
-import { safeWriteTextFile, createEmptyMetadataFile, setNoteEntry, addToRecentNotes } from '../../storage';
+import { safeWriteTextFile, createEmptyMetadataFile, setNoteEntry } from '../../storage';
 import { addNodeToTree } from '../../fileTreeUtils';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { getStorageAdapter } from '@/lib/storage/adapter';
@@ -58,8 +58,6 @@ export async function createNoteImpl(
         ? addNodeToTree(currentStore.rootFolder.children, folderPath, newNode)
         : [];
 
-    const updatedRecent = addToRecentNotes(relativePath, currentStore.recentNotes);
-
     return {
         relativePath,
         fileName,
@@ -68,6 +66,5 @@ export async function createNoteImpl(
         size: typeof fileInfo?.size === 'number' ? fileInfo.size : null,
         updatedMetadata,
         newChildren,
-        updatedRecent
     };
 }

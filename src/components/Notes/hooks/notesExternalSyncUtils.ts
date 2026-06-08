@@ -4,6 +4,8 @@ import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { APP_CONFIG_FOLDER } from '@/stores/notes/constants';
 
+const INTERNAL_WATCH_DIRECTORY_NAMES = new Set([APP_CONFIG_FOLDER, '.git']);
+
 export function normalizeFsPath(path: string): string {
   return normalizeNotePathKey(path) ?? path;
 }
@@ -45,7 +47,7 @@ export function isIgnoredWatchPath(relativePath: string): boolean {
     return false;
   }
 
-  if (relativePath === APP_CONFIG_FOLDER || relativePath.startsWith(`${APP_CONFIG_FOLDER}/`)) {
+  if (relativePath.split('/').some((segment) => INTERNAL_WATCH_DIRECTORY_NAMES.has(segment))) {
     return true;
   }
 

@@ -97,4 +97,35 @@ describe('createPersistenceQueue', () => {
     vi.advanceTimersByTime(50);
     expect(write).not.toHaveBeenCalled();
   });
+
+  it('does not retry an in-flight payload after it is canceled', async () => {
+    vi.useFakeTimers();
+    let rejectWrite!: (error: Error) => void;
+    const write = vi.fn(() => new Promise<void>((_resolve, reject) => {
+      rejectWrite = reject;
+    }));
+    const onError = vi.fn();
+    const queue = createPersistenceQueue<string>({
+      write,
+      debounceMs: 0,
+      retryBaseMs: 100,
+      onError,
+    });
+
+    queue.schedule('payload');
+    await vi.runOnlyPendingTimersAsync();
+    expect(write).toHaveBeenCalledTimes(1);
+
+    queue.cancel();
+    rejectWrite(new Error('disk busy'));
+
+    await vi.waitFor(() => {
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(queue.hasPending()).toBe(false);
+    });
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+
 });

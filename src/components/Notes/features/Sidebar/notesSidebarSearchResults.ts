@@ -3,6 +3,8 @@ import type { FileTreeNode, FolderNode } from '@/stores/useNotesStore';
 import { getNotesSidebarContentMatches } from './notesSidebarContentSearch';
 import { collectStarredSearchEntries } from './notesSidebarStarredSearchEntries';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
+import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
+import { normalizeVaultRelativePath } from '@/stores/notes/utils/fs/vaultPathContainment';
 
 export interface NotesSidebarSearchEntry {
   path: string;
@@ -114,16 +116,26 @@ function collectNotesSidebarSearchEntries(
   while (stack.length > 0 && bucket.length < MAX_SEARCH_INDEX_TREE_ENTRIES) {
     const { node, parentPath } = stack.pop()!;
     if (node.isFolder) {
+      const normalizedFolderPath = normalizeVaultRelativePath(node.path, { allowEmpty: true });
+      if (normalizedFolderPath === null || hasInternalNotePathSegment(normalizedFolderPath)) {
+        continue;
+      }
+
       for (let index = node.children.length - 1; index >= 0; index -= 1) {
-        stack.push({ node: node.children[index], parentPath: node.path });
+        stack.push({ node: node.children[index], parentPath: normalizedFolderPath });
       }
       continue;
     }
 
-    if (isSupportedMarkdownPath(node.path)) {
+    const normalizedPath = normalizeVaultRelativePath(node.path);
+    if (
+      normalizedPath &&
+      !hasInternalNotePathSegment(normalizedPath) &&
+      isSupportedMarkdownPath(normalizedPath)
+    ) {
       bucket.push(attachSearchEntryMetadata({
-        path: node.path,
-        name: getDisplayName(node.path) || node.name,
+        path: normalizedPath,
+        name: getDisplayName(normalizedPath) || node.name,
         preview: parentPath ? `${parentPath}/` : '',
       }));
     }

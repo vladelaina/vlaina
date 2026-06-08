@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatMessage } from '@/lib/ai/types';
 import { useUnifiedStore } from '../unified/useUnifiedStore';
-import { reloadSessionMessagesFromDisk } from './sessionConsistency';
+import { hydrateSessionMessagesFromDisk, reloadSessionMessagesFromDisk } from './sessionConsistency';
 
 const hoisted = vi.hoisted(() => ({
-  flushPendingSessionJsonSaves: vi.fn(async () => undefined),
+  flushPendingSessionJsonSave: vi.fn(async () => undefined),
   hasPendingSessionJsonSave: vi.fn(() => false),
   loadSessionJson: vi.fn<() => Promise<ChatMessage[] | null>>(async () => null),
 }));
@@ -13,7 +13,7 @@ vi.mock('@/lib/storage/chatStorage', async () => {
   const actual = await vi.importActual<typeof import('@/lib/storage/chatStorage')>('@/lib/storage/chatStorage');
   return {
     ...actual,
-    flushPendingSessionJsonSaves: hoisted.flushPendingSessionJsonSaves,
+    flushPendingSessionJsonSave: hoisted.flushPendingSessionJsonSave,
     hasPendingSessionJsonSave: hoisted.hasPendingSessionJsonSave,
     loadSessionJson: hoisted.loadSessionJson,
   };
@@ -88,6 +88,13 @@ describe('sessionConsistency', () => {
     expect(messages[0]?.content).toBe('local');
     expect(messages[0]?.versions.map((version) => version.content)).toEqual(['local']);
     expect(useUnifiedStore.getState().data.ai?.messages['session-1']?.[0]?.content).toBe('local');
+  });
+
+  it('flushes only the target session before request hydration', async () => {
+    await hydrateSessionMessagesFromDisk('session-1');
+
+    expect(hoisted.flushPendingSessionJsonSave).toHaveBeenCalledTimes(1);
+    expect(hoisted.flushPendingSessionJsonSave).toHaveBeenCalledWith('session-1');
   });
 
   it('does not recreate messages when the session is deleted while disk content is loading', async () => {

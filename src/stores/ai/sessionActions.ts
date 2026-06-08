@@ -7,7 +7,11 @@ import {
   loadSessionJson,
   saveSessionJson,
 } from '@/lib/storage/chatStorage'
-import { persistDataUrlAttachment } from '@/lib/storage/attachmentStorage'
+import {
+  createStoredAttachmentFromSource,
+  deleteAttachment,
+  persistDataUrlAttachment,
+} from '@/lib/storage/attachmentStorage'
 import { requestManager } from '@/lib/ai/requestManager'
 import {
   isTemporarySession,
@@ -31,6 +35,7 @@ import { normalizeRenderableDataImageSrc } from '@/components/common/markdown/im
 
 let switchSessionGeneration = 0;
 const inlineImagePersistenceSessions = new Set<string>()
+const inlineImagePersistenceRerunSessions = new Set<string>()
 type InlineImageSourceGroups = Map<string, Set<string>>
 const INLINE_DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i
 const MAX_INLINE_IMAGE_PERSISTENCE_MESSAGE_NODES = 10_000
@@ -39,6 +44,22 @@ const MAX_INLINE_IMAGE_PERSISTENCE_BRANCH_MESSAGES = 100
 const MAX_INLINE_IMAGE_PERSISTENCE_BRANCH_DEPTH = 1
 const MAX_INLINE_IMAGE_TOKENS_PER_CONTENT = 2000
 const MAX_INLINE_IMAGE_PERSISTENCE_SOURCES = 1000
+
+function saveSessionJsonInBackground(sessionId: string, messages: ChatMessage[]) {
+  void saveSessionJson(sessionId, messages).catch(() => {})
+}
+
+function hasChatSession(sessionId: string): boolean {
+  return useUnifiedStore.getState().data.ai?.sessions.some((session) => session.id === sessionId) === true
+}
+
+async function deleteStoredAttachmentSource(source: string) {
+  const attachment = createStoredAttachmentFromSource(source)
+  if (!attachment) {
+    return
+  }
+  await deleteAttachment(attachment).catch(() => {})
+}
 
 function addInlineImageSource(groups: InlineImageSourceGroups, source: string | null | undefined) {
   if (!source) {
@@ -268,6 +289,7 @@ function applyImageSourceReplacements(
 
 async function persistInlineImageSourcesForSession(sessionId: string) {
   if (inlineImagePersistenceSessions.has(sessionId)) {
+    inlineImagePersistenceRerunSessions.add(sessionId)
     return
   }
 
@@ -282,9 +304,15 @@ async function persistInlineImageSourcesForSession(sessionId: string) {
     }
 
     const replacements = new Map<string, string>()
+    const persistedSources: string[] = []
     for (const [source, aliases] of sources) {
+      if (!hasChatSession(sessionId)) {
+        await Promise.all(persistedSources.map((persistedSource) => deleteStoredAttachmentSource(persistedSource)))
+        return
+      }
       const persistedSource = await persistDataUrlAttachment(source).catch(() => null)
       if (persistedSource) {
+        persistedSources.push(persistedSource)
         aliases.forEach((alias) => replacements.set(alias, persistedSource))
       }
     }
@@ -296,6 +324,7 @@ async function persistInlineImageSourcesForSession(sessionId: string) {
     const latestState = useUnifiedStore.getState()
     const latestAI = latestState.data.ai!
     if (!latestAI.sessions.some((session) => session.id === sessionId)) {
+      await Promise.all(persistedSources.map((persistedSource) => deleteStoredAttachmentSource(persistedSource)))
       return
     }
     const latestMessages = latestAI.messages[sessionId] || []
@@ -307,9 +336,12 @@ async function persistInlineImageSourcesForSession(sessionId: string) {
         [sessionId]: nextMessages,
       },
     }, true)
-    void saveSessionJson(sessionId, nextMessages)
+    saveSessionJsonInBackground(sessionId, nextMessages)
   } finally {
     inlineImagePersistenceSessions.delete(sessionId)
+    if (inlineImagePersistenceRerunSessions.delete(sessionId)) {
+      void persistInlineImageSourcesForSession(sessionId)
+    }
   }
 }
 
@@ -465,7 +497,7 @@ export function createSessionActions() {
           temporaryChatEnabled: false,
         })
 
-        void saveSessionJson(promotedSessionId, nextMessages[promotedSessionId] || [])
+        saveSessionJsonInBackground(promotedSessionId, nextMessages[promotedSessionId] || [])
         void persistInlineImageSourcesForSession(promotedSessionId)
         return promotedSessionId
       })
@@ -510,14 +542,18 @@ export function createSessionActions() {
       if (!(sessionId in latestAI.messages)) {
         const loadedMessages = await loadSessionJson(sessionId)
         if (switchSessionGeneration !== myGeneration) return
+        const freshState = useUnifiedStore.getState()
+        const freshAI = freshState.data.ai!
+        if (!freshAI.sessions.some((session) => session.id === sessionId) || sessionId in freshAI.messages) {
+          return
+        }
         if (!loadedMessages && await hasSessionJson(sessionId)) {
           useAIUIStore.getState().setError('This chat could not be loaded from disk. The original file was left untouched.');
           return
         }
-        const freshState = useUnifiedStore.getState()
         freshState.updateAIData({
           messages: {
-            ...freshState.data.ai!.messages,
+            ...freshAI.messages,
             [sessionId]: loadedMessages || []
           }
         })
