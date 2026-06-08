@@ -409,25 +409,31 @@
 
 .milkdown .ProseMirror :is(ul, ol) :is(ul, ol) > li.editor-block-selected,
 .milkdown .ProseMirror :is(ul, ol) :is(ul, ol) > li .editor-block-selected {
-  --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-72px);
+  --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-104px);
   --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
 }
 
 .milkdown .ProseMirror :is(ul, ol) ol > li.editor-block-selected,
 .milkdown .ProseMirror :is(ul, ol) ol > li .editor-block-selected {
-  --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-96px);
+  --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-104px);
   --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
 }
 
 .milkdown .ProseMirror :is(ul, ol) :is(ul, ol) :is(ul, ol) > li.editor-block-selected,
 .milkdown .ProseMirror :is(ul, ol) :is(ul, ol) :is(ul, ol) > li .editor-block-selected {
-  --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-104px);
+  --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-136px);
   --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
 }
 
 .milkdown .ProseMirror :is(ul, ol) :is(ul, ol) ol > li.editor-block-selected,
 .milkdown .ProseMirror :is(ul, ol) :is(ul, ol) ol > li .editor-block-selected {
   --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-128px);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
+}
+
+.milkdown .ProseMirror li :is(ul, ol) li[data-item-type="task"].editor-block-selected,
+.milkdown .ProseMirror li :is(ul, ol) li[data-item-type="task"] .editor-block-selected {
+  --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-96px);
   --vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);
 }
 
