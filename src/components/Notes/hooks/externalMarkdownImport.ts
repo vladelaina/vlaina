@@ -1,13 +1,13 @@
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { getBaseName, getParentPath, getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import type { StarredKind } from '@/stores/notes/types';
-import { APP_CONFIG_FOLDER } from '@/stores/notes/constants';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 import {
   isPathInsideStarredVault,
   normalizeStarredRelativePath,
   resolveStarredRelativePathForVault,
 } from '@/stores/notes/starred';
+import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import { resolveUniquePath } from '@/stores/notes/utils/fs/pathOperations';
 import { isSafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
 import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetSelection';
@@ -23,8 +23,6 @@ const SKIPPED_EXTERNAL_MARKDOWN_DIRECTORY_NAMES = new Set([
   'target',
   '__pycache__',
 ]);
-const INTERNAL_EXTERNAL_MARKDOWN_DIRECTORY_NAMES = new Set([APP_CONFIG_FOLDER, '.git']);
-
 interface ExternalMarkdownImportResult {
   importedNotePaths: string[];
   importedFolderPaths: string[];
@@ -43,16 +41,13 @@ interface ExternalMarkdownImportBudget {
 
 function shouldSkipExternalMarkdownDirectory(name: string) {
   return (
-    INTERNAL_EXTERNAL_MARKDOWN_DIRECTORY_NAMES.has(name) ||
+    hasInternalNotePathSegment(name) ||
     SKIPPED_EXTERNAL_MARKDOWN_DIRECTORY_NAMES.has(name)
   );
 }
 
 function isInsideInternalExternalMarkdownPath(path: string) {
-  return path
-    .replace(/\\/g, '/')
-    .split('/')
-    .some((segment) => INTERNAL_EXTERNAL_MARKDOWN_DIRECTORY_NAMES.has(segment));
+  return hasInternalNotePathSegment(path);
 }
 
 async function statExternalMarkdownPath(absolutePath: string) {

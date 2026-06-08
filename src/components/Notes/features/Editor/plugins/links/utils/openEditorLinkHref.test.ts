@@ -79,6 +79,28 @@ describe('openEditorLinkHref', () => {
             .resolves.toBe('/vault/docs/setup.md');
     });
 
+    it('allows user dot-folder markdown links inside the current vault', async () => {
+        await expect(resolveEditorMarkdownLinkTarget('/.notes/setup.md'))
+            .resolves.toBe('/vault/.notes/setup.md');
+        await expect(resolveEditorMarkdownLinkTarget('../.journal.md'))
+            .resolves.toBe('/vault/.journal.md');
+    });
+
+    it('rejects links into internal notes folders', async () => {
+        await expect(resolveEditorMarkdownLinkTarget('/.vlaina/workspace.md'))
+            .resolves.toBeNull();
+        await expect(resolveEditorMarkdownLinkTarget('/docs/.git/config.md'))
+            .resolves.toBeNull();
+        await expect(resolveEditorMarkdownLinkTarget('/.VLAINA/workspace.md'))
+            .resolves.toBeNull();
+        await expect(resolveEditorMarkdownLinkTarget('/docs/.GIT/config.md'))
+            .resolves.toBeNull();
+        await expect(resolveEditorMarkdownLinkTarget('/%2evlaina/workspace.md'))
+            .resolves.toBeNull();
+        await expect(resolveEditorMarkdownLinkTarget('/docs/%2egit/config.md'))
+            .resolves.toBeNull();
+    });
+
     it('rejects relative markdown paths that escape the current vault', async () => {
         await expect(resolveEditorMarkdownLinkTarget('../../secret.md'))
             .resolves.toBeNull();

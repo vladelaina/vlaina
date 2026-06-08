@@ -117,6 +117,16 @@ describe('featureSlice internal note paths', () => {
             ],
           },
           {
+            id: '.VLAINA',
+            name: '.VLAINA',
+            path: '.VLAINA',
+            isFolder: true,
+            expanded: true,
+            children: [
+              { id: '.VLAINA/workspace.md', name: 'workspace.md', path: '.VLAINA/workspace.md', isFolder: false },
+            ],
+          },
+          {
             id: 'docs',
             name: 'docs',
             path: 'docs',
@@ -124,6 +134,7 @@ describe('featureSlice internal note paths', () => {
             expanded: true,
             children: [
               { id: 'docs/.git/config.md', name: 'config.md', path: 'docs/.git/config.md', isFolder: false },
+              { id: 'docs/.GIT/config.md', name: 'config.md', path: 'docs/.GIT/config.md', isFolder: false },
             ],
           },
         ],
@@ -136,22 +147,28 @@ describe('featureSlice internal note paths', () => {
     expect(mocks.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md');
     expect(mocks.readFile).not.toHaveBeenCalledWith('/vault/.vlaina/workspace.md');
     expect(mocks.readFile).not.toHaveBeenCalledWith('/vault/docs/.git/config.md');
+    expect(mocks.readFile).not.toHaveBeenCalledWith('/vault/.VLAINA/workspace.md');
+    expect(mocks.readFile).not.toHaveBeenCalledWith('/vault/docs/.GIT/config.md');
     expect(store.getState().noteContentsCache.has('.journal.md')).toBe(true);
     expect(store.getState().noteContentsCache.has('.notes/alpha.md')).toBe(true);
     expect(store.getState().noteContentsCache.has('.vlaina/workspace.md')).toBe(false);
     expect(store.getState().noteContentsCache.has('docs/.git/config.md')).toBe(false);
+    expect(store.getState().noteContentsCache.has('.VLAINA/workspace.md')).toBe(false);
+    expect(store.getState().noteContentsCache.has('docs/.GIT/config.md')).toBe(false);
   });
 
   it('does not read or write internal paths during metadata updates', () => {
     const store = createNotesStore();
 
     store.getState().setNoteIcon('docs/.git/config.md', 'sparkles');
+    store.getState().setNoteIcon('docs/.GIT/config.md', 'sparkles');
 
     expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
     expect(mocks.stat).not.toHaveBeenCalled();
     expect(mocks.readFile).not.toHaveBeenCalled();
     expect(mocks.safeWriteTextFile).not.toHaveBeenCalled();
     expect(store.getState().noteMetadata?.notes['docs/.git/config.md']).toBeUndefined();
+    expect(store.getState().noteMetadata?.notes['docs/.GIT/config.md']).toBeUndefined();
   });
 
   it('ignores stale internal cache entries for backlinks and tags', () => {
@@ -160,6 +177,8 @@ describe('featureSlice internal note paths', () => {
         ['docs/ref.md', { content: 'See [[Alpha]] #public', modifiedAt: 1 }],
         ['.vlaina/secret.md', { content: 'See [[Alpha]] #secret', modifiedAt: 1 }],
         ['docs/.git/config.md', { content: 'See [[Alpha]] #git', modifiedAt: 1 }],
+        ['.VLAINA/secret.md', { content: 'See [[Alpha]] #secretUpper', modifiedAt: 1 }],
+        ['docs/.GIT/config.md', { content: 'See [[Alpha]] #gitUpper', modifiedAt: 1 }],
       ]),
     });
 

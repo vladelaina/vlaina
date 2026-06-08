@@ -77,6 +77,8 @@ describe('deleteNoteItemToRecoverableLocation', () => {
   it('rejects recoverable deletes inside internal folders', async () => {
     await expect(deleteNoteItemToRecoverableLocation('/vault', '.vlaina/workspace.md', 'file'))
       .rejects.toThrow('Path must not be inside an internal notes folder.');
+    await expect(deleteNoteItemToRecoverableLocation('/vault', 'docs/.GIT/config.md', 'file'))
+      .rejects.toThrow('Path must not be inside an internal notes folder.');
 
     expect(hoisted.mkdir).not.toHaveBeenCalled();
     expect(hoisted.rename).not.toHaveBeenCalled();
@@ -144,6 +146,14 @@ describe('deleteNoteItemToRecoverableLocation', () => {
       trashPath: '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/delete-1/config.md',
       deletedAt: 1000,
     })).rejects.toThrow('Restore target must not be inside an internal notes folder.');
+    await expect(restoreNoteItemFromRecoverableLocation('/vault', {
+      id: 'delete-2',
+      kind: 'file',
+      originalPath: '.VLAINA/workspace.md',
+      originalFullPath: '/vault/.VLAINA/workspace.md',
+      trashPath: '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/delete-2/workspace.md',
+      deletedAt: 1000,
+    })).rejects.toThrow('Restore target must not be inside an internal notes folder.');
 
     expect(hoisted.rename).not.toHaveBeenCalled();
   });
@@ -156,6 +166,8 @@ describe('deleteNoteItemToRecoverableLocation', () => {
           { name: 'safe.md', isDirectory: false, isFile: true },
           { name: '.git', isDirectory: true, isFile: false },
           { name: '.vlaina', isDirectory: true, isFile: false },
+          { name: '.GIT', isDirectory: true, isFile: false },
+          { name: '.VLAINA', isDirectory: true, isFile: false },
           { name: '../secret.md', isDirectory: false, isFile: true },
           { name: 'nested/evil.md', isDirectory: false, isFile: true },
           { name: 'bad\\evil.md', isDirectory: false, isFile: true },
@@ -177,6 +189,8 @@ describe('deleteNoteItemToRecoverableLocation', () => {
     expect(hoisted.copyFile).not.toHaveBeenCalledWith('/vault/docs/nested/evil.md', expect.any(String));
     expect(hoisted.listDir).not.toHaveBeenCalledWith('/vault/docs/.git');
     expect(hoisted.listDir).not.toHaveBeenCalledWith('/vault/docs/.vlaina');
+    expect(hoisted.listDir).not.toHaveBeenCalledWith('/vault/docs/.GIT');
+    expect(hoisted.listDir).not.toHaveBeenCalledWith('/vault/docs/.VLAINA');
     expect(hoisted.listDir).not.toHaveBeenCalledWith('/vault/docs/..');
     expect(hoisted.deleteDir).toHaveBeenCalledWith('/vault/docs', true);
   });

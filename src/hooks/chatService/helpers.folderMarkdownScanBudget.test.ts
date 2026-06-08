@@ -132,6 +132,18 @@ describe('folder markdown mention scan budgets', () => {
             isFile: false,
           },
           {
+            name: '.VLAINA',
+            path: '/vault/docs/.VLAINA',
+            isDirectory: true,
+            isFile: false,
+          },
+          {
+            name: '.GIT',
+            path: '/vault/docs/.GIT',
+            isDirectory: true,
+            isFile: false,
+          },
+          {
             name: 'node_modules',
             path: '/vault/docs/node_modules',
             isDirectory: true,
@@ -190,10 +202,14 @@ describe('folder markdown mention scan budgets', () => {
     expect(notes[0]?.content).toContain('- .journal.md (file, 128 B)');
     expect(notes[0]?.content).not.toContain('- .vlaina');
     expect(notes[0]?.content).not.toContain('- .git');
+    expect(notes[0]?.content).not.toContain('- .VLAINA');
+    expect(notes[0]?.content).not.toContain('- .GIT');
     expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/docs', { includeHidden: true });
     expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/docs/.notes', { includeHidden: true });
     expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/.vlaina');
     expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/.git');
+    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/.VLAINA');
+    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/.GIT');
     expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/docs/node_modules');
   });
 });

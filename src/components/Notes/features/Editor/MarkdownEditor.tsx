@@ -504,10 +504,10 @@ function MarkdownSourceFallback({
   }, [currentNotePath]);
 
   useEffect(() => {
-    setPendingEditorMarkdownFlusher(flushFallbackDraft);
+    const unregisterPendingMarkdownFlusher = setPendingEditorMarkdownFlusher(flushFallbackDraft);
     return () => {
       flushFallbackDraft();
-      setPendingEditorMarkdownFlusher(null);
+      unregisterPendingMarkdownFlusher();
     };
   }, [flushFallbackDraft]);
 

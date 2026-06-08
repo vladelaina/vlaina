@@ -141,6 +141,8 @@ describe('notes metadata storage', () => {
           { name: '.notes', isDirectory: true },
           { name: '.vlaina', isDirectory: true },
           { name: '.git', isDirectory: true },
+          { name: '.VLAINA', isDirectory: true },
+          { name: '.GIT', isDirectory: true },
         ];
       }
 
@@ -179,6 +181,8 @@ describe('notes metadata storage', () => {
     expect(adapter.listDir).toHaveBeenCalledWith('/vault-dot-notes/.notes', { includeHidden: true });
     expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-dot-notes/.vlaina');
     expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-dot-notes/.git');
+    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-dot-notes/.VLAINA');
+    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-dot-notes/.GIT');
   });
 
   it('ignores unsafe storage entry names during metadata scans', async () => {

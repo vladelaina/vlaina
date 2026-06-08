@@ -15,7 +15,10 @@ describe('internal asset paths', () => {
     expect(hasInternalNoteAssetUrlPathSegment('%2evlaina/assets/a.png')).toBe(true);
     expect(hasInternalNoteAssetUrlPathSegment('docs/%2Egit/a.png')).toBe(true);
     expect(hasInternalNoteAssetUrlPathSegment('docs/%252egit/a.png')).toBe(true);
+    expect(hasInternalNoteAssetUrlPathSegment('docs/%25252egit/a.png')).toBe(true);
     expect(hasInternalNoteAssetUrlPathSegment('docs%2f.git%2fa.png')).toBe(true);
+    expect(hasInternalNoteAssetUrlPathSegment('docs/%2Egit/a.png?cache=1')).toBe(true);
+    expect(hasInternalNoteAssetUrlPathSegment('docs/%2Egit/a.png#preview')).toBe(true);
     expect(hasInternalNoteAssetUrlPathSegment('.notes/assets/a.png')).toBe(false);
     expect(hasInternalNoteAssetUrlPathSegment('%2enotes/assets/a.png')).toBe(false);
   });

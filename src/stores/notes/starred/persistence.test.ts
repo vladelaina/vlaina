@@ -152,6 +152,32 @@ describe('starred persistence', () => {
     ]);
   });
 
+  it('filters invalid entries before saving', async () => {
+    const validEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
+    adapter.exists.mockResolvedValue(false);
+    adapter.writeFile.mockResolvedValue();
+
+    const persistence = await import('./persistence');
+    persistence.saveStarredRegistry([
+      validEntry,
+      createEntry('app-note', 'note', 'C:/vault-a', '.vlaina/workspace.md'),
+      createEntry('git-folder', 'folder', 'C:/vault-a', 'docs/.GIT'),
+      createEntry('image-note', 'note', 'C:/vault-a', 'image.png'),
+    ], {
+      deletedEntries: [
+        createEntry('removed', 'note', 'C:/vault-a', 'removed.md'),
+        createEntry('internal-removed', 'note', 'C:/vault-a', '.git/config.md'),
+      ],
+    });
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    const [, content] = adapter.writeFile.mock.calls[0];
+    const payload = JSON.parse(content);
+    expect(payload.entries).toEqual([validEntry]);
+    expect(payload.deletedEntryKeys).toEqual(['note::C:/vault-a::removed.md']);
+  });
+
   it('prunes invalid entries during load', async () => {
     const validEntry = createEntry('1', 'note', 'C:/vault-a', 'alive.md');
     const invalidEntry = createEntry('2', 'note', 'C:/vault-b', 'missing.md');

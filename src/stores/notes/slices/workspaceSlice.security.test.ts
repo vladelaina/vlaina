@@ -124,6 +124,18 @@ describe('workspaceSlice security guards', () => {
     expect(storageAdapter.readFile).not.toHaveBeenCalled();
     expect(store.getState().currentNote).toBeNull();
     expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
+
+    await store.getState().openNote('.VLAINA/workspace.md');
+
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
+
+    await store.getState().openNote('docs/.GIT/config.md');
+
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
   });
 
   it('does not open hidden app or git paths through the absolute note opener', async () => {
@@ -136,6 +148,18 @@ describe('workspaceSlice security guards', () => {
     expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
 
     await store.getState().openNoteByAbsolutePath('/vault/docs/.git/config.md');
+
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
+
+    await store.getState().openNoteByAbsolutePath('/vault/.VLAINA/workspace.md');
+
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
+
+    await store.getState().openNoteByAbsolutePath('/vault/docs/.GIT/config.md');
 
     expect(storageAdapter.readFile).not.toHaveBeenCalled();
     expect(store.getState().currentNote).toBeNull();

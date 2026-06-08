@@ -4,7 +4,6 @@ import {
   RECENT_NOTES_KEY,
   NOTE_ICON_SIZE_KEY,
   MAX_RECENT_NOTES,
-  APP_CONFIG_FOLDER,
   WORKSPACE_FILE,
 } from './constants';
 import type { FileTreeSortMode, MetadataFile, NoteCoverMetadata, NoteMetadataEntry } from './types';
@@ -12,6 +11,7 @@ import { normalizeNoteMetadataEntry, readNoteMetadataFromMarkdown } from './fron
 import { ensureSystemDirectory, getVaultSystemStorePath } from './systemStoragePaths';
 import { normalizeRecentNotePaths, normalizeWorkspaceState } from './persistenceValidation';
 import { isSafeVaultPathSegment } from './utils/fs/vaultPathContainment';
+import { hasInternalNotePathSegment } from './utils/fs/internalNotePaths';
 
 export type { MetadataFile, NoteMetadataEntry };
 
@@ -31,8 +31,6 @@ const SKIPPED_METADATA_DIRECTORY_NAMES = new Set([
   'target',
   '__pycache__',
 ]);
-const INTERNAL_METADATA_DIRECTORY_NAMES = new Set([APP_CONFIG_FOLDER, '.git']);
-
 interface CachedMetadataEntry {
   modifiedAt: number | null;
   size: number | null;
@@ -158,7 +156,7 @@ function shouldSkipMetadataDirectory(name: string) {
 }
 
 function shouldHideMetadataDirectory(name: string) {
-  return INTERNAL_METADATA_DIRECTORY_NAMES.has(name);
+  return hasInternalNotePathSegment(name);
 }
 
 function isReadableBoundedFile(

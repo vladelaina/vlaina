@@ -115,6 +115,8 @@ describe('chat mention path security', () => {
     const notes = await loadMentionedNotes([
       { path: '.vlaina/workspace.md', title: 'Workspace' },
       { path: 'docs/.git/config.md', title: 'Git Config' },
+      { path: '.VLAINA/workspace.md', title: 'Workspace Uppercase' },
+      { path: 'docs/.GIT/config.md', title: 'Git Config Uppercase' },
     ]);
 
     expect(notes).toEqual([]);
@@ -176,11 +178,27 @@ describe('chat mention path security', () => {
         relativePath: 'docs/.git/config.md',
         addedAt: 1,
       },
+      {
+        id: 'app-note-uppercase',
+        kind: 'note',
+        vaultPath: '/external',
+        relativePath: '.VLAINA/workspace.md',
+        addedAt: 1,
+      },
+      {
+        id: 'git-note-uppercase',
+        kind: 'note',
+        vaultPath: '/external',
+        relativePath: 'docs/.GIT/config.md',
+        addedAt: 1,
+      },
     ];
 
     const notes = await loadMentionedNotes([
       { path: '/external/.vlaina/workspace.md', title: 'Workspace' },
       { path: '/external/docs/.git/config.md', title: 'Git Config' },
+      { path: '/external/.VLAINA/workspace.md', title: 'Workspace Uppercase' },
+      { path: '/external/docs/.GIT/config.md', title: 'Git Config Uppercase' },
     ]);
 
     expect(notes).toEqual([]);

@@ -14,8 +14,8 @@ import {
   stripUpdatedFrontmatter,
   updateNoteMetadataInMarkdown,
 } from '../frontmatter';
-import { APP_CONFIG_FOLDER } from '../constants';
 import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
+import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import {
   normalizeSerializedMarkdownDocument,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
@@ -54,7 +54,6 @@ const MAX_NOTE_DOCUMENT_BYTES = 10 * 1024 * 1024;
 const MAX_NOTE_DOCUMENT_CHARS = 10 * 1024 * 1024;
 const MAX_NOTE_DOCUMENT_LINES = 120_000;
 const MAX_NOTE_DOCUMENT_LINE_CHARS = 512 * 1024;
-const INTERNAL_NOTE_DOCUMENT_PATH_SEGMENTS = new Set([APP_CONFIG_FOLDER, '.git']);
 
 export class NoteWriteConflictError extends Error {
   constructor() {
@@ -76,11 +75,7 @@ function normalizeStoredNotePath(path: string): string {
 }
 
 function assertStoredNotePathAllowed(path: string): void {
-  const hasInternalSegment = path
-    .replace(/\\/g, '/')
-    .split('/')
-    .some((segment) => INTERNAL_NOTE_DOCUMENT_PATH_SEGMENTS.has(segment));
-  if (hasInternalSegment) {
+  if (hasInternalNotePathSegment(path)) {
     throw new Error('Path must not be inside an internal notes folder.');
   }
 }

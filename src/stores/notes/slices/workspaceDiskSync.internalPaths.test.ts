@@ -111,9 +111,45 @@ describe('workspace disk sync internal paths', () => {
     expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
   });
 
+  it('does not stat or read case-variant stale internal current-note paths', async () => {
+    const store = createNotesStore({
+      currentNote: { path: 'docs/.GIT/config.md', content: '# hidden' },
+      openTabs: [{ path: 'docs/.GIT/config.md', name: 'config', isDirty: false }],
+      noteContentsCache: new Map([['docs/.GIT/config.md', { content: '# hidden', modifiedAt: 1 }]]),
+    });
+
+    const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
+
+    expect(result).toBe('ignored');
+    expect(hoisted.flushCurrentPendingEditorMarkdown).not.toHaveBeenCalled();
+    expect(storageAdapter.exists).not.toHaveBeenCalled();
+    expect(storageAdapter.stat).not.toHaveBeenCalled();
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toEqual({ path: 'docs/.GIT/config.md', content: '# hidden' });
+    expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
+  });
+
   it('does not sync current notes when the active vault is internal', async () => {
     const store = createNotesStore({
       notesPath: '/vault/.vlaina',
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
+
+    expect(result).toBe('ignored');
+    expect(hoisted.flushCurrentPendingEditorMarkdown).not.toHaveBeenCalled();
+    expect(storageAdapter.exists).not.toHaveBeenCalled();
+    expect(storageAdapter.stat).not.toHaveBeenCalled();
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
+  });
+
+  it('does not sync current notes when the active vault is a case-variant internal path', async () => {
+    const store = createNotesStore({
+      notesPath: '/vault/.VLAINA',
       currentNote: { path: 'docs/alpha.md', content: '# alpha' },
       openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
       noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),

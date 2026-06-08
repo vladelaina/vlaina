@@ -85,6 +85,12 @@ describe('collectMentionFolderMarkdownNodes', () => {
       folder('docs/.git', [
         note('docs/.git/config.md'),
       ]),
+      folder('docs/.VLAINA', [
+        note('docs/.VLAINA/workspace.md'),
+      ]),
+      folder('docs/.GIT', [
+        note('docs/.GIT/config.md'),
+      ]),
       folder('docs/node_modules', [
         note('docs/node_modules/package.md'),
       ]),

@@ -198,6 +198,8 @@ describe('fileTreeUtils structural sharing', () => {
           { name: '.notes', path: '/vault/.notes', isDirectory: true, isFile: false },
           { name: '.vlaina', path: '/vault/.vlaina', isDirectory: true, isFile: false },
           { name: '.git', path: '/vault/.git', isDirectory: true, isFile: false },
+          { name: '.VLAINA', path: '/vault/.VLAINA', isDirectory: true, isFile: false },
+          { name: '.GIT', path: '/vault/.GIT', isDirectory: true, isFile: false },
         ];
       }
 
@@ -237,6 +239,8 @@ describe('fileTreeUtils structural sharing', () => {
     expect(mocks.listDir).toHaveBeenCalledWith('/vault/.notes', { includeHidden: true });
     expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/.vlaina');
     expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/.git');
+    expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/.VLAINA');
+    expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/.GIT');
   });
 
   it('caps root-level file tree entry processing before building nodes', async () => {

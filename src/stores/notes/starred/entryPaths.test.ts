@@ -48,9 +48,15 @@ describe('starred entry path helpers', () => {
   it('does not create or resolve entries inside internal paths', () => {
     expect(createStarredEntryFromAbsoluteNotePath('/other/docs/.git/config.md')).toBeNull();
     expect(createStarredEntryFromAbsoluteNotePath('/other/.vlaina/workspace.md')).toBeNull();
+    expect(createStarredEntryFromAbsoluteNotePath('/other/docs/.GIT/config.md')).toBeNull();
+    expect(createStarredEntryFromAbsoluteNotePath('/other/.VLAINA/workspace.md')).toBeNull();
     expect(getStarredEntryAbsolutePath(createEntry('git', 'note', '/vault/.git', 'config.md')))
       .toBeNull();
+    expect(getStarredEntryAbsolutePath(createEntry('git-uppercase', 'note', '/vault/.GIT', 'config.md')))
+      .toBeNull();
     expect(getStarredEntryAbsolutePath(createEntry('app', 'note', '/vault', '.vlaina/workspace.md')))
+      .toBeNull();
+    expect(getStarredEntryAbsolutePath(createEntry('app-uppercase', 'note', '/vault', '.VLAINA/workspace.md')))
       .toBeNull();
   });
 

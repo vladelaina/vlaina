@@ -88,5 +88,9 @@ describe('notes starred storage helpers', () => {
     expect(resolveStarredRelativePathForVault('/vault/docs/.git/config.md', '/vault')).toBeNull();
     expect(resolveStarredRelativePathForVault('.vlaina/workspace.md', '/vault')).toBeNull();
     expect(resolveStarredRelativePathForVault('docs/.git/config.md', '/vault')).toBeNull();
+    expect(resolveStarredRelativePathForVault('/vault/.VLAINA/workspace.md', '/vault')).toBeNull();
+    expect(resolveStarredRelativePathForVault('/vault/docs/.GIT/config.md', '/vault')).toBeNull();
+    expect(resolveStarredRelativePathForVault('.VLAINA/workspace.md', '/vault')).toBeNull();
+    expect(resolveStarredRelativePathForVault('docs/.GIT/config.md', '/vault')).toBeNull();
   });
 });

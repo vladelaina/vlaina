@@ -123,6 +123,47 @@ describe('note frontmatter metadata', () => {
     });
   });
 
+  it('drops managed cover paths inside internal folders while keeping user dot folders', () => {
+    expect(readNoteMetadataFromMarkdown([
+      '---',
+      'vlaina_cover: ".vlaina/assets/cover.webp"',
+      '---',
+      '# Title',
+    ].join('\n'))).toEqual({});
+
+    expect(readNoteMetadataFromMarkdown([
+      '---',
+      'vlaina_cover: "docs/.git/cover.webp"',
+      '---',
+      '# Title',
+    ].join('\n'))).toEqual({});
+
+    expect(readNoteMetadataFromMarkdown([
+      '---',
+      'vlaina_cover: "%2evlaina/assets/cover.webp"',
+      '---',
+      '# Title',
+    ].join('\n'))).toEqual({});
+
+    expect(readNoteMetadataFromMarkdown([
+      '---',
+      'vlaina_cover: "docs%2f.git%2fcover.webp"',
+      '---',
+      '# Title',
+    ].join('\n'))).toEqual({});
+
+    expect(readNoteMetadataFromMarkdown([
+      '---',
+      'vlaina_cover: ".notes/assets/cover.webp"',
+      '---',
+      '# Title',
+    ].join('\n'))).toEqual({
+      cover: {
+        assetPath: '.notes/assets/cover.webp',
+      },
+    });
+  });
+
   it('keeps supported managed icon and cover string forms', () => {
     expect(readNoteMetadataFromMarkdown([
       '---',

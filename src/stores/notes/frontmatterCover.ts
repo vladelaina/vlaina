@@ -1,3 +1,4 @@
+import { hasInternalNoteAssetUrlPathSegment } from '@/lib/assets/core/internalAssetPaths';
 import type { NoteCoverMetadata } from './types';
 
 const MIN_COVER_HEIGHT = 120;
@@ -27,6 +28,7 @@ function normalizeCoverAssetPath(value: string): string | null {
     || trimmed.startsWith('//')
     || WINDOWS_ABSOLUTE_PATH_PATTERN.test(trimmed)
     || EXPLICIT_URL_SCHEME_PATTERN.test(trimmed)
+    || hasInternalNoteAssetUrlPathSegment(trimmed)
   ) {
     return null;
   }

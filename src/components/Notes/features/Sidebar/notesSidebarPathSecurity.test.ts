@@ -52,6 +52,27 @@ const dirtyRootFolder: FolderNode = {
       path: 'docs/.git/config.md',
       isFolder: false,
     },
+    {
+      id: 'app-folder-uppercase',
+      name: '.VLAINA',
+      path: '.VLAINA',
+      isFolder: true,
+      expanded: true,
+      children: [
+        {
+          id: 'app-note-uppercase',
+          name: 'workspace.md',
+          path: '.VLAINA/workspace.md',
+          isFolder: false,
+        },
+      ],
+    },
+    {
+      id: 'git-note-uppercase',
+      name: 'config.md',
+      path: 'docs/.GIT/config.md',
+      isFolder: false,
+    },
   ],
 };
 
@@ -102,6 +123,20 @@ describe('notes sidebar path security', () => {
           vaultPath: '/external/.vlaina',
           relativePath: 'workspace.md',
           addedAt: 3,
+        },
+        {
+          id: 'internal-current-note-uppercase',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: 'docs/.GIT/config.md',
+          addedAt: 4,
+        },
+        {
+          id: 'internal-external-vault-uppercase',
+          kind: 'note',
+          vaultPath: '/external/.VLAINA',
+          relativePath: 'workspace.md',
+          addedAt: 5,
         },
       ],
     })).toEqual([

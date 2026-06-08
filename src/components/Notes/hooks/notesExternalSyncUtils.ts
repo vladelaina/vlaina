@@ -2,9 +2,7 @@ import type { DesktopWatchEvent } from '@/lib/desktop/watch';
 import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
-import { APP_CONFIG_FOLDER } from '@/stores/notes/constants';
-
-const INTERNAL_WATCH_DIRECTORY_NAMES = new Set([APP_CONFIG_FOLDER, '.git']);
+import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 
 export function normalizeFsPath(path: string): string {
   return normalizeNotePathKey(path) ?? path;
@@ -47,7 +45,7 @@ export function isIgnoredWatchPath(relativePath: string): boolean {
     return false;
   }
 
-  if (relativePath.split('/').some((segment) => INTERNAL_WATCH_DIRECTORY_NAMES.has(segment))) {
+  if (hasInternalNotePathSegment(relativePath)) {
     return true;
   }
 
