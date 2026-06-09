@@ -1,5 +1,6 @@
 import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
+import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Input/composerStyles';
 
 interface MessageVersionNavigatorProps {
   current: number;
@@ -32,7 +33,11 @@ export function MessageVersionNavigator({
         aria-label="Previous message version"
         onClick={onPrevious}
         disabled={previousDisabled}
-        className={cn('grid h-6 w-6 place-items-center rounded-full disabled:opacity-[var(--vlaina-opacity-30)] hover:bg-[var(--vlaina-color-control-hover-bg)]', iconButtonStyles)}
+        className={cn(
+          'grid h-6 w-6 place-items-center text-[var(--vlaina-sidebar-chat-text)] disabled:opacity-[var(--vlaina-opacity-30)] disabled:hover:bg-transparent disabled:hover:shadow-none disabled:hover:text-[var(--vlaina-sidebar-chat-text)]',
+          iconButtonStyles,
+          chatComposerGhostIconButtonClass,
+        )}
       >
         <Icon name="nav.chevronLeft" size="md" />
       </button>
@@ -42,7 +47,11 @@ export function MessageVersionNavigator({
         aria-label="Next message version"
         onClick={onNext}
         disabled={nextDisabled}
-        className={cn('grid h-6 w-6 place-items-center rounded-full disabled:opacity-[var(--vlaina-opacity-30)] hover:bg-[var(--vlaina-color-control-hover-bg)]', iconButtonStyles)}
+        className={cn(
+          'grid h-6 w-6 place-items-center text-[var(--vlaina-sidebar-chat-text)] disabled:opacity-[var(--vlaina-opacity-30)] disabled:hover:bg-transparent disabled:hover:shadow-none disabled:hover:text-[var(--vlaina-sidebar-chat-text)]',
+          iconButtonStyles,
+          chatComposerGhostIconButtonClass,
+        )}
       >
         <Icon name="nav.chevronRight" size="md" />
       </button>

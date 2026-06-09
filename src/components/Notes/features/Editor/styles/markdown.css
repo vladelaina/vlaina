@@ -100,7 +100,7 @@
 }
 
 .heading-toggle-btn:hover {
-  color: var(--vlaina-text-secondary);
+  color: var(--vlaina-accent);
 }
 
 .milkdown h1:hover .heading-toggle-btn,

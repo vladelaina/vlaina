@@ -6,7 +6,7 @@ import type { ChatMessage } from '@/lib/ai/types';
 import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
 import { resolveUserMessageBubbleWidth } from '@/components/Chat/features/Layout/chatUserBubbleWidth';
 import { ChatImageViewer } from '@/components/Chat/features/Markdown/components/ChatImageViewer';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { chatComposerGhostIconButtonClass, chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { UserMessageEditor } from './UserMessageEditor';
 import {
   isSvgSource,
@@ -16,7 +16,7 @@ import { useUIStore } from '@/stores/uiSlice';
 import { MessageVersionNavigator } from './MessageVersionNavigator';
 
 const userMessageActionButtonClass =
-  'p-1.5 rounded-md text-[var(--vlaina-sidebar-chat-text)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-sidebar-chat-text)]';
+  cn('flex h-7 w-7 items-center justify-center text-[var(--vlaina-sidebar-chat-text)]', chatComposerGhostIconButtonClass);
 
 function isSwitchableUserVersion(version: ChatMessage['versions'][number]): boolean {
   return version.kind === 'original' || version.kind === 'edit';
@@ -218,10 +218,10 @@ function UserMessageInner({
                 <button
                   onClick={handleStartEditing}
                   className={cn(
-                    'p-1.5 rounded-md transition-colors',
+                    'flex h-7 w-7 items-center justify-center',
                     onEdit
                       ? userMessageActionButtonClass
-                      : 'text-[var(--vlaina-color-text-disabled)] cursor-not-allowed'
+                      : 'rounded-full text-[var(--vlaina-color-text-disabled)] cursor-not-allowed'
                   )}
                 >
                   <Icon name="common.compose" size="md" />
