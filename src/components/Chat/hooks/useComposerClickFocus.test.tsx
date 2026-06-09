@@ -76,15 +76,15 @@ describe("useComposerClickFocus", () => {
     expect(mocked.focusComposerInput).not.toHaveBeenCalled();
   });
 
-  it("treats oversized readable content as a text hit without scanning text nodes", () => {
+  it("treats oversized readable content as a text hit without measuring text rects", () => {
     const paragraph = document.createElement("p");
     paragraph.textContent = "a".repeat(MAX_CHAT_READABLE_TEXT_HIT_CHARS + 1);
-    const createTreeWalkerSpy = vi.spyOn(document, "createTreeWalker");
+    const createRangeSpy = vi.spyOn(document, "createRange");
 
     expect(isPointInsideReadableText(paragraph, { clientX: 0, clientY: 0 })).toBe(true);
-    expect(createTreeWalkerSpy).not.toHaveBeenCalled();
+    expect(createRangeSpy).not.toHaveBeenCalled();
 
-    createTreeWalkerSpy.mockRestore();
+    createRangeSpy.mockRestore();
   });
 
   it("checks readable content rects without materializing the rect list", () => {

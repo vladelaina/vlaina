@@ -286,13 +286,17 @@ describe('ThinkingBlock', () => {
   it('keeps live thinking frozen while a completed selection remains active', () => {
     vi.useFakeTimers();
     let selectedText = 'First';
+    let activeRange: Range | null = null;
     const selectionSpy = vi.spyOn(window, 'getSelection').mockReturnValue({
       get isCollapsed() {
         return selectedText.length === 0;
       },
       rangeCount: 1,
-      toString: () => selectedText,
-    } as Selection);
+      getRangeAt: () => activeRange ?? document.createRange(),
+      toString: () => {
+        throw new Error('selection.toString should not be used for active selection checks');
+      },
+    } as unknown as Selection);
     const { container, rerender } = render(
       <ThinkingBlock
         content="First thought"
@@ -301,6 +305,8 @@ describe('ThinkingBlock', () => {
     );
 
     const surface = container.querySelector('[data-chat-selection-surface="true"]')!;
+    activeRange = document.createRange();
+    activeRange.selectNodeContents(surface);
     fireEvent.mouseDown(surface, { button: 0 });
     rerender(
       <ThinkingBlock

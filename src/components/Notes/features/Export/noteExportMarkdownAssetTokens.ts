@@ -1,6 +1,6 @@
 import {
-  getMarkdownHtmlBlockRanges,
-  getIgnoredInlineRanges,
+  collectIgnoredInlineRanges,
+  collectMarkdownHtmlBlockRanges,
   getRangeEndAtOffset,
   isEscapedMarkdownPunctuation,
   isOffsetInRanges,
@@ -33,6 +33,9 @@ export interface ExportMarkdownAssetTokenOptions {
 
 export const MAX_EXPORT_MARKDOWN_ASSET_TOKENS = 2000;
 export const MAX_EXPORT_HTML_TAG_SCAN_RANGES = 8000;
+export const MAX_EXPORT_IGNORED_INLINE_RANGES = 8000;
+export const MAX_EXPORT_MARKDOWN_HTML_BLOCK_RANGES = 4000;
+export const MAX_EXPORT_MARKDOWN_IMAGE_PART_SCAN_CHARS = 1024 * 1024;
 
 function getMaxTokens(options?: ExportMarkdownAssetTokenOptions): number {
   const value = options?.maxTokens;
@@ -55,9 +58,10 @@ function findMarkdownLabelEnd(
   ignoredRanges: readonly ContentRange[],
 ): number | null {
   let cursor = start;
+  const scanEnd = Math.min(content.length, start + MAX_EXPORT_MARKDOWN_IMAGE_PART_SCAN_CHARS);
   let bracketDepth = 0;
 
-  while (cursor < content.length) {
+  while (cursor < scanEnd) {
     const ignoredEnd = getRangeEndAtOffset(cursor, ignoredRanges);
     if (ignoredEnd !== null) {
       cursor = ignoredEnd;
@@ -87,10 +91,11 @@ function findMarkdownLabelEnd(
 
 function findMarkdownTargetClose(content: string, start: number): number | null {
   let cursor = start;
+  const scanEnd = Math.min(content.length, start + MAX_EXPORT_MARKDOWN_IMAGE_PART_SCAN_CHARS);
   let quote: string | null = null;
   let parenDepth = 0;
 
-  while (cursor < content.length) {
+  while (cursor < scanEnd) {
     const char = content[cursor];
     if (quote) {
       if (char === quote && !isEscapedMarkdownPunctuation(content, cursor)) {
@@ -131,10 +136,11 @@ function parseMarkdownImageTarget(
   start: number,
 ): ParsedMarkdownImageTarget | null {
   let cursor = start;
-  while (cursor < content.length && /\s/.test(content[cursor])) {
+  const scanEnd = Math.min(content.length, start + MAX_EXPORT_MARKDOWN_IMAGE_PART_SCAN_CHARS);
+  while (cursor < scanEnd && /\s/.test(content[cursor])) {
     cursor += 1;
   }
-  if (cursor >= content.length) {
+  if (cursor >= scanEnd) {
     return null;
   }
 
@@ -142,13 +148,13 @@ function parseMarkdownImageTarget(
     const srcStart = cursor + 1;
     let srcEnd = srcStart;
     while (
-      srcEnd < content.length
+      srcEnd < scanEnd
       && content[srcEnd] !== '\n'
       && (content[srcEnd] !== '>' || isEscapedMarkdownPunctuation(content, srcEnd))
     ) {
       srcEnd += 1;
     }
-    if (srcEnd >= content.length || content[srcEnd] !== '>') {
+    if (srcEnd >= scanEnd || content[srcEnd] !== '>') {
       return null;
     }
     const tokenEnd = findMarkdownTargetClose(content, srcEnd + 1);
@@ -159,7 +165,7 @@ function parseMarkdownImageTarget(
 
   const srcStart = cursor;
   let parenDepth = 0;
-  while (cursor < content.length) {
+  while (cursor < scanEnd) {
     const char = content[cursor];
     if (/\s/.test(char)) {
       const tokenEnd = findMarkdownTargetClose(content, cursor);
@@ -264,10 +270,30 @@ export function findExportMarkdownAssetSourceTokensWithOptions(
     return [];
   }
 
-  const ignoredRanges = getIgnoredInlineRanges(content);
+  const ignoredInlineScan = collectIgnoredInlineRanges(
+    content,
+    Number.isFinite(maxTokens) ? MAX_EXPORT_IGNORED_INLINE_RANGES : Number.POSITIVE_INFINITY,
+  );
+  const ignoredRanges = ignoredInlineScan.exhaustedAt === null
+    ? ignoredInlineScan.ranges
+    : normalizeContentRanges([
+        ...ignoredInlineScan.ranges,
+        { start: ignoredInlineScan.exhaustedAt, end: content.length },
+      ]);
+  const htmlBlockScan = collectMarkdownHtmlBlockRanges(
+    content,
+    Number.isFinite(maxTokens) ? MAX_EXPORT_MARKDOWN_HTML_BLOCK_RANGES : Number.POSITIVE_INFINITY,
+  );
+  const htmlBlockRemainderRanges = htmlBlockScan.exhaustedAt === null
+    ? []
+    : [{ start: htmlBlockScan.exhaustedAt, end: content.length }];
+  const ignoredHtmlRanges = normalizeContentRanges([
+    ...ignoredRanges,
+    ...htmlBlockRemainderRanges,
+  ]);
   const htmlTagScan = collectVisibleHtmlTagRanges(
     content,
-    ignoredRanges,
+    ignoredHtmlRanges,
     Number.isFinite(maxTokens) ? MAX_EXPORT_HTML_TAG_SCAN_RANGES : Number.POSITIVE_INFINITY,
   );
   const htmlTagRanges = htmlTagScan.ranges;
@@ -275,8 +301,8 @@ export function findExportMarkdownAssetSourceTokensWithOptions(
     ? []
     : [{ start: htmlTagScan.exhaustedAt, end: content.length }];
   const ignoredMarkdownRanges = normalizeContentRanges([
-    ...ignoredRanges,
-    ...getMarkdownHtmlBlockRanges(content),
+    ...ignoredHtmlRanges,
+    ...htmlBlockScan.ranges,
     ...htmlScanRemainderRanges,
   ]);
   const markdownMatches = findMarkdownImageSourceMatches(

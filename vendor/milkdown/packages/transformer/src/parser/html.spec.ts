@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import type { MarkdownNode } from '../utility'
 
-import { mergePairedInlineHtml } from './html'
+import {
+  MAX_INLINE_HTML_MERGE_CHILDREN,
+  MAX_INLINE_HTML_MERGE_DEPTH,
+  mergePairedInlineHtml,
+} from './html'
 
 function createPositionedInlineNodes(
   markdown: string,
@@ -166,5 +170,43 @@ describe('mergePairedInlineHtml', () => {
 
     expect(result.children).toHaveLength(children.length)
     expect(stringReads).toBeLessThanOrEqual(children.length * 2)
+  })
+
+  it('skips paired inline html merging when child count exceeds the merge budget', () => {
+    const children = Array.from({ length: MAX_INLINE_HTML_MERGE_CHILDREN + 1 }, (_, index) => ({
+      type: index === 0 || index === MAX_INLINE_HTML_MERGE_CHILDREN ? 'html' : 'text',
+      value: index === 0 ? '<span style="color : #123456">' : index === MAX_INLINE_HTML_MERGE_CHILDREN ? '</span>' : 'x',
+    })) as MarkdownNode[]
+    const tree = {
+      type: 'paragraph',
+      children,
+    } as MarkdownNode
+
+    const result = mergePairedInlineHtml(tree)
+
+    expect(result.children).toHaveLength(children.length)
+    expect(result.children?.[0]).toBe(children[0])
+    expect(result.children?.[MAX_INLINE_HTML_MERGE_CHILDREN]).toBe(children[MAX_INLINE_HTML_MERGE_CHILDREN])
+  })
+
+  it('stops descending after the inline html merge depth budget', () => {
+    const leaf = {
+      type: 'paragraph',
+      children: [
+        { type: 'html', value: '<span style="color : #123456">' },
+        { type: 'strong', children: [{ type: 'text', value: 'nested' }] as MarkdownNode[] },
+        { type: 'html', value: '</span>' },
+      ],
+    } as MarkdownNode
+    let node = leaf
+    for (let depth = 0; depth <= MAX_INLINE_HTML_MERGE_DEPTH; depth += 1) {
+      node = {
+        type: 'container',
+        children: [node],
+      } as MarkdownNode
+    }
+
+    expect(() => mergePairedInlineHtml(node)).not.toThrow()
+    expect(leaf.children).toHaveLength(3)
   })
 })

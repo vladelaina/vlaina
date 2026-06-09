@@ -133,7 +133,7 @@ function StartupViewFallback({ onReady }: { onReady: () => void }) {
   }, [onReady]);
 
   return (
-    <div className="h-full bg-[var(--vlaina-sidebar-bg)]" />
+    <div className="h-full bg-transparent" />
   );
 }
 
@@ -674,7 +674,7 @@ export function AppContent() {
         titleBarRight={rightSlot}
         titleBarCenterOverflowVisible={effectiveAppViewMode === 'chat'}
         mainOverlay={mainOverlay}
-        backgroundColor="var(--vlaina-sidebar-bg)"
+        backgroundColor="transparent"
       >
         {mainContent}
       </AppShell>

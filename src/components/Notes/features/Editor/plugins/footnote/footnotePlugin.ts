@@ -19,6 +19,20 @@ import {
 type UndoableInputRule = InputRule & { undoable?: boolean };
 
 export const footnoteInteractionPluginKey = new PluginKey('footnoteInteraction');
+export const MAX_FOOTNOTE_REF_INPUT_PREFIX_CHECK_CHARS = 256;
+export const MAX_FOOTNOTE_PREVIEW_SOURCE_TEXT_CHARS = 4096;
+
+export function hasNonBlankFootnoteRefInputPrefix(
+  doc: { textBetween: (from: number, to: number) => string },
+  lineStart: number,
+  start: number
+): boolean {
+  const textBefore = doc.textBetween(
+    Math.max(lineStart, start - MAX_FOOTNOTE_REF_INPUT_PREFIX_CHECK_CHARS),
+    start
+  );
+  return textBefore.trim() !== '';
+}
 
 interface FootnoteInteractionPluginState {
   hasFootnotes: boolean;
@@ -45,9 +59,24 @@ function findFootnoteDefinition(editorDom: HTMLElement, id: string): HTMLElement
   )[0] ?? null;
 }
 
+export function readBoundedFootnotePreviewSource(element: HTMLElement): string {
+  let text = '';
+  const walker = element.ownerDocument.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  for (
+    let node = walker.nextNode();
+    node && text.length < MAX_FOOTNOTE_PREVIEW_SOURCE_TEXT_CHARS;
+    node = walker.nextNode()
+  ) {
+    const value = node.textContent ?? '';
+    const remaining = MAX_FOOTNOTE_PREVIEW_SOURCE_TEXT_CHARS - text.length;
+    text += value.length > remaining ? value.slice(0, remaining) : value;
+  }
+  return text;
+}
+
 function getFootnoteDefinitionPreview(definition: HTMLElement): string {
   const content = definition.querySelector('.footnote-def-content');
-  const text = normalizeFootnotePreview(content?.textContent ?? definition.textContent ?? '');
+  const text = normalizeFootnotePreview(readBoundedFootnotePreviewSource(content instanceof HTMLElement ? content : definition));
   const label = normalizeFootnoteLabel(definition.dataset.id || definition.dataset.label);
   const labelPrefix = label ? `[${label}]:` : '';
   return labelPrefix && text.startsWith(labelPrefix)
@@ -327,9 +356,8 @@ export const footnoteRefInputRule = $inputRule(() => {
 
       const $pos = state.doc.resolve(start);
       const lineStart = $pos.start();
-      const textBefore = state.doc.textBetween(lineStart, start);
 
-      if (textBefore.trim() === '') return null;
+      if (!hasNonBlankFootnoteRefInputPrefix(state.doc, lineStart, start)) return null;
 
       const { tr, schema } = state;
       const nodeType = schema.nodes.footnote_reference ?? schema.nodes.footnote_ref;

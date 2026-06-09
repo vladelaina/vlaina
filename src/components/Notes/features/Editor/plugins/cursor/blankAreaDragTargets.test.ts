@@ -86,13 +86,21 @@ describe('blankAreaDragTargets', () => {
     expect(isPointInTrailingTextSelectionGutter(lineRect, 250, 90)).toBe(false);
   });
 
-  it('skips text line hit measurement for oversized roots', () => {
+  it('skips text line hit measurement for oversized roots without reading aggregate text', () => {
     const root = document.createElement('p');
-    root.textContent = 'a'.repeat(MAX_BLANK_AREA_TEXT_HIT_CHARS + 1);
-    const createTreeWalkerSpy = vi.spyOn(document, 'createTreeWalker');
+    root.append(document.createTextNode('a'.repeat(MAX_BLANK_AREA_TEXT_HIT_CHARS + 1)));
+    const createRangeSpy = vi.spyOn(document, 'createRange');
+    Object.defineProperty(root, 'textContent', {
+      configurable: true,
+      get() {
+        throw new Error('aggregate textContent should not be read');
+      },
+    });
 
     expect(resolveTextLinePointerHit(root, 0, 0)).toEqual({ type: 'measurement-limit' });
-    expect(createTreeWalkerSpy).not.toHaveBeenCalled();
+    expect(createRangeSpy).not.toHaveBeenCalled();
+
+    createRangeSpy.mockRestore();
   });
 
   it('does not start block selection from the editor root near a text line end', () => {
@@ -295,7 +303,7 @@ describe('blankAreaDragTargets', () => {
       blocks: [],
       blockIndex: new Map(),
       headings: [],
-    } as EditorBlockPositionSnapshot);
+    } as unknown as EditorBlockPositionSnapshot);
 
     const originalCreateRange = document.createRange;
     document.createRange = () => ({

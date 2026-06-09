@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { parseMarkdownMeasurementBlocks } from './chatAssistantMarkdownBlockParser';
+import {
+  MAX_ASSISTANT_MARKDOWN_MEASUREMENT_BLOCKS,
+  MAX_ASSISTANT_MARKDOWN_MEASUREMENT_SCAN_CHARS,
+  parseMarkdownMeasurementBlocks,
+} from './chatAssistantMarkdownBlockParser';
 
 describe('parseMarkdownMeasurementBlocks', () => {
   it('keeps shorter same-marker fence lines inside code blocks', () => {
@@ -105,6 +109,30 @@ describe('parseMarkdownMeasurementBlocks', () => {
 
     expect(blocks.filter((block) => block.kind === 'video')).toHaveLength(2000);
     expect(blocks.some((block) => block.kind === 'text')).toBe(true);
+  });
+
+  it('bounds layout parsing by scanned markdown characters', () => {
+    const markdown = [
+      'Intro',
+      'x'.repeat(MAX_ASSISTANT_MARKDOWN_MEASUREMENT_SCAN_CHARS),
+      '# Hidden tail',
+    ].join('\n');
+
+    const blocks = parseMarkdownMeasurementBlocks(markdown);
+
+    expect(blocks.some((block) => block.kind === 'text')).toBe(true);
+    expect(blocks).toHaveLength(1);
+  });
+
+  it('bounds layout parsing by generated measurement blocks', () => {
+    const markdown = Array.from(
+      { length: MAX_ASSISTANT_MARKDOWN_MEASUREMENT_BLOCKS + 1 },
+      (_, index) => `# Heading ${index}`,
+    ).join('\n');
+
+    const blocks = parseMarkdownMeasurementBlocks(markdown);
+
+    expect(blocks).toHaveLength(MAX_ASSISTANT_MARKDOWN_MEASUREMENT_BLOCKS);
   });
 
   it('does not cache oversized markdown block parses by full content', () => {

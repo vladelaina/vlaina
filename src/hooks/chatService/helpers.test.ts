@@ -1,9 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_ATTACHMENT_IMAGE_BYTES, type Attachment } from '@/lib/storage/attachmentStorage';
 import {
+  MAX_NOTE_MENTION_PATH_CHARS,
+  MAX_NOTE_MENTION_SCAN_ITEMS,
+  MAX_NOTE_MENTION_TITLE_CHARS,
+  type NoteMentionReference,
+} from '@/lib/ai/noteMentions';
+import {
   buildMessageImageSources,
   buildMentionedNotesContext,
   buildStoredUserMessageContent,
+  MAX_CHAT_MENTION_LOAD_CONCURRENCY,
   MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS,
   loadMentionedFolderImageAttachments,
   loadMentionedNotes,
@@ -424,6 +431,107 @@ describe('loadMentionedNotes', () => {
     ]);
   });
 
+  it('normalizes and caps note mentions before loading references', async () => {
+    mocks.storage.stat.mockResolvedValue({
+      isFile: true,
+      isDirectory: false,
+      size: 8,
+    });
+    mocks.storage.readFile.mockImplementation(async (path: string) => `# ${path.split('/').pop()}`);
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs/a.md', title: 'A' },
+      { path: 'docs/a.md', title: 'A duplicate' },
+      { path: 'docs/b.md', title: 'B' },
+      { path: 'docs/c.md', title: 'C' },
+      { path: 'docs/d.md', title: 'D' },
+    ]);
+
+    expect(notes.map((note) => note.path)).toEqual([
+      'docs/a.md',
+      'docs/b.md',
+      'docs/c.md',
+    ]);
+    expect(mocks.storage.readFile).toHaveBeenCalledTimes(3);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/d.md');
+  });
+
+  it('bounds note mention metadata before loading references', async () => {
+    mocks.storage.stat.mockResolvedValue({
+      isFile: true,
+      isDirectory: false,
+      size: 8,
+    });
+    mocks.storage.readFile.mockResolvedValue('# Alpha');
+    const mentions: NoteMentionReference[] = [
+      {
+        path: `${'x'.repeat(MAX_NOTE_MENTION_PATH_CHARS + 1)}.md`,
+        title: 'Too long',
+      },
+      {
+        path: 'docs/alpha.md',
+        title: 'A'.repeat(MAX_NOTE_MENTION_TITLE_CHARS + 32),
+      },
+      ...Array.from({ length: MAX_NOTE_MENTION_SCAN_ITEMS }, (_value, index) => ({
+        path: `docs/ignored-${index}.md`,
+        title: `Ignored ${index}`,
+      })),
+      {
+        path: 'docs/beyond-scan.md',
+        title: 'Beyond scan',
+      },
+    ];
+
+    const notes = await loadMentionedNotes(mentions);
+
+    expect(notes).toHaveLength(3);
+    expect(notes[0]?.path).toBe('docs/alpha.md');
+    expect(notes[0]?.title).toHaveLength(MAX_NOTE_MENTION_TITLE_CHARS);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/beyond-scan.md');
+  });
+
+  it('limits concurrent folder markdown note reads', async () => {
+    mocks.notesState.rootFolder = {
+      children: [
+        {
+          id: 'docs',
+          name: 'docs',
+          path: 'docs',
+          isFolder: true,
+          expanded: true,
+          children: Array.from({ length: 12 }, (_, index) => ({
+            id: `docs/${index}.md`,
+            name: `${index}.md`,
+            path: `docs/${index}.md`,
+            isFolder: false,
+          })),
+        },
+      ],
+    };
+    mocks.storage.listDir.mockResolvedValue([]);
+    mocks.storage.stat.mockResolvedValue({
+      isFile: true,
+      isDirectory: false,
+      size: 8,
+    });
+    let activeReads = 0;
+    let maxActiveReads = 0;
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      activeReads += 1;
+      maxActiveReads = Math.max(maxActiveReads, activeReads);
+      await Promise.resolve();
+      activeReads -= 1;
+      return `# ${path.split('/').pop()}`;
+    });
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs', title: 'Docs', kind: 'folder' },
+    ]);
+
+    expect(notes).toHaveLength(13);
+    expect(maxActiveReads).toBeLessThanOrEqual(MAX_CHAT_MENTION_LOAD_CONCURRENCY);
+  });
+
   it('includes folder listing and markdown notes for mixed folder mentions', async () => {
     mocks.notesState.rootFolder = {
       children: [
@@ -809,6 +917,37 @@ describe('loadMentionedFolderImageAttachments', () => {
     ]);
   });
 
+  it('normalizes and caps folder mentions before loading image attachments', async () => {
+    mocks.storage.listDir.mockResolvedValue([
+      {
+        name: 'cover.png',
+        path: '/vault/assets/cover.png',
+        isDirectory: false,
+        isFile: true,
+        size: 2048,
+      },
+    ]);
+
+    const attachments = await loadMentionedFolderImageAttachments([
+      { path: 'assets-a', title: 'assets-a/', kind: 'folder' },
+      { path: 'assets-a', title: 'assets-a duplicate/', kind: 'folder' },
+      { path: 'assets-b', title: 'assets-b/', kind: 'folder' },
+      { path: 'assets-c', title: 'assets-c/', kind: 'folder' },
+      { path: 'assets-d', title: 'assets-d/', kind: 'folder' },
+    ]);
+
+    expect(mocks.storage.listDir).toHaveBeenCalledTimes(3);
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/assets-a');
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/assets-b');
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/assets-c');
+    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/assets-d');
+    expect(attachments.map((attachment) => attachment.path)).toEqual([
+      '/vault/assets-a/cover.png',
+      '/vault/assets-b/cover.png',
+      '/vault/assets-c/cover.png',
+    ]);
+  });
+
   it('skips hidden and oversized folder images', async () => {
     mocks.storage.listDir.mockResolvedValue([
       {
@@ -882,6 +1021,33 @@ describe('loadMentionedFolderImageAttachments', () => {
         size: 2048,
       },
     ]);
+  });
+
+  it('caps folder image attachment directory scans before processing every entry', async () => {
+    const entries = Array.from({ length: 5000 }, (_value, index) => ({
+      name: `doc-${String(index).padStart(4, '0')}.txt`,
+      path: `/vault/assets/doc-${String(index).padStart(4, '0')}.txt`,
+      isDirectory: false,
+      isFile: true,
+      size: 1024,
+    }));
+    entries.push({
+      get name() {
+        throw new Error('image attachment scan cap was not applied');
+      },
+      path: '/vault/assets/late.png',
+      isDirectory: false,
+      isFile: true,
+      size: 2048,
+    } as never);
+    mocks.storage.listDir.mockResolvedValue(entries);
+
+    const attachments = await loadMentionedFolderImageAttachments([
+      { path: 'assets', title: 'assets/', kind: 'folder' },
+    ]);
+
+    expect(attachments).toEqual([]);
+    expect(mocks.storage.stat).not.toHaveBeenCalled();
   });
 
   it('checks file size with stat when folder entries do not include size', async () => {

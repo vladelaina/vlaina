@@ -9,6 +9,8 @@ import {
 
 type ProseDispatch = ((tr: Transaction) => void) | null | undefined;
 
+const MAX_CODE_FENCE_SHORTCUT_TEXT_CHARS = 256;
+
 function markCodeUserInput(state: EditorState): void {
   const view = state as EditorState & { view?: { dom?: { dispatchEvent?: (event: Event) => boolean } } };
   view.view?.dom?.dispatchEvent?.(new CustomEvent('editor:block-user-input', { bubbles: true }));
@@ -53,7 +55,12 @@ export function handleCodeBlockEnter(state: EditorState, dispatch: ProseDispatch
     return false;
   }
 
-  const language = parseCodeFenceLanguage(parent.textContent);
+  if (parent.content.size > MAX_CODE_FENCE_SHORTCUT_TEXT_CHARS) {
+    return false;
+  }
+
+  const shortcutText = parent.textBetween(0, parent.content.size, '', '');
+  const language = parseCodeFenceLanguage(shortcutText);
   if (language === null) {
     return false;
   }
@@ -88,7 +95,7 @@ export function handleEmptyCodeBlockBackspace(
   const { selection } = state;
   const { $from, empty } = selection;
 
-  if (!empty || $from.parent.type.name !== 'code_block' || $from.parent.textContent.length > 0) {
+  if (!empty || $from.parent.type.name !== 'code_block' || $from.parent.content.size > 0) {
     return false;
   }
 

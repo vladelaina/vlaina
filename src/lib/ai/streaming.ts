@@ -19,6 +19,8 @@ interface ConsumeOpenAIStreamOptions {
 
 export const MAX_OPENAI_STREAM_LINE_CHARS = 1024 * 1024
 export const MAX_OPENAI_STREAM_CONTENT_CHARS = 4 * 1024 * 1024
+export const MAX_OPENAI_STREAM_ERROR_FIELD_CHARS = 4096
+const MAX_OPENAI_STREAM_TEXT_NODES = 2000
 const THINK_OPEN_TAG = '<think>'
 const THINK_CLOSE_TAG = '</think>'
 
@@ -190,33 +192,54 @@ function extractStreamText(value: unknown): string {
     return value
   }
 
-  if (Array.isArray(value)) {
-    return value.map((entry) => extractStreamText(entry)).join('')
+  const parts: string[] = []
+  const stack = [value]
+  let visitedNodes = 0
+  let textLength = 0
+
+  while (stack.length > 0) {
+    const current = stack.pop()
+    visitedNodes += 1
+    if (visitedNodes > MAX_OPENAI_STREAM_TEXT_NODES) {
+      return ''
+    }
+
+    if (typeof current === 'string') {
+      textLength += current.length
+      if (textLength > MAX_OPENAI_STREAM_LINE_CHARS) {
+        return ''
+      }
+      parts.push(current)
+      continue
+    }
+
+    if (Array.isArray(current)) {
+      for (let index = current.length - 1; index >= 0; index -= 1) {
+        stack.push(current[index])
+      }
+      continue
+    }
+
+    if (!isRecord(current)) {
+      continue
+    }
+
+    if (typeof current.text === 'string') {
+      stack.push(current.text)
+    } else if (isRecord(current.text) && typeof current.text.value === 'string') {
+      stack.push(current.text.value)
+    } else if (typeof current.content === 'string') {
+      stack.push(current.content)
+    }
   }
 
-  if (!isRecord(value)) {
-    return ''
-  }
-
-  if (typeof value.text === 'string') {
-    return value.text
-  }
-
-  if (isRecord(value.text) && typeof value.text.value === 'string') {
-    return value.text.value
-  }
-
-  if (typeof value.content === 'string') {
-    return value.content
-  }
-
-  return ''
+  return parts.join('')
 }
 
 function extractErrorMessage(payload: Record<string, unknown>): string {
   const nestedError = payload.error
   if (isRecord(nestedError) && typeof nestedError.message === 'string') {
-    return nestedError.message
+    return nestedError.message.slice(0, MAX_OPENAI_STREAM_ERROR_FIELD_CHARS)
   }
 
   return ''
@@ -225,11 +248,11 @@ function extractErrorMessage(payload: Record<string, unknown>): string {
 function extractErrorCode(payload: Record<string, unknown>): string | undefined {
   const nestedError = payload.error
   if (isRecord(nestedError) && typeof nestedError.code === 'string') {
-    return nestedError.code
+    return nestedError.code.slice(0, MAX_OPENAI_STREAM_ERROR_FIELD_CHARS)
   }
 
   if (typeof payload.errorCode === 'string') {
-    return payload.errorCode
+    return payload.errorCode.slice(0, MAX_OPENAI_STREAM_ERROR_FIELD_CHARS)
   }
 
   return undefined

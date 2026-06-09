@@ -451,6 +451,21 @@ textarea,
 .icon-btn.active, .icon-btn[data-active="true"] { color: var(--vlaina-text-primary); }
 .icon-btn:disabled { color: var(--vlaina-text-disabled); cursor: not-allowed; }
 
+[data-app-shell-root='true'] {
+  isolation: isolate;
+  background: var(--vlaina-imported-app-background-layer, var(--vlaina-color-surface-main));
+  background-attachment: var(--vlaina-imported-app-background-attachment);
+  background-clip: var(--vlaina-imported-app-background-clip);
+  background-origin: var(--vlaina-imported-app-background-origin);
+  background-position: var(--vlaina-imported-app-background-position);
+  background-repeat: var(--vlaina-imported-app-background-repeat);
+  background-size: var(--vlaina-imported-app-background-size);
+}
+
+[data-sidebar-surface='true'] {
+  background: transparent !important;
+}
+
 [data-chat-view-mode] button:not(:disabled),
 [data-chat-view-mode] [role="button"]:not([aria-disabled="true"]) {
   cursor: pointer;
@@ -465,6 +480,11 @@ textarea,
   background-position: var(--vlaina-imported-app-background-position);
   background-repeat: var(--vlaina-imported-app-background-repeat);
   background-size: var(--vlaina-imported-app-background-size);
+}
+
+html[data-vlaina-imported-app-theme] [data-chat-view-mode] {
+  background: var(--vlaina-color-surface-main) var(--vlaina-imported-app-document-background-image, var(--vlaina-imported-app-background-layer, none));
+  background-repeat: repeat;
 }
 
 [data-chat-view-mode]::before {
@@ -482,10 +502,20 @@ textarea,
   background-size: var(--vlaina-imported-app-background-size);
 }
 
+html[data-vlaina-imported-app-theme] [data-chat-view-mode]::before {
+  background: none;
+}
+
 [data-chat-view-mode] > [data-chat-scrollable='true'],
 [data-chat-view-mode] > [data-chat-input-region='true'] {
   position: relative;
   z-index: var(--vlaina-z-1);
+}
+
+html[data-vlaina-imported-app-theme] [data-chat-view-mode] [data-chat-scrollable='true'],
+html[data-vlaina-imported-app-theme] [data-chat-view-mode] > [data-chat-input-region='true'] {
+  background: var(--vlaina-color-surface-main) var(--vlaina-imported-app-document-background-image, none);
+  background-repeat: repeat;
 }
 
 [data-notes-view-mode] button:not(:disabled),

@@ -135,14 +135,14 @@ function isIgnoredTextLineElement(element: Element): boolean {
 }
 
 export function resolveTextLinePointerHit(root: HTMLElement, clientX: number, clientY: number): TextLinePointerHit | null {
-  if ((root.textContent?.length ?? 0) > MAX_BLANK_AREA_TEXT_HIT_CHARS) {
-    return { type: 'measurement-limit' };
-  }
-
   const doc = root.ownerDocument;
+  let measuredTextChars = 0;
   const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
-      if (!node.textContent?.trim()) return NodeFilter.FILTER_REJECT;
+      const text = node.textContent ?? '';
+      measuredTextChars += text.length;
+      if (measuredTextChars > MAX_BLANK_AREA_TEXT_HIT_CHARS) return NodeFilter.FILTER_ACCEPT;
+      if (!text.trim()) return NodeFilter.FILTER_REJECT;
       const parent = node.parentElement;
       if (!parent || isIgnoredTextLineElement(parent)) return NodeFilter.FILTER_REJECT;
       return NodeFilter.FILTER_ACCEPT;
@@ -152,6 +152,10 @@ export function resolveTextLinePointerHit(root: HTMLElement, clientX: number, cl
   let measuredTextNodes = 0;
   let measuredRects = 0;
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (measuredTextChars > MAX_BLANK_AREA_TEXT_HIT_CHARS) {
+      return { type: 'measurement-limit' };
+    }
+
     measuredTextNodes += 1;
     if (measuredTextNodes > MAX_BLANK_AREA_TEXT_HIT_NODES) {
       return { type: 'measurement-limit' };

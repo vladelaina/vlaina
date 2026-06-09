@@ -192,7 +192,7 @@ export function sanitizeMediaSrc(value: unknown) {
   if (trimmed.startsWith('//')) return trimmed.length > maxRemoteMediaUrlChars || isLocalNetworkHttpUrl(`https:${trimmed}`) ? null : `https:${trimmed}`
 
   const scheme = schemePattern.exec(trimmed)?.[1]?.toLowerCase()
-  if (!scheme) return trimmed.length <= maxInternalImageSrcChars ? trimmed : null
+  if (!scheme) return trimmed.length <= maxInternalImageSrcChars && !hasInternalImageUrlPathSegment(trimmed) ? trimmed : null
   const normalizedScheme = `${scheme}:`
   if (normalizedScheme === 'img:') {
     return getInternalImageAssetPath(trimmed) ? trimmed : null

@@ -24,6 +24,7 @@ vi.mock('@/lib/ai/streaming', async (importOriginal) => {
 import { consumeOpenAIStreamWithTools } from './openAIStreamWithTools';
 import {
   MAX_OPENAI_STREAM_CONTENT_CHARS,
+  MAX_OPENAI_STREAM_ERROR_FIELD_CHARS,
   MAX_OPENAI_STREAM_LINE_CHARS,
 } from '@/lib/ai/streaming';
 import {
@@ -195,6 +196,23 @@ describe('consumeOpenAIStreamWithTools', () => {
 
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('bounds tool stream error messages before throwing them', async () => {
+    const longMessage = 'x'.repeat(MAX_OPENAI_STREAM_ERROR_FIELD_CHARS + 1);
+
+    let thrown: unknown;
+    await consumeOpenAIStreamWithTools(
+      streamResponse([
+        `data: ${JSON.stringify({ error: { message: longMessage } })}`,
+      ]),
+      () => {},
+    ).catch((error) => {
+      thrown = error;
+    });
+
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toHaveLength(MAX_OPENAI_STREAM_ERROR_FIELD_CHARS);
   });
 
   it('rejects oversized tool stream lines before parsing them', async () => {

@@ -41,7 +41,10 @@ const TABLE_ROW_RE = /^\s*\|.*\|\s*$/;
 
 const PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT = 200;
 const MAX_CACHED_MARKDOWN_BLOCK_CHARS = 50_000;
+const MAX_ASSISTANT_MARKDOWN_MEASUREMENT_TEXT_CHARS = 50_000;
 const MAX_LAYOUT_VIDEO_IMAGE_TOKENS = 2000;
+export const MAX_ASSISTANT_MARKDOWN_MEASUREMENT_SCAN_CHARS = 200_000;
+export const MAX_ASSISTANT_MARKDOWN_MEASUREMENT_BLOCKS = 5_000;
 const CARRIAGE_RETURN_CODE = 13;
 const LINE_FEED_CODE = 10;
 const HEADING_MEASUREMENTS: Array<{ lineHeight: number; variant: TextBlockVariant }> = [
@@ -61,8 +64,12 @@ function getHeadingMeasurement(depth: number): { lineHeight: number; variant: Te
   return HEADING_MEASUREMENTS[depth - 1] ?? HEADING_MEASUREMENTS[5]!;
 }
 
-function readNormalizedMarkdownLine(markdown: string, offset: number): { line: string; nextOffset: number } | null {
-  const length = markdown.length;
+function readNormalizedMarkdownLine(
+  markdown: string,
+  offset: number,
+  maxEnd = markdown.length,
+): { line: string; nextOffset: number } | null {
+  const length = Math.min(markdown.length, maxEnd);
   if (offset > length) {
     return null;
   }
@@ -91,12 +98,16 @@ function readNormalizedMarkdownLine(markdown: string, offset: number): { line: s
   };
 }
 
-function collectSectionLines(markdown: string, startOffset: number): { endOffset: number; lines: string[] } {
+function collectSectionLines(
+  markdown: string,
+  startOffset: number,
+  maxEnd = markdown.length,
+): { endOffset: number; lines: string[] } {
   const sectionLines: string[] = [];
   let offset = startOffset;
 
   while (true) {
-    const current = readNormalizedMarkdownLine(markdown, offset);
+    const current = readNormalizedMarkdownLine(markdown, offset, maxEnd);
     if (!current) {
       break;
     }
@@ -128,6 +139,35 @@ function stripVideoImageTokens(markdown: string, videoTokens: ImageToken[]): str
     .reduceRight((next, token) => `${next.slice(0, token.start)}${next.slice(token.end)}`, markdown);
 }
 
+function pushMeasurementBlock(
+  blocks: MarkdownMeasurementBlock[],
+  block: MarkdownMeasurementBlock,
+): boolean {
+  if (blocks.length >= MAX_ASSISTANT_MARKDOWN_MEASUREMENT_BLOCKS) {
+    return false;
+  }
+  blocks.push(block);
+  return true;
+}
+
+function buildBoundedMarkdownTextBlock(
+  text: string,
+  variant: TextBlockVariant,
+  lineHeight: number,
+  widthInset: number = 0,
+  extraHeight: number = 0,
+): MarkdownMeasurementBlock | null {
+  return buildMarkdownTextBlock(
+    text.length > MAX_ASSISTANT_MARKDOWN_MEASUREMENT_TEXT_CHARS
+      ? text.slice(0, MAX_ASSISTANT_MARKDOWN_MEASUREMENT_TEXT_CHARS)
+      : text,
+    variant,
+    lineHeight,
+    widthInset,
+    extraHeight,
+  );
+}
+
 export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasurementBlock[] {
   const shouldCache = markdown.length <= MAX_CACHED_MARKDOWN_BLOCK_CHARS;
   if (shouldCache) {
@@ -139,9 +179,10 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
 
   const blocks: MarkdownMeasurementBlock[] = [];
   let offset = 0;
+  const scanEnd = Math.min(markdown.length, MAX_ASSISTANT_MARKDOWN_MEASUREMENT_SCAN_CHARS);
 
-  while (true) {
-    const current = readNormalizedMarkdownLine(markdown, offset);
+  while (blocks.length < MAX_ASSISTANT_MARKDOWN_MEASUREMENT_BLOCKS) {
+    const current = readNormalizedMarkdownLine(markdown, offset, scanEnd);
     if (!current) {
       break;
     }
@@ -158,7 +199,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       offset = current.nextOffset;
 
       while (true) {
-        const codeLine = readNormalizedMarkdownLine(markdown, offset);
+        const codeLine = readNormalizedMarkdownLine(markdown, offset, scanEnd);
         if (!codeLine) {
           break;
         }
@@ -170,7 +211,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
         offset = codeLine.nextOffset;
       }
 
-      blocks.push({
+      pushMeasurementBlock(blocks, {
         kind: 'code',
         code: codeLines.join('\n'),
         widthInset: 0,
@@ -179,7 +220,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
     }
 
     if (HR_RE.test(line)) {
-      blocks.push({
+      pushMeasurementBlock(blocks, {
         kind: 'rule',
         widthInset: 0,
       });
@@ -192,15 +233,15 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       const depth = headingMatch[1]!.length;
       const text = headingMatch[2] ?? '';
       const heading = getHeadingMeasurement(depth);
-      const block = buildMarkdownTextBlock(text, heading.variant, heading.lineHeight);
+      const block = buildBoundedMarkdownTextBlock(text, heading.variant, heading.lineHeight);
       if (block) {
-        blocks.push(block);
+        pushMeasurementBlock(blocks, block);
       }
       offset = current.nextOffset;
       continue;
     }
 
-    const { endOffset, lines: sectionLines } = collectSectionLines(markdown, offset);
+    const { endOffset, lines: sectionLines } = collectSectionLines(markdown, offset, scanEnd);
     if (sectionLines.length === 0) {
       offset = current.nextOffset;
       continue;
@@ -215,13 +256,17 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
         { maxTokens: MAX_LAYOUT_VIDEO_IMAGE_TOKENS },
       ).trim();
       if (textWithoutMedia) {
-        const block = buildMarkdownTextBlock(textWithoutMedia, 'body', MARKDOWN_BODY_LINE_HEIGHT);
+        const block = buildBoundedMarkdownTextBlock(textWithoutMedia, 'body', MARKDOWN_BODY_LINE_HEIGHT);
         if (block) {
-          blocks.push(block);
+          pushMeasurementBlock(blocks, block);
         }
       }
-      for (let videoIndex = 0; videoIndex < videoTokenCount; videoIndex += 1) {
-        blocks.push({
+      for (
+        let videoIndex = 0;
+        videoIndex < videoTokenCount && blocks.length < MAX_ASSISTANT_MARKDOWN_MEASUREMENT_BLOCKS;
+        videoIndex += 1
+      ) {
+        pushMeasurementBlock(blocks, {
           kind: 'video',
           widthInset: 0,
         });
@@ -234,7 +279,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       const text = sectionLines
         .map((sectionLine) => sectionLine.replace(BLOCKQUOTE_RE, ''))
         .join('\n');
-      const block = buildMarkdownTextBlock(
+      const block = buildBoundedMarkdownTextBlock(
         text,
         'body',
         MARKDOWN_BLOCKQUOTE_LINE_HEIGHT,
@@ -242,7 +287,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
         MARKDOWN_BLOCKQUOTE_PADDING_Y,
       );
       if (block) {
-        blocks.push(block);
+        pushMeasurementBlock(blocks, block);
       }
       offset = endOffset;
       continue;
@@ -253,7 +298,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       TABLE_ROW_RE.test(sectionLines[0]!) &&
       /^\s*\|?[:\- ]+\|[:\-| ]+\s*$/.test(sectionLines[1]!)
     ) {
-      blocks.push({
+      pushMeasurementBlock(blocks, {
         kind: 'table',
         rowCount: Math.max(1, sectionLines.length - 1),
         widthInset: 0,
@@ -272,7 +317,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
             .trimEnd(),
         )
         .join('\n');
-      const block = buildMarkdownTextBlock(
+      const block = buildBoundedMarkdownTextBlock(
         text,
         'body',
         MARKDOWN_BODY_LINE_HEIGHT,
@@ -280,15 +325,15 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
         MARKDOWN_LIST_MARGIN_Y + itemCount * MARKDOWN_LIST_ITEM_MARGIN_Y,
       );
       if (block) {
-        blocks.push(block);
+        pushMeasurementBlock(blocks, block);
       }
       offset = endOffset;
       continue;
     }
 
-    const paragraph = buildMarkdownTextBlock(sectionLines.join(' '), 'body', MARKDOWN_BODY_LINE_HEIGHT);
+    const paragraph = buildBoundedMarkdownTextBlock(sectionLines.join(' '), 'body', MARKDOWN_BODY_LINE_HEIGHT);
     if (paragraph) {
-      blocks.push(paragraph);
+      pushMeasurementBlock(blocks, paragraph);
     }
     offset = endOffset;
   }

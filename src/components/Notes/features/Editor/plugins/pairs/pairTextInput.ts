@@ -8,16 +8,16 @@ import {
   hasAutoInsertedCloserAt,
   autoPairPluginKey,
 } from './pairState';
+import { isEditorTextRangeTooLarge } from '../shared/selectionTextLimits';
 
 function isWordLikeChar(char: string | undefined): boolean {
   return typeof char === 'string' && /[\p{L}\p{N}_]/u.test(char);
 }
 
 function shouldAutoPairSymmetricQuote(
-  text: string,
-  offset: number,
+  previousChar: string,
 ): boolean {
-  return !isWordLikeChar(text[offset - 1]);
+  return !isWordLikeChar(previousChar);
 }
 
 function moveSelectionTo(view: EditorView, position: number): void {
@@ -52,7 +52,8 @@ function handleClosingPairSkip(
 
   const { $from } = selection;
   if (!$from.parent.isTextblock) return false;
-  if ($from.parent.textContent[$from.parentOffset] !== text) return false;
+  if ($from.parentOffset + text.length > $from.parent.content.size) return false;
+  if ($from.parent.textBetween($from.parentOffset, $from.parentOffset + text.length, '\0', '\0') !== text) return false;
   if (!closePairSpecs.has(text)) return false;
   if (!hasAutoInsertedCloserAt(view.state, from, text)) return false;
 
@@ -71,6 +72,7 @@ function handleSelectionWrap(
 
   const spec = openPairSpecs.get(text);
   if (!spec) return false;
+  if (isEditorTextRangeTooLarge(from, to)) return false;
 
   const { selection } = view.state;
   if (!selection.$from.parent.isTextblock || selection.$from.parent !== selection.$to.parent) {
@@ -107,7 +109,10 @@ function handleCollapsedOpenPair(
   const spec = openPairSpecs.get(text);
   if (!spec) return false;
 
-  if (spec.symmetric && !shouldAutoPairSymmetricQuote($from.parent.textContent, $from.parentOffset)) {
+  const previousChar = $from.parentOffset > 0
+    ? $from.parent.textBetween($from.parentOffset - 1, $from.parentOffset, '\0', '\0')
+    : '';
+  if (spec.symmetric && !shouldAutoPairSymmetricQuote(previousChar)) {
     return false;
   }
 

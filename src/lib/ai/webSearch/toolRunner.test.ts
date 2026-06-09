@@ -644,4 +644,26 @@ describe('web search tool runner', () => {
     expect(client.readWebPage).not.toHaveBeenCalled();
     expect(client.readWebPages).not.toHaveBeenCalled();
   });
+
+  it('bounds unsupported tool names before returning them to the model', async () => {
+    const client: WebSearchClient = {
+      webSearch: vi.fn(),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(),
+    };
+
+    const text = await runWebSearchToolCall(
+      {
+        name: `${'unsupported-'.repeat(20)}tool`,
+        arguments: JSON.stringify({ query: 'openai' }),
+      },
+      { client },
+    );
+
+    expect(text.startsWith('Unsupported web search tool: unsupported_unsupported')).toBe(true);
+    expect(text.length).toBeLessThan(180);
+    expect(client.webSearch).not.toHaveBeenCalled();
+    expect(client.readWebPage).not.toHaveBeenCalled();
+    expect(client.readWebPages).not.toHaveBeenCalled();
+  });
 });

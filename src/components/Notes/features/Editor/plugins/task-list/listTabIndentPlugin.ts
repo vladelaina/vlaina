@@ -15,6 +15,8 @@ const LIST_GAP_PLACEHOLDER_CLASS = 'editor-list-gap-placeholder-item';
 export const MAX_LIST_GAP_PLACEHOLDER_DECORATIONS = 1000;
 export const MAX_ORDERED_LIST_LABEL_UPDATES = 5000;
 export const MAX_ORDERED_LIST_LABEL_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_ADJACENT_ORDERED_LIST_MERGE_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_LIST_GAP_TRANSACTION_STEP_TEXT_CHARS = 200_000;
 const MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS = 256;
 export const MAX_LIST_GAP_PLACEHOLDER_CLEANUP_RANGES = MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS;
 const VISIBLE_LIST_GAP_TEXT_PATTERN = /\S/u;
@@ -57,6 +59,30 @@ function findSelectionListItemDepth(view: EditorView): number | null {
 function isInternalPlaceholderOnlyListItem(view: EditorView, listItemDepth: number): boolean {
     const listItem = view.state.selection.$from.node(listItemDepth);
     return isInternalListGapPlaceholderNode(listItem);
+}
+
+export function listItemContainsInternalGapPlaceholder(listItem: ProseNode): boolean {
+    let scannedChars = 0;
+    let found = false;
+
+    scanProseDescendants(listItem, (node) => {
+        if (!node.isText) return true;
+
+        const text = node.text ?? '';
+        const remainingChars = MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS - scannedChars;
+        if (remainingChars <= 0) return STOP_PROSE_SCAN;
+
+        const prefix = text.slice(0, remainingChars);
+        scannedChars += text.length;
+        if (prefix.includes(EDITABLE_LIST_GAP_PLACEHOLDER)) {
+            found = true;
+            return STOP_PROSE_SCAN;
+        }
+
+        return scannedChars < MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS ? true : STOP_PROSE_SCAN;
+    });
+
+    return found;
 }
 
 export function collectInternalListGapPlaceholderCleanupRanges(
@@ -173,7 +199,7 @@ function handleInternalPlaceholderOrderedListTextInput(
     if (!paragraphType) return false;
 
     const listItem = view.state.selection.$from.node(listItemDepth);
-    if (!listItem.textContent.includes(EDITABLE_LIST_GAP_PLACEHOLDER)) return false;
+    if (!listItemContainsInternalGapPlaceholder(listItem)) return false;
 
     const listStart = view.state.selection.$from.before(listDepth);
     const listEnd = view.state.selection.$from.after(listDepth);
@@ -350,6 +376,80 @@ export function buildInternalListGapDecorations(doc: Parameters<typeof Decoratio
     return DecorationSet.create(doc, collectInternalListGapDecorations(doc));
 }
 
+type ListGapDecorationSetLike = {
+    find: (from?: number, to?: number) => unknown[];
+};
+
+function stepMayInsertInternalListGapPlaceholder(step: unknown): boolean {
+    const slice = (step as { slice?: { content?: { textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string; size?: number } } }).slice;
+    const content = slice?.content;
+    if (!content || typeof content.textBetween !== 'function' || typeof content.size !== 'number') {
+        return false;
+    }
+    if (content.size > MAX_LIST_GAP_TRANSACTION_STEP_TEXT_CHARS) {
+        return true;
+    }
+    return content.textBetween(0, content.size, '\n', '\ufffc').includes(EDITABLE_LIST_GAP_PLACEHOLDER);
+}
+
+function transactionInsertsInternalListGapPlaceholder(tr: unknown): boolean {
+    const steps = (tr as { steps?: readonly unknown[] }).steps ?? [];
+    return steps.some(stepMayInsertInternalListGapPlaceholder);
+}
+
+function listItemWithInternalPlaceholderTouchesRange(doc: ProseNode, from: number, to: number): boolean {
+    const start = Math.max(0, Math.min(from, doc.content.size));
+    const end = Math.max(start, Math.min(to, doc.content.size));
+
+    const checkResolvedPosition = (pos: number): boolean => {
+        const $pos = doc.resolve(Math.max(0, Math.min(pos, doc.content.size)));
+        for (let depth = $pos.depth; depth > 0; depth -= 1) {
+            const node = $pos.node(depth);
+            if (node.type.name === 'list_item' && node.textContent.includes(EDITABLE_LIST_GAP_PLACEHOLDER)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    if (checkResolvedPosition(start) || checkResolvedPosition(end)) {
+        return true;
+    }
+
+    let touchesPlaceholderListItem = false;
+    doc.nodesBetween(start, end, (node) => {
+        if (node.type.name === 'list_item' && node.textContent.includes(EDITABLE_LIST_GAP_PLACEHOLDER)) {
+            touchesPlaceholderListItem = true;
+            return false;
+        }
+        return !touchesPlaceholderListItem;
+    });
+
+    return touchesPlaceholderListItem;
+}
+
+export function transactionMayAffectInternalListGapDecorations(
+    decorations: ListGapDecorationSetLike,
+    tr: Transaction,
+    previousDoc: ProseNode,
+    nextDoc: ProseNode,
+): boolean {
+    if (transactionInsertsInternalListGapPlaceholder(tr)) return true;
+
+    const diffStart = previousDoc.content.findDiffStart(nextDoc.content);
+    if (diffStart === null) return false;
+
+    const diffEnd = previousDoc.content.findDiffEnd(nextDoc.content);
+    if (!diffEnd) return true;
+
+    if (decorations.find(diffStart - 1, diffEnd.a + 1).length > 0) return true;
+
+    return (
+        listItemWithInternalPlaceholderTouchesRange(previousDoc, diffStart, diffEnd.a)
+        || listItemWithInternalPlaceholderTouchesRange(nextDoc, diffStart, diffEnd.b)
+    );
+}
+
 type AdjacentOrderedListMerge = {
     from: number;
     secondFrom: number;
@@ -407,7 +507,11 @@ function createAdjacentOrderedListMerge(
     };
 }
 
-export function findAdjacentOrderedLists(doc: ProseNode): AdjacentOrderedListMerge | null {
+export function findAdjacentOrderedLists(
+    doc: ProseNode,
+    maxScanNodes = MAX_ADJACENT_ORDERED_LIST_MERGE_SCAN_NODES
+): AdjacentOrderedListMerge | null {
+    let scannedNodes = 0;
     const stack: OrderedListScanFrame[] = [{
         parent: doc,
         contentStart: 0,
@@ -438,6 +542,8 @@ export function findAdjacentOrderedLists(doc: ProseNode): AdjacentOrderedListMer
         const current = { from, to: from + node.nodeSize, node };
         frame.childIndex += 1;
         frame.offset += node.nodeSize;
+        scannedNodes += 1;
+        if (scannedNodes > maxScanNodes) return null;
 
         if (node.content.size > 0) {
             frame.pendingCurrent = current;
@@ -505,24 +611,36 @@ function positionTouchesOrderedListNormalizationNode(doc: ProseNode, pos: number
     );
 }
 
-function rangeTouchesOrderedListNormalizationNode(doc: ProseNode, from: number, to: number): boolean {
+export function rangeTouchesOrderedListNormalizationNode(
+    doc: ProseNode,
+    from: number,
+    to: number,
+    checkBoundaryPositions = true
+): boolean {
     const start = Math.max(0, Math.min(from, doc.content.size));
     const end = Math.max(start, Math.min(to, doc.content.size));
     if (
-        positionTouchesOrderedListNormalizationNode(doc, start)
-        || positionTouchesOrderedListNormalizationNode(doc, end)
+        checkBoundaryPositions
+        && (
+            positionTouchesOrderedListNormalizationNode(doc, start)
+            || positionTouchesOrderedListNormalizationNode(doc, end)
+        )
     ) {
         return true;
     }
 
     let touchesList = false;
-    doc.nodesBetween(start, end, (node) => {
-        if (ORDERED_LIST_NORMALIZATION_NODE_NAMES.has(node.type.name)) {
+    scanProseDescendants(doc, (node, pos) => {
+        const nodeSize = typeof node.nodeSize === 'number' ? node.nodeSize : 1;
+        const nodeEnd = pos + nodeSize;
+        if (nodeEnd < start) return true;
+        if (pos > end) return STOP_PROSE_SCAN;
+        if (node.type?.name && ORDERED_LIST_NORMALIZATION_NODE_NAMES.has(node.type.name)) {
             touchesList = true;
-            return false;
+            return STOP_PROSE_SCAN;
         }
-        return !touchesList;
-    });
+        return true;
+    }, MAX_ORDERED_LIST_LABEL_SCAN_NODES);
 
     return touchesList;
 }
@@ -616,7 +734,15 @@ export const listTabIndentPlugin = $prose(() => {
                 return buildInternalListGapDecorations(state.doc);
             },
             apply(tr, previous, _oldState, newState) {
-                if (!tr.docChanged) return previous;
+                if (!tr.docChanged) return previous.map(tr.mapping, tr.doc);
+                if (!transactionMayAffectInternalListGapDecorations(
+                    previous,
+                    tr,
+                    _oldState.doc,
+                    newState.doc
+                )) {
+                    return previous.map(tr.mapping, newState.doc);
+                }
                 return buildInternalListGapDecorations(newState.doc);
             },
         },

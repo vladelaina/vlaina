@@ -71,7 +71,7 @@ export function ChatInputActions({
               className={cn(
                 'w-9 h-9 flex items-center justify-center rounded-full transition-[background-color,color,box-shadow,transform] duration-[var(--vlaina-duration-200)]',
                 iconButtonStyles,
-                'text-[var(--vlaina-sidebar-chat-text)] hover:!bg-[var(--vlaina-color-pill-surface-hover)] hover:text-[var(--vlaina-accent)] hover:!shadow-[var(--vlaina-shadow-menu-hover)] active:scale-[var(--vlaina-scale-95)]'
+                '!bg-[var(--vlaina-color-pill-surface-hover)] !shadow-[var(--vlaina-shadow-menu-hover)] text-[var(--vlaina-accent)] hover:text-[var(--vlaina-accent-hover)] active:scale-[var(--vlaina-scale-95)]'
               )}
             >
               <Icon name="common.add" size="md" />
@@ -117,7 +117,7 @@ export function ChatInputActions({
                 getSidebarIdleRowSurfaceClass('chat')
               )}
             >
-              <span className="flex size-5 items-center justify-center text-[var(--vlaina-font-h6)] font-semibold leading-none text-[var(--vlaina-accent)]">@</span>
+              <span className="flex size-5 items-center justify-center text-[var(--vlaina-font-h6)] font-semibold leading-none !text-[var(--vlaina-accent)]">@</span>
               <span>{t('chat.mentionFileOrFolder')}</span>
             </button>
             <button
@@ -151,7 +151,7 @@ export function ChatInputActions({
         {isLoading ? (
           <button
             onClick={onStop}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] shadow-[var(--vlaina-shadow-accent-action)] transition-[box-shadow,transform] duration-[var(--vlaina-duration-200)] hover:scale-[var(--vlaina-scale-105)] active:scale-[var(--vlaina-scale-95)]"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--vlaina-color-pill-surface-hover)] text-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-menu-hover)] transition-[color,box-shadow,transform] duration-[var(--vlaina-duration-200)] hover:text-[var(--vlaina-accent-hover)] hover:scale-[var(--vlaina-scale-105)] active:scale-[var(--vlaina-scale-95)]"
           >
             <Icon name="media.stop" size="md" />
           </button>
@@ -162,10 +162,10 @@ export function ChatInputActions({
             className={cn(
               'w-9 h-9 rounded-full flex items-center justify-center transition-[background-color,color,box-shadow,opacity,transform] duration-[var(--vlaina-duration-200)]',
               canSubmit
-                ? 'bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] shadow-[var(--vlaina-shadow-accent-action)] hover:scale-[var(--vlaina-scale-105)] active:scale-[var(--vlaina-scale-95)]'
+                ? 'bg-[var(--vlaina-color-pill-surface-hover)] text-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-menu-hover)] hover:text-[var(--vlaina-accent-hover)] hover:scale-[var(--vlaina-scale-105)] active:scale-[var(--vlaina-scale-95)]'
                 : canSend
-                  ? 'bg-[var(--vlaina-accent)] text-[var(--vlaina-color-white)] opacity-[var(--vlaina-opacity-60)] shadow-[var(--vlaina-shadow-selection-soft)] cursor-default'
-                : 'bg-[var(--vlaina-accent-light)] text-[var(--vlaina-color-text-soft)] cursor-default'
+                  ? 'bg-[var(--vlaina-color-pill-surface-hover)] text-[var(--vlaina-accent)] opacity-[var(--vlaina-opacity-60)] shadow-[var(--vlaina-shadow-menu-hover)] cursor-default'
+                  : 'bg-[var(--vlaina-color-pill-surface-hover)] text-[var(--vlaina-accent)] opacity-[var(--vlaina-opacity-45)] shadow-[var(--vlaina-shadow-menu-hover)] cursor-default'
             )}
           >
             <Icon name="common.send" size="md" />

@@ -259,6 +259,16 @@ describe('image markdown persistence', () => {
     );
   });
 
+  it('drops DOM image sources that point at internal note asset paths', async () => {
+    await expect(parseImageAttrsFromDom(
+      '<img src=".vlaina/assets/secret.png" alt="bad" />'
+    )).resolves.toEqual([]);
+
+    await expect(parseImageAttrsFromDom(
+      '<img src="docs/%252egit/secret.png" alt="bad" />'
+    )).resolves.toEqual([]);
+  });
+
   it('reopens paragraph-wrapped html images as image nodes', async () => {
     const markdown = [
       '<p align="center">',

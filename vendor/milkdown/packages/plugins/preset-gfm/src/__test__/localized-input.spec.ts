@@ -3,11 +3,18 @@ import type { EditorView } from '@milkdown/prose/view'
 
 import { Editor, editorViewCtx, remarkStringifyOptionsCtx } from '@milkdown/core'
 import { commonmark } from '@milkdown/preset-commonmark'
+import { Fragment, Slice } from '@milkdown/prose/model'
 import { TextSelection } from '@milkdown/prose/state'
 import { getMarkdown } from '@milkdown/utils'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 
 import { gfm } from '..'
+import { fixPastedTableHeaders } from '../node/table/input'
+import {
+  createTable,
+  MAX_CREATED_TABLE_COLS,
+  MAX_CREATED_TABLE_ROWS,
+} from '../node/table/utils'
 
 function createEditor() {
   const editor = Editor.make()
@@ -93,6 +100,29 @@ it('should create a 2x2 table from a two-cell pipe row on enter', async () => {
   expect(view.state.doc.firstChild?.firstChild?.childCount).toBe(2)
 })
 
+it('should create a pipe table without reading aggregate paragraph textContent', async () => {
+  const editor = createEditor()
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+
+  typeText(view, '|1|2|')
+  const paragraph = view.state.selection.$from.parent
+  const textBetween = vi.spyOn(paragraph, 'textBetween')
+  Object.defineProperty(paragraph, 'textContent', {
+    configurable: true,
+    get() {
+      throw new Error('aggregate paragraph textContent should not be read')
+    },
+  })
+
+  pressEnter(view)
+
+  expect(view.state.doc.firstChild?.type.name).toBe('table')
+  expect(textBetween).toHaveBeenCalledWith(0, paragraph.content.size, '', '')
+})
+
 it('should create a 3x2 table from a three-cell pipe row on enter', async () => {
   const editor = createEditor()
 
@@ -106,6 +136,70 @@ it('should create a 3x2 table from a three-cell pipe row on enter', async () => 
   expect(view.state.doc.firstChild?.type.name).toBe('table')
   expect(view.state.doc.firstChild?.childCount).toBe(2)
   expect(view.state.doc.firstChild?.firstChild?.childCount).toBe(3)
+})
+
+it('should not create a pipe table beyond the column budget', async () => {
+  const editor = createEditor()
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+
+  typeText(view, `|${Array.from({ length: MAX_CREATED_TABLE_COLS + 1 }, (_, index) => index).join('|')}|`)
+  pressEnter(view)
+
+  expect(view.state.doc.firstChild?.type.name).toBe('paragraph')
+
+  await editor.destroy()
+})
+
+it('should cap created table dimensions from oversized shortcuts and commands', async () => {
+  const editor = createEditor()
+
+  await editor.create()
+
+  const table = createTable(editor.ctx, 1000000, 1000000)
+
+  expect(table.childCount).toBe(MAX_CREATED_TABLE_ROWS)
+  expect(table.firstChild?.childCount).toBe(MAX_CREATED_TABLE_COLS)
+
+  await editor.destroy()
+})
+
+it('should fix pasted empty table headers only within the column budget', async () => {
+  const editor = createEditor()
+
+  await editor.create()
+
+  const { schema } = editor.ctx.get(editorViewCtx).state
+  const {
+    table,
+    table_cell: tableCell,
+    table_header_row: tableHeaderRow,
+    table_row: tableRow,
+  } = schema.nodes
+  const createPastedTable = (cols: number) =>
+    table.create(null, [
+      tableHeaderRow.create(),
+      tableRow.create(
+        null,
+        Array.from({ length: cols }, () => tableCell.createAndFill()!)
+      ),
+    ])
+
+  const fixed = fixPastedTableHeaders(
+    editor.ctx,
+    new Slice(Fragment.from(createPastedTable(MAX_CREATED_TABLE_COLS)), 0, 0)
+  )
+  expect(fixed.content.firstChild?.firstChild?.childCount).toBe(MAX_CREATED_TABLE_COLS)
+
+  const oversized = fixPastedTableHeaders(
+    editor.ctx,
+    new Slice(Fragment.from(createPastedTable(MAX_CREATED_TABLE_COLS + 1)), 0, 0)
+  )
+  expect(oversized.content.firstChild?.firstChild?.childCount).toBe(0)
+
+  await editor.destroy()
 })
 
 it('should serialize fullwidth strikethrough marker as standard markdown', async () => {

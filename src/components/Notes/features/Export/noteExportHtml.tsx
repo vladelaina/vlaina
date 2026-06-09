@@ -36,6 +36,8 @@ import { EXPORT_DOCUMENT_CSS, EXPORT_WIDTH_PX } from './noteExportHtmlStyles';
 
 const BASE_EXPORT_MARKDOWN_SANITIZE_SCHEMA = createMarkdownSanitizeSchema();
 const EXPORT_BLOCKED_LOADABLE_RAW_HTML_TAGS = new Set(['audio', 'iframe', 'track', 'video']);
+const MAX_EXPORT_IMAGE_DECODE_WAIT_COUNT = 200;
+export const MAX_EXPORT_IMAGE_DECODE_CONCURRENCY = 8;
 
 const NOTE_EXPORT_MARKDOWN_SANITIZE_SCHEMA = {
   ...BASE_EXPORT_MARKDOWN_SANITIZE_SCHEMA,
@@ -60,6 +62,11 @@ const NOTE_EXPORT_REHYPE_PLUGINS = [
   [rehypeKatex, KATEX_SHARED_RENDER_OPTIONS],
   rehypeKatexSourceSanitizer,
 ] as any[];
+
+interface ExportImageVisit {
+  element: Element;
+  depth: number;
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -154,21 +161,58 @@ function transformExportUrl(value: string, key: string): string {
   return value;
 }
 
+function collectExportDecodeWaitImages(container: HTMLElement): HTMLImageElement[] {
+  const images: HTMLImageElement[] = [];
+  const firstElement = container.firstElementChild;
+  if (!firstElement) {
+    return images;
+  }
+
+  const stack: ExportImageVisit[] = [{ element: firstElement, depth: 1 }];
+  while (stack.length > 0 && images.length < MAX_EXPORT_IMAGE_DECODE_WAIT_COUNT) {
+    const { element, depth } = stack.pop() as ExportImageVisit;
+    if (element instanceof HTMLImageElement) {
+      images.push(element);
+    }
+
+    const nextElement = element.nextElementSibling;
+    if (nextElement) {
+      stack.push({ element: nextElement, depth });
+    }
+
+    const firstChild = element.firstElementChild;
+    if (firstChild) {
+      stack.push({ element: firstChild, depth: depth + 1 });
+    }
+  }
+
+  return images;
+}
+
 async function waitForExportRender(container: HTMLElement): Promise<void> {
   await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
   await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
-  const images = Array.from(container.querySelectorAll('img'));
-  await Promise.all(images.map(async (image) => {
-    if (image.complete) {
-      return;
-    }
-    try {
-      await image.decode();
-    } catch {
-      // Export should still continue if a remote/local image cannot be decoded.
-    }
-  }));
+  const images = collectExportDecodeWaitImages(container);
+  let nextIndex = 0;
+  const workers = Array.from(
+    { length: Math.min(MAX_EXPORT_IMAGE_DECODE_CONCURRENCY, images.length) },
+    async () => {
+      while (nextIndex < images.length) {
+        const image = images[nextIndex]!;
+        nextIndex += 1;
+        if (image.complete) {
+          continue;
+        }
+        try {
+          await image.decode();
+        } catch {
+          // Export should still continue if a remote/local image cannot be decoded.
+        }
+      }
+    },
+  );
+  await Promise.all(workers);
 }
 
 export function NoteExportDocument({

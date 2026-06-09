@@ -4,6 +4,8 @@ import { useResizableDivider } from './shell/useResizableDivider';
 import { RESIZE_HANDLE_HALF_WIDTH } from './shell/ResizeDividerVisual';
 import { ResizeHandle } from './shell/ResizeHandle';
 
+const MAX_STORED_PANEL_WIDTH_CHARS = 16;
+
 interface ResizablePanelProps {
   children: React.ReactNode;
   defaultWidth?: number;
@@ -20,7 +22,7 @@ function clampPanelWidth(width: number, minWidth: number, maxWidth: number): num
 }
 
 function parseStoredPanelWidth(value: string | null, minWidth: number, maxWidth: number): number | null {
-  if (!value) {
+  if (!value || value.length > MAX_STORED_PANEL_WIDTH_CHARS) {
     return null;
   }
 

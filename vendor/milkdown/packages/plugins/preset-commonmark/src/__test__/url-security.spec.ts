@@ -9,8 +9,22 @@ import {
   isPublicRemoteMediaUrl,
   sanitizeMediaSrc,
 } from '../__internal__'
-import { sanitizeLinkHref, toggleLinkCommand, updateLinkCommand } from '../mark/link'
-import { insertImageCommand, sanitizeImageSrc, updateImageCommand } from '../node/image'
+import {
+  MAX_LINK_UPDATE_SCAN_NODES,
+  findFirstLinkMarkInRange,
+  MAX_LINK_TITLE_CHARS,
+  normalizeLinkTitle,
+  sanitizeLinkHref,
+  toggleLinkCommand,
+  updateLinkCommand,
+} from '../mark/link'
+import {
+  insertImageCommand,
+  MAX_IMAGE_TEXT_ATTR_CHARS,
+  normalizeImageTextAttr,
+  sanitizeImageSrc,
+  updateImageCommand,
+} from '../node/image'
 
 const maxInlineImageBytes = 10 * 1024 * 1024
 const maxUrlChars = 16 * 1024
@@ -125,6 +139,9 @@ it('sanitizes image sources consistently for schema and component editors', () =
   expect(sanitizeImageSrc('', { allowEmpty: true })).toBe('')
   expect(sanitizeImageSrc('')).toBe(null)
 
+  expect(sanitizeImageSrc('.vlaina/assets/image.png')).toBe(null)
+  expect(sanitizeImageSrc('docs/.GIT/image.png')).toBe(null)
+  expect(sanitizeImageSrc('docs/%252egit/image.png')).toBe(null)
   expect(sanitizeImageSrc('javascript:alert(1)')).toBe(null)
   expect(sanitizeImageSrc('data:image/svg+xml,<svg></svg>')).toBe(null)
   expect(sanitizeImageSrc('data:text/html;base64,PHNjcmlwdD4=')).toBe(null)
@@ -138,6 +155,12 @@ it('sanitizes image sources consistently for schema and component editors', () =
   expect(sanitizeImageSrc('/etc/passwd')).toBe(null)
   expect(sanitizeImageSrc('C:\\Users\\secret.png')).toBe(null)
   expect(sanitizeImageSrc('http://127.0.0.1:3000/image.png')).toBe(null)
+})
+
+it('bounds image text attrs consistently', () => {
+  expect(normalizeImageTextAttr('Alt')).toBe('Alt')
+  expect(normalizeImageTextAttr('x'.repeat(MAX_IMAGE_TEXT_ATTR_CHARS + 1))).toHaveLength(MAX_IMAGE_TEXT_ATTR_CHARS)
+  expect(normalizeImageTextAttr(null)).toBe('')
 })
 
 it('rejects oversized inline data image sources', () => {
@@ -258,7 +281,15 @@ it('sanitizes link hrefs consistently for schema and component editors', () => {
   expect(sanitizeLinkHref('mailto:user@example.com')).toBe('mailto:user@example.com')
   expect(sanitizeLinkHref('#heading')).toBe('#heading')
   expect(sanitizeLinkHref('../docs/readme.md')).toBe('../docs/readme.md')
+  expect(sanitizeLinkHref('.notes/readme.md')).toBe('.notes/readme.md')
 
+  expect(sanitizeLinkHref('.vlaina/workspace.md')).toBe(null)
+  expect(sanitizeLinkHref('./.vlaina/workspace.md')).toBe(null)
+  expect(sanitizeLinkHref('docs/.git/config.md')).toBe(null)
+  expect(sanitizeLinkHref('docs/.GIT/config.md')).toBe(null)
+  expect(sanitizeLinkHref('%2evlaina/workspace.md')).toBe(null)
+  expect(sanitizeLinkHref('docs/%252egit/config.md')).toBe(null)
+  expect(sanitizeLinkHref('https://example.com/.git/config.md')).toBe('https://example.com/.git/config.md')
   expect(sanitizeLinkHref('javascript:alert(1)')).toBe(null)
   expect(sanitizeLinkHref('data:text/html,alert(1)')).toBe(null)
   expect(sanitizeLinkHref('//example.com/path')).toBe(null)
@@ -266,6 +297,12 @@ it('sanitizes link hrefs consistently for schema and component editors', () => {
   expect(sanitizeLinkHref(String.raw`\\example.com\path`)).toBe(null)
   expect(sanitizeLinkHref('C:\\Users\\secret.txt')).toBe(null)
   expect(sanitizeLinkHref('https://example.com/\u202Ecod.exe')).toBe(null)
+})
+
+it('bounds link title attrs consistently', () => {
+  expect(normalizeLinkTitle('Title')).toBe('Title')
+  expect(normalizeLinkTitle('x'.repeat(MAX_LINK_TITLE_CHARS + 1))).toHaveLength(MAX_LINK_TITLE_CHARS)
+  expect(normalizeLinkTitle(null)).toBeNull()
 })
 
 it('does not add or update links with unsafe command hrefs', async () => {
@@ -295,4 +332,42 @@ it('does not add or update links with unsafe command hrefs', async () => {
   expect(findFirstLinkInView(view)).toBe('./safe.md')
 
   await editor.destroy()
+})
+
+it('stops link update scans after finding the first link mark', () => {
+  const linkType = {
+    isInSet: (marks: readonly unknown[]) => marks[0] ?? null,
+  }
+  const linkMark = { attrs: { href: './safe.md' } }
+  let accessed = 0
+  const children = [
+    {
+      childCount: 0,
+      marks: [linkMark],
+      nodeSize: 1,
+      type: { name: 'text' },
+    },
+    ...Array.from({ length: MAX_LINK_UPDATE_SCAN_NODES }, () => ({
+      childCount: 0,
+      marks: [],
+      nodeSize: 1,
+      type: { name: 'text' },
+    })),
+  ]
+  const doc = {
+    child(index: number) {
+      accessed += 1
+      return children[index]!
+    },
+    childCount: children.length,
+    content: { size: children.length },
+  }
+
+  expect(
+    findFirstLinkMarkInRange(doc as never, 0, children.length, linkType as never)
+  ).toMatchObject({
+    mark: linkMark,
+    pos: 0,
+  })
+  expect(accessed).toBe(1)
 })

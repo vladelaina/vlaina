@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   getRelativeMarkdownThemeCssImports,
+  MAX_MARKDOWN_THEME_CSS_URL_REWRITE_CONCURRENCY,
+  MAX_MARKDOWN_THEME_CSS_URL_TOKENS,
+  MAX_MARKDOWN_THEME_CSS_URL_VALUE_CHARS,
   rebaseRelativeMarkdownThemeCssUrls,
+  rewriteRelativeMarkdownThemeCssUrls,
   sanitizeImportedMarkdownThemeCss,
   sanitizeUnsafeMarkdownThemeCssUrls,
 } from './cssUrls';
@@ -54,6 +58,84 @@ describe('themeCssUrls', () => {
     expect(rebased).toContain('url("file:///downloads/./real.png")');
     expect(rebased).not.toContain('file:///downloads/./literal.png');
     expect(rebased).not.toContain('file:///downloads/./comment.png');
+  });
+
+  it('limits concurrent relative CSS URL rewrites while preserving token order', async () => {
+    const urls = Array.from(
+      { length: MAX_MARKDOWN_THEME_CSS_URL_REWRITE_CONCURRENCY + 3 },
+      (_value, index) => `./asset-${index}.png`,
+    );
+    const css = urls.map((url, index) => `.item-${index} { background: url(${url}); }`).join('\n');
+    let activeRewrites = 0;
+    let maxActiveRewrites = 0;
+    const resolveRewrites: Array<() => void> = [];
+
+    const rewriteRequest = rewriteRelativeMarkdownThemeCssUrls(
+      css,
+      '/downloads/theme.css',
+      async ({ path }) => {
+        activeRewrites += 1;
+        maxActiveRewrites = Math.max(maxActiveRewrites, activeRewrites);
+        await new Promise<void>((resolve) => {
+          resolveRewrites.push(resolve);
+        });
+        activeRewrites -= 1;
+        return `file:///rewritten/${path}`;
+      },
+    );
+
+    await vi.waitFor(() => {
+      expect(resolveRewrites).toHaveLength(MAX_MARKDOWN_THEME_CSS_URL_REWRITE_CONCURRENCY);
+    });
+    expect(maxActiveRewrites).toBeLessThanOrEqual(MAX_MARKDOWN_THEME_CSS_URL_REWRITE_CONCURRENCY);
+    for (let index = 0; index < MAX_MARKDOWN_THEME_CSS_URL_REWRITE_CONCURRENCY; index += 1) {
+      resolveRewrites.shift()?.();
+      await Promise.resolve();
+    }
+    await vi.waitFor(() => {
+      expect(resolveRewrites).toHaveLength(urls.length - MAX_MARKDOWN_THEME_CSS_URL_REWRITE_CONCURRENCY);
+    });
+    while (resolveRewrites.length > 0) {
+      resolveRewrites.shift()?.();
+      await Promise.resolve();
+    }
+
+    const rewritten = await rewriteRequest;
+    expect(maxActiveRewrites).toBeLessThanOrEqual(MAX_MARKDOWN_THEME_CSS_URL_REWRITE_CONCURRENCY);
+    urls.forEach((url, index) => {
+      expect(rewritten).toContain(`.item-${index} { background: url("file:///rewritten/${url}"); }`);
+    });
+  });
+
+  it('bounds CSS URL tokens before rewriting theme assets', async () => {
+    const css = Array.from(
+      { length: MAX_MARKDOWN_THEME_CSS_URL_TOKENS + 2 },
+      (_value, index) => `.item-${index} { background: url(./asset-${index}.png); }`,
+    ).join('\n');
+    const rewriteRequests: string[] = [];
+
+    const rewritten = await rewriteRelativeMarkdownThemeCssUrls(
+      css,
+      '/downloads/theme.css',
+      async ({ path }) => {
+        rewriteRequests.push(path);
+        return `file:///rewritten/${path}`;
+      },
+    );
+
+    expect(rewriteRequests).toHaveLength(MAX_MARKDOWN_THEME_CSS_URL_TOKENS);
+    expect(rewritten).toContain(`.item-${MAX_MARKDOWN_THEME_CSS_URL_TOKENS - 1} { background: url("file:///rewritten/./asset-${MAX_MARKDOWN_THEME_CSS_URL_TOKENS - 1}.png"); }`);
+    expect(rewritten).toContain(`.item-${MAX_MARKDOWN_THEME_CSS_URL_TOKENS} { background: url(./asset-${MAX_MARKDOWN_THEME_CSS_URL_TOKENS}.png); }`);
+  });
+
+  it('skips oversized CSS URL values during theme sanitization', () => {
+    const oversizedUrl = `javascript:${'a'.repeat(MAX_MARKDOWN_THEME_CSS_URL_VALUE_CHARS + 1)}`;
+    const css = `.oversized { background: url("${oversizedUrl}"); }\n.safe { background: url(javascript:alert(1)); }`;
+
+    const sanitized = sanitizeUnsafeMarkdownThemeCssUrls(css);
+
+    expect(sanitized).toContain(`url("${oversizedUrl}")`);
+    expect(sanitized).toContain('.safe { background: url(""); }');
   });
 
   it('does not treat longer CSS function names ending in url as url() tokens', async () => {

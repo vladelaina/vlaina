@@ -5,6 +5,7 @@ import { writeTextToClipboard } from '@/lib/clipboard';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { isRenderableDataImageSrc, normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
 import { parseVideoUrl } from '@/lib/markdown/videoUrl';
+import { scrubOverflowMarkdownDataImages } from '@/lib/markdown/overflowDataImageScrubber';
 import { fetchChatImageBlob, MAX_CHAT_IMAGE_FETCH_BYTES } from './chatImageFetch';
 import { resolveSafeChatImageSource } from './chatImageSourceResolution';
 import {
@@ -20,6 +21,7 @@ const MAX_COPY_IMAGE_SCAN_TOKENS = 2000;
 const MAX_COPY_TEXT_IMAGE_TOKENS = 1000;
 export const MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES = 2000;
 export const MAX_CHAT_MESSAGE_IMAGE_SOURCES = 1000;
+const MAX_COPY_OVERFLOW_MARKDOWN_IMAGE_TARGET_CHARS = 512 * 1024;
 
 function normalizeImageToken(token: ImageToken): ImageToken | null {
   const src = normalizeRenderableImageSrc(token.src);
@@ -85,6 +87,32 @@ export function stripMessageImageTokens(content: string, options?: ImageTokenPar
   return stripImageTokens(content, tokens);
 }
 
+function getBoundedImageTokenLimit(options?: ImageTokenParseOptions): number | null {
+  const value = options?.maxTokens;
+  if (value === undefined || value === Number.POSITIVE_INFINITY) {
+    return null;
+  }
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.max(0, Math.floor(value));
+}
+
+function scrubOverflowCopyHtmlDataImages(content: string): string {
+  return content.replace(/<img\b(?=[^>]{0,20000}\bsrc\s*=\s*(?:"data:image\/|'data:image\/|data:image\/))[^>]*>/gi, "[image]");
+}
+
+function scrubOverflowCopyMarkdownDataImages(content: string): string {
+  return scrubOverflowMarkdownDataImages(content, {
+    replacement: "[image]",
+    maxTargetChars: MAX_COPY_OVERFLOW_MARKDOWN_IMAGE_TARGET_CHARS,
+  });
+}
+
+function scrubOverflowCopyInlineDataImages(content: string): string {
+  return scrubOverflowCopyMarkdownDataImages(scrubOverflowCopyHtmlDataImages(content));
+}
+
 export function formatMessageCopyText(content: string, options?: ImageTokenParseOptions): string {
   const normalizedContent = stripThinkingContent(stripWebSearchStatusMarkup(stripErrorTags(content)));
   const tokens = normalizeImageTokens(parseMarkdownAndHtmlImageTokens(normalizedContent, options));
@@ -102,7 +130,11 @@ export function formatMessageCopyText(content: string, options?: ImageTokenParse
     cursor = token.end;
   }
   parts.push(normalizedContent.slice(cursor));
-  return parts.join("");
+  const text = parts.join("");
+  const tokenLimit = getBoundedImageTokenLimit(options);
+  return tokenLimit !== null && tokens.length >= tokenLimit
+    ? scrubOverflowCopyInlineDataImages(text)
+    : text;
 }
 
 export async function copyImageSourceToClipboard(src: string): Promise<boolean> {

@@ -1,0 +1,1 @@
+export const MAX_CHAT_MARKDOWN_RENDER_CHARS = 1024 * 1024;

@@ -1,13 +1,23 @@
 import { $nodeAttr, $nodeSchema } from '@milkdown/utils'
 
 import { withMeta } from '../__internal__'
-import { isGfmDisallowedRawHtml, isGithubHtmlBlock, sanitizeGithubHtml } from './github-html'
+import {
+  isGfmDisallowedRawHtml,
+  isGithubHtmlBlock,
+  maxGithubHtmlSanitizeChars,
+  sanitizeGithubHtml,
+} from './github-html'
 
 export const htmlAttr = $nodeAttr('html')
 
 function isGithubHtmlBlockNode(node: { githubHtmlBlock?: unknown; value?: unknown }) {
   const value = String(node.value ?? '')
   return node.githubHtmlBlock === true || (value.includes('\n') && isGithubHtmlBlock(value))
+}
+
+function getBoundedHtmlValue(value: unknown) {
+  const html = String(value ?? '')
+  return html.length <= maxGithubHtmlSanitizeChars ? html : ''
 }
 
 withMeta(htmlAttr, {
@@ -30,7 +40,7 @@ export const htmlSchema = $nodeSchema('html', (ctx) => {
       const span = document.createElement('span')
       Object.entries({
         ...ctx.get(htmlAttr.key)(node),
-        'data-value': node.attrs.value,
+        'data-value': getBoundedHtmlValue(node.attrs.value),
         'data-type': 'html',
       }).forEach(([key, value]) => {
         if (value != null) span.setAttribute(key, String(value))
@@ -45,7 +55,7 @@ export const htmlSchema = $nodeSchema('html', (ctx) => {
         tag: 'span[data-type="html"]',
         getAttrs: (dom) => {
           return {
-            value: dom.dataset.value ?? '',
+            value: getBoundedHtmlValue(dom.dataset.value),
           }
         },
       },
@@ -79,7 +89,7 @@ export const htmlBlockSchema = $nodeSchema('html_block', (ctx) => {
       const block = document.createElement('div')
       Object.entries({
         ...ctx.get(htmlAttr.key)(node),
-        'data-value': node.attrs.value,
+        'data-value': getBoundedHtmlValue(node.attrs.value),
         'data-type': 'html-block',
       }).forEach(([key, value]) => {
         if (value != null) block.setAttribute(key, String(value))
@@ -94,7 +104,7 @@ export const htmlBlockSchema = $nodeSchema('html_block', (ctx) => {
         tag: 'div[data-type="html-block"]',
         getAttrs: (dom) => {
           return {
-            value: dom.dataset.value ?? '',
+            value: getBoundedHtmlValue(dom.dataset.value),
           }
         },
       },

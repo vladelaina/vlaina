@@ -10,6 +10,7 @@ function createView(args?: {
   canReplaceWith?: boolean;
   hasMermaid?: boolean;
   coordsAtPosThrows?: boolean;
+  throwOnTextContent?: boolean;
 }) {
   const text = args?.text ?? '```mermaid';
   const parentTypeName = args?.parentTypeName ?? 'paragraph';
@@ -26,6 +27,18 @@ function createView(args?: {
     create: vi.fn((attrs: { code: string }) => ({ type: 'mermaid', attrs })),
   };
   const dispatch = vi.fn();
+  const parent = {
+    type: { name: parentTypeName },
+    textBetween: vi.fn(() => text),
+    get textContent() {
+      if (args?.throwOnTextContent) {
+        throw new Error('aggregate paragraph textContent should not be read');
+      }
+      return text;
+    },
+    content: { size: text.length },
+    nodeSize: text.length + 2,
+  };
   const view = {
     state: {
       selection: {
@@ -39,12 +52,7 @@ function createView(args?: {
           node: vi.fn(() => ({
             canReplaceWith: vi.fn(() => canReplaceWith),
           })),
-          parent: {
-            type: { name: parentTypeName },
-            textContent: text,
-            content: { size: text.length },
-            nodeSize: text.length + 2,
-          },
+          parent,
         },
       },
       schema: {
@@ -75,9 +83,10 @@ function createView(args?: {
 
 describe('mermaidEnterPlugin', () => {
   it('converts a mermaid fence into a diagram block and opens the editor', () => {
-    const { view, tr, dispatch, mermaidType } = createView();
+    const { view, tr, dispatch, mermaidType } = createView({ throwOnTextContent: true });
 
     expect(handleMermaidFenceEnter(view as never)).toBe(true);
+    expect(view.state.selection.$from.parent.textBetween).toHaveBeenCalledWith(0, 10, '', '');
     expect(mermaidType.create).toHaveBeenCalledWith({ code: '' });
     expect(tr.replaceWith).toHaveBeenCalledWith(4, 16, {
       type: 'mermaid',
@@ -138,6 +147,16 @@ describe('mermaidEnterPlugin', () => {
 
   it('does not convert normal code fences', () => {
     const { view, dispatch } = createView({ text: '```ts' });
+
+    expect(handleMermaidFenceEnter(view as never)).toBe(false);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('does not read oversized paragraph text while checking mermaid fences', () => {
+    const { view, dispatch } = createView({
+      text: 'x'.repeat(129),
+      throwOnTextContent: true,
+    });
 
     expect(handleMermaidFenceEnter(view as never)).toBe(false);
     expect(dispatch).not.toHaveBeenCalled();

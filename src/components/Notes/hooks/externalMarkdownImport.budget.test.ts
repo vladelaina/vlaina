@@ -129,6 +129,60 @@ describe('importExternalMarkdownEntries budget', () => {
     );
   });
 
+  it('stops scanning oversized top-level drops before statting every unsupported file', async () => {
+    mocks.storage.stat.mockResolvedValue({
+      isDirectory: false,
+      isFile: true,
+      size: undefined,
+    });
+
+    const paths = [
+      ...Array.from({ length: 10_050 }, (_, index) => `/outside/image-${index}.png`),
+      '/outside/alpha.md',
+    ];
+    const result = await importExternalMarkdownEntries('/vault', 'imports', paths);
+
+    expect(result).toEqual({
+      importedNotePaths: [],
+      importedFolderPaths: [],
+      didImport: false,
+    });
+    expect(mocks.storage.stat).toHaveBeenCalledTimes(10_000);
+    expect(mocks.storage.stat).not.toHaveBeenCalledWith('/outside/alpha.md');
+    expect(mocks.storage.copyFile).not.toHaveBeenCalled();
+  });
+
+  it('stops scanning oversized imported folders before processing every unsupported entry', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isDirectory: path === '/outside/docs',
+      isFile: path !== '/outside/docs',
+      size: undefined,
+    }));
+    mocks.storage.listDir.mockResolvedValue([
+      ...Array.from({ length: 10_050 }, (_, index) => ({
+        name: `image-${index}.png`,
+        isFile: true,
+        isDirectory: false,
+      })),
+      { name: 'alpha.md', isFile: true, isDirectory: false },
+    ]);
+    mocks.resolveUniquePath.mockResolvedValue({
+      relativePath: 'imports/docs',
+      fullPath: '/vault/imports/docs',
+      fileName: 'docs',
+    });
+
+    const result = await importExternalMarkdownEntries('/vault', 'imports', ['/outside/docs']);
+
+    expect(result).toEqual({
+      importedNotePaths: [],
+      importedFolderPaths: [],
+      didImport: false,
+    });
+    expect(mocks.storage.copyFile).not.toHaveBeenCalled();
+    expect(mocks.storage.deleteDir).toHaveBeenCalledWith('/vault/imports/docs', true);
+  });
+
   it('skips generated folder names case-insensitively before recursing', async () => {
     mocks.storage.stat.mockImplementation(async (path: string) => ({
       isDirectory: path === '/outside/project',

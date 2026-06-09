@@ -10,12 +10,20 @@ import {
 
 const MARKDOWN_BLANK_LINE_VALUE = '<!--vlaina-markdown-blank-line-->';
 const MARKDOWN_BLANK_LINE_SELECTOR = `[data-type="html-block"][data-value="${MARKDOWN_BLANK_LINE_VALUE}"]`;
-const EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER = '\u200B';
+export const EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER = '\u200B';
 const EDITABLE_MARKDOWN_BLANK_LINE_CLASS = 'editor-editable-markdown-blank-line';
 const MARKDOWN_BLANK_LINE_DEBUG_STORAGE_KEY = 'editor-debug-markdown-blank-line';
 const MAX_EDITABLE_MARKDOWN_BLANK_LINE_DECORATIONS = 1000;
 export const MAX_MARKDOWN_BLANK_LINE_NODE_POS_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 const editableMarkdownBlankLineDecorationsCache = new WeakMap<EditorState['doc'], DecorationSet>();
+
+export function isEditableMarkdownBlankLineNode(node: { content?: { size?: number }; textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string; type?: { name?: string } }): boolean {
+  return (
+    node.type?.name === 'paragraph' &&
+    node.content?.size === EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length &&
+    node.textBetween?.(0, EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length, '\0', '\0') === EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER
+  );
+}
 
 function resolveMarkdownBlankLineTarget(view: EditorView, target: EventTarget | null): HTMLElement | null {
   const targetElement = target instanceof HTMLElement
@@ -166,10 +174,7 @@ export function handleMarkdownBlankLineTextInput(
   if (!(selection instanceof TextSelection)) return false;
   if (selection.from !== from || selection.to !== to) return false;
   if (selection.$from.parent !== selection.$to.parent) return false;
-  if (
-    selection.$from.parent.type.name !== 'paragraph'
-    || selection.$from.parent.textContent !== EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER
-  ) return false;
+  if (!isEditableMarkdownBlankLineNode(selection.$from.parent)) return false;
 
   const paragraphStart = selection.$from.before();
   const replaceFrom = selection.empty ? paragraphStart + 1 : selection.from;
@@ -195,10 +200,7 @@ export function createEditableMarkdownBlankLineDecorations(doc: EditorState['doc
     index += 1
   ) {
     const node = doc.child(index);
-    if (
-      node.type.name === 'paragraph'
-      && node.textContent === EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER
-    ) {
+    if (isEditableMarkdownBlankLineNode(node)) {
       decorations.push(Decoration.node(offset, offset + node.nodeSize, {
         class: EDITABLE_MARKDOWN_BLANK_LINE_CLASS,
       }));

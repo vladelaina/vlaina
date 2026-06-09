@@ -3,9 +3,14 @@ import * as ProseModel from '@milkdown/kit/prose/model';
 import {
   MAX_THEME_COMPATIBILITY_DECORATIONS,
   buildCompatibilityDecorations,
+  createThemeCompatibilityDecorationRebuildController,
   docChangeMayAffectThemeCompatibilityDecorations,
   listContainsTaskItems,
 } from './themeCompatibilityDecorations';
+import {
+  MAX_THEME_COMPAT_TEXT_CONTENT_CHARS,
+  getTextContent,
+} from './themeCompatibilityDecorations/typoraTextSemantics/runs';
 
 const SchemaCtor = (ProseModel as any).Schema;
 const schema = new SchemaCtor({
@@ -158,5 +163,85 @@ describe('buildCompatibilityDecorations', () => {
     ]);
 
     expect(buildCompatibilityDecorations(doc).find()).toHaveLength(MAX_THEME_COMPATIBILITY_DECORATIONS);
+  });
+});
+
+describe('createThemeCompatibilityDecorationRebuildController', () => {
+  it('dispatches one rebuild after typing settles', () => {
+    vi.useFakeTimers();
+    const dispatchRebuild = vi.fn();
+    const controller = createThemeCompatibilityDecorationRebuildController({
+      delayMs: 160,
+      dispatchRebuild,
+    });
+
+    controller.schedule();
+    vi.advanceTimersByTime(120);
+    controller.schedule();
+    vi.advanceTimersByTime(159);
+
+    expect(dispatchRebuild).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+
+    expect(dispatchRebuild).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('drops pending rebuilds after destroy', () => {
+    vi.useFakeTimers();
+    const dispatchRebuild = vi.fn();
+    const controller = createThemeCompatibilityDecorationRebuildController({
+      delayMs: 160,
+      dispatchRebuild,
+    });
+
+    controller.schedule();
+    controller.destroy();
+    vi.advanceTimersByTime(160);
+    controller.flush();
+
+    expect(dispatchRebuild).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+});
+
+describe('getTextContent', () => {
+  it('uses bounded textBetween for ProseMirror nodes', () => {
+    const node = {
+      content: { size: MAX_THEME_COMPAT_TEXT_CONTENT_CHARS + 100 },
+      textBetween: vi.fn(() => 'body'),
+      get textContent() {
+        throw new Error('textContent should not be read');
+      },
+    };
+
+    expect(getTextContent(node)).toBe('body');
+    expect(node.textBetween).toHaveBeenCalledWith(
+      0,
+      MAX_THEME_COMPAT_TEXT_CONTENT_CHARS,
+      '\n',
+      '\n'
+    );
+  });
+
+  it('does not classify oversized whitespace prefixes as empty text', () => {
+    const node = {
+      content: { size: MAX_THEME_COMPAT_TEXT_CONTENT_CHARS + 100 },
+      textBetween: vi.fn(() => ' '.repeat(MAX_THEME_COMPAT_TEXT_CONTENT_CHARS)),
+      get textContent() {
+        throw new Error('textContent should not be read');
+      },
+    };
+
+    expect(getTextContent(node)).toBe(' ');
+  });
+
+  it('bounds fallback textContent reads when textBetween is unavailable', () => {
+    const node = {
+      textContent: 'x'.repeat(MAX_THEME_COMPAT_TEXT_CONTENT_CHARS + 1),
+    };
+
+    expect(getTextContent(node)).toHaveLength(MAX_THEME_COMPAT_TEXT_CONTENT_CHARS);
   });
 });

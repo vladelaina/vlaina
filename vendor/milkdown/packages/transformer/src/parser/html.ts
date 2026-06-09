@@ -11,6 +11,19 @@ const GFM_TYPE_7_EXCLUDED_TAGS = new Set(['script', 'style', 'pre'])
 const LOCALLY_PARSED_HTML_BLOCK_EXCLUDED_TAGS = new Set(['img'])
 const LOCALLY_PARSED_HTML_TAGS = new Set(['sup', 'sub', 'mark', 'u'])
 const RAW_HTML_TAG_TEXT_PATTERN = /<\/?[A-Za-z][A-Za-z0-9:-]*(?:\s[^<>]*)?>|&lt;\/?[A-Za-z][A-Za-z0-9:-]*(?:\s[^&<>]*)?&gt;/i
+export const MAX_INLINE_HTML_MERGE_AST_NODES = 20_000
+export const MAX_INLINE_HTML_MERGE_DEPTH = 200
+export const MAX_INLINE_HTML_MERGE_CHILDREN = 5_000
+
+interface InlineHtmlMergeContext {
+  visitedNodes: number
+}
+
+function hasInlineHtmlMergeBudget(context: InlineHtmlMergeContext, depth: number): boolean {
+  context.visitedNodes += 1
+  return context.visitedNodes <= MAX_INLINE_HTML_MERGE_AST_NODES
+    && depth <= MAX_INLINE_HTML_MERGE_DEPTH
+}
 
 function escapeHtmlText(value: string): string {
   return value
@@ -146,9 +159,20 @@ function buildInlineHtmlLookup(children: MarkdownNode[]): {
 }
 
 export function mergePairedInlineHtml(node: MarkdownNode, markdown?: string): MarkdownNode {
-  if (!Array.isArray(node.children)) return restoreRawHtmlFromSource(node, markdown)
+  return mergePairedInlineHtmlWithBudget(node, markdown, { visitedNodes: 0 }, 0)
+}
 
-  node.children = node.children.map((child) => mergePairedInlineHtml(child, markdown))
+function mergePairedInlineHtmlWithBudget(
+  node: MarkdownNode,
+  markdown: string | undefined,
+  context: InlineHtmlMergeContext,
+  depth: number
+): MarkdownNode {
+  if (!hasInlineHtmlMergeBudget(context, depth)) return node
+  if (!Array.isArray(node.children)) return restoreRawHtmlFromSource(node, markdown)
+  if (node.children.length > MAX_INLINE_HTML_MERGE_CHILDREN) return node
+
+  node.children = node.children.map((child) => mergePairedInlineHtmlWithBudget(child, markdown, context, depth + 1))
 
   const { htmlValues, matchingCloseIndexes } = buildInlineHtmlLookup(node.children)
   const mergedChildren: MarkdownNode[] = []

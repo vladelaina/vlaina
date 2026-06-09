@@ -1,6 +1,7 @@
 import {
   getImportedMarkdownThemeScopeSelector,
 } from '@/lib/markdown/theme-compatibility/dom';
+import { MAX_IMPORTED_THEME_CSS_BYTES } from '@/lib/markdown/theme-compatibility/importedThemeStorage/constants';
 import {
   readImportedMarkdownTheme,
 } from '@/lib/markdown/theme-compatibility/importedThemeStorage';
@@ -21,6 +22,7 @@ export interface CompiledImportedMarkdownThemeStyles {
 }
 
 const MAX_COMPILED_THEME_CACHE_ENTRIES = 8;
+const MAX_COMPILED_THEME_CSS_CHARS = MAX_IMPORTED_THEME_CSS_BYTES * 3;
 
 let compilerModulesPromise: Promise<MarkdownThemeCompilerModules> | null = null;
 const compiledThemeCache = new Map<string, CompiledImportedMarkdownThemeStyles>();
@@ -85,6 +87,16 @@ function rememberCompiledTheme(
   return compiled;
 }
 
+function assertCompiledThemeCssSafe(compiled: CompiledImportedMarkdownThemeStyles): void {
+  if (
+    compiled.markdownCss.length > MAX_COMPILED_THEME_CSS_CHARS ||
+    compiled.appCss.length > MAX_COMPILED_THEME_CSS_CHARS ||
+    compiled.postBridgeCss.length > MAX_COMPILED_THEME_CSS_CHARS
+  ) {
+    throw new Error('Imported markdown theme CSS output is too large.');
+  }
+}
+
 export function preloadMarkdownThemeCompiler(): void {
   void loadMarkdownThemeCompilerModules();
 }
@@ -136,7 +148,7 @@ export async function compileImportedMarkdownThemeStyles(
     buildImportedMarkdownThemePostBridgeCss,
   }) => {
     const sanitizedCss = sanitizeImportedMarkdownThemeCss(theme.css);
-    return rememberCompiledTheme(cacheKey, {
+    const compiled = {
       id: theme.id,
       markdownCss: scopeImportedMarkdownThemeCss(
         sanitizedCss,
@@ -145,7 +157,9 @@ export async function compileImportedMarkdownThemeStyles(
       ),
       appCss: buildImportedAppThemeCss(sanitizedCss, theme.id, theme.platform),
       postBridgeCss: buildImportedMarkdownThemePostBridgeCss(theme.id, theme.platform),
-    });
+    };
+    assertCompiledThemeCssSafe(compiled);
+    return rememberCompiledTheme(cacheKey, compiled);
   }).finally(() => {
     inFlightCompilations.delete(cacheKey);
   });

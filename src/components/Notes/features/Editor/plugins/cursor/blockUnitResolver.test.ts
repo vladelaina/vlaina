@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   MAX_BLOCK_UNIT_DOM_RANGE_RECTS,
+  MAX_SELECTABLE_BLOCK_RANGE_SCAN_NODES,
+  MAX_SELECTABLE_BLOCK_RANGES,
   collectMovableBlockTargetRanges,
   collectSelectableBlockRanges,
   mapRangesToSelectableBlocks,
@@ -13,6 +15,8 @@ import {
 interface MockNode {
   type: { name: string };
   nodeSize: number;
+  child?: (index: number) => MockNode;
+  childCount?: number;
   forEach: (cb: (child: MockNode, offset: number) => void) => void;
 }
 
@@ -42,6 +46,20 @@ function createDoc(children: MockNode[]) {
       }
     },
   };
+}
+
+function createIndexedDoc(children: MockNode[]) {
+  const nodeSize = 2 + children.reduce((total, node) => total + node.nodeSize, 0);
+  const doc = {
+    ...createNode('doc', nodeSize, children),
+    ...createDoc(children),
+  } as MockNode & ReturnType<typeof createDoc> & {
+    child: (index: number) => MockNode;
+    childCount: number;
+  };
+  doc.childCount = children.length;
+  doc.child = vi.fn((index: number) => children[index]);
+  return doc;
 }
 
 function createStructuredDoc() {
@@ -125,6 +143,31 @@ describe('collectSelectableBlockRanges', () => {
       { from: 1, to: 7 },
       { from: 7, to: 11 },
     ]);
+  });
+
+  it('caps generated selectable ranges for oversized documents', () => {
+    const children = Array.from(
+      { length: MAX_SELECTABLE_BLOCK_RANGES + 10 },
+      () => createNode('paragraph', 4),
+    );
+    const doc = createIndexedDoc(children);
+
+    expect(collectSelectableBlockRanges(doc as any)).toHaveLength(MAX_SELECTABLE_BLOCK_RANGES);
+    expect(doc.child).toHaveBeenCalledTimes(MAX_SELECTABLE_BLOCK_RANGES);
+  });
+
+  it('caps child scans for oversized non-selectable list containers', () => {
+    const children = Array.from(
+      { length: MAX_SELECTABLE_BLOCK_RANGE_SCAN_NODES + 10 },
+      () => createNode('paragraph', 4),
+    );
+    const list = createIndexedDoc(children);
+    list.type = { name: 'bullet_list' };
+    list.nodeSize = 2 + children.reduce((total, child) => total + child.nodeSize, 0);
+    const doc = createIndexedDoc([list]);
+
+    expect(collectSelectableBlockRanges(doc as any)).toEqual([]);
+    expect(list.child).toHaveBeenCalledTimes(MAX_SELECTABLE_BLOCK_RANGE_SCAN_NODES - 1);
   });
 });
 

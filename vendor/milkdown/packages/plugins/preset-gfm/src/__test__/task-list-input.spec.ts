@@ -5,6 +5,7 @@ import {
   editorViewCtx,
   remarkStringifyOptionsCtx,
 } from '@milkdown/core'
+import { DOMParser as ProseDOMParser } from '@milkdown/prose/model'
 import type { EditorView } from '@milkdown/prose/view'
 import { commonmark } from '@milkdown/preset-commonmark'
 import { getMarkdown } from '@milkdown/utils'
@@ -87,4 +88,22 @@ it.each([
 
   const markdown = editor.action(getMarkdown())
   expect(markdown).toBe(expected)
+})
+
+it('should bound task list DOM attrs when parsing pasted HTML', async () => {
+  const editor = createEditor()
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  const container = document.createElement('div')
+  container.innerHTML = `<ul><li data-item-type="task" data-label="${'1'.repeat(128)}" data-list-type="${'x'.repeat(64)}" data-checked="true"><p>todo</p></li></ul>`
+  const doc = ProseDOMParser.fromSchema(view.state.schema).parse(container)
+  const listItem = doc.firstChild?.firstChild
+
+  expect(listItem?.attrs.label).toBe('•')
+  expect(listItem?.attrs.listType).toBe('bullet')
+  expect(listItem?.attrs.checked).toBe(true)
+
+  await editor.destroy()
 })

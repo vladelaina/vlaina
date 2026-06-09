@@ -17,6 +17,7 @@ const mermaidRenderPromiseCache = new Map<string, Promise<string>>();
 const mermaidLazyObservers = new WeakMap<HTMLElement, IntersectionObserver>();
 const disposedMermaidElements = new WeakSet<HTMLElement>();
 const MAX_MERMAID_RENDER_CODE_CHARS = 20_000;
+export const MAX_LEGACY_MERMAID_DATA_CODE_CHARS = 100_000;
 
 function escapeHtmlText(value: string): string {
   return value
@@ -63,7 +64,13 @@ function setMermaidElementCode(element: HTMLElement, code: string) {
 }
 
 export function getMermaidElementCode(element: HTMLElement) {
-  return mermaidElementCode.get(element) ?? element.dataset.code ?? '';
+  const code = mermaidElementCode.get(element);
+  if (code != null) return code;
+
+  const legacyCode = element.dataset.code ?? '';
+  return legacyCode.length > MAX_LEGACY_MERMAID_DATA_CODE_CHARS
+    ? legacyCode.slice(0, MAX_LEGACY_MERMAID_DATA_CODE_CHARS)
+    : legacyCode;
 }
 
 function getMermaidRenderCode(sourceCode: string) {

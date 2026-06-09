@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   joinSerializedBlocks,
   normalizeAlternativeMathBlockFences,
@@ -30,6 +30,12 @@ describe('stripTrailingNewlines', () => {
 });
 
 describe('normalizeEscapedUrlSchemes', () => {
+  it('keeps the same string when no escaped URL scheme is present', () => {
+    const markdown = 'plain note text without escaped URL schemes';
+
+    expect(normalizeEscapedUrlSchemes(markdown)).toBe(markdown);
+  });
+
   it('removes markdown escaping from URL scheme separators', () => {
     expect(normalizeEscapedUrlSchemes('http\\://example.test:8317')).toBe(
       'http://example.test:8317'
@@ -101,6 +107,12 @@ describe('normalizeAlternativeMathBlockFences', () => {
 });
 
 describe('normalizeMarkdownAutolinkLiterals', () => {
+  it('keeps the same string when no autolink literal is present', () => {
+    const markdown = 'plain note text without markdown autolinks';
+
+    expect(normalizeMarkdownAutolinkLiterals(markdown)).toBe(markdown);
+  });
+
   it('unwraps markdown autolink URL literals outside protected content', () => {
     expect(
       normalizeMarkdownAutolinkLiterals('export GOOGLE_GEMINI_BASE_URL="<http://example.test:8317>"')
@@ -322,6 +334,49 @@ describe('restoreMathBlockFenceStylesFromReference', () => {
     const reference = ['\\[', 'x^2', '\\]'].join('\n');
 
     expect(restoreMathBlockFenceStylesFromReference(serialized, reference)).toBe(serialized);
+  });
+
+  it('keeps repeated unmatched dollar math openers on a bounded restore path', () => {
+    const serialized = [
+      ...Array.from({ length: 500 }, (_value, index) => ['$$', `unclosed ${index}`].join('\n')),
+      '$$',
+      'x^2',
+      '$$',
+    ].join('\n');
+    const reference = ['\\[', 'x^2', '\\]'].join('\n');
+
+    expect(restoreMathBlockFenceStylesFromReference(serialized, reference)).toContain('\\[\nx^2\n\\]');
+  });
+
+  it('restores sparse math fences without allocating match slots for every line', () => {
+    const originalArrayFrom = Array.from;
+    const serialized = [
+      'Before',
+      ...Array.from({ length: 500 }, (_value, index) => `line ${index}`),
+      '$$',
+      'x^2',
+      '$$',
+      'After',
+    ].join('\n');
+    const reference = ['\\[', 'x^2', '\\]'].join('\n');
+
+    const arrayFromSpy = vi.spyOn(Array, 'from').mockImplementation(((items: unknown, ...args: unknown[]) => {
+      if (
+        typeof items === 'object'
+        && items !== null
+        && 'length' in items
+        && Number((items as { length: unknown }).length) > 100
+      ) {
+        throw new Error('unexpected dense line allocation');
+      }
+      return originalArrayFrom(items as Iterable<unknown> | ArrayLike<unknown>, ...(args as []));
+    }) as typeof Array.from);
+
+    try {
+      expect(restoreMathBlockFenceStylesFromReference(serialized, reference)).toContain('\\[\nx^2\n\\]');
+    } finally {
+      arrayFromSpy.mockRestore();
+    }
   });
 });
 
@@ -612,6 +667,18 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(normalizeSerializedMarkdownDocument(markdown)).toContain('\\\ncontinued 0.');
   });
 
+  it('does not fast-path large documents with setext heading markers', () => {
+    const paragraph = 'This is a long plain paragraph for large markdown normalization. '.repeat(200);
+    const markdown = [
+      'Large Setext Document\n===',
+      '',
+      ...Array.from({ length: 90 }, (_value, index) => `Paragraph ${index}. ${paragraph}`),
+    ].join('\n\n');
+
+    expect(markdown.length).toBeGreaterThan(1_000_000);
+    expect(normalizeSerializedMarkdownDocument(markdown)).toContain('Large Setext Document\n===');
+  });
+
   it('canonicalizes empty atx headings so they reopen as headings', () => {
     expect(
       normalizeSerializedMarkdownDocument(['#', '##', '', 'Body'].join('\n'))
@@ -679,6 +746,22 @@ describe('normalizeSerializedMarkdownDocument', () => {
 
   it('does not convert escaped bracket display math fence lines into hard breaks', () => {
     const markdown = ['Before', '', '\\[\\', 'x^2\\', ']', '', 'After'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
+  it('keeps long bracket-only display math blocks on a bounded soft-break scan path', () => {
+    const markdown = [
+      'Before',
+      '',
+      '[',
+      'plain text ]',
+      ...Array.from({ length: 500 }, (_value, index) => `line ${index} ]`),
+      'x^2',
+      ']',
+      '',
+      'After',
+    ].join('\n');
 
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
@@ -756,6 +839,9 @@ describe('normalizeSerializedMarkdownDocument', () => {
       normalizeSerializedMarkdownDocument('- parent\n    - \u2800\n    - child\n')
     ).toBe('- parent\n\n    - child\n');
     expect(
+      normalizeSerializedMarkdownDocument('- parent\n    - \\\u2800\n    - child\n')
+    ).toBe('- parent\n\n    - child\n');
+    expect(
       normalizeSerializedMarkdownDocument('- one\n<br data-vlaina-list-gap="true"/>\n- two\n')
     ).toBe('- one\n\n- two\n');
     expect(
@@ -769,6 +855,18 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(
       normalizeSerializedMarkdownDocument('- one\n<br date-vlainalist-gap="true"/>\n- two\n')
     ).toBe('- one\n\n- two\n');
+  });
+
+  it('normalizes editable list gap placeholders across long blank runs', () => {
+    const markdown = [
+      '- before',
+      ...Array.from({ length: 500 }, () => ''),
+      '- \u2800',
+      ...Array.from({ length: 500 }, () => ''),
+      '- after',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe('- before\n\n- after');
   });
 
   it('does not rewrite placeholder-like text inside fenced code', () => {

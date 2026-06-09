@@ -5,6 +5,20 @@ import { $nodeSchema } from '@milkdown/utils'
 import { withMeta } from '../__internal__/meta'
 
 export const IMAGE_DATA_TYPE = 'image-block'
+export const MAX_IMAGE_BLOCK_CAPTION_CHARS = 4096
+export const MAX_IMAGE_BLOCK_RATIO = 100
+
+export function normalizeImageBlockCaption(value: unknown) {
+  return typeof value === 'string'
+    ? value.slice(0, MAX_IMAGE_BLOCK_CAPTION_CHARS)
+    : ''
+}
+
+export function normalizeImageBlockRatio(value: unknown) {
+  const ratio = typeof value === 'number' ? value : Number(value ?? 1)
+  if (!Number.isFinite(ratio) || ratio <= 0) return 1
+  return Math.min(ratio, MAX_IMAGE_BLOCK_RATIO)
+}
 
 export const imageBlockSchema = $nodeSchema('image-block', () => {
   return {
@@ -31,8 +45,8 @@ export const imageBlockSchema = $nodeSchema('image-block', () => {
 
           return {
             src,
-            caption: dom.getAttribute('caption') || '',
-            ratio: Number(dom.getAttribute('ratio') ?? 1),
+            caption: normalizeImageBlockCaption(dom.getAttribute('caption')),
+            ratio: normalizeImageBlockRatio(dom.getAttribute('ratio')),
           }
         },
       },
@@ -41,7 +55,13 @@ export const imageBlockSchema = $nodeSchema('image-block', () => {
       const src = sanitizeImageSrc(node.attrs.src)
       return [
         'img',
-        { 'data-type': IMAGE_DATA_TYPE, ...node.attrs, src: src ?? undefined },
+        {
+          'data-type': IMAGE_DATA_TYPE,
+          ...node.attrs,
+          src: src ?? undefined,
+          caption: normalizeImageBlockCaption(node.attrs.caption),
+          ratio: normalizeImageBlockRatio(node.attrs.ratio),
+        },
       ]
     },
     parseMarkdown: {
@@ -49,9 +69,8 @@ export const imageBlockSchema = $nodeSchema('image-block', () => {
       runner: (state, node, type) => {
         const src = sanitizeImageSrc(node.url)
         if (!src) return
-        const caption = node.title as string
-        let ratio = Number((node.alt as string) || 1)
-        if (Number.isNaN(ratio) || ratio === 0) ratio = 1
+        const caption = normalizeImageBlockCaption(node.title)
+        const ratio = normalizeImageBlockRatio(node.alt)
 
         state.addNode(type, {
           src,
@@ -67,9 +86,9 @@ export const imageBlockSchema = $nodeSchema('image-block', () => {
         if (!src) return
         state.openNode('paragraph')
         state.addNode('image', undefined, undefined, {
-          title: node.attrs.caption,
+          title: normalizeImageBlockCaption(node.attrs.caption),
           url: src,
-          alt: `${Number.parseFloat(node.attrs.ratio).toFixed(2)}`,
+          alt: `${normalizeImageBlockRatio(node.attrs.ratio).toFixed(2)}`,
         })
         state.closeNode()
       },

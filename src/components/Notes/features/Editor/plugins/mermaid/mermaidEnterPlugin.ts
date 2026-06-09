@@ -7,6 +7,8 @@ import { createMermaidFenceStarterCode } from './mermaidFenceCode';
 import { parseMermaidFenceLanguage } from './mermaidLanguage';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
 
+const MAX_MERMAID_FENCE_SHORTCUT_TEXT_CHARS = 128;
+
 function markMermaidUserInput(view: EditorView): void {
   view.dom?.dispatchEvent?.(new CustomEvent('editor:block-user-input', { bubbles: true }));
 }
@@ -48,7 +50,12 @@ export function handleMermaidFenceEnter(view: EditorView): boolean {
     return false;
   }
 
-  const fenceLanguage = parseMermaidFenceLanguage($from.parent.textContent);
+  if ($from.parent.content.size > MAX_MERMAID_FENCE_SHORTCUT_TEXT_CHARS) {
+    return false;
+  }
+
+  const shortcutText = $from.parent.textBetween(0, $from.parent.content.size, '', '');
+  const fenceLanguage = parseMermaidFenceLanguage(shortcutText);
   if (fenceLanguage === null) {
     return false;
   }

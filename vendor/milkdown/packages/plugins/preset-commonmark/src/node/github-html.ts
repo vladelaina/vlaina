@@ -125,6 +125,7 @@ const allowedStyleProperties = new Set([
 const srcsetDescriptorPattern = /^\d+(?:\.\d+)?(?:w|x)$/
 const maxGithubHtmlAttributeValueChars = 16 * 1024
 const maxGithubSrcsetCandidates = 128
+export const maxGithubHtmlSanitizeChars = 2 * 1024 * 1024
 const maxSanitizeDepth = 200
 const maxSanitizeNodes = 20_000
 
@@ -150,6 +151,40 @@ function isAllowedAttribute(tagName: string, attributeName: string) {
 
 function isHtmlAttributeValueAllowed(value: string) {
   return value.length <= maxGithubHtmlAttributeValueChars
+}
+
+function isSrcsetWhitespace(char: string) {
+  return /\s/.test(char)
+}
+
+function getSrcsetCandidateParts(candidate: string): readonly [string, string?] | null {
+  let index = 0
+  while (index < candidate.length && isSrcsetWhitespace(candidate[index]))
+    index += 1
+
+  const sourceStart = index
+  while (index < candidate.length && !isSrcsetWhitespace(candidate[index]))
+    index += 1
+  if (sourceStart === index)
+    return null
+
+  const source = candidate.slice(sourceStart, index)
+  while (index < candidate.length && isSrcsetWhitespace(candidate[index]))
+    index += 1
+  if (index >= candidate.length)
+    return [source]
+
+  const descriptorStart = index
+  while (index < candidate.length && !isSrcsetWhitespace(candidate[index]))
+    index += 1
+  const descriptor = candidate.slice(descriptorStart, index)
+
+  while (index < candidate.length && isSrcsetWhitespace(candidate[index]))
+    index += 1
+  if (index < candidate.length)
+    return null
+
+  return [source, descriptor]
 }
 
 function sanitizeStyle(value: string) {
@@ -232,6 +267,8 @@ function normalizeUrl(value: string, protocols: ReadonlySet<string>, options: { 
   if (relativeProtocolMarkers.has(marker)) {
     if (trimmed.startsWith('//') && options.allowProtocolRelative === false)
       return null
+    if (!trimmed.startsWith('//') && hasInternalImageUrlPathSegment(trimmed))
+      return null
     if (options.blockLocalNetwork && trimmed.startsWith('//') && isLocalNetworkHttpUrl(`https:${trimmed}`))
       return null
     if (trimmed.startsWith('//'))
@@ -252,16 +289,29 @@ function normalizeSrcset(value: string) {
 
   const trimmed = value.trimStart()
   if (!trimmed || controlOrBidiPattern.test(trimmed)) return null
-  const candidates = trimmed.split(',').map((candidate) => candidate.trim()).filter(Boolean)
-  if (candidates.length === 0 || candidates.length > maxGithubSrcsetCandidates) return null
-  for (const candidate of candidates) {
-    const [source, ...descriptors] = candidate.split(/\s+/).filter(Boolean)
-    if (!source || hasProtocol(source) || source.startsWith('//') || normalizeUrl(source, mediaProtocols, { blockLocalNetwork: true, allowPlainRelative: true }) !== source)
+
+  let candidateStart = 0
+  let candidateCount = 0
+  for (let index = 0; index <= trimmed.length; index += 1) {
+    if (index < trimmed.length && trimmed[index] !== ',')
+      continue
+
+    const candidate = trimmed.slice(candidateStart, index).trim()
+    candidateStart = index + 1
+    if (!candidate)
+      continue
+
+    candidateCount += 1
+    if (candidateCount > maxGithubSrcsetCandidates)
       return null
-    if (descriptors.length > 1 || (descriptors[0] && !srcsetDescriptorPattern.test(descriptors[0])))
+
+    const parts = getSrcsetCandidateParts(candidate)
+    if (!parts || hasProtocol(parts[0]) || parts[0].startsWith('//') || normalizeUrl(parts[0], mediaProtocols, { blockLocalNetwork: true, allowPlainRelative: true }) !== parts[0])
+      return null
+    if (parts[1] && !srcsetDescriptorPattern.test(parts[1]))
       return null
   }
-  return trimmed
+  return candidateCount > 0 ? trimmed : null
 }
 
 function sanitizeChildren(source: Element | DocumentFragment, target: Element | DocumentFragment, context: SanitizeContext, depth: number) {
@@ -269,6 +319,22 @@ function sanitizeChildren(source: Element | DocumentFragment, target: Element | 
     const sanitized = sanitizeNode(child, context, depth)
     if (sanitized) target.appendChild(sanitized)
   }
+}
+
+function hasSanitizedSourceWithSrc(element: Element, context: SanitizeContext) {
+  const stack = Array.from(element.children)
+  while (stack.length > 0 && hasSanitizeBudget(context)) {
+    const child = stack.pop()
+    if (!child)
+      continue
+
+    if (child.tagName.toLowerCase() === 'source' && child.hasAttribute('src'))
+      return true
+
+    for (let index = child.children.length - 1; index >= 0; index -= 1)
+      stack.push(child.children[index])
+  }
+  return false
 }
 
 function sanitizeElement(element: Element, context: SanitizeContext, depth: number): Node | null {
@@ -331,7 +397,7 @@ function sanitizeElement(element: Element, context: SanitizeContext, depth: numb
       sanitized.setAttribute('referrerpolicy', 'no-referrer')
   }
   sanitizeChildren(element, sanitized, context, depth + 1)
-  if ((tagName === 'video' || tagName === 'audio') && !sanitized.hasAttribute('src') && !sanitized.querySelector('source[src]'))
+  if ((tagName === 'video' || tagName === 'audio') && !sanitized.hasAttribute('src') && !hasSanitizedSourceWithSrc(sanitized, context))
     return null
   return sanitized
 }
@@ -369,6 +435,9 @@ export function isGfmDisallowedRawHtml(value: string) {
 }
 
 export function sanitizeGithubHtml(value: string) {
+  if (value.length > maxGithubHtmlSanitizeChars)
+    return ''
+
   const template = document.createElement('template')
   template.innerHTML = prepareGithubRawHtmlForSanitizer(value, {
     gfmDisallowedRawHtmlTags,

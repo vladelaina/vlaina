@@ -13,6 +13,14 @@ import { parse } from './__internal__/parse'
 import { twemojiPlugin } from './__internal__/remark-twemoji'
 import { withMeta } from './__internal__/with-meta'
 
+export const maxEmojiHtmlChars = 4096
+
+export function normalizeEmojiHtml(value: unknown): string {
+  return typeof value === 'string' && value.length <= maxEmojiHtmlChars
+    ? value
+    : ''
+}
+
 /// HTML attributes for emoji node.
 export const emojiAttr = $nodeAttr('emoji', () => ({
   span: {},
@@ -37,14 +45,14 @@ export const emojiSchema = $nodeSchema('emoji', (ctx) => ({
       getAttrs: (dom) => {
         if (!(dom instanceof HTMLElement)) throw expectDomTypeError(dom)
 
-        return { html: dom.innerHTML }
+        return { html: normalizeEmojiHtml(dom.innerHTML) }
       },
     },
   ],
   toDOM: (node) => {
     const attrs = ctx.get(emojiAttr.key)(node)
     const tmp = document.createElement('span')
-    tmp.innerHTML = DOMPurify.sanitize(node.attrs.html)
+    tmp.innerHTML = DOMPurify.sanitize(normalizeEmojiHtml(node.attrs.html))
 
     const firstChild = tmp.firstChild
     if (!firstChild) {
@@ -64,14 +72,14 @@ export const emojiSchema = $nodeSchema('emoji', (ctx) => ({
   parseMarkdown: {
     match: ({ type }) => type === 'emoji',
     runner: (state, node, type) => {
-      state.addNode(type, { html: node.value as string })
+      state.addNode(type, { html: normalizeEmojiHtml(node.value) })
     },
   },
   toMarkdown: {
     match: (node) => node.type.name === 'emoji',
     runner: (state, node) => {
       const span = document.createElement('span')
-      span.innerHTML = node.attrs.html
+      span.innerHTML = normalizeEmojiHtml(node.attrs.html)
       const img = span.querySelector('img')
       const title = img?.title || img?.alt
       span.remove()

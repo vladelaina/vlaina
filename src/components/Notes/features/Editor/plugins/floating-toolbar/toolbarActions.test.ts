@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { createToolbarActionController } from './toolbarActions';
+import {
+  MAX_SELECTED_CODE_BLOCK_DOM_SCAN_NODES,
+  createToolbarActionController,
+  getSelectedCodeBlockDom,
+} from './toolbarActions';
 import { NOTES_COPY_FEEDBACK_DURATION_MS } from '../shared/copyFeedback';
 import type { BlockRange } from '../cursor/blockSelectionUtils';
 
@@ -216,5 +220,46 @@ describe('toolbarActions copy feedback', () => {
     expect(view.dispatch).not.toHaveBeenCalled();
 
     controller.destroy();
+  });
+});
+
+describe('getSelectedCodeBlockDom', () => {
+  it('stops scanning once the selected code block is found', () => {
+    let accessed = 0;
+    const codeBlockDom = document.createElement('div');
+    const nodes = [
+      {
+        attrs: { collapsed: false },
+        content: { size: 3 },
+        nodeSize: 5,
+        type: { name: 'code_block' },
+      },
+      ...Array.from({ length: MAX_SELECTED_CODE_BLOCK_DOM_SCAN_NODES }, () => ({
+        attrs: {},
+        content: { size: 1 },
+        nodeSize: 3,
+        type: { name: 'paragraph' },
+      })),
+    ];
+    const doc = {
+      childCount: nodes.length,
+      content: { size: nodes.reduce((size, node) => size + node.nodeSize, 0) },
+      child(index: number) {
+        accessed += 1;
+        return nodes[index];
+      },
+      nodesBetween() {
+        throw new Error('nodesBetween should not be used for real document scans');
+      },
+      type: { name: 'doc' },
+    };
+    const view = {
+      state: { doc },
+      nodeDOM: vi.fn(() => codeBlockDom),
+    };
+
+    expect(getSelectedCodeBlockDom(view as any, 1, 4)).toBe(codeBlockDom);
+    expect(accessed).toBe(1);
+    expect(view.nodeDOM).toHaveBeenCalledWith(0);
   });
 });

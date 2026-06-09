@@ -17,6 +17,7 @@ import { createMarkdownComponents } from "@/components/Chat/features/Markdown/ma
 import { canAnimateChatStreamContent, useChatStreamBlocks } from "@/components/Chat/features/Markdown/chatStreamTextAnimation";
 import { createChatStreamTextPlugin } from "@/components/Chat/features/Markdown/chatStreamTextPlugin";
 import { getChatContentWidth } from "@/components/Chat/features/Layout/chatWidthBuckets";
+import { MAX_CHAT_MARKDOWN_RENDER_CHARS } from "@/components/Chat/features/Markdown/chatMarkdownRenderLimits";
 import { PrimerLightbulbIcon } from "@/components/ui/icons/custom/mit/PrimerLightbulbIcon";
 import {
   addChatSelectionStreamFreezeListener,
@@ -24,12 +25,52 @@ import {
 import { themeDomStyleTokens, themeIconTokens, themeStyleResetTokens, themeUiFeedbackTokens } from "@/styles/themeTokens";
 import "@/components/common/markdown/markdownSurface.css";
 
-function getActiveSelectionTextLength(): number {
+function rangeHasSelectedText(range: Range): boolean {
+  const root = range.commonAncestorContainer;
+  if (root.nodeType === Node.TEXT_NODE) {
+    const text = root.textContent ?? '';
+    const start = root === range.startContainer ? range.startOffset : 0;
+    const end = root === range.endContainer ? range.endOffset : text.length;
+    return /\S/.test(text.slice(start, end));
+  }
+
+  const ownerDocument = root.ownerDocument ?? document;
+  const walker = ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    try {
+      if (!range.intersectsNode(node)) {
+        continue;
+      }
+    } catch {
+      continue;
+    }
+
+    const text = node.textContent ?? '';
+    const start = node === range.startContainer ? range.startOffset : 0;
+    const end = node === range.endContainer ? range.endOffset : text.length;
+    if (/\S/.test(text.slice(start, end))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function hasActiveSelectionText(): boolean {
   const selection = window.getSelection();
   if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
-    return 0;
+    return false;
   }
-  return selection.toString().length;
+  for (let index = 0; index < selection.rangeCount; index += 1) {
+    try {
+      if (rangeHasSelectedText(selection.getRangeAt(index))) {
+        return true;
+      }
+    } catch {
+      return true;
+    }
+  }
+  return false;
 }
 
 function selectionIntersectsElement(element: Element | null): boolean {
@@ -91,6 +132,14 @@ const StreamingThinkingMarkdownBlock = memo(function StreamingThinkingMarkdownBl
     }],
   ], [block.births, block.charDelay, block.nowMs, block.revealed]);
 
+  if (block.content.length > MAX_CHAT_MARKDOWN_RENDER_CHARS) {
+    return (
+      <div data-chat-markdown-too-large="true" className="whitespace-pre-wrap">
+        {block.content}
+      </div>
+    );
+  }
+
   return (
     <ReactMarkdown
       remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
@@ -116,6 +165,14 @@ const ThinkingMarkdownContent = memo(function ThinkingMarkdownContent({
     () => createMarkdownComponents(componentOptions),
     [componentOptions, renderedThinking],
   );
+
+  if (renderedThinking.length > MAX_CHAT_MARKDOWN_RENDER_CHARS) {
+    return (
+      <div data-chat-markdown-too-large="true" className="whitespace-pre-wrap">
+        {renderedThinking}
+      </div>
+    );
+  }
 
   if (!isStreaming) {
     return (
@@ -327,7 +384,7 @@ export function ThinkingBlock({
       releaseSelectionFreeze('not-streaming');
       return;
     }
-    if (getActiveSelectionTextLength() > 0) {
+    if (hasActiveSelectionText()) {
       return;
     }
     releaseSelectionFreezeTimeoutRef.current = window.setTimeout(() => {
@@ -379,8 +436,7 @@ export function ThinkingBlock({
     }
 
     const selection = window.getSelection();
-    const selectedTextLength = selection?.toString().length ?? 0;
-    if (!selection || selection.isCollapsed || selection.rangeCount === 0 || selectedTextLength === 0) {
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0 || !hasActiveSelectionText()) {
       clearReleaseSelectionFreezeTimeout();
       releaseSelectionFreeze('collapsed');
       return;

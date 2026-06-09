@@ -12,7 +12,7 @@ export function collapseSyntheticBlankLinesAroundEmptyPlaceholders(text: string)
   return mapMarkdownOutsideProtectedSegments(text, (segment) => {
     const lines = segment.split('\n');
     const output: string[] = [];
-    const hasContentAfterIndex = getContentAfterIndexLookup(lines);
+    const lastContentIndex = getLastContentIndex(lines);
     let hasPreviousContent = false;
 
     for (let index = 0; index < lines.length; index += 1) {
@@ -37,7 +37,7 @@ export function collapseSyntheticBlankLinesAroundEmptyPlaceholders(text: string)
 
       output.push(line);
 
-      if (hasContentAfterIndex[index]) {
+      if (index < lastContentIndex) {
         while (index + 1 < lines.length && (lines[index + 1] ?? '').trim() === '') {
           index += 1;
         }
@@ -48,16 +48,11 @@ export function collapseSyntheticBlankLinesAroundEmptyPlaceholders(text: string)
   });
 }
 
-function getContentAfterIndexLookup(lines: readonly string[]): boolean[] {
-  const hasContentAfterIndex = Array.from({ length: lines.length }, () => false);
-  let hasContentAfter = false;
-
+function getLastContentIndex(lines: readonly string[]): number {
   for (let index = lines.length - 1; index >= 0; index -= 1) {
-    hasContentAfterIndex[index] = hasContentAfter;
     if ((lines[index] ?? '').trim() !== '') {
-      hasContentAfter = true;
+      return index;
     }
   }
-
-  return hasContentAfterIndex;
+  return -1;
 }

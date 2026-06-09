@@ -2,16 +2,20 @@ import '@testing-library/jest-dom/vitest'
 import type { EditorView } from '@milkdown/prose/view'
 
 import { defaultValueCtx, Editor, editorViewCtx } from '@milkdown/core'
-import { expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 
 import { commonmark } from '..'
-import { isGithubHtmlBlock, sanitizeGithubHtml } from '../node/github-html'
+import { isGithubHtmlBlock, maxGithubHtmlSanitizeChars, sanitizeGithubHtml } from '../node/github-html'
 
 function createEditor() {
   const editor = Editor.make()
   editor.use(commonmark)
   return editor
 }
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 const htmlInBlockquote = {
   name: 'htmlInBlockquote',
@@ -69,6 +73,14 @@ it('should keep safe bare relative source srcset candidates in github html', () 
   )
 
   expect(result).toContain('srcset="safe.webp 1x, safe@2x.webp 2x"')
+})
+
+it('should keep media with sanitized source src without querying the subtree', () => {
+  const querySelector = vi.spyOn(Element.prototype, 'querySelector')
+  const result = sanitizeGithubHtml('<audio><source src="https://example.com/safe.mp3"></audio>')
+
+  expect(result).toBe('<audio><source src="https://example.com/safe.mp3"></audio>')
+  expect(querySelector).not.toHaveBeenCalled()
 })
 
 it('should reject unsafe source srcset descriptors in github html', () => {
@@ -153,6 +165,33 @@ it('should keep plain relative links in github html', () => {
   ].join(''))
 
   expect(result).toBe('<a href="readme.md">readme</a><a href="docs/readme.md">docs</a><a href="/docs/readme.md">root</a><img>')
+})
+
+it('should drop internal relative link paths in github html', () => {
+  const result = sanitizeGithubHtml([
+    '<a href=".vlaina/workspace.md">vlaina</a>',
+    '<a href="./.vlaina/workspace.md">nested vlaina</a>',
+    '<a href="docs/.git/config.md">git</a>',
+    '<a href="docs/%252egit/config.md">encoded git</a>',
+    '<blockquote cite=".vlaina/source.md">quote</blockquote>',
+    '<q cite="docs/.GIT/source.md">inline quote</q>',
+    '<a href=".notes/public.md">notes</a>',
+    '<blockquote cite=".notes/source.md">safe quote</blockquote>',
+  ].join(''))
+
+  expect(result).toBe([
+    '<a>vlaina</a>',
+    '<a>nested vlaina</a>',
+    '<a>git</a>',
+    '<a>encoded git</a>',
+    '<blockquote>quote</blockquote>',
+    '<q>inline quote</q>',
+    '<a href=".notes/public.md">notes</a>',
+    '<blockquote cite=".notes/source.md">safe quote</blockquote>',
+  ].join(''))
+  expect(result).not.toContain('.vlaina')
+  expect(result).not.toContain('.git')
+  expect(result).not.toContain('%252egit')
 })
 
 it('should drop parser-promoted descendants from sanitizer-only remove-content raw html tags', () => {
@@ -297,6 +336,29 @@ it('should drop oversized github html attribute values before expensive parsing'
   expect(template.content.querySelector('source')?.hasAttribute('srcset')).toBe(false)
   expect(template.content.querySelector('iframe')?.getAttribute('sandbox')).toBe('allow-scripts')
   expect(result).not.toContain(oversized)
+})
+
+it('should skip oversized github html before DOM parsing', () => {
+  const payload = `${'x'.repeat(2 * 1024 * 1024 + 1)}<img src="https://example.com/a.png">`
+
+  expect(sanitizeGithubHtml(payload)).toBe('')
+})
+
+it('should not write oversized raw html into editor data attributes', async () => {
+  const editor = createEditor()
+  const oversizedHtml = `<img alt="${'x'.repeat(maxGithubHtmlSanitizeChars + 1)}">`
+  editor.config((ctx) => {
+    ctx.set(defaultValueCtx, oversizedHtml)
+  })
+
+  await editor.create()
+
+  const htmlNode = editor.ctx.get(editorViewCtx).dom.querySelector('[data-type="html"]')
+  expect(htmlNode).toBeInTheDocument()
+  expect(htmlNode?.getAttribute('data-value')).toBe('')
+  expect(editor.ctx.get(editorViewCtx).dom.innerHTML).not.toContain('x'.repeat(1024))
+
+  await editor.destroy()
 })
 
 it('should keep GFM-disallowed raw html as escaped source text', () => {

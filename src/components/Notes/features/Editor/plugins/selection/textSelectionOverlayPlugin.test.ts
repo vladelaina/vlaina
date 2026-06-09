@@ -7,6 +7,7 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import type { MilkdownPlugin } from '@milkdown/kit/ctx';
 import {
   addTextSelectionOverlayDecorations,
+  createTextSelectionDecorationState,
   getNativeSelectionMetrics,
   TEXT_SELECTION_OVERLAY_CLASS,
   textSelectionOverlayPlugin,
@@ -530,6 +531,18 @@ describe('textSelectionOverlayPlugin', () => {
     view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
 
     expect(view.dom.querySelectorAll(`.${TEXT_SELECTION_OVERLAY_CLASS}`)).toHaveLength(1000);
+  });
+
+  it('caps text selection overlay node scans', async () => {
+    const view = await createEditor(Array.from({ length: 8 }, (_, index) => `line ${index}`).join('\n\n'));
+
+    view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
+
+    const capped = createTextSelectionDecorationState(view.state, 4);
+    const complete = createTextSelectionDecorationState(view.state, 100);
+
+    expect(capped.decorationCount).toBeLessThan(complete.decorationCount);
+    expect(complete.decorationCount).toBe(8);
   });
 
   it('clears stale native browser ranges for editor select-all overlay selections', async () => {

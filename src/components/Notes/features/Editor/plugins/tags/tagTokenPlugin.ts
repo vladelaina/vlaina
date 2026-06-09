@@ -8,6 +8,12 @@ import {
   STOP_PROSE_SCAN,
   scanProseDescendants,
 } from '../shared/boundedProseNodeScan';
+import {
+  transactionChangedParentTextMatches,
+  transactionInsertedTextMatches,
+  transactionTouchesDecorations,
+  type DecorationSetLike,
+} from '../shared/transactionStepText';
 
 export const tagTokenPluginKey = new PluginKey<DecorationSet>('editorTagToken');
 
@@ -18,6 +24,7 @@ export const MAX_TAG_TOKEN_DECORATIONS = 1000;
 export const MAX_TAG_TOKEN_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 const MAX_TAG_TOKEN_CHARS = 128;
 export const MAX_TAG_TOKEN_EDGE_RECTS = 1024;
+const TAG_TOKEN_TRIGGER_TEXT_PATTERN = /#/u;
 
 export function resolveTagTokenEdgeOffset(
   token: HTMLElement,
@@ -120,13 +127,29 @@ export function createTagTokenDecorations(doc: any): DecorationSet {
     : DecorationSet.empty;
 }
 
+export function transactionMayAffectTagTokenDecorations(
+  previous: DecorationSetLike,
+  tr: unknown,
+  doc: any,
+): boolean {
+  return transactionInsertedTextMatches(tr, TAG_TOKEN_TRIGGER_TEXT_PATTERN)
+    || transactionTouchesDecorations(previous, tr)
+    || transactionChangedParentTextMatches(doc, tr, TAG_TOKEN_TRIGGER_TEXT_PATTERN);
+}
+
 export const tagTokenPlugin = $prose(() => new Plugin({
   key: tagTokenPluginKey,
   state: {
     init: (_config, state) => createTagTokenDecorations(state.doc),
-    apply: (tr, previous) => tr.docChanged
-      ? createTagTokenDecorations(tr.doc)
-      : previous,
+    apply: (tr, previous) => {
+      if (!tr.docChanged) {
+        return previous;
+      }
+      if (!transactionMayAffectTagTokenDecorations(previous, tr, tr.doc)) {
+        return previous.map(tr.mapping, tr.doc);
+      }
+      return createTagTokenDecorations(tr.doc);
+    },
   },
   props: {
     decorations(state) {

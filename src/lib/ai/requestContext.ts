@@ -7,6 +7,13 @@ import {
   replaceImageTokens,
   type ImageToken,
 } from '@/lib/markdown/markdownImageTokens';
+import {
+  getInlineCodeRanges,
+  getNonFencedContentRanges,
+  getRangeEndAtOffset,
+  isOffsetInRanges,
+  type ContentRange,
+} from '@/lib/markdown/markdownRanges';
 import { parseVideoUrl } from '@/lib/markdown/videoUrl';
 import { normalizeApiTranscriptMessages } from './apiTranscript';
 
@@ -18,6 +25,7 @@ const MAX_REQUEST_MESSAGE_CHARS = 6000;
 const MAX_TRANSCRIPT_FIELD_CHARS = 1200;
 const MAX_REQUEST_JSON_DEPTH = 8;
 const MAX_REQUEST_HISTORY_IMAGE_TOKENS = 2000;
+const MAX_REQUEST_HISTORY_HTML_TAG_SCAN_MARKERS = 4000;
 const CONTENT_TRUNCATION_MARKER = '\n[Earlier content omitted]\n';
 
 export function formatTimeByOffset(offset: number, now = new Date()): string {
@@ -46,11 +54,125 @@ function shouldReplaceHistoryImageToken(token: ImageToken): boolean {
   return !token.src || !parseVideoUrl(token.src);
 }
 
+function countNeedleOccurrences(content: string, needle: string, limit: number): number {
+  let count = 0;
+  let cursor = 0;
+  while (count <= limit) {
+    const index = content.indexOf(needle, cursor);
+    if (index === -1) return count;
+    count += 1;
+    cursor = index + needle.length;
+  }
+  return count;
+}
+
+function scrubOverflowHistoryHtmlImages(content: string): string {
+  return content.replace(/<img\b[^>]{0,20000}>/gi, IMAGE_PLACEHOLDER);
+}
+
+function scrubOverflowHistoryMarkdownImages(content: string): string {
+  let output = '';
+  let cursor = 0;
+
+  for (const range of getNonFencedContentRanges(content)) {
+    output += content.slice(cursor, range.start);
+    output += scrubOverflowHistoryMarkdownImagesInRange(content, range);
+    cursor = range.end;
+  }
+
+  output += content.slice(cursor);
+  return output;
+}
+
+function scrubOverflowHistoryMarkdownImagesInRange(content: string, range: ContentRange): string {
+  const inlineCodeRanges = getInlineCodeRanges(content, range);
+  let output = '';
+  let cursor = range.start;
+
+  while (cursor < range.end) {
+    const start = content.indexOf('![', cursor);
+    if (start === -1 || start >= range.end) {
+      output += content.slice(cursor, range.end);
+      break;
+    }
+
+    if (isOffsetInRanges(start, inlineCodeRanges)) {
+      const inlineCodeEnd = getRangeEndAtOffset(start, inlineCodeRanges) ?? start + 2;
+      output += content.slice(cursor, inlineCodeEnd);
+      cursor = inlineCodeEnd;
+      continue;
+    }
+
+    if (start > 0 && content[start - 1] === '\\') {
+      output += content.slice(cursor, start + 2);
+      cursor = start + 2;
+      continue;
+    }
+
+    const labelEnd = content.indexOf('](', start + 2);
+    if (labelEnd === -1 || labelEnd >= range.end || labelEnd - start > 512) {
+      output += content.slice(cursor, start + 2);
+      cursor = start + 2;
+      continue;
+    }
+
+    const targetEnd = content.indexOf(')', labelEnd + 2);
+    if (targetEnd === -1 || targetEnd >= range.end || targetEnd - labelEnd > 4096) {
+      if (targetEnd !== -1 && targetEnd < range.end && isHistoryMarkdownImageTargetAt(content, labelEnd + 2)) {
+        output += content.slice(cursor, start);
+        output += IMAGE_PLACEHOLDER;
+        cursor = targetEnd + 1;
+      } else {
+        output += content.slice(cursor, start + 2);
+        cursor = start + 2;
+      }
+      continue;
+    }
+
+    output += content.slice(cursor, start);
+    output += IMAGE_PLACEHOLDER;
+    cursor = targetEnd + 1;
+  }
+
+  return output;
+}
+
+function isHistoryMarkdownImageTargetAt(content: string, targetStart: number): boolean {
+  let cursor = targetStart;
+  while (cursor < content.length && /\s/.test(content[cursor])) {
+    cursor += 1;
+  }
+  if (content[cursor] === '<') {
+    cursor += 1;
+    while (cursor < content.length && /\s/.test(content[cursor])) {
+      cursor += 1;
+    }
+  }
+  return (
+    content.slice(cursor, cursor + 'data:image/'.length).toLowerCase() === 'data:image/' ||
+    content.slice(cursor, cursor + 'attachment://'.length).toLowerCase() === 'attachment://' ||
+    content.slice(cursor, cursor + 'app-file://'.length).toLowerCase() === 'app-file://' ||
+    content.slice(cursor, cursor + 'file://'.length).toLowerCase() === 'file://'
+  );
+}
+
+function scrubOverflowHistoryImageSyntax(content: string): string {
+  return scrubOverflowHistoryMarkdownImages(scrubOverflowHistoryHtmlImages(content));
+}
+
 function replaceHistoryImageTokens(content: string): string {
   const tokens = parseMarkdownAndHtmlImageTokens(content, {
     maxTokens: MAX_REQUEST_HISTORY_IMAGE_TOKENS,
   }).filter(shouldReplaceHistoryImageToken);
-  return replaceImageTokens(content, tokens, IMAGE_PLACEHOLDER);
+  const replaced = replaceImageTokens(content, tokens, IMAGE_PLACEHOLDER);
+  if (
+    tokens.length >= MAX_REQUEST_HISTORY_IMAGE_TOKENS ||
+    countNeedleOccurrences(content, '![', MAX_REQUEST_HISTORY_IMAGE_TOKENS) > MAX_REQUEST_HISTORY_IMAGE_TOKENS ||
+    countNeedleOccurrences(content.toLowerCase(), '<', MAX_REQUEST_HISTORY_HTML_TAG_SCAN_MARKERS) > MAX_REQUEST_HISTORY_HTML_TAG_SCAN_MARKERS
+  ) {
+    return scrubOverflowHistoryImageSyntax(replaced);
+  }
+  return replaced;
 }
 
 function getHistoryContentText(value: unknown): string {

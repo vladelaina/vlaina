@@ -6,6 +6,7 @@ interface TableShortcutSchema {
 }
 
 const pipeCellPattern = /[|｜]/;
+export const MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS = 1024;
 
 function isNode(node: ProseMirrorNode | null | undefined): node is ProseMirrorNode {
   return node != null;
@@ -18,6 +19,8 @@ export function getPipeShortcutColumnCount(text: string): number | null {
 }
 
 export function getPipeShortcutCells(text: string): string[] | null {
+  if (text.length > MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS) return null;
+
   const trimmed = text.trim();
   if (!trimmed.startsWith('|') && !trimmed.startsWith('｜')) return null;
   if (!trimmed.endsWith('|') && !trimmed.endsWith('｜')) return null;
@@ -28,6 +31,18 @@ export function getPipeShortcutCells(text: string): string[] | null {
     .map((cell) => cell.trim());
 
   return cells.length >= 2 ? cells : null;
+}
+
+export function shouldCreateTableFromPipeShortcut(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('|') && !trimmed.startsWith('｜')) return false;
+  if (!trimmed.endsWith('|') && !trimmed.endsWith('｜')) return false;
+
+  const rawCells = trimmed.split(pipeCellPattern).slice(1, -1);
+  const nonEmptyCells = rawCells.filter((cell) => cell.trim().length > 0);
+  if (nonEmptyCells.length < 2) return false;
+
+  return nonEmptyCells.every((cell) => cell === cell.trim());
 }
 
 export function createEmptyTableNode(schema: TableShortcutSchema, columnCount: number): ProseMirrorNode | null {

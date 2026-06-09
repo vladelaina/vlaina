@@ -12,7 +12,7 @@ import { ChatLoading } from '@/components/Chat/features/Messages/components/Chat
 import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/ai/types';
-import { parseErrorTag } from '@/lib/ai/errorTag';
+import { parseErrorTag, stripFirstErrorTag } from '@/lib/ai/errorTag';
 import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { useAccountSessionStore } from '@/stores/accountSession';
@@ -35,8 +35,6 @@ interface ChatImageGalleryItem {
 type ChatImageGalleryGetter = () => ChatImageGalleryItem[];
 const TAIL_ANCHOR_THRESHOLD = 2;
 const STREAM_SCROLL_IDLE_MS = 180;
-const ERROR_TAG_REGEX = /<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/i;
-
 interface RenderedMessageRow {
   message: ChatMessage;
   originalIndex: number;
@@ -59,7 +57,7 @@ function isPureManagedAuthErrorMessage(message: ChatMessage): boolean {
     return false;
   }
 
-  const contentWithoutError = message.content.replace(ERROR_TAG_REGEX, '');
+  const contentWithoutError = stripFirstErrorTag(message.content);
   return stripThinkingContent(contentWithoutError).trim().length === 0;
 }
 

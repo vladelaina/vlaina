@@ -7,6 +7,9 @@ export interface UserFacingAIError {
   message: string
 }
 
+export const MAX_USER_FACING_AI_ERROR_MESSAGE_CHARS = 8192
+export const MAX_USER_FACING_AI_ERROR_CODE_CHARS = 512
+
 const NETWORK_ERROR_MESSAGE = 'Network connection error. Please check your connection and try again.'
 const TIMEOUT_ERROR_MESSAGE = 'The request timed out. Please try again later.'
 const AUTH_ERROR_MESSAGE = 'Your sign-in session has expired. Please sign in again and try again.'
@@ -46,14 +49,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function extractErrorMessage(error: unknown): string {
   if (error instanceof Error) {
-    return error.message
+    return error.message.slice(0, MAX_USER_FACING_AI_ERROR_MESSAGE_CHARS)
   }
 
   if (isRecord(error) && typeof error.message === 'string') {
-    return error.message
+    return error.message.slice(0, MAX_USER_FACING_AI_ERROR_MESSAGE_CHARS)
   }
 
-  return String(error || '')
+  return String(error || '').slice(0, MAX_USER_FACING_AI_ERROR_MESSAGE_CHARS)
 }
 
 function extractErrorDetails(error: unknown): string {
@@ -62,7 +65,7 @@ function extractErrorDetails(error: unknown): string {
   }
 
   const details = error.details
-  return typeof details === 'string' ? details : ''
+  return typeof details === 'string' ? details.slice(0, MAX_USER_FACING_AI_ERROR_MESSAGE_CHARS) : ''
 }
 
 function extractErrorCode(error: unknown): string {
@@ -74,7 +77,7 @@ function extractErrorCode(error: unknown): string {
   for (const key of ['errorCode', 'code'] as const) {
     const codeValue = error[key]
     if (typeof codeValue === 'string' && codeValue.trim()) {
-      return codeValue.trim()
+      return codeValue.trim().slice(0, MAX_USER_FACING_AI_ERROR_CODE_CHARS)
     }
   }
 
@@ -83,7 +86,7 @@ function extractErrorCode(error: unknown): string {
     return String(value)
   }
   if (typeof value === 'string' && value.trim()) {
-    return value.trim()
+    return value.trim().slice(0, MAX_USER_FACING_AI_ERROR_CODE_CHARS)
   }
 
   const matched = extractErrorMessage(error).match(/\b(?:status|http)\s+(\d{3})\b/i)

@@ -270,6 +270,18 @@ describe('callout editor behavior', () => {
     });
   });
 
+  it('drops unsafe optional callout icon color metadata from DOM', async () => {
+    await expect(parseCalloutAttrsFromDom((callout) => {
+      callout.dataset.icon = JSON.stringify({
+        type: 'icon',
+        value: 'icon:star',
+        color: 'red\u202Ecod.exe',
+      });
+    })).resolves.toMatchObject({
+      icon: { type: 'icon', value: 'icon:star' },
+    });
+  });
+
   it('keeps ordinary numbered blockquotes as blockquotes instead of callouts', async () => {
     const editor = createEditor('> 1. Keep this as a quoted list item');
     await editor.create();

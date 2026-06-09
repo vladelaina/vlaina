@@ -18,6 +18,15 @@ export function canHighlightPrismCode(value: string) {
   return value.length <= MAX_PRISM_CODE_CHARS
 }
 
+export function readHighlightablePrismCode(node: Node) {
+  if (node.content.size > MAX_PRISM_CODE_CHARS) {
+    return null
+  }
+
+  const code = node.textBetween(0, node.content.size, '\n', '\n')
+  return canHighlightPrismCode(code) ? code : null
+}
+
 export function flatNodes(nodes: RootContent[], className: string[] = []) {
   const output: FlattedNode[] = []
   const stack = [{ nodes, index: 0, className, depth: 0 }]
@@ -72,8 +81,8 @@ export function getDecorations(doc: Node, name: string, refractor: Refractor) {
       )
       return
     }
-    const code = block.node.textContent
-    if (!canHighlightPrismCode(code)) {
+    const code = readHighlightablePrismCode(block.node)
+    if (code == null) {
       return
     }
 

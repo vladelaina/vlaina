@@ -15,7 +15,7 @@ import {
     serializeCropValue,
 } from './plugins/image-block/utils/imageSourceFragment';
 import { normalizeImageAlignment } from './plugins/image-block/utils/imageNodeAttrs';
-import { getMarkdownHtmlImageAttrs } from './markdownHtmlImage';
+import { getMarkdownHtmlImageAttrs, normalizeMarkdownHtmlImageTextAttr } from './markdownHtmlImage';
 import { escapeHtmlAttr, getDomAttrs, mergeDomClassNames, updateSchemaFactory } from './themeSchemaUtils';
 
 export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
@@ -118,8 +118,10 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
                     if (!safeSrc) return false;
                     return {
                         src: safeSrc,
-                        alt: dom.getAttribute('alt'),
-                        title: dom.getAttribute('title'),
+                        alt: normalizeMarkdownHtmlImageTextAttr(dom.getAttribute('alt')),
+                        title: dom.hasAttribute('title')
+                            ? normalizeMarkdownHtmlImageTextAttr(dom.getAttribute('title'))
+                            : null,
                         align: normalizeImageAlignment(dom.getAttribute('align')) || 'center',
                         width: normalizeImageWidth(dom.getAttribute('width')),
                         crop: parseCropValue(dom.getAttribute('data-vlaina-crop')),
@@ -151,8 +153,10 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
                 if (!safeSrc) return;
                 state.addNode(type, {
                     src: safeSrc,
-                    alt: node.alt || '',
-                    title: node.title || null,
+                    alt: normalizeMarkdownHtmlImageTextAttr(node.alt),
+                    title: typeof node.title === 'string'
+                        ? normalizeMarkdownHtmlImageTextAttr(node.title)
+                        : null,
                     align: 'center',
                     width: null,
                     crop: null,
@@ -177,10 +181,11 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
                 if (hasCustomWidth) attrs.push(`width="${escapeHtmlAttr(safeWidth)}"`);
                 if (hasCustomAlign) attrs.push(`align="${escapeHtmlAttr(effectiveAlign)}"`);
                 if (safeCrop) attrs.push(`data-vlaina-crop="${escapeHtmlAttr(safeCrop)}"`);
-                if (title) attrs.push(`title="${escapeHtmlAttr(title)}"`);
+                const safeTitle = normalizeMarkdownHtmlImageTextAttr(title);
+                if (safeTitle) attrs.push(`title="${escapeHtmlAttr(safeTitle)}"`);
 
                 const attrsStr = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
-                const altStr = escapeHtmlAttr(alt || '');
+                const altStr = escapeHtmlAttr(normalizeMarkdownHtmlImageTextAttr(alt));
 
                 state.addNode('html', undefined, `<img src="${srcStr}" alt="${altStr}"${attrsStr} />`);
             }

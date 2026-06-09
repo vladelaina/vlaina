@@ -3,7 +3,7 @@ import type { Ctx } from '@milkdown/ctx'
 import { commandsCtx } from '@milkdown/core'
 import { expectDomTypeError } from '@milkdown/exception'
 import { joinBackward } from '@milkdown/prose/commands'
-import { Fragment, Slice } from '@milkdown/prose/model'
+import { Fragment, type Node as ProseNode, Slice } from '@milkdown/prose/model'
 import { canSplit } from '@milkdown/prose/transform'
 import {
   liftListItem,
@@ -13,6 +13,16 @@ import { type Command, Selection, TextSelection } from '@milkdown/prose/state'
 import { $command, $nodeAttr, $nodeSchema, $useKeymap } from '@milkdown/utils'
 
 import { withMeta } from '../__internal__'
+
+export const MAX_SPLIT_LIST_ITEM_SELECTION_SCAN_NODES = 2_000
+export const MAX_LIST_ITEM_LABEL_ATTR_CHARS = 64
+export const MAX_LIST_ITEM_TYPE_ATTR_CHARS = 32
+
+export function normalizeListItemStringAttr(value: unknown, fallback: string, maxChars: number) {
+  return typeof value === 'string' && value.length > 0 && value.length <= maxChars
+    ? value
+    : fallback
+}
 
 /// HTML attributes for list item node.
 export const listItemAttr = $nodeAttr('listItem')
@@ -48,8 +58,8 @@ export const listItemSchema = $nodeSchema('list_item', (ctx) => ({
         if (!(dom instanceof HTMLElement)) throw expectDomTypeError(dom)
 
         return {
-          label: dom.dataset.label,
-          listType: dom.dataset.listType,
+          label: normalizeListItemStringAttr(dom.dataset.label, '•', MAX_LIST_ITEM_LABEL_ATTR_CHARS),
+          listType: normalizeListItemStringAttr(dom.dataset.listType, 'bullet', MAX_LIST_ITEM_TYPE_ATTR_CHARS),
           spread: dom.dataset.spread === 'true',
         }
       },
@@ -194,6 +204,42 @@ function getNextListItemAttrs(attrs: Record<string, unknown>) {
   }
 }
 
+export function findNextEmptyTextblockSelectionPos(
+  doc: ProseNode,
+  start: number,
+  maxScanNodes = MAX_SPLIT_LIST_ITEM_SELECTION_SCAN_NODES
+) {
+  let scannedNodes = 0
+  const stack: Array<{ node: ProseNode; pos: number }> = []
+
+  let docOffset = doc.content.size
+  for (let index = doc.childCount - 1; index >= 0; index -= 1) {
+    const child = doc.child(index)
+    docOffset -= child.nodeSize
+    stack.push({ node: child, pos: docOffset })
+  }
+
+  while (stack.length > 0 && scannedNodes < maxScanNodes) {
+    const { node, pos } = stack.pop()!
+    if (pos + node.nodeSize < start) continue
+    scannedNodes += 1
+
+    if (node.isTextblock && node.content.size === 0) {
+      return pos + 1
+    }
+    if (node.isTextblock) continue
+
+    let childOffset = node.content.size
+    for (let index = node.childCount - 1; index >= 0; index -= 1) {
+      const child = node.child(index)
+      childOffset -= child.nodeSize
+      stack.push({ node: child, pos: pos + 1 + childOffset })
+    }
+  }
+
+  return -1
+}
+
 function splitListItemPreservingAttrs(ctx: Ctx): Command {
   return (state, dispatch) => {
     const { $from, $to, node } = state.selection as typeof state.selection & {
@@ -246,12 +292,7 @@ function splitListItemPreservingAttrs(ctx: Ctx): Command {
           new Slice(wrap, 4 - depthBefore, 0)
         )
 
-        let sel = -1
-        tr.doc.nodesBetween(start, tr.doc.content.size, (node, pos) => {
-          if (sel > -1) return false
-          if (node.isTextblock && node.content.size === 0) sel = pos + 1
-          return undefined
-        })
+        const sel = findNextEmptyTextblockSelectionPos(tr.doc, start)
 
         if (sel > -1) tr.setSelection(Selection.near(tr.doc.resolve(sel)))
         dispatch(tr.scrollIntoView())

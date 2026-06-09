@@ -1,6 +1,27 @@
 import { closePairSpecs, openPairSpecs } from './pairSpecs';
 import type { AutoInsertedCloser, EditorStateLike, SelectionLike } from './pairTypes';
 
+const MAX_AUTO_PAIR_RECOVERY_SCAN_CHARS = 4096;
+
+type TextblockLike = SelectionLike['$from']['parent'];
+
+function getTextBetween(
+  parent: TextblockLike,
+  from: number,
+  to: number,
+): string {
+  if (to <= from) return '';
+  return parent.textBetween(from, to, '\0', '\0');
+}
+
+function dedupeRecoveredClosers(entries: AutoInsertedCloser[]): AutoInsertedCloser[] {
+  const deduped = new Map<string, AutoInsertedCloser>();
+  entries.forEach((entry) => {
+    deduped.set(`${entry.pos}:${entry.close}`, entry);
+  });
+  return Array.from(deduped.values()).sort((a, b) => a.pos - b.pos);
+}
+
 function findMatchingOpenOffset(
   text: string,
   closeOffset: number,
@@ -52,18 +73,22 @@ export function recoverSelectionAutoClosers(
 
   const { $from, from } = newState.selection;
   if (!$from.parent.isTextblock) return [];
-  const text = $from.parent.textContent;
+
+  const parentSize = $from.parent.content.size;
   const entries: AutoInsertedCloser[] = [];
   const textStart = from - $from.parentOffset;
 
-  if ($from.parentOffset < text.length) {
-    const close = text[$from.parentOffset];
+  if ($from.parentOffset < parentSize) {
+    const close = getTextBetween($from.parent, $from.parentOffset, $from.parentOffset + 1);
     if (closePairSpecs.has(close)) {
-      const openOffset = findMatchingOpenOffset(text, $from.parentOffset, 0);
+      const scanStart = Math.max(0, $from.parentOffset - MAX_AUTO_PAIR_RECOVERY_SCAN_CHARS);
+      const scanText = getTextBetween($from.parent, scanStart, $from.parentOffset + 1);
+      const closeOffset = $from.parentOffset - scanStart;
+      const openOffset = findMatchingOpenOffset(scanText, closeOffset, 0);
       if (openOffset >= 0) {
         entries.push({ close, pos: from });
       } else if ($from.parentOffset > 0) {
-        const open = text[$from.parentOffset - 1];
+        const open = getTextBetween($from.parent, $from.parentOffset - 1, $from.parentOffset);
         const spec = openPairSpecs.get(open);
         if (spec?.close === close) {
           entries.push({ close, pos: from });
@@ -73,17 +98,19 @@ export function recoverSelectionAutoClosers(
   }
 
   if ($from.parentOffset > 0) {
-    const previousChar = text[$from.parentOffset - 1];
+    const previousChar = getTextBetween($from.parent, $from.parentOffset - 1, $from.parentOffset);
     if (closePairSpecs.has(previousChar)) {
       entries.push({ close: previousChar, pos: from - 1 });
     }
 
+    const scanStart = Math.max(0, $from.parentOffset - MAX_AUTO_PAIR_RECOVERY_SCAN_CHARS);
+    const scanText = getTextBetween($from.parent, scanStart, $from.parentOffset);
     entries.push(
-      ...recoverTrailingNestedClosers(text, textStart, 0, $from.parentOffset),
+      ...recoverTrailingNestedClosers(scanText, textStart + scanStart, 0, scanText.length),
     );
   }
 
-  return entries;
+  return dedupeRecoveredClosers(entries);
 }
 
 export function findRecoverableAutoCloserFromSelection(
@@ -94,23 +121,30 @@ export function findRecoverableAutoCloserFromSelection(
   const { $from, from } = selection;
   if (!$from.parent.isTextblock) return null;
 
-  const text = $from.parent.textContent;
-  for (let offset = $from.parentOffset; offset < text.length; offset += 1) {
-    const close = text[offset];
+  const parentSize = $from.parent.content.size;
+  const forwardEnd = Math.min(parentSize, $from.parentOffset + MAX_AUTO_PAIR_RECOVERY_SCAN_CHARS);
+  const forwardText = getTextBetween($from.parent, $from.parentOffset, forwardEnd);
+  for (let offset = 0; offset < forwardText.length; offset += 1) {
+    const close = forwardText[offset];
     if (!closePairSpecs.has(close)) continue;
 
-    const openOffset = findMatchingOpenOffset(text, offset, 0);
-    if (openOffset >= 0 && openOffset < $from.parentOffset) {
-      return { close, pos: from + (offset - $from.parentOffset) };
+    const scanStart = Math.max(0, $from.parentOffset - MAX_AUTO_PAIR_RECOVERY_SCAN_CHARS);
+    const absoluteCloseOffset = $from.parentOffset + offset;
+    const scanText = getTextBetween($from.parent, scanStart, absoluteCloseOffset + 1);
+    const openOffset = findMatchingOpenOffset(scanText, absoluteCloseOffset - scanStart, 0);
+    if (openOffset >= 0 && openOffset + scanStart < $from.parentOffset) {
+      return { close, pos: from + offset };
     }
   }
 
   if ($from.parentOffset > 0) {
     const previousOffset = $from.parentOffset - 1;
-    const close = text[previousOffset];
+    const close = getTextBetween($from.parent, previousOffset, $from.parentOffset);
     if (closePairSpecs.has(close)) {
-      const openOffset = findMatchingOpenOffset(text, previousOffset, 0);
-      if (openOffset >= 0 && openOffset < previousOffset) {
+      const scanStart = Math.max(0, previousOffset - MAX_AUTO_PAIR_RECOVERY_SCAN_CHARS);
+      const scanText = getTextBetween($from.parent, scanStart, $from.parentOffset);
+      const openOffset = findMatchingOpenOffset(scanText, previousOffset - scanStart, 0);
+      if (openOffset >= 0 && openOffset + scanStart < previousOffset) {
         return { close, pos: from - 1 };
       }
     }

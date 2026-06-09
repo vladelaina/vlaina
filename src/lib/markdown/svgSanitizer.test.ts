@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
+  MAX_SVG_SANITIZE_BYTES,
   MAX_SVG_SANITIZE_MARKUP_CHARS,
+  sanitizeSvgBytes,
   sanitizeSvgMarkup,
 } from './svgSanitizer';
 
@@ -57,5 +59,16 @@ describe('svgSanitizer', () => {
     const markup = 'x'.repeat(MAX_SVG_SANITIZE_MARKUP_CHARS + 1);
 
     expect(sanitizeSvgMarkup(markup)).toBe('');
+  });
+
+  it('drops oversized SVG bytes before decoding them', () => {
+    const decode = vi.spyOn(TextDecoder.prototype, 'decode');
+
+    try {
+      expect(sanitizeSvgBytes(new Uint8Array(MAX_SVG_SANITIZE_BYTES + 1))).toHaveLength(0);
+      expect(decode).not.toHaveBeenCalled();
+    } finally {
+      decode.mockRestore();
+    }
   });
 });

@@ -4,6 +4,10 @@ import { isStandaloneMarkdownThemeCss } from '../platformDetection';
 import type { ImportedMarkdownThemeMetadata } from '../types';
 import { cachedThemeCssExists, deleteImportedThemeFiles } from './cssAssets';
 import {
+  MAX_IMPORTED_THEME_CSS_BYTES,
+  MAX_IMPORTED_THEME_DIRECTORY_CSS_FILES,
+} from './constants';
+import {
   findThemeBySourcePath,
   getCssThemeEntries,
   getThemeSourceSignature,
@@ -47,7 +51,9 @@ export async function syncImportedMarkdownThemesFromDirectory(): Promise<Importe
 
   const existingThemes = await readThemeIndex();
   const entries = await storage.listDir(directoryPath);
-  const cssEntries = getCssThemeEntries(entries);
+  const cssEntries = getCssThemeEntries(entries)
+    .filter((entry) => typeof entry.size === 'number' && entry.size <= MAX_IMPORTED_THEME_CSS_BYTES)
+    .slice(0, MAX_IMPORTED_THEME_DIRECTORY_CSS_FILES);
   const sourcePaths = new Set(cssEntries.map((entry) => normalizeThemePath(entry.path)));
   const ignoredNonThemeSourcePaths = new Set<string>();
   const syncableCssEntries: SyncableThemeCssEntry[] = [];
@@ -57,6 +63,9 @@ export async function syncImportedMarkdownThemesFromDirectory(): Promise<Importe
     try {
       css = await storage.readFile(entry.path);
     } catch {
+      continue;
+    }
+    if (css.length > MAX_IMPORTED_THEME_CSS_BYTES) {
       continue;
     }
 

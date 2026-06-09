@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { resolveExportMarkdownAssetSources } from './noteExportMarkdown';
+import { MAX_EXPORT_EMBEDDED_IMAGE_BYTES, resolveExportMarkdownAssetSources } from './noteExportMarkdown';
 
 const mocks = vi.hoisted(() => ({
   readBinaryFile: vi.fn(),
@@ -697,6 +697,50 @@ describe('resolveExportMarkdownAssetSources', () => {
     ].join('\n'));
   });
 
+  it('resolves export markdown segments sequentially without changing replacements', async () => {
+    let activeReads = 0;
+    let maxActiveReads = 0;
+    mocks.resolveExistingVaultAssetPath.mockImplementation(async (_notesPath, assetPath) =>
+      `/vault/docs/assets/${assetPath}`,
+    );
+    mocks.readBinaryFile.mockImplementation(async () => {
+      activeReads += 1;
+      maxActiveReads = Math.max(maxActiveReads, activeReads);
+      await Promise.resolve();
+      activeReads -= 1;
+      return new Uint8Array([104, 105]);
+    });
+
+    const markdown = await resolveExportMarkdownAssetSources(
+      [
+        '![one](img:one.png)',
+        '```',
+        'protected',
+        '```',
+        '![two](img:two.png)',
+        '```',
+        'protected',
+        '```',
+        '![three](img:three.png)',
+      ].join('\n'),
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe([
+      '![one](data:image/png;base64,aGk=)',
+      '```',
+      'protected',
+      '```',
+      '![two](data:image/png;base64,aGk=)',
+      '```',
+      'protected',
+      '```',
+      '![three](data:image/png;base64,aGk=)',
+    ].join('\n'));
+    expect(maxActiveReads).toBe(1);
+  });
+
   it('reuses resolved data URLs for repeated local note images during one export', async () => {
     mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
     mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
@@ -719,5 +763,71 @@ describe('resolveExportMarkdownAssetSources', () => {
     expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
     expect(mocks.stat).toHaveBeenCalledTimes(1);
     expect(mocks.readBinaryFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps later image refs unresolved when embedded image budget is exhausted', async () => {
+    mocks.resolveExistingVaultAssetPath.mockImplementation(async (_notesPath, assetPath) =>
+      `/vault/docs/assets/${assetPath}`,
+    );
+    mocks.stat
+      .mockResolvedValueOnce({ size: MAX_EXPORT_EMBEDDED_IMAGE_BYTES - 1 })
+      .mockResolvedValueOnce({ size: 2 });
+    mocks.readBinaryFile.mockResolvedValueOnce(new Uint8Array([104, 105]));
+
+    const markdown = await resolveExportMarkdownAssetSources(
+      ['![one](img:one.png)', '![two](img:two.png)'].join('\n'),
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe([
+      '![one](data:image/png;base64,aGk=)',
+      '![two](img:two.png)',
+    ].join('\n'));
+    expect(mocks.readBinaryFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('counts repeated cached data URL insertions against the embedded image budget', async () => {
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/docs/assets/demo.png');
+    mocks.stat.mockResolvedValue({ size: Math.floor(MAX_EXPORT_EMBEDDED_IMAGE_BYTES / 2) + 1 });
+    mocks.readBinaryFile.mockResolvedValue(new Uint8Array([104, 105]));
+
+    const markdown = await resolveExportMarkdownAssetSources(
+      ['![one](img:demo.png)', '![two](img:demo.png)'].join('\n'),
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe([
+      '![one](data:image/png;base64,aGk=)',
+      '![two](img:demo.png)',
+    ].join('\n'));
+    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
+    expect(mocks.stat).toHaveBeenCalledTimes(1);
+    expect(mocks.readBinaryFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not base64 encode images that read larger than the remaining embedded image budget', async () => {
+    mocks.resolveExistingVaultAssetPath.mockImplementation(async (_notesPath, assetPath) =>
+      `/vault/docs/assets/${assetPath}`,
+    );
+    mocks.stat
+      .mockResolvedValueOnce({ size: MAX_EXPORT_EMBEDDED_IMAGE_BYTES - 2 })
+      .mockResolvedValueOnce({ size: 2 });
+    mocks.readBinaryFile
+      .mockResolvedValueOnce(new Uint8Array([104, 105]))
+      .mockResolvedValueOnce(new Uint8Array([1, 2, 3]));
+
+    const markdown = await resolveExportMarkdownAssetSources(
+      ['![one](img:one.png)', '![two](img:two.png)'].join('\n'),
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe([
+      '![one](data:image/png;base64,aGk=)',
+      '![two](img:two.png)',
+    ].join('\n'));
+    expect(mocks.readBinaryFile).toHaveBeenCalledTimes(2);
   });
 });

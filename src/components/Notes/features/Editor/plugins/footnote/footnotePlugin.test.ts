@@ -7,9 +7,11 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import { DOMParser as ProseDOMParser, type Node as ProseNode } from '@milkdown/kit/prose/model';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import {
+  MAX_FOOTNOTE_REF_INPUT_PREFIX_CHECK_CHARS,
   footnotePlugin,
   handleFootnoteArrowNavigation,
   handleFootnoteModEnterExit,
+  hasNonBlankFootnoteRefInputPrefix,
   serializeFootnoteDefinitionToMarkdown,
 } from './footnotePlugin';
 import { normalizeFootnoteLabel, normalizeFootnotePreview } from './footnoteLabels';
@@ -76,6 +78,17 @@ describe('footnote markdown serialization', () => {
 });
 
 describe('footnote reference markup', () => {
+  it('bounds footnote reference input prefix checks', () => {
+    const textBetween = vi.fn(() => 'prefix');
+    const start = 10_000;
+
+    expect(hasNonBlankFootnoteRefInputPrefix({ textBetween }, 1, start)).toBe(true);
+    expect(textBetween).toHaveBeenCalledWith(
+      start - MAX_FOOTNOTE_REF_INPUT_PREFIX_CHECK_CHARS,
+      start
+    );
+  });
+
   it('normalizes footnote labels and preview text', () => {
     expect(normalizeFootnoteLabel(` note[1]\u202E${'x'.repeat(140)} `)).toBe(`note1${'x'.repeat(123)}`);
     expect(normalizeFootnotePreview(` ${'x '.repeat(600)}`)).toBe('x '.repeat(256).trim());

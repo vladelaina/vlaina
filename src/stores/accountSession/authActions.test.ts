@@ -515,6 +515,29 @@ describe('accountSession auth actions', () => {
     expect(setTimeoutSpy).toHaveBeenCalled();
   });
 
+  it('signIn rejects oversized web auth state before storing intent', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.webAccountCommands.startAuth.mockResolvedValue({
+      authUrl: '#auth-callback-oversized-state',
+      state: 'x'.repeat(4097),
+    });
+
+    const set = vi.fn();
+    const get = vi.fn(() => ({ isConnecting: true }));
+    const initialHash = window.location.hash;
+
+    const result = await createSignIn(set as never, get as never)('google');
+
+    expect(result).toBe(false);
+    expect(sessionStorage.getItem('vlaina_auth_state')).toBeNull();
+    expect(sessionStorage.getItem('vlaina_auth_provider')).toBeNull();
+    expect(window.location.hash).toBe(initialHash);
+    expect(set).toHaveBeenLastCalledWith({
+      error: 'Failed to start account sign-in',
+      isConnecting: false,
+    });
+  });
+
   it('signIn does not redirect when web auth intent cannot be stored', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.webAccountCommands.startAuth.mockResolvedValue({
@@ -768,6 +791,29 @@ describe('accountSession auth actions', () => {
     mocks.webAccountCommands.handleAuthCallback.mockReturnValue({
       provider: 'google',
       state: 'wrong-state',
+      error: null,
+    });
+    const set = vi.fn();
+    const get = vi.fn(() => ({ checkStatus: vi.fn() }));
+
+    const result = await createHandleAuthCallback(set as never, get as never)();
+
+    expect(result).toBe(false);
+    expect(mocks.clearAuthIntent).toHaveBeenCalledTimes(1);
+    expect(mocks.webAccountCommands.completeAuth).not.toHaveBeenCalled();
+    expect(set).toHaveBeenLastCalledWith({
+      error: 'Account sign-in state mismatch',
+      isConnecting: false,
+    });
+  });
+
+  it('handleAuthCallback rejects oversized stored auth intent values before completion', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    sessionStorage.setItem('vlaina_auth_state', 'x'.repeat(4097));
+    sessionStorage.setItem('vlaina_auth_provider', 'google');
+    mocks.webAccountCommands.handleAuthCallback.mockReturnValue({
+      provider: 'google',
+      state: 'expected-state',
       error: null,
     });
     const set = vi.fn();

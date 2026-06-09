@@ -441,6 +441,7 @@ describe('createCodeBlockEditorKeymap', () => {
       },
     };
 
+    const textBetween = vi.fn(() => '0123456789');
     const handlers = createCodeBlockEditorClipboardHandlers({
       view: {
         state: {
@@ -450,7 +451,13 @@ describe('createCodeBlockEditorKeymap', () => {
         dispatch: editorDispatch,
         focus: editorFocus,
       } as never,
-      getNode: () => ({ textContent: '0123456789' }) as never,
+      getNode: () => ({
+        content: { size: 10 },
+        textBetween,
+        get textContent() {
+          throw new Error('aggregate code block textContent should not be read');
+        },
+      }) as never,
       getPos: () => 10,
     });
 
@@ -465,6 +472,7 @@ describe('createCodeBlockEditorKeymap', () => {
         head: 5,
       },
     });
+    expect(textBetween).toHaveBeenCalledWith(0, 10, '\n', '\n');
     expect(setSelection).toHaveBeenCalledWith('created-text-selection');
     expect(editorDispatch).toHaveBeenCalledWith(transaction);
     expect(editorFocus).toHaveBeenCalledTimes(1);

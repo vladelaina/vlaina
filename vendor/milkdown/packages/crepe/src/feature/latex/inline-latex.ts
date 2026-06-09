@@ -2,6 +2,13 @@ import { $nodeSchema } from '@milkdown/kit/utils'
 import katex from 'katex'
 
 export const mathInlineId = 'math_inline'
+export const MAX_INLINE_LATEX_VALUE_CHARS = 10_000
+
+export function normalizeInlineLatexValue(value: unknown) {
+  return typeof value === 'string' && value.length <= MAX_INLINE_LATEX_VALUE_CHARS
+    ? value
+    : ''
+}
 
 /// Schema for inline math node.
 /// Add support for:
@@ -24,7 +31,7 @@ export const mathInlineSchema = $nodeSchema(mathInlineId, () => ({
       tag: `span[data-type="${mathInlineId}"]`,
       getAttrs: (dom) => {
         return {
-          value: (dom as HTMLElement).dataset.value ?? '',
+          value: normalizeInlineLatexValue((dom as HTMLElement).dataset.value),
         }
       },
     },
@@ -43,7 +50,7 @@ export const mathInlineSchema = $nodeSchema(mathInlineId, () => ({
   parseMarkdown: {
     match: (node) => node.type === 'inlineMath',
     runner: (state, node, type) => {
-      state.addNode(type, { value: node.value as string })
+      state.addNode(type, { value: normalizeInlineLatexValue(node.value) })
     },
   },
   toMarkdown: {

@@ -43,6 +43,16 @@ const boldType = {
 
 const schema = {
   nodes: {
+    doc: {
+      spec: {
+        parseMarkdown: {
+          match: (node: { type: string }) => node.type === 'root',
+          runner: (state: ParserState, node: { children: MarkdownNode[] }) => {
+            state.injectRoot(node as MarkdownNode, docNodeType)
+          },
+        },
+      },
+    },
     paragraph: {
       spec: {
         parseMarkdown: {
@@ -280,6 +290,24 @@ describe('parser-state', () => {
     expect(state.top()?.content).toHaveLength(1)
     expect(state.top()?.content[0]).toMatchObject({
       text: expect.stringContaining('node-3999'),
+    })
+  })
+
+  it('does not reuse dirty parser state after a failed parser call', () => {
+    const parser = ParserState.create(schema, {
+      parse: (markdown: string) => ({
+        type: 'root',
+        children: markdown === 'bad'
+          ? [{ type: 'blockquoteNode', children: [{ type: 'unknownNode' }] }]
+          : [{ type: 'paragraphNode', value: markdown }],
+      }),
+      runSync: (tree: unknown) => tree,
+    } as never)
+
+    expect(() => parser('bad')).toThrow()
+    expect(parser('good')).toMatchObject({
+      name: 'docNode',
+      content: [{ text: 'good' }],
     })
   })
 })

@@ -6,6 +6,8 @@ import { isMathBlockShortcutText } from './mathBlockFence';
 import { createOpenMathEditorState } from './mathEditorState';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
 
+const MAX_MATH_BLOCK_SHORTCUT_TEXT_CHARS = 128;
+
 function markMathUserInput(view: EditorView): void {
   view.dom?.dispatchEvent?.(new CustomEvent('editor:block-user-input', { bubbles: true }));
 }
@@ -47,7 +49,12 @@ export function handleMathBlockShortcutEnter(view: EditorView): boolean {
     return false;
   }
 
-  if (!isMathBlockShortcutText($from.parent.textContent)) {
+  if ($from.parent.content.size > MAX_MATH_BLOCK_SHORTCUT_TEXT_CHARS) {
+    return false;
+  }
+
+  const shortcutText = $from.parent.textBetween(0, $from.parent.content.size, '', '');
+  if (!isMathBlockShortcutText(shortcutText)) {
     return false;
   }
 

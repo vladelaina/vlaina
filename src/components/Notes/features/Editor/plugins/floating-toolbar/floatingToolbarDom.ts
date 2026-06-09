@@ -141,6 +141,32 @@ export function clampToolbarX(
   };
 }
 
+export function correctToolbarYToViewportBounds(
+  toolbarElement: HTMLElement,
+  y: number,
+  bounds: { top: number; bottom: number },
+): number {
+  const margin = themeDomStyleTokens.editorPopupHorizontalMarginPx;
+  const minTop = bounds.top + margin;
+  const maxBottom = bounds.bottom - margin;
+  const toolbarBodyNode = toolbarElement.querySelector('.floating-toolbar-inner');
+  const toolbarBody = toolbarBodyNode instanceof HTMLElement ? toolbarBodyNode : toolbarElement;
+  const toolbarRect = toolbarBody.getBoundingClientRect();
+
+  let correctedY = y;
+  if (toolbarRect.top < minTop) {
+    correctedY += minTop - toolbarRect.top;
+  } else if (toolbarRect.bottom > maxBottom) {
+    correctedY -= toolbarRect.bottom - maxBottom;
+  }
+
+  if (correctedY !== y) {
+    toolbarElement.style.top = `${correctedY}px`;
+  }
+
+  return correctedY;
+}
+
 export function createToolbarElement(): HTMLElement {
   const toolbar = document.createElement('div');
   toolbar.className = 'floating-toolbar hidden';

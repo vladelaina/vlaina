@@ -46,6 +46,25 @@ const MEASURED_HEIGHT_CACHE_LIMIT = 2000;
 const estimatedFrameLayoutCache = new Map<string, CachedFrameLayoutEntry>();
 const measuredHeightCache = new Map<string, CachedMeasuredHeightEntry>();
 
+function hashString(value: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function countLineBreaks(value: string): number {
+  let count = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    if (value.charCodeAt(index) === 10) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
 function setEstimatedFrameLayoutCacheEntry(
   key: string,
   entry: CachedFrameLayoutEntry,
@@ -92,7 +111,7 @@ function getMessageSignature(message: ChatMessage): string {
   const sample = length <= 96
     ? content
     : `${content.slice(0, 32)}\u0002${content.slice(Math.max(0, Math.floor(length / 2) - 16), Math.floor(length / 2) + 16)}\u0002${content.slice(-32)}`;
-  return `${message.id}\u0000${message.currentVersionIndex}\u0000${message.role}\u0000${length}\u0000${sample}`;
+  return `${message.id}\u0000${message.currentVersionIndex}\u0000${message.role}\u0000${length}\u0000${countLineBreaks(content)}\u0000${hashString(sample)}`;
 }
 
 function getMessageSignatures(messages: ChatMessage[]): string[] {

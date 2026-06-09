@@ -13,15 +13,18 @@ const deletingSessionJsons = new Set<string>();
 const deletedSessionJsons = new Set<string>();
 const DEFAULT_DEBOUNCE_MS = 180;
 const SESSION_MESSAGES_FILE_VERSION = 1;
-const MAX_SESSION_MESSAGES_BYTES = 25 * 1024 * 1024;
-const MAX_SESSION_MESSAGE_NODES = 10_000;
+export const MAX_SESSION_MESSAGES_BYTES = 25 * 1024 * 1024;
+export const MAX_SESSION_MESSAGE_NODES = 10_000;
 const MAX_SESSION_MESSAGE_VERSIONS = 20;
 const MAX_SESSION_MESSAGE_BRANCH_MESSAGES = 100;
 const MAX_SESSION_MESSAGE_BRANCH_DEPTH = 1;
 const MAX_SESSION_IMAGE_SOURCE_ENTRIES = 2000;
 const MAX_SESSION_IMAGE_SOURCES = 1000;
 const MAX_SESSION_MESSAGE_ID_CHARS = 512;
+const MAX_SESSION_MESSAGE_CONTENT_CHARS = 1024 * 1024;
+const MAX_SESSION_MESSAGE_MODEL_ID_CHARS = 512;
 const MAX_DELETED_SESSION_JSON_TOMBSTONES = 4096;
+export const MAX_CHAT_SESSION_FLUSH_CONCURRENCY = 5;
 let autoSyncTrigger: ((sessionId?: string) => void) | null = null;
 let autoSyncTriggerRegistrationId = 0;
 
@@ -71,13 +74,53 @@ export function registerChatStorageAutoSyncTrigger(
 
 export function serializeSessionMessages(sessionId: string, messages: ChatMessage[]): string {
   assertSafeChatSessionId(sessionId);
+  return serializeBoundedSessionMessages(sessionId, normalizeSessionMessages(messages));
+}
+
+function stringifySessionMessagesPayload(sessionId: string, messages: ChatMessage[]): string {
   const payload: SessionMessagesFile = {
     version: SESSION_MESSAGES_FILE_VERSION,
     sessionId,
     updatedAt: Date.now(),
-    messages: normalizeSessionMessages(messages),
+    messages,
   };
   return JSON.stringify(payload, null, 2);
+}
+
+function serializeBoundedSessionMessages(sessionId: string, messages: ChatMessage[]): string {
+  let best = stringifySessionMessagesPayload(sessionId, []);
+  if (messages.length === 0) return best;
+
+  let lastFit = 0;
+  let nextCount = 1;
+  while (nextCount <= messages.length) {
+    const candidate = stringifySessionMessagesPayload(sessionId, messages.slice(0, nextCount));
+    if (candidate.length > MAX_SESSION_MESSAGES_BYTES) {
+      break;
+    }
+    best = candidate;
+    lastFit = nextCount;
+    nextCount *= 2;
+  }
+
+  if (lastFit === messages.length) {
+    return best;
+  }
+
+  let low = lastFit + 1;
+  let high = Math.min(nextCount - 1, messages.length);
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const candidate = stringifySessionMessagesPayload(sessionId, messages.slice(0, mid));
+    if (candidate.length <= MAX_SESSION_MESSAGES_BYTES) {
+      best = candidate;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  return best;
 }
 
 function collectMessageIds(messages: ChatMessage[]): Set<string> {
@@ -304,6 +347,13 @@ function normalizeTimestamp(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : Date.now();
 }
 
+function normalizeMessageContent(value: unknown, fallback = ''): string {
+  const content = typeof value === 'string' ? value : fallback;
+  return content.length > MAX_SESSION_MESSAGE_CONTENT_CHARS
+    ? content.slice(0, MAX_SESSION_MESSAGE_CONTENT_CHARS)
+    : content;
+}
+
 interface NormalizeSessionMessagesContext {
   messageNodes: number;
   messageIds: Set<string>;
@@ -348,7 +398,7 @@ function normalizeMessageVersion(
     return null;
   }
 
-  const content = typeof value.content === 'string' ? value.content : fallbackContent;
+  const content = normalizeMessageContent(value.content, fallbackContent);
   const createdAt = normalizeTimestamp(value.createdAt);
   const kind = value.kind;
   if (kind !== 'regeneration' && kind !== 'edit' && kind !== 'original') {
@@ -453,7 +503,7 @@ function normalizeSessionMessage(
     return null;
   }
 
-  const content = typeof value.content === 'string' ? value.content : '';
+  const content = normalizeMessageContent(value.content);
   const timestamp = normalizeTimestamp(value.timestamp);
   const rawCurrentVersionIndex = typeof value.currentVersionIndex === 'number'
     ? Math.floor(value.currentVersionIndex)
@@ -505,7 +555,9 @@ function normalizeSessionMessage(
     content: activeContent,
     ...(apiTranscript ? { apiTranscript } : {}),
     ...(imageSources ? { imageSources } : {}),
-    modelId: typeof value.modelId === 'string' ? value.modelId : '',
+    modelId: typeof value.modelId === 'string'
+      ? value.modelId.slice(0, MAX_SESSION_MESSAGE_MODEL_ID_CHARS)
+      : '',
     timestamp,
     versions: normalizedVersions,
     currentVersionIndex,
@@ -542,7 +594,9 @@ function normalizeSessionMessagesInternal(
 export function normalizeSessionMessages(value: unknown): ChatMessage[] {
   const topLevelMessageIds = new Set<string>();
   if (Array.isArray(value)) {
-    for (const item of value) {
+    const scanLimit = Math.min(value.length, MAX_SESSION_MESSAGE_NODES);
+    for (let index = 0; index < scanLimit; index += 1) {
+      const item = value[index];
       if (!isRecord(item)) {
         continue;
       }
@@ -720,7 +774,11 @@ export async function flushPendingSessionJsonSave(sessionId: string): Promise<vo
 export async function flushPendingSessionJsonSaves(): Promise<void> {
   const queues = Array.from(sessionQueues.values());
   if (queues.length === 0) return;
-  const results = await Promise.allSettled(queues.map((queue) => queue.flush()));
+  const results = await settleWithConcurrencyLimit(
+    queues,
+    MAX_CHAT_SESSION_FLUSH_CONCURRENCY,
+    (queue) => queue.flush(),
+  );
   const errors = results
     .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
     .map((result) => result.reason);
@@ -731,6 +789,34 @@ export async function flushPendingSessionJsonSaves(): Promise<void> {
     }
     throw new Error(`Failed to flush chat session saves (${errors.length} errors)`);
   }
+}
+
+async function settleWithConcurrencyLimit<T>(
+  items: readonly T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>,
+): Promise<PromiseSettledResult<void>[]> {
+  const results = new Array<PromiseSettledResult<void>>(items.length);
+  let nextIndex = 0;
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        try {
+          await worker(items[index]!);
+          results[index] = { status: 'fulfilled', value: undefined };
+        } catch (reason) {
+          results[index] = { status: 'rejected', reason };
+        }
+      }
+    },
+  );
+
+  await Promise.all(workers);
+  return results;
 }
 
 export async function deleteSessionJson(sessionId: string): Promise<void> {

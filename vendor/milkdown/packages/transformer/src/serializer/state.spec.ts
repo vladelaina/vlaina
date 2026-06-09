@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   areSerializerMarkPropsEqual,
+  MAX_SERIALIZER_MARK_SEARCH_DEPTH,
   MAX_SERIALIZER_MARK_PROP_STRING_CHARS,
   SerializerState,
 } from './state'
@@ -26,6 +27,17 @@ const italicMark = {
 
 const schema = {
   nodes: {
+    doc: {
+      spec: {
+        toMarkdown: {
+          match: (node: { type: string }) => node.type === 'doc',
+          runner: (state: SerializerState, node: { content: never }) => {
+            state.openNode('doc')
+            state.next(node.content)
+          },
+        },
+      },
+    },
     paragraph: {
       spec: {
         toMarkdown: {
@@ -309,5 +321,117 @@ describe('serializer-state', () => {
         },
       ],
     })
+  })
+
+  it('does not recursively search mark chains beyond the merge search depth', () => {
+    const state = new SerializerState(schema)
+    let nested = {
+      type: 'text',
+      value: 'second',
+    }
+    for (let depth = 0; depth <= MAX_SERIALIZER_MARK_SEARCH_DEPTH; depth += 1) {
+      nested = {
+        type: 'wrapper',
+        children: [nested],
+      } as typeof nested
+    }
+
+    state.openNode('doc')
+    state.addNode('paragraph', [
+      {
+        type: 'bold',
+        isMark: true,
+        children: [{ type: 'text', value: 'first' }],
+      },
+      {
+        ...nested,
+        isMark: true,
+      },
+    ] as never)
+
+    expect(state.top()).toMatchObject({
+      type: 'doc',
+      children: [
+        {
+          type: 'paragraph',
+          children: [
+            {
+              type: 'bold',
+              isMark: true,
+              children: [{ type: 'text', value: 'first' }],
+            },
+            {
+              type: 'wrapper',
+              isMark: true,
+            },
+          ],
+        },
+      ],
+    })
+  })
+
+  it('merges many adjacent marks without copying the previous children array each time', () => {
+    const state = new SerializerState(schema)
+    const children = Array.from({ length: 2000 }, (_, index) => ({
+      type: 'bold',
+      isMark: true,
+      children: [{ type: 'text', value: String(index) }],
+    }))
+    const slice = Array.prototype.slice
+    let sliceCalls = 0
+
+    Array.prototype.slice = function patchedSlice(...args) {
+      sliceCalls += 1
+      return slice.apply(this, args)
+    }
+    try {
+      state.openNode('doc')
+      state.addNode('paragraph', children as never)
+    }
+    finally {
+      Array.prototype.slice = slice
+    }
+
+    expect(sliceCalls).toBe(0)
+    expect(state.top()).toMatchObject({
+      type: 'doc',
+      children: [
+        {
+          type: 'paragraph',
+          children: [
+            {
+              type: 'bold',
+              isMark: true,
+              children: children.flatMap((child) => child.children),
+            },
+          ],
+        },
+      ],
+    })
+  })
+
+  it('does not reuse dirty serializer state after a failed serializer call', () => {
+    const serializer = SerializerState.create(schema, {
+      stringify: (node: unknown) => JSON.stringify(node),
+    } as never)
+
+    expect(() => serializer({
+      type: 'blockquote',
+      content: {
+        type: 'unknown',
+        marks: [],
+      },
+      marks: [],
+    } as never)).toThrow()
+
+    expect(serializer({
+      type: 'doc',
+      content: {
+        type: 'paragraph',
+        value: 'good',
+        marks: [],
+      },
+      marks: [],
+    } as never)).toContain('"value":"good"')
   })
 })

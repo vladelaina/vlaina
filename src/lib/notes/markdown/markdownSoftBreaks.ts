@@ -93,7 +93,7 @@ function markAlternativeDisplayMathBlockLines(lines: readonly string[], protecte
     prefix: string;
     bracketCloseFence: boolean;
     bracketOnlyFence: boolean;
-    content: string[];
+    hasLatexLikeContent: boolean;
   } | null = null;
 
   for (let cursor = 0; cursor < lines.length; cursor += 1) {
@@ -103,10 +103,8 @@ function markAlternativeDisplayMathBlockLines(lines: readonly string[], protecte
       if (
         close
         && (!pendingFence.bracketOnlyFence
-          || isLatexLikeMathBlock([
-            ...pendingFence.content,
-            ...(close.contentLine === null ? [] : [close.contentLine]),
-          ]))
+          || pendingFence.hasLatexLikeContent
+          || (close.contentLine !== null && isLatexLikeMathLine(close.contentLine)))
       ) {
         for (let index = pendingFence.openerIndex; index <= cursor; index += 1) {
           protectedLines.add(index);
@@ -115,7 +113,9 @@ function markAlternativeDisplayMathBlockLines(lines: readonly string[], protecte
         continue;
       }
 
-      pendingFence.content.push(line);
+      if (!pendingFence.hasLatexLikeContent && isLatexLikeMathLine(line)) {
+        pendingFence.hasLatexLikeContent = true;
+      }
       continue;
     }
 
@@ -127,7 +127,7 @@ function markAlternativeDisplayMathBlockLines(lines: readonly string[], protecte
       prefix: open[1] ?? '',
       bracketCloseFence: isAlternativeMathBlockBracketCloseFence(open[2] ?? ''),
       bracketOnlyFence: line.trim() === '[',
-      content: [],
+      hasLatexLikeContent: false,
     };
   }
 }
@@ -169,8 +169,8 @@ function hasAlternativeMathInlineCloseContent(contentLine: string, prefix: strin
   return contentLine.slice(prefix.length).trim().length > 0;
 }
 
-function isLatexLikeMathBlock(lines: readonly string[]): boolean {
-  return LATEX_LIKE_MATH_CONTENT_PATTERN.test(lines.join('\n'));
+function isLatexLikeMathLine(line: string): boolean {
+  return LATEX_LIKE_MATH_CONTENT_PATTERN.test(line);
 }
 
 function isAlternativeMathBlockBracketCloseFence(marker: string): boolean {

@@ -4,6 +4,9 @@ import type { OpenAIToolCall, OpenAIWireMessage } from './openAIToolTypes';
 export const MAX_OPENAI_TOOL_CALLS = 16;
 export const MAX_OPENAI_TOOL_ARGUMENT_CHARS = 64 * 1024;
 export const MAX_DSML_TOOL_MARKUP_CHARS = 256 * 1024;
+export const MAX_OPENAI_PAYLOAD_TEXT_CHARS = 1024 * 1024;
+const MAX_OPENAI_TEXT_NODES = 2000;
+const MAX_OPENAI_TEXT_CHARS = 1024 * 1024;
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -49,6 +52,7 @@ export function parseOpenAIPayloadText(text: string): Record<string, unknown> | 
   if (!trimmed || trimmed === '[DONE]') return null;
   const payloadText = trimmed.startsWith('data:') ? trimmed.slice(5).trim() : trimmed;
   if (!payloadText || payloadText === '[DONE]') return null;
+  if (payloadText.length > MAX_OPENAI_PAYLOAD_TEXT_CHARS) return null;
 
   try {
     return JSON.parse(payloadText) as Record<string, unknown>;
@@ -145,11 +149,47 @@ export function extractOpenAIToolCalls(payload: Record<string, unknown>, toolCal
 
 export function extractOpenAIText(value: unknown): string {
   if (typeof value === 'string') return value;
-  if (Array.isArray(value)) return value.map(extractOpenAIText).join('');
-  if (!isRecord(value)) return '';
-  if (typeof value.text === 'string') return value.text;
-  if (typeof value.content === 'string') return value.content;
-  return '';
+
+  const parts: string[] = [];
+  const stack = [value];
+  let visitedNodes = 0;
+  let textLength = 0;
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    visitedNodes += 1;
+    if (visitedNodes > MAX_OPENAI_TEXT_NODES) {
+      return '';
+    }
+
+    if (typeof current === 'string') {
+      textLength += current.length;
+      if (textLength > MAX_OPENAI_TEXT_CHARS) {
+        return '';
+      }
+      parts.push(current);
+      continue;
+    }
+
+    if (Array.isArray(current)) {
+      for (let index = current.length - 1; index >= 0; index -= 1) {
+        stack.push(current[index]);
+      }
+      continue;
+    }
+
+    if (!isRecord(current)) {
+      continue;
+    }
+
+    if (typeof current.text === 'string') {
+      stack.push(current.text);
+    } else if (typeof current.content === 'string') {
+      stack.push(current.content);
+    }
+  }
+
+  return parts.join('');
 }
 
 function extractResponsesApiContentDelta(payload: Record<string, unknown>): { reasoning?: string; content?: string } | null {

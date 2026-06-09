@@ -30,6 +30,7 @@ const INTERNAL_TIGHT_HEADING_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-tight
 const HTML_COMMENT_OPEN_PATTERN = /^(?: {0,3})<!--/;
 const HTML_COMMENT_CLOSE_PATTERN = /-->/;
 const HTML_IMAGE_LINE_PATTERN = /^(?: {0,3})<img(?:\s|\/?>|$)/i;
+const FENCED_CODE_MARKER_PATTERN = /^(?: {0,3})(`{3,}|~{3,})/;
 const MARKDOWN_ESCAPE_PATTERN = /\\([\\`*_{}[\]()#+\-.!])/g;
 const LIST_GAP_SENTINEL = '\u0000VLAINA_LIST_GAP_SENTINEL\u0000';
 const USER_BR_SENTINEL = '\u0000VLAINA_USER_BR_SENTINEL\u0000';
@@ -72,9 +73,9 @@ const MARKED_LIST_GAP_TOKEN_PATTERN = new RegExp(`[ \\t]*<br\\b(?=[^>]*${LEGACY_
 const EMPTY_LIST_ITEM_PLACEHOLDER_PATTERN =
   /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])(?:\s+\[(?: |x|X)\])?)\s+<br\b[^>]*\/?>\s*(?:<\/br>)?$/gim;
 const EDITABLE_LIST_GAP_MARKER_PLACEHOLDER_PATTERN =
-  /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])(?:\s+\[(?: |x|X)\])?)\s+\u2800\s*$/;
+  /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])(?:\s+\[(?: |x|X)\])?)\s+\\?\u2800\s*$/;
 const SERIALIZED_EDITABLE_LIST_GAP_PLACEHOLDER_PATTERN =
-  /^\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+\u2800\s*$/;
+  /^\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+\\?\u2800\s*$/;
 const STANDALONE_BR_LINE_PATTERN = /^(\s*)<br\b[^>]*\/?>\s*(?:<\/br>)?$/i;
 const BLOCKQUOTE_STANDALONE_BR_LINE_PATTERN = /^(\s*(?:>\s*)+)<br\b[^>]*\/?>\s*(?:<\/br>)?$/i;
 const INLINE_TERMINAL_LIST_BR_PATTERN =
@@ -84,6 +85,7 @@ const EMPTY_FOOTNOTE_DEFINITION_PLACEHOLDER_PATTERN =
 const EMPTY_TABLE_CELL_PLACEHOLDER_PATTERN = /(\|\s*)<br\s*\/?>(\s*\|)/g;
 const EMPTY_ATX_HEADING_MARKER_PATTERN = /^( {0,3})(#{1,6})[ \t]*$/gm;
 const LIST_ITEM_LINE_PATTERN = /^(?: {0,3})(?:[-+*]|\d+[.)])(?:\s+|$)/;
+const NESTED_LIST_ITEM_LINE_PATTERN = /^\s*(?:>\s*)*(?:[-+*]|\d+[.)])(?:\s+|$)/;
 const MISSING_ORDERED_LIST_SPACE_LINE_PATTERN =
   /^((?:(?: {0,3}>[ \t]?)* {0,3})(\d{1,3})\.)(\S.*)$/;
 const MISSING_UNORDERED_LIST_SPACE_LINE_PATTERN =
@@ -117,7 +119,7 @@ const MAILTO_EMAIL_MARKDOWN_LINK_PATTERN = new RegExp(
   'g'
 );
 const FAST_NORMALIZATION_STRUCTURAL_LINE_PATTERN =
-  /^\s*(?:[-+*]\s+|\d+[.)]\s+|>\s*|`{3,}|~{3,}|\|.*\||[-*_][ \t]*[-*_][ \t]*[-*_])/;
+  /^\s*(?:[-+*]\s+|\d+[.)]\s+|>\s*|`{3,}|~{3,}|\|.*\||[-*_][ \t]*[-*_][ \t]*[-*_]|=+[ \t]*$)/;
 const ALTERNATIVE_MATH_BLOCK_OPEN_PATTERN = /^(\s*(?:>\s*)*)((?:\\+\[\\?)|\[\\?|\[)\s*$/;
 const ALTERNATIVE_MATH_BLOCK_STANDARD_CLOSE_PATTERN = /^(\s*(?:>\s*)*)\\\]\s*$/;
 const ALTERNATIVE_MATH_BLOCK_BRACKET_CLOSE_PATTERN = /^(\s*(?:>\s*)*)]\s*$/;
@@ -136,6 +138,11 @@ interface MathBlockFenceReference {
 interface MathBlockFenceReferenceIndex {
   byLatex: Map<string, number[]>;
   normalizedLatexes: string[];
+}
+
+interface DollarMathFenceMatch {
+  prefix: string;
+  closeIndex: number;
 }
 
 let lastNormalizedMarkdownInput: string | null = null;
@@ -209,16 +216,22 @@ function canUseLargePlainMarkdownNormalizationFastPath(text: string): boolean {
 }
 
 function unescapeMarkdownPunctuation(text: string): string {
+  if (!text.includes('\\')) return text;
+
   return mapMarkdownOutsideProtectedBlocks(text, (line) => line.replace(MARKDOWN_ESCAPE_PATTERN, '$1'));
 }
 
 export function normalizeEscapedUrlSchemes(text: string): string {
+  if (!text.includes('\\:')) return text;
+
   return mapMarkdownOutsideProtectedSegments(text, (segment) =>
     segment.replace(ESCAPED_URL_SCHEME_PATTERN, '$1:')
   );
 }
 
 export function normalizeMarkdownAutolinkLiterals(text: string): string {
+  if (!text.includes('<') || !text.includes('>')) return text;
+
   return mapMarkdownOutsideProtectedSegments(text, (segment) =>
     segment.replace(MARKDOWN_AUTOLINK_LITERAL_PATTERN, '$1')
   );
@@ -667,28 +680,12 @@ export function restoreMathBlockFenceStylesFromReference(markdown: string, refer
   let nextReferenceIndex = 0;
   return mapMarkdownOutsideProtectedSegments(markdown, (segment) => {
     const lines = segment.split('\n');
+    const dollarFenceMatches = collectDollarMathFenceMatches(lines);
     const output: string[] = [];
 
     for (let index = 0; index < lines.length; index += 1) {
-      const open = DOLLAR_MATH_BLOCK_FENCE_PATTERN.exec(lines[index]);
-      if (!open) {
-        output.push(lines[index]);
-        continue;
-      }
-
-      const prefix = open[1] ?? '';
-      const content: string[] = [];
-      let closeIndex = -1;
-      for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
-        const close = DOLLAR_MATH_BLOCK_FENCE_PATTERN.exec(lines[cursor]);
-        if (close && (close[1] ?? '') === prefix) {
-          closeIndex = cursor;
-          break;
-        }
-        content.push(lines[cursor]);
-      }
-
-      if (closeIndex < 0) {
+      const match = dollarFenceMatches.get(index);
+      if (!match) {
         output.push(lines[index]);
         continue;
       }
@@ -696,17 +693,23 @@ export function restoreMathBlockFenceStylesFromReference(markdown: string, refer
       const referenceMatch = takeMatchingMathBlockFenceReference(
         references,
         referenceIndex,
-        normalizeMathBlockLatex(content.join('\n')),
+        normalizeMathBlockLatex(joinLineRange(lines, index + 1, match.closeIndex)),
         nextReferenceIndex
       );
       nextReferenceIndex = referenceMatch.nextIndex;
 
       if (referenceMatch.style === 'bracket') {
-        output.push(`${prefix}\\[`, ...content, `${prefix}\\]`);
+        output.push(`${match.prefix}\\[`);
+        for (let cursor = index + 1; cursor < match.closeIndex; cursor += 1) {
+          output.push(lines[cursor] ?? '');
+        }
+        output.push(`${match.prefix}\\]`);
       } else {
-        output.push(lines[index], ...content, lines[closeIndex]);
+        for (let cursor = index; cursor <= match.closeIndex; cursor += 1) {
+          output.push(lines[cursor] ?? '');
+        }
       }
-      index = closeIndex;
+      index = match.closeIndex;
     }
 
     return output.join('\n');
@@ -777,6 +780,40 @@ function findNextMathBlockFenceReferenceIndex(
   return result;
 }
 
+function collectDollarMathFenceMatches(lines: readonly string[]): Map<number, DollarMathFenceMatch> {
+  const matches = new Map<number, DollarMathFenceMatch>();
+  const openByPrefix = new Map<string, number>();
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const fence = DOLLAR_MATH_BLOCK_FENCE_PATTERN.exec(lines[index]);
+    if (!fence) continue;
+
+    const prefix = fence[1] ?? '';
+    const openIndex = openByPrefix.get(prefix);
+    if (openIndex === undefined) {
+      openByPrefix.set(prefix, index);
+      continue;
+    }
+
+    matches.set(openIndex, {
+      prefix,
+      closeIndex: index,
+    });
+    openByPrefix.delete(prefix);
+  }
+
+  return matches;
+}
+
+function joinLineRange(lines: readonly string[], start: number, end: number): string {
+  let output = '';
+  for (let index = start; index < end; index += 1) {
+    if (index > start) output += '\n';
+    output += lines[index] ?? '';
+  }
+  return output;
+}
+
 function collectMathBlockFenceReferences(markdown: string): MathBlockFenceReference[] {
   const references: MathBlockFenceReference[] = [];
   mapMarkdownOutsideProtectedSegments(markdown, (segment) => {
@@ -791,25 +828,16 @@ function collectMathBlockFenceReferencesFromSegment(
   references: MathBlockFenceReference[]
 ): void {
   const lines = segment.split('\n');
+  const dollarFenceMatches = collectDollarMathFenceMatches(lines);
 
   for (let index = 0; index < lines.length; index += 1) {
-    const dollarOpen = DOLLAR_MATH_BLOCK_FENCE_PATTERN.exec(lines[index]);
-    if (dollarOpen) {
-      const prefix = dollarOpen[1] ?? '';
-      const content: string[] = [];
-      let closeIndex = -1;
-      for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
-        const close = DOLLAR_MATH_BLOCK_FENCE_PATTERN.exec(lines[cursor]);
-        if (close && (close[1] ?? '') === prefix) {
-          closeIndex = cursor;
-          break;
-        }
-        content.push(lines[cursor]);
-      }
-      if (closeIndex >= 0) {
-        references.push({ latex: content.join('\n'), style: 'dollar' });
-        index = closeIndex;
-      }
+    const dollarMatch = dollarFenceMatches.get(index);
+    if (dollarMatch) {
+      references.push({
+        latex: joinLineRange(lines, index + 1, dollarMatch.closeIndex),
+        style: 'dollar',
+      });
+      index = dollarMatch.closeIndex;
       continue;
     }
 
@@ -1034,6 +1062,8 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
 }
 
 function normalizeEmptyAtxHeadingMarkers(text: string): string {
+  if (!text.includes('#')) return text;
+
   return mapMarkdownOutsideProtectedSegments(text, (segment) =>
     segment.replace(EMPTY_ATX_HEADING_MARKER_PATTERN, (_match, indent: string, marker: string) =>
       `${indent}${marker} ${marker}`
@@ -1042,18 +1072,24 @@ function normalizeEmptyAtxHeadingMarkers(text: string): string {
 }
 
 function normalizeEscapedHighlightSyntax(text: string): string {
+  if (!text.includes('\\==')) return text;
+
   return mapMarkdownOutsideProtectedSegments(text, (segment) =>
     segment.replace(ESCAPED_HIGHLIGHT_PATTERN, '==$1==')
   );
 }
 
 function normalizeTableCellBreakPlaceholders(text: string): string {
+  if (!hasPotentialHtmlBreakTag(text)) return text;
+
   return mapMarkdownOutsideProtectedSegments(text, (segment) =>
     segment.replace(EMPTY_TABLE_CELL_PLACEHOLDER_PATTERN, '$1 $2')
   );
 }
 
 function normalizeStandaloneBreakHtmlToMarkdown(text: string): string {
+  if (!hasPotentialHtmlBreakTag(text)) return text;
+
   return mapMarkdownOutsideProtectedSegments(text, (segment) => {
     const lines = segment.split('\n');
     const output: string[] = [];
@@ -1105,6 +1141,8 @@ function normalizeStandaloneBreakHtmlToMarkdown(text: string): string {
 }
 
 function normalizeEditorEmptyParagraphBreaks(text: string): string {
+  if (!hasPotentialHtmlBreakTag(text)) return text;
+
   return mapMarkdownOutsideProtectedSegments(text, (segment) => {
     const lines = segment.split('\n');
     return lines.map((line, index) => {
@@ -1173,6 +1211,8 @@ function isListContextSpacerLine(line: string): boolean {
 }
 
 function normalizeEditorBreakPlaceholders(text: string): string {
+  if (!hasPotentialEditorBreakPlaceholder(text)) return text;
+
   return mapMarkdownOutsideProtectedBlocks(
     text,
     (line) => {
@@ -1228,6 +1268,46 @@ function normalizeEditorBreakPlaceholders(text: string): string {
         .replace(MARKED_USER_BR_TOKEN_PATTERN, `\n${USER_BR_SENTINEL}\n`);
     },
   );
+}
+
+function hasPotentialEditorBreakPlaceholder(text: string): boolean {
+  return text.includes('\u200B')
+    || text.includes('\u200C')
+    || text.includes('\u2800')
+    || containsAsciiCaseInsensitive(text, '<br')
+    || containsAsciiCaseInsensitive(text, 'vlaina-markdown-');
+}
+
+function hasPotentialHtmlBreakTag(text: string): boolean {
+  return containsAsciiCaseInsensitive(text, '<br');
+}
+
+function containsAsciiCaseInsensitive(text: string, needle: string): boolean {
+  const needleLength = needle.length;
+  if (needleLength === 0) return true;
+
+  const firstNeedleCode = toAsciiLowerCode(needle.charCodeAt(0));
+  const lastStart = text.length - needleLength;
+  for (let index = 0; index <= lastStart; index += 1) {
+    if (toAsciiLowerCode(text.charCodeAt(index)) !== firstNeedleCode) continue;
+
+    let matches = true;
+    for (let offset = 1; offset < needleLength; offset += 1) {
+      if (
+        toAsciiLowerCode(text.charCodeAt(index + offset))
+        !== toAsciiLowerCode(needle.charCodeAt(offset))
+      ) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return true;
+  }
+  return false;
+}
+
+function toAsciiLowerCode(code: number): number {
+  return code >= 65 && code <= 90 ? code + 32 : code;
 }
 
 function normalizeInternalMarkdownBlankLineComments(text: string): string {
@@ -1386,12 +1466,16 @@ function normalizeListItemBlankLines(text: string): string {
     return text;
   }
 
-  const normalizedSentinels = text.includes(LIST_GAP_SENTINEL)
+  const normalizedPlaceholders = text.includes('\u2800')
+    ? normalizeSerializedListGapMarkerLines(text)
+    : text;
+
+  const normalizedSentinels = normalizedPlaceholders.includes(LIST_GAP_SENTINEL)
     ? mapMarkdownOutsideProtectedSegments(
-      text,
+      normalizedPlaceholders,
       replaceListGapSentinelsWithBlankLines,
     )
-    : text;
+    : normalizedPlaceholders;
 
   return normalizedSentinels.includes('\u2800')
     ? mapMarkdownOutsideProtectedSegments(
@@ -1399,6 +1483,65 @@ function normalizeListItemBlankLines(text: string): string {
       replaceListGapSentinelsWithBlankLines,
     )
     : normalizedSentinels;
+}
+
+function normalizeSerializedListGapMarkerLines(text: string): string {
+  const lines = text.split('\n');
+  const nearestNonBlankLines = collectNearestNonBlankLines(lines);
+  let activeFenceMarker: string | null = null;
+
+  return lines
+    .map((line, index) => {
+      const fenceMatch = FENCED_CODE_MARKER_PATTERN.exec(line);
+      if (activeFenceMarker) {
+        if (fenceMatch?.[1]?.startsWith(activeFenceMarker)) {
+          activeFenceMarker = null;
+        }
+        return line;
+      }
+      if (fenceMatch) {
+        activeFenceMarker = fenceMatch[1]![0] ?? null;
+        return line;
+      }
+
+      return SERIALIZED_EDITABLE_LIST_GAP_PLACEHOLDER_PATTERN.test(line)
+        && (
+          isNestedListItemLine(nearestNonBlankLines.previous[index] ?? null)
+          || isNestedListItemLine(nearestNonBlankLines.next[index] ?? null)
+        )
+        ? LIST_GAP_SENTINEL
+        : line;
+    })
+    .join('\n');
+}
+
+function isNestedListItemLine(line: string | null): boolean {
+  return line !== null && NESTED_LIST_ITEM_LINE_PATTERN.test(line);
+}
+
+function collectNearestNonBlankLines(lines: readonly string[]): { previous: Array<string | null>; next: Array<string | null> } {
+  const previous: Array<string | null> = Array.from({ length: lines.length }, () => null);
+  const next: Array<string | null> = Array.from({ length: lines.length }, () => null);
+  let nearest: string | null = null;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    previous[index] = nearest;
+    const line = lines[index] ?? '';
+    if (line.trim()) {
+      nearest = line;
+    }
+  }
+
+  nearest = null;
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    next[index] = nearest;
+    const line = lines[index] ?? '';
+    if (line.trim()) {
+      nearest = line;
+    }
+  }
+
+  return { previous, next };
 }
 
 function replaceListGapSentinelsWithBlankLines(text: string): string {

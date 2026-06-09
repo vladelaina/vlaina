@@ -17,6 +17,8 @@ const previewCleanupCallbacks = new WeakMap<HTMLElement, () => void>();
 export const MAX_APPLIED_PREVIEW_DOM_SCAN_ELEMENTS = 20_000;
 export const MAX_APPLIED_PREVIEW_MATCHED_ELEMENTS = 5_000;
 export const MAX_APPLIED_PREVIEW_CODE_BLOCK_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_APPLIED_PREVIEW_TRAILING_BREAK_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_APPLIED_PREVIEW_TRAILING_BREAK_DEPTH = 512;
 
 type AppliedPreviewElementCollection = {
   elements: HTMLElement[];
@@ -90,9 +92,8 @@ export function renderAppliedPreviewDocument(
   const className = sourceDom?.className || 'ProseMirror';
   previewDom.className = extraClassName ? `${className} ${extraClassName}` : className;
   previewDom.removeAttribute('data-toolbar-preview-hidden');
-  if (!previewDom.hasAttribute('contenteditable')) {
-    previewDom.setAttribute('contenteditable', 'true');
-  }
+  previewDom.removeAttribute('contenteditable');
+  previewDom.removeAttribute('tabindex');
   previewDom.setAttribute('aria-hidden', 'true');
   previewDom.appendChild(
     DOMSerializer.fromSchema(state.schema).serializeFragment(
@@ -557,40 +558,83 @@ function makePreviewCloneNonInteractive(clone: HTMLElement): boolean {
   return true;
 }
 
-function addProseMirrorTrailingBreaks(
+export function addProseMirrorTrailingBreaks(
   previewDom: HTMLElement,
   doc: ProseMirrorNode,
-  ownerDocument: Document
+  ownerDocument: Document,
+  options: {
+    maxDepth?: number;
+    maxNodes?: number;
+  } = {}
 ): void {
-  addTrailingBreaksForChildren(previewDom, doc, ownerDocument);
+  addTrailingBreaksForChildren(previewDom, doc, ownerDocument, options);
 }
 
 function addTrailingBreaksForChildren(
   container: HTMLElement,
   parentNode: ProseMirrorNode,
-  ownerDocument: Document
+  ownerDocument: Document,
+  options: {
+    maxDepth?: number;
+    maxNodes?: number;
+  } = {}
 ): void {
-  let childIndex = 0;
+  const maxDepth = options.maxDepth ?? MAX_APPLIED_PREVIEW_TRAILING_BREAK_DEPTH;
+  const maxNodes = options.maxNodes ?? MAX_APPLIED_PREVIEW_TRAILING_BREAK_NODES;
+  let scanned = 0;
+  const stack: Array<{
+    container: HTMLElement;
+    depth: number;
+    index: number;
+    node: ProseMirrorNode;
+  }> = [{ container, depth: 0, index: 0, node: parentNode }];
 
-  parentNode.forEach((node) => {
-    const child = container.children.item(childIndex);
-    childIndex += 1;
-
-    if (!(child instanceof HTMLElement)) {
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+    if (frame.index >= frame.node.childCount) {
+      stack.pop();
+      continue;
+    }
+    if (
+      scanned >= maxNodes ||
+      frame.depth >= maxDepth
+    ) {
       return;
     }
 
+    const childIndex = frame.index;
+    frame.index += 1;
+    const node = frame.node.child(childIndex);
+    const child = frame.container.children.item(childIndex);
+    scanned += 1;
+
+    if (!(child instanceof HTMLElement)) {
+      continue;
+    }
+
     if (node.isTextblock && node.content.size === 0) {
-      if (!child.querySelector(':scope > .ProseMirror-trailingBreak')) {
+      if (!hasDirectProseMirrorTrailingBreak(child)) {
         const br = ownerDocument.createElement('br');
         br.className = 'ProseMirror-trailingBreak';
         child.appendChild(br);
       }
-      return;
+      continue;
     }
 
     if (node.childCount > 0) {
-      addTrailingBreaksForChildren(child, node, ownerDocument);
+      stack.push({
+        container: child,
+        depth: frame.depth + 1,
+        index: 0,
+        node,
+      });
     }
-  });
+  }
+}
+
+function hasDirectProseMirrorTrailingBreak(element: HTMLElement): boolean {
+  for (let child = element.firstElementChild; child; child = child.nextElementSibling) {
+    if (child.classList.contains('ProseMirror-trailingBreak')) return true;
+  }
+  return false;
 }

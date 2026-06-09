@@ -1,6 +1,6 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
-import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model';
+import { Fragment, Slice, type Mark as ProseMark, type Node as ProseNode } from '@milkdown/kit/prose/model';
 import { resolvePasteRange } from '../../clipboard/pasteCursorUtils';
 import { sanitizeExplicitMarkdownLinkHref } from '../utils/linkHref';
 import {
@@ -20,7 +20,11 @@ export const markdownLinkPluginKey = new PluginKey('markdown-link-paste');
 const MAX_MARKDOWN_LINK_DOC_SCAN_SIZE = 1024 * 1024;
 export const MAX_MARKDOWN_LINK_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 export const MAX_MARKDOWN_LINK_AUTO_COLLAPSE_MATCHES = 5000;
+export const MAX_MARKDOWN_LINK_TEXT_SCAN_CHARS = 1024 * 1024;
+export const MAX_MARKDOWN_LINK_INPUT_LOOKBACK_CHARS = 1024 * 1024;
+export const MAX_MARKDOWN_LINK_TRANSACTION_STEP_TEXT_CHARS = 200_000;
 const MAX_MARKDOWN_LINK_PASTE_CHARS = 1024 * 1024;
+export const MAX_MARKDOWN_LINK_PASTE_NODES = 5000;
 const MARKDOWN_LINK_TRIGGER_TEXT_PATTERN = /[\[\]\(\)]/;
 
 interface MarkdownLinkPluginState {
@@ -34,23 +38,38 @@ export interface RawMarkdownLinkMatch {
     to: number;
 }
 
-function getInsertedStepText(step: unknown): string {
+function transactionStepMayCreateMarkdownLink(step: unknown): boolean {
     const slice = (step as { slice?: { content?: { textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string; size?: number } } }).slice;
     const content = slice?.content;
     if (!content || typeof content.textBetween !== 'function' || typeof content.size !== 'number') {
-        return '';
+        return false;
     }
-    return content.textBetween(0, content.size, '\n', '\ufffc');
+    if (content.size > MAX_MARKDOWN_LINK_TRANSACTION_STEP_TEXT_CHARS) {
+        return true;
+    }
+    return MARKDOWN_LINK_TRIGGER_TEXT_PATTERN.test(content.textBetween(0, content.size, '\n', '\ufffc'));
 }
 
-function transactionMayCreateMarkdownLink(tr: unknown): boolean {
+export function transactionMayCreateMarkdownLink(tr: unknown): boolean {
     const steps = (tr as { steps?: readonly unknown[] }).steps ?? [];
-    return steps.some((step) => MARKDOWN_LINK_TRIGGER_TEXT_PATTERN.test(getInsertedStepText(step)));
+    return steps.some(transactionStepMayCreateMarkdownLink);
 }
 
 function textContainsRawMarkdownLink(text: string): boolean {
     MARKDOWN_LINK_PATTERN_GLOBAL.lastIndex = 0;
-    return MARKDOWN_LINK_PATTERN_GLOBAL.test(text);
+    return MARKDOWN_LINK_PATTERN_GLOBAL.test(text.slice(0, MAX_MARKDOWN_LINK_TEXT_SCAN_CHARS));
+}
+
+export function getMarkdownLinkInputTextBeforeCursor(
+    parent: { textBetween: (from: number, to: number, blockSeparator?: string | null, leafText?: string | null) => string },
+    parentOffset: number,
+): string {
+    return parent.textBetween(
+        Math.max(0, parentOffset - MAX_MARKDOWN_LINK_INPUT_LOOKBACK_CHARS),
+        parentOffset,
+        '\0',
+        '\0'
+    );
 }
 
 function positionTouchesRawMarkdownLink(doc: ProseNode, pos: number): boolean {
@@ -72,22 +91,34 @@ function positionTouchesRawMarkdownLink(doc: ProseNode, pos: number): boolean {
     );
 }
 
-function rangeTouchesRawMarkdownLink(doc: ProseNode, from: number, to: number): boolean {
+export function rangeTouchesRawMarkdownLink(
+    doc: ProseNode,
+    from: number,
+    to: number,
+    checkBoundaryPositions = true
+): boolean {
     const start = Math.max(0, Math.min(from, doc.content.size));
     const end = Math.max(start, Math.min(to, doc.content.size));
-    if (positionTouchesRawMarkdownLink(doc, start) || positionTouchesRawMarkdownLink(doc, end)) {
+    if (
+        checkBoundaryPositions
+        && (positionTouchesRawMarkdownLink(doc, start) || positionTouchesRawMarkdownLink(doc, end))
+    ) {
         return true;
     }
 
     let touchesRawMarkdownLink = false;
     const scanTo = Math.min(doc.content.size, Math.max(start + 1, end));
-    doc.nodesBetween(start, scanTo, (node) => {
+    scanProseDescendants(doc, (node, pos) => {
+        const nodeSize = typeof node.nodeSize === 'number' ? node.nodeSize : 1;
+        const nodeEnd = pos + nodeSize;
+        if (nodeEnd < start) return true;
+        if (pos > scanTo) return STOP_PROSE_SCAN;
         if (node.isText && textContainsRawMarkdownLink(node.text ?? '')) {
             touchesRawMarkdownLink = true;
-            return false;
+            return STOP_PROSE_SCAN;
         }
-        return !touchesRawMarkdownLink;
-    });
+        return true;
+    }, MAX_MARKDOWN_LINK_DOC_SCAN_NODES);
 
     return touchesRawMarkdownLink;
 }
@@ -115,8 +146,7 @@ export function docHasRawMarkdownLink(doc: ProseNode): boolean {
     scanProseDescendants(doc, (node) => {
         if (!node.isText || !node.text) return true;
 
-        MARKDOWN_LINK_PATTERN_GLOBAL.lastIndex = 0;
-        hasRawMarkdownLink = MARKDOWN_LINK_PATTERN_GLOBAL.test(node.text);
+        hasRawMarkdownLink = textContainsRawMarkdownLink(node.text);
         return hasRawMarkdownLink ? STOP_PROSE_SCAN : true;
     }, MAX_MARKDOWN_LINK_DOC_SCAN_NODES);
     return hasRawMarkdownLink;
@@ -136,7 +166,7 @@ export function collectRawMarkdownLinkMatches(
         if (inspectedMatches >= limit || matches.length >= limit) return STOP_PROSE_SCAN;
         if (!node.isText || !node.text) return true;
 
-        const text = node.text;
+        const text = node.text.slice(0, MAX_MARKDOWN_LINK_TEXT_SCAN_CHARS);
         MARKDOWN_LINK_PATTERN_GLOBAL.lastIndex = 0;
 
         let match;
@@ -164,6 +194,57 @@ export function collectRawMarkdownLinkMatches(
     }, MAX_MARKDOWN_LINK_DOC_SCAN_NODES);
 
     return matches;
+}
+
+export function createMarkdownLinkPasteNodes(
+    text: string,
+    schema: { text: (text: string, marks?: readonly ProseMark[] | null) => ProseNode },
+    linkMarkType: { create: (attrs: { href: string }) => ProseMark },
+    maxNodes = MAX_MARKDOWN_LINK_PASTE_NODES,
+): ProseNode[] | null {
+    const limit = Math.max(0, Math.floor(maxNodes));
+    if (limit === 0) return null;
+
+    MARKDOWN_LINK_REGEX.lastIndex = 0;
+    const nodes: ProseNode[] = [];
+    let lastIndex = 0;
+
+    const pushNode = (node: ProseNode): boolean => {
+        if (nodes.length >= limit) return false;
+        nodes.push(node);
+        return true;
+    };
+
+    let match;
+    while ((match = MARKDOWN_LINK_REGEX.exec(text)) !== null) {
+        const fullMatch = match[0];
+        const linkText = match[1];
+        const linkUrl = match[2];
+        const matchStart = match.index;
+
+        if (matchStart > lastIndex) {
+            const beforeText = text.slice(lastIndex, matchStart);
+            if (!pushNode(schema.text(beforeText))) return null;
+        }
+
+        const safeLinkUrl = sanitizeExplicitMarkdownLinkHref(getMarkdownLinkHref(linkUrl));
+        if (!pushNode(
+            safeLinkUrl
+                ? schema.text(linkText, [linkMarkType.create({ href: safeLinkUrl })])
+                : schema.text(linkText)
+        )) {
+            return null;
+        }
+
+        lastIndex = matchStart + fullMatch.length;
+    }
+
+    if (lastIndex < text.length) {
+        const afterText = text.slice(lastIndex);
+        if (!pushNode(schema.text(afterText))) return null;
+    }
+
+    return nodes.length === 0 ? null : nodes;
 }
 
 export const markdownLinkPlugin = $prose(() => {
@@ -283,7 +364,7 @@ export const markdownLinkPlugin = $prose(() => {
 
                 // Get text before cursor
                 const $from = doc.resolve(from);
-                const textBefore = $from.parent.textBetween(0, $from.parentOffset, '\0', '\0');
+                const textBefore = getMarkdownLinkInputTextBeforeCursor($from.parent, $from.parentOffset);
 
                 // Check if there's a markdown link pattern ending at cursor
                 const match = textBefore.match(MARKDOWN_LINK_PATTERN_BEFORE);
@@ -335,38 +416,14 @@ export const markdownLinkPlugin = $prose(() => {
                 const linkMarkType = view.state.schema.marks.link;
                 if (!linkMarkType) return false;
 
-                MARKDOWN_LINK_REGEX.lastIndex = 0;
-                const nodes: any[] = [];
-                let lastIndex = 0;
-
-                let match;
-                while ((match = MARKDOWN_LINK_REGEX.exec(text)) !== null) {
-                    const fullMatch = match[0];
-                    const linkText = match[1];
-                    const linkUrl = match[2];
-                    const matchStart = match.index;
-
-                    if (matchStart > lastIndex) {
-                        const beforeText = text.slice(lastIndex, matchStart);
-                        nodes.push(view.state.schema.text(beforeText));
-                    }
-
-                    const safeLinkUrl = sanitizeExplicitMarkdownLinkHref(getMarkdownLinkHref(linkUrl));
-                    nodes.push(
-                        safeLinkUrl
-                            ? view.state.schema.text(linkText, [linkMarkType.create({ href: safeLinkUrl })])
-                            : view.state.schema.text(linkText)
-                    );
-
-                    lastIndex = matchStart + fullMatch.length;
+                const nodes = createMarkdownLinkPasteNodes(text, view.state.schema, linkMarkType);
+                if (!nodes) {
+                    const { from, to } = resolvePasteRange(view.state, Slice.empty);
+                    const tr = view.state.tr.insertText(text, from, to);
+                    view.dispatch(tr);
+                    event.preventDefault();
+                    return true;
                 }
-
-                if (lastIndex < text.length) {
-                    const afterText = text.slice(lastIndex);
-                    nodes.push(view.state.schema.text(afterText));
-                }
-
-                if (nodes.length === 0) return false;
 
                 const fragment = Fragment.from(nodes);
                 const slice = new Slice(fragment, 0, 0);

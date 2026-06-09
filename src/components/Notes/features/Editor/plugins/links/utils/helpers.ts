@@ -7,6 +7,8 @@ export type LinkRange = {
     linkMarkType: any;
 };
 
+export const MAX_LINK_MARK_RANGE_SCAN_CHARS = 4096;
+
 export function resolveLinkMarkRangeAtPos(state: EditorState, pos: number): LinkRange | null {
     const linkMarkType = state.schema.marks.link;
     if (!linkMarkType) return null;
@@ -17,17 +19,31 @@ export function resolveLinkMarkRangeAtPos(state: EditorState, pos: number): Link
     if (!hasMark) return null;
 
     let scanForwards = pos;
-    while (scanForwards < state.doc.content.size) {
+    let scannedForwards = 0;
+    while (scanForwards < state.doc.content.size && scannedForwards < MAX_LINK_MARK_RANGE_SCAN_CHARS) {
         const $scan = state.doc.resolve(scanForwards);
         const marks = $scan.marks().concat($scan.nodeAfter?.marks || []);
         if (!linkMarkType.isInSet(marks)) break;
         scanForwards++;
+        scannedForwards++;
     }
+    if (scannedForwards >= MAX_LINK_MARK_RANGE_SCAN_CHARS && scanForwards < state.doc.content.size) {
+        const $scan = state.doc.resolve(scanForwards);
+        const marks = $scan.marks().concat($scan.nodeAfter?.marks || []);
+        if (linkMarkType.isInSet(marks)) return null;
+    }
+
     let scanBackwards = pos;
-    while (scanBackwards > 0) {
+    let scannedBackwards = 0;
+    while (scanBackwards > 0 && scannedBackwards < MAX_LINK_MARK_RANGE_SCAN_CHARS) {
         const marksBefore = state.doc.resolve(scanBackwards - 1).marks();
         if (!linkMarkType.isInSet(marksBefore)) break;
         scanBackwards--;
+        scannedBackwards++;
+    }
+    if (scannedBackwards >= MAX_LINK_MARK_RANGE_SCAN_CHARS && scanBackwards > 0) {
+        const marksBefore = state.doc.resolve(scanBackwards - 1).marks();
+        if (linkMarkType.isInSet(marksBefore)) return null;
     }
 
     return {

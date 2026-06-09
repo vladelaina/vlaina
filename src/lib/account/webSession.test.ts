@@ -45,6 +45,62 @@ describe('web account session helpers', () => {
     })).not.toThrow();
   });
 
+  it('normalizes session credentials before saving them', () => {
+    sessionStorage.clear();
+
+    saveWebAccountCredentials({
+      provider: 'google',
+      username: ' vla ',
+      primaryEmail: ' vla@example.com ',
+      avatarUrl: 'http://127.0.0.1/avatar.png',
+      membershipTier: 'pro',
+      membershipName: 'P'.repeat(129),
+    });
+
+    expect(JSON.parse(sessionStorage.getItem('vlaina_account_session') || '{}')).toEqual({
+      provider: 'google',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: null,
+      membershipTier: 'pro',
+      membershipName: null,
+    });
+  });
+
+  it('does not save invalid session credentials', () => {
+    sessionStorage.clear();
+
+    saveWebAccountCredentials({
+      provider: 'google',
+      username: 'u'.repeat(257),
+    });
+
+    expect(sessionStorage.getItem('vlaina_account_session')).toBeNull();
+  });
+
+  it('normalizes cached persisted identity fallback fields', () => {
+    sessionStorage.clear();
+    localStorage.setItem('vlaina_account_identity', JSON.stringify({
+      isConnected: true,
+      provider: 'google',
+      username: ' vla ',
+      primaryEmail: ' vla@example.com ',
+      avatarUrl: 'http://192.168.1.2/avatar.png',
+      membershipTier: 'pro',
+      membershipName: 'M'.repeat(129),
+    }));
+
+    expect(getCachedWebAccountStatus()).toEqual({
+      connected: true,
+      provider: 'google',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: null,
+      membershipTier: 'pro',
+      membershipName: null,
+    });
+  });
+
   it('clears persisted credentials and dispatches invalidation events', () => {
     sessionStorage.setItem('vlaina_account_session', JSON.stringify({
       provider: 'google',

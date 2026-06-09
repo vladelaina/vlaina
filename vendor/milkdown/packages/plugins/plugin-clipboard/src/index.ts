@@ -15,6 +15,8 @@ import { isPureText } from './__internal__/is-pure-text'
 import { withMeta } from './__internal__/with-meta'
 
 const maxVscodeEditorDataChars = 16 * 1024
+export const maxClipboardTextChars = 1024 * 1024
+export const maxClipboardHtmlChars = 1024 * 1024
 
 export function parseVscodeEditorDataMode(value: string) {
   if (!value || value.length > maxVscodeEditorDataChars) return null
@@ -27,6 +29,10 @@ export function parseVscodeEditorDataMode(value: string) {
   } catch {
     return null
   }
+}
+
+export function canParseClipboardPayload(text: string, html: string) {
+  return text.length <= maxClipboardTextChars && html.length <= maxClipboardHtmlChars
 }
 
 /// The prosemirror plugin for clipboard.
@@ -52,6 +58,8 @@ export const clipboard = $prose((ctx) => {
         if (currentNode.type.spec.code) return false
 
         const text = clipboardData.getData('text/plain')
+        const html = clipboardData.getData('text/html')
+        if (!canParseClipboardPayload(text, html)) return false
 
         // if is copied from vscode, try to create a code block
         const vscodeData = clipboardData.getData('vscode-editor-data')
@@ -74,7 +82,6 @@ export const clipboard = $prose((ctx) => {
           }
         }
 
-        const html = clipboardData.getData('text/html')
         if (html.length === 0 && text.length === 0) return false
 
         const domParser = DOMParser.fromSchema(schema)

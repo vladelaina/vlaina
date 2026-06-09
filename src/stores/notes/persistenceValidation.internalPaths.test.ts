@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeRecentNotePaths, normalizeWorkspaceState } from './persistenceValidation';
+import {
+  MAX_RECENT_NOTE_PATH_SCAN_ITEMS,
+  MAX_WORKSPACE_EXPANDED_FOLDER_SCAN_ITEMS,
+  normalizeRecentNotePaths,
+  normalizeWorkspaceState,
+} from './persistenceValidation';
 
 describe('notes persistence internal path validation', () => {
   it('keeps user dot Markdown paths while dropping internal recent notes', () => {
@@ -37,5 +42,27 @@ describe('notes persistence internal path validation', () => {
       expandedFolders: [],
       fileTreeSortMode: 'name-asc',
     })?.currentNotePath).toBeNull();
+  });
+
+  it('bounds recent note path scans before accepting later valid paths', () => {
+    expect(normalizeRecentNotePaths([
+      ...Array.from({ length: MAX_RECENT_NOTE_PATH_SCAN_ITEMS }, (_, index) => `image-${index}.png`),
+      'docs/after-limit.md',
+    ])).toEqual([]);
+  });
+
+  it('bounds workspace expanded folder scans before accepting later valid paths', () => {
+    expect(normalizeWorkspaceState({
+      currentNotePath: null,
+      expandedFolders: [
+        ...Array.from({ length: MAX_WORKSPACE_EXPANDED_FOLDER_SCAN_ITEMS }, (_, index) => `../escape-${index}`),
+        'docs',
+      ],
+      fileTreeSortMode: 'name-asc',
+    })).toEqual({
+      currentNotePath: null,
+      expandedFolders: [],
+      fileTreeSortMode: 'name-asc',
+    });
   });
 });

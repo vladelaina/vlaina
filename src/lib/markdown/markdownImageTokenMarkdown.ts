@@ -20,6 +20,16 @@ export interface MarkdownImageTokenRangeScan {
 
 const MARKDOWN_LINK_DESTINATION_ESCAPE_PATTERN = /\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g;
 const MARKDOWN_LINK_DESTINATION_ESCAPE_AT_PATTERN = /^\\[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]$/;
+const MAX_MARKDOWN_IMAGE_PROTECTION_RANGES = 4000;
+export const MAX_MARKDOWN_IMAGE_PART_SCAN_CHARS = 1024 * 1024;
+
+function getFirstMarkdownImageTargetSegment(value: string): string {
+  let index = 0;
+  while (index < value.length && !/\s/.test(value[index])) {
+    index += 1;
+  }
+  return value.slice(0, index);
+}
 
 function normalizeImageMarkdownTarget(rawTarget: string): string | null {
   const trimmed = rawTarget.trim();
@@ -32,7 +42,7 @@ function normalizeImageMarkdownTarget(rawTarget: string): string | null {
     return wrapped || null;
   }
 
-  const firstSegment = decodeMarkdownHtmlText(unescapeMarkdownLinkDestination(trimmed.split(/\s+/)[0]?.trim() ?? ''));
+  const firstSegment = decodeMarkdownHtmlText(unescapeMarkdownLinkDestination(getFirstMarkdownImageTargetSegment(trimmed)));
   return firstSegment || null;
 }
 
@@ -43,9 +53,10 @@ function unescapeMarkdownLinkDestination(value: string): string {
 function parseMarkdownImageTarget(
   content: string,
   targetStart: number,
+  rangeEnd: number,
 ): { raw: string; targetStart: number; targetEnd: number; end: number } | null {
   let pos = targetStart;
-  const length = content.length;
+  const length = Math.min(content.length, rangeEnd, targetStart + MAX_MARKDOWN_IMAGE_PART_SCAN_CHARS);
 
   while (pos < length && /\s/.test(content[pos])) {
     pos += 1;
@@ -67,7 +78,7 @@ function parseMarkdownImageTarget(
       return null;
     }
 
-    const end = parseMarkdownImageClosingParen(content, closingAngle + 1);
+    const end = parseMarkdownImageClosingParen(content, closingAngle + 1, length);
     if (end === null) {
       return null;
     }
@@ -89,7 +100,7 @@ function parseMarkdownImageTarget(
     }
     if (/\s/.test(ch)) {
       const raw = content.slice(rawStart, pos).trimEnd();
-      const end = parseMarkdownImageClosingParen(content, pos);
+      const end = parseMarkdownImageClosingParen(content, pos, length);
       return end === null ? null : { raw, targetStart: rawStart, targetEnd: rawStart + raw.length, end };
     }
     if (ch === "(") {
@@ -125,9 +136,10 @@ function findMarkdownImageLabelEnd(
   lowerBound: number,
 ): number | null {
   let cursor = labelStart;
+  const scanEnd = Math.min(rangeEnd, labelStart + MAX_MARKDOWN_IMAGE_PART_SCAN_CHARS);
   let nestedBracketDepth = 0;
 
-  while (cursor < rangeEnd) {
+  while (cursor < scanEnd) {
     const inlineCodeEnd = getRangeEndAtOffset(cursor, inlineCodeRanges);
     if (inlineCodeEnd !== null) {
       cursor = inlineCodeEnd;
@@ -176,11 +188,26 @@ export function collectMarkdownImageTokensInRange(
   }
 
   const tokens: ImageToken[] = [];
-  const inlineCodeRanges = getInlineCodeRanges(content, range);
-  const htmlCommentRanges = getHtmlCommentRanges(content, range);
-  const htmlTagRanges = getHtmlTagRanges(content, range);
-  const htmlBlockRanges = getMarkdownHtmlBlockRanges(content, range);
-  const rawTextHtmlRanges = getRawTextHtmlRanges(content, range);
+  const maxProtectionRanges = Number.isFinite(tokenLimit)
+    ? MAX_MARKDOWN_IMAGE_PROTECTION_RANGES
+    : Number.POSITIVE_INFINITY;
+  const protectionRangeScanLimit = Number.isFinite(maxProtectionRanges)
+    ? maxProtectionRanges + 1
+    : Number.POSITIVE_INFINITY;
+  const inlineCodeRanges = getInlineCodeRanges(content, range, protectionRangeScanLimit);
+  const htmlCommentRanges = getHtmlCommentRanges(content, range, protectionRangeScanLimit);
+  const htmlTagRanges = getHtmlTagRanges(content, range, protectionRangeScanLimit);
+  const htmlBlockRanges = getMarkdownHtmlBlockRanges(content, range, protectionRangeScanLimit);
+  const rawTextHtmlRanges = getRawTextHtmlRanges(content, range, protectionRangeScanLimit);
+  if (
+    inlineCodeRanges.length > maxProtectionRanges ||
+    htmlCommentRanges.length > maxProtectionRanges ||
+    htmlTagRanges.length > maxProtectionRanges ||
+    htmlBlockRanges.length > maxProtectionRanges ||
+    rawTextHtmlRanges.length > maxProtectionRanges
+  ) {
+    return { exhausted: true, tokens };
+  }
   let cursor = range.start;
 
   while (cursor < range.end) {
@@ -206,7 +233,7 @@ export function collectMarkdownImageTokensInRange(
       continue;
     }
 
-    const parsed = parseMarkdownImageTarget(content, labelEnd + 2);
+    const parsed = parseMarkdownImageTarget(content, labelEnd + 2, range.end);
     if (!parsed || parsed.end > range.end) {
       cursor = labelEnd + 2;
       continue;

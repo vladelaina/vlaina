@@ -78,7 +78,7 @@ describe('typecheck quality gate', () => {
       'src/stores/accountSession/authSupport.ts:localStorage.removeItem(ACCOUNT_USER_PERSIST_KEY);',
       'src/stores/accountSession/authSupport.ts:localStorage.removeItem(ACCOUNT_STATUS_REFRESH_KEY);',
       'src/stores/accountSession/authSupport.ts:localStorage.setItem(ACCOUNT_STATUS_REFRESH_KEY, String(Date.now()));',
-      'src/stores/accountSession/authSupport.ts:localStorage.setItem(ACCOUNT_USER_PERSIST_KEY, JSON.stringify(data));',
+      'src/stores/accountSession/authSupport.ts:localStorage.setItem(ACCOUNT_USER_PERSIST_KEY, JSON.stringify(normalized));',
       'src/stores/notes/storage.ts:localStorage.setItem(NOTE_ICON_SIZE_KEY, String(normalized));',
       'src/stores/uiSlice.ts:localStorage.setItem(key, value);',
       'src/stores/uiSlice.ts:localStorage.removeItem(key);',

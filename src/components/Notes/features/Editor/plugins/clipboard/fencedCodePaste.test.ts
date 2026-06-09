@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
     extractLargestMarkdownFenceContent,
     isStandaloneFencedCodeBlock,
@@ -218,6 +218,15 @@ describe('looksLikePlainTextWithOnlyBackslashHardBreakSignal', () => {
         expect(looksLikePlainTextWithOnlyBackslashHardBreakSignal('- item\\\n- next')).toBe(false);
         expect(looksLikePlainTextWithOnlyBackslashHardBreakSignal('[link](https://example.com)\\\nnext')).toBe(false);
     });
+
+    it('scans trailing backslash lines without splitting the whole text', () => {
+        const splitSpy = vi.spyOn(String.prototype, 'split');
+
+        expect(looksLikePlainTextWithOnlyBackslashHardBreakSignal(`plain\\\n${'x'.repeat(64 * 1024)}`)).toBe(true);
+        expect(splitSpy).not.toHaveBeenCalled();
+
+        splitSpy.mockRestore();
+    });
 });
 
 describe('extractLargestMarkdownFenceContent', () => {
@@ -242,6 +251,15 @@ describe('extractLargestMarkdownFenceContent', () => {
 
     it('returns null when markdown fence is missing', () => {
         expect(extractLargestMarkdownFenceContent('```ts\nconst a = 1;\n```')).toBeNull();
+    });
+
+    it('scans many unclosed markdown fence openings linearly', () => {
+        const lines = Array.from(
+            { length: 10_000 },
+            (_value, index) => `\`\`\`markdown\n# Draft ${index}`
+        );
+
+        expect(extractLargestMarkdownFenceContent(lines.join('\n'))).toBeNull();
     });
 });
 

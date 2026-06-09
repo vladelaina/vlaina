@@ -2,6 +2,7 @@ import {
   appendOpenAIStreamBuffer,
   assertOpenAIStreamLineLength,
   createStreamAccumulator,
+  MAX_OPENAI_STREAM_ERROR_FIELD_CHARS,
 } from '@/lib/ai/streaming';
 import {
   extractOpenAIContentDelta,
@@ -104,7 +105,7 @@ export async function consumeOpenAIStreamWithTools(
       'message' in nestedError &&
       typeof nestedError.message === 'string'
     ) {
-      throw new Error(nestedError.message);
+      throw new Error(nestedError.message.slice(0, MAX_OPENAI_STREAM_ERROR_FIELD_CHARS));
     }
     extractOpenAIToolCalls(payload, toolCalls);
     const delta = extractOpenAIContentDelta(payload);

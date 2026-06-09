@@ -1,11 +1,54 @@
 import { describe, expect, it, vi } from 'vitest';
-import { editLinkAtPosition, removeExistingLink, sanitizeTooltipLinkHref } from './linkTooltipTransactions';
+import {
+    getBoundedTextNodeLength,
+    getBoundedLinkTooltipText,
+    MAX_TOOLTIP_FALLBACK_LINK_TEXT_CHARS,
+    MAX_TOOLTIP_FALLBACK_LINK_TEXT_NODES,
+    editLinkAtPosition,
+    removeExistingLink,
+    sanitizeTooltipLinkHref,
+} from './linkTooltipTransactions';
 
 describe('link tooltip transactions', () => {
+    it('reads link tooltip text without aggregate textContent', () => {
+        const link = document.createElement('a');
+        link.append(document.createTextNode('Docs'));
+        Object.defineProperty(link, 'textContent', {
+            get() {
+                throw new Error('aggregate link textContent should not be read');
+            },
+        });
+
+        expect(getBoundedLinkTooltipText(link)).toBe('Docs');
+    });
+
+    it('bounds link tooltip initial text reads', () => {
+        const link = document.createElement('a');
+        link.append(document.createTextNode('x'.repeat(MAX_TOOLTIP_FALLBACK_LINK_TEXT_CHARS + 20)));
+
+        expect(getBoundedLinkTooltipText(link)).toHaveLength(MAX_TOOLTIP_FALLBACK_LINK_TEXT_CHARS);
+    });
+
+    it('bounds link tooltip text node scans', () => {
+        const link = document.createElement('a');
+        for (let index = 0; index < MAX_TOOLTIP_FALLBACK_LINK_TEXT_NODES + 10; index += 1) {
+            link.append(document.createTextNode(''));
+        }
+        link.append(document.createTextNode('over budget'));
+
+        expect(getBoundedLinkTooltipText(link)).toBe('');
+        expect(getBoundedTextNodeLength(link, MAX_TOOLTIP_FALLBACK_LINK_TEXT_CHARS)).toBeNull();
+    });
+
     it('deletes plain autolink text even when there is no link mark', () => {
         const link = document.createElement('a');
         link.className = 'autolink';
         link.textContent = 'https://example.com';
+        Object.defineProperty(link, 'textContent', {
+            get() {
+                throw new Error('aggregate link textContent should not be read');
+            },
+        });
 
         const deleteMock = vi.fn(() => 'delete-tr');
         const dispatch = vi.fn();
@@ -43,6 +86,50 @@ describe('link tooltip transactions', () => {
         expect(listener).toHaveBeenCalledTimes(1);
         expect(deleteMock).toHaveBeenCalledWith(3, 22);
         expect(dispatch).toHaveBeenCalledWith('delete-tr');
+    });
+
+    it('does not delete oversized plain autolink fallback text', () => {
+        const link = document.createElement('a');
+        link.className = 'autolink';
+        link.append(document.createTextNode('x'.repeat(4097)));
+        Object.defineProperty(link, 'textContent', {
+            get() {
+                throw new Error('aggregate link textContent should not be read');
+            },
+        });
+
+        const deleteMock = vi.fn(() => 'delete-tr');
+        const dispatch = vi.fn();
+        const view = {
+            dom: new EventTarget(),
+            posAtDOM: vi.fn(() => 3),
+            state: {
+                doc: {
+                    content: {
+                        size: 8192,
+                    },
+                    resolve: vi.fn(() => ({
+                        marks: () => [],
+                        nodeAfter: null,
+                    })),
+                },
+                schema: {
+                    marks: {
+                        link: {
+                            isInSet: vi.fn(() => null),
+                        },
+                    },
+                },
+                tr: {
+                    delete: deleteMock,
+                },
+            },
+            dispatch,
+        };
+
+        expect(removeExistingLink(view as never, link)).toBe(false);
+        expect(deleteMock).not.toHaveBeenCalled();
+        expect(dispatch).not.toHaveBeenCalled();
     });
 
     it('removes the link mark when the edited href is plain text', () => {

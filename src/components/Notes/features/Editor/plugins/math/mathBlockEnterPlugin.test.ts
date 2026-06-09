@@ -10,6 +10,7 @@ function createView(args?: {
   canReplaceWith?: boolean;
   hasMathBlock?: boolean;
   coordsAtPosThrows?: boolean;
+  throwOnTextContent?: boolean;
 }) {
   const text = args?.text ?? '$$';
   const parentTypeName = args?.parentTypeName ?? 'paragraph';
@@ -26,6 +27,18 @@ function createView(args?: {
     create: vi.fn((attrs: { latex: string }) => ({ type: 'math_block', attrs })),
   };
   const dispatch = vi.fn();
+  const parent = {
+    type: { name: parentTypeName },
+    textBetween: vi.fn(() => text),
+    get textContent() {
+      if (args?.throwOnTextContent) {
+        throw new Error('aggregate paragraph textContent should not be read');
+      }
+      return text;
+    },
+    content: { size: text.length },
+    nodeSize: text.length + 2,
+  };
   const view = {
     state: {
       selection: {
@@ -39,12 +52,7 @@ function createView(args?: {
           node: vi.fn(() => ({
             canReplaceWith: vi.fn(() => canReplaceWith),
           })),
-          parent: {
-            type: { name: parentTypeName },
-            textContent: text,
-            content: { size: text.length },
-            nodeSize: text.length + 2,
-          },
+          parent,
         },
       },
       schema: {
@@ -75,9 +83,10 @@ function createView(args?: {
 
 describe('mathBlockEnterPlugin', () => {
   it('converts a shortcut-only paragraph into a math block and opens the editor', () => {
-    const { view, tr, dispatch, mathBlockType } = createView({ text: '￥￥' });
+    const { view, tr, dispatch, mathBlockType } = createView({ text: '￥￥', throwOnTextContent: true });
 
     expect(handleMathBlockShortcutEnter(view as never)).toBe(true);
+    expect(view.state.selection.$from.parent.textBetween).toHaveBeenCalledWith(0, 2, '', '');
     expect(mathBlockType.create).toHaveBeenCalledWith({ latex: '' });
     expect(tr.replaceWith).toHaveBeenCalledWith(4, 8, {
       type: 'math_block',
@@ -121,6 +130,16 @@ describe('mathBlockEnterPlugin', () => {
 
   it('does not convert when the paragraph contains more than the shortcut marker', () => {
     const { view, dispatch } = createView({ text: '$$x' });
+
+    expect(handleMathBlockShortcutEnter(view as never)).toBe(false);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('does not read oversized paragraph text while checking math shortcuts', () => {
+    const { view, dispatch } = createView({
+      text: 'x'.repeat(129),
+      throwOnTextContent: true,
+    });
 
     expect(handleMathBlockShortcutEnter(view as never)).toBe(false);
     expect(dispatch).not.toHaveBeenCalled();

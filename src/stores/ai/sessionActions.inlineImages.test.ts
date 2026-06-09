@@ -5,7 +5,7 @@ import { useAIUIStore } from './chatState'
 
 const mocked = vi.hoisted(() => ({
   parseMarkdownAndHtmlImageTokens: vi.fn(),
-  persistDataUrlAttachment: vi.fn(async () => 'attachment://persisted.png'),
+  persistDataUrlAttachment: vi.fn(async (_source: string) => 'attachment://persisted.png'),
   saveSessionJson: vi.fn(async () => {}),
   loadSessionJson: vi.fn(async (): Promise<ChatMessage[] | null> => []),
   hasSessionJson: vi.fn(async () => false),
@@ -125,7 +125,7 @@ describe('session inline image persistence', () => {
     seedSession([createMessage('m1', 'plain text '.repeat(10_000))])
 
     await createSessionActions().switchSession('session-2')
-    await vi.runOnlyPendingTimersAsync()
+    await vi.runAllTimersAsync()
 
     expect(mocked.parseMarkdownAndHtmlImageTokens).not.toHaveBeenCalled()
     expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
@@ -191,7 +191,7 @@ describe('session inline image persistence', () => {
     seedSession([createMessage('m1', content)])
 
     await createSessionActions().switchSession('session-2')
-    await vi.runOnlyPendingTimersAsync()
+    await vi.runAllTimersAsync()
 
     expect(mocked.parseMarkdownAndHtmlImageTokens).toHaveBeenCalledTimes(2)
     expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith(source)
@@ -256,6 +256,79 @@ describe('session inline image persistence', () => {
     expect(mocked.saveSessionJson).not.toHaveBeenCalledWith('session-2', expect.anything())
   })
 
+  it('limits concurrent orphan inline attachment deletes after a session disappears', async () => {
+    const {
+      MAX_INLINE_IMAGE_ORPHAN_DELETE_CONCURRENCY,
+      createSessionActions,
+    } = await import('./sessionActions')
+    const sources = Array.from(
+      { length: MAX_INLINE_IMAGE_ORPHAN_DELETE_CONCURRENCY + 3 },
+      (_value, index) => `data:image/png;base64,${String(index).padStart(8, 'A')}`,
+    )
+    const lastSource = sources.at(-1)!
+    let resolveLastPersistence!: (value: string) => void
+    let activeDeletes = 0
+    let maxActiveDeletes = 0
+    const resolveDeletes: Array<() => void> = []
+
+    mocked.parseMarkdownAndHtmlImageTokens.mockReturnValue(
+      sources.map((src, index) => ({
+        start: index,
+        end: index + src.length,
+        src,
+        targetStart: index,
+        targetEnd: index + src.length,
+      })),
+    )
+    mocked.persistDataUrlAttachment.mockImplementation((source: string) => {
+      if (source === lastSource) {
+        return new Promise((resolve) => {
+          resolveLastPersistence = resolve
+        })
+      }
+      return Promise.resolve(`attachment://orphan-${sources.indexOf(source)}.png`)
+    })
+    mocked.deleteAttachment.mockImplementation(async () => {
+      activeDeletes += 1
+      maxActiveDeletes = Math.max(maxActiveDeletes, activeDeletes)
+      await new Promise<void>((resolve) => {
+        resolveDeletes.push(resolve)
+      })
+      activeDeletes -= 1
+    })
+
+    const actions = createSessionActions()
+    seedSession([createMessage('m1', `![image](<${sources[0]}>)`)])
+
+    await actions.switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
+    await vi.waitFor(() => expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith(lastSource))
+
+    await actions.deleteSession('session-2')
+    resolveLastPersistence(`attachment://orphan-${sources.length - 1}.png`)
+    await vi.waitFor(() => {
+      expect(resolveDeletes).toHaveLength(MAX_INLINE_IMAGE_ORPHAN_DELETE_CONCURRENCY)
+    })
+
+    expect(maxActiveDeletes).toBeLessThanOrEqual(MAX_INLINE_IMAGE_ORPHAN_DELETE_CONCURRENCY)
+    while (resolveDeletes.length > 0) {
+      resolveDeletes.shift()?.()
+      await Promise.resolve()
+    }
+    await vi.waitFor(() => {
+      expect(mocked.deleteAttachment).toHaveBeenCalledTimes(sources.length)
+    })
+    while (resolveDeletes.length > 0) {
+      resolveDeletes.shift()?.()
+      await Promise.resolve()
+    }
+
+    await vi.waitFor(() => {
+      expect(maxActiveDeletes).toBeLessThanOrEqual(MAX_INLINE_IMAGE_ORPHAN_DELETE_CONCURRENCY)
+    })
+    expect(mocked.saveSessionJson).not.toHaveBeenCalledWith('session-2', expect.anything())
+  })
+
   it('reruns inline image persistence when new data images arrive while a session is already processing', async () => {
     const firstSource = 'data:image/png;base64,QUJD'
     const secondSource = 'data:image/png;base64,RUZH'
@@ -313,6 +386,16 @@ describe('session inline image persistence', () => {
     await vi.runOnlyPendingTimersAsync()
 
     pendingPersistence.get(firstSource)?.('attachment://first.png')
+    await vi.waitFor(() => {
+      expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content)
+        .toBe('![image](<attachment://first.png>)')
+    })
+    await Promise.resolve()
+    await Promise.resolve()
+    await vi.runAllTimersAsync()
+    await Promise.resolve()
+    await Promise.resolve()
+    await vi.runAllTimersAsync()
     await vi.waitFor(() => {
       expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith(secondSource)
     })
@@ -409,6 +492,35 @@ describe('session inline image persistence', () => {
     } finally {
       splitSpy.mockRestore()
     }
+  })
+
+  it('scrubs oversized markdown data images when token parsing skips the target', async () => {
+    mocked.parseMarkdownAndHtmlImageTokens.mockReturnValue([])
+    const oversizedSource = `data:image/png;base64,${'A'.repeat(520 * 1024)}`
+    const { createSessionActions } = await import('./sessionActions')
+    seedSession([createMessage('m1', `Before ![image](<${oversizedSource}>) After`)])
+
+    await createSessionActions().switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
+
+    const content = useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content
+    expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
+    expect(content).toBe('Before  After')
+    expect(content).not.toContain('data:image')
+  })
+
+  it('keeps oversized markdown data image examples inside code spans', async () => {
+    mocked.parseMarkdownAndHtmlImageTokens.mockReturnValue([])
+    const oversizedSource = `data:image/png;base64,${'B'.repeat(520 * 1024)}`
+    const { createSessionActions } = await import('./sessionActions')
+    seedSession([createMessage('m1', `Before \`![example](<${oversizedSource}>)\` ![image](<${oversizedSource}>) After`)])
+
+    await createSessionActions().switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
+
+    const content = useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content
+    expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
+    expect(content).toBe(`Before \`![example](<${oversizedSource}>)\`  After`)
   })
 
   it('bounds inline image replacement to the scanned branch depth', async () => {

@@ -111,6 +111,22 @@ describe('notesExternalPollingUtils', () => {
     });
   });
 
+  it('collapses many nested deletions without changing deletion semantics', () => {
+    const previous = [
+      folder('docs', Array.from({ length: 1000 }, (_, index) =>
+        folder(`docs/section-${index}`, [file(`docs/section-${index}/intro.md`)])
+      )),
+    ];
+    const next: FileTreeNode[] = [];
+
+    expect(detectExternalTreePathChanges(previous, next)).toEqual({
+      renames: [],
+      deletions: ['docs'],
+      hasAdditions: false,
+      hasChanges: true,
+    });
+  });
+
   it('marks new files as additions that require a tree reload', () => {
     const previous = [folder('docs', [file('docs/alpha.md')])];
     const next: FileTreeNode[] = [folder('docs', [file('docs/alpha.md'), file('docs/beta.md')])];

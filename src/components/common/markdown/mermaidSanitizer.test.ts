@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { sanitizeMermaidMarkup } from './mermaidSanitizer';
 
 function renderMarkup(markup: string) {
@@ -91,6 +91,32 @@ describe('mermaidSanitizer', () => {
     expect(content.querySelector('script')).toBeNull();
     expect(label?.textContent).toBe('Subroutine');
     expect(label?.querySelector('tspan')?.getAttribute('dy')).toBe('0.35em');
+  });
+
+  it('sanitizes Mermaid labels without materializing selector results', () => {
+    const fragmentQuerySelectorAll = vi.spyOn(DocumentFragment.prototype, 'querySelectorAll');
+    const elementQuerySelectorAll = vi.spyOn(Element.prototype, 'querySelectorAll');
+
+    try {
+      const sanitized = sanitizeMermaidMarkup([
+        '<svg>',
+        '<foreignObject x="-40" y="-12" width="80" height="24">',
+        '<div xmlns="http://www.w3.org/1999/xhtml">',
+        '<span class="nodeLabel"><p>First</p><p>Second<br/>Line</p></span>',
+        '</div>',
+        '</foreignObject>',
+        '</svg>',
+      ].join(''));
+
+      expect(sanitized).toContain('mermaid-svg');
+      expect(sanitized).toContain('First');
+      expect(sanitized).toContain('Second');
+      expect(fragmentQuerySelectorAll).not.toHaveBeenCalled();
+      expect(elementQuerySelectorAll).not.toHaveBeenCalled();
+    } finally {
+      fragmentQuerySelectorAll.mockRestore();
+      elementQuerySelectorAll.mockRestore();
+    }
   });
 
   it('caps Mermaid foreignObject label lines before creating SVG tspans', () => {

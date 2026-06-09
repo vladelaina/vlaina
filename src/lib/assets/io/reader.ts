@@ -164,7 +164,11 @@ function persistThumbnailBlobInBackground(
   }
 
   void blobToUint8Array(blob)
-    .then((bytes) => storage.writeBinaryFile(persistentCachePath, bytes, { recursive: true }))
+    .then((bytes) => {
+      assertPreviewableImageSize(blob.size);
+      assertPreviewableImageSize(bytes.byteLength);
+      return storage.writeBinaryFile(persistentCachePath, bytes, { recursive: true });
+    })
     .catch(() => {});
 }
 
@@ -467,7 +471,8 @@ export async function loadImageAsBase64(fullPath: string): Promise<string> {
           reject(new Error('Failed to convert image to base64'));
         }
       };
-      reader.onerror = reject;
+      reader.onerror = () => reject(reader.error ?? new Error('Failed to convert image to base64'));
+      reader.onabort = () => reject(new Error('Image base64 conversion was aborted'));
       reader.readAsDataURL(blob);
     });
 

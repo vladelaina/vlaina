@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { actions, createAIChatSession, useAIStore, useAIStoreRuntimeEffects } from '@/stores/useAIStore';
 import { useAIUIStore } from './chatState';
 import { useUnifiedStore } from '../unified/useUnifiedStore';
+import { MAX_CHAT_SESSION_DELETE_CONCURRENCY } from './sessionActions';
 import type { ChatMessage } from '@/lib/ai/types';
 import { clearSessionIdAliases } from '@/lib/ai/sessionIdAliases';
 
@@ -811,6 +812,62 @@ describe('chat window selection isolation', () => {
     expect(useUnifiedStore.getState().data.ai?.messages).toHaveProperty('session-2');
     expect(useAIUIStore.getState().currentSessionId).toBe('session-1');
     expect(useAIUIStore.getState().error).toBe('Could not clear chats from disk. Existing chats were kept.');
+  });
+
+  it('limits concurrent session file deletes while clearing chats', async () => {
+    let activeDeletes = 0;
+    let maxActiveDeletes = 0;
+    const resolveDeletes: Array<() => void> = [];
+    const sessions = Array.from({ length: MAX_CHAT_SESSION_DELETE_CONCURRENCY + 3 }, (_value, index) => ({
+      id: `session-${index}`,
+      title: `Session ${index}`,
+      modelId: managedModel.id,
+      createdAt: index,
+      updatedAt: index,
+    }));
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              sessions,
+              messages: Object.fromEntries(sessions.map((session) => [session.id, []])),
+            }
+          : state.data.ai,
+      },
+    }));
+    mocked.deleteSessionJson.mockImplementation(async () => {
+      activeDeletes += 1;
+      maxActiveDeletes = Math.max(maxActiveDeletes, activeDeletes);
+      await new Promise<void>((resolve) => {
+        resolveDeletes.push(resolve);
+      });
+      activeDeletes -= 1;
+    });
+
+    const clearRequest = actions.clearSessions();
+    await vi.waitFor(() => {
+      expect(resolveDeletes).toHaveLength(MAX_CHAT_SESSION_DELETE_CONCURRENCY);
+    });
+
+    expect(maxActiveDeletes).toBeLessThanOrEqual(MAX_CHAT_SESSION_DELETE_CONCURRENCY);
+    while (resolveDeletes.length > 0) {
+      resolveDeletes.shift()?.();
+      await Promise.resolve();
+    }
+    await vi.waitFor(() => {
+      expect(mocked.deleteSessionJson).toHaveBeenCalledTimes(sessions.length);
+    });
+    while (resolveDeletes.length > 0) {
+      resolveDeletes.shift()?.();
+      await Promise.resolve();
+    }
+
+    await expect(clearRequest).resolves.toBeUndefined();
+    expect(maxActiveDeletes).toBeLessThanOrEqual(MAX_CHAT_SESSION_DELETE_CONCURRENCY);
+    expect(useUnifiedStore.getState().data.ai?.sessions).toEqual([]);
   });
 
   it('opens a blank new chat locally without mutating shared selection', () => {

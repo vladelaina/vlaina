@@ -984,6 +984,7 @@ declare module '@milkdown/kit/prose/model' {
   }
 
   export class Slice {
+    static empty: Slice;
     content: Fragment;
     openStart: number;
     openEnd: number;
@@ -1134,6 +1135,7 @@ declare module '@milkdown/kit/prose/view' {
   export class DecorationSet {
     static create(doc: MilkdownNode, decorations: readonly Decoration[]): DecorationSet;
     static empty: DecorationSet;
+    find(start?: number, end?: number, predicate?: (spec: AnyRecord) => boolean): Decoration[];
     map(mapping: MilkdownMapping, doc: MilkdownNode): DecorationSet;
     add(doc: MilkdownNode, decorations: readonly Decoration[]): DecorationSet;
     remove(decorations: readonly Decoration[]): DecorationSet;
@@ -1300,6 +1302,7 @@ declare module '@milkdown/prose/model' {
   }
 
   export class Slice {
+    static empty: Slice;
     content: Fragment;
     openStart: number;
     openEnd: number;

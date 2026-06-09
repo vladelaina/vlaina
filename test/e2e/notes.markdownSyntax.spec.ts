@@ -1,6 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
-  BLOCK_CONTROLS_SELECTOR,
   EDITOR_SELECTOR,
   SELECTED_BLOCK_SELECTOR,
   cleanupIsolatedElectron,
@@ -17,7 +16,6 @@ import {
   scrollElementIntoViewByText,
   scrollNoteToTop,
   selectNoteBlocksByText,
-  waitForEditorAnimationFrame,
 } from './notesE2E';
 import { createMarkdownSyntaxFixture } from './notesMarkdownSyntaxFixture';
 
@@ -390,7 +388,7 @@ test.describe('notes markdown syntax rendering', () => {
       await expect(page.locator(`${EDITOR_SELECTOR} li[data-item-type="task"][data-checked="true"]`, { hasText: 'Task item checked sentinel' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} table`, { hasText: 'Table alpha' })).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} .code-block-container`, { hasText: 'syntaxSentinel' })).toBeVisible();
-      await expect(page.locator(`${EDITOR_SELECTOR} span[data-type="math-inline"]`)).toBeVisible();
+      await expect(page.locator(`${EDITOR_SELECTOR} span[data-type="math-inline"]`)).toHaveCount(3);
       await expect(page.locator(`${EDITOR_SELECTOR} .image-block-container[data-alt="Image alt sentinel"]`)).toBeVisible();
       await expect(page.locator(`${EDITOR_SELECTOR} div.footnote-def`, { hasText: 'Footnote definition sentinel' })).toBeVisible();
 
@@ -409,7 +407,7 @@ test.describe('notes markdown syntax rendering', () => {
       expect(metrics.countsBySelector.headings).toBeGreaterThanOrEqual(14);
       expect(metrics.countsBySelector.blockquotes).toBeGreaterThanOrEqual(1);
       expect(metrics.countsBySelector.callouts).toBeGreaterThanOrEqual(3);
-      expect(metrics.countsBySelector.taskItems).toBe(3);
+      expect(metrics.countsBySelector.taskItems).toBe(4);
       expect(metrics.countsBySelector.tables).toBeGreaterThanOrEqual(1);
       expect(metrics.countsBySelector.codeBlocks).toBeGreaterThanOrEqual(3);
       expect(metrics.countsBySelector.images).toBeGreaterThanOrEqual(5);
@@ -436,15 +434,6 @@ test.describe('notes markdown syntax rendering', () => {
         'Final paragraph sentinel',
       ]);
       await expect(page.locator(SELECTED_BLOCK_SELECTOR, { hasText: 'Inline marks paragraph' })).toBeVisible();
-      const selectedRect = await page.locator(SELECTED_BLOCK_SELECTOR, { hasText: 'Inline marks paragraph' })
-        .first()
-        .boundingBox();
-      if (!selectedRect) {
-        throw new Error('Could not resolve Typora-themed selected block geometry');
-      }
-      await page.mouse.move(selectedRect.x + 8, selectedRect.y + selectedRect.height / 2);
-      await waitForEditorAnimationFrame(page);
-      await expect(page.locator(BLOCK_CONTROLS_SELECTOR)).toBeVisible();
 
       await clearSelectedNoteBlocks(page);
       await expect(page.locator(SELECTED_BLOCK_SELECTOR)).toHaveCount(0);

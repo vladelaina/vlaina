@@ -27,7 +27,7 @@ export interface NotesSidebarTagScopeEntry {
 }
 
 export interface NotesSidebarTagPathIndexEntry {
-  content: string;
+  contentSignature: string;
   tags: Map<string, NotesSidebarTagPath>;
 }
 
@@ -38,6 +38,18 @@ export interface NotesSidebarTagIndex {
 
 const MAX_SIDEBAR_TAGS = 200;
 const MAX_SIDEBAR_TAG_SCOPE_PATHS = 10_000;
+const TAG_CONTENT_SIGNATURE_SAMPLE_CHARS = 256;
+
+function createContentSignature(content: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < content.length; index += 1) {
+    hash ^= content.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  const head = content.slice(0, TAG_CONTENT_SIGNATURE_SAMPLE_CHARS);
+  const tail = content.slice(-TAG_CONTENT_SIGNATURE_SAMPLE_CHARS);
+  return `${content.length}:${hash >>> 0}:${head}:${tail}`;
+}
 
 function isPathInsideFolder(path: string, folderPath: string): boolean {
   if (!folderPath) {
@@ -186,7 +198,7 @@ export function buildNotesSidebarTagPathIndexEntry(
     }
   }
 
-  return { content, tags };
+  return { contentSignature: createContentSignature(content), tags };
 }
 
 export function reconcileNotesSidebarTagPathIndex(
@@ -210,7 +222,8 @@ export function reconcileNotesSidebarTagPathIndex(
     }
 
     const indexed = index.get(entry.path);
-    if (indexed?.content === content) {
+    const contentSignature = createContentSignature(content);
+    if (indexed?.contentSignature === contentSignature) {
       continue;
     }
 
@@ -283,7 +296,8 @@ export function reconcileNotesSidebarTagIndex(
     }
 
     const indexed = index.paths.get(entry.path);
-    if (indexed?.content === content) {
+    const contentSignature = createContentSignature(content);
+    if (indexed?.contentSignature === contentSignature) {
       continue;
     }
 

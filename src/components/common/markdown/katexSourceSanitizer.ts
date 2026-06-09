@@ -7,6 +7,9 @@ interface HastNode {
 
 const MAX_KATEX_SOURCE_HAST_DEPTH = 200;
 const MAX_KATEX_SOURCE_HAST_NODES = 20_000;
+const MAX_KATEX_SOURCE_HTML_CHARS = 2 * 1024 * 1024;
+const MAX_KATEX_SOURCE_HTML_DEPTH = 200;
+const MAX_KATEX_SOURCE_HTML_NODES = 20_000;
 
 function readPropertyString(properties: Record<string, unknown> | undefined, name: string) {
   const value = properties?.[name];
@@ -25,7 +28,7 @@ function isKatexSourceAnnotation(node: HastNode) {
 }
 
 export function removeKatexSourceAnnotationsFromHtml(html: string) {
-  if (!html.includes('application/x-tex')) {
+  if (html.length > MAX_KATEX_SOURCE_HTML_CHARS || !html.includes('application/x-tex')) {
     return html;
   }
 
@@ -38,12 +41,37 @@ export function removeKatexSourceAnnotationsFromHtml(html: string) {
 
   const template = document.createElement('template');
   template.innerHTML = html;
-  template.content.querySelectorAll('annotation').forEach((annotation) => {
-    if (annotation.getAttribute('encoding')?.toLowerCase() === 'application/x-tex') {
-      annotation.remove();
-    }
-  });
+  removeKatexSourceAnnotationsFromDom(template.content);
   return template.innerHTML;
+}
+
+function removeKatexSourceAnnotationsFromDom(root: DocumentFragment): void {
+  const stack: Array<{ node: Node; depth: number }> = [{ node: root, depth: 0 }];
+  let visitedNodes = 0;
+
+  while (stack.length > 0) {
+    const { node, depth } = stack.pop() as { node: Node; depth: number };
+    visitedNodes += 1;
+    if (visitedNodes > MAX_KATEX_SOURCE_HTML_NODES) {
+      return;
+    }
+
+    if (depth >= MAX_KATEX_SOURCE_HTML_DEPTH) {
+      continue;
+    }
+
+    for (let child = node.lastChild; child; child = child.previousSibling) {
+      if (
+        child.nodeType === Node.ELEMENT_NODE &&
+        (child as Element).tagName.toLowerCase() === 'annotation' &&
+        (child as Element).getAttribute('encoding')?.toLowerCase() === 'application/x-tex'
+      ) {
+        child.parentNode?.removeChild(child);
+        continue;
+      }
+      stack.push({ node: child, depth: depth + 1 });
+    }
+  }
 }
 
 export function removeKatexSourceAnnotationsFromHast(node: HastNode): void {

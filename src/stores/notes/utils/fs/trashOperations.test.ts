@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  MAX_RECOVERABLE_DIRECTORY_COPY_ENTRIES,
   deleteNoteItemToRecoverableLocation,
   restoreNoteItemFromRecoverableLocation,
 } from './trashOperations';
@@ -231,6 +232,32 @@ describe('deleteNoteItemToRecoverableLocation', () => {
       'Copy failed'
     );
 
+    expect(hoisted.deleteDir).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/1000-i/docs',
+      true
+    );
+    expect(hoisted.deleteDir).not.toHaveBeenCalledWith('/vault/docs', true);
+  });
+
+  it('aborts recoverable folder copy fallback after the entry budget is exhausted', async () => {
+    hoisted.rename.mockRejectedValue(new Error('cross-device rename failed'));
+    hoisted.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault/docs') {
+        return Array.from({ length: MAX_RECOVERABLE_DIRECTORY_COPY_ENTRIES + 1 }, (_value, index) => ({
+          name: `note-${index}.md`,
+          isDirectory: false,
+          isFile: true,
+        }));
+      }
+
+      return [];
+    });
+
+    await expect(deleteNoteItemToRecoverableLocation('/vault', 'docs', 'folder')).rejects.toThrow(
+      'Recoverable folder copy exceeded the maximum entry count.'
+    );
+
+    expect(hoisted.copyFile).toHaveBeenCalledTimes(MAX_RECOVERABLE_DIRECTORY_COPY_ENTRIES);
     expect(hoisted.deleteDir).toHaveBeenCalledWith(
       '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/1000-i/docs',
       true

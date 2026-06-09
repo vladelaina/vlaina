@@ -9,6 +9,7 @@ const TEXTBLOCK_CARET_ELEMENT_CLASS = 'editor-textblock-caret-overlay';
 const FORCED_LINE_END_CARET_CLASS = 'editor-forced-line-end-caret-active';
 const TAG_TOKEN_PATTERN_AT_CURSOR = /(?:^|[^\p{L}\p{N}_/-])#([\p{L}\p{N}_/-][\p{L}\p{N}_/-]*)$/u;
 const TAG_TOKEN_CONTINUATION_PATTERN = /^[\p{L}\p{N}_/-]$/u;
+const MAX_TAG_TOKEN_BOUNDARY_LOOKBEHIND_CHARS = 256;
 
 export const textBlockCaretOverlayPluginKey = new PluginKey('textBlockCaretOverlay');
 
@@ -36,23 +37,34 @@ export function shouldShowTextBlockCaretOverlay(view: EditorView): boolean {
   return selection.$from.parent.isTextblock;
 }
 
+export function isTagTokenBoundaryAtTextblock(
+  parent: { content?: { size?: number }; textBetween: (from: number, to: number, blockSeparator?: string, leafText?: string) => string },
+  offset: number,
+): boolean {
+  const contentSize = parent.content?.size;
+  if (typeof contentSize !== 'number' || offset < 0 || offset > contentSize) {
+    return false;
+  }
+
+  const beforeStart = Math.max(0, offset - MAX_TAG_TOKEN_BOUNDARY_LOOKBEHIND_CHARS);
+  const before = parent.textBetween(beforeStart, offset, '\0', '\0');
+  const afterEnd = Math.min(contentSize, offset + 1);
+  const nextChar = offset < contentSize ? parent.textBetween(offset, afterEnd, '\0', '\0') : '';
+  const tokenBeforeCursor = TAG_TOKEN_PATTERN_AT_CURSOR.exec(before)?.[0] ?? '';
+
+  return Boolean(
+    tokenBeforeCursor &&
+    (!nextChar || !TAG_TOKEN_CONTINUATION_PATTERN.test(nextChar)),
+  );
+}
+
 function isTagTokenBoundary(view: EditorView): boolean {
   const { selection } = view.state;
   if (!selection.empty || !selection.$from.parent.isTextblock) {
     return false;
   }
 
-  const parentText = selection.$from.parent.textContent ?? '';
-  const offset = selection.$from.parentOffset;
-  const before = parentText.slice(0, offset);
-  const after = parentText.slice(offset);
-  const tokenBeforeCursor = TAG_TOKEN_PATTERN_AT_CURSOR.exec(before)?.[0] ?? '';
-  const nextChar = after[0] ?? '';
-
-  return Boolean(
-    tokenBeforeCursor &&
-    (!nextChar || !TAG_TOKEN_CONTINUATION_PATTERN.test(nextChar)),
-  );
+  return isTagTokenBoundaryAtTextblock(selection.$from.parent, selection.$from.parentOffset);
 }
 
 function resolveRangeRect(node: Node, fromOffset: number, toOffset: number): DOMRect | null {

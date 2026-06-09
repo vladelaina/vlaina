@@ -55,10 +55,6 @@ function shouldFocusComposer(target: EventTarget | null): boolean {
 }
 
 export function isPointInsideReadableText(element: Element, event: ReadableTextPointer): boolean {
-  if ((element.textContent?.length ?? 0) > MAX_CHAT_READABLE_TEXT_HIT_CHARS) {
-    return true;
-  }
-
   const doc = element.ownerDocument;
   const walker = doc.createTreeWalker(element, NodeFilter.SHOW_TEXT);
   let textNode = walker.nextNode();
@@ -66,9 +62,16 @@ export function isPointInsideReadableText(element: Element, event: ReadableTextP
   let sawRect = false;
   let measuredTextNodes = 0;
   let measuredRects = 0;
+  let measuredTextChars = 0;
 
   while (textNode) {
-    if (textNode.textContent?.trim()) {
+    const text = textNode.textContent ?? '';
+    measuredTextChars += text.length;
+    if (measuredTextChars > MAX_CHAT_READABLE_TEXT_HIT_CHARS) {
+      return true;
+    }
+
+    if (text.trim()) {
       sawText = true;
       measuredTextNodes += 1;
       if (measuredTextNodes > MAX_CHAT_READABLE_TEXT_HIT_NODES) {
@@ -107,7 +110,7 @@ export function isPointInsideReadableText(element: Element, event: ReadableTextP
     textNode = walker.nextNode();
   }
 
-  return (sawText || !!element.textContent?.trim()) && !sawRect;
+  return sawText && !sawRect;
 }
 
 function isScrollbarTrackHit(target: EventTarget | null, event: MouseEvent): boolean {

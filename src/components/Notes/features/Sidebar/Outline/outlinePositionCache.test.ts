@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   buildOutlineElementMap,
   buildOutlinePositionMap,
+  MAX_OUTLINE_HEADING_DOM_SCAN_ELEMENTS,
+  MAX_OUTLINE_HEADING_METRICS,
   readOutlineHeadingMetrics,
   selectActiveOutlineHeadingId,
 } from './outlinePositionCache';
@@ -75,6 +77,38 @@ describe('outlinePositionCache', () => {
     expect(buildOutlinePositionMap(metrics).get('outline-0-h1-alpha')).toBe(140);
   });
 
+  it('reads heading metrics without aggregating heading textContent', () => {
+    const editorRoot = document.createElement('div');
+    const heading = document.createElement('h2');
+    heading.appendChild(document.createTextNode('Bounded heading'));
+    heading.getBoundingClientRect = () => ({
+      bottom: 40,
+      height: 40,
+      left: 0,
+      right: 300,
+      top: 0,
+      width: 300,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    Object.defineProperty(heading, 'textContent', {
+      get() {
+        throw new Error('aggregate heading textContent should not be read');
+      },
+    });
+    editorRoot.appendChild(heading);
+
+    const metrics = readOutlineHeadingMetrics(editorRoot, null);
+
+    expect(metrics).toHaveLength(1);
+    expect(metrics[0]).toMatchObject({
+      id: 'outline-0-h2-bounded-heading',
+      level: 2,
+      text: 'Bounded heading',
+    });
+  });
+
   it('selects the active heading from cached positions', () => {
     const metrics = [
       {
@@ -109,5 +143,56 @@ describe('outlinePositionCache', () => {
     expect(selectActiveOutlineHeadingId(metrics, 0, 72, 12)).toBe('a');
     expect(selectActiveOutlineHeadingId(metrics, 168, 72, 12)).toBe('b');
     expect(selectActiveOutlineHeadingId(metrics, 396, 72, 12)).toBe('c');
+  });
+
+  it('reads heading metrics without materializing selector results', () => {
+    const editorRoot = document.createElement('div');
+    for (let index = 0; index < MAX_OUTLINE_HEADING_METRICS + 4; index += 1) {
+      const heading = document.createElement('h2');
+      heading.textContent = `Heading ${index}`;
+      heading.getBoundingClientRect = () => ({
+        bottom: index + 20,
+        height: 20,
+        left: 0,
+        right: 300,
+        top: index,
+        width: 300,
+        x: 0,
+        y: index,
+        toJSON: () => ({}),
+      } as DOMRect);
+      editorRoot.appendChild(heading);
+    }
+
+    const querySelectorAllSpy = vi.spyOn(editorRoot, 'querySelectorAll').mockImplementation(() => {
+      throw new Error('Outline metrics should not materialize selector results');
+    });
+    const arrayFromSpy = vi.spyOn(Array, 'from').mockImplementation(() => {
+      throw new Error('Outline metrics should not use Array.from');
+    });
+
+    try {
+      const metrics = readOutlineHeadingMetrics(editorRoot, null);
+
+      expect(metrics).toHaveLength(MAX_OUTLINE_HEADING_METRICS);
+      expect(metrics[0]?.id).toBe('outline-0-h2-heading-0');
+      expect(metrics.at(-1)?.id).toBe(`outline-${MAX_OUTLINE_HEADING_METRICS - 1}-h2-heading-${MAX_OUTLINE_HEADING_METRICS - 1}`);
+      expect(querySelectorAllSpy).not.toHaveBeenCalled();
+    } finally {
+      querySelectorAllSpy.mockRestore();
+      arrayFromSpy.mockRestore();
+    }
+  });
+
+  it('stops scanning DOM elements when the scan budget is exhausted', () => {
+    const editorRoot = document.createElement('div');
+    for (let index = 0; index < MAX_OUTLINE_HEADING_DOM_SCAN_ELEMENTS; index += 1) {
+      editorRoot.appendChild(document.createElement('span'));
+    }
+    const overBudgetHeading = document.createElement('h2');
+    overBudgetHeading.textContent = 'Over budget';
+    editorRoot.appendChild(overBudgetHeading);
+
+    expect(readOutlineHeadingMetrics(editorRoot, null)).toEqual([]);
   });
 });

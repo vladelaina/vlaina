@@ -180,6 +180,38 @@ describe('markdownImageTokens', () => {
     expect(parseMarkdownAndHtmlImageTokens(markdown)).toEqual([]);
   });
 
+  it('bounds markdown image label scanning for malformed image syntax', () => {
+    const markdown = `![${'a'.repeat(1024 * 1024)} ![real](https://example.com/real.png)`;
+
+    expect(parseMarkdownImageTokens(markdown).map((token) => token.src)).toEqual([
+      'https://example.com/real.png',
+    ]);
+  });
+
+  it('bounds markdown image target scanning for malformed image syntax', () => {
+    const markdown = `![bad](${'a'.repeat(1024 * 1024)} ![real](https://example.com/real.png)`;
+
+    expect(parseMarkdownImageTokens(markdown).map((token) => token.src)).toEqual([
+      'https://example.com/real.png',
+    ]);
+  });
+
+  it('uses only the first markdown image target segment before title text', () => {
+    const markdown = `![alt](images/a.png ${' '.repeat(4096)} "title")`;
+
+    expect(parseMarkdownImageTokens(markdown).map((token) => token.src)).toEqual([
+      'images/a.png',
+    ]);
+  });
+
+  it('bounds markdown image title scanning for malformed image syntax', () => {
+    const markdown = `![bad](https://example.com/bad.png "${'a'.repeat(1024 * 1024)} ![real](https://example.com/real.png)`;
+
+    expect(parseMarkdownImageTokens(markdown).map((token) => token.src)).toEqual([
+      'https://example.com/real.png',
+    ]);
+  });
+
   it('treats non-finite token bounds as zero except infinity', () => {
     const markdown = [
       '![one](https://example.com/one.png)',
@@ -260,6 +292,32 @@ describe('markdownImageTokens', () => {
     expect(parseHtmlImageTokens(markdown, { maxTokens: 1 }).map((token) => token.src)).toEqual([
       'https://example.com/real.png',
     ]);
+  });
+
+  it('stops bounded html image parsing after too many inline protection ranges', () => {
+    const ignoredInlineTags = Array.from(
+      { length: 4001 },
+      (_, index) => `\`<span data-example="${index}"></span>\``,
+    );
+    const markdown = [
+      ...ignoredInlineTags,
+      '<img src="https://example.com/real.png">',
+    ].join('\n');
+
+    expect(parseHtmlImageTokens(markdown, { maxTokens: 1 })).toEqual([]);
+  });
+
+  it('stops bounded markdown image parsing after too many comment protection ranges', () => {
+    const ignoredComments = Array.from(
+      { length: 4001 },
+      (_, index) => `<!-- ![ignored ${index}](https://example.com/ignored-${index}.png) -->`,
+    );
+    const markdown = [
+      ...ignoredComments,
+      '![real](https://example.com/real.png)',
+    ].join('\n');
+
+    expect(parseMarkdownImageTokens(markdown, { maxTokens: 1 })).toEqual([]);
   });
 
   it('does not keep scanning html after bounded markdown target protection is exhausted', () => {

@@ -91,7 +91,24 @@ function findClosingCodeSpan(content: string, start: number, end: number, tickCo
   return -1;
 }
 
-export function getInlineCodeRanges(content: string, range: ContentRange): ContentRange[] {
+function normalizeRangeLimit(maxRanges: number): number {
+  return Number.isFinite(maxRanges)
+    ? Math.max(0, Math.floor(maxRanges))
+    : maxRanges === Number.POSITIVE_INFINITY
+      ? Number.POSITIVE_INFINITY
+      : 0;
+}
+
+export function getInlineCodeRanges(
+  content: string,
+  range: ContentRange,
+  maxRanges = Number.POSITIVE_INFINITY,
+): ContentRange[] {
+  const rangeLimit = normalizeRangeLimit(maxRanges);
+  if (rangeLimit <= 0) {
+    return [];
+  }
+
   const ranges: ContentRange[] = [];
   let cursor = range.start;
 
@@ -109,6 +126,9 @@ export function getInlineCodeRanges(content: string, range: ContentRange): Conte
     }
 
     ranges.push({ start: cursor, end: closeStart + tickCount });
+    if (ranges.length >= rangeLimit) {
+      break;
+    }
     cursor = closeStart + tickCount;
   }
 
@@ -153,7 +173,16 @@ export function isEscapedMarkdownPunctuation(content: string, offset: number, lo
   return backslashCount % 2 === 1;
 }
 
-export function getHtmlCommentRanges(content: string, range: ContentRange): ContentRange[] {
+export function getHtmlCommentRanges(
+  content: string,
+  range: ContentRange,
+  maxRanges = Number.POSITIVE_INFINITY,
+): ContentRange[] {
+  const rangeLimit = normalizeRangeLimit(maxRanges);
+  if (rangeLimit <= 0) {
+    return [];
+  }
+
   const ranges: ContentRange[] = [];
   let cursor = range.start;
 
@@ -170,6 +199,9 @@ export function getHtmlCommentRanges(content: string, range: ContentRange): Cont
     const close = content.indexOf("-->", start + 4);
     const end = close === -1 ? range.end : Math.min(range.end, close + 3);
     ranges.push({ start, end });
+    if (ranges.length >= rangeLimit) {
+      break;
+    }
     cursor = end;
   }
 
@@ -181,11 +213,7 @@ export function getMarkdownHtmlBlockRanges(
   range: ContentRange,
   maxRanges = Number.POSITIVE_INFINITY,
 ): ContentRange[] {
-  const rangeLimit = Number.isFinite(maxRanges)
-    ? Math.max(0, Math.floor(maxRanges))
-    : maxRanges === Number.POSITIVE_INFINITY
-      ? Number.POSITIVE_INFINITY
-      : 0;
+  const rangeLimit = normalizeRangeLimit(maxRanges);
   if (rangeLimit <= 0) {
     return [];
   }
@@ -253,11 +281,7 @@ export function getMarkdownInvisibleHtmlBlockRanges(
   range: ContentRange,
   maxRanges = Number.POSITIVE_INFINITY,
 ): ContentRange[] {
-  const rangeLimit = Number.isFinite(maxRanges)
-    ? Math.max(0, Math.floor(maxRanges))
-    : maxRanges === Number.POSITIVE_INFINITY
-      ? Number.POSITIVE_INFINITY
-      : 0;
+  const rangeLimit = normalizeRangeLimit(maxRanges);
   if (rangeLimit <= 0) {
     return [];
   }

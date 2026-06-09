@@ -16,6 +16,7 @@ const MAX_WEB_SEARCH_QUERY_ARG_CHARS = 1000;
 const MAX_WEB_SEARCH_URL_ARG_CHARS = 16 * 1024;
 const MAX_WEB_SEARCH_OPTION_ARG_CHARS = 64;
 const MAX_WEB_SEARCH_BATCH_URLS = 8;
+const MAX_WEB_SEARCH_TOOL_NAME_CHARS = 128;
 
 interface WebSearchToolCall {
   name: string;
@@ -112,7 +113,8 @@ function invalidToolArgumentsResult(
 }
 
 function normalizeToolName(name: string): string {
-  const normalized = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  const boundedName = name.slice(0, MAX_WEB_SEARCH_TOOL_NAME_CHARS);
+  const normalized = boundedName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   if (
     normalized === WEB_SEARCH_TOOL_NAMES.search ||
     normalized === 'search' ||
@@ -151,7 +153,7 @@ function normalizeToolName(name: string): string {
   ) {
     return WEB_SEARCH_TOOL_NAMES.readBatch;
   }
-  return normalized || name;
+  return normalized || boundedName;
 }
 
 function errorCode(error: unknown): string | undefined {
@@ -350,7 +352,7 @@ export async function runWebSearchToolCall(
       return formatBatchPagesForModel(pages);
     }
 
-    return `Unsupported web search tool: ${toolCall.name}`;
+    return `Unsupported web search tool: ${toolName}`;
   } catch (error) {
     if (isAbortError(error) && options.signal?.aborted) {
       throw error;

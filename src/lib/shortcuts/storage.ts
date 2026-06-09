@@ -59,7 +59,7 @@ export function getShortcutKeys(id: string): string[] | undefined {
 
 export function saveShortcuts(shortcuts: ShortcutConfig[]): void {
   try {
-    const toSave = shortcuts.map(({ id, keys }) => ({ id, keys }));
+    const toSave = Array.from(normalizeStoredShortcutMap(shortcuts), ([id, keys]) => ({ id, keys }));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
   } catch (e) {
   }

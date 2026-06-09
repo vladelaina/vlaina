@@ -5,6 +5,7 @@ import type { Mark } from '@milkdown/prose/model'
 import { expect, it } from 'vitest'
 
 import { commonmark } from '..'
+import { clearMarkedHardbreaksInRange } from '../plugin/hardbreak-clear-mark-plugin'
 
 function createEditor(defaultValue: string) {
   return Editor.make()
@@ -114,4 +115,37 @@ it('should map touched hardbreak positions through later transaction steps', asy
   ])
 
   await editor.destroy()
+})
+
+it('should stop scanning touched hardbreak ranges at the scan budget', () => {
+  const hardbreakType = { name: 'hardbreak' }
+  const textType = { name: 'text' }
+  let accessed = 0
+  const clearedPositions: number[] = []
+  const nodes = [
+    { type: textType, marks: [], attrs: {}, nodeSize: 1, childCount: 0 },
+    { type: hardbreakType, marks: [{ type: { name: 'strong' } }], attrs: { isInline: false }, nodeSize: 1, childCount: 0 },
+    { type: textType, marks: [], attrs: {}, nodeSize: 1, childCount: 0 },
+    { type: hardbreakType, marks: [{ type: { name: 'strong' } }], attrs: { isInline: false }, nodeSize: 1, childCount: 0 },
+  ]
+  const tr = {
+    doc: {
+      child(index: number) {
+        accessed += 1
+        return nodes[index]!
+      },
+      childCount: nodes.length,
+      content: { size: nodes.length },
+    },
+    setNodeMarkup(pos: number) {
+      clearedPositions.push(pos)
+      return this
+    },
+  } as any
+
+  const result = clearMarkedHardbreaksInRange(tr, hardbreakType, 0, nodes.length, 2)
+
+  expect(result.changed).toBe(true)
+  expect(accessed).toBe(2)
+  expect(clearedPositions).toEqual([1])
 })

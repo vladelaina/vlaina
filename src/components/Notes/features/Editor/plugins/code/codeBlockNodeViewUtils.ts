@@ -4,6 +4,7 @@ import type { ViewUpdate } from '@codemirror/view';
 import { Transaction } from '@codemirror/state';
 import { mapCodeBlockEditorOffsetToDocumentOffset } from './codemirror';
 import { normalizeCodeBlockLanguage } from './codeBlockLanguage';
+import { getCodeBlockSourceText } from './codeBlockText';
 import { guessLanguage } from '../../utils/languageGuesser';
 
 function isPasteUpdate(update: ViewUpdate) {
@@ -34,10 +35,10 @@ export function forwardCodeBlockUpdate(
   const codeBlockStart = codeBlockPos + 1;
   const { main } = update.state.selection;
   const currentDoc =
-    view.state.doc as { nodeAt?: (pos: number) => { textContent: string } | null } | undefined;
+    view.state.doc as { nodeAt?: (pos: number) => Parameters<typeof getCodeBlockSourceText>[0] | null } | undefined;
   const currentCodeBlock =
     typeof currentDoc?.nodeAt === 'function' ? currentDoc.nodeAt(codeBlockPos) : null;
-  const currentRawText = currentCodeBlock?.textContent ?? '';
+  const currentRawText = currentCodeBlock ? getCodeBlockSourceText(currentCodeBlock) : '';
   const currentSelectionFrom =
     codeBlockStart + mapCodeBlockEditorOffsetToDocumentOffset(currentRawText, main.from);
   const currentSelectionTo =
@@ -66,10 +67,10 @@ export function forwardCodeBlockUpdate(
   });
 
   const nextDoc = tr.doc as {
-    nodeAt?: (pos: number) => { attrs?: Record<string, unknown>; textContent: string } | null;
+    nodeAt?: (pos: number) => (Parameters<typeof getCodeBlockSourceText>[0] & { attrs?: Record<string, unknown> }) | null;
   };
   const nextCodeBlock = typeof nextDoc.nodeAt === 'function' ? nextDoc.nodeAt(codeBlockPos) : null;
-  const nextRawText = nextCodeBlock?.textContent ?? '';
+  const nextRawText = nextCodeBlock ? getCodeBlockSourceText(nextCodeBlock) : '';
   if (nextCodeBlock && shouldAutoDetectLanguageAfterPaste({
     update,
     previousText: currentRawText,

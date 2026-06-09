@@ -40,6 +40,7 @@ interface PendingMarkdownAutosaveOptions {
   currentNoteContent: string;
   updateContent: (content: string) => void;
   debouncedSave: () => void;
+  onLocalMarkdownCommitted?: (content: string) => void;
 }
 
 function getContentCommitThrottleMs(): number {
@@ -111,6 +112,7 @@ export function usePendingMarkdownAutosave({
   currentNoteContent,
   updateContent,
   debouncedSave,
+  onLocalMarkdownCommitted,
 }: PendingMarkdownAutosaveOptions) {
   const hasIgnoredInitNoise = useRef(false);
   const hasEditorUserInput = useRef(false);
@@ -119,6 +121,8 @@ export function usePendingMarkdownAutosave({
   const pendingUserInputVersionRef = useRef(0);
   const pendingMarkdownUpdateFrameRef = useRef<number | null>(null);
   const pendingMarkdownApplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingLivePreviewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingLivePreviewRef = useRef<{ path: string | undefined; content: string } | null>(null);
   const pendingRawMarkdownRef = useRef<string | null>(null);
   const pendingMarkdownRef = useRef<string | null>(null);
   const isCompositionActiveRef = useRef(false);
@@ -155,11 +159,21 @@ export function usePendingMarkdownAutosave({
       clearTimeout(pendingMarkdownApplyTimeoutRef.current);
       pendingMarkdownApplyTimeoutRef.current = null;
     }
+    if (pendingLivePreviewTimeoutRef.current !== null) {
+      clearTimeout(pendingLivePreviewTimeoutRef.current);
+      pendingLivePreviewTimeoutRef.current = null;
+    }
+    pendingLivePreviewRef.current = null;
     return () => {
       if (compositionSettleTimeoutRef.current !== null) {
         clearTimeout(compositionSettleTimeoutRef.current);
         compositionSettleTimeoutRef.current = null;
       }
+      if (pendingLivePreviewTimeoutRef.current !== null) {
+        clearTimeout(pendingLivePreviewTimeoutRef.current);
+        pendingLivePreviewTimeoutRef.current = null;
+      }
+      pendingLivePreviewRef.current = null;
     };
   }, [currentNoteDiskRevision, currentNotePath]);
 
@@ -206,11 +220,12 @@ export function usePendingMarkdownAutosave({
 
     const latestNotesPath = useNotesStore.getState().notesPath;
     const latestIsDraftNote = isDraftNotePath(latestNote.path);
+    onLocalMarkdownCommitted?.(markdownToApply);
     updateContent(markdownToApply);
     if (!latestIsDraftNote || latestNotesPath) {
       debouncedSave();
     }
-  }, [currentNotePath, debouncedSave, updateContent]);
+  }, [currentNotePath, debouncedSave, onLocalMarkdownCommitted, updateContent]);
 
   const schedulePendingMarkdownApply = useCallback(() => {
     if (pendingMarkdownApplyTimeoutRef.current !== null) {
@@ -228,6 +243,29 @@ export function usePendingMarkdownAutosave({
       throttleMs,
     );
   }, [applyPendingMarkdown]);
+
+  const scheduleLiveMarkdownPreview = useCallback((path: string | undefined, content: string) => {
+    const throttleMs = getContentCommitThrottleMs();
+    if (throttleMs <= 0) {
+      publishLiveMarkdownPreview(path, content);
+      return;
+    }
+
+    pendingLivePreviewRef.current = { path, content };
+    if (pendingLivePreviewTimeoutRef.current !== null) {
+      return;
+    }
+
+    pendingLivePreviewTimeoutRef.current = setTimeout(() => {
+      pendingLivePreviewTimeoutRef.current = null;
+      const preview = pendingLivePreviewRef.current;
+      pendingLivePreviewRef.current = null;
+      if (!preview) {
+        return;
+      }
+      publishLiveMarkdownPreview(preview.path, preview.content);
+    }, throttleMs);
+  }, []);
 
   const configureMarkdownListener = useCallback((ctx: MilkdownContext, initialContent: string) => {
     const initTime = Date.now();
@@ -261,7 +299,7 @@ export function usePendingMarkdownAutosave({
         return;
       }
 
-      publishLiveMarkdownPreview(currentNotePath, markdown);
+      scheduleLiveMarkdownPreview(currentNotePath, markdown);
       pendingRawMarkdownRef.current = markdown;
       pendingUserInputVersionRef.current = userInputVersion;
       if (pendingMarkdownUpdateFrameRef.current !== null) {
@@ -337,7 +375,7 @@ export function usePendingMarkdownAutosave({
 
       processMarkdown(markdown);
     };
-  }, [currentNotePath, schedulePendingMarkdownApply]);
+  }, [currentNotePath, scheduleLiveMarkdownPreview, schedulePendingMarkdownApply]);
 
   const createUserInputMarker = useCallback((
     _view: EditorView,

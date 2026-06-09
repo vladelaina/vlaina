@@ -1,6 +1,8 @@
 import { hasAnyMark, hasMark, VLOOK_HIGHLIGHT_MARKS } from './marks';
 import type { InlineTextRun } from './types';
 
+export const MAX_THEME_COMPAT_TEXT_CONTENT_CHARS = 4096;
+
 export function getInlineTextRuns(node: any, pos: number): InlineTextRun[] {
   const runs: InlineTextRun[] = [];
   if (!node.isTextblock || typeof node.forEach !== 'function') {
@@ -29,5 +31,13 @@ export function getInlineTextRuns(node: any, pos: number): InlineTextRun[] {
 }
 
 export function getTextContent(node: any): string {
-  return typeof node.textContent === 'string' ? node.textContent : '';
+  const contentSize = node?.content?.size;
+  if (typeof node?.textBetween === 'function' && typeof contentSize === 'number') {
+    const text = node.textBetween(0, Math.min(contentSize, MAX_THEME_COMPAT_TEXT_CONTENT_CHARS), '\n', '\n');
+    return contentSize > MAX_THEME_COMPAT_TEXT_CONTENT_CHARS && text.trim() === '' ? ' ' : text;
+  }
+
+  return typeof node.textContent === 'string'
+    ? node.textContent.slice(0, MAX_THEME_COMPAT_TEXT_CONTENT_CHARS)
+    : '';
 }

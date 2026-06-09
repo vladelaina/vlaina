@@ -1,9 +1,12 @@
 import type { WebSearchStatus } from './types';
 import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity';
 
-const WEB_SEARCH_STATUS_REGEX = /<web-search-status>([\s\S]*?)<\/web-search-status>/gi;
+const WEB_SEARCH_STATUS_START_TAG = '<web-search-status>';
+const WEB_SEARCH_STATUS_END_TAG = '</web-search-status>';
 const VALID_PHASES = new Set(['searching', 'results', 'reading', 'complete', 'error']);
-const MAX_STATUS_JSON_LENGTH = 20000;
+export const MAX_WEB_SEARCH_STATUS_JSON_LENGTH = 20000;
+export const MAX_WEB_SEARCH_STATUS_MARKUPS = 32;
+const MAX_OVERSIZED_STATUS_JSON_EXTRA_SCAN_CHARS = 4096;
 const MAX_SOURCE_URL_LENGTH = 4096;
 const UNSAFE_URL_CHARS_REGEX = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
@@ -103,28 +106,67 @@ export function buildWebSearchStatusMarkup(status: WebSearchStatus): string {
 }
 
 export function stripWebSearchStatusMarkup(content: string): string {
-  return content.replace(WEB_SEARCH_STATUS_REGEX, '').trimStart();
+  return extractWebSearchStatuses(content).content;
 }
 
 export function extractWebSearchStatuses(content: string): {
   statuses: WebSearchStatus[];
   content: string;
 } {
+  const lowerContent = content.toLowerCase();
+  if (!lowerContent.includes(WEB_SEARCH_STATUS_START_TAG)) {
+    return {
+      statuses: [],
+      content: content.trimStart(),
+    };
+  }
+
   const statuses: WebSearchStatus[] = [];
-  const nextContent = content.replace(WEB_SEARCH_STATUS_REGEX, (_match, json) => {
+  let strippedContent = '';
+  let cursor = 0;
+  let statusMarkupCount = 0;
+
+  while (cursor < content.length) {
+    const start = lowerContent.indexOf(WEB_SEARCH_STATUS_START_TAG, cursor);
+    if (start < 0) {
+      strippedContent += content.slice(cursor);
+      break;
+    }
+
+    strippedContent += content.slice(cursor, start);
+    const jsonStart = start + WEB_SEARCH_STATUS_START_TAG.length;
+    const boundedEndSearch = content.slice(
+      jsonStart,
+      jsonStart
+        + MAX_WEB_SEARCH_STATUS_JSON_LENGTH
+        + MAX_OVERSIZED_STATUS_JSON_EXTRA_SCAN_CHARS
+        + WEB_SEARCH_STATUS_END_TAG.length
+    ).toLowerCase();
+    const relativeEnd = boundedEndSearch.indexOf(WEB_SEARCH_STATUS_END_TAG);
+    if (relativeEnd < 0) {
+      strippedContent += content.slice(start);
+      break;
+    }
+
+    const json = content.slice(jsonStart, jsonStart + relativeEnd);
+    cursor = jsonStart + relativeEnd + WEB_SEARCH_STATUS_END_TAG.length;
+    statusMarkupCount += 1;
+
+    if (relativeEnd > MAX_WEB_SEARCH_STATUS_JSON_LENGTH || statusMarkupCount > MAX_WEB_SEARCH_STATUS_MARKUPS) {
+      continue;
+    }
+
     try {
-      if (String(json).length > MAX_STATUS_JSON_LENGTH) return '';
       const parsed = JSON.parse(unescapeStatusJson(json)) as WebSearchStatus;
       const status = sanitizeWebSearchStatus(parsed);
       if (status) statuses.push(status);
     } catch {
       // Ignore malformed status payloads; the assistant text should still render.
     }
-    return '';
-  });
+  }
 
   return {
     statuses,
-    content: nextContent.trimStart(),
+    content: strippedContent.trimStart(),
   };
 }

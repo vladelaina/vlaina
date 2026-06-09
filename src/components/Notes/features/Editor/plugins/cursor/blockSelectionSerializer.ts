@@ -21,6 +21,11 @@ const ORDERED_LIST_ITEM_MARKER_PATTERN = /^(\s*)(\d+)([.)])(\s+(?:\[(?: |x|X)\]\
 const FENCED_CODE_MARKER_PATTERN = /^([ \t]*)(`{3,}|~{3,})/;
 const FENCED_CODE_CLOSING_PATTERN = /^([ \t]*)(`{3,}|~{3,})[ \t]*$/;
 
+type FenceClosingMatch = {
+  closeIndex: number;
+  closingIndent: string;
+};
+
 function getNodeChildren(node: any): any[] {
   const children: any[] = [];
   node?.content?.forEach?.((child: any) => {
@@ -298,44 +303,65 @@ function stripLineIndent(line: string, indent: string): string {
     : line;
 }
 
-function normalizeSelectedFencedCodeIndent(text: string): string {
+export function normalizeSelectedFencedCodeIndent(text: string): string {
   const lines = text.split('\n');
+  const closingMatches = collectNextFenceClosingMatches(lines);
 
   for (let index = 0; index < lines.length; index += 1) {
     const opening = FENCED_CODE_MARKER_PATTERN.exec(lines[index] ?? '');
     if (!opening) continue;
 
     const openingIndent = opening[1] ?? '';
-    const marker = opening[2] ?? '';
-    const markerChar = marker[0];
-    if (!markerChar) continue;
+    const closing = closingMatches[index];
+    if (!closing) continue;
 
-    let closingIndex = -1;
-    let closingIndent = '';
-    for (let candidate = index + 1; candidate < lines.length; candidate += 1) {
-      const closingLine = lines[candidate] ?? '';
-      const closing = FENCED_CODE_CLOSING_PATTERN.exec(closingLine);
-      if (!closing) continue;
-      const closingMarker = closing[2] ?? '';
-      if (closingMarker[0] !== markerChar || closingMarker.length < marker.length) continue;
-      closingIndex = candidate;
-      closingIndent = closing[1] ?? '';
-      break;
-    }
-
-    if (closingIndex === -1) continue;
-
-    const indentToStrip = openingIndent || closingIndent;
+    const indentToStrip = openingIndent || closing.closingIndent;
     if (indentToStrip.length > 0) {
-      for (let lineIndex = index; lineIndex <= closingIndex; lineIndex += 1) {
+      for (let lineIndex = index; lineIndex <= closing.closeIndex; lineIndex += 1) {
         lines[lineIndex] = stripLineIndent(lines[lineIndex] ?? '', indentToStrip);
       }
     }
 
-    index = closingIndex;
+    index = closing.closeIndex;
   }
 
   return lines.join('\n');
+}
+
+function collectNextFenceClosingMatches(lines: readonly string[]): Array<FenceClosingMatch | null> {
+  const matches: Array<FenceClosingMatch | null> = Array.from({ length: lines.length }, () => null);
+  const nearestClosingByMarker = new Map<string, Array<FenceClosingMatch | null>>();
+
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = lines[index] ?? '';
+    const opening = FENCED_CODE_MARKER_PATTERN.exec(line);
+    if (opening) {
+      const marker = opening[2] ?? '';
+      const markerChar = marker[0];
+      if (markerChar) {
+        matches[index] = nearestClosingByMarker.get(markerChar)?.[marker.length] ?? null;
+      }
+    }
+
+    const closing = FENCED_CODE_CLOSING_PATTERN.exec(line);
+    if (!closing) continue;
+
+    const closingMarker = closing[2] ?? '';
+    const markerChar = closingMarker[0];
+    if (!markerChar) continue;
+
+    const nearestByLength = nearestClosingByMarker.get(markerChar) ?? [];
+    const closingMatch = {
+      closeIndex: index,
+      closingIndent: closing[1] ?? '',
+    };
+    for (let markerLength = 3; markerLength <= closingMarker.length; markerLength += 1) {
+      nearestByLength[markerLength] = closingMatch;
+    }
+    nearestClosingByMarker.set(markerChar, nearestByLength);
+  }
+
+  return matches;
 }
 
 function stripCommonContinuationIndent(text: string): string {

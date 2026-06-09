@@ -11,6 +11,8 @@ import {
 
 export const autolinkPluginKey = new PluginKey('autolink');
 export const MAX_AUTOLINK_DECORATIONS = 1000;
+export const MAX_AUTOLINK_TEXT_SCAN_CHARS = 1024 * 1024;
+export const MAX_AUTOLINK_TRANSACTION_STEP_TEXT_CHARS = 200_000;
 const AUTOLINK_TRIGGER_TEXT_PATTERN = /[:/.@]/;
 const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
 const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
@@ -26,30 +28,32 @@ function overlapsExistingMatch(start: number, end: number, matches: LinkMatch[])
     return matches.some((match) => start < match.end && end > match.start);
 }
 
-function hasUnbalancedTrailingCloseParen(url: string): boolean {
+function getParenBalance(url: string): number {
     let balance = 0;
     for (const char of url) {
         if (char === '(') balance += 1;
         if (char === ')') balance -= 1;
     }
-    return balance < 0;
+    return balance;
 }
 
 export function trimTrailingUrlPunctuation(url: string): string {
-    let trimmed = url;
-    while (trimmed.length > 0) {
-        const lastChar = trimmed[trimmed.length - 1];
+    let end = url.length;
+    let parenBalance = getParenBalance(url);
+    while (end > 0) {
+        const lastChar = url[end - 1];
         if (/[.,;:!?]/.test(lastChar)) {
-            trimmed = trimmed.slice(0, -1);
+            end -= 1;
             continue;
         }
-        if (lastChar === ')' && hasUnbalancedTrailingCloseParen(trimmed)) {
-            trimmed = trimmed.slice(0, -1);
+        if (lastChar === ')' && parenBalance < 0) {
+            end -= 1;
+            parenBalance += 1;
             continue;
         }
         break;
     }
-    return trimmed;
+    return end === url.length ? url : url.slice(0, end);
 }
 
 export function findUrls(text: string, offset: number, maxMatches = Number.POSITIVE_INFINITY): LinkMatch[] {
@@ -128,7 +132,7 @@ export function collectAutolinkDecorations(doc: any): Decoration[] {
         }
 
         if (node.isText) {
-            const text = node.text || '';
+            const text = (node.text || '').slice(0, MAX_AUTOLINK_TEXT_SCAN_CHARS);
             if (!AUTOLINK_TRIGGER_TEXT_PATTERN.test(text)) {
                 return;
             }
@@ -174,22 +178,67 @@ export function createAutolinkDecorations(doc: any): DecorationSet {
     return DecorationSet.create(doc, collectAutolinkDecorations(doc));
 }
 
-function getInsertedStepText(step: unknown): string {
+function transactionStepMayCreateAutolink(step: unknown): boolean {
     const slice = (step as { slice?: { content?: { textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string; size?: number } } }).slice;
     const content = slice?.content;
     if (!content || typeof content.textBetween !== 'function' || typeof content.size !== 'number') {
-        return '';
+        return false;
     }
-    return content.textBetween(0, content.size, '\n', '\ufffc');
+    if (content.size > MAX_AUTOLINK_TRANSACTION_STEP_TEXT_CHARS) {
+        return true;
+    }
+    return AUTOLINK_TRIGGER_TEXT_PATTERN.test(content.textBetween(0, content.size, '\n', '\ufffc'));
 }
 
-function transactionMayCreateAutolink(tr: unknown): boolean {
+export function transactionMayCreateAutolink(tr: unknown): boolean {
     const steps = (tr as { steps?: readonly unknown[] }).steps ?? [];
     if (steps.length === 0) {
         return false;
     }
 
-    return steps.some((step) => AUTOLINK_TRIGGER_TEXT_PATTERN.test(getInsertedStepText(step)));
+    return steps.some(transactionStepMayCreateAutolink);
+}
+
+type AutolinkDecorationSetLike = {
+    find: (from?: number, to?: number) => unknown[];
+};
+
+type MappingLike = {
+    maps?: readonly {
+        forEach?: (
+            callback: (oldStart: number, oldEnd: number, newStart: number, newEnd: number) => void,
+        ) => void;
+    }[];
+};
+
+export function transactionMayAffectExistingAutolinks(
+    decorations: AutolinkDecorationSetLike,
+    tr: unknown,
+): boolean {
+    const mapping = (tr as { mapping?: MappingLike }).mapping;
+    const maps = mapping?.maps ?? [];
+    for (const map of maps) {
+        if (typeof map.forEach !== 'function') {
+            continue;
+        }
+
+        let affectsAutolink = false;
+        map.forEach((oldStart, oldEnd) => {
+            if (affectsAutolink) {
+                return;
+            }
+
+            const from = Math.max(0, Math.min(oldStart, oldEnd) - 1);
+            const to = Math.max(oldStart, oldEnd) + 1;
+            affectsAutolink = decorations.find(from, to).length > 0;
+        });
+
+        if (affectsAutolink) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 export const autolinkPlugin = $prose(() => {
@@ -204,7 +253,8 @@ export const autolinkPlugin = $prose(() => {
                     return old;
                 }
 
-                if (old.find().length === 0 && !transactionMayCreateAutolink(tr)) {
+                const mayCreateAutolink = transactionMayCreateAutolink(tr);
+                if (!mayCreateAutolink && !transactionMayAffectExistingAutolinks(old, tr)) {
                     return old.map(tr.mapping, tr.doc);
                 }
 

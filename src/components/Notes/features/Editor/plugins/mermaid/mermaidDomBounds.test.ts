@@ -6,6 +6,8 @@ vi.mock('./mermaidRenderer', () => ({
 
 import {
   createMermaidElement,
+  getMermaidElementCode,
+  MAX_LEGACY_MERMAID_DATA_CODE_CHARS,
   renderMermaidEditorLivePreview,
 } from './mermaidDom';
 import { renderMermaid } from './mermaidRenderer';
@@ -42,5 +44,12 @@ describe('mermaid DOM render bounds', () => {
     );
     expect(anchor.querySelector('svg')).toBeNull();
     expect(onRendered).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds legacy data-code fallback reads', () => {
+    const element = document.createElement('div');
+    element.dataset.code = 'x'.repeat(MAX_LEGACY_MERMAID_DATA_CODE_CHARS + 1);
+
+    expect(getMermaidElementCode(element)).toHaveLength(MAX_LEGACY_MERMAID_DATA_CODE_CHARS);
   });
 });

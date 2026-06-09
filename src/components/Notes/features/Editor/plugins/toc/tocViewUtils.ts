@@ -8,7 +8,7 @@ import {
 export const TOC_EMPTY_TEXT = 'No headings yet';
 
 export const MAX_TOC_VIEW_HEADINGS = 512;
-const MAX_TOC_VIEW_HEADING_TEXT_CHARS = 240;
+export const MAX_TOC_VIEW_HEADING_TEXT_CHARS = 240;
 
 export function normalizeTocMaxLevel(value: unknown): number {
   const parsed = typeof value === 'string' ? Number.parseInt(value, 10) : value;
@@ -24,6 +24,20 @@ function normalizeHeadingLevel(value: unknown, maxLevel: number): number | null 
 
   const level = Math.max(1, Math.min(6, Math.trunc(value)));
   return level <= maxLevel ? level : null;
+}
+
+export function readBoundedTocHeadingText(node: BoundedProseScanNode): string {
+  const size = node.content?.size;
+  if (typeof size === 'number' && Number.isFinite(size) && size >= 0 && typeof node.textBetween === 'function') {
+    return node.textBetween(0, Math.min(size, MAX_TOC_VIEW_HEADING_TEXT_CHARS), '', '');
+  }
+
+  if (typeof node.text === 'string') {
+    return node.text.slice(0, MAX_TOC_VIEW_HEADING_TEXT_CHARS);
+  }
+
+  const text = node.textContent;
+  return typeof text === 'string' ? text.slice(0, MAX_TOC_VIEW_HEADING_TEXT_CHARS) : '';
 }
 
 export function extractHeadings(doc: BoundedProseScanNode, maxLevel = 6): TocItem[] {
@@ -44,7 +58,7 @@ export function extractHeadings(doc: BoundedProseScanNode, maxLevel = 6): TocIte
       return true;
     }
 
-    const text = String(node.textContent ?? '').slice(0, MAX_TOC_VIEW_HEADING_TEXT_CHARS);
+    const text = readBoundedTocHeadingText(node);
     if (!text.trim()) {
       return true;
     }

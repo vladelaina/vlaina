@@ -58,6 +58,29 @@ describe('web search model formatting', () => {
     expect(text).not.toContain('Should not be exposed');
   });
 
+  it('clips search metadata before returning model context', () => {
+    const text = formatSearchResultsForModel({
+      query: 'q'.repeat(520),
+      results: [{
+        title: 't'.repeat(320),
+        url: 'https://example.com/long',
+        snippet: 's'.repeat(1100),
+        publishedAt: 'p'.repeat(120),
+        source: 'source'.repeat(50),
+        thumbnail: null,
+      }],
+    });
+
+    expect(text).toContain(`${'q'.repeat(500)}\n[truncated]`);
+    expect(text).toContain(`${'t'.repeat(300)}\n[truncated]`);
+    expect(text).toContain(`${'s'.repeat(1000)}\n[truncated]`);
+    expect(text).toContain(`${'p'.repeat(100)}\n[truncated]`);
+    expect(text).toContain(`Source: ${'source'.repeat(33)}so\n[truncated]`);
+    expect(text).not.toContain('q'.repeat(501));
+    expect(text).not.toContain('t'.repeat(301));
+    expect(text).not.toContain('s'.repeat(1001));
+  });
+
   it('keeps batch page failures isolated', () => {
     const text = formatBatchPagesForModel([
       {
@@ -116,5 +139,30 @@ describe('web search model formatting', () => {
     expect(text).not.toContain('127.0.0.1');
     expect(text).not.toContain('localhost:11434');
     expect(text).not.toContain('Raw local error');
+  });
+
+  it('clips page metadata before returning model context', () => {
+    const text = formatBatchPagesForModel([
+      {
+        url: 'https://example.com/input',
+        ok: true,
+        page: {
+          title: 't'.repeat(320),
+          summary: 's'.repeat(1100),
+          siteName: 'site'.repeat(60),
+          finalUrl: 'https://example.com/page',
+          content: 'c'.repeat(3100),
+          charCount: 3100,
+        },
+      },
+    ]);
+
+    expect(text).toContain(`${'t'.repeat(300)}\n[truncated]`);
+    expect(text).toContain(`${'s'.repeat(1000)}\n[truncated]`);
+    expect(text).toContain(`${'site'.repeat(50)}\n[truncated]`);
+    expect(text).toContain(`${'c'.repeat(3000)}\n[truncated]`);
+    expect(text).not.toContain('t'.repeat(301));
+    expect(text).not.toContain('s'.repeat(1001));
+    expect(text).not.toContain('c'.repeat(3001));
   });
 });

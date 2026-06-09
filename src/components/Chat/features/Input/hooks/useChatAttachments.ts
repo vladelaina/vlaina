@@ -4,6 +4,7 @@ import { useAIUIStore } from '@/stores/ai/chatState';
 
 export const MAX_CHAT_ATTACHMENT_INPUT_FILES = 64;
 export const MAX_CHAT_ATTACHMENT_TRANSFER_ITEM_SCAN = 1024;
+export const MAX_CHAT_ATTACHMENT_SAVE_CONCURRENCY = 4;
 
 function getTransferType(types: DataTransfer['types'], index: number): string | null {
   const maybeTypes = types as DataTransfer['types'] & { item?: (index: number) => string | null };
@@ -86,11 +87,44 @@ export function collectChatAttachmentClipboardFiles(items: DataTransferItemList 
   return files;
 }
 
+async function settleWithConcurrencyLimit<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  worker: (item: T) => Promise<R>
+): Promise<PromiseSettledResult<R>[]> {
+  const results = new Array<PromiseSettledResult<R>>(items.length);
+  let nextIndex = 0;
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        try {
+          results[index] = { status: 'fulfilled', value: await worker(items[index]!) };
+        } catch (reason) {
+          results[index] = { status: 'rejected', reason };
+        }
+      }
+    }
+  );
+
+  await Promise.all(workers);
+  return results;
+}
+
 export function useChatAttachments() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragDepthRef = useRef(0);
+  const attachmentsRef = useRef<Attachment[]>([]);
+  const pendingAttachmentSaveCountRef = useRef(0);
+
+  useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
 
   const hasFileTransfer = useCallback((transfer: DataTransfer | null | undefined) => {
     if (!transfer) {
@@ -112,13 +146,34 @@ export function useChatAttachments() {
   );
 
   const processFiles = useCallback(async (files: File[]) => {
-    const limitedFiles = files.length > MAX_CHAT_ATTACHMENT_INPUT_FILES
-      ? files.slice(0, MAX_CHAT_ATTACHMENT_INPUT_FILES)
-      : files;
-    const shouldPersist = !useAIUIStore.getState().temporaryChatEnabled;
-    const results = await Promise.allSettled(
-      limitedFiles.map(async (file) => saveAttachment(file, { persist: shouldPersist }))
+    const remainingSlots = Math.max(
+      MAX_CHAT_ATTACHMENT_INPUT_FILES
+      - attachmentsRef.current.length
+      - pendingAttachmentSaveCountRef.current,
+      0
     );
+    const limitedFiles = files.length > remainingSlots
+      ? files.slice(0, remainingSlots)
+      : files;
+    if (limitedFiles.length === 0) {
+      return;
+    }
+
+    pendingAttachmentSaveCountRef.current += limitedFiles.length;
+    const shouldPersist = !useAIUIStore.getState().temporaryChatEnabled;
+    let results: PromiseSettledResult<Attachment>[];
+    try {
+      results = await settleWithConcurrencyLimit(
+        limitedFiles,
+        MAX_CHAT_ATTACHMENT_SAVE_CONCURRENCY,
+        (file) => saveAttachment(file, { persist: shouldPersist })
+      );
+    } finally {
+      pendingAttachmentSaveCountRef.current = Math.max(
+        pendingAttachmentSaveCountRef.current - limitedFiles.length,
+        0
+      );
+    }
 
     const newAttachments: Attachment[] = [];
     results.forEach((result) => {
@@ -129,7 +184,12 @@ export function useChatAttachments() {
     });
 
     if (newAttachments.length > 0) {
-      setAttachments((prev) => [...prev, ...newAttachments]);
+      setAttachments((prev) => {
+        const availableSlots = Math.max(MAX_CHAT_ATTACHMENT_INPUT_FILES - prev.length, 0);
+        return availableSlots > 0
+          ? [...prev, ...newAttachments.slice(0, availableSlots)]
+          : prev;
+      });
     }
   }, []);
 

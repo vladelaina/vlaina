@@ -206,6 +206,48 @@ export function isGithubSrcsetAttribute(tagName: string, attributeName: string):
   return Boolean(GITHUB_SRCSET_ATTRIBUTES_BY_TAG[tagName]?.has(attributeName.toLowerCase()));
 }
 
+function isGithubSrcsetWhitespace(char: string): boolean {
+  return /\s/.test(char);
+}
+
+function getGithubSrcsetCandidateParts(candidate: string): readonly [string, string?] | null {
+  let index = 0;
+  while (index < candidate.length && isGithubSrcsetWhitespace(candidate[index])) {
+    index += 1;
+  }
+
+  const sourceStart = index;
+  while (index < candidate.length && !isGithubSrcsetWhitespace(candidate[index])) {
+    index += 1;
+  }
+  if (sourceStart === index) {
+    return null;
+  }
+
+  const source = candidate.slice(sourceStart, index);
+  while (index < candidate.length && isGithubSrcsetWhitespace(candidate[index])) {
+    index += 1;
+  }
+  if (index >= candidate.length) {
+    return [source];
+  }
+
+  const descriptorStart = index;
+  while (index < candidate.length && !isGithubSrcsetWhitespace(candidate[index])) {
+    index += 1;
+  }
+  const descriptor = candidate.slice(descriptorStart, index);
+
+  while (index < candidate.length && isGithubSrcsetWhitespace(candidate[index])) {
+    index += 1;
+  }
+  if (index < candidate.length) {
+    return null;
+  }
+
+  return [source, descriptor];
+}
+
 export function hasGithubProtocol(value: string): boolean {
   return value.includes('://');
 }
@@ -301,19 +343,36 @@ export function normalizeGithubSrcset(value: string): string | null {
 
   const trimmed = value.trimStart();
   if (!trimmed || /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/.test(trimmed)) return null;
-  const candidates = trimmed.split(',').map((candidate) => candidate.trim()).filter(Boolean);
-  if (candidates.length === 0 || candidates.length > MAX_GITHUB_SRCSET_CANDIDATES) return null;
-  for (const candidate of candidates) {
-    const [source, ...descriptors] = candidate.split(/\s+/).filter(Boolean);
-    if (!source || !isSafeGithubPlainRelativeMediaUrl(source)) {
+
+  let candidateStart = 0;
+  let candidateCount = 0;
+  for (let index = 0; index <= trimmed.length; index += 1) {
+    if (index < trimmed.length && trimmed[index] !== ',') {
+      continue;
+    }
+
+    const candidate = trimmed.slice(candidateStart, index).trim();
+    candidateStart = index + 1;
+    if (!candidate) {
+      continue;
+    }
+
+    candidateCount += 1;
+    if (candidateCount > MAX_GITHUB_SRCSET_CANDIDATES) {
+      return null;
+    }
+
+    const parts = getGithubSrcsetCandidateParts(candidate);
+    if (!parts || !isSafeGithubPlainRelativeMediaUrl(parts[0])) {
       return null;
     }
     if (
-      descriptors.length > 1
-      || (descriptors[0] && !GITHUB_SRCSET_DESCRIPTOR_PATTERN.test(descriptors[0]))
+      parts[1]
+      && !GITHUB_SRCSET_DESCRIPTOR_PATTERN.test(parts[1])
     ) {
       return null;
     }
   }
-  return trimmed;
+
+  return candidateCount > 0 ? trimmed : null;
 }

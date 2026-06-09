@@ -44,6 +44,7 @@ vi.mock('@/stores/useToastStore', () => ({
 
 import {
   MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES,
+  MAX_AI_PROVIDER_STORAGE_CONCURRENCY,
   saveUnifiedDataImmediate,
   setUnifiedStorageAutoSyncTrigger,
 } from './unifiedStorage';
@@ -162,5 +163,53 @@ describe('unifiedStorage save bounds', () => {
     );
     expect(mocks.deleteProviderSecret).not.toHaveBeenCalledWith('deleted-provider');
     expect(mocks.deleteProviderSecret).not.toHaveBeenCalledWith('overflow-tts');
+  });
+
+  it('limits concurrent provider secret syncs during save', async () => {
+    const providers = Array.from(
+      { length: MAX_AI_PROVIDER_STORAGE_CONCURRENCY + 3 },
+      (_value, index) => ({
+        id: `provider-${index}`,
+        name: `Provider ${index}`,
+        type: 'newapi' as const,
+        apiHost: 'https://provider.example',
+        apiKey: `sk-${index}`,
+        enabled: true,
+        createdAt: 1,
+        updatedAt: 1,
+      })
+    );
+    let activeSecrets = 0;
+    let maxActiveSecrets = 0;
+    mocks.setProviderSecret.mockImplementation(async () => {
+      activeSecrets += 1;
+      maxActiveSecrets = Math.max(maxActiveSecrets, activeSecrets);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      activeSecrets -= 1;
+    });
+    mocks.storage.listDir.mockResolvedValue([]);
+
+    await saveUnifiedDataImmediate({
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      },
+      customIcons: [],
+      ai: {
+        providers,
+        models: [],
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions: [],
+        messages: {},
+        unreadSessionIds: [],
+        selectedModelId: null,
+        currentSessionId: null,
+        deletedProviderIds: [],
+      },
+    });
+
+    expect(mocks.setProviderSecret).toHaveBeenCalledTimes(providers.length);
+    expect(maxActiveSecrets).toBeLessThanOrEqual(MAX_AI_PROVIDER_STORAGE_CONCURRENCY);
   });
 });

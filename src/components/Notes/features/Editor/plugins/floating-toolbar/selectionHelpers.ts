@@ -2,6 +2,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType, TextAlignment } from './types';
 import { BARE_DOMAIN_HREF_PATTERN } from '../links/utils/constants';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
+import { DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT } from '../shared/boundedProseNodeScan';
 
 type MarkLike = {
   type: { name: string };
@@ -41,6 +42,91 @@ type SelectedTextContext = {
 
 const NO_COMMON_VALUE = Symbol('no-common-value');
 const RESTRICTED_SELECTION_BLOCK_TYPES = new Set(['code_block', 'frontmatter']);
+export const MAX_FLOATING_TOOLBAR_SELECTION_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_FLOATING_TOOLBAR_SELECTED_TEXT_CHARS = 200_000;
+export const MAX_FLOATING_TOOLBAR_FORMATTABLE_RANGES = 5_000;
+
+type TraversableNode = {
+  child?: (index: number) => TraversableNode;
+  childCount?: number;
+  nodeSize?: number;
+};
+
+function isTraversableNode(value: unknown): value is TraversableNode {
+  const node = value as TraversableNode | null | undefined;
+  return typeof node?.child === 'function' && typeof node.childCount === 'number';
+}
+
+function forEachSelectedNode(
+  doc: unknown,
+  from: number,
+  to: number,
+  callback: (node: unknown, pos: number, parent?: unknown) => void,
+  maxScanNodes = MAX_FLOATING_TOOLBAR_SELECTION_SCAN_NODES
+) {
+  if (!isTraversableNode(doc)) {
+    let scanned = 0;
+    (doc as { nodesBetween?: (...args: any[]) => void }).nodesBetween?.(from, to, (node: unknown, pos: number, parent?: unknown) => {
+      if (scanned >= maxScanNodes) return false;
+      scanned += 1;
+      callback(node, pos, parent);
+      return undefined;
+    });
+    return;
+  }
+
+  let scanned = 0;
+  const stack: Array<{
+    contentStart: number;
+    index: number;
+    node: TraversableNode;
+    offset: number;
+    parent?: unknown;
+  }> = [{
+    contentStart: 0,
+    index: 0,
+    node: doc,
+    offset: 0,
+  }];
+
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+    if (frame.index >= (frame.node.childCount ?? 0)) {
+      stack.pop();
+      continue;
+    }
+    if (scanned >= maxScanNodes) {
+      return;
+    }
+
+    const node = frame.node.child!(frame.index);
+    const pos = frame.contentStart + frame.offset;
+    const nodeSize = typeof node.nodeSize === 'number' && node.nodeSize > 0 ? node.nodeSize : 1;
+    frame.index += 1;
+    frame.offset += nodeSize;
+
+    if (pos >= to) {
+      frame.index = frame.node.childCount ?? frame.index;
+      continue;
+    }
+    if (pos + nodeSize <= from) {
+      continue;
+    }
+
+    scanned += 1;
+    callback(node, pos, frame.node);
+
+    if (isTraversableNode(node) && (node.childCount ?? 0) > 0) {
+      stack.push({
+        contentStart: pos + 1,
+        index: 0,
+        node,
+        offset: 0,
+        parent: frame.node,
+      });
+    }
+  }
+}
 
 function forEachSelectedTextNode(
   view: EditorView,
@@ -55,7 +141,7 @@ function forEachSelectedTextNode(
     return false;
   }
 
-  state.doc.nodesBetween(from, to, (node, pos, parent) => {
+  forEachSelectedNode(state.doc, from, to, (node, pos, parent) => {
     const textNode = node as unknown as TextNodeLike;
     const parentNode = parent as NodeWithTypeAndAttrs | undefined;
     if (
@@ -302,7 +388,10 @@ export function getLinkUrl(view: EditorView): string | null {
     return null;
   }
 
-  const selectedText = getSelectedFormattableText(view).trim();
+  const selectedText = getSelectedFormattableText(view)?.trim();
+  if (selectedText === undefined) {
+    return null;
+  }
   if (isPlainUrlLinkSelection(selectedText, linkUrl)) {
     return null;
   }
@@ -346,16 +435,25 @@ function getCommonMarkAttributeForFormattableText(
   return commonValue;
 }
 
-function getSelectedFormattableText(view: EditorView): string {
+function getSelectedFormattableText(view: EditorView): string | null {
   let text = '';
+  let complete = true;
 
   forEachSelectedTextNode(view, ({ node, pos, selectedFrom, selectedTo }) => {
+    if (!complete) return;
     const fromOffset = Math.max(0, selectedFrom - pos);
     const toOffset = Math.max(fromOffset, selectedTo - pos);
-    text += (node.text ?? '').slice(fromOffset, toOffset);
+    const selectedText = (node.text ?? '').slice(fromOffset, toOffset);
+    const remaining = MAX_FLOATING_TOOLBAR_SELECTED_TEXT_CHARS - text.length;
+    if (selectedText.length > remaining) {
+      text += selectedText.slice(0, Math.max(0, remaining));
+      complete = false;
+      return;
+    }
+    text += selectedText;
   }, { excludeRestrictedParents: true });
 
-  return text;
+  return complete ? text : null;
 }
 
 function isPlainUrlLinkSelection(selectedText: string, href: string): boolean {
@@ -385,6 +483,7 @@ export function getFormattableTextRanges(view: EditorView): TextRange[] {
   const ranges: TextRange[] = [];
 
   forEachSelectedTextNode(view, ({ selectedFrom, selectedTo }) => {
+    if (ranges.length >= MAX_FLOATING_TOOLBAR_FORMATTABLE_RANGES) return;
     const previousRange = ranges.length > 0 ? ranges[ranges.length - 1] : null;
     if (previousRange && previousRange.to === selectedFrom) {
       previousRange.to = selectedTo;

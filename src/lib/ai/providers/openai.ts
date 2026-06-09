@@ -506,28 +506,46 @@ function extractXaiResponsesText(payload: Record<string, unknown>): string {
   return parts.join('')
 }
 
+const MAX_XAI_CITATION_SCAN_NODES = 20_000
+const XAI_CITATION_KEYS = ['citations', 'citation', 'annotations', 'inline_citations', 'url_citation', 'source', 'sources', 'content', 'output'] as const
+
 function collectXaiCitationUrlsFromValue(value: unknown, urls: string[]): void {
-  const safeUrl = sanitizeWebSearchSourceUrl(value)
-  if (safeUrl) {
-    if (!urls.includes(safeUrl)) urls.push(safeUrl)
-    return
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      collectXaiCitationUrlsFromValue(item, urls)
+  const stack = [value]
+  let visitedNodes = 0
+
+  while (stack.length > 0 && urls.length < 8) {
+    const current = stack.pop()
+    visitedNodes += 1
+    if (visitedNodes > MAX_XAI_CITATION_SCAN_NODES) {
+      return
     }
-    return
-  }
-  if (!isRecord(value)) {
-    return
-  }
-  const recordUrl = sanitizeWebSearchSourceUrl(value.url)
-  if (recordUrl && !urls.includes(recordUrl)) {
-    urls.push(recordUrl)
-  }
-  for (const key of ['citations', 'citation', 'annotations', 'inline_citations', 'url_citation', 'source', 'sources', 'content', 'output']) {
-    if (key in value) {
-      collectXaiCitationUrlsFromValue(value[key], urls)
+
+    const safeUrl = sanitizeWebSearchSourceUrl(current)
+    if (safeUrl) {
+      if (!urls.includes(safeUrl)) urls.push(safeUrl)
+      continue
+    }
+
+    if (Array.isArray(current)) {
+      for (let index = current.length - 1; index >= 0; index -= 1) {
+        stack.push(current[index])
+      }
+      continue
+    }
+
+    if (!isRecord(current)) {
+      continue
+    }
+
+    const recordUrl = sanitizeWebSearchSourceUrl(current.url)
+    if (recordUrl && !urls.includes(recordUrl)) {
+      urls.push(recordUrl)
+    }
+    for (let index = XAI_CITATION_KEYS.length - 1; index >= 0; index -= 1) {
+      const key = XAI_CITATION_KEYS[index]
+      if (key in current) {
+        stack.push(current[key])
+      }
     }
   }
 }

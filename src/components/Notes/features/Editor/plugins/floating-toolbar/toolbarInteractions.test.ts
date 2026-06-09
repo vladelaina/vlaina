@@ -203,6 +203,58 @@ describe('toolbar interactions', () => {
     delegation.destroy();
   });
 
+  it('applies direct format buttons on pointer down without double-running on click', () => {
+    const toolbar = document.createElement('div');
+    const button = document.createElement('button');
+    button.dataset.action = 'bold';
+    toolbar.appendChild(button);
+    document.body.appendChild(toolbar);
+    previewMocks.commitFormatPreview.mockReturnValue(true);
+
+    const doc = {
+      content: {
+        size: 40,
+      },
+      resolve: vi.fn((pos: number) => ({ pos })),
+    };
+    const tr = {
+      doc,
+      setMeta: vi.fn(() => tr),
+      setSelection: vi.fn(() => tr),
+    };
+    const view = {
+      state: {
+        doc,
+        selection: {
+          from: 4,
+          to: 13,
+          empty: false,
+        },
+        tr,
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    } as any;
+
+    const delegation = createToolbarEventDelegation(toolbar);
+    delegation.update(view, {} as any);
+
+    button.dispatchEvent(new PointerEvent('pointerdown', {
+      bubbles: true,
+      cancelable: true,
+    }));
+    button.dispatchEvent(new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+    }));
+
+    expect(previewMocks.commitFormatPreview).toHaveBeenCalledTimes(1);
+    expect(previewMocks.commitFormatPreview).toHaveBeenCalledWith(view, 'bold', false);
+    expect(view.dispatch).toHaveBeenCalledTimes(2);
+
+    delegation.destroy();
+  });
+
   it('focuses the embedded code editor after deleting a code block text selection', () => {
     const codeBlockDom = document.createElement('div');
     const codeMirrorContent = document.createElement('div');

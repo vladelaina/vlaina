@@ -6,6 +6,7 @@ import {
   defaultValueCtx,
   editorViewCtx,
   parserCtx,
+  prosePluginsCtx,
   remarkStringifyOptionsCtx,
   serializerCtx,
 } from '@milkdown/kit/core';
@@ -13,7 +14,6 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
-import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { tableBlock } from '@milkdown/kit/component/table-block';
 import type { Ctx } from '@milkdown/kit/ctx';
 import { Slice, type Node as ProseNode, type Schema } from '@milkdown/kit/prose/model';
@@ -32,6 +32,7 @@ import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import {
   normalizeAlternativeMathBlockFences,
+  normalizeEditorRuntimeMarkdownArtifacts,
   preserveMarkdownBlankLinesForEditor,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { themeEditorLayoutTokens } from '@/styles/themeTokens';
@@ -50,6 +51,7 @@ import {
   createCurrentEditorBlockPositionController,
 } from './utils/editorBlockPositionCache';
 import { normalizeLeadingFrontmatterMarkdown } from './plugins/frontmatter/frontmatterMarkdown';
+import { createDeferredMarkdownUpdatePlugin } from './utils/deferredMarkdownUpdatePlugin';
 import { BodyLineNumberGutter } from './components/BodyLineNumberGutter';
 import {
   applyMarkdownThemeRuntimeAttributes,
@@ -120,7 +122,11 @@ const LARGE_PLAIN_MARKDOWN_FAST_PARSE_MIN_LENGTH = 1_000_000;
 const MARKDOWN_BLANK_LINE_COMMENT = '<!--vlaina-markdown-blank-line-->';
 const FAST_PARSE_DISALLOWED_TEXT_PATTERN = /[`*_~[\]()<>\\|]/;
 const FAST_PARSE_HEADING_PATTERN = /^(#{1,6})[ \t]+(.+)$/;
-const FAST_PARSE_STRUCTURAL_LINE_PATTERN = /^(?: {0,3})(?:[-+*]\s+|\d+[.)]\s+|[-*_][ \t]*[-*_][ \t]*[-*_][ \t]*$)/;
+const FAST_PARSE_STRUCTURAL_LINE_PATTERN = /^(?: {0,3})(?:[-+*]\s+|\d+[.)]\s+|[-*_][ \t]*[-*_][ \t]*[-*_][ \t]*$|=+[ \t]*$)/;
+
+export function shouldUseLazyBlockVisibility(markdown: string): boolean {
+  return createLargePlainMarkdownDocJSON(markdown) !== null;
+}
 
 export function createLargePlainMarkdownDocJSON(markdown: string): ProseMirrorJSONNode | null {
   if (markdown.length < LARGE_PLAIN_MARKDOWN_FAST_PARSE_MIN_LENGTH || markdown.includes('\r')) {
@@ -279,6 +285,13 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const activationCleanupRef = useRef<(() => void) | null>(null);
   const [activatedRevision, setActivatedRevision] = useState(0);
   const { debouncedSave, flushSave } = useEditorSave(saveNote);
+  const markLocalMarkdownCommitted = useCallback((content: string) => {
+    lastAppliedNoteRef.current = {
+      path: currentNotePath,
+      diskRevision: currentNoteDiskRevision,
+      content,
+    };
+  }, [currentNoteDiskRevision, currentNotePath]);
   const {
     configureMarkdownListener,
     createUserInputMarker,
@@ -289,6 +302,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     currentNoteContent,
     updateContent,
     debouncedSave,
+    onLocalMarkdownCommitted: markLocalMarkdownCommitted,
   });
 
   const initialContent = useMemo(() => {
@@ -484,10 +498,9 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
         }));
 
         const handleMarkdownUpdated = configureMarkdownListener(ctx, initialContent);
-        ctx.get(listenerCtx)
-          .markdownUpdated((_ctx, markdown) => {
-            handleMarkdownUpdated(markdown);
-          });
+        ctx.update(prosePluginsCtx, (plugins) => plugins.concat(
+          createDeferredMarkdownUpdatePlugin(ctx, handleMarkdownUpdated)
+        ));
         logE2EMilkdownTiming('config', {
           notePath: currentNotePath,
           durationMs: Math.round(performance.now() - configStartedAt),
@@ -496,7 +509,6 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       .use(commonmark)
       .use(gfm)
       .use(history)
-      .use(listener)
       .use(configureTheme)
       .use(tableBlock)
       .use(customPlugins);
@@ -551,8 +563,40 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       }
 
       const view = editor.ctx.get(editorViewCtx) as EditorView;
-      const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
       const isSameNotePath = lastAppliedNote.path === currentNotePath;
+      if (isSameNotePath && lastAppliedNote.diskRevision === currentNoteDiskRevision) {
+        lastAppliedNoteRef.current = {
+          path: currentNotePath,
+          diskRevision: currentNoteDiskRevision,
+          content: currentNoteContent,
+        };
+        return;
+      }
+      let liveSerializer: ((doc: unknown) => string) | null = null;
+      try {
+        liveSerializer = editor.ctx.get(serializerCtx) as (doc: unknown) => string;
+      } catch {
+        liveSerializer = null;
+      }
+      if (liveSerializer && isSameNotePath) {
+        try {
+          const serializedCurrentDoc = liveSerializer(view.state.doc);
+          if (
+            normalizeEditorRuntimeMarkdownArtifacts(serializedCurrentDoc) ===
+            normalizeEditorRuntimeMarkdownArtifacts(currentNoteContent)
+          ) {
+            lastAppliedNoteRef.current = {
+              path: currentNotePath,
+              diskRevision: currentNoteDiskRevision,
+              content: currentNoteContent,
+            };
+            return;
+          }
+        } catch {
+          // Fall through to the replace path when serialization is unavailable.
+        }
+      }
+      const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
       const scrollTop = isSameNotePath ? scrollRoot?.scrollTop ?? null : null;
       const prepareStartedAt = performance.now();
       const normalizedFrontmatter = normalizeLeadingFrontmatterMarkdown(
@@ -640,6 +684,10 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   }, [currentNoteContent]);
 
   const shouldFocusEmptyDraftBody = isDraftNote && !isNewlyCreated && isEmptyContent;
+  const useLazyBlockVisibility = useMemo(
+    () => shouldUseLazyBlockVisibility(initialContent),
+    [initialContent],
+  );
 
   const focusEditorBody = useCallback(() => {
     try {
@@ -725,6 +773,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
         EDITOR_LAYOUT_CLASS
       )}
       data-note-content-root="true"
+      data-note-lazy-block-visibility={useLazyBlockVisibility ? 'true' : undefined}
       data-markdown-theme-root="true"
       data-markdown-theme-platform={importedMarkdownThemeId ? importedMarkdownThemePlatform ?? 'external' : 'vlaina'}
       data-markdown-compat={importedMarkdownThemeId ? 'external' : 'native'}

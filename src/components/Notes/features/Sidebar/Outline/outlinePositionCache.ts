@@ -2,7 +2,7 @@ import type { NotesOutlineHeading } from './types';
 import {
   createOutlineHeadingId,
   getHeadingLevelFromTagName,
-  normalizeHeadingText,
+  readBoundedHeadingText,
 } from './outlineUtils';
 
 export interface OutlineHeadingMetric extends NotesOutlineHeading {
@@ -10,13 +10,39 @@ export interface OutlineHeadingMetric extends NotesOutlineHeading {
   top: number;
 }
 
+export const MAX_OUTLINE_HEADING_METRICS = 5000;
+export const MAX_OUTLINE_HEADING_DOM_SCAN_ELEMENTS = 20_000;
+
+function isHeadingElement(element: HTMLElement): boolean {
+  return getHeadingLevelFromTagName(element.tagName) !== null;
+}
+
+function collectOutlineHeadingElements(editorRoot: HTMLElement): HTMLElement[] {
+  const elements: HTMLElement[] = [];
+  const walker = editorRoot.ownerDocument.createTreeWalker(editorRoot, NodeFilter.SHOW_ELEMENT);
+  let scannedElements = 0;
+
+  for (
+    let node = walker.nextNode();
+    node
+      && elements.length < MAX_OUTLINE_HEADING_METRICS
+      && scannedElements < MAX_OUTLINE_HEADING_DOM_SCAN_ELEMENTS;
+    node = walker.nextNode()
+  ) {
+    scannedElements += 1;
+    if (node instanceof HTMLElement && isHeadingElement(node)) {
+      elements.push(node);
+    }
+  }
+
+  return elements;
+}
+
 export function readOutlineHeadingMetrics(
   editorRoot: HTMLElement,
   scrollRoot: HTMLElement | null,
 ): OutlineHeadingMetric[] {
-  const headingElements = Array.from(
-    editorRoot.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6'),
-  );
+  const headingElements = collectOutlineHeadingElements(editorRoot);
   const scrollTop = scrollRoot?.scrollTop ?? 0;
   const scrollRootTop = scrollRoot?.getBoundingClientRect().top ?? 0;
 
@@ -26,7 +52,7 @@ export function readOutlineHeadingMetrics(
       return [];
     }
 
-    const text = normalizeHeadingText(element.textContent ?? '');
+    const text = readBoundedHeadingText(element);
     const id = createOutlineHeadingId(index, level, text);
     const top = scrollRoot
       ? element.getBoundingClientRect().top - scrollRootTop + scrollTop

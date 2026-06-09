@@ -7,6 +7,17 @@ export interface HeadingDropPayload {
   text: string;
 }
 
+function getBoundedBodyText(root: HTMLElement, maxChars: number): string | null {
+  let text = '';
+  const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    text += node.textContent ?? '';
+    if (text.length > maxChars) return null;
+  }
+
+  return text;
+}
+
 export function parseSingleHeadingDropHtml(html: string): HeadingDropPayload | null {
   if (!html || html.length > MAX_HEADING_DROP_HTML_CHARS) return null;
 
@@ -25,9 +36,11 @@ export function parseSingleHeadingDropHtml(html: string): HeadingDropPayload | n
   if (headings.length !== 1) return null;
 
   const heading = headings[0];
-  const text = heading.textContent?.trim();
+  const headingText = getBoundedBodyText(heading as HTMLElement, MAX_HEADING_DROP_TEXT_CHARS + 1);
+  const text = headingText?.trim();
   if (!text || text.length > MAX_HEADING_DROP_TEXT_CHARS) return null;
-  if ((doc.body.textContent ?? '').trim() !== text) return null;
+  const bodyText = getBoundedBodyText(doc.body, text.length + 1);
+  if (bodyText === null || bodyText.trim() !== text) return null;
 
   const level = Number(heading.tagName.slice(1));
   if (!Number.isInteger(level) || level < 1 || level > 6) return null;

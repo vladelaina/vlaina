@@ -13,6 +13,7 @@ import { createEmptyTableNode } from './table/pipeTableShortcut';
 import { mathEditorPluginKey } from './math/mathEditorPluginKey';
 import { createOpenMathEditorState } from './math/mathEditorState';
 import { markEditorUserInput } from './shared/userInputEvents';
+import { getBoundedTextBetween, isEditorTextRangeTooLarge } from './shared/selectionTextLimits';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
 
 function isModShortcut(event: KeyboardEvent): boolean {
@@ -91,7 +92,9 @@ function createMathBlock(view: EditorView): boolean {
   if (!mathBlockType) return false;
 
   const { from, to } = state.selection;
-  const latex = state.selection.empty ? '' : state.doc.textBetween(from, to, '\n', '\n');
+  const latex = state.selection.empty || isEditorTextRangeTooLarge(from, to)
+    ? ''
+    : getBoundedTextBetween(state.doc, from, to, '\n', '\n');
   const tr = state.tr
     .replaceRangeWith(from, to, mathBlockType.create({ latex }))
     .setMeta(

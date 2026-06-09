@@ -14,6 +14,19 @@ type PreviewPanelProps = Pick<
   preview: Ref<string | HTMLElement | null>
 }
 
+const maxPreviewHtmlChars = 2 * 1024 * 1024
+
+export function sanitizePreviewContent(previewContent: string | HTMLElement) {
+  const html = typeof previewContent === 'string'
+    ? previewContent
+    : previewContent.outerHTML
+
+  if (html.length > maxPreviewHtmlChars)
+    return ''
+
+  return DOMPurify.sanitize(html)
+}
+
 export const PreviewPanel = defineComponent<PreviewPanelProps>({
   props: {
     text: {
@@ -55,7 +68,7 @@ export const PreviewPanel = defineComponent<PreviewPanelProps>({
         typeof previewContent === 'string' ||
         previewContent instanceof Element
       ) {
-        previewContainer.innerHTML = DOMPurify.sanitize(previewContent)
+        previewContainer.innerHTML = sanitizePreviewContent(previewContent)
       }
     })
 

@@ -11,6 +11,11 @@ interface SvgElementVisit {
   element: Element;
   depth: number;
 }
+
+interface NodeTextVisit {
+  node: Node;
+  depth: number;
+}
 const SVG_URL_REFERENCE_ATTRIBUTES = new Set([
   'clip-path',
   'color-profile',
@@ -47,9 +52,14 @@ function addMermaidCompatibilitySvgClass(markup: string) {
 
   const template = document.createElement('template');
   template.innerHTML = markup;
-  template.content.querySelectorAll('svg').forEach((svg) => {
-    svg.classList.add('mermaid-svg');
+  const withinBudget = walkBudgetedSvgElements(template.content, (element) => {
+    if (element.localName.toLowerCase() === 'svg') {
+      element.classList.add('mermaid-svg');
+    }
   });
+  if (!withinBudget) {
+    return '';
+  }
   return template.innerHTML;
 }
 
@@ -57,7 +67,7 @@ function walkBudgetedSvgElements(
   root: DocumentFragment | Element,
   visitElement: (element: Element) => void
 ) {
-  const firstElement = root.firstElementChild;
+  const firstElement = root instanceof Element ? root : root.firstElementChild;
   if (!firstElement) {
     return true;
   }
@@ -169,16 +179,26 @@ function replaceMermaidForeignObjectLabels(markup: string) {
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(markup, 'image/svg+xml');
-  if (doc.querySelector('parsererror')) {
+  const foreignObjects: Element[] = [];
+  let hasParserError = false;
+  const withinBudget = walkBudgetedSvgElements(doc.documentElement, (element) => {
+    const tagName = element.localName.toLowerCase();
+    if (tagName === 'parsererror') {
+      hasParserError = true;
+    } else if (tagName === 'foreignobject') {
+      foreignObjects.push(element);
+    }
+  });
+  if (hasParserError) {
     return markup;
   }
-  if (!walkBudgetedSvgElements(doc.documentElement, () => undefined)) {
+  if (!withinBudget) {
     return '';
   }
 
-  doc.querySelectorAll('foreignObject').forEach((foreignObject) => {
-    foreignObject.querySelectorAll('script, style').forEach((node) => node.remove());
-    const labelElement = foreignObject.querySelector('.nodeLabel');
+  foreignObjects.forEach((foreignObject) => {
+    removeDescendantElementsByLocalName(foreignObject, new Set(['script', 'style']));
+    const labelElement = findFirstElementWithClass(foreignObject, 'nodeLabel');
     const lines = extractMermaidLabelLines(labelElement);
     if (lines.length === 0) {
       foreignObject.remove();
@@ -215,13 +235,17 @@ function extractMermaidLabelLines(labelElement: Element | null) {
   }
 
   const paragraphs: string[] = [];
-  for (const paragraph of labelElement.querySelectorAll('p')) {
-    if (!appendElementTextLines(paragraph, paragraphs)) {
-      return [];
+  let paragraphsWithinBudget = true;
+  const withinParagraphBudget = walkBudgetedSvgElements(labelElement, (element) => {
+    if (!paragraphsWithinBudget || element === labelElement || paragraphs.length >= MAX_MERMAID_LABEL_LINES) {
+      return;
     }
-    if (paragraphs.length >= MAX_MERMAID_LABEL_LINES) {
-      break;
+    if (element.localName.toLowerCase() === 'p') {
+      paragraphsWithinBudget = appendElementTextLines(element, paragraphs);
     }
+  });
+  if (!withinParagraphBudget || !paragraphsWithinBudget) {
+    return [];
   }
   if (paragraphs.length > 0) {
     return paragraphs;
@@ -232,15 +256,12 @@ function extractMermaidLabelLines(labelElement: Element | null) {
 }
 
 function appendElementTextLines(element: Element, lines: string[]) {
-  if ((element.textContent || '').length > MAX_MERMAID_LABEL_TEXT_CHARS) {
+  const text = collectElementTextWithBreaks(element);
+  if (text === null) {
     return false;
   }
 
-  const clone = element.cloneNode(true) as Element;
-  clone.querySelectorAll('br').forEach((br) => {
-    br.replaceWith(clone.ownerDocument.createTextNode('\n'));
-  });
-  for (const line of (clone.textContent || '')
+  for (const line of text
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line.length > 0)) {
@@ -250,6 +271,62 @@ function appendElementTextLines(element: Element, lines: string[]) {
     }
   }
   return true;
+}
+
+function removeDescendantElementsByLocalName(root: Element, localNames: Set<string>) {
+  const elementsToRemove: Element[] = [];
+  walkBudgetedSvgElements(root, (element) => {
+    if (element !== root && localNames.has(element.localName.toLowerCase())) {
+      elementsToRemove.push(element);
+    }
+  });
+  elementsToRemove.forEach((element) => element.remove());
+}
+
+function findFirstElementWithClass(root: Element, className: string) {
+  let found: Element | null = null;
+  walkBudgetedSvgElements(root, (element) => {
+    if (!found && element.classList.contains(className)) {
+      found = element;
+    }
+  });
+  return found;
+}
+
+function collectElementTextWithBreaks(element: Element) {
+  let text = '';
+  let visitedNodes = 0;
+  const stack: NodeTextVisit[] = [{ node: element, depth: 1 }];
+
+  while (stack.length > 0) {
+    const { node, depth } = stack.pop() as NodeTextVisit;
+    visitedNodes += 1;
+    if (visitedNodes > MAX_MERMAID_SANITIZE_NODES || depth > MAX_MERMAID_SANITIZE_DEPTH) {
+      return null;
+    }
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      text += node.textContent || '';
+      if (text.length > MAX_MERMAID_LABEL_TEXT_CHARS) {
+        return null;
+      }
+      continue;
+    }
+
+    if (node instanceof Element && node.localName.toLowerCase() === 'br') {
+      text += '\n';
+      if (text.length > MAX_MERMAID_LABEL_TEXT_CHARS) {
+        return null;
+      }
+      continue;
+    }
+
+    for (let child = node.lastChild; child; child = child.previousSibling) {
+      stack.push({ node: child, depth: depth + 1 });
+    }
+  }
+
+  return text;
 }
 
 function resolveForeignObjectCenterCoord(

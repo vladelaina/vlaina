@@ -3,7 +3,7 @@ import MarkdownRenderer from '@/components/Chat/features/Markdown/MarkdownRender
 import { MessageToolbar } from './MessageToolbar';
 import { ErrorBlock } from './ErrorBlock';
 import type { ChatMessage } from '@/lib/ai/types';
-import { parseErrorTag } from '@/lib/ai/errorTag';
+import { parseErrorTag, stripFirstErrorTag } from '@/lib/ai/errorTag';
 import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
 import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
@@ -80,7 +80,7 @@ export function AIMessage({
     const parsedError = parseErrorTag(msg.content);
     const nextErrorContent = parsedError?.content ?? null;
     const withoutError = nextErrorContent
-      ? msg.content.replace(/<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/i, '')
+      ? stripFirstErrorTag(msg.content)
       : msg.content;
     const webSearch = extractWebSearchStatuses(withoutError);
 

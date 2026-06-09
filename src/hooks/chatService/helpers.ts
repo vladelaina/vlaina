@@ -5,7 +5,10 @@ import {
 } from '@/lib/storage/attachmentStorage';
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
-import { dedupeNoteMentions } from '@/lib/ai/noteMentions';
+import {
+  dedupeNoteMentions,
+  MAX_NOTE_MENTION_SCAN_ITEMS,
+} from '@/lib/ai/noteMentions';
 import { isRenderedImageSource } from '@/components/Chat/common/messageClipboard';
 import {
   parseMarkdownAndHtmlImageTokens,
@@ -44,16 +47,21 @@ import {
   escapeMarkdownAngleDestination,
   formatMarkdownImage,
 } from '@/lib/markdown/markdownImageMarkdown';
+import { scrubOverflowMarkdownDataImages } from '@/lib/markdown/overflowDataImageScrubber';
 
 const IMAGE_NAME_REGEX = /\.(png|jpe?g|webp|gif|bmp|avif|svg)(?:$|[?#])/i;
 const MAX_NOTE_MENTION_COUNT = 3;
 const MAX_NOTE_MENTION_CHARS = 12000;
 const MAX_NOTE_MENTION_READ_BYTES = 512 * 1024;
 const MAX_FOLDER_MENTION_NOTES = 20;
+export const MAX_CHAT_MENTION_LOAD_CONCURRENCY = 5;
 const MAX_FOLDER_MARKDOWN_SCAN_DEPTH = 6;
 const MAX_FOLDER_MARKDOWN_SCAN_ENTRIES = 500;
+const MAX_FOLDER_MARKDOWN_LISTING_SCAN_ENTRIES = 5000;
 const MAX_FOLDER_LISTING_ENTRIES = 80;
+const MAX_FOLDER_LISTING_SCAN_ENTRIES = 5000;
 const MAX_FOLDER_IMAGE_ATTACHMENTS = 8;
+const MAX_FOLDER_IMAGE_ATTACHMENT_SCAN_ENTRIES = 5000;
 const MAX_FOLDER_IMAGE_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 const STREAM_CHUNK_FLUSH_MAX_DELAY_MS = 40;
 const MAX_INFERRED_IMAGE_NAME_SOURCE_CHARS = 4096;
@@ -82,6 +90,30 @@ const SKIPPED_FOLDER_MARKDOWN_DIRECTORY_NAMES = new Set([
   '__pycache__',
 ]);
 
+async function mapWithConcurrencyLimit<T, R>(
+  items: readonly T[],
+  limit: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  if (items.length === 0) {
+    return [];
+  }
+
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.max(1, Math.min(limit, items.length));
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+}
+
 export function resolveAssistantContent(
   returnedContent: string,
   lastStreamedContent: string,
@@ -103,6 +135,28 @@ export function resolveAssistantContent(
 
 export function normalizeNoteMentions(noteMentions: NoteMentionReference[]): NoteMentionReference[] {
   return dedupeNoteMentions(noteMentions).slice(0, MAX_NOTE_MENTION_COUNT);
+}
+
+function normalizeNoteMentionsForLoading(noteMentions: NoteMentionReference[]): NoteMentionReference[] {
+  const explicitKindsByPath = new Map<string, 'note' | 'folder'>();
+  const scanLimit = Math.min(noteMentions.length, MAX_NOTE_MENTION_SCAN_ITEMS);
+  for (let index = 0; index < scanLimit; index += 1) {
+    const mention = noteMentions[index];
+    if (!mention || (mention.kind !== 'note' && mention.kind !== 'folder')) {
+      continue;
+    }
+    explicitKindsByPath.set(mention.path.trim(), mention.kind);
+  }
+
+  return dedupeNoteMentions(noteMentions)
+    .slice(0, MAX_NOTE_MENTION_COUNT)
+    .map((mention) => {
+      const explicitKind = explicitKindsByPath.get(mention.path);
+      return explicitKind ? { ...mention, kind: explicitKind } : {
+        path: mention.path,
+        title: mention.title,
+      };
+    });
 }
 
 export function isImageAttachment(attachment: Attachment): boolean {
@@ -224,11 +278,15 @@ function isInlineDataImageMarkdownSource(src: string | null | undefined): boolea
 function collectStoredUserMessageImages(content: string): {
   imageSources: string[];
   tokensToStrip: ImageToken[];
+  reachedImageTokenBudget: boolean;
 } {
   const imageSources: string[] = [];
   const tokensToStrip: ImageToken[] = [];
+  const parsedTokens = parseMarkdownAndHtmlImageTokens(content, {
+    maxTokens: MAX_STORED_USER_MESSAGE_IMAGE_TOKENS,
+  });
 
-  for (const token of parseMarkdownAndHtmlImageTokens(content, { maxTokens: MAX_STORED_USER_MESSAGE_IMAGE_TOKENS })) {
+  for (const token of parsedTokens) {
     const rawSrc = token.src?.trim() ?? '';
     const normalizedSrc = normalizeRenderableImageSrc(rawSrc);
     if (normalizedSrc && isRenderedImageSource(normalizedSrc)) {
@@ -248,16 +306,35 @@ function collectStoredUserMessageImages(content: string): {
     }
   }
 
-  return { imageSources, tokensToStrip };
+  return {
+    imageSources,
+    tokensToStrip,
+    reachedImageTokenBudget: parsedTokens.length >= MAX_STORED_USER_MESSAGE_IMAGE_TOKENS,
+  };
+}
+
+function scrubOverflowStoredInlineDataImageSyntax(content: string): string {
+  return scrubOverflowMarkdownDataImages(content, {
+    replacement: '',
+    maxTargetChars: MAX_NOTE_MENTION_READ_BYTES,
+  });
 }
 
 export async function buildStoredUserMessageContent(content: string): Promise<ChatMessageContent> {
-  const { imageSources, tokensToStrip } = collectStoredUserMessageImages(content);
+  const { imageSources, tokensToStrip, reachedImageTokenBudget } = collectStoredUserMessageImages(content);
   if (imageSources.length === 0 && tokensToStrip.length === 0) {
+    if (reachedImageTokenBudget || /data:image\//i.test(content)) {
+      const scrubbed = scrubOverflowStoredInlineDataImageSyntax(content).trim();
+      return scrubbed === content ? content : scrubbed ? [{ type: 'text', text: scrubbed }] : '';
+    }
     return content;
   }
 
-  const text = stripImageTokens(content, tokensToStrip).trim();
+  const strippedText = stripImageTokens(content, tokensToStrip);
+  const text = (reachedImageTokenBudget
+    ? scrubOverflowStoredInlineDataImageSyntax(strippedText)
+    : strippedText
+  ).trim();
   const parts: ChatMessageContentPart[] = text ? [{ type: 'text', text }] : [];
 
   for (const [index, src] of imageSources.entries()) {
@@ -511,6 +588,7 @@ async function collectFolderMarkdownScanEntries(
   const storage = getStorageAdapter();
   const entries = await storage.listDir(folderFullPath, { includeHidden: true }).catch(() => []);
   const visibleEntries = entries
+    .slice(0, MAX_FOLDER_MARKDOWN_LISTING_SCAN_ENTRIES)
     .filter((entry) => isSafeFolderMarkdownEntryName(entry.name))
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -593,8 +671,10 @@ async function loadScannedFolderMarkdownReferences(
     '',
     { visitedEntries: 0 },
   );
-  const loaded = await Promise.all(
-    entries.map(async (entry) => {
+  const loaded = await mapWithConcurrencyLimit(
+    entries,
+    MAX_CHAT_MENTION_LOAD_CONCURRENCY,
+    async (entry) => {
       const content = stripManagedFrontmatter(
         await readResolvedMentionedNoteContent({
           cachePath: entry.cachePath,
@@ -607,7 +687,7 @@ async function loadScannedFolderMarkdownReferences(
         kind: 'note' as const,
         content,
       };
-    }),
+    },
   );
   return loaded.filter((note) => note.content.length > 0);
 }
@@ -655,7 +735,8 @@ async function loadFolderListingReference(
     };
   }
 
-  const visibleEntries = entries
+  const scannedEntries = entries.slice(0, MAX_FOLDER_LISTING_SCAN_ENTRIES);
+  const visibleEntries = scannedEntries
     .filter((entry) => isSafeFolderListingEntryName(entry.name))
     .sort((a, b) => {
       if (a.isDirectory !== b.isDirectory) {
@@ -668,7 +749,9 @@ async function loadFolderListingReference(
     const kind = entry.isDirectory ? 'folder' : 'file';
     return `- ${formatPromptLabel(entry.name, 'unnamed')} (${kind}${formatFolderEntrySize(entry.size)})`;
   });
-  const hiddenCount = Math.max(visibleEntries.length - listedEntries.length, 0);
+  const hiddenCount = entries.length > scannedEntries.length
+    ? Math.max(entries.length - listedEntries.length, 0)
+    : Math.max(visibleEntries.length - listedEntries.length, 0);
 
   return {
     ...mention,
@@ -731,6 +814,7 @@ async function loadFolderImageAttachmentsForMention(
   const storage = getStorageAdapter();
   const entries = await storage.listDir(folderPath).catch(() => []);
   const imageEntries = entries
+    .slice(0, MAX_FOLDER_IMAGE_ATTACHMENT_SCAN_ENTRIES)
     .filter((entry) =>
       isSafeFolderEntryName(entry.name) &&
       entry.isFile &&
@@ -795,8 +879,10 @@ async function loadMentionReference(
     return listing ? [listing, ...scannedReferences] : scannedReferences;
   }
 
-  const loaded = await Promise.all(
-    markdownNodes.map(async (node) => {
+  const loaded = await mapWithConcurrencyLimit(
+    markdownNodes,
+    MAX_CHAT_MENTION_LOAD_CONCURRENCY,
+    async (node) => {
       const title = notesState.getDisplayName?.(node.path) ?? node.name;
       const content = stripManagedFrontmatter(
         await resolveMentionedNoteContent(node.path),
@@ -807,7 +893,7 @@ async function loadMentionReference(
         kind: 'note' as const,
         content,
       };
-    }),
+    },
   );
   const markdownReferences = loaded.filter((note) => note.content.length > 0);
   return listing ? [listing, ...markdownReferences] : markdownReferences;
@@ -817,13 +903,23 @@ export async function loadMentionedNotes(
   noteMentions: NoteMentionReference[]
 ): Promise<Array<NoteMentionReference & { content: string }>> {
   flushCurrentPendingEditorMarkdown();
-  return (await Promise.all(noteMentions.map(loadMentionReference))).flat();
+  const normalizedMentions = normalizeNoteMentionsForLoading(noteMentions);
+  return (await mapWithConcurrencyLimit(
+    normalizedMentions,
+    MAX_CHAT_MENTION_LOAD_CONCURRENCY,
+    loadMentionReference,
+  )).flat();
 }
 
 export async function loadMentionedFolderImageAttachments(
   noteMentions: NoteMentionReference[]
 ): Promise<Attachment[]> {
-  const attachments = (await Promise.all(noteMentions.map(loadFolderImageAttachmentsForMention))).flat();
+  const normalizedMentions = normalizeNoteMentionsForLoading(noteMentions);
+  const attachments = (await mapWithConcurrencyLimit(
+    normalizedMentions,
+    MAX_CHAT_MENTION_LOAD_CONCURRENCY,
+    loadFolderImageAttachmentsForMention,
+  )).flat();
   const seenPaths = new Set<string>();
   return attachments.filter((attachment) => {
     if (!attachment.path || seenPaths.has(attachment.path)) {

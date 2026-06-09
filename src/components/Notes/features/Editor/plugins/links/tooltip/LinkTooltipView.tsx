@@ -16,8 +16,10 @@ import {
 import { themeRenderingTokens } from '@/styles/themeTokens';
 import { installLinkTooltipEvents } from './linkTooltipEvents';
 import { LinkTooltipTimers } from './linkTooltipTimers';
+import { getBoundedTextBetween } from '../../shared/selectionTextLimits';
 import {
     editExistingLink,
+    getBoundedLinkTooltipText,
     editLinkAtPosition,
     removeExistingLink,
     unlinkExistingLink,
@@ -142,7 +144,7 @@ export class LinkTooltipView {
             <LinkTooltip
                 key={Date.now()}
                 href={href}
-                initialText={link.textContent || ''}
+                initialText={getBoundedLinkTooltipText(link)}
                 onOpen={() => void openEditorLinkHref(href, { view: this.view })}
                 onEdit={(text, url, shouldClose) => this.handleEdit(link, text, url, shouldClose)}
                 onUnlink={() => this.handleUnlink(link)}
@@ -193,7 +195,7 @@ export class LinkTooltipView {
         const range = resolveLinkMarkRangeAtPos(view.state, pos);
         if (!range) return;
 
-        const linkText = view.state.doc.textBetween(range.start, range.end, ' ');
+        const linkText = getBoundedTextBetween(view.state.doc, range.start, range.end, ' ');
         const trimStart = linkText.search(/\S|$/);
         const trimEnd = linkText.search(/\S\s*$/) + 1;
         const relativePos = pos - range.start;
@@ -216,7 +218,7 @@ export class LinkTooltipView {
     }
 
     showAtPosition(from: number, to: number, autoFocus: boolean) {
-        const selectedText = this.view.state.doc.textBetween(from, to, '');
+        const selectedText = getBoundedTextBetween(this.view.state.doc, from, to, '');
 
         this.activeLink = null;
         this.activeAnchor = { type: 'range', from, to };

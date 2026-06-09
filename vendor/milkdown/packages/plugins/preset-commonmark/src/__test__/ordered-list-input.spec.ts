@@ -2,10 +2,15 @@ import '@testing-library/jest-dom/vitest'
 import type { EditorView } from '@milkdown/prose/view'
 
 import { defaultValueCtx, Editor, editorViewCtx } from '@milkdown/core'
+import { DOMParser as ProseDOMParser } from '@milkdown/prose/model'
 import { getMarkdown } from '@milkdown/utils'
 import { expect, it, vi } from 'vitest'
 
 import { commonmark } from '..'
+import {
+  findNextEmptyTextblockSelectionPos,
+  MAX_SPLIT_LIST_ITEM_SELECTION_SCAN_NODES,
+} from '../node/list-item'
 import { MAX_LIST_ORDER_SYNC_UPDATES } from '../plugin/sync-list-order-plugin'
 
 function createEditor(defaultValue?: string) {
@@ -149,6 +154,23 @@ it('should normalize ordered list labels after converting an ordered-styled bull
   await editor.destroy()
 })
 
+it('should bound list item DOM attrs when parsing pasted HTML', async () => {
+  const editor = createEditor()
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  const container = document.createElement('div')
+  container.innerHTML = `<ul><li data-label="${'1'.repeat(128)}" data-list-type="${'x'.repeat(64)}"><p>item</p></li></ul>`
+  const doc = ProseDOMParser.fromSchema(view.state.schema).parse(container)
+  const listItem = doc.firstChild?.firstChild
+
+  expect(listItem?.attrs.label).toBe('•')
+  expect(listItem?.attrs.listType).toBe('bullet')
+
+  await editor.destroy()
+})
+
 it('should cap ordered-styled bullet list normalization updates', async () => {
   const editor = createEditor()
 
@@ -171,6 +193,27 @@ it('should cap ordered-styled bullet list normalization updates', async () => {
   const normalizedList = view.state.doc.firstChild
   expect(normalizedList?.type.name).toBe('ordered_list')
   expect(normalizedList?.child(MAX_LIST_ORDER_SYNC_UPDATES + 1).attrs.label).toBe('1.')
+
+  await editor.destroy()
+})
+
+it('should cap split list item empty selection scans', async () => {
+  const editor = createEditor()
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+  const { schema } = view.state
+  const doc = schema.nodes.doc.create(null, [
+    ...Array.from(
+      { length: MAX_SPLIT_LIST_ITEM_SELECTION_SCAN_NODES + 2 },
+      () => schema.nodes.paragraph.create(null, schema.text('filled'))
+    ),
+    schema.nodes.paragraph.create(),
+  ])
+
+  expect(findNextEmptyTextblockSelectionPos(doc, 0)).toBe(-1)
+  expect(findNextEmptyTextblockSelectionPos(doc, 0, MAX_SPLIT_LIST_ITEM_SELECTION_SCAN_NODES + 3)).toBeGreaterThan(0)
 
   await editor.destroy()
 })

@@ -287,4 +287,34 @@ describe('imageDownload', () => {
 
     appendSpy.mockRestore();
   });
+
+  it('does not hang when fallback image blob reading is aborted', async () => {
+    const originalArrayBufferDescriptor = Object.getOwnPropertyDescriptor(Blob.prototype, 'arrayBuffer');
+    try {
+      Object.defineProperty(Blob.prototype, 'arrayBuffer', {
+        configurable: true,
+        value: undefined,
+      });
+      vi.stubGlobal('FileReader', class {
+        result: ArrayBuffer | null = null;
+        error: Error | null = null;
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        onabort: (() => void) | null = null;
+
+        readAsArrayBuffer() {
+          queueMicrotask(() => this.onabort?.());
+        }
+      });
+      mocks.fetch.mockResolvedValue(imageResponse(new Blob([new Uint8Array([1])], { type: 'image/png' })));
+
+      await expect(downloadImageWithPrompt('https://example.com/image.png', 'image')).rejects.toThrow(
+        'Image blob read was aborted.',
+      );
+    } finally {
+      if (originalArrayBufferDescriptor) {
+        Object.defineProperty(Blob.prototype, 'arrayBuffer', originalArrayBufferDescriptor);
+      }
+    }
+  });
 });

@@ -18,7 +18,7 @@ import {
   tableRowSchema,
   tableSchema,
 } from './schema'
-import { createTable } from './utils'
+import { createTable, MAX_CREATED_TABLE_COLS } from './utils'
 
 const normalizeTableShortcutNumber = (value: string) =>
   value.replace(/[０-９]/g, (char) =>
@@ -26,8 +26,11 @@ const normalizeTableShortcutNumber = (value: string) =>
   )
 
 const tablePipeCellPattern = /[|｜]/
+const MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS = 1024
 
 function getPipeShortcutCells(text: string): string[] | null {
+  if (text.length > MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS) return null
+
   const trimmed = text.trim()
   if (!trimmed.startsWith('|') && !trimmed.startsWith('｜')) return null
   if (!trimmed.endsWith('|') && !trimmed.endsWith('｜')) return null
@@ -37,6 +40,8 @@ function getPipeShortcutCells(text: string): string[] | null {
     .slice(1, -1)
     .map((cell) => cell.trim())
 
+  if (cells.length > MAX_CREATED_TABLE_COLS) return null
+
   return cells.length >= 2 ? cells : null
 }
 
@@ -44,6 +49,18 @@ function getPipeShortcutColumnCount(text: string): number | null {
   const cells = getPipeShortcutCells(text)?.filter((cell) => cell.length > 0)
 
   return cells && cells.length >= 2 ? cells.length : null
+}
+
+function shouldCreateTableFromPipeShortcut(text: string): boolean {
+  const trimmed = text.trim()
+  if (!trimmed.startsWith('|') && !trimmed.startsWith('｜')) return false
+  if (!trimmed.endsWith('|') && !trimmed.endsWith('｜')) return false
+
+  const rawCells = trimmed.split(tablePipeCellPattern).slice(1, -1)
+  const nonEmptyCells = rawCells.filter((cell) => cell.trim().length > 0)
+  if (nonEmptyCells.length < 2) return false
+
+  return nonEmptyCells.every((cell) => cell === cell.trim())
 }
 
 function createTableFromPipeCells(
@@ -75,11 +92,14 @@ function createTableFromPipeShortcut(ctx: Parameters<typeof createTable>[0]): Co
 
     const { $from } = selection
     if ($from.parent.type !== paragraphSchema.type(ctx)) return false
-    if ($from.parent.childCount !== 1 || !$from.parent.firstChild?.isText) return false
     if ($from.parentOffset !== $from.parent.content.size) return false
     if ($from.depth < 1) return false
+    if ($from.parent.content.size > MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS) return false
 
-    const cells = getPipeShortcutCells($from.parent.textContent)
+    const text = $from.parent.textBetween(0, $from.parent.content.size, '', '')
+    if (!shouldCreateTableFromPipeShortcut(text)) return false
+
+    const cells = getPipeShortcutCells(text)
     if (!cells || cells.filter((cell) => cell.length > 0).length < 2) return false
 
     const parent = $from.node($from.depth - 1)
@@ -157,47 +177,54 @@ export const tablePasteRule = $pasteRule((ctx) => ({
     if (isPlainText) {
       return slice
     }
-    let fragment = slice.content
-
-    slice.content.forEach((node, _offset, index) => {
-      if (node?.type !== tableSchema.type(ctx)) {
-        return
-      }
-      const rowsCount = node.childCount
-      const colsCount = node.lastChild?.childCount ?? 0
-      if (rowsCount === 0 || colsCount === 0) {
-        fragment = fragment.replaceChild(
-          index,
-          paragraphSchema.type(ctx).create()
-        )
-        return
-      }
-
-      const headerRow = node.firstChild
-      const needToFixHeaderRow =
-        colsCount > 0 && headerRow && headerRow.childCount === 0
-      if (!needToFixHeaderRow) {
-        return
-      }
-      // Fix for tables with rows but no cells in the first row
-      const headerCells = Array(colsCount)
-        .fill(0)
-        .map(() => tableHeaderSchema.type(ctx).createAndFill()!)
-
-      const tableCells = new Slice(Fragment.from(headerCells), 0, 0)
-
-      const newHeaderRow = headerRow.replace(0, 0, tableCells)
-      const newTable = node.replace(
-        0,
-        headerRow.nodeSize,
-        new Slice(Fragment.from(newHeaderRow), 0, 0)
-      )
-      fragment = fragment.replaceChild(index, newTable)
-    })
-
-    return new Slice(Fragment.from(fragment), slice.openStart, slice.openEnd)
+    return fixPastedTableHeaders(ctx, slice)
   },
 }))
+
+export function fixPastedTableHeaders(
+  ctx: Parameters<typeof createTable>[0],
+  slice: Slice
+) {
+  let fragment = slice.content
+
+  slice.content.forEach((node, _offset, index) => {
+    if (node?.type !== tableSchema.type(ctx)) {
+      return
+    }
+    const rowsCount = node.childCount
+    const colsCount = node.lastChild?.childCount ?? 0
+    if (rowsCount === 0 || colsCount === 0) {
+      fragment = fragment.replaceChild(
+        index,
+        paragraphSchema.type(ctx).create()
+      )
+      return
+    }
+
+    const headerRow = node.firstChild
+    const needToFixHeaderRow =
+      colsCount > 0 && colsCount <= MAX_CREATED_TABLE_COLS && headerRow && headerRow.childCount === 0
+    if (!needToFixHeaderRow) {
+      return
+    }
+    // Fix for tables with rows but no cells in the first row
+    const headerCells = Array(colsCount)
+      .fill(0)
+      .map(() => tableHeaderSchema.type(ctx).createAndFill()!)
+
+    const tableCells = new Slice(Fragment.from(headerCells), 0, 0)
+
+    const newHeaderRow = headerRow.replace(0, 0, tableCells)
+    const newTable = node.replace(
+      0,
+      headerRow.nodeSize,
+      new Slice(Fragment.from(newHeaderRow), 0, 0)
+    )
+    fragment = fragment.replaceChild(index, newTable)
+  })
+
+  return new Slice(Fragment.from(fragment), slice.openStart, slice.openEnd)
+}
 
 withMeta(tablePasteRule, {
   displayName: 'PasteRule<table>',

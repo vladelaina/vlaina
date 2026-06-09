@@ -8,6 +8,9 @@ import {
   getCurrentBlockType,
   getFormattableTextRanges,
   getLinkUrl,
+  MAX_FLOATING_TOOLBAR_FORMATTABLE_RANGES,
+  MAX_FLOATING_TOOLBAR_SELECTION_SCAN_NODES,
+  MAX_FLOATING_TOOLBAR_SELECTED_TEXT_CHARS,
   getTextColor,
 } from './selectionHelpers';
 
@@ -72,7 +75,7 @@ function createView(
         $from: resolve(selection.from),
       },
       doc: {
-        nodesBetween: (_from: number, _to: number, callback: (node: unknown, pos: number, parent?: unknown) => void) => {
+        nodesBetween: (_from: number, _to: number, callback: (node: unknown, pos: number, parent?: unknown) => boolean | void) => {
           nodes.forEach((node) => {
             const path = resolvedByPos[node.pos];
             const parent = path
@@ -81,7 +84,7 @@ function createView(
                   attrs: path[path.length - 1].attrs ?? {},
                 }
               : undefined;
-            callback(
+            return callback(
               {
                 isText: node.isText ?? Boolean(node.text),
                 text: node.text ?? null,
@@ -374,5 +377,55 @@ describe('selection helpers', () => {
       { from: 4, to: 6 },
     ]);
     expect(getActiveMarks(view)).toEqual(new Set(['strong']));
+  });
+
+  it('caps selected text scans for toolbar state helpers', () => {
+    const nodes = Array.from(
+      { length: MAX_FLOATING_TOOLBAR_SELECTION_SCAN_NODES + 5 },
+      (_item, index) => ({
+        ...createTextNode('x', [{ name: 'strong' }]),
+        pos: index,
+      })
+    );
+    const resolvedByPos = Object.fromEntries(
+      nodes.map((node) => [node.pos, [{ type: 'doc' }, { type: 'paragraph', before: node.pos }]])
+    );
+    const view = createView(nodes, { from: 0, to: nodes.length }, resolvedByPos);
+
+    expect(getActiveMarks(view)).toEqual(new Set(['strong']));
+  });
+
+  it('does not aggregate oversized selected link text for toolbar state', () => {
+    const text = 'x'.repeat(MAX_FLOATING_TOOLBAR_SELECTED_TEXT_CHARS + 1);
+    const view = createView(
+      [
+        {
+          ...createTextNode(text, [{ name: 'link', attrs: { href: 'https://example.com' } }]),
+          pos: 0,
+        },
+      ],
+      { from: 0, to: text.length },
+      {
+        0: [{ type: 'doc' }, { type: 'paragraph', before: 1 }],
+      }
+    );
+
+    expect(getLinkUrl(view)).toBeNull();
+  });
+
+  it('caps formattable range collection for fragmented selections', () => {
+    const nodes = Array.from(
+      { length: MAX_FLOATING_TOOLBAR_FORMATTABLE_RANGES + 5 },
+      (_item, index) => ({
+        ...createTextNode('x'),
+        pos: index * 2,
+      })
+    );
+    const resolvedByPos = Object.fromEntries(
+      nodes.map((node) => [node.pos, [{ type: 'doc' }, { type: 'paragraph', before: node.pos }]])
+    );
+    const view = createView(nodes, { from: 0, to: nodes.at(-1)!.pos + 1 }, resolvedByPos);
+
+    expect(getFormattableTextRanges(view)).toHaveLength(MAX_FLOATING_TOOLBAR_FORMATTABLE_RANGES);
   });
 });

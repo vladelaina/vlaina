@@ -2,7 +2,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
-import { listCollapsePlugin } from './listCollapse';
+import {
+  MAX_LIST_COLLAPSE_CHILD_SCAN_NODES,
+  findNestedListCollapseRange,
+  listCollapsePlugin,
+} from './listCollapse';
 
 async function createEditor(markdown: string, options: { gfm?: boolean } = {}) {
   let editor = Editor.make()
@@ -35,6 +39,30 @@ afterEach(() => {
 });
 
 describe('listCollapsePlugin', () => {
+  it('bounds nested list child scans inside a single list item', () => {
+    let accessed = 0;
+    const children = [
+      ...Array.from({ length: MAX_LIST_COLLAPSE_CHILD_SCAN_NODES }, () => ({
+        nodeSize: 2,
+        type: { name: 'paragraph' },
+      })),
+      {
+        nodeSize: 4,
+        type: { name: 'bullet_list' },
+      },
+    ];
+    const listItem = {
+      childCount: children.length,
+      child(index: number) {
+        accessed += 1;
+        return children[index];
+      },
+    };
+
+    expect(findNestedListCollapseRange(listItem, 10)).toBeNull();
+    expect(accessed).toBe(MAX_LIST_COLLAPSE_CHILD_SCAN_NODES);
+  });
+
   it('does not create hidden toggles for flat list items', async () => {
     const editor = await createEditor('- One\n- Two\n- Three');
     const view = editor.ctx.get(editorViewCtx);

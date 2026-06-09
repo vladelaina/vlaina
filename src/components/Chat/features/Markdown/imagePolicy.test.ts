@@ -222,6 +222,10 @@ describe("normalizeRenderableImageSrcset", () => {
 
     expect(normalizeRenderableImageSrcset(oversizedCandidateList)).toBeNull();
   });
+
+  it("rejects srcset candidates with extra descriptors", () => {
+    expect(normalizeRenderableImageSrcset("images/a.webp 1x 2x")).toBeNull();
+  });
 });
 
 describe("createMarkdownSanitizeSchema", () => {

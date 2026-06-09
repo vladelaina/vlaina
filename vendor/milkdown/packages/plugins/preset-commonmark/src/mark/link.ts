@@ -1,4 +1,4 @@
-import type { Node as ProseNode } from '@milkdown/prose/model'
+import type { MarkType, Node as ProseNode } from '@milkdown/prose/model'
 
 import { expectDomTypeError } from '@milkdown/exception'
 import { toggleMark } from '@milkdown/prose/commands'
@@ -6,12 +6,15 @@ import { TextSelection } from '@milkdown/prose/state'
 import { $command, $markAttr, $markSchema } from '@milkdown/utils'
 
 import { withMeta } from '../__internal__'
+import { hasInternalImageUrlPathSegment } from '../__internal__/url-security'
 
 const controlOrBidiPattern = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/
 const schemePattern = /^([A-Za-z][A-Za-z0-9+.-]*):/
 const windowsAbsolutePathPattern = /^[A-Za-z]:[\\/]/
 const safeLinkSchemes = new Set(['http:', 'https:', 'mailto:'])
 const maxLinkHrefChars = 16 * 1024
+export const MAX_LINK_TITLE_CHARS = 4096
+export const MAX_LINK_UPDATE_SCAN_NODES = 20_000
 
 function hasUnsafeBackslashUrlSyntax(value: string) {
   return value.startsWith('\\') || (schemePattern.test(value) && value.includes('\\'))
@@ -23,9 +26,14 @@ export function sanitizeLinkHref(value: unknown) {
   if (!trimmed || trimmed.length > maxLinkHrefChars || trimmed.startsWith('//') || controlOrBidiPattern.test(trimmed) || hasUnsafeBackslashUrlSyntax(trimmed) || windowsAbsolutePathPattern.test(trimmed)) return null
 
   const scheme = schemePattern.exec(trimmed)?.[1]?.toLowerCase()
+  if (!scheme && hasInternalImageUrlPathSegment(trimmed)) return null
   if (!scheme) return trimmed
   const normalizedScheme = `${scheme}:`
   return safeLinkSchemes.has(normalizedScheme) ? trimmed : null
+}
+
+export function normalizeLinkTitle(value: unknown) {
+  return typeof value === 'string' ? value.slice(0, MAX_LINK_TITLE_CHARS) : null
 }
 
 /// HTML attributes for the link mark.
@@ -52,14 +60,22 @@ export const linkSchema = $markSchema('link', (ctx) => ({
 
         return {
           href,
-          title: dom.getAttribute('title'),
+          title: normalizeLinkTitle(dom.getAttribute('title')),
         }
       },
     },
   ],
   toDOM: (mark) => {
     const href = sanitizeLinkHref(mark.attrs.href)
-    return ['a', { ...ctx.get(linkAttr.key)(mark), ...mark.attrs, href: href ?? undefined }]
+    return [
+      'a',
+      {
+        ...ctx.get(linkAttr.key)(mark),
+        ...mark.attrs,
+        href: href ?? undefined,
+        title: normalizeLinkTitle(mark.attrs.title),
+      },
+    ]
   },
   parseMarkdown: {
     match: (node) => node.type === 'link',
@@ -69,7 +85,7 @@ export const linkSchema = $markSchema('link', (ctx) => ({
         state.next(node.children)
         return
       }
-      const title = node.title as string
+      const title = normalizeLinkTitle(node.title)
       state.openMark(markType, { href: url, title })
       state.next(node.children)
       state.closeMark(markType)
@@ -81,7 +97,7 @@ export const linkSchema = $markSchema('link', (ctx) => ({
       const href = sanitizeLinkHref(mark.attrs.href)
       if (!href) return
       state.withMark(mark, 'link', undefined, {
-        title: mark.attrs.title,
+        title: normalizeLinkTitle(mark.attrs.title),
         url: href,
       })
     },
@@ -96,14 +112,72 @@ withMeta(linkSchema.mark, {
 /// @internal
 export interface UpdateLinkCommandPayload {
   href?: string
-  title?: string
+  title?: string | null
 }
 
 function sanitizeLinkPayload(payload: UpdateLinkCommandPayload) {
-  if (payload.href === undefined) return payload
+  const title = payload.title === undefined ? undefined : normalizeLinkTitle(payload.title)
+  const normalizedPayload = title === undefined ? payload : { ...payload, title }
+  if (payload.href === undefined) return normalizedPayload
   const href = sanitizeLinkHref(payload.href)
-  if (!href) return null
-  return { ...payload, href }
+  return href ? { ...normalizedPayload, href } : null
+}
+
+export function findFirstLinkMarkInRange(
+  doc: ProseNode,
+  from: number,
+  to: number,
+  linkType: MarkType,
+  maxScanNodes = MAX_LINK_UPDATE_SCAN_NODES
+) {
+  const start = Math.max(0, Math.min(from, doc.content.size))
+  const end = Math.max(start, Math.min(to, doc.content.size))
+  let scanned = 0
+  const stack: Array<{
+    contentStart: number
+    index: number
+    node: ProseNode
+    offset: number
+  }> = [{
+    contentStart: 0,
+    index: 0,
+    node: doc,
+    offset: 0,
+  }]
+
+  while (stack.length > 0 && scanned < maxScanNodes) {
+    const frame = stack[stack.length - 1]!
+    if (frame.index >= frame.node.childCount) {
+      stack.pop()
+      continue
+    }
+
+    const node = frame.node.child(frame.index)
+    const pos = frame.contentStart + frame.offset
+    const nodeEnd = pos + node.nodeSize
+    frame.index += 1
+    frame.offset += node.nodeSize
+
+    if (nodeEnd < start) continue
+    if (pos > end) break
+
+    scanned += 1
+    const mark = linkType.isInSet(node.marks)
+    if (mark) {
+      return { mark, node, pos }
+    }
+
+    if (node.childCount > 0) {
+      stack.push({
+        contentStart: pos + 1,
+        index: 0,
+        node,
+        offset: 0,
+      })
+    }
+  }
+
+  return null
 }
 
 /// A command to toggle the link mark.
@@ -132,29 +206,16 @@ export const updateLinkCommand = $command(
     (state, dispatch) => {
       if (!dispatch) return false
 
-      let node: ProseNode | undefined
-      let pos = -1
+      const linkType = linkSchema.type(ctx)
       const { selection } = state
       const { from, to } = selection
-      state.doc.nodesBetween(from, from === to ? to + 1 : to, (n, p) => {
-        if (linkSchema.type(ctx).isInSet(n.marks)) {
-          node = n
-          pos = p
-          return false
-        }
+      const link = findFirstLinkMarkInRange(state.doc, from, from === to ? to + 1 : to, linkType)
+      if (!link) return false
 
-        return undefined
-      })
-
-      if (!node) return false
-
-      const mark = node.marks.find(({ type }) => type === linkSchema.type(ctx))
-      if (!mark) return false
-
-      const start = pos
-      const end = pos + node.nodeSize
+      const start = link.pos
+      const end = link.pos + link.node.nodeSize
       const { tr } = state
-      const attrs = sanitizeLinkPayload({ ...mark.attrs, ...payload })
+      const attrs = sanitizeLinkPayload({ ...link.mark.attrs, ...payload })
       if (!attrs) return false
       const linkMark = linkSchema
         .type(ctx)
@@ -163,7 +224,7 @@ export const updateLinkCommand = $command(
 
       dispatch(
         tr
-          .removeMark(start, end, mark)
+          .removeMark(start, end, link.mark)
           .addMark(start, end, linkMark)
           .setSelection(new TextSelection(tr.selection.$anchor))
           .scrollIntoView()

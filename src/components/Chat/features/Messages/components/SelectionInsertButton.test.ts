@@ -570,6 +570,39 @@ describe("chat selection surfaces", () => {
     container.remove();
   });
 
+  it("filters selection text without reading the full native selection string", () => {
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <div data-chat-scrollable="true">
+        <div data-message-item="true" data-role="assistant">
+          <div data-chat-selection-surface="true" data-chat-selection-start="true">
+            <p>Visible answer</p>
+            <span data-chat-selection-excluded="true">Hidden label</span>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const messageBody = container.querySelector('[data-chat-selection-start="true"]')!;
+    const selection = window.getSelection()!;
+    const range = document.createRange();
+    range.selectNodeContents(messageBody);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const toStringSpy = vi.spyOn(selection, "toString").mockImplementation(() => {
+      throw new Error("selection.toString should not be used for filtered selections");
+    });
+
+    try {
+      expect(getSelectionTextForComposer(selection, range)).toBe("Visible answer");
+    } finally {
+      toStringSpy.mockRestore();
+      selection.removeAllRanges();
+      container.remove();
+    }
+  });
+
   it("caps filtered composer insertion text from oversized selections", () => {
     const container = document.createElement("div");
     const visibleText = "a".repeat(MAX_CHAT_SELECTION_TEXT_CHARS + 16);

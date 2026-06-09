@@ -9,16 +9,21 @@ import {
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { Selection as ProseSelection, TextSelection } from '@milkdown/kit/prose/state';
-import type { EditorView } from '@milkdown/kit/prose/view';
-import { describe, expect, it } from 'vitest';
+import { DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
+import { describe, expect, it, vi } from 'vitest';
 import {
   MAX_LIST_GAP_PLACEHOLDER_DECORATIONS,
   MAX_LIST_GAP_PLACEHOLDER_CLEANUP_RANGES,
+  MAX_LIST_GAP_TRANSACTION_STEP_TEXT_CHARS,
+  MAX_ORDERED_LIST_LABEL_SCAN_NODES,
   buildInternalListGapDecorations,
   collectInternalListGapPlaceholderCleanupRanges,
   collectInternalListGapDecorations,
   findAdjacentOrderedLists,
+  listItemContainsInternalGapPlaceholder,
   listTabIndentPlugin,
+  rangeTouchesOrderedListNormalizationNode,
+  transactionMayAffectInternalListGapDecorations,
 } from './listTabIndentPlugin';
 
 interface FakeListGapNode {
@@ -72,6 +77,15 @@ function createFakeDoc(children: FakeListGapNode[], onAccess?: () => void): Fake
       size: children.reduce((size, child) => size + (child.nodeSize ?? 1), 0),
     },
     type: { name: 'doc' },
+  };
+}
+
+function createFlatFakeDoc(children: FakeListGapNode[], onAccess?: () => void): FakeListGapNode {
+  return {
+    ...createFakeDoc(children, onAccess),
+    content: {
+      size: children.reduce((size, child) => size + (child.nodeSize ?? 1), 0),
+    },
   };
 }
 
@@ -148,6 +162,11 @@ function typeText(view: EditorView, input: string) {
 
     if (!handled) view.dispatch(view.state.tr.insertText(text, from, to));
   }
+}
+
+function insertTextTransaction(view: EditorView, text: string) {
+  const { from, to } = view.state.selection;
+  return view.state.tr.insertText(text, from, to);
 }
 
 function selectionAncestorNames(view: EditorView): string[] {
@@ -316,6 +335,24 @@ describe('listTabIndentPlugin', () => {
     expect(accessed).toBe(MAX_LIST_GAP_PLACEHOLDER_DECORATIONS);
   });
 
+  it('caps ordered list normalization range prechecks by node count', () => {
+    let accessed = 0;
+    const doc = createFlatFakeDoc([
+      ...Array.from({ length: MAX_ORDERED_LIST_LABEL_SCAN_NODES }, () => createFakeNode('paragraph')),
+      createFakeNode('ordered_list'),
+    ], () => {
+      accessed += 1;
+    });
+
+    expect(rangeTouchesOrderedListNormalizationNode(
+      doc as any,
+      0,
+      doc.content?.size ?? 0,
+      false,
+    )).toBe(false);
+    expect(accessed).toBe(MAX_ORDERED_LIST_LABEL_SCAN_NODES);
+  });
+
   it('collects internal list gap placeholder cleanup ranges for ordinary placeholder items', () => {
     const listItem = createFakeListGapItem();
 
@@ -323,6 +360,51 @@ describe('listTabIndentPlugin', () => {
       complete: true,
       ranges: [{ from: 12, to: 13 }],
     });
+  });
+
+  it('checks list gap placeholders without aggregating list item textContent', () => {
+    const listItem = createFakeListGapItem();
+    Object.defineProperty(listItem, 'textContent', {
+      get() {
+        throw new Error('aggregate list item textContent should not be read');
+      },
+    });
+
+    expect(listItemContainsInternalGapPlaceholder(listItem as any)).toBe(true);
+  });
+
+  it('bounds inserted transaction text checks for internal list gap placeholders', () => {
+    const smallContent = {
+      size: 12,
+      textBetween: vi.fn(() => 'plain text'),
+    };
+    const largeContent = {
+      size: MAX_LIST_GAP_TRANSACTION_STEP_TEXT_CHARS + 1,
+      textBetween: vi.fn(() => {
+        throw new Error('oversized list gap transaction text should not be read');
+      }),
+    };
+    const unchangedDoc = {
+      content: {
+        findDiffStart: () => null,
+      },
+    };
+
+    expect(transactionMayAffectInternalListGapDecorations(
+      DecorationSet.empty,
+      { steps: [{ slice: { content: smallContent } }] } as any,
+      unchangedDoc as any,
+      unchangedDoc as any,
+    )).toBe(false);
+    expect(smallContent.textBetween).toHaveBeenCalledWith(0, 12, '\n', '\ufffc');
+
+    expect(transactionMayAffectInternalListGapDecorations(
+      DecorationSet.empty,
+      { steps: [{ slice: { content: largeContent } }] } as any,
+      unchangedDoc as any,
+      unchangedDoc as any,
+    )).toBe(true);
+    expect(largeContent.textBetween).not.toHaveBeenCalled();
   });
 
   it('does not collect unbounded internal list gap placeholder cleanup ranges', () => {
@@ -353,6 +435,55 @@ describe('listTabIndentPlugin', () => {
     ]);
 
     expect(buildInternalListGapDecorations(view.state.doc).find()).toHaveLength(0);
+  });
+
+  it('maps list gap decorations for ordinary paragraph edits', async () => {
+    const editor = createEditorWithContent(['Plain paragraph', '', '- first'].join('\n'));
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    moveCursorAfterText(view, 'Plain');
+    const tr = insertTextTransaction(view, ' text');
+
+    expect(transactionMayAffectInternalListGapDecorations(
+      DecorationSet.empty,
+      tr,
+      view.state.doc,
+      tr.doc
+    )).toBe(false);
+  });
+
+  it('rebuilds list gap decorations when a transaction inserts an internal placeholder', async () => {
+    const editor = createEditorWithContent('- first');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    moveCursorToDocumentEnd(view);
+    const tr = insertTextTransaction(view, '\u2800');
+
+    expect(transactionMayAffectInternalListGapDecorations(
+      DecorationSet.empty,
+      tr,
+      view.state.doc,
+      tr.doc
+    )).toBe(true);
+  });
+
+  it('rebuilds list gap decorations when editing an existing placeholder item', async () => {
+    const editor = createEditorWithContent(['- first', '- \u2800', '- second'].join('\n'));
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    moveCursorAfterText(view, '\u2800');
+    const tr = insertTextTransaction(view, 'x');
+    const decorations = buildInternalListGapDecorations(view.state.doc);
+
+    expect(transactionMayAffectInternalListGapDecorations(
+      decorations,
+      tr,
+      view.state.doc,
+      tr.doc
+    )).toBe(true);
   });
 
   it('renumbers ordered list items after deleting an internal gap item', async () => {
@@ -460,6 +591,34 @@ describe('listTabIndentPlugin', () => {
     const doc = schema.nodes.doc.create(null, [nested]);
 
     expect(findAdjacentOrderedLists(doc)).toBeNull();
+  });
+
+  it('caps adjacent ordered list merge scans', async () => {
+    const editor = createEditorWithContent('');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const paragraphNodes = Array.from(
+      { length: 5 },
+      (_item, index) => schema.nodes.paragraph.create(null, schema.text(`p ${index}`))
+    );
+    const doc = schema.nodes.doc.create(null, [
+      ...paragraphNodes,
+      schema.nodes.ordered_list.create(null, [
+        schema.nodes.list_item.create({ label: '1.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(null, schema.text('one')),
+        ]),
+      ]),
+      schema.nodes.ordered_list.create({ order: 2 }, [
+        schema.nodes.list_item.create({ label: '2.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(null, schema.text('two')),
+        ]),
+      ]),
+    ]);
+
+    expect(findAdjacentOrderedLists(doc, 5)).toBeNull();
+    expect(findAdjacentOrderedLists(doc, 20)).not.toBeNull();
   });
 
   it('keeps the cursor in a newly inserted middle ordered list item', async () => {

@@ -1,7 +1,10 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { DecorationSet } from '@milkdown/kit/prose/view';
-import { createHeadingPlaceholderDecorations } from './headingPlaceholder';
+import {
+    createHeadingPlaceholderDecorations,
+    transactionMayAffectHeadingPlaceholders,
+} from './headingPlaceholder';
 
 const firstParagraphPlugin = $prose(() => {
     return new Plugin({
@@ -41,8 +44,11 @@ const headingPlaceholderPlugin = $prose(() => {
             init(_config, state) {
                 return createHeadingPlaceholderDecorations(state.doc);
             },
-            apply(tr, oldDecorations, _oldState, newState) {
+            apply(tr, oldDecorations, oldState, newState) {
                 if (tr.docChanged) {
+                    if (!transactionMayAffectHeadingPlaceholders(oldDecorations as DecorationSet, tr, oldState.doc, newState.doc)) {
+                        return (oldDecorations as DecorationSet).map(tr.mapping, tr.doc);
+                    }
                     return createHeadingPlaceholderDecorations(newState.doc);
                 }
                 return (oldDecorations as DecorationSet).map(tr.mapping, tr.doc);

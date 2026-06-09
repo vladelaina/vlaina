@@ -6,7 +6,7 @@ function isEscapedAtOffset(content: string, offset: number, lowerBound: number):
   return backslashCount % 2 === 1;
 }
 
-function skipMarkdownImageTitle(content: string, start: number): number | null {
+function skipMarkdownImageTitle(content: string, start: number, maxScanEnd = content.length): number | null {
   const titleStart = start;
   const opener = content[titleStart];
   if (opener !== '"' && opener !== "'" && opener !== "(") {
@@ -16,7 +16,7 @@ function skipMarkdownImageTitle(content: string, start: number): number | null {
   const closer = opener === "(" ? ")" : opener;
   let depth = opener === "(" ? 1 : 0;
   let cursor = titleStart + 1;
-  while (cursor < content.length) {
+  while (cursor < content.length && cursor < maxScanEnd) {
     const ch = content[cursor];
     if (isEscapedAtOffset(content, cursor, titleStart)) {
       cursor += 1;
@@ -39,22 +39,22 @@ function skipMarkdownImageTitle(content: string, start: number): number | null {
   return null;
 }
 
-export function parseMarkdownImageClosingParen(content: string, start: number): number | null {
+export function parseMarkdownImageClosingParen(content: string, start: number, maxScanEnd = content.length): number | null {
   let cursor = start;
-  while (cursor < content.length && /\s/.test(content[cursor])) {
+  while (cursor < content.length && cursor < maxScanEnd && /\s/.test(content[cursor])) {
     cursor += 1;
   }
   if (content[cursor] === ")") {
     return cursor + 1;
   }
 
-  const titleEnd = skipMarkdownImageTitle(content, cursor);
+  const titleEnd = skipMarkdownImageTitle(content, cursor, maxScanEnd);
   if (titleEnd === null) {
     return null;
   }
 
   cursor = titleEnd;
-  while (cursor < content.length && /\s/.test(content[cursor])) {
+  while (cursor < content.length && cursor < maxScanEnd && /\s/.test(content[cursor])) {
     cursor += 1;
   }
   return content[cursor] === ")" ? cursor + 1 : null;

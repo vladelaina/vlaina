@@ -823,6 +823,13 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('pointer-events: none;');
   });
 
+  it('keeps markdown blank-line html blocks from intercepting floating toolbar clicks', () => {
+    const css = readStyleFile('markdown.css');
+
+    expect(css).toContain(".milkdown .ProseMirror > [data-type='html-block'][data-value='<!--vlaina-markdown-blank-line-->'] {");
+    expect(css).toContain('pointer-events: none;');
+  });
+
   it('suppresses editor icon hover affordances while dragging a block selection', () => {
     const css = readBlockSelectionStyle();
 
@@ -973,8 +980,7 @@ describe('editor embedded CodeMirror selection styles', () => {
     const source = readAiReviewSelectionSource();
 
     expect(source).toContain("from '../../selection/textSelectionOverlayPlugin'");
-    expect(source).toContain('addTextSelectionOverlayDecorations(');
-    expect(source).toContain('node.isText');
+    expect(source).toContain('addTextSelectionOverlayDecorationsForRange(');
     expect(source).not.toContain('vlaina-ai-review-selection');
     expect(css).not.toContain('vlaina-ai-review-selection');
   });

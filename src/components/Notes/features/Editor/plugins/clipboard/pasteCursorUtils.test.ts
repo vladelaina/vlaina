@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Fragment, Slice } from '@milkdown/kit/prose/model';
 import {
     MAX_MARKDOWN_STRUCTURAL_RESULT_SCAN_NODES,
+    MAX_PASTE_CURSOR_TAIL_SCAN_NODES,
     findTailCursorPosInRange,
     isMarkdownStructuralResult,
     resolvePasteRange,
@@ -57,6 +58,32 @@ describe('findTailCursorPosInRange', () => {
         );
 
         expect(findTailCursorPosInRange(doc, 0, 200)).toBeNull();
+    });
+
+    it('caps real document tail scans by node count', () => {
+        let accessed = 0;
+        const nodes = Array.from({ length: MAX_PASTE_CURSOR_TAIL_SCAN_NODES + 1 }, (_, index) => ({
+            isTextblock: true,
+            content: { size: 1 },
+            nodeSize: 3,
+            index,
+        }));
+        const doc = {
+            childCount: nodes.length,
+            content: { size: nodes.length * 3 },
+            child(index: number) {
+                accessed += 1;
+                return nodes[index];
+            },
+            nodesBetween() {
+                throw new Error('nodesBetween should not be used for real document scans');
+            },
+        };
+
+        expect(findTailCursorPosInRange(doc as any, 0, doc.content.size)).toBe(
+            (MAX_PASTE_CURSOR_TAIL_SCAN_NODES - 1) * 3 + 2,
+        );
+        expect(accessed).toBe(MAX_PASTE_CURSOR_TAIL_SCAN_NODES);
     });
 });
 

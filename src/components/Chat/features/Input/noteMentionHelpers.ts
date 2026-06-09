@@ -30,6 +30,9 @@ export interface MentionPreviewPart {
 }
 
 const MAX_MENTION_CANDIDATE_TREE_NODES = 20_000;
+export const MAX_MENTION_TITLE_SCAN_ITEMS = 5_000;
+export const MAX_MENTION_TITLE_SCAN_CHARS = 128 * 1024;
+export const MAX_MENTION_TITLE_CHARS = 512;
 
 export function collectMentionCandidates(nodes: FileTreeNode[], result: NoteMentionCandidate[]): void {
   const stack = [...nodes].reverse();
@@ -230,10 +233,23 @@ interface MentionLabelTrieNode {
 function createMentionLabelTrie(titles: Iterable<string>): MentionLabelTrieNode {
   const root: MentionLabelTrieNode = { children: new Map() };
   const seenTitles = new Set<string>();
+  let scannedTitles = 0;
+  let scannedTitleChars = 0;
 
   for (const title of titles) {
+    scannedTitles += 1;
+    if (scannedTitles > MAX_MENTION_TITLE_SCAN_ITEMS) {
+      break;
+    }
     if (!title || seenTitles.has(title)) {
       continue;
+    }
+    if (title.length > MAX_MENTION_TITLE_CHARS) {
+      continue;
+    }
+    scannedTitleChars += title.length;
+    if (scannedTitleChars > MAX_MENTION_TITLE_SCAN_CHARS) {
+      break;
     }
     seenTitles.add(title);
 

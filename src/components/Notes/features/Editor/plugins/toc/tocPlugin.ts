@@ -12,6 +12,8 @@ import {
 } from './tocViewUtils';
 import { collectTocBlocks, docHasTocNode, stepSliceContainsToc } from './tocScan';
 
+const MAX_TOC_SHORTCUT_TEXT_CHARS = 32;
+
 const tocViewPluginKey = new PluginKey<{ hasToc: boolean }>('tocView');
 
 function transactionMayInsertToc(tr: unknown): boolean {
@@ -226,7 +228,12 @@ export function handleTocShortcutEnter(view: EditorView): boolean {
     return false;
   }
 
-  if (!isTocShortcutText($from.parent.textContent)) {
+  if ($from.parent.content.size > MAX_TOC_SHORTCUT_TEXT_CHARS) {
+    return false;
+  }
+
+  const shortcutText = $from.parent.textBetween(0, $from.parent.content.size, '', '');
+  if (!isTocShortcutText(shortcutText)) {
     return false;
   }
 

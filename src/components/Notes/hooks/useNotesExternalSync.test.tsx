@@ -396,6 +396,65 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
+  it('pairs a remove event with the unique best pending create instead of the first create', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { create: { kind: 'file' } },
+        paths: ['/vault/archive/new.md'],
+      });
+      await hoisted.watchHandler?.({
+        type: { create: { kind: 'file' } },
+        paths: ['/vault/docs/beta.md'],
+      });
+      await hoisted.watchHandler?.({
+        type: { remove: { kind: 'file' } },
+        paths: ['/vault/docs/alpha.md'],
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith('docs/alpha.md', 'docs/beta.md');
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalledWith('docs/alpha.md', 'archive/new.md');
+    expect(hoisted.notesState.applyExternalPathDeletion).not.toHaveBeenCalledWith('docs/alpha.md');
+
+    hook.unmount();
+  });
+
+  it('does not immediately pair ambiguous pending creates with a remove event', async () => {
+    vi.mocked(detectExternalTreePathChanges).mockReturnValueOnce({
+      hasChanges: true,
+      renames: [{ oldPath: 'docs/alpha.md', newPath: 'docs/beta.md' }],
+      deletions: [],
+      hasAdditions: true,
+    });
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { create: { kind: 'file' } },
+        paths: ['/vault/docs/new.md'],
+      });
+      await hoisted.watchHandler?.({
+        type: { create: { kind: 'file' } },
+        paths: ['/vault/docs/beta.md'],
+      });
+      await hoisted.watchHandler?.({
+        type: { remove: { kind: 'file' } },
+        paths: ['/vault/docs/alpha.md'],
+      });
+      expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(181);
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith('docs/alpha.md', 'docs/beta.md');
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalledWith('docs/alpha.md', 'docs/new.md');
+    expect(hoisted.notesState.applyExternalPathDeletion).not.toHaveBeenCalledWith('docs/alpha.md');
+
+    hook.unmount();
+  });
+
   it('does not treat a Markdown file removed before a created folder as a folder rename', async () => {
     const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
 

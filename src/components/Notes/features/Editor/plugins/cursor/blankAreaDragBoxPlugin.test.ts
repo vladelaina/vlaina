@@ -3,7 +3,11 @@ import { Editor, defaultValueCtx, editorViewCtx, remarkStringifyOptionsCtx, seri
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { describe, expect, it, vi } from 'vitest';
-import { blankAreaDragBoxPlugin, shouldClearBlockSelectionForTransaction } from './blankAreaDragBoxPlugin';
+import {
+  blankAreaDragBoxPlugin,
+  MAX_DOCUMENT_BLOCK_SELECTION_PASTE_CHARS,
+  shouldClearBlockSelectionForTransaction,
+} from './blankAreaDragBoxPlugin';
 import { collectSelectableBlockRanges } from './blockUnitResolver';
 import { dispatchBlockSelectionAction, getBlockSelectionPluginState } from './blockSelectionPluginState';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
@@ -914,6 +918,25 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
       expect(paste.event.defaultPrevented).toBe(true);
       expect(view.state.doc.textContent).toBe('GammaBeta');
       expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('blocks oversized document pastes after drag selection has blurred the editor', async () => {
+    const { editor, view } = await createIntegratedBlockSelectionEditor('Alpha\n\nBeta');
+
+    try {
+      view.dom.blur();
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(1);
+      const paste = dispatchDocumentClipboardEvent(
+        'paste',
+        'x'.repeat(MAX_DOCUMENT_BLOCK_SELECTION_PASTE_CHARS + 1),
+      );
+
+      expect(paste.event.defaultPrevented).toBe(true);
+      expect(view.state.doc.textContent).toBe('AlphaBeta');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(1);
     } finally {
       await editor.destroy();
     }

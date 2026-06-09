@@ -15,7 +15,7 @@ export const normalizeMarkdownLineEndings = (value: string) => value.replace(LIN
 export const looksLikePlainTextWithOnlyBackslashHardBreakSignal = (value: string): boolean => {
   const normalized = normalizeMarkdownLineEndings(value);
   if (!normalized.trim()) return false;
-  if (!normalized.split('\n').some(hasSingleTrailingBackslash)) return false;
+  if (!hasAnySingleTrailingBackslashLine(normalized)) return false;
 
   return (
     !TOC_SHORTCUT_PATTERN.test(normalized)
@@ -25,6 +25,18 @@ export const looksLikePlainTextWithOnlyBackslashHardBreakSignal = (value: string
     && !HTML_HARD_BREAK_PATTERN.test(normalized)
   );
 };
+
+function hasAnySingleTrailingBackslashLine(text: string): boolean {
+  let lineStart = 0;
+
+  for (let cursor = 0; cursor <= text.length; cursor += 1) {
+    if (cursor < text.length && text[cursor] !== '\n') continue;
+    if (hasSingleTrailingBackslash(text.slice(lineStart, cursor))) return true;
+    lineStart = cursor + 1;
+  }
+
+  return false;
+}
 
 export const escapeParagraphTrailingBackslashesForEditor = (value: string): string => {
   return mapMarkdownOutsideProtectedBlocks(

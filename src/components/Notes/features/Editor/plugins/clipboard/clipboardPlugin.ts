@@ -38,10 +38,20 @@ import {
     hasSelectedBlocks,
 } from '../cursor/blockSelectionPluginState';
 import { replaceVisibleBlockSelectionWithCursor } from '../cursor/blockSelectionReplacement';
+import {
+    createClipboardTraversalBudget,
+    consumeClipboardTraversalNode,
+} from './clipboardTraversalBudget';
 
 export const clipboardPluginKey = new PluginKey('editor-clipboard');
-const MAX_MARKDOWN_PASTE_CHARS = 1024 * 1024;
-const MAX_HTML_PASTE_CHARS = 2 * 1024 * 1024;
+export const MAX_MARKDOWN_PASTE_CHARS = 1024 * 1024;
+export const MAX_HTML_PASTE_CHARS = 2 * 1024 * 1024;
+export const MAX_MARKDOWN_PASTE_TOP_LEVEL_NODES = 5_000;
+export const MAX_INLINE_FOOTNOTE_PASTE_TEXT_CHARS = 256 * 1024;
+export const MAX_INLINE_FOOTNOTE_PASTE_REFERENCES = 1000;
+export const MAX_INLINE_FOOTNOTE_PASTE_LABEL_CHARS = 256;
+export const MAX_PLAIN_TEXT_LINE_BREAK_PASTE_LINES = 5000;
+export const MAX_PLAIN_TEXT_PARAGRAPH_PASTE_BLOCKS = 1000;
 const INLINE_FOOTNOTE_REFERENCE_PATTERN = /\[\^([^\]\r\n]+)\]/g;
 const BLANK_LINE_PATTERN = /\n[ \t]*\n/;
 
@@ -125,7 +135,6 @@ function replaceBlockSelectionBeforePaste(view: EditorView): boolean {
 export function hasClipboardPayload(event: ClipboardEvent): boolean {
     const clipboardData = event.clipboardData;
     if (!clipboardData) return false;
-    if (clipboardData.getData('text/plain') || clipboardData.getData('text/html')) return true;
     return (clipboardData.types?.length ?? 0) > 0;
 }
 
@@ -195,13 +204,24 @@ function splitTextNodeWithInlineFootnotes(state: FootnoteReferenceState, node: P
     if (!text || !text.includes('[^') || node.marks.some((mark) => mark.type.name === 'inlineCode')) {
         return null;
     }
+    if (text.length > MAX_INLINE_FOOTNOTE_PASTE_TEXT_CHARS) {
+        return null;
+    }
 
     const nodes: ProseNode[] = [];
     let lastIndex = 0;
     let hasFootnote = false;
+    let referenceCount = 0;
 
     for (const match of text.matchAll(INLINE_FOOTNOTE_REFERENCE_PATTERN)) {
         const rawId = match[1]?.trim();
+        referenceCount += 1;
+        if (referenceCount > MAX_INLINE_FOOTNOTE_PASTE_REFERENCES) {
+            return null;
+        }
+        if (rawId && rawId.length > MAX_INLINE_FOOTNOTE_PASTE_LABEL_CHARS) {
+            return null;
+        }
         if (!rawId) continue;
 
         const index = match.index ?? 0;
@@ -225,7 +245,16 @@ function splitTextNodeWithInlineFootnotes(state: FootnoteReferenceState, node: P
     return nodes;
 }
 
-function replaceInlineFootnoteReferencesInNode(state: FootnoteReferenceState, node: ProseNode): ProseNode[] {
+function replaceInlineFootnoteReferencesInNode(
+    state: FootnoteReferenceState,
+    node: ProseNode,
+    budget: ReturnType<typeof createClipboardTraversalBudget>,
+    depth: number,
+): ProseNode[] {
+    if (!consumeClipboardTraversalNode(budget, depth)) {
+        return [node];
+    }
+
     if (node.isText) {
         return splitTextNodeWithInlineFootnotes(state, node) ?? [node];
     }
@@ -237,7 +266,9 @@ function replaceInlineFootnoteReferencesInNode(state: FootnoteReferenceState, no
     let changed = false;
     const children: ProseNode[] = [];
     node.content.forEach((child) => {
-        const replacement = replaceInlineFootnoteReferencesInNode(state, child);
+        const replacement = budget.exceeded
+            ? [child]
+            : replaceInlineFootnoteReferencesInNode(state, child, budget, depth + 1);
         children.push(...replacement);
         if (replacement.length !== 1 || replacement[0] !== child) {
             changed = true;
@@ -247,8 +278,18 @@ function replaceInlineFootnoteReferencesInNode(state: FootnoteReferenceState, no
     return changed ? [node.copy(Fragment.fromArray(children))] : [node];
 }
 
-function replaceInlineFootnoteReferencesInNodes(state: FootnoteReferenceState, nodes: ProseNode[]): ProseNode[] {
-    return nodes.flatMap((node) => replaceInlineFootnoteReferencesInNode(state, node));
+export function replaceInlineFootnoteReferencesInNodes(state: FootnoteReferenceState, nodes: ProseNode[]): ProseNode[] {
+    const budget = createClipboardTraversalBudget();
+    const replacementNodes: ProseNode[] = [];
+
+    for (const node of nodes) {
+        if (budget.exceeded) {
+            return nodes;
+        }
+        replacementNodes.push(...replaceInlineFootnoteReferencesInNode(state, node, budget, 1));
+    }
+
+    return budget.exceeded ? nodes : replacementNodes;
 }
 
 function createInlineFootnoteReferenceSlice(state: FootnoteReferenceState, text: string): Slice | null {
@@ -261,7 +302,44 @@ function createInlineFootnoteReferenceSlice(state: FootnoteReferenceState, text:
     return new Slice(Fragment.fromArray(nodes), 0, 0);
 }
 
-function createPlainTextLineBreakSlice(state: {
+function countLineBreakDelimitedItems(value: string, limit: number): number {
+    let count = 1;
+    for (let index = 0; index < value.length; index += 1) {
+        if (value.charCodeAt(index) === 10) {
+            count += 1;
+            if (count > limit) {
+                return count;
+            }
+        }
+    }
+    return count;
+}
+
+function countBlankLineDelimitedBlocks(value: string, limit: number): number {
+    let count = 1;
+    for (let index = 0; index < value.length; index += 1) {
+        if (value.charCodeAt(index) !== 10) {
+            continue;
+        }
+
+        let cursor = index + 1;
+        while (cursor < value.length && (value[cursor] === ' ' || value[cursor] === '\t')) {
+            cursor += 1;
+        }
+        if (value.charCodeAt(cursor) !== 10) {
+            continue;
+        }
+
+        count += 1;
+        if (count > limit) {
+            return count;
+        }
+        index = cursor;
+    }
+    return count;
+}
+
+export function createPlainTextLineBreakSlice(state: {
     schema: {
         text: (text: string) => ProseNode;
         nodes: {
@@ -275,6 +353,9 @@ function createPlainTextLineBreakSlice(state: {
 
     const hardbreakType = state.schema.nodes.hardbreak;
     const normalized = text.replace(/\r\n?/g, '\n');
+    if (countLineBreakDelimitedItems(normalized, MAX_PLAIN_TEXT_LINE_BREAK_PASTE_LINES) > MAX_PLAIN_TEXT_LINE_BREAK_PASTE_LINES) {
+        return null;
+    }
 
     if (!hardbreakType) {
         const paragraphs = normalized.split('\n').map((line) => {
@@ -475,7 +556,7 @@ function normalizeBulletPrefixedOrderedOutlinePaste(text: string): string {
         .join('\n\n');
 }
 
-function createPlainParagraphNodesFromText(state: {
+export function createPlainParagraphNodesFromText(state: {
     schema: {
         text: (text: string) => ProseNode;
         nodes: {
@@ -488,6 +569,9 @@ function createPlainParagraphNodesFromText(state: {
 
     const normalized = text.replace(/\r\n?/g, '\n').trim();
     if (!BLANK_LINE_PATTERN.test(normalized)) return null;
+    if (countBlankLineDelimitedBlocks(normalized, MAX_PLAIN_TEXT_PARAGRAPH_PASTE_BLOCKS) > MAX_PLAIN_TEXT_PARAGRAPH_PASTE_BLOCKS) {
+        return null;
+    }
 
     const paragraphs = normalized
         .split(/\n[ \t]*\n+/)
@@ -500,6 +584,25 @@ function createPlainParagraphNodesFromText(state: {
         undefined,
         [state.schema.text(paragraph)],
     ));
+}
+
+export function collectMarkdownPasteTopLevelNodes(parsedDoc: ProseNode): ProseNode[] | null {
+    const { content } = parsedDoc;
+    if (!content) return null;
+
+    const { childCount } = content;
+    if (typeof childCount !== 'number') return null;
+
+    if (childCount > MAX_MARKDOWN_PASTE_TOP_LEVEL_NODES) {
+        return null;
+    }
+
+    const parsedNodes: ProseNode[] = [];
+    content.forEach((node) => {
+        parsedNodes.push(node);
+    });
+
+    return parsedNodes;
 }
 
 function findAncestorDepth(state: {
@@ -667,10 +770,8 @@ export const clipboardPlugin = $prose((ctx) => {
             return null;
         }
 
-        const parsedNodes: ProseNode[] = [];
-        parsedDoc.content.forEach((node) => {
-            parsedNodes.push(node);
-        });
+        const parsedNodes = collectMarkdownPasteTopLevelNodes(parsedDoc);
+        if (!parsedNodes) return null;
 
         return isMarkdownStructuralResult(parsedNodes) ? parsedNodes : null;
     };

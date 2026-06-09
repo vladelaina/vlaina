@@ -14,7 +14,9 @@ describe('forcedLineEdgeCaret', () => {
         doc: {
           nodeAt: vi.fn(() => ({
             nodeSize: MAX_FORCED_LINE_EDGE_TEXT_CHARS + 3,
-            textContent: 'a'.repeat(MAX_FORCED_LINE_EDGE_TEXT_CHARS + 1),
+            get textContent() {
+              throw new Error('block textContent should not be read');
+            },
           })),
         },
       },

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildWebSearchStatusMarkup, extractWebSearchStatuses, sanitizeWebSearchSourceUrl } from './statusMarkup';
+import {
+  MAX_WEB_SEARCH_STATUS_JSON_LENGTH,
+  MAX_WEB_SEARCH_STATUS_MARKUPS,
+  buildWebSearchStatusMarkup,
+  extractWebSearchStatuses,
+  sanitizeWebSearchSourceUrl,
+} from './statusMarkup';
 
 describe('web search status markup', () => {
   it('round-trips status payloads and removes markup from content', () => {
@@ -85,6 +91,40 @@ describe('web search status markup', () => {
       },
     ]);
     expect(parsed.content).toBe('Answer');
+  });
+
+  it('limits parsed status markup count while still stripping excess markup', () => {
+    const markup = buildWebSearchStatusMarkup({ phase: 'searching', query: 'bounded' });
+    const parsed = extractWebSearchStatuses(`${markup.repeat(MAX_WEB_SEARCH_STATUS_MARKUPS + 2)}Answer`);
+
+    expect(parsed.statuses).toHaveLength(MAX_WEB_SEARCH_STATUS_MARKUPS);
+    expect(parsed.content).toBe('Answer');
+  });
+
+  it('keeps parsing case-insensitive status tags', () => {
+    const parsed = extractWebSearchStatuses(
+      '<WEB-SEARCH-STATUS>{"phase":"searching","query":"Case"}</WEB-SEARCH-STATUS>Answer'
+    );
+
+    expect(parsed.statuses).toEqual([{ phase: 'searching', query: 'Case' }]);
+    expect(parsed.content).toBe('Answer');
+  });
+
+  it('strips oversized status payloads without parsing them', () => {
+    const parsed = extractWebSearchStatuses(
+      `<web-search-status>${'x'.repeat(MAX_WEB_SEARCH_STATUS_JSON_LENGTH + 1)}</web-search-status>Answer`
+    );
+
+    expect(parsed.statuses).toEqual([]);
+    expect(parsed.content).toBe('Answer');
+  });
+
+  it('leaves unterminated status markup text intact', () => {
+    const content = `<web-search-status>${'x'.repeat(MAX_WEB_SEARCH_STATUS_JSON_LENGTH + 1)}Answer`;
+    const parsed = extractWebSearchStatuses(content);
+
+    expect(parsed.statuses).toEqual([]);
+    expect(parsed.content).toBe(content);
   });
 
   it('accepts only public http sources', () => {

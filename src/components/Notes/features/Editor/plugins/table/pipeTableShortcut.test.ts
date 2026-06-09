@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { getPipeShortcutColumnCount } from './pipeTableShortcut';
+import {
+  getPipeShortcutColumnCount,
+  getPipeShortcutCells,
+  MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS,
+  shouldCreateTableFromPipeShortcut,
+} from './pipeTableShortcut';
 
 describe('getPipeShortcutColumnCount', () => {
   it('detects two columns from a pipe row', () => {
@@ -20,5 +25,19 @@ describe('getPipeShortcutColumnCount', () => {
 
   it('ignores plain text', () => {
     expect(getPipeShortcutColumnCount('hello world')).toBeNull();
+  });
+
+  it('ignores oversized pipe rows before splitting cells', () => {
+    expect(getPipeShortcutCells(`|${'x'.repeat(MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS)}|2|`)).toBeNull();
+  });
+});
+
+describe('shouldCreateTableFromPipeShortcut', () => {
+  it('allows compact pipe rows for quick table creation', () => {
+    expect(shouldCreateTableFromPipeShortcut('|1|2|')).toBe(true);
+  });
+
+  it('does not grab spaced markdown table source rows before the delimiter line is typed', () => {
+    expect(shouldCreateTableFromPipeShortcut('| 功能 | 操作步骤 | Windows | macOS |')).toBe(false);
   });
 });

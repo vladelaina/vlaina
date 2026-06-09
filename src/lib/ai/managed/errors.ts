@@ -1,6 +1,7 @@
 import { MANAGED_AUTH_REQUIRED_ERROR } from './constants';
 
 const MAX_MANAGED_ERROR_BODY_BYTES = 64 * 1024;
+export const MAX_MANAGED_SERVICE_ERROR_MESSAGE_CHARS = 8192;
 
 function createManagedServiceError(
   message: string,
@@ -17,18 +18,18 @@ function createManagedServiceError(
 
 export function getManagedServiceErrorMessage(error: unknown): string {
   if (typeof error === 'string') {
-    return error.trim();
+    return error.trim().slice(0, MAX_MANAGED_SERVICE_ERROR_MESSAGE_CHARS);
   }
 
   if (error instanceof Error) {
-    return error.message.trim();
+    return error.message.trim().slice(0, MAX_MANAGED_SERVICE_ERROR_MESSAGE_CHARS);
   }
 
   if (error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string') {
-    return (error as { message: string }).message.trim();
+    return (error as { message: string }).message.trim().slice(0, MAX_MANAGED_SERVICE_ERROR_MESSAGE_CHARS);
   }
 
-  return String(error ?? '').trim();
+  return String(error ?? '').trim().slice(0, MAX_MANAGED_SERVICE_ERROR_MESSAGE_CHARS);
 }
 
 export function isManagedServiceRecoverableError(error: unknown): boolean {

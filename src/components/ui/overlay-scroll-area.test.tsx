@@ -51,7 +51,7 @@ describe('OverlayScrollArea', () => {
     setViewportMetrics(viewport, { clientHeight: 120, scrollHeight: 480 });
     fireEvent.scroll(viewport);
 
-    const thumb = viewport.parentElement?.querySelector('.pointer-events-auto.absolute') as HTMLDivElement | null;
+    const thumb = viewport.parentElement?.querySelector('[data-overlay-scrollbar-thumb="true"]') as HTMLDivElement | null;
     expect(thumb).not.toBeNull();
 
     Object.defineProperty(thumb!, 'setPointerCapture', {
@@ -79,7 +79,7 @@ describe('OverlayScrollArea', () => {
     setViewportMetrics(viewport, { clientHeight: 120, scrollHeight: 480 });
     fireEvent.scroll(viewport);
 
-    const compactRail = viewport.parentElement?.querySelector('.absolute.inset-y-0.right-0') as HTMLDivElement | null;
+    const compactRail = viewport.parentElement?.querySelector('[data-overlay-scrollbar-rail="true"]') as HTMLDivElement | null;
     const compactTrack = compactRail?.firstElementChild as HTMLDivElement | null;
     const compactThumb = compactTrack?.firstElementChild as HTMLDivElement | null;
 
@@ -100,7 +100,7 @@ describe('OverlayScrollArea', () => {
     setViewportMetrics(defaultViewport, { clientHeight: 120, scrollHeight: 480 });
     fireEvent.scroll(defaultViewport);
 
-    const defaultRail = defaultViewport.parentElement?.querySelector('.absolute.inset-y-0.right-0') as HTMLDivElement | null;
+    const defaultRail = defaultViewport.parentElement?.querySelector('[data-overlay-scrollbar-rail="true"]') as HTMLDivElement | null;
     const defaultTrack = defaultRail?.firstElementChild as HTMLDivElement | null;
     const defaultThumb = defaultTrack?.firstElementChild as HTMLDivElement | null;
 
@@ -124,7 +124,7 @@ describe('OverlayScrollArea', () => {
     fireEvent.mouseEnter(viewport.parentElement as HTMLDivElement);
     fireEvent.scroll(viewport);
 
-    const rail = viewport.parentElement?.querySelector('.absolute.inset-y-0.right-0') as HTMLDivElement | null;
+    const rail = viewport.parentElement?.querySelector('[data-overlay-scrollbar-rail="true"]') as HTMLDivElement | null;
     const track = rail?.firstElementChild as HTMLDivElement | null;
     const thumb = track?.firstElementChild as HTMLDivElement | null;
 
@@ -145,11 +145,11 @@ describe('OverlayScrollArea', () => {
     const viewport = screen.getByText('content').parentElement as HTMLDivElement;
     setViewportMetrics(viewport, { clientHeight: 120, scrollHeight: 480 });
 
-    expect(viewport.parentElement?.querySelector('.absolute.inset-y-0.right-0')).toBeNull();
+    expect(viewport.parentElement?.querySelector('[data-overlay-scrollbar-rail="true"]')).toBeNull();
 
     fireEvent.mouseEnter(viewport.parentElement as HTMLDivElement);
 
-    const rail = viewport.parentElement?.querySelector('.absolute.inset-y-0.right-0') as HTMLDivElement | null;
+    const rail = viewport.parentElement?.querySelector('[data-overlay-scrollbar-rail="true"]') as HTMLDivElement | null;
     expect(rail).not.toBeNull();
   });
 
@@ -167,11 +167,14 @@ describe('OverlayScrollArea', () => {
     fireEvent.mouseEnter(viewport.parentElement as HTMLDivElement);
     fireEvent.scroll(viewport);
 
-    const rail = viewport.parentElement?.querySelector('.absolute.inset-y-0.right-0') as HTMLDivElement | null;
+    const rail = viewport.parentElement?.querySelector('[data-overlay-scrollbar-rail="true"]') as HTMLDivElement | null;
     const track = rail?.firstElementChild as HTMLDivElement | null;
     const thumb = track?.firstElementChild as HTMLDivElement | null;
 
+    expect(rail?.dataset.overlayScrollbarRail).toBe('true');
     expect(rail?.dataset.noFocusInput).toBe('true');
+    expect(rail?.className).toContain('z-[var(--vlaina-z-20)]');
+    expect(thumb?.dataset.overlayScrollbarThumb).toBe('true');
     expect(rail?.className).toContain('cursor-default');
     expect(track?.className).toContain('cursor-default');
     expect(thumb?.className).toContain('cursor-default');

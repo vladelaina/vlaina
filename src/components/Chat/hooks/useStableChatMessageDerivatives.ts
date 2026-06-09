@@ -23,6 +23,7 @@ type DerivedState = {
 };
 
 const DERIVATIVE_BATCH_SIZE = 80;
+export const MAX_CHAT_DERIVATIVE_SIGNATURE_HASH_CHARS = 8192;
 
 interface CachedMessageDerivatives {
   message: ChatMessage;
@@ -37,6 +38,16 @@ function hashString(value: string): string {
     hash = Math.imul(hash, 0x01000193);
   }
   return (hash >>> 0).toString(36);
+}
+
+function getDerivativeSignatureValue(value: string): string {
+  if (value.length <= MAX_CHAT_DERIVATIVE_SIGNATURE_HASH_CHARS) {
+    return `${value.length}:${hashString(value)}`;
+  }
+
+  const edgeLength = Math.floor(MAX_CHAT_DERIVATIVE_SIGNATURE_HASH_CHARS / 2);
+  const sampledValue = `${value.slice(0, edgeLength)}\u0000${value.slice(-edgeLength)}`;
+  return `${value.length}:large:${hashString(sampledValue)}`;
 }
 
 function buildMessageImageGallery(message: ChatMessage): DerivedCollection<ChatImageGalleryItem> {
@@ -60,7 +71,7 @@ function buildMessageImageGallery(message: ChatMessage): DerivedCollection<ChatI
       id: `${message.id}:${index}`,
       src,
     })),
-    signature: `${message.id}\u0000${renderableSources.length}\u0000${renderableSources.map((src) => `${src.length}:${hashString(src)}`).join('\u0002')}`,
+    signature: `${message.id}\u0000${renderableSources.length}\u0000${renderableSources.map(getDerivativeSignatureValue).join('\u0002')}`,
   };
 }
 
@@ -76,7 +87,7 @@ function buildMessageSentUserMessages(message: ChatMessage): DerivedCollection<s
 
   return {
     items: [message.content],
-    signature: `${message.id}\u0000${message.currentVersionIndex}\u0000${message.content.length}:${hashString(message.content)}`,
+    signature: `${message.id}\u0000${message.currentVersionIndex}\u0000${getDerivativeSignatureValue(message.content)}`,
   };
 }
 

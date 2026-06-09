@@ -21,7 +21,7 @@ export function UnifiedSidebarContainer({
   onWidthChange,
   onLiveWidthChange,
   onDragStateChange,
-  backgroundColor = 'var(--vlaina-color-surface-shell-sidebar)',
+  backgroundColor = 'transparent',
 }: UnifiedSidebarContainerProps) {
   const { isDragging, handleDragStart } = useShellSidebarResize({
     width,

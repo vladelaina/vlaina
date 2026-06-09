@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAX_EXPORT_HTML_TAG_SCAN_RANGES,
+  MAX_EXPORT_IGNORED_INLINE_RANGES,
+  MAX_EXPORT_MARKDOWN_IMAGE_PART_SCAN_CHARS,
+  MAX_EXPORT_MARKDOWN_HTML_BLOCK_RANGES,
   MAX_EXPORT_MARKDOWN_ASSET_TOKENS,
   findExportMarkdownAssetSourceTokens,
   findExportMarkdownAssetSourceTokensWithOptions,
@@ -181,6 +184,17 @@ describe('findExportMarkdownAssetSourceTokens', () => {
     expect(tokens.at(-1)?.lookupSrc).toBe(`img:image-${MAX_EXPORT_MARKDOWN_ASSET_TOKENS - 1}.png`);
   });
 
+  it('bounds markdown image label scans while continuing after malformed images', () => {
+    const markdown = [
+      `![${'a'.repeat(MAX_EXPORT_MARKDOWN_IMAGE_PART_SCAN_CHARS + 1)}`,
+      '![real](img:real.png)',
+    ].join('\n');
+
+    expect(findExportMarkdownAssetSourceTokens(markdown).map((token) => token.lookupSrc)).toEqual([
+      'img:real.png',
+    ]);
+  });
+
   it('does not extract source srcset assets that export rendering drops', () => {
     const srcset = Array.from(
       { length: MAX_EXPORT_MARKDOWN_ASSET_TOKENS + 1 },
@@ -214,6 +228,38 @@ describe('findExportMarkdownAssetSourceTokens', () => {
       ...ignoredTags,
       '<span data-example="![hidden after](img:hidden-after.png)">text</span>',
       '![after](img:after.png)',
+    ].join('\n');
+
+    expect(findExportMarkdownAssetSourceTokensWithOptions(markdown, {
+      maxTokens: MAX_EXPORT_MARKDOWN_ASSET_TOKENS,
+    })).toEqual([]);
+  });
+
+  it('protects remaining content after the ignored inline range budget is exhausted', () => {
+    const ignoredInlineImages = Array.from(
+      { length: MAX_EXPORT_IGNORED_INLINE_RANGES + 1 },
+      (_, index) => `\`![ignored ${index}](img:ignored-${index}.png)\``,
+    );
+    const markdown = [
+      ...ignoredInlineImages,
+      '![after](img:after.png)',
+      '<img src="img:after-html.png">',
+    ].join('\n');
+
+    expect(findExportMarkdownAssetSourceTokensWithOptions(markdown, {
+      maxTokens: MAX_EXPORT_MARKDOWN_ASSET_TOKENS,
+    })).toEqual([]);
+  });
+
+  it('protects remaining markdown after the html block range budget is exhausted', () => {
+    const htmlBlocks = Array.from(
+      { length: MAX_EXPORT_MARKDOWN_HTML_BLOCK_RANGES + 1 },
+      (_, index) => [`<div data-index="${index}">`, `![hidden ${index}](img:hidden-${index}.png)`, '', ''].join('\n'),
+    );
+    const markdown = [
+      ...htmlBlocks,
+      '![after](img:after.png)',
+      '<img src="img:after-html.png">',
     ].join('\n');
 
     expect(findExportMarkdownAssetSourceTokensWithOptions(markdown, {

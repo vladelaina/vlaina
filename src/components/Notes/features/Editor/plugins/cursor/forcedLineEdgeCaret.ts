@@ -206,7 +206,7 @@ export function resolveVisualLineEdgePos(
   clientY: number,
 ): VisualLineEdgeResolution | null {
   const blockNode = view.state.doc.nodeAt(action.blockFrom);
-  if (blockNode && blockNode.textContent.length > MAX_FORCED_LINE_EDGE_TEXT_CHARS) {
+  if (blockNode && blockNode.nodeSize > MAX_FORCED_LINE_EDGE_TEXT_CHARS + 2) {
     return null;
   }
 
@@ -216,9 +216,13 @@ export function resolveVisualLineEdgePos(
   }
 
   const doc = blockElement.ownerDocument;
+  let measuredTextChars = 0;
   const walker = doc.createTreeWalker(blockElement, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
-      if (!node.textContent?.trim()) return NodeFilter.FILTER_REJECT;
+      const text = node.textContent ?? '';
+      measuredTextChars += text.length;
+      if (measuredTextChars > MAX_FORCED_LINE_EDGE_TEXT_CHARS) return NodeFilter.FILTER_ACCEPT;
+      if (!text.trim()) return NodeFilter.FILTER_REJECT;
       const parent = node.parentElement;
       if (!parent || isIgnoredTrailingLineEndElement(parent)) return NodeFilter.FILTER_REJECT;
       return NodeFilter.FILTER_ACCEPT;
@@ -234,6 +238,10 @@ export function resolveVisualLineEdgePos(
   let measuredRects = 0;
 
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (measuredTextChars > MAX_FORCED_LINE_EDGE_TEXT_CHARS) {
+      return null;
+    }
+
     measuredTextNodes += 1;
     if (measuredTextNodes > MAX_FORCED_LINE_EDGE_TEXT_NODES) {
       return null;

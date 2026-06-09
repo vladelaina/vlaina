@@ -4,6 +4,12 @@ import type { EditorView } from '../../view'
 
 import { Plugin, PluginKey } from '../../state'
 
+const INPUT_RULE_TRIGGER_TEXT_PATTERN = /[\s\n`~～*＊_＿^$¥￥＄﹩=+[\\\]()（）【】!！|｜#＃>》<\-－.:．。]/u
+
+export function textMayTriggerInputRule(text: string): boolean {
+  return text === '' || INPUT_RULE_TRIGGER_TEXT_PATTERN.test(text)
+}
+
 function run(
   view: EditorView,
   from: number,
@@ -13,6 +19,7 @@ function run(
   plugin: Plugin
 ) {
   if (view.composing) return false
+  if (!textMayTriggerInputRule(text)) return false
   const state = view.state
   const $from = state.doc.resolve(from)
   if ($from.parent.type.spec.code) return false

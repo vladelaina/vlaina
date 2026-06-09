@@ -6,16 +6,21 @@ import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdo
 import {
   MAX_MARKDOWN_LINK_AUTO_COLLAPSE_MATCHES,
   MAX_MARKDOWN_LINK_DOC_SCAN_NODES,
+  MAX_MARKDOWN_LINK_INPUT_LOOKBACK_CHARS,
+  MAX_MARKDOWN_LINK_TEXT_SCAN_CHARS,
   collectRawMarkdownLinkMatches,
   docHasRawMarkdownLink,
+  getMarkdownLinkInputTextBeforeCursor,
   isMarkdownImagePatternBeforeCursor,
   markdownLinkPlugin,
+  rangeTouchesRawMarkdownLink,
 } from './markdownLinkPlugin';
 import { shouldHandleMarkdownLinkPaste } from './markdownLinkParser';
 
 interface FakeMarkdownLinkNode {
   child?: (index: number) => FakeMarkdownLinkNode | null | undefined;
   childCount?: number;
+  content?: { size?: number };
   isText?: boolean;
   nodeSize?: number;
   text?: string;
@@ -37,6 +42,9 @@ function createDocNode(children: FakeMarkdownLinkNode[], onAccess?: () => void):
     child(index) {
       onAccess?.();
       return children[index];
+    },
+    content: {
+      size: children.reduce((size, child) => size + (child.nodeSize ?? 1), 0),
     },
     type: { name: 'doc' },
   };
@@ -111,6 +119,49 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     ));
 
     expect(collectRawMarkdownLinkMatches(doc as any)).toHaveLength(MAX_MARKDOWN_LINK_AUTO_COLLAPSE_MATCHES);
+  });
+
+  it('bounds raw markdown link presence scans within a single large text node', () => {
+    const doc = createDocNode([
+      createTextNode(`${'x'.repeat(MAX_MARKDOWN_LINK_TEXT_SCAN_CHARS)} [Later](https://later.example)`),
+    ]);
+
+    expect(docHasRawMarkdownLink(doc as any)).toBe(false);
+  });
+
+  it('bounds raw markdown link collection within a single large text node', () => {
+    const doc = createDocNode([
+      createTextNode(`${'x'.repeat(MAX_MARKDOWN_LINK_TEXT_SCAN_CHARS)} [Later](https://later.example)`),
+    ]);
+
+    expect(collectRawMarkdownLinkMatches(doc as any)).toEqual([]);
+  });
+
+  it('stops raw markdown link range prechecks after the first match', () => {
+    let accessed = 0;
+    const doc = createDocNode([
+      createTextNode('[Docs](https://example.com)'),
+      ...Array.from({ length: MAX_MARKDOWN_LINK_DOC_SCAN_NODES }, () => createTextNode('plain')),
+    ], () => {
+      accessed += 1;
+    });
+
+    expect(rangeTouchesRawMarkdownLink(doc as any, 0, doc.content?.size ?? 0, false)).toBe(true);
+    expect(accessed).toBe(1);
+  });
+
+  it('bounds markdown link input lookback text reads', () => {
+    const textBetweenCalls: Array<[number, number, string | null | undefined, string | null | undefined]> = [];
+    const parent = {
+      textBetween(from: number, to: number, blockSeparator?: string | null, leafText?: string | null) {
+        textBetweenCalls.push([from, to, blockSeparator, leafText]);
+        return '[Docs](https://example.com)';
+      },
+    };
+    const parentOffset = MAX_MARKDOWN_LINK_INPUT_LOOKBACK_CHARS + 500;
+
+    expect(getMarkdownLinkInputTextBeforeCursor(parent, parentOffset)).toBe('[Docs](https://example.com)');
+    expect(textBetweenCalls).toEqual([[500, parentOffset, '\0', '\0']]);
   });
 
   it('handles single-line markdown link text', () => {

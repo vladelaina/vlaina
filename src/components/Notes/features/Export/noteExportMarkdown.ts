@@ -18,6 +18,7 @@ const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
   webp: 'image/webp',
 };
 const MAX_EXPORT_IMAGE_BYTES = 50 * 1024 * 1024;
+export const MAX_EXPORT_EMBEDDED_IMAGE_BYTES = 50 * 1024 * 1024;
 
 function getImageMimeType(path: string): string {
   const extension = path.split('.').pop()?.toLowerCase() ?? '';
@@ -52,47 +53,73 @@ function createExportSegmentMarkerPrefix(markdown: string): string {
   return prefix;
 }
 
-type ExportAssetUrlCache = Map<string, Promise<string>>;
+interface ResolvedExportAssetUrl {
+  url: string;
+  embeddedBytes: number;
+}
+
+type ExportAssetUrlCache = Map<string, Promise<ResolvedExportAssetUrl>>;
+interface ExportAssetBudget {
+  embeddedBytes: number;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 async function resolveAssetUrl(
   src: string,
   notesPath: string,
   notePath: string,
+  remainingEmbeddedBytes: number,
   fallbackSrc = src,
-): Promise<string> {
+): Promise<ResolvedExportAssetUrl> {
   const assetPath = getNoteInternalImageAssetPath(src);
   if (!assetPath || !notesPath || hasInternalNoteAssetUrlPathSegment(assetPath)) {
-    return fallbackSrc;
+    return { url: fallbackSrc, embeddedBytes: 0 };
   }
 
   const bridge = getElectronBridge();
   if (!bridge) {
-    return fallbackSrc;
+    return { url: fallbackSrc, embeddedBytes: 0 };
   }
 
   try {
     const absolutePath = await resolveExistingVaultAssetPath(notesPath, assetPath, notePath);
     if (!absolutePath) {
-      return fallbackSrc;
+      return { url: fallbackSrc, embeddedBytes: 0 };
     }
 
     if (hasInternalNoteAssetUrlPathSegment(absolutePath) || !isExportableImagePath(absolutePath)) {
-      return fallbackSrc;
+      return { url: fallbackSrc, embeddedBytes: 0 };
     }
 
     const fileInfo = await bridge.fs.stat(absolutePath).catch(() => null);
-    if (!isExportableImageSize(fileInfo?.size)) {
-      return fallbackSrc;
+    const fileSize = fileInfo?.size;
+    if (typeof fileSize !== 'number' || !isExportableImageSize(fileSize)) {
+      return { url: fallbackSrc, embeddedBytes: 0 };
+    }
+    if (fileSize > MAX_EXPORT_EMBEDDED_IMAGE_BYTES) {
+      return { url: fallbackSrc, embeddedBytes: 0 };
+    }
+    if (fileSize > remainingEmbeddedBytes) {
+      return { url: fallbackSrc, embeddedBytes: 0 };
     }
 
     const bytes = await bridge.fs.readBinaryFile(absolutePath);
     if (!isExportableImageSize(bytes.byteLength)) {
-      return fallbackSrc;
+      return { url: fallbackSrc, embeddedBytes: 0 };
+    }
+    if (bytes.byteLength > remainingEmbeddedBytes) {
+      return { url: fallbackSrc, embeddedBytes: 0 };
     }
 
-    return `data:${getImageMimeType(absolutePath)};base64,${bytesToBase64(bytes)}`;
+    return {
+      url: `data:${getImageMimeType(absolutePath)};base64,${bytesToBase64(bytes)}`,
+      embeddedBytes: Math.max(fileSize, bytes.byteLength),
+    };
   } catch {
-    return fallbackSrc;
+    return { url: fallbackSrc, embeddedBytes: 0 };
   }
 }
 
@@ -100,22 +127,39 @@ function getExportAssetUrlCacheKey(src: string, notesPath: string, notePath: str
   return JSON.stringify([src, notesPath, notePath, fallbackSrc]);
 }
 
-function resolveAssetUrlCached(
+function consumeExportAssetBudget(
+  asset: ResolvedExportAssetUrl,
+  budget: ExportAssetBudget,
+  fallbackSrc: string,
+): string {
+  if (asset.embeddedBytes <= 0) {
+    return asset.url;
+  }
+  if (budget.embeddedBytes + asset.embeddedBytes > MAX_EXPORT_EMBEDDED_IMAGE_BYTES) {
+    return fallbackSrc;
+  }
+  budget.embeddedBytes += asset.embeddedBytes;
+  return asset.url;
+}
+
+async function resolveAssetUrlCached(
   cache: ExportAssetUrlCache,
   src: string,
   notesPath: string,
   notePath: string,
+  budget: ExportAssetBudget,
   fallbackSrc = src,
 ): Promise<string> {
   const cacheKey = getExportAssetUrlCacheKey(src, notesPath, notePath, fallbackSrc);
   const cached = cache.get(cacheKey);
   if (cached) {
-    return cached;
+    return consumeExportAssetBudget(await cached, budget, fallbackSrc);
   }
 
-  const resolved = resolveAssetUrl(src, notesPath, notePath, fallbackSrc);
+  const remainingEmbeddedBytes = Math.max(0, MAX_EXPORT_EMBEDDED_IMAGE_BYTES - budget.embeddedBytes);
+  const resolved = resolveAssetUrl(src, notesPath, notePath, remainingEmbeddedBytes, fallbackSrc);
   cache.set(cacheKey, resolved);
-  return resolved;
+  return consumeExportAssetBudget(await resolved, budget, fallbackSrc);
 }
 
 export async function resolveExportMarkdownAssetSources(
@@ -132,14 +176,17 @@ export async function resolveExportMarkdownAssetSources(
   }, { protectHtmlBlocks: false });
 
   const assetUrlCache: ExportAssetUrlCache = new Map();
-  const resolvedSegments = await Promise.all(
-    segments.map((segment) => resolveExportMarkdownAssetSegment(segment, notesPath, notePath, assetUrlCache))
-  );
+  const assetBudget: ExportAssetBudget = { embeddedBytes: 0 };
+  const resolvedSegments: string[] = [];
+  for (const segment of segments) {
+    resolvedSegments.push(await resolveExportMarkdownAssetSegment(segment, notesPath, notePath, assetUrlCache, assetBudget));
+  }
 
-  return resolvedSegments.reduce(
-    (output, segment, index) => output.replace(`${markerPrefix}${index}\0`, segment),
-    protectedMarkdown,
-  );
+  const markerPattern = new RegExp(`${escapeRegExp(markerPrefix)}(\\d+)\\0`, 'g');
+  return protectedMarkdown.replace(markerPattern, (_marker, rawIndex: string) => {
+    const index = Number.parseInt(rawIndex, 10);
+    return resolvedSegments[index] ?? '';
+  });
 }
 
 async function resolveExportMarkdownAssetSegment(
@@ -147,6 +194,7 @@ async function resolveExportMarkdownAssetSegment(
   notesPath: string,
   notePath: string,
   assetUrlCache: ExportAssetUrlCache,
+  assetBudget: ExportAssetBudget,
 ): Promise<string> {
   const tokens = findExportMarkdownAssetSourceTokensWithOptions(markdown, {
     maxTokens: MAX_EXPORT_MARKDOWN_ASSET_TOKENS,
@@ -162,7 +210,7 @@ async function resolveExportMarkdownAssetSegment(
       continue;
     }
     parts.push(markdown.slice(cursor, token.start));
-    parts.push(await resolveAssetUrlCached(assetUrlCache, token.lookupSrc ?? token.src, notesPath, notePath, token.src));
+    parts.push(await resolveAssetUrlCached(assetUrlCache, token.lookupSrc ?? token.src, notesPath, notePath, assetBudget, token.src));
     cursor = token.end;
   }
   parts.push(markdown.slice(cursor));

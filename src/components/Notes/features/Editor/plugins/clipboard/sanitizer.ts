@@ -20,9 +20,15 @@ import { stripGithubDroppedRawHtmlContent } from '@/lib/notes/markdown/githubRaw
 
 const MAX_SANITIZE_DEPTH = 200;
 const MAX_SANITIZE_NODES = 20_000;
+const MAX_SANITIZE_HTML_CHARS = 2 * 1024 * 1024;
 
 interface SanitizeContext {
   visitedNodes: number;
+}
+
+interface ElementVisit {
+  element: Element;
+  depth: number;
 }
 
 function canVisitNode(context: SanitizeContext) {
@@ -46,6 +52,39 @@ function sanitizeChildren(
       target.appendChild(sanitizedChild);
     }
   }
+}
+
+function hasDescendantSourceSrc(element: Element): boolean {
+  const firstElement = element.firstElementChild;
+  if (!firstElement) {
+    return false;
+  }
+
+  let visitedNodes = 0;
+  const stack: ElementVisit[] = [{ element: firstElement, depth: 1 }];
+  while (stack.length > 0) {
+    const { element: current, depth } = stack.pop() as ElementVisit;
+    visitedNodes += 1;
+    if (visitedNodes > MAX_SANITIZE_NODES || depth > MAX_SANITIZE_DEPTH) {
+      return false;
+    }
+
+    if (current.tagName.toLowerCase() === 'source' && current.hasAttribute('src')) {
+      return true;
+    }
+
+    const nextElement = current.nextElementSibling;
+    if (nextElement) {
+      stack.push({ element: nextElement, depth });
+    }
+
+    const firstChild = current.firstElementChild;
+    if (firstChild) {
+      stack.push({ element: firstChild, depth: depth + 1 });
+    }
+  }
+
+  return false;
 }
 
 function sanitizeElement(element: Element, context: SanitizeContext, depth: number): Node | null {
@@ -150,7 +189,7 @@ function sanitizeElement(element: Element, context: SanitizeContext, depth: numb
     }
   }
   sanitizeChildren(element, sanitized, context, depth + 1);
-  if ((tagName === 'video' || tagName === 'audio') && !sanitized.hasAttribute('src') && !sanitized.querySelector('source[src]')) {
+  if ((tagName === 'video' || tagName === 'audio') && !sanitized.hasAttribute('src') && !hasDescendantSourceSrc(sanitized)) {
     return null;
   }
   return sanitized;
@@ -174,6 +213,7 @@ function sanitizeNode(node: Node, context: SanitizeContext, depth: number): Node
 
 export function sanitizeHtml(html: string): string {
   if (!html) return html;
+  if (html.length > MAX_SANITIZE_HTML_CHARS) return '';
 
   try {
     const template = document.createElement('template');

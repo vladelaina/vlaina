@@ -1,13 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import type { Decoration } from '@milkdown/kit/prose/view';
 import {
     MAX_AUTOLINK_DECORATIONS,
+    MAX_AUTOLINK_TEXT_SCAN_CHARS,
+    MAX_AUTOLINK_TRANSACTION_STEP_TEXT_CHARS,
     autolinkPlugin,
     autolinkPluginKey,
     collectAutolinkDecorations,
     findUrls,
+    transactionMayCreateAutolink,
+    transactionMayAffectExistingAutolinks,
 } from './autolinkPlugin';
 
 interface FakeAutolinkNode {
@@ -105,6 +109,19 @@ describe('autolinkPlugin findUrls', () => {
                 end: 26,
                 url: 'https://example.com/a_(b)',
                 href: 'https://example.com/a_(b)',
+            },
+        ]);
+    });
+
+    it('trims long runs of unmatched trailing closing parentheses', () => {
+        const trailingParens = ')'.repeat(2000);
+
+        expect(findUrls(`https://example.com/a${trailingParens}`, 0)).toEqual([
+            {
+                start: 0,
+                end: 21,
+                url: 'https://example.com/a',
+                href: 'https://example.com/a',
             },
         ]);
     });
@@ -210,5 +227,66 @@ describe('autolinkPlugin findUrls', () => {
 
         expect(decorations).toHaveLength(MAX_AUTOLINK_DECORATIONS);
         expect(accessed).toBe(MAX_AUTOLINK_DECORATIONS);
+    });
+
+    it('bounds URL scanning within a single large text node', () => {
+        const text = `${'x'.repeat(MAX_AUTOLINK_TEXT_SCAN_CHARS)} https://example.com`;
+        const decorations = collectAutolinkDecorations(createDocNode([createTextNode(text)]));
+
+        expect(decorations).toHaveLength(0);
+    });
+
+    it('does not treat plain edits away from existing autolinks as affecting autolinks', () => {
+        const decorations = {
+            find: (from?: number, to?: number) =>
+                (from ?? 0) < 20 && (to ?? 0) > 10 ? [{}] : [],
+        };
+        const transaction = {
+            mapping: {
+                maps: [{
+                    forEach: (callback: (oldStart: number, oldEnd: number, newStart: number, newEnd: number) => void) => {
+                        callback(80, 80, 80, 81);
+                    },
+                }],
+            },
+        };
+
+        expect(transactionMayAffectExistingAutolinks(decorations, transaction)).toBe(false);
+    });
+
+    it('treats edits touching an existing autolink edge as affecting autolinks', () => {
+        const decorations = {
+            find: (from?: number, to?: number) =>
+                (from ?? 0) < 20 && (to ?? 0) > 10 ? [{}] : [],
+        };
+        const transaction = {
+            mapping: {
+                maps: [{
+                    forEach: (callback: (oldStart: number, oldEnd: number, newStart: number, newEnd: number) => void) => {
+                        callback(20, 20, 20, 21);
+                    },
+                }],
+            },
+        };
+
+        expect(transactionMayAffectExistingAutolinks(decorations, transaction)).toBe(true);
+    });
+
+    it('bounds inserted transaction text checks for autolinks', () => {
+        const smallContent = {
+            size: 12,
+            textBetween: vi.fn(() => 'plain text'),
+        };
+        const largeContent = {
+            size: MAX_AUTOLINK_TRANSACTION_STEP_TEXT_CHARS + 1,
+            textBetween: vi.fn(() => {
+                throw new Error('oversized autolink transaction text should not be read');
+            }),
+        };
+
+        expect(transactionMayCreateAutolink({ steps: [{ slice: { content: smallContent } }] })).toBe(false);
+        expect(smallContent.textBetween).toHaveBeenCalledWith(0, 12, '\n', '\ufffc');
+        expect(transactionMayCreateAutolink({ steps: [{ slice: { content: largeContent } }] })).toBe(true);
+        expect(largeContent.textBetween).not.toHaveBeenCalled();
     });
 });
