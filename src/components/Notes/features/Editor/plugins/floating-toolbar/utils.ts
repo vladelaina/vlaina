@@ -3,6 +3,9 @@ import { translate, type MessageKey } from '@/lib/i18n';
 import { themeColorTokens } from '@/styles/themeTokens';
 import { sanitizeEditorLinkHref } from '../links/utils/linkHref';
 
+const TOOLBAR_COLOR_COLUMNS_PER_ROW = 4;
+const VISIBLE_TRAILING_COLUMNS_PER_ROW = 2;
+
 const TOOLBAR_COLOR_OPTIONS: ColorOption[] = themeColorTokens.toolbarColorHexes.map((color, index) => ({
   id: `custom-${index + 1}`,
   label: `Color ${index + 1}`,
@@ -10,14 +13,19 @@ const TOOLBAR_COLOR_OPTIONS: ColorOption[] = themeColorTokens.toolbarColorHexes.
   bgColor: color,
 }));
 
+const VISIBLE_TOOLBAR_COLOR_OPTIONS = TOOLBAR_COLOR_OPTIONS.filter((_color, index) => {
+  const columnIndex = index % TOOLBAR_COLOR_COLUMNS_PER_ROW;
+  return columnIndex >= TOOLBAR_COLOR_COLUMNS_PER_ROW - VISIBLE_TRAILING_COLUMNS_PER_ROW;
+});
+
 export const COLOR_PALETTE: ColorOption[] = [
   { id: 'default', label: 'Default' },
-  ...TOOLBAR_COLOR_OPTIONS,
+  ...VISIBLE_TOOLBAR_COLOR_OPTIONS,
 ];
 
 export const COLOR_PALETTE_DARK: ColorOption[] = [
   { id: 'default', label: 'Default' },
-  ...TOOLBAR_COLOR_OPTIONS,
+  ...VISIBLE_TOOLBAR_COLOR_OPTIONS,
 ];
 
 export const BLOCK_TYPES: BlockTypeConfig[] = [
