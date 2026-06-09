@@ -87,6 +87,51 @@ test.describe('app layout smoke', () => {
       });
       expect(notesBackground.rootTheme).toBe(importedTheme.themeId);
       expect(notesBackground.importedLayer).not.toBe('');
+      const shellPaperBackground = await page.locator('[data-app-shell-root="true"]').evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          backgroundImage: style.backgroundImage,
+          importedLayer: style.getPropertyValue('--vlaina-imported-app-background-layer').trim(),
+        };
+      });
+      expect(shellPaperBackground.importedLayer).toBe(notesBackground.importedLayer);
+      expect(shellPaperBackground.backgroundImage).toBe(notesBackground.backgroundImage);
+      const notesScrollBackground = await page.locator('[data-note-scroll-root="true"]').evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          background: style.background,
+          backgroundImage: style.backgroundImage,
+          importedLayer: style.getPropertyValue('--vlaina-imported-app-background-layer').trim(),
+        };
+      });
+      expect(notesScrollBackground.importedLayer).toBe(notesBackground.importedLayer);
+      expect(notesScrollBackground.backgroundImage).toBe(notesBackground.backgroundImage);
+      await expect(page.locator('[data-sidebar-surface="true"]').first()).toHaveCSS(
+        'background-color',
+        'rgba(0, 0, 0, 0)',
+      );
+      const notesEditorSurfaceBackgrounds = await page.locator(
+        '.milkdown-editor[data-markdown-compat-layer="external"]'
+      ).evaluate((element) => {
+        const editor = element as HTMLElement;
+        const milkdown = editor.querySelector<HTMLElement>('.milkdown');
+        const proseMirror = editor.querySelector<HTMLElement>('.ProseMirror');
+        const editorStyle = getComputedStyle(editor);
+        return {
+          editorBackgroundColor: editorStyle.backgroundColor,
+          editorBackgroundImage: editorStyle.backgroundImage,
+          typoraDocumentImage: editorStyle.getPropertyValue('--d-bi').trim(),
+          milkdown: milkdown ? getComputedStyle(milkdown).backgroundColor : null,
+          proseMirror: proseMirror ? getComputedStyle(proseMirror).backgroundColor : null,
+        };
+      });
+      expect(notesEditorSurfaceBackgrounds).toMatchObject({
+        editorBackgroundColor: 'rgb(250, 249, 245)',
+        milkdown: 'rgba(0, 0, 0, 0)',
+        proseMirror: 'rgba(0, 0, 0, 0)',
+      });
+      expect(notesEditorSurfaceBackgrounds.typoraDocumentImage).toContain('data:image/png;base64');
+      expect(notesEditorSurfaceBackgrounds.editorBackgroundImage).toContain('data:image/png;base64');
 
       let notesLayout = await collectLayoutSmokeMetrics(page);
       console.info('[layout-smoke-notes-desktop]', notesLayout);
@@ -117,12 +162,33 @@ test.describe('app layout smoke', () => {
           rootTheme: document.documentElement.getAttribute('data-vlaina-imported-app-theme'),
           background: style.background,
           backgroundImage: style.backgroundImage,
+          documentBackgroundImage: style.getPropertyValue('--vlaina-imported-app-document-background-image').trim(),
           importedLayer: style.getPropertyValue('--vlaina-imported-app-background-layer').trim(),
         };
       });
       expect(chatBackground.rootTheme).toBe(importedTheme.themeId);
       expect(chatBackground.importedLayer).toBe(notesBackground.importedLayer);
-      expect(chatBackground.backgroundImage).toBe(notesBackground.backgroundImage);
+      expect(chatBackground.documentBackgroundImage).toContain('data:image/png;base64');
+      expect(chatBackground.backgroundImage).toContain('data:image/png;base64');
+      const chatContentBackground = await page.locator(CHAT_SCROLLABLE_SELECTOR).evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          backgroundColor: style.backgroundColor,
+          backgroundImage: style.backgroundImage,
+          documentBackgroundImage: style.getPropertyValue('--vlaina-imported-app-document-background-image').trim(),
+        };
+      });
+      expect(chatContentBackground.backgroundColor).toBe('rgb(250, 249, 245)');
+      expect(chatContentBackground.documentBackgroundImage).toContain('data:image/png;base64');
+      expect(chatContentBackground.backgroundImage).toContain('data:image/png;base64');
+      const shellPaperBackgroundInChat = await page.locator('[data-app-shell-root="true"]').evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          backgroundImage: style.backgroundImage,
+          importedLayer: style.getPropertyValue('--vlaina-imported-app-background-layer').trim(),
+        };
+      });
+      expect(shellPaperBackgroundInChat).toEqual(shellPaperBackground);
 
       let chatLayout = await collectLayoutSmokeMetrics(page);
       console.info('[layout-smoke-chat-narrow]', chatLayout);

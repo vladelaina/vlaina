@@ -38,7 +38,7 @@ export function AppShell({
   titleBarCenterOverflowVisible = false,
   mainOverlay,
   
-  backgroundColor = 'var(--vlaina-color-surface-shell-sidebar)',
+  backgroundColor = 'transparent',
   isDragging = false
 }: AppShellProps) {
   const shellRef = useRef<HTMLDivElement>(null);
@@ -93,9 +93,9 @@ export function AppShell({
   return (
     <div
       ref={shellRef}
+      data-app-shell-root="true"
       className={cn(
         "h-full flex overflow-hidden flex-col",
-        "bg-[var(--vlaina-bg-primary)]",
         (isDragging || isSidebarDragging) && "select-none cursor-col-resize"
       )}
     >
@@ -126,7 +126,7 @@ export function AppShell({
         )}
         
         <main
-          className="flex-1 flex flex-col min-w-0 bg-[var(--vlaina-bg-primary)] relative app-scrollbar"
+          className="flex-1 flex flex-col min-w-0 relative app-scrollbar"
         >
           {children}
           {mainOverlay}

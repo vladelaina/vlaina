@@ -898,14 +898,14 @@
   --vlaina-editor-block-selection-fg: var(--vlaina-color-editor-block-selection-fg);
   --vlaina-editor-block-selection-handle: var(--vlaina-color-editor-block-selection-handle);
   --vlaina-sidebar-width: 270px;
-  --vlaina-sidebar-bg: var(--vlaina-color-surface-shell-sidebar);
+  --vlaina-sidebar-bg: var(--vlaina-color-surface-main);
   --vlaina-sidebar-row-selected-bg: #ecf6ff;
   --vlaina-sidebar-row-selected-text: #41a8ea;
   --vlaina-sidebar-row-selected-text-soft: rgb(65 168 234 / 0.8);
   --vlaina-sidebar-row-selected-text-muted: rgb(65 168 234 / 0.7);
   --vlaina-header-height: 52px;
 
-  --vlaina-sidebar-surface: var(--vlaina-color-surface-sidebar);
+  --vlaina-sidebar-surface: var(--vlaina-color-surface-main);
   --vlaina-sidebar-row-hover: var(--vlaina-color-surface-row-hover);
   --vlaina-sidebar-row-active: var(--vlaina-sidebar-row-selected-bg);
   --vlaina-sidebar-text: #050505;
@@ -913,7 +913,7 @@
   --vlaina-sidebar-text-soft: var(--vlaina-color-text-soft);
   --vlaina-sidebar-icon: var(--vlaina-color-text-tertiary);
   --vlaina-sidebar-icon-hover: var(--vlaina-color-text-tertiary);
-  --vlaina-sidebar-fade: var(--vlaina-color-surface-sidebar);
+  --vlaina-sidebar-fade: var(--vlaina-color-surface-main);
   --vlaina-sidebar-status-info: var(--vlaina-color-info);
   --vlaina-sidebar-status-warning: var(--vlaina-color-warning);
 
@@ -971,8 +971,8 @@
 .dark {
   color-scheme: dark;
   --vlaina-color-surface-main: #050505;
-  --vlaina-color-surface-shell-sidebar: #080808;
-  --vlaina-color-surface-sidebar: #0b0b0c;
+  --vlaina-color-surface-shell-sidebar: var(--vlaina-color-surface-main);
+  --vlaina-color-surface-sidebar: var(--vlaina-color-surface-main);
   --vlaina-color-surface-menu: #171719;
   --vlaina-color-surface-secondary: #0d0d0e;
   --vlaina-color-surface-tertiary: #1a1a1c;

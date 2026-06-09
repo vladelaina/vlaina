@@ -30,7 +30,8 @@ export function buildTyporaRootBridge(root: string): CssLines {
       '--typora-vlook-checkbox-radius: var(--vlaina-radius-025rem);',
       '--typora-vlook-column-gap: var(--vlaina-size-2rem);',
       '--typora-vlook-column-rule: var(--vlaina-border-width-1) solid var(--pn-c-a, var(--typora-block-border));',
-      important('background', 'transparent'),
+      important('background', 'var(--db, var(--typora-page-bg)) var(--d-bi, none)'),
+      'background-repeat: repeat;',
       important('color', 'var(--df, var(--text-color, var(--vlaina-text-primary)))'),
     ]),
     ...cssRule(
