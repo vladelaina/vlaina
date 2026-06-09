@@ -104,6 +104,8 @@ describe('chatStorage session message normalization', () => {
       content: messageContent,
       modelId: 'model-1',
       timestamp: index + 1,
+      versions: [],
+      currentVersionIndex: 0,
     }));
 
     const serialized = serializeSessionMessages('session-1', messages);

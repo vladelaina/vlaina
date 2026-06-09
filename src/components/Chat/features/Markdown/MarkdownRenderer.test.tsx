@@ -445,7 +445,7 @@ describe("MarkdownRenderer", () => {
       toString: () => {
         throw new Error("selection.toString should not be used for active selection checks");
       },
-    } as Selection);
+    } as unknown as Selection);
     const { rerender } = render(<MarkdownRenderer content={"Visible"} isStreaming />);
 
     const surface = screen.getByTestId("react-markdown").parentElement!;

@@ -10,7 +10,7 @@ function createParent(text: string) {
     isTextblock: true,
     content: { size: text.length },
     textBetween: (from: number, to: number) => text.slice(from, to),
-    get textContent() {
+    get textContent(): string {
       throw new Error('textContent should not be read during auto-pair recovery');
     },
   };

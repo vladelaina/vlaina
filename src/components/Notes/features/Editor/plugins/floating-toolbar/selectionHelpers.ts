@@ -114,7 +114,7 @@ function forEachSelectedNode(
     scanned += 1;
     callback(node, pos, frame.node);
 
-    if (isTraversableNode(node) && node.childCount > 0) {
+    if (isTraversableNode(node) && (node.childCount ?? 0) > 0) {
       stack.push({
         contentStart: pos + 1,
         index: 0,

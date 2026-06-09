@@ -1,6 +1,6 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
-import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model';
+import { Fragment, Slice, type Mark as ProseMark, type Node as ProseNode } from '@milkdown/kit/prose/model';
 import { resolvePasteRange } from '../../clipboard/pasteCursorUtils';
 import { sanitizeExplicitMarkdownLinkHref } from '../utils/linkHref';
 import {
@@ -194,8 +194,8 @@ export function collectRawMarkdownLinkMatches(
 
 export function createMarkdownLinkPasteNodes(
     text: string,
-    schema: { text: (text: string, marks?: readonly unknown[]) => ProseNode },
-    linkMarkType: { create: (attrs: { href: string }) => unknown },
+    schema: { text: (text: string, marks?: readonly ProseMark[] | null) => ProseNode },
+    linkMarkType: { create: (attrs: { href: string }) => ProseMark },
     maxNodes = MAX_MARKDOWN_LINK_PASTE_NODES,
 ): ProseNode[] | null {
     const limit = Math.max(0, Math.floor(maxNodes));

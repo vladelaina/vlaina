@@ -95,13 +95,14 @@ async function resolveAssetUrl(
     }
 
     const fileInfo = await bridge.fs.stat(absolutePath).catch(() => null);
-    if (!isExportableImageSize(fileInfo?.size)) {
+    const fileSize = fileInfo?.size;
+    if (typeof fileSize !== 'number' || !isExportableImageSize(fileSize)) {
       return { url: fallbackSrc, embeddedBytes: 0 };
     }
-    if (fileInfo.size > MAX_EXPORT_EMBEDDED_IMAGE_BYTES) {
+    if (fileSize > MAX_EXPORT_EMBEDDED_IMAGE_BYTES) {
       return { url: fallbackSrc, embeddedBytes: 0 };
     }
-    if (fileInfo.size > remainingEmbeddedBytes) {
+    if (fileSize > remainingEmbeddedBytes) {
       return { url: fallbackSrc, embeddedBytes: 0 };
     }
 
@@ -115,7 +116,7 @@ async function resolveAssetUrl(
 
     return {
       url: `data:${getImageMimeType(absolutePath)};base64,${bytesToBase64(bytes)}`,
-      embeddedBytes: Math.max(fileInfo.size, bytes.byteLength),
+      embeddedBytes: Math.max(fileSize, bytes.byteLength),
     };
   } catch {
     return { url: fallbackSrc, embeddedBytes: 0 };

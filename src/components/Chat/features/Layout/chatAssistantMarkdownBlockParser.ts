@@ -41,6 +41,7 @@ const TABLE_ROW_RE = /^\s*\|.*\|\s*$/;
 
 const PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT = 200;
 const MAX_CACHED_MARKDOWN_BLOCK_CHARS = 50_000;
+const MAX_ASSISTANT_MARKDOWN_MEASUREMENT_TEXT_CHARS = 50_000;
 const MAX_LAYOUT_VIDEO_IMAGE_TOKENS = 2000;
 export const MAX_ASSISTANT_MARKDOWN_MEASUREMENT_SCAN_CHARS = 200_000;
 export const MAX_ASSISTANT_MARKDOWN_MEASUREMENT_BLOCKS = 5_000;
@@ -149,6 +150,24 @@ function pushMeasurementBlock(
   return true;
 }
 
+function buildBoundedMarkdownTextBlock(
+  text: string,
+  variant: TextBlockVariant,
+  lineHeight: number,
+  widthInset: number = 0,
+  extraHeight: number = 0,
+): MarkdownMeasurementBlock | null {
+  return buildMarkdownTextBlock(
+    text.length > MAX_ASSISTANT_MARKDOWN_MEASUREMENT_TEXT_CHARS
+      ? text.slice(0, MAX_ASSISTANT_MARKDOWN_MEASUREMENT_TEXT_CHARS)
+      : text,
+    variant,
+    lineHeight,
+    widthInset,
+    extraHeight,
+  );
+}
+
 export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasurementBlock[] {
   const shouldCache = markdown.length <= MAX_CACHED_MARKDOWN_BLOCK_CHARS;
   if (shouldCache) {
@@ -214,7 +233,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       const depth = headingMatch[1]!.length;
       const text = headingMatch[2] ?? '';
       const heading = getHeadingMeasurement(depth);
-      const block = buildMarkdownTextBlock(text, heading.variant, heading.lineHeight);
+      const block = buildBoundedMarkdownTextBlock(text, heading.variant, heading.lineHeight);
       if (block) {
         pushMeasurementBlock(blocks, block);
       }
@@ -237,7 +256,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
         { maxTokens: MAX_LAYOUT_VIDEO_IMAGE_TOKENS },
       ).trim();
       if (textWithoutMedia) {
-        const block = buildMarkdownTextBlock(textWithoutMedia, 'body', MARKDOWN_BODY_LINE_HEIGHT);
+        const block = buildBoundedMarkdownTextBlock(textWithoutMedia, 'body', MARKDOWN_BODY_LINE_HEIGHT);
         if (block) {
           pushMeasurementBlock(blocks, block);
         }
@@ -260,7 +279,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       const text = sectionLines
         .map((sectionLine) => sectionLine.replace(BLOCKQUOTE_RE, ''))
         .join('\n');
-      const block = buildMarkdownTextBlock(
+      const block = buildBoundedMarkdownTextBlock(
         text,
         'body',
         MARKDOWN_BLOCKQUOTE_LINE_HEIGHT,
@@ -298,7 +317,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
             .trimEnd(),
         )
         .join('\n');
-      const block = buildMarkdownTextBlock(
+      const block = buildBoundedMarkdownTextBlock(
         text,
         'body',
         MARKDOWN_BODY_LINE_HEIGHT,
@@ -312,7 +331,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       continue;
     }
 
-    const paragraph = buildMarkdownTextBlock(sectionLines.join(' '), 'body', MARKDOWN_BODY_LINE_HEIGHT);
+    const paragraph = buildBoundedMarkdownTextBlock(sectionLines.join(' '), 'body', MARKDOWN_BODY_LINE_HEIGHT);
     if (paragraph) {
       pushMeasurementBlock(blocks, paragraph);
     }

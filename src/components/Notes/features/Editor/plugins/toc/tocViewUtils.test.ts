@@ -60,7 +60,7 @@ describe('tocViewUtils', () => {
       content: { size: MAX_TOC_VIEW_HEADING_TEXT_CHARS + 100 },
       nodeSize: 1,
       textBetween,
-      get textContent() {
+      get textContent(): string {
         throw new Error('aggregate heading textContent should not be read');
       },
       type: { name: 'heading' },

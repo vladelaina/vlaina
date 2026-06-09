@@ -379,6 +379,7 @@ describe('imported markdown theme storage', () => {
         path: '/app/.vlaina/themes/unknown-size.css',
         isDirectory: false,
         isFile: true,
+        size: undefined as unknown as number,
         modifiedAt: 10,
       },
     ]);

@@ -768,6 +768,9 @@ describe('normalizeSerializedMarkdownDocument', () => {
       normalizeSerializedMarkdownDocument('- parent\n    - \u2800\n    - child\n')
     ).toBe('- parent\n\n    - child\n');
     expect(
+      normalizeSerializedMarkdownDocument('- parent\n    - \\\u2800\n    - child\n')
+    ).toBe('- parent\n\n    - child\n');
+    expect(
       normalizeSerializedMarkdownDocument('- one\n<br data-vlaina-list-gap="true"/>\n- two\n')
     ).toBe('- one\n\n- two\n');
     expect(

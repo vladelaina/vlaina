@@ -5,7 +5,7 @@ import { useAIUIStore } from './chatState'
 
 const mocked = vi.hoisted(() => ({
   parseMarkdownAndHtmlImageTokens: vi.fn(),
-  persistDataUrlAttachment: vi.fn(async () => 'attachment://persisted.png'),
+  persistDataUrlAttachment: vi.fn(async (_source: string) => 'attachment://persisted.png'),
   saveSessionJson: vi.fn(async () => {}),
   loadSessionJson: vi.fn(async (): Promise<ChatMessage[] | null> => []),
   hasSessionJson: vi.fn(async () => false),

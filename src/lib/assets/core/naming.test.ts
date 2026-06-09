@@ -16,7 +16,6 @@ import {
   processFilename,
 } from './naming';
 
-const DANGEROUS_CHARS = '<>:"/\\|?*';
 const UNSAFE_FILENAME_CHARS_PATTERN = /[<>:"/\\|?*\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 describe('filenameService', () => {

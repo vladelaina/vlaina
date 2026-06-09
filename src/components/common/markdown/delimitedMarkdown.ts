@@ -121,9 +121,10 @@ export function isUnescapedMarkdownTextRange(
     return false;
   }
 
-  const hasMarkdownSource = !!options.markdown;
+  const markdown = options.markdown;
+  const hasMarkdownSource = !!markdown;
   const sourceOffsets = hasMarkdownSource
-    ? getMarkdownPositionOffsets(options.position, options.markdown.length)
+    ? getMarkdownPositionOffsets(options.position, markdown.length)
     : null;
   if (!hasMarkdownSource) {
     return true;
@@ -132,17 +133,17 @@ export function isUnescapedMarkdownTextRange(
     return false;
   }
 
-  const sourceOffsetMap = createMarkdownTextSourceOffsetMap(value, options.markdown, options.position);
+  const sourceOffsetMap = createMarkdownTextSourceOffsetMap(value, markdown, options.position);
   if (!sourceOffsetMap) {
     return false;
   }
 
   return isLiteralUnescapedMarkdownTextRange(
     value,
-    options.markdown,
+    markdown,
     sourceOffsetMap,
     start,
     length,
-    getEscapeScanLowerBound(options.markdown, sourceOffsets.start)
+    getEscapeScanLowerBound(markdown, sourceOffsets.start)
   );
 }

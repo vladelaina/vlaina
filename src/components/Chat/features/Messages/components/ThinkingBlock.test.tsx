@@ -296,7 +296,7 @@ describe('ThinkingBlock', () => {
       toString: () => {
         throw new Error('selection.toString should not be used for active selection checks');
       },
-    } as Selection);
+    } as unknown as Selection);
     const { container, rerender } = render(
       <ThinkingBlock
         content="First thought"

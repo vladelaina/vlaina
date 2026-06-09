@@ -303,7 +303,7 @@ describe('blankAreaDragTargets', () => {
       blocks: [],
       blockIndex: new Map(),
       headings: [],
-    } as EditorBlockPositionSnapshot);
+    } as unknown as EditorBlockPositionSnapshot);
 
     const originalCreateRange = document.createRange;
     document.createRange = () => ({

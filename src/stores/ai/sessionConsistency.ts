@@ -124,8 +124,8 @@ function areStringArraysEqual(left: string[] | undefined, right: string[] | unde
 }
 
 function areTranscriptContentsEqual(
-  left: ChatMessage['apiTranscript'][number]['content'],
-  right: ChatMessage['apiTranscript'][number]['content'],
+  left: NonNullable<ChatMessage['apiTranscript']>[number]['content'],
+  right: NonNullable<ChatMessage['apiTranscript']>[number]['content'],
 ): boolean {
   if (left === right) return true;
   if (left == null || right == null) return left === right;

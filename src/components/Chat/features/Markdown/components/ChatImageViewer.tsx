@@ -232,7 +232,9 @@ export function ChatImageViewer({
     height: themeChatImageViewerTokens.defaultViewportHeightPx,
   });
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(-1);
-  const [resolvedActiveSrc, setResolvedActiveSrc] = useState(() => getInitialViewerImageSource(src));
+  const [resolvedActiveSrc, setResolvedActiveSrc] = useState(() => (
+    open ? getInitialViewerImageSource(src) : TRANSPARENT_IMAGE_DATA_URL
+  ));
   const imageElementRef = useRef<HTMLImageElement | null>(null);
 
   const galleryIndex = useMemo(() => {

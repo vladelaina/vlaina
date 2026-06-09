@@ -58,20 +58,6 @@ function queuePendingCreate(
   return [...flushExpiredPendingCreates(queue, now).queue, { newPath, expiresAt: now + ttlMs, kind }];
 }
 
-function matchPendingCreate(
-  queue: PendingCreateEntry[],
-  now: number
-): { queue: PendingCreateEntry[]; newPath: string | null; kind: string | null } {
-  const { queue: nextQueue } = flushExpiredPendingCreates(queue, now);
-  const [matchedEntry, ...remainingQueue] = nextQueue;
-
-  return {
-    queue: remainingQueue,
-    newPath: matchedEntry?.newPath ?? null,
-    kind: matchedEntry?.kind ?? null,
-  };
-}
-
 function flushExpiredPendingCreates(
   queue: PendingCreateEntry[],
   now: number

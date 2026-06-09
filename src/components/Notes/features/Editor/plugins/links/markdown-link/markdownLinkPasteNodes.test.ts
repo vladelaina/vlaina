@@ -25,7 +25,7 @@ describe('createMarkdownLinkPasteNodes', () => {
       '[Docs](https://example.com) and [Site](catim.md)',
       schema as never,
       linkMarkType,
-    ) as Array<{ marks: Array<{ attrs: { href: string } }>; text: string }>;
+    ) as unknown as Array<{ marks: ReadonlyArray<{ attrs: { href: string } }>; text: string }>;
 
     expect(nodes.map((node) => node.text)).toEqual(['Docs', ' and ', 'Site']);
     expect(nodes[0]?.marks[0]?.attrs.href).toBe('https://example.com');

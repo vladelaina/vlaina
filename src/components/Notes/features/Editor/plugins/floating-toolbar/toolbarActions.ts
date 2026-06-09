@@ -52,7 +52,7 @@ export function getSelectedCodeBlockDom(view: EditorView, from: number, to: numb
 
     const contentFrom = pos + 1;
     const contentTo = pos + (node.nodeSize ?? 1) - 1;
-    if (from < contentFrom || to > contentTo || node.attrs.collapsed) {
+    if (from < contentFrom || to > contentTo || node.attrs?.collapsed) {
       return false;
     }
 

@@ -49,7 +49,11 @@ function createDoc(children: MockNode[]) {
 }
 
 function createIndexedDoc(children: MockNode[]) {
-  const doc = createDoc(children) as ReturnType<typeof createDoc> & {
+  const nodeSize = 2 + children.reduce((total, node) => total + node.nodeSize, 0);
+  const doc = {
+    ...createNode('doc', nodeSize, children),
+    ...createDoc(children),
+  } as MockNode & ReturnType<typeof createDoc> & {
     child: (index: number) => MockNode;
     childCount: number;
   };

@@ -125,7 +125,7 @@ describe('handleTocShortcutEnter', () => {
       ...view.state.selection.$from.parent,
       content: { size: 33 },
       nodeSize: 35,
-      get textContent() {
+      get textContent(): string {
         throw new Error('textContent should not be read for oversized toc shortcuts');
       },
     };

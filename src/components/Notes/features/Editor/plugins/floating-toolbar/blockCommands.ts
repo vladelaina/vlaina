@@ -179,8 +179,11 @@ function isTableContainer(typeName: string | undefined): boolean {
   return typeName === 'table_cell' || typeName === 'table_header';
 }
 
-function isConvertibleTextBlock(node: { type: { name: string } }): boolean {
-  return node.type.name === 'paragraph' || node.type.name === 'heading';
+function isConvertibleTextBlock(node: { attrs?: Record<string, unknown>; type?: { name: string } }): node is {
+  attrs?: Record<string, unknown>;
+  type: { name: string };
+} {
+  return node.type?.name === 'paragraph' || node.type?.name === 'heading';
 }
 
 function canConvertTextBlockInParent(parentTypeName: string | undefined): boolean {
@@ -386,7 +389,7 @@ function applyTextBlockTypeAcrossSelection(
       return;
     }
 
-    if (!canConvertTextBlockInParent(parent?.type.name)) {
+    if (!canConvertTextBlockInParent(parent?.type?.name)) {
       return false;
     }
 
@@ -447,7 +450,7 @@ function applyTextBlockTypeAcrossBlockSelection(
       if (targets.length >= MAX_BLOCK_COMMAND_NODE_UPDATES) {
         return false;
       }
-      if (!isConvertibleTextBlock(node) || !canConvertTextBlockInParent(parent?.type.name)) {
+      if (!isConvertibleTextBlock(node) || !canConvertTextBlockInParent(parent?.type?.name)) {
         return;
       }
 
@@ -621,11 +624,11 @@ export function setTextAlignment(view: EditorView, alignment: TextAlignment): vo
       if (updateCount >= MAX_BLOCK_COMMAND_NODE_UPDATES) {
         return false;
       }
-      if (node.type.name !== 'paragraph' && node.type.name !== 'heading') {
+      if (node.type?.name !== 'paragraph' && node.type?.name !== 'heading') {
         return;
       }
 
-      if (isUnsupportedContainer(parent?.type.name)) {
+      if (isUnsupportedContainer(parent?.type?.name)) {
         return false;
       }
 

@@ -64,7 +64,7 @@ function normalizeWebAccountCredentials(value: unknown): WebAccountCredentials |
   }
 
   const parsed = value as Record<string, unknown>;
-  const provider = normalizeAccountProvider(parsed.provider);
+  const provider = normalizeAccountProvider(typeof parsed.provider === 'string' ? parsed.provider : null);
   const username = normalizeWebAccountString(parsed.username, MAX_WEB_ACCOUNT_USERNAME_CHARS);
   if (!provider || !username) {
     return null;

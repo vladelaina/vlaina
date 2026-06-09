@@ -11,6 +11,9 @@ function createNode(typeName: string, nodeSize: number, children: any[] = []) {
     type: { name: typeName },
     nodeSize,
     childCount: children.length,
+    child(index: number) {
+      return children[index];
+    },
     forEach(cb: (child: any, offset: number) => void) {
       let offset = 0;
       for (const child of children) {
@@ -75,6 +78,10 @@ describe('createBlockDragPreview', () => {
       state: {
         doc: {
           content: { size: 10 },
+          childCount: 1,
+          child(index: number) {
+            return index === 0 ? createNode('paragraph', 10) : null;
+          },
           forEach(cb: (child: any, offset: number) => void) {
             cb(createNode('paragraph', 10), 0);
           },
@@ -173,6 +180,10 @@ describe('createBlockDragPreview', () => {
       state: {
         doc: {
           content: { size: 3 },
+          childCount: 1,
+          child(index: number) {
+            return index === 0 ? createNode('paragraph', 3) : null;
+          },
           forEach(cb: (child: any, offset: number) => void) {
             cb(createNode('paragraph', 3), 0);
           },
@@ -291,6 +302,9 @@ describe('createBlockDragPreview', () => {
         doc: {
           content: { size: 5 },
           childCount: 1,
+          child(index: number) {
+            return index === 0 ? paragraphNode : null;
+          },
           forEach(cb: (child: any, offset: number) => void) {
             cb(paragraphNode, 0);
           },
@@ -462,6 +476,10 @@ describe('createBlockDragPreview', () => {
       state: {
         doc: {
           content: { size: 32 },
+          childCount: 1,
+          child(index: number) {
+            return index === 0 ? listNode : null;
+          },
           forEach(cb: (child: any, offset: number) => void) {
             cb(listNode, 0);
           },
@@ -528,6 +546,10 @@ describe('createBlockDragPreview', () => {
       state: {
         doc: {
           content: { size: 14 },
+          childCount: 1,
+          child(index: number) {
+            return index === 0 ? listNode : null;
+          },
           forEach(cb: (child: any, offset: number) => void) {
             cb(listNode, 0);
           },
@@ -642,6 +664,10 @@ describe('createBlockDragPreview', () => {
       state: {
         doc: {
           content: { size: 14 },
+          childCount: 1,
+          child(index: number) {
+            return index === 0 ? listNode : null;
+          },
           forEach(cb: (child: any, offset: number) => void) {
             cb(listNode, 0);
           },
@@ -740,6 +766,10 @@ describe('createBlockDragPreview', () => {
       state: {
         doc: {
           content: { size: 16 },
+          childCount: 1,
+          child(index: number) {
+            return index === 0 ? listNode : null;
+          },
           forEach(cb: (child: any, offset: number) => void) {
             cb(listNode, 0);
           },
@@ -839,6 +869,10 @@ describe('createBlockDragPreview', () => {
       state: {
         doc: {
           content: { size: 8 },
+          childCount: 1,
+          child(index: number) {
+            return index === 0 ? listNode : null;
+          },
           forEach(cb: (child: any, offset: number) => void) {
             cb(listNode, 0);
           },
@@ -940,6 +974,10 @@ describe('createBlockDragPreview', () => {
       state: {
         doc: {
           content: { size: 2 },
+          childCount: 1,
+          child(index: number) {
+            return index === 0 ? videoNode : null;
+          },
           forEach(cb: (child: any, offset: number) => void) {
             cb(videoNode, 0);
           },
@@ -1045,6 +1083,10 @@ describe('createBlockDragPreview', () => {
       state: {
         doc: {
           content: { size: 2 },
+          childCount: 1,
+          child(index: number) {
+            return index === 0 ? mermaidNode : null;
+          },
           forEach(cb: (child: any, offset: number) => void) {
             cb(mermaidNode, 0);
           },
@@ -1169,6 +1211,9 @@ describe('createBlockDragPreview', () => {
         doc: {
           content: { size: mermaidNodes.length },
           childCount: mermaidNodes.length,
+          child(index: number) {
+            return mermaidNodes[index] ?? null;
+          },
           forEach(cb: (child: any, offset: number) => void) {
             mermaidNodes.forEach((node, offset) => cb(node, offset));
           },
@@ -1199,7 +1244,7 @@ describe('createBlockDragPreview', () => {
     const rectSpy = vi
       .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
       .mockImplementation(function (this: HTMLElement) {
-        const blockIndex = mermaidBlocks.indexOf(this);
+        const blockIndex = mermaidBlocks.indexOf(this as HTMLDivElement);
         if (blockIndex >= 0) {
           const top = 80 + blockIndex * 32;
           return {

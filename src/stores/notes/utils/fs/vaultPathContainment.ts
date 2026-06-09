@@ -1,6 +1,6 @@
 import { isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 
-export const MAX_VAULT_RELATIVE_PATH_CHARS = 16 * 1024;
+export const MAX_VAULT_RELATIVE_PATH_CHARS = 64 * 1024;
 const UNSAFE_VAULT_PATH_CHARS = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 export function isSafeVaultPathSegment(segment: string | undefined): segment is string {

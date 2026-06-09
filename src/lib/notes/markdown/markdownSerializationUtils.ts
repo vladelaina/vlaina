@@ -30,6 +30,7 @@ const INTERNAL_TIGHT_HEADING_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-tight
 const HTML_COMMENT_OPEN_PATTERN = /^(?: {0,3})<!--/;
 const HTML_COMMENT_CLOSE_PATTERN = /-->/;
 const HTML_IMAGE_LINE_PATTERN = /^(?: {0,3})<img(?:\s|\/?>|$)/i;
+const FENCED_CODE_MARKER_PATTERN = /^(?: {0,3})(`{3,}|~{3,})/;
 const MARKDOWN_ESCAPE_PATTERN = /\\([\\`*_{}[\]()#+\-.!])/g;
 const LIST_GAP_SENTINEL = '\u0000VLAINA_LIST_GAP_SENTINEL\u0000';
 const USER_BR_SENTINEL = '\u0000VLAINA_USER_BR_SENTINEL\u0000';
@@ -72,9 +73,9 @@ const MARKED_LIST_GAP_TOKEN_PATTERN = new RegExp(`[ \\t]*<br\\b(?=[^>]*${LEGACY_
 const EMPTY_LIST_ITEM_PLACEHOLDER_PATTERN =
   /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])(?:\s+\[(?: |x|X)\])?)\s+<br\b[^>]*\/?>\s*(?:<\/br>)?$/gim;
 const EDITABLE_LIST_GAP_MARKER_PLACEHOLDER_PATTERN =
-  /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])(?:\s+\[(?: |x|X)\])?)\s+\u2800\s*$/;
+  /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])(?:\s+\[(?: |x|X)\])?)\s+\\?\u2800\s*$/;
 const SERIALIZED_EDITABLE_LIST_GAP_PLACEHOLDER_PATTERN =
-  /^\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+\u2800\s*$/;
+  /^\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+\\?\u2800\s*$/;
 const STANDALONE_BR_LINE_PATTERN = /^(\s*)<br\b[^>]*\/?>\s*(?:<\/br>)?$/i;
 const BLOCKQUOTE_STANDALONE_BR_LINE_PATTERN = /^(\s*(?:>\s*)+)<br\b[^>]*\/?>\s*(?:<\/br>)?$/i;
 const INLINE_TERMINAL_LIST_BR_PATTERN =
@@ -84,6 +85,7 @@ const EMPTY_FOOTNOTE_DEFINITION_PLACEHOLDER_PATTERN =
 const EMPTY_TABLE_CELL_PLACEHOLDER_PATTERN = /(\|\s*)<br\s*\/?>(\s*\|)/g;
 const EMPTY_ATX_HEADING_MARKER_PATTERN = /^( {0,3})(#{1,6})[ \t]*$/gm;
 const LIST_ITEM_LINE_PATTERN = /^(?: {0,3})(?:[-+*]|\d+[.)])(?:\s+|$)/;
+const NESTED_LIST_ITEM_LINE_PATTERN = /^\s*(?:>\s*)*(?:[-+*]|\d+[.)])(?:\s+|$)/;
 const MISSING_ORDERED_LIST_SPACE_LINE_PATTERN =
   /^((?:(?: {0,3}>[ \t]?)* {0,3})(\d{1,3})\.)(\S.*)$/;
 const MISSING_UNORDERED_LIST_SPACE_LINE_PATTERN =
@@ -1444,12 +1446,16 @@ function normalizeListItemBlankLines(text: string): string {
     return text;
   }
 
-  const normalizedSentinels = text.includes(LIST_GAP_SENTINEL)
+  const normalizedPlaceholders = text.includes('\u2800')
+    ? normalizeSerializedListGapMarkerLines(text)
+    : text;
+
+  const normalizedSentinels = normalizedPlaceholders.includes(LIST_GAP_SENTINEL)
     ? mapMarkdownOutsideProtectedSegments(
-      text,
+      normalizedPlaceholders,
       replaceListGapSentinelsWithBlankLines,
     )
-    : text;
+    : normalizedPlaceholders;
 
   return normalizedSentinels.includes('\u2800')
     ? mapMarkdownOutsideProtectedSegments(
@@ -1457,6 +1463,49 @@ function normalizeListItemBlankLines(text: string): string {
       replaceListGapSentinelsWithBlankLines,
     )
     : normalizedSentinels;
+}
+
+function normalizeSerializedListGapMarkerLines(text: string): string {
+  const lines = text.split('\n');
+  let activeFenceMarker: string | null = null;
+
+  return lines
+    .map((line, index) => {
+      const fenceMatch = FENCED_CODE_MARKER_PATTERN.exec(line);
+      if (activeFenceMarker) {
+        if (fenceMatch?.[1]?.startsWith(activeFenceMarker)) {
+          activeFenceMarker = null;
+        }
+        return line;
+      }
+      if (fenceMatch) {
+        activeFenceMarker = fenceMatch[1]![0] ?? null;
+        return line;
+      }
+
+      return SERIALIZED_EDITABLE_LIST_GAP_PLACEHOLDER_PATTERN.test(line)
+        && (
+          isNestedListItemLine(findNearestNonBlankLine(lines, index, -1))
+          || isNestedListItemLine(findNearestNonBlankLine(lines, index, 1))
+        )
+        ? LIST_GAP_SENTINEL
+        : line;
+    })
+    .join('\n');
+}
+
+function isNestedListItemLine(line: string | null): boolean {
+  return line !== null && NESTED_LIST_ITEM_LINE_PATTERN.test(line);
+}
+
+function findNearestNonBlankLine(lines: readonly string[], startIndex: number, step: -1 | 1): string | null {
+  for (let index = startIndex + step; index >= 0 && index < lines.length; index += step) {
+    const line = lines[index] ?? '';
+    if (line.trim()) {
+      return line;
+    }
+  }
+  return null;
 }
 
 function replaceListGapSentinelsWithBlankLines(text: string): string {

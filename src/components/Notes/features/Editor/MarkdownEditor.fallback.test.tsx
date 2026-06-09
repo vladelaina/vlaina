@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MarkdownEditor } from './MarkdownEditor';
 
@@ -208,13 +208,18 @@ describe('MarkdownEditor source fallback', () => {
   });
 
   it('keeps markdown editable when the Milkdown runtime mounts but never becomes ready', async () => {
+    vi.useFakeTimers();
     mocks.milkdownRuntimeMode.value = 'never-ready';
 
     render(<MarkdownEditor />);
 
-    expect(await screen.findByTestId('milkdown-never-ready')).toBeInstanceOf(HTMLElement);
+    await act(async () => {});
+    expect(screen.getByTestId('milkdown-never-ready')).toBeInstanceOf(HTMLElement);
+    await act(async () => {
+      vi.advanceTimersByTime(30_000);
+    });
 
-    const sourceEditor = await screen.findByLabelText('Markdown source editor');
+    const sourceEditor = screen.getByLabelText('Markdown source editor');
     expect(sourceEditor).toHaveValue('# Alpha\n\nInitial body');
   });
 });

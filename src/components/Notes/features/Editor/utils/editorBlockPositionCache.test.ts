@@ -219,6 +219,9 @@ describe('editorBlockPositionCache', () => {
       forEach(callback: (node: typeof paragraphNode, offset: number) => void) {
         callback(paragraphNode, 0);
       },
+      child(index: number) {
+        return index === 0 ? paragraphNode : null;
+      },
       resolve() {
         return {
           parent: { type: { name: 'doc' } },
@@ -279,6 +282,9 @@ describe('editorBlockPositionCache', () => {
       content: { size: 14 },
       forEach(callback: (node: typeof headingNode, offset: number) => void) {
         callback(headingNode, 0);
+      },
+      child(index: number) {
+        return index === 0 ? headingNode : null;
       },
       resolve() {
         return {

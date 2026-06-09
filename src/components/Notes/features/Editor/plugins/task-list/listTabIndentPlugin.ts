@@ -631,7 +631,7 @@ export function rangeTouchesOrderedListNormalizationNode(
         const nodeEnd = pos + nodeSize;
         if (nodeEnd < start) return true;
         if (pos > end) return STOP_PROSE_SCAN;
-        if (ORDERED_LIST_NORMALIZATION_NODE_NAMES.has(node.type.name)) {
+        if (node.type?.name && ORDERED_LIST_NORMALIZATION_NODE_NAMES.has(node.type.name)) {
             touchesList = true;
             return STOP_PROSE_SCAN;
         }

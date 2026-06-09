@@ -980,8 +980,7 @@ describe('editor embedded CodeMirror selection styles', () => {
     const source = readAiReviewSelectionSource();
 
     expect(source).toContain("from '../../selection/textSelectionOverlayPlugin'");
-    expect(source).toContain('addTextSelectionOverlayDecorations(');
-    expect(source).toContain('node.isText');
+    expect(source).toContain('addTextSelectionOverlayDecorationsForRange(');
     expect(source).not.toContain('vlaina-ai-review-selection');
     expect(css).not.toContain('vlaina-ai-review-selection');
   });

@@ -248,22 +248,23 @@ function collectSelectedListItems(
   const selection = state.selection;
   const targets = new Map<number, { node: { type: { name: string }; attrs: Record<string, unknown> }; pos: number }>();
 
-  const register = (entry: { node: { type: { name: string }; attrs?: Record<string, unknown> }; pos: number } | null) => {
-    if (!entry || entry.node.type.name !== 'list_item' || targets.has(entry.pos)) {
+  const register = (entry: { node: TraversableNode; pos: number } | null) => {
+    if (!entry || entry.node.type?.name !== 'list_item' || targets.has(entry.pos)) {
       return;
     }
 
     targets.set(entry.pos, {
       node: {
         ...entry.node,
+        type: entry.node.type,
         attrs: entry.node.attrs ?? {},
       },
       pos: entry.pos,
     });
   };
 
-  register(getAncestorEntryAt(selection.$from, (node) => node.type.name === 'list_item'));
-  register(getAncestorEntryAt('$to' in selection ? selection.$to : undefined, (node) => node.type.name === 'list_item'));
+  register(getAncestorEntryAt(selection.$from, (node) => node.type?.name === 'list_item'));
+  register(getAncestorEntryAt('$to' in selection ? selection.$to : undefined, (node) => node.type?.name === 'list_item'));
 
   if (!selection.empty && state.doc) {
     forEachBoundedSelectedNode(state.doc, selection.from, selection.to, (node, pos) => {
