@@ -1,7 +1,21 @@
+import { isSafeChatSessionId } from '@/lib/storage/unifiedStorageAI';
+
 const sessionIdAliases = new Map<string, string>();
+export const MAX_SESSION_ID_ALIASES = 512;
 
 export function aliasSessionId(fromSessionId: string, toSessionId: string) {
+  if (!isSafeChatSessionId(fromSessionId) || !isSafeChatSessionId(toSessionId)) {
+    return;
+  }
+  sessionIdAliases.delete(fromSessionId);
   sessionIdAliases.set(fromSessionId, toSessionId);
+  while (sessionIdAliases.size > MAX_SESSION_ID_ALIASES) {
+    const oldestAlias = sessionIdAliases.keys().next().value;
+    if (typeof oldestAlias !== 'string') {
+      break;
+    }
+    sessionIdAliases.delete(oldestAlias);
+  }
 }
 
 export function resolveSessionIdAlias(sessionId: string): string {

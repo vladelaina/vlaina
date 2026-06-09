@@ -11,6 +11,7 @@ export interface OutlineHeadingMetric extends NotesOutlineHeading {
 }
 
 export const MAX_OUTLINE_HEADING_METRICS = 5000;
+export const MAX_OUTLINE_HEADING_DOM_SCAN_ELEMENTS = 20_000;
 
 function isHeadingElement(element: HTMLElement): boolean {
   return getHeadingLevelFromTagName(element.tagName) !== null;
@@ -19,12 +20,16 @@ function isHeadingElement(element: HTMLElement): boolean {
 function collectOutlineHeadingElements(editorRoot: HTMLElement): HTMLElement[] {
   const elements: HTMLElement[] = [];
   const walker = editorRoot.ownerDocument.createTreeWalker(editorRoot, NodeFilter.SHOW_ELEMENT);
+  let scannedElements = 0;
 
   for (
     let node = walker.nextNode();
-    node && elements.length < MAX_OUTLINE_HEADING_METRICS;
+    node
+      && elements.length < MAX_OUTLINE_HEADING_METRICS
+      && scannedElements < MAX_OUTLINE_HEADING_DOM_SCAN_ELEMENTS;
     node = walker.nextNode()
   ) {
+    scannedElements += 1;
     if (node instanceof HTMLElement && isHeadingElement(node)) {
       elements.push(node);
     }

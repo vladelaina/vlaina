@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildOutlineElementMap,
   buildOutlinePositionMap,
+  MAX_OUTLINE_HEADING_DOM_SCAN_ELEMENTS,
   MAX_OUTLINE_HEADING_METRICS,
   readOutlineHeadingMetrics,
   selectActiveOutlineHeadingId,
@@ -181,5 +182,17 @@ describe('outlinePositionCache', () => {
       querySelectorAllSpy.mockRestore();
       arrayFromSpy.mockRestore();
     }
+  });
+
+  it('stops scanning DOM elements when the scan budget is exhausted', () => {
+    const editorRoot = document.createElement('div');
+    for (let index = 0; index < MAX_OUTLINE_HEADING_DOM_SCAN_ELEMENTS; index += 1) {
+      editorRoot.appendChild(document.createElement('span'));
+    }
+    const overBudgetHeading = document.createElement('h2');
+    overBudgetHeading.textContent = 'Over budget';
+    editorRoot.appendChild(overBudgetHeading);
+
+    expect(readOutlineHeadingMetrics(editorRoot, null)).toEqual([]);
   });
 });

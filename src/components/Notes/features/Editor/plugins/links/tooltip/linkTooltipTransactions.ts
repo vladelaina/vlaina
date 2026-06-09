@@ -8,13 +8,17 @@ import {
 import { markEditorUserInput } from '../../shared/userInputEvents';
 
 export const MAX_TOOLTIP_FALLBACK_LINK_TEXT_CHARS = 4096;
+export const MAX_TOOLTIP_FALLBACK_LINK_TEXT_NODES = 20_000;
 
 export function getBoundedTextNodeLength(element: HTMLElement, maxChars: number): number | null {
     let length = 0;
     const walker = element.ownerDocument.createTreeWalker(element, NodeFilter.SHOW_TEXT);
     let node = walker.nextNode();
+    let scannedNodes = 0;
 
     while (node) {
+        scannedNodes += 1;
+        if (scannedNodes > MAX_TOOLTIP_FALLBACK_LINK_TEXT_NODES) return null;
         length += node.textContent?.length ?? 0;
         if (length > maxChars) return null;
         node = walker.nextNode();
@@ -27,8 +31,10 @@ export function getBoundedLinkTooltipText(element: HTMLElement, maxChars = MAX_T
     let text = '';
     const walker = element.ownerDocument.createTreeWalker(element, NodeFilter.SHOW_TEXT);
     let node = walker.nextNode();
+    let scannedNodes = 0;
 
-    while (node && text.length < maxChars) {
+    while (node && text.length < maxChars && scannedNodes < MAX_TOOLTIP_FALLBACK_LINK_TEXT_NODES) {
+        scannedNodes += 1;
         const value = node.textContent ?? '';
         const remaining = maxChars - text.length;
         text += value.length > remaining ? value.slice(0, remaining) : value;

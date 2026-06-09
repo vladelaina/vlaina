@@ -14,6 +14,9 @@ import {
 type EditorDoc = EditorState['doc'];
 
 export const MAX_BLOCK_UNIT_DOM_RANGE_RECTS = 1024;
+export const MAX_SELECTABLE_BLOCK_RANGE_SCAN_NODES = 20_000;
+export const MAX_SELECTABLE_BLOCK_RANGES = 5_000;
+export const MAX_SELECTABLE_BLOCK_LIST_DEPTH = 512;
 
 export interface SelectableBlockTarget {
   range: BlockRange;
@@ -23,6 +26,11 @@ export interface SelectableBlockTarget {
 }
 
 const selectableBlockRangesCache = new WeakMap<EditorDoc, BlockRange[]>();
+
+interface SelectableBlockRangeCollectionState {
+  ranges: BlockRange[];
+  scannedNodes: number;
+}
 
 function isNonDraggableBlockNode(name: string): boolean {
   return name === 'frontmatter';
@@ -78,81 +86,160 @@ function isHardBreakNode(name: string): boolean {
   return name === 'hardbreak' || name === 'hard_break';
 }
 
-function collectParagraphLineRanges(node: EditorState['doc'], paragraphFrom: number): BlockRange[] | null {
+function getNodeChildCount(node: EditorState['doc']): number {
+  const childCount = (node as { childCount?: unknown }).childCount;
+  return typeof childCount === 'number' && Number.isFinite(childCount) && childCount > 0
+    ? Math.floor(childCount)
+    : 0;
+}
+
+function getNodeChild(node: EditorState['doc'], index: number): EditorState['doc'] | null {
+  const child = (node as { child?: unknown }).child;
+  if (typeof child !== 'function') return null;
+  try {
+    const result = child.call(node, index);
+    return result && typeof result === 'object' ? result as EditorState['doc'] : null;
+  } catch {
+    return null;
+  }
+}
+
+function pushSelectableRange(
+  collection: SelectableBlockRangeCollectionState,
+  range: BlockRange,
+): boolean {
+  if (collection.ranges.length >= MAX_SELECTABLE_BLOCK_RANGES) return false;
+  collection.ranges.push(range);
+  return true;
+}
+
+function forEachSelectableChild(
+  node: EditorState['doc'],
+  collection: SelectableBlockRangeCollectionState,
+  visit: (child: EditorState['doc'], offset: number) => boolean | void,
+): boolean {
+  const childCount = getNodeChildCount(node);
+  if (childCount > 0) {
+    let offset = 0;
+    for (let index = 0; index < childCount; index += 1) {
+      if (collection.scannedNodes >= MAX_SELECTABLE_BLOCK_RANGE_SCAN_NODES) return false;
+      const child = getNodeChild(node, index);
+      if (!child) continue;
+      collection.scannedNodes += 1;
+      if (visit(child, offset) === false) return false;
+      offset += child.nodeSize;
+      if (collection.ranges.length >= MAX_SELECTABLE_BLOCK_RANGES) return false;
+    }
+    return true;
+  }
+
+  let shouldContinue = true;
+  node.forEach((child, offset) => {
+    if (!shouldContinue) return;
+    if (collection.scannedNodes >= MAX_SELECTABLE_BLOCK_RANGE_SCAN_NODES) {
+      shouldContinue = false;
+      return;
+    }
+    collection.scannedNodes += 1;
+    if (visit(child, offset) === false) shouldContinue = false;
+    if (collection.ranges.length >= MAX_SELECTABLE_BLOCK_RANGES) shouldContinue = false;
+  });
+  return shouldContinue;
+}
+
+function collectParagraphLineRanges(
+  node: EditorState['doc'],
+  paragraphFrom: number,
+  collection: SelectableBlockRangeCollectionState,
+): boolean {
   const contentFrom = paragraphFrom + 1;
   const contentTo = paragraphFrom + node.nodeSize - 1;
   let lineFrom = contentFrom;
   let hasHardBreak = false;
-  const ranges: BlockRange[] = [];
 
-  node.forEach((child, childOffset) => {
+  const completed = forEachSelectableChild(node, collection, (child, childOffset) => {
     if (!isHardBreakNode(child.type.name)) return;
 
     hasHardBreak = true;
     const breakTo = contentFrom + childOffset + child.nodeSize;
     if (breakTo > lineFrom) {
-      ranges.push({ from: lineFrom, to: breakTo });
+      if (!pushSelectableRange(collection, { from: lineFrom, to: breakTo })) return false;
     }
     lineFrom = breakTo;
   });
 
-  if (!hasHardBreak) return null;
+  if (!completed) return true;
+  if (!hasHardBreak) return false;
 
   if (lineFrom < contentTo) {
-    ranges.push({ from: lineFrom, to: contentTo });
+    pushSelectableRange(collection, { from: lineFrom, to: contentTo });
   }
 
-  return ranges.length > 0 ? ranges : null;
+  return true;
 }
 
-function collectListItemRanges(node: EditorState['doc'], itemFrom: number, ranges: BlockRange[]): void {
+function collectListItemRanges(
+  node: EditorState['doc'],
+  itemFrom: number,
+  collection: SelectableBlockRangeCollectionState,
+  depth: number,
+): boolean {
   const contentFrom = itemFrom + 1;
   let firstChild = true;
   let headerRangeTo: number | null = null;
 
-  node.forEach((child, childOffset) => {
+  const completed = forEachSelectableChild(node, collection, (child, childOffset) => {
     const childFrom = contentFrom + childOffset;
     const isList = isListContainerNode(child.type.name);
 
     if (isList) {
       if (headerRangeTo !== null) {
-        ranges.push({ from: itemFrom, to: headerRangeTo });
+        if (!pushSelectableRange(collection, { from: itemFrom, to: headerRangeTo })) return false;
         headerRangeTo = null;
       }
-      collectListContainerRanges(child, childFrom, ranges);
+      if (!collectListContainerRanges(child, childFrom, collection, depth + 1)) return false;
     } else {
       const isComplexBlock = COMPLEX_LIST_ITEM_CHILD_NODE_NAMES.has(child.type.name);
 
       if (firstChild) {
         if (isComplexBlock) {
-          ranges.push({ from: itemFrom, to: childFrom });
-          ranges.push({ from: childFrom, to: childFrom + child.nodeSize });
+          if (!pushSelectableRange(collection, { from: itemFrom, to: childFrom })) return false;
+          if (!pushSelectableRange(collection, { from: childFrom, to: childFrom + child.nodeSize })) return false;
         } else {
           headerRangeTo = childFrom + child.nodeSize;
         }
         firstChild = false;
       } else if (headerRangeTo !== null && isComplexBlock) {
-        ranges.push({ from: childFrom, to: childFrom + child.nodeSize });
+        if (!pushSelectableRange(collection, { from: childFrom, to: childFrom + child.nodeSize })) return false;
         headerRangeTo = childFrom + child.nodeSize;
       } else {
-        ranges.push({ from: childFrom, to: childFrom + child.nodeSize });
+        if (!pushSelectableRange(collection, { from: childFrom, to: childFrom + child.nodeSize })) return false;
       }
     }
   });
 
+  if (!completed) return false;
+
   if (headerRangeTo !== null) {
-    ranges.push({ from: itemFrom, to: itemFrom + node.nodeSize });
+    return pushSelectableRange(collection, { from: itemFrom, to: itemFrom + node.nodeSize });
   } else if (firstChild) {
-    ranges.push({ from: itemFrom, to: itemFrom + node.nodeSize });
+    return pushSelectableRange(collection, { from: itemFrom, to: itemFrom + node.nodeSize });
   }
+  return true;
 }
 
-function collectListContainerRanges(node: EditorState['doc'], listFrom: number, ranges: BlockRange[]): void {
+function collectListContainerRanges(
+  node: EditorState['doc'],
+  listFrom: number,
+  collection: SelectableBlockRangeCollectionState,
+  depth = 0,
+): boolean {
+  if (depth > MAX_SELECTABLE_BLOCK_LIST_DEPTH) return false;
   const contentFrom = listFrom + 1;
-  node.forEach((child, childOffset) => {
+  return forEachSelectableChild(node, collection, (child, childOffset) => {
     if (child.type.name !== 'list_item') return;
     const itemFrom = contentFrom + childOffset;
-    collectListItemRanges(child, itemFrom, ranges);
+    return collectListItemRanges(child, itemFrom, collection, depth);
   });
 }
 
@@ -366,27 +453,25 @@ function resolveTargetRect(element: HTMLElement, range?: BlockRange, view?: Edit
 }
 
 function collectSelectableBlockRangesUncached(doc: EditorDoc): BlockRange[] {
-  const ranges: BlockRange[] = [];
-  doc.forEach((node, offset) => {
+  const collection: SelectableBlockRangeCollectionState = {
+    ranges: [],
+    scannedNodes: 0,
+  };
+  forEachSelectableChild(doc, collection, (node, offset) => {
     if (isListContainerNode(node.type.name)) {
-      collectListContainerRanges(node, offset, ranges);
+      return collectListContainerRanges(node, offset, collection);
+    }
+
+    if (isParagraphNode(node.type.name) && collectParagraphLineRanges(node, offset, collection)) {
       return;
     }
 
-    const paragraphLineRanges = isParagraphNode(node.type.name)
-      ? collectParagraphLineRanges(node, offset)
-      : null;
-    if (paragraphLineRanges) {
-      ranges.push(...paragraphLineRanges);
-      return;
-    }
-
-    ranges.push({
+    return pushSelectableRange(collection, {
       from: offset,
       to: offset + node.nodeSize,
     });
   });
-  return ranges;
+  return collection.ranges;
 }
 
 export function collectSelectableBlockRanges(doc: EditorDoc): BlockRange[] {

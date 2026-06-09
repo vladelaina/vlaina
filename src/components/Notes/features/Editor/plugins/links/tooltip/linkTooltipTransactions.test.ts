@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+    getBoundedTextNodeLength,
     getBoundedLinkTooltipText,
     MAX_TOOLTIP_FALLBACK_LINK_TEXT_CHARS,
+    MAX_TOOLTIP_FALLBACK_LINK_TEXT_NODES,
     editLinkAtPosition,
     removeExistingLink,
     sanitizeTooltipLinkHref,
@@ -25,6 +27,17 @@ describe('link tooltip transactions', () => {
         link.append(document.createTextNode('x'.repeat(MAX_TOOLTIP_FALLBACK_LINK_TEXT_CHARS + 20)));
 
         expect(getBoundedLinkTooltipText(link)).toHaveLength(MAX_TOOLTIP_FALLBACK_LINK_TEXT_CHARS);
+    });
+
+    it('bounds link tooltip text node scans', () => {
+        const link = document.createElement('a');
+        for (let index = 0; index < MAX_TOOLTIP_FALLBACK_LINK_TEXT_NODES + 10; index += 1) {
+            link.append(document.createTextNode(''));
+        }
+        link.append(document.createTextNode('over budget'));
+
+        expect(getBoundedLinkTooltipText(link)).toBe('');
+        expect(getBoundedTextNodeLength(link, MAX_TOOLTIP_FALLBACK_LINK_TEXT_CHARS)).toBeNull();
     });
 
     it('deletes plain autolink text even when there is no link mark', () => {
