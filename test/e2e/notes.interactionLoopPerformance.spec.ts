@@ -226,6 +226,47 @@ async function clickToolbarAction(page: import('@playwright/test').Page, action:
   await waitForEditorAnimationFrame(page);
 }
 
+async function clickVisibleElement(page: import('@playwright/test').Page, selector: string, description: string) {
+  const element = page.locator(selector).first();
+  await expect(element).toBeVisible({ timeout: 5_000 });
+  const debugBeforeClick = await page.evaluate((targetSelector) => {
+    const targetElement = document.querySelector<HTMLElement>(targetSelector);
+    const rect = targetElement?.getBoundingClientRect();
+    const center = rect
+      ? {
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+        }
+      : null;
+    const hit = center ? document.elementFromPoint(center.x, center.y) : null;
+    const hitElement = hit instanceof HTMLElement ? hit : hit?.parentElement ?? null;
+
+    return {
+      selector: targetSelector,
+      rect: rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null,
+      center,
+      hit: hitElement
+        ? {
+            tagName: hitElement.tagName,
+            className: hitElement.className,
+            matchesTarget: Boolean(hitElement.closest(targetSelector)),
+            text: hitElement.textContent?.trim().slice(0, 80) ?? '',
+          }
+        : null,
+    };
+  }, selector);
+
+  if (!debugBeforeClick.hit?.matchesTarget || !debugBeforeClick.center) {
+    console.info('[notes-interaction-loop-visible-click-debug]', debugBeforeClick);
+    throw new Error(`${description} is not hittable at its visible center`);
+  }
+
+  await page.mouse.move(debugBeforeClick.center.x, debugBeforeClick.center.y);
+  await page.mouse.click(debugBeforeClick.center.x, debugBeforeClick.center.y);
+  await waitForEditorAnimationFrame(page);
+  await waitForEditorAnimationFrame(page);
+}
+
 async function expectToolbarForSelection(page: import('@playwright/test').Page, selectedText: string) {
   await scrollEditorTextIntoView(page, selectedText);
   const selected = await selectEditorText(page, selectedText);
@@ -302,6 +343,14 @@ test.describe('notes sustained interaction loop performance', () => {
         toolbar: `Toolbar alpha target round ${index + 1}`,
         shortcut: `Shortcut beta target round ${index + 1}`,
         clipboard: `Clipboard gamma target round ${index + 1}`,
+        underline: `Underline delta target round ${index + 1}`,
+        strike: `Strike epsilon target round ${index + 1}`,
+        inlineCode: `Inline code zeta target round ${index + 1}`,
+        delete: `Delete eta target round ${index + 1}`,
+        block: `Block theta target round ${index + 1}`,
+        alignment: `Alignment iota target round ${index + 1}`,
+        color: `Color kappa target round ${index + 1}`,
+        link: `Link lambda target round ${index + 1}`,
       }));
 
       await openMarkdownFixture(page, {
@@ -315,6 +364,22 @@ test.describe('notes sustained interaction loop performance', () => {
             `${target.shortcut} starts plain.`,
             '',
             `${target.clipboard} starts plain.`,
+            '',
+            `${target.underline} starts plain.`,
+            '',
+            `${target.strike} starts plain.`,
+            '',
+            `${target.inlineCode} starts plain.`,
+            '',
+            `${target.delete} starts plain.`,
+            '',
+            `${target.block} starts plain.`,
+            '',
+            `${target.alignment} starts plain.`,
+            '',
+            `${target.color} starts plain.`,
+            '',
+            `${target.link} starts plain.`,
             '',
           ]),
         ].join('\n'),
@@ -354,6 +419,24 @@ test.describe('notes sustained interaction loop performance', () => {
           await expectEditorTextMark(page, target.toolbar, 'highlight', `${EDITOR_SELECTOR} mark`);
         });
 
+        await measureOperation(loopMetrics, round, 'toolbar-underline', async () => {
+          await expectToolbarForSelection(page, target.underline);
+          await clickToolbarAction(page, 'underline');
+          await expectEditorTextMark(page, target.underline, 'underline', `${EDITOR_SELECTOR} u`);
+        });
+
+        await measureOperation(loopMetrics, round, 'toolbar-strike', async () => {
+          await expectToolbarForSelection(page, target.strike);
+          await clickToolbarAction(page, 'strike');
+          await expectEditorTextMark(page, target.strike, 'strike_through', `${EDITOR_SELECTOR} s`);
+        });
+
+        await measureOperation(loopMetrics, round, 'toolbar-inline-code', async () => {
+          await expectToolbarForSelection(page, target.inlineCode);
+          await clickToolbarAction(page, 'code');
+          await expectEditorTextMark(page, target.inlineCode, 'inlineCode', `${EDITOR_SELECTOR} code`);
+        });
+
         await measureOperation(loopMetrics, round, 'keyboard-shortcuts', async () => {
           await expectToolbarForSelection(page, target.shortcut);
           await pressEditorShortcut(page, 'Control+B');
@@ -367,6 +450,59 @@ test.describe('notes sustained interaction loop performance', () => {
           await expectToolbarForSelection(page, target.clipboard);
           await clickToolbarAction(page, 'copy');
           await expect(page.locator(`${TOOLBAR_SELECTOR} [data-action="copy"].active`).first()).toBeVisible({ timeout: 5_000 });
+        });
+
+        await measureOperation(loopMetrics, round, 'toolbar-block-heading', async () => {
+          await expectToolbarForSelection(page, target.block);
+          await clickToolbarAction(page, 'block');
+          await clickVisibleElement(
+            page,
+            '.block-dropdown [data-block-type="heading2"]',
+            'heading2 block dropdown item',
+          );
+          await expect(page.locator(`${LIVE_EDITOR_SELECTOR} h2`, { hasText: target.block })).toBeVisible();
+        });
+
+        await measureOperation(loopMetrics, round, 'toolbar-align-center', async () => {
+          await expectToolbarForSelection(page, target.alignment);
+          await clickToolbarAction(page, 'alignment');
+          await clickVisibleElement(
+            page,
+            '.alignment-dropdown [data-alignment="center"]',
+            'center alignment dropdown item',
+          );
+          await expect(
+            page.locator(`${LIVE_EDITOR_SELECTOR} [data-text-align="center"]`, { hasText: target.alignment }),
+          ).toBeVisible();
+        });
+
+        await measureOperation(loopMetrics, round, 'toolbar-text-color', async () => {
+          await expectToolbarForSelection(page, target.color);
+          await clickToolbarAction(page, 'color');
+          await clickVisibleElement(
+            page,
+            '.color-picker [data-type="text"] .color-picker-grid .color-picker-item:not(.color-picker-item-default)',
+            'text color picker swatch',
+          );
+          await expect(page.locator(`${LIVE_EDITOR_SELECTOR} span[data-text-color]`, { hasText: target.color })).toBeVisible();
+        });
+
+        await measureOperation(loopMetrics, round, 'toolbar-link', async () => {
+          const url = `https://example.com/notes-loop/${round + 1}`;
+          await expectToolbarForSelection(page, target.link);
+          await clickToolbarAction(page, 'link');
+          const input = page.locator('.link-editor-rail-input').first();
+          await expect(input).toBeVisible({ timeout: 5_000 });
+          await input.fill(url);
+          await input.press('Enter');
+          await waitForEditorAnimationFrame(page);
+          await expect(page.locator(`${LIVE_EDITOR_SELECTOR} a[href="${url}"]`, { hasText: target.link })).toBeVisible();
+        });
+
+        await measureOperation(loopMetrics, round, 'toolbar-delete', async () => {
+          await expectToolbarForSelection(page, target.delete);
+          await clickToolbarAction(page, 'delete');
+          await expect(page.locator(LIVE_EDITOR_SELECTOR)).not.toContainText(target.delete);
         });
 
         await measureOperation(loopMetrics, round, 'paste-markdown-fragment', async () => {

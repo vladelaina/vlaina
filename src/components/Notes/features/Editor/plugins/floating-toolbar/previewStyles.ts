@@ -261,6 +261,11 @@ function commitPreview(view: EditorView, key: string): boolean {
     return false;
   }
 
+  if (previewOverlay.previewState.doc.eq(view.state.doc)) {
+    clearPreviewOverlay();
+    return false;
+  }
+
   return dispatchPreviewState(view, previewOverlay.previewState);
 }
 
