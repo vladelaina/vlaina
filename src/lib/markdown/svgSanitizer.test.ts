@@ -15,6 +15,7 @@ describe('svgSanitizer', () => {
     const content = renderSanitizedSvg([
       '<svg xmlns="http://www.w3.org/2000/svg">',
       '<a href = "https://example.test/link"><text>link</text></a>',
+      '<a href = "#local-link"><text>local link</text></a>',
       '<image href = "https://example.test/a.png" xlink:href = "https://example.test/b.png"></image>',
       '<rect filter = "url ( https://example.test/filter.svg#drop )" fill = "url ( #local-fill )"></rect>',
       '<text style="fill: url ( #local-fill ); stroke: url ( https://example.test/stroke.svg#x ); opacity: .8">safe</text>',
@@ -26,7 +27,8 @@ describe('svgSanitizer', () => {
     const rect = content.querySelector('rect');
     const text = content.querySelector('text');
 
-    expect(link?.getAttribute('href')).toBe('https://example.test/link');
+    expect(link?.getAttribute('href')).toBeNull();
+    expect(content.querySelectorAll('a')[1]?.getAttribute('href')).toBe('#local-link');
     expect(image?.getAttribute('href')).toBeNull();
     expect(image?.getAttribute('xlink:href')).toBeNull();
     expect(rect?.getAttribute('filter')).toBeNull();

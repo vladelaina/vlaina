@@ -9,10 +9,20 @@ import {
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
+import { history } from '@milkdown/kit/plugin/history';
+import { listener } from '@milkdown/kit/plugin/listener';
+import { tableBlock } from '@milkdown/kit/component/table-block';
 
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import { customPlugins } from '../../config/plugins';
 import { configureTheme } from '../../theme';
-import { normalizeSerializedMarkdownDocument, stripTrailingNewlines } from '@/lib/notes/markdown/markdownSerializationUtils';
+import {
+  normalizeAlternativeMathBlockFences,
+  normalizeSerializedMarkdownDocument,
+  preserveMarkdownBlankLinesForEditor,
+  stripTrailingNewlines,
+} from '@/lib/notes/markdown/markdownSerializationUtils';
+import { normalizeLeadingFrontmatterMarkdown } from '../../plugins/frontmatter/frontmatterMarkdown';
 
 type TestEditor = ReturnType<typeof Editor.make>;
 
@@ -26,9 +36,14 @@ afterEach(async () => {
 });
 
 async function openMarkdown(markdown: string) {
+  const defaultValue = preserveMarkdownBlankLinesForEditor(
+    normalizeLeadingFrontmatterMarkdown(
+      normalizeAlternativeMathBlockFences(markdown)
+    )
+  );
   const editor = Editor.make()
     .config((ctx) => {
-      ctx.set(defaultValueCtx, markdown);
+      ctx.set(defaultValueCtx, defaultValue);
       ctx.update(remarkStringifyOptionsCtx, (prev) => ({
         ...prev,
         ...notesRemarkStringifyOptions,
@@ -36,7 +51,11 @@ async function openMarkdown(markdown: string) {
     })
     .use(commonmark)
     .use(gfm)
+    .use(history)
+    .use(listener)
     .use(configureTheme);
+  editor.use(tableBlock);
+  editor.use(customPlugins);
 
   await editor.create();
   editors.push(editor);
@@ -99,7 +118,8 @@ describe('markdown security when opening notes', () => {
       '<picture><source srcset="//127.0.0.1:3000/secret.png 1x"><img src="https://example.com/fallback.png"></picture>',
     ].join('\n\n'));
 
-    const srcs = Array.from(result.dom.querySelectorAll('img')).map((image) => image.getAttribute('src'));
+    const srcs = Array.from(result.dom.querySelectorAll('img, .image-block-container'))
+      .map((image) => image.getAttribute('src'));
     const srcsets = Array.from(result.dom.querySelectorAll('source')).map((source) => source.getAttribute('srcset'));
 
     expect(srcs).toContain('https://example.com/safe.png');
@@ -129,5 +149,104 @@ describe('markdown security when opening notes', () => {
     const anchor = result.dom.querySelector('a');
     expect(anchor?.getAttribute('href')).toBeNull();
     expect(result.dom.innerHTML).not.toContain('javascript:');
+  });
+
+  it('sanitizes raw html values across the full notes editor plugin stack', async () => {
+    const result = await openMarkdown([
+      '<script>alert("inline-script")</script>',
+      '<svg><img src="https://example.com/svg-leak.png"></svg>',
+      '<math><img src="https://example.com/math-leak.png"></math>',
+      '<noscript><img src="https://example.com/noscript-leak.png"></noscript>',
+      '<img src="https://example.com/safe.png" onerror="alert(1)" data-secret="token">',
+      '<a href="javascript:alert(1)" onclick="alert(2)">bad link</a>',
+      '<a href="https://example.com/safe">safe link</a>',
+      '<iframe src="javascript:alert(1)" allow="camera *"></iframe>',
+      '<iframe src="https://example.com/embed" sandbox="allow-same-origin allow-popups" allow="fullscreen; camera *; clipboard-write" srcdoc="<script>alert(1)</script>"></iframe>',
+      '<video src="http://127.0.0.1/private.mp4" poster="file:///etc/passwd"></video>',
+      '<audio src="https://example.com/safe.mp3" oncanplay="alert(1)"></audio>',
+      '<object data="https://example.com/plugin"></object>',
+      '<embed src="https://example.com/plugin">',
+      '<span style="color: red; background: url(javascript:alert(1)); position: fixed" onclick="evil()">styled</span>',
+      '<abbr title="javascript:alert(1)">abbr</abbr>',
+      '<time datetime="data:text/html,<script>alert(1)</script>">time</time>',
+      '<picture><source srcset="//127.0.0.1:3000/private.webp 1x"><img src="https://example.com/fallback.png"></picture>',
+    ].join('\n\n'));
+
+    const html = result.dom.innerHTML;
+    const persisted = result.persisted;
+    const unsafeNeedles = [
+      '<script',
+      '<object',
+      '<embed',
+      'inline-script',
+      'svg-leak',
+      'math-leak',
+      'noscript-leak',
+      'javascript:',
+      'onclick',
+      'onerror',
+      'oncanplay',
+      'data-secret',
+      'srcdoc',
+      'file:///etc/passwd',
+      '127.0.0.1',
+      'camera',
+      'position: fixed',
+      'url(',
+    ];
+
+    for (const needle of unsafeNeedles) {
+      expect(html).not.toContain(needle);
+      expect(persisted).not.toContain(needle);
+    }
+
+    expect(result.dom.querySelector('.image-block-container[src="https://example.com/safe.png"]')).toBeInstanceOf(HTMLElement);
+    expect(result.dom.querySelector('a[href="https://example.com/safe"]')?.textContent).toBe('safe link');
+
+    const safeIframe = result.dom.querySelector('iframe[src="https://example.com/embed"]');
+    expect(safeIframe).toBeInstanceOf(HTMLIFrameElement);
+    expect(safeIframe?.getAttribute('sandbox')).toBe('allow-scripts allow-popups');
+    expect(safeIframe?.getAttribute('allow')).toBe('fullscreen; clipboard-write');
+    expect(safeIframe?.getAttribute('referrerpolicy')).toBe('no-referrer');
+
+    expect(result.dom.querySelector('audio[src="https://example.com/safe.mp3"]')).toBeInstanceOf(HTMLAudioElement);
+    expect(result.dom.querySelector('span[style="color: red"]')?.textContent).toBe('styled');
+    expect(result.dom.querySelector('abbr')?.hasAttribute('title')).toBe(false);
+    expect(result.dom.querySelector('time')?.hasAttribute('datetime')).toBe(false);
+    expect(result.dom.querySelector('source')?.hasAttribute('srcset')).toBe(false);
+
+    const rawHtmlValues = Array.from(result.dom.querySelectorAll<HTMLElement>('[data-type="html"], [data-type="html-block"]'))
+      .map((element) => element.dataset.value ?? '');
+    for (const value of rawHtmlValues) {
+      for (const needle of unsafeNeedles) {
+        expect(value).not.toContain(needle);
+      }
+    }
+  });
+
+  it('does not treat non-rendering raw html prefixes as a sanitizer bypass', async () => {
+    const result = await openMarkdown([
+      '<!-- harmless --><script>alert("comment-prefix")</script>',
+      '<!doctype html><img src="javascript:alert(1)" alt="doctype-prefix">',
+      '<?xml version="1.0"?><iframe src="http://127.0.0.1:3000/admin"></iframe>',
+      '<![CDATA[x]]><svg><img src="https://example.com/cdata-leak.png"></svg>',
+      '<!--before--><img src="javascript:alert(1)" alt="comment-sandwich"><!--after-->',
+      '<?before?><iframe src="javascript:alert(1)"></iframe><?after?>',
+      '<![CDATA[before]]><svg><img src="https://example.com/cdata-sandwich.png"></svg><![CDATA[after]]>',
+    ].join('\n\n'));
+
+    for (const needle of [
+      '<script',
+      'comment-prefix',
+      'javascript:',
+      '127.0.0.1',
+      '<iframe',
+      '<svg',
+      'cdata-leak',
+      'cdata-sandwich',
+    ]) {
+      expect(result.dom.innerHTML).not.toContain(needle);
+      expect(result.persisted).not.toContain(needle);
+    }
   });
 });

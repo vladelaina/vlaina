@@ -86,6 +86,13 @@ export const GITHUB_ALLOWED_LINK_PROTOCOLS = new Set(['http:', 'https:', 'mailto
 export const GITHUB_ALLOWED_MEDIA_PROTOCOLS = new Set(['http:', 'https:']);
 export const GITHUB_FORCED_IFRAME_SANDBOX = 'allow-scripts';
 export const GITHUB_ALLOWED_IFRAME_SANDBOX_TOKENS = new Set(['allow-scripts', 'allow-forms', 'allow-popups', 'allow-presentation']);
+export const GITHUB_ALLOWED_IFRAME_ALLOW_FEATURES = new Set([
+  'clipboard-write',
+  'encrypted-media',
+  'fullscreen',
+  'gyroscope',
+  'picture-in-picture',
+]);
 export const GITHUB_ALLOWED_STYLE_PROPERTIES = new Set([
   'background',
   'background-color',
@@ -177,6 +184,20 @@ export function sanitizeGithubIframeSandbox(value: string | null): string {
   return Array.from(tokens).join(' ');
 }
 
+export function sanitizeGithubIframeAllow(value: string | null): string | null {
+  if (!value || !isGithubHtmlAttributeValueAllowed(value)) return null;
+  if (/[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/.test(value)) return null;
+
+  const features: string[] = [];
+  for (const rawEntry of value.split(';')) {
+    const feature = rawEntry.trim().split(/\s+/, 1)[0]?.toLowerCase();
+    if (feature && GITHUB_ALLOWED_IFRAME_ALLOW_FEATURES.has(feature) && !features.includes(feature)) {
+      features.push(feature);
+    }
+  }
+  return features.length > 0 ? features.join('; ') : null;
+}
+
 export function isGithubUrlAttribute(tagName: string, attributeName: string): boolean {
   return Boolean(GITHUB_URL_ATTRIBUTES_BY_TAG[tagName]?.has(attributeName.toLowerCase()));
 }
@@ -187,6 +208,11 @@ export function isGithubSrcsetAttribute(tagName: string, attributeName: string):
 
 export function hasGithubProtocol(value: string): boolean {
   return value.includes('://');
+}
+
+export function hasGithubUrlScheme(value: string): boolean {
+  const compacted = value.replace(/[\u0000-\u0020\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/g, '');
+  return /(?:^|["'(<])(?:javascript|data|vbscript|file|blob):/i.test(compacted);
 }
 
 function hasUnsafeGithubBackslashUrlSyntax(value: string): boolean {

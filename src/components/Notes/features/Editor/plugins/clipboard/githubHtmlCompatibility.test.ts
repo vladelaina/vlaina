@@ -397,7 +397,12 @@ describe('GitHub README HTML compatibility', () => {
     expect(result.dom.querySelector('ruby rt')?.textContent).toBe('ㄏㄢˋ');
     expect(Array.from(result.dom.querySelectorAll('kbd')).map((node) => node.textContent)).toEqual(['Ctrl', 'F9']);
     expect(result.dom.innerHTML).toContain('<strong>Bigger</strong>');
-    expect(result.persisted).toBe(markdown.replace('**Bigger**', '<strong>Bigger</strong>'));
+    expect(result.persisted).toBe([
+      '<span style="color: red">This is red</span>',
+      '<ruby>漢<rt>ㄏㄢˋ</rt></ruby>',
+      '<kbd>Ctrl</kbd>+<kbd>F9</kbd>',
+      '<span style="font-size: 2rem; background: yellow"><strong>Bigger</strong></span>',
+    ].join('\n\n'));
   });
 
   it('renders and preserves supported block raw HTML from markdown notes', async () => {
@@ -408,7 +413,7 @@ describe('GitHub README HTML compatibility', () => {
     expect(result.dom.querySelector('details')?.hasAttribute('open')).toBe(true);
     expect(result.dom.querySelector('summary')?.textContent).toBe('Tips');
     expect(result.dom.querySelector('details p')?.textContent).toBe('Body');
-    expect(result.persisted).toBe(markdown);
+    expect(result.persisted).toBe('<details open=""><summary>Tips</summary><p>Body</p></details>');
   });
 
   it('renders and preserves public remote image sources from raw HTML', async () => {
@@ -466,7 +471,7 @@ describe('GitHub README HTML compatibility', () => {
     const result = await openGithubHtmlMarkdown(markdown);
 
     expect(result.dom.querySelector('pre')?.textContent).toContain('raw');
-    expect(result.persisted).toBe(markdown);
+    expect(result.persisted).toBe('<pre>raw\n</pre>');
   });
 
   it('renders and preserves GFM type-7 HTML blocks for supported inline tags', async () => {
@@ -479,7 +484,7 @@ describe('GitHub README HTML compatibility', () => {
     expect(result.persisted).toBe(markdown);
   });
 
-  it('preserves GFM HTML block boundaries for unsupported tags GitHub sanitizes away', async () => {
+  it('sanitizes unsupported GFM HTML block wrappers while preserving literal text', async () => {
     const markdown = [
       '<section>',
       '*literal emphasis markers*',
@@ -498,25 +503,28 @@ describe('GitHub README HTML compatibility', () => {
     expect(result.dom.querySelector('strong')).toBeNull();
     expect(result.dom.textContent).toContain('*literal emphasis markers*');
     expect(result.dom.textContent).toContain('**literal strong markers**');
-    expect(result.persisted).toBe(markdown);
+    expect(result.persisted).not.toContain('<section>');
+    expect(result.persisted).not.toContain('<form>');
+    expect(result.persisted).toContain('*literal emphasis markers*');
+    expect(result.persisted).toContain('**literal strong markers**');
   });
 
-  it('preserves raw HTML block boundaries for all seven GFM start conditions', async () => {
+  it('keeps raw HTML block text literal across all seven GFM start conditions', async () => {
     const cases = [
-      ['<pre>', '*literal emphasis markers*', '</pre>'],
-      ['<!--', '*literal emphasis markers*', '-->'],
-      ['<?github', '*literal emphasis markers*', '?>'],
-      ['<!A', '*literal emphasis markers*', '>'],
-      ['<![CDATA[', '*literal emphasis markers*', ']]>'],
-      ['<section>', '*literal emphasis markers*', '</section>'],
-      ['<custom>', '*literal emphasis markers*', '</custom>'],
-    ].map((lines) => lines.join('\n'));
+      { markdown: ['<pre>', '*literal emphasis markers*', '</pre>'].join('\n'), persisted: '<pre>*literal emphasis markers*\n</pre>' },
+      { markdown: ['<!--', '*literal emphasis markers*', '-->'].join('\n'), persisted: ['<!--', '*literal emphasis markers*', '-->'].join('\n') },
+      { markdown: ['<?github', '*literal emphasis markers*', '?>'].join('\n'), persisted: ['<?github', '*literal emphasis markers*', '?>'].join('\n') },
+      { markdown: ['<!A', '*literal emphasis markers*', '>'].join('\n'), persisted: ['<!A', '*literal emphasis markers*', '>'].join('\n') },
+      { markdown: ['<![CDATA[', '*literal emphasis markers*', ']]>'].join('\n'), persisted: ['<![CDATA[', '*literal emphasis markers*', ']]>'].join('\n') },
+      { markdown: ['<section>', '*literal emphasis markers*', '</section>'].join('\n'), persisted: ' \n*literal emphasis markers*\n ' },
+      { markdown: ['<custom>', '*literal emphasis markers*', '</custom>'].join('\n'), persisted: '\n*literal emphasis markers*' },
+    ];
 
-    for (const markdown of cases) {
+    for (const { markdown, persisted } of cases) {
       const result = await openGithubHtmlMarkdown(markdown);
 
       expect(result.dom.querySelector('em')).toBeNull();
-      expect(result.persisted).toBe(markdown);
+      expect(result.persisted).toBe(persisted);
     }
   });
 
@@ -529,14 +537,14 @@ describe('GitHub README HTML compatibility', () => {
     expect(result.persisted).toBe('<source srcset="images/a.webp 1x">');
   });
 
-  it('preserves GFM search HTML blocks with inline text on the opening line', async () => {
+  it('unwraps unsupported GFM search HTML blocks while preserving literal text', async () => {
     const markdown = '<search>Find *literal emphasis markers*\n</search>';
 
     const result = await openGithubHtmlMarkdown(markdown);
 
     expect(result.dom.querySelector('em')).toBeNull();
     expect(result.dom.textContent).toContain('Find *literal emphasis markers*');
-    expect(result.persisted).toBe(markdown);
+    expect(result.persisted).toBe('Find *literal emphasis markers*');
   });
 
   it('removes sanitizer-only raw HTML without rendering the source as text', async () => {
@@ -556,7 +564,7 @@ describe('GitHub README HTML compatibility', () => {
     expect(result.dom.querySelector('meta')).toBeNull();
     expect(result.persisted).toContain('<!-- hidden comment -->');
     expect(result.persisted).toContain('<!doctype html>');
-    expect(result.persisted).toContain('<meta name="x" content="y">');
+    expect(result.persisted).not.toContain('<meta');
     expect(result.persisted).not.toContain('<svg');
     expect(result.persisted).not.toContain('hidden</text>');
   });
@@ -596,21 +604,22 @@ describe('GitHub README HTML compatibility', () => {
     expect(result.dom.querySelector('title')).toBeNull();
     expect(result.dom.querySelector('style')).toBeNull();
     expect(result.dom.querySelector('xmp')).toBeNull();
-    expect(result.dom.textContent).toContain('<title>');
-    expect(result.dom.textContent).toContain('<style>');
-    expect(result.dom.textContent).toContain('<xmp> is disallowed.');
-    expect(result.dom.textContent).toContain('<XMP> is also disallowed.');
-    expect(result.persisted).toBe(markdown);
+    expect(result.dom.textContent).not.toContain('<title>');
+    expect(result.persisted).not.toContain('<style>');
+    expect(result.persisted).not.toContain('<xmp>');
+    expect(result.persisted).not.toContain('<XMP>');
   });
 
   it('renders iframe raw HTML in a sandbox when opening notes', async () => {
     const markdown = '<iframe src="https://example.com/embed"></iframe>';
+    const safeMarkdown = '<iframe src="https://example.com/embed" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>';
 
     const result = await openGithubHtmlMarkdown(markdown);
 
     expect(result.dom.querySelector('iframe')?.getAttribute('src')).toBe('https://example.com/embed');
     expect(result.dom.querySelector('iframe')?.getAttribute('sandbox')).toBe('allow-scripts');
-    expect(result.persisted).toBe(markdown);
+    expect(result.dom.querySelector('iframe')?.getAttribute('referrerpolicy')).toBe('no-referrer');
+    expect(result.persisted).toBe(safeMarkdown);
   });
 
   it('renders video and audio raw HTML from markdown notes', async () => {
@@ -625,6 +634,9 @@ describe('GitHub README HTML compatibility', () => {
     expect(result.dom.querySelector('video')?.hasAttribute('controls')).toBe(true);
     expect(result.dom.querySelector('audio')?.getAttribute('src')).toBe('xxx.mp3');
     expect(result.dom.querySelector('audio')?.hasAttribute('controls')).toBe(true);
-    expect(result.persisted).toBe(markdown);
+    expect(result.persisted).toBe([
+      '<video src="xxx.mp4" controls=""></video>',
+      '<audio src="xxx.mp3" controls=""></audio>',
+    ].join('\n\n'));
   });
 });

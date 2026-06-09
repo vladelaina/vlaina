@@ -95,6 +95,30 @@ describe('renderNoteExportHtml', () => {
     expect(html).not.toContain('hidden_export_marker');
   });
 
+  it('drops dangerous schemes from exported non-url raw HTML attributes', async () => {
+    const html = await renderNoteExportHtml(
+      [
+        '<abbr title="javascript:alert(1)" aria-label="data:text/html,<script>alert(1)</script>">abbr</abbr>',
+        '<abbr title="java&#10;script:alert(1)" aria-label="da&#9;ta:text/html,<script>alert(1)</script>">wrapped abbr</abbr>',
+        '<time datetime="data:text/html,<script>alert(1)</script>">time</time>',
+        '<time datetime="da&#9;ta:text/html,<script>alert(1)</script>">wrapped time</time>',
+        '<span title="safe text">safe</span>',
+      ].join('\n'),
+      'Non URL Attributes',
+    );
+    const doc = parseExportHtml(html);
+
+    expect(doc.querySelector('abbr')?.getAttribute('title')).toBeNull();
+    expect(doc.querySelector('abbr')?.getAttribute('aria-label')).toBeNull();
+    expect(doc.querySelectorAll('abbr')[1]?.getAttribute('title')).toBeNull();
+    expect(doc.querySelectorAll('abbr')[1]?.getAttribute('aria-label')).toBeNull();
+    expect(doc.querySelectorAll('time')[0]?.getAttribute('datetime')).toBeNull();
+    expect(doc.querySelectorAll('time')[1]?.getAttribute('datetime')).toBeNull();
+    expect(doc.querySelector('span')?.getAttribute('title')).toBe('safe text');
+    expect(html).not.toContain('javascript:');
+    expect(html).not.toContain('data:text/html');
+  });
+
   it('blocks exported images that can execute code or trigger external loads', async () => {
     const html = await renderNoteExportHtml(
       [

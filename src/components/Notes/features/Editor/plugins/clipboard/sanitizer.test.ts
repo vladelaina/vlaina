@@ -285,6 +285,27 @@ describe('sanitizeHtml', () => {
     expect(result).not.toContain('class=');
   });
 
+  it('drops scheme-bearing non-url attributes and sensitive iframe permissions', () => {
+    const result = sanitizeHtml([
+      '<abbr title="javascript:alert(1)">abbr</abbr>',
+      '<abbr title="java&#10;script:alert(1)">wrapped abbr</abbr>',
+      '<time datetime="data:text/html,<script>alert(1)</script>">time</time>',
+      '<time datetime="da&#9;ta:text/html,<script>alert(1)</script>">wrapped time</time>',
+      '<iframe src="https://example.com/embed" allow="fullscreen; camera *; microphone *; clipboard-write; encrypted-media"></iframe>',
+    ].join(''));
+
+    expect(result).toContain('<abbr>abbr</abbr>');
+    expect(result).toContain('<abbr>wrapped abbr</abbr>');
+    expect(result).toContain('<time>time</time>');
+    expect(result).toContain('<time>wrapped time</time>');
+    expect(result).toContain('allow="fullscreen; clipboard-write; encrypted-media"');
+    expect(result).not.toContain('javascript:');
+    expect(result).not.toContain('java\nscript');
+    expect(result).not.toContain('data:text/html');
+    expect(result).not.toContain('camera');
+    expect(result).not.toContain('microphone');
+  });
+
   it('rejects local-network iframe targets that would reach device services', () => {
     expect(sanitizeHtml('<iframe src="http://0.0.0.0:8080/embed"></iframe>')).toBe('');
     expect(sanitizeHtml('<iframe src="http://[::1]:8080/embed"></iframe>')).toBe('');

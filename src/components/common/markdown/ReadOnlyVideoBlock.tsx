@@ -78,6 +78,7 @@ export function ReadOnlyVideoBlock({
         frameBorder={themeDomStyleTokens.iframeFrameBorder}
         allow="clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowFullScreen
+        sandbox="allow-scripts allow-presentation"
         referrerPolicy="strict-origin-when-cross-origin"
         scrolling={themeDomStyleTokens.iframeScrollingNone}
         loading={themeDomStyleTokens.iframeLoadingLazy}

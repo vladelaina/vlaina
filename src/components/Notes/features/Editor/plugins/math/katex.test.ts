@@ -35,6 +35,16 @@ describe('katex utils', () => {
     expect(result.html).not.toContain('hidden_secret_marker');
   });
 
+  it('does not render trusted KaTeX HTML commands or dangerous hrefs', () => {
+    const htmlCommand = renderLatex('\\htmlClass{evil" onclick="alert(1)}{x}', false);
+    const hrefCommand = renderLatex('\\href{javascript:alert(1)}{x}', false);
+
+    expect(htmlCommand.html).not.toContain('onclick');
+    expect(htmlCommand.html).not.toContain('evil');
+    expect(hrefCommand.html).not.toContain('javascript:');
+    expect(hrefCommand.html).not.toContain('<a');
+  });
+
   it('supports configured macros during rendering', () => {
     const result = renderLatex('\\R', false);
 

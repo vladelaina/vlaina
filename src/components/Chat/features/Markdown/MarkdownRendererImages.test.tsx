@@ -160,7 +160,7 @@ describe('MarkdownRenderer images', () => {
         content={[
           '<figure><figcaption>Caption</figcaption></figure>',
           '<time datetime="2026-05-06">today</time><wbr>',
-          '<iframe src="https://example.com/embed" sandbox="allow-same-origin allow-scripts" srcdoc="<script>alert(1)</script>"></iframe>',
+          '<iframe src="https://example.com/embed" sandbox="allow-same-origin allow-scripts" allow="fullscreen; camera *; microphone *; clipboard-write" srcdoc="<script>alert(1)</script>"></iframe>',
           '<iframe src="http://127.0.0.1:3000/admin"></iframe>',
           '<video src="https://example.com/movie.mp4" poster="http://localhost:3000/poster.png" controls></video>',
           '<audio src="http://router/audio.mp3" controls></audio>',
@@ -173,6 +173,7 @@ describe('MarkdownRenderer images', () => {
     expect(container.querySelector('time')).toHaveAttribute('datetime', '2026-05-06');
     expect(container.querySelector('wbr')).toBeInTheDocument();
     expect(container.querySelector('iframe[src="https://example.com/embed"]')).toHaveAttribute('sandbox', 'allow-scripts');
+    expect(container.querySelector('iframe[src="https://example.com/embed"]')).toHaveAttribute('allow', 'fullscreen; clipboard-write');
     expect(container.querySelector('iframe[src="https://example.com/embed"]')).toHaveAttribute('referrerpolicy', 'no-referrer');
     expect(container.querySelector('iframe[src^="http://127.0.0.1"]')).toBeNull();
     expect(container.querySelector('video')).toHaveAttribute('src', 'https://example.com/movie.mp4');
@@ -180,10 +181,36 @@ describe('MarkdownRenderer images', () => {
     expect(container.querySelector('audio')).not.toHaveAttribute('src');
     expect(container.querySelector('track')).not.toHaveAttribute('src');
     expect(container.innerHTML).not.toContain('allow-same-origin');
+    expect(container.innerHTML).not.toContain('camera');
+    expect(container.innerHTML).not.toContain('microphone');
     expect(container.innerHTML).not.toContain('srcdoc');
     expect(container.innerHTML).not.toContain('localhost');
     expect(container.innerHTML).not.toContain('router');
     expect(container.innerHTML).not.toContain('javascript:alert');
+  });
+
+  it('drops dangerous schemes from non-url raw HTML attributes', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={[
+          '<abbr title="javascript:alert(1)" aria-label="data:text/html,<script>alert(1)</script>">abbr</abbr>',
+          '<abbr title="java&#10;script:alert(1)" aria-label="da&#9;ta:text/html,<script>alert(1)</script>">wrapped abbr</abbr>',
+          '<time datetime="data:text/html,<script>alert(1)</script>">time</time>',
+          '<time datetime="da&#9;ta:text/html,<script>alert(1)</script>">wrapped time</time>',
+          '<span title="safe text">safe</span>',
+        ].join('')}
+      />
+    );
+
+    expect(container.querySelector('abbr')).not.toHaveAttribute('title');
+    expect(container.querySelector('abbr')).not.toHaveAttribute('aria-label');
+    expect(container.querySelectorAll('abbr')[1]).not.toHaveAttribute('title');
+    expect(container.querySelectorAll('abbr')[1]).not.toHaveAttribute('aria-label');
+    expect(container.querySelectorAll('time')[0]).not.toHaveAttribute('datetime');
+    expect(container.querySelectorAll('time')[1]).not.toHaveAttribute('datetime');
+    expect(container.querySelector('span')).toHaveAttribute('title', 'safe text');
+    expect(container.innerHTML).not.toContain('javascript:');
+    expect(container.innerHTML).not.toContain('data:text/html');
   });
 
   it('keeps safe relative raw HTML media sources in read-only markdown', () => {

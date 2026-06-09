@@ -4,17 +4,6 @@ export const MAX_SVG_SANITIZE_MARKUP_CHARS = 50 * 1024 * 1024;
 const MAX_SVG_SANITIZE_DEPTH = 200;
 const MAX_SVG_SANITIZE_NODES = 20_000;
 const SVG_FORBIDDEN_TAGS = ['foreignObject', 'script', 'iframe', 'object', 'embed'];
-const SVG_RESOURCE_HREF_TAGS = new Set([
-  'feimage',
-  'filter',
-  'image',
-  'lineargradient',
-  'pattern',
-  'radialgradient',
-  'textpath',
-  'use',
-]);
-
 interface SvgElementVisit {
   element: Element;
   depth: number;
@@ -117,10 +106,7 @@ function stripExternalSvgResourceReferences(markup: string): string {
       return;
     }
 
-    const tagName = element.localName.toLowerCase();
-    if (SVG_RESOURCE_HREF_TAGS.has(tagName)) {
-      removeExternalHref(element);
-    }
+    removeExternalHref(element);
 
     for (const attributeName of SVG_URL_REFERENCE_ATTRIBUTES) {
       const value = element.getAttribute(attributeName);

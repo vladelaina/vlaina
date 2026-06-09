@@ -20,4 +20,13 @@ describe('ReadOnlyVideoBlock', () => {
     fireEvent.click(screen.getByRole('button'));
     expect(openExternalHref).toHaveBeenCalledWith(src);
   });
+
+  it('does not auto-embed public provider iframes in read-only markdown', () => {
+    const { container } = render(<ReadOnlyVideoBlock src="https://www.youtube.com/watch?v=dQw4w9WgXcQ" />);
+
+    expect(container.querySelector('iframe')).toBeNull();
+    expect(container.innerHTML).not.toContain('allow-same-origin');
+    expect(container.innerHTML).not.toContain('camera');
+    expect(container.innerHTML).not.toContain('microphone');
+  });
 });

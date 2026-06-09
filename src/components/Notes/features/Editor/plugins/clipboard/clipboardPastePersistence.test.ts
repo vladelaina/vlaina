@@ -294,7 +294,7 @@ describe('clipboard paste markdown persistence', () => {
 
     const persisted = await pasteAndPersist(pasted);
 
-    expect(persisted).toContain('<iframe src="https://example.com/embed"></iframe>');
+    expect(persisted).toContain('<iframe src="https://example.com/embed" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>');
     expect(persisted).toContain('<video src="https://example.com/demo.mp4"></video>');
     expect(persisted).not.toContain('\\<iframe');
     expect(persisted).not.toContain('\\<video');
@@ -330,7 +330,7 @@ describe('clipboard paste markdown persistence', () => {
 
     expect(persisted).toContain('<video src="https://example.com/demo.mp4"></video>');
     expect(persisted).toContain('<img src="https://example.com/cover.png"');
-    expect(persisted).toContain('<video controls><source src="https://example.com/demo.mp4" type="video/mp4"></video>');
+    expect(persisted).toContain('<video controls=""><source src="https://example.com/demo.mp4" type="video/mp4"></video>');
     expect(persisted).not.toContain('\\<video');
     expect(persisted).not.toContain('\\<img');
     expect(persisted).not.toContain('\\<source');

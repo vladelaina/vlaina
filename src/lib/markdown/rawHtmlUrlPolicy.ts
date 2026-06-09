@@ -1,13 +1,27 @@
 import {
   GITHUB_ALLOWED_ATTRIBUTES_BY_TAG,
   GITHUB_ALLOWED_HTML_TAGS,
+  hasGithubUrlScheme,
+  isGithubHtmlAttributeValueAllowed,
   normalizeGithubUrl,
+  sanitizeGithubIframeAllow,
   sanitizeGithubIframeSandbox,
 } from '@/lib/notes/markdown/githubHtmlPolicy';
 import { sanitizeNoteLinkHref } from '@/lib/notes/markdown/urlSecurity';
 
 const SAFE_RAW_HTML_MEDIA_SRC_SCHEMES = new Set(['http:', 'https:']);
 const SAFE_RAW_HTML_LINK_SRC_SCHEMES = new Set(['http:', 'https:', 'mailto:']);
+const RAW_HTML_LOADABLE_OR_URL_PROPERTY_NAMES = new Set([
+  'action',
+  'cite',
+  'formAction',
+  'href',
+  'longDesc',
+  'poster',
+  'src',
+  'srcSet',
+  'srcset',
+]);
 
 const RAW_HTML_URL_ATTRIBUTES_BY_TAG: Record<string, readonly string[]> = {
   a: ['href'],
@@ -92,6 +106,24 @@ function normalizeRawHtmlUrlAttribute(tagName: string, attributeName: string, va
   return normalizeRawHtmlMediaUrl(value);
 }
 
+function isRawHtmlUrlProperty(tagName: string, propertyName: string): boolean {
+  return (RAW_HTML_URL_ATTRIBUTES_BY_TAG[tagName] ?? []).includes(propertyName);
+}
+
+function sanitizeRawHtmlNonUrlProperties(node: any, tagName: string): void {
+  for (const [key, value] of Object.entries(node.properties)) {
+    if (isRawHtmlUrlProperty(tagName, key) || RAW_HTML_LOADABLE_OR_URL_PROPERTY_NAMES.has(key)) {
+      continue;
+    }
+    if (typeof value !== 'string') {
+      continue;
+    }
+    if (!isGithubHtmlAttributeValueAllowed(value) || hasGithubUrlScheme(value)) {
+      delete node.properties[key];
+    }
+  }
+}
+
 export function sanitizeRawHtmlUrlProperties(node: any): void {
   if (!node || typeof node !== 'object') {
     return;
@@ -102,6 +134,8 @@ export function sanitizeRawHtmlUrlProperties(node: any): void {
   }
 
   const tagName = typeof node.tagName === 'string' ? node.tagName.toLowerCase() : '';
+  sanitizeRawHtmlNonUrlProperties(node, tagName);
+
   for (const key of RAW_HTML_URL_ATTRIBUTES_BY_TAG[tagName] ?? []) {
     if (!Object.prototype.hasOwnProperty.call(node.properties, key)) {
       continue;
@@ -123,6 +157,14 @@ export function sanitizeRawHtmlUrlProperties(node: any): void {
       return;
     }
     node.properties.sandbox = sanitizeGithubIframeSandbox(String(node.properties.sandbox ?? ''));
+    if (Object.prototype.hasOwnProperty.call(node.properties, 'allow')) {
+      const sanitizedAllow = sanitizeGithubIframeAllow(String(node.properties.allow ?? ''));
+      if (sanitizedAllow) {
+        node.properties.allow = sanitizedAllow;
+      } else {
+        delete node.properties.allow;
+      }
+    }
     node.properties.referrerPolicy = typeof node.properties.referrerPolicy === 'string'
       ? node.properties.referrerPolicy
       : 'no-referrer';

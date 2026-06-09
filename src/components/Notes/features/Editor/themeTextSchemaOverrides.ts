@@ -4,6 +4,7 @@ import {
     codeBlockSchema,
     headingSchema,
     htmlBlockSchema,
+    htmlSchema,
     inlineCodeSchema,
     hrSchema,
     linkSchema,
@@ -25,6 +26,7 @@ import {
 import {
     readEscapedMarkdownBlockSyntax,
 } from '@/components/common/markdown/escapedBlockSyntax';
+import { sanitizeHtml } from './plugins/clipboard/sanitizer';
 
 function getHeadingCompatibilityClass(level: unknown): string {
     const normalizedLevel = typeof level === 'number' && level >= 1 && level <= 6 ? level : 1;
@@ -33,6 +35,37 @@ function getHeadingCompatibilityClass(level: unknown): string {
 
 function isExternalLinkHref(href: string | null): boolean {
     return typeof href === 'string' && /^(?:https?:|mailto:)/i.test(href.trim());
+}
+
+function isSafeInternalMarkdownHtmlValue(value: string): boolean {
+    const trimmed = value.trim();
+    return trimmed === '<!--vlaina-markdown-blank-line-->'
+        || trimmed === '<!--vlaina-markdown-tight-heading-->';
+}
+
+function isNonRenderingMarkdownHtmlValue(value: string): boolean {
+    const trimmed = value.trim();
+    return /^<!--(?:(?!-->)[\s\S])*-->$/.test(trimmed)
+        || /^<\?(?:(?!\?>)[\s\S])*\?>$/.test(trimmed)
+        || /^<![A-Za-z][^>]*>$/.test(trimmed)
+        || /^<!\[CDATA\[(?:(?!\]\]>)[\s\S])*\]\]>$/.test(trimmed);
+}
+
+function isSafeStaticMarkdownHtmlValue(value: string): boolean {
+    const trimmed = value.trim();
+    return /^<div\s+class\s*=\s*(?:"v-page-break"|'v-page-break')\s*>\s*<\/div>$/i.test(trimmed);
+}
+
+function sanitizeRawMarkdownHtmlValue(value: unknown): string {
+    if (typeof value !== 'string') return '';
+    if (
+        isSafeInternalMarkdownHtmlValue(value)
+        || isNonRenderingMarkdownHtmlValue(value)
+        || isSafeStaticMarkdownHtmlValue(value)
+    ) {
+        return value.trim();
+    }
+    return sanitizeHtml(value);
 }
 
 export function applyTextSchemaOverrides(ctx: Ctx) {
@@ -158,6 +191,34 @@ export function applyTextSchemaOverrides(ctx: Ctx) {
         }
     }));
 
+    updateSchemaFactory(ctx, htmlSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: (node: any) => {
+            const safeValue = sanitizeRawMarkdownHtmlValue(node.attrs?.value);
+            return prev.toDOM({
+                ...node,
+                attrs: {
+                    ...node.attrs,
+                    value: safeValue,
+                },
+            });
+        },
+        parseMarkdown: {
+            match: (node: any) => prev.parseMarkdown?.match?.(node) ?? node.type === 'html',
+            runner: (state: any, node: any, type: any) => {
+                const safeValue = sanitizeRawMarkdownHtmlValue(node.value);
+                if (safeValue) state.addNode(type, { value: safeValue });
+            },
+        },
+        toMarkdown: {
+            match: (node: any) => node.type.name === 'html',
+            runner: (state: any, node: any) => {
+                const safeValue = sanitizeRawMarkdownHtmlValue(node.attrs?.value);
+                if (safeValue) state.addNode('html', undefined, safeValue);
+            },
+        },
+    }));
+
     updateSchemaFactory(ctx, inlineCodeSchema.key, (prev: any) => ({
         ...prev,
         toDOM: (mark: any) => {
@@ -211,11 +272,32 @@ export function applyTextSchemaOverrides(ctx: Ctx) {
     updateSchemaFactory(ctx, htmlBlockSchema.key, (prev: any) => ({
         ...prev,
         toDOM: (node: any) => {
-            const dom = prev.toDOM(node);
+            const safeValue = sanitizeRawMarkdownHtmlValue(node.attrs?.value);
+            const dom = prev.toDOM({
+                ...node,
+                attrs: {
+                    ...node.attrs,
+                    value: safeValue,
+                },
+            });
             if (dom instanceof HTMLElement) {
                 dom.classList.add('md-htmlblock', 'md-htmlblock-container');
             }
             return dom;
+        },
+        parseMarkdown: {
+            match: (node: any) => prev.parseMarkdown?.match?.(node) ?? node.type === 'html',
+            runner: (state: any, node: any, type: any) => {
+                const safeValue = sanitizeRawMarkdownHtmlValue(node.value);
+                if (safeValue) state.addNode(type, { value: safeValue });
+            },
+        },
+        toMarkdown: {
+            match: (node: any) => node.type.name === 'html_block',
+            runner: (state: any, node: any) => {
+                const safeValue = sanitizeRawMarkdownHtmlValue(node.attrs?.value);
+                if (safeValue) state.addNode('html', undefined, safeValue);
+            },
         },
     }));
 }

@@ -7,17 +7,6 @@ const MAX_MERMAID_MARKUP_CHARS = 2 * 1024 * 1024;
 const MAX_MERMAID_LABEL_TEXT_CHARS = 8192;
 const MAX_MERMAID_LABEL_LINES = 64;
 const MERMAID_FORBIDDEN_TAGS = ['foreignObject', 'script', 'iframe', 'object', 'embed'];
-const SVG_RESOURCE_HREF_TAGS = new Set([
-  'feimage',
-  'filter',
-  'image',
-  'lineargradient',
-  'pattern',
-  'radialgradient',
-  'textpath',
-  'use',
-]);
-
 interface SvgElementVisit {
   element: Element;
   depth: number;
@@ -111,10 +100,7 @@ function stripExternalSvgResourceReferences(markup: string) {
       return;
     }
 
-    const tagName = element.localName.toLowerCase();
-    if (SVG_RESOURCE_HREF_TAGS.has(tagName)) {
-      removeExternalHref(element);
-    }
+    removeExternalHref(element);
 
     for (const attributeName of SVG_URL_REFERENCE_ATTRIBUTES) {
       const value = element.getAttribute(attributeName);

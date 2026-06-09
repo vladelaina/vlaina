@@ -5,12 +5,14 @@ import {
   GITHUB_DROP_WITH_CONTENT_TAGS,
   GITHUB_WRAP_CONTENT_WITH_WHITESPACE_TAGS,
   hasGithubProtocol,
+  hasGithubUrlScheme,
   isGithubHtmlAttributeValueAllowed,
   isGithubAllowedAttribute,
   isGithubSrcsetAttribute,
   isGithubUrlAttribute,
   normalizeGithubSrcset,
   normalizeGithubUrl,
+  sanitizeGithubIframeAllow,
   sanitizeGithubIframeSandbox,
   sanitizeGithubStyle,
 } from '@/lib/notes/markdown/githubHtmlPolicy';
@@ -120,6 +122,18 @@ function sanitizeElement(element: Element, context: SanitizeContext, depth: numb
     }
 
     if (hasGithubProtocol(value)) {
+      continue;
+    }
+
+    if (hasGithubUrlScheme(value)) {
+      continue;
+    }
+
+    if (tagName === 'iframe' && normalizedAttribute === 'allow') {
+      const sanitizedAllow = sanitizeGithubIframeAllow(value);
+      if (sanitizedAllow) {
+        sanitized.setAttribute(normalizedAttribute, sanitizedAllow);
+      }
       continue;
     }
 
