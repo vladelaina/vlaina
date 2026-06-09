@@ -33,8 +33,8 @@ describe('imported app theme bridge', () => {
     expect(bridged).toContain(':root[data-vlaina-imported-app-theme="vlook-fancy"]');
     expect(bridged).toContain('color-scheme: light;');
     expect(bridged).toContain('--vlaina-color-surface-main: var(--db);');
-    expect(bridged).toContain('--vlaina-color-surface-shell-sidebar: var(--db-ext);');
-    expect(bridged).toContain('--vlaina-color-surface-sidebar: var(--db-ext);');
+    expect(bridged).not.toContain('--vlaina-color-surface-shell-sidebar:');
+    expect(bridged).not.toContain('--vlaina-color-surface-sidebar:');
     expect(bridged).toContain('--vlaina-color-text-primary: var(--df);');
     expect(bridged).toContain('--vlaina-color-text-muted: var(--df-a);');
     expect(bridged).toContain('--vlaina-color-setting-panel: var(--db-ext);');
@@ -51,6 +51,7 @@ describe('imported app theme bridge', () => {
     expect(bridged).toContain('--vlaina-color-danger: var(--ac-rd);');
     expect(bridged).toContain('--vlaina-color-surface-hover: var(--bq-bg-fd);');
     expect(bridged).toContain('--vlaina-color-scrollbar-thumb: var(--pn-c-a);');
+    expect(bridged).toContain('--vlaina-color-scrollbar-thumb-hover: var(--a-c);');
     expect(bridged).toContain('--vlaina-sidebar-text: var(--df);');
     expect(bridged).toContain('--vlaina-sidebar-notes-folder-icon: var(--ac-bu);');
     expect(bridged).toContain('--vlaina-color-table-drag-control-border: var(--pn-c-a);');
@@ -116,8 +117,8 @@ describe('imported app theme bridge', () => {
     expect(bridged).toContain(':root[data-vlaina-imported-app-theme="minimal"].dark');
     expect(bridged).toContain('color-scheme: light dark;');
     expect(bridged).toContain('--vlaina-color-surface-main: var(--background-primary);');
-    expect(bridged).toContain('--vlaina-color-surface-shell-sidebar: var(--background-secondary);');
-    expect(bridged).toContain('--vlaina-color-surface-sidebar: var(--background-secondary-alt);');
+    expect(bridged).not.toContain('--vlaina-color-surface-shell-sidebar:');
+    expect(bridged).not.toContain('--vlaina-color-surface-sidebar:');
     expect(bridged).toContain('--vlaina-color-text-primary: var(--text-normal);');
     expect(bridged).toContain('--vlaina-color-accent: var(--interactive-accent);');
     expect(bridged).toContain('--vlaina-color-selection: var(--text-selection);');

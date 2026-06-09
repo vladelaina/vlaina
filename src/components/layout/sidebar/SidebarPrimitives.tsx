@@ -64,6 +64,7 @@ export const SidebarSurface = forwardRef<HTMLDivElement, SidebarSurfaceProps>(
     return (
       <div
         ref={ref}
+        data-sidebar-surface="true"
         className={cn('flex h-full min-h-0 flex-col', isPeeking && 'opacity-[var(--vlaina-opacity-95)]', className)}
         {...props}
       />

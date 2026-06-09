@@ -27,6 +27,15 @@
   position: relative;
 }
 
+.milkdown-editor[data-markdown-compat-layer='external'] {
+  background: transparent;
+  background-color: transparent;
+}
+
+.milkdown-editor[data-markdown-compat-layer='external'] :is(.milkdown, #write, .ProseMirror) {
+  background-color: transparent;
+}
+
 [data-note-toolbar-root='true'] {
   isolation: isolate;
   overflow: hidden;
@@ -54,9 +63,22 @@
   background-size: var(--vlaina-imported-app-background-size);
 }
 
-[data-note-toolbar-root='true'] > [data-note-scroll-root='true'] {
+[data-note-toolbar-root='true'] [data-note-scroll-root='true'] {
   position: relative;
   z-index: var(--vlaina-z-1);
+  background: var(--vlaina-imported-app-background-layer, transparent);
+  background-attachment: var(--vlaina-imported-app-background-attachment);
+  background-clip: var(--vlaina-imported-app-background-clip);
+  background-origin: var(--vlaina-imported-app-background-origin);
+  background-position: var(--vlaina-imported-app-background-position);
+  background-repeat: var(--vlaina-imported-app-background-repeat);
+  background-size: var(--vlaina-imported-app-background-size);
+}
+
+html[data-vlaina-imported-app-theme] [data-note-toolbar-root='true'],
+html[data-vlaina-imported-app-theme] [data-note-toolbar-root='true'] [data-note-scroll-root='true'] > div,
+html[data-vlaina-imported-app-theme] [data-note-toolbar-root='true'] [data-note-content-root='true'] {
+  background-color: transparent;
 }
 
 [data-note-toolbar-root='true'],

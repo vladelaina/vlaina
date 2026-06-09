@@ -22,7 +22,7 @@ export function UnifiedTitleBar({
   rightSlot,
   sidebarCollapsed,
   onToggleSidebar,
-  backgroundColor = 'var(--vlaina-color-surface-shell-sidebar)',
+  backgroundColor = 'transparent',
   centerOverflowVisible = false,
   showWindowControls = true
 }: UnifiedTitleBarProps) {
@@ -51,7 +51,7 @@ export function UnifiedTitleBar({
       onMouseDownCapture={handleTitleBarMouseDownCapture}
     >
       {sidebarCollapsed ? (
-        <div className={`relative z-[var(--vlaina-z-20)] flex items-center h-full pr-3 bg-[var(--vlaina-bg-primary)] ${shouldReserveMacTrafficLightSpace ? 'pl-[var(--vlaina-space-76px)]' : 'pl-2'}`}>
+        <div className={`relative z-[var(--vlaina-z-20)] flex items-center h-full pr-3 bg-transparent ${shouldReserveMacTrafficLightSpace ? 'pl-[var(--vlaina-space-76px)]' : 'pl-2'}`}>
           <button
             type="button"
             onClick={onToggleSidebar}
@@ -89,7 +89,7 @@ export function UnifiedTitleBar({
       )}
 
       <div
-        className="absolute top-0 bottom-0 right-0 bg-[var(--vlaina-bg-primary)]"
+        className="absolute top-0 bottom-0 right-0 bg-transparent"
         style={{ left: sidebarCollapsed ? 0 : themeDomStyleTokens.shellSidebarWidth }}
       />
 
@@ -98,7 +98,7 @@ export function UnifiedTitleBar({
       </div>
 
       {rightSlot && (
-        <div className="relative z-[var(--vlaina-z-20)] flex items-center h-full bg-[var(--vlaina-bg-primary)] pr-2 app-drag-region">
+        <div className="relative z-[var(--vlaina-z-20)] flex items-center h-full bg-transparent pr-2 app-drag-region">
           {rightSlot}
         </div>
       )}

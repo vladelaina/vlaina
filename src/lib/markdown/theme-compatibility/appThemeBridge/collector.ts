@@ -5,6 +5,7 @@ import type { CollectedThemeCustomProperties, ThemeColorSchemeBucket } from './t
 const IMPORTED_APP_BACKGROUND_PROPERTY = '--vlaina-imported-app-background';
 const IMPORTED_APP_BACKGROUND_ATTACHMENT_PROPERTY = '--vlaina-imported-app-background-attachment';
 const IMPORTED_APP_BACKGROUND_CLIP_PROPERTY = '--vlaina-imported-app-background-clip';
+const IMPORTED_APP_DOCUMENT_BACKGROUND_IMAGE_PROPERTY = '--vlaina-imported-app-document-background-image';
 const IMPORTED_APP_BACKGROUND_LAYER_PROPERTY = '--vlaina-imported-app-background-layer';
 const IMPORTED_APP_BACKGROUND_ORIGIN_PROPERTY = '--vlaina-imported-app-background-origin';
 const IMPORTED_APP_BACKGROUND_POSITION_PROPERTY = '--vlaina-imported-app-background-position';
@@ -121,6 +122,10 @@ function isSafeAppThemeCustomPropertyValue(value: string): boolean {
   }
 
   return !/url\(/i.test(value);
+}
+
+function isTyporaDocumentBackgroundImageProperty(property: string): boolean {
+  return /^--d-bi(?:-(?:lg|dk))?$/i.test(property);
 }
 
 function isSafeAppThemeBackgroundLayerValue(value: string): boolean {
@@ -253,8 +258,17 @@ export function collectThemeCustomProperties(css: string): CollectedThemeCustomP
       if (declaration.prop.startsWith('--')) {
         for (const bucket of customPropertyBuckets) {
           const target = bucket === 'dark' ? dark : bucket === 'light' ? light : base;
-          if (!isSafeAppThemeCustomPropertyValue(declaration.value)) continue;
+          const isTyporaDocumentBackgroundImage = isTyporaDocumentBackgroundImageProperty(declaration.prop);
+          if (
+            !isSafeAppThemeCustomPropertyValue(declaration.value)
+            && !(isTyporaDocumentBackgroundImage && isSafeAppThemeBackgroundLayerValue(declaration.value))
+          ) {
+            continue;
+          }
           target.set(declaration.prop, declaration.value);
+          if (declaration.prop === '--d-bi') {
+            target.set(IMPORTED_APP_DOCUMENT_BACKGROUND_IMAGE_PROPERTY, `var(${declaration.prop})`);
+          }
         }
         return;
       }

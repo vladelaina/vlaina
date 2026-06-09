@@ -3,8 +3,6 @@ import { VLAINA_FONT_THEME_MAPPINGS } from './fontMappings';
 
 export const VLAINA_COLOR_THEME_MAPPINGS: VlainaThemeMapping[] = [
   { target: '--vlaina-color-surface-main', sources: ['--vlaina-imported-app-background', '--db', '--background-primary'] },
-  { target: '--vlaina-color-surface-shell-sidebar', sources: ['--db-ext', '--vlaina-imported-app-background', '--db', '--background-secondary'] },
-  { target: '--vlaina-color-surface-sidebar', sources: ['--db-ext', '--background-secondary-alt', '--vlaina-imported-app-background', '--db', '--background-secondary'] },
   { target: '--vlaina-color-surface-menu', sources: ['--pn-c', '--db-ext', '--vlaina-imported-app-background', '--background-primary-alt'] },
   { target: '--vlaina-color-surface-secondary', sources: ['--pn-c', '--background-secondary'] },
   { target: '--vlaina-color-surface-tertiary', sources: ['--pn-c-a', '--background-modifier-hover'] },
