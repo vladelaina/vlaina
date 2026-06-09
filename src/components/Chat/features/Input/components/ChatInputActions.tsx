@@ -71,7 +71,7 @@ export function ChatInputActions({
               className={cn(
                 'w-9 h-9 flex items-center justify-center rounded-full transition-[background-color,color,box-shadow,transform] duration-[var(--vlaina-duration-200)]',
                 iconButtonStyles,
-                '!bg-[var(--vlaina-color-pill-surface-hover)] !shadow-[var(--vlaina-shadow-menu-hover)] text-[var(--vlaina-accent)] hover:text-[var(--vlaina-accent-hover)] active:scale-[var(--vlaina-scale-95)]'
+                '!bg-transparent !shadow-none text-[var(--vlaina-accent)] hover:!bg-[var(--vlaina-color-pill-surface-hover)] hover:!shadow-[var(--vlaina-shadow-menu-hover)] hover:text-[var(--vlaina-accent-hover)] active:scale-[var(--vlaina-scale-95)]'
               )}
             >
               <Icon name="common.add" size="md" />
