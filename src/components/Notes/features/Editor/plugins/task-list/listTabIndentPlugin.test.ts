@@ -10,10 +10,11 @@ import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { Selection as ProseSelection, TextSelection } from '@milkdown/kit/prose/state';
 import { DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   MAX_LIST_GAP_PLACEHOLDER_DECORATIONS,
   MAX_LIST_GAP_PLACEHOLDER_CLEANUP_RANGES,
+  MAX_LIST_GAP_TRANSACTION_STEP_TEXT_CHARS,
   MAX_ORDERED_LIST_LABEL_SCAN_NODES,
   buildInternalListGapDecorations,
   collectInternalListGapPlaceholderCleanupRanges,
@@ -370,6 +371,40 @@ describe('listTabIndentPlugin', () => {
     });
 
     expect(listItemContainsInternalGapPlaceholder(listItem as any)).toBe(true);
+  });
+
+  it('bounds inserted transaction text checks for internal list gap placeholders', () => {
+    const smallContent = {
+      size: 12,
+      textBetween: vi.fn(() => 'plain text'),
+    };
+    const largeContent = {
+      size: MAX_LIST_GAP_TRANSACTION_STEP_TEXT_CHARS + 1,
+      textBetween: vi.fn(() => {
+        throw new Error('oversized list gap transaction text should not be read');
+      }),
+    };
+    const unchangedDoc = {
+      content: {
+        findDiffStart: () => null,
+      },
+    };
+
+    expect(transactionMayAffectInternalListGapDecorations(
+      DecorationSet.empty,
+      { steps: [{ slice: { content: smallContent } }] } as any,
+      unchangedDoc as any,
+      unchangedDoc as any,
+    )).toBe(false);
+    expect(smallContent.textBetween).toHaveBeenCalledWith(0, 12, '\n', '\ufffc');
+
+    expect(transactionMayAffectInternalListGapDecorations(
+      DecorationSet.empty,
+      { steps: [{ slice: { content: largeContent } }] } as any,
+      unchangedDoc as any,
+      unchangedDoc as any,
+    )).toBe(true);
+    expect(largeContent.textBetween).not.toHaveBeenCalled();
   });
 
   it('does not collect unbounded internal list gap placeholder cleanup ranges', () => {

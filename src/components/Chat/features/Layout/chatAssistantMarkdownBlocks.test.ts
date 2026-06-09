@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES } from '@/components/Chat/common/messageClipboard';
-import { buildParsedAssistantMarkdown, stripRenderableImageTokens } from './chatAssistantMarkdownBlocks';
+import { MAX_ASSISTANT_MARKDOWN_MEASUREMENT_SCAN_CHARS } from './chatAssistantMarkdownBlockParser';
+import {
+  buildParsedAssistantMarkdown,
+  findReusableMarkdownSplitIndex,
+  stripRenderableImageTokens,
+} from './chatAssistantMarkdownBlocks';
 
 describe('buildParsedAssistantMarkdown', () => {
   it('does not split stable markdown inside code blocks with shorter fence content', () => {
@@ -97,5 +102,14 @@ describe('buildParsedAssistantMarkdown', () => {
     expect(renderableMarkdown).toContain(
       `![image ${MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES}](https://example.com/${MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES}.png)`,
     );
+  });
+
+  it('does not reuse split points beyond the bounded measurement scan window', () => {
+    const earlySplit = 'Intro\n\n';
+    const longBody = 'x'.repeat(MAX_ASSISTANT_MARKDOWN_MEASUREMENT_SCAN_CHARS);
+    const lateSplit = '\n\nTail';
+
+    expect(findReusableMarkdownSplitIndex(`${earlySplit}${longBody}${lateSplit}`))
+      .toBe(earlySplit.length);
   });
 });

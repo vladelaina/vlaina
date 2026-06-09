@@ -16,6 +16,7 @@ export const MAX_LIST_GAP_PLACEHOLDER_DECORATIONS = 1000;
 export const MAX_ORDERED_LIST_LABEL_UPDATES = 5000;
 export const MAX_ORDERED_LIST_LABEL_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 export const MAX_ADJACENT_ORDERED_LIST_MERGE_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_LIST_GAP_TRANSACTION_STEP_TEXT_CHARS = 200_000;
 const MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS = 256;
 export const MAX_LIST_GAP_PLACEHOLDER_CLEANUP_RANGES = MAX_LIST_GAP_PLACEHOLDER_SCAN_CHARS;
 const VISIBLE_LIST_GAP_TEXT_PATTERN = /\S/u;
@@ -379,18 +380,21 @@ type ListGapDecorationSetLike = {
     find: (from?: number, to?: number) => unknown[];
 };
 
-function getInsertedStepText(step: unknown): string {
+function stepMayInsertInternalListGapPlaceholder(step: unknown): boolean {
     const slice = (step as { slice?: { content?: { textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string; size?: number } } }).slice;
     const content = slice?.content;
     if (!content || typeof content.textBetween !== 'function' || typeof content.size !== 'number') {
-        return '';
+        return false;
     }
-    return content.textBetween(0, content.size, '\n', '\ufffc');
+    if (content.size > MAX_LIST_GAP_TRANSACTION_STEP_TEXT_CHARS) {
+        return true;
+    }
+    return content.textBetween(0, content.size, '\n', '\ufffc').includes(EDITABLE_LIST_GAP_PLACEHOLDER);
 }
 
 function transactionInsertsInternalListGapPlaceholder(tr: unknown): boolean {
     const steps = (tr as { steps?: readonly unknown[] }).steps ?? [];
-    return steps.some((step) => getInsertedStepText(step).includes(EDITABLE_LIST_GAP_PLACEHOLDER));
+    return steps.some(stepMayInsertInternalListGapPlaceholder);
 }
 
 function listItemWithInternalPlaceholderTouchesRange(doc: ProseNode, from: number, to: number): boolean {

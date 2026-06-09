@@ -159,6 +159,34 @@ describe('chatMessageFrames', () => {
     expect(second).not.toBe(first);
   });
 
+  it('invalidates estimated layout cache when long sampled content keeps its edges but line breaks change', () => {
+    const prefix = 'p'.repeat(2000);
+    const middle = 'm'.repeat(2000);
+    const suffix = 's'.repeat(2000);
+    const firstMessages = [
+      createMessage('a1', 'assistant', `${prefix}${middle}${suffix}`),
+    ];
+    const secondMessages = [
+      createMessage('a1', 'assistant', `${prefix}${middle.replaceAll('m'.repeat(100), `${'m'.repeat(99)}\n`)}${suffix}`),
+    ];
+
+    const first = buildChatMessageFrameLayout(firstMessages, {
+      cacheKey: 'chat-long-linebreaks',
+      containerWidth: 900,
+      isSessionActive: false,
+    });
+    const second = buildChatMessageFrameLayout(secondMessages, {
+      cacheKey: 'chat-long-linebreaks',
+      containerWidth: 900,
+      isSessionActive: false,
+    });
+
+    expect(firstMessages[0]!.content).toHaveLength(secondMessages[0]!.content.length);
+    expect(firstMessages[0]!.content.slice(0, 32)).toBe(secondMessages[0]!.content.slice(0, 32));
+    expect(firstMessages[0]!.content.slice(-32)).toBe(secondMessages[0]!.content.slice(-32));
+    expect(second).not.toBe(first);
+  });
+
   it('reuses all existing frames when a new message is appended', () => {
     const firstMessages = [
       createMessage('u1', 'user', 'hello'),

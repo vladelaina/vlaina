@@ -183,6 +183,31 @@ describe('useStableChatMessageDerivatives', () => {
     expect(view.result.current.sentUserMessages).not.toBe(firstSentUserMessages);
   });
 
+  it('keeps large unchanged user content stable across new message objects', async () => {
+    const content = 'large message '.repeat(20_000);
+    const user = createMessage('u1', 'user', content);
+
+    const view = renderHook(
+      ({ messages }) => useStableChatMessageDerivatives(messages),
+      {
+        initialProps: {
+          messages: [user] as ChatMessage[],
+        },
+      },
+    );
+    await waitFor(() => expect(view.result.current.sentUserMessages).toEqual([content]));
+    const firstSentUserMessages = view.result.current.sentUserMessages;
+
+    view.rerender({
+      messages: [{
+        ...user,
+        versions: [{ content, createdAt: user.timestamp, kind: 'original' as const, subsequentMessages: [] }],
+      }],
+    });
+
+    await waitFor(() => expect(view.result.current.sentUserMessages).toBe(firstSentUserMessages));
+  });
+
   it('excludes non-renderable data images from the assistant gallery', async () => {
     const assistant = createMessage(
       'a1',

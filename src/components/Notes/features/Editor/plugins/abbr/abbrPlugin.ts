@@ -21,6 +21,7 @@ const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
 export const MAX_ABBR_TITLE_CHARS = 4096;
 export const MAX_ABBR_DECORATIONS = 1000;
 export const MAX_ABBR_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_ABBR_TEXT_SCAN_CHARS = 100_000;
 
 export function normalizeAbbrTitle(value: unknown): string {
   return typeof value === 'string' ? value.slice(0, MAX_ABBR_TITLE_CHARS) : '';
@@ -80,6 +81,9 @@ export function extractAbbrDefinitions(
     }
 
     const text = node.text || '';
+    if (text.length > MAX_ABBR_TEXT_SCAN_CHARS) {
+      return;
+    }
     appendBoundedAbbrDefinitions(definitions, extractAbbrDefinitionsFromText(text));
   }, maxNodes);
 
@@ -109,6 +113,9 @@ export function findAbbrUsages(
     }
 
     const text = node.text || '';
+    if (text.length > MAX_ABBR_TEXT_SCAN_CHARS) {
+      return;
+    }
     if (extractAbbrDefinitionsFromText(text).length > 0) {
       return;
     }

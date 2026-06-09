@@ -140,6 +140,11 @@ interface MathBlockFenceReferenceIndex {
   normalizedLatexes: string[];
 }
 
+interface DollarMathFenceMatch {
+  prefix: string;
+  closeIndex: number;
+}
+
 let lastNormalizedMarkdownInput: string | null = null;
 let lastNormalizedMarkdownOutput: string | null = null;
 
@@ -675,31 +680,17 @@ export function restoreMathBlockFenceStylesFromReference(markdown: string, refer
   let nextReferenceIndex = 0;
   return mapMarkdownOutsideProtectedSegments(markdown, (segment) => {
     const lines = segment.split('\n');
+    const dollarFenceMatches = collectDollarMathFenceMatches(lines);
     const output: string[] = [];
 
     for (let index = 0; index < lines.length; index += 1) {
-      const open = DOLLAR_MATH_BLOCK_FENCE_PATTERN.exec(lines[index]);
-      if (!open) {
+      const match = dollarFenceMatches[index];
+      if (!match) {
         output.push(lines[index]);
         continue;
       }
 
-      const prefix = open[1] ?? '';
-      const content: string[] = [];
-      let closeIndex = -1;
-      for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
-        const close = DOLLAR_MATH_BLOCK_FENCE_PATTERN.exec(lines[cursor]);
-        if (close && (close[1] ?? '') === prefix) {
-          closeIndex = cursor;
-          break;
-        }
-        content.push(lines[cursor]);
-      }
-
-      if (closeIndex < 0) {
-        output.push(lines[index]);
-        continue;
-      }
+      const content = lines.slice(index + 1, match.closeIndex);
 
       const referenceMatch = takeMatchingMathBlockFenceReference(
         references,
@@ -710,11 +701,11 @@ export function restoreMathBlockFenceStylesFromReference(markdown: string, refer
       nextReferenceIndex = referenceMatch.nextIndex;
 
       if (referenceMatch.style === 'bracket') {
-        output.push(`${prefix}\\[`, ...content, `${prefix}\\]`);
+        output.push(`${match.prefix}\\[`, ...content, `${match.prefix}\\]`);
       } else {
-        output.push(lines[index], ...content, lines[closeIndex]);
+        output.push(lines[index], ...content, lines[match.closeIndex]);
       }
-      index = closeIndex;
+      index = match.closeIndex;
     }
 
     return output.join('\n');
@@ -785,6 +776,31 @@ function findNextMathBlockFenceReferenceIndex(
   return result;
 }
 
+function collectDollarMathFenceMatches(lines: readonly string[]): Array<DollarMathFenceMatch | null> {
+  const matches: Array<DollarMathFenceMatch | null> = Array.from({ length: lines.length }, () => null);
+  const openByPrefix = new Map<string, number>();
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const fence = DOLLAR_MATH_BLOCK_FENCE_PATTERN.exec(lines[index]);
+    if (!fence) continue;
+
+    const prefix = fence[1] ?? '';
+    const openIndex = openByPrefix.get(prefix);
+    if (openIndex === undefined) {
+      openByPrefix.set(prefix, index);
+      continue;
+    }
+
+    matches[openIndex] = {
+      prefix,
+      closeIndex: index,
+    };
+    openByPrefix.delete(prefix);
+  }
+
+  return matches;
+}
+
 function collectMathBlockFenceReferences(markdown: string): MathBlockFenceReference[] {
   const references: MathBlockFenceReference[] = [];
   mapMarkdownOutsideProtectedSegments(markdown, (segment) => {
@@ -799,25 +815,16 @@ function collectMathBlockFenceReferencesFromSegment(
   references: MathBlockFenceReference[]
 ): void {
   const lines = segment.split('\n');
+  const dollarFenceMatches = collectDollarMathFenceMatches(lines);
 
   for (let index = 0; index < lines.length; index += 1) {
-    const dollarOpen = DOLLAR_MATH_BLOCK_FENCE_PATTERN.exec(lines[index]);
-    if (dollarOpen) {
-      const prefix = dollarOpen[1] ?? '';
-      const content: string[] = [];
-      let closeIndex = -1;
-      for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
-        const close = DOLLAR_MATH_BLOCK_FENCE_PATTERN.exec(lines[cursor]);
-        if (close && (close[1] ?? '') === prefix) {
-          closeIndex = cursor;
-          break;
-        }
-        content.push(lines[cursor]);
-      }
-      if (closeIndex >= 0) {
-        references.push({ latex: content.join('\n'), style: 'dollar' });
-        index = closeIndex;
-      }
+    const dollarMatch = dollarFenceMatches[index];
+    if (dollarMatch) {
+      references.push({
+        latex: lines.slice(index + 1, dollarMatch.closeIndex).join('\n'),
+        style: 'dollar',
+      });
+      index = dollarMatch.closeIndex;
       continue;
     }
 
@@ -1467,6 +1474,7 @@ function normalizeListItemBlankLines(text: string): string {
 
 function normalizeSerializedListGapMarkerLines(text: string): string {
   const lines = text.split('\n');
+  const nearestNonBlankLines = collectNearestNonBlankLines(lines);
   let activeFenceMarker: string | null = null;
 
   return lines
@@ -1485,8 +1493,8 @@ function normalizeSerializedListGapMarkerLines(text: string): string {
 
       return SERIALIZED_EDITABLE_LIST_GAP_PLACEHOLDER_PATTERN.test(line)
         && (
-          isNestedListItemLine(findNearestNonBlankLine(lines, index, -1))
-          || isNestedListItemLine(findNearestNonBlankLine(lines, index, 1))
+          isNestedListItemLine(nearestNonBlankLines.previous[index] ?? null)
+          || isNestedListItemLine(nearestNonBlankLines.next[index] ?? null)
         )
         ? LIST_GAP_SENTINEL
         : line;
@@ -1498,14 +1506,29 @@ function isNestedListItemLine(line: string | null): boolean {
   return line !== null && NESTED_LIST_ITEM_LINE_PATTERN.test(line);
 }
 
-function findNearestNonBlankLine(lines: readonly string[], startIndex: number, step: -1 | 1): string | null {
-  for (let index = startIndex + step; index >= 0 && index < lines.length; index += step) {
+function collectNearestNonBlankLines(lines: readonly string[]): { previous: Array<string | null>; next: Array<string | null> } {
+  const previous: Array<string | null> = Array.from({ length: lines.length }, () => null);
+  const next: Array<string | null> = Array.from({ length: lines.length }, () => null);
+  let nearest: string | null = null;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    previous[index] = nearest;
     const line = lines[index] ?? '';
     if (line.trim()) {
-      return line;
+      nearest = line;
     }
   }
-  return null;
+
+  nearest = null;
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    next[index] = nearest;
+    const line = lines[index] ?? '';
+    if (line.trim()) {
+      nearest = line;
+    }
+  }
+
+  return { previous, next };
 }
 
 function replaceListGapSentinelsWithBlankLines(text: string): string {

@@ -16,6 +16,7 @@ const MAX_STARRED_ENTRIES = 5000;
 const MAX_STARRED_ENTRY_SCAN_ITEMS = 20_000;
 const MAX_STARRED_REGISTRY_BYTES = 5 * 1024 * 1024;
 const MAX_DELETED_ENTRY_KEYS = MAX_STARRED_ENTRIES;
+const MAX_DELETED_ENTRY_KEY_SCAN_ITEMS = 20_000;
 const MAX_DELETED_ENTRY_KEY_CHARS = 4096;
 const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
@@ -52,11 +53,9 @@ function normalizeDeletedEntryKeys(value: unknown): string[] {
 
   const normalized: string[] = [];
   const seen = new Set<string>();
-  for (const item of value) {
-    if (normalized.length >= MAX_DELETED_ENTRY_KEYS) {
-      break;
-    }
-
+  const scanLimit = Math.min(value.length, MAX_DELETED_ENTRY_KEY_SCAN_ITEMS);
+  for (let index = 0; index < scanLimit && normalized.length < MAX_DELETED_ENTRY_KEYS; index += 1) {
+    const item = value[index];
     const key = normalizeDeletedEntryKey(item);
     if (!key || seen.has(key)) {
       continue;

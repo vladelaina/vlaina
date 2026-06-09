@@ -335,6 +335,18 @@ describe('restoreMathBlockFenceStylesFromReference', () => {
 
     expect(restoreMathBlockFenceStylesFromReference(serialized, reference)).toBe(serialized);
   });
+
+  it('keeps repeated unmatched dollar math openers on a bounded restore path', () => {
+    const serialized = [
+      ...Array.from({ length: 500 }, (_value, index) => ['$$', `unclosed ${index}`].join('\n')),
+      '$$',
+      'x^2',
+      '$$',
+    ].join('\n');
+    const reference = ['\\[', 'x^2', '\\]'].join('\n');
+
+    expect(restoreMathBlockFenceStylesFromReference(serialized, reference)).toContain('\\[\nx^2\n\\]');
+  });
 });
 
 describe('normalizeSerializedMarkdownBlock', () => {
@@ -695,6 +707,22 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
 
+  it('keeps long bracket-only display math blocks on a bounded soft-break scan path', () => {
+    const markdown = [
+      'Before',
+      '',
+      '[',
+      'plain text ]',
+      ...Array.from({ length: 500 }, (_value, index) => `line ${index} ]`),
+      'x^2',
+      ']',
+      '',
+      'After',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
   it('restores escaped URL scheme separators in persisted markdown', () => {
     expect(normalizeSerializedMarkdownDocument('http\\://example.test:8317')).toBe(
       'http://example.test:8317'
@@ -784,6 +812,18 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(
       normalizeSerializedMarkdownDocument('- one\n<br date-vlainalist-gap="true"/>\n- two\n')
     ).toBe('- one\n\n- two\n');
+  });
+
+  it('normalizes editable list gap placeholders across long blank runs', () => {
+    const markdown = [
+      '- before',
+      ...Array.from({ length: 500 }, () => ''),
+      '- \u2800',
+      ...Array.from({ length: 500 }, () => ''),
+      '- after',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe('- before\n\n- after');
   });
 
   it('does not rewrite placeholder-like text inside fenced code', () => {

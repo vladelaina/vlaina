@@ -28,30 +28,32 @@ function overlapsExistingMatch(start: number, end: number, matches: LinkMatch[])
     return matches.some((match) => start < match.end && end > match.start);
 }
 
-function hasUnbalancedTrailingCloseParen(url: string): boolean {
+function getParenBalance(url: string): number {
     let balance = 0;
     for (const char of url) {
         if (char === '(') balance += 1;
         if (char === ')') balance -= 1;
     }
-    return balance < 0;
+    return balance;
 }
 
 export function trimTrailingUrlPunctuation(url: string): string {
-    let trimmed = url;
-    while (trimmed.length > 0) {
-        const lastChar = trimmed[trimmed.length - 1];
+    let end = url.length;
+    let parenBalance = getParenBalance(url);
+    while (end > 0) {
+        const lastChar = url[end - 1];
         if (/[.,;:!?]/.test(lastChar)) {
-            trimmed = trimmed.slice(0, -1);
+            end -= 1;
             continue;
         }
-        if (lastChar === ')' && hasUnbalancedTrailingCloseParen(trimmed)) {
-            trimmed = trimmed.slice(0, -1);
+        if (lastChar === ')' && parenBalance < 0) {
+            end -= 1;
+            parenBalance += 1;
             continue;
         }
         break;
     }
-    return trimmed;
+    return end === url.length ? url : url.slice(0, end);
 }
 
 export function findUrls(text: string, offset: number, maxMatches = Number.POSITIVE_INFINITY): LinkMatch[] {

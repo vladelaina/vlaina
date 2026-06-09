@@ -279,18 +279,24 @@ export const extractLargestMarkdownFenceContent = (value: string): string | null
     let bestStart = -1;
     let bestEnd = -1;
     let bestSpan = -1;
+    let activeStart = -1;
 
-    for (let i = 0; i < lines.length; i += 1) {
-        if (!MARKDOWN_FENCE_OPEN_PATTERN.test(lines[i].trim())) continue;
+    for (let index = 0; index < lines.length; index += 1) {
+        const trimmed = lines[index].trim();
+        if (activeStart < 0) {
+            if (MARKDOWN_FENCE_OPEN_PATTERN.test(trimmed)) {
+                activeStart = index;
+            }
+            continue;
+        }
 
-        for (let j = lines.length - 1; j > i; j -= 1) {
-            if (!PLAIN_FENCE_CLOSE_PATTERN.test(lines[j].trim())) continue;
-            const span = j - i;
-            if (span <= bestSpan) break;
-            bestStart = i;
-            bestEnd = j;
-            bestSpan = span;
-            break;
+        if (PLAIN_FENCE_CLOSE_PATTERN.test(trimmed)) {
+            const span = index - activeStart;
+            if (span > bestSpan) {
+                bestStart = activeStart;
+                bestEnd = index;
+                bestSpan = span;
+            }
         }
     }
 

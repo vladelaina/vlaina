@@ -27,6 +27,13 @@ describe('markdown image line helpers', () => {
     expect(isMarkdownImageOnlyLine('[link](image.png)')).toBe(false);
   });
 
+  it('handles long escaped bracket runs without repeated backslash scans', () => {
+    const escapedBrackets = Array.from({ length: 500 }, () => '\\]').join('');
+
+    expect(isMarkdownImageOnlyLine(`![${escapedBrackets}](image.png)`)).toBe(true);
+    expect(isMarkdownImageOnlyLine(`${'\\'.repeat(501)}![alt](image.png)`)).toBe(false);
+  });
+
   it('keeps structural blank lines after complex markdown images during editor input', () => {
     const markdown = [
       '![outer [nested] label](assets/file(one).png "Demo title")',

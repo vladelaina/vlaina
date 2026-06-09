@@ -243,6 +243,15 @@ describe('extractLargestMarkdownFenceContent', () => {
     it('returns null when markdown fence is missing', () => {
         expect(extractLargestMarkdownFenceContent('```ts\nconst a = 1;\n```')).toBeNull();
     });
+
+    it('scans many unclosed markdown fence openings linearly', () => {
+        const lines = Array.from(
+            { length: 10_000 },
+            (_value, index) => `\`\`\`markdown\n# Draft ${index}`
+        );
+
+        expect(extractLargestMarkdownFenceContent(lines.join('\n'))).toBeNull();
+    });
 });
 
 describe('normalizeInterruptedOrderedListsForPaste', () => {

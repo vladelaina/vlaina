@@ -1,4 +1,5 @@
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
+import { DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT } from '../shared/boundedProseNodeScan';
 
 export interface EditorFindRange {
   from: number;
@@ -20,13 +21,25 @@ interface SearchableBlock {
 }
 
 export const MAX_EDITOR_FIND_MATCHES = 20_000;
+export const MAX_EDITOR_FIND_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 
 function appendInlineSegments(
   node: ProseNode,
   pos: number,
   segments: BlockSegment[],
   offsetRef: { value: number },
+  budget: { scannedNodes: number; stopped: boolean },
 ) {
+  if (budget.stopped) {
+    return;
+  }
+
+  budget.scannedNodes += 1;
+  if (budget.scannedNodes > MAX_EDITOR_FIND_SCAN_NODES) {
+    budget.stopped = true;
+    return;
+  }
+
   if (node.isText) {
     const text = node.text ?? '';
     if (!text) {
@@ -44,38 +57,77 @@ function appendInlineSegments(
   }
 
   node.forEach((child, offset) => {
-    appendInlineSegments(child as ProseNode, pos + 1 + offset, segments, offsetRef);
+    appendInlineSegments(child as ProseNode, pos + 1 + offset, segments, offsetRef, budget);
   });
 }
 
-function collectSearchableBlocks(
+function appendMatchesForBlock(
+  block: SearchableBlock,
+  normalizedQuery: string,
+  matches: EditorFindMatch[],
+) {
+  const normalizedText = block.text.toLocaleLowerCase();
+  let searchFrom = 0;
+
+  while (searchFrom <= normalizedText.length - normalizedQuery.length) {
+    const matchIndex = normalizedText.indexOf(normalizedQuery, searchFrom);
+    if (matchIndex === -1) {
+      break;
+    }
+
+    matches.push(
+      createMatchFromOffsets(block.segments, matchIndex, matchIndex + normalizedQuery.length),
+    );
+    if (matches.length >= MAX_EDITOR_FIND_MATCHES) {
+      return;
+    }
+    searchFrom = matchIndex + Math.max(1, normalizedQuery.length);
+  }
+}
+
+function collectSearchableMatches(
   node: ProseNode,
+  normalizedQuery: string,
+  matches: EditorFindMatch[],
+  budget: { scannedNodes: number; stopped: boolean },
   pos = -1,
-  blocks: SearchableBlock[] = [],
-): SearchableBlock[] {
+): void {
+  if (budget.stopped || matches.length >= MAX_EDITOR_FIND_MATCHES) {
+    budget.stopped = true;
+    return;
+  }
+
+  budget.scannedNodes += 1;
+  if (budget.scannedNodes > MAX_EDITOR_FIND_SCAN_NODES) {
+    budget.stopped = true;
+    return;
+  }
+
   if (node.isTextblock) {
     const segments: BlockSegment[] = [];
     const offsetRef = { value: 0 };
 
     node.forEach((child, offset) => {
-      appendInlineSegments(child as ProseNode, pos + 1 + offset, segments, offsetRef);
+      appendInlineSegments(child as ProseNode, pos + 1 + offset, segments, offsetRef, budget);
     });
 
-    if (segments.length > 0) {
-      blocks.push({
+    if (!budget.stopped && segments.length > 0) {
+      appendMatchesForBlock({
         text: segments.map((segment) => segment.text).join(''),
         segments,
-      });
+      }, normalizedQuery, matches);
     }
 
-    return blocks;
+    return;
   }
 
   node.forEach((child, offset) => {
-    collectSearchableBlocks(child as ProseNode, pos + 1 + offset, blocks);
+    if (budget.stopped || matches.length >= MAX_EDITOR_FIND_MATCHES) {
+      budget.stopped = true;
+      return;
+    }
+    collectSearchableMatches(child as ProseNode, normalizedQuery, matches, budget, pos + 1 + offset);
   });
-
-  return blocks;
 }
 
 function createMatchFromOffsets(
@@ -119,26 +171,9 @@ export function buildEditorFindMatches(doc: ProseNode, query: string): EditorFin
 
   const normalizedQuery = query.toLocaleLowerCase();
   const matches: EditorFindMatch[] = [];
+  const budget = { scannedNodes: 0, stopped: false };
 
-  for (const block of collectSearchableBlocks(doc)) {
-    const normalizedText = block.text.toLocaleLowerCase();
-    let searchFrom = 0;
-
-    while (searchFrom <= normalizedText.length - normalizedQuery.length) {
-      const matchIndex = normalizedText.indexOf(normalizedQuery, searchFrom);
-      if (matchIndex === -1) {
-        break;
-      }
-
-      matches.push(
-        createMatchFromOffsets(block.segments, matchIndex, matchIndex + normalizedQuery.length),
-      );
-      if (matches.length >= MAX_EDITOR_FIND_MATCHES) {
-        return matches;
-      }
-      searchFrom = matchIndex + Math.max(1, normalizedQuery.length);
-    }
-  }
+  collectSearchableMatches(doc, normalizedQuery, matches, budget);
 
   return matches;
 }

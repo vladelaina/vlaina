@@ -42,4 +42,13 @@ describe('createMarkdownTableFromTabSeparatedText', () => {
     )).toBeNull();
     expect(createMarkdownTableFromTabSeparatedText(`A\tB\n${'x'.repeat(MAX_TAB_SEPARATED_TABLE_CELL_CHARS + 1)}\tC`)).toBeNull();
   });
+
+  it('rejects oversized rows before accepting later table content', () => {
+    const oversizedHeader = Array.from(
+      { length: MAX_TAB_SEPARATED_TABLE_COLUMNS + 1 },
+      (_, index) => `H${index}`,
+    ).join('\t');
+
+    expect(createMarkdownTableFromTabSeparatedText(`${oversizedHeader}\nA\tB`)).toBeNull();
+  });
 });

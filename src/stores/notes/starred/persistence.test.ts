@@ -152,6 +152,31 @@ describe('starred persistence', () => {
     ]);
   });
 
+  it('bounds deleted entry tombstone scans while merging disk state', async () => {
+    const localEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
+    adapter.exists.mockImplementation(async (path: string) => path === '/store/notes-starred.json');
+    adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
+    adapter.readFile.mockResolvedValue(JSON.stringify({
+      version: 1,
+      entries: [],
+      deletedEntryKeys: [
+        ...Array.from({ length: 20_000 }, () => 'bad-key'),
+        'note::C:/vault-a::late.md',
+      ],
+    }));
+    adapter.writeFile.mockResolvedValue();
+
+    const persistence = await import('./persistence');
+    persistence.saveStarredRegistry([localEntry]);
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    const [, content] = adapter.writeFile.mock.calls[0];
+    const payload = JSON.parse(content);
+    expect(payload.entries).toEqual([localEntry]);
+    expect(payload.deletedEntryKeys).toEqual([]);
+  });
+
   it('filters invalid entries before saving', async () => {
     const validEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
     adapter.exists.mockResolvedValue(false);
