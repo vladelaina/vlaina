@@ -33,7 +33,7 @@ import {
 } from './modelFamilyRegistry'
 import { getModelSelectorSearchTerm, modelMatchesSelectorSearch } from './modelSelectorSearch'
 import { sortModelsForDisplay } from './modelSort'
-import { chatComposerPillSurfaceClass } from './composerStyles'
+import { chatComposerGhostIconButtonClass, chatComposerPillSurfaceClass } from './composerStyles'
 
 type ModelSelectorTheme = 'chat' | 'notes'
 type ModelSelectorListRow =
@@ -80,7 +80,7 @@ const MODEL_SELECTOR_THEME_STYLES: Record<
     divider: 'border-[var(--vlaina-border)]',
     inputText: 'text-[var(--vlaina-sidebar-chat-text)]',
     inputPlaceholder: 'placeholder:text-[var(--vlaina-sidebar-chat-text-soft)]',
-    settingsButton: 'text-[var(--vlaina-sidebar-chat-text)] hover:bg-[var(--vlaina-sidebar-chat-row-hover)] hover:text-[var(--vlaina-sidebar-chat-text)]',
+    settingsButton: 'text-[var(--vlaina-sidebar-chat-text)]',
     categoryHover: 'hover:bg-[var(--vlaina-sidebar-chat-row-hover)]',
     optionText: 'text-[var(--vlaina-sidebar-chat-text)]',
     optionTextActive: 'text-[var(--vlaina-sidebar-row-selected-text)]',
@@ -94,7 +94,7 @@ const MODEL_SELECTOR_THEME_STYLES: Record<
     divider: 'border-[var(--vlaina-sidebar-notes-menu-border)]',
     inputText: 'text-[var(--vlaina-sidebar-notes-text)]',
     inputPlaceholder: 'placeholder:text-[var(--vlaina-sidebar-notes-text-soft)]',
-    settingsButton: 'text-[var(--vlaina-sidebar-notes-text)] hover:bg-[var(--vlaina-sidebar-notes-row-hover)] hover:text-[var(--vlaina-sidebar-notes-text)]',
+    settingsButton: 'text-[var(--vlaina-sidebar-notes-text)]',
     categoryHover: 'hover:bg-[var(--vlaina-sidebar-notes-row-hover)]',
     optionText: 'text-[var(--vlaina-sidebar-notes-text)]',
     optionTextActive: 'text-[var(--vlaina-sidebar-row-selected-text)]',
@@ -723,7 +723,11 @@ export function ModelSelector({
                       const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } });
                       window.dispatchEvent(event);
                   }}
-                  className={cn("flex h-8 w-8 flex-shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors", styles.settingsButton)}
+                  className={cn(
+                    "flex h-8 w-8 flex-shrink-0 cursor-pointer items-center justify-center",
+                    chatComposerGhostIconButtonClass,
+                    styles.settingsButton
+                  )}
               >
                   <Icon name="common.settings" size="md" />
               </button>

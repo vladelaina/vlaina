@@ -116,7 +116,7 @@ export function SidebarContextMenuSubmenu({
         }}
         className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-[var(--vlaina-font-base)] font-medium leading-none text-[var(--vlaina-sidebar-notes-text)] outline-none transition-colors hover:bg-[var(--vlaina-sidebar-notes-row-hover)]"
       >
-        <span className="flex size-[var(--vlaina-size-20px)] shrink-0 items-center justify-center leading-none text-[var(--vlaina-sidebar-notes-text)]">
+        <span className="flex size-[var(--vlaina-size-20px)] shrink-0 items-center justify-center leading-none text-[var(--vlaina-accent)]">
           {icon}
         </span>
         <span className="inline-flex min-w-0 flex-1 items-center truncate text-left leading-none">{label}</span>

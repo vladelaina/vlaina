@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn, iconButtonStyles } from '@/lib/utils';
-import { chatComposerPillSurfaceClass } from '../composerStyles';
+import { chatComposerGhostIconButtonClass, chatComposerPillSurfaceClass } from '../composerStyles';
 import { getSidebarIdleRowSurfaceClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { useI18n } from '@/lib/i18n';
 
@@ -69,8 +69,9 @@ export function ChatInputActions({
               type="button"
               aria-label={t('chat.openActions')}
               className={cn(
-                'w-9 h-9 flex items-center justify-center rounded-full transition-[background-color,color,box-shadow,transform] duration-[var(--vlaina-duration-200)]',
+                'w-9 h-9 flex items-center justify-center',
                 iconButtonStyles,
+                chatComposerGhostIconButtonClass,
                 '!bg-transparent !shadow-none text-[var(--vlaina-accent)] hover:!bg-[var(--vlaina-color-pill-surface-hover)] hover:!shadow-[var(--vlaina-shadow-menu-hover)] hover:text-[var(--vlaina-accent-hover)] active:scale-[var(--vlaina-scale-95)]'
               )}
             >

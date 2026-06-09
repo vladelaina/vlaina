@@ -28,7 +28,7 @@ import { estimateChatLoadingHeight } from '@/components/Chat/features/Layout/cha
 import { ChatSidebar } from '@/components/Chat/features/Sidebar/ChatSidebar';
 import { ModelSelector } from '@/components/Chat/features/Input/ModelSelector';
 import { Icon } from '@/components/ui/icons';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { chatComposerGhostIconButtonClass, chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { useI18n } from '@/lib/i18n';
 import { themeChatLayoutTokens, themeIconTokens, themeMotionTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 
@@ -375,7 +375,10 @@ export function ChatView({
               event.preventDefault();
               openEmbeddedSidebar();
             }}
-            className="group flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[var(--vlaina-sidebar-chat-text)] transition-colors hover:bg-[var(--vlaina-color-control-hover-bg)] hover:text-[var(--vlaina-sidebar-chat-text)]"
+            className={cn(
+              "group flex h-8 w-8 cursor-pointer items-center justify-center text-[var(--vlaina-sidebar-chat-text)]",
+              chatComposerGhostIconButtonClass
+            )}
           >
             {/* Sidebar glyph adapted from Lucide Icons (ISC). */}
             <svg

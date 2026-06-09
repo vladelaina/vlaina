@@ -26,13 +26,15 @@ function renderActions(overrides: Partial<Parameters<typeof ChatInputActions>[0]
 }
 
 describe('ChatInputActions', () => {
-  it('shows the add actions button background before hover', () => {
+  it('shows the add actions button background only on hover', () => {
     renderActions();
 
     const addButton = screen.getByRole('button', { name: 'chat.openActions' });
 
-    expect(addButton.className).toContain('!bg-[var(--vlaina-color-pill-surface-hover)]');
-    expect(addButton.className).toContain('!shadow-[var(--vlaina-shadow-menu-hover)]');
+    expect(addButton.className).toContain('!bg-transparent');
+    expect(addButton.className).toContain('!shadow-none');
+    expect(addButton.className).toContain('hover:!bg-[var(--vlaina-color-pill-surface-hover)]');
+    expect(addButton.className).toContain('hover:!shadow-[var(--vlaina-shadow-menu-hover)]');
     expect(addButton.className).toContain('text-[var(--vlaina-accent)]');
     expect(addButton.className).toContain('hover:text-[var(--vlaina-accent-hover)]');
   });

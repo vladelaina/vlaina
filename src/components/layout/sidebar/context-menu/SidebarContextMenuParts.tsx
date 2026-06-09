@@ -42,7 +42,7 @@ export function SidebarContextMenuItem({
       <span
         className={cn(
           'flex size-[var(--vlaina-size-20px)] shrink-0 items-center justify-center leading-none',
-          danger ? 'text-[var(--vlaina-color-status-danger-fg)]' : 'text-[var(--vlaina-sidebar-notes-text)]',
+          danger ? 'text-[var(--vlaina-color-status-danger-fg)]' : 'text-[var(--vlaina-accent)]',
         )}
       >
         {icon}

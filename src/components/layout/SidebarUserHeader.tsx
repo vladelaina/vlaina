@@ -83,8 +83,9 @@ export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
                             onClick={toggleSidebar}
                             aria-label={t('common.collapseSidebar')}
                             className={cn(
-                                'sidebar-user-header-collapse pointer-events-none flex h-7 w-7 items-center justify-center rounded-full bg-transparent opacity-[var(--vlaina-opacity-0)] transition-opacity',
-                                iconButtonStyles
+                                'sidebar-user-header-collapse pointer-events-none flex h-7 w-7 items-center justify-center rounded-full bg-transparent opacity-[var(--vlaina-opacity-0)] transition-[color,opacity]',
+                                iconButtonStyles,
+                                'hover:text-[var(--vlaina-accent)]'
                             )}
                         >
                             <Icon name="nav.collapse" size="md" />

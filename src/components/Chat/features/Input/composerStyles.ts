@@ -9,6 +9,12 @@ export const chatPopoverPillSurfaceClass = [
   "floating-popover-shadow"
 ].join(" ");
 
+export const chatComposerGhostIconButtonClass = [
+  "rounded-full bg-transparent shadow-none",
+  "transition-[background-color,color,box-shadow,transform] duration-[var(--vlaina-duration-200)]",
+  "hover:bg-[var(--vlaina-color-pill-surface-hover)] hover:shadow-[var(--vlaina-shadow-menu-hover)] hover:text-[var(--vlaina-accent)]"
+].join(" ");
+
 export const chatComposerSurfaceClass = [
   chatComposerPillSurfaceClass,
   "rounded-[var(--vlaina-radius-26px)]",

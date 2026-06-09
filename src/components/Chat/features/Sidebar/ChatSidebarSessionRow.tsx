@@ -255,7 +255,7 @@ function ChatSidebarSessionRowInner({
           className={cn(
             'p-1 rounded-md focus:outline-none',
             iconButtonStyles,
-            'text-[var(--vlaina-sidebar-chat-text)] hover:text-[var(--vlaina-sidebar-chat-text)]',
+            'text-[var(--vlaina-sidebar-chat-text)] hover:text-[var(--vlaina-accent)]',
           )}
         >
           <Icon name="common.more" size="md" />

@@ -1,8 +1,10 @@
 import { ReactNode, useCallback } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { WindowControls } from '@/components/layout/WindowControls';
+import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Input/composerStyles';
 import { blurComposerInput, isComposerInputFocused } from '@/lib/ui/composerFocusRegistry';
 import { isMacOS } from '@/lib/desktop/platform';
+import { cn } from '@/lib/utils';
 import { themeDomStyleTokens, themeIconTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 
 interface UnifiedTitleBarProps {
@@ -55,7 +57,10 @@ export function UnifiedTitleBar({
           <button
             type="button"
             onClick={onToggleSidebar}
-            className="app-no-drag group flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[var(--vlaina-sidebar-chat-text)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-sidebar-chat-text)]"
+            className={cn(
+              "app-no-drag group flex h-8 w-8 cursor-pointer items-center justify-center text-[var(--vlaina-sidebar-chat-text)]",
+              chatComposerGhostIconButtonClass
+            )}
           >
             <>
               {/* Sidebar glyph adapted from Lucide Icons (ISC). */}
