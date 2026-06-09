@@ -76,6 +76,22 @@ describe('messageClipboard bounded image parsing', () => {
     expect(copied).not.toContain('data:image');
   });
 
+  it('keeps overflow inline data image examples inside code spans', () => {
+    const content = [
+      'A ![first](https://example.com/first.png)',
+      'B `![example](data:image/png;base64,def)`',
+      'C ![third](data:image/png;base64,ghi)',
+    ].join('\n');
+
+    const copied = formatMessageCopyText(content, { maxTokens: 1 });
+
+    expect(copied).toBe([
+      'A https://example.com/first.png',
+      'B `![example](data:image/png;base64,def)`',
+      'C [image]',
+    ].join('\n'));
+  });
+
   it('scrubs oversized markdown data images when token parsing skips the target', () => {
     const content = [
       'A ![first](https://example.com/first.png)',

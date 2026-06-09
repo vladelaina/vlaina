@@ -5,6 +5,7 @@ import { writeTextToClipboard } from '@/lib/clipboard';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { isRenderableDataImageSrc, normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
 import { parseVideoUrl } from '@/lib/markdown/videoUrl';
+import { scrubOverflowMarkdownDataImages } from '@/lib/markdown/overflowDataImageScrubber';
 import { fetchChatImageBlob, MAX_CHAT_IMAGE_FETCH_BYTES } from './chatImageFetch';
 import { resolveSafeChatImageSource } from './chatImageSourceResolution';
 import {
@@ -102,66 +103,10 @@ function scrubOverflowCopyHtmlDataImages(content: string): string {
 }
 
 function scrubOverflowCopyMarkdownDataImages(content: string): string {
-  let output = "";
-  let cursor = 0;
-
-  while (cursor < content.length) {
-    const start = content.indexOf("![", cursor);
-    if (start === -1) {
-      output += content.slice(cursor);
-      break;
-    }
-
-    const labelEnd = content.indexOf("](", start + 2);
-    if (labelEnd === -1 || labelEnd - start > 512) {
-      output += content.slice(cursor, start + 2);
-      cursor = start + 2;
-      continue;
-    }
-
-    const targetEnd = content.indexOf(")", labelEnd + 2);
-    if (
-      targetEnd === -1 ||
-      targetEnd - labelEnd > MAX_COPY_OVERFLOW_MARKDOWN_IMAGE_TARGET_CHARS
-    ) {
-      if (targetEnd !== -1 && isInlineDataImageMarkdownTargetAt(content, labelEnd + 2)) {
-        output += content.slice(cursor, start);
-        output += "[image]";
-        cursor = targetEnd + 1;
-      } else {
-        output += content.slice(cursor, start + 2);
-        cursor = start + 2;
-      }
-      continue;
-    }
-
-    const target = content.slice(labelEnd + 2, targetEnd).toLowerCase();
-    if (!target.includes("data:image/")) {
-      output += content.slice(cursor, targetEnd + 1);
-      cursor = targetEnd + 1;
-      continue;
-    }
-
-    output += content.slice(cursor, start);
-    output += "[image]";
-    cursor = targetEnd + 1;
-  }
-
-  return output;
-}
-
-function isInlineDataImageMarkdownTargetAt(content: string, targetStart: number): boolean {
-  let cursor = targetStart;
-  while (cursor < content.length && /\s/.test(content[cursor])) {
-    cursor += 1;
-  }
-  if (content[cursor] === "<") {
-    cursor += 1;
-    while (cursor < content.length && /\s/.test(content[cursor])) {
-      cursor += 1;
-    }
-  }
-  return content.slice(cursor, cursor + "data:image/".length).toLowerCase() === "data:image/";
+  return scrubOverflowMarkdownDataImages(content, {
+    replacement: "[image]",
+    maxTargetChars: MAX_COPY_OVERFLOW_MARKDOWN_IMAGE_TARGET_CHARS,
+  });
 }
 
 function scrubOverflowCopyInlineDataImages(content: string): string {

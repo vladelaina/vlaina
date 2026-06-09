@@ -7,6 +7,13 @@ import {
   replaceImageTokens,
   type ImageToken,
 } from '@/lib/markdown/markdownImageTokens';
+import {
+  getInlineCodeRanges,
+  getNonFencedContentRanges,
+  getRangeEndAtOffset,
+  isOffsetInRanges,
+  type ContentRange,
+} from '@/lib/markdown/markdownRanges';
 import { parseVideoUrl } from '@/lib/markdown/videoUrl';
 import { normalizeApiTranscriptMessages } from './apiTranscript';
 
@@ -67,11 +74,33 @@ function scrubOverflowHistoryMarkdownImages(content: string): string {
   let output = '';
   let cursor = 0;
 
-  while (cursor < content.length) {
+  for (const range of getNonFencedContentRanges(content)) {
+    output += content.slice(cursor, range.start);
+    output += scrubOverflowHistoryMarkdownImagesInRange(content, range);
+    cursor = range.end;
+  }
+
+  output += content.slice(cursor);
+  return output;
+}
+
+function scrubOverflowHistoryMarkdownImagesInRange(content: string, range: ContentRange): string {
+  const inlineCodeRanges = getInlineCodeRanges(content, range);
+  let output = '';
+  let cursor = range.start;
+
+  while (cursor < range.end) {
     const start = content.indexOf('![', cursor);
-    if (start === -1) {
-      output += content.slice(cursor);
+    if (start === -1 || start >= range.end) {
+      output += content.slice(cursor, range.end);
       break;
+    }
+
+    if (isOffsetInRanges(start, inlineCodeRanges)) {
+      const inlineCodeEnd = getRangeEndAtOffset(start, inlineCodeRanges) ?? start + 2;
+      output += content.slice(cursor, inlineCodeEnd);
+      cursor = inlineCodeEnd;
+      continue;
     }
 
     if (start > 0 && content[start - 1] === '\\') {
@@ -81,15 +110,15 @@ function scrubOverflowHistoryMarkdownImages(content: string): string {
     }
 
     const labelEnd = content.indexOf('](', start + 2);
-    if (labelEnd === -1 || labelEnd - start > 512) {
+    if (labelEnd === -1 || labelEnd >= range.end || labelEnd - start > 512) {
       output += content.slice(cursor, start + 2);
       cursor = start + 2;
       continue;
     }
 
     const targetEnd = content.indexOf(')', labelEnd + 2);
-    if (targetEnd === -1 || targetEnd - labelEnd > 4096) {
-      if (targetEnd !== -1 && isHistoryMarkdownImageTargetAt(content, labelEnd + 2)) {
+    if (targetEnd === -1 || targetEnd >= range.end || targetEnd - labelEnd > 4096) {
+      if (targetEnd !== -1 && targetEnd < range.end && isHistoryMarkdownImageTargetAt(content, labelEnd + 2)) {
         output += content.slice(cursor, start);
         output += IMAGE_PLACEHOLDER;
         cursor = targetEnd + 1;

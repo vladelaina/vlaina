@@ -33,6 +33,7 @@ import {
 } from '@/lib/ai/sessionMutationLock'
 import { parseMarkdownAndHtmlImageTokens, type ImageToken } from '@/components/Chat/common/messageImageTokens'
 import { normalizeRenderableDataImageSrc } from '@/components/common/markdown/imagePolicy'
+import { scrubOverflowMarkdownDataImages } from '@/lib/markdown/overflowDataImageScrubber'
 
 let switchSessionGeneration = 0;
 const inlineImagePersistenceSessions = new Set<string>()
@@ -175,52 +176,10 @@ function scrubOversizedInlineDataImageReferences(content: string) {
     return content
   }
 
-  let output = ''
-  let cursor = 0
-  while (cursor < content.length) {
-    const start = content.indexOf('![', cursor)
-    if (start === -1) {
-      output += content.slice(cursor)
-      break
-    }
-
-    const labelEnd = content.indexOf('](', start + 2)
-    if (labelEnd === -1 || labelEnd - start > 512) {
-      output += content.slice(cursor, start + 2)
-      cursor = start + 2
-      continue
-    }
-
-    const targetEnd = content.indexOf(')', labelEnd + 2)
-    if (
-      targetEnd !== -1 &&
-      targetEnd - labelEnd > MAX_INLINE_IMAGE_FALLBACK_TARGET_CHARS &&
-      isInlineDataImageMarkdownTargetAt(content, labelEnd + 2)
-    ) {
-      output += content.slice(cursor, start)
-      cursor = targetEnd + 1
-      continue
-    }
-
-    const nextCursor = targetEnd === -1 ? start + 2 : targetEnd + 1
-    output += content.slice(cursor, nextCursor)
-    cursor = nextCursor
-  }
-  return output
-}
-
-function isInlineDataImageMarkdownTargetAt(content: string, targetStart: number) {
-  let cursor = targetStart
-  while (cursor < content.length && /\s/.test(content[cursor])) {
-    cursor += 1
-  }
-  if (content[cursor] === '<') {
-    cursor += 1
-    while (cursor < content.length && /\s/.test(content[cursor])) {
-      cursor += 1
-    }
-  }
-  return content.slice(cursor, cursor + 'data:image/'.length).toLowerCase() === 'data:image/'
+  return scrubOverflowMarkdownDataImages(content, {
+    replacement: '',
+    maxTargetChars: MAX_INLINE_IMAGE_FALLBACK_TARGET_CHARS,
+  })
 }
 
 function replaceImageSourceReferences(content: string, replacements: Map<string, string>) {
@@ -348,6 +307,16 @@ function collectInlineImageSources(messages: ChatMessage[], groups: InlineImageS
   return groups
 }
 
+function hasInlineImageSourcesOutsideProcessedSet(messages: ChatMessage[], processedSources: InlineImageSourceGroups) {
+  const latestSources = collectInlineImageSources(messages, new Map())
+  for (const source of latestSources.keys()) {
+    if (!processedSources.has(source)) {
+      return true
+    }
+  }
+  return false
+}
+
 interface InlineImageReplacementContext {
   changed: boolean
   messageNodes: number
@@ -457,6 +426,12 @@ async function persistInlineImageSourcesForSession(sessionId: string) {
     }
     const latestMessages = latestAI.messages[sessionId] || []
     const nextMessages = applyImageSourceReplacements(latestMessages, replacements)
+    if (hasInlineImageSourcesOutsideProcessedSet(nextMessages, sources)) {
+      inlineImagePersistenceRerunSessions.add(sessionId)
+      globalThis.setTimeout(() => {
+        void persistInlineImageSourcesForSession(sessionId)
+      }, 0)
+    }
 
     latestState.updateAIData({
       messages: {
@@ -474,6 +449,11 @@ async function persistInlineImageSourcesForSession(sessionId: string) {
 }
 
 function scheduleInlineImagePersistence(sessionId: string) {
+  if (inlineImagePersistenceSessions.has(sessionId)) {
+    inlineImagePersistenceRerunSessions.add(sessionId)
+    return
+  }
+
   globalThis.setTimeout(() => {
     void persistInlineImageSourcesForSession(sessionId)
   }, 0)
