@@ -125,7 +125,7 @@ describe('session inline image persistence', () => {
     seedSession([createMessage('m1', 'plain text '.repeat(10_000))])
 
     await createSessionActions().switchSession('session-2')
-    await vi.runOnlyPendingTimersAsync()
+    await vi.runAllTimersAsync()
 
     expect(mocked.parseMarkdownAndHtmlImageTokens).not.toHaveBeenCalled()
     expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
@@ -191,7 +191,7 @@ describe('session inline image persistence', () => {
     seedSession([createMessage('m1', content)])
 
     await createSessionActions().switchSession('session-2')
-    await vi.runOnlyPendingTimersAsync()
+    await vi.runAllTimersAsync()
 
     expect(mocked.parseMarkdownAndHtmlImageTokens).toHaveBeenCalledTimes(2)
     expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith(source)
@@ -387,6 +387,16 @@ describe('session inline image persistence', () => {
 
     pendingPersistence.get(firstSource)?.('attachment://first.png')
     await vi.waitFor(() => {
+      expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content)
+        .toBe('![image](<attachment://first.png>)')
+    })
+    await Promise.resolve()
+    await Promise.resolve()
+    await vi.runAllTimersAsync()
+    await Promise.resolve()
+    await Promise.resolve()
+    await vi.runAllTimersAsync()
+    await vi.waitFor(() => {
       expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith(secondSource)
     })
     pendingPersistence.get(secondSource)?.('attachment://second.png')
@@ -497,6 +507,20 @@ describe('session inline image persistence', () => {
     expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
     expect(content).toBe('Before  After')
     expect(content).not.toContain('data:image')
+  })
+
+  it('keeps oversized markdown data image examples inside code spans', async () => {
+    mocked.parseMarkdownAndHtmlImageTokens.mockReturnValue([])
+    const oversizedSource = `data:image/png;base64,${'B'.repeat(520 * 1024)}`
+    const { createSessionActions } = await import('./sessionActions')
+    seedSession([createMessage('m1', `Before \`![example](<${oversizedSource}>)\` ![image](<${oversizedSource}>) After`)])
+
+    await createSessionActions().switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
+
+    const content = useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content
+    expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
+    expect(content).toBe(`Before \`![example](<${oversizedSource}>)\`  After`)
   })
 
   it('bounds inline image replacement to the scanned branch depth', async () => {

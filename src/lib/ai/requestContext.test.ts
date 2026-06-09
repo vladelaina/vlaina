@@ -125,6 +125,20 @@ describe('requestContext', () => {
     expect(sanitized[0].content).toContain('Tail [Image] after');
   });
 
+  it('keeps overflow markdown image examples inside history code spans', () => {
+    const content = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](attachment://safe-${index}.png)`),
+      '`![example](attachment://docs/example.png)`',
+      'Tail ![secret](attachment://secret.png) after',
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).toContain('`![example](attachment://docs/example.png)`');
+    expect(sanitized[0].content).not.toContain('attachment://secret.png');
+    expect(sanitized[0].content).toContain('Tail [Image] after');
+  });
+
   it('does not leak oversized markdown image targets after the history scan budget is reached', () => {
     const content = [
       ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](attachment://safe-${index}.png)`),
