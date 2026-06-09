@@ -199,7 +199,8 @@ describe('previewStyles', () => {
     const overlay = host.querySelector('.toolbar-applied-preview-overlay');
     expect(overlay).toBeInstanceOf(HTMLElement);
     expect(view.dom.style.display).toBe('none');
-    expect(overlay?.getAttribute('contenteditable')).toBe(view.dom.getAttribute('contenteditable'));
+    expect(overlay?.getAttribute('aria-hidden')).toBe('true');
+    expect(overlay?.hasAttribute('contenteditable')).toBe(false);
     expect(view.state.doc).toBe(originalDoc);
     expect((overlay as HTMLElement | null)?.style.position).toBe('');
     expect(overlay?.nextElementSibling).toBe(view.dom);
@@ -229,7 +230,8 @@ describe('previewStyles', () => {
 
     const overlay = host.querySelector<HTMLElement>('.toolbar-applied-preview-overlay');
     expect(overlay).toBeInstanceOf(HTMLElement);
-    expect(overlay?.getAttribute('contenteditable')).toBe(view.dom.getAttribute('contenteditable'));
+    expect(overlay?.getAttribute('aria-hidden')).toBe('true');
+    expect(overlay?.hasAttribute('contenteditable')).toBe(false);
     expect(overlay?.getAttribute('translate')).toBe('no');
     expect(overlay?.getAttribute('spellcheck')).toBe('false');
     expect(overlay?.style.whiteSpace).toBe('pre-wrap');

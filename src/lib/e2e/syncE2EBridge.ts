@@ -7,6 +7,8 @@ import { useUIStore } from '@/stores/uiSlice';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { desktopWindow } from '@/lib/desktop/window';
+import { getElectronBridge } from '@/lib/electron/bridge';
+import { TextSelection } from '@milkdown/kit/prose/state';
 import { saveSessionJson } from '@/lib/storage/chatStorage';
 import { flushPendingSave } from '@/lib/storage/unifiedStorage';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
@@ -17,9 +19,12 @@ import {
 import type { ImportedMarkdownThemeMetadata } from '@/lib/markdown/theme-compatibility/types';
 import { getVaultSystemStorePath } from '@/stores/notes/systemStoragePaths';
 import { flushStarredRegistry } from '@/stores/notes/starred';
+import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { getCurrentEditorView } from '@/components/Notes/features/Editor/utils/editorViewRegistry';
 import { collectSelectableBlockTargets } from '@/components/Notes/features/Editor/plugins/cursor/blockUnitResolver';
 import { dispatchBlockSelectionAction } from '@/components/Notes/features/Editor/plugins/cursor/blockSelectionPluginState';
+import { floatingToolbarKey } from '@/components/Notes/features/Editor/plugins/floating-toolbar/floatingToolbarKey';
+import { TOOLBAR_ACTIONS } from '@/components/Notes/features/Editor/plugins/floating-toolbar/types';
 import type { UnifiedData } from '@/lib/storage/unifiedStorageTypes';
 import type { ChatMessage, ChatSession } from '@/lib/ai/types';
 import type { NotesState, StarredEntry } from '@/stores/notes/types';
@@ -112,6 +117,42 @@ export interface E2EBridge {
     from: number;
     to: number;
   }>;
+  selectEditorTextByText(text: string): Promise<{
+    selected: boolean;
+    from: number | null;
+    to: number | null;
+    selectedText: string;
+  }>;
+  getEditorSelectionSummary(): {
+    from: number;
+    to: number;
+    empty: boolean;
+    selectedText: string;
+    docTextLength: number;
+  } | null;
+  focusCurrentEditor(): Promise<boolean>;
+  editorTextHasMark(text: string, markName: string): boolean;
+  getEditorToolbarDebugState(): {
+    selection: ReturnType<typeof getEditorSelectionSummary>;
+    activeElement: {
+      tagName: string;
+      className: string;
+      isEditor: boolean;
+    } | null;
+    toolbarState: {
+      isVisible: boolean;
+      subMenu: string | null;
+      copied: boolean;
+    } | null;
+    toolbarDom: {
+      exists: boolean;
+      className: string;
+      text: string;
+      rect: { x: number; y: number; width: number; height: number } | null;
+    };
+  };
+  writeClipboardText(text: string): Promise<void>;
+  flushCurrentEditorMarkdown(): Promise<boolean>;
   selectNoteBlocksByText(texts: string[]): Promise<number>;
   selectNoteBlocksByIndexes(indexes: number[]): Promise<number>;
   getNotesState(): Pick<NotesState, 'currentNote' | 'isDirty' | 'error' | 'openTabs'>;
@@ -206,6 +247,105 @@ async function waitForUnifiedLoaded(): Promise<void> {
       resolve();
     });
   });
+}
+
+function findEditorTextRange(text: string): { from: number; to: number } | null {
+  const view = getCurrentEditorView();
+  if (!view || !text) return null;
+
+  let range: { from: number; to: number } | null = null;
+  view.state.doc.descendants((node, pos) => {
+    if (range || !node.isText || typeof node.text !== 'string') {
+      return;
+    }
+
+    const index = node.text.indexOf(text);
+    if (index < 0) {
+      return;
+    }
+
+    const from = pos + index;
+    const to = from + text.length;
+    if (view.state.doc.textBetween(from, to, '\n') === text) {
+      range = { from, to };
+    }
+  });
+  return range;
+}
+
+function getEditorSelectionSummary() {
+  const view = getCurrentEditorView();
+  if (!view) return null;
+
+  const { from, to, empty } = view.state.selection;
+  return {
+    from,
+    to,
+    empty,
+    selectedText: from < to ? view.state.doc.textBetween(from, to, '\n') : '',
+    docTextLength: view.state.doc.textContent.length,
+  };
+}
+
+function getEditorToolbarDebugState() {
+  const view = getCurrentEditorView();
+  const toolbarState = view ? floatingToolbarKey.getState(view.state) : null;
+  const toolbar = document.querySelector<HTMLElement>('.floating-toolbar');
+  const rect = toolbar?.getBoundingClientRect();
+  const activeElement = document.activeElement;
+
+  return {
+    selection: getEditorSelectionSummary(),
+    activeElement: activeElement instanceof HTMLElement
+      ? {
+          tagName: activeElement.tagName,
+          className: activeElement.className,
+          isEditor: activeElement === view?.dom || activeElement.closest('.ProseMirror') === view?.dom,
+        }
+      : null,
+    toolbarState: toolbarState
+      ? {
+          isVisible: toolbarState.isVisible,
+          subMenu: toolbarState.subMenu,
+          copied: toolbarState.copied,
+        }
+      : null,
+    toolbarDom: {
+      exists: Boolean(toolbar),
+      className: toolbar?.className ?? '',
+      text: toolbar?.textContent?.replace(/\s+/g, ' ').trim().slice(0, 200) ?? '',
+      rect: rect
+        ? {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+          }
+        : null,
+    },
+  };
+}
+
+function editorTextHasMark(text: string, markName: string): boolean {
+  const view = getCurrentEditorView();
+  const range = findEditorTextRange(text);
+  if (!view || !range) return false;
+
+  const markType = view.state.schema.marks[markName];
+  if (!markType) return false;
+
+  return view.state.doc.rangeHasMark(range.from, range.to, markType);
+}
+
+async function focusCurrentEditor(): Promise<boolean> {
+  const view = getCurrentEditorView();
+  if (!view) return false;
+
+  window.focus();
+  view.dom.focus({ preventScroll: true });
+  view.focus();
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  return document.activeElement === view.dom || view.dom.contains(document.activeElement);
 }
 
 export function installSyncE2EBridge(): void {
@@ -431,6 +571,53 @@ export function installSyncE2EBridge(): void {
         from: target.range.from,
         to: target.range.to,
       }));
+    },
+    selectEditorTextByText: async (text) => {
+      const view = getCurrentEditorView();
+      const range = findEditorTextRange(text);
+      if (!view || !range) {
+        return {
+          selected: false,
+          from: null,
+          to: null,
+          selectedText: '',
+        };
+      }
+
+      view.dispatch(
+        view.state.tr
+          .setSelection(TextSelection.create(view.state.doc, range.from, range.to))
+          .setMeta(floatingToolbarKey, {
+            type: TOOLBAR_ACTIONS.SHOW,
+          })
+          .scrollIntoView()
+      );
+      view.focus();
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const summary = getEditorSelectionSummary();
+      return {
+        selected: summary?.selectedText === text,
+        from: range.from,
+        to: range.to,
+        selectedText: summary?.selectedText ?? '',
+      };
+    },
+    getEditorSelectionSummary,
+    focusCurrentEditor,
+    editorTextHasMark,
+    getEditorToolbarDebugState,
+    writeClipboardText: async (text) => {
+      const desktopClipboard = getElectronBridge()?.clipboard;
+      if (desktopClipboard?.writeText) {
+        await desktopClipboard.writeText(text);
+        return;
+      }
+      await navigator.clipboard.writeText(text);
+    },
+    flushCurrentEditorMarkdown: async () => {
+      const flushed = flushCurrentPendingEditorMarkdown();
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      return flushed;
     },
     selectNoteBlocksByText: async (texts) => {
       const view = getCurrentEditorView();

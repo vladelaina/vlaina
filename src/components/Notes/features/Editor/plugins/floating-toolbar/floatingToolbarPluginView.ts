@@ -16,6 +16,7 @@ import {
 import { TOOLBAR_ACTIONS, type FloatingToolbarState } from './types';
 import {
   clampToolbarX,
+  correctToolbarYToViewportBounds,
   createToolbarElement,
   getScrollRoot,
   getToolbarRoot,
@@ -33,6 +34,8 @@ import { clearFormatPreview, hasActiveAppliedPreview } from './previewStyles';
 import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
 import { hasUsableTextRange, hasUsableTextSelection } from './selectionValidity';
 import { correctToolbarSubmenusToContentBounds } from './floatingToolbarSubmenus';
+import { toggleMark, setLink } from './commands';
+import { openLinkTooltipFromSelection } from './linkTooltipActions';
 
 function hasVisibleNativeRange(): boolean {
   if (typeof window === 'undefined') {
@@ -46,6 +49,18 @@ function hasVisibleNativeRange(): boolean {
 
   const range = selection.getRangeAt(0);
   return !selection.isCollapsed && range.getClientRects().length > 0;
+}
+
+function isEditableShortcutTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'));
+}
+
+function isDocumentFormatShortcut(event: KeyboardEvent): boolean {
+  return (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && !event.isComposing;
 }
 
 export function shouldLockPreviewToolbarPosition(args: {
@@ -266,6 +281,27 @@ export function createFloatingToolbarPluginView(
     return correctedX;
   };
 
+  const correctToolbarToViewportYBounds = (toolbar: HTMLElement, y: number) => {
+    const containerRect = positionRoot instanceof HTMLElement
+      ? positionRoot.getBoundingClientRect()
+      : null;
+    const viewportTop = typeof window === 'undefined' ? 0 : 0;
+    const viewportBottom = typeof window === 'undefined'
+      ? Number.POSITIVE_INFINITY
+      : window.innerHeight;
+    const bounds = containerRect
+      ? {
+          top: Math.max(viewportTop, containerRect.top),
+          bottom: Math.min(viewportBottom, containerRect.bottom),
+        }
+      : {
+          top: viewportTop,
+          bottom: viewportBottom,
+        };
+
+    return correctToolbarYToViewportBounds(toolbar, y, bounds);
+  };
+
   const correctSubmenusToContentBounds = (toolbar: HTMLElement) => {
     const layout = getContentLayoutContext(editorView, positionRoot instanceof HTMLElement ? positionRoot : null);
     const contentLeft = layout.viewportBounds.left;
@@ -438,6 +474,7 @@ export function createFloatingToolbarPluginView(
       nextPosition.placement,
       false
     );
+    correctToolbarToViewportYBounds(selectionToolbarElement, containerPosition.y);
     correctToolbarToContentBounds(selectionToolbarElement, clamped.clampedX);
     correctSubmenusToContentBounds(selectionToolbarElement);
   };
@@ -724,6 +761,7 @@ export function createFloatingToolbarPluginView(
     const correctedX = pluginState.subMenu === 'aiReview'
       ? finalX
       : correctToolbarToLayoutBounds(toolbarElement, finalX, layoutViewportBounds);
+    const correctedY = correctToolbarToViewportYBounds(toolbarElement, finalY);
     const measuredToolbarWidth = measureToolbarWidth(toolbarElement);
     if (measuredToolbarWidth > 0) {
       lastMeasuredToolbarWidth = measuredToolbarWidth;
@@ -740,7 +778,7 @@ export function createFloatingToolbarPluginView(
 
     lastSelectionSignature = selectionSignature;
     lastToolbarX = correctedX;
-    lastToolbarY = finalY;
+    lastToolbarY = correctedY;
     lastToolbarPlacement = finalPlacement;
     lastContainerWidth = containerWidth;
     lastScrollLeft = currentScrollLeft;
@@ -758,11 +796,68 @@ export function createFloatingToolbarPluginView(
     });
   };
 
+  const handleDocumentFormatShortcut = (event: KeyboardEvent) => {
+    if (!isDocumentFormatShortcut(event) || isEditableShortcutTarget(event.target)) {
+      return;
+    }
+
+    const pluginState = toolbarKey.getState(editorView.state);
+    if (!pluginState?.isVisible || pluginState.subMenu === 'aiReview') {
+      return;
+    }
+    if (!hasUsableTextSelection(editorView.state.selection, editorView.state.doc)) {
+      return;
+    }
+
+    const commitShortcut = (run: () => void) => {
+      event.preventDefault();
+      clearFormatPreview(editorView);
+      run();
+      clearFormatPreview(editorView);
+      hideToolbar(toolbarElement);
+      hideToolbar(selectionToolbarElement);
+      editorView.dispatch(
+        editorView.state.tr.setMeta(toolbarKey, {
+          type: TOOLBAR_ACTIONS.HIDE,
+        })
+      );
+    };
+
+    switch (event.key.toLowerCase()) {
+      case 'b':
+        commitShortcut(() => toggleMark(editorView, 'strong'));
+        return;
+      case 'i':
+        commitShortcut(() => toggleMark(editorView, 'emphasis'));
+        return;
+      case 'u':
+        commitShortcut(() => toggleMark(editorView, 'underline'));
+        return;
+      case 'h':
+        commitShortcut(() => toggleMark(editorView, 'highlight'));
+        return;
+      case 'k': {
+        const linkUrl = getLinkUrl(editorView);
+        commitShortcut(() => {
+          if (linkUrl !== null && linkUrl !== '') {
+            setLink(editorView, null);
+            return;
+          }
+          openLinkTooltipFromSelection(editorView, { autoFocus: true });
+        });
+        return;
+      }
+      default:
+        return;
+    }
+  };
+
   const bindGlobalListeners = (resizeObserver: ResizeObserver | null) => {
     document.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleEscape);
+    document.addEventListener('keydown', handleDocumentFormatShortcut);
     toolbarElement.addEventListener('mouseenter', handleToolbarPointerEnter);
     toolbarElement.addEventListener('mouseleave', handleToolbarPointerLeave);
     window.addEventListener('resize', scheduleToolbarUpdate);
@@ -782,6 +877,7 @@ export function createFloatingToolbarPluginView(
     document.removeEventListener('mouseup', handleMouseUp);
     document.removeEventListener('mousedown', handleClickOutside);
     document.removeEventListener('keydown', handleEscape);
+    document.removeEventListener('keydown', handleDocumentFormatShortcut);
     toolbarElement.removeEventListener('mouseenter', handleToolbarPointerEnter);
     toolbarElement.removeEventListener('mouseleave', handleToolbarPointerLeave);
     window.removeEventListener('resize', scheduleToolbarUpdate);

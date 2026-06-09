@@ -90,9 +90,8 @@ export function renderAppliedPreviewDocument(
   const className = sourceDom?.className || 'ProseMirror';
   previewDom.className = extraClassName ? `${className} ${extraClassName}` : className;
   previewDom.removeAttribute('data-toolbar-preview-hidden');
-  if (!previewDom.hasAttribute('contenteditable')) {
-    previewDom.setAttribute('contenteditable', 'true');
-  }
+  previewDom.removeAttribute('contenteditable');
+  previewDom.removeAttribute('tabindex');
   previewDom.setAttribute('aria-hidden', 'true');
   previewDom.appendChild(
     DOMSerializer.fromSchema(state.schema).serializeFragment(

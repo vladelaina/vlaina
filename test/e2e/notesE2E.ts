@@ -27,6 +27,8 @@ export type ImportedMarkdownThemeInstallResult = {
   themeDirectoryPath: string;
   themeId: string;
   themeName: string;
+  skipped?: boolean;
+  skipReason?: string;
 };
 
 export type NoteSelectableBlock = {
@@ -268,9 +270,21 @@ export async function installReferenceTyporaTheme(
     (window as any).__vlainaE2E.getImportedMarkdownThemesDirectoryPath()
   );
   const referenceRoot = path.join(process.cwd(), '.reference', 'typora');
+  const referenceCssPath = path.join(referenceRoot, cssFilename);
+  const hasReferenceCss = await fs.access(referenceCssPath).then(() => true, () => false);
+  if (!hasReferenceCss) {
+    return {
+      themeDirectoryPath,
+      themeId: 'default',
+      themeName: 'default',
+      skipped: true,
+      skipReason: `Missing reference Typora theme ${referenceCssPath}`,
+    };
+  }
+
   await fs.mkdir(themeDirectoryPath, { recursive: true });
   await fs.copyFile(
-    path.join(referenceRoot, cssFilename),
+    referenceCssPath,
     path.join(themeDirectoryPath, cssFilename),
   );
   await fs.cp(

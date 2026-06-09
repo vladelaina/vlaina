@@ -192,6 +192,48 @@ function transactionMayCreateAutolink(tr: unknown): boolean {
     return steps.some((step) => AUTOLINK_TRIGGER_TEXT_PATTERN.test(getInsertedStepText(step)));
 }
 
+type AutolinkDecorationSetLike = {
+    find: (from?: number, to?: number) => unknown[];
+};
+
+type MappingLike = {
+    maps?: readonly {
+        forEach?: (
+            callback: (oldStart: number, oldEnd: number, newStart: number, newEnd: number) => void,
+        ) => void;
+    }[];
+};
+
+export function transactionMayAffectExistingAutolinks(
+    decorations: AutolinkDecorationSetLike,
+    tr: unknown,
+): boolean {
+    const mapping = (tr as { mapping?: MappingLike }).mapping;
+    const maps = mapping?.maps ?? [];
+    for (const map of maps) {
+        if (typeof map.forEach !== 'function') {
+            continue;
+        }
+
+        let affectsAutolink = false;
+        map.forEach((oldStart, oldEnd) => {
+            if (affectsAutolink) {
+                return;
+            }
+
+            const from = Math.max(0, Math.min(oldStart, oldEnd) - 1);
+            const to = Math.max(oldStart, oldEnd) + 1;
+            affectsAutolink = decorations.find(from, to).length > 0;
+        });
+
+        if (affectsAutolink) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 export const autolinkPlugin = $prose(() => {
     return new Plugin({
         key: autolinkPluginKey,
@@ -204,7 +246,8 @@ export const autolinkPlugin = $prose(() => {
                     return old;
                 }
 
-                if (old.find().length === 0 && !transactionMayCreateAutolink(tr)) {
+                const mayCreateAutolink = transactionMayCreateAutolink(tr);
+                if (!mayCreateAutolink && !transactionMayAffectExistingAutolinks(old, tr)) {
                     return old.map(tr.mapping, tr.doc);
                 }
 

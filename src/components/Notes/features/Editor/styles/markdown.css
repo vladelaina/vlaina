@@ -24,6 +24,7 @@
   min-height: var(--vlaina-height-markdown-blank-line);
   margin: var(--vlaina-space-0);
   padding: var(--vlaina-space-0);
+  pointer-events: none;
 }
 
 .milkdown .ProseMirror > p.editor-editable-markdown-blank-line,

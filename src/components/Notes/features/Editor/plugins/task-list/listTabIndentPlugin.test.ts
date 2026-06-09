@@ -9,7 +9,7 @@ import {
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { Selection as ProseSelection, TextSelection } from '@milkdown/kit/prose/state';
-import type { EditorView } from '@milkdown/kit/prose/view';
+import { DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
 import { describe, expect, it } from 'vitest';
 import {
   MAX_LIST_GAP_PLACEHOLDER_DECORATIONS,
@@ -19,6 +19,7 @@ import {
   collectInternalListGapDecorations,
   findAdjacentOrderedLists,
   listTabIndentPlugin,
+  transactionMayAffectInternalListGapDecorations,
 } from './listTabIndentPlugin';
 
 interface FakeListGapNode {
@@ -148,6 +149,11 @@ function typeText(view: EditorView, input: string) {
 
     if (!handled) view.dispatch(view.state.tr.insertText(text, from, to));
   }
+}
+
+function insertTextTransaction(view: EditorView, text: string) {
+  const { from, to } = view.state.selection;
+  return view.state.tr.insertText(text, from, to);
 }
 
 function selectionAncestorNames(view: EditorView): string[] {
@@ -353,6 +359,55 @@ describe('listTabIndentPlugin', () => {
     ]);
 
     expect(buildInternalListGapDecorations(view.state.doc).find()).toHaveLength(0);
+  });
+
+  it('maps list gap decorations for ordinary paragraph edits', async () => {
+    const editor = createEditorWithContent(['Plain paragraph', '', '- first'].join('\n'));
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    moveCursorAfterText(view, 'Plain');
+    const tr = insertTextTransaction(view, ' text');
+
+    expect(transactionMayAffectInternalListGapDecorations(
+      DecorationSet.empty,
+      tr,
+      view.state.doc,
+      tr.doc
+    )).toBe(false);
+  });
+
+  it('rebuilds list gap decorations when a transaction inserts an internal placeholder', async () => {
+    const editor = createEditorWithContent('- first');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    moveCursorToDocumentEnd(view);
+    const tr = insertTextTransaction(view, '\u2800');
+
+    expect(transactionMayAffectInternalListGapDecorations(
+      DecorationSet.empty,
+      tr,
+      view.state.doc,
+      tr.doc
+    )).toBe(true);
+  });
+
+  it('rebuilds list gap decorations when editing an existing placeholder item', async () => {
+    const editor = createEditorWithContent(['- first', '- \u2800', '- second'].join('\n'));
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    moveCursorAfterText(view, '\u2800');
+    const tr = insertTextTransaction(view, 'x');
+    const decorations = buildInternalListGapDecorations(view.state.doc);
+
+    expect(transactionMayAffectInternalListGapDecorations(
+      decorations,
+      tr,
+      view.state.doc,
+      tr.doc
+    )).toBe(true);
   });
 
   it('renumbers ordered list items after deleting an internal gap item', async () => {
