@@ -88,6 +88,18 @@ describe('markdownThemeCompiler', () => {
     expect(mocks.scopeImportedMarkdownThemeCss).toHaveBeenCalledTimes(2);
   });
 
+  it('rejects compiled theme CSS that expands beyond the output budget', async () => {
+    mocks.scopeImportedMarkdownThemeCss.mockReturnValueOnce('x'.repeat(3 * 1024 * 1024 + 1));
+
+    await expect(compileImportedMarkdownThemeStyles(importedTheme())).rejects.toThrow(
+      'Imported markdown theme CSS output is too large.',
+    );
+
+    mocks.scopeImportedMarkdownThemeCss.mockReturnValueOnce('#write { color: safe; }');
+    const compiled = await compileImportedMarkdownThemeStyles(importedTheme());
+    expect(compiled.markdownCss).toBe('#write { color: safe; }');
+  });
+
   it('deduplicates concurrent preloads for the same theme id', async () => {
     mocks.readImportedMarkdownTheme.mockResolvedValue(importedTheme());
 

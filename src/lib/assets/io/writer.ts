@@ -2,6 +2,7 @@ import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { normalizeContainedAssetPath } from '../core/pathContainment';
 
 const TEMP_EXTENSION = '.tmp';
+export const MAX_TEMP_FILE_CLEANUP_SCAN_ENTRIES = 5000;
 
 function isSafeDirectoryEntryName(name: string): boolean {
   return Boolean(name) && name !== '.' && name !== '..' && !/[\\/]/.test(name) && !name.includes('\0');
@@ -58,7 +59,7 @@ export async function cleanupTempFiles(assetsDir: string): Promise<number> {
   let cleanedCount = 0;
   
   try {
-    const entries = await storage.listDir(assetsDir);
+    const entries = (await storage.listDir(assetsDir)).slice(0, MAX_TEMP_FILE_CLEANUP_SCAN_ENTRIES);
     
     for (const entry of entries) {
       const tempPath = await normalizeTempDirectoryEntryPath(assetsDir, entry);

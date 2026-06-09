@@ -4,8 +4,20 @@ export interface ParsedErrorTag {
   content: string;
 }
 
-const ERROR_TAG_REGEX = /<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/i;
-const ERROR_TAG_GLOBAL_REGEX = /<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/gi;
+export const MAX_ERROR_TAG_ATTRIBUTE_CHARS = 512;
+export const MAX_ERROR_TAG_CONTENT_CHARS = 8192;
+const MAX_ERROR_TAG_START_TAG_CHARS = 4096;
+const ERROR_OPEN_TAG = '<error';
+const ERROR_CLOSE_TAG = '</error>';
+const ERROR_ATTRIBUTE_REGEX = /\s(type|code)="([^"]*)"/gi;
+
+interface ErrorTagMatch {
+  start: number;
+  startTagEnd: number;
+  end: number;
+  rawStartTag: string;
+  rawContent: string;
+}
 
 function escapeXmlAttribute(value: string): string {
   return value
@@ -30,29 +42,126 @@ function decodeXmlEntities(value: string): string {
     .replace(/&amp;/g, '&');
 }
 
+function clipErrorTagAttribute(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  return value.slice(0, MAX_ERROR_TAG_ATTRIBUTE_CHARS);
+}
+
+function clipErrorTagContent(value: string): string {
+  return value.slice(0, MAX_ERROR_TAG_CONTENT_CHARS);
+}
+
+function findCaseInsensitive(value: string, needle: string, fromIndex: number): number {
+  const needleLength = needle.length;
+  const limit = value.length - needleLength;
+  for (let index = Math.max(0, fromIndex); index <= limit; index += 1) {
+    if (value.slice(index, index + needleLength).toLowerCase() === needle) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function findErrorTag(content: string, fromIndex = 0): ErrorTagMatch | null {
+  let cursor = fromIndex;
+  while (cursor < content.length) {
+    const start = findCaseInsensitive(content, ERROR_OPEN_TAG, cursor);
+    if (start < 0) {
+      return null;
+    }
+
+    const startTagEnd = content.indexOf('>', start + ERROR_OPEN_TAG.length);
+    if (startTagEnd < 0) {
+      return null;
+    }
+    if (startTagEnd - start > MAX_ERROR_TAG_START_TAG_CHARS) {
+      cursor = start + ERROR_OPEN_TAG.length;
+      continue;
+    }
+
+    const closeStart = findCaseInsensitive(content, ERROR_CLOSE_TAG, startTagEnd + 1);
+    if (closeStart < 0) {
+      cursor = start + ERROR_OPEN_TAG.length;
+      continue;
+    }
+
+    return {
+      start,
+      startTagEnd,
+      end: closeStart + ERROR_CLOSE_TAG.length,
+      rawStartTag: content.slice(start, startTagEnd + 1),
+      rawContent: content.slice(startTagEnd + 1, closeStart),
+    };
+  }
+
+  return null;
+}
+
+function parseErrorTagAttributes(rawStartTag: string): Pick<ParsedErrorTag, 'type' | 'code'> {
+  const attributes: Pick<ParsedErrorTag, 'type' | 'code'> = {};
+  ERROR_ATTRIBUTE_REGEX.lastIndex = 0;
+
+  let match: RegExpExecArray | null;
+  while ((match = ERROR_ATTRIBUTE_REGEX.exec(rawStartTag)) !== null) {
+    const key = match[1]?.toLowerCase();
+    const value = clipErrorTagAttribute(decodeXmlEntities(match[2] ?? ''));
+    if (key === 'type') {
+      attributes.type = value;
+    } else if (key === 'code') {
+      attributes.code = value;
+    }
+  }
+
+  return attributes;
+}
+
 export function buildErrorTag(type: string | undefined, code: string | number | undefined, detail: string): string {
-  const safeType = escapeXmlAttribute(type || 'UNKNOWN');
-  const safeCode = escapeXmlAttribute(code === undefined || code === null ? '' : String(code));
-  const safeDetail = escapeXmlText(detail);
+  const safeType = escapeXmlAttribute((type || 'UNKNOWN').slice(0, MAX_ERROR_TAG_ATTRIBUTE_CHARS));
+  const safeCode = escapeXmlAttribute(
+    (code === undefined || code === null ? '' : String(code)).slice(0, MAX_ERROR_TAG_ATTRIBUTE_CHARS)
+  );
+  const safeDetail = escapeXmlText(detail.slice(0, MAX_ERROR_TAG_CONTENT_CHARS));
   return `<error type="${safeType}" code="${safeCode}">${safeDetail}</error>`;
 }
 
 export function parseErrorTag(content: string): ParsedErrorTag | null {
-  const match = ERROR_TAG_REGEX.exec(content);
+  const match = findErrorTag(content);
   if (!match) {
     return null;
   }
 
   return {
-    type: match[1] ? decodeXmlEntities(match[1]) : undefined,
-    code: match[2] ? decodeXmlEntities(match[2]) : undefined,
-    content: decodeXmlEntities(match[3]?.trim() || 'Unknown error'),
+    ...parseErrorTagAttributes(match.rawStartTag),
+    content: clipErrorTagContent(decodeXmlEntities(match.rawContent.trim() || 'Unknown error')),
   };
 }
 
 export function stripErrorTags(content: string): string {
-  return content.replace(ERROR_TAG_GLOBAL_REGEX, (_match, _type, _code, inner: string) =>
-    decodeXmlEntities(inner.trim())
-  );
+  let output = '';
+  let cursor = 0;
+
+  while (cursor < content.length) {
+    const match = findErrorTag(content, cursor);
+    if (!match) {
+      output += content.slice(cursor);
+      break;
+    }
+
+    output += content.slice(cursor, match.start);
+    output += clipErrorTagContent(decodeXmlEntities(match.rawContent.trim()));
+    cursor = match.end;
+  }
+
+  return output;
 }
 
+export function stripFirstErrorTag(content: string): string {
+  const match = findErrorTag(content);
+  if (!match) {
+    return content;
+  }
+
+  return `${content.slice(0, match.start)}${content.slice(match.end)}`;
+}

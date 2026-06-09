@@ -6,6 +6,7 @@ import {
 import { normalizeImageAlignment } from './plugins/image-block/utils/imageNodeAttrs';
 
 const MAX_MARKDOWN_HTML_IMAGE_CHARS = 64 * 1024;
+export const MAX_MARKDOWN_HTML_IMAGE_TEXT_ATTR_CHARS = 4096;
 const MAX_MARKDOWN_HTML_IMAGE_WRAPPER_DEPTH = 32;
 export const MAX_MARKDOWN_HTML_IMAGE_CHILD_SCAN_NODES = 1024;
 
@@ -20,6 +21,12 @@ export interface MarkdownHtmlImageAttrs {
 }
 
 const markdownHtmlImageWrapperTags = new Set(['a', 'center', 'div', 'figure', 'p', 'picture', 'span']);
+
+export function normalizeMarkdownHtmlImageTextAttr(value: unknown): string {
+    return typeof value === 'string'
+        ? value.slice(0, MAX_MARKDOWN_HTML_IMAGE_TEXT_ATTR_CHARS)
+        : '';
+}
 
 function getOnlyElementChild(parent: ParentNode): Element | null {
     let elementChild: Element | null = null;
@@ -118,8 +125,10 @@ export function getMarkdownHtmlImageAttrs(value: string): MarkdownHtmlImageAttrs
 
     return {
         src: safeSrc,
-        alt: result.image.getAttribute('alt') ?? '',
-        title: result.image.getAttribute('title'),
+        alt: normalizeMarkdownHtmlImageTextAttr(result.image.getAttribute('alt')),
+        title: result.image.hasAttribute('title')
+            ? normalizeMarkdownHtmlImageTextAttr(result.image.getAttribute('title'))
+            : null,
         width: getImageWidth(result.image),
         crop: serializeCropValue(result.image.getAttribute('data-vlaina-crop')),
         align: normalizeImageAlignment(result.image.getAttribute('align'))

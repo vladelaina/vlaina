@@ -1,5 +1,6 @@
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import { TextSelection, type Selection } from '@milkdown/kit/prose/state';
+import { getBoundedTextBetween } from '../shared/selectionTextLimits';
 
 export function hasUsableTextRange(doc: ProseNode, from: number, to: number): boolean {
   const docSize = doc.content.size;
@@ -9,7 +10,7 @@ export function hasUsableTextRange(doc: ProseNode, from: number, to: number): bo
     return false;
   }
 
-  return doc.textBetween(safeFrom, safeTo, '\n', '\n').trim().length > 0;
+  return getBoundedTextBetween(doc, safeFrom, safeTo, '\n', '\n').trim().length > 0;
 }
 
 export function hasUsableTextSelection(selection: Selection, doc: ProseNode): selection is TextSelection {

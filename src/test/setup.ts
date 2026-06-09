@@ -77,6 +77,14 @@ vi.stubGlobal('OffscreenCanvas', OffscreenCanvasMock);
 const indexedDbObjectStores = new Map<string, Map<string, unknown>>();
 const indexedDbKeyPaths = new Map<string, string>();
 
+vi.stubGlobal('IDBKeyRange', {
+  bound: (lower: IDBValidKey, upper: IDBValidKey) => ({
+    lower,
+    upper,
+    includes: (key: IDBValidKey) => String(key) >= String(lower) && String(key) <= String(upper),
+  }),
+});
+
 function dispatchIndexedDbSuccess<T>(request: IDBRequest<T>, result: T) {
   queueMicrotask(() => {
     Object.defineProperty(request, 'result', {
@@ -129,9 +137,21 @@ function createIndexedDbStore(name: string): IDBObjectStore {
     return store;
   };
 
+  const filterByRange = (range?: IDBKeyRange | IDBValidKey | null) => {
+    const values = [...entries().entries()];
+    if (!range) return values;
+    if (typeof range === 'object' && 'includes' in range) {
+      return values.filter(([key]) => (range as IDBKeyRange).includes(key));
+    }
+    return values.filter(([key]) => key === String(range));
+  };
+
   return {
     get: (key: IDBValidKey) => createIndexedDbRequest(() => entries().get(String(key))),
-    getAll: () => createIndexedDbRequest(() => [...entries().values()]),
+    getAll: (query?: IDBKeyRange | IDBValidKey | null, count?: number) => createIndexedDbRequest(() => {
+      const values = filterByRange(query).map(([, value]) => value);
+      return typeof count === 'number' ? values.slice(0, count) : values;
+    }),
     put: (value: unknown) => createIndexedDbRequest(() => {
       const keyPath = indexedDbKeyPaths.get(name);
       if (!keyPath || typeof value !== 'object' || value === null || !(keyPath in value)) {

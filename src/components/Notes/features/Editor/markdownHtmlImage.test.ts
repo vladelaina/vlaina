@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
     getMarkdownHtmlImageAttrs,
     MAX_MARKDOWN_HTML_IMAGE_CHILD_SCAN_NODES,
+    MAX_MARKDOWN_HTML_IMAGE_TEXT_ATTR_CHARS,
 } from './markdownHtmlImage';
 
 describe('markdownHtmlImage', () => {
@@ -37,6 +38,15 @@ describe('markdownHtmlImage', () => {
 
     it('rejects oversized html image fragments before parsing them', () => {
         expect(getMarkdownHtmlImageAttrs(`<img src="./assets/a.png" alt="${'x'.repeat(64 * 1024)}" />`)).toBeNull();
+    });
+
+    it('bounds html image text attributes after parsing valid fragments', () => {
+        const attrs = getMarkdownHtmlImageAttrs(
+            `<img src="./assets/a.png" alt="${'x'.repeat(MAX_MARKDOWN_HTML_IMAGE_TEXT_ATTR_CHARS + 1)}" title="${'y'.repeat(MAX_MARKDOWN_HTML_IMAGE_TEXT_ATTR_CHARS + 1)}" />`
+        );
+
+        expect(attrs?.alt).toHaveLength(MAX_MARKDOWN_HTML_IMAGE_TEXT_ATTR_CHARS);
+        expect(attrs?.title).toHaveLength(MAX_MARKDOWN_HTML_IMAGE_TEXT_ATTR_CHARS);
     });
 
     it('rejects overly deep html image wrappers', () => {

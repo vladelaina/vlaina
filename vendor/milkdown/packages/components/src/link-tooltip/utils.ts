@@ -21,7 +21,7 @@ export function findMarkPosition(
     if (markPos.start === -1 && mark.isInSet(n.marks) && node === n) {
       markPos = {
         start: pos,
-        end: pos + Math.max(n.textContent.length, 1),
+        end: pos + Math.max(n.nodeSize, 1),
       }
     }
 

@@ -4,6 +4,8 @@ import {
   convertBlockType,
   getDomSelectedTextBlocks,
   MAX_BLOCK_COMMAND_DOM_SELECTION_CHILDREN,
+  MAX_BLOCK_COMMAND_NODE_UPDATES,
+  MAX_BLOCK_COMMAND_SELECTION_SCAN_NODES,
   setBgColor,
   setTextAlignment,
   setTextColor,
@@ -1148,6 +1150,91 @@ describe('floating toolbar commands', () => {
     expect(tr.setNodeMarkup).toHaveBeenCalledTimes(2);
     expect(view.dispatch).toHaveBeenCalledWith(tr);
     expect(view.focus).toHaveBeenCalled();
+  });
+
+  it('caps text alignment updates across oversized selections', () => {
+    const paragraphNode = {
+      type: { name: 'paragraph' },
+      attrs: { align: 'left' },
+    };
+
+    const tr = {
+      setNodeMarkup: vi.fn(),
+    };
+
+    const view: any = {
+      state: {
+        selection: {
+          from: 0,
+          to: MAX_BLOCK_COMMAND_NODE_UPDATES + 5,
+          $from: {
+            parent: paragraphNode,
+            before: vi.fn(() => 0),
+            node: vi.fn(() => ({ type: { name: 'doc' } })),
+          },
+        },
+        tr,
+        doc: {
+          nodesBetween: vi.fn((_from: number, _to: number, callback: (node: any, pos: number, parent: any) => void) => {
+            for (let index = 0; index < MAX_BLOCK_COMMAND_NODE_UPDATES + 5; index += 1) {
+              callback(paragraphNode, index, { type: { name: 'doc' } });
+            }
+          }),
+        },
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    };
+
+    setTextAlignment(view, 'center');
+
+    expect(tr.setNodeMarkup).toHaveBeenCalledTimes(MAX_BLOCK_COMMAND_NODE_UPDATES);
+    expect(view.dispatch).toHaveBeenCalledWith(tr);
+  });
+
+  it('caps block command fallback node scans', () => {
+    const codeBlockNode = {
+      type: { name: 'code_block' },
+      attrs: {},
+    };
+    let scannedNodes = 0;
+
+    const tr = {
+      setNodeMarkup: vi.fn(),
+    };
+
+    const view: any = {
+      state: {
+        selection: {
+          from: 0,
+          to: MAX_BLOCK_COMMAND_SELECTION_SCAN_NODES + 5,
+          $from: {
+            parent: codeBlockNode,
+            before: vi.fn(() => 0),
+            node: vi.fn(() => ({ type: { name: 'doc' } })),
+          },
+        },
+        tr,
+        doc: {
+          nodesBetween: vi.fn((_from: number, _to: number, callback: (node: any, pos: number, parent: any) => boolean | void) => {
+            for (let index = 0; index < MAX_BLOCK_COMMAND_SELECTION_SCAN_NODES + 5; index += 1) {
+              scannedNodes += 1;
+              if (callback(codeBlockNode, index, { type: { name: 'doc' } }) === false) {
+                break;
+              }
+            }
+          }),
+        },
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    };
+
+    setTextAlignment(view, 'center');
+
+    expect(scannedNodes).toBe(MAX_BLOCK_COMMAND_SELECTION_SCAN_NODES + 1);
+    expect(tr.setNodeMarkup).not.toHaveBeenCalled();
+    expect(view.dispatch).not.toHaveBeenCalled();
   });
 
   it('copies normalized selected text to clipboard', async () => {

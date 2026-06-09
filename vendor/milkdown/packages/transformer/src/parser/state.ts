@@ -50,8 +50,8 @@ export class ParserState extends Stack<Node, ParserStackElement> {
   /// const prosemirrorNode = parser(SomeMarkdownText)
   /// ```
   static create = (schema: Schema, remark: RemarkParser): Parser => {
-    const state = new this(schema)
     return (text) => {
+      const state = new this(schema)
       state.run(remark, text)
       return state.toDoc()
     }

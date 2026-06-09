@@ -24,7 +24,14 @@ vi.mock('@/lib/storage/adapter', () => ({
   joinPath: (...segments: string[]) => Promise.resolve(segments.filter(Boolean).join('/')),
 }));
 
-import { cleanupTempFiles, isTempFile, getTempPath, getFinalPath, writeAssetAtomic } from './writer';
+import {
+  cleanupTempFiles,
+  getFinalPath,
+  getTempPath,
+  isTempFile,
+  MAX_TEMP_FILE_CLEANUP_SCAN_ENTRIES,
+  writeAssetAtomic,
+} from './writer';
 
 describe('atomicWrite', () => {
   beforeEach(() => {
@@ -68,6 +75,27 @@ describe('atomicWrite', () => {
         { name: 'escape.tmp', path: '/vault/assets/../escape.tmp', isFile: true, isDirectory: false },
         { name: 'nested.tmp', path: '/vault/assets/nested/nested.tmp', isFile: true, isDirectory: false },
         { name: 'dir.tmp', path: '/vault/assets/dir.tmp', isFile: false, isDirectory: true },
+      ]);
+
+      await expect(cleanupTempFiles('/vault/assets')).resolves.toBe(0);
+
+      expect(mocks.storage.deleteFile).not.toHaveBeenCalled();
+    });
+
+    it('bounds the number of temp directory entries scanned during cleanup', async () => {
+      mocks.storage.listDir.mockResolvedValue([
+        ...Array.from({ length: MAX_TEMP_FILE_CLEANUP_SCAN_ENTRIES }, (_value, index) => ({
+          name: `asset-${index}.png`,
+          path: `/vault/assets/asset-${index}.png`,
+          isFile: true,
+          isDirectory: false,
+        })),
+        {
+          name: 'late.tmp',
+          path: '/vault/assets/late.tmp',
+          isFile: true,
+          isDirectory: false,
+        },
       ]);
 
       await expect(cleanupTempFiles('/vault/assets')).resolves.toBe(0);

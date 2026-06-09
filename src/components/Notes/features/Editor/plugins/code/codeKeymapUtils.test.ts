@@ -33,6 +33,15 @@ function createTransaction() {
   return tr;
 }
 
+function createParagraphNode(textContent: string, contentSize = textContent.length) {
+  return {
+    type: { name: 'paragraph' },
+    content: { size: contentSize },
+    textContent,
+    textBetween: vi.fn(() => textContent),
+  };
+}
+
 describe('codeKeymapUtils', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -54,7 +63,12 @@ describe('codeKeymapUtils', () => {
           depth: 1,
           start: vi.fn(() => 5),
           end: vi.fn(() => 12),
-          parent: { type: { name: 'paragraph' }, textContent: '```TS' },
+          parent: {
+            ...createParagraphNode('```TS'),
+            get textContent() {
+              throw new Error('aggregate paragraph textContent should not be read');
+            },
+          },
         },
       },
       schema: {
@@ -66,6 +80,7 @@ describe('codeKeymapUtils', () => {
     };
 
     expect(handleCodeBlockEnter(state as never, dispatch)).toBe(true);
+    expect(state.selection.$from.parent.textBetween).toHaveBeenCalledWith(0, 5, '', '');
     expect(codeBlockType.create).toHaveBeenCalledWith({
       language: 'ts',
       lineNumbers: false,
@@ -105,7 +120,7 @@ describe('codeKeymapUtils', () => {
           depth: 1,
           start: vi.fn(() => 5),
           end: vi.fn(() => 12),
-          parent: { type: { name: 'paragraph' }, textContent: '```ts' },
+          parent: createParagraphNode('```ts'),
         },
       },
       schema: {
@@ -127,7 +142,7 @@ describe('codeKeymapUtils', () => {
           depth: 1,
           start: vi.fn(() => 5),
           end: vi.fn(() => 15),
-          parent: { type: { name: 'paragraph' }, textContent: '```flow' },
+          parent: createParagraphNode('```flow'),
         },
       },
       schema: {
@@ -153,7 +168,7 @@ describe('codeKeymapUtils', () => {
           depth: 1,
           start: vi.fn(() => 5),
           end: vi.fn(() => 18),
-          parent: { type: { name: 'paragraph' }, textContent: '~~~sequence' },
+          parent: createParagraphNode('~~~sequence'),
         },
       },
       schema: {
@@ -186,7 +201,7 @@ describe('codeKeymapUtils', () => {
           depth: 1,
           start: vi.fn(() => 5),
           end: vi.fn(() => 12),
-          parent: { type: { name: 'paragraph' }, textContent: '~~~TS' },
+          parent: createParagraphNode('~~~TS'),
         },
       },
       schema: {
@@ -224,7 +239,7 @@ describe('codeKeymapUtils', () => {
           depth: 1,
           start: vi.fn(() => 5),
           end: vi.fn(() => 12),
-          parent: { type: { name: 'paragraph' }, textContent: '``` TS ' },
+          parent: createParagraphNode('``` TS '),
         },
       },
       schema: {
@@ -262,7 +277,7 @@ describe('codeKeymapUtils', () => {
           depth: 1,
           start: vi.fn(() => 5),
           end: vi.fn(() => 12),
-          parent: { type: { name: 'paragraph' }, textContent: '  ```TS' },
+          parent: createParagraphNode('  ```TS'),
         },
       },
       schema: {
@@ -297,7 +312,7 @@ describe('codeKeymapUtils', () => {
           depth: 1,
           start: vi.fn(() => 5),
           end: vi.fn(() => 12),
-          parent: { type: { name: 'paragraph' }, textContent: '    ```TS' },
+          parent: createParagraphNode('    ```TS'),
         },
       },
       schema: {
@@ -329,7 +344,7 @@ describe('codeKeymapUtils', () => {
           depth: 1,
           start: vi.fn(() => 5),
           end: vi.fn(() => 12),
-          parent: { type: { name: 'paragraph' }, textContent: '``` TS title="Example"' },
+          parent: createParagraphNode('``` TS title="Example"'),
         },
       },
       schema: {
@@ -349,6 +364,38 @@ describe('codeKeymapUtils', () => {
     });
     expect(selectionCreateSpy).toHaveBeenCalledWith(tr.doc, 5);
     expect(dispatch).toHaveBeenCalledWith(tr);
+  });
+
+  it('does not read oversized paragraph text while checking fence conversion', () => {
+    const dispatch = vi.fn();
+    const state = {
+      selection: {
+        empty: true,
+        $from: {
+          depth: 1,
+          start: vi.fn(() => 5),
+          end: vi.fn(() => 12),
+          parent: {
+            type: { name: 'paragraph' },
+            content: { size: 257 },
+            get textContent() {
+              throw new Error('textContent should not be read for oversized code fence shortcuts');
+            },
+          },
+        },
+      },
+      schema: {
+        nodes: {
+          code_block: {
+            create: vi.fn(),
+          },
+        },
+      },
+      tr: createTransaction(),
+    };
+
+    expect(handleCodeBlockEnter(state as never, dispatch)).toBe(false);
+    expect(dispatch).not.toHaveBeenCalled();
   });
 
   it('allows cursor escape checks without dispatching when already at code block end', () => {
@@ -380,7 +427,13 @@ describe('codeKeymapUtils', () => {
         $from: {
           before: vi.fn(() => 10),
           after: vi.fn(() => 14),
-          parent: { type: { name: 'code_block' }, textContent: '' },
+          parent: {
+            type: { name: 'code_block' },
+            content: { size: 0 },
+            get textContent() {
+              throw new Error('textContent should not be read for empty code block backspace');
+            },
+          },
         },
       },
       tr,
@@ -400,7 +453,13 @@ describe('codeKeymapUtils', () => {
         $from: {
           before: vi.fn(() => 10),
           after: vi.fn(() => 14),
-          parent: { type: { name: 'code_block' }, textContent: 'x' },
+          parent: {
+            type: { name: 'code_block' },
+            content: { size: 1 },
+            get textContent() {
+              throw new Error('textContent should not be read for empty code block backspace');
+            },
+          },
         },
       },
       tr,

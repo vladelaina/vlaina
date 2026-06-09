@@ -30,6 +30,7 @@ function createView() {
             type: { name: 'paragraph' },
             attrs: {},
             textContent: '[toc]',
+            textBetween: vi.fn(() => '[toc]'),
             content: { size: 5 },
             nodeSize: 7,
           },
@@ -65,8 +66,15 @@ describe('handleTocShortcutEnter', () => {
 
   it('converts a standalone [toc] paragraph into a toc node on Enter', () => {
     const { view, tr } = createView();
+    Object.defineProperty(view.state.selection.$from.parent, 'textContent', {
+      configurable: true,
+      get() {
+        throw new Error('aggregate paragraph textContent should not be read');
+      },
+    });
 
     expect(handleTocShortcutEnter(view as never)).toBe(true);
+    expect(view.state.selection.$from.parent.textBetween).toHaveBeenCalledWith(0, 5, '', '');
     expect(view.state.schema.nodes.toc.create).toHaveBeenCalledWith({ maxLevel: 6 });
     expect(tr.replaceWith).toHaveBeenCalledWith(4, 11, { attrs: { maxLevel: 6 } });
     expect(view.dispatch).toHaveBeenCalledWith(tr);
@@ -75,6 +83,7 @@ describe('handleTocShortcutEnter', () => {
   it('converts a standalone {:toc} paragraph into a toc node on Enter', () => {
     const { view, tr } = createView();
     view.state.selection.$from.parent.textContent = '{:toc}';
+    view.state.selection.$from.parent.textBetween = vi.fn(() => '{:toc}');
     view.state.selection.$from.parentOffset = 6;
     view.state.selection.$from.parent.content.size = 6;
     view.state.selection.$from.parent.nodeSize = 8;
@@ -88,6 +97,7 @@ describe('handleTocShortcutEnter', () => {
   it('returns false when the paragraph text is not a toc shortcut', () => {
     const { view } = createView();
     view.state.selection.$from.parent.textContent = '[to]';
+    view.state.selection.$from.parent.textBetween = vi.fn(() => '[to]');
 
     expect(handleTocShortcutEnter(view as never)).toBe(false);
     expect(view.dispatch).not.toHaveBeenCalled();
@@ -104,6 +114,22 @@ describe('handleTocShortcutEnter', () => {
   it('returns false when the cursor is not at the end of the paragraph', () => {
     const { view } = createView();
     view.state.selection.$from.parentOffset = 2;
+
+    expect(handleTocShortcutEnter(view as never)).toBe(false);
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('does not read oversized paragraph text while checking toc shortcuts', () => {
+    const { view } = createView();
+    view.state.selection.$from.parent = {
+      ...view.state.selection.$from.parent,
+      content: { size: 33 },
+      nodeSize: 35,
+      get textContent() {
+        throw new Error('textContent should not be read for oversized toc shortcuts');
+      },
+    };
+    view.state.selection.$from.parentOffset = 33;
 
     expect(handleTocShortcutEnter(view as never)).toBe(false);
     expect(view.dispatch).not.toHaveBeenCalled();

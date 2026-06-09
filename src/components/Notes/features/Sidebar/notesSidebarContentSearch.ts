@@ -6,6 +6,7 @@ const CONTENT_SNIPPET_RADIUS = 36;
 const MAX_CONTENT_MATCHES_PER_NOTE = 5;
 const MAX_CONTENT_SEARCH_LINE_CHARS = 64 * 1024;
 const MAX_CONTENT_SEARCH_SCANNED_CHARS = 1024 * 1024;
+export const MAX_CONTENT_SEARCH_HTML_RANGES = 2000;
 const SANITIZER_DROPPED_RAW_HTML_TAG_PATTERN = /<\/?(?:math|noscript|svg)(?:[\s/>]|$)/i;
 const INVISIBLE_HTML_BLOCK_PATTERN = /^(?: {0,3}>[ \t]?)*(?: {0,3})(?:<!--|<\?|<![A-Z]|<!\[CDATA\[)/im;
 
@@ -99,7 +100,7 @@ function getDroppedRawHtmlRangesForContentSearch(content: string): ContentRange[
   return getSanitizerDroppedRawHtmlRanges(content, {
     start: 0,
     end: Math.min(content.length, MAX_CONTENT_SEARCH_SCANNED_CHARS + MAX_CONTENT_SEARCH_LINE_CHARS),
-  });
+  }, MAX_CONTENT_SEARCH_HTML_RANGES);
 }
 
 function getInvisibleHtmlBlockRangesForContentSearch(content: string): ContentRange[] {
@@ -110,7 +111,7 @@ function getInvisibleHtmlBlockRangesForContentSearch(content: string): ContentRa
   return getMarkdownInvisibleHtmlBlockRanges(content, {
     start: 0,
     end: Math.min(content.length, MAX_CONTENT_SEARCH_SCANNED_CHARS + MAX_CONTENT_SEARCH_LINE_CHARS),
-  });
+  }, MAX_CONTENT_SEARCH_HTML_RANGES);
 }
 
 function getSkippedHtmlRangesForContentSearch(content: string): ContentRange[] {

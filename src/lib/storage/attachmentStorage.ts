@@ -200,6 +200,7 @@ async function readFileBytes(file: File): Promise<Uint8Array> {
             reject(new Error('Failed to read attachment bytes'));
         };
         reader.onerror = () => reject(reader.error ?? new Error('Failed to read attachment bytes'));
+        reader.onabort = () => reject(new Error('Attachment file read was aborted'));
         reader.readAsArrayBuffer(file);
     });
 }

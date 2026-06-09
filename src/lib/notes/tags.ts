@@ -62,7 +62,16 @@ function collectExcludedRanges(content: string): ExcludedRange[] {
   collectHtmlTagRanges(content, ranges);
   collectMarkdownLinkTargetRanges(content, ranges);
 
-  return ranges.sort((a, b) => a.from - b.from || a.to - b.to);
+  ranges.sort((a, b) => a.from - b.from || a.to - b.to);
+
+  if (ranges.length >= MAX_EXCLUDED_RANGES) {
+    const lastRange = ranges[ranges.length - 1];
+    if (lastRange) {
+      lastRange.to = content.length;
+    }
+  }
+
+  return ranges;
 }
 
 function readLine(value: string, start: number, maxContentEnd = value.length): ReadLineResult {
@@ -446,6 +455,14 @@ export function extractNoteTagOccurrences(content: string): NoteTagOccurrence[] 
       excludedRanges[excludedRangeCursor].to <= match.index
     ) {
       excludedRangeCursor += 1;
+    }
+    const currentExcludedRange = excludedRanges[excludedRangeCursor];
+    if (
+      currentExcludedRange &&
+      currentExcludedRange.to === content.length &&
+      match.index >= currentExcludedRange.from
+    ) {
+      break;
     }
 
     const token = match[0];

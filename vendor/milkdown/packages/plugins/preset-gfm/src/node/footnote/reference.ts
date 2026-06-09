@@ -4,6 +4,13 @@ import { $nodeSchema } from '@milkdown/utils'
 import { withMeta } from '../../__internal__'
 
 const id = 'footnote_reference'
+const MAX_FOOTNOTE_LABEL_ATTR_CHARS = 512
+
+function normalizeFootnoteLabelAttr(value: unknown) {
+  return typeof value === 'string' && value.length <= MAX_FOOTNOTE_LABEL_ATTR_CHARS
+    ? value
+    : ''
+}
 
 /// Footnote reference node schema.
 export const footnoteReferenceSchema = $nodeSchema(
@@ -25,7 +32,7 @@ export const footnoteReferenceSchema = $nodeSchema(
           if (!(dom instanceof HTMLElement)) throw expectDomTypeError(dom)
 
           return {
-            label: dom.dataset.label,
+            label: normalizeFootnoteLabelAttr(dom.dataset.label),
           }
         },
       },

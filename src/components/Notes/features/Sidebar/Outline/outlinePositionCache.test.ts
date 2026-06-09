@@ -76,6 +76,38 @@ describe('outlinePositionCache', () => {
     expect(buildOutlinePositionMap(metrics).get('outline-0-h1-alpha')).toBe(140);
   });
 
+  it('reads heading metrics without aggregating heading textContent', () => {
+    const editorRoot = document.createElement('div');
+    const heading = document.createElement('h2');
+    heading.appendChild(document.createTextNode('Bounded heading'));
+    heading.getBoundingClientRect = () => ({
+      bottom: 40,
+      height: 40,
+      left: 0,
+      right: 300,
+      top: 0,
+      width: 300,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    Object.defineProperty(heading, 'textContent', {
+      get() {
+        throw new Error('aggregate heading textContent should not be read');
+      },
+    });
+    editorRoot.appendChild(heading);
+
+    const metrics = readOutlineHeadingMetrics(editorRoot, null);
+
+    expect(metrics).toHaveLength(1);
+    expect(metrics[0]).toMatchObject({
+      id: 'outline-0-h2-bounded-heading',
+      level: 2,
+      text: 'Bounded heading',
+    });
+  });
+
   it('selects the active heading from cached positions', () => {
     const metrics = [
       {

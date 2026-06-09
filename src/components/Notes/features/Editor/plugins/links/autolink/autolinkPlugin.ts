@@ -11,6 +11,7 @@ import {
 
 export const autolinkPluginKey = new PluginKey('autolink');
 export const MAX_AUTOLINK_DECORATIONS = 1000;
+export const MAX_AUTOLINK_TEXT_SCAN_CHARS = 1024 * 1024;
 const AUTOLINK_TRIGGER_TEXT_PATTERN = /[:/.@]/;
 const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
 const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
@@ -128,7 +129,7 @@ export function collectAutolinkDecorations(doc: any): Decoration[] {
         }
 
         if (node.isText) {
-            const text = node.text || '';
+            const text = (node.text || '').slice(0, MAX_AUTOLINK_TEXT_SCAN_CHARS);
             if (!AUTOLINK_TRIGGER_TEXT_PATTERN.test(text)) {
                 return;
             }

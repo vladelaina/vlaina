@@ -9,7 +9,73 @@ import { bulletListSchema } from '../node'
 import { listItemSchema } from '../node/list-item'
 import { orderedListSchema } from '../node/ordered-list'
 
+export const MAX_LIST_ORDER_SYNC_SCAN_NODES = 20_000
 export const MAX_LIST_ORDER_SYNC_UPDATES = 5_000
+const STOP_LIST_ORDER_SCAN = Symbol('stopListOrderScan')
+
+function boundedListOrderNodesBetween(
+  doc: Node,
+  from: number,
+  to: number,
+  visit: (
+    node: Node,
+    pos: number,
+    parent: Node | null,
+    index: number
+  ) => typeof STOP_LIST_ORDER_SCAN | boolean | void,
+  maxScanNodes = MAX_LIST_ORDER_SYNC_SCAN_NODES
+) {
+  let scannedNodes = 0
+  const stack: Array<{
+    contentStart: number
+    index: number
+    node: Node
+    offset: number
+    parent: Node | null
+  }> = [{
+    contentStart: 0,
+    index: 0,
+    node: doc,
+    offset: 0,
+    parent: null,
+  }]
+
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1]!
+    if (frame.index >= frame.node.childCount) {
+      stack.pop()
+      continue
+    }
+    if (scannedNodes >= maxScanNodes) return false
+
+    const index = frame.index
+    const node = frame.node.child(index)
+    const pos = frame.contentStart + frame.offset
+    frame.index += 1
+    frame.offset += node.nodeSize
+
+    if (pos >= to) {
+      frame.index = frame.node.childCount
+      continue
+    }
+    if (pos + node.nodeSize <= from) continue
+
+    scannedNodes += 1
+    const action = visit(node, pos, frame.node, index)
+    if (action === STOP_LIST_ORDER_SCAN) return true
+    if (action === false || node.childCount === 0) continue
+
+    stack.push({
+      contentStart: pos + 1,
+      index: 0,
+      node,
+      offset: 0,
+      parent: frame.node,
+    })
+  }
+
+  return true
+}
 
 function positionTouchesList(
   doc: Node,
@@ -45,12 +111,11 @@ function rangeTouchesList(
   }
 
   let hasList = false
-  doc.nodesBetween(start, end, (node) => {
+  boundedListOrderNodesBetween(doc, start, end, (node) => {
     if (listTypes.includes(node.type)) {
       hasList = true
-      return false
+      return STOP_LIST_ORDER_SCAN
     }
-    return !hasList
   })
 
   return hasList
@@ -127,7 +192,7 @@ function collectChangedListOrderSyncRanges(
   addNearestListOrderSyncRange(doc, start, listContainerTypes, ranges)
   addNearestListOrderSyncRange(doc, end, listContainerTypes, ranges)
 
-  doc.nodesBetween(start, end, (node, pos) => {
+  boundedListOrderNodesBetween(doc, start, end, (node, pos) => {
     if (!listContainerTypes.includes(node.type)) return true
     if (pos >= start && pos + node.nodeSize <= end) {
       addListOrderSyncRange(ranges, pos, pos + node.nodeSize)
@@ -233,7 +298,7 @@ export const syncListOrderPlugin = $prose((ctx) => {
     }
 
     const syncNodeRange = (from: number, to: number) => {
-      newState.doc.nodesBetween(from, to, (
+      boundedListOrderNodesBetween(newState.doc, from, to, (
         node: Node,
         pos: number,
         parent: Node | null,
@@ -246,13 +311,13 @@ export const syncListOrderPlugin = $prose((ctx) => {
             base?.type === listItemType &&
             base.attrs.listType === 'ordered'
           ) {
-            if (!canApplyUpdate()) return false
+            if (!canApplyUpdate()) return STOP_LIST_ORDER_SCAN
 
             const order = Number.parseInt(base.attrs.label, 10) || 1
             if (!setNodeMarkup(pos, orderedListType, {
               order,
               spread: Boolean(node.attrs.spread),
-            })) return false
+            })) return STOP_LIST_ORDER_SCAN
 
             let childOffset = 0
             for (
@@ -293,11 +358,11 @@ export const syncListOrderPlugin = $prose((ctx) => {
           changed = handleNodeItem(attrs, index, order) || changed
 
           if (changed) {
-            if (!setNodeMarkup(pos, undefined, attrs)) return false
+            if (!setNodeMarkup(pos, undefined, attrs)) return STOP_LIST_ORDER_SCAN
           }
         }
 
-        return canApplyUpdate()
+        return canApplyUpdate() ? true : STOP_LIST_ORDER_SCAN
       })
     }
 

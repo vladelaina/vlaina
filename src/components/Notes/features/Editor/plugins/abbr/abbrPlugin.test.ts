@@ -6,10 +6,12 @@ import type { Decoration } from '@milkdown/kit/prose/view';
 import { configureTheme } from '../../theme';
 import {
   MAX_ABBR_DECORATIONS,
+  MAX_ABBR_TITLE_CHARS,
   abbrPlugin,
   abbrPluginKey,
   extractAbbrDefinitions,
   findAbbrUsages,
+  normalizeAbbrTitle,
 } from './abbrPlugin';
 
 interface FakeAbbrNode {
@@ -39,6 +41,12 @@ function createDocNode(children: FakeAbbrNode[], onAccess?: () => void): FakeAbb
 }
 
 describe('abbrPlugin', () => {
+  it('bounds abbreviation title metadata', () => {
+    expect(normalizeAbbrTitle('HyperText Markup Language')).toBe('HyperText Markup Language');
+    expect(normalizeAbbrTitle('x'.repeat(MAX_ABBR_TITLE_CHARS + 1))).toHaveLength(MAX_ABBR_TITLE_CHARS);
+    expect(normalizeAbbrTitle(null)).toBe('');
+  });
+
   it('stops collecting definitions when the node scan budget is exhausted', () => {
     const doc = createDocNode([
       createTextNode('plain text'),

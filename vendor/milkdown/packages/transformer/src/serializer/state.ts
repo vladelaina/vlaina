@@ -30,6 +30,7 @@ export const MAX_SERIALIZER_MARK_PROP_KEYS = 64
 export const MAX_SERIALIZER_MARK_PROP_ARRAY_ITEMS = 256
 export const MAX_SERIALIZER_MARK_PROP_VALUES = 1024
 export const MAX_SERIALIZER_MARK_PROP_STRING_CHARS = 8192
+export const MAX_SERIALIZER_MARK_SEARCH_DEPTH = 200
 
 interface MarkPropCompareBudget {
   values: number
@@ -184,8 +185,8 @@ export class SerializerState extends Stack<
   /// const markdown = parser(prosemirrorDoc)
   /// ```
   static create = (schema: Schema, remark: RemarkParser): Serializer => {
-    const state = new this(schema)
     return (content: Node) => {
+      const state = new this(schema)
       state.run(content)
       return state.toString(remark)
     }
@@ -243,18 +244,16 @@ export class SerializerState extends Stack<
 
     if (child.children?.length !== 1) return child
 
-    const searchNode = (node: MarkdownNode): MarkdownNode | null => {
-      if (node.type === type) return node
-
-      if (node.children?.length !== 1) return null
-
-      const [firstChild] = node.children
-      if (!firstChild) return null
-
-      return searchNode(firstChild)
+    let target: MarkdownNode | null = null
+    let current: MarkdownNode | undefined = child
+    for (let depth = 0; current && depth <= MAX_SERIALIZER_MARK_SEARCH_DEPTH; depth += 1) {
+      if (current.type === type) {
+        target = current
+        break
+      }
+      if (current.children?.length !== 1) break
+      current = current.children[0]
     }
-
-    const target = searchNode(child)
 
     if (!target) return child
 

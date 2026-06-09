@@ -1,6 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useChatService } from './useChatService';
+import {
+  MAX_TEMPORARY_ATTACHMENT_EPHEMERAL_CONCURRENCY,
+  useChatService,
+} from './useChatService';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
@@ -445,6 +448,70 @@ describe('useChatService session context isolation', () => {
     expect(options?.allowPath?.('/vault/docs/.git/demo.png')).toBe(false);
     expect(options?.allowPath?.('/outside/demo.png')).toBe(false);
     expect(deleteAttachment).toHaveBeenCalledWith(attachment);
+  });
+
+  it('limits concurrent temporary attachment conversions while preserving image order', async () => {
+    seedTemporaryChatState();
+    let activeConversions = 0;
+    let maxActiveConversions = 0;
+    const resolveConversions: Array<() => void> = [];
+    const attachments = Array.from(
+      { length: MAX_TEMPORARY_ATTACHMENT_EPHEMERAL_CONCURRENCY + 2 },
+      (_value, index) => createAttachment({
+        id: `attachment-${index}`,
+        path: `/vault/assets/demo-${index}.png`,
+        previewUrl: `attachment://demo-${index}.png`,
+        assetUrl: '',
+        name: `demo-${index}.png`,
+      }),
+    );
+    vi.mocked(convertToBase64).mockImplementation(async (attachment: Attachment) => {
+      activeConversions += 1;
+      maxActiveConversions = Math.max(maxActiveConversions, activeConversions);
+      await new Promise<void>((resolve) => {
+        resolveConversions.push(resolve);
+      });
+      activeConversions -= 1;
+      return `data:image/png;base64,${globalThis.btoa(attachment.id)}`;
+    });
+    const { result } = renderHook(() => useChatService());
+
+    let sendRequest!: Promise<boolean>;
+    await act(async () => {
+      sendRequest = result.current.sendMessage('describe it', attachments, []);
+      await waitFor(() => {
+        expect(resolveConversions).toHaveLength(MAX_TEMPORARY_ATTACHMENT_EPHEMERAL_CONCURRENCY);
+      });
+    });
+
+    expect(maxActiveConversions).toBeLessThanOrEqual(MAX_TEMPORARY_ATTACHMENT_EPHEMERAL_CONCURRENCY);
+    while (resolveConversions.length > 0) {
+      resolveConversions.shift()?.();
+      await Promise.resolve();
+    }
+    await waitFor(() => {
+      expect(convertToBase64).toHaveBeenCalledTimes(attachments.length);
+    });
+    while (resolveConversions.length > 0) {
+      resolveConversions.shift()?.();
+      await Promise.resolve();
+    }
+
+    await act(async () => {
+      await expect(sendRequest).resolves.toBe(true);
+    });
+    await waitFor(() => {
+      expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
+    });
+
+    expect(maxActiveConversions).toBeLessThanOrEqual(MAX_TEMPORARY_ATTACHMENT_EPHEMERAL_CONCURRENCY);
+    const messages = useUnifiedStore.getState().data.ai?.messages['temp-session-1'] || [];
+    const userMessage = messages.find((message) => message.role === 'user');
+    expect(userMessage?.content).toContain('describe it');
+    expect(userMessage?.imageSources).toEqual(
+      attachments.map((attachment) => `data:image/png;base64,${globalThis.btoa(attachment.id)}`),
+    );
+    expect(deleteAttachment).toHaveBeenCalledTimes(attachments.length);
   });
 
   it('drops temporary stored attachment references when conversion fails', async () => {

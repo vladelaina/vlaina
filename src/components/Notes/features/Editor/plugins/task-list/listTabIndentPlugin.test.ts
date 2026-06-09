@@ -14,11 +14,14 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_LIST_GAP_PLACEHOLDER_DECORATIONS,
   MAX_LIST_GAP_PLACEHOLDER_CLEANUP_RANGES,
+  MAX_ORDERED_LIST_LABEL_SCAN_NODES,
   buildInternalListGapDecorations,
   collectInternalListGapPlaceholderCleanupRanges,
   collectInternalListGapDecorations,
   findAdjacentOrderedLists,
+  listItemContainsInternalGapPlaceholder,
   listTabIndentPlugin,
+  rangeTouchesOrderedListNormalizationNode,
 } from './listTabIndentPlugin';
 
 interface FakeListGapNode {
@@ -72,6 +75,15 @@ function createFakeDoc(children: FakeListGapNode[], onAccess?: () => void): Fake
       size: children.reduce((size, child) => size + (child.nodeSize ?? 1), 0),
     },
     type: { name: 'doc' },
+  };
+}
+
+function createFlatFakeDoc(children: FakeListGapNode[], onAccess?: () => void): FakeListGapNode {
+  return {
+    ...createFakeDoc(children, onAccess),
+    content: {
+      size: children.reduce((size, child) => size + (child.nodeSize ?? 1), 0),
+    },
   };
 }
 
@@ -316,6 +328,24 @@ describe('listTabIndentPlugin', () => {
     expect(accessed).toBe(MAX_LIST_GAP_PLACEHOLDER_DECORATIONS);
   });
 
+  it('caps ordered list normalization range prechecks by node count', () => {
+    let accessed = 0;
+    const doc = createFlatFakeDoc([
+      ...Array.from({ length: MAX_ORDERED_LIST_LABEL_SCAN_NODES }, () => createFakeNode('paragraph')),
+      createFakeNode('ordered_list'),
+    ], () => {
+      accessed += 1;
+    });
+
+    expect(rangeTouchesOrderedListNormalizationNode(
+      doc as any,
+      0,
+      doc.content?.size ?? 0,
+      false,
+    )).toBe(false);
+    expect(accessed).toBe(MAX_ORDERED_LIST_LABEL_SCAN_NODES);
+  });
+
   it('collects internal list gap placeholder cleanup ranges for ordinary placeholder items', () => {
     const listItem = createFakeListGapItem();
 
@@ -323,6 +353,17 @@ describe('listTabIndentPlugin', () => {
       complete: true,
       ranges: [{ from: 12, to: 13 }],
     });
+  });
+
+  it('checks list gap placeholders without aggregating list item textContent', () => {
+    const listItem = createFakeListGapItem();
+    Object.defineProperty(listItem, 'textContent', {
+      get() {
+        throw new Error('aggregate list item textContent should not be read');
+      },
+    });
+
+    expect(listItemContainsInternalGapPlaceholder(listItem as any)).toBe(true);
   });
 
   it('does not collect unbounded internal list gap placeholder cleanup ranges', () => {
@@ -460,6 +501,34 @@ describe('listTabIndentPlugin', () => {
     const doc = schema.nodes.doc.create(null, [nested]);
 
     expect(findAdjacentOrderedLists(doc)).toBeNull();
+  });
+
+  it('caps adjacent ordered list merge scans', async () => {
+    const editor = createEditorWithContent('');
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const paragraphNodes = Array.from(
+      { length: 5 },
+      (_item, index) => schema.nodes.paragraph.create(null, schema.text(`p ${index}`))
+    );
+    const doc = schema.nodes.doc.create(null, [
+      ...paragraphNodes,
+      schema.nodes.ordered_list.create(null, [
+        schema.nodes.list_item.create({ label: '1.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(null, schema.text('one')),
+        ]),
+      ]),
+      schema.nodes.ordered_list.create({ order: 2 }, [
+        schema.nodes.list_item.create({ label: '2.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(null, schema.text('two')),
+        ]),
+      ]),
+    ]);
+
+    expect(findAdjacentOrderedLists(doc, 5)).toBeNull();
+    expect(findAdjacentOrderedLists(doc, 20)).not.toBeNull();
   });
 
   it('keeps the cursor in a newly inserted middle ordered list item', async () => {

@@ -4,6 +4,11 @@ import { ensureSystemDirectory, getVaultSystemStorePath } from '@/stores/notes/s
 const ASSET_HASH_INDEX_FILE = 'asset-hash-index.json';
 const ASSET_HASH_INDEX_VERSION = 1;
 const MAX_INDEX_BYTES = 2 * 1024 * 1024;
+const MAX_INDEX_ENTRIES = 5000;
+const MAX_INDEX_FILENAME_CHARS = 4096;
+const MAX_INDEX_HASH_CHARS = 256;
+const MAX_INDEX_MIME_TYPE_CHARS = 256;
+const MAX_INDEX_UPDATED_AT_CHARS = 128;
 
 export interface AssetHashIndexEntry {
   filename: string;
@@ -34,10 +39,18 @@ function normalizeEntry(value: unknown): AssetHashIndexEntry | null {
   const entry = value as Partial<AssetHashIndexEntry>;
   if (
     typeof entry.filename !== 'string' ||
+    entry.filename.length === 0 ||
+    entry.filename.length > MAX_INDEX_FILENAME_CHARS ||
     typeof entry.hash !== 'string' ||
+    entry.hash.length === 0 ||
+    entry.hash.length > MAX_INDEX_HASH_CHARS ||
     typeof entry.size !== 'number' ||
+    !Number.isFinite(entry.size) ||
+    entry.size < 0 ||
     typeof entry.mimeType !== 'string' ||
-    typeof entry.updatedAt !== 'string'
+    entry.mimeType.length > MAX_INDEX_MIME_TYPE_CHARS ||
+    typeof entry.updatedAt !== 'string' ||
+    entry.updatedAt.length > MAX_INDEX_UPDATED_AT_CHARS
   ) {
     return null;
   }
@@ -59,11 +72,19 @@ function normalizeIndex(value: unknown): AssetHashIndexFile {
 
   const source = value as Partial<AssetHashIndexFile>;
   const entries: Record<string, AssetHashIndexEntry> = {};
+  let entryCount = 0;
   if (source.entries && typeof source.entries === 'object') {
     for (const [filename, rawEntry] of Object.entries(source.entries)) {
+      if (entryCount >= MAX_INDEX_ENTRIES) {
+        break;
+      }
+      if (filename.length === 0 || filename.length > MAX_INDEX_FILENAME_CHARS) {
+        continue;
+      }
       const entry = normalizeEntry(rawEntry);
       if (entry && entry.filename === filename) {
         entries[filename] = entry;
+        entryCount += 1;
       }
     }
   }

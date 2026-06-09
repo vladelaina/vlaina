@@ -16,11 +16,10 @@ function handleEmptyAutoPairDeletion(
 
   const { $from } = selection;
   if (!$from.parent.isTextblock) return false;
-  if ($from.parentOffset === 0 || $from.parentOffset >= $from.parent.textContent.length) return false;
+  if ($from.parentOffset === 0 || $from.parentOffset >= $from.parent.content.size) return false;
 
-  const text = $from.parent.textContent;
-  const open = text[$from.parentOffset - 1];
-  const close = text[$from.parentOffset];
+  const open = $from.parent.textBetween($from.parentOffset - 1, $from.parentOffset, '\0', '\0');
+  const close = $from.parent.textBetween($from.parentOffset, $from.parentOffset + 1, '\0', '\0');
   const spec = openPairSpecs.get(open);
   if (!spec || spec.close !== close) return false;
   if (!hasAutoInsertedCloserAt(view.state, selection.from, close)) return false;

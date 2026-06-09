@@ -6,18 +6,24 @@ import {
 } from '../shared/boundedProseNodeScan';
 
 export const MAX_MARKDOWN_STRUCTURAL_RESULT_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_PASTE_CURSOR_TAIL_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 
 type TextblockLikeNode = {
+    child?: (index: number) => TextblockLikeNode;
+    childCount?: number;
     isTextblock: boolean;
     content: {
         size: number;
     };
+    nodeSize?: number;
 };
 
 type DocLike = {
     content: {
         size: number;
     };
+    child?: (index: number) => TextblockLikeNode;
+    childCount?: number;
     nodesBetween: (
         from: number,
         to: number,
@@ -80,12 +86,72 @@ export const findTailCursorPosInRange = (doc: DocLike, from: number, to: number)
     const scanTo = Math.max(from + 1, to);
     let tailPos: number | null = null;
 
-    doc.nodesBetween(from, scanTo, (node, pos) => {
+    const visitTextblock = (node: TextblockLikeNode, pos: number) => {
         if (!node.isTextblock) return;
         const textTailPos = pos + node.content.size + 1;
         if (textTailPos < from || textTailPos > doc.content.size) return;
         tailPos = textTailPos;
-    });
+    };
+
+    if (typeof doc.child === 'function' && typeof doc.childCount === 'number') {
+        let scanned = 0;
+        const stack: Array<{
+            childCount: number;
+            contentStart: number;
+            index: number;
+            node: DocLike | TextblockLikeNode;
+            offset: number;
+        }> = [{
+            childCount: doc.childCount,
+            contentStart: 0,
+            index: 0,
+            node: doc,
+            offset: 0,
+        }];
+
+        while (stack.length > 0 && scanned < MAX_PASTE_CURSOR_TAIL_SCAN_NODES) {
+            const frame = stack[stack.length - 1];
+            if (frame.index >= frame.childCount) {
+                stack.pop();
+                continue;
+            }
+
+            const node = frame.node.child?.(frame.index);
+            const pos = frame.contentStart + frame.offset;
+            frame.index += 1;
+            frame.offset += node?.nodeSize ?? 1;
+            if (!node) continue;
+
+            const nodeSize = node.nodeSize ?? 1;
+            const nodeEnd = pos + nodeSize;
+            if (nodeEnd < from) {
+                continue;
+            }
+            if (pos > scanTo) {
+                break;
+            }
+
+            scanned += 1;
+            visitTextblock(node, pos);
+
+            if (typeof node.child === 'function' && typeof node.childCount === 'number' && node.childCount > 0) {
+                stack.push({
+                    childCount: node.childCount,
+                    contentStart: pos + 1,
+                    index: 0,
+                    node,
+                    offset: 0,
+                });
+            }
+        }
+    } else {
+        let scanned = 0;
+        doc.nodesBetween(from, scanTo, (node, pos) => {
+            scanned += 1;
+            if (scanned > MAX_PASTE_CURSOR_TAIL_SCAN_NODES) return;
+            visitTextblock(node, pos);
+        });
+    }
 
     return tailPos;
 };

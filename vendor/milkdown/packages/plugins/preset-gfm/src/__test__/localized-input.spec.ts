@@ -5,7 +5,7 @@ import { Editor, editorViewCtx, remarkStringifyOptionsCtx } from '@milkdown/core
 import { commonmark } from '@milkdown/preset-commonmark'
 import { TextSelection } from '@milkdown/prose/state'
 import { getMarkdown } from '@milkdown/utils'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 
 import { gfm } from '..'
 
@@ -91,6 +91,29 @@ it('should create a 2x2 table from a two-cell pipe row on enter', async () => {
   expect(view.state.doc.firstChild?.type.name).toBe('table')
   expect(view.state.doc.firstChild?.childCount).toBe(2)
   expect(view.state.doc.firstChild?.firstChild?.childCount).toBe(2)
+})
+
+it('should create a pipe table without reading aggregate paragraph textContent', async () => {
+  const editor = createEditor()
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+
+  typeText(view, '|1|2|')
+  const paragraph = view.state.selection.$from.parent
+  const textBetween = vi.spyOn(paragraph, 'textBetween')
+  Object.defineProperty(paragraph, 'textContent', {
+    configurable: true,
+    get() {
+      throw new Error('aggregate paragraph textContent should not be read')
+    },
+  })
+
+  pressEnter(view)
+
+  expect(view.state.doc.firstChild?.type.name).toBe('table')
+  expect(textBetween).toHaveBeenCalledWith(0, paragraph.content.size, '', '')
 })
 
 it('should create a 3x2 table from a three-cell pipe row on enter', async () => {

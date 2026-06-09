@@ -19,13 +19,18 @@ describe('codeBlockNodeViewUtils', () => {
   });
 
   it('skips redundant selection-only updates', () => {
+    const textBetween = vi.fn(() => 'abcd');
     const view = {
       state: {
         selection: { from: 12, to: 14 },
         tr: {},
         doc: {
           nodeAt: vi.fn(() => ({
-            textContent: 'abcd',
+            content: { size: 4 },
+            textBetween,
+            get textContent() {
+              throw new Error('aggregate code block textContent should not be read');
+            },
           })),
         },
       },
@@ -43,6 +48,7 @@ describe('codeBlockNodeViewUtils', () => {
     };
 
     expect(forwardCodeBlockUpdate(update as never, view as never, () => 10)).toBeNull();
+    expect(textBetween).toHaveBeenCalledWith(0, 4, '\n', '\n');
   });
 
   it('forwards document changes and remaps selection back into ProseMirror', () => {

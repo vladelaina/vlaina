@@ -10,6 +10,16 @@ type IconProps = {
   onClick?: (event: PointerEvent) => void
 }
 
+const maxIconMarkupChars = 64 * 1024
+
+export function sanitizeIconMarkup(icon: string) {
+  const trimmed = icon.trim()
+  if (trimmed.length > maxIconMarkupChars)
+    return ''
+
+  return DOMPurify.sanitize(trimmed)
+}
+
 export function Icon({ icon, class: className, onClick }: IconProps) {
   return (
     <span
@@ -17,7 +27,7 @@ export function Icon({ icon, class: className, onClick }: IconProps) {
       onPointerdown={onClick}
       ref={(el) => {
         if (el && icon) {
-          ;(el as HTMLElement).innerHTML = DOMPurify.sanitize(icon.trim())
+          ;(el as HTMLElement).innerHTML = sanitizeIconMarkup(icon)
         }
       }}
     />

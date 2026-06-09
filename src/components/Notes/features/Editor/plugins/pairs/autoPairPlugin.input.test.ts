@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Selection } from '@milkdown/kit/prose/state';
+import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 
+import { handleAutoPairTextInput } from './pairTextInput';
 import {
   createEditor,
   createEditorWithHistory,
@@ -13,11 +14,53 @@ import {
   typeText,
 } from './autoPairPlugin.testUtils';
 import { autoPairSpecs } from './pairSpecs';
+import { MAX_EDITOR_SELECTION_TEXT_CHARS } from '../shared/selectionTextLimits';
 
 const pairCases = autoPairSpecs.map((spec) => [spec.open, spec.close] as const);
 const asymmetricPairCases = autoPairSpecs.filter((spec) => !spec.symmetric).map((spec) => [spec.open, spec.close] as const);
 
 describe('autoPairPlugin input', () => {
+  it('uses local textBetween reads when checking collapsed quote auto-pairing', () => {
+    const selectionCreateSpy = vi
+      .spyOn(TextSelection, 'create')
+      .mockReturnValue({ type: 'selection' } as never);
+    const tr = {
+      doc: {},
+      insertText: vi.fn(() => tr),
+      setSelection: vi.fn(() => tr),
+      setMeta: vi.fn(() => tr),
+    };
+    const dispatch = vi.fn();
+    const parent = {
+      isTextblock: true,
+      content: { size: 2 },
+      textBetween: vi.fn((from: number, to: number) => (from === 0 && to === 1 ? ' ' : '')),
+      get textContent() {
+        throw new Error('textContent should not be read for collapsed pair input');
+      },
+    };
+    const state = {
+      selection: {
+        empty: true,
+        from: 2,
+        $from: {
+          parent,
+          parentOffset: 1,
+        },
+      },
+      tr,
+    };
+    const view = { state, dispatch };
+
+    expect(handleAutoPairTextInput(view as never, 2, 2, '"')).toBe(true);
+    expect(parent.textBetween).toHaveBeenCalledWith(1, 2, '\0', '\0');
+    expect(parent.textBetween).toHaveBeenCalledWith(0, 1, '\0', '\0');
+    expect(tr.insertText).toHaveBeenCalledWith('""', 2, 2);
+    expect(dispatch).toHaveBeenCalledWith(tr);
+
+    selectionCreateSpy.mockRestore();
+  });
+
   it('auto-inserts a matching ascii parenthesis pair', async () => {
     const editor = createEditor();
 
@@ -186,6 +229,21 @@ describe('autoPairPlugin input', () => {
 
     expect(view.state.doc.firstChild?.textContent).toBe('“demo”');
     expect(view.state.selection.$from.parentOffset).toBe(6);
+
+    await editor.destroy();
+  });
+
+  it('does not auto-wrap an oversized text selection', async () => {
+    const selectedText = 'x'.repeat(MAX_EDITOR_SELECTION_TEXT_CHARS + 1);
+    const editor = createEditor(selectedText);
+
+    await editor.create();
+
+    const view = getView(editor);
+    setTextSelection(view, 0, selectedText.length);
+    simulateTextInput(view, '(');
+
+    expect(view.state.doc.firstChild?.textContent).toBe('(');
 
     await editor.destroy();
   });

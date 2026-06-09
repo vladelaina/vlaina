@@ -6,6 +6,7 @@ import { $command, $inputRule, $nodeAttr, $nodeSchema } from '@milkdown/utils'
 import { isPublicRemoteMediaUrl, sanitizeMediaSrc, withMeta } from '../__internal__'
 
 const markdownDestinationEscapePattern = /\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g
+export const MAX_IMAGE_TEXT_ATTR_CHARS = 4096
 const namedMarkdownHtmlReferences: Record<string, string> = {
   amp: '&',
   colon: ':',
@@ -53,6 +54,10 @@ export function sanitizeImageSrc(
   return sanitizeMediaSrc(value)
 }
 
+export function normalizeImageTextAttr(value: unknown) {
+  return typeof value === 'string' ? value.slice(0, MAX_IMAGE_TEXT_ATTR_CHARS) : ''
+}
+
 /// HTML attributes for image node.
 export const imageAttr = $nodeAttr('image')
 
@@ -87,8 +92,8 @@ export const imageSchema = $nodeSchema('image', (ctx) => {
 
           return {
             src,
-            alt: dom.getAttribute('alt') || '',
-            title: dom.getAttribute('title') || dom.getAttribute('alt') || '',
+            alt: normalizeImageTextAttr(dom.getAttribute('alt')),
+            title: normalizeImageTextAttr(dom.getAttribute('title') || dom.getAttribute('alt')),
           }
         },
       },
@@ -97,7 +102,13 @@ export const imageSchema = $nodeSchema('image', (ctx) => {
       const src = sanitizeImageSrc(node.attrs.src)
       return [
         'img',
-        { ...ctx.get(imageAttr.key)(node), ...node.attrs, src: src && !isPublicRemoteMediaUrl(src) ? src : undefined },
+        {
+          ...ctx.get(imageAttr.key)(node),
+          ...node.attrs,
+          src: src && !isPublicRemoteMediaUrl(src) ? src : undefined,
+          alt: normalizeImageTextAttr(node.attrs.alt),
+          title: normalizeImageTextAttr(node.attrs.title),
+        },
       ]
     },
     parseMarkdown: {
@@ -105,8 +116,8 @@ export const imageSchema = $nodeSchema('image', (ctx) => {
       runner: (state, node, type) => {
         const url = sanitizeImageSrc(node.url)
         if (!url) return
-        const alt = node.alt as string
-        const title = node.title as string
+        const alt = normalizeImageTextAttr(node.alt)
+        const title = normalizeImageTextAttr(node.title)
         state.addNode(type, {
           src: url,
           alt,
@@ -120,9 +131,9 @@ export const imageSchema = $nodeSchema('image', (ctx) => {
         const src = sanitizeImageSrc(node.attrs.src)
         if (!src) return
         state.addNode('image', undefined, undefined, {
-          title: node.attrs.title,
+          title: normalizeImageTextAttr(node.attrs.title),
           url: src,
-          alt: node.attrs.alt,
+          alt: normalizeImageTextAttr(node.attrs.alt),
         })
       },
     },
@@ -161,7 +172,11 @@ export const insertImageCommand = $command(
       if (src == null) return false
       if (!dispatch) return true
 
-      const node = imageSchema.type(ctx).create({ src, alt, title })
+      const node = imageSchema.type(ctx).create({
+        src,
+        alt: normalizeImageTextAttr(alt),
+        title: normalizeImageTextAttr(title),
+      })
       if (!node) return true
 
       dispatch(state.tr.replaceSelectionWith(node).scrollIntoView())
@@ -196,8 +211,8 @@ export const updateImageCommand = $command(
         if (safeSrc == null) return false
         newAttrs.src = safeSrc
       }
-      if (alt !== undefined) newAttrs.alt = alt
-      if (title !== undefined) newAttrs.title = title
+      if (alt !== undefined) newAttrs.alt = normalizeImageTextAttr(alt)
+      if (title !== undefined) newAttrs.title = normalizeImageTextAttr(title)
 
       dispatch?.(
         state.tr.setNodeMarkup(pos, undefined, newAttrs).scrollIntoView()
@@ -220,9 +235,9 @@ export const insertImageInputRule = $inputRule(
       /(?:!|！)(?:\[|【)(?<alt>.*?)(?:\]|】)(?:\(|（)(?<filename><(?:\\.|[^>\n])+>|[^\s)）]+)(?:\s+(?:"|“)(?<title>[^"”]+)(?:"|”))?(?:\)|）)/,
       (state, match, start, end) => {
         const matched = match[0]
-        const alt = match.groups?.alt ?? ''
+        const alt = normalizeImageTextAttr(match.groups?.alt)
         const src = sanitizeImageSrc(normalizeInputImageSrc(match.groups?.filename ?? ''))
-        const title = match.groups?.title ?? ''
+        const title = normalizeImageTextAttr(match.groups?.title)
         if (matched && src)
           return state.tr.replaceWith(
             start,

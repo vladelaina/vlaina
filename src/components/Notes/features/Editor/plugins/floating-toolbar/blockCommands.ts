@@ -6,8 +6,9 @@ import { createCodeBlockAttrs } from '../code/codeBlockSettings';
 import { normalizeCodeBlockLanguage } from '../code/codeBlockLanguage';
 import { getBlockSelectionPluginState, hasSelectedBlocks } from '../cursor/blockSelectionPluginState';
 import { normalizeTopLevelBlockPos } from '../cursor/topLevelBlockDom';
+import { DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT } from '../shared/boundedProseNodeScan';
 import { markEditorUserInput } from '../shared/userInputEvents';
-import { guessLanguage } from '../../utils/languageDetection';
+import { guessLanguage, MAX_LANGUAGE_DETECTION_CODE_CHARS } from '../../utils/languageDetection';
 import {
   convertToList,
   convertToTextBlock,
@@ -15,6 +16,98 @@ import {
 } from './blockTypeConversion';
 
 export const MAX_BLOCK_COMMAND_DOM_SELECTION_CHILDREN = 5_000;
+export const MAX_BLOCK_COMMAND_SELECTION_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_BLOCK_COMMAND_NODE_UPDATES = 5_000;
+
+type TraversableNode = {
+  attrs?: Record<string, unknown>;
+  child?: (index: number) => TraversableNode;
+  childCount?: number;
+  nodeSize?: number;
+  type?: { name: string };
+};
+
+function isTraversableNode(value: unknown): value is TraversableNode {
+  const node = value as TraversableNode | null | undefined;
+  return typeof node?.child === 'function' && typeof node.childCount === 'number';
+}
+
+function getNodeSize(node: TraversableNode): number {
+  return typeof node.nodeSize === 'number' && Number.isFinite(node.nodeSize) && node.nodeSize > 0
+    ? Math.floor(node.nodeSize)
+    : 1;
+}
+
+function forEachBoundedSelectedNode(
+  doc: unknown,
+  from: number,
+  to: number,
+  visit: (node: TraversableNode, pos: number, parent?: TraversableNode) => boolean | void,
+  maxScanNodes = MAX_BLOCK_COMMAND_SELECTION_SCAN_NODES
+) {
+  if (!isTraversableNode(doc)) {
+    let scanned = 0;
+    (doc as { nodesBetween?: (...args: any[]) => void }).nodesBetween?.(from, to, (node: TraversableNode, pos: number, parent?: TraversableNode) => {
+      if (scanned >= maxScanNodes) return false;
+      scanned += 1;
+      return visit(node, pos, parent);
+    });
+    return;
+  }
+
+  let scanned = 0;
+  const stack: Array<{
+    contentStart: number;
+    index: number;
+    node: TraversableNode;
+    offset: number;
+    parent?: TraversableNode;
+  }> = [{
+    contentStart: 0,
+    index: 0,
+    node: doc,
+    offset: 0,
+  }];
+
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+    if (frame.index >= (frame.node.childCount ?? 0)) {
+      stack.pop();
+      continue;
+    }
+    if (scanned >= maxScanNodes) {
+      return;
+    }
+
+    const node = frame.node.child!(frame.index);
+    const pos = frame.contentStart + frame.offset;
+    const nodeSize = getNodeSize(node);
+    frame.index += 1;
+    frame.offset += nodeSize;
+
+    if (pos >= to) {
+      frame.index = frame.node.childCount ?? frame.index;
+      continue;
+    }
+    if (pos + nodeSize <= from) {
+      continue;
+    }
+
+    scanned += 1;
+    const shouldDescend = visit(node, pos, frame.node);
+    if (shouldDescend === false || !isTraversableNode(node) || (node.childCount ?? 0) === 0) {
+      continue;
+    }
+
+    stack.push({
+      contentStart: pos + 1,
+      index: 0,
+      node,
+      offset: 0,
+      parent: frame.node,
+    });
+  }
+}
 
 function getHeadingLevel(blockType: BlockType): number | null {
   if (!blockType.startsWith('heading')) {
@@ -32,13 +125,27 @@ export function getSelectedCodeBlockSourceText(view: EditorView): string {
     return state.doc.textBetween(from, to, '\n', '\n').trim();
   }
 
-  const parentText = typeof $from.parent?.textContent === 'string'
-    ? $from.parent.textContent
-    : '';
+  const parentText = typeof $from.parent?.textBetween === 'function'
+    ? $from.parent.textBetween(0, $from.parent.content.size, '\n', '\n')
+    : typeof $from.parent?.textContent === 'string'
+      ? $from.parent.textContent
+      : '';
   return parentText.trim();
 }
 
 export function inferCodeBlockLanguage(view: EditorView): string | null {
+  const { from, to, empty, $from } = view.state.selection;
+  const sourceSize = !empty && to > from
+    ? to - from
+    : (typeof $from.parent?.content?.size === 'number'
+      ? $from.parent.content.size
+      : typeof $from.parent?.textContent === 'string'
+        ? $from.parent.textContent.length
+        : 0);
+  if (sourceSize > MAX_LANGUAGE_DETECTION_CODE_CHARS) {
+    return null;
+  }
+
   const sourceText = getSelectedCodeBlockSourceText(view);
   if (!sourceText) {
     return null;
@@ -271,7 +378,10 @@ function applyTextBlockTypeAcrossSelection(
     registerTarget(entry.node, entry.pos);
   }
 
-  state.doc.nodesBetween(from, to, (node, pos, parent) => {
+  forEachBoundedSelectedNode(state.doc, from, to, (node, pos, parent) => {
+    if (targets.size >= MAX_BLOCK_COMMAND_NODE_UPDATES) {
+      return false;
+    }
     if (!isConvertibleTextBlock(node)) {
       return;
     }
@@ -330,7 +440,13 @@ function applyTextBlockTypeAcrossBlockSelection(
   const seenPositions = new Set<number>();
   const targets: Array<{ pos: number }> = [];
   for (const range of selectedBlocks) {
-    view.state.doc.nodesBetween(range.from, range.to, (node, pos, parent) => {
+    if (targets.length >= MAX_BLOCK_COMMAND_NODE_UPDATES) {
+      break;
+    }
+    forEachBoundedSelectedNode(view.state.doc, range.from, range.to, (node, pos, parent) => {
+      if (targets.length >= MAX_BLOCK_COMMAND_NODE_UPDATES) {
+        return false;
+      }
       if (!isConvertibleTextBlock(node) || !canConvertTextBlockInParent(parent?.type.name)) {
         return;
       }
@@ -494,13 +610,17 @@ export function setTextAlignment(view: EditorView, alignment: TextAlignment): vo
   const { from, to, $from } = state.selection;
   const tr = state.tr;
   let updated = false;
+  let updateCount = 0;
   const selectedBlocks = getBlockSelectionPluginState(state).selectedBlocks;
 
   const isUnsupportedContainer = (typeName: string | undefined) =>
     typeName === 'table_cell' || typeName === 'table_header';
 
   const applyAlignmentAcrossRange = (rangeFrom: number, rangeTo: number) => {
-    state.doc.nodesBetween(rangeFrom, rangeTo, (node, pos, parent) => {
+    forEachBoundedSelectedNode(state.doc, rangeFrom, rangeTo, (node, pos, parent) => {
+      if (updateCount >= MAX_BLOCK_COMMAND_NODE_UPDATES) {
+        return false;
+      }
       if (node.type.name !== 'paragraph' && node.type.name !== 'heading') {
         return;
       }
@@ -514,6 +634,7 @@ export function setTextAlignment(view: EditorView, alignment: TextAlignment): vo
         align: alignment,
       });
       updated = true;
+      updateCount += 1;
 
       return false;
     });
@@ -521,6 +642,9 @@ export function setTextAlignment(view: EditorView, alignment: TextAlignment): vo
 
   if (selectedBlocks.length > 0) {
     for (const range of selectedBlocks) {
+      if (updateCount >= MAX_BLOCK_COMMAND_NODE_UPDATES) {
+        break;
+      }
       applyAlignmentAcrossRange(range.from, range.to);
     }
   } else {

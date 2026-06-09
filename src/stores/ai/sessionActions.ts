@@ -45,6 +45,8 @@ const MAX_INLINE_IMAGE_PERSISTENCE_BRANCH_MESSAGES = 100
 const MAX_INLINE_IMAGE_PERSISTENCE_BRANCH_DEPTH = 1
 const MAX_INLINE_IMAGE_TOKENS_PER_CONTENT = 2000
 const MAX_INLINE_IMAGE_PERSISTENCE_SOURCES = 1000
+export const MAX_CHAT_SESSION_DELETE_CONCURRENCY = 5
+export const MAX_INLINE_IMAGE_ORPHAN_DELETE_CONCURRENCY = 4
 
 function saveSessionJsonInBackground(sessionId: string, messages: ChatMessage[]) {
   void saveSessionJson(sessionId, messages).catch(() => {})
@@ -60,6 +62,40 @@ async function deleteStoredAttachmentSource(source: string) {
     return
   }
   await deleteAttachment(attachment).catch(() => {})
+}
+
+async function deleteStoredAttachmentSources(sources: readonly string[]) {
+  await settleWithConcurrencyLimit(
+    sources,
+    MAX_INLINE_IMAGE_ORPHAN_DELETE_CONCURRENCY,
+    deleteStoredAttachmentSource
+  )
+}
+
+async function settleWithConcurrencyLimit<T>(
+  items: readonly T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>
+): Promise<PromiseSettledResult<void>[]> {
+  const results = new Array<PromiseSettledResult<void>>(items.length)
+  let nextIndex = 0
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex
+        nextIndex += 1
+        try {
+          await worker(items[index]!)
+          results[index] = { status: 'fulfilled', value: undefined }
+        } catch (reason) {
+          results[index] = { status: 'rejected', reason }
+        }
+      }
+    }
+  )
+  await Promise.all(workers)
+  return results
 }
 
 function addInlineImageSource(groups: InlineImageSourceGroups, source: string | null | undefined) {
@@ -308,7 +344,7 @@ async function persistInlineImageSourcesForSession(sessionId: string) {
     const persistedSources: string[] = []
     for (const [source, aliases] of sources) {
       if (!hasChatSession(sessionId)) {
-        await Promise.all(persistedSources.map((persistedSource) => deleteStoredAttachmentSource(persistedSource)))
+        await deleteStoredAttachmentSources(persistedSources)
         return
       }
       const persistedSource = await persistDataUrlAttachment(source).catch(() => null)
@@ -325,7 +361,7 @@ async function persistInlineImageSourcesForSession(sessionId: string) {
     const latestState = useUnifiedStore.getState()
     const latestAI = latestState.data.ai!
     if (!latestAI.sessions.some((session) => session.id === sessionId)) {
-      await Promise.all(persistedSources.map((persistedSource) => deleteStoredAttachmentSource(persistedSource)))
+      await deleteStoredAttachmentSources(persistedSources)
       return
     }
     const latestMessages = latestAI.messages[sessionId] || []
@@ -674,7 +710,17 @@ export function createSessionActions() {
 
         const persistentSessions = latestAI.sessions.filter((session) => !isTemporarySession(session))
         try {
-          await Promise.all(persistentSessions.map((session) => deleteSessionJson(session.id)))
+          const deleteResults = await settleWithConcurrencyLimit(
+            persistentSessions,
+            MAX_CHAT_SESSION_DELETE_CONCURRENCY,
+            (session) => deleteSessionJson(session.id)
+          )
+          const firstError = deleteResults.find((result): result is PromiseRejectedResult =>
+            result.status === 'rejected'
+          )?.reason
+          if (firstError) {
+            throw firstError
+          }
         } catch (error) {
           uiState.setError('Could not clear chats from disk. Existing chats were kept.');
           throw error

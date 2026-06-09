@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   isSafeVaultPathSegment,
+  MAX_VAULT_RELATIVE_PATH_CHARS,
   normalizeVaultRelativePath,
   resolveVaultRelativeFullPath,
 } from './vaultPathContainment';
@@ -45,6 +46,13 @@ describe('vaultPathContainment', () => {
     expect(normalizeVaultRelativePath('docs/secret\u202Egnp.md')).toBeNull();
     expect(normalizeVaultRelativePath('docs/secret\u2066.md')).toBeNull();
     expect(normalizeVaultRelativePath('docs/secret\uFFFD.md')).toBeNull();
+  });
+
+  it('rejects oversized vault-relative paths before normalization', () => {
+    const oversizedPath = `${'a'.repeat(MAX_VAULT_RELATIVE_PATH_CHARS + 1)}.md`;
+
+    expect(isSafeVaultPathSegment(oversizedPath)).toBe(false);
+    expect(normalizeVaultRelativePath(oversizedPath)).toBeNull();
   });
 
   it('resolves safe relative paths below the vault root', async () => {

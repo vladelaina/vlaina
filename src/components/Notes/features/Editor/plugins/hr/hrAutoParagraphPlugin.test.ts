@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   defaultValueCtx,
   Editor,
@@ -173,6 +173,29 @@ describe('hrAutoParagraphPlugin', () => {
     await editor.destroy();
   });
 
+  it('converts a short thematic break without reading aggregate paragraph textContent', async () => {
+    const editor = createEditor('before\n\nplaceholder');
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    replaceLastParagraphText(view, '---');
+    const paragraph = view.state.selection.$from.parent;
+    const textBetween = vi.spyOn(paragraph, 'textBetween');
+    Object.defineProperty(paragraph, 'textContent', {
+      configurable: true,
+      get() {
+        throw new Error('aggregate paragraph textContent should not be read');
+      },
+    });
+
+    expect(handleHorizontalRuleShortcutEnter(view)).toBe(true);
+    expect(textBetween).toHaveBeenCalledWith(0, paragraph.content.size, '', '');
+    expect(view.state.doc.child(1).type.name).toBe('hr');
+
+    await editor.destroy();
+  });
+
   it('converts *** on Enter as a thematic break', async () => {
     const editor = createEditor();
 
@@ -300,6 +323,32 @@ describe('hrAutoParagraphPlugin', () => {
     expect(hasHorizontalRule(view)).toBe(false);
 
     await editor.destroy();
+  });
+
+  it('does not read oversized first paragraph text while checking shortcuts', () => {
+    const parent = {
+      type: { name: 'paragraph' },
+      content: { size: 257 },
+      get textContent() {
+        throw new Error('textContent should not be read for oversized hr shortcuts');
+      },
+    };
+    const view = {
+      state: {
+        selection: {
+          empty: true,
+          $from: {
+            depth: 1,
+            index: vi.fn(() => 0),
+            parent,
+            parentOffset: 257,
+          },
+        },
+        schema: { nodes: { paragraph: parent.type } },
+      },
+    };
+
+    expect(handleHorizontalRuleShortcutEnter(view as never)).toBe(false);
   });
 
   it('does not convert to a thematic break for modified Enter shortcuts', async () => {

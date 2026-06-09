@@ -192,6 +192,53 @@ describe('useImageActions', () => {
         );
     });
 
+    it('does not hang when fallback downloaded image reading is aborted', async () => {
+        const originalArrayBufferDescriptor = Object.getOwnPropertyDescriptor(Blob.prototype, 'arrayBuffer');
+        try {
+            Object.defineProperty(Blob.prototype, 'arrayBuffer', {
+                configurable: true,
+                value: undefined,
+            });
+            vi.stubGlobal('FileReader', class {
+                result: ArrayBuffer | null = null;
+                error: Error | null = null;
+                onload: (() => void) | null = null;
+                onerror: (() => void) | null = null;
+                onabort: (() => void) | null = null;
+
+                readAsArrayBuffer() {
+                    queueMicrotask(() => this.onabort?.());
+                }
+            });
+            vi.stubGlobal('fetch', vi.fn(async () => ({
+                headers: new Headers({
+                    'content-length': '1',
+                    'content-type': 'image/png',
+                }),
+                blob: async () => new Blob([new Uint8Array([1])], { type: 'image/png' }),
+            })));
+            const { result } = renderImageActions();
+
+            const appendSpy = vi.spyOn(document.body, 'appendChild');
+            const removeSpy = vi.spyOn(document.body, 'removeChild');
+
+            await act(async () => {
+                await result.current.handleDownload();
+            });
+
+            expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
+            expect(appendSpy).toHaveBeenCalledTimes(1);
+            expect(removeSpy).toHaveBeenCalledTimes(1);
+
+            appendSpy.mockRestore();
+            removeSpy.mockRestore();
+        } finally {
+            if (originalArrayBufferDescriptor) {
+                Object.defineProperty(Blob.prototype, 'arrayBuffer', originalArrayBufferDescriptor);
+            }
+        }
+    });
+
     it('does not write or anchor-download oversized image responses', async () => {
         const blob = vi.fn(async () => new Blob([new Uint8Array([1])], { type: 'image/png' }));
         vi.stubGlobal('fetch', vi.fn(async () => ({

@@ -10,6 +10,8 @@ import {
 } from './vaultPathContainment';
 
 const RECOVERABLE_TRASH_ROOT = 'trash';
+export const MAX_RECOVERABLE_DIRECTORY_COPY_ENTRIES = 20_000;
+export const MAX_RECOVERABLE_DIRECTORY_COPY_DEPTH = 200;
 
 export interface RecoverableDeletedItem {
   id: string;
@@ -40,24 +42,43 @@ function createDeleteId(): string {
 async function copyDirectory(sourcePath: string, targetPath: string): Promise<void> {
   const storage = getStorageAdapter();
   await storage.mkdir(targetPath, true);
-  const entries = await storage.listDir(sourcePath, { includeHidden: true });
+  let copiedEntries = 0;
+  const stack = [{ depth: 0, sourcePath, targetPath }];
 
-  for (const entry of entries) {
-    if (!isSafeVaultPathSegment(entry.name)) {
-      continue;
-    }
-    if (hasInternalNotePathSegment(entry.name)) {
-      continue;
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) break;
+    if (current.depth >= MAX_RECOVERABLE_DIRECTORY_COPY_DEPTH) {
+      throw new Error('Recoverable folder copy exceeded the maximum directory depth.');
     }
 
-    const nextSourcePath = await joinPath(sourcePath, entry.name);
-    const nextTargetPath = await joinPath(targetPath, entry.name);
-    if (entry.isDirectory) {
-      await copyDirectory(nextSourcePath, nextTargetPath);
-      continue;
-    }
-    if (entry.isFile) {
-      await storage.copyFile(nextSourcePath, nextTargetPath);
+    const entries = await storage.listDir(current.sourcePath, { includeHidden: true });
+
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+      if (copiedEntries >= MAX_RECOVERABLE_DIRECTORY_COPY_ENTRIES) {
+        throw new Error('Recoverable folder copy exceeded the maximum entry count.');
+      }
+
+      const entry = entries[index];
+      if (!entry || !isSafeVaultPathSegment(entry.name)) {
+        continue;
+      }
+      if (hasInternalNotePathSegment(entry.name)) {
+        continue;
+      }
+
+      const nextSourcePath = await joinPath(current.sourcePath, entry.name);
+      const nextTargetPath = await joinPath(current.targetPath, entry.name);
+      if (entry.isDirectory) {
+        copiedEntries += 1;
+        await storage.mkdir(nextTargetPath, true);
+        stack.push({ depth: current.depth + 1, sourcePath: nextSourcePath, targetPath: nextTargetPath });
+        continue;
+      }
+      if (entry.isFile) {
+        copiedEntries += 1;
+        await storage.copyFile(nextSourcePath, nextTargetPath);
+      }
     }
   }
 }

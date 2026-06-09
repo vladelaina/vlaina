@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { removeKatexSourceAnnotationsFromHast } from './katexSourceSanitizer';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  removeKatexSourceAnnotationsFromHast,
+  removeKatexSourceAnnotationsFromHtml,
+} from './katexSourceSanitizer';
 
 function stringify(value: unknown) {
   return JSON.stringify(value);
@@ -35,5 +38,27 @@ describe('katexSourceSanitizer', () => {
     removeKatexSourceAnnotationsFromHast(tree);
 
     expect(tree.children.length).toBeLessThanOrEqual(20_000);
+  });
+
+  it('does not parse oversized KaTeX HTML annotations', () => {
+    const html = `${'x'.repeat((2 * 1024 * 1024) + 1)}<annotation encoding="application/x-tex">x</annotation>`;
+
+    expect(removeKatexSourceAnnotationsFromHtml(html)).toBe(html);
+  });
+
+  it('removes HTML source annotations without materializing selector results', () => {
+    const querySelectorAllSpy = vi.spyOn(DocumentFragment.prototype, 'querySelectorAll');
+    const html = '<span><annotation encoding="application/x-tex">secret</annotation><span>visible</span></span>';
+
+    try {
+      const sanitized = removeKatexSourceAnnotationsFromHtml(html);
+
+      expect(sanitized).toContain('visible');
+      expect(sanitized).not.toContain('application/x-tex');
+      expect(sanitized).not.toContain('secret');
+      expect(querySelectorAllSpy).not.toHaveBeenCalled();
+    } finally {
+      querySelectorAllSpy.mockRestore();
+    }
   });
 });

@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { getUserFacingAIError, parseAPIError, parseHTTPError } from './errors';
-import { parseManagedError } from './managed/errors';
+import {
+  getUserFacingAIError,
+  MAX_USER_FACING_AI_ERROR_CODE_CHARS,
+  MAX_USER_FACING_AI_ERROR_MESSAGE_CHARS,
+  parseAPIError,
+  parseHTTPError,
+} from './errors';
+import {
+  getManagedServiceErrorMessage,
+  MAX_MANAGED_SERVICE_ERROR_MESSAGE_CHARS,
+  parseManagedError,
+} from './managed/errors';
 import { AIErrorType } from './types';
 
 describe('getUserFacingAIError', () => {
@@ -86,6 +96,18 @@ describe('getUserFacingAIError', () => {
       code: '',
       message: 'Managed chat currently supports text-only messages',
     });
+  });
+
+  it('bounds provider error fields before exposing preserved messages', () => {
+    const result = getUserFacingAIError({
+      type: AIErrorType.INVALID_REQUEST,
+      message: 'x'.repeat(MAX_USER_FACING_AI_ERROR_MESSAGE_CHARS + 1),
+      code: 'c'.repeat(MAX_USER_FACING_AI_ERROR_CODE_CHARS + 1),
+    });
+
+    expect(result.type).toBe(AIErrorType.INVALID_REQUEST);
+    expect(result.message).toHaveLength(MAX_USER_FACING_AI_ERROR_MESSAGE_CHARS);
+    expect(result.code).toHaveLength(MAX_USER_FACING_AI_ERROR_CODE_CHARS);
   });
 
   it('maps managed unsupported input codes to a clear model capability message', () => {
@@ -254,6 +276,12 @@ describe('getUserFacingAIError', () => {
 });
 
 describe('parseManagedError', () => {
+  it('bounds managed service error messages before storing them', () => {
+    expect(getManagedServiceErrorMessage(
+      new Error('x'.repeat(MAX_MANAGED_SERVICE_ERROR_MESSAGE_CHARS + 1))
+    )).toHaveLength(MAX_MANAGED_SERVICE_ERROR_MESSAGE_CHARS);
+  });
+
   it('preserves managed HTTP status and public error code', async () => {
     const error = await parseManagedError(new Response(JSON.stringify({
       success: false,

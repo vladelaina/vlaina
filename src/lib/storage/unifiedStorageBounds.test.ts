@@ -49,7 +49,10 @@ import {
   MAX_CUSTOM_ICON_URL_CHARS,
   MAX_CUSTOM_ICONS,
   MAX_DELETED_CUSTOM_ICON_IDS,
+  MAX_SETTINGS_TIMEZONE_CITY_CHARS,
+  MAX_SETTINGS_UI_THEME_ID_CHARS,
   MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS,
+  MAX_AI_PROVIDER_STORAGE_CONCURRENCY,
   MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES,
   loadUnifiedData,
 } from './unifiedStorage';
@@ -122,6 +125,80 @@ describe('unifiedStorage load bounds', () => {
     expect(channelExistsPaths).toContain('/appdata/.vlaina/chat/channels/provider-199.json');
     expect(channelExistsPaths).not.toContain('/appdata/.vlaina/chat/channels/provider-200.json');
     expect(channelExistsPaths).not.toContain('/appdata/.vlaina/chat/channels/../outside.json');
+  });
+
+  it('limits concurrent provider channel reads during load', async () => {
+    const providerIds = Array.from(
+      { length: MAX_AI_PROVIDER_STORAGE_CONCURRENCY + 3 },
+      (_value, index) => `provider-${index}`
+    );
+    let activeReads = 0;
+    let maxActiveReads = 0;
+    mocks.storage.exists.mockImplementation(async (path: string) => (
+      path.endsWith('/.vlaina/data.json') ||
+      path.endsWith('/chat/sessions.json') ||
+      path.includes('/chat/channels/')
+    ));
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/.vlaina/data.json')) {
+        return JSON.stringify({
+          version: 2,
+          lastModified: 1,
+          data: {
+            settings: {
+              timezone: { offset: 480, city: 'Beijing' },
+              markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+            },
+            customIcons: [],
+          },
+        });
+      }
+
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          version: 1,
+          updatedAt: 1,
+          data: {
+            sessions: [],
+            providerIds,
+          },
+        });
+      }
+
+      if (path.includes('/chat/channels/')) {
+        activeReads += 1;
+        maxActiveReads = Math.max(maxActiveReads, activeReads);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        activeReads -= 1;
+        const providerId = path.split('/').pop()?.replace(/\.json$/, '') || '';
+        return JSON.stringify({
+          version: 1,
+          providerId,
+          updatedAt: 1,
+          data: {
+            provider: {
+              id: providerId,
+              name: providerId,
+              type: 'newapi',
+              apiHost: 'https://provider.example',
+              apiKey: '',
+              enabled: true,
+              createdAt: 1,
+              updatedAt: 1,
+            },
+            models: [],
+            fetchedModels: [],
+          },
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    const data = await loadUnifiedData();
+
+    expect(data.ai?.providers).toHaveLength(providerIds.length);
+    expect(maxActiveReads).toBeLessThanOrEqual(MAX_AI_PROVIDER_STORAGE_CONCURRENCY);
   });
 
   it('bounds models restored from a provider channel file', async () => {
@@ -295,6 +372,35 @@ describe('unifiedStorage load bounds', () => {
 
     expect(data.settings.timezone.city).toBe('Beijing');
     expect(data.ai?.providers).toEqual([]);
+  });
+
+  it('bounds settings string fields loaded from main data', async () => {
+    const longCity = `${'c'.repeat(MAX_SETTINGS_TIMEZONE_CITY_CHARS)}x`;
+    const longThemeId = `${'t'.repeat(MAX_SETTINGS_UI_THEME_ID_CHARS)}x`;
+    mocks.storage.exists.mockImplementation(async (path: string) => path.endsWith('/.vlaina/data.json'));
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/.vlaina/data.json')) {
+        return JSON.stringify({
+          version: 2,
+          lastModified: 1,
+          data: {
+            settings: {
+              timezone: { offset: 480, city: longCity },
+              markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+              ui: { themeId: longThemeId },
+            },
+            customIcons: [],
+          },
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    const data = await loadUnifiedData();
+
+    expect(data.settings.timezone.city).toHaveLength(MAX_SETTINGS_TIMEZONE_CITY_CHARS);
+    expect(data.settings.ui?.themeId).toHaveLength(MAX_SETTINGS_UI_THEME_ID_CHARS);
   });
 
   it('bounds custom icon metadata loaded from main data', async () => {

@@ -1,8 +1,10 @@
 import { AllSelection, Plugin, PluginKey, TextSelection, type EditorState } from '@milkdown/kit/prose/state';
+import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
 import { hasSelectedBlocks } from '../cursor/blockSelectionPluginState';
 import { ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES } from '../shared/blockNodeTypes';
+import { DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT } from '../shared/boundedProseNodeScan';
 
 export const TEXT_SELECTION_OVERLAY_CLASS = 'editor-text-selection-overlay';
 const TEXT_SELECTION_OVERLAY_ACTIVE_CLASS = 'editor-text-selection-overlay-active';
@@ -13,6 +15,7 @@ const EDITOR_ONLY_TEXT_SELECTION_PLACEHOLDERS = new Set(['\u200B', '\u200C', '\u
 const VISIBLE_TEXT_PATTERN = /\S/u;
 const LINE_BREAK_PATTERN = /[\n\r\u2028\u2029]/u;
 export const MAX_TEXT_SELECTION_OVERLAY_DECORATIONS = 1000;
+export const MAX_TEXT_SELECTION_OVERLAY_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 
 interface TextSelectionOverlayState {
   decorations: DecorationSet;
@@ -120,25 +123,84 @@ export function addTextSelectionOverlayDecorations(
   }
 }
 
-function createTextSelectionDecorationState(
-  state: EditorState
-): Pick<TextSelectionOverlayState, 'decorationCount' | 'decorations'> {
-  const { doc, selection } = state;
-  if (!isTextSelectionOverlayEligible(state)) {
-    return { decorationCount: 0, decorations: DecorationSet.empty };
-  }
+function forEachTextSelectionOverlayNode(
+  doc: ProseNode,
+  from: number,
+  to: number,
+  visit: (node: ProseNode, pos: number) => boolean | void,
+  maxScanNodes: number
+): void {
+  let scannedNodes = 0;
+  const stack: Array<{
+    contentStart: number;
+    index: number;
+    node: ProseNode;
+    offset: number;
+  }> = [{
+    contentStart: 0,
+    index: 0,
+    node: doc,
+    offset: 0,
+  }];
 
-  const decorations: Decoration[] = [];
-  doc.nodesBetween(selection.from, selection.to, (node, pos) => {
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+    if (frame.index >= frame.node.childCount) {
+      stack.pop();
+      continue;
+    }
+    if (scannedNodes >= maxScanNodes) {
+      return;
+    }
+
+    const node = frame.node.child(frame.index);
+    const pos = frame.contentStart + frame.offset;
+    frame.index += 1;
+    frame.offset += node.nodeSize;
+
+    if (pos >= to) {
+      frame.index = frame.node.childCount;
+      continue;
+    }
+    if (pos + node.nodeSize <= from) {
+      continue;
+    }
+
+    scannedNodes += 1;
+    const shouldDescend = visit(node, pos);
+    if (shouldDescend === false || node.childCount === 0) {
+      continue;
+    }
+
+    stack.push({
+      contentStart: pos + 1,
+      index: 0,
+      node,
+      offset: 0,
+    });
+  }
+}
+
+export function addTextSelectionOverlayDecorationsForRange(
+  decorations: Decoration[],
+  doc: ProseNode,
+  from: number,
+  to: number,
+  options: {
+    includeAtomicBlocks?: boolean;
+    maxScanNodes?: number;
+  } = {}
+): void {
+  forEachTextSelectionOverlayNode(doc, from, to, (node, pos) => {
     if (decorations.length >= MAX_TEXT_SELECTION_OVERLAY_DECORATIONS) {
       return false;
     }
 
     if (
-      selection instanceof AllSelection &&
+      options.includeAtomicBlocks &&
       ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES.has(node.type.name) &&
-      selection.from <= pos &&
-      pos + node.nodeSize <= selection.to
+      from <= pos &&
+      pos + node.nodeSize <= to
     ) {
       if (decorations.length >= MAX_TEXT_SELECTION_OVERLAY_DECORATIONS) {
         return false;
@@ -149,15 +211,38 @@ function createTextSelectionDecorationState(
       return false;
     }
 
-    if (!node.isText) return;
+    if (!node.isText) return undefined;
     addTextSelectionOverlayDecorations(
       decorations,
       node.text ?? '',
       pos,
-      selection.from,
-      selection.to
+      from,
+      to
     );
-  });
+    return undefined;
+  }, options.maxScanNodes ?? MAX_TEXT_SELECTION_OVERLAY_SCAN_NODES);
+}
+
+export function createTextSelectionDecorationState(
+  state: EditorState,
+  maxScanNodes = MAX_TEXT_SELECTION_OVERLAY_SCAN_NODES
+): Pick<TextSelectionOverlayState, 'decorationCount' | 'decorations'> {
+  const { doc, selection } = state;
+  if (!isTextSelectionOverlayEligible(state)) {
+    return { decorationCount: 0, decorations: DecorationSet.empty };
+  }
+
+  const decorations: Decoration[] = [];
+  addTextSelectionOverlayDecorationsForRange(
+    decorations,
+    doc,
+    selection.from,
+    selection.to,
+    {
+      includeAtomicBlocks: selection instanceof AllSelection,
+      maxScanNodes,
+    }
+  );
 
   return {
     decorationCount: decorations.length,

@@ -48,6 +48,9 @@ class BlockHandleView implements PluginView {
         let totalDescendant = 0
         active.node.descendants((node) => {
           totalDescendant += node.childCount
+          if (totalDescendant > 2) return false
+
+          return undefined
         })
         const dom = active.el
         const domRect = dom.getBoundingClientRect()

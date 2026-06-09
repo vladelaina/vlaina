@@ -5,6 +5,13 @@ import { withMeta } from '../../__internal__'
 
 const id = 'footnote_definition'
 const markdownId = 'footnoteDefinition'
+const MAX_FOOTNOTE_LABEL_ATTR_CHARS = 512
+
+function normalizeFootnoteLabelAttr(value: unknown) {
+  return typeof value === 'string' && value.length <= MAX_FOOTNOTE_LABEL_ATTR_CHARS
+    ? value
+    : ''
+}
 
 /// Footnote definition node schema.
 export const footnoteDefinitionSchema = $nodeSchema(
@@ -26,7 +33,7 @@ export const footnoteDefinitionSchema = $nodeSchema(
           if (!(dom instanceof HTMLElement)) throw expectDomTypeError(dom)
 
           return {
-            label: dom.dataset.label,
+            label: normalizeFootnoteLabelAttr(dom.dataset.label),
           }
         },
         contentElement: 'dd',

@@ -7,6 +7,37 @@ import {
 } from '../utils/helpers';
 import { markEditorUserInput } from '../../shared/userInputEvents';
 
+export const MAX_TOOLTIP_FALLBACK_LINK_TEXT_CHARS = 4096;
+
+export function getBoundedTextNodeLength(element: HTMLElement, maxChars: number): number | null {
+    let length = 0;
+    const walker = element.ownerDocument.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+
+    while (node) {
+        length += node.textContent?.length ?? 0;
+        if (length > maxChars) return null;
+        node = walker.nextNode();
+    }
+
+    return length;
+}
+
+export function getBoundedLinkTooltipText(element: HTMLElement, maxChars = MAX_TOOLTIP_FALLBACK_LINK_TEXT_CHARS): string {
+    let text = '';
+    const walker = element.ownerDocument.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+
+    while (node && text.length < maxChars) {
+        const value = node.textContent ?? '';
+        const remaining = maxChars - text.length;
+        text += value.length > remaining ? value.slice(0, remaining) : value;
+        node = walker.nextNode();
+    }
+
+    return text;
+}
+
 export function sanitizeTooltipLinkHref(value: string): string | null {
     return sanitizeEditorLinkHref(value);
 }
@@ -26,7 +57,8 @@ export function editExistingLink(
 
     const range = resolveLinkMarkRangeAtPos(state, pos);
     const start = range?.start ?? pos;
-    const end = range?.end ?? pos + (link.textContent?.length || 0);
+    const fallbackTextLength = range ? null : getBoundedTextNodeLength(link, MAX_TOOLTIP_FALLBACK_LINK_TEXT_CHARS);
+    const end = range?.end ?? (fallbackTextLength === null ? pos : pos + fallbackTextLength);
     if (start === end) return null;
 
     let tr = state.tr;
@@ -60,7 +92,8 @@ export function removeExistingLink(view: EditorView, link: HTMLElement): boolean
         if (!link.classList.contains('autolink')) return false;
 
         const start = view.posAtDOM(link, 0);
-        const textLength = link.textContent?.length ?? 0;
+        const textLength = getBoundedTextNodeLength(link, MAX_TOOLTIP_FALLBACK_LINK_TEXT_CHARS);
+        if (textLength === null) return false;
         const end = start + textLength;
         if (start < 0 || textLength <= 0 || end > view.state.doc.content.size) return false;
 

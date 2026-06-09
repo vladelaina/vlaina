@@ -7,6 +7,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import {
   createTableNodeFromPipeCells,
   getPipeShortcutCells,
+  MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS,
 } from './pipeTableShortcut';
 import {
   DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
@@ -299,7 +300,12 @@ export const tableKeyboardPlugin = $prose(() => {
           $from.parent.type.name === 'paragraph' &&
           $from.parentOffset === $from.parent.content.size
         ) {
-          const cells = getPipeShortcutCells($from.parent.textContent);
+          if ($from.parent.content.size > MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS) {
+            return false;
+          }
+
+          const shortcutText = $from.parent.textBetween(0, $from.parent.content.size, '', '');
+          const cells = getPipeShortcutCells(shortcutText);
           if (cells && cells.filter((cell) => cell.length > 0).length >= 2) {
             const tableNode = createTableNodeFromPipeCells(state.schema, cells);
             if (tableNode && $from.depth >= 1) {

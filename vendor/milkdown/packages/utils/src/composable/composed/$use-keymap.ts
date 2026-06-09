@@ -65,9 +65,9 @@ export function $useKeymap<N extends string, Key extends string>(
         const priority = target.priority
 
         return targetKeys.map(
-          (targetKey) =>
+          (targetKey, index) =>
             [
-              targetKey,
+              `${key}:${targetKey}:${index}`,
               {
                 key: targetKey,
                 onRun: command,

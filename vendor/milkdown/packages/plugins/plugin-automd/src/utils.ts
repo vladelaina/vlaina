@@ -11,6 +11,8 @@ import {
   underlineHolder,
 } from './regexp'
 
+export const MAX_AUTOMD_OFFSET_SCAN_NODES = 20_000
+
 export function keepLink(str: string) {
   let text = str
   let match = text.match(keepLinkRegexp)
@@ -73,31 +75,49 @@ export function calculatePlaceholder(placeholder: SyncNodePlaceholder) {
 
 export function calcOffset(node: Node, from: number, placeholder: string) {
   let offset = from
+  let scanned = 0
+  const stack: Array<{ childCount: number; closingSize: number; index: number; node: Node }> = [{
+    childCount: node.childCount,
+    closingSize: 0,
+    index: 0,
+    node,
+  }]
 
-  const scan = (current: Node): boolean => {
-    for (let index = 0; index < current.childCount; index++) {
-      const n = current.child(index)
-      if (!n.textContent.includes(placeholder)) {
-        offset += n.nodeSize
-        continue
-      }
-      if (n.isText) {
-        const i = n.text?.indexOf(placeholder)
-        if (i != null && i >= 0) {
-          offset += i
-          return true
-        }
-      }
-
-      // enter the node
-      offset += 1
-      if (scan(n)) return true
-      offset += n.nodeSize
+  while (stack.length > 0 && scanned < MAX_AUTOMD_OFFSET_SCAN_NODES) {
+    const frame = stack[stack.length - 1]!
+    if (frame.index >= frame.childCount) {
+      offset += frame.closingSize
+      stack.pop()
+      continue
     }
 
-    return false
+    const child = frame.node.child(frame.index)
+    frame.index += 1
+    scanned += 1
+
+    if (child.isText) {
+      const index = child.text?.indexOf(placeholder) ?? -1
+      if (index >= 0) {
+        offset += index
+        break
+      }
+      offset += child.nodeSize
+      continue
+    }
+
+    if (child.childCount <= 0) {
+      offset += child.nodeSize
+      continue
+    }
+
+    offset += 1
+    stack.push({
+      childCount: child.childCount,
+      closingSize: 1,
+      index: 0,
+      node: child,
+    })
   }
 
-  scan(node)
   return offset
 }

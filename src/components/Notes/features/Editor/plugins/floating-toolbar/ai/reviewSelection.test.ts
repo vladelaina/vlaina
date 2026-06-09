@@ -1,26 +1,31 @@
 import { describe, expect, it, vi } from 'vitest';
+import * as ProseModel from '@milkdown/kit/prose/model';
 import {
   MAX_TEXT_SELECTION_OVERLAY_DECORATIONS,
 } from '../../selection/textSelectionOverlayPlugin';
 import { floatingToolbarKey } from '../floatingToolbarKey';
 import { getAiReviewSelectionDecorations } from './reviewSelection';
 
+const SchemaCtor = (ProseModel as any).Schema;
+const schema = new SchemaCtor({
+  nodes: {
+    doc: { content: 'block+' },
+    paragraph: {
+      group: 'block',
+      content: 'text*',
+      toDOM: () => ['p', 0],
+      parseDOM: [{ tag: 'p' }],
+    },
+    text: { group: 'inline' },
+  },
+});
+
 describe('reviewSelection', () => {
   it('stops scanning review selections after the decoration budget is reached', () => {
-    const nodesBetween = vi.fn((_from, _to, callback) => {
-      for (let index = 0; index < MAX_TEXT_SELECTION_OVERLAY_DECORATIONS + 10; index += 1) {
-        const keepGoing = callback(
-          {
-            isText: true,
-            text: 'x',
-          },
-          index
-        );
-        if (keepGoing === false) {
-          break;
-        }
-      }
-    });
+    const doc = schema.nodes.doc.create(null, Array.from(
+      { length: MAX_TEXT_SELECTION_OVERLAY_DECORATIONS + 10 },
+      () => schema.nodes.paragraph.create(null, schema.text('x'))
+    ));
     vi.spyOn(floatingToolbarKey, 'getState').mockReturnValue({
       aiReviews: [
         {
@@ -29,7 +34,7 @@ describe('reviewSelection', () => {
           commandId: null,
           toneId: null,
           from: 0,
-          to: MAX_TEXT_SELECTION_OVERLAY_DECORATIONS + 10,
+          to: doc.content.size,
           originalText: 'x',
           suggestedText: '',
           isLoading: true,
@@ -50,14 +55,8 @@ describe('reviewSelection', () => {
       ],
     } as never);
 
-    getAiReviewSelectionDecorations({
-      doc: {
-        content: { size: MAX_TEXT_SELECTION_OVERLAY_DECORATIONS + 10 },
-        nodesBetween,
-        forEach: () => {},
-      },
-    } as never);
+    const decorations = getAiReviewSelectionDecorations({ doc } as never);
 
-    expect(nodesBetween).toHaveBeenCalledTimes(1);
+    expect(decorations.find()).toHaveLength(MAX_TEXT_SELECTION_OVERLAY_DECORATIONS);
   });
 });

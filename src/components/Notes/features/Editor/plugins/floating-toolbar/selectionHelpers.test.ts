@@ -8,6 +8,7 @@ import {
   getCurrentBlockType,
   getFormattableTextRanges,
   getLinkUrl,
+  MAX_FLOATING_TOOLBAR_SELECTION_SCAN_NODES,
   getTextColor,
 } from './selectionHelpers';
 
@@ -72,7 +73,7 @@ function createView(
         $from: resolve(selection.from),
       },
       doc: {
-        nodesBetween: (_from: number, _to: number, callback: (node: unknown, pos: number, parent?: unknown) => void) => {
+        nodesBetween: (_from: number, _to: number, callback: (node: unknown, pos: number, parent?: unknown) => boolean | void) => {
           nodes.forEach((node) => {
             const path = resolvedByPos[node.pos];
             const parent = path
@@ -81,7 +82,7 @@ function createView(
                   attrs: path[path.length - 1].attrs ?? {},
                 }
               : undefined;
-            callback(
+            return callback(
               {
                 isText: node.isText ?? Boolean(node.text),
                 text: node.text ?? null,
@@ -373,6 +374,22 @@ describe('selection helpers', () => {
       { from: 0, to: 2 },
       { from: 4, to: 6 },
     ]);
+    expect(getActiveMarks(view)).toEqual(new Set(['strong']));
+  });
+
+  it('caps selected text scans for toolbar state helpers', () => {
+    const nodes = Array.from(
+      { length: MAX_FLOATING_TOOLBAR_SELECTION_SCAN_NODES + 5 },
+      (_item, index) => ({
+        ...createTextNode('x', [{ name: 'strong' }]),
+        pos: index,
+      })
+    );
+    const resolvedByPos = Object.fromEntries(
+      nodes.map((node) => [node.pos, [{ type: 'doc' }, { type: 'paragraph', before: node.pos }]])
+    );
+    const view = createView(nodes, { from: 0, to: nodes.length }, resolvedByPos);
+
     expect(getActiveMarks(view)).toEqual(new Set(['strong']));
   });
 });

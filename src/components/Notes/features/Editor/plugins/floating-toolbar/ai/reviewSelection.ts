@@ -4,7 +4,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import {
   MAX_TEXT_SELECTION_OVERLAY_DECORATIONS,
-  addTextSelectionOverlayDecorations,
+  addTextSelectionOverlayDecorationsForRange,
 } from '../../selection/textSelectionOverlayPlugin';
 import { floatingToolbarKey } from '../floatingToolbarKey';
 
@@ -67,23 +67,7 @@ export function getAiReviewSelectionDecorations(state: EditorState): DecorationS
       continue;
     }
 
-    state.doc.nodesBetween(from, to, (node, pos) => {
-      if (decorations.length >= MAX_TEXT_SELECTION_OVERLAY_DECORATIONS) {
-        return false;
-      }
-      if (!node.isText) return;
-
-      addTextSelectionOverlayDecorations(
-        decorations,
-        node.text ?? '',
-        pos,
-        from,
-        to
-      );
-      if (decorations.length >= MAX_TEXT_SELECTION_OVERLAY_DECORATIONS) {
-        return false;
-      }
-    });
+    addTextSelectionOverlayDecorationsForRange(decorations, state.doc, from, to);
   }
 
   return decorations.length > 0

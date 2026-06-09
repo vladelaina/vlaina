@@ -80,6 +80,57 @@ describe('AssetHashIndex', () => {
     expect(index.entries['image.png']?.hash).toBe('abc');
   });
 
+  it('drops hash index entries with oversized fields', async () => {
+    mocks.storage.stat.mockResolvedValue({ size: 256 });
+    mocks.storage.readFile.mockResolvedValue(JSON.stringify({
+      version: 1,
+      entries: {
+        'image.png': {
+          filename: 'image.png',
+          hash: 'abc',
+          size: 10,
+          modifiedAt: 1,
+          mimeType: 'image/png',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+        'large.png': {
+          filename: 'large.png',
+          hash: 'x'.repeat(257),
+          size: 10,
+          modifiedAt: 1,
+          mimeType: 'image/png',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      },
+    }));
+
+    const index = await loadAssetHashIndex('/vault');
+
+    expect(Object.keys(index.entries)).toEqual(['image.png']);
+  });
+
+  it('limits hash index entries loaded from storage', async () => {
+    mocks.storage.stat.mockResolvedValue({ size: 1024 });
+    const entries = Object.fromEntries(Array.from({ length: 5001 }, (_, index) => {
+      const filename = `image-${index}.png`;
+      return [filename, {
+        filename,
+        hash: `hash-${index}`,
+        size: 10,
+        modifiedAt: 1,
+        mimeType: 'image/png',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      }];
+    }));
+    mocks.storage.readFile.mockResolvedValue(JSON.stringify({ version: 1, entries }));
+
+    const index = await loadAssetHashIndex('/vault');
+
+    expect(Object.keys(index.entries)).toHaveLength(5000);
+    expect(index.entries['image-4999.png']).toBeDefined();
+    expect(index.entries['image-5000.png']).toBeUndefined();
+  });
+
   it('creates the parent directory before saving', async () => {
     await saveAssetHashIndex('/vault', {
       version: 1,

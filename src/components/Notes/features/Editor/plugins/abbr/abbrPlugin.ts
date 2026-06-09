@@ -18,8 +18,13 @@ export const abbrPluginKey = new PluginKey('abbr');
 
 const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
 const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
+export const MAX_ABBR_TITLE_CHARS = 4096;
 export const MAX_ABBR_DECORATIONS = 1000;
 export const MAX_ABBR_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+
+export function normalizeAbbrTitle(value: unknown): string {
+  return typeof value === 'string' ? value.slice(0, MAX_ABBR_TITLE_CHARS) : '';
+}
 
 function shouldSkipTextNode(node: BoundedProseScanNode, parent: BoundedProseScanNode): boolean {
   const parentType = parent.type?.name;
@@ -41,15 +46,15 @@ export const abbrMark = $mark('abbr', () => ({
   parseDOM: [{
     tag: 'abbr',
     getAttrs: (dom) => ({
-      title: (dom as HTMLElement).getAttribute('title') ?? '',
+      title: normalizeAbbrTitle((dom as HTMLElement).getAttribute('title')),
     }),
   }],
-  toDOM: (mark) => ['abbr', { title: mark.attrs.title, class: 'abbr' }, 0],
+  toDOM: (mark) => ['abbr', { title: normalizeAbbrTitle(mark.attrs.title), class: 'abbr' }, 0],
   parseMarkdown: {
     match: (node) => node.type === 'abbr',
     runner: (state, node, markType) => {
       const title = (node as { data?: { hProperties?: { title?: unknown } } }).data?.hProperties?.title;
-      state.openMark(markType, { title: typeof title === 'string' ? title : '' });
+      state.openMark(markType, { title: normalizeAbbrTitle(title) });
       state.next((node as { children?: unknown }).children);
       state.closeMark(markType);
     },

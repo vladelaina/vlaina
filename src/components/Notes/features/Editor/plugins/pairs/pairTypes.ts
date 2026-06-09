@@ -15,7 +15,9 @@ export type SelectionLike = {
   $from: {
     parent: {
       isTextblock: boolean;
-      textContent: string;
+      content: { size: number };
+      textBetween: (from: number, to: number, blockSeparator?: string, leafText?: string) => string;
+      textContent?: string;
     };
     parentOffset: number;
   };

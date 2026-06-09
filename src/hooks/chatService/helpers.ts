@@ -50,6 +50,7 @@ const MAX_NOTE_MENTION_COUNT = 3;
 const MAX_NOTE_MENTION_CHARS = 12000;
 const MAX_NOTE_MENTION_READ_BYTES = 512 * 1024;
 const MAX_FOLDER_MENTION_NOTES = 20;
+export const MAX_CHAT_MENTION_LOAD_CONCURRENCY = 5;
 const MAX_FOLDER_MARKDOWN_SCAN_DEPTH = 6;
 const MAX_FOLDER_MARKDOWN_SCAN_ENTRIES = 500;
 const MAX_FOLDER_MARKDOWN_LISTING_SCAN_ENTRIES = 5000;
@@ -85,6 +86,30 @@ const SKIPPED_FOLDER_MARKDOWN_DIRECTORY_NAMES = new Set([
   '__pycache__',
 ]);
 
+async function mapWithConcurrencyLimit<T, R>(
+  items: readonly T[],
+  limit: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  if (items.length === 0) {
+    return [];
+  }
+
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.max(1, Math.min(limit, items.length));
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+}
+
 export function resolveAssistantContent(
   returnedContent: string,
   lastStreamedContent: string,
@@ -106,6 +131,33 @@ export function resolveAssistantContent(
 
 export function normalizeNoteMentions(noteMentions: NoteMentionReference[]): NoteMentionReference[] {
   return dedupeNoteMentions(noteMentions).slice(0, MAX_NOTE_MENTION_COUNT);
+}
+
+function normalizeNoteMentionsForLoading(noteMentions: NoteMentionReference[]): NoteMentionReference[] {
+  const seen = new Set<string>();
+  const normalizedMentions: NoteMentionReference[] = [];
+
+  for (const mention of noteMentions) {
+    const path = mention.path.trim();
+    if (!path || seen.has(path)) {
+      continue;
+    }
+
+    seen.add(path);
+    const normalizedMention: NoteMentionReference = {
+      path,
+      title: mention.title.trim() || path,
+    };
+    if (mention.kind === 'folder' || mention.kind === 'note') {
+      normalizedMention.kind = mention.kind;
+    }
+    normalizedMentions.push(normalizedMention);
+    if (normalizedMentions.length >= MAX_NOTE_MENTION_COUNT) {
+      break;
+    }
+  }
+
+  return normalizedMentions;
 }
 
 export function isImageAttachment(attachment: Attachment): boolean {
@@ -648,8 +700,10 @@ async function loadScannedFolderMarkdownReferences(
     '',
     { visitedEntries: 0 },
   );
-  const loaded = await Promise.all(
-    entries.map(async (entry) => {
+  const loaded = await mapWithConcurrencyLimit(
+    entries,
+    MAX_CHAT_MENTION_LOAD_CONCURRENCY,
+    async (entry) => {
       const content = stripManagedFrontmatter(
         await readResolvedMentionedNoteContent({
           cachePath: entry.cachePath,
@@ -662,7 +716,7 @@ async function loadScannedFolderMarkdownReferences(
         kind: 'note' as const,
         content,
       };
-    }),
+    },
   );
   return loaded.filter((note) => note.content.length > 0);
 }
@@ -854,8 +908,10 @@ async function loadMentionReference(
     return listing ? [listing, ...scannedReferences] : scannedReferences;
   }
 
-  const loaded = await Promise.all(
-    markdownNodes.map(async (node) => {
+  const loaded = await mapWithConcurrencyLimit(
+    markdownNodes,
+    MAX_CHAT_MENTION_LOAD_CONCURRENCY,
+    async (node) => {
       const title = notesState.getDisplayName?.(node.path) ?? node.name;
       const content = stripManagedFrontmatter(
         await resolveMentionedNoteContent(node.path),
@@ -866,7 +922,7 @@ async function loadMentionReference(
         kind: 'note' as const,
         content,
       };
-    }),
+    },
   );
   const markdownReferences = loaded.filter((note) => note.content.length > 0);
   return listing ? [listing, ...markdownReferences] : markdownReferences;
@@ -876,13 +932,23 @@ export async function loadMentionedNotes(
   noteMentions: NoteMentionReference[]
 ): Promise<Array<NoteMentionReference & { content: string }>> {
   flushCurrentPendingEditorMarkdown();
-  return (await Promise.all(noteMentions.map(loadMentionReference))).flat();
+  const normalizedMentions = normalizeNoteMentionsForLoading(noteMentions);
+  return (await mapWithConcurrencyLimit(
+    normalizedMentions,
+    MAX_CHAT_MENTION_LOAD_CONCURRENCY,
+    loadMentionReference,
+  )).flat();
 }
 
 export async function loadMentionedFolderImageAttachments(
   noteMentions: NoteMentionReference[]
 ): Promise<Attachment[]> {
-  const attachments = (await Promise.all(noteMentions.map(loadFolderImageAttachmentsForMention))).flat();
+  const normalizedMentions = normalizeNoteMentionsForLoading(noteMentions);
+  const attachments = (await mapWithConcurrencyLimit(
+    normalizedMentions,
+    MAX_CHAT_MENTION_LOAD_CONCURRENCY,
+    loadFolderImageAttachmentsForMention,
+  )).flat();
   const seenPaths = new Set<string>();
   return attachments.filter((attachment) => {
     if (!attachment.path || seenPaths.has(attachment.path)) {

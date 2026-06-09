@@ -1,3 +1,4 @@
+import type { Node } from '@milkdown/prose/model'
 import type { Transaction } from '@milkdown/prose/state'
 
 import { Plugin, PluginKey } from '@milkdown/prose/state'
@@ -22,15 +23,49 @@ export function clearMarkedHardbreaksInRange(
   const end = Math.max(start, Math.min(to, nextTr.doc.content.size))
   let scanned = 0
 
-  nextTr.doc.nodesBetween(start, end, (node, pos) => {
+  const stack: Array<{
+    contentStart: number
+    index: number
+    node: Node
+    offset: number
+  }> = [{
+    contentStart: 0,
+    index: 0,
+    node: nextTr.doc,
+    offset: 0,
+  }]
+
+  while (stack.length > 0 && scanned < maxScanNodes) {
+    const frame = stack[stack.length - 1]!
+    if (frame.index >= frame.node.childCount) {
+      stack.pop()
+      continue
+    }
+
+    const node = frame.node.child(frame.index)
+    const pos = frame.contentStart + frame.offset
+    const nodeEnd = pos + node.nodeSize
+    frame.index += 1
+    frame.offset += node.nodeSize
+
+    if (nodeEnd < start) continue
+    if (pos > end) break
+
     scanned += 1
-    if (scanned > maxScanNodes) return false
     if (node.type === hardbreakType && node.marks.length) {
       nextTr = nextTr.setNodeMarkup(pos, hardbreakType as never, node.attrs, [])
       changed = true
     }
-    return true
-  })
+
+    if (node.childCount > 0) {
+      stack.push({
+        contentStart: pos + 1,
+        index: 0,
+        node,
+        offset: 0,
+      })
+    }
+  }
 
   return { tr: nextTr, changed }
 }

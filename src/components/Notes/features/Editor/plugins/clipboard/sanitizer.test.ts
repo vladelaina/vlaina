@@ -457,6 +457,12 @@ describe('sanitizeHtml', () => {
     expect(result).not.toContain(oversized);
   });
 
+  it('skips oversized clipboard HTML before DOM parsing', () => {
+    const payload = `${'x'.repeat(2 * 1024 * 1024 + 1)}<img src="https://example.com/a.png">`;
+
+    expect(sanitizeHtml(payload)).toBe('');
+  });
+
   it('never leaves inline event attributes in sanitized output for generated attribute names', () => {
     fc.assert(
       fc.property(

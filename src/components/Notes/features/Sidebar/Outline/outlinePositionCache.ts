@@ -2,7 +2,7 @@ import type { NotesOutlineHeading } from './types';
 import {
   createOutlineHeadingId,
   getHeadingLevelFromTagName,
-  normalizeHeadingText,
+  readBoundedHeadingText,
 } from './outlineUtils';
 
 export interface OutlineHeadingMetric extends NotesOutlineHeading {
@@ -47,7 +47,7 @@ export function readOutlineHeadingMetrics(
       return [];
     }
 
-    const text = normalizeHeadingText(element.textContent ?? '');
+    const text = readBoundedHeadingText(element);
     const id = createOutlineHeadingId(index, level, text);
     const top = scrollRoot
       ? element.getBoundingClientRect().top - scrollRootTop + scrollTop

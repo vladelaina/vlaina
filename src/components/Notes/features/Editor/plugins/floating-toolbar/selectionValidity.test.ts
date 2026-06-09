@@ -3,6 +3,7 @@ import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { hasUsableTextRange, hasUsableTextSelection } from './selectionValidity';
+import { MAX_EDITOR_SELECTION_TEXT_CHARS } from '../shared/selectionTextLimits';
 
 async function createEditor(markdown: string) {
   const editor = Editor.make()
@@ -43,5 +44,16 @@ describe('selectionValidity', () => {
     expect(hasUsableTextSelection(selection, view.state.doc)).toBe(false);
 
     await editor.destroy();
+  });
+
+  it('bounds text extraction for large selection checks', () => {
+    const textBetween = vi.fn(() => 'hello');
+    const doc = {
+      content: { size: MAX_EDITOR_SELECTION_TEXT_CHARS + 100 },
+      textBetween,
+    };
+
+    expect(hasUsableTextRange(doc as never, 0, MAX_EDITOR_SELECTION_TEXT_CHARS + 100)).toBe(true);
+    expect(textBetween).toHaveBeenCalledWith(0, MAX_EDITOR_SELECTION_TEXT_CHARS, '\n', '\n');
   });
 });

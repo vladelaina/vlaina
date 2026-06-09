@@ -17,6 +17,13 @@ import type { OpenAIToolCall, OpenAIWireMessage } from './openAIToolTypes';
 
 const MAX_WEB_SEARCH_TOOL_LOOPS = 6;
 const MAX_NO_RESULT_SEARCH_ATTEMPTS = 3;
+const MAX_TEXT_PROTOCOL_SEARCH_REQUEST_JSON_CHARS = 64 * 1024;
+const MAX_TEXT_PROTOCOL_SEARCH_QUERY_CHARS = 1000;
+const MAX_TEXT_PROTOCOL_SEARCH_REASON_CHARS = 500;
+const MAX_LOOP_READ_CACHE_URLS = 8;
+const MAX_LOOP_TOOL_NAME_CHARS = 128;
+export const MAX_LOOP_READ_CACHE_CONTENT_CHARS = 32 * 1024;
+export const MAX_WEB_SEARCH_TOOL_CALL_CONCURRENCY = 4;
 
 interface ToolLoopOptions extends WebSearchToolRunnerOptions {
   body: ChatCompletionRequest;
@@ -211,7 +218,11 @@ function finishNoResultSearchLocally({
 }
 
 function normalizeToolNameForLoop(name: string): string {
-  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return name.slice(0, MAX_LOOP_TOOL_NAME_CHARS).trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+function boundedToolNameForLog(name: string): string {
+  return normalizeToolNameForLoop(name) || name.slice(0, MAX_LOOP_TOOL_NAME_CHARS);
 }
 
 function isSearchToolName(name: string): boolean {
@@ -286,7 +297,9 @@ function getReadToolUrls(toolCall: OpenAIToolCall): string[] {
   }
   if (isBatchReadToolName(name)) {
     return Array.isArray(args.urls)
-      ? args.urls.filter((url): url is string => typeof url === 'string' && url.trim().length > 0)
+      ? args.urls
+          .filter((url): url is string => typeof url === 'string' && url.trim().length > 0)
+          .slice(0, MAX_LOOP_READ_CACHE_URLS)
       : [];
   }
   return [];
@@ -345,7 +358,7 @@ function cacheReadContentForToolMessages(
     if (!safeUrl) return;
     const normalized = normalizeReadCacheUrl(safeUrl);
     if (normalized && !readContentByUrl.has(normalized)) {
-      readContentByUrl.set(normalized, content);
+      readContentByUrl.set(normalized, content.slice(0, MAX_LOOP_READ_CACHE_CONTENT_CHARS));
     }
   });
 }
@@ -450,10 +463,17 @@ function parseTextProtocolSearchRequest(content: string): { query: string; reaso
 
   try {
     const jsonText = match[1].trim().replace(/\s*<\/web_search_request>\s*$/i, '');
+    if (jsonText.length > MAX_TEXT_PROTOCOL_SEARCH_REQUEST_JSON_CHARS) {
+      return null;
+    }
     const parsed = JSON.parse(jsonText) as Record<string, unknown>;
-    const query = typeof parsed.query === 'string' ? parsed.query.trim() : '';
+    const query = typeof parsed.query === 'string'
+      ? parsed.query.trim().slice(0, MAX_TEXT_PROTOCOL_SEARCH_QUERY_CHARS)
+      : '';
     if (!query) return null;
-    const reason = typeof parsed.reason === 'string' ? parsed.reason.trim() : '';
+    const reason = typeof parsed.reason === 'string'
+      ? parsed.reason.trim().slice(0, MAX_TEXT_PROTOCOL_SEARCH_REASON_CHARS)
+      : '';
     return { query, ...(reason ? { reason } : {}) };
   } catch {
     return null;
@@ -702,11 +722,13 @@ async function runToolCallsInParallel(
   toolCalls: OpenAIToolCall[],
   options: WebSearchToolRunnerOptions,
 ): Promise<OpenAIWireMessage[]> {
-  const toolResults = await Promise.all(
-    toolCalls.map(async (toolCall) => ({
+  const toolResults = await mapWithConcurrencyLimit(
+    toolCalls,
+    MAX_WEB_SEARCH_TOOL_CALL_CONCURRENCY,
+    async (toolCall) => ({
       toolCall,
       content: await runWebSearchToolCall(toolCall.function, options),
-    })),
+    }),
   );
 
   return toolResults.map(({ toolCall, content }) => ({
@@ -715,6 +737,29 @@ async function runToolCallsInParallel(
     name: toolCall.function.name,
     content,
   }));
+}
+
+async function mapWithConcurrencyLimit<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  worker: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        results[index] = await worker(items[index]!);
+      }
+    },
+  );
+
+  await Promise.all(workers);
+  return results;
 }
 
 async function appendForcedReadMessages(
@@ -864,7 +909,7 @@ async function recoverJsonVisibleAnswer({
     const finalContent = withStatusPrefix(statusHistory, fallbackAnswer);
     addChatDebugLog('web-search-loop', 'json no-tools recovery returned tool markup; using fallback answer', {
       durationMs: Date.now() - startedAt,
-      toolCalls: result.toolCalls.map((call) => call.function.name),
+      toolCalls: result.toolCalls.map((call) => boundedToolNameForLog(call.function.name)),
     }, 'warn');
     responseTranscript.push(buildFinalAssistantTranscriptMessage(fallbackAnswer, result.reasoningContent));
     emitApiTranscript(onApiTranscript, signal, responseTranscript);
@@ -1182,7 +1227,7 @@ export async function runOpenAIWebSearchToolLoop({
     addChatDebugLog('web-search-loop', 'stream loop response parsed', {
       loopIndex,
       durationMs: Date.now() - loopStartedAt,
-      toolCalls: result.toolCalls.map((call) => call.function.name),
+      toolCalls: result.toolCalls.map((call) => boundedToolNameForLog(call.function.name)),
       visibleChars: result.assistantContent.length,
       reasoningChars: result.reasoningContent.length,
     });
@@ -1260,7 +1305,7 @@ export async function runOpenAIWebSearchToolLoop({
       addChatDebugLog('web-search-loop', 'stream loop completed with visible answer despite redundant tool calls', {
         loopIndex,
         sourceUrls,
-        skippedToolCalls: result.toolCalls.map((call) => call.function.name),
+        skippedToolCalls: result.toolCalls.map((call) => boundedToolNameForLog(call.function.name)),
         finalChars: finalContent.length,
       }, 'warn');
       const finalApiContent = resolveFinalAssistantApiContent(result, sourceUrls);
@@ -1290,7 +1335,7 @@ export async function runOpenAIWebSearchToolLoop({
       loopIndex,
       toolCalls: result.toolCalls.map((call) => ({
         id: call.id,
-        name: call.function.name,
+        name: boundedToolNameForLog(call.function.name),
       })),
     });
     const toolMessages = await runToolCallsInParallel(result.toolCalls, { client, onStatus: emitStatus, signal });
@@ -1408,7 +1453,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
     addChatDebugLog('web-search-loop', 'json loop response parsed', {
       loopIndex,
       durationMs: Date.now() - loopStartedAt,
-      toolCalls: result.toolCalls.map((call) => call.function.name),
+      toolCalls: result.toolCalls.map((call) => boundedToolNameForLog(call.function.name)),
       visibleChars: result.content.length,
       reasoningChars: result.reasoningContent.length,
     });
@@ -1485,7 +1530,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
       addChatDebugLog('web-search-loop', 'json loop completed with visible answer despite redundant tool calls', {
         loopIndex,
         sourceUrls,
-        skippedToolCalls: result.toolCalls.map((call) => call.function.name),
+        skippedToolCalls: result.toolCalls.map((call) => boundedToolNameForLog(call.function.name)),
         finalChars: finalAnswerContent.length,
       }, 'warn');
       const finalContent = withStatusPrefix(statusHistory, finalAnswerContent);
@@ -1517,7 +1562,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
       loopIndex,
       toolCalls: result.toolCalls.map((call) => ({
         id: call.id,
-        name: call.function.name,
+        name: boundedToolNameForLog(call.function.name),
       })),
     });
     const toolMessages = await runToolCallsInParallel(result.toolCalls, {

@@ -441,6 +441,22 @@ describe('notesSidebarTags', () => {
     expect(Array.from(index.get('projects/alpha.md')?.tags.keys() ?? [])).toEqual(['alpha', 'work']);
   });
 
+  it('stores a bounded content signature instead of duplicating full note content in the tag index', () => {
+    const index = new Map();
+    const largeContent = `${'body '.repeat(10_000)}#alpha`;
+
+    reconcileNotesSidebarTagPathIndex(
+      index,
+      [{ path: 'projects/alpha.md' }],
+      () => largeContent,
+    );
+
+    const entry = index.get('projects/alpha.md');
+    expect(entry?.contentSignature.length).toBeLessThan(1024);
+    expect(entry).not.toHaveProperty('content');
+    expect(Array.from(entry?.tags.keys() ?? [])).toEqual(['alpha']);
+  });
+
   it('prunes tag path index entries outside the active scope', () => {
     const index = new Map();
     const contents = new Map([

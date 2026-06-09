@@ -9,8 +9,22 @@ import {
   isPublicRemoteMediaUrl,
   sanitizeMediaSrc,
 } from '../__internal__'
-import { sanitizeLinkHref, toggleLinkCommand, updateLinkCommand } from '../mark/link'
-import { insertImageCommand, sanitizeImageSrc, updateImageCommand } from '../node/image'
+import {
+  MAX_LINK_UPDATE_SCAN_NODES,
+  findFirstLinkMarkInRange,
+  MAX_LINK_TITLE_CHARS,
+  normalizeLinkTitle,
+  sanitizeLinkHref,
+  toggleLinkCommand,
+  updateLinkCommand,
+} from '../mark/link'
+import {
+  insertImageCommand,
+  MAX_IMAGE_TEXT_ATTR_CHARS,
+  normalizeImageTextAttr,
+  sanitizeImageSrc,
+  updateImageCommand,
+} from '../node/image'
 
 const maxInlineImageBytes = 10 * 1024 * 1024
 const maxUrlChars = 16 * 1024
@@ -141,6 +155,12 @@ it('sanitizes image sources consistently for schema and component editors', () =
   expect(sanitizeImageSrc('/etc/passwd')).toBe(null)
   expect(sanitizeImageSrc('C:\\Users\\secret.png')).toBe(null)
   expect(sanitizeImageSrc('http://127.0.0.1:3000/image.png')).toBe(null)
+})
+
+it('bounds image text attrs consistently', () => {
+  expect(normalizeImageTextAttr('Alt')).toBe('Alt')
+  expect(normalizeImageTextAttr('x'.repeat(MAX_IMAGE_TEXT_ATTR_CHARS + 1))).toHaveLength(MAX_IMAGE_TEXT_ATTR_CHARS)
+  expect(normalizeImageTextAttr(null)).toBe('')
 })
 
 it('rejects oversized inline data image sources', () => {
@@ -279,6 +299,12 @@ it('sanitizes link hrefs consistently for schema and component editors', () => {
   expect(sanitizeLinkHref('https://example.com/\u202Ecod.exe')).toBe(null)
 })
 
+it('bounds link title attrs consistently', () => {
+  expect(normalizeLinkTitle('Title')).toBe('Title')
+  expect(normalizeLinkTitle('x'.repeat(MAX_LINK_TITLE_CHARS + 1))).toHaveLength(MAX_LINK_TITLE_CHARS)
+  expect(normalizeLinkTitle(null)).toBeNull()
+})
+
 it('does not add or update links with unsafe command hrefs', async () => {
   const editor = createEditor('link')
 
@@ -306,4 +332,42 @@ it('does not add or update links with unsafe command hrefs', async () => {
   expect(findFirstLinkInView(view)).toBe('./safe.md')
 
   await editor.destroy()
+})
+
+it('stops link update scans after finding the first link mark', () => {
+  const linkType = {
+    isInSet: (marks: readonly unknown[]) => marks[0] ?? null,
+  }
+  const linkMark = { attrs: { href: './safe.md' } }
+  let accessed = 0
+  const children = [
+    {
+      childCount: 0,
+      marks: [linkMark],
+      nodeSize: 1,
+      type: { name: 'text' },
+    },
+    ...Array.from({ length: MAX_LINK_UPDATE_SCAN_NODES }, () => ({
+      childCount: 0,
+      marks: [],
+      nodeSize: 1,
+      type: { name: 'text' },
+    })),
+  ]
+  const doc = {
+    child(index: number) {
+      accessed += 1
+      return children[index]!
+    },
+    childCount: children.length,
+    content: { size: children.length },
+  }
+
+  expect(
+    findFirstLinkMarkInRange(doc as never, 0, children.length, linkType as never)
+  ).toMatchObject({
+    mark: linkMark,
+    pos: 0,
+  })
+  expect(accessed).toBe(1)
 })

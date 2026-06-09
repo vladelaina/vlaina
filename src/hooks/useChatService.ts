@@ -17,6 +17,7 @@ import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useAutoTitle } from './useAutoTitle';
 import { requestManager } from '@/lib/ai/requestManager';
 import { getUserFacingAIError } from '@/lib/ai/errors';
+import { buildErrorTag } from '@/lib/ai/errorTag';
 import { AIErrorType } from '@/lib/ai/types';
 import {
   isTemporarySession,
@@ -49,15 +50,6 @@ const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
 const EMPTY_MESSAGES: never[] = [];
 
-function escapeXml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
 function extractRawErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) {
     return error.message.trim();
@@ -84,7 +76,7 @@ function buildChatErrorPayload(error: unknown, managed = true) {
     const message = extractRawErrorMessage(error);
     return {
       message,
-      xml: `<error type="custom_provider" code="">${escapeXml(message)}</error>`,
+      xml: buildErrorTag('custom_provider', '', message),
     };
   }
 
@@ -97,13 +89,13 @@ function buildChatErrorPayload(error: unknown, managed = true) {
     const message = translate('chat.error.upstreamUnavailable');
     return {
       message,
-      xml: `<error type="${escapeXml(AIErrorType.SERVER_ERROR)}" code="upstream_unavailable">${escapeXml(message)}</error>`,
+      xml: buildErrorTag(AIErrorType.SERVER_ERROR, 'upstream_unavailable', message),
     };
   }
 
   return {
     message: normalized.message,
-    xml: `<error type="${escapeXml(normalized.type)}" code="${escapeXml(normalized.code)}">${escapeXml(normalized.message)}</error>`,
+    xml: buildErrorTag(normalized.type, normalized.code, normalized.message),
   };
 }
 
@@ -132,6 +124,7 @@ function finishPreStartedChatRequest(
 }
 
 const MANAGED_BUDGET_BLOCK_MAX_AGE_MS = 60_000;
+export const MAX_TEMPORARY_ATTACHMENT_EPHEMERAL_CONCURRENCY = 4;
 
 function createManagedQuotaError(message: string) {
   return {
@@ -204,9 +197,33 @@ function markManagedAuthPromptForError(sessionId: string, error: unknown, manage
   }
 }
 
+async function mapWithConcurrencyLimit<T, R>(
+  items: readonly T[],
+  limit: number,
+  mapper: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const workers = Array.from(
+    { length: Math.min(limit, items.length) },
+    async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        results[index] = await mapper(items[index]!);
+      }
+    },
+  );
+
+  await Promise.all(workers);
+  return results;
+}
+
 async function makeTemporaryAttachmentsEphemeral(attachments: Attachment[]): Promise<Attachment[]> {
-  const ephemeralAttachments = await Promise.all(
-    attachments.map(async (attachment) => {
+  const ephemeralAttachments = await mapWithConcurrencyLimit(
+    attachments,
+    MAX_TEMPORARY_ATTACHMENT_EPHEMERAL_CONCURRENCY,
+    async (attachment) => {
       const hasPersistentReference =
         !!attachment.path ||
         isStoredAttachmentSrc(attachment.previewUrl) ||
@@ -236,7 +253,7 @@ async function makeTemporaryAttachmentsEphemeral(attachments: Attachment[]): Pro
         assetUrl: '',
         previewUrl,
       };
-    })
+    },
   );
 
   return ephemeralAttachments.filter((attachment): attachment is Attachment => attachment !== null);

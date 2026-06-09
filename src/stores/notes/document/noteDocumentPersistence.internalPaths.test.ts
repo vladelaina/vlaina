@@ -155,4 +155,40 @@ describe('note document internal paths', () => {
     expect(adapter.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md');
     expect(result.content).toBe('# Alpha');
   });
+
+  it('loads every supported markdown extension', async () => {
+    for (const path of ['alpha.md', 'beta.markdown', 'gamma.mdown', 'delta.mkd']) {
+      await expect(loadNoteDocument({
+        notesPath: '/vault',
+        path,
+        cache: new Map(),
+      })).resolves.toMatchObject({ content: '# Alpha' });
+    }
+
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/beta.markdown');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/gamma.mdown');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/delta.mkd');
+  });
+
+  it('saves every supported markdown extension', async () => {
+    for (const path of ['alpha.md', 'beta.markdown', 'gamma.mdown', 'delta.mkd']) {
+      await expect(saveNoteDocument({
+        notesPath: '/vault',
+        currentNote: {
+          path,
+          content: '# Alpha',
+        },
+        cache: new Map(),
+        updatedAt: Date.parse('2026-04-15T10:00:00.000Z'),
+      })).resolves.toMatchObject({
+        content: expect.stringContaining('# Alpha'),
+      });
+    }
+
+    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/alpha.md', expect.any(String));
+    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/beta.markdown', expect.any(String));
+    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/gamma.mdown', expect.any(String));
+    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/delta.mkd', expect.any(String));
+  });
 });

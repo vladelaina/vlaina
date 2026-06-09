@@ -4,6 +4,7 @@ import { useAIUIStore } from '@/stores/ai/chatState';
 
 export const MAX_CHAT_ATTACHMENT_INPUT_FILES = 64;
 export const MAX_CHAT_ATTACHMENT_TRANSFER_ITEM_SCAN = 1024;
+export const MAX_CHAT_ATTACHMENT_SAVE_CONCURRENCY = 4;
 
 function getTransferType(types: DataTransfer['types'], index: number): string | null {
   const maybeTypes = types as DataTransfer['types'] & { item?: (index: number) => string | null };
@@ -86,6 +87,33 @@ export function collectChatAttachmentClipboardFiles(items: DataTransferItemList 
   return files;
 }
 
+async function settleWithConcurrencyLimit<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  worker: (item: T) => Promise<R>
+): Promise<PromiseSettledResult<R>[]> {
+  const results = new Array<PromiseSettledResult<R>>(items.length);
+  let nextIndex = 0;
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        try {
+          results[index] = { status: 'fulfilled', value: await worker(items[index]!) };
+        } catch (reason) {
+          results[index] = { status: 'rejected', reason };
+        }
+      }
+    }
+  );
+
+  await Promise.all(workers);
+  return results;
+}
+
 export function useChatAttachments() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -135,8 +163,10 @@ export function useChatAttachments() {
     const shouldPersist = !useAIUIStore.getState().temporaryChatEnabled;
     let results: PromiseSettledResult<Attachment>[];
     try {
-      results = await Promise.allSettled(
-        limitedFiles.map(async (file) => saveAttachment(file, { persist: shouldPersist }))
+      results = await settleWithConcurrencyLimit(
+        limitedFiles,
+        MAX_CHAT_ATTACHMENT_SAVE_CONCURRENCY,
+        (file) => saveAttachment(file, { persist: shouldPersist })
       );
     } finally {
       pendingAttachmentSaveCountRef.current = Math.max(

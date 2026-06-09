@@ -1,6 +1,7 @@
 import type { NotesOutlineHeading } from './types';
 
 const OUTLINE_FALLBACK_TEXT = 'Untitled';
+export const MAX_OUTLINE_HEADING_TEXT_CHARS = 512;
 
 export function getHeadingLevelFromTagName(tagName: string): number | null {
   const normalized = tagName.toLowerCase();
@@ -11,6 +12,24 @@ export function getHeadingLevelFromTagName(tagName: string): number | null {
 export function normalizeHeadingText(rawText: string): string {
   const compact = rawText.replace(/\s+/g, ' ').trim();
   return compact.length > 0 ? compact : OUTLINE_FALLBACK_TEXT;
+}
+
+export function readBoundedHeadingText(element: HTMLElement): string {
+  let text = '';
+  const walker = element.ownerDocument.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+
+  for (
+    let node = walker.nextNode();
+    node && text.length < MAX_OUTLINE_HEADING_TEXT_CHARS;
+    node = walker.nextNode()
+  ) {
+    const value = node.nodeValue ?? '';
+    if (value.length === 0) continue;
+    const remaining = MAX_OUTLINE_HEADING_TEXT_CHARS - text.length;
+    text += value.length > remaining ? value.slice(0, remaining) : value;
+  }
+
+  return normalizeHeadingText(text);
 }
 
 function slugifyHeadingText(text: string): string {

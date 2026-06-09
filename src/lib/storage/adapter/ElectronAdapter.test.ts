@@ -27,7 +27,7 @@ vi.mock('@/lib/electron/bridge', () => ({
   getElectronBridge: mocks.getElectronBridge,
 }));
 
-import { ElectronAdapter } from './ElectronAdapter';
+import { ElectronAdapter, MAX_ELECTRON_RECURSIVE_LIST_ENTRIES } from './ElectronAdapter';
 
 describe('ElectronAdapter', () => {
   beforeEach(() => {
@@ -163,6 +163,35 @@ describe('ElectronAdapter', () => {
 
     await expect(adapter.listDir('/vault', { recursive: true })).resolves.toHaveLength(8);
     expect(maxActiveChildCalls).toBe(1);
+  });
+
+  it('stops recursive directory walking at the scan entry limit', async () => {
+    mocks.bridge.fs.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault') {
+        return Array.from({ length: MAX_ELECTRON_RECURSIVE_LIST_ENTRIES + 1 }, (_, index) => ({
+          name: `dir-${index}`,
+          path: `/vault/dir-${index}`,
+          isDirectory: true,
+          isFile: false,
+        }));
+      }
+
+      return [
+        {
+          name: 'note.md',
+          path: `${path}/note.md`,
+          isDirectory: false,
+          isFile: true,
+        },
+      ];
+    });
+
+    const adapter = new ElectronAdapter();
+
+    await expect(adapter.listDir('/vault', { recursive: true })).resolves.toHaveLength(
+      MAX_ELECTRON_RECURSIVE_LIST_ENTRIES,
+    );
+    expect(mocks.bridge.fs.listDir).toHaveBeenCalledTimes(1);
   });
 
   it('caches the electron app data base path', async () => {

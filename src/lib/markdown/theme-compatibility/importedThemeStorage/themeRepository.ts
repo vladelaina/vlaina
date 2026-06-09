@@ -7,6 +7,7 @@ import {
   type ImportedMarkdownThemeMetadata,
   type MarkdownThemePlatform,
 } from '../types';
+import { MAX_IMPORTED_THEME_CSS_BYTES } from './constants';
 import { deleteImportedThemeFiles, writeImportedThemeCss } from './cssAssets';
 import {
   findThemeBySourcePath,
@@ -92,7 +93,19 @@ export async function readImportedMarkdownTheme(id: string): Promise<ImportedMar
 
   const storage = getStorageAdapter();
   try {
-    const css = await storage.readFile(await getThemeCssPath(metadata.cssFile));
+    const cssPath = await getThemeCssPath(metadata.cssFile);
+    const info = await storage.stat(cssPath).catch(() => null);
+    if (
+      info?.isFile === false ||
+      typeof info?.size !== 'number' ||
+      info.size > MAX_IMPORTED_THEME_CSS_BYTES
+    ) {
+      return null;
+    }
+    const css = await storage.readFile(cssPath);
+    if (css.length > MAX_IMPORTED_THEME_CSS_BYTES) {
+      return null;
+    }
     return {
       ...metadata,
       css,

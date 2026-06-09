@@ -63,6 +63,8 @@ export const MAX_AI_PROVIDER_CHANNEL_BENCHMARK_ITEMS = 2000;
 export const MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES = 10_000;
 const MAX_BOUNDED_ID_LIST_SCAN_RECORDS = 10_000;
 const MAX_AI_SESSION_METADATA_SCAN_RECORDS = 10_000;
+export const MAX_SETTINGS_TIMEZONE_CITY_CHARS = 512;
+export const MAX_SETTINGS_UI_THEME_ID_CHARS = 512;
 const MAX_AI_SESSION_TITLE_CHARS = 4096;
 const MAX_AI_SESSION_MODEL_ID_CHARS = 4096;
 const MAX_AI_CUSTOM_SYSTEM_PROMPT_CHARS = 64 * 1024;
@@ -72,6 +74,7 @@ const MAX_AI_FETCHED_MODEL_SAVE_SCAN_RECORDS = 10_000;
 const MAX_AI_MODEL_FIELD_CHARS = 4096;
 const MAX_AI_BENCHMARK_ERROR_CHARS = 4096;
 export const MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES = 10_000;
+export const MAX_AI_PROVIDER_STORAGE_CONCURRENCY = 10;
 export const MAX_CUSTOM_ICONS = 2000;
 export const MAX_CUSTOM_ICON_ID_CHARS = 4096;
 export const MAX_CUSTOM_ICON_URL_CHARS = 4096;
@@ -148,6 +151,27 @@ function normalizeBoundedIdList(
 
 function normalizeBoundedString(value: unknown, maxChars: number): string {
   return typeof value === 'string' ? value.slice(0, maxChars) : '';
+}
+
+async function mapWithConcurrencyLimit<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  const limit = Math.max(1, Math.min(items.length || 1, Math.floor(concurrency)));
+  let nextIndex = 0;
+
+  const workers = Array.from({ length: limit }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
 }
 
 function normalizeChatSessionMetadata(value: unknown): ChatSession | null {
@@ -702,7 +726,7 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
       timezone: {
         offset: Number.isFinite(timezoneOffset) ? timezoneOffset : defaults.settings.timezone.offset,
         city: typeof timezoneCity === 'string' && timezoneCity.trim().length > 0
-          ? timezoneCity
+          ? timezoneCity.slice(0, MAX_SETTINGS_TIMEZONE_CITY_CHARS)
           : defaults.settings.timezone.city,
       },
       markdown: {
@@ -725,7 +749,7 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
         lastAppViewMode: lastAppViewMode === 'chat' ? 'chat' : 'notes',
         colorMode: colorMode === 'light' || colorMode === 'dark' ? colorMode : 'system',
         themeId: typeof themeId === 'string' && themeId.trim().length > 0
-          ? themeId
+          ? themeId.slice(0, MAX_SETTINGS_UI_THEME_ID_CHARS)
           : defaults.settings.ui?.themeId ?? 'default',
       },
     },
@@ -1006,15 +1030,17 @@ async function syncProviderSecrets(providers: Provider[]): Promise<void> {
     return;
   }
 
-  await Promise.all(
-    providers.map(async (provider) => {
+  await mapWithConcurrencyLimit(
+    providers,
+    MAX_AI_PROVIDER_STORAGE_CONCURRENCY,
+    async (provider) => {
       const apiKey = provider.apiKey?.trim() || '';
       if (apiKey) {
         await aiProviderSecretCommands.setProviderSecret(provider.id, apiKey);
       } else {
         await aiProviderSecretCommands.deleteProviderSecret(provider.id);
       }
-    })
+    }
   );
 }
 
@@ -1149,7 +1175,10 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     }
 
     if (providerIds.length > 0) {
-        const providerPromises = providerIds.map(async (id) => {
+        const loadedProviders = await mapWithConcurrencyLimit(
+          providerIds,
+          MAX_AI_PROVIDER_STORAGE_CONCURRENCY,
+          async (id) => {
             const pPath = await joinPath(channelsDir, `${id}.json`);
             if (await storage.exists(pPath)) {
                 try {
@@ -1164,9 +1193,9 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
                 }
             }
             return null;
-        });
+          },
+        );
 
-        const loadedProviders = await Promise.all(providerPromises);
         loadedProviders.forEach((p, index) => {
             const providerId = providerIds[index];
             if (p) {

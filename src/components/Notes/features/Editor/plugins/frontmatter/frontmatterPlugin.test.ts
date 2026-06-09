@@ -31,6 +31,7 @@ function createView() {
           parent: {
             type: paragraphType,
             textContent: '---',
+            textBetween: vi.fn(() => '---'),
             content: { size: 3 },
             nodeSize: 5,
           },
@@ -64,8 +65,15 @@ describe('handleFrontmatterShortcutEnter', () => {
       .spyOn(TextSelection, 'create')
       .mockReturnValue({ type: 'selection' } as never);
     const { view, tr, frontmatterType } = createView();
+    Object.defineProperty(view.state.selection.$from.parent, 'textContent', {
+      configurable: true,
+      get() {
+        throw new Error('aggregate paragraph textContent should not be read');
+      },
+    });
 
     expect(handleFrontmatterShortcutEnter(view as never)).toBe(true);
+    expect(view.state.selection.$from.parent.textBetween).toHaveBeenCalledWith(0, 3, '', '');
     expect(frontmatterType.create).toHaveBeenCalled();
     expect(tr.replaceWith).toHaveBeenCalledWith(1, 6, { type: 'frontmatter' });
     expect(selectionCreateSpy).toHaveBeenCalledWith(tr.doc, 2);
@@ -95,6 +103,23 @@ describe('handleFrontmatterShortcutEnter', () => {
   it('returns false when the text is not a frontmatter shortcut', () => {
     const { view } = createView();
     view.state.selection.$from.parent.textContent = '--';
+    view.state.selection.$from.parent.textBetween = vi.fn(() => '--');
+
+    expect(handleFrontmatterShortcutEnter(view as never)).toBe(false);
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('does not read oversized paragraph text while checking the frontmatter shortcut', () => {
+    const { view } = createView();
+    view.state.selection.$from.parent = {
+      ...view.state.selection.$from.parent,
+      content: { size: 33 },
+      nodeSize: 35,
+      get textContent() {
+        throw new Error('textContent should not be read for oversized frontmatter shortcuts');
+      },
+    };
+    view.state.selection.$from.parentOffset = 33;
 
     expect(handleFrontmatterShortcutEnter(view as never)).toBe(false);
     expect(view.dispatch).not.toHaveBeenCalled();

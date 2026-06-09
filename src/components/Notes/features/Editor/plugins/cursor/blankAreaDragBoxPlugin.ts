@@ -72,6 +72,8 @@ import {
 
 export { blankAreaDragBoxPluginKey } from './blockSelectionPluginState';
 
+export const MAX_DOCUMENT_BLOCK_SELECTION_PASTE_CHARS = 1024 * 1024;
+
 const editorInteractionDecorationsCache = new WeakMap<
   EditorState['doc'],
   WeakMap<DecorationSet, WeakMap<DecorationSet, DecorationSet>>
@@ -290,8 +292,13 @@ function handleDocumentBlockSelectionPaste(view: EditorView, event: ClipboardEve
   });
   if (handled) return true;
 
-  const text = event.clipboardData?.getData('text/plain')?.replace(/\r\n?/g, '\n') ?? '';
-  if (!text) return false;
+  const rawText = event.clipboardData?.getData('text/plain') ?? '';
+  if (!rawText) return false;
+  if (rawText.length > MAX_DOCUMENT_BLOCK_SELECTION_PASTE_CHARS) {
+    event.preventDefault();
+    return true;
+  }
+  const text = rawText.replace(/\r\n?/g, '\n');
 
   if (getBlockSelectionPluginState(view.state).selectedBlocks.length > 0) {
     if (!deleteSelectedBlocks(view, capturedSelectedBlocks)) return false;

@@ -1,10 +1,12 @@
 import { isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 
+export const MAX_VAULT_RELATIVE_PATH_CHARS = 16 * 1024;
 const UNSAFE_VAULT_PATH_CHARS = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 export function isSafeVaultPathSegment(segment: string | undefined): segment is string {
   return (
     !!segment &&
+    segment.length <= MAX_VAULT_RELATIVE_PATH_CHARS &&
     segment !== '.' &&
     segment !== '..' &&
     !UNSAFE_VAULT_PATH_CHARS.test(segment) &&
@@ -18,6 +20,10 @@ export function normalizeVaultRelativePath(
 ): string | null {
   if (path == null) {
     return options.allowEmpty ? '' : null;
+  }
+
+  if (path.length > MAX_VAULT_RELATIVE_PATH_CHARS) {
+    return null;
   }
 
   const normalized = path.replace(/\\/g, '/').replace(/\/{2,}/g, '/');

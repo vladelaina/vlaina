@@ -51,6 +51,7 @@ async function readBlobBytes(blob: Blob): Promise<Uint8Array> {
             reject(new Error('Unable to read image blob.'));
         };
         reader.onerror = () => reject(reader.error ?? new Error('Unable to read image blob.'));
+        reader.onabort = () => reject(new Error('Image blob read was aborted.'));
         reader.readAsArrayBuffer(blob);
     });
 }

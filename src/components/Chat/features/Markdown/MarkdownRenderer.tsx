@@ -16,12 +16,14 @@ import {
 import {
   serializeChatHeadingDragPayload,
   CHAT_HEADING_DRAG_MIME,
+  MAX_HEADING_DRAG_TEXT_CHARS,
 } from '@/lib/drag/chatHeadingDrag';
 import 'katex/dist/katex.min.css';
 import '@/components/common/markdown/markdownSurface.css';
 import { readonlyMarkdownUrlTransform } from '@/components/common/markdown/urlTransform';
 import { compactLargeDataImageMarkdown } from './chatInlineImageTokens';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
+import { MAX_CHAT_MARKDOWN_RENDER_CHARS } from './chatMarkdownRenderLimits';
 
 interface MarkdownRendererProps {
   content: string;
@@ -46,12 +48,59 @@ const SELECTION_EXCLUDED_SELECTOR = [
   'a',
 ].join(',');
 
-function getActiveSelectionTextLength(): number {
+export const MAX_CHAT_MARKDOWN_SELECTION_TEXT_NODES = 2_000;
+
+function rangeHasSelectedText(range: Range): boolean {
+  const root = range.commonAncestorContainer;
+  if (root.nodeType === Node.TEXT_NODE) {
+    const text = root.textContent ?? '';
+    const start = root === range.startContainer ? range.startOffset : 0;
+    const end = root === range.endContainer ? range.endOffset : text.length;
+    return /\S/.test(text.slice(start, end));
+  }
+
+  const ownerDocument = root.ownerDocument ?? document;
+  const walker = ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let scannedTextNodes = 0;
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    scannedTextNodes += 1;
+    if (scannedTextNodes > MAX_CHAT_MARKDOWN_SELECTION_TEXT_NODES) {
+      return true;
+    }
+    try {
+      if (!range.intersectsNode(node)) {
+        continue;
+      }
+    } catch {
+      continue;
+    }
+
+    const text = node.textContent ?? '';
+    const start = node === range.startContainer ? range.startOffset : 0;
+    const end = node === range.endContainer ? range.endOffset : text.length;
+    if (/\S/.test(text.slice(start, end))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function hasActiveSelectionText(): boolean {
   const selection = window.getSelection();
   if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
-    return 0;
+    return false;
   }
-  return selection.toString().length;
+  for (let index = 0; index < selection.rangeCount; index += 1) {
+    try {
+      if (rangeHasSelectedText(selection.getRangeAt(index))) {
+        return true;
+      }
+    } catch {
+      return true;
+    }
+  }
+  return false;
 }
 
 function selectionIntersectsElement(element: Element | null): boolean {
@@ -89,6 +138,75 @@ function getElementFromEventTarget(target: EventTarget | null): Element | null {
   return null;
 }
 
+function getBoundedElementText(element: Element, maxChars: number): string | null {
+  const walker = element.ownerDocument.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  const chunks: string[] = [];
+  let length = 0;
+  let scannedTextNodes = 0;
+
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    scannedTextNodes += 1;
+    if (scannedTextNodes > MAX_CHAT_MARKDOWN_SELECTION_TEXT_NODES) {
+      return null;
+    }
+    const text = node.textContent ?? '';
+    length += text.length;
+    if (length > maxChars) {
+      return null;
+    }
+    chunks.push(text);
+  }
+
+  return chunks.join('').trim();
+}
+
+function getBoundedSelectionText(selection: Selection, maxChars: number): string | null {
+  const chunks: string[] = [];
+  let length = 0;
+  let scannedTextNodes = 0;
+
+  for (let rangeIndex = 0; rangeIndex < selection.rangeCount; rangeIndex += 1) {
+    const range = selection.getRangeAt(rangeIndex);
+    const root = range.commonAncestorContainer;
+    if (root.nodeType === Node.TEXT_NODE) {
+      const text = root.textContent ?? '';
+      const start = root === range.startContainer ? range.startOffset : 0;
+      const end = root === range.endContainer ? range.endOffset : text.length;
+      const selected = text.slice(start, end);
+      length += selected.length;
+      if (length > maxChars) return null;
+      chunks.push(selected);
+      continue;
+    }
+
+    const ownerDocument = root.ownerDocument ?? document;
+    const walker = ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      scannedTextNodes += 1;
+      if (scannedTextNodes > MAX_CHAT_MARKDOWN_SELECTION_TEXT_NODES) {
+        return null;
+      }
+      try {
+        if (!range.intersectsNode(node)) {
+          continue;
+        }
+      } catch {
+        continue;
+      }
+
+      const text = node.textContent ?? '';
+      const start = node === range.startContainer ? range.startOffset : 0;
+      const end = node === range.endContainer ? range.endOffset : text.length;
+      const selected = text.slice(start, end);
+      length += selected.length;
+      if (length > maxChars) return null;
+      chunks.push(selected);
+    }
+  }
+
+  return chunks.join('').trim();
+}
+
 function getSelectedMarkdownHeadingDragPayload(target: EventTarget | null): { level: number; text: string } | null {
   const element = getElementFromEventTarget(target);
   if (!element) return null;
@@ -99,8 +217,8 @@ function getSelectedMarkdownHeadingDragPayload(target: EventTarget | null): { le
   const selection = window.getSelection();
   if (!selection || selection.isCollapsed || selection.rangeCount === 0) return null;
 
-  const selectedText = selection.toString().trim();
-  const headingText = heading.textContent?.trim() ?? '';
+  const selectedText = getBoundedSelectionText(selection, MAX_HEADING_DRAG_TEXT_CHARS);
+  const headingText = getBoundedElementText(heading, MAX_HEADING_DRAG_TEXT_CHARS);
   if (!selectedText || selectedText !== headingText) return null;
 
   let intersectsHeading = false;
@@ -152,6 +270,14 @@ const StreamingMarkdownBlock = memo(function StreamingMarkdownBlock({
     }],
   ], [block.births, block.charDelay, block.nowMs, block.revealed]);
 
+  if (block.content.length > MAX_CHAT_MARKDOWN_RENDER_CHARS) {
+    return (
+      <div data-chat-markdown-too-large="true" className="whitespace-pre-wrap">
+        {block.content}
+      </div>
+    );
+  }
+
   return (
     <ReactMarkdown
       remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
@@ -177,6 +303,14 @@ const MarkdownContent = memo(function MarkdownContent({
     () => createMarkdownComponents(componentOptions),
     [componentOptions, markdown],
   );
+
+  if (markdown.length > MAX_CHAT_MARKDOWN_RENDER_CHARS) {
+    return (
+      <div data-chat-markdown-too-large="true" className="whitespace-pre-wrap">
+        {markdown}
+      </div>
+    );
+  }
 
   if (!shouldAnimateStream) {
     return (
@@ -273,7 +407,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
         releaseSelectionFreeze('not-streaming');
         return;
       }
-      if (getActiveSelectionTextLength() > 0) {
+      if (hasActiveSelectionText()) {
         return;
       }
       releaseSelectionFreezeTimeoutRef.current = window.setTimeout(() => {
@@ -294,8 +428,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       }
 
       const selection = window.getSelection();
-      const selectedTextLength = selection?.toString().length ?? 0;
-      if (!selection || selection.isCollapsed || selection.rangeCount === 0 || selectedTextLength === 0) {
+      if (!selection || selection.isCollapsed || selection.rangeCount === 0 || !hasActiveSelectionText()) {
         clearReleaseSelectionFreezeTimeout();
         releaseSelectionFreeze('collapsed');
         return;

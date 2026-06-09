@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_SHORTCUTS } from './config';
-import { getShortcutKeys, resetShortcuts } from './storage';
+import { getShortcutKeys, resetShortcuts, saveShortcuts } from './storage';
 
 describe('shortcut storage', () => {
   beforeEach(() => {
@@ -38,5 +38,26 @@ describe('shortcut storage', () => {
     localStorage.setItem('vlaina-shortcuts', JSON.stringify([{ id: 'toggleDrawer', keys: ['Alt', 'D'] }]) + 'x'.repeat(32 * 1024));
 
     expect(getShortcutKeys('toggleDrawer')).toEqual(defaultKeys);
+  });
+
+  it('saves only known bounded shortcut entries', () => {
+    saveShortcuts([
+      {
+        ...DEFAULT_SHORTCUTS[0]!,
+        keys: ['Alt', 'D', 'x'.repeat(65), 'A', 'B', 'C', 'D', 'E', 'F', 'G'],
+      },
+      {
+        ...DEFAULT_SHORTCUTS[1]!,
+        id: 'unknown',
+        keys: ['Ctrl'],
+      },
+    ]);
+
+    expect(JSON.parse(localStorage.getItem('vlaina-shortcuts') || '[]')).toEqual([
+      {
+        id: DEFAULT_SHORTCUTS[0]!.id,
+        keys: ['Alt', 'D', 'A', 'B', 'C', 'D', 'E', 'F'],
+      },
+    ]);
   });
 });

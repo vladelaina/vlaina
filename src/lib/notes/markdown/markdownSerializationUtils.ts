@@ -209,16 +209,22 @@ function canUseLargePlainMarkdownNormalizationFastPath(text: string): boolean {
 }
 
 function unescapeMarkdownPunctuation(text: string): string {
+  if (!text.includes('\\')) return text;
+
   return mapMarkdownOutsideProtectedBlocks(text, (line) => line.replace(MARKDOWN_ESCAPE_PATTERN, '$1'));
 }
 
 export function normalizeEscapedUrlSchemes(text: string): string {
+  if (!text.includes('\\:')) return text;
+
   return mapMarkdownOutsideProtectedSegments(text, (segment) =>
     segment.replace(ESCAPED_URL_SCHEME_PATTERN, '$1:')
   );
 }
 
 export function normalizeMarkdownAutolinkLiterals(text: string): string {
+  if (!text.includes('<') || !text.includes('>')) return text;
+
   return mapMarkdownOutsideProtectedSegments(text, (segment) =>
     segment.replace(MARKDOWN_AUTOLINK_LITERAL_PATTERN, '$1')
   );
@@ -1034,6 +1040,8 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
 }
 
 function normalizeEmptyAtxHeadingMarkers(text: string): string {
+  if (!text.includes('#')) return text;
+
   return mapMarkdownOutsideProtectedSegments(text, (segment) =>
     segment.replace(EMPTY_ATX_HEADING_MARKER_PATTERN, (_match, indent: string, marker: string) =>
       `${indent}${marker} ${marker}`
@@ -1042,18 +1050,24 @@ function normalizeEmptyAtxHeadingMarkers(text: string): string {
 }
 
 function normalizeEscapedHighlightSyntax(text: string): string {
+  if (!text.includes('\\==')) return text;
+
   return mapMarkdownOutsideProtectedSegments(text, (segment) =>
     segment.replace(ESCAPED_HIGHLIGHT_PATTERN, '==$1==')
   );
 }
 
 function normalizeTableCellBreakPlaceholders(text: string): string {
+  if (!hasPotentialHtmlBreakTag(text)) return text;
+
   return mapMarkdownOutsideProtectedSegments(text, (segment) =>
     segment.replace(EMPTY_TABLE_CELL_PLACEHOLDER_PATTERN, '$1 $2')
   );
 }
 
 function normalizeStandaloneBreakHtmlToMarkdown(text: string): string {
+  if (!hasPotentialHtmlBreakTag(text)) return text;
+
   return mapMarkdownOutsideProtectedSegments(text, (segment) => {
     const lines = segment.split('\n');
     const output: string[] = [];
@@ -1105,6 +1119,8 @@ function normalizeStandaloneBreakHtmlToMarkdown(text: string): string {
 }
 
 function normalizeEditorEmptyParagraphBreaks(text: string): string {
+  if (!hasPotentialHtmlBreakTag(text)) return text;
+
   return mapMarkdownOutsideProtectedSegments(text, (segment) => {
     const lines = segment.split('\n');
     return lines.map((line, index) => {
@@ -1173,6 +1189,8 @@ function isListContextSpacerLine(line: string): boolean {
 }
 
 function normalizeEditorBreakPlaceholders(text: string): string {
+  if (!hasPotentialEditorBreakPlaceholder(text)) return text;
+
   return mapMarkdownOutsideProtectedBlocks(
     text,
     (line) => {
@@ -1228,6 +1246,46 @@ function normalizeEditorBreakPlaceholders(text: string): string {
         .replace(MARKED_USER_BR_TOKEN_PATTERN, `\n${USER_BR_SENTINEL}\n`);
     },
   );
+}
+
+function hasPotentialEditorBreakPlaceholder(text: string): boolean {
+  return text.includes('\u200B')
+    || text.includes('\u200C')
+    || text.includes('\u2800')
+    || containsAsciiCaseInsensitive(text, '<br')
+    || containsAsciiCaseInsensitive(text, 'vlaina-markdown-');
+}
+
+function hasPotentialHtmlBreakTag(text: string): boolean {
+  return containsAsciiCaseInsensitive(text, '<br');
+}
+
+function containsAsciiCaseInsensitive(text: string, needle: string): boolean {
+  const needleLength = needle.length;
+  if (needleLength === 0) return true;
+
+  const firstNeedleCode = toAsciiLowerCode(needle.charCodeAt(0));
+  const lastStart = text.length - needleLength;
+  for (let index = 0; index <= lastStart; index += 1) {
+    if (toAsciiLowerCode(text.charCodeAt(index)) !== firstNeedleCode) continue;
+
+    let matches = true;
+    for (let offset = 1; offset < needleLength; offset += 1) {
+      if (
+        toAsciiLowerCode(text.charCodeAt(index + offset))
+        !== toAsciiLowerCode(needle.charCodeAt(offset))
+      ) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return true;
+  }
+  return false;
+}
+
+function toAsciiLowerCode(code: number): number {
+  return code >= 65 && code <= 90 ? code + 32 : code;
 }
 
 function normalizeInternalMarkdownBlankLineComments(text: string): string {

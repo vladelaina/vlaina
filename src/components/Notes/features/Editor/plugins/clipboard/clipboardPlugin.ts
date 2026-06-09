@@ -40,8 +40,11 @@ import {
 import { replaceVisibleBlockSelectionWithCursor } from '../cursor/blockSelectionReplacement';
 
 export const clipboardPluginKey = new PluginKey('editor-clipboard');
-const MAX_MARKDOWN_PASTE_CHARS = 1024 * 1024;
-const MAX_HTML_PASTE_CHARS = 2 * 1024 * 1024;
+export const MAX_MARKDOWN_PASTE_CHARS = 1024 * 1024;
+export const MAX_HTML_PASTE_CHARS = 2 * 1024 * 1024;
+export const MAX_INLINE_FOOTNOTE_PASTE_TEXT_CHARS = 256 * 1024;
+export const MAX_INLINE_FOOTNOTE_PASTE_REFERENCES = 1000;
+export const MAX_INLINE_FOOTNOTE_PASTE_LABEL_CHARS = 256;
 const INLINE_FOOTNOTE_REFERENCE_PATTERN = /\[\^([^\]\r\n]+)\]/g;
 const BLANK_LINE_PATTERN = /\n[ \t]*\n/;
 
@@ -125,7 +128,6 @@ function replaceBlockSelectionBeforePaste(view: EditorView): boolean {
 export function hasClipboardPayload(event: ClipboardEvent): boolean {
     const clipboardData = event.clipboardData;
     if (!clipboardData) return false;
-    if (clipboardData.getData('text/plain') || clipboardData.getData('text/html')) return true;
     return (clipboardData.types?.length ?? 0) > 0;
 }
 
@@ -195,13 +197,24 @@ function splitTextNodeWithInlineFootnotes(state: FootnoteReferenceState, node: P
     if (!text || !text.includes('[^') || node.marks.some((mark) => mark.type.name === 'inlineCode')) {
         return null;
     }
+    if (text.length > MAX_INLINE_FOOTNOTE_PASTE_TEXT_CHARS) {
+        return null;
+    }
 
     const nodes: ProseNode[] = [];
     let lastIndex = 0;
     let hasFootnote = false;
+    let referenceCount = 0;
 
     for (const match of text.matchAll(INLINE_FOOTNOTE_REFERENCE_PATTERN)) {
         const rawId = match[1]?.trim();
+        referenceCount += 1;
+        if (referenceCount > MAX_INLINE_FOOTNOTE_PASTE_REFERENCES) {
+            return null;
+        }
+        if (rawId && rawId.length > MAX_INLINE_FOOTNOTE_PASTE_LABEL_CHARS) {
+            return null;
+        }
         if (!rawId) continue;
 
         const index = match.index ?? 0;

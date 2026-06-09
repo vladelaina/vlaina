@@ -108,6 +108,17 @@ describe('note tags', () => {
     expect(extractNoteTags(`${hiddenInlineCode} #visible`)).toContain('visible');
   });
 
+  it('does not index tags after the excluded range budget is exhausted', () => {
+    const hiddenInlineCode = Array.from(
+      { length: 50_000 },
+      () => '`hidden`'
+    ).join(' ');
+    const tags = extractNoteTags(`${hiddenInlineCode}\n\`\`\`\n#hidden-after-budget\n\`\`\`\n#also-hidden`);
+
+    expect(tags).not.toContain('hidden-after-budget');
+    expect(tags).not.toContain('also-hidden');
+  });
+
   it('does not treat oversized leading frontmatter candidates as excluded ranges', () => {
     const content = [
       '---',

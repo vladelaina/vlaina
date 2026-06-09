@@ -4,6 +4,7 @@ import {
   buildMessageImageSources,
   buildMentionedNotesContext,
   buildStoredUserMessageContent,
+  MAX_CHAT_MENTION_LOAD_CONCURRENCY,
   MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS,
   loadMentionedFolderImageAttachments,
   loadMentionedNotes,
@@ -424,6 +425,73 @@ describe('loadMentionedNotes', () => {
     ]);
   });
 
+  it('normalizes and caps note mentions before loading references', async () => {
+    mocks.storage.stat.mockResolvedValue({
+      isFile: true,
+      isDirectory: false,
+      size: 8,
+    });
+    mocks.storage.readFile.mockImplementation(async (path: string) => `# ${path.split('/').pop()}`);
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs/a.md', title: 'A' },
+      { path: 'docs/a.md', title: 'A duplicate' },
+      { path: 'docs/b.md', title: 'B' },
+      { path: 'docs/c.md', title: 'C' },
+      { path: 'docs/d.md', title: 'D' },
+    ]);
+
+    expect(notes.map((note) => note.path)).toEqual([
+      'docs/a.md',
+      'docs/b.md',
+      'docs/c.md',
+    ]);
+    expect(mocks.storage.readFile).toHaveBeenCalledTimes(3);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/d.md');
+  });
+
+  it('limits concurrent folder markdown note reads', async () => {
+    mocks.notesState.rootFolder = {
+      children: [
+        {
+          id: 'docs',
+          name: 'docs',
+          path: 'docs',
+          isFolder: true,
+          expanded: true,
+          children: Array.from({ length: 12 }, (_, index) => ({
+            id: `docs/${index}.md`,
+            name: `${index}.md`,
+            path: `docs/${index}.md`,
+            isFolder: false,
+          })),
+        },
+      ],
+    };
+    mocks.storage.listDir.mockResolvedValue([]);
+    mocks.storage.stat.mockResolvedValue({
+      isFile: true,
+      isDirectory: false,
+      size: 8,
+    });
+    let activeReads = 0;
+    let maxActiveReads = 0;
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      activeReads += 1;
+      maxActiveReads = Math.max(maxActiveReads, activeReads);
+      await Promise.resolve();
+      activeReads -= 1;
+      return `# ${path.split('/').pop()}`;
+    });
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs', title: 'Docs', kind: 'folder' },
+    ]);
+
+    expect(notes).toHaveLength(13);
+    expect(maxActiveReads).toBeLessThanOrEqual(MAX_CHAT_MENTION_LOAD_CONCURRENCY);
+  });
+
   it('includes folder listing and markdown notes for mixed folder mentions', async () => {
     mocks.notesState.rootFolder = {
       children: [
@@ -806,6 +874,37 @@ describe('loadMentionedFolderImageAttachments', () => {
         type: 'image/webp',
         size: 4096,
       },
+    ]);
+  });
+
+  it('normalizes and caps folder mentions before loading image attachments', async () => {
+    mocks.storage.listDir.mockResolvedValue([
+      {
+        name: 'cover.png',
+        path: '/vault/assets/cover.png',
+        isDirectory: false,
+        isFile: true,
+        size: 2048,
+      },
+    ]);
+
+    const attachments = await loadMentionedFolderImageAttachments([
+      { path: 'assets-a', title: 'assets-a/', kind: 'folder' },
+      { path: 'assets-a', title: 'assets-a duplicate/', kind: 'folder' },
+      { path: 'assets-b', title: 'assets-b/', kind: 'folder' },
+      { path: 'assets-c', title: 'assets-c/', kind: 'folder' },
+      { path: 'assets-d', title: 'assets-d/', kind: 'folder' },
+    ]);
+
+    expect(mocks.storage.listDir).toHaveBeenCalledTimes(3);
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/assets-a');
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/assets-b');
+    expect(mocks.storage.listDir).toHaveBeenCalledWith('/vault/assets-c');
+    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/vault/assets-d');
+    expect(attachments.map((attachment) => attachment.path)).toEqual([
+      '/vault/assets-a/cover.png',
+      '/vault/assets-b/cover.png',
+      '/vault/assets-c/cover.png',
     ]);
   });
 

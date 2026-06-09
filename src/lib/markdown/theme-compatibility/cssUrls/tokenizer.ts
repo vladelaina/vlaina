@@ -1,5 +1,8 @@
 import type { CssUrlToken } from './types';
 
+export const MAX_MARKDOWN_THEME_CSS_URL_TOKENS = 1024;
+export const MAX_MARKDOWN_THEME_CSS_URL_VALUE_CHARS = 4096;
+
 export function findCssUrlTokens(css: string): CssUrlToken[] {
   const tokens: CssUrlToken[] = [];
   let index = 0;
@@ -62,12 +65,18 @@ export function findCssUrlTokens(css: string): CssUrlToken[] {
       continue;
     }
 
-    tokens.push({
-      start: functionIndex,
-      end: closeIndex + 1,
-      raw: css.slice(functionIndex, closeIndex + 1),
-      url: css.slice(valueStart, valueEnd).trim(),
-    });
+    const url = css.slice(valueStart, valueEnd).trim();
+    if (url.length <= MAX_MARKDOWN_THEME_CSS_URL_VALUE_CHARS) {
+      tokens.push({
+        start: functionIndex,
+        end: closeIndex + 1,
+        raw: css.slice(functionIndex, closeIndex + 1),
+        url,
+      });
+      if (tokens.length >= MAX_MARKDOWN_THEME_CSS_URL_TOKENS) {
+        return tokens;
+      }
+    }
     index = closeIndex + 1;
   }
 

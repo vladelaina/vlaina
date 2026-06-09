@@ -7,6 +7,7 @@ import {
   appendOpenAIStreamBuffer,
   assertOpenAIStreamLineLength,
   createStreamAccumulator,
+  MAX_OPENAI_STREAM_ERROR_FIELD_CHARS,
 } from '@/lib/ai/streaming'
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
 import { normalizeRenderableDataImageSrc } from '@/lib/markdown/renderableImagePolicy'
@@ -256,7 +257,7 @@ async function consumeAnthropicStream(
     if (payload.type === 'error') {
       const error = payload.error
       if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
-        throw new Error(error.message)
+        throw new Error(error.message.slice(0, MAX_OPENAI_STREAM_ERROR_FIELD_CHARS))
       }
     }
 

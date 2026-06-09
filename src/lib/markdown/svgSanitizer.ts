@@ -1,6 +1,7 @@
 import DOMPurify from 'dompurify';
 
 export const MAX_SVG_SANITIZE_MARKUP_CHARS = 50 * 1024 * 1024;
+export const MAX_SVG_SANITIZE_BYTES = MAX_SVG_SANITIZE_MARKUP_CHARS;
 const MAX_SVG_SANITIZE_DEPTH = 200;
 const MAX_SVG_SANITIZE_NODES = 20_000;
 const SVG_FORBIDDEN_TAGS = ['foreignObject', 'script', 'iframe', 'object', 'embed'];
@@ -157,5 +158,9 @@ export function sanitizeSvgMarkup(markup: string): string {
 }
 
 export function sanitizeSvgBytes(data: Uint8Array): Uint8Array {
+  if (data.byteLength > MAX_SVG_SANITIZE_BYTES) {
+    return new Uint8Array();
+  }
+
   return new TextEncoder().encode(sanitizeSvgMarkup(new TextDecoder().decode(data)));
 }

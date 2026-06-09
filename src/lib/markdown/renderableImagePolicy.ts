@@ -127,10 +127,56 @@ export function normalizeRenderableImageSrc(src: string | null | undefined): str
   }
 }
 
+function isSrcsetWhitespace(char: string): boolean {
+  return /\s/.test(char);
+}
+
+function getSrcsetCandidateParts(candidate: string): readonly [string, string?] | null {
+  let index = 0;
+  while (index < candidate.length && isSrcsetWhitespace(candidate[index])) {
+    index += 1;
+  }
+
+  const sourceStart = index;
+  while (index < candidate.length && !isSrcsetWhitespace(candidate[index])) {
+    index += 1;
+  }
+  if (sourceStart === index) {
+    return null;
+  }
+
+  const source = candidate.slice(sourceStart, index);
+  while (index < candidate.length && isSrcsetWhitespace(candidate[index])) {
+    index += 1;
+  }
+  if (index >= candidate.length) {
+    return [source];
+  }
+
+  const descriptorStart = index;
+  while (index < candidate.length && !isSrcsetWhitespace(candidate[index])) {
+    index += 1;
+  }
+  const descriptor = candidate.slice(descriptorStart, index);
+
+  while (index < candidate.length && isSrcsetWhitespace(candidate[index])) {
+    index += 1;
+  }
+  if (index < candidate.length) {
+    return null;
+  }
+
+  return [source, descriptor];
+}
+
 function normalizeSrcsetCandidate(candidate: string): string | null {
-  const parts = candidate.trim().split(/\s+/).filter(Boolean);
+  const parts = getSrcsetCandidateParts(candidate);
+  if (!parts) {
+    return null;
+  }
+
   const source = normalizeRenderableImageSrc(parts[0]);
-  if (!source || parts.length > 2) {
+  if (!source) {
     return null;
   }
 

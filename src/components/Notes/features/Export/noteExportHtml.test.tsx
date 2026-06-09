@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderNoteExportHtml } from './noteExportHtml';
+import {
+  MAX_EXPORT_IMAGE_DECODE_CONCURRENCY,
+  renderNoteExportHtml,
+} from './noteExportHtml';
 
 function parseExportHtml(html: string): Document {
   return new DOMParser().parseFromString(html, 'text/html');
@@ -150,11 +153,17 @@ describe('renderNoteExportHtml', () => {
 
   it('caps image decode waits while keeping all exported images in the document', async () => {
     const originalDecode = HTMLImageElement.prototype.decode;
+    let activeDecodes = 0;
+    let maxActiveDecodes = 0;
     const decode = vi.fn(function (this: HTMLImageElement) {
       if (this.getAttribute('src') === 'assets/late-200.png') {
         throw new Error('image decode wait cap was not applied');
       }
-      return Promise.resolve();
+      activeDecodes += 1;
+      maxActiveDecodes = Math.max(maxActiveDecodes, activeDecodes);
+      return Promise.resolve().finally(() => {
+        activeDecodes -= 1;
+      });
     });
     Object.defineProperty(HTMLImageElement.prototype, 'complete', {
       configurable: true,
@@ -171,6 +180,7 @@ describe('renderNoteExportHtml', () => {
 
       expect(doc.querySelectorAll('img')).toHaveLength(205);
       expect(decode).toHaveBeenCalledTimes(200);
+      expect(maxActiveDecodes).toBeLessThanOrEqual(MAX_EXPORT_IMAGE_DECODE_CONCURRENCY);
       expect(decode.mock.instances.some((image) => image.getAttribute('src') === 'assets/late-200.png')).toBe(false);
     } finally {
       HTMLImageElement.prototype.decode = originalDecode;

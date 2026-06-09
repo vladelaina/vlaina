@@ -4,7 +4,7 @@ import { findNodeInSelection } from '@milkdown/kit/prose'
 import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state'
 import { $command } from '@milkdown/kit/utils'
 
-import { mathInlineSchema } from './inline-latex'
+import { mathInlineSchema, normalizeInlineLatexValue } from './inline-latex'
 
 export const toggleLatexCommand = $command('ToggleLatex', (ctx) => {
   return () => (state, dispatch) => {
@@ -19,7 +19,7 @@ export const toggleLatexCommand = $command('ToggleLatex', (ctx) => {
       const text = doc.textBetween(selection.from, selection.to)
       let _tr = tr.replaceSelectionWith(
         mathInlineSchema.type(ctx).create({
-          value: text,
+          value: normalizeInlineLatexValue(text),
         })
       )
       if (dispatch) {

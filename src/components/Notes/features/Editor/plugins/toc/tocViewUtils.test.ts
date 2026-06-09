@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   extractHeadings,
+  MAX_TOC_VIEW_HEADING_TEXT_CHARS,
   MAX_TOC_VIEW_HEADINGS,
   normalizeTocMaxLevel,
+  readBoundedTocHeadingText,
   renderTocContent,
   TOC_EMPTY_TEXT,
 } from './tocViewUtils';
@@ -49,6 +51,23 @@ describe('tocViewUtils', () => {
       id: 'heading-511',
       pos: 511,
     });
+  });
+
+  it('reads heading text through bounded ProseMirror ranges when available', () => {
+    const textBetween = vi.fn(() => 'A'.repeat(MAX_TOC_VIEW_HEADING_TEXT_CHARS));
+    const node = {
+      attrs: { level: 2 },
+      content: { size: MAX_TOC_VIEW_HEADING_TEXT_CHARS + 100 },
+      nodeSize: 1,
+      textBetween,
+      get textContent() {
+        throw new Error('aggregate heading textContent should not be read');
+      },
+      type: { name: 'heading' },
+    };
+
+    expect(readBoundedTocHeadingText(node)).toBe('A'.repeat(MAX_TOC_VIEW_HEADING_TEXT_CHARS));
+    expect(textBetween).toHaveBeenCalledWith(0, MAX_TOC_VIEW_HEADING_TEXT_CHARS, '', '');
   });
 
   it('stops scanning headings once the TOC item cap is reached', () => {

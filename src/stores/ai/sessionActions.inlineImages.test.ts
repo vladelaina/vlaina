@@ -256,6 +256,79 @@ describe('session inline image persistence', () => {
     expect(mocked.saveSessionJson).not.toHaveBeenCalledWith('session-2', expect.anything())
   })
 
+  it('limits concurrent orphan inline attachment deletes after a session disappears', async () => {
+    const {
+      MAX_INLINE_IMAGE_ORPHAN_DELETE_CONCURRENCY,
+      createSessionActions,
+    } = await import('./sessionActions')
+    const sources = Array.from(
+      { length: MAX_INLINE_IMAGE_ORPHAN_DELETE_CONCURRENCY + 3 },
+      (_value, index) => `data:image/png;base64,${String(index).padStart(8, 'A')}`,
+    )
+    const lastSource = sources.at(-1)!
+    let resolveLastPersistence!: (value: string) => void
+    let activeDeletes = 0
+    let maxActiveDeletes = 0
+    const resolveDeletes: Array<() => void> = []
+
+    mocked.parseMarkdownAndHtmlImageTokens.mockReturnValue(
+      sources.map((src, index) => ({
+        start: index,
+        end: index + src.length,
+        src,
+        targetStart: index,
+        targetEnd: index + src.length,
+      })),
+    )
+    mocked.persistDataUrlAttachment.mockImplementation((source: string) => {
+      if (source === lastSource) {
+        return new Promise((resolve) => {
+          resolveLastPersistence = resolve
+        })
+      }
+      return Promise.resolve(`attachment://orphan-${sources.indexOf(source)}.png`)
+    })
+    mocked.deleteAttachment.mockImplementation(async () => {
+      activeDeletes += 1
+      maxActiveDeletes = Math.max(maxActiveDeletes, activeDeletes)
+      await new Promise<void>((resolve) => {
+        resolveDeletes.push(resolve)
+      })
+      activeDeletes -= 1
+    })
+
+    const actions = createSessionActions()
+    seedSession([createMessage('m1', `![image](<${sources[0]}>)`)])
+
+    await actions.switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
+    await vi.waitFor(() => expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith(lastSource))
+
+    await actions.deleteSession('session-2')
+    resolveLastPersistence(`attachment://orphan-${sources.length - 1}.png`)
+    await vi.waitFor(() => {
+      expect(resolveDeletes).toHaveLength(MAX_INLINE_IMAGE_ORPHAN_DELETE_CONCURRENCY)
+    })
+
+    expect(maxActiveDeletes).toBeLessThanOrEqual(MAX_INLINE_IMAGE_ORPHAN_DELETE_CONCURRENCY)
+    while (resolveDeletes.length > 0) {
+      resolveDeletes.shift()?.()
+      await Promise.resolve()
+    }
+    await vi.waitFor(() => {
+      expect(mocked.deleteAttachment).toHaveBeenCalledTimes(sources.length)
+    })
+    while (resolveDeletes.length > 0) {
+      resolveDeletes.shift()?.()
+      await Promise.resolve()
+    }
+
+    await vi.waitFor(() => {
+      expect(maxActiveDeletes).toBeLessThanOrEqual(MAX_INLINE_IMAGE_ORPHAN_DELETE_CONCURRENCY)
+    })
+    expect(mocked.saveSessionJson).not.toHaveBeenCalledWith('session-2', expect.anything())
+  })
+
   it('reruns inline image persistence when new data images arrive while a session is already processing', async () => {
     const firstSource = 'data:image/png;base64,QUJD'
     const secondSource = 'data:image/png;base64,RUZH'

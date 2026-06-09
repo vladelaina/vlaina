@@ -20,8 +20,32 @@ const headingIndex = Array(6)
   .fill(0)
   .map((_, i) => i + 1)
 
+export const MAX_HEADING_ID_TEXT_CHARS = 4_096
+
+export function getBoundedHeadingTextForId(
+  node: Node,
+  maxChars = MAX_HEADING_ID_TEXT_CHARS
+) {
+  let text = ''
+  const stack: Node[] = [node]
+
+  while (stack.length > 0 && text.length < maxChars) {
+    const current = stack.pop()!
+    if (current.isText) {
+      text += (current.text ?? '').slice(0, maxChars - text.length)
+      continue
+    }
+
+    for (let index = current.childCount - 1; index >= 0; index -= 1) {
+      stack.push(current.child(index))
+    }
+  }
+
+  return text
+}
+
 function defaultHeadingIdGenerator(node: Node) {
-  return node.textContent.toLowerCase().trim().replace(/\s+/g, '-')
+  return getBoundedHeadingTextForId(node).toLowerCase().trim().replace(/\s+/g, '-')
 }
 
 /// This is a slice contains a function to generate heading id.

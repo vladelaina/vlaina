@@ -4,6 +4,9 @@ const DB_NAME = 'vlaina-storage';
 const DB_VERSION = 1;
 const STORE_FILES = 'files';
 const STORE_DIRS = 'directories';
+const PREFIX_RANGE_SUFFIX = '\uffff';
+export const MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES = 20_000;
+export const MAX_WEB_ADAPTER_LIST_ENTRIES = 20_000;
 
 interface StoredFile {
   path: string;
@@ -313,31 +316,15 @@ export class WebAdapter implements StorageAdapter {
 
   async listDir(path: string, options?: ListOptions): Promise<FileInfo[]> {
     const normalizedPath = this.normalizePath(path);
-    const db = await this.getDB();
     const results: FileInfo[] = [];
     const seenPaths = new Set<string>();
 
-    const files = await new Promise<StoredFile[]>((resolve, reject) => {
-      const tx = db.transaction(STORE_FILES, 'readonly');
-      const store = tx.objectStore(STORE_FILES);
-      const request = store.getAll();
-      
-      request.onsuccess = () => resolve(request.result || []);
-      request.onerror = () => reject(request.error);
-    });
-
-    const dirs = await new Promise<StoredDir[]>((resolve, reject) => {
-      const tx = db.transaction(STORE_DIRS, 'readonly');
-      const store = tx.objectStore(STORE_DIRS);
-      const request = store.getAll();
-      
-      request.onsuccess = () => resolve(request.result || []);
-      request.onerror = () => reject(request.error);
-    });
-
     const prefix = normalizedPath === '/' ? '/' : `${normalizedPath}/`;
+    const files = await this.readStoredFilesByPrefix(prefix);
+    const dirs = await this.readStoredDirsByPrefix(prefix);
 
     const addEntry = (entry: FileInfo) => {
+      if (results.length >= MAX_WEB_ADAPTER_LIST_ENTRIES) return;
       if (seenPaths.has(entry.path)) return;
       seenPaths.add(entry.path);
       results.push(entry);
@@ -348,6 +335,7 @@ export class WebAdapter implements StorageAdapter {
     const addImplicitDirectories = (parts: string[]) => {
       let currentPath = normalizedPath === '/' ? '' : normalizedPath;
       for (const part of parts) {
+        if (results.length >= MAX_WEB_ADAPTER_LIST_ENTRIES) break;
         currentPath = currentPath ? `${currentPath}/${part}` : `/${part}`;
         addEntry({
           name: part,
@@ -359,6 +347,7 @@ export class WebAdapter implements StorageAdapter {
     };
 
     for (const file of files) {
+      if (results.length >= MAX_WEB_ADAPTER_LIST_ENTRIES) break;
       if (!file.path.startsWith(prefix)) continue;
 
       const relativePath = file.path.slice(prefix.length);
@@ -399,6 +388,7 @@ export class WebAdapter implements StorageAdapter {
     }
 
     for (const dir of dirs) {
+      if (results.length >= MAX_WEB_ADAPTER_LIST_ENTRIES) break;
       if (!dir.path.startsWith(prefix)) continue;
 
       const relativePath = dir.path.slice(prefix.length);
@@ -449,25 +439,10 @@ export class WebAdapter implements StorageAdapter {
         throw new Error(`Cannot move a directory into itself: ${oldPath}`);
       }
 
-      const db = await this.getDB();
-      
-      const files = await new Promise<StoredFile[]>((resolve, reject) => {
-        const tx = db.transaction(STORE_FILES, 'readonly');
-        const store = tx.objectStore(STORE_FILES);
-        const request = store.getAll();
-        request.onsuccess = () => resolve(request.result || []);
-        request.onerror = () => reject(request.error);
-      });
-
-      const dirs = await new Promise<StoredDir[]>((resolve, reject) => {
-        const tx = db.transaction(STORE_DIRS, 'readonly');
-        const store = tx.objectStore(STORE_DIRS);
-        const request = store.getAll();
-        request.onsuccess = () => resolve(request.result || []);
-        request.onerror = () => reject(request.error);
-      });
-
       const prefix = normalizedOld + '/';
+      const files = await this.readStoredFilesByPrefix(prefix);
+      const dirs = await this.readStoredDirsByPrefix(normalizedOld);
+
       for (const file of files) {
         if (file.path.startsWith(prefix)) {
           const newFilePath = normalizedNew + file.path.slice(normalizedOld.length);
@@ -595,31 +570,108 @@ export class WebAdapter implements StorageAdapter {
   }
 
   private async hasStoredChildPath(normalizedPath: string): Promise<boolean> {
-    const db = await this.getDB();
     const prefix = normalizedPath === '/' ? '/' : `${normalizedPath}/`;
 
-    const hasFileChild = await new Promise<boolean>((resolve) => {
-      const tx = db.transaction(STORE_FILES, 'readonly');
-      const store = tx.objectStore(STORE_FILES);
-      const request = store.getAll();
-
-      request.onsuccess = () => {
-        const files = (request.result || []) as StoredFile[];
-        resolve(files.some((file) => file.path.startsWith(prefix)));
-      };
-      request.onerror = () => resolve(false);
-    });
+    const hasFileChild = await this.hasStoredEntryWithPrefix(STORE_FILES, prefix);
 
     if (hasFileChild) return true;
 
-    return new Promise<boolean>((resolve) => {
-      const tx = db.transaction(STORE_DIRS, 'readonly');
-      const store = tx.objectStore(STORE_DIRS);
-      const request = store.getAll();
+    return this.hasStoredEntryWithPrefix(STORE_DIRS, prefix);
+  }
+
+  private createPrefixRange(prefix: string): IDBKeyRange {
+    return IDBKeyRange.bound(prefix, `${prefix}${PREFIX_RANGE_SUFFIX}`);
+  }
+
+  private async readStoredFilesByPrefix(prefix: string): Promise<StoredFile[]> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_FILES, 'readonly');
+      const store = tx.objectStore(STORE_FILES);
+      if (typeof store.openCursor !== 'function') {
+        const fallbackRequest = store.getAll(this.createPrefixRange(prefix), MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES);
+        fallbackRequest.onsuccess = () => {
+          const files = (fallbackRequest.result || []) as StoredFile[];
+          resolve(files.filter((file) => file.path.startsWith(prefix)));
+        };
+        fallbackRequest.onerror = () => reject(fallbackRequest.error);
+        return;
+      }
+
+      const request = store.openCursor(this.createPrefixRange(prefix));
+      const files: StoredFile[] = [];
 
       request.onsuccess = () => {
-        const dirs = (request.result || []) as StoredDir[];
-        resolve(dirs.some((dir) => dir.path.startsWith(prefix)));
+        const cursor = request.result;
+        if (!cursor) {
+          resolve(files);
+          return;
+        }
+
+        const file = cursor.value as StoredFile;
+        if (file.path.startsWith(prefix)) {
+          files.push(file);
+        }
+        if (files.length >= MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES) {
+          resolve(files);
+          return;
+        }
+        cursor.continue();
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  private async readStoredDirsByPrefix(prefix: string): Promise<StoredDir[]> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_DIRS, 'readonly');
+      const store = tx.objectStore(STORE_DIRS);
+      const dirs: StoredDir[] = [];
+      const descendantPrefix = prefix.endsWith('/') ? prefix : `${prefix}/`;
+      if (typeof store.openCursor !== 'function') {
+        const fallbackRequest = store.getAll(this.createPrefixRange(prefix), MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES);
+        fallbackRequest.onsuccess = () => {
+          const fallbackDirs = (fallbackRequest.result || []) as StoredDir[];
+          resolve(fallbackDirs.filter((dir) => dir.path === prefix || dir.path.startsWith(descendantPrefix)));
+        };
+        fallbackRequest.onerror = () => reject(fallbackRequest.error);
+        return;
+      }
+
+      const request = store.openCursor(this.createPrefixRange(prefix));
+
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (!cursor) {
+          resolve(dirs);
+          return;
+        }
+
+        const dir = cursor.value as StoredDir;
+        if (dir.path === prefix || dir.path.startsWith(descendantPrefix)) {
+          dirs.push(dir);
+        }
+        if (dirs.length >= MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES) {
+          resolve(dirs);
+          return;
+        }
+        cursor.continue();
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  private async hasStoredEntryWithPrefix(storeName: typeof STORE_FILES | typeof STORE_DIRS, prefix: string): Promise<boolean> {
+    const db = await this.getDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(storeName, 'readonly');
+      const store = tx.objectStore(storeName);
+      const request = store.getAll(this.createPrefixRange(prefix), 1);
+
+      request.onsuccess = () => {
+        const entries = (request.result || []) as Array<{ path: string }>;
+        resolve(entries.some((entry) => entry.path.startsWith(prefix)));
       };
       request.onerror = () => resolve(false);
     });

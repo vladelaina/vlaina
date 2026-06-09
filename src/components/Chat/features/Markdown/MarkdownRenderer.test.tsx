@@ -5,6 +5,10 @@ import {
   getPreparedMarkdownTextBlock,
   normalizeInlineMarkdownForMeasurement,
 } from "@/components/Chat/features/Layout/chatAssistantInlineMarkdown";
+import {
+  CHAT_MARKDOWN_REHYPE_PLUGINS,
+  CHAT_MARKDOWN_REMARK_PLUGINS,
+} from "@/components/common/markdown/markdownPipeline";
 import { buildChatStreamSchedule, useChatStreamBlocks } from "./chatStreamTextAnimation";
 import { CHAT_STREAM_FADE_MS } from "./chatStreamTextPlugin";
 
@@ -18,6 +22,7 @@ vi.mock("react-markdown", () => ({
   default: (props: any) => {
     reactMarkdownSpy(props);
     const { components, children, remarkPlugins, rehypePlugins } = props;
+    const firstHeadingMatch = typeof children === "string" ? /^# (.+)$/m.exec(children) : null;
 
     return (
       <div
@@ -26,6 +31,7 @@ vi.mock("react-markdown", () => ({
         data-rehype-count={String(rehypePlugins.length)}
       >
         <div data-testid="markdown-children">{children}</div>
+        {firstHeadingMatch ? <h1 data-testid="drag-heading">{firstHeadingMatch[1]}</h1> : null}
         {components.p?.({ children: "inline paragraph", "data-testid": "inline-paragraph" })}
         {components.a?.({ href: "https://example.com", children: "link", "data-testid": "inline-link" })}
         {components.p?.({
@@ -70,6 +76,12 @@ vi.mock("./components/ChatImageViewer", () => ({
 }));
 
 import MarkdownRenderer from "./MarkdownRenderer";
+import { MAX_CHAT_MARKDOWN_SELECTION_TEXT_NODES } from "./MarkdownRenderer";
+import {
+  CHAT_HEADING_DRAG_MIME,
+  MAX_HEADING_DRAG_TEXT_CHARS,
+  parseChatHeadingDragPayload,
+} from "@/lib/drag/chatHeadingDrag";
 
 describe("MarkdownRenderer", () => {
   beforeEach(() => {
@@ -146,8 +158,8 @@ describe("MarkdownRenderer", () => {
   it("renders markdown through the local react-markdown pipeline", () => {
     render(<MarkdownRenderer content={"Visible"} />);
 
-    expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-remark-count", "4");
-    expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-rehype-count", "8");
+    expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-remark-count", String(CHAT_MARKDOWN_REMARK_PLUGINS.length));
+    expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-rehype-count", String(CHAT_MARKDOWN_REHYPE_PLUGINS.length));
     expect(screen.getByTestId("react-markdown").parentElement).toHaveClass("markdown-surface");
   });
 
@@ -423,16 +435,22 @@ describe("MarkdownRenderer", () => {
   it("keeps streaming markdown frozen while a completed selection remains active", () => {
     vi.useFakeTimers();
     let selectedText = "Visible";
+    let activeRange: Range | null = null;
     const selectionSpy = vi.spyOn(window, "getSelection").mockReturnValue({
       get isCollapsed() {
         return selectedText.length === 0;
       },
       rangeCount: 1,
-      toString: () => selectedText,
+      getRangeAt: () => activeRange ?? document.createRange(),
+      toString: () => {
+        throw new Error("selection.toString should not be used for active selection checks");
+      },
     } as Selection);
     const { rerender } = render(<MarkdownRenderer content={"Visible"} isStreaming />);
 
     const surface = screen.getByTestId("react-markdown").parentElement!;
+    activeRange = document.createRange();
+    activeRange.selectNodeContents(surface);
     fireEvent.mouseDown(surface, { button: 0 });
     rerender(<MarkdownRenderer content={"Visible plus more"} isStreaming />);
     fireEvent.pointerUp(document);
@@ -523,5 +541,84 @@ describe("MarkdownRenderer", () => {
 
     expect(screen.getByTestId("inline-paragraph").tagName).toBe("P");
     expect(screen.getByTestId("block-paragraph").tagName).toBe("DIV");
+  });
+
+  it("sets heading drag payload without reading full selection or heading text", () => {
+    render(<MarkdownRenderer content={"# Drag Title"} />);
+
+    const heading = screen.getByTestId("drag-heading");
+    const selection = window.getSelection()!;
+    const range = document.createRange();
+    range.selectNodeContents(heading);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const selectionToStringSpy = vi.spyOn(selection, "toString").mockImplementation(() => {
+      throw new Error("selection.toString should not be used for heading drag");
+    });
+    Object.defineProperty(heading, "textContent", {
+      configurable: true,
+      get() {
+        throw new Error("heading aggregate textContent should not be read");
+      },
+    });
+    const dataTransfer = { setData: vi.fn() };
+
+    try {
+      fireEvent.dragStart(heading, { dataTransfer });
+
+      expect(dataTransfer.setData).toHaveBeenCalledTimes(1);
+      expect(dataTransfer.setData.mock.calls[0]?.[0]).toBe(CHAT_HEADING_DRAG_MIME);
+      expect(parseChatHeadingDragPayload(dataTransfer.setData.mock.calls[0]?.[1])).toEqual({
+        level: 1,
+        text: "Drag Title",
+      });
+    } finally {
+      selectionToStringSpy.mockRestore();
+      selection.removeAllRanges();
+    }
+  });
+
+  it("skips heading drag payloads for oversized heading text", () => {
+    render(<MarkdownRenderer content={`# ${"x".repeat(MAX_HEADING_DRAG_TEXT_CHARS + 1)}`} />);
+
+    const heading = screen.getByTestId("drag-heading");
+    const selection = window.getSelection()!;
+    const range = document.createRange();
+    range.selectNodeContents(heading);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const dataTransfer = { setData: vi.fn() };
+
+    try {
+      fireEvent.dragStart(heading, { dataTransfer });
+
+      expect(dataTransfer.setData).not.toHaveBeenCalled();
+    } finally {
+      selection.removeAllRanges();
+    }
+  });
+
+  it("skips heading drag payloads after the selection text node budget is exhausted", () => {
+    render(<MarkdownRenderer content={"# Drag Title"} />);
+
+    const heading = screen.getByTestId("drag-heading");
+    heading.textContent = "";
+    for (let index = 0; index <= MAX_CHAT_MARKDOWN_SELECTION_TEXT_NODES; index += 1) {
+      heading.append(document.createTextNode("x"));
+    }
+    const selection = window.getSelection()!;
+    const range = document.createRange();
+    range.selectNodeContents(heading);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const dataTransfer = { setData: vi.fn() };
+
+    try {
+      fireEvent.dragStart(heading, { dataTransfer });
+
+      expect(dataTransfer.setData).not.toHaveBeenCalled();
+    } finally {
+      selection.removeAllRanges();
+    }
   });
 });

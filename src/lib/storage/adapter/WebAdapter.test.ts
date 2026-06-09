@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { WebAdapter } from './WebAdapter';
+import { WebAdapter, MAX_WEB_ADAPTER_LIST_ENTRIES } from './WebAdapter';
 
 describe('WebAdapter', () => {
   let adapter: WebAdapter;
@@ -179,6 +179,29 @@ describe('WebAdapter', () => {
     ]);
   });
 
+  it('caps recursive listing results when prefix scans return many entries', async () => {
+    const adapterWithScans = adapter as unknown as {
+      readStoredFilesByPrefix: (prefix: string) => Promise<unknown[]>;
+      readStoredDirsByPrefix: (prefix: string) => Promise<unknown[]>;
+    };
+    adapterWithScans.readStoredFilesByPrefix = async () => Array.from(
+      { length: MAX_WEB_ADAPTER_LIST_ENTRIES + 1 },
+      (_, index) => ({
+        path: `/vault/docs/file-${index}.md`,
+        content: 'hello',
+        isBinary: false,
+        size: 5,
+        modifiedAt: index,
+        createdAt: index,
+      }),
+    );
+    adapterWithScans.readStoredDirsByPrefix = async () => [];
+
+    await expect(adapter.listDir('/vault', { recursive: true })).resolves.toHaveLength(
+      MAX_WEB_ADAPTER_LIST_ENTRIES,
+    );
+  });
+
   it('renames implicit parent directories with their stored child files', async () => {
     await adapter.writeFile('/vault/docs/a.md', 'hello');
 
@@ -193,6 +216,25 @@ describe('WebAdapter', () => {
         isDirectory: true,
       }),
     ]);
+  });
+
+  it('does not include sibling paths that only share a directory name prefix', async () => {
+    await adapter.writeFile('/vault/docs/a.md', 'docs');
+    await adapter.writeFile('/vault/docs-extra/b.md', 'extra');
+
+    await expect(adapter.listDir('/vault/docs', { recursive: true })).resolves.toEqual([
+      expect.objectContaining({
+        name: 'a.md',
+        path: '/vault/docs/a.md',
+        isFile: true,
+      }),
+    ]);
+
+    await adapter.rename('/vault/docs', '/vault/archive');
+
+    await expect(adapter.exists('/vault/docs-extra/b.md')).resolves.toBe(true);
+    await expect(adapter.exists('/vault/archive/a.md')).resolves.toBe(true);
+    await expect(adapter.exists('/vault/archive-extra/b.md')).resolves.toBe(false);
   });
 
   it('recursively deletes implicit parent directories with their stored child files', async () => {

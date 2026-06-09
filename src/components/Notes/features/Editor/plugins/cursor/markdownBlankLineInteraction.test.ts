@@ -6,6 +6,7 @@ import {
   MAX_MARKDOWN_BLANK_LINE_NODE_POS_SCAN_NODES,
   createEditableMarkdownBlankLineDecorations,
   findEditableMarkdownBlankLineElement,
+  isEditableMarkdownBlankLineNode,
   resolveMarkdownBlankLineNodePos,
 } from './markdownBlankLineInteraction';
 
@@ -35,6 +36,21 @@ describe('markdownBlankLineInteraction', () => {
     expect(second).toBe(first);
 
     await editor.destroy();
+  });
+
+  it('detects editable blank line nodes without aggregating paragraph textContent', () => {
+    const paragraph = {
+      content: { size: EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length },
+      nodeSize: 3,
+      textBetween: vi.fn(() => EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER),
+      type: { name: 'paragraph' },
+      get textContent() {
+        throw new Error('aggregate paragraph textContent should not be read');
+      },
+    };
+
+    expect(isEditableMarkdownBlankLineNode(paragraph)).toBe(true);
+    expect(paragraph.textBetween).toHaveBeenCalledWith(0, EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length, '\0', '\0');
   });
 
   it('finds editable blank line paragraphs without materializing all root children', () => {

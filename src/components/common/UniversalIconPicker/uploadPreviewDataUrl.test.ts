@@ -37,4 +37,39 @@ describe('uploadPreviewDataUrl', () => {
         expect(decoded).not.toContain('<script');
         expect(decoded).not.toContain('onload');
     });
+
+    it('rejects when non-SVG preview reads are aborted', async () => {
+        const OriginalFileReader = globalThis.FileReader;
+        class MockFileReader {
+            result: string | ArrayBuffer | null = null;
+            onabort: (() => void) | null = null;
+            private listeners = new Map<string, Array<() => void>>();
+
+            addEventListener(type: string, listener: () => void) {
+                this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
+            }
+
+            readAsDataURL() {
+                setTimeout(() => {
+                    this.onabort?.();
+                    for (const listener of this.listeners.get('abort') ?? []) {
+                        listener();
+                    }
+                }, 0);
+            }
+        }
+
+        vi.stubGlobal('FileReader', MockFileReader);
+        try {
+            const file = {
+                name: 'icon.png',
+                type: 'image/png',
+                size: 3,
+            } as unknown as File;
+
+            await expect(readUploadPreviewDataUrl(file)).rejects.toThrow('Icon preview file read was aborted');
+        } finally {
+            vi.stubGlobal('FileReader', OriginalFileReader);
+        }
+    });
 });

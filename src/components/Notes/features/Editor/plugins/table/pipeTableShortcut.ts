@@ -6,6 +6,7 @@ interface TableShortcutSchema {
 }
 
 const pipeCellPattern = /[|｜]/;
+export const MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS = 1024;
 
 function isNode(node: ProseMirrorNode | null | undefined): node is ProseMirrorNode {
   return node != null;
@@ -18,6 +19,8 @@ export function getPipeShortcutColumnCount(text: string): number | null {
 }
 
 export function getPipeShortcutCells(text: string): string[] | null {
+  if (text.length > MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS) return null;
+
   const trimmed = text.trim();
   if (!trimmed.startsWith('|') && !trimmed.startsWith('｜')) return null;
   if (!trimmed.endsWith('|') && !trimmed.endsWith('｜')) return null;

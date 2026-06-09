@@ -7,9 +7,11 @@ const CALLOUT_ICON_COMMENT_PREFIX = 'callout-icon:';
 const MAX_CALLOUT_ICON_VALUE_CHARS = 2048;
 const MAX_CALLOUT_ICON_JSON_CHARS = 4096;
 const MAX_CALLOUT_ICON_MARKER_CHARS = 4096;
+const MAX_CALLOUT_ICON_COLOR_CHARS = 64;
 const CALLOUT_COLOR_VALUES = new Set<string>(CALLOUT_COLORS);
 const CALLOUT_ICON_HTML_COMMENT_PREFIX = `<!--${CALLOUT_ICON_COMMENT_PREFIX}`;
 const CALLOUT_ICON_HTML_COMMENT_SUFFIX = '-->';
+const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F-\u009F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 export function iconDataFromValue(value: string | null | undefined): IconData {
   if (!value || value.length > MAX_CALLOUT_ICON_VALUE_CHARS) {
@@ -39,7 +41,12 @@ export function normalizeCalloutIcon(value: unknown): IconData {
   }
 
   const normalized: IconData = iconDataFromValue(iconValue);
-  if (typeof record.color === 'string' && record.color.length <= 64) {
+  if (
+    typeof record.color === 'string' &&
+    record.color.length > 0 &&
+    record.color.length <= MAX_CALLOUT_ICON_COLOR_CHARS &&
+    !CONTROL_OR_BIDI_PATTERN.test(record.color)
+  ) {
     normalized.color = record.color;
   }
   return normalized;

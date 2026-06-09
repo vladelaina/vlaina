@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getPipeShortcutColumnCount } from './pipeTableShortcut';
+import {
+  getPipeShortcutColumnCount,
+  getPipeShortcutCells,
+  MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS,
+} from './pipeTableShortcut';
 
 describe('getPipeShortcutColumnCount', () => {
   it('detects two columns from a pipe row', () => {
@@ -20,5 +24,9 @@ describe('getPipeShortcutColumnCount', () => {
 
   it('ignores plain text', () => {
     expect(getPipeShortcutColumnCount('hello world')).toBeNull();
+  });
+
+  it('ignores oversized pipe rows before splitting cells', () => {
+    expect(getPipeShortcutCells(`|${'x'.repeat(MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS)}|2|`)).toBeNull();
   });
 });

@@ -1,5 +1,10 @@
 import { expectDomTypeError } from '@milkdown/exception'
-import { listItemSchema } from '@milkdown/preset-commonmark'
+import {
+  MAX_LIST_ITEM_LABEL_ATTR_CHARS,
+  MAX_LIST_ITEM_TYPE_ATTR_CHARS,
+  listItemSchema,
+  normalizeListItemStringAttr,
+} from '@milkdown/preset-commonmark'
 import { InputRule } from '@milkdown/prose/inputrules'
 import { $inputRule } from '@milkdown/utils'
 
@@ -26,8 +31,8 @@ export const extendListItemSchemaForTask = listItemSchema.extendSchema(
               if (!(dom instanceof HTMLElement)) throw expectDomTypeError(dom)
 
               return {
-                label: dom.dataset.label,
-                listType: dom.dataset.listType,
+                label: normalizeListItemStringAttr(dom.dataset.label, '•', MAX_LIST_ITEM_LABEL_ATTR_CHARS),
+                listType: normalizeListItemStringAttr(dom.dataset.listType, 'bullet', MAX_LIST_ITEM_TYPE_ATTR_CHARS),
                 spread: dom.dataset.spread,
                 checked: dom.dataset.checked
                   ? dom.dataset.checked === 'true'

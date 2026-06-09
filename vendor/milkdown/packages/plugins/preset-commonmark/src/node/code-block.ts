@@ -12,6 +12,22 @@ import {
 
 import { withMeta } from '../__internal__'
 
+export const MAX_CODE_BLOCK_LANGUAGE_CHARS = 64
+const codeBlockLanguagePattern = /^[A-Za-z0-9_.#+-]+$/
+
+export function normalizeCodeBlockLanguageAttr(value: unknown) {
+  if (typeof value !== 'string') return ''
+  const normalized = value.trim()
+  if (
+    !normalized
+    || normalized.length > MAX_CODE_BLOCK_LANGUAGE_CHARS
+    || !codeBlockLanguagePattern.test(normalized)
+  ) {
+    return ''
+  }
+  return normalized
+}
+
 /// HTML attributes for code block node.
 export const codeBlockAttr = $nodeAttr('codeBlock', () => ({
   pre: {},
@@ -44,13 +60,13 @@ export const codeBlockSchema = $nodeSchema('code_block', (ctx) => {
         getAttrs: (dom) => {
           if (!(dom instanceof HTMLElement)) throw expectDomTypeError(dom)
 
-          return { language: dom.dataset.language }
+          return { language: normalizeCodeBlockLanguageAttr(dom.dataset.language) }
         },
       },
     ],
     toDOM: (node) => {
       const attr = ctx.get(codeBlockAttr.key)(node)
-      const language = node.attrs.language
+      const language = normalizeCodeBlockLanguageAttr(node.attrs.language)
       const languageAttrs =
         language && language.length > 0
           ? { 'data-language': language }
@@ -68,7 +84,7 @@ export const codeBlockSchema = $nodeSchema('code_block', (ctx) => {
     parseMarkdown: {
       match: ({ type }) => type === 'code',
       runner: (state, node, type) => {
-        const language = node.lang ?? ''
+        const language = normalizeCodeBlockLanguageAttr(node.lang)
         const value = node.value as string | null
         state.openNode(type, { language })
         if (value) state.addText(value)
@@ -80,7 +96,7 @@ export const codeBlockSchema = $nodeSchema('code_block', (ctx) => {
       match: (node) => node.type.name === 'code_block',
       runner: (state, node) => {
         state.addNode('code', undefined, node.content.firstChild?.text || '', {
-          lang: node.attrs.language,
+          lang: normalizeCodeBlockLanguageAttr(node.attrs.language),
         })
       },
     },
@@ -104,7 +120,7 @@ export const createCodeBlockInputRule = $inputRule((ctx) =>
     /^(?:`{3,}|~{3,}|·{3,}|～{3,})(?<language>[a-z0-9_-]*)?[\s\n]$/,
     codeBlockSchema.type(ctx),
     (match) => ({
-      language: match.groups?.language ?? '',
+      language: normalizeCodeBlockLanguageAttr(match.groups?.language),
     })
   )
 )
@@ -120,7 +136,9 @@ export const createCodeBlockCommand = $command(
   'CreateCodeBlock',
   (ctx) =>
     (language = '') =>
-      setBlockType(codeBlockSchema.type(ctx), { language })
+      setBlockType(codeBlockSchema.type(ctx), {
+        language: normalizeCodeBlockLanguageAttr(language),
+      })
 )
 
 withMeta(createCodeBlockCommand, {
@@ -140,7 +158,7 @@ export const updateCodeBlockLanguageCommand = $command(
     ) =>
     (state, dispatch) => {
       if (pos >= 0) {
-        dispatch?.(state.tr.setNodeAttribute(pos, 'language', language))
+        dispatch?.(state.tr.setNodeAttribute(pos, 'language', normalizeCodeBlockLanguageAttr(language)))
         return true
       }
 

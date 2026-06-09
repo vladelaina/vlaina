@@ -3,7 +3,7 @@ import { nodeRule } from '@milkdown/kit/prose'
 import { textblockTypeInputRule } from '@milkdown/kit/prose/inputrules'
 import { $inputRule } from '@milkdown/kit/utils'
 
-import { mathInlineSchema } from './inline-latex'
+import { mathInlineSchema, normalizeInlineLatexValue } from './inline-latex'
 
 /// Input rule for inline math.
 /// When you type $E=MC^2$, it will create an inline math node.
@@ -11,7 +11,7 @@ export const mathInlineInputRule = $inputRule((ctx) =>
   nodeRule(/(?:\$)([^$]+)(?:\$)$/, mathInlineSchema.type(ctx), {
     getAttr: (match) => {
       return {
-        value: match[1] ?? '',
+        value: normalizeInlineLatexValue(match[1]),
       }
     },
   })

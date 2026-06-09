@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   consumeOpenAIStream,
   MAX_OPENAI_STREAM_CONTENT_CHARS,
+  MAX_OPENAI_STREAM_ERROR_FIELD_CHARS,
   MAX_OPENAI_STREAM_LINE_CHARS,
 } from './streaming';
 
@@ -106,6 +107,26 @@ describe('consumeOpenAIStream', () => {
 
     await expect(consumeOpenAIStream(response, () => {})).rejects.toThrow('boom');
     expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds stream error payload fields before mapping them', async () => {
+    const longMessage = 'x'.repeat(MAX_OPENAI_STREAM_ERROR_FIELD_CHARS + 1);
+    const longCode = 'c'.repeat(MAX_OPENAI_STREAM_ERROR_FIELD_CHARS + 1);
+    const mapper = vi.fn((message: string, code?: string) => {
+      expect(message).toHaveLength(MAX_OPENAI_STREAM_ERROR_FIELD_CHARS);
+      expect(code).toHaveLength(MAX_OPENAI_STREAM_ERROR_FIELD_CHARS);
+      return 'mapped error';
+    });
+
+    await expect(consumeOpenAIStream(
+      streamResponse([
+        `data: ${JSON.stringify({ error: { message: longMessage, code: longCode } })}`,
+      ]),
+      () => {},
+      { mapErrorPayload: mapper },
+    )).rejects.toThrow('mapped error');
+
+    expect(mapper).toHaveBeenCalledTimes(1);
   });
 
   it('rejects oversized stream lines before parsing them', async () => {
@@ -303,6 +324,20 @@ describe('consumeOpenAIStream', () => {
 
     expect(result).toBe('choice top nested data');
     expect(chunks[chunks.length - 1]).toBe('choice top nested data');
+  });
+
+  it('skips over-deep stream text arrays without recursive extraction', async () => {
+    const nestedContent = `${'['.repeat(2001)}"hidden"${']'.repeat(2001)}`;
+    const result = await consumeOpenAIStream(
+      streamResponse([
+        `data: {"choices":[{"message":{"content":${nestedContent}}}]}`,
+        'data: {"choices":[{"delta":{"content":"visible"}}]}',
+        '',
+      ]),
+      () => {},
+    );
+
+    expect(result).toBe('visible');
   });
 
   it('parses Responses API output text delta event shapes', async () => {

@@ -194,7 +194,7 @@ export class CollabService {
     if (!this.#ctx) throw ctxNotBind()
     if (!this.#xmlFragment) throw missingYjsDoc()
     const conditionFn =
-      condition || ((yDocNode) => yDocNode.textContent.length === 0)
+      condition || ((yDocNode) => isEmptyCollabTemplateDocument(yDocNode))
 
     const node = this.#valueToNode(template)
     const schema = this.#ctx.get(schemaCtx)
@@ -246,4 +246,8 @@ export class CollabService {
 
     return this
   }
+}
+
+export function isEmptyCollabTemplateDocument(node: Pick<Node, 'childCount' | 'content'>) {
+  return node.childCount === 0 || node.content.size === 0
 }

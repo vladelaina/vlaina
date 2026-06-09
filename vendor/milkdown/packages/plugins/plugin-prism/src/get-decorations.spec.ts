@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   MAX_PRISM_CODE_CHARS,
   MAX_PRISM_HAST_DEPTH,
   canHighlightPrismCode,
   flatNodes,
+  readHighlightablePrismCode,
 } from './get-decorations'
 
 describe('plugin-prism get-decorations', () => {
@@ -39,5 +40,35 @@ describe('plugin-prism get-decorations', () => {
   it('skips prism highlighting for oversized code blocks', () => {
     expect(canHighlightPrismCode('x'.repeat(MAX_PRISM_CODE_CHARS))).toBe(true)
     expect(canHighlightPrismCode('x'.repeat(MAX_PRISM_CODE_CHARS + 1))).toBe(false)
+  })
+
+  it('skips oversized code blocks without reading aggregate textContent', () => {
+    const textBetween = vi.fn(() => {
+      throw new Error('oversized code should not be read')
+    })
+    const node = {
+      content: { size: MAX_PRISM_CODE_CHARS + 1 },
+      textBetween,
+      get textContent() {
+        throw new Error('aggregate code textContent should not be read')
+      },
+    }
+
+    expect(readHighlightablePrismCode(node as any)).toBeNull()
+    expect(textBetween).not.toHaveBeenCalled()
+  })
+
+  it('reads highlightable code through a bounded ProseMirror range', () => {
+    const textBetween = vi.fn(() => 'const value = 1')
+    const node = {
+      content: { size: 15 },
+      textBetween,
+      get textContent() {
+        throw new Error('aggregate code textContent should not be read')
+      },
+    }
+
+    expect(readHighlightablePrismCode(node as any)).toBe('const value = 1')
+    expect(textBetween).toHaveBeenCalledWith(0, 15, '\n', '\n')
   })
 })

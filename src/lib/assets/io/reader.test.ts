@@ -212,6 +212,36 @@ describe('asset image reader cache', () => {
     expect(decoded).not.toContain('example.test');
   });
 
+  it('does not hang when fallback base64 conversion is aborted', async () => {
+    const originalArrayBufferDescriptor = Object.getOwnPropertyDescriptor(Blob.prototype, 'arrayBuffer');
+    try {
+      Object.defineProperty(Blob.prototype, 'arrayBuffer', {
+        configurable: true,
+        value: undefined,
+      });
+      vi.stubGlobal('FileReader', class {
+        result: string | null = null;
+        error: Error | null = null;
+        onloadend: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        onabort: (() => void) | null = null;
+
+        readAsDataURL() {
+          queueMicrotask(() => this.onabort?.());
+        }
+      });
+      hoisted.readBinaryFile.mockResolvedValueOnce(new Uint8Array([1]));
+
+      await expect(loadImageAsBase64('/vault/assets/cover.png')).rejects.toThrow(
+        'Image base64 conversion was aborted',
+      );
+    } finally {
+      if (originalArrayBufferDescriptor) {
+        Object.defineProperty(Blob.prototype, 'arrayBuffer', originalArrayBufferDescriptor);
+      }
+    }
+  });
+
   it('caches generated thumbnails by file metadata without rereading the image', async () => {
     hoisted.stat.mockResolvedValue({ modifiedAt: 1, size: 3 });
     vi.mocked(URL.createObjectURL)
@@ -319,12 +349,15 @@ describe('asset image reader cache', () => {
       },
     ) {
       queueMicrotask(() => {
+        const blob = new Blob(['worker-thumb'], { type: 'image/webp' });
+        Object.defineProperty(blob, 'arrayBuffer', {
+          configurable: true,
+          value: async () => new TextEncoder().encode('worker-thumb').buffer,
+        });
         this.onmessage?.({
           data: {
             ok: true,
-            blob: Object.assign(new Blob(['worker-thumb'], { type: 'image/webp' }), {
-              arrayBuffer: async () => new TextEncoder().encode('worker-thumb').buffer,
-            }),
+            blob,
           },
         } as MessageEvent<{ ok: boolean; blob: Blob }>);
       });
@@ -351,6 +384,55 @@ describe('asset image reader cache', () => {
     const writeOptions = hoisted.writeBinaryFile.mock.calls[0]?.[2] as { recursive?: boolean };
     expect(writePath).toContain('/app-data/.vlaina/cache/image-thumbnails/');
     expect(writeOptions).toEqual({ recursive: true });
+  });
+
+  it('does not persist oversized generated electron thumbnails', async () => {
+    hoisted.platform = 'electron';
+    hoisted.stat.mockResolvedValue({ modifiedAt: 1, size: 3 });
+    hoisted.exists.mockResolvedValue(false);
+    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:worker-thumb-url');
+    const terminate = vi.fn();
+    const postMessage = vi.fn(function (
+      this: {
+        onmessage: ((event: MessageEvent<{ ok: boolean; blob: Blob }>) => void) | null;
+      },
+    ) {
+      queueMicrotask(() => {
+        const blob = new Blob(['worker-thumb'], { type: 'image/webp' });
+        Object.defineProperty(blob, 'size', {
+          configurable: true,
+          value: 51 * 1024 * 1024,
+        });
+        Object.defineProperty(blob, 'arrayBuffer', {
+          configurable: true,
+          value: async () => new Uint8Array([1, 2, 3]).buffer,
+        });
+        this.onmessage?.({
+          data: {
+            ok: true,
+            blob,
+          },
+        } as MessageEvent<{ ok: boolean; blob: Blob }>);
+      });
+    });
+
+    class ThumbnailWorker {
+      onmessage: ((event: MessageEvent<{ ok: boolean; blob: Blob }>) => void) | null = null;
+      onerror: ((event: ErrorEvent) => void) | null = null;
+      terminate = terminate;
+      postMessage = postMessage;
+    }
+
+    vi.stubGlobal('Worker', ThumbnailWorker);
+
+    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png', {
+      maxEdgePx: 1280,
+      allowMainThreadFallback: false,
+    })).resolves.toBe('blob:worker-thumb-url');
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(hoisted.writeBinaryFile).not.toHaveBeenCalled();
   });
 
   it('can skip main-thread canvas thumbnail fallback when worker APIs are unavailable', async () => {

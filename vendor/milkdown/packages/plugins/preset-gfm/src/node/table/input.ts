@@ -26,8 +26,11 @@ const normalizeTableShortcutNumber = (value: string) =>
   )
 
 const tablePipeCellPattern = /[|｜]/
+const MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS = 1024
 
 function getPipeShortcutCells(text: string): string[] | null {
+  if (text.length > MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS) return null
+
   const trimmed = text.trim()
   if (!trimmed.startsWith('|') && !trimmed.startsWith('｜')) return null
   if (!trimmed.endsWith('|') && !trimmed.endsWith('｜')) return null
@@ -75,11 +78,12 @@ function createTableFromPipeShortcut(ctx: Parameters<typeof createTable>[0]): Co
 
     const { $from } = selection
     if ($from.parent.type !== paragraphSchema.type(ctx)) return false
-    if ($from.parent.childCount !== 1 || !$from.parent.firstChild?.isText) return false
     if ($from.parentOffset !== $from.parent.content.size) return false
     if ($from.depth < 1) return false
+    if ($from.parent.content.size > MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS) return false
 
-    const cells = getPipeShortcutCells($from.parent.textContent)
+    const text = $from.parent.textBetween(0, $from.parent.content.size, '', '')
+    const cells = getPipeShortcutCells(text)
     if (!cells || cells.filter((cell) => cell.length > 0).length < 2) return false
 
     const parent = $from.node($from.depth - 1)

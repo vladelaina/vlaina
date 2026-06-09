@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AssetService } from './AssetService';
+import { AssetService, MAX_ASSET_METADATA_STAT_CONCURRENCY } from './AssetService';
 
 const mocks = vi.hoisted(() => ({
   storage: {
@@ -375,6 +375,7 @@ describe('AssetService', () => {
     const file = createImageFile('alpha.png');
     mocks.computeFileHash.mockResolvedValue('same-hash');
     mocks.computeBufferHash.mockResolvedValue('same-hash');
+    mocks.storage.readBinaryFile.mockResolvedValue(new Uint8Array([1, 2, 3, 4, 5]));
     mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
     mocks.storage.listDir.mockResolvedValue([
       {
@@ -409,6 +410,7 @@ describe('AssetService', () => {
     const file = createImageFile('alpha.png');
     mocks.computeFileHash.mockResolvedValue('same-hash');
     mocks.computeBufferHash.mockResolvedValue('same-hash');
+    mocks.storage.readBinaryFile.mockResolvedValue(new Uint8Array([1, 2, 3, 4, 5]));
     mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
     mocks.storage.stat.mockImplementation(async (path: string) => (
       path === '/vault/docs/assets/alpha.png'
@@ -476,6 +478,42 @@ describe('AssetService', () => {
     expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha_1.png', expect.any(Uint8Array));
   });
 
+  it('caps upload target directory scanning before normalizing existing asset entries', async () => {
+    const file = createImageFile('alpha.png');
+    mocks.storage.exists.mockResolvedValue(true);
+    const unscannedEntry = {
+      get name() {
+        throw new Error('unscanned upload directory entry name was read');
+      },
+      path: '/vault/docs/assets/image-5000.png',
+      isFile: true,
+      isDirectory: false,
+    };
+    mocks.storage.listDir.mockResolvedValue([
+      ...Array.from({ length: 5000 }, (_, index) => ({
+        name: `image-${String(index).padStart(4, '0')}.png`,
+        path: `/vault/docs/assets/image-${String(index).padStart(4, '0')}.png`,
+        isFile: true,
+        isDirectory: false,
+      })),
+      unscannedEntry,
+    ]);
+
+    const result = await AssetService.upload(
+      file,
+      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      {
+        storageMode: 'subfolder',
+        subfolderName: 'assets',
+        filenameFormat: 'original',
+      },
+      [],
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', expect.any(Uint8Array));
+  });
+
   it('skips unreadable duplicate candidates instead of failing the upload', async () => {
     const file = createImageFile('alpha.png');
     mocks.computeFileHash.mockResolvedValue('new-hash');
@@ -507,6 +545,41 @@ describe('AssetService', () => {
     expect(result.isDuplicate).toBe(false);
     expect(result.path).toBe('./assets/alpha_1.png');
     expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png');
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha_1.png', expect.any(Uint8Array));
+  });
+
+  it('skips duplicate candidates whose bytes do not match trusted size metadata', async () => {
+    const file = createImageFile('alpha.png');
+    mocks.computeFileHash.mockResolvedValue('new-hash');
+    mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
+    mocks.storage.readBinaryFile.mockResolvedValue(new Uint8Array([1, 2, 3, 4, 5, 6]));
+    mocks.storage.listDir.mockResolvedValue([
+      {
+        name: 'alpha.png',
+        path: '/vault/docs/assets/alpha.png',
+        isFile: true,
+        isDirectory: false,
+        size: 5,
+        modifiedAt: 123,
+      },
+    ]);
+
+    const result = await AssetService.upload(
+      file,
+      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      {
+        storageMode: 'subfolder',
+        subfolderName: 'assets',
+        filenameFormat: 'original',
+      },
+      [],
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.isDuplicate).toBe(false);
+    expect(result.path).toBe('./assets/alpha_1.png');
+    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png');
+    expect(mocks.computeBufferHash).not.toHaveBeenCalled();
     expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha_1.png', expect.any(Uint8Array));
   });
 
@@ -549,6 +622,7 @@ describe('AssetService', () => {
     const file = createImageFile('alpha.png');
     mocks.computeFileHash.mockResolvedValue('same-hash');
     mocks.computeBufferHash.mockResolvedValue('same-hash');
+    mocks.storage.readBinaryFile.mockResolvedValue(new Uint8Array([1, 2, 3, 4, 5]));
     mocks.storage.exists.mockImplementation(async (path: string) => path === '/vault/docs/assets');
     mocks.storage.writeFile.mockRejectedValue(new Error('Index unavailable'));
     mocks.storage.listDir.mockResolvedValue([
@@ -808,6 +882,44 @@ describe('AssetService', () => {
 
     expect(assets).toHaveLength(5000);
     expect(assets.map((asset) => asset.filename)).not.toContain('./assets/image-5000.png');
+  });
+
+  it('limits metadata stat concurrency while checking same-name upload candidates', async () => {
+    mocks.storage.exists.mockResolvedValue(true);
+    mocks.storage.listDir.mockResolvedValue(
+      Array.from({ length: 24 }, (_value, index) => ({
+        name: 'alpha.png',
+        path: `/vault/assets/alpha-${index}.png`,
+        isFile: true,
+        isDirectory: false,
+      }))
+    );
+    let activeStats = 0;
+    let maxActiveStats = 0;
+    mocks.storage.stat.mockImplementation(async (path: string) => {
+      if (!path.includes('/vault/assets/alpha-')) {
+        return { size: 5, modifiedAt: 1 };
+      }
+      activeStats += 1;
+      maxActiveStats = Math.max(maxActiveStats, activeStats);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      activeStats -= 1;
+      return { size: 4, modifiedAt: 1 };
+    });
+
+    const result = await AssetService.upload(
+      createImageFile('alpha.png'),
+      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      {
+        storageMode: 'vaultSubfolder',
+        imageVaultSubfolderName: 'assets',
+        filenameFormat: 'timestamp',
+      },
+      [],
+    );
+
+    expect(result.success).toBe(true);
+    expect(maxActiveStats).toBeLessThanOrEqual(MAX_ASSET_METADATA_STAT_CONCURRENCY);
   });
 
   it('ignores unsafe directory entries while listing assets', async () => {

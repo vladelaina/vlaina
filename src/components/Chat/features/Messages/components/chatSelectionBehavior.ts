@@ -280,7 +280,6 @@ export function extractTextWithBlockBreaks(
 }
 
 export function getSelectionTextForComposer(selection: Selection, range: Range): string {
-  const rawText = selection.toString();
   const commonAncestorElement = toElement(range.commonAncestorContainer);
   const chatScrollable =
     commonAncestorElement?.closest('[data-chat-scrollable="true"]') ??
@@ -293,6 +292,7 @@ export function getSelectionTextForComposer(selection: Selection, range: Range):
       : chatScrollable;
 
   if (!filterSearchRoot || !rangeIntersectsSelector(range, filterSearchRoot, FILTERED_SELECTION_SELECTOR)) {
+    const rawText = selection.toString();
     return normalizeSelectedTextForComposer(rawText);
   }
 

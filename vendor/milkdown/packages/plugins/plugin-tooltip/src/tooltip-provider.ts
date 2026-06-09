@@ -13,6 +13,8 @@ import { posToDOMRect } from '@milkdown/prose'
 import { TextSelection } from '@milkdown/prose/state'
 import { throttle } from 'lodash-es'
 
+export const MAX_TOOLTIP_SELECTION_TEXT_CHECK_CHARS = 1024 * 1024
+
 /// Options for tooltip provider.
 export interface TooltipProviderOptions {
   /// The tooltip content.
@@ -144,7 +146,9 @@ export class TooltipProvider {
     const { empty, from, to } = selection
 
     const isEmptyTextBlock =
-      !doc.textBetween(from, to).length &&
+      !doc
+        .textBetween(from, Math.min(to, from + MAX_TOOLTIP_SELECTION_TEXT_CHECK_CHARS))
+        .length &&
       view.state.selection instanceof TextSelection
 
     const isTooltipChildren = this.element.contains(document.activeElement)

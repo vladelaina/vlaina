@@ -256,6 +256,65 @@ describe('editorBlockPositionCache', () => {
     }
   });
 
+  it('reads live editor heading snapshot text without aggregating heading textContent', () => {
+    const dom = document.createElement('div');
+    const heading = document.createElement('h2');
+    heading.appendChild(document.createTextNode('Live heading'));
+    heading.getBoundingClientRect = () => rect(24, 56);
+    Object.defineProperty(heading, 'textContent', {
+      get() {
+        throw new Error('aggregate heading textContent should not be read');
+      },
+    });
+    dom.append(heading);
+    document.body.append(dom);
+
+    const headingNode = {
+      type: { name: 'heading' },
+      nodeSize: 14,
+      forEach() {},
+    };
+    const doc = {
+      childCount: 1,
+      content: { size: 14 },
+      forEach(callback: (node: typeof headingNode, offset: number) => void) {
+        callback(headingNode, 0);
+      },
+      resolve() {
+        return {
+          parent: { type: { name: 'doc' } },
+          nodeAfter: headingNode,
+          index: () => 0,
+          posAtIndex: () => 0,
+        };
+      },
+    };
+    const view = {
+      dom,
+      state: { doc },
+      domAtPos() {
+        throw new Error('not needed');
+      },
+      nodeDOM() {
+        return heading;
+      },
+    };
+
+    try {
+      const snapshot = refreshCurrentEditorBlockPositionSnapshot(view as any);
+
+      expect(snapshot?.headings).toHaveLength(1);
+      expect(snapshot?.headings[0]).toMatchObject({
+        id: 'outline-0-h2-live-heading',
+        level: 2,
+        text: 'Live heading',
+      });
+    } finally {
+      clearCurrentEditorBlockPositionSnapshot();
+      dom.remove();
+    }
+  });
+
   it('adjusts cached target viewport rects lazily on scroll without remeasuring or cloning every block', async () => {
     const scrollRoot = document.createElement('div');
     scrollRoot.setAttribute('data-note-scroll-root', 'true');

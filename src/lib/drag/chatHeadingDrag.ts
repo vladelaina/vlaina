@@ -1,7 +1,7 @@
 export const CHAT_HEADING_DRAG_MIME = 'application/x-vlaina-chat-heading+json';
 
 const MAX_HEADING_DRAG_PAYLOAD_CHARS = 16 * 1024;
-const MAX_HEADING_DRAG_TEXT_CHARS = 2_000;
+export const MAX_HEADING_DRAG_TEXT_CHARS = 2_000;
 
 export interface ChatHeadingDragPayload {
   level: number;

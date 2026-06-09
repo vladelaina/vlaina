@@ -28,6 +28,7 @@ let accountAuthAttemptVersion = 0;
 let lastCheckStatusSyncAt = 0;
 
 const ACCOUNT_STATUS_REFRESH_INTERVAL_MS = 30_000;
+const MAX_AUTH_INTENT_STORAGE_CHARS = 4096;
 
 function invalidateAccountSessionChecks(): void {
   accountSessionMutationVersion += 1;
@@ -60,6 +61,19 @@ function isValidEmail(value: string): boolean {
 function isAuthorizationCancellation(message: string): boolean {
   return /^(?:authorization )?(?:cancelled|canceled)$/i.test(message.trim())
     || /^access_denied$/i.test(message.trim());
+}
+
+function readStoredAuthIntentValue(key: string): string | null {
+  try {
+    const value = sessionStorage.getItem(key);
+    return value && value.length <= MAX_AUTH_INTENT_STORAGE_CHARS ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function isValidAuthIntentValue(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= MAX_AUTH_INTENT_STORAGE_CHARS;
 }
 
 function isRelevantElectronAuthEvent(event: string): boolean {
@@ -320,7 +334,7 @@ export function createSignIn(
       if (!isCurrentAccountAuthAttempt(authAttemptVersion)) {
         return false;
       }
-      if (!authData) {
+      if (!authData || !isValidAuthIntentValue(authData.state)) {
         set({ error: 'Failed to start account sign-in', isConnecting: false });
         return false;
       }
@@ -447,8 +461,8 @@ export function createHandleAuthCallback(set: Set, get: Get): () => Promise<bool
     const authAttemptVersion = startAccountAuthAttempt();
     set({ isConnecting: true, error: null });
 
-    const savedState = sessionStorage.getItem(AUTH_STATE_STORAGE_KEY);
-    const savedProvider = normalizeAccountProvider(sessionStorage.getItem(AUTH_PROVIDER_STORAGE_KEY));
+    const savedState = readStoredAuthIntentValue(AUTH_STATE_STORAGE_KEY);
+    const savedProvider = normalizeAccountProvider(readStoredAuthIntentValue(AUTH_PROVIDER_STORAGE_KEY));
     clearAuthIntent();
 
     if (callback.error) {

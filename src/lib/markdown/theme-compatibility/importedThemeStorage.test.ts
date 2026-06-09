@@ -10,6 +10,11 @@ import {
   readImportedMarkdownThemeMetadata,
   syncImportedMarkdownThemesFromDirectory,
 } from './importedThemeStorage';
+import {
+  MAX_IMPORTED_THEME_ASSET_BYTES,
+  MAX_IMPORTED_THEME_CSS_BYTES,
+  MAX_IMPORTED_THEME_INDEX_BYTES,
+} from './importedThemeStorage/constants';
 
 const files = vi.hoisted(() => new Map<string, string>());
 const binaryFiles = vi.hoisted(() => new Map<string, Uint8Array>());
@@ -36,6 +41,31 @@ const adapter = vi.hoisted(() => ({
     binaryFiles.set(path, content);
   }),
   exists: vi.fn(async (path: string) => files.has(path) || binaryFiles.has(path) || directories.has(path)),
+  stat: vi.fn(async (path: string) => {
+    const text = files.get(path);
+    if (text !== undefined) {
+      return {
+        name: path.split('/').pop() ?? path,
+        path,
+        isDirectory: false,
+        isFile: true,
+        size: text.length,
+        modifiedAt: 10,
+      };
+    }
+    const bytes = binaryFiles.get(path);
+    if (bytes !== undefined) {
+      return {
+        name: path.split('/').pop() ?? path,
+        path,
+        isDirectory: false,
+        isFile: true,
+        size: bytes.byteLength,
+        modifiedAt: 10,
+      };
+    }
+    return null;
+  }),
   mkdir: vi.fn(async (path: string) => {
     directories.add(path);
   }),
@@ -144,6 +174,21 @@ describe('imported markdown theme storage', () => {
     expect(imported?.css).toContain('url("file:///downloads/./images/missing.png")');
   });
 
+  it('falls back to the original file URL instead of copying oversized relative theme assets', async () => {
+    binaryFiles.set('/downloads/./fonts/huge.woff2', new Uint8Array(MAX_IMPORTED_THEME_ASSET_BYTES + 1));
+
+    await importMarkdownThemeCss({
+      name: 'Huge Asset.css',
+      platform: 'typora',
+      sourcePath: '/downloads/Huge Asset.css',
+      css: '#write { font-family: huge; } @font-face { src: url("./fonts/huge.woff2"); }',
+    });
+
+    const imported = await readImportedMarkdownTheme('huge-asset');
+    expect(imported?.css).toContain('url("file:///downloads/./fonts/huge.woff2")');
+    expect(binaryFiles.has('/app/.vlaina/store/markdown-theme-cache/huge-asset-assets/0-huge.woff2')).toBe(false);
+  });
+
   it('detects the source theme platform when importing CSS without a manual compatibility choice', async () => {
     const metadata = await importMarkdownThemeCss({
       name: 'Minimal.css',
@@ -178,6 +223,29 @@ describe('imported markdown theme storage', () => {
 
     expect(adapter.readFile).toHaveBeenCalledWith('/app/.vlaina/store/markdown-theme-cache/themes.json');
     expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/store/markdown-theme-cache/clean-light.css');
+  });
+
+  it('does not read oversized imported theme indexes', async () => {
+    files.set('/app/.vlaina/store/markdown-theme-cache/themes.json', 'x'.repeat(MAX_IMPORTED_THEME_INDEX_BYTES + 1));
+
+    await expect(listImportedMarkdownThemes()).resolves.toEqual([]);
+
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/store/markdown-theme-cache/themes.json');
+  });
+
+  it('does not read oversized cached imported theme CSS bodies', async () => {
+    await importMarkdownThemeCss({
+      name: 'Huge Cached.css',
+      platform: 'typora',
+      css: '#write { color: red; }',
+    });
+    files.set('/app/.vlaina/store/markdown-theme-cache/huge-cached.css', 'x'.repeat(MAX_IMPORTED_THEME_CSS_BYTES + 1));
+    adapter.readFile.mockClear();
+
+    await expect(readImportedMarkdownTheme('huge-cached')).resolves.toBeNull();
+
+    expect(adapter.readFile).toHaveBeenCalledWith('/app/.vlaina/store/markdown-theme-cache/themes.json');
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/store/markdown-theme-cache/huge-cached.css');
   });
 
   it('deduplicates theme ids and deletes index and CSS entries together', async () => {
@@ -272,6 +340,54 @@ describe('imported markdown theme storage', () => {
     ]));
     expect(files.get('/app/.vlaina/store/markdown-theme-cache/minimal.css')).toContain('.markdown-preview-view');
     expect(files.get('/app/.vlaina/store/markdown-theme-cache/clean-light.css')).toContain('#write');
+  });
+
+  it('skips oversized CSS files while syncing directory themes', async () => {
+    files.set('/app/.vlaina/themes/huge.css', `${'#write { color: red; }\n'}${'x'.repeat(MAX_IMPORTED_THEME_CSS_BYTES + 1)}`);
+    files.set('/app/.vlaina/themes/small.css', '#write { color: blue; }');
+    adapter.listDir.mockResolvedValueOnce([
+      {
+        name: 'huge.css',
+        path: '/app/.vlaina/themes/huge.css',
+        isDirectory: false,
+        isFile: true,
+        size: MAX_IMPORTED_THEME_CSS_BYTES + 100,
+        modifiedAt: 20,
+      },
+      {
+        name: 'small.css',
+        path: '/app/.vlaina/themes/small.css',
+        isDirectory: false,
+        isFile: true,
+        size: 22,
+        modifiedAt: 10,
+      },
+    ]);
+
+    const result = await syncImportedMarkdownThemesFromDirectory();
+
+    expect(result.themes.map((theme) => theme.id)).toEqual(['small']);
+    expect(await readImportedMarkdownTheme('huge')).toBeNull();
+    expect(files.get('/app/.vlaina/store/markdown-theme-cache/small.css')).toContain('blue');
+  });
+
+  it('does not read CSS files without a bounded directory entry size while syncing themes', async () => {
+    files.set('/app/.vlaina/themes/unknown-size.css', '#write { color: red; }');
+    adapter.listDir.mockResolvedValueOnce([
+      {
+        name: 'unknown-size.css',
+        path: '/app/.vlaina/themes/unknown-size.css',
+        isDirectory: false,
+        isFile: true,
+        modifiedAt: 10,
+      },
+    ]);
+
+    const result = await syncImportedMarkdownThemesFromDirectory();
+
+    expect(result.themes).toEqual([]);
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/themes/unknown-size.css');
+    expect(await readImportedMarkdownTheme('unknown-size')).toBeNull();
   });
 
   it('ignores pure font helper CSS when syncing directory themes', async () => {
@@ -427,6 +543,55 @@ describe('imported markdown theme storage', () => {
     await syncImportedMarkdownThemesFromDirectory();
 
     expect(files.get('/app/.vlaina/store/markdown-theme-cache/vlook-fancy.css')).toContain('--helper-color: blue');
+  });
+
+  it('does not inline oversized relative CSS imports', async () => {
+    files.set('/app/.vlaina/themes/theme.css', [
+      '@import "./huge.css";',
+      '#write { color: red; }',
+    ].join('\n'));
+    files.set('/app/.vlaina/themes/huge.css', `${':root { --huge: 1; }\n'}${'x'.repeat(MAX_IMPORTED_THEME_CSS_BYTES + 1)}`);
+    adapter.listDir.mockResolvedValueOnce([
+      {
+        name: 'theme.css',
+        path: '/app/.vlaina/themes/theme.css',
+        isDirectory: false,
+        isFile: true,
+        size: 50,
+        modifiedAt: 10,
+      },
+    ]);
+
+    await syncImportedMarkdownThemesFromDirectory();
+
+    const imported = await readImportedMarkdownTheme('theme');
+    expect(imported?.css).toContain('#write { color: red; }');
+    expect(imported?.css).not.toContain('--huge');
+  });
+
+  it('does not read oversized relative CSS imports before skipping them', async () => {
+    files.set('/app/.vlaina/themes/theme.css', [
+      '@import "./huge.css";',
+      '#write { color: red; }',
+    ].join('\n'));
+    files.set('/app/.vlaina/themes/huge.css', `${':root { --huge: 1; }\n'}${'x'.repeat(MAX_IMPORTED_THEME_CSS_BYTES + 1)}`);
+    adapter.listDir.mockResolvedValueOnce([
+      {
+        name: 'theme.css',
+        path: '/app/.vlaina/themes/theme.css',
+        isDirectory: false,
+        isFile: true,
+        size: 50,
+        modifiedAt: 10,
+      },
+    ]);
+
+    await syncImportedMarkdownThemesFromDirectory();
+
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/themes/./huge.css');
+    const imported = await readImportedMarkdownTheme('theme');
+    expect(imported?.css).toContain('#write { color: red; }');
+    expect(imported?.css).not.toContain('--huge');
   });
 
   it('refreshes changed directory themes and removes deleted directory themes', async () => {

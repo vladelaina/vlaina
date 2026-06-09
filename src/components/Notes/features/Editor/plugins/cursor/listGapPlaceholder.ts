@@ -9,19 +9,20 @@ import {
 } from './blankAreaInteractionUtils';
 
 const EDITABLE_LIST_GAP_PLACEHOLDER = '\u2800';
+export const MAX_LIST_GAP_PLACEHOLDER_TEXT_CHARS = 256;
 export const MAX_LIST_GAP_TEXT_HIT_CHARS = 100_000;
 export const MAX_LIST_GAP_TEXT_HIT_NODES = 512;
 export const MAX_LIST_GAP_TEXT_HIT_RECTS = 1024;
 
 export function resolvePointInsideActualText(root: HTMLElement, clientX: number, clientY: number): boolean | null {
-  if ((root.textContent?.length ?? 0) > MAX_LIST_GAP_TEXT_HIT_CHARS) {
-    return null;
-  }
-
   const doc = root.ownerDocument;
+  let measuredTextChars = 0;
   const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
-      if (!node.textContent?.trim()) return NodeFilter.FILTER_REJECT;
+      const text = node.textContent ?? '';
+      measuredTextChars += text.length;
+      if (measuredTextChars > MAX_LIST_GAP_TEXT_HIT_CHARS) return NodeFilter.FILTER_ACCEPT;
+      if (!text.trim()) return NodeFilter.FILTER_REJECT;
       const parent = node.parentElement;
       if (!parent || parent.closest('[contenteditable="false"]')) return NodeFilter.FILTER_REJECT;
       return NodeFilter.FILTER_ACCEPT;
@@ -31,6 +32,10 @@ export function resolvePointInsideActualText(root: HTMLElement, clientX: number,
   let measuredTextNodes = 0;
   let measuredRects = 0;
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (measuredTextChars > MAX_LIST_GAP_TEXT_HIT_CHARS) {
+      return null;
+    }
+
     measuredTextNodes += 1;
     if (measuredTextNodes > MAX_LIST_GAP_TEXT_HIT_NODES) {
       return null;
@@ -80,12 +85,35 @@ function isListGapPlaceholderText(text: string): boolean {
     && text.includes(EDITABLE_LIST_GAP_PLACEHOLDER);
 }
 
-function findListGapPlaceholderParagraphStartInListItem(listItem: { type: { name: string }; childCount: number; child: (index: number) => { type: { name: string }; nodeSize: number; textContent: string } }, listItemStart: number): number | null {
+type ListGapPlaceholderNode = {
+  type: { name: string };
+  childCount: number;
+  child: (index: number) => ListGapPlaceholderNode;
+  content?: { size?: number };
+  nodeSize: number;
+  textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string;
+};
+
+export function isListGapPlaceholderParagraph(node: {
+  content?: { size?: number };
+  textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string;
+  type?: { name?: string };
+}): boolean {
+  if (node.type?.name !== 'paragraph') return false;
+  const size = node.content?.size;
+  if (typeof size !== 'number' || !Number.isFinite(size) || size < 0 || size > MAX_LIST_GAP_PLACEHOLDER_TEXT_CHARS) {
+    return false;
+  }
+  if (typeof node.textBetween !== 'function') return false;
+  return isListGapPlaceholderText(node.textBetween(0, size, '', ''));
+}
+
+function findListGapPlaceholderParagraphStartInListItem(listItem: ListGapPlaceholderNode, listItemStart: number): number | null {
   if (listItem.type.name !== 'list_item') return null;
   let childStart = listItemStart + 1;
   for (let index = 0; index < listItem.childCount; index += 1) {
     const child = listItem.child(index);
-    if (child.type.name === 'paragraph' && isListGapPlaceholderText(child.textContent)) {
+    if (isListGapPlaceholderParagraph(child)) {
       return childStart;
     }
     childStart += child.nodeSize;
@@ -102,8 +130,8 @@ function findListGapPlaceholderParagraphStart(view: EditorView, pos: number): nu
     : null;
   if (afterStart !== null) return afterStart;
   if (
-    $pos.nodeAfter?.type.name === 'paragraph'
-    && isListGapPlaceholderText($pos.nodeAfter.textContent)
+    $pos.nodeAfter
+    && isListGapPlaceholderParagraph($pos.nodeAfter)
   ) {
     for (let depth = $pos.depth; depth > 0; depth -= 1) {
       if ($pos.node(depth).type.name === 'list_item') {
@@ -114,8 +142,7 @@ function findListGapPlaceholderParagraphStart(view: EditorView, pos: number): nu
 
   for (let depth = $pos.depth; depth > 0; depth -= 1) {
     const node = $pos.node(depth);
-    if (node.type.name !== 'paragraph') continue;
-    if (!isListGapPlaceholderText(node.textContent)) continue;
+    if (!isListGapPlaceholderParagraph(node)) continue;
 
     for (let parentDepth = depth - 1; parentDepth > 0; parentDepth -= 1) {
       if ($pos.node(parentDepth).type.name === 'list_item') {

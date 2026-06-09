@@ -4,6 +4,7 @@ import type { Attachment } from '@/lib/storage/attachmentStorage';
 import { deleteAttachment, saveAttachment } from '@/lib/storage/attachmentStorage';
 import {
   MAX_CHAT_ATTACHMENT_INPUT_FILES,
+  MAX_CHAT_ATTACHMENT_SAVE_CONCURRENCY,
   MAX_CHAT_ATTACHMENT_TRANSFER_ITEM_SCAN,
   useChatAttachments,
 } from './useChatAttachments';
@@ -192,6 +193,62 @@ describe('useChatAttachments', () => {
       { persist: true }
     );
     expect(result.current.attachments).toHaveLength(MAX_CHAT_ATTACHMENT_INPUT_FILES);
+  });
+
+  it('limits concurrent attachment saves while preserving accepted file order', async () => {
+    let activeSaves = 0;
+    let maxActiveSaves = 0;
+    const resolveSaves: Array<() => void> = [];
+    const files = Array.from({ length: MAX_CHAT_ATTACHMENT_SAVE_CONCURRENCY + 3 }, (_value, index) =>
+      new File(['image'], `photo-${index}.png`, { type: 'image/png' })
+    );
+    mocks.saveAttachment.mockImplementation(async (file: File) => {
+      activeSaves += 1;
+      maxActiveSaves = Math.max(maxActiveSaves, activeSaves);
+      await new Promise<void>((resolve) => {
+        resolveSaves.push(resolve);
+      });
+      activeSaves -= 1;
+      return createAttachment({
+        id: file.name,
+        name: file.name,
+      });
+    });
+    const { result } = renderHook(() => useChatAttachments());
+
+    let fileChangeRequest!: Promise<void>;
+    await act(async () => {
+      fileChangeRequest = result.current.handleFileChange({
+        target: {
+          files: createFileList(files),
+          value: 'selected',
+        },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+      await vi.waitFor(() => {
+        expect(resolveSaves).toHaveLength(MAX_CHAT_ATTACHMENT_SAVE_CONCURRENCY);
+      });
+    });
+
+    expect(maxActiveSaves).toBeLessThanOrEqual(MAX_CHAT_ATTACHMENT_SAVE_CONCURRENCY);
+    while (resolveSaves.length > 0) {
+      resolveSaves.shift()?.();
+      await Promise.resolve();
+    }
+    await vi.waitFor(() => {
+      expect(saveAttachment).toHaveBeenCalledTimes(files.length);
+    });
+    while (resolveSaves.length > 0) {
+      resolveSaves.shift()?.();
+      await Promise.resolve();
+    }
+    await act(async () => {
+      await fileChangeRequest;
+    });
+
+    expect(maxActiveSaves).toBeLessThanOrEqual(MAX_CHAT_ATTACHMENT_SAVE_CONCURRENCY);
+    expect(result.current.attachments.map((attachment) => attachment.name)).toEqual(
+      files.map((file) => file.name)
+    );
   });
 
   it('limits total attachments across multiple file selections before saving', async () => {

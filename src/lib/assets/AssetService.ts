@@ -27,6 +27,7 @@ export interface AssetConfig {
 
 const MAX_ASSET_SIZE = 50 * 1024 * 1024; // 50MB
 const MAX_ASSET_LIST_DIRECTORY_ENTRIES = 5000;
+export const MAX_ASSET_METADATA_STAT_CONCURRENCY = 8;
 const IMAGE_UPLOAD_EXTENSIONS_BY_MIME: Record<string, readonly string[]> = {
   'image/avif': ['avif'],
   'image/bmp': ['bmp'],
@@ -157,7 +158,7 @@ async function hydrateAssetEntryMetadata(
   storage: ReturnType<typeof getStorageAdapter>,
   entries: Array<{ name: string; path: string; size?: number; modifiedAt?: number }>,
 ) {
-  return Promise.all(entries.map(async (entry) => {
+  return mapWithConcurrencyLimit(entries, MAX_ASSET_METADATA_STAT_CONCURRENCY, async (entry) => {
     if (typeof entry.size === 'number' && typeof entry.modifiedAt === 'number') {
       return entry;
     }
@@ -168,7 +169,27 @@ async function hydrateAssetEntryMetadata(
       size: typeof entry.size === 'number' ? entry.size : info?.size,
       modifiedAt: typeof entry.modifiedAt === 'number' ? entry.modifiedAt : info?.modifiedAt,
     };
-  }));
+  });
+}
+
+async function mapWithConcurrencyLimit<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  let nextIndex = 0;
+  const workerCount = Math.min(Math.max(1, concurrency), items.length);
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index]!);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
 }
 
 async function normalizeAssetDirectoryEntries(
@@ -237,11 +258,10 @@ export class AssetService {
       return [];
     }
 
-    const entries = (await Promise.all(
-      (await storage.listDir(targetDir))
-        .slice(0, MAX_ASSET_LIST_DIRECTORY_ENTRIES)
-        .map((entry) => normalizeAssetDirectoryEntry(targetDir, entry)),
-    )).filter((entry): entry is { name: string; path: string; size?: number; modifiedAt?: number } => Boolean(entry));
+    const entries = await normalizeAssetDirectoryEntries(
+      targetDir,
+      (await storage.listDir(targetDir)).slice(0, MAX_ASSET_LIST_DIRECTORY_ENTRIES),
+    );
     const imageFiles = entries.filter((entry) => getMimeType(entry.name).startsWith('image/'));
 
     const assets = imageFiles.map((entry): AssetEntry => ({
@@ -318,7 +338,7 @@ export class AssetService {
     let existingEntries: Array<{ name: string; path: string; size?: number; modifiedAt?: number }> = [];
     let existingFiles: string[] = [];
     try {
-      const files = await storage.listDir(targetDir);
+      const files = (await storage.listDir(targetDir)).slice(0, MAX_ASSET_LIST_DIRECTORY_ENTRIES);
       existingEntries = await normalizeAssetDirectoryEntries(targetDir, files);
       existingFiles = existingEntries.map(f => f.name);
     } catch (error) {
@@ -367,6 +387,9 @@ export class AssetService {
 
         const candidateBytes = await storage.readBinaryFile(candidate.path).catch(() => null);
         if (!candidateBytes) {
+          continue;
+        }
+        if (candidateBytes.byteLength !== uploadSize || candidateBytes.byteLength > MAX_ASSET_SIZE) {
           continue;
         }
 

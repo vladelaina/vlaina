@@ -14,6 +14,18 @@ import type { LatexConfig } from '..'
 import { mathInlineId } from '../inline-latex'
 import { LatexTooltip } from './component'
 
+export const MAX_INLINE_LATEX_EDITOR_VALUE_CHARS = 10_000
+
+export function readInlineLatexEditorValue(doc: { content?: { size?: number }; textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string }) {
+  const size = doc.content?.size
+  if (typeof size !== 'number' || !Number.isFinite(size) || size < 0 || size > MAX_INLINE_LATEX_EDITOR_VALUE_CHARS) {
+    return null
+  }
+  if (typeof doc.textBetween !== 'function') return null
+  const value = doc.textBetween(0, size, '\n', '\n')
+  return value.length <= MAX_INLINE_LATEX_EDITOR_VALUE_CHARS ? value : null
+}
+
 export class LatexInlineTooltip implements PluginView {
   #content: HTMLElement
   #provider: TooltipProvider
@@ -108,8 +120,10 @@ export class LatexInlineTooltip implements PluginView {
 
       this.#innerView.value = innerView
       this.#updateValue.value = () => {
+        const value = readInlineLatexEditorValue(innerView.state.doc)
+        if (value == null) return
         const { tr } = view.state
-        tr.setNodeAttribute(textFrom, 'value', innerView.state.doc.textContent)
+        tr.setNodeAttribute(textFrom, 'value', value)
         view.dispatch(tr)
         requestAnimationFrame(() => {
           view.focus()

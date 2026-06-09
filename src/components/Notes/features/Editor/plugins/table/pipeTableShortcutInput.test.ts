@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   Editor,
   defaultValueCtx,
@@ -146,6 +146,36 @@ describe('pipe table shortcut input', () => {
     expect(markdown.split('\n')[0]).toContain('2');
     expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
     expect(getAncestorNodeNames(view)).toContain('table_cell');
+
+    await editor.destroy();
+  });
+
+  it('creates a pipe table without reading aggregate paragraph textContent', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(gfm)
+      .use(tableKeyboardPlugin);
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, '|1|2|');
+    const paragraph = view.state.selection.$from.parent;
+    const textBetween = vi.spyOn(paragraph, 'textBetween');
+    Object.defineProperty(paragraph, 'textContent', {
+      configurable: true,
+      get() {
+        throw new Error('aggregate paragraph textContent should not be read');
+      },
+    });
+
+    pressEnter(view);
+
+    expect(textBetween).toHaveBeenCalledWith(0, paragraph.content.size, '', '');
+    expect(view.state.doc.firstChild?.type.name).toBe('table');
 
     await editor.destroy();
   });

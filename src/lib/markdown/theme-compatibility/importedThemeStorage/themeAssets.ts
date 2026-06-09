@@ -8,6 +8,10 @@ import {
   rewriteRelativeMarkdownThemeCssUrls,
   type RelativeMarkdownThemeCssUrl,
 } from '../cssUrls';
+import {
+  MAX_IMPORTED_THEME_ASSET_BYTES,
+  MAX_IMPORTED_THEME_ASSETS,
+} from './constants';
 import { sanitizeAssetFilename } from './metadata';
 import { getThemeAssetPath } from './paths';
 
@@ -35,7 +39,18 @@ async function copyImportedThemeAsset({
   const storage = getStorageAdapter();
 
   try {
+    const info = await storage.stat(sourceAssetPath).catch(() => null);
+    if (
+      info?.isFile === false ||
+      typeof info?.size !== 'number' ||
+      info.size > MAX_IMPORTED_THEME_ASSET_BYTES
+    ) {
+      return resolveOriginalThemeAssetUrl(sourceDir, asset).catch(() => null);
+    }
     const bytes = await storage.readBinaryFile(sourceAssetPath);
+    if (bytes.byteLength > MAX_IMPORTED_THEME_ASSET_BYTES) {
+      return resolveOriginalThemeAssetUrl(sourceDir, asset).catch(() => null);
+    }
     await storage.writeBinaryFile(targetAssetPath, bytes, { recursive: true });
     return `${await toFileUrl(targetAssetPath)}${asset.suffix}`;
   } catch {
@@ -56,6 +71,9 @@ export async function rewriteImportedThemeAssetUrls(
     sourcePath,
     async (asset) => {
       if (!sourceDir) return null;
+      if (copiedAssetFilenames.size >= MAX_IMPORTED_THEME_ASSETS && !copiedAssetFilenames.has(asset.path)) {
+        return resolveOriginalThemeAssetUrl(sourceDir, asset).catch(() => null);
+      }
 
       const assetFilename = copiedAssetFilenames.get(asset.path)
         ?? sanitizeAssetFilename(asset.path, copiedAssetFilenames.size);

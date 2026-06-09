@@ -20,6 +20,8 @@ vi.mock('@/lib/storage/adapter', () => ({
 }));
 
 import {
+  MAX_CHAT_SESSION_FLUSH_CONCURRENCY,
+  MAX_SESSION_MESSAGES_BYTES,
   MAX_SESSION_MESSAGE_NODES,
   normalizeSessionMessages,
   mergeSessionMessages,
@@ -34,6 +36,7 @@ import {
   scheduleSessionJsonSave,
   serializeSessionMessages,
   setChatStorageAutoSyncTrigger,
+  flushPendingSessionJsonSaves,
 } from './chatStorage';
 
 describe('chatStorage session message normalization', () => {
@@ -91,6 +94,28 @@ describe('chatStorage session message normalization', () => {
       'data:image/png;base64,AQI=',
       'attachment://safe.png',
     ]);
+  });
+
+  it('bounds serialized session message files', () => {
+    const messageContent = 'x'.repeat(1024 * 1024);
+    const messages = Array.from({ length: 40 }, (_, index) => ({
+      id: `m${index}`,
+      role: 'user' as const,
+      content: messageContent,
+      modelId: 'model-1',
+      timestamp: index + 1,
+    }));
+
+    const serialized = serializeSessionMessages('session-1', messages);
+    const payload = JSON.parse(serialized);
+
+    expect(serialized.length).toBeLessThanOrEqual(MAX_SESSION_MESSAGES_BYTES);
+    expect(payload).toMatchObject({
+      version: 1,
+      sessionId: 'session-1',
+    });
+    expect(payload.messages.length).toBeGreaterThan(0);
+    expect(payload.messages.length).toBeLessThan(messages.length);
   });
 
   it('loads only matching versioned session envelopes', () => {
@@ -372,6 +397,30 @@ describe('chatStorage session message normalization', () => {
     expect(messages.map((message) => message.id)).toEqual(['ok']);
   });
 
+  it('caps oversized persisted message fields during normalization', () => {
+    const oversizedContent = 'x'.repeat(1024 * 1024 + 1);
+    const oversizedModelId = 'model-'.repeat(200);
+
+    const messages = normalizeSessionMessages([{
+      id: 'm1',
+      role: 'assistant',
+      content: oversizedContent,
+      modelId: oversizedModelId,
+      timestamp: 1,
+      versions: [{
+        content: oversizedContent,
+        createdAt: 1,
+        kind: 'original' as const,
+        subsequentMessages: [],
+      }],
+      currentVersionIndex: 0,
+    }]);
+
+    expect(messages[0]?.content).toHaveLength(1024 * 1024);
+    expect(messages[0]?.versions[0]?.content).toHaveLength(1024 * 1024);
+    expect(messages[0]?.modelId).toHaveLength(512);
+  });
+
   it('does not scan top-level persisted message ids beyond the message budget', () => {
     const overBudgetMessage = {
       get id() {
@@ -607,6 +656,45 @@ describe('chatStorage auto sync registration', () => {
       '/appdata/.vlaina/chat/sessions/session-1.json',
       expect.stringContaining('"m1"'),
     );
+  });
+
+  it('limits concurrent writes while flushing all pending session queues', async () => {
+    let activeWrites = 0;
+    let maxActiveWrites = 0;
+    const resolveWrites: Array<() => void> = [];
+    mocks.storage.writeFile.mockImplementation(async () => {
+      activeWrites += 1;
+      maxActiveWrites = Math.max(maxActiveWrites, activeWrites);
+      await new Promise<void>((resolve) => {
+        resolveWrites.push(resolve);
+      });
+      activeWrites -= 1;
+    });
+
+    for (let index = 0; index < MAX_CHAT_SESSION_FLUSH_CONCURRENCY + 3; index += 1) {
+      scheduleSessionJsonSave(`session-${index}`, [createMessage(`m${index}`)], 10_000);
+    }
+
+    const flushRequest = flushPendingSessionJsonSaves();
+    await vi.waitFor(() => {
+      expect(resolveWrites).toHaveLength(MAX_CHAT_SESSION_FLUSH_CONCURRENCY);
+    });
+
+    expect(maxActiveWrites).toBeLessThanOrEqual(MAX_CHAT_SESSION_FLUSH_CONCURRENCY);
+    while (resolveWrites.length > 0) {
+      resolveWrites.shift()?.();
+      await Promise.resolve();
+    }
+    await vi.waitFor(() => {
+      expect(mocks.storage.writeFile).toHaveBeenCalledTimes(MAX_CHAT_SESSION_FLUSH_CONCURRENCY + 3);
+    });
+    while (resolveWrites.length > 0) {
+      resolveWrites.shift()?.();
+      await Promise.resolve();
+    }
+
+    await expect(flushRequest).resolves.toBeUndefined();
+    expect(maxActiveWrites).toBeLessThanOrEqual(MAX_CHAT_SESSION_FLUSH_CONCURRENCY);
   });
 
   it('does not load session files when stat has no size', async () => {

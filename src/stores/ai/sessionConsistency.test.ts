@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatMessage } from '@/lib/ai/types';
 import { useUnifiedStore } from '../unified/useUnifiedStore';
-import { hydrateSessionMessagesFromDisk, reloadSessionMessagesFromDisk } from './sessionConsistency';
+import {
+  MAX_SESSION_CONSISTENCY_COMPARE_NODES,
+  hydrateSessionMessagesFromDisk,
+  reloadSessionMessagesFromDisk,
+} from './sessionConsistency';
 
 const hoisted = vi.hoisted(() => ({
   flushPendingSessionJsonSave: vi.fn(async () => undefined),
@@ -124,5 +128,59 @@ describe('sessionConsistency', () => {
 
     await expect(request).resolves.toEqual([]);
     expect(useUnifiedStore.getState().data.ai?.messages).toEqual({});
+  });
+
+  it('compares restored messages without stringifying the full message tree', async () => {
+    const message = createMessage('m1', 'local');
+    seedSession([message]);
+    hoisted.loadSessionJson.mockResolvedValue([{
+      ...message,
+      apiTranscript: [{
+        role: 'assistant',
+        content: [{ type: 'text', text: 'local' }],
+        tool_calls: [{
+          id: 'call-1',
+          type: 'function',
+          function: { name: 'web_search', arguments: '{"query":"local"}' },
+        }],
+      }],
+      versions: [{
+        content: 'local',
+        createdAt: 1,
+        kind: 'original',
+        subsequentMessages: [],
+        apiTranscript: [{
+          role: 'assistant',
+          content: [{ type: 'text', text: 'local' }],
+          tool_calls: [{
+            id: 'call-1',
+            type: 'function',
+            function: { name: 'web_search', arguments: '{"query":"local"}' },
+          }],
+        }],
+      }],
+    }]);
+    const stringifySpy = vi.spyOn(JSON, 'stringify').mockImplementation(() => {
+      throw new Error('session consistency should not stringify messages');
+    });
+
+    try {
+      await reloadSessionMessagesFromDisk('session-1');
+    } finally {
+      stringifySpy.mockRestore();
+    }
+  });
+
+  it('treats over-budget message comparisons as changed', async () => {
+    const messages = Array.from(
+      { length: MAX_SESSION_CONSISTENCY_COMPARE_NODES + 1 },
+      (_value, index) => createMessage(`m${index}`, `message ${index}`),
+    );
+    seedSession(messages);
+    hoisted.loadSessionJson.mockResolvedValue(messages.map((message) => ({ ...message })));
+
+    await reloadSessionMessagesFromDisk('session-1');
+
+    expect(useUnifiedStore.getState().data.ai?.messages['session-1']).not.toBe(messages);
   });
 });

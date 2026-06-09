@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { convertBlockType } from './commands';
+import { convertBlockType, inferCodeBlockLanguage } from './commands';
+import { MAX_LANGUAGE_DETECTION_CODE_CHARS } from '../../utils/languageDetection';
 
 const mockSetBlockType = vi.fn();
 const mockWrapIn = vi.fn();
@@ -175,6 +176,29 @@ describe('block type conversion matrix', () => {
     expect(view.focus).toHaveBeenCalled();
   });
 
+  it('infers code block language from local parent text without aggregating textContent', () => {
+    const parentText = 'const value: number = 1;';
+    const state: any = {
+      selection: {
+        empty: true,
+        from: 1,
+        to: 1,
+        $from: {
+          parent: {
+            content: { size: parentText.length },
+            textBetween: vi.fn((from: number, to: number) => parentText.slice(from, to)),
+            get textContent() {
+              throw new Error('parent textContent should not be read for code language inference');
+            },
+          },
+        },
+      },
+    };
+
+    expect(inferCodeBlockLanguage({ state } as any)).toBe('ts');
+    expect(state.selection.$from.parent.textBetween).toHaveBeenCalledWith(0, parentText.length, '\n', '\n');
+  });
+
   it('replaces a multi-block selection with one code block preserving blank lines', () => {
     const codeText = 'first paragraph\n\nsecond paragraph';
     const textNode = { type: { name: 'text' }, text: codeText };
@@ -247,5 +271,56 @@ describe('block type conversion matrix', () => {
     expect(view.dispatch).toHaveBeenCalledWith(tr);
     expect(view.focus).toHaveBeenCalled();
     expect(mockSetBlockType).not.toHaveBeenCalled();
+  });
+
+  it('does not read oversized selections twice for code block language detection', () => {
+    const codeText = 'x'.repeat(MAX_LANGUAGE_DETECTION_CODE_CHARS + 1);
+    const codeBlockType = {
+      name: 'code_block',
+      create: vi.fn((attrs: unknown, content: unknown) => ({
+        type: { name: 'code_block' },
+        attrs,
+        content,
+      })),
+    };
+    const tr = {
+      replaceRangeWith: vi.fn(function (this: any) {
+        return this;
+      }),
+      scrollIntoView: vi.fn(function (this: any) {
+        return this;
+      }),
+    };
+    const state: any = {
+      selection: {
+        empty: false,
+        from: 1,
+        to: MAX_LANGUAGE_DETECTION_CODE_CHARS + 2,
+        $from: {
+          depth: 1,
+          parent: { type: { name: 'paragraph' }, textContent: codeText },
+          node: vi.fn(() => ({ type: { name: 'doc' } })),
+        },
+      },
+      schema: {
+        text: vi.fn((text: string) => ({ type: { name: 'text' }, text })),
+        nodes: {
+          code_block: codeBlockType,
+        },
+      },
+      doc: {
+        textBetween: vi.fn(() => codeText),
+      },
+      tr,
+    };
+    const view: any = { state, dispatch: vi.fn(), focus: vi.fn() };
+
+    convertBlockType(view, 'codeBlock');
+
+    expect(state.doc.textBetween).toHaveBeenCalledTimes(1);
+    expect(codeBlockType.create).toHaveBeenCalledWith(
+      expect.objectContaining({ language: null }),
+      expect.objectContaining({ text: codeText })
+    );
   });
 });

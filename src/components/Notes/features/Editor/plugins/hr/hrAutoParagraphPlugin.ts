@@ -11,6 +11,7 @@ import { focusNoteTitleInputAtEnd } from '../../utils/titleInputDom';
 import { shouldConvertParagraphToThematicBreak } from './hrAutoParagraphUtils';
 
 export const hrAutoParagraphPluginKey = new PluginKey('hrAutoParagraph');
+const MAX_HR_SHORTCUT_TEXT_CHARS = 256;
 
 function shouldPreserveLeadingFrontmatterShortcut(view: EditorView): boolean {
   const { selection } = view.state;
@@ -23,7 +24,11 @@ function shouldPreserveLeadingFrontmatterShortcut(view: EditorView): boolean {
     return false;
   }
 
-  return selection.$from.parent.textContent.trim() === '---';
+  if (selection.$from.parent.content.size !== 3) {
+    return false;
+  }
+
+  return selection.$from.parent.textBetween(0, selection.$from.parent.content.size, '', '') === '---';
 }
 
 export function handleHorizontalRuleShortcutEnter(view: EditorView): boolean {
@@ -37,7 +42,9 @@ export function handleHorizontalRuleShortcutEnter(view: EditorView): boolean {
 
   const parent = selection.$from.parent;
   const offset = selection.$from.parentOffset;
-  if (!shouldConvertParagraphToThematicBreak(parent.textContent, offset)) return false;
+  if (parent.content.size > MAX_HR_SHORTCUT_TEXT_CHARS) return false;
+  const text = parent.textBetween(0, parent.content.size, '', '');
+  if (!shouldConvertParagraphToThematicBreak(text, offset)) return false;
 
   return insertHorizontalRuleWithTrailingParagraph(view);
 }

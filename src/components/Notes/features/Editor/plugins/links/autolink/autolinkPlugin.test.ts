@@ -4,6 +4,7 @@ import { commonmark } from '@milkdown/kit/preset/commonmark';
 import type { Decoration } from '@milkdown/kit/prose/view';
 import {
     MAX_AUTOLINK_DECORATIONS,
+    MAX_AUTOLINK_TEXT_SCAN_CHARS,
     autolinkPlugin,
     autolinkPluginKey,
     collectAutolinkDecorations,
@@ -210,5 +211,12 @@ describe('autolinkPlugin findUrls', () => {
 
         expect(decorations).toHaveLength(MAX_AUTOLINK_DECORATIONS);
         expect(accessed).toBe(MAX_AUTOLINK_DECORATIONS);
+    });
+
+    it('bounds URL scanning within a single large text node', () => {
+        const text = `${'x'.repeat(MAX_AUTOLINK_TEXT_SCAN_CHARS)} https://example.com`;
+        const decorations = collectAutolinkDecorations(createDocNode([createTextNode(text)]));
+
+        expect(decorations).toHaveLength(0);
     });
 });

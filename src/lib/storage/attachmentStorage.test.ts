@@ -144,6 +144,35 @@ describe('attachmentStorage', () => {
     expect(mocks.adapter.writeBinaryFile).not.toHaveBeenCalled();
   });
 
+  it('rejects when fallback attachment byte reads are aborted', async () => {
+    const OriginalFileReader = globalThis.FileReader;
+    class MockFileReader {
+      result: string | ArrayBuffer | null = null;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      onabort: (() => void) | null = null;
+
+      readAsArrayBuffer() {
+        setTimeout(() => {
+          this.onabort?.();
+        }, 0);
+      }
+    }
+
+    vi.stubGlobal('FileReader', MockFileReader);
+    try {
+      const file = new File(['x'], 'note.png', { type: 'image/png' });
+      Object.defineProperty(file, 'arrayBuffer', {
+        configurable: true,
+        value: undefined,
+      });
+
+      await expect(saveAttachment(file)).rejects.toThrow('Attachment file read was aborted');
+    } finally {
+      vi.stubGlobal('FileReader', OriginalFileReader);
+    }
+  });
+
   it('infers supported image attachments from the filename when MIME metadata is missing', async () => {
     const file = new File([new Uint8Array([4, 5, 6])], 'photo.webp', { type: '' });
 

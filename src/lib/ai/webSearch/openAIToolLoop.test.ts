@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ChatCompletionRequest } from '@/lib/ai/types';
 import {
+  MAX_LOOP_READ_CACHE_CONTENT_CHARS,
+  MAX_WEB_SEARCH_TOOL_CALL_CONCURRENCY,
   runOpenAIWebSearchJsonTextProtocolRequest,
   runOpenAIWebSearchJsonToolLoop,
   runOpenAIWebSearchTextProtocolTextRequest,
@@ -373,6 +375,165 @@ describe('OpenAI web search JSON tool loop', () => {
       content: expect.stringContaining('Only first page content.'),
     });
     expect(repeatedReadMessages[repeatedReadMessages.length - 1].content).not.toContain('Second page content must not be reused.');
+  });
+
+  it('bounds cached batch read URL extraction in JSON tool loops', async () => {
+    const urls = Array.from({ length: 12 }, (_, index) => `https://example.com/${index}`);
+    const singleReadToolCalls = urls.slice(0, 8).map((url, index) => ({
+      id: `read-${index}`,
+      type: 'function',
+      function: {
+        name: 'read_url',
+        arguments: JSON.stringify({ url }),
+      },
+    }));
+    const requestJson = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: '',
+            tool_calls: singleReadToolCalls,
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: '',
+            tool_calls: [{
+              id: 'call-2',
+              type: 'function',
+              function: {
+                name: 'read_pages',
+                arguments: JSON.stringify({ urls }),
+              },
+            }],
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: 'Final answer.' } }],
+      });
+    const client = {
+      webSearch: vi.fn(),
+      readWebPage: vi.fn(async (url: string) => ({
+        title: url,
+        summary: '',
+        siteName: 'example.com',
+        finalUrl: url,
+        content: `Content for ${url}`,
+        charCount: 20,
+      })),
+      readWebPages: vi.fn(async (inputUrls: string[]) =>
+        inputUrls.map((url) => ({
+          url,
+          ok: true,
+          page: {
+            title: url,
+            summary: '',
+            siteName: 'example.com',
+            finalUrl: url,
+            content: `Content for ${url}`,
+            charCount: 20,
+          },
+        }))
+      ),
+    };
+
+    await runOpenAIWebSearchJsonToolLoop({
+      body: {
+        model: 'test',
+        stream: true,
+        messages: [{ role: 'user', content: 'read these pages' }],
+      },
+      client,
+      requestJson,
+      onChunk: vi.fn(),
+    });
+
+    expect(client.readWebPage).toHaveBeenCalledTimes(8);
+    expect(client.readWebPages).not.toHaveBeenCalled();
+    const repeatedReadMessages = requestJson.mock.calls[2][0].messages;
+    expect(repeatedReadMessages[repeatedReadMessages.length - 1]).toMatchObject({
+      role: 'tool',
+      tool_call_id: 'call-2',
+      content: expect.stringContaining('Content for https://example.com/7'),
+    });
+    expect(repeatedReadMessages[repeatedReadMessages.length - 1].content).not.toContain('https://example.com/8');
+  });
+
+  it('bounds cached read content reused in JSON tool loops', async () => {
+    const longContent = 'x'.repeat(MAX_LOOP_READ_CACHE_CONTENT_CHARS + 4096);
+    const requestJson = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: '',
+            tool_calls: [{
+              id: 'call-1',
+              type: 'function',
+              function: {
+                name: 'read_url',
+                arguments: JSON.stringify({ url: 'https://example.com/large' }),
+              },
+            }],
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: '',
+            tool_calls: [{
+              id: 'call-2',
+              type: 'function',
+              function: {
+                name: 'read_url',
+                arguments: JSON.stringify({ url: 'https://example.com/large' }),
+              },
+            }],
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: 'Final answer.' } }],
+      });
+    const client = {
+      webSearch: vi.fn(),
+      readWebPage: vi.fn(async () => ({
+        title: 'Large',
+        summary: '',
+        siteName: 'example.com',
+        finalUrl: 'https://example.com/large',
+        content: longContent,
+        charCount: longContent.length,
+      })),
+      readWebPages: vi.fn(),
+    };
+
+    await runOpenAIWebSearchJsonToolLoop({
+      body: {
+        model: 'test',
+        stream: true,
+        messages: [{ role: 'user', content: 'read large page' }],
+      },
+      client,
+      requestJson,
+      onChunk: vi.fn(),
+    });
+
+    expect(client.readWebPage).toHaveBeenCalledTimes(1);
+    const repeatedReadMessages = requestJson.mock.calls[2][0].messages;
+    const cachedMessage = repeatedReadMessages[repeatedReadMessages.length - 1];
+    expect(cachedMessage).toMatchObject({
+      role: 'tool',
+      tool_call_id: 'call-2',
+    });
+    expect(cachedMessage.content.length).toBeLessThanOrEqual(
+      MAX_LOOP_READ_CACHE_CONTENT_CHARS + 'Cached page read. Use it; do not reread.\n\n'.length
+    );
   });
 
   it('executes requested search tools and forces a page read before the final answer', async () => {
@@ -1730,48 +1891,49 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(final).toContain('Final answer with https://second.example');
   });
 
-  it('runs multiple model-requested tools in parallel while preserving tool message order', async () => {
+  it('limits model-requested tool concurrency while preserving tool message order', async () => {
+    const urls = Array.from(
+      { length: MAX_WEB_SEARCH_TOOL_CALL_CONCURRENCY + 2 },
+      (_value, index) => `https://${index + 1}.example`,
+    );
     const requestJson = vi
       .fn()
       .mockResolvedValueOnce({
         choices: [{
           message: {
             content: '',
-            tool_calls: [
-              {
-                id: 'read-1',
-                type: 'function',
-                function: {
-                  name: 'read_web_page',
-                  arguments: JSON.stringify({ url: 'https://one.example' }),
-                },
+            tool_calls: urls.map((url, index) => ({
+              id: `read-${index + 1}`,
+              type: 'function',
+              function: {
+                name: 'read_web_page',
+                arguments: JSON.stringify({ url }),
               },
-              {
-                id: 'read-2',
-                type: 'function',
-                function: {
-                  name: 'read_web_page',
-                  arguments: JSON.stringify({ url: 'https://two.example' }),
-                },
-              },
-            ],
+            })),
           },
         }],
       })
       .mockResolvedValueOnce({
         choices: [{
           message: {
-            content: 'Final answer with https://one.example and https://two.example',
+            content: `Final answer with ${urls.join(' and ')}`,
           },
         }],
       });
     const startedUrls: string[] = [];
+    let activeReads = 0;
+    let maxActiveReads = 0;
     const resolvers: Array<(page: WebPageContent) => void> = [];
     const client = {
       webSearch: vi.fn(),
       readWebPage: vi.fn((url: string) => new Promise<WebPageContent>((resolve) => {
+        activeReads += 1;
+        maxActiveReads = Math.max(maxActiveReads, activeReads);
         startedUrls.push(url);
-        resolvers.push(resolve);
+        resolvers.push((page) => {
+          activeReads -= 1;
+          resolve(page);
+        });
       })),
       readWebPages: vi.fn(),
     };
@@ -1780,7 +1942,7 @@ describe('OpenAI web search JSON tool loop', () => {
       body: {
         model: 'test',
         stream: true,
-        messages: [{ role: 'user', content: 'read these two pages' }],
+        messages: [{ role: 'user', content: 'read these pages' }],
       },
       client,
       requestJson,
@@ -1788,35 +1950,47 @@ describe('OpenAI web search JSON tool loop', () => {
     });
 
     await vi.waitFor(() => {
-      expect(startedUrls).toEqual(['https://one.example', 'https://two.example']);
+      expect(startedUrls).toEqual(urls.slice(0, MAX_WEB_SEARCH_TOOL_CALL_CONCURRENCY));
     });
+    expect(maxActiveReads).toBeLessThanOrEqual(MAX_WEB_SEARCH_TOOL_CALL_CONCURRENCY);
 
-    resolvers[1]({
-      title: 'Two',
-      summary: '',
-      siteName: 'two.example',
-      finalUrl: 'https://two.example',
-      content: 'Second readable page content.',
-      charCount: 29,
+    for (let index = 0; index < MAX_WEB_SEARCH_TOOL_CALL_CONCURRENCY; index += 1) {
+      resolvers[index]({
+        title: `Page ${index + 1}`,
+        summary: '',
+        siteName: `${index + 1}.example`,
+        finalUrl: urls[index],
+        content: `Readable page content ${index + 1}.`,
+        charCount: 24,
+      });
+    }
+
+    await vi.waitFor(() => {
+      expect(startedUrls).toEqual(urls);
     });
-    resolvers[0]({
-      title: 'One',
-      summary: '',
-      siteName: 'one.example',
-      finalUrl: 'https://one.example',
-      content: 'First readable page content.',
-      charCount: 28,
-    });
+    for (let index = MAX_WEB_SEARCH_TOOL_CALL_CONCURRENCY; index < urls.length; index += 1) {
+      resolvers[index]({
+        title: `Page ${index + 1}`,
+        summary: '',
+        siteName: `${index + 1}.example`,
+        finalUrl: urls[index],
+        content: `Readable page content ${index + 1}.`,
+        charCount: 24,
+      });
+    }
 
     const final = await pending;
     const nextMessages = requestJson.mock.calls[1][0].messages;
-    const toolMessages = nextMessages.slice(-2);
-    expect(toolMessages.map((message: { tool_call_id?: string }) => message.tool_call_id)).toEqual(['read-1', 'read-2']);
-    expect(toolMessages[0].content).toContain('First readable page content.');
-    expect(toolMessages[1].content).toContain('Second readable page content.');
-    expect(final).toContain('Final answer with https://one.example and https://two.example');
+    const toolMessages = nextMessages.slice(-urls.length);
+    expect(maxActiveReads).toBeLessThanOrEqual(MAX_WEB_SEARCH_TOOL_CALL_CONCURRENCY);
+    expect(toolMessages.map((message: { tool_call_id?: string }) => message.tool_call_id)).toEqual(
+      urls.map((_url, index) => `read-${index + 1}`),
+    );
+    for (let index = 0; index < urls.length; index += 1) {
+      expect(toolMessages[index].content).toContain(`Readable page content ${index + 1}.`);
+    }
+    expect(final).toContain(`Final answer with ${urls.join(' and ')}`);
   });
-
   it('stops repeated no-result streaming searches without another model recovery request', async () => {
     const request = vi.fn(async () => streamResponse([
       {
@@ -2058,6 +2232,39 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(final).toContain('https://example.com/safe');
     expect(final).not.toContain('127.0.0.1');
     expect(final).not.toContain('/internal');
+  });
+
+  it('ignores oversized JSON text-protocol search requests', async () => {
+    const requestJson = vi.fn().mockResolvedValueOnce({
+      choices: [{
+        message: {
+          content: `<web_search_request>${JSON.stringify({
+            query: 'sample app',
+            reason: 'x'.repeat(70 * 1024),
+          })}</web_search_request>Direct answer instead.`,
+        },
+      }],
+    });
+    const client = {
+      webSearch: vi.fn(),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(),
+    };
+
+    const final = await runOpenAIWebSearchJsonTextProtocolRequest({
+      body: {
+        model: 'test',
+        stream: false,
+        messages: [{ role: 'user', content: 'search sample app' }],
+      },
+      client,
+      requestJson,
+      onChunk: vi.fn(),
+    });
+
+    expect(client.webSearch).not.toHaveBeenCalled();
+    expect(requestJson).toHaveBeenCalledTimes(1);
+    expect(final).toContain('Direct answer instead.');
   });
 
   it('does not emit a final JSON tool-loop answer after cancellation during response parsing', async () => {

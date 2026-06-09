@@ -120,23 +120,22 @@ it('should map touched hardbreak positions through later transaction steps', asy
 it('should stop scanning touched hardbreak ranges at the scan budget', () => {
   const hardbreakType = { name: 'hardbreak' }
   const textType = { name: 'text' }
-  const visitedPositions: number[] = []
+  let accessed = 0
   const clearedPositions: number[] = []
   const nodes = [
-    { type: textType, marks: [], attrs: {} },
-    { type: hardbreakType, marks: [{ type: { name: 'strong' } }], attrs: { isInline: false } },
-    { type: textType, marks: [], attrs: {} },
-    { type: hardbreakType, marks: [{ type: { name: 'strong' } }], attrs: { isInline: false } },
+    { type: textType, marks: [], attrs: {}, nodeSize: 1, childCount: 0 },
+    { type: hardbreakType, marks: [{ type: { name: 'strong' } }], attrs: { isInline: false }, nodeSize: 1, childCount: 0 },
+    { type: textType, marks: [], attrs: {}, nodeSize: 1, childCount: 0 },
+    { type: hardbreakType, marks: [{ type: { name: 'strong' } }], attrs: { isInline: false }, nodeSize: 1, childCount: 0 },
   ]
   const tr = {
     doc: {
-      content: { size: nodes.length },
-      nodesBetween(_from: number, _to: number, callback: (node: any, pos: number) => boolean | void) {
-        for (let index = 0; index < nodes.length; index += 1) {
-          visitedPositions.push(index)
-          if (callback(nodes[index], index) === false) break
-        }
+      child(index: number) {
+        accessed += 1
+        return nodes[index]!
       },
+      childCount: nodes.length,
+      content: { size: nodes.length },
     },
     setNodeMarkup(pos: number) {
       clearedPositions.push(pos)
@@ -147,6 +146,6 @@ it('should stop scanning touched hardbreak ranges at the scan budget', () => {
   const result = clearMarkedHardbreaksInRange(tr, hardbreakType, 0, nodes.length, 2)
 
   expect(result.changed).toBe(true)
-  expect(visitedPositions).toEqual([0, 1, 2])
+  expect(accessed).toBe(2)
   expect(clearedPositions).toEqual([1])
 })

@@ -20,6 +20,8 @@ export const markdownLinkPluginKey = new PluginKey('markdown-link-paste');
 const MAX_MARKDOWN_LINK_DOC_SCAN_SIZE = 1024 * 1024;
 export const MAX_MARKDOWN_LINK_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 export const MAX_MARKDOWN_LINK_AUTO_COLLAPSE_MATCHES = 5000;
+export const MAX_MARKDOWN_LINK_TEXT_SCAN_CHARS = 1024 * 1024;
+export const MAX_MARKDOWN_LINK_INPUT_LOOKBACK_CHARS = 1024 * 1024;
 const MAX_MARKDOWN_LINK_PASTE_CHARS = 1024 * 1024;
 const MARKDOWN_LINK_TRIGGER_TEXT_PATTERN = /[\[\]\(\)]/;
 
@@ -50,7 +52,19 @@ function transactionMayCreateMarkdownLink(tr: unknown): boolean {
 
 function textContainsRawMarkdownLink(text: string): boolean {
     MARKDOWN_LINK_PATTERN_GLOBAL.lastIndex = 0;
-    return MARKDOWN_LINK_PATTERN_GLOBAL.test(text);
+    return MARKDOWN_LINK_PATTERN_GLOBAL.test(text.slice(0, MAX_MARKDOWN_LINK_TEXT_SCAN_CHARS));
+}
+
+export function getMarkdownLinkInputTextBeforeCursor(
+    parent: { textBetween: (from: number, to: number, blockSeparator?: string | null, leafText?: string | null) => string },
+    parentOffset: number,
+): string {
+    return parent.textBetween(
+        Math.max(0, parentOffset - MAX_MARKDOWN_LINK_INPUT_LOOKBACK_CHARS),
+        parentOffset,
+        '\0',
+        '\0'
+    );
 }
 
 function positionTouchesRawMarkdownLink(doc: ProseNode, pos: number): boolean {
@@ -72,22 +86,34 @@ function positionTouchesRawMarkdownLink(doc: ProseNode, pos: number): boolean {
     );
 }
 
-function rangeTouchesRawMarkdownLink(doc: ProseNode, from: number, to: number): boolean {
+export function rangeTouchesRawMarkdownLink(
+    doc: ProseNode,
+    from: number,
+    to: number,
+    checkBoundaryPositions = true
+): boolean {
     const start = Math.max(0, Math.min(from, doc.content.size));
     const end = Math.max(start, Math.min(to, doc.content.size));
-    if (positionTouchesRawMarkdownLink(doc, start) || positionTouchesRawMarkdownLink(doc, end)) {
+    if (
+        checkBoundaryPositions
+        && (positionTouchesRawMarkdownLink(doc, start) || positionTouchesRawMarkdownLink(doc, end))
+    ) {
         return true;
     }
 
     let touchesRawMarkdownLink = false;
     const scanTo = Math.min(doc.content.size, Math.max(start + 1, end));
-    doc.nodesBetween(start, scanTo, (node) => {
+    scanProseDescendants(doc, (node, pos) => {
+        const nodeSize = typeof node.nodeSize === 'number' ? node.nodeSize : 1;
+        const nodeEnd = pos + nodeSize;
+        if (nodeEnd < start) return true;
+        if (pos > scanTo) return STOP_PROSE_SCAN;
         if (node.isText && textContainsRawMarkdownLink(node.text ?? '')) {
             touchesRawMarkdownLink = true;
-            return false;
+            return STOP_PROSE_SCAN;
         }
-        return !touchesRawMarkdownLink;
-    });
+        return true;
+    }, MAX_MARKDOWN_LINK_DOC_SCAN_NODES);
 
     return touchesRawMarkdownLink;
 }
@@ -115,8 +141,7 @@ export function docHasRawMarkdownLink(doc: ProseNode): boolean {
     scanProseDescendants(doc, (node) => {
         if (!node.isText || !node.text) return true;
 
-        MARKDOWN_LINK_PATTERN_GLOBAL.lastIndex = 0;
-        hasRawMarkdownLink = MARKDOWN_LINK_PATTERN_GLOBAL.test(node.text);
+        hasRawMarkdownLink = textContainsRawMarkdownLink(node.text);
         return hasRawMarkdownLink ? STOP_PROSE_SCAN : true;
     }, MAX_MARKDOWN_LINK_DOC_SCAN_NODES);
     return hasRawMarkdownLink;
@@ -136,7 +161,7 @@ export function collectRawMarkdownLinkMatches(
         if (inspectedMatches >= limit || matches.length >= limit) return STOP_PROSE_SCAN;
         if (!node.isText || !node.text) return true;
 
-        const text = node.text;
+        const text = node.text.slice(0, MAX_MARKDOWN_LINK_TEXT_SCAN_CHARS);
         MARKDOWN_LINK_PATTERN_GLOBAL.lastIndex = 0;
 
         let match;
@@ -283,7 +308,7 @@ export const markdownLinkPlugin = $prose(() => {
 
                 // Get text before cursor
                 const $from = doc.resolve(from);
-                const textBefore = $from.parent.textBetween(0, $from.parentOffset, '\0', '\0');
+                const textBefore = getMarkdownLinkInputTextBeforeCursor($from.parent, $from.parentOffset);
 
                 // Check if there's a markdown link pattern ending at cursor
                 const match = textBefore.match(MARKDOWN_LINK_PATTERN_BEFORE);

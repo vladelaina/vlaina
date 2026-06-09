@@ -16,6 +16,47 @@ describe('externalHeadingDrop', () => {
     expect(parseSingleHeadingDropHtml('<h2>Title</h2><p>extra</p>')).toBeNull();
   });
 
+  it('does not read aggregate body text while checking for extra content', () => {
+    const bodyTextContent = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent');
+    const textContentSpy = vi.spyOn(Node.prototype, 'textContent', 'get').mockImplementation(function (this: Node) {
+      if (this.nodeType === Node.ELEMENT_NODE && (this as Element).tagName === 'BODY') {
+        throw new Error('aggregate body textContent should not be read');
+      }
+
+      return bodyTextContent?.get?.call(this) ?? null;
+    });
+
+    try {
+      expect(parseSingleHeadingDropHtml('<h2>Title</h2>')).toEqual({
+        level: 2,
+        text: 'Title',
+      });
+      expect(parseSingleHeadingDropHtml('<h2>Title</h2><p>extra</p>')).toBeNull();
+    } finally {
+      textContentSpy.mockRestore();
+    }
+  });
+
+  it('does not read aggregate heading text while parsing dropped html', () => {
+    const textContent = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent');
+    const textContentSpy = vi.spyOn(Node.prototype, 'textContent', 'get').mockImplementation(function (this: Node) {
+      if (this.nodeType === Node.ELEMENT_NODE && (this as Element).tagName === 'H2') {
+        throw new Error('aggregate heading textContent should not be read');
+      }
+
+      return textContent?.get?.call(this) ?? null;
+    });
+
+    try {
+      expect(parseSingleHeadingDropHtml('<h2>Title</h2>')).toEqual({
+        level: 2,
+        text: 'Title',
+      });
+    } finally {
+      textContentSpy.mockRestore();
+    }
+  });
+
   it('rejects oversized dropped html before parsing', () => {
     expect(parseSingleHeadingDropHtml(`<h1>${'x'.repeat(64 * 1024)}</h1>`)).toBeNull();
   });

@@ -3,7 +3,9 @@ import {
   areOutlineHeadingsEqual,
   createOutlineHeadingId,
   getHeadingLevelFromTagName,
+  MAX_OUTLINE_HEADING_TEXT_CHARS,
   normalizeHeadingText,
+  readBoundedHeadingText,
 } from './outlineUtils';
 
 describe('outlineUtils', () => {
@@ -17,6 +19,28 @@ describe('outlineUtils', () => {
   it('normalizes heading text and falls back for blank values', () => {
     expect(normalizeHeadingText('  Hello   World  ')).toBe('Hello World');
     expect(normalizeHeadingText('   ')).toBe('Untitled');
+  });
+
+  it('reads heading text from text nodes with a fixed budget', () => {
+    const heading = document.createElement('h2');
+    heading.append(
+      document.createTextNode('Alpha   '),
+      document.createElement('span'),
+      document.createTextNode('Beta'),
+    );
+    heading.querySelector('span')?.appendChild(document.createTextNode('Nested'));
+    Object.defineProperty(heading, 'textContent', {
+      get() {
+        throw new Error('aggregate heading textContent should not be read');
+      },
+    });
+
+    expect(readBoundedHeadingText(heading)).toBe('Alpha NestedBeta');
+
+    const longHeading = document.createElement('h3');
+    longHeading.appendChild(document.createTextNode('x'.repeat(MAX_OUTLINE_HEADING_TEXT_CHARS + 20)));
+
+    expect(readBoundedHeadingText(longHeading)).toHaveLength(MAX_OUTLINE_HEADING_TEXT_CHARS);
   });
 
   it('creates stable outline ids', () => {

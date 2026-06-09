@@ -26,6 +26,7 @@ export async function readUploadPreviewDataUrl(file: File): Promise<string | nul
             resolve(typeof reader.result === 'string' ? reader.result : null);
         });
         reader.addEventListener('error', () => reject(reader.error));
+        reader.addEventListener('abort', () => reject(new Error('Icon preview file read was aborted')));
         reader.readAsDataURL(file);
     });
 }

@@ -3,7 +3,7 @@ import { AIErrorType, type AIModel, type ChatMessage, type Provider } from '../t
 import { getUserFacingAIError } from '../errors';
 import { OpenAICompatibleClient } from './openai';
 import { MAX_PROVIDER_MODEL_ID_CHARS, MAX_PROVIDER_MODEL_LIST_IDS } from './modelDetection';
-import { MAX_OPENAI_STREAM_LINE_CHARS } from '@/lib/ai/streaming';
+import { MAX_OPENAI_STREAM_ERROR_FIELD_CHARS, MAX_OPENAI_STREAM_LINE_CHARS } from '@/lib/ai/streaming';
 import { MAX_PROVIDER_ERROR_BODY_BYTES, MAX_PROVIDER_JSON_RESPONSE_BODY_BYTES } from './boundedResponseText';
 import { MAX_INLINE_IMAGE_BYTES } from '@/lib/markdown/dataImagePolicy';
 import { MAX_THINKING_TAG_MATCHES } from '@/lib/ai/stripThinkingContent';
@@ -226,6 +226,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       const fetchMock = vi.fn(async () => ({
         ok: true,
         status: 200,
+        headers: new Headers(),
         body: {
           getReader: () => ({
             read: () => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined),
@@ -249,16 +250,34 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     }
   });
 
-  it('bounds oversized provider model listing responses before falling back', async () => {
+  it('accepts provider model listing responses larger than the small error-body limit', async () => {
+    const largeModels = Array.from({ length: 4096 }, (_, index) => `provider-model-${index}`);
+    const responseBody = JSON.stringify({ data: largeModels });
+    expect(responseBody.length).toBeGreaterThan(MAX_PROVIDER_ERROR_BODY_BYTES);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(responseBody, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new OpenAICompatibleClient().getModelsWithEndpointDetection(buildProvider());
+
+    expect(result.endpointType).toBe('openai');
+    expect(result.models).toHaveLength(MAX_PROVIDER_MODEL_LIST_IDS);
+    expect(result.models[0]).toBe('provider-model-0');
+  });
+
+  it('bounds oversized provider model listing JSON responses before falling back', async () => {
     const cancel = vi.fn();
     const oversizedResponse = new Response(
       new ReadableStream({
-        start(controller) {
-          controller.enqueue(new TextEncoder().encode('x'.repeat(MAX_PROVIDER_ERROR_BODY_BYTES + 1)));
-        },
         cancel,
       }),
-      { status: 200 },
+      {
+        status: 200,
+        headers: {
+          'content-length': String(MAX_PROVIDER_JSON_RESPONSE_BODY_BYTES + 1),
+        },
+      },
     );
     const fetchMock = vi
       .fn()
@@ -653,6 +672,29 @@ describe('OpenAICompatibleClient endpoint detection', () => {
 
     expect(cancelStream).toHaveBeenCalledTimes(1);
     expect(() => response.body?.getReader()).not.toThrow();
+  });
+
+  it('bounds Anthropic stream error messages before exposing them', async () => {
+    const longMessage = 'x'.repeat(MAX_OPENAI_STREAM_ERROR_FIELD_CHARS + 1);
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(
+          `data: ${JSON.stringify({ type: 'error', error: { message: longMessage } })}\n`
+        ));
+      },
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(stream, { status: 200 })));
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel(),
+      buildProvider({ endpointType: 'anthropic' }),
+      vi.fn(),
+    )).rejects.toMatchObject({
+      type: AIErrorType.UNKNOWN,
+      message: 'x'.repeat(MAX_OPENAI_STREAM_ERROR_FIELD_CHARS),
+    });
   });
 
   it('keeps Anthropic request timeout active while reading error response bodies', async () => {
@@ -1466,6 +1508,31 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(result).toContain('<web-search-status>');
     expect(result).toContain('https://docs.x.ai/docs/guides/live-search');
     expect(result).toContain('Nested citation answer.');
+  });
+
+  it('bounds deep xAI citation scans without losing shallow sources', async () => {
+    const deepOutput = `${'{"output":['.repeat(20_001)}{"url":"https://deep.example.com/source"}${']}'.repeat(20_001)}`;
+    const fetchMock = vi.fn().mockResolvedValue(new Response([
+      '{"output_text":"Bounded citation answer.",',
+      '"citations":["https://x.ai/news"],',
+      `"output":${deepOutput}}`,
+    ].join(''), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'what is new with xai?',
+      [],
+      buildModel({ apiModelId: 'grok-4', name: 'Grok 4' }),
+      buildProvider({ name: 'xAI', apiHost: 'https://api.x.ai', endpointType: 'openai' }),
+      vi.fn(),
+      undefined,
+      { webSearchEnabled: true },
+    );
+
+    expect(result).toContain('<web-search-status>');
+    expect(result).toContain('https://x.ai/news');
+    expect(result).not.toContain('https://deep.example.com/source');
+    expect(result).toContain('Bounded citation answer.');
   });
 
   it('rejects xAI native search responses that contain sources but no visible answer', async () => {

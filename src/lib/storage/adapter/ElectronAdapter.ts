@@ -1,6 +1,8 @@
 import { getElectronBridge } from '@/lib/electron/bridge';
 import type { FileInfo, ListOptions, StorageAdapter, WriteOptions } from './types';
 
+export const MAX_ELECTRON_RECURSIVE_LIST_ENTRIES = 20_000;
+
 function getFs() {
   const bridge = getElectronBridge();
   if (!bridge) {
@@ -73,10 +75,31 @@ export class ElectronAdapter implements StorageAdapter {
     }
 
     const nested: FileInfo[] = [];
-    for (const entry of filtered) {
+    const visitedDirectories = new Set<string>([path]);
+    const stack = [...filtered].reverse();
+
+    while (stack.length > 0 && nested.length < MAX_ELECTRON_RECURSIVE_LIST_ENTRIES) {
+      const entry = stack.pop();
+      if (!entry) break;
+
       nested.push(entry);
-      if (entry.isDirectory) {
-        nested.push(...await this.listDir(entry.path, options));
+      if (
+        nested.length >= MAX_ELECTRON_RECURSIVE_LIST_ENTRIES ||
+        nested.length + stack.length >= MAX_ELECTRON_RECURSIVE_LIST_ENTRIES ||
+        !entry.isDirectory ||
+        visitedDirectories.has(entry.path)
+      ) {
+        continue;
+      }
+
+      visitedDirectories.add(entry.path);
+      const children = await getFs().listDir(entry.path);
+      const visibleChildren = options?.includeHidden
+        ? children
+        : children.filter((entry) => !entry.name.startsWith('.'));
+
+      for (let index = visibleChildren.length - 1; index >= 0; index -= 1) {
+        stack.push(visibleChildren[index]);
       }
     }
 

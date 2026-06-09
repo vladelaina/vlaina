@@ -5,6 +5,8 @@ import { frontmatterSchema } from './frontmatterSchema';
 import { FrontmatterNodeView } from './FrontmatterNodeView';
 import { isFrontmatterShortcutText } from './frontmatterMarkdown';
 
+const MAX_FRONTMATTER_SHORTCUT_TEXT_CHARS = 32;
+
 export function handleFrontmatterShortcutEnter(view: EditorView): boolean {
   const { state } = view;
   const { selection, schema } = state;
@@ -24,7 +26,12 @@ export function handleFrontmatterShortcutEnter(view: EditorView): boolean {
     return false;
   }
 
-  if (!isFrontmatterShortcutText($from.parent.textContent)) {
+  if ($from.parent.content.size > MAX_FRONTMATTER_SHORTCUT_TEXT_CHARS) {
+    return false;
+  }
+
+  const shortcutText = $from.parent.textBetween(0, $from.parent.content.size, '', '');
+  if (!isFrontmatterShortcutText(shortcutText)) {
     return false;
   }
 

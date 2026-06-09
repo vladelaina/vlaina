@@ -4,7 +4,13 @@ import { AllSelection, Selection, TextSelection } from '@milkdown/kit/prose/stat
 import { CellSelection } from '@milkdown/kit/prose/tables';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
-import { clipboardPlugin, createStandaloneTocPasteNode } from './clipboardPlugin';
+import {
+    clipboardPlugin,
+    createStandaloneTocPasteNode,
+    hasClipboardPayload,
+    MAX_INLINE_FOOTNOTE_PASTE_TEXT_CHARS,
+    MAX_MARKDOWN_PASTE_CHARS,
+} from './clipboardPlugin';
 import { dispatchTailBlankClickAction, endBlankClickPlugin } from '../cursor/endBlankClickPlugin';
 import { mermaidPlugin } from '../mermaid';
 import { mathPlugin } from '../math';
@@ -199,6 +205,21 @@ describe('createStandaloneTocPasteNode', () => {
         }, '[toc]');
 
         expect(result).toBeNull();
+    });
+});
+
+describe('hasClipboardPayload', () => {
+    it('detects clipboard payloads from types without reading clipboard data', () => {
+        const getData = vi.fn(() => 'x'.repeat(MAX_MARKDOWN_PASTE_CHARS + 1));
+        const event = {
+            clipboardData: {
+                types: ['text/plain'],
+                getData,
+            },
+        } as unknown as ClipboardEvent;
+
+        expect(hasClipboardPayload(event)).toBe(true);
+        expect(getData).not.toHaveBeenCalled();
     });
 });
 
@@ -940,6 +961,25 @@ describe('clipboardPlugin paste', () => {
         expect(markNames).toContain('link');
         expect(inlineNodes).toContain('footnote_reference');
         expect(footnoteLabel).toBe('note2');
+
+        await editor.destroy();
+    });
+
+    it('does not scan oversized inline footnote paste text', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        const oversizedText = `${'x'.repeat(MAX_INLINE_FOOTNOTE_PASTE_TEXT_CHARS + 1)}[^note2]`;
+
+        expect(simulatePasteText(view, oversizedText)).toBe(false);
+        expect(view.state.doc.textContent).toBe('');
 
         await editor.destroy();
     });

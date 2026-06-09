@@ -11,6 +11,7 @@ import {
   CLEAR_BLOCKS_ACTION,
   getBlockSelectionPluginState,
 } from '../../cursor/blockSelectionPluginState';
+import { getCodeBlockSourceText } from '../codeBlockText';
 import { mapCodeBlockEditorOffsetToDocumentOffset } from './codeBlockEditorUtils';
 
 const { TextSelection } = proseState;
@@ -84,9 +85,10 @@ function collapseProseMirrorSelectionToCodeMirrorHead(
   }
 
   const node = getNode();
+  const rawText = getCodeBlockSourceText(node);
   const codeBlockStart = pos + 1;
   const head = codeBlockStart + mapCodeBlockEditorOffsetToDocumentOffset(
-    node.textContent,
+    rawText,
     cm.state.selection.main.head
   );
   view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, head)).scrollIntoView());
@@ -324,8 +326,9 @@ export function createCodeBlockEditorKeymap({
         }
 
         const node = getNode();
-        const paragraphContent = node.textContent
-          ? view.state.schema.text(node.textContent)
+        const rawText = getCodeBlockSourceText(node);
+        const paragraphContent = rawText
+          ? view.state.schema.text(rawText)
           : undefined;
         const tr = view.state.tr.replaceWith(
           pos,

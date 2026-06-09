@@ -1,8 +1,13 @@
 import { createContext } from './common.ts';
 import { detectorRegistry } from './registry.ts';
 
+export const MAX_LANGUAGE_DETECTION_CODE_CHARS = 256 * 1024;
+
 export function guessLanguage(code: string): string | null {
   if (!code || !code.trim()) {
+    return null;
+  }
+  if (code.length > MAX_LANGUAGE_DETECTION_CODE_CHARS) {
     return null;
   }
 

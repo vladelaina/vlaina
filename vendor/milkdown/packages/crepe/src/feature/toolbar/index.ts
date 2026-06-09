@@ -18,6 +18,8 @@ import { crepeFeatureConfig } from '../../core/slice'
 import { CrepeFeature } from '../../feature'
 import { Toolbar } from './component'
 
+export const MAX_CREPE_TOOLBAR_SELECTION_TEXT_CHECK_CHARS = 1024 * 1024
+
 interface ToolbarConfig {
   boldIcon: string
   codeIcon: string
@@ -75,7 +77,9 @@ class ToolbarView implements PluginView {
         const { empty, from, to } = selection
 
         const isEmptyTextBlock =
-          !doc.textBetween(from, to).length &&
+          !doc
+            .textBetween(from, Math.min(to, from + MAX_CREPE_TOOLBAR_SELECTION_TEXT_CHECK_CHARS))
+            .length &&
           selection instanceof TextSelection
 
         const isNotTextBlock = !(selection instanceof TextSelection)

@@ -30,6 +30,12 @@ describe('stripTrailingNewlines', () => {
 });
 
 describe('normalizeEscapedUrlSchemes', () => {
+  it('keeps the same string when no escaped URL scheme is present', () => {
+    const markdown = 'plain note text without escaped URL schemes';
+
+    expect(normalizeEscapedUrlSchemes(markdown)).toBe(markdown);
+  });
+
   it('removes markdown escaping from URL scheme separators', () => {
     expect(normalizeEscapedUrlSchemes('http\\://example.test:8317')).toBe(
       'http://example.test:8317'
@@ -101,6 +107,12 @@ describe('normalizeAlternativeMathBlockFences', () => {
 });
 
 describe('normalizeMarkdownAutolinkLiterals', () => {
+  it('keeps the same string when no autolink literal is present', () => {
+    const markdown = 'plain note text without markdown autolinks';
+
+    expect(normalizeMarkdownAutolinkLiterals(markdown)).toBe(markdown);
+  });
+
   it('unwraps markdown autolink URL literals outside protected content', () => {
     expect(
       normalizeMarkdownAutolinkLiterals('export GOOGLE_GEMINI_BASE_URL="<http://example.test:8317>"')

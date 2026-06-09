@@ -28,6 +28,7 @@ import {
   type FileTreeChatDropDetail,
 } from '@/components/Notes/features/FileTree/hooks/fileTreePointerDragState';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
+import { shouldMarkPastedTextMultiline } from './chatPasteText';
 
 interface ChatInputProps {
   active?: boolean;
@@ -105,7 +106,7 @@ export const ChatInput = memo(function ChatInput({
 
   const handleTextareaPaste = useCallback(
     (e: React.ClipboardEvent) => {
-      if (e.clipboardData.getData('text/plain').includes('\n')) {
+      if (shouldMarkPastedTextMultiline(e.clipboardData.getData('text/plain'))) {
         markExplicitMultiline();
       }
       void handlePaste(e);

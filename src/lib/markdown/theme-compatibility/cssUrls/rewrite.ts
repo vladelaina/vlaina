@@ -3,6 +3,8 @@ import { findCssUrlTokens } from './tokenizer';
 import type { RelativeMarkdownThemeCssUrl } from './types';
 import { isRelativeCssAssetUrl, renderCssUrl, splitCssUrlSuffix } from './urlIdentity';
 
+export const MAX_MARKDOWN_THEME_CSS_URL_REWRITE_CONCURRENCY = 8;
+
 export async function rebaseRelativeMarkdownThemeCssUrls(
   css: string,
   sourcePath?: string | null
@@ -31,8 +33,10 @@ export async function rewriteRelativeMarkdownThemeCssUrls(
     return css;
   }
 
-  const replacements = await Promise.all(
-    tokens.map(async (token) => {
+  const replacements = await mapWithConcurrencyLimit(
+    tokens,
+    MAX_MARKDOWN_THEME_CSS_URL_REWRITE_CONCURRENCY,
+    async (token) => {
       if (!isRelativeCssAssetUrl(token.url)) {
         return token.raw;
       }
@@ -44,7 +48,7 @@ export async function rewriteRelativeMarkdownThemeCssUrls(
       } catch {
         return token.raw;
       }
-    })
+    }
   );
 
   let output = '';
@@ -55,4 +59,26 @@ export async function rewriteRelativeMarkdownThemeCssUrls(
     cursor = token.end;
   });
   return output + css.slice(cursor);
+}
+
+async function mapWithConcurrencyLimit<T, R>(
+  items: readonly T[],
+  limit: number,
+  mapper: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const workers = Array.from(
+    { length: Math.min(limit, items.length) },
+    async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        results[index] = await mapper(items[index]!);
+      }
+    },
+  );
+
+  await Promise.all(workers);
+  return results;
 }

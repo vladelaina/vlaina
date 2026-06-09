@@ -7,7 +7,7 @@ import {
 import {
   createOutlineHeadingId,
   getHeadingLevelFromTagName,
-  normalizeHeadingText,
+  readBoundedHeadingText,
 } from '../../Sidebar/Outline/outlineUtils';
 
 export interface EditorBlockPositionEntry {
@@ -205,7 +205,7 @@ function createPreviewSnapshot(
 
     const tagName = element.tagName.toUpperCase();
     const headingLevel = getHeadingLevelFromTagName(tagName);
-    const headingText = headingLevel ? normalizeHeadingText(element.textContent ?? '') : null;
+    const headingText = headingLevel ? readBoundedHeadingText(element) : null;
     const documentLeft = resolveDocumentLeft(rect, scrollRootLeft, scrollLeft);
     const documentRight = resolveDocumentRight(rect, scrollRootLeft, scrollLeft);
     const documentTop = resolveDocumentTop(rect, scrollRootTop, scrollTop);
@@ -289,7 +289,7 @@ function createSnapshot(view: EditorView): EditorBlockPositionSnapshot | null {
     const tagName = target.element.tagName.toUpperCase();
     const headingMatch = /^H([1-6])$/.exec(tagName);
     const headingLevel = headingMatch ? Number.parseInt(headingMatch[1], 10) : null;
-    const headingText = headingLevel ? normalizeHeadingText(target.element.textContent ?? '') : null;
+    const headingText = headingLevel ? readBoundedHeadingText(target.element) : null;
     const documentLeft = resolveDocumentLeft(target.rect, scrollRootLeft, scrollLeft);
     const documentRight = resolveDocumentRight(target.rect, scrollRootLeft, scrollLeft);
     const documentTop = resolveDocumentTop(target.rect, scrollRootTop, scrollTop);
