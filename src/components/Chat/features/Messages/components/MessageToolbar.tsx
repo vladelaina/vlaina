@@ -6,11 +6,12 @@ import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { subscribeChatMessageCopied } from '@/components/Chat/common/copyFeedback';
 import { MessageVersionNavigator } from './MessageVersionNavigator';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
+import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Input/composerStyles';
 
 const COPY_FEEDBACK_DURATION_MS = themeUiFeedbackTokens.copyFeedbackDurationMs;
 const COPY_FEEDBACK_CLOSING_MS = themeUiFeedbackTokens.copyFeedbackClosingMs;
 const sidebarTextIconButtonClass =
-  "text-[var(--vlaina-sidebar-chat-text)] hover:text-[var(--vlaina-sidebar-chat-text)]";
+  "text-[var(--vlaina-sidebar-chat-text)]";
 
 type CopyFeedbackSource = 'manual' | 'shortcut' | null;
 
@@ -154,14 +155,14 @@ export const MessageToolbar = memo(function MessageToolbar({
             {showCopyAction && (
               <button
                   onClick={handleCopy}
-                  className={cn("p-1.5 rounded-md hover:bg-[var(--vlaina-color-control-hover-bg)]", iconButtonStyles, sidebarTextIconButtonClass)}
+                  className={cn("flex h-7 w-7 items-center justify-center", iconButtonStyles, chatComposerGhostIconButtonClass, sidebarTextIconButtonClass)}
               >
                   {isCopyFeedbackVisible ? <Icon name="common.check" size="md" /> : <Icon name="common.copy" size="md" />}
               </button>
             )}
 
             {!isCopyClosing && (
-              <button onClick={onRegenerate} className={cn("p-1.5 rounded-md hover:bg-[var(--vlaina-color-control-hover-bg)]", iconButtonStyles, secondaryActionClass, sidebarTextIconButtonClass)}>
+              <button onClick={onRegenerate} className={cn("flex h-7 w-7 items-center justify-center", iconButtonStyles, chatComposerGhostIconButtonClass, secondaryActionClass, sidebarTextIconButtonClass)}>
                 <Icon name="common.refresh" size="md" />
               </button>
             )}

@@ -556,7 +556,7 @@ body.editor-block-drag-active .milkdown .video-block video {
 /* Show button more prominently on hover */
 .milkdown .editor-collapse-btn:hover {
   opacity: var(--vlaina-opacity-100);
-  color: var(--vlaina-text-secondary);
+  color: var(--vlaina-accent);
 }
 
 /* List Item Hover Logic:
