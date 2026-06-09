@@ -3,6 +3,8 @@ import {
   buildMentionPreviewParts,
   collectMentionCandidates,
   findMentionTitlesInValue,
+  MAX_MENTION_TITLE_CHARS,
+  MAX_MENTION_TITLE_SCAN_ITEMS,
   type NoteMentionCandidate,
   valueContainsMentionLabel,
 } from './noteMentionHelpers';
@@ -215,5 +217,26 @@ describe('mention label matching', () => {
     );
 
     expect([...matches].sort()).toEqual(['Docs/', 'Today', 'TodayLater']);
+  });
+
+  it('skips overlong mention titles while building the matching trie', () => {
+    const overlongTitle = 'x'.repeat(MAX_MENTION_TITLE_CHARS + 1);
+    const matches = findMentionTitlesInValue(
+      `@Safe @${overlongTitle}`,
+      ['Safe', overlongTitle],
+    );
+
+    expect([...matches]).toEqual(['Safe']);
+  });
+
+  it('bounds mention title scans for large candidate lists', () => {
+    const titles = Array.from({ length: MAX_MENTION_TITLE_SCAN_ITEMS + 1 }, (_value, index) =>
+      index === MAX_MENTION_TITLE_SCAN_ITEMS ? 'AfterBudget' : `Title-${index}`,
+    );
+
+    const matches = findMentionTitlesInValue('@Title-0 @AfterBudget', titles);
+
+    expect(matches.has('Title-0')).toBe(true);
+    expect(matches.has('AfterBudget')).toBe(false);
   });
 });

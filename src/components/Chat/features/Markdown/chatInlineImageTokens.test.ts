@@ -175,4 +175,32 @@ describe('chatInlineImageTokens', () => {
     expect(result.markdown).toContain('![image 999](<asset://localhost/chat-inline-image/999>)');
     expect(result.markdown).toContain(`![image 1000](<${src}>)`);
   });
+
+  it('scrubs overflow markdown data images after the scan budget is reached', () => {
+    const smallSrc = 'https://example.com/small.png';
+    const largeSrc = createLargeDataImage('q');
+    const markdown = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](${smallSrc}?${index})`),
+      `![overflow](<${largeSrc}>)`,
+    ].join('\n');
+
+    const result = compactLargeDataImageMarkdown(markdown);
+
+    expect(result.markdown).toContain('[image]');
+    expect(result.markdown).not.toContain('data:image/png;base64');
+  });
+
+  it('scrubs overflow html data images after the scan budget is reached', () => {
+    const smallSrc = 'https://example.com/small.png';
+    const largeSrc = createLargeDataImage('r');
+    const markdown = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](${smallSrc}?${index})`),
+      `<img src="${largeSrc}" alt="overflow">`,
+    ].join('\n');
+
+    const result = compactLargeDataImageMarkdown(markdown);
+
+    expect(result.markdown).toContain('[image]');
+    expect(result.markdown).not.toContain('data:image/png;base64');
+  });
 });

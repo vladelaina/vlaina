@@ -125,6 +125,18 @@ describe('requestContext', () => {
     expect(sanitized[0].content).toContain('Tail [Image] after');
   });
 
+  it('does not leak oversized markdown image targets after the history scan budget is reached', () => {
+    const content = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](attachment://safe-${index}.png)`),
+      `Tail ![secret](<data:image/png;base64,${'A'.repeat(8 * 1024)}>) after`,
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).not.toContain('data:image');
+    expect(sanitized[0].content).toContain('Tail [Image] after');
+  });
+
   it('does not leak overflow HTML image sources after the history scan budget is reached', () => {
     const content = [
       ...Array.from({ length: 4001 }, (_, index) => `<span data-index="${index}"></span>`),

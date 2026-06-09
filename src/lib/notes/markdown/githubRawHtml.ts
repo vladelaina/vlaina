@@ -77,13 +77,13 @@ export function stripGithubDroppedRawHtmlContentFragment(
     return stripActiveDroppedTag(content, activeTag, tags, activeDepth);
   }
 
-  let output = '';
+  const output: string[] = [];
   let cursor = 0;
 
   while (cursor < content.length) {
     const start = content.indexOf('<', cursor);
     if (start === -1) {
-      output += content.slice(cursor);
+      output.push(content.slice(cursor));
       break;
     }
 
@@ -91,35 +91,35 @@ export function stripGithubDroppedRawHtmlContentFragment(
     if (!tag) {
       const nonTagEnd = findRawHtmlNonTagEnd(content, start);
       const nextCursor = nonTagEnd ?? start + 1;
-      output += content.slice(cursor, nextCursor);
+      output.push(content.slice(cursor, nextCursor));
       cursor = nextCursor;
       continue;
     }
 
     if (!tags.has(tag.name)) {
-      output += content.slice(cursor, tag.end);
+      output.push(content.slice(cursor, tag.end));
       cursor = tag.end;
       continue;
     }
 
-    output += content.slice(cursor, start);
+    output.push(content.slice(cursor, start));
     if (tag.closing || tag.selfClosing) {
       cursor = tag.end;
       continue;
     }
     if (tag.name === 'plaintext') {
-      return { activeDepth: 1, activeTag: tag.name, mode: 'drop', value: output };
+      return { activeDepth: 1, activeTag: tag.name, mode: 'drop', value: output.join('') };
     }
 
     const close = scanRawHtmlContainer(content, tag.name, tag.end, 1);
     if (close.closeEnd === null) {
-      return { activeDepth: close.depth, activeTag: tag.name, mode: 'drop', value: output };
+      return { activeDepth: close.depth, activeTag: tag.name, mode: 'drop', value: output.join('') };
     }
 
     cursor = close.closeEnd;
   }
 
-  return { activeDepth: 0, activeTag: null, mode: null, value: output };
+  return { activeDepth: 0, activeTag: null, mode: null, value: output.join('') };
 }
 
 export function stripGithubDroppedRawHtmlContent(content: string): string {
@@ -147,13 +147,13 @@ export function prepareGithubRawHtmlForMarkdownSanitizerFragment(
     return escapeActiveRawHtmlTag(content, activeTag, dropTags, escapeTags, activeDepth);
   }
 
-  let output = '';
+  const output: string[] = [];
   let cursor = 0;
 
   while (cursor < content.length) {
     const start = content.indexOf('<', cursor);
     if (start === -1) {
-      output += content.slice(cursor);
+      output.push(content.slice(cursor));
       break;
     }
 
@@ -161,18 +161,18 @@ export function prepareGithubRawHtmlForMarkdownSanitizerFragment(
     if (!tag) {
       const nonTagEnd = findRawHtmlNonTagEnd(content, start);
       const nextCursor = nonTagEnd ?? start + 1;
-      output += content.slice(cursor, nextCursor);
+      output.push(content.slice(cursor, nextCursor));
       cursor = nextCursor;
       continue;
     }
 
     if (!dropTags.has(tag.name) && !escapeTags.has(tag.name)) {
-      output += content.slice(cursor, tag.end);
+      output.push(content.slice(cursor, tag.end));
       cursor = tag.end;
       continue;
     }
 
-    output += content.slice(cursor, start);
+    output.push(content.slice(cursor, start));
     if (dropTags.has(tag.name)) {
       if (tag.closing || tag.selfClosing) {
         cursor = tag.end;
@@ -181,7 +181,7 @@ export function prepareGithubRawHtmlForMarkdownSanitizerFragment(
 
       const close = scanRawHtmlContainer(content, tag.name, tag.end, 1);
       if (close.closeEnd === null) {
-        return { activeDepth: close.depth, activeTag: tag.name, mode: 'drop', value: output };
+        return { activeDepth: close.depth, activeTag: tag.name, mode: 'drop', value: output.join('') };
       }
 
       cursor = close.closeEnd;
@@ -189,7 +189,7 @@ export function prepareGithubRawHtmlForMarkdownSanitizerFragment(
     }
 
     if (tag.closing || tag.selfClosing) {
-      output += escapeHtmlText(content.slice(start, tag.end));
+      output.push(escapeHtmlText(content.slice(start, tag.end)));
       cursor = tag.end;
       continue;
     }
@@ -198,7 +198,7 @@ export function prepareGithubRawHtmlForMarkdownSanitizerFragment(
         activeDepth: 1,
         activeTag: tag.name,
         mode: 'escape',
-        value: `${output}${escapeHtmlText(content.slice(start))}`,
+        value: `${output.join('')}${escapeHtmlText(content.slice(start))}`,
       };
     }
 
@@ -208,15 +208,15 @@ export function prepareGithubRawHtmlForMarkdownSanitizerFragment(
         activeDepth: close.depth,
         activeTag: tag.name,
         mode: 'escape',
-        value: `${output}${escapeHtmlText(content.slice(start))}`,
+        value: `${output.join('')}${escapeHtmlText(content.slice(start))}`,
       };
     }
 
-    output += escapeHtmlText(content.slice(start, close.closeEnd));
+    output.push(escapeHtmlText(content.slice(start, close.closeEnd)));
     cursor = close.closeEnd;
   }
 
-  return { activeDepth: 0, activeTag: null, mode: null, value: output };
+  return { activeDepth: 0, activeTag: null, mode: null, value: output.join('') };
 }
 
 export function prepareGithubRawHtmlForMarkdownSanitizer(content: string): string {

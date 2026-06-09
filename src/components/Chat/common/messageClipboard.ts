@@ -124,8 +124,14 @@ function scrubOverflowCopyMarkdownDataImages(content: string): string {
       targetEnd === -1 ||
       targetEnd - labelEnd > MAX_COPY_OVERFLOW_MARKDOWN_IMAGE_TARGET_CHARS
     ) {
-      output += content.slice(cursor, start + 2);
-      cursor = start + 2;
+      if (targetEnd !== -1 && isInlineDataImageMarkdownTargetAt(content, labelEnd + 2)) {
+        output += content.slice(cursor, start);
+        output += "[image]";
+        cursor = targetEnd + 1;
+      } else {
+        output += content.slice(cursor, start + 2);
+        cursor = start + 2;
+      }
       continue;
     }
 
@@ -142,6 +148,20 @@ function scrubOverflowCopyMarkdownDataImages(content: string): string {
   }
 
   return output;
+}
+
+function isInlineDataImageMarkdownTargetAt(content: string, targetStart: number): boolean {
+  let cursor = targetStart;
+  while (cursor < content.length && /\s/.test(content[cursor])) {
+    cursor += 1;
+  }
+  if (content[cursor] === "<") {
+    cursor += 1;
+    while (cursor < content.length && /\s/.test(content[cursor])) {
+      cursor += 1;
+    }
+  }
+  return content.slice(cursor, cursor + "data:image/".length).toLowerCase() === "data:image/";
 }
 
 function scrubOverflowCopyInlineDataImages(content: string): string {

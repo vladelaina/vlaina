@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_ATTACHMENT_IMAGE_BYTES, type Attachment } from '@/lib/storage/attachmentStorage';
 import {
+  MAX_NOTE_MENTION_PATH_CHARS,
+  MAX_NOTE_MENTION_SCAN_ITEMS,
+  MAX_NOTE_MENTION_TITLE_CHARS,
+  type NoteMentionReference,
+} from '@/lib/ai/noteMentions';
+import {
   buildMessageImageSources,
   buildMentionedNotesContext,
   buildStoredUserMessageContent,
@@ -448,6 +454,40 @@ describe('loadMentionedNotes', () => {
     ]);
     expect(mocks.storage.readFile).toHaveBeenCalledTimes(3);
     expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/d.md');
+  });
+
+  it('bounds note mention metadata before loading references', async () => {
+    mocks.storage.stat.mockResolvedValue({
+      isFile: true,
+      isDirectory: false,
+      size: 8,
+    });
+    mocks.storage.readFile.mockResolvedValue('# Alpha');
+    const mentions: NoteMentionReference[] = [
+      {
+        path: `${'x'.repeat(MAX_NOTE_MENTION_PATH_CHARS + 1)}.md`,
+        title: 'Too long',
+      },
+      {
+        path: 'docs/alpha.md',
+        title: 'A'.repeat(MAX_NOTE_MENTION_TITLE_CHARS + 32),
+      },
+      ...Array.from({ length: MAX_NOTE_MENTION_SCAN_ITEMS }, (_value, index) => ({
+        path: `docs/ignored-${index}.md`,
+        title: `Ignored ${index}`,
+      })),
+      {
+        path: 'docs/beyond-scan.md',
+        title: 'Beyond scan',
+      },
+    ];
+
+    const notes = await loadMentionedNotes(mentions);
+
+    expect(notes).toHaveLength(3);
+    expect(notes[0]?.path).toBe('docs/alpha.md');
+    expect(notes[0]?.title).toHaveLength(MAX_NOTE_MENTION_TITLE_CHARS);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/beyond-scan.md');
   });
 
   it('limits concurrent folder markdown note reads', async () => {

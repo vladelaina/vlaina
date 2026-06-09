@@ -45,6 +45,7 @@ const MAX_INLINE_IMAGE_PERSISTENCE_BRANCH_MESSAGES = 100
 const MAX_INLINE_IMAGE_PERSISTENCE_BRANCH_DEPTH = 1
 const MAX_INLINE_IMAGE_TOKENS_PER_CONTENT = 2000
 const MAX_INLINE_IMAGE_PERSISTENCE_SOURCES = 1000
+const MAX_INLINE_IMAGE_FALLBACK_TARGET_CHARS = 512 * 1024
 export const MAX_CHAT_SESSION_DELETE_CONCURRENCY = 5
 export const MAX_INLINE_IMAGE_ORPHAN_DELETE_CONCURRENCY = 4
 
@@ -169,9 +170,65 @@ function getImageTokenSourceReplacement(content: string, token: ImageToken, repl
     ?? null
 }
 
-function replaceImageSourceReferences(content: string, replacements: Map<string, string>) {
-  if (replacements.size === 0 || !INLINE_DATA_IMAGE_TARGET_HINT_PATTERN.test(content)) {
+function scrubOversizedInlineDataImageReferences(content: string) {
+  if (!INLINE_DATA_IMAGE_TARGET_HINT_PATTERN.test(content)) {
     return content
+  }
+
+  let output = ''
+  let cursor = 0
+  while (cursor < content.length) {
+    const start = content.indexOf('![', cursor)
+    if (start === -1) {
+      output += content.slice(cursor)
+      break
+    }
+
+    const labelEnd = content.indexOf('](', start + 2)
+    if (labelEnd === -1 || labelEnd - start > 512) {
+      output += content.slice(cursor, start + 2)
+      cursor = start + 2
+      continue
+    }
+
+    const targetEnd = content.indexOf(')', labelEnd + 2)
+    if (
+      targetEnd !== -1 &&
+      targetEnd - labelEnd > MAX_INLINE_IMAGE_FALLBACK_TARGET_CHARS &&
+      isInlineDataImageMarkdownTargetAt(content, labelEnd + 2)
+    ) {
+      output += content.slice(cursor, start)
+      cursor = targetEnd + 1
+      continue
+    }
+
+    const nextCursor = targetEnd === -1 ? start + 2 : targetEnd + 1
+    output += content.slice(cursor, nextCursor)
+    cursor = nextCursor
+  }
+  return output
+}
+
+function isInlineDataImageMarkdownTargetAt(content: string, targetStart: number) {
+  let cursor = targetStart
+  while (cursor < content.length && /\s/.test(content[cursor])) {
+    cursor += 1
+  }
+  if (content[cursor] === '<') {
+    cursor += 1
+    while (cursor < content.length && /\s/.test(content[cursor])) {
+      cursor += 1
+    }
+  }
+  return content.slice(cursor, cursor + 'data:image/'.length).toLowerCase() === 'data:image/'
+}
+
+function replaceImageSourceReferences(content: string, replacements: Map<string, string>) {
+  if (!INLINE_DATA_IMAGE_TARGET_HINT_PATTERN.test(content)) {
+    return content
+  }
+  if (replacements.size === 0) {
+    return scrubOversizedInlineDataImageReferences(content)
   }
 
   const tokens = parseMarkdownAndHtmlImageTokens(content, {
@@ -192,19 +249,24 @@ function replaceImageSourceReferences(content: string, replacements: Map<string,
   }
 
   if (!parts) {
-    return content
+    return scrubOversizedInlineDataImageReferences(content)
   }
 
   parts.push(content.slice(cursor))
-  return parts.join('')
+  return scrubOversizedInlineDataImageReferences(parts.join(''))
 }
 
 function replaceApiTranscriptContent(
   content: ChatMessageContent | null | undefined,
   replacements: Map<string, string>,
+  context?: InlineImageReplacementContext,
 ): ChatMessageContent | null | undefined {
   if (typeof content === 'string') {
-    return replaceImageSourceReferences(content, replacements)
+    const nextContent = replaceImageSourceReferences(content, replacements)
+    if (context && nextContent !== content) {
+      context.changed = true
+    }
+    return nextContent
   }
 
   if (!Array.isArray(content)) {
@@ -215,7 +277,13 @@ function replaceApiTranscriptContent(
     if (part.type === 'text') {
       return {
         ...part,
-        text: replaceImageSourceReferences(part.text, replacements),
+        text: (() => {
+          const nextText = replaceImageSourceReferences(part.text, replacements)
+          if (context && nextText !== part.text) {
+            context.changed = true
+          }
+          return nextText
+        })(),
       }
     }
     if (part.type !== 'image_url') {
@@ -234,10 +302,11 @@ function replaceApiTranscriptContent(
 function replaceApiTranscriptSources(
   apiTranscript: ApiTranscriptMessage[] | undefined,
   replacements: Map<string, string>,
+  context?: InlineImageReplacementContext,
 ): ApiTranscriptMessage[] | undefined {
   return apiTranscript?.map((message) => ({
     ...message,
-    content: replaceApiTranscriptContent(message.content, replacements),
+    content: replaceApiTranscriptContent(message.content, replacements, context),
   }))
 }
 
@@ -280,13 +349,14 @@ function collectInlineImageSources(messages: ChatMessage[], groups: InlineImageS
 }
 
 interface InlineImageReplacementContext {
+  changed: boolean
   messageNodes: number
 }
 
 function applyImageSourceReplacements(
   messages: ChatMessage[],
   replacements: Map<string, string>,
-  context: InlineImageReplacementContext = { messageNodes: 0 },
+  context: InlineImageReplacementContext = { changed: false, messageNodes: 0 },
   depth = 0,
 ): ChatMessage[] {
   const nextMessages: ChatMessage[] = []
@@ -298,22 +368,30 @@ function applyImageSourceReplacements(
     context.messageNodes += 1
     const message = messages[index]
     const nextContent = replaceImageSourceReferences(message.content, replacements)
+    if (nextContent !== message.content) {
+      context.changed = true
+    }
     nextMessages.push({
       ...message,
       content: nextContent,
-      apiTranscript: replaceApiTranscriptSources(message.apiTranscript, replacements),
+      apiTranscript: replaceApiTranscriptSources(message.apiTranscript, replacements, context),
       imageSources: message.imageSources?.map((source) => replacements.get(source) || source),
       versions: message.versions?.map((version, versionIndex) => {
         if (versionIndex >= MAX_INLINE_IMAGE_PERSISTENCE_VERSIONS) {
           return version
         }
 
+        const nextVersionContent = version.content === message.content
+          ? nextContent
+          : replaceImageSourceReferences(version.content, replacements)
+        if (nextVersionContent !== version.content) {
+          context.changed = true
+        }
+
         return {
           ...version,
-          content: version.content === message.content
-            ? nextContent
-            : replaceImageSourceReferences(version.content, replacements),
-          apiTranscript: replaceApiTranscriptSources(version.apiTranscript, replacements),
+          content: nextVersionContent,
+          apiTranscript: replaceApiTranscriptSources(version.apiTranscript, replacements, context),
           subsequentMessages: depth < MAX_INLINE_IMAGE_PERSISTENCE_BRANCH_DEPTH
             ? applyImageSourceReplacements(version.subsequentMessages || [], replacements, context, depth + 1)
             : version.subsequentMessages,
@@ -337,6 +415,19 @@ async function persistInlineImageSourcesForSession(sessionId: string) {
     const messages = ai.messages[sessionId] || []
     const sources = collectInlineImageSources(messages)
     if (sources.size === 0) {
+      const scrubContext = { changed: false, messageNodes: 0 }
+      const scrubbedMessages = applyImageSourceReplacements(messages, new Map(), scrubContext)
+      if (scrubContext.changed && hasChatSession(sessionId)) {
+        const latest = useUnifiedStore.getState()
+        const latestAi = latest.data.ai!
+        latest.updateAIData({
+          messages: {
+            ...latestAi.messages,
+            [sessionId]: scrubbedMessages,
+          },
+        }, true)
+        saveSessionJsonInBackground(sessionId, scrubbedMessages)
+      }
       return
     }
 

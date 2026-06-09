@@ -370,6 +370,46 @@ describe('serializer-state', () => {
     })
   })
 
+  it('merges many adjacent marks without copying the previous children array each time', () => {
+    const state = new SerializerState(schema)
+    const children = Array.from({ length: 2000 }, (_, index) => ({
+      type: 'bold',
+      isMark: true,
+      children: [{ type: 'text', value: String(index) }],
+    }))
+    const slice = Array.prototype.slice
+    let sliceCalls = 0
+
+    Array.prototype.slice = function patchedSlice(...args) {
+      sliceCalls += 1
+      return slice.apply(this, args)
+    }
+    try {
+      state.openNode('doc')
+      state.addNode('paragraph', children as never)
+    }
+    finally {
+      Array.prototype.slice = slice
+    }
+
+    expect(sliceCalls).toBe(0)
+    expect(state.top()).toMatchObject({
+      type: 'doc',
+      children: [
+        {
+          type: 'paragraph',
+          children: [
+            {
+              type: 'bold',
+              isMark: true,
+              children: children.flatMap((child) => child.children),
+            },
+          ],
+        },
+      ],
+    })
+  })
+
   it('does not reuse dirty serializer state after a failed serializer call', () => {
     const serializer = SerializerState.create(schema, {
       stringify: (node: unknown) => JSON.stringify(node),

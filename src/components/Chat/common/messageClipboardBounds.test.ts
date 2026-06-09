@@ -76,6 +76,23 @@ describe('messageClipboard bounded image parsing', () => {
     expect(copied).not.toContain('data:image');
   });
 
+  it('scrubs oversized markdown data images when token parsing skips the target', () => {
+    const content = [
+      'A ![first](https://example.com/first.png)',
+      `B ![huge](<data:image/png;base64,${'A'.repeat(520 * 1024)}>)`,
+      'C tail',
+    ].join('\n');
+
+    const copied = formatMessageCopyText(content, { maxTokens: 1 });
+
+    expect(copied).toBe([
+      'A https://example.com/first.png',
+      'B [image]',
+      'C tail',
+    ].join('\n'));
+    expect(copied).not.toContain('data:image');
+  });
+
   it('does not scan unbounded images before copying message text fallback', async () => {
     const videos = Array.from({ length: 2000 }, (_, index) => `![video-${index}](https://example.com/${index}.mp4)`);
     const content = [

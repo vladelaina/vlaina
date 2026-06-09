@@ -150,6 +150,7 @@ describe('createLargePlainMarkdownDocJSON', () => {
       `- item ${paragraph}`,
       `1. item ${paragraph}`,
       `---`,
+      `===`,
     ];
 
     for (const structuralLine of cases) {

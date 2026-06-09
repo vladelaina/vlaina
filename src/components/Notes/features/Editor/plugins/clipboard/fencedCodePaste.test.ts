@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
     extractLargestMarkdownFenceContent,
     isStandaloneFencedCodeBlock,
@@ -217,6 +217,15 @@ describe('looksLikePlainTextWithOnlyBackslashHardBreakSignal', () => {
     it('does not capture structural markdown with trailing backslashes', () => {
         expect(looksLikePlainTextWithOnlyBackslashHardBreakSignal('- item\\\n- next')).toBe(false);
         expect(looksLikePlainTextWithOnlyBackslashHardBreakSignal('[link](https://example.com)\\\nnext')).toBe(false);
+    });
+
+    it('scans trailing backslash lines without splitting the whole text', () => {
+        const splitSpy = vi.spyOn(String.prototype, 'split');
+
+        expect(looksLikePlainTextWithOnlyBackslashHardBreakSignal(`plain\\\n${'x'.repeat(64 * 1024)}`)).toBe(true);
+        expect(splitSpy).not.toHaveBeenCalled();
+
+        splitSpy.mockRestore();
     });
 });
 

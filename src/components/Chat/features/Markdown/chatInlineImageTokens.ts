@@ -6,7 +6,9 @@ const LARGE_DATA_IMAGE_MIN_LENGTH = 50_000;
 const MAX_COMPACTED_INLINE_IMAGES = 1000;
 const MAX_SCANNED_INLINE_IMAGE_TOKENS = 2000;
 const MAX_EXISTING_INLINE_IMAGE_TOKENS = 2000;
+const MAX_OVERFLOW_DATA_IMAGE_SCAN_CHARS = 16 * 1024 * 1024;
 const DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i;
+const DATA_IMAGE_PREFIX = 'data:image/';
 
 export interface CompactedChatMarkdownImages {
   markdown: string;
@@ -103,10 +105,122 @@ export function compactLargeDataImageMarkdown(markdown: string): CompactedChatMa
   }
 
   parts.push(markdown.slice(cursor));
+  const compactedMarkdown = replaced > 0 ? parts.join('') : markdown;
 
   return {
-    markdown: replaced > 0 ? parts.join('') : markdown,
+    markdown: tokens.length >= MAX_SCANNED_INLINE_IMAGE_TOKENS
+      ? scrubOverflowInlineDataImageSyntax(compactedMarkdown)
+      : compactedMarkdown,
     imageSrcByToken,
     replaced,
   };
+}
+
+function isInlineDataImageTargetAt(markdown: string, targetStart: number): boolean {
+  let cursor = targetStart;
+  while (cursor < markdown.length && /\s/.test(markdown[cursor])) {
+    cursor += 1;
+  }
+  if (markdown[cursor] === '<') {
+    cursor += 1;
+    while (cursor < markdown.length && /\s/.test(markdown[cursor])) {
+      cursor += 1;
+    }
+  }
+  return markdown.slice(cursor, cursor + DATA_IMAGE_PREFIX.length).toLowerCase() === DATA_IMAGE_PREFIX;
+}
+
+function scrubOverflowInlineDataImageSyntax(markdown: string): string {
+  return scrubOverflowHtmlInlineDataImages(scrubOverflowMarkdownInlineDataImages(markdown));
+}
+
+function scrubOverflowMarkdownInlineDataImages(markdown: string): string {
+  let output = '';
+  let cursor = 0;
+
+  while (cursor < markdown.length) {
+    const start = markdown.indexOf('![', cursor);
+    if (start === -1) {
+      output += markdown.slice(cursor);
+      break;
+    }
+
+    const labelEnd = markdown.indexOf('](', start + 2);
+    if (labelEnd === -1 || labelEnd - start > 512) {
+      output += markdown.slice(cursor, start + 2);
+      cursor = start + 2;
+      continue;
+    }
+
+    const targetStart = labelEnd + 2;
+    if (!isInlineDataImageTargetAt(markdown, targetStart)) {
+      output += markdown.slice(cursor, targetStart);
+      cursor = targetStart;
+      continue;
+    }
+
+    const targetEnd = markdown.indexOf(')', targetStart);
+    if (targetEnd === -1 || targetEnd > targetStart + MAX_OVERFLOW_DATA_IMAGE_SCAN_CHARS) {
+      output += markdown.slice(cursor, start + 2);
+      cursor = start + 2;
+      continue;
+    }
+
+    output += markdown.slice(cursor, start);
+    output += '[image]';
+    cursor = targetEnd + 1;
+  }
+
+  return output;
+}
+
+function scrubOverflowHtmlInlineDataImages(markdown: string): string {
+  let output = '';
+  let cursor = 0;
+
+  while (cursor < markdown.length) {
+    const start = indexOfAsciiCaseInsensitive(markdown, '<img', cursor);
+    if (start === -1) {
+      output += markdown.slice(cursor);
+      break;
+    }
+
+    const end = markdown.indexOf('>', start + 4);
+    if (end === -1 || end > start + MAX_OVERFLOW_DATA_IMAGE_SCAN_CHARS) {
+      output += markdown.slice(cursor, start + 4);
+      cursor = start + 4;
+      continue;
+    }
+
+    const tag = markdown.slice(start, end + 1);
+    if (!/data:image\//i.test(tag)) {
+      output += markdown.slice(cursor, end + 1);
+      cursor = end + 1;
+      continue;
+    }
+
+    output += markdown.slice(cursor, start);
+    output += '[image]';
+    cursor = end + 1;
+  }
+
+  return output;
+}
+
+function indexOfAsciiCaseInsensitive(value: string, needle: string, fromIndex: number): number {
+  const lowerNeedle = needle.toLowerCase();
+  const maxStart = value.length - needle.length;
+  for (let index = Math.max(0, fromIndex); index <= maxStart; index += 1) {
+    let matched = true;
+    for (let offset = 0; offset < needle.length; offset += 1) {
+      if (value[index + offset]?.toLowerCase() !== lowerNeedle[offset]) {
+        matched = false;
+        break;
+      }
+    }
+    if (matched) {
+      return index;
+    }
+  }
+  return -1;
 }

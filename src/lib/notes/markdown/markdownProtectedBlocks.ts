@@ -42,7 +42,7 @@ export function mapMarkdownOutsideProtectedSegments(
   options: ProtectedSegmentOptions = {},
 ): string {
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
-  const nextNonBlankContentByIndex = getNextNonBlankMarkdownBlockContentByIndex(lines);
+  let nextNonBlankContentByIndex: Array<string | null> | null = null;
   const frontmatterEndIndex = getLeadingFrontmatterEndIndex(lines);
   const protectHtmlBlocks = options.protectHtmlBlocks !== false;
   const output: string[] = [];
@@ -72,7 +72,13 @@ export function mapMarkdownOutsideProtectedSegments(
 
     if (activeIndentedCode) {
       const content = getMarkdownBlockContent(line);
-      if (isIndentedCodeBlockLine(content) || keepsIndentedCodeBlockOpen(content, nextNonBlankContentByIndex[index])) {
+      if (
+        isIndentedCodeBlockLine(content)
+        || keepsIndentedCodeBlockOpen(
+          content,
+          (nextNonBlankContentByIndex ??= getNextNonBlankMarkdownBlockContentByIndex(lines))[index]
+        )
+      ) {
         flushSegment(index + 1);
         output.push(line);
         return;
