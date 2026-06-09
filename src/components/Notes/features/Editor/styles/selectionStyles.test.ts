@@ -1418,6 +1418,13 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('border-color: transparent !important;');
   });
 
+  it('keeps the reduced color picker palette on two rows', () => {
+    const css = readStyleFile('floating-toolbar.css');
+
+    expect(css).toContain('.color-picker-grid {');
+    expect(css).toContain('grid-template-columns: repeat(5, 1fr);');
+  });
+
   it('places floating toolbar shortcut tooltips below the hovered button', () => {
     const css = readStyleFile('floating-toolbar.css');
     const source = readFileSync(

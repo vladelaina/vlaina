@@ -112,11 +112,11 @@ describe('ColorPicker', () => {
     renderColorPicker(container, view, { textColor: null, bgColor: null } as never, vi.fn());
 
     const expectedColors = [
-      '#f1fdf3', '#e6f4e7', '#d1e9d3', '#99cda9',
-      '#e7f0d3', '#d2ea9c', '#abcb88', '#84b271',
-      '#e3fdfc', '#cbf1f4', '#a6e3e8', '#71c9cd',
-      '#fff9f9', '#ffdfe0', '#ffc1d0', '#fca9bd',
-      '#f8ddfe', '#f2c0ff', '#c09fee', '#866ec6',
+      '#d1e9d3', '#99cda9',
+      '#abcb88', '#84b271',
+      '#a6e3e8', '#71c9cd',
+      '#ffc1d0', '#fca9bd',
+      '#c09fee', '#866ec6',
     ];
     const textColors = [...container.querySelectorAll<HTMLElement>('[data-type="text"] .color-picker-grid .color-picker-item')]
       .map((button) => button.dataset.color);
