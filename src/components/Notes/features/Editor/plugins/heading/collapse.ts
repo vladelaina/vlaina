@@ -9,6 +9,8 @@ import {
 } from './headingCollapseInteractions';
 import {
     buildHeadingCollapsePluginState,
+    canMapHeadingCollapsePluginState,
+    mapHeadingCollapsePluginState,
     type HeadingCollapsePluginState,
 } from './headingCollapsePluginState';
 
@@ -52,6 +54,10 @@ export const collapsePlugin = $prose(() => {
 
                 if (!tr.docChanged && !metaAction) {
                     return oldPluginState;
+                }
+
+                if (tr.docChanged && !metaAction && canMapHeadingCollapsePluginState(oldPluginState, tr)) {
+                    return mapHeadingCollapsePluginState(oldPluginState, tr, newState.doc);
                 }
 
                 let collapsedHeadings = tr.docChanged

@@ -462,6 +462,8 @@ export const themeUiFeedbackTokens = {
   chatThinkingSelectionReleaseDelayMs: 250,
   chatThinkingSelectionSettleDelayMs: 120,
   editorDragHandleThrottleMs: 16,
+  editorMarkdownSerializationDebounceMs: 500,
+  editorThemeCompatibilityDecorationDebounceMs: 700,
   editorPendingMarkdownCommitThrottleMs: 120,
   editorPendingMarkdownTestCommitThrottleMs: 0,
   editorCompositionSettleMs: 220,

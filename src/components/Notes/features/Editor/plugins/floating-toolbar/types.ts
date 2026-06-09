@@ -49,6 +49,7 @@ export interface FloatingToolbarState {
   linkUrl: string | null;
   textColor: string | null;
   bgColor: string | null;
+  selectionRange: { from: number; to: number } | null;
   subMenu: SubMenuType;
   aiReview: AiReviewState | null;
   aiReviews: AiReviewState[];

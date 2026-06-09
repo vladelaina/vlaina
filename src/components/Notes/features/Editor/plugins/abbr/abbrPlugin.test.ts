@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
+import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model';
 import type { Decoration } from '@milkdown/kit/prose/view';
 import { configureTheme } from '../../theme';
 import {
@@ -13,6 +14,7 @@ import {
   extractAbbrDefinitions,
   findAbbrUsages,
   normalizeAbbrTitle,
+  transactionMayAffectAbbrDecorations,
 } from './abbrPlugin';
 
 interface FakeAbbrNode {
@@ -39,6 +41,26 @@ function createDocNode(children: FakeAbbrNode[], onAccess?: () => void): FakeAbb
       return children[index];
     },
   };
+}
+
+function findTextPosition(doc: ProseMirrorNode, text: string, edge: 'start' | 'end'): number {
+  let result = -1;
+  doc.descendants((node, pos) => {
+    if (!node.isText) {
+      return true;
+    }
+    const index = (node.text ?? '').indexOf(text);
+    if (index < 0) {
+      return true;
+    }
+    result = pos + index + (edge === 'end' ? text.length : 0);
+    return false;
+  });
+
+  if (result < 0) {
+    throw new Error(`Text not found: ${text}`);
+  }
+  return result;
 }
 
 describe('abbrPlugin', () => {
@@ -184,6 +206,90 @@ describe('abbrPlugin', () => {
     const decorations = abbrPluginKey.getState(view.state)?.find() ?? [];
 
     expect(decorations).toHaveLength(1000);
+
+    await editor.destroy();
+  });
+
+  it('maps existing decorations for unrelated typing when no abbreviation can change', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, [
+          '*[HTML]: HyperText Markup Language',
+          '',
+          'HTML usage',
+          '',
+          'Target paragraph',
+        ].join('\n'));
+      })
+      .use(commonmark);
+
+    for (const plugin of abbrPlugin) {
+      editor.use(plugin);
+    }
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const previous = abbrPluginKey.getState(view.state);
+    expect(previous?.find()).toHaveLength(1);
+
+    const tr = view.state.tr.insertText(
+      ' smooth input',
+      findTextPosition(view.state.doc, 'Target paragraph', 'end'),
+    );
+
+    expect(transactionMayAffectAbbrDecorations(previous!, tr, view.state.doc, tr.doc)).toBe(false);
+
+    await editor.destroy();
+  });
+
+  it('rebuilds decorations when typing text that matches a known abbreviation', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, [
+          '*[HTML]: HyperText Markup Language',
+          '',
+          'Target paragraph',
+        ].join('\n'));
+      })
+      .use(commonmark);
+
+    for (const plugin of abbrPlugin) {
+      editor.use(plugin);
+    }
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const previous = abbrPluginKey.getState(view.state);
+    const tr = view.state.tr.insertText(
+      ' HTML',
+      findTextPosition(view.state.doc, 'Target paragraph', 'end'),
+    );
+
+    expect(transactionMayAffectAbbrDecorations(previous!, tr, view.state.doc, tr.doc)).toBe(true);
+
+    await editor.destroy();
+  });
+
+  it('rebuilds decorations when typing an abbreviation definition prefix', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, 'Definition line');
+      })
+      .use(commonmark);
+
+    for (const plugin of abbrPlugin) {
+      editor.use(plugin);
+    }
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const previous = abbrPluginKey.getState(view.state);
+    const tr = view.state.tr.insertText(
+      '*[HTML]: ',
+      findTextPosition(view.state.doc, 'Definition line', 'start'),
+    );
+
+    expect(transactionMayAffectAbbrDecorations(previous!, tr, view.state.doc, tr.doc)).toBe(true);
 
     await editor.destroy();
   });

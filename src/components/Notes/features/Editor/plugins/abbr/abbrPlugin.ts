@@ -13,6 +13,13 @@ import {
   scanProseDescendants,
   type BoundedProseScanNode,
 } from '../shared/boundedProseNodeScan';
+import {
+  transactionChangedParentTextMatches,
+  transactionChangedPreviousParentTextMatches,
+  transactionInsertedTextMatches,
+  transactionTouchesDecorations,
+  type DecorationSetLike,
+} from '../shared/transactionStepText';
 
 export const abbrPluginKey = new PluginKey('abbr');
 
@@ -22,6 +29,22 @@ export const MAX_ABBR_TITLE_CHARS = 4096;
 export const MAX_ABBR_DECORATIONS = 1000;
 export const MAX_ABBR_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 export const MAX_ABBR_TEXT_SCAN_CHARS = 100_000;
+const ABBR_DEFINITION_TRIGGER_PATTERN = /(?:^\*\[|[\n\r]\*\[)/u;
+const abbrDefinitionsByDecorationSet = new WeakMap<object, AbbrDefinition[]>();
+
+function rememberAbbrDefinitions(decorationSet: DecorationSet, definitions: AbbrDefinition[]): DecorationSet {
+  abbrDefinitionsByDecorationSet.set(decorationSet, definitions);
+  return decorationSet;
+}
+
+function mapAbbrDecorations(
+  previous: DecorationSet,
+  tr: { mapping: Parameters<DecorationSet['map']>[0] },
+  doc: any,
+): DecorationSet {
+  const mapped = previous.map(tr.mapping, doc);
+  return rememberAbbrDefinitions(mapped, abbrDefinitionsByDecorationSet.get(previous) ?? []);
+}
 
 export function normalizeAbbrTitle(value: unknown): string {
   return typeof value === 'string' ? value.slice(0, MAX_ABBR_TITLE_CHARS) : '';
@@ -163,7 +186,32 @@ function createAbbrDecorations(doc: any): DecorationSet {
     );
   }
   
-  return DecorationSet.create(doc, decorations);
+  return rememberAbbrDefinitions(DecorationSet.create(doc, decorations), definitions);
+}
+
+export function transactionMayAffectAbbrDecorations(
+  previous: DecorationSetLike,
+  tr: unknown,
+  oldDoc: any,
+  newDoc: any,
+): boolean {
+  if (
+    transactionInsertedTextMatches(tr, ABBR_DEFINITION_TRIGGER_PATTERN)
+    || transactionTouchesDecorations(previous, tr)
+    || transactionChangedPreviousParentTextMatches(oldDoc, tr, ABBR_DEFINITION_TRIGGER_PATTERN)
+    || transactionChangedParentTextMatches(newDoc, tr, ABBR_DEFINITION_TRIGGER_PATTERN)
+  ) {
+    return true;
+  }
+
+  const definitions = abbrDefinitionsByDecorationSet.get(previous as object) ?? [];
+  const usagePattern = createAbbrUsagePattern(definitions);
+  if (!usagePattern) {
+    return false;
+  }
+
+  return transactionChangedPreviousParentTextMatches(oldDoc, tr, usagePattern)
+    || transactionChangedParentTextMatches(newDoc, tr, usagePattern);
 }
 
 export const abbrDecorationPlugin = $prose(() => {
@@ -173,9 +221,12 @@ export const abbrDecorationPlugin = $prose(() => {
       init(_, { doc }) {
         return createAbbrDecorations(doc);
       },
-      apply(tr, old) {
+      apply(tr, old, oldState, newState) {
         if (tr.docChanged) {
-          return createAbbrDecorations(tr.doc);
+          if (!transactionMayAffectAbbrDecorations(old, tr, oldState.doc, newState.doc)) {
+            return mapAbbrDecorations(old, tr, newState.doc);
+          }
+          return createAbbrDecorations(newState.doc);
         }
         return old;
       }

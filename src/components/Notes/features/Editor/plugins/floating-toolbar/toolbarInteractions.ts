@@ -1,4 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { TextSelection } from '@milkdown/kit/prose/state';
 import type { FloatingToolbarState } from './types';
 import { TOOLBAR_ACTIONS } from './types';
 import { floatingToolbarKey } from './floatingToolbarKey';
@@ -91,7 +92,24 @@ export function createToolbarEventDelegation(
       return;
     }
 
+    if (currentView.state.selection.empty && currentState.selectionRange) {
+      const { from, to } = currentState.selectionRange;
+      if (from < to && to <= currentView.state.doc.content.size) {
+        try {
+          currentView.dispatch(
+            currentView.state.tr
+              .setSelection(TextSelection.create(currentView.state.doc, from, to))
+              .setMeta('addToHistory', false)
+          );
+        } catch {
+          // Use the editor's current selection if the stored range is no longer valid.
+        }
+      }
+    }
+
     const preservePreviewDuringApply = PREVIEWED_DIRECT_APPLY_ACTIONS.has(action);
+    const selectionBeforePreviewCommit = currentView.state.selection;
+    const docBeforePreviewCommit = currentView.state.doc;
     if (!preservePreviewDuringApply) {
       clearFormatPreview(currentView);
     }
@@ -101,17 +119,28 @@ export function createToolbarEventDelegation(
       commitFormatPreview(currentView, action, button.classList.contains('active'))
     ) {
       const view = currentView;
-      clearFormatPreview(view);
-      hideTooltip();
-      view.dispatch(
-        view.state.tr.setMeta(floatingToolbarKey, {
-          type: TOOLBAR_ACTIONS.HIDE,
-        })
-      );
-      if (COLLAPSE_SELECTION_AFTER_APPLY_ACTIONS.has(action)) {
-        collapseSelectionAfterToolbarApply(view);
+      const didPreviewChangeDoc = typeof view.state.doc.eq === 'function'
+        ? !view.state.doc.eq(docBeforePreviewCommit)
+        : true;
+      if (didPreviewChangeDoc) {
+        clearFormatPreview(view);
+        hideTooltip();
+        view.dispatch(
+          view.state.tr.setMeta(floatingToolbarKey, {
+            type: TOOLBAR_ACTIONS.HIDE,
+          })
+        );
+        if (COLLAPSE_SELECTION_AFTER_APPLY_ACTIONS.has(action)) {
+          collapseSelectionAfterToolbarApply(view);
+        }
+        return;
       }
-      return;
+
+      try {
+        view.dispatch(view.state.tr.setSelection(selectionBeforePreviewCommit));
+      } catch {
+        // Fall back to the real command with the editor's current selection.
+      }
     }
 
     void actionController.handleAction(currentView, action).then((shouldHideToolbar) => {

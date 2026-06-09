@@ -6,6 +6,7 @@ import {
   defaultValueCtx,
   editorViewCtx,
   parserCtx,
+  prosePluginsCtx,
   remarkStringifyOptionsCtx,
   serializerCtx,
 } from '@milkdown/kit/core';
@@ -13,7 +14,6 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
-import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { tableBlock } from '@milkdown/kit/component/table-block';
 import type { Ctx } from '@milkdown/kit/ctx';
 import { Slice, type Node as ProseNode, type Schema } from '@milkdown/kit/prose/model';
@@ -51,6 +51,7 @@ import {
   createCurrentEditorBlockPositionController,
 } from './utils/editorBlockPositionCache';
 import { normalizeLeadingFrontmatterMarkdown } from './plugins/frontmatter/frontmatterMarkdown';
+import { createDeferredMarkdownUpdatePlugin } from './utils/deferredMarkdownUpdatePlugin';
 import { BodyLineNumberGutter } from './components/BodyLineNumberGutter';
 import {
   applyMarkdownThemeRuntimeAttributes,
@@ -497,10 +498,9 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
         }));
 
         const handleMarkdownUpdated = configureMarkdownListener(ctx, initialContent);
-        ctx.get(listenerCtx)
-          .markdownUpdated((_ctx, markdown) => {
-            handleMarkdownUpdated(markdown);
-          });
+        ctx.update(prosePluginsCtx, (plugins) => plugins.concat(
+          createDeferredMarkdownUpdatePlugin(ctx, handleMarkdownUpdated)
+        ));
         logE2EMilkdownTiming('config', {
           notePath: currentNotePath,
           durationMs: Math.round(performance.now() - configStartedAt),
@@ -509,7 +509,6 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       .use(commonmark)
       .use(gfm)
       .use(history)
-      .use(listener)
       .use(configureTheme)
       .use(tableBlock)
       .use(customPlugins);

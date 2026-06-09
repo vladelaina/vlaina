@@ -17,6 +17,7 @@ export function createInitialState(): FloatingToolbarState {
     linkUrl: null,
     textColor: null,
     bgColor: null,
+    selectionRange: null,
     subMenu: null,
     aiReview: null,
     aiReviews: [],
@@ -103,6 +104,7 @@ export function applyToolbarMeta(
         aiReview: null,
         aiReviews: [],
         dragPosition: null,
+        selectionRange: null,
       };
     case TOOLBAR_ACTIONS.UPDATE_POSITION:
       return { ...prevState, ...meta.payload };
@@ -163,18 +165,34 @@ function mapOneAiReviewRange(
   };
 }
 
+function mapSelectionRange(
+  range: FloatingToolbarState['selectionRange'],
+  mapping: PositionMapping,
+  docSize: number
+): FloatingToolbarState['selectionRange'] {
+  if (!range) {
+    return null;
+  }
+
+  const from = Math.max(0, Math.min(mapping.map(range.from, 1), docSize));
+  const to = Math.max(from, Math.min(mapping.map(range.to, -1), docSize));
+  return from < to ? { from, to } : null;
+}
+
 export function mapAiReviewRange(
   state: FloatingToolbarState,
   mapping: PositionMapping,
   docSize: number
 ): FloatingToolbarState {
+  const selectionRange = mapSelectionRange(state.selectionRange, mapping, docSize);
   if (state.subMenu !== 'aiReview' || !state.aiReview) {
     if (state.aiReviews.length === 0) {
-      return state;
+      return selectionRange === state.selectionRange ? state : { ...state, selectionRange };
     }
 
     return {
       ...state,
+      selectionRange,
       aiReviews: state.aiReviews.map((review) => mapOneAiReviewRange(review, mapping, docSize)),
     };
   }
@@ -185,6 +203,7 @@ export function mapAiReviewRange(
 
   return {
     ...state,
+    selectionRange,
     aiReview,
     aiReviews,
   };

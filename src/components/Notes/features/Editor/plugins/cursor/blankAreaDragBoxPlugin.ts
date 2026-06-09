@@ -62,6 +62,7 @@ import {
 import { handleListGapPlaceholderPointerDown } from './listGapPlaceholder';
 import {
   createEditableMarkdownBlankLineDecorations,
+  EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER,
   handleMarkdownBlankLinePointerDown,
   handleMarkdownBlankLineTextInput,
 } from './markdownBlankLineInteraction';
@@ -69,6 +70,10 @@ import {
   clearForcedCaretForOwner,
   dispatchBlankAreaPlainClick,
 } from './forcedLineEdgeCaret';
+import {
+  transactionInsertedTextMatches,
+  transactionTouchesDecorations,
+} from '../shared/transactionStepText';
 
 export { blankAreaDragBoxPluginKey } from './blockSelectionPluginState';
 
@@ -98,9 +103,13 @@ function isSameSelectionSnapshot(
     && left.empty === right.empty;
 }
 
-function getEditorInteractionDecorations(state: EditorState): DecorationSet {
-  const blockSelectionDecorations = getBlockSelectionPluginState(state).decorations;
-  const editableBlankLineDecorations = createEditableMarkdownBlankLineDecorations(state.doc);
+const EDITABLE_MARKDOWN_BLANK_LINE_TRIGGER_PATTERN = new RegExp(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER, 'u');
+
+function combineEditorInteractionDecorations(
+  doc: EditorState['doc'],
+  blockSelectionDecorations: DecorationSet,
+  editableBlankLineDecorations: DecorationSet,
+): DecorationSet {
   if (blockSelectionDecorations === DecorationSet.empty) {
     return editableBlankLineDecorations;
   }
@@ -108,10 +117,10 @@ function getEditorInteractionDecorations(state: EditorState): DecorationSet {
     return blockSelectionDecorations;
   }
 
-  let blockCache = editorInteractionDecorationsCache.get(state.doc);
+  let blockCache = editorInteractionDecorationsCache.get(doc);
   if (!blockCache) {
     blockCache = new WeakMap();
-    editorInteractionDecorationsCache.set(state.doc, blockCache);
+    editorInteractionDecorationsCache.set(doc, blockCache);
   }
   let blankLineCache = blockCache.get(blockSelectionDecorations);
   if (!blankLineCache) {
@@ -125,9 +134,54 @@ function getEditorInteractionDecorations(state: EditorState): DecorationSet {
     ...blockSelectionDecorations.find(),
     ...editableBlankLineDecorations.find(),
   ];
-  const decorationSet = DecorationSet.create(state.doc, decorations);
+  const decorationSet = DecorationSet.create(doc, decorations);
   blankLineCache.set(editableBlankLineDecorations, decorationSet);
   return decorationSet;
+}
+
+function createBlankAreaDragBoxState(
+  doc: EditorState['doc'],
+  selectedBlocks: BlockRange[],
+  blockSelectionDecorations: DecorationSet,
+  editableMarkdownBlankLineDecorations: DecorationSet,
+): BlankAreaDragBoxState {
+  if (
+    selectedBlocks.length === 0 &&
+    blockSelectionDecorations === DecorationSet.empty &&
+    editableMarkdownBlankLineDecorations === DecorationSet.empty
+  ) {
+    return EMPTY_BLOCK_SELECTION_PLUGIN_STATE;
+  }
+
+  return {
+    selectedBlocks,
+    decorations: blockSelectionDecorations,
+    editableMarkdownBlankLineDecorations,
+    interactionDecorations: combineEditorInteractionDecorations(
+      doc,
+      blockSelectionDecorations,
+      editableMarkdownBlankLineDecorations,
+    ),
+  };
+}
+
+function updateEditableMarkdownBlankLineDecorations(
+  previous: BlankAreaDragBoxState,
+  tr: Transaction,
+): DecorationSet {
+  const previousDecorations = previous.editableMarkdownBlankLineDecorations ?? DecorationSet.empty;
+  if (!tr.docChanged) {
+    return previousDecorations;
+  }
+
+  if (
+    transactionInsertedTextMatches(tr, EDITABLE_MARKDOWN_BLANK_LINE_TRIGGER_PATTERN) ||
+    transactionTouchesDecorations(previousDecorations, tr)
+  ) {
+    return createEditableMarkdownBlankLineDecorations(tr.doc);
+  }
+
+  return previousDecorations.map(tr.mapping, tr.doc);
 }
 
 function resolveTopLevelListContainer(view: EditorView, target: EventTarget | null): HTMLElement | null {
@@ -414,29 +468,55 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
   return new Plugin({
     key: blankAreaDragBoxPluginKey,
     state: {
-      init() {
-        return EMPTY_BLOCK_SELECTION_PLUGIN_STATE;
+      init(_config, state) {
+        return createBlankAreaDragBoxState(
+          state.doc,
+          [],
+          DecorationSet.empty,
+          createEditableMarkdownBlankLineDecorations(state.doc),
+        );
       },
       apply(tr, pluginState: BlankAreaDragBoxState) {
+        const editableMarkdownBlankLineDecorations = updateEditableMarkdownBlankLineDecorations(pluginState, tr);
         const action = tr.getMeta(blankAreaDragBoxPluginKey) as BlockSelectionAction | undefined;
         if (action?.type === 'clear-blocks') {
-          return EMPTY_BLOCK_SELECTION_PLUGIN_STATE;
+          return createBlankAreaDragBoxState(
+            tr.doc,
+            [],
+            DecorationSet.empty,
+            editableMarkdownBlankLineDecorations,
+          );
         }
         if (action?.type === 'set-blocks') {
           const selectedBlocks = normalizeBlockRanges(action.blocks);
           const decorations = createBlockSelectionDecorations(tr.doc, selectedBlocks);
-          return {
+          return createBlankAreaDragBoxState(
+            tr.doc,
             selectedBlocks,
             decorations,
-          };
+            editableMarkdownBlankLineDecorations,
+          );
         }
 
         if (pluginState.selectedBlocks.length === 0) {
-          return pluginState;
+          if (editableMarkdownBlankLineDecorations === pluginState.editableMarkdownBlankLineDecorations) {
+            return pluginState;
+          }
+          return createBlankAreaDragBoxState(
+            tr.doc,
+            [],
+            DecorationSet.empty,
+            editableMarkdownBlankLineDecorations,
+          );
         }
 
         if (shouldClearBlockSelectionForTransaction(tr, pluginState)) {
-          return EMPTY_BLOCK_SELECTION_PLUGIN_STATE;
+          return createBlankAreaDragBoxState(
+            tr.doc,
+            [],
+            DecorationSet.empty,
+            editableMarkdownBlankLineDecorations,
+          );
         }
 
         if (!tr.docChanged) {
@@ -444,12 +524,21 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         }
 
         const selectedBlocks = mapBlockRangesThroughTransaction(pluginState.selectedBlocks, tr);
-        if (selectedBlocks.length === 0) return EMPTY_BLOCK_SELECTION_PLUGIN_STATE;
+        if (selectedBlocks.length === 0) {
+          return createBlankAreaDragBoxState(
+            tr.doc,
+            [],
+            DecorationSet.empty,
+            editableMarkdownBlankLineDecorations,
+          );
+        }
         const decorations = createBlockSelectionDecorations(tr.doc, selectedBlocks);
-        return {
+        return createBlankAreaDragBoxState(
+          tr.doc,
           selectedBlocks,
           decorations,
-        };
+          editableMarkdownBlankLineDecorations,
+        );
       },
     },
     appendTransaction(transactions) {
@@ -460,7 +549,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
     },
     props: {
       decorations(state) {
-        return getEditorInteractionDecorations(state);
+        return getBlockSelectionPluginState(state).interactionDecorations;
       },
       handleKeyDown(view, event) {
         const { selectedBlocks } = getBlockSelectionPluginState(view.state);

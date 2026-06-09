@@ -11,6 +11,13 @@ import {
     STOP_PROSE_SCAN,
     scanProseDescendants,
 } from '../shared/boundedProseNodeScan';
+import {
+    getTransactionChangedRanges,
+    transactionChangedParentTextMatches,
+    transactionInsertedTextMatches,
+    transactionTouchesDecorations,
+    type DecorationSetLike,
+} from '../shared/transactionStepText';
 
 // Definition List container
 export const definitionListSchema = $node('definition_list', () => ({
@@ -102,6 +109,8 @@ export const MAX_DEFLIST_VISUAL_DECORATIONS = 1000;
 export const MAX_DEFLIST_VISUAL_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 const MAX_DEFLIST_TERM_CHARS = 80;
 const MAX_DEFLIST_EMPTY_SCAN_CHARS = 256;
+const DEFLIST_TRIGGER_TEXT_PATTERN = /[:\n\r]/u;
+const DEFLIST_DESCRIPTION_PREFIX_PATTERN = /^: /u;
 
 function isEscapedDefinitionListDescription(node: Node): boolean {
     return node.attrs?.vlainaEscapedBlockSyntax === 'definitionListDescription';
@@ -120,6 +129,15 @@ function isVisuallyEmptyBlock(node: Node): boolean {
 
 function startsWithDefinitionDescriptionPrefix(node: Node): boolean {
     return getNodeTextPrefix(node, 2) === ': ';
+}
+
+function isDefinitionDescriptionParagraph(node: Node | null | undefined): boolean {
+    return (
+        !!node &&
+        node.type.name === 'paragraph' &&
+        !isEscapedDefinitionListDescription(node) &&
+        startsWithDefinitionDescriptionPrefix(node)
+    );
 }
 
 function isValidDefinitionTerm(node: Node | null): node is Node {
@@ -148,9 +166,7 @@ export function createDeflistDecorations(doc: Node): DecorationSet {
 
             // Check if current node looks like a Definition Description
             if (
-                blockNode.type.name === 'paragraph' &&
-                !isEscapedDefinitionListDescription(blockNode) &&
-                startsWithDefinitionDescriptionPrefix(blockNode)
+                isDefinitionDescriptionParagraph(blockNode)
             ) {
 
                 // HEURISTIC: A true Definition List usually follows a short Term.
@@ -198,14 +214,67 @@ export function createDeflistDecorations(doc: Node): DecorationSet {
     return DecorationSet.create(doc, decorations);
 }
 
+function nearbyBlockMayAffectDefinitionList(doc: Node, pos: number): boolean {
+    try {
+        const $pos = doc.resolve(Math.max(0, Math.min(pos, doc.content.size)));
+        for (let depth = $pos.depth; depth > 0; depth -= 1) {
+            const parent = $pos.node(depth - 1);
+            const index = $pos.index(depth - 1);
+
+            for (let offset = -2; offset <= 2; offset += 1) {
+                const childIndex = index + offset;
+                if (childIndex < 0 || childIndex >= parent.childCount) {
+                    continue;
+                }
+                if (isDefinitionDescriptionParagraph(parent.child(childIndex))) {
+                    return true;
+                }
+            }
+        }
+    } catch {
+    }
+    return false;
+}
+
+export function transactionMayAffectDeflistDecorations(
+    previous: DecorationSetLike,
+    tr: unknown,
+    doc: Node,
+): boolean {
+    if (transactionInsertedTextMatches(tr, DEFLIST_TRIGGER_TEXT_PATTERN)) {
+        return true;
+    }
+    if (transactionTouchesDecorations(previous, tr)) {
+        return true;
+    }
+    if (transactionChangedParentTextMatches(doc, tr, DEFLIST_DESCRIPTION_PREFIX_PATTERN)) {
+        return true;
+    }
+
+    const ranges = getTransactionChangedRanges(tr);
+    if (ranges.length === 0) {
+        return true;
+    }
+    return ranges.some((range) => (
+        nearbyBlockMayAffectDefinitionList(doc, range.newFrom) ||
+        nearbyBlockMayAffectDefinitionList(doc, range.newTo)
+    ));
+}
+
 export const deflistVisualPlugin = $prose(() => {
     return new Plugin({
         key: deflistVisualPluginKey,
         state: {
             init: (_config, state) => createDeflistDecorations(state.doc),
-            apply: (tr, previous) => tr.docChanged
-                ? createDeflistDecorations(tr.doc)
-                : previous,
+            apply: (tr, previous) => {
+                if (!tr.docChanged) {
+                    return previous.map(tr.mapping, tr.doc);
+                }
+                if (!transactionMayAffectDeflistDecorations(previous, tr, tr.doc)) {
+                    return previous.map(tr.mapping, tr.doc);
+                }
+                return createDeflistDecorations(tr.doc);
+            },
         },
         props: {
             decorations(state) {

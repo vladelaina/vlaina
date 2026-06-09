@@ -308,8 +308,22 @@ function getEditorToolbarDebugState() {
           isVisible: toolbarState.isVisible,
           subMenu: toolbarState.subMenu,
           copied: toolbarState.copied,
+          selectionRange: toolbarState.selectionRange,
         }
       : null,
+    toolbarDoms: Array.from(document.querySelectorAll<HTMLElement>('.floating-toolbar')).map((element) => {
+      const elementRect = element.getBoundingClientRect();
+      return {
+        className: element.className,
+        text: element.textContent?.replace(/\s+/g, ' ').trim().slice(0, 200) ?? '',
+        rect: {
+          x: elementRect.x,
+          y: elementRect.y,
+          width: elementRect.width,
+          height: elementRect.height,
+        },
+      };
+    }),
     toolbarDom: {
       exists: Boolean(toolbar),
       className: toolbar?.className ?? '',
@@ -584,16 +598,23 @@ export function installSyncE2EBridge(): void {
         };
       }
 
+      window.focus();
+      view.dom.focus({ preventScroll: true });
       view.dispatch(
         view.state.tr
           .setSelection(TextSelection.create(view.state.doc, range.from, range.to))
           .setMeta(floatingToolbarKey, {
             type: TOOLBAR_ACTIONS.SHOW,
+            payload: {
+              selectionRange: {
+                from: range.from,
+                to: range.to,
+              },
+            },
           })
           .scrollIntoView()
       );
-      view.focus();
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       const summary = getEditorSelectionSummary();
       return {
         selected: summary?.selectedText === text,

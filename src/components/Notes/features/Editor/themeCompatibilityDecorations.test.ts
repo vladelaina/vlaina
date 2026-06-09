@@ -3,6 +3,7 @@ import * as ProseModel from '@milkdown/kit/prose/model';
 import {
   MAX_THEME_COMPATIBILITY_DECORATIONS,
   buildCompatibilityDecorations,
+  createThemeCompatibilityDecorationRebuildController,
   docChangeMayAffectThemeCompatibilityDecorations,
   listContainsTaskItems,
 } from './themeCompatibilityDecorations';
@@ -162,6 +163,46 @@ describe('buildCompatibilityDecorations', () => {
     ]);
 
     expect(buildCompatibilityDecorations(doc).find()).toHaveLength(MAX_THEME_COMPATIBILITY_DECORATIONS);
+  });
+});
+
+describe('createThemeCompatibilityDecorationRebuildController', () => {
+  it('dispatches one rebuild after typing settles', () => {
+    vi.useFakeTimers();
+    const dispatchRebuild = vi.fn();
+    const controller = createThemeCompatibilityDecorationRebuildController({
+      delayMs: 160,
+      dispatchRebuild,
+    });
+
+    controller.schedule();
+    vi.advanceTimersByTime(120);
+    controller.schedule();
+    vi.advanceTimersByTime(159);
+
+    expect(dispatchRebuild).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+
+    expect(dispatchRebuild).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('drops pending rebuilds after destroy', () => {
+    vi.useFakeTimers();
+    const dispatchRebuild = vi.fn();
+    const controller = createThemeCompatibilityDecorationRebuildController({
+      delayMs: 160,
+      dispatchRebuild,
+    });
+
+    controller.schedule();
+    controller.destroy();
+    vi.advanceTimersByTime(160);
+    controller.flush();
+
+    expect(dispatchRebuild).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });
 

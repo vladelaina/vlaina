@@ -259,6 +259,98 @@ describe('editorBlockPositionCache', () => {
     }
   });
 
+  it('debounces content mutation snapshots until typing settles', async () => {
+    vi.useFakeTimers();
+    let mutationCallback: MutationCallback | null = null;
+    let rafCallback: FrameRequestCallback | null = null;
+    class MockMutationObserver {
+      constructor(callback: MutationCallback) {
+        mutationCallback = callback;
+      }
+
+      observe = vi.fn();
+      disconnect = vi.fn();
+      takeRecords = vi.fn(() => []);
+    }
+    vi.stubGlobal('MutationObserver', MockMutationObserver);
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
+        rafCallback = callback;
+        return 1;
+      });
+    const cancelAnimationFrameSpy = vi
+      .spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => {});
+
+    const dom = document.createElement('div');
+    const paragraph = document.createElement('p');
+    const textNode = document.createTextNode('Ready');
+    const paragraphRect = vi.fn(() => rect(30, 54));
+    paragraph.getBoundingClientRect = paragraphRect;
+    paragraph.append(textNode);
+    dom.append(paragraph);
+    document.body.append(dom);
+
+    const paragraphNode = {
+      type: { name: 'paragraph' },
+      nodeSize: 7,
+      forEach() {},
+    };
+    const doc = {
+      childCount: 1,
+      content: { size: 7 },
+      forEach(callback: (node: typeof paragraphNode, offset: number) => void) {
+        callback(paragraphNode, 0);
+      },
+      resolve() {
+        return {
+          parent: { type: { name: 'doc' } },
+          nodeAfter: paragraphNode,
+          index: () => 0,
+          posAtIndex: () => 0,
+        };
+      },
+    };
+    const view = {
+      dom,
+      state: { doc },
+      domAtPos() {
+        throw new Error('not needed');
+      },
+      nodeDOM() {
+        return paragraph;
+      },
+    };
+
+    const controller = createCurrentEditorBlockPositionController(view as any);
+    try {
+      rafCallback?.(0);
+      rafCallback = null;
+      expect(getCurrentEditorBlockPositionSnapshot()?.blocks).toHaveLength(1);
+      paragraphRect.mockClear();
+
+      mutationCallback?.([{ type: 'characterData' } as MutationRecord], {} as MutationObserver);
+      vi.advanceTimersByTime(239);
+      expect(paragraphRect).not.toHaveBeenCalled();
+
+      mutationCallback?.([{ type: 'characterData' } as MutationRecord], {} as MutationObserver);
+      vi.advanceTimersByTime(239);
+      expect(paragraphRect).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1);
+      rafCallback?.(0);
+      expect(paragraphRect).toHaveBeenCalledTimes(1);
+    } finally {
+      controller.destroy();
+      dom.remove();
+      requestAnimationFrameSpy.mockRestore();
+      cancelAnimationFrameSpy.mockRestore();
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
+
   it('reads live editor heading snapshot text without aggregating heading textContent', () => {
     const dom = document.createElement('div');
     const heading = document.createElement('h2');
