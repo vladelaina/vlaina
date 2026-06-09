@@ -17,6 +17,8 @@ const previewCleanupCallbacks = new WeakMap<HTMLElement, () => void>();
 export const MAX_APPLIED_PREVIEW_DOM_SCAN_ELEMENTS = 20_000;
 export const MAX_APPLIED_PREVIEW_MATCHED_ELEMENTS = 5_000;
 export const MAX_APPLIED_PREVIEW_CODE_BLOCK_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_APPLIED_PREVIEW_TRAILING_BREAK_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_APPLIED_PREVIEW_TRAILING_BREAK_DEPTH = 512;
 
 type AppliedPreviewElementCollection = {
   elements: HTMLElement[];
@@ -570,14 +572,35 @@ function addTrailingBreaksForChildren(
   parentNode: ProseMirrorNode,
   ownerDocument: Document
 ): void {
-  let childIndex = 0;
+  let scanned = 0;
+  const stack: Array<{
+    container: HTMLElement;
+    depth: number;
+    index: number;
+    node: ProseMirrorNode;
+  }> = [{ container, depth: 0, index: 0, node: parentNode }];
 
-  parentNode.forEach((node) => {
-    const child = container.children.item(childIndex);
-    childIndex += 1;
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+    if (frame.index >= frame.node.childCount) {
+      stack.pop();
+      continue;
+    }
+    if (
+      scanned >= MAX_APPLIED_PREVIEW_TRAILING_BREAK_NODES ||
+      frame.depth >= MAX_APPLIED_PREVIEW_TRAILING_BREAK_DEPTH
+    ) {
+      return;
+    }
+
+    const childIndex = frame.index;
+    frame.index += 1;
+    const node = frame.node.child(childIndex);
+    const child = frame.container.children.item(childIndex);
+    scanned += 1;
 
     if (!(child instanceof HTMLElement)) {
-      return;
+      continue;
     }
 
     if (node.isTextblock && node.content.size === 0) {
@@ -586,11 +609,16 @@ function addTrailingBreaksForChildren(
         br.className = 'ProseMirror-trailingBreak';
         child.appendChild(br);
       }
-      return;
+      continue;
     }
 
     if (node.childCount > 0) {
-      addTrailingBreaksForChildren(child, node, ownerDocument);
+      stack.push({
+        container: child,
+        depth: frame.depth + 1,
+        index: 0,
+        node,
+      });
     }
-  });
+  }
 }
