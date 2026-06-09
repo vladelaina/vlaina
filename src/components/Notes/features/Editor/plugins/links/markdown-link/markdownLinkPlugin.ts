@@ -22,6 +22,7 @@ export const MAX_MARKDOWN_LINK_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMI
 export const MAX_MARKDOWN_LINK_AUTO_COLLAPSE_MATCHES = 5000;
 export const MAX_MARKDOWN_LINK_TEXT_SCAN_CHARS = 1024 * 1024;
 export const MAX_MARKDOWN_LINK_INPUT_LOOKBACK_CHARS = 1024 * 1024;
+export const MAX_MARKDOWN_LINK_TRANSACTION_STEP_TEXT_CHARS = 200_000;
 const MAX_MARKDOWN_LINK_PASTE_CHARS = 1024 * 1024;
 export const MAX_MARKDOWN_LINK_PASTE_NODES = 5000;
 const MARKDOWN_LINK_TRIGGER_TEXT_PATTERN = /[\[\]\(\)]/;
@@ -37,18 +38,21 @@ export interface RawMarkdownLinkMatch {
     to: number;
 }
 
-function getInsertedStepText(step: unknown): string {
+function transactionStepMayCreateMarkdownLink(step: unknown): boolean {
     const slice = (step as { slice?: { content?: { textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string; size?: number } } }).slice;
     const content = slice?.content;
     if (!content || typeof content.textBetween !== 'function' || typeof content.size !== 'number') {
-        return '';
+        return false;
     }
-    return content.textBetween(0, content.size, '\n', '\ufffc');
+    if (content.size > MAX_MARKDOWN_LINK_TRANSACTION_STEP_TEXT_CHARS) {
+        return true;
+    }
+    return MARKDOWN_LINK_TRIGGER_TEXT_PATTERN.test(content.textBetween(0, content.size, '\n', '\ufffc'));
 }
 
-function transactionMayCreateMarkdownLink(tr: unknown): boolean {
+export function transactionMayCreateMarkdownLink(tr: unknown): boolean {
     const steps = (tr as { steps?: readonly unknown[] }).steps ?? [];
-    return steps.some((step) => MARKDOWN_LINK_TRIGGER_TEXT_PATTERN.test(getInsertedStepText(step)));
+    return steps.some(transactionStepMayCreateMarkdownLink);
 }
 
 function textContainsRawMarkdownLink(text: string): boolean {

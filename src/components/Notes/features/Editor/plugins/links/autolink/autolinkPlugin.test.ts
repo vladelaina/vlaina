@@ -1,14 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import type { Decoration } from '@milkdown/kit/prose/view';
 import {
     MAX_AUTOLINK_DECORATIONS,
     MAX_AUTOLINK_TEXT_SCAN_CHARS,
+    MAX_AUTOLINK_TRANSACTION_STEP_TEXT_CHARS,
     autolinkPlugin,
     autolinkPluginKey,
     collectAutolinkDecorations,
     findUrls,
+    transactionMayCreateAutolink,
     transactionMayAffectExistingAutolinks,
 } from './autolinkPlugin';
 
@@ -255,5 +257,23 @@ describe('autolinkPlugin findUrls', () => {
         };
 
         expect(transactionMayAffectExistingAutolinks(decorations, transaction)).toBe(true);
+    });
+
+    it('bounds inserted transaction text checks for autolinks', () => {
+        const smallContent = {
+            size: 12,
+            textBetween: vi.fn(() => 'plain text'),
+        };
+        const largeContent = {
+            size: MAX_AUTOLINK_TRANSACTION_STEP_TEXT_CHARS + 1,
+            textBetween: vi.fn(() => {
+                throw new Error('oversized autolink transaction text should not be read');
+            }),
+        };
+
+        expect(transactionMayCreateAutolink({ steps: [{ slice: { content: smallContent } }] })).toBe(false);
+        expect(smallContent.textBetween).toHaveBeenCalledWith(0, 12, '\n', '\ufffc');
+        expect(transactionMayCreateAutolink({ steps: [{ slice: { content: largeContent } }] })).toBe(true);
+        expect(largeContent.textBetween).not.toHaveBeenCalled();
     });
 });

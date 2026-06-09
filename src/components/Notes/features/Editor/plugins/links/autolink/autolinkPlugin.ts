@@ -12,6 +12,7 @@ import {
 export const autolinkPluginKey = new PluginKey('autolink');
 export const MAX_AUTOLINK_DECORATIONS = 1000;
 export const MAX_AUTOLINK_TEXT_SCAN_CHARS = 1024 * 1024;
+export const MAX_AUTOLINK_TRANSACTION_STEP_TEXT_CHARS = 200_000;
 const AUTOLINK_TRIGGER_TEXT_PATTERN = /[:/.@]/;
 const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
 const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
@@ -175,22 +176,25 @@ export function createAutolinkDecorations(doc: any): DecorationSet {
     return DecorationSet.create(doc, collectAutolinkDecorations(doc));
 }
 
-function getInsertedStepText(step: unknown): string {
+function transactionStepMayCreateAutolink(step: unknown): boolean {
     const slice = (step as { slice?: { content?: { textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string; size?: number } } }).slice;
     const content = slice?.content;
     if (!content || typeof content.textBetween !== 'function' || typeof content.size !== 'number') {
-        return '';
+        return false;
     }
-    return content.textBetween(0, content.size, '\n', '\ufffc');
+    if (content.size > MAX_AUTOLINK_TRANSACTION_STEP_TEXT_CHARS) {
+        return true;
+    }
+    return AUTOLINK_TRIGGER_TEXT_PATTERN.test(content.textBetween(0, content.size, '\n', '\ufffc'));
 }
 
-function transactionMayCreateAutolink(tr: unknown): boolean {
+export function transactionMayCreateAutolink(tr: unknown): boolean {
     const steps = (tr as { steps?: readonly unknown[] }).steps ?? [];
     if (steps.length === 0) {
         return false;
     }
 
-    return steps.some((step) => AUTOLINK_TRIGGER_TEXT_PATTERN.test(getInsertedStepText(step)));
+    return steps.some(transactionStepMayCreateAutolink);
 }
 
 type AutolinkDecorationSetLike = {

@@ -4,6 +4,7 @@ import * as ProseState from '@milkdown/kit/prose/state';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import {
   MAX_APPLIED_PREVIEW_CODE_BLOCK_SCAN_NODES,
+  addProseMirrorTrailingBreaks,
   collectAppliedPreviewElements,
   getPreviewCodeBlockNodes,
   renderAppliedPreviewDocument,
@@ -196,5 +197,27 @@ describe('appliedPreviewState', () => {
     expect(previewDom!.querySelector('.editor-collapsed-content')).toBeInstanceOf(HTMLElement);
     expect(previewDom!.querySelector('.image-block-container button')?.hasAttribute('tabindex')).toBe(false);
     expect(previewDom!.querySelector('.frontmatter-block-container [contenteditable]')).toBeNull();
+  });
+
+  it('bounds trailing break synchronization for oversized preview documents', () => {
+    const previewDom = document.createElement('div');
+    const maxNodes = 3;
+    for (let index = 0; index < maxNodes + 2; index += 1) {
+      previewDom.appendChild(document.createElement('p'));
+    }
+    const emptyParagraph = {
+      childCount: 0,
+      content: { size: 0 },
+      isTextblock: true,
+      nodeSize: 2,
+    };
+    const doc = {
+      child: vi.fn(() => emptyParagraph),
+      childCount: maxNodes + 2,
+    };
+
+    addProseMirrorTrailingBreaks(previewDom, doc as any, document, { maxNodes });
+
+    expect(previewDom.querySelectorAll('.ProseMirror-trailingBreak')).toHaveLength(maxNodes);
   });
 });
