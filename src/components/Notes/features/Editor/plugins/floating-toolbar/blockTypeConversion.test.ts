@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { convertBlockType, inferCodeBlockLanguage } from './commands';
+import {
+  MAX_CODE_BLOCK_CONVERSION_TEXT_CHARS,
+  convertBlockType,
+  inferCodeBlockLanguage,
+} from './commands';
 import { MAX_LANGUAGE_DETECTION_CODE_CHARS } from '../../utils/languageDetection';
 
 const mockSetBlockType = vi.fn();
@@ -322,5 +326,52 @@ describe('block type conversion matrix', () => {
       expect.objectContaining({ language: null }),
       expect.objectContaining({ text: codeText })
     );
+  });
+
+  it('does not convert oversized selections into a single code block', () => {
+    const codeBlockType = {
+      name: 'code_block',
+      create: vi.fn(),
+    };
+    const tr = {
+      replaceRangeWith: vi.fn(function (this: any) {
+        return this;
+      }),
+      scrollIntoView: vi.fn(function (this: any) {
+        return this;
+      }),
+    };
+    const state: any = {
+      selection: {
+        empty: false,
+        from: 1,
+        to: MAX_CODE_BLOCK_CONVERSION_TEXT_CHARS + 2,
+        $from: {
+          depth: 1,
+          parent: { type: { name: 'paragraph' }, textContent: '' },
+          node: vi.fn(() => ({ type: { name: 'doc' } })),
+        },
+      },
+      schema: {
+        text: vi.fn(),
+        nodes: {
+          code_block: codeBlockType,
+        },
+      },
+      doc: {
+        textBetween: vi.fn(() => {
+          throw new Error('oversized code block conversion should not read selection text');
+        }),
+      },
+      tr,
+    };
+    const view: any = { state, dispatch: vi.fn(), focus: vi.fn() };
+
+    convertBlockType(view, 'codeBlock');
+
+    expect(state.doc.textBetween).not.toHaveBeenCalled();
+    expect(codeBlockType.create).not.toHaveBeenCalled();
+    expect(tr.replaceRangeWith).not.toHaveBeenCalled();
+    expect(view.dispatch).not.toHaveBeenCalled();
   });
 });

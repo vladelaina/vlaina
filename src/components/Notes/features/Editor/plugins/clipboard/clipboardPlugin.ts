@@ -42,6 +42,7 @@ import { replaceVisibleBlockSelectionWithCursor } from '../cursor/blockSelection
 export const clipboardPluginKey = new PluginKey('editor-clipboard');
 export const MAX_MARKDOWN_PASTE_CHARS = 1024 * 1024;
 export const MAX_HTML_PASTE_CHARS = 2 * 1024 * 1024;
+export const MAX_MARKDOWN_PASTE_TOP_LEVEL_NODES = 5_000;
 export const MAX_INLINE_FOOTNOTE_PASTE_TEXT_CHARS = 256 * 1024;
 export const MAX_INLINE_FOOTNOTE_PASTE_REFERENCES = 1000;
 export const MAX_INLINE_FOOTNOTE_PASTE_LABEL_CHARS = 256;
@@ -515,6 +516,19 @@ function createPlainParagraphNodesFromText(state: {
     ));
 }
 
+export function collectMarkdownPasteTopLevelNodes(parsedDoc: ProseNode): ProseNode[] | null {
+    if (parsedDoc.content.childCount > MAX_MARKDOWN_PASTE_TOP_LEVEL_NODES) {
+        return null;
+    }
+
+    const parsedNodes: ProseNode[] = [];
+    parsedDoc.content.forEach((node) => {
+        parsedNodes.push(node);
+    });
+
+    return parsedNodes;
+}
+
 function findAncestorDepth(state: {
     selection: {
         $from: {
@@ -680,10 +694,8 @@ export const clipboardPlugin = $prose((ctx) => {
             return null;
         }
 
-        const parsedNodes: ProseNode[] = [];
-        parsedDoc.content.forEach((node) => {
-            parsedNodes.push(node);
-        });
+        const parsedNodes = collectMarkdownPasteTopLevelNodes(parsedDoc);
+        if (!parsedNodes) return null;
 
         return isMarkdownStructuralResult(parsedNodes) ? parsedNodes : null;
     };

@@ -18,6 +18,7 @@ import {
 export const MAX_BLOCK_COMMAND_DOM_SELECTION_CHILDREN = 5_000;
 export const MAX_BLOCK_COMMAND_SELECTION_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 export const MAX_BLOCK_COMMAND_NODE_UPDATES = 5_000;
+export const MAX_CODE_BLOCK_CONVERSION_TEXT_CHARS = 1024 * 1024;
 
 type TraversableNode = {
   attrs?: Record<string, unknown>;
@@ -118,11 +119,23 @@ function getHeadingLevel(blockType: BlockType): number | null {
   return Number.isInteger(level) && level >= 1 && level <= 6 ? level : null;
 }
 
-export function getSelectedCodeBlockSourceText(view: EditorView): string {
+export function getSelectedCodeBlockSourceText(view: EditorView): string | null {
   const { state } = view;
   const { from, to, empty, $from } = state.selection;
   if (!empty && to > from && typeof state.doc?.textBetween === 'function') {
+    if (to - from > MAX_CODE_BLOCK_CONVERSION_TEXT_CHARS) {
+      return null;
+    }
     return state.doc.textBetween(from, to, '\n', '\n').trim();
+  }
+
+  const parentSize = typeof $from.parent?.content?.size === 'number'
+    ? $from.parent.content.size
+    : typeof $from.parent?.textContent === 'string'
+      ? $from.parent.textContent.length
+      : 0;
+  if (parentSize > MAX_CODE_BLOCK_CONVERSION_TEXT_CHARS) {
+    return null;
   }
 
   const parentText = typeof $from.parent?.textBetween === 'function'
@@ -165,6 +178,9 @@ function convertSelectionToSingleCodeBlock(view: EditorView): boolean {
   }
 
   const codeText = getSelectedCodeBlockSourceText(view);
+  if (codeText === null) {
+    return false;
+  }
   const attrs = createCodeBlockAttrs({
     language: inferCodeBlockLanguage(view),
   });

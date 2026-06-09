@@ -43,6 +43,8 @@ type SelectedTextContext = {
 const NO_COMMON_VALUE = Symbol('no-common-value');
 const RESTRICTED_SELECTION_BLOCK_TYPES = new Set(['code_block', 'frontmatter']);
 export const MAX_FLOATING_TOOLBAR_SELECTION_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+export const MAX_FLOATING_TOOLBAR_SELECTED_TEXT_CHARS = 200_000;
+export const MAX_FLOATING_TOOLBAR_FORMATTABLE_RANGES = 5_000;
 
 type TraversableNode = {
   child?: (index: number) => TraversableNode;
@@ -386,7 +388,10 @@ export function getLinkUrl(view: EditorView): string | null {
     return null;
   }
 
-  const selectedText = getSelectedFormattableText(view).trim();
+  const selectedText = getSelectedFormattableText(view)?.trim();
+  if (selectedText === undefined) {
+    return null;
+  }
   if (isPlainUrlLinkSelection(selectedText, linkUrl)) {
     return null;
   }
@@ -430,16 +435,25 @@ function getCommonMarkAttributeForFormattableText(
   return commonValue;
 }
 
-function getSelectedFormattableText(view: EditorView): string {
+function getSelectedFormattableText(view: EditorView): string | null {
   let text = '';
+  let complete = true;
 
   forEachSelectedTextNode(view, ({ node, pos, selectedFrom, selectedTo }) => {
+    if (!complete) return;
     const fromOffset = Math.max(0, selectedFrom - pos);
     const toOffset = Math.max(fromOffset, selectedTo - pos);
-    text += (node.text ?? '').slice(fromOffset, toOffset);
+    const selectedText = (node.text ?? '').slice(fromOffset, toOffset);
+    const remaining = MAX_FLOATING_TOOLBAR_SELECTED_TEXT_CHARS - text.length;
+    if (selectedText.length > remaining) {
+      text += selectedText.slice(0, Math.max(0, remaining));
+      complete = false;
+      return;
+    }
+    text += selectedText;
   }, { excludeRestrictedParents: true });
 
-  return text;
+  return complete ? text : null;
 }
 
 function isPlainUrlLinkSelection(selectedText: string, href: string): boolean {
@@ -469,6 +483,7 @@ export function getFormattableTextRanges(view: EditorView): TextRange[] {
   const ranges: TextRange[] = [];
 
   forEachSelectedTextNode(view, ({ selectedFrom, selectedTo }) => {
+    if (ranges.length >= MAX_FLOATING_TOOLBAR_FORMATTABLE_RANGES) return;
     const previousRange = ranges.length > 0 ? ranges[ranges.length - 1] : null;
     if (previousRange && previousRange.to === selectedFrom) {
       previousRange.to = selectedTo;

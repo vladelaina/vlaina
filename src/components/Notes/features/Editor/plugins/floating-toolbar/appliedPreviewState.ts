@@ -558,19 +558,29 @@ function makePreviewCloneNonInteractive(clone: HTMLElement): boolean {
   return true;
 }
 
-function addProseMirrorTrailingBreaks(
+export function addProseMirrorTrailingBreaks(
   previewDom: HTMLElement,
   doc: ProseMirrorNode,
-  ownerDocument: Document
+  ownerDocument: Document,
+  options: {
+    maxDepth?: number;
+    maxNodes?: number;
+  } = {}
 ): void {
-  addTrailingBreaksForChildren(previewDom, doc, ownerDocument);
+  addTrailingBreaksForChildren(previewDom, doc, ownerDocument, options);
 }
 
 function addTrailingBreaksForChildren(
   container: HTMLElement,
   parentNode: ProseMirrorNode,
-  ownerDocument: Document
+  ownerDocument: Document,
+  options: {
+    maxDepth?: number;
+    maxNodes?: number;
+  } = {}
 ): void {
+  const maxDepth = options.maxDepth ?? MAX_APPLIED_PREVIEW_TRAILING_BREAK_DEPTH;
+  const maxNodes = options.maxNodes ?? MAX_APPLIED_PREVIEW_TRAILING_BREAK_NODES;
   let scanned = 0;
   const stack: Array<{
     container: HTMLElement;
@@ -586,8 +596,8 @@ function addTrailingBreaksForChildren(
       continue;
     }
     if (
-      scanned >= MAX_APPLIED_PREVIEW_TRAILING_BREAK_NODES ||
-      frame.depth >= MAX_APPLIED_PREVIEW_TRAILING_BREAK_DEPTH
+      scanned >= maxNodes ||
+      frame.depth >= maxDepth
     ) {
       return;
     }
@@ -603,7 +613,7 @@ function addTrailingBreaksForChildren(
     }
 
     if (node.isTextblock && node.content.size === 0) {
-      if (!child.querySelector(':scope > .ProseMirror-trailingBreak')) {
+      if (!hasDirectProseMirrorTrailingBreak(child)) {
         const br = ownerDocument.createElement('br');
         br.className = 'ProseMirror-trailingBreak';
         child.appendChild(br);
@@ -620,4 +630,11 @@ function addTrailingBreaksForChildren(
       });
     }
   }
+}
+
+function hasDirectProseMirrorTrailingBreak(element: HTMLElement): boolean {
+  for (let child = element.firstElementChild; child; child = child.nextElementSibling) {
+    if (child.classList.contains('ProseMirror-trailingBreak')) return true;
+  }
+  return false;
 }
