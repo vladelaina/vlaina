@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/ui/icons";
+import { chatComposerPillSurfaceClass } from "@/components/Chat/features/Input/composerStyles";
 import { focusComposerInput, insertTextIntoComposer } from "@/lib/ui/composerFocusRegistry";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import {
@@ -315,10 +316,11 @@ export function SelectionInsertButton() {
           aria-label={t('chat.insertSelection')}
           data-no-focus-input="true"
           className={cn(
-            "pointer-events-auto absolute h-8 w-8 rounded-full border border-[var(--vlaina-color-subtle-border-strong)] bg-[var(--vlaina-color-floating-surface)] shadow-[var(--vlaina-shadow-md)]",
-            "flex items-center justify-center",
+            "pointer-events-auto absolute flex h-7 w-7 items-center justify-center rounded-md transition-colors",
+            iconButtonStyles,
+            cn(chatComposerPillSurfaceClass, "rounded-full"),
+            "text-[var(--vlaina-sidebar-chat-text)] hover:bg-transparent hover:text-[var(--vlaina-accent)] dark:hover:bg-transparent",
             transformClass,
-            iconButtonStyles
           )}
           style={{ left: `${state.x}px`, top: `${state.y}px` }}
           onMouseDown={(event) => {
