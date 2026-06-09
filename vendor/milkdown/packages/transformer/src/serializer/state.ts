@@ -270,8 +270,13 @@ export class SerializerState extends Stack<
     const { children } = node
     if (!children) return node
 
-    node.children = children.reduce((nextChildren, child, index) => {
-      if (index === 0) return [child]
+    const nextChildren: MarkdownNode[] = []
+    for (let index = 0; index < children.length; index += 1) {
+      let child = children[index]
+      if (index === 0) {
+        nextChildren.push(child)
+        continue
+      }
 
       const last = nextChildren.at(-1)
       if (last && last.isMark && child.isMark) {
@@ -288,13 +293,13 @@ export class SerializerState extends Stack<
             ...prevRest,
             children: [...prevChildren, ...currChildren],
           }
-          return nextChildren
-            .slice(0, -1)
-            .concat(this.#maybeMergeChildren(next))
+          nextChildren[nextChildren.length - 1] = this.#maybeMergeChildren(next)
+          continue
         }
       }
-      return nextChildren.concat(child)
-    }, [] as MarkdownNode[])
+      nextChildren.push(child)
+    }
+    node.children = nextChildren
 
     return node
   }

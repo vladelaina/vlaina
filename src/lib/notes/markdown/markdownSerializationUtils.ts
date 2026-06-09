@@ -119,7 +119,7 @@ const MAILTO_EMAIL_MARKDOWN_LINK_PATTERN = new RegExp(
   'g'
 );
 const FAST_NORMALIZATION_STRUCTURAL_LINE_PATTERN =
-  /^\s*(?:[-+*]\s+|\d+[.)]\s+|>\s*|`{3,}|~{3,}|\|.*\||[-*_][ \t]*[-*_][ \t]*[-*_])/;
+  /^\s*(?:[-+*]\s+|\d+[.)]\s+|>\s*|`{3,}|~{3,}|\|.*\||[-*_][ \t]*[-*_][ \t]*[-*_]|=+[ \t]*$)/;
 const ALTERNATIVE_MATH_BLOCK_OPEN_PATTERN = /^(\s*(?:>\s*)*)((?:\\+\[\\?)|\[\\?|\[)\s*$/;
 const ALTERNATIVE_MATH_BLOCK_STANDARD_CLOSE_PATTERN = /^(\s*(?:>\s*)*)\\\]\s*$/;
 const ALTERNATIVE_MATH_BLOCK_BRACKET_CLOSE_PATTERN = /^(\s*(?:>\s*)*)]\s*$/;
@@ -684,26 +684,30 @@ export function restoreMathBlockFenceStylesFromReference(markdown: string, refer
     const output: string[] = [];
 
     for (let index = 0; index < lines.length; index += 1) {
-      const match = dollarFenceMatches[index];
+      const match = dollarFenceMatches.get(index);
       if (!match) {
         output.push(lines[index]);
         continue;
       }
 
-      const content = lines.slice(index + 1, match.closeIndex);
-
       const referenceMatch = takeMatchingMathBlockFenceReference(
         references,
         referenceIndex,
-        normalizeMathBlockLatex(content.join('\n')),
+        normalizeMathBlockLatex(joinLineRange(lines, index + 1, match.closeIndex)),
         nextReferenceIndex
       );
       nextReferenceIndex = referenceMatch.nextIndex;
 
       if (referenceMatch.style === 'bracket') {
-        output.push(`${match.prefix}\\[`, ...content, `${match.prefix}\\]`);
+        output.push(`${match.prefix}\\[`);
+        for (let cursor = index + 1; cursor < match.closeIndex; cursor += 1) {
+          output.push(lines[cursor] ?? '');
+        }
+        output.push(`${match.prefix}\\]`);
       } else {
-        output.push(lines[index], ...content, lines[match.closeIndex]);
+        for (let cursor = index; cursor <= match.closeIndex; cursor += 1) {
+          output.push(lines[cursor] ?? '');
+        }
       }
       index = match.closeIndex;
     }
@@ -776,8 +780,8 @@ function findNextMathBlockFenceReferenceIndex(
   return result;
 }
 
-function collectDollarMathFenceMatches(lines: readonly string[]): Array<DollarMathFenceMatch | null> {
-  const matches: Array<DollarMathFenceMatch | null> = Array.from({ length: lines.length }, () => null);
+function collectDollarMathFenceMatches(lines: readonly string[]): Map<number, DollarMathFenceMatch> {
+  const matches = new Map<number, DollarMathFenceMatch>();
   const openByPrefix = new Map<string, number>();
 
   for (let index = 0; index < lines.length; index += 1) {
@@ -791,14 +795,23 @@ function collectDollarMathFenceMatches(lines: readonly string[]): Array<DollarMa
       continue;
     }
 
-    matches[openIndex] = {
+    matches.set(openIndex, {
       prefix,
       closeIndex: index,
-    };
+    });
     openByPrefix.delete(prefix);
   }
 
   return matches;
+}
+
+function joinLineRange(lines: readonly string[], start: number, end: number): string {
+  let output = '';
+  for (let index = start; index < end; index += 1) {
+    if (index > start) output += '\n';
+    output += lines[index] ?? '';
+  }
+  return output;
 }
 
 function collectMathBlockFenceReferences(markdown: string): MathBlockFenceReference[] {
@@ -818,10 +831,10 @@ function collectMathBlockFenceReferencesFromSegment(
   const dollarFenceMatches = collectDollarMathFenceMatches(lines);
 
   for (let index = 0; index < lines.length; index += 1) {
-    const dollarMatch = dollarFenceMatches[index];
+    const dollarMatch = dollarFenceMatches.get(index);
     if (dollarMatch) {
       references.push({
-        latex: lines.slice(index + 1, dollarMatch.closeIndex).join('\n'),
+        latex: joinLineRange(lines, index + 1, dollarMatch.closeIndex),
         style: 'dollar',
       });
       index = dollarMatch.closeIndex;

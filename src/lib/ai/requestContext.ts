@@ -89,8 +89,14 @@ function scrubOverflowHistoryMarkdownImages(content: string): string {
 
     const targetEnd = content.indexOf(')', labelEnd + 2);
     if (targetEnd === -1 || targetEnd - labelEnd > 4096) {
-      output += content.slice(cursor, start + 2);
-      cursor = start + 2;
+      if (targetEnd !== -1 && isHistoryMarkdownImageTargetAt(content, labelEnd + 2)) {
+        output += content.slice(cursor, start);
+        output += IMAGE_PLACEHOLDER;
+        cursor = targetEnd + 1;
+      } else {
+        output += content.slice(cursor, start + 2);
+        cursor = start + 2;
+      }
       continue;
     }
 
@@ -100,6 +106,25 @@ function scrubOverflowHistoryMarkdownImages(content: string): string {
   }
 
   return output;
+}
+
+function isHistoryMarkdownImageTargetAt(content: string, targetStart: number): boolean {
+  let cursor = targetStart;
+  while (cursor < content.length && /\s/.test(content[cursor])) {
+    cursor += 1;
+  }
+  if (content[cursor] === '<') {
+    cursor += 1;
+    while (cursor < content.length && /\s/.test(content[cursor])) {
+      cursor += 1;
+    }
+  }
+  return (
+    content.slice(cursor, cursor + 'data:image/'.length).toLowerCase() === 'data:image/' ||
+    content.slice(cursor, cursor + 'attachment://'.length).toLowerCase() === 'attachment://' ||
+    content.slice(cursor, cursor + 'app-file://'.length).toLowerCase() === 'app-file://' ||
+    content.slice(cursor, cursor + 'file://'.length).toLowerCase() === 'file://'
+  );
 }
 
 function scrubOverflowHistoryImageSyntax(content: string): string {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   joinSerializedBlocks,
   normalizeAlternativeMathBlockFences,
@@ -347,6 +347,37 @@ describe('restoreMathBlockFenceStylesFromReference', () => {
 
     expect(restoreMathBlockFenceStylesFromReference(serialized, reference)).toContain('\\[\nx^2\n\\]');
   });
+
+  it('restores sparse math fences without allocating match slots for every line', () => {
+    const originalArrayFrom = Array.from;
+    const serialized = [
+      'Before',
+      ...Array.from({ length: 500 }, (_value, index) => `line ${index}`),
+      '$$',
+      'x^2',
+      '$$',
+      'After',
+    ].join('\n');
+    const reference = ['\\[', 'x^2', '\\]'].join('\n');
+
+    const arrayFromSpy = vi.spyOn(Array, 'from').mockImplementation(((items: unknown, ...args: unknown[]) => {
+      if (
+        typeof items === 'object'
+        && items !== null
+        && 'length' in items
+        && Number((items as { length: unknown }).length) > 100
+      ) {
+        throw new Error('unexpected dense line allocation');
+      }
+      return originalArrayFrom(items as Iterable<unknown> | ArrayLike<unknown>, ...(args as []));
+    }) as typeof Array.from);
+
+    try {
+      expect(restoreMathBlockFenceStylesFromReference(serialized, reference)).toContain('\\[\nx^2\n\\]');
+    } finally {
+      arrayFromSpy.mockRestore();
+    }
+  });
 });
 
 describe('normalizeSerializedMarkdownBlock', () => {
@@ -634,6 +665,18 @@ describe('normalizeSerializedMarkdownDocument', () => {
 
     expect(markdown.length).toBeGreaterThan(1_000_000);
     expect(normalizeSerializedMarkdownDocument(markdown)).toContain('\\\ncontinued 0.');
+  });
+
+  it('does not fast-path large documents with setext heading markers', () => {
+    const paragraph = 'This is a long plain paragraph for large markdown normalization. '.repeat(200);
+    const markdown = [
+      'Large Setext Document\n===',
+      '',
+      ...Array.from({ length: 90 }, (_value, index) => `Paragraph ${index}. ${paragraph}`),
+    ].join('\n\n');
+
+    expect(markdown.length).toBeGreaterThan(1_000_000);
+    expect(normalizeSerializedMarkdownDocument(markdown)).toContain('Large Setext Document\n===');
   });
 
   it('canonicalizes empty atx headings so they reopen as headings', () => {

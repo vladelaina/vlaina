@@ -5,7 +5,10 @@ import {
 } from '@/lib/storage/attachmentStorage';
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
-import { dedupeNoteMentions } from '@/lib/ai/noteMentions';
+import {
+  dedupeNoteMentions,
+  MAX_NOTE_MENTION_SCAN_ITEMS,
+} from '@/lib/ai/noteMentions';
 import { isRenderedImageSource } from '@/components/Chat/common/messageClipboard';
 import {
   parseMarkdownAndHtmlImageTokens,
@@ -134,30 +137,25 @@ export function normalizeNoteMentions(noteMentions: NoteMentionReference[]): Not
 }
 
 function normalizeNoteMentionsForLoading(noteMentions: NoteMentionReference[]): NoteMentionReference[] {
-  const seen = new Set<string>();
-  const normalizedMentions: NoteMentionReference[] = [];
-
-  for (const mention of noteMentions) {
-    const path = mention.path.trim();
-    if (!path || seen.has(path)) {
+  const explicitKindsByPath = new Map<string, 'note' | 'folder'>();
+  const scanLimit = Math.min(noteMentions.length, MAX_NOTE_MENTION_SCAN_ITEMS);
+  for (let index = 0; index < scanLimit; index += 1) {
+    const mention = noteMentions[index];
+    if (!mention || (mention.kind !== 'note' && mention.kind !== 'folder')) {
       continue;
     }
-
-    seen.add(path);
-    const normalizedMention: NoteMentionReference = {
-      path,
-      title: mention.title.trim() || path,
-    };
-    if (mention.kind === 'folder' || mention.kind === 'note') {
-      normalizedMention.kind = mention.kind;
-    }
-    normalizedMentions.push(normalizedMention);
-    if (normalizedMentions.length >= MAX_NOTE_MENTION_COUNT) {
-      break;
-    }
+    explicitKindsByPath.set(mention.path.trim(), mention.kind);
   }
 
-  return normalizedMentions;
+  return dedupeNoteMentions(noteMentions)
+    .slice(0, MAX_NOTE_MENTION_COUNT)
+    .map((mention) => {
+      const explicitKind = explicitKindsByPath.get(mention.path);
+      return explicitKind ? { ...mention, kind: explicitKind } : {
+        path: mention.path,
+        title: mention.title,
+      };
+    });
 }
 
 export function isImageAttachment(attachment: Attachment): boolean {
@@ -333,18 +331,14 @@ function scrubOverflowStoredInlineDataImageSyntax(content: string): string {
     }
 
     const targetEnd = content.indexOf(')', labelEnd + 2);
-    if (targetEnd === -1) {
-      output += content.slice(cursor, start + 2);
-      cursor = start + 2;
-      continue;
-    }
-
-    const targetPreview = content
-      .slice(labelEnd + 2, Math.min(targetEnd, labelEnd + 2 + MAX_NOTE_MENTION_READ_BYTES))
-      .toLowerCase();
-    if (targetEnd - labelEnd > MAX_NOTE_MENTION_READ_BYTES && targetPreview.includes('data:image/')) {
-      output += content.slice(cursor, start);
-      cursor = targetEnd + 1;
+    if (targetEnd === -1 || targetEnd - labelEnd > MAX_NOTE_MENTION_READ_BYTES) {
+      if (targetEnd !== -1 && isInlineDataImageMarkdownTargetAt(content, labelEnd + 2)) {
+        output += content.slice(cursor, start);
+        cursor = targetEnd + 1;
+      } else {
+        output += content.slice(cursor, start + 2);
+        cursor = start + 2;
+      }
       continue;
     }
 
@@ -362,13 +356,28 @@ function scrubOverflowStoredInlineDataImageSyntax(content: string): string {
   return output;
 }
 
+function isInlineDataImageMarkdownTargetAt(content: string, targetStart: number): boolean {
+  let cursor = targetStart;
+  while (cursor < content.length && /\s/.test(content[cursor])) {
+    cursor += 1;
+  }
+  if (content[cursor] === '<') {
+    cursor += 1;
+    while (cursor < content.length && /\s/.test(content[cursor])) {
+      cursor += 1;
+    }
+  }
+  return content.slice(cursor, cursor + 'data:image/'.length).toLowerCase() === 'data:image/';
+}
+
 export async function buildStoredUserMessageContent(content: string): Promise<ChatMessageContent> {
   const { imageSources, tokensToStrip, reachedImageTokenBudget } = collectStoredUserMessageImages(content);
   if (imageSources.length === 0 && tokensToStrip.length === 0) {
-    const scrubbed = (reachedImageTokenBudget || content.toLowerCase().includes('data:image/'))
-      ? scrubOverflowStoredInlineDataImageSyntax(content).trim()
-      : content;
-    return scrubbed !== content ? (scrubbed ? [{ type: 'text', text: scrubbed }] : '') : content;
+    if (reachedImageTokenBudget || /data:image\//i.test(content)) {
+      const scrubbed = scrubOverflowStoredInlineDataImageSyntax(content).trim();
+      return scrubbed === content ? content : scrubbed ? [{ type: 'text', text: scrubbed }] : '';
+    }
+    return content;
   }
 
   const strippedText = stripImageTokens(content, tokensToStrip);

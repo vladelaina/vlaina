@@ -12,8 +12,6 @@ export interface GithubRawHtmlStripResult {
   value: string
 }
 
-const rawHtmlFragmentTagPattern = /^<\/?([A-Za-z][A-Za-z0-9:-]*)(?:\s|\/?>|$)/
-
 function findRawHtmlTagEnd(content: string, start: number) {
   let quote: string | null = null
 
@@ -63,24 +61,94 @@ function findRawHtmlNonTagEnd(content: string, start: number) {
   return null
 }
 
+function isAsciiAlpha(char: string | undefined) {
+  if (char === undefined)
+    return false
+  const code = char.charCodeAt(0)
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122)
+}
+
+function isHtmlNameChar(char: string | undefined) {
+  if (char === undefined)
+    return false
+  const code = char.charCodeAt(0)
+  return (
+    (code >= 65 && code <= 90)
+    || (code >= 97 && code <= 122)
+    || (code >= 48 && code <= 57)
+    || char === ':'
+    || char === '-'
+  )
+}
+
+function isHtmlWhitespace(char: string | undefined) {
+  if (char === undefined)
+    return false
+  const code = char.charCodeAt(0)
+  return code === 32 || code === 9 || code === 10 || code === 12 || code === 13
+}
+
+function isTagBoundary(char: string | undefined) {
+  return char === undefined || char === '>' || char === '/' || isHtmlWhitespace(char)
+}
+
+function readRawHtmlTagStart(content: string, start: number) {
+  if (content[start] !== '<')
+    return null
+
+  let cursor = start + 1
+  const closing = content[cursor] === '/'
+  if (closing)
+    cursor += 1
+  if (!isAsciiAlpha(content[cursor]))
+    return null
+
+  const nameStart = cursor
+  cursor += 1
+  while (isHtmlNameChar(content[cursor]))
+    cursor += 1
+
+  if (!isTagBoundary(content[cursor]))
+    return null
+  return { closing, name: content.slice(nameStart, cursor).toLowerCase() }
+}
+
+function isSelfClosingRawHtmlTag(content: string, start: number, end: number) {
+  if (content[end - 1] !== '>')
+    return false
+
+  let cursor = end - 1
+  while (cursor >= start) {
+    const char = content[cursor]
+    if (char === '>') {
+      cursor -= 1
+      continue
+    }
+    if (isHtmlWhitespace(char)) {
+      cursor -= 1
+      continue
+    }
+    return char === '/'
+  }
+  return false
+}
+
 function parseRawHtmlFragmentTag(content: string, start: number): RawHtmlTag | null {
   if (findRawHtmlNonTagEnd(content, start) !== null)
+    return null
+
+  const tagStart = readRawHtmlTagStart(content, start)
+  if (!tagStart)
     return null
 
   const tagEnd = findRawHtmlTagEnd(content, start)
   const end = tagEnd === -1 ? content.length : tagEnd
 
-  const tag = content.slice(start, end)
-  const match = rawHtmlFragmentTagPattern.exec(tag)
-  const name = match?.[1]?.toLowerCase()
-  if (!name)
-    return null
-
   return {
-    closing: tag.startsWith('</'),
+    closing: tagStart.closing,
     end,
-    name,
-    selfClosing: /\/\s*>$/.test(tag),
+    name: tagStart.name,
+    selfClosing: isSelfClosingRawHtmlTag(content, start, end),
   }
 }
 
@@ -172,12 +240,12 @@ export function stripDroppedRawHtmlContentFragment(
   if (activeTag)
     return stripActiveDroppedTag(content, activeTag, tags, activeDepth)
 
-  let output = ''
+  const output: string[] = []
   let cursor = 0
   while (cursor < content.length) {
     const start = content.indexOf('<', cursor)
     if (start === -1) {
-      output += content.slice(cursor)
+      output.push(content.slice(cursor))
       break
     }
 
@@ -185,33 +253,33 @@ export function stripDroppedRawHtmlContentFragment(
     if (!tag) {
       const nonTagEnd = findRawHtmlNonTagEnd(content, start)
       const nextCursor = nonTagEnd ?? start + 1
-      output += content.slice(cursor, nextCursor)
+      output.push(content.slice(cursor, nextCursor))
       cursor = nextCursor
       continue
     }
 
     if (!tags.has(tag.name)) {
-      output += content.slice(cursor, tag.end)
+      output.push(content.slice(cursor, tag.end))
       cursor = tag.end
       continue
     }
 
-    output += content.slice(cursor, start)
+    output.push(content.slice(cursor, start))
     if (tag.closing || tag.selfClosing) {
       cursor = tag.end
       continue
     }
     if (tag.name === 'plaintext')
-      return { activeDepth: 1, activeTag: tag.name, mode: 'drop', value: output }
+      return { activeDepth: 1, activeTag: tag.name, mode: 'drop', value: output.join('') }
 
     const close = scanRawHtmlContainer(content, tag.name, tag.end, 1)
     if (close.closeEnd === null)
-      return { activeDepth: close.depth, activeTag: tag.name, mode: 'drop', value: output }
+      return { activeDepth: close.depth, activeTag: tag.name, mode: 'drop', value: output.join('') }
 
     cursor = close.closeEnd
   }
 
-  return { activeDepth: 0, activeTag: null, mode: null, value: output }
+  return { activeDepth: 0, activeTag: null, mode: null, value: output.join('') }
 }
 
 function escapeHtmlText(value: string) {
@@ -240,13 +308,13 @@ export function prepareGithubRawHtmlForSanitizerFragment(
   if (activeTag && activeMode === 'escape')
     return escapeActiveRawHtmlTag(content, activeTag, dropTags, escapeTags, activeDepth)
 
-  let output = ''
+  const output: string[] = []
   let cursor = 0
 
   while (cursor < content.length) {
     const start = content.indexOf('<', cursor)
     if (start === -1) {
-      output += content.slice(cursor)
+      output.push(content.slice(cursor))
       break
     }
 
@@ -254,18 +322,18 @@ export function prepareGithubRawHtmlForSanitizerFragment(
     if (!tag) {
       const nonTagEnd = findRawHtmlNonTagEnd(content, start)
       const nextCursor = nonTagEnd ?? start + 1
-      output += content.slice(cursor, nextCursor)
+      output.push(content.slice(cursor, nextCursor))
       cursor = nextCursor
       continue
     }
 
     if (!dropTags.has(tag.name) && !escapeTags.has(tag.name)) {
-      output += content.slice(cursor, tag.end)
+      output.push(content.slice(cursor, tag.end))
       cursor = tag.end
       continue
     }
 
-    output += content.slice(cursor, start)
+    output.push(content.slice(cursor, start))
     if (dropTags.has(tag.name)) {
       if (tag.closing || tag.selfClosing) {
         cursor = tag.end
@@ -274,14 +342,14 @@ export function prepareGithubRawHtmlForSanitizerFragment(
 
       const close = scanRawHtmlContainer(content, tag.name, tag.end, 1)
       if (close.closeEnd === null)
-        return { activeDepth: close.depth, activeTag: tag.name, mode: 'drop', value: output }
+        return { activeDepth: close.depth, activeTag: tag.name, mode: 'drop', value: output.join('') }
 
       cursor = close.closeEnd
       continue
     }
 
     if (tag.closing || tag.selfClosing) {
-      output += escapeHtmlText(content.slice(start, tag.end))
+      output.push(escapeHtmlText(content.slice(start, tag.end)))
       cursor = tag.end
       continue
     }
@@ -290,7 +358,7 @@ export function prepareGithubRawHtmlForSanitizerFragment(
         activeDepth: 1,
         activeTag: tag.name,
         mode: 'escape',
-        value: `${output}${escapeHtmlText(content.slice(start))}`,
+        value: `${output.join('')}${escapeHtmlText(content.slice(start))}`,
       }
     }
 
@@ -300,15 +368,15 @@ export function prepareGithubRawHtmlForSanitizerFragment(
         activeDepth: close.depth,
         activeTag: tag.name,
         mode: 'escape',
-        value: `${output}${escapeHtmlText(content.slice(start))}`,
+        value: `${output.join('')}${escapeHtmlText(content.slice(start))}`,
       }
     }
 
-    output += escapeHtmlText(content.slice(start, close.closeEnd))
+    output.push(escapeHtmlText(content.slice(start, close.closeEnd)))
     cursor = close.closeEnd
   }
 
-  return { activeDepth: 0, activeTag: null, mode: null, value: output }
+  return { activeDepth: 0, activeTag: null, mode: null, value: output.join('') }
 }
 
 export function prepareGithubRawHtmlForSanitizer(

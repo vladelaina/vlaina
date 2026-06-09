@@ -121,7 +121,7 @@ const LARGE_PLAIN_MARKDOWN_FAST_PARSE_MIN_LENGTH = 1_000_000;
 const MARKDOWN_BLANK_LINE_COMMENT = '<!--vlaina-markdown-blank-line-->';
 const FAST_PARSE_DISALLOWED_TEXT_PATTERN = /[`*_~[\]()<>\\|]/;
 const FAST_PARSE_HEADING_PATTERN = /^(#{1,6})[ \t]+(.+)$/;
-const FAST_PARSE_STRUCTURAL_LINE_PATTERN = /^(?: {0,3})(?:[-+*]\s+|\d+[.)]\s+|[-*_][ \t]*[-*_][ \t]*[-*_][ \t]*$)/;
+const FAST_PARSE_STRUCTURAL_LINE_PATTERN = /^(?: {0,3})(?:[-+*]\s+|\d+[.)]\s+|[-*_][ \t]*[-*_][ \t]*[-*_][ \t]*$|=+[ \t]*$)/;
 
 export function shouldUseLazyBlockVisibility(markdown: string): boolean {
   return createLargePlainMarkdownDocJSON(markdown) !== null;

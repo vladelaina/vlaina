@@ -6,15 +6,27 @@ export interface RawHtmlTag {
 }
 
 function isAsciiAlpha(char: string | undefined): boolean {
-  return Boolean(char && /^[A-Za-z]$/.test(char));
+  if (char === undefined) return false;
+  const code = char.charCodeAt(0);
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
 }
 
 function isHtmlNameChar(char: string | undefined): boolean {
-  return Boolean(char && /^[A-Za-z0-9:-]$/.test(char));
+  if (char === undefined) return false;
+  const code = char.charCodeAt(0);
+  return (
+    (code >= 65 && code <= 90)
+    || (code >= 97 && code <= 122)
+    || (code >= 48 && code <= 57)
+    || char === ':'
+    || char === '-'
+  );
 }
 
 function isTagBoundary(char: string | undefined): boolean {
-  return char === undefined || char === '>' || char === '/' || /\s/.test(char);
+  if (char === undefined || char === '>' || char === '/') return true;
+  const code = char.charCodeAt(0);
+  return code === 32 || code === 9 || code === 10 || code === 12 || code === 13;
 }
 
 function readRawHtmlTagStart(content: string, start: number): { closing: boolean; name: string } | null {
@@ -106,8 +118,33 @@ export function parseRawHtmlTag(content: string, start: number): RawHtmlTag | nu
     closing: tagStart.closing,
     end,
     name: tagStart.name,
-    selfClosing: /\/\s*>$/.test(content.slice(start, end)),
+    selfClosing: isSelfClosingRawHtmlTag(content, start, end),
   };
+}
+
+function isSelfClosingRawHtmlTag(content: string, start: number, end: number): boolean {
+  if (content[end - 1] !== '>') return false;
+
+  let cursor = end - 1;
+  while (cursor >= start) {
+    const char = content[cursor];
+    if (char === '>') {
+      cursor -= 1;
+      continue;
+    }
+    if (isTagBoundaryWhitespace(char)) {
+      cursor -= 1;
+      continue;
+    }
+    return char === '/';
+  }
+  return false;
+}
+
+function isTagBoundaryWhitespace(char: string | undefined): boolean {
+  if (char === undefined) return false;
+  const code = char.charCodeAt(0);
+  return code === 32 || code === 9 || code === 10 || code === 12 || code === 13;
 }
 
 export function scanRawHtmlContainer(

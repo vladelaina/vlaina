@@ -484,6 +484,21 @@ describe('session inline image persistence', () => {
     }
   })
 
+  it('scrubs oversized markdown data images when token parsing skips the target', async () => {
+    mocked.parseMarkdownAndHtmlImageTokens.mockReturnValue([])
+    const oversizedSource = `data:image/png;base64,${'A'.repeat(520 * 1024)}`
+    const { createSessionActions } = await import('./sessionActions')
+    seedSession([createMessage('m1', `Before ![image](<${oversizedSource}>) After`)])
+
+    await createSessionActions().switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
+
+    const content = useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content
+    expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
+    expect(content).toBe('Before  After')
+    expect(content).not.toContain('data:image')
+  })
+
   it('bounds inline image replacement to the scanned branch depth', async () => {
     const source = 'data:image/png;base64,INLINE'
     mocked.parseMarkdownAndHtmlImageTokens.mockImplementation((content: string) => {

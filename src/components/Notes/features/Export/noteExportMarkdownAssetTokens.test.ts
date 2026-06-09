@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_EXPORT_HTML_TAG_SCAN_RANGES,
   MAX_EXPORT_IGNORED_INLINE_RANGES,
+  MAX_EXPORT_MARKDOWN_IMAGE_PART_SCAN_CHARS,
   MAX_EXPORT_MARKDOWN_HTML_BLOCK_RANGES,
   MAX_EXPORT_MARKDOWN_ASSET_TOKENS,
   findExportMarkdownAssetSourceTokens,
@@ -181,6 +182,17 @@ describe('findExportMarkdownAssetSourceTokens', () => {
 
     expect(tokens).toHaveLength(MAX_EXPORT_MARKDOWN_ASSET_TOKENS);
     expect(tokens.at(-1)?.lookupSrc).toBe(`img:image-${MAX_EXPORT_MARKDOWN_ASSET_TOKENS - 1}.png`);
+  });
+
+  it('bounds markdown image label scans while continuing after malformed images', () => {
+    const markdown = [
+      `![${'a'.repeat(MAX_EXPORT_MARKDOWN_IMAGE_PART_SCAN_CHARS + 1)}`,
+      '![real](img:real.png)',
+    ].join('\n');
+
+    expect(findExportMarkdownAssetSourceTokens(markdown).map((token) => token.lookupSrc)).toEqual([
+      'img:real.png',
+    ]);
   });
 
   it('does not extract source srcset assets that export rendering drops', () => {

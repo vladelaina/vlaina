@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, cleanup, waitFor } from "@testing-library/react";
 import type { RefObject } from "react";
-import { extractLastFencedCodeBlock, useChatShortcuts } from "./useChatShortcuts";
+import {
+  extractLastFencedCodeBlock,
+  MAX_CHAT_SHORTCUT_CODE_BLOCK_COPY_CHARS,
+  MAX_CHAT_SHORTCUT_CODE_BLOCK_SCAN_CHARS,
+  useChatShortcuts,
+} from "./useChatShortcuts";
 
 const mocked = vi.hoisted(() => ({
   toggleTemporaryChat: vi.fn(),
@@ -398,6 +403,30 @@ describe("useChatShortcuts", () => {
     } finally {
       split.mockRestore();
     }
+  });
+
+  it("extracts the last fenced code block from a bounded tail window", () => {
+    const markdown = [
+      "```ts",
+      "const old = 1;",
+      "```",
+      "x".repeat(MAX_CHAT_SHORTCUT_CODE_BLOCK_SCAN_CHARS + 10),
+      "```ts",
+      "const recent = 2;",
+      "```",
+    ].join("\n");
+
+    expect(extractLastFencedCodeBlock(markdown)).toBe("const recent = 2;");
+  });
+
+  it("does not return partial oversized fenced code blocks", () => {
+    const markdown = [
+      "```txt",
+      "x".repeat(MAX_CHAT_SHORTCUT_CODE_BLOCK_COPY_CHARS + 1),
+      "```",
+    ].join("\n");
+
+    expect(extractLastFencedCodeBlock(markdown)).toBeNull();
   });
 
   it("copies the last code block without closing on shorter fence content", () => {
