@@ -9,6 +9,7 @@ import {
     autolinkPluginKey,
     collectAutolinkDecorations,
     findUrls,
+    transactionMayAffectExistingAutolinks,
 } from './autolinkPlugin';
 
 interface FakeAutolinkNode {
@@ -218,5 +219,41 @@ describe('autolinkPlugin findUrls', () => {
         const decorations = collectAutolinkDecorations(createDocNode([createTextNode(text)]));
 
         expect(decorations).toHaveLength(0);
+    });
+
+    it('does not treat plain edits away from existing autolinks as affecting autolinks', () => {
+        const decorations = {
+            find: (from?: number, to?: number) =>
+                (from ?? 0) < 20 && (to ?? 0) > 10 ? [{}] : [],
+        };
+        const transaction = {
+            mapping: {
+                maps: [{
+                    forEach: (callback: (oldStart: number, oldEnd: number, newStart: number, newEnd: number) => void) => {
+                        callback(80, 80, 80, 81);
+                    },
+                }],
+            },
+        };
+
+        expect(transactionMayAffectExistingAutolinks(decorations, transaction)).toBe(false);
+    });
+
+    it('treats edits touching an existing autolink edge as affecting autolinks', () => {
+        const decorations = {
+            find: (from?: number, to?: number) =>
+                (from ?? 0) < 20 && (to ?? 0) > 10 ? [{}] : [],
+        };
+        const transaction = {
+            mapping: {
+                maps: [{
+                    forEach: (callback: (oldStart: number, oldEnd: number, newStart: number, newEnd: number) => void) => {
+                        callback(20, 20, 20, 21);
+                    },
+                }],
+            },
+        };
+
+        expect(transactionMayAffectExistingAutolinks(decorations, transaction)).toBe(true);
     });
 });

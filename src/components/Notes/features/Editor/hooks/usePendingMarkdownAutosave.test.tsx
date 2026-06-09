@@ -152,6 +152,52 @@ describe('usePendingMarkdownAutosave', () => {
     expect(debouncedSave).toHaveBeenCalledTimes(1);
   });
 
+  it('coalesces rapid live markdown preview events to the latest markdown', () => {
+    (globalThis as { __VL_TEST_CONTENT_COMMIT_THROTTLE_MS__?: number })
+      .__VL_TEST_CONTENT_COMMIT_THROTTLE_MS__ = 120;
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const editorView = { dom: document.createElement('div') };
+    const ctx = { get: vi.fn() };
+    const previewListener = vi.fn();
+    window.addEventListener('editor:note-markdown-preview', previewListener);
+
+    const { result } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha',
+      updateContent,
+      debouncedSave,
+    }));
+
+    try {
+      act(() => {
+        result.current.createUserInputMarker(editorView as never, null)(new KeyboardEvent('keydown'));
+        const listener = result.current.configureMarkdownListener(ctx, '# alpha');
+        listener('# alpha a');
+        listener('# alpha ab');
+        listener('# alpha abc');
+        vi.advanceTimersByTime(16);
+      });
+
+      expect(previewListener).not.toHaveBeenCalled();
+
+      act(() => {
+        vi.advanceTimersByTime(120);
+      });
+
+      expect(previewListener).toHaveBeenCalledTimes(1);
+      expect(previewListener.mock.calls[0]?.[0]).toMatchObject({
+        detail: {
+          path: 'docs/alpha.md',
+          content: '# alpha abc',
+        },
+      });
+    } finally {
+      window.removeEventListener('editor:note-markdown-preview', previewListener);
+    }
+  });
+
   it('flushes the latest pending raw markdown when unmounted before the next frame', () => {
     const updateContent = vi.fn();
     const debouncedSave = vi.fn();

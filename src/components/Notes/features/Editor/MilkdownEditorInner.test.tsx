@@ -3,6 +3,7 @@ import { editorViewCtx, parserCtx } from '@milkdown/kit/core';
 import {
   createLargePlainMarkdownDocJSON,
   replaceEditorMarkdown,
+  shouldUseLazyBlockVisibility,
 } from './MilkdownEditorInner';
 
 function createContext(parser: (markdown: string) => unknown) {
@@ -180,5 +181,29 @@ describe('createLargePlainMarkdownDocJSON', () => {
       attrs: { level: 1 },
       content: [{ type: 'text', text: 'Large Fast Path' }],
     });
+  });
+});
+
+describe('shouldUseLazyBlockVisibility', () => {
+  it('enables lazy block visibility for large plain fast-path markdown', () => {
+    const markdown = [
+      '# Large Fast Path',
+      '',
+      ...Array.from({ length: 1100 }, (_, index) => `Paragraph ${index} ${'plain text '.repeat(90)}`),
+    ].join('\n\n');
+
+    expect(markdown.length).toBeGreaterThan(1_000_000);
+    expect(shouldUseLazyBlockVisibility(markdown)).toBe(true);
+  });
+
+  it('keeps mixed syntax markdown on stable block layout for smoother scrolling', () => {
+    const markdown = [
+      '# Large Complex Path',
+      '',
+      ...Array.from({ length: 1100 }, (_, index) => `Paragraph ${index} with **strong** markup ${'plain text '.repeat(90)}`),
+    ].join('\n\n');
+
+    expect(markdown.length).toBeGreaterThan(1_000_000);
+    expect(shouldUseLazyBlockVisibility(markdown)).toBe(false);
   });
 });

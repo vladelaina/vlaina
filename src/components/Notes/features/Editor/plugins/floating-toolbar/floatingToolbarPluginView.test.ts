@@ -4,6 +4,7 @@ import {
   collectToolbarSubmenus,
   correctToolbarSubmenusToContentBounds,
 } from './floatingToolbarSubmenus';
+import { correctToolbarYToViewportBounds } from './floatingToolbarDom';
 import type { FloatingToolbarState } from './types';
 
 describe('floatingToolbarPluginView', () => {
@@ -79,5 +80,28 @@ describe('floatingToolbarPluginView', () => {
     correctToolbarSubmenusToContentBounds(toolbar, { left: 40, right: 160 });
 
     expect(submenu.style.getPropertyValue('--vlaina-toolbar-submenu-shift-x')).toBe('-20px');
+  });
+
+  it('keeps the toolbar vertically inside the visible viewport bounds', () => {
+    const toolbar = document.createElement('div');
+    const inner = document.createElement('div');
+    inner.className = 'floating-toolbar-inner';
+    toolbar.append(inner);
+    inner.getBoundingClientRect = vi.fn(() => ({
+      bottom: 30,
+      height: 40,
+      left: 0,
+      right: 100,
+      top: -10,
+      width: 100,
+      x: 0,
+      y: -10,
+      toJSON: () => {},
+    }));
+
+    const correctedY = correctToolbarYToViewportBounds(toolbar, 20, { top: 0, bottom: 200 });
+
+    expect(correctedY).toBeGreaterThan(20);
+    expect(toolbar.style.top).toBe(`${correctedY}px`);
   });
 });

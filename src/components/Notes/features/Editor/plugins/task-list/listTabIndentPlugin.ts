@@ -375,6 +375,77 @@ export function buildInternalListGapDecorations(doc: Parameters<typeof Decoratio
     return DecorationSet.create(doc, collectInternalListGapDecorations(doc));
 }
 
+type ListGapDecorationSetLike = {
+    find: (from?: number, to?: number) => unknown[];
+};
+
+function getInsertedStepText(step: unknown): string {
+    const slice = (step as { slice?: { content?: { textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string; size?: number } } }).slice;
+    const content = slice?.content;
+    if (!content || typeof content.textBetween !== 'function' || typeof content.size !== 'number') {
+        return '';
+    }
+    return content.textBetween(0, content.size, '\n', '\ufffc');
+}
+
+function transactionInsertsInternalListGapPlaceholder(tr: unknown): boolean {
+    const steps = (tr as { steps?: readonly unknown[] }).steps ?? [];
+    return steps.some((step) => getInsertedStepText(step).includes(EDITABLE_LIST_GAP_PLACEHOLDER));
+}
+
+function listItemWithInternalPlaceholderTouchesRange(doc: ProseNode, from: number, to: number): boolean {
+    const start = Math.max(0, Math.min(from, doc.content.size));
+    const end = Math.max(start, Math.min(to, doc.content.size));
+
+    const checkResolvedPosition = (pos: number): boolean => {
+        const $pos = doc.resolve(Math.max(0, Math.min(pos, doc.content.size)));
+        for (let depth = $pos.depth; depth > 0; depth -= 1) {
+            const node = $pos.node(depth);
+            if (node.type.name === 'list_item' && node.textContent.includes(EDITABLE_LIST_GAP_PLACEHOLDER)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    if (checkResolvedPosition(start) || checkResolvedPosition(end)) {
+        return true;
+    }
+
+    let touchesPlaceholderListItem = false;
+    doc.nodesBetween(start, end, (node) => {
+        if (node.type.name === 'list_item' && node.textContent.includes(EDITABLE_LIST_GAP_PLACEHOLDER)) {
+            touchesPlaceholderListItem = true;
+            return false;
+        }
+        return !touchesPlaceholderListItem;
+    });
+
+    return touchesPlaceholderListItem;
+}
+
+export function transactionMayAffectInternalListGapDecorations(
+    decorations: ListGapDecorationSetLike,
+    tr: Transaction,
+    previousDoc: ProseNode,
+    nextDoc: ProseNode,
+): boolean {
+    if (transactionInsertsInternalListGapPlaceholder(tr)) return true;
+
+    const diffStart = previousDoc.content.findDiffStart(nextDoc.content);
+    if (diffStart === null) return false;
+
+    const diffEnd = previousDoc.content.findDiffEnd(nextDoc.content);
+    if (!diffEnd) return true;
+
+    if (decorations.find(diffStart - 1, diffEnd.a + 1).length > 0) return true;
+
+    return (
+        listItemWithInternalPlaceholderTouchesRange(previousDoc, diffStart, diffEnd.a)
+        || listItemWithInternalPlaceholderTouchesRange(nextDoc, diffStart, diffEnd.b)
+    );
+}
+
 type AdjacentOrderedListMerge = {
     from: number;
     secondFrom: number;
@@ -659,7 +730,15 @@ export const listTabIndentPlugin = $prose(() => {
                 return buildInternalListGapDecorations(state.doc);
             },
             apply(tr, previous, _oldState, newState) {
-                if (!tr.docChanged) return previous;
+                if (!tr.docChanged) return previous.map(tr.mapping, tr.doc);
+                if (!transactionMayAffectInternalListGapDecorations(
+                    previous,
+                    tr,
+                    _oldState.doc,
+                    newState.doc
+                )) {
+                    return previous.map(tr.mapping, newState.doc);
+                }
                 return buildInternalListGapDecorations(newState.doc);
             },
         },

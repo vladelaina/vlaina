@@ -49,6 +49,18 @@ function getPipeShortcutColumnCount(text: string): number | null {
   return cells && cells.length >= 2 ? cells.length : null
 }
 
+function shouldCreateTableFromPipeShortcut(text: string): boolean {
+  const trimmed = text.trim()
+  if (!trimmed.startsWith('|') && !trimmed.startsWith('｜')) return false
+  if (!trimmed.endsWith('|') && !trimmed.endsWith('｜')) return false
+
+  const rawCells = trimmed.split(tablePipeCellPattern).slice(1, -1)
+  const nonEmptyCells = rawCells.filter((cell) => cell.trim().length > 0)
+  if (nonEmptyCells.length < 2) return false
+
+  return nonEmptyCells.every((cell) => cell === cell.trim())
+}
+
 function createTableFromPipeCells(
   ctx: Parameters<typeof createTable>[0],
   state: Parameters<Command>[0],
@@ -83,6 +95,8 @@ function createTableFromPipeShortcut(ctx: Parameters<typeof createTable>[0]): Co
     if ($from.parent.content.size > MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS) return false
 
     const text = $from.parent.textBetween(0, $from.parent.content.size, '', '')
+    if (!shouldCreateTableFromPipeShortcut(text)) return false
+
     const cells = getPipeShortcutCells(text)
     if (!cells || cells.filter((cell) => cell.length > 0).length < 2) return false
 

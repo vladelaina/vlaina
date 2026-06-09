@@ -8,6 +8,7 @@ import {
   createTableNodeFromPipeCells,
   getPipeShortcutCells,
   MAX_PIPE_TABLE_SHORTCUT_TEXT_CHARS,
+  shouldCreateTableFromPipeShortcut,
 } from './pipeTableShortcut';
 import {
   DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT,
@@ -305,6 +306,10 @@ export const tableKeyboardPlugin = $prose(() => {
           }
 
           const shortcutText = $from.parent.textBetween(0, $from.parent.content.size, '', '');
+          if (!shouldCreateTableFromPipeShortcut(shortcutText)) {
+            return false;
+          }
+
           const cells = getPipeShortcutCells(shortcutText);
           if (cells && cells.filter((cell) => cell.length > 0).length >= 2) {
             const tableNode = createTableNodeFromPipeCells(state.schema, cells);

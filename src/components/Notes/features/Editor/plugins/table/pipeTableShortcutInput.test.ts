@@ -32,6 +32,11 @@ function typeText(view: EditorView, input: string): void {
 }
 
 function pressEnter(view: EditorView): void {
+  const { handled } = dispatchEnter(view);
+  expect(handled).toBe(true);
+}
+
+function dispatchEnter(view: EditorView): { event: KeyboardEvent; handled: boolean } {
   const event = new KeyboardEvent('keydown', {
     key: 'Enter',
     bubbles: true,
@@ -47,7 +52,7 @@ function pressEnter(view: EditorView): void {
     return handled;
   });
 
-  expect(handled).toBe(true);
+  return { event, handled };
 }
 
 function pressKey(view: EditorView, key: string): KeyboardEvent {
@@ -176,6 +181,28 @@ describe('pipe table shortcut input', () => {
 
     expect(textBetween).toHaveBeenCalledWith(0, paragraph.content.size, '', '');
     expect(view.state.doc.firstChild?.type.name).toBe('table');
+
+    await editor.destroy();
+  });
+
+  it('leaves spaced markdown table header rows as source text for delimiter-line typing', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(gfm)
+      .use(tableKeyboardPlugin);
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, '| 功能 | 操作步骤 | Windows | macOS |');
+    dispatchEnter(view);
+
+    expect(view.state.doc.firstChild?.type.name).toBe('paragraph');
+    expect(view.state.doc.firstChild?.textContent).toBe('| 功能 | 操作步骤 | Windows | macOS |');
+    expect(getAncestorNodeNames(view)).not.toContain('table');
 
     await editor.destroy();
   });

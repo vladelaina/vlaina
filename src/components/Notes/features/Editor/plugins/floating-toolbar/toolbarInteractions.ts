@@ -42,6 +42,7 @@ export function createToolbarEventDelegation(
   let currentState: FloatingToolbarState | null = null;
   let tooltipElement: HTMLElement | null = null;
   let tooltipTimer: ReturnType<typeof setTimeout> | null = null;
+  let handledPointerDownAction: string | null = null;
   const actionController = createToolbarActionController(() => currentState, options);
 
   const getTooltipElement = () => {
@@ -85,6 +86,57 @@ export function createToolbarEventDelegation(
     tooltip.classList.add('visible');
   };
 
+  const executeToolbarAction = (button: HTMLElement, action: string) => {
+    if (!currentView || !currentState) {
+      return;
+    }
+
+    const preservePreviewDuringApply = PREVIEWED_DIRECT_APPLY_ACTIONS.has(action);
+    if (!preservePreviewDuringApply) {
+      clearFormatPreview(currentView);
+    }
+
+    if (
+      preservePreviewDuringApply &&
+      commitFormatPreview(currentView, action, button.classList.contains('active'))
+    ) {
+      const view = currentView;
+      clearFormatPreview(view);
+      hideTooltip();
+      view.dispatch(
+        view.state.tr.setMeta(floatingToolbarKey, {
+          type: TOOLBAR_ACTIONS.HIDE,
+        })
+      );
+      if (COLLAPSE_SELECTION_AFTER_APPLY_ACTIONS.has(action)) {
+        collapseSelectionAfterToolbarApply(view);
+      }
+      return;
+    }
+
+    void actionController.handleAction(currentView, action).then((shouldHideToolbar) => {
+      const view = currentView;
+      if (view && preservePreviewDuringApply) {
+        clearFormatPreview(view);
+      }
+
+      if (!shouldHideToolbar || !view) {
+        return;
+      }
+
+      clearFormatPreview(view);
+      hideTooltip();
+      view.dispatch(
+        view.state.tr.setMeta(floatingToolbarKey, {
+          type: TOOLBAR_ACTIONS.HIDE,
+        })
+      );
+      if (COLLAPSE_SELECTION_AFTER_APPLY_ACTIONS.has(action)) {
+        collapseSelectionAfterToolbarApply(view);
+      }
+    });
+  };
+
   const handleMouseDown = (e: Event) => {
     const target = e.target as HTMLElement;
     if (target.closest('select, input, textarea, option')) {
@@ -118,6 +170,14 @@ export function createToolbarEventDelegation(
     if (action && currentView) {
       actionController.prepareAction(currentView, action);
     }
+    handledPointerDownAction = null;
+    if (action && button && currentView && currentState && PREVIEWED_DIRECT_APPLY_ACTIONS.has(action)) {
+      e.preventDefault();
+      e.stopPropagation();
+      handledPointerDownAction = action;
+      executeToolbarAction(button, action);
+      return;
+    }
     if (action === 'copy') {
       let didClear = false;
       const clearPreparedAction = () => {
@@ -144,50 +204,12 @@ export function createToolbarEventDelegation(
 
     const action = button.dataset.action;
     if (action) {
-      const preservePreviewDuringApply = PREVIEWED_DIRECT_APPLY_ACTIONS.has(action);
-      if (!preservePreviewDuringApply) {
-        clearFormatPreview(currentView);
-      }
-
-      if (
-        preservePreviewDuringApply &&
-        commitFormatPreview(currentView, action, button.classList.contains('active'))
-      ) {
-        const view = currentView;
-        clearFormatPreview(view);
-        hideTooltip();
-        view.dispatch(
-          view.state.tr.setMeta(floatingToolbarKey, {
-            type: TOOLBAR_ACTIONS.HIDE,
-          })
-        );
-        if (COLLAPSE_SELECTION_AFTER_APPLY_ACTIONS.has(action)) {
-          collapseSelectionAfterToolbarApply(view);
-        }
+      if (handledPointerDownAction === action) {
+        handledPointerDownAction = null;
         return;
       }
 
-      void actionController.handleAction(currentView, action).then((shouldHideToolbar) => {
-        const view = currentView;
-        if (view && preservePreviewDuringApply) {
-          clearFormatPreview(view);
-        }
-
-        if (!shouldHideToolbar || !view) {
-          return;
-        }
-
-        clearFormatPreview(view);
-        hideTooltip();
-        view.dispatch(
-          view.state.tr.setMeta(floatingToolbarKey, {
-            type: TOOLBAR_ACTIONS.HIDE,
-          })
-        );
-        if (COLLAPSE_SELECTION_AFTER_APPLY_ACTIONS.has(action)) {
-          collapseSelectionAfterToolbarApply(view);
-        }
-      });
+      executeToolbarAction(button, action);
     }
   };
 
