@@ -60,7 +60,7 @@ const listeners = new Set<(snapshot: EditorBlockPositionSnapshot | null) => void
 const TOOLBAR_PREVIEW_HIDDEN_ATTRIBUTE = 'data-toolbar-preview-hidden';
 const TOOLBAR_PREVIEW_OVERLAY_CLASS = 'toolbar-applied-preview-overlay';
 export const MAX_BLOCK_POSITION_SNAPSHOT_BLOCKS = 5000;
-const TEXT_MUTATION_REFRESH_DELAY_MS = 120;
+const CONTENT_MUTATION_REFRESH_DELAY_MS = 240;
 
 function getBlockRangeKey(from: number, to: number): string {
   return `${from}:${to}`;
@@ -661,17 +661,26 @@ export function createCurrentEditorBlockPositionController(
   view: EditorView,
 ): EditorBlockPositionController {
   let frameId = 0;
-  let textMutationTimerId = 0;
+  let contentMutationTimerId = 0;
   let destroyed = false;
   let mutationObserver: MutationObserver | null = null;
   let resizeObserver: ResizeObserver | null = null;
   const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+
+  const clearContentMutationRefresh = () => {
+    if (contentMutationTimerId === 0) {
+      return;
+    }
+    window.clearTimeout(contentMutationTimerId);
+    contentMutationTimerId = 0;
+  };
 
   const refresh = () => {
     if (destroyed) {
       return;
     }
 
+    clearContentMutationRefresh();
     const snapshot = createSnapshot(view);
     publishSnapshot(snapshot);
   };
@@ -687,28 +696,28 @@ export function createCurrentEditorBlockPositionController(
     });
   };
 
-  const scheduleTextMutationRefresh = () => {
-    if (destroyed || textMutationTimerId !== 0) {
+  const scheduleContentMutationRefresh = () => {
+    if (destroyed) {
       return;
     }
 
-    textMutationTimerId = window.setTimeout(() => {
-      textMutationTimerId = 0;
+    clearContentMutationRefresh();
+    contentMutationTimerId = window.setTimeout(() => {
+      contentMutationTimerId = 0;
       scheduleRefresh();
-    }, TEXT_MUTATION_REFRESH_DELAY_MS);
+    }, CONTENT_MUTATION_REFRESH_DELAY_MS);
   };
 
   const scheduleMutationRefresh = (records: MutationRecord[]) => {
-    const onlyTextMutations = records.length > 0 && records.every((record) => record.type === 'characterData');
-    if (onlyTextMutations) {
-      scheduleTextMutationRefresh();
+    const onlyContentMutations = records.length > 0 && records.every(
+      (record) => record.type === 'characterData' || record.type === 'childList',
+    );
+    if (onlyContentMutations) {
+      scheduleContentMutationRefresh();
       return;
     }
 
-    if (textMutationTimerId !== 0) {
-      window.clearTimeout(textMutationTimerId);
-      textMutationTimerId = 0;
-    }
+    clearContentMutationRefresh();
     scheduleRefresh();
   };
 
@@ -724,7 +733,13 @@ export function createCurrentEditorBlockPositionController(
   }
 
   if (typeof ResizeObserver !== 'undefined') {
-    resizeObserver = new ResizeObserver(() => {
+    resizeObserver = new ResizeObserver((entries) => {
+      const onlyEditorContentResize = entries.length > 0 && entries.every((entry) => entry.target === view.dom);
+      if (onlyEditorContentResize) {
+        scheduleContentMutationRefresh();
+        return;
+      }
+      clearContentMutationRefresh();
       scheduleRefresh();
     });
     resizeObserver.observe(view.dom);
@@ -775,10 +790,7 @@ export function createCurrentEditorBlockPositionController(
         cancelAnimationFrame(frameId);
         frameId = 0;
       }
-      if (textMutationTimerId !== 0) {
-        window.clearTimeout(textMutationTimerId);
-        textMutationTimerId = 0;
-      }
+      clearContentMutationRefresh();
       mutationObserver?.disconnect();
       resizeObserver?.disconnect();
       scrollRoot?.removeEventListener('scroll', handleScroll);

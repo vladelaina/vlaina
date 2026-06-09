@@ -8,6 +8,8 @@ const BLOCK_SELECTION_ACTIVE_CLASS = 'editor-block-selection-active';
 export interface BlankAreaDragBoxState {
   selectedBlocks: BlockRange[];
   decorations: DecorationSet;
+  editableMarkdownBlankLineDecorations: DecorationSet;
+  interactionDecorations: DecorationSet;
 }
 
 export type BlockSelectionAction =
@@ -19,6 +21,8 @@ export const blankAreaDragBoxPluginKey = new PluginKey<BlankAreaDragBoxState>('b
 export const EMPTY_BLOCK_SELECTION_PLUGIN_STATE: BlankAreaDragBoxState = {
   selectedBlocks: [],
   decorations: DecorationSet.empty,
+  editableMarkdownBlankLineDecorations: DecorationSet.empty,
+  interactionDecorations: DecorationSet.empty,
 };
 
 export const CLEAR_BLOCKS_ACTION: BlockSelectionAction = { type: 'clear-blocks' };

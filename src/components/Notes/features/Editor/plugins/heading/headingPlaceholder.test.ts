@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
-import { createHeadingPlaceholderDecorations, getHeadingPlaceholder } from './headingPlaceholder';
+import {
+    createHeadingPlaceholderDecorations,
+    getHeadingPlaceholder,
+    transactionMayAffectHeadingPlaceholders,
+} from './headingPlaceholder';
 
 async function createEditor(markdown = '') {
     const editor = Editor.make()
@@ -49,6 +53,42 @@ describe('getHeadingPlaceholder', () => {
         const view = editor.ctx.get(editorViewCtx);
 
         expect(createHeadingPlaceholderDecorations(view.state.doc).find()).toHaveLength(0);
+
+        await editor.destroy();
+    });
+
+    it('allows ordinary paragraph input to map existing decorations without rescanning headings', async () => {
+        const editor = await createEditor('# Heading\n\nBody');
+        const view = editor.ctx.get(editorViewCtx);
+        const oldState = view.state;
+        const tr = oldState.tr.insertText(' typed', oldState.doc.content.size - 1);
+
+        expect(
+            transactionMayAffectHeadingPlaceholders(
+                createHeadingPlaceholderDecorations(oldState.doc),
+                tr,
+                oldState.doc,
+                tr.doc,
+            ),
+        ).toBe(false);
+
+        await editor.destroy();
+    });
+
+    it('rescans heading placeholders when input can change heading structure', async () => {
+        const editor = await createEditor('Body');
+        const view = editor.ctx.get(editorViewCtx);
+        const oldState = view.state;
+        const tr = oldState.tr.insertText('#', 1);
+
+        expect(
+            transactionMayAffectHeadingPlaceholders(
+                createHeadingPlaceholderDecorations(oldState.doc),
+                tr,
+                oldState.doc,
+                tr.doc,
+            ),
+        ).toBe(true);
 
         await editor.destroy();
     });

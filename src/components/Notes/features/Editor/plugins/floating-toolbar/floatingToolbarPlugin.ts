@@ -117,9 +117,22 @@ export const floatingToolbarPlugin = $prose(() => {
         if (tr.selectionSet) {
           const { selection } = newState;
           const isAiReviewPinned = mappedState.subMenu === 'aiReview' && Boolean(mappedState.aiReview);
+          const isSelectionSubMenuOpen =
+            mappedState.subMenu === 'ai' ||
+            mappedState.subMenu === 'block' ||
+            mappedState.subMenu === 'alignment' ||
+            mappedState.subMenu === 'color';
           if (!hasUsableTextSelection(selection, newState.doc)) {
             if (mappedState.isVisible) {
               if (isAiReviewPinned) {
+                return mappedState;
+              }
+
+              if (isSelectionSubMenuOpen) {
+                return mappedState;
+              }
+
+              if (mappedState.selectionRange) {
                 return mappedState;
               }
 
@@ -143,12 +156,14 @@ export const floatingToolbarPlugin = $prose(() => {
             }
 
             if (!interactionState.isMouseDown && !mappedState.isVisible) {
-              return { ...mappedState, isVisible: true };
+              return { ...mappedState, isVisible: true, selectionRange: { from: selection.from, to: selection.to } };
             }
 
             if (interactionState.isMouseDown) {
               interactionState.pendingShow = true;
             }
+
+            return { ...mappedState, selectionRange: { from: selection.from, to: selection.to } };
           }
         }
         return mappedState;

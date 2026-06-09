@@ -10,7 +10,7 @@ import {
 
 const MARKDOWN_BLANK_LINE_VALUE = '<!--vlaina-markdown-blank-line-->';
 const MARKDOWN_BLANK_LINE_SELECTOR = `[data-type="html-block"][data-value="${MARKDOWN_BLANK_LINE_VALUE}"]`;
-const EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER = '\u200B';
+export const EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER = '\u200B';
 const EDITABLE_MARKDOWN_BLANK_LINE_CLASS = 'editor-editable-markdown-blank-line';
 const MARKDOWN_BLANK_LINE_DEBUG_STORAGE_KEY = 'editor-debug-markdown-blank-line';
 const MAX_EDITABLE_MARKDOWN_BLANK_LINE_DECORATIONS = 1000;

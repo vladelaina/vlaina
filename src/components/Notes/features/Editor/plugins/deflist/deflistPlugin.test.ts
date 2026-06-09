@@ -3,7 +3,10 @@ import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model';
 import type { Decoration } from '@milkdown/kit/prose/view';
-import { createDeflistDecorations } from './deflistPlugin';
+import {
+  createDeflistDecorations,
+  transactionMayAffectDeflistDecorations,
+} from './deflistPlugin';
 
 async function createEditor(markdown = '') {
   const editor = Editor.make()
@@ -20,6 +23,26 @@ function getDecorationClasses(doc: ProseMirrorNode): string[] {
   return createDeflistDecorations(doc)
     .find()
     .map((decoration: Decoration) => (decoration.type as any).attrs?.class);
+}
+
+function findTextPosition(doc: ProseMirrorNode, text: string, edge: 'start' | 'end'): number {
+  let result = -1;
+  doc.descendants((node, pos) => {
+    if (!node.isText) {
+      return true;
+    }
+    const index = (node.text ?? '').indexOf(text);
+    if (index < 0) {
+      return true;
+    }
+    result = pos + index + (edge === 'end' ? text.length : 0);
+    return false;
+  });
+
+  if (result < 0) {
+    throw new Error(`Text not found: ${text}`);
+  }
+  return result;
 }
 
 describe('deflistPlugin visual decorations', () => {
@@ -91,6 +114,51 @@ describe('deflistPlugin visual decorations', () => {
     view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, nodes));
 
     expect(createDeflistDecorations(view.state.doc).find()).toHaveLength(1000);
+
+    await editor.destroy();
+  });
+
+  it('maps existing decorations for unrelated typing far from definition list blocks', async () => {
+    const editor = await createEditor([
+      'Term',
+      '',
+      ': Definition',
+      '',
+      'Filler one',
+      '',
+      'Filler two',
+      '',
+      'Filler three',
+      '',
+      'Target paragraph',
+    ].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const previous = createDeflistDecorations(view.state.doc);
+    const tr = view.state.tr.insertText(
+      ' smooth input',
+      findTextPosition(view.state.doc, 'Target paragraph', 'end'),
+    );
+
+    expect(previous.find()).toHaveLength(2);
+    expect(transactionMayAffectDeflistDecorations(previous, tr, tr.doc)).toBe(false);
+
+    await editor.destroy();
+  });
+
+  it('rebuilds decorations when typing a definition description prefix', async () => {
+    const editor = await createEditor([
+      'Term',
+      '',
+      'Definition candidate',
+    ].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const previous = createDeflistDecorations(view.state.doc);
+    const tr = view.state.tr.insertText(
+      ': ',
+      findTextPosition(view.state.doc, 'Definition candidate', 'start'),
+    );
+
+    expect(transactionMayAffectDeflistDecorations(previous, tr, tr.doc)).toBe(true);
 
     await editor.destroy();
   });
