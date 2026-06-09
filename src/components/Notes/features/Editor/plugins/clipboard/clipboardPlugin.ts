@@ -517,12 +517,18 @@ function createPlainParagraphNodesFromText(state: {
 }
 
 export function collectMarkdownPasteTopLevelNodes(parsedDoc: ProseNode): ProseNode[] | null {
-    if (parsedDoc.content.childCount > MAX_MARKDOWN_PASTE_TOP_LEVEL_NODES) {
+    const { content } = parsedDoc;
+    if (!content) return null;
+
+    const { childCount } = content;
+    if (typeof childCount !== 'number') return null;
+
+    if (childCount > MAX_MARKDOWN_PASTE_TOP_LEVEL_NODES) {
         return null;
     }
 
     const parsedNodes: ProseNode[] = [];
-    parsedDoc.content.forEach((node) => {
+    content.forEach((node) => {
         parsedNodes.push(node);
     });
 

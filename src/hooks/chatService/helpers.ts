@@ -333,9 +333,18 @@ function scrubOverflowStoredInlineDataImageSyntax(content: string): string {
     }
 
     const targetEnd = content.indexOf(')', labelEnd + 2);
-    if (targetEnd === -1 || targetEnd - labelEnd > MAX_NOTE_MENTION_READ_BYTES) {
+    if (targetEnd === -1) {
       output += content.slice(cursor, start + 2);
       cursor = start + 2;
+      continue;
+    }
+
+    const targetPreview = content
+      .slice(labelEnd + 2, Math.min(targetEnd, labelEnd + 2 + MAX_NOTE_MENTION_READ_BYTES))
+      .toLowerCase();
+    if (targetEnd - labelEnd > MAX_NOTE_MENTION_READ_BYTES && targetPreview.includes('data:image/')) {
+      output += content.slice(cursor, start);
+      cursor = targetEnd + 1;
       continue;
     }
 
@@ -356,7 +365,10 @@ function scrubOverflowStoredInlineDataImageSyntax(content: string): string {
 export async function buildStoredUserMessageContent(content: string): Promise<ChatMessageContent> {
   const { imageSources, tokensToStrip, reachedImageTokenBudget } = collectStoredUserMessageImages(content);
   if (imageSources.length === 0 && tokensToStrip.length === 0) {
-    return reachedImageTokenBudget ? scrubOverflowStoredInlineDataImageSyntax(content).trim() : content;
+    const scrubbed = (reachedImageTokenBudget || content.toLowerCase().includes('data:image/'))
+      ? scrubOverflowStoredInlineDataImageSyntax(content).trim()
+      : content;
+    return scrubbed !== content ? (scrubbed ? [{ type: 'text', text: scrubbed }] : '') : content;
   }
 
   const strippedText = stripImageTokens(content, tokensToStrip);
