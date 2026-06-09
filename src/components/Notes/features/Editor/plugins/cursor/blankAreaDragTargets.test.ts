@@ -465,13 +465,26 @@ describe('blankAreaDragTargets', () => {
     }
   });
 
-  it('routes empty full-width text blocks through blank-area click handling', () => {
+  it('lets empty full-width text blocks use native caret placement', () => {
     const { view, cleanup } = createView();
     const paragraph = document.createElement('p');
     view.dom.append(paragraph);
 
     try {
-      expect(resolveBlankAreaDragStartZone(view, createMouseDown(paragraph))).toBe('outside-editor');
+      expect(resolveBlankAreaDragStartZone(view, createMouseDown(paragraph))).toBeNull();
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('lets editable zero-width blank line paragraphs use native caret placement', () => {
+    const { view, cleanup } = createView();
+    const paragraph = document.createElement('p');
+    paragraph.textContent = '\u200B';
+    view.dom.append(paragraph);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(view, createMouseDown(paragraph))).toBeNull();
     } finally {
       cleanup();
     }

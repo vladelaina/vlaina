@@ -528,6 +528,7 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
       expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
       expect(view.state.selection.$from.parent.textContent).toBe('\u200B');
       expect(view.state.selection.empty).toBe(true);
+      expect(view.state.selection.$from.parentOffset).toBe(1);
       expect(view.dom.querySelector('p.editor-editable-markdown-blank-line')).toBeInstanceOf(HTMLParagraphElement);
       expect(debugSpy).toHaveBeenCalledWith(
         '[editor:markdown-blank-line]',
@@ -585,6 +586,73 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
       const persisted = stripTrailingNewlines(normalizeSerializedMarkdownDocument(serializer(view.state.doc)));
       expect(persisted).toBe(['Alpha', '', 'Beta'].join('\n'));
     } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('turns a pointer-events-none markdown blank line into an editable paragraph by click coordinates', async () => {
+    const { editor, view } = await createBlockSelectionEditor([
+      'Alpha',
+      '<!--vlaina-markdown-blank-line-->',
+      'Beta',
+    ].join('\n'));
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function getRect(this: HTMLElement) {
+      if (
+        this instanceof HTMLElement
+        && this.matches('[data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"]')
+      ) {
+        return {
+          x: 0,
+          y: 24,
+          top: 24,
+          left: 0,
+          right: 480,
+          bottom: 48,
+          width: 480,
+          height: 24,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 480,
+        bottom: 24,
+        width: 480,
+        height: 24,
+        toJSON: () => ({}),
+      } as DOMRect;
+    });
+
+    try {
+      const betaBlock = Array.from(view.dom.children).find((child) => child.textContent === 'Beta');
+      expect(betaBlock).toBeInstanceOf(HTMLElement);
+
+      const mouseDown = createMouseEvent('mousedown', {
+        clientX: 120,
+        clientY: 36,
+      });
+      Object.defineProperty(mouseDown, 'target', {
+        configurable: true,
+        value: betaBlock,
+      });
+
+      expect(simulateDomEvent(view, 'mousedown', mouseDown)).toBe(true);
+      expect(mouseDown.defaultPrevented).toBe(true);
+      expect(view.dom.querySelector('[data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"]')).toBeNull();
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection.$from.parent.textContent).toBe('\u200B');
+
+      typeText(view, 'Inserted');
+
+      expect(view.state.selection.$from.parent.textContent).toBe('Inserted');
+      expect(view.state.doc.textContent).toContain('Alpha');
+      expect(view.state.doc.textContent).toContain('Inserted');
+      expect(view.state.doc.textContent).toContain('Beta');
+    } finally {
+      rectSpy.mockRestore();
       await editor.destroy();
     }
   });

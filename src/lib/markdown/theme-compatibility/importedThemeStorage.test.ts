@@ -371,7 +371,7 @@ describe('imported markdown theme storage', () => {
     expect(files.get('/app/.vlaina/store/markdown-theme-cache/small.css')).toContain('blue');
   });
 
-  it('does not read CSS files without a bounded directory entry size while syncing themes', async () => {
+  it('stats CSS files without directory entry sizes before syncing themes', async () => {
     files.set('/app/.vlaina/themes/unknown-size.css', '#write { color: red; }');
     adapter.listDir.mockResolvedValueOnce([
       {
@@ -386,9 +386,64 @@ describe('imported markdown theme storage', () => {
 
     const result = await syncImportedMarkdownThemesFromDirectory();
 
+    expect(result.themes).toEqual([
+      expect.objectContaining({
+        id: 'unknown-size',
+        sourceModifiedAt: 10,
+        sourceSize: 22,
+      }),
+    ]);
+    expect(adapter.stat).toHaveBeenCalledWith('/app/.vlaina/themes/unknown-size.css');
+    expect(adapter.readFile).toHaveBeenCalledWith('/app/.vlaina/themes/unknown-size.css');
+    expect(await readImportedMarkdownTheme('unknown-size')).toEqual(expect.objectContaining({
+      id: 'unknown-size',
+      css: expect.stringContaining('#write'),
+    }));
+  });
+
+  it('skips CSS files whose stat size is too large when directory size is missing', async () => {
+    files.set('/app/.vlaina/themes/huge-stat.css', '#write { color: red; }');
+    adapter.stat.mockImplementation(async (path: string) => {
+      if (path === '/app/.vlaina/themes/huge-stat.css') {
+        return {
+          name: 'huge-stat.css',
+          path,
+          isDirectory: false,
+          isFile: true,
+          size: MAX_IMPORTED_THEME_CSS_BYTES + 1,
+          modifiedAt: 10,
+        };
+      }
+      const text = files.get(path);
+      if (text !== undefined) {
+        return {
+          name: path.split('/').pop() ?? path,
+          path,
+          isDirectory: false,
+          isFile: true,
+          size: text.length,
+          modifiedAt: 10,
+        };
+      }
+      return null;
+    });
+    adapter.listDir.mockResolvedValueOnce([
+      {
+        name: 'huge-stat.css',
+        path: '/app/.vlaina/themes/huge-stat.css',
+        isDirectory: false,
+        isFile: true,
+        size: undefined as unknown as number,
+        modifiedAt: 10,
+      },
+    ]);
+
+    const result = await syncImportedMarkdownThemesFromDirectory();
+
     expect(result.themes).toEqual([]);
-    expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/themes/unknown-size.css');
-    expect(await readImportedMarkdownTheme('unknown-size')).toBeNull();
+    expect(adapter.stat).toHaveBeenCalledWith('/app/.vlaina/themes/huge-stat.css');
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/themes/huge-stat.css');
+    expect(await readImportedMarkdownTheme('huge-stat')).toBeNull();
   });
 
   it('ignores pure font helper CSS when syncing directory themes', async () => {

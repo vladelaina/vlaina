@@ -7,6 +7,7 @@ import {
   createEditableMarkdownBlankLineDecorations,
   findEditableMarkdownBlankLineElement,
   isEditableMarkdownBlankLineNode,
+  resolveMarkdownBlankLineTargetAtCoords,
   resolveMarkdownBlankLineNodePos,
 } from './markdownBlankLineInteraction';
 
@@ -68,6 +69,64 @@ describe('markdownBlankLineInteraction', () => {
     arrayFrom.mockRestore();
 
     expect(result).toBe(blankLine);
+  });
+
+  it('resolves pointer-events-none markdown blank line targets by click coordinates', () => {
+    const root = document.createElement('div');
+    const firstBlankLine = document.createElement('div');
+    firstBlankLine.setAttribute('data-type', 'html-block');
+    firstBlankLine.setAttribute('data-value', MARKDOWN_BLANK_LINE_VALUE);
+    const secondBlankLine = document.createElement('div');
+    secondBlankLine.setAttribute('data-type', 'html-block');
+    secondBlankLine.setAttribute('data-value', MARKDOWN_BLANK_LINE_VALUE);
+    root.append(firstBlankLine, secondBlankLine);
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function getRect(this: HTMLElement) {
+      if (this === firstBlankLine) {
+        return {
+          x: 10,
+          y: 20,
+          top: 20,
+          left: 10,
+          right: 310,
+          bottom: 44,
+          width: 300,
+          height: 24,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      if (this === secondBlankLine) {
+        return {
+          x: 10,
+          y: 60,
+          top: 60,
+          left: 10,
+          right: 310,
+          bottom: 84,
+          width: 300,
+          height: 24,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: 0,
+        height: 0,
+        toJSON: () => ({}),
+      } as DOMRect;
+    });
+
+    try {
+      expect(resolveMarkdownBlankLineTargetAtCoords({ dom: root } as any, 120, 32)).toBe(firstBlankLine);
+      expect(resolveMarkdownBlankLineTargetAtCoords({ dom: root } as any, 120, 72)).toBe(secondBlankLine);
+      expect(resolveMarkdownBlankLineTargetAtCoords({ dom: root } as any, 120, 120)).toBeNull();
+    } finally {
+      rectSpy.mockRestore();
+    }
   });
 
   it('stops fallback document scanning after resolving the matching blank line DOM node', () => {

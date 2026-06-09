@@ -250,6 +250,20 @@ function isTextBlockBlankSurfaceTarget(view: EditorView, target: HTMLElement): b
   return !structuredBlock || structuredBlock === textBlock;
 }
 
+function isNativeEditableEmptyTextBlockTarget(view: EditorView, target: HTMLElement): boolean {
+  const textBlock = target.closest(TEXT_BLOCK_SURFACE_SELECTOR);
+  if (!(textBlock instanceof HTMLElement) || !view.dom.contains(textBlock)) return false;
+  if (textBlock.matches(MARKDOWN_BLANK_LINE_SELECTOR)) return false;
+
+  const structuredBlock = target.closest(STRUCTURED_BLOCK_SELECTOR);
+  if (structuredBlock && structuredBlock !== textBlock) return false;
+
+  const text = (textBlock.textContent ?? '').replace(/[\u200B\u200C\u2800]/g, '').trim();
+  if (text.length > 0) return false;
+
+  return textBlock.matches('p, li, blockquote, h1, h2, h3, h4, h5, h6');
+}
+
 export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEvent): BlockDragStartZone | null {
   if (!(event.target instanceof HTMLElement)) return null;
   const target = event.target;
@@ -279,6 +293,9 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
       : resolveTargetTextLinePointerHit(view, target, event.clientX, event.clientY);
 
     if (textLineHit) {
+      return null;
+    }
+    if (isNativeEditableEmptyTextBlockTarget(view, target)) {
       return null;
     }
     if (target === view.dom && isClickBelowLastBlock(view.dom, event.clientY)) {

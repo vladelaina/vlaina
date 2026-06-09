@@ -31,6 +31,28 @@ export interface ImportedMarkdownThemesDirectorySyncResult {
   activeThemeId: string | null;
 }
 
+async function resolveCssThemeEntryInfo(entry: FileInfo): Promise<FileInfo | null> {
+  if (typeof entry.size === 'number') {
+    return entry.size <= MAX_IMPORTED_THEME_CSS_BYTES ? entry : null;
+  }
+
+  const info = await getStorageAdapter().stat(entry.path).catch(() => null);
+  if (
+    !info ||
+    info.isFile === false ||
+    typeof info.size !== 'number' ||
+    info.size > MAX_IMPORTED_THEME_CSS_BYTES
+  ) {
+    return null;
+  }
+
+  return {
+    ...entry,
+    size: info.size,
+    modifiedAt: info.modifiedAt ?? entry.modifiedAt,
+  };
+}
+
 function selectActiveSyncedThemeId(
   entries: FileInfo[],
   themes: ImportedMarkdownThemeMetadata[]
@@ -51,9 +73,16 @@ export async function syncImportedMarkdownThemesFromDirectory(): Promise<Importe
 
   const existingThemes = await readThemeIndex();
   const entries = await storage.listDir(directoryPath);
-  const cssEntries = getCssThemeEntries(entries)
-    .filter((entry) => typeof entry.size === 'number' && entry.size <= MAX_IMPORTED_THEME_CSS_BYTES)
-    .slice(0, MAX_IMPORTED_THEME_DIRECTORY_CSS_FILES);
+  const cssEntries: FileInfo[] = [];
+  for (const entry of getCssThemeEntries(entries)) {
+    if (cssEntries.length >= MAX_IMPORTED_THEME_DIRECTORY_CSS_FILES) {
+      break;
+    }
+    const resolved = await resolveCssThemeEntryInfo(entry);
+    if (resolved) {
+      cssEntries.push(resolved);
+    }
+  }
   const sourcePaths = new Set(cssEntries.map((entry) => normalizeThemePath(entry.path)));
   const ignoredNonThemeSourcePaths = new Set<string>();
   const syncableCssEntries: SyncableThemeCssEntry[] = [];

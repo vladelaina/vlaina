@@ -15,9 +15,7 @@
 }
 
 .milkdown .ProseMirror.editor-keyboard-selection-pending::selection,
-.milkdown .ProseMirror.editor-keyboard-selection-pending *::selection,
-.milkdown .ProseMirror.editor-pointer-native-selection::selection,
-.milkdown .ProseMirror.editor-pointer-native-selection *::selection {
+.milkdown .ProseMirror.editor-keyboard-selection-pending *::selection {
   background-color: transparent !important;
   color: inherit !important;
   -webkit-text-fill-color: inherit !important;

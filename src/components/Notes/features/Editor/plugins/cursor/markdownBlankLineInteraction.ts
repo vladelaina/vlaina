@@ -35,6 +35,87 @@ function resolveMarkdownBlankLineTarget(view: EditorView, target: EventTarget | 
   return blankLine instanceof HTMLElement && view.dom.contains(blankLine) ? blankLine : null;
 }
 
+function isPointInsideMarkdownBlankLineRect(blankLine: HTMLElement, clientX: number, clientY: number): boolean {
+  const rect = blankLine.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return false;
+
+  const verticalSlack = Math.max(1, Math.min(4, rect.height / 4));
+  const horizontalSlack = 1;
+  return (
+    clientX >= rect.left - horizontalSlack &&
+    clientX <= rect.right + horizontalSlack &&
+    clientY >= rect.top - verticalSlack &&
+    clientY <= rect.bottom + verticalSlack
+  );
+}
+
+function resolveAdjacentMarkdownBlankLineTargetAtCoords(
+  view: EditorView,
+  target: EventTarget | null,
+  clientX: number,
+  clientY: number,
+): HTMLElement | null {
+  const targetElement = target instanceof HTMLElement
+    ? target
+    : target instanceof Node
+      ? target.parentElement
+      : null;
+  if (!targetElement || !view.dom.contains(targetElement)) return null;
+
+  let topLevelTarget: HTMLElement | null = targetElement;
+  while (topLevelTarget?.parentElement && topLevelTarget.parentElement !== view.dom) {
+    topLevelTarget = topLevelTarget.parentElement;
+  }
+  if (!topLevelTarget || topLevelTarget.parentElement !== view.dom) return null;
+
+  const candidates = [
+    topLevelTarget.previousElementSibling,
+    topLevelTarget.nextElementSibling,
+  ];
+  for (const candidate of candidates) {
+    if (
+      candidate instanceof HTMLElement &&
+      candidate.matches(MARKDOWN_BLANK_LINE_SELECTOR) &&
+      isPointInsideMarkdownBlankLineRect(candidate, clientX, clientY)
+    ) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+export function resolveMarkdownBlankLineTargetAtCoords(
+  view: EditorView,
+  clientX: number,
+  clientY: number,
+  target: EventTarget | null = null,
+): HTMLElement | null {
+  const adjacentBlankLine = resolveAdjacentMarkdownBlankLineTargetAtCoords(view, target, clientX, clientY);
+  if (adjacentBlankLine) return adjacentBlankLine;
+
+  let closestBlankLine: HTMLElement | null = null;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  const blankLines = view.dom.querySelectorAll(MARKDOWN_BLANK_LINE_SELECTOR);
+
+  for (let index = 0; index < blankLines.length; index += 1) {
+    const blankLine = blankLines.item(index);
+    if (!(blankLine instanceof HTMLElement)) continue;
+
+    const rect = blankLine.getBoundingClientRect();
+    if (!isPointInsideMarkdownBlankLineRect(blankLine, clientX, clientY)) continue;
+
+    const yCenter = rect.top + rect.height / 2;
+    const xCenter = rect.left + rect.width / 2;
+    const distance = Math.abs(clientY - yCenter) + Math.abs(clientX - xCenter) / Math.max(1, rect.width);
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestBlankLine = blankLine;
+    }
+  }
+
+  return closestBlankLine;
+}
+
 export function resolveMarkdownBlankLineNodePos(view: EditorView, blankLine: HTMLElement): number | null {
   try {
     const directPos = view.posAtDOM(blankLine, 0);
@@ -100,7 +181,8 @@ export function handleMarkdownBlankLinePointerDown(view: EditorView, event: Mous
   if (event.button !== 0) return false;
   if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false;
 
-  const blankLine = resolveMarkdownBlankLineTarget(view, event.target);
+  const blankLine = resolveMarkdownBlankLineTarget(view, event.target)
+    ?? resolveMarkdownBlankLineTargetAtCoords(view, event.clientX, event.clientY, event.target);
   if (!blankLine) return false;
 
   const nodePos = resolveMarkdownBlankLineNodePos(view, blankLine);
@@ -121,7 +203,7 @@ export function handleMarkdownBlankLinePointerDown(view: EditorView, event: Mous
   const paragraph = paragraphType.create(null, view.state.schema.text(EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER));
   let tr = view.state.tr.replaceWith(nodePos, nodePos + node.nodeSize, paragraph);
   tr = tr
-    .setSelection(TextSelection.create(tr.doc, nodePos + 1))
+    .setSelection(TextSelection.create(tr.doc, nodePos + 1 + EDITABLE_MARKDOWN_BLANK_LINE_PLACEHOLDER.length))
     .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
   view.dispatch(tr.scrollIntoView());
   view.focus();
