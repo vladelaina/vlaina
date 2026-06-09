@@ -22,6 +22,8 @@ export const CHAT_IMAGE_VIEWER_CONTROL_SELECTOR = '[data-chat-image-viewer-contr
 export const NOTE_IMAGE_BLOCK_SELECTOR = `${EDITOR_SELECTOR} .image-block-container`;
 export const NOTE_IMAGE_TOOLBAR_SELECTOR = `${NOTE_IMAGE_BLOCK_SELECTOR} .image-toolbar`;
 export const NOTE_IMAGE_CROPPER_TOOLBAR_SELECTOR = `${NOTE_IMAGE_BLOCK_SELECTOR} .image-cropper-toolbar`;
+export const E2E_DEV_SERVER_PORT = Number.parseInt(process.env.VLAINA_E2E_PORT ?? '3100', 10);
+export const E2E_DEV_SERVER_URL = `http://127.0.0.1:${Number.isFinite(E2E_DEV_SERVER_PORT) ? E2E_DEV_SERVER_PORT : 3100}`;
 
 export type ImportedMarkdownThemeInstallResult = {
   themeDirectoryPath: string;
@@ -72,7 +74,7 @@ export async function launchIsolatedElectron(label: string): Promise<{
     args: ['.'],
     env: {
       ...process.env,
-      VITE_DEV_SERVER_URL: 'http://127.0.0.1:3100?e2e=1',
+      VITE_DEV_SERVER_URL: `${E2E_DEV_SERVER_URL}?e2e=1`,
       VLAINA_USER_DATA_DIR: userDataDir,
       APP_API_BASE_URL: 'http://127.0.0.1:9',
       APP_UPDATE_MANIFEST_URL: 'http://127.0.0.1:9/latest',
@@ -302,7 +304,11 @@ export async function installReferenceTyporaTheme(
   );
 
   if (!theme) {
-    throw new Error(`Could not sync reference Typora theme ${cssFilename}`);
+    throw new Error([
+      `Could not sync reference Typora theme ${cssFilename}`,
+      `themeDirectoryPath=${themeDirectoryPath}`,
+      `syncResult=${JSON.stringify(syncResult)}`,
+    ].join('\n'));
   }
 
   await page.evaluate((themeId) =>

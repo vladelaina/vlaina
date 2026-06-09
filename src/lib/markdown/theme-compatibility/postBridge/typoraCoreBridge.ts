@@ -93,5 +93,8 @@ export function buildTyporaWriteBridge(write: string): CssLines {
     ...cssRule(`${write} blockquote::before`, [
       important('content', 'none'),
     ]),
+    ...cssRule(`${write} :is(strong, em, mark, u, del, code, sup, sub)`, [
+      important('display', 'inline'),
+    ]),
   ];
 }

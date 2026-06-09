@@ -4,7 +4,7 @@ export const STOP_PROSE_SCAN = Symbol('stopProseScan');
 
 export interface BoundedProseScanNode {
   attrs?: Record<string, unknown>;
-  child?: (index: number) => unknown;
+  child?: (index: number) => BoundedProseScanNode | null | undefined;
   childCount?: number;
   content?: { size?: number };
   forEach?: (callback: (node: BoundedProseScanNode, offset: number, index: number) => void) => void;
