@@ -144,6 +144,10 @@ export const themeCompatibilityDecorationsPlugin = $prose(() => {
       return {
         update(nextView, prevState) {
           currentView = nextView;
+          if (!prevState) {
+            controller.schedule();
+            return;
+          }
           if (prevState.doc.eq(nextView.state.doc)) {
             return;
           }

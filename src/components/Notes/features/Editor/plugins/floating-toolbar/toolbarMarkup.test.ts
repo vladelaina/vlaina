@@ -20,6 +20,7 @@ function createState(overrides?: Partial<FloatingToolbarState>): FloatingToolbar
     linkUrl: null,
     textColor: null,
     bgColor: null,
+    selectionRange: null,
     subMenu: null,
     aiReview: null,
     aiReviews: [],

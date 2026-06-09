@@ -282,6 +282,16 @@ describe('editorBlockPositionCache', () => {
     const cancelAnimationFrameSpy = vi
       .spyOn(window, 'cancelAnimationFrame')
       .mockImplementation(() => {});
+    const runAnimationFrame = () => {
+      const callback = rafCallback as FrameRequestCallback | null;
+      expect(callback).not.toBeNull();
+      callback?.(0);
+    };
+    const emitContentMutation = () => {
+      const callback = mutationCallback as MutationCallback | null;
+      expect(callback).not.toBeNull();
+      callback?.([{ type: 'characterData' } as MutationRecord], {} as MutationObserver);
+    };
 
     const dom = document.createElement('div');
     const paragraph = document.createElement('p');
@@ -302,6 +312,9 @@ describe('editorBlockPositionCache', () => {
       content: { size: 7 },
       forEach(callback: (node: typeof paragraphNode, offset: number) => void) {
         callback(paragraphNode, 0);
+      },
+      child(index: number) {
+        return index === 0 ? paragraphNode : null;
       },
       resolve() {
         return {
@@ -325,21 +338,21 @@ describe('editorBlockPositionCache', () => {
 
     const controller = createCurrentEditorBlockPositionController(view as any);
     try {
-      rafCallback?.(0);
+      runAnimationFrame();
       rafCallback = null;
       expect(getCurrentEditorBlockPositionSnapshot()?.blocks).toHaveLength(1);
       paragraphRect.mockClear();
 
-      mutationCallback?.([{ type: 'characterData' } as MutationRecord], {} as MutationObserver);
+      emitContentMutation();
       vi.advanceTimersByTime(239);
       expect(paragraphRect).not.toHaveBeenCalled();
 
-      mutationCallback?.([{ type: 'characterData' } as MutationRecord], {} as MutationObserver);
+      emitContentMutation();
       vi.advanceTimersByTime(239);
       expect(paragraphRect).not.toHaveBeenCalled();
 
       vi.advanceTimersByTime(1);
-      rafCallback?.(0);
+      runAnimationFrame();
       expect(paragraphRect).toHaveBeenCalledTimes(1);
     } finally {
       controller.destroy();

@@ -193,7 +193,7 @@ describe('session inline image persistence', () => {
     await createSessionActions().switchSession('session-2')
     await vi.runAllTimersAsync()
 
-    expect(mocked.parseMarkdownAndHtmlImageTokens).toHaveBeenCalledTimes(2)
+    expect(mocked.parseMarkdownAndHtmlImageTokens).toHaveBeenCalledWith(content, expect.anything())
     expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith(source)
     expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content)
       .toBe(`${plainText}\n\n![image](<attachment://persisted.png>)\n\nDescribe`)
@@ -386,6 +386,7 @@ describe('session inline image persistence', () => {
     await vi.runOnlyPendingTimersAsync()
 
     pendingPersistence.get(firstSource)?.('attachment://first.png')
+    await Promise.resolve()
     await vi.waitFor(() => {
       expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content)
         .toBe('![image](<attachment://first.png>)')

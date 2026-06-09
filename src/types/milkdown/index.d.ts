@@ -716,6 +716,7 @@ declare module '@milkdown/kit/preset/commonmark' {
   export const bulletListSchema: any;
   export const orderedListSchema: any;
   export const codeBlockSchema: any;
+  export const htmlSchema: any;
   export const htmlBlockSchema: any;
   export const wrapInHeadingCommand: CommandKeyLike;
   export const createCodeBlockCommand: CommandKeyLike;

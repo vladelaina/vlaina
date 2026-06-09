@@ -9,6 +9,7 @@ import {
 import {
     STOP_PROSE_SCAN,
     scanProseDescendants,
+    type BoundedProseScanNode,
 } from '../shared/boundedProseNodeScan';
 
 type ListCollapseActionType = 'toggle' | 'expand' | 'collapse';
@@ -97,11 +98,7 @@ function remapCollapsedListItems(
 }
 
 export function findNestedListCollapseRange(
-    node: {
-        child?: (index: number) => { nodeSize?: number; type?: { name?: string } } | null | undefined;
-        childCount?: number;
-        forEach?: (callback: (child: { nodeSize?: number; type?: { name?: string } }, offset: number) => void) => void;
-    },
+    node: BoundedProseScanNode,
     pos: number,
 ): { from: number; to: number } | null {
     if (typeof node.child === 'function' && typeof node.childCount === 'number') {
@@ -111,7 +108,7 @@ export function findNestedListCollapseRange(
         );
         let offset = 0;
         for (let index = 0; index < childCount; index += 1) {
-            const child = node.child(index);
+            const child = node.child(index) as BoundedProseScanNode | null | undefined;
             if (!child) continue;
             if (child.type?.name === 'bullet_list' || child.type?.name === 'ordered_list') {
                 const from = pos + 1 + offset;

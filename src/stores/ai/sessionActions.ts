@@ -194,9 +194,13 @@ function replaceImageSourceReferences(content: string, replacements: Map<string,
     maxTokens: MAX_INLINE_IMAGE_TOKENS_PER_CONTENT,
   })
   let parts: string[] | null = null
+  let sawDataImageToken = false
   let cursor = 0
 
   for (const token of tokens) {
+    if (token.src && normalizeRenderableDataImageSrc(token.src)) {
+      sawDataImageToken = true
+    }
     const replacement = getImageTokenSourceReplacement(content, token, replacements)
     if (!replacement || token.targetStart! < cursor) {
       continue
@@ -208,7 +212,7 @@ function replaceImageSourceReferences(content: string, replacements: Map<string,
   }
 
   if (!parts) {
-    return scrubOversizedInlineDataImageReferences(content)
+    return sawDataImageToken ? content : scrubOversizedInlineDataImageReferences(content)
   }
 
   parts.push(content.slice(cursor))
