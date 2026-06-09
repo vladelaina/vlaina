@@ -6,6 +6,7 @@ import type { Decoration } from '@milkdown/kit/prose/view';
 import { configureTheme } from '../../theme';
 import {
   MAX_ABBR_DECORATIONS,
+  MAX_ABBR_TEXT_SCAN_CHARS,
   MAX_ABBR_TITLE_CHARS,
   abbrPlugin,
   abbrPluginKey,
@@ -56,6 +57,14 @@ describe('abbrPlugin', () => {
     expect(extractAbbrDefinitions(doc, 1)).toEqual([]);
   });
 
+  it('skips definition extraction in overlong text nodes', () => {
+    const doc = createDocNode([
+      createTextNode(`${'x'.repeat(MAX_ABBR_TEXT_SCAN_CHARS)}\n*[HTML]: HyperText Markup Language`),
+    ]);
+
+    expect(extractAbbrDefinitions(doc)).toEqual([]);
+  });
+
   it('stops collecting usages when the node scan budget is exhausted', () => {
     const doc = createDocNode([
       createTextNode('plain text'),
@@ -63,6 +72,14 @@ describe('abbrPlugin', () => {
     ]);
 
     expect(findAbbrUsages(doc, [{ abbr: 'HTML', fullText: 'HyperText Markup Language' }], 1)).toEqual([]);
+  });
+
+  it('skips usage matching in overlong text nodes', () => {
+    const doc = createDocNode([
+      createTextNode(`${'x'.repeat(MAX_ABBR_TEXT_SCAN_CHARS)} HTML`),
+    ]);
+
+    expect(findAbbrUsages(doc, [{ abbr: 'HTML', fullText: 'HyperText Markup Language' }])).toEqual([]);
   });
 
   it('stops scanning usage nodes after the decoration cap is reached', () => {

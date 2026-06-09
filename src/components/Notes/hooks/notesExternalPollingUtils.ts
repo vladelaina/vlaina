@@ -143,15 +143,36 @@ function filterOutsideRenamedSubtrees(paths: string[], blockedRoots: Set<string>
 function collapseDeletionPaths(paths: string[]) {
   const sorted = [...paths].sort((left, right) => getPathDepth(left) - getPathDepth(right));
   const collapsed: string[] = [];
+  const collapsedRoots = new Set<string>();
 
   for (const path of sorted) {
-    if (collapsed.some((candidate) => isPathWithin(path, candidate))) {
+    const segments = path.split('/').filter(Boolean);
+    let prefix = '';
+    let isNestedDeletion = false;
+    for (let index = 0; index < segments.length; index += 1) {
+      prefix = prefix ? `${prefix}/${segments[index]}` : segments[index]!;
+      if (collapsedRoots.has(prefix)) {
+        isNestedDeletion = true;
+        break;
+      }
+    }
+    if (isNestedDeletion) {
       continue;
     }
     collapsed.push(path);
+    collapsedRoots.add(path);
   }
 
   return collapsed;
+}
+
+function hasPathWithinRoots(path: string, roots: ReadonlySet<string>) {
+  for (const root of roots) {
+    if (isPathWithin(path, root)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function matchFolderRenames(previous: TreeSnapshot, next: TreeSnapshot, removedFolders: string[], addedFolders: string[]) {
@@ -161,25 +182,43 @@ function matchFolderRenames(previous: TreeSnapshot, next: TreeSnapshot, removedF
 
   const sortedRemoved = [...removedFolders].sort((left, right) => getPathDepth(left) - getPathDepth(right));
   const sortedAdded = [...addedFolders].sort((left, right) => getPathDepth(left) - getPathDepth(right));
+  const addedBySignature = new Map<string, string[]>();
+
+  for (const newPath of sortedAdded) {
+    const signature = next.subtreeSignatures.get(newPath) ?? '';
+    const paths = addedBySignature.get(signature);
+    if (paths) {
+      paths.push(newPath);
+    } else {
+      addedBySignature.set(signature, [newPath]);
+    }
+  }
 
   for (const oldPath of sortedRemoved) {
-    if ([...blockedRemovedRoots].some((root) => isPathWithin(oldPath, root))) {
+    if (hasPathWithinRoots(oldPath, blockedRemovedRoots)) {
       continue;
     }
 
     const previousSignature = previous.subtreeSignatures.get(oldPath) ?? '';
-    const candidates = sortedAdded.filter((newPath) => {
-      if ([...blockedAddedRoots].some((root) => isPathWithin(newPath, root))) {
-        return false;
+    const candidates = addedBySignature.get(previousSignature) ?? [];
+    let uniqueCandidate: string | null = null;
+    let candidateCount = 0;
+    for (const newPath of candidates) {
+      if (hasPathWithinRoots(newPath, blockedAddedRoots)) {
+        continue;
       }
-      return (next.subtreeSignatures.get(newPath) ?? '') === previousSignature;
-    });
+      uniqueCandidate = newPath;
+      candidateCount += 1;
+      if (candidateCount > 1) {
+        break;
+      }
+    }
 
-    if (candidates.length !== 1) {
+    if (candidateCount !== 1 || uniqueCandidate == null) {
       continue;
     }
 
-    const [newPath] = candidates;
+    const newPath = uniqueCandidate;
     renames.push({ oldPath, newPath });
     blockedRemovedRoots.add(oldPath);
     blockedAddedRoots.add(newPath);

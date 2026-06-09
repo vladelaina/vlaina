@@ -15,19 +15,37 @@ type CodeBlockTextNode = {
   };
 };
 
+export const MAX_CODE_BLOCK_FALLBACK_TEXT_NODES = 20_000;
+
 function collectCodeBlockText(node: CodeBlockTextNode): string {
-  if (node.isText) {
-    return node.text ?? '';
-  }
-
-  if (node.type?.name === 'hard_break') {
-    return '\n';
-  }
-
   let text = '';
-  node.content?.forEach?.((child) => {
-    text += collectCodeBlockText(child);
-  });
+  let scanned = 0;
+  const stack: CodeBlockTextNode[] = [node];
+
+  while (stack.length > 0 && scanned < MAX_CODE_BLOCK_FALLBACK_TEXT_NODES) {
+    const current = stack.pop();
+    if (!current) continue;
+    scanned += 1;
+
+    if (current.isText) {
+      text += current.text ?? '';
+      continue;
+    }
+
+    if (current.type?.name === 'hard_break') {
+      text += '\n';
+      continue;
+    }
+
+    const children: CodeBlockTextNode[] = [];
+    current.content?.forEach?.((child) => {
+      children.push(child);
+    });
+
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      stack.push(children[index]);
+    }
+  }
   return text;
 }
 

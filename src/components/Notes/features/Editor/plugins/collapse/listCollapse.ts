@@ -27,6 +27,7 @@ const LIST_COLLAPSE_KEY = new PluginKey<ListCollapsePluginState>('listCollapse')
 const COLLAPSE_TYPE = 'list-item';
 const ORDERED_MARKER_BASE_CHARS = 2;
 export const MAX_LIST_COLLAPSE_ITEMS = 1000;
+export const MAX_LIST_COLLAPSE_CHILD_SCAN_NODES = 2000;
 
 function getOrderedListMarkerExtraOffset(node: any): string {
     if (node.attrs?.listType !== 'ordered') return '';
@@ -95,6 +96,56 @@ function remapCollapsedListItems(
     return mapped;
 }
 
+export function findNestedListCollapseRange(
+    node: {
+        child?: (index: number) => { nodeSize?: number; type?: { name?: string } } | null | undefined;
+        childCount?: number;
+        forEach?: (callback: (child: { nodeSize?: number; type?: { name?: string } }, offset: number) => void) => void;
+    },
+    pos: number,
+): { from: number; to: number } | null {
+    if (typeof node.child === 'function' && typeof node.childCount === 'number') {
+        const childCount = Math.min(
+            Math.max(0, Math.floor(node.childCount)),
+            MAX_LIST_COLLAPSE_CHILD_SCAN_NODES,
+        );
+        let offset = 0;
+        for (let index = 0; index < childCount; index += 1) {
+            const child = node.child(index);
+            if (!child) continue;
+            if (child.type?.name === 'bullet_list' || child.type?.name === 'ordered_list') {
+                const from = pos + 1 + offset;
+                return {
+                    from,
+                    to: from + (child.nodeSize ?? 0),
+                };
+            }
+            offset += child.nodeSize ?? 0;
+        }
+        return null;
+    }
+
+    if (typeof node.forEach !== 'function') return null;
+
+    let nestedListRange: { from: number; to: number } | null = null;
+    let scannedChildren = 0;
+    node.forEach((child, offset) => {
+        if (nestedListRange || scannedChildren >= MAX_LIST_COLLAPSE_CHILD_SCAN_NODES) {
+            return;
+        }
+        scannedChildren += 1;
+        if (child.type?.name === 'bullet_list' || child.type?.name === 'ordered_list') {
+            const from = pos + 1 + offset;
+            nestedListRange = {
+                from,
+                to: from + (child.nodeSize ?? 0),
+            };
+        }
+    });
+
+    return nestedListRange;
+}
+
 function buildListCollapseDecorations(
     doc: any,
     collapsedItems: Set<number>,
@@ -106,31 +157,19 @@ function buildListCollapseDecorations(
     scanProseDescendants(doc, (node, pos) => {
         if (decoratedItems >= MAX_LIST_COLLAPSE_ITEMS) return STOP_PROSE_SCAN;
         if (node.type?.name !== 'list_item') return true;
-        if (typeof node.forEach !== 'function') return true;
+        const nestedListRange = findNestedListCollapseRange(node, pos);
 
-        let hasNestedList = false;
-        let nestedListPos = -1;
-        let nestedListEnd = -1;
-
-        node.forEach((child, offset) => {
-            if (child.type?.name === 'bullet_list' || child.type?.name === 'ordered_list') {
-                hasNestedList = true;
-                nestedListPos = pos + 1 + offset;
-                nestedListEnd = nestedListPos + (child.nodeSize ?? 0);
-            }
-        });
-
-        if (!hasNestedList) return true;
+        if (!nestedListRange) return true;
         decoratedItems += 1;
 
-        const isCollapsed = hasNestedList && collapsedItems.has(pos);
+        const isCollapsed = collapsedItems.has(pos);
         const markerExtraOffset = getOrderedListMarkerExtraOffset(node);
         decorations.push(
             Decoration.widget(pos + 1, (view) => {
                 const button = createCollapseToggleButton({
                     collapseType: COLLAPSE_TYPE,
                     collapsed: isCollapsed,
-                    hasContent: hasNestedList,
+                    hasContent: true,
                     onToggle: () => {
                         dispatchToggle(view, pos);
                     },
@@ -143,16 +182,16 @@ function buildListCollapseDecorations(
                 return button;
             }, {
                 side: -1,
-                key: `list-toggle-${pos}-${isCollapsed ? '1' : '0'}-${hasNestedList ? '1' : '0'}`,
+                key: `list-toggle-${pos}-${isCollapsed ? '1' : '0'}-1`,
                 stopEvent(event) {
                     return isCollapseToggleTarget(event.target);
                 },
             })
         );
 
-        if (isCollapsed && hasNestedList) {
+        if (isCollapsed) {
             decorations.push(
-                Decoration.node(nestedListPos, nestedListEnd, {
+                Decoration.node(nestedListRange.from, nestedListRange.to, {
                     class: COLLAPSED_CONTENT_CLASS,
                 })
             );

@@ -7,6 +7,8 @@ import { hasInternalNotePathSegment } from './utils/fs/internalNotePaths';
 import { normalizeVaultRelativePath } from './utils/fs/vaultPathContainment';
 
 const MAX_WORKSPACE_EXPANDED_FOLDERS = 5000;
+export const MAX_RECENT_NOTE_PATH_SCAN_ITEMS = 10_000;
+export const MAX_WORKSPACE_EXPANDED_FOLDER_SCAN_ITEMS = 10_000;
 const FILE_TREE_SORT_MODES = new Set<FileTreeSortMode>([
   'name-asc',
   'name-desc',
@@ -40,7 +42,9 @@ export function normalizeRecentNotePaths(value: unknown): string[] {
   const seen = new Set<string>();
   const normalizedPaths: string[] = [];
 
-  for (const item of value) {
+  const scanLimit = Math.min(value.length, MAX_RECENT_NOTE_PATH_SCAN_ITEMS);
+  for (let index = 0; index < scanLimit; index += 1) {
+    const item = value[index];
     const normalizedPath = normalizeRecentNotePath(item);
     if (!normalizedPath || hasInternalNotePathSegment(normalizedPath) || seen.has(normalizedPath)) {
       continue;
@@ -69,7 +73,9 @@ function normalizeExpandedFolders(value: unknown): string[] {
   const seen = new Set<string>();
   const normalizedPaths: string[] = [];
 
-  for (const item of value) {
+  const scanLimit = Math.min(value.length, MAX_WORKSPACE_EXPANDED_FOLDER_SCAN_ITEMS);
+  for (let index = 0; index < scanLimit; index += 1) {
+    const item = value[index];
     if (typeof item !== 'string') {
       continue;
     }

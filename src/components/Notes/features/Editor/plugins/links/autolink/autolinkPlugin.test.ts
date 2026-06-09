@@ -113,6 +113,19 @@ describe('autolinkPlugin findUrls', () => {
         ]);
     });
 
+    it('trims long runs of unmatched trailing closing parentheses', () => {
+        const trailingParens = ')'.repeat(2000);
+
+        expect(findUrls(`https://example.com/a${trailingParens}`, 0)).toEqual([
+            {
+                start: 0,
+                end: 21,
+                url: 'https://example.com/a',
+                href: 'https://example.com/a',
+            },
+        ]);
+    });
+
     it('can stop URL scanning after the requested match budget', () => {
         expect(findUrls('a.com b.com c.com', 0, 2)).toEqual([
             {

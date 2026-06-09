@@ -9,6 +9,38 @@ const escapeMarkdownTableCell = (value: string) =>
     .replace(/\\/g, '\\\\')
     .replace(/\|/g, '\\|');
 
+const parseBoundedTabSeparatedRows = (lines: readonly string[]): string[][] | null => {
+  const rows: string[][] = [];
+  let columnCount: number | null = null;
+  let hasContent = false;
+
+  for (const line of lines) {
+    const row = line.split('\t');
+
+    if (columnCount === null) {
+      columnCount = row.length;
+      if (columnCount < 2 || columnCount > MAX_TAB_SEPARATED_TABLE_COLUMNS) {
+        return null;
+      }
+    } else if (row.length !== columnCount) {
+      return null;
+    }
+
+    for (const cell of row) {
+      if (cell.length > MAX_TAB_SEPARATED_TABLE_CELL_CHARS) {
+        return null;
+      }
+      if (!hasContent && cell.trim().length > 0) {
+        hasContent = true;
+      }
+    }
+
+    rows.push(row);
+  }
+
+  return hasContent ? rows : null;
+};
+
 export function createMarkdownTableFromTabSeparatedText(value: string): string | null {
   if (value.length > MAX_TAB_SEPARATED_TABLE_CHARS) {
     return null;
@@ -35,23 +67,11 @@ export function createMarkdownTableFromTabSeparatedText(value: string): string |
     return null;
   }
 
-  const rows = lines.map((line) => line.split('\t'));
+  const rows = parseBoundedTabSeparatedRows(lines);
+  if (!rows) {
+    return null;
+  }
   const columnCount = rows[0]?.length ?? 0;
-
-  if (columnCount < 2 || columnCount > MAX_TAB_SEPARATED_TABLE_COLUMNS) {
-    return null;
-  }
-
-  if (!rows.every((row) => row.length === columnCount)) {
-    return null;
-  }
-  if (rows.some((row) => row.some((cell) => cell.length > MAX_TAB_SEPARATED_TABLE_CELL_CHARS))) {
-    return null;
-  }
-
-  if (!rows.some((row) => row.some((cell) => cell.trim().length > 0))) {
-    return null;
-  }
 
   const formatRow = (row: string[]) => `| ${row.map(escapeMarkdownTableCell).join(' | ')} |`;
   const separator = `| ${Array.from({ length: columnCount }, () => '---').join(' | ')} |`;

@@ -45,6 +45,7 @@ vi.mock('@/stores/useToastStore', () => ({
 
 import {
   MAX_AI_PROVIDER_CHANNEL_BENCHMARK_ITEMS,
+  MAX_AI_PROVIDER_CHANNEL_BENCHMARK_SCAN_ITEMS,
   loadUnifiedData,
   saveUnifiedDataImmediate,
   setUnifiedStorageAutoSyncTrigger,
@@ -262,6 +263,27 @@ describe('unifiedStorage provider benchmark bounds', () => {
       checkedAt: 1999,
     });
     expect(data.ai?.benchmarkResults?.['provider-1']?.items['model-2000']).toBeUndefined();
+  });
+
+  it('bounds provider benchmark scans before accepting later valid records', async () => {
+    setupBenchmarkLoad({
+      items: {
+        ...Object.fromEntries(
+          Array.from({ length: MAX_AI_PROVIDER_CHANNEL_BENCHMARK_SCAN_ITEMS }, (_, index) => [
+            `invalid-${index}`,
+            { status: 'loading', checkedAt: index },
+          ]),
+        ),
+        'model-after-scan-limit': { status: 'success', checkedAt: 1 },
+      },
+      overall: 'success',
+      updatedAt: 1,
+    });
+
+    const data = await loadUnifiedData();
+
+    expect(data.ai?.benchmarkResults?.['provider-1']?.items).toEqual({});
+    expect(data.ai?.benchmarkResults?.['provider-1']?.overall).toBe('success');
   });
 
   it('normalizes provider benchmark records before saving channel files', async () => {

@@ -4,6 +4,7 @@ import { commonmark } from '@milkdown/kit/preset/commonmark';
 import {
   buildEditorFindMatches,
   MAX_EDITOR_FIND_MATCHES,
+  MAX_EDITOR_FIND_SCAN_NODES,
   normalizeEditorFindActiveIndex,
   resolveEditorFindIndexAfterDocChange,
   resolveEditorFindStartIndex,
@@ -35,6 +36,18 @@ function text(value: string): MockNode {
     isText: true,
     text: value,
   });
+}
+
+function throwingText(): MockNode {
+  const node = createNode({
+    isText: true,
+  });
+  Object.defineProperty(node, 'text', {
+    get() {
+      throw new Error('Text after find match cap should not be read');
+    },
+  });
+  return node;
 }
 
 function paragraph(...children: MockNode[]): MockNode {
@@ -205,5 +218,28 @@ describe('editorFindMatches', () => {
     );
 
     expect(matches).toHaveLength(MAX_EDITOR_FIND_MATCHES);
+  });
+
+  it('stops reading later blocks after reaching the match cap', () => {
+    const matches = buildEditorFindMatches(
+      doc(
+        paragraph(text('a'.repeat(MAX_EDITOR_FIND_MATCHES))),
+        paragraph(throwingText()),
+      ) as never,
+      'a',
+    );
+
+    expect(matches).toHaveLength(MAX_EDITOR_FIND_MATCHES);
+  });
+
+  it('stops collecting matches after the node scan budget', () => {
+    const matches = buildEditorFindMatches(
+      doc(
+        ...Array.from({ length: MAX_EDITOR_FIND_SCAN_NODES + 20 }, () => paragraph(text('target'))),
+      ) as never,
+      'target',
+    );
+
+    expect(matches.length).toBeLessThan(MAX_EDITOR_FIND_SCAN_NODES + 20);
   });
 });

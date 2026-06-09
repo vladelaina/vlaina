@@ -11,6 +11,7 @@ import { MARKDOWN_BLOCK_GAP } from '@/components/common/markdown/markdownMetrics
 import {
   getMarkdownFenceState,
   isMarkdownFenceClose,
+  MAX_ASSISTANT_MARKDOWN_MEASUREMENT_SCAN_CHARS,
   parseMarkdownMeasurementBlocks,
   type MarkdownFenceState,
 } from './chatAssistantMarkdownBlockParser';
@@ -36,14 +37,16 @@ function countRenderableImages(content: string): number {
   }).length;
 }
 
-function findReusableMarkdownSplitIndex(markdown: string): number {
+export function findReusableMarkdownSplitIndex(markdown: string): number {
   let activeFence: MarkdownFenceState | null = null;
   let splitIndex = 0;
   let lineStart = 0;
+  const scanEnd = Math.min(markdown.length, MAX_ASSISTANT_MARKDOWN_MEASUREMENT_SCAN_CHARS);
 
-  while (lineStart <= markdown.length) {
+  while (lineStart <= scanEnd) {
     const newlineIndex = markdown.indexOf('\n', lineStart);
-    const lineEnd = newlineIndex === -1 ? markdown.length : newlineIndex;
+    const boundedNewlineIndex = newlineIndex === -1 || newlineIndex >= scanEnd ? -1 : newlineIndex;
+    const lineEnd = boundedNewlineIndex === -1 ? scanEnd : boundedNewlineIndex;
     const rawLine = markdown.slice(lineStart, lineEnd);
     const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
     if (activeFence) {
@@ -55,13 +58,13 @@ function findReusableMarkdownSplitIndex(markdown: string): number {
     }
 
     if (!activeFence && !line.trim()) {
-      splitIndex = newlineIndex === -1 ? lineEnd : newlineIndex + 1;
+      splitIndex = boundedNewlineIndex === -1 ? lineEnd : boundedNewlineIndex + 1;
     }
 
-    if (newlineIndex === -1) {
+    if (boundedNewlineIndex === -1) {
       break;
     }
-    lineStart = newlineIndex + 1;
+    lineStart = boundedNewlineIndex + 1;
   }
 
   return splitIndex;

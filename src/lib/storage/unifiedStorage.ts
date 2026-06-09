@@ -60,6 +60,7 @@ export const MAX_AI_PROVIDER_CHANNELS = 200;
 export const MAX_AI_PROVIDER_CHANNEL_MODELS = 2000;
 export const MAX_AI_PROVIDER_CHANNEL_FETCHED_MODELS = 2000;
 export const MAX_AI_PROVIDER_CHANNEL_BENCHMARK_ITEMS = 2000;
+export const MAX_AI_PROVIDER_CHANNEL_BENCHMARK_SCAN_ITEMS = 10_000;
 export const MAX_ORPHAN_CHAT_SESSION_FILE_SCAN_ENTRIES = 10_000;
 const MAX_BOUNDED_ID_LIST_SCAN_RECORDS = 10_000;
 const MAX_AI_SESSION_METADATA_SCAN_RECORDS = 10_000;
@@ -383,21 +384,32 @@ function normalizeProviderBenchmarkRecord(value: unknown): ProviderBenchmarkReco
   }
 
   const items: Record<string, PersistedBenchmarkItem> = {};
-  const entries = Object.entries(value.items);
-  const scanLimit = Math.min(entries.length, MAX_AI_PROVIDER_CHANNEL_BENCHMARK_ITEMS);
-  for (let index = 0; index < scanLimit; index += 1) {
-    const [modelId, itemValue] = entries[index];
+  let scannedItems = 0;
+  let acceptedItems = 0;
+  for (const modelId in value.items) {
+    if (
+      scannedItems >= MAX_AI_PROVIDER_CHANNEL_BENCHMARK_SCAN_ITEMS ||
+      acceptedItems >= MAX_AI_PROVIDER_CHANNEL_BENCHMARK_ITEMS
+    ) {
+      break;
+    }
+    scannedItems += 1;
+    if (!Object.prototype.hasOwnProperty.call(value.items, modelId)) {
+      continue;
+    }
+    const itemValue = value.items[modelId];
     const normalizedItem = normalizeProviderBenchmarkItem(itemValue);
     const normalizedModelId = modelId.slice(0, MAX_AI_MODEL_FIELD_CHARS);
     if (!normalizedModelId || !isSafeBenchmarkItemKey(normalizedModelId) || !normalizedItem) {
       continue;
     }
     items[normalizedModelId] = normalizedItem;
+    acceptedItems += 1;
   }
 
   const hasErrors = Object.values(items).some((item) => item.status === 'error');
   const derivedOverall =
-    Object.keys(items).length === 0
+    acceptedItems === 0
       ? 'idle'
       : hasErrors
         ? 'error'

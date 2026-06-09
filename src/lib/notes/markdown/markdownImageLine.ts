@@ -1,9 +1,25 @@
-function isEscaped(value: string, offset: number): boolean {
-  let backslashCount = 0;
-  for (let index = offset - 1; index >= 0 && value[index] === '\\'; index -= 1) {
-    backslashCount += 1;
+type MarkdownImageLineScanContext = {
+  escaped: boolean[];
+};
+
+function createMarkdownImageLineScanContext(value: string): MarkdownImageLineScanContext {
+  const escaped = Array.from({ length: value.length }, () => false);
+  let backslashRun = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    escaped[index] = backslashRun % 2 === 1;
+    if (value[index] === '\\') {
+      backslashRun += 1;
+    } else {
+      backslashRun = 0;
+    }
   }
-  return backslashCount % 2 === 1;
+
+  return { escaped };
+}
+
+function isEscaped(context: MarkdownImageLineScanContext, offset: number): boolean {
+  return context.escaped[offset] === true;
 }
 
 function getBacktickRunLength(value: string, start: number): number {
@@ -32,7 +48,7 @@ function findClosingCodeSpan(value: string, start: number, tickCount: number): n
   return null;
 }
 
-function findImageLabelEnd(value: string, start: number): number | null {
+function findImageLabelEnd(value: string, start: number, context: MarkdownImageLineScanContext): number | null {
   let cursor = start;
   let bracketDepth = 0;
 
@@ -44,9 +60,9 @@ function findImageLabelEnd(value: string, start: number): number | null {
     }
 
     const character = value[cursor];
-    if (character === '[' && !isEscaped(value, cursor)) {
+    if (character === '[' && !isEscaped(context, cursor)) {
       bracketDepth += 1;
-    } else if (character === ']' && !isEscaped(value, cursor)) {
+    } else if (character === ']' && !isEscaped(context, cursor)) {
       if (bracketDepth === 0) {
         return cursor;
       }
@@ -58,7 +74,7 @@ function findImageLabelEnd(value: string, start: number): number | null {
   return null;
 }
 
-function findImageTargetEnd(value: string, start: number): number | null {
+function findImageTargetEnd(value: string, start: number, context: MarkdownImageLineScanContext): number | null {
   let cursor = start;
   let parenDepth = 0;
   let quote: string | null = null;
@@ -74,7 +90,7 @@ function findImageTargetEnd(value: string, start: number): number | null {
       if (character === '\n') {
         return null;
       }
-      if (character === '>' && !isEscaped(value, cursor)) {
+      if (character === '>' && !isEscaped(context, cursor)) {
         cursor += 1;
         break;
       }
@@ -88,7 +104,7 @@ function findImageTargetEnd(value: string, start: number): number | null {
   while (cursor < value.length) {
     const character = value[cursor];
     if (quote) {
-      if (character === quote && !isEscaped(value, cursor)) {
+      if (character === quote && !isEscaped(context, cursor)) {
         quote = null;
       }
       cursor += 1;
@@ -124,15 +140,16 @@ export function isMarkdownImageOnlyLine(line: string | null): boolean {
     return false;
   }
 
-  if (!line.startsWith('![', leadingWhitespaceLength) || isEscaped(line, leadingWhitespaceLength)) {
+  const context = createMarkdownImageLineScanContext(line);
+  if (!line.startsWith('![', leadingWhitespaceLength) || isEscaped(context, leadingWhitespaceLength)) {
     return false;
   }
 
-  const labelEnd = findImageLabelEnd(line, leadingWhitespaceLength + 2);
+  const labelEnd = findImageLabelEnd(line, leadingWhitespaceLength + 2, context);
   if (labelEnd === null || line[labelEnd + 1] !== '(') {
     return false;
   }
 
-  const targetEnd = findImageTargetEnd(line, labelEnd + 2);
+  const targetEnd = findImageTargetEnd(line, labelEnd + 2, context);
   return targetEnd !== null && line.slice(targetEnd + 1).trim() === '';
 }

@@ -24,7 +24,6 @@ type DerivedState = {
 
 const DERIVATIVE_BATCH_SIZE = 80;
 export const MAX_CHAT_DERIVATIVE_SIGNATURE_HASH_CHARS = 8192;
-let derivativeSignatureRevision = 0;
 
 interface CachedMessageDerivatives {
   message: ChatMessage;
@@ -46,8 +45,9 @@ function getDerivativeSignatureValue(value: string): string {
     return `${value.length}:${hashString(value)}`;
   }
 
-  derivativeSignatureRevision += 1;
-  return `${value.length}:large:${derivativeSignatureRevision.toString(36)}`;
+  const edgeLength = Math.floor(MAX_CHAT_DERIVATIVE_SIGNATURE_HASH_CHARS / 2);
+  const sampledValue = `${value.slice(0, edgeLength)}\u0000${value.slice(-edgeLength)}`;
+  return `${value.length}:large:${hashString(sampledValue)}`;
 }
 
 function buildMessageImageGallery(message: ChatMessage): DerivedCollection<ChatImageGalleryItem> {

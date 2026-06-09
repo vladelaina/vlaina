@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MAX_EDITOR_SELECTION_TEXT_CHARS } from './shared/selectionTextLimits';
 
 const mocks = vi.hoisted(() => ({
   convertBlockType: vi.fn(),
@@ -111,8 +112,24 @@ function createTransaction() {
   return tr;
 }
 
-function createView() {
+function createView(options: {
+  selection?: {
+    from: number;
+    to: number;
+    empty: boolean;
+    $from?: { parent: { type: { name: string }; attrs: { level: number } } };
+  };
+  doc?: { textBetween: ReturnType<typeof vi.fn>; content?: { size: number } };
+} = {}) {
   const tr = createTransaction();
+  const selection = options.selection ?? {
+    from: 1,
+    to: 1,
+    empty: true,
+    $from: {
+      parent: { type: { name: 'heading' }, attrs: { level: 2 } },
+    },
+  };
   return {
     state: {
       schema: {
@@ -125,15 +142,8 @@ function createView() {
           emphasis: { name: 'emphasis' },
         },
       },
-      selection: {
-        from: 1,
-        to: 1,
-        empty: true,
-        $from: {
-          parent: { type: { name: 'heading' }, attrs: { level: 2 } },
-        },
-      },
-      doc: {
+      selection,
+      doc: options.doc ?? {
         textBetween: vi.fn(() => 'x^2'),
       },
       tr,
@@ -255,6 +265,32 @@ describe('handleEditorShortcut', () => {
       type: 'editor:block-user-input',
     }));
     expect(view.dispatch).toHaveBeenCalledOnce();
+    expectHandled(event);
+  });
+
+  it('does not read oversized selected text when creating a math block shortcut', () => {
+    const textBetween = vi.fn(() => {
+      throw new Error('oversized math shortcut selection should not be read');
+    });
+    const view = createView({
+      selection: {
+        from: 1,
+        to: MAX_EDITOR_SELECTION_TEXT_CHARS + 2,
+        empty: false,
+        $from: {
+          parent: { type: { name: 'paragraph' }, attrs: { level: 0 } },
+        },
+      },
+      doc: {
+        content: { size: MAX_EDITOR_SELECTION_TEXT_CHARS + 10 },
+        textBetween,
+      },
+    });
+    const event = createEvent('M', { shiftKey: true });
+
+    expect(handleEditorShortcut(view as never, event)).toBe(true);
+    expect(textBetween).not.toHaveBeenCalled();
+    expect(view.state.schema.nodes.math_block.create).toHaveBeenCalledWith({ latex: '' });
     expectHandled(event);
   });
 

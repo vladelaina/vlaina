@@ -38,6 +38,10 @@ import {
     hasSelectedBlocks,
 } from '../cursor/blockSelectionPluginState';
 import { replaceVisibleBlockSelectionWithCursor } from '../cursor/blockSelectionReplacement';
+import {
+    createClipboardTraversalBudget,
+    consumeClipboardTraversalNode,
+} from './clipboardTraversalBudget';
 
 export const clipboardPluginKey = new PluginKey('editor-clipboard');
 export const MAX_MARKDOWN_PASTE_CHARS = 1024 * 1024;
@@ -46,6 +50,8 @@ export const MAX_MARKDOWN_PASTE_TOP_LEVEL_NODES = 5_000;
 export const MAX_INLINE_FOOTNOTE_PASTE_TEXT_CHARS = 256 * 1024;
 export const MAX_INLINE_FOOTNOTE_PASTE_REFERENCES = 1000;
 export const MAX_INLINE_FOOTNOTE_PASTE_LABEL_CHARS = 256;
+export const MAX_PLAIN_TEXT_LINE_BREAK_PASTE_LINES = 5000;
+export const MAX_PLAIN_TEXT_PARAGRAPH_PASTE_BLOCKS = 1000;
 const INLINE_FOOTNOTE_REFERENCE_PATTERN = /\[\^([^\]\r\n]+)\]/g;
 const BLANK_LINE_PATTERN = /\n[ \t]*\n/;
 
@@ -239,7 +245,16 @@ function splitTextNodeWithInlineFootnotes(state: FootnoteReferenceState, node: P
     return nodes;
 }
 
-function replaceInlineFootnoteReferencesInNode(state: FootnoteReferenceState, node: ProseNode): ProseNode[] {
+function replaceInlineFootnoteReferencesInNode(
+    state: FootnoteReferenceState,
+    node: ProseNode,
+    budget: ReturnType<typeof createClipboardTraversalBudget>,
+    depth: number,
+): ProseNode[] {
+    if (!consumeClipboardTraversalNode(budget, depth)) {
+        return [node];
+    }
+
     if (node.isText) {
         return splitTextNodeWithInlineFootnotes(state, node) ?? [node];
     }
@@ -251,7 +266,9 @@ function replaceInlineFootnoteReferencesInNode(state: FootnoteReferenceState, no
     let changed = false;
     const children: ProseNode[] = [];
     node.content.forEach((child) => {
-        const replacement = replaceInlineFootnoteReferencesInNode(state, child);
+        const replacement = budget.exceeded
+            ? [child]
+            : replaceInlineFootnoteReferencesInNode(state, child, budget, depth + 1);
         children.push(...replacement);
         if (replacement.length !== 1 || replacement[0] !== child) {
             changed = true;
@@ -261,8 +278,18 @@ function replaceInlineFootnoteReferencesInNode(state: FootnoteReferenceState, no
     return changed ? [node.copy(Fragment.fromArray(children))] : [node];
 }
 
-function replaceInlineFootnoteReferencesInNodes(state: FootnoteReferenceState, nodes: ProseNode[]): ProseNode[] {
-    return nodes.flatMap((node) => replaceInlineFootnoteReferencesInNode(state, node));
+export function replaceInlineFootnoteReferencesInNodes(state: FootnoteReferenceState, nodes: ProseNode[]): ProseNode[] {
+    const budget = createClipboardTraversalBudget();
+    const replacementNodes: ProseNode[] = [];
+
+    for (const node of nodes) {
+        if (budget.exceeded) {
+            return nodes;
+        }
+        replacementNodes.push(...replaceInlineFootnoteReferencesInNode(state, node, budget, 1));
+    }
+
+    return budget.exceeded ? nodes : replacementNodes;
 }
 
 function createInlineFootnoteReferenceSlice(state: FootnoteReferenceState, text: string): Slice | null {
@@ -275,7 +302,44 @@ function createInlineFootnoteReferenceSlice(state: FootnoteReferenceState, text:
     return new Slice(Fragment.fromArray(nodes), 0, 0);
 }
 
-function createPlainTextLineBreakSlice(state: {
+function countLineBreakDelimitedItems(value: string, limit: number): number {
+    let count = 1;
+    for (let index = 0; index < value.length; index += 1) {
+        if (value.charCodeAt(index) === 10) {
+            count += 1;
+            if (count > limit) {
+                return count;
+            }
+        }
+    }
+    return count;
+}
+
+function countBlankLineDelimitedBlocks(value: string, limit: number): number {
+    let count = 1;
+    for (let index = 0; index < value.length; index += 1) {
+        if (value.charCodeAt(index) !== 10) {
+            continue;
+        }
+
+        let cursor = index + 1;
+        while (cursor < value.length && (value[cursor] === ' ' || value[cursor] === '\t')) {
+            cursor += 1;
+        }
+        if (value.charCodeAt(cursor) !== 10) {
+            continue;
+        }
+
+        count += 1;
+        if (count > limit) {
+            return count;
+        }
+        index = cursor;
+    }
+    return count;
+}
+
+export function createPlainTextLineBreakSlice(state: {
     schema: {
         text: (text: string) => ProseNode;
         nodes: {
@@ -289,6 +353,9 @@ function createPlainTextLineBreakSlice(state: {
 
     const hardbreakType = state.schema.nodes.hardbreak;
     const normalized = text.replace(/\r\n?/g, '\n');
+    if (countLineBreakDelimitedItems(normalized, MAX_PLAIN_TEXT_LINE_BREAK_PASTE_LINES) > MAX_PLAIN_TEXT_LINE_BREAK_PASTE_LINES) {
+        return null;
+    }
 
     if (!hardbreakType) {
         const paragraphs = normalized.split('\n').map((line) => {
@@ -489,7 +556,7 @@ function normalizeBulletPrefixedOrderedOutlinePaste(text: string): string {
         .join('\n\n');
 }
 
-function createPlainParagraphNodesFromText(state: {
+export function createPlainParagraphNodesFromText(state: {
     schema: {
         text: (text: string) => ProseNode;
         nodes: {
@@ -502,6 +569,9 @@ function createPlainParagraphNodesFromText(state: {
 
     const normalized = text.replace(/\r\n?/g, '\n').trim();
     if (!BLANK_LINE_PATTERN.test(normalized)) return null;
+    if (countBlankLineDelimitedBlocks(normalized, MAX_PLAIN_TEXT_PARAGRAPH_PASTE_BLOCKS) > MAX_PLAIN_TEXT_PARAGRAPH_PASTE_BLOCKS) {
+        return null;
+    }
 
     const paragraphs = normalized
         .split(/\n[ \t]*\n+/)
