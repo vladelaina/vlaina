@@ -209,6 +209,27 @@ function createStressFixtureFiles() {
   return files;
 }
 
+function createHighCardinalityTagFixtureFiles() {
+  const files: Array<{ filename: string; content: string }> = [];
+  for (let index = 0; index < 180; index += 1) {
+    const filename = `mass-tag-${String(index).padStart(3, '0')}.md`;
+    files.push({
+      filename,
+      content: [
+        `# Mass Tag ${index}`,
+        '',
+        `TAG_MASS_SENTINEL_${index} body used by the high-cardinality tag sidebar e2e run.`,
+        '',
+        `#mass-common #mass-bucket-${index % 6} #mass-unique-${String(index).padStart(3, '0')}`,
+        '',
+        'This note is intentionally small so the test isolates tag sidebar overhead.',
+        '',
+      ].join('\n'),
+    });
+  }
+  return files;
+}
+
 test.describe('notes tags sidebar', () => {
   test.setTimeout(180_000);
 
@@ -349,6 +370,92 @@ test.describe('notes tags sidebar', () => {
       expect(tagMetrics.fileRowCount).toBeGreaterThanOrEqual(36);
       expect(tagMetrics.horizontalOverflow).toEqual([]);
       expect(metrics.expandP95Ms).toBeLessThan(2_500);
+      expect(metrics.openP95Ms).toBeLessThan(5_000);
+      expect(metrics.maxScrollDelta).toBeLessThanOrEqual(120);
+      expect(sidebarScrollMetrics).not.toBeNull();
+      expect(sidebarScrollMetrics!.p95FrameMs).toBeLessThan(120);
+      expect(sidebarScrollMetrics!.maxFrameMs).toBeLessThan(500);
+      expect(errors).toEqual([]);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('keeps a high-cardinality tag responsive when it expands to many files', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-tags-high-cardinality');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      const errors: string[] = [];
+      page.on('pageerror', (error) => errors.push(error.message));
+      page.on('console', (message) => {
+        if (message.type() === 'error') {
+          errors.push(message.text());
+        }
+      });
+
+      const fixture = await createVaultFilesFixture(page, {
+        name: 'notes-tags-high-cardinality',
+        files: createHighCardinalityTagFixtureFiles(),
+      });
+      await openVaultInNotes(page, {
+        vaultPath: fixture.vaultPath,
+        name: 'Tags High Cardinality Vault',
+        minFileCount: 1,
+      });
+
+      await waitForTagRows(page, 20);
+      await scrollSidebarSelectorIntoView(page, tagRowSelector('mass-common'), 'center');
+
+      const expandStartedAt = Date.now();
+      await page.locator(tagRowSelector('mass-common')).click();
+      await expect.poll(async () => page.locator(TAG_FILE_ROW_SELECTOR).count(), {
+        timeout: 30_000,
+      }).toBeGreaterThanOrEqual(180);
+      const expandMs = Date.now() - expandStartedAt;
+      await waitAnimationFrames(page, 5);
+
+      const targetIndexes = [0, 60, 120, 179];
+      const openDurations: number[] = [];
+      const scrollDeltas: number[] = [];
+      for (const index of targetIndexes) {
+        const notePath = `mass-tag-${String(index).padStart(3, '0')}.md`;
+        const selector = tagFilePathSelector(notePath);
+        await scrollSidebarSelectorIntoView(page, selector, 'center');
+        const before = await getSidebarSnapshot(page, selector);
+        expect(before).not.toBeNull();
+
+        const openStartedAt = Date.now();
+        await page.locator(selector).first().click();
+        await expect(page.locator(EDITOR_SELECTOR)).toContainText(`TAG_MASS_SENTINEL_${index}`, {
+          timeout: 30_000,
+        });
+        openDurations.push(Date.now() - openStartedAt);
+        await waitAnimationFrames(page, 3);
+
+        const after = await getSidebarSnapshot(page, selector);
+        expect(after).not.toBeNull();
+        expect(after!.targetVisible).toBe(true);
+        scrollDeltas.push(Math.abs(after!.scrollTop - before!.scrollTop));
+      }
+
+      const sidebarScrollMetrics = await measureSidebarScrollFrames(page, 60);
+      const tagMetrics = await collectTagSidebarMetrics(page);
+      const metrics = {
+        expandMs,
+        openDurations,
+        openP95Ms: Math.round(percentile(openDurations, 0.95)),
+        maxScrollDelta: Math.max(...scrollDeltas),
+        sidebarScrollMetrics,
+        tagMetrics,
+      };
+      console.info('[notes-tags-high-cardinality]', JSON.stringify(metrics, null, 2));
+
+      expect(tagMetrics.tagRowCount).toBeGreaterThanOrEqual(20);
+      expect(tagMetrics.fileRowCount).toBeGreaterThanOrEqual(180);
+      expect(tagMetrics.horizontalOverflow).toEqual([]);
+      expect(expandMs).toBeLessThan(5_000);
       expect(metrics.openP95Ms).toBeLessThan(5_000);
       expect(metrics.maxScrollDelta).toBeLessThanOrEqual(120);
       expect(sidebarScrollMetrics).not.toBeNull();
