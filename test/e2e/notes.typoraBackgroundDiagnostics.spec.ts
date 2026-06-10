@@ -47,7 +47,11 @@ test.describe('Typora imported theme backgrounds', () => {
         timeout: 30_000,
       });
 
-      await installReferenceTyporaTheme(page, 'vlook-fancy.css');
+      const installedTheme = await installReferenceTyporaTheme(page, 'vlook-fancy.css');
+      test.skip(
+        Boolean(installedTheme.skipped),
+        installedTheme.skipReason ?? 'Reference Typora theme is not available in this checkout',
+      );
       const background = await page.locator('[data-note-content-root="true"]').evaluate((element) => {
         const style = getComputedStyle(element);
         return {

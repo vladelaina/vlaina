@@ -81,7 +81,7 @@ test.describe('multi-window preference and cache sync', () => {
         (window as any).__vlainaE2E.setUIPreferences({
           fontSize: 22,
           languagePreference: 'zh-CN',
-          sidebarWidth: 432,
+          sidebarWidth: 384,
           imageStorageMode: 'vaultSubfolder',
           imageSubfolderName: 'synced-assets',
           notesChatPanelCollapsed: false,
@@ -91,7 +91,7 @@ test.describe('multi-window preference and cache sync', () => {
       await expect.poll(async () => second.evaluate(() => (window as any).__vlainaE2E.getUIState())).toMatchObject({
         fontSize: 22,
         languagePreference: 'zh-CN',
-        sidebarWidth: 432,
+        sidebarWidth: 384,
         imageStorageMode: 'vaultSubfolder',
         imageSubfolderName: 'synced-assets',
         notesChatPanelCollapsed: false,
