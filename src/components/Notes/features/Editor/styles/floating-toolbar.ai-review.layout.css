@@ -86,18 +86,6 @@
   text-decoration-color: var(--vlaina-color-ai-review-removed-decoration);
 }
 
-.ai-review-error {
-  padding: var(--vlaina-space-12px) var(--vlaina-space-14px);
-  border-radius: var(--vlaina-radius-14px);
-  border: var(--vlaina-border-width-1) solid var(--vlaina-color-status-danger-bg);
-  background: var(--vlaina-color-status-danger-bg);
-  color: var(--vlaina-color-status-danger-fg);
-  font-size: var(--vlaina-font-13);
-  line-height: var(--vlaina-leading-15);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
 .dark .ai-review-result-surface {
   color: var(--vlaina-color-text-primary);
 }
@@ -161,35 +149,11 @@
   color: var(--vlaina-color-text-soft);
 }
 
-.ai-review-icon-action {
-  width: var(--vlaina-size-32px);
-  min-width: var(--vlaina-size-32px);
-  padding: var(--vlaina-space-0);
-  border-radius: var(--vlaina-radius-pill-lg);
-  font-size: var(--vlaina-font-base);
-  border: none;
-  background: transparent;
-  box-shadow: none;
-}
-
 .ai-review-icon-action svg {
-  width: var(--vlaina-size-16px);
-  height: var(--vlaina-size-16px);
+  width: var(--vlaina-size-20px);
+  height: var(--vlaina-size-20px);
   display: block;
   flex: 0 0 auto;
-}
-
-.ai-review-action.ai-review-icon-action.primary,
-.ai-review-action.ai-review-icon-action.tertiary {
-  background: transparent;
-}
-
-.ai-review-action.ai-review-icon-action.tertiary {
-  color: var(--vlaina-color-text-soft);
-}
-
-.ai-review-action.ai-review-icon-action.primary {
-  color: var(--vlaina-color-text-primary);
 }
 
 .ai-review-action:hover {
@@ -201,22 +165,4 @@
   align-items: center;
   gap: var(--vlaina-space-8px);
   flex: 0 0 auto;
-}
-
-.ai-review-controls-left .ai-review-icon-action,
-.ai-review-controls-right .ai-review-icon-action {
-  width: var(--vlaina-size-36px);
-  min-width: var(--vlaina-size-36px);
-  height: var(--vlaina-size-36px);
-}
-
-.ai-review-controls-left .ai-review-icon-action svg,
-.ai-review-controls-right .ai-review-icon-action svg {
-  width: var(--vlaina-size-18px);
-  height: var(--vlaina-size-18px);
-}
-
-.ai-review-controls-left .ai-review-icon-action:hover,
-.ai-review-controls-right .ai-review-icon-action:hover {
-  transform: none;
 }
