@@ -2,6 +2,7 @@ import * as React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppContent } from './AppContent';
+import { MARKDOWN_FONT_SIZE_STYLE_ID } from '@/lib/markdown/markdownFontSize';
 
 type AppViewMode = 'notes' | 'chat' | 'lab';
 
@@ -303,6 +304,7 @@ describe('AppContent view switching chrome readiness', () => {
     mocks.notesSidebarUnmounts = 0;
     document.documentElement.style.removeProperty('font-size');
     document.documentElement.style.removeProperty('--vlaina-markdown-font-size');
+    document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)?.remove();
   });
 
   it('keeps the notes sidebar mounted when switching away and back to an already ready notes view', async () => {
@@ -361,9 +363,12 @@ describe('AppContent view switching chrome readiness', () => {
     render(<AppContent />);
 
     await waitFor(() => {
-      expect(document.documentElement.style.getPropertyValue('--vlaina-markdown-font-size')).toBe('17px');
+      expect(document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)?.textContent).toContain(
+        '--vlaina-markdown-font-size: 17px',
+      );
     });
     expect(document.documentElement.style.fontSize).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--vlaina-markdown-font-size')).toBe('');
   });
 
   it('cycles imported markdown themes from the dev-only main overlay', async () => {

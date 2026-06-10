@@ -14,6 +14,7 @@ import { getElectronBridge, isElectronRuntime } from '@/lib/electron/bridge';
 import { translate } from '@/lib/i18n';
 import { APP_VERSION } from '@/lib/appVersion';
 import { useToastStore } from '@/stores/useToastStore';
+import { applyMarkdownFontSize } from '@/lib/markdown/markdownFontSize';
 import {
   type CommunitySettings,
   getCachedCommunitySettings,
@@ -531,7 +532,7 @@ export function AppContent() {
   useEffect(() => {
     if (typeof document === 'undefined') return;
     document.documentElement.style.removeProperty('font-size');
-    document.documentElement.style.setProperty('--vlaina-markdown-font-size', `${fontSize}px`);
+    applyMarkdownFontSize(fontSize);
   }, [fontSize]);
 
   useEffect(() => {

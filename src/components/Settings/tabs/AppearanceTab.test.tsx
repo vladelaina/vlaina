@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactElement, ReactNode } from 'react';
 import { AppearanceTab } from './AppearanceTab';
+import { MARKDOWN_FONT_SIZE_STYLE_ID } from '@/lib/markdown/markdownFontSize';
 
 const mocks = vi.hoisted(() => ({
   uiState: {
@@ -176,6 +177,8 @@ describe('AppearanceTab theme entry', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    document.documentElement.style.removeProperty('--vlaina-markdown-font-size');
+    document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)?.remove();
   });
 
   it('shows directory themes without exposing a compatibility-layer selector', async () => {
@@ -210,5 +213,21 @@ describe('AppearanceTab theme entry', () => {
       expect(mocks.ensureImportedMarkdownThemesDirectory).toHaveBeenCalledTimes(1);
       expect(mocks.openPathInFileManager).toHaveBeenCalledWith('/app/.vlaina/themes');
     });
+  });
+
+  it('previews base font size through the scoped markdown font-size rule', async () => {
+    const { container } = render(<AppearanceTab />);
+    const slider = container.querySelector<HTMLInputElement>('input[type="range"]');
+    expect(slider).not.toBeNull();
+
+    fireEvent.mouseDown(slider!);
+    fireEvent.change(slider!, { target: { value: '20' } });
+
+    await waitFor(() => {
+      expect(document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)?.textContent).toContain(
+        '--vlaina-markdown-font-size: 20px',
+      );
+    });
+    expect(document.documentElement.style.getPropertyValue('--vlaina-markdown-font-size')).toBe('');
   });
 });
