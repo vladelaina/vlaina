@@ -13,8 +13,10 @@ export function AiToolbarModelSelector({
   return (
     <ModelSelector
       composerInputRef={composerInputRef ?? { current: null }}
+      dropdownLayerClassName="z-[var(--vlaina-z-120)]"
       dropdownPlacement="top"
       focusSearchOnOpen={false}
+      isEmbedded
       onSelectModel={onSelectModel}
       restoreComposerFocusOnClose={false}
       theme="notes"

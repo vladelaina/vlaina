@@ -150,10 +150,16 @@ function normalizePreviewComparisonHtml(element: Element | null | undefined): st
     .trim();
 }
 
-function createOversizedPreviewView(): any {
+function createPreviewGuardView(options: {
+  docSize: number;
+  domElementCount?: number;
+}): any {
   const host = document.createElement('div');
   const dom = document.createElement('div');
   dom.className = 'ProseMirror';
+  for (let index = 0; index < (options.domElementCount ?? 0); index += 1) {
+    dom.appendChild(document.createElement('span'));
+  }
   host.appendChild(dom);
   document.body.appendChild(host);
 
@@ -161,12 +167,16 @@ function createOversizedPreviewView(): any {
     dom,
     state: {
       doc: {
-        content: { size: 1024 * 1024 + 1 },
+        content: { size: options.docSize },
         eq: vi.fn(() => false),
       },
     },
     dispatch: vi.fn(),
   };
+}
+
+function createOversizedPreviewView(): any {
+  return createPreviewGuardView({ docSize: 1024 * 1024 + 1 });
 }
 
 describe('previewStyles', () => {
@@ -304,6 +314,19 @@ describe('previewStyles', () => {
 
   it('skips applied preview rendering for oversized documents', () => {
     const view = createOversizedPreviewView();
+
+    applyFormatPreview(view, 'bold');
+    applyColorPickerIdlePreview(view);
+
+    expect(view.dom.parentElement?.querySelector('.toolbar-applied-preview-overlay')).toBeNull();
+    expect(view.dom.style.display).toBe('');
+  });
+
+  it('skips applied preview rendering for DOM-heavy documents even when text size is small', () => {
+    const view = createPreviewGuardView({
+      docSize: 1024,
+      domElementCount: 2_501,
+    });
 
     applyFormatPreview(view, 'bold');
     applyColorPickerIdlePreview(view);
