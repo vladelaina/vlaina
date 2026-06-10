@@ -327,6 +327,22 @@ describe('notes metadata storage', () => {
     expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-heavy/Dist');
   });
 
+  it('caps non-markdown directory scanning before late markdown entries', async () => {
+    adapter.listDir.mockResolvedValue([
+      ...Array.from({ length: 10_000 }, (_, index) => ({ name: `asset-${index}.png`, isFile: true })),
+      { name: 'late.md', isFile: true },
+      { name: 'late-folder', isDirectory: true },
+    ]);
+
+    await expect(loadNoteMetadata('/vault-many-assets')).resolves.toEqual({
+      version: 2,
+      notes: {},
+    });
+    expect(adapter.stat).not.toHaveBeenCalledWith('/vault-many-assets/late.md');
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/vault-many-assets/late.md');
+    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-many-assets/late-folder', { includeHidden: true });
+  });
+
   it('keeps readable sibling metadata when one nested folder cannot be listed', async () => {
     adapter.listDir.mockImplementation(async (path: string) => {
       if (path === '/vault-partial-failure') {

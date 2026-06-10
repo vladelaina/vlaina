@@ -1,6 +1,9 @@
 import type { StarredEntry } from '@/stores/notes/types';
 import type { FileTreeNode, FolderNode } from '@/stores/useNotesStore';
-import { getNotesSidebarContentMatches } from './notesSidebarContentSearch';
+import {
+  getNotesSidebarContentMatches,
+  MAX_CONTENT_SEARCH_SCANNED_CHARS,
+} from './notesSidebarContentSearch';
 import { collectStarredSearchEntries } from './notesSidebarStarredSearchEntries';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
@@ -32,6 +35,8 @@ const SEARCH_ENTRY_METADATA = Symbol('notesSidebarSearchEntryMetadata');
 const SEARCH_INDEX_METADATA = Symbol('notesSidebarSearchIndexMetadata');
 const CONTENT_SEARCH_MIN_QUERY_LENGTH = 2;
 export const NOTES_SIDEBAR_MAX_SEARCH_RESULTS = 200;
+export const NOTES_SIDEBAR_MAX_CONTENT_SEARCH_ENTRIES = 1000;
+export const NOTES_SIDEBAR_MAX_CONTENT_SEARCH_CHARS = 16 * 1024 * 1024;
 const MAX_SEARCH_INDEX_TREE_ENTRIES = 10_000;
 
 interface NotesSidebarSearchEntryMetadata {
@@ -257,13 +262,25 @@ export function queryNotesSidebarSearch(
   const contentResults: NotesSidebarSearchResult[] = [];
   const contentResultLimit = NOTES_SIDEBAR_MAX_SEARCH_RESULTS - structuralResults.length;
   const contentEntries = getContentSearchEntriesByPath(index);
+  let searchedContentEntries = 0;
+  let searchedContentChars = 0;
 
   for (const entry of contentEntries) {
-    if (contentResults.length >= contentResultLimit) {
+    if (
+      contentResults.length >= contentResultLimit ||
+      searchedContentEntries >= NOTES_SIDEBAR_MAX_CONTENT_SEARCH_ENTRIES ||
+      searchedContentChars >= NOTES_SIDEBAR_MAX_CONTENT_SEARCH_CHARS
+    ) {
       break;
     }
 
-    const contentMatches = getNotesSidebarContentMatches(getNoteContent(entry.path), lowerQuery);
+    searchedContentEntries += 1;
+    const content = getNoteContent(entry.path);
+    if (content) {
+      searchedContentChars += Math.min(content.length, MAX_CONTENT_SEARCH_SCANNED_CHARS);
+    }
+
+    const contentMatches = getNotesSidebarContentMatches(content, lowerQuery);
     for (const contentMatch of contentMatches) {
       contentResults.push({
         ...entry,

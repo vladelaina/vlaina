@@ -53,6 +53,25 @@ describe('notes scan budgets', () => {
     ]);
   });
 
+  it('caps non-markdown file tree scanning before late markdown notes', async () => {
+    adapter.listDir.mockResolvedValue([
+      ...Array.from({ length: 10_000 }, (_, index) => ({
+        name: `image-${index}.png`,
+        path: `/vault/image-${index}.png`,
+        isDirectory: false,
+        isFile: true,
+      })),
+      {
+        name: 'late.md',
+        path: '/vault/late.md',
+        isDirectory: false,
+        isFile: true,
+      },
+    ]);
+
+    await expect(buildFileTree('/vault')).resolves.toEqual([]);
+  });
+
   it('does not spend metadata scan budget on unsupported sibling files before markdown notes', async () => {
     adapter.listDir.mockResolvedValue([
       ...Array.from({ length: 6000 }, (_, index) => ({

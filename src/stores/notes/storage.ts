@@ -19,6 +19,7 @@ const CURRENT_METADATA_VERSION = 2;
 const DEFAULT_NOTE_ICON_SIZE = 60;
 const MAX_METADATA_CACHE_VAULTS = 8;
 const MAX_METADATA_SCAN_ENTRIES = 5000;
+const MAX_METADATA_DIRECTORY_SCAN_ENTRIES = 10_000;
 const MAX_METADATA_SCAN_DEPTH = 24;
 const MAX_METADATA_READ_BYTES = 5 * 1024 * 1024;
 const MAX_RECENT_NOTES_STORAGE_CHARS = 64 * 1024;
@@ -38,6 +39,7 @@ interface CachedMetadataEntry {
 }
 
 interface MetadataScanBudget {
+  scannedEntries: number;
   visitedEntries: number;
 }
 
@@ -174,10 +176,14 @@ function isReadableBoundedFile(
 async function collectMarkdownPaths(
   basePath: string,
   relativePath: string = '',
-  budget: MetadataScanBudget = { visitedEntries: 0 },
+  budget: MetadataScanBudget = { scannedEntries: 0, visitedEntries: 0 },
   depth = 0,
 ): Promise<string[]> {
-  if (budget.visitedEntries >= MAX_METADATA_SCAN_ENTRIES || depth >= MAX_METADATA_SCAN_DEPTH) {
+  if (
+    budget.scannedEntries >= MAX_METADATA_DIRECTORY_SCAN_ENTRIES ||
+    budget.visitedEntries >= MAX_METADATA_SCAN_ENTRIES ||
+    depth >= MAX_METADATA_SCAN_DEPTH
+  ) {
     return [];
   }
 
@@ -195,6 +201,11 @@ async function collectMarkdownPaths(
   const collected: string[] = [];
 
   for (const entry of entries) {
+    if (budget.scannedEntries >= MAX_METADATA_DIRECTORY_SCAN_ENTRIES) {
+      break;
+    }
+    budget.scannedEntries += 1;
+
     if (!isSafeVaultPathSegment(entry.name)) {
       continue;
     }
