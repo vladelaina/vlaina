@@ -176,6 +176,7 @@ function UserMessageInner({
                 data-no-focus-input="true"
                 data-chat-selection-surface="true"
                 data-chat-selection-start="true"
+                data-vlaina-markdown-font-size-surface="true"
                 className="inline-block max-w-[var(--vlaina-size-90pct)] select-text rounded-3xl bg-[var(--vlaina-accent)] px-4 py-1.5 text-left text-[var(--vlaina-color-white)]"
                 style={textBubbleStyle}
               >

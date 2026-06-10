@@ -23,6 +23,7 @@ import {
   preloadCompiledImportedMarkdownThemeStyles,
   preloadMarkdownThemeCompiler,
 } from '@/components/markdown-theme/markdownThemeCompiler';
+import { applyMarkdownFontSize } from '@/lib/markdown/markdownFontSize';
 import { cn } from '@/lib/utils';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
@@ -227,6 +228,8 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
   const [importedThemes, setImportedThemes] = useState<ImportedMarkdownThemeMetadata[]>([]);
   const draftFontSizeRef = useRef(fontSize);
   const previewingFontSizeRef = useRef(false);
+  const pendingFontSizeFrameRef = useRef<number | null>(null);
+  const pendingFontSizeRef = useRef(fontSize);
 
   const displayedFontSize = isPreviewingFontSize ? draftFontSize : fontSize;
 
@@ -234,6 +237,14 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
     if (isPreviewingFontSize) return;
     setDraftFontSize(fontSize);
   }, [fontSize, isPreviewingFontSize]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingFontSizeFrameRef.current !== null && typeof window !== 'undefined') {
+        window.cancelAnimationFrame(pendingFontSizeFrameRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     onFontSizePreviewingChange?.(isPreviewingFontSize);
@@ -250,6 +261,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
     const commitPreview = () => {
       if (!previewingFontSizeRef.current) return;
       previewingFontSizeRef.current = false;
+      applyMarkdownFontSize(draftFontSizeRef.current);
       setIsPreviewingFontSize(false);
       setFontSize(draftFontSizeRef.current);
     };
@@ -265,6 +277,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
       window.removeEventListener('blur', commitPreview);
       if (previewingFontSizeRef.current) {
         previewingFontSizeRef.current = false;
+        applyMarkdownFontSize(draftFontSizeRef.current);
         setFontSize(draftFontSizeRef.current);
       }
       onFontSizePreviewingChange?.(false);
@@ -276,14 +289,26 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
     return `${((bounded - UI_FONT_SIZE_MIN) / (UI_FONT_SIZE_MAX - UI_FONT_SIZE_MIN)) * 100}%`;
   }, [displayedFontSize]);
 
+  const scheduleMarkdownFontSizePreview = useCallback((next: number) => {
+    pendingFontSizeRef.current = next;
+    if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+      applyMarkdownFontSize(next);
+      return;
+    }
+
+    if (pendingFontSizeFrameRef.current !== null) return;
+    pendingFontSizeFrameRef.current = window.requestAnimationFrame(() => {
+      pendingFontSizeFrameRef.current = null;
+      applyMarkdownFontSize(pendingFontSizeRef.current);
+    });
+  }, []);
+
   const handleFontSizeChange = (e: ChangeEvent<HTMLInputElement>) => {
     const next = parseInt(e.target.value);
     if (draftFontSizeRef.current === next) return;
     draftFontSizeRef.current = next;
     setDraftFontSize(next);
-    if (typeof document !== 'undefined') {
-      document.documentElement.style.setProperty('--vlaina-markdown-font-size', `${next}px`);
-    }
+    scheduleMarkdownFontSizePreview(next);
   };
 
   const beginFontSizePreview = (event: PointerEvent<HTMLInputElement> | MouseEvent<HTMLInputElement>) => {
@@ -297,6 +322,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
   const handleResetFontSize = () => {
     draftFontSizeRef.current = UI_FONT_SIZE_DEFAULT;
     setDraftFontSize(UI_FONT_SIZE_DEFAULT);
+    applyMarkdownFontSize(UI_FONT_SIZE_DEFAULT);
     resetFontSize();
   };
 
