@@ -1034,13 +1034,29 @@ export function createFloatingToolbarPluginView(
     if (
       !toolbarElement ||
       toolbarElement.contains(event.target as Node) ||
-      selectionToolbarElement.contains(event.target as Node)
+      selectionToolbarElement.contains(event.target as Node) ||
+      editorView.dom.contains(event.target as Node)
     ) {
       return;
     }
 
     const pluginState = toolbarKey.getState(editorView.state);
     if (pluginState?.subMenu === 'aiReview') {
+      return;
+    }
+
+    const { selection } = editorView.state;
+    if (hasUsableTextSelection(selection, editorView.state.doc)) {
+      const cursorPos = Math.max(0, Math.min(selection.to, editorView.state.doc.content.size));
+      window.getSelection()?.removeAllRanges();
+      editorView.dispatch(
+        editorView.state.tr
+          .setSelection(TextSelection.create(editorView.state.doc, cursorPos))
+          .setMeta(toolbarKey, {
+            type: TOOLBAR_ACTIONS.HIDE,
+          })
+          .setMeta('addToHistory', false)
+      );
       return;
     }
 

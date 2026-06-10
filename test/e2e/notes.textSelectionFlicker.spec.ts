@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
   EDITOR_SELECTOR,
+  FILE_TREE_PRIMARY_SELECTOR,
   cleanupIsolatedElectron,
   getOpenBridgePages,
   launchIsolatedElectron,
@@ -146,6 +147,49 @@ function countBooleanTransitions(frames: SelectionFrame[], key: keyof SelectionF
   return transitions;
 }
 
+async function clickOutsideEditorAndToolbar(page: Page): Promise<void> {
+  const point = await page.evaluate(({ editorSelector, outsideSelector }) => {
+    const outside = document.querySelector<HTMLElement>(outsideSelector);
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    const toolbar = document.querySelector<HTMLElement>('.floating-toolbar.visible');
+    const outsideRect = outside?.getBoundingClientRect();
+
+    if (outsideRect && outsideRect.width > 20 && outsideRect.height > 20) {
+      const x = outsideRect.left + Math.min(20, outsideRect.width / 2);
+      const y = outsideRect.top + Math.min(20, outsideRect.height / 2);
+      return { x, y };
+    }
+
+    const editorRect = editor?.getBoundingClientRect();
+    const toolbarRect = toolbar?.getBoundingClientRect();
+    const candidates = [
+      { x: 12, y: 12 },
+      { x: window.innerWidth - 12, y: 12 },
+      { x: 12, y: window.innerHeight - 12 },
+      { x: window.innerWidth - 12, y: window.innerHeight - 12 },
+    ];
+
+    return candidates.find((candidate) => {
+      const inEditor = editorRect
+        ? candidate.x >= editorRect.left &&
+          candidate.x <= editorRect.right &&
+          candidate.y >= editorRect.top &&
+          candidate.y <= editorRect.bottom
+        : false;
+      const inToolbar = toolbarRect
+        ? candidate.x >= toolbarRect.left &&
+          candidate.x <= toolbarRect.right &&
+          candidate.y >= toolbarRect.top &&
+          candidate.y <= toolbarRect.bottom
+        : false;
+      return !inEditor && !inToolbar;
+    }) ?? { x: 12, y: 12 };
+  }, { editorSelector: EDITOR_SELECTOR, outsideSelector: FILE_TREE_PRIMARY_SELECTOR });
+
+  await page.mouse.click(point.x, point.y);
+  await waitForEditorAnimationFrame(page);
+}
+
 function createLargeTextSelectionMarkdown(paragraphCount: number): {
   content: string;
   targets: string[];
@@ -288,6 +332,69 @@ test.describe('notes text selection stability', () => {
 
       const finalSummary = await page.evaluate(() => (window as any).__vlainaE2E.getEditorSelectionSummary());
       expect(finalSummary?.selectedText).toContain('Ordinary selectable paragraph alpha sentinel');
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('clears ordinary text selection when clicking outside the editor and toolbar', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-text-selection-clear-outside');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+
+      await openMarkdownFixture(page, {
+        filename: 'text-selection-clear-outside.md',
+        content: [
+          '# Text Selection Clear Outside',
+          '',
+          TARGET_TEXT,
+          '',
+          'Clicking outside the editor should clear the selected text and hide the toolbar.',
+        ].join('\n'),
+      });
+
+      const selected = await page.evaluate((text) =>
+        (window as any).__vlainaE2E.selectEditorTextByText(text), TARGET_TEXT);
+      expect(selected.selected).toBe(true);
+      await expect.poll(async () => page.evaluate(() => {
+        const toolbar = document.querySelector<HTMLElement>('.floating-toolbar');
+        return {
+          selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+          overlayCount: document.querySelectorAll('.editor-text-selection-overlay').length,
+          toolbarVisible: Boolean(toolbar?.classList.contains('visible')),
+        };
+      })).toMatchObject({
+        selection: {
+          empty: false,
+        },
+        overlayCount: expect.any(Number),
+        toolbarVisible: true,
+      });
+
+      await clickOutsideEditorAndToolbar(page);
+
+      await expect.poll(async () => page.evaluate(() => {
+        const toolbar = document.querySelector<HTMLElement>('.floating-toolbar');
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        return {
+          selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+          nativeSelectedText: window.getSelection()?.toString() ?? '',
+          overlayCount: document.querySelectorAll('.editor-text-selection-overlay').length,
+          hasOverlayActiveClass: Boolean(editor?.classList.contains('editor-text-selection-overlay-active')),
+          toolbarVisible: Boolean(toolbar?.classList.contains('visible')),
+        };
+      })).toMatchObject({
+        selection: {
+          empty: true,
+          selectedText: '',
+        },
+        nativeSelectedText: '',
+        overlayCount: 0,
+        hasOverlayActiveClass: false,
+        toolbarVisible: false,
+      });
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }
