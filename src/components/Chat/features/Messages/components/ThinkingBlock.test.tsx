@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ThinkingBlock } from './ThinkingBlock';
+import { MAX_THINKING_SELECTION_TEXT_NODES, ThinkingBlock } from './ThinkingBlock';
 import { dispatchChatSelectionStreamFreeze } from './chatSelectionStreamFreeze';
 import { MAX_CHAT_STREAM_ANIMATION_CHARS } from '@/components/Chat/features/Markdown/chatStreamTextAnimation';
 
@@ -345,6 +345,59 @@ describe('ThinkingBlock', () => {
     );
 
     expect(container).toHaveTextContent('First thought plus more and more');
+    selectionSpy.mockRestore();
+  });
+
+  it('bounds active selection scans while live thinking is frozen', () => {
+    vi.useFakeTimers();
+    const selectionRoot = document.createElement('div');
+    for (let index = 0; index < MAX_THINKING_SELECTION_TEXT_NODES * 4; index += 1) {
+      selectionRoot.append(document.createTextNode(' '));
+    }
+    const intersectsNode = vi.fn((node: Node) => node.nodeType === Node.ELEMENT_NODE);
+    const activeRange = {
+      commonAncestorContainer: selectionRoot,
+      endContainer: selectionRoot,
+      endOffset: selectionRoot.childNodes.length,
+      intersectsNode,
+      startContainer: selectionRoot,
+      startOffset: 0,
+    } as unknown as Range;
+    const selectionSpy = vi.spyOn(window, 'getSelection').mockReturnValue({
+      isCollapsed: false,
+      rangeCount: 1,
+      getRangeAt: () => activeRange,
+    } as unknown as Selection);
+    const { container, rerender } = render(
+      <ThinkingBlock
+        content="First thought"
+        isStreaming
+      />,
+    );
+
+    const surface = container.querySelector('[data-chat-selection-surface="true"]')!;
+    fireEvent.mouseDown(surface, { button: 0 });
+    rerender(
+      <ThinkingBlock
+        content="First thought plus more"
+        isStreaming
+      />,
+    );
+    fireEvent.pointerUp(document);
+    act(() => {
+      vi.advanceTimersByTime(121);
+    });
+    rerender(
+      <ThinkingBlock
+        content="First thought plus more and more"
+        isStreaming
+      />,
+    );
+
+    expect(intersectsNode.mock.calls.filter(([node]) => node.nodeType === Node.TEXT_NODE).length)
+      .toBeLessThanOrEqual(MAX_THINKING_SELECTION_TEXT_NODES * 2);
+    expect(container).toHaveTextContent('First thought');
+    expect(container).not.toHaveTextContent('First thought plus more and more');
     selectionSpy.mockRestore();
   });
 });

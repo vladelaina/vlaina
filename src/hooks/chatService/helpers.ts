@@ -69,6 +69,7 @@ const MAX_INFERRED_IMAGE_NAME_SEGMENT_DECODE_CHARS = 2048;
 const MAX_INFERRED_IMAGE_NAME_CHARS = 512;
 const MAX_STORED_USER_MESSAGE_IMAGE_TOKENS = 2000;
 export const MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS = 64;
+const INLINE_DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i;
 const PROMPT_LABEL_UNSAFE_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]+/g;
 const MAX_PROMPT_LABEL_LENGTH = 240;
 const IMAGE_EXTENSION_MIME_TYPES: Record<string, string> = {
@@ -323,7 +324,7 @@ function scrubOverflowStoredInlineDataImageSyntax(content: string): string {
 export async function buildStoredUserMessageContent(content: string): Promise<ChatMessageContent> {
   const { imageSources, tokensToStrip, reachedImageTokenBudget } = collectStoredUserMessageImages(content);
   if (imageSources.length === 0 && tokensToStrip.length === 0) {
-    if (reachedImageTokenBudget || /data:image\//i.test(content)) {
+    if (reachedImageTokenBudget || INLINE_DATA_IMAGE_TARGET_HINT_PATTERN.test(content)) {
       const scrubbed = scrubOverflowStoredInlineDataImageSyntax(content).trim();
       return scrubbed === content ? content : scrubbed ? [{ type: 'text', text: scrubbed }] : '';
     }
@@ -331,7 +332,8 @@ export async function buildStoredUserMessageContent(content: string): Promise<Ch
   }
 
   const strippedText = stripImageTokens(content, tokensToStrip);
-  const text = (reachedImageTokenBudget
+  const shouldScrubStrippedText = reachedImageTokenBudget || INLINE_DATA_IMAGE_TARGET_HINT_PATTERN.test(strippedText);
+  const text = (shouldScrubStrippedText
     ? scrubOverflowStoredInlineDataImageSyntax(strippedText)
     : strippedText
   ).trim();

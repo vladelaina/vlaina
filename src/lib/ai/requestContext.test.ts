@@ -163,6 +163,18 @@ describe('requestContext', () => {
     expect(sanitized[0].content).toContain('Tail [Image] after');
   });
 
+  it('does not leak overflow markdown image sources with long labels after the history scan budget is reached', () => {
+    const content = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](attachment://safe-${index}.png)`),
+      `Tail ![${'a'.repeat(2048)}](attachment://secret.png) after`,
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).not.toContain('attachment://secret.png');
+    expect(sanitized[0].content).toContain('Tail [Image] after');
+  });
+
   it('does not leak entity-encoded oversized markdown data image targets after the history scan budget is reached', () => {
     const content = [
       ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](attachment://safe-${index}.png)`),

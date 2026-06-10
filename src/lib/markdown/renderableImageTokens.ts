@@ -8,7 +8,13 @@ import {
 import { parseVideoUrl } from './videoUrl';
 import { MAX_INLINE_IMAGE_BASE64_CHARS } from './dataImagePolicy';
 import { scrubOverflowMarkdownDataImages } from './overflowDataImageScrubber';
-import { findHtmlTagEnd } from './markdownRanges';
+import {
+  findHtmlTagEnd,
+  getInlineCodeRanges,
+  getRangeEndAtOffset,
+  iterateNonFencedContentRanges,
+  type ContentRange,
+} from './markdownRanges';
 import { htmlImageTagHasDataImageSrc } from './markdownHtmlImageSrc';
 
 const MAX_RENDERABLE_IMAGE_REPLACEMENT_TOKENS = 2000;
@@ -78,20 +84,46 @@ function scrubOverflowHtmlDataImages(content: string, replacement: string): stri
   let output = '';
   let cursor = 0;
 
-  while (cursor < content.length) {
+  for (const range of iterateNonFencedContentRanges(content)) {
+    output += content.slice(cursor, range.start);
+    output += scrubOverflowHtmlDataImagesInRange(content, range, replacement);
+    cursor = range.end;
+  }
+
+  output += content.slice(cursor);
+  return output;
+}
+
+function scrubOverflowHtmlDataImagesInRange(
+  content: string,
+  range: ContentRange,
+  replacement: string,
+): string {
+  const inlineCodeRanges = getInlineCodeRanges(content, range);
+  let output = '';
+  let cursor = range.start;
+
+  while (cursor < range.end) {
     const start = indexOfAsciiCaseInsensitive(content, '<img', cursor);
-    if (start === -1) {
-      output += content.slice(cursor);
+    if (start === -1 || start >= range.end) {
+      output += content.slice(cursor, range.end);
       break;
     }
 
-    const scanEnd = Math.min(content.length, start + MAX_OVERFLOW_DATA_IMAGE_TARGET_CHARS);
+    const inlineCodeEnd = getRangeEndAtOffset(start, inlineCodeRanges);
+    if (inlineCodeEnd !== null) {
+      output += content.slice(cursor, inlineCodeEnd);
+      cursor = inlineCodeEnd;
+      continue;
+    }
+
+    const scanEnd = Math.min(range.end, start + MAX_OVERFLOW_DATA_IMAGE_TARGET_CHARS);
     const tagEnd = findHtmlTagEnd(content, start, scanEnd);
     if (tagEnd === -1) {
       if (htmlImageTagHasDataImageSrc(content.slice(start, scanEnd))) {
         output += content.slice(cursor, start);
         output += replacement;
-        cursor = getOverflowHtmlImageScrubEnd(content, start, content.length);
+        cursor = getOverflowHtmlImageScrubEnd(content, start, range.end);
         continue;
       }
       output += content.slice(cursor, start + 4);

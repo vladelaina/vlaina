@@ -99,6 +99,10 @@ export function normalizeRenderableImageSrc(src: string | null | undefined): str
     return null;
   }
 
+  if (trimmed.startsWith('//')) {
+    return isLocalNetworkHttpUrl(`https:${trimmed}`) ? null : `https:${trimmed}`;
+  }
+
   if (isRelativePath(trimmed) || isBareRelativeImagePath(trimmed)) {
     return trimmed;
   }

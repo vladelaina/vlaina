@@ -9,6 +9,7 @@ export type BoundedImageBlobFetchResult =
 interface FetchBoundedImageBlobOptions {
   maxBytes?: number;
   fetchInit?: RequestInit;
+  signal?: AbortSignal;
 }
 
 function getMaxBytes(options: FetchBoundedImageBlobOptions | undefined): number {
@@ -35,27 +36,101 @@ async function cancelResponseBody(response: Response): Promise<void> {
   }
 }
 
+function createAbortError(): DOMException {
+  return new DOMException('Aborted', 'AbortError');
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw createAbortError();
+}
+
+function getAbortSignal(options: FetchBoundedImageBlobOptions | undefined): AbortSignal | undefined {
+  return options?.signal ?? options?.fetchInit?.signal ?? undefined;
+}
+
+function raceWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) {
+    return promise;
+  }
+  throwIfAborted(signal);
+  promise.catch(() => undefined);
+
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      signal.removeEventListener('abort', abort);
+    };
+    const settle = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback();
+    };
+    const abort = () => {
+      settle(() => reject(createAbortError()));
+    };
+
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+
+    promise.then(
+      (value) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            resolve(value);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+      (error) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            reject(error);
+          } catch (abortError) {
+            reject(abortError);
+          }
+        });
+      },
+    );
+  });
+}
+
 async function readResponseStreamBlob(
   response: Response,
   maxBytes: number,
   contentLength: number | null,
+  signal?: AbortSignal,
 ): Promise<Blob | null> {
+  throwIfAborted(signal);
   const reader = response.body?.getReader();
   if (!reader) {
     if (contentLength === null) {
       return null;
     }
 
-    const blob = await response.blob();
+    const blob = await raceWithAbort(response.blob(), signal);
+    throwIfAborted(signal);
     return blob.size <= maxBytes ? blob : null;
   }
 
   const chunks: Uint8Array[] = [];
   let totalBytes = 0;
+  const cancelReader = () => {
+    void reader.cancel(createAbortError()).catch(() => undefined);
+  };
+  signal?.addEventListener('abort', cancelReader, { once: true });
 
   try {
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await raceWithAbort(reader.read(), signal);
+      throwIfAborted(signal);
       if (done) {
         break;
       }
@@ -70,7 +145,13 @@ async function readResponseStreamBlob(
       }
       chunks.push(value);
     }
+  } catch (error) {
+    if (signal?.aborted) {
+      throw createAbortError();
+    }
+    throw error;
   } finally {
+    signal?.removeEventListener('abort', cancelReader);
     reader.releaseLock();
   }
 
@@ -91,16 +172,18 @@ export async function fetchBoundedImageBlobResult(
 
 export async function readBoundedImageBlobResponse(
   response: Response,
-  options?: Pick<FetchBoundedImageBlobOptions, 'maxBytes'>,
+  options?: Pick<FetchBoundedImageBlobOptions, 'maxBytes' | 'signal'>,
 ): Promise<BoundedImageBlobFetchResult> {
   const maxBytes = getMaxBytes(options);
+  const signal = getAbortSignal(options);
+  throwIfAborted(signal);
   const contentLength = readContentLength(response);
   if (contentLength !== null && contentLength > maxBytes) {
     await cancelResponseBody(response);
     return { status: 'too-large', blob: null };
   }
 
-  const blob = await readResponseStreamBlob(response, maxBytes, contentLength);
+  const blob = await readResponseStreamBlob(response, maxBytes, contentLength, signal);
   if (!blob || blob.size > maxBytes) {
     return { status: 'too-large', blob: null };
   }

@@ -192,6 +192,37 @@ describe('messageClipboard bounded image parsing', () => {
     expect(copied).not.toContain('data:image');
   });
 
+  it('scrubs oversized markdown data images when no image tokens are parsed', () => {
+    const content = [
+      `B ![huge](<data:image/png;base64,${'A'.repeat(1024 * 1024 + 16)}>)`,
+      'C tail',
+    ].join('\n');
+
+    const copied = formatMessageCopyText(content, { maxTokens: 1 });
+
+    expect(copied).toBe([
+      'B [image]',
+      'C tail',
+    ].join('\n'));
+    expect(copied).not.toContain('data:image');
+  });
+
+  it('scrubs entity-encoded oversized markdown data images when no image tokens are parsed', () => {
+    const content = [
+      `B ![huge](<data&colon;image&sol;png&semi;base64&comma;${'A'.repeat(1024 * 1024 + 16)}>)`,
+      'C tail',
+    ].join('\n');
+
+    const copied = formatMessageCopyText(content, { maxTokens: 1 });
+
+    expect(copied).toBe([
+      'B [image]',
+      'C tail',
+    ].join('\n'));
+    expect(copied).not.toContain('data&colon;image&sol;');
+    expect(copied).not.toContain('&semi;base64&comma;');
+  });
+
   it('scrubs overflow markdown data images with long labels', () => {
     const content = [
       'A ![first](https://example.com/first.png)',

@@ -84,6 +84,9 @@ function isLocalNetworkHostname(hostname: string): boolean {
 
 function isPrivateIPv6(hostname: string): boolean {
   const normalized = hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  if (!normalized.includes(':')) {
+    return false;
+  }
   if (
     hasPrivateEmbeddedIPv4(normalized, '::ffff:')
     || hasPrivateEmbeddedIPv4(normalized, '::ffff:0:')

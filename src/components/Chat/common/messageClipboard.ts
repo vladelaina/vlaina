@@ -30,6 +30,7 @@ export const MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES = 2000;
 export const MAX_CHAT_MESSAGE_IMAGE_SOURCES = 1000;
 const MAX_COPY_OVERFLOW_MARKDOWN_IMAGE_TARGET_CHARS = 512 * 1024;
 const MAX_COPY_HTML_IMAGE_TAG_CHARS = 20_000;
+const INLINE_DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i;
 
 function normalizeImageToken(token: ImageToken): ImageToken | null {
   const src = normalizeRenderableImageSrc(token.src);
@@ -217,8 +218,11 @@ function getOverflowHtmlImageScrubEnd(content: string, start: number, rangeEnd: 
 export function formatMessageCopyText(content: string, options?: ImageTokenParseOptions): string {
   const normalizedContent = stripThinkingContent(stripWebSearchStatusMarkup(stripErrorTags(content)));
   const tokens = normalizeImageTokens(parseMarkdownAndHtmlImageTokens(normalizedContent, options));
+  const tokenLimit = getBoundedImageTokenLimit(options);
   if (tokens.length === 0) {
-    return normalizedContent;
+    return INLINE_DATA_IMAGE_TARGET_HINT_PATTERN.test(normalizedContent)
+      ? scrubOverflowCopyInlineDataImages(normalizedContent)
+      : normalizedContent;
   }
 
   const parts: string[] = [];
@@ -232,8 +236,7 @@ export function formatMessageCopyText(content: string, options?: ImageTokenParse
   }
   parts.push(normalizedContent.slice(cursor));
   const text = parts.join("");
-  const tokenLimit = getBoundedImageTokenLimit(options);
-  return tokenLimit !== null && tokens.length >= tokenLimit
+  return (tokenLimit !== null && tokens.length >= tokenLimit) || INLINE_DATA_IMAGE_TARGET_HINT_PATTERN.test(text)
     ? scrubOverflowCopyInlineDataImages(text)
     : text;
 }

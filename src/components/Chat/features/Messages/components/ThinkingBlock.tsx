@@ -25,6 +25,8 @@ import {
 import { themeDomStyleTokens, themeIconTokens, themeStyleResetTokens, themeUiFeedbackTokens } from "@/styles/themeTokens";
 import "@/components/common/markdown/markdownSurface.css";
 
+export const MAX_THINKING_SELECTION_TEXT_NODES = 2_000;
+
 function rangeHasSelectedText(range: Range): boolean {
   const root = range.commonAncestorContainer;
   if (root.nodeType === Node.TEXT_NODE) {
@@ -36,7 +38,12 @@ function rangeHasSelectedText(range: Range): boolean {
 
   const ownerDocument = root.ownerDocument ?? document;
   const walker = ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let scannedTextNodes = 0;
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    scannedTextNodes += 1;
+    if (scannedTextNodes > MAX_THINKING_SELECTION_TEXT_NODES) {
+      return true;
+    }
     try {
       if (!range.intersectsNode(node)) {
         continue;
