@@ -55,7 +55,7 @@ function DevOverlayButton({
 }
 
 export function DevMainOverlay({ effectiveAppViewMode }: { effectiveAppViewMode: AppViewMode }) {
-  const { setAppViewMode } = useUIStore();
+  const setAppViewMode = useUIStore((state) => state.setAppViewMode);
   const colorMode = useUnifiedStore((state) => state.data.settings.ui?.colorMode);
   const setColorMode = useUnifiedStore((state) => state.setColorMode);
   const importedMarkdownThemeId = useUnifiedStore(selectMarkdownImportedThemeId);

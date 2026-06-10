@@ -139,18 +139,16 @@ function StartupViewFallback({ onReady }: { onReady: () => void }) {
 }
 
 export function AppContent() {
-  const {
-    appViewMode,
-    sidebarCollapsed,
-    sidebarWidth,
-    fontSize,
-    setSidebarWidth,
-    toggleSidebar,
-    restoreLastAppViewMode,
-  } = useUIStore();
+  const appViewMode = useUIStore((state) => state.appViewMode);
+  const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
+  const sidebarWidth = useUIStore((state) => state.sidebarWidth);
+  const fontSize = useUIStore((state) => state.fontSize);
+  const setSidebarWidth = useUIStore((state) => state.setSidebarWidth);
+  const toggleSidebar = useUIStore((state) => state.toggleSidebar);
+  const restoreLastAppViewMode = useUIStore((state) => state.restoreLastAppViewMode);
   const unifiedLoaded = useUnifiedStore((state) => state.loaded);
   const lastConfiguredAppViewMode = useUnifiedStore((state) => state.data.settings.ui?.lastAppViewMode);
-  const { initialize } = useVaultStore();
+  const initialize = useVaultStore((state) => state.initialize);
   const launchViewModeRef = useRef(readWindowLaunchContext().viewMode);
   const [initialUnifiedViewWaitDone, setInitialUnifiedViewWaitDone] = useState(Boolean(launchViewModeRef.current));
   const shouldWaitForInitialUnifiedView = !initialUnifiedViewWaitDone && !unifiedLoaded;

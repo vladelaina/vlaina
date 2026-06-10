@@ -52,11 +52,13 @@ export function useImageResize({
         const parentWidth = containerRef.current?.parentElement?.offsetWidth || 1;
         const aspectRatio = startHeight > 0 ? startWidth / startHeight : 1;
         let latestWidthValue = width;
+        let pendingPointer: { clientX: number; clientY: number } | null = null;
+        let resizeFrame: number | null = null;
 
-        const onMouseMove = (moveEvent: MouseEvent) => {
+        const applyResize = (clientX: number, clientY: number) => {
             if (isProportional) {
                 const isLeftSided = direction === 'left' || direction === 'bottom-left';
-                const delta = isLeftSided ? startX - moveEvent.clientX : moveEvent.clientX - startX;
+                const delta = isLeftSided ? startX - clientX : clientX - startX;
 
                 const newWidthPx = startWidth + delta * 2;
                 const newWidthPercent = Math.min(100, Math.max(10, (newWidthPx / parentWidth) * 100));
@@ -66,16 +68,43 @@ export function useImageResize({
                 const expectedHeight = newWidthPx / aspectRatio;
                 setDragDimensions({ width: newWidthPx, height: expectedHeight });
             } else {
-                const delta = moveEvent.clientY - startY;
+                const delta = clientY - startY;
                 const newHeight = Math.max(50, startHeight + delta);
                 setHeight(newHeight);
                 setDragDimensions({ width: startWidth, height: newHeight });
             }
         };
 
+        const flushPendingResize = () => {
+            resizeFrame = null;
+            if (!pendingPointer) return;
+            const { clientX, clientY } = pendingPointer;
+            pendingPointer = null;
+            applyResize(clientX, clientY);
+        };
+
+        const cancelPendingResize = () => {
+            if (resizeFrame !== null) {
+                window.cancelAnimationFrame(resizeFrame);
+                resizeFrame = null;
+            }
+        };
+
+        const onMouseMove = (moveEvent: MouseEvent) => {
+            pendingPointer = {
+                clientX: moveEvent.clientX,
+                clientY: moveEvent.clientY,
+            };
+
+            if (resizeFrame !== null) return;
+            resizeFrame = window.requestAnimationFrame(flushPendingResize);
+        };
+
         const onMouseUp = async () => {
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
+            cancelPendingResize();
+            flushPendingResize();
             cleanupRef.current = null;
 
             setDragDimensions(null);
@@ -90,6 +119,7 @@ export function useImageResize({
         cleanupRef.current = () => {
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
+            cancelPendingResize();
         };
 
         document.addEventListener('mousemove', onMouseMove);
