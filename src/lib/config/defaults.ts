@@ -29,5 +29,9 @@ export const DEFAULT_SETTINGS = {
     lastAppViewMode: 'notes',
     colorMode: 'system',
     themeId: 'default',
+    notesChatFloatingSize: {
+      width: 420,
+      height: 680,
+    },
   },
 } as const;

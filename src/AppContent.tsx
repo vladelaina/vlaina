@@ -146,8 +146,10 @@ export function AppContent() {
   const setSidebarWidth = useUIStore((state) => state.setSidebarWidth);
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
   const restoreLastAppViewMode = useUIStore((state) => state.restoreLastAppViewMode);
+  const restoreNotesChatFloatingSize = useUIStore((state) => state.restoreNotesChatFloatingSize);
   const unifiedLoaded = useUnifiedStore((state) => state.loaded);
   const lastConfiguredAppViewMode = useUnifiedStore((state) => state.data.settings.ui?.lastAppViewMode);
+  const configuredNotesChatFloatingSize = useUnifiedStore((state) => state.data.settings.ui?.notesChatFloatingSize);
   const initialize = useVaultStore((state) => state.initialize);
   const launchViewModeRef = useRef(readWindowLaunchContext().viewMode);
   const [initialUnifiedViewWaitDone, setInitialUnifiedViewWaitDone] = useState(Boolean(launchViewModeRef.current));
@@ -478,6 +480,11 @@ export function AppContent() {
     if (lastConfiguredAppViewMode !== 'notes' && lastConfiguredAppViewMode !== 'chat') return;
     restoreLastAppViewMode(lastConfiguredAppViewMode);
   }, [lastConfiguredAppViewMode, restoreLastAppViewMode, unifiedLoaded]);
+
+  useEffect(() => {
+    if (!unifiedLoaded || !configuredNotesChatFloatingSize) return;
+    restoreNotesChatFloatingSize(configuredNotesChatFloatingSize);
+  }, [configuredNotesChatFloatingSize, restoreNotesChatFloatingSize, unifiedLoaded]);
 
   useEffect(() => {
     if (import.meta.env.DEV) return;

@@ -66,6 +66,10 @@ const MAX_BOUNDED_ID_LIST_SCAN_RECORDS = 10_000;
 const MAX_AI_SESSION_METADATA_SCAN_RECORDS = 10_000;
 export const MAX_SETTINGS_TIMEZONE_CITY_CHARS = 512;
 export const MAX_SETTINGS_UI_THEME_ID_CHARS = 512;
+const SETTINGS_NOTES_CHAT_FLOATING_MIN_WIDTH = 320;
+const SETTINGS_NOTES_CHAT_FLOATING_MIN_HEIGHT = 420;
+const SETTINGS_NOTES_CHAT_FLOATING_MAX_WIDTH = 760;
+const SETTINGS_NOTES_CHAT_FLOATING_MAX_HEIGHT = 920;
 const MAX_AI_SESSION_TITLE_CHARS = 4096;
 const MAX_AI_SESSION_MODEL_ID_CHARS = 4096;
 const MAX_AI_CUSTOM_SYSTEM_PROMPT_CHARS = 64 * 1024;
@@ -125,6 +129,34 @@ let hasShownSecretLoadFailureToast = false;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function normalizeSettingsNotesChatFloatingSize(
+  value: unknown,
+  fallback: NonNullable<UnifiedData['settings']['ui']>['notesChatFloatingSize'],
+): NonNullable<UnifiedData['settings']['ui']>['notesChatFloatingSize'] {
+  if (!isRecord(value)) {
+    return fallback;
+  }
+
+  const { width, height } = value;
+  if (typeof width !== 'number' || typeof height !== 'number') {
+    return fallback;
+  }
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    return fallback;
+  }
+
+  return {
+    width: Math.max(
+      SETTINGS_NOTES_CHAT_FLOATING_MIN_WIDTH,
+      Math.min(SETTINGS_NOTES_CHAT_FLOATING_MAX_WIDTH, Math.round(width))
+    ),
+    height: Math.max(
+      SETTINGS_NOTES_CHAT_FLOATING_MIN_HEIGHT,
+      Math.min(SETTINGS_NOTES_CHAT_FLOATING_MAX_HEIGHT, Math.round(height))
+    ),
+  };
 }
 
 function normalizeBoundedIdList(
@@ -732,6 +764,7 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
   const lastAppViewMode = settings?.ui?.lastAppViewMode;
   const colorMode = settings?.ui?.colorMode;
   const themeId = settings?.ui?.themeId;
+  const notesChatFloatingSize = settings?.ui?.notesChatFloatingSize;
 
   return {
     settings: {
@@ -763,6 +796,10 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
         themeId: typeof themeId === 'string' && themeId.trim().length > 0
           ? themeId.slice(0, MAX_SETTINGS_UI_THEME_ID_CHARS)
           : defaults.settings.ui?.themeId ?? 'default',
+        notesChatFloatingSize: normalizeSettingsNotesChatFloatingSize(
+          notesChatFloatingSize,
+          defaults.settings.ui?.notesChatFloatingSize
+        ),
       },
     },
     customIcons: normalizeCustomIconList(data.customIcons),

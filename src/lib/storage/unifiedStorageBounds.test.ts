@@ -387,7 +387,10 @@ describe('unifiedStorage load bounds', () => {
             settings: {
               timezone: { offset: 480, city: longCity },
               markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
-              ui: { themeId: longThemeId },
+              ui: {
+                themeId: longThemeId,
+                notesChatFloatingSize: { width: 9999, height: 1 },
+              },
             },
             customIcons: [],
           },
@@ -401,6 +404,7 @@ describe('unifiedStorage load bounds', () => {
 
     expect(data.settings.timezone.city).toHaveLength(MAX_SETTINGS_TIMEZONE_CITY_CHARS);
     expect(data.settings.ui?.themeId).toHaveLength(MAX_SETTINGS_UI_THEME_ID_CHARS);
+    expect(data.settings.ui?.notesChatFloatingSize).toEqual({ width: 760, height: 420 });
   });
 
   it('bounds custom icon metadata loaded from main data', async () => {

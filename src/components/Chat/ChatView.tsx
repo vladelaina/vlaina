@@ -36,6 +36,7 @@ interface ChatViewProps {
   mode?: 'full' | 'embedded';
   active?: boolean;
   onCloseEmbeddedPanel?: () => void;
+  onPromoteEmbeddedPanel?: () => void;
   onStartupReady?: () => void;
   onPrimaryContentReady?: () => void;
 }
@@ -46,6 +47,7 @@ export function ChatView({
   mode = 'full',
   active = true,
   onCloseEmbeddedPanel,
+  onPromoteEmbeddedPanel,
   onStartupReady,
   onPrimaryContentReady,
 }: ChatViewProps) {
@@ -411,6 +413,22 @@ export function ChatView({
           <div className="ml-auto flex h-8 items-center gap-1">
             {showEmbeddedTemporaryToggle && (
               <TemporaryChatToggle mode={showInTitleBar ? 'promote' : 'toggle'} />
+            )}
+            {onPromoteEmbeddedPanel && (
+              <button
+                type="button"
+                aria-label={t('notes.rightChat')}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  onPromoteEmbeddedPanel();
+                }}
+                className={cn(
+                  "flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-[var(--vlaina-sidebar-chat-text)] transition-colors hover:text-[var(--vlaina-accent)]",
+                  chatComposerPillSurfaceClass
+                )}
+              >
+                <Icon name="nav.panelRight" size="md" />
+              </button>
             )}
             {onCloseEmbeddedPanel && (
               <button

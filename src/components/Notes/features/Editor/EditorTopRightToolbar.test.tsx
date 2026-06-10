@@ -11,7 +11,9 @@ const mocks = vi.hoisted(() => ({
   exportNote: vi.fn(),
   flushCurrentPendingEditorMarkdown: vi.fn(),
   notesChatPanelCollapsed: true,
+  notesChatFloatingOpen: false,
   setNotesChatPanelCollapsed: vi.fn(),
+  setNotesChatFloatingOpen: vi.fn(),
 }));
 
 vi.mock('@/components/ui/dropdown-menu', () => ({
@@ -62,11 +64,15 @@ vi.mock('@/stores/useToastStore', () => ({
 vi.mock('@/stores/uiSlice', () => ({
   useUIStore: (selector: (state: {
     notesChatPanelCollapsed: boolean;
+    notesChatFloatingOpen: boolean;
     setNotesChatPanelCollapsed: typeof mocks.setNotesChatPanelCollapsed;
+    setNotesChatFloatingOpen: typeof mocks.setNotesChatFloatingOpen;
   }) => unknown) =>
     selector({
       notesChatPanelCollapsed: mocks.notesChatPanelCollapsed,
+      notesChatFloatingOpen: mocks.notesChatFloatingOpen,
       setNotesChatPanelCollapsed: mocks.setNotesChatPanelCollapsed,
+      setNotesChatFloatingOpen: mocks.setNotesChatFloatingOpen,
     }),
 }));
 
@@ -118,7 +124,9 @@ describe('EditorTopRightToolbar', () => {
     mocks.exportNote.mockReset();
     mocks.flushCurrentPendingEditorMarkdown.mockReset();
     mocks.notesChatPanelCollapsed = true;
+    mocks.notesChatFloatingOpen = false;
     mocks.setNotesChatPanelCollapsed.mockReset();
+    mocks.setNotesChatFloatingOpen.mockReset();
   });
 
   it('shows the remove-star button for starred external notes outside the current vault', () => {
@@ -214,7 +222,7 @@ describe('EditorTopRightToolbar', () => {
     expect(getCurrentNoteContent).not.toHaveBeenCalled();
   });
 
-  it('opens the right Chat panel from the toolbar action and removes it from the note menu', () => {
+  it('opens the right Chat floating panel from the toolbar action and removes it from the note menu', () => {
     const { container, getByRole, getByTestId } = render(
       <EditorTopRightToolbar
         editorFind={createEditorFindController()}
@@ -233,11 +241,33 @@ describe('EditorTopRightToolbar', () => {
     const toolbarIcons = Array.from(container.querySelectorAll('[data-icon]')).map((icon) => icon.getAttribute('data-icon'));
     expect(toolbarIcons.slice(0, 3)).toEqual(['misc.star', 'common.shootingStar', 'common.more']);
     expect(getByTestId('note-menu-content')).not.toHaveTextContent('Right Chat');
-    expect(mocks.setNotesChatPanelCollapsed).toHaveBeenCalledWith(false);
+    expect(mocks.setNotesChatFloatingOpen).toHaveBeenCalledWith(true);
+    expect(mocks.setNotesChatPanelCollapsed).not.toHaveBeenCalled();
   });
 
   it('hides the right Chat toolbar action while the panel is open', () => {
     mocks.notesChatPanelCollapsed = false;
+
+    const { container, queryByRole } = render(
+      <EditorTopRightToolbar
+        editorFind={createEditorFindController()}
+        currentNotePath="docs/current.md"
+        currentNoteTitle="Current"
+        getCurrentNoteContent={() => '# Current'}
+        notesPath="/vault"
+        starred={false}
+        toggleStarred={vi.fn()}
+        currentNoteMetadata={undefined}
+      />,
+    );
+
+    const toolbarIcons = Array.from(container.querySelectorAll('[data-icon]')).map((icon) => icon.getAttribute('data-icon'));
+    expect(queryByRole('button', { name: 'Right Chat' })).not.toBeInTheDocument();
+    expect(toolbarIcons.slice(0, 2)).toEqual(['misc.star', 'common.more']);
+  });
+
+  it('hides the right Chat toolbar action while the floating panel is open', () => {
+    mocks.notesChatFloatingOpen = true;
 
     const { container, queryByRole } = render(
       <EditorTopRightToolbar

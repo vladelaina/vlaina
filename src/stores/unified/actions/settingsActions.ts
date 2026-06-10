@@ -113,6 +113,38 @@ export function createSettingsActions(set: SetState, persist: Persist) {
       });
     },
 
+    setNotesChatFloatingSize: (size: NonNullable<UnifiedData['settings']['ui']>['notesChatFloatingSize']) => {
+      if (!size) {
+        return;
+      }
+
+      set((state) => {
+        const current = state.data.settings.ui?.notesChatFloatingSize;
+        if (current?.width === size.width && current?.height === size.height) {
+          return {};
+        }
+
+        const newData = {
+          ...state.data,
+          settings: {
+            ...state.data.settings,
+            ui: {
+              ...state.data.settings.ui,
+              notesChatFloatingSize: size,
+            },
+          },
+        };
+        persist(newData, {
+          settings: {
+            ui: {
+              notesChatFloatingSize: size,
+            },
+          },
+        });
+        return { data: newData };
+      });
+    },
+
     ...createMarkdownSettingsActions(set, persist),
   };
 }

@@ -17,6 +17,11 @@ export interface MarkdownThemeSettings {
   importedThemeId?: string | null;
 }
 
+export interface FloatingPanelSize {
+  width: number;
+  height: number;
+}
+
 export interface UnifiedData {
   settings: {
     timezone: TimezoneInfo;
@@ -34,6 +39,7 @@ export interface UnifiedData {
       lastAppViewMode?: 'notes' | 'chat';
       colorMode?: 'system' | 'light' | 'dark';
       themeId?: string;
+      notesChatFloatingSize?: FloatingPanelSize;
     };
   };
   customIcons?: CustomIcon[];
@@ -83,6 +89,10 @@ export function createDefaultUnifiedData(): UnifiedData {
         lastAppViewMode: 'notes',
         colorMode: 'system',
         themeId: 'default',
+        notesChatFloatingSize: {
+          width: 420,
+          height: 680,
+        },
       },
     },
     customIcons: [],

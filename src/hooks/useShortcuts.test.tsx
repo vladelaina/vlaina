@@ -75,9 +75,41 @@ describe('useShortcuts', () => {
 
       expect(event.defaultPrevented).toBe(true);
       expect(sidebarListener).toHaveBeenCalledTimes(1);
+      expect((sidebarListener.mock.calls[0]?.[0] as CustomEvent).detail).toEqual({ scope: 'notes' });
       expect(editorFindListener).not.toHaveBeenCalled();
     } finally {
       window.removeEventListener(EDITOR_FIND_OPEN_EVENT, editorFindListener);
+      window.removeEventListener(SIDEBAR_OPEN_SEARCH_EVENT, sidebarListener);
+    }
+  });
+
+  it('dispatches chat sidebar search when Ctrl+Shift+F starts inside a chat view', () => {
+    const sidebarListener = vi.fn();
+    window.addEventListener(SIDEBAR_OPEN_SEARCH_EVENT, sidebarListener);
+
+    try {
+      renderHook(() => useShortcuts());
+
+      const chatView = document.createElement('div');
+      chatView.setAttribute('data-chat-view-mode', 'embedded');
+      document.body.appendChild(chatView);
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'F',
+        code: 'KeyF',
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+
+      chatView.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(sidebarListener).toHaveBeenCalledTimes(1);
+      expect((sidebarListener.mock.calls[0]?.[0] as CustomEvent).detail).toEqual({ scope: 'chat' });
+      chatView.remove();
+    } finally {
       window.removeEventListener(SIDEBAR_OPEN_SEARCH_EVENT, sidebarListener);
     }
   });

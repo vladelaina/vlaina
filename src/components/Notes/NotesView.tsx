@@ -1,8 +1,13 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
-import { useUIStore } from '@/stores/uiSlice';
+import {
+  NOTES_CHAT_FLOATING_MAX_SIZE,
+  NOTES_CHAT_FLOATING_MIN_SIZE,
+  type NotesChatFloatingSize,
+  useUIStore,
+} from '@/stores/uiSlice';
 import { useToastStore } from '@/stores/useToastStore';
 import { ResizablePanel } from '@/components/layout/ResizablePanel';
 import { ModuleShortcutsDialog } from '@/components/common/ModuleShortcutsDialog';
@@ -19,6 +24,7 @@ import { openStoredNotePath } from '@/stores/notes/openNotePath';
 import { hasDraftUnsavedChanges, isDraftNotePath } from '@/stores/notes/draftNote';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { BlurBackdrop } from '@/components/common/BlurBackdrop';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { TreeItemDeleteDialog } from '@/components/Notes/features/FileTree/components/TreeItemDeleteDialog';
 import { subscribeDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
 import { useBlankWorkspaceDropOpen } from './hooks/useBlankWorkspaceDropOpen';
@@ -32,6 +38,8 @@ import {
   createLargeMarkdownFirstPaintPreviewBlocks,
 } from './features/Editor/LargeMarkdownFirstPaintPreview';
 import { shouldAutoCreateBlankDraft } from './autoCreateBlankDraftPolicy';
+import { cn } from '@/lib/utils';
+import { requestNativeCaretOverlayRefresh } from '@/hooks/useNativeCaretOverlay';
 import { themeBackdropTokens, themeEditorLayoutTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 const EmbeddedChatView = lazy(async () => {
@@ -43,6 +51,32 @@ const MarkdownEditor = lazy(async () => {
   const mod = await preloadMarkdownEditor();
   return { default: mod.MarkdownEditor };
 });
+
+type FloatingChatResizeEdge = 'left' | 'top' | 'top-left';
+const FLOATING_CHAT_VIEWPORT_MARGIN_PX = 32;
+
+function clampFloatingChatSizeToView(
+  size: NotesChatFloatingSize,
+  container: HTMLDivElement | null,
+): NotesChatFloatingSize {
+  const containerWidth = container?.clientWidth || window.innerWidth;
+  const containerHeight = container?.clientHeight || window.innerHeight;
+  const availableWidth = Math.max(0, containerWidth - FLOATING_CHAT_VIEWPORT_MARGIN_PX);
+  const availableHeight = Math.max(0, containerHeight - FLOATING_CHAT_VIEWPORT_MARGIN_PX);
+  const maxWidth = Math.max(
+    NOTES_CHAT_FLOATING_MIN_SIZE.width,
+    Math.min(NOTES_CHAT_FLOATING_MAX_SIZE.width, availableWidth || NOTES_CHAT_FLOATING_MAX_SIZE.width)
+  );
+  const maxHeight = Math.max(
+    NOTES_CHAT_FLOATING_MIN_SIZE.height,
+    Math.min(NOTES_CHAT_FLOATING_MAX_SIZE.height, availableHeight || NOTES_CHAT_FLOATING_MAX_SIZE.height)
+  );
+
+  return {
+    width: Math.max(NOTES_CHAT_FLOATING_MIN_SIZE.width, Math.min(maxWidth, Math.round(size.width))),
+    height: Math.max(NOTES_CHAT_FLOATING_MIN_SIZE.height, Math.min(maxHeight, Math.round(size.height))),
+  };
+}
 
 function scheduleSidebarScroll(path: string): void {
   void import('./features/common/sidebarScrollIntoView')
@@ -111,13 +145,19 @@ export function NotesView({
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
   const chatPanelCollapsed = useUIStore((s) => s.notesChatPanelCollapsed);
   const setChatPanelCollapsed = useUIStore((s) => s.setNotesChatPanelCollapsed);
-  const toggleChatPanel = useUIStore((s) => s.toggleNotesChatPanel);
+  const chatFloatingOpen = useUIStore((s) => s.notesChatFloatingOpen);
+  const setChatFloatingOpen = useUIStore((s) => s.setNotesChatFloatingOpen);
+  const chatFloatingSize = useUIStore((s) => s.notesChatFloatingSize);
+  const setChatFloatingSize = useUIStore((s) => s.setNotesChatFloatingSize);
+  const resetChatFloatingSize = useUIStore((s) => s.resetNotesChatFloatingSize);
   const setLayoutPanelDragging = useUIStore((s) => s.setLayoutPanelDragging);
 
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [pendingDeleteCurrentNotePath, setPendingDeleteCurrentNotePath] = useState<string | null>(null);
   const [isVaultInitializing, setIsVaultInitializing] = useState(false);
   const launchContextRef = useRef(readWindowLaunchContext());
+  const notesViewRef = useRef<HTMLDivElement>(null);
+  const floatingResizeCleanupRef = useRef<(() => void) | null>(null);
   const hasHandledLaunchNoteRef = useRef(false);
   const autoCreateBlankNoteRef = useRef(false);
   const hasPresentedNoteRef = useRef(false);
@@ -132,9 +172,81 @@ export function NotesView({
     vaultInitializingRef.current = initializing;
     setIsVaultInitializing(initializing);
   }, []);
+  const closeFloatingChat = useCallback(() => {
+    setChatFloatingOpen(false);
+  }, [setChatFloatingOpen]);
+  const closeChatPanel = useCallback(() => {
+    setChatPanelCollapsed(true);
+  }, [setChatPanelCollapsed]);
+  const openFloatingChat = useCallback(() => {
+    setChatPanelCollapsed(true);
+    setChatFloatingOpen(true);
+  }, [setChatFloatingOpen, setChatPanelCollapsed]);
+  const promoteFloatingChatToSidePanel = useCallback(() => {
+    setChatFloatingOpen(false);
+    setChatPanelCollapsed(false);
+  }, [setChatFloatingOpen, setChatPanelCollapsed]);
   const handleChatPanelDragStateChange = useCallback((dragging: boolean) => {
     setLayoutPanelDragging(dragging);
   }, [setLayoutPanelDragging]);
+  const beginFloatingChatResize = useCallback((
+    edge: FloatingChatResizeEdge,
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    floatingResizeCleanupRef.current?.();
+
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startSize = chatFloatingSize;
+    const previousBodyCursor = document.body.style.cursor;
+    const previousBodyUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = edge === 'top-left' ? 'nwse-resize' : edge === 'left' ? 'ew-resize' : 'ns-resize';
+    document.body.style.userSelect = 'none';
+    setLayoutPanelDragging(true);
+
+    const updateSize = (clientX: number, clientY: number) => {
+      const adjustsWidth = edge === 'left' || edge === 'top-left';
+      const adjustsHeight = edge === 'top' || edge === 'top-left';
+      const next = clampFloatingChatSizeToView({
+        width: adjustsWidth ? startSize.width + startX - clientX : startSize.width,
+        height: adjustsHeight ? startSize.height + startY - clientY : startSize.height,
+      }, notesViewRef.current);
+      setChatFloatingSize(next);
+    };
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      moveEvent.preventDefault();
+      updateSize(moveEvent.clientX, moveEvent.clientY);
+    };
+
+    let cleanedUp = false;
+    const cleanup = () => {
+      if (cleanedUp) {
+        return;
+      }
+      cleanedUp = true;
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+      document.body.style.cursor = previousBodyCursor;
+      document.body.style.userSelect = previousBodyUserSelect;
+      setLayoutPanelDragging(false);
+      if (floatingResizeCleanupRef.current === cleanup) {
+        floatingResizeCleanupRef.current = null;
+      }
+    };
+
+    const handlePointerUp = () => {
+      cleanup();
+    };
+
+    floatingResizeCleanupRef.current = cleanup;
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+  }, [chatFloatingSize, setChatFloatingSize, setLayoutPanelDragging]);
   const notePathsInTreeOrder = useMemo(() => (
     rootFolder && rootFolderPath === notesPath ? collectNotePathsInTreeOrder(rootFolder.children) : []
   ), [notesPath, rootFolder, rootFolderPath]);
@@ -207,6 +319,13 @@ export function NotesView({
   });
 
   useModuleShortcutsDialog({ enabled: active, onToggle: toggleShortcutsDialog });
+
+  useLayoutEffect(() => {
+    if (!active || !chatPanelCollapsed || !chatFloatingOpen) {
+      return;
+    }
+    requestNativeCaretOverlayRefresh();
+  }, [active, chatFloatingOpen, chatFloatingSize.height, chatFloatingSize.width, chatPanelCollapsed]);
 
   useEffect(() => {
     if (!notesError) {
@@ -446,6 +565,10 @@ export function NotesView({
     revealFolder,
   });
 
+  useEffect(() => () => {
+    floatingResizeCleanupRef.current?.();
+  }, []);
+
   useEffect(() => {
     return subscribeDeleteCurrentNoteEvent(() => {
       if (!currentNotePath) {
@@ -464,7 +587,10 @@ export function NotesView({
     closeTab,
     reopenClosedTab,
     chatPanelCollapsed,
-    toggleChatPanel,
+    chatFloatingOpen,
+    closeChatPanel,
+    closeFloatingChat,
+    openFloatingChat,
     focusNotesChatComposer,
     focusSidebarPath,
   });
@@ -484,7 +610,7 @@ export function NotesView({
         )}
       </AnimatePresence>
 
-      <div data-notes-view-mode="true" className="h-full w-full relative flex min-w-0">
+      <div ref={notesViewRef} data-notes-view-mode="true" className="h-full w-full relative flex min-w-0">
         <div className="flex-1 min-w-0 relative">
           {firstPaintPreviewBlocks.length > 0 ? (
             <div className="absolute inset-x-0 top-0 z-[var(--vlaina-z-1)] flex justify-center pointer-events-none">
@@ -522,6 +648,64 @@ export function NotesView({
               </Suspense>
             </div>
           </ResizablePanel>
+        )}
+
+        {active && chatPanelCollapsed && chatFloatingOpen && (
+          <div
+            data-notes-chat-floating="true"
+            className={cn(
+              'absolute bottom-4 right-4 z-[var(--vlaina-z-40)] overflow-hidden !rounded-[var(--vlaina-radius-26px)]',
+              chatComposerPillSurfaceClass,
+            )}
+            style={{
+              width: `${chatFloatingSize.width}px`,
+              height: `${chatFloatingSize.height}px`,
+              maxWidth: 'calc(100% - var(--vlaina-size-32px))',
+              maxHeight: 'calc(100% - var(--vlaina-size-32px))',
+            }}
+          >
+            <div
+              aria-hidden="true"
+              data-notes-chat-floating-resize-handle="left"
+              className="absolute bottom-5 left-0 top-5 z-[var(--vlaina-z-50)] w-2 cursor-ew-resize touch-none bg-transparent"
+              onPointerDown={(event) => beginFloatingChatResize('left', event)}
+              onDoubleClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                resetChatFloatingSize();
+              }}
+            />
+            <div
+              aria-hidden="true"
+              data-notes-chat-floating-resize-handle="top"
+              className="absolute left-5 right-5 top-0 z-[var(--vlaina-z-50)] h-2 cursor-ns-resize touch-none bg-transparent"
+              onPointerDown={(event) => beginFloatingChatResize('top', event)}
+              onDoubleClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                resetChatFloatingSize();
+              }}
+            />
+            <div
+              aria-hidden="true"
+              data-notes-chat-floating-resize-handle="top-left"
+              className="absolute left-0 top-0 z-[var(--vlaina-z-50)] h-4 w-4 cursor-nwse-resize touch-none bg-transparent"
+              onPointerDown={(event) => beginFloatingChatResize('top-left', event)}
+              onDoubleClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                resetChatFloatingSize();
+              }}
+            />
+            <Suspense fallback={null}>
+              <EmbeddedChatView
+                mode="embedded"
+                active={active}
+                onCloseEmbeddedPanel={closeFloatingChat}
+                onPromoteEmbeddedPanel={promoteFloatingChatToSidePanel}
+              />
+            </Suspense>
+          </div>
         )}
 
       </div>

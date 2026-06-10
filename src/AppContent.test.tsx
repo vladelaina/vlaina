@@ -10,10 +10,12 @@ const mocks = vi.hoisted(() => ({
   appViewMode: 'notes' as AppViewMode,
   setAppViewMode: vi.fn(),
   restoreLastAppViewMode: vi.fn(),
+  restoreNotesChatFloatingSize: vi.fn(),
   initializeVault: vi.fn(),
   loadUnified: vi.fn().mockResolvedValue(undefined),
   colorMode: 'system' as 'system' | 'light' | 'dark',
   importedMarkdownThemeId: null as string | null,
+  notesChatFloatingSize: { width: 420, height: 680 },
   setColorMode: vi.fn(),
   setMarkdownImportedThemeId: vi.fn(),
   listImportedMarkdownThemesFromDirectory: vi.fn(),
@@ -169,6 +171,7 @@ vi.mock('@/stores/uiSlice', () => ({
     toggleSidebar: () => void;
     setAppViewMode: typeof mocks.setAppViewMode;
     restoreLastAppViewMode: typeof mocks.restoreLastAppViewMode;
+    restoreNotesChatFloatingSize: typeof mocks.restoreNotesChatFloatingSize;
   }) => unknown) => selector({
     appViewMode: mocks.appViewMode,
     sidebarCollapsed: false,
@@ -178,6 +181,7 @@ vi.mock('@/stores/uiSlice', () => ({
     toggleSidebar: vi.fn(),
     setAppViewMode: mocks.setAppViewMode,
     restoreLastAppViewMode: mocks.restoreLastAppViewMode,
+    restoreNotesChatFloatingSize: mocks.restoreNotesChatFloatingSize,
   }),
 }));
 
@@ -189,6 +193,7 @@ vi.mock('@/stores/unified/useUnifiedStore', () => {
         ui: {
           lastAppViewMode: 'notes' | 'chat';
           colorMode: 'system' | 'light' | 'dark';
+          notesChatFloatingSize: { width: number; height: number };
         };
         markdown: {
           theme: {
@@ -209,6 +214,7 @@ vi.mock('@/stores/unified/useUnifiedStore', () => {
         ui: {
           lastAppViewMode: mocks.appViewMode === 'chat' ? 'chat' : 'notes',
           colorMode: mocks.colorMode,
+          notesChatFloatingSize: mocks.notesChatFloatingSize,
         },
         markdown: {
           theme: {
@@ -309,6 +315,7 @@ describe('AppContent view switching chrome readiness', () => {
     mocks.appViewMode = 'notes';
     mocks.colorMode = 'system';
     mocks.importedMarkdownThemeId = null;
+    mocks.notesChatFloatingSize = { width: 420, height: 680 };
     mocks.fontSize = 17;
     mocks.notesSidebarMounts = 0;
     mocks.notesSidebarUnmounts = 0;

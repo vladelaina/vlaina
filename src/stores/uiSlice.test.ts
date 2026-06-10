@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SIDEBAR_MIN_WIDTH } from '@/lib/layout/sidebarWidth';
 import { DEFAULT_SETTINGS } from '@/lib/config';
-import { useUIStore } from './uiSlice';
+import {
+  NOTES_CHAT_FLOATING_DEFAULT_SIZE,
+  NOTES_CHAT_FLOATING_MAX_SIZE,
+  NOTES_CHAT_FLOATING_MIN_SIZE,
+  useUIStore,
+} from './uiSlice';
 import { useUnifiedStore } from './unified/useUnifiedStore';
 import { useAIUIStore } from './ai/chatState';
 
@@ -29,6 +34,8 @@ describe('uiSlice', () => {
       imageVaultSubfolderName: 'assets',
       imageFilenameFormat: 'original',
       notesChatPanelCollapsed: false,
+      notesChatFloatingOpen: false,
+      notesChatFloatingSize: NOTES_CHAT_FLOATING_DEFAULT_SIZE,
       pendingNotesChatComposerInsert: null,
     });
     useUnifiedStore.setState({
@@ -39,7 +46,12 @@ describe('uiSlice', () => {
             typewriterMode: false,
             codeBlock: { showLineNumbers: true },
           },
-          ui: { lastAppViewMode: 'notes', colorMode: 'system', themeId: 'default' },
+          ui: {
+            lastAppViewMode: 'notes',
+            colorMode: 'system',
+            themeId: 'default',
+            notesChatFloatingSize: NOTES_CHAT_FLOATING_DEFAULT_SIZE,
+          },
         },
         customIcons: [],
         deletedCustomIconIds: [],
@@ -209,6 +221,7 @@ describe('uiSlice', () => {
     localStorage.setItem('vlaina_image_vault_subfolder_name', 'vault-assets');
     localStorage.setItem('vlaina_image_filename_format', 'sequence');
     localStorage.setItem('vlaina_notes_chat_panel_collapsed', 'true');
+    localStorage.setItem('vlaina_notes_chat_floating_size', JSON.stringify({ width: 512, height: 720 }));
 
     useUIStore.getState().reloadPreferencesFromStorage();
 
@@ -222,6 +235,7 @@ describe('uiSlice', () => {
       imageVaultSubfolderName: 'vault-assets',
       imageFilenameFormat: 'sequence',
       notesChatPanelCollapsed: true,
+      notesChatFloatingSize: { width: 512, height: 720 },
     });
   });
 
@@ -368,11 +382,47 @@ describe('uiSlice', () => {
 
   it('opens the notes chat panel and queues a composer insert request', () => {
     useUIStore.getState().setNotesChatPanelCollapsed(true);
+    useUIStore.getState().setNotesChatFloatingOpen(true);
     useUIStore.getState().queueNotesChatComposerInsert('Selected text');
 
     const state = useUIStore.getState();
     expect(state.notesChatPanelCollapsed).toBe(false);
+    expect(state.notesChatFloatingOpen).toBe(false);
     expect(state.pendingNotesChatComposerInsert?.text).toBe('Selected text');
+  });
+
+  it('closes the notes chat floating panel when the side panel opens', () => {
+    useUIStore.getState().setNotesChatPanelCollapsed(true);
+    useUIStore.getState().setNotesChatFloatingOpen(true);
+
+    useUIStore.getState().setNotesChatPanelCollapsed(false);
+
+    expect(useUIStore.getState().notesChatPanelCollapsed).toBe(false);
+    expect(useUIStore.getState().notesChatFloatingOpen).toBe(false);
+  });
+
+  it('persists and resets the notes floating chat size', () => {
+    useUIStore.getState().setNotesChatFloatingSize({ width: 512.2, height: 720.8 });
+
+    expect(useUIStore.getState().notesChatFloatingSize).toEqual({ width: 512, height: 721 });
+    expect(localStorage.getItem('vlaina_notes_chat_floating_size')).toBe(JSON.stringify({ width: 512, height: 721 }));
+    expect(useUnifiedStore.getState().data.settings.ui?.notesChatFloatingSize).toEqual({ width: 512, height: 721 });
+
+    useUIStore.getState().setNotesChatFloatingSize({
+      width: NOTES_CHAT_FLOATING_MAX_SIZE.width + 100,
+      height: NOTES_CHAT_FLOATING_MIN_SIZE.height - 100,
+    });
+
+    expect(useUIStore.getState().notesChatFloatingSize).toEqual({
+      width: NOTES_CHAT_FLOATING_MAX_SIZE.width,
+      height: NOTES_CHAT_FLOATING_MIN_SIZE.height,
+    });
+
+    useUIStore.getState().resetNotesChatFloatingSize();
+
+    expect(useUIStore.getState().notesChatFloatingSize).toEqual(NOTES_CHAT_FLOATING_DEFAULT_SIZE);
+    expect(localStorage.getItem('vlaina_notes_chat_floating_size')).toBeNull();
+    expect(useUnifiedStore.getState().data.settings.ui?.notesChatFloatingSize).toEqual(NOTES_CHAT_FLOATING_DEFAULT_SIZE);
   });
 
   it('consumes only the matching pending composer insert request', () => {
