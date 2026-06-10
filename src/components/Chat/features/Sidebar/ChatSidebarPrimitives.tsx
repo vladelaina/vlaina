@@ -94,8 +94,8 @@ export function ChatSidebarRow({
       highlightClassName={styles.highlightRow}
       inactiveClassName={styles.inactiveRow}
       actionFadeClassName={cn(
-        styles.fade,
         isActive && 'from-transparent',
+        !isActive && 'from-transparent',
         !isActive && styles.groupFadeHover
       )}
       {...props}

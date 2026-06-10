@@ -4,6 +4,7 @@ import { useNotesStore, type NoteFile } from '@/stores/useNotesStore';
 import { useTreeItemUiState } from './useTreeItemUiState';
 import { useTreeItemDragSource } from './useTreeItemDragSource';
 import { scrollCurrentNoteToTop } from '../../Editor/utils/scrollCurrentNoteToTop';
+import { suppressNextCurrentNoteSidebarReveal } from '../../common/sidebarScrollIntoView';
 
 export function useFileItemState(node: NoteFile, dragEnabled = true) {
   const openNote = useNotesStore((state) => state.openNote);
@@ -41,6 +42,9 @@ export function useFileItemState(node: NoteFile, dragEnabled = true) {
         return;
       }
 
+      if (!openInNewTab) {
+        suppressNextCurrentNoteSidebarReveal(node.path);
+      }
       void openNote(node.path, openInNewTab);
     },
     [currentNotePath, node.path, openNote]

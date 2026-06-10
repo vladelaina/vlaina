@@ -62,9 +62,9 @@ export function NotesSidebarRow({
       className={cn(className, dragHandlers?.isDragging && 'opacity-[var(--vlaina-opacity-100)]')}
       contentClassName={contentClassName}
       actionFadeClassName={cn(
-        styles.fade,
         isHighlighted && styles.fadeHover,
         isActive && !isHighlighted && 'from-transparent',
+        !isActive && !isHighlighted && 'from-transparent',
         !isActive && !isHighlighted && styles.groupFadeHover,
         actionFadeClassName,
       )}

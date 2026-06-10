@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   toggleStarred: vi.fn(),
   isStarred: vi.fn(() => false),
   scrollCurrentNoteToTop: vi.fn(),
+  suppressNextCurrentNoteSidebarReveal: vi.fn(),
   notesState: {
     currentNote: { path: 'docs/alpha.md' } as { path: string } | null,
   },
@@ -31,6 +32,10 @@ vi.mock('@/stores/useNotesStore', () => ({
 
 vi.mock('../../Editor/utils/scrollCurrentNoteToTop', () => ({
   scrollCurrentNoteToTop: mocks.scrollCurrentNoteToTop,
+}));
+
+vi.mock('../../common/sidebarScrollIntoView', () => ({
+  suppressNextCurrentNoteSidebarReveal: mocks.suppressNextCurrentNoteSidebarReveal,
 }));
 
 vi.mock('./useTreeItemUiState', () => ({
@@ -61,6 +66,7 @@ describe('useFileItemState', () => {
     mocks.openNote.mockReset();
     mocks.openNote.mockResolvedValue(undefined);
     mocks.scrollCurrentNoteToTop.mockReset();
+    mocks.suppressNextCurrentNoteSidebarReveal.mockReset();
     mocks.notesState.currentNote = { path: 'docs/alpha.md' };
   });
 
@@ -87,6 +93,7 @@ describe('useFileItemState', () => {
     });
 
     expect(mocks.scrollCurrentNoteToTop).toHaveBeenCalledTimes(1);
+    expect(mocks.suppressNextCurrentNoteSidebarReveal).not.toHaveBeenCalled();
     expect(mocks.openNote).not.toHaveBeenCalled();
   });
 
@@ -109,7 +116,30 @@ describe('useFileItemState', () => {
     });
 
     expect(mocks.scrollCurrentNoteToTop).not.toHaveBeenCalled();
+    expect(mocks.suppressNextCurrentNoteSidebarReveal).not.toHaveBeenCalled();
     expect(mocks.openNote).toHaveBeenCalledWith('docs/alpha.md', true);
+  });
+
+  it('suppresses the automatic sidebar reveal when opening a different file from the tree', () => {
+    const { result } = renderHook(() =>
+      useFileItemState({
+        id: 'docs/beta.md',
+        name: 'beta.md',
+        path: 'docs/beta.md',
+        isFolder: false,
+      }),
+    );
+
+    act(() => {
+      result.current.handleClick({
+        stopPropagation: vi.fn(),
+        ctrlKey: false,
+        metaKey: false,
+      } as unknown as React.MouseEvent);
+    });
+
+    expect(mocks.suppressNextCurrentNoteSidebarReveal).toHaveBeenCalledWith('docs/beta.md');
+    expect(mocks.openNote).toHaveBeenCalledWith('docs/beta.md', false);
   });
 
   it('keeps cancelPendingClick available for double-click rename cleanup', () => {
