@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   EDITOR_SELECTOR,
   FILE_TREE_PRIMARY_SELECTOR,
+  NOTE_SCROLL_ROOT_SELECTOR,
   cleanupIsolatedElectron,
   getOpenBridgePages,
   launchIsolatedElectron,
@@ -19,6 +20,22 @@ type SelectionFrame = {
   hasOverlayActiveClass: boolean;
   hasPointerNativeClass: boolean;
   toolbarVisible: boolean;
+};
+
+type ScreenshotClip = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type SelectionBluePixelMetrics = {
+  bluePixelBoundsHeight: number;
+  bluePixelBoundsWidth: number;
+  bluePixelCount: number;
+  height: number;
+  totalPixels: number;
+  width: number;
 };
 
 async function getTextDragPoints(page: Page, text: string) {
@@ -90,6 +107,216 @@ async function getTextDragPoints(page: Page, text: string) {
   }, { editorSelector: EDITOR_SELECTOR, text });
 }
 
+async function getTextRangeScreenshotClip(page: Page, text: string): Promise<ScreenshotClip> {
+  return page.evaluate(({ editorSelector, text }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    if (!editor) {
+      throw new Error('Editor not found');
+    }
+
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    let textNode: Text | null = null;
+    let index = -1;
+    while (walker.nextNode()) {
+      const candidate = walker.currentNode as Text;
+      index = candidate.data.indexOf(text);
+      if (index >= 0) {
+        textNode = candidate;
+        break;
+      }
+    }
+
+    if (!textNode) {
+      throw new Error(`Text not found: ${text}`);
+    }
+
+    const range = document.createRange();
+    range.setStart(textNode, index);
+    range.setEnd(textNode, index + text.length);
+    const rects = Array.from(range.getClientRects())
+      .filter((rect) => rect.width > 2 && rect.height > 2);
+    range.detach();
+
+    if (rects.length === 0) {
+      throw new Error(`Text has no screenshotable rects: ${text}`);
+    }
+
+    const padding = 3;
+    const left = Math.min(...rects.map((rect) => rect.left));
+    const top = Math.min(...rects.map((rect) => rect.top));
+    const right = Math.max(...rects.map((rect) => rect.right));
+    const bottom = Math.max(...rects.map((rect) => rect.bottom));
+    const x = Math.max(0, Math.floor(left - padding));
+    const y = Math.max(0, Math.floor(top - padding));
+    const clippedRight = Math.min(window.innerWidth, Math.ceil(right + padding));
+    const clippedBottom = Math.min(window.innerHeight, Math.ceil(bottom + padding));
+
+    return {
+      x,
+      y,
+      width: Math.max(1, clippedRight - x),
+      height: Math.max(1, clippedBottom - y),
+    };
+  }, { editorSelector: EDITOR_SELECTOR, text });
+}
+
+async function getTextOffsetClickPoint(
+  page: Page,
+  text: string,
+  offset: number,
+): Promise<{
+  x: number;
+  y: number;
+}> {
+  return page.evaluate(({ editorSelector, offset, text }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    if (!editor) {
+      throw new Error('Editor not found');
+    }
+
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    let textNode: Text | null = null;
+    let index = -1;
+    while (walker.nextNode()) {
+      const candidate = walker.currentNode as Text;
+      index = candidate.data.indexOf(text);
+      if (index >= 0) {
+        textNode = candidate;
+        break;
+      }
+    }
+
+    if (!textNode) {
+      throw new Error(`Text not found: ${text}`);
+    }
+
+    const charOffset = Math.max(0, Math.min(text.length - 1, offset));
+    const range = document.createRange();
+    range.setStart(textNode, index + charOffset);
+    range.setEnd(textNode, index + charOffset + 1);
+    const rect = range.getBoundingClientRect();
+    range.detach();
+
+    if (rect.width <= 0 || rect.height <= 0) {
+      throw new Error(`Text offset is not clickable: ${text} @ ${offset}`);
+    }
+
+    return {
+      x: rect.left + rect.width * 0.65,
+      y: rect.top + rect.height / 2,
+    };
+  }, { editorSelector: EDITOR_SELECTOR, offset, text });
+}
+
+async function getNativeSelectionOffsetForText(
+  page: Page,
+  text: string,
+): Promise<{
+  anchorOffsetInText: number | null;
+  isCollapsed: boolean | null;
+  selectedText: string;
+}> {
+  return page.evaluate(({ editorSelector, text }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    const nativeSelection = window.getSelection();
+    if (!editor || !nativeSelection) {
+      return {
+        anchorOffsetInText: null,
+        isCollapsed: null,
+        selectedText: '',
+      };
+    }
+
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    let textNode: Text | null = null;
+    let index = -1;
+    while (walker.nextNode()) {
+      const candidate = walker.currentNode as Text;
+      index = candidate.data.indexOf(text);
+      if (index >= 0) {
+        textNode = candidate;
+        break;
+      }
+    }
+
+    return {
+      anchorOffsetInText: textNode && nativeSelection.anchorNode === textNode
+        ? nativeSelection.anchorOffset - index
+        : null,
+      isCollapsed: nativeSelection.isCollapsed,
+      selectedText: nativeSelection.toString(),
+    };
+  }, { editorSelector: EDITOR_SELECTOR, text });
+}
+
+async function countSelectionBluePixelsInClip(
+  page: Page,
+  clip: ScreenshotClip
+): Promise<SelectionBluePixelMetrics> {
+  const screenshot = await page.screenshot({ clip });
+  const dataUrl = `data:image/png;base64,${screenshot.toString('base64')}`;
+
+  return page.evaluate(async (imageUrl) => {
+    const image = new Image();
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error('Failed to load selection screenshot'));
+      image.src = imageUrl;
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) {
+      throw new Error('Could not create canvas context for selection screenshot');
+    }
+
+    context.drawImage(image, 0, 0);
+    const { data, width, height } = context.getImageData(0, 0, canvas.width, canvas.height);
+    let bluePixelCount = 0;
+    let minBlueX = Number.POSITIVE_INFINITY;
+    let minBlueY = Number.POSITIVE_INFINITY;
+    let maxBlueX = Number.NEGATIVE_INFINITY;
+    let maxBlueY = Number.NEGATIVE_INFINITY;
+    for (let offset = 0; offset < data.length; offset += 4) {
+      const red = data[offset] ?? 0;
+      const green = data[offset + 1] ?? 0;
+      const blue = data[offset + 2] ?? 0;
+      const alpha = data[offset + 3] ?? 0;
+      const isSelectionBlue =
+        alpha > 220 &&
+        red < 100 &&
+        green >= 70 &&
+        green <= 180 &&
+        blue >= 140 &&
+        blue - red > 70 &&
+        blue - green > 25;
+
+      if (isSelectionBlue) {
+        bluePixelCount += 1;
+        const pixelIndex = offset / 4;
+        const x = pixelIndex % width;
+        const y = Math.floor(pixelIndex / width);
+        minBlueX = Math.min(minBlueX, x);
+        minBlueY = Math.min(minBlueY, y);
+        maxBlueX = Math.max(maxBlueX, x);
+        maxBlueY = Math.max(maxBlueY, y);
+      }
+    }
+    const hasBluePixels = bluePixelCount > 0;
+
+    return {
+      bluePixelBoundsHeight: hasBluePixels ? maxBlueY - minBlueY + 1 : 0,
+      bluePixelBoundsWidth: hasBluePixels ? maxBlueX - minBlueX + 1 : 0,
+      bluePixelCount,
+      height,
+      totalPixels: width * height,
+      width,
+    };
+  }, dataUrl);
+}
+
 async function scrollParagraphTextIntoSelectionView(page: Page, text: string): Promise<void> {
   await page.evaluate(({ editorSelector, text }) => {
     const editor = document.querySelector<HTMLElement>(editorSelector);
@@ -105,6 +332,111 @@ async function scrollParagraphTextIntoSelectionView(page: Page, text: string): P
     scrollRoot.scrollTop += paragraphRect.top - rootRect.top - rootRect.height * 0.35;
   }, { editorSelector: EDITOR_SELECTOR, text });
   await waitForEditorAnimationFrame(page);
+}
+
+async function selectTextByMouseDrag(page: Page, text: string): Promise<void> {
+  await scrollParagraphTextIntoSelectionView(page, text);
+  const points = await getTextDragPoints(page, text);
+  await page.mouse.move(points.start.x, points.start.y);
+  await page.mouse.down();
+  await page.mouse.move(points.end.x, points.end.y, { steps: 24 });
+  await page.mouse.up();
+  await waitForEditorAnimationFrame(page);
+  await expect.poll(async () => page.evaluate(() =>
+    (window as any).__vlainaE2E.getEditorSelectionSummary()
+  )).toMatchObject({
+    empty: false,
+    selectedText: expect.stringContaining('Ordinary selectable paragraph alpha sentinel'),
+  });
+}
+
+async function getNoteBodyBlankClickPoint(
+  page: Page,
+  text: string,
+  kind: 'right-text-gap' | 'left-text-gap' | 'below-last-block',
+): Promise<{
+  name: string;
+  target: string;
+  x: number;
+  y: number;
+}> {
+  return page.evaluate(({ editorSelector, scrollRootSelector, text, kind }) => {
+    const editor = document.querySelector<HTMLElement>(editorSelector);
+    const scrollRoot = document.querySelector<HTMLElement>(scrollRootSelector);
+    if (!editor || !scrollRoot) {
+      throw new Error('Editor or scroll root not found');
+    }
+
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    let textNode: Text | null = null;
+    let index = -1;
+    while (walker.nextNode()) {
+      const candidate = walker.currentNode as Text;
+      index = candidate.data.indexOf(text);
+      if (index >= 0) {
+        textNode = candidate;
+        break;
+      }
+    }
+    if (!textNode) {
+      throw new Error(`Text not found: ${text}`);
+    }
+
+    const textRange = document.createRange();
+    textRange.setStart(textNode, index);
+    textRange.setEnd(textNode, index + text.length);
+    const textRect = textRange.getBoundingClientRect();
+    textRange.detach();
+
+    const editorRect = editor.getBoundingClientRect();
+    const scrollRect = scrollRoot.getBoundingClientRect();
+    const lastBlock = Array.from(editor.children).at(-1) as HTMLElement | undefined;
+    const lastBlockRect = lastBlock?.getBoundingClientRect() ?? textRect;
+    const centerY = textRect.top + textRect.height / 2;
+
+    const candidates = {
+      'right-text-gap': {
+        x: Math.min(editorRect.right - 18, Math.max(textRect.right + 72, editorRect.left + editorRect.width * 0.72)),
+        y: centerY,
+      },
+      'left-text-gap': {
+        x: Math.max(editorRect.left + 18, Math.min(textRect.left - 56, editorRect.left + editorRect.width * 0.18)),
+        y: centerY,
+      },
+      'below-last-block': {
+        x: Math.min(editorRect.right - 40, Math.max(editorRect.left + 120, editorRect.left + editorRect.width * 0.5)),
+        y: Math.min(scrollRect.bottom - 32, Math.max(lastBlockRect.bottom + 52, textRect.bottom + 96)),
+      },
+    } satisfies Record<typeof kind, { x: number; y: number }>;
+
+    const point = candidates[kind];
+    const x = Math.max(scrollRect.left + 8, Math.min(scrollRect.right - 8, point.x));
+    const y = Math.max(scrollRect.top + 8, Math.min(scrollRect.bottom - 8, point.y));
+    const target = document.elementFromPoint(x, y);
+    const toolbar = document.querySelector<HTMLElement>('.floating-toolbar.visible');
+    const toolbarRect = toolbar?.getBoundingClientRect();
+    if (
+      toolbarRect &&
+      x >= toolbarRect.left &&
+      x <= toolbarRect.right &&
+      y >= toolbarRect.top &&
+      y <= toolbarRect.bottom
+    ) {
+      throw new Error(`Blank click point ${kind} overlaps the floating toolbar`);
+    }
+
+    return {
+      name: kind,
+      target: target
+        ? [
+            target instanceof HTMLElement ? target.tagName.toLowerCase() : target.nodeName,
+            target instanceof HTMLElement ? target.className : '',
+          ].join('.')
+        : 'none',
+      x,
+      y,
+    };
+  }, { editorSelector: EDITOR_SELECTOR, scrollRootSelector: NOTE_SCROLL_ROOT_SELECTOR, text, kind });
 }
 
 async function collectSelectionFrames(page: Page, durationMs: number): Promise<SelectionFrame[]> {
@@ -310,23 +642,53 @@ test.describe('notes text selection stability', () => {
       await expect(page.locator(EDITOR_SELECTOR)).toContainText(TARGET_TEXT);
 
       const points = await getTextDragPoints(page, TARGET_TEXT);
+      let duringDragFrames: SelectionFrame[] = [];
+      let duringDragBluePixels: SelectionBluePixelMetrics | null = null;
+      let settledBluePixels: SelectionBluePixelMetrics | null = null;
+      let selectedTextClip: ScreenshotClip | null = null;
+      let mouseIsDown = false;
       await page.mouse.move(points.start.x, points.start.y);
       await page.mouse.down();
-      const duringDragFramesPromise = collectSelectionFrames(page, 250);
-      await page.mouse.move(points.end.x, points.end.y, { steps: 24 });
-      const duringDragFrames = await duringDragFramesPromise;
-      await page.mouse.up();
+      mouseIsDown = true;
+      try {
+        await page.mouse.move(points.end.x, points.end.y, { steps: 24 });
+        await waitForEditorAnimationFrame(page);
+        selectedTextClip = await getTextRangeScreenshotClip(page, TARGET_TEXT);
+        duringDragBluePixels = await countSelectionBluePixelsInClip(page, selectedTextClip);
+        duringDragFrames = await collectSelectionFrames(page, 250);
+      } finally {
+        if (mouseIsDown) {
+          await page.mouse.up();
+          mouseIsDown = false;
+        }
+      }
       const settledFrames = await collectSelectionFrames(page, 500);
+      if (!selectedTextClip) {
+        throw new Error('Missing text selection screenshot clip');
+      }
+      settledBluePixels = await countSelectionBluePixelsInClip(page, selectedTextClip);
 
       const duringDragHasVisibleSelection = duringDragFrames.some((frame) =>
-        frame.nativeSelectedText.length > 0 || frame.selectedText.length > 0 || frame.overlayCount > 0
+        frame.nativeSelectedText.length > 0 ||
+        frame.selectedText.length > 0 ||
+        frame.overlayCount > 0 ||
+        frame.hasPointerNativeClass
       );
       const settledNonEmptyFrames = settledFrames.filter((frame) =>
         frame.selectedText.length > 0 || frame.nativeSelectedText.length > 0 || frame.overlayCount > 0
       );
+      const settledPointerNativeFrames = settledFrames.filter((frame) => frame.hasPointerNativeClass);
+      const settledOverlayFrames = settledFrames.filter((frame) => frame.overlayCount > 0);
 
       expect(duringDragHasVisibleSelection).toBe(true);
+      expect(duringDragBluePixels?.bluePixelCount ?? 0).toBeGreaterThan(80);
+      expect(settledBluePixels?.bluePixelCount ?? 0).toBeGreaterThan(80);
+      expect(settledBluePixels?.bluePixelBoundsHeight ?? 0).toBeGreaterThanOrEqual(
+        Math.floor((duringDragBluePixels?.bluePixelBoundsHeight ?? 0) * 0.9)
+      );
       expect(settledNonEmptyFrames.length).toBeGreaterThan(Math.floor(settledFrames.length * 0.8));
+      expect(settledPointerNativeFrames.length).toBeGreaterThan(Math.floor(settledFrames.length * 0.8));
+      expect(settledOverlayFrames).toHaveLength(0);
       expect(countBooleanTransitions(settledFrames, 'hasOverlayActiveClass')).toBeLessThanOrEqual(1);
       expect(countBooleanTransitions(settledFrames, 'toolbarVisible')).toBeLessThanOrEqual(1);
 
@@ -395,6 +757,275 @@ test.describe('notes text selection stability', () => {
         hasOverlayActiveClass: false,
         toolbarVisible: false,
       });
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('collapses mouse-drag text selection at the clicked text position', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-text-selection-collapse-click-position');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+
+      await openMarkdownFixture(page, {
+        filename: 'text-selection-collapse-click-position.md',
+        content: [
+          '# Text Selection Collapse Click Position',
+          '',
+          TARGET_TEXT,
+          '',
+          'Clicking inside selected text should place the caret at the clicked character.',
+        ].join('\n'),
+      });
+
+      for (const offset of [
+        Math.floor(TARGET_TEXT.length * 0.35),
+        Math.floor(TARGET_TEXT.length * 0.72),
+      ]) {
+        await selectTextByMouseDrag(page, TARGET_TEXT);
+        const selectedRange = await page.evaluate(() =>
+          (window as any).__vlainaE2E.getEditorSelectionSummary()
+        );
+        expect(selectedRange?.empty).toBe(false);
+        expect(selectedRange?.selectedText).toContain('Ordinary selectable paragraph alpha sentinel');
+        const selectedFrom = selectedRange?.from ?? 0;
+
+        const point = await getTextOffsetClickPoint(page, TARGET_TEXT, offset);
+        await page.mouse.move(point.x, point.y);
+        await page.mouse.down();
+        await waitForEditorAnimationFrame(page);
+
+        const whilePressed = await page.evaluate(() =>
+          (window as any).__vlainaE2E.getEditorSelectionSummary()
+        );
+        expect(whilePressed?.empty).toBe(true);
+        expect(whilePressed?.from).toBeGreaterThanOrEqual(selectedFrom + offset - 3);
+        expect(whilePressed?.from).toBeLessThanOrEqual(selectedFrom + offset + 4);
+        expect(whilePressed?.from).toBeGreaterThan(selectedFrom + 4);
+        const pressedNativeCaret = await getNativeSelectionOffsetForText(page, TARGET_TEXT);
+        expect(pressedNativeCaret.selectedText).toBe('');
+        expect(pressedNativeCaret.isCollapsed).toBe(true);
+        expect(pressedNativeCaret.anchorOffsetInText).not.toBeNull();
+        const pressedAnchorOffset = pressedNativeCaret.anchorOffsetInText ?? Number.NaN;
+        expect(pressedAnchorOffset).toBeGreaterThanOrEqual(offset - 3);
+        expect(pressedAnchorOffset).toBeLessThanOrEqual(offset + 4);
+
+        await page.mouse.up();
+        const immediatelyAfterClick = await page.evaluate(() => ({
+          selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+          nativeSelectedText: window.getSelection()?.toString() ?? '',
+        }));
+        expect(immediatelyAfterClick.nativeSelectedText).toBe('');
+        expect(immediatelyAfterClick.selection?.empty).toBe(true);
+        expect(immediatelyAfterClick.selection?.from).toBeGreaterThanOrEqual(selectedFrom + offset - 3);
+        expect(immediatelyAfterClick.selection?.from).toBeLessThanOrEqual(selectedFrom + offset + 4);
+        expect(immediatelyAfterClick.selection?.from).toBeGreaterThan(selectedFrom + 4);
+        const immediateNativeCaret = await getNativeSelectionOffsetForText(page, TARGET_TEXT);
+        expect(immediateNativeCaret.selectedText).toBe('');
+        expect(immediateNativeCaret.isCollapsed).toBe(true);
+        expect(immediateNativeCaret.anchorOffsetInText).not.toBeNull();
+        const immediateAnchorOffset = immediateNativeCaret.anchorOffsetInText ?? Number.NaN;
+        expect(immediateAnchorOffset).toBeGreaterThanOrEqual(offset - 3);
+        expect(immediateAnchorOffset).toBeLessThanOrEqual(offset + 4);
+
+        await expect.poll(async () => page.evaluate(() =>
+          (window as any).__vlainaE2E.getEditorSelectionSummary()?.from ?? -1
+        )).toBeGreaterThanOrEqual(selectedFrom + offset - 3);
+        await expect.poll(async () => page.evaluate(() =>
+          (window as any).__vlainaE2E.getEditorSelectionSummary()?.from ?? -1
+        )).toBeLessThanOrEqual(selectedFrom + offset + 4);
+
+        await expect.poll(async () => page.evaluate(() => {
+          const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+          const toolbar = document.querySelector<HTMLElement>('.floating-toolbar');
+          return {
+            selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+            nativeSelectedText: window.getSelection()?.toString() ?? '',
+            overlayCount: document.querySelectorAll('.editor-text-selection-overlay').length,
+            hasPointerNativeClass: Boolean(editor?.classList.contains('editor-pointer-native-selection')),
+            toolbarVisible: Boolean(toolbar?.classList.contains('visible')),
+          };
+        })).toMatchObject({
+          selection: {
+            empty: true,
+            selectedText: '',
+          },
+          nativeSelectedText: '',
+          overlayCount: 0,
+          hasPointerNativeClass: false,
+          toolbarVisible: false,
+        });
+
+        const collapsed = await page.evaluate(() => ({
+          selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+        }));
+        const caret = collapsed.selection;
+        expect(caret?.from).toBeGreaterThanOrEqual(selectedFrom + offset - 3);
+        expect(caret?.from).toBeLessThanOrEqual(selectedFrom + offset + 4);
+        expect(caret?.from).toBeGreaterThan(selectedFrom + 4);
+      }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('collapses overlay text selection at the clicked text position', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-overlay-selection-collapse-click-position');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+
+      await openMarkdownFixture(page, {
+        filename: 'overlay-selection-collapse-click-position.md',
+        content: [
+          '# Overlay Selection Collapse Click Position',
+          '',
+          TARGET_TEXT,
+          '',
+          'Clicking inside an overlay-rendered selection should place the caret at the clicked character.',
+        ].join('\n'),
+      });
+
+      await scrollParagraphTextIntoSelectionView(page, TARGET_TEXT);
+      const selected = await page.evaluate((text) =>
+        (window as any).__vlainaE2E.selectEditorTextByText(text), TARGET_TEXT);
+      expect(selected.selected).toBe(true);
+
+      const selectedRange = await page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        return {
+          selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+          hasPointerNativeClass: Boolean(editor?.classList.contains('editor-pointer-native-selection')),
+        };
+      });
+      expect(selectedRange.selection?.empty).toBe(false);
+      expect(selectedRange.selection?.selectedText).toContain('Ordinary selectable paragraph alpha sentinel');
+      expect(selectedRange.hasPointerNativeClass).toBe(false);
+
+      const offset = Math.floor(TARGET_TEXT.length * 0.55);
+      const selectedFrom = selectedRange.selection?.from ?? 0;
+      const point = await getTextOffsetClickPoint(page, TARGET_TEXT, offset);
+      await page.mouse.move(point.x, point.y);
+      await page.mouse.down();
+      await waitForEditorAnimationFrame(page);
+
+      const whilePressed = await page.evaluate(() =>
+        (window as any).__vlainaE2E.getEditorSelectionSummary()
+      );
+      expect(whilePressed?.empty).toBe(true);
+      expect(whilePressed?.from).toBeGreaterThanOrEqual(selectedFrom + offset - 3);
+      expect(whilePressed?.from).toBeLessThanOrEqual(selectedFrom + offset + 4);
+      expect(whilePressed?.from).toBeGreaterThan(selectedFrom + 4);
+      const pressedNativeCaret = await getNativeSelectionOffsetForText(page, TARGET_TEXT);
+      expect(pressedNativeCaret.selectedText).toBe('');
+      expect(pressedNativeCaret.isCollapsed).toBe(true);
+      expect(pressedNativeCaret.anchorOffsetInText).not.toBeNull();
+      const pressedAnchorOffset = pressedNativeCaret.anchorOffsetInText ?? Number.NaN;
+      expect(pressedAnchorOffset).toBeGreaterThanOrEqual(offset - 3);
+      expect(pressedAnchorOffset).toBeLessThanOrEqual(offset + 4);
+
+      await page.mouse.up();
+      const immediatelyAfterClick = await page.evaluate(() => ({
+        selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+        nativeSelectedText: window.getSelection()?.toString() ?? '',
+      }));
+      expect(immediatelyAfterClick.nativeSelectedText).toBe('');
+      expect(immediatelyAfterClick.selection?.empty).toBe(true);
+      expect(immediatelyAfterClick.selection?.from).toBeGreaterThanOrEqual(selectedFrom + offset - 3);
+      expect(immediatelyAfterClick.selection?.from).toBeLessThanOrEqual(selectedFrom + offset + 4);
+      expect(immediatelyAfterClick.selection?.from).toBeGreaterThan(selectedFrom + 4);
+      const immediateNativeCaret = await getNativeSelectionOffsetForText(page, TARGET_TEXT);
+      expect(immediateNativeCaret.selectedText).toBe('');
+      expect(immediateNativeCaret.isCollapsed).toBe(true);
+      expect(immediateNativeCaret.anchorOffsetInText).not.toBeNull();
+      const immediateAnchorOffset = immediateNativeCaret.anchorOffsetInText ?? Number.NaN;
+      expect(immediateAnchorOffset).toBeGreaterThanOrEqual(offset - 3);
+      expect(immediateAnchorOffset).toBeLessThanOrEqual(offset + 4);
+
+      await expect.poll(async () => page.evaluate(() =>
+        (window as any).__vlainaE2E.getEditorSelectionSummary()?.from ?? -1
+      )).toBeGreaterThanOrEqual(selectedFrom + offset - 3);
+      await expect.poll(async () => page.evaluate(() =>
+        (window as any).__vlainaE2E.getEditorSelectionSummary()?.from ?? -1
+      )).toBeLessThanOrEqual(selectedFrom + offset + 4);
+
+      await expect.poll(async () => page.evaluate(() => {
+        const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+        return {
+          selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+          nativeSelectedText: window.getSelection()?.toString() ?? '',
+          overlayCount: document.querySelectorAll('.editor-text-selection-overlay').length,
+          hasPointerNativeClass: Boolean(editor?.classList.contains('editor-pointer-native-selection')),
+        };
+      })).toMatchObject({
+        selection: {
+          empty: true,
+          selectedText: '',
+        },
+        nativeSelectedText: '',
+        overlayCount: 0,
+        hasPointerNativeClass: false,
+      });
+
+      const collapsed = await page.evaluate(() =>
+        (window as any).__vlainaE2E.getEditorSelectionSummary()
+      );
+      expect(collapsed?.from).toBeGreaterThanOrEqual(selectedFrom + offset - 3);
+      expect(collapsed?.from).toBeLessThanOrEqual(selectedFrom + offset + 4);
+      expect(collapsed?.from).toBeGreaterThan(selectedFrom + 4);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('clears mouse-drag text selection when clicking blank space in the note body', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-text-selection-clear-note-blank');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+
+      await openMarkdownFixture(page, {
+        filename: 'text-selection-clear-note-blank.md',
+        content: [
+          '# Text Selection Clear Note Blank',
+          '',
+          TARGET_TEXT,
+          '',
+          'Clicking blank note body space should clear selected text and hide the toolbar.',
+        ].join('\n'),
+      });
+
+      for (const kind of ['right-text-gap', 'left-text-gap', 'below-last-block'] as const) {
+        const point = await getNoteBodyBlankClickPoint(page, TARGET_TEXT, kind);
+        await selectTextByMouseDrag(page, TARGET_TEXT);
+        await page.mouse.click(point.x, point.y);
+        await waitForEditorAnimationFrame(page);
+
+        await expect.poll(async () => page.evaluate(() => {
+          const toolbar = document.querySelector<HTMLElement>('.floating-toolbar');
+          const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+          return {
+            selection: (window as any).__vlainaE2E.getEditorSelectionSummary(),
+            nativeSelectedText: window.getSelection()?.toString() ?? '',
+            overlayCount: document.querySelectorAll('.editor-text-selection-overlay').length,
+            hasOverlayActiveClass: Boolean(editor?.classList.contains('editor-text-selection-overlay-active')),
+            toolbarVisible: Boolean(toolbar?.classList.contains('visible')),
+          };
+        })).toMatchObject({
+          selection: {
+            empty: true,
+            selectedText: '',
+          },
+          nativeSelectedText: '',
+          overlayCount: 0,
+          hasOverlayActiveClass: false,
+          toolbarVisible: false,
+        });
+      }
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

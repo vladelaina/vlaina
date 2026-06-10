@@ -299,6 +299,41 @@ function finishTrailingPlainClick() {
   }));
 }
 
+async function waitForPointerClickSettled() {
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
+}
+
+function domRect(left: number, top: number, right: number, bottom: number): DOMRect {
+  return {
+    left,
+    top,
+    right,
+    bottom,
+    width: right - left,
+    height: bottom - top,
+    x: left,
+    y: top,
+    toJSON: () => undefined,
+  } as DOMRect;
+}
+
+function attachNoteScrollRoot(view: any): HTMLElement {
+  const scrollRoot = document.createElement('div');
+  scrollRoot.setAttribute('data-note-scroll-root', 'true');
+  const parent = view.dom.parentNode;
+  if (parent) {
+    parent.insertBefore(scrollRoot, view.dom);
+  } else {
+    document.body.appendChild(scrollRoot);
+  }
+  scrollRoot.appendChild(view.dom);
+  return scrollRoot;
+}
+
 function findNodePosition(view: any, typeName: string, predicate: (node: any) => boolean = () => true): number {
   let found: number | null = null;
   view.state.doc.descendants((node: any, pos: number) => {
@@ -1220,6 +1255,55 @@ describe('blankAreaDragBoxPlugin list gap selection state', () => {
   });
 });
 
+describe('blankAreaDragBoxPlugin text selection plain clicks', () => {
+  it('clears a text selection when clicking unclaimed blank space in the note scroll root', async () => {
+    const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
+    const originalCreateRange = document.createRange;
+
+    try {
+      const scrollRoot = attachNoteScrollRoot(view);
+      const blankArea = document.createElement('div');
+      scrollRoot.appendChild(blankArea);
+
+      const firstParagraph = view.dom.querySelector('p');
+      expect(firstParagraph).toBeInstanceOf(HTMLElement);
+      vi.spyOn(scrollRoot, 'getBoundingClientRect').mockReturnValue(domRect(0, 0, 800, 600));
+      vi.spyOn(view.dom, 'getBoundingClientRect').mockReturnValue(domRect(96, 0, 704, 220));
+      vi.spyOn(firstParagraph as HTMLElement, 'getBoundingClientRect').mockReturnValue(domRect(112, 40, 212, 64));
+      document.createRange = () => ({
+        selectNodeContents: vi.fn(),
+        getClientRects: vi.fn().mockReturnValue([domRect(112, 42, 212, 62)]),
+        detach: vi.fn(),
+      }) as unknown as Range;
+
+      const { from, to } = findTextRange(view.state.doc, 'Alpha');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, from, to)));
+      expect(view.state.selection.empty).toBe(false);
+
+      const mouseDown = createMouseEvent('mousedown', {
+        clientX: 84,
+        clientY: 52,
+      });
+      blankArea.dispatchEvent(mouseDown);
+
+      expect(mouseDown.defaultPrevented).toBe(false);
+      expect(view.state.selection.empty).toBe(false);
+
+      document.dispatchEvent(createMouseEvent('mouseup', {
+        clientX: 84,
+        clientY: 52,
+      }));
+      await waitForPointerClickSettled();
+
+      expect(view.state.selection.empty).toBe(true);
+    } finally {
+      document.createRange = originalCreateRange;
+      vi.restoreAllMocks();
+      await editor.destroy();
+    }
+  });
+});
+
 describe('blankAreaDragBoxPlugin trailing plain clicks', () => {
   it('handles list item trailing clicks before native pointer selection can choose a stale DOM position', async () => {
     const { editor, view } = await createBlockSelectionEditor('- Alpha\n- Beta');
@@ -1235,6 +1319,7 @@ describe('blankAreaDragBoxPlugin trailing plain clicks', () => {
       expect(event.defaultPrevented).toBe(true);
 
       finishTrailingPlainClick();
+      await waitForPointerClickSettled();
 
       expect(view.state.selection.from).toBe(8);
     } finally {
@@ -1257,6 +1342,7 @@ describe('blankAreaDragBoxPlugin trailing plain clicks', () => {
       expect(event.defaultPrevented).toBe(true);
 
       finishTrailingPlainClick();
+      await waitForPointerClickSettled();
 
       expect(view.state.selection.from).toBe(8);
     } finally {

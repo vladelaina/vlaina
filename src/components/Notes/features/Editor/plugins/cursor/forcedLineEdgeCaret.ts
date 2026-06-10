@@ -5,6 +5,8 @@ import { applyBlankAreaPlainClickSelection, type BlankAreaPlainClickAction } fro
 import { blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION } from './blockSelectionPluginState';
 import { resolveBlockElementAtPos } from './topLevelBlockDom';
 import { SCROLL_ROOT_SELECTOR } from './blankAreaInteractionUtils';
+import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
+import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
 
 const TRAILING_LINE_END_CLICK_GAP_PX = 8;
 const LEADING_LINE_START_CLICK_GAP_PX = 8;
@@ -335,7 +337,10 @@ export function dispatchBlankAreaPlainClick(
 ): void {
   const refinedAction = refineBlankAreaPlainClickAction(view, action, clientX, clientY);
   let tr = applyBlankAreaPlainClickSelection(view.state.tr, refinedAction);
-  tr = tr.setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
+  tr = tr
+    .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION)
+    .setMeta(floatingToolbarKey, { type: TOOLBAR_ACTIONS.HIDE })
+    .setMeta('addToHistory', false);
   view.dispatch(tr.scrollIntoView());
   view.focus();
   showForcedLineEndCaret(view, refinedAction);

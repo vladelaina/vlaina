@@ -65,7 +65,7 @@ describe('textSelectionOverlayPlugin', () => {
     expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
   });
 
-  it('uses native pointer routing while keeping overlay text selection styling', async () => {
+  it('keeps native pointer routing after pointer text selection completes', async () => {
     const view = await createEditor('hello');
     const originalElementFromPoint = document.elementFromPoint;
     Object.defineProperty(document, 'elementFromPoint', {
@@ -88,7 +88,36 @@ describe('textSelectionOverlayPlugin', () => {
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
       expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
-      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+    } finally {
+      Object.defineProperty(document, 'elementFromPoint', {
+        configurable: true,
+        value: originalElementFromPoint,
+      });
+    }
+  });
+
+  it('skips overlay decorations while native pointer selection is active', async () => {
+    const view = await createEditor('hello world');
+    const originalElementFromPoint = document.elementFromPoint;
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => view.dom,
+    });
+
+    try {
+      view.dom.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 6)));
+
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+      expect(view.dom.querySelectorAll(`.${TEXT_SELECTION_OVERLAY_CLASS}`)).toHaveLength(0);
+
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+      expect(view.dom.querySelectorAll(`.${TEXT_SELECTION_OVERLAY_CLASS}`)).toHaveLength(0);
     } finally {
       Object.defineProperty(document, 'elementFromPoint', {
         configurable: true,
@@ -172,7 +201,7 @@ describe('textSelectionOverlayPlugin', () => {
     expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
   });
 
-  it('keeps overlay mode and clears a browser range after pointer text selection', async () => {
+  it('keeps the native browser range after pointer text selection completes', async () => {
     const view = await createEditor('hello');
     const originalGetSelection = window.getSelection;
     const originalElementFromPoint = document.elementFromPoint;
@@ -204,13 +233,13 @@ describe('textSelectionOverlayPlugin', () => {
       view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 4)));
       view.dom.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
 
+      removeAllRanges.mockClear();
       document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-      expect(removeAllRanges).toHaveBeenCalledTimes(1);
       expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
-      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
     } finally {
       Object.defineProperty(window, 'getSelection', {
         configurable: true,
@@ -257,7 +286,7 @@ describe('textSelectionOverlayPlugin', () => {
     }
   });
 
-  it('defers clearing the browser range until pointer selection ends', async () => {
+  it('keeps pointer selection native after mouseup when a browser range exists', async () => {
     const view = await createEditor('hello');
     const originalGetSelection = window.getSelection;
     const originalElementFromPoint = document.elementFromPoint;
@@ -293,10 +322,11 @@ describe('textSelectionOverlayPlugin', () => {
 
       expect(removeAllRanges).not.toHaveBeenCalled();
 
+      removeAllRanges.mockClear();
       document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-      expect(removeAllRanges).toHaveBeenCalledTimes(1);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
     } finally {
       Object.defineProperty(window, 'getSelection', {
         configurable: true,
@@ -309,13 +339,184 @@ describe('textSelectionOverlayPlugin', () => {
     }
   });
 
-  it('releases native pointer routing after pointer selection completes', async () => {
+  it('collapses a retained pointer text selection at the clicked position', async () => {
+    const view = await createEditor('hello world');
+    const originalElementFromPoint = document.elementFromPoint;
+    const posAtCoords = vi.spyOn(view, 'posAtCoords').mockReturnValue({ pos: 4, inside: -1 });
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => view.dom,
+    });
+
+    try {
+      view.dom.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 6)));
+      document.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true }));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+      expect(view.state.selection.empty).toBe(false);
+
+      const collapseMouseDown = new MouseEvent('mousedown', {
+        bubbles: true,
+        button: 0,
+        cancelable: true,
+        clientX: 32,
+        clientY: 12,
+      });
+      const mouseDownDispatched = view.dom.dispatchEvent(collapseMouseDown);
+
+      expect(mouseDownDispatched).toBe(false);
+      expect(collapseMouseDown.defaultPrevented).toBe(true);
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.selection.from).toBe(4);
+
+      const collapseMouseUp = new MouseEvent('mouseup', {
+        bubbles: true,
+        button: 0,
+        cancelable: true,
+        clientX: 32,
+        clientY: 12,
+      });
+      const mouseUpDispatched = document.dispatchEvent(collapseMouseUp);
+
+      expect(mouseUpDispatched).toBe(false);
+      expect(collapseMouseUp.defaultPrevented).toBe(true);
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.selection.from).toBe(4);
+
+      view.dom.dispatchEvent(new MouseEvent('click', {
+        bubbles: true,
+        button: 0,
+        cancelable: true,
+        clientX: 32,
+        clientY: 12,
+      }));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.selection.from).toBe(4);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(false);
+    } finally {
+      posAtCoords.mockRestore();
+      Object.defineProperty(document, 'elementFromPoint', {
+        configurable: true,
+        value: originalElementFromPoint,
+      });
+    }
+  });
+
+  it('collapses an overlay text selection at the clicked position', async () => {
+    const view = await createEditor('hello world');
+    const originalElementFromPoint = document.elementFromPoint;
+    const posAtCoords = vi.spyOn(view, 'posAtCoords').mockReturnValue({ pos: 4, inside: -1 });
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => view.dom,
+    });
+
+    try {
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 6)));
+
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+
+      const collapseMouseDown = new MouseEvent('mousedown', {
+        bubbles: true,
+        button: 0,
+        cancelable: true,
+        clientX: 32,
+        clientY: 12,
+      });
+      const mouseDownDispatched = view.dom.dispatchEvent(collapseMouseDown);
+
+      expect(mouseDownDispatched).toBe(false);
+      expect(collapseMouseDown.defaultPrevented).toBe(true);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.selection.from).toBe(4);
+
+      const collapseMouseUp = new MouseEvent('mouseup', {
+        bubbles: true,
+        button: 0,
+        cancelable: true,
+        clientX: 32,
+        clientY: 12,
+      });
+      const mouseUpDispatched = document.dispatchEvent(collapseMouseUp);
+
+      expect(mouseUpDispatched).toBe(false);
+      expect(collapseMouseUp.defaultPrevented).toBe(true);
+
+      expect(view.state.selection.empty).toBe(true);
+      expect(view.state.selection.from).toBe(4);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(false);
+    } finally {
+      posAtCoords.mockRestore();
+      Object.defineProperty(document, 'elementFromPoint', {
+        configurable: true,
+        value: originalElementFromPoint,
+      });
+    }
+  });
+
+  it('does not collapse a retained pointer text selection when the next gesture drags', async () => {
+    const view = await createEditor('hello world');
+    const originalElementFromPoint = document.elementFromPoint;
+    const posAtCoords = vi.spyOn(view, 'posAtCoords').mockReturnValue({ pos: 4, inside: -1 });
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => view.dom,
+    });
+
+    try {
+      view.dom.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 6)));
+      document.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true }));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      view.dom.dispatchEvent(new MouseEvent('mousedown', {
+        bubbles: true,
+        button: 0,
+        clientX: 32,
+        clientY: 12,
+      }));
+      document.dispatchEvent(new MouseEvent('mousemove', {
+        bubbles: true,
+        button: 0,
+        clientX: 48,
+        clientY: 12,
+      }));
+      document.dispatchEvent(new MouseEvent('mouseup', {
+        bubbles: true,
+        button: 0,
+        clientX: 48,
+        clientY: 12,
+      }));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      expect(view.state.selection.empty).toBe(false);
+      expect(view.state.selection.from).toBe(1);
+      expect(view.state.selection.to).toBe(6);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+    } finally {
+      posAtCoords.mockRestore();
+      Object.defineProperty(document, 'elementFromPoint', {
+        configurable: true,
+        value: originalElementFromPoint,
+      });
+    }
+  });
+
+  it('releases native pointer routing after pointer selection collapses', async () => {
     const view = await createEditor('hello');
     const originalGetSelection = window.getSelection;
     const originalElementFromPoint = document.elementFromPoint;
-    let selectionCleared = false;
+    let nativeSelectionCollapsed = false;
     const removeAllRanges = vi.fn(() => {
-      selectionCleared = true;
+      nativeSelectionCollapsed = true;
     });
     const fakeRect = { height: 19, top: 120 } as DOMRect;
 
@@ -328,8 +529,8 @@ describe('textSelectionOverlayPlugin', () => {
       value: () => ({
         anchorOffset: 0,
         focusOffset: 4,
-        isCollapsed: selectionCleared,
-        rangeCount: selectionCleared ? 0 : 1,
+        isCollapsed: nativeSelectionCollapsed,
+        rangeCount: 1,
         removeAllRanges,
         getRangeAt: () => ({
           getClientRects: () => [fakeRect],
@@ -343,12 +544,21 @@ describe('textSelectionOverlayPlugin', () => {
 
       expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
 
+      removeAllRanges.mockClear();
       view.dom.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true }));
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
       expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
-      expect(removeAllRanges).toHaveBeenCalledTimes(1);
+
+      nativeSelectionCollapsed = true;
+      view.dom.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 1)));
+      document.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true }));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(false);
     } finally {
       Object.defineProperty(window, 'getSelection', {
         configurable: true,
@@ -441,7 +651,7 @@ describe('textSelectionOverlayPlugin', () => {
 
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-      expect(removeAllRanges).toHaveBeenCalledTimes(1);
+      expect(removeAllRanges).toHaveBeenCalled();
       expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
       expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
     } finally {
@@ -573,7 +783,7 @@ describe('textSelectionOverlayPlugin', () => {
 
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-      expect(removeAllRanges).toHaveBeenCalledTimes(1);
+      expect(removeAllRanges).toHaveBeenCalled();
       expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
       expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
     } finally {

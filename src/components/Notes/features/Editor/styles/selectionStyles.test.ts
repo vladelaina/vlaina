@@ -891,11 +891,12 @@ describe('editor embedded CodeMirror selection styles', () => {
     const source = readTextSelectionOverlaySource();
     const sharedSource = readSharedBlockNodeTypesSource();
 
-    expect(css).toContain('.milkdown .ProseMirror.editor-text-selection-overlay-active *::selection {');
+    expect(css).toContain('.milkdown .ProseMirror.editor-text-selection-overlay-active:not(.editor-pointer-native-selection) *::selection {');
+    expect(css).not.toContain('.milkdown .ProseMirror.editor-text-selection-overlay-active *::selection {');
     expect(css).toContain('background-color: transparent !important;');
     expect(css).toContain('.milkdown .ProseMirror.editor-keyboard-selection-pending::selection,');
     expect(css).toContain('.milkdown .ProseMirror.editor-keyboard-selection-pending *::selection {');
-    expect(css).not.toContain('.milkdown .ProseMirror.editor-pointer-native-selection *::selection');
+    expect(css).toContain('editor-pointer-native-selection');
     expect(source).toContain("const KEYBOARD_SELECTION_PENDING_CLASS = 'editor-keyboard-selection-pending'");
     expect(source).toContain('view.dom.classList.add(KEYBOARD_SELECTION_PENDING_CLASS)');
     expect(css).toContain([
@@ -913,6 +914,7 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('box-shadow: none;');
     expect(css).toContain('border-radius: var(--vlaina-radius-3px);');
     expect(css).toContain('line-height: inherit;');
+    expect(css).toContain('padding-block: max(0px, calc((1lh - 1em) / 2));');
     expect(css).not.toContain('background-color: var(--vlaina-block-selection-color-default);');
     expect(css).not.toContain('vlaina-ai-review-selection');
     expect(css).not.toContain('vlaina-link-selection-visible');
