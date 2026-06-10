@@ -1249,6 +1249,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
         { type: 'text', text: 'describe these ![stored](attachment://safe.png)' },
         { type: 'image_url', image_url: { url: 'https://example.test/safe.png', detail: 'low' } },
         { type: 'image_url', image_url: { url: 'data:image/png;base64,aGk=' } },
+        { type: 'image_url', image_url: { url: 'https://user:pass@example.test/secret.png' } },
         { type: 'image_url', image_url: { url: 'http://127.0.0.1:3000/secret.png' } },
         { type: 'image_url', image_url: { url: 'file:///tmp/secret.png' } },
         { type: 'image_url', image_url: { url: 'attachment://safe.png' } },
@@ -1273,6 +1274,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       },
     ]);
     expect(bodyText).not.toContain('127.0.0.1');
+    expect(bodyText).not.toContain('user:pass');
     expect(bodyText).not.toContain('file:///tmp/secret.png');
     expect(bodyText).not.toContain('attachment://safe.png');
     expect(bodyText).not.toContain('app-file://attachment/local.png');

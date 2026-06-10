@@ -1,4 +1,4 @@
-import { hasInternalImageUrlPathSegment, isLocalNetworkHttpUrl } from '../__internal__'
+import { hasInternalImageUrlPathSegment, hasUrlCredentials, isLocalNetworkHttpUrl } from '../__internal__'
 import { prepareGithubRawHtmlForSanitizer } from './github-raw-html'
 
 export const githubAllowedHtmlTags = new Set([
@@ -269,10 +269,14 @@ function normalizeUrl(value: string, protocols: ReadonlySet<string>, options: { 
       return null
     if (!trimmed.startsWith('//') && hasInternalImageUrlPathSegment(trimmed))
       return null
-    if (options.blockLocalNetwork && trimmed.startsWith('//') && isLocalNetworkHttpUrl(`https:${trimmed}`))
-      return null
-    if (trimmed.startsWith('//'))
-      return `https:${trimmed}`
+    if (trimmed.startsWith('//')) {
+      const normalized = `https:${trimmed}`
+      if (hasUrlCredentials(normalized))
+        return null
+      if (options.blockLocalNetwork && isLocalNetworkHttpUrl(normalized))
+        return null
+      return normalized
+    }
     if (marker === '/' && !trimmed.startsWith('//') && options.allowPlainRelative && options.blockLocalNetwork && !isSafePlainRelativeMediaUrl(trimmed))
       return null
     return trimmed
@@ -280,6 +284,7 @@ function normalizeUrl(value: string, protocols: ReadonlySet<string>, options: { 
   if (options.allowPlainRelative && isSafePlainRelativeMediaUrl(trimmed))
     return trimmed
   if (!protocols.has(marker)) return null
+  if ((marker === 'http:' || marker === 'https:') && hasUrlCredentials(trimmed)) return null
   if (options.blockLocalNetwork && isLocalNetworkHttpUrl(trimmed)) return null
   return trimmed
 }

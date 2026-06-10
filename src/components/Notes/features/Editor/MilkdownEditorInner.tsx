@@ -142,12 +142,14 @@ export function createLargePlainMarkdownDocJSON(markdown: string): ProseMirrorJS
 
   const content: ProseMirrorJSONNode[] = [];
   let lineStart = 0;
+  let previousLineWasParagraph = false;
   while (lineStart < markdown.length) {
     const nextBreak = markdown.indexOf('\n', lineStart);
     const lineEnd = nextBreak === -1 ? markdown.length : nextBreak;
     const line = markdown.slice(lineStart, lineEnd);
     const trimmed = line.trim();
     if (!trimmed) {
+      previousLineWasParagraph = false;
       if (nextBreak === -1) {
         break;
       }
@@ -160,6 +162,7 @@ export function createLargePlainMarkdownDocJSON(markdown: string): ProseMirrorJS
         type: 'html_block',
         attrs: { value: MARKDOWN_BLANK_LINE_COMMENT },
       });
+      previousLineWasParagraph = false;
       if (nextBreak === -1) {
         break;
       }
@@ -178,6 +181,7 @@ export function createLargePlainMarkdownDocJSON(markdown: string): ProseMirrorJS
         attrs: { level: Math.min(6, headingMatch[1]?.length ?? 1) },
         content: [{ type: 'text', text: text.trimEnd() }],
       });
+      previousLineWasParagraph = false;
       if (nextBreak === -1) {
         break;
       }
@@ -193,10 +197,15 @@ export function createLargePlainMarkdownDocJSON(markdown: string): ProseMirrorJS
       return null;
     }
 
+    if (previousLineWasParagraph) {
+      return null;
+    }
+
     content.push({
       type: 'paragraph',
       content: [{ type: 'text', text: line }],
     });
+    previousLineWasParagraph = true;
 
     if (nextBreak === -1) {
       break;

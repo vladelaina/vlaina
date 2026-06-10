@@ -137,7 +137,7 @@ describe("normalizeRenderableImageSrc", () => {
     expect(normalizeRenderableImageSrc("app-file://attachment/%2e%2e%2fsecret.png")).toBeNull();
   });
 
-  it("rejects local-network remote image sources", () => {
+  it("rejects local-network and credentialed remote image sources", () => {
     expect(normalizeRenderableImageSrc("http://localhost:3000/secret.png")).toBeNull();
     expect(normalizeRenderableImageSrc("http://localhost./secret.png")).toBeNull();
     expect(normalizeRenderableImageSrc("http://assets.localhost/secret.png")).toBeNull();
@@ -153,6 +153,8 @@ describe("normalizeRenderableImageSrc", () => {
     expect(normalizeRenderableImageSrc("http://[::ffff:7f00:1]/secret.png")).toBeNull();
     expect(normalizeRenderableImageSrc("http://[::7f00:1]/secret.png")).toBeNull();
     expect(normalizeRenderableImageSrc("http://[::ffff:0:7f00:1]/secret.png")).toBeNull();
+    expect(normalizeRenderableImageSrc("https://user:pass@example.com/secret.png")).toBeNull();
+    expect(normalizeRenderableImageSrc("//user:pass@example.com/secret.png")).toBeNull();
     expect(normalizeRenderableImageSrc(String.raw`http:\127.0.0.1\secret.png`)).toBeNull();
     expect(normalizeRenderableImageSrc(String.raw`\\127.0.0.1\secret.png`)).toBeNull();
     expect(normalizeRenderableImageSrc("https://example.com/safe.png")).toBe("https://example.com/safe.png");
@@ -202,6 +204,7 @@ describe("normalizeRenderableImageSrcset", () => {
     expect(normalizeRenderableImageSrcset("data:image/svg+xml;base64,PHN2Zz4= 1x")).toBeNull();
     expect(normalizeRenderableImageSrcset(`${createOversizedDataImageSrc()} 1x`)).toBeNull();
     expect(normalizeRenderableImageSrcset("https://example.com/a.webp 1x, http://192.168.1.8/secret.png 2x")).toBeNull();
+    expect(normalizeRenderableImageSrcset("https://user:pass@example.com/secret.webp 1x")).toBeNull();
     expect(normalizeRenderableImageSrcset(".vlaina/secret.webp 1x")).toBeNull();
     expect(normalizeRenderableImageSrcset("docs/%252egit/secret.webp 1x")).toBeNull();
   });

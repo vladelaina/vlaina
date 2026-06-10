@@ -142,6 +142,10 @@ describe('Floating Toolbar Properties', () => {
       expect(isValidUrl('http://device.home.arpa/admin')).toBe(false);
     });
 
+    it('should reject credentialed http/https URLs', () => {
+      expect(isValidUrl('https://user:pass@example.com/docs')).toBe(false);
+    });
+
     it('should accept valid mailto URLs', () => {
       fc.assert(
         fc.property(

@@ -64,6 +64,10 @@ describe('LocalSearchProvider', () => {
         <div class="b_caption"><p>Blocked local host summary.</p></div>
       </li>
       <li class="b_algo">
+        <h2><a href="https://user:pass@example.com/private">Credential URL</a></h2>
+        <div class="b_caption"><p>Blocked credential URL summary.</p></div>
+      </li>
+      <li class="b_algo">
         <h2><a href="https://ledger.com.ag/download">Fake Ledger</a></h2>
         <div class="b_caption"><p>Blocked fake wallet summary.</p></div>
       </li>

@@ -192,6 +192,22 @@ describe('sanitizeHtml', () => {
     expect(result).toBe('<img><img><img><img><img><img><img><img><img><img><img><img><img><img><img src="https://example.com/safe.png">');
   });
 
+  it('blocks credentialed raw HTML URLs', () => {
+    const result = sanitizeHtml([
+      '<a href="https://user:pass@example.com/private">link</a>',
+      '<blockquote cite="https://user:pass@example.com/private">quote</blockquote>',
+      '<img src="https://user:pass@example.com/secret.png">',
+      '<iframe src="https://user:pass@example.com/embed"></iframe>',
+      '<video src="https://user:pass@example.com/movie.mp4" poster="//user:pass@example.com/poster.png"></video>',
+      '<source src="https://user:pass@example.com/source.mp4">',
+      '<img src="https://example.com/safe.png">',
+    ].join(''));
+
+    expect(result).not.toContain('user:pass');
+    expect(result).toContain('<a>link</a>');
+    expect(result).toContain('<img src="https://example.com/safe.png">');
+  });
+
   it('blocks root-path raw media urls while keeping safe media relatives', () => {
     const result = sanitizeHtml([
       '<img src="/etc/passwd">',

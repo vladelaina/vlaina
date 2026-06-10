@@ -108,8 +108,10 @@ export function normalizePublicHttpUrl(rawUrl) {
     throw new WebSearchError('invalid_url', 'Only HTTP and HTTPS URLs are supported.');
   }
 
-  parsed.username = '';
-  parsed.password = '';
+  if (parsed.username || parsed.password) {
+    throw new WebSearchError('invalid_url', 'URL credentials are not supported.');
+  }
+
   parsed.hash = '';
   return parsed;
 }

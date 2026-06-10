@@ -133,6 +133,8 @@ it('does not classify unsafe remote strings as public media URLs', () => {
   expect(isPublicRemoteMediaUrl('https://example.com/\u202Ecod.exe')).toBe(false)
   expect(isPublicRemoteMediaUrl('https://example.com/image.png\u0000')).toBe(false)
   expect(isPublicRemoteMediaUrl('//example.com/image.png\uFFFD')).toBe(false)
+  expect(isPublicRemoteMediaUrl('https://user:pass@example.com/image.png')).toBe(false)
+  expect(isPublicRemoteMediaUrl('//user:pass@example.com/image.png')).toBe(false)
 })
 
 it('sanitizes image sources consistently for schema and component editors', () => {
@@ -162,6 +164,8 @@ it('sanitizes image sources consistently for schema and component editors', () =
   expect(sanitizeImageSrc('/etc/passwd')).toBe(null)
   expect(sanitizeImageSrc('C:\\Users\\secret.png')).toBe(null)
   expect(sanitizeImageSrc('http://127.0.0.1:3000/image.png')).toBe(null)
+  expect(sanitizeImageSrc('https://user:pass@example.com/image.png')).toBe(null)
+  expect(sanitizeImageSrc('//user:pass@example.com/image.png')).toBe(null)
 })
 
 it('bounds image text attrs consistently', () => {
@@ -181,6 +185,7 @@ it('rejects oversized media sources and link hrefs', () => {
   expect(isPublicRemoteMediaUrl(`https://example.com/${oversizedPath}`)).toBe(false)
   expect(sanitizeMediaSrc(`https://example.com/${oversizedPath}`)).toBe(null)
   expect(sanitizeMediaSrc(`blob:https://example.com/${oversizedPath}`)).toBe(null)
+  expect(sanitizeMediaSrc('https://user:pass@example.com/image.png')).toBe(null)
   expect(sanitizeImageSrc(`img:${oversizedPath}`)).toBe(null)
   expect(sanitizeImageSrc(oversizedPath)).toBe(null)
   expect(sanitizeLinkHref(`${'a'.repeat(maxUrlChars)}.md`)).toBe(null)
@@ -300,6 +305,7 @@ it('sanitizes link hrefs consistently for schema and component editors', () => {
   expect(sanitizeLinkHref('javascript:alert(1)')).toBe(null)
   expect(sanitizeLinkHref('data:text/html,alert(1)')).toBe(null)
   expect(sanitizeLinkHref('//example.com/path')).toBe(null)
+  expect(sanitizeLinkHref('https://user:pass@example.com/path')).toBe(null)
   expect(sanitizeLinkHref(String.raw`https:\example.com\path`)).toBe(null)
   expect(sanitizeLinkHref(String.raw`\\example.com\path`)).toBe(null)
   expect(sanitizeLinkHref('C:\\Users\\secret.txt')).toBe(null)

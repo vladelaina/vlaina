@@ -161,6 +161,7 @@ describe('apiTranscript normalization', () => {
         { type: 'image_url', image_url: { url: 'https://example.com/safe.png', detail: 'low' } },
         { type: 'image_url', image_url: { url: '.vlaina/assets/secret.png' } },
         { type: 'image_url', image_url: { url: 'docs/.git/secret.png' } },
+        { type: 'image_url', image_url: { url: 'https://user:pass@example.com/secret.png' } },
         { type: 'image_url', image_url: { url: 'http://127.0.0.1:3000/secret.png', detail: 'high' } },
         { type: 'image_url', image_url: { url: 'file:///tmp/secret.png' } },
         { type: 'image_url', image_url: { url: 'attachment://safe.png' } },

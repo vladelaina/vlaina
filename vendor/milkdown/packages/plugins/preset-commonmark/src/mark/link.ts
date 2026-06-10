@@ -6,7 +6,7 @@ import { TextSelection } from '@milkdown/prose/state'
 import { $command, $markAttr, $markSchema } from '@milkdown/utils'
 
 import { withMeta } from '../__internal__'
-import { hasInternalImageUrlPathSegment } from '../__internal__/url-security'
+import { hasInternalImageUrlPathSegment, hasUrlCredentials } from '../__internal__/url-security'
 
 const controlOrBidiPattern = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/
 const schemePattern = /^([A-Za-z][A-Za-z0-9+.-]*):/
@@ -29,6 +29,7 @@ export function sanitizeLinkHref(value: unknown) {
   if (!scheme && hasInternalImageUrlPathSegment(trimmed)) return null
   if (!scheme) return trimmed
   const normalizedScheme = `${scheme}:`
+  if ((normalizedScheme === 'http:' || normalizedScheme === 'https:') && hasUrlCredentials(trimmed)) return null
   return safeLinkSchemes.has(normalizedScheme) ? trimmed : null
 }
 

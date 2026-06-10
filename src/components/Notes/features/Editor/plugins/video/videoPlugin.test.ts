@@ -128,6 +128,9 @@ describe('videoPlugin URL support', () => {
     expect(parseVideoUrl('data:video/mp4;base64,AAAA')).toBeNull();
     expect(parseVideoUrl('ftp://youtube.com/watch?v=dQw4w9WgXcQ')).toBeNull();
     expect(parseVideoUrl('file://bilibili.com/video/BV1xx411c7mD')).toBeNull();
+    expect(parseVideoUrl('https://user:pass@example.com/video.mp4')).toBeNull();
+    expect(parseVideoUrl('https://127.0.0.1@example.com/video.mp4')).toBeNull();
+    expect(parseVideoUrl('https://user:pass@youtube.com/watch?v=dQw4w9WgXcQ')).toBeNull();
     expect(parseVideoUrl('http://localhost:3000/secret.mp4')).toBeNull();
     expect(parseVideoUrl('http://127.0.0.1:3000/secret.mp4')).toBeNull();
     expect(parseVideoUrl('http://192.168.1.8/secret.mp4')).toBeNull();
@@ -157,6 +160,7 @@ describe('videoPlugin URL support', () => {
     expect(sanitizeVideoUrlInput('https://example.com/article')).toBeNull();
     expect(sanitizeVideoUrlInput('javascript:alert(1)')).toBeNull();
     expect(sanitizeVideoUrlInput('ftp://youtube.com/watch?v=dQw4w9WgXcQ')).toBeNull();
+    expect(sanitizeVideoUrlInput('https://user:pass@example.com/video.mp4')).toBeNull();
     expect(sanitizeVideoUrlInput('http://127.0.0.1:3000/secret.mp4')).toBeNull();
   });
 

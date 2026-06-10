@@ -118,19 +118,24 @@ async function importExternalMarkdownFile(
   );
 
   markExpectedExternalChange(fullPath);
-  await storage.copyFile(sourcePath, fullPath);
+  try {
+    await storage.copyFile(sourcePath, fullPath);
 
-  const copiedInfo = await storage.stat(fullPath).catch(() => null);
-  if (
-    !copiedInfo?.isFile ||
-    typeof copiedInfo.size !== 'number' ||
-    copiedInfo.size > MAX_EXTERNAL_MARKDOWN_FILE_SIZE
-  ) {
+    const copiedInfo = await storage.stat(fullPath).catch(() => null);
+    if (
+      copiedInfo?.isFile &&
+      typeof copiedInfo.size === 'number' &&
+      copiedInfo.size <= MAX_EXTERNAL_MARKDOWN_FILE_SIZE
+    ) {
+      return relativePath;
+    }
+
+    try { await storage.deleteFile(fullPath); } catch {}
+    return null;
+  } catch {
     try { await storage.deleteFile(fullPath); } catch {}
     return null;
   }
-
-  return relativePath;
 }
 
 async function isImportableExternalMarkdownFile(

@@ -478,11 +478,15 @@ async function readResolvedMentionedNoteContent(
   ]));
 
   if (notesState.currentNote && cachePaths.includes(notesState.currentNote.path)) {
-    return notesState.currentNote.content || '';
+    const content = notesState.currentNote.content || '';
+    return content.length <= MAX_NOTE_MENTION_READ_BYTES ? content : '';
   }
 
   for (const cachePath of cachePaths) {
     const cached = notesState.noteContentsCache.get(cachePath);
+    if (cached && cached.content.length > MAX_NOTE_MENTION_READ_BYTES) {
+      return '';
+    }
     if (cached?.content.trim()) {
       return cached.content;
     }

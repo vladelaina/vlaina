@@ -63,6 +63,8 @@ function isPublicHttpVideoUrl(url: string) {
     const parsed = new URL(url);
     return (
       (parsed.protocol === 'http:' || parsed.protocol === 'https:')
+      && !parsed.username
+      && !parsed.password
       && !isLocalNetworkHttpUrl(url)
     );
   } catch {

@@ -25,6 +25,10 @@ function truncatePreviewText(text: string): string {
   return `${text.slice(0, FIRST_PAINT_PREVIEW_TEXT_CHAR_LIMIT).trimEnd()}...`;
 }
 
+function normalizePreviewHeadingText(text: string): string {
+  return text.replace(/[ \t]+#+[ \t]*$/, '').trimEnd();
+}
+
 export function createLargeMarkdownFirstPaintPreviewBlocks(markdown: string): FirstPaintPreviewBlock[] {
   if (markdown.length < LARGE_MARKDOWN_FIRST_PAINT_PREVIEW_MIN_LENGTH) {
     return [];
@@ -47,7 +51,7 @@ export function createLargeMarkdownFirstPaintPreviewBlocks(markdown: string): Fi
           key: `h-${lineIndex}`,
           type: 'heading',
           level: Math.min(6, headingMatch[1]?.length ?? 1) as FirstPaintPreviewBlock['level'],
-          text: truncatePreviewText((headingMatch[2] ?? '').trimEnd()),
+          text: truncatePreviewText(normalizePreviewHeadingText(headingMatch[2] ?? '')),
         });
       } else {
         blocks.push({
