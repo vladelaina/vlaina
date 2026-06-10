@@ -25,12 +25,6 @@
   color: var(--vlaina-color-text-primary);
 }
 
-.dark .ai-review-error {
-  border-color: var(--vlaina-color-status-danger-bg);
-  background: var(--vlaina-color-status-danger-bg);
-  color: var(--vlaina-color-status-danger-fg);
-}
-
 .dark .ai-review-diff-added {
   color: var(--vlaina-color-ai-review-added-fg);
   background: var(--vlaina-color-ai-review-added-bg);
@@ -53,26 +47,6 @@
   border-color: var(--vlaina-color-inverse-surface-hover);
   background: var(--vlaina-color-inverse-surface-hover);
 }
-
-.dark .ai-review-action.ai-review-icon-action.tertiary,
-.dark .ai-review-action.ai-review-icon-action.primary {
-  background: transparent;
-  border-color: transparent;
-}
-
-.dark .ai-review-action.ai-review-icon-action.tertiary {
-  color: var(--vlaina-color-text-primary);
-}
-
-.dark .ai-review-action.ai-review-icon-action.primary {
-  color: var(--vlaina-color-text-strong);
-}
-
-.ai-review-action.ai-review-icon-action:hover,
-.dark .ai-review-action.ai-review-icon-action:hover {
-  background: transparent;
-}
-
 
 @media (max-width: 720px) {
   .floating-toolbar-inner.floating-toolbar-ai-review-mode {

@@ -5,7 +5,7 @@ import { useAccountSessionStore } from '@/stores/accountSession';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { renderToolbarMarkup } from './toolbarMarkup';
 import type { FloatingToolbarState } from './types';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { chatComposerGhostIconButtonClass, chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 function createState(overrides?: Partial<FloatingToolbarState>): FloatingToolbarState {
   return {
@@ -249,6 +249,19 @@ describe('toolbar markup', () => {
     expect(markup).toContain('viewBox="0 0 256 256"');
     expect(markup).toContain('data-review-action="accept"');
     expect(markup).toContain('data-review-action="cancel"');
+    expect(markup.split(chatComposerGhostIconButtonClass).length - 1).toBe(3);
+    expect(markup.split('app-no-drag group flex h-8 w-8 cursor-pointer items-center justify-center').length - 1).toBe(3);
+    expect(markup.split('rounded-full bg-transparent shadow-none').length - 1).toBe(3);
+    expect(markup).not.toContain('icon-shadow-button');
+    expect(markup).not.toContain('tertiary ai-review-icon-action');
+    expect(markup).not.toContain('primary ai-review-icon-action');
+
+    const aiReviewLayoutSource = readFileSync(
+      resolve(process.cwd(), 'src/components/Notes/features/Editor/styles/floating-toolbar.ai-review.layout.css'),
+      'utf8',
+    );
+    expect(aiReviewLayoutSource).not.toMatch(/\.ai-review-icon-action\s*\{[^}]*background:/s);
+    expect(aiReviewLayoutSource).not.toContain('var(--vlaina-size-36px)');
   });
 
   it('renders the shared loading slot while a suggestion is pending', () => {
@@ -300,7 +313,7 @@ describe('toolbar markup', () => {
     expect(markup).not.toContain('你好啊');
   });
 
-  it('renders an inline error state without diff output', () => {
+  it('renders the shared chat error slot without diff output', () => {
     const markup = renderToolbarMarkup(
       createState({
         subMenu: 'aiReview',
@@ -319,14 +332,15 @@ describe('toolbar markup', () => {
       })
     );
 
-    expect(markup).toContain('ai-review-error');
-    expect(markup).toContain('Model request &lt;failed&gt;.');
+    expect(markup).toContain('ai-review-error-slot');
+    expect(markup).not.toContain('ai-review-error"');
+    expect(markup).not.toContain('Model request &lt;failed&gt;.');
     expect(markup).not.toContain('Model request <failed>.');
     expect(markup).not.toContain('ai-review-result-surface');
     expect(markup).not.toContain('ai-review-diff-removed');
   });
 
-  it('renders the sign-in slot for AI review auth errors', () => {
+  it('renders the shared chat error slot for AI review auth errors', () => {
     const markup = renderToolbarMarkup(
       createState({
         subMenu: 'aiReview',
@@ -347,8 +361,9 @@ describe('toolbar markup', () => {
       })
     );
 
-    expect(markup).toContain('ai-review-sign-in-slot');
+    expect(markup).toContain('ai-review-error-slot');
+    expect(markup).not.toContain('ai-review-sign-in-slot');
     expect(markup).not.toContain('Your sign-in session has expired');
-    expect(markup).not.toContain('ai-review-error');
+    expect(markup).not.toContain('ai-review-error"');
   });
 });

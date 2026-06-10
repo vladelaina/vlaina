@@ -2,7 +2,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ChatLoading } from '@/components/Chat/features/Messages/components/ChatLoading';
-import { SignInPromptPill } from '@/components/Chat/features/Messages/components/SignInPromptPill';
+import { ErrorBlock } from '@/components/Chat/features/Messages/components/ErrorBlock';
 import { floatingToolbarKey } from '../floatingToolbarKey';
 import { TOOLBAR_ACTIONS, type FloatingToolbarState } from '../types';
 import { runAiSelectionReviewCommand } from '../ai/reviewFlow';
@@ -24,7 +24,7 @@ export interface AiReviewPanelController {
 export function createAiReviewPanelController(): AiReviewPanelController {
   let modelSelectorRoot: Root | null = null;
   let loadingRoot: Root | null = null;
-  let signInRoot: Root | null = null;
+  let errorRoot: Root | null = null;
   let reviewBindingsCleanup: ReviewBindingsCleanup | null = null;
 
   const cleanup = () => {
@@ -34,8 +34,8 @@ export function createAiReviewPanelController(): AiReviewPanelController {
     modelSelectorRoot = null;
     loadingRoot?.unmount();
     loadingRoot = null;
-    signInRoot?.unmount();
-    signInRoot = null;
+    errorRoot?.unmount();
+    errorRoot = null;
   };
 
   const render = (
@@ -79,10 +79,16 @@ export function createAiReviewPanelController(): AiReviewPanelController {
       loadingRoot.render(React.createElement(ChatLoading));
     }
 
-    const signInHost = container.querySelector('.ai-review-sign-in-slot');
-    if (signInHost instanceof HTMLElement && review.errorType === 'AUTH_ERROR') {
-      signInRoot = createRoot(signInHost);
-      signInRoot.render(React.createElement(SignInPromptPill));
+    const errorHost = container.querySelector('.ai-review-error-slot');
+    if (errorHost instanceof HTMLElement && review.errorMessage) {
+      errorRoot = createRoot(errorHost);
+      errorRoot.render(
+        React.createElement(ErrorBlock, {
+          content: review.errorMessage,
+          showBillingPrompt: review.errorType === 'QUOTA_EXHAUSTED',
+          showLoginPrompt: review.errorType === 'AUTH_ERROR',
+        })
+      );
     }
 
     const elements = getAiReviewElements(container);
