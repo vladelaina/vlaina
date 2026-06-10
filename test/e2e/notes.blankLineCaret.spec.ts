@@ -9,6 +9,7 @@ import {
   launchIsolatedElectron,
   openMarkdownFixture,
   openVaultInNotes,
+  selectNoteBlocksByText,
 } from './notesE2E';
 
 const BLANK_LINE_SELECTOR = `${EDITOR_SELECTOR} [data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"], ${EDITOR_SELECTOR} p.editor-editable-markdown-blank-line, ${EDITOR_SELECTOR} p:empty`;
@@ -113,6 +114,130 @@ test.describe('notes blank line caret interaction', () => {
         await expect(page.locator(SELECTED_NODE_SELECTOR)).toHaveCount(0);
         await expect(page.locator(SELECTED_MARKDOWN_BLANK_LINE_SELECTOR)).toHaveCount(0);
       }
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('does not auto-select leading markdown blank line blocks when opening notes', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-leading-blank-line-selection');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      await openMarkdownFixture(page, {
+        filename: 'leading-blank-line-selection-e2e.md',
+        content: ['', 'Leading blank line sentinel', '', 'Body after leading blank line'].join('\n'),
+      });
+
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Leading blank line sentinel');
+      await expect(page.locator(SELECTED_BLOCK_SELECTOR)).toHaveCount(0);
+      await expect(page.locator(SELECTED_NODE_SELECTOR)).toHaveCount(0);
+      await expect(page.locator(SELECTED_MARKDOWN_BLANK_LINE_SELECTOR)).toHaveCount(0);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('clears stale block selection when opening a note that starts with a blank line', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-leading-blank-line-stale-selection');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const fixture = await createVaultFilesFixture(page, {
+        name: 'leading-blank-line-stale-selection',
+        files: [
+          {
+            filename: 'alpha-selected-source.md',
+            content: ['Alpha stale block selection source', '', 'Alpha after blank line'].join('\n'),
+          },
+          {
+            filename: 'beta-leading-blank-line.md',
+            content: ['', 'Beta leading blank line sentinel', '', 'Beta body after blank line'].join('\n'),
+          },
+        ],
+      });
+      await openVaultInNotes(page, {
+        vaultPath: fixture.vaultPath,
+        name: 'Leading Blank Line Stale Selection Vault',
+        minFileCount: 2,
+      });
+
+      await page.locator(FILE_TREE_FILE_SELECTOR, { hasText: 'alpha-selected-source' }).first().click();
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Alpha stale block selection source', {
+        timeout: 30_000,
+      });
+      expect(await selectNoteBlocksByText(page, ['Alpha stale block selection source'])).toBe(1);
+      await expect(page.locator(SELECTED_BLOCK_SELECTOR)).toHaveCount(1);
+
+      await page.evaluate((pathToOpen) => (window as any).__vlainaE2E.openAbsoluteNote(pathToOpen), fixture.notePaths[1]);
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Beta leading blank line sentinel', {
+        timeout: 30_000,
+      });
+      await expect(page.locator(SELECTED_BLOCK_SELECTOR)).toHaveCount(0);
+      await expect(page.locator(SELECTED_NODE_SELECTOR)).toHaveCount(0);
+      await expect(page.locator(SELECTED_MARKDOWN_BLANK_LINE_SELECTOR)).toHaveCount(0);
+    } finally {
+      await cleanupIsolatedElectron(app, userDataRoot);
+    }
+  });
+
+  test('does not turn a focused cursor into a selected leading blank line when opening notes', async () => {
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-focused-leading-blank-line-selection');
+
+    try {
+      await app.firstWindow();
+      const [page] = await getOpenBridgePages(app, 1);
+      await page.setViewportSize({ width: 1280, height: 860 });
+
+      const fixture = await createVaultFilesFixture(page, {
+        name: 'focused-leading-blank-line-selection',
+        files: [
+          {
+            filename: 'alpha-focused-source.md',
+            content: ['Alpha focused cursor source', '', 'Alpha after blank line'].join('\n'),
+          },
+          {
+            filename: 'beta-focused-leading-blank-line.md',
+            content: ['', 'Beta focused leading blank line sentinel', '', 'Beta body after blank line'].join('\n'),
+          },
+        ],
+      });
+      await openVaultInNotes(page, {
+        vaultPath: fixture.vaultPath,
+        name: 'Focused Leading Blank Line Vault',
+        minFileCount: 2,
+      });
+
+      await page.locator(FILE_TREE_FILE_SELECTOR, { hasText: 'alpha-focused-source' }).first().click();
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Alpha focused cursor source', {
+        timeout: 30_000,
+      });
+      await expect(
+        page.evaluate(() => (window as any).__vlainaE2E.focusCurrentEditor())
+      ).resolves.toBe(true);
+
+      await page.evaluate((pathToOpen) => (window as any).__vlainaE2E.openAbsoluteNote(pathToOpen), fixture.notePaths[1]);
+      await expect(page.locator(EDITOR_SELECTOR)).toContainText('Beta focused leading blank line sentinel', {
+        timeout: 30_000,
+      });
+
+      await expect.poll(
+        async () => page.evaluate(() => (window as any).__vlainaE2E.getEditorSelectionSummary()),
+        { timeout: 10_000 }
+      ).toMatchObject({
+        empty: true,
+      });
+      const selection = await page.evaluate(() => (window as any).__vlainaE2E.getEditorSelectionSummary());
+      expect(selection?.from).toBeGreaterThan(1);
+      await expect(page.locator(SELECTED_BLOCK_SELECTOR)).toHaveCount(0);
+      await expect(page.locator(SELECTED_NODE_SELECTOR)).toHaveCount(0);
+      await expect(page.locator(SELECTED_MARKDOWN_BLANK_LINE_SELECTOR)).toHaveCount(0);
     } finally {
       await cleanupIsolatedElectron(app, userDataRoot);
     }

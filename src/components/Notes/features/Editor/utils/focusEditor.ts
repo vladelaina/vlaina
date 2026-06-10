@@ -1,6 +1,7 @@
 import { Selection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { getCurrentEditorView } from './editorViewRegistry';
+import { createDocumentStartTextSelection } from './editorSelection';
 
 function getEditorElement(): HTMLElement | null {
   return document.querySelector('.milkdown .ProseMirror');
@@ -19,7 +20,7 @@ function focusEditorDomStart(editorEl: HTMLElement): void {
 
 function focusSelectionAtStart(view: EditorView): void {
   const tr = view.state.tr
-    .setSelection(Selection.atStart(view.state.doc))
+    .setSelection(createDocumentStartTextSelection(view.state.doc))
     .scrollIntoView();
   view.dispatch(tr);
   view.focus();

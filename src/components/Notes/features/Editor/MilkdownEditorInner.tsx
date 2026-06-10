@@ -17,6 +17,7 @@ import { history } from '@milkdown/kit/plugin/history';
 import { tableBlock } from '@milkdown/kit/component/table-block';
 import type { Ctx } from '@milkdown/kit/ctx';
 import { Slice, type Node as ProseNode, type Schema } from '@milkdown/kit/prose/model';
+import { TextSelection } from '@milkdown/kit/prose/state';
 import type { Parser } from '@milkdown/kit/transformer';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -43,6 +44,7 @@ import { useEditorSave } from './hooks/useEditorSave';
 import { usePendingMarkdownAutosave } from './hooks/usePendingMarkdownAutosave';
 import {
   clearCurrentMarkdownRuntime,
+  getCurrentEditorView,
   setCurrentEditorView,
   setCurrentMarkdownRuntime,
 } from './utils/editorViewRegistry';
@@ -52,7 +54,12 @@ import {
 } from './utils/editorBlockPositionCache';
 import { normalizeLeadingFrontmatterMarkdown } from './plugins/frontmatter/frontmatterMarkdown';
 import { createDeferredMarkdownUpdatePlugin } from './utils/deferredMarkdownUpdatePlugin';
+import { createDocumentStartTextSelection } from './utils/editorSelection';
 import { BodyLineNumberGutter } from './components/BodyLineNumberGutter';
+import {
+  blankAreaDragBoxPluginKey,
+  CLEAR_BLOCKS_ACTION,
+} from './plugins/cursor/blockSelectionPluginState';
 import {
   applyMarkdownThemeRuntimeAttributes,
   resolveMarkdownThemeRuntimeColorScheme,
@@ -213,7 +220,29 @@ function createLargePlainMarkdownDoc(schema: Schema, markdown: string): ProseNod
   }
 }
 
-export function replaceEditorMarkdown(ctx: Ctx, markdown: string): boolean {
+interface ReplaceEditorMarkdownOptions {
+  resetSelection?: boolean;
+}
+
+export function normalizeInitialEditorSelection(view: EditorView): boolean {
+  const nextSelection = createDocumentStartTextSelection(view.state.doc);
+  if (!(nextSelection instanceof TextSelection) || nextSelection.eq(view.state.selection)) {
+    return false;
+  }
+
+  view.dispatch(
+    view.state.tr
+      .setSelection(nextSelection)
+      .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION)
+  );
+  return true;
+}
+
+export function replaceEditorMarkdown(
+  ctx: Ctx,
+  markdown: string,
+  options: ReplaceEditorMarkdownOptions = {},
+): boolean {
   let view: EditorView;
   let doc: ReturnType<Parser> | ProseNode | null;
 
@@ -239,13 +268,19 @@ export function replaceEditorMarkdown(ctx: Ctx, markdown: string): boolean {
   }
 
   const { state } = view;
-  view.dispatch(
-    state.tr.replace(
-      0,
-      state.doc.content.size,
-      new Slice(doc.content as never, 0, 0),
-    ),
+  let tr = state.tr.replace(
+    0,
+    state.doc.content.size,
+    new Slice(doc.content as never, 0, 0),
   );
+
+  if (options.resetSelection) {
+    tr = tr
+      .setSelection(createDocumentStartTextSelection(tr.doc))
+      .setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
+  }
+
+  view.dispatch(tr);
   return true;
 }
 
@@ -399,8 +434,10 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     }
 
     cleanupActivatedEditor();
+    let activatedView: EditorView | null = null;
     try {
       const view = editor.ctx.get(editorViewCtx) as EditorView;
+      activatedView = view;
       let parser: Parser | null = null;
       let liveSerializer: ((doc: unknown) => string) | null = null;
       try {
@@ -419,6 +456,11 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       }
 
       setCurrentEditorView(view);
+      try {
+        normalizeInitialEditorSelection(view);
+      } catch {
+        // Keep editor activation alive even if a plugin rejects the startup selection normalization.
+      }
       setActivatedRevision((revision) => revision + 1);
 
       const markUserInput = createUserInputMarker(view, liveSerializer);
@@ -445,14 +487,18 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
         view.dom.removeEventListener('cut', markUserInput);
         view.dom.removeEventListener('drop', markUserInput);
         blockPositionController.destroy();
+        if (getCurrentEditorView() === view) {
+          setCurrentEditorView(null);
+          clearCurrentEditorBlockPositionSnapshot();
+          clearCurrentMarkdownRuntime();
+        }
+      };
+    } catch {
+      if (activatedView && getCurrentEditorView() === activatedView) {
         setCurrentEditorView(null);
         clearCurrentEditorBlockPositionSnapshot();
         clearCurrentMarkdownRuntime();
-      };
-    } catch {
-      setCurrentEditorView(null);
-      clearCurrentEditorBlockPositionSnapshot();
-      clearCurrentMarkdownRuntime();
+      }
     }
   }, [
     cleanupActivatedEditor,
@@ -520,8 +566,8 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
           notePath: currentNotePath,
           totalSinceFactoryMs: Math.round(performance.now() - editorFactoryStartedAt),
         });
-        onEditorViewReadyRef.current?.();
         activateEditor(statusEditor);
+        onEditorViewReadyRef.current?.();
       }
       if (status === 'OnDestroy' || status === 'Destroyed') {
         if (activatedEditorRef.current === statusEditor) {
@@ -611,7 +657,9 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       });
 
       const replaceStartedAt = performance.now();
-      const replaced = runEditorAction((ctx) => replaceEditorMarkdown(ctx, nextMarkdown));
+      const replaced = runEditorAction((ctx) => replaceEditorMarkdown(ctx, nextMarkdown, {
+        resetSelection: !isSameNotePath,
+      }));
       logE2EMilkdownTiming('replace-dispatch', {
         notePath: currentNotePath,
         replaced,
@@ -662,18 +710,14 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     try {
       const editor = get?.() as ActiveMilkdownEditor | undefined;
       if (!editor) {
-        setCurrentEditorView(null);
-        clearCurrentEditorBlockPositionSnapshot();
-        clearCurrentMarkdownRuntime();
+        cleanupActivatedEditor();
         return;
       }
       if (activatedEditorRef.current !== editor) {
         activateEditor(editor);
       }
     } catch {
-      setCurrentEditorView(null);
-      clearCurrentEditorBlockPositionSnapshot();
-      clearCurrentMarkdownRuntime();
+      cleanupActivatedEditor();
       return;
     }
   }, [activateEditor, active, cleanupActivatedEditor, get, currentNotePath]);
