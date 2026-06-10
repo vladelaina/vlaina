@@ -8,7 +8,7 @@ import { useI18n } from '@/lib/i18n';
 export function LabView() {
   const { t } = useI18n();
   const [activeLabId, setActiveLabId] = useState<LabId | null>(LAB_MODULES[0]?.id ?? null);
-  const { setAppViewMode } = useUIStore();
+  const setAppViewMode = useUIStore((state) => state.setAppViewMode);
 
   const activeModule = LAB_MODULES.find((m) => m.id === activeLabId) ?? LAB_MODULES[0] ?? null;
   const ActiveComponent = activeModule?.component ?? null;

@@ -160,7 +160,16 @@ vi.mock('@/lib/utils', async () => {
 });
 
 vi.mock('@/stores/uiSlice', () => ({
-  useUIStore: () => ({
+  useUIStore: (selector: (state: {
+    appViewMode: AppViewMode;
+    sidebarCollapsed: boolean;
+    sidebarWidth: number;
+    fontSize: number;
+    setSidebarWidth: () => void;
+    toggleSidebar: () => void;
+    setAppViewMode: typeof mocks.setAppViewMode;
+    restoreLastAppViewMode: typeof mocks.restoreLastAppViewMode;
+  }) => unknown) => selector({
     appViewMode: mocks.appViewMode,
     sidebarCollapsed: false,
     sidebarWidth: 320,
@@ -220,7 +229,8 @@ vi.mock('@/stores/unified/useUnifiedStore', () => {
 });
 
 vi.mock('@/stores/useVaultStore', () => ({
-  useVaultStore: () => ({ initialize: mocks.initializeVault }),
+  useVaultStore: (selector: (state: { initialize: typeof mocks.initializeVault }) => unknown) =>
+    selector({ initialize: mocks.initializeVault }),
 }));
 
 vi.mock('@/stores/useToastStore', () => ({

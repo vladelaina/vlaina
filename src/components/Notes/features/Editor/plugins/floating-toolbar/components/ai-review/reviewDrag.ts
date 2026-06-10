@@ -25,14 +25,18 @@ export function bindAiReviewDrag({
     const startY = event.clientY;
     const initialLeft = Number.parseFloat(container.style.left || '0');
     const initialTop = Number.parseFloat(container.style.top || '0');
+    const panelWidth = container.offsetWidth;
+    const panelHeight = container.offsetHeight;
+    let pendingPoint: { clientX: number; clientY: number } | null = null;
+    let dragFrame: number | null = null;
 
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const nextLeft = initialLeft + (moveEvent.clientX - startX);
-      const nextTop = initialTop + (moveEvent.clientY - startY);
+    const dispatchDragPosition = (clientX: number, clientY: number) => {
+      const nextLeft = initialLeft + (clientX - startX);
+      const nextTop = initialTop + (clientY - startY);
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
-      const maxLeft = Math.max(12, viewportWidth - container.offsetWidth - 12);
-      const maxTop = Math.max(12, viewportHeight - container.offsetHeight - 12);
+      const maxLeft = Math.max(12, viewportWidth - panelWidth - 12);
+      const maxTop = Math.max(12, viewportHeight - panelHeight - 12);
 
       view.dispatch(
         view.state.tr.setMeta(floatingToolbarKey, {
@@ -47,9 +51,36 @@ export function bindAiReviewDrag({
       );
     };
 
+    const flushPendingDrag = () => {
+      dragFrame = null;
+      if (!pendingPoint) return;
+      const { clientX, clientY } = pendingPoint;
+      pendingPoint = null;
+      dispatchDragPosition(clientX, clientY);
+    };
+
+    const cancelPendingDrag = () => {
+      if (dragFrame !== null) {
+        window.cancelAnimationFrame(dragFrame);
+        dragFrame = null;
+      }
+    };
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      pendingPoint = {
+        clientX: moveEvent.clientX,
+        clientY: moveEvent.clientY,
+      };
+
+      if (dragFrame !== null) return;
+      dragFrame = window.requestAnimationFrame(flushPendingDrag);
+    };
+
     const handleMouseUp = () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      cancelPendingDrag();
+      flushPendingDrag();
     };
 
     window.addEventListener('mousemove', handleMouseMove);
