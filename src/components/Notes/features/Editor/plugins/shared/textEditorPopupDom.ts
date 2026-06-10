@@ -16,6 +16,7 @@ export interface MountTextEditorPopupArgs {
   value: string;
   placeholder?: string;
   onInput: (value: string) => void;
+  onResizeRequest?: () => void;
   onCancel: () => void;
   onSave: () => void;
 }
@@ -94,13 +95,17 @@ export function resizeTextEditorPopupTextareaToContent(args: {
 }
 
 export function mountTextEditorPopup(args: MountTextEditorPopupArgs): TextEditorPopupElements {
-  const { container, value, placeholder, onInput, onCancel, onSave } = args;
+  const { container, value, placeholder, onInput, onResizeRequest, onCancel, onSave } = args;
   const elements = createTextEditorPopupElements(placeholder);
   const { card, textarea, cancelButton, saveButton } = elements;
 
   textarea.value = value;
   textarea.addEventListener('input', () => {
-    resizeTextEditorPopupTextareaToContent({ card, textarea });
+    if (onResizeRequest) {
+      onResizeRequest();
+    } else {
+      resizeTextEditorPopupTextareaToContent({ card, textarea });
+    }
     onInput(textarea.value);
   });
   textarea.addEventListener('keydown', (event) => {

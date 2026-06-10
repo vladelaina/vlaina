@@ -10,6 +10,10 @@ import {
     STOP_PROSE_SCAN,
     scanProseDescendants,
 } from '../shared/boundedProseNodeScan';
+import {
+    getTransactionChangedRanges,
+    transactionTouchesDecorations,
+} from '../shared/transactionStepText';
 
 type ListCollapseActionType = 'toggle' | 'expand' | 'collapse';
 
@@ -18,7 +22,7 @@ interface ListCollapseAction {
     pos: number;
 }
 
-interface ListCollapsePluginState {
+export interface ListCollapsePluginState {
     decorations: DecorationSet;
     collapsedItems: Set<number>;
 }
@@ -203,6 +207,113 @@ function buildListCollapseDecorations(
     return DecorationSet.create(doc, decorations);
 }
 
+export function buildListCollapsePluginState(
+    doc: any,
+    collapsedItems: Set<number>,
+    dispatchToggle: (view: EditorView, pos: number) => void,
+): ListCollapsePluginState {
+    return {
+        collapsedItems,
+        decorations: buildListCollapseDecorations(doc, collapsedItems, dispatchToggle),
+    };
+}
+
+const LIST_COLLAPSE_STRUCTURE_NODE_NAMES = new Set(['bullet_list', 'ordered_list', 'list_item']);
+
+function positionTouchesListCollapseStructure(doc: any, pos: number): boolean {
+    try {
+        const resolvedPos = Math.max(0, Math.min(pos, doc.content?.size ?? 0));
+        const $pos = doc.resolve(resolvedPos);
+
+        for (let depth = $pos.depth; depth > 0; depth -= 1) {
+            if (LIST_COLLAPSE_STRUCTURE_NODE_NAMES.has($pos.node(depth).type.name)) {
+                return true;
+            }
+        }
+
+        return Boolean(
+            ($pos.nodeBefore && LIST_COLLAPSE_STRUCTURE_NODE_NAMES.has($pos.nodeBefore.type.name))
+            || ($pos.nodeAfter && LIST_COLLAPSE_STRUCTURE_NODE_NAMES.has($pos.nodeAfter.type.name))
+            || LIST_COLLAPSE_STRUCTURE_NODE_NAMES.has(doc.nodeAt?.(resolvedPos)?.type?.name)
+        );
+    } catch {
+        return false;
+    }
+}
+
+function rangeTouchesListCollapseStructure(doc: any, from: number, to: number): boolean {
+    const start = Math.max(0, Math.min(from, doc.content?.size ?? 0));
+    const end = Math.max(start, Math.min(to, doc.content?.size ?? 0));
+
+    if (
+        positionTouchesListCollapseStructure(doc, start)
+        || positionTouchesListCollapseStructure(doc, end)
+    ) {
+        return true;
+    }
+
+    if (end <= start || typeof doc.nodesBetween !== 'function') {
+        return false;
+    }
+
+    let touchesListStructure = false;
+    doc.nodesBetween(start, end, (node: { type?: { name?: string } }) => {
+        if (node.type?.name && LIST_COLLAPSE_STRUCTURE_NODE_NAMES.has(node.type.name)) {
+            touchesListStructure = true;
+            return false;
+        }
+        return !touchesListStructure;
+    });
+    return touchesListStructure;
+}
+
+function transactionIsPureInsertion(tr: unknown): boolean {
+    const ranges = getTransactionChangedRanges(tr);
+    return ranges.length > 0 && ranges.every((range) => range.oldFrom === range.oldTo);
+}
+
+function changesOccurAfterExistingListCollapseDecorations(
+    pluginState: ListCollapsePluginState,
+    tr: unknown,
+): boolean {
+    const decorations = pluginState.decorations.find() as Array<{ from?: number; to?: number }>;
+    if (decorations.length === 0) return true;
+
+    const lastDecorationPos = decorations.reduce(
+        (max, decoration) => Math.max(max, decoration.to ?? decoration.from ?? 0),
+        0,
+    );
+    return getTransactionChangedRanges(tr).every((range) => range.oldFrom >= lastDecorationPos);
+}
+
+export function canMapListCollapsePluginState(
+    pluginState: ListCollapsePluginState,
+    tr: unknown,
+    oldDoc: any,
+    newDoc: any,
+): boolean {
+    if (pluginState.collapsedItems.size > 0) return false;
+    if (!transactionIsPureInsertion(tr)) return false;
+    if (transactionTouchesDecorations(pluginState.decorations, tr)) return false;
+    if (!changesOccurAfterExistingListCollapseDecorations(pluginState, tr)) return false;
+
+    return getTransactionChangedRanges(tr).every((range) => (
+        !rangeTouchesListCollapseStructure(oldDoc, range.oldFrom, range.oldTo)
+        && !rangeTouchesListCollapseStructure(newDoc, range.newFrom, range.newTo)
+    ));
+}
+
+export function mapListCollapsePluginState(
+    pluginState: ListCollapsePluginState,
+    tr: { mapping: Parameters<DecorationSet['map']>[0] },
+    doc: any,
+): ListCollapsePluginState {
+    return {
+        collapsedItems: pluginState.collapsedItems,
+        decorations: pluginState.decorations.map(tr.mapping, doc),
+    };
+}
+
 function dispatchListCollapseToggle(view: EditorView, pos: number) {
     view.dispatch(view.state.tr.setMeta(LIST_COLLAPSE_KEY, {
         type: 'toggle',
@@ -217,18 +328,23 @@ export const listCollapsePlugin = $prose(() => {
         state: {
             init(_config, state) {
                 const collapsedItems = new Set<number>();
-                return {
+                return buildListCollapsePluginState(
+                    state.doc,
                     collapsedItems,
-                    decorations: buildListCollapseDecorations(
-                        state.doc,
-                        collapsedItems,
-                        dispatchListCollapseToggle,
-                    ),
-                };
+                    dispatchListCollapseToggle,
+                );
             },
-            apply(tr, oldPluginState, _oldEditorState, newEditorState) {
+            apply(tr, oldPluginState, oldEditorState, newEditorState) {
                 const metaAction = parseListCollapseAction(tr.getMeta(LIST_COLLAPSE_KEY));
                 if (!tr.docChanged && !metaAction) return oldPluginState;
+
+                if (
+                    tr.docChanged
+                    && !metaAction
+                    && canMapListCollapsePluginState(oldPluginState, tr, oldEditorState.doc, newEditorState.doc)
+                ) {
+                    return mapListCollapsePluginState(oldPluginState, tr, newEditorState.doc);
+                }
 
                 let collapsedItems = tr.docChanged
                     ? remapCollapsedListItems(oldPluginState.collapsedItems, tr, newEditorState.doc)
@@ -238,14 +354,11 @@ export const listCollapsePlugin = $prose(() => {
                     collapsedItems = applyListCollapseAction(collapsedItems, metaAction);
                 }
 
-                return {
+                return buildListCollapsePluginState(
+                    newEditorState.doc,
                     collapsedItems,
-                    decorations: buildListCollapseDecorations(
-                        newEditorState.doc,
-                        collapsedItems,
-                        dispatchListCollapseToggle,
-                    ),
-                };
+                    dispatchListCollapseToggle,
+                );
             },
         },
 

@@ -7,7 +7,7 @@ import {
   TEXT_EDITOR_POPUP_CARD_SELECTOR,
 } from './textEditorPopupDom';
 import { resolveTextEditorPopupPlacement } from './textEditorPopupPlacement';
-import { themeDomStyleTokens } from '@/styles/themeTokens';
+import { themeDomStyleTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
 
 export interface TextEditorSessionState {
   isOpen: boolean;
@@ -59,6 +59,7 @@ export interface CreateTextEditorViewSessionArgs<
   resolveAnchorElement: (state: TState | undefined, nodeDom: Node | null) => HTMLElement | null;
   getAnchorViewportPosition: (anchorElement: HTMLElement | null) => { x: number; y: number };
   previewInput: (args: TextEditorPreviewArgs<TState, TRefs>) => void;
+  previewInputDebounceMs?: number;
   previewCancel: (args: TextEditorPreviewArgs<TState, TRefs>) => void;
   cancelSession: (args: TextEditorSessionActionArgs<TState, TRefs>) => void;
   saveSession: (args: TextEditorSessionActionArgs<TState, TRefs>) => void;
@@ -84,6 +85,7 @@ export function createTextEditorViewSession<
     resolveAnchorElement,
     getAnchorViewportPosition,
     previewInput,
+    previewInputDebounceMs = themeUiFeedbackTokens.editorTextEditorLivePreviewDebounceMs,
     previewCancel,
     cancelSession,
     saveSession,
@@ -93,6 +95,9 @@ export function createTextEditorViewSession<
   let suppressOutsideMouseDown = false;
   let suppressOutsideMouseDownTimer: number | null = null;
   let focusTextareaTimer: number | null = null;
+  let previewInputTimer: number | null = null;
+  let textareaResizeFrame: number | null = null;
+  let pendingPreviewInputArgs: TextEditorPreviewArgs<TState, TRefs> | null = null;
   const scrollRoot = getScrollRoot(editorView);
   const contentRoot = editorView.dom.closest('[data-note-content-root="true"]') as HTMLElement | null;
   const positionRoot = contentRoot ?? scrollRoot;
@@ -114,7 +119,79 @@ export function createTextEditorViewSession<
     refs.textareaElement = null;
   };
 
+  const clearPendingPreviewInput = () => {
+    pendingPreviewInputArgs = null;
+    if (previewInputTimer !== null && typeof window !== 'undefined') {
+      window.clearTimeout(previewInputTimer);
+    }
+    previewInputTimer = null;
+  };
+
+  const clearPendingTextareaResize = () => {
+    if (textareaResizeFrame !== null && typeof window !== 'undefined') {
+      window.cancelAnimationFrame(textareaResizeFrame);
+    }
+    textareaResizeFrame = null;
+  };
+
+  const resizeTextareaToContent = () => {
+    if (!editorElement || !refs.textareaElement) {
+      return;
+    }
+
+    const card = editorElement.querySelector(TEXT_EDITOR_POPUP_CARD_SELECTOR);
+    if (card instanceof HTMLElement) {
+      resizeTextEditorPopupTextareaToContent({
+        card,
+        textarea: refs.textareaElement,
+      });
+    }
+  };
+
+  const scheduleTextareaResize = () => {
+    if (typeof window === 'undefined') {
+      resizeTextareaToContent();
+      return;
+    }
+
+    if (textareaResizeFrame !== null) {
+      return;
+    }
+
+    textareaResizeFrame = window.requestAnimationFrame(() => {
+      textareaResizeFrame = null;
+      resizeTextareaToContent();
+    });
+  };
+
+  const flushPendingPreviewInput = () => {
+    if (!pendingPreviewInputArgs) {
+      return;
+    }
+    const nextArgs = pendingPreviewInputArgs;
+    clearPendingPreviewInput();
+    previewInput(nextArgs);
+  };
+
+  const schedulePreviewInput = (previewArgs: TextEditorPreviewArgs<TState, TRefs>) => {
+    pendingPreviewInputArgs = previewArgs;
+    if (previewInputDebounceMs <= 0 || typeof window === 'undefined') {
+      flushPendingPreviewInput();
+      return;
+    }
+
+    if (previewInputTimer !== null) {
+      window.clearTimeout(previewInputTimer);
+    }
+    previewInputTimer = window.setTimeout(() => {
+      previewInputTimer = null;
+      flushPendingPreviewInput();
+    }, previewInputDebounceMs);
+  };
+
   const resetSessionDom = () => {
+    clearPendingPreviewInput();
+    clearPendingTextareaResize();
     clearEditorElements();
     resetRefs(refs);
     renderedKey = null;
@@ -150,6 +227,7 @@ export function createTextEditorViewSession<
 
     if (editorElement && !editorElement.contains(event.target as Node)) {
       onOutsideCloseIntent();
+      clearPendingPreviewInput();
       saveSession(getSessionActionArgs());
     }
   };
@@ -173,15 +251,8 @@ export function createTextEditorViewSession<
     editorElement.style.left = `${nextPosition.x}px`;
     editorElement.style.top = `${nextPosition.y}px`;
 
-    if (refs.textareaElement) {
-      const card = editorElement.querySelector(TEXT_EDITOR_POPUP_CARD_SELECTOR);
-      if (card instanceof HTMLElement) {
-        resizeTextEditorPopupTextareaToContent({
-          card,
-          textarea: refs.textareaElement,
-        });
-      }
-    }
+    clearPendingTextareaResize();
+    resizeTextareaToContent();
 
     anchorResizeTracker.update();
   };
@@ -241,9 +312,10 @@ export function createTextEditorViewSession<
       container,
       value,
       placeholder,
+      onResizeRequest: scheduleTextareaResize,
       onInput(nextValue) {
         setDraftValue(refs, nextValue);
-        previewInput({
+        schedulePreviewInput({
           state,
           refs,
           value: nextValue,
@@ -252,6 +324,7 @@ export function createTextEditorViewSession<
         });
       },
       onCancel() {
+        clearPendingPreviewInput();
         previewCancel({
           state,
           refs,
@@ -262,6 +335,7 @@ export function createTextEditorViewSession<
         cancelSession(getSessionActionArgs());
       },
       onSave() {
+        clearPendingPreviewInput();
         saveSession(getSessionActionArgs());
       },
     });
@@ -299,6 +373,8 @@ export function createTextEditorViewSession<
       if (focusTextareaTimer !== null && typeof window !== 'undefined') {
         window.clearTimeout(focusTextareaTimer);
       }
+      clearPendingTextareaResize();
+      clearPendingPreviewInput();
       anchorResizeTracker.destroy();
       resetSessionDom();
       suppressOutsideMouseDown = false;

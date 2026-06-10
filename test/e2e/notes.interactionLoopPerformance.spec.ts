@@ -21,6 +21,34 @@ const DEFAULT_SEGMENT_LIMIT = 48;
 const DEFAULT_ROUNDS = 2;
 const MAX_SEGMENT_CHARS = 520;
 const MAX_TABLE_SEGMENT_LINES = 4;
+const MANUAL_MERMAID_FENCE_LANGUAGES = new Set([
+  'mermaid',
+  'mmd',
+  'flow',
+  'flowchart',
+  'flowchartv2',
+  'flowchartelk',
+  'graph',
+  'sequence',
+  'sequencediagram',
+  'class',
+  'classdiagram',
+  'state',
+  'statediagram',
+  'er',
+  'erdiagram',
+  'gantt',
+  'pie',
+  'journey',
+  'gitgraph',
+  'mindmap',
+  'timeline',
+  'treeview',
+  'quadrant',
+  'xychart',
+]);
+
+type ManualSegmentMode = 'main-editor' | 'math-popup' | 'mermaid-popup';
 
 type LoopMetric = {
   round: number;
@@ -41,6 +69,22 @@ type RoundTargets = {
   alignment: string;
   color: string;
   link: string;
+};
+
+type RoundManualSegment = {
+  sourceIndex: number;
+  segment: string;
+};
+
+type ParsedManualFenceSegment = {
+  marker: string;
+  language: string;
+  body: string;
+};
+
+type ParsedManualMathSegment = {
+  marker: '$$' | '\\[';
+  body: string;
 };
 
 function getLoopRounds(): number {
@@ -109,6 +153,104 @@ function createManualSegments(markdown: string): string[] {
   return segments;
 }
 
+function normalizeFenceLanguage(language: string): string {
+  return language.trim().split(/\s+/)[0]?.toLowerCase().replace(/[\s_-]+/g, '') ?? '';
+}
+
+function parseManualFenceSegment(segment: string): ParsedManualFenceSegment | null {
+  const lines = segment.trimEnd().split(/\r?\n/);
+  const openingMatch = /^(?<marker>`{3,}|~{3,})[ \t]*(?<info>[^\r\n]*)$/.exec(lines[0] ?? '');
+  if (!openingMatch?.groups) {
+    return null;
+  }
+
+  const marker = openingMatch.groups.marker ?? '';
+  const info = openingMatch.groups.info?.trim() ?? '';
+  if (marker.startsWith('`') && info.includes('`')) {
+    return null;
+  }
+
+  const language = info.split(/\s+/)[0] ?? '';
+  if (!MANUAL_MERMAID_FENCE_LANGUAGES.has(normalizeFenceLanguage(language))) {
+    return null;
+  }
+
+  const markerChar = marker[0];
+  const closingIndex = lines.findLastIndex((line, index) => {
+    if (index === 0) {
+      return false;
+    }
+    const trimmed = line.trim();
+    return (
+      trimmed.length >= marker.length &&
+      [...trimmed].every((char) => char === markerChar)
+    );
+  });
+
+  return {
+    marker,
+    language,
+    body: lines.slice(1, closingIndex > 0 ? closingIndex : undefined).join('\n'),
+  };
+}
+
+function parseManualMathSegment(segment: string): ParsedManualMathSegment | null {
+  const lines = segment.trimEnd().split(/\r?\n/);
+  const firstLine = lines[0]?.trim() ?? '';
+  if (firstLine === '$$') {
+    const closingIndex = lines.findLastIndex((line, index) => index > 0 && line.trim() === '$$');
+    if (closingIndex > 0) {
+      return {
+        marker: '$$',
+        body: lines.slice(1, closingIndex).join('\n'),
+      };
+    }
+  }
+
+  if (firstLine === '\\[') {
+    const closingIndex = lines.findLastIndex((line, index) => index > 0 && line.trim() === '\\]');
+    if (closingIndex > 0) {
+      return {
+        marker: '\\[',
+        body: lines.slice(1, closingIndex).join('\n'),
+      };
+    }
+  }
+
+  return null;
+}
+
+function getManualSegmentMode(segment: string): ManualSegmentMode {
+  if (parseManualFenceSegment(segment)) {
+    return 'mermaid-popup';
+  }
+  if (parseManualMathSegment(segment)) {
+    return 'math-popup';
+  }
+  return 'main-editor';
+}
+
+function getRoundManualSegments(segments: string[], round: number, rounds: number): RoundManualSegment[] {
+  if (process.env.NOTES_INTERACTION_LOOP_FULL === '1') {
+    return segments.map((segment, sourceIndex) => ({ sourceIndex, segment }));
+  }
+
+  const normalizedRounds = Math.max(1, Math.floor(rounds));
+  const chunkSize = Math.max(1, Math.ceil(segments.length / normalizedRounds));
+  const start = Math.min(segments.length, round * chunkSize);
+  const end = Math.min(segments.length, start + chunkSize);
+
+  return segments
+    .slice(start, end)
+    .map((segment, offset) => ({ sourceIndex: start + offset, segment }));
+}
+
+function getRoundManualSegmentCount(segments: string[], rounds: number): number {
+  return Array.from({ length: Math.max(1, rounds) }, (_value, round) => (
+    getRoundManualSegments(segments, round, rounds).length
+  )).reduce((total, count) => total + count, 0);
+}
+
 function createManualTableSegment(markdown: string): string {
   const lines = markdown.split('\n');
   for (let index = 0; index < lines.length - 1; index += 1) {
@@ -162,11 +304,14 @@ async function measureOperation<T>(
   return result;
 }
 
-async function selectEditorText(page: import('@playwright/test').Page, text: string) {
-  return page.evaluate((targetText) => (window as any).__vlainaE2E.selectEditorTextByText(targetText), text);
+async function selectEditorText(page: import('@playwright/test').Page, text: string, anchorText?: string) {
+  return page.evaluate(
+    ({ targetText, anchor }) => (window as any).__vlainaE2E.selectEditorTextByText(targetText, anchor),
+    { targetText: text, anchor: anchorText },
+  );
 }
 
-async function dragSelectEditorText(page: import('@playwright/test').Page, text: string) {
+async function dragSelectEditorText(page: import('@playwright/test').Page, text: string, anchorText?: string) {
   await page.evaluate(() => {
     window.getSelection()?.removeAllRanges();
   });
@@ -208,7 +353,7 @@ async function dragSelectEditorText(page: import('@playwright/test').Page, text:
   }, text);
 
   if (!dragTarget) {
-    return selectEditorText(page, text);
+    return selectEditorText(page, text, anchorText);
   }
 
   await page.mouse.move(dragTarget.startX, dragTarget.startY);
@@ -227,33 +372,39 @@ async function dragSelectEditorText(page: import('@playwright/test').Page, text:
   }
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const selected = await selectEditorText(page, text);
+    const selected = await selectEditorText(page, text, anchorText);
     if (selected.selected) {
       return selected;
     }
     await waitForEditorAnimationFrame(page);
   }
 
-  return selectEditorText(page, text);
+  return selectEditorText(page, text, anchorText);
 }
 
-async function scrollEditorTextIntoView(page: import('@playwright/test').Page, text: string) {
-  await page.evaluate((targetText) => {
+async function scrollEditorTextIntoView(page: import('@playwright/test').Page, text: string, anchorText?: string) {
+  await page.evaluate(({ targetText, anchor }) => {
     const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
     if (!editor) {
       return;
     }
     const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    const candidates: HTMLElement[] = [];
     let node = walker.nextNode();
     while (node) {
       if (node.textContent?.includes(targetText)) {
         const element = node.parentElement;
-        element?.scrollIntoView({ block: 'center', inline: 'nearest' });
-        return;
+        if (element) {
+          candidates.push(element);
+        }
       }
       node = walker.nextNode();
     }
-  }, text);
+    const anchored = anchor
+      ? candidates.find((element) => element.textContent?.includes(anchor))
+      : null;
+    (anchored ?? candidates[0])?.scrollIntoView({ block: 'center', inline: 'nearest' });
+  }, { targetText: text, anchor: anchorText });
   await waitForEditorAnimationFrame(page);
 }
 
@@ -354,6 +505,9 @@ async function clickVisibleElement(page: import('@playwright/test').Page, select
     console.info('[notes-interaction-loop-submenu-debug]', debugState);
     throw error;
   }
+  await element.scrollIntoViewIfNeeded();
+  await waitForEditorAnimationFrame(page);
+
   const debugBeforeClick = await page.evaluate((targetSelector) => {
     const targetElement = document.querySelector<HTMLElement>(targetSelector);
     const rect = targetElement?.getBoundingClientRect();
@@ -392,9 +546,13 @@ async function clickVisibleElement(page: import('@playwright/test').Page, select
   await waitForEditorAnimationFrame(page);
 }
 
-async function expectToolbarForSelection(page: import('@playwright/test').Page, selectedText: string) {
-  await scrollEditorTextIntoView(page, selectedText);
-  const selected = await dragSelectEditorText(page, selectedText);
+async function expectToolbarForSelection(
+  page: import('@playwright/test').Page,
+  selectedText: string,
+  anchorText = selectedText,
+) {
+  await scrollEditorTextIntoView(page, selectedText, anchorText);
+  const selected = await dragSelectEditorText(page, selectedText, anchorText);
   if (!selected.selected) {
     const debugState = await page.evaluate(({ targetText, selectedResult }) => {
       const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
@@ -461,21 +619,7 @@ async function ensureRoundTargetsAvailable(page: import('@playwright/test').Page
     '',
   ];
   const requiredTexts = Object.values(target);
-  const missingTexts = await page.evaluate((texts) => {
-    const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
-    const content = editor?.textContent ?? '';
-    return texts.filter((text) => !content.includes(text));
-  }, requiredTexts);
-
-  if (missingTexts.length === 0) {
-    return;
-  }
-
-  await page.evaluate(() => {
-    window.getSelection()?.removeAllRanges();
-  });
-  await page.evaluate(() => (window as any).__vlainaE2E.focusCurrentEditor());
-  await page.keyboard.press('Control+End');
+  await focusEditorAtDocumentEnd(page);
   await page.keyboard.type(`\n\n${targetLines.join('\n')}`, { delay: 0 });
   await waitForEditorAnimationFrame(page);
 
@@ -508,10 +652,13 @@ async function expectEditorTextMark(
   text: string,
   markName: string,
   selector: string,
+  anchorText = text,
 ) {
   const hasMark = await page.evaluate(
-    ({ targetText, targetMark }) => (window as any).__vlainaE2E.editorTextHasMark(targetText, targetMark),
-    { targetText: text, targetMark: markName },
+    ({ targetText, targetMark, anchor }) => (
+      window as any
+    ).__vlainaE2E.editorTextHasMark(targetText, targetMark, anchor),
+    { targetText: text, targetMark: markName, anchor: anchorText },
   );
   if (!hasMark) {
     const debugState = await page.evaluate(() => (window as any).__vlainaE2E.getEditorToolbarDebugState());
@@ -520,6 +667,226 @@ async function expectEditorTextMark(
   expect(hasMark, `Expected "${text}" to have ${markName} mark`).toBe(true);
   const liveSelector = selector.split(EDITOR_SELECTOR).join(LIVE_EDITOR_SELECTOR);
   await expect(page.locator(liveSelector, { hasText: text })).toBeVisible();
+}
+
+async function focusEditorAtDocumentEnd(page: import('@playwright/test').Page) {
+  const focused = await page.evaluate(() => (window as any).__vlainaE2E.focusCurrentEditorAtEnd());
+  if (!focused) {
+    const debugState = await page.evaluate(() => (window as any).__vlainaE2E.getEditorToolbarDebugState());
+    console.info('[notes-interaction-loop-focus-end-debug]', debugState);
+  }
+  expect(focused).toBe(true);
+  await waitForEditorAnimationFrame(page);
+}
+
+async function startFreshManualInputBlock(page: import('@playwright/test').Page) {
+  await focusEditorAtDocumentEnd(page);
+}
+
+async function expectNoTextEditorPopup(page: import('@playwright/test').Page, detail: unknown) {
+  const popupCount = await page.locator('.text-editor-popup').count();
+  if (popupCount > 0) {
+    const debugState = await page.evaluate(() => {
+      const activeElement = document.activeElement;
+      return {
+        activeElement: activeElement instanceof HTMLElement
+          ? {
+              tagName: activeElement.tagName,
+              className: activeElement.className,
+              valuePreview: activeElement instanceof HTMLTextAreaElement
+                ? activeElement.value.slice(0, 160)
+                : undefined,
+            }
+          : null,
+        popups: Array.from(document.querySelectorAll<HTMLElement>('.text-editor-popup')).map((popup) => ({
+          className: popup.className,
+          text: popup.textContent?.replace(/\s+/g, ' ').trim().slice(0, 240) ?? '',
+        })),
+      };
+    });
+    console.info('[notes-interaction-loop-unexpected-popup-debug]', { detail, debugState });
+  }
+  expect(popupCount, `Unexpected text editor popup while typing manual segment ${JSON.stringify(detail)}`).toBe(0);
+}
+
+async function typeManualMainEditorSegment(
+  page: import('@playwright/test').Page,
+  segment: string,
+  detail: unknown,
+) {
+  await startFreshManualInputBlock(page);
+  await page.keyboard.type(segment, { delay: 0 });
+  await waitForEditorAnimationFrame(page);
+  await expectNoTextEditorPopup(page, detail);
+}
+
+async function expectTextEditorPopupTextareaVisible(
+  page: import('@playwright/test').Page,
+  textarea: import('@playwright/test').Locator,
+  mode: 'math' | 'mermaid',
+  parsed: ParsedManualMathSegment | ParsedManualFenceSegment,
+) {
+  try {
+    await expect(textarea).toBeVisible({ timeout: 5_000 });
+  } catch (error) {
+    const debugState = await page.evaluate(() => {
+      const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+      const activeElement = document.activeElement;
+      const selection = (window as any).__vlainaE2E.getEditorSelectionSummary();
+      const selectedNode = selection
+        ? (() => {
+            const view = (window as any).__vlainaE2E.getEditorToolbarDebugState?.();
+            return view?.selection ?? null;
+          })()
+        : null;
+
+      return {
+        activeElement: activeElement instanceof HTMLElement
+          ? {
+              tagName: activeElement.tagName,
+              className: activeElement.className,
+              isEditorRoot: activeElement === editor,
+              valuePreview: activeElement instanceof HTMLTextAreaElement
+                ? activeElement.value.slice(0, 200)
+                : undefined,
+            }
+          : null,
+        selection,
+        selectedNode,
+        editorTextTail: editor?.textContent?.slice(-1_000) ?? '',
+        popups: Array.from(document.querySelectorAll<HTMLElement>('.text-editor-popup')).map((popup) => ({
+          className: popup.className,
+          text: popup.textContent?.replace(/\s+/g, ' ').trim().slice(0, 240) ?? '',
+        })),
+        codeBlockCount: editor?.querySelectorAll('.code-block-container').length ?? 0,
+        mermaidCount: editor?.querySelectorAll('div[data-type="mermaid"]').length ?? 0,
+        mathBlockCount: editor?.querySelectorAll('div[data-type="math-block"]').length ?? 0,
+      };
+    });
+    console.info('[notes-interaction-loop-popup-open-debug]', {
+      mode,
+      parsed,
+      debugState,
+    });
+    throw error;
+  }
+}
+
+async function saveTextEditorPopup(
+  page: import('@playwright/test').Page,
+  popupSelector: string,
+) {
+  await page.keyboard.press('Control+Enter');
+  try {
+    await expect(page.locator(popupSelector)).toHaveCount(0, { timeout: 1_000 });
+    return;
+  } catch {
+    const saveButton = page.locator(`${popupSelector} .text-editor-action-button-primary`).first();
+    await expect(saveButton).toBeVisible({ timeout: 5_000 });
+    await saveButton.evaluate((button) => {
+      if (button instanceof HTMLButtonElement) {
+        button.click();
+      }
+    });
+  }
+  try {
+    await expect(page.locator(popupSelector)).toHaveCount(0, { timeout: 10_000 });
+  } catch (error) {
+    const debugState = await page.evaluate((selector) => {
+      const popup = document.querySelector<HTMLElement>(selector);
+      const textarea = popup?.querySelector<HTMLTextAreaElement>('textarea.text-editor-textarea');
+      const saveButton = popup?.querySelector<HTMLButtonElement>('.text-editor-action-button-primary');
+      return {
+        selector,
+        popupExists: Boolean(popup),
+        popupText: popup?.textContent?.replace(/\s+/g, ' ').trim().slice(0, 300) ?? '',
+        textareaValuePreview: textarea?.value.slice(0, 500) ?? null,
+        textareaValueLength: textarea?.value.length ?? null,
+        activeElementTag: document.activeElement instanceof HTMLElement ? document.activeElement.tagName : null,
+        activeElementClass: document.activeElement instanceof HTMLElement ? document.activeElement.className : null,
+        saveButton: saveButton
+          ? {
+              disabled: saveButton.disabled,
+              text: saveButton.textContent?.trim() ?? '',
+              rect: (() => {
+                const rect = saveButton.getBoundingClientRect();
+                return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+              })(),
+            }
+          : null,
+        toolbarDebugState: (window as any).__vlainaE2E.getEditorToolbarDebugState(),
+      };
+    }, popupSelector);
+    console.info('[notes-interaction-loop-popup-save-debug]', debugState);
+    throw error;
+  }
+}
+
+async function typeManualMathPopupSegment(
+  page: import('@playwright/test').Page,
+  parsed: ParsedManualMathSegment,
+) {
+  const beforeCount = await page.locator(`${LIVE_EDITOR_SELECTOR} div[data-type="math-block"]`).count();
+  await startFreshManualInputBlock(page);
+  await page.keyboard.type(parsed.marker, { delay: 0 });
+  await waitForEditorAnimationFrame(page);
+  await page.keyboard.press('Enter');
+
+  const textarea = page.locator('.math-editor-popup textarea.text-editor-textarea').first();
+  await expectTextEditorPopupTextareaVisible(page, textarea, 'math', parsed);
+  await textarea.fill(parsed.body);
+  await saveTextEditorPopup(page, '.math-editor-popup');
+  await expect
+    .poll(() => page.locator(`${LIVE_EDITOR_SELECTOR} div[data-type="math-block"]`).count(), {
+      message: 'Expected saved manual math popup segment to create a math block',
+    })
+    .toBeGreaterThan(beforeCount);
+  await focusEditorAtDocumentEnd(page);
+}
+
+async function typeManualMermaidPopupSegment(
+  page: import('@playwright/test').Page,
+  parsed: ParsedManualFenceSegment,
+) {
+  const beforeCount = await page.locator(`${LIVE_EDITOR_SELECTOR} div[data-type="mermaid"]`).count();
+  await startFreshManualInputBlock(page);
+  await page.keyboard.type(`${parsed.marker}${parsed.language}`, { delay: 0 });
+  await waitForEditorAnimationFrame(page);
+  await page.keyboard.press('Enter');
+
+  const textarea = page.locator('.mermaid-editor-popup textarea.text-editor-textarea').first();
+  await expectTextEditorPopupTextareaVisible(page, textarea, 'mermaid', parsed);
+  await textarea.fill(parsed.body);
+  await saveTextEditorPopup(page, '.mermaid-editor-popup');
+  await expect
+    .poll(() => page.locator(`${LIVE_EDITOR_SELECTOR} div[data-type="mermaid"]`).count(), {
+      message: 'Expected saved manual Mermaid popup segment to create a diagram block',
+    })
+    .toBeGreaterThan(beforeCount);
+  await focusEditorAtDocumentEnd(page);
+}
+
+async function typeManualSegmentByMode(
+  page: import('@playwright/test').Page,
+  segment: string,
+  mode: ManualSegmentMode,
+  detail: unknown,
+) {
+  if (mode === 'math-popup') {
+    const parsed = parseManualMathSegment(segment);
+    expect(parsed, `Expected math popup segment to parse: ${JSON.stringify(detail)}`).not.toBeNull();
+    await typeManualMathPopupSegment(page, parsed!);
+    return;
+  }
+
+  if (mode === 'mermaid-popup') {
+    const parsed = parseManualFenceSegment(segment);
+    expect(parsed, `Expected Mermaid popup segment to parse: ${JSON.stringify(detail)}`).not.toBeNull();
+    await typeManualMermaidPopupSegment(page, parsed!);
+    return;
+  }
+
+  await typeManualMainEditorSegment(page, segment, detail);
 }
 
 test.describe('notes sustained interaction loop performance', () => {
@@ -564,30 +931,6 @@ test.describe('notes sustained interaction loop performance', () => {
         content: [
           '# Interaction Loop',
           '',
-          ...roundTargets.flatMap((target) => [
-            `${target.toolbar} starts plain.`,
-            '',
-            `${target.shortcut} starts plain.`,
-            '',
-            `${target.clipboard} starts plain.`,
-            '',
-            `${target.underline} starts plain.`,
-            '',
-            `${target.strike} starts plain.`,
-            '',
-            `${target.inlineCode} starts plain.`,
-            '',
-            `${target.delete} starts plain.`,
-            '',
-            `${target.block} starts plain.`,
-            '',
-            `${target.alignment} starts plain.`,
-            '',
-            `${target.color} starts plain.`,
-            '',
-            `${target.link} starts plain.`,
-            '',
-          ]),
         ].join('\n'),
       });
 
@@ -601,12 +944,7 @@ test.describe('notes sustained interaction loop performance', () => {
         const target = roundTargets[round];
         await ensureRoundTargetsAvailable(page, target);
 
-        const roundSegments = segments.slice(
-          0,
-          process.env.NOTES_INTERACTION_LOOP_FULL === '1'
-            ? segments.length
-            : Math.max(12, Math.ceil(segments.length / rounds)),
-        );
+        const roundSegments = getRoundManualSegments(segments, round, rounds);
 
         await measureOperation(loopMetrics, round, 'toolbar-bold', async () => {
           await expectToolbarForSelection(page, target.toolbar);
@@ -724,8 +1062,7 @@ test.describe('notes sustained interaction loop performance', () => {
         });
 
         await measureOperation(loopMetrics, round, 'paste-markdown-fragment', async () => {
-          await page.locator(EDITOR_SELECTOR).click();
-          await page.keyboard.press('End');
+          await startFreshManualInputBlock(page);
           const pasteText = [
               '',
               `Loop pasted markdown ${Date.now()}: **bold paste**, [paste link](https://example.com/paste), \`paste-code\`.`,
@@ -744,8 +1081,7 @@ test.describe('notes sustained interaction loop performance', () => {
         });
 
         await measureOperation(loopMetrics, round, 'paste-manual-table-fragment', async () => {
-          await page.locator(EDITOR_SELECTOR).click();
-          await page.keyboard.press('End');
+          await startFreshManualInputBlock(page);
           await page.evaluate(async (text) => {
             await (window as any).__vlainaE2E.writeClipboardText(text);
           }, `\n${manualTableSegment}`);
@@ -754,22 +1090,22 @@ test.describe('notes sustained interaction loop performance', () => {
           await expect(page.locator(`${EDITOR_SELECTOR} table`).first()).toBeVisible({ timeout: 10_000 });
         });
 
-        await page.locator(EDITOR_SELECTOR).click();
-        await page.keyboard.press('End');
-        for (const [index, segment] of roundSegments.entries()) {
+        for (const { sourceIndex, segment } of roundSegments) {
+          const mode = getManualSegmentMode(segment);
+          const detail = {
+            index: sourceIndex,
+            chars: segment.length,
+            mode,
+            startsWith: segment.trim().slice(0, 80),
+          };
           await measureOperation(
             loopMetrics,
             round,
-            'type-manual-segment',
+            `type-manual-segment-${mode}`,
             async () => {
-              await page.keyboard.type(segment, { delay: 0 });
-              await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+              await typeManualSegmentByMode(page, segment, mode, detail);
             },
-            {
-              index,
-              chars: segment.length,
-              startsWith: segment.trim().slice(0, 80),
-            },
+            detail,
           );
         }
 
@@ -796,15 +1132,23 @@ test.describe('notes sustained interaction loop performance', () => {
       const maxOperationMs = Math.max(...loopMetrics.map((metric) => metric.durationMs));
       const maxTypingMs = Math.max(
         ...loopMetrics
-          .filter((metric) => metric.operation === 'type-manual-segment')
+          .filter((metric) => metric.operation.startsWith('type-manual-segment-'))
           .map((metric) => metric.durationMs),
       );
-      const typedSegmentCount = loopMetrics.filter((metric) => metric.operation === 'type-manual-segment').length;
+      const typedSegmentMetrics = loopMetrics.filter((metric) => metric.operation.startsWith('type-manual-segment-'));
+      const typedSegmentCount = typedSegmentMetrics.length;
+      const expectedTypedSegmentCount = getRoundManualSegmentCount(segments, rounds);
       const expectedMinEditorTextLength = Math.min(2_000, 1_200 + typedSegmentCount * 20);
+      const typedSegmentCountsByMode = typedSegmentMetrics.reduce<Record<string, number>>((counts, metric) => {
+        const mode = (metric.detail as { mode?: string } | undefined)?.mode ?? 'unknown';
+        counts[mode] = (counts[mode] ?? 0) + 1;
+        return counts;
+      }, {});
 
       console.info('[notes-interaction-loop-performance]', {
         rounds,
         segmentCount: segments.length,
+        typedSegmentCountsByMode,
         metricCount: loopMetrics.length,
         maxOperationMs,
         maxTypingMs,
@@ -818,6 +1162,12 @@ test.describe('notes sustained interaction loop performance', () => {
       expect(domMetrics.countsBySelector.tables).toBeGreaterThan(0);
       expect(domMetrics.countsBySelector.codeBlocks).toBeGreaterThan(0);
       expect(domMetrics.editorTextLength).toBeGreaterThan(expectedMinEditorTextLength);
+      expect(typedSegmentCount).toBe(expectedTypedSegmentCount);
+      expect(new Set(
+        typedSegmentMetrics
+          .map((metric) => (metric.detail as { index?: number } | undefined)?.index)
+          .filter((index): index is number => typeof index === 'number'),
+      ).size).toBe(segments.length);
       expect(maxOperationMs).toBeLessThan(15_000);
       expect(maxTypingMs).toBeLessThan(12_000);
     } finally {
