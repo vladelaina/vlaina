@@ -203,6 +203,28 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().isDirty).toBe(false);
   });
 
+  it('writes metadata for a Windows absolute note opened without a vault', async () => {
+    const notePath = 'C:\\notes\\alpha.md';
+    const store = createNotesStore({
+      notesPath: '',
+      rootFolder: null,
+      currentNote: { path: notePath, content: '# Alpha' },
+      openTabs: [{ path: notePath, name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([[notePath, { content: '# Alpha', modifiedAt: 1 }]]),
+    });
+
+    store.getState().setNoteIcon(notePath, 'sparkles');
+
+    await vi.waitFor(() => {
+      expect(mocks.safeWriteTextFile).toHaveBeenCalled();
+    });
+
+    expect(mocks.safeWriteTextFile.mock.calls[0]?.[0]).toBe(notePath);
+    expect(store.getState().noteMetadata?.notes[notePath]?.icon).toBe('sparkles');
+    expect(store.getState().currentNote?.content).toContain('vlaina_icon');
+    expect(store.getState().isDirty).toBe(false);
+  });
+
   it('does not update cached metadata source content that is too complex for the editor', async () => {
     const notePath = 'docs/alpha.md';
     const complexMarkdown = 'x'.repeat(512 * 1024 + 1);

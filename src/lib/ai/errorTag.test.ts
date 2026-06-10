@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   buildErrorTag,
   MAX_ERROR_TAG_ATTRIBUTE_CHARS,
@@ -42,5 +42,18 @@ describe('errorTag', () => {
       code: 'login',
       content: 'Sign in',
     });
+  });
+
+  it('scans long text without substring allocation per candidate', () => {
+    const sliceSpy = vi.spyOn(String.prototype, 'slice');
+
+    try {
+      expect(parseErrorTag(`${'x'.repeat(100_000)}<error>Done</error>`)).toEqual({
+        content: 'Done',
+      });
+      expect(sliceSpy).toHaveBeenCalledTimes(3);
+    } finally {
+      sliceSpy.mockRestore();
+    }
   });
 });

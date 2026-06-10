@@ -1,5 +1,14 @@
 import { parseMarkdownAndHtmlImageTokens } from '@/components/Chat/common/messageImageTokens';
 import { normalizeRenderableDataImageSrc } from '@/components/common/markdown/imagePolicy';
+import { htmlImageTagHasDataImageSrc } from '@/lib/markdown/markdownHtmlImageSrc';
+import {
+  findHtmlTagEnd,
+  getInlineCodeRanges,
+  getRangeEndAtOffset,
+  iterateNonFencedContentRanges,
+  type ContentRange,
+} from '@/lib/markdown/markdownRanges';
+import { scrubOverflowMarkdownDataImages } from '@/lib/markdown/overflowDataImageScrubber';
 
 const INLINE_IMAGE_TOKEN_PREFIX = 'asset://localhost/chat-inline-image/';
 const LARGE_DATA_IMAGE_MIN_LENGTH = 50_000;
@@ -8,7 +17,6 @@ const MAX_SCANNED_INLINE_IMAGE_TOKENS = 2000;
 const MAX_EXISTING_INLINE_IMAGE_TOKENS = 2000;
 const MAX_OVERFLOW_DATA_IMAGE_SCAN_CHARS = 16 * 1024 * 1024;
 const DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i;
-const DATA_IMAGE_PREFIX = 'data:image/';
 
 export interface CompactedChatMarkdownImages {
   markdown: string;
@@ -109,99 +117,81 @@ export function compactLargeDataImageMarkdown(markdown: string): CompactedChatMa
 
   return {
     markdown: tokens.length >= MAX_SCANNED_INLINE_IMAGE_TOKENS
-      ? scrubOverflowInlineDataImageSyntax(compactedMarkdown)
+      ? scrubChatInlineDataImageSyntax(compactedMarkdown)
       : compactedMarkdown,
     imageSrcByToken,
     replaced,
   };
 }
 
-function isInlineDataImageTargetAt(markdown: string, targetStart: number): boolean {
-  let cursor = targetStart;
-  while (cursor < markdown.length && /\s/.test(markdown[cursor])) {
-    cursor += 1;
-  }
-  if (markdown[cursor] === '<') {
-    cursor += 1;
-    while (cursor < markdown.length && /\s/.test(markdown[cursor])) {
-      cursor += 1;
-    }
-  }
-  return markdown.slice(cursor, cursor + DATA_IMAGE_PREFIX.length).toLowerCase() === DATA_IMAGE_PREFIX;
-}
-
-function scrubOverflowInlineDataImageSyntax(markdown: string): string {
-  return scrubOverflowHtmlInlineDataImages(scrubOverflowMarkdownInlineDataImages(markdown));
-}
-
-function scrubOverflowMarkdownInlineDataImages(markdown: string): string {
-  let output = '';
-  let cursor = 0;
-
-  while (cursor < markdown.length) {
-    const start = markdown.indexOf('![', cursor);
-    if (start === -1) {
-      output += markdown.slice(cursor);
-      break;
-    }
-
-    const labelEnd = markdown.indexOf('](', start + 2);
-    if (labelEnd === -1 || labelEnd - start > 512) {
-      output += markdown.slice(cursor, start + 2);
-      cursor = start + 2;
-      continue;
-    }
-
-    const targetStart = labelEnd + 2;
-    if (!isInlineDataImageTargetAt(markdown, targetStart)) {
-      output += markdown.slice(cursor, targetStart);
-      cursor = targetStart;
-      continue;
-    }
-
-    const targetEnd = markdown.indexOf(')', targetStart);
-    if (targetEnd === -1 || targetEnd > targetStart + MAX_OVERFLOW_DATA_IMAGE_SCAN_CHARS) {
-      output += markdown.slice(cursor, start + 2);
-      cursor = start + 2;
-      continue;
-    }
-
-    output += markdown.slice(cursor, start);
-    output += '[image]';
-    cursor = targetEnd + 1;
-  }
-
-  return output;
+export function scrubChatInlineDataImageSyntax(markdown: string): string {
+  return scrubOverflowHtmlInlineDataImages(scrubOverflowMarkdownDataImages(markdown, {
+    replacement: '[image]',
+    maxTargetChars: MAX_OVERFLOW_DATA_IMAGE_SCAN_CHARS,
+  }));
 }
 
 function scrubOverflowHtmlInlineDataImages(markdown: string): string {
   let output = '';
   let cursor = 0;
 
-  while (cursor < markdown.length) {
+  for (const range of iterateNonFencedContentRanges(markdown)) {
+    output += markdown.slice(cursor, range.start);
+    output += scrubOverflowHtmlInlineDataImagesInRange(markdown, range);
+    cursor = range.end;
+  }
+
+  output += markdown.slice(cursor);
+  return output;
+}
+
+function scrubOverflowHtmlInlineDataImagesInRange(markdown: string, range: ContentRange): string {
+  const inlineCodeRanges = getInlineCodeRanges(markdown, range);
+  let output = '';
+  let cursor = range.start;
+
+  while (cursor < range.end) {
     const start = indexOfAsciiCaseInsensitive(markdown, '<img', cursor);
-    if (start === -1) {
-      output += markdown.slice(cursor);
+    if (start === -1 || start >= range.end) {
+      output += markdown.slice(cursor, range.end);
       break;
     }
 
-    const end = markdown.indexOf('>', start + 4);
-    if (end === -1 || end > start + MAX_OVERFLOW_DATA_IMAGE_SCAN_CHARS) {
+    const inlineCodeEnd = getRangeEndAtOffset(start, inlineCodeRanges);
+    if (inlineCodeEnd !== null) {
+      output += markdown.slice(cursor, inlineCodeEnd);
+      cursor = inlineCodeEnd;
+      continue;
+    }
+
+    const tagEnd = findHtmlTagEnd(markdown, start, range.end);
+    const tagIsOverflow =
+      tagEnd === -1 || tagEnd > range.end || tagEnd - start > MAX_OVERFLOW_DATA_IMAGE_SCAN_CHARS;
+    if (tagIsOverflow) {
+      const scanEnd = Math.min(range.end, start + MAX_OVERFLOW_DATA_IMAGE_SCAN_CHARS);
+      if (htmlImageTagHasDataImageSrc(markdown.slice(start, scanEnd))) {
+        output += markdown.slice(cursor, start);
+        output += '[image]';
+        cursor = tagEnd !== -1 && tagEnd <= range.end
+          ? tagEnd
+          : getOverflowHtmlImageScrubEnd(markdown, start, range.end);
+        continue;
+      }
       output += markdown.slice(cursor, start + 4);
       cursor = start + 4;
       continue;
     }
 
-    const tag = markdown.slice(start, end + 1);
-    if (!/data:image\//i.test(tag)) {
-      output += markdown.slice(cursor, end + 1);
-      cursor = end + 1;
+    const tag = markdown.slice(start, tagEnd);
+    if (!htmlImageTagHasDataImageSrc(tag)) {
+      output += markdown.slice(cursor, tagEnd);
+      cursor = tagEnd;
       continue;
     }
 
     output += markdown.slice(cursor, start);
     output += '[image]';
-    cursor = end + 1;
+    cursor = tagEnd;
   }
 
   return output;
@@ -223,4 +213,14 @@ function indexOfAsciiCaseInsensitive(value: string, needle: string, fromIndex: n
     }
   }
   return -1;
+}
+
+function getOverflowHtmlImageScrubEnd(content: string, start: number, rangeEnd: number): number {
+  const lineFeed = content.indexOf('\n', start);
+  const carriageReturn = content.indexOf('\r', start);
+  return Math.min(
+    lineFeed === -1 ? rangeEnd : lineFeed,
+    carriageReturn === -1 ? rangeEnd : carriageReturn,
+    rangeEnd,
+  );
 }

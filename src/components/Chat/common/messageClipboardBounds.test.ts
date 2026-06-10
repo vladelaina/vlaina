@@ -76,6 +76,39 @@ describe('messageClipboard bounded image parsing', () => {
     expect(copied).not.toContain('data:image');
   });
 
+  it('scrubs overflow html data images when earlier attributes contain angle brackets', () => {
+    const content = [
+      'A ![first](https://example.com/first.png)',
+      'B <img alt="before > after" src="data:image/png;base64,abc">',
+    ].join('\n');
+
+    const copied = formatMessageCopyText(content, { maxTokens: 1 });
+
+    expect(copied).toBe([
+      'A https://example.com/first.png',
+      'B [image]',
+    ].join('\n'));
+    expect(copied).not.toContain('data:image');
+  });
+
+  it('scrubs entity-encoded overflow inline data images from bounded copy text fallback', () => {
+    const content = [
+      'A ![first](https://example.com/first.png)',
+      'B <img src="data&colon;image&sol;png&semi;base64&comma;abc">',
+      'C ![third](data&colon;image&sol;png&semi;base64&comma;def)',
+    ].join('\n');
+
+    const copied = formatMessageCopyText(content, { maxTokens: 1 });
+
+    expect(copied).toBe([
+      'A https://example.com/first.png',
+      'B [image]',
+      'C [image]',
+    ].join('\n'));
+    expect(copied).not.toContain('data&colon;image&sol;');
+    expect(copied).not.toContain('&semi;base64&comma;');
+  });
+
   it('keeps overflow inline data image examples inside code spans', () => {
     const content = [
       'A ![first](https://example.com/first.png)',
@@ -92,10 +125,107 @@ describe('messageClipboard bounded image parsing', () => {
     ].join('\n'));
   });
 
+  it('keeps overflow html data image examples inside code spans and fences', () => {
+    const content = [
+      'A ![first](https://example.com/first.png)',
+      'B `<img src="data:image/png;base64,def">`',
+      '```html',
+      '<img src="data:image/png;base64,ghi">',
+      '```',
+      'C <img src="data:image/png;base64,jkl">',
+    ].join('\n');
+
+    const copied = formatMessageCopyText(content, { maxTokens: 1 });
+
+    expect(copied).toBe([
+      'A https://example.com/first.png',
+      'B `<img src="data:image/png;base64,def">`',
+      '```html',
+      '<img src="data:image/png;base64,ghi">',
+      '```',
+      'C [image]',
+    ].join('\n'));
+  });
+
+  it('does not scrub overflow html images only because non-src attributes mention data images', () => {
+    const content = [
+      'A ![first](https://example.com/first.png)',
+      '<img src="https://example.com/real.png" alt="data:image/png;base64,not-src">',
+    ].join('\n');
+
+    const copied = formatMessageCopyText(content, { maxTokens: 1 });
+
+    expect(copied).toBe([
+      'A https://example.com/first.png',
+      '<img src="https://example.com/real.png" alt="data:image/png;base64,not-src">',
+    ].join('\n'));
+  });
+
+  it('does not scrub overflow html images when lazy data-src has data images but src is safe', () => {
+    const content = [
+      'A ![first](https://example.com/first.png)',
+      '<img data-src="data:image/png;base64,not-src" src="https://example.com/real.png">',
+    ].join('\n');
+
+    const copied = formatMessageCopyText(content, { maxTokens: 1 });
+
+    expect(copied).toBe([
+      'A https://example.com/first.png',
+      '<img data-src="data:image/png;base64,not-src" src="https://example.com/real.png">',
+    ].join('\n'));
+  });
+
   it('scrubs oversized markdown data images when token parsing skips the target', () => {
     const content = [
       'A ![first](https://example.com/first.png)',
       `B ![huge](<data:image/png;base64,${'A'.repeat(520 * 1024)}>)`,
+      'C tail',
+    ].join('\n');
+
+    const copied = formatMessageCopyText(content, { maxTokens: 1 });
+
+    expect(copied).toBe([
+      'A https://example.com/first.png',
+      'B [image]',
+      'C tail',
+    ].join('\n'));
+    expect(copied).not.toContain('data:image');
+  });
+
+  it('scrubs overflow markdown data images with long labels', () => {
+    const content = [
+      'A ![first](https://example.com/first.png)',
+      `B ![${'a'.repeat(2048)}](<data:image/png;base64,def>)`,
+    ].join('\n');
+
+    const copied = formatMessageCopyText(content, { maxTokens: 1 });
+
+    expect(copied).toBe([
+      'A https://example.com/first.png',
+      'B [image]',
+    ].join('\n'));
+    expect(copied).not.toContain('data:image');
+  });
+
+  it('scrubs overflow html data images when the tag exceeds the copy scan budget', () => {
+    const content = [
+      'A ![first](https://example.com/first.png)',
+      `B <img src="data:image/png;base64,${'A'.repeat(24_000)}" alt="overflow">`,
+    ].join('\n');
+
+    const copied = formatMessageCopyText(content, { maxTokens: 1 });
+
+    expect(copied).toBe([
+      'A https://example.com/first.png',
+      'B [image]',
+    ].join('\n'));
+    expect(copied).not.toContain('data:image');
+  });
+
+  it('scrubs unterminated markdown data images when token parsing skips the target', () => {
+    const content = [
+      'A ![first](https://example.com/first.png)',
+      `B ![huge](<data:image/png;base64,${'A'.repeat(32 * 1024)}`,
       'C tail',
     ].join('\n');
 

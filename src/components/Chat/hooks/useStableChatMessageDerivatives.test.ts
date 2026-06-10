@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ChatMessage } from '@/lib/ai/types';
 import { useStableChatMessageDerivatives } from './useStableChatMessageDerivatives';
 import { MAX_CHAT_MESSAGE_IMAGE_SOURCES } from '@/components/Chat/common/messageClipboard';
@@ -18,6 +18,10 @@ function createMessage(id: string, role: ChatMessage['role'], content: string): 
 }
 
 describe('useStableChatMessageDerivatives', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('keeps derived references stable when only assistant text changes', async () => {
     const user = createMessage('u1', 'user', 'hello');
     const assistant = createMessage('a1', 'assistant', 'first response');
@@ -331,5 +335,27 @@ describe('useStableChatMessageDerivatives', () => {
       { id: 'a1:0', src: 'https://example.com/real.png' },
       { id: 'a1:1', src: 'https://example.com/real-html.png' },
     ]));
+  });
+
+  it('cancels pending derivative batches when unmounted', () => {
+    vi.useFakeTimers();
+    const messages = Array.from(
+      { length: 100 },
+      (_, index) => createMessage(`a${index}`, 'assistant', `![image](<https://example.com/${index}.png>)`),
+    );
+
+    const view = renderHook(
+      ({ messages }) => useStableChatMessageDerivatives(messages),
+      {
+        initialProps: {
+          messages,
+        },
+      },
+    );
+
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
+    view.unmount();
+
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

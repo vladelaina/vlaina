@@ -357,6 +357,14 @@ function normalizeAbsoluteMentionPathForCompare(path: string): string {
     : withoutTrailingSlash;
 }
 
+function hasUnsafeMentionPathSegment(path: string): boolean {
+  return path
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean)
+    .some((segment) => !isSafeVaultPathSegment(segment));
+}
+
 async function getStarredAbsoluteMentionPath(entry: {
   kind: 'note' | 'folder';
   vaultPath: string;
@@ -368,6 +376,7 @@ async function getStarredAbsoluteMentionPath(entry: {
     !vaultPath ||
     !isStorageAbsolutePath(vaultPath) ||
     isInsideInternalFolderMarkdownPath(vaultPath) ||
+    hasUnsafeMentionPathSegment(vaultPath) ||
     !relativePath ||
     isInsideInternalFolderMarkdownPath(relativePath) ||
     (entry.kind === 'note' && !isSupportedMarkdownPath(relativePath))
@@ -401,6 +410,7 @@ async function resolveMentionedPath(
 ): Promise<{ cachePath: string; fullPath: string } | null> {
   if (
     isInsideInternalFolderMarkdownPath(mentionPath) ||
+    hasUnsafeMentionPathSegment(mentionPath) ||
     (kind === 'note' && !isSupportedMarkdownPath(mentionPath))
   ) {
     return null;
@@ -997,15 +1007,31 @@ function isCurrentVaultImageAttachmentPath(path: string): boolean {
   return Boolean(containedPath && !isInsideInternalFolderMarkdownPath(containedPath));
 }
 
-function joinAbsolutePathSync(basePath: string, relativePath: string): string {
+function joinAbsolutePathSync(basePath: string, relativePath: string): string | null {
   const normalizedBase = normalizeAbsolutePath(basePath.trim()).replace(/[/\\]+$/g, '');
   const normalizedRelative = normalizeVaultRelativePath(relativePath);
-  return normalizedRelative ? `${normalizedBase}/${normalizedRelative}` : normalizedBase;
+  if (
+    !normalizedBase ||
+    !isStorageAbsolutePath(normalizedBase) ||
+    hasUnsafeMentionPathSegment(normalizedBase) ||
+    isInsideInternalFolderMarkdownPath(normalizedBase) ||
+    !normalizedRelative ||
+    isInsideInternalFolderMarkdownPath(normalizedRelative)
+  ) {
+    return null;
+  }
+
+  return `${normalizedBase}/${normalizedRelative}`;
 }
 
 function isStarredFolderImageAttachmentPath(path: string): boolean {
   const normalizedPath = normalizeAbsolutePath(path.trim());
-  if (!normalizedPath || !isStorageAbsolutePath(normalizedPath)) {
+  if (
+    !normalizedPath ||
+    !isStorageAbsolutePath(normalizedPath) ||
+    hasUnsafeMentionPathSegment(normalizedPath) ||
+    isInsideInternalFolderMarkdownPath(normalizedPath)
+  ) {
     return false;
   }
 
@@ -1019,6 +1045,9 @@ function isStarredFolderImageAttachmentPath(path: string): boolean {
       return false;
     }
     const folderPath = joinAbsolutePathSync(entry.vaultPath, entry.relativePath);
+    if (!folderPath) {
+      return false;
+    }
     const containedPath = normalizeContainedAssetPath(normalizedPath, folderPath);
     return Boolean(containedPath && !isInsideInternalFolderMarkdownPath(containedPath));
   });

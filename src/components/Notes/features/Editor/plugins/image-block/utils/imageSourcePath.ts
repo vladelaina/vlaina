@@ -6,6 +6,7 @@ import {
     normalizePublicRemoteMediaUrl,
     sanitizeNoteMediaSrc,
 } from '@/lib/notes/markdown/urlSecurity';
+import { isSafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
 
 interface ImageSourcePathDeps {
     getParentPath: (path: string) => string | null;
@@ -91,6 +92,18 @@ function addNonInternalCandidate(candidates: string[], candidate: string | null)
     candidates.push(candidate);
 }
 
+function hasUnsafeImagePathSegment(path: string | null | undefined): boolean {
+    if (!path) {
+        return false;
+    }
+
+    return path
+        .replace(/\\/g, '/')
+        .split('/')
+        .filter(Boolean)
+        .some((segment) => segment !== '.' && segment !== '..' && !isSafeVaultPathSegment(segment));
+}
+
 export async function resolveImageSourcePath(
     options: ResolveImageSourcePathOptions,
     deps: ImageSourcePathDeps = defaultDeps,
@@ -104,7 +117,7 @@ export async function resolveImageSourcePathCandidates(
     deps: ImageSourcePathDeps = defaultDeps,
 ): Promise<string[]> {
     const { rawSrc, notesPath, currentNotePath } = options;
-    if (hasInternalNoteAssetPathSegment(currentNotePath)) {
+    if (hasInternalNoteAssetPathSegment(currentNotePath) || hasUnsafeImagePathSegment(currentNotePath)) {
         return [];
     }
 

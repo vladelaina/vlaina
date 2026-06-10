@@ -174,6 +174,17 @@ describe('markdown syntax persistence matrix', () => {
       expectedText: 'nested bold',
     },
     {
+      name: 'custom inline color html around markdown links remains stable',
+      markdown: '<span style="color : #123456">[Docs](https://example.com)</span> <mark style="background-color : #ecf6ff">[Safe](docs/safe.md)</mark>',
+      expectedText: 'Docs Safe',
+    },
+    {
+      name: 'custom inline html marks preserve nested markdown emphasis',
+      markdown: '<u>*under*</u> <sup>**up**</sup> <sub>[down](docs/down.md)</sub>',
+      expected: '*++under++* **^up^** [~down~](docs/down.md)',
+      expectedText: 'under up down',
+    },
+    {
       name: 'unsupported inline span html stays standard markdown html',
       markdown: '<span data-note="keep">plain &lt; text</span>',
       expected: '<span>plain &lt; text</span>',
@@ -342,6 +353,11 @@ describe('markdown syntax persistence matrix', () => {
       name: 'abbreviation definition and usage',
       markdown: ['*[HTML]: HyperText Markup Language', '', 'HTML demo'].join('\n'),
       expectedText: 'HTML demo',
+    },
+    {
+      name: 'abbreviation definition preserves punctuation-heavy usage',
+      markdown: ['*[C++]: C Plus Plus', '', 'C++ demo and C+++ suffix'].join('\n'),
+      expectedText: 'C++ demo and C+++ suffix',
     },
     {
       name: 'escaped abbreviation definition',

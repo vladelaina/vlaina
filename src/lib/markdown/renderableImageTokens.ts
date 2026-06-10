@@ -7,10 +7,12 @@ import {
 } from './markdownImageTokens';
 import { parseVideoUrl } from './videoUrl';
 import { MAX_INLINE_IMAGE_BASE64_CHARS } from './dataImagePolicy';
+import { scrubOverflowMarkdownDataImages } from './overflowDataImageScrubber';
+import { findHtmlTagEnd } from './markdownRanges';
+import { htmlImageTagHasDataImageSrc } from './markdownHtmlImageSrc';
 
 const MAX_RENDERABLE_IMAGE_REPLACEMENT_TOKENS = 2000;
 const MAX_OVERFLOW_DATA_IMAGE_TARGET_CHARS = MAX_INLINE_IMAGE_BASE64_CHARS + 4096;
-const DATA_IMAGE_PREFIX = 'data:image/';
 
 function normalizeImageToken(token: ImageToken): ImageToken | null {
   const src = normalizeRenderableImageSrc(token.src);
@@ -59,69 +61,17 @@ function scrubOverflowRenderableInlineDataImageSyntax(
     return content;
   }
 
-  const withoutMarkdownImages = scrubOverflowMarkdownDataImages(content, replacement);
+  const withoutMarkdownImages = scrubOverflowMarkdownDataImages(content, {
+    replacement,
+    maxTargetChars: MAX_OVERFLOW_DATA_IMAGE_TARGET_CHARS,
+  });
   return includeHtml
     ? scrubOverflowHtmlDataImages(withoutMarkdownImages, replacement)
     : withoutMarkdownImages;
 }
 
 function hasDataImageHint(content: string): boolean {
-  return /data:image\//i.test(content);
-}
-
-function isInlineDataImageTargetAt(content: string, targetStart: number): boolean {
-  let cursor = targetStart;
-  while (cursor < content.length && /\s/.test(content[cursor])) {
-    cursor += 1;
-  }
-  if (content[cursor] === '<') {
-    cursor += 1;
-    while (cursor < content.length && /\s/.test(content[cursor])) {
-      cursor += 1;
-    }
-  }
-  return content.slice(cursor, cursor + DATA_IMAGE_PREFIX.length).toLowerCase() === DATA_IMAGE_PREFIX;
-}
-
-function scrubOverflowMarkdownDataImages(content: string, replacement: string): string {
-  let output = '';
-  let cursor = 0;
-
-  while (cursor < content.length) {
-    const start = content.indexOf('![', cursor);
-    if (start === -1) {
-      output += content.slice(cursor);
-      break;
-    }
-
-    const labelEnd = content.indexOf('](', start + 2);
-    if (labelEnd === -1 || labelEnd - start > 512) {
-      output += content.slice(cursor, start + 2);
-      cursor = start + 2;
-      continue;
-    }
-
-    const targetStart = labelEnd + 2;
-    if (!isInlineDataImageTargetAt(content, targetStart)) {
-      output += content.slice(cursor, targetStart);
-      cursor = targetStart;
-      continue;
-    }
-
-    const scanEnd = Math.min(content.length, targetStart + MAX_OVERFLOW_DATA_IMAGE_TARGET_CHARS);
-    const targetEnd = content.indexOf(')', targetStart);
-    if (targetEnd === -1 || targetEnd > scanEnd) {
-      output += content.slice(cursor, start + 2);
-      cursor = start + 2;
-      continue;
-    }
-
-    output += content.slice(cursor, start);
-    output += replacement;
-    cursor = targetEnd + 1;
-  }
-
-  return output;
+  return /\bdata(?::|&|&#)/i.test(content);
 }
 
 function scrubOverflowHtmlDataImages(content: string, replacement: string): string {
@@ -136,23 +86,29 @@ function scrubOverflowHtmlDataImages(content: string, replacement: string): stri
     }
 
     const scanEnd = Math.min(content.length, start + MAX_OVERFLOW_DATA_IMAGE_TARGET_CHARS);
-    const end = content.indexOf('>', start + 4);
-    if (end === -1 || end > scanEnd) {
+    const tagEnd = findHtmlTagEnd(content, start, scanEnd);
+    if (tagEnd === -1) {
+      if (htmlImageTagHasDataImageSrc(content.slice(start, scanEnd))) {
+        output += content.slice(cursor, start);
+        output += replacement;
+        cursor = getOverflowHtmlImageScrubEnd(content, start, content.length);
+        continue;
+      }
       output += content.slice(cursor, start + 4);
       cursor = start + 4;
       continue;
     }
 
-    const tag = content.slice(start, end + 1);
-    if (!hasDataImageHint(tag)) {
-      output += content.slice(cursor, end + 1);
-      cursor = end + 1;
+    const tag = content.slice(start, tagEnd);
+    if (!htmlImageTagHasDataImageSrc(tag)) {
+      output += content.slice(cursor, tagEnd);
+      cursor = tagEnd;
       continue;
     }
 
     output += content.slice(cursor, start);
     output += replacement;
-    cursor = end + 1;
+    cursor = tagEnd;
   }
 
   return output;
@@ -174,4 +130,14 @@ function indexOfAsciiCaseInsensitive(value: string, needle: string, fromIndex: n
     }
   }
   return -1;
+}
+
+function getOverflowHtmlImageScrubEnd(content: string, start: number, rangeEnd: number): number {
+  const lineFeed = content.indexOf('\n', start);
+  const carriageReturn = content.indexOf('\r', start);
+  return Math.min(
+    lineFeed === -1 ? rangeEnd : lineFeed,
+    carriageReturn === -1 ? rangeEnd : carriageReturn,
+    rangeEnd,
+  );
 }

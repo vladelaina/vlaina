@@ -1,16 +1,20 @@
 import {
   getInlineCodeRanges,
-  getNonFencedContentRanges,
+  iterateNonFencedContentRanges,
   getRangeEndAtOffset,
+  isEscapedMarkdownPunctuation,
   isOffsetInRanges,
 } from './markdownRanges';
+import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 
 const DATA_IMAGE_PREFIX = 'data:image/';
-const MAX_MARKDOWN_IMAGE_LABEL_CHARS = 512;
+const MAX_MARKDOWN_IMAGE_LABEL_SCAN_CHARS = 1024 * 1024;
+const MAX_DATA_IMAGE_PREFIX_SCAN_CHARS = 128;
 
 export interface OverflowDataImageScrubOptions {
   replacement: string;
   maxTargetChars: number;
+  scrubMatchedDataImages?: boolean;
 }
 
 export function scrubOverflowMarkdownDataImages(
@@ -20,7 +24,7 @@ export function scrubOverflowMarkdownDataImages(
   let output = '';
   let cursor = 0;
 
-  for (const range of getNonFencedContentRanges(content)) {
+  for (const range of iterateNonFencedContentRanges(content)) {
     output += content.slice(cursor, range.start);
     const scrubbedRange = scrubOverflowMarkdownDataImagesInRange(content, range, options);
     output += scrubbedRange;
@@ -53,9 +57,14 @@ function scrubOverflowMarkdownDataImagesInRange(
       cursor = inlineCodeEnd;
       continue;
     }
+    if (isEscapedMarkdownPunctuation(content, start, range.start)) {
+      output += content.slice(cursor, start + 2);
+      cursor = start + 2;
+      continue;
+    }
 
-    const labelEnd = content.indexOf('](', start + 2);
-    if (labelEnd === -1 || labelEnd >= range.end || labelEnd - start > MAX_MARKDOWN_IMAGE_LABEL_CHARS) {
+    const labelEnd = findMarkdownImageLabelEnd(content, start, range.end);
+    if (labelEnd === null) {
       output += content.slice(cursor, start + 2);
       cursor = start + 2;
       continue;
@@ -67,10 +76,14 @@ function scrubOverflowMarkdownDataImagesInRange(
       targetEnd >= range.end ||
       targetEnd - labelEnd > options.maxTargetChars
     ) {
-      if (targetEnd !== -1 && targetEnd < range.end && isInlineDataImageMarkdownTargetAt(content, labelEnd + 2)) {
+      const targetStart = labelEnd + 2;
+      if (isInlineDataImageMarkdownTargetAt(content, targetStart)) {
+        const scrubEnd = targetEnd !== -1 && targetEnd < range.end
+          ? targetEnd + 1
+          : getOverflowDataImageScrubEnd(content, targetStart, range.end);
         output += content.slice(cursor, start);
         output += options.replacement;
-        cursor = targetEnd + 1;
+        cursor = scrubEnd;
       } else {
         output += content.slice(cursor, start + 2);
         cursor = start + 2;
@@ -78,18 +91,28 @@ function scrubOverflowMarkdownDataImagesInRange(
       continue;
     }
 
-    if (!hasAsciiCaseInsensitiveInRange(content, DATA_IMAGE_PREFIX, labelEnd + 2, targetEnd)) {
-      output += content.slice(cursor, targetEnd + 1);
+    if (
+      options.scrubMatchedDataImages !== false &&
+      isInlineDataImageMarkdownTargetAt(content, labelEnd + 2)
+    ) {
+      output += content.slice(cursor, start);
+      output += options.replacement;
       cursor = targetEnd + 1;
       continue;
     }
 
-    output += content.slice(cursor, start);
-    output += options.replacement;
+    output += content.slice(cursor, targetEnd + 1);
     cursor = targetEnd + 1;
   }
 
   return output;
+}
+
+function findMarkdownImageLabelEnd(content: string, start: number, rangeEnd: number): number | null {
+  const labelStart = start + 2;
+  const scanEnd = Math.min(rangeEnd, labelStart + MAX_MARKDOWN_IMAGE_LABEL_SCAN_CHARS);
+  const relativeEnd = content.slice(labelStart, scanEnd).indexOf('](');
+  return relativeEnd === -1 ? null : labelStart + relativeEnd;
 }
 
 function isInlineDataImageMarkdownTargetAt(content: string, targetStart: number): boolean {
@@ -103,7 +126,26 @@ function isInlineDataImageMarkdownTargetAt(content: string, targetStart: number)
       cursor += 1;
     }
   }
-  return hasAsciiCaseInsensitiveInRange(content, DATA_IMAGE_PREFIX, cursor, cursor + DATA_IMAGE_PREFIX.length);
+  if (hasAsciiCaseInsensitiveInRange(content, DATA_IMAGE_PREFIX, cursor, cursor + DATA_IMAGE_PREFIX.length)) {
+    return true;
+  }
+
+  const decodedPrefix = decodeMarkdownHtmlText(
+    content.slice(cursor, Math.min(content.length, cursor + MAX_DATA_IMAGE_PREFIX_SCAN_CHARS))
+  );
+  return hasAsciiCaseInsensitiveInRange(decodedPrefix, DATA_IMAGE_PREFIX, 0, DATA_IMAGE_PREFIX.length);
+}
+
+function getOverflowDataImageScrubEnd(content: string, targetStart: number, rangeEnd: number): number {
+  const lineFeed = content.indexOf('\n', targetStart);
+  const carriageReturn = content.indexOf('\r', targetStart);
+  const lineEnd = Math.min(
+    lineFeed === -1 ? rangeEnd : lineFeed,
+    carriageReturn === -1 ? rangeEnd : carriageReturn,
+    rangeEnd,
+  );
+
+  return Math.max(targetStart, lineEnd);
 }
 
 function hasAsciiCaseInsensitiveInRange(content: string, needle: string, start: number, end: number): boolean {

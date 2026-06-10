@@ -22,6 +22,7 @@ import { upsertImportedMarkdownThemeCss } from './themeRepository';
 
 interface SyncableThemeCssEntry {
   entry: FileInfo;
+  stat: FileInfo;
   css: string;
 }
 
@@ -89,7 +90,17 @@ export async function syncImportedMarkdownThemesFromDirectory(): Promise<Importe
 
   for (const entry of cssEntries) {
     let css: string;
+    let stat: FileInfo;
     try {
+      const statResult = await storage.stat(entry.path).catch(() => null);
+      if (
+        statResult?.isFile === false ||
+        typeof statResult?.size !== 'number' ||
+        statResult.size > MAX_IMPORTED_THEME_CSS_BYTES
+      ) {
+        continue;
+      }
+      stat = statResult;
       css = await storage.readFile(entry.path);
     } catch {
       continue;
@@ -103,7 +114,7 @@ export async function syncImportedMarkdownThemesFromDirectory(): Promise<Importe
       continue;
     }
 
-    syncableCssEntries.push({ entry, css });
+    syncableCssEntries.push({ entry, stat, css });
   }
 
   const staleDirectoryThemes = existingThemes.filter((theme) =>
@@ -122,15 +133,15 @@ export async function syncImportedMarkdownThemesFromDirectory(): Promise<Importe
     await deleteImportedThemeFiles(theme);
   }
 
-  for (const { entry, css } of syncableCssEntries) {
+  for (const { entry, stat, css } of syncableCssEntries) {
     const existing = findThemeBySourcePath(nextThemes, entry.path);
     const hasCachedCss = existing ? await cachedThemeCssExists(existing) : false;
     const hasLocalCssImports = getRelativeMarkdownThemeCssImports(css).length > 0;
-    if (existing && hasCachedCss && !hasThemeSourceSignatureChanged(existing, entry) && !hasLocalCssImports) {
+    if (existing && hasCachedCss && !hasThemeSourceSignatureChanged(existing, stat) && !hasLocalCssImports) {
       continue;
     }
 
-    const signature = getThemeSourceSignature(entry);
+    const signature = getThemeSourceSignature(stat);
     const upserted = await upsertImportedMarkdownThemeCss({
       name: entry.name,
       css,
@@ -147,6 +158,6 @@ export async function syncImportedMarkdownThemesFromDirectory(): Promise<Importe
   return {
     directoryPath,
     themes: sortThemes(nextThemes.filter((theme) => isThemeSourceInsideDirectory(theme, directoryPath))),
-    activeThemeId: selectActiveSyncedThemeId(syncableCssEntries.map(({ entry }) => entry), nextThemes),
+    activeThemeId: selectActiveSyncedThemeId(syncableCssEntries.map(({ stat }) => stat), nextThemes),
   };
 }

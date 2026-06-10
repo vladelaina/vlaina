@@ -14,6 +14,25 @@ export function isSafeVaultPathSegment(segment: string | undefined): segment is 
   );
 }
 
+export function hasUnsafeVaultPathSegment(
+  path: string,
+  options: { allowNavigationSegments?: boolean } = {},
+): boolean {
+  const segments = path.replace(/\\/g, '/').split('/').filter(Boolean);
+
+  for (let index = 0; index < segments.length; index += 1) {
+    const segment = segments[index];
+    if (options.allowNavigationSegments && (segment === '.' || segment === '..')) {
+      continue;
+    }
+    if (!isSafeVaultPathSegment(segment)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function normalizeVaultRelativePath(
   path: string | undefined,
   options: { allowEmpty?: boolean } = {},

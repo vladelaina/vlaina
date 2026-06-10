@@ -312,6 +312,17 @@ describe('notesSidebarSearchResults', () => {
     ]);
   });
 
+  it('reports structural match indexes in original text coordinates after case folding expands characters', () => {
+    const index = [{
+      path: 'notes/istanbul.md',
+      name: 'İstanbul Note',
+      preview: 'Archive/İstanbul/',
+    }];
+
+    expect(queryNotesSidebarSearch(index, 'note')[0]?.matchIndex).toBe('İstanbul '.length);
+    expect(queryNotesSidebarSearch(index, 'archive')[0]?.matchIndex).toBe(0);
+  });
+
   it('matches parent folder paths after file name matches', () => {
     const index = buildNotesSidebarSearchIndex(rootFolder, () => '');
     const results = queryNotesSidebarSearch(index, 'projects');
@@ -410,6 +421,20 @@ describe('notesSidebarSearchResults', () => {
     expect(results.map((result) => result.contentSnippet).join(' ')).not.toContain('hidden-target');
     expect(results.map((result) => result.contentSnippet).join(' ')).not.toContain('data-value');
     expect(results.map((result) => result.contentSnippet)).not.toContain('target image');
+  });
+
+  it('reports content match indexes in original text coordinates after case folding expands characters', () => {
+    const index = [{
+      path: 'unicode.md',
+      name: 'unicode.md',
+      preview: '',
+    }];
+    const results = queryNotesSidebarSearch(index, 'note', () => 'İstanbul note body');
+
+    expect(results.find((result) => result.matchKind === 'content')).toMatchObject({
+      matchIndex: 'İstanbul '.length,
+      contentSnippet: 'İstanbul note body',
+    });
   });
 
   it('searches visible inline raw HTML text without searching tag attributes', () => {

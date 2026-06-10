@@ -19,6 +19,31 @@ import {
 const files = vi.hoisted(() => new Map<string, string>());
 const binaryFiles = vi.hoisted(() => new Map<string, Uint8Array>());
 const directories = vi.hoisted(() => new Set<string>());
+const statFile = vi.hoisted(() => async (path: string) => {
+  const text = files.get(path);
+  if (text !== undefined) {
+    return {
+      name: path.split('/').pop() ?? path,
+      path,
+      isDirectory: false,
+      isFile: true,
+      size: text.length,
+      modifiedAt: 10,
+    };
+  }
+  const bytes = binaryFiles.get(path);
+  if (bytes !== undefined) {
+    return {
+      name: path.split('/').pop() ?? path,
+      path,
+      isDirectory: false,
+      isFile: true,
+      size: bytes.byteLength,
+      modifiedAt: 10,
+    };
+  }
+  return null;
+});
 const adapter = vi.hoisted(() => ({
   readFile: vi.fn(async (path: string) => {
     const content = files.get(path);
@@ -41,31 +66,7 @@ const adapter = vi.hoisted(() => ({
     binaryFiles.set(path, content);
   }),
   exists: vi.fn(async (path: string) => files.has(path) || binaryFiles.has(path) || directories.has(path)),
-  stat: vi.fn(async (path: string) => {
-    const text = files.get(path);
-    if (text !== undefined) {
-      return {
-        name: path.split('/').pop() ?? path,
-        path,
-        isDirectory: false,
-        isFile: true,
-        size: text.length,
-        modifiedAt: 10,
-      };
-    }
-    const bytes = binaryFiles.get(path);
-    if (bytes !== undefined) {
-      return {
-        name: path.split('/').pop() ?? path,
-        path,
-        isDirectory: false,
-        isFile: true,
-        size: bytes.byteLength,
-        modifiedAt: 10,
-      };
-    }
-    return null;
-  }),
+  stat: vi.fn(statFile),
   mkdir: vi.fn(async (path: string) => {
     directories.add(path);
   }),
@@ -114,6 +115,7 @@ describe('imported markdown theme storage', () => {
     binaryFiles.clear();
     directories.clear();
     vi.clearAllMocks();
+    adapter.stat.mockImplementation(statFile);
   });
 
   it('imports CSS themes into scoped local metadata and sanitizes unsafe CSS entry points', async () => {
@@ -316,6 +318,19 @@ describe('imported markdown theme storage', () => {
         modifiedAt: 30,
       },
     ]);
+    adapter.stat.mockImplementation(async (path: string) => {
+      if (path === '/app/.vlaina/themes/minimal.css') {
+        return {
+          name: 'minimal.css',
+          path,
+          isDirectory: false,
+          isFile: true,
+          size: 100,
+          modifiedAt: 20,
+        };
+      }
+      return statFile(path);
+    });
 
     const result = await syncImportedMarkdownThemesFromDirectory();
 
@@ -444,6 +459,51 @@ describe('imported markdown theme storage', () => {
     expect(adapter.stat).toHaveBeenCalledWith('/app/.vlaina/themes/huge-stat.css');
     expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/themes/huge-stat.css');
     expect(await readImportedMarkdownTheme('huge-stat')).toBeNull();
+  });
+
+  it('rechecks directory theme CSS size with stat before reading it', async () => {
+    files.set('/app/.vlaina/themes/huge.css', `${'#write { color: red; }\n'}${'x'.repeat(MAX_IMPORTED_THEME_CSS_BYTES + 1)}`);
+    adapter.listDir.mockResolvedValueOnce([
+      {
+        name: 'huge.css',
+        path: '/app/.vlaina/themes/huge.css',
+        isDirectory: false,
+        isFile: true,
+        size: 22,
+        modifiedAt: 10,
+      },
+    ]);
+    adapter.stat.mockImplementation(async (path: string) => {
+      if (path === '/app/.vlaina/themes/huge.css') {
+        return {
+          name: 'huge.css',
+          path,
+          isDirectory: false,
+          isFile: true,
+          size: MAX_IMPORTED_THEME_CSS_BYTES + 1,
+          modifiedAt: 20,
+        };
+      }
+      const text = files.get(path);
+      if (text !== undefined) {
+        return {
+          name: path.split('/').pop() ?? path,
+          path,
+          isDirectory: false,
+          isFile: true,
+          size: text.length,
+          modifiedAt: 10,
+        };
+      }
+      return null;
+    });
+
+    const result = await syncImportedMarkdownThemesFromDirectory();
+
+    expect(result.themes).toEqual([]);
+    expect(adapter.stat).toHaveBeenCalledWith('/app/.vlaina/themes/huge.css');
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/themes/huge.css');
+    expect(await readImportedMarkdownTheme('huge')).toBeNull();
   });
 
   it('ignores pure font helper CSS when syncing directory themes', async () => {
@@ -648,6 +708,42 @@ describe('imported markdown theme storage', () => {
     const imported = await readImportedMarkdownTheme('theme');
     expect(imported?.css).toContain('#write { color: red; }');
     expect(imported?.css).not.toContain('--huge');
+  });
+
+  it('does not read relative theme imports or assets outside the source directory', async () => {
+    files.set('/app/.vlaina/themes/nested/theme.css', [
+      '@import "../outside.css";',
+      '#write { background: url("../secret.woff2"); }',
+      '#write .safe { background: url("./safe.woff2"); }',
+    ].join('\n'));
+    files.set('/app/.vlaina/themes/outside.css', ':root { --outside: red; }');
+    binaryFiles.set('/app/.vlaina/themes/secret.woff2', new Uint8Array([9, 9, 9]));
+    binaryFiles.set('/app/.vlaina/themes/nested/./safe.woff2', new Uint8Array([1, 2, 3]));
+    adapter.listDir.mockResolvedValueOnce([
+      {
+        name: 'theme.css',
+        path: '/app/.vlaina/themes/nested/theme.css',
+        isDirectory: false,
+        isFile: true,
+        size: 120,
+        modifiedAt: 10,
+      },
+    ]);
+
+    await syncImportedMarkdownThemesFromDirectory();
+
+    const imported = await readImportedMarkdownTheme('theme');
+    expect(imported?.css).toContain('#write { background: url("../secret.woff2"); }');
+    expect(imported?.css).toContain(
+      'url("file:///app/.vlaina/store/markdown-theme-cache/theme-assets/0-safe.woff2")'
+    );
+    expect(imported?.css).not.toContain('--outside');
+    expect(imported?.css).not.toContain('file:///app/.vlaina/themes/secret.woff2');
+    expect(adapter.stat).not.toHaveBeenCalledWith('/app/.vlaina/themes/nested/../outside.css');
+    expect(adapter.stat).not.toHaveBeenCalledWith('/app/.vlaina/themes/nested/../secret.woff2');
+    expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/themes/nested/../outside.css');
+    expect(adapter.readBinaryFile).not.toHaveBeenCalledWith('/app/.vlaina/themes/nested/../secret.woff2');
+    expect(binaryFiles.has('/app/.vlaina/store/markdown-theme-cache/theme-assets/0-secret.woff2')).toBe(false);
   });
 
   it('refreshes changed directory themes and removes deleted directory themes', async () => {

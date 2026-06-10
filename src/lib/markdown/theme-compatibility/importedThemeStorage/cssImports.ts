@@ -12,7 +12,7 @@ import {
   MAX_IMPORTED_THEME_CSS_IMPORT_DEPTH,
   MAX_IMPORTED_THEME_CSS_IMPORTS,
 } from './constants';
-import { normalizeThemePath } from './metadata';
+import { isThemeRelativePathInsideDirectory, normalizeThemePath } from './metadata';
 
 export async function inlineRelativeThemeCssImports(
   css: string,
@@ -43,6 +43,9 @@ export async function inlineRelativeThemeCssImports(
   const storage = getStorageAdapter();
 
   for (const imported of imports) {
+    if (!isThemeRelativePathInsideDirectory(sourceDir, imported.path)) {
+      continue;
+    }
     const importedPath = await joinPath(sourceDir, imported.path);
     const normalizedImportedPath = normalizeThemePath(importedPath);
     if (seen.has(normalizedImportedPath)) {

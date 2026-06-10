@@ -227,6 +227,98 @@ describe('workspace external actions internal paths', () => {
     expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledTimes(1);
   });
 
+  it('ignores external renames with unsafe path characters at the action boundary', async () => {
+    const store = createNotesStore({
+      rootFolder: createFolder('', 'Notes', [
+        createFolder('docs', 'docs', [createFile('docs/alpha.md', 'alpha')]),
+      ]),
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      recentNotes: ['docs/alpha.md'],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+      noteMetadata: {
+        version: 2,
+        notes: {
+          'docs/alpha.md': { createdAt: 1 },
+        },
+      },
+    });
+
+    await store.getState().applyExternalPathRename('docs/alpha.md', 'docs/beta\u202Egnp.md');
+    await store.getState().applyExternalPathRename('docs/secret\u0000.md', 'docs/beta.md');
+
+    expect(hoisted.flushCurrentPendingEditorMarkdown).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# alpha' });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'docs/alpha.md', name: 'alpha', isDirty: false },
+    ]);
+    expect(store.getState().recentNotes).toEqual(['docs/alpha.md']);
+    expect(store.getState().noteContentsCache.has('docs/beta\u202Egnp.md')).toBe(false);
+    expect(store.getState().noteContentsCache.has('docs/beta.md')).toBe(false);
+    expect(store.getState().noteMetadata?.notes['docs/beta\u202Egnp.md']).toBeUndefined();
+    expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('ignores external deletions with unsafe path characters at the action boundary', async () => {
+    const store = createNotesStore({
+      rootFolder: createFolder('', 'Notes', [
+        createFolder('docs', 'docs', [createFile('docs/alpha.md', 'alpha')]),
+      ]),
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      recentNotes: ['docs/alpha.md'],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    await store.getState().applyExternalPathDeletion('docs/secret\uFFFD.md');
+
+    expect(hoisted.flushCurrentPendingEditorMarkdown).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# alpha' });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'docs/alpha.md', name: 'alpha', isDirty: false },
+    ]);
+    expect(store.getState().recentNotes).toEqual(['docs/alpha.md']);
+    expect(store.getState().noteContentsCache.has('docs/alpha.md')).toBe(true);
+    expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('treats renames into normalized internal paths as external deletions', async () => {
+    const store = createNotesStore({
+      rootFolder: createFolder('', 'Notes', [
+        createFolder('docs', 'docs', [createFile('docs/alpha.md', 'alpha')]),
+      ]),
+      currentNote: { path: 'docs/keep.md', content: '# keep' },
+      openTabs: [
+        { path: 'docs/keep.md', name: 'keep', isDirty: false },
+        { path: 'docs/alpha.md', name: 'alpha', isDirty: false },
+      ],
+      recentNotes: ['docs/keep.md', 'docs/alpha.md'],
+      noteContentsCache: new Map([
+        ['docs/keep.md', { content: '# keep', modifiedAt: 1 }],
+        ['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }],
+      ]),
+      noteMetadata: {
+        version: 2,
+        notes: {
+          'docs/keep.md': { createdAt: 2 },
+          'docs/alpha.md': { createdAt: 1 },
+        },
+      },
+    });
+
+    await store.getState().applyExternalPathRename('docs/alpha.md', 'docs/../.git/config.md');
+
+    expect(store.getState().currentNote).toEqual({ path: 'docs/keep.md', content: '# keep' });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'docs/keep.md', name: 'keep', isDirty: false },
+    ]);
+    expect(store.getState().recentNotes).toEqual(['docs/keep.md']);
+    expect(store.getState().noteContentsCache.has('docs/alpha.md')).toBe(false);
+    expect(store.getState().noteMetadata?.notes['docs/alpha.md']).toBeUndefined();
+    expect(store.getState().noteMetadata?.notes['docs/../.git/config.md']).toBeUndefined();
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps user dot folder renames working', async () => {
     const store = createNotesStore({
       rootFolder: createFolder('', 'Notes', [

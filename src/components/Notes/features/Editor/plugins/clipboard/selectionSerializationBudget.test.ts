@@ -47,7 +47,7 @@ function createDeepPlainTextSlice() {
 }
 
 describe('selectionSerialization clipboard traversal budget', () => {
-  it('falls back to markdown serialization for over-deep plain-text selections', () => {
+  it('skips markdown serialization for over-deep plain-text selections', () => {
     const slice = createDeepPlainTextSlice();
     const selection = {
       constructor: { name: 'TextSelection' },
@@ -69,7 +69,7 @@ describe('selectionSerialization clipboard traversal budget', () => {
       },
     };
 
-    expect(serializeSelectionToClipboardText(state, serializer)).toBe('serialized fallback');
-    expect(serializer).toHaveBeenCalled();
+    expect(serializeSelectionToClipboardText(state, serializer)).toBe('');
+    expect(serializer).not.toHaveBeenCalled();
   });
 });

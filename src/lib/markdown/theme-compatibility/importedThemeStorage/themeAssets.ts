@@ -12,7 +12,7 @@ import {
   MAX_IMPORTED_THEME_ASSET_BYTES,
   MAX_IMPORTED_THEME_ASSETS,
 } from './constants';
-import { sanitizeAssetFilename } from './metadata';
+import { isThemeRelativePathInsideDirectory, sanitizeAssetFilename } from './metadata';
 import { getThemeAssetPath } from './paths';
 
 async function resolveOriginalThemeAssetUrl(
@@ -71,6 +71,9 @@ export async function rewriteImportedThemeAssetUrls(
     sourcePath,
     async (asset) => {
       if (!sourceDir) return null;
+      if (!isThemeRelativePathInsideDirectory(sourceDir, asset.path)) {
+        return null;
+      }
       if (copiedAssetFilenames.size >= MAX_IMPORTED_THEME_ASSETS && !copiedAssetFilenames.has(asset.path)) {
         return resolveOriginalThemeAssetUrl(sourceDir, asset).catch(() => null);
       }

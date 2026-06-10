@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  hasUnsafeVaultPathSegment,
   isSafeVaultPathSegment,
   MAX_VAULT_RELATIVE_PATH_CHARS,
   normalizeVaultRelativePath,
@@ -24,6 +25,15 @@ describe('vaultPathContainment', () => {
     expect(isSafeVaultPathSegment('secret\0.md')).toBe(false);
     expect(isSafeVaultPathSegment('secret\u202Egnp.md')).toBe(false);
     expect(isSafeVaultPathSegment('secret\uFFFD.md')).toBe(false);
+  });
+
+  it('checks unsafe path segments in relative and absolute-style paths', () => {
+    expect(hasUnsafeVaultPathSegment('docs/alpha.md')).toBe(false);
+    expect(hasUnsafeVaultPathSegment('docs/secret\u202Egnp.md')).toBe(true);
+    expect(hasUnsafeVaultPathSegment('../secret.md')).toBe(true);
+    expect(hasUnsafeVaultPathSegment('../secret.md', { allowNavigationSegments: true })).toBe(false);
+    expect(hasUnsafeVaultPathSegment('C:\\vault\\alpha.md')).toBe(false);
+    expect(hasUnsafeVaultPathSegment('C:\\vault\\secret\u001F.md')).toBe(true);
   });
 
   it('normalizes safe vault-relative paths', () => {

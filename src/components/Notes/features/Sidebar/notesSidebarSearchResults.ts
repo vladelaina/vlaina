@@ -31,12 +31,14 @@ export interface NotesSidebarSearchIndexOptions {
 const SEARCH_ENTRY_METADATA = Symbol('notesSidebarSearchEntryMetadata');
 const SEARCH_INDEX_METADATA = Symbol('notesSidebarSearchIndexMetadata');
 const CONTENT_SEARCH_MIN_QUERY_LENGTH = 2;
-const MAX_SEARCH_RESULTS = 200;
+export const NOTES_SIDEBAR_MAX_SEARCH_RESULTS = 200;
 const MAX_SEARCH_INDEX_TREE_ENTRIES = 10_000;
 
 interface NotesSidebarSearchEntryMetadata {
   lowerName: string;
+  lowerNameStartOffsets: number[];
   lowerPreview: string;
+  lowerPreviewStartOffsets: number[];
 }
 
 interface NotesSidebarSearchIndexMetadata {
@@ -52,12 +54,16 @@ type MetadataSearchIndex = NotesSidebarSearchEntry[] & {
 };
 
 function attachSearchEntryMetadata(entry: NotesSidebarSearchEntry): NotesSidebarSearchEntry {
+  const normalizedName = normalizeSearchTextWithOffsets(entry.name);
+  const normalizedPreview = normalizeSearchTextWithOffsets(entry.preview);
   Object.defineProperty(entry, SEARCH_ENTRY_METADATA, {
     configurable: true,
     enumerable: false,
     value: {
-      lowerName: entry.name.toLowerCase(),
-      lowerPreview: entry.preview.toLowerCase(),
+      lowerName: normalizedName.text,
+      lowerNameStartOffsets: normalizedName.startOffsets,
+      lowerPreview: normalizedPreview.text,
+      lowerPreviewStartOffsets: normalizedPreview.startOffsets,
     } satisfies NotesSidebarSearchEntryMetadata,
   });
 
@@ -86,10 +92,41 @@ function getSearchEntryMetadata(entry: NotesSidebarSearchEntry): NotesSidebarSea
     return metadata;
   }
 
+  const normalizedName = normalizeSearchTextWithOffsets(entry.name);
+  const normalizedPreview = normalizeSearchTextWithOffsets(entry.preview);
   return {
-    lowerName: entry.name.toLowerCase(),
-    lowerPreview: entry.preview.toLowerCase(),
+    lowerName: normalizedName.text,
+    lowerNameStartOffsets: normalizedName.startOffsets,
+    lowerPreview: normalizedPreview.text,
+    lowerPreviewStartOffsets: normalizedPreview.startOffsets,
   };
+}
+
+function normalizeSearchTextWithOffsets(value: string): {
+  text: string;
+  startOffsets: number[];
+} {
+  let text = '';
+  const startOffsets: number[] = [];
+
+  for (let index = 0; index < value.length;) {
+    const codePoint = value.codePointAt(index);
+    const source = codePoint === undefined ? value[index] : String.fromCodePoint(codePoint);
+    const sourceLength = source.length;
+    const normalized = source.toLocaleLowerCase();
+    const normalizedStart = text.length;
+
+    for (let offset = 0; offset < normalized.length; offset += 1) {
+      startOffsets[normalizedStart + offset] = index;
+    }
+
+    text += normalized;
+    index += sourceLength;
+  }
+
+  startOffsets[text.length] = value.length;
+
+  return { text, startOffsets };
 }
 
 function getContentSearchEntriesByPath(index: NotesSidebarSearchEntry[]): NotesSidebarSearchEntry[] {
@@ -200,51 +237,25 @@ export function queryNotesSidebarSearch(
   index: NotesSidebarSearchEntry[],
   query: string,
   getNoteContent?: (path: string) => string | undefined,
+  structuralResults = queryNotesSidebarStructuralSearch(index, query),
 ): NotesSidebarSearchResult[] {
   const trimmedQuery = query.trim();
   if (!trimmedQuery) {
     return [];
   }
 
-  const lowerQuery = trimmedQuery.toLowerCase();
+  const lowerQuery = trimmedQuery.toLocaleLowerCase();
   const includeContentMatches = shouldSearchNotesSidebarContents(trimmedQuery);
-  const structuralResults: NotesSidebarSearchResult[] = [];
-
-  for (const entry of index) {
-    const { lowerName, lowerPreview } = getSearchEntryMetadata(entry);
-    const nameMatchIndex = lowerName.indexOf(lowerQuery);
-    const pathMatchIndex = lowerPreview.indexOf(lowerQuery);
-
-    if (nameMatchIndex !== -1) {
-      structuralResults.push({
-        ...entry,
-        id: `${entry.path}::name`,
-        matchIndex: nameMatchIndex,
-        matchKind: 'name',
-        contentSnippet: null,
-        contentMatchOrdinal: null,
-      });
-    }
-
-    if (pathMatchIndex !== -1) {
-      structuralResults.push({
-        ...entry,
-        id: `${entry.path}::path`,
-        matchIndex: pathMatchIndex,
-        matchKind: 'path',
-        contentSnippet: null,
-        contentMatchOrdinal: null,
-      });
-    }
-  }
-
-  structuralResults.sort(compareSearchResults);
-  if (!includeContentMatches || !getNoteContent || structuralResults.length >= MAX_SEARCH_RESULTS) {
-    return structuralResults.slice(0, MAX_SEARCH_RESULTS);
+  if (
+    !includeContentMatches ||
+    !getNoteContent ||
+    structuralResults.length >= NOTES_SIDEBAR_MAX_SEARCH_RESULTS
+  ) {
+    return structuralResults.slice(0, NOTES_SIDEBAR_MAX_SEARCH_RESULTS);
   }
 
   const contentResults: NotesSidebarSearchResult[] = [];
-  const contentResultLimit = MAX_SEARCH_RESULTS - structuralResults.length;
+  const contentResultLimit = NOTES_SIDEBAR_MAX_SEARCH_RESULTS - structuralResults.length;
   const contentEntries = getContentSearchEntriesByPath(index);
 
   for (const entry of contentEntries) {
@@ -270,5 +281,54 @@ export function queryNotesSidebarSearch(
   }
 
   contentResults.sort(compareSearchResults);
-  return [...structuralResults, ...contentResults].slice(0, MAX_SEARCH_RESULTS);
+  return [...structuralResults, ...contentResults].slice(0, NOTES_SIDEBAR_MAX_SEARCH_RESULTS);
+}
+
+export function queryNotesSidebarStructuralSearch(
+  index: NotesSidebarSearchEntry[],
+  query: string,
+): NotesSidebarSearchResult[] {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) {
+    return [];
+  }
+
+  const lowerQuery = trimmedQuery.toLocaleLowerCase();
+  const structuralResults: NotesSidebarSearchResult[] = [];
+
+  for (const entry of index) {
+    const {
+      lowerName,
+      lowerNameStartOffsets,
+      lowerPreview,
+      lowerPreviewStartOffsets,
+    } = getSearchEntryMetadata(entry);
+    const nameMatchIndex = lowerName.indexOf(lowerQuery);
+    const pathMatchIndex = lowerPreview.indexOf(lowerQuery);
+
+    if (nameMatchIndex !== -1) {
+      structuralResults.push({
+        ...entry,
+        id: `${entry.path}::name`,
+        matchIndex: lowerNameStartOffsets[nameMatchIndex] ?? nameMatchIndex,
+        matchKind: 'name',
+        contentSnippet: null,
+        contentMatchOrdinal: null,
+      });
+    }
+
+    if (pathMatchIndex !== -1) {
+      structuralResults.push({
+        ...entry,
+        id: `${entry.path}::path`,
+        matchIndex: lowerPreviewStartOffsets[pathMatchIndex] ?? pathMatchIndex,
+        matchKind: 'path',
+        contentSnippet: null,
+        contentMatchOrdinal: null,
+      });
+    }
+  }
+
+  structuralResults.sort(compareSearchResults);
+  return structuralResults.slice(0, NOTES_SIDEBAR_MAX_SEARCH_RESULTS);
 }

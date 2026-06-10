@@ -3,7 +3,9 @@ import type { FolderNode } from '@/stores/useNotesStore';
 import type { StarredEntry } from '@/stores/notes/types';
 import {
   buildNotesSidebarSearchIndex,
+  NOTES_SIDEBAR_MAX_SEARCH_RESULTS,
   queryNotesSidebarSearch,
+  queryNotesSidebarStructuralSearch,
   shouldSearchNotesSidebarContents,
 } from './notesSidebarSearchResults';
 
@@ -49,8 +51,14 @@ export function useSidebarContentSearchResults({
   );
   const searchableNoteCount = contentSearchEntries.length;
   const shouldSearchContents = shouldSearchNotesSidebarContents(searchQuery);
+  const structuralSearchResults = useMemo(
+    () => queryNotesSidebarStructuralSearch(searchIndex, searchQuery),
+    [searchIndex, searchQuery],
+  );
+  const structuralResultsFillLimit =
+    structuralSearchResults.length >= NOTES_SIDEBAR_MAX_SEARCH_RESULTS;
   const isContentSearchActive =
-    isSearchOpen && shouldSearchContents && searchableNoteCount > 0;
+    isSearchOpen && shouldSearchContents && searchableNoteCount > 0 && !structuralResultsFillLimit;
   const isContentIndexReady = useMemo(
     () =>
       searchableNoteCount > 0 &&
@@ -59,13 +67,26 @@ export function useSidebarContentSearchResults({
   );
 
   const searchResults = useMemo(
-    () =>
-      queryNotesSidebarSearch(
+    () => {
+      if (!shouldSearchContents || structuralResultsFillLimit) {
+        return structuralSearchResults;
+      }
+
+      return queryNotesSidebarSearch(
         searchIndex,
         searchQuery,
         (path) => noteContentsCache.get(path)?.content,
-      ),
-    [noteContentsCache, searchIndex, searchQuery],
+        structuralSearchResults,
+      );
+    },
+    [
+      noteContentsCache,
+      searchIndex,
+      searchQuery,
+      shouldSearchContents,
+      structuralResultsFillLimit,
+      structuralSearchResults,
+    ],
   );
 
   useEffect(() => {

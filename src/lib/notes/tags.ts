@@ -21,14 +21,9 @@ export interface NoteTagOccurrence {
   matchOrdinal: number;
 }
 
-interface ExcludedRange {
+export interface NoteMarkdownExcludedRange {
   from: number;
   to: number;
-}
-
-interface TokenMatchCursor {
-  cursor: number;
-  count: number;
 }
 
 interface FenceInfo {
@@ -47,8 +42,8 @@ export function isNoteTagToken(value: string): boolean {
   return !HEX_COLOR_PATTERN.test(value);
 }
 
-function collectExcludedRanges(content: string): ExcludedRange[] {
-  const ranges: ExcludedRange[] = [];
+export function getNoteMarkdownExcludedRanges(content: string): NoteMarkdownExcludedRange[] {
+  const ranges: NoteMarkdownExcludedRange[] = [];
   const frontmatterEnd = getLeadingFrontmatterEnd(content);
   if (frontmatterEnd !== null) {
     ranges.push({ from: 0, to: frontmatterEnd });
@@ -128,7 +123,7 @@ function getLeadingFrontmatterEnd(content: string): number | null {
   return null;
 }
 
-function collectFencedCodeRanges(content: string, ranges: ExcludedRange[]): void {
+function collectFencedCodeRanges(content: string, ranges: NoteMarkdownExcludedRange[]): void {
   let lineStart = 0;
 
   while (lineStart < content.length && ranges.length < MAX_EXCLUDED_RANGES) {
@@ -224,14 +219,14 @@ function isFenceCloser(
   return true;
 }
 
-function pushExcludedRange(ranges: ExcludedRange[], range: ExcludedRange): void {
+function pushExcludedRange(ranges: NoteMarkdownExcludedRange[], range: NoteMarkdownExcludedRange): void {
   if (ranges.length >= MAX_EXCLUDED_RANGES) {
     return;
   }
   ranges.push(range);
 }
 
-function collectInlineCodeRanges(content: string, ranges: ExcludedRange[]): void {
+function collectInlineCodeRanges(content: string, ranges: NoteMarkdownExcludedRange[]): void {
   for (let index = 0; index < content.length && ranges.length < MAX_EXCLUDED_RANGES; index += 1) {
     if (content[index] !== '`') {
       continue;
@@ -260,7 +255,7 @@ function rangeContainsNewline(content: string, from: number, to: number): boolea
   return false;
 }
 
-function collectAutolinkRanges(content: string, ranges: ExcludedRange[]): void {
+function collectAutolinkRanges(content: string, ranges: NoteMarkdownExcludedRange[]): void {
   const pattern = /<(?:(?:https?:|mailto:)[^<>\s]*|[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+)>/g;
   let match: RegExpExecArray | null;
   while (ranges.length < MAX_EXCLUDED_RANGES && (match = pattern.exec(content)) !== null) {
@@ -268,7 +263,7 @@ function collectAutolinkRanges(content: string, ranges: ExcludedRange[]): void {
   }
 }
 
-function collectRawTextHtmlRanges(content: string, ranges: ExcludedRange[]): void {
+function collectRawTextHtmlRanges(content: string, ranges: NoteMarkdownExcludedRange[]): void {
   const remainingRanges = MAX_EXCLUDED_RANGES - ranges.length;
   if (remainingRanges <= 0) {
     return;
@@ -282,7 +277,7 @@ function collectRawTextHtmlRanges(content: string, ranges: ExcludedRange[]): voi
   }
 }
 
-function collectMarkdownHtmlBlockRanges(content: string, ranges: ExcludedRange[]): void {
+function collectMarkdownHtmlBlockRanges(content: string, ranges: NoteMarkdownExcludedRange[]): void {
   const remainingRanges = MAX_EXCLUDED_RANGES - ranges.length;
   if (remainingRanges <= 0) {
     return;
@@ -300,7 +295,7 @@ function collectMarkdownHtmlBlockRanges(content: string, ranges: ExcludedRange[]
   }
 }
 
-function collectHtmlTagRanges(content: string, ranges: ExcludedRange[]): void {
+function collectHtmlTagRanges(content: string, ranges: NoteMarkdownExcludedRange[]): void {
   for (let index = 0; index < content.length && ranges.length < MAX_EXCLUDED_RANGES; index += 1) {
     if (content[index] !== '<') {
       continue;
@@ -313,7 +308,7 @@ function collectHtmlTagRanges(content: string, ranges: ExcludedRange[]): void {
   }
 }
 
-function collectMarkdownLinkTargetRanges(content: string, ranges: ExcludedRange[]): void {
+function collectMarkdownLinkTargetRanges(content: string, ranges: NoteMarkdownExcludedRange[]): void {
   for (let index = 0; index < content.length && ranges.length < MAX_EXCLUDED_RANGES; index += 1) {
     if (content[index] !== '[' || isEscaped(content, index)) {
       continue;
@@ -419,7 +414,7 @@ function isEscaped(content: string, index: number): boolean {
   return slashCount % 2 === 1;
 }
 
-function isIndexExcluded(index: number, ranges: readonly ExcludedRange[], startAt = 0): boolean {
+export function isNoteMarkdownIndexExcluded(index: number, ranges: readonly NoteMarkdownExcludedRange[], startAt = 0): boolean {
   for (let rangeIndex = startAt; rangeIndex < ranges.length; rangeIndex += 1) {
     const range = ranges[rangeIndex];
     if (index < range.from) {
@@ -438,11 +433,17 @@ function isOverlongTagToken(content: string, tokenEnd: number): boolean {
   return nextCharacter.length > 0 && TAG_BODY_CHARACTER_PATTERN.test(nextCharacter);
 }
 
+function addTokenPrefixes(prefixCounts: Map<string, number>, normalizedToken: string): void {
+  for (let length = 1; length <= normalizedToken.length; length += 1) {
+    const prefix = normalizedToken.slice(0, length);
+    prefixCounts.set(prefix, (prefixCounts.get(prefix) ?? 0) + 1);
+  }
+}
+
 export function extractNoteTagOccurrences(content: string): NoteTagOccurrence[] {
-  const excludedRanges = collectExcludedRanges(content);
+  const excludedRanges = getNoteMarkdownExcludedRanges(content);
   const occurrences: NoteTagOccurrence[] = [];
-  const normalizedContent = content.toLocaleLowerCase();
-  const tokenMatchCursors = new Map<string, TokenMatchCursor>();
+  const tokenPrefixCounts = new Map<string, number>();
   let excludedRangeCursor = 0;
   let visibleMatches = 0;
 
@@ -474,7 +475,7 @@ export function extractNoteTagOccurrences(content: string): NoteTagOccurrence[] 
     }
 
     const excluded = isEscaped(content, match.index)
-      || isIndexExcluded(match.index, excludedRanges, excludedRangeCursor);
+      || isNoteMarkdownIndexExcluded(match.index, excludedRanges, excludedRangeCursor);
     if (!excluded) {
       visibleMatches += 1;
       if (visibleMatches > MAX_NOTE_TAG_MATCHES || occurrences.length >= MAX_NOTE_TAG_OCCURRENCES) {
@@ -483,20 +484,8 @@ export function extractNoteTagOccurrences(content: string): NoteTagOccurrence[] 
     }
 
     const normalizedToken = token.toLocaleLowerCase();
-    const tokenCursor = tokenMatchCursors.get(normalizedToken) ?? { cursor: 0, count: 0 };
-    while (tokenCursor.cursor <= match.index - normalizedToken.length) {
-      const matchIndex = normalizedContent.indexOf(normalizedToken, tokenCursor.cursor);
-      if (matchIndex === -1 || matchIndex >= match.index) {
-        break;
-      }
-
-      tokenCursor.count += 1;
-      tokenCursor.cursor = matchIndex + Math.max(1, normalizedToken.length);
-    }
-    const matchOrdinal = tokenCursor.count;
-    tokenCursor.count += 1;
-    tokenCursor.cursor = match.index + Math.max(1, normalizedToken.length);
-    tokenMatchCursors.set(normalizedToken, tokenCursor);
+    const matchOrdinal = tokenPrefixCounts.get(normalizedToken) ?? 0;
+    addTokenPrefixes(tokenPrefixCounts, normalizedToken);
 
     if (excluded) {
       continue;

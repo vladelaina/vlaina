@@ -21,7 +21,7 @@ import {
 import 'katex/dist/katex.min.css';
 import '@/components/common/markdown/markdownSurface.css';
 import { readonlyMarkdownUrlTransform } from '@/components/common/markdown/urlTransform';
-import { compactLargeDataImageMarkdown } from './chatInlineImageTokens';
+import { compactLargeDataImageMarkdown, scrubChatInlineDataImageSyntax } from './chatInlineImageTokens';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 import { MAX_CHAT_MARKDOWN_RENDER_CHARS } from './chatMarkdownRenderLimits';
 
@@ -380,7 +380,13 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     const renderedContent =
       selectionFrozenContentRef.current ?? suspendedStreamContentRef.current ?? content;
     const compactedContent = useMemo(
-      () => compactLargeDataImageMarkdown(renderedContent),
+      () => renderedContent.length > MAX_CHAT_MARKDOWN_RENDER_CHARS
+        ? {
+            markdown: scrubChatInlineDataImageSyntax(renderedContent),
+            imageSrcByToken: new Map<string, string>(),
+            replaced: 0,
+          }
+        : compactLargeDataImageMarkdown(renderedContent),
       [renderedContent],
     );
 

@@ -95,4 +95,20 @@ describe('resolveExternalMarkdownEntriesForStarred security', () => {
       },
     ]);
   });
+
+  it('does not create external starred targets from paths with unsafe parent folders', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isDirectory: path.endsWith('/docs'),
+      isFile: path.endsWith('/alpha.md'),
+    }));
+
+    const result = await resolveExternalMarkdownEntriesForStarred('/vault', [
+      '/outside\u202Ecod/docs',
+      '/outside\u202Ecod/alpha.md',
+      '/outside\u001Fcontrol/docs',
+      '/outside\uFFFDreplacement/alpha.md',
+    ]);
+
+    expect(result).toEqual([]);
+  });
 });

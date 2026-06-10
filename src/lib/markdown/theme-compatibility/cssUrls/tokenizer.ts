@@ -66,16 +66,14 @@ export function findCssUrlTokens(css: string): CssUrlToken[] {
     }
 
     const url = css.slice(valueStart, valueEnd).trim();
-    if (url.length <= MAX_MARKDOWN_THEME_CSS_URL_VALUE_CHARS) {
-      tokens.push({
-        start: functionIndex,
-        end: closeIndex + 1,
-        raw: css.slice(functionIndex, closeIndex + 1),
-        url,
-      });
-      if (tokens.length >= MAX_MARKDOWN_THEME_CSS_URL_TOKENS) {
-        return tokens;
-      }
+    tokens.push({
+      start: functionIndex,
+      end: closeIndex + 1,
+      raw: css.slice(functionIndex, closeIndex + 1),
+      url,
+    });
+    if (tokens.length >= MAX_MARKDOWN_THEME_CSS_URL_TOKENS) {
+      return tokens;
     }
     index = closeIndex + 1;
   }

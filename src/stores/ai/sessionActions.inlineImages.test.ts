@@ -391,11 +391,8 @@ describe('session inline image persistence', () => {
       expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content)
         .toBe('![image](<attachment://first.png>)')
     })
-    await Promise.resolve()
-    await Promise.resolve()
-    await vi.runAllTimersAsync()
-    await Promise.resolve()
-    await Promise.resolve()
+    expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[1]?.content)
+      .toBe(`![image](<${secondSource}>)`)
     await vi.runAllTimersAsync()
     await vi.waitFor(() => {
       expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith(secondSource)
@@ -408,6 +405,94 @@ describe('session inline image persistence', () => {
     })
     expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content)
       .toBe('![image](<attachment://first.png>)')
+  })
+
+  it('reruns inline image persistence when new transcript data images arrive while processing', async () => {
+    const firstSource = 'data:image/png;base64,QUJD'
+    const secondSource = 'data:image/png;base64,RUZH'
+    const pendingPersistence = new Map<string, (value: string) => void>()
+    mocked.parseMarkdownAndHtmlImageTokens.mockImplementation((content: string) => {
+      const tokenPattern = /!\[image\]\(<(data:image\/png;base64,[A-Z]+)>\)/g
+      return Array.from(content.matchAll(tokenPattern), (match) => {
+        const src = match[1]
+        const targetStart = match.index! + match[0].indexOf(src)
+        return {
+          start: match.index!,
+          end: match.index! + match[0].length,
+          src,
+          targetStart,
+          targetEnd: targetStart + src.length,
+        }
+      })
+    })
+    mocked.persistDataUrlAttachment.mockImplementation((source: string) =>
+      new Promise((resolve) => {
+        pendingPersistence.set(source, resolve)
+      })
+    )
+    const createTranscriptMessage = (id: string, source: string): ChatMessage => {
+      const message = {
+        ...createMessage(id, 'visible text'),
+        apiTranscript: [{
+          role: 'user' as const,
+          content: [
+            { type: 'text' as const, text: `Hidden ![image](<${source}>)` },
+          ],
+        }],
+      }
+      message.versions[0].apiTranscript = message.apiTranscript
+      return message
+    }
+    const { createSessionActions } = await import('./sessionActions')
+    const actions = createSessionActions()
+    seedSession([createTranscriptMessage('m1', firstSource)])
+
+    await actions.switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
+    await vi.waitFor(() => {
+      expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith(firstSource)
+    })
+
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              messages: {
+                ...state.data.ai.messages,
+                'session-2': [
+                  ...(state.data.ai.messages['session-2'] || []),
+                  createTranscriptMessage('m2', secondSource),
+                ],
+              },
+            }
+          : state.data.ai,
+      },
+    }))
+    await actions.switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
+
+    pendingPersistence.get(firstSource)?.('attachment://first.png')
+    await vi.waitFor(() => {
+      expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.apiTranscript?.[0]?.content)
+        .toEqual([{ type: 'text', text: 'Hidden ![image](<attachment://first.png>)' }])
+    })
+    expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[1]?.apiTranscript?.[0]?.content)
+      .toEqual([{ type: 'text', text: `Hidden ![image](<${secondSource}>)` }])
+    await vi.runAllTimersAsync()
+    await vi.waitFor(() => {
+      expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith(secondSource)
+    })
+    pendingPersistence.get(secondSource)?.('attachment://second.png')
+
+    await vi.waitFor(() => {
+      expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[1]?.apiTranscript?.[0]?.content)
+        .toEqual([{ type: 'text', text: 'Hidden ![image](<attachment://second.png>)' }])
+    })
+    expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.apiTranscript?.[0]?.content)
+      .toEqual([{ type: 'text', text: 'Hidden ![image](<attachment://first.png>)' }])
   })
 
   it('persists inline data images found in API transcript text parts', async () => {
@@ -508,6 +593,22 @@ describe('session inline image persistence', () => {
     expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
     expect(content).toBe('Before  After')
     expect(content).not.toContain('data:image')
+  })
+
+  it('scrubs entity-encoded oversized markdown data images when token parsing skips the target', async () => {
+    mocked.parseMarkdownAndHtmlImageTokens.mockReturnValue([])
+    const oversizedSource = `data&colon;image&sol;png&semi;base64&comma;${'A'.repeat(520 * 1024)}`
+    const { createSessionActions } = await import('./sessionActions')
+    seedSession([createMessage('m1', `Before ![image](<${oversizedSource}>) After`)])
+
+    await createSessionActions().switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
+
+    const content = useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content
+    expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
+    expect(content).toBe('Before  After')
+    expect(content).not.toContain('data&colon;image&sol;')
+    expect(content).not.toContain('&semi;base64&comma;')
   })
 
   it('keeps oversized markdown data image examples inside code spans', async () => {

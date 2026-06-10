@@ -33,7 +33,7 @@ import {
   normalizeSafeRasterDataImageSrc,
 } from '@/lib/markdown/dataImagePolicy'
 import { escapeMarkdownAngleDestination, formatMarkdownImage } from '@/lib/markdown/markdownImageMarkdown'
-import { sanitizeHistory } from '@/lib/ai/requestContext'
+import { sanitizeHistory, sanitizeRequestTextImageReferences } from '@/lib/ai/requestContext'
 import { normalizeRenderableImageSrc } from '@/lib/markdown/renderableImagePolicy'
 
 function summarizeError(error: unknown): string {
@@ -271,12 +271,12 @@ function normalizeProviderImageUrl(value: string): string | null {
 
 function sanitizeCurrentMessageContent(content: ChatMessageContent): ChatMessageContent {
   if (!Array.isArray(content)) {
-    return content;
+    return sanitizeRequestTextImageReferences(content);
   }
 
   const parts = content.flatMap((part): ChatMessageContentPart[] => {
     if (part.type === 'text') {
-      return [part];
+      return [{ ...part, text: sanitizeRequestTextImageReferences(part.text) }];
     }
 
     const url = normalizeProviderImageUrl(part.image_url.url);
@@ -848,7 +848,7 @@ export class OpenAICompatibleClient implements AIClient {
     const safeHistory = sanitizeHistory(history)
     const body = this.buildChatRequest(message, safeHistory, model, provider, options)
     const isImageModel = isStandaloneImageGenerationModel(model)
-    const imagePrompt = isImageModel ? extractTextPrompt(message) : ''
+    const imagePrompt = isImageModel ? sanitizeRequestTextImageReferences(extractTextPrompt(message)) : ''
 
     const editImageUrl = isImageModel ? getFirstImageInput(message) : null
 

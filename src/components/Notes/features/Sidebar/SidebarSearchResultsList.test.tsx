@@ -212,6 +212,28 @@ describe('SidebarSearchResultsList', () => {
     expect(scrollToIndexMock).toHaveBeenCalledWith(1, { align: 'auto' });
   });
 
+  it('highlights matches after case folding expands earlier characters', () => {
+    render(
+      <SidebarSearchResultsList
+        results={[
+          buildResult({
+            id: 'unicode-result',
+            name: 'İstanbul Note',
+          }),
+        ]}
+        query="note"
+        currentNotePath={null}
+        onOpen={() => {}}
+        scrollRootRef={createRef<HTMLDivElement>()}
+        isContentScanPending={false}
+      />,
+    );
+
+    const highlighted = screen.getByText('Note');
+
+    expect(highlighted).toHaveClass('text-[var(--vlaina-color-status-info-fg)]');
+  });
+
   it('keeps the pending label visible while content scanning is running', () => {
     render(
       <SidebarSearchResultsList

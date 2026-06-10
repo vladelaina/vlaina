@@ -183,6 +183,31 @@ describe('featureSlice internal note paths', () => {
     expect(store.getState().noteMetadata?.notes['docs/image.png']).toBeUndefined();
   });
 
+  it('does not read, write, or cache metadata for unsafe note paths', () => {
+    const store = createNotesStore({
+      noteContentsCache: new Map([
+        ['../secret.md', { content: '# Secret', modifiedAt: 1 }],
+        ['docs/secret\u202Egnp.md', { content: '# Secret', modifiedAt: 1 }],
+      ]),
+    });
+
+    store.getState().setNoteIcon('../secret.md', 'sparkles');
+
+    expect(store.getState().error).toBe('Path must stay inside the current vault.');
+    expect(mocks.stat).not.toHaveBeenCalled();
+    expect(mocks.readFile).not.toHaveBeenCalled();
+    expect(mocks.safeWriteTextFile).not.toHaveBeenCalled();
+    expect(store.getState().noteMetadata?.notes['../secret.md']).toBeUndefined();
+
+    store.getState().setNoteIcon('docs/secret\u202Egnp.md', 'sparkles');
+
+    expect(store.getState().error).toBe('Selected file path contains unsupported characters');
+    expect(mocks.stat).not.toHaveBeenCalled();
+    expect(mocks.readFile).not.toHaveBeenCalled();
+    expect(mocks.safeWriteTextFile).not.toHaveBeenCalled();
+    expect(store.getState().noteMetadata?.notes['docs/secret\u202Egnp.md']).toBeUndefined();
+  });
+
   it('ignores stale internal cache entries for backlinks and tags', () => {
     const store = createNotesStore({
       noteContentsCache: new Map([
@@ -204,6 +229,48 @@ describe('featureSlice internal note paths', () => {
     expect(store.getState().getBacklinks('.vlaina/secret.md')).toEqual([]);
     expect(store.getState().getAllTags()).toEqual([
       { tag: 'public', count: 1 },
+    ]);
+  });
+
+  it('ignores stale unsafe cache entries for backlinks and tags', () => {
+    const store = createNotesStore({
+      noteContentsCache: new Map([
+        ['docs/ref.md', { content: 'See [[Alpha]] #public', modifiedAt: 1 }],
+        ['../secret.md', { content: 'See [[Alpha]] #secret', modifiedAt: 1 }],
+        ['docs/secret\u202Egnp.md', { content: 'See [[Alpha]] #bidi', modifiedAt: 1 }],
+      ]),
+    });
+
+    expect(store.getState().getBacklinks('alpha.md')).toEqual([
+      {
+        path: 'docs/ref.md',
+        name: 'ref',
+        context: 'See [[Alpha]] #public',
+      },
+    ]);
+    expect(store.getState().getAllTags()).toEqual([
+      { tag: 'public', count: 1 },
+    ]);
+  });
+
+  it('ignores hidden markdown content when collecting backlinks', () => {
+    const store = createNotesStore({
+      noteContentsCache: new Map([
+        ['docs/code.md', { content: '```md\n[[Alpha]]\n```', modifiedAt: 1 }],
+        ['docs/inline-code.md', { content: 'Use `[[Alpha]]` as text', modifiedAt: 1 }],
+        ['docs/link-target.md', { content: '[hidden](docs/[[Alpha]].md)', modifiedAt: 1 }],
+        ['docs/html.md', { content: '<img alt="[[Alpha]]" src="photo.png">', modifiedAt: 1 }],
+        ['docs/frontmatter.md', { content: '---\nrelated: [[Alpha]]\n---\nBody', modifiedAt: 1 }],
+        ['docs/ref.md', { content: 'See [[Alpha|the alpha note]] here', modifiedAt: 1 }],
+      ]),
+    });
+
+    expect(store.getState().getBacklinks('alpha.md')).toEqual([
+      {
+        path: 'docs/ref.md',
+        name: 'ref',
+        context: 'See [[Alpha|the alpha note]] here',
+      },
     ]);
   });
 });

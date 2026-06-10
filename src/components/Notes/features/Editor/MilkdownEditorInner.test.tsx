@@ -307,6 +307,21 @@ describe('createLargePlainMarkdownDocJSON', () => {
     expect(createLargePlainMarkdownDocJSON(markdown)).toBeNull();
   });
 
+  it('rejects large markdown with character references that need markdown decoding', () => {
+    const markdown = [
+      '# Large Entity Document',
+      '',
+      ...Array.from({ length: 1100 }, (_, index) => (
+        index === 100
+          ? `Paragraph ${index} with Fish &amp; Chips ${'plain text '.repeat(90)}`
+          : `Paragraph ${index} ${'plain text '.repeat(90)}`
+      )),
+    ].join('\n\n');
+
+    expect(markdown.length).toBeGreaterThan(1_000_000);
+    expect(createLargePlainMarkdownDocJSON(markdown)).toBeNull();
+  });
+
   it('rejects large markdown with structural list and rule syntax', () => {
     const paragraph = 'plain text '.repeat(120);
     const cases = [

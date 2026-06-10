@@ -1,6 +1,6 @@
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
-import { getBaseName, getParentPath, isAbsolutePath } from '@/lib/storage/adapter';
+import { getBaseName, getParentPath, isAbsolutePath, normalizeAbsolutePath } from '@/lib/storage/adapter';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import {
   collectExpandedPaths,
@@ -49,6 +49,7 @@ import { persistRecentNotes, remapMetadataEntries } from '../storage';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
+import { hasUnsafeVaultPathSegment, normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 import type { StarredEntry } from '../types';
 
@@ -184,16 +185,33 @@ function isKnownNoteFilePath(
   );
 }
 
+function hasUnsafeExternalPathSegment(path: string): boolean {
+  const normalizedPath = isAbsolutePath(path) ? normalizeAbsolutePath(path) : path;
+  return hasUnsafeVaultPathSegment(normalizedPath, {
+    allowNavigationSegments: true,
+  });
+}
+
+function isAllowedExternalActionPath(path: string): boolean {
+  const normalizedPath = isAbsolutePath(path) ? normalizeAbsolutePath(path) : path;
+  if (hasInternalNotePathSegment(normalizedPath) || hasUnsafeExternalPathSegment(normalizedPath)) {
+    return false;
+  }
+
+  return isAbsolutePath(normalizedPath) || normalizeVaultRelativePath(normalizedPath) != null;
+}
+
 export function createWorkspaceExternalActions(
   set: NotesSet,
   get: NotesGet
 ): Pick<WorkspaceSlice, 'applyExternalPathRename' | 'applyExternalPathDeletion'> {
   return {
     applyExternalPathRename: async (oldPath: string, newPath: string) => {
-      const oldPathIsInternal = hasInternalNotePathSegment(oldPath);
-      const newPathIsInternal = hasInternalNotePathSegment(newPath);
-      if (oldPathIsInternal || newPathIsInternal || hasInternalNotePathSegment(get().notesPath)) {
-        if (!oldPathIsInternal && newPathIsInternal) {
+      const oldPathAllowed = isAllowedExternalActionPath(oldPath);
+      const newPathAllowed = isAllowedExternalActionPath(newPath);
+      if (!oldPathAllowed || !newPathAllowed || hasInternalNotePathSegment(get().notesPath)) {
+        const normalizedNewPath = isAbsolutePath(newPath) ? normalizeAbsolutePath(newPath) : newPath;
+        if (oldPathAllowed && !newPathAllowed && hasInternalNotePathSegment(normalizedNewPath)) {
           await get().applyExternalPathDeletion(oldPath);
         }
         return;
@@ -310,7 +328,7 @@ export function createWorkspaceExternalActions(
     },
 
     applyExternalPathDeletion: async (path: string) => {
-      if (hasInternalNotePathSegment(path) || hasInternalNotePathSegment(get().notesPath)) {
+      if (!isAllowedExternalActionPath(path) || hasInternalNotePathSegment(get().notesPath)) {
         return;
       }
 

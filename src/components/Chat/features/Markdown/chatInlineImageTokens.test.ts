@@ -190,6 +190,65 @@ describe('chatInlineImageTokens', () => {
     expect(result.markdown).not.toContain('data:image/png;base64');
   });
 
+  it('scrubs overflow entity-encoded markdown data images after the scan budget is reached', () => {
+    const smallSrc = 'https://example.com/small.png';
+    const encodedSrc = createLargeDataImage('u')
+      .replace('data:image/', 'data&colon;image&sol;')
+      .replace(';base64,', '&semi;base64&comma;');
+    const markdown = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](${smallSrc}?${index})`),
+      `![overflow](<${encodedSrc}>)`,
+    ].join('\n');
+
+    const result = compactLargeDataImageMarkdown(markdown);
+
+    expect(result.markdown).toContain('[image]');
+    expect(result.markdown).not.toContain('data&colon;image&sol;');
+    expect(result.markdown).not.toContain('&semi;base64&comma;');
+  });
+
+  it('keeps code markdown data images when scrubbing after the scan budget is reached', () => {
+    const smallSrc = 'https://example.com/small.png';
+    const codeSrc = createLargeDataImage('s');
+    const overflowSrc = createLargeDataImage('t');
+    const markdown = [
+      '```md',
+      `![example](<${codeSrc}>)`,
+      '```',
+      `\`![inline](<${codeSrc}>)\``,
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](${smallSrc}?${index})`),
+      `![overflow](<${overflowSrc}>)`,
+    ].join('\n');
+
+    const result = compactLargeDataImageMarkdown(markdown);
+
+    expect(result.markdown).toContain(`![example](<${codeSrc}>)`);
+    expect(result.markdown).toContain(`\`![inline](<${codeSrc}>)\``);
+    expect(result.markdown).toContain('[image]');
+    expect(result.markdown).not.toContain(overflowSrc);
+  });
+
+  it('keeps code html data images when scrubbing after the scan budget is reached', () => {
+    const smallSrc = 'https://example.com/small.png';
+    const codeSrc = createLargeDataImage('x');
+    const overflowSrc = createLargeDataImage('y');
+    const markdown = [
+      '```html',
+      `<img src="${codeSrc}" alt="code">`,
+      '```',
+      `\`<img src="${codeSrc}" alt="inline">\``,
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](${smallSrc}?${index})`),
+      `<img src="${overflowSrc}" alt="overflow">`,
+    ].join('\n');
+
+    const result = compactLargeDataImageMarkdown(markdown);
+
+    expect(result.markdown).toContain(`<img src="${codeSrc}" alt="code">`);
+    expect(result.markdown).toContain(`\`<img src="${codeSrc}" alt="inline">\``);
+    expect(result.markdown).toContain('[image]');
+    expect(result.markdown).not.toContain(overflowSrc);
+  });
+
   it('scrubs overflow html data images after the scan budget is reached', () => {
     const smallSrc = 'https://example.com/small.png';
     const largeSrc = createLargeDataImage('r');
@@ -203,4 +262,60 @@ describe('chatInlineImageTokens', () => {
     expect(result.markdown).toContain('[image]');
     expect(result.markdown).not.toContain('data:image/png;base64');
   });
+
+  it('scrubs overflow html data images when earlier attributes contain angle brackets', () => {
+    const smallSrc = 'https://example.com/small.png';
+    const largeSrc = createLargeDataImage('w');
+    const markdown = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](${smallSrc}?${index})`),
+      `<img alt="before > after" src="${largeSrc}">`,
+    ].join('\n');
+
+    const result = compactLargeDataImageMarkdown(markdown);
+
+    expect(result.markdown).toContain('[image]');
+    expect(result.markdown).not.toContain('data:image/png;base64');
+  });
+
+  it('scrubs overflow entity-encoded html data images after the scan budget is reached', () => {
+    const smallSrc = 'https://example.com/small.png';
+    const encodedSrc = createLargeDataImage('v')
+      .replace('data:image/', 'data&colon;image&sol;')
+      .replace(';base64,', '&semi;base64&comma;');
+    const markdown = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](${smallSrc}?${index})`),
+      `<img src="${encodedSrc}" alt="overflow">`,
+    ].join('\n');
+
+    const result = compactLargeDataImageMarkdown(markdown);
+
+    expect(result.markdown).toContain('[image]');
+    expect(result.markdown).not.toContain('data&colon;image&sol;');
+    expect(result.markdown).not.toContain('&semi;base64&comma;');
+  });
+
+  it('does not scrub overflow html images only because non-src attributes mention data images', () => {
+    const smallSrc = 'https://example.com/small.png';
+    const markdown = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](${smallSrc}?${index})`),
+      '<img src="https://example.com/real.png" alt="data:image/png;base64,not-src">',
+    ].join('\n');
+
+    const result = compactLargeDataImageMarkdown(markdown);
+
+    expect(result.markdown).toContain('<img src="https://example.com/real.png" alt="data:image/png;base64,not-src">');
+  });
+
+  it('does not scrub overflow html images when lazy data-src has data images but src is safe', () => {
+    const smallSrc = 'https://example.com/small.png';
+    const markdown = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](${smallSrc}?${index})`),
+      '<img data-src="data:image/png;base64,not-src" src="https://example.com/real.png">',
+    ].join('\n');
+
+    const result = compactLargeDataImageMarkdown(markdown);
+
+    expect(result.markdown).toContain('<img data-src="data:image/png;base64,not-src" src="https://example.com/real.png">');
+  });
+
 });

@@ -247,6 +247,44 @@ describe('buildStoredUserMessageContent image parsing', () => {
     expect(options?.allowPath?.('/outside/cover.png')).toBe(false);
   });
 
+  it('rejects image attachment paths from unsafe starred external folder records', async () => {
+    useNotesStore.setState({
+      notesPath: '/vault',
+      starredEntries: [
+        {
+          id: 'unsafe-vault',
+          kind: 'folder',
+          vaultPath: '/external\u202Ecod',
+          relativePath: 'assets',
+          addedAt: 1,
+        },
+        {
+          id: 'traversal-relative',
+          kind: 'folder',
+          vaultPath: '/external',
+          relativePath: '../assets',
+          addedAt: 1,
+        },
+      ],
+    });
+
+    await buildMessageImageSources([{
+      id: 'external-image',
+      path: '/external/assets/cover.png',
+      previewUrl: '',
+      assetUrl: '',
+      name: 'cover.png',
+      type: 'image/png',
+      size: 128,
+    }]);
+
+    const options = mocks.convertToBase64.mock.calls[0]?.[1] as
+      | { allowPath?: (path: string) => boolean }
+      | undefined;
+    expect(options?.allowPath?.('/external\u202Ecod/assets/cover.png')).toBe(false);
+    expect(options?.allowPath?.('/external/assets/cover.png')).toBe(false);
+  });
+
   it('rejects image attachment paths from starred folders rooted in internal note directories', async () => {
     useNotesStore.setState({
       notesPath: '/vault',

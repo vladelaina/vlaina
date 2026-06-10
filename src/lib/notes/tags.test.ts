@@ -21,6 +21,13 @@ describe('note tags', () => {
     expect(extractNoteTags(String.raw`\#escaped #visible`)).toEqual(['visible']);
   });
 
+  it('counts tag match ordinals case-insensitively without indexing excluded tags', () => {
+    expect(extractNoteTagOccurrences('`#Topic` #topic #Topic')).toEqual([
+      expect.objectContaining({ tag: 'topic', token: '#topic', matchOrdinal: 1 }),
+      expect.objectContaining({ tag: 'topic', token: '#Topic', matchOrdinal: 2 }),
+    ]);
+  });
+
   it('excludes fenced code blocks and resumes after the closing fence', () => {
     expect(extractNoteTags([
       '```ts',

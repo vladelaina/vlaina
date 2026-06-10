@@ -1,5 +1,5 @@
 import { getParentPath, joinPath, toFileUrl } from '@/lib/storage/adapter';
-import { findCssUrlTokens } from './tokenizer';
+import { findCssUrlTokens, MAX_MARKDOWN_THEME_CSS_URL_VALUE_CHARS } from './tokenizer';
 import type { RelativeMarkdownThemeCssUrl } from './types';
 import { isRelativeCssAssetUrl, renderCssUrl, splitCssUrlSuffix } from './urlIdentity';
 
@@ -37,6 +37,9 @@ export async function rewriteRelativeMarkdownThemeCssUrls(
     tokens,
     MAX_MARKDOWN_THEME_CSS_URL_REWRITE_CONCURRENCY,
     async (token) => {
+      if (token.url.length > MAX_MARKDOWN_THEME_CSS_URL_VALUE_CHARS) {
+        return token.raw;
+      }
       if (!isRelativeCssAssetUrl(token.url)) {
         return token.raw;
       }

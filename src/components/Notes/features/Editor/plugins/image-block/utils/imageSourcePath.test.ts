@@ -169,6 +169,20 @@ describe('imageSourcePath', () => {
         }, deps)).resolves.toEqual([]);
     });
 
+    it('does not resolve images from unsafe current note paths', async () => {
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: 'assets/demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'daily/unsafe\u202Egnp.md',
+        }, deps)).resolves.toEqual([]);
+
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: 'assets/demo.png',
+            notesPath: '/vault',
+            currentNotePath: '/tmp/shared/unsafe\0.md',
+        }, deps)).resolves.toEqual([]);
+    });
+
     it('rejects relative segments that escape an external note directory', async () => {
         await expect(resolveImageSourcePathCandidates({
             rawSrc: '../secret.png',

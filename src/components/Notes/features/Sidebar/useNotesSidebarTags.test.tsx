@@ -15,6 +15,25 @@ vi.mock('@/lib/storage/adapter', () => ({
   }),
   isAbsolutePath: (path: string) => path.startsWith('/'),
   joinPath: async (...segments: string[]) => segments.join('/').replace(/\/+/g, '/'),
+  normalizeAbsolutePath: (path: string) => {
+    const normalized = path.replace(/\\/g, '/');
+    if (!normalized.startsWith('/')) {
+      return path;
+    }
+
+    const parts: string[] = [];
+    for (const part of normalized.split('/')) {
+      if (!part || part === '.') {
+        continue;
+      }
+      if (part === '..') {
+        parts.pop();
+        continue;
+      }
+      parts.push(part);
+    }
+    return `/${parts.join('/')}`;
+  },
 }));
 
 const rootFolder: FolderNode = {
@@ -42,6 +61,23 @@ describe('useNotesSidebarTags', () => {
 
   it('does not read missing sidebar tag content when stat has no size', async () => {
     const scanAllNotes = vi.fn(async () => undefined);
+
+    renderHook(() => useNotesSidebarTags({
+      rootFolder,
+      noteContentsCache: new Map(),
+      scanAllNotes,
+      currentVaultPath: '/vault',
+    }));
+
+    await waitFor(() => {
+      expect(mocked.stat).toHaveBeenCalledWith('/vault/alpha.md');
+    });
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read oversized missing sidebar tag content', async () => {
+    const scanAllNotes = vi.fn(async () => undefined);
+    mocked.stat.mockResolvedValue({ isFile: true, size: 512 * 1024 + 1 });
 
     renderHook(() => useNotesSidebarTags({
       rootFolder,
@@ -89,6 +125,60 @@ describe('useNotesSidebarTags', () => {
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not read absolute non-Markdown sidebar tag content paths', async () => {
+    const scanAllNotes = vi.fn(async () => undefined);
+
+    renderHook(() => useNotesSidebarTags({
+      rootFolder: null,
+      noteContentsCache: new Map(),
+      scanAllNotes,
+      currentVaultPath: null,
+      starredEntries: [
+        {
+          id: 'starred-asset',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: 'asset.png',
+          addedAt: 1,
+        },
+      ],
+    }));
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(mocked.stat).not.toHaveBeenCalled();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read absolute sidebar tag content paths with unsafe characters', async () => {
+    const scanAllNotes = vi.fn(async () => undefined);
+
+    renderHook(() => useNotesSidebarTags({
+      rootFolder: null,
+      noteContentsCache: new Map(),
+      scanAllNotes,
+      currentVaultPath: null,
+      starredEntries: [
+        {
+          id: 'starred-unsafe',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: 'secret\u202Egnp.md',
+          addedAt: 1,
+        },
+      ],
+    }));
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(mocked.stat).not.toHaveBeenCalled();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
   it('does not read sidebar tag content from internal vault paths', async () => {
     const scanAllNotes = vi.fn(async () => undefined);
 
@@ -100,6 +190,24 @@ describe('useNotesSidebarTags', () => {
     }));
 
     await Promise.resolve();
+
+    expect(mocked.stat).not.toHaveBeenCalled();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read sidebar tag content from vault paths with traversal segments', async () => {
+    const scanAllNotes = vi.fn(async () => undefined);
+
+    renderHook(() => useNotesSidebarTags({
+      rootFolder,
+      noteContentsCache: new Map(),
+      scanAllNotes,
+      currentVaultPath: '/vault/../outside',
+    }));
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
 
     expect(mocked.stat).not.toHaveBeenCalled();
     expect(mocked.readFile).not.toHaveBeenCalled();

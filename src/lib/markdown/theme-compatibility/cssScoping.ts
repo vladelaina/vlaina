@@ -26,7 +26,12 @@ function rewriteCssSelectors(
   platform: MarkdownThemePlatform,
   scopeSelector: string
 ): string {
-  const root = postcss.parse(css, { from: undefined });
+  let root: postcss.Root;
+  try {
+    root = postcss.parse(css, { from: undefined });
+  } catch {
+    return '';
+  }
 
   root.walkRules((rule) => {
     if (isKeyframesRule(rule)) return;

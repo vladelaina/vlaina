@@ -282,6 +282,20 @@ describe('fileSystemSlice rename actions', () => {
     expect(harness.getState().currentNote).toEqual({ path: '/vault-b/docs/alpha.md', content: '# alpha' });
   });
 
+  it('rejects unsafe absolute rename source paths before reaching storage', async () => {
+    const harness = createSliceHarness();
+
+    harness.getState().notesPath = '/vault-a';
+    harness.getState().currentNote = { path: '/vault-b/docs/alpha.md', content: '# alpha' };
+
+    await harness.getState().renameAbsoluteNote('/vault-b/docs/secret\u202Egnp.md', 'beta');
+    await harness.getState().renameAbsoluteNote('/vault-b/docs/secret\u001F.md', 'beta');
+
+    expect(hoisted.storageAdapter.rename).not.toHaveBeenCalled();
+    expect(harness.getState().error).toBe('Selected file path contains unsupported characters');
+    expect(harness.getState().currentNote).toEqual({ path: '/vault-b/docs/alpha.md', content: '# alpha' });
+  });
+
   it('preserves latest starred entries while a relative note rename is in flight', async () => {
     let resolveRename: () => void;
     hoisted.storageAdapter.rename.mockImplementation(() => new Promise<undefined>((resolve) => {

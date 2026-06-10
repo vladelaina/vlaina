@@ -18,6 +18,25 @@ vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => adapter,
   isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/')),
+  normalizeAbsolutePath: (path: string) => {
+    const normalized = path.replace(/\\/g, '/');
+    const driveMatch = normalized.match(/^([A-Za-z]:)(?:\/|$)/);
+    const root = driveMatch ? `${driveMatch[1]}/` : normalized.startsWith('/') ? '/' : '';
+    if (!root) return path;
+
+    const parts: string[] = [];
+    for (const part of normalized.slice(root.length).split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') {
+        parts.pop();
+        continue;
+      }
+      parts.push(part);
+    }
+
+    const nextPath = `${root}${parts.join('/')}`.replace(/\/+$/, '');
+    return nextPath || root;
+  },
 }));
 
 vi.mock('@/lib/storage/paths', () => ({
@@ -150,6 +169,28 @@ describe('starred persistence', () => {
       'note::C:/vault-a::disk.md',
       'folder::C:/vault-a::assets',
     ]);
+  });
+
+  it('normalizes deleted entry tombstone vault paths before filtering merged entries', async () => {
+    const diskEntry = createEntry('disk', 'note', 'C:/vault-a/docs/..', 'removed.md');
+    adapter.exists.mockImplementation(async (path: string) => path === '/store/notes-starred.json');
+    adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
+    adapter.readFile.mockResolvedValue(JSON.stringify({
+      version: 1,
+      entries: [diskEntry],
+      deletedEntryKeys: ['note::C:/vault-a::removed.md'],
+    }));
+    adapter.writeFile.mockResolvedValue();
+
+    const persistence = await import('./persistence');
+    persistence.saveStarredRegistry([]);
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    const [, content] = adapter.writeFile.mock.calls[0];
+    const payload = JSON.parse(content);
+    expect(payload.entries).toEqual([]);
+    expect(payload.deletedEntryKeys).toEqual(['note::C:/vault-a::removed.md']);
   });
 
   it('bounds deleted entry tombstone scans while merging disk state', async () => {
