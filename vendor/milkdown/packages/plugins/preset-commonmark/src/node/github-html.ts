@@ -74,6 +74,16 @@ const urlAttributesByTag: Record<string, ReadonlySet<string>> = {
 const srcsetAttributesByTag: Record<string, ReadonlySet<string>> = {
   source: new Set(['srcset']),
 }
+const loadableOrUrlAttributes = new Set([
+  'action',
+  'cite',
+  'formaction',
+  'href',
+  'longdesc',
+  'poster',
+  'src',
+  'srcset',
+])
 
 const gfmBlockHtmlTagPattern =
   /^<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i
@@ -158,6 +168,13 @@ function isAllowedAttribute(tagName: string, attributeName: string) {
 
 function isHtmlAttributeValueAllowed(value: string) {
   return value.length <= maxGithubHtmlAttributeValueChars
+}
+
+function isTagSpecificUrlAttribute(tagName: string, attributeName: string) {
+  return Boolean(
+    urlAttributesByTag[tagName]?.has(attributeName)
+    || srcsetAttributesByTag[tagName]?.has(attributeName)
+  )
 }
 
 function isSrcsetWhitespace(char: string) {
@@ -292,6 +309,8 @@ function normalizeUrl(value: string, protocols: ReadonlySet<string>, options: { 
   if (relativeProtocolMarkers.has(marker)) {
     if (trimmed.startsWith('//') && options.allowProtocolRelative === false)
       return null
+    if (!trimmed.startsWith('//') && !options.allowPlainRelative)
+      return null
     if (!trimmed.startsWith('//') && hasInternalImageUrlPathSegment(trimmed))
       return null
     if (trimmed.startsWith('//')) {
@@ -391,6 +410,8 @@ function sanitizeElement(element: Element, context: SanitizeContext, depth: numb
     if (!isAllowedAttribute(tagName, attributeName)) continue
     const value = element.getAttribute(name)
     if (value === null) continue
+    if (loadableOrUrlAttributes.has(attributeName) && !isTagSpecificUrlAttribute(tagName, attributeName))
+      continue
 
     if (attributeName === 'style') {
       const sanitizedStyle = sanitizeStyle(value)
@@ -402,7 +423,7 @@ function sanitizeElement(element: Element, context: SanitizeContext, depth: numb
     if (urlAttributesByTag[tagName]?.has(attributeName)) {
       const protocols = tagName === 'a' ? linkProtocols : mediaProtocols
       const normalizedUrl = normalizeUrl(value, protocols, {
-        allowPlainRelative: true,
+        allowPlainRelative: tagName !== 'iframe',
         allowProtocolRelative: tagName !== 'a',
         blockLocalNetwork: tagName !== 'a',
       })

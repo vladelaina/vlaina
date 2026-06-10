@@ -5,6 +5,7 @@ import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { canInsertImageNodeAtSelection, insertImageNodeAtSelection } from './imageNodeInsertion';
+import { MAX_IMAGE_UPLOAD_INPUT_FILES } from './imageFileExtraction';
 
 export type ImageUploadStoreState = Pick<NotesStore, 'uploadAsset' | 'currentNote'>;
 
@@ -70,7 +71,7 @@ export async function handleEditorImageFiles(
 
     let handled = false;
 
-    for (const file of files) {
+    for (const file of files.slice(0, MAX_IMAGE_UPLOAD_INPUT_FILES)) {
         const inserted = await uploadImageFileAndInsert(file, view, getStoreState);
         handled = inserted || handled;
     }

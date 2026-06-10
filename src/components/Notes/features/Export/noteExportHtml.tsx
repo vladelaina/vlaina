@@ -37,6 +37,7 @@ import { EXPORT_DOCUMENT_CSS, EXPORT_WIDTH_PX } from './noteExportHtmlStyles';
 const BASE_EXPORT_MARKDOWN_SANITIZE_SCHEMA = createMarkdownSanitizeSchema();
 const EXPORT_BLOCKED_LOADABLE_RAW_HTML_TAGS = new Set(['audio', 'iframe', 'track', 'video']);
 const MAX_EXPORT_IMAGE_DECODE_WAIT_COUNT = 200;
+export const MAX_EXPORT_IMAGE_DECODE_SCAN_ELEMENTS = 20_000;
 export const MAX_EXPORT_IMAGE_DECODE_CONCURRENCY = 8;
 
 const NOTE_EXPORT_MARKDOWN_SANITIZE_SCHEMA = {
@@ -161,7 +162,7 @@ function transformExportUrl(value: string, key: string): string {
   return value;
 }
 
-function collectExportDecodeWaitImages(container: HTMLElement): HTMLImageElement[] {
+export function collectExportDecodeWaitImages(container: HTMLElement): HTMLImageElement[] {
   const images: HTMLImageElement[] = [];
   const firstElement = container.firstElementChild;
   if (!firstElement) {
@@ -169,8 +170,14 @@ function collectExportDecodeWaitImages(container: HTMLElement): HTMLImageElement
   }
 
   const stack: ExportImageVisit[] = [{ element: firstElement, depth: 1 }];
-  while (stack.length > 0 && images.length < MAX_EXPORT_IMAGE_DECODE_WAIT_COUNT) {
+  let scannedElements = 0;
+  while (
+    stack.length > 0 &&
+    images.length < MAX_EXPORT_IMAGE_DECODE_WAIT_COUNT &&
+    scannedElements < MAX_EXPORT_IMAGE_DECODE_SCAN_ELEMENTS
+  ) {
     const { element, depth } = stack.pop() as ExportImageVisit;
+    scannedElements += 1;
     if (element instanceof HTMLImageElement) {
       images.push(element);
     }

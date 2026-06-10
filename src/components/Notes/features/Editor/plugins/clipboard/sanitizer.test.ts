@@ -216,6 +216,10 @@ describe('sanitizeHtml', () => {
     const result = sanitizeHtml([
       '<img src="/etc/passwd">',
       '<iframe src="/admin"></iframe>',
+      '<iframe src="#self"></iframe>',
+      '<iframe src="?embed"></iframe>',
+      '<iframe src="embed.html"></iframe>',
+      '<iframe src="./embed.html"></iframe>',
       '<video poster="/private.png"><source src="/private.mp4"></video>',
       '<img src="./images/safe.png">',
       '<img src="../images/safe.png">',

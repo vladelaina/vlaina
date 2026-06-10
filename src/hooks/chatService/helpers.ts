@@ -292,13 +292,17 @@ function collectStoredUserMessageImages(content: string): {
     const rawSrc = token.src?.trim() ?? '';
     const normalizedSrc = normalizeRenderableImageSrc(rawSrc);
     if (normalizedSrc && isRenderedImageSource(normalizedSrc)) {
-      imageSources.push(normalizedSrc);
+      if (imageSources.length < MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS) {
+        imageSources.push(normalizedSrc);
+      }
       tokensToStrip.push(token);
       continue;
     }
 
     if (isSvgDataUrl(rawSrc) && isSizedDataImageSrc(rawSrc)) {
-      imageSources.push(rawSrc);
+      if (imageSources.length < MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS) {
+        imageSources.push(rawSrc);
+      }
       tokensToStrip.push(token);
       continue;
     }

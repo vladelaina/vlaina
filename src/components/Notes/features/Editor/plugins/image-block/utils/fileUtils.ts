@@ -8,6 +8,7 @@ import { sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 
 const pendingDeletions = new Map<string, ReturnType<typeof setTimeout>>();
 const UNDO_GRACE_PERIOD_MS = 10000;
+export const MAX_PENDING_IMAGE_DELETIONS = 100;
 export const MAX_RESTORED_IMAGE_BYTES = 50 * 1024 * 1024;
 
 function normalizeBlobMimeType(value: string): string {
@@ -88,8 +89,11 @@ export async function moveImageToTrash(
         if (!fullPath) return false;
         if (!isImageFilename(fullPath)) return false;
 
-        if (pendingDeletions.has(fullPath)) {
-            clearTimeout(pendingDeletions.get(fullPath)!);
+        const existingDeletion = pendingDeletions.get(fullPath);
+        if (existingDeletion) {
+            clearTimeout(existingDeletion);
+        } else if (pendingDeletions.size >= MAX_PENDING_IMAGE_DELETIONS) {
+            return false;
         }
 
         const timerId = setTimeout(async () => {

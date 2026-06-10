@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useToastStore } from '@/stores/useToastStore';
 import { handleEditorImageFiles, uploadImageFileAndInsert } from './handleEditorImageFiles';
+import { MAX_IMAGE_UPLOAD_INPUT_FILES } from './imageFileExtraction';
 
 describe('handleEditorImageFiles', () => {
     beforeEach(() => {
@@ -107,6 +108,45 @@ describe('handleEditorImageFiles', () => {
 
         expect(uploadAsset).toHaveBeenCalledTimes(2);
         expect(dispatch).toHaveBeenCalledTimes(2);
+    });
+
+    it('bounds direct image file handling before upload', async () => {
+        const scrollIntoView = vi.fn(function () {
+            return tr;
+        });
+        const replaceSelectionWith = vi.fn(function () {
+            return { scrollIntoView, docChanged: true };
+        });
+        const tr = { replaceSelectionWith };
+        const dispatch = vi.fn();
+        const create = vi.fn(() => ({ type: 'image-node' }));
+        const uploadAsset = vi.fn().mockResolvedValue({
+            success: true,
+            path: './assets/demo.png',
+            isDuplicate: false,
+        });
+        const view = {
+            state: {
+                schema: { nodes: { image: { create } } },
+                tr,
+            },
+            dom: { dispatchEvent: vi.fn() },
+            dispatch,
+        };
+        const files = Array.from(
+            { length: MAX_IMAGE_UPLOAD_INPUT_FILES + 5 },
+            (_value, index) => new File([`demo-${index}`], `demo-${index}.png`, { type: 'image/png' }),
+        );
+
+        await expect(handleEditorImageFiles(files, view as never, () => ({
+            uploadAsset,
+            currentNote: { path: 'daily/demo.md', content: '' },
+        }))).resolves.toBe(true);
+
+        const uploadedFiles = uploadAsset.mock.calls.map(([uploadedFile]) => uploadedFile);
+        expect(uploadAsset).toHaveBeenCalledTimes(MAX_IMAGE_UPLOAD_INPUT_FILES);
+        expect(uploadedFiles.at(-1)).toBe(files[MAX_IMAGE_UPLOAD_INPUT_FILES - 1]);
+        expect(uploadedFiles).not.toContain(files[MAX_IMAGE_UPLOAD_INPUT_FILES]);
     });
 
     it('silences transient missing vault upload failures', async () => {

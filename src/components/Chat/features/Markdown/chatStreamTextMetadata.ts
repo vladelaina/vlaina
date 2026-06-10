@@ -1,6 +1,7 @@
 import {
   extractRenderedMessageImageSources,
   MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+  normalizeRenderedMessageImageSources,
 } from '@/components/Chat/common/messageClipboard';
 import {
   getMarkdownFenceState,
@@ -41,7 +42,9 @@ export function countFencedCodeBlocks(markdown: string): number {
 }
 
 export function countRenderableImages(markdown: string): number {
-  return extractRenderedMessageImageSources(markdown, {
-    maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
-  }).length;
+  return normalizeRenderedMessageImageSources(
+    extractRenderedMessageImageSources(markdown, {
+      maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+    }),
+  ).length;
 }

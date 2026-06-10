@@ -10,6 +10,7 @@ interface ExpectedExternalChange {
 
 const EXPECTED_CHANGE_TTL_MS = 1000;
 const EXPECTED_CHANGE_MAX_EVENTS = 4;
+export const MAX_EXPECTED_EXTERNAL_CHANGES = 1024;
 
 let expectedChanges: ExpectedExternalChange[] = [];
 
@@ -43,6 +44,10 @@ export function markExpectedExternalChange(path: string, recursive = false): voi
     });
   }
 
+  if (expectedChanges.length > MAX_EXPECTED_EXTERNAL_CHANGES) {
+    expectedChanges.sort((left, right) => left.createdAt - right.createdAt);
+    expectedChanges.splice(0, expectedChanges.length - MAX_EXPECTED_EXTERNAL_CHANGES);
+  }
 }
 
 export function shouldIgnoreExpectedExternalChange(path: string): boolean {

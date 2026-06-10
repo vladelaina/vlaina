@@ -4,6 +4,7 @@ import {
   AI_SELECTION_TOO_LARGE_MESSAGE,
   MAX_AI_SELECTION_EDIT_CHARS,
 } from './selectionLimits';
+import { MAX_EDITOR_AI_INSTRUCTION_CHARS } from './promptBuilder';
 
 const mockAddToast = vi.fn();
 const mockSendMessageWithEndpointFallback = vi.fn();
@@ -130,5 +131,23 @@ describe('selectionRequest', () => {
     });
     expect(mockSendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
     expect(mockAddToast).not.toHaveBeenCalled();
+  });
+
+  it('does not send oversized AI edit instructions', async () => {
+    const result = await createAiSelectionSuggestionResult(
+      createView(1, 14) as never,
+      'a'.repeat(MAX_EDITOR_AI_INSTRUCTION_CHARS + 1),
+      undefined,
+      undefined,
+      { suppressToast: true }
+    );
+
+    expect(result).toEqual({
+      suggestion: null,
+      errorMessage: 'AI instruction is too large.',
+      errorType: undefined,
+      errorCode: undefined,
+    });
+    expect(mockSendMessageWithEndpointFallback).not.toHaveBeenCalled();
   });
 });

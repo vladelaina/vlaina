@@ -310,6 +310,9 @@ export function normalizeGithubUrl(
     if (trimmed.startsWith('//') && options.allowProtocolRelative === false) {
       return null;
     }
+    if (!trimmed.startsWith('//') && !options.allowPlainRelative) {
+      return null;
+    }
     if (!trimmed.startsWith('//') && hasInternalNoteAssetUrlPathSegment(trimmed)) {
       return null;
     }

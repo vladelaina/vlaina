@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { writeTextToClipboard } from '@/lib/clipboard';
-import { useLinkState } from './useLinkState';
+import { MAX_LINK_TOOLTIP_URL_CHARS, useLinkState } from './useLinkState';
 
 vi.mock('@/lib/clipboard', () => ({
     writeTextToClipboard: vi.fn(),
@@ -97,5 +97,32 @@ describe('useLinkState', () => {
         });
 
         expect(writeTextToClipboardMock).toHaveBeenCalledWith('v.lad.el.a.ina@gmail.com');
+    });
+
+    it('bounds edited tooltip URLs before saving', () => {
+        const onEdit = vi.fn();
+        const { result } = renderHook(() => useLinkState({
+            href: '',
+            initialText: '',
+            onEdit,
+            onClose: vi.fn(),
+        }));
+        const oversizedUrl = `https://example.com/${'a'.repeat(MAX_LINK_TOOLTIP_URL_CHARS)}`;
+
+        act(() => {
+            result.current.setEditUrl(oversizedUrl);
+        });
+
+        expect(result.current.editUrl).toHaveLength(MAX_LINK_TOOLTIP_URL_CHARS);
+
+        act(() => {
+            result.current.handleSaveEdit(true);
+        });
+
+        expect(onEdit).toHaveBeenCalledWith(
+            result.current.editUrl,
+            result.current.editUrl,
+            true,
+        );
     });
 });

@@ -64,9 +64,11 @@ export function toEditAttachment(src: string, index: number): Attachment {
 
 export function parseUserMessageContent(content: string): ParsedUserMessageContent {
   return {
-    imageSources: extractRenderedMessageImageSources(content, {
-      maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
-    }),
+    imageSources: normalizeRenderedMessageImageSources(
+      extractRenderedMessageImageSources(content, {
+        maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+      }),
+    ),
     text: stripMessageImageTokens(content, {
       maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
     }).trim(),

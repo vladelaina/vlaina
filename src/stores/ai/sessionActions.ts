@@ -38,9 +38,11 @@ import { scrubOverflowMarkdownDataImages } from '@/lib/markdown/overflowDataImag
 let switchSessionGeneration = 0;
 const inlineImagePersistenceSessions = new Set<string>()
 const inlineImagePersistenceRerunSessions = new Set<string>()
+const inlineImagePersistenceScheduledSessions = new Set<string>()
 type InlineImageSourceGroups = Map<string, Set<string>>
 const INLINE_DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i
 const MARKDOWN_INLINE_DATA_IMAGE_HINT_PATTERN = /!\[[^\]\n]{0,512}\]\(\s*<?\s*data(?::|&|&#)/i
+export const MAX_INLINE_IMAGE_PERSISTENCE_PENDING_SESSIONS = 100
 const MAX_INLINE_IMAGE_PERSISTENCE_MESSAGE_NODES = 10_000
 const MAX_INLINE_IMAGE_PERSISTENCE_VERSIONS = 20
 const MAX_INLINE_IMAGE_PERSISTENCE_BRANCH_MESSAGES = 100
@@ -411,6 +413,9 @@ async function persistInlineImageSourcesForSession(sessionId: string) {
     inlineImagePersistenceRerunSessions.add(sessionId)
     return
   }
+  if (inlineImagePersistenceSessions.size >= MAX_INLINE_IMAGE_PERSISTENCE_PENDING_SESSIONS) {
+    return
+  }
 
   inlineImagePersistenceSessions.add(sessionId)
   try {
@@ -488,8 +493,19 @@ function scheduleInlineImagePersistence(sessionId: string) {
     inlineImagePersistenceRerunSessions.add(sessionId)
     return
   }
+  if (inlineImagePersistenceScheduledSessions.has(sessionId)) {
+    return
+  }
+  if (
+    inlineImagePersistenceSessions.size + inlineImagePersistenceScheduledSessions.size >=
+    MAX_INLINE_IMAGE_PERSISTENCE_PENDING_SESSIONS
+  ) {
+    return
+  }
 
+  inlineImagePersistenceScheduledSessions.add(sessionId)
   globalThis.setTimeout(() => {
+    inlineImagePersistenceScheduledSessions.delete(sessionId)
     void persistInlineImageSourcesForSession(sessionId)
   }, 0)
 }

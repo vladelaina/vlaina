@@ -64,6 +64,21 @@ describe('sanitizeRawHtmlUrlProperties', () => {
     expect(lowerCaseNode.properties.srcset).toBe('images/safe.webp 1x');
   });
 
+  it('drops loadable URL properties that are not allowed for the tag', () => {
+    const node = element('div', {
+      action: 'https://example.com/action',
+      formAction: 'javascript:alert(1)',
+      href: 'https://example.com/link',
+      poster: 'https://example.com/poster.png',
+      src: 'https://example.com/image.png',
+      title: 'safe title',
+    });
+
+    sanitizeRawHtmlUrlProperties(node);
+
+    expect(node.properties).toEqual({ title: 'safe title' });
+  });
+
   it('forces safe iframe referrer policy at the HAST layer', () => {
     const node = element('iframe', {
       referrerPolicy: 'unsafe-url',
@@ -75,5 +90,16 @@ describe('sanitizeRawHtmlUrlProperties', () => {
 
     expect(node.properties.referrerPolicy).toBe('no-referrer');
     expect(node.properties.sandbox).toBe('allow-scripts');
+  });
+
+  it('drops document-relative iframe sources at the HAST layer', () => {
+    for (const src of ['#self', '?embed', 'embed.html', './embed.html']) {
+      const node = element('iframe', { src });
+      sanitizeRawHtmlUrlProperties(node);
+
+      expect(node.tagName).toBe('span');
+      expect(node.properties).toEqual({});
+      expect(node.children).toEqual([]);
+    }
   });
 });

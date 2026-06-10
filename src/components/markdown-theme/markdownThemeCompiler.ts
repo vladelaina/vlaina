@@ -22,6 +22,7 @@ export interface CompiledImportedMarkdownThemeStyles {
 }
 
 const MAX_COMPILED_THEME_CACHE_ENTRIES = 8;
+export const MAX_IN_FLIGHT_THEME_PRELOADS = 16;
 const MAX_COMPILED_THEME_CSS_CHARS = MAX_IMPORTED_THEME_CSS_BYTES * 3;
 
 let compilerModulesPromise: Promise<MarkdownThemeCompilerModules> | null = null;
@@ -103,6 +104,9 @@ export function preloadMarkdownThemeCompiler(): void {
 
 export function preloadCompiledImportedMarkdownThemeStyles(id: string): void {
   if (inFlightThemePreloads.has(id)) {
+    return;
+  }
+  if (inFlightThemePreloads.size >= MAX_IN_FLIGHT_THEME_PRELOADS) {
     return;
   }
 

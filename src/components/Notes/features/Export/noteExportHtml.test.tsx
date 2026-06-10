@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   MAX_EXPORT_IMAGE_DECODE_CONCURRENCY,
+  MAX_EXPORT_IMAGE_DECODE_SCAN_ELEMENTS,
+  collectExportDecodeWaitImages,
   renderNoteExportHtml,
 } from './noteExportHtml';
 
@@ -214,6 +216,23 @@ describe('renderNoteExportHtml', () => {
     } finally {
       HTMLImageElement.prototype.decode = originalDecode;
     }
+  });
+
+  it('caps image decode scanning while preserving late images in the container', () => {
+    const container = document.createElement('div');
+    const filler = document.createElement('div');
+    for (let index = 0; index < MAX_EXPORT_IMAGE_DECODE_SCAN_ELEMENTS + 32; index += 1) {
+      filler.appendChild(document.createElement('span'));
+    }
+    const lateImage = document.createElement('img');
+    lateImage.setAttribute('src', 'assets/after-scan.png');
+    container.append(filler, lateImage);
+
+    const images = collectExportDecodeWaitImages(container);
+
+    expect(container.querySelector('img[src="assets/after-scan.png"]')).toBe(lateImage);
+    expect(images).not.toContain(lateImage);
+    expect(images).toHaveLength(0);
   });
 
   it('keeps safe raw HTML while dropping exported raw media loaders', async () => {

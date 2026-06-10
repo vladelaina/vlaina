@@ -66,6 +66,34 @@ describe('vaultStoreSupport broadcast channel guards', () => {
 
     await expect(query).resolves.toBeNull();
   });
+
+  it('bounds pending vault-open broadcast queries', async () => {
+    vi.useFakeTimers();
+    const postMessage = vi.fn();
+    vi.stubGlobal('BroadcastChannel', class {
+      onmessage: ((event: MessageEvent) => void) | null = null;
+      postMessage = postMessage;
+      close() {}
+    });
+    const {
+      MAX_PENDING_VAULT_BROADCAST_QUERIES,
+      queryVaultOpenInOtherWindow,
+    } = await import('./vaultStoreSupport');
+
+    const queries = Array.from(
+      { length: MAX_PENDING_VAULT_BROADCAST_QUERIES },
+      (_value, index) => queryVaultOpenInOtherWindow(`/vault-${index}`),
+    );
+
+    expect(postMessage).toHaveBeenCalledTimes(MAX_PENDING_VAULT_BROADCAST_QUERIES);
+    await expect(queryVaultOpenInOtherWindow('/vault-overflow')).resolves.toBeNull();
+    expect(postMessage).toHaveBeenCalledTimes(MAX_PENDING_VAULT_BROADCAST_QUERIES);
+
+    await vi.advanceTimersByTimeAsync(200);
+    await expect(Promise.all(queries)).resolves.toEqual(
+      Array.from({ length: MAX_PENDING_VAULT_BROADCAST_QUERIES }, () => null)
+    );
+  });
 });
 
 describe('vaultStoreSupport persistence merging', () => {

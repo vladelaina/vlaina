@@ -5,6 +5,7 @@ import {
 import {
   extractRenderedMessageImageSources,
   MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+  normalizeRenderedMessageImageSources,
   stripMessageImageTokens,
 } from '@/components/Chat/common/messageClipboard';
 import { MARKDOWN_BLOCK_GAP } from '@/components/common/markdown/markdownMetrics';
@@ -32,9 +33,11 @@ export function stripRenderableImageTokens(content: string): string {
 }
 
 function countRenderableImages(content: string): number {
-  return extractRenderedMessageImageSources(content, {
-    maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
-  }).length;
+  return normalizeRenderedMessageImageSources(
+    extractRenderedMessageImageSources(content, {
+      maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+    }),
+  ).length;
 }
 
 export function findReusableMarkdownSplitIndex(markdown: string): number {

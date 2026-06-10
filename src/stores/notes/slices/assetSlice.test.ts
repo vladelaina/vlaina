@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createAssetSlice } from './assetSlice';
+import { createAssetSlice, MAX_PENDING_ASSET_LOADS } from './assetSlice';
 import { setCurrentVaultPath } from '../storage';
 
 const mocks = vi.hoisted(() => ({
@@ -205,6 +205,30 @@ describe('assetSlice loadAssets', () => {
     await Promise.all([firstLoad, secondLoad]);
 
     expect(mocks.list).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds concurrent loads for different asset scopes', async () => {
+    const pendingLists: Array<(value: []) => void> = [];
+    mocks.list.mockImplementation(() => new Promise((resolve) => {
+      pendingLists.push(resolve);
+    }));
+    const harness = createSliceHarness({
+      notesPath: '/vault-a',
+      currentNote: { path: 'daily/start.md', content: '' },
+    });
+
+    const loads = Array.from({ length: MAX_PENDING_ASSET_LOADS }, (_value, index) => {
+      harness.getState().currentNote = { path: `daily/${index}.md`, content: '' };
+      return harness.getState().loadAssets('/vault-a');
+    });
+
+    expect(mocks.list).toHaveBeenCalledTimes(MAX_PENDING_ASSET_LOADS);
+    harness.getState().currentNote = { path: 'daily/overflow.md', content: '' };
+    await harness.getState().loadAssets('/vault-a');
+    expect(mocks.list).toHaveBeenCalledTimes(MAX_PENDING_ASSET_LOADS);
+
+    pendingLists.forEach((resolve) => resolve([]));
+    await Promise.all(loads);
   });
 
   it('ignores a stale asset refresh after switching vaults', async () => {

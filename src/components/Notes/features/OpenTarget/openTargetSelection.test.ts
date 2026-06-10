@@ -120,6 +120,7 @@ describe('openTargetSelection', () => {
     expect(isSupportedMarkdownSelection('/vault/docs/note.mdown')).toBe(true);
     expect(isSupportedMarkdownSelection('/vault/docs/note.mkd')).toBe(true);
     expect(isSupportedMarkdownSelection('/vault/.notes/alpha.md')).toBe(true);
+    expect(isSupportedMarkdownSelection('C:\\vault\\docs\\alpha.md')).toBe(true);
     expect(isSupportedMarkdownSelection('/vault/docs/data.txt')).toBe(false);
     expect(isSupportedMarkdownSelection('/vault/.vlaina/workspace.md')).toBe(false);
     expect(isSupportedMarkdownSelection('/vault/docs/.git/config.md')).toBe(false);
@@ -127,6 +128,13 @@ describe('openTargetSelection', () => {
     expect(isSupportedMarkdownSelection('/vault/docs/.GIT/config.md')).toBe(false);
     expect(isSupportedMarkdownSelection('/vault/docs/../.git/config.md')).toBe(false);
     expect(isSupportedMarkdownSelection('/vault/.notes/../.vlaina/workspace.md')).toBe(false);
+  });
+
+  it('rejects explicit URL schemes before treating selections as files', () => {
+    expect(isSupportedMarkdownSelection('https://example.com/docs/readme.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('http://127.0.0.1/private.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('file:///vault/docs/readme.md')).toBe(false);
+    expect(isSupportedMarkdownSelection('asset://localhost/readme.md')).toBe(false);
   });
 
   it('rejects markdown selections with unsafe path characters', () => {

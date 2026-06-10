@@ -44,10 +44,24 @@ vi.mock('@/stores/useToastStore', () => ({
 
 import {
   MAX_AI_CHANNEL_CLEANUP_SCAN_ENTRIES,
+  MAX_AI_PROVIDER_CHANNEL_BYTES,
   MAX_AI_PROVIDER_STORAGE_CONCURRENCY,
+  MAX_AI_SESSIONS_BYTES,
+  MAX_CUSTOM_ICON_URL_CHARS,
+  MAX_MAIN_DATA_BYTES,
   saveUnifiedDataImmediate,
   setUnifiedStorageAutoSyncTrigger,
 } from './unifiedStorage';
+
+function getWritePayload(pathSuffix: string): string {
+  const call = mocks.storage.writeFile.mock.calls.find(([path]) => String(path).endsWith(pathSuffix));
+  expect(call).toBeTruthy();
+  return String(call?.[1] ?? '');
+}
+
+function getUtf8ByteLength(value: string): number {
+  return new TextEncoder().encode(value).byteLength;
+}
 
 describe('unifiedStorage save bounds', () => {
   beforeEach(() => {
@@ -211,5 +225,126 @@ describe('unifiedStorage save bounds', () => {
 
     expect(mocks.setProviderSecret).toHaveBeenCalledTimes(providers.length);
     expect(maxActiveSecrets).toBeLessThanOrEqual(MAX_AI_PROVIDER_STORAGE_CONCURRENCY);
+  });
+
+  it('keeps saved main data within the loadable file size limit', async () => {
+    mocks.storage.listDir.mockResolvedValue([]);
+    const customIcons = Array.from({ length: 600 }, (_value, index) => ({
+      id: `icon-${index}`,
+      url: 'u'.repeat(MAX_CUSTOM_ICON_URL_CHARS),
+      name: `icon-${index}.png`,
+      createdAt: index + 1,
+    }));
+
+    await saveUnifiedDataImmediate({
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      },
+      customIcons,
+      ai: {
+        providers: [],
+        models: [],
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions: [],
+        messages: {},
+        unreadSessionIds: [],
+        selectedModelId: null,
+        currentSessionId: null,
+        deletedProviderIds: [],
+      },
+    });
+
+    const mainPayload = getWritePayload('/.vlaina/data.json');
+    const parsed = JSON.parse(mainPayload);
+    expect(getUtf8ByteLength(mainPayload)).toBeLessThanOrEqual(MAX_MAIN_DATA_BYTES);
+    expect(parsed.data.customIcons.length).toBeLessThan(customIcons.length);
+  });
+
+  it('keeps saved AI session metadata within the loadable file size limit', async () => {
+    mocks.storage.listDir.mockResolvedValue([]);
+    const sessions = Array.from({ length: 600 }, (_value, index) => ({
+      id: `session-${index}`,
+      title: 't'.repeat(4096),
+      modelId: '',
+      createdAt: index + 1,
+      updatedAt: index + 1,
+    }));
+
+    await saveUnifiedDataImmediate({
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      },
+      customIcons: [],
+      ai: {
+        providers: [],
+        models: [],
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions,
+        messages: {},
+        unreadSessionIds: sessions.map((session) => session.id),
+        selectedModelId: null,
+        currentSessionId: null,
+        deletedProviderIds: [],
+      },
+    });
+
+    const sessionsPayload = getWritePayload('/chat/sessions.json');
+    const parsed = JSON.parse(sessionsPayload);
+    expect(getUtf8ByteLength(sessionsPayload)).toBeLessThanOrEqual(MAX_AI_SESSIONS_BYTES);
+    expect(parsed.data.sessions.length).toBeLessThan(sessions.length);
+  });
+
+  it('keeps saved provider channels within the loadable file size limit', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.storage.listDir.mockResolvedValue([]);
+    const models = Array.from({ length: 600 }, (_value, index) => ({
+      id: `provider-1::model-${index}`,
+      apiModelId: `model-${index}-${'m'.repeat(4096)}`,
+      name: 'n'.repeat(4096),
+      group: 'g'.repeat(4096),
+      providerId: 'provider-1',
+      enabled: true,
+      createdAt: index + 1,
+    }));
+
+    await saveUnifiedDataImmediate({
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      },
+      customIcons: [],
+      ai: {
+        providers: [{
+          id: 'provider-1',
+          name: 'Provider'.repeat(1000),
+          type: 'newapi',
+          apiHost: `https://provider.example/${'h'.repeat(4096)}`,
+          apiKey: 'k'.repeat(5000),
+          enabled: true,
+          createdAt: 1,
+          updatedAt: 1,
+        }],
+        models,
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions: [],
+        messages: {},
+        unreadSessionIds: [],
+        selectedModelId: null,
+        currentSessionId: null,
+        deletedProviderIds: [],
+      },
+    });
+
+    const providerPayload = getWritePayload('/chat/channels/provider-1.json');
+    const parsed = JSON.parse(providerPayload);
+    expect(getUtf8ByteLength(providerPayload)).toBeLessThanOrEqual(MAX_AI_PROVIDER_CHANNEL_BYTES);
+    expect(parsed.data.provider.name).toHaveLength(4096);
+    expect(parsed.data.provider.apiKey).toHaveLength(4096);
+    expect(parsed.data.models.length).toBeLessThan(models.length);
   });
 });

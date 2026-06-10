@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { downloadAndSaveAvatar, getLocalAvatarUrl } from './avatarManager';
+import {
+  clearAvatarDownloadState,
+  downloadAndSaveAvatar,
+  getLocalAvatarUrl,
+  MAX_PENDING_AVATAR_DOWNLOADS,
+} from './avatarManager';
 
 const hoisted = vi.hoisted(() => ({
   getBasePath: vi.fn(async () => '/app-data'),
@@ -34,6 +39,7 @@ vi.mock('./io/reader', () => ({
 
 describe('avatarManager request cleanup', () => {
   afterEach(() => {
+    clearAvatarDownloadState();
     vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
@@ -72,6 +78,31 @@ describe('avatarManager request cleanup', () => {
 
     await expect(request).resolves.toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('bounds concurrent avatar downloads for different users', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(() => new Promise(() => undefined));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const requests = Array.from({ length: MAX_PENDING_AVATAR_DOWNLOADS }, (_value, index) =>
+      downloadAndSaveAvatar(
+        `https://example.com/avatar-${index}.png`,
+        `pending-user-${index}`,
+      )
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(MAX_PENDING_AVATAR_DOWNLOADS);
+    await expect(
+      downloadAndSaveAvatar('https://example.com/avatar-overflow.png', 'pending-overflow')
+    ).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(MAX_PENDING_AVATAR_DOWNLOADS);
+
+    await vi.advanceTimersByTimeAsync(8000);
+    await expect(Promise.all(requests)).resolves.toEqual(
+      Array.from({ length: MAX_PENDING_AVATAR_DOWNLOADS }, () => null)
+    );
     expect(vi.getTimerCount()).toBe(0);
   });
 

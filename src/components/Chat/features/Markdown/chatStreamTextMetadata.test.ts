@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES } from '@/components/Chat/common/messageClipboard';
+import {
+  MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+  MAX_CHAT_MESSAGE_IMAGE_SOURCES,
+} from '@/components/Chat/common/messageClipboard';
 import { countFencedCodeBlocks, countRenderableImages } from './chatStreamTextMetadata';
 
 describe('chat stream text metadata', () => {
@@ -30,6 +33,6 @@ describe('chat stream text metadata', () => {
       (_, index) => `![image ${index}](https://example.com/${index}.png)`,
     ).join('\n');
 
-    expect(countRenderableImages(markdown)).toBe(MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES);
+    expect(countRenderableImages(markdown)).toBe(MAX_CHAT_MESSAGE_IMAGE_SOURCES);
   });
 });

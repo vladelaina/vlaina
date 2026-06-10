@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
-import { createWorkspaceSlice } from './workspaceSlice';
+import { MAX_PENDING_NOTE_PREFETCHES, createWorkspaceSlice } from './workspaceSlice';
 import type { NotesStore } from '../types';
 
 const storageAdapter = vi.hoisted(() => ({
@@ -1001,6 +1001,39 @@ describe('workspaceSlice tab history', () => {
       content: '# queued direct open',
       modifiedAt: 4,
     });
+  });
+
+  it('skips hover note prefetches once pending prefetches fill the queue budget', async () => {
+    let releaseRead!: () => void;
+    const readGate = new Promise<void>((resolve) => {
+      releaseRead = resolve;
+    });
+    storageAdapter.readFile.mockImplementation(async (path: string) => {
+      await readGate;
+      return `# ${path}`;
+    });
+    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true, size: 0 });
+
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+    const paths = Array.from(
+      { length: MAX_PENDING_NOTE_PREFETCHES + 1 },
+      (_value, index) => `pending-${index}.md`,
+    );
+
+    const requests = paths.map((path) => store.getState().prefetchNote(path));
+
+    await vi.waitFor(() => expect(storageAdapter.readFile).toHaveBeenCalledTimes(2));
+    await expect(requests[MAX_PENDING_NOTE_PREFETCHES]).resolves.toBeUndefined();
+
+    releaseRead();
+    await Promise.all(requests.slice(0, MAX_PENDING_NOTE_PREFETCHES));
+
+    expect(storageAdapter.readFile).toHaveBeenCalledTimes(MAX_PENDING_NOTE_PREFETCHES);
+    expect(storageAdapter.readFile).not.toHaveBeenCalledWith(`/vault/pending-${MAX_PENDING_NOTE_PREFETCHES}.md`);
   });
 
   it('switches to an already open tab without saving the dirty draft tab', async () => {

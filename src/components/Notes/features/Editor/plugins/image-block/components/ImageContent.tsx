@@ -70,6 +70,7 @@ export const ImageContent = ({
         'data-src': sourceSrc || undefined,
         'data-inject-url': sourceSrc || undefined,
         alt: sourceAlt ?? '',
+        referrerPolicy: 'no-referrer',
     };
 
     if (isDeferred && !isReady) {

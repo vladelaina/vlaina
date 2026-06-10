@@ -76,6 +76,7 @@ describe('LocalImage', () => {
 
     const image = await screen.findByAltText('remote');
     expect(image).toHaveAttribute('src', 'HTTPS://example.com/demo.png');
+    expect(image).toHaveAttribute('referrerpolicy', 'no-referrer');
     expect(mocks.getBasePath).not.toHaveBeenCalled();
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
   });

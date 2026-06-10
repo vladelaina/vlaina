@@ -8,6 +8,8 @@ const SYSTEM_SUBDIR = 'system';
 const AVATAR_FETCH_TIMEOUT_MS = 8000;
 const AVATAR_RETRY_COOLDOWN_MS = 5 * 60 * 1000;
 const MAX_AVATAR_IMAGE_BYTES = 10 * 1024 * 1024;
+export const MAX_PENDING_AVATAR_DOWNLOADS = 50;
+const MAX_FAILED_AVATAR_DOWNLOADS = 200;
 const AVATAR_MIME_EXTENSIONS: Record<string, string> = {
     'image/avif': 'avif',
     'image/bmp': 'bmp',
@@ -22,6 +24,11 @@ const AVATAR_EXTENSIONS = Array.from(new Set(['png', ...Object.values(AVATAR_MIM
 
 const pendingDownloads = new Map<string, Promise<string | null>>();
 const failedDownloads = new Map<string, number>();
+
+export function clearAvatarDownloadState(): void {
+    pendingDownloads.clear();
+    failedDownloads.clear();
+}
 
 function createAbortError(): DOMException {
     return new DOMException('Aborted', 'AbortError');
@@ -98,6 +105,16 @@ function assertAvatarImageSize(size: number | null | undefined): void {
     }
 }
 
+function rememberFailedDownload(downloadKey: string): void {
+    failedDownloads.delete(downloadKey);
+    failedDownloads.set(downloadKey, Date.now());
+    while (failedDownloads.size > MAX_FAILED_AVATAR_DOWNLOADS) {
+        const oldestKey = failedDownloads.keys().next().value;
+        if (typeof oldestKey !== 'string') break;
+        failedDownloads.delete(oldestKey);
+    }
+}
+
 export async function downloadAndSaveAvatar(url: string, username: string): Promise<string | null> {
     if (!url || !username) return null;
     const safeUrl = normalizePublicRemoteMediaUrl(url);
@@ -115,6 +132,9 @@ export async function downloadAndSaveAvatar(url: string, username: string): Prom
 
     if (pendingDownloads.has(username)) {
         return pendingDownloads.get(username) || null;
+    }
+    if (pendingDownloads.size >= MAX_PENDING_AVATAR_DOWNLOADS) {
+        return null;
     }
 
     const downloadPromise = (async () => {
@@ -165,7 +185,7 @@ export async function downloadAndSaveAvatar(url: string, username: string): Prom
 
             return avatarPath;
         } catch (error) {
-            failedDownloads.set(downloadKey, Date.now());
+            rememberFailedDownload(downloadKey);
             return null;
         } finally {
             if (timeoutId) {

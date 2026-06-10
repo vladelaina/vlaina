@@ -12,6 +12,7 @@ const pendingSessionPrefetches = new Map<string, PendingSessionPrefetch>();
 const cancelledSessionPrefetches = new Set<string>();
 const explicitSwitchCancelledSessionPrefetches = new Set<string>();
 const sessionPrefetchQueue = createAsyncPrefetchQueue(2);
+export const MAX_PENDING_SESSION_PREFETCHES = 100;
 
 export async function awaitStartedOrCancelQueuedSessionPrefetch(sessionId: string): Promise<boolean> {
   const pendingPrefetch = pendingSessionPrefetches.get(sessionId);
@@ -52,6 +53,9 @@ export function createSessionPrefetchActions() {
       const existing = pendingSessionPrefetches.get(sessionId);
       if (existing) {
         await existing.promise;
+        return;
+      }
+      if (pendingSessionPrefetches.size >= MAX_PENDING_SESSION_PREFETCHES) {
         return;
       }
 

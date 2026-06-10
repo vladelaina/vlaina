@@ -15,6 +15,8 @@ interface UseCoverSelectionFlowOptions {
   setShowPicker: (open: boolean) => void;
 }
 
+export const MAX_PENDING_COVER_PREVIEW_REQUESTS = 50;
+
 export function useCoverSelectionFlow({
   url,
   coverHeight,
@@ -100,6 +102,10 @@ export function useCoverSelectionFlow({
       const requestKey = `${vaultPath}::${assetPath}`;
       let request = previewRequestRef.current.get(requestKey);
       if (!request) {
+        if (previewRequestRef.current.size >= MAX_PENDING_COVER_PREVIEW_REQUESTS) {
+          if (assetPath === lastPreviewPathRef.current) setPreviewSrc(null);
+          return;
+        }
         request = (async () => {
           try {
             const imageUrl = await resolveCoverAssetUrl({

@@ -26,6 +26,7 @@ const MAX_VAULT_NAME_CHARS = 512;
 const MAX_VAULT_PATH_CHARS = 4096;
 const MAX_VAULT_BROADCAST_LABEL_CHARS = 512;
 const MAX_VAULT_BROADCAST_REQUEST_ID_CHARS = 128;
+export const MAX_PENDING_VAULT_BROADCAST_QUERIES = 100;
 
 const MAX_RECENT_VAULTS = 5;
 
@@ -461,6 +462,9 @@ export async function queryVaultOpenInOtherWindow(path: string): Promise<string 
   const normalizedPath = normalizeVaultPath(path);
   const requestId = `req-${crypto.randomUUID()}`;
   setupBroadcastChannel();
+  if (pendingQueries.size >= MAX_PENDING_VAULT_BROADCAST_QUERIES) {
+    return null;
+  }
 
   return new Promise((resolve) => {
     pendingQueries.set(requestId, resolve);

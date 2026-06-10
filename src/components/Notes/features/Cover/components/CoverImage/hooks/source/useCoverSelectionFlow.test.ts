@@ -1,6 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useCoverSelectionFlow } from './useCoverSelectionFlow';
+import {
+  MAX_PENDING_COVER_PREVIEW_REQUESTS,
+  useCoverSelectionFlow,
+} from './useCoverSelectionFlow';
 
 const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
@@ -211,6 +214,46 @@ describe('useCoverSelectionFlow', () => {
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
     expect(hoisted.loadImageThumbnailAsBlob).not.toHaveBeenCalled();
     expect(hoisted.loadImageWithDimensions).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds in-flight preview requests for different cover assets', async () => {
+    const onUpdate = vi.fn();
+    const setShowPicker = vi.fn();
+    const pendingDimensions: Array<(value: { width: number; height: number }) => void> = [];
+    hoisted.loadImageWithDimensions.mockImplementation(() => new Promise((resolve) => {
+      pendingDimensions.push(resolve);
+    }));
+
+    const { result } = renderHook(() =>
+      useCoverSelectionFlow({
+        url: null,
+        coverHeight: 240,
+        vaultPath: '/vault-a',
+        onUpdate,
+        setShowPicker,
+      })
+    );
+
+    const previews: Array<Promise<void>> = [];
+    await act(async () => {
+      for (let index = 0; index < MAX_PENDING_COVER_PREVIEW_REQUESTS; index += 1) {
+        previews.push(result.current.handlePreview(`covers/pending-${index}.png`));
+      }
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(MAX_PENDING_COVER_PREVIEW_REQUESTS);
+    });
+
+    await act(async () => {
+      await result.current.handlePreview('covers/overflow.png');
+    });
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(MAX_PENDING_COVER_PREVIEW_REQUESTS);
+
+    await act(async () => {
+      pendingDimensions.forEach((resolve) => resolve({ width: 1200, height: 800 }));
+      await Promise.all(previews);
+    });
   });
 
   it('does not let a late preview overwrite a committed cover selection', async () => {

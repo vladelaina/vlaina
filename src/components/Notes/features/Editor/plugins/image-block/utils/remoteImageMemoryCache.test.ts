@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     clearRemoteImageMemoryCache,
     clearRemoteImageMemoryCacheForTests,
+    MAX_REMOTE_IMAGE_CACHE_ENTRIES,
     MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES,
     resolveRemoteImageFromMemoryCache,
 } from './remoteImageMemoryCache';
@@ -48,6 +49,34 @@ describe('remoteImageMemoryCache', () => {
         await Promise.all(resolutions);
         expect(fetch).toHaveBeenCalledTimes(8);
         expect(maxActiveFetches).toBe(4);
+    });
+
+    it('does not enqueue remote image fetches after pending cache entries fill the budget', async () => {
+        let releaseFetch!: () => void;
+        const fetchGate = new Promise<void>((resolve) => {
+            releaseFetch = resolve;
+        });
+        vi.stubGlobal('fetch', vi.fn(async () => {
+            await fetchGate;
+            return {
+                ok: true,
+                headers: new Headers({ 'content-length': '12' }),
+                blob: async () => new Blob(['remote image'], { type: 'image/png' }),
+            };
+        }));
+
+        const pendingResolutions = Array.from({ length: MAX_REMOTE_IMAGE_CACHE_ENTRIES }, (_value, index) =>
+            resolveRemoteImageFromMemoryCache(`https://example.com/pending-${index}.png`)
+        );
+        const overflowUrl = `https://example.com/pending-${MAX_REMOTE_IMAGE_CACHE_ENTRIES}.png`;
+
+        await expect(resolveRemoteImageFromMemoryCache(overflowUrl)).resolves.toBe(overflowUrl);
+        expect(fetch).toHaveBeenCalledTimes(4);
+
+        releaseFetch();
+        await Promise.all(pendingResolutions);
+
+        expect(fetch).toHaveBeenCalledTimes(MAX_REMOTE_IMAGE_CACHE_ENTRIES);
     });
 
     it('does not fetch local-network URLs when called directly', async () => {

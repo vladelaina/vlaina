@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { formatBatchPagesForModel, formatSearchResultsForModel } from './format';
+import {
+  MAX_FORMATTED_BATCH_WEB_PAGES,
+  formatBatchPagesForModel,
+  formatSearchResultsForModel,
+} from './format';
 
 describe('web search model formatting', () => {
   it('formats only the top search candidates', () => {
@@ -164,5 +168,28 @@ describe('web search model formatting', () => {
     expect(text).not.toContain('t'.repeat(301));
     expect(text).not.toContain('s'.repeat(1001));
     expect(text).not.toContain('c'.repeat(3001));
+  });
+
+  it('bounds formatted batch pages returned by the web search backend', () => {
+    const text = formatBatchPagesForModel(Array.from(
+      { length: MAX_FORMATTED_BATCH_WEB_PAGES + 1 },
+      (_value, index) => ({
+        url: `https://example.com/${index}`,
+        ok: true as const,
+        page: {
+          title: `Page ${index}`,
+          summary: '',
+          siteName: 'example.com',
+          finalUrl: `https://example.com/${index}`,
+          content: `Readable content ${index}`,
+          charCount: 18,
+        },
+      }),
+    ));
+
+    expect(text).toContain(`Page ${MAX_FORMATTED_BATCH_WEB_PAGES}: success`);
+    expect(text).toContain(`Readable content ${MAX_FORMATTED_BATCH_WEB_PAGES - 1}`);
+    expect(text).not.toContain(`Page ${MAX_FORMATTED_BATCH_WEB_PAGES + 1}: success`);
+    expect(text).not.toContain(`Readable content ${MAX_FORMATTED_BATCH_WEB_PAGES}`);
   });
 });

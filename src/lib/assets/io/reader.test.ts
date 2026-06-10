@@ -6,6 +6,8 @@ import {
   loadImageAsBase64,
   loadImageAsBlob,
   loadImageThumbnailAsBlob,
+  MAX_PENDING_BLOB_URL_LOADS,
+  MAX_PENDING_THUMBNAIL_BLOB_URL_LOADS,
 } from './reader';
 
 const hoisted = vi.hoisted(() => ({
@@ -36,7 +38,8 @@ vi.mock('@/lib/storage/adapter', () => ({
 describe('asset image reader cache', () => {
   beforeEach(() => {
     clearImageCache();
-    hoisted.readBinaryFile.mockClear();
+    hoisted.readBinaryFile.mockReset();
+    hoisted.readBinaryFile.mockResolvedValue(new Uint8Array([1, 2, 3]));
     hoisted.writeBinaryFile.mockClear();
     hoisted.exists.mockReset();
     hoisted.exists.mockResolvedValue(false);
@@ -133,6 +136,27 @@ describe('asset image reader cache', () => {
     await expect(load).resolves.toBe('blob:other-url');
     expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:other-url');
     expect(getCachedBlobUrl('/vault/assets/other.png')).toBe('blob:other-url');
+  });
+
+  it('bounds concurrent full image blob reads for different files', async () => {
+    const pendingReads: Array<(bytes: Uint8Array) => void> = [];
+    hoisted.readBinaryFile.mockImplementation(() => new Promise((resolve) => {
+      pendingReads.push(resolve);
+    }));
+
+    const loads = Array.from({ length: MAX_PENDING_BLOB_URL_LOADS }, (_value, index) =>
+      loadImageAsBlob(`/vault/assets/pending-${index}.png`)
+    );
+
+    await vi.waitFor(() => {
+      expect(pendingReads).toHaveLength(MAX_PENDING_BLOB_URL_LOADS);
+    });
+    await expect(loadImageAsBlob('/vault/assets/overflow.png')).rejects.toThrow(
+      'Too many image asset previews are loading.',
+    );
+
+    pendingReads.forEach((resolve) => resolve(new Uint8Array([1, 2, 3])));
+    await Promise.all(loads);
   });
 
   it('rejects non-image paths without reading them', async () => {
@@ -587,5 +611,29 @@ describe('asset image reader cache', () => {
       'blob:coalesced-svg-url',
     ]);
     expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds concurrent thumbnail blob reads for different files', async () => {
+    const pendingReads: Array<(bytes: Uint8Array<ArrayBuffer>) => void> = [];
+    hoisted.stat.mockResolvedValue({ modifiedAt: 1, size: 48 });
+    hoisted.readBinaryFile.mockImplementation(() => new Promise((resolve) => {
+      pendingReads.push(resolve);
+    }));
+
+    const loads = Array.from({ length: MAX_PENDING_THUMBNAIL_BLOB_URL_LOADS }, (_value, index) =>
+      loadImageThumbnailAsBlob(`/vault/assets/pending-${index}.svg`)
+    );
+
+    await vi.waitFor(() => {
+      expect(pendingReads).toHaveLength(MAX_PENDING_THUMBNAIL_BLOB_URL_LOADS);
+    });
+    await expect(loadImageThumbnailAsBlob('/vault/assets/overflow.svg')).rejects.toThrow(
+      'Too many image asset previews are loading.',
+    );
+
+    pendingReads.forEach((resolve) =>
+      resolve(encodeTextBytes('<svg xmlns="http://www.w3.org/2000/svg" />'))
+    );
+    await Promise.all(loads);
   });
 });

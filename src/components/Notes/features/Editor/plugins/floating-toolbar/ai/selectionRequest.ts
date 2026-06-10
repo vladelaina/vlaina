@@ -9,7 +9,10 @@ import { getUserFacingAIError } from '@/lib/ai/errors';
 import { isManagedProviderId } from '@/lib/ai/managedService';
 import { parseStandaloneFencedCodeBlock } from '../../clipboard/fencedCodePaste';
 import { hasSelectedBlocks } from '../../cursor/blockSelectionPluginState';
-import { buildEditorAiUserMessage } from './promptBuilder';
+import {
+  buildEditorAiUserMessage,
+  MAX_EDITOR_AI_INSTRUCTION_CHARS,
+} from './promptBuilder';
 import { EDITOR_AI_SYSTEM_PROMPT } from './promptCatalog';
 import { assertEnglishPromptText } from './promptValidation';
 import {
@@ -122,6 +125,9 @@ async function requestAiEdit(
   };
 
   try {
+    if (trimmedInstruction.length > MAX_EDITOR_AI_INSTRUCTION_CHARS) {
+      return reportError('AI instruction is too large.');
+    }
     assertEnglishPromptText('requestAiEdit.instruction', trimmedInstruction);
     assertEnglishPromptText('requestAiEdit.systemPrompt', EDITOR_AI_SYSTEM_PROMPT);
   } catch (error) {

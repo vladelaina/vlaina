@@ -18,6 +18,8 @@ const MAX_EXTERNAL_MARKDOWN_SCAN_ENTRIES = 10_000;
 const MAX_EXTERNAL_MARKDOWN_STARRED_SCAN_ENTRIES = 10_000;
 const MAX_EXTERNAL_MARKDOWN_IMPORT_DEPTH = 24;
 const MAX_EXTERNAL_MARKDOWN_FILE_SIZE = 10 * 1024 * 1024;
+const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[A-Za-z]:[\\/]/;
 const SKIPPED_EXTERNAL_MARKDOWN_DIRECTORY_NAMES = new Set([
   'node_modules',
   'vendor',
@@ -52,6 +54,11 @@ function shouldSkipExternalMarkdownDirectory(name: string) {
 
 function isInsideInternalExternalMarkdownPath(path: string) {
   return hasInternalNotePathSegment(path);
+}
+
+function hasExplicitExternalMarkdownNonPathScheme(path: string) {
+  const trimmed = path.trim();
+  return EXPLICIT_URL_SCHEME_PATTERN.test(trimmed) && !WINDOWS_ABSOLUTE_PATH_PATTERN.test(trimmed);
 }
 
 function hasUnsafeExternalMarkdownPathSegment(path: string) {
@@ -288,6 +295,7 @@ export async function importExternalMarkdownEntries(
       break;
     }
     if (
+      hasExplicitExternalMarkdownNonPathScheme(absolutePath) ||
       isInsideInternalExternalMarkdownPath(absolutePath) ||
       hasUnsafeExternalMarkdownPathSegment(absolutePath)
     ) {
@@ -363,6 +371,7 @@ export async function resolveExternalMarkdownEntriesForStarred(
     scannedEntries += 1;
 
     if (
+      hasExplicitExternalMarkdownNonPathScheme(absolutePath) ||
       isInsideInternalExternalMarkdownPath(absolutePath) ||
       hasUnsafeExternalMarkdownPathSegment(absolutePath)
     ) {

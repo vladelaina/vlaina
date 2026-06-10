@@ -18,6 +18,7 @@ interface PendingCoverAssetUrlResolve {
 
 const pendingCoverAssetUrlResolves = new Map<string, PendingCoverAssetUrlResolve>();
 const COVER_RESOLVE_JOIN_WINDOW_MS = 50;
+export const MAX_PENDING_COVER_ASSET_URL_RESOLVES = 100;
 
 function getCoverResolveKey({
   assetPath,
@@ -55,6 +56,9 @@ export async function resolveCoverAssetUrl({
   }
   if (pendingResolve) {
     pendingCoverAssetUrlResolves.delete(resolveKey);
+  }
+  if (pendingCoverAssetUrlResolves.size >= MAX_PENDING_COVER_ASSET_URL_RESOLVES) {
+    throw new Error('cover-resolve-busy');
   }
 
   const resolvePromise = resolveCoverAssetUrlUncached({

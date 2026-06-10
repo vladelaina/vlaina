@@ -17,6 +17,7 @@ import { parseVideoUrl } from '@/lib/markdown/videoUrl';
 import { translate, useI18n } from '@/lib/i18n';
 import { resolveCompactedChatImageSrc } from './chatInlineImageTokens';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
+import { MAX_CHAT_MESSAGE_IMAGE_SOURCES } from '@/components/Chat/common/messageClipboard';
 
 type ImageGalleryItem = { id: string; src: string };
 
@@ -350,6 +351,11 @@ export function createMarkdownComponents({
       const safeSrc = resolveCompactedChatImageSrc(normalizedRawSrc, imageSrcByToken);
       if (parseVideoUrl(safeSrc)) {
         return <ReadOnlyVideoBlock src={safeSrc} title={typeof alt === 'string' ? alt : ''} />;
+      }
+
+      if (imageRenderIndex >= MAX_CHAT_MESSAGE_IMAGE_SOURCES) {
+        imageRenderIndex += 1;
+        return null;
       }
 
       const currentImageId = imageIdBase ? `${imageIdBase}:${imageRenderIndex}` : undefined;

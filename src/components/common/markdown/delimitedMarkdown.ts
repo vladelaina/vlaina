@@ -55,6 +55,7 @@ export function findDelimitedTextMatches(
     : 0;
   const closeDelimiterLength = options.closeDelimiterLength ?? options.openDelimiterLength;
   const matches: DelimitedTextMatch[] = [];
+  const advancesWithLastIndex = regex.global || regex.sticky;
   let match: RegExpExecArray | null;
   regex.lastIndex = 0;
 
@@ -62,12 +63,16 @@ export function findDelimitedTextMatches(
     const start = match.index;
     const end = match.index + match[0].length;
     const closeStart = end - closeDelimiterLength;
+    const shouldStopAfterMatch = !advancesWithLastIndex;
+    const isEmptyMatch = match[0].length === 0;
+    let shouldKeepMatch = !isEmptyMatch;
 
-    if (sourceOffsets && !sourceOffsetMap) {
-      continue;
+    if (shouldKeepMatch && sourceOffsets && !sourceOffsetMap) {
+      shouldKeepMatch = false;
     }
 
     if (
+      shouldKeepMatch &&
       sourceOffsetMap &&
       (
         !isLiteralUnescapedMarkdownTextRange(
@@ -88,14 +93,23 @@ export function findDelimitedTextMatches(
         )
       )
     ) {
-      continue;
+      shouldKeepMatch = false;
     }
 
-    matches.push({
-      start,
-      end,
-      content: match[1],
-    });
+    if (shouldKeepMatch) {
+      matches.push({
+        start,
+        end,
+        content: match[1],
+      });
+    }
+
+    if (isEmptyMatch && advancesWithLastIndex) {
+      regex.lastIndex = start + 1;
+    }
+    if (shouldStopAfterMatch) {
+      break;
+    }
   }
 
   return matches;

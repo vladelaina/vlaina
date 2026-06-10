@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { convertToBase64 } from '@/lib/storage/attachmentStorage';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
-import { buildMessageImageSources, buildStoredUserMessageContent } from './helpers';
+import {
+  buildMessageImageSources,
+  buildStoredUserMessageContent,
+  MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS,
+} from './helpers';
 
 const mocks = vi.hoisted(() => ({
   convertToBase64: vi.fn(),
@@ -178,7 +182,9 @@ describe('buildStoredUserMessageContent image parsing', () => {
 
     const result = await buildStoredUserMessageContent(content);
 
-    expect(Array.isArray(result) ? result.filter((part) => part.type === 'image_url') : []).toHaveLength(2000);
+    expect(Array.isArray(result) ? result.filter((part) => part.type === 'image_url') : []).toHaveLength(
+      MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS,
+    );
     expect(JSON.stringify(result)).not.toContain('![image 2000]');
     expect(JSON.stringify(result)).not.toContain('data:image/png;base64,QUJD)');
   });

@@ -161,6 +161,17 @@ it('should drop scheme-bearing non-url attributes in github html', () => {
   expect(result).not.toContain('data:text/html')
 })
 
+it('should drop loadable url attributes outside tag-specific allowlists in github html', () => {
+  const result = sanitizeGithubHtml([
+    '<div action="/submit">div</div>',
+    '<span action="relative">span</span>',
+    '<img src="https://example.com/safe.png">',
+    '<blockquote cite="docs/source.md">quote</blockquote>',
+  ].join(''))
+
+  expect(result).toBe('<div>div</div><span>span</span><img src="https://example.com/safe.png"><blockquote cite="docs/source.md">quote</blockquote>')
+})
+
 it('should drop internal relative media paths in github html', () => {
   const result = sanitizeGithubHtml([
     '<img src=".vlaina/private.png">',
@@ -183,6 +194,10 @@ it('should drop root-path raw media urls in github html', () => {
   const result = sanitizeGithubHtml([
     '<img src="/etc/passwd">',
     '<iframe src="/admin"></iframe>',
+    '<iframe src="#self"></iframe>',
+    '<iframe src="?embed"></iframe>',
+    '<iframe src="embed.html"></iframe>',
+    '<iframe src="./embed.html"></iframe>',
     '<video poster="/private.png"><source src="/private.mp4"></video>',
     String.raw`<img src="http:\127.0.0.1\secret.png">`,
     String.raw`<img src="\\127.0.0.1\secret.png">`,

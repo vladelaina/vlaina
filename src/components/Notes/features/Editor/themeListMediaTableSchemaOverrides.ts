@@ -108,6 +108,7 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
                 width,
                 'data-src': safeSrc || undefined,
                 'data-vlaina-crop': crop || undefined,
+                referrerpolicy: 'no-referrer',
             }];
         },
         parseDOM: [

@@ -3,13 +3,22 @@ export interface EditorAiSelectionContext {
   afterContext?: string;
 }
 
+export const MAX_EDITOR_AI_INSTRUCTION_CHARS = 4096;
+export const MAX_EDITOR_AI_CONTEXT_CHARS = 1200;
+
+function boundPromptField(value: string, maxChars: number): string {
+  return value.length > maxChars ? value.slice(0, maxChars) : value;
+}
+
 export function buildEditorAiUserMessage(
   instruction: string,
   selectedText: string,
   context: EditorAiSelectionContext = {}
 ): string {
+  const beforeContext = boundPromptField(context.beforeContext ?? '', MAX_EDITOR_AI_CONTEXT_CHARS);
+  const afterContext = boundPromptField(context.afterContext ?? '', MAX_EDITOR_AI_CONTEXT_CHARS);
   const message = [
-    `Instruction: ${instruction.trim()}`,
+    `Instruction: ${boundPromptField(instruction.trim(), MAX_EDITOR_AI_INSTRUCTION_CHARS)}`,
     '',
     'Use the surrounding context only to understand meaning, style, references, numbering, and markdown structure.',
     'Do not edit or return the surrounding context.',
@@ -17,11 +26,11 @@ export function buildEditorAiUserMessage(
     '',
   ];
 
-  if (context.beforeContext?.trim()) {
+  if (beforeContext.trim()) {
     message.push(
       'Read-only context before the selection:',
       '<<<CONTEXT_BEFORE',
-      context.beforeContext,
+      beforeContext,
       '>>>',
       ''
     );
@@ -34,12 +43,12 @@ export function buildEditorAiUserMessage(
     '>>>',
   );
 
-  if (context.afterContext?.trim()) {
+  if (afterContext.trim()) {
     message.push(
       '',
       'Read-only context after the selection:',
       '<<<CONTEXT_AFTER',
-      context.afterContext,
+      afterContext,
       '>>>'
     );
   }
