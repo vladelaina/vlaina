@@ -96,16 +96,25 @@ interface SettingsSwitchProps {
   onChange: (checked: boolean) => void;
   className?: string;
   'aria-label'?: string;
+  'data-settings-control'?: string;
   activeColor?: string;
 }
 
-export function SettingsSwitch({ checked, onChange, className, 'aria-label': ariaLabel, activeColor }: SettingsSwitchProps) {
+export function SettingsSwitch({
+  checked,
+  onChange,
+  className,
+  'aria-label': ariaLabel,
+  'data-settings-control': dataSettingsControl,
+  activeColor,
+}: SettingsSwitchProps) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       aria-label={ariaLabel}
+      data-settings-control={dataSettingsControl}
       onClick={() => onChange(!checked)}
       className={cn(
         'relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-[var(--vlaina-duration-200)] focus:outline-none',

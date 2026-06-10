@@ -77,6 +77,7 @@ function ColorModeToggle({ colorMode, onChange }: ColorModeToggleProps) {
             type="button"
             aria-label={t(`settings.appearance.${option.value}Mode`)}
             aria-pressed={isActive}
+            data-settings-color-mode={option.value}
             onClick={() => onChange(option.value)}
             className={cn(
               "relative z-[var(--vlaina-z-10)] flex h-8 flex-1 items-center justify-center rounded-full transition-colors",
@@ -381,6 +382,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
     <input
       type="range"
       spellCheck={false}
+      data-settings-control="appearance-font-size"
       min={UI_FONT_SIZE_MIN}
       max={UI_FONT_SIZE_MAX}
       step="1"
@@ -399,6 +401,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
   return (
     <div
       className="max-w-3xl pb-10"
+      data-settings-tab-panel="appearance"
     >
       <div className={cn(
         "mb-4 flex items-center justify-between px-2",
@@ -437,6 +440,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
           </span>
           <button
             type="button"
+            data-settings-action="reset-font-size"
             onClick={handleResetFontSize}
             disabled={fontSize === UI_FONT_SIZE_DEFAULT}
             className={cn(
@@ -453,6 +457,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
         {t('settings.appearance.display')}
       </SettingsSectionHeader>
       <SettingsItem
+        data-settings-item="appearance-theme"
         title={t('settings.appearance.theme')}
         className={cn(isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]")}
       >
@@ -472,6 +477,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
               <button
                 type="button"
                 aria-label={t('settings.appearance.openThemeFolder')}
+                data-settings-action="open-theme-folder"
                 onClick={() => void handleOpenThemeDirectory()}
                 className={cn(
                   "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors",

@@ -27,6 +27,7 @@ function formatChannelBaseUrl(baseUrl: string) {
 }
 
 function ChannelObject({
+  providerId,
   name,
   baseUrl,
   enabled,
@@ -37,6 +38,7 @@ function ChannelObject({
   onToggleEnabled,
   onDelete,
 }: {
+  providerId: string;
   name: string;
   baseUrl: string;
   enabled: boolean;
@@ -53,6 +55,8 @@ function ChannelObject({
     <div
       role="button"
       tabIndex={0}
+      data-settings-ai-channel-card={providerId}
+      data-active={active ? 'true' : undefined}
       onClick={onClick}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -104,6 +108,7 @@ function ChannelObject({
         <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
           <button
             type="button"
+            data-settings-ai-action="delete-channel"
             onClick={(event) => {
               event.stopPropagation();
               onDelete?.();
@@ -114,6 +119,7 @@ function ChannelObject({
             <Icon name="common.close" size="xs" />
           </button>
           <SettingsSwitch
+            data-settings-control="ai-channel-enabled"
             checked={enabled}
             onChange={(nextEnabled) => onToggleEnabled?.(nextEnabled)}
             className="origin-right scale-[var(--vlaina-scale-84)]"
@@ -133,6 +139,7 @@ function CreateChannelObject({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       aria-label={t('settings.ai.newChannel')}
+      data-settings-ai-action="new-channel"
       className={cn(
         "flex min-h-[var(--vlaina-size-112px)] items-center justify-center rounded-[var(--vlaina-radius-26px)] border border-transparent transition-all duration-[var(--vlaina-duration-200)] shadow-[var(--vlaina-shadow-sm)] hover:shadow-[var(--vlaina-shadow-md)] active:scale-[var(--vlaina-scale-98)]",
         chatComposerPillSurfaceClass
@@ -289,7 +296,10 @@ export function AITab() {
   const hasCustomProviders = customProviders.length > 0;
 
   return (
-    <div className="h-full bg-[var(--vlaina-color-setting-panel)] text-[var(--vlaina-sidebar-notes-text)]">
+    <div
+      className="h-full bg-[var(--vlaina-color-setting-panel)] text-[var(--vlaina-sidebar-notes-text)]"
+      data-settings-tab-panel="ai"
+    >
       <ConfirmDialog
         isOpen={!!pendingDelete}
         title={t('settings.ai.deleteChannelTitle', { name: pendingDelete?.name || t('settings.ai.thisChannel') })}
@@ -340,6 +350,7 @@ export function AITab() {
                       return (
                         <ChannelObject
                           key={provider.id}
+                          providerId={provider.id}
                           name={draft?.name ?? provider.name}
                           baseUrl={draft?.apiHost ?? provider.apiHost ?? ''}
                           enabled={provider.enabled ?? true}
@@ -387,6 +398,7 @@ export function AITab() {
                   type="button"
                   onClick={handleAddCustomProvider}
                   aria-label={t('settings.ai.newChannel')}
+                  data-settings-ai-action="new-channel"
                   transition={{
                     duration: themeMotionTokens.aiChannelEmptyDuration,
                     ease: themeMotionTokens.standardEase,

@@ -5,6 +5,7 @@ interface SidebarContextMenuItemProps {
   icon: ReactNode;
   label: ReactNode;
   onClick: () => void | Promise<unknown>;
+  itemKey?: string;
   danger?: boolean;
   disabled?: boolean;
   trailing?: ReactNode;
@@ -15,6 +16,7 @@ export function SidebarContextMenuItem({
   icon,
   label,
   onClick,
+  itemKey,
   danger = false,
   disabled = false,
   trailing,
@@ -22,6 +24,7 @@ export function SidebarContextMenuItem({
 }: SidebarContextMenuItemProps) {
   return (
     <button
+      data-sidebar-context-menu-item={itemKey}
       onClick={(event) => {
         event.stopPropagation();
         const result = onClick();

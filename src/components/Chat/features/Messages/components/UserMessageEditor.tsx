@@ -152,6 +152,7 @@ export function UserMessageEditor({
         duration: themeMotionTokens.chatUserEditDuration,
         ease: themeMotionTokens.standardEase,
       }}
+      data-chat-message-editor="true"
       className="w-full flex justify-end pb-4"
       style={{ willChange: themeRenderingTokens.transformOpacityWillChange }}
     >
@@ -190,6 +191,8 @@ export function UserMessageEditor({
 
         <div className="flex justify-end items-center gap-2 px-2 pb-2 pr-3">
           <button
+            type="button"
+            data-chat-message-editor-action="cancel"
             onClick={handleCancel}
             className={cn(
               chatComposerSecondaryButtonClass,
@@ -199,6 +202,8 @@ export function UserMessageEditor({
             {t('common.cancel')}
           </button>
           <button
+            type="button"
+            data-chat-message-editor-action="save"
             onClick={handleSave}
             className="h-9 rounded-full bg-[var(--vlaina-accent)] px-4 text-[var(--vlaina-font-13)] font-semibold text-[var(--vlaina-color-white)] shadow-[var(--vlaina-shadow-accent-action)] transition-[box-shadow,transform] duration-[var(--vlaina-duration-200)] hover:scale-[var(--vlaina-scale-105)] active:scale-[var(--vlaina-scale-95)]"
           >

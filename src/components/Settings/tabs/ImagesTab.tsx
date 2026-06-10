@@ -91,7 +91,7 @@ export function ImagesTab() {
     );
 
     return (
-        <div className="w-full">
+        <div className="w-full" data-settings-section="images">
             <SettingsSectionHeader>{t('settings.images.images')}</SettingsSectionHeader>
 
             <div className="mb-4 flex items-center justify-between px-2">
@@ -119,10 +119,12 @@ export function ImagesTab() {
                     const isSelected = imageStorageMode === option.id;
 
                     return (
-                        <button
-                            type="button"
-                            key={option.id}
-                            onClick={() => setImageStorageMode(option.id)}
+                    <button
+                        type="button"
+                        key={option.id}
+                        data-settings-image-storage-mode={option.id}
+                        data-selected={isSelected ? 'true' : undefined}
+                        onClick={() => setImageStorageMode(option.id)}
                             className={cn(
                                 "group relative flex w-full items-center gap-4 rounded-[var(--vlaina-radius-22px)] px-6 py-4 text-left transition-all duration-[var(--vlaina-duration-200)] border border-transparent",
                                 isSelected
@@ -163,6 +165,7 @@ export function ImagesTab() {
                         >
                             <SettingsTextInput
                                 type="text"
+                                data-settings-control="image-vault-subfolder-name"
                                 value={imageVaultSubfolderName}
                                 onChange={(e) => setImageVaultSubfolderName(e.target.value)}
                                 placeholder="assets"
@@ -180,6 +183,7 @@ export function ImagesTab() {
                         >
                             <SettingsTextInput
                                 type="text"
+                                data-settings-control="image-subfolder-name"
                                 value={imageSubfolderName}
                                 onChange={(e) => setImageSubfolderName(e.target.value)}
                                 placeholder="assets"
@@ -230,6 +234,8 @@ function FilenameFormatOption({ id, label, description, icon }: { id: 'original'
     return (
         <button
             type="button"
+            data-settings-image-filename-format={id}
+            data-selected={isSelected ? 'true' : undefined}
             onClick={() => setImageFilenameFormat(id)}
             className={cn(
                 "group relative flex w-full items-center gap-4 rounded-[var(--vlaina-radius-22px)] px-6 py-4 text-left transition-all duration-[var(--vlaina-duration-200)] border border-transparent",

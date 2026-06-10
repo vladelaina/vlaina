@@ -18,8 +18,12 @@ export function MarkdownCodeBlockSettings({
       <SettingsSectionHeader>{t('settings.markdown.codeBlock')}</SettingsSectionHeader>
 
       <div className="space-y-1">
-        <SettingsItem title={t('settings.markdown.showLineNumbers')}>
+        <SettingsItem
+          data-settings-item="markdown-code-block-line-numbers"
+          title={t('settings.markdown.showLineNumbers')}
+        >
           <SettingsSwitch
+            data-settings-control="markdown-code-block-line-numbers"
             checked={showLineNumbers}
             onChange={onShowLineNumbersChange}
             activeColor="bg-[var(--vlaina-sidebar-row-selected-text)]"

@@ -159,12 +159,15 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
               onClick={(e) => e.stopPropagation()}
               role="dialog"
               aria-modal="true"
+              data-settings-modal="true"
+              data-settings-active-tab={activeTab}
               tabIndex={-1}
             >
               <button
                 type="button"
                 onClick={handleClose}
                 aria-label={t('common.close')}
+                data-settings-action="close"
                 className={cn(
                   "absolute right-5 top-5 z-[var(--vlaina-z-10)] inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-transparent hover:text-[var(--vlaina-sidebar-row-selected-text)]",
                   "dark:hover:bg-transparent dark:hover:text-[var(--vlaina-sidebar-row-selected-text)]",
@@ -191,6 +194,9 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
                               return (
                                 <div key={item.id} className="group/chat-sidebar-row flex items-center">
                                   <button
+                                    type="button"
+                                    data-settings-tab={item.id}
+                                    data-active={isActive ? 'true' : undefined}
                                     onClick={() => setActiveTab(item.id)}
                                     className={cn(
                                       "flex min-h-[var(--vlaina-size-44px)] w-full items-center gap-3.5 px-4 py-3 text-sm leading-none transition-all duration-[var(--vlaina-duration-300)] ease-out rounded-[var(--vlaina-radius-18px)]",

@@ -37,6 +37,7 @@ export function ChatSidebarTopActions({
       {actions.map((action) => (
         <SidebarActionButton
           key={action.key}
+          data-chat-sidebar-action={action.key}
           tone="chat"
           onClick={action.onClick}
           icon={action.icon}

@@ -116,6 +116,7 @@ export function ConfirmDialog({
                   <button
                     ref={auxActionRef}
                     type="button"
+                    data-dialog-action="aux"
                     onClick={async () => {
                       await onAuxAction();
                     }}
@@ -133,6 +134,7 @@ export function ConfirmDialog({
                 <button
                   ref={confirmRef}
                   type="button"
+                  data-dialog-action="confirm"
                   onClick={async () => {
                     await onConfirm();
                     onClose();
@@ -150,6 +152,7 @@ export function ConfirmDialog({
                 <button
                   ref={cancelRef}
                   type="button"
+                  data-dialog-action="cancel"
                   onClick={async () => {
                     if (onCancelAction) {
                       await onCancelAction();

@@ -65,6 +65,7 @@ function renderEntry(entry: SidebarMenuEntry, index: number): ReactNode {
       key={key}
       icon={entry.icon}
       label={entry.label}
+      itemKey={key}
       onClick={entry.onClick}
       danger={entry.danger}
       disabled={entry.disabled}

@@ -68,6 +68,7 @@ export function ChatInputActions({
             <button
               type="button"
               aria-label={t('chat.openActions')}
+              data-chat-input-action="open-actions"
               className={cn(
                 'w-9 h-9 flex items-center justify-center',
                 iconButtonStyles,
@@ -98,6 +99,7 @@ export function ChatInputActions({
             {!webSearchEnabled && (
               <button
                 type="button"
+                data-chat-input-action="enable-web-search"
                 onClick={handleEnableWebSearch}
                 className={cn(
                   "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium whitespace-nowrap transition-colors",
@@ -111,6 +113,7 @@ export function ChatInputActions({
             )}
             <button
               type="button"
+              data-chat-input-action="mention"
               onClick={handleTriggerMentionSelect}
               className={cn(
                 "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium whitespace-nowrap transition-colors",
@@ -123,6 +126,7 @@ export function ChatInputActions({
             </button>
             <button
               type="button"
+              data-chat-input-action="upload"
               onClick={handleTriggerFileSelect}
               className={cn(
                 "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium whitespace-nowrap transition-colors",
@@ -140,6 +144,7 @@ export function ChatInputActions({
             type="button"
             aria-pressed="true"
             aria-label={t('chat.disableWebSearch')}
+            data-chat-input-action="disable-web-search"
             onClick={handleDisableWebSearch}
             className="w-9 h-9 flex items-center justify-center rounded-full bg-[var(--vlaina-sidebar-chat-row-active)] text-[var(--vlaina-sidebar-row-selected-text)] transition-[background-color,color,transform] duration-[var(--vlaina-duration-200)] hover:bg-[var(--vlaina-sidebar-chat-row-active)] hover:text-[var(--vlaina-sidebar-row-selected-text)] active:scale-[var(--vlaina-scale-95)]"
           >
@@ -151,6 +156,9 @@ export function ChatInputActions({
       <div className="flex items-center gap-2">
         {isLoading ? (
           <button
+            type="button"
+            aria-label="Stop response"
+            data-chat-input-action="stop"
             onClick={onStop}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--vlaina-color-pill-surface-hover)] text-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-menu-hover)] transition-[color,box-shadow,transform] duration-[var(--vlaina-duration-200)] hover:text-[var(--vlaina-accent-hover)] hover:scale-[var(--vlaina-scale-105)] active:scale-[var(--vlaina-scale-95)]"
           >
@@ -158,6 +166,9 @@ export function ChatInputActions({
           </button>
         ) : (
           <button
+            type="button"
+            aria-label={t('common.send')}
+            data-chat-input-action="send"
             onClick={onSend}
             disabled={!canSubmit}
             className={cn(
