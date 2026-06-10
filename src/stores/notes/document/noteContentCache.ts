@@ -154,20 +154,34 @@ export function pruneCachedNoteContents(
 export function limitCachedNoteContents(
   cache: NoteContentCache,
   keepPaths: ReadonlySet<string>,
-  maxEntries: number
+  maxEntries: number,
+  options: { maxContentChars?: number } = {}
 ): NoteContentCache {
-  if (cache.size <= maxEntries) {
+  const maxContentChars = typeof options.maxContentChars === 'number' && Number.isFinite(options.maxContentChars)
+    ? Math.max(0, options.maxContentChars)
+    : null;
+  let contentChars = 0;
+  if (maxContentChars !== null) {
+    for (const entry of cache.values()) {
+      contentChars += entry.content.length + (entry.savedContent?.length ?? 0);
+    }
+  }
+
+  if (cache.size <= maxEntries && (maxContentChars === null || contentChars <= maxContentChars)) {
     return cache;
   }
 
   const nextCache = new Map(cache);
-  for (const path of nextCache.keys()) {
-    if (nextCache.size <= maxEntries) {
+  for (const [path, entry] of nextCache.entries()) {
+    if (nextCache.size <= maxEntries && (maxContentChars === null || contentChars <= maxContentChars)) {
       break;
     }
 
     if (!keepPaths.has(path)) {
       nextCache.delete(path);
+      if (maxContentChars !== null) {
+        contentChars -= entry.content.length + (entry.savedContent?.length ?? 0);
+      }
     }
   }
 

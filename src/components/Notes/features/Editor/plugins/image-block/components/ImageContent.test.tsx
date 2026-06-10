@@ -59,6 +59,7 @@ describe('ImageContent', () => {
     expect(image).toHaveAttribute('data-src', './assets/card.png#cardd#40%');
     expect(image).toHaveAttribute('data-inject-url', './assets/card.png#cardd#40%');
     expect(image).toHaveAttribute('alt', 'Card caption');
+    expect(image).toHaveAttribute('referrerpolicy', 'no-referrer');
     expect(screen.queryByTestId('remote-image-placeholder')).toBeNull();
     expect(props.onMediaLoaded).toHaveBeenCalledTimes(1);
   });
@@ -128,6 +129,7 @@ describe('ImageContent', () => {
     expect(image).toHaveAttribute('data-src', './assets/cropped.png#line');
     expect(image).toHaveAttribute('data-inject-url', './assets/cropped.png#line');
     expect(image).toHaveAttribute('alt', 'Cropped caption');
+    expect(image).toHaveAttribute('referrerpolicy', 'no-referrer');
 
     fireEvent.load(image!);
 

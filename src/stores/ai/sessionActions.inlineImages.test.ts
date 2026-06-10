@@ -131,6 +131,66 @@ describe('session inline image persistence', () => {
     expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
   })
 
+  it('coalesces queued inline image persistence for repeated switches before timers run', async () => {
+    const { createSessionActions } = await import('./sessionActions')
+    const timeoutSpy = vi.spyOn(globalThis, 'setTimeout')
+    const actions = createSessionActions()
+    seedSession([createMessage('m1', 'plain text')])
+
+    await actions.switchSession('session-2')
+    await actions.switchSession('session-2')
+    await actions.switchSession('session-2')
+
+    expect(timeoutSpy).toHaveBeenCalledTimes(1)
+    await vi.runOnlyPendingTimersAsync()
+  })
+
+  it('bounds queued inline image persistence across different sessions', async () => {
+    const {
+      MAX_INLINE_IMAGE_PERSISTENCE_PENDING_SESSIONS,
+      createSessionActions,
+    } = await import('./sessionActions')
+    const timeoutSpy = vi.spyOn(globalThis, 'setTimeout')
+    const targetSessionIds = Array.from(
+      { length: MAX_INLINE_IMAGE_PERSISTENCE_PENDING_SESSIONS + 5 },
+      (_value, index) => `session-${index + 2}`,
+    )
+    seedSession([])
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              sessions: [
+                { id: 'session-1', title: 'First', modelId: 'model-1', createdAt: 1, updatedAt: 1 },
+                ...targetSessionIds.map((id, index) => ({
+                  id,
+                  title: `Session ${index + 2}`,
+                  modelId: 'model-1',
+                  createdAt: index + 2,
+                  updatedAt: index + 2,
+                })),
+              ],
+              messages: {
+                'session-1': [],
+                ...Object.fromEntries(targetSessionIds.map((id) => [id, []])),
+              },
+            }
+          : state.data.ai,
+      },
+    }))
+    const actions = createSessionActions()
+
+    for (const sessionId of targetSessionIds) {
+      await actions.switchSession(sessionId)
+    }
+
+    expect(timeoutSpy).toHaveBeenCalledTimes(MAX_INLINE_IMAGE_PERSISTENCE_PENDING_SESSIONS)
+    await vi.runOnlyPendingTimersAsync()
+  })
+
   it('does not recreate a deleted session when switch loading finishes late', async () => {
     const { createSessionActions } = await import('./sessionActions')
     let resolveLoad!: (messages: ChatMessage[]) => void

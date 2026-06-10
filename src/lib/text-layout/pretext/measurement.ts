@@ -25,6 +25,9 @@ export type BreakableFitMode = 'sum-graphemes' | 'segment-prefixes' | 'pair-cont
 let measureContext: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null
 const segmentMetricCaches = new Map<string, Map<string, SegmentMetrics>>()
 let cachedEngineProfile: EngineProfile | null = null
+export const MAX_SEGMENT_METRIC_CACHE_FONTS = 32
+export const MAX_SEGMENT_METRICS_PER_FONT = 2000
+const MAX_EMOJI_CORRECTION_CACHE_FONTS = 32
 
 // Safari's prefix-fit policy is useful for ordinary word-sized runs, but letting
 // it measure every growing prefix of a giant segment recreates a pathological
@@ -36,6 +39,13 @@ const emojiPresentationRe = /\p{Emoji_Presentation}/u
 const maybeEmojiRe = /[\p{Emoji_Presentation}\p{Extended_Pictographic}\p{Regional_Indicator}\uFE0F\u20E3]/u
 let sharedGraphemeSegmenter: Intl.Segmenter | null = null
 const emojiCorrectionCache = new Map<string, number>()
+
+function deleteOldestCacheEntry<K, V>(cache: Map<K, V>): void {
+  const oldestKey = cache.keys().next().value
+  if (oldestKey !== undefined) {
+    cache.delete(oldestKey)
+  }
+}
 
 export function getMeasureContext(): CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D {
   if (measureContext !== null) return measureContext
@@ -56,22 +66,35 @@ export function getMeasureContext(): CanvasRenderingContext2D | OffscreenCanvasR
 export function getSegmentMetricCache(font: string): Map<string, SegmentMetrics> {
   let cache = segmentMetricCaches.get(font)
   if (!cache) {
+    if (segmentMetricCaches.size >= MAX_SEGMENT_METRIC_CACHE_FONTS) {
+      deleteOldestCacheEntry(segmentMetricCaches)
+    }
     cache = new Map()
     segmentMetricCaches.set(font, cache)
+    return cache
   }
+  segmentMetricCaches.delete(font)
+  segmentMetricCaches.set(font, cache)
   return cache
 }
 
 export function getSegmentMetrics(seg: string, cache: Map<string, SegmentMetrics>): SegmentMetrics {
   let metrics = cache.get(seg)
-  if (metrics === undefined) {
-    const ctx = getMeasureContext()
-    metrics = {
-      width: ctx.measureText(seg).width,
-      containsCJK: isCJK(seg),
-    }
+  if (metrics !== undefined) {
+    cache.delete(seg)
     cache.set(seg, metrics)
+    return metrics
   }
+
+  const ctx = getMeasureContext()
+  metrics = {
+    width: ctx.measureText(seg).width,
+    containsCJK: isCJK(seg),
+  }
+  if (cache.size >= MAX_SEGMENT_METRICS_PER_FONT) {
+    deleteOldestCacheEntry(cache)
+  }
+  cache.set(seg, metrics)
   return metrics
 }
 
@@ -137,7 +160,11 @@ export function textMayContainEmoji(text: string): boolean {
 
 function getEmojiCorrection(font: string, fontSize: number): number {
   let correction = emojiCorrectionCache.get(font)
-  if (correction !== undefined) return correction
+  if (correction !== undefined) {
+    emojiCorrectionCache.delete(font)
+    emojiCorrectionCache.set(font, correction)
+    return correction
+  }
 
   const ctx = getMeasureContext()
   ctx.font = font
@@ -160,6 +187,9 @@ function getEmojiCorrection(font: string, fontSize: number): number {
     if (canvasW - domW > 0.5) {
       correction = canvasW - domW
     }
+  }
+  if (emojiCorrectionCache.size >= MAX_EMOJI_CORRECTION_CACHE_FONTS) {
+    deleteOldestCacheEntry(emojiCorrectionCache)
   }
   emojiCorrectionCache.set(font, correction)
   return correction

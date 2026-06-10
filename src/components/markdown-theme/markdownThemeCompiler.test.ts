@@ -3,6 +3,7 @@ import type { ImportedMarkdownTheme } from '@/lib/markdown/theme-compatibility/t
 import {
   clearCompiledImportedMarkdownThemeStyles,
   compileImportedMarkdownThemeStyles,
+  MAX_IN_FLIGHT_THEME_PRELOADS,
   preloadCompiledImportedMarkdownThemeStyles,
 } from './markdownThemeCompiler';
 
@@ -109,5 +110,15 @@ describe('markdownThemeCompiler', () => {
 
     expect(mocks.readImportedMarkdownTheme).toHaveBeenCalledTimes(1);
     expect(mocks.scopeImportedMarkdownThemeCss).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds concurrent preloads for different theme ids', () => {
+    mocks.readImportedMarkdownTheme.mockReturnValue(new Promise(() => undefined));
+
+    for (let index = 0; index < MAX_IN_FLIGHT_THEME_PRELOADS + 5; index += 1) {
+      preloadCompiledImportedMarkdownThemeStyles(`theme-${index}`);
+    }
+
+    expect(mocks.readImportedMarkdownTheme).toHaveBeenCalledTimes(MAX_IN_FLIGHT_THEME_PRELOADS);
   });
 });

@@ -59,6 +59,8 @@ const MAX_NOTE_DOCUMENT_BYTES = 10 * 1024 * 1024;
 const MAX_NOTE_DOCUMENT_CHARS = 10 * 1024 * 1024;
 const MAX_NOTE_DOCUMENT_LINES = 120_000;
 const MAX_NOTE_DOCUMENT_LINE_CHARS = 512 * 1024;
+const MAX_UTF8_BYTES_PER_UTF16_CODE_UNIT = 3;
+const utf8Encoder = new TextEncoder();
 
 export class NoteWriteConflictError extends Error {
   constructor() {
@@ -139,6 +141,13 @@ function shouldVerifyDiskContentWithoutModifiedAt(diskModifiedAt: number | null,
 
 export function assertEditorSafeMarkdownContent(content: string): void {
   if (content.length > MAX_NOTE_DOCUMENT_CHARS) {
+    throw new Error('Note file is too large to open.');
+  }
+
+  if (
+    content.length > Math.floor(MAX_NOTE_DOCUMENT_BYTES / MAX_UTF8_BYTES_PER_UTF16_CODE_UNIT) &&
+    utf8Encoder.encode(content).length > MAX_NOTE_DOCUMENT_BYTES
+  ) {
     throw new Error('Note file is too large to open.');
   }
 

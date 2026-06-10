@@ -9,6 +9,7 @@ const SUMMARY_LIMIT = 1000;
 const SITE_NAME_LIMIT = 200;
 const TIMESTAMP_LIMIT = 100;
 const SOURCE_LIMIT = 200;
+export const MAX_FORMATTED_BATCH_WEB_PAGES = 8;
 
 function clip(value: string, limit: number): string {
   return value.length > limit ? `${value.slice(0, limit)}\n[truncated]` : value;
@@ -80,6 +81,7 @@ export function formatPageForModel(page: WebPageContent): string {
 
 export function formatBatchPagesForModel(results: WebPageReadResult[]): string {
   return results
+    .slice(0, MAX_FORMATTED_BATCH_WEB_PAGES)
     .map((result, index) => {
       if (!result.ok || !result.page) {
         const safeUrl = sanitizeWebSearchSourceUrl(result.url) ?? '(unavailable)';

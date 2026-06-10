@@ -7,7 +7,7 @@ import {
   remarkStringifyOptionsCtx,
   serializerCtx,
 } from '@milkdown/kit/core';
-import { DOMParser as ProseDOMParser, type Node as ProseNode } from '@milkdown/kit/prose/model';
+import { DOMParser as ProseDOMParser, DOMSerializer, type Node as ProseNode } from '@milkdown/kit/prose/model';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
@@ -112,6 +112,39 @@ async function serializeImageDom(html: string) {
   const markdown = editor.ctx.get(serializerCtx)(doc).trim();
   await editor.destroy();
   return markdown;
+}
+
+async function getSerializedImageDomAttrs(attrs: Record<string, unknown>) {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, '');
+      ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+        ...prev,
+        ...notesRemarkStringifyOptions,
+      }));
+    })
+    .use(commonmark)
+    .use(gfm)
+    .use(configureTheme);
+
+  await editor.create();
+  const schema = editor.ctx.get(editorViewCtx).state.schema;
+  const doc = schema.nodes.doc.create(null, [
+    schema.nodes.paragraph.create(null, [
+      schema.nodes.image.create(attrs),
+    ]),
+  ]);
+  const container = document.createElement('div');
+  container.appendChild(DOMSerializer.fromSchema(schema).serializeFragment(doc.content));
+  const image = container.querySelector('img');
+  const result = image
+    ? {
+      src: image.getAttribute('src'),
+      referrerPolicy: image.getAttribute('referrerpolicy'),
+    }
+    : null;
+  await editor.destroy();
+  return result;
 }
 
 describe('image markdown persistence', () => {
@@ -220,6 +253,18 @@ describe('image markdown persistence', () => {
     await expect(serializeImageAttrs(attrs[0])).resolves.toBe(
       '<img src="https://example.com/demo.png" alt="demo" />'
     );
+  });
+
+  it('serializes image DOM with no-referrer policy', async () => {
+    await expect(getSerializedImageDomAttrs({
+      src: 'https://example.com/demo.png',
+      alt: 'demo',
+      align: 'center',
+      width: null,
+    })).resolves.toEqual({
+      src: 'https://example.com/demo.png',
+      referrerPolicy: 'no-referrer',
+    });
   });
 
   it('round trips html image layout attrs after reopening', async () => {

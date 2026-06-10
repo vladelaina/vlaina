@@ -263,6 +263,9 @@ describe('desktop runtime adapters', () => {
     await expect(openExternalUrl('https://example.com/\u202Ecod.exe')).rejects.toThrow('Unsupported external URL.');
     await expect(openExternalUrl(String.raw`https:\example.com\path`)).rejects.toThrow('Unsupported external URL.');
     await expect(openExternalUrl(String.raw`https://example.com\@evil.test/path`)).rejects.toThrow('Unsupported external URL.');
+    await expect(openExternalUrl('https://user:pass@example.com/private')).rejects.toThrow('Unsupported external URL.');
+    await expect(openExternalUrl('http://127.0.0.1:3000/admin')).rejects.toThrow('Unsupported external URL.');
+    await expect(openExternalUrl('http://router/admin')).rejects.toThrow('Unsupported external URL.');
 
     expect(mocks.bridge.shell.openExternal).not.toHaveBeenCalled();
 

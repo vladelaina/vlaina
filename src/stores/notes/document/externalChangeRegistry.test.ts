@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  MAX_EXPECTED_EXTERNAL_CHANGES,
   markExpectedExternalChange,
   shouldIgnoreExpectedExternalChange,
 } from './externalChangeRegistry';
@@ -45,5 +46,14 @@ describe('externalChangeRegistry', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('evicts oldest expected changes when the registry reaches its memory budget', () => {
+    for (let index = 0; index <= MAX_EXPECTED_EXTERNAL_CHANGES; index += 1) {
+      markExpectedExternalChange(`/vault/docs/bulk-${index}.md`);
+    }
+
+    expect(shouldIgnoreExpectedExternalChange('/vault/docs/bulk-0.md')).toBe(false);
+    expect(shouldIgnoreExpectedExternalChange(`/vault/docs/bulk-${MAX_EXPECTED_EXTERNAL_CHANGES}.md`)).toBe(true);
   });
 });

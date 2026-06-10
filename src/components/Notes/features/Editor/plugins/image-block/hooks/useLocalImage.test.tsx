@@ -252,7 +252,11 @@ describe('useLocalImage', () => {
     expect(result.current.resolvedSrc).toBe('blob:remote-image');
     expect(result.current.error).toBeNull();
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(fetch).toHaveBeenCalledWith('https://example.com/tracker.png', { cache: 'force-cache' });
+    expect(fetch).toHaveBeenCalledWith('https://example.com/tracker.png', {
+      cache: 'force-cache',
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+    });
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
   });
 
@@ -268,7 +272,11 @@ describe('useLocalImage', () => {
     expect(result.current.resolvedSrc).toBe('blob:remote-image');
     expect(result.current.error).toBeNull();
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(fetch).toHaveBeenCalledWith('https://example.com/tracker.png', { cache: 'force-cache' });
+    expect(fetch).toHaveBeenCalledWith('https://example.com/tracker.png', {
+      cache: 'force-cache',
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+    });
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
   });
 

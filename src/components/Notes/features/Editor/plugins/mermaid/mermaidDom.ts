@@ -12,6 +12,7 @@ const mermaidElementCode = new WeakMap<HTMLElement, string>();
 let mermaidRenderKeyCounter = 0;
 let mermaidIdCounter = 0;
 const MERMAID_RENDER_CACHE_LIMIT = 80;
+export const MAX_PENDING_MERMAID_RENDERS = 80;
 const mermaidMarkupCache = new Map<string, string>();
 const mermaidRenderPromiseCache = new Map<string, Promise<string>>();
 const mermaidLazyObservers = new WeakMap<HTMLElement, IntersectionObserver>();
@@ -115,7 +116,16 @@ function cacheMermaidMarkup(code: string, markup: string) {
   return markup;
 }
 
-async function resolveMermaidMarkup(
+export function clearMermaidRenderCaches(): void {
+  mermaidMarkupCache.clear();
+  mermaidRenderPromiseCache.clear();
+}
+
+export function getPendingMermaidRenderCount(): number {
+  return mermaidRenderPromiseCache.size;
+}
+
+export async function resolveMermaidMarkup(
   code: string,
   render?: MermaidRender
 ) {
@@ -135,6 +145,9 @@ async function resolveMermaidMarkup(
   const existingPromise = mermaidRenderPromiseCache.get(code);
   if (existingPromise) {
     return existingPromise;
+  }
+  if (mermaidRenderPromiseCache.size >= MAX_PENDING_MERMAID_RENDERS) {
+    return sanitizeMermaidMarkup(mermaidRenderErrorMarkup());
   }
 
   const promise = renderMermaidHtml(code, defaultRenderMermaid)

@@ -17,6 +17,11 @@ describe("readonlyMarkdownUrlTransform", () => {
     expect(readonlyMarkdownUrlTransform("captions.vtt", "src", { tagName: "track" })).toBe("captions.vtt");
     expect(readonlyMarkdownUrlTransform(".notes/movie.mp4", "src", { tagName: "video" })).toBe(".notes/movie.mp4");
     expect(readonlyMarkdownUrlTransform("https://example.com/embed", "src", { tagName: "iframe" })).toBe("https://example.com/embed");
+    expect(readonlyMarkdownUrlTransform("//example.com/embed", "src", { tagName: "iframe" })).toBe("https://example.com/embed");
+    expect(readonlyMarkdownUrlTransform("#self", "src", { tagName: "iframe" })).toBe("");
+    expect(readonlyMarkdownUrlTransform("?embed", "src", { tagName: "iframe" })).toBe("");
+    expect(readonlyMarkdownUrlTransform("embed.html", "src", { tagName: "iframe" })).toBe("");
+    expect(readonlyMarkdownUrlTransform("./embed.html", "src", { tagName: "iframe" })).toBe("");
     expect(readonlyMarkdownUrlTransform("javascript:alert(1)", "src", { tagName: "video" })).toBe("");
     expect(readonlyMarkdownUrlTransform("http://127.0.0.1:3000/media.mp4", "src", { tagName: "video" })).toBe("");
     expect(readonlyMarkdownUrlTransform("/admin", "src", { tagName: "iframe" })).toBe("");

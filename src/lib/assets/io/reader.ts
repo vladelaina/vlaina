@@ -5,6 +5,8 @@ import { sanitizeSvgBytes } from '@/lib/markdown/svgSanitizer';
 
 const MAX_CACHE_SIZE = 500;
 const MAX_THUMBNAIL_CACHE_SIZE = 300;
+export const MAX_PENDING_BLOB_URL_LOADS = 100;
+export const MAX_PENDING_THUMBNAIL_BLOB_URL_LOADS = 100;
 const MAX_LOCAL_IMAGE_BYTES = 50 * 1024 * 1024;
 const THUMBNAIL_MAX_EDGE_PX = 160;
 const MAX_THUMBNAIL_MAX_EDGE_PX = 2048;
@@ -28,6 +30,15 @@ const IMAGE_CACHE_INVALIDATED_ERROR_MESSAGE = 'Image cache was invalidated while
 function touchBlobUrlCacheEntry(cache: Map<string, BlobUrlCacheEntry>, key: string, entry: BlobUrlCacheEntry) {
   cache.delete(key);
   cache.set(key, entry);
+}
+
+function assertCanStartPendingImageLoad(
+  pendingLoads: Map<string, Promise<string>>,
+  maxPendingLoads: number
+): void {
+  if (pendingLoads.size >= maxPendingLoads) {
+    throw new Error('Too many image asset previews are loading.');
+  }
 }
 
 function revokeBlobUrlCacheEntry(entry: BlobUrlCacheEntry | undefined) {
@@ -303,6 +314,7 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
   if (existingLoad) {
     return existingLoad;
   }
+  assertCanStartPendingImageLoad(blobUrlLoadPromises, MAX_PENDING_BLOB_URL_LOADS);
 
   const loadPromise = (async () => {
     const loadGeneration = imageCacheGeneration;
@@ -377,6 +389,10 @@ export async function loadImageThumbnailAsBlob(
   if (existingLoad) {
     return existingLoad;
   }
+  assertCanStartPendingImageLoad(
+    thumbnailBlobUrlLoadPromises,
+    MAX_PENDING_THUMBNAIL_BLOB_URL_LOADS
+  );
 
   const loadPromise = (async () => {
     const loadGeneration = imageCacheGeneration;

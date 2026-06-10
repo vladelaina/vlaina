@@ -183,6 +183,7 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
             onError={() => setError(true)}
             style={style}
             data-vlaina-crop={cropData}
+            referrerPolicy="no-referrer"
         />
     );
 }

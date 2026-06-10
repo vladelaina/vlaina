@@ -3,6 +3,9 @@ import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import { isSafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
 
+const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+const WINDOWS_ABSOLUTE_PATH_PATTERN = /^[A-Za-z]:[\\/]/;
+
 export interface ResolvedOpenNoteTarget {
   vaultPath: string;
   notePath: string;
@@ -21,6 +24,11 @@ function normalizeMarkdownSelectionPath(path: string): string {
   return isAbsolutePath(path) ? normalizeAbsolutePath(path) : path;
 }
 
+function hasExplicitNonPathScheme(path: string): boolean {
+  const trimmed = path.trim();
+  return EXPLICIT_URL_SCHEME_PATTERN.test(trimmed) && !WINDOWS_ABSOLUTE_PATH_PATTERN.test(trimmed);
+}
+
 function hasUnsafeMarkdownSelectionPathSegment(path: string): boolean {
   return path
     .replace(/\\/g, '/')
@@ -30,6 +38,10 @@ function hasUnsafeMarkdownSelectionPathSegment(path: string): boolean {
 }
 
 export function isSupportedMarkdownSelection(path: string): boolean {
+  if (hasExplicitNonPathScheme(path)) {
+    return false;
+  }
+
   const normalizedPath = normalizeMarkdownSelectionPath(path);
   return (
     isSupportedMarkdownPath(normalizedPath) &&

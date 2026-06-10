@@ -51,9 +51,9 @@ const MAIN_DATA_FILE = 'data.json';
 const MAIN_DATA_BACKUP_FILE = 'data.backup.json';
 const AI_SESSIONS_FILE_VERSION = 1;
 const AI_PROVIDER_CHANNEL_FILE_VERSION = 1;
-const MAX_MAIN_DATA_BYTES = 2 * 1024 * 1024;
-const MAX_AI_SESSIONS_BYTES = 2 * 1024 * 1024;
-const MAX_AI_PROVIDER_CHANNEL_BYTES = 2 * 1024 * 1024;
+export const MAX_MAIN_DATA_BYTES = 2 * 1024 * 1024;
+export const MAX_AI_SESSIONS_BYTES = 2 * 1024 * 1024;
+export const MAX_AI_PROVIDER_CHANNEL_BYTES = 2 * 1024 * 1024;
 export const MAX_AI_SESSION_RECORDS = 5000;
 const MAX_AI_ID_LIST_ENTRIES = 5000;
 export const MAX_AI_PROVIDER_CHANNELS = 200;
@@ -154,6 +154,42 @@ function normalizeBoundedString(value: unknown, maxChars: number): string {
   return typeof value === 'string' ? value.slice(0, maxChars) : '';
 }
 
+function getSerializedByteLength(value: string): number {
+  return new TextEncoder().encode(value).byteLength;
+}
+
+function isSerializedWithinLimit(value: string, maxBytes: number): boolean {
+  return getSerializedByteLength(value) <= maxBytes;
+}
+
+function trimArrayForSerializedLimit<T>(
+  items: T[],
+  maxBytes: number,
+  serialize: (items: T[]) => string,
+): T[] {
+  if (items.length === 0) {
+    return items;
+  }
+  if (isSerializedWithinLimit(serialize(items), maxBytes)) {
+    return items;
+  }
+
+  let low = 0;
+  let high = items.length;
+  let best: T[] = [];
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const candidate = items.slice(0, mid);
+    if (isSerializedWithinLimit(serialize(candidate), maxBytes)) {
+      best = candidate;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return best;
+}
+
 async function mapWithConcurrencyLimit<T, R>(
   items: readonly T[],
   concurrency: number,
@@ -238,7 +274,31 @@ function normalizeProvidersForSave(value: unknown): Provider[] {
     }
 
     seenIds.add(id);
-    providers.push({ ...(item as unknown as Provider), id });
+    const endpointType = item.endpointType === 'openai' || item.endpointType === 'anthropic'
+      ? item.endpointType
+      : undefined;
+    const endpointTypeCheckedAt = typeof item.endpointTypeCheckedAt === 'number' && Number.isFinite(item.endpointTypeCheckedAt)
+      ? item.endpointTypeCheckedAt
+      : undefined;
+    providers.push({
+      id,
+      name: normalizeBoundedString(item.name, MAX_AI_MODEL_FIELD_CHARS) || 'Custom Provider',
+      ...(typeof item.icon === 'string' && item.icon.trim()
+        ? { icon: item.icon.trim().slice(0, MAX_AI_MODEL_FIELD_CHARS) }
+        : {}),
+      type: 'newapi',
+      ...(endpointType ? { endpointType } : {}),
+      ...(endpointTypeCheckedAt !== undefined ? { endpointTypeCheckedAt } : {}),
+      apiHost: normalizeBoundedString(item.apiHost, MAX_AI_MODEL_FIELD_CHARS),
+      apiKey: normalizeBoundedString(item.apiKey, MAX_AI_MODEL_FIELD_CHARS),
+      enabled: item.enabled !== false,
+      createdAt: typeof item.createdAt === 'number' && Number.isFinite(item.createdAt)
+        ? item.createdAt
+        : Date.now(),
+      updatedAt: typeof item.updatedAt === 'number' && Number.isFinite(item.updatedAt)
+        ? item.updatedAt
+        : Date.now(),
+    });
   }
   return providers;
 }
@@ -462,6 +522,50 @@ function serializeAISessionsFile(data: AISessionsFileData): string {
   return JSON.stringify(payload, null, 2);
 }
 
+function serializeBoundedAISessionsFile(data: AISessionsFileData): string {
+  let sessions = normalizeChatSessionMetadataList(data.sessions);
+  let unreadSessionIds = normalizeBoundedIdList(data.unreadSessionIds, isSafeChatSessionId, MAX_AI_ID_LIST_ENTRIES);
+  let deletedSessionIds = normalizeBoundedIdList(data.deletedSessionIds, isSafeChatSessionId, MAX_AI_ID_LIST_ENTRIES);
+  let deletedProviderIds = normalizeBoundedIdList(data.deletedProviderIds, isSafeProviderId, MAX_AI_ID_LIST_ENTRIES);
+
+  const serialize = () => serializeAISessionsFile({
+    ...data,
+    sessions,
+    unreadSessionIds,
+    deletedSessionIds,
+    deletedProviderIds,
+    customSystemPrompt: normalizeBoundedString(data.customSystemPrompt, MAX_AI_CUSTOM_SYSTEM_PROMPT_CHARS),
+  });
+
+  let payload = serialize();
+  if (isSerializedWithinLimit(payload, MAX_AI_SESSIONS_BYTES)) {
+    return payload;
+  }
+
+  sessions = trimArrayForSerializedLimit(sessions, MAX_AI_SESSIONS_BYTES, (nextSessions) => {
+    sessions = nextSessions;
+    return serialize();
+  });
+  payload = serialize();
+  if (isSerializedWithinLimit(payload, MAX_AI_SESSIONS_BYTES)) {
+    return payload;
+  }
+
+  unreadSessionIds = trimArrayForSerializedLimit(unreadSessionIds, MAX_AI_SESSIONS_BYTES, (nextIds) => {
+    unreadSessionIds = nextIds;
+    return serialize();
+  });
+  deletedSessionIds = trimArrayForSerializedLimit(deletedSessionIds, MAX_AI_SESSIONS_BYTES, (nextIds) => {
+    deletedSessionIds = nextIds;
+    return serialize();
+  });
+  deletedProviderIds = trimArrayForSerializedLimit(deletedProviderIds, MAX_AI_SESSIONS_BYTES, (nextIds) => {
+    deletedProviderIds = nextIds;
+    return serialize();
+  });
+  return serialize();
+}
+
 function parseAIProviderChannelFile(
   expectedProviderId: string,
   value: unknown,
@@ -506,6 +610,50 @@ function serializeAIProviderChannelFile(
     data,
   };
   return JSON.stringify(payload, null, 2);
+}
+
+function serializeBoundedAIProviderChannelFile(
+  providerId: string,
+  data: AIProviderChannelFileData,
+): string {
+  let models = Array.isArray(data.models)
+    ? data.models.slice(0, MAX_AI_PROVIDER_CHANNEL_MODELS)
+    : [];
+  let fetchedModels = normalizeFetchedModelsForSave(data.fetchedModels);
+  let benchmarkResults = normalizeProviderBenchmarkRecord(data.benchmarkResults);
+
+  const serialize = () => serializeAIProviderChannelFile(providerId, {
+    ...data,
+    models,
+    benchmarkResults,
+    fetchedModels,
+  });
+
+  let payload = serialize();
+  if (isSerializedWithinLimit(payload, MAX_AI_PROVIDER_CHANNEL_BYTES)) {
+    return payload;
+  }
+
+  benchmarkResults = undefined;
+  payload = serialize();
+  if (isSerializedWithinLimit(payload, MAX_AI_PROVIDER_CHANNEL_BYTES)) {
+    return payload;
+  }
+
+  fetchedModels = trimArrayForSerializedLimit(fetchedModels, MAX_AI_PROVIDER_CHANNEL_BYTES, (nextFetchedModels) => {
+    fetchedModels = nextFetchedModels;
+    return serialize();
+  });
+  payload = serialize();
+  if (isSerializedWithinLimit(payload, MAX_AI_PROVIDER_CHANNEL_BYTES)) {
+    return payload;
+  }
+
+  models = trimArrayForSerializedLimit(models, MAX_AI_PROVIDER_CHANNEL_BYTES, (nextModels) => {
+    models = nextModels;
+    return serialize();
+  });
+  return serialize();
 }
 
 async function readBoundedTextFile(
@@ -927,6 +1075,53 @@ function mergeUnifiedSavePatches(
   };
 }
 
+function serializeBoundedMainDataFile(mainFile: DataFile): string {
+  let data = mainFile.data as UnifiedData;
+  let customIcons = normalizeCustomIconList(data.customIcons);
+  let deletedCustomIconIds = normalizeDeletedCustomIconIds(data.deletedCustomIconIds);
+
+  const serialize = () => JSON.stringify({
+    ...mainFile,
+    data: {
+      ...data,
+      customIcons,
+      deletedCustomIconIds,
+    },
+  }, null, 2);
+
+  let payload = serialize();
+  if (isSerializedWithinLimit(payload, MAX_MAIN_DATA_BYTES)) {
+    return payload;
+  }
+
+  customIcons = trimArrayForSerializedLimit(customIcons, MAX_MAIN_DATA_BYTES, (nextIcons) => {
+    customIcons = nextIcons;
+    return serialize();
+  });
+  payload = serialize();
+  if (isSerializedWithinLimit(payload, MAX_MAIN_DATA_BYTES)) {
+    return payload;
+  }
+
+  deletedCustomIconIds = trimArrayForSerializedLimit(deletedCustomIconIds, MAX_MAIN_DATA_BYTES, (nextIds) => {
+    deletedCustomIconIds = nextIds;
+    return serialize();
+  });
+  payload = serialize();
+  if (isSerializedWithinLimit(payload, MAX_MAIN_DATA_BYTES)) {
+    return payload;
+  }
+
+  data = {
+    ...data,
+    customIcons: [],
+    deletedCustomIconIds: [],
+  };
+  customIcons = [];
+  deletedCustomIconIds = [];
+  return serialize();
+}
+
 function mergeSettingsForSafeSave(
   incomingSettings: UnifiedData['settings'],
   existingSettings: UnifiedData['settings'] | undefined,
@@ -1280,7 +1475,7 @@ async function performSplitSave(request: UnifiedSaveRequest) {
         lastModified: Date.now(),
         data: mainPart as UnifiedData
     };
-    const mainPayload = JSON.stringify(mainFile, null, 2);
+    const mainPayload = serializeBoundedMainDataFile(mainFile);
     await storage.writeFile(mainPath, mainPayload);
     await storage.writeFile(mainBackupPath, mainPayload);
 
@@ -1342,7 +1537,7 @@ async function performSplitSave(request: UnifiedSaveRequest) {
             deletedSessionIds: mergedSessions.deletedSessionIds,
             deletedProviderIds,
         };
-        await storage.writeFile(sessionsPath, serializeAISessionsFile(sessionsData));
+        await storage.writeFile(sessionsPath, serializeBoundedAISessionsFile(sessionsData));
 
         for (const provider of persistedProviders) {
             const pModels = modelsByProvider.get(provider.id) || [];
@@ -1353,7 +1548,7 @@ async function performSplitSave(request: UnifiedSaveRequest) {
                 fetchedModels: normalizeFetchedModelsForSave(ai.fetchedModels?.[provider.id])
             };
             const pPath = await joinPath(channelsDir, `${provider.id}.json`);
-            await storage.writeFile(pPath, serializeAIProviderChannelFile(provider.id, pData));
+            await storage.writeFile(pPath, serializeBoundedAIProviderChannelFile(provider.id, pData));
         }
 
         const channelEntries = await storage.listDir(channelsDir).catch(() => []);

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES } from '@/components/Chat/common/messageClipboard';
+import {
+  MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+  MAX_CHAT_MESSAGE_IMAGE_SOURCES,
+} from '@/components/Chat/common/messageClipboard';
 import { MAX_ASSISTANT_MARKDOWN_MEASUREMENT_SCAN_CHARS } from './chatAssistantMarkdownBlockParser';
 import {
   buildParsedAssistantMarkdown,
@@ -98,7 +101,7 @@ describe('buildParsedAssistantMarkdown', () => {
     const renderableMarkdown = stripRenderableImageTokens(markdown);
     const parsed = buildParsedAssistantMarkdown(markdown, renderableMarkdown);
 
-    expect(parsed.imageCount).toBe(MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES);
+    expect(parsed.imageCount).toBe(MAX_CHAT_MESSAGE_IMAGE_SOURCES);
     expect(renderableMarkdown).toContain(
       `![image ${MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES}](https://example.com/${MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES}.png)`,
     );

@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+    cancelAllPendingImageDeletions,
     ensureImageFileExists,
+    MAX_PENDING_IMAGE_DELETIONS,
     MAX_RESTORED_IMAGE_BYTES,
     moveImageToTrash,
 } from './fileUtils';
@@ -46,6 +48,7 @@ describe('image block file utils', () => {
     });
 
     afterEach(() => {
+        cancelAllPendingImageDeletions();
         vi.useRealTimers();
         vi.unstubAllGlobals();
     });
@@ -66,6 +69,22 @@ describe('image block file utils', () => {
 
         expect(moved).toBe(true);
         expect(moveDesktopItemToTrash).toHaveBeenCalledWith('/vault/assets/demo.png');
+    });
+
+    it('bounds pending image deletions for different files', async () => {
+        const moves = await Promise.all(
+            Array.from({ length: MAX_PENDING_IMAGE_DELETIONS }, (_value, index) =>
+                moveImageToTrash(`assets/demo-${index}.png`, '/vault', undefined)
+            )
+        );
+
+        expect(moves.every(Boolean)).toBe(true);
+        await expect(moveImageToTrash('assets/overflow.png', '/vault', undefined)).resolves.toBe(false);
+
+        await vi.advanceTimersByTimeAsync(10000);
+
+        expect(moveDesktopItemToTrash).toHaveBeenCalledTimes(MAX_PENDING_IMAGE_DELETIONS);
+        expect(moveDesktopItemToTrash).not.toHaveBeenCalledWith('/vault/assets/overflow.png');
     });
 
     it('does not move unsafe media sources to trash', async () => {

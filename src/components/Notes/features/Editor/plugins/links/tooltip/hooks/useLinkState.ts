@@ -5,6 +5,7 @@ import { NOTES_COPY_FEEDBACK_DURATION_MS } from '../../../shared/copyFeedback';
 import { BARE_DOMAIN_HREF_PATTERN } from '../../utils/constants';
 
 const EMAIL_ADDRESS_PATTERN = /^[A-Za-z0-9.!#$%&'*+/=?^_{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
+export const MAX_LINK_TOOLTIP_URL_CHARS = 16 * 1024;
 
 export interface UseLinkStateProps {
     href: string;
@@ -15,7 +16,7 @@ export interface UseLinkStateProps {
 }
 
 function getPlainMailtoEmail(href: string, initialText: string): string | null {
-    const normalizedHref = normalizeEscapedUrlSchemes(href).trim();
+    const normalizedHref = boundLinkTooltipUrl(normalizeEscapedUrlSchemes(href)).trim();
     if (!normalizedHref.toLowerCase().startsWith('mailto:')) return null;
 
     const email = normalizedHref.slice('mailto:'.length).split(/[?#]/, 1)[0]?.trim() ?? '';
@@ -25,9 +26,15 @@ function getPlainMailtoEmail(href: string, initialText: string): string | null {
     return email;
 }
 
+function boundLinkTooltipUrl(value: string): string {
+    return value.length > MAX_LINK_TOOLTIP_URL_CHARS
+        ? value.slice(0, MAX_LINK_TOOLTIP_URL_CHARS)
+        : value;
+}
+
 function getUserFacingAutolinkText(href: string, initialText: string): string {
     const normalizedText = normalizeEscapedUrlSchemes(initialText).trim();
-    return normalizedText || normalizeEscapedUrlSchemes(href);
+    return boundLinkTooltipUrl(normalizedText || normalizeEscapedUrlSchemes(href));
 }
 
 function isAutolinkTextForHref(href: string, initialText: string): boolean {
@@ -53,7 +60,9 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
     }, [initialText, href]);
 
     const userFacingUrl = useMemo(
-        () => isAutolink ? getUserFacingAutolinkText(href, initialText) : normalizeEscapedUrlSchemes(href),
+        () => isAutolink
+            ? getUserFacingAutolinkText(href, initialText)
+            : boundLinkTooltipUrl(normalizeEscapedUrlSchemes(href)),
         [href, initialText, isAutolink]
     );
 
@@ -62,11 +71,14 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
         return initialText;
     };
 
-    const [editUrl, setEditUrl] = useState(userFacingUrl);
+    const [editUrl, setEditUrlState] = useState(userFacingUrl);
     const [editText, setEditText] = useState(getInitialEditText);
+    const setEditUrl = useCallback((value: string) => {
+        setEditUrlState(boundLinkTooltipUrl(value));
+    }, []);
 
     useEffect(() => {
-        setEditUrl(userFacingUrl);
+        setEditUrlState(userFacingUrl);
         setEditText(isAutolink ? '' : initialText);
     }, [userFacingUrl, initialText, isAutolink]);
 
@@ -112,7 +124,7 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
 
     const handleCopy = useCallback(() => {
         let copyText: string;
-        const normalizedHref = normalizeEscapedUrlSchemes(href);
+        const normalizedHref = boundLinkTooltipUrl(normalizeEscapedUrlSchemes(href));
         const plainMailtoEmail = getPlainMailtoEmail(href, initialText);
         if (plainMailtoEmail) {
             copyText = plainMailtoEmail;

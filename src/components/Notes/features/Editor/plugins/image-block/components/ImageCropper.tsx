@@ -97,6 +97,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                             'data-src': sourceSrc || undefined,
                             'data-inject-url': sourceSrc || undefined,
                             alt: sourceAlt ?? '',
+                            referrerPolicy: 'no-referrer',
                         } as React.ImgHTMLAttributes<HTMLElement>}
                         crop={crop}
                         zoom={zoom}

@@ -1,18 +1,32 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./mermaidRenderer', () => ({
   renderMermaid: vi.fn(async () => '<svg data-rendered="unexpected"></svg>'),
 }));
 
 import {
+  clearMermaidRenderCaches,
   createMermaidElement,
   getMermaidElementCode,
+  getPendingMermaidRenderCount,
   MAX_LEGACY_MERMAID_DATA_CODE_CHARS,
+  MAX_PENDING_MERMAID_RENDERS,
   renderMermaidEditorLivePreview,
+  resolveMermaidMarkup,
 } from './mermaidDom';
 import { renderMermaid } from './mermaidRenderer';
 
 describe('mermaid DOM render bounds', () => {
+  beforeEach(() => {
+    clearMermaidRenderCaches();
+    vi.mocked(renderMermaid).mockReset();
+    vi.mocked(renderMermaid).mockResolvedValue('<svg data-rendered="unexpected"></svg>');
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('rejects oversized initial Mermaid elements before rendering', async () => {
     const element = createMermaidElement('x'.repeat(20_001));
 
@@ -51,5 +65,31 @@ describe('mermaid DOM render bounds', () => {
     element.dataset.code = 'x'.repeat(MAX_LEGACY_MERMAID_DATA_CODE_CHARS + 1);
 
     expect(getMermaidElementCode(element)).toHaveLength(MAX_LEGACY_MERMAID_DATA_CODE_CHARS);
+  });
+
+  it('bounds pending default Mermaid renders for different diagrams', async () => {
+    const renderResolves: Array<(markup: string) => void> = [];
+    vi.mocked(renderMermaid).mockImplementation(
+      () => new Promise((resolve) => {
+        renderResolves.push(resolve);
+      })
+    );
+
+    const renders = Array.from({ length: MAX_PENDING_MERMAID_RENDERS }, (_value, index) =>
+      resolveMermaidMarkup(`sequenceDiagram\nAlice->>Bob: message ${index}`)
+    );
+    renders.forEach((render) => {
+      render.catch(() => undefined);
+    });
+
+    expect(getPendingMermaidRenderCount()).toBe(MAX_PENDING_MERMAID_RENDERS);
+    const overflowMarkup = await resolveMermaidMarkup('sequenceDiagram\nAlice->>Bob: overflow');
+
+    expect(overflowMarkup).toContain('mermaid-error');
+    expect(getPendingMermaidRenderCount()).toBe(MAX_PENDING_MERMAID_RENDERS);
+
+    renderResolves.forEach((resolve, index) => {
+      resolve(`<svg data-rendered="${index}"></svg>`);
+    });
   });
 });

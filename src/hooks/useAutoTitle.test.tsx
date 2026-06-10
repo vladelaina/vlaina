@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useAutoTitle } from './useAutoTitle';
+import { MAX_AUTO_TITLE_CHARS, useAutoTitle } from './useAutoTitle';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
 import type { AIModel, Provider } from '@/lib/ai/types';
@@ -215,5 +215,16 @@ describe('useAutoTitle', () => {
     });
 
     expect(useUnifiedStore.getState().data.ai?.sessions[0]?.title).toBe('New');
+  });
+
+  it('bounds generated title length before writing it to the session', async () => {
+    mocked.sendMessageWithEndpointFallback.mockResolvedValueOnce(`${'A'.repeat(MAX_AUTO_TITLE_CHARS + 20)}   `);
+    const { result } = renderHook(() => useAutoTitle());
+
+    await act(async () => {
+      await result.current.generateAutoTitle('session-1', provider.id, model.id);
+    });
+
+    expect(useUnifiedStore.getState().data.ai?.sessions[0]?.title).toBe('A'.repeat(MAX_AUTO_TITLE_CHARS));
   });
 });

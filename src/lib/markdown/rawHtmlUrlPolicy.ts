@@ -102,6 +102,15 @@ function normalizeRawHtmlMediaUrl(value: unknown): string | null {
 
 function normalizeRawHtmlUrlAttribute(tagName: string, attributeName: string, value: unknown): string | null {
   if (tagName === 'a' && attributeName === 'href') return normalizeRawHtmlLinkUrl(value);
+  if (tagName === 'iframe' && attributeName === 'src') {
+    return typeof value === 'string'
+      ? normalizeGithubUrl(value, SAFE_RAW_HTML_MEDIA_SRC_SCHEMES, {
+          allowPlainRelative: false,
+          allowProtocolRelative: true,
+          blockLocalNetwork: true,
+        })
+      : null;
+  }
   if (tagName === 'img' && attributeName === 'src') {
     return typeof value === 'string' ? normalizeRenderableImageSrc(value) : null;
   }
@@ -122,7 +131,11 @@ function isRawHtmlUrlProperty(tagName: string, propertyName: string): boolean {
 
 function sanitizeRawHtmlNonUrlProperties(node: any, tagName: string): void {
   for (const [key, value] of Object.entries(node.properties)) {
-    if (isRawHtmlUrlProperty(tagName, key) || RAW_HTML_LOADABLE_OR_URL_PROPERTY_NAMES.has(key)) {
+    if (isRawHtmlUrlProperty(tagName, key)) {
+      continue;
+    }
+    if (RAW_HTML_LOADABLE_OR_URL_PROPERTY_NAMES.has(key)) {
+      delete node.properties[key];
       continue;
     }
     if (typeof value !== 'string') {

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type React from 'react';
+import { MAX_CHAT_MESSAGE_IMAGE_SOURCES } from '@/components/Chat/common/messageClipboard';
 
 vi.mock('@/components/Chat/common/LocalImage', () => ({
   LocalImage: ({ onResolvedSrc: _onResolvedSrc, ...props }: React.ImgHTMLAttributes<HTMLImageElement> & {
@@ -17,6 +18,7 @@ vi.mock('./components/ChatImageViewer', () => ({
 }));
 
 import MarkdownRenderer from './MarkdownRenderer';
+import { createMarkdownComponents } from './markdownRendererComponents';
 
 describe('MarkdownRenderer images', () => {
   it('removes KaTeX source annotations from read-only markdown output', () => {
@@ -69,6 +71,21 @@ describe('MarkdownRenderer images', () => {
     render(<MarkdownRenderer content="![Generated image](data:image/png;base64,abc123)" />);
 
     expect(screen.getByTestId('local-image')).toHaveAttribute('src', 'data:image/png;base64,abc123');
+  });
+
+  it('caps markdown image component creation for image-heavy messages', () => {
+    const components = createMarkdownComponents({ imageIdBase: 'a1' });
+    const renderedImages = Array.from(
+      { length: MAX_CHAT_MESSAGE_IMAGE_SOURCES + 2 },
+      (_value, index) => components.img({
+        alt: `image ${index}`,
+        src: `https://example.com/${index}.png`,
+      }),
+    );
+
+    expect(renderedImages.filter(Boolean)).toHaveLength(MAX_CHAT_MESSAGE_IMAGE_SOURCES);
+    expect(renderedImages[MAX_CHAT_MESSAGE_IMAGE_SOURCES]).toBeNull();
+    expect(renderedImages[MAX_CHAT_MESSAGE_IMAGE_SOURCES + 1]).toBeNull();
   });
 
   it('renders Notes inline color and underline markdown through the shared pipeline', () => {
@@ -228,6 +245,26 @@ describe('MarkdownRenderer images', () => {
     expect(container.querySelector('video source')).toHaveAttribute('src', 'media/fallback.webm');
     expect(container.querySelector('video track')).toHaveAttribute('src', 'media/captions.vtt');
     expect(container.querySelector('audio')).toHaveAttribute('src', './media/demo.mp3');
+  });
+
+  it('drops document-relative raw HTML iframe sources in read-only markdown', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={[
+          '<iframe src="#self"></iframe>',
+          '<iframe src="?embed"></iframe>',
+          '<iframe src="embed.html"></iframe>',
+          '<iframe src="./embed.html"></iframe>',
+          '<iframe src="//example.com/embed"></iframe>',
+        ].join('')}
+      />
+    );
+
+    expect(container.querySelectorAll('iframe')).toHaveLength(1);
+    expect(container.querySelector('iframe')).toHaveAttribute('src', 'https://example.com/embed');
+    expect(container.innerHTML).not.toContain('#self');
+    expect(container.innerHTML).not.toContain('?embed');
+    expect(container.innerHTML).not.toContain('embed.html');
   });
 
   it('drops internal relative raw HTML media paths in read-only markdown', () => {

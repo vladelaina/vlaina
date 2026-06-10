@@ -6,6 +6,7 @@ import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
 
 const AUTO_TITLE_TIMEOUT_MS = 12_000;
+export const MAX_AUTO_TITLE_CHARS = 80;
 const autoTitleInFlightSessionIds = new Set<string>();
 
 export function useAutoTitle() {
@@ -56,6 +57,8 @@ ${titleSource}`;
           
           const cleanTitle = stripThinkingContent(title)
               .replace(/^["']|["']$/g, '') 
+              .trim()
+              .slice(0, MAX_AUTO_TITLE_CHARS)
               .trim();
 
           const latestSession = useUnifiedStore

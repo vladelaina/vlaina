@@ -70,6 +70,22 @@ describe('external markdown import path security', () => {
     expect(mocks.storage.listDir).not.toHaveBeenCalled();
   });
 
+  it('skips URL-like external import paths before statting them', async () => {
+    const result = await importExternalMarkdownEntries('/vault', 'imports', [
+      'https://example.com/alpha.md',
+      'file:///outside/alpha.md',
+      'asset://localhost/alpha.md',
+    ]);
+
+    expect(result).toEqual({
+      importedNotePaths: [],
+      importedFolderPaths: [],
+      didImport: false,
+    });
+    expect(mocks.storage.stat).not.toHaveBeenCalled();
+    expect(mocks.storage.copyFile).not.toHaveBeenCalled();
+  });
+
   it('allows Windows absolute paths while still validating their path segments', async () => {
     mocks.storage.stat.mockImplementation(async (path: string) => ({
       isFile: path === 'C:\\Users\\me\\alpha.md' || path === '/vault/imports/alpha.md',
@@ -104,6 +120,17 @@ describe('external markdown import path security', () => {
     const result = await resolveExternalMarkdownEntriesForStarred('/vault', [
       '/outside/docs\u202E',
       '/outside/secret\uFFFD.md',
+    ]);
+
+    expect(result).toEqual([]);
+    expect(mocks.storage.stat).not.toHaveBeenCalled();
+  });
+
+  it('skips URL-like starred drop paths before statting them', async () => {
+    const result = await resolveExternalMarkdownEntriesForStarred('/vault', [
+      'https://example.com/alpha.md',
+      'file:///outside/alpha.md',
+      'asset://localhost/alpha.md',
     ]);
 
     expect(result).toEqual([]);

@@ -49,7 +49,9 @@ const pendingNotePrefetches = new Map<string, PendingNotePrefetch>();
 const cancelledNotePrefetches = new Set<string>();
 const explicitOpenCancelledNotePrefetches = new Set<string>();
 const notePrefetchQueue = createAsyncPrefetchQueue(2);
+export const MAX_PENDING_NOTE_PREFETCHES = 100;
 const MAX_NOTE_CONTENT_CACHE_ENTRIES = 250;
+const MAX_NOTE_CONTENT_CACHE_CHARS = 64 * 1024 * 1024;
 const HOVER_PREFETCH_FRESH_MS = 1000;
 let latestOpenNoteRequestId = 0;
 
@@ -352,6 +354,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
             currentNote: { path, content: latestOpenedContent.content },
           }),
           MAX_NOTE_CONTENT_CACHE_ENTRIES,
+          { maxContentChars: MAX_NOTE_CONTENT_CACHE_CHARS },
         ),
         noteMetadata: nextMetadata,
       });
@@ -468,6 +471,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
             currentNote: { path: normalizedAbsolutePath, content: latestOpenedContent.content },
           }),
           MAX_NOTE_CONTENT_CACHE_ENTRIES,
+          { maxContentChars: MAX_NOTE_CONTENT_CACHE_CHARS },
         ),
         noteMetadata: nextMetadata,
       });
@@ -504,6 +508,9 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     const existing = pendingNotePrefetches.get(prefetchKey);
     if (existing) {
       await existing.promise;
+      return;
+    }
+    if (pendingNotePrefetches.size >= MAX_PENDING_NOTE_PREFETCHES) {
       return;
     }
 
@@ -561,6 +568,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
             mergedCache,
             getProtectedCachePaths(state, [path]),
             MAX_NOTE_CONTENT_CACHE_ENTRIES,
+            { maxContentChars: MAX_NOTE_CONTENT_CACHE_CHARS },
           ),
         };
       });

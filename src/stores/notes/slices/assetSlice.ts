@@ -7,6 +7,7 @@ import { clearImageCache } from '@/lib/assets';
 import { resolveEffectiveVaultPath } from '../effectiveVaultPath';
 
 let uploadProgressResetTimer: ReturnType<typeof setTimeout> | null = null;
+export const MAX_PENDING_ASSET_LOADS = 50;
 const loadAssetsInFlight = new Map<string, Promise<void>>();
 
 function clearUploadProgressResetTimer() {
@@ -86,6 +87,9 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     const existingLoad = loadAssetsInFlight.get(loadKey);
     if (existingLoad) {
       await existingLoad;
+      return;
+    }
+    if (loadAssetsInFlight.size >= MAX_PENDING_ASSET_LOADS) {
       return;
     }
 

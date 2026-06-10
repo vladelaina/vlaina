@@ -139,7 +139,7 @@ function sanitizeElement(element: Element, context: SanitizeContext, depth: numb
     if (isGithubUrlAttribute(tagName, normalizedAttribute)) {
       const protocols = tagName === 'a' ? GITHUB_ALLOWED_LINK_PROTOCOLS : GITHUB_ALLOWED_MEDIA_PROTOCOLS;
       const normalizedUrl = normalizeGithubUrl(value, protocols, {
-        allowPlainRelative: true,
+        allowPlainRelative: tagName !== 'iframe',
         allowProtocolRelative: tagName !== 'a',
         blockLocalNetwork: tagName !== 'a',
       });

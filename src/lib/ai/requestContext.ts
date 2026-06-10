@@ -26,6 +26,7 @@ const REQUEST_HISTORY_MESSAGE_OVERHEAD = 48;
 const MAX_REQUEST_HISTORY_MESSAGES = 32;
 const MAX_REQUEST_HISTORY_CHARS = 24000;
 const MAX_REQUEST_MESSAGE_CHARS = 6000;
+export const MAX_CURRENT_REQUEST_MESSAGE_CHARS = 160_000;
 const MAX_TRANSCRIPT_FIELD_CHARS = 1200;
 const MAX_REQUEST_JSON_DEPTH = 8;
 const MAX_REQUEST_HISTORY_IMAGE_TARGET_CHARS = 4096;
@@ -305,6 +306,13 @@ function replaceHistoryImageTokens(content: string): string {
 
 export function sanitizeRequestTextImageReferences(content: string): string {
   return replaceHistoryImageTokens(content);
+}
+
+export function sanitizeCurrentRequestTextContent(
+  content: string,
+  maxChars = MAX_CURRENT_REQUEST_MESSAGE_CHARS
+): string {
+  return clipContentToBudget(sanitizeRequestTextImageReferences(content), maxChars);
 }
 
 function getHistoryContentText(value: unknown): string {

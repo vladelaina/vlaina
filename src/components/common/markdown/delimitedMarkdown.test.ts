@@ -111,4 +111,19 @@ describe('findDelimitedTextMatches', () => {
     expect(matches).toHaveLength(MAX_DELIMITED_MARKDOWN_MATCHES);
     expect(matches.at(-1)?.content).toBe(`mark-${MAX_DELIMITED_MARKDOWN_MATCHES - 1}`);
   });
+
+  it('does not get stuck on zero-width or non-global regex matches', () => {
+    expect(findDelimitedTextMatches('abc', /(?=a)/g, {
+      openDelimiterLength: 0,
+    })).toEqual([]);
+    expect(findDelimitedTextMatches('==mark== ==again==', /==([^=]+)==/, {
+      openDelimiterLength: 2,
+    })).toEqual([
+      {
+        start: 0,
+        end: 8,
+        content: 'mark',
+      },
+    ]);
+  });
 });

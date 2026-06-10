@@ -9,7 +9,10 @@ import {
   createStreamAccumulator,
   MAX_OPENAI_STREAM_ERROR_FIELD_CHARS,
 } from '@/lib/ai/streaming'
-import { sanitizeRequestTextImageReferences } from '@/lib/ai/requestContext'
+import {
+  MAX_CURRENT_REQUEST_MESSAGE_CHARS,
+  sanitizeCurrentRequestTextContent,
+} from '@/lib/ai/requestContext'
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
 import { normalizeRenderableDataImageSrc } from '@/lib/markdown/renderableImagePolicy'
 
@@ -76,14 +79,19 @@ function dataImageToAnthropicBlock(src: string): AnthropicContentBlock | null {
 
 function buildAnthropicUserContent(content: ChatMessageContent): string | AnthropicContentBlock[] {
   if (typeof content === 'string') {
-    return sanitizeRequestTextImageReferences(content)
+    return sanitizeCurrentRequestTextContent(content)
   }
 
   const blocks: AnthropicContentBlock[] = []
+  let remainingTextChars = MAX_CURRENT_REQUEST_MESSAGE_CHARS
   for (const part of content) {
     if (part.type === 'text') {
-      if (part.text) {
-        blocks.push({ type: 'text', text: sanitizeRequestTextImageReferences(part.text) })
+      if (part.text && remainingTextChars > 0) {
+        const text = sanitizeCurrentRequestTextContent(part.text, remainingTextChars)
+        remainingTextChars -= text.length
+        if (text) {
+          blocks.push({ type: 'text', text })
+        }
       }
       continue
     }

@@ -15,7 +15,7 @@ interface RemoteImageResolveResult {
     sizeBytes?: number;
 }
 
-const MAX_REMOTE_IMAGE_CACHE_ENTRIES = 200;
+export const MAX_REMOTE_IMAGE_CACHE_ENTRIES = 200;
 const MAX_REMOTE_IMAGE_CACHE_BYTES = 48 * 1024 * 1024;
 export const MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES = 8 * 1024 * 1024;
 const MAX_REMOTE_IMAGE_FETCH_CONCURRENCY = 4;
@@ -33,29 +33,34 @@ function revokeObjectUrl(objectUrl: string | undefined): void {
 }
 
 function evictRemoteImageCacheIfNeeded(): void {
-    if (
-        remoteImageCache.size <= MAX_REMOTE_IMAGE_CACHE_ENTRIES
-        && remoteImageCacheBytes <= MAX_REMOTE_IMAGE_CACHE_BYTES
+    while (
+        remoteImageCache.size > MAX_REMOTE_IMAGE_CACHE_ENTRIES
+        || remoteImageCacheBytes > MAX_REMOTE_IMAGE_CACHE_BYTES
     ) {
-        return;
+        if (!evictOldestResolvedRemoteImageCacheEntry()) break;
     }
+}
 
-    const evictableEntries = Array.from(remoteImageCache.entries())
+function evictOldestResolvedRemoteImageCacheEntry(): boolean {
+    const evictableEntry = Array.from(remoteImageCache.entries())
         .filter(([, entry]) => !entry.promise)
-        .sort(([, a], [, b]) => a.lastUsed - b.lastUsed);
-
-    for (const [url, entry] of evictableEntries) {
-        if (
-            remoteImageCache.size <= MAX_REMOTE_IMAGE_CACHE_ENTRIES
-            && remoteImageCacheBytes <= MAX_REMOTE_IMAGE_CACHE_BYTES
-        ) {
-            break;
-        }
-
-        revokeObjectUrl(entry.objectUrl);
-        remoteImageCacheBytes -= entry.sizeBytes ?? 0;
-        remoteImageCache.delete(url);
+        .sort(([, a], [, b]) => a.lastUsed - b.lastUsed)[0];
+    if (!evictableEntry) {
+        return false;
     }
+
+    const [url, entry] = evictableEntry;
+    revokeObjectUrl(entry.objectUrl);
+    remoteImageCacheBytes -= entry.sizeBytes ?? 0;
+    remoteImageCache.delete(url);
+    return true;
+}
+
+function reserveRemoteImageCacheEntry(): boolean {
+    while (remoteImageCache.size >= MAX_REMOTE_IMAGE_CACHE_ENTRIES) {
+        if (!evictOldestResolvedRemoteImageCacheEntry()) return false;
+    }
+    return true;
 }
 
 function setRemoteImageCacheEntry(url: string, entry: RemoteImageCacheEntry): void {
@@ -93,6 +98,10 @@ export async function resolveRemoteImageFromMemoryCache(url: string): Promise<st
         || typeof URL.createObjectURL !== 'function'
     ) {
         setRemoteImageCacheEntry(safeUrl, { src: safeUrl, lastUsed: now });
+        return safeUrl;
+    }
+
+    if (!reserveRemoteImageCacheEntry()) {
         return safeUrl;
     }
 

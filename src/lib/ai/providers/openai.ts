@@ -33,7 +33,11 @@ import {
   normalizeSafeRasterDataImageSrc,
 } from '@/lib/markdown/dataImagePolicy'
 import { escapeMarkdownAngleDestination, formatMarkdownImage } from '@/lib/markdown/markdownImageMarkdown'
-import { sanitizeHistory, sanitizeRequestTextImageReferences } from '@/lib/ai/requestContext'
+import {
+  MAX_CURRENT_REQUEST_MESSAGE_CHARS,
+  sanitizeCurrentRequestTextContent,
+  sanitizeHistory,
+} from '@/lib/ai/requestContext'
 import { normalizeRenderableImageSrc } from '@/lib/markdown/renderableImagePolicy'
 
 function summarizeError(error: unknown): string {
@@ -271,12 +275,19 @@ function normalizeProviderImageUrl(value: string): string | null {
 
 function sanitizeCurrentMessageContent(content: ChatMessageContent): ChatMessageContent {
   if (!Array.isArray(content)) {
-    return sanitizeRequestTextImageReferences(content);
+    return sanitizeCurrentRequestTextContent(content);
   }
 
+  let remainingTextChars = MAX_CURRENT_REQUEST_MESSAGE_CHARS;
   const parts = content.flatMap((part): ChatMessageContentPart[] => {
     if (part.type === 'text') {
-      return [{ ...part, text: sanitizeRequestTextImageReferences(part.text) }];
+      if (remainingTextChars <= 0) {
+        return [];
+      }
+
+      const text = sanitizeCurrentRequestTextContent(part.text, remainingTextChars);
+      remainingTextChars -= text.length;
+      return text ? [{ ...part, text }] : [];
     }
 
     const url = normalizeProviderImageUrl(part.image_url.url);
@@ -848,7 +859,7 @@ export class OpenAICompatibleClient implements AIClient {
     const safeHistory = sanitizeHistory(history)
     const body = this.buildChatRequest(message, safeHistory, model, provider, options)
     const isImageModel = isStandaloneImageGenerationModel(model)
-    const imagePrompt = isImageModel ? sanitizeRequestTextImageReferences(extractTextPrompt(message)) : ''
+    const imagePrompt = isImageModel ? sanitizeCurrentRequestTextContent(extractTextPrompt(message)) : ''
 
     const editImageUrl = isImageModel ? getFirstImageInput(message) : null
 

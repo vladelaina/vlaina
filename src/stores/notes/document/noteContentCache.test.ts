@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { markCachedNoteFresh, setCachedNoteContent } from './noteContentCache';
+import { limitCachedNoteContents, markCachedNoteFresh, setCachedNoteContent } from './noteContentCache';
 
 describe('noteContentCache', () => {
   it('reuses the existing map when cached content is unchanged', () => {
@@ -54,5 +54,46 @@ describe('noteContentCache', () => {
 
     expect(nextCache).not.toBe(cache);
     expect(nextCache.get('docs/alpha.md')?.size).toBe(20);
+  });
+
+  it('limits cached content by total content length', () => {
+    const cache = new Map([
+      ['docs/alpha.md', { content: 'a'.repeat(8), modifiedAt: 1 }],
+      ['docs/beta.md', { content: 'b'.repeat(8), modifiedAt: 1 }],
+      ['docs/gamma.md', { content: 'c'.repeat(8), modifiedAt: 1 }],
+    ]);
+
+    const nextCache = limitCachedNoteContents(cache, new Set(), 10, {
+      maxContentChars: 16,
+    });
+
+    expect(nextCache).not.toBe(cache);
+    expect([...nextCache.keys()]).toEqual(['docs/beta.md', 'docs/gamma.md']);
+  });
+
+  it('keeps protected cached content when total content still exceeds the limit', () => {
+    const cache = new Map([
+      ['docs/alpha.md', { content: 'a'.repeat(8), modifiedAt: 1 }],
+      ['docs/beta.md', { content: 'b'.repeat(20), modifiedAt: 1 }],
+      ['docs/gamma.md', { content: 'c'.repeat(8), modifiedAt: 1 }],
+    ]);
+
+    const nextCache = limitCachedNoteContents(cache, new Set(['docs/beta.md']), 10, {
+      maxContentChars: 16,
+    });
+
+    expect([...nextCache.keys()]).toEqual(['docs/beta.md']);
+  });
+
+  it('counts saved baseline content toward the total cache limit', () => {
+    let cache = setCachedNoteContent(new Map(), 'docs/alpha.md', 'saved-alpha', 1);
+    cache = setCachedNoteContent(cache, 'docs/alpha.md', 'dirty-alpha', 1);
+    cache = setCachedNoteContent(cache, 'docs/beta.md', 'beta', 1);
+
+    const nextCache = limitCachedNoteContents(cache, new Set(), 10, {
+      maxContentChars: 'dirty-alpha'.length + 'saved-alpha'.length - 1,
+    });
+
+    expect([...nextCache.keys()]).toEqual(['docs/beta.md']);
   });
 });

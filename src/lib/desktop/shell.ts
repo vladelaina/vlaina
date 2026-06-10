@@ -1,4 +1,5 @@
 import { getElectronBridge } from '@/lib/electron/bridge';
+import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity';
 
 const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:']);
 const UNSAFE_EXTERNAL_URL_CHARS_REGEX = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
@@ -19,6 +20,12 @@ export function normalizeDesktopExternalUrl(url: string | null | undefined): str
   try {
     const parsed = new URL(trimmed);
     if (!EXTERNAL_PROTOCOLS.has(parsed.protocol)) {
+      return null;
+    }
+    if (parsed.username || parsed.password) {
+      return null;
+    }
+    if ((parsed.protocol === 'http:' || parsed.protocol === 'https:') && isLocalNetworkHttpUrl(parsed.toString())) {
       return null;
     }
     return parsed.toString();

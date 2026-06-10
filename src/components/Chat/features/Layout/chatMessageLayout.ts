@@ -12,6 +12,7 @@ import {
 import {
   extractRenderedMessageImageSources,
   MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+  normalizeRenderedMessageImageSources,
   stripMessageImageTokens,
 } from '@/components/Chat/common/messageClipboard';
 
@@ -51,9 +52,11 @@ function estimateLongTextRemainderHeight(content: string): number {
 }
 
 function countRenderableImages(content: string): number {
-  return extractRenderedMessageImageSources(clampEstimatedText(content), {
-    maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
-  }).length;
+  return normalizeRenderedMessageImageSources(
+    extractRenderedMessageImageSources(clampEstimatedText(content), {
+      maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+    }),
+  ).length;
 }
 
 function estimateUserMessageHeight(

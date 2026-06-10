@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { resolveCoverAssetUrl } from './resolveCoverAssetUrl';
+import {
+  MAX_PENDING_COVER_ASSET_URL_RESOLVES,
+  resolveCoverAssetUrl,
+} from './resolveCoverAssetUrl';
 
 const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
@@ -206,6 +209,41 @@ describe('resolveCoverAssetUrl', () => {
     await expect(Promise.all([first, second])).resolves.toEqual(['blob:a', 'blob:a']);
     expect(hoisted.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds concurrent resolves for different covers', async () => {
+    const pendingBlobResolves: Array<(url: string) => void> = [];
+    hoisted.resolveExistingVaultAssetPath.mockImplementation(
+      async (_vaultPath: string, assetPath: string) => `/vault/${assetPath}`
+    );
+    hoisted.loadImageAsBlob.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          pendingBlobResolves.push(resolve);
+        })
+    );
+
+    const requests = Array.from(
+      { length: MAX_PENDING_COVER_ASSET_URL_RESOLVES },
+      (_value, index) => resolveCoverAssetUrl({
+        assetPath: `assets/cover-${index}.webp`,
+        vaultPath: '/vault-a',
+      }),
+    );
+
+    await vi.waitFor(() => {
+      expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(MAX_PENDING_COVER_ASSET_URL_RESOLVES);
+    });
+    await expect(resolveCoverAssetUrl({
+      assetPath: 'assets/overflow.webp',
+      vaultPath: '/vault-a',
+    })).rejects.toThrow('cover-resolve-busy');
+    expect(hoisted.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(
+      MAX_PENDING_COVER_ASSET_URL_RESOLVES
+    );
+
+    pendingBlobResolves.forEach((resolve, index) => resolve(`blob:${index}`));
+    await expect(Promise.all(requests)).resolves.toHaveLength(MAX_PENDING_COVER_ASSET_URL_RESOLVES);
   });
 
   it('throws when local asset requires vault path', async () => {

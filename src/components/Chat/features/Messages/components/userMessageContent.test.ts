@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
-import { MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES } from '@/components/Chat/common/messageClipboard';
+import {
+  MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+  MAX_CHAT_MESSAGE_IMAGE_SOURCES,
+} from '@/components/Chat/common/messageClipboard';
 import {
   composeUserMessageContent,
   parseUserMessageContent,
@@ -114,7 +117,8 @@ describe('userMessageContent', () => {
 
     const parsed = parseUserMessageContent(content);
 
-    expect(parsed.imageSources).toHaveLength(MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES);
+    expect(parsed.imageSources).toHaveLength(MAX_CHAT_MESSAGE_IMAGE_SOURCES);
+    expect(parsed.imageSources.at(-1)).toBe(`https://example.com/${MAX_CHAT_MESSAGE_IMAGE_SOURCES - 1}.png`);
     expect(parsed.text).toContain(
       `![image ${MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES}](https://example.com/${MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES}.png)`,
     );

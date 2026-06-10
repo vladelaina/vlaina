@@ -6,9 +6,9 @@ import { normalizeRenderableImageSrc } from './imagePolicy';
 const SAFE_RAW_MEDIA_SRC_SCHEMES = new Set(['http:', 'https:']);
 const RAW_MEDIA_SRC_TAGS = new Set(['audio', 'iframe', 'source', 'track', 'video']);
 
-function normalizeReadonlyRawMediaSrc(value: string): string | null {
+function normalizeReadonlyRawMediaSrc(value: string, allowPlainRelative = true): string | null {
   return normalizeGithubUrl(value, SAFE_RAW_MEDIA_SRC_SCHEMES, {
-    allowPlainRelative: true,
+    allowPlainRelative,
     allowProtocolRelative: true,
     blockLocalNetwork: true,
   });
@@ -18,7 +18,7 @@ export function readonlyMarkdownUrlTransform(url: string, key: string, node?: { 
   const tagName = typeof node?.tagName === 'string' ? node.tagName.toLowerCase() : '';
 
   if (key === 'src' && RAW_MEDIA_SRC_TAGS.has(tagName)) {
-    return normalizeReadonlyRawMediaSrc(url) ?? '';
+    return normalizeReadonlyRawMediaSrc(url, tagName !== 'iframe') ?? '';
   }
 
   if (key === 'src' || key === 'poster') {

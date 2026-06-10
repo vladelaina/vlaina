@@ -8,6 +8,7 @@ import { MAX_PROVIDER_ERROR_BODY_BYTES, MAX_PROVIDER_JSON_RESPONSE_BODY_BYTES } 
 import { MAX_INLINE_IMAGE_BYTES } from '@/lib/markdown/dataImagePolicy';
 import { MAX_THINKING_TAG_MATCHES } from '@/lib/ai/stripThinkingContent';
 import { MAX_API_TRANSCRIPT_MESSAGES } from '@/lib/ai/apiTranscript';
+import { MAX_CURRENT_REQUEST_MESSAGE_CHARS } from '@/lib/ai/requestContext';
 
 const mocks = vi.hoisted(() => ({
   bridge: undefined as undefined | {
@@ -1236,6 +1237,56 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     ).rejects.toThrow('Web search is unavailable for this model.');
 
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('bounds current OpenAI-compatible user message text before sending', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse('data: {"choices":[{"delta":{"content":"next"}}]}\n\ndata: [DONE]\n\n'),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const oversizedText = `start ${'a'.repeat(MAX_CURRENT_REQUEST_MESSAGE_CHARS + 1000)} end`;
+
+    await new OpenAICompatibleClient().sendMessage(
+      oversizedText,
+      [],
+      buildModel({ apiModelId: 'gpt-4o-mini', name: 'GPT 4o mini' }),
+      buildProvider({ endpointType: 'openai' }),
+      vi.fn(),
+    );
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const content = body.messages.at(-1).content;
+    expect(content).toHaveLength(MAX_CURRENT_REQUEST_MESSAGE_CHARS);
+    expect(content).toContain('[Earlier content omitted]');
+  });
+
+  it('bounds current Anthropic user message text blocks before sending', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse('event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"hello"}}\n\n'),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await new OpenAICompatibleClient().sendMessage(
+      [
+        { type: 'text', text: `first ${'a'.repeat(MAX_CURRENT_REQUEST_MESSAGE_CHARS + 1000)}` },
+        { type: 'text', text: 'second text should be omitted' },
+      ],
+      [],
+      buildModel(),
+      buildProvider({ endpointType: 'anthropic' }),
+      vi.fn(),
+    );
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const userContent = body.messages.at(-1).content;
+    expect(userContent).toEqual([
+      expect.objectContaining({
+        type: 'text',
+        text: expect.stringContaining('[Earlier content omitted]'),
+      }),
+    ]);
+    expect(userContent[0].text).toHaveLength(MAX_CURRENT_REQUEST_MESSAGE_CHARS);
+    expect(JSON.stringify(userContent)).not.toContain('second text should be omitted');
   });
 
   it('sanitizes current structured image URLs before OpenAI-compatible requests', async () => {

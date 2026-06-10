@@ -19,6 +19,7 @@ import {
     LINK_TOOLTIP_MIN_WIDTH,
     useLinkTooltipContentWidth,
 } from '../hooks/useLinkTooltipContentWidth';
+import { MAX_LINK_TOOLTIP_URL_CHARS } from '../hooks/useLinkState';
 
 interface LinkEditorProps {
     editUrl: string;
@@ -134,6 +135,7 @@ export const LinkEditor = ({
                     onChange={(e) => setEditUrl(e.target.value)}
                     onKeyDown={handleKeyDown}
                     rows={1}
+                    maxLength={MAX_LINK_TOOLTIP_URL_CHARS}
                     className="block w-full resize-none overflow-hidden bg-transparent border-none outline-none text-sm font-mono text-[var(--vlaina-text-primary)] placeholder:text-[var(--vlaina-text-tertiary)] placeholder:font-light leading-6 py-1.5"
                     placeholder={t('editor.linkPlaceholder')}
                     spellCheck={false}
