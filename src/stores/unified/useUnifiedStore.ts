@@ -43,6 +43,7 @@ interface UnifiedStoreActions {
   setLastAppViewMode: (mode: 'notes' | 'chat') => void;
   setColorMode: (mode: NonNullable<UnifiedData['settings']['ui']>['colorMode']) => void;
   setThemeId: (themeId: string) => void;
+  setNotesChatFloatingSize: (size: NonNullable<UnifiedData['settings']['ui']>['notesChatFloatingSize']) => void;
   
   addCustomIcon: (icon: CustomIcon) => void;
   removeCustomIcon: (id: string) => Promise<void>;
@@ -131,6 +132,7 @@ function normalizeUnifiedData(data: UnifiedData): UnifiedData {
       themeId: typeof settings?.ui?.themeId === 'string' && settings.ui.themeId.trim()
         ? settings.ui.themeId
         : DEFAULT_SETTINGS.ui.themeId,
+      notesChatFloatingSize: settings?.ui?.notesChatFloatingSize || DEFAULT_SETTINGS.ui.notesChatFloatingSize,
     },
   };
   normalized.customIcons = normalized.customIcons || [];

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { desktopWindow } from '@/lib/desktop/window';
 import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 import { dispatchEditorFindOpenEvent } from '@/components/Notes/features/Editor/find/editorFindEvents';
@@ -16,6 +16,13 @@ import { resolveSiblingNoteParentPath } from '@/stores/notes/notePathState';
 import { dispatchDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
 import { isOpenSettingsBinding } from '@/lib/shortcuts';
 
+function resolveSidebarSearchScope(target: EventTarget | null, appViewMode: string): 'notes' | 'chat' {
+  if (target instanceof Element && target.closest('[data-chat-view-mode]')) {
+    return 'chat';
+  }
+  return appViewMode === 'chat' ? 'chat' : 'notes';
+}
+
 interface UseShortcutsOptions {
   scope?: ShortcutScope;
   handlers?: Record<string, ShortcutHandler>;
@@ -23,6 +30,7 @@ interface UseShortcutsOptions {
 
 export function useShortcuts(options: UseShortcutsOptions = {}) {
   const { scope = 'global', handlers: extraHandlers = {} } = options;
+  const shortcutTargetRef = useRef<EventTarget | null>(null);
   const {
     toggleDrawer,
     appViewMode,
@@ -43,7 +51,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       setNotesSidebarView(notesSidebarView === 'workspace' ? 'outline' : 'workspace');
     },
     sidebarSearch: () => {
-      dispatchSidebarOpenSearchEvent();
+      dispatchSidebarOpenSearchEvent(resolveSidebarSearchScope(shortcutTargetRef.current, appViewMode));
     },
     editorFind: () => {
       dispatchEditorFindOpenEvent();
@@ -163,7 +171,12 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
           const handler = handlers[shortcut.id];
           if (!handler) continue;
           e.preventDefault();
-          await handler();
+          shortcutTargetRef.current = e.target;
+          try {
+            await handler();
+          } finally {
+            shortcutTargetRef.current = null;
+          }
           break;
         }
       }

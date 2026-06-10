@@ -27,7 +27,7 @@ export function useNotesSidebarSearch(enabled: boolean): SidebarSearchState {
     openSearch();
   }, [closeSearch, isSearchOpen, openSearch, setSidebarView]);
 
-  useSidebarSearchShortcut(toggleSearch, enabled);
+  useSidebarSearchShortcut(toggleSearch, enabled, 'notes');
 
   useEffect(() => {
     if (enabled && sidebarView !== 'workspace') {

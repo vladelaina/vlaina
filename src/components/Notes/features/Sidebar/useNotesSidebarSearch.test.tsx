@@ -26,6 +26,16 @@ describe('useNotesSidebarSearch', () => {
     expect(result.current.isSearchOpen).toBe(true);
   });
 
+  it('ignores chat-scoped search events', () => {
+    const { result } = renderHook(() => useNotesSidebarSearch(true));
+
+    act(() => {
+      dispatchSidebarOpenSearchEvent('chat');
+    });
+
+    expect(result.current.isSearchOpen).toBe(false);
+  });
+
   it('closes search when leaving the workspace view', () => {
     const { result } = renderHook(() => useNotesSidebarSearch(true));
 

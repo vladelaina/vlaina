@@ -33,7 +33,7 @@ export function useChatSidebarSearch({
     toggleSearch,
   } = useSidebarSearchState();
 
-  useSidebarSearchShortcut(toggleSearch, enabled);
+  useSidebarSearchShortcut(toggleSearch, enabled, 'chat');
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const previousQueryRef = useRef('');
   const [selectedSearchIndex, setSelectedSearchIndex] = useState(0);

@@ -22,7 +22,10 @@ interface UseNotesViewShortcutsOptions {
   closeTab: (path: string) => Promise<void>;
   reopenClosedTab: () => Promise<void>;
   chatPanelCollapsed: boolean;
-  toggleChatPanel: () => void;
+  chatFloatingOpen: boolean;
+  closeChatPanel: () => void;
+  closeFloatingChat: () => void;
+  openFloatingChat: () => void;
   focusNotesChatComposer: () => void;
   focusSidebarPath: (path: string) => void;
 }
@@ -36,7 +39,10 @@ export function useNotesViewShortcuts({
   closeTab,
   reopenClosedTab,
   chatPanelCollapsed,
-  toggleChatPanel,
+  chatFloatingOpen,
+  closeChatPanel,
+  closeFloatingChat,
+  openFloatingChat,
   focusNotesChatComposer,
   focusSidebarPath,
 }: UseNotesViewShortcutsOptions) {
@@ -57,7 +63,12 @@ export function useNotesViewShortcuts({
       if (matchesShortcutBinding(event, 'toggleEmbeddedChat')) {
         event.preventDefault();
         if (!chatPanelCollapsed) {
-          toggleChatPanel();
+          closeChatPanel();
+          return;
+        }
+
+        if (chatFloatingOpen) {
+          closeFloatingChat();
           return;
         }
 
@@ -67,7 +78,7 @@ export function useNotesViewShortcuts({
           return;
         }
 
-        toggleChatPanel();
+        openFloatingChat();
         return;
       }
 
@@ -160,7 +171,10 @@ export function useNotesViewShortcuts({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [
     active,
+    chatFloatingOpen,
     chatPanelCollapsed,
+    closeChatPanel,
+    closeFloatingChat,
     closeTab,
     reopenClosedTab,
     currentNotePath,
@@ -168,7 +182,7 @@ export function useNotesViewShortcuts({
     focusSidebarPath,
     notePathsInTreeOrder,
     openNote,
+    openFloatingChat,
     openTabs,
-    toggleChatPanel,
   ]);
 }

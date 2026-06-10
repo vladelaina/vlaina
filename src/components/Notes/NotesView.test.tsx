@@ -116,6 +116,11 @@ const mocks = vi.hoisted(() => {
     notesChatPanelCollapsed: true,
     setNotesChatPanelCollapsed: vi.fn(),
     toggleNotesChatPanel: vi.fn(),
+    notesChatFloatingOpen: false,
+    setNotesChatFloatingOpen: vi.fn(),
+    notesChatFloatingSize: { width: 420, height: 680 },
+    setNotesChatFloatingSize: vi.fn(),
+    resetNotesChatFloatingSize: vi.fn(),
     setLayoutPanelDragging: vi.fn(),
     setAppViewMode: vi.fn(),
   };
@@ -171,6 +176,9 @@ vi.mock('@/stores/useVaultStore', () => ({
 }));
 
 vi.mock('@/stores/uiSlice', () => ({
+  NOTES_CHAT_FLOATING_DEFAULT_SIZE: { width: 420, height: 680 },
+  NOTES_CHAT_FLOATING_MIN_SIZE: { width: 320, height: 420 },
+  NOTES_CHAT_FLOATING_MAX_SIZE: { width: 760, height: 920 },
   useUIStore: (selector: (state: typeof mocks.uiState) => unknown) => selector(mocks.uiState),
 }));
 
@@ -237,7 +245,32 @@ vi.mock('@/lib/ui/composerFocusRegistry', () => ({
 }));
 
 vi.mock('@/components/layout/ResizablePanel', () => ({
-  ResizablePanel: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  ResizablePanel: ({
+    children,
+    className,
+    defaultWidth,
+    minWidth,
+    maxWidth,
+    storageKey,
+  }: {
+    children: ReactNode;
+    className?: string;
+    defaultWidth?: number;
+    minWidth?: number;
+    maxWidth?: number;
+    storageKey?: string;
+  }) => (
+    <div
+      data-testid="resizable-panel"
+      className={className}
+      data-default-width={defaultWidth}
+      data-min-width={minWidth}
+      data-max-width={maxWidth}
+      data-storage-key={storageKey}
+    >
+      {children}
+    </div>
+  ),
 }));
 
 vi.mock('@/components/Notes/features/FileTree/hooks/externalDragPreview', () => ({
@@ -250,6 +283,10 @@ vi.mock('@/components/Notes/features/FileTree/hooks/externalDragPreview', () => 
 
 vi.mock('@/components/common/ModuleShortcutsDialog', () => ({
   ModuleShortcutsDialog: () => null,
+}));
+
+vi.mock('@/components/Chat/ChatView', () => ({
+  ChatView: () => <div data-testid="embedded-chat-view" />,
 }));
 
 vi.mock('@/lib/desktop/launchContext', () => ({
@@ -437,6 +474,12 @@ describe('NotesView', () => {
 
     uiState.setNotesChatPanelCollapsed.mockClear();
     uiState.toggleNotesChatPanel.mockClear();
+    uiState.notesChatPanelCollapsed = true;
+    uiState.notesChatFloatingOpen = false;
+    uiState.setNotesChatFloatingOpen.mockClear();
+    uiState.notesChatFloatingSize = { width: 420, height: 680 };
+    uiState.setNotesChatFloatingSize.mockClear();
+    uiState.resetNotesChatFloatingSize.mockClear();
     uiState.setLayoutPanelDragging.mockClear();
     uiState.setAppViewMode.mockClear();
   });
@@ -1250,7 +1293,7 @@ describe('NotesView', () => {
     expect(uiState.toggleNotesChatPanel).not.toHaveBeenCalled();
   });
 
-  it('toggles embedded chat on Ctrl+L when there is no editor selection', async () => {
+  it('opens the floating notes chat on Ctrl+L when there is no editor selection', async () => {
     notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
     mocks.editorViewRegistry.getCurrentEditorView.mockReturnValue({
       state: {
@@ -1275,7 +1318,9 @@ describe('NotesView', () => {
     document.dispatchEvent(event);
 
     expect(event.defaultPrevented).toBe(true);
-    expect(uiState.toggleNotesChatPanel).toHaveBeenCalledTimes(1);
+    expect(uiState.setNotesChatPanelCollapsed).toHaveBeenCalledWith(true);
+    expect(uiState.setNotesChatFloatingOpen).toHaveBeenCalledWith(true);
+    expect(uiState.toggleNotesChatPanel).not.toHaveBeenCalled();
     expect(mocks.sidebarDiscussion.openSidebarDiscussionForSelection).not.toHaveBeenCalled();
   });
 
@@ -1310,7 +1355,95 @@ describe('NotesView', () => {
     expect(uiState.toggleNotesChatPanel).not.toHaveBeenCalled();
   });
 
-  it('closes embedded chat on Ctrl+L when the panel is already open', async () => {
+  it('uses the saved size for the floating notes chat panel', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    uiState.notesChatFloatingOpen = true;
+    uiState.notesChatFloatingSize = { width: 512, height: 720 };
+
+    render(<NotesView />);
+    await waitForVaultInitializationEffects();
+
+    const panel = document.querySelector('[data-notes-chat-floating="true"]') as HTMLElement;
+    expect(panel).toBeInTheDocument();
+    expect(panel.style.width).toBe('512px');
+    expect(panel.style.height).toBe('720px');
+    expect(document.querySelector('[data-notes-chat-floating-resize-handle="left"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-notes-chat-floating-resize-handle="top"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-notes-chat-floating-resize-handle="top-left"]')).toBeInTheDocument();
+  });
+
+  it('opens the notes chat side panel as a docked resizable panel', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    uiState.notesChatPanelCollapsed = false;
+    uiState.notesChatFloatingOpen = false;
+
+    render(<NotesView />);
+    await waitForVaultInitializationEffects();
+
+    const resizablePanel = screen.getByTestId('resizable-panel');
+    expect(resizablePanel).toHaveAttribute('data-storage-key', 'vlaina_notes_chat_panel_width_v2');
+    expect(resizablePanel).toHaveAttribute('data-default-width', '320');
+    expect(document.querySelector('[data-notes-chat-panel="true"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-notes-chat-floating="true"]')).toBeNull();
+  });
+
+  it('resizes floating notes chat from the left, top, and top-left handles', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    uiState.notesChatFloatingOpen = true;
+    uiState.notesChatFloatingSize = { width: 420, height: 680 };
+
+    render(<NotesView />);
+    await waitForVaultInitializationEffects();
+
+    const leftHandle = document.querySelector('[data-notes-chat-floating-resize-handle="left"]') as HTMLElement;
+    fireEvent.pointerDown(leftHandle, { clientX: 600, clientY: 300 });
+    fireEvent.pointerMove(window, { clientX: 540, clientY: 300 });
+    fireEvent.pointerUp(window);
+
+    expect(uiState.setLayoutPanelDragging).toHaveBeenCalledWith(true);
+    expect(uiState.setNotesChatFloatingSize).toHaveBeenCalledWith({ width: 480, height: 680 });
+    expect(uiState.setLayoutPanelDragging).toHaveBeenLastCalledWith(false);
+
+    uiState.setNotesChatFloatingSize.mockClear();
+    uiState.setLayoutPanelDragging.mockClear();
+
+    const topHandle = document.querySelector('[data-notes-chat-floating-resize-handle="top"]') as HTMLElement;
+    fireEvent.pointerDown(topHandle, { clientX: 500, clientY: 600 });
+    fireEvent.pointerMove(window, { clientX: 500, clientY: 560 });
+    fireEvent.pointerUp(window);
+
+    expect(uiState.setLayoutPanelDragging).toHaveBeenCalledWith(true);
+    expect(uiState.setNotesChatFloatingSize).toHaveBeenCalledWith({ width: 420, height: 720 });
+    expect(uiState.setLayoutPanelDragging).toHaveBeenLastCalledWith(false);
+
+    uiState.setNotesChatFloatingSize.mockClear();
+    uiState.setLayoutPanelDragging.mockClear();
+
+    const topLeftHandle = document.querySelector('[data-notes-chat-floating-resize-handle="top-left"]') as HTMLElement;
+    fireEvent.pointerDown(topLeftHandle, { clientX: 600, clientY: 600 });
+    fireEvent.pointerMove(window, { clientX: 570, clientY: 570 });
+    fireEvent.pointerUp(window);
+
+    expect(uiState.setLayoutPanelDragging).toHaveBeenCalledWith(true);
+    expect(uiState.setNotesChatFloatingSize).toHaveBeenCalledWith({ width: 450, height: 710 });
+    expect(uiState.setLayoutPanelDragging).toHaveBeenLastCalledWith(false);
+  });
+
+  it('resets floating notes chat size when double-clicking resize handles', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    uiState.notesChatFloatingOpen = true;
+
+    render(<NotesView />);
+    await waitForVaultInitializationEffects();
+
+    fireEvent.doubleClick(document.querySelector('[data-notes-chat-floating-resize-handle="left"]') as HTMLElement);
+    fireEvent.doubleClick(document.querySelector('[data-notes-chat-floating-resize-handle="top"]') as HTMLElement);
+    fireEvent.doubleClick(document.querySelector('[data-notes-chat-floating-resize-handle="top-left"]') as HTMLElement);
+
+    expect(uiState.resetNotesChatFloatingSize).toHaveBeenCalledTimes(3);
+  });
+
+  it('closes the open side chat panel on Ctrl+L', async () => {
     notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
     uiState.notesChatPanelCollapsed = false;
     const editorView = {
@@ -1337,7 +1470,42 @@ describe('NotesView', () => {
     document.dispatchEvent(event);
 
     expect(event.defaultPrevented).toBe(true);
-    expect(uiState.toggleNotesChatPanel).toHaveBeenCalledTimes(1);
+    expect(uiState.setNotesChatPanelCollapsed).toHaveBeenCalledWith(true);
+    expect(uiState.setNotesChatFloatingOpen).not.toHaveBeenCalled();
+    expect(uiState.toggleNotesChatPanel).not.toHaveBeenCalled();
+    expect(mocks.sidebarDiscussion.openSidebarDiscussionForSelection).not.toHaveBeenCalled();
+  });
+
+  it('closes the floating notes chat on Ctrl+L when it is already open', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    uiState.notesChatPanelCollapsed = true;
+    uiState.notesChatFloatingOpen = true;
+    mocks.editorViewRegistry.getCurrentEditorView.mockReturnValue({
+      state: {
+        selection: {
+          empty: false,
+        },
+      },
+    });
+    shortcutMatchesMock.mockImplementation((event, binding) => (
+      binding === 'toggleEmbeddedChat' && event.key.toLowerCase() === 'l' && event.ctrlKey
+    ));
+
+    render(<NotesView />);
+    await waitForVaultInitializationEffects();
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'l',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    document.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(uiState.setNotesChatFloatingOpen).toHaveBeenCalledWith(false);
+    expect(uiState.setNotesChatPanelCollapsed).not.toHaveBeenCalled();
+    expect(uiState.toggleNotesChatPanel).not.toHaveBeenCalled();
     expect(mocks.sidebarDiscussion.openSidebarDiscussionForSelection).not.toHaveBeenCalled();
   });
 

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import {
+  DEFAULT_SETTINGS,
   STORAGE_KEY_FONT_SIZE,
   STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED,
 } from '@/lib/config';
@@ -36,12 +37,32 @@ export type ImageStorageMode = 'vault' | 'vaultSubfolder' | 'currentFolder' | 's
 
 export type ImageFilenameFormat = 'original' | 'timestamp' | 'sequence';
 
+export interface NotesChatFloatingSize {
+  width: number;
+  height: number;
+}
+
+export const NOTES_CHAT_FLOATING_DEFAULT_SIZE: NotesChatFloatingSize = {
+  ...DEFAULT_SETTINGS.ui.notesChatFloatingSize,
+};
+
+export const NOTES_CHAT_FLOATING_MIN_SIZE: NotesChatFloatingSize = {
+  width: 320,
+  height: 420,
+};
+
+export const NOTES_CHAT_FLOATING_MAX_SIZE: NotesChatFloatingSize = {
+  width: 760,
+  height: 920,
+};
+
 interface PendingNotesChatComposerInsert {
   id: number;
   text: string;
 }
 
 const STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED = 'vlaina_notes_chat_panel_collapsed';
+const STORAGE_KEY_NOTES_CHAT_FLOATING_SIZE = 'vlaina_notes_chat_floating_size';
 
 interface UIStore {
   appViewMode: AppViewMode;
@@ -104,6 +125,12 @@ interface UIStore {
   notesChatPanelCollapsed: boolean;
   setNotesChatPanelCollapsed: (collapsed: boolean) => void;
   toggleNotesChatPanel: () => void;
+  notesChatFloatingOpen: boolean;
+  setNotesChatFloatingOpen: (open: boolean) => void;
+  notesChatFloatingSize: NotesChatFloatingSize;
+  setNotesChatFloatingSize: (size: NotesChatFloatingSize) => void;
+  restoreNotesChatFloatingSize: (size: NotesChatFloatingSize) => void;
+  resetNotesChatFloatingSize: () => void;
   pendingNotesChatComposerInsert: PendingNotesChatComposerInsert | null;
   queueNotesChatComposerInsert: (text: string) => void;
   consumePendingNotesChatComposerInsert: (id: number) => void;
@@ -120,6 +147,7 @@ type UIPreferenceState = Pick<
   | 'imageVaultSubfolderName'
   | 'imageFilenameFormat'
   | 'notesChatPanelCollapsed'
+  | 'notesChatFloatingSize'
 >;
 
 function loadScalarString(key: string): string | null {
@@ -244,6 +272,46 @@ function loadNotesChatPanelCollapsed(): boolean {
   return loadBoolean(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, true);
 }
 
+function clampNotesChatFloatingSize(size: NotesChatFloatingSize): NotesChatFloatingSize {
+  return {
+    width: Math.max(
+      NOTES_CHAT_FLOATING_MIN_SIZE.width,
+      Math.min(NOTES_CHAT_FLOATING_MAX_SIZE.width, Math.round(size.width))
+    ),
+    height: Math.max(
+      NOTES_CHAT_FLOATING_MIN_SIZE.height,
+      Math.min(NOTES_CHAT_FLOATING_MAX_SIZE.height, Math.round(size.height))
+    ),
+  };
+}
+
+function parseNotesChatFloatingSize(value: string | null): NotesChatFloatingSize | null {
+  if (!value || value.length > MAX_UI_SCALAR_STORAGE_CHARS) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Partial<NotesChatFloatingSize>;
+    if (typeof parsed.width !== 'number' || typeof parsed.height !== 'number') {
+      return null;
+    }
+    if (!Number.isFinite(parsed.width) || !Number.isFinite(parsed.height)) {
+      return null;
+    }
+    return clampNotesChatFloatingSize({
+      width: parsed.width,
+      height: parsed.height,
+    });
+  } catch {
+    return null;
+  }
+}
+
+function loadNotesChatFloatingSize(): NotesChatFloatingSize {
+  return parseNotesChatFloatingSize(loadScalarString(STORAGE_KEY_NOTES_CHAT_FLOATING_SIZE))
+    ?? NOTES_CHAT_FLOATING_DEFAULT_SIZE;
+}
+
 function loadLastAppViewMode(): Extract<AppViewMode, 'notes' | 'chat'> {
   try {
     const saved = loadScalarString(STORAGE_KEY_LAST_APP_VIEW_MODE);
@@ -299,6 +367,7 @@ function loadUIPreferencesFromStorage(): UIPreferenceState {
     imageVaultSubfolderName: loadImageVaultSubfolderName(),
     imageFilenameFormat: loadImageFilenameFormat(),
     notesChatPanelCollapsed: loadNotesChatPanelCollapsed(),
+    notesChatFloatingSize: loadNotesChatFloatingSize(),
   };
 }
 
@@ -409,14 +478,38 @@ export const useUIStore = create<UIStore>()((set) => ({
 
   setNotesChatPanelCollapsed: (collapsed) => {
     savePreferenceString(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, String(collapsed));
-    set({ notesChatPanelCollapsed: collapsed });
+    set({
+      notesChatPanelCollapsed: collapsed,
+      ...(collapsed ? {} : { notesChatFloatingOpen: false }),
+    });
   },
   toggleNotesChatPanel: () =>
     set((state) => {
       const next = !state.notesChatPanelCollapsed;
       savePreferenceString(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, String(next));
-      return { notesChatPanelCollapsed: next };
+      return {
+        notesChatPanelCollapsed: next,
+        ...(next ? {} : { notesChatFloatingOpen: false }),
+      };
     }),
+  notesChatFloatingOpen: false,
+  setNotesChatFloatingOpen: (open) => set({ notesChatFloatingOpen: open }),
+  setNotesChatFloatingSize: (size) => {
+    const next = clampNotesChatFloatingSize(size);
+    savePreferenceString(STORAGE_KEY_NOTES_CHAT_FLOATING_SIZE, JSON.stringify(next));
+    useUnifiedStore.getState().setNotesChatFloatingSize(next);
+    set({ notesChatFloatingSize: next });
+  },
+  restoreNotesChatFloatingSize: (size) => {
+    const next = clampNotesChatFloatingSize(size);
+    saveString(STORAGE_KEY_NOTES_CHAT_FLOATING_SIZE, JSON.stringify(next));
+    set({ notesChatFloatingSize: next });
+  },
+  resetNotesChatFloatingSize: () => {
+    removePreferenceString(STORAGE_KEY_NOTES_CHAT_FLOATING_SIZE);
+    useUnifiedStore.getState().setNotesChatFloatingSize(NOTES_CHAT_FLOATING_DEFAULT_SIZE);
+    set({ notesChatFloatingSize: NOTES_CHAT_FLOATING_DEFAULT_SIZE });
+  },
   pendingNotesChatComposerInsert: null,
   queueNotesChatComposerInsert: (text) =>
     {
@@ -427,6 +520,7 @@ export const useUIStore = create<UIStore>()((set) => ({
           text,
         },
         notesChatPanelCollapsed: false,
+        notesChatFloatingOpen: false,
       });
     },
   consumePendingNotesChatComposerInsert: (id) =>

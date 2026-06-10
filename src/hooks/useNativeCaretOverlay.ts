@@ -10,6 +10,7 @@ import {
 const STYLE_ID = 'native-caret-overlay-style';
 const CARET_CLASS = 'native-caret-overlay';
 const ACTIVE_ATTR = 'data-native-caret-overlay-active';
+export const NATIVE_CARET_OVERLAY_REFRESH_EVENT = 'vlaina:native-caret-overlay-refresh';
 
 const TEXT_INPUT_TYPES = new Set([
   '',
@@ -196,6 +197,13 @@ function getControlCaretRect(control: TextControl): { left: number; top: number;
   return rect;
 }
 
+export function requestNativeCaretOverlayRefresh(): void {
+  if (typeof document === 'undefined') {
+    return;
+  }
+  document.dispatchEvent(new Event(NATIVE_CARET_OVERLAY_REFRESH_EVENT));
+}
+
 export function useNativeCaretOverlay(): void {
   useEffect(() => {
     const doc = document;
@@ -245,9 +253,18 @@ export function useNativeCaretOverlay(): void {
       frameId = window.requestAnimationFrame(render);
     };
 
+    const flush = () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+        frameId = null;
+      }
+      render();
+    };
+
     const handleFocusIn = () => schedule();
     const handleFocusOut = () => hide();
     const handleUpdate = () => schedule();
+    const handleExplicitRefresh = () => flush();
     const handleCompositionStart = () => hide();
     const handleCompositionEnd = () => schedule();
 
@@ -259,6 +276,7 @@ export function useNativeCaretOverlay(): void {
     doc.addEventListener('selectionchange', handleUpdate);
     doc.addEventListener('compositionstart', handleCompositionStart);
     doc.addEventListener('compositionend', handleCompositionEnd);
+    doc.addEventListener(NATIVE_CARET_OVERLAY_REFRESH_EVENT, handleExplicitRefresh);
     doc.addEventListener('scroll', handleUpdate, true);
     window.addEventListener('resize', handleUpdate);
 
@@ -275,6 +293,7 @@ export function useNativeCaretOverlay(): void {
       doc.removeEventListener('selectionchange', handleUpdate);
       doc.removeEventListener('compositionstart', handleCompositionStart);
       doc.removeEventListener('compositionend', handleCompositionEnd);
+      doc.removeEventListener(NATIVE_CARET_OVERLAY_REFRESH_EVENT, handleExplicitRefresh);
       doc.removeEventListener('scroll', handleUpdate, true);
       window.removeEventListener('resize', handleUpdate);
     };

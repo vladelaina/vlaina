@@ -88,7 +88,8 @@ export function EditorTopRightToolbar({
   const starButtonLabel = starred ? t('notes.removeFromStarred') : t('notes.addToStarred');
   const addToast = useToastStore((state) => state.addToast);
   const chatPanelCollapsed = useUIStore((state) => state.notesChatPanelCollapsed);
-  const setNotesChatPanelCollapsed = useUIStore((state) => state.setNotesChatPanelCollapsed);
+  const chatFloatingOpen = useUIStore((state) => state.notesChatFloatingOpen);
+  const setNotesChatFloatingOpen = useUIStore((state) => state.setNotesChatFloatingOpen);
   const exportCurrentNote = async (format: NoteExportFormat) => {
     if (!currentNotePath) {
       return;
@@ -140,12 +141,12 @@ export function EditorTopRightToolbar({
             </button>
           ) : null}
 
-          {chatPanelCollapsed ? (
+          {chatPanelCollapsed && !chatFloatingOpen ? (
             <button
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
-                setNotesChatPanelCollapsed(false);
+                setNotesChatFloatingOpen(true);
               }}
               aria-label={t('notes.rightChat')}
               className={cn(
