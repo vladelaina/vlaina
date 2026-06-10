@@ -6,6 +6,7 @@ import { isSafeVaultPathSegment } from './utils/fs/vaultPathContainment';
 import { hasInternalNotePathSegment } from './utils/fs/internalNotePaths';
 
 const MAX_FILE_TREE_ENTRIES = 5000;
+const MAX_FILE_TREE_DIRECTORY_SCAN_ENTRIES = 10_000;
 const MAX_FILE_TREE_DEPTH = 24;
 const MAX_FILE_TREE_DERIVED_NODES = 20_000;
 const SKIPPED_DIRECTORY_NAMES = new Set([
@@ -17,6 +18,7 @@ const SKIPPED_DIRECTORY_NAMES = new Set([
   '__pycache__',
 ]);
 interface FileTreeBuildBudget {
+  scannedEntries: number;
   visitedEntries: number;
   skippedFolderCount: number;
   listedFolderCount: number;
@@ -66,6 +68,13 @@ export async function buildFileTreeLevel(
   const nodes: FileTreeNode[] = [];
 
   for (const entry of entries) {
+    if (budget && budget.scannedEntries >= MAX_FILE_TREE_DIRECTORY_SCAN_ENTRIES) {
+      break;
+    }
+    if (budget) {
+      budget.scannedEntries += 1;
+    }
+
     if (!isSafeVaultPathSegment(entry.name)) continue;
 
     const entryPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
@@ -114,7 +123,10 @@ async function buildFileTreeWithBudget(
   relativePath: string,
   budget: FileTreeBuildBudget,
 ): Promise<FileTreeNode[]> {
-  if (budget.visitedEntries >= MAX_FILE_TREE_ENTRIES) {
+  if (
+    budget.scannedEntries >= MAX_FILE_TREE_DIRECTORY_SCAN_ENTRIES ||
+    budget.visitedEntries >= MAX_FILE_TREE_ENTRIES
+  ) {
     return [];
   }
 
@@ -155,6 +167,7 @@ async function buildFileTreeWithBudget(
 
 export async function buildFileTree(basePath: string, relativePath: string = ''): Promise<FileTreeNode[]> {
   const budget: FileTreeBuildBudget = {
+    scannedEntries: 0,
     visitedEntries: 0,
     skippedFolderCount: 0,
     listedFolderCount: 1,
