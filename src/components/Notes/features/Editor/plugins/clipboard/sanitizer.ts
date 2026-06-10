@@ -185,9 +185,7 @@ function sanitizeElement(element: Element, context: SanitizeContext, depth: numb
       return null;
     }
     sanitized.setAttribute('sandbox', sanitizeGithubIframeSandbox(element.getAttribute('sandbox')));
-    if (!sanitized.hasAttribute('referrerpolicy')) {
-      sanitized.setAttribute('referrerpolicy', 'no-referrer');
-    }
+    sanitized.setAttribute('referrerpolicy', 'no-referrer');
   }
   sanitizeChildren(element, sanitized, context, depth + 1);
   if ((tagName === 'video' || tagName === 'audio') && !sanitized.hasAttribute('src') && !hasDescendantSourceSrc(sanitized)) {

@@ -655,6 +655,18 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
 
+  it('does not fast-path large documents with empty atx headings', () => {
+    const paragraph = 'This is a long plain paragraph for large markdown normalization. '.repeat(200);
+    const markdown = [
+      '#',
+      '',
+      ...Array.from({ length: 90 }, (_value, index) => `Paragraph ${index}. ${paragraph}`),
+    ].join('\n\n');
+
+    expect(markdown.length).toBeGreaterThan(1_000_000);
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown.replace(/^#$/m, '# #'));
+  });
+
   it('does not fast-path large documents with soft line breaks', () => {
     const paragraph = 'This is a long plain paragraph for large markdown normalization. '.repeat(200);
     const markdown = [

@@ -60,6 +60,8 @@ describe('avatarManager request cleanup', () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
       expect(init?.signal).toBeInstanceOf(AbortSignal);
+      expect(init?.credentials).toBe('omit');
+      expect(init?.referrerPolicy).toBe('no-referrer');
       return new Promise(() => undefined);
     });
     vi.stubGlobal('fetch', fetchMock);

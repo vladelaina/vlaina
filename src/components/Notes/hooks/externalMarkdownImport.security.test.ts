@@ -70,6 +70,36 @@ describe('external markdown import path security', () => {
     expect(mocks.storage.listDir).not.toHaveBeenCalled();
   });
 
+  it('allows Windows absolute paths while still validating their path segments', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isFile: path === 'C:\\Users\\me\\alpha.md' || path === '/vault/imports/alpha.md',
+      isDirectory: false,
+      size: 1024,
+    }));
+    mocks.resolveUniquePath.mockResolvedValue({
+      relativePath: 'imports/alpha.md',
+      fullPath: '/vault/imports/alpha.md',
+      fileName: 'alpha.md',
+    });
+
+    const result = await importExternalMarkdownEntries('/vault', 'imports', [
+      'C:\\Users\\me\\alpha.md',
+      'C:\\Users\\me\\bad\u202E.md',
+    ]);
+
+    expect(result).toEqual({
+      importedNotePaths: ['imports/alpha.md'],
+      importedFolderPaths: [],
+      didImport: true,
+    });
+    expect(mocks.storage.stat).toHaveBeenCalledWith('C:\\Users\\me\\alpha.md');
+    expect(mocks.storage.stat).not.toHaveBeenCalledWith('C:\\Users\\me\\bad\u202E.md');
+    expect(mocks.storage.copyFile).toHaveBeenCalledWith(
+      'C:\\Users\\me\\alpha.md',
+      '/vault/imports/alpha.md',
+    );
+  });
+
   it('skips unsafe starred drop paths before statting them', async () => {
     const result = await resolveExternalMarkdownEntriesForStarred('/vault', [
       '/outside/docs\u202E',
@@ -78,5 +108,25 @@ describe('external markdown import path security', () => {
 
     expect(result).toEqual([]);
     expect(mocks.storage.stat).not.toHaveBeenCalled();
+  });
+
+  it('allows Windows absolute starred paths while still validating their path segments', async () => {
+    mocks.storage.stat.mockResolvedValue({
+      isFile: true,
+      isDirectory: false,
+    });
+
+    const result = await resolveExternalMarkdownEntriesForStarred('/vault', [
+      'C:\\Users\\me\\alpha.md',
+      'C:\\Users\\me\\bad\u202E.md',
+    ]);
+
+    expect(result).toEqual([{
+      kind: 'note',
+      vaultPath: 'C:/Users/me',
+      relativePath: 'alpha.md',
+    }]);
+    expect(mocks.storage.stat).toHaveBeenCalledWith('C:\\Users\\me\\alpha.md');
+    expect(mocks.storage.stat).not.toHaveBeenCalledWith('C:\\Users\\me\\bad\u202E.md');
   });
 });

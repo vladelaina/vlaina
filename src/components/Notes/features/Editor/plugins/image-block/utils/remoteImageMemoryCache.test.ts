@@ -72,7 +72,11 @@ describe('remoteImageMemoryCache', () => {
         await expect(resolveRemoteImageFromMemoryCache('https://example.com/remote.png')).resolves.toBe('blob:remote-image');
 
         expect(fetch).toHaveBeenCalledTimes(1);
-        expect(fetch).toHaveBeenCalledWith('https://example.com/remote.png', { cache: 'force-cache' });
+        expect(fetch).toHaveBeenCalledWith('https://example.com/remote.png', {
+            cache: 'force-cache',
+            credentials: 'omit',
+            referrerPolicy: 'no-referrer',
+        });
     });
 
     it('stops reading streamed remote images once they exceed the cache limit', async () => {

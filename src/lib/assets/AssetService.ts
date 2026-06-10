@@ -45,7 +45,7 @@ function isIndexedAssetFresh(
   entry: { size?: number; modifiedAt?: number | null },
   indexed: { size: number; modifiedAt: number | null },
 ) {
-  return typeof entry.size === 'number' && entry.size === indexed.size && (entry.modifiedAt ?? null) === indexed.modifiedAt;
+  return typeof entry.size === 'number' && entry.size === indexed.size && typeof entry.modifiedAt === 'number' && entry.modifiedAt === indexed.modifiedAt;
 }
 
 async function saveAssetHashIndexBestEffort(

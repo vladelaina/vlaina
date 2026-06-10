@@ -9,6 +9,7 @@ const MAX_FILE_TREE_ENTRIES = 5000;
 const MAX_FILE_TREE_DIRECTORY_SCAN_ENTRIES = 10_000;
 const MAX_FILE_TREE_DEPTH = 24;
 const MAX_FILE_TREE_DERIVED_NODES = 20_000;
+const MAX_GIT_REPOSITORY_DETECTION_CONCURRENCY = 8;
 const SKIPPED_DIRECTORY_NAMES = new Set([
   'node_modules',
   'vendor',
@@ -22,6 +23,12 @@ interface FileTreeBuildBudget {
   visitedEntries: number;
   skippedFolderCount: number;
   listedFolderCount: number;
+}
+
+interface FileTreeLevelEntry {
+  entryPath: string;
+  name: string;
+  isDirectory: boolean;
 }
 
 type FolderTreeNode = Extract<FileTreeNode, { isFolder: true }>;
@@ -47,6 +54,30 @@ function shouldHideDirectory(name: string) {
   return hasInternalNotePathSegment(name);
 }
 
+async function mapWithConcurrencyLimit<T, R>(
+  items: readonly T[],
+  limit: number,
+  mapper: (item: T) => Promise<R>,
+): Promise<R[]> {
+  if (items.length === 0) {
+    return [];
+  }
+
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.max(1, Math.min(limit, items.length));
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index]!);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+}
+
 export async function isGitRepositoryDirectory(fullPath: string) {
   const storage = getStorageAdapter();
   try {
@@ -65,7 +96,7 @@ export async function buildFileTreeLevel(
   const fullPath = relativePath ? await joinPath(basePath, relativePath) : basePath;
   const entries = await storage.listDir(fullPath, { includeHidden: true });
 
-  const nodes: FileTreeNode[] = [];
+  const levelEntries: FileTreeLevelEntry[] = [];
 
   for (const entry of entries) {
     if (budget && budget.scannedEntries >= MAX_FILE_TREE_DIRECTORY_SCAN_ENTRIES) {
@@ -91,29 +122,41 @@ export async function buildFileTreeLevel(
       budget.visitedEntries += 1;
     }
 
-    if (isDir) {
-      const entryFullPath = await joinPath(fullPath, entry.name);
-      const isGitRepository = shouldSkipDirectory(entry.name)
-        ? false
-        : await isGitRepositoryDirectory(entryFullPath);
-      nodes.push({
-        id: entryPath,
-        name: entry.name,
-        path: entryPath,
-        isFolder: true,
-        children: [],
-        expanded: false,
-        ...(isGitRepository ? { isGitRepository: true } : {}),
-      });
-    } else if (isMarkdownFile) {
-      nodes.push({
-        id: entryPath,
-        name: stripSupportedMarkdownExtension(entry.name),
-        path: entryPath,
-        isFolder: false,
-      });
-    }
+    levelEntries.push({
+      entryPath,
+      name: entry.name,
+      isDirectory: isDir,
+    });
   }
+
+  const nodes = await mapWithConcurrencyLimit(
+    levelEntries,
+    MAX_GIT_REPOSITORY_DETECTION_CONCURRENCY,
+    async (entry): Promise<FileTreeNode> => {
+      if (entry.isDirectory) {
+        const entryFullPath = await joinPath(fullPath, entry.name);
+        const isGitRepository = shouldSkipDirectory(entry.name)
+          ? false
+          : await isGitRepositoryDirectory(entryFullPath);
+        return {
+          id: entry.entryPath,
+          name: entry.name,
+          path: entry.entryPath,
+          isFolder: true,
+          children: [],
+          expanded: false,
+          ...(isGitRepository ? { isGitRepository: true } : {}),
+        };
+      }
+
+      return {
+        id: entry.entryPath,
+        name: stripSupportedMarkdownExtension(entry.name),
+        path: entry.entryPath,
+        isFolder: false,
+      };
+    },
+  );
 
   return sortFileTree(nodes);
 }

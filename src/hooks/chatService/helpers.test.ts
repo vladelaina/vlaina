@@ -12,6 +12,7 @@ import {
   buildStoredUserMessageContent,
   MAX_CHAT_MENTION_LOAD_CONCURRENCY,
   MAX_CHAT_MESSAGE_IMAGE_ATTACHMENTS,
+  MAX_MENTIONED_NOTES_CONTEXT_CHARS,
   loadMentionedFolderImageAttachments,
   loadMentionedNotes,
   refreshManagedBudgetIfNeeded,
@@ -29,7 +30,7 @@ const mocks = vi.hoisted(() => ({
   },
   notesState: {
     currentNote: null as { path: string; content: string } | null,
-    noteContentsCache: new Map<string, { content: string }>(),
+    noteContentsCache: new Map<string, { content: string; modifiedAt?: number | null; size?: number | null }>(),
     notesPath: '/vault',
     rootFolder: null as null | { children: unknown[] },
     starredEntries: [] as Array<{
@@ -382,6 +383,20 @@ describe('chat service helpers', () => {
 
     expect(context).toContain('## Alpha ## Injected heading\nsafe body');
     expect(context).not.toContain('\n## Injected heading');
+  });
+
+  it('bounds the total referenced notes prompt context', () => {
+    const context = buildMentionedNotesContext(
+      Array.from({ length: 40 }, (_value, index) => ({
+        path: `docs/${index}.md`,
+        title: `Note ${index}`,
+        content: `content ${index} ${'x'.repeat(12_000)}`,
+      })),
+    );
+
+    expect(context.length).toBeLessThanOrEqual(MAX_MENTIONED_NOTES_CONTEXT_CHARS);
+    expect(context).toContain('## Note 0\ncontent 0');
+    expect(context).not.toContain('## Note 39');
   });
 });
 
@@ -754,6 +769,34 @@ describe('loadMentionedNotes', () => {
 
     expect(notes).toEqual([]);
     expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
+  it('does not use cached note mention content when cache has size but no modified time', async () => {
+    mocks.notesState.noteContentsCache = new Map([
+      ['docs/alpha.md', { content: '# Old', modifiedAt: null, size: 7 }],
+      ['docs/beta.md', { content: '# Old beta', modifiedAt: null, size: null }],
+    ]);
+    mocks.storage.stat.mockImplementation(async (path: string) => {
+      if (path.endsWith('/beta.md')) {
+        return null;
+      }
+      return {
+        isFile: true,
+        isDirectory: false,
+        size: 7,
+      };
+    });
+    mocks.storage.readFile.mockResolvedValue('# New!');
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs/alpha.md', title: 'Alpha' },
+      { path: 'docs/beta.md', title: 'Beta' },
+    ]);
+
+    expect(notes).toEqual([
+      { path: 'docs/alpha.md', title: 'Alpha', content: '# New!' },
+    ]);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md');
   });
 
   it('includes a directory listing for folder mentions without markdown notes', async () => {

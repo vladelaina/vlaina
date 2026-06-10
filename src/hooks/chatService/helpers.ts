@@ -53,6 +53,7 @@ const IMAGE_NAME_REGEX = /\.(png|jpe?g|webp|gif|bmp|avif|svg)(?:$|[?#])/i;
 const MAX_NOTE_MENTION_COUNT = 3;
 const MAX_NOTE_MENTION_CHARS = 12000;
 const MAX_NOTE_MENTION_READ_BYTES = 512 * 1024;
+export const MAX_MENTIONED_NOTES_CONTEXT_CHARS = 120_000;
 const MAX_FOLDER_MENTION_NOTES = 20;
 export const MAX_CHAT_MENTION_LOAD_CONCURRENCY = 5;
 const MAX_FOLDER_MARKDOWN_SCAN_DEPTH = 6;
@@ -466,6 +467,10 @@ function isInsideInternalFolderMarkdownPath(path: string): boolean {
   return hasInternalNotePathSegment(path);
 }
 
+function canUseCachedMentionContent(cached: { modifiedAt?: number | null; size?: number | null }): boolean {
+  return !(cached.modifiedAt == null && Object.prototype.hasOwnProperty.call(cached, 'size'));
+}
+
 async function readResolvedMentionedNoteContent(
   resolvedPath: { cachePath: string; fullPath: string },
   cacheAliases: readonly string[] = [],
@@ -487,7 +492,7 @@ async function readResolvedMentionedNoteContent(
     if (cached && cached.content.length > MAX_NOTE_MENTION_READ_BYTES) {
       return '';
     }
-    if (cached?.content.trim()) {
+    if (cached?.content.trim() && canUseCachedMentionContent(cached)) {
       return cached.content;
     }
   }
@@ -953,18 +958,33 @@ export function buildMentionedNotesContext(
     return '';
   }
 
-  const sections = mentionedNotes.map((note) => {
-    const boundedContent = note.content.slice(0, MAX_NOTE_MENTION_CHARS);
-    return `## ${formatPromptLabel(note.title, note.path || 'note')}\n${boundedContent}`;
-  });
+  const prefix = 'Referenced notes and folders:\n\n';
+  const suffix = '\n\nAnswer based on these references plus the user request.';
+  const sections: string[] = [];
+  let usedChars = prefix.length + suffix.length;
 
-  return [
-    'Referenced notes and folders:',
-    '',
-    sections.join('\n\n---\n\n'),
-    '',
-    'Answer based on these references plus the user request.',
-  ].join('\n');
+  for (const note of mentionedNotes) {
+    const separator = sections.length > 0 ? '\n\n---\n\n' : '';
+    const heading = `## ${formatPromptLabel(note.title, note.path || 'note')}\n`;
+    const remainingChars = MAX_MENTIONED_NOTES_CONTEXT_CHARS
+      - usedChars
+      - separator.length
+      - heading.length;
+    if (remainingChars <= 0) {
+      break;
+    }
+
+    const boundedContent = note.content.slice(0, Math.min(MAX_NOTE_MENTION_CHARS, remainingChars));
+    const section = `${heading}${boundedContent}`;
+    sections.push(section);
+    usedChars += separator.length + section.length;
+  }
+
+  if (sections.length === 0) {
+    return '';
+  }
+
+  return `${prefix}${sections.join('\n\n---\n\n')}${suffix}`;
 }
 
 export async function normalizeVisionAttachment(

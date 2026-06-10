@@ -189,6 +189,37 @@ describe('fileTreeUtils structural sharing', () => {
     ]);
   });
 
+  it('detects sibling git folders with bounded concurrency', async () => {
+    let activeDetections = 0;
+    let maxActiveDetections = 0;
+    mocks.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault') {
+        return Array.from({ length: 12 }, (_, index) => ({
+          name: `folder-${index}`,
+          path: `/vault/folder-${index}`,
+          isDirectory: true,
+          isFile: false,
+        }));
+      }
+
+      return [];
+    });
+    mocks.exists.mockImplementation(async () => {
+      activeDetections += 1;
+      maxActiveDetections = Math.max(maxActiveDetections, activeDetections);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      activeDetections -= 1;
+      return false;
+    });
+
+    const tree = await buildFileTree('/vault');
+
+    expect(tree).toHaveLength(12);
+    expect(mocks.exists).toHaveBeenCalledTimes(12);
+    expect(maxActiveDetections).toBeGreaterThan(1);
+    expect(maxActiveDetections).toBeLessThanOrEqual(8);
+  });
+
   it('includes every supported markdown extension in the tree', async () => {
     mocks.listDir.mockResolvedValue([
       { name: 'alpha.md', path: '/vault/alpha.md', isDirectory: false, isFile: true },

@@ -1,5 +1,5 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
-import { readBoundedImageBlobResponse } from '@/lib/markdown/fetchBoundedImageBlob';
+import { createSafeImageFetchInit, readBoundedImageBlobResponse } from '@/lib/markdown/fetchBoundedImageBlob';
 import { normalizePublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { loadImageAsBase64 } from './io/reader';
 
@@ -122,7 +122,7 @@ export async function downloadAndSaveAvatar(url: string, username: string): Prom
         try {
             const controller = new AbortController();
             timeoutId = setTimeout(() => controller.abort(), AVATAR_FETCH_TIMEOUT_MS);
-            const response = await raceWithAbort(fetch(safeUrl, { signal: controller.signal }), controller.signal);
+            const response = await raceWithAbort(fetch(safeUrl, createSafeImageFetchInit(undefined, controller.signal)), controller.signal);
 
             if (!response.ok) {
                 throw new Error(`Failed to fetch avatar: ${response.statusText}`);

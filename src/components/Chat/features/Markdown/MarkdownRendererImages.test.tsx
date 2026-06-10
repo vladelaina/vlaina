@@ -160,7 +160,7 @@ describe('MarkdownRenderer images', () => {
         content={[
           '<figure><figcaption>Caption</figcaption></figure>',
           '<time datetime="2026-05-06">today</time><wbr>',
-          '<iframe src="https://example.com/embed" sandbox="allow-same-origin allow-scripts" allow="fullscreen; camera *; microphone *; clipboard-write" srcdoc="<script>alert(1)</script>"></iframe>',
+          '<iframe src="https://example.com/embed" sandbox="allow-same-origin allow-scripts" allow="fullscreen; camera *; microphone *; clipboard-write" srcdoc="<script>alert(1)</script>" referrerpolicy="unsafe-url"></iframe>',
           '<iframe src="http://127.0.0.1:3000/admin"></iframe>',
           '<video src="https://example.com/movie.mp4" poster="http://localhost:3000/poster.png" controls></video>',
           '<audio src="http://router/audio.mp3" controls></audio>',
@@ -183,6 +183,7 @@ describe('MarkdownRenderer images', () => {
     expect(container.innerHTML).not.toContain('allow-same-origin');
     expect(container.innerHTML).not.toContain('camera');
     expect(container.innerHTML).not.toContain('microphone');
+    expect(container.innerHTML).not.toContain('unsafe-url');
     expect(container.innerHTML).not.toContain('srcdoc');
     expect(container.innerHTML).not.toContain('localhost');
     expect(container.innerHTML).not.toContain('router');

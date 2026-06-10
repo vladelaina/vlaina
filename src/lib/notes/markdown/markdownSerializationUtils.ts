@@ -119,7 +119,7 @@ const MAILTO_EMAIL_MARKDOWN_LINK_PATTERN = new RegExp(
   'g'
 );
 const FAST_NORMALIZATION_STRUCTURAL_LINE_PATTERN =
-  /^\s*(?:[-+*]\s+|\d+[.)]\s+|>\s*|`{3,}|~{3,}|\|.*\||[-*_][ \t]*[-*_][ \t]*[-*_]|=+[ \t]*$)/;
+  /^\s*(?:[-+*]\s+|\d+[.)]\s+|>\s*|`{3,}|~{3,}|\|.*\||#{1,6}[ \t]*$|[-*_][ \t]*[-*_][ \t]*[-*_]|=+[ \t]*$)/;
 const ALTERNATIVE_MATH_BLOCK_OPEN_PATTERN = /^(\s*(?:>\s*)*)((?:\\+\[\\?)|\[\\?|\[)\s*$/;
 const ALTERNATIVE_MATH_BLOCK_STANDARD_CLOSE_PATTERN = /^(\s*(?:>\s*)*)\\\]\s*$/;
 const ALTERNATIVE_MATH_BLOCK_BRACKET_CLOSE_PATTERN = /^(\s*(?:>\s*)*)]\s*$/;

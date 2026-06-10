@@ -52,6 +52,11 @@ describe("externalLinks", () => {
       expect(normalizeExternalHref(String.raw`https://example.com\@evil.test/path`)).toBeNull();
     });
 
+    it("rejects URLs with embedded credentials", () => {
+      expect(normalizeExternalHref("https://user:pass@example.com/docs")).toBeNull();
+      expect(normalizeExternalHref("http://user@example.com/docs")).toBeNull();
+    });
+
     it("rejects local-network HTTP URLs before opening external links", () => {
       expect(normalizeExternalHref("http://localhost:3000/admin")).toBeNull();
       expect(normalizeExternalHref("http://127.0.0.1:3000/admin")).toBeNull();

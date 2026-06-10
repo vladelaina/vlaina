@@ -87,6 +87,13 @@ const controlOrBidiPattern = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFF
 const rawHtmlTagPattern = /^<\/?([A-Za-z][A-Za-z0-9-]*)(?:\s|\/?>|$)/
 const forcedIframeSandbox = 'allow-scripts'
 const allowedIframeSandboxTokens = new Set(['allow-scripts', 'allow-forms', 'allow-popups', 'allow-presentation'])
+const allowedIframeAllowFeatures = new Set([
+  'clipboard-write',
+  'encrypted-media',
+  'fullscreen',
+  'gyroscope',
+  'picture-in-picture',
+])
 const allowedStyleProperties = new Set([
   'background',
   'background-color',
@@ -218,8 +225,26 @@ function sanitizeIframeSandbox(value: string | null) {
   return Array.from(tokens).join(' ')
 }
 
+function sanitizeIframeAllow(value: string | null) {
+  if (!value || !isHtmlAttributeValueAllowed(value)) return null
+  if (controlOrBidiPattern.test(value)) return null
+
+  const features: string[] = []
+  for (const rawEntry of value.split(';')) {
+    const feature = rawEntry.trim().split(/\s+/, 1)[0]?.toLowerCase()
+    if (feature && allowedIframeAllowFeatures.has(feature) && !features.includes(feature))
+      features.push(feature)
+  }
+  return features.length > 0 ? features.join('; ') : null
+}
+
 function hasProtocol(value: string) {
   return value.includes('://')
+}
+
+function hasUrlScheme(value: string) {
+  const compacted = value.replace(/[\u0000-\u0020\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/g, '')
+  return /(?:^|["'(<])(?:javascript|data|vbscript|file|blob):/i.test(compacted)
 }
 
 function hasUnsafeBackslashUrlSyntax(value: string) {
@@ -390,16 +415,22 @@ function sanitizeElement(element: Element, context: SanitizeContext, depth: numb
       if (normalizedSrcset) sanitized.setAttribute(attributeName, normalizedSrcset)
       continue
     }
+    if (tagName === 'iframe' && attributeName === 'allow') {
+      const sanitizedAllow = sanitizeIframeAllow(value)
+      if (sanitizedAllow)
+        sanitized.setAttribute(attributeName, sanitizedAllow)
+      continue
+    }
     if (!isHtmlAttributeValueAllowed(value)) continue
     if (hasProtocol(value)) continue
+    if (hasUrlScheme(value)) continue
     sanitized.setAttribute(attributeName, value)
   }
   if (tagName === 'iframe') {
     if (!sanitized.hasAttribute('src'))
       return null
     sanitized.setAttribute('sandbox', sanitizeIframeSandbox(element.getAttribute('sandbox')))
-    if (!sanitized.hasAttribute('referrerpolicy'))
-      sanitized.setAttribute('referrerpolicy', 'no-referrer')
+    sanitized.setAttribute('referrerpolicy', 'no-referrer')
   }
   sanitizeChildren(element, sanitized, context, depth + 1)
   if ((tagName === 'video' || tagName === 'audio') && !sanitized.hasAttribute('src') && !hasSanitizedSourceWithSrc(sanitized, context))

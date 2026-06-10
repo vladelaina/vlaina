@@ -122,7 +122,8 @@ export function createWorkspaceDiskSyncAction(
         const nextModifiedAt = fileInfo?.modifiedAt ?? cachedModifiedAt ?? null;
         const nextSize = getKnownFileSize(fileInfo);
         const knownSizeChanged = hasKnownFileSizeChanged(cachedSize, nextSize);
-        if (!options?.force && nextModifiedAt === cachedModifiedAt && !knownSizeChanged) {
+        const shouldVerifyDiskContent = fileInfo?.modifiedAt == null && nextSize !== null;
+        if (!options?.force && !shouldVerifyDiskContent && nextModifiedAt === cachedModifiedAt && !knownSizeChanged) {
           return isCurrentDiskSyncTarget(get, notesPath, currentNote.path) ? 'unchanged' : 'ignored';
         }
 

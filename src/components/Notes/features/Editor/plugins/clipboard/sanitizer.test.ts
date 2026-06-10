@@ -53,12 +53,16 @@ describe('sanitizeHtml', () => {
 
   it('keeps iframe embeds in a forced sandbox', () => {
     const result = sanitizeHtml(
-      '<iframe src="https://example.com/embed" srcdoc="<script>alert(1)</script>" allowfullscreen></iframe>',
+      '<iframe src="https://example.com/embed" srcdoc="<script>alert(1)</script>" allowfullscreen referrerpolicy="unsafe-url"></iframe>',
     );
 
-    expect(result).toBe('<iframe src="https://example.com/embed" allowfullscreen="" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>');
+    expect(result).toContain('src="https://example.com/embed"');
+    expect(result).toContain('allowfullscreen=""');
+    expect(result).toContain('sandbox="allow-scripts"');
+    expect(result).toContain('referrerpolicy="no-referrer"');
     expect(result).not.toContain('srcdoc');
     expect(result).not.toContain('alert(1)');
+    expect(result).not.toContain('unsafe-url');
   });
 
   it('rejects dangerous iframe sources including javascript and localhost', () => {

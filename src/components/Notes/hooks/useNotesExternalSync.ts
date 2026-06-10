@@ -17,9 +17,6 @@ import {
   type PendingRenameEntry,
 } from './notesExternalRenameQueue';
 import { toVaultRelativePath } from './notesExternalSyncUtils';
-import {
-  isExternalWatchUnavailableError,
-} from './externalWatchErrorUtils';
 import { createNotesExternalSyncActions, type PendingCreateEntry } from './notesExternalSyncActions';
 
 const NOTES_RECONCILE_POLL_MS = 1500;
@@ -201,15 +198,13 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
 
         unwatch = stopWatching;
         releaseWatcher = registerExternalSyncWatcher();
-      } catch (error) {
+      } catch {
         if (disposed) {
           return;
         }
 
-        if (isExternalWatchUnavailableError(error)) {
-          startReconcilePolling();
-          return;
-        }
+        startReconcilePolling();
+        return;
       }
     };
 

@@ -103,6 +103,10 @@ function canReuseScannedNoteCacheEntry(
 
   const modifiedAt = fileInfo?.modifiedAt ?? null;
   const size = typeof fileInfo?.size === 'number' ? fileInfo.size : null;
+  if (modifiedAt === null) {
+    return false;
+  }
+
   if (cachedEntry.modifiedAt !== modifiedAt) {
     return false;
   }

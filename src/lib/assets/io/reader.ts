@@ -284,9 +284,9 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
   const modifiedAt = fileInfo?.modifiedAt ?? null;
   const size = fileInfo?.size ?? null;
   assertPreviewableImageSize(size);
-  const canValidateCache = modifiedAt !== null || size !== null;
+  const canValidateCache = modifiedAt !== null;
   const cached = blobUrlCache.get(fullPath);
-  if (cached && (!canValidateCache || (cached.modifiedAt === modifiedAt && cached.size === size))) {
+  if (cached && canValidateCache && cached.modifiedAt === modifiedAt && cached.size === size) {
     touchBlobUrlCacheEntry(blobUrlCache, fullPath, cached);
     return cached.url;
   }
@@ -356,7 +356,7 @@ export async function loadImageThumbnailAsBlob(
   const modifiedAt = fileInfo?.modifiedAt ?? null;
   const size = fileInfo?.size ?? null;
   assertPreviewableImageSize(size);
-  const canValidateCache = modifiedAt !== null || size !== null;
+  const canValidateCache = modifiedAt !== null;
   const maxEdgePx = normalizeThumbnailMaxEdgePx(options?.maxEdgePx);
   const allowMainThreadFallback = options?.allowMainThreadFallback ?? true;
   const fallbackMode = allowMainThreadFallback ? 'fallback' : 'no-fallback';
@@ -364,9 +364,13 @@ export async function loadImageThumbnailAsBlob(
     ? `${getImageCacheKey(fullPath, modifiedAt, size)}::thumb:${maxEdgePx}:${fallbackMode}`
     : `${getUnvalidatedImageCacheKey(fullPath)}::thumb:${maxEdgePx}:${fallbackMode}`;
   const cached = thumbnailBlobUrlCache.get(cacheKey);
-  if (cached) {
+  if (cached && canValidateCache) {
     touchBlobUrlCacheEntry(thumbnailBlobUrlCache, cacheKey, cached);
     return cached.url;
+  }
+  if (cached) {
+    revokeBlobUrlCacheEntry(cached);
+    thumbnailBlobUrlCache.delete(cacheKey);
   }
 
   const existingLoad = thumbnailBlobUrlLoadPromises.get(cacheKey);

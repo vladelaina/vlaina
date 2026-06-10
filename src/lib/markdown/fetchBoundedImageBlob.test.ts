@@ -1,7 +1,53 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MAX_FETCHED_IMAGE_BYTES, readBoundedImageBlobResponse } from './fetchBoundedImageBlob';
+import { fetchBoundedImageBlobResult, MAX_FETCHED_IMAGE_BYTES, readBoundedImageBlobResponse } from './fetchBoundedImageBlob';
 
 describe('fetchBoundedImageBlob', () => {
+  function createSmallImageResponse(): Response {
+    return {
+      headers: new Headers({
+        'content-length': '3',
+        'content-type': 'image/png',
+      }),
+      blob: vi.fn(async () => new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' })),
+    } as unknown as Response;
+  }
+
+  it('fetches images without credentials or referrer by default', async () => {
+    const fetchMock = vi.fn(async () => createSmallImageResponse());
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchBoundedImageBlobResult('https://example.com/image.png')).resolves.toMatchObject({
+      status: 'ok',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith('https://example.com/image.png', {
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+    });
+  });
+
+  it('preserves safe fetch options while overriding credential and referrer policy', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn(async () => createSmallImageResponse());
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fetchBoundedImageBlobResult('https://example.com/image.png', {
+      signal: controller.signal,
+      fetchInit: {
+        cache: 'force-cache',
+        credentials: 'include',
+        referrerPolicy: 'unsafe-url',
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith('https://example.com/image.png', {
+      cache: 'force-cache',
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+      signal: controller.signal,
+    });
+  });
+
   it('rejects unknown-size non-streaming responses before reading blob data', async () => {
     const blob = vi.fn(async () => new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }));
 

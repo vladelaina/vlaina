@@ -1,5 +1,5 @@
 import { createAsyncPrefetchQueue } from '@/lib/asyncPrefetchQueue';
-import { readBoundedImageBlobResponse } from '@/lib/markdown/fetchBoundedImageBlob';
+import { createSafeImageFetchInit, readBoundedImageBlobResponse } from '@/lib/markdown/fetchBoundedImageBlob';
 import { normalizePublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 
 interface RemoteImageCacheEntry {
@@ -96,7 +96,7 @@ export async function resolveRemoteImageFromMemoryCache(url: string): Promise<st
         return safeUrl;
     }
 
-    const promise = remoteImageFetchQueue.run(() => fetch(safeUrl, { cache: 'force-cache' }))
+    const promise = remoteImageFetchQueue.run(() => fetch(safeUrl, createSafeImageFetchInit({ cache: 'force-cache' })))
         .then(async (response) => {
             if (!response.ok) {
                 return { src: safeUrl };
