@@ -471,7 +471,7 @@ describe('GitHub README HTML compatibility', () => {
     const result = await openGithubHtmlMarkdown(markdown);
 
     expect(result.dom.querySelector('pre')?.textContent).toContain('raw');
-    expect(result.persisted).toBe('<pre>raw\n</pre>');
+    expect(result.persisted).toBe(markdown);
   });
 
   it('renders and preserves GFM type-7 HTML blocks for supported inline tags', async () => {
@@ -511,7 +511,10 @@ describe('GitHub README HTML compatibility', () => {
 
   it('keeps raw HTML block text literal across all seven GFM start conditions', async () => {
     const cases = [
-      { markdown: ['<pre>', '*literal emphasis markers*', '</pre>'].join('\n'), persisted: '<pre>*literal emphasis markers*\n</pre>' },
+      {
+        markdown: ['<pre>', '*literal emphasis markers*', '</pre>'].join('\n'),
+        persisted: ['<pre>', '*literal emphasis markers*', '</pre>'].join('\n'),
+      },
       { markdown: ['<!--', '*literal emphasis markers*', '-->'].join('\n'), persisted: ['<!--', '*literal emphasis markers*', '-->'].join('\n') },
       { markdown: ['<?github', '*literal emphasis markers*', '?>'].join('\n'), persisted: ['<?github', '*literal emphasis markers*', '?>'].join('\n') },
       { markdown: ['<!A', '*literal emphasis markers*', '>'].join('\n'), persisted: ['<!A', '*literal emphasis markers*', '>'].join('\n') },
