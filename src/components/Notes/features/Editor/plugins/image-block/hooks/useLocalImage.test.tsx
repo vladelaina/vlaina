@@ -181,6 +181,20 @@ describe('useLocalImage', () => {
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
   });
 
+  it('does not read images when the current note path contains unsafe characters', async () => {
+    const { result } = renderHook(() =>
+      useLocalImage('assets/demo.png', '/vault', 'daily/unsafe\u202Egnp.md')
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.resolvedSrc).toBe('');
+    expect(result.current.error?.message).toBe('Failed to resolve image: assets/demo.png');
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+  });
+
   it('does not fall back to browser-loading unresolved local paths once a vault is available', async () => {
     const { result } = renderHook(() =>
       useLocalImage('../../secret.png', '/vault', 'daily/demo.md')

@@ -32,9 +32,18 @@ import {
 import { updateNoteMetadataInMarkdown } from '../frontmatter';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
-import { normalizeVaultRelativePath, resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
+import {
+  hasUnsafeVaultPathSegment,
+  isSafeVaultPathSegment,
+  normalizeVaultRelativePath,
+  resolveVaultRelativeFullPath,
+} from '../utils/fs/vaultPathContainment';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
-import { extractNoteTags } from '@/lib/notes/tags';
+import {
+  extractNoteTags,
+  getNoteMarkdownExcludedRanges,
+  isNoteMarkdownIndexExcluded,
+} from '@/lib/notes/tags';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -56,6 +65,20 @@ function canReadBoundedMarkdownFile(
     typeof fileInfo?.size === 'number' &&
     fileInfo.size <= maxBytes
   );
+}
+
+function hasUnsafeNotePathSegment(path: string): boolean {
+  return hasUnsafeVaultPathSegment(path, {
+    allowNavigationSegments: true,
+  });
+}
+
+function isSafeStoredNotePath(path: string): boolean {
+  if (hasInternalNotePathSegment(path) || hasUnsafeNotePathSegment(path)) {
+    return false;
+  }
+
+  return isAbsolutePath(path) || normalizeVaultRelativePath(path) != null;
 }
 
 function isSearchableMarkdownContent(content: string): boolean {
@@ -307,6 +330,14 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     }
     if (hasInternalNotePathSegment(path) || (vaultPathAtStart && hasInternalNotePathSegment(vaultPathAtStart))) {
       set({ error: 'Path must not be inside an internal notes folder.' });
+      return;
+    }
+    if (!isDraftMetadataTarget && hasUnsafeNotePathSegment(path)) {
+      set({ error: 'Selected file path contains unsupported characters' });
+      return;
+    }
+    if (!isDraftMetadataTarget && !isAbsolutePath(path) && normalizeVaultRelativePath(path) == null) {
+      set({ error: 'Path must stay inside the current vault.' });
       return;
     }
 
@@ -760,16 +791,31 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       ];
 
       noteContentsCache.forEach((entry, path) => {
-        if (hasInternalNotePathSegment(path)) {
+        if (!isSafeStoredNotePath(path)) {
           return;
         }
 
         const content = entry.content;
         if (path === notePath || !content.includes('[[')) return;
+        const excludedRanges = getNoteMarkdownExcludedRanges(content);
 
         for (const pattern of patterns) {
+          let excludedRangeCursor = 0;
           pattern.lastIndex = 0;
-          const match = pattern.exec(content);
+          let match: RegExpExecArray | null;
+          while ((match = pattern.exec(content)) !== null) {
+            while (
+              excludedRangeCursor < excludedRanges.length &&
+              excludedRanges[excludedRangeCursor].to <= match.index
+            ) {
+              excludedRangeCursor += 1;
+            }
+            if (isNoteMarkdownIndexExcluded(match.index, excludedRanges, excludedRangeCursor)) {
+              continue;
+            }
+
+            break;
+          }
           if (match) {
             const index = match.index;
             const start = Math.max(0, index - 50);
@@ -793,7 +839,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       const tagCounts = new Map<string, number>();
 
       noteContentsCache.forEach((entry, path) => {
-        if (hasInternalNotePathSegment(path)) {
+        if (!isSafeStoredNotePath(path)) {
           return;
         }
 
@@ -850,6 +896,9 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           if (hasInternalNotePathSegment(path)) {
             return null;
           }
+          if (!isSafeStoredNotePath(path)) {
+            return null;
+          }
 
           if (!entry.icon || !ICON_SYMBOL_SCHEME_PATTERN.test(entry.icon)) {
             return null;
@@ -881,6 +930,9 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       const updates = Object.entries(noteMetadata.notes)
         .map(([path, entry]) => {
           if (hasInternalNotePathSegment(path)) {
+            return null;
+          }
+          if (!isSafeStoredNotePath(path)) {
             return null;
           }
 

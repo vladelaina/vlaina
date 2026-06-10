@@ -1,11 +1,13 @@
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
-import { isAbsolutePath } from '@/lib/storage/adapter';
+import { isAbsolutePath, normalizeAbsolutePath } from '@/lib/storage/adapter';
 import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import { normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
 
+const UNSAFE_STARRED_PATH_CHARS = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
+
 export function normalizeStarredVaultPath(path: string): string {
-  const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '');
+  const normalized = normalizeAbsolutePath(path).replace(/\\/g, '/').replace(/\/+$/, '');
   return normalized || path;
 }
 
@@ -13,7 +15,7 @@ export function isValidStarredVaultPath(path: string): boolean {
   const normalized = normalizeStarredVaultPath(path);
   return (
     Boolean(normalized) &&
-    !normalized.includes('\0') &&
+    !UNSAFE_STARRED_PATH_CHARS.test(normalized) &&
     isAbsolutePath(normalized) &&
     !hasInternalNotePathSegment(normalized)
   );

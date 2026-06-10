@@ -128,14 +128,38 @@ describe('themeCssUrls', () => {
     expect(rewritten).toContain(`.item-${MAX_MARKDOWN_THEME_CSS_URL_TOKENS} { background: url(./asset-${MAX_MARKDOWN_THEME_CSS_URL_TOKENS}.png); }`);
   });
 
-  it('skips oversized CSS URL values during theme sanitization', () => {
-    const oversizedUrl = `javascript:${'a'.repeat(MAX_MARKDOWN_THEME_CSS_URL_VALUE_CHARS + 1)}`;
-    const css = `.oversized { background: url("${oversizedUrl}"); }\n.safe { background: url(javascript:alert(1)); }`;
+  it('sanitizes oversized unsafe CSS URL values', () => {
+    const oversizedUnsafeUrl = `javascript:${'a'.repeat(MAX_MARKDOWN_THEME_CSS_URL_VALUE_CHARS + 1)}`;
+    const oversizedRelativeUrl = `./${'a'.repeat(MAX_MARKDOWN_THEME_CSS_URL_VALUE_CHARS + 1)}.png`;
+    const css = [
+      `.oversized-unsafe { background: url("${oversizedUnsafeUrl}"); }`,
+      `.oversized-relative { background: url("${oversizedRelativeUrl}"); }`,
+      '.safe { background: url(javascript:alert(1)); }',
+    ].join('\n');
 
     const sanitized = sanitizeUnsafeMarkdownThemeCssUrls(css);
 
-    expect(sanitized).toContain(`url("${oversizedUrl}")`);
+    expect(sanitized).toContain('.oversized-unsafe { background: url(""); }');
+    expect(sanitized).toContain(`url("${oversizedRelativeUrl}")`);
     expect(sanitized).toContain('.safe { background: url(""); }');
+  });
+
+  it('does not rewrite oversized CSS URL values', async () => {
+    const oversizedRelativeUrl = `./${'a'.repeat(MAX_MARKDOWN_THEME_CSS_URL_VALUE_CHARS + 1)}.png`;
+    const css = `.oversized { background: url("${oversizedRelativeUrl}"); }`;
+    const rewriteRequests: string[] = [];
+
+    const rewritten = await rewriteRelativeMarkdownThemeCssUrls(
+      css,
+      '/downloads/theme.css',
+      async ({ path }) => {
+        rewriteRequests.push(path);
+        return `file:///rewritten/${path}`;
+      },
+    );
+
+    expect(rewriteRequests).toEqual([]);
+    expect(rewritten).toBe(css);
   });
 
   it('does not treat longer CSS function names ending in url as url() tokens', async () => {
@@ -214,6 +238,22 @@ describe('themeCssUrls', () => {
     expect(sanitized).toContain('#write { color: red; }');
   });
 
+  it('strips CSS imports and sanitizes URLs when imported CSS is malformed', () => {
+    const css = [
+      '@import url("https://example.com/theme.css");',
+      '.literal::before { content: "@import url(./literal.css);"; }',
+      '/* @import url("./comment.css"); */',
+      '#write { background: url(javascript:alert(1));',
+    ].join('\n');
+
+    const sanitized = sanitizeImportedMarkdownThemeCss(css);
+
+    expect(sanitized).not.toContain('@import url("https://example.com/theme.css")');
+    expect(sanitized).toContain('content: "@import url(./literal.css);"');
+    expect(sanitized).toContain('/* @import url("./comment.css"); */');
+    expect(sanitized).toContain('#write { background: url("");');
+  });
+
   it('extracts only relative CSS imports for local theme dependency inlining', () => {
     const css = [
       '@import "vlook/pages-dev/fs-ink-min.css";',
@@ -236,5 +276,9 @@ describe('themeCssUrls', () => {
         suffix: '',
       },
     ]);
+  });
+
+  it('returns no relative imports when imported CSS is malformed', () => {
+    expect(getRelativeMarkdownThemeCssImports('@import "./local.css";\n#write { color: red')).toEqual([]);
   });
 });

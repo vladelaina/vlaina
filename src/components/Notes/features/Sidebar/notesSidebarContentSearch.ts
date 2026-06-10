@@ -1,11 +1,14 @@
 import { stripMarkdownInline } from '@/components/common/markdown/plainText';
 import { getSanitizerDroppedRawHtmlRanges, type ContentRange } from '@/lib/markdown/markdownHtmlRanges';
 import { getHtmlCommentRanges, getHtmlTagRanges, getMarkdownInvisibleHtmlBlockRanges } from '@/lib/markdown/markdownRanges';
+import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 
 const CONTENT_SNIPPET_RADIUS = 36;
 const MAX_CONTENT_MATCHES_PER_NOTE = 5;
 const MAX_CONTENT_SEARCH_LINE_CHARS = 64 * 1024;
 const MAX_CONTENT_SEARCH_SCANNED_CHARS = 1024 * 1024;
+const MAX_CONTENT_SEARCH_FRONTMATTER_CHARS = 256 * 1024;
+const MAX_CONTENT_SEARCH_FRONTMATTER_LINES = 2048;
 export const MAX_CONTENT_SEARCH_HTML_RANGES = 2000;
 const SANITIZER_DROPPED_RAW_HTML_TAG_PATTERN = /<\/?(?:math|noscript|svg)(?:[\s/>]|$)/i;
 const INVISIBLE_HTML_BLOCK_PATTERN = /^(?: {0,3}>[ \t]?)*(?: {0,3})(?:<!--|<\?|<![A-Z]|<!\[CDATA\[)/im;
@@ -18,6 +21,38 @@ export interface NotesSidebarContentMatch {
 
 function normalizeContentForSearch(content: string): string {
   return content.replace(/\s+/g, ' ').trim();
+}
+
+function normalizeSearchTextWithOffsets(value: string): {
+  text: string;
+  startOffsets: number[];
+  endOffsets: number[];
+} {
+  let text = '';
+  const startOffsets: number[] = [];
+  const endOffsets: number[] = [0];
+
+  for (let index = 0; index < value.length;) {
+    const codePoint = value.codePointAt(index);
+    const source = codePoint === undefined ? value[index] : String.fromCodePoint(codePoint);
+    const sourceLength = source.length;
+    const sourceEnd = index + sourceLength;
+    const normalized = source.toLocaleLowerCase();
+    const normalizedStart = text.length;
+
+    for (let offset = 0; offset < normalized.length; offset += 1) {
+      startOffsets[normalizedStart + offset] = index;
+      endOffsets[normalizedStart + offset + 1] = sourceEnd;
+    }
+
+    text += normalized;
+    index = sourceEnd;
+  }
+
+  startOffsets[text.length] = value.length;
+  endOffsets[text.length] = value.length;
+
+  return { text, startOffsets, endOffsets };
 }
 
 function stripInlineHtmlTags(line: string): string {
@@ -48,7 +83,7 @@ function stripInlineHtmlTags(line: string): string {
 }
 
 function toPlainTextLine(line: string): string {
-  return stripMarkdownInline(stripInlineHtmlTags(line), { preserveImageAlt: false })
+  return decodeMarkdownHtmlText(stripMarkdownInline(stripInlineHtmlTags(line), { preserveImageAlt: false }))
     .replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, '$2')
     .replace(/\[\[([^\]]+)\]\]/g, '$1')
     .replace(/^\s*>\s*/g, '')
@@ -127,6 +162,48 @@ function getSkippedHtmlRangesForContentSearch(content: string): ContentRange[] {
     .sort((left, right) => left.start - right.start || left.end - right.end);
 }
 
+function getLeadingFrontmatterRangeForContentSearch(content: string): ContentRange | null {
+  const firstLineEnd = content.search(/\r?\n/);
+  const firstLine = firstLineEnd === -1 ? content : content.slice(0, firstLineEnd);
+  if (firstLine.trim() !== '---') {
+    return null;
+  }
+
+  let cursor = firstLineEnd === -1 ? content.length : firstLineEnd + (content[firstLineEnd] === '\r' && content[firstLineEnd + 1] === '\n' ? 2 : 1);
+  let lines = 0;
+  const budgetEnd = cursor + MAX_CONTENT_SEARCH_FRONTMATTER_CHARS;
+
+  while (cursor < content.length && cursor <= budgetEnd && lines < MAX_CONTENT_SEARCH_FRONTMATTER_LINES) {
+    const nextLineBreak = content.indexOf('\n', cursor);
+    const lineEnd = nextLineBreak === -1 ? content.length : nextLineBreak;
+    const rawLine = content.slice(cursor, lineEnd);
+    const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
+    if (lineEnd > budgetEnd) {
+      return null;
+    }
+    const nextStart = nextLineBreak === -1 ? content.length : nextLineBreak + 1;
+
+    if (line.trim() === '---') {
+      return { start: 0, end: nextStart };
+    }
+
+    cursor = nextStart;
+    lines += 1;
+  }
+
+  return null;
+}
+
+function getSkippedRangesForContentSearch(content: string): ContentRange[] {
+  const ranges = getSkippedHtmlRangesForContentSearch(content);
+  const frontmatterRange = getLeadingFrontmatterRangeForContentSearch(content);
+  if (!frontmatterRange) {
+    return ranges;
+  }
+  return [frontmatterRange, ...ranges]
+    .sort((left, right) => left.start - right.start || left.end - right.end);
+}
+
 function advanceRangeIndex(ranges: readonly ContentRange[], lineStart: number, rangeIndex: number): number {
   let nextIndex = rangeIndex;
   while (nextIndex < ranges.length && ranges[nextIndex].end <= lineStart) {
@@ -148,13 +225,13 @@ export function getNotesSidebarContentMatches(
   content: string | undefined,
   lowerQuery: string,
 ): NotesSidebarContentMatch[] {
-  if (!content) {
+  if (!content || !lowerQuery) {
     return [];
   }
 
   const matches: NotesSidebarContentMatch[] = [];
-  const skippedHtmlRanges = getSkippedHtmlRangesForContentSearch(content);
-  let skippedHtmlRangeIndex = 0;
+  const skippedRanges = getSkippedRangesForContentSearch(content);
+  let skippedRangeIndex = 0;
   let ordinal = 0;
   let scannedChars = 0;
   for (const line of iterateLines(content)) {
@@ -167,12 +244,12 @@ export function getNotesSidebarContentMatches(
     if (rawLine.length > MAX_CONTENT_SEARCH_LINE_CHARS) {
       continue;
     }
-    skippedHtmlRangeIndex = advanceRangeIndex(
-      skippedHtmlRanges,
+    skippedRangeIndex = advanceRangeIndex(
+      skippedRanges,
       line.start,
-      skippedHtmlRangeIndex,
+      skippedRangeIndex,
     );
-    if (isLineInRange(line, skippedHtmlRanges[skippedHtmlRangeIndex])) {
+    if (isLineInRange(line, skippedRanges[skippedRangeIndex])) {
       continue;
     }
 
@@ -186,7 +263,8 @@ export function getNotesSidebarContentMatches(
       continue;
     }
 
-    const lowerContent = normalizedContent.toLowerCase();
+    const normalizedSearchContent = normalizeSearchTextWithOffsets(normalizedContent);
+    const lowerContent = normalizedSearchContent.text;
     let searchFrom = 0;
 
     while (searchFrom <= lowerContent.length - lowerQuery.length) {
@@ -195,15 +273,17 @@ export function getNotesSidebarContentMatches(
         break;
       }
 
-      const start = Math.max(0, matchIndex - CONTENT_SNIPPET_RADIUS);
+      const sourceMatchIndex = normalizedSearchContent.startOffsets[matchIndex] ?? matchIndex;
+      const sourceMatchEnd = normalizedSearchContent.endOffsets[matchIndex + lowerQuery.length] ?? normalizedContent.length;
+      const start = Math.max(0, sourceMatchIndex - CONTENT_SNIPPET_RADIUS);
       const end = Math.min(
         normalizedContent.length,
-        matchIndex + lowerQuery.length + CONTENT_SNIPPET_RADIUS,
+        sourceMatchEnd + CONTENT_SNIPPET_RADIUS,
       );
       const snippet = normalizedContent.slice(start, end).trim();
 
       matches.push({
-        matchIndex,
+        matchIndex: sourceMatchIndex,
         snippet: `${start > 0 ? '…' : ''}${snippet}${end < normalizedContent.length ? '…' : ''}`,
         ordinal,
       });

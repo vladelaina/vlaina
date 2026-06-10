@@ -508,10 +508,21 @@ function MarkdownSourceFallback({
   const isComposingRef = useRef(false);
   const saveTimerRef = useRef<number | null>(null);
 
+  const clearPendingSave = useCallback(() => {
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     setDraft(currentNoteContent);
     draftRef.current = currentNoteContent;
   }, [currentNoteContent, currentNotePath]);
+
+  useEffect(() => {
+    return clearPendingSave;
+  }, [clearPendingSave, currentNotePath]);
 
   const flushFallbackDraft = useCallback(() => {
     if (isComposingRef.current) {
@@ -530,30 +541,22 @@ function MarkdownSourceFallback({
 
   useEffect(() => {
     return () => {
-      if (saveTimerRef.current !== null) {
-        window.clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = null;
-      }
+      clearPendingSave();
     };
-  }, []);
+  }, [clearPendingSave]);
 
   const scheduleSave = useCallback(() => {
-    if (saveTimerRef.current !== null) {
-      window.clearTimeout(saveTimerRef.current);
-    }
+    clearPendingSave();
     saveTimerRef.current = window.setTimeout(() => {
       saveTimerRef.current = null;
       void saveNote({ explicit: false });
     }, themeEditorLayoutTokens.autoSaveDebounceMs);
-  }, [saveNote]);
+  }, [clearPendingSave, saveNote]);
 
   const flushSave = useCallback(() => {
-    if (saveTimerRef.current !== null) {
-      window.clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
-    }
+    clearPendingSave();
     void saveNote({ explicit: false });
-  }, [saveNote]);
+  }, [clearPendingSave, saveNote]);
 
   return (
     <div

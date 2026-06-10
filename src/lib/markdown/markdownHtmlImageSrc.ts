@@ -11,6 +11,7 @@ const MAX_HTML_IMAGE_SRC_CHARS = 16 * 1024;
 const MAX_HTML_IMAGE_DATA_SRC_CHARS = MAX_INLINE_IMAGE_BASE64_CHARS + 4096;
 const MAX_HTML_IMAGE_TAG_PREFIX_CHARS = 16 * 1024;
 const MAX_HTML_IMAGE_NON_SRC_ATTR_CHARS = 16 * 1024;
+const MAX_HTML_IMAGE_DATA_SRC_PREFIX_CHARS = 128;
 
 function normalizeHtmlImageSrc(rawSrc: string | undefined): string | null {
   if (!rawSrc || rawSrc.length > MAX_HTML_IMAGE_DATA_SRC_CHARS) {
@@ -28,8 +29,8 @@ function normalizeHtmlImageSrc(rawSrc: string | undefined): string | null {
 }
 
 function startsWithDataImageSrc(value: string): boolean {
-  const prefix = value.trimStart().slice(0, 128);
-  return /^data:/i.test(decodeMarkdownHtmlText(prefix));
+  const prefix = value.trimStart().slice(0, MAX_HTML_IMAGE_DATA_SRC_PREFIX_CHARS);
+  return /^data:image\//i.test(decodeMarkdownHtmlText(prefix));
 }
 
 export function parseHtmlImageSrcTokenFromTag(tag: string): HtmlImageSrcToken | null {
@@ -112,4 +113,87 @@ export function parseHtmlImageSrcTokenFromTag(tag: string): HtmlImageSrcToken | 
 
 export function parseHtmlImageSrcFromTag(tag: string): string | null {
   return parseHtmlImageSrcTokenFromTag(tag)?.src ?? null;
+}
+
+export function htmlImageTagHasDataImageSrc(tag: string): boolean {
+  const token = parseHtmlImageSrcTokenFromTag(tag);
+  if (token?.src && startsWithDataImageSrc(token.src)) {
+    return true;
+  }
+  const rawPrefix = findHtmlImageSrcRawValuePrefix(tag);
+  return rawPrefix !== null && startsWithDataImageSrc(rawPrefix);
+}
+
+function findHtmlImageSrcRawValuePrefix(tag: string): string | null {
+  const openTag = /^<img\b/i.exec(tag);
+  if (!openTag) {
+    return null;
+  }
+
+  let cursor = openTag[0].length;
+  while (cursor < tag.length) {
+    if (cursor > MAX_HTML_IMAGE_TAG_PREFIX_CHARS) {
+      return null;
+    }
+
+    while (cursor < tag.length && /\s/.test(tag[cursor])) {
+      cursor += 1;
+    }
+
+    const char = tag[cursor];
+    if (!char || char === ">") {
+      break;
+    }
+    if (char === "/") {
+      cursor += 1;
+      continue;
+    }
+
+    const nameStart = cursor;
+    while (cursor < tag.length && !/[\s"'<>/=]/.test(tag[cursor])) {
+      cursor += 1;
+    }
+    if (cursor === nameStart) {
+      cursor += 1;
+      continue;
+    }
+
+    const attrName = tag.slice(nameStart, cursor).toLowerCase();
+    while (cursor < tag.length && /\s/.test(tag[cursor])) {
+      cursor += 1;
+    }
+    if (tag[cursor] !== "=") {
+      continue;
+    }
+
+    cursor += 1;
+    while (cursor < tag.length && /\s/.test(tag[cursor])) {
+      cursor += 1;
+    }
+
+    const quote = tag[cursor];
+    const valueStart = quote === '"' || quote === "'" ? cursor + 1 : cursor;
+    if (attrName === "src") {
+      return tag.slice(valueStart, valueStart + MAX_HTML_IMAGE_DATA_SRC_PREFIX_CHARS);
+    }
+
+    if (quote === '"' || quote === "'") {
+      const closingQuote = tag.indexOf(quote, valueStart);
+      const valueEnd = closingQuote === -1 ? tag.length : closingQuote;
+      if (valueEnd - valueStart > MAX_HTML_IMAGE_NON_SRC_ATTR_CHARS) {
+        return null;
+      }
+      cursor = closingQuote === -1 ? tag.length : closingQuote + 1;
+      continue;
+    }
+
+    while (cursor < tag.length && !/[\s"'<>]/.test(tag[cursor])) {
+      cursor += 1;
+    }
+    if (cursor - valueStart > MAX_HTML_IMAGE_NON_SRC_ATTR_CHARS) {
+      return null;
+    }
+  }
+
+  return null;
 }

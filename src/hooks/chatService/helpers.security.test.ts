@@ -124,6 +124,26 @@ describe('chat mention path security', () => {
     expect(mocks.storage.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not read note mentions with unsafe path characters', async () => {
+    mocks.notesState.starredEntries = [{
+      id: 'unsafe-external',
+      kind: 'note',
+      vaultPath: '/external\u202Ecod',
+      relativePath: 'alpha.md',
+      addedAt: 1,
+    }];
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs/secret\u202Egnp.md', title: 'Secret' },
+      { path: '/external\u202Ecod/alpha.md', title: 'External' },
+      { path: '/external/secret\uFFFD.md', title: 'Replacement' },
+    ]);
+
+    expect(notes).toEqual([]);
+    expect(mocks.storage.stat).not.toHaveBeenCalled();
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
   it('does not read non-markdown note mentions inside the active vault', async () => {
     const notes = await loadMentionedNotes([
       { path: 'docs/secret.txt', title: 'Secret' },
@@ -376,6 +396,24 @@ describe('chat mention path security', () => {
 
     const attachments = await loadMentionedFolderImageAttachments([
       { path: '/external/.vlaina/assets', title: 'Assets', kind: 'folder' },
+    ]);
+
+    expect(attachments).toEqual([]);
+    expect(mocks.storage.listDir).not.toHaveBeenCalled();
+  });
+
+  it('does not list folder image mentions with unsafe path characters', async () => {
+    mocks.notesState.starredEntries = [{
+      id: 'unsafe-folder',
+      kind: 'folder',
+      vaultPath: '/external\u202Ecod',
+      relativePath: 'assets',
+      addedAt: 1,
+    }];
+
+    const attachments = await loadMentionedFolderImageAttachments([
+      { path: 'docs/secret\u202E', title: 'Unsafe', kind: 'folder' },
+      { path: '/external\u202Ecod/assets', title: 'External', kind: 'folder' },
     ]);
 
     expect(attachments).toEqual([]);

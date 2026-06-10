@@ -244,10 +244,15 @@ function splitCssValueTokens(value: string): string[] {
 }
 
 export function collectThemeCustomProperties(css: string): CollectedThemeCustomProperties {
-  const root = postcss.parse(css, { from: undefined });
   const base = new Map<string, string>();
   const dark = new Map<string, string>();
   const light = new Map<string, string>();
+  let root: postcss.Root;
+  try {
+    root = postcss.parse(css, { from: undefined });
+  } catch {
+    return { base, dark, light };
+  }
 
   root.walkRules((rule) => {
     const customPropertyBuckets = getRuleColorSchemeBuckets(rule);

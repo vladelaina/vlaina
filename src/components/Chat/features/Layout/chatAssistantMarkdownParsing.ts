@@ -23,11 +23,8 @@ export type ThinkingSections = {
 };
 
 function stripTrailingTagPrefix(content: string, tag: string): { content: string; stripped: boolean } {
-  const lowerContent = content.toLowerCase();
-  const lowerTag = tag.toLowerCase();
-
-  for (let length = lowerTag.length - 1; length > 0; length -= 1) {
-    if (lowerContent.endsWith(lowerTag.slice(0, length))) {
+  for (let length = tag.length - 1; length > 0; length -= 1) {
+    if (endsWithAsciiCaseInsensitivePrefix(content, tag, length)) {
       return {
         content: content.slice(0, -length),
         stripped: true,
@@ -36,6 +33,19 @@ function stripTrailingTagPrefix(content: string, tag: string): { content: string
   }
 
   return { content, stripped: false };
+}
+
+function endsWithAsciiCaseInsensitivePrefix(content: string, tag: string, length: number): boolean {
+  if (content.length < length) return false;
+  const start = content.length - length;
+
+  for (let index = 0; index < length; index += 1) {
+    if (content[start + index]?.toLowerCase() !== tag[index]?.toLowerCase()) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 const parsedAssistantMarkdownCache = new Map<string, ParsedAssistantMarkdown>();

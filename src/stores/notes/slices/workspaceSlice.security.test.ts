@@ -166,6 +166,37 @@ describe('workspaceSlice security guards', () => {
     expect(store.getState().error).toBe('Path must not be inside an internal notes folder.');
   });
 
+  it('does not open absolute markdown paths with unsafe path characters', async () => {
+    const store = createNotesStore();
+
+    await store.getState().openNoteByAbsolutePath('/vault/docs/secret\u202Egnp.md');
+
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().error).toBe('Selected file path contains unsupported characters');
+
+    await store.getState().openNoteByAbsolutePath('/vault/docs/secret\u001F.md');
+
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().error).toBe('Selected file path contains unsupported characters');
+  });
+
+  it('opens Windows absolute markdown paths without treating the drive prefix as unsafe', async () => {
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 1, size: 8 });
+    storageAdapter.readFile.mockResolvedValue('# Alpha');
+    const store = createNotesStore();
+
+    await store.getState().openNoteByAbsolutePath('C:\\vault\\docs\\alpha.md');
+
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('C:\\vault\\docs\\alpha.md');
+    expect(store.getState().currentNote).toEqual({
+      path: 'C:\\vault\\docs\\alpha.md',
+      content: '# Alpha',
+    });
+    expect(store.getState().error).toBeNull();
+  });
+
   it('opens user dot-folder markdown through the vault-relative note opener', async () => {
     storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 1, size: 8 });
     storageAdapter.readFile.mockResolvedValue('# Alpha');

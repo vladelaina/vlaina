@@ -3,6 +3,7 @@ import {
   getParentPath,
   getStorageAdapter,
   isAbsolutePath,
+  normalizeAbsolutePath,
   relativePath,
 } from '@/lib/storage/adapter';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
@@ -31,6 +32,7 @@ import {
 } from '../starred';
 import { assertValidFileName } from '../noteUtils';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
+import { hasUnsafeVaultPathSegment } from '../utils/fs/vaultPathContainment';
 import {
   remapCurrentNoteForExternalRename,
   remapOpenTabsForExternalRename,
@@ -228,33 +230,37 @@ export function createFileSystemRenameActions(
         if (hasInternalNotePathSegment(path)) {
           throw new Error('Path must not be inside an internal notes folder.');
         }
+        if (hasUnsafeVaultPathSegment(normalizeAbsolutePath(path))) {
+          throw new Error('Selected file path contains unsupported characters');
+        }
 
-        const parentPath = getParentPath(path);
+        const normalizedPath = normalizeAbsolutePath(path);
+        const parentPath = getParentPath(normalizedPath);
         if (!parentPath) {
           return;
         }
 
-        const currentFileName = getBaseName(path);
+        const currentFileName = getBaseName(normalizedPath);
         const {
           relativePath: newFileName,
           fullPath: newPath,
         } = await resolveUniqueRenamedPath(parentPath, currentFileName, newName, false);
-        if (newPath === path) {
+        if (newPath === normalizedPath) {
           return;
         }
 
         const nextTitle = getNoteTitleFromPath(newFileName);
         const storage = getStorageAdapter();
-        markExpectedExternalChange(path);
+        markExpectedExternalChange(normalizedPath);
         markExpectedExternalChange(newPath);
-        await storage.rename(path, newPath);
+        await storage.rename(normalizedPath, newPath);
         if (!isActiveNotesPath(get, notesPath)) {
           return;
         }
-        emitNotesExternalPathRename({ notesPath: parentPath, oldPath: path, newPath });
+        emitNotesExternalPathRename({ notesPath: parentPath, oldPath: normalizedPath, newPath });
 
         let starredChanged = false;
-        const normalizedOldPath = path.replace(/\\/g, '/');
+        const normalizedOldPath = normalizedPath.replace(/\\/g, '/');
         const latestState = get();
         const updatedStarredEntries = latestState.starredEntries.map((entry) => {
           if (entry.kind !== 'note') {
@@ -281,14 +287,14 @@ export function createFileSystemRenameActions(
           void saveStarredRegistry(updatedStarredEntries);
         }
 
-        const updatedTabs = remapOpenTabsForExternalRename(latestState.openTabs, path, newPath).map((tab) =>
+        const updatedTabs = remapOpenTabsForExternalRename(latestState.openTabs, normalizedPath, newPath).map((tab) =>
           tab.path === newPath ? { ...tab, name: nextTitle } : tab
         );
         const updatedMetadata = remapMetadataEntries(latestState.noteMetadata ?? noteMetadata, (metadataPath) =>
-          metadataPath === path ? newPath : metadataPath
+          metadataPath === normalizedPath ? newPath : metadataPath
         );
         const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = applyPathRenameState({
-          oldPath: path,
+          oldPath: normalizedPath,
           newPath,
           recentNotes: latestState.recentNotes,
           displayNames: latestState.displayNames,
@@ -297,7 +303,7 @@ export function createFileSystemRenameActions(
         nextDisplayNames.set(newPath, nextTitle);
 
         const starredPaths = getVaultStarredPaths(updatedStarredEntries, notesPath);
-        const nextCurrentNote = latestState.currentNote?.path === path
+        const nextCurrentNote = latestState.currentNote?.path === normalizedPath
           ? { ...latestState.currentNote, path: newPath }
           : latestState.currentNote;
         set({
@@ -308,7 +314,7 @@ export function createFileSystemRenameActions(
           openTabs: updatedTabs,
           currentNote: nextCurrentNote,
           currentNoteRevision:
-            latestState.currentNote?.path === path
+            latestState.currentNote?.path === normalizedPath
               ? latestState.currentNoteRevision + 1
               : latestState.currentNoteRevision,
           recentNotes: nextRecentNotes,

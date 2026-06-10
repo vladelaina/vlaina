@@ -41,6 +41,41 @@ describe('starred registry helpers', () => {
     });
   });
 
+  it('normalizes starred vault paths before matching and deduping entries', () => {
+    expect(normalizeStarredEntry({
+      id: 'note',
+      kind: 'note',
+      vaultPath: '/vault/docs/..',
+      relativePath: './docs/alpha.md',
+      addedAt: 1,
+    })).toMatchObject({
+      kind: 'note',
+      vaultPath: '/vault',
+      relativePath: 'docs/alpha.md',
+    });
+
+    const result = remapStarredEntriesForVault([
+      {
+        id: 'normalized',
+        kind: 'note',
+        vaultPath: '/vault/docs/..',
+        relativePath: 'docs/alpha.md',
+        addedAt: 1,
+      },
+    ], '/vault', (relativePath) => relativePath.replace('alpha.md', 'beta.md'));
+
+    expect(result).toEqual({
+      changed: true,
+      entries: [{
+        id: 'normalized',
+        kind: 'note',
+        vaultPath: '/vault/docs/..',
+        relativePath: 'docs/beta.md',
+        addedAt: 1,
+      }],
+    });
+  });
+
   it('rejects starred entries inside hidden app and git directories', () => {
     expect(normalizeStarredEntry({
       id: 'app-note',
@@ -94,6 +129,28 @@ describe('starred registry helpers', () => {
       kind: 'folder',
       relativePath: 'assets.png',
     });
+  });
+
+  it('rejects starred vault paths with unsafe control or bidi characters', () => {
+    for (const vaultPath of [
+      '/vault\0hidden',
+      '/vault\u001Fhidden',
+      '/vault\u202Ecod.exe',
+      '/vault\u2066hidden',
+      '/vault\uFFFDhidden',
+    ]) {
+      expect(normalizeStarredEntry({
+        id: `entry-${vaultPath.length}`,
+        kind: 'note',
+        vaultPath,
+        relativePath: 'docs/alpha.md',
+        addedAt: 1,
+      })).toBeNull();
+      expect(createStarredEntryIfValid('note', vaultPath, 'docs/alpha.md')).toBeNull();
+      expect(() => createStarredEntry('note', vaultPath, 'docs/alpha.md')).toThrow(
+        'Starred entry vault path must be an absolute path',
+      );
+    }
   });
 
   it('drops remapped note entries that stop being markdown files', () => {

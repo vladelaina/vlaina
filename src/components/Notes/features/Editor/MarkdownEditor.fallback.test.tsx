@@ -222,4 +222,24 @@ describe('MarkdownEditor source fallback', () => {
     const sourceEditor = screen.getByLabelText('Markdown source editor');
     expect(sourceEditor).toHaveValue('# Alpha\n\nInitial body');
   });
+
+  it('cancels pending fallback autosaves when switching notes', async () => {
+    vi.useFakeTimers();
+
+    const { rerender } = render(<MarkdownEditor />);
+
+    await act(async () => {});
+    const sourceEditor = screen.getByLabelText('Markdown source editor');
+    fireEvent.change(sourceEditor, { target: { value: '# Alpha\n\nEdited body' } });
+
+    mocks.notesState.currentNote = { path: 'beta.md', content: '# Beta\n\nInitial body' };
+    mocks.notesState.openTabs = [{ path: 'beta.md', name: 'beta.md', isDirty: false }];
+    rerender(<MarkdownEditor />);
+
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+
+    expect(mocks.notesState.saveNote).not.toHaveBeenCalled();
+  });
 });

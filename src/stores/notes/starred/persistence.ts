@@ -2,6 +2,7 @@ import { createPersistenceQueue } from '@/lib/storage/persistenceEngine';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { ensureDirectories, getPaths } from '@/lib/storage/paths';
 import { emitStorageAutoSyncEvent } from '@/lib/storage/storageAutoSync';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { STARRED_FILE } from '../constants';
 import type { StarredEntry } from '../types';
 import {
@@ -11,6 +12,11 @@ import {
   normalizeStarredEntry,
   type StarredRegistry,
 } from './registry';
+import {
+  isValidStarredVaultPath,
+  normalizeStarredRelativePath,
+  normalizeStarredVaultPath,
+} from './pathUtils';
 
 const MAX_STARRED_ENTRIES = 5000;
 const MAX_STARRED_ENTRY_SCAN_ITEMS = 20_000;
@@ -42,8 +48,28 @@ function normalizeDeletedEntryKey(value: unknown): string | null {
     return null;
   }
 
-  const separatorIndex = value.indexOf('::', value.startsWith('note::') ? 6 : 8);
-  return separatorIndex > -1 ? value : null;
+  const kind = value.startsWith('note::') ? 'note' : 'folder';
+  const prefixLength = kind === 'note' ? 6 : 8;
+  const separatorIndex = value.indexOf('::', prefixLength);
+  if (separatorIndex === -1) {
+    return null;
+  }
+
+  const vaultPath = value.slice(prefixLength, separatorIndex);
+  const relativePath = value.slice(separatorIndex + 2);
+  if (!isValidStarredVaultPath(vaultPath)) {
+    return null;
+  }
+
+  const normalizedRelativePath = normalizeStarredRelativePath(relativePath);
+  if (!normalizedRelativePath) {
+    return null;
+  }
+  if (kind === 'note' && !isSupportedMarkdownPath(normalizedRelativePath)) {
+    return null;
+  }
+
+  return `${kind}::${normalizeStarredVaultPath(vaultPath)}::${normalizedRelativePath}`;
 }
 
 function normalizeDeletedEntryKeys(value: unknown): string[] {

@@ -113,8 +113,8 @@ export function extractWebSearchStatuses(content: string): {
   statuses: WebSearchStatus[];
   content: string;
 } {
-  const lowerContent = content.toLowerCase();
-  if (!lowerContent.includes(WEB_SEARCH_STATUS_START_TAG)) {
+  const firstStart = indexOfAsciiCaseInsensitive(content, WEB_SEARCH_STATUS_START_TAG, 0);
+  if (firstStart < 0) {
     return {
       statuses: [],
       content: content.trimStart(),
@@ -127,7 +127,9 @@ export function extractWebSearchStatuses(content: string): {
   let statusMarkupCount = 0;
 
   while (cursor < content.length) {
-    const start = lowerContent.indexOf(WEB_SEARCH_STATUS_START_TAG, cursor);
+    const start = cursor === 0
+      ? firstStart
+      : indexOfAsciiCaseInsensitive(content, WEB_SEARCH_STATUS_START_TAG, cursor);
     if (start < 0) {
       strippedContent += content.slice(cursor);
       break;
@@ -141,18 +143,18 @@ export function extractWebSearchStatuses(content: string): {
         + MAX_WEB_SEARCH_STATUS_JSON_LENGTH
         + MAX_OVERSIZED_STATUS_JSON_EXTRA_SCAN_CHARS
         + WEB_SEARCH_STATUS_END_TAG.length
-    ).toLowerCase();
-    const relativeEnd = boundedEndSearch.indexOf(WEB_SEARCH_STATUS_END_TAG);
-    if (relativeEnd < 0) {
+    );
+    const end = indexOfAsciiCaseInsensitive(boundedEndSearch, WEB_SEARCH_STATUS_END_TAG, 0);
+    if (end < 0) {
       strippedContent += content.slice(start);
       break;
     }
 
-    const json = content.slice(jsonStart, jsonStart + relativeEnd);
-    cursor = jsonStart + relativeEnd + WEB_SEARCH_STATUS_END_TAG.length;
+    const json = content.slice(jsonStart, jsonStart + end);
+    cursor = jsonStart + end + WEB_SEARCH_STATUS_END_TAG.length;
     statusMarkupCount += 1;
 
-    if (relativeEnd > MAX_WEB_SEARCH_STATUS_JSON_LENGTH || statusMarkupCount > MAX_WEB_SEARCH_STATUS_MARKUPS) {
+    if (end > MAX_WEB_SEARCH_STATUS_JSON_LENGTH || statusMarkupCount > MAX_WEB_SEARCH_STATUS_MARKUPS) {
       continue;
     }
 
@@ -169,4 +171,19 @@ export function extractWebSearchStatuses(content: string): {
     statuses,
     content: strippedContent.trimStart(),
   };
+}
+
+function indexOfAsciiCaseInsensitive(content: string, needle: string, fromIndex: number): number {
+  const maxStart = content.length - needle.length;
+  for (let index = Math.max(0, fromIndex); index <= maxStart; index += 1) {
+    let matched = true;
+    for (let offset = 0; offset < needle.length; offset += 1) {
+      if (content[index + offset]?.toLowerCase() !== needle[offset]?.toLowerCase()) {
+        matched = false;
+        break;
+      }
+    }
+    if (matched) return index;
+  }
+  return -1;
 }

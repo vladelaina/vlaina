@@ -11,12 +11,14 @@ const adapter = {
 
 vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => adapter,
-  isAbsolutePath: (path: string) => path.startsWith('/'),
+  isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
   normalizeAbsolutePath: (path: string) => {
-    if (!path.startsWith('/')) return path;
+    const normalized = path.replace(/\\/g, '/');
+    const root = normalized.startsWith('/') ? '/' : /^[A-Za-z]:\//.test(normalized) ? normalized.slice(0, 3) : '';
+    if (!root) return path;
     const parts: string[] = [];
-    for (const part of path.split('/')) {
+    for (const part of normalized.slice(root.length).split('/')) {
       if (!part || part === '.') continue;
       if (part === '..') {
         parts.pop();
@@ -24,7 +26,8 @@ vi.mock('@/lib/storage/adapter', () => ({
       }
       parts.push(part);
     }
-    return `/${parts.join('/')}`;
+    const nextPath = `${root}${parts.join('/')}`;
+    return path.includes('\\') ? nextPath.replace(/\//g, '\\') : nextPath;
   },
 }));
 
@@ -99,6 +102,25 @@ describe('note document internal paths', () => {
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not load markdown documents with unsafe path characters', async () => {
+    await expect(loadNoteDocument({
+      notesPath: '/vault',
+      path: 'docs/secret\u202Egnp.md',
+      cache: new Map(),
+    })).rejects.toThrow('Selected file path contains unsupported characters');
+    await expect(loadNoteDocument({
+      notesPath: '/vault',
+      path: 'docs/secret\u001F.md',
+      cache: new Map([
+        ['docs/secret\u001F.md', { content: '# Cached', modifiedAt: 1 }],
+      ]),
+      allowStaleCachedContent: true,
+    })).rejects.toThrow('Selected file path contains unsupported characters');
+
+    expect(adapter.stat).not.toHaveBeenCalled();
+    expect(adapter.readFile).not.toHaveBeenCalled();
+  });
+
   it('does not save hidden app or git note documents', async () => {
     await expect(saveNoteDocument({
       notesPath: '/vault',
@@ -130,6 +152,21 @@ describe('note document internal paths', () => {
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 
+  it('does not save markdown documents with unsafe path characters', async () => {
+    await expect(saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'docs/secret\u202Egnp.md',
+        content: '# Secret',
+      },
+      cache: new Map(),
+    })).rejects.toThrow('Selected file path contains unsupported characters');
+
+    expect(adapter.stat).not.toHaveBeenCalled();
+    expect(adapter.readFile).not.toHaveBeenCalled();
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
   it('does not save non-markdown note documents', async () => {
     await expect(saveNoteDocument({
       notesPath: '/vault',
@@ -154,6 +191,32 @@ describe('note document internal paths', () => {
 
     expect(adapter.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md');
     expect(result.content).toBe('# Alpha');
+  });
+
+  it('allows Windows absolute note documents without treating the drive prefix as unsafe', async () => {
+    await expect(loadNoteDocument({
+      notesPath: '/vault',
+      path: 'C:\\vault\\docs\\alpha.md',
+      cache: new Map(),
+    })).resolves.toMatchObject({ content: '# Alpha' });
+
+    await expect(saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'C:\\vault\\docs\\alpha.md',
+        content: '# Alpha',
+      },
+      cache: new Map(),
+      updatedAt: Date.parse('2026-04-15T10:00:00.000Z'),
+    })).resolves.toMatchObject({
+      content: expect.stringContaining('# Alpha'),
+    });
+
+    expect(adapter.readFile).toHaveBeenCalledWith('C:\\vault\\docs\\alpha.md');
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      'C:\\vault\\docs\\alpha.md',
+      expect.stringContaining('# Alpha')
+    );
   });
 
   it('loads every supported markdown extension', async () => {

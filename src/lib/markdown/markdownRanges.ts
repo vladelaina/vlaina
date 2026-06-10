@@ -4,6 +4,7 @@ import {
   type MarkdownFenceState,
 } from './markdownFence';
 import {
+  findHtmlTagEnd,
   getHtmlTagRanges,
   getRawTextHtmlRanges,
 } from './markdownHtmlRanges';
@@ -14,7 +15,7 @@ import {
   getMarkdownInvisibleHtmlBlockClosePattern,
 } from './markdownHtmlBlockClassification';
 
-export { getHtmlTagRanges, getRawTextHtmlRanges };
+export { findHtmlTagEnd, getHtmlTagRanges, getRawTextHtmlRanges };
 
 export interface ContentRange {
   start: number;
@@ -24,8 +25,7 @@ export interface ContentRange {
 const MARKDOWN_ESCAPABLE_PUNCTUATION = new Set(
   Array.from('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~')
 );
-export function getNonFencedContentRanges(content: string): ContentRange[] {
-  const ranges: ContentRange[] = [];
+export function* iterateNonFencedContentRanges(content: string): Iterable<ContentRange> {
   let rangeStart = 0;
   let offset = 0;
   let activeFence: MarkdownFenceState | null = null;
@@ -49,7 +49,7 @@ export function getNonFencedContentRanges(content: string): ContentRange[] {
     const fence = getMarkdownFenceState(line);
     if (fence) {
       if (rangeStart < offset) {
-        ranges.push({ start: rangeStart, end: offset });
+        yield { start: rangeStart, end: offset };
       }
       activeFence = fence;
     }
@@ -58,9 +58,15 @@ export function getNonFencedContentRanges(content: string): ContentRange[] {
   }
 
   if (!activeFence && rangeStart < content.length) {
-    ranges.push({ start: rangeStart, end: content.length });
+    yield { start: rangeStart, end: content.length };
   }
+}
 
+export function getNonFencedContentRanges(content: string): ContentRange[] {
+  const ranges: ContentRange[] = [];
+  for (const range of iterateNonFencedContentRanges(content)) {
+    ranges.push(range);
+  }
   return ranges;
 }
 

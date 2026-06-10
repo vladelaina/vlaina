@@ -38,7 +38,7 @@ import { createWorkspaceExternalActions } from './workspaceExternalActions';
 import { createWorkspaceTabActions } from './workspaceTabActions';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
-import { normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
+import { hasUnsafeVaultPathSegment, normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
 
 interface PendingNotePrefetch {
   promise: Promise<void>;
@@ -94,6 +94,10 @@ function isCachedNoteFresh(state: NotesStore, path: string, now = Date.now()) {
 
 function isInternalWorkspaceNotePath(path: string): boolean {
   return hasInternalNotePathSegment(path);
+}
+
+function hasUnsafeWorkspaceNotePathSegment(path: string): boolean {
+  return hasUnsafeVaultPathSegment(path);
 }
 
 function openDraftNoteFromMemory(
@@ -378,6 +382,10 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     }
     if (isInternalWorkspaceNotePath(normalizedAbsolutePath)) {
       set({ error: 'Path must not be inside an internal notes folder.' });
+      return;
+    }
+    if (hasUnsafeWorkspaceNotePathSegment(normalizedAbsolutePath)) {
+      set({ error: 'Selected file path contains unsupported characters' });
       return;
     }
     const openRequestId = ++latestOpenNoteRequestId;

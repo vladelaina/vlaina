@@ -60,4 +60,17 @@ describe('MarkdownRenderer stream bounds', () => {
     expect(screen.queryByTestId('react-markdown')).not.toBeInTheDocument();
     expect(reactMarkdownSpy).not.toHaveBeenCalled();
   });
+
+  it('scrubs oversized inline data images before plain text fallback', () => {
+    const src = `data:image/png;base64,${'a'.repeat(60_000)}`;
+    const content = `${'x'.repeat(MAX_CHAT_MARKDOWN_RENDER_CHARS + 1)}\n![large](<${src}>)`;
+
+    const { container } = render(<MarkdownRenderer content={content} />);
+    const fallback = container.querySelector('[data-chat-markdown-too-large="true"]');
+
+    expect(fallback).toHaveTextContent('[image]');
+    expect(fallback).not.toHaveTextContent('data:image/png;base64');
+    expect(screen.queryByTestId('react-markdown')).not.toBeInTheDocument();
+    expect(reactMarkdownSpy).not.toHaveBeenCalled();
+  });
 });

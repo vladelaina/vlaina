@@ -90,6 +90,26 @@ export function normalizeThemePath(path: string): string {
   return normalizePath(path, true).replace(/\/+$/, '');
 }
 
+export function isThemeRelativePathInsideDirectory(directoryPath: string, relativePath: string): boolean {
+  if (!directoryPath || !relativePath) return false;
+  if (relativePath.startsWith('/') || /^[A-Za-z]:[\\/]/.test(relativePath) || /^\\\\[^\\]+\\[^\\]+/.test(relativePath)) {
+    return false;
+  }
+
+  const parts: string[] = [];
+  for (const part of relativePath.replace(/\\/g, '/').split('/')) {
+    if (!part || part === '.') continue;
+    if (part === '..') {
+      if (parts.length === 0) return false;
+      parts.pop();
+      continue;
+    }
+    parts.push(part);
+  }
+
+  return parts.length > 0;
+}
+
 export function isSameThemePath(left: string | null | undefined, right: string | null | undefined): boolean {
   return Boolean(left && right && normalizeThemePath(left) === normalizeThemePath(right));
 }

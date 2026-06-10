@@ -4,6 +4,7 @@ import type { StarredKind } from '@/stores/notes/types';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 import {
   isPathInsideStarredVault,
+  isValidStarredVaultPath,
   normalizeStarredRelativePath,
   resolveStarredRelativePathForVault,
 } from '@/stores/notes/starred';
@@ -53,6 +54,14 @@ function isInsideInternalExternalMarkdownPath(path: string) {
   return hasInternalNotePathSegment(path);
 }
 
+function hasUnsafeExternalMarkdownPathSegment(path: string) {
+  return path
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean)
+    .some((segment) => !isSafeVaultPathSegment(segment));
+}
+
 function spendExternalMarkdownScanBudget(budget: ExternalMarkdownImportBudget): boolean {
   if (budget.scannedEntries >= MAX_EXTERNAL_MARKDOWN_SCAN_ENTRIES) {
     return false;
@@ -79,6 +88,10 @@ function createExternalStarredTarget(
   vaultPath: string,
   relativePath: string,
 ): ExternalMarkdownStarredTarget | null {
+  if (!isValidStarredVaultPath(vaultPath)) {
+    return null;
+  }
+
   const normalizedRelativePath = normalizeStarredRelativePath(relativePath);
   if (!normalizedRelativePath) {
     return null;
@@ -250,7 +263,10 @@ export async function importExternalMarkdownEntries(
     if (!spendExternalMarkdownScanBudget(budget)) {
       break;
     }
-    if (isInsideInternalExternalMarkdownPath(absolutePath)) {
+    if (
+      isInsideInternalExternalMarkdownPath(absolutePath) ||
+      hasUnsafeExternalMarkdownPathSegment(absolutePath)
+    ) {
       continue;
     }
 
@@ -319,7 +335,10 @@ export async function resolveExternalMarkdownEntriesForStarred(
     }
     scannedEntries += 1;
 
-    if (isInsideInternalExternalMarkdownPath(absolutePath)) {
+    if (
+      isInsideInternalExternalMarkdownPath(absolutePath) ||
+      hasUnsafeExternalMarkdownPathSegment(absolutePath)
+    ) {
       continue;
     }
 

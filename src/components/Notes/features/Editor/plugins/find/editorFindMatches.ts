@@ -20,6 +20,12 @@ interface SearchableBlock {
   segments: BlockSegment[];
 }
 
+interface NormalizedSearchText {
+  text: string;
+  startOffsets: number[];
+  endOffsets: number[];
+}
+
 export const MAX_EDITOR_FIND_MATCHES = 20_000;
 export const MAX_EDITOR_FIND_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 
@@ -66,7 +72,8 @@ function appendMatchesForBlock(
   normalizedQuery: string,
   matches: EditorFindMatch[],
 ) {
-  const normalizedText = block.text.toLocaleLowerCase();
+  const normalized = normalizeSearchTextWithOffsets(block.text);
+  const normalizedText = normalized.text;
   let searchFrom = 0;
 
   while (searchFrom <= normalizedText.length - normalizedQuery.length) {
@@ -76,13 +83,45 @@ function appendMatchesForBlock(
     }
 
     matches.push(
-      createMatchFromOffsets(block.segments, matchIndex, matchIndex + normalizedQuery.length),
+      createMatchFromOffsets(
+        block.segments,
+        normalized.startOffsets[matchIndex] ?? 0,
+        normalized.endOffsets[matchIndex + normalizedQuery.length] ?? block.text.length,
+      ),
     );
     if (matches.length >= MAX_EDITOR_FIND_MATCHES) {
       return;
     }
     searchFrom = matchIndex + Math.max(1, normalizedQuery.length);
   }
+}
+
+function normalizeSearchTextWithOffsets(value: string): NormalizedSearchText {
+  let text = '';
+  const startOffsets: number[] = [];
+  const endOffsets: number[] = [0];
+
+  for (let index = 0; index < value.length;) {
+    const codePoint = value.codePointAt(index);
+    const source = codePoint === undefined ? value[index] : String.fromCodePoint(codePoint);
+    const sourceLength = source.length;
+    const sourceEnd = index + sourceLength;
+    const normalized = source.toLocaleLowerCase();
+    const normalizedStart = text.length;
+
+    for (let offset = 0; offset < normalized.length; offset += 1) {
+      startOffsets[normalizedStart + offset] = index;
+      endOffsets[normalizedStart + offset + 1] = sourceEnd;
+    }
+
+    text += normalized;
+    index = sourceEnd;
+  }
+
+  startOffsets[text.length] = value.length;
+  endOffsets[text.length] = value.length;
+
+  return { text, startOffsets, endOffsets };
 }
 
 function collectSearchableMatches(

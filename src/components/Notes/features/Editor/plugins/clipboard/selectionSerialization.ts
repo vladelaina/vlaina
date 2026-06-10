@@ -217,6 +217,26 @@ function serializeSliceTopLevelBlocks(
   }
 }
 
+function isSliceWithinClipboardTraversalBudget(slice: Slice): boolean {
+  const budget = createClipboardTraversalBudget();
+  const stack = getProseNodeChildren({ content: slice.content })
+    .map((node) => ({ node, depth: 0 }));
+
+  while (stack.length > 0) {
+    const { node, depth } = stack.pop()!;
+    if (!consumeClipboardTraversalNode(budget, depth)) {
+      return false;
+    }
+
+    const children = getProseNodeChildren(node);
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      stack.push({ node: children[index], depth: depth + 1 });
+    }
+  }
+
+  return true;
+}
+
 function findCommonListContainerDepth(state: EditorState): number | null {
   const { $from, $to } = state.selection;
   if (!$from || !$to) {
@@ -395,7 +415,7 @@ export function serializeSelectionToClipboardText(
     return serializeLeadingFrontmatterMarkdown(singleListItemText);
   }
 
-  if (markdownSerializer) {
+  if (markdownSerializer && isSliceWithinClipboardTraversalBudget(slice)) {
     const selectedListText = serializeBoundarySelectedListItemsWithMarkdown(state, markdownSerializer);
     if (selectedListText !== null) {
       return serializeLeadingFrontmatterMarkdown(selectedListText);

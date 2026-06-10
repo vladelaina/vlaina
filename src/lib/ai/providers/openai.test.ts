@@ -488,6 +488,32 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(bodyText).not.toContain('app-file://');
   });
 
+  it('sanitizes current text image references before Anthropic requests', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse('event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"seen"}}\n\n'),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await new OpenAICompatibleClient().sendMessage(
+      'Look ![file](file:///tmp/secret.png) and <img src="attachment://safe.png" alt="local">',
+      [],
+      buildModel(),
+      buildProvider({ endpointType: 'anthropic' }),
+      vi.fn(),
+    );
+
+    const bodyText = fetchMock.mock.calls[0][1].body;
+    const body = JSON.parse(bodyText);
+    expect(body.messages).toEqual([
+      {
+        role: 'user',
+        content: 'Look [Image] and [Image]',
+      },
+    ]);
+    expect(bodyText).not.toContain('file:///tmp/secret.png');
+    expect(bodyText).not.toContain('attachment://safe.png');
+  });
+
   it('aborts Anthropic streams after response headers have returned', async () => {
     const cancelStream = vi.fn();
     const stream = new ReadableStream({
@@ -798,6 +824,32 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       prompt: 'draw a house',
       n: 1,
     });
+  });
+
+  it('sanitizes current text image references before image generation requests', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        data: [{ b64_json: 'abc123', revised_prompt: 'A small red house' }],
+      }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await new OpenAICompatibleClient().sendMessage(
+      'draw ![file](file:///tmp/secret.png) and <img src="attachment://safe.png" alt="local">',
+      [],
+      buildModel({ apiModelId: 'gpt-image-2', name: 'GPT Image 2' }),
+      buildProvider(),
+      vi.fn(),
+    );
+
+    const bodyText = fetchMock.mock.calls[0][1].body;
+    expect(JSON.parse(bodyText)).toEqual({
+      model: 'gpt-image-2',
+      prompt: 'draw [Image] and [Image]',
+      n: 1,
+    });
+    expect(bodyText).not.toContain('file:///tmp/secret.png');
+    expect(bodyText).not.toContain('attachment://safe.png');
   });
 
   it('does not emit direct image results after cancellation during response parsing', async () => {
@@ -1194,7 +1246,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
 
     await new OpenAICompatibleClient().sendMessage(
       [
-        { type: 'text', text: 'describe these' },
+        { type: 'text', text: 'describe these ![stored](attachment://safe.png)' },
         { type: 'image_url', image_url: { url: 'https://example.test/safe.png', detail: 'low' } },
         { type: 'image_url', image_url: { url: 'data:image/png;base64,aGk=' } },
         { type: 'image_url', image_url: { url: 'http://127.0.0.1:3000/secret.png' } },
@@ -1214,7 +1266,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       {
         role: 'user',
         content: [
-          { type: 'text', text: 'describe these' },
+          { type: 'text', text: 'describe these [Image]' },
           { type: 'image_url', image_url: { url: 'https://example.test/safe.png', detail: 'low' } },
           { type: 'image_url', image_url: { url: 'data:image/png;base64,aGk=' } },
         ],
@@ -1224,6 +1276,29 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     expect(bodyText).not.toContain('file:///tmp/secret.png');
     expect(bodyText).not.toContain('attachment://safe.png');
     expect(bodyText).not.toContain('app-file://attachment/local.png');
+  });
+
+  it('sanitizes current string image markdown before OpenAI-compatible requests', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse('data: {"choices":[{"delta":{"content":"next"}}]}\n\ndata: [DONE]\n\n'),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await new OpenAICompatibleClient().sendMessage(
+      'Look ![file](file:///tmp/secret.png) and <img src="attachment://safe.png" alt="local">',
+      [],
+      buildModel({ apiModelId: 'gpt-4o-mini', name: 'GPT 4o mini' }),
+      buildProvider({ endpointType: 'openai' }),
+      vi.fn(),
+    );
+
+    const bodyText = fetchMock.mock.calls[0][1].body;
+    const body = JSON.parse(bodyText);
+    expect(body.messages).toEqual([
+      { role: 'user', content: 'Look [Image] and [Image]' },
+    ]);
+    expect(bodyText).not.toContain('file:///tmp/secret.png');
+    expect(bodyText).not.toContain('attachment://safe.png');
   });
 
   it('uses xAI native web search for official Grok models', async () => {

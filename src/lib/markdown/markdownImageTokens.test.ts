@@ -6,6 +6,7 @@ import {
   replaceImageTokens,
   stripMarkdownImageTokens,
 } from './markdownImageTokens';
+import { htmlImageTagHasDataImageSrc } from './markdownHtmlImageSrc';
 
 function parseSeparateImageTokens(markdown: string) {
   return [
@@ -178,6 +179,28 @@ describe('markdownImageTokens', () => {
     expect(parseMarkdownImageTokens(markdown)).toEqual([]);
     expect(parseHtmlImageTokens(markdown)).toEqual([]);
     expect(parseMarkdownAndHtmlImageTokens(markdown)).toEqual([]);
+  });
+
+  it('streams many fenced ranges without missing later real images', () => {
+    const fencedExamples = Array.from(
+      { length: 5000 },
+      (_, index) => [
+        '```md',
+        `![ignored ${index}](https://example.com/ignored-${index}.png)`,
+        '```',
+        `plain ${index}`,
+      ].join('\n'),
+    );
+    const markdown = [
+      ...fencedExamples,
+      '![real](https://example.com/real.png)',
+      '<img src="https://example.com/real-html.png">',
+    ].join('\n');
+
+    expect(parseMarkdownAndHtmlImageTokens(markdown).map((token) => token.src)).toEqual([
+      'https://example.com/real.png',
+      'https://example.com/real-html.png',
+    ]);
   });
 
   it('bounds markdown image label scanning for malformed image syntax', () => {
@@ -365,6 +388,12 @@ describe('markdownImageTokens', () => {
     const dataSrc = `data:image/png;base64,${'A'.repeat(70 * 1024)}`;
 
     expect(parseHtmlImageTokens(`<img src="${dataSrc}">`).map((token) => token.src)).toEqual([dataSrc]);
+  });
+
+  it('detects html data image src prefixes without normalizing the full src value', () => {
+    expect(htmlImageTagHasDataImageSrc(`<img src="data:image/png;base64,${'A'.repeat(70 * 1024)}">`)).toBe(true);
+    expect(htmlImageTagHasDataImageSrc('<img data-src="data:image/png;base64,not-src" src="https://example.com/a.png">')).toBe(false);
+    expect(htmlImageTagHasDataImageSrc('<img alt="data:image/png;base64,not-src" src="https://example.com/a.png">')).toBe(false);
   });
 
   it('does not treat plain angle-bracket text as an HTML tag range', () => {

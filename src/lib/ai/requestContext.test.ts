@@ -139,6 +139,18 @@ describe('requestContext', () => {
     expect(sanitized[0].content).toContain('Tail [Image] after');
   });
 
+  it('scrubs overflow markdown image sources with even backslash prefixes', () => {
+    const content = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](attachment://safe-${index}.png)`),
+      String.raw`Tail \\![secret](attachment://secret.png) after`,
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).not.toContain('attachment://secret.png');
+    expect(sanitized[0].content).toContain(String.raw`Tail \\[Image] after`);
+  });
+
   it('does not leak oversized markdown image targets after the history scan budget is reached', () => {
     const content = [
       ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](attachment://safe-${index}.png)`),
@@ -149,6 +161,32 @@ describe('requestContext', () => {
 
     expect(sanitized[0].content).not.toContain('data:image');
     expect(sanitized[0].content).toContain('Tail [Image] after');
+  });
+
+  it('does not leak entity-encoded oversized markdown data image targets after the history scan budget is reached', () => {
+    const content = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](attachment://safe-${index}.png)`),
+      `Tail ![secret](<data&colon;image&sol;png&semi;base64&comma;${'A'.repeat(8 * 1024)}>) after`,
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).not.toContain('data&colon;image&sol;');
+    expect(sanitized[0].content).toContain('Tail [Image] after');
+  });
+
+  it('does not leak unterminated markdown data image targets after the history scan budget is reached', () => {
+    const content = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](attachment://safe-${index}.png)`),
+      `Tail ![secret](<data:image/png;base64,${'A'.repeat(8 * 1024)}`,
+      'after',
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).not.toContain('data:image');
+    expect(sanitized[0].content).toContain('Tail [Image]');
+    expect(sanitized[0].content).toContain('after');
   });
 
   it('does not leak overflow HTML image sources after the history scan budget is reached', () => {
@@ -162,6 +200,60 @@ describe('requestContext', () => {
     expect(sanitized[0].content).not.toContain('attachment://secret.png');
     expect(sanitized[0].content).not.toContain('<img');
     expect(sanitized[0].content).toContain('[Image]');
+  });
+
+  it('does not leak overflow HTML image sources when earlier attributes contain angle brackets', () => {
+    const content = [
+      ...Array.from({ length: 4001 }, (_, index) => `<span data-index="${index}"></span>`),
+      '<img alt="before > after" src="attachment://secret.png">',
+    ].join('');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).not.toContain('attachment://secret.png');
+    expect(sanitized[0].content).toContain('[Image]');
+  });
+
+  it('does not leak entity-encoded overflow HTML data image sources after the history scan budget is reached', () => {
+    const content = [
+      ...Array.from({ length: 4001 }, (_, index) => `<span data-index="${index}"></span>`),
+      `<img src="data&colon;image&sol;png&semi;base64&comma;${'A'.repeat(8 * 1024)}" alt="secret">`,
+    ].join('');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).not.toContain('data&colon;image&sol;');
+    expect(sanitized[0].content).toContain('[Image]');
+  });
+
+  it('keeps overflow HTML image examples inside history code spans and fences', () => {
+    const codeImage = '<img src="attachment://docs/example.png" alt="example">';
+    const content = [
+      ...Array.from({ length: 4001 }, (_, index) => `<span data-index="${index}"></span>`),
+      `Inline \`${codeImage}\``,
+      '```html',
+      codeImage,
+      '```',
+      '<img src="attachment://secret.png" alt="secret">',
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).toContain(`Inline \`${codeImage}\``);
+    expect(sanitized[0].content).toContain(['```html', codeImage, '```'].join('\n'));
+    expect(sanitized[0].content).not.toContain('attachment://secret.png');
+    expect(sanitized[0].content).toContain('[Image]');
+  });
+
+  it('does not scrub overflow HTML image tags only because a non-src attribute mentions data images', () => {
+    const content = [
+      ...Array.from({ length: 4001 }, (_, index) => `<span data-index="${index}"></span>`),
+      '<img src="https://example.com/real.png" alt="data:image/png;base64,not-src">',
+    ].join('');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).toContain('<img src="https://example.com/real.png" alt="data:image/png;base64,not-src">');
   });
 
   it('sanitizes malformed structured history content at runtime', () => {

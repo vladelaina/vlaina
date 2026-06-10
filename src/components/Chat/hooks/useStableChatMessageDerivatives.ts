@@ -135,8 +135,10 @@ export function useStableChatMessageDerivatives(messages: ChatMessage[]): {
   useEffect(() => {
     let cancelled = false;
     let index = 0;
+    let pendingBatchTimer: number | null = null;
 
     const processBatch = () => {
+      pendingBatchTimer = null;
       if (cancelled) {
         return;
       }
@@ -151,7 +153,7 @@ export function useStableChatMessageDerivatives(messages: ChatMessage[]): {
       }
 
       if (index < latestMessages.length) {
-        window.setTimeout(processBatch, 0);
+        pendingBatchTimer = window.setTimeout(processBatch, 0);
         return;
       }
 
@@ -209,6 +211,10 @@ export function useStableChatMessageDerivatives(messages: ChatMessage[]): {
     processBatch();
     return () => {
       cancelled = true;
+      if (pendingBatchTimer !== null) {
+        window.clearTimeout(pendingBatchTimer);
+        pendingBatchTimer = null;
+      }
     };
   }, [messages]);
 

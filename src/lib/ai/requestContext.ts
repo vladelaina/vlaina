@@ -7,13 +7,17 @@ import {
   replaceImageTokens,
   type ImageToken,
 } from '@/lib/markdown/markdownImageTokens';
+import { parseHtmlImageSrcTokenFromTag } from '@/lib/markdown/markdownHtmlImageSrc';
 import {
   getInlineCodeRanges,
-  getNonFencedContentRanges,
+  findHtmlTagEnd,
+  iterateNonFencedContentRanges,
   getRangeEndAtOffset,
+  isEscapedMarkdownPunctuation,
   isOffsetInRanges,
   type ContentRange,
 } from '@/lib/markdown/markdownRanges';
+import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 import { parseVideoUrl } from '@/lib/markdown/videoUrl';
 import { normalizeApiTranscriptMessages } from './apiTranscript';
 
@@ -24,9 +28,16 @@ const MAX_REQUEST_HISTORY_CHARS = 24000;
 const MAX_REQUEST_MESSAGE_CHARS = 6000;
 const MAX_TRANSCRIPT_FIELD_CHARS = 1200;
 const MAX_REQUEST_JSON_DEPTH = 8;
+const MAX_REQUEST_HISTORY_IMAGE_TARGET_CHARS = 4096;
 const MAX_REQUEST_HISTORY_IMAGE_TOKENS = 2000;
 const MAX_REQUEST_HISTORY_HTML_TAG_SCAN_MARKERS = 4000;
 const CONTENT_TRUNCATION_MARKER = '\n[Earlier content omitted]\n';
+const HISTORY_IMAGE_SOURCE_PREFIXES = [
+  'data:image/',
+  'attachment://',
+  'app-file://',
+  'file://',
+];
 
 export function formatTimeByOffset(offset: number, now = new Date()): string {
   const utcMs = now.getTime();
@@ -67,14 +78,82 @@ function countNeedleOccurrences(content: string, needle: string, limit: number):
 }
 
 function scrubOverflowHistoryHtmlImages(content: string): string {
-  return content.replace(/<img\b[^>]{0,20000}>/gi, IMAGE_PLACEHOLDER);
+  let output = '';
+  let cursor = 0;
+
+  for (const range of iterateNonFencedContentRanges(content)) {
+    output += content.slice(cursor, range.start);
+    output += scrubOverflowHistoryHtmlImagesInRange(content, range);
+    cursor = range.end;
+  }
+
+  output += content.slice(cursor);
+  return output;
+}
+
+function scrubOverflowHistoryHtmlImagesInRange(content: string, range: ContentRange): string {
+  const inlineCodeRanges = getInlineCodeRanges(content, range);
+  let output = '';
+  let cursor = range.start;
+
+  while (cursor < range.end) {
+    const start = indexOfAsciiCaseInsensitive(content, '<img', cursor);
+    if (start === -1 || start >= range.end) {
+      output += content.slice(cursor, range.end);
+      break;
+    }
+
+    const inlineCodeEnd = getRangeEndAtOffset(start, inlineCodeRanges);
+    if (inlineCodeEnd !== null) {
+      output += content.slice(cursor, inlineCodeEnd);
+      cursor = inlineCodeEnd;
+      continue;
+    }
+
+    const tagEnd = findHtmlTagEnd(content, start, range.end);
+    if (tagEnd === -1 || tagEnd > range.end || tagEnd - start > MAX_REQUEST_HISTORY_IMAGE_TARGET_CHARS) {
+      if (htmlImageTagPrefixHasHistoryImageSrc(content, start)) {
+        const scrubEnd = tagEnd === -1
+          ? getOverflowHistoryMarkdownImageScrubEnd(content, start + 4, range.end)
+          : tagEnd;
+        output += content.slice(cursor, start);
+        output += IMAGE_PLACEHOLDER;
+        cursor = scrubEnd;
+      } else {
+        output += content.slice(cursor, start + 4);
+        cursor = start + 4;
+      }
+      continue;
+    }
+
+    const tag = content.slice(start, tagEnd);
+    const src = parseHtmlImageSrcTokenFromTag(tag)?.src;
+    if (!src || !isHistoryImageSource(src)) {
+      output += content.slice(cursor, tagEnd);
+      cursor = tagEnd;
+      continue;
+    }
+
+    output += content.slice(cursor, start);
+    output += IMAGE_PLACEHOLDER;
+    cursor = tagEnd;
+  }
+
+  return output;
+}
+
+function htmlImageTagPrefixHasHistoryImageSrc(content: string, tagStart: number): boolean {
+  const prefixEnd = Math.min(content.length, tagStart + MAX_REQUEST_HISTORY_IMAGE_TARGET_CHARS);
+  const tagPrefix = `${content.slice(tagStart, prefixEnd)}>`;
+  const src = parseHtmlImageSrcTokenFromTag(tagPrefix)?.src;
+  return typeof src === 'string' && isHistoryImageSource(src);
 }
 
 function scrubOverflowHistoryMarkdownImages(content: string): string {
   let output = '';
   let cursor = 0;
 
-  for (const range of getNonFencedContentRanges(content)) {
+  for (const range of iterateNonFencedContentRanges(content)) {
     output += content.slice(cursor, range.start);
     output += scrubOverflowHistoryMarkdownImagesInRange(content, range);
     cursor = range.end;
@@ -103,7 +182,7 @@ function scrubOverflowHistoryMarkdownImagesInRange(content: string, range: Conte
       continue;
     }
 
-    if (start > 0 && content[start - 1] === '\\') {
+    if (isEscapedMarkdownPunctuation(content, start, range.start)) {
       output += content.slice(cursor, start + 2);
       cursor = start + 2;
       continue;
@@ -117,11 +196,18 @@ function scrubOverflowHistoryMarkdownImagesInRange(content: string, range: Conte
     }
 
     const targetEnd = content.indexOf(')', labelEnd + 2);
-    if (targetEnd === -1 || targetEnd >= range.end || targetEnd - labelEnd > 4096) {
-      if (targetEnd !== -1 && targetEnd < range.end && isHistoryMarkdownImageTargetAt(content, labelEnd + 2)) {
+    if (
+      targetEnd === -1 ||
+      targetEnd >= range.end ||
+      targetEnd - labelEnd > MAX_REQUEST_HISTORY_IMAGE_TARGET_CHARS
+    ) {
+      if (isHistoryMarkdownImageTargetAt(content, labelEnd + 2)) {
+        const scrubEnd = targetEnd !== -1 && targetEnd < range.end
+          ? targetEnd + 1
+          : getOverflowHistoryMarkdownImageScrubEnd(content, labelEnd + 2, range.end);
         output += content.slice(cursor, start);
         output += IMAGE_PLACEHOLDER;
-        cursor = targetEnd + 1;
+        cursor = scrubEnd;
       } else {
         output += content.slice(cursor, start + 2);
         cursor = start + 2;
@@ -148,12 +234,46 @@ function isHistoryMarkdownImageTargetAt(content: string, targetStart: number): b
       cursor += 1;
     }
   }
-  return (
-    content.slice(cursor, cursor + 'data:image/'.length).toLowerCase() === 'data:image/' ||
-    content.slice(cursor, cursor + 'attachment://'.length).toLowerCase() === 'attachment://' ||
-    content.slice(cursor, cursor + 'app-file://'.length).toLowerCase() === 'app-file://' ||
-    content.slice(cursor, cursor + 'file://'.length).toLowerCase() === 'file://'
+  return isHistoryImageSource(content.slice(cursor, cursor + 128));
+}
+
+function getOverflowHistoryMarkdownImageScrubEnd(content: string, targetStart: number, rangeEnd: number): number {
+  const lineFeed = content.indexOf('\n', targetStart);
+  const carriageReturn = content.indexOf('\r', targetStart);
+  return Math.min(
+    lineFeed === -1 ? rangeEnd : lineFeed,
+    carriageReturn === -1 ? rangeEnd : carriageReturn,
+    rangeEnd,
   );
+}
+
+function isHistoryImageSource(value: string): boolean {
+  const decoded = decodeMarkdownHtmlText(value).trimStart();
+  return HISTORY_IMAGE_SOURCE_PREFIXES.some((prefix) =>
+    hasAsciiCaseInsensitiveAt(decoded, prefix, 0)
+  );
+}
+
+function hasAsciiCaseInsensitiveAt(content: string, needle: string, start: number): boolean {
+  if (start < 0 || start + needle.length > content.length) {
+    return false;
+  }
+  for (let offset = 0; offset < needle.length; offset += 1) {
+    if (content[start + offset]?.toLowerCase() !== needle[offset]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function indexOfAsciiCaseInsensitive(value: string, needle: string, fromIndex: number): number {
+  const maxStart = value.length - needle.length;
+  for (let index = Math.max(0, fromIndex); index <= maxStart; index += 1) {
+    if (hasAsciiCaseInsensitiveAt(value, needle, index)) {
+      return index;
+    }
+  }
+  return -1;
 }
 
 function scrubOverflowHistoryImageSyntax(content: string): string {
@@ -168,11 +288,15 @@ function replaceHistoryImageTokens(content: string): string {
   if (
     tokens.length >= MAX_REQUEST_HISTORY_IMAGE_TOKENS ||
     countNeedleOccurrences(content, '![', MAX_REQUEST_HISTORY_IMAGE_TOKENS) > MAX_REQUEST_HISTORY_IMAGE_TOKENS ||
-    countNeedleOccurrences(content.toLowerCase(), '<', MAX_REQUEST_HISTORY_HTML_TAG_SCAN_MARKERS) > MAX_REQUEST_HISTORY_HTML_TAG_SCAN_MARKERS
+    countNeedleOccurrences(content, '<', MAX_REQUEST_HISTORY_HTML_TAG_SCAN_MARKERS) > MAX_REQUEST_HISTORY_HTML_TAG_SCAN_MARKERS
   ) {
     return scrubOverflowHistoryImageSyntax(replaced);
   }
   return replaced;
+}
+
+export function sanitizeRequestTextImageReferences(content: string): string {
+  return replaceHistoryImageTokens(content);
 }
 
 function getHistoryContentText(value: unknown): string {

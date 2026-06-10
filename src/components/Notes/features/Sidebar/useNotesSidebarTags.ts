@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { assertEditorSafeMarkdownContent } from '@/stores/notes/document/noteDocumentPersistence';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
-import { resolveVaultRelativeFullPath } from '@/stores/notes/utils/fs/vaultPathContainment';
+import {
+  isSafeVaultPathSegment,
+  normalizeVaultRelativePath,
+  resolveVaultRelativeFullPath,
+} from '@/stores/notes/utils/fs/vaultPathContainment';
 import type { StarredEntry } from '@/stores/notes/types';
 import type { FolderNode } from '@/stores/useNotesStore';
 import {
@@ -16,7 +21,7 @@ import {
 
 const TAG_SCAN_IDLE_DELAY_MS = 250;
 const TAG_CONTENT_READ_BATCH_SIZE = 8;
-const MAX_TAG_CONTENT_READ_BYTES = 10 * 1024 * 1024;
+const MAX_TAG_CONTENT_READ_BYTES = 512 * 1024;
 
 type SidebarTagContentCacheEntry = {
   content: string;
@@ -33,11 +38,35 @@ function isFreshSidebarTagContentEntry(
   return entry?.revision === revision && entry.vaultPath === vaultPath;
 }
 
-async function readSidebarTagContent(path: string, currentVaultPath: string | null): Promise<string> {
+function hasUnsafeSidebarTagPathSegment(path: string): boolean {
+  return path
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean)
+    .some((segment) => !isSafeVaultPathSegment(segment));
+}
+
+function isAllowedSidebarTagContentPath(path: string, currentVaultPath: string | null): boolean {
+  if (!isSupportedMarkdownPath(path)) {
+    return false;
+  }
+
   if (
     hasInternalNotePathSegment(path) ||
-    (currentVaultPath && hasInternalNotePathSegment(currentVaultPath))
+    hasUnsafeSidebarTagPathSegment(path) ||
+    (currentVaultPath && (
+      hasInternalNotePathSegment(currentVaultPath) ||
+      hasUnsafeSidebarTagPathSegment(currentVaultPath)
+    ))
   ) {
+    return false;
+  }
+
+  return isAbsolutePath(path) || normalizeVaultRelativePath(path) !== null;
+}
+
+async function readSidebarTagContent(path: string, currentVaultPath: string | null): Promise<string> {
+  if (!isAllowedSidebarTagContentPath(path, currentVaultPath)) {
     return '';
   }
 

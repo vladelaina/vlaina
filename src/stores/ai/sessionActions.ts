@@ -40,6 +40,7 @@ const inlineImagePersistenceSessions = new Set<string>()
 const inlineImagePersistenceRerunSessions = new Set<string>()
 type InlineImageSourceGroups = Map<string, Set<string>>
 const INLINE_DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i
+const MARKDOWN_INLINE_DATA_IMAGE_HINT_PATTERN = /!\[[^\]\n]{0,512}\]\(\s*<?\s*data(?::|&|&#)/i
 const MAX_INLINE_IMAGE_PERSISTENCE_MESSAGE_NODES = 10_000
 const MAX_INLINE_IMAGE_PERSISTENCE_VERSIONS = 20
 const MAX_INLINE_IMAGE_PERSISTENCE_BRANCH_MESSAGES = 100
@@ -158,6 +159,35 @@ function collectInlineImageSourcesFromApiTranscript(apiTranscript: ApiTranscript
   apiTranscript.forEach((message) => collectInlineImageSourcesFromApiContent(message.content, groups))
 }
 
+function hasMarkdownInlineDataImageHintInContent(content: ChatMessageContent | null | undefined): boolean {
+  if (typeof content === 'string') {
+    return MARKDOWN_INLINE_DATA_IMAGE_HINT_PATTERN.test(content)
+  }
+  if (!Array.isArray(content)) {
+    return false
+  }
+  return content.some((part) =>
+    part.type === 'text'
+      ? MARKDOWN_INLINE_DATA_IMAGE_HINT_PATTERN.test(part.text)
+      : part.type === 'image_url' && INLINE_DATA_IMAGE_TARGET_HINT_PATTERN.test(part.image_url.url)
+  )
+}
+
+function hasMarkdownInlineDataImageHint(messages: ChatMessage[]): boolean {
+  return messages.some((message) =>
+    hasMarkdownInlineDataImageHintInContent(message.content) ||
+    message.apiTranscript?.some((transcriptMessage) =>
+      hasMarkdownInlineDataImageHintInContent(transcriptMessage.content)
+    ) ||
+    message.versions?.slice(0, MAX_INLINE_IMAGE_PERSISTENCE_VERSIONS).some((version) =>
+      hasMarkdownInlineDataImageHintInContent(version.content) ||
+      version.apiTranscript?.some((transcriptMessage) =>
+        hasMarkdownInlineDataImageHintInContent(transcriptMessage.content)
+      )
+    )
+  )
+}
+
 function getImageTokenSourceReplacement(content: string, token: ImageToken, replacements: Map<string, string>) {
   if (token.targetStart === undefined || token.targetEnd === undefined || token.targetStart >= token.targetEnd) {
     return null
@@ -179,6 +209,7 @@ function scrubOversizedInlineDataImageReferences(content: string) {
   return scrubOverflowMarkdownDataImages(content, {
     replacement: '',
     maxTargetChars: MAX_INLINE_IMAGE_FALLBACK_TARGET_CHARS,
+    scrubMatchedDataImages: false,
   })
 }
 
@@ -426,7 +457,7 @@ async function persistInlineImageSourcesForSession(sessionId: string) {
     }
     const latestMessages = latestAI.messages[sessionId] || []
     const nextMessages = applyImageSourceReplacements(latestMessages, replacements)
-    if (hasInlineImageSourcesOutsideProcessedSet(nextMessages, sources)) {
+    if (hasMarkdownInlineDataImageHint(nextMessages) && hasInlineImageSourcesOutsideProcessedSet(nextMessages, sources)) {
       inlineImagePersistenceRerunSessions.add(sessionId)
       globalThis.setTimeout(() => {
         void persistInlineImageSourcesForSession(sessionId)

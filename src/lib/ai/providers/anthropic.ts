@@ -9,6 +9,7 @@ import {
   createStreamAccumulator,
   MAX_OPENAI_STREAM_ERROR_FIELD_CHARS,
 } from '@/lib/ai/streaming'
+import { sanitizeRequestTextImageReferences } from '@/lib/ai/requestContext'
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
 import { normalizeRenderableDataImageSrc } from '@/lib/markdown/renderableImagePolicy'
 
@@ -75,14 +76,14 @@ function dataImageToAnthropicBlock(src: string): AnthropicContentBlock | null {
 
 function buildAnthropicUserContent(content: ChatMessageContent): string | AnthropicContentBlock[] {
   if (typeof content === 'string') {
-    return content
+    return sanitizeRequestTextImageReferences(content)
   }
 
   const blocks: AnthropicContentBlock[] = []
   for (const part of content) {
     if (part.type === 'text') {
       if (part.text) {
-        blocks.push({ type: 'text', text: part.text })
+        blocks.push({ type: 'text', text: sanitizeRequestTextImageReferences(part.text) })
       }
       continue
     }

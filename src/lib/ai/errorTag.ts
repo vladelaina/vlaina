@@ -57,7 +57,14 @@ function findCaseInsensitive(value: string, needle: string, fromIndex: number): 
   const needleLength = needle.length;
   const limit = value.length - needleLength;
   for (let index = Math.max(0, fromIndex); index <= limit; index += 1) {
-    if (value.slice(index, index + needleLength).toLowerCase() === needle) {
+    let matched = true;
+    for (let offset = 0; offset < needleLength; offset += 1) {
+      if (value[index + offset]?.toLowerCase() !== needle[offset]) {
+        matched = false;
+        break;
+      }
+    }
+    if (matched) {
       return index;
     }
   }

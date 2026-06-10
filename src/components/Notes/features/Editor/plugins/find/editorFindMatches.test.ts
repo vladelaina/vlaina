@@ -184,6 +184,19 @@ describe('editorFindMatches', () => {
     }
   });
 
+  it('maps case-folded matches that expand to multiple code units back to source ranges', () => {
+    const matches = buildEditorFindMatches(
+      doc(paragraph(text('İstanbul'))) as never,
+      'i',
+    );
+
+    expect(matches[0]).toEqual({
+      from: 1,
+      to: 2,
+      ranges: [{ from: 1, to: 2 }],
+    });
+  });
+
   it('does not include markdown image alt text in editor find matches', async () => {
     const editor = Editor.make()
       .config((ctx) => {

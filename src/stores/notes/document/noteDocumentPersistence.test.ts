@@ -550,6 +550,21 @@ describe('saveNoteDocument', () => {
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
+  it('rejects saving when the target path is known to be a directory', async () => {
+    adapter.stat.mockResolvedValue({ isDirectory: true, isFile: false, modifiedAt: 123, size: 0 });
+
+    await expect(saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: '# Alpha',
+      },
+      cache: new Map(),
+    })).rejects.toThrow('Note file is too large to open.');
+
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
   it('rejects loading markdown files before reading when stat has no size', async () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 123 });
 

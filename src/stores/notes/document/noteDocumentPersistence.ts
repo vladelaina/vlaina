@@ -14,7 +14,11 @@ import {
   stripUpdatedFrontmatter,
   updateNoteMetadataInMarkdown,
 } from '../frontmatter';
-import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
+import {
+  hasUnsafeVaultPathSegment,
+  normalizeVaultRelativePath,
+  resolveVaultRelativeFullPath,
+} from '../utils/fs/vaultPathContainment';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import {
   normalizeSerializedMarkdownDocument,
@@ -75,6 +79,12 @@ function normalizeStoredNotePath(path: string): string {
   return isAbsolutePath(path) ? normalizeAbsolutePath(path) : path;
 }
 
+function hasUnsafeStoredNotePathSegment(path: string): boolean {
+  return hasUnsafeVaultPathSegment(path, {
+    allowNavigationSegments: true,
+  });
+}
+
 function assertStoredNotePathAllowed(path: string): void {
   if (!isSupportedMarkdownPath(path)) {
     throw new Error('Only Markdown files can be opened as notes.');
@@ -82,6 +92,14 @@ function assertStoredNotePathAllowed(path: string): void {
 
   if (hasInternalNotePathSegment(path)) {
     throw new Error('Path must not be inside an internal notes folder.');
+  }
+
+  if (hasUnsafeStoredNotePathSegment(path)) {
+    throw new Error('Selected file path contains unsupported characters');
+  }
+
+  if (!isAbsolutePath(path) && normalizeVaultRelativePath(path) == null) {
+    throw new Error('Path must stay inside the current vault.');
   }
 }
 
@@ -96,6 +114,15 @@ function assertReadableNoteFileInfo(fileInfo: { isFile?: boolean; isDirectory?: 
     throw new Error('Note file is too large to open.');
   }
   assertReadableNoteSize(fileInfo?.size);
+}
+
+function assertWritableNoteFileInfo(fileInfo: { isFile?: boolean; isDirectory?: boolean; size?: number | null } | null | undefined): void {
+  if (fileInfo?.isDirectory === true || fileInfo?.isFile === false) {
+    throw new Error('Note file is too large to open.');
+  }
+  if (typeof fileInfo?.size === 'number') {
+    assertReadableNoteSize(fileInfo.size);
+  }
 }
 
 function getKnownFileSize(fileInfo: { size?: number | null } | null | undefined): number | null {
@@ -223,9 +250,7 @@ export async function saveNoteDocument({
   assertStoredNotePathAllowed(notePath);
   const fullPath = await resolveStoredPath(notesPath, notePath);
   const fileInfoBeforeWrite = await storage.stat(fullPath);
-  if (typeof fileInfoBeforeWrite?.size === 'number') {
-    assertReadableNoteSize(fileInfoBeforeWrite.size);
-  }
+  assertWritableNoteFileInfo(fileInfoBeforeWrite);
   assertEditorSafeMarkdownContent(currentNote.content);
   const diskModifiedAt = fileInfoBeforeWrite?.modifiedAt ?? null;
   const diskSize = getKnownFileSize(fileInfoBeforeWrite);

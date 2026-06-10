@@ -44,7 +44,7 @@ function isEscapedMarkdownPunctuation(content: string, offset: number, lowerBoun
   return backslashCount % 2 === 1;
 }
 
-function findHtmlTagEnd(content: string, start: number, end: number): number {
+export function findHtmlTagEnd(content: string, start: number, end: number): number {
   let quote: string | null = null;
 
   for (let cursor = start + 1; cursor < end; cursor += 1) {

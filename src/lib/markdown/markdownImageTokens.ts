@@ -1,4 +1,4 @@
-import { getNonFencedContentRanges } from './markdownRanges';
+import { iterateNonFencedContentRanges } from './markdownRanges';
 import { parseHtmlImageTokensInRange } from './markdownImageTokenHtml';
 import {
   collectMarkdownImageTokensInRange,
@@ -26,7 +26,7 @@ export function parseMarkdownImageTokens(content: string, options?: ImageTokenPa
   }
 
   const tokens: ImageToken[] = [];
-  for (const range of getNonFencedContentRanges(content)) {
+  for (const range of iterateNonFencedContentRanges(content)) {
     if (tokens.length >= maxTokens) break;
     tokens.push(...parseMarkdownImageTokensInRange(content, range, maxTokens - tokens.length));
   }
@@ -41,7 +41,7 @@ export function parseHtmlImageTokens(content: string, options?: ImageTokenParseO
 
   const tokens: ImageToken[] = [];
   const mayContainMarkdownImages = content.includes("![");
-  for (const range of getNonFencedContentRanges(content)) {
+  for (const range of iterateNonFencedContentRanges(content)) {
     if (tokens.length >= maxTokens) break;
     const markdownImageScan = mayContainMarkdownImages
       ? collectMarkdownImageTokensInRange(
@@ -69,7 +69,7 @@ export function parseMarkdownAndHtmlImageTokens(content: string, options?: Image
 
   const tokens: ImageToken[] = [];
   const mayContainMarkdownImages = content.includes("![");
-  for (const range of getNonFencedContentRanges(content)) {
+  for (const range of iterateNonFencedContentRanges(content)) {
     if (tokens.length >= maxTokens) break;
     const remainingTokens = maxTokens - tokens.length;
     const markdownProtectionLimit = Number.isFinite(maxTokens)

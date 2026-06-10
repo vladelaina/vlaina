@@ -6,6 +6,7 @@ import { writeAssetAtomic } from './io/writer';
 import { normalizeContainedAssetPath } from './core/pathContainment';
 import { hasInternalNoteAssetPathSegment } from './core/internalAssetPaths';
 import { sanitizeSvgBytes } from '@/lib/markdown/svgSanitizer';
+import { hasUnsafeVaultPathSegment, isSafeVaultPathSegment } from '@/stores/notes/utils/fs/vaultPathContainment';
 import {
   getAssetHashIndexEntry,
   loadAssetHashIndex,
@@ -157,17 +158,18 @@ async function normalizeAssetDirectoryEntry(
 async function hydrateAssetEntryMetadata(
   storage: ReturnType<typeof getStorageAdapter>,
   entries: Array<{ name: string; path: string; size?: number; modifiedAt?: number }>,
+  options: { forceStat?: boolean } = {},
 ) {
   return mapWithConcurrencyLimit(entries, MAX_ASSET_METADATA_STAT_CONCURRENCY, async (entry) => {
-    if (typeof entry.size === 'number' && typeof entry.modifiedAt === 'number') {
+    if (!options.forceStat && typeof entry.size === 'number' && typeof entry.modifiedAt === 'number') {
       return entry;
     }
 
     const info = await storage.stat(entry.path).catch(() => null);
     return {
       ...entry,
-      size: typeof entry.size === 'number' ? entry.size : info?.size,
-      modifiedAt: typeof entry.modifiedAt === 'number' ? entry.modifiedAt : info?.modifiedAt,
+      size: options.forceStat ? info?.size : (typeof entry.size === 'number' ? entry.size : info?.size),
+      modifiedAt: options.forceStat ? info?.modifiedAt : (typeof entry.modifiedAt === 'number' ? entry.modifiedAt : info?.modifiedAt),
     };
   });
 }
@@ -211,13 +213,19 @@ function normalizeSafeSubfolderName(name: string | undefined, fallback: string):
   const parts = normalized.split('/').filter(Boolean);
   if (
     parts.length === 0 ||
-    parts.some((part) => part === '.' || part === '..' || part.includes('\0')) ||
+    parts.some((part) => !isSafeVaultPathSegment(part)) ||
     hasInternalNoteAssetPathSegment(parts.join('/'))
   ) {
     return fallback;
   }
 
   return parts.join('/');
+}
+
+function hasUnsafeCurrentNotePathSegment(path: string): boolean {
+  return hasUnsafeVaultPathSegment(path, {
+    allowNavigationSegments: true,
+  });
 }
 
 async function resolveContainedTargetDir(rootPath: string, subfolderName: string): Promise<string> {
@@ -232,6 +240,9 @@ async function resolveContainedTargetDir(rootPath: string, subfolderName: string
 async function resolveCurrentNoteDir(vaultPath: string, currentNotePath: string): Promise<string> {
   if (hasInternalNoteAssetPathSegment(currentNotePath)) {
     throw new Error('Current note path must not be inside an internal notes folder.');
+  }
+  if (hasUnsafeCurrentNotePathSegment(currentNotePath)) {
+    throw new Error('Current note path contains unsupported characters.');
   }
 
   if (isAbsolutePath(currentNotePath)) {
@@ -349,7 +360,7 @@ export class AssetService {
       if (!getMimeType(entry.name).startsWith('image/')) return false;
       return isSameAssetName(entry.name, uploadFilename);
     });
-    const hydratedImageEntries = await hydrateAssetEntryMetadata(storage, sameNameImageEntries);
+    const hydratedImageEntries = await hydrateAssetEntryMetadata(storage, sameNameImageEntries, { forceStat: true });
     const sameSizeCandidates = hydratedImageEntries.filter((entry) => {
       if (typeof entry.size !== 'number' || entry.size !== uploadSize) return false;
       return getMimeType(entry.name).startsWith('image/');

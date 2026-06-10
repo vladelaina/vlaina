@@ -203,6 +203,20 @@ describe('floating toolbar command markdown persistence', () => {
     await expect(persist(bgColor)).resolves.toBe('*<mark style="background-color: #ecf6ff">color</mark>* text');
   });
 
+  it('preserves links when persisting color commands', async () => {
+    const textColor = await createEditor('link text');
+    const textColorView = selectText(textColor, 'link');
+    setLink(textColorView, 'https://example.com');
+    setTextColor(textColorView, '#123456');
+    await expect(persist(textColor)).resolves.toBe('[<span style="color: #123456">link</span>](https://example.com) text');
+
+    const bgColor = await createEditor('link text');
+    const bgColorView = selectText(bgColor, 'link');
+    setLink(bgColorView, 'https://example.com');
+    setBgColor(bgColorView, '#ecf6ff');
+    await expect(persist(bgColor)).resolves.toBe('[<mark style="background-color: #ecf6ff">link</mark>](https://example.com) text');
+  });
+
   it.each([
     ['heading2', '## text'],
     ['blockquote', '> text'],
