@@ -47,7 +47,15 @@ export function AppShell({
   const setWindowResizeActive = useUIStore((state) => state.setWindowResizeActive);
 
   const applySidebarWidth = useCallback((width: number) => {
-    shellRef.current?.style.setProperty('--vlaina-shell-sidebar-width', `${width}px`);
+    const shell = shellRef.current;
+    if (!shell) return;
+
+    const sidebarWidthValue = `${width}px`;
+    shell.style.setProperty('--vlaina-shell-sidebar-width', sidebarWidthValue);
+    shell.style.setProperty(
+      '--vlaina-width-sidebar-content-inner',
+      `calc(${sidebarWidthValue} - var(--vlaina-size-32px))`
+    );
   }, []);
 
   const handleSidebarDragStateChange = useCallback((dragging: boolean) => {

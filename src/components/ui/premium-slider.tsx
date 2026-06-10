@@ -11,6 +11,10 @@ interface PremiumSliderProps {
     className?: string;
 }
 
+function buildSliderTrackBackground(percentage: string): string {
+    return `linear-gradient(to right, var(--vlaina-accent) ${percentage}, var(--vlaina-bg-tertiary) ${percentage})`;
+}
+
 export function PremiumSlider({
     min,
     max,
@@ -45,7 +49,12 @@ export function PremiumSlider({
     const updateVisuals = useCallback((currentValue: number) => {
         if (!containerRef.current) return;
         const percentage = resolvePercentage(currentValue);
-        containerRef.current.style.setProperty('--vlaina-slider-percentage', `${percentage}%`);
+        const percentageValue = `${percentage}%`;
+        containerRef.current.style.setProperty('--vlaina-slider-percentage', percentageValue);
+        containerRef.current.style.setProperty(
+            '--vlaina-gradient-premium-slider-track',
+            buildSliderTrackBackground(percentageValue)
+        );
     }, [resolvePercentage]);
 
     const handleInput = useCallback((e: React.FormEvent<HTMLInputElement>) => {
@@ -76,13 +85,15 @@ export function PremiumSlider({
     }, []);
 
     const initialPercentage = resolvePercentage(value);
+    const initialPercentageValue = `${initialPercentage}%`;
 
     return (
         <div
             ref={containerRef}
             className={cn('premium-slider relative flex items-center w-full h-6 group', className)}
             style={{
-                '--vlaina-slider-percentage': `${initialPercentage}%`,
+                '--vlaina-slider-percentage': initialPercentageValue,
+                '--vlaina-gradient-premium-slider-track': buildSliderTrackBackground(initialPercentageValue),
             } as React.CSSProperties}
             draggable={true}
             onDragStart={(e) => {

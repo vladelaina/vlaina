@@ -159,6 +159,32 @@ describe('createTextEditorViewSession', () => {
     session.destroy();
   });
 
+  it('writes resolved popup width variables onto the popup container', () => {
+    vi.stubGlobal('innerWidth', 1280);
+    const { editorDom, session } = createSessionHarness();
+    vi.spyOn(editorDom, 'getBoundingClientRect').mockReturnValue({
+      left: 100,
+      right: 740,
+      top: 0,
+      bottom: 400,
+      width: 640,
+      height: 400,
+      x: 100,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    session.update();
+
+    const popup = document.querySelector<HTMLElement>('.text-editor-popup-test')!;
+    expect(popup.style.getPropertyValue('--vlaina-text-editor-popup-width')).toBe('640px');
+    expect(popup.style.getPropertyValue('--vlaina-math-editor-width')).toBe('640px');
+    expect(popup.style.getPropertyValue('--vlaina-width-math-editor')).toBe('640px');
+    expect(popup.style.getPropertyValue('--vlaina-width-math-editor-mobile')).toBe('640px');
+
+    session.destroy();
+  });
+
   it('coalesces textarea autosize work to one animation frame while typing', () => {
     vi.stubGlobal('innerHeight', 500);
     const frameCallbacks: FrameRequestCallback[] = [];
