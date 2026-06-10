@@ -1,6 +1,5 @@
 import { expect, test } from '@playwright/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import {
   EDITOR_SELECTOR,
   cleanupIsolatedElectron,
@@ -10,56 +9,10 @@ import {
   measureRepeatedBlockScan,
   openMarkdownFixture,
 } from './notesE2E';
-
-const MANUAL_MARKDOWN_PATH = path.resolve(process.cwd(), 'test/e2e/notes-manual-performance.md');
-const MAX_INPUT_SEGMENTS = 18;
-const MAX_SEGMENT_CHARS = 420;
-const MAX_TABLE_SEGMENT_LINES = 3;
-const MAX_TABLE_SEGMENT_CHARS = 320;
-
-function createManualInputSegments(markdown: string): string[] {
-  const rawBlocks = markdown
-    .split(/\n{2,}/)
-    .map((block) => block.trim())
-    .filter(Boolean);
-  const requiredBlocks = [
-    rawBlocks.find((block) => block.startsWith('# Markdown 编辑器测试手册')),
-    rawBlocks.find((block) => /^##\s+/.test(block)),
-    rawBlocks.find((block) => /^-\s+/m.test(block)),
-    rawBlocks.find((block) => /^\|.+\|\n\|[- :|]+\|/m.test(block)),
-    rawBlocks.find((block) => /^```\s*\w*/m.test(block)),
-  ].filter((block): block is string => Boolean(block));
-  const stride = Math.max(1, Math.floor(rawBlocks.length / MAX_INPUT_SEGMENTS));
-  const candidates = [
-    ...requiredBlocks,
-    ...rawBlocks.filter((_block, index) => index % stride === 0),
-  ];
-  const segments: string[] = [];
-  const seen = new Set<string>();
-
-  for (const block of candidates) {
-    const tableLines = block.split('\n');
-    const isTableBlock = /^\|.+\|\n\|[- :|]+\|/m.test(block);
-    const representativeBlock = isTableBlock
-      ? tableLines.slice(0, MAX_TABLE_SEGMENT_LINES).join('\n')
-      : block;
-    const maxSegmentChars = isTableBlock ? MAX_TABLE_SEGMENT_CHARS : MAX_SEGMENT_CHARS;
-    const segment = representativeBlock.length > maxSegmentChars
-      ? `${representativeBlock.slice(0, maxSegmentChars).trimEnd()}\n`
-      : representativeBlock;
-    const key = segment.replace(/\s+/g, ' ').slice(0, 160);
-    if (!key || seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    segments.push(`${segment}\n\n`);
-    if (segments.length >= MAX_INPUT_SEGMENTS) {
-      break;
-    }
-  }
-
-  return segments;
-}
+import {
+  MANUAL_MARKDOWN_PATH,
+  createManualInputSegments,
+} from './notesManualSegments';
 
 test.describe('notes manual markdown input performance', () => {
   test.setTimeout(180_000);
