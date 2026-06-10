@@ -105,9 +105,9 @@ export function SettingsItem({ title, description, children, className }: Settin
     );
 }
 
-export function SettingsSectionHeader({ children }: { children: ReactNode }) {
+export function SettingsSectionHeader({ children, className }: { children: ReactNode; className?: string }) {
     return (
-        <div className="mt-10 mb-4 px-2">
+        <div className={cn("mt-10 mb-4 px-2", className)}>
             <h3 className="text-[var(--vlaina-font-sm)] font-bold text-[var(--vlaina-sidebar-notes-text-soft)] tracking-tight opacity-[var(--vlaina-opacity-80)]">
                 {children}
             </h3>

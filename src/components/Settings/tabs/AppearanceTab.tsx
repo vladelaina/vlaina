@@ -273,7 +273,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
 
   const progressPercent = useMemo(() => {
     const bounded = Math.max(UI_FONT_SIZE_MIN, Math.min(UI_FONT_SIZE_MAX, displayedFontSize));
-    return ((bounded - UI_FONT_SIZE_MIN) / (UI_FONT_SIZE_MAX - UI_FONT_SIZE_MIN)) * 100;
+    return `${((bounded - UI_FONT_SIZE_MIN) / (UI_FONT_SIZE_MAX - UI_FONT_SIZE_MIN)) * 100}%`;
   }, [displayedFontSize]);
 
   const handleFontSizeChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -362,7 +362,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
       onChange={handleFontSizeChange}
       onPointerDown={beginFontSizePreview}
       onMouseDown={beginFontSizePreview}
-      className="h-1.5 w-44 rounded-lg appearance-none cursor-pointer accent-[var(--vlaina-sidebar-row-selected-text)]"
+      className="appearance-font-size-slider h-1.5 w-44 cursor-pointer appearance-none rounded-lg accent-[var(--vlaina-sidebar-row-selected-text)]"
       style={{
         '--vlaina-appearance-font-size-progress': progressPercent,
         background: 'var(--vlaina-gradient-appearance-font-size-slider)',
@@ -402,14 +402,6 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
         <div className={cn(
           "flex flex-shrink-0 items-center gap-4",
         )}>
-          <Icon
-            size="md"
-            name="editor.type"
-            className={cn(
-              "text-[var(--vlaina-sidebar-notes-text-soft)]",
-              isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]",
-            )}
-          />
           {fontSizeSlider}
           <span className={cn(
             "w-10 text-sm font-medium text-right tabular-nums text-[var(--vlaina-sidebar-notes-text)]",
@@ -431,7 +423,9 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
         </div>
       </div>
 
-      <SettingsSectionHeader>{t('settings.appearance.display')}</SettingsSectionHeader>
+      <SettingsSectionHeader className={cn(isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]")}>
+        {t('settings.appearance.display')}
+      </SettingsSectionHeader>
       <SettingsItem
         title={t('settings.appearance.theme')}
         className={cn(isPreviewingFontSize && "pointer-events-none opacity-[var(--vlaina-opacity-0)]")}
