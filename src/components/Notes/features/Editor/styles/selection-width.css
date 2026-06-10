@@ -8,7 +8,7 @@
   max-width: 100%;
 }
 
-.milkdown .ProseMirror.editor-text-selection-overlay-active *::selection {
+.milkdown .ProseMirror.editor-text-selection-overlay-active:not(.editor-pointer-native-selection) *::selection {
   background-color: transparent !important;
   color: inherit !important;
   -webkit-text-fill-color: inherit !important;
@@ -42,6 +42,7 @@
   color: var(--vlaina-color-white) !important;
   -webkit-text-fill-color: var(--vlaina-color-white) !important;
   line-height: inherit;
+  padding-block: max(0px, calc((1lh - 1em) / 2));
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }

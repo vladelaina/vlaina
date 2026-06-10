@@ -199,8 +199,13 @@ export function handleListGapPlaceholderPointerDown(view: EditorView, event: Mou
     return false;
   }
 
-  const paragraphStart = findListGapPlaceholderParagraphStart(view, coords.pos)
-    ?? resolveListGapPlaceholderFromNearbyBlock(view, event);
+  const directParagraphStart = findListGapPlaceholderParagraphStart(view, coords.pos);
+  const paragraphStart = directParagraphStart
+    ?? (
+      shouldResolveNearbyListGapPlaceholder(view, event)
+        ? resolveListGapPlaceholderFromNearbyBlock(view, event)
+        : null
+    );
   if (paragraphStart === null) return false;
 
   const targetPos = Math.min(paragraphStart + 1, view.state.doc.content.size);

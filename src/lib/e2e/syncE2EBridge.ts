@@ -140,6 +140,7 @@ export interface E2EBridge {
     from: number | null;
     to: number | null;
     selectedText: string;
+    timings?: Record<string, number>;
   }>;
   getEditorSelectionSummary(): {
     from: number;
@@ -277,19 +278,23 @@ function findEditorTextRange(text: string, anchorText?: string): { from: number;
   const ranges: Array<{ from: number; to: number }> = [];
   view.state.doc.descendants((node, pos) => {
     if (!node.isText || typeof node.text !== 'string') {
-      return;
+      return undefined;
     }
 
     const index = node.text.indexOf(text);
     if (index < 0) {
-      return;
+      return undefined;
     }
 
     const from = pos + index;
     const to = from + text.length;
     if (view.state.doc.textBetween(from, to, '\n') === text) {
       ranges.push({ from, to });
+      if (!anchorText) {
+        return false;
+      }
     }
+    return undefined;
   });
 
   if (!ranges.length) {
@@ -328,7 +333,7 @@ function getEditorSelectionSummary() {
     to,
     empty,
     selectedText: from < to ? view.state.doc.textBetween(from, to, '\n') : '',
-    docTextLength: view.state.doc.textContent.length,
+    docTextLength: view.state.doc.content.size,
   };
 }
 
@@ -794,19 +799,32 @@ export function installSyncE2EBridge(): void {
       }));
     },
     selectEditorTextByText: async (text, anchorText) => {
+      const startedAt = performance.now();
       const view = getCurrentEditorView();
+      const viewResolvedAt = performance.now();
       const range = findEditorTextRange(text, anchorText);
+      const rangeResolvedAt = performance.now();
       if (!view || !range) {
         return {
           selected: false,
           from: null,
           to: null,
           selectedText: '',
+          timings: {
+            totalMs: Math.round((performance.now() - startedAt) * 10) / 10,
+            viewMs: Math.round((viewResolvedAt - startedAt) * 10) / 10,
+            rangeMs: Math.round((rangeResolvedAt - viewResolvedAt) * 10) / 10,
+            focusMs: 0,
+            dispatchMs: 0,
+            rafMs: 0,
+            summaryMs: 0,
+          },
         };
       }
 
       window.focus();
       view.dom.focus({ preventScroll: true });
+      const focusResolvedAt = performance.now();
       view.dispatch(
         view.state.tr
           .setSelection(TextSelection.create(view.state.doc, range.from, range.to))
@@ -821,13 +839,25 @@ export function installSyncE2EBridge(): void {
           })
           .scrollIntoView()
       );
+      const dispatchedAt = performance.now();
       await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      const rafSettledAt = performance.now();
       const summary = getEditorSelectionSummary();
+      const summaryResolvedAt = performance.now();
       return {
         selected: summary?.selectedText === text,
         from: range.from,
         to: range.to,
         selectedText: summary?.selectedText ?? '',
+        timings: {
+          totalMs: Math.round((summaryResolvedAt - startedAt) * 10) / 10,
+          viewMs: Math.round((viewResolvedAt - startedAt) * 10) / 10,
+          rangeMs: Math.round((rangeResolvedAt - viewResolvedAt) * 10) / 10,
+          focusMs: Math.round((focusResolvedAt - rangeResolvedAt) * 10) / 10,
+          dispatchMs: Math.round((dispatchedAt - focusResolvedAt) * 10) / 10,
+          rafMs: Math.round((rafSettledAt - dispatchedAt) * 10) / 10,
+          summaryMs: Math.round((summaryResolvedAt - rafSettledAt) * 10) / 10,
+        },
       };
     },
     getEditorSelectionSummary,

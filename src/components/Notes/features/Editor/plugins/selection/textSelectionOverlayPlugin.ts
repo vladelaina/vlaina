@@ -3,6 +3,8 @@ import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
 import { hasSelectedBlocks } from '../cursor/blockSelectionPluginState';
+import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
+import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
 import { ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES } from '../shared/blockNodeTypes';
 import { DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT } from '../shared/boundedProseNodeScan';
 
@@ -20,6 +22,18 @@ export const MAX_TEXT_SELECTION_OVERLAY_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE
 interface TextSelectionOverlayState {
   decorations: DecorationSet;
   decorationCount: number;
+  usePointerNativeSelection: boolean;
+}
+
+interface PointerCaretTarget {
+  node?: Node;
+  offset?: number;
+  pos: number;
+}
+
+interface PointerClickRestoreSelectionRange {
+  from: number;
+  to: number;
   usePointerNativeSelection: boolean;
 }
 
@@ -269,7 +283,9 @@ export const textSelectionOverlayPlugin = $prose(() => {
             : false
         );
         if (!tr.docChanged && !tr.selectionSet && pointerNativeMeta === undefined) return previous;
-        const decorationState = createTextSelectionDecorationState(newState);
+        const decorationState = usePointerNativeSelection
+          ? { decorationCount: 0, decorations: DecorationSet.empty }
+          : createTextSelectionDecorationState(newState);
         return {
           ...decorationState,
           usePointerNativeSelection,
@@ -285,9 +301,16 @@ export const textSelectionOverlayPlugin = $prose(() => {
       let lastClassSignature = '';
       let keyClearFrame: number | null = null;
       let pointerNativeReleaseFrame: number | null = null;
+      let pointerClickCollapseFrame: number | null = null;
+      let pointerClickCollapseTimeout: number | null = null;
       let clearNativeSelectionFrame: number | null = null;
       let keyboardSelectionPendingCleanupTimeout: number | null = null;
       let isPointerSelectionActive = false;
+      let pointerDownPoint: { x: number; y: number } | null = null;
+      let pointerMovedSinceDown = false;
+      let pointerClickCollapseTarget: PointerCaretTarget | null = null;
+      let pendingPointerClickCollapseTarget: PointerCaretTarget | null = null;
+      let pointerClickRestoreSelectionRange: PointerClickRestoreSelectionRange | null = null;
       let preserveNativeSelectionForKeyboard = false;
 
       const setPointerNativeSelection = (nextValue: boolean) => {
@@ -300,6 +323,222 @@ export const textSelectionOverlayPlugin = $prose(() => {
             .setMeta(POINTER_NATIVE_SELECTION_META, nextValue)
             .setMeta('addToHistory', false)
         );
+      };
+
+      const getCaretTargetFromPoint = (event: MouseEvent): PointerCaretTarget | null => {
+        const ownerDocument = view.dom.ownerDocument as Document & {
+          caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+          caretRangeFromPoint?: (x: number, y: number) => Range | null;
+        };
+        const textNodeTarget = getTextNodeCaretTargetFromPoint(event);
+        if (textNodeTarget !== null) {
+          return textNodeTarget;
+        }
+
+        const caretPosition = ownerDocument.caretPositionFromPoint?.(event.clientX, event.clientY);
+        const caretRange = caretPosition
+          ? null
+          : ownerDocument.caretRangeFromPoint?.(event.clientX, event.clientY);
+        const node = caretPosition?.offsetNode ?? caretRange?.startContainer ?? null;
+        const offset = caretPosition?.offset ?? caretRange?.startOffset ?? null;
+
+        if (node && offset !== null && view.dom.contains(node)) {
+          try {
+            return {
+              node,
+              offset,
+              pos: view.posAtDOM(node, offset),
+            };
+          } catch {
+          }
+        }
+
+        const coordsPos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? null;
+        return coordsPos === null ? null : { pos: coordsPos };
+      };
+
+      const getDomCaretTarget = (target: PointerCaretTarget): PointerCaretTarget | null => {
+        if (target.node && target.offset !== undefined && view.dom.contains(target.node)) {
+          return target;
+        }
+
+        try {
+          const nextPos = Math.max(0, Math.min(view.state.doc.content.size, target.pos));
+          const domTarget = view.domAtPos(nextPos);
+          if (domTarget.node !== view.dom && !view.dom.contains(domTarget.node)) {
+            return null;
+          }
+
+          return {
+            node: domTarget.node,
+            offset: domTarget.offset,
+            pos: nextPos,
+          };
+        } catch {
+          return null;
+        }
+      };
+
+      const syncNativeSelectionToCaretTarget = (target: PointerCaretTarget) => {
+        const domTarget = getDomCaretTarget(target);
+        if (!domTarget?.node || domTarget.offset === undefined) return;
+        const ownerDocument = view.dom.ownerDocument;
+        const nativeSelection = ownerDocument.defaultView?.getSelection();
+        if (!nativeSelection) return;
+
+        const range = ownerDocument.createRange();
+        try {
+          range.setStart(domTarget.node, domTarget.offset);
+          range.collapse(true);
+          nativeSelection.removeAllRanges();
+          nativeSelection.addRange(range);
+        } catch {
+        } finally {
+          range.detach();
+        }
+      };
+
+      const collapsePointerNativeSelectionAt = (target: PointerCaretTarget) => {
+        const nextPos = Math.max(0, Math.min(view.state.doc.content.size, target.pos));
+        const tr = view.state.tr
+          .setSelection(TextSelection.create(view.state.doc, nextPos))
+          .setMeta(floatingToolbarKey, {
+            type: TOOLBAR_ACTIONS.HIDE,
+          })
+          .setMeta(POINTER_NATIVE_SELECTION_META, false)
+          .setMeta('addToHistory', false)
+          .scrollIntoView();
+        view.dispatch(tr);
+        if (!view.state.selection.eq(tr.selection)) {
+          const nextState = view.state.apply(tr);
+          view.updateState(nextState);
+        }
+        view.focus();
+        syncNativeSelectionToCaretTarget({ ...target, pos: nextPos });
+        syncActiveClass();
+      };
+
+      const cancelPointerClickCollapseReassertion = () => {
+        if (pointerClickCollapseFrame !== null) {
+          cancelAnimationFrame(pointerClickCollapseFrame);
+          pointerClickCollapseFrame = null;
+        }
+        if (pointerClickCollapseTimeout !== null) {
+          window.clearTimeout(pointerClickCollapseTimeout);
+          pointerClickCollapseTimeout = null;
+        }
+      };
+
+      const shouldReassertPointerClickCollapse = (target: PointerCaretTarget) =>
+        pendingPointerClickCollapseTarget === target && !pointerMovedSinceDown;
+
+      const reassertPointerClickCollapse = (target: PointerCaretTarget) => {
+        if (!shouldReassertPointerClickCollapse(target)) return;
+        collapsePointerNativeSelectionAt(target);
+      };
+
+      const schedulePointerClickCollapseReassertion = (target: PointerCaretTarget) => {
+        cancelPointerClickCollapseReassertion();
+
+        queueMicrotask(() => {
+          reassertPointerClickCollapse(target);
+        });
+        pointerClickCollapseFrame = requestAnimationFrame(() => {
+          pointerClickCollapseFrame = null;
+          reassertPointerClickCollapse(target);
+        });
+        pointerClickCollapseTimeout = window.setTimeout(() => {
+          pointerClickCollapseTimeout = null;
+          reassertPointerClickCollapse(target);
+        }, 0);
+      };
+
+      const restorePointerClickSelectionRange = () => {
+        const range = pointerClickRestoreSelectionRange;
+        pointerClickRestoreSelectionRange = null;
+        if (!range) return;
+
+        const maxPos = view.state.doc.content.size;
+        const from = Math.max(0, Math.min(range.from, maxPos));
+        const to = Math.max(from, Math.min(range.to, maxPos));
+        try {
+          view.dispatch(
+            view.state.tr
+              .setSelection(TextSelection.create(view.state.doc, from, to))
+              .setMeta(POINTER_NATIVE_SELECTION_META, range.usePointerNativeSelection)
+              .setMeta('addToHistory', false)
+          );
+        } catch {
+        }
+        syncActiveClass();
+      };
+
+      const getTextNodeCaretTargetFromPoint = (event: MouseEvent): PointerCaretTarget | null => {
+        const ownerDocument = view.dom.ownerDocument;
+        const hitElement = ownerDocument.elementFromPoint(event.clientX, event.clientY);
+        const root = hitElement && view.dom.contains(hitElement) ? hitElement : view.dom;
+        const walker = ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const range = ownerDocument.createRange();
+        let best: { distance: number; node: Text; offset: number } | null = null;
+
+        try {
+          while (walker.nextNode()) {
+            const textNode = walker.currentNode as Text;
+            if (!textNode.data) continue;
+
+            range.selectNodeContents(textNode);
+            const textNodeRects = Array.from(range.getClientRects());
+            const isOnClickedLine = textNodeRects.some((rect) =>
+              rect.width > 0 &&
+              rect.height > 0 &&
+              event.clientY >= rect.top - 3 &&
+              event.clientY <= rect.bottom + 3
+            );
+            if (!isOnClickedLine) continue;
+
+            for (let offset = 0; offset < textNode.data.length; offset += 1) {
+              range.setStart(textNode, offset);
+              range.setEnd(textNode, offset + 1);
+              for (const rect of Array.from(range.getClientRects())) {
+                if (rect.width <= 0 || rect.height <= 0) continue;
+                const verticalDistance = event.clientY < rect.top
+                  ? rect.top - event.clientY
+                  : event.clientY > rect.bottom
+                    ? event.clientY - rect.bottom
+                    : 0;
+                if (verticalDistance > Math.max(4, rect.height / 2)) continue;
+
+                const horizontalDistance = event.clientX < rect.left
+                  ? rect.left - event.clientX
+                  : event.clientX > rect.right
+                    ? event.clientX - rect.right
+                    : 0;
+                const centerY = rect.top + rect.height / 2;
+                const distance = horizontalDistance + Math.abs(event.clientY - centerY) * 2;
+                if (best && distance >= best.distance) continue;
+
+                best = {
+                  distance,
+                  node: textNode,
+                  offset: event.clientX <= rect.left + rect.width / 2 ? offset : offset + 1,
+                };
+              }
+            }
+          }
+        } finally {
+          range.detach();
+        }
+
+        if (!best) return null;
+        try {
+          return {
+            node: best.node,
+            offset: best.offset,
+            pos: view.posAtDOM(best.node, best.offset),
+          };
+        } catch {
+          return null;
+        }
       };
 
       const scheduleClearNativeSelection = () => {
@@ -358,8 +597,55 @@ export const textSelectionOverlayPlugin = $prose(() => {
         if (event.button !== 0) return;
         preserveNativeSelectionForKeyboard = false;
         isPointerSelectionActive = true;
-        setPointerNativeSelection(true);
+        pointerMovedSinceDown = false;
+        pointerDownPoint = { x: event.clientX, y: event.clientY };
+        pointerClickCollapseTarget = null;
+        pendingPointerClickCollapseTarget = null;
+        pointerClickRestoreSelectionRange = null;
+        const shouldMaybeCollapseTextSelectionClick =
+          isTextSelectionOverlayEligible(view.state) &&
+          (event.clientX !== 0 || event.clientY !== 0) &&
+          !event.shiftKey &&
+          !event.ctrlKey &&
+          !event.metaKey &&
+          !event.altKey;
+        if (shouldMaybeCollapseTextSelectionClick) {
+          const restoreSelectionRange = {
+            from: view.state.selection.from,
+            to: view.state.selection.to,
+            usePointerNativeSelection: Boolean(
+              textSelectionOverlayPluginKey.getState(view.state)?.usePointerNativeSelection
+            ),
+          };
+          const clickedTarget = getCaretTargetFromPoint(event);
+          if (clickedTarget !== null) {
+            pointerClickCollapseTarget = clickedTarget;
+            pendingPointerClickCollapseTarget = clickedTarget;
+            pointerClickRestoreSelectionRange = restoreSelectionRange;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            collapsePointerNativeSelectionAt(clickedTarget);
+            schedulePointerClickCollapseReassertion(clickedTarget);
+            return;
+          }
+        }
+        if (!pointerClickCollapseTarget) {
+          setPointerNativeSelection(true);
+        }
         syncActiveClass();
+      };
+
+      const handleMouseMove = (event: MouseEvent) => {
+        if (!isPointerSelectionActive || !pointerDownPoint || pointerMovedSinceDown) return;
+        const deltaX = event.clientX - pointerDownPoint.x;
+        const deltaY = event.clientY - pointerDownPoint.y;
+        pointerMovedSinceDown = Math.hypot(deltaX, deltaY) > 4;
+        if (pointerMovedSinceDown) {
+          cancelPointerClickCollapseReassertion();
+          restorePointerClickSelectionRange();
+          pointerClickCollapseTarget = null;
+          pendingPointerClickCollapseTarget = null;
+        }
       };
 
       const handleKeyDown = (event: KeyboardEvent) => {
@@ -419,12 +705,31 @@ export const textSelectionOverlayPlugin = $prose(() => {
         });
       };
 
-      const handleMouseUp = () => {
+      const handleMouseUp = (event: MouseEvent) => {
         isPointerSelectionActive = false;
+        const clickCollapseTarget = pointerClickCollapseTarget;
+        const shouldCollapsePointerClick = clickCollapseTarget !== null && !pointerMovedSinceDown;
+        pointerClickCollapseTarget = null;
+        pointerDownPoint = null;
+        pointerMovedSinceDown = false;
         if (pointerNativeReleaseFrame !== null) {
           cancelAnimationFrame(pointerNativeReleaseFrame);
+          pointerNativeReleaseFrame = null;
         }
 
+        if (shouldCollapsePointerClick) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          pendingPointerClickCollapseTarget = clickCollapseTarget;
+          pointerClickRestoreSelectionRange = null;
+          collapsePointerNativeSelectionAt(clickCollapseTarget);
+          schedulePointerClickCollapseReassertion(clickCollapseTarget);
+          return;
+        }
+
+        pendingPointerClickCollapseTarget = null;
+        pointerClickRestoreSelectionRange = null;
+        cancelPointerClickCollapseReassertion();
         pointerNativeReleaseFrame = requestAnimationFrame(() => {
           pointerNativeReleaseFrame = null;
           const usePointerNativeSelection = Boolean(
@@ -432,11 +737,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
           );
           if (!usePointerNativeSelection) return;
 
-          if (isTextSelectionOverlayEligible(view.state)) {
-            setPointerNativeSelection(false);
-            syncActiveClass();
-            return;
-          }
+          if (isTextSelectionOverlayEligible(view.state)) return;
 
           const nativeSelection = getNativeSelectionMetrics();
           if (view.state.selection.empty && (!nativeSelection || nativeSelection.isCollapsed)) {
@@ -450,15 +751,36 @@ export const textSelectionOverlayPlugin = $prose(() => {
         }
       };
 
+      const handleClick = (event: MouseEvent) => {
+        if (pendingPointerClickCollapseTarget === null) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const target = pendingPointerClickCollapseTarget;
+        pendingPointerClickCollapseTarget = null;
+        cancelPointerClickCollapseReassertion();
+        if (pointerNativeReleaseFrame !== null) {
+          cancelAnimationFrame(pointerNativeReleaseFrame);
+          pointerNativeReleaseFrame = null;
+        }
+        syncNativeSelectionToCaretTarget(target);
+        collapsePointerNativeSelectionAt(target);
+      };
+
       const handleWindowBlur = () => {
         isPointerSelectionActive = false;
+        pendingPointerClickCollapseTarget = null;
+        pointerClickRestoreSelectionRange = null;
+        cancelPointerClickCollapseReassertion();
         preserveNativeSelectionForKeyboard = false;
         syncActiveClass();
       };
 
-      view.dom.addEventListener('mousedown', handleMouseDown);
+      const ownerDocument = view.dom.ownerDocument;
+      view.dom.addEventListener('mousedown', handleMouseDown, true);
       view.dom.addEventListener('keydown', handleKeyDown);
-      document.addEventListener('mouseup', handleMouseUp);
+      ownerDocument.addEventListener('mousemove', handleMouseMove, true);
+      ownerDocument.addEventListener('mouseup', handleMouseUp, true);
+      view.dom.addEventListener('click', handleClick, true);
       window.addEventListener('blur', handleWindowBlur);
       syncActiveClass();
       return {
@@ -477,12 +799,15 @@ export const textSelectionOverlayPlugin = $prose(() => {
           if (pointerNativeReleaseFrame !== null) {
             cancelAnimationFrame(pointerNativeReleaseFrame);
           }
+          cancelPointerClickCollapseReassertion();
           if (clearNativeSelectionFrame !== null) {
             cancelAnimationFrame(clearNativeSelectionFrame);
           }
-          view.dom.removeEventListener('mousedown', handleMouseDown);
+          view.dom.removeEventListener('mousedown', handleMouseDown, true);
           view.dom.removeEventListener('keydown', handleKeyDown);
-          document.removeEventListener('mouseup', handleMouseUp);
+          ownerDocument.removeEventListener('mousemove', handleMouseMove, true);
+          ownerDocument.removeEventListener('mouseup', handleMouseUp, true);
+          view.dom.removeEventListener('click', handleClick, true);
           window.removeEventListener('blur', handleWindowBlur);
           view.dom.classList.remove(TEXT_SELECTION_OVERLAY_ACTIVE_CLASS);
           view.dom.classList.remove(POINTER_NATIVE_SELECTION_CLASS);

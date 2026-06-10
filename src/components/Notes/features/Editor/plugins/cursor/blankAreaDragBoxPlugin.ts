@@ -44,6 +44,7 @@ import {
 import {
   isIgnoredBlankAreaDragBoxTarget,
   resolveBlankAreaDragStartZone,
+  resolveTargetTextLinePointerHit,
 } from './blankAreaDragTargets';
 import {
   handleBlockSelectionCopy,
@@ -70,6 +71,8 @@ import {
   clearForcedCaretForOwner,
   dispatchBlankAreaPlainClick,
 } from './forcedLineEdgeCaret';
+import { floatingToolbarKey } from '../floating-toolbar/floatingToolbarKey';
+import { TOOLBAR_ACTIONS } from '../floating-toolbar/types';
 import {
   transactionInsertedTextMatches,
   transactionTouchesDecorations,
@@ -228,6 +231,12 @@ function resolveInsideBlockTrailingPlainClick(view: EditorView, event: MouseEven
   if (!isSameEditorScrollRoot(view, event.target)) return null;
   if (event.button !== 0) return null;
   if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return null;
+  if (event.target instanceof HTMLElement) {
+    const textLineHit = resolveTargetTextLinePointerHit(view, event.target, event.clientX, event.clientY);
+    if (textLineHit?.type === 'content') {
+      return null;
+    }
+  }
 
   const resolver = createBlockRectResolver({
     view,
@@ -247,13 +256,11 @@ function startInsideBlockTrailingPlainClickSession(
   view: EditorView,
   event: MouseEvent,
   action: BlankAreaPlainClickAction,
-  getNativePointerSelectionVersion: () => number,
   dragThreshold = DRAG_THRESHOLD,
 ): () => void {
   const startX = event.clientX;
   const startY = event.clientY;
   const startSelection = snapshotSelection(view.state);
-  const startNativePointerSelectionVersion = getNativePointerSelectionVersion();
   let didDrag = false;
   let isStopped = false;
 
@@ -280,12 +287,15 @@ function startInsideBlockTrailingPlainClickSession(
       return;
     }
     const currentSelection = snapshotSelection(view.state);
-    const didNativePointerSelectionRun =
-      getNativePointerSelectionVersion() !== startNativePointerSelectionVersion;
-    if (didNativePointerSelectionRun || !isSameSelectionSnapshot(startSelection, currentSelection)) {
+    if (!isSameSelectionSnapshot(startSelection, currentSelection)) {
       return;
     }
-    dispatchBlankAreaPlainClick(view, action, event.clientX, event.clientY);
+    deferUntilPointerClickSettles(view, () => {
+      if (!isSameSelectionSnapshot(startSelection, snapshotSelection(view.state))) {
+        return;
+      }
+      dispatchBlankAreaPlainClick(view, action, event.clientX, event.clientY);
+    });
   };
 
   window.addEventListener('mousemove', handleMouseMove, true);
@@ -298,7 +308,10 @@ function clearTextSelectionForDragSession(view: EditorView): void {
   if (!state.selection.empty && !(state.selection instanceof NodeSelection)) {
     const docSize = state.doc.content.size;
     const collapsePos = Math.max(0, Math.min(state.selection.from, docSize));
-    const tr = state.tr.setSelection(Selection.near(state.doc.resolve(collapsePos), -1));
+    const tr = state.tr
+      .setSelection(Selection.near(state.doc.resolve(collapsePos), -1))
+      .setMeta(floatingToolbarKey, { type: TOOLBAR_ACTIONS.HIDE })
+      .setMeta('addToHistory', false);
     view.dispatch(tr);
     view.focus();
   }
@@ -306,6 +319,74 @@ function clearTextSelectionForDragSession(view: EditorView): void {
   if (selection && selection.rangeCount > 0) {
     selection.removeAllRanges();
   }
+}
+
+function deferUntilPointerClickSettles(view: EditorView, callback: () => void): void {
+  const win = view.dom.ownerDocument.defaultView;
+  if (!win) {
+    callback();
+    return;
+  }
+  win.requestAnimationFrame(() => {
+    win.requestAnimationFrame(callback);
+  });
+}
+
+function shouldStartUnclaimedBlankPlainClickSession(view: EditorView, event: MouseEvent): boolean {
+  if (event.button !== 0) return false;
+  if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false;
+  if (view.state.selection.empty || view.state.selection instanceof NodeSelection) return false;
+  return isSameEditorScrollRoot(view, event.target);
+}
+
+function startUnclaimedBlankPlainClickSession(
+  view: EditorView,
+  event: MouseEvent,
+  dragThreshold = DRAG_THRESHOLD,
+): () => void {
+  const startX = event.clientX;
+  const startY = event.clientY;
+  const startSelection = snapshotSelection(view.state);
+  let didDrag = false;
+  let isStopped = false;
+
+  const stop = () => {
+    if (isStopped) return;
+    isStopped = true;
+    view.dom.ownerDocument.removeEventListener('mousemove', handleMouseMove, true);
+    view.dom.ownerDocument.removeEventListener('mouseup', handleMouseUp, true);
+  };
+
+  const handleMouseMove = (moveEvent: MouseEvent) => {
+    const movedPastThreshold =
+      Math.abs(moveEvent.clientX - startX) >= dragThreshold ||
+      Math.abs(moveEvent.clientY - startY) >= dragThreshold;
+    if (movedPastThreshold) {
+      didDrag = true;
+      stop();
+    }
+  };
+
+  const handleMouseUp = () => {
+    stop();
+    if (didDrag) {
+      return;
+    }
+    const currentSelection = snapshotSelection(view.state);
+    if (!isSameSelectionSnapshot(startSelection, currentSelection)) {
+      return;
+    }
+    deferUntilPointerClickSettles(view, () => {
+      if (!isSameSelectionSnapshot(startSelection, snapshotSelection(view.state))) {
+        return;
+      }
+      clearTextSelectionForDragSession(view);
+    });
+  };
+
+  view.dom.ownerDocument.addEventListener('mousemove', handleMouseMove, true);
+  view.dom.ownerDocument.addEventListener('mouseup', handleMouseUp, true);
+  return stop;
 }
 
 function shouldHandleDocumentBlockSelectionEvent(view: EditorView, event: Event): boolean {
@@ -383,9 +464,9 @@ export function shouldClearBlockSelectionForTransaction(
 export const blankAreaDragBoxPlugin = $prose((ctx) => {
   let stopSession: (() => void) | null = null;
   let stopInsideBlockTrailingPlainClickSession: (() => void) | null = null;
+  let stopUnclaimedBlankPlainClickSession: (() => void) | null = null;
   let markdownSerializer: Serializer | null = null;
   let serializerResolved = false;
-  let nativePointerSelectionVersion = 0;
 
   const resolveMarkdownSerializer = (): Serializer | null => {
     if (serializerResolved) return markdownSerializer;
@@ -413,6 +494,21 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
     if (!stopInsideBlockTrailingPlainClickSession) return;
     stopInsideBlockTrailingPlainClickSession();
     stopInsideBlockTrailingPlainClickSession = null;
+  };
+
+  const clearUnclaimedBlankPlainClickSession = () => {
+    if (!stopUnclaimedBlankPlainClickSession) return;
+    stopUnclaimedBlankPlainClickSession();
+    stopUnclaimedBlankPlainClickSession = null;
+  };
+
+  const tryStartUnclaimedBlankPlainClickSession = (view: EditorView, event: MouseEvent) => {
+    if (!shouldStartUnclaimedBlankPlainClickSession(view, event)) return;
+    clearUnclaimedBlankPlainClickSession();
+    stopUnclaimedBlankPlainClickSession = startUnclaimedBlankPlainClickSession(
+      view,
+      event,
+    );
   };
 
   const tryStartSession = (view: EditorView, event: MouseEvent): BlockDragStartZone | null => {
@@ -541,12 +637,6 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         );
       },
     },
-    appendTransaction(transactions) {
-      if (transactions.some((tr) => tr.selectionSet && tr.getMeta('pointer') === true)) {
-        nativePointerSelectionVersion += 1;
-      }
-      return null;
-    },
     props: {
       decorations(state) {
         return getBlockSelectionPluginState(state).interactionDecorations;
@@ -613,12 +703,12 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
               view,
               event,
               insideBlockTrailingClickAction,
-              () => nativePointerSelectionVersion,
             );
             event.preventDefault();
             return true;
           }
 
+          tryStartUnclaimedBlankPlainClickSession(view, event);
           return false;
         },
       },
@@ -679,6 +769,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           if (hasSelectedBlocks(view.state)) {
             clearBlockSelection(view);
           }
+          tryStartUnclaimedBlankPlainClickSession(view, event);
           return;
         }
         const startZone = tryStartSession(view, event);
@@ -691,12 +782,12 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
             view,
             event,
             insideBlockTrailingClickAction,
-            () => nativePointerSelectionVersion,
           );
           event.preventDefault();
           return;
         }
 
+        tryStartUnclaimedBlankPlainClickSession(view, event);
         clearBlockSelection(view);
       };
 
@@ -721,6 +812,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           lineFillOverlay.destroy();
           clearSession();
           clearInsideBlockTrailingPlainClickSession();
+          clearUnclaimedBlankPlainClickSession();
           setBlockSelectionVisualState(view, false);
         },
       };

@@ -226,7 +226,7 @@ function resolveCachedTextLinePointerHit(
   return { checked: true, hit: null };
 }
 
-function resolveTargetTextLinePointerHit(
+export function resolveTargetTextLinePointerHit(
   view: EditorView,
   target: HTMLElement,
   clientX: number,
@@ -280,6 +280,18 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
   if (view.dom.contains(target)) {
     if (target === view.dom && view.dom.childElementCount === 0) {
       return 'outside-editor';
+    }
+
+    const targetTextBlock = target.closest(TEXT_BLOCK_SURFACE_SELECTOR);
+    if (targetTextBlock instanceof HTMLElement && view.dom.contains(targetTextBlock)) {
+      const textLineHit = resolveTextLinePointerHit(targetTextBlock, event.clientX, event.clientY);
+      if (textLineHit) {
+        return null;
+      }
+      if (isNativeEditableEmptyTextBlockTarget(view, target)) {
+        return null;
+      }
+      return isTextBlockBlankSurfaceTarget(view, target) ? 'outside-editor' : null;
     }
 
     const cachedTextLineHit = resolveCachedTextLinePointerHit(

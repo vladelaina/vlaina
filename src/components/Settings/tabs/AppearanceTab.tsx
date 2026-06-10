@@ -221,6 +221,8 @@ interface AppearanceTabProps {
   onFontSizePreviewingChange?: (previewing: boolean) => void;
 }
 
+const FONT_SIZE_PREVIEW_DEBOUNCE_MS = 120;
+
 export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps = {}) {
   const { t } = useI18n();
   const fontSize = useUIStore((state) => state.fontSize);
@@ -240,6 +242,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
   const draftFontSizeRef = useRef(fontSize);
   const previewingFontSizeRef = useRef(false);
   const pendingFontSizeFrameRef = useRef<number | null>(null);
+  const pendingFontSizeTimerRef = useRef<number | null>(null);
   const pendingFontSizeRef = useRef(fontSize);
 
   const displayedFontSize = isPreviewingFontSize ? draftFontSize : fontSize;
@@ -249,13 +252,23 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
     setDraftFontSize(fontSize);
   }, [fontSize, isPreviewingFontSize]);
 
+  const cancelScheduledMarkdownFontSizePreview = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (pendingFontSizeFrameRef.current !== null) {
+      window.cancelAnimationFrame(pendingFontSizeFrameRef.current);
+      pendingFontSizeFrameRef.current = null;
+    }
+    if (pendingFontSizeTimerRef.current !== null) {
+      window.clearTimeout(pendingFontSizeTimerRef.current);
+      pendingFontSizeTimerRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     return () => {
-      if (pendingFontSizeFrameRef.current !== null && typeof window !== 'undefined') {
-        window.cancelAnimationFrame(pendingFontSizeFrameRef.current);
-      }
+      cancelScheduledMarkdownFontSizePreview();
     };
-  }, []);
+  }, [cancelScheduledMarkdownFontSizePreview]);
 
   useEffect(() => {
     onFontSizePreviewingChange?.(isPreviewingFontSize);
@@ -272,6 +285,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
     const commitPreview = () => {
       if (!previewingFontSizeRef.current) return;
       previewingFontSizeRef.current = false;
+      cancelScheduledMarkdownFontSizePreview();
       applyMarkdownFontSize(draftFontSizeRef.current);
       setIsPreviewingFontSize(false);
       setFontSize(draftFontSizeRef.current);
@@ -288,12 +302,13 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
       window.removeEventListener('blur', commitPreview);
       if (previewingFontSizeRef.current) {
         previewingFontSizeRef.current = false;
+        cancelScheduledMarkdownFontSizePreview();
         applyMarkdownFontSize(draftFontSizeRef.current);
         setFontSize(draftFontSizeRef.current);
       }
       onFontSizePreviewingChange?.(false);
     };
-  }, [isPreviewingFontSize, onFontSizePreviewingChange, setFontSize]);
+  }, [cancelScheduledMarkdownFontSizePreview, isPreviewingFontSize, onFontSizePreviewingChange, setFontSize]);
 
   const progressPercent = useMemo(() => {
     const bounded = Math.max(UI_FONT_SIZE_MIN, Math.min(UI_FONT_SIZE_MAX, displayedFontSize));
@@ -304,6 +319,23 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
     pendingFontSizeRef.current = next;
     if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
       applyMarkdownFontSize(next);
+      return;
+    }
+
+    if (previewingFontSizeRef.current) {
+      if (pendingFontSizeTimerRef.current !== null) {
+        window.clearTimeout(pendingFontSizeTimerRef.current);
+      }
+      pendingFontSizeTimerRef.current = window.setTimeout(() => {
+        pendingFontSizeTimerRef.current = null;
+        if (pendingFontSizeFrameRef.current !== null) {
+          return;
+        }
+        pendingFontSizeFrameRef.current = window.requestAnimationFrame(() => {
+          pendingFontSizeFrameRef.current = null;
+          applyMarkdownFontSize(pendingFontSizeRef.current);
+        });
+      }, FONT_SIZE_PREVIEW_DEBOUNCE_MS);
       return;
     }
 
@@ -324,6 +356,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
 
   const beginFontSizePreview = (event: PointerEvent<HTMLInputElement> | MouseEvent<HTMLInputElement>) => {
     if ('button' in event && event.button !== 0) return;
+    if (previewingFontSizeRef.current) return;
     draftFontSizeRef.current = fontSize;
     setDraftFontSize(fontSize);
     previewingFontSizeRef.current = true;
@@ -331,6 +364,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
   };
 
   const handleResetFontSize = () => {
+    cancelScheduledMarkdownFontSizePreview();
     draftFontSizeRef.current = UI_FONT_SIZE_DEFAULT;
     setDraftFontSize(UI_FONT_SIZE_DEFAULT);
     applyMarkdownFontSize(UI_FONT_SIZE_DEFAULT);

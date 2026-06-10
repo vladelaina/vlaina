@@ -215,7 +215,7 @@ describe('AppearanceTab theme entry', () => {
     });
   });
 
-  it('previews base font size through the scoped markdown font-size rule', async () => {
+  it('debounces drag preview of base font size through the scoped markdown font-size rule', async () => {
     const { container } = render(<AppearanceTab />);
     const slider = container.querySelector<HTMLInputElement>('input[type="range"]');
     expect(slider).not.toBeNull();
@@ -224,6 +224,10 @@ describe('AppearanceTab theme entry', () => {
 
     fireEvent.mouseDown(slider!);
     fireEvent.change(slider!, { target: { value: '20' } });
+
+    expect(document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)?.textContent ?? '').not.toContain(
+      '--vlaina-markdown-font-size: 20px',
+    );
 
     await waitFor(() => {
       expect(document.getElementById(MARKDOWN_FONT_SIZE_STYLE_ID)?.textContent).toContain(
