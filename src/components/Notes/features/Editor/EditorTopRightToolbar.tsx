@@ -10,7 +10,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Icon } from '@/components/ui/icons';
-import { cn, iconButtonStyles } from '@/lib/utils';
+import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Input/composerStyles';
+import { cn } from '@/lib/utils';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useToastStore } from '@/stores/useToastStore';
@@ -65,6 +66,12 @@ const noteMenuSurfaceClassName = cn(
   MENU_PANEL_CLASS_NAME,
 );
 
+const toolbarIconButtonClassName = cn(
+  'app-no-drag flex h-8 w-8 items-center justify-center',
+  'cursor-pointer text-[var(--vlaina-text-tertiary)] disabled:cursor-default',
+  chatComposerGhostIconButtonClass,
+);
+
 export function EditorTopRightToolbar({
   editorFind,
   currentNotePath,
@@ -80,6 +87,7 @@ export function EditorTopRightToolbar({
   const showStarButton = starred || canToggleStar;
   const starButtonLabel = starred ? t('notes.removeFromStarred') : t('notes.addToStarred');
   const addToast = useToastStore((state) => state.addToast);
+  const chatPanelCollapsed = useUIStore((state) => state.notesChatPanelCollapsed);
   const setNotesChatPanelCollapsed = useUIStore((state) => state.setNotesChatPanelCollapsed);
   const exportCurrentNote = async (format: NoteExportFormat) => {
     if (!currentNotePath) {
@@ -103,7 +111,7 @@ export function EditorTopRightToolbar({
   };
 
   return (
-    <div className="absolute top-3 right-3 z-[var(--vlaina-z-30)] flex items-start gap-2">
+    <div className="absolute top-0 right-3 z-[var(--vlaina-z-30)] flex items-start gap-2">
       <NoteEditorFindBar controller={editorFind} />
 
       {!editorFind.isOpen ? (
@@ -118,10 +126,10 @@ export function EditorTopRightToolbar({
               }}
               aria-label={starButtonLabel}
               className={cn(
-                'p-1.5 transition-colors',
+                toolbarIconButtonClassName,
                 starred
-                  ? 'text-[var(--vlaina-color-favorite-fg)]'
-                  : `${iconButtonStyles} hover:text-[var(--vlaina-color-favorite-fg)]`,
+                  ? 'text-[var(--vlaina-color-favorite-fg)] hover:text-[var(--vlaina-color-favorite-fg)]'
+                  : 'hover:text-[var(--vlaina-color-favorite-fg)]',
               )}
             >
               <Icon
@@ -132,24 +140,36 @@ export function EditorTopRightToolbar({
             </button>
           ) : null}
 
+          {chatPanelCollapsed ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setNotesChatPanelCollapsed(false);
+              }}
+              aria-label={t('notes.rightChat')}
+              className={cn(
+                toolbarIconButtonClassName,
+                'hover:text-[var(--vlaina-accent)]',
+              )}
+            >
+              <Icon size="md" name="common.shootingStar" />
+            </button>
+          ) : null}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 onClick={(event) => event.stopPropagation()}
-                className="cursor-pointer bg-transparent p-1.5 text-[var(--vlaina-text-tertiary)] transition-colors hover:text-[var(--vlaina-sidebar-row-selected-text)] disabled:cursor-default"
+                className={cn(
+                  toolbarIconButtonClassName,
+                  'hover:text-[var(--vlaina-sidebar-row-selected-text)]',
+                )}
               >
                 <Icon size="md" name="common.more" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className={cn('w-max min-w-56', noteMenuSurfaceClassName)}>
-              <DropdownMenuItem
-                className={exportMenuItemClassName}
-                onSelect={() => setNotesChatPanelCollapsed(false)}
-              >
-                <Icon size="md" name="common.shootingStar" className="mr-2" />
-                {t('notes.rightChat')}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger className={exportMenuItemClassName}>
                   <Icon size="md" name="common.download" className="mr-2" />
