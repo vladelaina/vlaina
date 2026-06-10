@@ -247,7 +247,11 @@ export function createTextEditorViewSession<
       positionRoot,
       viewportPosition: resolveViewportPosition(state),
     });
-    editorElement.style.setProperty('--vlaina-math-editor-width', `${Math.round(nextPosition.width)}px`);
+    const popupWidth = `${Math.round(nextPosition.width)}px`;
+    editorElement.style.setProperty('--vlaina-text-editor-popup-width', popupWidth);
+    editorElement.style.setProperty('--vlaina-math-editor-width', popupWidth);
+    editorElement.style.setProperty('--vlaina-width-math-editor', popupWidth);
+    editorElement.style.setProperty('--vlaina-width-math-editor-mobile', popupWidth);
     editorElement.style.left = `${nextPosition.x}px`;
     editorElement.style.top = `${nextPosition.y}px`;
 

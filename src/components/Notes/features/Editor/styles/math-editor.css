@@ -192,6 +192,7 @@
 .math-editor-card {
   width: var(--vlaina-width-math-editor);
   max-width: var(--vlaina-width-math-editor);
+  box-sizing: border-box;
   border: var(--vlaina-border-width-1) solid var(--vlaina-color-math-editor-border);
   border-radius: var(--vlaina-radius-12px);
   background: var(--vlaina-color-setting-field);

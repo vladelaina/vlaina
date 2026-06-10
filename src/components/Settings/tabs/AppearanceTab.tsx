@@ -53,6 +53,16 @@ const COLOR_MODE_OPTIONS = [
   },
 ] as const;
 
+function buildFontSizeSliderBackground(progressPercent: string): string {
+  return [
+    'linear-gradient(to right,',
+    'var(--vlaina-sidebar-row-selected-text) 0%,',
+    `var(--vlaina-sidebar-row-selected-text) ${progressPercent},`,
+    `var(--vlaina-bg-tertiary) ${progressPercent},`,
+    'var(--vlaina-bg-tertiary) 100%)',
+  ].join(' ');
+}
+
 interface ColorModeToggleProps {
   colorMode: ColorMode;
   onChange: (mode: ColorMode) => void;
@@ -393,6 +403,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
       className="appearance-font-size-slider h-1.5 w-44 cursor-pointer appearance-none rounded-lg accent-[var(--vlaina-sidebar-row-selected-text)]"
       style={{
         '--vlaina-appearance-font-size-progress': progressPercent,
+        '--vlaina-gradient-appearance-font-size-slider': buildFontSizeSliderBackground(progressPercent),
         background: 'var(--vlaina-gradient-appearance-font-size-slider)',
       } as CSSProperties}
     />

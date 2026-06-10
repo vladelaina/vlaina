@@ -219,6 +219,8 @@ describe('AppearanceTab theme entry', () => {
     const { container } = render(<AppearanceTab />);
     const slider = container.querySelector<HTMLInputElement>('input[type="range"]');
     expect(slider).not.toBeNull();
+    const initialProgress = slider!.style.getPropertyValue('--vlaina-appearance-font-size-progress');
+    expect(slider!.style.getPropertyValue('--vlaina-gradient-appearance-font-size-slider')).toContain(initialProgress);
 
     fireEvent.mouseDown(slider!);
     fireEvent.change(slider!, { target: { value: '20' } });
@@ -228,6 +230,8 @@ describe('AppearanceTab theme entry', () => {
         '--vlaina-markdown-font-size: 20px',
       );
     });
+    const updatedProgress = slider!.style.getPropertyValue('--vlaina-appearance-font-size-progress');
+    expect(slider!.style.getPropertyValue('--vlaina-gradient-appearance-font-size-slider')).toContain(updatedProgress);
     expect(document.documentElement.style.getPropertyValue('--vlaina-markdown-font-size')).toBe('');
   });
 });
