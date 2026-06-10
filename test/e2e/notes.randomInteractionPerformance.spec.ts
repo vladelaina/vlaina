@@ -1,6 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import {
   EDITOR_SELECTOR,
   cleanupIsolatedElectron,
@@ -13,14 +12,16 @@ import {
   waitForEditorAnimationFrame,
 } from './notesE2E';
 import { TINY_PNG_DATA_URL } from './notesMarkdownSyntaxFixture';
+import {
+  MANUAL_MARKDOWN_PATH,
+  createManualCorpus,
+} from './notesManualSegments';
 
-const MANUAL_MARKDOWN_PATH = path.resolve(process.cwd(), 'test/e2e/notes-manual-performance.md');
 const TOOLBAR_SELECTOR = '.floating-toolbar.visible';
 const LIVE_EDITOR_SELECTOR = `${EDITOR_SELECTOR}:not(.toolbar-applied-preview-overlay):not([aria-hidden="true"])`;
 const DEFAULT_RANDOM_SEED = 'notes-random-interaction-v1';
 const DEFAULT_RANDOM_STEPS = 90;
 const MIN_RANDOM_STEPS = 24;
-const MAX_CORPUS_FRAGMENT_CHARS = 420;
 
 type RandomMetric = {
   step: number;
@@ -120,33 +121,6 @@ function weightedPick(rng: () => number, values: readonly WeightedOperation[]): 
     }
   }
   return values[values.length - 1]!.operation;
-}
-
-function createManualCorpus(markdown: string): string[] {
-  const seen = new Set<string>();
-  const corpus: string[] = [];
-  for (const block of markdown.split(/\n{2,}/)) {
-    const trimmed = block.trim();
-    if (!trimmed || trimmed.length < 12) {
-      continue;
-    }
-    if (/^```(?:mermaid|flow|sequence|gantt|pie|class|state|er)\b/i.test(trimmed)) {
-      continue;
-    }
-    if (/^\$\$/.test(trimmed) || /^\\\[/.test(trimmed)) {
-      continue;
-    }
-    const fragment = trimmed.length > MAX_CORPUS_FRAGMENT_CHARS
-      ? `${trimmed.slice(0, MAX_CORPUS_FRAGMENT_CHARS).trimEnd()}\n`
-      : trimmed;
-    const key = fragment.replace(/\s+/g, ' ').slice(0, 120);
-    if (seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    corpus.push(`${fragment}\n\n`);
-  }
-  return corpus;
 }
 
 function randomAsciiWord(rng: () => number): string {

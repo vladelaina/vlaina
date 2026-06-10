@@ -1,6 +1,5 @@
 import { expect, test } from '@playwright/test';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import {
   EDITOR_SELECTOR,
   cleanupIsolatedElectron,
@@ -13,14 +12,16 @@ import {
   scrollNoteToTop,
   waitForEditorAnimationFrame,
 } from './notesE2E';
+import {
+  MANUAL_MARKDOWN_PATH,
+  createManualInteractionSegments,
+} from './notesManualSegments';
 
-const MANUAL_MARKDOWN_PATH = path.resolve(process.cwd(), 'test/e2e/notes-manual-performance.md');
 const TOOLBAR_SELECTOR = '.floating-toolbar.visible';
 const LIVE_EDITOR_SELECTOR = `${EDITOR_SELECTOR}:not(.toolbar-applied-preview-overlay):not([aria-hidden="true"])`;
 const DEFAULT_SEGMENT_LIMIT = 48;
 const DEFAULT_ROUNDS = 2;
-const MAX_SEGMENT_CHARS = 520;
-const MAX_TABLE_SEGMENT_LINES = 4;
+const MAX_MANUAL_TABLE_SEGMENT_LINES = 4;
 const MANUAL_MERMAID_FENCE_LANGUAGES = new Set([
   'mermaid',
   'mmd',
@@ -98,59 +99,6 @@ function getSegmentLimit(): number {
   }
   const value = Number.parseInt(process.env.NOTES_INTERACTION_LOOP_SEGMENTS ?? '', 10);
   return Number.isFinite(value) && value > 0 ? value : DEFAULT_SEGMENT_LIMIT;
-}
-
-function trimManualBlock(block: string): string {
-  const isTableBlock = /^\|.+\|\n\|[- :|]+\|/m.test(block);
-  const representativeBlock = isTableBlock
-    ? block.split('\n').slice(0, MAX_TABLE_SEGMENT_LINES).join('\n')
-    : block;
-  return representativeBlock.length > MAX_SEGMENT_CHARS
-    ? `${representativeBlock.slice(0, MAX_SEGMENT_CHARS).trimEnd()}\n`
-    : representativeBlock;
-}
-
-function createManualSegments(markdown: string): string[] {
-  const rawBlocks = markdown
-    .split(/\n{2,}/)
-    .map((block) => block.trim())
-    .filter(Boolean);
-  const requiredBlocks = [
-    rawBlocks.find((block) => block.startsWith('# Markdown 编辑器测试手册')),
-    rawBlocks.find((block) => /^##\s+/.test(block)),
-    rawBlocks.find((block) => /^-\s+/m.test(block)),
-    rawBlocks.find((block) => /^\d+[).]/m.test(block)),
-    rawBlocks.find((block) => /^\|.+\|\n\|[- :|]+\|/m.test(block)),
-    rawBlocks.find((block) => /^```\s*\w*/m.test(block)),
-    rawBlocks.find((block) => /\$\$|\\\[|\\\(/.test(block)),
-    rawBlocks.find((block) => /!\[/.test(block)),
-    rawBlocks.find((block) => /\[[^\]]+\]\([^)]+\)/.test(block)),
-  ].filter((block): block is string => Boolean(block));
-  const limit = getSegmentLimit();
-  const stride = Number.isFinite(limit)
-    ? Math.max(1, Math.floor(rawBlocks.length / Math.max(1, limit)))
-    : 1;
-  const candidates = [
-    ...requiredBlocks,
-    ...rawBlocks.filter((_block, index) => index % stride === 0),
-  ];
-  const segments: string[] = [];
-  const seen = new Set<string>();
-
-  for (const block of candidates) {
-    const segment = trimManualBlock(block);
-    const key = segment.replace(/\s+/g, ' ').slice(0, 180);
-    if (!key || seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    segments.push(`${segment}\n\n`);
-    if (segments.length >= limit) {
-      break;
-    }
-  }
-
-  return segments;
 }
 
 function normalizeFenceLanguage(language: string): string {
@@ -268,7 +216,7 @@ function createManualTableSegment(markdown: string): string {
         break;
       }
       tableLines.push(line);
-      if (tableLines.length >= MAX_TABLE_SEGMENT_LINES + 1) {
+      if (tableLines.length >= MAX_MANUAL_TABLE_SEGMENT_LINES + 1) {
         break;
       }
     }
@@ -312,6 +260,14 @@ async function selectEditorText(page: import('@playwright/test').Page, text: str
 }
 
 async function dragSelectEditorText(page: import('@playwright/test').Page, text: string, anchorText?: string) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const selected = await selectEditorText(page, text, anchorText);
+    if (selected.selected) {
+      return selected;
+    }
+    await waitForEditorAnimationFrame(page);
+  }
+
   await page.evaluate(() => {
     window.getSelection()?.removeAllRanges();
   });
@@ -577,12 +533,12 @@ async function expectToolbarForSelection(
   return selected;
 }
 
-async function pressEditorShortcut(page: import('@playwright/test').Page, shortcut: string) {
+async function pressEditorShortcut(page: import('@playwright/test').Page, shortcut: string, selectedText?: string) {
   await page.bringToFront();
-  await page
-    .locator(`${EDITOR_SELECTOR}:not(.toolbar-applied-preview-overlay):not([aria-hidden="true"])`)
-    .focus();
-  await waitForEditorAnimationFrame(page);
+  if (selectedText) {
+    const selected = await selectEditorText(page, selectedText, selectedText);
+    expect(selected.selected, `Expected to keep "${selectedText}" selected before ${shortcut}`).toBe(true);
+  }
   const focused = await page.evaluate(() => (window as any).__vlainaE2E.focusCurrentEditor());
   if (!focused) {
     const debugState = await page.evaluate(() => (window as any).__vlainaE2E.getEditorToolbarDebugState());
@@ -894,7 +850,7 @@ test.describe('notes sustained interaction loop performance', () => {
 
   test('loops manual syntax input, toolbar actions, copy paste, and editor scans without stalls', async () => {
     const manualMarkdown = await fs.readFile(MANUAL_MARKDOWN_PATH, 'utf8');
-    const segments = createManualSegments(manualMarkdown);
+    const segments = createManualInteractionSegments(manualMarkdown, { limit: getSegmentLimit() });
     const manualTableSegment = createManualTableSegment(manualMarkdown);
     expect(segments.length).toBeGreaterThan(12);
 
@@ -989,10 +945,10 @@ test.describe('notes sustained interaction loop performance', () => {
 
         await measureOperation(loopMetrics, round, 'keyboard-shortcuts', async () => {
           await expectToolbarForSelection(page, target.shortcut);
-          await pressEditorShortcut(page, 'Control+B');
+          await pressEditorShortcut(page, 'Control+B', target.shortcut);
           await expectEditorTextMark(page, target.shortcut, 'strong', `${EDITOR_SELECTOR} strong`);
           await expectToolbarForSelection(page, target.shortcut);
-          await pressEditorShortcut(page, 'Control+I');
+          await pressEditorShortcut(page, 'Control+I', target.shortcut);
           await expectEditorTextMark(page, target.shortcut, 'emphasis', `${EDITOR_SELECTOR} em`);
         });
 

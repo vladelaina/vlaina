@@ -1,68 +1,14 @@
-import { expect, test, _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import fs from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
 import {
-  E2E_DEV_SERVER_URL,
+  EDITOR_SELECTOR,
+  SELECTED_BLOCK_SELECTOR,
+  cleanupIsolatedElectron,
+  getOpenBridgePages,
   installReferenceTyporaTheme,
+  launchIsolatedElectron,
 } from './notesE2E';
-
-const EDITOR_SELECTOR = '.milkdown .ProseMirror';
-const SELECTED_BLOCK_SELECTOR = `${EDITOR_SELECTOR} .editor-block-selected`;
-const MANUAL_MARKDOWN_PATH = path.resolve(process.cwd(), 'test/e2e/notes-manual-performance.md');
-
-async function waitForE2EBridge(page: Page) {
-  await page.waitForFunction(() => Boolean((window as any).__vlainaE2E));
-  await page.evaluate(() => (window as any).__vlainaE2E.waitForUnifiedLoaded());
-}
-
-async function launchIsolatedElectron(): Promise<{
-  app: ElectronApplication;
-  userDataRoot: string;
-}> {
-  const userDataRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'vlaina-notes-manual-performance-e2e-'));
-  const userDataDir = path.join(userDataRoot, 'user-data');
-
-  const app = await electron.launch({
-    args: ['.'],
-    env: {
-      ...process.env,
-      VITE_DEV_SERVER_URL: `${E2E_DEV_SERVER_URL}?e2e=1`,
-      VLAINA_USER_DATA_DIR: userDataDir,
-      APP_API_BASE_URL: 'http://127.0.0.1:9',
-      APP_UPDATE_MANIFEST_URL: 'http://127.0.0.1:9/latest',
-      NO_PROXY: '127.0.0.1,localhost',
-      no_proxy: '127.0.0.1,localhost',
-      HTTP_PROXY: '',
-      HTTPS_PROXY: '',
-      ALL_PROXY: '',
-      http_proxy: '',
-      https_proxy: '',
-      all_proxy: '',
-    },
-  });
-
-  return { app, userDataRoot };
-}
-
-async function closeElectron(app: ElectronApplication): Promise<void> {
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-  await Promise.race([
-    app.close().finally(() => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    }),
-    new Promise<void>((resolve) => {
-      timeoutId = setTimeout(() => {
-        app.process()?.kill('SIGKILL');
-        resolve();
-      }, 5000);
-    }),
-  ]).catch(() => {
-    app.process()?.kill('SIGKILL');
-  });
-}
+import { MANUAL_MARKDOWN_PATH } from './notesManualSegments';
 
 test.describe('notes manual markdown performance', () => {
   test.setTimeout(120_000);
@@ -71,16 +17,12 @@ test.describe('notes manual markdown performance', () => {
     const manualMarkdown = await fs.readFile(MANUAL_MARKDOWN_PATH, 'utf8');
     expect(manualMarkdown.trim().length).toBeGreaterThan(0);
 
-    const { app, userDataRoot } = await launchIsolatedElectron();
+    const { app, userDataRoot } = await launchIsolatedElectron('notes-manual-performance');
     const milkdownTimings: string[] = [];
 
     try {
       await app.firstWindow();
-      const [page] = app.windows();
-      if (!page) {
-        throw new Error('Electron did not create a window');
-      }
-      await waitForE2EBridge(page);
+      const [page] = await getOpenBridgePages(app, 1);
 
       page.on('console', (message) => {
         const text = message.text();
@@ -418,8 +360,7 @@ test.describe('notes manual markdown performance', () => {
       expect(blockScanRepeatMetrics.blockCount).toBeGreaterThan(0);
       expect(programmaticBlockSelectionMetrics.results.length).toBeGreaterThan(0);
     } finally {
-      await closeElectron(app);
-      await fs.rm(userDataRoot, { recursive: true, force: true }).catch(() => {});
+      await cleanupIsolatedElectron(app, userDataRoot);
     }
   });
 });
