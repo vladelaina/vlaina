@@ -38,7 +38,7 @@ export function LanguageTab() {
   ];
 
   return (
-    <div className="max-w-3xl pb-10">
+    <div className="max-w-3xl pb-10" data-settings-tab-panel="language">
       <SettingsSectionHeader>{t('account.language')}</SettingsSectionHeader>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -48,6 +48,8 @@ export function LanguageTab() {
             <button
               key={option.value}
               type="button"
+              data-settings-language-option={option.value}
+              data-selected={selected ? 'true' : undefined}
               onClick={() => setLanguagePreference(option.value)}
               className={cn(
                 'group flex min-h-[var(--vlaina-size-56px)] cursor-pointer items-center justify-between gap-4 rounded-[var(--vlaina-radius-22px)] px-6 py-3 text-left transition-all duration-[var(--vlaina-duration-200)] border border-transparent',

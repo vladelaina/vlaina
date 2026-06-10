@@ -209,6 +209,9 @@ function UserMessageInner({
 
               <div className="flex items-center gap-1">
                 <button
+                  type="button"
+                  aria-label="Copy message"
+                  data-chat-message-action="copy"
                   onClick={handleCopy}
                   className={userMessageActionButtonClass}
                 >
@@ -216,6 +219,9 @@ function UserMessageInner({
                 </button>
 
                 <button
+                  type="button"
+                  aria-label="Edit message"
+                  data-chat-message-action="edit"
                   onClick={handleStartEditing}
                   className={cn(
                     'flex h-7 w-7 items-center justify-center',

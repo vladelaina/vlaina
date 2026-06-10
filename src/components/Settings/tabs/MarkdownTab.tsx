@@ -35,7 +35,7 @@ export function MarkdownTab() {
   );
 
   return (
-    <div className="max-w-3xl pb-10">
+    <div className="max-w-3xl pb-10" data-settings-tab-panel="markdown">
       <div className={cn('mb-8 flex items-center justify-between gap-4 rounded-full px-6 py-3 text-[var(--vlaina-font-13)] text-[var(--vlaina-sidebar-notes-text-soft)]', chatComposerPillSurfaceClass)}>
         <span>{t('settings.markdown.shortcutHint')}</span>
         <ShortcutKeys
@@ -46,20 +46,24 @@ export function MarkdownTab() {
       <SettingsSectionHeader>{t('settings.markdown.editing')}</SettingsSectionHeader>
       <div className="space-y-1">
         <SettingsItem
+          data-settings-item="markdown-typewriter-mode"
           title={t('settings.markdown.typewriterMode')}
           description={t('settings.markdown.typewriterModeDescription')}
         >
           <SettingsSwitch
+            data-settings-control="markdown-typewriter-mode"
             checked={typewriterMode}
             onChange={setMarkdownTypewriterMode}
             activeColor="bg-[var(--vlaina-sidebar-row-selected-text)]"
           />
         </SettingsItem>
         <SettingsItem
+          data-settings-item="markdown-body-line-numbers"
           title={t('settings.markdown.bodyLineNumbers')}
           description={t('settings.markdown.bodyLineNumbersDescription')}
         >
           <SettingsSwitch
+            data-settings-control="markdown-body-line-numbers"
             checked={showBodyLineNumbers}
             onChange={setMarkdownBodyLineNumbers}
             activeColor="bg-[var(--vlaina-sidebar-row-selected-text)]"

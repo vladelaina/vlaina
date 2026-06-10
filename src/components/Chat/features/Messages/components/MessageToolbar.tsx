@@ -154,6 +154,9 @@ export const MessageToolbar = memo(function MessageToolbar({
             
             {showCopyAction && (
               <button
+                  type="button"
+                  aria-label="Copy message"
+                  data-chat-message-action="copy"
                   onClick={handleCopy}
                   className={cn("flex h-7 w-7 items-center justify-center", iconButtonStyles, chatComposerGhostIconButtonClass, sidebarTextIconButtonClass)}
               >
@@ -162,7 +165,13 @@ export const MessageToolbar = memo(function MessageToolbar({
             )}
 
             {!isCopyClosing && (
-              <button onClick={onRegenerate} className={cn("flex h-7 w-7 items-center justify-center", iconButtonStyles, chatComposerGhostIconButtonClass, secondaryActionClass, sidebarTextIconButtonClass)}>
+              <button
+                type="button"
+                aria-label="Regenerate response"
+                data-chat-message-action="regenerate"
+                onClick={onRegenerate}
+                className={cn("flex h-7 w-7 items-center justify-center", iconButtonStyles, chatComposerGhostIconButtonClass, secondaryActionClass, sidebarTextIconButtonClass)}
+              >
                 <Icon name="common.refresh" size="md" />
               </button>
             )}

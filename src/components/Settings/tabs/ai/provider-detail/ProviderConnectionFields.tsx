@@ -186,6 +186,7 @@ export function ProviderConnectionFields({
           <div className="flex-1">
             <SettingsTextInput
               type="text"
+              data-settings-provider-field="name"
               value={name}
               onChange={(e) => onNameChange(e.target.value)}
               onFocus={(event) => selectDefaultChannelName(event.currentTarget)}
@@ -208,6 +209,7 @@ export function ProviderConnectionFields({
           <div className="flex-1">
             <SettingsTextInput
               type="text"
+              data-settings-provider-field="api-host"
               value={apiHost}
               onChange={(e) => onApiHostChange(e.target.value)}
               placeholder="https://api.openai.com"
@@ -236,6 +238,7 @@ export function ProviderConnectionFields({
             <SettingsTextInput
               ref={apiKeyInputRef}
               type="text"
+              data-settings-provider-field="api-key"
               value={apiKeyDisplayValue}
               onChange={(e) => onApiKeyChange(e.target.value)}
               onFocus={() => {
@@ -258,6 +261,7 @@ export function ProviderConnectionFields({
                 <div className="flex items-center gap-1 pr-1">
                   <button
                     type="button"
+                    data-settings-provider-action="toggle-api-key"
                     onClick={handleApiKeyVisibilityToggle}
                     className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--vlaina-sidebar-notes-text-soft)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-sidebar-notes-text)]"
                     aria-label={apiKeyVisible ? t('settings.ai.hideApiKey') : t('settings.ai.showApiKey')}
@@ -266,6 +270,7 @@ export function ProviderConnectionFields({
                   </button>
                   <button
                     type="button"
+                    data-settings-provider-action="copy-api-key"
                     onClick={onCopyApiKey}
                     disabled={!apiKey}
                     data-action="copy"

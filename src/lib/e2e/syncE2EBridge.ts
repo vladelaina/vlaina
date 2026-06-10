@@ -16,6 +16,7 @@ import {
   getImportedMarkdownThemesDirectoryPath,
   syncImportedMarkdownThemesFromDirectory,
 } from '@/lib/markdown/theme-compatibility/importedThemeStorage';
+import { buildScopedModelId } from '@/lib/ai/utils';
 import type { ImportedMarkdownThemeMetadata } from '@/lib/markdown/theme-compatibility/types';
 import { getVaultSystemStorePath } from '@/stores/notes/systemStoragePaths';
 import { flushStarredRegistry } from '@/stores/notes/starred';
@@ -26,7 +27,7 @@ import { dispatchBlockSelectionAction } from '@/components/Notes/features/Editor
 import { floatingToolbarKey } from '@/components/Notes/features/Editor/plugins/floating-toolbar/floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from '@/components/Notes/features/Editor/plugins/floating-toolbar/types';
 import type { UnifiedData } from '@/lib/storage/unifiedStorageTypes';
-import type { ChatMessage, ChatSession } from '@/lib/ai/types';
+import type { ChatMessage, ChatSession, MessageVersion } from '@/lib/ai/types';
 import type { NotesState, StarredEntry } from '@/stores/notes/types';
 import type { ManagedBudgetStatus } from '@/lib/ai/managedService';
 import type { VaultInfo } from '@/stores/useVaultStore';
@@ -43,6 +44,14 @@ export interface E2EBridge {
     apiHost?: string;
     apiKey?: string;
     enabled?: boolean;
+    endpointTypeCheckedAt?: number;
+  }): Promise<string>;
+  addModel(input: {
+    providerId: string;
+    apiModelId?: string;
+    name?: string;
+    enabled?: boolean;
+    selected?: boolean;
   }): Promise<string>;
   deleteProvider(id: string): Promise<void>;
   setTimezone(offset: number, city: string): Promise<void>;
@@ -78,9 +87,18 @@ export interface E2EBridge {
       title: string;
       preloadMessages?: boolean;
       messages: Array<{
+        id?: string;
         role: ChatMessage['role'];
         content: string;
         modelId?: string;
+        imageSources?: string[];
+        apiTranscript?: ChatMessage['apiTranscript'];
+        versions?: Array<{
+          content: string;
+          kind?: MessageVersion['kind'];
+          createdAt?: number;
+        }>;
+        currentVersionIndex?: number;
       }>;
     }>;
     activeSessionIndex?: number;
@@ -188,6 +206,8 @@ export interface E2EBridge {
     sidebarWidth: number;
     imageStorageMode: string;
     imageSubfolderName: string;
+    imageVaultSubfolderName: string;
+    imageFilenameFormat: string;
     notesChatPanelCollapsed: boolean;
   };
   setUIPreferences(input: {
@@ -376,25 +396,105 @@ function editorTextHasMark(text: string, markName: string, anchorText?: string):
   return view.state.doc.rangeHasMark(range.from, range.to, markType);
 }
 
+function normalizeE2EMessageVersions(
+  message: {
+    role: ChatMessage['role'];
+    content: string;
+    versions?: Array<{
+      content: string;
+      kind?: MessageVersion['kind'];
+      createdAt?: number;
+    }>;
+    currentVersionIndex?: number;
+  },
+  fallbackCreatedAt: number,
+): { versions: MessageVersion[]; currentVersionIndex: number; content: string } | null {
+  if (!message.versions?.length && typeof message.currentVersionIndex !== 'number') {
+    return null;
+  }
+
+  const sourceVersions = message.versions?.length
+    ? message.versions
+    : [{ content: message.content, kind: 'original' as const, createdAt: fallbackCreatedAt }];
+  const versions = sourceVersions.map((version, index): MessageVersion => {
+    const kind = version.kind ?? (
+      index === 0
+        ? 'original'
+        : message.role === 'assistant'
+          ? 'regeneration'
+          : message.role === 'user'
+            ? 'edit'
+            : 'original'
+    );
+    return {
+      content: version.content,
+      createdAt: version.createdAt ?? fallbackCreatedAt + index,
+      kind,
+      subsequentMessages: [],
+    };
+  });
+  const requestedIndex = Number.isInteger(message.currentVersionIndex)
+    ? message.currentVersionIndex!
+    : 0;
+  const currentVersionIndex = Math.min(Math.max(requestedIndex, 0), versions.length - 1);
+  return {
+    versions,
+    currentVersionIndex,
+    content: versions[currentVersionIndex]?.content ?? message.content,
+  };
+}
+
 async function focusCurrentEditor(): Promise<boolean> {
   const view = getCurrentEditorView();
   if (!view) return false;
+
+  const hasEditorFocus = () => {
+    const selection = document.getSelection();
+    const selectionInEditor = Boolean(
+      selection &&
+      ((selection.anchorNode && view.dom.contains(selection.anchorNode)) ||
+        (selection.focusNode && view.dom.contains(selection.focusNode)))
+    );
+    return (
+      document.activeElement === view.dom ||
+      view.dom.contains(document.activeElement) ||
+      view.hasFocus() ||
+      selectionInEditor
+    );
+  };
 
   window.focus();
   view.dom.focus({ preventScroll: true });
   view.focus();
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-  return document.activeElement === view.dom || view.dom.contains(document.activeElement);
+  return hasEditorFocus();
 }
 
 async function focusCurrentEditorAtEnd(): Promise<boolean> {
   const view = getCurrentEditorView();
   if (!view) return false;
 
+  const hasEditorFocus = () => {
+    const selection = document.getSelection();
+    const selectionInEditor = Boolean(
+      selection &&
+      ((selection.anchorNode && view.dom.contains(selection.anchorNode)) ||
+        (selection.focusNode && view.dom.contains(selection.focusNode)))
+    );
+    return (
+      document.activeElement === view.dom ||
+      view.dom.contains(document.activeElement) ||
+      view.hasFocus() ||
+      selectionInEditor
+    );
+  };
+
   if (document.activeElement instanceof HTMLElement && document.activeElement !== view.dom) {
     document.activeElement.blur();
   }
   window.focus();
+  view.dom.focus({ preventScroll: true });
+  view.focus();
   const { doc, schema } = view.state;
   const paragraph = schema.nodes.paragraph;
   let tr = view.state.tr;
@@ -407,13 +507,19 @@ async function focusCurrentEditorAtEnd(): Promise<boolean> {
     tr = tr.setSelection(TextSelection.atEnd(tr.doc));
   }
   tr = tr
+    .setMeta(floatingToolbarKey, { type: TOOLBAR_ACTIONS.HIDE })
     .setStoredMarks(null)
     .scrollIntoView();
   view.dispatch(tr);
   view.dom.focus({ preventScroll: true });
   view.focus();
   await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-  return document.activeElement === view.dom;
+  if (!hasEditorFocus()) {
+    view.dom.focus({ preventScroll: true });
+    view.focus();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  }
+  return hasEditorFocus();
 }
 
 export function installSyncE2EBridge(): void {
@@ -433,12 +539,29 @@ export function installSyncE2EBridge(): void {
         name: input.name,
         type: 'newapi',
         endpointType: 'openai',
+        ...(typeof input.endpointTypeCheckedAt === 'number' ? { endpointTypeCheckedAt: input.endpointTypeCheckedAt } : {}),
         apiHost: input.apiHost ?? 'https://example.invalid/v1',
         apiKey: input.apiKey ?? '',
         enabled: input.enabled ?? true,
       });
       await flushPendingSave();
       return id;
+    },
+    addModel: async (input) => {
+      const apiModelId = input.apiModelId ?? `e2e-model-${Date.now().toString(36)}`;
+      providerActions.addModel({
+        providerId: input.providerId,
+        apiModelId,
+        id: buildScopedModelId(input.providerId, apiModelId),
+        name: input.name ?? apiModelId,
+        enabled: input.enabled ?? true,
+      });
+      const modelId = buildScopedModelId(input.providerId, apiModelId);
+      if (input.selected !== false) {
+        providerActions.selectModel(modelId);
+      }
+      await flushPendingSave();
+      return modelId;
     },
     deleteProvider: async (id) => {
       providerActions.deleteProvider(id);
@@ -517,10 +640,13 @@ export function installSyncE2EBridge(): void {
         sessionIds.push(sessionId);
 
         for (const message of session.messages) {
-          chatActions.addMessage(
+          const messageId = chatActions.addMessage(
             {
+              id: message.id,
               role: message.role,
               content: message.content,
+              imageSources: message.imageSources,
+              apiTranscript: message.apiTranscript,
               modelId: message.modelId ?? '',
             },
             sessionId,
@@ -529,6 +655,33 @@ export function installSyncE2EBridge(): void {
               touchSession: true,
             },
           );
+          if (!messageId) {
+            continue;
+          }
+
+          const normalizedVersions = normalizeE2EMessageVersions(message, Date.now());
+          if (!normalizedVersions) {
+            continue;
+          }
+
+          const state = useUnifiedStore.getState();
+          const ai = state.data.ai;
+          const sessionMessages = ai?.messages[sessionId] ?? [];
+          state.updateAIData({
+            messages: {
+              ...(ai?.messages ?? {}),
+              [sessionId]: sessionMessages.map((existingMessage) =>
+                existingMessage.id === messageId
+                  ? {
+                      ...existingMessage,
+                      content: normalizedVersions.content,
+                      versions: normalizedVersions.versions,
+                      currentVersionIndex: normalizedVersions.currentVersionIndex,
+                    }
+                  : existingMessage
+              ),
+            },
+          }, true);
         }
       }
 
@@ -801,6 +954,8 @@ export function installSyncE2EBridge(): void {
         sidebarWidth,
         imageStorageMode,
         imageSubfolderName,
+        imageVaultSubfolderName,
+        imageFilenameFormat,
         notesChatPanelCollapsed,
       } = useUIStore.getState();
       return {
@@ -809,6 +964,8 @@ export function installSyncE2EBridge(): void {
         sidebarWidth,
         imageStorageMode,
         imageSubfolderName,
+        imageVaultSubfolderName,
+        imageFilenameFormat,
         notesChatPanelCollapsed,
       };
     },

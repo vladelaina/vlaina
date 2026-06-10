@@ -83,11 +83,21 @@ interface SettingsItemProps {
     description?: string;
     children: ReactNode;
     className?: string;
+    'data-settings-item'?: string;
 }
 
-export function SettingsItem({ title, description, children, className }: SettingsItemProps) {
+export function SettingsItem({
+    title,
+    description,
+    children,
+    className,
+    'data-settings-item': dataSettingsItem,
+}: SettingsItemProps) {
     return (
-        <div className={cn("flex items-center justify-between px-6 py-4 mb-3 rounded-[var(--vlaina-radius-22px)]", chatComposerPillSurfaceClass, className)}>
+        <div
+            data-settings-item={dataSettingsItem}
+            className={cn("flex items-center justify-between px-6 py-4 mb-3 rounded-[var(--vlaina-radius-22px)]", chatComposerPillSurfaceClass, className)}
+        >
             <div className="flex-1 pr-8">
                 <div className="text-[var(--vlaina-font-sm)] font-semibold text-[var(--vlaina-sidebar-notes-text)] mb-0.5">
                     {title}

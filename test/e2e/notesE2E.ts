@@ -17,6 +17,8 @@ export const CHAT_SCROLLABLE_SELECTOR = '[data-chat-scrollable="true"]';
 export const CHAT_SESSION_ROW_SELECTOR = '[data-chat-sidebar-session-row="true"]';
 export const CHAT_MESSAGE_SELECTOR = '[data-message-item="true"]';
 export const CHAT_COMPOSER_TEXTAREA_SELECTOR = '[data-chat-input="true"] textarea';
+export const CHAT_MESSAGE_ACTION_SELECTOR = '[data-chat-message-action]';
+export const CHAT_MESSAGE_EDITOR_SELECTOR = '[data-chat-message-editor="true"]';
 export const CHAT_IMAGE_VIEWER_SURFACE_SELECTOR = '[data-chat-image-viewer-surface="true"]';
 export const CHAT_IMAGE_VIEWER_CONTROL_SELECTOR = '[data-chat-image-viewer-control="true"]';
 export const NOTE_IMAGE_BLOCK_SELECTOR = `${EDITOR_SELECTOR} .image-block-container`;
@@ -44,9 +46,17 @@ export type ChatFixtureSession = {
   title: string;
   preloadMessages?: boolean;
   messages: Array<{
+    id?: string;
     role: 'user' | 'assistant' | 'system';
     content: string;
     modelId?: string;
+    imageSources?: string[];
+    versions?: Array<{
+      content: string;
+      kind?: 'original' | 'regeneration' | 'edit';
+      createdAt?: number;
+    }>;
+    currentVersionIndex?: number;
   }>;
 };
 
@@ -245,6 +255,34 @@ export async function createChatFixture(
   },
 ): Promise<{ sessionIds: string[]; activeSessionId: string | null }> {
   return page.evaluate((fixture) => (window as any).__vlainaE2E.createChatFixture(fixture), input);
+}
+
+export async function createChatModelFixture(
+  page: Page,
+  input: {
+    providerName?: string;
+    apiHost?: string;
+    apiModelId?: string;
+    modelName?: string;
+  } = {},
+): Promise<{ providerId: string; modelId: string }> {
+  const providerId = await page.evaluate((providerInput) =>
+    (window as any).__vlainaE2E.addProvider({
+      name: providerInput.providerName ?? 'E2E Local Provider',
+      apiHost: providerInput.apiHost ?? 'http://127.0.0.1:9/v1',
+      apiKey: 'e2e-key',
+      enabled: true,
+      endpointTypeCheckedAt: Date.now(),
+    }), input);
+  const modelId = await page.evaluate((modelInput) =>
+    (window as any).__vlainaE2E.addModel({
+      providerId: modelInput.providerId,
+      apiModelId: modelInput.apiModelId ?? 'e2e-local-model',
+      name: modelInput.modelName ?? 'E2E Local Model',
+      enabled: true,
+      selected: true,
+    }), { ...input, providerId });
+  return { providerId, modelId };
 }
 
 export async function getNoteContentCacheEntry(page: Page, notePath: string): Promise<{
