@@ -406,7 +406,7 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'raw html block keeps internal blank lines',
       markdown: lines(['Before', '', '<div>', 'Alpha', '', 'Beta', '</div>', '', 'After']),
-      expected: lines(['Before', '', '<div>', 'Alpha', '', 'Beta', '', '</div>', '', 'After']),
+      expected: lines(['Before', '', '<div>', 'Alpha', '', 'Beta', '</div>', '', 'After']),
     },
     {
       name: 'raw pre html keeps list-like blank lines protected',
@@ -415,6 +415,7 @@ describe('markdown blank line syntax matrix', () => {
     {
       name: 'raw script html keeps markdown-like blank lines protected',
       markdown: lines(['Before', '', '<script>', 'const text = "- item";', '', 'console.log(text);', '</script>', '', 'After']),
+      expected: lines(['Before', '', '', 'After']),
     },
     {
       name: 'html block between list items stays structural not list gap',

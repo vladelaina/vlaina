@@ -16,6 +16,12 @@ describe('sanitizeHtml', () => {
     expect(result).not.toContain('alert(1)');
   });
 
+  it('preserves the authored newline after an opening pre tag', () => {
+    expect(sanitizeHtml(['<pre>', '- not a list', '', '- still pre', '</pre>'].join('\n'))).toBe(
+      ['<pre>', '- not a list', '', '- still pre', '</pre>'].join('\n'),
+    );
+  });
+
   it('keeps safe attributes while removing id class and data attributes', () => {
     const result = sanitizeHtml(
       '<p class="x" id="y" role="note" data-test="z">safe</p><div itemscope itemtype="schema/Thing" data-token="1">thing</div>',

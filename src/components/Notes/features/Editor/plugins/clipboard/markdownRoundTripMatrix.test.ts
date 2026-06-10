@@ -162,7 +162,7 @@ describe('markdown syntax persistence matrix', () => {
         '<mark style="BACKGROUND-COLOR: #ecf6ff">a * b &amp; c</mark>',
       ].join(' '),
       expected: [
-        '<span style="font-weight: 600; COLOR: #123456">Use *literal* \\[text] "quote"</span>',
+        '<span style="font-weight: 600; color: #123456">Use <em>literal</em> [text] "quote"</span>',
         '<mark style="background-color: #ecf6ff">a * b &amp; c</mark>',
       ].join(' '),
       expectedText: 'Use literal [text] "quote" a * b & c',
@@ -170,11 +170,13 @@ describe('markdown syntax persistence matrix', () => {
     {
       name: 'custom inline color html with nested inline markdown',
       markdown: '<span style="color : #123456"><em>nested</em></span> <mark style="background-color : #ecf6ff"><strong>bold</strong></mark>',
+      expected: '<span style="color: #123456"><em>nested</em></span> <mark style="background-color: #ecf6ff"><strong>bold</strong></mark>',
       expectedText: 'nested bold',
     },
     {
       name: 'unsupported inline span html stays standard markdown html',
       markdown: '<span data-note="keep">plain &lt; text</span>',
+      expected: '<span>plain &lt; text</span>',
       expectedText: 'plain < text',
     },
     {

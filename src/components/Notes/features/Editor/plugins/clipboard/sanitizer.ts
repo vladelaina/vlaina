@@ -21,6 +21,7 @@ import { stripGithubDroppedRawHtmlContent } from '@/lib/notes/markdown/githubRaw
 const MAX_SANITIZE_DEPTH = 200;
 const MAX_SANITIZE_NODES = 20_000;
 const MAX_SANITIZE_HTML_CHARS = 2 * 1024 * 1024;
+const PRE_INITIAL_NEWLINE_SENTINEL = '\uE000VLAINA_PRE_INITIAL_NEWLINE\uE000';
 
 interface SanitizeContext {
   visitedNodes: number;
@@ -217,12 +218,20 @@ export function sanitizeHtml(html: string): string {
 
   try {
     const template = document.createElement('template');
-    template.innerHTML = stripGithubDroppedRawHtmlContent(html);
+    template.innerHTML = protectPreInitialNewlines(stripGithubDroppedRawHtmlContent(html));
 
     const output = document.createElement('template');
     sanitizeChildren(template.content, output.content, { visitedNodes: 0 }, 1);
-    return output.innerHTML;
+    return restorePreInitialNewlines(output.innerHTML);
   } catch {
     return '';
   }
+}
+
+function protectPreInitialNewlines(html: string): string {
+  return html.replace(/(<pre(?:\s[^>]*)?>)\n/gi, `$1${PRE_INITIAL_NEWLINE_SENTINEL}`);
+}
+
+function restorePreInitialNewlines(html: string): string {
+  return html.replaceAll(PRE_INITIAL_NEWLINE_SENTINEL, '\n');
 }

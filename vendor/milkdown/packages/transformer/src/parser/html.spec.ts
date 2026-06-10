@@ -43,6 +43,16 @@ function createTree(
   } as MarkdownNode
 }
 
+function createBlockTree(
+  markdown: string,
+  parts: Array<{ type: string; value?: string; children?: MarkdownNode[]; source?: string }>
+): MarkdownNode {
+  return {
+    type: 'root',
+    children: createPositionedInlineNodes(markdown, parts),
+  } as MarkdownNode
+}
+
 function paragraphChildren(tree: MarkdownNode): MarkdownNode[] {
   return tree.children?.[0]?.children ?? []
 }
@@ -134,6 +144,32 @@ describe('mergePairedInlineHtml', () => {
       },
       { type: 'text', value: '\n' },
       { type: 'html', value: '</search>' },
+    ])
+
+    const result = mergePairedInlineHtml(tree, markdown)
+
+    expect(result).toMatchObject({
+      type: 'root',
+      children: [
+        {
+          type: 'html',
+          value: markdown,
+          githubHtmlBlock: true,
+        },
+      ],
+    })
+  })
+
+  it('restores raw source for paired block html split by markdown blank lines', () => {
+    const markdown = '<div>\nAlpha\n\nBeta\n</div>'
+    const tree = createBlockTree(markdown, [
+      { type: 'html', value: '<div>\nAlpha' },
+      {
+        type: 'paragraph',
+        children: [{ type: 'text', value: 'Beta' }] as MarkdownNode[],
+        source: 'Beta',
+      },
+      { type: 'html', value: '</div>' },
     ])
 
     const result = mergePairedInlineHtml(tree, markdown)
