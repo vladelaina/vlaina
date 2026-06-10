@@ -1,4 +1,4 @@
-import { Fragment, useDeferredValue, useState, useRef, useEffect, useMemo, memo, useCallback, type CSSProperties, type RefObject } from 'react'
+import { Fragment, useDeferredValue, useState, useRef, useEffect, useLayoutEffect, useMemo, memo, useCallback, type CSSProperties, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Icon } from '@/components/ui/icons'
@@ -51,6 +51,7 @@ type ModelSelectorListRow =
 const MODEL_SELECTOR_LABEL_HEIGHT = 34
 const MODEL_SELECTOR_ROW_HEIGHT = 40
 const MODEL_SELECTOR_DROPDOWN_WIDTH = 432
+const MODEL_SELECTOR_DROPDOWN_FALLBACK_MAX_HEIGHT = 460
 const MODEL_SELECTOR_DROPDOWN_MAX_HEIGHT = 'min(460px, calc(100vh - 96px))'
 const MODEL_SELECTOR_LIST_HEIGHT = 'min(386px, calc(100vh - 170px))'
 const monochromeModelIconClass = 'dark:invert dark:brightness-[1.08] dark:contrast-[0.92] dark:opacity-[0.92]'
@@ -220,6 +221,7 @@ interface ModelSelectorProps {
   onSelectModel?: (modelId: string) => void
   theme?: ModelSelectorTheme
   isEmbedded?: boolean
+  dropdownLayerClassName?: string
   focusSearchOnOpen?: boolean
   restoreComposerFocusOnClose?: boolean
 }
@@ -231,6 +233,7 @@ export function ModelSelector({
   onSelectModel,
   theme = 'chat',
   isEmbedded = false,
+  dropdownLayerClassName = "z-[var(--vlaina-z-50)]",
   focusSearchOnOpen = true,
   restoreComposerFocusOnClose = true,
 }: ModelSelectorProps) {
@@ -490,26 +493,43 @@ export function ModelSelector({
 
       const triggerRect = dropdownRef.current.getBoundingClientRect();
       const viewportPadding = 12;
+      const viewportAvailableWidth = Math.max(0, window.innerWidth - viewportPadding * 2);
+      const dropdownWidth = Math.min(MODEL_SELECTOR_DROPDOWN_WIDTH, viewportAvailableWidth);
+      const measuredHeight = dropdownContentRef.current?.getBoundingClientRect().height ?? 0;
+      const viewportAvailableHeight = Math.max(0, window.innerHeight - viewportPadding * 2);
+      const fallbackHeight = Math.min(
+          MODEL_SELECTOR_DROPDOWN_FALLBACK_MAX_HEIGHT,
+          Math.max(0, window.innerHeight - 96),
+      );
+      const dropdownHeight = Math.min(
+          measuredHeight > 0 ? measuredHeight : fallbackHeight,
+          viewportAvailableHeight,
+      );
+      const preferredLeft = dropdownAlign === 'left'
+          ? triggerRect.left
+          : triggerRect.right - dropdownWidth;
       const left = Math.max(
           viewportPadding,
           Math.min(
-              triggerRect.right - MODEL_SELECTOR_DROPDOWN_WIDTH,
-              window.innerWidth - MODEL_SELECTOR_DROPDOWN_WIDTH - viewportPadding,
+              preferredLeft,
+              window.innerWidth - dropdownWidth - viewportPadding,
           ),
       );
-      const top = dropdownPlacement === 'bottom'
+      const preferredTop = dropdownPlacement === 'bottom'
           ? triggerRect.bottom + 4
-          : triggerRect.top - 4;
+          : triggerRect.top - dropdownHeight - 4;
+      const maxTop = Math.max(viewportPadding, window.innerHeight - dropdownHeight - viewportPadding);
+      const top = Math.max(viewportPadding, Math.min(preferredTop, maxTop));
 
       setEmbeddedDropdownStyle({
           left,
           top,
-          width: MODEL_SELECTOR_DROPDOWN_WIDTH,
+          width: dropdownWidth,
           maxHeight: MODEL_SELECTOR_DROPDOWN_MAX_HEIGHT,
       });
-  }, [dropdownPlacement, isEmbedded]);
+  }, [dropdownAlign, dropdownPlacement, isEmbedded]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
       if (!isOpen || !isEmbedded) {
           setEmbeddedDropdownStyle(null);
           return;
@@ -691,9 +711,11 @@ export function ModelSelector({
             "max-w-[var(--vlaina-width-model-selector-max)]",
             "rounded-[var(--vlaina-radius-26px)]",
             chatComposerPillSurfaceClass,
-            "backdrop-blur-[var(--vlaina-backdrop-blur-lg)] z-[var(--vlaina-z-50)] overflow-hidden flex flex-col",
+            "backdrop-blur-[var(--vlaina-backdrop-blur-lg)] overflow-hidden flex flex-col",
+            dropdownLayerClassName,
             "animate-in fade-in duration-[var(--vlaina-duration-75)] zoom-in-95"
           )}
+          data-model-selector-dropdown="true"
           style={isEmbedded
             ? embeddedDropdownStyle ?? {
                 width: MODEL_SELECTOR_DROPDOWN_WIDTH,

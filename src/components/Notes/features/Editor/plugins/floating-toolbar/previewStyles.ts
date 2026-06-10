@@ -27,7 +27,9 @@ const FORMAT_MARKS: Record<string, string> = {
   highlight: 'highlight',
 };
 
-const MAX_APPLIED_PREVIEW_DOC_SIZE = 1024 * 1024;
+// Large notes should not clone the full editor DOM for hover-only previews.
+const MAX_APPLIED_PREVIEW_DOC_SIZE = 256 * 1024;
+const MAX_APPLIED_PREVIEW_DOM_ELEMENTS = 2_500;
 
 let previewOverlay: {
   key: string;
@@ -74,7 +76,24 @@ function hasMatchingPreview(view: EditorView, key: string): boolean {
 
 function canRenderAppliedPreview(view: EditorView): boolean {
   const docSize = view.state.doc.content.size;
-  return typeof docSize === 'number' && docSize <= MAX_APPLIED_PREVIEW_DOC_SIZE;
+  if (typeof docSize !== 'number' || docSize > MAX_APPLIED_PREVIEW_DOC_SIZE) {
+    return false;
+  }
+
+  if (!(view.dom instanceof HTMLElement)) {
+    return true;
+  }
+
+  const walker = view.dom.ownerDocument.createTreeWalker(view.dom, 1);
+  let scanned = 0;
+  while (walker.nextNode()) {
+    scanned += 1;
+    if (scanned > MAX_APPLIED_PREVIEW_DOM_ELEMENTS) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function createAppliedPreviewDom(
