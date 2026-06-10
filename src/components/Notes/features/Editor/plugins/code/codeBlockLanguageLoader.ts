@@ -8,6 +8,7 @@ type SupportedLanguageDescription = LanguageDescription & {
 
 const MAX_CUSTOM_LANGUAGE_ID_CHARS = 64;
 const CUSTOM_LANGUAGE_ID_PATTERN = /^[a-z0-9][a-z0-9+._#-]*$/;
+const PLAIN_EDITING_LANGUAGE_IDS = new Set(['markdown', 'md']);
 
 export interface CodeBlockLanguageInfo {
   id: string;
@@ -104,6 +105,10 @@ export class CodeBlockLanguageLoader {
   load(languageName: string | null | undefined) {
     const normalizedLanguageId = this.normalizeLanguageId(languageName);
     if (!normalizedLanguageId) {
+      return Promise.resolve(undefined);
+    }
+
+    if (PLAIN_EDITING_LANGUAGE_IDS.has(normalizedLanguageId)) {
       return Promise.resolve(undefined);
     }
 

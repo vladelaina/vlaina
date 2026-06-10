@@ -1,6 +1,7 @@
 import { Node } from '@milkdown/kit/prose/model';
+import { TextSelection } from '@milkdown/kit/prose/state';
 import { EditorView, NodeView } from '@milkdown/kit/prose/view';
-import { Compartment, EditorState } from '@codemirror/state';
+import { Compartment, EditorState, Transaction } from '@codemirror/state';
 import {
   EditorView as CodeMirror,
   drawSelection,
@@ -21,6 +22,7 @@ import {
   createCodeBlockEditorClipboardHandlers,
   createCodeBlockEditorKeymap,
   createCodeBlockEditorTheme,
+  mapCodeBlockEditorOffsetToDocumentOffset,
   mapDocumentOffsetToCodeBlockEditorOffset,
   normalizeCodeBlockEditorText,
 } from './codemirror';
@@ -40,6 +42,8 @@ import { themeLazyLoadTokens } from '@/styles/themeTokens';
 type CodeBlockNodeViewOptions = {
   lazyCodeMirror?: boolean;
 };
+
+const FOCUSED_CODE_BLOCK_FORWARD_DEBOUNCE_MS = 80;
 
 export class CodeBlockNodeView implements NodeView {
   dom: HTMLElement;
@@ -65,6 +69,7 @@ export class CodeBlockNodeView implements NodeView {
   private selected = false;
   private headerStateKey = '';
   private pendingMeasureFrame: number | null = null;
+  private pendingForwardTimer: number | null = null;
   private disposeFontMetricsSync: () => void = () => {};
   private unsubscribeSettings: () => void = () => {};
   private unsubscribeSelectionSync: () => void = () => {};
@@ -77,9 +82,21 @@ export class CodeBlockNodeView implements NodeView {
   private mirroredOuterSelection = false;
   private languageClassName: string | null = null;
 
+  private isPasteUpdate(update: ViewUpdate) {
+    return update.transactions.some((transaction) => {
+      const userEvent = transaction.annotation(Transaction.userEvent);
+      return userEvent === 'input.paste' || userEvent?.startsWith('input.paste.');
+    });
+  }
+
   private readonly clearEditorSelectionOnBlur = (event: FocusEvent) => {
     if (!this.cm) {
       return;
+    }
+
+    if (this.pendingForwardTimer !== null) {
+      this.clearPendingForwardUpdate();
+      this.forwardFocusedCodeMirrorSnapshot();
     }
 
     if (!(event.relatedTarget instanceof globalThis.Node)) {
@@ -360,6 +377,12 @@ export class CodeBlockNodeView implements NodeView {
       return;
     }
 
+    if (update.docChanged && this.cm?.hasFocus && !this.isPasteUpdate(update)) {
+      this.view.dom.dispatchEvent(new CustomEvent('editor:block-user-input', { bubbles: true }));
+      this.scheduleForwardFocusedCodeMirrorSnapshot();
+      return;
+    }
+
     const tr = forwardCodeBlockUpdate(update, this.view, this.getPos);
     if (tr) {
       if (update.docChanged) {
@@ -371,6 +394,77 @@ export class CodeBlockNodeView implements NodeView {
       }
     }
   };
+
+  private scheduleForwardFocusedCodeMirrorSnapshot() {
+    const window = this.getOwnerWindow();
+    if (!window) {
+      this.forwardFocusedCodeMirrorSnapshot();
+      return;
+    }
+
+    if (this.pendingForwardTimer !== null) {
+      window.clearTimeout(this.pendingForwardTimer);
+    }
+
+    this.pendingForwardTimer = window.setTimeout(() => {
+      this.pendingForwardTimer = null;
+      this.forwardFocusedCodeMirrorSnapshot();
+    }, FOCUSED_CODE_BLOCK_FORWARD_DEBOUNCE_MS);
+  }
+
+  private clearPendingForwardUpdate() {
+    const window = this.getOwnerWindow();
+    if (window && this.pendingForwardTimer !== null) {
+      window.clearTimeout(this.pendingForwardTimer);
+    }
+    this.pendingForwardTimer = null;
+  }
+
+  private forwardFocusedCodeMirrorSnapshot() {
+    if (!this.cm || this.updating || this.destroyed) {
+      return;
+    }
+
+    const codeBlockPos = this.getPos();
+    if (codeBlockPos === undefined) {
+      return;
+    }
+
+    const currentNode = typeof this.view.state.doc.nodeAt === 'function'
+      ? this.view.state.doc.nodeAt(codeBlockPos)
+      : null;
+    if (!currentNode || currentNode.type !== this.node.type) {
+      return;
+    }
+
+    const currentText = normalizeCodeBlockEditorText(currentNode.textContent);
+    const nextText = this.cm.state.doc.toString();
+    const change = computeCodeBlockChange(currentText, nextText);
+    const codeBlockStart = codeBlockPos + 1;
+    const tr = this.view.state.tr;
+
+    if (change) {
+      const from = codeBlockStart + change.from;
+      const to = codeBlockStart + change.to;
+      if (change.text.length > 0) {
+        tr.replaceWith(from, to, this.view.state.schema.text(change.text));
+      } else {
+        tr.delete(from, to);
+      }
+    }
+
+    const { main } = this.cm.state.selection;
+    const nextSelectionFrom =
+      codeBlockStart + mapCodeBlockEditorOffsetToDocumentOffset(nextText, main.from);
+    const nextSelectionTo =
+      codeBlockStart + mapCodeBlockEditorOffsetToDocumentOffset(nextText, main.to);
+
+    tr.setSelection(TextSelection.create(tr.doc, nextSelectionFrom, nextSelectionTo));
+    if (change || this.view.state.selection.from !== nextSelectionFrom || this.view.state.selection.to !== nextSelectionTo) {
+      this.view.dispatch(tr);
+    }
+    this.mirroredOuterSelection = false;
+  }
 
   private syncCollapsedState() {
     const nextCollapsedState = Boolean(this.node.attrs.collapsed);
@@ -552,6 +646,7 @@ export class CodeBlockNodeView implements NodeView {
       return false;
     }
 
+    this.clearPendingForwardUpdate();
     this.node = node;
     this.syncThemeCompatibilityAttrs();
     if (!this.cm && this.placeholderDOM) {
@@ -688,6 +783,7 @@ export class CodeBlockNodeView implements NodeView {
       window.cancelAnimationFrame(this.pendingMeasureFrame);
       this.pendingMeasureFrame = null;
     }
+    this.clearPendingForwardUpdate();
     this.unsubscribeSettings();
     this.unsubscribeSelectionSync();
     this.disposeFontMetricsSync();

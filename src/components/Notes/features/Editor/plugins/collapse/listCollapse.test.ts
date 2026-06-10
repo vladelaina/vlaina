@@ -4,6 +4,8 @@ import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import {
   MAX_LIST_COLLAPSE_CHILD_SCAN_NODES,
+  buildListCollapsePluginState,
+  canMapListCollapsePluginState,
   findNestedListCollapseRange,
   listCollapsePlugin,
 } from './listCollapse';
@@ -139,6 +141,50 @@ describe('listCollapsePlugin', () => {
     view.dispatch(view.state.tr.insert(0, paragraph));
 
     expect(view.dom.querySelector('.editor-collapsed-content')).not.toBeNull();
+
+    await editor.destroy();
+  });
+
+  it('maps list collapse decorations for ordinary paragraph input after existing nested lists', async () => {
+    const editor = await createEditor('- Parent\n  - Child\n\nTail');
+    const view = editor.ctx.get(editorViewCtx);
+    const pluginState = buildListCollapsePluginState(view.state.doc, new Set(), () => undefined);
+    const tr = view.state.tr.insertText(' typed', view.state.doc.content.size - 1);
+
+    expect(canMapListCollapsePluginState(pluginState, tr, view.state.doc, tr.doc)).toBe(true);
+
+    await editor.destroy();
+  });
+
+  it('rescans list collapse decorations when edits can move existing list toggle positions', async () => {
+    const editor = await createEditor('- Parent\n  - Child\n\nTail');
+    const view = editor.ctx.get(editorViewCtx);
+    const pluginState = buildListCollapsePluginState(view.state.doc, new Set(), () => undefined);
+    const tr = view.state.tr.insertText('Intro\n\n', 0);
+
+    expect(canMapListCollapsePluginState(pluginState, tr, view.state.doc, tr.doc)).toBe(false);
+
+    await editor.destroy();
+  });
+
+  it('rescans list collapse decorations for edits inside list structure', async () => {
+    const editor = await createEditor('- Parent\n  - Child\n\nTail');
+    const view = editor.ctx.get(editorViewCtx);
+    const pluginState = buildListCollapsePluginState(view.state.doc, new Set(), () => undefined);
+    const tr = view.state.tr.insertText(' typed', 4);
+
+    expect(canMapListCollapsePluginState(pluginState, tr, view.state.doc, tr.doc)).toBe(false);
+
+    await editor.destroy();
+  });
+
+  it('rescans list collapse decorations while any item is collapsed', async () => {
+    const editor = await createEditor('- Parent\n  - Child\n\nTail');
+    const view = editor.ctx.get(editorViewCtx);
+    const pluginState = buildListCollapsePluginState(view.state.doc, new Set([1]), () => undefined);
+    const tr = view.state.tr.insertText(' typed', view.state.doc.content.size - 1);
+
+    expect(canMapListCollapsePluginState(pluginState, tr, view.state.doc, tr.doc)).toBe(false);
 
     await editor.destroy();
   });

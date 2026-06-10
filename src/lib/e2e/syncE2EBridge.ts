@@ -117,7 +117,7 @@ export interface E2EBridge {
     from: number;
     to: number;
   }>;
-  selectEditorTextByText(text: string): Promise<{
+  selectEditorTextByText(text: string, anchorText?: string): Promise<{
     selected: boolean;
     from: number | null;
     to: number | null;
@@ -131,7 +131,8 @@ export interface E2EBridge {
     docTextLength: number;
   } | null;
   focusCurrentEditor(): Promise<boolean>;
-  editorTextHasMark(text: string, markName: string): boolean;
+  focusCurrentEditorAtEnd(): Promise<boolean>;
+  editorTextHasMark(text: string, markName: string, anchorText?: string): boolean;
   getEditorToolbarDebugState(): {
     selection: ReturnType<typeof getEditorSelectionSummary>;
     activeElement: {
@@ -249,13 +250,13 @@ async function waitForUnifiedLoaded(): Promise<void> {
   });
 }
 
-function findEditorTextRange(text: string): { from: number; to: number } | null {
+function findEditorTextRange(text: string, anchorText?: string): { from: number; to: number } | null {
   const view = getCurrentEditorView();
   if (!view || !text) return null;
 
-  let range: { from: number; to: number } | null = null;
+  const ranges: Array<{ from: number; to: number }> = [];
   view.state.doc.descendants((node, pos) => {
-    if (range || !node.isText || typeof node.text !== 'string') {
+    if (!node.isText || typeof node.text !== 'string') {
       return;
     }
 
@@ -267,10 +268,34 @@ function findEditorTextRange(text: string): { from: number; to: number } | null 
     const from = pos + index;
     const to = from + text.length;
     if (view.state.doc.textBetween(from, to, '\n') === text) {
-      range = { from, to };
+      ranges.push({ from, to });
     }
   });
-  return range;
+
+  if (!ranges.length) {
+    return null;
+  }
+  if (!anchorText) {
+    return ranges[0] ?? null;
+  }
+
+  const docText = view.state.doc.textBetween(0, view.state.doc.content.size, '\n');
+  const anchorDocIndex = docText.lastIndexOf(anchorText);
+  if (anchorDocIndex < 0) {
+    return ranges[0] ?? null;
+  }
+
+  let bestRange = ranges[0] ?? null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const candidate of ranges) {
+    const prefix = view.state.doc.textBetween(0, candidate.from, '\n');
+    const distance = Math.abs(prefix.length - anchorDocIndex);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestRange = candidate;
+    }
+  }
+  return bestRange;
 }
 
 function getEditorSelectionSummary() {
@@ -340,9 +365,9 @@ function getEditorToolbarDebugState() {
   };
 }
 
-function editorTextHasMark(text: string, markName: string): boolean {
+function editorTextHasMark(text: string, markName: string, anchorText?: string): boolean {
   const view = getCurrentEditorView();
-  const range = findEditorTextRange(text);
+  const range = findEditorTextRange(text, anchorText);
   if (!view || !range) return false;
 
   const markType = view.state.schema.marks[markName];
@@ -360,6 +385,35 @@ async function focusCurrentEditor(): Promise<boolean> {
   view.focus();
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   return document.activeElement === view.dom || view.dom.contains(document.activeElement);
+}
+
+async function focusCurrentEditorAtEnd(): Promise<boolean> {
+  const view = getCurrentEditorView();
+  if (!view) return false;
+
+  if (document.activeElement instanceof HTMLElement && document.activeElement !== view.dom) {
+    document.activeElement.blur();
+  }
+  window.focus();
+  const { doc, schema } = view.state;
+  const paragraph = schema.nodes.paragraph;
+  let tr = view.state.tr;
+  if (paragraph) {
+    const insertPos = doc.content.size;
+    tr = tr
+      .insert(insertPos, paragraph.create())
+      .setSelection(TextSelection.create(tr.doc, insertPos + 1));
+  } else {
+    tr = tr.setSelection(TextSelection.atEnd(tr.doc));
+  }
+  tr = tr
+    .setStoredMarks(null)
+    .scrollIntoView();
+  view.dispatch(tr);
+  view.dom.focus({ preventScroll: true });
+  view.focus();
+  await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  return document.activeElement === view.dom;
 }
 
 export function installSyncE2EBridge(): void {
@@ -586,9 +640,9 @@ export function installSyncE2EBridge(): void {
         to: target.range.to,
       }));
     },
-    selectEditorTextByText: async (text) => {
+    selectEditorTextByText: async (text, anchorText) => {
       const view = getCurrentEditorView();
-      const range = findEditorTextRange(text);
+      const range = findEditorTextRange(text, anchorText);
       if (!view || !range) {
         return {
           selected: false,
@@ -625,6 +679,7 @@ export function installSyncE2EBridge(): void {
     },
     getEditorSelectionSummary,
     focusCurrentEditor,
+    focusCurrentEditorAtEnd,
     editorTextHasMark,
     getEditorToolbarDebugState,
     writeClipboardText: async (text) => {
