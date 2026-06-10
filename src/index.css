@@ -298,6 +298,57 @@ textarea,
   caret-color: transparent;
 }
 
+.appearance-font-size-slider::-webkit-slider-runnable-track {
+  height: var(--vlaina-size-6px);
+  background: transparent;
+}
+
+.appearance-font-size-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--vlaina-size-4px);
+  height: var(--vlaina-size-26px);
+  margin-top: calc((var(--vlaina-size-6px) - var(--vlaina-size-26px)) / 2);
+  border: 0;
+  border-radius: var(--vlaina-radius-pill);
+  background: var(--vlaina-sidebar-row-selected-text);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--vlaina-sidebar-row-selected-text) 18%, transparent);
+  transition: width var(--vlaina-duration-150), height var(--vlaina-duration-150), margin-top var(--vlaina-duration-150), box-shadow var(--vlaina-duration-150), background-color var(--vlaina-duration-150);
+}
+
+.appearance-font-size-slider:hover::-webkit-slider-thumb,
+.appearance-font-size-slider:active::-webkit-slider-thumb {
+  width: var(--vlaina-size-5px);
+  height: var(--vlaina-size-30px);
+  margin-top: calc((var(--vlaina-size-6px) - var(--vlaina-size-30px)) / 2);
+  background: var(--vlaina-accent);
+  box-shadow: 0 0 0 3px var(--vlaina-accent-light);
+}
+
+.appearance-font-size-slider::-moz-range-track {
+  height: var(--vlaina-size-6px);
+  border: 0;
+  background: transparent;
+}
+
+.appearance-font-size-slider::-moz-range-thumb {
+  width: var(--vlaina-size-4px);
+  height: var(--vlaina-size-26px);
+  border: 0;
+  border-radius: var(--vlaina-radius-pill);
+  background: var(--vlaina-sidebar-row-selected-text);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--vlaina-sidebar-row-selected-text) 18%, transparent);
+  transition: width var(--vlaina-duration-150), height var(--vlaina-duration-150), box-shadow var(--vlaina-duration-150), background-color var(--vlaina-duration-150);
+}
+
+.appearance-font-size-slider:hover::-moz-range-thumb,
+.appearance-font-size-slider:active::-moz-range-thumb {
+  width: var(--vlaina-size-5px);
+  height: var(--vlaina-size-30px);
+  background: var(--vlaina-accent);
+  box-shadow: 0 0 0 3px var(--vlaina-accent-light);
+}
+
 @keyframes chat-sidebar-elastic-step {
   0% {
     clip-path: inset(0 100% 0 0);
