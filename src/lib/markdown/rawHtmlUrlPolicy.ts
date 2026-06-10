@@ -8,6 +8,10 @@ import {
   sanitizeGithubIframeSandbox,
 } from '@/lib/notes/markdown/githubHtmlPolicy';
 import { sanitizeNoteLinkHref } from '@/lib/notes/markdown/urlSecurity';
+import {
+  normalizeRenderableImageSrc,
+  normalizeRenderableImageSrcset,
+} from './renderableImagePolicy';
 
 const SAFE_RAW_HTML_MEDIA_SRC_SCHEMES = new Set(['http:', 'https:']);
 const SAFE_RAW_HTML_LINK_SRC_SCHEMES = new Set(['http:', 'https:', 'mailto:']);
@@ -29,10 +33,10 @@ const RAW_HTML_URL_ATTRIBUTES_BY_TAG: Record<string, readonly string[]> = {
   blockquote: ['cite'],
   del: ['cite'],
   iframe: ['src'],
-  img: ['longDesc'],
+  img: ['src', 'longDesc'],
   ins: ['cite'],
   q: ['cite'],
-  source: ['src'],
+  source: ['src', 'srcSet', 'srcset'],
   track: ['src'],
   video: ['poster', 'src'],
 };
@@ -98,6 +102,12 @@ function normalizeRawHtmlMediaUrl(value: unknown): string | null {
 
 function normalizeRawHtmlUrlAttribute(tagName: string, attributeName: string, value: unknown): string | null {
   if (tagName === 'a' && attributeName === 'href') return normalizeRawHtmlLinkUrl(value);
+  if (tagName === 'img' && attributeName === 'src') {
+    return typeof value === 'string' ? normalizeRenderableImageSrc(value) : null;
+  }
+  if (tagName === 'source' && (attributeName === 'srcSet' || attributeName === 'srcset')) {
+    return typeof value === 'string' ? normalizeRenderableImageSrcset(value) : null;
+  }
   if (attributeName === 'cite') {
     return typeof value === 'string'
       ? normalizeGithubUrl(value, SAFE_RAW_HTML_LINK_SRC_SCHEMES, { allowPlainRelative: true, blockLocalNetwork: true })
@@ -165,8 +175,6 @@ export function sanitizeRawHtmlUrlProperties(node: any): void {
         delete node.properties.allow;
       }
     }
-    node.properties.referrerPolicy = typeof node.properties.referrerPolicy === 'string'
-      ? node.properties.referrerPolicy
-      : 'no-referrer';
+    node.properties.referrerPolicy = 'no-referrer';
   }
 }

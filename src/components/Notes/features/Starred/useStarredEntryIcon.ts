@@ -93,7 +93,7 @@ function getFreshStarredIconCacheEntry(
     return null;
   }
 
-  const canValidateCache = modifiedAt !== null || size !== null;
+  const canValidateCache = modifiedAt !== null;
   if (!canValidateCache || cached.modifiedAt !== modifiedAt || cached.size !== size) {
     return null;
   }
@@ -122,7 +122,7 @@ export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
   );
   const [icon, setIcon] = useState<string | undefined>(() => {
     const cached = pathContext ? starredIconCache.get(pathContext.cacheKey) : null;
-    return cached?.icon ?? undefined;
+    return cached?.modifiedAt !== null ? cached?.icon ?? undefined : undefined;
   });
 
   useEffect(() => {

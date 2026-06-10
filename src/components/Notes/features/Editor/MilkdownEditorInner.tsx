@@ -128,8 +128,8 @@ function logE2EMilkdownTiming(label: string, detail: Record<string, unknown>): v
 const LARGE_PLAIN_MARKDOWN_FAST_PARSE_MIN_LENGTH = 1_000_000;
 const MARKDOWN_BLANK_LINE_COMMENT = '<!--vlaina-markdown-blank-line-->';
 const FAST_PARSE_DISALLOWED_TEXT_PATTERN = /[`*_~[\]()<>\\|&]/;
-const FAST_PARSE_HEADING_PATTERN = /^(#{1,6})[ \t]+(.+)$/;
-const FAST_PARSE_STRUCTURAL_LINE_PATTERN = /^(?: {0,3})(?:[-+*]\s+|\d+[.)]\s+|[-*_][ \t]*[-*_][ \t]*[-*_][ \t]*$|=+[ \t]*$)/;
+const FAST_PARSE_HEADING_PATTERN = /^(#{1,6})(?:[ \t]+(.*)|[ \t]*)$/;
+const FAST_PARSE_STRUCTURAL_LINE_PATTERN = /^(?: {0,3})(?:[-+*]\s+|\d+[.)]\s+|(?:[-*_][ \t]*){3,}$|=+[ \t]*$)/;
 
 export function shouldUseLazyBlockVisibility(markdown: string): boolean {
   return createLargePlainMarkdownDocJSON(markdown) !== null;
@@ -172,7 +172,7 @@ export function createLargePlainMarkdownDocJSON(markdown: string): ProseMirrorJS
 
     const headingMatch = FAST_PARSE_HEADING_PATTERN.exec(line);
     if (headingMatch) {
-      const text = (headingMatch[2] ?? '').replace(/[ \t]+#+[ \t]*$/, '').trimEnd();
+      const text = (headingMatch[2] ?? '').replace(/(?:^|[ \t]+)#+[ \t]*$/, '').trimEnd();
       if (!text || FAST_PARSE_DISALLOWED_TEXT_PATTERN.test(text)) {
         return null;
       }

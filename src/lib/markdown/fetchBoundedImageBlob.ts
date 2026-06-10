@@ -12,6 +12,17 @@ interface FetchBoundedImageBlobOptions {
   signal?: AbortSignal;
 }
 
+export function createSafeImageFetchInit(fetchInit?: RequestInit, signal?: AbortSignal): RequestInit {
+  const init: RequestInit = { ...(fetchInit ?? {}) };
+  const effectiveSignal = signal ?? fetchInit?.signal;
+  if (effectiveSignal) {
+    init.signal = effectiveSignal;
+  }
+  init.credentials = 'omit';
+  init.referrerPolicy = 'no-referrer';
+  return init;
+}
+
 function getMaxBytes(options: FetchBoundedImageBlobOptions | undefined): number {
   const maxBytes = options?.maxBytes;
   return typeof maxBytes === 'number' && Number.isFinite(maxBytes) && maxBytes >= 0
@@ -164,9 +175,7 @@ export async function fetchBoundedImageBlobResult(
   src: string,
   options?: FetchBoundedImageBlobOptions,
 ): Promise<BoundedImageBlobFetchResult> {
-  const response = options?.fetchInit === undefined
-    ? await fetch(src)
-    : await fetch(src, options.fetchInit);
+  const response = await fetch(src, createSafeImageFetchInit(options?.fetchInit, options?.signal));
   return readBoundedImageBlobResponse(response, options);
 }
 

@@ -92,6 +92,107 @@ describe('importExternalMarkdownEntries', () => {
     expect(mocks.storage.copyFile).not.toHaveBeenCalled();
   });
 
+  it('keeps importing later files when one top-level path cannot be statted', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => {
+      if (path === '/outside/locked.md') {
+        throw new Error('Permission denied');
+      }
+      return {
+        isFile: true,
+        isDirectory: false,
+        size: 1024,
+      };
+    });
+    mocks.resolveUniquePath.mockResolvedValue({
+      relativePath: 'imports/alpha.md',
+      fullPath: '/vault/imports/alpha.md',
+      fileName: 'alpha.md',
+    });
+
+    const result = await importExternalMarkdownEntries('/vault', 'imports', [
+      '/outside/locked.md',
+      '/outside/alpha.md',
+    ]);
+
+    expect(result).toEqual({
+      importedNotePaths: ['imports/alpha.md'],
+      importedFolderPaths: [],
+      didImport: true,
+    });
+    expect(mocks.storage.copyFile).toHaveBeenCalledWith('/outside/alpha.md', '/vault/imports/alpha.md');
+  });
+
+  it('keeps importing later files when one target path cannot be resolved', async () => {
+    mocks.storage.stat.mockResolvedValue({
+      isFile: true,
+      isDirectory: false,
+      size: 1024,
+    });
+    mocks.resolveUniquePath.mockImplementation(async (
+      _vaultPath: string,
+      _folderPath: string | undefined,
+      name: string,
+    ) => {
+      if (name === 'locked.md') {
+        throw new Error('Cannot resolve target');
+      }
+      return {
+        relativePath: `imports/${name}`,
+        fullPath: `/vault/imports/${name}`,
+        fileName: name,
+      };
+    });
+
+    const result = await importExternalMarkdownEntries('/vault', 'imports', [
+      '/outside/locked.md',
+      '/outside/alpha.md',
+    ]);
+
+    expect(result).toEqual({
+      importedNotePaths: ['imports/alpha.md'],
+      importedFolderPaths: [],
+      didImport: true,
+    });
+    expect(mocks.storage.copyFile).not.toHaveBeenCalledWith('/outside/locked.md', expect.any(String));
+    expect(mocks.storage.copyFile).toHaveBeenCalledWith('/outside/alpha.md', '/vault/imports/alpha.md');
+  });
+
+  it('keeps importing later files when one target directory cannot be created', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isDirectory: path === '/outside/locked',
+      isFile: path !== '/outside/locked',
+      size: path.endsWith('.md') ? 1024 : undefined,
+    }));
+    mocks.storage.mkdir.mockRejectedValueOnce(new Error('Permission denied'));
+    mocks.resolveUniquePath.mockImplementation(
+      async (_vaultPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
+        const relativePath = folderPath
+          ? `${folderPath}/${name}`
+          : isDirectory
+            ? `imports/${name}`
+            : `imports/${name}`;
+        return {
+          relativePath,
+          fullPath: `/vault/${relativePath}`,
+          fileName: name,
+        };
+      },
+    );
+
+    const result = await importExternalMarkdownEntries('/vault', 'imports', [
+      '/outside/locked',
+      '/outside/alpha.md',
+    ]);
+
+    expect(result).toEqual({
+      importedNotePaths: ['imports/alpha.md'],
+      importedFolderPaths: [],
+      didImport: true,
+    });
+    expect(mocks.storage.listDir).not.toHaveBeenCalledWith('/outside/locked', expect.anything());
+    expect(mocks.storage.copyFile).toHaveBeenCalledWith('/outside/alpha.md', '/vault/imports/alpha.md');
+  });
+
   it('imports markdown files from folders and ignores non-markdown files', async () => {
     mocks.storage.stat.mockImplementation(async (path: string) => ({
       isDirectory: path === '/outside/docs' || path === '/outside/docs/guides',
@@ -490,6 +591,31 @@ describe('importExternalMarkdownEntries', () => {
     });
 
     const result = await resolveExternalMarkdownEntriesForStarred('/vault', ['/outside/alpha.md']);
+
+    expect(result).toEqual([{
+      kind: 'note',
+      vaultPath: '/outside',
+      relativePath: 'alpha.md',
+    }]);
+    expect(mocks.resolveUniquePath).not.toHaveBeenCalled();
+    expect(mocks.storage.copyFile).not.toHaveBeenCalled();
+  });
+
+  it('keeps resolving later starred targets when one top-level path cannot be statted', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => {
+      if (path === '/outside/locked.md') {
+        throw new Error('Permission denied');
+      }
+      return {
+        isFile: true,
+        isDirectory: false,
+      };
+    });
+
+    const result = await resolveExternalMarkdownEntriesForStarred('/vault', [
+      '/outside/locked.md',
+      '/outside/alpha.md',
+    ]);
 
     expect(result).toEqual([{
       kind: 'note',

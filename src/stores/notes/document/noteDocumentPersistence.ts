@@ -133,6 +133,10 @@ function hasKnownFileSizeChanged(cachedSize: number | null | undefined, diskSize
   return typeof cachedSize === 'number' && diskSize !== null && cachedSize !== diskSize;
 }
 
+function shouldVerifyDiskContentWithoutModifiedAt(diskModifiedAt: number | null, diskSize: number | null): boolean {
+  return diskModifiedAt == null && diskSize !== null;
+}
+
 export function assertEditorSafeMarkdownContent(content: string): void {
   if (content.length > MAX_NOTE_DOCUMENT_CHARS) {
     throw new Error('Note file is too large to open.');
@@ -185,7 +189,9 @@ export async function loadNoteDocument({
       }
       const diskModifiedAt = fileInfo?.modifiedAt ?? null;
       const diskSize = getKnownFileSize(fileInfo);
+      const shouldVerifyMissingModifiedAt = shouldVerifyDiskContentWithoutModifiedAt(diskModifiedAt, diskSize);
       if (
+        shouldVerifyMissingModifiedAt ||
         (diskModifiedAt != null && diskModifiedAt !== cachedModifiedAt) ||
         hasKnownFileSizeChanged(cachedEntry?.size, diskSize)
       ) {
@@ -258,13 +264,15 @@ export async function saveNoteDocument({
   const cachedEntry = cache.get(notePath);
   const cachedModifiedAt = cachedEntry?.modifiedAt ?? null;
   const knownFileSizeChanged = hasKnownFileSizeChanged(cachedEntry?.size, diskSize);
+  const shouldVerifyMissingModifiedAt = shouldVerifyDiskContentWithoutModifiedAt(diskModifiedAt, diskSize);
   const shouldCompareDiskContent =
     cachedEntry !== undefined &&
-    (diskModifiedAt != null || knownFileSizeChanged) &&
+    (diskModifiedAt != null || knownFileSizeChanged || shouldVerifyMissingModifiedAt) &&
     (cachedEntry.savedContent !== undefined ||
       cachedModifiedAt == null ||
       diskModifiedAt !== cachedModifiedAt ||
-      knownFileSizeChanged);
+      knownFileSizeChanged ||
+      shouldVerifyMissingModifiedAt);
   if (shouldCompareDiskContent && cachedEntry !== undefined) {
     assertReadableNoteFileInfo(fileInfoBeforeWrite);
     const diskContent = await storage.readFile(fullPath);

@@ -131,6 +131,36 @@ it('should reject credentialed urls in github html', () => {
   expect(result).toContain('<img src="https://example.com/safe.png">')
 })
 
+it('should sanitize iframe allow permissions in github html', () => {
+  const result = sanitizeGithubHtml(
+    '<iframe src="https://example.com/embed" allow="fullscreen; camera *; microphone *; clipboard-write; encrypted-media; fullscreen" referrerpolicy="unsafe-url"></iframe>',
+  )
+
+  expect(result).toContain('allow="fullscreen; clipboard-write; encrypted-media"')
+  expect(result).toContain('referrerpolicy="no-referrer"')
+  expect(result).not.toContain('camera')
+  expect(result).not.toContain('microphone')
+  expect(result).not.toContain('unsafe-url')
+})
+
+it('should drop scheme-bearing non-url attributes in github html', () => {
+  const result = sanitizeGithubHtml([
+    '<abbr title="javascript:alert(1)">abbr</abbr>',
+    '<abbr title="java&#10;script:alert(1)">wrapped abbr</abbr>',
+    '<time datetime="data:text/html,<script>alert(1)</script>">time</time>',
+    '<time datetime="da&#9;ta:text/html,<script>alert(1)</script>">wrapped time</time>',
+    '<span title="safe text">safe</span>',
+  ].join(''))
+
+  expect(result).toContain('<abbr>abbr</abbr>')
+  expect(result).toContain('<abbr>wrapped abbr</abbr>')
+  expect(result).toContain('<time>time</time>')
+  expect(result).toContain('<time>wrapped time</time>')
+  expect(result).toContain('<span title="safe text">safe</span>')
+  expect(result).not.toContain('javascript:')
+  expect(result).not.toContain('data:text/html')
+})
+
 it('should drop internal relative media paths in github html', () => {
   const result = sanitizeGithubHtml([
     '<img src=".vlaina/private.png">',

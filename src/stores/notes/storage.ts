@@ -264,7 +264,7 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
             };
           }
 
-          const canUseCache = modifiedAt !== null || size !== null;
+          const canUseCache = modifiedAt !== null;
           const cached = vaultCache.get(relativePath);
           if (canUseCache && cached && cached.modifiedAt === modifiedAt && cached.size === size) {
             nextCache.set(relativePath, cached);

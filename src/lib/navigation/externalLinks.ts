@@ -24,6 +24,9 @@ export function normalizeExternalHref(href: string | null | undefined): string |
     if (!EXTERNAL_PROTOCOLS.has(url.protocol)) {
       return null;
     }
+    if (url.username || url.password) {
+      return null;
+    }
     if ((url.protocol === "http:" || url.protocol === "https:") && isLocalNetworkHttpUrl(url.toString())) {
       return null;
     }

@@ -14,6 +14,7 @@ vi.mock('@/lib/storage/adapter', () => ({
   }),
   isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
   joinPath: async (...segments: string[]) => segments.join('/').replace(/\/+/g, '/'),
+  normalizeAbsolutePath: (path: string) => path.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/\/+$/, ''),
 }));
 
 describe('useStarredEntryIcon', () => {
@@ -77,6 +78,45 @@ describe('useStarredEntryIcon', () => {
 
     await waitFor(() => {
       expect(second.result.current).toBe('📘');
+    });
+    expect(mocked.readFile).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not reuse a cached starred note icon when stat has size but no modified time', async () => {
+    mocked.stat.mockResolvedValueOnce({ size: 32 });
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "first"\n---\n# Alpha');
+
+    const first = renderHook(() =>
+      useStarredEntryIcon({
+        id: 'starred-no-mtime',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/no-mtime.md',
+        addedAt: 1,
+      }, true),
+    );
+
+    await waitFor(() => {
+      expect(first.result.current).toBe('first');
+    });
+    first.unmount();
+
+    mocked.stat.mockResolvedValueOnce({ size: 32 });
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "second"\n---\n# Alpha');
+
+    const second = renderHook(() =>
+      useStarredEntryIcon({
+        id: 'starred-no-mtime',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/no-mtime.md',
+        addedAt: 1,
+      }, true),
+    );
+
+    expect(second.result.current).toBeUndefined();
+    await waitFor(() => {
+      expect(second.result.current).toBe('second');
     });
     expect(mocked.readFile).toHaveBeenCalledTimes(2);
   });

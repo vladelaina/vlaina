@@ -252,4 +252,19 @@ describe('useAbsoluteNoteExternalRenameSync', () => {
 
     hook.unmount();
   });
+
+  it('falls back to focus polling when the absolute note watcher fails unexpectedly', async () => {
+    hoisted.watchDesktopPath.mockRejectedValueOnce(new Error('Permission denied'));
+
+    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('/external/docs/current.md'));
+
+    await act(async () => {
+      await Promise.resolve();
+      window.dispatchEvent(new Event('focus'));
+    });
+
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalledWith({ force: true });
+
+    hook.unmount();
+  });
 });

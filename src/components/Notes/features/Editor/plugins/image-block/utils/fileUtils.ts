@@ -2,7 +2,7 @@ import { moveDesktopItemToTrash } from '@/lib/desktop/trash';
 import { isImageFilename } from '@/lib/assets/core/naming';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePathCandidates } from './imageSourcePath';
-import { readBoundedImageBlobResponse } from '@/lib/markdown/fetchBoundedImageBlob';
+import { createSafeImageFetchInit, readBoundedImageBlobResponse } from '@/lib/markdown/fetchBoundedImageBlob';
 import { sanitizeSvgBytes } from '@/lib/markdown/svgSanitizer';
 import { sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 
@@ -53,7 +53,7 @@ export async function ensureImageFileExists(
             return;
         }
 
-        const response = await fetch(blobUrl);
+        const response = await fetch(blobUrl, createSafeImageFetchInit());
         const result = await readBoundedImageBlobResponse(response, {
             maxBytes: MAX_RESTORED_IMAGE_BYTES,
         });

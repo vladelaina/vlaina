@@ -291,6 +291,27 @@ describe('useNotesExternalSync', () => {
     hoisted.notesState.notesPath = '/vault';
   });
 
+  it('falls back to polling when native watch startup fails unexpectedly', async () => {
+    hoisted.watchDesktopPath.mockRejectedValueOnce(new Error('Permission denied'));
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(hoisted.watchDesktopPath).toHaveBeenCalledWith(
+      '/vault',
+      expect.any(Function),
+      { recursive: true },
+    );
+    expect(buildExternalTreeSnapshot).toHaveBeenCalled();
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalled();
+    expect(hoisted.releaseWatcher).not.toHaveBeenCalled();
+
+    hook.unmount();
+  });
+
   it('applies external deletions before reloading the tree', async () => {
     const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
 

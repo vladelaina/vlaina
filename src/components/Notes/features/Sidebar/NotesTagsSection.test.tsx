@@ -273,6 +273,57 @@ describe('NotesTagsSection', () => {
     expect(mocked.readFile).toHaveBeenCalledTimes(2);
   });
 
+  it('does not reuse cached tag note icon metadata when stat has size but no modified time', async () => {
+    mocked.stat.mockResolvedValueOnce({ isFile: true, size: 32 });
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "first"\n---\n# Alpha');
+
+    const first = render(
+      <NotesTagsSection
+        tags={[
+          {
+            tag: 'no-mtime-cache-topic',
+            count: 1,
+            paths: [{ path: 'docs/no-mtime-tag-icon.md', query: '#no-mtime-cache-topic', contentMatchOrdinal: 0 }],
+          },
+        ]}
+        getDisplayName={(path) => path}
+        onOpenNote={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText('no-mtime-cache-topic'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('note-icon')).toHaveTextContent('first');
+    });
+    first.unmount();
+
+    mocked.noteIcon.mockClear();
+    mocked.stat.mockResolvedValueOnce({ isFile: true, size: 32 });
+    mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "second"\n---\n# Alpha');
+
+    render(
+      <NotesTagsSection
+        tags={[
+          {
+            tag: 'no-mtime-cache-topic',
+            count: 1,
+            paths: [{ path: 'docs/no-mtime-tag-icon.md', query: '#no-mtime-cache-topic', contentMatchOrdinal: 0 }],
+          },
+        ]}
+        getDisplayName={(path) => path}
+        onOpenNote={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText('no-mtime-cache-topic'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('note-icon')).toHaveTextContent('second');
+    });
+    expect(mocked.readFile).toHaveBeenCalledTimes(2);
+  });
+
   it('does not reuse cached tag note icon metadata after the path stops being a readable file', async () => {
     mocked.stat.mockResolvedValueOnce({ isFile: true, modifiedAt: 1, size: 32 });
     mocked.readFile.mockResolvedValueOnce('---\nvlaina_icon: "stale"\n---\n# Alpha');

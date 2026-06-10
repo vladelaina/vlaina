@@ -328,6 +328,9 @@ describe('createLargePlainMarkdownDocJSON', () => {
       `- item ${paragraph}`,
       `1. item ${paragraph}`,
       `---`,
+      `----`,
+      `****`,
+      `_ _ _ _`,
       `===`,
     ];
 
@@ -337,6 +340,30 @@ describe('createLargePlainMarkdownDocJSON', () => {
         '',
         ...Array.from({ length: 1100 }, (_value, index) => (
           index === 100 ? structuralLine : `Paragraph ${index} ${paragraph}`
+        )),
+      ].join('\n\n');
+
+      expect(markdown.length).toBeGreaterThan(1_000_000);
+      expect(createLargePlainMarkdownDocJSON(markdown)).toBeNull();
+    }
+  });
+
+  it('rejects large markdown with empty atx headings', () => {
+    const paragraph = 'plain text '.repeat(120);
+    const cases = [
+      '#',
+      '###',
+      '### ',
+      '# #',
+      '## ##',
+    ];
+
+    for (const headingLine of cases) {
+      const markdown = [
+        '# Large Empty Heading Document',
+        '',
+        ...Array.from({ length: 1100 }, (_value, index) => (
+          index === 100 ? headingLine : `Paragraph ${index} ${paragraph}`
         )),
       ].join('\n\n');
 

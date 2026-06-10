@@ -55,8 +55,11 @@ function isInsideInternalExternalMarkdownPath(path: string) {
 }
 
 function hasUnsafeExternalMarkdownPathSegment(path: string) {
-  return path
-    .replace(/\\/g, '/')
+  const normalizedPath = path.replace(/\\/g, '/');
+  const pathWithoutDrive = /^[A-Za-z]:(?:\/|$)/.test(normalizedPath)
+    ? normalizedPath.slice(2)
+    : normalizedPath;
+  return pathWithoutDrive
     .split('/')
     .filter(Boolean)
     .some((segment) => !isSafeVaultPathSegment(segment));
@@ -110,12 +113,18 @@ async function importExternalMarkdownFile(
   targetFolderPath: string | undefined,
 ) {
   const storage = getStorageAdapter();
-  const { relativePath, fullPath } = await resolveUniquePath(
-    vaultPath,
-    targetFolderPath,
-    getBaseName(sourcePath),
-    false,
-  );
+  let resolvedPath: Awaited<ReturnType<typeof resolveUniquePath>>;
+  try {
+    resolvedPath = await resolveUniquePath(
+      vaultPath,
+      targetFolderPath,
+      getBaseName(sourcePath),
+      false,
+    );
+  } catch {
+    return null;
+  }
+  const { relativePath, fullPath } = resolvedPath;
 
   markExpectedExternalChange(fullPath);
   try {
@@ -175,15 +184,25 @@ async function importExternalMarkdownDirectory(
   }
 
   const storage = getStorageAdapter();
-  const { relativePath, fullPath } = await resolveUniquePath(
-    vaultPath,
-    targetFolderPath,
-    getBaseName(sourcePath),
-    true,
-  );
+  let resolvedPath: Awaited<ReturnType<typeof resolveUniquePath>>;
+  try {
+    resolvedPath = await resolveUniquePath(
+      vaultPath,
+      targetFolderPath,
+      getBaseName(sourcePath),
+      true,
+    );
+  } catch {
+    return 0;
+  }
+  const { relativePath, fullPath } = resolvedPath;
 
   markExpectedExternalChange(fullPath, true);
-  await storage.mkdir(fullPath, true);
+  try {
+    await storage.mkdir(fullPath, true);
+  } catch {
+    return 0;
+  }
 
   let copiedMarkdownCount = 0;
   let entries: Awaited<ReturnType<typeof storage.listDir>>;
@@ -275,7 +294,10 @@ export async function importExternalMarkdownEntries(
       continue;
     }
 
-    const info = await statExternalMarkdownPath(absolutePath);
+    const info = await statExternalMarkdownPath(absolutePath).catch(() => null);
+    if (!info) {
+      continue;
+    }
     if (info?.isDirectory) {
       if (shouldSkipExternalMarkdownDirectory(getBaseName(absolutePath))) {
         continue;
@@ -347,7 +369,10 @@ export async function resolveExternalMarkdownEntriesForStarred(
       continue;
     }
 
-    const info = await statExternalMarkdownPath(absolutePath);
+    const info = await statExternalMarkdownPath(absolutePath).catch(() => null);
+    if (!info) {
+      continue;
+    }
     const existingRelativePath = getExistingVaultRelativePath(vaultPath, absolutePath);
 
     if (existingRelativePath) {
