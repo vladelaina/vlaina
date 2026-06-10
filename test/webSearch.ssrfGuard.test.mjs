@@ -32,4 +32,8 @@ describe('web search SSRF guard', () => {
     expect(normalizePublicHttpUrl('https://example.com/path').toString()).toBe('https://example.com/path');
     expect(() => normalizePublicHttpUrl('file:///etc/passwd')).toThrow('Only HTTP and HTTPS URLs are supported.');
   });
+
+  it('rejects URLs with credentials', () => {
+    expect(() => normalizePublicHttpUrl('https://user:pass@example.com/path')).toThrow('URL credentials are not supported.');
+  });
 });

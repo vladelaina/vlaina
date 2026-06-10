@@ -82,6 +82,15 @@ function isLocalNetworkHostname(hostname: string): boolean {
   );
 }
 
+export function hasUrlCredentials(value: string): boolean {
+  try {
+    const url = new URL(value, getUrlBase());
+    return url.username.length > 0 || url.password.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 function isPrivateIPv6(hostname: string): boolean {
   const normalized = hostname.replace(/^\[|\]$/g, '').toLowerCase();
   if (!normalized.includes(':')) {
@@ -129,6 +138,8 @@ export function isPublicRemoteMediaUrl(value: unknown): boolean {
     const url = new URL(normalized, getUrlBase());
     return (
       (url.protocol === 'http:' || url.protocol === 'https:')
+      && !url.username
+      && !url.password
       && !isLocalNetworkHttpUrl(normalized)
     );
   } catch {
@@ -160,6 +171,7 @@ export function sanitizeNoteLinkHref(value: unknown): string | null {
   if (!scheme && hasInternalNoteAssetUrlPathSegment(trimmed)) return null;
   if (!scheme) return trimmed;
   const normalizedScheme = `${scheme}:`;
+  if ((normalizedScheme === 'http:' || normalizedScheme === 'https:') && hasUrlCredentials(trimmed)) return null;
   return SAFE_LINK_SCHEMES.has(normalizedScheme) ? trimmed : null;
 }
 
@@ -201,7 +213,8 @@ export function sanitizeNoteMediaSrc(value: unknown): string | null {
 
   if (trimmed.startsWith('//')) {
     if (trimmed.length > MAX_NOTE_REMOTE_MEDIA_URL_CHARS) return null;
-    return isLocalNetworkHttpUrl(`https:${trimmed}`) ? null : `https:${trimmed}`;
+    const normalized = `https:${trimmed}`;
+    return isLocalNetworkHttpUrl(normalized) || hasUrlCredentials(normalized) ? null : normalized;
   }
 
   const scheme = SCHEME_PATTERN.exec(trimmed)?.[1]?.toLowerCase();
@@ -224,6 +237,9 @@ export function sanitizeNoteMediaSrc(value: unknown): string | null {
     trimmed.length > MAX_NOTE_REMOTE_MEDIA_URL_CHARS
   ) return null;
   if (!SAFE_MEDIA_SCHEMES.has(normalizedScheme)) return null;
-  if ((normalizedScheme === 'http:' || normalizedScheme === 'https:') && isLocalNetworkHttpUrl(trimmed)) return null;
+  if (
+    (normalizedScheme === 'http:' || normalizedScheme === 'https:') &&
+    (isLocalNetworkHttpUrl(trimmed) || hasUrlCredentials(trimmed))
+  ) return null;
   return trimmed;
 }

@@ -37,6 +37,7 @@ export function isBlockedResultUrl(url, options = {}) {
     const hostname = parsed.hostname.replace(/^www\./, '').toLowerCase();
     const pathname = parsed.pathname.toLowerCase();
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return true;
+    if (parsed.username || parsed.password) return true;
     if (!hostname || hostname === 'localhost' || hostname.endsWith('.local') || hostname.endsWith('.internal')) return true;
     if (isBlockedIp(hostname)) return true;
     if (hostname === 'player.bilibili.com') return true;

@@ -100,7 +100,16 @@ export function normalizeRenderableImageSrc(src: string | null | undefined): str
   }
 
   if (trimmed.startsWith('//')) {
-    return isLocalNetworkHttpUrl(`https:${trimmed}`) ? null : `https:${trimmed}`;
+    const normalized = `https:${trimmed}`;
+    try {
+      const parsed = new URL(normalized);
+      if (parsed.username || parsed.password) {
+        return null;
+      }
+    } catch {
+      return null;
+    }
+    return isLocalNetworkHttpUrl(normalized) ? null : normalized;
   }
 
   if (isRelativePath(trimmed) || isBareRelativeImagePath(trimmed)) {
@@ -122,8 +131,13 @@ export function normalizeRenderableImageSrc(src: string | null | undefined): str
     if (!IMAGE_PROTOCOL_WHITELIST.has(parsed.protocol)) {
       return null;
     }
-    if ((parsed.protocol === 'http:' || parsed.protocol === 'https:') && isLocalNetworkHttpUrl(trimmed)) {
-      return null;
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      if (parsed.username || parsed.password) {
+        return null;
+      }
+      if (isLocalNetworkHttpUrl(trimmed)) {
+        return null;
+      }
     }
     return trimmed;
   } catch {

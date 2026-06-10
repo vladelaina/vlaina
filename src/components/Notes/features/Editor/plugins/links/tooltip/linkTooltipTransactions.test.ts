@@ -170,6 +170,10 @@ describe('link tooltip transactions', () => {
         expect(sanitizeTooltipLinkHref('https://example.com/docs')).toBe('https://example.com/docs');
     });
 
+    it('rejects credentialed HTTP links when edited from the tooltip', () => {
+        expect(sanitizeTooltipLinkHref('https://user:pass@example.com/docs')).toBeNull();
+    });
+
     it('keeps explicit relative hrefs when edited from the tooltip', () => {
         expect(sanitizeTooltipLinkHref('/docs/readme.md')).toBe('/docs/readme.md');
         expect(sanitizeTooltipLinkHref('./docs/readme.md')).toBe('./docs/readme.md');

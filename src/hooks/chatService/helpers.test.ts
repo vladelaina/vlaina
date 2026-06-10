@@ -731,6 +731,31 @@ describe('loadMentionedNotes', () => {
     expect(mocks.storage.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not load oversized current or cached note mention content', async () => {
+    const oversizedContent = 'x'.repeat(512 * 1024 + 1);
+    mocks.notesState.currentNote = {
+      path: 'docs/current.md',
+      content: oversizedContent,
+    };
+    mocks.notesState.noteContentsCache = new Map([
+      ['docs/cached.md', { content: oversizedContent }],
+    ]);
+    mocks.storage.stat.mockResolvedValue({
+      isFile: true,
+      isDirectory: false,
+      size: 16,
+    });
+    mocks.storage.readFile.mockResolvedValue('# Unexpected');
+
+    const notes = await loadMentionedNotes([
+      { path: 'docs/current.md', title: 'Current' },
+      { path: 'docs/cached.md', title: 'Cached' },
+    ]);
+
+    expect(notes).toEqual([]);
+    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+  });
+
   it('includes a directory listing for folder mentions without markdown notes', async () => {
     mocks.notesState.rootFolder = {
       children: [

@@ -30,6 +30,7 @@ describe('renderNoteExportHtml', () => {
         '<a href="//example.com/protocol-relative">protocol</a>',
         '<a href="http://127.0.0.1:3000/admin">local raw</a>',
         '<a href="http://router/admin">router raw</a>',
+        '<a href="https://user:pass@example.com/private">credential raw</a>',
         '<a href=".vlaina/workspace.md">internal raw</a>',
         '<a href="docs/.git/config.md">git raw</a>',
         '<a href=".notes/alpha.md">dot raw</a>',
@@ -40,6 +41,7 @@ describe('renderNoteExportHtml', () => {
         '[protocol markdown](//example.com/markdown)',
         '[absolute markdown](/etc/passwd)',
         '[local markdown](http://localhost:3000/secret)',
+        '[credential markdown](https://user:pass@example.com/private)',
         '[internal markdown](.vlaina/workspace.md)',
         '[git markdown](docs/.git/config.md)',
         '[dot markdown](.notes/alpha.md)',
@@ -64,6 +66,7 @@ describe('renderNoteExportHtml', () => {
     expect(doc.querySelector('a[href^="http://127.0.0.1"]')).toBeNull();
     expect(doc.querySelector('a[href^="http://router"]')).toBeNull();
     expect(doc.querySelector('a[href^="http://localhost"]')).toBeNull();
+    expect(doc.querySelector('a[href*="user:pass"]')).toBeNull();
     expect(doc.querySelector('a[href=".vlaina/workspace.md"]')).toBeNull();
     expect(doc.querySelector('a[href="docs/.git/config.md"]')).toBeNull();
     expect(doc.body.textContent).toContain('protocol');
@@ -72,7 +75,9 @@ describe('renderNoteExportHtml', () => {
     expect(doc.body.textContent).toContain('absolute markdown');
     expect(doc.body.textContent).toContain('local raw');
     expect(doc.body.textContent).toContain('router raw');
+    expect(doc.body.textContent).toContain('credential raw');
     expect(doc.body.textContent).toContain('local markdown');
+    expect(doc.body.textContent).toContain('credential markdown');
     expect(doc.body.textContent).toContain('internal raw');
     expect(doc.body.textContent).toContain('git raw');
     expect(doc.body.textContent).toContain('internal markdown');

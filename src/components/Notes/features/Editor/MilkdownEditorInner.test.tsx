@@ -345,6 +345,21 @@ describe('createLargePlainMarkdownDocJSON', () => {
     }
   });
 
+  it('rejects adjacent plain text lines that form a CommonMark soft-wrapped paragraph', () => {
+    const markdown = [
+      '# Large Soft Wrapped Document',
+      '',
+      ...Array.from({ length: 1100 }, (_value, index) => (
+        index === 100
+          ? ['first soft wrapped line', `second soft wrapped line ${'plain text '.repeat(100)}`].join('\n')
+          : `Paragraph ${index} ${'plain text '.repeat(100)}`
+      )),
+    ].join('\n\n');
+
+    expect(markdown.length).toBeGreaterThan(1_000_000);
+    expect(createLargePlainMarkdownDocJSON(markdown)).toBeNull();
+  });
+
   it('normalizes closing atx heading markers on the fast path', () => {
     const markdown = [
       '# Large Fast Path #',

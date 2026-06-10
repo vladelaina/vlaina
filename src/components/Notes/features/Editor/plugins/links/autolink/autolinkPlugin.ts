@@ -86,7 +86,9 @@ export function findUrls(text: string, offset: number, maxMatches = Number.POSIT
             // Add protocol if missing
             if (url.startsWith('www.')) {
                 href = 'https://' + url;
-            } else if (url.includes('@') && !url.startsWith('mailto:')) {
+            } else if (/^https?:\/\//i.test(url) || /^mailto:/i.test(url)) {
+                href = url;
+            } else if (url.includes('@')) {
                 href = 'mailto:' + url;
             } else if (!/^https?:\/\//i.test(url)) {
                 href = 'https://' + url;

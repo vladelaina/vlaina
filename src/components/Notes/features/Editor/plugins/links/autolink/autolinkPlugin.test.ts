@@ -91,6 +91,17 @@ describe('autolinkPlugin findUrls', () => {
         ]);
     });
 
+    it('does not rewrite credentialed protocol URLs as email links', () => {
+        expect(findUrls('open https://user:pass@example.com', 0)).toEqual([
+            {
+                start: 5,
+                end: 34,
+                url: 'https://user:pass@example.com',
+                href: 'https://user:pass@example.com',
+            },
+        ]);
+    });
+
     it('keeps balanced parentheses in URLs while trimming sentence punctuation', () => {
         expect(findUrls('see https://example.com/a_(b).', 0)).toEqual([
             {
@@ -172,10 +183,10 @@ describe('autolinkPlugin findUrls', () => {
         await editor.destroy();
     });
 
-    it('does not decorate local network URLs', async () => {
+    it('does not decorate local-network or credentialed URLs', async () => {
         const editor = Editor.make()
             .config((ctx) => {
-                ctx.set(defaultValueCtx, 'Open http://127.0.0.1:3000 and https://example.com');
+                ctx.set(defaultValueCtx, 'Open http://127.0.0.1:3000 and https://user:pass@example.com and https://example.com');
             })
             .use(commonmark)
             .use(autolinkPlugin);

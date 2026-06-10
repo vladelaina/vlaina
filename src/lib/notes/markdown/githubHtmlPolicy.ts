@@ -1,4 +1,4 @@
-import { isLocalNetworkHttpUrl } from './urlSecurity';
+import { hasUrlCredentials, isLocalNetworkHttpUrl } from './urlSecurity';
 import { hasInternalNoteAssetUrlPathSegment } from '@/lib/assets/core/internalAssetPaths';
 
 export const GITHUB_ALLOWED_HTML_TAGS = new Set([
@@ -313,11 +313,11 @@ export function normalizeGithubUrl(
     if (!trimmed.startsWith('//') && hasInternalNoteAssetUrlPathSegment(trimmed)) {
       return null;
     }
-    if (options.blockLocalNetwork && trimmed.startsWith('//') && isLocalNetworkHttpUrl(`https:${trimmed}`)) {
-      return null;
-    }
     if (trimmed.startsWith('//')) {
-      return `https:${trimmed}`;
+      const normalized = `https:${trimmed}`;
+      if (hasUrlCredentials(normalized)) return null;
+      if (options.blockLocalNetwork && isLocalNetworkHttpUrl(normalized)) return null;
+      return normalized;
     }
     if (
       marker === '/'
@@ -334,6 +334,7 @@ export function normalizeGithubUrl(
     return trimmed;
   }
   if (!allowedProtocols.has(marker)) return null;
+  if ((marker === 'http:' || marker === 'https:') && hasUrlCredentials(trimmed)) return null;
   if (options.blockLocalNetwork && isLocalNetworkHttpUrl(trimmed)) return null;
   return trimmed;
 }

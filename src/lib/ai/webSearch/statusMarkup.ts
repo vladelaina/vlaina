@@ -18,6 +18,7 @@ export function sanitizeWebSearchSourceUrl(value: unknown): string | null {
   try {
     const parsed = new URL(trimmed);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    if (parsed.username || parsed.password) return null;
     if (isLocalNetworkHttpUrl(trimmed)) return null;
     return trimmed;
   } catch {

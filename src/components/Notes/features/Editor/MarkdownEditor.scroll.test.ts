@@ -58,4 +58,22 @@ describe('createLargeMarkdownFirstPaintPreviewBlocks', () => {
     expect(blocks[1]?.text.endsWith('...')).toBe(true);
     expect(blocks.every((block) => block.text.length <= 2403)).toBe(true);
   });
+
+  it('normalizes closing atx heading markers in large note previews', () => {
+    const markdown = [
+      '# Large Note #',
+      '',
+      ...Array.from({ length: 1200 }, (_, index) => `Paragraph ${index}: ${'plain text '.repeat(90)}`),
+    ].join('\n');
+
+    const blocks = createLargeMarkdownFirstPaintPreviewBlocks(markdown);
+
+    expect(markdown.length).toBeGreaterThan(1_000_000);
+    expect(blocks[0]).toEqual({
+      key: 'h-0',
+      type: 'heading',
+      level: 1,
+      text: 'Large Note',
+    });
+  });
 });
