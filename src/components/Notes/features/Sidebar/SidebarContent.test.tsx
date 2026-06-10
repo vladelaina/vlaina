@@ -17,12 +17,19 @@ const hoisted = vi.hoisted(() => ({
   cancelNoteContentScan: vi.fn(),
   pruneNoteContentsCacheToOpenNotes: vi.fn(),
   queryNotesSidebarSearch: vi.fn<() => NotesSidebarSearchResult[]>(() => []),
+  queryNotesSidebarStructuralSearch: vi.fn<() => NotesSidebarSearchResult[]>(() => []),
   revealFolder: vi.fn(),
   scheduleSidebarItemIntoView: vi.fn(),
   consumeSuppressedCurrentNoteSidebarReveal: vi.fn(() => false),
+  suppressNextCurrentNoteSidebarReveal: vi.fn(),
   scanAllNotes: vi.fn(() => Promise.resolve()),
   shouldSearchNotesSidebarContents: vi.fn(() => false),
   shouldShowSearchResults: false,
+  sidebarTags: [] as Array<{
+    tag: string;
+    count: number;
+    paths: Array<{ path: string; query: string; contentMatchOrdinal: number | null }>;
+  }>,
   currentVault: null as { path: string; name: string } | null,
   uiState: {
     sidebarCollapsed: false,
@@ -118,6 +125,41 @@ vi.mock('../common/sidebarHoverRename', () => ({
 vi.mock('../common/sidebarScrollIntoView', () => ({
   consumeSuppressedCurrentNoteSidebarReveal: hoisted.consumeSuppressedCurrentNoteSidebarReveal,
   scheduleSidebarItemIntoView: hoisted.scheduleSidebarItemIntoView,
+  suppressNextCurrentNoteSidebarReveal: hoisted.suppressNextCurrentNoteSidebarReveal,
+}));
+
+vi.mock('./useNotesSidebarTags', () => ({
+  useNotesSidebarTags: () => ({
+    isTagScanPending: false,
+    tags: hoisted.sidebarTags,
+  }),
+}));
+
+vi.mock('./NotesTagsSection', () => ({
+  NotesTagsSection: ({
+    tags,
+    onOpenNote,
+  }: {
+    tags: Array<{
+      tag: string;
+      paths: Array<{ path: string; query: string; contentMatchOrdinal: number | null }>;
+    }>;
+    onOpenNote: (target: { path: string; query: string; contentMatchOrdinal: number | null }) => void;
+  }) => (
+    <div data-testid="notes-tags-section">
+      {tags.map((entry) =>
+        entry.paths.map((target) => (
+          <button
+            key={`${entry.tag}:${target.path}`}
+            type="button"
+            onClick={() => onOpenNote(target)}
+          >
+            {entry.tag}:{target.path}
+          </button>
+        )),
+      )}
+    </div>
+  ),
 }));
 
 vi.mock('./NotesSidebarRow', () => ({
@@ -199,7 +241,9 @@ vi.mock('./SidebarSearchResultsList', () => ({
 vi.mock('./notesSidebarSearchResults', () => ({
   buildNotesSidebarSearchIndex: hoisted.buildNotesSidebarSearchIndex,
   countNotesSidebarSearchEntries: hoisted.countNotesSidebarSearchEntries,
+  NOTES_SIDEBAR_MAX_SEARCH_RESULTS: 200,
   queryNotesSidebarSearch: hoisted.queryNotesSidebarSearch,
+  queryNotesSidebarStructuralSearch: hoisted.queryNotesSidebarStructuralSearch,
   shouldSearchNotesSidebarContents: hoisted.shouldSearchNotesSidebarContents,
 }));
 
@@ -246,6 +290,10 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.openNoteByAbsolutePath.mockResolvedValue(undefined);
     hoisted.consumeSuppressedCurrentNoteSidebarReveal.mockClear();
     hoisted.consumeSuppressedCurrentNoteSidebarReveal.mockReturnValue(false);
+    hoisted.suppressNextCurrentNoteSidebarReveal.mockClear();
+    hoisted.sidebarTags = [];
+    hoisted.queryNotesSidebarStructuralSearch.mockReset();
+    hoisted.queryNotesSidebarStructuralSearch.mockImplementation(() => hoisted.queryNotesSidebarSearch());
     hoisted.cancelNoteContentScan.mockClear();
     hoisted.pruneNoteContentsCacheToOpenNotes.mockClear();
     hoisted.scanAllNotes.mockResolvedValue(undefined);
@@ -368,6 +416,61 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(hoisted.consumeSuppressedCurrentNoteSidebarReveal).toHaveBeenCalledWith('docs/starred.md', null);
+    expect(hoisted.revealFolder).not.toHaveBeenCalled();
+    expect(hoisted.scheduleSidebarItemIntoView).not.toHaveBeenCalled();
+  });
+
+  it('does not reveal the main tree after opening a note from tags', async () => {
+    hoisted.sidebarTags = [
+      {
+        tag: 'topic',
+        count: 1,
+        paths: [{ path: 'docs/tagged.md', query: '#topic', contentMatchOrdinal: 0 }],
+      },
+    ];
+    const rootFolder = {
+      id: 'root',
+      name: 'Notes',
+      path: '',
+      isFolder: true as const,
+      expanded: true,
+      children: [{ id: 'docs', name: 'docs', path: 'docs', isFolder: true as const, expanded: false, children: [] }],
+    };
+
+    const { getByText, rerender } = render(
+      <SidebarContent
+        rootFolder={rootFolder}
+        isLoading={false}
+        currentNotePath="docs/current.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+    hoisted.revealFolder.mockClear();
+    hoisted.scheduleSidebarItemIntoView.mockClear();
+    hoisted.consumeSuppressedCurrentNoteSidebarReveal.mockClear();
+
+    fireEvent.click(getByText('topic:docs/tagged.md'));
+
+    await waitFor(() => {
+      expect(hoisted.suppressNextCurrentNoteSidebarReveal).toHaveBeenCalledWith('docs/tagged.md');
+      expect(hoisted.openNote).toHaveBeenCalledWith('docs/tagged.md');
+    });
+
+    hoisted.consumeSuppressedCurrentNoteSidebarReveal.mockReturnValue(true);
+    rerender(
+      <SidebarContent
+        rootFolder={rootFolder}
+        isLoading={false}
+        currentNotePath="docs/tagged.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(hoisted.consumeSuppressedCurrentNoteSidebarReveal).toHaveBeenCalledWith('docs/tagged.md', null);
     expect(hoisted.revealFolder).not.toHaveBeenCalled();
     expect(hoisted.scheduleSidebarItemIntoView).not.toHaveBeenCalled();
   });

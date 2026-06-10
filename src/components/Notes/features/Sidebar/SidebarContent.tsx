@@ -23,6 +23,7 @@ import { type NotesSidebarSearchResult } from './notesSidebarSearchResults';
 import {
   consumeSuppressedCurrentNoteSidebarReveal,
   scheduleSidebarItemIntoView,
+  suppressNextCurrentNoteSidebarReveal,
 } from '../common/sidebarScrollIntoView';
 import { useSidebarContentSearchResults } from './useSidebarContentSearchResults';
 import { useI18n } from '@/lib/i18n';
@@ -451,6 +452,9 @@ export function SidebarContent({
 
   const handleOpenTagPath = (target: NotesSidebarTagPath) => {
     const isSameNote = currentNotePath === target.path;
+    if (!isSameNote && !isAbsolutePath(target.path)) {
+      suppressNextCurrentNoteSidebarReveal(target.path);
+    }
 
     void Promise.all([
       import('../Editor/utils/editorViewRegistry'),
