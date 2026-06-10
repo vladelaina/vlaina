@@ -154,8 +154,9 @@ export function NotesTagsSection({
   }
 
   return (
-    <div className="min-w-0 w-full overflow-hidden rounded-md">
+    <div className="min-w-0 w-full overflow-hidden rounded-md" data-notes-sidebar-tags-root="true">
       <NotesSidebarRow
+        data-notes-sidebar-tags-header="true"
         leading={
           <span className="relative flex size-[var(--vlaina-size-20px)] items-center justify-center">
             <span className="text-[var(--vlaina-font-base)] font-semibold leading-none text-[var(--vlaina-sidebar-notes-folder-icon)] transition-none group-hover/sidebar-row:opacity-[var(--vlaina-opacity-0)] group-focus-within/sidebar-row:opacity-[var(--vlaina-opacity-0)]">
@@ -183,6 +184,7 @@ export function NotesTagsSection({
           {tags.map((entry) => (
             <div key={entry.tag}>
               <NotesSidebarRow
+                data-notes-sidebar-tag-row={entry.tag}
                 depth={1}
                 rowClassName="h-auto min-h-[var(--vlaina-size-36px)] items-start py-1.5"
                 leadingClassName="self-start pt-1"
@@ -288,6 +290,8 @@ function NotesTagFileRow({
 
   return (
     <NotesSidebarRow
+      data-notes-sidebar-tag-file-row="true"
+      data-notes-sidebar-tag-file-path={path}
       depth={2}
       rowClassName="h-auto min-h-[var(--vlaina-size-36px)] items-start py-1.5"
       leadingClassName="self-start pt-1"
