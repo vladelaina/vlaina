@@ -117,6 +117,8 @@ function isLocalNetworkHostname(hostname: string) {
 }
 
 function isPrivateIPv6(hostname: string) {
+  if (!hostname.includes(':')) return false
+
   if (
     hasPrivateEmbeddedIPv4(hostname, '::ffff:')
     || hasPrivateEmbeddedIPv4(hostname, '::ffff:0:')

@@ -141,6 +141,27 @@ describe('renderableImageTokens', () => {
     expect(replaced).not.toContain('data:image/png;base64');
   });
 
+  it('keeps code html data images when scrubbing after the replacement budget is reached', () => {
+    const safeImages = Array.from({ length: 2000 }, (_, index) => {
+      return `![image ${index}](https://example.com/${index}.png)`;
+    });
+    const codeImage = `<img src="data:image/png;base64,${'C'.repeat(16 * 1024)}" alt="example">`;
+    const oversized = `<img src="data:image/png;base64,${'D'.repeat(16 * 1024)}" alt="secret">`;
+
+    const replaced = replaceRenderableMessageImageTokens([
+      '```html',
+      codeImage,
+      '```',
+      `\`${codeImage}\``,
+      ...safeImages,
+      oversized,
+    ].join('\n'), '[Image]');
+
+    expect(replaced).toContain(codeImage);
+    expect(replaced).toContain(`\`${codeImage}\``);
+    expect(replaced).not.toContain(oversized);
+  });
+
   it('scrubs overflow entity-encoded html data images in message replacement after the token budget is reached', () => {
     const safeImages = Array.from({ length: 2000 }, (_, index) => {
       return `![image ${index}](https://example.com/${index}.png)`;

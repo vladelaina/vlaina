@@ -34,7 +34,6 @@ import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import {
   hasUnsafeVaultPathSegment,
-  isSafeVaultPathSegment,
   normalizeVaultRelativePath,
   resolveVaultRelativeFullPath,
 } from '../utils/fs/vaultPathContainment';

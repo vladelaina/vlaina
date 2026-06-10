@@ -286,7 +286,11 @@ export async function requestManagedWebJson<T>(path: string, init?: ManagedJsonR
     throwIfManagedRequestAborted(timeoutController, externalSignal);
 
     if (!response.ok) {
-      const managedError = await raceManagedRequest(parseManagedError(response), timeoutController, externalSignal);
+      const managedError = await raceManagedRequest(
+        parseManagedError(response, combinedSignal),
+        timeoutController,
+        externalSignal,
+      );
       throwIfManagedRequestAborted(timeoutController, externalSignal);
       throw managedError;
     }
@@ -330,7 +334,7 @@ export async function requestManagedWebBinaryJson<T>(
     throwIfManagedRequestAborted(timeoutController, signal);
 
     if (!response.ok) {
-      const managedError = await raceManagedRequest(parseManagedError(response), timeoutController, signal);
+      const managedError = await raceManagedRequest(parseManagedError(response, combinedSignal), timeoutController, signal);
       throwIfManagedRequestAborted(timeoutController, signal);
       throw managedError;
     }
@@ -371,7 +375,7 @@ export async function requestManagedWebStream(
     throwIfManagedRequestAborted(timeoutController, signal);
 
     if (!response.ok) {
-      const managedError = await raceManagedRequest(parseManagedError(response), timeoutController, signal);
+      const managedError = await raceManagedRequest(parseManagedError(response, combinedSignal), timeoutController, signal);
       throwIfManagedRequestAborted(timeoutController, signal);
       throw managedError;
     }

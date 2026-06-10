@@ -84,6 +84,7 @@ describe("normalizeRenderableImageSrc", () => {
     expect(normalizeRenderableImageSrc("asset://localhost/chat-inline-image/0")).toBe("asset://localhost/chat-inline-image/0");
     expect(normalizeRenderableImageSrc("attachment://demo%20image.png")).toBe("attachment://demo%20image.png");
     expect(normalizeRenderableImageSrc("app-file://attachment/demo%20image.png")).toBe("app-file://attachment/demo%20image.png");
+    expect(normalizeRenderableImageSrc("//example.com/a.png")).toBe("https://example.com/a.png");
   });
 
   it("allows relative image paths", () => {
@@ -155,6 +156,7 @@ describe("normalizeRenderableImageSrc", () => {
     expect(normalizeRenderableImageSrc(String.raw`http:\127.0.0.1\secret.png`)).toBeNull();
     expect(normalizeRenderableImageSrc(String.raw`\\127.0.0.1\secret.png`)).toBeNull();
     expect(normalizeRenderableImageSrc("https://example.com/safe.png")).toBe("https://example.com/safe.png");
+    expect(normalizeRenderableImageSrc("//example.com/safe.png")).toBe("https://example.com/safe.png");
     expect(normalizeRenderableImageSrc("https://[2606:4700:4700::1111]/safe.png")).toBe("https://[2606:4700:4700::1111]/safe.png");
   });
 
@@ -184,6 +186,9 @@ describe("normalizeRenderableImageSrcset", () => {
   it("keeps safe srcset candidates", () => {
     expect(normalizeRenderableImageSrcset("images/a.webp 1x, https://example.com/a@2x.webp 2x")).toBe(
       "images/a.webp 1x, https://example.com/a@2x.webp 2x",
+    );
+    expect(normalizeRenderableImageSrcset("//example.com/a.webp 1x")).toBe(
+      "https://example.com/a.webp 1x",
     );
     expect(normalizeRenderableImageSrcset("data:image/png;base64,abc 1x, DATA:IMAGE/WEBP;BASE64,def 2x")).toBe(
       "data:image/png;base64,abc 1x, data:image/webp;base64,def 2x",

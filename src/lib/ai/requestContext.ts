@@ -29,6 +29,7 @@ const MAX_REQUEST_MESSAGE_CHARS = 6000;
 const MAX_TRANSCRIPT_FIELD_CHARS = 1200;
 const MAX_REQUEST_JSON_DEPTH = 8;
 const MAX_REQUEST_HISTORY_IMAGE_TARGET_CHARS = 4096;
+const MAX_REQUEST_HISTORY_IMAGE_LABEL_SCAN_CHARS = 1024 * 1024;
 const MAX_REQUEST_HISTORY_IMAGE_TOKENS = 2000;
 const MAX_REQUEST_HISTORY_HTML_TAG_SCAN_MARKERS = 4000;
 const CONTENT_TRUNCATION_MARKER = '\n[Earlier content omitted]\n';
@@ -188,8 +189,8 @@ function scrubOverflowHistoryMarkdownImagesInRange(content: string, range: Conte
       continue;
     }
 
-    const labelEnd = content.indexOf('](', start + 2);
-    if (labelEnd === -1 || labelEnd >= range.end || labelEnd - start > 512) {
+    const labelEnd = findHistoryMarkdownImageLabelEnd(content, start, range.end);
+    if (labelEnd === null) {
       output += content.slice(cursor, start + 2);
       cursor = start + 2;
       continue;
@@ -221,6 +222,13 @@ function scrubOverflowHistoryMarkdownImagesInRange(content: string, range: Conte
   }
 
   return output;
+}
+
+function findHistoryMarkdownImageLabelEnd(content: string, start: number, rangeEnd: number): number | null {
+  const labelStart = start + 2;
+  const scanEnd = Math.min(rangeEnd, labelStart + MAX_REQUEST_HISTORY_IMAGE_LABEL_SCAN_CHARS);
+  const relativeEnd = content.slice(labelStart, scanEnd).indexOf('](');
+  return relativeEnd === -1 ? null : labelStart + relativeEnd;
 }
 
 function isHistoryMarkdownImageTargetAt(content: string, targetStart: number): boolean {

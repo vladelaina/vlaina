@@ -46,4 +46,31 @@ describe('fetchBoundedImageBlob', () => {
       blob: null,
     });
   });
+
+  it('cancels pending streamed reads when the signal aborts', async () => {
+    const controller = new AbortController();
+    const cancel = vi.fn(async () => undefined);
+    const releaseLock = vi.fn();
+    const reader = {
+      read: vi.fn(() => new Promise<ReadableStreamReadResult<Uint8Array>>(() => undefined)),
+      cancel,
+      releaseLock,
+    };
+
+    const pending = readBoundedImageBlobResponse({
+      headers: new Headers({ 'content-type': 'image/png' }),
+      body: {
+        getReader: () => reader,
+      },
+    } as unknown as Response, {
+      signal: controller.signal,
+    });
+
+    expect(reader.read).toHaveBeenCalledTimes(1);
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(releaseLock).toHaveBeenCalledTimes(1);
+  });
 });

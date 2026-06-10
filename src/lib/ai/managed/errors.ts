@@ -3,6 +3,68 @@ import { MANAGED_AUTH_REQUIRED_ERROR } from './constants';
 const MAX_MANAGED_ERROR_BODY_BYTES = 64 * 1024;
 export const MAX_MANAGED_SERVICE_ERROR_MESSAGE_CHARS = 8192;
 
+function createAbortError(): DOMException {
+  return new DOMException('Aborted', 'AbortError');
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw createAbortError();
+}
+
+function raceWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) {
+    return promise;
+  }
+  throwIfAborted(signal);
+  promise.catch(() => undefined);
+
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      signal.removeEventListener('abort', abort);
+    };
+    const settle = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      callback();
+    };
+    const abort = () => {
+      settle(() => reject(createAbortError()));
+    };
+
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+
+    promise.then(
+      (value) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            resolve(value);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+      (error) => {
+        settle(() => {
+          try {
+            throwIfAborted(signal);
+            reject(error);
+          } catch (abortError) {
+            reject(abortError);
+          }
+        });
+      },
+    );
+  });
+}
+
 function createManagedServiceError(
   message: string,
   statusCode: number,
@@ -118,7 +180,8 @@ function messageForManagedErrorCode(errorCode: string): string {
   }
 }
 
-async function readManagedErrorBody(response: Response): Promise<string> {
+async function readManagedErrorBody(response: Response, signal?: AbortSignal): Promise<string> {
+  throwIfAborted(signal);
   if (!response.body) {
     return '';
   }
@@ -127,10 +190,15 @@ async function readManagedErrorBody(response: Response): Promise<string> {
   const decoder = new TextDecoder();
   let bytesRead = 0;
   let text = '';
+  const cancelReader = () => {
+    void reader.cancel(createAbortError()).catch(() => undefined);
+  };
+  signal?.addEventListener('abort', cancelReader, { once: true });
 
   try {
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await raceWithAbort(reader.read(), signal);
+      throwIfAborted(signal);
       if (done) {
         break;
       }
@@ -143,20 +211,26 @@ async function readManagedErrorBody(response: Response): Promise<string> {
       text += decoder.decode(value, { stream: true });
     }
 
-    return text + decoder.decode();
+    const result = text + decoder.decode();
+    throwIfAborted(signal);
+    return result;
   } catch {
+    if (signal?.aborted) {
+      throw createAbortError();
+    }
     return '';
   } finally {
+    signal?.removeEventListener('abort', cancelReader);
     reader.releaseLock();
   }
 }
 
-export async function parseManagedError(response: Response): Promise<Error> {
+export async function parseManagedError(response: Response, signal?: AbortSignal): Promise<Error> {
   if (response.status === 401) {
     return createManagedServiceError(MANAGED_AUTH_REQUIRED_ERROR, response.status);
   }
 
-  const raw = await readManagedErrorBody(response);
+  const raw = await readManagedErrorBody(response, signal);
   if (!raw) {
     return createManagedServiceError(`Managed API request failed: HTTP ${response.status}`, response.status);
   }

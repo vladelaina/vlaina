@@ -129,7 +129,10 @@ export async function downloadAndSaveAvatar(url: string, username: string): Prom
             }
 
             const result = await raceWithAbort(
-                readBoundedImageBlobResponse(response, { maxBytes: MAX_AVATAR_IMAGE_BYTES }),
+                readBoundedImageBlobResponse(response, {
+                    maxBytes: MAX_AVATAR_IMAGE_BYTES,
+                    signal: controller.signal,
+                }),
                 controller.signal,
             );
             if (result.status === 'too-large') {
