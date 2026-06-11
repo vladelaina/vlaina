@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import * as ProseModel from '@milkdown/kit/prose/model';
-import { docChangeMayAffectRawMarkdownLink } from './markdownLinkPlugin';
+import {
+  docChangeMayAffectRawMarkdownLink,
+  rangeTouchesRawMarkdownLink,
+} from './markdownLinkPlugin';
 
 const SchemaCtor = (ProseModel as any).Schema;
 const schema = new SchemaCtor({
@@ -56,5 +59,28 @@ describe('docChangeMayAffectRawMarkdownLink', () => {
     ]);
 
     expect(docChangeMayAffectRawMarkdownLink(oldDoc, nextDoc)).toBe(true);
+  });
+
+  it('uses document range scans when checking changed markdown link ranges', () => {
+    let rangeScanned = 0;
+    const doc = {
+      content: { size: 100 },
+      child() {
+        throw new Error('full document prefix scan should not be used');
+      },
+      childCount: 2,
+      nodesBetween(_from: number, _to: number, callback: (node: any, pos: number) => boolean | void) {
+        rangeScanned += 1;
+        callback({
+          isText: true,
+          text: 'plain text',
+          type: { name: 'text' },
+        }, 0);
+      },
+      type: { name: 'doc' },
+    };
+
+    expect(rangeTouchesRawMarkdownLink(doc as any, 90, 91, false)).toBe(false);
+    expect(rangeScanned).toBe(1);
   });
 });

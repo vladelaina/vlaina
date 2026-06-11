@@ -110,8 +110,9 @@ describe("editor block drag interaction styles", () => {
     expect(css).toContain('box-shadow: none;');
     expect(css).toContain('color: var(--vlaina-editor-block-selection-fg);');
     expect(source).toContain("const DRAG_BOX_COLOR = 'var(--vlaina-color-editor-block-selection-drag-box)';");
-    expect(lineFillSource).toContain('function resolveLineFillLeft(paragraph: HTMLElement): number {');
-    expect(lineFillSource).toContain('function resolveLineFillRight(view: EditorView, paragraph: HTMLElement): number {');
+    expect(lineFillSource).toContain('function resolveLineFillLeft(paragraph: HTMLElement, paragraphRect = paragraph.getBoundingClientRect()): number {');
+    expect(lineFillSource).toContain('return paragraphRect.left - resolveBlockSelectionBleedXStart(paragraph);');
+    expect(lineFillSource).toContain('paragraphRect = paragraph.getBoundingClientRect(),');
     expect(lineFillSource).toContain('const selectedBlockRight = editorRect.width > 0 ? editorRect.right : paragraphRect.right;');
     expect(lineFillSource).toContain('return Math.max(paragraphRect.right, selectedBlockRight) + resolveBlockSelectionBleedXEnd(paragraph);');
     expect(lineFillSource).toContain('const FALLBACK_BLOCK_SELECTION_BLEED_X_PX = 72;');

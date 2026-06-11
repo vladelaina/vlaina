@@ -21,10 +21,42 @@ export function getTransactionInsertedText(tr: unknown): string {
   return text;
 }
 
-export function transactionInsertedTextMatches(tr: unknown, pattern: RegExp): boolean {
-  const text = getTransactionInsertedText(tr);
-  pattern.lastIndex = 0;
-  return pattern.test(text);
+export const MAX_TRANSACTION_INSERTED_TEXT_MATCH_CHARS = 200_000;
+
+export function transactionInsertedTextMatches(
+  tr: unknown,
+  pattern: RegExp,
+  maxChars = MAX_TRANSACTION_INSERTED_TEXT_MATCH_CHARS,
+): boolean {
+  const steps = (tr as { steps?: readonly unknown[] }).steps ?? [];
+  let text = '';
+
+  for (const step of steps) {
+    const slice = (step as {
+      slice?: {
+        content?: {
+          size?: number;
+          textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string;
+        };
+      };
+    }).slice;
+    const content = slice?.content;
+    if (!content || typeof content.textBetween !== 'function' || typeof content.size !== 'number') {
+      continue;
+    }
+
+    if (content.size > maxChars || text.length + content.size > maxChars) {
+      return true;
+    }
+
+    text += content.textBetween(0, content.size, '\n', '\ufffc');
+    pattern.lastIndex = 0;
+    if (pattern.test(text)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export type TransactionChangedRange = {

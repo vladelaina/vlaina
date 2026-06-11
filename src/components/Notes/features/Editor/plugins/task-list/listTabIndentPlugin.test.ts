@@ -353,6 +353,27 @@ describe('listTabIndentPlugin', () => {
     expect(accessed).toBe(MAX_ORDERED_LIST_LABEL_SCAN_NODES);
   });
 
+  it('uses bounded document range scans when available for ordered list prechecks', () => {
+    let childAccessed = 0;
+    let rangeScanned = 0;
+    const doc = {
+      ...createFlatFakeDoc([
+        createFakeNode('paragraph'),
+        createFakeNode('ordered_list'),
+      ], () => {
+        childAccessed += 1;
+      }),
+      nodesBetween(_from: number, _to: number, callback: (node: FakeListGapNode, pos: number) => boolean | void) {
+        rangeScanned += 1;
+        callback(createFakeNode('paragraph'), 0);
+      },
+    };
+
+    expect(rangeTouchesOrderedListNormalizationNode(doc as any, 0, 1, false)).toBe(false);
+    expect(rangeScanned).toBe(1);
+    expect(childAccessed).toBe(0);
+  });
+
   it('collects internal list gap placeholder cleanup ranges for ordinary placeholder items', () => {
     const listItem = createFakeListGapItem();
 

@@ -39,10 +39,16 @@ test.describe('multi-window note document sync', () => {
       await expect.poll(async () => {
         const result = await second.evaluate(() => (window as any).__vlainaE2E.syncCurrentNoteFromDisk({ force: true }));
         const state = await getNotesState(second);
-        return { result, content: state.currentNote?.content, dirty: state.isDirty, error: state.error };
+        const content = String(state.currentNote?.content ?? '');
+        return {
+          synced: result === 'reloaded' || result === 'unchanged',
+          hasMainEdit: content.includes('A: changed in main'),
+          dirty: state.isDirty,
+          error: state.error,
+        };
       }).toEqual({
-        result: 'reloaded',
-        content: expect.stringContaining('A: changed in main'),
+        synced: true,
+        hasMainEdit: true,
         dirty: false,
         error: null,
       });

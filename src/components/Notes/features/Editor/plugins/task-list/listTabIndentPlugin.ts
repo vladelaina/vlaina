@@ -629,6 +629,34 @@ export function rangeTouchesOrderedListNormalizationNode(
         return true;
     }
 
+    const nodesBetween = (doc as {
+        nodesBetween?: (
+            from: number,
+            to: number,
+            callback: (node: ProseNode, pos: number) => boolean | void,
+        ) => void;
+    }).nodesBetween;
+    if (typeof nodesBetween === 'function') {
+        let touchesList = false;
+        let scannedNodes = 0;
+        const scanTo = Math.min(doc.content.size, Math.max(start + 1, end));
+        if (scanTo <= start) return false;
+
+        nodesBetween.call(doc, start, scanTo, (node) => {
+            scannedNodes += 1;
+            if (scannedNodes > MAX_ORDERED_LIST_LABEL_SCAN_NODES) {
+                return false;
+            }
+            if (ORDERED_LIST_NORMALIZATION_NODE_NAMES.has(node.type.name)) {
+                touchesList = true;
+                return false;
+            }
+            return true;
+        });
+
+        return touchesList;
+    }
+
     let touchesList = false;
     scanProseDescendants(doc, (node, pos) => {
         const nodeSize = typeof node.nodeSize === 'number' ? node.nodeSize : 1;

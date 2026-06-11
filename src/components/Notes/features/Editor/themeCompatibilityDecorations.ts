@@ -5,6 +5,7 @@ import { DecorationSet } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
 import { themeUiFeedbackTokens } from '@/styles/themeTokens';
 import { DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT } from './plugins/shared/boundedProseNodeScan';
+import { getTransactionChangedRanges } from './plugins/shared/transactionStepText';
 import { listContainsTaskItems } from './themeCompatibilityDecorations/typoraBlockAttrs';
 import { buildTyporaCompatibilityDecorations } from './themeCompatibilityDecorations/typoraDecorations';
 
@@ -14,7 +15,12 @@ export const MAX_THEME_COMPATIBILITY_DECORATIONS = 6000;
 export const MAX_THEME_COMPATIBILITY_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 export const DEFAULT_THEME_COMPATIBILITY_DECORATION_DEBOUNCE_MS =
   themeUiFeedbackTokens.editorThemeCompatibilityDecorationDebounceMs;
-export const themeCompatibilityDecorationsPluginKey = new PluginKey<DecorationSet>('themeCompatibilityDecorations');
+interface ThemeCompatibilityDecorationsState {
+  decorations: DecorationSet;
+  rebuildVersion: number;
+}
+
+export const themeCompatibilityDecorationsPluginKey = new PluginKey<ThemeCompatibilityDecorationsState>('themeCompatibilityDecorations');
 
 const THEME_COMPATIBILITY_SAFE_CONTENT_NODES = new Set(['code_block', 'frontmatter']);
 const REBUILD_THEME_COMPATIBILITY_DECORATIONS_META = { type: 'rebuild' } as const;
@@ -65,6 +71,22 @@ export function docChangeMayAffectThemeCompatibilityDecorations(
   );
 }
 
+export function transactionMayAffectThemeCompatibilityDecorations(
+  prevDoc: ProseNode,
+  nextDoc: ProseNode,
+  tr: unknown
+): boolean {
+  const ranges = getTransactionChangedRanges(tr);
+  if (ranges.length === 0) {
+    return docChangeMayAffectThemeCompatibilityDecorations(prevDoc, nextDoc);
+  }
+
+  return ranges.some((range) => !(
+    rangeIsInsideThemeCompatibilitySafeContent(prevDoc, range.oldFrom, range.oldTo) &&
+    rangeIsInsideThemeCompatibilitySafeContent(nextDoc, range.newFrom, range.newTo)
+  ));
+}
+
 export function createThemeCompatibilityDecorationRebuildController({
   delayMs = DEFAULT_THEME_COMPATIBILITY_DECORATION_DEBOUNCE_MS,
   dispatchRebuild,
@@ -111,26 +133,48 @@ export function createThemeCompatibilityDecorationRebuildController({
   };
 }
 
+function createThemeCompatibilityDecorationsState(
+  doc: ProseNode,
+  rebuildVersion: number
+): ThemeCompatibilityDecorationsState {
+  return {
+    decorations: buildCompatibilityDecorations(doc),
+    rebuildVersion,
+  };
+}
+
 export const themeCompatibilityDecorationsPlugin = $prose(() => {
   return new Plugin({
     key: themeCompatibilityDecorationsPluginKey,
     state: {
       init(_config, state) {
-        return buildCompatibilityDecorations(state.doc);
+        return createThemeCompatibilityDecorationsState(state.doc, 0);
       },
-      apply(tr, previous, _oldState, newState) {
+      apply(tr, previous, oldState, newState) {
         if (tr.getMeta(themeCompatibilityDecorationsPluginKey)?.type === 'rebuild') {
-          return buildCompatibilityDecorations(newState.doc);
+          return createThemeCompatibilityDecorationsState(
+            newState.doc,
+            previous.rebuildVersion
+          );
         }
-        if (!tr.docChanged) return previous.map(tr.mapping, tr.doc);
-        if (!docChangeMayAffectThemeCompatibilityDecorations(_oldState.doc, newState.doc)) {
-          return previous.map(tr.mapping, newState.doc);
+        if (!tr.docChanged) {
+          return {
+            decorations: previous.decorations.map(tr.mapping, tr.doc),
+            rebuildVersion: previous.rebuildVersion,
+          };
         }
-        return previous.map(tr.mapping, newState.doc);
+        return {
+          decorations: previous.decorations.map(tr.mapping, newState.doc),
+          rebuildVersion: transactionMayAffectThemeCompatibilityDecorations(oldState.doc, newState.doc, tr)
+            ? previous.rebuildVersion + 1
+            : previous.rebuildVersion,
+        };
       },
     },
     view(editorView: EditorView) {
       let currentView = editorView;
+      let lastScheduledRebuildVersion =
+        themeCompatibilityDecorationsPluginKey.getState(editorView.state)?.rebuildVersion ?? 0;
       const controller = createThemeCompatibilityDecorationRebuildController({
         dispatchRebuild: () => {
           currentView.dispatch(
@@ -151,9 +195,11 @@ export const themeCompatibilityDecorationsPlugin = $prose(() => {
           if (prevState.doc.eq(nextView.state.doc)) {
             return;
           }
-          if (!docChangeMayAffectThemeCompatibilityDecorations(prevState.doc, nextView.state.doc)) {
+          const pluginState = themeCompatibilityDecorationsPluginKey.getState(nextView.state);
+          if (!pluginState || pluginState.rebuildVersion === lastScheduledRebuildVersion) {
             return;
           }
+          lastScheduledRebuildVersion = pluginState.rebuildVersion;
           controller.schedule();
         },
         destroy() {
@@ -163,7 +209,7 @@ export const themeCompatibilityDecorationsPlugin = $prose(() => {
     },
     props: {
       decorations(state) {
-        return themeCompatibilityDecorationsPluginKey.getState(state) ?? DecorationSet.empty;
+        return themeCompatibilityDecorationsPluginKey.getState(state)?.decorations ?? DecorationSet.empty;
       },
     },
   });

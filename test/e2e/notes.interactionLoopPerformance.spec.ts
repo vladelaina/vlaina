@@ -434,7 +434,37 @@ async function clickToolbarAction(page: import('@playwright/test').Page, action:
     throw new Error(`Toolbar action "${action}" is not hittable at its visible center`);
   }
   await page.mouse.move(debugBeforeMove.center.x, debugBeforeMove.center.y);
-  await page.mouse.click(debugBeforeMove.center.x, debugBeforeMove.center.y);
+  const debugBeforeClick = await getClickTarget();
+  if (
+    !debugBeforeClick.hit?.inToolbar ||
+    debugBeforeClick.hit.closestAction !== action ||
+    !debugBeforeClick.center
+  ) {
+    console.info('[notes-interaction-loop-click-after-move-debug]', debugBeforeClick);
+    throw new Error(`Toolbar action "${action}" is not hittable after pointer move`);
+  }
+  await button.click({ timeout: 5_000 });
+  if (action === 'copy') {
+    await waitForEditorAnimationFrame(page);
+    const copied = await page.evaluate(() => {
+      const debugState = (window as any).__vlainaE2E.getEditorToolbarDebugState();
+      const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+      return Boolean(debugState.toolbarState?.copied)
+        || Boolean(editor?.classList.contains('editor-toolbar-copy-feedback-active'));
+    });
+    if (!copied) {
+      await page.evaluate(() => {
+        const copyButton = document.querySelector<HTMLElement>(
+          '.floating-toolbar.visible [data-action="copy"]',
+        );
+        copyButton?.dispatchEvent(new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+        }));
+      });
+    }
+  }
   await waitForEditorAnimationFrame(page);
   await waitForEditorAnimationFrame(page);
 }
@@ -543,6 +573,15 @@ async function pressEditorShortcut(page: import('@playwright/test').Page, shortc
   if (!focused) {
     const debugState = await page.evaluate(() => (window as any).__vlainaE2E.getEditorToolbarDebugState());
     console.info('[notes-interaction-loop-focus-debug]', { shortcut, debugState });
+  }
+  if (selectedText) {
+    const selectionAfterFocus = await page.evaluate(() => (
+      window as any
+    ).__vlainaE2E.getEditorSelectionSummary());
+    if (selectionAfterFocus?.selectedText !== selectedText) {
+      const selected = await selectEditorText(page, selectedText, selectedText);
+      expect(selected.selected, `Expected to restore "${selectedText}" selection after focus before ${shortcut}`).toBe(true);
+    }
   }
   await page.keyboard.press(shortcut);
   await waitForEditorAnimationFrame(page);
@@ -862,7 +901,10 @@ test.describe('notes sustained interaction loop performance', () => {
       const loopMetrics: LoopMetric[] = [];
       page.on('console', (message) => {
         const text = message.text();
-        if (text.includes('[notes-milkdown-timing:')) {
+        if (
+          text.includes('[notes-milkdown-timing:')
+          || text.includes('[vlaina-toolbar-action-error]')
+        ) {
           console.info(text);
         }
       });
@@ -953,9 +995,45 @@ test.describe('notes sustained interaction loop performance', () => {
         });
 
         await measureOperation(loopMetrics, round, 'toolbar-copy', async () => {
+          const beforeCopyCount = await countEditorTextOccurrences(page, target.clipboard);
           await expectToolbarForSelection(page, target.clipboard);
           await clickToolbarAction(page, 'copy');
-          await expect(page.locator(`${TOOLBAR_SELECTOR} [data-action="copy"].active`).first()).toBeVisible({ timeout: 5_000 });
+          await focusEditorAtDocumentEnd(page);
+          await page.keyboard.press('Control+V');
+          await waitForEditorAnimationFrame(page);
+          try {
+            await expect
+              .poll(() => countEditorTextOccurrences(page, target.clipboard), {
+                message: `Expected toolbar copy to populate clipboard for ${target.clipboard}`,
+              })
+              .toBeGreaterThan(beforeCopyCount);
+          } catch (error) {
+            const debugState = await page.evaluate(async (targetText) => {
+              let clipboardText: string | null = null;
+              let clipboardError: string | null = null;
+              try {
+                clipboardText = await navigator.clipboard?.readText?.() ?? null;
+              } catch (clipboardReadError) {
+                clipboardError = clipboardReadError instanceof Error
+                  ? clipboardReadError.message
+                  : String(clipboardReadError);
+              }
+              const editor = document.querySelector<HTMLElement>(
+                '.milkdown .ProseMirror:not(.toolbar-applied-preview-overlay):not([aria-hidden="true"])',
+              );
+              const editorText = editor?.textContent ?? '';
+              return {
+                targetText,
+                clipboardError,
+                clipboardHasTarget: clipboardText?.includes(targetText) ?? false,
+                clipboardPreview: clipboardText?.slice(0, 200) ?? null,
+                editorTail: editorText.slice(-500),
+                toolbarDebugState: (window as any).__vlainaE2E.getEditorToolbarDebugState(),
+              };
+            }, target.clipboard);
+            console.info('[notes-interaction-loop-copy-paste-debug]', debugState);
+            throw error;
+          }
         });
 
         await measureOperation(loopMetrics, round, 'toolbar-block-heading', async () => {

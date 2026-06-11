@@ -47,6 +47,8 @@ function handleClosingPairSkip(
   from: number,
   text: string,
 ): boolean {
+  if (!closePairSpecs.has(text)) return false;
+
   const { selection } = view.state;
   if (!selection.empty || selection.from !== from) return false;
 
@@ -54,7 +56,6 @@ function handleClosingPairSkip(
   if (!$from.parent.isTextblock) return false;
   if ($from.parentOffset + text.length > $from.parent.content.size) return false;
   if ($from.parent.textBetween($from.parentOffset, $from.parentOffset + text.length, '\0', '\0') !== text) return false;
-  if (!closePairSpecs.has(text)) return false;
   if (!hasAutoInsertedCloserAt(view.state, from, text)) return false;
 
   moveSelectionTo(view, from + text.length);

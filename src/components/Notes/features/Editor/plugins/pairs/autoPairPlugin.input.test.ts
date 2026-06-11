@@ -61,6 +61,30 @@ describe('autoPairPlugin input', () => {
     selectionCreateSpy.mockRestore();
   });
 
+  it('does not read the next character for ordinary non-pair text input', () => {
+    const parent = {
+      isTextblock: true,
+      content: { size: 2 },
+      textBetween: vi.fn(() => {
+        throw new Error('ordinary text should not inspect adjacent pair text');
+      }),
+    };
+    const state = {
+      selection: {
+        empty: true,
+        from: 1,
+        $from: {
+          parent,
+          parentOffset: 1,
+        },
+      },
+    };
+    const view = { state };
+
+    expect(handleAutoPairTextInput(view as never, 1, 1, 'a')).toBe(false);
+    expect(parent.textBetween).not.toHaveBeenCalled();
+  });
+
   it('auto-inserts a matching ascii parenthesis pair', async () => {
     const editor = createEditor();
 
