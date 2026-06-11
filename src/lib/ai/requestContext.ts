@@ -31,8 +31,10 @@ const MAX_TRANSCRIPT_FIELD_CHARS = 1200;
 const MAX_REQUEST_JSON_DEPTH = 8;
 const MAX_REQUEST_HISTORY_IMAGE_TARGET_CHARS = 4096;
 const MAX_REQUEST_HISTORY_IMAGE_LABEL_SCAN_CHARS = 1024 * 1024;
+const MAX_REQUEST_HISTORY_IMAGE_TOTAL_LABEL_SCAN_CHARS = 4 * MAX_REQUEST_HISTORY_IMAGE_LABEL_SCAN_CHARS;
 const MAX_REQUEST_HISTORY_IMAGE_TOKENS = 2000;
 const MAX_REQUEST_HISTORY_HTML_TAG_SCAN_MARKERS = 4000;
+const MAX_REQUEST_HISTORY_INLINE_CODE_PROTECTION_RANGES = 4000;
 const CONTENT_TRUNCATION_MARKER = '\n[Earlier content omitted]\n';
 const HISTORY_IMAGE_SOURCE_PREFIXES = [
   'data:image/',
@@ -94,7 +96,11 @@ function scrubOverflowHistoryHtmlImages(content: string): string {
 }
 
 function scrubOverflowHistoryHtmlImagesInRange(content: string, range: ContentRange): string {
-  const inlineCodeRanges = getInlineCodeRanges(content, range);
+  const inlineCodeRanges = getInlineCodeRanges(
+    content,
+    range,
+    MAX_REQUEST_HISTORY_INLINE_CODE_PROTECTION_RANGES,
+  );
   let output = '';
   let cursor = range.start;
 
@@ -156,9 +162,14 @@ function scrubOverflowHistoryMarkdownImages(content: string): string {
 }
 
 function scrubOverflowHistoryMarkdownImagesInRange(content: string, range: ContentRange): string {
-  const inlineCodeRanges = getInlineCodeRanges(content, range);
+  const inlineCodeRanges = getInlineCodeRanges(
+    content,
+    range,
+    MAX_REQUEST_HISTORY_INLINE_CODE_PROTECTION_RANGES,
+  );
   let output = '';
   let cursor = range.start;
+  let remainingLabelScanChars = MAX_REQUEST_HISTORY_IMAGE_TOTAL_LABEL_SCAN_CHARS;
 
   while (cursor < range.end) {
     const start = content.indexOf('![', cursor);
@@ -180,7 +191,21 @@ function scrubOverflowHistoryMarkdownImagesInRange(content: string, range: Conte
       continue;
     }
 
-    const labelEnd = findHistoryMarkdownImageLabelEnd(content, start, range.end);
+    const labelResult = findHistoryMarkdownImageLabelEnd(
+      content,
+      start,
+      range.end,
+      remainingLabelScanChars,
+    );
+    remainingLabelScanChars = labelResult.remainingScanChars;
+    if (labelResult.exhausted) {
+      output += content.slice(cursor, start);
+      output += IMAGE_PLACEHOLDER;
+      cursor = range.end;
+      break;
+    }
+
+    const labelEnd = labelResult.labelEnd;
     if (labelEnd === null) {
       output += content.slice(cursor, start + 2);
       cursor = start + 2;
@@ -215,11 +240,33 @@ function scrubOverflowHistoryMarkdownImagesInRange(content: string, range: Conte
   return output;
 }
 
-function findHistoryMarkdownImageLabelEnd(content: string, start: number, rangeEnd: number): number | null {
+function findHistoryMarkdownImageLabelEnd(
+  content: string,
+  start: number,
+  rangeEnd: number,
+  remainingScanChars: number,
+): { exhausted: boolean; labelEnd: number | null; remainingScanChars: number } {
   const labelStart = start + 2;
   const scanEnd = Math.min(rangeEnd, labelStart + MAX_REQUEST_HISTORY_IMAGE_LABEL_SCAN_CHARS);
-  const relativeEnd = content.slice(labelStart, scanEnd).indexOf('](');
-  return relativeEnd === -1 ? null : labelStart + relativeEnd;
+  const labelEnd = indexOfHistoryMarkdownImageLabelClose(content, labelStart, scanEnd);
+  const boundedLabelEnd = labelEnd === -1 ? null : labelEnd;
+  const scannedEnd = boundedLabelEnd === null ? scanEnd : boundedLabelEnd + 2;
+  const nextRemainingScanChars = remainingScanChars - Math.max(0, scannedEnd - labelStart);
+
+  return {
+    exhausted: nextRemainingScanChars < 0,
+    labelEnd: boundedLabelEnd,
+    remainingScanChars: Math.max(0, nextRemainingScanChars),
+  };
+}
+
+function indexOfHistoryMarkdownImageLabelClose(content: string, start: number, end: number): number {
+  for (let index = start; index + 1 < end; index += 1) {
+    if (content[index] === ']' && content[index + 1] === '(') {
+      return index;
+    }
+  }
+  return -1;
 }
 
 function isHistoryMarkdownImageTargetAt(content: string, targetStart: number): boolean {

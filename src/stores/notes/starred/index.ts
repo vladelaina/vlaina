@@ -19,7 +19,9 @@ export {
   type StarredNoteContext,
 } from './entryPaths';
 export {
+  getStarredVaultPathComparisonKey,
   isPathInsideStarredVault,
+  isSameStarredVaultPath,
   isValidStarredVaultPath,
   normalizeStarredRelativePath,
   normalizeStarredVaultPath,

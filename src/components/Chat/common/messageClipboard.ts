@@ -30,6 +30,7 @@ export const MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES = 2000;
 export const MAX_CHAT_MESSAGE_IMAGE_SOURCES = 1000;
 const MAX_COPY_OVERFLOW_MARKDOWN_IMAGE_TARGET_CHARS = 512 * 1024;
 const MAX_COPY_HTML_IMAGE_TAG_CHARS = 20_000;
+const MAX_COPY_INLINE_CODE_PROTECTION_RANGES = 4000;
 const INLINE_DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i;
 
 function normalizeImageToken(token: ImageToken): ImageToken | null {
@@ -125,7 +126,11 @@ function scrubOverflowCopyHtmlDataImagesInRange(
   content: string,
   range: { start: number; end: number },
 ): string {
-  const inlineCodeRanges = getInlineCodeRanges(content, range);
+  const inlineCodeRanges = getInlineCodeRanges(
+    content,
+    range,
+    MAX_COPY_INLINE_CODE_PROTECTION_RANGES,
+  );
   let output = "";
   let cursor = range.start;
 

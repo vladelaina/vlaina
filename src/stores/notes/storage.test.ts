@@ -67,6 +67,14 @@ describe('notes starred storage helpers', () => {
     expect(entry.id.startsWith('starred-')).toBe(true);
   });
 
+  it('keeps Windows drive roots valid for starred entries', () => {
+    const entry = createStarredEntry('note', 'C:\\', 'docs\\alpha.md');
+
+    expect(entry.vaultPath).toBe('C:/');
+    expect(entry.relativePath).toBe('docs/alpha.md');
+    expect(resolveStarredRelativePathForVault('C:\\docs\\alpha.md', 'C:\\')).toBe('docs/alpha.md');
+  });
+
   it('resolves only current-vault absolute starred paths to relative paths', () => {
     expect(resolveStarredRelativePathForVault('/vault/docs/alpha.md', '/vault')).toBe('docs/alpha.md');
     expect(resolveStarredRelativePathForVault('docs/alpha.md', '/vault')).toBe('docs/alpha.md');

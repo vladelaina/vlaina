@@ -16,6 +16,7 @@ const MAX_COMPACTED_INLINE_IMAGES = 1000;
 const MAX_SCANNED_INLINE_IMAGE_TOKENS = 2000;
 const MAX_EXISTING_INLINE_IMAGE_TOKENS = 2000;
 const MAX_OVERFLOW_DATA_IMAGE_SCAN_CHARS = 16 * 1024 * 1024;
+const MAX_OVERFLOW_INLINE_CODE_PROTECTION_RANGES = 4000;
 const DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i;
 
 export interface CompactedChatMarkdownImages {
@@ -146,7 +147,11 @@ function scrubOverflowHtmlInlineDataImages(markdown: string): string {
 }
 
 function scrubOverflowHtmlInlineDataImagesInRange(markdown: string, range: ContentRange): string {
-  const inlineCodeRanges = getInlineCodeRanges(markdown, range);
+  const inlineCodeRanges = getInlineCodeRanges(
+    markdown,
+    range,
+    MAX_OVERFLOW_INLINE_CODE_PROTECTION_RANGES,
+  );
   let output = '';
   let cursor = range.start;
 

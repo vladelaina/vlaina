@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./mermaidRenderer', () => ({
   generateMermaidId: () => 'mermaid-readonly-test',
+  MAX_MERMAID_CODE_CHARS: 20_000,
   mermaidRenderErrorMarkup: () => '<div class="mermaid-error">Mermaid Error</div>',
   renderMermaid: vi.fn(),
 }));
@@ -14,7 +15,7 @@ import {
   ReadOnlyMermaidBlock,
   resolveReadOnlyMermaidMarkup,
 } from './ReadOnlyMermaidBlock';
-import { renderMermaid } from './mermaidRenderer';
+import { MAX_MERMAID_CODE_CHARS, renderMermaid } from './mermaidRenderer';
 
 describe('ReadOnlyMermaidBlock', () => {
   beforeEach(() => {
@@ -92,5 +93,13 @@ describe('ReadOnlyMermaidBlock', () => {
       resolve(`<svg><text>rendered ${index}</text></svg>`);
     });
     await Promise.all(renders);
+  });
+
+  it('rejects oversized Mermaid code before using render caches', async () => {
+    const markup = await resolveReadOnlyMermaidMarkup('x'.repeat(MAX_MERMAID_CODE_CHARS + 1));
+
+    expect(markup).toContain('mermaid-error');
+    expect(renderMermaid).not.toHaveBeenCalled();
+    expect(getPendingReadOnlyMermaidRenderCount()).toBe(0);
   });
 });

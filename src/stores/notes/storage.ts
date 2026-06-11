@@ -43,6 +43,16 @@ interface MetadataScanBudget {
   visitedEntries: number;
 }
 
+interface PrioritizedMetadataEntry {
+  entry: {
+    name: string;
+    isDirectory?: boolean;
+    isFile?: boolean;
+  };
+  index: number;
+  priority: number;
+}
+
 const metadataCacheByVault = new Map<string, Map<string, CachedMetadataEntry>>();
 
 function setMetadataVaultCache(vaultPath: string, cache: Map<string, CachedMetadataEntry>) {
@@ -161,6 +171,27 @@ function shouldHideMetadataDirectory(name: string) {
   return hasInternalNotePathSegment(name);
 }
 
+function getMetadataScanPriority(entry: { name: string; isDirectory?: boolean; isFile?: boolean }) {
+  if (entry.isDirectory === true || (entry.isFile === true && isSupportedMarkdownPath(entry.name))) {
+    return 0;
+  }
+
+  return 1;
+}
+
+function prioritizeMetadataScanEntries<T extends { name: string; isDirectory?: boolean; isFile?: boolean }>(
+  entries: readonly T[],
+): T[] {
+  return entries
+    .map<PrioritizedMetadataEntry>((entry, index) => ({
+      entry,
+      index,
+      priority: getMetadataScanPriority(entry),
+    }))
+    .sort((left, right) => left.priority - right.priority || left.index - right.index)
+    .map(({ entry }) => entry as T);
+}
+
 function isReadableBoundedFile(
   fileInfo: { isFile?: boolean; isDirectory?: boolean; size?: number | null } | null | undefined,
   maxBytes: number,
@@ -200,7 +231,7 @@ async function collectMarkdownPaths(
   }
   const collected: string[] = [];
 
-  for (const entry of entries) {
+  for (const entry of prioritizeMetadataScanEntries(entries)) {
     if (budget.scannedEntries >= MAX_METADATA_DIRECTORY_SCAN_ENTRIES) {
       break;
     }

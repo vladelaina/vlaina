@@ -31,6 +31,11 @@ describe('starred entry path helpers', () => {
       .toBe('/docs/alpha.md');
   });
 
+  it('preserves UNC roots when resolving entry absolute paths', () => {
+    expect(getStarredEntryAbsolutePath(createEntry('unc', 'note', '//server/share', 'docs/alpha.md')))
+      .toBe('//server/share/docs/alpha.md');
+  });
+
   it('creates external note entries from absolute paths', () => {
     const entry = createStarredEntryFromAbsoluteNotePath('/other/docs/alpha.md');
 

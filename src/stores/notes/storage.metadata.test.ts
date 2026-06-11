@@ -327,20 +327,43 @@ describe('notes metadata storage', () => {
     expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-heavy/Dist');
   });
 
-  it('caps non-markdown directory scanning before late markdown entries', async () => {
-    adapter.listDir.mockResolvedValue([
-      ...Array.from({ length: 10_000 }, (_, index) => ({ name: `asset-${index}.png`, isFile: true })),
-      { name: 'late.md', isFile: true },
-      { name: 'late-folder', isDirectory: true },
-    ]);
+  it('prioritizes markdown and folders before capping non-markdown metadata scanning', async () => {
+    adapter.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault-many-assets') {
+        return [
+          ...Array.from({ length: 10_000 }, (_, index) => ({ name: `asset-${index}.png`, isFile: true })),
+          { name: 'late.md', isFile: true },
+          { name: 'late-folder', isDirectory: true },
+        ];
+      }
+
+      if (path === '/vault-many-assets/late-folder') {
+        return [{ name: 'nested.md', isFile: true }];
+      }
+
+      return [];
+    });
+    adapter.readFile.mockResolvedValue([
+      '---',
+      'vlaina_updated: "2026-04-17T00:00:00.000Z"',
+      '---',
+      '',
+      '# Late',
+    ].join('\n'));
 
     await expect(loadNoteMetadata('/vault-many-assets')).resolves.toEqual({
       version: 2,
-      notes: {},
+      notes: {
+        'late-folder/nested.md': {
+          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+        },
+        'late.md': {
+          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+        },
+      },
     });
-    expect(adapter.stat).not.toHaveBeenCalledWith('/vault-many-assets/late.md');
-    expect(adapter.readFile).not.toHaveBeenCalledWith('/vault-many-assets/late.md');
-    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-many-assets/late-folder', { includeHidden: true });
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-many-assets/late.md');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-many-assets/late-folder/nested.md');
   });
 
   it('keeps readable sibling metadata when one nested folder cannot be listed', async () => {

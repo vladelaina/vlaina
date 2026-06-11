@@ -181,21 +181,24 @@ describe('WebAdapter', () => {
 
   it('caps recursive listing results when prefix scans return many entries', async () => {
     const adapterWithScans = adapter as unknown as {
-      readStoredFilesByPrefix: (prefix: string) => Promise<unknown[]>;
-      readStoredDirsByPrefix: (prefix: string) => Promise<unknown[]>;
+      readStoredFilesByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
+      readStoredDirsByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
     };
-    adapterWithScans.readStoredFilesByPrefix = async () => Array.from(
-      { length: MAX_WEB_ADAPTER_LIST_ENTRIES + 1 },
-      (_, index) => ({
-        path: `/vault/docs/file-${index}.md`,
-        content: 'hello',
-        isBinary: false,
-        size: 5,
-        modifiedAt: index,
-        createdAt: index,
-      }),
-    );
-    adapterWithScans.readStoredDirsByPrefix = async () => [];
+    adapterWithScans.readStoredFilesByPrefix = async () => ({
+      entries: Array.from(
+        { length: MAX_WEB_ADAPTER_LIST_ENTRIES + 1 },
+        (_, index) => ({
+          path: `/vault/docs/file-${index}.md`,
+          content: 'hello',
+          isBinary: false,
+          size: 5,
+          modifiedAt: index,
+          createdAt: index,
+        }),
+      ),
+      truncated: false,
+    });
+    adapterWithScans.readStoredDirsByPrefix = async () => ({ entries: [], truncated: false });
 
     await expect(adapter.listDir('/vault', { recursive: true })).resolves.toHaveLength(
       MAX_WEB_ADAPTER_LIST_ENTRIES,
@@ -204,33 +207,39 @@ describe('WebAdapter', () => {
 
   it('prioritizes markdown files and directories before applying the list cap', async () => {
     const adapterWithScans = adapter as unknown as {
-      readStoredFilesByPrefix: (prefix: string) => Promise<unknown[]>;
-      readStoredDirsByPrefix: (prefix: string) => Promise<unknown[]>;
+      readStoredFilesByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
+      readStoredDirsByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
     };
-    adapterWithScans.readStoredFilesByPrefix = async () => [
-      ...Array.from({ length: MAX_WEB_ADAPTER_LIST_ENTRIES }, (_, index) => ({
-        path: `/vault/asset-${String(index).padStart(5, '0')}.png`,
-        content: new Uint8Array([index % 255]),
-        isBinary: true,
-        size: 1,
-        modifiedAt: index,
-        createdAt: index,
-      })),
-      {
-        path: '/vault/late.md',
-        content: 'late',
-        isBinary: false,
-        size: 4,
-        modifiedAt: 1,
-        createdAt: 1,
-      },
-    ];
-    adapterWithScans.readStoredDirsByPrefix = async () => [
-      {
-        path: '/vault/docs',
-        createdAt: 1,
-      },
-    ];
+    adapterWithScans.readStoredFilesByPrefix = async () => ({
+      entries: [
+        ...Array.from({ length: MAX_WEB_ADAPTER_LIST_ENTRIES }, (_, index) => ({
+          path: `/vault/asset-${String(index).padStart(5, '0')}.png`,
+          content: new Uint8Array([index % 255]),
+          isBinary: true,
+          size: 1,
+          modifiedAt: index,
+          createdAt: index,
+        })),
+        {
+          path: '/vault/late.md',
+          content: 'late',
+          isBinary: false,
+          size: 4,
+          modifiedAt: 1,
+          createdAt: 1,
+        },
+      ],
+      truncated: false,
+    });
+    adapterWithScans.readStoredDirsByPrefix = async () => ({
+      entries: [
+        {
+          path: '/vault/docs',
+          createdAt: 1,
+        },
+      ],
+      truncated: false,
+    });
 
     const entries = await adapter.listDir('/vault', { includeHidden: true });
 
@@ -308,5 +317,66 @@ describe('WebAdapter', () => {
     );
     await expect(adapter.exists('/vault/notes/a.md')).resolves.toBe(true);
     await expect(adapter.exists('/vault/notes/archive')).resolves.toBe(false);
+  });
+
+  it('does not partially delete recursive directories when a prefix scan is capped', async () => {
+    await adapter.writeFile('/vault/docs/a.md', 'hello', { recursive: true });
+    const adapterWithScans = adapter as unknown as {
+      readStoredFilesByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
+      readStoredDirsByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
+    };
+    adapterWithScans.readStoredFilesByPrefix = async () => ({
+      entries: [
+        {
+          path: '/vault/docs/a.md',
+          content: 'hello',
+          isBinary: false,
+          size: 5,
+          modifiedAt: 1,
+          createdAt: 1,
+        },
+      ],
+      truncated: true,
+    });
+    adapterWithScans.readStoredDirsByPrefix = async () => ({
+      entries: [{ path: '/vault/docs', createdAt: 1 }],
+      truncated: false,
+    });
+
+    await expect(adapter.deleteDir('/vault/docs', true)).rejects.toThrow(
+      'Directory is too large to delete safely.',
+    );
+    await expect(adapter.exists('/vault/docs/a.md')).resolves.toBe(true);
+  });
+
+  it('does not partially move recursive directories when a prefix scan is capped', async () => {
+    await adapter.writeFile('/vault/docs/a.md', 'hello', { recursive: true });
+    const adapterWithScans = adapter as unknown as {
+      readStoredFilesByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
+      readStoredDirsByPrefix: (prefix: string) => Promise<{ entries: unknown[]; truncated: boolean }>;
+    };
+    adapterWithScans.readStoredFilesByPrefix = async () => ({
+      entries: [
+        {
+          path: '/vault/docs/a.md',
+          content: 'hello',
+          isBinary: false,
+          size: 5,
+          modifiedAt: 1,
+          createdAt: 1,
+        },
+      ],
+      truncated: true,
+    });
+    adapterWithScans.readStoredDirsByPrefix = async () => ({
+      entries: [{ path: '/vault/docs', createdAt: 1 }],
+      truncated: false,
+    });
+
+    await expect(adapter.rename('/vault/docs', '/vault/archive')).rejects.toThrow(
+      'Directory is too large to move safely.',
+    );
+    await expect(adapter.exists('/vault/docs/a.md')).resolves.toBe(true);
+    await expect(adapter.exists('/vault/archive/a.md')).resolves.toBe(false);
   });
 });

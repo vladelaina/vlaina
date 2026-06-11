@@ -5,6 +5,7 @@ interface TreeSnapshot {
   files: Set<string>;
   folders: Set<string>;
   subtreeSignatures: Map<string, string>;
+  truncated: boolean;
 }
 
 const MAX_EXTERNAL_TREE_SNAPSHOT_NODES = 20_000;
@@ -40,6 +41,7 @@ function flattenTreeSnapshot(nodes: FileTreeNode[]): TreeSnapshot {
     files,
     folders,
     subtreeSignatures,
+    truncated: false,
   };
 
   const stack: Array<{
@@ -86,6 +88,7 @@ function flattenTreeSnapshot(nodes: FileTreeNode[]): TreeSnapshot {
     frame.index += 1;
     visitedNodes += 1;
     if (visitedNodes > MAX_EXTERNAL_TREE_SNAPSHOT_NODES) {
+      snapshot.truncated = true;
       return snapshot;
     }
 
@@ -304,6 +307,14 @@ export function detectExternalTreePathChanges(
 ): ExternalTreePathChanges {
   const previous = flattenTreeSnapshot(previousNodes);
   const next = flattenTreeSnapshot(nextNodes);
+  if (previous.truncated || next.truncated) {
+    return {
+      renames: [],
+      deletions: [],
+      hasAdditions: true,
+      hasChanges: true,
+    };
+  }
 
   const fileDiff = collectDiff(previous.files, next.files);
   const folderDiff = collectDiff(previous.folders, next.folders);

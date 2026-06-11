@@ -15,6 +15,7 @@ interface ReadOnlyCodeBlockProps {
 
 const LANGUAGE_CLASS_PATTERN = /language-([\w+-]+)/;
 const MAX_HIGHLIGHT_CHARS = 20_000;
+const MAX_LINE_NUMBER_LINES = 20_000;
 
 function escapeHtml(input: string): string {
   return input
@@ -50,13 +51,16 @@ function extractCodePayload(
   return { language, codeText };
 }
 
-function countCodeLines(codeText: string): number {
+function countCodeLines(codeText: string, maxLines = Number.POSITIVE_INFINITY): number {
   if (codeText.length === 0) return 1;
 
   let lineCount = 1;
   for (let index = 0; index < codeText.length; index += 1) {
     if (codeText.charCodeAt(index) === 10) {
       lineCount += 1;
+      if (lineCount > maxLines) {
+        return lineCount;
+      }
     }
   }
   return lineCount;
@@ -75,10 +79,14 @@ export const ReadOnlyCodeBlock = memo(function ReadOnlyCodeBlock({
 }: ReadOnlyCodeBlockProps) {
   const { language, codeText } = extractCodePayload(className, children);
   const showLineNumbers = useUnifiedStore(selectCodeBlockLineNumbersEnabled);
-  const lineNumbers = useMemo(
-    () => (showLineNumbers ? createLineNumbersText(countCodeLines(codeText)) : ''),
-    [codeText, showLineNumbers],
-  );
+  const lineNumbers = useMemo(() => {
+    if (!showLineNumbers) {
+      return '';
+    }
+    const lineCount = countCodeLines(codeText, MAX_LINE_NUMBER_LINES);
+    return lineCount <= MAX_LINE_NUMBER_LINES ? createLineNumbersText(lineCount) : '';
+  }, [codeText, showLineNumbers]);
+  const shouldShowLineNumbers = showLineNumbers && lineNumbers.length > 0;
 
   const highlightedHTML = useMemo(() => {
     try {
@@ -117,7 +125,7 @@ export const ReadOnlyCodeBlock = memo(function ReadOnlyCodeBlock({
         onCopy={handleCopy}
       />
       <div className="code-block-chrome-body overflow-x-auto p-4 pt-0">
-        {showLineNumbers && (
+        {shouldShowLineNumbers && (
           <pre
             className="code-block-chrome-line-numbers"
             aria-hidden="true"

@@ -23,6 +23,11 @@ interface StoredDir {
   createdAt: number;
 }
 
+interface PrefixScanResult<T> {
+  entries: T[];
+  truncated: boolean;
+}
+
 function getListEntryPriority(entry: FileInfo): number {
   if (entry.isDirectory || MARKDOWN_FILE_EXTENSION_PATTERN.test(entry.name)) {
     return 0;
@@ -229,16 +234,20 @@ export class WebAdapter implements StorageAdapter {
     const normalizedPath = this.normalizePath(path);
 
     if (recursive) {
-      const files = await this.listDir(normalizedPath, { recursive: true, includeHidden: true });
-      for (const file of files) {
-        if (file.isFile) {
+      const prefix = normalizedPath === '/' ? '/' : `${normalizedPath}/`;
+      const fileScan = await this.readStoredFilesByPrefix(prefix);
+      const dirScan = await this.readStoredDirsByPrefix(normalizedPath);
+      this.assertCompletePrefixScan(fileScan, dirScan, 'delete');
+
+      for (const file of fileScan.entries) {
+        if (file.path.startsWith(prefix)) {
           await this.deleteFile(file.path);
         }
       }
-      
-      for (const file of files.reverse()) {
-        if (file.isDirectory) {
-          await this.deleteDirEntry(file.path);
+
+      for (const dir of dirScan.entries.slice().reverse()) {
+        if (dir.path !== normalizedPath && dir.path.startsWith(prefix)) {
+          await this.deleteDirEntry(dir.path);
         }
       }
     } else {
@@ -335,8 +344,10 @@ export class WebAdapter implements StorageAdapter {
     const seenPaths = new Set<string>();
 
     const prefix = normalizedPath === '/' ? '/' : `${normalizedPath}/`;
-    const files = await this.readStoredFilesByPrefix(prefix);
-    const dirs = await this.readStoredDirsByPrefix(prefix);
+    const fileScan = await this.readStoredFilesByPrefix(prefix);
+    const dirScan = await this.readStoredDirsByPrefix(prefix);
+    const files = fileScan.entries;
+    const dirs = dirScan.entries;
 
     const addEntry = (entry: FileInfo) => {
       if (seenPaths.has(entry.path)) return;
@@ -451,8 +462,11 @@ export class WebAdapter implements StorageAdapter {
       }
 
       const prefix = normalizedOld + '/';
-      const files = await this.readStoredFilesByPrefix(prefix);
-      const dirs = await this.readStoredDirsByPrefix(normalizedOld);
+      const fileScan = await this.readStoredFilesByPrefix(prefix);
+      const dirScan = await this.readStoredDirsByPrefix(normalizedOld);
+      this.assertCompletePrefixScan(fileScan, dirScan, 'move');
+      const files = fileScan.entries;
+      const dirs = dirScan.entries;
 
       for (const file of files) {
         if (file.path.startsWith(prefix)) {
@@ -594,7 +608,19 @@ export class WebAdapter implements StorageAdapter {
     return IDBKeyRange.bound(prefix, `${prefix}${PREFIX_RANGE_SUFFIX}`);
   }
 
-  private async readStoredFilesByPrefix(prefix: string): Promise<StoredFile[]> {
+  private assertCompletePrefixScan(
+    fileScan: PrefixScanResult<StoredFile>,
+    dirScan: PrefixScanResult<StoredDir>,
+    operation: 'delete' | 'move',
+  ): void {
+    if (!fileScan.truncated && !dirScan.truncated) {
+      return;
+    }
+
+    throw new Error(`Directory is too large to ${operation} safely.`);
+  }
+
+  private async readStoredFilesByPrefix(prefix: string): Promise<PrefixScanResult<StoredFile>> {
     const db = await this.getDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_FILES, 'readonly');
@@ -603,7 +629,10 @@ export class WebAdapter implements StorageAdapter {
         const fallbackRequest = store.getAll(this.createPrefixRange(prefix), MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES);
         fallbackRequest.onsuccess = () => {
           const files = (fallbackRequest.result || []) as StoredFile[];
-          resolve(files.filter((file) => file.path.startsWith(prefix)));
+          resolve({
+            entries: files.filter((file) => file.path.startsWith(prefix)),
+            truncated: files.length >= MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES,
+          });
         };
         fallbackRequest.onerror = () => reject(fallbackRequest.error);
         return;
@@ -615,7 +644,7 @@ export class WebAdapter implements StorageAdapter {
       request.onsuccess = () => {
         const cursor = request.result;
         if (!cursor) {
-          resolve(files);
+          resolve({ entries: files, truncated: false });
           return;
         }
 
@@ -624,7 +653,7 @@ export class WebAdapter implements StorageAdapter {
           files.push(file);
         }
         if (files.length >= MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES) {
-          resolve(files);
+          resolve({ entries: files, truncated: true });
           return;
         }
         cursor.continue();
@@ -633,7 +662,7 @@ export class WebAdapter implements StorageAdapter {
     });
   }
 
-  private async readStoredDirsByPrefix(prefix: string): Promise<StoredDir[]> {
+  private async readStoredDirsByPrefix(prefix: string): Promise<PrefixScanResult<StoredDir>> {
     const db = await this.getDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_DIRS, 'readonly');
@@ -644,7 +673,10 @@ export class WebAdapter implements StorageAdapter {
         const fallbackRequest = store.getAll(this.createPrefixRange(prefix), MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES);
         fallbackRequest.onsuccess = () => {
           const fallbackDirs = (fallbackRequest.result || []) as StoredDir[];
-          resolve(fallbackDirs.filter((dir) => dir.path === prefix || dir.path.startsWith(descendantPrefix)));
+          resolve({
+            entries: fallbackDirs.filter((dir) => dir.path === prefix || dir.path.startsWith(descendantPrefix)),
+            truncated: fallbackDirs.length >= MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES,
+          });
         };
         fallbackRequest.onerror = () => reject(fallbackRequest.error);
         return;
@@ -655,7 +687,7 @@ export class WebAdapter implements StorageAdapter {
       request.onsuccess = () => {
         const cursor = request.result;
         if (!cursor) {
-          resolve(dirs);
+          resolve({ entries: dirs, truncated: false });
           return;
         }
 
@@ -664,7 +696,7 @@ export class WebAdapter implements StorageAdapter {
           dirs.push(dir);
         }
         if (dirs.length >= MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES) {
-          resolve(dirs);
+          resolve({ entries: dirs, truncated: true });
           return;
         }
         cursor.continue();

@@ -4,7 +4,7 @@ import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import type { FileTreeNode, StarredEntry } from '@/stores/notes/types';
-import { getStarredEntryAbsolutePath, normalizeStarredVaultPath } from '@/stores/notes/starred';
+import { getStarredEntryAbsolutePath, isSameStarredVaultPath, normalizeStarredVaultPath } from '@/stores/notes/starred';
 import { flushCurrentTitleCommit } from '../Editor/utils/titleCommitRegistry';
 import { suppressNextCurrentNoteSidebarReveal } from '../common/sidebarScrollIntoView';
 import { buildNodeLookup, sortStarredEntries } from './starredSectionUtils';
@@ -31,14 +31,17 @@ export function useStarredSectionEntries() {
 
   const currentVaultPath = currentVault?.path ? normalizeStarredVaultPath(currentVault.path) : '';
   const sortedStarredEntries = useMemo(() => sortStarredEntries(starredEntries), [starredEntries]);
-  const currentVaultRootFolder = rootFolderPath === currentVaultPath ? rootFolder : null;
+  const currentVaultRootFolder =
+    rootFolderPath && currentVaultPath && isSameStarredVaultPath(rootFolderPath, currentVaultPath)
+      ? rootFolder
+      : null;
   const nodeLookup = useMemo(() => buildNodeLookup(currentVaultRootFolder), [currentVaultRootFolder]);
 
   const entries = useMemo<StarredSectionEntryViewModel[]>(
     () =>
       sortedStarredEntries.map((entry) => {
         const isCurrentVaultEntry =
-          normalizeStarredVaultPath(entry.vaultPath) === currentVaultPath;
+          isSameStarredVaultPath(entry.vaultPath, currentVaultPath);
         const treeNode = isCurrentVaultEntry
           ? nodeLookup.get(entry.relativePath) ?? null
           : null;
@@ -69,7 +72,7 @@ export function useStarredSectionEntries() {
 
               const shouldOpenInNewTab = openInNewTab;
               const isLatestCurrentVaultEntry =
-                normalizeStarredVaultPath(latestEntry.vaultPath) === currentVaultPath;
+                isSameStarredVaultPath(latestEntry.vaultPath, currentVaultPath);
 
               if (!isLatestCurrentVaultEntry) {
                 const absolutePath = await joinPath(latestEntry.vaultPath, latestEntry.relativePath);

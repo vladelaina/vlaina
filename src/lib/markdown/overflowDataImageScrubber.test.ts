@@ -58,4 +58,40 @@ describe('overflowDataImageScrubber', () => {
       maxTargetChars: 4096,
     })).toBe('[image]');
   });
+
+  it('scrubs suspicious remainder after repeated malformed image labels exhaust the scan budget', () => {
+    const malformedPrefix = Array.from(
+      { length: 5 },
+      () => `![${'a'.repeat(1024 * 1024)}`,
+    ).join('');
+    const content = `${malformedPrefix}![real](<data:image/png;base64,abc>)`;
+
+    const scrubbed = scrubOverflowMarkdownDataImages(content, {
+      replacement: '[image]',
+      maxTargetChars: 4096,
+    });
+
+    expect(scrubbed).toContain('[image]');
+    expect(scrubbed).not.toContain('data:image/png;base64');
+  });
+
+  it('bounds inline code protection ranges before scrubbing later data images', () => {
+    const codeExamples = Array.from(
+      { length: 4001 },
+      (_, index) => `\`![example ${index}](<data:image/png;base64,code>)\``,
+    );
+    const content = [
+      ...codeExamples,
+      '![real](<data:image/png;base64,real>)',
+    ].join('\n');
+
+    const scrubbed = scrubOverflowMarkdownDataImages(content, {
+      replacement: '[image]',
+      maxTargetChars: 4096,
+    });
+
+    expect(scrubbed).toContain('`![example 0](<data:image/png;base64,code>)`');
+    expect(scrubbed).not.toContain('![example 4000](<data:image/png;base64,code>)');
+    expect(scrubbed).not.toContain('data:image/png;base64,real');
+  });
 });

@@ -28,6 +28,8 @@ import {
 } from '@/components/common/markdown/escapedBlockSyntax';
 import { sanitizeHtml } from './plugins/clipboard/sanitizer';
 
+const MAX_RAW_MARKDOWN_HTML_CHARS = 2 * 1024 * 1024;
+
 function getHeadingCompatibilityClass(level: unknown): string {
     const normalizedLevel = typeof level === 'number' && level >= 1 && level <= 6 ? level : 1;
     return `HyperMD-header HyperMD-header-${normalizedLevel} cm-header cm-header-${normalizedLevel} cm-line`;
@@ -56,8 +58,9 @@ function isSafeStaticMarkdownHtmlValue(value: string): boolean {
     return /^<div\s+class\s*=\s*(?:"v-page-break"|'v-page-break')\s*>\s*<\/div>$/i.test(trimmed);
 }
 
-function sanitizeRawMarkdownHtmlValue(value: unknown): string {
+export function sanitizeRawMarkdownHtmlValue(value: unknown): string {
     if (typeof value !== 'string') return '';
+    if (value.length > MAX_RAW_MARKDOWN_HTML_CHARS) return '';
     if (
         isSafeInternalMarkdownHtmlValue(value)
         || isNonRenderingMarkdownHtmlValue(value)

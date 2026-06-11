@@ -53,7 +53,7 @@ describe('notes scan budgets', () => {
     ]);
   });
 
-  it('caps non-markdown file tree scanning before late markdown notes', async () => {
+  it('prioritizes markdown before capping non-markdown file tree scanning', async () => {
     adapter.listDir.mockResolvedValue([
       ...Array.from({ length: 10_000 }, (_, index) => ({
         name: `image-${index}.png`,
@@ -69,7 +69,14 @@ describe('notes scan budgets', () => {
       },
     ]);
 
-    await expect(buildFileTree('/vault')).resolves.toEqual([]);
+    await expect(buildFileTree('/vault')).resolves.toEqual([
+      {
+        id: 'late.md',
+        name: 'late',
+        path: 'late.md',
+        isFolder: false,
+      },
+    ]);
   });
 
   it('does not spend metadata scan budget on unsupported sibling files before markdown notes', async () => {
@@ -98,6 +105,37 @@ describe('notes scan budgets', () => {
       notes: {
         'alpha.md': {
           updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+        },
+      },
+    });
+  });
+
+  it('does not spend metadata directory scan budget on unsupported files before late markdown notes', async () => {
+    adapter.listDir.mockResolvedValue([
+      ...Array.from({ length: 10_000 }, (_, index) => ({
+        name: `asset-${index}.png`,
+        isDirectory: false,
+        isFile: true,
+      })),
+      {
+        name: 'late.md',
+        isDirectory: false,
+        isFile: true,
+      },
+    ]);
+    adapter.readFile.mockResolvedValue([
+      '---',
+      'vlaina_updated: "2026-04-18T00:00:00.000Z"',
+      '---',
+      '',
+      '# Late',
+    ].join('\n'));
+
+    await expect(loadNoteMetadata('/vault-late-budget')).resolves.toEqual({
+      version: 2,
+      notes: {
+        'late.md': {
+          updatedAt: Date.parse('2026-04-18T00:00:00.000Z'),
         },
       },
     });

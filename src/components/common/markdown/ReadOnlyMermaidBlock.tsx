@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { translate } from '@/lib/i18n';
 import {
   generateMermaidId,
+  MAX_MERMAID_CODE_CHARS,
   mermaidRenderErrorMarkup,
   renderMermaid as renderMermaidMarkup,
 } from './mermaidRenderer';
@@ -45,6 +46,10 @@ export function getPendingReadOnlyMermaidRenderCount() {
 }
 
 export async function resolveReadOnlyMermaidMarkup(code: string) {
+  if (code.length > MAX_MERMAID_CODE_CHARS) {
+    return sanitizeMermaidMarkup(mermaidRenderErrorMarkup());
+  }
+
   const cached = readCachedReadOnlyMermaidMarkup(code);
   if (cached != null) {
     return cached;
