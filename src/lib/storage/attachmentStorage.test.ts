@@ -398,7 +398,7 @@ describe('attachmentStorage', () => {
       size: 2,
     })).resolves.toBe('data:image/png;base64,SEk=');
 
-    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/appdata/.vlaina/attachments/file.png');
+    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/appdata/.vlaina/attachments/file.png', MAX_ATTACHMENT_IMAGE_BYTES);
   });
 
   it('reads explicitly allowed attachment paths when preview data is not inline', async () => {
@@ -414,7 +414,7 @@ describe('attachmentStorage', () => {
       allowPath: (path) => path.startsWith('/vault/'),
     })).resolves.toBe('data:image/png;base64,SEk=');
 
-    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/vault/assets/file.png');
+    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/vault/assets/file.png', MAX_ATTACHMENT_IMAGE_BYTES);
   });
 
   it('does not read untrusted attachment paths when converting to base64', async () => {
@@ -543,7 +543,10 @@ describe('attachmentStorage', () => {
 
     expect(mocks.adapter.getBasePath).toHaveBeenCalled();
     expect(mocks.joinPath).toHaveBeenCalledWith('/appdata', '.vlaina', 'attachments', 'demo image.png');
-    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith('/appdata/.vlaina/attachments/demo image.png');
+    expect(mocks.adapter.readBinaryFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/attachments/demo image.png',
+      MAX_ATTACHMENT_IMAGE_BYTES,
+    );
   });
 
   it('does not resolve remote attachment-looking asset URLs when converting to base64', async () => {

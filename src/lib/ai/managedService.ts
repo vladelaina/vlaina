@@ -29,6 +29,10 @@ import {
   requestManagedWebJson,
   requestManagedWebStream,
 } from './managed/webRequests';
+import {
+  assertProviderJsonRequestBodySize,
+  stringifyProviderJsonRequestBody,
+} from './providerRequestBody';
 
 export {
   MANAGED_API_BASE,
@@ -120,29 +124,33 @@ export async function requestManagedChatCompletion(
   signal?: AbortSignal
 ): Promise<Record<string, unknown>> {
   const sanitizedBody = sanitizeManagedChatCompletionBody(body)
-  return hasElectronDesktopBridge()
-    ? ((await (signal
+  if (hasElectronDesktopBridge()) {
+    assertProviderJsonRequestBodySize(sanitizedBody)
+    return (await (signal
       ? accountCommands.managedChatCompletion(sanitizedBody, signal)
-      : accountCommands.managedChatCompletion(sanitizedBody))) as Record<string, unknown>)
-    : await requestManagedWebJson<Record<string, unknown>>('/chat/completions', {
-      method: 'POST',
-      body: JSON.stringify(sanitizedBody),
-      signal,
-    })
+      : accountCommands.managedChatCompletion(sanitizedBody))) as Record<string, unknown>
+  }
+  return await requestManagedWebJson<Record<string, unknown>>('/chat/completions', {
+    method: 'POST',
+    body: stringifyProviderJsonRequestBody(sanitizedBody),
+    signal,
+  })
 }
 
 export async function requestManagedImageGeneration(
   body: object,
   signal?: AbortSignal
 ): Promise<Record<string, unknown>> {
-  return hasElectronDesktopBridge()
-    ? ((await accountCommands.managedImageGeneration(body, signal)) as Record<string, unknown>)
-    : await requestManagedWebJson<Record<string, unknown>>('/images/generations', {
-      method: 'POST',
-      body: JSON.stringify(body),
-      timeoutMs: 300_000,
-      signal,
-    })
+  if (hasElectronDesktopBridge()) {
+    assertProviderJsonRequestBodySize(body)
+    return (await accountCommands.managedImageGeneration(body, signal)) as Record<string, unknown>
+  }
+  return await requestManagedWebJson<Record<string, unknown>>('/images/generations', {
+    method: 'POST',
+    body: stringifyProviderJsonRequestBody(body),
+    timeoutMs: 300_000,
+    signal,
+  })
 }
 
 export async function requestManagedImageEdit(
@@ -162,7 +170,9 @@ export async function requestManagedChatCompletionStream(
 ): Promise<string> {
   const requestId = `managed-stream-${Date.now()}-${crypto.randomUUID()}`
   const sanitizedBody = sanitizeManagedChatCompletionBody(body)
-  return hasElectronDesktopBridge()
-    ? await accountCommands.managedChatCompletionStream(sanitizedBody, onChunk, signal, requestId)
-    : await requestManagedWebStream('/chat/completions', sanitizedBody, onChunk, signal)
+  if (hasElectronDesktopBridge()) {
+    assertProviderJsonRequestBodySize(sanitizedBody)
+    return await accountCommands.managedChatCompletionStream(sanitizedBody, onChunk, signal, requestId)
+  }
+  return await requestManagedWebStream('/chat/completions', sanitizedBody, onChunk, signal)
 }

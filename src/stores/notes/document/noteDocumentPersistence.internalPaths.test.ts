@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadNoteDocument, saveNoteDocument } from './noteDocumentPersistence';
 
+const MAX_NOTE_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
 const adapter = {
-  readFile: vi.fn<(path: string) => Promise<string>>(),
+  readFile: vi.fn<(path: string, maxBytes?: number) => Promise<string>>(),
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
   stat: vi.fn<
     (path: string) => Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null; size?: number | null } | null>
@@ -189,7 +191,7 @@ describe('note document internal paths', () => {
       cache: new Map(),
     });
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(result.content).toBe('# Alpha');
   });
 
@@ -212,7 +214,7 @@ describe('note document internal paths', () => {
       content: expect.stringContaining('# Alpha'),
     });
 
-    expect(adapter.readFile).toHaveBeenCalledWith('C:\\vault\\docs\\alpha.md');
+    expect(adapter.readFile).toHaveBeenCalledWith('C:\\vault\\docs\\alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(adapter.writeFile).toHaveBeenCalledWith(
       'C:\\vault\\docs\\alpha.md',
       expect.stringContaining('# Alpha')
@@ -228,10 +230,10 @@ describe('note document internal paths', () => {
       })).resolves.toMatchObject({ content: '# Alpha' });
     }
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md');
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/beta.markdown');
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/gamma.mdown');
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/delta.mkd');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/beta.markdown', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/gamma.mdown', MAX_NOTE_DOCUMENT_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/delta.mkd', MAX_NOTE_DOCUMENT_BYTES);
   });
 
   it('saves every supported markdown extension', async () => {

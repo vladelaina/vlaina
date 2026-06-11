@@ -504,6 +504,8 @@ describe("messageClipboard", () => {
 
     await expect(copyImageSourceToClipboard("javascript:alert(1)")).resolves.toBe(false);
     await expect(copyImageSourceToClipboard("http://127.0.0.1:3000/secret.png")).resolves.toBe(false);
+    await expect(copyImageSourceToClipboard("images/demo.png")).resolves.toBe(false);
+    await expect(copyImageSourceToClipboard("asset://localhost/chat-inline-image/0")).resolves.toBe(false);
 
     expect(fetchMock).not.toHaveBeenCalled();
   });

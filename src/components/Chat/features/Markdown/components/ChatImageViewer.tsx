@@ -7,11 +7,13 @@ import { writeTextToClipboard } from "@/lib/clipboard";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { copyImageSourceToClipboard } from "@/components/Chat/common/messageClipboard";
 import { downloadImageWithPrompt } from "@/components/Chat/common/imageDownload";
-import { resolveSafeChatImageSource } from "@/components/Chat/common/chatImageSourceResolution";
+import {
+  normalizeDirectChatImageSource,
+  resolveSafeChatImageSource,
+} from "@/components/Chat/common/chatImageSourceResolution";
 import { chatPopoverPillSurfaceClass } from "@/components/Chat/features/Input/composerStyles";
 import {
   isRenderableDataImageSrc,
-  normalizeRenderableImageSrc,
 } from "@/components/common/markdown/imagePolicy";
 import { useI18n } from "@/lib/i18n";
 import { createStoredAttachmentFromSource } from "@/lib/storage/attachmentStorage";
@@ -163,7 +165,7 @@ function getInitialViewerImageSource(src: string): string {
   if (requiresAttachmentResolution(src)) {
     return src;
   }
-  return normalizeRenderableImageSrc(src) ?? TRANSPARENT_IMAGE_DATA_URL;
+  return normalizeDirectChatImageSource(src) ?? TRANSPARENT_IMAGE_DATA_URL;
 }
 
 async function resolveViewerImageSource(src: string): Promise<string | null> {
@@ -291,7 +293,7 @@ export function ChatImageViewer({
       ? previewSrc
       : isStoredAttachmentSource
         ? activeSrc
-        : normalizeRenderableImageSrc(activeSrc) ?? TRANSPARENT_IMAGE_DATA_URL;
+        : normalizeDirectChatImageSource(activeSrc) ?? TRANSPARENT_IMAGE_DATA_URL;
     setResolvedActiveSrc(immediateSrc);
 
     resolveViewerImageSource(activeSrc)

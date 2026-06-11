@@ -38,6 +38,7 @@ import {
   sanitizeCurrentRequestTextContent,
   sanitizeHistory,
 } from '@/lib/ai/requestContext'
+import { stringifyProviderJsonRequestBody } from '@/lib/ai/providerRequestBody'
 import { normalizeRenderableImageSrc } from '@/lib/markdown/renderableImagePolicy'
 
 function summarizeError(error: unknown): string {
@@ -708,7 +709,7 @@ export class OpenAICompatibleClient implements AIClient {
         const response = await providerFetch(url, {
           method: 'POST',
           headers,
-          body: JSON.stringify(body),
+          body: stringifyProviderJsonRequestBody(body),
           signal,
         })
         if (response.ok) {
@@ -778,7 +779,7 @@ export class OpenAICompatibleClient implements AIClient {
     const response = await providerFetch(`${baseUrl}/responses`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({
+      body: stringifyProviderJsonRequestBody({
         model: body.model,
         input: buildXaiResponsesInput(body.messages),
         tools: [{ type: 'web_search' }],
@@ -1023,7 +1024,7 @@ export class OpenAICompatibleClient implements AIClient {
     const response = await providerFetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(body),
+      body: stringifyProviderJsonRequestBody(body),
       signal,
     })
 
@@ -1128,7 +1129,7 @@ export class OpenAICompatibleClient implements AIClient {
       const response = await providerFetch(url, {
         method: 'POST',
         headers,
-        body: JSON.stringify(body),
+        body: stringifyProviderJsonRequestBody(body),
         signal: controller.signal,
       })
 

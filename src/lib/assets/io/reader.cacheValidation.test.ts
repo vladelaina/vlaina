@@ -6,7 +6,7 @@ import {
 } from './reader';
 
 const hoisted = vi.hoisted(() => ({
-  readBinaryFile: vi.fn<(path: string) => Promise<Uint8Array>>(async () => new Uint8Array([1, 2, 3])),
+  readBinaryFile: vi.fn<(path: string, _maxBytes?: number) => Promise<Uint8Array>>(async () => new Uint8Array([1, 2, 3])),
   writeBinaryFile: vi.fn<(path: string, bytes: Uint8Array, options?: { recursive?: boolean }) => Promise<void>>(async () => undefined),
   exists: vi.fn<(path: string) => Promise<boolean>>(async () => false),
   getBasePath: vi.fn(async () => '/app-data'),

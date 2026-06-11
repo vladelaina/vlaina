@@ -168,10 +168,20 @@ describe('buildStoredUserMessageContent image parsing', () => {
     ]);
   });
 
-  it('uses a fallback attachment name for oversized relative image sources', async () => {
-    const longImageSource = `images/${'a'.repeat(3000)}.png`;
+  it('keeps relative directory image sources as text instead of vision attachments', async () => {
     const content = [
-      `![local](${longImageSource})`,
+      '![local](images/demo.png)',
+      '',
+      'Describe this.',
+    ].join('\n');
+
+    await expect(buildStoredUserMessageContent(content)).resolves.toBe(content);
+    expect(convertToBase64).not.toHaveBeenCalled();
+  });
+
+  it('converts stored attachment image references into vision attachments on resend paths', async () => {
+    const content = [
+      '![stored](<attachment://demo%20image.png>)',
       '',
       'Describe this.',
     ].join('\n');
@@ -181,9 +191,9 @@ describe('buildStoredUserMessageContent image parsing', () => {
       { type: 'image_url', image_url: { url: 'data:image/png;base64,REMOTE' } },
     ]);
     expect(convertToBase64).toHaveBeenCalledWith(expect.objectContaining({
-      assetUrl: longImageSource,
-      name: 'image-1.png',
-      previewUrl: longImageSource,
+      assetUrl: 'attachment://demo%20image.png',
+      name: 'demo image.png',
+      previewUrl: 'attachment://demo%20image.png',
       type: 'image/png',
     }), expect.any(Object));
   });

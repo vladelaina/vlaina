@@ -44,11 +44,24 @@ describe('WebAdapter', () => {
     await expect(adapter.readBinaryFile('/assets/image.bin')).resolves.toEqual(new Uint8Array([1, 2, 3]));
   });
 
+  it('rejects binary reads that exceed the caller-provided byte limit', async () => {
+    await adapter.writeBinaryFile('/assets/image.bin', new Uint8Array([1, 2, 3]), { recursive: true });
+
+    await expect(adapter.readBinaryFile('/assets/image.bin', 2)).rejects.toThrow('File is too large to read');
+    await expect(adapter.readBinaryFile('/assets/image.bin', -1)).rejects.toThrow('Invalid binary read limit');
+  });
+
   it('continues to copy text files as text', async () => {
     await adapter.writeFile('/notes/a.md', 'hello', { recursive: true });
     await adapter.copyFile('/notes/a.md', '/notes/b.md');
 
     await expect(adapter.readFile('/notes/b.md')).resolves.toBe('hello');
+  });
+
+  it('rejects text reads that exceed the caller-provided byte limit', async () => {
+    await adapter.writeFile('/notes/a.md', 'hello', { recursive: true });
+
+    await expect(adapter.readFile('/notes/a.md', 4)).rejects.toThrow('File is too large to read');
   });
 
   it('normalizes dot segments before reading and listing virtual paths', async () => {

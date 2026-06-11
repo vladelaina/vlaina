@@ -7,7 +7,6 @@ import {
   mkdir,
   open,
   readdir,
-  readFile,
   rename,
   rm,
   stat,
@@ -350,23 +349,52 @@ function requireSafeIpcRequestId(value, label) {
   return id;
 }
 
-async function assertReadableDesktopFile(filePath) {
+function normalizeDesktopReadByteLimit(value) {
+  if (value == null) {
+    return MAX_DESKTOP_FS_READ_BYTES;
+  }
+  if (!Number.isSafeInteger(value) || value < 0 || value > MAX_DESKTOP_FS_READ_BYTES) {
+    throw new Error('Desktop read byte limit is invalid.');
+  }
+  return value;
+}
+
+async function assertReadableDesktopFile(filePath, maxBytes) {
   const info = await stat(filePath);
   if (!info.isFile()) {
     throw new Error(`Desktop path must be a file: ${filePath}`);
   }
-  if (info.size > MAX_DESKTOP_FS_READ_BYTES) {
+  if (info.size > maxBytes) {
     throw new Error(`Desktop file is too large to read: ${filePath}`);
   }
 }
 
-async function readDesktopFileBytes(filePath) {
-  await assertReadableDesktopFile(filePath);
-  const bytes = await readFile(filePath);
-  if (bytes.byteLength > MAX_DESKTOP_FS_READ_BYTES) {
+async function readDesktopFileBytes(filePath, maxBytesValue) {
+  const maxBytes = normalizeDesktopReadByteLimit(maxBytesValue);
+  await assertReadableDesktopFile(filePath, maxBytes);
+
+  const handle = await open(filePath, 'r');
+  const chunks = [];
+  let totalBytes = 0;
+  try {
+    while (totalBytes <= maxBytes) {
+      const remainingBytes = maxBytes + 1 - totalBytes;
+      const buffer = Buffer.allocUnsafe(Math.min(64 * 1024, Math.max(1, remainingBytes)));
+      const { bytesRead } = await handle.read(buffer, 0, buffer.length, null);
+      if (bytesRead === 0) {
+        break;
+      }
+      chunks.push(buffer.subarray(0, bytesRead));
+      totalBytes += bytesRead;
+    }
+  } finally {
+    await handle.close().catch(() => {});
+  }
+
+  if (totalBytes > maxBytes) {
     throw new Error(`Desktop file is too large to read: ${filePath}`);
   }
-  return bytes;
+  return Buffer.concat(chunks, totalBytes);
 }
 
 function assertWritableDesktopByteLength(byteLength) {
@@ -827,12 +855,12 @@ export function registerDesktopIpc({
     );
   });
 
-  handleIpc('desktop:fs:read-binary', async (_event, filePath) => {
-    return new Uint8Array(await readDesktopFileBytes(await assertAuthorizedFsPath(filePath)));
+  handleIpc('desktop:fs:read-binary', async (_event, filePath, maxBytes) => {
+    return new Uint8Array(await readDesktopFileBytes(await assertAuthorizedFsPath(filePath), maxBytes));
   });
 
-  handleIpc('desktop:fs:read-text', async (_event, filePath) => {
-    return (await readDesktopFileBytes(await assertAuthorizedFsPath(filePath))).toString('utf8');
+  handleIpc('desktop:fs:read-text', async (_event, filePath, maxBytes) => {
+    return (await readDesktopFileBytes(await assertAuthorizedFsPath(filePath), maxBytes)).toString('utf8');
   });
 
   handleIpc('desktop:fs:write-text', async (_event, filePath, content, options) => {

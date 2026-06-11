@@ -367,7 +367,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
             set({ error: 'Note file is too large to update metadata.' });
             return;
           }
-          sourceContent = await storage.readFile(path);
+          sourceContent = await storage.readFile(path, MAX_METADATA_UPDATE_NOTE_BYTES);
           latestState = get();
           metadataBase = latestState.noteMetadata ?? createEmptyMetadataFile();
           isCurrentNote = latestState.currentNote?.path === path;
@@ -476,7 +476,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         set({ error: 'Note file is too large to update metadata.' });
         return;
       }
-      sourceContent = await storage.readFile(fullPath);
+      sourceContent = await storage.readFile(fullPath, MAX_METADATA_UPDATE_NOTE_BYTES);
       if (!isActiveVaultRequest(vaultPathAtStart)) {
         return;
       }
@@ -685,7 +685,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
               }
 
               try {
-                const rawContent = await storage.readFile(fullPath);
+                const rawContent = await storage.readFile(fullPath, MAX_SEARCHABLE_NOTE_BYTES);
                 if (!isSearchableMarkdownContent(rawContent)) {
                   return { path, content: '', modifiedAt, size };
                 }

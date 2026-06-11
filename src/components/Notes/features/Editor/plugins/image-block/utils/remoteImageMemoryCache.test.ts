@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     clearRemoteImageMemoryCache,
     clearRemoteImageMemoryCacheForTests,
     MAX_REMOTE_IMAGE_CACHE_ENTRIES,
     MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES,
+    REMOTE_IMAGE_FETCH_TIMEOUT_MS,
     resolveRemoteImageFromMemoryCache,
 } from './remoteImageMemoryCache';
 
@@ -19,6 +20,10 @@ describe('remoteImageMemoryCache', () => {
             configurable: true,
             value: vi.fn(),
         });
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
     });
 
     it('limits concurrent remote image fetches', async () => {
@@ -105,6 +110,7 @@ describe('remoteImageMemoryCache', () => {
             cache: 'force-cache',
             credentials: 'omit',
             referrerPolicy: 'no-referrer',
+            signal: expect.any(AbortSignal),
         });
     });
 
@@ -129,6 +135,33 @@ describe('remoteImageMemoryCache', () => {
 
         expect(cancel).toHaveBeenCalledTimes(1);
         expect(reader.releaseLock).toHaveBeenCalledTimes(1);
+        expect(URL.createObjectURL).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the safe remote URL when remote image fetches time out', async () => {
+        vi.useFakeTimers();
+        const url = 'https://example.com/timeout.png';
+        vi.stubGlobal('fetch', vi.fn((_url: string, init?: RequestInit) =>
+            new Promise<Response>((_resolve, reject) => {
+                init?.signal?.addEventListener('abort', () => {
+                    reject(new DOMException('Aborted', 'AbortError'));
+                }, { once: true });
+            })
+        ));
+
+        const resolution = resolveRemoteImageFromMemoryCache(url);
+        await Promise.resolve();
+
+        expect(fetch).toHaveBeenCalledWith(url, {
+            cache: 'force-cache',
+            credentials: 'omit',
+            referrerPolicy: 'no-referrer',
+            signal: expect.any(AbortSignal),
+        });
+
+        await vi.advanceTimersByTimeAsync(REMOTE_IMAGE_FETCH_TIMEOUT_MS);
+
+        await expect(resolution).resolves.toBe(url);
         expect(URL.createObjectURL).not.toHaveBeenCalled();
     });
 

@@ -100,6 +100,20 @@ describe('parseMarkdownMeasurementBlocks', () => {
     ]);
   });
 
+  it('keeps relative directory image markdown as text in video sections', () => {
+    const blocks = parseMarkdownMeasurementBlocks([
+      '![local](images/demo.png)',
+      '![video](https://example.com/movie.mp4)',
+    ].join('\n'));
+
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0]?.kind).toBe('text');
+    expect(blocks[1]).toEqual({
+      kind: 'video',
+      widthInset: 0,
+    });
+  });
+
   it('bounds video image token scans during layout parsing', () => {
     const markdown = Array.from({ length: 2001 }, (_, index) => {
       return `![video ${index}](https://example.com/${index}.mp4)`;

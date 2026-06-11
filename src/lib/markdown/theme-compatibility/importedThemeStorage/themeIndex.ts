@@ -21,7 +21,7 @@ export async function readThemeIndex(): Promise<ImportedMarkdownThemeMetadata[]>
     ) {
       return [];
     }
-    const content = await storage.readFile(indexPath);
+    const content = await storage.readFile(indexPath, MAX_IMPORTED_THEME_INDEX_BYTES);
     if (content.length > MAX_IMPORTED_THEME_INDEX_BYTES) {
       return [];
     }

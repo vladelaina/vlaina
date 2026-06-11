@@ -45,17 +45,23 @@ const statFile = vi.hoisted(() => async (path: string) => {
   return null;
 });
 const adapter = vi.hoisted(() => ({
-  readFile: vi.fn(async (path: string) => {
+  readFile: vi.fn(async (path: string, maxBytes?: number) => {
     const content = files.get(path);
     if (content === undefined) {
       throw new Error(`Missing file: ${path}`);
     }
+    if (maxBytes !== undefined && new TextEncoder().encode(content).byteLength > maxBytes) {
+      throw new Error(`File is too large to read: ${path}`);
+    }
     return content;
   }),
-  readBinaryFile: vi.fn(async (path: string) => {
+  readBinaryFile: vi.fn(async (path: string, maxBytes?: number) => {
     const content = binaryFiles.get(path);
     if (content === undefined) {
       throw new Error(`Missing binary file: ${path}`);
+    }
+    if (maxBytes !== undefined && content.byteLength > maxBytes) {
+      throw new Error(`File is too large to read: ${path}`);
     }
     return content;
   }),
@@ -191,6 +197,38 @@ describe('imported markdown theme storage', () => {
     expect(binaryFiles.has('/app/.vlaina/store/markdown-theme-cache/huge-asset-assets/0-huge.woff2')).toBe(false);
   });
 
+  it('falls back to the original file URL when a relative theme asset exceeds the read limit', async () => {
+    binaryFiles.set('/downloads/./fonts/race.woff2', new Uint8Array(MAX_IMPORTED_THEME_ASSET_BYTES + 1));
+    adapter.stat.mockImplementation(async (path: string) => {
+      if (path === '/downloads/./fonts/race.woff2') {
+        return {
+          name: 'race.woff2',
+          path,
+          isDirectory: false,
+          isFile: true,
+          size: MAX_IMPORTED_THEME_ASSET_BYTES,
+          modifiedAt: 10,
+        };
+      }
+      return statFile(path);
+    });
+
+    await importMarkdownThemeCss({
+      name: 'Racing Asset.css',
+      platform: 'typora',
+      sourcePath: '/downloads/Racing Asset.css',
+      css: '@font-face { src: url("./fonts/race.woff2"); }',
+    });
+
+    const imported = await readImportedMarkdownTheme('racing-asset');
+    expect(imported?.css).toContain('url("file:///downloads/./fonts/race.woff2")');
+    expect(adapter.readBinaryFile).toHaveBeenCalledWith(
+      '/downloads/./fonts/race.woff2',
+      MAX_IMPORTED_THEME_ASSET_BYTES,
+    );
+    expect(binaryFiles.has('/app/.vlaina/store/markdown-theme-cache/racing-asset-assets/0-race.woff2')).toBe(false);
+  });
+
   it('detects the source theme platform when importing CSS without a manual compatibility choice', async () => {
     const metadata = await importMarkdownThemeCss({
       name: 'Minimal.css',
@@ -223,7 +261,10 @@ describe('imported markdown theme storage', () => {
       cssFile: 'clean-light.css',
     }));
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/app/.vlaina/store/markdown-theme-cache/themes.json');
+    expect(adapter.readFile).toHaveBeenCalledWith(
+      '/app/.vlaina/store/markdown-theme-cache/themes.json',
+      MAX_IMPORTED_THEME_INDEX_BYTES,
+    );
     expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/store/markdown-theme-cache/clean-light.css');
   });
 
@@ -246,7 +287,10 @@ describe('imported markdown theme storage', () => {
 
     await expect(readImportedMarkdownTheme('huge-cached')).resolves.toBeNull();
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/app/.vlaina/store/markdown-theme-cache/themes.json');
+    expect(adapter.readFile).toHaveBeenCalledWith(
+      '/app/.vlaina/store/markdown-theme-cache/themes.json',
+      MAX_IMPORTED_THEME_INDEX_BYTES,
+    );
     expect(adapter.readFile).not.toHaveBeenCalledWith('/app/.vlaina/store/markdown-theme-cache/huge-cached.css');
   });
 
@@ -409,7 +453,10 @@ describe('imported markdown theme storage', () => {
       }),
     ]);
     expect(adapter.stat).toHaveBeenCalledWith('/app/.vlaina/themes/unknown-size.css');
-    expect(adapter.readFile).toHaveBeenCalledWith('/app/.vlaina/themes/unknown-size.css');
+    expect(adapter.readFile).toHaveBeenCalledWith(
+      '/app/.vlaina/themes/unknown-size.css',
+      MAX_IMPORTED_THEME_CSS_BYTES,
+    );
     expect(await readImportedMarkdownTheme('unknown-size')).toEqual(expect.objectContaining({
       id: 'unknown-size',
       css: expect.stringContaining('#write'),

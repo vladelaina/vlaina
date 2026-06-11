@@ -1,8 +1,7 @@
 import { getStorageAdapter, joinPath } from './adapter';
 import type { ApiTranscriptMessage, ChatMessage, ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import { normalizeApiTranscriptMessages } from '@/lib/ai/apiTranscript';
-import { normalizeRenderableImageSrc } from '@/lib/markdown/renderableImagePolicy';
-import { parseVideoUrl } from '@/lib/markdown/videoUrl';
+import { normalizeChatMessageImageSources } from '@/lib/ai/chatImageSourcePolicy';
 import { parseMarkdownAndHtmlImageTokens } from '@/lib/markdown/markdownImageTokens';
 import { createPersistenceQueue, type PersistenceQueue } from './persistenceEngine';
 import { getStorageBasePath } from './basePath';
@@ -493,15 +492,16 @@ function canRoleUseVersionKind(
 }
 
 function normalizeImageSourceCandidates(value: readonly unknown[]): string[] | undefined {
-  const sources: string[] = [];
-  const entryLimit = Math.min(value.length, MAX_SESSION_IMAGE_SOURCE_ENTRIES);
-  for (let index = 0; index < entryLimit && sources.length < MAX_SESSION_IMAGE_SOURCES; index += 1) {
-    const item = value[index];
-    const source = typeof item === 'string' ? normalizeRenderableImageSrc(item) : null;
-    if (source && !parseVideoUrl(source)) {
-      sources.push(source);
-    }
-  }
+  const sources = normalizeChatMessageImageSources(
+    value
+      .slice(0, MAX_SESSION_IMAGE_SOURCE_ENTRIES)
+      .filter((item): item is string => typeof item === 'string'),
+    {
+      maxEntries: MAX_SESSION_IMAGE_SOURCE_ENTRIES,
+      maxSources: MAX_SESSION_IMAGE_SOURCES,
+      persistable: true,
+    },
+  );
 
   return sources.length > 0 ? sources : undefined;
 }
@@ -756,7 +756,7 @@ async function readSessionJsonContent(path: string): Promise<string | null> {
     return null;
   }
 
-  const content = await getStorageAdapter().readFile(path).catch(() => null);
+  const content = await getStorageAdapter().readFile(path, MAX_SESSION_MESSAGES_BYTES).catch(() => null);
   if (content === null) {
     return null;
   }

@@ -1,11 +1,14 @@
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import { isRenderableDataImageSrc } from '@/components/common/markdown/imagePolicy';
 import {
-  extractRenderedMessageImageSources,
+  MAX_CHAT_MESSAGE_IMAGE_SOURCES,
   MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
-  normalizeRenderedMessageImageSources,
-  stripMessageImageTokens,
 } from '@/components/Chat/common/messageClipboard';
+import {
+  extractChatMessageImageSources,
+  normalizeChatMessageImageSources,
+  stripChatMessageImageTokens,
+} from '@/lib/ai/chatImageSourcePolicy';
 import { formatMarkdownImage } from '@/lib/markdown/markdownImageMarkdown';
 
 export interface ParsedUserMessageContent {
@@ -64,12 +67,11 @@ export function toEditAttachment(src: string, index: number): Attachment {
 
 export function parseUserMessageContent(content: string): ParsedUserMessageContent {
   return {
-    imageSources: normalizeRenderedMessageImageSources(
-      extractRenderedMessageImageSources(content, {
-        maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
-      }),
-    ),
-    text: stripMessageImageTokens(content, {
+    imageSources: extractChatMessageImageSources(content, {
+      maxSources: MAX_CHAT_MESSAGE_IMAGE_SOURCES,
+      maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+    }),
+    text: stripChatMessageImageTokens(content, {
       maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
     }).trim(),
   };
@@ -79,7 +81,10 @@ export function parseUserMessageContentWithKnownImages(
   content: string,
   imageSources: string[] | undefined,
 ): ParsedUserMessageContent {
-  const safeImageSources = normalizeRenderedMessageImageSources(imageSources);
+  const safeImageSources = normalizeChatMessageImageSources(imageSources, {
+    maxEntries: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+    maxSources: MAX_CHAT_MESSAGE_IMAGE_SOURCES,
+  });
 
   if (safeImageSources.length === 0) {
     return parseUserMessageContent(content);

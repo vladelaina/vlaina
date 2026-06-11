@@ -187,6 +187,29 @@ describe('ChatImageViewer', () => {
     );
   });
 
+  it('does not pass relative directory image sources to the cropper image', async () => {
+    const onOpenChange = vi.fn();
+
+    render(
+      <ChatImageViewer
+        open
+        src="images/demo.png"
+        alt="preview"
+        onOpenChange={onOpenChange}
+      />,
+    );
+
+    const image = await screen.findByTestId('mock-cropper-image');
+    await waitFor(() => {
+      expect(imageResolutionMocks.resolveSafeChatImageSource).toHaveBeenCalledTimes(1);
+    });
+    expect(image).toHaveAttribute(
+      'src',
+      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
+    );
+    expect(image).not.toHaveAttribute('src', 'images/demo.png');
+  });
+
   it('still matches short decoded gallery image sources', async () => {
     const onOpenChange = vi.fn();
 

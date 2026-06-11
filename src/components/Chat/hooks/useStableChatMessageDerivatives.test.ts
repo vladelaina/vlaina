@@ -258,6 +258,32 @@ describe('useStableChatMessageDerivatives', () => {
     ]));
   });
 
+  it('excludes relative directory images from the assistant gallery', async () => {
+    const assistant = createMessage(
+      'a1',
+      'assistant',
+      [
+        '![local](images/demo.png)',
+        '![stored](demo.png)',
+        '![remote](https://example.com/real.png)',
+      ].join('\n'),
+    );
+
+    const view = renderHook(
+      ({ messages }) => useStableChatMessageDerivatives(messages),
+      {
+        initialProps: {
+          messages: [assistant] as ChatMessage[],
+        },
+      },
+    );
+
+    await waitFor(() => expect(view.result.current.imageGallery).toEqual([
+      { id: 'a1:0', src: 'demo.png' },
+      { id: 'a1:1', src: 'https://example.com/real.png' },
+    ]));
+  });
+
   it('ignores stale assistant image source caches when content has no image tokens', async () => {
     const assistant = {
       ...createMessage('a1', 'assistant', ''),

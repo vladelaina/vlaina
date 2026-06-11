@@ -23,8 +23,8 @@ export interface ListOptions {
 
 export interface StorageAdapter {
   readonly platform: 'electron' | 'web';
-  readFile(path: string): Promise<string>;
-  readBinaryFile(path: string): Promise<Uint8Array>;
+  readFile(path: string, maxBytes?: number): Promise<string>;
+  readBinaryFile(path: string, maxBytes?: number): Promise<Uint8Array>;
   writeFile(path: string, content: string, options?: WriteOptions): Promise<void>;
   writeBinaryFile(path: string, content: Uint8Array, options?: WriteOptions): Promise<void>;
   deleteFile(path: string): Promise<void>;

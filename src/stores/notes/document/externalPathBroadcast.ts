@@ -333,6 +333,6 @@ async function readEventFileContent(eventPath: string) {
     return null;
   }
 
-  const content = await storage.readFile(eventPath).catch(() => null);
+  const content = await storage.readFile(eventPath, MAX_EVENT_FILE_BYTES).catch(() => null);
   return content && content.length <= MAX_EVENT_FILE_BYTES ? content : null;
 }

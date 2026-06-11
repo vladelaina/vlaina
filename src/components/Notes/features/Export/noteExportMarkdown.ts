@@ -106,7 +106,7 @@ async function resolveAssetUrl(
       return { url: fallbackSrc, embeddedBytes: 0 };
     }
 
-    const bytes = await bridge.fs.readBinaryFile(absolutePath);
+    const bytes = await bridge.fs.readBinaryFile(absolutePath, remainingEmbeddedBytes);
     if (!isExportableImageSize(bytes.byteLength)) {
       return { url: fallbackSrc, embeddedBytes: 0 };
     }

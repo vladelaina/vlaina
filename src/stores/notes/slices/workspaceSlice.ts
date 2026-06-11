@@ -609,25 +609,30 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
   adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => {
     const { currentNote, openTabs, noteContentsCache, noteMetadata, displayNames, recentNotes } = get();
-    if (currentNote?.path !== absolutePath) {
+    const normalizedAbsolutePath = normalizeAbsolutePath(absolutePath);
+    if (!isAbsolutePath(normalizedAbsolutePath) || currentNote?.path !== normalizedAbsolutePath) {
       return false;
     }
-    if (isInternalWorkspaceNotePath(nextPath)) {
+    if (!isSupportedMarkdownPath(nextPath)) {
+      return false;
+    }
+    const normalizedNextPath = normalizeVaultRelativePath(nextPath);
+    if (normalizedNextPath == null || isInternalWorkspaceNotePath(normalizedNextPath)) {
       return false;
     }
 
     set({
-      currentNote: remapCurrentNoteForExternalRename(currentNote, absolutePath, nextPath),
+      currentNote: remapCurrentNoteForExternalRename(currentNote, normalizedAbsolutePath, normalizedNextPath),
       currentNoteRevision: get().currentNoteRevision + 1,
-      openTabs: remapOpenTabsForExternalRename(openTabs, absolutePath, nextPath),
+      openTabs: remapOpenTabsForExternalRename(openTabs, normalizedAbsolutePath, normalizedNextPath),
       noteContentsCache: remapCachedNoteContents(noteContentsCache, (path) =>
-        path === absolutePath ? nextPath : path
+        path === normalizedAbsolutePath ? normalizedNextPath : path
       ),
       noteMetadata: remapMetadataEntries(noteMetadata, (path) =>
-        path === absolutePath ? nextPath : path
+        path === normalizedAbsolutePath ? normalizedNextPath : path
       ),
-      displayNames: remapDisplayNamesForExternalRename(displayNames, absolutePath, nextPath),
-      recentNotes: remapRecentNotesForExternalRename(recentNotes, absolutePath, nextPath),
+      displayNames: remapDisplayNamesForExternalRename(displayNames, normalizedAbsolutePath, normalizedNextPath),
+      recentNotes: remapRecentNotesForExternalRename(recentNotes, normalizedAbsolutePath, normalizedNextPath),
     });
     return true;
   },

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage } from '@/lib/ai/types';
 import {
-  extractRenderedMessageImageSources,
   MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
-  normalizeRenderedMessageImageSources,
+  MAX_CHAT_MESSAGE_IMAGE_SOURCES,
 } from '@/components/Chat/common/messageClipboard';
+import { extractChatMessageImageSources } from '@/lib/ai/chatImageSourcePolicy';
 
 export interface ChatImageGalleryItem {
   id: string;
@@ -55,10 +55,10 @@ function buildMessageImageGallery(message: ChatMessage): DerivedCollection<ChatI
     return { items: [], signature: '' };
   }
 
-  const sources = extractRenderedMessageImageSources(message.content || '', {
+  const renderableSources = extractChatMessageImageSources(message.content || '', {
+    maxSources: MAX_CHAT_MESSAGE_IMAGE_SOURCES,
     maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
   });
-  const renderableSources = normalizeRenderedMessageImageSources(sources);
 
   if (renderableSources.length === 0) {
     return { items: [], signature: '' };

@@ -180,8 +180,8 @@ export interface ElectronDragDropApi {
 }
 
 export interface ElectronFsApi {
-  readBinaryFile(filePath: string): Promise<Uint8Array>;
-  readTextFile(filePath: string): Promise<string>;
+  readBinaryFile(filePath: string, maxBytes?: number): Promise<Uint8Array>;
+  readTextFile(filePath: string, maxBytes?: number): Promise<string>;
   writeBinaryFile(filePath: string, bytes: Uint8Array): Promise<void>;
   writeTextFile(
     filePath: string,

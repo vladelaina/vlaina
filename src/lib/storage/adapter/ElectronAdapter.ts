@@ -24,12 +24,12 @@ export class ElectronAdapter implements StorageAdapter {
 
   private basePath: string | null = null;
 
-  async readFile(path: string): Promise<string> {
-    return getFs().readTextFile(path);
+  async readFile(path: string, maxBytes?: number): Promise<string> {
+    return getFs().readTextFile(path, maxBytes);
   }
 
-  async readBinaryFile(path: string): Promise<Uint8Array> {
-    return getFs().readBinaryFile(path);
+  async readBinaryFile(path: string, maxBytes?: number): Promise<Uint8Array> {
+    return getFs().readBinaryFile(path, maxBytes);
   }
 
   async writeFile(path: string, content: string, options?: WriteOptions): Promise<void> {

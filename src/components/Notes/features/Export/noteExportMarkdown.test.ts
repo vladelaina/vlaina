@@ -50,6 +50,10 @@ describe('resolveExportMarkdownAssetSources', () => {
       'demo.png',
       'docs/demo.md',
     );
+    expect(mocks.readBinaryFile).toHaveBeenCalledWith(
+      '/vault/docs/assets/demo.png',
+      MAX_EXPORT_EMBEDDED_IMAGE_BYTES,
+    );
   });
 
   it('embeds case-insensitive internal note image refs as data URLs', async () => {
@@ -829,5 +833,15 @@ describe('resolveExportMarkdownAssetSources', () => {
       '![two](img:two.png)',
     ].join('\n'));
     expect(mocks.readBinaryFile).toHaveBeenCalledTimes(2);
+    expect(mocks.readBinaryFile).toHaveBeenNthCalledWith(
+      1,
+      '/vault/docs/assets/one.png',
+      MAX_EXPORT_EMBEDDED_IMAGE_BYTES,
+    );
+    expect(mocks.readBinaryFile).toHaveBeenNthCalledWith(
+      2,
+      '/vault/docs/assets/two.png',
+      2,
+    );
   });
 });

@@ -702,7 +702,7 @@ async function readBoundedTextFile(
     return null;
   }
 
-  const content = await storage.readFile(path);
+  const content = await storage.readFile(path, maxBytes);
   return content.length <= maxBytes ? content : null;
 }
 

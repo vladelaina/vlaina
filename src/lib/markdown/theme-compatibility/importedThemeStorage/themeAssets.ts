@@ -47,7 +47,7 @@ async function copyImportedThemeAsset({
     ) {
       return resolveOriginalThemeAssetUrl(sourceDir, asset).catch(() => null);
     }
-    const bytes = await storage.readBinaryFile(sourceAssetPath);
+    const bytes = await storage.readBinaryFile(sourceAssetPath, MAX_IMPORTED_THEME_ASSET_BYTES);
     if (bytes.byteLength > MAX_IMPORTED_THEME_ASSET_BYTES) {
       return resolveOriginalThemeAssetUrl(sourceDir, asset).catch(() => null);
     }

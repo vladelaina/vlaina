@@ -35,4 +35,12 @@ describe('chat stream text metadata', () => {
 
     expect(countRenderableImages(markdown)).toBe(MAX_CHAT_MESSAGE_IMAGE_SOURCES);
   });
+
+  it('does not count relative directory images as renderable stream images', () => {
+    expect(countRenderableImages([
+      '![local](images/demo.png)',
+      '![stored](demo.png)',
+      '![remote](https://example.com/real.png)',
+    ].join('\n'))).toBe(2);
+  });
 });

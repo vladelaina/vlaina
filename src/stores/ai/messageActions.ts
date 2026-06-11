@@ -8,10 +8,10 @@ import {
 import { shouldPersistSession } from '@/lib/ai/temporaryChat'
 import { resolveSessionIdAlias } from '@/lib/ai/sessionIdAliases'
 import {
-  extractRenderedMessageImageSources,
   MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
-  normalizeRenderedMessageImageSources,
+  MAX_CHAT_MESSAGE_IMAGE_SOURCES,
 } from '@/components/Chat/common/messageClipboard'
+import { extractChatMessageImageSources } from '@/lib/ai/chatImageSourcePolicy'
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
 import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup'
 import { useUnifiedStore } from '../unified/useUnifiedStore'
@@ -57,8 +57,11 @@ function canMessageUseVersionKind(message: ChatMessage, kind: MessageVersion['ki
 }
 
 function extractStoredImageSources(content: string): string[] {
-  const sources = extractRenderedMessageImageSources(content, { maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES })
-  return normalizeRenderedMessageImageSources(sources)
+  return extractChatMessageImageSources(content, {
+    maxSources: MAX_CHAT_MESSAGE_IMAGE_SOURCES,
+    maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+    persistable: true,
+  })
 }
 
 function getNewMessageImageSources(message: Omit<ChatMessage, 'id' | 'timestamp' | 'versions' | 'currentVersionIndex'>): string[] | undefined {

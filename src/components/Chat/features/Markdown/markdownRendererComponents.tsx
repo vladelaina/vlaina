@@ -9,6 +9,7 @@ import { downloadImageWithPrompt } from '@/components/Chat/common/imageDownload'
 import { ChatImageViewer } from './components/ChatImageViewer';
 import { ReadOnlyCodeBlock } from '@/components/common/code-block';
 import { isRenderableDataImageSrc, normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
+import { normalizeChatMessageImageSource } from '@/lib/ai/chatImageSourcePolicy';
 import { ReadOnlyMermaidBlock } from '@/components/common/markdown/ReadOnlyMermaidBlock';
 import { ReadOnlyVideoBlock } from '@/components/common/markdown/ReadOnlyVideoBlock';
 import { normalizeImageWidth, serializeCropValue } from '@/components/common/markdown/imageSourceFragment';
@@ -147,6 +148,17 @@ async function copyImageOrUrl(src: string): Promise<boolean> {
 
 function isInternalHashHref(href: unknown): href is string {
   return typeof href === 'string' && /^#[A-Za-z0-9_-]+$/.test(href);
+}
+
+function renderUnavailableImage() {
+  return (
+    <span
+      className="inline-block rounded-md bg-[var(--vlaina-color-unavailable-bg)] px-2 py-1 text-xs text-[var(--vlaina-color-unavailable-fg)]"
+      data-chat-selection-excluded="true"
+    >
+      [{translate('chat.imageUnavailable')}]
+    </span>
+  );
 }
 
 function MarkdownImage({
@@ -349,19 +361,17 @@ export function createMarkdownComponents({
       const rawSrc = typeof src === 'string' ? src : null;
       const normalizedRawSrc = normalizeRenderableImageSrc(rawSrc);
       if (!normalizedRawSrc) {
-        return (
-          <span
-            className="inline-block rounded-md bg-[var(--vlaina-color-unavailable-bg)] px-2 py-1 text-xs text-[var(--vlaina-color-unavailable-fg)]"
-            data-chat-selection-excluded="true"
-          >
-            [{translate('chat.imageUnavailable')}]
-          </span>
-        );
+        return renderUnavailableImage();
       }
 
-      const safeSrc = resolveCompactedChatImageSrc(normalizedRawSrc, imageSrcByToken);
-      if (parseVideoUrl(safeSrc)) {
-        return <ReadOnlyVideoBlock src={safeSrc} title={typeof alt === 'string' ? alt : ''} />;
+      const resolvedSrc = resolveCompactedChatImageSrc(normalizedRawSrc, imageSrcByToken);
+      if (parseVideoUrl(resolvedSrc)) {
+        return <ReadOnlyVideoBlock src={resolvedSrc} title={typeof alt === 'string' ? alt : ''} />;
+      }
+
+      const safeSrc = normalizeChatMessageImageSource(resolvedSrc);
+      if (!safeSrc) {
+        return renderUnavailableImage();
       }
 
       if (imageRenderIndex >= MAX_CHAT_MESSAGE_IMAGE_SOURCES) {

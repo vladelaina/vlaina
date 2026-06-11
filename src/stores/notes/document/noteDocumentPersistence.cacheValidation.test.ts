@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { setCachedNoteContent } from './noteContentCache';
 import { loadNoteDocument } from './noteDocumentPersistence';
 
+const MAX_NOTE_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
 const adapter = {
-  readFile: vi.fn<(path: string) => Promise<string>>(),
+  readFile: vi.fn<(path: string, maxBytes?: number) => Promise<string>>(),
   stat: vi.fn<
     (path: string) => Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null; size?: number | null } | null>
   >(),
@@ -49,7 +51,7 @@ describe('loadNoteDocument cache validation', () => {
       }),
     });
 
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_NOTE_DOCUMENT_BYTES);
     expect(result.content).toBe('# Disked');
     expect(result.modifiedAt).toBe(100);
     expect(result.nextCache.get('alpha.md')?.content).toBe('# Disked');

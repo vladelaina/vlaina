@@ -723,4 +723,44 @@ describe('session inline image persistence', () => {
     expect(branch?.versions[0]?.content).toBe('branch version ![image](<attachment://persisted.png>)')
     expect(deepBranch?.content).toBe(`deep branch ![image](<${source}>)`)
   })
+
+  it('does not derive relative directory image caches after inline image persistence', async () => {
+    const source = 'data:image/png;base64,INLINE'
+    mocked.createStoredAttachmentFromSource.mockImplementation((src: string) => {
+      if (src === 'images/demo.png') {
+        return null
+      }
+      return {
+        id: 'stored-attachment',
+        path: '',
+        previewUrl: src,
+        assetUrl: src,
+        name: src === 'demo.png' ? 'demo.png' : 'persisted.png',
+        type: 'image/png',
+        size: 0,
+      }
+    })
+    mocked.parseMarkdownAndHtmlImageTokens.mockImplementation((content: string) => {
+      const targetStart = content.indexOf(source)
+      return targetStart >= 0
+        ? [{ start: 0, end: content.length, src: source, targetStart, targetEnd: targetStart + source.length }]
+        : []
+    })
+    seedSession([createMessage('m1', [
+      `![inline](<${source}>)`,
+      '![local](images/demo.png)',
+      '![stored](demo.png)',
+    ].join('\n'))])
+
+    const { createSessionActions } = await import('./sessionActions')
+
+    await createSessionActions().switchSession('session-2')
+    await vi.runOnlyPendingTimersAsync()
+
+    const message = useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]
+    expect(message?.content).toContain('![inline](<attachment://persisted.png>)')
+    expect(message?.content).toContain('![local](images/demo.png)')
+    expect(message?.content).toContain('![stored](demo.png)')
+    expect(message?.imageSources).toEqual(['attachment://persisted.png', 'demo.png'])
+  })
 })

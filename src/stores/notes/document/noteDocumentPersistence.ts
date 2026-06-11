@@ -209,7 +209,7 @@ export async function loadNoteDocument({
         hasKnownFileSizeChanged(cachedEntry?.size, diskSize)
       ) {
         assertReadableNoteFileInfo(fileInfo);
-        const diskContent = await storage.readFile(fullPath);
+        const diskContent = await storage.readFile(fullPath, MAX_NOTE_DOCUMENT_BYTES);
         assertEditorSafeMarkdownContent(diskContent);
         const normalizedDiskContent = normalizeSerializedMarkdownDocument(diskContent);
         return {
@@ -241,7 +241,7 @@ export async function loadNoteDocument({
   const fullPath = await resolveStoredPath(notesPath, notePath);
   const fileInfo = await storage.stat(fullPath);
   assertReadableNoteFileInfo(fileInfo);
-  const content = await storage.readFile(fullPath);
+  const content = await storage.readFile(fullPath, MAX_NOTE_DOCUMENT_BYTES);
   assertEditorSafeMarkdownContent(content);
   const normalizedContent = normalizeSerializedMarkdownDocument(content);
   const modifiedAt = fileInfo?.modifiedAt ?? null;
@@ -288,7 +288,7 @@ export async function saveNoteDocument({
       shouldVerifyMissingModifiedAt);
   if (shouldCompareDiskContent && cachedEntry !== undefined) {
     assertReadableNoteFileInfo(fileInfoBeforeWrite);
-    const diskContent = await storage.readFile(fullPath);
+    const diskContent = await storage.readFile(fullPath, MAX_NOTE_DOCUMENT_BYTES);
     assertEditorSafeMarkdownContent(diskContent);
     const normalizedDiskContent = normalizeSerializedMarkdownDocument(diskContent);
     const normalizedCachedContent = normalizeSerializedMarkdownDocument(

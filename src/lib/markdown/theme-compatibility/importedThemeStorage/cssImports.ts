@@ -65,7 +65,7 @@ export async function inlineRelativeThemeCssImports(
       ) {
         continue;
       }
-      const importedCss = await storage.readFile(importedPath);
+      const importedCss = await storage.readFile(importedPath, MAX_IMPORTED_THEME_CSS_BYTES);
       if (importedCss.length > MAX_IMPORTED_THEME_CSS_BYTES) {
         continue;
       }

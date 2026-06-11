@@ -67,6 +67,13 @@ describe('MarkdownRenderer images', () => {
     expect(screen.getByText('[Image unavailable]')).toBeInTheDocument();
   });
 
+  it('does not render relative directory image markdown', () => {
+    render(<MarkdownRenderer content="![Generated image](images/demo.png)" />);
+
+    expect(screen.queryByTestId('local-image')).not.toBeInTheDocument();
+    expect(screen.getByText('[Image unavailable]')).toBeInTheDocument();
+  });
+
   it('still renders legacy unwrapped base64 image markdown', () => {
     render(<MarkdownRenderer content="![Generated image](data:image/png;base64,abc123)" />);
 
@@ -283,8 +290,7 @@ describe('MarkdownRenderer images', () => {
       />
     );
 
-    expect(screen.getAllByTestId('local-image')).toHaveLength(1);
-    expect(screen.getByTestId('local-image')).toHaveAttribute('src', '.notes/safe.png');
+    expect(screen.queryByTestId('local-image')).not.toBeInTheDocument();
     expect(container.querySelector('source')).not.toHaveAttribute('src');
     expect(container.querySelector('source')).not.toHaveAttribute('srcset');
     expect(container.querySelector('video')).not.toHaveAttribute('poster');

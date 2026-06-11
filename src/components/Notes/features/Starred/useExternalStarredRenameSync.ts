@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { watchDesktopPath } from '@/lib/desktop/watch';
-import { isAbsolutePath } from '@/lib/storage/adapter';
+import { getParentPath, isAbsolutePath } from '@/lib/storage/adapter';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import type { StarredEntry } from '@/stores/notes/types';
@@ -14,22 +14,23 @@ import {
   getAbsoluteRenameWatchPaths,
   getFsPathComparisonKey,
   hasUnsafeFsPathSegment,
+  isCreateWatchEvent,
   isMarkdownPath,
+  isRemoveWatchEvent,
   normalizeFsPath,
 } from '../../hooks/notesExternalSyncUtils';
 
-function isPathWithin(path: string, basePath: string) {
-  const pathKey = getFsPathComparisonKey(path);
-  const basePathKey = getFsPathComparisonKey(basePath);
-  const childPrefix = basePathKey.endsWith('/') ? basePathKey : `${basePathKey}/`;
-  return pathKey === basePathKey || pathKey.startsWith(childPrefix);
+const PENDING_STARRED_RENAME_TTL_MS = 180;
+
+function isSameFsPath(path: string, otherPath: string) {
+  return getFsPathComparisonKey(path) === getFsPathComparisonKey(otherPath);
 }
 
 function getExternalStarredWatchEntries(
   entries: StarredEntry[],
   currentVaultPath: string,
 ) {
-  const watchedEntries: Array<{ absolutePath: string }> = [];
+  const watchedEntries: Array<{ absolutePath: string; watchPath: string }> = [];
 
   for (const entry of entries) {
     if (entry.kind !== 'note') {
@@ -48,8 +49,14 @@ function getExternalStarredWatchEntries(
       continue;
     }
 
+    const watchPath = getParentPath(absolutePath);
+    if (!watchPath) {
+      continue;
+    }
+
     watchedEntries.push({
       absolutePath: normalizeFsPath(absolutePath),
+      watchPath: normalizeFsPath(watchPath),
     });
   }
 
@@ -73,6 +80,7 @@ export function useExternalStarredRenameSync() {
 
     let disposed = false;
     const unwatchers: Array<() => Promise<void>> = [];
+    const clearPendingRenameTimers: Array<() => void> = [];
     const watchedPaths = new Set<string>();
 
     for (const entry of watchEntries) {
@@ -80,42 +88,101 @@ export function useExternalStarredRenameSync() {
         continue;
       }
       watchedPaths.add(entry.absolutePath);
+      let pendingOldPath: string | null = null;
+      let pendingRenameTimer: number | null = null;
+      const clearPendingRename = () => {
+        pendingOldPath = null;
+        if (pendingRenameTimer !== null) {
+          window.clearTimeout(pendingRenameTimer);
+          pendingRenameTimer = null;
+        }
+      };
+      const queuePendingRename = (oldPath: string) => {
+        pendingOldPath = oldPath;
+        if (pendingRenameTimer !== null) {
+          window.clearTimeout(pendingRenameTimer);
+        }
+        pendingRenameTimer = window.setTimeout(() => {
+          pendingOldPath = null;
+          pendingRenameTimer = null;
+        }, PENDING_STARRED_RENAME_TTL_MS);
+      };
+      const applyRename = async (oldPath: string, newPath: string) => {
+        if (!isSameFsPath(entry.absolutePath, oldPath)) {
+          return false;
+        }
+
+        if (
+          hasUnsafeFsPathSegment(oldPath) ||
+          hasUnsafeFsPathSegment(newPath) ||
+          hasInternalNotePathSegment(oldPath) ||
+          hasInternalNotePathSegment(newPath)
+        ) {
+          return false;
+        }
+
+        if (!isMarkdownPath(oldPath) || !isMarkdownPath(newPath)) {
+          return false;
+        }
+
+        await applyExternalPathRename(oldPath, newPath);
+        clearPendingRename();
+        return true;
+      };
+      clearPendingRenameTimers.push(clearPendingRename);
+
       void watchDesktopPath(
-        entry.absolutePath,
+        entry.watchPath,
         async (event) => {
           if (disposed) {
             return;
           }
 
+          const normalizedPaths = event.paths.map((path) => normalizeFsPath(path));
           const renamePaths = getAbsoluteRenameWatchPaths({
             ...event,
-            paths: event.paths.map((path) => normalizeFsPath(path)),
+            paths: normalizedPaths,
           });
-          if (!renamePaths?.oldPath || !renamePaths.newPath) {
+          if (renamePaths?.oldPath && renamePaths.newPath) {
+            await applyRename(
+              normalizeFsPath(renamePaths.oldPath),
+              normalizeFsPath(renamePaths.newPath),
+            );
             return;
           }
 
-          const oldPath = normalizeFsPath(renamePaths.oldPath);
-          const isWatchedRename = isPathWithin(entry.absolutePath, oldPath);
-          if (!isWatchedRename) {
+          if (renamePaths?.oldPath) {
+            const oldPath = normalizeFsPath(renamePaths.oldPath);
+            if (isSameFsPath(entry.absolutePath, oldPath)) {
+              queuePendingRename(oldPath);
+            }
             return;
           }
 
-          const newPath = normalizeFsPath(renamePaths.newPath);
-          if (
-            hasUnsafeFsPathSegment(oldPath) ||
-            hasUnsafeFsPathSegment(newPath) ||
-            hasInternalNotePathSegment(oldPath) ||
-            hasInternalNotePathSegment(newPath)
-          ) {
+          if (renamePaths?.newPath) {
+            if (pendingOldPath) {
+              await applyRename(pendingOldPath, normalizeFsPath(renamePaths.newPath));
+            }
             return;
           }
 
-          if (!isMarkdownPath(oldPath) || !isMarkdownPath(newPath)) {
+          if (isRemoveWatchEvent(event)) {
+            const removedPath = normalizedPaths.find((path) => isSameFsPath(entry.absolutePath, path));
+            if (removedPath) {
+              queuePendingRename(removedPath);
+            }
             return;
           }
 
-          await applyExternalPathRename(oldPath, newPath);
+          if (!isCreateWatchEvent(event) || !pendingOldPath) {
+            return;
+          }
+
+          for (const newPath of normalizedPaths) {
+            if (await applyRename(pendingOldPath, newPath)) {
+              return;
+            }
+          }
         },
         { recursive: false },
       ).then(
@@ -135,6 +202,9 @@ export function useExternalStarredRenameSync() {
 
     return () => {
       disposed = true;
+      for (const clearPendingRenameTimer of clearPendingRenameTimers) {
+        clearPendingRenameTimer();
+      }
       for (const unwatch of unwatchers) {
         void unwatch();
       }

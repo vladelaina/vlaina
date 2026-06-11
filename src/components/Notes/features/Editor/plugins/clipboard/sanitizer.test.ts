@@ -336,6 +336,19 @@ describe('sanitizeHtml', () => {
     expect(result).not.toContain('microphone');
   });
 
+  it('drops loadable url attributes outside tag-specific allowlists', () => {
+    const result = sanitizeHtml([
+      '<div action="/submit">div</div>',
+      '<span action="relative">span</span>',
+      '<img src="https://example.com/safe.png">',
+      '<blockquote cite="docs/source.md">quote</blockquote>',
+    ].join(''));
+
+    expect(result).toBe(
+      '<div>div</div><span>span</span><img src="https://example.com/safe.png"><blockquote cite="docs/source.md">quote</blockquote>',
+    );
+  });
+
   it('rejects local-network iframe targets that would reach device services', () => {
     expect(sanitizeHtml('<iframe src="http://0.0.0.0:8080/embed"></iframe>')).toBe('');
     expect(sanitizeHtml('<iframe src="http://[::1]:8080/embed"></iframe>')).toBe('');

@@ -7,13 +7,13 @@ import {
     inferAttachmentMimeTypeFromFilename,
 } from '@/lib/storage/attachmentUrl';
 import { MAX_ATTACHMENT_IMAGE_BYTES } from '@/lib/storage/attachmentStorage';
-import { normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy';
 import { getPrimaryAttachmentPath } from '@/lib/storage/attachmentPaths';
 import { themeDomStyleTokens } from '@/styles/themeTokens';
 import {
     isSvgDataUrl,
     rasterizeSvgDataUrlToPng,
 } from './svgRasterize';
+import { normalizeDirectChatImageSource } from './chatImageSourceResolution';
 
 interface LocalImageProps {
     src: string;
@@ -23,33 +23,6 @@ interface LocalImageProps {
     onClick?: () => void;
     onResolvedSrc?: (src: string | null) => void;
     style?: CSSProperties;
-}
-
-function normalizeDirectRenderableSrc(value: string): string | null {
-    if (isSvgDataUrl(value)) {
-        return value.trim();
-    }
-
-    const safeSrc = normalizeRenderableImageSrc(value);
-    if (!safeSrc) {
-        return null;
-    }
-
-    const normalized = safeSrc.toLowerCase();
-    if (
-        normalized.startsWith('attachment:') ||
-        normalized.startsWith('app-file:') ||
-        normalized.startsWith('asset:')
-    ) {
-        return null;
-    }
-
-    return (
-        normalized.startsWith('http://') ||
-        normalized.startsWith('https://') ||
-        normalized.startsWith('data:') ||
-        normalized.startsWith('blob:')
-    ) ? safeSrc : null;
 }
 
 function uint8ArrayToBase64(data: Uint8Array): string {
@@ -88,7 +61,7 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
         setError(false);
 
         const loadLocalImage = async () => {
-            const directSrc = normalizeDirectRenderableSrc(src);
+            const directSrc = normalizeDirectChatImageSource(src);
             if (directSrc) {
                 const nextSrc = await normalizeDisplaySrc(directSrc);
                 if (!active) return;
@@ -115,7 +88,7 @@ export function LocalImage({ src, alt, className, onClick, onResolvedSrc, style,
                 const attachmentPath = await getPrimaryAttachmentPath(basePath, filename);
                 const info = await storage.stat(attachmentPath).catch(() => null);
                 assertStoredAttachmentSize(info?.size);
-                const data = await storage.readBinaryFile(attachmentPath);
+                const data = await storage.readBinaryFile(attachmentPath, MAX_ATTACHMENT_IMAGE_BYTES);
                 assertStoredAttachmentSize(data.byteLength);
                 const base64 = uint8ArrayToBase64(data);
                 const mime = inferAttachmentMimeTypeFromFilename(filename);

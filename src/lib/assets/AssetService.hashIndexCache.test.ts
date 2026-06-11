@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AssetService } from './AssetService';
 
+const MAX_ASSET_SIZE = 50 * 1024 * 1024;
+
 const mocks = vi.hoisted(() => ({
   storage: {
     exists: vi.fn(),
@@ -106,7 +108,7 @@ describe('AssetService hash index cache validation', () => {
 
     expect(result.success).toBe(true);
     expect(result.isDuplicate).toBe(false);
-    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png');
+    expect(mocks.storage.readBinaryFile).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', MAX_ASSET_SIZE);
     expect(mocks.writeAssetAtomic).toHaveBeenCalled();
   });
 });

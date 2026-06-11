@@ -372,7 +372,7 @@ export async function convertToBase64(attachment: Attachment, options: ConvertAt
             if (readablePath) {
                 const info = await storage.stat(readablePath).catch(() => null);
                 assertAttachmentImageSize(info?.size);
-                const data = await storage.readBinaryFile(readablePath);
+                const data = await storage.readBinaryFile(readablePath, MAX_ATTACHMENT_IMAGE_BYTES);
                 assertAttachmentImageSize(data.byteLength);
                 const base64 = uint8ArrayToBase64(data);
                 return `data:${attachment.type};base64,${base64}`;
@@ -389,7 +389,7 @@ export async function convertToBase64(attachment: Attachment, options: ConvertAt
         const attachmentPath = await getPrimaryAttachmentPath(basePath, storedFilename);
         const info = await storage.stat(attachmentPath).catch(() => null);
         assertAttachmentImageSize(info?.size);
-        const data = await storage.readBinaryFile(attachmentPath);
+        const data = await storage.readBinaryFile(attachmentPath, MAX_ATTACHMENT_IMAGE_BYTES);
         assertAttachmentImageSize(data.byteLength);
         const base64 = uint8ArrayToBase64(data);
         return `data:${attachment.type};base64,${base64}`;

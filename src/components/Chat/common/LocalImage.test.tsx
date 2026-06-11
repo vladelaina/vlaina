@@ -2,6 +2,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocalImage } from './LocalImage';
 
+const MAX_ATTACHMENT_IMAGE_BYTES = 10 * 1024 * 1024;
+
 const mocks = vi.hoisted(() => ({
   getBasePath: vi.fn().mockResolvedValue('/appdata'),
   joinPath: vi.fn(),
@@ -117,7 +119,10 @@ describe('LocalImage', () => {
 
     const image = await screen.findByAltText('attachment');
     expect(mocks.joinPath).toHaveBeenCalledWith('/appdata', '.vlaina', 'attachments', 'demo.png');
-    expect(mocks.readBinaryFile).toHaveBeenCalledWith('/appdata/.vlaina/attachments/demo.png');
+    expect(mocks.readBinaryFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/attachments/demo.png',
+      MAX_ATTACHMENT_IMAGE_BYTES,
+    );
     expect(image).toHaveAttribute('src', 'data:image/png;base64,PHN2Zz4=');
   });
 

@@ -256,6 +256,7 @@ describe('useLocalImage', () => {
       cache: 'force-cache',
       credentials: 'omit',
       referrerPolicy: 'no-referrer',
+      signal: expect.any(AbortSignal),
     });
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
   });
@@ -276,6 +277,7 @@ describe('useLocalImage', () => {
       cache: 'force-cache',
       credentials: 'omit',
       referrerPolicy: 'no-referrer',
+      signal: expect.any(AbortSignal),
     });
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
   });
