@@ -68,16 +68,17 @@ describe('ChatInput', () => {
     expect(onSend).not.toHaveBeenCalled();
   });
 
-  it('renders the managed quota notice behind the composer', () => {
+  it('renders the managed quota notice as part of an expanded composer frame', () => {
     const { container } = renderChatInput({
       isManagedQuotaExhausted: true,
     });
 
     const banner = container.querySelector('[data-managed-quota-banner="true"]');
+    const frame = container.querySelector('[data-chat-input="true"]')?.parentElement;
     expect(banner).not.toBeNull();
-    expect(container.querySelector('[data-chat-input="true"]')?.parentElement).toHaveClass('pb-[var(--vlaina-size-48px)]');
-    expect(banner).toHaveClass('min-h-[var(--vlaina-size-72px)]');
-    expect(banner).toHaveClass('bg-[var(--vlaina-color-accent-soft)]');
-    expect(banner).not.toHaveClass('border');
+    expect(frame).toHaveClass('bg-[var(--vlaina-color-accent-soft)]');
+    expect(frame).toHaveClass('overflow-hidden');
+    expect(banner).toHaveClass('min-h-[var(--vlaina-size-32px)]');
+    expect(banner).not.toHaveClass('absolute');
   });
 });
