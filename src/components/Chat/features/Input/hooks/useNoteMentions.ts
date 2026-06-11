@@ -92,6 +92,7 @@ export function useNoteMentions({
     applyMentionCandidate,
     appendMentions,
     removeMention,
+    restoreMentions,
   } = useNoteMentionState({
     value: message,
     onValueChange: handleMessageChange,
@@ -117,6 +118,7 @@ export function useNoteMentions({
     setTextareaScrollTop,
     applyMentionCandidate,
     appendNoteMentions: appendMentions,
+    restoreNoteMentions: restoreMentions,
     removeNoteMention: removeMention,
   };
 }

@@ -34,6 +34,7 @@ interface ChatInputProps {
   active?: boolean;
   onSend: (message: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => void | boolean | Promise<void | boolean>;
   onStop: () => void;
+  onStopAndRecall?: (lastSubmittedMessage?: string) => RecalledChatInputDraft | string | null | void;
   isLoading: boolean;
   hasSelectedModel: boolean;
   focusTrigger?: number;
@@ -42,10 +43,17 @@ interface ChatInputProps {
   acceptNotesBlockDrop?: boolean;
 }
 
+interface RecalledChatInputDraft {
+  message: string;
+  attachments?: Attachment[];
+  noteMentions?: NoteMentionReference[];
+}
+
 export const ChatInput = memo(function ChatInput({
   active = true,
   onSend,
   onStop,
+  onStopAndRecall,
   isLoading,
   hasSelectedModel,
   focusTrigger,
@@ -56,6 +64,7 @@ export const ChatInput = memo(function ChatInput({
   const { t } = useI18n();
   const focusRafRef = useRef<number | null>(null);
   const restoreFocusListenerRef = useRef<(() => void) | null>(null);
+  const lastSubmittedMessageRef = useRef('');
   const [isBlockDropActive, setIsBlockDropActive] = useState(false);
   const [isFileTreeDropActive, setIsFileTreeDropActive] = useState(false);
   const isFileTreeDragActive = useFileTreePointerDragState((state) => state.activeSourcePath !== null);
@@ -74,6 +83,7 @@ export const ChatInput = memo(function ChatInput({
     triggerFileSelect,
     removeAttachment,
     clearAttachments,
+    restoreAttachments,
   } = useChatAttachments();
 
   const {
@@ -92,7 +102,11 @@ export const ChatInput = memo(function ChatInput({
       if (isLoading) {
         onStop();
       }
-      return await onSend(text, nextAttachments, nextNoteMentions);
+      const accepted = await onSend(text, nextAttachments, nextNoteMentions);
+      if (accepted !== false) {
+        lastSubmittedMessageRef.current = text;
+      }
+      return accepted;
     },
     attachments,
     getNoteMentions: () => noteMentions,
@@ -158,6 +172,7 @@ export const ChatInput = memo(function ChatInput({
     applyMentionCandidate,
     removeNoteMention,
     appendNoteMentions,
+    restoreNoteMentions,
   } = useNoteMentions({
     message,
     textareaRef,
@@ -431,6 +446,53 @@ export const ChatInput = memo(function ChatInput({
     [clearHistoryNavigationOnInput, handleCaretChange, handleMessageChange]
   );
 
+  const handleStopButton = useCallback(() => {
+    if (!onStopAndRecall) {
+      onStop();
+      return;
+    }
+
+    const recalled = onStopAndRecall(lastSubmittedMessageRef.current);
+    const recalledDraft = typeof recalled === 'string'
+      ? { message: recalled }
+      : recalled;
+    if (!recalledDraft || typeof recalledDraft.message !== 'string') {
+      return;
+    }
+
+    const recalledMessage = recalledDraft.message;
+    const recalledAttachments = recalledDraft.attachments ?? [];
+    const recalledNoteMentions = recalledDraft.noteMentions ?? [];
+    if (
+      recalledMessage.trim().length === 0 &&
+      recalledAttachments.length === 0 &&
+      recalledNoteMentions.length === 0
+    ) {
+      return;
+    }
+
+    restoreAttachments(recalledAttachments);
+    restoreNoteMentions(recalledNoteMentions);
+    if (recalledMessage.includes('\n')) {
+      markExplicitMultiline();
+    }
+    handleMessageChange(recalledMessage);
+    clearHistoryNavigationOnInput();
+    const nextCaret = recalledMessage.length;
+    handleCaretChange(nextCaret);
+    scheduleComposerFocus(nextCaret);
+  }, [
+    clearHistoryNavigationOnInput,
+    handleCaretChange,
+    handleMessageChange,
+    markExplicitMultiline,
+    onStop,
+    onStopAndRecall,
+    restoreAttachments,
+    restoreNoteMentions,
+    scheduleComposerFocus,
+  ]);
+
   return (
     <>
       <input
@@ -518,7 +580,7 @@ export const ChatInput = memo(function ChatInput({
             webSearchEnabled={webSearchEnabled}
             onToggleWebSearch={() => setWebSearchEnabled(!webSearchEnabled)}
             onRequestComposerFocus={scheduleComposerFocus}
-            onStop={onStop}
+            onStop={handleStopButton}
             onSend={() => handleSend()}
           />
         </div>

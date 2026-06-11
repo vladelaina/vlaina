@@ -12,6 +12,8 @@ import {
   MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
   normalizeRenderedMessageImageSources,
 } from '@/components/Chat/common/messageClipboard'
+import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
+import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup'
 import { useUnifiedStore } from '../unified/useUnifiedStore'
 import { useAIUIStore } from './chatState'
 
@@ -76,6 +78,11 @@ function getNewMessageImageSources(message: Omit<ChatMessage, 'id' | 'timestamp'
 
 function hasSession(ai: { sessions: Array<{ id: string }> }, sessionId: string): boolean {
   return ai.sessions.some((session) => session.id === sessionId)
+}
+
+function hasVisibleAssistantReply(content: string): boolean {
+  const withoutWebSearchStatuses = extractWebSearchStatuses(content || '').content
+  return stripThinkingContent(withoutWebSearchStatuses).length > 0
 }
 
 const MAX_MESSAGE_VERSIONS = 20
@@ -438,6 +445,59 @@ export function createMessageActions() {
       if (shouldPersistSession(ai, targetSessionId)) {
         saveSessionJsonInBackground(targetSessionId, newMessages)
       }
+    },
+
+    retractPendingUserRequest: (
+      sessionId: string,
+      userMessageId: string,
+      assistantMessageId?: string | null
+    ): string | null => {
+      const targetSessionId = resolveSessionIdAlias(sessionId)
+      const state = useUnifiedStore.getState()
+      const ai = state.data.ai!
+      if (!hasSession(ai, targetSessionId)) return null
+      const messages = ai.messages[targetSessionId] || []
+      const userIndex = messages.findIndex((message) => message.id === userMessageId)
+      if (userIndex === -1) return null
+
+      const userMessage = messages[userIndex]
+      if (userMessage.role !== 'user') return null
+
+      let removeEnd = userIndex + 1
+      if (assistantMessageId) {
+        const assistantIndex = messages.findIndex((message) => message.id === assistantMessageId)
+        if (assistantIndex !== -1) {
+          const assistantMessage = messages[assistantIndex]
+          if (
+            assistantMessage.role !== 'assistant' ||
+            assistantIndex !== userIndex + 1 ||
+            assistantIndex !== messages.length - 1 ||
+            hasVisibleAssistantReply(assistantMessage.content)
+          ) {
+            return null
+          }
+          removeEnd = assistantIndex + 1
+        }
+      }
+
+      if (userIndex !== messages.length - 1 && removeEnd !== messages.length) {
+        return null
+      }
+
+      const newMessages = [
+        ...messages.slice(0, userIndex),
+        ...messages.slice(removeEnd),
+      ]
+
+      state.updateAIData({
+        messages: { ...ai.messages, [targetSessionId]: newMessages }
+      }, true)
+
+      if (shouldPersistSession(ai, targetSessionId)) {
+        saveSessionJsonInBackground(targetSessionId, newMessages)
+      }
+
+      return userMessage.content
     },
 
     switchMessageVersion: (sessionId: string, messageId: string, targetIndex: number) => {

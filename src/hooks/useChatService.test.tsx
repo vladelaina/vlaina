@@ -301,6 +301,156 @@ describe('useChatService session context isolation', () => {
     ]);
   });
 
+  it('recalls the submitted composer text when stopped before request messages are created', async () => {
+    let resolvePendingHydration!: () => void;
+    const pendingHydration = new Promise<void>((resolve) => {
+      resolvePendingHydration = resolve;
+    });
+    mocked.flushPendingSessionJsonSave.mockImplementationOnce(async () => {
+      await pendingHydration;
+    });
+
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('cancel before provider', [], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(mocked.flushPendingSessionJsonSave).toHaveBeenCalledWith('session-2');
+      expect(useAIUIStore.getState().generatingSessions).toEqual({ 'session-2': true });
+    });
+
+    let recalled: ReturnType<typeof result.current.stopAndRecallLastUserMessage> = null;
+    act(() => {
+      recalled = result.current.stopAndRecallLastUserMessage('cancel before provider');
+    });
+
+    expect(recalled).toEqual({
+      message: 'cancel before provider',
+      attachments: [],
+      noteMentions: [],
+    });
+
+    await act(async () => {
+      resolvePendingHydration();
+      await pendingHydration;
+    });
+
+    await waitFor(() => {
+      expect(sendMessageWithEndpointFallback).not.toHaveBeenCalled();
+      expect(useAIUIStore.getState().generatingSessions).toEqual({});
+    });
+
+    const sessionMessages = useUnifiedStore.getState().data.ai?.messages['session-2'] || [];
+    expect(sessionMessages.map((message) => message.content)).toEqual([
+      'session two visible prompt',
+      'session two visible answer',
+    ]);
+  });
+
+  it('retracts pending request messages and recalls the composer text when stopped from the input', async () => {
+    let resolveProvider!: (value: string) => void;
+    const pendingProviderResponse = new Promise<string>((resolve) => {
+      resolveProvider = resolve;
+    });
+    mocked.sendMessageWithEndpointFallback.mockImplementationOnce(async () => {
+      return await pendingProviderResponse;
+    });
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('pending prompt', [], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
+      expect((useUnifiedStore.getState().data.ai?.messages['session-2'] || []).map((message) => message.content)).toEqual([
+        'session two visible prompt',
+        'session two visible answer',
+        'pending prompt',
+        '',
+      ]);
+    });
+
+    let recalled: ReturnType<typeof result.current.stopAndRecallLastUserMessage> = null;
+    act(() => {
+      recalled = result.current.stopAndRecallLastUserMessage('pending prompt');
+    });
+
+    expect(recalled).toEqual({
+      message: 'pending prompt',
+      attachments: [],
+      noteMentions: [],
+    });
+    expect((useUnifiedStore.getState().data.ai?.messages['session-2'] || []).map((message) => message.content)).toEqual([
+      'session two visible prompt',
+      'session two visible answer',
+    ]);
+
+    await act(async () => {
+      resolveProvider('late answer');
+      await pendingProviderResponse;
+    });
+
+    await waitFor(() => {
+      expect(useAIUIStore.getState().generatingSessions).toEqual({});
+    });
+    expect((useUnifiedStore.getState().data.ai?.messages['session-2'] || []).map((message) => message.content)).toEqual([
+      'session two visible prompt',
+      'session two visible answer',
+    ]);
+  });
+
+  it('recalls attachments and note mentions with the stopped composer request', async () => {
+    let resolveProvider!: (value: string) => void;
+    const pendingProviderResponse = new Promise<string>((resolve) => {
+      resolveProvider = resolve;
+    });
+    mocked.sendMessageWithEndpointFallback.mockImplementationOnce(async () => {
+      return await pendingProviderResponse;
+    });
+    const attachment = createAttachment({
+      id: 'attachment-recall',
+      name: 'recall.png',
+      previewUrl: 'data:image/png;base64,UkVDQUxM',
+    });
+    const noteMention = {
+      path: 'docs/context.md',
+      title: 'context.md',
+      kind: 'note' as const,
+    };
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('pending prompt', [attachment], [noteMention])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(sendMessageWithEndpointFallback).toHaveBeenCalledTimes(1);
+    });
+
+    let recalled: ReturnType<typeof result.current.stopAndRecallLastUserMessage> = null;
+    act(() => {
+      recalled = result.current.stopAndRecallLastUserMessage('pending prompt');
+    });
+
+    expect(recalled).toEqual({
+      message: 'pending prompt',
+      attachments: [attachment],
+      noteMentions: [noteMention],
+    });
+    expect((useUnifiedStore.getState().data.ai?.messages['session-2'] || []).map((message) => message.content)).toEqual([
+      'session two visible prompt',
+      'session two visible answer',
+    ]);
+
+    await act(async () => {
+      resolveProvider('late answer');
+      await pendingProviderResponse;
+    });
+  });
+
   it('ignores stale API transcript callbacks after a newer request supersedes the stream', async () => {
     let resolveFirstProvider!: (value: string) => void;
     let firstTranscriptCallback: ((messages: ApiTranscriptMessage[]) => void) | undefined;
@@ -448,6 +598,54 @@ describe('useChatService session context isolation', () => {
     expect(options?.allowPath?.('/vault/docs/.git/demo.png')).toBe(false);
     expect(options?.allowPath?.('/outside/demo.png')).toBe(false);
     expect(deleteAttachment).toHaveBeenCalledWith(attachment);
+  });
+
+  it('does not delete temporary attachments when recalled during ephemeral conversion', async () => {
+    seedTemporaryChatState();
+    let resolveConversion!: (value: string) => void;
+    const pendingConversion = new Promise<string>((resolve) => {
+      resolveConversion = resolve;
+    });
+    vi.mocked(convertToBase64).mockImplementationOnce(async () => pendingConversion);
+    const attachment = createAttachment({
+      path: '/vault/assets/demo.png',
+      previewUrl: 'attachment://demo.png',
+      assetUrl: '',
+    });
+    const { result } = renderHook(() => useChatService());
+
+    await act(async () => {
+      expect(await result.current.sendMessage('describe it', [attachment], [])).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(convertToBase64).toHaveBeenCalledWith(attachment, expect.any(Object));
+      expect(useAIUIStore.getState().generatingSessions).toEqual({ 'temp-session-1': true });
+    });
+
+    let recalled: ReturnType<typeof result.current.stopAndRecallLastUserMessage> = null;
+    act(() => {
+      recalled = result.current.stopAndRecallLastUserMessage('describe it');
+    });
+
+    expect(recalled).toEqual({
+      message: 'describe it',
+      attachments: [attachment],
+      noteMentions: [],
+    });
+
+    await act(async () => {
+      resolveConversion(TEMPORARY_IMAGE_DATA_URL);
+      await pendingConversion;
+    });
+
+    await waitFor(() => {
+      expect(useAIUIStore.getState().generatingSessions).toEqual({});
+    });
+
+    expect(deleteAttachment).not.toHaveBeenCalled();
+    expect(sendMessageWithEndpointFallback).not.toHaveBeenCalled();
+    expect(useUnifiedStore.getState().data.ai?.messages['temp-session-1']).toEqual([]);
   });
 
   it('limits concurrent temporary attachment conversions while preserving image order', async () => {

@@ -42,7 +42,7 @@ describe('ChatInputActions', () => {
   it('keeps the empty send button in the app accent treatment instead of gray', () => {
     renderActions();
 
-    const sendButton = screen.getByRole('button', { name: '' });
+    const sendButton = screen.getByRole('button', { name: 'common.send' });
 
     expect(sendButton).toBeDisabled();
     expect(sendButton.className).toContain('bg-[var(--vlaina-color-pill-surface-hover)]');
