@@ -1,4 +1,5 @@
 const LINE_ENDING_PATTERN = /\r\n?/g;
+const UTF8_BOM = '\uFEFF';
 const FRONTMATTER_OPEN_PATTERN = /^---[ \t]*$/;
 const FRONTMATTER_CLOSE_PATTERN = /^---[ \t]*$/;
 const FRONTMATTER_LANGUAGE = 'yaml-frontmatter';
@@ -9,6 +10,10 @@ const MANAGED_FRONTMATTER_PREFIX = 'vlaina_';
 
 function normalizeLineEndings(value: string): string {
   return value.replace(LINE_ENDING_PATTERN, '\n');
+}
+
+function stripLeadingBom(value: string): string {
+  return value.startsWith(UTF8_BOM) ? value.slice(1) : value;
 }
 
 interface FrontmatterSections {
@@ -84,7 +89,7 @@ function splitLeadingDelimitedBlock(
   isClosingLine: (line: string) => boolean,
 ): FrontmatterSections | null {
   const firstLine = readLine(markdown, 0, MAX_FRONTMATTER_DELIMITER_LINE_CHARS + 1);
-  if (firstLine.truncated || !isOpeningLine(firstLine.line)) {
+  if (firstLine.truncated || !isOpeningLine(stripLeadingBom(firstLine.line))) {
     return null;
   }
 

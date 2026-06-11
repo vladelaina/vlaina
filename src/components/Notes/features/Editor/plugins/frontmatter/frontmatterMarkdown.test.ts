@@ -14,6 +14,12 @@ describe('frontmatterMarkdown', () => {
     );
   });
 
+  it('normalizes leading yaml frontmatter after a UTF-8 BOM', () => {
+    expect(normalizeLeadingFrontmatterMarkdown('\uFEFF---\ntitle: Demo\n---\n# Heading')).toBe(
+      `\`\`\`${getFrontmatterFenceLanguage()}\ntitle: Demo\n\`\`\`\n# Heading`,
+    );
+  });
+
   it('hides vlaina-managed frontmatter fields from the editor block', () => {
     expect(
       normalizeLeadingFrontmatterMarkdown(

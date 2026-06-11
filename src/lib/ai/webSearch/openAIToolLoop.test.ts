@@ -377,6 +377,78 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(repeatedReadMessages[repeatedReadMessages.length - 1].content).not.toContain('Second page content must not be reused.');
   });
 
+  it('does not reuse cached reads for unsafe URL spellings', async () => {
+    const requestJson = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: '',
+            tool_calls: [{
+              id: 'call-1',
+              type: 'function',
+              function: {
+                name: 'read_url',
+                arguments: JSON.stringify({ url: 'https://example.com/@internal.test' }),
+              },
+            }],
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: '',
+            tool_calls: [{
+              id: 'call-2',
+              type: 'function',
+              function: {
+                name: 'read_url',
+                arguments: JSON.stringify({ url: 'https://example.com\\@internal.test' }),
+              },
+            }],
+          },
+        }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: 'Final answer.' } }],
+      });
+    const client = {
+      webSearch: vi.fn(),
+      readWebPage: vi.fn(async () => ({
+        title: 'Safe page',
+        summary: '',
+        siteName: 'example.com',
+        finalUrl: 'https://example.com/@internal.test',
+        content: 'Cached safe page content.',
+        charCount: 25,
+      })),
+      readWebPages: vi.fn(),
+    };
+
+    await runOpenAIWebSearchJsonToolLoop({
+      body: {
+        model: 'test',
+        stream: true,
+        messages: [{ role: 'user', content: 'read page' }],
+      },
+      client,
+      requestJson,
+      onChunk: vi.fn(),
+    });
+
+    expect(client.readWebPage).toHaveBeenCalledTimes(1);
+    const unsafeReadMessages = requestJson.mock.calls[2][0].messages;
+    const unsafeToolMessage = unsafeReadMessages[unsafeReadMessages.length - 1];
+    expect(unsafeToolMessage).toMatchObject({
+      role: 'tool',
+      tool_call_id: 'call-2',
+      content: 'Tool error: Tool call arguments were invalid.',
+    });
+    expect(unsafeToolMessage.content).not.toContain('Cached safe page content.');
+    expect(unsafeToolMessage.content).not.toContain('Cached page read.');
+  });
+
   it('bounds cached batch read URL extraction in JSON tool loops', async () => {
     const urls = Array.from({ length: 12 }, (_, index) => `https://example.com/${index}`);
     const singleReadToolCalls = urls.slice(0, 8).map((url, index) => ({

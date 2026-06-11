@@ -17,6 +17,7 @@ export {
 export { joinSerializedBlocks } from './markdownBlockJoin';
 
 const BR_ONLY_PATTERN = /^<br\b[^>]*\/?>\s*(?:<\/br>)?$/i;
+const UTF8_BOM = '\uFEFF';
 const LEGACY_EMPTY_LINE_ATTR_PATTERN = '\\bdat[ae]-vlaina-?(?:empty|empt)-line';
 const LEGACY_LIST_GAP_ATTR_PATTERN = '\\bdat[ae]-vlaina-?list-gap';
 const LEGACY_USER_BR_ATTR_PATTERN = '\\bdat[ae]-vlaina-?user-br';
@@ -110,7 +111,7 @@ const CJK_ATX_HEADING_WITHOUT_SPACE_PATTERN =
 const MAX_CACHED_MARKDOWN_NORMALIZATION_LENGTH = 1_000_000;
 const FAST_NORMALIZATION_MIN_LENGTH = 1_000_000;
 const ESCAPED_HIGHLIGHT_PATTERN = /\\==([^=\n]+)==/g;
-const ESCAPED_URL_SCHEME_PATTERN = /\b([A-Za-z][A-Za-z0-9+.-]*)\\:(?=\/\/)/g;
+const ESCAPED_URL_SCHEME_PATTERN = /\b(https?)\\:(?=\/\/)/gi;
 const MARKDOWN_AUTOLINK_LITERAL_PATTERN =
   /<((?:https?:\/\/|mailto:)[^\s<>"']+|[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+)>/g;
 const EMAIL_ADDRESS_SOURCE = String.raw`[A-Za-z0-9.!#$%&'*+/=?^_{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+`;
@@ -147,6 +148,10 @@ interface DollarMathFenceMatch {
 
 let lastNormalizedMarkdownInput: string | null = null;
 let lastNormalizedMarkdownOutput: string | null = null;
+
+function stripLeadingBom(text: string): string {
+  return text.startsWith(UTF8_BOM) ? text.slice(1) : text;
+}
 
 function canUseLargePlainMarkdownNormalizationFastPath(text: string): boolean {
   if (text.length < FAST_NORMALIZATION_MIN_LENGTH) return false;
@@ -965,11 +970,13 @@ export function normalizeSerializedMarkdownDocument(text: string): string {
     return lastNormalizedMarkdownOutput;
   }
 
-  if (canUseLargePlainMarkdownNormalizationFastPath(text)) {
-    return text;
+  const source = stripLeadingBom(text);
+
+  if (canUseLargePlainMarkdownNormalizationFastPath(source)) {
+    return source;
   }
 
-  const output = runMarkdownDocumentNormalizationPipeline(text).output;
+  const output = runMarkdownDocumentNormalizationPipeline(source).output;
   if (text.length <= MAX_CACHED_MARKDOWN_NORMALIZATION_LENGTH) {
     lastNormalizedMarkdownInput = text;
     lastNormalizedMarkdownOutput = output;

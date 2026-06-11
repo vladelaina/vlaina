@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_GENERATED_MODEL_NAME_PARTS, MAX_MODEL_ID_DERIVATION_CHARS, generateModelGroup, generateModelName } from './utils'
+import {
+  MAX_GENERATED_MODEL_NAME_PARTS,
+  MAX_MODEL_ID_DERIVATION_CHARS,
+  buildAnthropicBaseUrl,
+  buildOpenAIBaseUrl,
+  generateModelGroup,
+  generateModelName,
+  normalizeApiHost,
+} from './utils'
 
 describe('AI model utilities', () => {
   it('generates groups for common model families', () => {
@@ -24,5 +32,31 @@ describe('AI model utilities', () => {
 
   it('ignores model group hints beyond the bounded derivation scan window', () => {
     expect(generateModelGroup(`${'x'.repeat(MAX_MODEL_ID_DERIVATION_CHARS)}-gpt-5`)).toBe(`X${'x'.repeat(MAX_MODEL_ID_DERIVATION_CHARS - 1)}`)
+  })
+
+  it('normalizes explicit provider API hosts', () => {
+    expect(normalizeApiHost(' https://api.example.com/v1/ ')).toBe('https://api.example.com/v1')
+    expect(normalizeApiHost('http://localhost:11434/api')).toBe('http://localhost:11434/api')
+    expect(buildOpenAIBaseUrl('https://api.example.com/v1/chat/completions')).toBe('https://api.example.com/v1')
+    expect(buildAnthropicBaseUrl('https://api.example.com/v1/messages')).toBe('https://api.example.com/v1')
+  })
+
+  it('rejects unsupported provider API hosts before endpoint construction', () => {
+    const unsafeHosts = [
+      '',
+      'https:api.example.com/v1',
+      'http:/api.example.com/v1',
+      'ftp://api.example.com/v1',
+      'https://user:pass@api.example.com/v1',
+      'https://api.example.com\\@evil.example/v1',
+      'https://api.example.com/v1?api_key=secret',
+      'https://api.example.com/v1#models',
+      'https://api.example.com/\u202Ecod.exe',
+    ]
+
+    for (const host of unsafeHosts) {
+      expect(() => normalizeApiHost(host)).toThrow('AI provider API host is not supported.')
+      expect(() => buildOpenAIBaseUrl(host)).toThrow('AI provider API host is not supported.')
+    }
   })
 })

@@ -131,6 +131,19 @@ describe('buildStoredUserMessageContent image parsing', () => {
     ]);
   });
 
+  it('scrubs skipped oversized raw HTML data images on resend paths', async () => {
+    const content = [
+      `<img alt="${'a'.repeat(70_000)}" src="data:image/png;base64,SECRET">`,
+      'Describe this.',
+    ].join('\n');
+
+    const result = await buildStoredUserMessageContent(content);
+
+    expect(result).toEqual([{ type: 'text', text: 'Describe this.' }]);
+    expect(JSON.stringify(result)).not.toContain('data:image/png;base64,SECRET');
+    expect(JSON.stringify(result)).not.toContain('<img');
+  });
+
   it('does not convert raw HTML images inside sanitizer-dropped containers on resend paths', async () => {
     const content = [
       '<svg><img src="https://example.com/hidden.png"></svg>',

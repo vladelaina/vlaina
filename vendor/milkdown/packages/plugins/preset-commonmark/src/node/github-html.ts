@@ -140,6 +140,7 @@ const allowedStyleProperties = new Set([
   'width',
 ])
 const srcsetDescriptorPattern = /^\d+(?:\.\d+)?(?:w|x)$/
+const httpAuthorityUrlPattern = /^https?:\/\//i
 const maxGithubHtmlAttributeValueChars = 16 * 1024
 const maxGithubSrcsetCandidates = 128
 export const maxGithubHtmlSanitizeChars = 2 * 1024 * 1024
@@ -265,7 +266,11 @@ function hasUrlScheme(value: string) {
 }
 
 function hasUnsafeBackslashUrlSyntax(value: string) {
-  return value.startsWith('\\') || (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(value) && value.includes('\\'))
+  return value.includes('\\') && (
+    value.startsWith('\\') ||
+    value.startsWith('//') ||
+    /^[A-Za-z][A-Za-z0-9+.-]*:/.test(value)
+  )
 }
 
 function getProtocolMarker(value: string) {
@@ -328,6 +333,7 @@ function normalizeUrl(value: string, protocols: ReadonlySet<string>, options: { 
   if (options.allowPlainRelative && isSafePlainRelativeMediaUrl(trimmed))
     return trimmed
   if (!protocols.has(marker)) return null
+  if ((marker === 'http:' || marker === 'https:') && !httpAuthorityUrlPattern.test(trimmed)) return null
   if ((marker === 'http:' || marker === 'https:') && hasUrlCredentials(trimmed)) return null
   if (options.blockLocalNetwork && isLocalNetworkHttpUrl(trimmed)) return null
   return trimmed

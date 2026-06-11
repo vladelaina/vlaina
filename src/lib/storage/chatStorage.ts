@@ -506,10 +506,6 @@ function normalizeImageSourceCandidates(value: readonly unknown[]): string[] | u
   return sources.length > 0 ? sources : undefined;
 }
 
-function normalizePersistedImageSources(value: unknown): string[] | undefined {
-  return Array.isArray(value) ? normalizeImageSourceCandidates(value) : undefined;
-}
-
 function extractActiveVersionImageSources(role: ChatMessage['role'], content: string): string[] | undefined {
   if (role === 'user') {
     return normalizeImageSourceCandidates(
@@ -582,16 +578,13 @@ function normalizeSessionMessage(
     };
   }
   const activeVersionImageSources = extractActiveVersionImageSources(role, activeContent);
-  const persistedImageSources = normalizePersistedImageSources(value.imageSources);
-  const imageSources = activeVersionImageSources
-    ?? (topLevelMatchesActiveVersion ? persistedImageSources : undefined);
 
   return {
     id: normalizeMessageId(value.id, context, depth),
     role,
     content: activeContent,
     ...(apiTranscript ? { apiTranscript } : {}),
-    ...(imageSources ? { imageSources } : {}),
+    ...(activeVersionImageSources ? { imageSources: activeVersionImageSources } : {}),
     modelId: typeof value.modelId === 'string'
       ? value.modelId.slice(0, MAX_SESSION_MESSAGE_MODEL_ID_CHARS)
       : '',

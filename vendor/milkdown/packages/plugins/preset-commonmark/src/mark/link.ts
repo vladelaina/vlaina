@@ -13,11 +13,16 @@ const schemePattern = /^([A-Za-z][A-Za-z0-9+.-]*):/
 const windowsAbsolutePathPattern = /^[A-Za-z]:[\\/]/
 const safeLinkSchemes = new Set(['http:', 'https:', 'mailto:'])
 const maxLinkHrefChars = 16 * 1024
+const httpAuthorityUrlPattern = /^https?:\/\//i
 export const MAX_LINK_TITLE_CHARS = 4096
 export const MAX_LINK_UPDATE_SCAN_NODES = 20_000
 
 function hasUnsafeBackslashUrlSyntax(value: string) {
-  return value.startsWith('\\') || (schemePattern.test(value) && value.includes('\\'))
+  return value.includes('\\') && (
+    value.startsWith('\\') ||
+    value.startsWith('//') ||
+    schemePattern.test(value)
+  )
 }
 
 export function sanitizeLinkHref(value: unknown) {
@@ -29,6 +34,7 @@ export function sanitizeLinkHref(value: unknown) {
   if (!scheme && hasInternalImageUrlPathSegment(trimmed)) return null
   if (!scheme) return trimmed
   const normalizedScheme = `${scheme}:`
+  if ((normalizedScheme === 'http:' || normalizedScheme === 'https:') && !httpAuthorityUrlPattern.test(trimmed)) return null
   if ((normalizedScheme === 'http:' || normalizedScheme === 'https:') && hasUrlCredentials(trimmed)) return null
   return safeLinkSchemes.has(normalizedScheme) ? trimmed : null
 }

@@ -399,6 +399,18 @@ describe('sanitizeHtml', () => {
     expect(result).toBe('<img src="https://example.com/real.png">');
   });
 
+  it('line-bounds overlong sanitizer-only raw HTML tags', () => {
+    const badLine = `<svg data-value="<img src='https://example.com/hidden.png'> ${'x'.repeat(70 * 1024)}`;
+    const result = sanitizeHtml([
+      badLine,
+      '<img src="https://example.com/real.png">',
+    ].join('\n'));
+
+    expect(result).toBe('\n<img src="https://example.com/real.png">');
+    expect(result).not.toContain('hidden.png');
+    expect(result).not.toContain('x'.repeat(1024));
+  });
+
   it('keeps GitHub table attributes while discarding forbidden ones', () => {
     const result = sanitizeHtml(
       '<td width="80" height="40" colspan="2" rowspan="3" class="x" style="color:red" onclick="evil()">cell</td>',

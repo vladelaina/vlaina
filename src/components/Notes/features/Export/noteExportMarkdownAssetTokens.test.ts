@@ -8,6 +8,7 @@ import {
   findExportMarkdownAssetSourceTokens,
   findExportMarkdownAssetSourceTokensWithOptions,
 } from './noteExportMarkdownAssetTokens';
+import { MAX_EXPORT_HTML_TAG_END_SCAN_CHARS } from './noteExportMarkdownHtmlTokens';
 
 describe('findExportMarkdownAssetSourceTokens', () => {
   it('keeps asset extraction correct after many ignored inline ranges', () => {
@@ -215,6 +216,17 @@ describe('findExportMarkdownAssetSourceTokens', () => {
       `<img alt="${oversized}" src="img:hidden.png">`,
       '<img src="img:real.png">',
     ].join('\n')).map((token) => token.lookupSrc)).toEqual([
+      'img:real.png',
+    ]);
+  });
+
+  it('bounds raw HTML tag end scans while continuing markdown asset extraction', () => {
+    const markdown = [
+      `prefix <span data-value="![hidden](img:hidden.png) ${'a'.repeat(MAX_EXPORT_HTML_TAG_END_SCAN_CHARS + 1)}">`,
+      '![real](img:real.png)',
+    ].join('\n');
+
+    expect(findExportMarkdownAssetSourceTokens(markdown).map((token) => token.lookupSrc)).toEqual([
       'img:real.png',
     ]);
   });

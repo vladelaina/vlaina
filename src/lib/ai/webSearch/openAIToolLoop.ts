@@ -277,14 +277,15 @@ function parseToolArguments(rawArguments: string): Record<string, unknown> {
 }
 
 function normalizeReadCacheUrl(url: string): string {
-  const trimmed = url.trim();
-  if (!trimmed) return '';
+  const safeUrl = sanitizeWebSearchSourceUrl(url);
+  if (!safeUrl) return '';
+
   try {
-    const parsed = new URL(trimmed);
+    const parsed = new URL(safeUrl);
     parsed.hash = '';
     return parsed.toString().replace(/\/$/, '');
   } catch {
-    return trimmed.replace(/\/$/, '');
+    return '';
   }
 }
 

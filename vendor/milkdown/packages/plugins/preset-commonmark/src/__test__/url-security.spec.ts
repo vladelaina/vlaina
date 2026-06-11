@@ -133,8 +133,11 @@ it('does not classify unsafe remote strings as public media URLs', () => {
   expect(isPublicRemoteMediaUrl('https://example.com/\u202Ecod.exe')).toBe(false)
   expect(isPublicRemoteMediaUrl('https://example.com/image.png\u0000')).toBe(false)
   expect(isPublicRemoteMediaUrl('//example.com/image.png\uFFFD')).toBe(false)
+  expect(isPublicRemoteMediaUrl(String.raw`//example.com\image.png`)).toBe(false)
   expect(isPublicRemoteMediaUrl('https://user:pass@example.com/image.png')).toBe(false)
   expect(isPublicRemoteMediaUrl('//user:pass@example.com/image.png')).toBe(false)
+  expect(isPublicRemoteMediaUrl('https:example.com/image.png')).toBe(false)
+  expect(isPublicRemoteMediaUrl('http:/example.com/image.png')).toBe(false)
 })
 
 it('sanitizes image sources consistently for schema and component editors', () => {
@@ -166,6 +169,9 @@ it('sanitizes image sources consistently for schema and component editors', () =
   expect(sanitizeImageSrc('http://127.0.0.1:3000/image.png')).toBe(null)
   expect(sanitizeImageSrc('https://user:pass@example.com/image.png')).toBe(null)
   expect(sanitizeImageSrc('//user:pass@example.com/image.png')).toBe(null)
+  expect(sanitizeImageSrc(String.raw`//example.com\image.png`)).toBe(null)
+  expect(sanitizeImageSrc('https:example.com/image.png')).toBe(null)
+  expect(sanitizeImageSrc('http:/example.com/image.png')).toBe(null)
 })
 
 it('bounds image text attrs consistently', () => {
@@ -305,7 +311,10 @@ it('sanitizes link hrefs consistently for schema and component editors', () => {
   expect(sanitizeLinkHref('javascript:alert(1)')).toBe(null)
   expect(sanitizeLinkHref('data:text/html,alert(1)')).toBe(null)
   expect(sanitizeLinkHref('//example.com/path')).toBe(null)
+  expect(sanitizeLinkHref(String.raw`//example.com\path`)).toBe(null)
   expect(sanitizeLinkHref('https://user:pass@example.com/path')).toBe(null)
+  expect(sanitizeLinkHref('https:example.com/path')).toBe(null)
+  expect(sanitizeLinkHref('http:/example.com/path')).toBe(null)
   expect(sanitizeLinkHref(String.raw`https:\example.com\path`)).toBe(null)
   expect(sanitizeLinkHref(String.raw`\\example.com\path`)).toBe(null)
   expect(sanitizeLinkHref('C:\\Users\\secret.txt')).toBe(null)

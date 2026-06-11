@@ -390,7 +390,7 @@ async function describeDesktopDirectoryEntry(parentPath, entry) {
     return {
       name: entry.name,
       path: entryPath,
-      isDirectory: false,
+      isDirectory: info.isDirectory(),
       isFile: info.isFile(),
     };
   } catch {
@@ -776,8 +776,10 @@ export function registerDesktopIpc({
   handleIpc('desktop:drag-drop:authorize-path', async (_event, filePath) => {
     const resolvedPath = normalizeFsPathForAccess(filePath);
     const info = await stat(resolvedPath);
-    const authorizedPath = info.isDirectory() ? resolvedPath : path.dirname(resolvedPath);
-    await authorizeFsPath(authorizedPath, 'root');
+    if (!info.isDirectory()) {
+      await authorizeFsPath(resolvedPath, 'file');
+    }
+    await authorizeFsPath(info.isDirectory() ? resolvedPath : path.dirname(resolvedPath), 'root');
 
     return {
       name: path.basename(resolvedPath),

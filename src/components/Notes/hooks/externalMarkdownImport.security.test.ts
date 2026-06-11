@@ -56,6 +56,8 @@ describe('external markdown import path security', () => {
 
   it('skips directly imported paths with unsafe characters before statting them', async () => {
     const result = await importExternalMarkdownEntries('/vault', 'imports', [
+      '',
+      '   ',
       '/outside/docs\u202E',
       '/outside/secret\uFFFD.md',
     ]);
@@ -118,6 +120,8 @@ describe('external markdown import path security', () => {
 
   it('skips unsafe starred drop paths before statting them', async () => {
     const result = await resolveExternalMarkdownEntriesForStarred('/vault', [
+      '',
+      '   ',
       '/outside/docs\u202E',
       '/outside/secret\uFFFD.md',
     ]);

@@ -426,7 +426,7 @@ describe('message actions API transcript handling', () => {
     expect(message.imageSources).toEqual(['https://example.com/photo.png']);
   });
 
-  it('filters provided user message image source caches before storing', () => {
+  it('filters user message image source caches before storing', () => {
     seedMessages([]);
 
     createMessageActions().addMessage({
@@ -436,6 +436,7 @@ describe('message actions API transcript handling', () => {
         '![safe](attachment://safe.png)',
       ].join('\n'),
       imageSources: [
+        'https://example.com/stale.png',
         'http://127.0.0.1:3000/secret.png',
         'data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+',
         'https://example.com/movie.mp4',

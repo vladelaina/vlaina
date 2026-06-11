@@ -100,6 +100,8 @@ describe("normalizeRenderableImageSrc", () => {
     expect(normalizeRenderableImageSrc("javascript:alert(1)")).toBeNull();
     expect(normalizeRenderableImageSrc("vbscript:msgbox(1)")).toBeNull();
     expect(normalizeRenderableImageSrc("file:///tmp/image.png")).toBeNull();
+    expect(normalizeRenderableImageSrc("https:example.com/image.png")).toBeNull();
+    expect(normalizeRenderableImageSrc("http:/example.com/image.png")).toBeNull();
     expect(normalizeRenderableImageSrc("/images/a.png")).toBeNull();
     expect(normalizeRenderableImageSrc("/etc/passwd")).toBeNull();
     expect(normalizeRenderableImageSrc("image\u0000.png")).toBeNull();
@@ -157,6 +159,7 @@ describe("normalizeRenderableImageSrc", () => {
     expect(normalizeRenderableImageSrc("//user:pass@example.com/secret.png")).toBeNull();
     expect(normalizeRenderableImageSrc(String.raw`http:\127.0.0.1\secret.png`)).toBeNull();
     expect(normalizeRenderableImageSrc(String.raw`\\127.0.0.1\secret.png`)).toBeNull();
+    expect(normalizeRenderableImageSrc(String.raw`//example.com\secret.png`)).toBeNull();
     expect(normalizeRenderableImageSrc("https://example.com/safe.png")).toBe("https://example.com/safe.png");
     expect(normalizeRenderableImageSrc("//example.com/safe.png")).toBe("https://example.com/safe.png");
     expect(normalizeRenderableImageSrc("https://[2606:4700:4700::1111]/safe.png")).toBe("https://[2606:4700:4700::1111]/safe.png");
@@ -200,6 +203,9 @@ describe("normalizeRenderableImageSrcset", () => {
   it("rejects unsafe srcset candidates", () => {
     expect(normalizeRenderableImageSrcset("//127.0.0.1:3000/secret.png 1x")).toBeNull();
     expect(normalizeRenderableImageSrcset("/images/a.webp 1x")).toBeNull();
+    expect(normalizeRenderableImageSrcset("https:example.com/a.webp 1x")).toBeNull();
+    expect(normalizeRenderableImageSrcset("http:/example.com/a.webp 1x")).toBeNull();
+    expect(normalizeRenderableImageSrcset(String.raw`//example.com\a.webp 1x`)).toBeNull();
     expect(normalizeRenderableImageSrcset("javascript:alert(1) 1x")).toBeNull();
     expect(normalizeRenderableImageSrcset("data:image/svg+xml;base64,PHN2Zz4= 1x")).toBeNull();
     expect(normalizeRenderableImageSrcset(`${createOversizedDataImageSrc()} 1x`)).toBeNull();

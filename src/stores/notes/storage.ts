@@ -212,8 +212,7 @@ async function collectMarkdownPaths(
 ): Promise<string[]> {
   if (
     budget.scannedEntries >= MAX_METADATA_DIRECTORY_SCAN_ENTRIES ||
-    budget.visitedEntries >= MAX_METADATA_SCAN_ENTRIES ||
-    depth >= MAX_METADATA_SCAN_DEPTH
+    budget.visitedEntries >= MAX_METADATA_SCAN_ENTRIES
   ) {
     return [];
   }
@@ -248,6 +247,9 @@ async function collectMarkdownPaths(
         continue;
       }
       if (shouldSkipMetadataDirectory(entry.name)) {
+        continue;
+      }
+      if (depth >= MAX_METADATA_SCAN_DEPTH) {
         continue;
       }
       if (budget.visitedEntries >= MAX_METADATA_SCAN_ENTRIES) {

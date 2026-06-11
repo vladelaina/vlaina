@@ -4,6 +4,7 @@ import {
   type MarkdownFenceState,
 } from './markdownFence';
 import {
+  collectHtmlTagRanges,
   findHtmlTagEnd,
   getHtmlTagRanges,
   getRawTextHtmlRanges,
@@ -15,7 +16,7 @@ import {
   getMarkdownInvisibleHtmlBlockClosePattern,
 } from './markdownHtmlBlockClassification';
 
-export { findHtmlTagEnd, getHtmlTagRanges, getRawTextHtmlRanges };
+export { collectHtmlTagRanges, findHtmlTagEnd, getHtmlTagRanges, getRawTextHtmlRanges };
 
 export interface ContentRange {
   start: number;

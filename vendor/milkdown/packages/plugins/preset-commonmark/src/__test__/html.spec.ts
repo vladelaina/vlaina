@@ -356,6 +356,18 @@ it('should keep malformed parser-promoted raw html containers active while creat
   await editor.destroy()
 })
 
+it('should line-bound overlong sanitizer-only raw html tags during sanitization', () => {
+  const badLine = `<svg data-value="<img src='https://example.com/hidden.png'> ${'x'.repeat(70 * 1024)}`
+  const result = sanitizeGithubHtml([
+    badLine,
+    '<img src="https://example.com/real.png">',
+  ].join('\n'))
+
+  expect(result).toContain('<img src="https://example.com/real.png">')
+  expect(result).not.toContain('hidden.png')
+  expect(result).not.toContain('x'.repeat(1024))
+})
+
 it('should cap deeply nested github html during sanitization', () => {
   const payload = `${'<div>'.repeat(250)}<p onclick="evil()">deep</p>${'</div>'.repeat(250)}`
 

@@ -19,6 +19,7 @@ import { htmlImageTagHasDataImageSrc } from './markdownHtmlImageSrc';
 
 const MAX_RENDERABLE_IMAGE_REPLACEMENT_TOKENS = 2000;
 const MAX_OVERFLOW_DATA_IMAGE_TARGET_CHARS = MAX_INLINE_IMAGE_BASE64_CHARS + 4096;
+const MAX_OVERFLOW_HTML_IMAGE_TAG_END_SCAN_CHARS = 64 * 1024;
 const MAX_OVERFLOW_INLINE_CODE_PROTECTION_RANGES = 4000;
 
 function normalizeImageToken(token: ImageToken): ImageToken | null {
@@ -37,7 +38,6 @@ export function replaceRenderableMarkdownImageTokens(content: string, replacemen
   const tokens = normalizeImageTokens(parsedTokens);
   return scrubOverflowRenderableInlineDataImageSyntax(
     replaceImageTokens(content, tokens, replacement),
-    parsedTokens.length,
     replacement,
     false,
   );
@@ -48,7 +48,6 @@ export function replaceRenderableMessageImageTokens(content: string, replacement
   const tokens = normalizeImageTokens(parsedTokens);
   return scrubOverflowRenderableInlineDataImageSyntax(
     replaceImageTokens(content, tokens, replacement),
-    parsedTokens.length,
     replacement,
     true,
   );
@@ -60,11 +59,10 @@ export function stripRenderableMarkdownImageTokens(content: string): string {
 
 function scrubOverflowRenderableInlineDataImageSyntax(
   content: string,
-  tokenCount: number,
   replacement: string,
   includeHtml: boolean,
 ): string {
-  if (tokenCount < MAX_RENDERABLE_IMAGE_REPLACEMENT_TOKENS || !hasDataImageHint(content)) {
+  if (!hasDataImageHint(content)) {
     return content;
   }
 
@@ -122,17 +120,16 @@ function scrubOverflowHtmlDataImagesInRange(
       continue;
     }
 
-    const scanEnd = Math.min(range.end, start + MAX_OVERFLOW_DATA_IMAGE_TARGET_CHARS);
+    const scanEnd = Math.min(range.end, start + MAX_OVERFLOW_HTML_IMAGE_TAG_END_SCAN_CHARS + 1);
     const tagEnd = findHtmlTagEnd(content, start, scanEnd);
-    if (tagEnd === -1) {
-      if (htmlImageTagHasDataImageSrc(content.slice(start, scanEnd))) {
-        output += content.slice(cursor, start);
-        output += replacement;
-        cursor = getOverflowHtmlImageScrubEnd(content, start, range.end);
-        continue;
-      }
-      output += content.slice(cursor, start + 4);
-      cursor = start + 4;
+    const tagIsOverflow =
+      tagEnd === -1 || tagEnd > range.end || tagEnd - start > MAX_OVERFLOW_HTML_IMAGE_TAG_END_SCAN_CHARS;
+    if (tagIsOverflow) {
+      output += content.slice(cursor, start);
+      output += replacement;
+      cursor = tagEnd !== -1 && tagEnd <= range.end
+        ? tagEnd
+        : getOverflowHtmlImageScrubEnd(content, start, range.end);
       continue;
     }
 

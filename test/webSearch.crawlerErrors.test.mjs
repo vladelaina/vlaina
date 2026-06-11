@@ -265,6 +265,14 @@ describe('crawler error classification', () => {
     expect(prepareCrawlerUrl(`https://www.bing.com/ck/a?u=a1${encodedTarget}`)).toBe(targetUrl);
   });
 
+  it('does not unwrap lookalike search redirect hosts', () => {
+    const targetUrl = 'https://example.com/page';
+    const encodedTarget = Buffer.from(targetUrl).toString('base64url');
+    const rawUrl = `https://evilbing.com/ck/a?u=a1${encodedTarget}`;
+
+    expect(prepareCrawlerUrl(rawUrl)).toBe(rawUrl);
+  });
+
   it('does not unwrap oversized search redirect targets', () => {
     const rawUrl = `https://www.bing.com/ck/a?u=a1${'a'.repeat(4097)}`;
 

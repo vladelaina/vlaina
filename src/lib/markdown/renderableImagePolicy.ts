@@ -20,6 +20,7 @@ const MAX_RENDERABLE_IMAGE_SRC_CHARS = 4096;
 const MAX_RENDERABLE_IMAGE_SRCSET_CHARS = 64 * 1024;
 const MAX_RENDERABLE_DATA_IMAGE_SRCSET_CHARS = MAX_INLINE_IMAGE_BASE64_CHARS + 4096;
 const MAX_RENDERABLE_IMAGE_SRCSET_CANDIDATES = 128;
+const HTTP_AUTHORITY_URL_PATTERN = /^https?:\/\//i;
 
 function isRelativePath(value: string): boolean {
   if (value.startsWith('//')) {
@@ -42,7 +43,11 @@ function isBareRelativeImagePath(value: string): boolean {
 }
 
 function hasUnsafeBackslashUrlSyntax(value: string): boolean {
-  return value.startsWith('\\') || (SCHEME_PATTERN.test(value) && value.includes('\\'));
+  return value.includes('\\') && (
+    value.startsWith('\\') ||
+    value.startsWith('//') ||
+    SCHEME_PATTERN.test(value)
+  );
 }
 
 function startsWithDataImageCandidate(value: string): boolean {
@@ -110,6 +115,10 @@ export function normalizeRenderableImageSrc(src: string | null | undefined): str
       return null;
     }
     return isLocalNetworkHttpUrl(normalized) ? null : normalized;
+  }
+
+  if (/^https?:/i.test(trimmed) && !HTTP_AUTHORITY_URL_PATTERN.test(trimmed)) {
+    return null;
   }
 
   if (isRelativePath(trimmed) || isBareRelativeImagePath(trimmed)) {

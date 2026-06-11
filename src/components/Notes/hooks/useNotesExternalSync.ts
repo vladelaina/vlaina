@@ -124,9 +124,9 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
       }
     };
 
-    const isExternalPathEventFileWatchEvent = (paths: string[]) => {
+    const isExternalPathEventFileWatchPath = (path: string) => {
       const eventRelativePath = getNotesExternalPathEventsRelativePath();
-      return paths.some((path) => toVaultRelativePath(notesPath, path) === eventRelativePath);
+      return toVaultRelativePath(notesPath, path) === eventRelativePath;
     };
 
     const stopReconcilePolling = () => {
@@ -182,12 +182,18 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
               return;
             }
 
-            if (isExternalPathEventFileWatchEvent(event.paths)) {
+            const remainingPaths = event.paths.filter((path) => !isExternalPathEventFileWatchPath(path));
+            if (remainingPaths.length !== event.paths.length) {
               await reconcileExternalPathEventFile();
-              return;
+              if (remainingPaths.length === 0) {
+                return;
+              }
             }
 
-            await syncActions.handleWatchEvent(notesPath, event);
+            await syncActions.handleWatchEvent(notesPath, {
+              ...event,
+              paths: remainingPaths,
+            });
           },
           { recursive: true }
         );

@@ -70,4 +70,22 @@ describe('loadNoteDocument cache validation', () => {
     expect(adapter.readFile).not.toHaveBeenCalled();
     expect(result.content).toBe('# Unsaved');
   });
+
+  it('uses normalized relative note paths for cache lookup', async () => {
+    const result = await loadNoteDocument({
+      notesPath: '/vault',
+      path: './docs//alpha.md',
+      cache: setCachedNoteContent(new Map(), 'docs/alpha.md', '# Cached', 100, {
+        updateBaseline: true,
+        size: 8,
+      }),
+      allowStaleCachedContent: true,
+    });
+
+    expect(adapter.stat).not.toHaveBeenCalled();
+    expect(adapter.readFile).not.toHaveBeenCalled();
+    expect(result.content).toBe('# Cached');
+    expect(result.nextCache.has('docs/alpha.md')).toBe(true);
+    expect(result.nextCache.has('./docs//alpha.md')).toBe(false);
+  });
 });

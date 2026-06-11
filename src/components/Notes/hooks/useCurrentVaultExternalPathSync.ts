@@ -153,7 +153,7 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
                 return;
               }
 
-              if (isSameFsPath(oldPath, normalizedVaultPath)) {
+              if (oldPath && isSameFsPath(oldPath, normalizedVaultPath)) {
                 queueVaultRename(oldPath);
                 return;
               }

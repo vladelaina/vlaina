@@ -8,12 +8,19 @@ export const MAX_WEB_SEARCH_STATUS_JSON_LENGTH = 20000;
 export const MAX_WEB_SEARCH_STATUS_MARKUPS = 32;
 const MAX_OVERSIZED_STATUS_JSON_EXTRA_SCAN_CHARS = 4096;
 const MAX_SOURCE_URL_LENGTH = 4096;
+const HTTP_AUTHORITY_URL_PATTERN = /^https?:\/\//i;
 const UNSAFE_URL_CHARS_REGEX = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 export function sanitizeWebSearchSourceUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
-  if (!trimmed || trimmed.length > MAX_SOURCE_URL_LENGTH || UNSAFE_URL_CHARS_REGEX.test(trimmed)) return null;
+  if (
+    !trimmed ||
+    trimmed.length > MAX_SOURCE_URL_LENGTH ||
+    !HTTP_AUTHORITY_URL_PATTERN.test(trimmed) ||
+    UNSAFE_URL_CHARS_REGEX.test(trimmed) ||
+    trimmed.includes('\\')
+  ) return null;
 
   try {
     const parsed = new URL(trimmed);

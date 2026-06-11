@@ -3,6 +3,9 @@ import net from 'node:net';
 import { WebSearchError } from '../types.mjs';
 
 const BLOCKED_HOSTS = new Set(['localhost', 'localhost.localdomain']);
+const HTTP_AUTHORITY_URL_PATTERN = /^https?:\/\//i;
+const SCHEME_PATTERN = /^([A-Za-z][A-Za-z0-9+.-]*):/;
+const UNSAFE_PUBLIC_URL_CHARS_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 function isPrivateIpv4(ip) {
   const parts = ip.split('.').map((part) => Number(part));
@@ -97,9 +100,22 @@ export function isBlockedIp(ip) {
 }
 
 export function normalizePublicHttpUrl(rawUrl) {
+  const trimmed = String(rawUrl ?? '').trim();
+  if (!trimmed || UNSAFE_PUBLIC_URL_CHARS_PATTERN.test(trimmed) || trimmed.includes('\\')) {
+    throw new WebSearchError('invalid_url', 'Invalid URL.');
+  }
+
+  const scheme = SCHEME_PATTERN.exec(trimmed)?.[1]?.toLowerCase();
+  if (scheme && scheme !== 'http' && scheme !== 'https') {
+    throw new WebSearchError('invalid_url', 'Only HTTP and HTTPS URLs are supported.');
+  }
+  if (!HTTP_AUTHORITY_URL_PATTERN.test(trimmed)) {
+    throw new WebSearchError('invalid_url', 'Invalid URL.');
+  }
+
   let parsed;
   try {
-    parsed = new URL(String(rawUrl ?? '').trim());
+    parsed = new URL(trimmed);
   } catch {
     throw new WebSearchError('invalid_url', 'Invalid URL.');
   }
@@ -116,16 +132,25 @@ export function normalizePublicHttpUrl(rawUrl) {
   return parsed;
 }
 
+function isBlockedHostname(hostname) {
+  const normalized = hostname.replace(/\.+$/g, '').toLowerCase();
+  return (
+    BLOCKED_HOSTS.has(normalized) ||
+    normalized.endsWith('.localhost') ||
+    normalized.endsWith('.local') ||
+    normalized.endsWith('.localdomain') ||
+    normalized.endsWith('.internal') ||
+    normalized.endsWith('.home.arpa') ||
+    (!normalized.includes('.') && !normalized.includes(':')) ||
+    isBlockedIp(normalized)
+  );
+}
+
 export async function resolvePublicUrl(rawUrl) {
   const parsed = normalizePublicHttpUrl(rawUrl);
   const hostname = parsed.hostname.toLowerCase();
 
-  if (
-    BLOCKED_HOSTS.has(hostname) ||
-    hostname.endsWith('.local') ||
-    hostname.endsWith('.internal') ||
-    isBlockedIp(hostname)
-  ) {
+  if (isBlockedHostname(hostname)) {
     throw new WebSearchError('blocked_url', 'This URL is not allowed.');
   }
 

@@ -18,11 +18,14 @@ describe("readonlyMarkdownUrlTransform", () => {
     expect(readonlyMarkdownUrlTransform(".notes/movie.mp4", "src", { tagName: "video" })).toBe(".notes/movie.mp4");
     expect(readonlyMarkdownUrlTransform("https://example.com/embed", "src", { tagName: "iframe" })).toBe("https://example.com/embed");
     expect(readonlyMarkdownUrlTransform("//example.com/embed", "src", { tagName: "iframe" })).toBe("https://example.com/embed");
+    expect(readonlyMarkdownUrlTransform("https:example.com/embed", "src", { tagName: "iframe" })).toBe("");
+    expect(readonlyMarkdownUrlTransform("http:/example.com/embed", "src", { tagName: "iframe" })).toBe("");
     expect(readonlyMarkdownUrlTransform("#self", "src", { tagName: "iframe" })).toBe("");
     expect(readonlyMarkdownUrlTransform("?embed", "src", { tagName: "iframe" })).toBe("");
     expect(readonlyMarkdownUrlTransform("embed.html", "src", { tagName: "iframe" })).toBe("");
     expect(readonlyMarkdownUrlTransform("./embed.html", "src", { tagName: "iframe" })).toBe("");
     expect(readonlyMarkdownUrlTransform("javascript:alert(1)", "src", { tagName: "video" })).toBe("");
+    expect(readonlyMarkdownUrlTransform("https:example.com/movie.mp4", "src", { tagName: "video" })).toBe("");
     expect(readonlyMarkdownUrlTransform("http://127.0.0.1:3000/media.mp4", "src", { tagName: "video" })).toBe("");
     expect(readonlyMarkdownUrlTransform("/admin", "src", { tagName: "iframe" })).toBe("");
     expect(readonlyMarkdownUrlTransform(".vlaina/movie.mp4", "src", { tagName: "video" })).toBe("");
@@ -41,6 +44,8 @@ describe("readonlyMarkdownUrlTransform", () => {
 
   it("rejects protocol-relative links", () => {
     expect(readonlyMarkdownUrlTransform("//example.com/path", "href")).toBe("");
+    expect(readonlyMarkdownUrlTransform("https:example.com/path", "href")).toBe("");
+    expect(readonlyMarkdownUrlTransform("http:/example.com/path", "href")).toBe("");
     expect(readonlyMarkdownUrlTransform("docs/alpha.md", "href")).toBe("docs/alpha.md");
     expect(readonlyMarkdownUrlTransform(".notes/alpha.md", "href")).toBe(".notes/alpha.md");
     expect(readonlyMarkdownUrlTransform(".vlaina/workspace.md", "href")).toBe("");

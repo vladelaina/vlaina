@@ -102,6 +102,13 @@ describe('userMessageContent', () => {
     });
   });
 
+  it('ignores known image sources that are absent from the message content', () => {
+    expect(parseUserMessageContentWithKnownImages('hello', ['attachment://old.png'])).toEqual({
+      imageSources: [],
+      text: 'hello',
+    });
+  });
+
   it('parses case-insensitive data image markdown separately from text', () => {
     expect(parseUserMessageContent('![image](<DATA:IMAGE/PNG;BASE64,AAAA>)\n\nhello')).toEqual({
       imageSources: ['data:image/png;base64,AAAA'],

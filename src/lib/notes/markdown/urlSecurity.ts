@@ -11,13 +11,18 @@ const FALLBACK_URL_BASE = 'https://vlaina.local/';
 const MAX_NOTE_LINK_HREF_CHARS = 16 * 1024;
 const MAX_NOTE_REMOTE_MEDIA_URL_CHARS = 16 * 1024;
 const MAX_NOTE_INTERNAL_IMAGE_SRC_CHARS = 16 * 1024;
+const HTTP_AUTHORITY_URL_PATTERN = /^https?:\/\//i;
 
 function hasUnsafeUrlCharacters(value: string): boolean {
   return CONTROL_OR_BIDI_PATTERN.test(value);
 }
 
 function hasUnsafeBackslashUrlSyntax(value: string): boolean {
-  return value.startsWith('\\') || (SCHEME_PATTERN.test(value) && value.includes('\\'));
+  return value.includes('\\') && (
+    value.startsWith('\\') ||
+    value.startsWith('//') ||
+    SCHEME_PATTERN.test(value)
+  );
 }
 
 function getUrlBase(): string {
@@ -131,7 +136,7 @@ export function isPublicRemoteMediaUrl(value: unknown): boolean {
   if (trimmed.length > MAX_NOTE_REMOTE_MEDIA_URL_CHARS) return false;
   if (hasUnsafeUrlCharacters(trimmed)) return false;
   if (hasUnsafeBackslashUrlSyntax(trimmed)) return false;
-  if (!trimmed.startsWith('//') && !/^https?:/i.test(trimmed)) return false;
+  if (!trimmed.startsWith('//') && !HTTP_AUTHORITY_URL_PATTERN.test(trimmed)) return false;
 
   const normalized = trimmed.startsWith('//') ? `https:${trimmed}` : trimmed;
   try {
@@ -171,6 +176,7 @@ export function sanitizeNoteLinkHref(value: unknown): string | null {
   if (!scheme && hasInternalNoteAssetUrlPathSegment(trimmed)) return null;
   if (!scheme) return trimmed;
   const normalizedScheme = `${scheme}:`;
+  if ((normalizedScheme === 'http:' || normalizedScheme === 'https:') && !HTTP_AUTHORITY_URL_PATTERN.test(trimmed)) return null;
   if ((normalizedScheme === 'http:' || normalizedScheme === 'https:') && hasUrlCredentials(trimmed)) return null;
   return SAFE_LINK_SCHEMES.has(normalizedScheme) ? trimmed : null;
 }
@@ -237,6 +243,7 @@ export function sanitizeNoteMediaSrc(value: unknown): string | null {
     trimmed.length > MAX_NOTE_REMOTE_MEDIA_URL_CHARS
   ) return null;
   if (!SAFE_MEDIA_SCHEMES.has(normalizedScheme)) return null;
+  if ((normalizedScheme === 'http:' || normalizedScheme === 'https:') && !HTTP_AUTHORITY_URL_PATTERN.test(trimmed)) return null;
   if (
     (normalizedScheme === 'http:' || normalizedScheme === 'https:') &&
     (isLocalNetworkHttpUrl(trimmed) || hasUrlCredentials(trimmed))

@@ -854,6 +854,37 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
+  it('continues handling note paths batched with the vault event file', async () => {
+    hoisted.readNotesExternalPathEvents.mockResolvedValueOnce([
+      {
+        nonce: 'rename-file-event-1',
+        oldPath: 'docs/alpha.md',
+        newPath: 'docs/beta.md',
+      },
+    ]);
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { modify: { kind: 'data', mode: 'any' } },
+        paths: [
+          '/vault/__vlaina_system__/external-path-events.json',
+          '/vault/docs/other.md',
+        ],
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.readNotesExternalPathEvents).toHaveBeenCalledWith('/vault', {
+      afterStamp: expect.any(Number),
+    });
+    expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith('docs/alpha.md', 'docs/beta.md');
+    expect(hoisted.notesState.invalidateNoteCache).toHaveBeenCalledWith('docs/other.md');
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
   it('unwatches if the effect is disposed before the async watcher resolves', async () => {
     let resolveWatch: ((unwatch: () => Promise<void>) => void) | null = null;
     hoisted.watchDesktopPath.mockImplementationOnce(async (_path, handler) => {

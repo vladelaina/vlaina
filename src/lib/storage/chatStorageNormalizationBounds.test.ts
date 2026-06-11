@@ -127,9 +127,9 @@ describe('chatStorage normalization bounds', () => {
     expect(branch?.id.startsWith('msg-')).toBe(true);
   });
 
-  it('bounds restored image source caches', () => {
+  it('bounds restored content image source caches', () => {
     const messages = normalizeSessionMessages([createRawMessage('m1', {
-      imageSources: Array.from({ length: 2500 }, (_, index) => `https://example.com/${index}.png`),
+      content: Array.from({ length: 2500 }, (_, index) => `![image ${index}](https://example.com/${index}.png)`).join('\n'),
     })]);
 
     expect(messages[0]?.imageSources).toHaveLength(1000);

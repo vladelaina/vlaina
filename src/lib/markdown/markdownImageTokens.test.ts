@@ -7,6 +7,7 @@ import {
   stripMarkdownImageTokens,
 } from './markdownImageTokens';
 import { htmlImageTagHasDataImageSrc } from './markdownHtmlImageSrc';
+import { MAX_HTML_TAG_END_SCAN_CHARS } from './markdownHtmlRanges';
 
 function parseSeparateImageTokens(markdown: string) {
   return [
@@ -425,6 +426,31 @@ describe('markdownImageTokens', () => {
 
     expect(parseMarkdownAndHtmlImageTokens(markdown).map((token) => token.src)).toEqual([
       'https://example.com/real.png',
+    ]);
+  });
+
+  it('protects image syntax inside overlong inline HTML tags while keeping later images visible', () => {
+    const badLine = [
+      '<span',
+      'data-md="![hidden](https://example.com/hidden.png)"',
+      'data-html="<img src=\'https://example.com/hidden-html.png\'>"',
+      `data-padding="${'a'.repeat(MAX_HTML_TAG_END_SCAN_CHARS)}`,
+    ].join(' ');
+    const markdown = [
+      badLine,
+      '![real](https://example.com/real.png)',
+      '<img src="https://example.com/real-html.png">',
+    ].join('\n');
+
+    expect(parseMarkdownImageTokens(markdown).map((token) => token.src)).toEqual([
+      'https://example.com/real.png',
+    ]);
+    expect(parseHtmlImageTokens(markdown).map((token) => token.src)).toEqual([
+      'https://example.com/real-html.png',
+    ]);
+    expect(parseMarkdownAndHtmlImageTokens(markdown).map((token) => token.src)).toEqual([
+      'https://example.com/real.png',
+      'https://example.com/real-html.png',
     ]);
   });
 });

@@ -59,19 +59,8 @@ function extractStoredImageSources(content: string): string[] {
   return normalizeRenderedMessageImageSources(sources)
 }
 
-function sanitizeProvidedImageSources(imageSources: string[] | undefined): string[] {
-  return normalizeRenderedMessageImageSources(imageSources)
-}
-
 function getNewMessageImageSources(message: Omit<ChatMessage, 'id' | 'timestamp' | 'versions' | 'currentVersionIndex'>): string[] | undefined {
-  const providedSources = sanitizeProvidedImageSources(message.imageSources)
-  if (message.role !== 'user') {
-    return providedSources.length > 0 ? providedSources : undefined
-  }
-
-  return providedSources.length > 0
-    ? providedSources
-    : extractStoredImageSources(message.content || '')
+  return extractStoredImageSources(message.content || '')
 }
 
 function hasSession(ai: { sessions: Array<{ id: string }> }, sessionId: string): boolean {

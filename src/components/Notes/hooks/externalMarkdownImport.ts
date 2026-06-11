@@ -94,6 +94,10 @@ function isInsideInternalExternalMarkdownPath(path: string) {
   return hasInternalNotePathSegment(path);
 }
 
+function isBlankExternalMarkdownPath(path: string) {
+  return path.trim().length === 0;
+}
+
 function hasExplicitExternalMarkdownNonPathScheme(path: string) {
   const trimmed = path.trim();
   return EXPLICIT_URL_SCHEME_PATTERN.test(trimmed) && !WINDOWS_ABSOLUTE_PATH_PATTERN.test(trimmed);
@@ -222,7 +226,6 @@ async function importExternalMarkdownDirectory(
   depth = 0,
 ) {
   if (
-    depth >= MAX_EXTERNAL_MARKDOWN_IMPORT_DEPTH ||
     budget.visitedEntries >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES
   ) {
     return 0;
@@ -274,6 +277,9 @@ async function importExternalMarkdownDirectory(
 
     if (entry.isDirectory) {
       if (shouldSkipExternalMarkdownDirectory(entry.name)) {
+        continue;
+      }
+      if (depth >= MAX_EXTERNAL_MARKDOWN_IMPORT_DEPTH) {
         continue;
       }
       if (budget.visitedEntries >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES) {
@@ -341,6 +347,7 @@ export async function importExternalMarkdownEntries(
       break;
     }
     if (
+      isBlankExternalMarkdownPath(absolutePath) ||
       hasExplicitExternalMarkdownNonPathScheme(absolutePath) ||
       isInsideInternalExternalMarkdownPath(absolutePath) ||
       hasUnsafeExternalMarkdownPathSegment(absolutePath)
@@ -421,6 +428,7 @@ export async function resolveExternalMarkdownEntriesForStarred(
     scannedEntries += 1;
 
     if (
+      isBlankExternalMarkdownPath(absolutePath) ||
       hasExplicitExternalMarkdownNonPathScheme(absolutePath) ||
       isInsideInternalExternalMarkdownPath(absolutePath) ||
       hasUnsafeExternalMarkdownPathSegment(absolutePath)

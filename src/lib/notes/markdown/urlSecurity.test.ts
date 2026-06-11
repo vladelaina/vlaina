@@ -101,12 +101,19 @@ describe('urlSecurity', () => {
     expect(isPublicRemoteMediaUrl('https://example.com/\u202Ecod.exe')).toBe(false);
     expect(isPublicRemoteMediaUrl('https://example.com/image.png\u0000')).toBe(false);
     expect(isPublicRemoteMediaUrl('//example.com/image.png\uFFFD')).toBe(false);
+    expect(isPublicRemoteMediaUrl(String.raw`//example.com\image.png`)).toBe(false);
     expect(isPublicRemoteMediaUrl('https://user:pass@example.com/image.png')).toBe(false);
     expect(isPublicRemoteMediaUrl('//user:pass@example.com/image.png')).toBe(false);
+    expect(isPublicRemoteMediaUrl('https:example.com/image.png')).toBe(false);
+    expect(isPublicRemoteMediaUrl('http:/example.com/image.png')).toBe(false);
     expect(normalizePublicRemoteMediaUrl('//127.0.0.1:3000/image.png')).toBeNull();
+    expect(normalizePublicRemoteMediaUrl(String.raw`//example.com\image.png`)).toBeNull();
     expect(normalizePublicRemoteMediaUrl('https://user:pass@example.com/image.png')).toBeNull();
     expect(sanitizeNoteMediaSrc('https://user:pass@example.com/image.png')).toBeNull();
     expect(sanitizeNoteMediaSrc('//user:pass@example.com/image.png')).toBeNull();
+    expect(sanitizeNoteMediaSrc(String.raw`//example.com\image.png`)).toBeNull();
+    expect(sanitizeNoteMediaSrc('https:example.com/image.png')).toBeNull();
+    expect(sanitizeNoteMediaSrc('http:/example.com/image.png')).toBeNull();
   });
 
   it('allows only relative internal image asset refs', () => {
@@ -158,6 +165,8 @@ describe('urlSecurity', () => {
     expect(sanitizeNoteLinkHref(String.raw`https:\example.com\path`)).toBeNull();
     expect(sanitizeNoteLinkHref(String.raw`\\example.com\path`)).toBeNull();
     expect(sanitizeNoteLinkHref('https://user:pass@example.com/path')).toBeNull();
+    expect(sanitizeNoteLinkHref('https:example.com/path')).toBeNull();
+    expect(sanitizeNoteLinkHref('http:/example.com/path')).toBeNull();
   });
 
   it('rejects relative links into internal note folders', () => {

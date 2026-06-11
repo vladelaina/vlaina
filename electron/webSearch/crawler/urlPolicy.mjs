@@ -15,6 +15,10 @@ function isBlockedHost(hostname) {
   return DEFAULT_EXCLUDED_SITES.some((blockedHost) => isHostMatched(hostname, blockedHost));
 }
 
+function isSearchEngineHost(hostname, domain) {
+  return hostname === domain || hostname.endsWith(`.${domain}`);
+}
+
 function transformGithubBlobUrl(parsedUrl) {
   if (parsedUrl.hostname.replace(/^www\./, '') !== 'github.com') {
     return '';
@@ -37,7 +41,7 @@ function transformGithubBlobUrl(parsedUrl) {
 
 function unwrapSearchRedirect(parsedUrl) {
   const hostname = parsedUrl.hostname.replace(/^www\./, '');
-  if (hostname.endsWith('bing.com') && parsedUrl.searchParams.has('u')) {
+  if (isSearchEngineHost(hostname, 'bing.com') && parsedUrl.searchParams.has('u')) {
     const encodedTarget = parsedUrl.searchParams.get('u') || '';
     if (encodedTarget.length > MAX_SEARCH_REDIRECT_TARGET_CHARS) {
       return '';
@@ -49,11 +53,11 @@ function unwrapSearchRedirect(parsedUrl) {
       return '';
     }
   }
-  if (hostname === 'google.com' && parsedUrl.pathname === '/url') {
+  if (isSearchEngineHost(hostname, 'google.com') && parsedUrl.pathname === '/url') {
     const target = parsedUrl.searchParams.get('q') || '';
     return target.length <= MAX_SEARCH_REDIRECT_TARGET_CHARS ? target : '';
   }
-  if (hostname === 'duckduckgo.com' && parsedUrl.pathname.startsWith('/l/')) {
+  if (isSearchEngineHost(hostname, 'duckduckgo.com') && parsedUrl.pathname.startsWith('/l/')) {
     const target = parsedUrl.searchParams.get('uddg') || '';
     return target.length <= MAX_SEARCH_REDIRECT_TARGET_CHARS ? target : '';
   }

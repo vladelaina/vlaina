@@ -38,6 +38,22 @@ describe('note frontmatter metadata', () => {
     });
   });
 
+  it('reads managed note metadata from frontmatter after a UTF-8 BOM', () => {
+    const markdown = [
+      '\uFEFF---',
+      'vlaina_icon: "sparkles"',
+      'vlaina_updated: "2026-04-16T01:02:03.000Z"',
+      '---',
+      '',
+      '# Title',
+    ].join('\n');
+
+    expect(readNoteMetadataFromMarkdown(markdown)).toEqual({
+      icon: 'sparkles',
+      updatedAt: Date.parse('2026-04-16T01:02:03.000Z'),
+    });
+  });
+
   it('preserves user frontmatter and appends managed fields at the bottom', () => {
     const markdown = [
       '---',
@@ -62,6 +78,32 @@ describe('note frontmatter metadata', () => {
         'icon: "old"',
         '',
         'vlaina_icon: "🐱"',
+        'vlaina_updated: 2026-04-16 08:00:00 +08:00',
+        '---',
+        '',
+        '# Title',
+      ].join('\n')
+    );
+  });
+
+  it('updates frontmatter after a UTF-8 BOM without duplicating it', () => {
+    const markdown = [
+      '\uFEFF---',
+      'title: Example',
+      '---',
+      '',
+      '# Title',
+    ].join('\n');
+
+    expect(
+      writeNoteMetadataToMarkdown(markdown, {
+        updatedAt: Date.parse('2026-04-16T00:00:00.000Z'),
+      })
+    ).toBe(
+      [
+        '---',
+        'title: Example',
+        '',
         'vlaina_updated: 2026-04-16 08:00:00 +08:00',
         '---',
         '',
