@@ -117,13 +117,12 @@ describe('Floating Toolbar Properties', () => {
   });
 
   /**
-   * Property 7: URL Validation
-   * For any string input to the link editor, if the string does not match a valid URL pattern
-   * (http://, https://, mailto:, bare domain, or relative path starting with /), the system SHALL indicate
-   * a validation error. Valid URLs SHALL be accepted without error.
+   * Property 7: Link Href Validation
+   * The link editor SHALL accept safe user-entered hrefs, including ordinary non-URL text,
+   * while rejecting unsafe URL forms.
    * **Validates: Requirements 4.6**
    */
-  describe('Property 7: URL Validation', () => {
+  describe('Property 7: Link Href Validation', () => {
     it('should accept valid http/https URLs', () => {
       fc.assert(
         fc.property(
@@ -178,28 +177,23 @@ describe('Floating Toolbar Properties', () => {
       expect(isValidUrl('example.com/docs')).toBe(true);
     });
 
+    it('should accept safe non-URL href text', () => {
+      expect(isValidUrl('me')).toBe(true);
+      expect(isValidUrl('workspace-note')).toBe(true);
+      expect(isValidUrl('docs/readme')).toBe(true);
+    });
+
     it('should reject empty strings', () => {
       expect(isValidUrl('')).toBe(false);
       expect(isValidUrl('   ')).toBe(false);
       expect(isValidUrl('//example.com')).toBe(false);
     });
 
-    it('should reject invalid URL formats', () => {
-      fc.assert(
-        fc.property(
-          fc.string({ minLength: 1, maxLength: 20 }).filter(s => 
-            !s.startsWith('http://') && 
-            !s.startsWith('https://') && 
-            !s.startsWith('mailto:') && 
-            !s.startsWith('/') &&
-            !isValidUrl(s)
-          ),
-          (invalidUrl) => {
-            return isValidUrl(invalidUrl) === false;
-          }
-        ),
-        { numRuns: 100 }
-      );
+    it('should reject unsafe href formats', () => {
+      expect(isValidUrl('javascript:alert(1)')).toBe(false);
+      expect(isValidUrl('https://user:pass@example.com/docs')).toBe(false);
+      expect(isValidUrl('//example.com')).toBe(false);
+      expect(isValidUrl('C:\\Users\\note.md')).toBe(false);
     });
   });
 

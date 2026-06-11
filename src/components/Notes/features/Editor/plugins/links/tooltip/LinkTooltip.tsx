@@ -21,10 +21,10 @@ const LinkTooltip = (props: LinkTooltipProps) => {
         showCopied,
         displayUrl,
         isNewLink,
-        autoFocus
+        autoFocus,
+        invalidUrlAttempt
     } = useLinkState(props);
 
-    // Handle click outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             const container = document.querySelector('.link-tooltip-container');
@@ -32,21 +32,29 @@ const LinkTooltip = (props: LinkTooltipProps) => {
                 return;
             }
 
-            const target = event.target as Element;
+            const target = event.target instanceof Element ? event.target : null;
+            if (!target) {
+                return;
+            }
+
             if (target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="menu"]')) {
                 return;
             }
 
             if (mode === 'edit') {
-                handleSaveEdit(true);
+                const didSave = handleSaveEdit(true);
+                if (!didSave) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
             } else {
                 props.onClose();
             }
         };
 
-        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('mousedown', handleClickOutside, true);
         return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('mousedown', handleClickOutside, true);
         };
     }, [mode, handleSaveEdit, props.onClose]);
 
@@ -63,6 +71,7 @@ const LinkTooltip = (props: LinkTooltipProps) => {
                 isNewLink={isNewLink}
                 autoFocus={autoFocus}
                 initialText={props.initialText || ''}
+                invalidUrlAttempt={invalidUrlAttempt}
             />
         );
     }

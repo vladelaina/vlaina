@@ -17,7 +17,7 @@ export function renderUrlRailEditor(
 ): HTMLInputElement {
   const {
     value = '',
-    placeholder = 'Paste or type a URL...',
+    placeholder = 'URL...',
     hint = 'Press Enter to apply',
     autoFocus = false,
     validate,

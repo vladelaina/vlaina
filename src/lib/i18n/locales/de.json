@@ -424,7 +424,7 @@
   "editor.imageUploadFailed": "Bild-Upload fehlgeschlagen",
   "editor.insertBlock": "Block einfügen",
   "editor.invalidCropState": "Ungültiger Zuschneidezustand. Bitte versuchen Sie es erneut.",
-  "editor.linkPlaceholder": "URL einfügen oder eingeben...",
+  "editor.linkPlaceholder": "URL...",
   "editor.mermaidNotAvailable": "Mermaid nicht verfügbar. Installieren mit: pnpm add mermaid",
   "editor.mermaidRenderError": "Mermaid-Fehler: Diagramm kann nicht gerendert werden. Überprüfen Sie die Diagrammsyntax.",
   "editor.preview.saveAsImage": "Als Bild speichern",

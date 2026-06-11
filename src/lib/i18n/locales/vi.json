@@ -424,7 +424,7 @@
   "editor.imageUploadFailed": "Tải lên ảnh thất bại",
   "editor.insertBlock": "Chèn khối",
   "editor.invalidCropState": "Trạng thái cắt không hợp lệ. Vui lòng thử lại.",
-  "editor.linkPlaceholder": "Dán hoặc nhập URL...",
+  "editor.linkPlaceholder": "URL...",
   "editor.mermaidNotAvailable": "Mermaid không khả dụng. Cài đặt với: pnpm add mermaid",
   "editor.mermaidRenderError": "Lỗi Mermaid: Không thể hiển thị sơ đồ. Kiểm tra cú pháp sơ đồ.",
   "editor.preview.saveAsImage": "Lưu dưới dạng ảnh",

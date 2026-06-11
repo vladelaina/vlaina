@@ -424,7 +424,7 @@
   "editor.imageUploadFailed": "การอัปโหลดรูปภาพล้มเหลว",
   "editor.insertBlock": "แทรกบล็อก",
   "editor.invalidCropState": "สถานะการครอบตัดไม่ถูกต้อง โปรดลองอีกครั้ง",
-  "editor.linkPlaceholder": "วางหรือพิมพ์ URL...",
+  "editor.linkPlaceholder": "URL...",
   "editor.mermaidNotAvailable": "Mermaid ไม่พร้อมใช้งาน ติดตั้งด้วย: pnpm add mermaid",
   "editor.mermaidRenderError": "ข้อผิดพลาด Mermaid: ไม่สามารถเรนเดอร์ไดอะแกรมได้ ตรวจสอบไวยากรณ์ของไดอะแกรม",
   "editor.preview.saveAsImage": "บันทึกเป็นรูปภาพ",

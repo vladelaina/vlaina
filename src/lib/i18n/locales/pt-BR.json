@@ -424,7 +424,7 @@
   "editor.imageUploadFailed": "Falha ao carregar imagem",
   "editor.insertBlock": "Inserir bloco",
   "editor.invalidCropState": "Estado de corte inválido. Por favor, tente novamente.",
-  "editor.linkPlaceholder": "Cole ou digite uma URL...",
+  "editor.linkPlaceholder": "URL...",
   "editor.mermaidNotAvailable": "Mermaid não disponível. Instale com: pnpm add mermaid",
   "editor.mermaidRenderError": "Erro Mermaid: Não foi possível renderizar o diagrama. Verifique a sintaxe do diagrama.",
   "editor.preview.saveAsImage": "Salvar como imagem",

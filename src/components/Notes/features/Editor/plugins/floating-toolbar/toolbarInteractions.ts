@@ -24,7 +24,6 @@ const PREVIEWED_DIRECT_APPLY_ACTIONS = new Set([
   'strike',
   'code',
   'highlight',
-  'link',
 ]);
 
 const COLLAPSE_SELECTION_AFTER_APPLY_ACTIONS = PREVIEWED_DIRECT_APPLY_ACTIONS;
@@ -260,7 +259,7 @@ export function createToolbarEventDelegation(
     const isActive = button.classList.contains('active');
     if (action && isPreviewableAction && (action !== 'link' || isActive)) {
       applyFormatPreview(currentView, action, isActive);
-    } else if (action && !isPreviewableAction) {
+    } else if (action) {
       clearFormatPreview(currentView);
     }
 

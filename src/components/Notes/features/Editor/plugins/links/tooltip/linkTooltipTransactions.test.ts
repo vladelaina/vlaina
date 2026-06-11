@@ -1,13 +1,77 @@
 import { describe, expect, it, vi } from 'vitest';
+import * as ProseModel from '@milkdown/kit/prose/model';
+import * as ProseState from '@milkdown/kit/prose/state';
 import {
     getBoundedTextNodeLength,
     getBoundedLinkTooltipText,
     MAX_TOOLTIP_FALLBACK_LINK_TEXT_CHARS,
     MAX_TOOLTIP_FALLBACK_LINK_TEXT_NODES,
-    editLinkAtPosition,
+    editExistingLink,
     removeExistingLink,
     sanitizeTooltipLinkHref,
 } from './linkTooltipTransactions';
+
+const SchemaCtor = (ProseModel as any).Schema;
+const EditorStateCtor = (ProseState as any).EditorState;
+const schema = new SchemaCtor({
+    nodes: {
+        doc: { content: 'block+' },
+        paragraph: {
+            group: 'block',
+            content: 'inline*',
+            toDOM: () => ['p', 0],
+            parseDOM: [{ tag: 'p' }],
+        },
+        text: { group: 'inline' },
+    },
+    marks: {
+        link: {
+            attrs: { href: {} },
+            inclusive: false,
+            toDOM: (mark: any) => ['a', { href: mark.attrs.href }, 0],
+            parseDOM: [{ tag: 'a[href]', getAttrs: (dom: HTMLElement) => ({ href: dom.getAttribute('href') }) }],
+        },
+    },
+});
+
+function createExistingLinkTransactionFixture() {
+    const before = 'Before ';
+    const linkText = 'Docs';
+    const after = '! after';
+    const linkMark = schema.marks.link.create({ href: 'https://example.com/old' });
+    const state = EditorStateCtor.create({
+        schema,
+        doc: schema.nodes.doc.create(null, schema.nodes.paragraph.create(null, [
+            schema.text(before),
+            schema.text(linkText, [linkMark]),
+            schema.text(after),
+        ])),
+    });
+    const linkStart = 1 + before.length;
+    const linkEnd = linkStart + linkText.length;
+    const link = document.createElement('a');
+    link.textContent = linkText;
+    let dispatchedTransaction: typeof state.tr | null = null;
+    const dom = new EventTarget();
+    const dispatch = vi.fn((tr: typeof state.tr) => {
+        dispatchedTransaction = tr;
+    });
+    const view = {
+        dom,
+        state,
+        dispatch,
+        posAtDOM: vi.fn(() => linkStart),
+    };
+
+    return {
+        view,
+        link,
+        linkStart,
+        linkEnd,
+        linkText,
+        getDispatchedTransaction: () => dispatchedTransaction,
+    };
+}
 
 describe('link tooltip transactions', () => {
     it('reads link tooltip text without aggregate textContent', () => {
@@ -132,31 +196,33 @@ describe('link tooltip transactions', () => {
         expect(dispatch).not.toHaveBeenCalled();
     });
 
-    it('removes the link mark when the edited href is plain text', () => {
-        const removeMark = vi.fn(() => 'remove-mark-tr');
-        const dispatch = vi.fn();
-        const dom = new EventTarget();
-        const listener = vi.fn();
-        dom.addEventListener('editor:block-user-input', listener);
-        const view = {
-            dom,
-            state: {
-                schema: {
-                    marks: {
-                        link: {},
-                    },
-                },
-                tr: {
-                    removeMark,
-                },
-            },
-            dispatch,
-        };
+    it('edits an existing link without deleting the following character', () => {
+        const { view, link, linkStart, linkEnd, linkText, getDispatchedTransaction } =
+            createExistingLinkTransactionFixture();
 
-        expect(editLinkAtPosition(view as never, 2, 9, 'me', 'me')).toBeNull();
-        expect(listener).toHaveBeenCalledTimes(1);
-        expect(removeMark).toHaveBeenCalledWith(2, 9, {});
-        expect(dispatch).toHaveBeenCalledWith('remove-mark-tr');
+        expect(editExistingLink(view as never, link, linkText, 'workspace-note')).toBe(linkStart);
+
+        const tr = getDispatchedTransaction();
+        expect(tr).not.toBeNull();
+        expect(tr!.doc.textContent).toBe('Before Docs! after');
+        expect(tr!.doc.rangeHasMark(linkStart, linkEnd, view.state.schema.marks.link)).toBe(true);
+        expect(tr!.doc.rangeHasMark(linkEnd, linkEnd + 1, view.state.schema.marks.link)).toBe(false);
+    });
+
+    it('removes an existing link without deleting the following character', () => {
+        const { view, link, getDispatchedTransaction } = createExistingLinkTransactionFixture();
+
+        expect(removeExistingLink(view as never, link)).toBe(true);
+
+        const tr = getDispatchedTransaction();
+        expect(tr).not.toBeNull();
+        expect(tr!.doc.textContent).toBe('Before ! after');
+    });
+
+    it('keeps plain non-URL href text when edited from the tooltip', () => {
+        expect(sanitizeTooltipLinkHref('me')).toBe('me');
+        expect(sanitizeTooltipLinkHref('workspace-note')).toBe('workspace-note');
+        expect(sanitizeTooltipLinkHref('docs/readme')).toBe('docs/readme');
     });
 
     it('keeps a bare supported domain as a link when edited from the tooltip', () => {
@@ -181,8 +247,7 @@ describe('link tooltip transactions', () => {
         expect(sanitizeTooltipLinkHref('#section')).toBe('#section');
     });
 
-    it('rejects implicit relative words and protocol-relative hrefs from the tooltip', () => {
-        expect(sanitizeTooltipLinkHref('me')).toBeNull();
+    it('rejects protocol-relative hrefs from the tooltip', () => {
         expect(sanitizeTooltipLinkHref('//example.com')).toBeNull();
     });
 

@@ -300,7 +300,10 @@ export function createToolbarActionController(
         return true;
       }
 
-      openLinkTooltipFromSelection(view);
+      openLinkTooltipFromSelection(view, {
+        autoFocus: true,
+        selectionRange: getCurrentState()?.selectionRange ?? null,
+      });
       return false;
     },
     delete: (view) => {

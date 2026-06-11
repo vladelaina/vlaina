@@ -14,6 +14,7 @@ import {
     themeMotionTokens,
     themeRenderingTokens,
     themeTextAreaTokens,
+    themeUiFeedbackTokens,
 } from '@/styles/themeTokens';
 import {
     LINK_TOOLTIP_MIN_WIDTH,
@@ -31,6 +32,7 @@ interface LinkEditorProps {
     isNewLink: boolean;
     autoFocus: boolean;
     initialText: string;
+    invalidUrlAttempt: number;
 }
 
 export const LinkEditor = ({
@@ -40,12 +42,14 @@ export const LinkEditor = ({
     onCancel,
     isNewLink,
     autoFocus,
+    invalidUrlAttempt,
 }: LinkEditorProps) => {
     const { t } = useI18n();
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const { maxWidth, minWidth } = useLinkTooltipContentWidth(containerRef);
     const [editorWidth, setEditorWidth] = useState(LINK_TOOLTIP_MIN_WIDTH);
+    const [hasValidationError, setHasValidationError] = useState(false);
 
     usePredictedTextareaHeight(inputRef, {
         value: editUrl,
@@ -78,19 +82,63 @@ export const LinkEditor = ({
         setEditorWidth(nextWidth);
     }, [editUrl, maxWidth, minWidth]);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (!autoFocus && isNewLink) {
             return;
         }
 
-        const timer = setTimeout(() => {
-            if (inputRef.current) {
-                inputRef.current.focus();
-                inputRef.current.select();
+        const input = inputRef.current;
+        if (!input) {
+            return;
+        }
+
+        input.focus({ preventScroll: true });
+        input.select();
+
+        const focusFrame = window.requestAnimationFrame(() => {
+            if (!input.isConnected) {
+                return;
             }
-        }, themeLinkTooltipTokens.editorAutofocusDelayMs);
-        return () => clearTimeout(timer);
+            input.focus({ preventScroll: true });
+            if (document.activeElement === input) {
+                input.select();
+            }
+        });
+
+        return () => {
+            window.cancelAnimationFrame(focusFrame);
+        };
     }, [autoFocus, isNewLink]);
+
+    useEffect(() => {
+        if (invalidUrlAttempt <= 0) {
+            return;
+        }
+
+        const input = inputRef.current;
+        if (!input) {
+            return;
+        }
+
+        setHasValidationError(true);
+        input.classList.remove('error-shake');
+        void input.offsetWidth;
+        input.classList.add('error-shake');
+        input.focus({ preventScroll: true });
+
+        const timer = window.setTimeout(() => {
+            if (!input.isConnected) {
+                return;
+            }
+            input.classList.remove('error-shake');
+            setHasValidationError(false);
+        }, themeUiFeedbackTokens.urlRailValidationErrorDurationMs);
+
+        return () => {
+            window.clearTimeout(timer);
+            input.classList.remove('error-shake');
+        };
+    }, [invalidUrlAttempt]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.nativeEvent.isComposing) return;
@@ -132,10 +180,16 @@ export const LinkEditor = ({
                 <textarea
                     ref={inputRef}
                     value={editUrl}
-                    onChange={(e) => setEditUrl(e.target.value)}
+                    onChange={(e) => {
+                        if (hasValidationError) {
+                            setHasValidationError(false);
+                        }
+                        setEditUrl(e.target.value);
+                    }}
                     onKeyDown={handleKeyDown}
                     rows={1}
                     maxLength={MAX_LINK_TOOLTIP_URL_CHARS}
+                    aria-invalid={hasValidationError || undefined}
                     className="block w-full resize-none overflow-hidden bg-transparent border-none outline-none text-sm font-mono text-[var(--vlaina-text-primary)] placeholder:text-[var(--vlaina-text-tertiary)] placeholder:font-light leading-6 py-1.5"
                     placeholder={t('editor.linkPlaceholder')}
                     spellCheck={false}
@@ -163,6 +217,10 @@ export const LinkEditor = ({
                             scale: themeMotionTokens.linkEditorActionInitialScale,
                         }}
                         whileTap={{ scale: themeMotionTokens.linkEditorActionTapScale }}
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }}
                         onClick={() => onSave(true)}
                         className="toolbar-btn link-tooltip-action-btn active shrink-0"
                     >

@@ -424,7 +424,7 @@
   "editor.imageUploadFailed": "Error al subir imagen",
   "editor.insertBlock": "Insertar bloque",
   "editor.invalidCropState": "Estado de recorte no válido. Por favor, inténtalo de nuevo.",
-  "editor.linkPlaceholder": "Pega o escribe una URL...",
+  "editor.linkPlaceholder": "URL...",
   "editor.mermaidNotAvailable": "Mermaid no disponible. Instala con: pnpm add mermaid",
   "editor.mermaidRenderError": "Error de Mermaid: No se puede renderizar el diagrama. Comprueba la sintaxis del diagrama.",
   "editor.preview.saveAsImage": "Guardar como imagen",
