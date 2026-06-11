@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/components/Chat/features/Messages/components/ErrorBlock', () => ({
   ErrorBlock: (props: {
     content: string;
-    showBillingPrompt?: boolean;
     showLoginPrompt?: boolean;
   }) => {
     mocks.errorBlock(props);
@@ -109,7 +108,6 @@ describe('AiReviewPanel', () => {
     expect(screen.getByTestId('chat-error-block')).toHaveTextContent('Model request failed.');
     expect(mocks.errorBlock).toHaveBeenCalledWith(expect.objectContaining({
       content: 'Model request failed.',
-      showBillingPrompt: false,
       showLoginPrompt: false,
     }));
 
@@ -143,7 +141,6 @@ describe('AiReviewPanel', () => {
 
     expect(mocks.errorBlock).toHaveBeenLastCalledWith(expect.objectContaining({
       content: 'Quota exhausted.',
-      showBillingPrompt: true,
       showLoginPrompt: false,
     }));
 

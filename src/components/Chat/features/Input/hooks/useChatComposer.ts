@@ -24,6 +24,7 @@ interface UseChatComposerOptions {
   getNoteMentions: () => NoteMentionReference[];
   onAfterSend: () => void;
   canSubmit?: boolean;
+  canEdit?: boolean;
   focusTrigger?: number;
 }
 
@@ -34,6 +35,7 @@ export function useChatComposer({
   getNoteMentions,
   onAfterSend,
   canSubmit = true,
+  canEdit = true,
   focusTrigger,
 }: UseChatComposerOptions) {
   const [message, setMessage] = useState('');
@@ -50,10 +52,10 @@ export function useChatComposer({
   messageRef.current = message;
 
   useEffect(() => {
-    if (active && focusTrigger && textareaRef.current) {
+    if (active && canEdit && focusTrigger && textareaRef.current) {
       focusVisibleTextareaAt(textareaRef.current);
     }
-  }, [active, focusTrigger]);
+  }, [active, canEdit, focusTrigger]);
 
   const textareaHeight = usePredictedTextareaHeight(textareaRef, {
     value: message,
@@ -74,7 +76,7 @@ export function useChatComposer({
     const unregister = registerComposerFocusAdapter({
       focus: () => {
         const input = textareaRef.current;
-        if (!input || !isMountedVisibleElement(input) || !isMountedVisibleElement(composerRootRef.current)) {
+        if (!canEdit || !input || !isMountedVisibleElement(input) || !isMountedVisibleElement(composerRootRef.current)) {
           return false;
         }
         return focusVisibleTextareaAt(input);
@@ -90,6 +92,9 @@ export function useChatComposer({
       isFocused: () => document.activeElement === textareaRef.current,
       containsTarget: (target) => target instanceof Node && !!composerRootRef.current?.contains(target),
       insertText: (text) => {
+        if (!canEdit) {
+          return false;
+        }
         const normalized = text
           .replace(INVISIBLE_BREAK_REGEX, '')
           .replace(UNIVERSAL_NEWLINE_REGEX, '\n')
@@ -132,7 +137,7 @@ export function useChatComposer({
     });
 
     return unregister;
-  }, [active]);
+  }, [active, canEdit]);
 
   useEffect(() => {
     return () => {

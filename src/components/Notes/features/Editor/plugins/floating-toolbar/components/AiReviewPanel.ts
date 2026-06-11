@@ -85,7 +85,6 @@ export function createAiReviewPanelController(): AiReviewPanelController {
       errorRoot.render(
         React.createElement(ErrorBlock, {
           content: review.errorMessage,
-          showBillingPrompt: review.errorType === 'QUOTA_EXHAUSTED',
           showLoginPrompt: review.errorType === 'AUTH_ERROR',
         })
       );

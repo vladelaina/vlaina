@@ -1,17 +1,12 @@
 import type { ReactNode } from "react";
-import { getExternalLinkProps, normalizeExternalHref, openExternalHref } from "@/lib/navigation/externalLinks";
+import { getExternalLinkProps, normalizeExternalHref } from "@/lib/navigation/externalLinks";
 import { SignInPromptPill } from './SignInPromptPill';
-import { Icon } from "@/components/ui/icons";
-import { markBillingReturnRefreshPending } from "@/lib/billing/returnRefresh";
-import { chatComposerPillSurfaceClass } from "@/components/Chat/features/Input/composerStyles";
-import { cn } from "@/lib/utils";
 
 interface ErrorBlockProps {
   type?: string;
   code?: string;
   content: string;
   showLoginPrompt?: boolean;
-  showBillingPrompt?: boolean;
 }
 
 const MAX_ERROR_LINKS = 50;
@@ -58,7 +53,7 @@ const renderWithLinks = (text: string) => {
   return parts.length > 0 ? parts : text;
 };
 
-export function ErrorBlock({ content, showLoginPrompt = false, showBillingPrompt = false }: ErrorBlockProps) {
+export function ErrorBlock({ content, showLoginPrompt = false }: ErrorBlockProps) {
   if (showLoginPrompt) {
     return (
       <div className="w-full mb-2" data-no-focus-input="true">
@@ -77,27 +72,6 @@ export function ErrorBlock({ content, showLoginPrompt = false, showBillingPrompt
       >
         {renderWithLinks(content)}
       </div>
-      {showBillingPrompt && (
-        <button
-          type="button"
-          onClick={() => {
-            markBillingReturnRefreshPending();
-            void openExternalHref('https://vlaina.com/r/spark_continue');
-          }}
-          data-no-focus-input="true"
-          className={cn(
-            "group mt-3 inline-flex h-9 cursor-pointer items-center gap-2 rounded-full px-3.5 text-sm font-medium text-[var(--vlaina-sidebar-chat-text)] transition-all duration-[var(--vlaina-duration-200)] active:scale-[var(--vlaina-scale-985)]",
-            chatComposerPillSurfaceClass
-          )}
-        >
-          <span>继续使用</span>
-          <Icon
-            name="nav.arrowRight"
-            size="sm"
-            className="text-[var(--vlaina-sidebar-chat-text-soft)] transition-transform duration-[var(--vlaina-duration-200)] ease-out group-hover:translate-x-1"
-          />
-        </button>
-      )}
     </div>
   );
 }

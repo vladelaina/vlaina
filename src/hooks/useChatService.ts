@@ -20,6 +20,10 @@ import { getUserFacingAIError } from '@/lib/ai/errors';
 import { buildErrorTag } from '@/lib/ai/errorTag';
 import { AIErrorType } from '@/lib/ai/types';
 import {
+  createManagedQuotaExhaustedBudgetSnapshot,
+  isRecentManagedBudgetExhausted,
+} from '@/lib/ai/managedQuota';
+import {
   isTemporarySession,
   isTemporarySessionId,
   needsAutoTitle,
@@ -81,6 +85,9 @@ function buildChatErrorPayload(error: unknown, managed = true) {
   }
 
   const normalized = getUserFacingAIError(error);
+  if (normalized.type === AIErrorType.QUOTA_EXHAUSTED) {
+    useManagedAIStore.getState().applyBudgetSnapshot(createManagedQuotaExhaustedBudgetSnapshot());
+  }
   if (normalized.type === AIErrorType.AUTH_ERROR) {
     dispatchAccountAuthInvalidated();
   }
@@ -123,7 +130,6 @@ function finishPreStartedChatRequest(
   requestManager.finish(sessionId, controller);
 }
 
-const MANAGED_BUDGET_BLOCK_MAX_AGE_MS = 60_000;
 export const MAX_TEMPORARY_ATTACHMENT_EPHEMERAL_CONCURRENCY = 4;
 
 interface ActiveComposerRequest {
@@ -165,16 +171,7 @@ function shouldBlockManagedRequestForKnownBudget(providerId: string): boolean {
   }
 
   const { budget, lastBudgetSyncAt } = useManagedAIStore.getState();
-  if (!budget || !lastBudgetSyncAt || Date.now() - lastBudgetSyncAt > MANAGED_BUDGET_BLOCK_MAX_AGE_MS) {
-    return false;
-  }
-
-  const remainingPercent = Number(budget.remainingPercent);
-  return (
-    budget.active === false ||
-    budget.status === 'exhausted' ||
-    (Number.isFinite(remainingPercent) && remainingPercent <= 0)
-  );
+  return isRecentManagedBudgetExhausted(budget, lastBudgetSyncAt);
 }
 
 function writeManagedQuotaErrorMessage(

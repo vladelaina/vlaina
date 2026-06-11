@@ -81,7 +81,31 @@ describe('UserIdentityCard', () => {
     expect(screen.queryByText('Free')).not.toBeInTheDocument();
   });
 
-  it('does not render free membership as a user-card badge or more-menu upgrade option', () => {
+  it('renders the account identity as fitted text instead of an ellipsis-truncated label', () => {
+    const longEmail = 'avery.long.email.address.for.layout@example-enterprise-account.com';
+
+    act(() => {
+      useAccountSessionStore.setState({
+        ...initialAccountSessionState,
+        isConnected: true,
+        isLoading: false,
+        provider: 'email',
+        username: 'alice',
+        primaryEmail: longEmail,
+        membershipTier: null,
+        membershipName: null,
+      });
+    });
+
+    render(<UserIdentityCard onLogout={vi.fn()} onSwitchAccount={vi.fn()} />);
+
+    const identity = screen.getByText(longEmail);
+    expect(identity).toHaveClass('whitespace-nowrap');
+    expect(identity).not.toHaveClass('truncate');
+    expect(identity.parentElement).toHaveAttribute('title', longEmail);
+  });
+
+  it('does not render free membership as a user-card badge', () => {
     act(() => {
       useAccountSessionStore.setState({
         ...initialAccountSessionState,
@@ -97,14 +121,7 @@ describe('UserIdentityCard', () => {
 
     render(<UserIdentityCard onLogout={vi.fn()} onSwitchAccount={vi.fn()} />);
 
-    expect(screen.queryByText('Upgrade ໒꒱')).not.toBeInTheDocument();
     expect(screen.queryByText('Free')).not.toBeInTheDocument();
-
-    act(() => {
-      screen.getAllByRole('button')[0]?.click();
-    });
-
-    expect(screen.queryByText('Upgrade ໒꒱')).not.toBeInTheDocument();
   });
 
   it('opens the account plan page when the membership badge is activated', async () => {

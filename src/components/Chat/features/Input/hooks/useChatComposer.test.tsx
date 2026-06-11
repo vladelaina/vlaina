@@ -93,6 +93,36 @@ describe('useChatComposer', () => {
     expect(unregister).toHaveBeenCalledTimes(1);
   });
 
+  it('rejects global focus and insert while editing is disabled', () => {
+    const { result } = renderHook(() =>
+      useChatComposer({
+        onSend: vi.fn(),
+        attachments: [],
+        getNoteMentions: () => [],
+        onAfterSend: vi.fn(),
+        canEdit: false,
+      }),
+    );
+    const root = document.createElement('div');
+    root.getClientRects = () => [{ width: 240, height: 84 }] as unknown as DOMRectList;
+    const textarea = document.createElement('textarea');
+    textarea.getClientRects = () => [{ width: 240, height: 48 }] as unknown as DOMRectList;
+    root.appendChild(textarea);
+    document.body.appendChild(root);
+    result.current.composerRootRef.current = root;
+    result.current.textareaRef.current = textarea;
+    const adapter = registerComposerFocusAdapterMock.mock.calls[0]?.[0] as {
+      focus: () => boolean;
+      insertText: (text: string) => boolean;
+    };
+
+    expect(adapter.focus()).toBe(false);
+    act(() => {
+      expect(adapter.insertText('blocked text')).toBe(false);
+    });
+    expect(result.current.message).toBe('');
+  });
+
   it('clears the composer through predicted height updates after send', () => {
     const onSend = vi.fn();
     const onAfterSend = vi.fn();

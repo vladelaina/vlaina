@@ -4,7 +4,7 @@ import { MessageToolbar } from './MessageToolbar';
 import { ErrorBlock } from './ErrorBlock';
 import type { ChatMessage } from '@/lib/ai/types';
 import { parseErrorTag, stripFirstErrorTag } from '@/lib/ai/errorTag';
-import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
+import { isManagedModelId } from '@/lib/ai/managedService';
 import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { WebSearchStatusBlock } from '@/components/Chat/features/WebSearch/WebSearchStatusBlock';
@@ -52,10 +52,6 @@ interface AIMessageProps {
   onSwitchVersion: (targetIndex: number) => void;
 }
 
-function isManagedModelMessage(modelId: string): boolean {
-  return modelId === MANAGED_PROVIDER_ID || modelId.startsWith(`${MANAGED_PROVIDER_ID}:`);
-}
-
 export function AIMessage({
   msg,
   imageGallery,
@@ -96,15 +92,13 @@ export function AIMessage({
   const isEmptyCompletedResponse = !isLoading && stripThinkingContent(contentWithoutError).trim().length === 0;
   const visibleContent = contentWithoutError || ' ';
   const isManagedAuthErrorMessage = errorType === 'AUTH_ERROR'
-    && isManagedModelMessage(msg.modelId);
+    && isManagedModelId(msg.modelId);
   const shouldShowManagedAuthPrompt = !isAccountConnected
     && isManagedAuthErrorMessage
     && isLastMessage;
   const shouldHideManagedAuthError = isManagedAuthErrorMessage
     && (isAccountConnected || !shouldShowManagedAuthPrompt);
   const shouldForceToolbarVisible = isEmptyCompletedResponse && !isManagedAuthErrorMessage;
-  const isManagedModelQuotaError = errorType === 'QUOTA_EXHAUSTED'
-    && isManagedModelMessage(msg.modelId);
   const startTime = useMemo(() => {
     if (isStreamingContentVisible) {
       return rememberVisibleStreamStartTime(msg.id);
@@ -172,7 +166,6 @@ export function AIMessage({
                     code={errorCode} 
                     content={errorContent} 
                     showLoginPrompt={shouldShowManagedAuthPrompt}
-                    showBillingPrompt={isManagedModelQuotaError}
                 />
             </div>
         )}

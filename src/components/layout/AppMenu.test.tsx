@@ -2,12 +2,7 @@ import { act, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { initialAccountSessionState } from '@/stores/accountSession/state';
-import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { AppMenu } from './AppMenu';
-
-vi.mock('@/lib/navigation/externalLinks', () => ({
-  openExternalHref: vi.fn().mockResolvedValue(undefined),
-}));
 
 afterEach(() => {
   act(() => {
@@ -16,7 +11,7 @@ afterEach(() => {
 });
 
 describe('AppMenu', () => {
-  it('renders the free membership upgrade option above settings', () => {
+  it('renders only the settings option with a visible hover background', () => {
     const onCloseMenu = vi.fn();
 
     act(() => {
@@ -31,25 +26,22 @@ describe('AppMenu', () => {
     render(<AppMenu onOpenSettings={vi.fn()} onCloseMenu={onCloseMenu} />);
 
     const menuOptions = screen.getAllByRole('button').map((button) => button.textContent);
-    const upgradeButton = screen.getByText('Upgrade ໒꒱').closest('button');
+    const settingsButton = screen.getByText('Settings').closest('button');
 
-    expect(menuOptions).toEqual(['Upgrade ໒꒱', 'Settings']);
-    expect(upgradeButton).toHaveClass(
+    expect(menuOptions).toEqual(['Settings']);
+    expect(settingsButton).toHaveClass(
       'bg-transparent',
       'text-[var(--vlaina-sidebar-chat-text)]',
-      'hover:bg-[var(--vlaina-accent-light)]',
-      'hover:text-[var(--vlaina-accent)]'
+      'hover:!bg-[var(--vlaina-accent-light)]',
+      'hover:text-[var(--vlaina-accent)]',
+      'hover:shadow-[var(--vlaina-shadow-menu-hover)]'
     );
-
-    act(() => {
-      screen.getByText('Upgrade ໒꒱').click();
-    });
-
-    expect(onCloseMenu).toHaveBeenCalled();
-    expect(openExternalHref).toHaveBeenCalledWith('https://vlaina.com/r/account_plan');
   });
 
-  it('does not render upgrade for paid memberships', () => {
+  it('opens settings and closes the menu', () => {
+    const onOpenSettings = vi.fn();
+    const onCloseMenu = vi.fn();
+
     act(() => {
       useAccountSessionStore.setState({
         ...initialAccountSessionState,
@@ -59,9 +51,13 @@ describe('AppMenu', () => {
       });
     });
 
-    render(<AppMenu onOpenSettings={vi.fn()} onCloseMenu={vi.fn()} />);
+    render(<AppMenu onOpenSettings={onOpenSettings} onCloseMenu={onCloseMenu} />);
 
-    expect(screen.queryByText('Upgrade ໒꒱')).not.toBeInTheDocument();
-    expect(screen.getByText('Settings')).toBeInTheDocument();
+    act(() => {
+      screen.getByText('Settings').click();
+    });
+
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+    expect(onCloseMenu).toHaveBeenCalledTimes(1);
   });
 });
