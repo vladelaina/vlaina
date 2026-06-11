@@ -90,6 +90,9 @@ interface UIStore {
   sidebarSearchOpen: boolean;
   setSidebarSearchOpen: (open: boolean) => void;
   toggleSidebarSearch: () => void;
+  chatSidebarSearchOpen: boolean;
+  setChatSidebarSearchOpen: (open: boolean) => void;
+  toggleChatSidebarSearch: () => void;
   notesSidebarView: NotesSidebarView;
   setNotesSidebarView: (view: NotesSidebarView) => void;
   fontSize: number;
@@ -429,6 +432,10 @@ export const useUIStore = create<UIStore>()((set) => ({
   sidebarSearchOpen: false,
   setSidebarSearchOpen: (open) => set({ sidebarSearchOpen: open }),
   toggleSidebarSearch: () => set((state) => ({ sidebarSearchOpen: !state.sidebarSearchOpen })),
+  chatSidebarSearchOpen: false,
+  setChatSidebarSearchOpen: (open) => set({ chatSidebarSearchOpen: open }),
+  toggleChatSidebarSearch: () =>
+    set((state) => ({ chatSidebarSearchOpen: !state.chatSidebarSearchOpen })),
   notesSidebarView: 'workspace',
   setNotesSidebarView: (view) => set({ notesSidebarView: view }),
   ...loadUIPreferencesFromStorage(),

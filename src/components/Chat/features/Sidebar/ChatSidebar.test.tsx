@@ -21,6 +21,13 @@ const hoisted = vi.hoisted(() => ({
   toggleSidebarSearch: vi.fn(() => {
     hoisted.sidebarSearchOpen = !hoisted.sidebarSearchOpen;
   }),
+  chatSidebarSearchOpen: false,
+  setChatSidebarSearchOpen: vi.fn((open: boolean) => {
+    hoisted.chatSidebarSearchOpen = open;
+  }),
+  toggleChatSidebarSearch: vi.fn(() => {
+    hoisted.chatSidebarSearchOpen = !hoisted.chatSidebarSearchOpen;
+  }),
 }));
 
 vi.mock('@/stores/uiSlice', () => ({
@@ -29,12 +36,18 @@ vi.mock('@/stores/uiSlice', () => ({
     sidebarSearchOpen: boolean;
     setSidebarSearchOpen: (open: boolean) => void;
     toggleSidebarSearch: () => void;
+    chatSidebarSearchOpen: boolean;
+    setChatSidebarSearchOpen: (open: boolean) => void;
+    toggleChatSidebarSearch: () => void;
   }) => unknown) =>
     selector({
       appViewMode: hoisted.appViewMode,
       sidebarSearchOpen: hoisted.sidebarSearchOpen,
       setSidebarSearchOpen: hoisted.setSidebarSearchOpen,
       toggleSidebarSearch: hoisted.toggleSidebarSearch,
+      chatSidebarSearchOpen: hoisted.chatSidebarSearchOpen,
+      setChatSidebarSearchOpen: hoisted.setChatSidebarSearchOpen,
+      toggleChatSidebarSearch: hoisted.toggleChatSidebarSearch,
     }),
 }));
 
@@ -193,6 +206,7 @@ describe('ChatSidebar', () => {
     hoisted.appViewMode = 'chat';
     hoisted.currentSessionId = 's1';
     hoisted.sidebarSearchOpen = false;
+    hoisted.chatSidebarSearchOpen = false;
     hoisted.topActionsProps = [];
     hoisted.sessions = [
       buildSession('s1', 'Alpha'),
@@ -222,7 +236,7 @@ describe('ChatSidebar', () => {
   });
 
   it('uses arrow key selection when submitting chat search results', async () => {
-    hoisted.sidebarSearchOpen = true;
+    hoisted.chatSidebarSearchOpen = true;
     hoisted.sessions = [
       buildSession('s1', 'Alpha'),
       buildSession('s2', 'Alpine'),

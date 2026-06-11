@@ -20,6 +20,7 @@ describe('uiSlice', () => {
       devPlatformPreview: 'system',
       sidebarHeaderHovered: false,
       sidebarSearchOpen: false,
+      chatSidebarSearchOpen: false,
       notesSidebarView: 'workspace',
       fontSize: 17,
       languagePreference: 'system',
@@ -203,6 +204,19 @@ describe('uiSlice', () => {
     useUIStore.getState().setNotesSidebarView('outline');
     expect(useUIStore.getState().notesSidebarView).toBe('outline');
     expect(useUIStore.getState().appViewMode).toBe('notes');
+  });
+
+  it('keeps notes and chat sidebar search state independent', () => {
+    useUIStore.getState().setChatSidebarSearchOpen(true);
+
+    expect(useUIStore.getState().chatSidebarSearchOpen).toBe(true);
+    expect(useUIStore.getState().sidebarSearchOpen).toBe(false);
+
+    useUIStore.getState().setSidebarSearchOpen(true);
+    useUIStore.getState().toggleChatSidebarSearch();
+
+    expect(useUIStore.getState().sidebarSearchOpen).toBe(true);
+    expect(useUIStore.getState().chatSidebarSearchOpen).toBe(false);
   });
 
   it('persists the selected language preference', () => {

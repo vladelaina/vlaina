@@ -1,6 +1,9 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { dispatchSidebarOpenSearchEvent } from '@/components/layout/sidebar/sidebarEvents';
+import {
+  SIDEBAR_OPEN_SEARCH_EVENT,
+  dispatchSidebarOpenSearchEvent,
+} from '@/components/layout/sidebar/sidebarEvents';
 import { useUIStore } from '@/stores/uiSlice';
 import { useNotesSidebarSearch } from './useNotesSidebarSearch';
 
@@ -10,6 +13,7 @@ describe('useNotesSidebarSearch', () => {
       appViewMode: 'notes',
       notesSidebarView: 'workspace',
       sidebarSearchOpen: false,
+      chatSidebarSearchOpen: false,
     });
   });
 
@@ -19,7 +23,7 @@ describe('useNotesSidebarSearch', () => {
     const { result } = renderHook(() => useNotesSidebarSearch(true));
 
     act(() => {
-      dispatchSidebarOpenSearchEvent();
+      dispatchSidebarOpenSearchEvent('notes');
     });
 
     expect(useUIStore.getState().notesSidebarView).toBe('workspace');
@@ -34,6 +38,25 @@ describe('useNotesSidebarSearch', () => {
     });
 
     expect(result.current.isSearchOpen).toBe(false);
+  });
+
+  it('ignores unscoped search events', () => {
+    const { result } = renderHook(() => useNotesSidebarSearch(true));
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent(SIDEBAR_OPEN_SEARCH_EVENT));
+    });
+
+    expect(result.current.isSearchOpen).toBe(false);
+  });
+
+  it('does not mirror chat sidebar search state', () => {
+    useUIStore.getState().setChatSidebarSearchOpen(true);
+
+    const { result } = renderHook(() => useNotesSidebarSearch(true));
+
+    expect(result.current.isSearchOpen).toBe(false);
+    expect(useUIStore.getState().chatSidebarSearchOpen).toBe(true);
   });
 
   it('closes search when leaving the workspace view', () => {
@@ -54,7 +77,7 @@ describe('useNotesSidebarSearch', () => {
     expect(result.current.searchQuery).toBe('');
   });
 
-  it('keeps shared search open when notes search is disabled by app view', () => {
+  it('keeps notes search open when notes search is disabled by app view', () => {
     const { result, rerender } = renderHook(
       ({ enabled }) => useNotesSidebarSearch(enabled),
       { initialProps: { enabled: true } },

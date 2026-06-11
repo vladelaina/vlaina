@@ -15,7 +15,7 @@ export function useNotesSidebarSearch(enabled: boolean): SidebarSearchState {
     setSearchQuery,
     openSearch,
     closeSearch,
-  } = useSidebarSearchState();
+  } = useSidebarSearchState('notes');
 
   const toggleSearch = useCallback(() => {
     if (isSearchOpen) {

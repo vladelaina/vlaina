@@ -6,8 +6,8 @@ import {
 
 export function useSidebarSearchShortcut(
   onSearch: () => void,
-  enabled = true,
-  scope?: SidebarSearchScope,
+  enabled: boolean,
+  scope: SidebarSearchScope,
 ) {
   useEffect(() => {
     if (!enabled) {
@@ -16,7 +16,7 @@ export function useSidebarSearchShortcut(
 
     const handleOpenSearch = (event: Event) => {
       const eventScope = (event as CustomEvent<{ scope?: SidebarSearchScope }>).detail?.scope;
-      if (scope && eventScope && eventScope !== scope) {
+      if (eventScope !== scope) {
         return;
       }
       onSearch();
