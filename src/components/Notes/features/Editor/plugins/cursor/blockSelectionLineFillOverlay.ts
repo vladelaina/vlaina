@@ -1,11 +1,12 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { getBlockSelectionPluginState } from './blockSelectionPluginState';
-import { getBlockRangesKey, normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
+import { getBlockRangesKey, normalizeBlockRanges, type BlockRange, type RectBounds } from './blockSelectionUtils';
 
 const LINE_FILL_LAYER_CLASS = 'editor-block-selection-line-fill-layer';
 const LINE_FILL_CLASS = 'editor-block-selection-line-fill';
 const ROW_MERGE_TOLERANCE_PX = 2;
 const FALLBACK_BLOCK_SELECTION_BLEED_X_PX = 72;
+const LINE_FILL_VIEWPORT_OVERSCAN_PX = 600;
 export const MAX_BLOCK_SELECTION_LINE_FILL_RANGES = 512;
 const MAX_BLOCK_SELECTION_LINE_FILL_ROWS_PER_RANGE = 128;
 const MAX_BLOCK_SELECTION_LINE_FILL_ELEMENTS = 1024;
@@ -61,16 +62,39 @@ function resolveBlockSelectionBleedXStart(paragraph: HTMLElement): number {
   );
 }
 
-function resolveLineFillLeft(paragraph: HTMLElement): number {
-  const paragraphRect = paragraph.getBoundingClientRect();
+function resolveLineFillLeft(paragraph: HTMLElement, paragraphRect = paragraph.getBoundingClientRect()): number {
   return paragraphRect.left - resolveBlockSelectionBleedXStart(paragraph);
 }
 
-function resolveLineFillRight(view: EditorView, paragraph: HTMLElement): number {
-  const paragraphRect = paragraph.getBoundingClientRect();
+function resolveLineFillRight(
+  view: EditorView,
+  paragraph: HTMLElement,
+  paragraphRect = paragraph.getBoundingClientRect(),
+): number {
   const editorRect = view.dom.getBoundingClientRect();
   const selectedBlockRight = editorRect.width > 0 ? editorRect.right : paragraphRect.right;
   return Math.max(paragraphRect.right, selectedBlockRight) + resolveBlockSelectionBleedXEnd(paragraph);
+}
+
+function resolveLineFillViewportRect(view: EditorView): RectBounds | null {
+  const scrollRoot = view.dom.closest<HTMLElement>('[data-note-scroll-root="true"]');
+  const viewportElement = scrollRoot ?? view.dom.ownerDocument.documentElement;
+  const rect = viewportElement.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  return {
+    left: rect.left - LINE_FILL_VIEWPORT_OVERSCAN_PX,
+    top: rect.top - LINE_FILL_VIEWPORT_OVERSCAN_PX,
+    right: rect.right + LINE_FILL_VIEWPORT_OVERSCAN_PX,
+    bottom: rect.bottom + LINE_FILL_VIEWPORT_OVERSCAN_PX,
+  };
+}
+
+function isRectNearViewport(rect: RectBounds, viewportRect: RectBounds | null): boolean {
+  if (!viewportRect) return true;
+  return isRangeIntersecting(
+    { from: rect.top, to: rect.bottom },
+    { from: viewportRect.top, to: viewportRect.bottom },
+  );
 }
 
 function trimTrailingHardBreakForMeasure(view: EditorView, range: BlockRange): BlockRange | null {
@@ -138,39 +162,60 @@ function appendSelectedParagraphLineRanges(
 function collectSelectedHardBreakLineRangesFromNode(
   node: ProseNodeLike,
   contentStart: number,
-  selectedRange: BlockRange,
+  selectedRanges: readonly BlockRange[],
+  startRangeIndex: number,
   ranges: BlockRange[],
-): boolean {
+): number {
+  let rangeIndex = startRangeIndex;
   let childOffset = 0;
-  for (
-    let index = 0;
-    index < node.childCount && ranges.length < MAX_BLOCK_SELECTION_LINE_FILL_RANGES;
-    index += 1
-  ) {
+  for (let index = 0; index < node.childCount; index += 1) {
+    if (ranges.length >= MAX_BLOCK_SELECTION_LINE_FILL_RANGES) break;
+
     const child = node.child(index);
     const childFrom = contentStart + childOffset;
     const childTo = childFrom + child.nodeSize;
     childOffset += child.nodeSize;
 
-    if (childTo <= selectedRange.from) continue;
-    if (childFrom >= selectedRange.to) break;
+    while (
+      rangeIndex < selectedRanges.length &&
+      selectedRanges[rangeIndex].to <= childFrom
+    ) {
+      rangeIndex += 1;
+    }
+    if (rangeIndex >= selectedRanges.length) break;
+    if (childTo <= selectedRanges[rangeIndex].from) continue;
 
     if (child.type.name === 'paragraph') {
-      if (!appendSelectedParagraphLineRanges(child, childFrom, selectedRange, ranges)) {
-        return false;
+      for (
+        let selectedIndex = rangeIndex;
+        selectedIndex < selectedRanges.length &&
+          selectedRanges[selectedIndex].from < childTo &&
+          ranges.length < MAX_BLOCK_SELECTION_LINE_FILL_RANGES;
+        selectedIndex += 1
+      ) {
+        const selectedRange = selectedRanges[selectedIndex];
+        if (isRangeIntersecting(selectedRange, { from: childFrom, to: childTo })) {
+          appendSelectedParagraphLineRanges(child, childFrom, selectedRange, ranges);
+        }
       }
       continue;
     }
 
     if (
       child.childCount > 0 &&
-      !collectSelectedHardBreakLineRangesFromNode(child, childFrom + 1, selectedRange, ranges)
+      ranges.length < MAX_BLOCK_SELECTION_LINE_FILL_RANGES
     ) {
-      return false;
+      rangeIndex = collectSelectedHardBreakLineRangesFromNode(
+        child,
+        childFrom + 1,
+        selectedRanges,
+        rangeIndex,
+        ranges,
+      );
     }
   }
 
-  return ranges.length < MAX_BLOCK_SELECTION_LINE_FILL_RANGES;
+  return rangeIndex;
 }
 
 export function collectSelectedHardBreakLineRanges(view: EditorView): BlockRange[] {
@@ -180,20 +225,22 @@ export function collectSelectedHardBreakLineRanges(view: EditorView): BlockRange
   const ranges: BlockRange[] = [];
   const selectedRanges = normalizeBlockRanges(selectedBlocks);
 
-  for (const selectedRange of selectedRanges) {
-    if (ranges.length >= MAX_BLOCK_SELECTION_LINE_FILL_RANGES) break;
+  const docSize = view.state.doc.content.size;
+  const clampedRanges = selectedRanges
+    .map((range) => {
+      const from = Math.max(0, Math.min(range.from, docSize));
+      const to = Math.max(from, Math.min(range.to, docSize));
+      return { from, to };
+    })
+    .filter((range) => range.to > range.from);
 
-    const from = Math.max(0, Math.min(selectedRange.from, view.state.doc.content.size));
-    const to = Math.max(from, Math.min(selectedRange.to, view.state.doc.content.size));
-    if (!collectSelectedHardBreakLineRangesFromNode(
-      view.state.doc,
-      0,
-      { from, to },
-      ranges,
-    )) {
-      break;
-    }
-  }
+  collectSelectedHardBreakLineRangesFromNode(
+    view.state.doc,
+    0,
+    clampedRanges,
+    0,
+    ranges,
+  );
 
   return normalizeBlockRanges(ranges);
 }
@@ -255,9 +302,13 @@ function resolveParagraphElement(view: EditorView, range: BlockRange): HTMLEleme
 export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillOverlay {
   const doc = view.dom.ownerDocument;
   const host = view.dom.parentElement ?? view.dom;
+  const scrollRoot = view.dom.closest<HTMLElement>('[data-note-scroll-root="true"]');
+  const win = doc.defaultView;
   let lastDoc: EditorView['state']['doc'] | null = null;
   let lastSelectedBlocks: readonly BlockRange[] | null = null;
   let lastSelectionKey: string | null = null;
+  let currentView = view;
+  let scrollRafId = 0;
   if (host instanceof HTMLElement) {
     host.classList.add('editor-block-selection-line-fill-host');
   }
@@ -267,6 +318,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
   host.appendChild(layer);
 
   const update = (updatedView: EditorView) => {
+    currentView = updatedView;
     const { selectedBlocks } = getBlockSelectionPluginState(updatedView.state);
     if (selectedBlocks.length === 0) {
       lastDoc = updatedView.state.doc;
@@ -294,6 +346,7 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
     layer.replaceChildren();
     const currentHost = layer.parentElement ?? updatedView.dom;
     const hostRect = currentHost.getBoundingClientRect();
+    const viewportRect = resolveLineFillViewportRect(updatedView);
     const ranges = collectSelectedHardBreakLineRanges(updatedView);
     let createdFills = 0;
 
@@ -301,9 +354,12 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
       if (createdFills >= MAX_BLOCK_SELECTION_LINE_FILL_ELEMENTS) break;
       const paragraph = resolveParagraphElement(updatedView, range);
       if (!paragraph) continue;
+      const paragraphRect = paragraph.getBoundingClientRect();
+      if (viewportRect && paragraphRect.top > viewportRect.bottom) break;
+      if (!isRectNearViewport(paragraphRect, viewportRect)) continue;
 
-      const fillStart = resolveLineFillLeft(paragraph);
-      const fillRight = resolveLineFillRight(updatedView, paragraph);
+      const fillStart = resolveLineFillLeft(paragraph, paragraphRect);
+      const fillRight = resolveLineFillRight(updatedView, paragraph, paragraphRect);
       const rows = collectRangeRows(updatedView, range);
       for (const row of rows) {
         if (createdFills >= MAX_BLOCK_SELECTION_LINE_FILL_ELEMENTS) break;
@@ -321,11 +377,28 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
     }
   };
 
+  const scheduleViewportUpdate = () => {
+    if (!win || scrollRafId !== 0) return;
+    scrollRafId = win.requestAnimationFrame(() => {
+      scrollRafId = 0;
+      lastSelectedBlocks = null;
+      lastSelectionKey = null;
+      update(currentView);
+    });
+  };
+
+  scrollRoot?.addEventListener('scroll', scheduleViewportUpdate, { passive: true });
+
   update(view);
 
   return {
     update,
     destroy() {
+      scrollRoot?.removeEventListener('scroll', scheduleViewportUpdate);
+      if (win && scrollRafId !== 0) {
+        win.cancelAnimationFrame(scrollRafId);
+        scrollRafId = 0;
+      }
       if (host instanceof HTMLElement) {
         host.classList.remove('editor-block-selection-line-fill-host');
       }

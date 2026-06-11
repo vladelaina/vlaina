@@ -32,6 +32,16 @@ function selectWholeDocument(view: EditorView) {
   });
 }
 
+function getParagraphRanges(view: EditorView) {
+  const ranges: Array<{ from: number; to: number }> = [];
+  view.state.doc.descendants((node, pos) => {
+    if (node.type.name !== 'paragraph') return true;
+    ranges.push({ from: pos, to: pos + node.nodeSize });
+    return false;
+  });
+  return ranges;
+}
+
 afterEach(() => {
   document.body.innerHTML = '';
 });
@@ -130,6 +140,33 @@ describe('blockSelectionLineFillOverlay', () => {
         { from: 7, to: 13 },
         { from: 13, to: 20 },
       ]);
+    } finally {
+      await editor.destroy();
+    }
+  });
+
+  it('collects disjoint selected hard-break paragraphs', async () => {
+    const editor = await createEditor([
+      'alpha\\',
+      'bravo',
+      '',
+      'plain middle paragraph',
+      '',
+      'charlie\\',
+      'delta',
+    ].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+
+    try {
+      const paragraphRanges = getParagraphRanges(view);
+      expect(paragraphRanges).toHaveLength(3);
+
+      dispatchBlockSelectionAction(view, {
+        type: 'set-blocks',
+        blocks: [paragraphRanges[0], paragraphRanges[2]],
+      });
+
+      expect(collectSelectedHardBreakLineRanges(view)).toHaveLength(4);
     } finally {
       await editor.destroy();
     }
