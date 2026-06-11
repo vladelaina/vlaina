@@ -123,6 +123,25 @@ describe('useNotesOpenTargetPicker', () => {
     expect(messageDialog).not.toHaveBeenCalled();
   });
 
+  it('opens the authorized desktop Markdown path when authorization normalizes it', async () => {
+    mocks.authorizePath.mockResolvedValueOnce({
+      name: 'guide.markdown',
+      path: '/vault/canonical/guide.markdown',
+      isDirectory: false,
+      isFile: true,
+    });
+    const { props } = renderPicker();
+
+    await act(async () => {
+      await mocks.desktopOpenMarkdownFileCallback?.('/tmp/link.md');
+    });
+
+    expect(mocks.authorizePath).toHaveBeenCalledWith('/tmp/link.md');
+    expect(props.openMarkdownTarget).toHaveBeenCalledWith('/vault/canonical/guide.markdown');
+    expect(props.openMarkdownTarget).not.toHaveBeenCalledWith('/tmp/link.md');
+    expect(messageDialog).not.toHaveBeenCalled();
+  });
+
   it('does not open desktop Markdown files when authorization is unavailable', async () => {
     mocks.electronBridge = {};
     const { props } = renderPicker();

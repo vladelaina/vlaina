@@ -1,7 +1,10 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FolderNode } from '@/stores/useNotesStore';
-import { useNotesSidebarTags } from './useNotesSidebarTags';
+import {
+  MAX_TAG_DIRECT_READ_MISSING_PATHS,
+  useNotesSidebarTags,
+} from './useNotesSidebarTags';
 
 const mocked = vi.hoisted(() => ({
   readFile: vi.fn(async () => ''),
@@ -51,6 +54,31 @@ const rootFolder: FolderNode = {
     },
   ],
 };
+
+function createRootFolderFromPaths(paths: string[]): FolderNode {
+  return {
+    id: 'root',
+    name: 'Notes',
+    path: '',
+    isFolder: true,
+    expanded: true,
+    children: paths.map((path) => ({
+      id: path,
+      name: path.split('/').pop() ?? path,
+      path,
+      isFolder: false,
+    })),
+  };
+}
+
+function createDeferredPromise() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((innerResolve) => {
+    resolve = innerResolve;
+  });
+
+  return { promise, resolve };
+}
 
 describe('useNotesSidebarTags', () => {
   beforeEach(() => {
@@ -315,5 +343,82 @@ describe('useNotesSidebarTags', () => {
     await waitFor(() => {
       expect(result.current.tags.map((entry) => entry.tag)).toEqual(['new']);
     });
+  });
+
+  it('starts another tag scan when the scope changes during an in-flight scan', async () => {
+    vi.useFakeTimers();
+    const firstScan = createDeferredPromise();
+    const scanAllNotes = vi.fn()
+      .mockReturnValueOnce(firstScan.promise)
+      .mockResolvedValue(undefined);
+    mocked.stat.mockReturnValue(new Promise<null>(() => {}));
+
+    try {
+      const { rerender } = renderHook(
+        ({ root }) => useNotesSidebarTags({
+          rootFolder: root,
+          noteContentsCache: new Map(),
+          scanAllNotes,
+          currentVaultPath: '/vault',
+        }),
+        {
+          initialProps: {
+            root: createRootFolderFromPaths(['alpha.md']),
+          },
+        },
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(251);
+      });
+      expect(scanAllNotes).toHaveBeenCalledTimes(1);
+
+      rerender({
+        root: createRootFolderFromPaths(['alpha.md', 'beta.md']),
+      });
+
+      await act(async () => {
+        firstScan.resolve();
+        await firstScan.promise;
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(251);
+      });
+
+      expect(scanAllNotes).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('uses the idle full scan instead of direct reads when many tag contents are missing', async () => {
+    vi.useFakeTimers();
+    const scanAllNotes = vi.fn(async () => undefined);
+
+    try {
+      renderHook(() => useNotesSidebarTags({
+        rootFolder: createRootFolderFromPaths(
+          Array.from(
+            { length: MAX_TAG_DIRECT_READ_MISSING_PATHS + 1 },
+            (_value, index) => `note-${index}.md`,
+          ),
+        ),
+        noteContentsCache: new Map(),
+        scanAllNotes,
+        currentVaultPath: '/vault',
+      }));
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(mocked.stat).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(251);
+      });
+      expect(scanAllNotes).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

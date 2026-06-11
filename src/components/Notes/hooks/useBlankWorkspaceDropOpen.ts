@@ -129,12 +129,13 @@ export function useBlankWorkspaceDropOpen({
         try {
           const droppedPath = paths[0];
           const info = await statDroppedPath(droppedPath);
+          const authorizedPath = info?.path?.trim() || droppedPath;
           if (cancelled) {
             return;
           }
 
           if (info?.isDirectory) {
-            const opened = await openVault(droppedPath);
+            const opened = await openVault(authorizedPath);
             if (!opened && !cancelled) {
               await messageDialog(t('notes.openDroppedFolderFailed'), {
                 title: t('notes.openFailed'),
@@ -144,8 +145,8 @@ export function useBlankWorkspaceDropOpen({
             return;
           }
 
-          if (info?.isFile && isSupportedMarkdownSelection(droppedPath)) {
-            await openMarkdownTarget(droppedPath);
+          if (info?.isFile && isSupportedMarkdownSelection(authorizedPath)) {
+            await openMarkdownTarget(authorizedPath);
             return;
           }
 

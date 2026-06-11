@@ -34,9 +34,12 @@ export function useSidebarContentSearchResults({
 }) {
   const contentScanPromiseRef = useRef<Promise<unknown> | null>(null);
   const contentScanAbortControllerRef = useRef<AbortController | null>(null);
+  const isMountedRef = useRef(true);
+  const scanInvalidatedWhileRunningRef = useRef(false);
   const shouldPruneAfterScanRef = useRef(false);
   const wasContentSearchActiveRef = useRef(false);
   const [isContentScanPending, setIsContentScanPending] = useState(false);
+  const [scanCompletionRevision, setScanCompletionRevision] = useState(0);
 
   const searchIndex = useMemo(
     () => buildNotesSidebarSearchIndex(rootFolder, getDisplayName, {
@@ -117,12 +120,13 @@ export function useSidebarContentSearchResults({
     shouldPruneAfterScanRef.current = false;
 
     if (contentScanPromiseRef.current) {
+      scanInvalidatedWhileRunningRef.current = true;
       setIsContentScanPending(true);
       return;
     }
 
-    let cancelled = false;
     const abortController = new AbortController();
+    scanInvalidatedWhileRunningRef.current = false;
     contentScanAbortControllerRef.current?.abort();
     contentScanAbortControllerRef.current = abortController;
     setIsContentScanPending(true);
@@ -140,8 +144,13 @@ export function useSidebarContentSearchResults({
           contentScanAbortControllerRef.current = null;
         }
 
-        if (!cancelled) {
+        const shouldRecheckScan = scanInvalidatedWhileRunningRef.current;
+        scanInvalidatedWhileRunningRef.current = false;
+        if (isMountedRef.current) {
           setIsContentScanPending(false);
+          if (shouldRecheckScan) {
+            setScanCompletionRevision((revision) => revision + 1);
+          }
         }
 
         if (shouldPruneAfterScanRef.current) {
@@ -150,20 +159,19 @@ export function useSidebarContentSearchResults({
       });
 
     contentScanPromiseRef.current = promise;
-
-    return () => {
-      cancelled = true;
-    };
   }, [
     cancelNoteContentScan,
+    contentSearchEntries,
     isContentIndexReady,
     isContentSearchActive,
     pruneNoteContentsCacheToOpenNotes,
+    scanCompletionRevision,
     scanAllNotes,
   ]);
 
   useEffect(() => {
     return () => {
+      isMountedRef.current = false;
       contentScanAbortControllerRef.current?.abort();
       cancelNoteContentScan();
     };

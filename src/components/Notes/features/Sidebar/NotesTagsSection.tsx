@@ -18,6 +18,7 @@ import { themeIconTokens } from '@/styles/themeTokens';
 
 const MAX_TAG_NOTE_ICON_CACHE_ENTRIES = 300;
 const MAX_TAG_NOTE_ICON_METADATA_BYTES = 512 * 1024;
+export const MAX_CONCURRENT_TAG_NOTE_ICON_METADATA_READS = 4;
 
 interface TagNoteIconCacheEntry {
   modifiedAt: number | null;
@@ -26,6 +27,82 @@ interface TagNoteIconCacheEntry {
 }
 
 const tagNoteIconCache = new Map<string, TagNoteIconCacheEntry>();
+const pendingTagNoteIconMetadataReads: ScheduledTagNoteIconRead[] = [];
+let activeTagNoteIconMetadataReads = 0;
+
+interface ScheduledTagNoteIconRead {
+  run: () => Promise<void>;
+}
+
+function createAbortError() {
+  const error = new Error('Tag note icon metadata read aborted');
+  error.name = 'AbortError';
+  return error;
+}
+
+function drainTagNoteIconMetadataReadQueue() {
+  while (
+    activeTagNoteIconMetadataReads < MAX_CONCURRENT_TAG_NOTE_ICON_METADATA_READS &&
+    pendingTagNoteIconMetadataReads.length > 0
+  ) {
+    const scheduled = pendingTagNoteIconMetadataReads.shift();
+    if (!scheduled) {
+      return;
+    }
+
+    activeTagNoteIconMetadataReads += 1;
+    void scheduled.run().finally(() => {
+      activeTagNoteIconMetadataReads -= 1;
+      drainTagNoteIconMetadataReadQueue();
+    });
+  }
+}
+
+function scheduleTagNoteIconMetadataRead(
+  task: () => Promise<TagNoteIconCacheEntry>,
+  signal?: AbortSignal,
+): Promise<TagNoteIconCacheEntry> {
+  if (signal?.aborted) {
+    return Promise.reject(createAbortError());
+  }
+
+  return new Promise((resolve, reject) => {
+    let scheduled: ScheduledTagNoteIconRead | null = null;
+    const abortPendingRead = () => {
+      if (!scheduled) {
+        return;
+      }
+
+      const pendingIndex = pendingTagNoteIconMetadataReads.indexOf(scheduled);
+      if (pendingIndex === -1) {
+        return;
+      }
+
+      pendingTagNoteIconMetadataReads.splice(pendingIndex, 1);
+      reject(createAbortError());
+    };
+
+    scheduled = {
+      run: async () => {
+        signal?.removeEventListener('abort', abortPendingRead);
+        if (signal?.aborted) {
+          reject(createAbortError());
+          return;
+        }
+
+        try {
+          resolve(await task());
+        } catch (error) {
+          reject(error);
+        }
+      },
+    };
+
+    signal?.addEventListener('abort', abortPendingRead, { once: true });
+    pendingTagNoteIconMetadataReads.push(scheduled);
+    drainTagNoteIconMetadataReadQueue();
+  });
+}
 
 function setTagNoteIconCacheEntry(cacheKey: string, entry: TagNoteIconCacheEntry) {
   tagNoteIconCache.delete(cacheKey);
@@ -64,7 +141,7 @@ function getFreshTagNoteIconCacheEntry(
   return cached;
 }
 
-async function readTagNoteIcon(path: string, vaultPath: string | null, cacheKey: string): Promise<TagNoteIconCacheEntry> {
+async function readTagNoteIconFromStorage(path: string, vaultPath: string | null, cacheKey: string): Promise<TagNoteIconCacheEntry> {
   if (
     hasInternalNotePathSegment(path) ||
     (vaultPath && hasInternalNotePathSegment(vaultPath))
@@ -111,6 +188,18 @@ async function readTagNoteIcon(path: string, vaultPath: string | null, cacheKey:
     size,
     icon: readNoteMetadataFromMarkdown(content).icon ?? null,
   };
+}
+
+async function readTagNoteIcon(
+  path: string,
+  vaultPath: string | null,
+  cacheKey: string,
+  signal?: AbortSignal,
+): Promise<TagNoteIconCacheEntry> {
+  return scheduleTagNoteIconMetadataRead(
+    () => readTagNoteIconFromStorage(path, vaultPath, cacheKey),
+    signal,
+  );
 }
 
 interface NotesTagsSectionProps {
@@ -269,22 +358,32 @@ function NotesTagFileRow({
     }
 
     let cancelled = false;
-    void readTagNoteIcon(path, vaultPath || null, cacheKey)
+    const abortController = new AbortController();
+    void readTagNoteIcon(path, vaultPath || null, cacheKey, abortController.signal)
       .then((entry) => {
+        if (cancelled || abortController.signal.aborted) {
+          return;
+        }
+
         setTagNoteIconCacheEntry(cacheKey, entry);
-        if (!cancelled) {
-          setFallbackIcon(entry.icon ?? undefined);
-        }
+        setFallbackIcon(entry.icon ?? undefined);
       })
-      .catch(() => {
-        setTagNoteIconCacheEntry(cacheKey, { modifiedAt: null, size: null, icon: null });
-        if (!cancelled) {
-          setFallbackIcon(undefined);
+      .catch((error) => {
+        if (
+          cancelled ||
+          abortController.signal.aborted ||
+          (error instanceof Error && error.name === 'AbortError')
+        ) {
+          return;
         }
+
+        setTagNoteIconCacheEntry(cacheKey, { modifiedAt: null, size: null, icon: null });
+        setFallbackIcon(undefined);
       });
 
     return () => {
       cancelled = true;
+      abortController.abort();
     };
   }, [cacheKey, path, storeIcon, vaultPath]);
 

@@ -21,6 +21,7 @@ import {
 
 const TAG_SCAN_IDLE_DELAY_MS = 250;
 const TAG_CONTENT_READ_BATCH_SIZE = 8;
+export const MAX_TAG_DIRECT_READ_MISSING_PATHS = 200;
 const MAX_TAG_CONTENT_READ_BYTES = 512 * 1024;
 
 type SidebarTagContentCacheEntry = {
@@ -122,8 +123,11 @@ export function useNotesSidebarTags({
   const scanPromiseRef = useRef<Promise<unknown> | null>(null);
   const scanAbortControllerRef = useRef<AbortController | null>(null);
   const scanTimerRef = useRef<number | null>(null);
+  const isMountedRef = useRef(true);
+  const scanInvalidatedWhileRunningRef = useRef(false);
   const tagIndexRef = useRef<NotesSidebarTagIndex>(createNotesSidebarTagIndex());
   const [isTagScanPending, setIsTagScanPending] = useState(false);
+  const [scanCompletionRevision, setScanCompletionRevision] = useState(0);
   const [sidebarTagContentCache, setSidebarTagContentCache] = useState<SidebarTagContentCache>(
     () => new Map(),
   );
@@ -280,7 +284,7 @@ export function useNotesSidebarTags({
           currentVaultPath,
         )
       );
-    if (missingPaths.length === 0) {
+    if (missingPaths.length === 0 || missingPaths.length > MAX_TAG_DIRECT_READ_MISSING_PATHS) {
       return;
     }
 
@@ -353,12 +357,13 @@ export function useNotesSidebarTags({
     }
 
     if (scanPromiseRef.current) {
+      scanInvalidatedWhileRunningRef.current = true;
       setIsTagScanPending(true);
       return;
     }
 
-    let cancelled = false;
     const abortController = new AbortController();
+    scanInvalidatedWhileRunningRef.current = false;
     scanAbortControllerRef.current?.abort();
     scanAbortControllerRef.current = abortController;
     setIsTagScanPending(true);
@@ -377,8 +382,13 @@ export function useNotesSidebarTags({
           if (scanAbortControllerRef.current === abortController) {
             scanAbortControllerRef.current = null;
           }
-          if (!cancelled) {
+          const shouldRecheckScan = scanInvalidatedWhileRunningRef.current;
+          scanInvalidatedWhileRunningRef.current = false;
+          if (isMountedRef.current) {
             setIsTagScanPending(false);
+            if (shouldRecheckScan) {
+              setScanCompletionRevision((revision) => revision + 1);
+            }
           }
         });
 
@@ -386,13 +396,13 @@ export function useNotesSidebarTags({
     }, TAG_SCAN_IDLE_DELAY_MS);
 
     return () => {
-      cancelled = true;
       clearPendingScanTimer();
     };
-  }, [active, isTagIndexReady, scanAllNotes, scopeEntries.length]);
+  }, [active, isTagIndexReady, scanAllNotes, scanCompletionRevision, scopeEntries]);
 
   useEffect(() => {
     return () => {
+      isMountedRef.current = false;
       if (scanTimerRef.current !== null) {
         window.clearTimeout(scanTimerRef.current);
       }

@@ -100,9 +100,11 @@ export function useNotesOpenTargetPicker({
           throw new Error('Desktop file authorization is unavailable.');
         }
         const fileInfo = await dragDrop.authorizePath(filePath);
-        if (!fileInfo?.isFile) {
+        const authorizedPath = fileInfo?.path?.trim() || filePath;
+        if (!fileInfo?.isFile || !isSupportedMarkdownSelection(authorizedPath)) {
           throw new Error('Selected markdown target is not a file.');
         }
+        await openMarkdownTarget(authorizedPath);
       } catch {
         await messageDialog(t('notes.openMarkdownFileFailed'), {
           title: t('notes.openFailed'),
@@ -110,8 +112,6 @@ export function useNotesOpenTargetPicker({
         });
         return;
       }
-
-      await openMarkdownTarget(filePath);
     };
 
     window.addEventListener('app-open-markdown-file', handleOpenMarkdownFile);

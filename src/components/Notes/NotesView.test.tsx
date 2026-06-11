@@ -1200,6 +1200,34 @@ describe('NotesView', () => {
     });
   });
 
+  it('opens the authorized path for dropped markdown files when Electron normalizes it', async () => {
+    const getPathForFile = vi.fn(() => '/tmp/link.md');
+    const authorizePath = vi.fn(async () => ({
+      name: 'canonical.md',
+      path: '/vault/canonical.md',
+      isDirectory: false,
+      isFile: true,
+    }));
+    (window as any).vlainaDesktop = {
+      platform: 'electron',
+      dragDrop: { getPathForFile, authorizePath },
+    };
+
+    render(<NotesView />);
+
+    const file = createDropFile('/tmp/link.md', false);
+    await act(async () => {
+      dispatchWindowDragEventWithFiles('drop', [file]);
+    });
+
+    await waitFor(() => {
+      expect(getPathForFile).toHaveBeenCalledWith(file);
+      expect(authorizePath).toHaveBeenCalledWith('/tmp/link.md');
+      expect(notesState.openNote).toHaveBeenCalledWith('canonical.md');
+      expect(notesState.openNote).not.toHaveBeenCalledWith('link.md');
+    });
+  });
+
 
   it('cycles to the next note in tree order when only one note tab is open', async () => {
     notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
