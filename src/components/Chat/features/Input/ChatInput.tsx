@@ -52,6 +52,11 @@ interface RecalledChatInputDraft {
   noteMentions?: NoteMentionReference[];
 }
 
+const managedQuotaNoticeFrameClass =
+  'overflow-hidden rounded-[var(--vlaina-radius-26px)] bg-[var(--vlaina-color-accent-soft)] shadow-[0_10px_26px_color-mix(in_srgb,var(--vlaina-accent)_12%,transparent)]';
+const managedQuotaNoticeSurfaceClass =
+  'flex min-h-[var(--vlaina-size-32px)] flex-wrap items-center justify-center gap-x-1.5 gap-y-1 px-6 pb-2.5 pt-1.5 text-center text-[var(--vlaina-font-12)] font-semibold leading-4 text-[var(--vlaina-accent)]';
+
 export const ChatInput = memo(function ChatInput({
   active = true,
   onSend,
@@ -514,24 +519,7 @@ export const ChatInput = memo(function ChatInput({
         onChange={handleHiddenFileInputChange}
       />
 
-      <div className={cn('relative z-[var(--vlaina-z-10)]', isQuotaSendBlocked && 'pb-8')}>
-        {isQuotaSendBlocked && (
-          <div
-            data-managed-quota-banner="true"
-            className="absolute inset-x-0 bottom-0 z-0 flex min-h-16 flex-wrap items-end justify-center gap-x-1.5 gap-y-1 rounded-[var(--vlaina-radius-26px)] bg-[var(--vlaina-color-accent-soft)] px-6 pb-2.5 pt-9 text-center text-[var(--vlaina-font-12)] font-semibold leading-4 text-[var(--vlaina-accent)] shadow-[0_10px_26px_color-mix(in_srgb,var(--vlaina-accent)_12%,transparent)]"
-          >
-            <span>{t('chat.freeRepliesExhausted')}</span>
-            <button
-              type="button"
-              onClick={handleUpgradeClick}
-              data-no-focus-input="true"
-              className="cursor-pointer font-bold text-[var(--vlaina-accent)] underline decoration-[var(--vlaina-accent)]/45 underline-offset-4 transition-colors hover:text-[var(--vlaina-accent-hover)]"
-            >
-              {t('chat.upgradeVlaina')}
-            </button>
-          </div>
-        )}
-
+      <div className={cn('relative z-[var(--vlaina-z-10)]', isQuotaSendBlocked && managedQuotaNoticeFrameClass)}>
         <div
           data-chat-input="true"
           ref={composerRootRef}
@@ -540,7 +528,8 @@ export const ChatInput = memo(function ChatInput({
             chatComposerFrameClass,
             chatComposerSurfaceClass,
             isQuotaSendBlocked && [
-              'shadow-[0_10px_28px_color-mix(in_srgb,var(--vlaina-accent)_12%,transparent)]',
+              '!shadow-none',
+              'hover:!shadow-none',
             ]
           )}
           onDragEnter={handleDragEnter}
@@ -606,8 +595,9 @@ export const ChatInput = memo(function ChatInput({
               onTriggerFileSelect={handleTriggerFileSelect}
               onTriggerMentionSelect={handleTriggerMentionSelect}
               isLoading={isLoading}
-              canSend={isQuotaSendBlocked ? false : canSend}
+              canSend={canSend}
               canSubmit={canSubmit}
+              showSendReadyState={!isQuotaSendBlocked && canSend}
               webSearchEnabled={webSearchEnabled}
               onToggleWebSearch={() => setWebSearchEnabled(!webSearchEnabled)}
               onRequestComposerFocus={scheduleComposerFocus}
@@ -616,6 +606,22 @@ export const ChatInput = memo(function ChatInput({
             />
           </div>
         </div>
+        {isQuotaSendBlocked && (
+          <div
+            data-managed-quota-banner="true"
+            className={managedQuotaNoticeSurfaceClass}
+          >
+            <span>{t('chat.freeRepliesExhausted')}</span>
+            <button
+              type="button"
+              onClick={handleUpgradeClick}
+              data-no-focus-input="true"
+              className="cursor-pointer font-bold text-[var(--vlaina-accent)] underline decoration-[var(--vlaina-accent)]/45 underline-offset-4 transition-colors hover:text-[var(--vlaina-accent-hover)]"
+            >
+              {t('chat.upgradeVlaina')}
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
