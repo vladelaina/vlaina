@@ -385,7 +385,7 @@
   "editor.imageUploadFailed": "Ошибка загрузки изображения",
   "editor.insertBlock": "Вставить блок",
   "editor.invalidCropState": "Недопустимое состояние обрезки. Пожалуйста, попробуйте еще раз.",
-  "editor.linkPlaceholder": "Вставьте или введите URL...",
+  "editor.linkPlaceholder": "URL...",
   "editor.mermaidNotAvailable": "Mermaid недоступен. Установите с помощью: pnpm add mermaid",
   "editor.mermaidRenderError": "Ошибка Mermaid: Невозможно отрисовать диаграмму. Проверьте синтаксис диаграммы.",
   "editor.preview.saveAsImage": "Сохранить как изображение",

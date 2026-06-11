@@ -385,7 +385,7 @@
   "editor.imageUploadFailed": "Échec du téléchargement de l'image",
   "editor.insertBlock": "Insérer un bloc",
   "editor.invalidCropState": "État de recadrage invalide. Veuillez réessayer.",
-  "editor.linkPlaceholder": "Collez ou tapez une URL...",
+  "editor.linkPlaceholder": "URL...",
   "editor.mermaidNotAvailable": "Mermaid non disponible. Installez avec : pnpm add mermaid",
   "editor.mermaidRenderError": "Erreur Mermaid : Impossible de rendre le diagramme. Vérifiez la syntaxe du diagramme.",
   "editor.preview.saveAsImage": "Enregistrer comme image",

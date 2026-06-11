@@ -385,7 +385,7 @@
   "editor.imageUploadFailed": "이미지 업로드 실패",
   "editor.insertBlock": "블록 삽입",
   "editor.invalidCropState": "잘라내기 상태가 잘못되었습니다. 다시 시도하세요.",
-  "editor.linkPlaceholder": "URL 붙여넣기 또는 입력...",
+  "editor.linkPlaceholder": "URL...",
   "editor.mermaidNotAvailable": "Mermaid를 사용할 수 없습니다. 설치하려면: pnpm add mermaid",
   "editor.mermaidRenderError": "Mermaid 오류: 다이어그램을 렌더링할 수 없습니다. 다이어그램 구문을 확인하세요.",
   "editor.preview.saveAsImage": "이미지로 저장",

@@ -264,6 +264,10 @@ export function createTextSelectionDecorationState(
   };
 }
 
+export function showTextSelectionOverlayForTransaction(tr: EditorState['tr']): EditorState['tr'] {
+  return tr.setMeta(POINTER_NATIVE_SELECTION_META, false);
+}
+
 export const textSelectionOverlayPlugin = $prose(() => {
   return new Plugin({
     key: textSelectionOverlayPluginKey,

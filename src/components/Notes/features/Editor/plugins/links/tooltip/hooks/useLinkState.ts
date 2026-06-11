@@ -3,6 +3,7 @@ import { writeTextToClipboard } from '@/lib/clipboard';
 import { normalizeEscapedUrlSchemes } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { NOTES_COPY_FEEDBACK_DURATION_MS } from '../../../shared/copyFeedback';
 import { BARE_DOMAIN_HREF_PATTERN } from '../../utils/constants';
+import { sanitizeEditorLinkHref } from '../../utils/linkHref';
 
 const EMAIL_ADDRESS_PATTERN = /^[A-Za-z0-9.!#$%&'*+/=?^_{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
 export const MAX_LINK_TOOLTIP_URL_CHARS = 16 * 1024;
@@ -52,6 +53,7 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
     const isNewLink = !href;
     const [mode, setMode] = useState<'view' | 'edit'>(isNewLink ? 'edit' : 'view');
     const [showCopied, setShowCopied] = useState(false);
+    const [invalidUrlAttempt, setInvalidUrlAttempt] = useState(0);
     const copyFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Detect if this is an autolink (pure URL) vs a Markdown link [text](url)
@@ -101,16 +103,23 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
     }, [mode]);
 
     const handleSaveEdit = useCallback((shouldClose: boolean = false) => {
-        const isEmptyOrMatchesUrl = !editText.trim() || editText.trim() === editUrl.trim();
-        const textToSave = isEmptyOrMatchesUrl ? editUrl : editText;
+        const trimmedUrl = editUrl.trim();
+        if (trimmedUrl && !sanitizeEditorLinkHref(trimmedUrl)) {
+            setInvalidUrlAttempt((attempt) => attempt + 1);
+            return false;
+        }
+
+        const isEmptyOrMatchesUrl = !editText.trim() || editText.trim() === trimmedUrl;
+        const textToSave = isEmptyOrMatchesUrl ? trimmedUrl : editText;
 
         const container = document.querySelector('.link-tooltip-container');
         container?.removeAttribute('data-editing');
 
-        onEdit(textToSave, editUrl, shouldClose);
+        onEdit(textToSave, trimmedUrl, shouldClose);
         if (!shouldClose) {
             setMode('view');
         }
+        return true;
     }, [editText, editUrl, onEdit]);
 
     const handleCancelEdit = useCallback(() => {
@@ -160,6 +169,7 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
         showCopied,
         displayUrl,
         isNewLink,
-        autoFocus
+        autoFocus,
+        invalidUrlAttempt
     };
 }

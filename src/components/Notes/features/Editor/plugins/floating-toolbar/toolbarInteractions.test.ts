@@ -116,6 +116,9 @@ describe('toolbar interactions', () => {
           empty: false,
         },
         doc: {
+          content: {
+            size: 40,
+          },
           nodesBetween: vi.fn(),
         },
         tr,
@@ -138,13 +141,75 @@ describe('toolbar interactions', () => {
       type: 'SHOW_LINK_TOOLTIP',
       from: 3,
       to: 8,
-      autoFocus: false,
+      autoFocus: true,
     });
     expect(tr.setMeta).toHaveBeenCalledWith(floatingToolbarKey, {
       type: TOOLBAR_ACTIONS.HIDE,
     });
+    expect(tr.setMeta).toHaveBeenCalledWith('editorTextSelectionPointerNative', false);
     expect(dispatch).toHaveBeenCalledWith(tr);
-    expect(focus).toHaveBeenCalled();
+    expect(focus).not.toHaveBeenCalled();
+
+    delegation.destroy();
+  });
+
+  it('opens the link tooltip on click instead of pointerdown', async () => {
+    const toolbar = document.createElement('div');
+    const button = document.createElement('button');
+    button.dataset.action = 'link';
+    toolbar.appendChild(button);
+    document.body.appendChild(toolbar);
+
+    const tr = {
+      setMeta: vi.fn(),
+    } as any;
+    tr.setMeta.mockReturnValue(tr);
+
+    const dispatch = vi.fn();
+    const view = {
+      state: {
+        selection: {
+          from: 3,
+          to: 8,
+          empty: false,
+        },
+        doc: {
+          content: {
+            size: 40,
+          },
+          nodesBetween: vi.fn(),
+        },
+        tr,
+      },
+      dispatch,
+      focus: vi.fn(),
+    } as any;
+
+    const delegation = createToolbarEventDelegation(toolbar);
+    delegation.update(view, {
+      selectionRange: { from: 3, to: 8 },
+    } as any);
+
+    button.dispatchEvent(new PointerEvent('pointerdown', {
+      bubbles: true,
+      cancelable: true,
+    }));
+    expect(dispatch).not.toHaveBeenCalled();
+
+    button.dispatchEvent(new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+    }));
+
+    await Promise.resolve();
+
+    expect(tr.setMeta).toHaveBeenCalledWith(linkTooltipPluginKey, {
+      type: 'SHOW_LINK_TOOLTIP',
+      from: 3,
+      to: 8,
+      autoFocus: true,
+    });
+    expect(dispatch).toHaveBeenCalledWith(tr);
 
     delegation.destroy();
   });
@@ -418,6 +483,36 @@ describe('toolbar interactions', () => {
       relatedTarget: boldButton,
     }));
 
+    expect(previewMocks.clearFormatPreview).toHaveBeenCalledWith(view);
+
+    delegation.destroy();
+  });
+
+  it('clears the current preview when moving from a format button to an inactive link action', () => {
+    const toolbar = document.createElement('div');
+    const highlightButton = document.createElement('button');
+    const linkButton = document.createElement('button');
+    const view = {} as any;
+    highlightButton.dataset.action = 'highlight';
+    linkButton.dataset.action = 'link';
+    toolbar.append(highlightButton, linkButton);
+    document.body.appendChild(toolbar);
+
+    const delegation = createToolbarEventDelegation(toolbar);
+    delegation.update(view, {} as any);
+
+    highlightButton.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    highlightButton.dispatchEvent(new MouseEvent('mouseout', {
+      bubbles: true,
+      relatedTarget: linkButton,
+    }));
+    linkButton.dispatchEvent(new MouseEvent('mouseover', {
+      bubbles: true,
+      relatedTarget: highlightButton,
+    }));
+
+    expect(previewMocks.applyFormatPreview).toHaveBeenCalledTimes(1);
+    expect(previewMocks.applyFormatPreview).toHaveBeenCalledWith(view, 'highlight', false);
     expect(previewMocks.clearFormatPreview).toHaveBeenCalledWith(view);
 
     delegation.destroy();

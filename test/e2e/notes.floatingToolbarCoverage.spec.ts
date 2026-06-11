@@ -54,6 +54,50 @@ async function selectEditorText(page: Page, text: string) {
   await expect(page.locator(TOOLBAR_SELECTOR)).toBeVisible({ timeout: 5_000 });
 }
 
+async function dragSelectEditorText(page: Page, text: string) {
+  const rect = await page.evaluate((targetText) => {
+    const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
+    if (!editor) return null;
+
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      const content = node.textContent ?? '';
+      const index = content.indexOf(targetText);
+      if (index >= 0) {
+        const range = document.createRange();
+        range.setStart(node, index);
+        range.setEnd(node, index + targetText.length);
+        const targetRect = Array.from(range.getClientRects()).find((item) => item.width > 1 && item.height > 1);
+        range.detach();
+        if (!targetRect) return null;
+        return {
+          left: targetRect.left,
+          right: targetRect.right,
+          y: targetRect.top + targetRect.height / 2,
+        };
+      }
+      node = walker.nextNode();
+    }
+
+    return null;
+  }, text);
+
+  expect(rect, `Expected text rect for ${text}`).not.toBeNull();
+  await page.mouse.move(rect!.left + 1, rect!.y);
+  await page.mouse.down();
+  await page.mouse.move(rect!.right - 1, rect!.y, { steps: 12 });
+  await page.mouse.up();
+  await waitForEditorAnimationFrame(page);
+  await expect(page.locator(TOOLBAR_SELECTOR)).toBeVisible({ timeout: 5_000 });
+  await expect.poll(() => page.evaluate(() => {
+    const summary = (window as any).__vlainaE2E.getEditorSelectionSummary();
+    return summary?.selectedText ?? '';
+  }), {
+    message: `Expected native mouse selection for ${text}`,
+  }).toBe(text);
+}
+
 async function clickToolbarAction(page: Page, action: string) {
   const button = page.locator(`${TOOLBAR_SELECTOR} [data-action="${action}"]`).first();
   await expect(button, `Expected toolbar action ${action}`).toBeVisible({ timeout: 5_000 });
@@ -136,6 +180,33 @@ async function clickColorSwatch(page: Page, type: 'text' | 'bg', swatchSelector:
   );
 }
 
+async function clickEditorBlankArea(page: Page) {
+  const editor = page.locator(LIVE_EDITOR_SELECTOR).first();
+  await expect(editor).toBeVisible({ timeout: 5_000 });
+  const box = await editor.boundingBox();
+  expect(box, 'Expected editor bounding box').not.toBeNull();
+  await page.mouse.click(box!.x + Math.max(8, box!.width - 16), box!.y + 24);
+  await waitForEditorAnimationFrame(page);
+}
+
+async function expectSelectionOverlay(page: Page, text: string) {
+  await expect.poll(() => page.evaluate((targetText) => {
+    const editor = document.querySelector<HTMLElement>(
+      '.milkdown .ProseMirror:not(.toolbar-applied-preview-overlay):not([aria-hidden="true"])'
+    );
+    const summary = (window as any).__vlainaE2E.getEditorSelectionSummary();
+    const overlayCount = editor?.querySelectorAll('.editor-text-selection-overlay').length ?? 0;
+    const overlayActive = editor?.classList.contains('editor-text-selection-overlay-active') ?? false;
+    const nativeSelectionActive = editor?.classList.contains('editor-pointer-native-selection') ?? false;
+    return (
+      summary?.selectedText === targetText &&
+      (overlayCount > 0 || (overlayActive && !nativeSelectionActive))
+    );
+  }, text), {
+    message: `Expected visible selection overlay for ${text}`,
+  }).toBe(true);
+}
+
 function createToolbarCoverageMarkdown() {
   const targets = [
     'AI toolbar menu target',
@@ -145,7 +216,11 @@ function createToolbarCoverageMarkdown() {
     'Strike toolbar target',
     'Code toolbar target',
     'Highlight toolbar target',
+    'Mouse link focus target',
+    'Link outside close target',
     'Link toolbar target',
+    'Link check button target',
+    'Link plain href target',
     'Text color toolbar target',
     'Background color toolbar target',
     'Heading one toolbar target',
@@ -171,6 +246,8 @@ function createToolbarCoverageMarkdown() {
     '# Floating Toolbar E2E Coverage',
     '',
     ...targets.flatMap((target) => [`${target} baseline text.`, '']),
+    '[Existing link edit target](https://example.com/notes-floating-toolbar-existing-old)! trailing sentinel.',
+    '',
   ].join('\n');
 }
 
@@ -299,18 +376,102 @@ test.describe('notes floating toolbar coverage', () => {
         await expectEditorTextMark(page, markCase);
       }
 
+      const mouseLinkTarget = 'Mouse link focus target';
+      const mouseLinkHref = 'mouse-link-focus';
+      await dragSelectEditorText(page, mouseLinkTarget);
+      await clickToolbarAction(page, 'link');
+      const mouseLinkInput = page.locator('.link-tooltip-container textarea').first();
+      await expect(mouseLinkInput).toBeVisible({ timeout: 5_000 });
+      await expect(mouseLinkInput).toBeFocused({ timeout: 5_000 });
+      await expectSelectionOverlay(page, mouseLinkTarget);
+      await page.keyboard.type(mouseLinkHref);
+      await expect(mouseLinkInput).toHaveValue(mouseLinkHref);
+      await page.locator('.link-tooltip-container .link-tooltip-action-btn').first().click();
+      await waitForEditorAnimationFrame(page);
+      await expect(page.locator(`${LIVE_EDITOR_SELECTOR} a[href="${mouseLinkHref}"]`, { hasText: mouseLinkTarget }))
+        .toBeVisible({ timeout: 5_000 });
+      await expect.poll(() => editorTextHasMark(page, mouseLinkTarget, 'link')).toBe(true);
+
+      const linkOutsideTarget = 'Link outside close target';
+      await selectEditorText(page, linkOutsideTarget);
+      await clickToolbarAction(page, 'link');
+      const blankCloseLinkInput = page.locator('.link-tooltip-container textarea').first();
+      await expect(blankCloseLinkInput).toBeVisible({ timeout: 5_000 });
+      await expect(blankCloseLinkInput).toHaveAttribute('placeholder', 'URL...');
+      await expect(blankCloseLinkInput).toBeFocused({ timeout: 5_000 });
+      await expectSelectionOverlay(page, linkOutsideTarget);
+      await clickEditorBlankArea(page);
+      await expect(blankCloseLinkInput).not.toBeVisible({ timeout: 5_000 });
+      await expect(page.locator(TOOLBAR_SELECTOR)).not.toBeVisible({ timeout: 5_000 });
+      await expect.poll(() => page.evaluate(() => {
+        const summary = (window as any).__vlainaE2E.getEditorSelectionSummary();
+        return summary?.empty === true && summary.selectedText === '';
+      })).toBe(true);
+      await expect.poll(() => editorTextHasMark(page, linkOutsideTarget, 'link')).toBe(false);
+
       const linkTarget = 'Link toolbar target';
       const linkUrl = 'https://example.com/notes-floating-toolbar-link';
       await selectEditorText(page, linkTarget);
       await clickToolbarAction(page, 'link');
       const linkInput = page.locator('.link-tooltip-container textarea').first();
       await expect(linkInput).toBeVisible({ timeout: 5_000 });
-      await linkInput.fill(linkUrl);
+      await page.keyboard.type(linkUrl);
+      await expect(linkInput).toHaveValue(linkUrl);
       await linkInput.press('Enter');
       await waitForEditorAnimationFrame(page);
       await expect(page.locator(`${LIVE_EDITOR_SELECTOR} a[href="${linkUrl}"]`, { hasText: linkTarget }))
         .toBeVisible({ timeout: 5_000 });
       await expect.poll(() => editorTextHasMark(page, linkTarget, 'link')).toBe(true);
+
+      const linkCheckTarget = 'Link check button target';
+      const linkCheckUrl = 'https://example.com/notes-floating-toolbar-check';
+      await selectEditorText(page, linkCheckTarget);
+      await clickToolbarAction(page, 'link');
+      const linkCheckInput = page.locator('.link-tooltip-container textarea').first();
+      await expect(linkCheckInput).toBeVisible({ timeout: 5_000 });
+      await page.keyboard.type(linkCheckUrl);
+      await expect(linkCheckInput).toHaveValue(linkCheckUrl);
+      await page.locator('.link-tooltip-container .link-tooltip-action-btn').first().click();
+      await waitForEditorAnimationFrame(page);
+      await expect(page.locator(`${LIVE_EDITOR_SELECTOR} a[href="${linkCheckUrl}"]`, { hasText: linkCheckTarget }))
+        .toBeVisible({ timeout: 5_000 });
+      await expect.poll(() => editorTextHasMark(page, linkCheckTarget, 'link')).toBe(true);
+
+      const linkPlainTarget = 'Link plain href target';
+      const linkPlainHref = 'workspace-note';
+      await selectEditorText(page, linkPlainTarget);
+      await clickToolbarAction(page, 'link');
+      const linkPlainInput = page.locator('.link-tooltip-container textarea').first();
+      await expect(linkPlainInput).toBeVisible({ timeout: 5_000 });
+      await page.keyboard.type(linkPlainHref);
+      await expect(linkPlainInput).toHaveValue(linkPlainHref);
+      await page.locator('.link-tooltip-container .link-tooltip-action-btn').first().click();
+      await waitForEditorAnimationFrame(page);
+      await expect(page.locator(`${LIVE_EDITOR_SELECTOR} a[href="${linkPlainHref}"]`, { hasText: linkPlainTarget }))
+        .toBeVisible({ timeout: 5_000 });
+      await expect.poll(() => editorTextHasMark(page, linkPlainTarget, 'link')).toBe(true);
+
+      const existingLinkTarget = 'Existing link edit target';
+      const existingLinkUpdatedHref = 'workspace-existing-link';
+      const existingLink = page.locator(
+        `${LIVE_EDITOR_SELECTOR} a[href="https://example.com/notes-floating-toolbar-existing-old"]`,
+        { hasText: existingLinkTarget },
+      ).first();
+      await expect(existingLink).toBeVisible({ timeout: 5_000 });
+      await existingLink.hover();
+      await expect(page.locator('.link-tooltip-container .link-tooltip-viewer')).toBeVisible({ timeout: 5_000 });
+      await page.locator('.link-tooltip-container .link-tooltip-action-btn').nth(1).click();
+      const existingLinkInput = page.locator('.link-tooltip-container textarea').first();
+      await expect(existingLinkInput).toBeVisible({ timeout: 5_000 });
+      await existingLinkInput.press('Control+A');
+      await page.keyboard.type(existingLinkUpdatedHref);
+      await expect(existingLinkInput).toHaveValue(existingLinkUpdatedHref);
+      await page.locator('.link-tooltip-container .link-tooltip-action-btn').first().click();
+      await waitForEditorAnimationFrame(page);
+      await expect(page.locator(`${LIVE_EDITOR_SELECTOR} a[href="${existingLinkUpdatedHref}"]`, { hasText: existingLinkTarget }))
+        .toBeVisible({ timeout: 5_000 });
+      await expect(page.locator(`${LIVE_EDITOR_SELECTOR} p`, { hasText: `${existingLinkTarget}! trailing sentinel.` }))
+        .toBeVisible({ timeout: 5_000 });
 
       const textColorTarget = 'Text color toolbar target';
       await selectEditorText(page, textColorTarget);

@@ -385,7 +385,7 @@
   "editor.imageUploadFailed": "圖片上傳失敗",
   "editor.insertBlock": "插入區塊",
   "editor.invalidCropState": "裁剪狀態無效。請再試一次。",
-  "editor.linkPlaceholder": "貼上或輸入 URL...",
+  "editor.linkPlaceholder": "URL...",
   "editor.mermaidNotAvailable": "Mermaid 無法使用。請執行：pnpm add mermaid",
   "editor.mermaidRenderError": "Mermaid 錯誤：無法渲染圖表。請檢查圖表語法。",
   "editor.preview.saveAsImage": "儲存為圖片",

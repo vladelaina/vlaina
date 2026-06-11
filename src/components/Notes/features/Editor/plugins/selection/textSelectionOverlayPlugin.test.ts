@@ -9,6 +9,7 @@ import {
   addTextSelectionOverlayDecorations,
   createTextSelectionDecorationState,
   getNativeSelectionMetrics,
+  showTextSelectionOverlayForTransaction,
   TEXT_SELECTION_OVERLAY_CLASS,
   textSelectionOverlayPlugin,
 } from './textSelectionOverlayPlugin';
@@ -118,6 +119,34 @@ describe('textSelectionOverlayPlugin', () => {
 
       expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
       expect(view.dom.querySelectorAll(`.${TEXT_SELECTION_OVERLAY_CLASS}`)).toHaveLength(0);
+    } finally {
+      Object.defineProperty(document, 'elementFromPoint', {
+        configurable: true,
+        value: originalElementFromPoint,
+      });
+    }
+  });
+
+  it('can force a pointer-native selection back onto the overlay path for floating controls', async () => {
+    const view = await createEditor('hello world');
+    const originalElementFromPoint = document.elementFromPoint;
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => view.dom,
+    });
+
+    try {
+      view.dom.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 6)));
+
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+      expect(view.dom.querySelectorAll(`.${TEXT_SELECTION_OVERLAY_CLASS}`)).toHaveLength(0);
+
+      view.dispatch(showTextSelectionOverlayForTransaction(view.state.tr));
+
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+      expect(getOverlayText(view)).toBe('hello');
     } finally {
       Object.defineProperty(document, 'elementFromPoint', {
         configurable: true,

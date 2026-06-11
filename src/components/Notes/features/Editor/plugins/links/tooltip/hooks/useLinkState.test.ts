@@ -125,4 +125,51 @@ describe('useLinkState', () => {
             true,
         );
     });
+
+    it('saves safe non-URL href text instead of blocking it', () => {
+        const onEdit = vi.fn();
+        const { result } = renderHook(() => useLinkState({
+            href: '',
+            initialText: 'Link target',
+            onEdit,
+            onClose: vi.fn(),
+        }));
+
+        act(() => {
+            result.current.setEditUrl('me');
+        });
+
+        let didSave = true;
+        act(() => {
+            didSave = result.current.handleSaveEdit(true);
+        });
+
+        expect(didSave).toBe(true);
+        expect(onEdit).toHaveBeenCalledWith('Link target', 'me', true);
+        expect(result.current.invalidUrlAttempt).toBe(0);
+    });
+
+    it('keeps an unsafe href in edit mode instead of saving silently', () => {
+        const onEdit = vi.fn();
+        const { result } = renderHook(() => useLinkState({
+            href: '',
+            initialText: 'Link target',
+            onEdit,
+            onClose: vi.fn(),
+        }));
+
+        act(() => {
+            result.current.setEditUrl('javascript:alert(1)');
+        });
+
+        let didSave = true;
+        act(() => {
+            didSave = result.current.handleSaveEdit(true);
+        });
+
+        expect(didSave).toBe(false);
+        expect(onEdit).not.toHaveBeenCalled();
+        expect(result.current.invalidUrlAttempt).toBe(1);
+        expect(result.current.mode).toBe('edit');
+    });
 });

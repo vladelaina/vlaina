@@ -385,7 +385,7 @@
   "editor.imageUploadFailed": "Image upload failed",
   "editor.insertBlock": "Insert block",
   "editor.invalidCropState": "Invalid crop state. Please try again.",
-  "editor.linkPlaceholder": "Paste or type a URL...",
+  "editor.linkPlaceholder": "URL...",
   "editor.mermaidNotAvailable": "Mermaid not available. Install with: pnpm add mermaid",
   "editor.mermaidRenderError": "Mermaid Error: Unable to render diagram. Check the diagram syntax.",
   "editor.preview.saveAsImage": "Save as image",

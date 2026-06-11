@@ -2,6 +2,7 @@ import { isLocalNetworkHttpUrl, sanitizeNoteLinkHref } from '@/lib/notes/markdow
 import { BARE_DOMAIN_HREF_PATTERN } from './constants';
 
 const EMAIL_ADDRESS_PATTERN = /^[A-Za-z0-9.!#$%&'*+/=?^_{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
+const EXPLICIT_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
 
 export function sanitizeEditorExternalLinkHref(value: string | null | undefined): string | null {
     const trimmed = value?.trim() ?? '';
@@ -29,7 +30,11 @@ export function sanitizeEditorLinkHref(value: string | null | undefined): string
         return sanitizeNoteLinkHref(trimmed);
     }
 
-    return null;
+    if (trimmed.startsWith('//') || EXPLICIT_SCHEME_PATTERN.test(trimmed)) {
+        return null;
+    }
+
+    return sanitizeNoteLinkHref(trimmed);
 }
 
 export function sanitizeExplicitMarkdownLinkHref(value: string | null | undefined): string | null {

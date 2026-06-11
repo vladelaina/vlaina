@@ -385,7 +385,7 @@
   "editor.imageUploadFailed": "Resim yüklemesi başarısız oldu",
   "editor.insertBlock": "Blok ekle",
   "editor.invalidCropState": "Geçersiz kırpma durumu. Lütfen tekrar deneyin.",
-  "editor.linkPlaceholder": "Bir URL yapıştırın veya yazın...",
+  "editor.linkPlaceholder": "URL...",
   "editor.mermaidNotAvailable": "Mermaid mevcut değil. Yüklemek için: pnpm add mermaid",
   "editor.mermaidRenderError": "Mermaid Hatası: Diyagram oluşturulamadı. Diyagram sözdizimini kontrol edin.",
   "editor.preview.saveAsImage": "Resim olarak kaydet",

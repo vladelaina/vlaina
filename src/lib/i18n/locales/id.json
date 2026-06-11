@@ -385,7 +385,7 @@
   "editor.imageUploadFailed": "Unggahan gambar gagal",
   "editor.insertBlock": "Sisipkan blok",
   "editor.invalidCropState": "Status pemotongan tidak valid. Silakan coba lagi.",
-  "editor.linkPlaceholder": "Tempel atau ketik URL...",
+  "editor.linkPlaceholder": "URL...",
   "editor.mermaidNotAvailable": "Mermaid tidak tersedia. Instal dengan: pnpm add mermaid",
   "editor.mermaidRenderError": "Error Mermaid: Tidak dapat merender diagram. Periksa sintaks diagram.",
   "editor.preview.saveAsImage": "Simpan sebagai gambar",

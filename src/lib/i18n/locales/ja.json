@@ -385,7 +385,7 @@
   "editor.imageUploadFailed": "画像のアップロードに失敗しました",
   "editor.insertBlock": "ブロックを挿入",
   "editor.invalidCropState": "無効な切り抜き状態です。もう一度お試しください。",
-  "editor.linkPlaceholder": "URLを貼り付けまたは入力...",
+  "editor.linkPlaceholder": "URL...",
   "editor.mermaidNotAvailable": "Mermaidが利用できません。インストールするには: pnpm add mermaid",
   "editor.mermaidRenderError": "Mermaidエラー: ダイアグラムのレンダリングに失敗しました。ダイアグラムの構文を確認してください。",
   "editor.preview.saveAsImage": "画像として保存",
