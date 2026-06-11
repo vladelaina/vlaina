@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { AnimatePresence } from 'framer-motion';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import {
   NOTES_CHAT_FLOATING_MAX_SIZE,
   NOTES_CHAT_FLOATING_MIN_SIZE,
@@ -42,8 +43,19 @@ import { cn } from '@/lib/utils';
 import { requestNativeCaretOverlayRefresh } from '@/hooks/useNativeCaretOverlay';
 import { themeBackdropTokens, themeEditorLayoutTokens, themeUiFeedbackTokens } from '@/styles/themeTokens';
 
+let embeddedChatViewModulePromise: Promise<typeof import('@/components/Chat/ChatView')> | null = null;
+let embeddedChatViewModuleReady = false;
+
+function preloadEmbeddedChatViewModule() {
+  embeddedChatViewModulePromise ??= import('@/components/Chat/ChatView').then((mod) => {
+    embeddedChatViewModuleReady = true;
+    return mod;
+  });
+  return embeddedChatViewModulePromise;
+}
+
 const EmbeddedChatView = lazy(async () => {
-  const mod = await import('@/components/Chat/ChatView');
+  const mod = await preloadEmbeddedChatViewModule();
   return { default: mod.ChatView };
 });
 
@@ -117,6 +129,7 @@ export function NotesView({
   const rootFolder = useNotesStore(s => s.rootFolder);
   const rootFolderPath = useNotesStore(s => s.rootFolderPath);
   const isLoading = useNotesStore(s => s.isLoading);
+  const unifiedLoaded = useUnifiedStore((s) => s.loaded);
   const draftNotes = useNotesStore(s => s.draftNotes);
   const noteMetadata = useNotesStore(s => s.noteMetadata);
   const openNoteByAbsolutePath = useNotesStore(s => s.openNoteByAbsolutePath);
@@ -155,6 +168,7 @@ export function NotesView({
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [pendingDeleteCurrentNotePath, setPendingDeleteCurrentNotePath] = useState<string | null>(null);
   const [isVaultInitializing, setIsVaultInitializing] = useState(false);
+  const [isEmbeddedChatViewReady, setIsEmbeddedChatViewReady] = useState(embeddedChatViewModuleReady);
   const launchContextRef = useRef(readWindowLaunchContext());
   const notesViewRef = useRef<HTMLDivElement>(null);
   const floatingResizeCleanupRef = useRef<(() => void) | null>(null);
@@ -179,6 +193,7 @@ export function NotesView({
     setChatPanelCollapsed(true);
   }, [setChatPanelCollapsed]);
   const openFloatingChat = useCallback(() => {
+    void preloadEmbeddedChatViewModule();
     setChatPanelCollapsed(true);
     setChatFloatingOpen(true);
   }, [setChatFloatingOpen, setChatPanelCollapsed]);
@@ -267,11 +282,19 @@ export function NotesView({
       return;
     }
 
+    let cancelled = false;
+    void preloadEmbeddedChatViewModule().then(() => {
+      if (!cancelled) {
+        setIsEmbeddedChatViewReady(true);
+      }
+    });
+
     const timeoutId = window.setTimeout(() => {
       void preloadMarkdownEditor();
     }, 0);
 
     return () => {
+      cancelled = true;
       window.clearTimeout(timeoutId);
     };
   }, [active]);
@@ -650,62 +673,62 @@ export function NotesView({
           </ResizablePanel>
         )}
 
-        {active && chatPanelCollapsed && chatFloatingOpen && (
-          <div
-            data-notes-chat-floating="true"
-            className={cn(
-              'absolute bottom-4 right-4 z-[var(--vlaina-z-40)] overflow-hidden !rounded-[var(--vlaina-radius-26px)]',
-              chatComposerPillSurfaceClass,
-            )}
-            style={{
-              width: `${chatFloatingSize.width}px`,
-              height: `${chatFloatingSize.height}px`,
-              maxWidth: 'calc(100% - var(--vlaina-size-32px))',
-              maxHeight: 'calc(100% - var(--vlaina-size-32px))',
-            }}
-          >
+        {active && chatPanelCollapsed && chatFloatingOpen && isEmbeddedChatViewReady && unifiedLoaded && (
+          <Suspense fallback={null}>
             <div
-              aria-hidden="true"
-              data-notes-chat-floating-resize-handle="left"
-              className="absolute bottom-5 left-0 top-5 z-[var(--vlaina-z-50)] w-2 cursor-ew-resize touch-none bg-transparent"
-              onPointerDown={(event) => beginFloatingChatResize('left', event)}
-              onDoubleClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                resetChatFloatingSize();
+              data-notes-chat-floating="true"
+              className={cn(
+                'absolute bottom-4 right-4 z-[var(--vlaina-z-40)] overflow-hidden !rounded-[var(--vlaina-radius-26px)]',
+                chatComposerPillSurfaceClass,
+              )}
+              style={{
+                width: `${chatFloatingSize.width}px`,
+                height: `${chatFloatingSize.height}px`,
+                maxWidth: 'calc(100% - var(--vlaina-size-32px))',
+                maxHeight: 'calc(100% - var(--vlaina-size-32px))',
               }}
-            />
-            <div
-              aria-hidden="true"
-              data-notes-chat-floating-resize-handle="top"
-              className="absolute left-5 right-5 top-0 z-[var(--vlaina-z-50)] h-2 cursor-ns-resize touch-none bg-transparent"
-              onPointerDown={(event) => beginFloatingChatResize('top', event)}
-              onDoubleClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                resetChatFloatingSize();
-              }}
-            />
-            <div
-              aria-hidden="true"
-              data-notes-chat-floating-resize-handle="top-left"
-              className="absolute left-0 top-0 z-[var(--vlaina-z-50)] h-4 w-4 cursor-nwse-resize touch-none bg-transparent"
-              onPointerDown={(event) => beginFloatingChatResize('top-left', event)}
-              onDoubleClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                resetChatFloatingSize();
-              }}
-            />
-            <Suspense fallback={null}>
+            >
+              <div
+                aria-hidden="true"
+                data-notes-chat-floating-resize-handle="left"
+                className="absolute bottom-5 left-0 top-5 z-[var(--vlaina-z-50)] w-2 cursor-ew-resize touch-none bg-transparent"
+                onPointerDown={(event) => beginFloatingChatResize('left', event)}
+                onDoubleClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  resetChatFloatingSize();
+                }}
+              />
+              <div
+                aria-hidden="true"
+                data-notes-chat-floating-resize-handle="top"
+                className="absolute left-5 right-5 top-0 z-[var(--vlaina-z-50)] h-2 cursor-ns-resize touch-none bg-transparent"
+                onPointerDown={(event) => beginFloatingChatResize('top', event)}
+                onDoubleClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  resetChatFloatingSize();
+                }}
+              />
+              <div
+                aria-hidden="true"
+                data-notes-chat-floating-resize-handle="top-left"
+                className="absolute left-0 top-0 z-[var(--vlaina-z-50)] h-4 w-4 cursor-nwse-resize touch-none bg-transparent"
+                onPointerDown={(event) => beginFloatingChatResize('top-left', event)}
+                onDoubleClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  resetChatFloatingSize();
+                }}
+              />
               <EmbeddedChatView
                 mode="embedded"
                 active={active}
                 onCloseEmbeddedPanel={closeFloatingChat}
                 onPromoteEmbeddedPanel={promoteFloatingChatToSidePanel}
               />
-            </Suspense>
-          </div>
+            </div>
+          </Suspense>
         )}
 
       </div>

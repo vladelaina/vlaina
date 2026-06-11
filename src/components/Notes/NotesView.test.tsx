@@ -175,6 +175,15 @@ vi.mock('@/stores/useVaultStore', () => ({
   ),
 }));
 
+vi.mock('@/stores/unified/useUnifiedStore', () => ({
+  useUnifiedStore: Object.assign(
+    (selector: (state: { loaded: boolean }) => unknown) => selector({ loaded: true }),
+    {
+      getState: () => ({ loaded: true }),
+    },
+  ),
+}));
+
 vi.mock('@/stores/uiSlice', () => ({
   NOTES_CHAT_FLOATING_DEFAULT_SIZE: { width: 420, height: 680 },
   NOTES_CHAT_FLOATING_MIN_SIZE: { width: 320, height: 420 },
