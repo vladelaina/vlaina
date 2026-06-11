@@ -29,6 +29,8 @@ import {
 } from '@/components/Notes/features/FileTree/hooks/fileTreePointerDragState';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { shouldMarkPastedTextMultiline } from './chatPasteText';
+import { markBillingReturnRefreshPending } from '@/lib/billing/returnRefresh';
+import { openExternalHref } from '@/lib/navigation/externalLinks';
 
 interface ChatInputProps {
   active?: boolean;
@@ -37,6 +39,7 @@ interface ChatInputProps {
   onStopAndRecall?: (lastSubmittedMessage?: string) => RecalledChatInputDraft | string | null | void;
   isLoading: boolean;
   hasSelectedModel: boolean;
+  isManagedQuotaExhausted?: boolean;
   focusTrigger?: number;
   sessionId?: string | null;
   sentUserMessages: string[];
@@ -56,6 +59,7 @@ export const ChatInput = memo(function ChatInput({
   onStopAndRecall,
   isLoading,
   hasSelectedModel,
+  isManagedQuotaExhausted = false,
   focusTrigger,
   sessionId,
   sentUserMessages,
@@ -70,6 +74,7 @@ export const ChatInput = memo(function ChatInput({
   const isFileTreeDragActive = useFileTreePointerDragState((state) => state.activeSourcePath !== null);
   const getDisplayName = useNotesStore((state) => state.getDisplayName);
   const { webSearchEnabled, setWebSearchEnabled } = useAIStore();
+  const isQuotaSendBlocked = hasSelectedModel && isManagedQuotaExhausted;
   const {
     attachments,
     isDragging,
@@ -114,7 +119,7 @@ export const ChatInput = memo(function ChatInput({
       clearAttachments();
       clearNoteMentions();
     },
-    canSubmit: hasSelectedModel,
+    canSubmit: hasSelectedModel && !isQuotaSendBlocked,
     focusTrigger,
   });
 
@@ -436,7 +441,7 @@ export const ChatInput = memo(function ChatInput({
   const canSend =
     (!!message.trim() || attachments.length > 0 || noteMentions.length > 0) &&
     hasSelectedModel;
-  const canSubmit = canSend && !isLoading;
+  const canSubmit = canSend && !isLoading && !isQuotaSendBlocked;
   const handleComposerChange = useCallback(
     (event: React.ChangeEvent<HTMLTextAreaElement>) => {
       handleMessageChange(event.target.value);
@@ -445,6 +450,11 @@ export const ChatInput = memo(function ChatInput({
     },
     [clearHistoryNavigationOnInput, handleCaretChange, handleMessageChange]
   );
+
+  const handleUpgradeClick = useCallback(() => {
+    markBillingReturnRefreshPending();
+    void openExternalHref('https://vlaina.com/r/spark_continue');
+  }, []);
 
   const handleStopButton = useCallback(() => {
     if (!onStopAndRecall) {
@@ -504,85 +514,108 @@ export const ChatInput = memo(function ChatInput({
         onChange={handleHiddenFileInputChange}
       />
 
-      <div
-        data-chat-input="true"
-        ref={composerRootRef}
-        className={cn(
-          'relative z-[var(--vlaina-z-10)]',
-          chatComposerFrameClass,
-          chatComposerSurfaceClass
-        )}
-        onDragEnter={handleDragEnter}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        {(isDragging || isBlockDropActive || isFileTreeDropActive) && (
+      <div className={cn('relative z-[var(--vlaina-z-10)]', isQuotaSendBlocked && 'pb-8')}>
+        {isQuotaSendBlocked && (
           <div
-            className={cn(
-              "absolute inset-0 z-[var(--vlaina-z-20)] flex items-center justify-center rounded-[var(--vlaina-radius-32px)] border-2 border-dashed backdrop-blur-[var(--vlaina-backdrop-blur-sm)] pointer-events-none",
-              isBlockDropActive || isFileTreeDropActive
-                ? "border-[var(--vlaina-color-accent)] bg-[var(--vlaina-color-accent-soft)]"
-                : "border-[var(--vlaina-color-subtle-border-strong)] bg-[var(--vlaina-color-overlay-weak)]"
-            )}
+            data-managed-quota-banner="true"
+            className="absolute -inset-x-3 bottom-0 z-0 flex min-h-16 flex-wrap items-end justify-center gap-x-1.5 gap-y-1 rounded-[var(--vlaina-radius-30px)] border border-[var(--vlaina-accent)] bg-transparent px-6 pb-2.5 pt-9 text-center text-[var(--vlaina-font-12)] font-semibold leading-4 text-[var(--vlaina-accent)] shadow-[0_10px_26px_color-mix(in_srgb,var(--vlaina-accent)_18%,transparent)]"
           >
-            <span
-              className={cn(
-                "font-medium",
-                isBlockDropActive || isFileTreeDropActive
-                  ? "text-[var(--vlaina-color-accent)]"
-                  : "text-[var(--vlaina-sidebar-chat-text-muted)]"
-              )}
+            <span>{t('chat.freeRepliesExhausted')}</span>
+            <button
+              type="button"
+              onClick={handleUpgradeClick}
+              data-no-focus-input="true"
+              className="cursor-pointer font-bold text-[var(--vlaina-accent)] underline decoration-[var(--vlaina-accent)]/45 underline-offset-4 transition-colors hover:text-[var(--vlaina-accent-hover)]"
             >
-              {isBlockDropActive ? t('chat.dropBlocksHere') : t('chat.dropFilesHere')}
-            </span>
+              {t('chat.upgradeVlaina')}
+            </button>
           </div>
         )}
 
-        <div className="flex flex-col px-1 w-full">
-          {showMentionPicker && (
-            <NoteMentionPicker
-              currentPageCandidates={currentPageCandidates}
-              folderCandidates={folderCandidates}
-              linkedPageCandidates={linkedPageCandidates}
-              activeCandidatePath={activeCandidatePath}
-              status={mentionPickerStatus}
-              onSelect={applyMentionCandidate}
-            />
+        <div
+          data-chat-input="true"
+          ref={composerRootRef}
+          className={cn(
+            'relative z-[var(--vlaina-z-10)]',
+            chatComposerFrameClass,
+            chatComposerSurfaceClass,
+            isQuotaSendBlocked && [
+              '!border-[var(--vlaina-accent)]',
+              'shadow-[0_10px_28px_color-mix(in_srgb,var(--vlaina-accent)_16%,transparent)]',
+            ]
+          )}
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          {(isDragging || isBlockDropActive || isFileTreeDropActive) && (
+            <div
+              className={cn(
+                "absolute inset-0 z-[var(--vlaina-z-20)] flex items-center justify-center rounded-[var(--vlaina-radius-32px)] border-2 border-dashed backdrop-blur-[var(--vlaina-backdrop-blur-sm)] pointer-events-none",
+                isBlockDropActive || isFileTreeDropActive
+                  ? "border-[var(--vlaina-color-accent)] bg-[var(--vlaina-color-accent-soft)]"
+                  : "border-[var(--vlaina-color-subtle-border-strong)] bg-[var(--vlaina-color-overlay-weak)]"
+              )}
+            >
+              <span
+                className={cn(
+                  "font-medium",
+                  isBlockDropActive || isFileTreeDropActive
+                    ? "text-[var(--vlaina-color-accent)]"
+                    : "text-[var(--vlaina-sidebar-chat-text-muted)]"
+                )}
+              >
+                {isBlockDropActive ? t('chat.dropBlocksHere') : t('chat.dropFilesHere')}
+              </span>
+            </div>
           )}
 
-          <ChatAttachmentPreviewList attachments={attachments} onRemove={removeAttachment} />
+          <div className="flex flex-col px-1 w-full">
+            {showMentionPicker && (
+              <NoteMentionPicker
+                currentPageCandidates={currentPageCandidates}
+                folderCandidates={folderCandidates}
+                linkedPageCandidates={linkedPageCandidates}
+                activeCandidatePath={activeCandidatePath}
+                status={mentionPickerStatus}
+                onSelect={applyMentionCandidate}
+              />
+            )}
 
-          <ChatComposerField
-            textareaRef={textareaRef}
-            message={message}
-            onChange={handleComposerChange}
-            onCompositionStart={handleCompositionStart}
-            onCompositionEnd={handleCompositionEnd}
-            onKeyDown={handleTextareaKeyDown}
-            onSelect={(e) => handleCaretChange(e.currentTarget.selectionStart ?? 0)}
-            onClick={(e) => handleCaretChange(e.currentTarget.selectionStart ?? 0)}
-            onBlur={handleCaretBlur}
-            onPaste={handleTextareaPaste}
-            onScroll={(e) => setTextareaScrollTop(e.currentTarget.scrollTop)}
-            placeholder={!hasSelectedModel ? t('chat.selectModelPlaceholder') : t('chat.composerPlaceholder')}
-            mentionPreviewParts={mentionPreviewParts}
-            textareaScrollTop={textareaScrollTop}
-            onRemoveMention={removeNoteMention}
-          />
+            <ChatAttachmentPreviewList attachments={attachments} onRemove={removeAttachment} />
 
-          <ChatInputActions
-            onTriggerFileSelect={handleTriggerFileSelect}
-            onTriggerMentionSelect={handleTriggerMentionSelect}
-            isLoading={isLoading}
-            canSend={canSend}
-            canSubmit={canSubmit}
-            webSearchEnabled={webSearchEnabled}
-            onToggleWebSearch={() => setWebSearchEnabled(!webSearchEnabled)}
-            onRequestComposerFocus={scheduleComposerFocus}
-            onStop={handleStopButton}
-            onSend={() => handleSend()}
-          />
+            <ChatComposerField
+              textareaRef={textareaRef}
+              message={message}
+              onChange={handleComposerChange}
+              onCompositionStart={handleCompositionStart}
+              onCompositionEnd={handleCompositionEnd}
+              onKeyDown={handleTextareaKeyDown}
+              onSelect={(e) => handleCaretChange(e.currentTarget.selectionStart ?? 0)}
+              onClick={(e) => handleCaretChange(e.currentTarget.selectionStart ?? 0)}
+              onBlur={handleCaretBlur}
+              onPaste={handleTextareaPaste}
+              onScroll={(e) => setTextareaScrollTop(e.currentTarget.scrollTop)}
+              placeholder={!hasSelectedModel ? t('chat.selectModelPlaceholder') : t('chat.composerPlaceholder')}
+              mentionPreviewParts={mentionPreviewParts}
+              textareaScrollTop={textareaScrollTop}
+              onRemoveMention={removeNoteMention}
+            />
+
+            <ChatInputActions
+              onTriggerFileSelect={handleTriggerFileSelect}
+              onTriggerMentionSelect={handleTriggerMentionSelect}
+              isLoading={isLoading}
+              canSend={isQuotaSendBlocked ? false : canSend}
+              canSubmit={canSubmit}
+              webSearchEnabled={webSearchEnabled}
+              onToggleWebSearch={() => setWebSearchEnabled(!webSearchEnabled)}
+              onRequestComposerFocus={scheduleComposerFocus}
+              onStop={handleStopButton}
+              onSend={() => handleSend()}
+            />
+          </div>
         </div>
       </div>
     </>

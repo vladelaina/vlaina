@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { useUserAvatar } from '@/hooks/useUserAvatar';
@@ -6,16 +6,130 @@ import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { ManagedQuotaMeter } from './ManagedQuotaMeter';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import {
+  chatComposerGhostIconButtonClass,
+  chatComposerPillSurfaceClass,
+} from '@/components/Chat/features/Input/composerStyles';
 import { getSidebarIdleRowSurfaceClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { AccountAvatarImage } from './AccountAvatarImage';
 
 const fallbackAvatarUrl = `${import.meta.env.BASE_URL}logo.png?v=20260327`;
 const membershipPlanUrl = 'https://vlaina.com/r/account_plan';
+const identityMaxFontSizePx = 11;
+const identityMinFontSizePx = 6;
 
 interface UserIdentityCardProps {
   onLogout: () => void | Promise<void>;
   onSwitchAccount: () => void;
+}
+
+function getPixelValue(value: string): number {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function AutoFitIdentityText({ value }: { value: string }) {
+  const containerRef = useRef<HTMLSpanElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [fontSizePx, setFontSizePx] = useState(identityMaxFontSizePx);
+  const [scaleX, setScaleX] = useState(1);
+
+  const updateLayout = useCallback(() => {
+    const container = containerRef.current;
+    const text = textRef.current;
+    if (!container || !text) {
+      return;
+    }
+
+    const styles = window.getComputedStyle(container);
+    const availableWidth = Math.max(
+      0,
+      container.clientWidth - getPixelValue(styles.paddingLeft) - getPixelValue(styles.paddingRight)
+    );
+
+    if (availableWidth <= 0) {
+      setFontSizePx(identityMaxFontSizePx);
+      setScaleX(1);
+      return;
+    }
+
+    const previousFontSize = text.style.fontSize;
+    const previousTransform = text.style.transform;
+    text.style.fontSize = `${identityMaxFontSizePx}px`;
+    text.style.transform = 'none';
+    const naturalWidth = Math.max(text.scrollWidth, text.getBoundingClientRect().width);
+    text.style.fontSize = previousFontSize;
+    text.style.transform = previousTransform;
+
+    if (naturalWidth <= 0 || naturalWidth <= availableWidth) {
+      setFontSizePx(identityMaxFontSizePx);
+      setScaleX(1);
+      return;
+    }
+
+    const exactFontSize = identityMaxFontSizePx * (availableWidth / naturalWidth);
+    const nextFontSize = Math.max(identityMinFontSizePx, Math.min(identityMaxFontSizePx, exactFontSize));
+    const roundedFontSize = Math.floor(nextFontSize * 10) / 10;
+    const nextScaleX = exactFontSize < identityMinFontSizePx
+      ? exactFontSize / identityMinFontSizePx
+      : 1;
+
+    setFontSizePx((current) => Math.abs(current - roundedFontSize) < 0.05 ? current : roundedFontSize);
+    setScaleX((current) => Math.abs(current - nextScaleX) < 0.01 ? current : nextScaleX);
+  }, []);
+
+  useLayoutEffect(() => {
+    updateLayout();
+
+    const container = containerRef.current;
+    if (!container) {
+      return undefined;
+    }
+
+    let isDisposed = false;
+    const rafId = window.requestAnimationFrame(updateLayout);
+    void document.fonts?.ready.then(() => {
+      if (!isDisposed) {
+        updateLayout();
+      }
+    });
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', updateLayout);
+      return () => {
+        isDisposed = true;
+        window.cancelAnimationFrame(rafId);
+        window.removeEventListener('resize', updateLayout);
+      };
+    }
+
+    const observer = new ResizeObserver(updateLayout);
+    observer.observe(container);
+    return () => {
+      isDisposed = true;
+      window.cancelAnimationFrame(rafId);
+      observer.disconnect();
+    };
+  }, [updateLayout, value]);
+
+  return (
+    <span
+      ref={containerRef}
+      className="min-w-0 flex-1 overflow-hidden pr-2 text-[var(--vlaina-text-primary)]"
+      title={value}
+    >
+      <span
+        ref={textRef}
+        className="inline-block max-w-none origin-left whitespace-nowrap font-bold leading-none"
+        style={{
+          fontSize: `${fontSizePx}px`,
+          transform: scaleX < 1 ? `scaleX(${scaleX})` : undefined,
+        }}
+      >
+        {value}
+      </span>
+    </span>
+  );
 }
 
 export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, onSwitchAccount }) => {
@@ -75,13 +189,9 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
           </span>
         ) : null}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-1 pt-0.5">
-        <div className="flex items-center justify-between">
-          <span
-            className="min-w-0 flex-1 truncate pr-2 text-[var(--vlaina-font-11)] font-bold leading-none text-[var(--vlaina-text-primary)]"
-          >
-            {displayIdentity}
-          </span>
+      <div className="flex h-12 min-w-0 flex-1 flex-col justify-between py-0.5">
+        <div className="flex min-h-7 items-center justify-between">
+          <AutoFitIdentityText value={displayIdentity} />
 
           <div className="flex items-center gap-0.5">
             <button
@@ -90,16 +200,24 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                 setIsMenuOpen(!isMenuOpen);
               }}
               className={cn(
-                '-mr-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[var(--vlaina-active)]',
-                isMenuOpen && 'bg-[var(--vlaina-active)] text-[var(--vlaina-text-primary)]'
+                'group -mr-1 flex h-7 w-7 cursor-pointer items-center justify-center text-[var(--vlaina-sidebar-chat-text)]',
+                chatComposerGhostIconButtonClass,
+                isMenuOpen && 'bg-[var(--vlaina-color-pill-surface-hover)] text-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-menu-hover)]'
               )}
             >
-              <Icon size="md" name="common.more" className="text-[var(--vlaina-text-secondary)]" />
+              <Icon
+                size="md"
+                name="common.more"
+                className={cn(
+                  'transition-colors group-hover:text-[var(--vlaina-accent)]',
+                  isMenuOpen ? 'text-[var(--vlaina-accent)]' : 'text-[var(--vlaina-sidebar-chat-text)]'
+                )}
+              />
             </button>
           </div>
         </div>
 
-        {isConnected ? <ManagedQuotaMeter /> : null}
+        {isConnected ? <ManagedQuotaMeter className="mt-0" /> : null}
 
         {isMenuOpen && (
           <>
@@ -116,12 +234,12 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                   onSwitchAccount();
                 }}
                 className={cn(
-                  'flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium transition-colors',
+                  'group/item flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium transition-[background-color,color,box-shadow]',
                   getSidebarIdleRowSurfaceClass('chat'),
-                  'text-[var(--vlaina-sidebar-chat-text)] hover:bg-[var(--vlaina-sidebar-chat-row-hover)]'
+                  'text-[var(--vlaina-sidebar-chat-text)] hover:!bg-[var(--vlaina-accent-light)] hover:text-[var(--vlaina-accent)] hover:shadow-[var(--vlaina-shadow-menu-hover)]'
                 )}
               >
-                <Icon size="md" name="user.switch" className="text-[var(--vlaina-sidebar-chat-text)]" />
+                <Icon size="md" name="user.switch" className="text-[var(--vlaina-accent)]" />
                 <span className="whitespace-nowrap">{t('account.switchAccount')}</span>
               </button>
               <button
@@ -130,12 +248,12 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                   void onLogout();
                 }}
                 className={cn(
-                  'flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium transition-colors',
+                  'group/item flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[var(--vlaina-font-base)] font-medium transition-[background-color,color,box-shadow]',
                   getSidebarIdleRowSurfaceClass('chat'),
-                  'text-[var(--vlaina-sidebar-chat-text)] hover:bg-[var(--vlaina-sidebar-chat-row-hover)]'
+                  'text-[var(--vlaina-sidebar-chat-text)] hover:!bg-[var(--vlaina-accent-light)] hover:text-[var(--vlaina-accent)] hover:shadow-[var(--vlaina-shadow-menu-hover)]'
                 )}
               >
-                <Icon size="md" name="user.logout" className="text-[var(--vlaina-sidebar-chat-text)]" />
+                <Icon size="md" name="user.logout" className="text-[var(--vlaina-accent)]" />
                 {t('account.logOut')}
               </button>
             </div>

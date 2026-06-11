@@ -13,7 +13,7 @@ import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/ai/types';
 import { parseErrorTag, stripFirstErrorTag } from '@/lib/ai/errorTag';
-import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
+import { isManagedModelId } from '@/lib/ai/managedService';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import {
@@ -47,13 +47,9 @@ interface RenderedMessageState {
   rows: RenderedMessageRow[];
 }
 
-function isManagedModelMessage(modelId: string): boolean {
-  return modelId === MANAGED_PROVIDER_ID || modelId.startsWith(`${MANAGED_PROVIDER_ID}:`);
-}
-
 function isPureManagedAuthErrorMessage(message: ChatMessage): boolean {
   const parsedError = parseErrorTag(message.content);
-  if (parsedError?.type !== 'AUTH_ERROR' || !isManagedModelMessage(message.modelId)) {
+  if (parsedError?.type !== 'AUTH_ERROR' || !isManagedModelId(message.modelId)) {
     return false;
   }
 

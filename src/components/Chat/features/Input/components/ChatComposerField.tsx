@@ -30,6 +30,7 @@ interface ChatComposerFieldProps {
   onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
   onScroll: (event: React.UIEvent<HTMLTextAreaElement>) => void;
   onRemoveMention: (path: string) => void;
+  disabled?: boolean;
 }
 
 export function ChatComposerField({
@@ -48,6 +49,7 @@ export function ChatComposerField({
   onPaste,
   onScroll,
   onRemoveMention,
+  disabled = false,
 }: ChatComposerFieldProps) {
   return (
     <div className={chatComposerInputBlockClass}>
@@ -66,8 +68,13 @@ export function ChatComposerField({
           onPaste={onPaste}
           onScroll={onScroll}
           placeholder={placeholder}
+          disabled={disabled}
           rows={1}
-          className={cn(chatComposerTextareaClass, 'relative z-[var(--vlaina-z-10)] w-full')}
+          className={cn(
+            chatComposerTextareaClass,
+            'relative z-[var(--vlaina-z-10)] w-full',
+            disabled && 'cursor-default text-[var(--vlaina-sidebar-chat-text-soft)] opacity-[var(--vlaina-opacity-75)]'
+          )}
         />
         <MentionPreviewOverlay
           mentionPreviewParts={mentionPreviewParts}

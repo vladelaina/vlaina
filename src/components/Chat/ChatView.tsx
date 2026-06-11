@@ -31,6 +31,9 @@ import { Icon } from '@/components/ui/icons';
 import { chatComposerGhostIconButtonClass, chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { useI18n } from '@/lib/i18n';
 import { themeChatLayoutTokens, themeIconTokens, themeMotionTokens, themeStyleResetTokens } from '@/styles/themeTokens';
+import { isManagedProviderId } from '@/lib/ai/managedService';
+import { isRecentManagedBudgetExhausted } from '@/lib/ai/managedQuota';
+import { useManagedAIStore } from '@/stores/useManagedAIStore';
 
 interface ChatViewProps {
   mode?: 'full' | 'embedded';
@@ -81,6 +84,8 @@ export function ChatView({
   const providers = useUnifiedStore((s) => s.data.ai?.providers || []);
   const models = useUnifiedStore((s) => s.data.ai?.models || []);
   const selectedModelId = useUnifiedStore((s) => s.data.ai?.selectedModelId || null);
+  const managedBudget = useManagedAIStore((state) => state.budget);
+  const managedBudgetSyncAt = useManagedAIStore((state) => state.lastBudgetSyncAt);
 
   const loaded = useUnifiedStore(s => s.loaded);
   const pendingComposerInsert = useUIStore((state) => state.pendingNotesChatComposerInsert);
@@ -100,6 +105,11 @@ export function ChatView({
     const provider = providers.find((item) => item.id === model.providerId);
     return provider?.enabled === false ? undefined : model;
   }, [models, providers, selectedModelId]);
+  const isSelectedManagedQuotaExhausted = Boolean(
+    selectedModel &&
+    isManagedProviderId(selectedModel.providerId) &&
+    isRecentManagedBudgetExhausted(managedBudget, managedBudgetSyncAt)
+  );
   
   useEffect(() => {
     if (currentSessionId && !isMessagesLoaded) {
@@ -537,6 +547,7 @@ export function ChatView({
                 onStopAndRecall={stopAndRecallLastUserMessage}
                 isLoading={isSessionActive} 
                 hasSelectedModel={!!selectedModel}
+                isManagedQuotaExhausted={isSelectedManagedQuotaExhausted}
                 focusTrigger={focusInputTrigger}
                 sessionId={currentSessionId}
                 sentUserMessages={sentUserMessages}

@@ -7,6 +7,11 @@ import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import {
   selectMarkdownImportedThemeId,
 } from '@/stores/unified/settings/markdownSettings';
+import { useManagedAIStore } from '@/stores/useManagedAIStore';
+import {
+  createManagedQuotaExhaustedBudgetSnapshot,
+  isManagedBudgetExhausted,
+} from '@/lib/ai/managedQuota';
 
 const DEV_OVERLAY_BUTTON_CLASS =
   'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[var(--vlaina-border)] bg-[var(--vlaina-color-setting-field)] shadow-[var(--vlaina-shadow-sm)] backdrop-blur-[var(--vlaina-backdrop-blur-sm)] transition-colors hover:bg-[var(--vlaina-hover)] disabled:opacity-[var(--vlaina-opacity-50)]';
@@ -62,6 +67,9 @@ export function DevMainOverlay({ effectiveAppViewMode }: { effectiveAppViewMode:
   const setColorMode = useUnifiedStore((state) => state.setColorMode);
   const importedMarkdownThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
   const setMarkdownImportedThemeId = useUnifiedStore((state) => state.setMarkdownImportedThemeId);
+  const managedBudget = useManagedAIStore((state) => state.budget);
+  const applyManagedBudgetSnapshot = useManagedAIStore((state) => state.applyBudgetSnapshot);
+  const clearManagedBudget = useManagedAIStore((state) => state.clearBudget);
   const [isThemeSwitching, setIsThemeSwitching] = useState(false);
 
   const handleMarkdownThemeCycle = useCallback(async () => {
@@ -91,6 +99,7 @@ export function DevMainOverlay({ effectiveAppViewMode }: { effectiveAppViewMode:
 
   const isDarkModeSelected = colorMode === 'dark';
   const isMacOSPreviewSelected = devPlatformPreview === 'macos';
+  const isManagedQuotaExhausted = isManagedBudgetExhausted(managedBudget);
   const platformPreviewSwitchLabel = isMacOSPreviewSelected
     ? 'Use system platform preview'
     : 'Preview macOS titlebar';
@@ -98,6 +107,9 @@ export function DevMainOverlay({ effectiveAppViewMode }: { effectiveAppViewMode:
   const markdownThemeSwitchLabel = importedMarkdownThemeId
     ? `Switch Markdown theme (${importedMarkdownThemeId})`
     : 'Switch Markdown theme (default)';
+  const managedQuotaSwitchLabel = isManagedQuotaExhausted
+    ? 'Clear managed quota exhaustion'
+    : 'Simulate managed quota exhaustion';
 
   return (
     <div className="pointer-events-none absolute bottom-3 right-3 z-[var(--vlaina-z-30)] flex flex-col items-end gap-2">
@@ -106,6 +118,17 @@ export function DevMainOverlay({ effectiveAppViewMode }: { effectiveAppViewMode:
         iconName="theme.palette"
         label={markdownThemeSwitchLabel}
         onClick={() => void handleMarkdownThemeCycle()}
+      />
+      <DevOverlayButton
+        iconName={isManagedQuotaExhausted ? 'common.blocked' : 'common.warning'}
+        label={managedQuotaSwitchLabel}
+        onClick={() => {
+          if (isManagedQuotaExhausted) {
+            clearManagedBudget();
+            return;
+          }
+          applyManagedBudgetSnapshot(createManagedQuotaExhaustedBudgetSnapshot());
+        }}
       />
       <DevOverlayButton
         iconName={isDarkModeSelected ? 'theme.light' : 'theme.dark'}

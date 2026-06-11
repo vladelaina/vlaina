@@ -61,16 +61,13 @@ vi.mock("./ErrorBlock", () => ({
   ErrorBlock: ({
     content,
     showLoginPrompt,
-    showBillingPrompt,
   }: {
     content: string;
     showLoginPrompt?: boolean;
-    showBillingPrompt?: boolean;
   }) => (
     <div
       data-testid="error"
       data-login-prompt={String(Boolean(showLoginPrompt))}
-      data-billing-prompt={String(Boolean(showBillingPrompt))}
     >
       {content}
     </div>
@@ -412,7 +409,7 @@ describe("AIMessage", () => {
     expect(screen.getByTestId("toolbar")).toBeInTheDocument();
   });
 
-  it("shows the managed model billing prompt for quota errors", () => {
+  it("does not show the managed model billing prompt for quota errors", () => {
     render(
       <AIMessage
         msg={{
@@ -427,11 +424,11 @@ describe("AIMessage", () => {
       />,
     );
 
-    expect(screen.getByTestId("error")).toHaveAttribute("data-billing-prompt", "true");
+    expect(screen.getByTestId("error")).not.toHaveAttribute("data-billing-prompt");
     expect(screen.getByTestId("toolbar")).toBeInTheDocument();
   });
 
-  it("shows the managed model billing prompt for legacy single-colon managed model ids", () => {
+  it("does not show the managed model billing prompt for legacy single-colon managed model ids", () => {
     render(
       <AIMessage
         msg={{
@@ -446,7 +443,7 @@ describe("AIMessage", () => {
       />,
     );
 
-    expect(screen.getByTestId("error")).toHaveAttribute("data-billing-prompt", "true");
+    expect(screen.getByTestId("error")).not.toHaveAttribute("data-billing-prompt");
   });
 
   it("keeps web search results visible after sources are read", () => {

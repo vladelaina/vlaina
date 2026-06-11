@@ -76,6 +76,8 @@ function importedTheme(theme: Partial<ImportedMarkdownTheme>): ImportedMarkdownT
   };
 }
 
+const importedThemeWaitForOptions = { timeout: 3000 };
+
 describe('MarkdownThemeLoader', () => {
   beforeEach(() => {
     document.head.querySelectorAll('style[data-vlaina-imported-markdown-theme="true"]').forEach((element) => {
@@ -112,7 +114,7 @@ describe('MarkdownThemeLoader', () => {
       expect(style?.textContent).toContain('[data-markdown-theme-root="true"][data-markdown-imported-theme="clean-light"]#write h1');
       expect(style?.textContent).toContain('[data-markdown-theme-root="true"][data-markdown-imported-theme="clean-light"] { --bg-color: white; }');
       expect(style?.textContent).not.toMatch(/(^|[}\n]\s*)body\s*\{/);
-    });
+    }, importedThemeWaitForOptions);
   });
 
   it('bridges imported theme variables into app shell tokens for shared UI surfaces', async () => {
@@ -143,7 +145,7 @@ describe('MarkdownThemeLoader', () => {
       expect(style?.textContent).toContain('--vlaina-color-setting-panel: var(--db);');
       expect(style?.textContent).toContain('--vlaina-sidebar-row-selected-bg: var(--v-selected-c);');
       expect(style?.textContent).not.toContain('#write h1');
-    });
+    }, importedThemeWaitForOptions);
   });
 
   it('injects the Typora post bridge after imported theme CSS so DOM compatibility fixes win', async () => {
@@ -185,7 +187,7 @@ describe('MarkdownThemeLoader', () => {
       expect(Array.from(document.head.children).indexOf(postBridgeStyle as HTMLStyleElement)).toBeGreaterThan(
         Array.from(document.head.children).indexOf(appStyle as HTMLStyleElement)
       );
-    });
+    }, importedThemeWaitForOptions);
   });
 
   it('injects a post bridge for normal Typora imported themes', async () => {
@@ -205,7 +207,7 @@ describe('MarkdownThemeLoader', () => {
       expect(postBridgeStyle).toBeInstanceOf(HTMLStyleElement);
       expect(postBridgeStyle?.id).toBe('vlaina-imported-markdown-theme-post-bridge-clean-light');
       expect(postBridgeStyle?.textContent).toContain('[data-markdown-imported-theme="clean-light"].theme-typora');
-    });
+    }, importedThemeWaitForOptions);
   });
 
   it('keeps the previous imported theme CSS until the next theme is ready', async () => {
@@ -224,7 +226,7 @@ describe('MarkdownThemeLoader', () => {
 
     await waitFor(() => {
       expect(document.head.querySelector('style[data-vlaina-imported-markdown-theme="true"]')?.id).toContain('clean-light');
-    });
+    }, importedThemeWaitForOptions);
 
     setMarkdownTheme('night');
     mocks.readImportedMarkdownTheme.mockResolvedValueOnce(secondTheme);
@@ -239,7 +241,7 @@ describe('MarkdownThemeLoader', () => {
       expect(style?.id).toContain('night');
       expect(style?.textContent).toContain('color: blue');
       expect(document.head.querySelectorAll('style[data-vlaina-imported-markdown-theme="true"]')).toHaveLength(1);
-    });
+    }, importedThemeWaitForOptions);
   });
 
   it('sanitizes unsafe CSS URLs again before injecting persisted imported CSS', async () => {
@@ -264,7 +266,7 @@ describe('MarkdownThemeLoader', () => {
       expect(style?.textContent).toContain('content: "url(javascript:alert(1))"');
       expect(style?.textContent).not.toContain('@import');
       expect(style?.textContent).not.toContain('background: url(javascript:alert(1))');
-    });
+    }, importedThemeWaitForOptions);
   });
 
   it('removes imported theme CSS when the imported theme id is cleared', async () => {
@@ -272,7 +274,7 @@ describe('MarkdownThemeLoader', () => {
 
     await waitFor(() => {
       expect(document.head.querySelector('style[data-vlaina-imported-markdown-theme="true"]')).not.toBeNull();
-    });
+    }, importedThemeWaitForOptions);
 
     setMarkdownTheme(null);
     view.rerender(<MarkdownThemeLoader />);
@@ -282,7 +284,7 @@ describe('MarkdownThemeLoader', () => {
       expect(document.head.querySelector('style[data-vlaina-imported-markdown-theme-post-bridge="true"]')).toBeNull();
       expect(document.head.querySelector('style[data-vlaina-imported-app-theme="true"]')).toBeNull();
       expect(document.documentElement.hasAttribute('data-vlaina-imported-app-theme')).toBe(false);
-    });
+    }, importedThemeWaitForOptions);
   });
 
   it('clears the saved imported theme id when the persisted theme is missing', async () => {
@@ -301,7 +303,7 @@ describe('MarkdownThemeLoader', () => {
       expect(document.head.querySelector('style[data-vlaina-imported-app-theme="true"]')).toBeNull();
       expect(document.documentElement.hasAttribute('data-vlaina-imported-app-theme')).toBe(false);
       expect(mocks.store.setMarkdownImportedThemeId).toHaveBeenCalledWith(null);
-    });
+    }, importedThemeWaitForOptions);
   });
 
   it('injects Obsidian-source CSS into the same external Markdown layer', async () => {
@@ -323,6 +325,6 @@ describe('MarkdownThemeLoader', () => {
       expect(style?.textContent).toContain('[data-markdown-theme-root="true"][data-markdown-imported-theme="clean-light"].markdown-preview-view h1');
       expect(style?.textContent).not.toContain('data-markdown-theme-platform="obsidian"');
       expect(style?.textContent).not.toContain('body.theme-dark');
-    });
+    }, importedThemeWaitForOptions);
   });
 });

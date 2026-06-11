@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn, iconButtonStyles } from '@/lib/utils';
@@ -17,6 +17,7 @@ interface ChatInputActionsProps {
   onRequestComposerFocus: () => void;
   onStop: () => void;
   onSend: () => void;
+  disabled?: boolean;
 }
 
 export function ChatInputActions({
@@ -30,23 +31,33 @@ export function ChatInputActions({
   onRequestComposerFocus,
   onStop,
   onSend,
+  disabled = false,
 }: ChatInputActionsProps) {
   const { t } = useI18n();
   const [actionsOpen, setActionsOpen] = useState(false);
   const restoreComposerFocusOnCloseRef = useRef(false);
 
+  useEffect(() => {
+    if (disabled) {
+      setActionsOpen(false);
+    }
+  }, [disabled]);
+
   const handleTriggerFileSelect = () => {
+    if (disabled) return;
     setActionsOpen(false);
     onTriggerFileSelect();
   };
 
   const handleTriggerMentionSelect = () => {
+    if (disabled) return;
     restoreComposerFocusOnCloseRef.current = true;
     setActionsOpen(false);
     onTriggerMentionSelect();
   };
 
   const handleEnableWebSearch = () => {
+    if (disabled) return;
     restoreComposerFocusOnCloseRef.current = true;
     setActionsOpen(false);
     if (!webSearchEnabled) {
@@ -56,6 +67,7 @@ export function ChatInputActions({
   };
 
   const handleDisableWebSearch = () => {
+    if (disabled) return;
     onToggleWebSearch();
     onRequestComposerFocus();
   };
@@ -69,11 +81,13 @@ export function ChatInputActions({
               type="button"
               aria-label={t('chat.openActions')}
               data-chat-input-action="open-actions"
+              disabled={disabled}
               className={cn(
                 'w-9 h-9 flex items-center justify-center',
                 iconButtonStyles,
                 chatComposerGhostIconButtonClass,
-                '!bg-transparent !shadow-none text-[var(--vlaina-accent)] hover:!bg-[var(--vlaina-color-pill-surface-hover)] hover:!shadow-[var(--vlaina-shadow-menu-hover)] hover:text-[var(--vlaina-accent-hover)] active:scale-[var(--vlaina-scale-95)]'
+                '!bg-transparent !shadow-none text-[var(--vlaina-accent)] hover:!bg-[var(--vlaina-color-pill-surface-hover)] hover:!shadow-[var(--vlaina-shadow-menu-hover)] hover:text-[var(--vlaina-accent-hover)] active:scale-[var(--vlaina-scale-95)]',
+                disabled && 'cursor-default opacity-[var(--vlaina-opacity-45)] hover:!bg-transparent hover:!shadow-none hover:text-[var(--vlaina-accent)] active:scale-[var(--vlaina-scale-100)]'
               )}
             >
               <Icon name="common.add" size="md" />
@@ -146,7 +160,11 @@ export function ChatInputActions({
             aria-label={t('chat.disableWebSearch')}
             data-chat-input-action="disable-web-search"
             onClick={handleDisableWebSearch}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-[var(--vlaina-sidebar-chat-row-active)] text-[var(--vlaina-sidebar-row-selected-text)] transition-[background-color,color,transform] duration-[var(--vlaina-duration-200)] hover:bg-[var(--vlaina-sidebar-chat-row-active)] hover:text-[var(--vlaina-sidebar-row-selected-text)] active:scale-[var(--vlaina-scale-95)]"
+            disabled={disabled}
+            className={cn(
+              "w-9 h-9 flex items-center justify-center rounded-full bg-[var(--vlaina-sidebar-chat-row-active)] text-[var(--vlaina-sidebar-row-selected-text)] transition-[background-color,color,transform] duration-[var(--vlaina-duration-200)] hover:bg-[var(--vlaina-sidebar-chat-row-active)] hover:text-[var(--vlaina-sidebar-row-selected-text)] active:scale-[var(--vlaina-scale-95)]",
+              disabled && 'cursor-default opacity-[var(--vlaina-opacity-45)] active:scale-[var(--vlaina-scale-100)]'
+            )}
           >
             <Icon name="file.public" size="md" />
           </button>
@@ -170,10 +188,10 @@ export function ChatInputActions({
             aria-label={t('common.send')}
             data-chat-input-action="send"
             onClick={onSend}
-            disabled={!canSubmit}
+            disabled={disabled || !canSubmit}
             className={cn(
               'w-9 h-9 rounded-full flex items-center justify-center transition-[background-color,color,box-shadow,opacity,transform] duration-[var(--vlaina-duration-200)]',
-              canSubmit
+              !disabled && canSubmit
                 ? 'bg-[var(--vlaina-color-pill-surface-hover)] text-[var(--vlaina-accent)] shadow-[var(--vlaina-shadow-menu-hover)] hover:text-[var(--vlaina-accent-hover)] hover:scale-[var(--vlaina-scale-105)] active:scale-[var(--vlaina-scale-95)]'
                 : canSend
                   ? 'bg-[var(--vlaina-color-pill-surface-hover)] text-[var(--vlaina-accent)] opacity-[var(--vlaina-opacity-60)] shadow-[var(--vlaina-shadow-menu-hover)] cursor-default'

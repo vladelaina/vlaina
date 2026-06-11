@@ -45,6 +45,10 @@ export function isManagedProviderId(providerId: string | null | undefined): bool
   return providerId === MANAGED_PROVIDER_ID;
 }
 
+export function isManagedModelId(modelId: string | null | undefined): boolean {
+  return modelId === MANAGED_PROVIDER_ID || Boolean(modelId?.startsWith(`${MANAGED_PROVIDER_ID}:`));
+}
+
 export async function fetchManagedModels() {
   return (await fetchManagedModelCatalog()).models;
 }
