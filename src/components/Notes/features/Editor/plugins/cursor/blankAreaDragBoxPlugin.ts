@@ -42,6 +42,7 @@ import {
   type BlockSelectionAction,
 } from './blockSelectionPluginState';
 import {
+  isExternalTextLineGutterNativeSelectionTarget,
   isIgnoredBlankAreaDragBoxTarget,
   resolveBlankAreaDragStartZone,
 } from './blankAreaDragTargets';
@@ -241,6 +242,26 @@ function resolveInsideBlockTrailingPlainClick(view: EditorView, event: MouseEven
   });
   resolver.invalidate();
   return action;
+}
+
+function clearWhitespaceNativeSelection(doc: Document): void {
+  const selection = doc.getSelection();
+  if (!selection || selection.isCollapsed) return;
+  if (selection.toString().trim().length > 0) return;
+  selection.removeAllRanges();
+}
+
+function scheduleExternalTextLineGutterWhitespaceSelectionCleanup(view: EditorView, event: MouseEvent): void {
+  if (!isExternalTextLineGutterNativeSelectionTarget(view, event)) {
+    return;
+  }
+
+  const doc = view.dom.ownerDocument;
+  const timeoutWindow = doc.defaultView ?? window;
+  const handleMouseUp = () => {
+    timeoutWindow.setTimeout(() => clearWhitespaceNativeSelection(doc), 0);
+  };
+  doc.addEventListener('mouseup', handleMouseUp, { capture: true, once: true });
 }
 
 function startInsideBlockTrailingPlainClickSession(
@@ -683,6 +704,8 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         }
         const startZone = tryStartSession(view, event);
         if (startZone) return;
+
+        scheduleExternalTextLineGutterWhitespaceSelectionCleanup(view, event);
 
         const insideBlockTrailingClickAction = resolveInsideBlockTrailingPlainClick(view, event);
         if (insideBlockTrailingClickAction) {

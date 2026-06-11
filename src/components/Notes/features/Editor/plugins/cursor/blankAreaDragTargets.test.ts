@@ -7,6 +7,7 @@ import {
 } from '../../utils/editorBlockPositionCache';
 import {
   MAX_BLANK_AREA_TEXT_HIT_CHARS,
+  isExternalTextLineGutterNativeSelectionTarget,
   isPointInTrailingTextSelectionGutter,
   resolveBlankAreaDragStartZone,
   resolveTextLinePointerHit,
@@ -254,6 +255,45 @@ describe('blankAreaDragTargets', () => {
         view,
         createMouseDown(editorWrapper, { clientX: 250, clientY: 50 }),
       )).toBeNull();
+    } finally {
+      document.createRange = originalCreateRange;
+      cleanup();
+    }
+  });
+
+  it('identifies external text-line gutters for whitespace native-selection cleanup', () => {
+    const { view, editorWrapper, cleanup } = createView();
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'Selectable text';
+    view.dom.append(paragraph);
+
+    const originalCreateRange = document.createRange;
+    document.createRange = () => ({
+      selectNodeContents: () => {},
+      getClientRects: () => [{
+        left: 100,
+        right: 240,
+        top: 40,
+        bottom: 60,
+        width: 140,
+        height: 20,
+      }],
+      detach: () => {},
+    } as unknown as Range);
+
+    try {
+      expect(isExternalTextLineGutterNativeSelectionTarget(
+        view,
+        createMouseDown(editorWrapper, { clientX: 250, clientY: 50 }),
+      )).toBe(true);
+      expect(isExternalTextLineGutterNativeSelectionTarget(
+        view,
+        createMouseDown(editorWrapper, { clientX: 90, clientY: 50 }),
+      )).toBe(true);
+      expect(isExternalTextLineGutterNativeSelectionTarget(
+        view,
+        createMouseDown(editorWrapper, { clientX: 150, clientY: 50 }),
+      )).toBe(false);
     } finally {
       document.createRange = originalCreateRange;
       cleanup();

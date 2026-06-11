@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   blurActiveEditableElement,
+  filterExternalBlankAreaSelectionEdgeGrazes,
   resolveBlankAreaSelectionAutoScrollDelta,
 } from './blankAreaSelectionSession';
+import type { BlockRect } from './blockSelectionUtils';
 
 describe('resolveBlankAreaSelectionAutoScrollDelta', () => {
   const scrollRootRect = { top: 100, bottom: 500 };
@@ -54,5 +56,40 @@ describe('blurActiveEditableElement', () => {
     } finally {
       surface.remove();
     }
+  });
+});
+
+describe('filterExternalBlankAreaSelectionEdgeGrazes', () => {
+  const block: BlockRect = {
+    from: 1,
+    to: 16,
+    left: 100,
+    top: 40,
+    right: 400,
+    bottom: 64,
+  };
+
+  it('drops external blank-area drags that only graze a block edge', () => {
+    expect(filterExternalBlankAreaSelectionEdgeGrazes(
+      [block],
+      [{ from: 1, to: 16 }],
+      { left: 397, top: 44, right: 420, bottom: 60 },
+    )).toEqual([]);
+  });
+
+  it('drops external blank-area drags that only graze a block leading edge', () => {
+    expect(filterExternalBlankAreaSelectionEdgeGrazes(
+      [block],
+      [{ from: 1, to: 16 }],
+      { left: 80, top: 44, right: 103, bottom: 60 },
+    )).toEqual([]);
+  });
+
+  it('keeps external blank-area drags that enter the block body', () => {
+    expect(filterExternalBlankAreaSelectionEdgeGrazes(
+      [block],
+      [{ from: 1, to: 16 }],
+      { left: 360, top: 44, right: 420, bottom: 60 },
+    )).toEqual([{ from: 1, to: 16 }]);
   });
 });

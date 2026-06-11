@@ -240,6 +240,46 @@ function resolveTargetTextLinePointerHit(
   return resolveTextLinePointerHit(view.dom, clientX, clientY);
 }
 
+function resolveSameEditorExternalTextLinePointerHit(
+  view: EditorView,
+  target: HTMLElement,
+  editorScrollRoot: HTMLElement | null,
+  clientX: number,
+  clientY: number,
+): TextLinePointerHit | null {
+  const targetScrollRoot = getScrollRoot(target);
+  if (!editorScrollRoot || !targetScrollRoot || editorScrollRoot !== targetScrollRoot) {
+    return null;
+  }
+
+  const cachedTextLineHit = resolveCachedTextLinePointerHit(
+    view,
+    editorScrollRoot,
+    clientX,
+    clientY,
+  );
+  return cachedTextLineHit.checked
+    ? cachedTextLineHit.hit
+    : resolveTextLinePointerHit(view.dom, clientX, clientY);
+}
+
+export function isExternalTextLineGutterNativeSelectionTarget(view: EditorView, event: MouseEvent): boolean {
+  if (!(event.target instanceof HTMLElement)) return false;
+  const target = event.target;
+  if (view.dom.contains(target)) return false;
+  if (target.closest(COVER_REGION_SELECTOR)) return false;
+  if (target.closest(INTERACTIVE_SELECTOR)) return false;
+
+  const hit = resolveSameEditorExternalTextLinePointerHit(
+    view,
+    target,
+    getScrollRoot(view.dom),
+    event.clientX,
+    event.clientY,
+  );
+  return hit?.type === 'gutter' || hit?.type === 'measurement-limit';
+}
+
 function isTextBlockBlankSurfaceTarget(view: EditorView, target: HTMLElement): boolean {
   if (target === view.dom) return true;
 
@@ -307,20 +347,16 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
     return null;
   }
 
-  let externalTextLineBlockHit = false;
-  if (isSameEditorScrollRoot) {
-    const cachedTextLineHit = resolveCachedTextLinePointerHit(
+  const externalTextLineHit = isSameEditorScrollRoot
+    ? resolveSameEditorExternalTextLinePointerHit(
       view,
+      target,
       editorScrollRoot,
       event.clientX,
       event.clientY,
-    );
-    const textLineHit = cachedTextLineHit.checked
-      ? cachedTextLineHit.hit
-      : resolveTextLinePointerHit(view.dom, event.clientX, event.clientY);
-    externalTextLineBlockHit = textLineHit?.type === 'gutter' || textLineHit?.type === 'measurement-limit';
-  }
-  if (externalTextLineBlockHit) {
+    )
+    : null;
+  if (externalTextLineHit?.type === 'gutter' || externalTextLineHit?.type === 'measurement-limit') {
     return null;
   }
 

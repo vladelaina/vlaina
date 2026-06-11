@@ -2,13 +2,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS } from '@/lib/ui/composerFocusRegistry';
 import { BlockControlsViewSession } from './blockControlsViewSession';
-import { applyBlockMove, getDraggableBlockRanges, resolveDropTarget } from './blockControlsInteractions';
+import {
+  applyBlockMove,
+  getDraggableBlockRanges,
+  resolveBlockTargetByPos,
+  resolveDropTarget,
+} from './blockControlsInteractions';
 import { getBlockDragComposerPayload } from './blockDragVisualState';
 import { serializeSelectedBlocksToText } from './blockSelectionSerializer';
 import {
   clearCurrentEditorBlockPositionSnapshot,
   setCurrentEditorBlockPositionSnapshot,
 } from '../../utils/editorBlockPositionCache';
+import { BLOCK_CONTROLS_LEFT_OFFSET_PX } from './blockControlsGeometry';
 
 const originalElementsFromPoint = document.elementsFromPoint;
 
@@ -16,10 +22,28 @@ const mocks = vi.hoisted(() => ({
   targetTop: 40,
   selectedBlocks: [{ from: 1, to: 5 }],
   setControlsPosition: vi.fn((controls: HTMLElement, target: { rect: DOMRect }) => {
-    controls.style.left = `${Math.round(target.rect.left - 44)}px`;
+    controls.style.left = `${Math.round(target.rect.left - 60)}px`;
     controls.style.top = `${Math.round(target.rect.top + target.rect.height / 2)}px`;
   }),
 }));
+
+function createHandleTarget(pos: number, left: number, top: number, isListItem = false) {
+  return {
+    pos,
+    isListItem,
+    rect: {
+      x: left,
+      y: top,
+      left,
+      top,
+      right: left + 280,
+      bottom: top + 20,
+      width: 280,
+      height: 20,
+      toJSON: () => ({}),
+    } as DOMRect,
+  };
+}
 
 vi.mock('./blockSelectionPluginState', () => ({
   getBlockSelectionPluginState: () => ({
@@ -52,6 +76,7 @@ vi.mock('./blockControlsInteractions', () => ({
 
 vi.mock('./blockDragPreview', () => ({
   createBlockDragPreview: vi.fn(() => null),
+  createBlockDragSourceMarker: vi.fn(() => null),
 }));
 
 vi.mock('./blockSelectionSerializer', () => ({
@@ -110,6 +135,8 @@ describe('BlockControlsViewSession', () => {
     vi.mocked(applyBlockMove).mockClear();
     vi.mocked(getDraggableBlockRanges).mockClear();
     vi.mocked(getDraggableBlockRanges).mockReturnValue([{ from: 1, to: 5 }]);
+    vi.mocked(resolveBlockTargetByPos).mockClear();
+    vi.mocked(resolveBlockTargetByPos).mockImplementation(() => createHandleTarget(1, 80, mocks.targetTop));
     vi.mocked(resolveDropTarget).mockReset();
     vi.mocked(resolveDropTarget).mockReturnValue(null);
     vi.mocked(serializeSelectedBlocksToText).mockClear();
@@ -200,6 +227,117 @@ describe('BlockControlsViewSession', () => {
       await nextFrame();
 
       expect(getDraggableBlockRanges).toHaveBeenCalledTimes(1);
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('anchors the handle to the hovered block instead of the first selected block', async () => {
+    const view = createView({ scrollRoot: true });
+    const session = new BlockControlsViewSession(view);
+    const nestedFirstTarget = createHandleTarget(1, 128, 40, true);
+    const normalHoveredTarget = createHandleTarget(10, 80, 70, false);
+
+    vi.mocked(getDraggableBlockRanges).mockReturnValue([
+      { from: 1, to: 5 },
+      { from: 10, to: 15 },
+    ]);
+    vi.mocked(resolveBlockTargetByPos).mockImplementation((_view, pos) => (
+      pos === 1 ? nestedFirstTarget : normalHoveredTarget
+    ));
+
+    try {
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 80, bubbles: true }));
+      await nextFrame();
+
+      expect(mocks.setControlsPosition).toHaveBeenCalledWith(
+        expect.any(HTMLElement),
+        normalHoveredTarget,
+        BLOCK_CONTROLS_LEFT_OFFSET_PX,
+      );
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('anchors child rows to the selected outer list item when the whole parent group is selected', async () => {
+    const view = createView({ scrollRoot: true });
+    const session = new BlockControlsViewSession(view);
+    const outerParentTarget = createHandleTarget(1, 80, 40, true);
+    const nestedHoveredTarget = createHandleTarget(10, 128, 70, true);
+
+    vi.mocked(getDraggableBlockRanges).mockReturnValue([
+      { from: 1, to: 6 },
+      { from: 10, to: 15 },
+    ]);
+    vi.mocked(resolveBlockTargetByPos).mockImplementation((_view, pos) => (
+      pos === 1 ? outerParentTarget : nestedHoveredTarget
+    ));
+    (view.state.doc as any).resolve = vi.fn((pos: number) => {
+      if (pos === 1) {
+        return {
+          nodeAfter: {
+            type: { name: 'list_item' },
+            nodeSize: 18,
+          },
+        };
+      }
+      return { nodeAfter: null };
+    });
+
+    try {
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 80, bubbles: true }));
+      await nextFrame();
+
+      expect(mocks.setControlsPosition).toHaveBeenCalledWith(
+        expect.any(HTMLElement),
+        nestedHoveredTarget,
+        BLOCK_CONTROLS_LEFT_OFFSET_PX,
+        { horizontalAnchor: outerParentTarget },
+      );
+    } finally {
+      session.destroy();
+    }
+  });
+
+  it('uses the original parent selection for anchors when draggable ranges are pruned to a child block', async () => {
+    const view = createView({ scrollRoot: true });
+    const session = new BlockControlsViewSession(view);
+    const outerParentTarget = createHandleTarget(1, 80, 40, true);
+    const childBlockTarget = createHandleTarget(8, 116, 70, false);
+
+    mocks.selectedBlocks = [
+      { from: 1, to: 20 },
+      { from: 8, to: 15 },
+    ];
+    vi.mocked(getDraggableBlockRanges).mockReturnValue([
+      { from: 8, to: 15 },
+    ]);
+    vi.mocked(resolveBlockTargetByPos).mockImplementation((_view, pos) => (
+      pos === 1 ? outerParentTarget : childBlockTarget
+    ));
+    (view.state.doc as any).resolve = vi.fn((pos: number) => {
+      if (pos === 1) {
+        return {
+          nodeAfter: {
+            type: { name: 'list_item' },
+            nodeSize: 19,
+          },
+        };
+      }
+      return { nodeAfter: null };
+    });
+
+    try {
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 80, bubbles: true }));
+      await nextFrame();
+
+      expect(mocks.setControlsPosition).toHaveBeenCalledWith(
+        expect.any(HTMLElement),
+        childBlockTarget,
+        BLOCK_CONTROLS_LEFT_OFFSET_PX,
+        { horizontalAnchor: outerParentTarget },
+      );
     } finally {
       session.destroy();
     }

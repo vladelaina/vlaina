@@ -243,7 +243,7 @@ function collectListContainerRanges(
   });
 }
 
-function getListItemRangeEnd(doc: EditorState['doc'], from: number): number | null {
+export function getListItemRangeEnd(doc: EditorState['doc'], from: number): number | null {
   const safeFrom = Math.max(0, Math.min(from, doc.content.size));
   try {
     const $from = doc.resolve(safeFrom);
