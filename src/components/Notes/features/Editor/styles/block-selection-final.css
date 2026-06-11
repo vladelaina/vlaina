@@ -1,0 +1,33 @@
+/**
+ * Final block selection overrides.
+ */
+
+.milkdown .ProseMirror li :is(
+  .image-block-container,
+  .video-block,
+  [data-type='math-block'],
+  [data-type='math-inline'],
+  .mermaid-block,
+  .milkdown-table-block,
+  table
+).editor-block-selected {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.milkdown .ProseMirror li.editor-block-selected :is(
+  [data-type='math-block'],
+  .mermaid-block
+).editor-block-selected,
+.milkdown .ProseMirror li.editor-block-selected :is(
+  [data-type='math-block'],
+  .mermaid-block
+).editor-block-selected-contained {
+  box-shadow: var(--vlaina-block-selection-shadow-y) !important;
+}
+
+/* Hide native caret while a block selection is active. */
+.milkdown .ProseMirror.editor-block-selection-active {
+  caret-color: transparent !important;
+}

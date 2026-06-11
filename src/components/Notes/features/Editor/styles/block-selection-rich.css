@@ -1,0 +1,60 @@
+/**
+ * Rich block selection frames and inner background resets.
+ */
+
+/* Rich block selection frames and inner background resets. */
+.milkdown .ProseMirror .image-block-container.ProseMirror-selectednode,
+.milkdown .ProseMirror .image-block-container.editor-block-selected {
+  --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);
+  --vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);
+  background-color: var(--vlaina-block-selection-color);
+  border-radius: var(--vlaina-radius-8px);
+  box-shadow: var(--vlaina-block-selection-shadow);
+}
+
+.milkdown .ProseMirror p.editor-block-selected:has(> .image-block-container) {
+  --vlaina-block-selection-bleed-y: var(--vlaina-block-selection-bleed-y-rich);
+}
+
+.milkdown .ProseMirror .video-block.ProseMirror-selectednode::after,
+.milkdown .ProseMirror .video-block.editor-block-selected::after {
+  display: none;
+}
+
+.milkdown .ProseMirror .video-block.ProseMirror-selectednode,
+.milkdown .ProseMirror .video-block.editor-block-selected {
+  --vlaina-block-selection-color: var(--vlaina-block-selection-color-default);
+  --vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);
+  --vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);
+  background-color: var(--vlaina-block-selection-color);
+  box-shadow: var(--vlaina-block-selection-shadow);
+}
+
+.milkdown .ProseMirror .editor-block-selected :is(
+  .image-block-container,
+  .video-block,
+  [data-type='math-block'],
+  [data-type='math-inline'],
+  .mermaid-block,
+  .milkdown-table-block,
+  table
+) {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.milkdown .ProseMirror .editor-block-selected-contained:is(
+  .image-block-container,
+  .video-block,
+  [data-type='math-block'],
+  [data-type='math-inline'],
+  .mermaid-block,
+  .milkdown-table-block,
+  table
+) {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
