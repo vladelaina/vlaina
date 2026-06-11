@@ -524,8 +524,8 @@ function MarkdownSourceFallback({
     return clearPendingSave;
   }, [clearPendingSave, currentNotePath]);
 
-  const flushFallbackDraft = useCallback(() => {
-    if (isComposingRef.current) {
+  const flushFallbackDraft = useCallback((options: { force?: boolean } = {}) => {
+    if (isComposingRef.current && !options.force) {
       return false;
     }
     return flushPendingEditorMarkdown(currentNotePath, draftRef.current);
@@ -534,7 +534,7 @@ function MarkdownSourceFallback({
   useEffect(() => {
     const unregisterPendingMarkdownFlusher = setPendingEditorMarkdownFlusher(flushFallbackDraft);
     return () => {
-      flushFallbackDraft();
+      flushFallbackDraft({ force: true });
       unregisterPendingMarkdownFlusher();
     };
   }, [flushFallbackDraft]);

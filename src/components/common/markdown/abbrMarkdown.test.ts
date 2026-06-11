@@ -6,6 +6,10 @@ import {
   createAbbrUsagePattern,
   type AbbrMdastNode,
 } from './abbrMarkdown';
+import {
+  MAX_MARKDOWN_AST_NODES,
+  countMarkdownAstNodes,
+} from './markdownAstBudget';
 
 function paragraph(value: string): AbbrMdastNode {
   return {
@@ -188,5 +192,37 @@ describe('abbrMarkdown', () => {
     applyAbbrDefinitionsToTree(tree, { stripDefinitions: true });
 
     expect(tree.children?.[0].children).toEqual([{ type: 'text', value }]);
+  });
+
+  it('skips stripping abbreviation definitions from overlong text nodes', () => {
+    const value = `*[X]: Example\n${'X '.repeat(Math.ceil(MAX_ABBR_USAGE_TEXT_NODE_CHARS / 2))}X`;
+    const tree: AbbrMdastNode = {
+      type: 'root',
+      children: [paragraph(value)],
+    };
+
+    applyAbbrDefinitionsToTree(tree, { stripDefinitions: true });
+
+    expect(tree.children?.[0].children).toEqual([{ type: 'text', value }]);
+  });
+
+  it('skips abbreviation expansion when the AST growth budget is exhausted', () => {
+    const target = paragraph('X X X X X');
+    const tree: AbbrMdastNode = {
+      type: 'root',
+      children: [
+        ...Array.from({ length: MAX_MARKDOWN_AST_NODES - 10 }, (_, index) => ({
+          type: 'text',
+          value: String(index),
+        })),
+        paragraph('*[X]: Example'),
+        target,
+      ],
+    };
+
+    applyAbbrDefinitionsToTree(tree);
+
+    expect(target.children).toEqual([{ type: 'text', value: 'X X X X X' }]);
+    expect(countMarkdownAstNodes(tree)).toBeLessThanOrEqual(MAX_MARKDOWN_AST_NODES);
   });
 });

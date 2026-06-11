@@ -31,6 +31,16 @@ interface FileTreeLevelEntry {
   isDirectory: boolean;
 }
 
+interface PrioritizedStorageEntry {
+  entry: {
+    name: string;
+    isDirectory?: boolean;
+    isFile?: boolean;
+  };
+  index: number;
+  priority: number;
+}
+
 type FolderTreeNode = Extract<FileTreeNode, { isFolder: true }>;
 
 interface FolderRouteEntry {
@@ -52,6 +62,27 @@ function shouldSkipDirectory(name: string) {
 
 function shouldHideDirectory(name: string) {
   return hasInternalNotePathSegment(name);
+}
+
+function getFileTreeScanPriority(entry: { name: string; isDirectory?: boolean; isFile?: boolean }) {
+  if (entry.isDirectory === true || (entry.isFile === true && isSupportedMarkdownPath(entry.name))) {
+    return 0;
+  }
+
+  return 1;
+}
+
+function prioritizeFileTreeScanEntries<T extends { name: string; isDirectory?: boolean; isFile?: boolean }>(
+  entries: readonly T[],
+): T[] {
+  return entries
+    .map<PrioritizedStorageEntry>((entry, index) => ({
+      entry,
+      index,
+      priority: getFileTreeScanPriority(entry),
+    }))
+    .sort((left, right) => left.priority - right.priority || left.index - right.index)
+    .map(({ entry }) => entry as T);
 }
 
 async function mapWithConcurrencyLimit<T, R>(
@@ -98,7 +129,7 @@ export async function buildFileTreeLevel(
 
   const levelEntries: FileTreeLevelEntry[] = [];
 
-  for (const entry of entries) {
+  for (const entry of prioritizeFileTreeScanEntries(entries)) {
     if (budget && budget.scannedEntries >= MAX_FILE_TREE_DIRECTORY_SCAN_ENTRIES) {
       break;
     }

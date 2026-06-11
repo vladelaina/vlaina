@@ -107,4 +107,44 @@ describe('featureSlice scan cache validation', () => {
     });
     expect(store.getState().noteContentsCache.get(notePath)?.size).toBe(7);
   });
+
+  it('caps full-vault scan tree traversal across non-markdown nodes', async () => {
+    const store = createNotesStore({
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: 'early.md',
+            name: 'early.md',
+            path: 'early.md',
+            isFolder: false,
+          },
+          ...Array.from({ length: 19_999 }, (_, index) => ({
+            id: `asset-${index}.png`,
+            name: `asset-${index}.png`,
+            path: `asset-${index}.png`,
+            isFolder: false as const,
+          })),
+          {
+            id: 'late.md',
+            name: 'late.md',
+            path: 'late.md',
+            isFolder: false,
+          },
+        ],
+      },
+    });
+
+    await store.getState().scanAllNotes();
+
+    expect(mocks.stat).toHaveBeenCalledTimes(1);
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/early.md');
+    expect(mocks.readFile).not.toHaveBeenCalledWith('/vault/late.md');
+    expect(store.getState().noteContentsCache.has('early.md')).toBe(true);
+    expect(store.getState().noteContentsCache.has('late.md')).toBe(false);
+  });
 });

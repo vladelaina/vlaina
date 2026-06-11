@@ -467,6 +467,37 @@ function shouldSkipFolderMarkdownDirectory(name: string): boolean {
   );
 }
 
+function prioritizeFolderScanEntries<T extends { name: string; isDirectory?: boolean; isFile?: boolean }>(
+  entries: readonly T[],
+  getPriority: (entry: T) => number,
+): T[] {
+  return entries
+    .map((entry, index) => ({ entry, index, priority: getPriority(entry) }))
+    .sort((left, right) => left.priority - right.priority || left.index - right.index)
+    .map(({ entry }) => entry);
+}
+
+function getFolderMarkdownScanPriority(entry: { name: string; isDirectory?: boolean; isFile?: boolean }) {
+  if (!isSafeFolderMarkdownEntryName(entry.name)) {
+    return 2;
+  }
+  if (entry.isDirectory || (entry.isFile && isSupportedMarkdownPath(entry.name))) {
+    return 0;
+  }
+  return 1;
+}
+
+function getFolderListingScanPriority(entry: { name: string }) {
+  return isSafeFolderListingEntryName(entry.name) ? 0 : 1;
+}
+
+function getFolderImageScanPriority(entry: { name: string; isFile?: boolean }) {
+  if (!isSafeFolderEntryName(entry.name)) {
+    return 2;
+  }
+  return entry.isFile && IMAGE_NAME_REGEX.test(entry.name) ? 0 : 1;
+}
+
 function isInsideInternalFolderMarkdownPath(path: string): boolean {
   return hasInternalNotePathSegment(path);
 }
@@ -612,7 +643,7 @@ async function collectFolderMarkdownScanEntries(
 
   const storage = getStorageAdapter();
   const entries = await storage.listDir(folderFullPath, { includeHidden: true }).catch(() => []);
-  const visibleEntries = entries
+  const visibleEntries = prioritizeFolderScanEntries(entries, getFolderMarkdownScanPriority)
     .slice(0, MAX_FOLDER_MARKDOWN_LISTING_SCAN_ENTRIES)
     .filter((entry) => isSafeFolderMarkdownEntryName(entry.name))
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -760,7 +791,8 @@ async function loadFolderListingReference(
     };
   }
 
-  const scannedEntries = entries.slice(0, MAX_FOLDER_LISTING_SCAN_ENTRIES);
+  const scannedEntries = prioritizeFolderScanEntries(entries, getFolderListingScanPriority)
+    .slice(0, MAX_FOLDER_LISTING_SCAN_ENTRIES);
   const visibleEntries = scannedEntries
     .filter((entry) => isSafeFolderListingEntryName(entry.name))
     .sort((a, b) => {
@@ -838,7 +870,7 @@ async function loadFolderImageAttachmentsForMention(
 
   const storage = getStorageAdapter();
   const entries = await storage.listDir(folderPath).catch(() => []);
-  const imageEntries = entries
+  const imageEntries = prioritizeFolderScanEntries(entries, getFolderImageScanPriority)
     .slice(0, MAX_FOLDER_IMAGE_ATTACHMENT_SCAN_ENTRIES)
     .filter((entry) =>
       isSafeFolderEntryName(entry.name) &&

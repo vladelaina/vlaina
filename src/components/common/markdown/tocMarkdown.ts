@@ -3,7 +3,12 @@ import {
   type MarkdownSourcePosition,
 } from './delimitedMarkdown';
 import { markEscapedMarkdownBlockSyntax } from './escapedBlockSyntax';
-import { canTransformMarkdownAst } from './markdownAstBudget';
+import {
+  canTransformMarkdownAst,
+  countMarkdownAstNodes,
+  createMarkdownAstGrowthBudget,
+  type MarkdownAstGrowthBudget,
+} from './markdownAstBudget';
 
 export interface TocMdastNode {
   type: string;
@@ -178,7 +183,8 @@ function createTocNode(headings: readonly TocHeading[]): TocMdastNode {
 function replaceTocShortcutParagraphs(
   tree: TocMdastNode,
   headings: readonly TocHeading[],
-  markdown = ''
+  markdown = '',
+  growthBudget: MarkdownAstGrowthBudget = createMarkdownAstGrowthBudget(tree)
 ): void {
   let replacedTocBlocks = 0;
   const stack: Array<{ node: TocMdastNode; index: number }> = [{ node: tree, index: 0 }];
@@ -206,7 +212,11 @@ function replaceTocShortcutParagraphs(
         position: child.children[0].position,
       })) {
         if (replacedTocBlocks < MAX_TOC_BLOCKS) {
-          children.splice(index, 1, createTocNode(headings));
+          const tocNode = createTocNode(headings);
+          if (!growthBudget.consume(countMarkdownAstNodes(tocNode) - countMarkdownAstNodes(child))) {
+            continue;
+          }
+          children.splice(index, 1, tocNode);
           replacedTocBlocks += 1;
         }
       } else {
@@ -228,13 +238,17 @@ function replaceTocShortcutParagraphs(
   }
 }
 
-export function applyTocShortcutsToTree(tree: TocMdastNode, markdown = ''): void {
+export function applyTocShortcutsToTree(
+  tree: TocMdastNode,
+  markdown = '',
+  growthBudget: MarkdownAstGrowthBudget = createMarkdownAstGrowthBudget(tree)
+): void {
   if (!canTransformMarkdownAst(tree)) {
     return;
   }
 
   const headings = collectHeadings(tree);
-  replaceTocShortcutParagraphs(tree, headings, markdown);
+  replaceTocShortcutParagraphs(tree, headings, markdown, growthBudget);
 }
 
 export function remarkTocShortcuts() {

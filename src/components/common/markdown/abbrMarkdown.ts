@@ -3,7 +3,12 @@ import {
   type MarkdownSourcePosition,
 } from './delimitedMarkdown';
 import { markEscapedMarkdownBlockSyntax } from './escapedBlockSyntax';
-import { canTransformMarkdownAst } from './markdownAstBudget';
+import {
+  canTransformMarkdownAst,
+  countMarkdownAstNodeList,
+  createMarkdownAstGrowthBudget,
+  type MarkdownAstGrowthBudget,
+} from './markdownAstBudget';
 import {
   createMarkdownTextSliceNode,
   createMarkdownTextSourceMap,
@@ -37,6 +42,7 @@ const MAX_ABBR_TITLE_CHARS = 2048;
 export interface ApplyAbbrDefinitionsOptions {
   markdown?: string;
   stripDefinitions?: boolean;
+  growthBudget?: MarkdownAstGrowthBudget;
 }
 
 function escapeRegex(value: string): string {
@@ -212,6 +218,10 @@ function stripAbbrDefinitionLineNodes(
   markdown: string
 ): AbbrMdastNode[] | null {
   const value = node.value || '';
+  if (value.length > MAX_ABBR_USAGE_TEXT_NODE_CHARS) {
+    return null;
+  }
+
   const parts = value.split(/(\r?\n)/);
   let offset = 0;
   let removedLine = false;
@@ -245,7 +255,11 @@ function stripAbbrDefinitionLineNodes(
   return ranges.map((range) => createMarkdownTextSliceNode(node, sourceMap, range.start, range.end));
 }
 
-function stripAbbrDefinitionsFromTree(tree: AbbrMdastNode, markdown = ''): void {
+function stripAbbrDefinitionsFromTree(
+  tree: AbbrMdastNode,
+  markdown = '',
+  growthBudget: MarkdownAstGrowthBudget = createMarkdownAstGrowthBudget(tree)
+): void {
   function visit(node: AbbrMdastNode): boolean {
     if (SKIPPED_ABBR_NODE_TYPES.has(node.type)) return false;
 
@@ -255,6 +269,9 @@ function stripAbbrDefinitionsFromTree(tree: AbbrMdastNode, markdown = ''): void 
         if (child.type === 'text' && typeof child.value === 'string') {
           const strippedNodes = stripAbbrDefinitionLineNodes(child, markdown);
           if (strippedNodes) {
+            if (!growthBudget.consume(countMarkdownAstNodeList(strippedNodes) - 1)) {
+              continue;
+            }
             node.children.splice(childIndex, 1, ...strippedNodes);
           }
           continue;
@@ -309,11 +326,12 @@ export function applyAbbrDefinitionsToTree(
   }
 
   const markdown = options.markdown ?? '';
+  const growthBudget = options.growthBudget ?? createMarkdownAstGrowthBudget(tree);
   markEscapedAbbrDefinitionParagraphs(tree, markdown);
   const definitions = normalizeAbbrDefinitions(collectAbbrDefinitions(tree, markdown));
   const usagePattern = createAbbrUsagePattern(definitions);
   if (options.stripDefinitions) {
-    stripAbbrDefinitionsFromTree(tree, markdown);
+    stripAbbrDefinitionsFromTree(tree, markdown, growthBudget);
   }
   if (!usagePattern) return;
 
@@ -367,6 +385,7 @@ export function applyAbbrDefinitionsToTree(
       nextNodes.push(createMarkdownTextSliceNode(node, sourceMap, lastEnd, node.value.length));
     }
 
+    if (!growthBudget.consume(countMarkdownAstNodeList(nextNodes) - 1)) return;
     parent.children?.splice(index, 1, ...nextNodes);
   }
 

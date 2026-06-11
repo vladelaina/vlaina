@@ -192,6 +192,21 @@ describe('note frontmatter metadata', () => {
     });
   });
 
+  it('round-trips escaped managed YAML string scalars', () => {
+    const metadata = {
+      icon: 'quote " slash \\ icon',
+      cover: {
+        assetPath: 'assets/quote " slash \\ cover.webp',
+      },
+    };
+    const written = writeNoteMetadataToMarkdown('# Title', metadata);
+
+    expect(written).toContain('vlaina_icon: "quote \\" slash \\\\ icon"');
+    expect(written).toContain('vlaina_cover: "assets/quote \\" slash \\\\ cover.webp"');
+    expect(readNoteMetadataFromMarkdown(written)).toEqual(metadata);
+    expect(writeNoteMetadataToMarkdown(written, readNoteMetadataFromMarkdown(written))).toBe(written);
+  });
+
   it('updates managed fields without dropping markdown body content', () => {
     const markdown = '# Title\n\nBody';
 

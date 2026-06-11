@@ -113,18 +113,15 @@ function scrubOverflowHistoryHtmlImagesInRange(content: string, range: ContentRa
     }
 
     const tagEnd = findHtmlTagEnd(content, start, range.end);
-    if (tagEnd === -1 || tagEnd > range.end || tagEnd - start > MAX_REQUEST_HISTORY_IMAGE_TARGET_CHARS) {
-      if (htmlImageTagPrefixHasHistoryImageSrc(content, start)) {
-        const scrubEnd = tagEnd === -1
-          ? getOverflowHistoryMarkdownImageScrubEnd(content, start + 4, range.end)
-          : tagEnd;
-        output += content.slice(cursor, start);
-        output += IMAGE_PLACEHOLDER;
-        cursor = scrubEnd;
-      } else {
-        output += content.slice(cursor, start + 4);
-        cursor = start + 4;
-      }
+    const isUnboundedImageTag =
+      tagEnd === -1 || tagEnd > range.end || tagEnd - start > MAX_REQUEST_HISTORY_IMAGE_TARGET_CHARS;
+    if (isUnboundedImageTag) {
+      const scrubEnd = tagEnd === -1
+        ? getOverflowHistoryMarkdownImageScrubEnd(content, start + 4, range.end)
+        : tagEnd;
+      output += content.slice(cursor, start);
+      output += IMAGE_PLACEHOLDER;
+      cursor = scrubEnd;
       continue;
     }
 
@@ -142,13 +139,6 @@ function scrubOverflowHistoryHtmlImagesInRange(content: string, range: ContentRa
   }
 
   return output;
-}
-
-function htmlImageTagPrefixHasHistoryImageSrc(content: string, tagStart: number): boolean {
-  const prefixEnd = Math.min(content.length, tagStart + MAX_REQUEST_HISTORY_IMAGE_TARGET_CHARS);
-  const tagPrefix = `${content.slice(tagStart, prefixEnd)}>`;
-  const src = parseHtmlImageSrcTokenFromTag(tagPrefix)?.src;
-  return typeof src === 'string' && isHistoryImageSource(src);
 }
 
 function scrubOverflowHistoryMarkdownImages(content: string): string {
@@ -698,7 +688,13 @@ export function buildRequestHistory(options: BuildRequestHistoryOptions): ChatMe
     return trimHistoryToBudget(history, MAX_REQUEST_HISTORY_CHARS);
   }
 
-  const mergedSystemMessage = createSystemMessage(systemParts.join('\n\n'), modelId);
+  const mergedSystemMessage = createSystemMessage(
+    clipContentToBudget(
+      systemParts.join('\n\n'),
+      Math.max(MAX_REQUEST_HISTORY_CHARS - REQUEST_HISTORY_MESSAGE_OVERHEAD, 0)
+    ),
+    modelId
+  );
   const availableHistoryChars = Math.max(
     MAX_REQUEST_HISTORY_CHARS - mergedSystemMessage.content.length - REQUEST_HISTORY_MESSAGE_OVERHEAD,
     0

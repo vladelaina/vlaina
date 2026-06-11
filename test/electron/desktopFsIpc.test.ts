@@ -193,4 +193,5 @@ describe('desktop filesystem ipc', () => {
       'File path is not authorized for desktop access',
     );
   });
+
 });

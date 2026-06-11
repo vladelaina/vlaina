@@ -102,7 +102,7 @@ describe('folder markdown mention scan budgets', () => {
     expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/z-alpha.md');
   });
 
-  it('caps folder mention directory listing scans before processing every unsupported file', async () => {
+  it('prioritizes markdown notes before applying the folder mention listing scan cap', async () => {
     const entries = Array.from({ length: 5000 }, (_value, index) => ({
       name: `asset-${String(index).padStart(4, '0')}.png`,
       path: `/vault/docs/asset-${String(index).padStart(4, '0')}.png`,
@@ -111,23 +111,28 @@ describe('folder markdown mention scan budgets', () => {
       size: 1024,
     }));
     entries.push({
-      get name() {
-        throw new Error('listing scan cap was not applied');
-      },
+      name: 'late.md',
       path: '/vault/docs/late.md',
       isDirectory: false,
       isFile: true,
       size: 128,
-    } as never);
+    });
     mocks.storage.listDir.mockResolvedValue(entries);
+    mocks.storage.readFile.mockResolvedValue('# Late');
 
     const notes = await loadMentionedNotes([
       { path: 'docs', title: 'Docs', kind: 'folder' },
     ]);
 
-    expect(notes).toHaveLength(1);
-    expect(notes[0]?.content).toContain('Directory listing:');
-    expect(mocks.storage.readFile).not.toHaveBeenCalled();
+    expect(notes.slice(1)).toEqual([
+      {
+        path: 'docs/late.md',
+        title: 'Docs/late',
+        kind: 'note',
+        content: '# Late',
+      },
+    ]);
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/late.md');
   });
 
   it('scans user dot markdown while skipping internal and generated folders', async () => {

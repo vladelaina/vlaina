@@ -34,6 +34,8 @@ const AI_PROVIDER_TRANSPORT_RETRY_DELAYS_MS = [300];
 const AI_PROVIDER_FAST_FAILURE_RETRY_WINDOW_MS = 2000;
 const MAX_DESKTOP_FS_READ_BYTES = 64 * 1024 * 1024;
 const MAX_DESKTOP_FS_WRITE_BYTES = MAX_DESKTOP_FS_READ_BYTES;
+const MAX_DESKTOP_FS_LIST_DIR_ENTRIES = 20_000;
+const DESKTOP_MARKDOWN_FILE_EXTENSION_PATTERN = /\.(?:md|markdown|mdown|mkd)$/i;
 const MAX_AI_PROVIDER_REQUEST_BODY_BYTES = 64 * 1024 * 1024;
 const MAX_AI_PROVIDER_REQUEST_BODY_BASE64_CHARS = Math.ceil(MAX_AI_PROVIDER_REQUEST_BODY_BYTES / 3) * 4;
 const MAX_AI_PROVIDER_RESPONSE_IPC_CHUNK_BYTES = 256 * 1024;
@@ -399,6 +401,25 @@ async function describeDesktopDirectoryEntry(parentPath, entry) {
       isFile: false,
     };
   }
+}
+
+function getDesktopDirectoryEntryListPriority(entry) {
+  if (DESKTOP_MARKDOWN_FILE_EXTENSION_PATTERN.test(entry.name)) {
+    return 0;
+  }
+
+  if (entry.isDirectory?.()) {
+    return 0;
+  }
+
+  return 1;
+}
+
+function prioritizeDesktopDirectoryEntriesForListing(entries) {
+  return entries
+    .map((entry, index) => ({ entry, index, priority: getDesktopDirectoryEntryListPriority(entry) }))
+    .sort((left, right) => left.priority - right.priority || left.index - right.index)
+    .map(({ entry }) => entry);
 }
 
 function normalizeDesktopBinaryWriteBytes(bytes) {
@@ -856,7 +877,10 @@ export function registerDesktopIpc({
       throw error;
     }
     const result = [];
-    for (const entry of entries) {
+    for (const entry of prioritizeDesktopDirectoryEntriesForListing(entries)) {
+      if (result.length >= MAX_DESKTOP_FS_LIST_DIR_ENTRIES) {
+        break;
+      }
       result.push(await describeDesktopDirectoryEntry(resolvedPath, entry));
     }
     return result;

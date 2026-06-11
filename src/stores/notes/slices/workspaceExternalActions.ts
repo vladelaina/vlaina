@@ -252,16 +252,32 @@ export function createWorkspaceExternalActions(
 
       const nextCurrentNote = remapCurrentNoteForExternalRename(currentNote, oldPath, newPath);
       const nextOpenTabs = remapOpenTabsForExternalRename(openTabs, oldPath, newPath);
-      const nextDisplayNames = remapDisplayNamesForExternalRename(displayNames, oldPath, newPath);
+      const shouldDropExistingRenameTarget =
+        oldPath !== newPath && !shouldRemoveForExternalDeletion(newPath, oldPath);
+      const displayNamesForRename = shouldDropExistingRenameTarget
+        ? pruneDisplayNamesForExternalDeletion(displayNames, newPath)
+        : displayNames;
+      const cacheForRename = shouldDropExistingRenameTarget
+        ? pruneCachedNoteContents(
+            noteContentsCache,
+            (path) => path === newPath || path.startsWith(`${newPath}/`),
+          )
+        : noteContentsCache;
+      const metadataForRename = shouldDropExistingRenameTarget
+        ? remapMetadataEntries(noteMetadata, (path) => (
+            path === newPath || path.startsWith(`${newPath}/`) ? null : path
+          ))
+        : noteMetadata;
+      const nextDisplayNames = remapDisplayNamesForExternalRename(displayNamesForRename, oldPath, newPath);
       const nextRecentNotes = remapRecentNotesForExternalRename(recentNotes, oldPath, newPath);
       const nextRecentlyClosedTabs = remapRecentlyClosedTabsForExternalRename(recentlyClosedTabs, oldPath, newPath);
-      const nextCache = remapCachedNoteContents(noteContentsCache, (path) => {
+      const nextCache = remapCachedNoteContents(cacheForRename, (path) => {
         if (path === oldPath) return newPath;
         if (path.startsWith(`${oldPath}/`)) return `${newPath}${path.slice(oldPath.length)}`;
         return path;
       });
 
-      const nextMetadata = remapMetadataEntries(noteMetadata, (path) => {
+      const nextMetadata = remapMetadataEntries(metadataForRename, (path) => {
         if (path === oldPath) return newPath;
         if (path.startsWith(`${oldPath}/`)) return `${newPath}${path.slice(oldPath.length)}`;
         return path;
@@ -287,12 +303,17 @@ export function createWorkspaceExternalActions(
       }
 
       const renamedNode = rootFolder ? findNode(rootFolder.children, oldPath) : null;
+      const renamedNodeTitle = getNoteTitleFromPath(newPath);
+      const treeChildrenWithoutRenameTarget =
+        rootFolder && shouldDropExistingRenameTarget
+          ? removeNodeFromTree(rootFolder.children, newPath)
+          : rootFolder?.children;
       const nextRootFolder = rootFolder
         ? buildSortedRootFolder(
             rootFolder,
             renamedNode?.isFolder
-              ? updateFolderNode(rootFolder.children, oldPath, getNoteTitleFromPath(newPath), newPath)
-              : updateFileNodePath(rootFolder.children, oldPath, newPath, getNoteTitleFromPath(newPath)),
+              ? updateFolderNode(treeChildrenWithoutRenameTarget ?? [], oldPath, renamedNodeTitle, newPath)
+              : updateFileNodePath(treeChildrenWithoutRenameTarget ?? [], oldPath, newPath, renamedNodeTitle),
             fileTreeSortMode,
             nextMetadata ?? noteMetadata
           )

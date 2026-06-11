@@ -1,7 +1,71 @@
 import { useEffect, useMemo, useState } from 'react';
 import { translate } from '@/lib/i18n';
-import { generateMermaidId, renderMermaid as renderMermaidMarkup } from './mermaidRenderer';
+import {
+  generateMermaidId,
+  mermaidRenderErrorMarkup,
+  renderMermaid as renderMermaidMarkup,
+} from './mermaidRenderer';
 import { sanitizeMermaidMarkup } from './mermaidSanitizer';
+
+const READONLY_MERMAID_RENDER_CACHE_LIMIT = 80;
+export const MAX_PENDING_READONLY_MERMAID_RENDERS = 80;
+const readOnlyMermaidMarkupCache = new Map<string, string>();
+const readOnlyMermaidRenderPromiseCache = new Map<string, Promise<string>>();
+
+function readCachedReadOnlyMermaidMarkup(code: string) {
+  const cached = readOnlyMermaidMarkupCache.get(code);
+  if (cached == null) {
+    return null;
+  }
+
+  readOnlyMermaidMarkupCache.delete(code);
+  readOnlyMermaidMarkupCache.set(code, cached);
+  return cached;
+}
+
+function cacheReadOnlyMermaidMarkup(code: string, markup: string) {
+  readOnlyMermaidMarkupCache.set(code, markup);
+  while (readOnlyMermaidMarkupCache.size > READONLY_MERMAID_RENDER_CACHE_LIMIT) {
+    const oldestKey = readOnlyMermaidMarkupCache.keys().next().value;
+    if (typeof oldestKey !== 'string') {
+      break;
+    }
+    readOnlyMermaidMarkupCache.delete(oldestKey);
+  }
+  return markup;
+}
+
+export function clearReadOnlyMermaidRenderCaches() {
+  readOnlyMermaidMarkupCache.clear();
+  readOnlyMermaidRenderPromiseCache.clear();
+}
+
+export function getPendingReadOnlyMermaidRenderCount() {
+  return readOnlyMermaidRenderPromiseCache.size;
+}
+
+export async function resolveReadOnlyMermaidMarkup(code: string) {
+  const cached = readCachedReadOnlyMermaidMarkup(code);
+  if (cached != null) {
+    return cached;
+  }
+
+  const existingPromise = readOnlyMermaidRenderPromiseCache.get(code);
+  if (existingPromise) {
+    return existingPromise;
+  }
+  if (readOnlyMermaidRenderPromiseCache.size >= MAX_PENDING_READONLY_MERMAID_RENDERS) {
+    return sanitizeMermaidMarkup(mermaidRenderErrorMarkup());
+  }
+
+  const promise = renderReadOnlyMermaid(code)
+    .then((markup) => cacheReadOnlyMermaidMarkup(code, markup))
+    .finally(() => {
+      readOnlyMermaidRenderPromiseCache.delete(code);
+    });
+  readOnlyMermaidRenderPromiseCache.set(code, promise);
+  return promise;
+}
 
 async function renderReadOnlyMermaid(code: string) {
   const markup = await renderMermaidMarkup(code, generateMermaidId());
@@ -25,7 +89,7 @@ export function ReadOnlyMermaidBlock({ code }: ReadOnlyMermaidBlockProps) {
       return;
     }
 
-    void renderReadOnlyMermaid(normalizedCode).then((nextMarkup) => {
+    void resolveReadOnlyMermaidMarkup(normalizedCode).then((nextMarkup) => {
       if (cancelled) return;
       if (!nextMarkup) {
         setFailed(true);

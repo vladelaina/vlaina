@@ -87,6 +87,43 @@ function stringifySessionMessagesPayload(sessionId: string, messages: ChatMessag
   return JSON.stringify(payload, null, 2);
 }
 
+function getBoundedUtf8ByteLength(value: string, maxBytes: number): number {
+  let bytes = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code <= 0x7f) {
+      bytes += 1;
+    } else if (code <= 0x7ff) {
+      bytes += 2;
+    } else if (
+      code >= 0xd800 &&
+      code <= 0xdbff &&
+      index + 1 < value.length
+    ) {
+      const next = value.charCodeAt(index + 1);
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        bytes += 4;
+        index += 1;
+      } else {
+        bytes += 3;
+      }
+    } else {
+      bytes += 3;
+    }
+
+    if (bytes > maxBytes) {
+      return maxBytes + 1;
+    }
+  }
+
+  return bytes;
+}
+
+function isWithinSessionMessagesByteLimit(value: string): boolean {
+  return getBoundedUtf8ByteLength(value, MAX_SESSION_MESSAGES_BYTES) <= MAX_SESSION_MESSAGES_BYTES;
+}
+
 function serializeBoundedSessionMessages(sessionId: string, messages: ChatMessage[]): string {
   let best = stringifySessionMessagesPayload(sessionId, []);
   if (messages.length === 0) return best;
@@ -95,7 +132,7 @@ function serializeBoundedSessionMessages(sessionId: string, messages: ChatMessag
   let nextCount = 1;
   while (nextCount <= messages.length) {
     const candidate = stringifySessionMessagesPayload(sessionId, messages.slice(0, nextCount));
-    if (candidate.length > MAX_SESSION_MESSAGES_BYTES) {
+    if (!isWithinSessionMessagesByteLimit(candidate)) {
       break;
     }
     best = candidate;
@@ -112,7 +149,7 @@ function serializeBoundedSessionMessages(sessionId: string, messages: ChatMessag
   while (low <= high) {
     const mid = Math.floor((low + high) / 2);
     const candidate = stringifySessionMessagesPayload(sessionId, messages.slice(0, mid));
-    if (candidate.length <= MAX_SESSION_MESSAGES_BYTES) {
+    if (isWithinSessionMessagesByteLimit(candidate)) {
       best = candidate;
       low = mid + 1;
     } else {
@@ -730,7 +767,7 @@ async function readSessionJsonContent(path: string): Promise<string | null> {
   if (content === null) {
     return null;
   }
-  return content.length <= MAX_SESSION_MESSAGES_BYTES ? content : null;
+  return isWithinSessionMessagesByteLimit(content) ? content : null;
 }
 
 export async function saveSessionJson(sessionId: string, messages: ChatMessage[]) {

@@ -5,6 +5,10 @@ import {
   replaceUnderlineMarkdown,
   type ColorMarkdownMdastNode,
 } from './colorMarkdown';
+import {
+  MAX_MARKDOWN_AST_NODES,
+  countMarkdownAstNodes,
+} from './markdownAstBudget';
 
 function buildDeepTree(leafChildren: ColorMarkdownMdastNode[]): {
   leaf: ColorMarkdownMdastNode;
@@ -127,5 +131,27 @@ describe('colorMarkdown', () => {
     replaceUnderlineMarkdown(tree);
 
     expect(leaf.children).toEqual(leafChildren);
+  });
+
+  it('skips underline expansion when the AST growth budget is exhausted', () => {
+    const target = { type: 'text', value: '++a++ ++a++ ++a++ ++a++ ++a++' };
+    const tree: ColorMarkdownMdastNode = {
+      type: 'root',
+      children: [{
+        type: 'paragraph',
+        children: [
+          ...Array.from({ length: MAX_MARKDOWN_AST_NODES - 8 }, (_, index) => ({
+            type: 'text',
+            value: String(index),
+          })),
+          target,
+        ],
+      }],
+    };
+
+    replaceUnderlineMarkdown(tree);
+
+    expect(tree.children?.[0].children?.at(-1)).toBe(target);
+    expect(countMarkdownAstNodes(tree)).toBeLessThanOrEqual(MAX_MARKDOWN_AST_NODES);
   });
 });

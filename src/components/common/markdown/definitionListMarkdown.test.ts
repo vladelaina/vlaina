@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { applyDefinitionListsToTree, type DefinitionListMdastNode } from './definitionListMarkdown';
+import {
+  MAX_MARKDOWN_AST_NODES,
+  countMarkdownAstNodes,
+} from './markdownAstBudget';
 
 function paragraph(children: DefinitionListMdastNode[]): DefinitionListMdastNode {
   return {
@@ -119,5 +123,24 @@ describe('definitionListMarkdown', () => {
       paragraph([text(longTerm)]),
       paragraph([text(': Definition')]),
     ]);
+  });
+
+  it('skips definition-list conversion when the AST growth budget is exhausted', () => {
+    const term = paragraph([text('Term')]);
+    const description = paragraph([text(': Definition')]);
+    const tree: DefinitionListMdastNode = {
+      type: 'root',
+      children: [
+        ...Array.from({ length: MAX_MARKDOWN_AST_NODES - 6 }, (_, index) => text(String(index))),
+        term,
+        description,
+      ],
+    };
+
+    applyDefinitionListsToTree(tree);
+
+    expect(tree.children?.at(-2)).toBe(term);
+    expect(tree.children?.at(-1)).toBe(description);
+    expect(countMarkdownAstNodes(tree)).toBeLessThanOrEqual(MAX_MARKDOWN_AST_NODES);
   });
 });

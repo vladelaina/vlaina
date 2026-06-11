@@ -1,9 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MAX_INLINE_IMAGE_BYTES } from '@/lib/markdown/dataImagePolicy';
-import { isSvgDataUrl, rasterizeSvgBlobToPngBlob, rasterizeSvgDataUrlToPng } from './svgRasterize';
+import {
+  clearSvgRasterizeState,
+  getPendingSvgRasterizeCount,
+  isSvgDataUrl,
+  MAX_PENDING_SVG_RASTERIZATIONS,
+  rasterizeSvgBlobToPngBlob,
+  rasterizeSvgDataUrlToPng,
+} from './svgRasterize';
 
 describe('svgRasterize', () => {
   afterEach(() => {
+    clearSvgRasterizeState();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -119,5 +127,75 @@ describe('svgRasterize', () => {
     }) as typeof document.createElement);
 
     await expect(rasterizeSvgDataUrlToPng('data:image/svg+xml,%3Csvg%3E%3C%2Fsvg%3E')).resolves.toBeNull();
+  });
+
+  it('coalesces duplicate SVG data URL rasterizations', async () => {
+    const imageInstances: Array<{ onload: (() => void) | null; onerror: (() => void) | null }> = [];
+    vi.stubGlobal('Image', class {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      constructor() {
+        imageInstances.push(this);
+      }
+      set src(_value: string) {}
+    });
+
+    const originalCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation(((tagName: string, options?: ElementCreationOptions) => {
+      if (tagName === 'canvas') {
+        return {
+          width: 0,
+          height: 0,
+          getContext: () => ({
+            clearRect: vi.fn(),
+            drawImage: vi.fn(),
+          }),
+          toDataURL: () => 'data:image/png;base64,RASTER',
+        } as unknown as HTMLCanvasElement;
+      }
+      return originalCreateElement(tagName, options);
+    }) as typeof document.createElement);
+
+    const src = 'data:image/svg+xml,%3Csvg%20width%3D%221%22%20height%3D%221%22%3E%3C%2Fsvg%3E';
+    const first = rasterizeSvgDataUrlToPng(src);
+    const second = rasterizeSvgDataUrlToPng(src);
+
+    expect(imageInstances).toHaveLength(1);
+    expect(getPendingSvgRasterizeCount()).toBe(1);
+
+    imageInstances[0].onload?.();
+
+    await expect(first).resolves.toBe('data:image/png;base64,RASTER');
+    await expect(second).resolves.toBe('data:image/png;base64,RASTER');
+    expect(getPendingSvgRasterizeCount()).toBe(0);
+  });
+
+  it('bounds pending SVG data URL rasterizations', async () => {
+    const imageInstances: Array<{ onload: (() => void) | null; onerror: (() => void) | null }> = [];
+    vi.stubGlobal('Image', class {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      constructor() {
+        imageInstances.push(this);
+      }
+      set src(_value: string) {}
+    });
+
+    const renders = Array.from({ length: MAX_PENDING_SVG_RASTERIZATIONS }, (_value, index) =>
+      rasterizeSvgDataUrlToPng(
+        `data:image/svg+xml,${encodeURIComponent(`<svg width="1" height="1"><text>${index}</text></svg>`)}`
+      )
+    );
+    renders.forEach((render) => {
+      render.catch(() => undefined);
+    });
+
+    expect(getPendingSvgRasterizeCount()).toBe(MAX_PENDING_SVG_RASTERIZATIONS);
+    await expect(rasterizeSvgDataUrlToPng('data:image/svg+xml,%3Csvg%3Eoverflow%3C%2Fsvg%3E')).resolves.toBeNull();
+    expect(imageInstances).toHaveLength(MAX_PENDING_SVG_RASTERIZATIONS);
+
+    imageInstances.forEach((image) => image.onerror?.());
+    await Promise.all(renders);
+    expect(getPendingSvgRasterizeCount()).toBe(0);
   });
 });

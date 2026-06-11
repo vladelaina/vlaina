@@ -41,20 +41,38 @@ export function remapOpenTabsForExternalRename(
 ): NotesStore['openTabs'] {
   const oldTitle = getNoteTitleFromPath(oldPath);
   const newTitle = getNoteTitleFromPath(newPath);
+  const mergedTabs: NotesStore['openTabs'] = [];
+  const tabIndexByPath = new Map<string, number>();
 
-  return openTabs.map((tab) => {
+  for (const tab of openTabs) {
     const nextPath = remapPathForExternalRename(tab.path, oldPath, newPath);
-    if (nextPath === tab.path) {
-      return tab;
+    const shouldUpdateTitle = tab.path === oldPath && tab.name === oldTitle;
+    const nextTab = nextPath === tab.path
+      ? tab
+      : {
+          ...tab,
+          path: nextPath,
+          name: shouldUpdateTitle ? newTitle : tab.name,
+        };
+    const existingIndex = tabIndexByPath.get(nextPath);
+    if (existingIndex === undefined) {
+      tabIndexByPath.set(nextPath, mergedTabs.length);
+      mergedTabs.push(nextTab);
+      continue;
     }
 
-    const shouldUpdateTitle = tab.path === oldPath && tab.name === oldTitle;
-    return {
-      ...tab,
-      path: nextPath,
-      name: shouldUpdateTitle ? newTitle : tab.name,
+    const existingTab = mergedTabs[existingIndex]!;
+    const defaultName = getNoteTitleFromPath(nextPath);
+    mergedTabs[existingIndex] = {
+      ...existingTab,
+      isDirty: existingTab.isDirty || nextTab.isDirty,
+      name: existingTab.name === defaultName && nextTab.name !== defaultName
+        ? nextTab.name
+        : existingTab.name,
     };
-  });
+  }
+
+  return mergedTabs;
 }
 
 export function pruneOpenTabsForExternalDeletion(

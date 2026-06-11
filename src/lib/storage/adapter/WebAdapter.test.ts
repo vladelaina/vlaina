@@ -202,6 +202,52 @@ describe('WebAdapter', () => {
     );
   });
 
+  it('prioritizes markdown files and directories before applying the list cap', async () => {
+    const adapterWithScans = adapter as unknown as {
+      readStoredFilesByPrefix: (prefix: string) => Promise<unknown[]>;
+      readStoredDirsByPrefix: (prefix: string) => Promise<unknown[]>;
+    };
+    adapterWithScans.readStoredFilesByPrefix = async () => [
+      ...Array.from({ length: MAX_WEB_ADAPTER_LIST_ENTRIES }, (_, index) => ({
+        path: `/vault/asset-${String(index).padStart(5, '0')}.png`,
+        content: new Uint8Array([index % 255]),
+        isBinary: true,
+        size: 1,
+        modifiedAt: index,
+        createdAt: index,
+      })),
+      {
+        path: '/vault/late.md',
+        content: 'late',
+        isBinary: false,
+        size: 4,
+        modifiedAt: 1,
+        createdAt: 1,
+      },
+    ];
+    adapterWithScans.readStoredDirsByPrefix = async () => [
+      {
+        path: '/vault/docs',
+        createdAt: 1,
+      },
+    ];
+
+    const entries = await adapter.listDir('/vault', { includeHidden: true });
+
+    expect(entries).toHaveLength(MAX_WEB_ADAPTER_LIST_ENTRIES);
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'late.md', path: '/vault/late.md', isFile: true }),
+        expect.objectContaining({ name: 'docs', path: '/vault/docs', isDirectory: true }),
+      ]),
+    );
+    expect(entries).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'asset-19999.png' }),
+      ]),
+    );
+  });
+
   it('renames implicit parent directories with their stored child files', async () => {
     await adapter.writeFile('/vault/docs/a.md', 'hello');
 
