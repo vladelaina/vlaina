@@ -23,7 +23,10 @@ import { flushStarredRegistry } from '@/stores/notes/starred';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { getCurrentEditorView } from '@/components/Notes/features/Editor/utils/editorViewRegistry';
 import { collectSelectableBlockTargets } from '@/components/Notes/features/Editor/plugins/cursor/blockUnitResolver';
-import { dispatchBlockSelectionAction } from '@/components/Notes/features/Editor/plugins/cursor/blockSelectionPluginState';
+import {
+  blankAreaDragBoxPluginKey,
+  dispatchBlockSelectionAction,
+} from '@/components/Notes/features/Editor/plugins/cursor/blockSelectionPluginState';
 import { floatingToolbarKey } from '@/components/Notes/features/Editor/plugins/floating-toolbar/floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from '@/components/Notes/features/Editor/plugins/floating-toolbar/types';
 import type { UnifiedData } from '@/lib/storage/unifiedStorageTypes';
@@ -175,6 +178,20 @@ export interface E2EBridge {
   flushCurrentEditorMarkdown(): Promise<boolean>;
   selectNoteBlocksByText(texts: string[]): Promise<number>;
   selectNoteBlocksByIndexes(indexes: number[]): Promise<number>;
+  measureGrowingBlockSelectionByIndexCounts(counts: number[]): Promise<{
+    selectableCount: number;
+    collectTargetsMs: number;
+    results: Array<{
+      requestedCount: number;
+      selectedStateCount: number;
+      selectedDomCount: number;
+      lineFillCount: number;
+      dispatchMs: number;
+      firstFrameMs: number;
+      secondFrameMs: number;
+      totalMs: number;
+    }>;
+  }>;
   getNotesState(): Pick<NotesState, 'currentNote' | 'isDirty' | 'error' | 'openTabs'>;
   getNoteContentCacheEntry(path: string): {
     hasEntry: boolean;
@@ -905,6 +922,50 @@ export function installSyncE2EBridge(): void {
         : { type: 'clear-blocks' });
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       return ranges.length;
+    },
+    measureGrowingBlockSelectionByIndexCounts: async (counts) => {
+      const view = getCurrentEditorView();
+      if (!view) {
+        return {
+          selectableCount: 0,
+          collectTargetsMs: 0,
+          results: [],
+        };
+      }
+
+      const collectStartedAt = performance.now();
+      const targets = collectSelectableBlockTargets(view);
+      const collectTargetsMs = performance.now() - collectStartedAt;
+      const results = [];
+
+      for (const requestedCount of counts) {
+        const ranges = targets.slice(0, requestedCount).map((target) => target.range);
+        const startedAt = performance.now();
+        dispatchBlockSelectionAction(view, ranges.length > 0
+          ? { type: 'set-blocks', blocks: ranges }
+          : { type: 'clear-blocks' });
+        const dispatchedAt = performance.now();
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        const firstFrameAt = performance.now();
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        const secondFrameAt = performance.now();
+        results.push({
+          requestedCount,
+          selectedStateCount: (blankAreaDragBoxPluginKey.getState(view.state)?.selectedBlocks ?? []).length,
+          selectedDomCount: document.querySelectorAll('.milkdown .ProseMirror .editor-block-selected').length,
+          lineFillCount: document.querySelectorAll('.editor-block-selection-line-fill').length,
+          dispatchMs: Math.round((dispatchedAt - startedAt) * 10) / 10,
+          firstFrameMs: Math.round((firstFrameAt - dispatchedAt) * 10) / 10,
+          secondFrameMs: Math.round((secondFrameAt - firstFrameAt) * 10) / 10,
+          totalMs: Math.round((secondFrameAt - startedAt) * 10) / 10,
+        });
+      }
+
+      return {
+        selectableCount: targets.length,
+        collectTargetsMs: Math.round(collectTargetsMs * 10) / 10,
+        results,
+      };
     },
     getNotesState: () => {
       const { currentNote, isDirty, error, openTabs } = useNotesStore.getState();
