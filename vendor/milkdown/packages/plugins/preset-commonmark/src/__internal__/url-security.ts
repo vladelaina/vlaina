@@ -11,13 +11,18 @@ const maxRemoteMediaUrlChars = 16 * 1024
 const maxInternalImageSrcChars = 16 * 1024
 const internalImagePathSegments = new Set(['.vlaina', '.git'])
 const maxInternalImageUrlDecodeDepth = 3
+const httpAuthorityUrlPattern = /^https?:\/\//i
 
 function getUrlBase() {
   return typeof window !== 'undefined' ? window.location.href : fallbackUrlBase
 }
 
 function hasUnsafeBackslashUrlSyntax(value: string) {
-  return value.startsWith('\\') || (schemePattern.test(value) && value.includes('\\'))
+  return value.includes('\\') && (
+    value.startsWith('\\') ||
+    value.startsWith('//') ||
+    schemePattern.test(value)
+  )
 }
 
 function hasInternalImagePathSegment(path: string) {
@@ -162,7 +167,7 @@ export function isPublicRemoteMediaUrl(value: string) {
   if (trimmed.length > maxRemoteMediaUrlChars) return false
   if (controlOrBidiPattern.test(trimmed)) return false
   if (hasUnsafeBackslashUrlSyntax(trimmed)) return false
-  if (!trimmed.startsWith('//') && !/^https?:/i.test(trimmed)) return false
+  if (!trimmed.startsWith('//') && !httpAuthorityUrlPattern.test(trimmed)) return false
   const normalized = trimmed.startsWith('//') ? `https:${trimmed}` : trimmed
   try {
     const url = new URL(normalized, getUrlBase())
@@ -225,6 +230,7 @@ export function sanitizeMediaSrc(value: unknown) {
   }
   if (!safeMediaSchemes.has(normalizedScheme)) return null
   if ((normalizedScheme === 'http:' || normalizedScheme === 'https:' || normalizedScheme === 'blob:') && trimmed.length > maxRemoteMediaUrlChars) return null
+  if ((normalizedScheme === 'http:' || normalizedScheme === 'https:') && !httpAuthorityUrlPattern.test(trimmed)) return null
   if ((normalizedScheme === 'http:' || normalizedScheme === 'https:') && (isLocalNetworkHttpUrl(trimmed) || hasUrlCredentials(trimmed))) return null
   return trimmed
 }

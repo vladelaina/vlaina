@@ -55,11 +55,9 @@ function buildMessageImageGallery(message: ChatMessage): DerivedCollection<ChatI
     return { items: [], signature: '' };
   }
 
-  const sources = message.imageSources && message.imageSources.length > 0
-    ? message.imageSources
-    : extractRenderedMessageImageSources(message.content || '', {
-        maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
-      });
+  const sources = extractRenderedMessageImageSources(message.content || '', {
+    maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+  });
   const renderableSources = normalizeRenderedMessageImageSources(sources);
 
   if (renderableSources.length === 0) {

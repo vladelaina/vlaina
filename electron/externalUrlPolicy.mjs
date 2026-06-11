@@ -1,5 +1,7 @@
 export const MAX_ELECTRON_EXTERNAL_URL_CHARS = 4096;
 const CONTROL_OR_BIDI_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
+const HTTP_AUTHORITY_URL_PATTERN = /^https?:\/\//i;
+const PROXY_AUTHORITY_URL_PATTERN = /^(?:https?|socks[45]):\/\//i;
 
 function isUrlTooLong(value) {
   return value.length > MAX_ELECTRON_EXTERNAL_URL_CHARS;
@@ -137,6 +139,9 @@ export function normalizeProxyConfig(rawProxy, source) {
 
   try {
     const parsed = new URL(proxy);
+    if (!PROXY_AUTHORITY_URL_PATTERN.test(proxy)) {
+      return null;
+    }
     if (!['http:', 'https:', 'socks4:', 'socks5:'].includes(parsed.protocol)) {
       return null;
     }
@@ -174,6 +179,12 @@ export function normalizeExternalUrl(rawUrl) {
   const parsed = new URL(trimmed);
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:' && parsed.protocol !== 'mailto:') {
     throw new Error(`Unsupported external URL protocol: ${parsed.protocol}`);
+  }
+  if ((parsed.protocol === 'http:' || parsed.protocol === 'https:') && !HTTP_AUTHORITY_URL_PATTERN.test(trimmed)) {
+    throw new Error('HTTP external URLs must include an authority.');
+  }
+  if (parsed.username || parsed.password) {
+    throw new Error('External URLs with credentials are not allowed.');
   }
   if (isLocalNetworkHttpUrl(parsed)) {
     throw new Error('Local-network external URLs are not allowed.');

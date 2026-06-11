@@ -48,6 +48,7 @@ import {
   formatMarkdownImage,
 } from '@/lib/markdown/markdownImageMarkdown';
 import { scrubOverflowMarkdownDataImages } from '@/lib/markdown/overflowDataImageScrubber';
+import { replaceRenderableMessageImageTokens } from '@/lib/markdown/renderableImageTokens';
 
 const IMAGE_NAME_REGEX = /\.(png|jpe?g|webp|gif|bmp|avif|svg)(?:$|[?#])/i;
 const MAX_NOTE_MENTION_COUNT = 3;
@@ -320,10 +321,11 @@ function collectStoredUserMessageImages(content: string): {
 }
 
 function scrubOverflowStoredInlineDataImageSyntax(content: string): string {
-  return scrubOverflowMarkdownDataImages(content, {
+  const withoutMarkdownDataImages = scrubOverflowMarkdownDataImages(content, {
     replacement: '',
     maxTargetChars: MAX_NOTE_MENTION_READ_BYTES,
   });
+  return replaceRenderableMessageImageTokens(withoutMarkdownDataImages, '');
 }
 
 export async function buildStoredUserMessageContent(content: string): Promise<ChatMessageContent> {

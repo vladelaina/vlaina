@@ -258,7 +258,7 @@ describe('useStableChatMessageDerivatives', () => {
     ]));
   });
 
-  it('excludes video URLs from known assistant image sources', async () => {
+  it('ignores stale assistant image source caches when content has no image tokens', async () => {
     const assistant = {
       ...createMessage('a1', 'assistant', ''),
       imageSources: [
@@ -276,9 +276,7 @@ describe('useStableChatMessageDerivatives', () => {
       },
     );
 
-    await waitFor(() => expect(view.result.current.imageGallery).toEqual([
-      { id: 'a1:0', src: 'https://example.com/real.png' },
-    ]));
+    await waitFor(() => expect(view.result.current.imageGallery).toEqual([]));
   });
 
   it('bounds assistant gallery sources derived from markdown content', () => {

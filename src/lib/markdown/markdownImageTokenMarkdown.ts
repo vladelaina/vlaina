@@ -1,6 +1,6 @@
 import {
+  collectHtmlTagRanges,
   getHtmlCommentRanges,
-  getHtmlTagRanges,
   getInlineCodeRanges,
   getMarkdownHtmlBlockRanges,
   getRangeEndAtOffset,
@@ -23,6 +23,10 @@ const MARKDOWN_LINK_DESTINATION_ESCAPE_AT_PATTERN = /^\\[!"#$%&'()*+,\-./:;<=>?@
 const MAX_MARKDOWN_IMAGE_PROTECTION_RANGES = 4000;
 export const MAX_MARKDOWN_IMAGE_PART_SCAN_CHARS = 1024 * 1024;
 const MAX_FAILED_MARKDOWN_IMAGE_PART_SCAN_CHARS = 4 * MAX_MARKDOWN_IMAGE_PART_SCAN_CHARS;
+
+function sortContentRanges(ranges: ContentRange[]): ContentRange[] {
+  return ranges.sort((left, right) => left.start === right.start ? left.end - right.end : left.start - right.start);
+}
 
 function getFirstMarkdownImageTargetSegment(value: string): string {
   let index = 0;
@@ -205,7 +209,8 @@ export function collectMarkdownImageTokensInRange(
     : Number.POSITIVE_INFINITY;
   const inlineCodeRanges = getInlineCodeRanges(content, range, protectionRangeScanLimit);
   const htmlCommentRanges = getHtmlCommentRanges(content, range, protectionRangeScanLimit);
-  const htmlTagRanges = getHtmlTagRanges(content, range, protectionRangeScanLimit);
+  const htmlTagScan = collectHtmlTagRanges(content, range, protectionRangeScanLimit);
+  const htmlTagRanges = sortContentRanges([...htmlTagScan.ranges, ...htmlTagScan.protectedRanges]);
   const htmlBlockRanges = getMarkdownHtmlBlockRanges(content, range, protectionRangeScanLimit);
   const rawTextHtmlRanges = getRawTextHtmlRanges(content, range, protectionRangeScanLimit);
   if (

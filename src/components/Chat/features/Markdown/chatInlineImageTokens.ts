@@ -118,7 +118,7 @@ export function compactLargeDataImageMarkdown(markdown: string): CompactedChatMa
   const compactedMarkdown = replaced > 0 ? parts.join('') : markdown;
 
   return {
-    markdown: tokens.length >= MAX_SCANNED_INLINE_IMAGE_TOKENS
+    markdown: DATA_IMAGE_TARGET_HINT_PATTERN.test(compactedMarkdown)
       ? scrubChatInlineDataImageSyntax(compactedMarkdown)
       : compactedMarkdown,
     imageSrcByToken,

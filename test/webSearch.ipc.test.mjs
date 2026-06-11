@@ -43,6 +43,63 @@ describe('web search IPC', () => {
     });
   });
 
+  it('bounds search IPC inputs before invoking the search service', async () => {
+    const { handlers, services } = collectHandlers();
+    const searchHandler = handlers.get('desktop:web-search:search');
+
+    await searchHandler(null, '  catime  ', {
+      category: ' news ',
+      timeRange: 'x'.repeat(65),
+      limit: '5',
+    });
+
+    expect(services.searchService.webSearch).toHaveBeenCalledWith('catime', {
+      category: 'news',
+      timeRange: undefined,
+      limit: 5,
+      signal: undefined,
+    });
+
+    await expect(searchHandler(null, 'x'.repeat(1001), { limit: 5 })).rejects.toMatchObject({
+      code: 'invalid_query',
+    });
+    expect(services.searchService.webSearch).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds read IPC inputs before invoking the crawler', async () => {
+    const { handlers, services } = collectHandlers();
+    services.crawler.readUrl.mockResolvedValue({
+      title: 'Example',
+      summary: '',
+      siteName: 'example.com',
+      finalUrl: 'https://example.com',
+      content: 'content',
+      charCount: 7,
+    });
+
+    const readBatchHandler = handlers.get('desktop:web-search:read-batch');
+    await readBatchHandler(
+      null,
+      [
+        ' https://example.com/one ',
+        'https://example.com/two',
+        ...Array.from({ length: 10 }, (_, index) => `https://example.com/extra-${index}`),
+      ],
+      { retries: '1', contentLimit: '3000' },
+    );
+
+    expect(services.crawler.readUrl).toHaveBeenCalledTimes(8);
+    expect(services.crawler.readUrl).toHaveBeenNthCalledWith(1, 'https://example.com/one', expect.objectContaining({
+      retries: 1,
+      contentLimit: 3000,
+    }));
+
+    await expect(readBatchHandler(null, ['https://example.com/'.padEnd(4097, 'x')], {})).rejects.toMatchObject({
+      code: 'invalid_url',
+    });
+    expect(services.crawler.readUrl).toHaveBeenCalledTimes(8);
+  });
+
   it('cancels an in-flight search request by request id', async () => {
     const handlers = new Map();
     const services = {

@@ -78,7 +78,11 @@ async function resolveStoredPath(notesPath: string, path: string): Promise<strin
 }
 
 function normalizeStoredNotePath(path: string): string {
-  return isAbsolutePath(path) ? normalizeAbsolutePath(path) : path;
+  if (isAbsolutePath(path)) {
+    return normalizeAbsolutePath(path);
+  }
+
+  return normalizeVaultRelativePath(path) ?? path;
 }
 
 function hasUnsafeStoredNotePathSegment(path: string): boolean {

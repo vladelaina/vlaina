@@ -1,3 +1,5 @@
+import { MAX_INLINE_IMAGE_BASE64_CHARS } from './dataImagePolicy';
+
 export interface ContentRange {
   start: number;
   end: number;
@@ -7,6 +9,15 @@ interface HtmlTagStart {
   closing: boolean;
   name: string;
 }
+
+export interface HtmlTagRangeScan {
+  exhaustedAt: number | null;
+  protectedRanges: ContentRange[];
+  ranges: ContentRange[];
+}
+
+export const MAX_HTML_TAG_END_SCAN_CHARS = 64 * 1024;
+const MAX_HTML_IMAGE_TAG_END_SCAN_CHARS = MAX_INLINE_IMAGE_BASE64_CHARS + 4096;
 
 const MARKDOWN_ESCAPABLE_PUNCTUATION = new Set(
   Array.from('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~')
@@ -139,6 +150,32 @@ function isSelfClosingTag(content: string, start: number, end: number): boolean 
   return /\/\s*>$/.test(content.slice(start, end));
 }
 
+function normalizeRangeLimit(maxRanges: number): number {
+  return Number.isFinite(maxRanges)
+    ? Math.max(0, Math.floor(maxRanges))
+    : maxRanges === Number.POSITIVE_INFINITY
+      ? Number.POSITIVE_INFINITY
+      : 0;
+}
+
+function getHtmlTagScanEnd(start: number, rangeEnd: number, tagName: string): number {
+  const maxScanChars = tagName === "img"
+    ? MAX_HTML_IMAGE_TAG_END_SCAN_CHARS
+    : MAX_HTML_TAG_END_SCAN_CHARS;
+  return Math.min(rangeEnd, start + maxScanChars + 1);
+}
+
+function getOverflowHtmlTagProtectionEnd(content: string, start: number, rangeEnd: number): number {
+  const lineFeed = content.indexOf("\n", start);
+  const carriageReturn = content.indexOf("\r", start);
+  const lineEnd = Math.min(
+    lineFeed === -1 ? rangeEnd : lineFeed,
+    carriageReturn === -1 ? rangeEnd : carriageReturn,
+    rangeEnd,
+  );
+  return Math.min(rangeEnd, Math.max(start + 1, lineEnd));
+}
+
 function scanRawTextContainerEnd(content: string, tagName: string, start: number, end: number): number | null {
   let cursor = start;
   let depth = 1;
@@ -155,9 +192,10 @@ function scanRawTextContainerEnd(content: string, tagName: string, start: number
       continue;
     }
 
-    const tagEnd = findHtmlTagEnd(content, nextTagStart, end);
+    const tagEnd = findHtmlTagEnd(content, nextTagStart, getHtmlTagScanEnd(nextTagStart, end, tagStart.name));
     if (tagEnd === -1) {
-      return null;
+      cursor = getOverflowHtmlTagProtectionEnd(content, nextTagStart, end);
+      continue;
     }
 
     if (tagStart.name === tagName) {
@@ -181,16 +219,21 @@ export function getHtmlTagRanges(
   range: ContentRange,
   maxRanges = Number.POSITIVE_INFINITY,
 ): ContentRange[] {
-  const rangeLimit = Number.isFinite(maxRanges)
-    ? Math.max(0, Math.floor(maxRanges))
-    : maxRanges === Number.POSITIVE_INFINITY
-      ? Number.POSITIVE_INFINITY
-      : 0;
+  return collectHtmlTagRanges(content, range, maxRanges).ranges;
+}
+
+export function collectHtmlTagRanges(
+  content: string,
+  range: ContentRange,
+  maxRanges = Number.POSITIVE_INFINITY,
+): HtmlTagRangeScan {
+  const rangeLimit = normalizeRangeLimit(maxRanges);
   if (rangeLimit <= 0) {
-    return [];
+    return { exhaustedAt: range.start, protectedRanges: [], ranges: [] };
   }
 
   const ranges: ContentRange[] = [];
+  const protectedRanges: ContentRange[] = [];
   let cursor = range.start;
 
   while (cursor < range.end) {
@@ -208,23 +251,30 @@ export function getHtmlTagRanges(
       cursor = nonTagEnd;
       continue;
     }
-    if (!readHtmlTagStart(content, start, range.end)) {
+    const tagStart = readHtmlTagStart(content, start, range.end);
+    if (!tagStart) {
       cursor = start + 1;
       continue;
     }
 
-    const end = findHtmlTagEnd(content, start, range.end);
+    const end = findHtmlTagEnd(content, start, getHtmlTagScanEnd(start, range.end, tagStart.name));
     if (end === -1) {
-      break;
+      const protectedEnd = getOverflowHtmlTagProtectionEnd(content, start, range.end);
+      protectedRanges.push({ start, end: protectedEnd });
+      cursor = protectedEnd;
+      if (ranges.length + protectedRanges.length >= rangeLimit) {
+        return { exhaustedAt: cursor, protectedRanges, ranges };
+      }
+      continue;
     }
     ranges.push({ start, end });
-    if (ranges.length >= rangeLimit) {
-      break;
-    }
     cursor = end;
+    if (ranges.length + protectedRanges.length >= rangeLimit) {
+      return { exhaustedAt: cursor, protectedRanges, ranges };
+    }
   }
 
-  return ranges;
+  return { exhaustedAt: null, protectedRanges, ranges };
 }
 
 function getRawTextHtmlRangesForTags(
@@ -233,11 +283,7 @@ function getRawTextHtmlRangesForTags(
   tagNames: ReadonlySet<string>,
   maxRanges = Number.POSITIVE_INFINITY,
 ): ContentRange[] {
-  const rangeLimit = Number.isFinite(maxRanges)
-    ? Math.max(0, Math.floor(maxRanges))
-    : maxRanges === Number.POSITIVE_INFINITY
-      ? Number.POSITIVE_INFINITY
-      : 0;
+  const rangeLimit = normalizeRangeLimit(maxRanges);
   if (rangeLimit <= 0) {
     return [];
   }
@@ -261,12 +307,16 @@ function getRawTextHtmlRangesForTags(
       continue;
     }
 
-    const tagEnd = findHtmlTagEnd(content, nextTagStart, range.end);
+    const tagEnd = findHtmlTagEnd(content, nextTagStart, getHtmlTagScanEnd(nextTagStart, range.end, tagStart.name));
     if (tagEnd === -1) {
       if (tagNames.has(tagStart.name) && !tagStart.closing) {
-        ranges.push({ start: nextTagStart, end: range.end });
+        ranges.push({ start: nextTagStart, end: getOverflowHtmlTagProtectionEnd(content, nextTagStart, range.end) });
       }
-      break;
+      if (ranges.length >= rangeLimit) {
+        break;
+      }
+      cursor = getOverflowHtmlTagProtectionEnd(content, nextTagStart, range.end);
+      continue;
     }
     if (tagStart.closing || !tagNames.has(tagStart.name)) {
       cursor = tagEnd;

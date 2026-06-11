@@ -92,6 +92,18 @@ describe('sanitizeRawHtmlUrlProperties', () => {
     expect(node.properties.sandbox).toBe('allow-scripts');
   });
 
+  it('drops protocol-relative urls with backslashes at the HAST layer', () => {
+    const iframe = element('iframe', { src: String.raw`//example.com\embed` });
+    const video = element('video', { poster: String.raw`//example.com\poster.png` });
+
+    sanitizeRawHtmlUrlProperties(iframe);
+    sanitizeRawHtmlUrlProperties(video);
+
+    expect(iframe.tagName).toBe('span');
+    expect(iframe.properties).toEqual({});
+    expect(video.properties).not.toHaveProperty('poster');
+  });
+
   it('drops document-relative iframe sources at the HAST layer', () => {
     for (const src of ['#self', '?embed', 'embed.html', './embed.html']) {
       const node = element('iframe', { src });

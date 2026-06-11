@@ -43,6 +43,18 @@ describe('normalizeEscapedUrlSchemes', () => {
     expect(normalizeEscapedUrlSchemes('[site](https\\://example.com/a)')).toBe(
       '[site](https://example.com/a)'
     );
+    expect(normalizeEscapedUrlSchemes('HTTPS\\://example.com/a')).toBe(
+      'HTTPS://example.com/a'
+    );
+  });
+
+  it('keeps escaped separators for unsupported URL schemes', () => {
+    expect(normalizeEscapedUrlSchemes('javascript\\://alert(1)')).toBe(
+      'javascript\\://alert(1)'
+    );
+    expect(normalizeEscapedUrlSchemes('file\\:///tmp/secret.png')).toBe(
+      'file\\:///tmp/secret.png'
+    );
   });
 
   it('does not remove escaped colons from ordinary text', () => {
@@ -782,6 +794,9 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(normalizeSerializedMarkdownDocument('http\\://example.test:8317')).toBe(
       'http://example.test:8317'
     );
+    expect(normalizeSerializedMarkdownDocument('javascript\\://alert(1)')).toBe(
+      'javascript\\://alert(1)'
+    );
   });
 
   it('unwraps markdown autolink URL literals in persisted markdown', () => {
@@ -1104,6 +1119,9 @@ describe('normalizeSerializedMarkdownSelection', () => {
   it('restores escaped URL scheme separators in copied selections', () => {
     expect(normalizeSerializedMarkdownSelection('http\\://example.test:8317\n')).toBe(
       'http://example.test:8317'
+    );
+    expect(normalizeSerializedMarkdownSelection('file\\:///tmp/secret.png\n')).toBe(
+      'file\\:///tmp/secret.png'
     );
   });
 

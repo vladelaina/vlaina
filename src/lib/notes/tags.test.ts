@@ -1,11 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
+import { MAX_HTML_TAG_END_SCAN_CHARS } from '../markdown/markdownHtmlRanges';
 import { extractNoteTagOccurrences, extractNoteTags } from './tags';
 
 describe('note tags', () => {
   it('excludes tags from bounded leading frontmatter', () => {
     expect(extractNoteTags([
       '---',
+      'tags: #hidden',
+      '---',
+      '',
+      '#visible',
+    ].join('\n'))).toEqual(['visible']);
+  });
+
+  it('excludes tags from bounded leading frontmatter after a UTF-8 BOM', () => {
+    expect(extractNoteTags([
+      '\uFEFF---',
       'tags: #hidden',
       '---',
       '',
@@ -98,6 +109,17 @@ describe('note tags', () => {
       '<!DOCTYPE #hidden-declaration>',
       '#visible',
     ].join('\n'))).toEqual(['visible']);
+  });
+
+  it('excludes tags from inline HTML comments', () => {
+    expect(extractNoteTags('text <!-- #hidden --> #visible')).toEqual(['visible']);
+  });
+
+  it('excludes tags from overlong inline HTML tags while keeping later tags visible', () => {
+    const badLine = `<span data-topic="#hidden ${'a'.repeat(MAX_HTML_TAG_END_SCAN_CHARS)}`;
+    const content = `${badLine}\n#visible`;
+
+    expect(extractNoteTags(content)).toEqual(['visible']);
   });
 
   it('caps extracted tag occurrences from a single document', () => {

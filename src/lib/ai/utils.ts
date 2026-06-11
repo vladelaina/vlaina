@@ -2,6 +2,8 @@ import type { AIModel } from './types'
 
 export const MAX_MODEL_ID_DERIVATION_CHARS = 4096
 export const MAX_GENERATED_MODEL_NAME_PARTS = 128
+const API_HOST_AUTHORITY_URL_PATTERN = /^https?:\/\//i
+const UNSAFE_API_HOST_URL_CHARS_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/
 
 export function buildScopedModelId(providerId: string, apiModelId: string): string {
   return `${providerId}::${apiModelId}`
@@ -67,11 +69,30 @@ export function generateModelGroup(modelId: string): string {
 }
 
 export function normalizeApiHost(url: string): string {
+  const trimmed = url.trim()
+  if (
+    !trimmed ||
+    !API_HOST_AUTHORITY_URL_PATTERN.test(trimmed) ||
+    UNSAFE_API_HOST_URL_CHARS_PATTERN.test(trimmed) ||
+    trimmed.includes('\\')
+  ) {
+    throw new Error('AI provider API host is not supported.')
+  }
+
   try {
-    const parsed = new URL(url)
+    const parsed = new URL(trimmed)
+    if (
+      (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
+      parsed.username ||
+      parsed.password ||
+      parsed.search ||
+      parsed.hash
+    ) {
+      throw new Error('AI provider API host is not supported.')
+    }
     return `${parsed.protocol}//${parsed.host}${parsed.pathname}`.replace(/\/$/, '')
   } catch {
-    return url
+    throw new Error('AI provider API host is not supported.')
   }
 }
 

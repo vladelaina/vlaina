@@ -1,5 +1,8 @@
-import { getRawTextHtmlRanges } from '../markdown/markdownHtmlRanges';
-import { getMarkdownHtmlBlockRanges } from '../markdown/markdownRanges';
+import {
+  collectHtmlTagRanges as collectMarkdownHtmlTagRanges,
+  getRawTextHtmlRanges,
+} from '../markdown/markdownHtmlRanges';
+import { getHtmlCommentRanges, getMarkdownHtmlBlockRanges } from '../markdown/markdownRanges';
 
 const MAX_NOTE_TAG_TOKEN_CHARS = 128;
 const MAX_NOTE_TAG_OCCURRENCES = 2000;
@@ -8,6 +11,7 @@ const MAX_EXCLUDED_RANGES = 50_000;
 const MAX_FRONTMATTER_DELIMITER_LINE_CHARS = 1024;
 const MAX_FRONTMATTER_CHARS = 256 * 1024;
 const MAX_FRONTMATTER_LINES = 2048;
+const UTF8_BOM = '\uFEFF';
 
 const TAG_PATTERN = /(?<![\p{L}\p{N}_/-])#([\p{L}\p{N}_/-][\p{L}\p{N}_/-]{0,127})/gu;
 const TAG_BODY_CHARACTER_PATTERN = /^[\p{L}\p{N}_/-]$/u;
@@ -98,7 +102,8 @@ function readLine(value: string, start: number, maxContentEnd = value.length): R
 
 function getLeadingFrontmatterEnd(content: string): number | null {
   const firstLine = readLine(content, 0, MAX_FRONTMATTER_DELIMITER_LINE_CHARS + 1);
-  if (firstLine.truncated || !FRONTMATTER_DELIMITER_PATTERN.test(firstLine.line)) {
+  const firstLineText = firstLine.line.startsWith(UTF8_BOM) ? firstLine.line.slice(1) : firstLine.line;
+  if (firstLine.truncated || !FRONTMATTER_DELIMITER_PATTERN.test(firstLineText)) {
     return null;
   }
 
@@ -296,14 +301,30 @@ function collectMarkdownHtmlBlockRanges(content: string, ranges: NoteMarkdownExc
 }
 
 function collectHtmlTagRanges(content: string, ranges: NoteMarkdownExcludedRange[]): void {
-  for (let index = 0; index < content.length && ranges.length < MAX_EXCLUDED_RANGES; index += 1) {
-    if (content[index] !== '<') {
-      continue;
+  let remainingRanges = MAX_EXCLUDED_RANGES - ranges.length;
+  if (remainingRanges <= 0) {
+    return;
+  }
+
+  for (const range of getHtmlCommentRanges(content, { start: 0, end: content.length }, remainingRanges)) {
+    pushExcludedRange(ranges, { from: range.start, to: range.end });
+    if (ranges.length >= MAX_EXCLUDED_RANGES) {
+      return;
     }
-    const end = scanHtmlTagEnd(content, index);
-    if (end !== null) {
-      pushExcludedRange(ranges, { from: index, to: end });
-      index = end - 1;
+  }
+
+  remainingRanges = MAX_EXCLUDED_RANGES - ranges.length;
+  if (remainingRanges <= 0) {
+    return;
+  }
+
+  const htmlTagScan = collectMarkdownHtmlTagRanges(content, { start: 0, end: content.length }, remainingRanges);
+  const htmlTagRanges = [...htmlTagScan.ranges, ...htmlTagScan.protectedRanges]
+    .sort((left, right) => left.start - right.start || left.end - right.end);
+  for (const range of htmlTagRanges) {
+    pushExcludedRange(ranges, { from: range.start, to: range.end });
+    if (ranges.length >= MAX_EXCLUDED_RANGES) {
+      return;
     }
   }
 }
@@ -365,32 +386,6 @@ function scanLinkTargetEnd(content: string, openParenIndex: number): number | nu
     } else if (character === ')') {
       depth -= 1;
       if (depth === 0) return index;
-    } else if (character === '\n') {
-      return null;
-    }
-  }
-  return null;
-}
-
-function scanHtmlTagEnd(content: string, start: number): number | null {
-  if (content.startsWith('<!--', start)) {
-    const closeIndex = content.indexOf('-->', start + 4);
-    return closeIndex === -1 ? content.length : closeIndex + 3;
-  }
-  if (!/^<\/?[A-Za-z][A-Za-z0-9:-]*(?:\s|\/?>|$)/.test(content.slice(start))) {
-    return null;
-  }
-  let quote: string | null = null;
-  for (let index = start + 1; index < content.length; index += 1) {
-    const character = content[index] ?? '';
-    if (quote) {
-      if (character === quote) quote = null;
-      continue;
-    }
-    if (character === '"' || character === "'") {
-      quote = character;
-    } else if (character === '>') {
-      return index + 1;
     } else if (character === '\n') {
       return null;
     }

@@ -57,8 +57,10 @@ vi.mock('./notesExternalSyncUtils', () => ({
   getFsPathComparisonKey: (path: string) => (
     /^[a-z]:\//i.test(path) || path.startsWith('//') ? path.toLowerCase() : path
   ),
-  isCreateWatchEvent: (event: WatchEvent) => typeof event.type !== 'string' && 'create' in event.type,
-  isRemoveWatchEvent: (event: WatchEvent) => typeof event.type !== 'string' && 'remove' in event.type,
+  isCreateWatchEvent: (event: WatchEvent) =>
+    typeof event.type === 'object' && event.type !== null && 'create' in event.type,
+  isRemoveWatchEvent: (event: WatchEvent) =>
+    typeof event.type === 'object' && event.type !== null && 'remove' in event.type,
   normalizeFsPath: (path: string) => path.replace(/\\/g, '/'),
 }));
 

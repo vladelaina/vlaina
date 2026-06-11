@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { MAX_HTML_TAG_END_SCAN_CHARS } from '@/lib/markdown/markdownHtmlRanges';
 import {
   getNotesSidebarContentMatches,
   MAX_CONTENT_SEARCH_HTML_RANGES,
@@ -61,6 +62,26 @@ describe('notesSidebarContentSearch', () => {
     ]);
   });
 
+  it('does not match leading frontmatter content after a UTF-8 BOM', () => {
+    const content = [
+      '\uFEFF---',
+      'title: hidden target',
+      'tags: hidden-target',
+      '---',
+      '',
+      'visible target',
+    ].join('\n');
+
+    expect(getNotesSidebarContentMatches(content, 'hidden')).toEqual([]);
+    expect(getNotesSidebarContentMatches(content, 'target')).toEqual([
+      {
+        matchIndex: 8,
+        ordinal: 0,
+        snippet: 'visible target',
+      },
+    ]);
+  });
+
   it('searches decoded markdown character references as visible text', () => {
     const content = 'Fish &amp; Chips and &#x1F363; are visible';
 
@@ -100,6 +121,20 @@ describe('notesSidebarContentSearch', () => {
 
     expect(getNotesSidebarContentMatches(content, 'comment')).toEqual([]);
     expect(getNotesSidebarContentMatches(content, 'attribute')).toEqual([]);
+    expect(getNotesSidebarContentMatches(content, 'target')).toEqual([
+      {
+        matchIndex: 8,
+        ordinal: 0,
+        snippet: 'visible target',
+      },
+    ]);
+  });
+
+  it('does not match overlong inline HTML tag attributes', () => {
+    const badLine = `<span title="hidden overlong target ${'a'.repeat(MAX_HTML_TAG_END_SCAN_CHARS)}`;
+    const content = `${badLine}\nvisible target`;
+
+    expect(getNotesSidebarContentMatches(content, 'overlong')).toEqual([]);
     expect(getNotesSidebarContentMatches(content, 'target')).toEqual([
       {
         matchIndex: 8,

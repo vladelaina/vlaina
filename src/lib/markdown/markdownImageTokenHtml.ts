@@ -1,6 +1,6 @@
 import {
+  collectHtmlTagRanges,
   getHtmlCommentRanges,
-  getHtmlTagRanges,
   getInlineCodeRanges,
   getRawTextHtmlRanges,
   isEscapedMarkdownPunctuation,
@@ -45,12 +45,15 @@ export function parseHtmlImageTokensInRange(
   ];
   const htmlTagRanges: ContentRange[] = [];
   const maxHtmlTagRanges = Number.isFinite(maxTokens) ? MAX_HTML_IMAGE_TAG_SCAN_RANGES : Number.POSITIVE_INFINITY;
+  let scannedHtmlTagRanges = 0;
 
   for (const scanRange of getNonExcludedContentRanges(range, ignoredRanges)) {
-    if (htmlTagRanges.length >= maxHtmlTagRanges) {
+    if (scannedHtmlTagRanges >= maxHtmlTagRanges) {
       break;
     }
-    htmlTagRanges.push(...getHtmlTagRanges(content, scanRange, maxHtmlTagRanges - htmlTagRanges.length));
+    const tagScan = collectHtmlTagRanges(content, scanRange, maxHtmlTagRanges - scannedHtmlTagRanges);
+    htmlTagRanges.push(...tagScan.ranges);
+    scannedHtmlTagRanges += tagScan.ranges.length + tagScan.protectedRanges.length;
   }
 
   for (const tagRange of htmlTagRanges) {

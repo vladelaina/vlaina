@@ -94,12 +94,7 @@ export function parseUserMessageContentWithKnownImages(
     } else if (content.startsWith(plainToken, cursor)) {
       cursor += plainToken.length;
     } else {
-      return {
-        imageSources: safeImageSources,
-        text: stripMessageImageTokens(content, {
-          maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
-        }).trim(),
-      };
+      return parseUserMessageContent(content);
     }
 
     while (content[cursor] === '\n' || content[cursor] === '\r') {

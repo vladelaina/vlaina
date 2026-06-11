@@ -56,6 +56,14 @@ describe('providerFetch', () => {
     expect(mocks.bridge.aiProvider.cancelRequest).toHaveBeenCalledTimes(1);
   });
 
+  it('rejects ambiguous desktop provider request URLs before reaching the bridge', async () => {
+    await expect(providerFetch('https:api.example.com/v1/models', {
+      method: 'GET',
+    })).rejects.toThrow('AI provider request URL is not supported.');
+
+    expect(mocks.bridge.aiProvider.startRequest).not.toHaveBeenCalled();
+  });
+
   it('does not return desktop provider metadata after signal cancellation', async () => {
     const controller = new AbortController();
     mocks.bridge.aiProvider.startRequest.mockImplementationOnce(async () => {
@@ -186,6 +194,21 @@ describe('providerFetch', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('rejects unsafe web provider request URLs before fetch', async () => {
+    mocks.bridgeValue = null;
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(providerFetch('http:/api.example.com/v1/models', {
+      method: 'GET',
+    })).rejects.toThrow('AI provider request URL is not supported.');
+    await expect(providerFetch('https://user:pass@api.example.com/v1/models', {
+      method: 'GET',
+    })).rejects.toThrow('AI provider request URL is not supported.');
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('retries abort-shaped web GET failures when the caller did not cancel', async () => {

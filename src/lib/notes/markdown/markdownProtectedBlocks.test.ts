@@ -28,6 +28,30 @@ describe('markdown protected blocks', () => {
     ].join('\n'));
   });
 
+  it('does not transform leading YAML frontmatter after a UTF-8 BOM', () => {
+    const markdown = [
+      '\uFEFF---',
+      'title: Alpha',
+      'items:',
+      '  -苹果',
+      '---',
+      '',
+      '-香蕉',
+    ].join('\n');
+
+    expect(
+      mapMarkdownOutsideProtectedSegments(markdown, (segment) => segment.replace(/-/g, '*'))
+    ).toBe([
+      '\uFEFF---',
+      'title: Alpha',
+      'items:',
+      '  -苹果',
+      '---',
+      '',
+      '*香蕉',
+    ].join('\n'));
+  });
+
   it('treats unmatched leading frontmatter delimiters as normal markdown', () => {
     const markdown = ['---', 'Body'].join('\n');
 

@@ -32,8 +32,9 @@ import {
   runWithSessionMutationLocks,
 } from '@/lib/ai/sessionMutationLock'
 import { parseMarkdownAndHtmlImageTokens, type ImageToken } from '@/components/Chat/common/messageImageTokens'
-import { normalizeRenderableDataImageSrc } from '@/components/common/markdown/imagePolicy'
+import { normalizeRenderableDataImageSrc, normalizeRenderableImageSrc } from '@/components/common/markdown/imagePolicy'
 import { scrubOverflowMarkdownDataImages } from '@/lib/markdown/overflowDataImageScrubber'
+import { parseVideoUrl } from '@/lib/markdown/videoUrl'
 
 let switchSessionGeneration = 0;
 const inlineImagePersistenceSessions = new Set<string>()
@@ -42,6 +43,7 @@ const inlineImagePersistenceScheduledSessions = new Set<string>()
 type InlineImageSourceGroups = Map<string, Set<string>>
 const INLINE_DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i
 const MARKDOWN_INLINE_DATA_IMAGE_HINT_PATTERN = /!\[[^\]\n]{0,512}\]\(\s*<?\s*data(?::|&|&#)/i
+const MESSAGE_IMAGE_TOKEN_HINT_PATTERN = /!\[[^\]\n]{0,512}\]\(|<img\b/i
 export const MAX_INLINE_IMAGE_PERSISTENCE_PENDING_SESSIONS = 100
 const MAX_INLINE_IMAGE_PERSISTENCE_MESSAGE_NODES = 10_000
 const MAX_INLINE_IMAGE_PERSISTENCE_VERSIONS = 20
@@ -130,6 +132,37 @@ function collectInlineImageSourcesFromContent(content: string | undefined, group
   parseMarkdownAndHtmlImageTokens(content, {
     maxTokens: MAX_INLINE_IMAGE_TOKENS_PER_CONTENT,
   }).forEach((token) => addInlineImageSource(groups, token.src))
+}
+
+function deriveMessageImageSourcesFromContent(content: string): string[] | undefined {
+  if (!content || !MESSAGE_IMAGE_TOKEN_HINT_PATTERN.test(content)) {
+    return undefined
+  }
+
+  const sources: string[] = []
+  for (const token of parseMarkdownAndHtmlImageTokens(content, {
+    maxTokens: MAX_INLINE_IMAGE_TOKENS_PER_CONTENT,
+  })) {
+    const source = normalizeRenderableImageSrc(token.src)
+    if (source && !parseVideoUrl(source)) {
+      sources.push(source)
+      if (sources.length >= MAX_INLINE_IMAGE_PERSISTENCE_SOURCES) {
+        break
+      }
+    }
+  }
+
+  return sources.length > 0 ? sources : undefined
+}
+
+function areImageSourcesEqual(left: readonly string[] | undefined, right: readonly string[] | undefined) {
+  if (left === right) {
+    return true
+  }
+  if (!left || !right || left.length !== right.length) {
+    return false
+  }
+  return left.every((source, index) => source === right[index])
 }
 
 function collectInlineImageSourcesFromApiContent(content: ChatMessageContent | null | undefined, groups: InlineImageSourceGroups) {
@@ -321,7 +354,6 @@ function collectInlineImageSources(messages: ChatMessage[], groups: InlineImageS
 
       collectInlineImageSourcesFromContent(message.content, groups)
       collectInlineImageSourcesFromApiTranscript(message.apiTranscript, groups)
-      message.imageSources?.forEach((source) => addInlineImageSource(groups, source))
       message.versions?.slice(0, MAX_INLINE_IMAGE_PERSISTENCE_VERSIONS).forEach((version) => {
         if (version.content !== message.content) {
           collectInlineImageSourcesFromContent(version.content, groups)
@@ -377,11 +409,15 @@ function applyImageSourceReplacements(
     if (nextContent !== message.content) {
       context.changed = true
     }
+    const nextImageSources = deriveMessageImageSourcesFromContent(nextContent)
+    if (!areImageSourcesEqual(message.imageSources, nextImageSources)) {
+      context.changed = true
+    }
     nextMessages.push({
       ...message,
       content: nextContent,
       apiTranscript: replaceApiTranscriptSources(message.apiTranscript, replacements, context),
-      imageSources: message.imageSources?.map((source) => replacements.get(source) || source),
+      imageSources: nextImageSources,
       versions: message.versions?.map((version, versionIndex) => {
         if (versionIndex >= MAX_INLINE_IMAGE_PERSISTENCE_VERSIONS) {
           return version

@@ -29,4 +29,34 @@ describe('markdown serialization frontmatter', () => {
       '2. 继续',
     ].join('\n'));
   });
+
+  it('does not normalize markdown-like syntax inside BOM-prefixed leading YAML frontmatter', () => {
+    const markdown = [
+      '\uFEFF---',
+      'title: Alpha',
+      'url: http\\://example.test:8317',
+      'items:',
+      '  -苹果',
+      '---',
+      '',
+      '1.正文',
+      '2.继续',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe([
+      '---',
+      'title: Alpha',
+      'url: http\\://example.test:8317',
+      'items:',
+      '  -苹果',
+      '---',
+      '',
+      '1. 正文',
+      '2. 继续',
+    ].join('\n'));
+  });
+
+  it('removes a UTF-8 BOM from markdown without frontmatter', () => {
+    expect(normalizeSerializedMarkdownDocument('\uFEFF# Title')).toBe('# Title');
+  });
 });

@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { isMarkdownImageOnlyLine } from './markdownImageLine';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  isMarkdownImageOnlyLine,
+  MAX_MARKDOWN_IMAGE_ONLY_LINE_SCAN_CHARS,
+} from './markdownImageLine';
 import {
   normalizeSerializedMarkdownDocument,
   preserveMarkdownBlankLinesForEditor,
@@ -32,6 +35,18 @@ describe('markdown image line helpers', () => {
 
     expect(isMarkdownImageOnlyLine(`![${escapedBrackets}](image.png)`)).toBe(true);
     expect(isMarkdownImageOnlyLine(`${'\\'.repeat(501)}![alt](image.png)`)).toBe(false);
+  });
+
+  it('does not allocate escaped state for oversized image-only candidates', () => {
+    const arrayFromSpy = vi.spyOn(Array, 'from');
+    const line = `![${'a'.repeat(MAX_MARKDOWN_IMAGE_ONLY_LINE_SCAN_CHARS)}](image.png)`;
+
+    try {
+      expect(isMarkdownImageOnlyLine(line)).toBe(false);
+      expect(arrayFromSpy).not.toHaveBeenCalled();
+    } finally {
+      arrayFromSpy.mockRestore();
+    }
   });
 
   it('keeps structural blank lines after complex markdown images during editor input', () => {

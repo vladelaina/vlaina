@@ -84,7 +84,7 @@ describe('chatInlineImageTokens', () => {
     expect(resolveCompactedChatImageSrc('asset://localhost/chat-inline-image/0', result.imageSrcByToken)).toBe(src);
   });
 
-  it('does not compact large data images inside sanitizer-dropped raw HTML containers', () => {
+  it('scrubs large data images inside sanitizer-dropped raw HTML containers', () => {
     const hiddenSrc = createLargeDataImage('m');
     const realSrc = createLargeDataImage('n');
     const markdown = [
@@ -98,13 +98,13 @@ describe('chatInlineImageTokens', () => {
     const result = compactLargeDataImageMarkdown(markdown);
 
     expect(result.replaced).toBe(1);
-    expect(result.markdown).toContain(`![hidden](<${hiddenSrc}>)`);
-    expect(result.markdown).toContain(`<img src="${hiddenSrc}" alt="hidden">`);
+    expect(result.markdown).not.toContain(hiddenSrc);
+    expect(result.markdown).toContain('[image]');
     expect(result.markdown).toContain('![real](<asset://localhost/chat-inline-image/0>)');
     expect(resolveCompactedChatImageSrc('asset://localhost/chat-inline-image/0', result.imageSrcByToken)).toBe(realSrc);
   });
 
-  it('does not compact large data images inside blockquote sanitizer-dropped raw HTML containers', () => {
+  it('scrubs large data images inside blockquote sanitizer-dropped raw HTML containers', () => {
     const hiddenSrc = createLargeDataImage('o');
     const realSrc = createLargeDataImage('p');
     const markdown = [
@@ -118,8 +118,8 @@ describe('chatInlineImageTokens', () => {
     const result = compactLargeDataImageMarkdown(markdown);
 
     expect(result.replaced).toBe(1);
-    expect(result.markdown).toContain(`> ![hidden](<${hiddenSrc}>)`);
-    expect(result.markdown).toContain(`> <img src="${hiddenSrc}" alt="hidden">`);
+    expect(result.markdown).not.toContain(hiddenSrc);
+    expect(result.markdown).toContain('> [image]');
     expect(result.markdown).toContain('<img src="asset://localhost/chat-inline-image/0" alt="real">');
     expect(resolveCompactedChatImageSrc('asset://localhost/chat-inline-image/0', result.imageSrcByToken)).toBe(realSrc);
   });
@@ -174,7 +174,8 @@ describe('chatInlineImageTokens', () => {
     expect(result.replaced).toBe(1000);
     expect(result.imageSrcByToken).toHaveLength(1000);
     expect(result.markdown).toContain('![image 999](<asset://localhost/chat-inline-image/999>)');
-    expect(result.markdown).toContain(`![image 1000](<${src}>)`);
+    expect(result.markdown).not.toContain(src);
+    expect(result.markdown.match(/\[image\]/g)).toHaveLength(5);
   });
 
   it('scrubs overflow markdown data images after the scan budget is reached', () => {
@@ -303,6 +304,20 @@ describe('chatInlineImageTokens', () => {
     expect(result).not.toContain('data:image/png;base64,SECRET');
     expect(result).not.toContain('<img');
     expect(result).toContain('[image]');
+  });
+
+  it('scrubs html data images skipped by compaction parsing before the token budget is reached', () => {
+    const markdown = [
+      `<img alt="${'a'.repeat(70_000)}" src="data:image/png;base64,SECRET">`,
+      'after',
+    ].join('\n');
+
+    const result = compactLargeDataImageMarkdown(markdown);
+
+    expect(result.replaced).toBe(0);
+    expect(result.markdown).not.toContain('data:image/png;base64,SECRET');
+    expect(result.markdown).not.toContain('<img');
+    expect(result.markdown).toContain('[image]\nafter');
   });
 
   it('does not scrub overflow html images only because non-src attributes mention data images', () => {

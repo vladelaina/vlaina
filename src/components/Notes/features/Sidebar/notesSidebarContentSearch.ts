@@ -1,6 +1,10 @@
 import { stripMarkdownInline } from '@/components/common/markdown/plainText';
-import { getSanitizerDroppedRawHtmlRanges, type ContentRange } from '@/lib/markdown/markdownHtmlRanges';
-import { getHtmlCommentRanges, getHtmlTagRanges, getMarkdownInvisibleHtmlBlockRanges } from '@/lib/markdown/markdownRanges';
+import {
+  collectHtmlTagRanges,
+  getSanitizerDroppedRawHtmlRanges,
+  type ContentRange,
+} from '@/lib/markdown/markdownHtmlRanges';
+import { getHtmlCommentRanges, getMarkdownInvisibleHtmlBlockRanges } from '@/lib/markdown/markdownRanges';
 import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 
 const CONTENT_SNIPPET_RADIUS = 36;
@@ -10,6 +14,7 @@ export const MAX_CONTENT_SEARCH_SCANNED_CHARS = 1024 * 1024;
 const MAX_CONTENT_SEARCH_FRONTMATTER_CHARS = 256 * 1024;
 const MAX_CONTENT_SEARCH_FRONTMATTER_LINES = 2048;
 export const MAX_CONTENT_SEARCH_HTML_RANGES = 2000;
+const UTF8_BOM = '\uFEFF';
 const SANITIZER_DROPPED_RAW_HTML_TAG_PATTERN = /<\/?(?:math|noscript|svg)(?:[\s/>]|$)/i;
 const INVISIBLE_HTML_BLOCK_PATTERN = /^(?: {0,3}>[ \t]?)*(?: {0,3})(?:<!--|<\?|<![A-Z]|<!\[CDATA\[)/im;
 
@@ -60,9 +65,11 @@ function stripInlineHtmlTags(line: string): string {
     return line;
   }
 
+  const htmlTagScan = collectHtmlTagRanges(line, { start: 0, end: line.length });
   const ranges = [
     ...getHtmlCommentRanges(line, { start: 0, end: line.length }),
-    ...getHtmlTagRanges(line, { start: 0, end: line.length }),
+    ...htmlTagScan.ranges,
+    ...htmlTagScan.protectedRanges,
   ].sort((left, right) => left.start - right.start || left.end - right.end);
   if (ranges.length === 0) {
     return line;
@@ -165,7 +172,8 @@ function getSkippedHtmlRangesForContentSearch(content: string): ContentRange[] {
 function getLeadingFrontmatterRangeForContentSearch(content: string): ContentRange | null {
   const firstLineEnd = content.search(/\r?\n/);
   const firstLine = firstLineEnd === -1 ? content : content.slice(0, firstLineEnd);
-  if (firstLine.trim() !== '---') {
+  const firstLineWithoutBom = firstLine.startsWith(UTF8_BOM) ? firstLine.slice(1) : firstLine;
+  if (firstLineWithoutBom.trim() !== '---') {
     return null;
   }
 

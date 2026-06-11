@@ -140,4 +140,41 @@ describe('notes scan budgets', () => {
       },
     });
   });
+
+  it('reads metadata for markdown files at the maximum scanned folder depth', async () => {
+    const segments = Array.from({ length: 24 }, (_, index) => `level-${index}`);
+    const deepRelativePath = `${segments.join('/')}/deep.md`;
+    adapter.listDir.mockImplementation(async (path: string) => {
+      const relative = path.replace(/^\/vault-depth\/?/, '');
+      const depth = relative ? relative.split('/').filter(Boolean).length : 0;
+      if (depth < segments.length) {
+        return [{
+          name: segments[depth],
+          isDirectory: true,
+          isFile: false,
+        }];
+      }
+      return [{
+        name: 'deep.md',
+        isDirectory: false,
+        isFile: true,
+      }];
+    });
+    adapter.readFile.mockResolvedValue([
+      '---',
+      'vlaina_updated: "2026-04-19T00:00:00.000Z"',
+      '---',
+      '',
+      '# Deep',
+    ].join('\n'));
+
+    await expect(loadNoteMetadata('/vault-depth')).resolves.toEqual({
+      version: 2,
+      notes: {
+        [deepRelativePath]: {
+          updatedAt: Date.parse('2026-04-19T00:00:00.000Z'),
+        },
+      },
+    });
+  });
 });

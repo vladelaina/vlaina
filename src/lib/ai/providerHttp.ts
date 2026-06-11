@@ -11,14 +11,46 @@ const PROVIDER_GET_RETRY_DELAYS_MS = [300];
 const PROVIDER_FAST_FAILURE_RETRY_WINDOW_MS = 2000;
 const MAX_DESKTOP_PROVIDER_REQUEST_BODY_BYTES = 64 * 1024 * 1024;
 const MAX_DESKTOP_PROVIDER_RESPONSE_BODY_BYTES = 64 * 1024 * 1024;
+const HTTP_AUTHORITY_URL_PATTERN = /^https?:\/\//i;
+const UNSAFE_PROVIDER_URL_CHARS_PATTERN = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 export async function providerFetch(url: string, init: ProviderFetchInit): Promise<Response> {
+  const safeUrl = normalizeProviderRequestUrl(url);
   const bridge = getElectronBridge();
   if (bridge?.aiProvider) {
-    return desktopProviderFetch(url, init, bridge.aiProvider);
+    return desktopProviderFetch(safeUrl, init, bridge.aiProvider);
   }
 
-  return fetchWithGetRetry(url, init);
+  return fetchWithGetRetry(safeUrl, init);
+}
+
+function normalizeProviderRequestUrl(url: string): string {
+  const trimmed = url.trim();
+  if (
+    !trimmed ||
+    !HTTP_AUTHORITY_URL_PATTERN.test(trimmed) ||
+    UNSAFE_PROVIDER_URL_CHARS_PATTERN.test(trimmed) ||
+    trimmed.includes('\\')
+  ) {
+    throw new Error('AI provider request URL is not supported.');
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    throw new Error('AI provider request URL is not supported.');
+  }
+
+  if (
+    (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
+    parsed.username ||
+    parsed.password
+  ) {
+    throw new Error('AI provider request URL is not supported.');
+  }
+
+  return parsed.toString();
 }
 
 function delayProviderRetry(ms: number, signal?: AbortSignal): Promise<void> {

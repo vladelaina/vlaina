@@ -1,6 +1,7 @@
 import { mapMarkdownOutsideProtectedSegments } from './markdownProtectedBlocks';
 
 const HARD_BREAK_LINE_PATTERN = /(?:\\| {2,})$/;
+const UTF8_BOM = '\uFEFF';
 const MARKDOWN_STRUCTURAL_LINE_PATTERN =
   /^(?:\s*(?:#{1,6}\s+|(?:[-+*]|\d+[.)])\s+|(?:[-*_][ \t]*){3,}|={2,}\s*$|-{2,}\s*$|\|.*\|\s*$|:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?\s*$))/;
 const HTML_LINE_PATTERN = /^(?:\s*<\/?[A-Za-z][^>]*>|\s*<!--|\s*<![A-Za-z]|\s*<\?)/;
@@ -43,7 +44,8 @@ function getSoftBreakProtectedLines(lines: readonly string[]): Set<number> {
 }
 
 function markLeadingFrontmatterLines(lines: readonly string[], protectedLines: Set<number>) {
-  if (lines[0]?.trim() !== '---') return;
+  const firstLine = lines[0]?.startsWith(UTF8_BOM) ? lines[0].slice(1) : lines[0];
+  if (firstLine?.trim() !== '---') return;
 
   for (let cursor = 1; cursor < lines.length; cursor += 1) {
     const trimmed = lines[cursor]?.trim();

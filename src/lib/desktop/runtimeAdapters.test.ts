@@ -260,6 +260,8 @@ describe('desktop runtime adapters', () => {
   it('rejects unsafe external URLs before reaching the desktop shell or browser fallback', async () => {
     await expect(openExternalUrl('javascript:alert(1)')).rejects.toThrow('Unsupported external URL.');
     await expect(openExternalUrl('file:///tmp/secret')).rejects.toThrow('Unsupported external URL.');
+    await expect(openExternalUrl('https:example.com/path')).rejects.toThrow('Unsupported external URL.');
+    await expect(openExternalUrl('http:/example.com/path')).rejects.toThrow('Unsupported external URL.');
     await expect(openExternalUrl('https://example.com/\u202Ecod.exe')).rejects.toThrow('Unsupported external URL.');
     await expect(openExternalUrl(String.raw`https:\example.com\path`)).rejects.toThrow('Unsupported external URL.');
     await expect(openExternalUrl(String.raw`https://example.com\@evil.test/path`)).rejects.toThrow('Unsupported external URL.');

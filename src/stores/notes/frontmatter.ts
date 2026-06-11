@@ -2,6 +2,7 @@ import type { NoteCoverMetadata, NoteMetadataEntry } from './types';
 import { normalizeNoteCoverMetadata } from './frontmatterCover';
 
 const LINE_ENDING_PATTERN = /\r\n?/g;
+const UTF8_BOM = '\uFEFF';
 const FRONTMATTER_DELIMITER = '---';
 const MAX_FRONTMATTER_DELIMITER_LINE_CHARS = 1024;
 const MAX_FRONTMATTER_CHARS = 256 * 1024;
@@ -47,6 +48,10 @@ function normalizeLineEndings(value: string): string {
   return value.replace(LINE_ENDING_PATTERN, '\n');
 }
 
+function stripLeadingBom(value: string): string {
+  return value.startsWith(UTF8_BOM) ? value.slice(1) : value;
+}
+
 function readLine(value: string, start: number, maxContentEnd = value.length): ReadLineResult {
   let index = start;
   while (
@@ -88,12 +93,13 @@ function removeLeadingBlankLine(value: string): string {
 }
 
 function splitLeadingFrontmatter(markdown: string, options?: { includeBody?: boolean }): FrontmatterSections {
-  const firstLine = readLine(markdown, 0, MAX_FRONTMATTER_DELIMITER_LINE_CHARS + 1);
+  const source = stripLeadingBom(markdown);
+  const firstLine = readLine(source, 0, MAX_FRONTMATTER_DELIMITER_LINE_CHARS + 1);
 
   if (firstLine.truncated || firstLine.line.trim() !== FRONTMATTER_DELIMITER) {
     return {
       lines: [],
-      body: options?.includeBody ? normalizeLineEndings(markdown) : '',
+      body: options?.includeBody ? normalizeLineEndings(source) : '',
       hasFrontmatter: false,
     };
   }
@@ -102,8 +108,8 @@ function splitLeadingFrontmatter(markdown: string, options?: { includeBody?: boo
   let cursor = firstLine.nextStart;
   const frontmatterBudgetEnd = firstLine.nextStart + MAX_FRONTMATTER_CHARS + 1;
 
-  while (cursor < markdown.length && lines.length < MAX_FRONTMATTER_LINES) {
-    const line = readLine(markdown, cursor, frontmatterBudgetEnd);
+  while (cursor < source.length && lines.length < MAX_FRONTMATTER_LINES) {
+    const line = readLine(source, cursor, frontmatterBudgetEnd);
     if (line.truncated || line.contentEnd - firstLine.nextStart > MAX_FRONTMATTER_CHARS) {
       break;
     }
@@ -111,7 +117,7 @@ function splitLeadingFrontmatter(markdown: string, options?: { includeBody?: boo
     if (line.line.trim() === FRONTMATTER_DELIMITER) {
       return {
         lines,
-        body: options?.includeBody ? normalizeLineEndings(markdown.slice(line.nextStart)) : '',
+        body: options?.includeBody ? normalizeLineEndings(source.slice(line.nextStart)) : '',
         hasFrontmatter: true,
       };
     }
@@ -122,7 +128,7 @@ function splitLeadingFrontmatter(markdown: string, options?: { includeBody?: boo
 
   return {
     lines: [],
-    body: options?.includeBody ? normalizeLineEndings(markdown) : '',
+    body: options?.includeBody ? normalizeLineEndings(source) : '',
     hasFrontmatter: false,
   };
 }

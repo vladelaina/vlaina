@@ -2,8 +2,13 @@ import { Crawler } from './crawler/index.mjs';
 import { readUrlsBatch } from './crawler/batchCrawler.mjs';
 import { SearchService } from './searchService.mjs';
 import { LocalSearchProvider } from './providers/localSearchProvider.mjs';
+import { WebSearchError } from './types.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
+const MAX_IPC_SEARCH_QUERY_CHARS = 1000;
+const MAX_IPC_OPTION_CHARS = 64;
+const MAX_IPC_READ_URL_CHARS = 4096;
+const MAX_IPC_BATCH_READ_URLS = 8;
 
 function normalizeRequestId(rawRequestId) {
   const requestId = String(rawRequestId ?? '').trim();
@@ -21,17 +26,55 @@ function throwIfAborted(signal) {
 
 function normalizeSearchOptions(rawOptions) {
   return {
-    category: typeof rawOptions?.category === 'string' ? rawOptions.category : undefined,
-    timeRange: typeof rawOptions?.timeRange === 'string' ? rawOptions.timeRange : undefined,
-    limit: rawOptions?.limit,
+    category: normalizeOptionString(rawOptions?.category),
+    timeRange: normalizeOptionString(rawOptions?.timeRange),
+    limit: normalizeNumberOption(rawOptions?.limit),
   };
 }
 
 function normalizeReadOptions(rawOptions) {
   return {
-    contentLimit: rawOptions?.contentLimit,
-    retries: rawOptions?.retries,
+    contentLimit: normalizeNumberOption(rawOptions?.contentLimit),
+    retries: normalizeNumberOption(rawOptions?.retries),
   };
+}
+
+function normalizeOptionString(value) {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed && trimmed.length <= MAX_IPC_OPTION_CHARS ? trimmed : undefined;
+}
+
+function normalizeNumberOption(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function normalizeSearchQuery(query) {
+  if (typeof query !== 'string') {
+    throw new WebSearchError('invalid_query', 'Search query is required.');
+  }
+  const trimmed = query.trim();
+  if (!trimmed || trimmed.length > MAX_IPC_SEARCH_QUERY_CHARS) {
+    throw new WebSearchError('invalid_query', 'Search query is required.');
+  }
+  return trimmed;
+}
+
+function normalizeReadUrl(url) {
+  if (typeof url !== 'string') {
+    throw new WebSearchError('invalid_url', 'Invalid URL.');
+  }
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.length > MAX_IPC_READ_URL_CHARS) {
+    throw new WebSearchError('invalid_url', 'Invalid URL.');
+  }
+  return trimmed;
+}
+
+function normalizeReadUrls(urls) {
+  const inputUrls = Array.isArray(urls) ? urls : [urls];
+  return inputUrls.slice(0, MAX_IPC_BATCH_READ_URLS).map(normalizeReadUrl);
 }
 
 export function createWebSearchServices({ fetchImpl } = {}) {
@@ -69,7 +112,7 @@ export function registerWebSearchIpc({
   handleIpc('desktop:web-search:search', async (_event, query, options, requestId) => {
     const request = beginRequest(requestId);
     try {
-      const result = await services.searchService.webSearch(query, {
+      const result = await services.searchService.webSearch(normalizeSearchQuery(query), {
         ...normalizeSearchOptions(options),
         signal: request.signal,
       });
@@ -83,7 +126,7 @@ export function registerWebSearchIpc({
   handleIpc('desktop:web-search:read', async (_event, url, options, requestId) => {
     const request = beginRequest(requestId);
     try {
-      const [result] = await readUrlsBatch(services.crawler, [url], {
+      const [result] = await readUrlsBatch(services.crawler, [normalizeReadUrl(url)], {
         ...normalizeReadOptions(options),
         signal: request.signal,
       });
@@ -102,7 +145,7 @@ export function registerWebSearchIpc({
   handleIpc('desktop:web-search:read-batch', async (_event, urls, options, requestId) => {
     const request = beginRequest(requestId);
     try {
-      const results = await readUrlsBatch(services.crawler, urls, {
+      const results = await readUrlsBatch(services.crawler, normalizeReadUrls(urls), {
         ...normalizeReadOptions(options),
         signal: request.signal,
       });

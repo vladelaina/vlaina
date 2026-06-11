@@ -615,7 +615,7 @@ describe('session inline image persistence', () => {
     expect(mocked.persistDataUrlAttachment).toHaveBeenLastCalledWith(sources[999])
   })
 
-  it('does not rescan plain message text while replacing cached inline image sources', async () => {
+  it('ignores stale cached inline image sources without rescanning plain message text', async () => {
     const source = 'data:image/png;base64,INLINE'
     const message = {
       ...createMessage('m1', 'plain text '.repeat(10_000)),
@@ -629,11 +629,9 @@ describe('session inline image persistence', () => {
       await createSessionActions().switchSession('session-2')
       await vi.runOnlyPendingTimersAsync()
 
-      expect(mocked.persistDataUrlAttachment).toHaveBeenCalledWith(source)
+      expect(mocked.persistDataUrlAttachment).not.toHaveBeenCalled()
       expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content).toBe(message.content)
-      expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.imageSources).toEqual([
-        'attachment://persisted.png',
-      ])
+      expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.imageSources).toBeUndefined()
       expect(splitSpy).not.toHaveBeenCalled()
     } finally {
       splitSpy.mockRestore()

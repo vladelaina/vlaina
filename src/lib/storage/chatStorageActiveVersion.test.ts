@@ -140,6 +140,29 @@ describe('chatStorage active version normalization', () => {
     });
   });
 
+  it('drops stale user image sources when the active version has no image tokens', () => {
+    const messages = normalizeSessionMessages([{
+      id: 'm1',
+      role: 'user',
+      content: 'new prompt',
+      modelId: 'model-1',
+      timestamp: 1,
+      imageSources: ['attachment://old.png'],
+      currentVersionIndex: 0,
+      versions: [
+        {
+          content: 'new prompt',
+          createdAt: 1,
+          kind: 'original',
+          subsequentMessages: [],
+        },
+      ],
+    }]);
+
+    expect(messages[0]?.content).toBe('new prompt');
+    expect(messages[0]?.imageSources).toBeUndefined();
+  });
+
   it('derives assistant image sources from markdown and html in the active version content', () => {
     const messages = normalizeSessionMessages([{
       id: 'm1',

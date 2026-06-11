@@ -146,6 +146,17 @@ describe('desktop filesystem ipc', () => {
     await expect(readFile(filePath)).resolves.toHaveLength(64 * 1024 * 1024);
   });
 
+  it('rejects protected app data files during drag-drop authorization', async () => {
+    const protectedPath = path.join(hoisted.userDataPath, '.vlaina', 'store', 'account-secrets.json');
+    await mkdir(path.dirname(protectedPath), { recursive: true });
+    await writeFile(protectedPath, '{}', 'utf8');
+    const { handlers } = registerHarness();
+
+    await expect(handlers.get('desktop:drag-drop:authorize-path')?.({}, protectedPath)).rejects.toThrow(
+      'File path is reserved for internal desktop storage',
+    );
+  });
+
   it('lists authorized symlinked markdown files as readable files', async () => {
     const rootPath = path.join(tempDir, 'vault');
     const targetPath = path.join(rootPath, 'target.md');
@@ -167,6 +178,39 @@ describe('desktop filesystem ipc', () => {
       ]),
     );
     await expect(handlers.get('desktop:fs:read-text')?.({}, linkPath)).resolves.toBe('# target');
+  });
+
+  it('lists authorized symlinked directories as readable directories', async () => {
+    const rootPath = path.join(tempDir, 'vault');
+    const targetDirPath = path.join(rootPath, 'target-docs');
+    const targetPath = path.join(targetDirPath, 'inside.md');
+    const linkPath = path.join(rootPath, 'linked-docs');
+    await mkdir(targetDirPath, { recursive: true });
+    await writeFile(targetPath, '# inside', 'utf8');
+    await symlink(targetDirPath, linkPath, 'dir');
+    await authorizeFsPath(rootPath, 'root');
+    const { handlers } = registerHarness();
+
+    await expect(handlers.get('desktop:fs:list-dir')?.({}, rootPath)).resolves.toEqual(
+      expect.arrayContaining([
+        {
+          name: 'linked-docs',
+          path: linkPath,
+          isDirectory: true,
+          isFile: false,
+        },
+      ]),
+    );
+    await expect(handlers.get('desktop:fs:list-dir')?.({}, linkPath)).resolves.toEqual(
+      expect.arrayContaining([
+        {
+          name: 'inside.md',
+          path: path.join(linkPath, 'inside.md'),
+          isDirectory: false,
+          isFile: true,
+        },
+      ]),
+    );
   });
 
   it('does not list symlinked files that resolve outside authorized roots as readable files', async () => {

@@ -8,10 +8,12 @@ import type { ExportMarkdownAssetSourceToken } from './noteExportMarkdownAssetTy
 
 export interface HtmlTagRangeScan {
   ranges: ContentRange[];
+  protectedRanges: ContentRange[];
   exhaustedAt: number | null;
 }
 
 const MAX_HTML_IMAGE_ATTR_CHARS = 16 * 1024;
+export const MAX_EXPORT_HTML_TAG_END_SCAN_CHARS = 64 * 1024;
 
 function isAsciiAlpha(char: string | undefined): boolean {
   if (char === undefined) {
@@ -64,6 +66,17 @@ function findHtmlTagEnd(content: string, start: number, end = content.length): n
   return -1;
 }
 
+function getOverflowHtmlTagProtectionEnd(content: string, start: number, rangeEnd: number): number {
+  const lineFeed = content.indexOf('\n', start);
+  const carriageReturn = content.indexOf('\r', start);
+  const lineEnd = Math.min(
+    lineFeed === -1 ? rangeEnd : lineFeed,
+    carriageReturn === -1 ? rangeEnd : carriageReturn,
+    rangeEnd,
+  );
+  return Math.max(start + 1, lineEnd);
+}
+
 function findHtmlCommentEnd(content: string, start: number, end = content.length): number {
   const close = content.indexOf('-->', start + 4);
   return close === -1 || close + 3 > end ? end : close + 3;
@@ -100,9 +113,10 @@ export function collectHtmlTagRanges(
   const rangeLimit = Number.isFinite(maxRanges)
     ? Math.max(0, Math.floor(maxRanges))
     : maxRanges === Number.POSITIVE_INFINITY ? Number.POSITIVE_INFINITY : 0;
-  if (rangeLimit <= 0) return { ranges: [], exhaustedAt: 0 };
+  if (rangeLimit <= 0) return { ranges: [], protectedRanges: [], exhaustedAt: 0 };
 
   const ranges: ContentRange[] = [];
+  const protectedRanges: ContentRange[] = [];
   const rangeStart = Math.max(0, Math.min(content.length, range.start));
   const rangeEnd = Math.max(rangeStart, Math.min(content.length, range.end));
   let cursor = rangeStart;
@@ -126,18 +140,28 @@ export function collectHtmlTagRanges(
       continue;
     }
 
-    const end = findHtmlTagEnd(content, start, rangeEnd);
+    const end = findHtmlTagEnd(
+      content,
+      start,
+      Math.min(rangeEnd, start + MAX_EXPORT_HTML_TAG_END_SCAN_CHARS + 1),
+    );
     if (end === -1) {
-      break;
+      const protectedEnd = getOverflowHtmlTagProtectionEnd(content, start, rangeEnd);
+      protectedRanges.push({ start, end: protectedEnd });
+      cursor = protectedEnd;
+      if (ranges.length + protectedRanges.length >= rangeLimit) {
+        return { ranges, protectedRanges, exhaustedAt: cursor };
+      }
+      continue;
     }
     ranges.push({ start, end });
     cursor = end;
-    if (ranges.length >= rangeLimit) {
-      return { ranges, exhaustedAt: cursor };
+    if (ranges.length + protectedRanges.length >= rangeLimit) {
+      return { ranges, protectedRanges, exhaustedAt: cursor };
     }
   }
 
-  return { ranges, exhaustedAt: null };
+  return { ranges, protectedRanges, exhaustedAt: null };
 }
 
 export function getHtmlTagRanges(content: string): ContentRange[] {

@@ -1,9 +1,12 @@
 export interface RawHtmlTag {
   closing: boolean;
   end: number;
+  malformed: boolean;
   name: string;
   selfClosing: boolean;
 }
+
+const MAX_RAW_HTML_TAG_END_SCAN_CHARS = 64 * 1024;
 
 function isAsciiAlpha(char: string | undefined): boolean {
   if (char === undefined) return false;
@@ -47,10 +50,10 @@ function readRawHtmlTagStart(content: string, start: number): { closing: boolean
   return { closing, name: content.slice(nameStart, cursor).toLowerCase() };
 }
 
-function findRawHtmlTagEnd(content: string, start: number): number {
+function findRawHtmlTagEnd(content: string, start: number, end: number): number {
   let quote: string | null = null;
 
-  for (let cursor = start + 1; cursor < content.length; cursor += 1) {
+  for (let cursor = start + 1; cursor < end; cursor += 1) {
     const char = content[cursor];
     if (quote) {
       if (char === quote) {
@@ -68,6 +71,21 @@ function findRawHtmlTagEnd(content: string, start: number): number {
   }
 
   return -1;
+}
+
+function getRawHtmlTagScanEnd(content: string, start: number): number {
+  return Math.min(content.length, start + MAX_RAW_HTML_TAG_END_SCAN_CHARS + 1);
+}
+
+function getMalformedRawHtmlTagEnd(content: string, start: number): number {
+  const lineFeed = content.indexOf('\n', start);
+  const carriageReturn = content.indexOf('\r', start);
+  const lineEnd = Math.min(
+    lineFeed === -1 ? content.length : lineFeed,
+    carriageReturn === -1 ? content.length : carriageReturn,
+    content.length,
+  );
+  return Math.min(content.length, Math.max(start + 1, lineEnd));
 }
 
 function findHtmlCommentEnd(content: string, start: number): number {
@@ -104,21 +122,19 @@ export function parseRawHtmlTag(content: string, start: number): RawHtmlTag | nu
   const tagStart = readRawHtmlTagStart(content, start);
   if (!tagStart) return null;
 
-  const end = findRawHtmlTagEnd(content, start);
-  if (end === -1) {
-    return {
-      closing: tagStart.closing,
-      end: content.length,
-      name: tagStart.name,
-      selfClosing: false,
-    };
-  }
+  const scanEnd = getRawHtmlTagScanEnd(content, start);
+  const tagEnd = findRawHtmlTagEnd(content, start, scanEnd);
+  const malformed = tagEnd === -1 && scanEnd < content.length;
+  const end = tagEnd === -1
+    ? malformed ? getMalformedRawHtmlTagEnd(content, start) : content.length
+    : tagEnd;
 
   return {
     closing: tagStart.closing,
     end,
+    malformed,
     name: tagStart.name,
-    selfClosing: isSelfClosingRawHtmlTag(content, start, end),
+    selfClosing: malformed || isSelfClosingRawHtmlTag(content, start, end),
   };
 }
 

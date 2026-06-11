@@ -71,11 +71,25 @@ describe('chatStorage session message normalization', () => {
     const payload = JSON.parse(serializeSessionMessages('session-1', [{
       id: 'm1',
       role: 'user',
-      content: 'Describe it',
+      content: [
+        '![unsafe](<http://127.0.0.1:3000/secret.png>)',
+        '![safe](<attachment://safe.png>)',
+        '![inline](<DATA:IMAGE/PNG;BASE64,AQI=>)',
+        '![svg](<data:image/svg+xml;base64,PHN2Zz4=>)',
+        '![video](<https://example.com/movie.mp4>)',
+        'Describe it',
+      ].join('\n'),
       modelId: 'model-1',
       timestamp: 1,
       versions: [{
-        content: 'Describe it',
+        content: [
+          '![unsafe](<http://127.0.0.1:3000/secret.png>)',
+          '![safe](<attachment://safe.png>)',
+          '![inline](<DATA:IMAGE/PNG;BASE64,AQI=>)',
+          '![svg](<data:image/svg+xml;base64,PHN2Zz4=>)',
+          '![video](<https://example.com/movie.mp4>)',
+          'Describe it',
+        ].join('\n'),
         createdAt: 1,
         kind: 'original' as const,
         subsequentMessages: [],
@@ -91,8 +105,8 @@ describe('chatStorage session message normalization', () => {
     }]));
 
     expect(payload.messages[0].imageSources).toEqual([
-      'data:image/png;base64,AQI=',
       'attachment://safe.png',
+      'data:image/png;base64,AQI=',
     ]);
   });
 
@@ -470,11 +484,19 @@ describe('chatStorage session message normalization', () => {
     expect(normalized.at(-1)?.id).toBe(`m${MAX_SESSION_MESSAGE_NODES - 1}`);
   });
 
-  it('filters persisted image source caches before exposing restored messages', () => {
+  it('filters derived image source caches before exposing restored messages', () => {
     const messages = normalizeSessionMessages([{
       id: 'm1',
       role: 'user',
-      content: 'Describe it',
+      content: [
+        '![unsafe](<http://127.0.0.1:3000/secret.png>)',
+        '![inline](<DATA:IMAGE/PNG;BASE64,AQI=>)',
+        '![svg](<data:image/svg+xml;base64,PHN2Zz4=>)',
+        '![video](<https://example.com/movie.mp4>)',
+        '![safe](<attachment://safe.png>)',
+        '![traversal](<attachment://..%2Fsecret.png>)',
+        'Describe it',
+      ].join('\n'),
       modelId: 'model-1',
       timestamp: 1,
       imageSources: [

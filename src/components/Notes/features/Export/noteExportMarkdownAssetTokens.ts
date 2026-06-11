@@ -244,17 +244,19 @@ function collectVisibleHtmlTagRanges(
   maxRanges: number,
 ): HtmlTagRangeScan {
   const ranges: ContentRange[] = [];
+  const protectedRanges: ContentRange[] = [];
   const visibleRanges = getNonExcludedContentRanges({ start: 0, end: content.length }, ignoredRanges);
 
   for (const visibleRange of visibleRanges) {
-    const scan = collectHtmlTagRanges(content, maxRanges - ranges.length, visibleRange);
+    const scan = collectHtmlTagRanges(content, maxRanges - ranges.length - protectedRanges.length, visibleRange);
     ranges.push(...scan.ranges);
+    protectedRanges.push(...scan.protectedRanges);
     if (scan.exhaustedAt !== null) {
-      return { ranges, exhaustedAt: scan.exhaustedAt };
+      return { ranges, protectedRanges, exhaustedAt: scan.exhaustedAt };
     }
   }
 
-  return { ranges, exhaustedAt: null };
+  return { ranges, protectedRanges, exhaustedAt: null };
 }
 
 export function findExportMarkdownAssetSourceTokens(content: string): ExportMarkdownAssetSourceToken[] {
@@ -297,12 +299,14 @@ export function findExportMarkdownAssetSourceTokensWithOptions(
     Number.isFinite(maxTokens) ? MAX_EXPORT_HTML_TAG_SCAN_RANGES : Number.POSITIVE_INFINITY,
   );
   const htmlTagRanges = htmlTagScan.ranges;
+  const htmlProtectedRanges = htmlTagScan.protectedRanges;
   const htmlScanRemainderRanges = htmlTagScan.exhaustedAt === null
     ? []
     : [{ start: htmlTagScan.exhaustedAt, end: content.length }];
   const ignoredMarkdownRanges = normalizeContentRanges([
     ...ignoredHtmlRanges,
     ...htmlBlockScan.ranges,
+    ...htmlProtectedRanges,
     ...htmlScanRemainderRanges,
   ]);
   const markdownMatches = findMarkdownImageSourceMatches(

@@ -2,6 +2,8 @@ type MarkdownImageLineScanContext = {
   escaped: boolean[];
 };
 
+export const MAX_MARKDOWN_IMAGE_ONLY_LINE_SCAN_CHARS = 1024 * 1024;
+
 function createMarkdownImageLineScanContext(value: string): MarkdownImageLineScanContext {
   const escaped = Array.from({ length: value.length }, () => false);
   let backslashRun = 0;
@@ -132,6 +134,9 @@ function findImageTargetEnd(value: string, start: number, context: MarkdownImage
 
 export function isMarkdownImageOnlyLine(line: string | null): boolean {
   if (line === null) {
+    return false;
+  }
+  if (line.length > MAX_MARKDOWN_IMAGE_ONLY_LINE_SCAN_CHARS) {
     return false;
   }
 

@@ -130,6 +130,7 @@ export const GITHUB_ALLOWED_STYLE_PROPERTIES = new Set([
 ]);
 
 const GITHUB_SRCSET_DESCRIPTOR_PATTERN = /^\d+(?:\.\d+)?(?:w|x)$/;
+const HTTP_AUTHORITY_URL_PATTERN = /^https?:\/\//i;
 export const MAX_GITHUB_HTML_ATTRIBUTE_VALUE_CHARS = 16 * 1024;
 const MAX_GITHUB_SRCSET_CANDIDATES = 128;
 
@@ -258,7 +259,11 @@ export function hasGithubUrlScheme(value: string): boolean {
 }
 
 function hasUnsafeGithubBackslashUrlSyntax(value: string): boolean {
-  return value.startsWith('\\') || (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(value) && value.includes('\\'));
+  return value.includes('\\') && (
+    value.startsWith('\\') ||
+    value.startsWith('//') ||
+    /^[A-Za-z][A-Za-z0-9+.-]*:/.test(value)
+  );
 }
 
 function isSafeGithubPlainRelativeMediaUrl(value: string): boolean {
@@ -337,6 +342,7 @@ export function normalizeGithubUrl(
     return trimmed;
   }
   if (!allowedProtocols.has(marker)) return null;
+  if ((marker === 'http:' || marker === 'https:') && !HTTP_AUTHORITY_URL_PATTERN.test(trimmed)) return null;
   if ((marker === 'http:' || marker === 'https:') && hasUrlCredentials(trimmed)) return null;
   if (options.blockLocalNetwork && isLocalNetworkHttpUrl(trimmed)) return null;
   return trimmed;

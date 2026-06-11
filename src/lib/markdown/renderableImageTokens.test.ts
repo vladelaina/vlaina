@@ -71,6 +71,15 @@ describe('renderableImageTokens', () => {
     expect(replaced).not.toContain('data:image/png;base64');
   });
 
+  it('scrubs markdown data images skipped by bounded parsing before the replacement budget is reached', () => {
+    const skipped = `![secret](<data:image/png;base64,${'A'.repeat(1024 * 1024 + 16)}>)`;
+
+    const replaced = replaceRenderableMarkdownImageTokens([skipped, 'Tail'].join('\n'), '[Image]');
+
+    expect(replaced).toContain('[Image]\nTail');
+    expect(replaced).not.toContain('data:image/png;base64');
+  });
+
   it('scrubs overflow entity-encoded markdown data images after the replacement budget is reached', () => {
     const safeImages = Array.from({ length: 2000 }, (_, index) => {
       return `![image ${index}](https://example.com/${index}.png)`;
@@ -139,6 +148,19 @@ describe('renderableImageTokens', () => {
 
     expect(replaced.match(/\[Image\]/g)).toHaveLength(2001);
     expect(replaced).not.toContain('data:image/png;base64');
+  });
+
+  it('scrubs html data images skipped by bounded parsing before the replacement budget is reached', () => {
+    const skipped = [
+      `<img alt="${'a'.repeat(70_000)}" src="data:image/png;base64,SECRET">`,
+      'Tail',
+    ].join('\n');
+
+    const replaced = replaceRenderableMessageImageTokens(skipped, '[Image]');
+
+    expect(replaced).toContain('[Image]\nTail');
+    expect(replaced).not.toContain('data:image/png;base64');
+    expect(replaced).not.toContain('<img');
   });
 
   it('keeps code html data images when scrubbing after the replacement budget is reached', () => {

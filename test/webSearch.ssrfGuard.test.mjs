@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isBlockedIp, normalizePublicHttpUrl } from '../electron/webSearch/ssrfGuard.mjs';
+import { isBlockedIp, normalizePublicHttpUrl, resolvePublicUrl } from '../electron/webSearch/ssrfGuard.mjs';
 
 describe('web search SSRF guard', () => {
   it('does not classify normal hostnames as blocked IPs', () => {
@@ -35,5 +35,18 @@ describe('web search SSRF guard', () => {
 
   it('rejects URLs with credentials', () => {
     expect(() => normalizePublicHttpUrl('https://user:pass@example.com/path')).toThrow('URL credentials are not supported.');
+  });
+
+  it('rejects ambiguous or unsafe HTTP URL syntax before normalization', () => {
+    expect(() => normalizePublicHttpUrl('https:example.com/path')).toThrow('Invalid URL.');
+    expect(() => normalizePublicHttpUrl('http:/example.com/path')).toThrow('Invalid URL.');
+    expect(() => normalizePublicHttpUrl('https://example.com\\@internal.test/path')).toThrow('Invalid URL.');
+    expect(() => normalizePublicHttpUrl('https://example.com/\u202Ecod.exe')).toThrow('Invalid URL.');
+  });
+
+  it('blocks local hostnames before DNS resolution', async () => {
+    await expect(resolvePublicUrl('http://router/admin')).rejects.toMatchObject({ code: 'blocked_url' });
+    await expect(resolvePublicUrl('http://service.home.arpa/admin')).rejects.toMatchObject({ code: 'blocked_url' });
+    await expect(resolvePublicUrl('http://assets.localhost/admin')).rejects.toMatchObject({ code: 'blocked_url' });
   });
 });
