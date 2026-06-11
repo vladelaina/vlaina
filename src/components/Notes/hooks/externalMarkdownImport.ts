@@ -52,6 +52,41 @@ function shouldSkipExternalMarkdownDirectory(name: string) {
   );
 }
 
+function prioritizeExternalMarkdownScanEntries<T>(
+  entries: readonly T[],
+  getPriority: (entry: T) => number,
+): T[] {
+  return entries
+    .map((entry, index) => ({ entry, index, priority: getPriority(entry) }))
+    .sort((left, right) => left.priority - right.priority || left.index - right.index)
+    .map(({ entry }) => entry);
+}
+
+function getExternalMarkdownAbsolutePathPriority(path: string) {
+  const baseName = getBaseName(path).trim();
+  if (!baseName) {
+    return 2;
+  }
+  if (isSupportedMarkdownSelection(path) || baseName.lastIndexOf('.') <= 0) {
+    return 0;
+  }
+  return 1;
+}
+
+function getExternalMarkdownDirectoryEntryPriority(entry: {
+  name: string;
+  isDirectory?: boolean;
+  isFile?: boolean;
+}) {
+  if (!isSafeVaultPathSegment(entry.name)) {
+    return 2;
+  }
+  if (entry.isDirectory || (entry.isFile && isSupportedMarkdownSelection(entry.name))) {
+    return 0;
+  }
+  return 1;
+}
+
 function isInsideInternalExternalMarkdownPath(path: string) {
   return hasInternalNotePathSegment(path);
 }
@@ -220,7 +255,10 @@ async function importExternalMarkdownDirectory(
     return 0;
   }
 
-  for (const entry of entries) {
+  for (const entry of prioritizeExternalMarkdownScanEntries(
+    entries,
+    getExternalMarkdownDirectoryEntryPriority,
+  )) {
     if (!spendExternalMarkdownScanBudget(budget)) {
       break;
     }
@@ -290,7 +328,10 @@ export async function importExternalMarkdownEntries(
     visitedEntries: 0,
   };
 
-  for (const absolutePath of absolutePaths) {
+  for (const absolutePath of prioritizeExternalMarkdownScanEntries(
+    absolutePaths,
+    getExternalMarkdownAbsolutePathPriority,
+  )) {
     if (!spendExternalMarkdownScanBudget(budget)) {
       break;
     }
@@ -361,7 +402,10 @@ export async function resolveExternalMarkdownEntriesForStarred(
   const targets: ExternalMarkdownStarredTarget[] = [];
   let scannedEntries = 0;
 
-  for (const absolutePath of absolutePaths) {
+  for (const absolutePath of prioritizeExternalMarkdownScanEntries(
+    absolutePaths,
+    getExternalMarkdownAbsolutePathPriority,
+  )) {
     if (
       scannedEntries >= MAX_EXTERNAL_MARKDOWN_STARRED_SCAN_ENTRIES ||
       targets.length >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES

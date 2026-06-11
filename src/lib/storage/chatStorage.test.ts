@@ -120,6 +120,26 @@ describe('chatStorage session message normalization', () => {
     expect(payload.messages.length).toBeLessThan(messages.length);
   });
 
+  it('bounds serialized session message files by UTF-8 bytes', () => {
+    const messageContent = '你'.repeat(1024 * 1024);
+    const messages = Array.from({ length: 9 }, (_, index) => ({
+      id: `m${index}`,
+      role: 'user' as const,
+      content: messageContent,
+      modelId: 'model-1',
+      timestamp: index + 1,
+      versions: [],
+      currentVersionIndex: 0,
+    }));
+
+    const serialized = serializeSessionMessages('session-1', messages);
+    const payload = JSON.parse(serialized);
+
+    expect(new TextEncoder().encode(serialized).byteLength).toBeLessThanOrEqual(MAX_SESSION_MESSAGES_BYTES);
+    expect(payload.messages.length).toBeGreaterThan(0);
+    expect(payload.messages.length).toBeLessThan(messages.length);
+  });
+
   it('loads only matching versioned session envelopes', () => {
     const messages = parseSessionMessagesPayload('session-1', {
       version: 1,

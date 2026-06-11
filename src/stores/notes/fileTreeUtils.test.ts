@@ -328,6 +328,29 @@ describe('fileTreeUtils structural sharing', () => {
     expect(mocks.listDir).toHaveBeenCalledTimes(1);
   });
 
+  it('does not let non-markdown files spend the scan budget before visible notes', async () => {
+    mocks.listDir.mockResolvedValue([
+      ...Array.from({ length: 10_000 }, (_, index) => ({
+        name: `asset-${String(index).padStart(5, '0')}.png`,
+        path: `/vault/asset-${String(index).padStart(5, '0')}.png`,
+        isDirectory: false,
+        isFile: true,
+      })),
+      { name: 'late.md', path: '/vault/late.md', isDirectory: false, isFile: true },
+    ]);
+
+    const tree = await buildFileTree('/vault');
+
+    expect(tree).toEqual([
+      {
+        id: 'late.md',
+        name: 'late',
+        path: 'late.md',
+        isFolder: false,
+      },
+    ]);
+  });
+
   it('ignores unsafe storage entry names while building the tree', async () => {
     mocks.listDir.mockImplementation(async (path: string) => {
       if (path === '/vault') {

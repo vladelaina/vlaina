@@ -10,6 +10,7 @@ interface ProviderFetchInit {
 const PROVIDER_GET_RETRY_DELAYS_MS = [300];
 const PROVIDER_FAST_FAILURE_RETRY_WINDOW_MS = 2000;
 const MAX_DESKTOP_PROVIDER_REQUEST_BODY_BYTES = 64 * 1024 * 1024;
+const MAX_DESKTOP_PROVIDER_RESPONSE_BODY_BYTES = 64 * 1024 * 1024;
 
 export async function providerFetch(url: string, init: ProviderFetchInit): Promise<Response> {
   const bridge = getElectronBridge();
@@ -231,6 +232,7 @@ async function desktopProviderFetch(
   let terminalError: Error | DOMException | null = null;
   let listenerRegistrationError: unknown = null;
   let didReceiveMetadata = false;
+  let responseBytesReceived = 0;
 
   const cleanup = () => {
     cleanupCallbacks.splice(0).forEach((cleanupCallback) => cleanupCallback());
@@ -263,6 +265,20 @@ async function desktopProviderFetch(
       try {
         cleanupCallbacks.push(aiProvider.onRequestChunk(requestId, (chunk) => {
           if (didSettle || init.signal?.aborted) return;
+          responseBytesReceived += chunk.length;
+          if (responseBytesReceived > MAX_DESKTOP_PROVIDER_RESPONSE_BODY_BYTES) {
+            didSettle = true;
+            const error = new Error('Desktop AI provider response body is too large.');
+            terminalError = error;
+            void aiProvider.cancelRequest(requestId).catch(() => {});
+            try {
+              controller.error(error);
+            } catch {
+            }
+            rejectStartOnTerminalError?.(error);
+            cleanup();
+            return;
+          }
           const bytes = new Uint8Array(chunk);
           try {
             controller.enqueue(bytes);

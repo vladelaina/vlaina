@@ -63,6 +63,22 @@ describe('requestContext', () => {
     expect(result[1].content).toBe('hello there');
   });
 
+  it('clips oversized merged system prompts to the request history budget', () => {
+    const result = buildRequestHistory({
+      history: [createMessage({ role: 'user', content: 'recent user message' })],
+      modelId: 'model-1',
+      timezoneOffset: 8,
+      includeTimeContext: true,
+      customSystemPrompt: 'x'.repeat(100_000),
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].role).toBe('system');
+    expect(result[0].content.length).toBeLessThanOrEqual(24_000 - 48);
+    expect(result[0].content).toContain('[Earlier content omitted]');
+    expect(result[0].content).toContain('Current Date/Time:');
+  });
+
   it('skips time context when includeTimeContext is false', () => {
     const history = [createMessage({ role: 'user', content: 'what time is it?' })];
 

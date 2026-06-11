@@ -242,4 +242,19 @@ describe('MarkdownEditor source fallback', () => {
 
     expect(mocks.notesState.saveNote).not.toHaveBeenCalled();
   });
+
+  it('flushes composing fallback edits when the source editor unmounts', async () => {
+    const { unmount } = render(<MarkdownEditor />);
+
+    const sourceEditor = await screen.findByLabelText('Markdown source editor');
+    fireEvent.compositionStart(sourceEditor);
+    fireEvent.change(sourceEditor, { target: { value: '# Alpha\n\nComposing draft' } });
+
+    expect(mocks.notesState.currentNote?.content).toBe('# Alpha\n\nInitial body');
+
+    unmount();
+
+    expect(mocks.notesState.currentNote?.content).toBe('# Alpha\n\nComposing draft');
+    expect(mocks.notesState.isDirty).toBe(true);
+  });
 });

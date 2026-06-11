@@ -30,6 +30,19 @@ describe('markdown internal artifact protection', () => {
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
 
+  it('preserves list gap placeholders inside longer fenced code blocks', () => {
+    const markdown = [
+      '````markdown',
+      '```',
+      '- before',
+      '- \u2800',
+      '- after',
+      '````',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
   it('preserves internal artifact-like text inside leading frontmatter', () => {
     const markdown = [
       '---',

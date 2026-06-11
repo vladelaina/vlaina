@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { applyTocShortcutsToTree, type TocMdastNode } from './tocMarkdown';
+import {
+  MAX_MARKDOWN_AST_NODES,
+  countMarkdownAstNodes,
+} from './markdownAstBudget';
 
 function textParagraph(value: string): TocMdastNode {
   return {
@@ -99,5 +103,27 @@ describe('tocMarkdown', () => {
       type: 'text',
       value: 'A'.repeat(240),
     });
+  });
+
+  it('skips TOC replacement when the AST growth budget is exhausted', () => {
+    const tocShortcut = textParagraph('[TOC]');
+    const alphaHeading = heading('Alpha');
+    const tree: TocMdastNode = {
+      type: 'root',
+      children: [
+        tocShortcut,
+        alphaHeading,
+        ...Array.from({ length: MAX_MARKDOWN_AST_NODES - 8 }, (_, index) => ({
+          type: 'text',
+          value: String(index),
+        })),
+      ],
+    };
+
+    applyTocShortcutsToTree(tree);
+
+    expect(tree.children?.[0]).toBe(tocShortcut);
+    expect(alphaHeading.data?.hProperties?.id).toBe('heading-alpha-1');
+    expect(countMarkdownAstNodes(tree)).toBeLessThanOrEqual(MAX_MARKDOWN_AST_NODES);
   });
 });

@@ -91,6 +91,49 @@ function escapeStatusJson(value: string): string {
     .replace(/>/g, '&gt;');
 }
 
+function getEscapedStatusJsonLength(status: WebSearchStatus): number {
+  return escapeStatusJson(JSON.stringify(status)).length;
+}
+
+function compactStatusForMarkup(status: WebSearchStatus): WebSearchStatus {
+  if (getEscapedStatusJsonLength(status) <= MAX_WEB_SEARCH_STATUS_JSON_LENGTH) {
+    return status;
+  }
+
+  let next: WebSearchStatus = {
+    ...status,
+    urls: status.urls?.slice(),
+    results: status.results?.slice(),
+    failedSources: status.failedSources?.slice(),
+  };
+
+  while ((next.urls?.length ?? 0) > 1 && getEscapedStatusJsonLength(next) > MAX_WEB_SEARCH_STATUS_JSON_LENGTH) {
+    next = { ...next, urls: next.urls?.slice(0, -1) };
+  }
+
+  while ((next.results?.length ?? 0) > 1 && getEscapedStatusJsonLength(next) > MAX_WEB_SEARCH_STATUS_JSON_LENGTH) {
+    next = { ...next, results: next.results?.slice(0, -1) };
+  }
+
+  while ((next.failedSources?.length ?? 0) > 1 && getEscapedStatusJsonLength(next) > MAX_WEB_SEARCH_STATUS_JSON_LENGTH) {
+    next = { ...next, failedSources: next.failedSources?.slice(0, -1) };
+  }
+
+  if (getEscapedStatusJsonLength(next) <= MAX_WEB_SEARCH_STATUS_JSON_LENGTH) {
+    return next;
+  }
+
+  next = {
+    phase: status.phase,
+    ...(status.query ? { query: status.query } : {}),
+    ...(status.message ? { message: status.message } : {}),
+    ...(status.metrics ? { metrics: status.metrics } : {}),
+  };
+  return getEscapedStatusJsonLength(next) <= MAX_WEB_SEARCH_STATUS_JSON_LENGTH
+    ? next
+    : { phase: status.phase };
+}
+
 function unescapeStatusJson(value: string): string {
   return value
     .replace(/&lt;/g, '<')
@@ -103,7 +146,7 @@ export function buildWebSearchStatusMarkup(status: WebSearchStatus): string {
   if (!safeStatus) {
     return '';
   }
-  return `<web-search-status>${escapeStatusJson(JSON.stringify(safeStatus))}</web-search-status>`;
+  return `<web-search-status>${escapeStatusJson(JSON.stringify(compactStatusForMarkup(safeStatus)))}</web-search-status>`;
 }
 
 export function stripWebSearchStatusMarkup(content: string): string {

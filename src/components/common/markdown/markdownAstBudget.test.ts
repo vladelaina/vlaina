@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { canTransformMarkdownAst } from './markdownAstBudget';
+import {
+  canTransformMarkdownAst,
+  countMarkdownAstNodes,
+  createMarkdownAstGrowthBudget,
+} from './markdownAstBudget';
 
 function createDeepTree(depth: number): any {
   let current: any = { type: 'text', value: 'leaf' };
@@ -40,5 +44,17 @@ describe('markdownAstBudget', () => {
         value: String(index),
       })),
     })).toBe(false);
+  });
+
+  it('tracks remaining node growth budget', () => {
+    const budget = createMarkdownAstGrowthBudget({
+      type: 'root',
+      children: [{ type: 'text', value: 'hello' }],
+    });
+
+    expect(countMarkdownAstNodes({ type: 'root', children: [{ type: 'text', value: 'hello' }] })).toBe(2);
+    expect(budget.consume(19_998)).toBe(true);
+    expect(budget.remainingNodes).toBe(0);
+    expect(budget.consume(1)).toBe(false);
   });
 });

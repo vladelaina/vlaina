@@ -1,6 +1,12 @@
 import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 import { findDelimitedTextMatches, type MarkdownSourcePosition } from './delimitedMarkdown';
-import { canTransformMarkdownAst } from './markdownAstBudget';
+import {
+  canTransformMarkdownAst,
+  countMarkdownAstNodeList,
+  countMarkdownAstNodes,
+  createMarkdownAstGrowthBudget,
+  type MarkdownAstGrowthBudget,
+} from './markdownAstBudget';
 import {
   createMarkdownTextSliceNode,
   createMarkdownTextSourceMap,
@@ -155,7 +161,10 @@ function parseSplitInlineColorHtmlMark(
   return parseInlineColorHtml(`${open.value}${text.value}${close.value}`);
 }
 
-export function replaceInlineColorHtmlMark(tree: ColorMarkdownMdastNode): void {
+export function replaceInlineColorHtmlMark(
+  tree: ColorMarkdownMdastNode,
+  growthBudget: MarkdownAstGrowthBudget = createMarkdownAstGrowthBudget(tree)
+): void {
   if (!canTransformMarkdownAst(tree)) return;
 
   function visit(node: ColorMarkdownMdastNode): void {
@@ -168,6 +177,11 @@ export function replaceInlineColorHtmlMark(tree: ColorMarkdownMdastNode): void {
         const splitNode = singleNode ? null : parseSplitInlineColorHtmlMark(node.children, index);
         const nextNode = singleNode ?? splitNode;
         if (nextNode) {
+          const replacedNodeCount = splitNode ? 3 : 1;
+          const additionalNodes = countMarkdownAstNodes(nextNode) - replacedNodeCount;
+          if (!growthBudget.consume(additionalNodes)) {
+            continue;
+          }
           node.children.splice(index, splitNode ? 3 : 1, nextNode);
           continue;
         }
@@ -185,7 +199,11 @@ export function remarkInlineColorHtml() {
   };
 }
 
-export function replaceUnderlineMarkdown(tree: ColorMarkdownMdastNode, markdown = ''): void {
+export function replaceUnderlineMarkdown(
+  tree: ColorMarkdownMdastNode,
+  markdown = '',
+  growthBudget: MarkdownAstGrowthBudget = createMarkdownAstGrowthBudget(tree)
+): void {
   if (!canTransformMarkdownAst(tree)) return;
 
   const underlineRegex = /\+\+([^+]+)\+\+/g;
@@ -226,6 +244,7 @@ export function replaceUnderlineMarkdown(tree: ColorMarkdownMdastNode, markdown 
       nextNodes.push(createMarkdownTextSliceNode(node, sourceMap, lastEnd, node.value.length));
     }
 
+    if (!growthBudget.consume(countMarkdownAstNodeList(nextNodes) - 1)) return;
     parent.children?.splice(index, 1, ...nextNodes);
   }
 

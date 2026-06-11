@@ -40,10 +40,19 @@ describe('katexSourceSanitizer', () => {
     expect(tree.children.length).toBeLessThanOrEqual(20_000);
   });
 
-  it('does not parse oversized KaTeX HTML annotations', () => {
-    const html = `${'x'.repeat((2 * 1024 * 1024) + 1)}<annotation encoding="application/x-tex">x</annotation>`;
+  it('removes oversized KaTeX HTML annotations without DOM parsing', () => {
+    const createElementSpy = vi.spyOn(document, 'createElement');
+    const html = `${'x'.repeat((2 * 1024 * 1024) + 1)}<annotation encoding="application/x-tex">secret</annotation>`;
 
-    expect(removeKatexSourceAnnotationsFromHtml(html)).toBe(html);
+    try {
+      const sanitized = removeKatexSourceAnnotationsFromHtml(html);
+
+      expect(sanitized).not.toContain('application/x-tex');
+      expect(sanitized).not.toContain('secret');
+      expect(createElementSpy).not.toHaveBeenCalled();
+    } finally {
+      createElementSpy.mockRestore();
+    }
   });
 
   it('removes HTML source annotations without materializing selector results', () => {

@@ -351,6 +351,58 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
+  it('deduplicates repeated remove events before pairing an external rename', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { remove: { kind: 'file' } },
+        paths: ['/vault/docs/alpha.md'],
+      });
+      await hoisted.watchHandler?.({
+        type: { remove: { kind: 'file' } },
+        paths: ['/vault/docs/alpha.md'],
+      });
+      await hoisted.watchHandler?.({
+        type: { create: { kind: 'file' } },
+        paths: ['/vault/docs/beta.md'],
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith('docs/alpha.md', 'docs/beta.md');
+    expect(hoisted.notesState.applyExternalPathDeletion).not.toHaveBeenCalled();
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
+  it('deduplicates repeated create events before pairing an external rename', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { create: { kind: 'file' } },
+        paths: ['/vault/docs/beta.md'],
+      });
+      await hoisted.watchHandler?.({
+        type: { create: { kind: 'file' } },
+        paths: ['/vault/docs/beta.md'],
+      });
+      await hoisted.watchHandler?.({
+        type: { remove: { kind: 'file' } },
+        paths: ['/vault/docs/alpha.md'],
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith('docs/alpha.md', 'docs/beta.md');
+    expect(hoisted.notesState.applyExternalPathDeletion).not.toHaveBeenCalled();
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
   it('treats paired user dot-folder note events as an external rename', async () => {
     const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
 

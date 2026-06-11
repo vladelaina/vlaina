@@ -55,7 +55,36 @@ function queuePendingCreate(
   ttlMs: number,
   kind?: string | null
 ): PendingCreateEntry[] {
-  return [...flushExpiredPendingCreates(queue, now).queue, { newPath, expiresAt: now + ttlMs, kind }];
+  const activeQueue = flushExpiredPendingCreates(queue, now).queue;
+  const existingIndex = activeQueue.findIndex((entry) => entry.newPath === newPath);
+  if (existingIndex >= 0) {
+    return activeQueue.map((entry, index) => (
+      index === existingIndex
+        ? {
+            newPath,
+            expiresAt: now + ttlMs,
+            kind: mergePendingPathKind(entry.kind, kind),
+          }
+        : entry
+    ));
+  }
+
+  return [...activeQueue, { newPath, expiresAt: now + ttlMs, kind }];
+}
+
+function mergePendingPathKind(
+  existingKind: string | null | undefined,
+  nextKind: string | null | undefined,
+): string | null | undefined {
+  const existingIsUnknown = !existingKind || existingKind === 'any';
+  const nextIsUnknown = !nextKind || nextKind === 'any';
+  if (existingIsUnknown) {
+    return nextKind ?? existingKind;
+  }
+  if (nextIsUnknown) {
+    return existingKind;
+  }
+  return existingKind === nextKind ? existingKind : null;
 }
 
 function flushExpiredPendingCreates(

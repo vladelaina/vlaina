@@ -102,6 +102,19 @@ describe('web search status markup', () => {
     expect(parsed.content).toBe('Answer');
   });
 
+  it('keeps generated status markup within the parser length budget', () => {
+    const urls = Array.from({ length: 8 }, (_, index) =>
+      `https://example.com/${index}/${'a'.repeat(3900)}`
+    );
+    const markup = buildWebSearchStatusMarkup({ phase: 'reading', urls });
+    const parsed = extractWebSearchStatuses(`${markup}Answer`);
+
+    expect(parsed.statuses).toHaveLength(1);
+    expect(parsed.statuses[0]?.phase).toBe('reading');
+    expect(parsed.statuses[0]?.urls?.length).toBeGreaterThan(0);
+    expect(parsed.content).toBe('Answer');
+  });
+
   it('keeps parsing case-insensitive status tags', () => {
     const parsed = extractWebSearchStatuses(
       '<WEB-SEARCH-STATUS>{"phase":"searching","query":"Case"}</WEB-SEARCH-STATUS>Answer'

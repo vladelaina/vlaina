@@ -28,6 +28,7 @@ vi.mock('@/lib/electron/bridge', () => ({
 import { providerFetch } from './providerHttp';
 
 const MAX_DESKTOP_PROVIDER_BODY_BYTES = 64 * 1024 * 1024;
+const MAX_DESKTOP_PROVIDER_RESPONSE_BYTES = 64 * 1024 * 1024;
 
 describe('providerFetch', () => {
   beforeEach(() => {
@@ -324,6 +325,36 @@ describe('providerFetch', () => {
     controller.abort();
     expect(() => sendChunkRef.current?.([65])).not.toThrow();
     await expect(response.text()).rejects.toMatchObject({ name: 'AbortError' });
+    expect(cleanupChunk).toHaveBeenCalledTimes(1);
+    expect(cleanupDone).toHaveBeenCalledTimes(1);
+    expect(cleanupError).toHaveBeenCalledTimes(1);
+    expect(mocks.bridge.aiProvider.cancelRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels desktop provider streams when bridge response bytes exceed the limit', async () => {
+    const sendChunkRef: { current: ((chunk: number[]) => void) | null } = { current: null };
+    const cleanupChunk = vi.fn();
+    const cleanupDone = vi.fn();
+    const cleanupError = vi.fn();
+    mocks.bridge.aiProvider.startRequest.mockResolvedValueOnce({
+      status: 200,
+      statusText: 'OK',
+      headers: [],
+    });
+    mocks.bridge.aiProvider.onRequestChunk.mockImplementationOnce((_requestId, callback) => {
+      sendChunkRef.current = callback;
+      return cleanupChunk;
+    });
+    mocks.bridge.aiProvider.onRequestDone.mockImplementationOnce(() => cleanupDone);
+    mocks.bridge.aiProvider.onRequestError.mockImplementationOnce(() => cleanupError);
+
+    const response = await providerFetch('https://api.example.com/v1/chat/completions', {
+      method: 'POST',
+    });
+
+    sendChunkRef.current?.(new Array(MAX_DESKTOP_PROVIDER_RESPONSE_BYTES + 1));
+
+    await expect(response.text()).rejects.toThrow('Desktop AI provider response body is too large.');
     expect(cleanupChunk).toHaveBeenCalledTimes(1);
     expect(cleanupDone).toHaveBeenCalledTimes(1);
     expect(cleanupError).toHaveBeenCalledTimes(1);

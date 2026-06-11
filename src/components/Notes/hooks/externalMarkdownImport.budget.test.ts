@@ -129,12 +129,22 @@ describe('importExternalMarkdownEntries budget', () => {
     );
   });
 
-  it('stops scanning oversized top-level drops before statting every unsupported file', async () => {
-    mocks.storage.stat.mockResolvedValue({
+  it('prioritizes top-level markdown drops before applying the scan cap', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
       isDirectory: false,
       isFile: true,
-      size: undefined,
-    });
+      size: path.endsWith('.md') ? 1024 : undefined,
+    }));
+    mocks.resolveUniquePath.mockImplementation(
+      async (_vaultPath: string, folderPath: string | undefined, name: string) => {
+        const relativePath = folderPath ? `${folderPath}/${name}` : name;
+        return {
+          relativePath,
+          fullPath: `/vault/${relativePath}`,
+          fileName: name,
+        };
+      },
+    );
 
     const paths = [
       ...Array.from({ length: 10_050 }, (_, index) => `/outside/image-${index}.png`),
@@ -143,20 +153,23 @@ describe('importExternalMarkdownEntries budget', () => {
     const result = await importExternalMarkdownEntries('/vault', 'imports', paths);
 
     expect(result).toEqual({
-      importedNotePaths: [],
+      importedNotePaths: ['imports/alpha.md'],
       importedFolderPaths: [],
-      didImport: false,
+      didImport: true,
     });
-    expect(mocks.storage.stat).toHaveBeenCalledTimes(10_000);
-    expect(mocks.storage.stat).not.toHaveBeenCalledWith('/outside/alpha.md');
-    expect(mocks.storage.copyFile).not.toHaveBeenCalled();
+    expect(mocks.storage.stat).toHaveBeenCalledWith('/outside/alpha.md');
+    expect(mocks.storage.copyFile).toHaveBeenCalledTimes(1);
+    expect(mocks.storage.copyFile).toHaveBeenCalledWith(
+      '/outside/alpha.md',
+      '/vault/imports/alpha.md',
+    );
   });
 
-  it('stops scanning oversized imported folders before processing every unsupported entry', async () => {
+  it('prioritizes folder markdown entries before applying the scan cap', async () => {
     mocks.storage.stat.mockImplementation(async (path: string) => ({
       isDirectory: path === '/outside/docs',
       isFile: path !== '/outside/docs',
-      size: undefined,
+      size: path.endsWith('.md') ? 1024 : undefined,
     }));
     mocks.storage.listDir.mockResolvedValue([
       ...Array.from({ length: 10_050 }, (_, index) => ({
@@ -166,21 +179,34 @@ describe('importExternalMarkdownEntries budget', () => {
       })),
       { name: 'alpha.md', isFile: true, isDirectory: false },
     ]);
-    mocks.resolveUniquePath.mockResolvedValue({
-      relativePath: 'imports/docs',
-      fullPath: '/vault/imports/docs',
-      fileName: 'docs',
-    });
+    mocks.resolveUniquePath.mockImplementation(
+      async (_vaultPath: string, folderPath: string | undefined, name: string, isDirectory: boolean) => {
+        const relativePath = folderPath
+          ? `${folderPath}/${name}`
+          : isDirectory
+            ? `imports/${name}`
+            : name;
+        return {
+          relativePath,
+          fullPath: `/vault/${relativePath}`,
+          fileName: name,
+        };
+      },
+    );
 
     const result = await importExternalMarkdownEntries('/vault', 'imports', ['/outside/docs']);
 
     expect(result).toEqual({
-      importedNotePaths: [],
-      importedFolderPaths: [],
-      didImport: false,
+      importedNotePaths: ['imports/docs/alpha.md'],
+      importedFolderPaths: ['imports/docs'],
+      didImport: true,
     });
-    expect(mocks.storage.copyFile).not.toHaveBeenCalled();
-    expect(mocks.storage.deleteDir).toHaveBeenCalledWith('/vault/imports/docs', true);
+    expect(mocks.storage.copyFile).toHaveBeenCalledTimes(1);
+    expect(mocks.storage.copyFile).toHaveBeenCalledWith(
+      '/outside/docs/alpha.md',
+      '/vault/imports/docs/alpha.md',
+    );
+    expect(mocks.storage.deleteDir).not.toHaveBeenCalledWith('/vault/imports/docs', true);
   });
 
   it('skips generated folder names case-insensitively before recursing', async () => {

@@ -63,11 +63,7 @@ function countCodeLines(codeText: string): number {
 }
 
 function createLineNumbersText(lineCount: number): string {
-  let lineNumbers = '';
-  for (let index = 1; index <= lineCount; index += 1) {
-    lineNumbers += index === 1 ? '1' : `\n${index}`;
-  }
-  return lineNumbers;
+  return Array.from({ length: lineCount }, (_value, index) => String(index + 1)).join('\n');
 }
 
 export const ReadOnlyCodeBlock = memo(function ReadOnlyCodeBlock({
@@ -79,7 +75,10 @@ export const ReadOnlyCodeBlock = memo(function ReadOnlyCodeBlock({
 }: ReadOnlyCodeBlockProps) {
   const { language, codeText } = extractCodePayload(className, children);
   const showLineNumbers = useUnifiedStore(selectCodeBlockLineNumbersEnabled);
-  const lineNumbers = useMemo(() => createLineNumbersText(countCodeLines(codeText)), [codeText]);
+  const lineNumbers = useMemo(
+    () => (showLineNumbers ? createLineNumbersText(countCodeLines(codeText)) : ''),
+    [codeText, showLineNumbers],
+  );
 
   const highlightedHTML = useMemo(() => {
     try {

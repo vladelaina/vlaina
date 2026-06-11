@@ -30,7 +30,7 @@ const INTERNAL_TIGHT_HEADING_COMMENT_PATTERN = /^\s*<!--\s*vlaina-markdown-tight
 const HTML_COMMENT_OPEN_PATTERN = /^(?: {0,3})<!--/;
 const HTML_COMMENT_CLOSE_PATTERN = /-->/;
 const HTML_IMAGE_LINE_PATTERN = /^(?: {0,3})<img(?:\s|\/?>|$)/i;
-const FENCED_CODE_MARKER_PATTERN = /^(?: {0,3})(`{3,}|~{3,})/;
+const FENCED_CODE_MARKER_PATTERN = /^(?: {0,3})(`{3,}|~{3,})(.*)$/;
 const MARKDOWN_ESCAPE_PATTERN = /\\([\\`*_{}[\]()#+\-.!])/g;
 const LIST_GAP_SENTINEL = '\u0000VLAINA_LIST_GAP_SENTINEL\u0000';
 const USER_BR_SENTINEL = '\u0000VLAINA_USER_BR_SENTINEL\u0000';
@@ -1488,19 +1488,31 @@ function normalizeListItemBlankLines(text: string): string {
 function normalizeSerializedListGapMarkerLines(text: string): string {
   const lines = text.split('\n');
   const nearestNonBlankLines = collectNearestNonBlankLines(lines);
-  let activeFenceMarker: string | null = null;
+  let activeFence: { marker: string; length: number } | null = null;
 
   return lines
     .map((line, index) => {
       const fenceMatch = FENCED_CODE_MARKER_PATTERN.exec(line);
-      if (activeFenceMarker) {
-        if (fenceMatch?.[1]?.startsWith(activeFenceMarker)) {
-          activeFenceMarker = null;
+      if (activeFence) {
+        const fence = fenceMatch?.[1] ?? '';
+        const marker = fence[0] ?? '';
+        const trailing = fenceMatch?.[2] ?? '';
+        if (
+          marker === activeFence.marker
+          && fence.length >= activeFence.length
+          && trailing.trim() === ''
+        ) {
+          activeFence = null;
         }
         return line;
       }
       if (fenceMatch) {
-        activeFenceMarker = fenceMatch[1]![0] ?? null;
+        const fence = fenceMatch[1] ?? '';
+        const marker = fence[0] ?? '';
+        const info = fenceMatch[2] ?? '';
+        if (marker !== '`' || !info.includes('`')) {
+          activeFence = { marker, length: fence.length };
+        }
         return line;
       }
 

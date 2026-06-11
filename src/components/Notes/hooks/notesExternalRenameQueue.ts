@@ -6,6 +6,21 @@ export interface PendingRenameEntry {
 
 export const MAX_PROCESSED_RENAME_EVENT_NONCES = 200;
 
+function mergePendingPathKind(
+  existingKind: string | null | undefined,
+  nextKind: string | null | undefined,
+): string | null | undefined {
+  const existingIsUnknown = !existingKind || existingKind === 'any';
+  const nextIsUnknown = !nextKind || nextKind === 'any';
+  if (existingIsUnknown) {
+    return nextKind ?? existingKind;
+  }
+  if (nextIsUnknown) {
+    return existingKind;
+  }
+  return existingKind === nextKind ? existingKind : null;
+}
+
 export function rememberProcessedRenameEventNonce(
   processedNonces: Set<string>,
   nonce: string,
@@ -35,7 +50,21 @@ export function queuePendingRename(
   ttlMs: number,
   kind?: string | null
 ): PendingRenameEntry[] {
-  return [...flushExpiredPendingRenames(queue, now).queue, { oldPath, expiresAt: now + ttlMs, kind }];
+  const activeQueue = flushExpiredPendingRenames(queue, now).queue;
+  const existingIndex = activeQueue.findIndex((entry) => entry.oldPath === oldPath);
+  if (existingIndex >= 0) {
+    return activeQueue.map((entry, index) => (
+      index === existingIndex
+        ? {
+            oldPath,
+            expiresAt: now + ttlMs,
+            kind: mergePendingPathKind(entry.kind, kind),
+          }
+        : entry
+    ));
+  }
+
+  return [...activeQueue, { oldPath, expiresAt: now + ttlMs, kind }];
 }
 
 export function matchPendingRename(

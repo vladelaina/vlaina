@@ -52,6 +52,7 @@ const MAX_SEARCHABLE_NOTE_BYTES = 512 * 1024;
 const MAX_SCANNED_NOTE_CONTENT_CHARS = 8 * 1024 * 1024;
 const MAX_METADATA_UPDATE_NOTE_BYTES = 10 * 1024 * 1024;
 const MAX_NOTE_CONTENT_SCAN_PATHS = 5000;
+const MAX_NOTE_CONTENT_SCAN_TREE_NODES = 20_000;
 const ICON_SYMBOL_SCHEME_PATTERN = /^icon:/i;
 
 function canReadBoundedMarkdownFile(
@@ -125,13 +126,19 @@ function collectNoteContentScanPaths(
 ): { path: string; fullPath: string }[] {
   const filePaths: { path: string; fullPath: string }[] = [];
   const stack = [...nodes].reverse();
+  let visitedNodes = 0;
 
-  while (stack.length > 0 && filePaths.length < MAX_NOTE_CONTENT_SCAN_PATHS) {
+  while (
+    stack.length > 0 &&
+    filePaths.length < MAX_NOTE_CONTENT_SCAN_PATHS &&
+    visitedNodes < MAX_NOTE_CONTENT_SCAN_TREE_NODES
+  ) {
     if (!isScanActive()) {
       return filePaths;
     }
 
     const node = stack.pop()!;
+    visitedNodes += 1;
     if (node.isFolder) {
       const folderPath = normalizeVaultRelativePath(node.path, { allowEmpty: true });
       if (folderPath === null || hasInternalNotePathSegment(folderPath)) {

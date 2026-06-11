@@ -10,6 +10,8 @@ const MAX_KATEX_SOURCE_HAST_NODES = 20_000;
 const MAX_KATEX_SOURCE_HTML_CHARS = 2 * 1024 * 1024;
 const MAX_KATEX_SOURCE_HTML_DEPTH = 200;
 const MAX_KATEX_SOURCE_HTML_NODES = 20_000;
+const KATEX_SOURCE_ANNOTATION_PATTERN =
+  /<annotation\b(?=[^>]*\bencoding=(["'])application\/x-tex\1)[^>]*>[\s\S]*?<\/annotation>/gi;
 
 function readPropertyString(properties: Record<string, unknown> | undefined, name: string) {
   const value = properties?.[name];
@@ -28,15 +30,12 @@ function isKatexSourceAnnotation(node: HastNode) {
 }
 
 export function removeKatexSourceAnnotationsFromHtml(html: string) {
-  if (html.length > MAX_KATEX_SOURCE_HTML_CHARS || !html.includes('application/x-tex')) {
+  if (!html.includes('application/x-tex')) {
     return html;
   }
 
-  if (typeof document === 'undefined') {
-    return html.replace(
-      /<annotation\b(?=[^>]*\bencoding=(["'])application\/x-tex\1)[^>]*>[\s\S]*?<\/annotation>/gi,
-      ''
-    );
+  if (html.length > MAX_KATEX_SOURCE_HTML_CHARS || typeof document === 'undefined') {
+    return html.replace(KATEX_SOURCE_ANNOTATION_PATTERN, '');
   }
 
   const template = document.createElement('template');

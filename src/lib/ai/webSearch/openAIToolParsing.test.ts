@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_DSML_TOOL_MARKUP_CHARS,
   MAX_OPENAI_PAYLOAD_TEXT_CHARS,
+  MAX_OPENAI_TOOL_ARGUMENT_CHARS,
   extractOpenAIText,
   extractOpenAIMessageFromJson,
   parseOpenAIPayloadText,
@@ -57,5 +58,37 @@ describe('openAIToolParsing', () => {
 
   it('skips overlong OpenAI payload text before JSON parsing', () => {
     expect(parseOpenAIPayloadText(`data: {"payload":"${'x'.repeat(MAX_OPENAI_PAYLOAD_TEXT_CHARS)}"}`)).toBeNull();
+  });
+
+  it('normalizes object tool arguments without stringifying the original object', () => {
+    const argumentsObject = {
+      query: 'vlaina',
+      padding: 'x'.repeat(MAX_OPENAI_TOOL_ARGUMENT_CHARS * 2),
+      toJSON() {
+        throw new Error('original arguments object should not be stringified');
+      },
+    };
+
+    const message = extractOpenAIMessageFromJson({
+      choices: [{
+        message: {
+          tool_calls: [{
+            id: 'call-1',
+            type: 'function',
+            function: {
+              name: 'web_search',
+              arguments: argumentsObject,
+            },
+          }],
+        },
+      }],
+    });
+
+    expect(message.toolCalls).toHaveLength(1);
+    expect(message.toolCalls[0].function.arguments.length).toBeLessThanOrEqual(MAX_OPENAI_TOOL_ARGUMENT_CHARS);
+    expect(JSON.parse(message.toolCalls[0].function.arguments)).toMatchObject({
+      query: 'vlaina',
+      padding: 'x'.repeat(4096),
+    });
   });
 });

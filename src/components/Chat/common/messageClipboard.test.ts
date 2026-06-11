@@ -523,7 +523,10 @@ describe("messageClipboard", () => {
       previewUrl: "attachment://demo.png",
       assetUrl: "attachment://demo.png",
     }));
-    expect(fetch).toHaveBeenCalledWith("data:image/png;base64,eA==");
+    expect(fetch).toHaveBeenCalledWith("data:image/png;base64,eA==", expect.objectContaining({
+      credentials: "omit",
+      referrerPolicy: "no-referrer",
+    }));
     expect(writeMock).toHaveBeenCalledTimes(1);
   });
 
@@ -544,7 +547,10 @@ describe("messageClipboard", () => {
       name: "demo.jpg",
       type: "image/jpeg",
     }));
-    expect(fetch).toHaveBeenCalledWith("data:image/jpeg;base64,eA==");
+    expect(fetch).toHaveBeenCalledWith("data:image/jpeg;base64,eA==", expect.objectContaining({
+      credentials: "omit",
+      referrerPolicy: "no-referrer",
+    }));
     expect(writeMock).toHaveBeenCalledTimes(1);
   });
 
@@ -671,7 +677,10 @@ describe("messageClipboard", () => {
       "![real](https://a.com/real.png)",
     ].join("\n"));
 
-    expect(fetch).toHaveBeenCalledWith("https://a.com/real.png");
+    expect(fetch).toHaveBeenCalledWith("https://a.com/real.png", expect.objectContaining({
+      credentials: "omit",
+      referrerPolicy: "no-referrer",
+    }));
     expect(writeMock).toHaveBeenCalledTimes(1);
   });
 });

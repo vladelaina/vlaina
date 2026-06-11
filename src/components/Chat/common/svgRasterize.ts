@@ -6,6 +6,8 @@ import {
 } from '@/lib/markdown/dataImagePolicy';
 
 const SVG_RASTERIZE_TIMEOUT_MS = 2500;
+export const MAX_PENDING_SVG_RASTERIZATIONS = 32;
+const pendingSvgRasterizations = new Map<string, Promise<string | null>>();
 
 function decodeSvgDataUrl(dataUrl: string): string | null {
   const commaIndex = dataUrl.indexOf(',');
@@ -139,7 +141,15 @@ export async function rasterizeSvgBlobToPngBlob(blob: Blob): Promise<Blob | null
   return dataUrlToBlob(rasterizedDataUrl);
 }
 
-export function rasterizeSvgDataUrlToPng(dataUrl: string): Promise<string | null> {
+export function clearSvgRasterizeState(): void {
+  pendingSvgRasterizations.clear();
+}
+
+export function getPendingSvgRasterizeCount(): number {
+  return pendingSvgRasterizations.size;
+}
+
+function rasterizeSvgDataUrlToPngUncached(dataUrl: string): Promise<string | null> {
   if (!isSvgDataUrl(dataUrl)) {
     return Promise.resolve(dataUrl);
   }
@@ -184,4 +194,24 @@ export function rasterizeSvgDataUrlToPng(dataUrl: string): Promise<string | null
     image.onerror = () => finish(null);
     image.src = sanitizedSvg.dataUrl;
   });
+}
+
+export function rasterizeSvgDataUrlToPng(dataUrl: string): Promise<string | null> {
+  if (!isSvgDataUrl(dataUrl)) {
+    return Promise.resolve(dataUrl);
+  }
+
+  const existingPromise = pendingSvgRasterizations.get(dataUrl);
+  if (existingPromise) {
+    return existingPromise;
+  }
+  if (pendingSvgRasterizations.size >= MAX_PENDING_SVG_RASTERIZATIONS) {
+    return Promise.resolve(null);
+  }
+
+  const promise = rasterizeSvgDataUrlToPngUncached(dataUrl).finally(() => {
+    pendingSvgRasterizations.delete(dataUrl);
+  });
+  pendingSvgRasterizations.set(dataUrl, promise);
+  return promise;
 }

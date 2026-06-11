@@ -147,17 +147,11 @@ function scrubOverflowCopyHtmlDataImagesInRange(
     const tagIsOverflow =
       tagEnd === -1 || tagEnd > range.end || tagEnd - start > MAX_COPY_HTML_IMAGE_TAG_CHARS;
     if (tagIsOverflow) {
-      const scanEnd = Math.min(range.end, start + MAX_COPY_HTML_IMAGE_TAG_CHARS);
-      if (htmlImageTagHasDataImageSrc(content.slice(start, scanEnd))) {
-        output += content.slice(cursor, start);
-        output += "[image]";
-        cursor = tagEnd !== -1 && tagEnd <= range.end
-          ? tagEnd
-          : getOverflowHtmlImageScrubEnd(content, start, range.end);
-        continue;
-      }
-      output += content.slice(cursor, start + 4);
-      cursor = start + 4;
+      output += content.slice(cursor, start);
+      output += "[image]";
+      cursor = tagEnd !== -1 && tagEnd <= range.end
+        ? tagEnd
+        : getOverflowHtmlImageScrubEnd(content, start, range.end);
       continue;
     }
 

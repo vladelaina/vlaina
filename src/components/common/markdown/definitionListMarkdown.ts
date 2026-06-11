@@ -3,7 +3,13 @@ import {
   type MarkdownSourcePosition,
 } from './delimitedMarkdown';
 import { markEscapedMarkdownBlockSyntax } from './escapedBlockSyntax';
-import { canTransformMarkdownAst } from './markdownAstBudget';
+import {
+  canTransformMarkdownAst,
+  countMarkdownAstNodeList,
+  countMarkdownAstNodes,
+  createMarkdownAstGrowthBudget,
+  type MarkdownAstGrowthBudget,
+} from './markdownAstBudget';
 import {
   createMarkdownTextSliceNode,
   replaceMarkdownTextNodeWithSlice,
@@ -245,7 +251,11 @@ function splitCombinedDefinitionParagraph(
   );
 }
 
-export function applyDefinitionListsToTree(tree: DefinitionListMdastNode, markdown = ''): void {
+export function applyDefinitionListsToTree(
+  tree: DefinitionListMdastNode,
+  markdown = '',
+  growthBudget: MarkdownAstGrowthBudget = createMarkdownAstGrowthBudget(tree)
+): void {
   if (!canTransformMarkdownAst(tree)) {
     return;
   }
@@ -257,6 +267,9 @@ export function applyDefinitionListsToTree(tree: DefinitionListMdastNode, markdo
       const child = node.children[index];
       const combined = splitCombinedDefinitionParagraph(child, markdown);
       if (combined) {
+        if (!growthBudget.consume(countMarkdownAstNodes(combined) - countMarkdownAstNodes(child))) {
+          continue;
+        }
         node.children.splice(index, 1, combined);
         continue;
       }
@@ -275,7 +288,13 @@ export function applyDefinitionListsToTree(tree: DefinitionListMdastNode, markdo
         child.children &&
         next?.children
       ) {
-        node.children.splice(index, 2, createDefinitionListNode(child.children, next.children, markdown));
+        const definitionList = createDefinitionListNode(child.children, next.children, markdown);
+        if (!growthBudget.consume(
+          countMarkdownAstNodes(definitionList) - countMarkdownAstNodeList([child, next])
+        )) {
+          continue;
+        }
+        node.children.splice(index, 2, definitionList);
         continue;
       }
 

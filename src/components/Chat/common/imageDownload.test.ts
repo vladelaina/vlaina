@@ -118,7 +118,10 @@ describe('imageDownload', () => {
 
     await downloadImageWithPrompt('DATA:IMAGE/PNG;BASE64,eA==', 'inline');
 
-    expect(mocks.fetch).toHaveBeenCalledWith('data:image/png;base64,eA==');
+    expect(mocks.fetch).toHaveBeenCalledWith('data:image/png;base64,eA==', expect.objectContaining({
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+    }));
     expect(mocks.saveDialog).toHaveBeenCalledWith(expect.objectContaining({
       defaultPath: 'inline.png',
     }));
@@ -165,7 +168,10 @@ describe('imageDownload', () => {
       name: 'demo.jpg',
       type: 'image/jpeg',
     }));
-    expect(mocks.fetch).toHaveBeenCalledWith('data:image/jpeg;base64,eA==');
+    expect(mocks.fetch).toHaveBeenCalledWith('data:image/jpeg;base64,eA==', expect.objectContaining({
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+    }));
     expect(mocks.saveDialog).toHaveBeenCalledWith(expect.objectContaining({
       filters: [{ name: 'Images', extensions: ['jpg', 'png', 'jpeg', 'webp', 'gif', 'bmp'] }],
     }));
@@ -183,7 +189,10 @@ describe('imageDownload', () => {
     await downloadImageWithPrompt('diagram.svg', 'diagram');
 
     expect(mocks.rasterizeSvgDataUrlToPng).toHaveBeenCalledWith('data:image/svg+xml;base64,PHN2Zz4=');
-    expect(mocks.fetch).toHaveBeenCalledWith('data:image/png;base64,RASTER');
+    expect(mocks.fetch).toHaveBeenCalledWith('data:image/png;base64,RASTER', expect.objectContaining({
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+    }));
     expect(mocks.saveDialog).toHaveBeenCalledWith(expect.objectContaining({
       defaultPath: 'diagram.png',
     }));

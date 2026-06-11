@@ -5,6 +5,7 @@ const DB_VERSION = 1;
 const STORE_FILES = 'files';
 const STORE_DIRS = 'directories';
 const PREFIX_RANGE_SUFFIX = '\uffff';
+const MARKDOWN_FILE_EXTENSION_PATTERN = /\.(?:md|markdown|mdown|mkd)$/i;
 export const MAX_WEB_ADAPTER_PREFIX_SCAN_ENTRIES = 20_000;
 export const MAX_WEB_ADAPTER_LIST_ENTRIES = 20_000;
 
@@ -20,6 +21,20 @@ interface StoredFile {
 interface StoredDir {
   path: string;
   createdAt: number;
+}
+
+function getListEntryPriority(entry: FileInfo): number {
+  if (entry.isDirectory || MARKDOWN_FILE_EXTENSION_PATTERN.test(entry.name)) {
+    return 0;
+  }
+  return 1;
+}
+
+function prioritizeListEntries(entries: FileInfo[]): FileInfo[] {
+  return entries
+    .map((entry, index) => ({ entry, index, priority: getListEntryPriority(entry) }))
+    .sort((left, right) => left.priority - right.priority || left.index - right.index)
+    .map(({ entry }) => entry);
 }
 
 export class WebAdapter implements StorageAdapter {
@@ -324,7 +339,6 @@ export class WebAdapter implements StorageAdapter {
     const dirs = await this.readStoredDirsByPrefix(prefix);
 
     const addEntry = (entry: FileInfo) => {
-      if (results.length >= MAX_WEB_ADAPTER_LIST_ENTRIES) return;
       if (seenPaths.has(entry.path)) return;
       seenPaths.add(entry.path);
       results.push(entry);
@@ -335,7 +349,6 @@ export class WebAdapter implements StorageAdapter {
     const addImplicitDirectories = (parts: string[]) => {
       let currentPath = normalizedPath === '/' ? '' : normalizedPath;
       for (const part of parts) {
-        if (results.length >= MAX_WEB_ADAPTER_LIST_ENTRIES) break;
         currentPath = currentPath ? `${currentPath}/${part}` : `/${part}`;
         addEntry({
           name: part,
@@ -347,7 +360,6 @@ export class WebAdapter implements StorageAdapter {
     };
 
     for (const file of files) {
-      if (results.length >= MAX_WEB_ADAPTER_LIST_ENTRIES) break;
       if (!file.path.startsWith(prefix)) continue;
 
       const relativePath = file.path.slice(prefix.length);
@@ -388,7 +400,6 @@ export class WebAdapter implements StorageAdapter {
     }
 
     for (const dir of dirs) {
-      if (results.length >= MAX_WEB_ADAPTER_LIST_ENTRIES) break;
       if (!dir.path.startsWith(prefix)) continue;
 
       const relativePath = dir.path.slice(prefix.length);
@@ -418,7 +429,7 @@ export class WebAdapter implements StorageAdapter {
       }
     }
 
-    return results;
+    return prioritizeListEntries(results).slice(0, MAX_WEB_ADAPTER_LIST_ENTRIES);
   }
 
   async rename(oldPath: string, newPath: string): Promise<void> {
