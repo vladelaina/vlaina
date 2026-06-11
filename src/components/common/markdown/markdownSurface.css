@@ -262,6 +262,7 @@
 .markdown-surface code:not(pre code) {
   display: inline-block;
   vertical-align: baseline;
+  max-width: 100%;
   font-size: var(--vlaina-font-0875rem);
   line-height: var(--vlaina-leading-125rem);
   padding: var(--vlaina-space-0125rem) var(--vlaina-space-025rem);
@@ -273,6 +274,9 @@
   border-radius: var(--vlaina-radius-025rem);
   font-family: var(--font-mono);
   font-weight: var(--vlaina-font-weight-medium);
+  overflow-wrap: anywhere;
+  white-space: break-spaces;
+  word-break: break-word;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
@@ -288,6 +292,16 @@
   border-radius: var(--vlaina-radius-05rem);
 }
 
+.markdown-surface .markdown-table-scroll {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin: var(--vlaina-space-1rem) 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
 .markdown-surface table {
   width: max-content;
   max-width: 100%;
@@ -298,6 +312,10 @@
   border: var(--vlaina-border-width-1) solid var(--vlaina-border);
   border-radius: var(--vlaina-radius-05rem);
   overflow: hidden;
+}
+
+.markdown-surface .markdown-table-scroll table {
+  margin: 0;
 }
 
 .markdown-surface th,

@@ -1,4 +1,6 @@
 .code-block-chrome {
+  min-width: 0;
+  max-width: 100%;
   background: var(--vlaina-code-block-background);
 }
 
@@ -72,6 +74,8 @@ button:hover .code-block-chrome-language-label {
   grid-template-columns: auto minmax(max-content, 1fr);
   align-items: start;
   column-gap: var(--vlaina-space-1rem);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .code-block-chrome-body > code,

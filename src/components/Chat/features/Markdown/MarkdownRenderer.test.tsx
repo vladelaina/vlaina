@@ -9,7 +9,11 @@ import {
   CHAT_MARKDOWN_REHYPE_PLUGINS,
   CHAT_MARKDOWN_REMARK_PLUGINS,
 } from "@/components/common/markdown/markdownPipeline";
-import { buildChatStreamSchedule, useChatStreamBlocks } from "./chatStreamTextAnimation";
+import {
+  buildChatStreamSchedule,
+  MAX_UNREVEALED_CHAT_STREAM_CHARS,
+  useChatStreamBlocks,
+} from "./chatStreamTextAnimation";
 import { CHAT_STREAM_FADE_MS } from "./chatStreamTextPlugin";
 
 const { reactMarkdownSpy, codeBlockSpy, thinkingBlockSpy } = vi.hoisted(() => ({
@@ -37,6 +41,16 @@ vi.mock("react-markdown", () => ({
         {components.p?.({
           children: <pre data-testid="block-child">block paragraph</pre>,
           "data-testid": "block-paragraph",
+        })}
+        {components.table?.({
+          children: (
+            <tbody>
+              <tr>
+                <td>wide table</td>
+              </tr>
+            </tbody>
+          ),
+          "data-testid": "markdown-table",
         })}
         {components.pre?.({ children: <code className="language-ts">const a = 1;</code> })}
         {components.pre?.({ children: <code className="language-js">const b = 2;</code> })}
@@ -161,6 +175,7 @@ describe("MarkdownRenderer", () => {
     expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-remark-count", String(CHAT_MARKDOWN_REMARK_PLUGINS.length));
     expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-rehype-count", String(CHAT_MARKDOWN_REHYPE_PLUGINS.length));
     expect(screen.getByTestId("react-markdown").parentElement).toHaveClass("markdown-surface");
+    expect(screen.getByTestId("markdown-table").parentElement).toHaveClass("markdown-table-scroll");
   });
 
   it("marks visible streaming markdown for the live transition layer", () => {
@@ -309,10 +324,12 @@ describe("MarkdownRenderer", () => {
     currentNow = 1400;
     view.rerender({ content: `A${"burst ".repeat(80)}` });
     const block = view.result.current.at(-1)!;
-    const firstBirth = block.births[1]!;
+    const activeBirths = block.births.filter((birth: number) => currentNow - birth < CHAT_STREAM_FADE_MS);
+    const firstBirth = activeBirths[0]!;
     const lastBirth = block.births.at(-1)!;
 
     expect(block.charDelay).toBeGreaterThanOrEqual(1);
+    expect(activeBirths.length).toBeLessThanOrEqual(MAX_UNREVEALED_CHAT_STREAM_CHARS);
     expect(lastBirth - firstBirth).toBeLessThanOrEqual(520);
     expect(block.revealed).toBe(false);
     view.unmount();

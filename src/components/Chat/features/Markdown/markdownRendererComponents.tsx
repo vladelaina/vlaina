@@ -49,6 +49,10 @@ type MarkdownParagraphProps = React.HTMLAttributes<HTMLParagraphElement> & {
   children?: React.ReactNode;
 };
 
+type MarkdownTableProps = React.TableHTMLAttributes<HTMLTableElement> & {
+  children?: React.ReactNode;
+};
+
 type MarkdownImageProps = {
   align?: string;
   alt?: string;
@@ -333,6 +337,13 @@ export function createMarkdownComponents({
       }
 
       return <p {...props}>{children}</p>;
+    },
+    table({ children, ...props }: MarkdownTableProps) {
+      return (
+        <div className="markdown-table-scroll" data-markdown-table-scroll="true">
+          <table {...props}>{children}</table>
+        </div>
+      );
     },
     img({ src, alt, align, width, dataVlainaCrop: cropDataProp, 'data-vlaina-crop': cropDataAttr }: MarkdownImageProps) {
       const rawSrc = typeof src === 'string' ? src : null;
