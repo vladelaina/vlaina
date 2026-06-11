@@ -5,9 +5,11 @@ import { DevMainOverlay } from './DevMainOverlay';
 
 const mocks = vi.hoisted(() => ({
   appViewMode: 'notes' as 'notes' | 'chat' | 'lab',
+  devPlatformPreview: 'system' as 'system' | 'macos',
   colorMode: 'system' as 'system' | 'light' | 'dark',
   importedMarkdownThemeId: null as string | null,
   setAppViewMode: vi.fn(),
+  toggleDevPlatformPreview: vi.fn(),
   setColorMode: vi.fn(),
   setMarkdownImportedThemeId: vi.fn(),
   listImportedMarkdownThemesFromDirectory: vi.fn(),
@@ -24,12 +26,25 @@ vi.mock('@/components/ui/icons', () => ({
   Icon: ({ name }: { name: string }) => <span data-testid={`icon-${name}`} />,
 }));
 
-vi.mock('@/stores/uiSlice', () => ({
-  useUIStore: () => ({
+vi.mock('@/stores/uiSlice', () => {
+  type UIState = {
+    appViewMode: 'notes' | 'chat' | 'lab';
+    devPlatformPreview: 'system' | 'macos';
+    setAppViewMode: typeof mocks.setAppViewMode;
+    toggleDevPlatformPreview: typeof mocks.toggleDevPlatformPreview;
+  };
+
+  const getState = (): UIState => ({
     appViewMode: mocks.appViewMode,
+    devPlatformPreview: mocks.devPlatformPreview,
     setAppViewMode: mocks.setAppViewMode,
-  }),
-}));
+    toggleDevPlatformPreview: mocks.toggleDevPlatformPreview,
+  });
+
+  return {
+    useUIStore: (selector: (state: UIState) => unknown) => selector(getState()),
+  };
+});
 
 vi.mock('@/stores/unified/useUnifiedStore', () => {
   type UnifiedState = {
@@ -100,6 +115,7 @@ const themes = [
 describe('DevMainOverlay', () => {
   beforeEach(() => {
     mocks.appViewMode = 'notes';
+    mocks.devPlatformPreview = 'system';
     mocks.colorMode = 'system';
     mocks.importedMarkdownThemeId = null;
     mocks.listImportedMarkdownThemesFromDirectory.mockResolvedValue(themes);
@@ -177,6 +193,14 @@ describe('DevMainOverlay', () => {
 
     expect(mocks.setColorMode).toHaveBeenCalledWith('light');
     expect(mocks.setAppViewMode).toHaveBeenCalledWith('lab');
+  });
+
+  it('toggles the macOS titlebar platform preview', () => {
+    render(<DevMainOverlay effectiveAppViewMode="notes" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Preview macOS titlebar' }));
+
+    expect(mocks.toggleDevPlatformPreview).toHaveBeenCalledTimes(1);
   });
 
   it('hides the Lab shortcut while already in the Lab view', () => {

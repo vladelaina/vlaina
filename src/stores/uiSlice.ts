@@ -16,6 +16,7 @@ import {
   normalizeAppLanguagePreference,
   type AppLanguagePreference,
 } from '@/lib/i18n/languages';
+import type { DesktopPlatformPreview } from '@/lib/desktop/platform';
 export const UI_FONT_SIZE_DEFAULT = 17;
 export const UI_FONT_SIZE_MIN = 14;
 export const UI_FONT_SIZE_MAX = 28;
@@ -80,6 +81,9 @@ interface UIStore {
   setLayoutPanelDragging: (dragging: boolean) => void;
   windowResizeActive: boolean;
   setWindowResizeActive: (active: boolean) => void;
+  devPlatformPreview: DesktopPlatformPreview;
+  setDevPlatformPreview: (platformPreview: DesktopPlatformPreview) => void;
+  toggleDevPlatformPreview: () => void;
 
   sidebarHeaderHovered: boolean;
   setSidebarHeaderHovered: (hovered: boolean) => void;
@@ -358,6 +362,11 @@ function normalizeAppViewMode(mode: AppViewMode): AppViewMode {
   return mode;
 }
 
+function normalizeDevPlatformPreview(platformPreview: DesktopPlatformPreview): DesktopPlatformPreview {
+  if (!import.meta.env.DEV) return 'system';
+  return platformPreview === 'macos' ? 'macos' : 'system';
+}
+
 function loadUIPreferencesFromStorage(): UIPreferenceState {
   return {
     sidebarCollapsed: loadBoolean(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, false),
@@ -406,6 +415,15 @@ export const useUIStore = create<UIStore>()((set) => ({
   setLayoutPanelDragging: (dragging) => set({ layoutPanelDragging: dragging }),
   windowResizeActive: false,
   setWindowResizeActive: (active) => set({ windowResizeActive: active }),
+  devPlatformPreview: 'system',
+  setDevPlatformPreview: (platformPreview) =>
+    set({ devPlatformPreview: normalizeDevPlatformPreview(platformPreview) }),
+  toggleDevPlatformPreview: () =>
+    set((state) => ({
+      devPlatformPreview: normalizeDevPlatformPreview(
+        state.devPlatformPreview === 'macos' ? 'system' : 'macos',
+      ),
+    })),
   sidebarHeaderHovered: false,
   setSidebarHeaderHovered: (hovered) => set({ sidebarHeaderHovered: hovered }),
   sidebarSearchOpen: false,

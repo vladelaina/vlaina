@@ -6,6 +6,7 @@ import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/c
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { isMacOS } from '@/lib/desktop/platform';
+import { useUIStore } from '@/stores/uiSlice';
 
 const WorkspaceSwitcher = lazy(async () => {
     const mod = await import('./WorkspaceSwitcher');
@@ -30,7 +31,8 @@ export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
     const { t } = useI18n();
     const headerRef = useRef<HTMLDivElement>(null);
     const [isHovered, setIsHovered] = useState(false);
-    const shouldReserveMacTrafficLightSpace = isMacOS();
+    const devPlatformPreview = useUIStore((state) => state.devPlatformPreview);
+    const shouldReserveMacTrafficLightSpace = isMacOS(devPlatformPreview);
 
     useEffect(() => {
         const handleMouseMove = (event: MouseEvent) => {
