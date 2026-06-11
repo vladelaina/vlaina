@@ -1,6 +1,8 @@
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import type { StarredEntry, StarredKind } from '../types';
 import {
+  getStarredVaultPathComparisonKey,
+  isSameStarredVaultPath,
   isValidStarredVaultPath,
   normalizeStarredRelativePath,
   normalizeStarredVaultPath,
@@ -107,7 +109,7 @@ export function createStarredEntryIfValid(
 export function getStarredEntryKey(
   entry: Pick<StarredEntry, 'kind' | 'vaultPath' | 'relativePath'>
 ): string {
-  return `${entry.kind}::${normalizeStarredVaultPath(entry.vaultPath)}::${entry.relativePath}`;
+  return `${entry.kind}::${getStarredVaultPathComparisonKey(entry.vaultPath)}::${entry.relativePath}`;
 }
 
 export function dedupeStarredEntries(entries: StarredEntry[]): StarredEntry[] {
@@ -128,12 +130,11 @@ export function getVaultStarredPaths(entries: StarredEntry[], vaultPath: string)
   notes: string[];
   folders: string[];
 } {
-  const normalizedVaultPath = normalizeStarredVaultPath(vaultPath);
   const notes: string[] = [];
   const folders: string[] = [];
 
   for (const entry of entries) {
-    if (normalizeStarredVaultPath(entry.vaultPath) !== normalizedVaultPath) continue;
+    if (!isSameStarredVaultPath(entry.vaultPath, vaultPath)) continue;
     if (entry.kind === 'folder') {
       folders.push(entry.relativePath);
       continue;
@@ -149,11 +150,10 @@ export function remapStarredEntriesForVault(
   vaultPath: string,
   remapPath: (relativePath: string, kind: StarredKind) => string | null
 ): { entries: StarredEntry[]; changed: boolean } {
-  const normalizedVaultPath = normalizeStarredVaultPath(vaultPath);
   let changed = false;
 
   const remapped = entries.flatMap((entry) => {
-    if (normalizeStarredVaultPath(entry.vaultPath) !== normalizedVaultPath) {
+    if (!isSameStarredVaultPath(entry.vaultPath, vaultPath)) {
       return [entry];
     }
 

@@ -22,6 +22,7 @@ const MARKDOWN_LINK_DESTINATION_ESCAPE_PATTERN = /\\([!"#$%&'()*+,\-./:;<=>?@[\\
 const MARKDOWN_LINK_DESTINATION_ESCAPE_AT_PATTERN = /^\\[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]$/;
 const MAX_MARKDOWN_IMAGE_PROTECTION_RANGES = 4000;
 export const MAX_MARKDOWN_IMAGE_PART_SCAN_CHARS = 1024 * 1024;
+const MAX_FAILED_MARKDOWN_IMAGE_PART_SCAN_CHARS = 4 * MAX_MARKDOWN_IMAGE_PART_SCAN_CHARS;
 
 function getFirstMarkdownImageTargetSegment(value: string): string {
   let index = 0;
@@ -177,6 +178,14 @@ function normalizeInternalTokenLimit(value: number): number {
   return Math.max(0, Math.floor(value));
 }
 
+function getMarkdownImagePartScanEnd(start: number, rangeEnd: number): number {
+  return Math.min(rangeEnd, start + MAX_MARKDOWN_IMAGE_PART_SCAN_CHARS);
+}
+
+function consumeFailedPartScanBudget(remainingBudget: number, start: number, end: number): number {
+  return remainingBudget - Math.max(0, end - start);
+}
+
 export function collectMarkdownImageTokensInRange(
   content: string,
   range: ContentRange,
@@ -209,6 +218,7 @@ export function collectMarkdownImageTokensInRange(
     return { exhausted: true, tokens };
   }
   let cursor = range.start;
+  let remainingFailedPartScanChars = MAX_FAILED_MARKDOWN_IMAGE_PART_SCAN_CHARS;
 
   while (cursor < range.end) {
     const imageStart = content.indexOf("![", cursor);
@@ -227,14 +237,40 @@ export function collectMarkdownImageTokensInRange(
       continue;
     }
 
+    if (remainingFailedPartScanChars <= 0) {
+      return { exhausted: true, tokens };
+    }
+
+    const labelScanStart = imageStart + 2;
+    const labelScanEnd = getMarkdownImagePartScanEnd(labelScanStart, range.end);
     const labelEnd = findMarkdownImageLabelEnd(content, imageStart + 2, range.end, inlineCodeRanges, range.start);
-    if (labelEnd === null || labelEnd + 1 >= range.end || content[labelEnd + 1] !== "(") {
+    if (labelEnd === null) {
+      remainingFailedPartScanChars = consumeFailedPartScanBudget(
+        remainingFailedPartScanChars,
+        labelScanStart,
+        labelScanEnd,
+      );
+      cursor = imageStart + 2;
+      continue;
+    }
+    if (labelEnd + 1 >= range.end || content[labelEnd + 1] !== "(") {
+      remainingFailedPartScanChars = consumeFailedPartScanBudget(
+        remainingFailedPartScanChars,
+        labelScanStart,
+        labelEnd + 1,
+      );
       cursor = imageStart + 2;
       continue;
     }
 
-    const parsed = parseMarkdownImageTarget(content, labelEnd + 2, range.end);
+    const targetScanStart = labelEnd + 2;
+    const parsed = parseMarkdownImageTarget(content, targetScanStart, range.end);
     if (!parsed || parsed.end > range.end) {
+      remainingFailedPartScanChars = consumeFailedPartScanBudget(
+        remainingFailedPartScanChars,
+        targetScanStart,
+        getMarkdownImagePartScanEnd(targetScanStart, range.end),
+      );
       cursor = labelEnd + 2;
       continue;
     }

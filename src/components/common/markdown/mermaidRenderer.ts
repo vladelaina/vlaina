@@ -9,7 +9,7 @@ let mermaidCounter = 0;
 
 type ConsoleMethodName = 'debug' | 'error' | 'info' | 'log' | 'warn';
 
-const MAX_MERMAID_CODE_CHARS = 20_000;
+export const MAX_MERMAID_CODE_CHARS = 20_000;
 const MERMAID_INIT_CONFIG = {
   startOnLoad: false,
   securityLevel: 'strict',

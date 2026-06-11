@@ -9,7 +9,9 @@ import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 
 const DATA_IMAGE_PREFIX = 'data:image/';
 const MAX_MARKDOWN_IMAGE_LABEL_SCAN_CHARS = 1024 * 1024;
+const MAX_MARKDOWN_IMAGE_TOTAL_LABEL_SCAN_CHARS = 4 * 1024 * 1024;
 const MAX_DATA_IMAGE_PREFIX_SCAN_CHARS = 128;
+const MAX_INLINE_CODE_PROTECTION_RANGES = 4000;
 
 export interface OverflowDataImageScrubOptions {
   replacement: string;
@@ -40,9 +42,14 @@ function scrubOverflowMarkdownDataImagesInRange(
   range: { start: number; end: number },
   options: OverflowDataImageScrubOptions,
 ): string {
-  const inlineCodeRanges = getInlineCodeRanges(content, range);
+  const inlineCodeRanges = getInlineCodeRanges(
+    content,
+    range,
+    MAX_INLINE_CODE_PROTECTION_RANGES,
+  );
   let output = '';
   let cursor = range.start;
+  let remainingLabelScanChars = MAX_MARKDOWN_IMAGE_TOTAL_LABEL_SCAN_CHARS;
 
   while (cursor < range.end) {
     const start = content.indexOf('![', cursor);
@@ -63,7 +70,21 @@ function scrubOverflowMarkdownDataImagesInRange(
       continue;
     }
 
-    const labelEnd = findMarkdownImageLabelEnd(content, start, range.end);
+    const labelResult = findMarkdownImageLabelEnd(
+      content,
+      start,
+      range.end,
+      remainingLabelScanChars,
+    );
+    remainingLabelScanChars = labelResult.remainingScanChars;
+    if (labelResult.exhausted) {
+      output += content.slice(cursor, start);
+      output += options.replacement;
+      cursor = range.end;
+      break;
+    }
+
+    const labelEnd = labelResult.labelEnd;
     if (labelEnd === null) {
       output += content.slice(cursor, start + 2);
       cursor = start + 2;
@@ -108,11 +129,33 @@ function scrubOverflowMarkdownDataImagesInRange(
   return output;
 }
 
-function findMarkdownImageLabelEnd(content: string, start: number, rangeEnd: number): number | null {
+function findMarkdownImageLabelEnd(
+  content: string,
+  start: number,
+  rangeEnd: number,
+  remainingScanChars: number,
+): { exhausted: boolean; labelEnd: number | null; remainingScanChars: number } {
   const labelStart = start + 2;
   const scanEnd = Math.min(rangeEnd, labelStart + MAX_MARKDOWN_IMAGE_LABEL_SCAN_CHARS);
-  const relativeEnd = content.slice(labelStart, scanEnd).indexOf('](');
-  return relativeEnd === -1 ? null : labelStart + relativeEnd;
+  const labelEnd = indexOfMarkdownImageLabelClose(content, labelStart, scanEnd);
+  const boundedLabelEnd = labelEnd === -1 ? null : labelEnd;
+  const scannedEnd = boundedLabelEnd === null ? scanEnd : boundedLabelEnd + 2;
+  const nextRemainingScanChars = remainingScanChars - Math.max(0, scannedEnd - labelStart);
+
+  return {
+    exhausted: nextRemainingScanChars < 0,
+    labelEnd: boundedLabelEnd,
+    remainingScanChars: Math.max(0, nextRemainingScanChars),
+  };
+}
+
+function indexOfMarkdownImageLabelClose(content: string, start: number, end: number): number {
+  for (let index = start; index + 1 < end; index += 1) {
+    if (content[index] === ']' && content[index + 1] === '(') {
+      return index;
+    }
+  }
+  return -1;
 }
 
 function isInlineDataImageMarkdownTargetAt(content: string, targetStart: number): boolean {

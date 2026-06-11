@@ -12,7 +12,9 @@ import {
 import {
   dedupeStarredEntries,
   getStarredEntryAbsolutePath,
+  getStarredVaultPathComparisonKey,
   getVaultStarredPaths,
+  isSameStarredVaultPath,
   normalizeStarredVaultPath,
   remapStarredEntriesForVault,
   resolveStarredRelativePathForVault,
@@ -111,6 +113,30 @@ function remapStarredEntriesForAbsoluteRename(
   return { entries: deduped, changed };
 }
 
+function isStarredAbsolutePathWithin(path: string, basePath: string): boolean {
+  const pathKey = getStarredVaultPathComparisonKey(path);
+  const baseKey = getStarredVaultPathComparisonKey(basePath);
+  return pathKey === baseKey || pathKey.startsWith(`${baseKey}/`);
+}
+
+function remapStarredAbsolutePathForRename(path: string, oldPath: string, newPath: string): string {
+  if (!isStarredAbsolutePathWithin(path, oldPath)) {
+    return path;
+  }
+
+  const normalizedPath = normalizeStarredVaultPath(path);
+  const normalizedOldPath = normalizeStarredVaultPath(oldPath);
+  const normalizedNewPath = normalizeStarredVaultPath(newPath);
+  if (getStarredVaultPathComparisonKey(normalizedPath) === getStarredVaultPathComparisonKey(normalizedOldPath)) {
+    return normalizedNewPath;
+  }
+
+  const suffix = normalizedPath.slice(normalizedOldPath.length);
+  return normalizedNewPath.endsWith('/') || suffix.startsWith('/')
+    ? `${normalizedNewPath}${suffix}`
+    : `${normalizedNewPath}/${suffix}`;
+}
+
 function pruneStarredEntriesForAbsoluteDeletion(
   entries: StarredEntry[],
   deletedPath: string,
@@ -130,12 +156,13 @@ function pruneStarredEntriesForAbsoluteDeletion(
     }
 
     const normalizedAbsolutePath = normalizeStarredVaultPath(absolutePath);
-    if (preservedDeletedPaths.has(normalizedAbsolutePath)) {
+    if ([...preservedDeletedPaths].some((preservedPath) => (
+      getStarredVaultPathComparisonKey(preservedPath) === getStarredVaultPathComparisonKey(normalizedAbsolutePath)
+    ))) {
       return true;
     }
 
-    const shouldRemove = normalizedAbsolutePath === normalizedDeletedPath ||
-      normalizedAbsolutePath.startsWith(`${normalizedDeletedPath}/`);
+    const shouldRemove = isStarredAbsolutePathWithin(normalizedAbsolutePath, normalizedDeletedPath);
     if (shouldRemove) {
       changed = true;
       return false;
@@ -176,11 +203,13 @@ function isKnownNoteFilePath(
         return false;
       }
 
-      if (entry.vaultPath === input.notesPath && entry.relativePath === path) {
+      if (isSameStarredVaultPath(entry.vaultPath, input.notesPath) && entry.relativePath === path) {
         return true;
       }
 
-      return isAbsolutePath(path) && getStarredEntryAbsolutePath(entry) === path;
+      return isAbsolutePath(path) &&
+        getStarredVaultPathComparisonKey(getStarredEntryAbsolutePath(entry) ?? '') ===
+          getStarredVaultPathComparisonKey(path);
     })
   );
 }

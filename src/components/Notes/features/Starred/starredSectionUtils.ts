@@ -1,6 +1,6 @@
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import type { FileTreeNode, FolderNode, StarredEntry } from '@/stores/notes/types';
-import { normalizeStarredVaultPath } from '@/stores/notes/starred';
+import { isSameStarredVaultPath, normalizeStarredVaultPath } from '@/stores/notes/starred';
 
 const MAX_STARRED_LOOKUP_TREE_NODES = 20_000;
 
@@ -10,7 +10,7 @@ export function getVaultLabel(
 ): string {
   const normalizedPath = normalizeStarredVaultPath(path);
   const matchedVault = recentVaults.find(
-    (vault) => normalizeStarredVaultPath(vault.path) === normalizedPath,
+    (vault) => isSameStarredVaultPath(vault.path, normalizedPath),
   );
   if (matchedVault) return matchedVault.name;
 
@@ -37,7 +37,7 @@ export function sortStarredEntries(entries: StarredEntry[]) {
   return [...entries]
     .map((entry, index) => ({ entry, index }))
     .sort((left, right) => {
-      if (left.entry.vaultPath === right.entry.vaultPath) {
+      if (isSameStarredVaultPath(left.entry.vaultPath, right.entry.vaultPath)) {
         if (isAncestorStarredPath(left.entry.relativePath, right.entry.relativePath)) {
           return 1;
         }

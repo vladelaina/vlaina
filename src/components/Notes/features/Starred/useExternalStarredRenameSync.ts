@@ -7,6 +7,7 @@ import type { StarredEntry } from '@/stores/notes/types';
 import { hasInternalNotePathSegment } from '@/stores/notes/utils/fs/internalNotePaths';
 import {
   getStarredEntryAbsolutePath,
+  isSameStarredVaultPath,
   normalizeStarredVaultPath,
 } from '@/stores/notes/starred';
 import {
@@ -31,7 +32,7 @@ function getExternalStarredWatchEntries(
       continue;
     }
 
-    if (normalizeStarredVaultPath(entry.vaultPath) === currentVaultPath) {
+    if (isSameStarredVaultPath(entry.vaultPath, currentVaultPath)) {
       continue;
     }
 

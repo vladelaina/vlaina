@@ -6,9 +6,30 @@ import { normalizeVaultRelativePath } from '../utils/fs/vaultPathContainment';
 
 const UNSAFE_STARRED_PATH_CHARS = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
+function trimStarredVaultTrailingSlashes(path: string): string {
+  if (path === '/' || /^[A-Za-z]:\/$/.test(path)) {
+    return path;
+  }
+
+  return path.replace(/\/+$/, '');
+}
+
 export function normalizeStarredVaultPath(path: string): string {
-  const normalized = normalizeAbsolutePath(path).replace(/\\/g, '/').replace(/\/+$/, '');
+  const normalized = trimStarredVaultTrailingSlashes(
+    normalizeAbsolutePath(path).replace(/\\/g, '/'),
+  );
   return normalized || path;
+}
+
+export function getStarredVaultPathComparisonKey(path: string): string {
+  const normalized = normalizeStarredVaultPath(path);
+  return /^[A-Za-z]:/.test(normalized) || normalized.startsWith('//')
+    ? normalized.toLowerCase()
+    : normalized;
+}
+
+export function isSameStarredVaultPath(left: string, right: string): boolean {
+  return getStarredVaultPathComparisonKey(left) === getStarredVaultPathComparisonKey(right);
 }
 
 export function isValidStarredVaultPath(path: string): boolean {
@@ -74,5 +95,8 @@ export function resolveStarredRelativePathForVault(
     return normalizeStarredRelativePath(normalizedAbsolutePath.replace(/^\/+/, ''));
   }
 
-  return normalizeStarredRelativePath(normalizedAbsolutePath.slice(normalizedVaultPath.length + 1));
+  const relativeStart = normalizedVaultPath.endsWith('/')
+    ? normalizedVaultPath.length
+    : normalizedVaultPath.length + 1;
+  return normalizeStarredRelativePath(normalizedAbsolutePath.slice(relativeStart));
 }

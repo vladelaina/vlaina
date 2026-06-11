@@ -5,6 +5,7 @@ import type { StarredEntry, StarredKind } from '../types';
 import { createStarredEntry, getStarredEntryKey } from './registry';
 import { hasInternalNotePathSegment } from '../utils/fs/internalNotePaths';
 import {
+  getStarredVaultPathComparisonKey,
   isValidStarredVaultPath,
   normalizeStarredRelativePath,
   normalizeStarredVaultPath,
@@ -29,7 +30,7 @@ export function getStarredEntryAbsolutePath(entry: StarredEntry): string | null 
 
   return vaultPath === '/'
     ? `/${relativePath}`
-    : `${vaultPath}/${relativePath}`.replace(/\/+/g, '/');
+    : `${vaultPath}/${relativePath}`;
 }
 
 export function createStarredEntryFromAbsoluteNotePath(path: string): StarredEntry | null {
@@ -90,7 +91,8 @@ export function isStarredEntryForPath(
     return false;
   }
 
-  return getStarredEntryAbsolutePath(entry) === normalizeStarredVaultPath(path);
+  return getStarredVaultPathComparisonKey(getStarredEntryAbsolutePath(entry) ?? '') ===
+    getStarredVaultPathComparisonKey(path);
 }
 
 export function findStarredEntryByPath(
@@ -118,7 +120,7 @@ export function resolveStarredNoteContext(
       continue;
     }
 
-    if (normalizePath(absoluteNotePath, true) === normalizedNote) {
+    if (getStarredVaultPathComparisonKey(absoluteNotePath) === getStarredVaultPathComparisonKey(normalizedNote)) {
       const relativePath = normalizeNotePathKey(entry.relativePath);
       if (!relativePath) {
         continue;

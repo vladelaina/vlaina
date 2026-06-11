@@ -191,6 +191,22 @@ describe('requestContext', () => {
     expect(sanitized[0].content).toContain('Tail [Image] after');
   });
 
+  it('does not leak history image sources after repeated malformed labels exhaust the scrub scan budget', () => {
+    const malformedPrefix = Array.from(
+      { length: 5 },
+      () => `![${'a'.repeat(1024 * 1024)}`,
+    ).join('');
+    const content = [
+      ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](attachment://safe-${index}.png)`),
+      `${malformedPrefix}![secret](attachment://secret.png) after`,
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage({ role: 'user', content })]);
+
+    expect(sanitized[0].content).not.toContain('attachment://secret.png');
+    expect(sanitized[0].content).toContain('[Image]');
+  });
+
   it('does not leak entity-encoded oversized markdown data image targets after the history scan budget is reached', () => {
     const content = [
       ...Array.from({ length: 2000 }, (_, index) => `![image ${index}](attachment://safe-${index}.png)`),

@@ -219,6 +219,16 @@ describe('markdownImageTokens', () => {
     ]);
   });
 
+  it('stops markdown image parsing after repeated failed part scans', () => {
+    const malformedPrefix = Array.from(
+      { length: 5 },
+      () => `![${'a'.repeat(1024 * 1024)}`,
+    ).join('');
+    const markdown = `${malformedPrefix}![real](https://example.com/real.png)`;
+
+    expect(parseMarkdownAndHtmlImageTokens(markdown, { maxTokens: 1 })).toEqual([]);
+  });
+
   it('uses only the first markdown image target segment before title text', () => {
     const markdown = `![alt](images/a.png ${' '.repeat(4096)} "title")`;
 

@@ -16,6 +16,7 @@ import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetS
 const MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES = 2000;
 const MAX_EXTERNAL_MARKDOWN_SCAN_ENTRIES = 10_000;
 const MAX_EXTERNAL_MARKDOWN_STARRED_SCAN_ENTRIES = 10_000;
+const MAX_EXTERNAL_MARKDOWN_PRIORITY_SCAN_ENTRIES = MAX_EXTERNAL_MARKDOWN_SCAN_ENTRIES * 2;
 const MAX_EXTERNAL_MARKDOWN_IMPORT_DEPTH = 24;
 const MAX_EXTERNAL_MARKDOWN_FILE_SIZE = 10 * 1024 * 1024;
 const EXPLICIT_URL_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/;
@@ -55,8 +56,10 @@ function shouldSkipExternalMarkdownDirectory(name: string) {
 function prioritizeExternalMarkdownScanEntries<T>(
   entries: readonly T[],
   getPriority: (entry: T) => number,
+  maxEntries = entries.length,
 ): T[] {
-  return entries
+  const scanEntries = entries.length > maxEntries ? entries.slice(0, maxEntries) : entries;
+  return scanEntries
     .map((entry, index) => ({ entry, index, priority: getPriority(entry) }))
     .sort((left, right) => left.priority - right.priority || left.index - right.index)
     .map(({ entry }) => entry);
@@ -258,6 +261,7 @@ async function importExternalMarkdownDirectory(
   for (const entry of prioritizeExternalMarkdownScanEntries(
     entries,
     getExternalMarkdownDirectoryEntryPriority,
+    MAX_EXTERNAL_MARKDOWN_PRIORITY_SCAN_ENTRIES,
   )) {
     if (!spendExternalMarkdownScanBudget(budget)) {
       break;
@@ -331,6 +335,7 @@ export async function importExternalMarkdownEntries(
   for (const absolutePath of prioritizeExternalMarkdownScanEntries(
     absolutePaths,
     getExternalMarkdownAbsolutePathPriority,
+    MAX_EXTERNAL_MARKDOWN_PRIORITY_SCAN_ENTRIES,
   )) {
     if (!spendExternalMarkdownScanBudget(budget)) {
       break;
@@ -405,6 +410,7 @@ export async function resolveExternalMarkdownEntriesForStarred(
   for (const absolutePath of prioritizeExternalMarkdownScanEntries(
     absolutePaths,
     getExternalMarkdownAbsolutePathPriority,
+    MAX_EXTERNAL_MARKDOWN_PRIORITY_SCAN_ENTRIES,
   )) {
     if (
       scannedEntries >= MAX_EXTERNAL_MARKDOWN_STARRED_SCAN_ENTRIES ||

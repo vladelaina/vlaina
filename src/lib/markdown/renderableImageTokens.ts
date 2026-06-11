@@ -19,6 +19,7 @@ import { htmlImageTagHasDataImageSrc } from './markdownHtmlImageSrc';
 
 const MAX_RENDERABLE_IMAGE_REPLACEMENT_TOKENS = 2000;
 const MAX_OVERFLOW_DATA_IMAGE_TARGET_CHARS = MAX_INLINE_IMAGE_BASE64_CHARS + 4096;
+const MAX_OVERFLOW_INLINE_CODE_PROTECTION_RANGES = 4000;
 
 function normalizeImageToken(token: ImageToken): ImageToken | null {
   const src = normalizeRenderableImageSrc(token.src);
@@ -99,7 +100,11 @@ function scrubOverflowHtmlDataImagesInRange(
   range: ContentRange,
   replacement: string,
 ): string {
-  const inlineCodeRanges = getInlineCodeRanges(content, range);
+  const inlineCodeRanges = getInlineCodeRanges(
+    content,
+    range,
+    MAX_OVERFLOW_INLINE_CODE_PROTECTION_RANGES,
+  );
   let output = '';
   let cursor = range.start;
 

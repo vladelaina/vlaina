@@ -89,6 +89,20 @@ describe("CodeBlock", () => {
     expect(container.querySelector(".code-block-chrome-line-numbers")).toBeNull();
   });
 
+  it("skips line number generation for pathological code block line counts", () => {
+    const largeLineCode = Array.from({ length: 20_002 }, () => "x").join("\n");
+
+    const { container } = render(
+      <CodeBlock className="language-ts">
+        {largeLineCode}
+      </CodeBlock>,
+    );
+
+    expect(container.querySelector(".code-block-chrome-line-numbers")).toBeNull();
+    expect(mocks.highlight).not.toHaveBeenCalled();
+    expect(mocks.highlightAuto).not.toHaveBeenCalled();
+  });
+
   it("uses language-specific highlighting when language is known", () => {
     render(
       <CodeBlock className="language-ts">

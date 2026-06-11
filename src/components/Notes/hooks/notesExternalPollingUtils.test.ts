@@ -148,4 +148,18 @@ describe('notesExternalPollingUtils', () => {
       hasChanges: true,
     });
   });
+
+  it('does not infer path deletions from truncated tree snapshots', () => {
+    const previous = [
+      folder('docs', Array.from({ length: 20_050 }, (_, index) => file(`docs/note-${index}.md`))),
+    ];
+    const next: FileTreeNode[] = [];
+
+    expect(detectExternalTreePathChanges(previous, next)).toEqual({
+      renames: [],
+      deletions: [],
+      hasAdditions: true,
+      hasChanges: true,
+    });
+  });
 });
