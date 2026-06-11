@@ -289,6 +289,25 @@ export function useNoteMentionState({
     setMentions([]);
   }, []);
 
+  const restoreMentions = useCallback((nextMentions: NoteMentionReference[]) => {
+    const seenPaths = new Set<string>();
+    const restoredMentions: NoteMentionReference[] = [];
+    for (const mention of nextMentions) {
+      const path = mention.path.trim();
+      const title = mention.title.trim() || path;
+      if (!path || !title || seenPaths.has(path)) {
+        continue;
+      }
+      seenPaths.add(path);
+      restoredMentions.push({
+        path,
+        title,
+        kind: mention.kind === 'folder' ? 'folder' : 'note',
+      });
+    }
+    setMentions(restoredMentions);
+  }, []);
+
   const handleValueChange = useCallback((nextValue: string, nextCaretIndex?: number) => {
     onValueChange(nextValue);
     if (typeof nextCaretIndex === 'number') {
@@ -543,6 +562,7 @@ export function useNoteMentionState({
   return {
     mentions,
     clearMentions,
+    restoreMentions,
     currentPageCandidates,
     folderCandidates,
     linkedPageCandidates,

@@ -531,6 +531,136 @@ describe('message actions API transcript handling', () => {
     expect(ai.messages['session-1'][0].versions[0].subsequentMessages[0].id).toBe('assistant-1');
   });
 
+  it('retracts a trailing pending composer request with an empty assistant placeholder', () => {
+    seedMessages([
+      createUserMessage('prompt-1', 'pending prompt'),
+      {
+        ...createAssistantMessage(),
+        id: 'assistant-1',
+        content: '',
+        apiTranscript: undefined,
+        versions: [{
+          content: '',
+          createdAt: 1,
+          kind: 'original' as const,
+          subsequentMessages: [],
+        }],
+      },
+    ]);
+
+    const recalled = createMessageActions().retractPendingUserRequest(
+      'session-1',
+      'prompt-1',
+      'assistant-1',
+    );
+
+    const ai = useUnifiedStore.getState().data.ai!;
+    expect(recalled).toBe('pending prompt');
+    expect(ai.messages['session-1']).toEqual([]);
+    expect(saveSessionJson).toHaveBeenCalledWith('session-1', []);
+  });
+
+  it('retracts a pending composer request while the assistant only has status and thinking content', () => {
+    seedMessages([
+      createUserMessage('prompt-1', 'pending prompt'),
+      {
+        ...createAssistantMessage(),
+        id: 'assistant-1',
+        content: '<web-search-status>{"phase":"searching"}</web-search-status><think>planning',
+        apiTranscript: undefined,
+        versions: [{
+          content: '<web-search-status>{"phase":"searching"}</web-search-status><think>planning',
+          createdAt: 1,
+          kind: 'original' as const,
+          subsequentMessages: [],
+        }],
+      },
+    ]);
+
+    const recalled = createMessageActions().retractPendingUserRequest(
+      'session-1',
+      'prompt-1',
+      'assistant-1',
+    );
+
+    expect(recalled).toBe('pending prompt');
+    expect(useUnifiedStore.getState().data.ai!.messages['session-1']).toEqual([]);
+  });
+
+  it('does not retract a composer request after visible assistant content arrives', () => {
+    seedMessages([
+      createUserMessage('prompt-1', 'pending prompt'),
+      {
+        ...createAssistantMessage(),
+        id: 'assistant-1',
+        content: '<think>planning</think>visible answer',
+        apiTranscript: undefined,
+        versions: [{
+          content: '<think>planning</think>visible answer',
+          createdAt: 1,
+          kind: 'original' as const,
+          subsequentMessages: [],
+        }],
+      },
+    ]);
+
+    const recalled = createMessageActions().retractPendingUserRequest(
+      'session-1',
+      'prompt-1',
+      'assistant-1',
+    );
+
+    const messages = useUnifiedStore.getState().data.ai!.messages['session-1'];
+    expect(recalled).toBeNull();
+    expect(messages).toHaveLength(2);
+    expect(messages[0].content).toBe('pending prompt');
+    expect(messages[1].content).toBe('<think>planning</think>visible answer');
+    expect(saveSessionJson).not.toHaveBeenCalled();
+  });
+
+  it('retracts a trailing user message before the assistant placeholder exists', () => {
+    seedMessages([createUserMessage('prompt-1', 'pending prompt')]);
+
+    const recalled = createMessageActions().retractPendingUserRequest(
+      'session-1',
+      'prompt-1',
+      null,
+    );
+
+    expect(recalled).toBe('pending prompt');
+    expect(useUnifiedStore.getState().data.ai!.messages['session-1']).toEqual([]);
+  });
+
+  it('routes pending request retractions through promoted temporary session aliases', () => {
+    seedMessages([
+      createUserMessage('prompt-1', 'pending prompt'),
+      {
+        ...createAssistantMessage(),
+        id: 'assistant-1',
+        content: '',
+        apiTranscript: undefined,
+        versions: [{
+          content: '',
+          createdAt: 1,
+          kind: 'original' as const,
+          subsequentMessages: [],
+        }],
+      },
+    ]);
+    aliasSessionId('temp-session-1', 'session-1');
+
+    const recalled = createMessageActions().retractPendingUserRequest(
+      'temp-session-1',
+      'prompt-1',
+      'assistant-1',
+    );
+
+    const ai = useUnifiedStore.getState().data.ai!;
+    expect(recalled).toBe('pending prompt');
+    expect(ai.messages['temp-session-1']).toBeUndefined();
+    expect(ai.messages['session-1']).toEqual([]);
+  });
+
   it('does not recreate orphan message buckets for deleted sessions', () => {
     seedMessages([]);
     useUnifiedStore.setState((state) => ({
@@ -558,6 +688,7 @@ describe('message actions API transcript handling', () => {
     actions.addVersion('assistant-1', 'session-1');
     actions.editMessageAndBranch('session-1', 'prompt-1', 'edited after delete');
     actions.switchMessageVersion('session-1', 'assistant-1', 0);
+    actions.retractPendingUserRequest('session-1', 'prompt-1', 'assistant-1');
 
     const ai = useUnifiedStore.getState().data.ai!;
     expect(ai.messages).toEqual({});

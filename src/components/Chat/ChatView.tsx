@@ -107,7 +107,7 @@ export function ChatView({
     }
   }, [currentSessionId, isMessagesLoaded]);
 
-  const { sendMessage, regenerate, editMessage, switchMessageVersion, stop } = useChatService();
+  const { sendMessage, regenerate, editMessage, switchMessageVersion, stop, stopAndRecallLastUserMessage } = useChatService();
   const regenerateRef = useRef(regenerate);
   const editMessageRef = useRef(editMessage);
   const switchMessageVersionRef = useRef(switchMessageVersion);
@@ -534,6 +534,7 @@ export function ChatView({
                 active={active}
                 onSend={handleSend} 
                 onStop={stop}
+                onStopAndRecall={stopAndRecallLastUserMessage}
                 isLoading={isSessionActive} 
                 hasSelectedModel={!!selectedModel}
                 focusTrigger={focusInputTrigger}

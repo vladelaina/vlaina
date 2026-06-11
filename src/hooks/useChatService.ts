@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { actions as aiActions } from '@/stores/useAIStore';
 import {
   convertToBase64,
@@ -126,6 +126,22 @@ function finishPreStartedChatRequest(
 const MANAGED_BUDGET_BLOCK_MAX_AGE_MS = 60_000;
 export const MAX_TEMPORARY_ATTACHMENT_EPHEMERAL_CONCURRENCY = 4;
 
+interface ActiveComposerRequest {
+  sessionId: string;
+  controller: AbortController;
+  submittedText: string;
+  submittedAttachments: Attachment[];
+  submittedNoteMentions: NoteMentionReference[];
+  userMessageId: string | null;
+  assistantMessageId: string | null;
+}
+
+export interface RecalledComposerDraft {
+  message: string;
+  attachments: Attachment[];
+  noteMentions: NoteMentionReference[];
+}
+
 function createManagedQuotaError(message: string) {
   return {
     type: 'QUOTA_EXHAUSTED',
@@ -219,11 +235,15 @@ async function mapWithConcurrencyLimit<T, R>(
   return results;
 }
 
-async function makeTemporaryAttachmentsEphemeral(attachments: Attachment[]): Promise<Attachment[]> {
+async function makeTemporaryAttachmentsEphemeral(
+  attachments: Attachment[],
+  signal?: AbortSignal,
+): Promise<Attachment[]> {
   const ephemeralAttachments = await mapWithConcurrencyLimit(
     attachments,
     MAX_TEMPORARY_ATTACHMENT_EPHEMERAL_CONCURRENCY,
     async (attachment) => {
+      throwIfChatRequestAborted(signal);
       const hasPersistentReference =
         !!attachment.path ||
         isStoredAttachmentSrc(attachment.previewUrl) ||
@@ -241,6 +261,7 @@ async function makeTemporaryAttachmentsEphemeral(attachments: Attachment[]): Pro
         });
       } catch {
       }
+      throwIfChatRequestAborted(signal);
 
       if (!previewUrl) {
         return null;
@@ -275,6 +296,7 @@ function isStoredAttachmentFileUrl(src: string | null | undefined): boolean {
 export function useChatService() {
   const { t } = useI18n();
   const { generateAutoTitle } = useAutoTitle();
+  const activeComposerRequestRef = useRef<ActiveComposerRequest | null>(null);
   const currentSessionId = useAIUIStore((state) => state.currentSessionId);
   const messages = useUnifiedStore((state) => {
     if (!currentSessionId) {
@@ -308,14 +330,89 @@ export function useChatService() {
     return provider?.enabled === false ? undefined : model;
   }, [models, providers, selectedModelId]);
 
+  const clearActiveComposerRequest = useCallback((request: ActiveComposerRequest | null) => {
+    if (request && activeComposerRequestRef.current !== request) {
+      return;
+    }
+    activeComposerRequestRef.current = null;
+  }, []);
+
   const stop = useCallback(() => {
     const sessionId = useAIUIStore.getState().currentSessionId;
     if (!sessionId) {
       return;
     }
+    const activeComposerRequest = activeComposerRequestRef.current;
+    const shouldClearComposerRequest =
+      !!activeComposerRequest &&
+      resolveSessionIdAlias(activeComposerRequest.sessionId) === resolveSessionIdAlias(sessionId);
     requestManager.abort(sessionId);
     setSessionLoading(sessionId, false);
+    if (shouldClearComposerRequest) {
+      activeComposerRequestRef.current = null;
+    }
   }, [setSessionLoading]);
+
+  const stopAndRecallLastUserMessage = useCallback((fallbackMessage?: string): RecalledComposerDraft | null => {
+    const sessionId = useAIUIStore.getState().currentSessionId;
+    if (!sessionId) {
+      return null;
+    }
+
+    const activeComposerRequest = activeComposerRequestRef.current;
+    const resolvedComposerSessionId = activeComposerRequest
+      ? resolveSessionIdAlias(activeComposerRequest.sessionId)
+      : null;
+    const isSameComposerSession =
+      !!activeComposerRequest &&
+      resolvedComposerSessionId === resolveSessionIdAlias(sessionId);
+    const canRecallActiveRequest =
+      isSameComposerSession &&
+      requestManager.isCurrent(activeComposerRequest.sessionId, activeComposerRequest.controller);
+
+    requestManager.abort(sessionId);
+    setSessionLoading(sessionId, false);
+
+    if (!canRecallActiveRequest || !activeComposerRequest) {
+      if (isSameComposerSession) {
+        clearActiveComposerRequest(activeComposerRequest);
+      }
+      return null;
+    }
+
+    const recalledFromStore = activeComposerRequest.userMessageId
+      ? aiActions.retractPendingUserRequest(
+          resolvedComposerSessionId || activeComposerRequest.sessionId,
+          activeComposerRequest.userMessageId,
+          activeComposerRequest.assistantMessageId,
+        )
+      : null;
+    clearActiveComposerRequest(activeComposerRequest);
+
+    const fallback = fallbackMessage?.trim()
+      ? fallbackMessage
+      : activeComposerRequest.submittedText;
+    const recalledDraft: RecalledComposerDraft = {
+      message: fallback.trim() ? fallback : activeComposerRequest.submittedText,
+      attachments: activeComposerRequest.submittedAttachments,
+      noteMentions: activeComposerRequest.submittedNoteMentions,
+    };
+
+    if (recalledFromStore !== null) {
+      return recalledDraft;
+    }
+
+    if (
+      !activeComposerRequest.userMessageId &&
+      (recalledDraft.message.trim() ||
+        recalledDraft.attachments.length > 0 ||
+        recalledDraft.noteMentions.length > 0)
+    ) {
+      return recalledDraft;
+    }
+
+    return null;
+  }, [clearActiveComposerRequest, setSessionLoading]);
 
   const maybeGenerateAutoTitle = useCallback(
     (sessionId: string, providerId: string, modelId: string) => {
@@ -388,6 +485,16 @@ export function useChatService() {
       const targetSessionId = activeSessionId;
       const requestStartedAt = Date.now();
       const requestController = requestManager.start(targetSessionId);
+      const composerRequest: ActiveComposerRequest = {
+        sessionId: targetSessionId,
+        controller: requestController,
+        submittedText: userMessageText,
+        submittedAttachments: normalizedAttachments,
+        submittedNoteMentions: normalizedMentions,
+        userMessageId: null,
+        assistantMessageId: null,
+      };
+      activeComposerRequestRef.current = composerRequest;
       const ensureRequestActive = () => {
         if (isChatRequestCancelled(targetSessionId, requestController)) {
           throw new DOMException('Aborted', 'AbortError');
@@ -413,8 +520,9 @@ export function useChatService() {
         const isTemporaryTarget =
           isTemporarySessionId(targetSessionId) || isTemporarySession(targetSession);
         const requestAttachments = isTemporaryTarget
-          ? await makeTemporaryAttachmentsEphemeral(normalizedAttachments)
+          ? await makeTemporaryAttachmentsEphemeral(normalizedAttachments, requestController.signal)
           : normalizedAttachments;
+        composerRequest.submittedAttachments = requestAttachments;
         ensureRequestActive();
 
         let storageContent = userMessageText;
@@ -432,16 +540,23 @@ export function useChatService() {
         }
 
         if (!storageContent.trim()) {
+          clearActiveComposerRequest(composerRequest);
           finishPreStartedChatRequest(targetSessionId, requestController, setSessionLoading);
           return;
         }
 
-        aiActions.addMessage({
+        const userMessageId = aiActions.addMessage({
           role: 'user',
           content: storageContent,
           imageSources: messageImageSources,
           modelId: selectedModel.id,
         }, targetSessionId);
+        if (!userMessageId) {
+          clearActiveComposerRequest(composerRequest);
+          finishPreStartedChatRequest(targetSessionId, requestController, setSessionLoading);
+          return;
+        }
+        composerRequest.userMessageId = userMessageId;
 
         const assistantMessageId = aiActions.addMessage({
           role: 'assistant',
@@ -452,17 +567,21 @@ export function useChatService() {
           touchSession: false,
         });
         if (!assistantMessageId) {
+          clearActiveComposerRequest(composerRequest);
           finishPreStartedChatRequest(targetSessionId, requestController, setSessionLoading);
           return;
         }
+        composerRequest.assistantMessageId = assistantMessageId;
 
         if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
           writeManagedQuotaErrorMessage(targetSessionId, assistantMessageId, setError, t('chat.error.pointsExhausted'));
+          clearActiveComposerRequest(composerRequest);
           finishPreStartedChatRequest(targetSessionId, requestController, setSessionLoading);
           return;
         }
         if (isManagedProviderId(provider.id) && !isAccountConnected) {
           writeManagedAuthRequiredMessage(targetSessionId, assistantMessageId, setError);
+          clearActiveComposerRequest(composerRequest);
           finishPreStartedChatRequest(targetSessionId, requestController, setSessionLoading);
           return;
         }
@@ -595,9 +714,11 @@ export function useChatService() {
               durationMs: Date.now() - requestStartedAt,
             }, 'warn');
           }
+          clearActiveComposerRequest(composerRequest);
           return status;
         }).catch((error) => {
           if (isChatRequestCancelled(targetSessionId, requestController)) {
+            clearActiveComposerRequest(composerRequest);
             return 'aborted' as const;
           }
           addChatDebugLog('chat', 'sendMessage stream runner failed unexpectedly', {
@@ -611,11 +732,13 @@ export function useChatService() {
           setError(message);
           aiActions.updateMessage(targetSessionId, assistantMessageId, xml);
           aiActions.completeMessage(targetSessionId, assistantMessageId);
+          clearActiveComposerRequest(composerRequest);
           return 'failed' as const;
         });
       }).catch((error) => {
         const cancelled = isChatRequestCancelled(targetSessionId, requestController);
         finishPreStartedChatRequest(targetSessionId, requestController, setSessionLoading);
+        clearActiveComposerRequest(composerRequest);
         if (cancelled) {
           addChatDebugLog('chat', 'sendMessage aborted before stream start', {
             sessionId: targetSessionId,
@@ -644,6 +767,7 @@ export function useChatService() {
       webSearchEnabled,
       setSessionLoading,
       setError,
+      clearActiveComposerRequest,
       maybeGenerateAutoTitle,
       markSessionUnread,
       isAccountConnected,
@@ -1074,5 +1198,5 @@ export function useChatService() {
     [],
   );
 
-  return { sendMessage, regenerate, editMessage, switchMessageVersion, stop };
+  return { sendMessage, regenerate, editMessage, switchMessageVersion, stop, stopAndRecallLastUserMessage };
 }

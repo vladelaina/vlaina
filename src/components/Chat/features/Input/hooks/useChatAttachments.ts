@@ -315,6 +315,19 @@ export function useChatAttachments() {
     setAttachments([]);
   }, []);
 
+  const restoreAttachments = useCallback((nextAttachments: Attachment[]) => {
+    const restoredAttachments = nextAttachments.slice(0, MAX_CHAT_ATTACHMENT_INPUT_FILES);
+    const restoredIds = new Set(restoredAttachments.map((attachment) => attachment.id));
+    setAttachments((prev) => {
+      prev
+        .filter((attachment) => !restoredIds.has(attachment.id))
+        .forEach((attachment) => {
+          void deleteAttachment(attachment).catch(() => {});
+        });
+      return restoredAttachments;
+    });
+  }, []);
+
   const triggerFileSelect = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
@@ -342,5 +355,6 @@ export function useChatAttachments() {
     triggerFileSelect,
     removeAttachment,
     clearAttachments,
+    restoreAttachments,
   };
 }
