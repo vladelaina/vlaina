@@ -56,6 +56,8 @@ function DevOverlayButton({
 
 export function DevMainOverlay({ effectiveAppViewMode }: { effectiveAppViewMode: AppViewMode }) {
   const setAppViewMode = useUIStore((state) => state.setAppViewMode);
+  const devPlatformPreview = useUIStore((state) => state.devPlatformPreview);
+  const toggleDevPlatformPreview = useUIStore((state) => state.toggleDevPlatformPreview);
   const colorMode = useUnifiedStore((state) => state.data.settings.ui?.colorMode);
   const setColorMode = useUnifiedStore((state) => state.setColorMode);
   const importedMarkdownThemeId = useUnifiedStore(selectMarkdownImportedThemeId);
@@ -88,6 +90,10 @@ export function DevMainOverlay({ effectiveAppViewMode }: { effectiveAppViewMode:
   }, [importedMarkdownThemeId, isThemeSwitching, setMarkdownImportedThemeId]);
 
   const isDarkModeSelected = colorMode === 'dark';
+  const isMacOSPreviewSelected = devPlatformPreview === 'macos';
+  const platformPreviewSwitchLabel = isMacOSPreviewSelected
+    ? 'Use system platform preview'
+    : 'Preview macOS titlebar';
   const colorModeSwitchLabel = isDarkModeSelected ? 'Switch to light mode' : 'Switch to dark mode';
   const markdownThemeSwitchLabel = importedMarkdownThemeId
     ? `Switch Markdown theme (${importedMarkdownThemeId})`
@@ -105,6 +111,11 @@ export function DevMainOverlay({ effectiveAppViewMode }: { effectiveAppViewMode:
         iconName={isDarkModeSelected ? 'theme.light' : 'theme.dark'}
         label={colorModeSwitchLabel}
         onClick={() => setColorMode(isDarkModeSelected ? 'light' : 'dark')}
+      />
+      <DevOverlayButton
+        iconName="theme.system"
+        label={platformPreviewSwitchLabel}
+        onClick={toggleDevPlatformPreview}
       />
       {effectiveAppViewMode !== 'lab' ? (
         <DevOverlayButton

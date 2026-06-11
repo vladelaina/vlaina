@@ -1,6 +1,7 @@
 import { desktopWindow } from '@/lib/desktop/window';
 import { Icon } from '@/components/ui/icons';
 import { isMacOS } from '@/lib/desktop/platform';
+import { useUIStore } from '@/stores/uiSlice';
 
 interface WindowControlsProps {
   className?: string;
@@ -8,7 +9,9 @@ interface WindowControlsProps {
 }
 
 export function WindowControls({ className, minimal }: WindowControlsProps) {
-  if (isMacOS()) {
+  const devPlatformPreview = useUIStore((state) => state.devPlatformPreview);
+
+  if (isMacOS(devPlatformPreview)) {
     return null;
   }
 

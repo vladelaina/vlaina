@@ -1,13 +1,25 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UnifiedTitleBar } from './UnifiedTitleBar';
+import { useUIStore } from '@/stores/uiSlice';
 
 const mocks = vi.hoisted(() => ({
   isMacOS: vi.fn(() => false),
+  shouldRenderMacOSTrafficLightPreview: vi.fn(() => false),
+  desktopWindow: {
+    minimize: vi.fn(),
+    toggleMaximize: vi.fn(),
+    close: vi.fn(),
+  },
 }));
 
 vi.mock('@/lib/desktop/platform', () => ({
   isMacOS: mocks.isMacOS,
+  shouldRenderMacOSTrafficLightPreview: mocks.shouldRenderMacOSTrafficLightPreview,
+}));
+
+vi.mock('@/lib/desktop/window', () => ({
+  desktopWindow: mocks.desktopWindow,
 }));
 
 vi.mock('@/components/ui/icons', () => ({
@@ -19,6 +31,12 @@ vi.mock('@/components/layout/WindowControls', () => ({
 }));
 
 describe('UnifiedTitleBar', () => {
+  beforeEach(() => {
+    mocks.isMacOS.mockReturnValue(false);
+    mocks.shouldRenderMacOSTrafficLightPreview.mockReturnValue(false);
+    useUIStore.setState({ devPlatformPreview: 'system' });
+  });
+
   it('reserves native traffic-light space when the sidebar is collapsed on macOS', () => {
     mocks.isMacOS.mockReturnValueOnce(true);
 
@@ -43,5 +61,20 @@ describe('UnifiedTitleBar', () => {
     );
 
     expect(screen.getByRole('button').parentElement).toHaveClass('pl-2');
+  });
+
+  it('renders traffic-light preview controls when macOS preview is active off macOS', () => {
+    mocks.isMacOS.mockReturnValue(true);
+    mocks.shouldRenderMacOSTrafficLightPreview.mockReturnValue(true);
+    useUIStore.setState({ devPlatformPreview: 'macos' });
+
+    render(
+      <UnifiedTitleBar
+        sidebarCollapsed
+        onToggleSidebar={() => {}}
+      />
+    );
+
+    expect(screen.getByTestId('macos-traffic-light-preview')).toBeInTheDocument();
   });
 });

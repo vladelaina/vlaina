@@ -17,6 +17,7 @@ describe('uiSlice', () => {
       appViewMode: 'notes',
       sidebarCollapsed: false,
       sidebarWidth: 280,
+      devPlatformPreview: 'system',
       sidebarHeaderHovered: false,
       sidebarSearchOpen: false,
       notesSidebarView: 'workspace',
@@ -317,6 +318,17 @@ describe('uiSlice', () => {
       universalPreviewTone: 2,
       universalPreviewIconSize: 20,
     });
+  });
+
+  it('toggles the development platform preview without persisting it', () => {
+    useUIStore.getState().toggleDevPlatformPreview();
+
+    expect(useUIStore.getState().devPlatformPreview).toBe('macos');
+    expect(localStorage.getItem('vlaina_dev_platform_preview')).toBeNull();
+
+    useUIStore.getState().setDevPlatformPreview('system');
+
+    expect(useUIStore.getState().devPlatformPreview).toBe('system');
   });
 
   it('sanitizes image folder names before persisting', () => {

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WindowControls } from './WindowControls';
+import { useUIStore } from '@/stores/uiSlice';
 
 const mocks = vi.hoisted(() => ({
   windowState: {
@@ -23,6 +24,7 @@ describe('WindowControls', () => {
     mocks.windowState.minimize.mockClear();
     mocks.windowState.toggleMaximize.mockClear();
     mocks.windowState.close.mockClear();
+    useUIStore.setState({ devPlatformPreview: 'system' });
   });
 
   it('dispatches minimize, maximize and close through the electron window api', () => {
@@ -43,5 +45,15 @@ describe('WindowControls', () => {
     expect(screen.getByText('window.minimize')).toBeInTheDocument();
     expect(screen.queryByText('window.maximize')).toBeNull();
     expect(screen.getByText('window.close')).toBeInTheDocument();
+  });
+
+  it('hides the renderer window controls during macOS platform preview', () => {
+    useUIStore.setState({ devPlatformPreview: 'macos' });
+
+    render(<WindowControls />);
+
+    expect(screen.queryByText('window.minimize')).toBeNull();
+    expect(screen.queryByText('window.maximize')).toBeNull();
+    expect(screen.queryByText('window.close')).toBeNull();
   });
 });

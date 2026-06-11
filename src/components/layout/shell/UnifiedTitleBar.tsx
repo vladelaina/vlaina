@@ -3,8 +3,10 @@ import { Icon } from '@/components/ui/icons';
 import { WindowControls } from '@/components/layout/WindowControls';
 import { chatComposerGhostIconButtonClass } from '@/components/Chat/features/Input/composerStyles';
 import { blurComposerInput, isComposerInputFocused } from '@/lib/ui/composerFocusRegistry';
-import { isMacOS } from '@/lib/desktop/platform';
+import { desktopWindow } from '@/lib/desktop/window';
+import { isMacOS, shouldRenderMacOSTrafficLightPreview } from '@/lib/desktop/platform';
 import { cn } from '@/lib/utils';
+import { useUIStore } from '@/stores/uiSlice';
 import { themeDomStyleTokens, themeIconTokens, themeStyleResetTokens } from '@/styles/themeTokens';
 
 interface UnifiedTitleBarProps {
@@ -18,6 +20,37 @@ interface UnifiedTitleBarProps {
   showWindowControls?: boolean;
 }
 
+function MacOSTrafficLightPreviewControls() {
+  const buttonClass =
+    'h-3 w-3 rounded-full border border-black/15 shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.35)] transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-color-accent-focus-ring)]';
+
+  return (
+    <div
+      data-testid="macos-traffic-light-preview"
+      className="app-no-drag absolute left-3 top-0 z-[var(--vlaina-z-60)] flex h-10 items-center gap-2"
+    >
+      <button
+        type="button"
+        aria-label="Close window"
+        onClick={() => void desktopWindow.close()}
+        className={`${buttonClass} bg-[#ff5f57]`}
+      />
+      <button
+        type="button"
+        aria-label="Minimize window"
+        onClick={() => void desktopWindow.minimize()}
+        className={`${buttonClass} bg-[#febc2e]`}
+      />
+      <button
+        type="button"
+        aria-label="Maximize window"
+        onClick={() => void desktopWindow.toggleMaximize()}
+        className={`${buttonClass} bg-[#28c840]`}
+      />
+    </div>
+  );
+}
+
 export function UnifiedTitleBar({
   leftSlot,
   centerSlot,
@@ -28,7 +61,9 @@ export function UnifiedTitleBar({
   centerOverflowVisible = false,
   showWindowControls = true
 }: UnifiedTitleBarProps) {
-  const shouldReserveMacTrafficLightSpace = isMacOS();
+  const devPlatformPreview = useUIStore((state) => state.devPlatformPreview);
+  const shouldReserveMacTrafficLightSpace = isMacOS(devPlatformPreview);
+  const shouldShowTrafficLightPreview = shouldRenderMacOSTrafficLightPreview(devPlatformPreview);
   const handleTitleBarMouseDownCapture = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
 
@@ -52,6 +87,8 @@ export function UnifiedTitleBar({
       style={{ backgroundColor }}
       onMouseDownCapture={handleTitleBarMouseDownCapture}
     >
+      {shouldShowTrafficLightPreview ? <MacOSTrafficLightPreviewControls /> : null}
+
       {sidebarCollapsed ? (
         <div className={`relative z-[var(--vlaina-z-20)] flex items-center h-full pr-3 bg-transparent ${shouldReserveMacTrafficLightSpace ? 'pl-[var(--vlaina-space-76px)]' : 'pl-2'}`}>
           <button
