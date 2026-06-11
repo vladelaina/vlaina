@@ -142,27 +142,31 @@ export function createToolbarEventDelegation(
       }
     }
 
-    void actionController.handleAction(currentView, action).then((shouldHideToolbar) => {
-      const view = currentView;
-      if (view && preservePreviewDuringApply) {
+    void actionController.handleAction(currentView, action)
+      .then((shouldHideToolbar) => {
+        const view = currentView;
+        if (view && preservePreviewDuringApply) {
+          clearFormatPreview(view);
+        }
+
+        if (!shouldHideToolbar || !view) {
+          return;
+        }
+
         clearFormatPreview(view);
-      }
-
-      if (!shouldHideToolbar || !view) {
-        return;
-      }
-
-      clearFormatPreview(view);
-      hideTooltip();
-      view.dispatch(
-        view.state.tr.setMeta(floatingToolbarKey, {
-          type: TOOLBAR_ACTIONS.HIDE,
-        })
-      );
-      if (COLLAPSE_SELECTION_AFTER_APPLY_ACTIONS.has(action)) {
-        collapseSelectionAfterToolbarApply(view);
-      }
-    });
+        hideTooltip();
+        view.dispatch(
+          view.state.tr.setMeta(floatingToolbarKey, {
+            type: TOOLBAR_ACTIONS.HIDE,
+          })
+        );
+        if (COLLAPSE_SELECTION_AFTER_APPLY_ACTIONS.has(action)) {
+          collapseSelectionAfterToolbarApply(view);
+        }
+      })
+      .catch((error) => {
+        console.error('[vlaina-toolbar-action-error]', action, error);
+      });
   };
 
   const handleMouseDown = (e: Event) => {
@@ -223,6 +227,7 @@ export function createToolbarEventDelegation(
   const handleClick = (e: Event) => {
     const target = e.target as HTMLElement;
     const button = target.closest('[data-action]') as HTMLElement | null;
+    const action = button?.dataset.action;
     if (!button || !currentView || !currentState) {
       return;
     }
@@ -230,7 +235,6 @@ export function createToolbarEventDelegation(
     e.preventDefault();
     e.stopPropagation();
 
-    const action = button.dataset.action;
     if (action) {
       if (handledPointerDownAction === action) {
         handledPointerDownAction = null;

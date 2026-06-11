@@ -109,7 +109,7 @@ export const MAX_DEFLIST_VISUAL_DECORATIONS = 1000;
 export const MAX_DEFLIST_VISUAL_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 const MAX_DEFLIST_TERM_CHARS = 80;
 const MAX_DEFLIST_EMPTY_SCAN_CHARS = 256;
-const DEFLIST_TRIGGER_TEXT_PATTERN = /[:\n\r]/u;
+const DEFLIST_LINE_BREAK_TRIGGER_PATTERN = /[\n\r]/u;
 const DEFLIST_DESCRIPTION_PREFIX_PATTERN = /^: /u;
 
 function isEscapedDefinitionListDescription(node: Node): boolean {
@@ -241,7 +241,7 @@ export function transactionMayAffectDeflistDecorations(
     tr: unknown,
     doc: Node,
 ): boolean {
-    if (transactionInsertedTextMatches(tr, DEFLIST_TRIGGER_TEXT_PATTERN)) {
+    if (transactionInsertedTextMatches(tr, DEFLIST_LINE_BREAK_TRIGGER_PATTERN)) {
         return true;
     }
     if (transactionTouchesDecorations(previous, tr)) {

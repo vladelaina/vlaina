@@ -23,6 +23,7 @@ import { flushStarredRegistry } from '@/stores/notes/starred';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { getCurrentEditorView } from '@/components/Notes/features/Editor/utils/editorViewRegistry';
 import { collectSelectableBlockTargets } from '@/components/Notes/features/Editor/plugins/cursor/blockUnitResolver';
+import { getCachedEditorBlockTargets } from '@/components/Notes/features/Editor/utils/editorBlockPositionCache';
 import {
   blankAreaDragBoxPluginKey,
   dispatchBlockSelectionAction,
@@ -418,6 +419,10 @@ function editorTextHasMark(text: string, markName: string, anchorText?: string):
   return view.state.doc.rangeHasMark(range.from, range.to, markType);
 }
 
+function getSelectableBlockTargetsForE2E(view: NonNullable<ReturnType<typeof getCurrentEditorView>>) {
+  return getCachedEditorBlockTargets(view) ?? collectSelectableBlockTargets(view);
+}
+
 function normalizeE2EMessageVersions(
   message: {
     role: ChatMessage['role'];
@@ -808,7 +813,7 @@ export function installSyncE2EBridge(): void {
     getNoteSelectableBlocks: () => {
       const view = getCurrentEditorView();
       if (!view) return [];
-      return collectSelectableBlockTargets(view).map((target) => ({
+      return getSelectableBlockTargetsForE2E(view).map((target) => ({
         text: target.element.textContent?.trim() ?? '',
         tagName: target.element.tagName,
         from: target.range.from,
@@ -898,7 +903,7 @@ export function installSyncE2EBridge(): void {
     selectNoteBlocksByText: async (texts) => {
       const view = getCurrentEditorView();
       if (!view) return 0;
-      const targets = collectSelectableBlockTargets(view);
+      const targets = getSelectableBlockTargetsForE2E(view);
       const ranges = texts.flatMap((text) => {
         const target = targets.find((candidate) => candidate.element.textContent?.includes(text));
         return target ? [target.range] : [];
@@ -912,7 +917,7 @@ export function installSyncE2EBridge(): void {
     selectNoteBlocksByIndexes: async (indexes) => {
       const view = getCurrentEditorView();
       if (!view) return 0;
-      const targets = collectSelectableBlockTargets(view);
+      const targets = getSelectableBlockTargetsForE2E(view);
       const ranges = indexes.flatMap((index) => {
         const target = targets[index];
         return target ? [target.range] : [];
@@ -934,7 +939,7 @@ export function installSyncE2EBridge(): void {
       }
 
       const collectStartedAt = performance.now();
-      const targets = collectSelectableBlockTargets(view);
+      const targets = getSelectableBlockTargetsForE2E(view);
       const collectTargetsMs = performance.now() - collectStartedAt;
       const results = [];
 

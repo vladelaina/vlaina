@@ -9,6 +9,7 @@ import {
     autolinkPlugin,
     autolinkPluginKey,
     collectAutolinkDecorations,
+    collectAutolinkRescanRanges,
     findUrls,
     transactionMayCreateAutolink,
     transactionMayAffectExistingAutolinks,
@@ -44,6 +45,35 @@ function createDocNode(children: FakeAutolinkNode[], onAccess?: () => void): Fak
         resolve: () => ({ marks: () => [] }),
         type: { name: 'doc' },
     };
+}
+
+function findTextPosition(doc: any, text: string, edge: 'start' | 'end' = 'start'): number {
+    let position: number | null = null;
+    doc.descendants((node: any, pos: number) => {
+        if (!node.isText || typeof node.text !== 'string') {
+            return true;
+        }
+
+        const index = node.text.indexOf(text);
+        if (index < 0) {
+            return true;
+        }
+
+        position = pos + index + (edge === 'end' ? text.length : 0);
+        return false;
+    });
+
+    if (position === null) {
+        throw new Error(`Text not found: ${text}`);
+    }
+    return position;
+}
+
+function readAutolinkDecorations(view: any) {
+    return (autolinkPluginKey.getState(view.state)?.find() ?? []).map((decoration: Decoration) => ({
+        text: view.state.doc.textBetween(decoration.from, decoration.to),
+        href: (decoration.type as any).attrs?.href,
+    }));
 }
 
 describe('autolinkPlugin findUrls', () => {
@@ -221,6 +251,48 @@ describe('autolinkPlugin findUrls', () => {
         const view = editor.ctx.get(editorViewCtx);
 
         expect(autolinkPluginKey.getState(view.state)?.find()).toHaveLength(1000);
+
+        await editor.destroy();
+    });
+
+    it('updates autolinks incrementally inside the changed paragraph', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, [
+                    'Open https://alpha.example first.',
+                    '',
+                    'Plain paragraph for incremental autolink updates.',
+                ].join('\n'));
+            })
+            .use(commonmark)
+            .use(autolinkPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        expect(readAutolinkDecorations(view)).toEqual([{
+            text: 'https://alpha.example',
+            href: 'https://alpha.example',
+        }]);
+
+        const insertAt = findTextPosition(view.state.doc, 'Plain paragraph', 'end');
+        const tr = view.state.tr.insertText(' https://beta.example', insertAt);
+        const ranges = collectAutolinkRescanRanges(tr.doc, tr);
+        expect(ranges).not.toBeNull();
+        expect(ranges).toHaveLength(1);
+        expect(ranges?.[0]?.from).toBeLessThanOrEqual(insertAt);
+        expect(ranges?.[0]?.to).toBeGreaterThan(insertAt);
+
+        view.dispatch(tr);
+        expect(readAutolinkDecorations(view)).toEqual([
+            {
+                text: 'https://alpha.example',
+                href: 'https://alpha.example',
+            },
+            {
+                text: 'https://beta.example',
+                href: 'https://beta.example',
+            },
+        ]);
 
         await editor.destroy();
     });

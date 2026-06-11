@@ -3,10 +3,12 @@ import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import type { Decoration } from '@milkdown/kit/prose/view';
 import {
+  collectTagTokenRescanRanges,
   MAX_TAG_TOKEN_EDGE_RECTS,
   resolveTagTokenEdgeOffset,
   tagTokenPlugin,
   tagTokenPluginKey,
+  transactionMayAffectTagTokenDecorations,
 } from './tagTokenPlugin';
 
 async function createEditor(markdown: string) {
@@ -19,6 +21,28 @@ async function createEditor(markdown: string) {
 
   await editor.create();
   return editor;
+}
+
+function findTextPosition(view: any, text: string): number {
+  let found: number | null = null;
+  view.state.doc.descendants((node: any, pos: number) => {
+    if (found !== null || !node.isText || typeof node.text !== 'string') return;
+    const index = node.text.indexOf(text);
+    if (index < 0) return;
+    found = pos + index;
+  });
+  if (found === null) {
+    throw new Error(`Expected text: ${text}`);
+  }
+  return found;
+}
+
+function readTagDecorations(view: any) {
+  return (tagTokenPluginKey.getState(view.state)?.find() ?? []).map((decoration: Decoration) => ({
+    text: view.state.doc.textBetween(decoration.from, decoration.to),
+    from: decoration.from,
+    to: decoration.to,
+  }));
 }
 
 describe('tagTokenPlugin', () => {
@@ -65,6 +89,69 @@ describe('tagTokenPlugin', () => {
     expect(decorations).toHaveLength(1000);
 
     await editor.destroy();
+  });
+
+  it('updates tag token decorations incrementally inside the changed paragraph', async () => {
+    const editor = await createEditor([
+      'Existing #alpha tag.',
+      '',
+      'Second paragraph.',
+    ].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const insertPos = findTextPosition(view, 'Second paragraph.') + 'Second'.length;
+    const tr = view.state.tr.insertText(' #beta', insertPos, insertPos);
+    const ranges = collectTagTokenRescanRanges(tr.doc, tr);
+
+    expect(ranges).toHaveLength(1);
+
+    view.dispatch(tr);
+
+    expect(readTagDecorations(view).map((decoration) => decoration.text)).toEqual([
+      '#alpha',
+      '#beta',
+    ]);
+
+    await editor.destroy();
+  });
+
+  it('checks only nearby parent text before rebuilding for existing paragraph tags', () => {
+    const textBetween = vi.fn((from: number, to: number) => {
+      expect(to - from).toBeLessThanOrEqual(280);
+      return 'plain nearby text';
+    });
+    const parent = {
+      isTextblock: true,
+      content: { size: 1000 },
+      textBetween,
+    };
+    const doc = {
+      content: { size: 1000 },
+      resolve: vi.fn(() => ({
+        depth: 1,
+        parent,
+        parentOffset: 500,
+      })),
+    };
+    const tr = {
+      steps: [{
+        slice: {
+          content: {
+            size: 1,
+            textBetween: vi.fn(() => 'x'),
+          },
+        },
+      }],
+      mapping: {
+        maps: [{
+          forEach(callback: (oldFrom: number, oldTo: number, newFrom: number, newTo: number) => void) {
+            callback(500, 500, 501, 501);
+          },
+        }],
+      },
+    };
+
+    expect(transactionMayAffectTagTokenDecorations({ find: () => [] }, tr, doc)).toBe(false);
+    expect(textBetween).toHaveBeenCalled();
   });
 
   it('resolves tag token edge offsets without materializing rect lists', () => {

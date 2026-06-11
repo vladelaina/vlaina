@@ -106,6 +106,29 @@ export function rangeTouchesRawMarkdownLink(
         return true;
     }
 
+    const nodesBetween = (doc as {
+        nodesBetween?: (
+            from: number,
+            to: number,
+            callback: (node: ProseNode, pos: number) => boolean | void,
+        ) => void;
+    }).nodesBetween;
+    if (typeof nodesBetween === 'function') {
+        let touchesRawMarkdownLink = false;
+        const scanTo = Math.min(doc.content.size, Math.max(start + 1, end));
+        if (scanTo <= start) return false;
+
+        nodesBetween.call(doc, start, scanTo, (node) => {
+            if (node.isText && textContainsRawMarkdownLink(node.text ?? '')) {
+                touchesRawMarkdownLink = true;
+                return false;
+            }
+            return true;
+        });
+
+        return touchesRawMarkdownLink;
+    }
+
     let touchesRawMarkdownLink = false;
     const scanTo = Math.min(doc.content.size, Math.max(start + 1, end));
     scanProseDescendants(doc, (node, pos) => {

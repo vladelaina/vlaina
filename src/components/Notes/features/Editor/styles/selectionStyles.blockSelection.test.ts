@@ -229,6 +229,9 @@ describe("editor block selection styles", () => {
     const themeCss = readThemeStyle();
 
     expect(themeCss).toContain('--vlaina-block-selection-offset-x: 0px;');
+    expect(themeCss).toContain('--vlaina-space-120px: 120px;');
+    expect(themeCss).toContain('--vlaina-space-152px: 152px;');
+    expect(themeCss).toContain('--vlaina-space-160px: 160px;');
     expect(css).toContain('--vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);');
     expect(css).toContain('.milkdown .ProseMirror li.editor-block-selected,');
     expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-72px);');
@@ -243,15 +246,15 @@ describe("editor block selection styles", () => {
     expect(css).toContain('.milkdown .ProseMirror ol > li.editor-block-selected,');
     expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-96px);');
     expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) > li.editor-block-selected,');
-    expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-104px);');
-    expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) ol > li.editor-block-selected,');
-    expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-104px);');
-    expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) :is(ul, ol) > li.editor-block-selected,');
-    expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-136px);');
-    expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) ol > li.editor-block-selected,');
     expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-128px);');
+    expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) ol > li.editor-block-selected,');
+    expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-128px);');
+    expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) :is(ul, ol) > li.editor-block-selected,');
+    expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-160px);');
+    expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) ol > li.editor-block-selected,');
+    expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-152px);');
     expect(css).toContain('.milkdown .ProseMirror li :is(ul, ol) li[data-item-type="task"].editor-block-selected,');
-    expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-96px);');
+    expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-120px);');
     expect(css).not.toContain('margin-left: calc(-1 * var(--vlaina-block-selection-offset-x));');
   });
 

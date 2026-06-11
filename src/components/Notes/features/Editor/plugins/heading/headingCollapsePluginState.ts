@@ -7,9 +7,9 @@ import {
 } from './headingCollapseUtils';
 import {
     getTransactionChangedRanges,
-    transactionInsertedTextMatches,
     transactionTouchesDecorations,
 } from '../shared/transactionStepText';
+import { transactionInsertedTextMayAffectHeadingStructure } from './headingStructureChange';
 
 export interface HeadingCollapsePluginState {
     decorations: DecorationSet;
@@ -17,8 +17,6 @@ export interface HeadingCollapsePluginState {
     topLevelNodes: ReturnType<typeof collectTopLevelNodes>;
     collapsedRanges: CollapsedRange[];
 }
-
-const HEADING_COLLAPSE_STRUCTURE_TRIGGER_PATTERN = /[#\n\r]/u;
 
 export function buildHeadingCollapsePluginState(
     doc: any,
@@ -69,7 +67,10 @@ export function canMapHeadingCollapsePluginState(
     if (!transactionIsPureInsertion(tr)) {
         return false;
     }
-    if (transactionInsertedTextMatches(tr, HEADING_COLLAPSE_STRUCTURE_TRIGGER_PATTERN)) {
+    if (transactionInsertedTextMayAffectHeadingStructure(
+        tr,
+        (tr as { doc?: unknown }).doc,
+    )) {
         return false;
     }
     if (transactionTouchesDecorations(pluginState.decorations, tr)) {

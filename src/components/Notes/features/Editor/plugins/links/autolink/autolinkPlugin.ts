@@ -8,11 +8,14 @@ import {
     STOP_PROSE_SCAN,
     scanProseDescendants,
 } from '../../shared/boundedProseNodeScan';
+import { getTransactionChangedRanges } from '../../shared/transactionStepText';
 
 export const autolinkPluginKey = new PluginKey('autolink');
 export const MAX_AUTOLINK_DECORATIONS = 1000;
 export const MAX_AUTOLINK_TEXT_SCAN_CHARS = 1024 * 1024;
 export const MAX_AUTOLINK_TRANSACTION_STEP_TEXT_CHARS = 200_000;
+export const MAX_AUTOLINK_INCREMENTAL_RESCAN_RANGES = 80;
+export const MAX_AUTOLINK_INCREMENTAL_RESCAN_CHARS = 250_000;
 const AUTOLINK_TRIGGER_TEXT_PATTERN = /[:/.@]/;
 const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
 const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
@@ -180,6 +183,246 @@ export function createAutolinkDecorations(doc: any): DecorationSet {
     return DecorationSet.create(doc, collectAutolinkDecorations(doc));
 }
 
+function getDocContentSize(doc: any): number {
+    const size = doc?.content?.size;
+    return typeof size === 'number' && Number.isFinite(size) ? Math.max(0, size) : 0;
+}
+
+function clampDocPos(doc: any, pos: number): number {
+    const size = getDocContentSize(doc);
+    return Math.max(0, Math.min(size, Math.floor(Number.isFinite(pos) ? pos : 0)));
+}
+
+function addAutolinkRescanRange(
+    ranges: Array<{ from: number; to: number }>,
+    from: number,
+    to: number,
+): void {
+    const start = Math.max(0, Math.min(from, to));
+    const end = Math.max(start, Math.max(from, to));
+    if (end <= start) {
+        return;
+    }
+    ranges.push({ from: start, to: end });
+}
+
+function addResolvedTextblockRange(
+    doc: any,
+    ranges: Array<{ from: number; to: number }>,
+    pos: number,
+): void {
+    try {
+        const $pos = doc.resolve(clampDocPos(doc, pos));
+        for (let depth = $pos.depth; depth > 0; depth -= 1) {
+            const node = $pos.node(depth);
+            if (!node?.isTextblock) {
+                continue;
+            }
+            addAutolinkRescanRange(ranges, $pos.start(depth), $pos.end(depth));
+            return;
+        }
+    } catch {
+    }
+}
+
+function addTextblockRangesBetween(
+    doc: any,
+    ranges: Array<{ from: number; to: number }>,
+    from: number,
+    to: number,
+): void {
+    if (typeof doc?.nodesBetween !== 'function') {
+        addResolvedTextblockRange(doc, ranges, from);
+        addResolvedTextblockRange(doc, ranges, to);
+        return;
+    }
+
+    const start = clampDocPos(doc, from);
+    const end = Math.max(start, clampDocPos(doc, to));
+    addResolvedTextblockRange(doc, ranges, start);
+    addResolvedTextblockRange(doc, ranges, end);
+    if (end <= start) {
+        return;
+    }
+
+    try {
+        doc.nodesBetween(start, end, (node: any, pos: number) => {
+            if (!node?.isTextblock) {
+                return true;
+            }
+            const nodeStart = pos + 1;
+            const nodeEnd = pos + Math.max(1, node.nodeSize ?? 1) - 1;
+            addAutolinkRescanRange(ranges, nodeStart, nodeEnd);
+            return false;
+        });
+    } catch {
+    }
+}
+
+function mergeAutolinkRescanRanges(
+    ranges: Array<{ from: number; to: number }>,
+): Array<{ from: number; to: number }> {
+    if (ranges.length <= 1) {
+        return ranges;
+    }
+
+    const sorted = [...ranges].sort((left, right) => left.from - right.from || left.to - right.to);
+    const merged: Array<{ from: number; to: number }> = [];
+    for (const range of sorted) {
+        const previous = merged[merged.length - 1];
+        if (previous && range.from <= previous.to + 1) {
+            previous.to = Math.max(previous.to, range.to);
+        } else {
+            merged.push({ ...range });
+        }
+    }
+    return merged;
+}
+
+export function collectAutolinkRescanRanges(
+    doc: any,
+    tr: unknown,
+): Array<{ from: number; to: number }> | null {
+    const changedRanges = getTransactionChangedRanges(tr);
+    if (changedRanges.length === 0) {
+        return null;
+    }
+
+    const ranges: Array<{ from: number; to: number }> = [];
+    for (const range of changedRanges) {
+        addTextblockRangesBetween(doc, ranges, range.newFrom, range.newTo);
+        if (ranges.length > MAX_AUTOLINK_INCREMENTAL_RESCAN_RANGES) {
+            return null;
+        }
+    }
+
+    const merged = mergeAutolinkRescanRanges(ranges);
+    const totalChars = merged.reduce((sum, range) => sum + Math.max(0, range.to - range.from), 0);
+    if (
+        merged.length === 0 ||
+        merged.length > MAX_AUTOLINK_INCREMENTAL_RESCAN_RANGES ||
+        totalChars > MAX_AUTOLINK_INCREMENTAL_RESCAN_CHARS
+    ) {
+        return null;
+    }
+    return merged;
+}
+
+export function collectAutolinkDecorationsInRanges(
+    doc: any,
+    ranges: readonly { from: number; to: number }[],
+    maxDecorations = MAX_AUTOLINK_DECORATIONS,
+): Decoration[] {
+    const decorations: Decoration[] = [];
+    if (maxDecorations <= 0) {
+        return decorations;
+    }
+
+    const visitTextNode = (node: any, pos: number, parent: any) => {
+        if (decorations.length >= maxDecorations) {
+            return;
+        }
+
+        const parentType = parent?.type?.name;
+        if (parentType && SKIPPED_TEXT_PARENT_TYPES.has(parentType)) {
+            return;
+        }
+
+        if (node.marks?.some((mark: any) => SKIPPED_MARK_TYPES.has(mark.type?.name))) {
+            return;
+        }
+
+        if (!node.isText) {
+            return;
+        }
+
+        const text = (node.text || '').slice(0, MAX_AUTOLINK_TEXT_SCAN_CHARS);
+        if (!AUTOLINK_TRIGGER_TEXT_PATTERN.test(text)) {
+            return;
+        }
+
+        const matches = findUrls(text, pos, maxDecorations - decorations.length);
+        for (const match of matches) {
+            const $pos = doc.resolve(match.start);
+            const marks = $pos.marks();
+            const hasLinkMark = marks.some((mark: any) => mark.type.name === 'link');
+            const textBefore = text.slice(0, match.start - pos);
+            const isInMarkdownLink = /\]\($/.test(textBefore);
+
+            if (hasLinkMark || isInMarkdownLink) {
+                continue;
+            }
+
+            const safeHref = sanitizeAutolinkHref(match.href);
+            if (!safeHref) {
+                continue;
+            }
+
+            decorations.push(
+                Decoration.inline(match.start, match.end, {
+                    class: 'autolink',
+                    'data-href': safeHref,
+                    nodeName: 'a',
+                    href: safeHref,
+                    target: '_blank',
+                    rel: 'noopener noreferrer'
+                })
+            );
+            if (decorations.length >= maxDecorations) {
+                return;
+            }
+        }
+    };
+
+    for (const range of ranges) {
+        const from = clampDocPos(doc, range.from);
+        const to = Math.max(from, clampDocPos(doc, range.to));
+        if (to <= from) {
+            continue;
+        }
+        if (typeof doc?.nodesBetween !== 'function') {
+            continue;
+        }
+
+        doc.nodesBetween(from, to, (node: any, pos: number, parent: any) => {
+            if (decorations.length >= maxDecorations) {
+                return false;
+            }
+            visitTextNode(node, pos, parent);
+            return decorations.length < maxDecorations;
+        });
+
+        if (decorations.length >= maxDecorations) {
+            break;
+        }
+    }
+
+    return decorations;
+}
+
+function updateAutolinkDecorationsIncrementally(
+    previous: DecorationSet,
+    tr: unknown,
+    doc: any,
+): DecorationSet | null {
+    const ranges = collectAutolinkRescanRanges(doc, tr);
+    if (!ranges) {
+        return null;
+    }
+
+    const mapped = previous.map((tr as { mapping: Parameters<DecorationSet['map']>[0] }).mapping, doc);
+    const existingCount = mapped.find().length;
+    const decorationsToRemove = ranges.flatMap((range) => mapped.find(range.from, range.to));
+    const withoutChangedDecorations = decorationsToRemove.length > 0
+        ? mapped.remove(decorationsToRemove)
+        : mapped;
+    const nextBudget = MAX_AUTOLINK_DECORATIONS - existingCount + decorationsToRemove.length;
+    const nextDecorations = collectAutolinkDecorationsInRanges(doc, ranges, nextBudget);
+    return nextDecorations.length > 0
+        ? withoutChangedDecorations.add(doc, nextDecorations)
+        : withoutChangedDecorations;
+}
+
 function transactionStepMayCreateAutolink(step: unknown): boolean {
     const slice = (step as { slice?: { content?: { textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string; size?: number } } }).slice;
     const content = slice?.content;
@@ -260,14 +503,8 @@ export const autolinkPlugin = $prose(() => {
                     return old.map(tr.mapping, tr.doc);
                 }
 
-                // For small changes, try mapping first
-                // Optimization removed: We need to check every change because:
-                // 1. Typing a URL char-by-char needs to extend the link
-                // 2. Typing a space needs to terminate the link (re-run regex to exclude space)
-                // The previous check (text.includes('http')) failed these cases.
-                // if (tr.steps.length <= 2) { ... }
-
-                return createAutolinkDecorations(tr.doc);
+                return updateAutolinkDecorationsIncrementally(old, tr, tr.doc)
+                    ?? createAutolinkDecorations(tr.doc);
             }
         },
         props: {

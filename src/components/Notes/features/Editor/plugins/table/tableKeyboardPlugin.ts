@@ -25,6 +25,19 @@ import {
 import { handleTableSelectAll } from './tableSelectAll';
 
 export const MAX_TABLE_KEYBOARD_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
+const TABLE_KEYDOWN_KEYS = new Set(['Backspace', 'Delete', 'Enter', 'Tab']);
+
+function isTableKeyboardShortcut(event: KeyboardEvent): boolean {
+  return (
+    TABLE_KEYDOWN_KEYS.has(event.key) ||
+    (
+      (event.metaKey || event.ctrlKey) &&
+      !event.altKey &&
+      !event.shiftKey &&
+      event.key.toLowerCase() === 'a'
+    )
+  );
+}
 
 function resolveTableKeydownContext(selection: Selection) {
   const { $from } = selection;
@@ -159,11 +172,15 @@ export const tableKeyboardPlugin = $prose(() => {
   return new Plugin({
     props: {
       handleKeyDown(view, event) {
+        if (!isTableKeyboardShortcut(event)) {
+          return false;
+        }
+
         const { state } = view;
         const { selection } = state;
         const { $from } = selection;
-        const keydownContext = resolveTableKeydownContext(selection);
         if (handleTableSelectAll(view, event)) return true;
+        const keydownContext = resolveTableKeydownContext(selection);
 
         if (
           event.key === 'Backspace' &&

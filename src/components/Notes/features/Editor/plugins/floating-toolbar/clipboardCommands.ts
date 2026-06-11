@@ -17,15 +17,28 @@ function isSameProseObject<T extends { eq?: (other: T) => boolean }>(current: T,
   return typeof current.eq === 'function' && current.eq(previous);
 }
 
+function serializeTextSelectionForClipboard(
+  state: EditorView['state'],
+  markdownSerializer: ReturnType<typeof getCurrentMarkdownSerializer>,
+): string {
+  const serializedText = serializeSelectionToClipboardText(state, markdownSerializer);
+  if (serializedText.length > 0 || state.selection.empty) {
+    return serializedText;
+  }
+
+  return state.doc.textBetween(state.selection.from, state.selection.to, '\n');
+}
+
 export async function copySelectionToClipboard(
   view: EditorView,
   options: CopySelectionOptions = {}
 ): Promise<boolean> {
   const markdownSerializer = getCurrentMarkdownSerializer();
   const selectedBlocks = getBlockSelectionPluginState(view.state).selectedBlocks;
-  const text = selectedBlocks.length > 0
+  const shouldCopySelectedBlocks = selectedBlocks.length > 0 && view.state.selection.empty;
+  const text = shouldCopySelectedBlocks
     ? serializeSelectedBlocksToText(view.state, selectedBlocks, { markdownSerializer })
-    : serializeSelectionToClipboardText(view.state, markdownSerializer);
+    : serializeTextSelectionForClipboard(view.state, markdownSerializer);
   if (text.length === 0) {
     return false;
   }
@@ -38,7 +51,7 @@ export async function copySelectionToClipboard(
   }
 
   if (
-    selectedBlocks.length > 0 &&
+    shouldCopySelectedBlocks &&
     options.collapseAfterCopy !== false &&
     isSameProseObject(view.state.doc, doc)
   ) {
@@ -47,7 +60,7 @@ export async function copySelectionToClipboard(
   }
 
   if (
-    selectedBlocks.length === 0 &&
+    !shouldCopySelectedBlocks &&
     options.collapseAfterCopy !== false &&
     isSameProseObject(view.state.doc, doc) &&
     isSameProseObject(selection, view.state.selection)

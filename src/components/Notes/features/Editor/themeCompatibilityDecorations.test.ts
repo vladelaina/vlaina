@@ -6,6 +6,7 @@ import {
   createThemeCompatibilityDecorationRebuildController,
   docChangeMayAffectThemeCompatibilityDecorations,
   listContainsTaskItems,
+  transactionMayAffectThemeCompatibilityDecorations,
 } from './themeCompatibilityDecorations';
 import {
   MAX_THEME_COMPAT_TEXT_CONTENT_CHARS,
@@ -77,6 +78,35 @@ function frontmatter(text: string) {
   return schema.nodes.frontmatter.create(null, textNode(text));
 }
 
+function topLevelNodePos(doc: any, typeName: string): number {
+  let found: number | null = null;
+  doc.forEach((node: any, offset: number) => {
+    if (found !== null || node.type.name !== typeName) return;
+    found = offset;
+  });
+  if (found === null) {
+    throw new Error(`Expected top-level ${typeName}`);
+  }
+  return found;
+}
+
+function transactionWithChangedRange(
+  oldFrom: number,
+  oldTo: number,
+  newFrom = oldFrom,
+  newTo = oldTo
+) {
+  return {
+    mapping: {
+      maps: [{
+        forEach(callback: (from: number, to: number, nextFrom: number, nextTo: number) => void) {
+          callback(oldFrom, oldTo, newFrom, newTo);
+        },
+      }],
+    },
+  };
+}
+
 describe('docChangeMayAffectThemeCompatibilityDecorations', () => {
   it('skips code block text edits', () => {
     const oldDoc = schema.nodes.doc.create(null, [
@@ -128,6 +158,46 @@ describe('docChangeMayAffectThemeCompatibilityDecorations', () => {
     ]);
 
     expect(docChangeMayAffectThemeCompatibilityDecorations(oldDoc, nextDoc)).toBe(true);
+  });
+});
+
+describe('transactionMayAffectThemeCompatibilityDecorations', () => {
+  it('uses changed transaction ranges to skip code block text edits', () => {
+    const oldDoc = schema.nodes.doc.create(null, [
+      paragraph('Before'),
+      codeBlock('const value = 1;'),
+      paragraph('After'),
+    ]);
+    const nextDoc = schema.nodes.doc.create(null, [
+      paragraph('Before'),
+      codeBlock('const value = 2;'),
+      paragraph('After'),
+    ]);
+    const codePos = topLevelNodePos(oldDoc, 'code_block');
+    const changedPos = codePos + 1 + 'const value = '.length;
+
+    expect(transactionMayAffectThemeCompatibilityDecorations(
+      oldDoc,
+      nextDoc,
+      transactionWithChangedRange(changedPos, changedPos + 1)
+    )).toBe(false);
+  });
+
+  it('rebuilds for ordinary paragraph transaction ranges', () => {
+    const oldDoc = schema.nodes.doc.create(null, [
+      paragraph('Before'),
+      codeBlock('const value = 1;'),
+    ]);
+    const nextDoc = schema.nodes.doc.create(null, [
+      paragraph('After'),
+      codeBlock('const value = 1;'),
+    ]);
+
+    expect(transactionMayAffectThemeCompatibilityDecorations(
+      oldDoc,
+      nextDoc,
+      transactionWithChangedRange(1, 3)
+    )).toBe(true);
   });
 });
 
