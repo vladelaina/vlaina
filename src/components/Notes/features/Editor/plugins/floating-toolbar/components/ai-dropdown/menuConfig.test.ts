@@ -17,8 +17,8 @@ describe('ai dropdown menu config', () => {
       'polish',
       'rewrite',
       'fix-grammar',
+      'fix-typos',
       'simplify',
-      'clarify',
     ]);
     expect(groups.find((group) => group.id === 'tone')?.items.slice(0, 5).map((item) => item.id)).toEqual([
       'tone-context-fit',
@@ -37,11 +37,11 @@ describe('ai dropdown menu config', () => {
     expect(sidebar?.items).toEqual([]);
     expect(sidebar?.rootAction).toMatchObject({
       id: 'discuss-in-sidebar',
-      label: '引用到聊天',
-      icon: 'quote',
+      label: 'Quote to Chat',
       behavior: 'sidebar-chat',
       shortcut: 'Ctrl+L',
     });
+    expect(sidebar?.rootAction?.icon).toBeUndefined();
   });
 
   it('reorders action items by usage frequency while preserving the fallback order for ties', () => {
@@ -58,11 +58,13 @@ describe('ai dropdown menu config', () => {
     ]);
   });
 
-  it('reorders tone items by usage frequency without affecting translate ordering', () => {
+  it('reorders tone and translate items by usage frequency', () => {
     recordAiMenuItemUsage('tone', 'tone-empathetic');
     recordAiMenuItemUsage('tone', 'tone-empathetic');
     recordAiMenuItemUsage('tone', 'tone-friendly');
     recordAiMenuItemUsage('translate', 'translate-ja');
+    recordAiMenuItemUsage('translate', 'translate-ja');
+    recordAiMenuItemUsage('translate', 'translate-ko');
 
     const groups = getAiMenuGroups();
     const tone = groups.find((group) => group.id === 'tone');
@@ -73,7 +75,11 @@ describe('ai dropdown menu config', () => {
       'tone-friendly',
       'tone-context-fit',
     ]);
-    expect(translate?.items[0]?.id).toBe('translate-en');
+    expect(translate?.items.slice(0, 3).map((item) => item.id)).toEqual([
+      'translate-ja',
+      'translate-ko',
+      'translate-en',
+    ]);
   });
 
   it('ignores oversized persisted usage payloads', () => {
@@ -116,6 +122,9 @@ describe('ai dropdown menu config', () => {
       actions: {
         clarify: 2,
         rewrite: 1,
+      },
+      translate: {
+        'translate-ja': 100,
       },
     });
   });

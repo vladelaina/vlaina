@@ -60,11 +60,11 @@ export function openSidebarDiscussionForSelection(view: EditorView): boolean {
   const ui = useUIStore.getState();
   const currentSessionId = useAIUIStore.getState().currentSessionId;
 
-  if (ui.notesChatPanelCollapsed || !currentSessionId) {
+  if (!currentSessionId) {
     createAIChatSession('');
   }
 
-  ui.queueNotesChatComposerInsert(selectedText);
+  ui.queueNotesChatComposerInsert(selectedText, 'floating');
   view.dispatch(
     view.state.tr.setMeta(floatingToolbarKey, {
       type: TOOLBAR_ACTIONS.HIDE,
