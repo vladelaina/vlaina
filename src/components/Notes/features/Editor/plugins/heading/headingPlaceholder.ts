@@ -6,12 +6,13 @@ import {
 } from '../shared/boundedProseNodeScan';
 import {
     getTransactionChangedRanges,
+    transactionInsertedTextMatches,
     transactionTouchesDecorations,
     type DecorationSetLike,
 } from '../shared/transactionStepText';
-import { transactionInsertedTextMayAffectHeadingStructure } from './headingStructureChange';
 
 export const MAX_HEADING_PLACEHOLDER_DECORATIONS = 1000;
+const HEADING_PLACEHOLDER_LINE_BREAK_PATTERN = /[\n\r]/u;
 
 export const getHeadingPlaceholder = (rawLevel: number): string => {
     return getDefaultHeadingPlaceholderText(rawLevel);
@@ -77,7 +78,7 @@ export function transactionMayAffectHeadingPlaceholders(
     oldDoc: any,
     newDoc: any,
 ): boolean {
-    return transactionInsertedTextMayAffectHeadingStructure(tr, newDoc)
+    return transactionInsertedTextMatches(tr, HEADING_PLACEHOLDER_LINE_BREAK_PATTERN)
         || transactionTouchesDecorations(previous, tr)
         || transactionTouchesHeadingContext(oldDoc, newDoc, tr);
 }

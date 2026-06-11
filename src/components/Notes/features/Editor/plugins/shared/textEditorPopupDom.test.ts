@@ -130,4 +130,22 @@ describe('textEditorPopupDom', () => {
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(outerKeydown).not.toHaveBeenCalled();
   });
+
+  it('defers the initial textarea resize when a resize scheduler is provided', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const onResizeRequest = vi.fn();
+
+    const { textarea } = mountTextEditorPopup({
+      container,
+      value: 'draft',
+      onInput: vi.fn(),
+      onResizeRequest,
+      onCancel: vi.fn(),
+      onSave: vi.fn(),
+    });
+
+    expect(onResizeRequest).toHaveBeenCalledTimes(1);
+    expect(textarea.style.height).toBe('');
+  });
 });

@@ -145,7 +145,7 @@ describe('deflistPlugin visual decorations', () => {
     await editor.destroy();
   });
 
-  it('maps existing decorations for ordinary inline colon typing', async () => {
+  it('maps existing decorations when typing an ordinary colon in body text', async () => {
     const editor = await createEditor([
       'Term',
       '',

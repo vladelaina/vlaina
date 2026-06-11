@@ -29,6 +29,7 @@ interface CachedMessageDerivatives {
   message: ChatMessage;
   imageGallery: DerivedCollection<ChatImageGalleryItem>;
   sentUserMessages: DerivedCollection<string>;
+  assistantContentMayContainImageToken: boolean;
 }
 
 function hashString(value: string): string {
@@ -50,14 +51,29 @@ function getDerivativeSignatureValue(value: string): string {
   return `${value.length}:large:${hashString(sampledValue)}`;
 }
 
-function buildMessageImageGallery(message: ChatMessage): DerivedCollection<ChatImageGalleryItem> {
+function hasKnownImageSources(message: ChatMessage): boolean {
+  return !!message.imageSources && message.imageSources.length > 0;
+}
+
+function messageContentMayContainImageToken(content: string): boolean {
+  return content.includes('![') || content.includes('<');
+}
+
+function buildMessageImageGallery(
+  message: ChatMessage,
+  contentMayContainImageToken: boolean,
+): DerivedCollection<ChatImageGalleryItem> {
   if (message.role !== 'assistant') {
     return { items: [], signature: '' };
   }
 
-  const sources = extractRenderedMessageImageSources(message.content || '', {
-    maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
-  });
+  const sources = contentMayContainImageToken
+    ? hasKnownImageSources(message)
+      ? message.imageSources
+      : extractRenderedMessageImageSources(message.content || '', {
+          maxTokens: MAX_CHAT_MESSAGE_IMAGE_SOURCE_ENTRIES,
+        })
+    : [];
   const renderableSources = normalizeRenderedMessageImageSources(sources);
 
   if (renderableSources.length === 0) {
@@ -89,11 +105,45 @@ function buildMessageSentUserMessages(message: ChatMessage): DerivedCollection<s
   };
 }
 
-function buildMessageDerivatives(message: ChatMessage): CachedMessageDerivatives {
+function canReuseEmptyAssistantImageGallery(
+  cached: CachedMessageDerivatives | undefined,
+  message: ChatMessage,
+): boolean {
+  if (
+    !cached ||
+    cached.message.role !== 'assistant' ||
+    message.role !== 'assistant' ||
+    cached.imageGallery.signature ||
+    cached.assistantContentMayContainImageToken
+  ) {
+    return false;
+  }
+
+  const previousContent = cached.message.content || '';
+  const nextContent = message.content || '';
+  if (!nextContent.startsWith(previousContent)) {
+    return false;
+  }
+
+  const appendedScanStart = Math.max(0, previousContent.length - 1);
+  return !messageContentMayContainImageToken(nextContent.slice(appendedScanStart));
+}
+
+function buildMessageDerivatives(
+  message: ChatMessage,
+  reusableImageGallery?: DerivedCollection<ChatImageGalleryItem>,
+): CachedMessageDerivatives {
+  const assistantContentMayContainImageToken =
+    !reusableImageGallery &&
+    message.role === 'assistant' &&
+    messageContentMayContainImageToken(message.content || '');
+
   return {
     message,
-    imageGallery: buildMessageImageGallery(message),
+    imageGallery:
+      reusableImageGallery ?? buildMessageImageGallery(message, assistantContentMayContainImageToken),
     sentUserMessages: buildMessageSentUserMessages(message),
+    assistantContentMayContainImageToken,
   };
 }
 
@@ -106,7 +156,10 @@ function getCachedMessageDerivatives(
     return cached;
   }
 
-  const next = buildMessageDerivatives(message);
+  const next = buildMessageDerivatives(
+    message,
+    canReuseEmptyAssistantImageGallery(cached, message) ? cached!.imageGallery : undefined,
+  );
   cache.set(message.id, next);
   return next;
 }

@@ -161,6 +161,8 @@ export const MessageList = memo(function MessageList({
   const measuredHeightsRafRef = useRef<number | null>(null);
   const scrollIdleTimeoutRef = useRef<number | null>(null);
   const lastObservedScrollTopRef = useRef<number | null>(null);
+  const isScrollActiveRef = useRef(isScrollActive);
+  const isTailDetachedRef = useRef(isTailDetached);
   const pendingMeasuredHeightsRef = useRef(new Map<string, number>());
   const measuredHeightsRef = useRef(measuredHeights);
   const activeRef = useRef(active);
@@ -186,6 +188,8 @@ export const MessageList = memo(function MessageList({
   measuredHeightsRef.current = measuredHeights;
   activeRef.current = active;
   lastStreamingMessageIdRef.current = lastStreamingMessageId;
+  isScrollActiveRef.current = isScrollActive;
+  isTailDetachedRef.current = isTailDetached;
   const messageById = renderedState.messageById;
 
   useEffect(() => {
@@ -272,18 +276,24 @@ export const MessageList = memo(function MessageList({
         previousScrollTop !== null && currentScrollTop < previousScrollTop - 1;
       const distanceToBottom =
         viewport.scrollHeight - (currentScrollTop + viewport.clientHeight);
-      if (userScrolledUp) {
+      if (userScrolledUp && !isTailDetachedRef.current) {
+        isTailDetachedRef.current = true;
         setIsTailDetached(true);
-      } else if (distanceToBottom <= TAIL_ANCHOR_THRESHOLD) {
+      } else if (distanceToBottom <= TAIL_ANCHOR_THRESHOLD && isTailDetachedRef.current) {
+        isTailDetachedRef.current = false;
         setIsTailDetached(false);
       }
 
-      setIsScrollActive(true);
+      if (!isScrollActiveRef.current) {
+        isScrollActiveRef.current = true;
+        setIsScrollActive(true);
+      }
       if (scrollIdleTimeoutRef.current !== null) {
         window.clearTimeout(scrollIdleTimeoutRef.current);
       }
       scrollIdleTimeoutRef.current = window.setTimeout(() => {
         scrollIdleTimeoutRef.current = null;
+        isScrollActiveRef.current = false;
         setIsScrollActive(false);
       }, STREAM_SCROLL_IDLE_MS);
     };
@@ -324,6 +334,8 @@ export const MessageList = memo(function MessageList({
       window.clearTimeout(scrollIdleTimeoutRef.current);
       scrollIdleTimeoutRef.current = null;
     }
+    isScrollActiveRef.current = false;
+    isTailDetachedRef.current = false;
     setIsScrollActive(false);
     setIsTailDetached(false);
   }, [isSessionActive]);

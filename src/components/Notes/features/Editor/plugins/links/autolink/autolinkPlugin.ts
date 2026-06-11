@@ -14,8 +14,7 @@ export const autolinkPluginKey = new PluginKey('autolink');
 export const MAX_AUTOLINK_DECORATIONS = 1000;
 export const MAX_AUTOLINK_TEXT_SCAN_CHARS = 1024 * 1024;
 export const MAX_AUTOLINK_TRANSACTION_STEP_TEXT_CHARS = 200_000;
-export const MAX_AUTOLINK_INCREMENTAL_RESCAN_RANGES = 80;
-export const MAX_AUTOLINK_INCREMENTAL_RESCAN_CHARS = 250_000;
+export const MAX_AUTOLINK_CHANGED_CONTEXT_CHARS = 512;
 const AUTOLINK_TRIGGER_TEXT_PATTERN = /[:/.@]/;
 const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
 const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
@@ -119,6 +118,59 @@ function sanitizeAutolinkHref(href: string): string | null {
     return safeHref;
 }
 
+function collectAutolinkDecorationsFromTextNode(
+    doc: any,
+    node: any,
+    pos: number,
+    parent: any,
+    decorations: Decoration[],
+    maxDecorations = MAX_AUTOLINK_DECORATIONS,
+): void {
+    if (decorations.length >= maxDecorations) return;
+
+    const parentType = parent?.type?.name;
+    if (parentType && SKIPPED_TEXT_PARENT_TYPES.has(parentType)) {
+        return;
+    }
+
+    if (node.marks?.some((mark: any) => SKIPPED_MARK_TYPES.has(mark.type?.name))) {
+        return;
+    }
+
+    const text = (node.text || '').slice(0, MAX_AUTOLINK_TEXT_SCAN_CHARS);
+    AUTOLINK_TRIGGER_TEXT_PATTERN.lastIndex = 0;
+    if (!AUTOLINK_TRIGGER_TEXT_PATTERN.test(text)) {
+        return;
+    }
+
+    const matches = findUrls(text, pos, maxDecorations - decorations.length);
+
+    for (const match of matches) {
+        const $pos = doc.resolve(match.start);
+        const marks = $pos.marks();
+        const hasLinkMark = marks.some((m: any) => m.type.name === 'link');
+        const textBefore = text.slice(0, match.start - pos);
+        const isInMarkdownLink = /\]\($/.test(textBefore);
+
+        if (!hasLinkMark && !isInMarkdownLink) {
+            const safeHref = sanitizeAutolinkHref(match.href);
+            if (!safeHref) continue;
+
+            decorations.push(
+                Decoration.inline(match.start, match.end, {
+                    class: 'autolink',
+                    'data-href': safeHref,
+                    nodeName: 'a',
+                    href: safeHref,
+                    target: '_blank',
+                    rel: 'noopener noreferrer'
+                })
+            );
+            if (decorations.length >= maxDecorations) break;
+        }
+    }
+}
+
 export function collectAutolinkDecorations(doc: any): Decoration[] {
     const decorations: Decoration[] = [];
 
@@ -127,50 +179,15 @@ export function collectAutolinkDecorations(doc: any): Decoration[] {
             return STOP_PROSE_SCAN;
         }
 
-        const parentType = parent.type?.name;
-        if (parentType && SKIPPED_TEXT_PARENT_TYPES.has(parentType)) {
-            return;
-        }
-
-        if (node.marks?.some((mark: any) => SKIPPED_MARK_TYPES.has(mark.type?.name))) {
-            return;
-        }
-
         if (node.isText) {
-            const text = (node.text || '').slice(0, MAX_AUTOLINK_TEXT_SCAN_CHARS);
-            if (!AUTOLINK_TRIGGER_TEXT_PATTERN.test(text)) {
-                return;
-            }
-            const matches = findUrls(text, pos, MAX_AUTOLINK_DECORATIONS - decorations.length);
-
-            for (const match of matches) {
-                // Check if already inside a link mark
-                const $pos = doc.resolve(match.start);
-                const marks = $pos.marks();
-                const hasLinkMark = marks.some((m: any) => m.type.name === 'link');
-
-                // Check if this URL is inside a Markdown link syntax ](url)
-                // Look backwards from the match start to see if there's a ](
-                const textBefore = text.slice(0, match.start - pos);
-                const isInMarkdownLink = /\]\($/.test(textBefore);
-
-                if (!hasLinkMark && !isInMarkdownLink) {
-                    const safeHref = sanitizeAutolinkHref(match.href);
-                    if (!safeHref) continue;
-
-                    decorations.push(
-                        Decoration.inline(match.start, match.end, {
-                            class: 'autolink',
-                            'data-href': safeHref,
-                            nodeName: 'a',
-                            href: safeHref,
-                            target: '_blank',
-                            rel: 'noopener noreferrer'
-                        })
-                    );
-                    if (decorations.length >= MAX_AUTOLINK_DECORATIONS) break;
-                }
-            }
+            collectAutolinkDecorationsFromTextNode(
+                doc,
+                node,
+                pos,
+                parent,
+                decorations,
+                MAX_AUTOLINK_DECORATIONS,
+            );
         }
 
         return decorations.length < MAX_AUTOLINK_DECORATIONS ? undefined : STOP_PROSE_SCAN;
@@ -183,244 +200,28 @@ export function createAutolinkDecorations(doc: any): DecorationSet {
     return DecorationSet.create(doc, collectAutolinkDecorations(doc));
 }
 
-function getDocContentSize(doc: any): number {
-    const size = doc?.content?.size;
-    return typeof size === 'number' && Number.isFinite(size) ? Math.max(0, size) : 0;
-}
-
-function clampDocPos(doc: any, pos: number): number {
-    const size = getDocContentSize(doc);
-    return Math.max(0, Math.min(size, Math.floor(Number.isFinite(pos) ? pos : 0)));
-}
-
-function addAutolinkRescanRange(
-    ranges: Array<{ from: number; to: number }>,
+export function collectAutolinkDecorationsInRange(
+    doc: any,
     from: number,
     to: number,
-): void {
-    const start = Math.max(0, Math.min(from, to));
-    const end = Math.max(start, Math.max(from, to));
-    if (end <= start) {
-        return;
-    }
-    ranges.push({ from: start, to: end });
-}
-
-function addResolvedTextblockRange(
-    doc: any,
-    ranges: Array<{ from: number; to: number }>,
-    pos: number,
-): void {
-    try {
-        const $pos = doc.resolve(clampDocPos(doc, pos));
-        for (let depth = $pos.depth; depth > 0; depth -= 1) {
-            const node = $pos.node(depth);
-            if (!node?.isTextblock) {
-                continue;
-            }
-            addAutolinkRescanRange(ranges, $pos.start(depth), $pos.end(depth));
-            return;
-        }
-    } catch {
-    }
-}
-
-function addTextblockRangesBetween(
-    doc: any,
-    ranges: Array<{ from: number; to: number }>,
-    from: number,
-    to: number,
-): void {
-    if (typeof doc?.nodesBetween !== 'function') {
-        addResolvedTextblockRange(doc, ranges, from);
-        addResolvedTextblockRange(doc, ranges, to);
-        return;
-    }
-
-    const start = clampDocPos(doc, from);
-    const end = Math.max(start, clampDocPos(doc, to));
-    addResolvedTextblockRange(doc, ranges, start);
-    addResolvedTextblockRange(doc, ranges, end);
-    if (end <= start) {
-        return;
-    }
-
-    try {
-        doc.nodesBetween(start, end, (node: any, pos: number) => {
-            if (!node?.isTextblock) {
-                return true;
-            }
-            const nodeStart = pos + 1;
-            const nodeEnd = pos + Math.max(1, node.nodeSize ?? 1) - 1;
-            addAutolinkRescanRange(ranges, nodeStart, nodeEnd);
-            return false;
-        });
-    } catch {
-    }
-}
-
-function mergeAutolinkRescanRanges(
-    ranges: Array<{ from: number; to: number }>,
-): Array<{ from: number; to: number }> {
-    if (ranges.length <= 1) {
-        return ranges;
-    }
-
-    const sorted = [...ranges].sort((left, right) => left.from - right.from || left.to - right.to);
-    const merged: Array<{ from: number; to: number }> = [];
-    for (const range of sorted) {
-        const previous = merged[merged.length - 1];
-        if (previous && range.from <= previous.to + 1) {
-            previous.to = Math.max(previous.to, range.to);
-        } else {
-            merged.push({ ...range });
-        }
-    }
-    return merged;
-}
-
-export function collectAutolinkRescanRanges(
-    doc: any,
-    tr: unknown,
-): Array<{ from: number; to: number }> | null {
-    const changedRanges = getTransactionChangedRanges(tr);
-    if (changedRanges.length === 0) {
-        return null;
-    }
-
-    const ranges: Array<{ from: number; to: number }> = [];
-    for (const range of changedRanges) {
-        addTextblockRangesBetween(doc, ranges, range.newFrom, range.newTo);
-        if (ranges.length > MAX_AUTOLINK_INCREMENTAL_RESCAN_RANGES) {
-            return null;
-        }
-    }
-
-    const merged = mergeAutolinkRescanRanges(ranges);
-    const totalChars = merged.reduce((sum, range) => sum + Math.max(0, range.to - range.from), 0);
-    if (
-        merged.length === 0 ||
-        merged.length > MAX_AUTOLINK_INCREMENTAL_RESCAN_RANGES ||
-        totalChars > MAX_AUTOLINK_INCREMENTAL_RESCAN_CHARS
-    ) {
-        return null;
-    }
-    return merged;
-}
-
-export function collectAutolinkDecorationsInRanges(
-    doc: any,
-    ranges: readonly { from: number; to: number }[],
     maxDecorations = MAX_AUTOLINK_DECORATIONS,
 ): Decoration[] {
     const decorations: Decoration[] = [];
-    if (maxDecorations <= 0) {
+    const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+    const start = Math.max(0, Math.min(from, docSize));
+    const end = Math.max(start, Math.min(to, docSize));
+    if (start >= end || typeof doc.nodesBetween !== 'function') {
         return decorations;
     }
 
-    const visitTextNode = (node: any, pos: number, parent: any) => {
-        if (decorations.length >= maxDecorations) {
-            return;
-        }
-
-        const parentType = parent?.type?.name;
-        if (parentType && SKIPPED_TEXT_PARENT_TYPES.has(parentType)) {
-            return;
-        }
-
-        if (node.marks?.some((mark: any) => SKIPPED_MARK_TYPES.has(mark.type?.name))) {
-            return;
-        }
-
-        if (!node.isText) {
-            return;
-        }
-
-        const text = (node.text || '').slice(0, MAX_AUTOLINK_TEXT_SCAN_CHARS);
-        if (!AUTOLINK_TRIGGER_TEXT_PATTERN.test(text)) {
-            return;
-        }
-
-        const matches = findUrls(text, pos, maxDecorations - decorations.length);
-        for (const match of matches) {
-            const $pos = doc.resolve(match.start);
-            const marks = $pos.marks();
-            const hasLinkMark = marks.some((mark: any) => mark.type.name === 'link');
-            const textBefore = text.slice(0, match.start - pos);
-            const isInMarkdownLink = /\]\($/.test(textBefore);
-
-            if (hasLinkMark || isInMarkdownLink) {
-                continue;
-            }
-
-            const safeHref = sanitizeAutolinkHref(match.href);
-            if (!safeHref) {
-                continue;
-            }
-
-            decorations.push(
-                Decoration.inline(match.start, match.end, {
-                    class: 'autolink',
-                    'data-href': safeHref,
-                    nodeName: 'a',
-                    href: safeHref,
-                    target: '_blank',
-                    rel: 'noopener noreferrer'
-                })
-            );
-            if (decorations.length >= maxDecorations) {
-                return;
-            }
-        }
-    };
-
-    for (const range of ranges) {
-        const from = clampDocPos(doc, range.from);
-        const to = Math.max(from, clampDocPos(doc, range.to));
-        if (to <= from) {
-            continue;
-        }
-        if (typeof doc?.nodesBetween !== 'function') {
-            continue;
-        }
-
-        doc.nodesBetween(from, to, (node: any, pos: number, parent: any) => {
-            if (decorations.length >= maxDecorations) {
-                return false;
-            }
-            visitTextNode(node, pos, parent);
-            return decorations.length < maxDecorations;
-        });
-
-        if (decorations.length >= maxDecorations) {
-            break;
-        }
-    }
+    doc.nodesBetween(start, end, (node: any, pos: number, parent: any) => {
+        if (decorations.length >= maxDecorations) return false;
+        if (!node.isText) return true;
+        collectAutolinkDecorationsFromTextNode(doc, node, pos, parent, decorations, maxDecorations);
+        return decorations.length < maxDecorations;
+    });
 
     return decorations;
-}
-
-function updateAutolinkDecorationsIncrementally(
-    previous: DecorationSet,
-    tr: unknown,
-    doc: any,
-): DecorationSet | null {
-    const ranges = collectAutolinkRescanRanges(doc, tr);
-    if (!ranges) {
-        return null;
-    }
-
-    const mapped = previous.map((tr as { mapping: Parameters<DecorationSet['map']>[0] }).mapping, doc);
-    const existingCount = mapped.find().length;
-    const decorationsToRemove = ranges.flatMap((range) => mapped.find(range.from, range.to));
-    const withoutChangedDecorations = decorationsToRemove.length > 0
-        ? mapped.remove(decorationsToRemove)
-        : mapped;
-    const nextBudget = MAX_AUTOLINK_DECORATIONS - existingCount + decorationsToRemove.length;
-    const nextDecorations = collectAutolinkDecorationsInRanges(doc, ranges, nextBudget);
-    return nextDecorations.length > 0
-        ? withoutChangedDecorations.add(doc, nextDecorations)
-        : withoutChangedDecorations;
 }
 
 function transactionStepMayCreateAutolink(step: unknown): boolean {
@@ -442,6 +243,33 @@ export function transactionMayCreateAutolink(tr: unknown): boolean {
     }
 
     return steps.some(transactionStepMayCreateAutolink);
+}
+
+export function textMayContainAutolinkCandidate(text: string): boolean {
+    AUTOLINK_TRIGGER_TEXT_PATTERN.lastIndex = 0;
+    if (!AUTOLINK_TRIGGER_TEXT_PATTERN.test(text)) {
+        return false;
+    }
+    return findUrls(text, 0, 1).length > 0;
+}
+
+function transactionChangedContextMayContainAutolinkCandidate(doc: any, tr: unknown): boolean {
+    if (typeof doc.textBetween !== 'function') return false;
+
+    const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+    for (const range of getTransactionChangedRanges(tr)) {
+        for (const pos of [range.newFrom, range.newTo]) {
+            const safePos = Math.max(0, Math.min(pos, docSize));
+            const from = Math.max(0, safePos - MAX_AUTOLINK_CHANGED_CONTEXT_CHARS);
+            const to = Math.min(docSize, safePos + MAX_AUTOLINK_CHANGED_CONTEXT_CHARS);
+            if (from >= to) continue;
+            if (textMayContainAutolinkCandidate(doc.textBetween(from, to, '\n', '\ufffc'))) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 type AutolinkDecorationSetLike = {
@@ -486,6 +314,112 @@ export function transactionMayAffectExistingAutolinks(
     return false;
 }
 
+type AutolinkUpdateRange = {
+    from: number;
+    to: number;
+};
+
+function addTextblockRangeAt(doc: any, pos: number, ranges: AutolinkUpdateRange[]): void {
+    if (typeof doc.resolve !== 'function') return;
+    const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+    const safePos = Math.max(0, Math.min(pos, docSize));
+
+    try {
+        const $pos = doc.resolve(safePos);
+        for (let depth = $pos.depth; depth > 0; depth -= 1) {
+            const node = $pos.node(depth);
+            if (!node?.isTextblock) continue;
+            ranges.push({
+                from: $pos.start(depth),
+                to: $pos.end(depth),
+            });
+            return;
+        }
+    } catch {
+    }
+}
+
+function mergeAutolinkUpdateRanges(ranges: AutolinkUpdateRange[]): AutolinkUpdateRange[] {
+    if (ranges.length <= 1) return ranges;
+
+    const sorted = [...ranges]
+        .filter((range) => Number.isFinite(range.from) && Number.isFinite(range.to) && range.to > range.from)
+        .sort((a, b) => a.from - b.from || a.to - b.to);
+    const merged: AutolinkUpdateRange[] = [];
+
+    for (const range of sorted) {
+        const previous = merged[merged.length - 1];
+        if (!previous || range.from > previous.to + 1) {
+            merged.push({ ...range });
+            continue;
+        }
+        previous.to = Math.max(previous.to, range.to);
+    }
+
+    return merged;
+}
+
+export function collectAutolinkUpdateRanges(doc: any, tr: unknown): AutolinkUpdateRange[] {
+    const ranges: AutolinkUpdateRange[] = [];
+    const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+
+    for (const range of getTransactionChangedRanges(tr)) {
+        const from = Math.max(0, Math.min(range.newFrom, range.newTo, docSize));
+        const to = Math.max(from, Math.min(Math.max(range.newFrom, range.newTo), docSize));
+
+        addTextblockRangeAt(doc, from, ranges);
+        addTextblockRangeAt(doc, to, ranges);
+
+        if (to > from && typeof doc.nodesBetween === 'function') {
+            doc.nodesBetween(from, to, (node: any, pos: number) => {
+                if (!node.isTextblock || typeof node.nodeSize !== 'number') return true;
+                ranges.push({
+                    from: pos + 1,
+                    to: Math.max(pos + 1, pos + node.nodeSize - 1),
+                });
+                return true;
+            });
+        }
+    }
+
+    return mergeAutolinkUpdateRanges(ranges);
+}
+
+export function updateAutolinkDecorationsForTransaction(
+    previous: DecorationSet,
+    tr: unknown,
+    doc: any,
+): DecorationSet {
+    const mapped = previous.map((tr as { mapping: any }).mapping, doc);
+    const ranges = collectAutolinkUpdateRanges(doc, tr);
+    if (ranges.length === 0) {
+        return mapped;
+    }
+
+    const decorationsToRemove: Decoration[] = [];
+    for (const range of ranges) {
+        decorationsToRemove.push(...mapped.find(range.from, range.to) as Decoration[]);
+    }
+
+    let next = decorationsToRemove.length > 0
+        ? mapped.remove(decorationsToRemove)
+        : mapped;
+    let remainingBudget = MAX_AUTOLINK_DECORATIONS - next.find().length;
+    if (remainingBudget <= 0) {
+        return next;
+    }
+
+    for (const range of ranges) {
+        if (remainingBudget <= 0) break;
+        const decorations = collectAutolinkDecorationsInRange(doc, range.from, range.to, remainingBudget);
+        if (decorations.length === 0) continue;
+        next = next.add(doc, decorations);
+        remainingBudget -= decorations.length;
+    }
+
+    return next;
+}
+
 export const autolinkPlugin = $prose(() => {
     return new Plugin({
         key: autolinkPluginKey,
@@ -499,12 +433,15 @@ export const autolinkPlugin = $prose(() => {
                 }
 
                 const mayCreateAutolink = transactionMayCreateAutolink(tr);
-                if (!mayCreateAutolink && !transactionMayAffectExistingAutolinks(old, tr)) {
+                if (
+                    !mayCreateAutolink
+                    && !transactionMayAffectExistingAutolinks(old, tr)
+                    && !transactionChangedContextMayContainAutolinkCandidate(tr.doc, tr)
+                ) {
                     return old.map(tr.mapping, tr.doc);
                 }
 
-                return updateAutolinkDecorationsIncrementally(old, tr, tr.doc)
-                    ?? createAutolinkDecorations(tr.doc);
+                return updateAutolinkDecorationsForTransaction(old, tr, tr.doc);
             }
         },
         props: {

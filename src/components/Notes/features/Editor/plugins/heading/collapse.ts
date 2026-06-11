@@ -56,7 +56,11 @@ export const collapsePlugin = $prose(() => {
                     return oldPluginState;
                 }
 
-                if (tr.docChanged && !metaAction && canMapHeadingCollapsePluginState(oldPluginState, tr)) {
+                if (
+                    tr.docChanged
+                    && !metaAction
+                    && canMapHeadingCollapsePluginState(oldPluginState, tr, _oldState.doc, newState.doc)
+                ) {
                     return mapHeadingCollapsePluginState(oldPluginState, tr, newState.doc);
                 }
 

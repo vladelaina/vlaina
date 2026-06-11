@@ -7,6 +7,7 @@ import {
 } from './headingCollapseUtils';
 import {
     getTransactionChangedRanges,
+    transactionInsertedTextMatches,
     transactionTouchesDecorations,
 } from '../shared/transactionStepText';
 import { transactionInsertedTextMayAffectHeadingStructure } from './headingStructureChange';
@@ -17,6 +18,8 @@ export interface HeadingCollapsePluginState {
     topLevelNodes: ReturnType<typeof collectTopLevelNodes>;
     collapsedRanges: CollapsedRange[];
 }
+
+const HEADING_COLLAPSE_MARKER_PATTERN = /#/u;
 
 export function buildHeadingCollapsePluginState(
     doc: any,
@@ -42,24 +45,46 @@ export function buildHeadingCollapsePluginState(
     };
 }
 
-function getLastHeadingPos(topLevelNodes: HeadingCollapsePluginState['topLevelNodes']): number | null {
-    for (let index = topLevelNodes.length - 1; index >= 0; index -= 1) {
-        const nodeInfo = topLevelNodes[index];
-        if (nodeInfo.node.type.name === 'heading') {
-            return nodeInfo.pos;
-        }
-    }
-    return null;
-}
-
 function transactionIsPureInsertion(tr: unknown): boolean {
     const ranges = getTransactionChangedRanges(tr);
     return ranges.length > 0 && ranges.every((range) => range.oldFrom === range.oldTo);
 }
 
+function positionTouchesHeadingNode(doc: any, pos: number): boolean {
+    try {
+        const resolvedPos = Math.max(0, Math.min(pos, doc.content?.size ?? 0));
+        const $pos = doc.resolve(resolvedPos);
+
+        for (let depth = $pos.depth; depth > 0; depth -= 1) {
+            if ($pos.node(depth).type?.name === 'heading') {
+                return true;
+            }
+        }
+
+        return Boolean(
+            $pos.nodeBefore?.type?.name === 'heading'
+            || $pos.nodeAfter?.type?.name === 'heading'
+            || doc.nodeAt?.(resolvedPos)?.type?.name === 'heading'
+        );
+    } catch {
+        return false;
+    }
+}
+
+function transactionTouchesHeadingNode(tr: unknown, oldDoc: any, newDoc: any): boolean {
+    return getTransactionChangedRanges(tr).some((range) => (
+        positionTouchesHeadingNode(oldDoc, range.oldFrom)
+        || positionTouchesHeadingNode(oldDoc, range.oldTo)
+        || positionTouchesHeadingNode(newDoc, range.newFrom)
+        || positionTouchesHeadingNode(newDoc, range.newTo)
+    ));
+}
+
 export function canMapHeadingCollapsePluginState(
     pluginState: HeadingCollapsePluginState,
     tr: unknown,
+    oldDoc?: any,
+    newDoc?: any,
 ): boolean {
     if (pluginState.collapsedHeadings.size > 0) {
         return false;
@@ -67,22 +92,23 @@ export function canMapHeadingCollapsePluginState(
     if (!transactionIsPureInsertion(tr)) {
         return false;
     }
-    if (transactionInsertedTextMayAffectHeadingStructure(
-        tr,
-        (tr as { doc?: unknown }).doc,
-    )) {
+    const transactionDoc = newDoc ?? (tr as { doc?: unknown }).doc;
+    if (transactionInsertedTextMayAffectHeadingStructure(tr, transactionDoc)) {
+        return false;
+    }
+    if (
+        transactionInsertedTextMatches(tr, HEADING_COLLAPSE_MARKER_PATTERN)
+        && oldDoc
+        && transactionDoc
+        && transactionTouchesHeadingNode(tr, oldDoc, transactionDoc)
+    ) {
         return false;
     }
     if (transactionTouchesDecorations(pluginState.decorations, tr)) {
         return false;
     }
 
-    const lastHeadingPos = getLastHeadingPos(pluginState.topLevelNodes);
-    if (lastHeadingPos === null) {
-        return true;
-    }
-
-    return getTransactionChangedRanges(tr).every((range) => range.oldFrom > lastHeadingPos);
+    return true;
 }
 
 export function mapHeadingCollapsePluginState(
@@ -90,8 +116,18 @@ export function mapHeadingCollapsePluginState(
     tr: { mapping: Parameters<DecorationSet['map']>[0] },
     doc: any,
 ): HeadingCollapsePluginState {
+    const topLevelNodes = pluginState.topLevelNodes.map((nodeInfo) => {
+        const pos = tr.mapping.map(nodeInfo.pos, -1);
+        return {
+            ...nodeInfo,
+            pos,
+            endPos: Math.max(pos, tr.mapping.map(nodeInfo.endPos, 1)),
+        };
+    });
+
     return {
         ...pluginState,
+        topLevelNodes,
         decorations: pluginState.decorations.map(tr.mapping, doc),
     };
 }

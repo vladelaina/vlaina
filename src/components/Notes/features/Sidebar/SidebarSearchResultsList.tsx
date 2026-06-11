@@ -210,6 +210,7 @@ export function SidebarSearchResultsList({
   const deferredQuery = useDeferredValue(query);
   const [containerWidth, setContainerWidth] = useState(280);
   const previousQueryRef = useRef<string>('');
+  const widthFrameRef = useRef<number | null>(null);
   const items = useMemo(
     () => buildNotesSidebarSearchLayoutItems(results),
     [results],
@@ -235,6 +236,16 @@ export function SidebarSearchResultsList({
       const nextWidth = scrollRoot.clientWidth;
       setContainerWidth((current) => (current === nextWidth ? current : nextWidth));
     };
+    const scheduleWidthCommit = () => {
+      if (widthFrameRef.current !== null) {
+        return;
+      }
+
+      widthFrameRef.current = requestAnimationFrame(() => {
+        widthFrameRef.current = null;
+        commitWidth();
+      });
+    };
 
     commitWidth();
 
@@ -242,12 +253,14 @@ export function SidebarSearchResultsList({
       return;
     }
 
-    const resizeObserver = new ResizeObserver(() => {
-      commitWidth();
-    });
+    const resizeObserver = new ResizeObserver(scheduleWidthCommit);
     resizeObserver.observe(scrollRoot);
 
     return () => {
+      if (widthFrameRef.current !== null) {
+        cancelAnimationFrame(widthFrameRef.current);
+        widthFrameRef.current = null;
+      }
       resizeObserver.disconnect();
     };
   }, [scrollRootRef]);

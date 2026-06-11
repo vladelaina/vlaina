@@ -15,6 +15,7 @@ export function useLinkTooltipContentWidth(containerRef: RefObject<HTMLElement |
         if (!(contentRoot instanceof HTMLElement)) {
             return;
         }
+        let widthFrameId: number | null = null;
 
         const updateWidth = () => {
             const styles = window.getComputedStyle(contentRoot);
@@ -24,17 +25,32 @@ export function useLinkTooltipContentWidth(containerRef: RefObject<HTMLElement |
             setContentMaxWidth(nextWidth > 0 ? nextWidth : null);
         };
 
+        const scheduleWidthUpdate = () => {
+            if (widthFrameId !== null) {
+                return;
+            }
+
+            widthFrameId = window.requestAnimationFrame(() => {
+                widthFrameId = null;
+                updateWidth();
+            });
+        };
+
         updateWidth();
 
         const resizeObserver = typeof ResizeObserver !== 'undefined'
-            ? new ResizeObserver(updateWidth)
+            ? new ResizeObserver(scheduleWidthUpdate)
             : null;
         resizeObserver?.observe(contentRoot);
-        window.addEventListener('resize', updateWidth);
+        window.addEventListener('resize', scheduleWidthUpdate);
 
         return () => {
             resizeObserver?.disconnect();
-            window.removeEventListener('resize', updateWidth);
+            window.removeEventListener('resize', scheduleWidthUpdate);
+            if (widthFrameId !== null) {
+                window.cancelAnimationFrame(widthFrameId);
+                widthFrameId = null;
+            }
         };
     }, [containerRef]);
 

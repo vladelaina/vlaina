@@ -4,9 +4,11 @@ import {
   MAX_SELECTABLE_BLOCK_RANGE_SCAN_NODES,
   MAX_SELECTABLE_BLOCK_RANGES,
   collectMovableBlockTargetRanges,
+  collectSelectableBlockTargets,
   collectSelectableBlockRanges,
   mapRangesToSelectableBlocks,
   resolveDOMRangeRect,
+  resolveSelectableBlockTargetByPos,
   resolveSelectableBlockRange,
   expandKnownSelectableListItemHeaderRanges,
   expandListItemHeaderRanges,
@@ -247,6 +249,99 @@ describe('resolveDOMRangeRect', () => {
     } finally {
       createRangeSpy.mockRestore();
     }
+  });
+});
+
+describe('collectSelectableBlockTargets', () => {
+  function mockRect(top: number): DOMRect {
+    return {
+      bottom: top + 24,
+      height: 24,
+      left: 0,
+      right: 640,
+      top,
+      width: 640,
+      x: 0,
+      y: top,
+      toJSON: () => ({}),
+    } as DOMRect;
+  }
+
+  it('maps ordinary top-level blocks without resolving list or image fallbacks', () => {
+    const paragraph = createNode('paragraph', 5);
+    const heading = createNode('heading', 7);
+    const doc = {
+      ...createDoc([paragraph, heading]),
+      resolve: vi.fn(() => {
+        throw new Error('ordinary top-level target collection should not resolve document positions');
+      }),
+    };
+    const editor = document.createElement('div');
+    const paragraphElement = document.createElement('p');
+    const headingElement = document.createElement('h2');
+    const paragraphText = document.createTextNode('Paragraph');
+    const headingText = document.createTextNode('Heading');
+    paragraphElement.append(paragraphText);
+    headingElement.append(headingText);
+    editor.append(paragraphElement, headingElement);
+    paragraphElement.getBoundingClientRect = vi.fn(() => mockRect(10));
+    headingElement.getBoundingClientRect = vi.fn(() => mockRect(40));
+    const nodeDOM = vi.fn(() => {
+      throw new Error('ordinary top-level target collection should not use nodeDOM fallback');
+    });
+    const view = {
+      dom: editor,
+      state: { doc },
+      domAtPos: vi.fn((pos: number) => ({
+        node: pos < 5 ? paragraphText : headingText,
+        offset: 0,
+      })),
+      nodeDOM,
+    };
+
+    const targets = collectSelectableBlockTargets(view as any);
+
+    expect(targets).toHaveLength(2);
+    expect(targets.map((target) => target.element)).toEqual([paragraphElement, headingElement]);
+    expect(doc.resolve).not.toHaveBeenCalled();
+    expect(nodeDOM).not.toHaveBeenCalled();
+    expect(paragraphElement.getBoundingClientRect).toHaveBeenCalledTimes(1);
+    expect(headingElement.getBoundingClientRect).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the same fast top-level path for single position target lookup', () => {
+    const paragraph = createNode('paragraph', 5);
+    const doc = {
+      ...createDoc([paragraph]),
+      resolve: vi.fn(() => {
+        throw new Error('ordinary top-level target lookup should not resolve document positions');
+      }),
+    };
+    const editor = document.createElement('div');
+    const paragraphElement = document.createElement('p');
+    const paragraphText = document.createTextNode('Paragraph');
+    paragraphElement.append(paragraphText);
+    editor.append(paragraphElement);
+    paragraphElement.getBoundingClientRect = vi.fn(() => mockRect(10));
+    const nodeDOM = vi.fn(() => {
+      throw new Error('ordinary top-level target lookup should not use nodeDOM fallback');
+    });
+    const view = {
+      dom: editor,
+      state: { doc },
+      domAtPos: vi.fn(() => ({
+        node: paragraphText,
+        offset: 0,
+      })),
+      nodeDOM,
+    };
+
+    const target = resolveSelectableBlockTargetByPos(view as any, 2);
+
+    expect(target?.element).toBe(paragraphElement);
+    expect(doc.resolve).not.toHaveBeenCalled();
+    expect(nodeDOM).not.toHaveBeenCalled();
+    expect(paragraphElement.getBoundingClientRect).toHaveBeenCalledTimes(1);
   });
 });
 

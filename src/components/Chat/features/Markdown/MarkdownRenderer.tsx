@@ -259,7 +259,7 @@ const StreamingMarkdownBlock = memo(function StreamingMarkdownBlock({
     ...componentOptions,
     codeBlockIndexOffset: block.codeBlockIndexOffset,
     imageIndexOffset: block.imageIndexOffset,
-  }), [block.codeBlockIndexOffset, block.content, block.imageIndexOffset, componentOptions]);
+  }), [block.codeBlockIndexOffset, block.imageIndexOffset, componentOptions]);
   const rehypePlugins = useMemo(() => [
     ...CHAT_MARKDOWN_REHYPE_PLUGINS,
     [createChatStreamTextPlugin, {
@@ -301,7 +301,7 @@ const MarkdownContent = memo(function MarkdownContent({
 }: MarkdownContentProps) {
   const components = useMemo(
     () => createMarkdownComponents(componentOptions),
-    [componentOptions, markdown],
+    [componentOptions],
   );
 
   if (markdown.length > MAX_CHAT_MARKDOWN_RENDER_CHARS) {
@@ -371,6 +371,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     const selectionFrozenContentRef = useRef<string | null>(null);
     const suspendedStreamContentRef = useRef<string | null>(null);
     const [contentWidth, setContentWidth] = useState(0);
+    const contentWidthMeasureRafRef = useRef<number | null>(null);
     latestStreamingRef.current = isStreaming;
     if (isStreaming && suspendStreamAnimation) {
       suspendedStreamContentRef.current ??= content;
@@ -596,6 +597,16 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
         const nextWidth = getChatContentWidth(surface.clientWidth);
         setContentWidth((current) => (current === nextWidth ? current : nextWidth));
       };
+      const scheduleMeasure = () => {
+        if (contentWidthMeasureRafRef.current !== null) {
+          return;
+        }
+
+        contentWidthMeasureRafRef.current = requestAnimationFrame(() => {
+          contentWidthMeasureRafRef.current = null;
+          measure();
+        });
+      };
 
       measure();
 
@@ -603,12 +614,16 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
         return;
       }
 
-      const observer = new ResizeObserver(() => {
-        measure();
-      });
+      const observer = new ResizeObserver(scheduleMeasure);
       observer.observe(surface);
 
-      return () => observer.disconnect();
+      return () => {
+        if (contentWidthMeasureRafRef.current !== null) {
+          cancelAnimationFrame(contentWidthMeasureRafRef.current);
+          contentWidthMeasureRafRef.current = null;
+        }
+        observer.disconnect();
+      };
     }, [hasMarkdownSurface]);
 
     const streamBlocks = useChatStreamBlocks(

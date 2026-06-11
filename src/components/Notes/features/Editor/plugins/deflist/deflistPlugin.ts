@@ -109,7 +109,7 @@ export const MAX_DEFLIST_VISUAL_DECORATIONS = 1000;
 export const MAX_DEFLIST_VISUAL_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 const MAX_DEFLIST_TERM_CHARS = 80;
 const MAX_DEFLIST_EMPTY_SCAN_CHARS = 256;
-const DEFLIST_LINE_BREAK_TRIGGER_PATTERN = /[\n\r]/u;
+const DEFLIST_TRIGGER_TEXT_PATTERN = /[:\n\r]/u;
 const DEFLIST_DESCRIPTION_PREFIX_PATTERN = /^: /u;
 
 function isEscapedDefinitionListDescription(node: Node): boolean {
@@ -236,18 +236,43 @@ function nearbyBlockMayAffectDefinitionList(doc: Node, pos: number): boolean {
     return false;
 }
 
+function changedRangeContainsDefinitionDescriptionParagraph(doc: Node, tr: unknown): boolean {
+    if (typeof doc.nodesBetween !== 'function') return false;
+    const ranges = getTransactionChangedRanges(tr);
+    for (const range of ranges) {
+        const from = Math.max(0, Math.min(range.newFrom, range.newTo, doc.content.size));
+        const to = Math.max(from, Math.min(Math.max(range.newFrom, range.newTo), doc.content.size));
+        if (to <= from) continue;
+
+        let found = false;
+        doc.nodesBetween(from, to, (node) => {
+            if (isDefinitionDescriptionParagraph(node)) {
+                found = true;
+                return false;
+            }
+            return !found;
+        });
+        if (found) return true;
+    }
+
+    return false;
+}
+
 export function transactionMayAffectDeflistDecorations(
     previous: DecorationSetLike,
     tr: unknown,
     doc: Node,
 ): boolean {
-    if (transactionInsertedTextMatches(tr, DEFLIST_LINE_BREAK_TRIGGER_PATTERN)) {
-        return true;
-    }
     if (transactionTouchesDecorations(previous, tr)) {
         return true;
     }
     if (transactionChangedParentTextMatches(doc, tr, DEFLIST_DESCRIPTION_PREFIX_PATTERN)) {
+        return true;
+    }
+    if (
+        transactionInsertedTextMatches(tr, DEFLIST_TRIGGER_TEXT_PATTERN) &&
+        changedRangeContainsDefinitionDescriptionParagraph(doc, tr)
+    ) {
         return true;
     }
 

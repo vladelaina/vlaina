@@ -131,7 +131,11 @@ export function mountTextEditorPopup(args: MountTextEditorPopupArgs): TextEditor
   cancelButton.addEventListener('click', onCancel);
   saveButton.addEventListener('click', onSave);
   container.replaceChildren(card);
-  resizeTextEditorPopupTextareaToContent({ card, textarea });
+  if (onResizeRequest) {
+    onResizeRequest();
+  } else {
+    resizeTextEditorPopupTextareaToContent({ card, textarea });
+  }
 
   return elements;
 }

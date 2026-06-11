@@ -3,13 +3,32 @@ import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import type { Decoration } from '@milkdown/kit/prose/view';
 import {
-  collectTagTokenRescanRanges,
+  collectTagTokenDecorationsInRange,
+  MAX_TAG_TOKEN_CHANGED_CONTEXT_CHARS,
   MAX_TAG_TOKEN_EDGE_RECTS,
   resolveTagTokenEdgeOffset,
   tagTokenPlugin,
   tagTokenPluginKey,
   transactionMayAffectTagTokenDecorations,
 } from './tagTokenPlugin';
+
+interface FakeTagNode {
+  child?: (index: number) => FakeTagNode | null | undefined;
+  childCount?: number;
+  isText?: boolean;
+  nodeSize?: number;
+  text?: string;
+  type?: { name?: string };
+}
+
+function createTextNode(text: string): FakeTagNode {
+  return {
+    isText: true,
+    nodeSize: text.length,
+    text,
+    type: { name: 'text' },
+  };
+}
 
 async function createEditor(markdown: string) {
   const editor = Editor.make()
@@ -23,26 +42,58 @@ async function createEditor(markdown: string) {
   return editor;
 }
 
-function findTextPosition(view: any, text: string): number {
-  let found: number | null = null;
-  view.state.doc.descendants((node: any, pos: number) => {
-    if (found !== null || !node.isText || typeof node.text !== 'string') return;
+function findTextEndPosition(doc: any, text: string): number {
+  let position = -1;
+  doc.descendants((node: any, pos: number) => {
+    if (!node.isText || typeof node.text !== 'string') return true;
     const index = node.text.indexOf(text);
-    if (index < 0) return;
-    found = pos + index;
+    if (index < 0) return true;
+    position = pos + index + text.length;
+    return false;
   });
-  if (found === null) {
-    throw new Error(`Expected text: ${text}`);
+  if (position < 0) {
+    throw new Error(`Unable to find text: ${text}`);
   }
-  return found;
+  return position;
 }
 
-function readTagDecorations(view: any) {
-  return (tagTokenPluginKey.getState(view.state)?.find() ?? []).map((decoration: Decoration) => ({
-    text: view.state.doc.textBetween(decoration.from, decoration.to),
-    from: decoration.from,
-    to: decoration.to,
-  }));
+function getTagTokenTexts(view: any): string[] {
+  const decorations = tagTokenPluginKey.getState(view.state)?.find() ?? [];
+  return decorations.map((decoration: Decoration) => (
+    view.state.doc.textBetween(decoration.from, decoration.to)
+  ));
+}
+
+function createFlatTagDoc(text: string) {
+  return {
+    content: { size: text.length },
+    textBetween: (from: number, to: number) => text.slice(from, to),
+  };
+}
+
+function createTextInsertTransaction(position: number, text: string) {
+  return {
+    steps: [{
+      slice: {
+        content: {
+          size: text.length,
+          textBetween: () => text,
+        },
+      },
+    }],
+    mapping: {
+      maps: [{
+        forEach: (callback: (
+          oldStart: number,
+          oldEnd: number,
+          newStart: number,
+          newEnd: number,
+        ) => void) => {
+          callback(position, position, position, position + text.length);
+        },
+      }],
+    },
+  };
 }
 
 describe('tagTokenPlugin', () => {
@@ -91,67 +142,76 @@ describe('tagTokenPlugin', () => {
     await editor.destroy();
   });
 
-  it('updates tag token decorations incrementally inside the changed paragraph', async () => {
+  it('collects tag tokens through the requested local range instead of walking document children', () => {
+    const child = vi.fn(() => {
+      throw new Error('full document child scan should not run for local tag token updates');
+    });
+    const nodesBetween = vi.fn((
+      from: number,
+      to: number,
+      callback: (node: FakeTagNode, pos: number, parent: FakeTagNode) => void,
+    ) => {
+      expect({ from, to }).toEqual({ from: 80, to: 120 });
+      callback(
+        createTextNode('use #range-tag'),
+        88,
+        { type: { name: 'paragraph' } },
+      );
+    });
+    const doc = {
+      child,
+      content: { size: 300 },
+      nodesBetween,
+    };
+
+    const decorations = collectTagTokenDecorationsInRange(doc, 80, 120);
+
+    expect(decorations).toHaveLength(1);
+    expect(nodesBetween).toHaveBeenCalledTimes(1);
+    expect(child).not.toHaveBeenCalled();
+  });
+
+  it('updates only the edited paragraph when a tag token is completed character by character', async () => {
     const editor = await createEditor([
-      'Existing #alpha tag.',
-      '',
-      'Second paragraph.',
-    ].join('\n'));
+      'Use #existing for docs.',
+      ...Array.from({ length: 40 }, (_, index) => `Filler paragraph ${index} keeps this note large enough.`),
+      'Finish #tai',
+    ].join('\n\n'));
     const view = editor.ctx.get(editorViewCtx);
-    const insertPos = findTextPosition(view, 'Second paragraph.') + 'Second'.length;
-    const tr = view.state.tr.insertText(' #beta', insertPos, insertPos);
-    const ranges = collectTagTokenRescanRanges(tr.doc, tr);
 
-    expect(ranges).toHaveLength(1);
+    expect(getTagTokenTexts(view)).toEqual(['#existing', '#tai']);
 
-    view.dispatch(tr);
+    const insertAt = findTextEndPosition(view.state.doc, 'Finish #tai');
+    view.dispatch(view.state.tr.insertText('l', insertAt, insertAt));
 
-    expect(readTagDecorations(view).map((decoration) => decoration.text)).toEqual([
-      '#alpha',
-      '#beta',
-    ]);
+    expect(getTagTokenTexts(view)).toEqual(['#existing', '#tail']);
 
     await editor.destroy();
   });
 
-  it('checks only nearby parent text before rebuilding for existing paragraph tags', () => {
-    const textBetween = vi.fn((from: number, to: number) => {
-      expect(to - from).toBeLessThanOrEqual(280);
-      return 'plain nearby text';
-    });
-    const parent = {
-      isTextblock: true,
-      content: { size: 1000 },
-      textBetween,
-    };
-    const doc = {
-      content: { size: 1000 },
-      resolve: vi.fn(() => ({
-        depth: 1,
-        parent,
-        parentOffset: 500,
-      })),
-    };
-    const tr = {
-      steps: [{
-        slice: {
-          content: {
-            size: 1,
-            textBetween: vi.fn(() => 'x'),
-          },
-        },
-      }],
-      mapping: {
-        maps: [{
-          forEach(callback: (oldFrom: number, oldTo: number, newFrom: number, newTo: number) => void) {
-            callback(500, 500, 501, 501);
-          },
-        }],
-      },
-    };
+  it('ignores plain edits far away from tag triggers in the same large text', () => {
+    const farPadding = 'a'.repeat(MAX_TAG_TOKEN_CHANGED_CONTEXT_CHARS * 3);
+    const text = `#existing ${farPadding} cursor`;
+    const position = text.length;
+    const previous = { find: vi.fn(() => []) };
 
-    expect(transactionMayAffectTagTokenDecorations({ find: () => [] }, tr, doc)).toBe(false);
-    expect(textBetween).toHaveBeenCalled();
+    expect(transactionMayAffectTagTokenDecorations(
+      previous,
+      createTextInsertTransaction(position, 'x'),
+      createFlatTagDoc(text),
+    )).toBe(false);
+  });
+
+  it('keeps plain edits near tag triggers eligible for local tag updates', () => {
+    const text = `Near #unfinished ${'a'.repeat(8)}`;
+    const position = text.length;
+    const previous = { find: vi.fn(() => []) };
+
+    expect(transactionMayAffectTagTokenDecorations(
+      previous,
+      createTextInsertTransaction(position, 'x'),
+      createFlatTagDoc(text),
+    )).toBe(true);
   });
 
   it('resolves tag token edge offsets without materializing rect lists', () => {

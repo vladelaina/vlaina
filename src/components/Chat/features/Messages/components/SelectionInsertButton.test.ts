@@ -1,5 +1,5 @@
 import React from "react";
-import { render, fireEvent } from "@testing-library/react";
+import { act, render, fireEvent } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SelectionInsertButton } from "./SelectionInsertButton";
 import {
@@ -17,6 +17,14 @@ import {
 afterEach(() => {
   document.body.removeAttribute("data-chat-selection-lock");
 });
+
+async function flushAnimationFrame() {
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
+}
 
 describe("resolveOutsideMoveDecision", () => {
   it("does nothing when the drag did not start from chat content", () => {
@@ -233,7 +241,7 @@ describe("SelectionInsertButton selection lock", () => {
     container.remove();
   });
 
-  it("keeps the insert button visible when the window blurs", () => {
+  it("keeps the insert button visible when the window blurs", async () => {
     const { unmount } = render(React.createElement(SelectionInsertButton));
     const container = document.createElement("div");
     container.innerHTML = `
@@ -263,6 +271,7 @@ describe("SelectionInsertButton selection lock", () => {
     selection.removeAllRanges();
     selection.addRange(range);
     fireEvent(document, new Event("selectionchange"));
+    await flushAnimationFrame();
 
     expect(document.querySelector('[data-no-focus-input="true"]')).not.toBeNull();
 

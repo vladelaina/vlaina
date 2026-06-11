@@ -185,6 +185,16 @@ describe('createTextEditorViewSession', () => {
     session.destroy();
   });
 
+  it('focuses the popup textarea synchronously when the editor opens', () => {
+    const { refs, session } = createSessionHarness();
+
+    session.update();
+
+    expect(document.activeElement).toBe(refs.textareaElement);
+
+    session.destroy();
+  });
+
   it('coalesces textarea autosize work to one animation frame while typing', () => {
     vi.stubGlobal('innerHeight', 500);
     const frameCallbacks: FrameRequestCallback[] = [];

@@ -22,12 +22,15 @@ const SKIPPED_TEXT_PARENT_TYPES = new Set(['code_block', 'html_block']);
 const SKIPPED_MARK_TYPES = new Set(['inlineCode', 'code']);
 export const MAX_TAG_TOKEN_DECORATIONS = 1000;
 export const MAX_TAG_TOKEN_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
-export const MAX_TAG_TOKEN_INCREMENTAL_RESCAN_RANGES = 80;
-export const MAX_TAG_TOKEN_INCREMENTAL_RESCAN_CHARS = 250_000;
 const MAX_TAG_TOKEN_CHARS = 128;
-const TAG_TOKEN_CHANGE_CONTEXT_CHARS = MAX_TAG_TOKEN_CHARS + 8;
 export const MAX_TAG_TOKEN_EDGE_RECTS = 1024;
+export const MAX_TAG_TOKEN_CHANGED_CONTEXT_CHARS = MAX_TAG_TOKEN_CHARS + 8;
 const TAG_TOKEN_TRIGGER_TEXT_PATTERN = /#/u;
+
+type TagTokenUpdateRange = {
+  from: number;
+  to: number;
+};
 
 export function resolveTagTokenEdgeOffset(
   token: HTMLElement,
@@ -79,21 +82,35 @@ export function resolveTagTokenEdgeOffset(
 }
 
 export function createTagTokenDecorations(doc: any): DecorationSet {
-  return DecorationSet.create(doc, collectTagTokenDecorations(doc));
+  const decorations: Decoration[] = [];
+
+  scanProseDescendants(doc, (node, pos, parent) => {
+    if (decorations.length >= MAX_TAG_TOKEN_DECORATIONS) {
+      return STOP_PROSE_SCAN;
+    }
+
+    if (node.isText) {
+      collectTagTokenDecorationsFromTextNode(node, pos, parent, decorations);
+    }
+
+    return decorations.length < MAX_TAG_TOKEN_DECORATIONS ? undefined : STOP_PROSE_SCAN;
+  }, MAX_TAG_TOKEN_DOC_SCAN_NODES);
+
+  return decorations.length > 0
+    ? DecorationSet.create(doc, decorations)
+    : DecorationSet.empty;
 }
 
-function pushTagTokenDecorationsForTextNode(
-  decorations: Decoration[],
+function collectTagTokenDecorationsFromTextNode(
   node: any,
   pos: number,
   parent: any,
-  maxDecorations: number,
+  decorations: Decoration[],
+  maxDecorations = MAX_TAG_TOKEN_DECORATIONS,
 ): void {
-  if (decorations.length >= maxDecorations) {
-    return;
-  }
+  if (decorations.length >= maxDecorations) return;
 
-  const parentType = parent.type?.name;
+  const parentType = parent?.type?.name;
   if (parentType && SKIPPED_TEXT_PARENT_TYPES.has(parentType)) {
     return;
   }
@@ -126,219 +143,149 @@ function pushTagTokenDecorationsForTextNode(
   }
 }
 
-export function collectTagTokenDecorations(doc: any): Decoration[] {
-  const decorations: Decoration[] = [];
-
-  scanProseDescendants(doc, (node, pos, parent) => {
-    if (decorations.length >= MAX_TAG_TOKEN_DECORATIONS) {
-      return STOP_PROSE_SCAN;
-    }
-
-    if (!node.isText) {
-      return;
-    }
-
-    pushTagTokenDecorationsForTextNode(
-      decorations,
-      node,
-      pos,
-      parent,
-      MAX_TAG_TOKEN_DECORATIONS
-    );
-
-    return decorations.length < MAX_TAG_TOKEN_DECORATIONS ? undefined : STOP_PROSE_SCAN;
-  }, MAX_TAG_TOKEN_DOC_SCAN_NODES);
-
-  return decorations;
-}
-
-function getDocContentSize(doc: any): number {
-  const size = doc?.content?.size;
-  return typeof size === 'number' && Number.isFinite(size) ? Math.max(0, size) : 0;
-}
-
-function clampDocPos(doc: any, pos: number): number {
-  const size = getDocContentSize(doc);
-  return Math.max(0, Math.min(size, Math.floor(Number.isFinite(pos) ? pos : 0)));
-}
-
-function addTagTokenRescanRange(
-  ranges: Array<{ from: number; to: number }>,
+export function collectTagTokenDecorationsInRange(
+  doc: any,
   from: number,
   to: number,
-): void {
-  const start = Math.max(0, Math.min(from, to));
-  const end = Math.max(start, Math.max(from, to));
-  if (end <= start) {
-    return;
-  }
-  ranges.push({ from: start, to: end });
-}
-
-function addResolvedTextblockRange(
-  doc: any,
-  ranges: Array<{ from: number; to: number }>,
-  pos: number,
-): void {
-  try {
-    const $pos = doc.resolve(clampDocPos(doc, pos));
-    for (let depth = $pos.depth; depth > 0; depth -= 1) {
-      const node = $pos.node(depth);
-      if (!node?.isTextblock) {
-        continue;
-      }
-      addTagTokenRescanRange(ranges, $pos.start(depth), $pos.end(depth));
-      return;
-    }
-  } catch {
-  }
-}
-
-function addTextblockRangesBetween(
-  doc: any,
-  ranges: Array<{ from: number; to: number }>,
-  from: number,
-  to: number,
-): void {
-  if (typeof doc?.nodesBetween !== 'function') {
-    addResolvedTextblockRange(doc, ranges, from);
-    addResolvedTextblockRange(doc, ranges, to);
-    return;
-  }
-
-  const start = clampDocPos(doc, from);
-  const end = Math.max(start, clampDocPos(doc, to));
-  addResolvedTextblockRange(doc, ranges, start);
-  addResolvedTextblockRange(doc, ranges, end);
-  if (end <= start) {
-    return;
-  }
-
-  try {
-    doc.nodesBetween(start, end, (node: any, pos: number) => {
-      if (!node?.isTextblock) {
-        return true;
-      }
-      const nodeStart = pos + 1;
-      const nodeEnd = pos + Math.max(1, node.nodeSize ?? 1) - 1;
-      addTagTokenRescanRange(ranges, nodeStart, nodeEnd);
-      return false;
-    });
-  } catch {
-  }
-}
-
-function mergeTagTokenRescanRanges(
-  ranges: Array<{ from: number; to: number }>,
-): Array<{ from: number; to: number }> {
-  if (ranges.length <= 1) {
-    return ranges;
-  }
-
-  const sorted = [...ranges].sort((left, right) => left.from - right.from || left.to - right.to);
-  const merged: Array<{ from: number; to: number }> = [];
-  for (const range of sorted) {
-    const previous = merged[merged.length - 1];
-    if (previous && range.from <= previous.to + 1) {
-      previous.to = Math.max(previous.to, range.to);
-    } else {
-      merged.push({ ...range });
-    }
-  }
-  return merged;
-}
-
-export function collectTagTokenRescanRanges(
-  doc: any,
-  tr: unknown,
-): Array<{ from: number; to: number }> | null {
-  const changedRanges = getTransactionChangedRanges(tr);
-  if (changedRanges.length === 0) {
-    return null;
-  }
-
-  const ranges: Array<{ from: number; to: number }> = [];
-  for (const range of changedRanges) {
-    addTextblockRangesBetween(doc, ranges, range.newFrom, range.newTo);
-    if (ranges.length > MAX_TAG_TOKEN_INCREMENTAL_RESCAN_RANGES) {
-      return null;
-    }
-  }
-
-  const merged = mergeTagTokenRescanRanges(ranges);
-  const totalChars = merged.reduce((sum, range) => sum + Math.max(0, range.to - range.from), 0);
-  if (
-    merged.length === 0 ||
-    merged.length > MAX_TAG_TOKEN_INCREMENTAL_RESCAN_RANGES ||
-    totalChars > MAX_TAG_TOKEN_INCREMENTAL_RESCAN_CHARS
-  ) {
-    return null;
-  }
-  return merged;
-}
-
-export function collectTagTokenDecorationsInRanges(
-  doc: any,
-  ranges: readonly { from: number; to: number }[],
   maxDecorations = MAX_TAG_TOKEN_DECORATIONS,
 ): Decoration[] {
   const decorations: Decoration[] = [];
-  if (maxDecorations <= 0 || typeof doc?.nodesBetween !== 'function') {
+  const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+  const start = Math.max(0, Math.min(from, docSize));
+  const end = Math.max(start, Math.min(to, docSize));
+  if (start >= end || typeof doc.nodesBetween !== 'function') {
     return decorations;
   }
 
-  for (const range of ranges) {
-    const from = clampDocPos(doc, range.from);
-    const to = Math.max(from, clampDocPos(doc, range.to));
-    if (to <= from) {
-      continue;
-    }
-
-    doc.nodesBetween(from, to, (node: any, pos: number, parent: any) => {
-      if (decorations.length >= maxDecorations) {
-        return false;
-      }
-      if (node.isText) {
-        pushTagTokenDecorationsForTextNode(
-          decorations,
-          node,
-          pos,
-          parent,
-          maxDecorations
-        );
-      }
-      return decorations.length < maxDecorations;
-    });
-
-    if (decorations.length >= maxDecorations) {
-      break;
-    }
-  }
+  doc.nodesBetween(start, end, (node: any, pos: number, parent: any) => {
+    if (decorations.length >= maxDecorations) return false;
+    if (!node.isText) return true;
+    collectTagTokenDecorationsFromTextNode(node, pos, parent, decorations, maxDecorations);
+    return decorations.length < maxDecorations;
+  });
 
   return decorations;
 }
 
-function updateTagTokenDecorationsIncrementally(
+function addTextblockRangeAt(doc: any, pos: number, ranges: TagTokenUpdateRange[]): void {
+  if (typeof doc.resolve !== 'function') return;
+  const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+  const safePos = Math.max(0, Math.min(pos, docSize));
+
+  try {
+    const $pos = doc.resolve(safePos);
+    for (let depth = $pos.depth; depth > 0; depth -= 1) {
+      const node = $pos.node(depth);
+      if (!node?.isTextblock) continue;
+      ranges.push({
+        from: $pos.start(depth),
+        to: $pos.end(depth),
+      });
+      return;
+    }
+  } catch {
+  }
+}
+
+function mergeTagTokenUpdateRanges(ranges: TagTokenUpdateRange[]): TagTokenUpdateRange[] {
+  if (ranges.length <= 1) return ranges;
+
+  const sorted = [...ranges]
+    .filter((range) => Number.isFinite(range.from) && Number.isFinite(range.to) && range.to > range.from)
+    .sort((a, b) => a.from - b.from || a.to - b.to);
+  const merged: TagTokenUpdateRange[] = [];
+
+  for (const range of sorted) {
+    const previous = merged[merged.length - 1];
+    if (!previous || range.from > previous.to + 1) {
+      merged.push({ ...range });
+      continue;
+    }
+    previous.to = Math.max(previous.to, range.to);
+  }
+
+  return merged;
+}
+
+export function collectTagTokenUpdateRanges(doc: any, tr: unknown): TagTokenUpdateRange[] {
+  const ranges: TagTokenUpdateRange[] = [];
+  const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+
+  for (const range of getTransactionChangedRanges(tr)) {
+    const from = Math.max(0, Math.min(range.newFrom, range.newTo, docSize));
+    const to = Math.max(from, Math.min(Math.max(range.newFrom, range.newTo), docSize));
+
+    addTextblockRangeAt(doc, from, ranges);
+    addTextblockRangeAt(doc, to, ranges);
+
+    if (to > from && typeof doc.nodesBetween === 'function') {
+      doc.nodesBetween(from, to, (node: any, pos: number) => {
+        if (!node.isTextblock || typeof node.nodeSize !== 'number') return true;
+        ranges.push({
+          from: pos + 1,
+          to: Math.max(pos + 1, pos + node.nodeSize - 1),
+        });
+        return true;
+      });
+    }
+  }
+
+  return mergeTagTokenUpdateRanges(ranges);
+}
+
+export function updateTagTokenDecorationsForTransaction(
   previous: DecorationSet,
   tr: unknown,
   doc: any,
-): DecorationSet | null {
-  const ranges = collectTagTokenRescanRanges(doc, tr);
-  if (!ranges) {
-    return null;
+): DecorationSet {
+  const mapped = previous.map((tr as { mapping: any }).mapping, doc);
+  const ranges = collectTagTokenUpdateRanges(doc, tr);
+  if (ranges.length === 0) {
+    return mapped;
   }
 
-  const mapped = previous.map((tr as { mapping: Parameters<DecorationSet['map']>[0] }).mapping, doc);
-  const existingCount = mapped.find().length;
-  const decorationsToRemove = ranges.flatMap((range) => mapped.find(range.from, range.to));
-  const withoutChangedDecorations = decorationsToRemove.length > 0
+  const decorationsToRemove: Decoration[] = [];
+  for (const range of ranges) {
+    decorationsToRemove.push(...mapped.find(range.from, range.to) as Decoration[]);
+  }
+
+  let next = decorationsToRemove.length > 0
     ? mapped.remove(decorationsToRemove)
     : mapped;
-  const nextBudget = MAX_TAG_TOKEN_DECORATIONS - existingCount + decorationsToRemove.length;
-  const nextDecorations = collectTagTokenDecorationsInRanges(doc, ranges, nextBudget);
-  return nextDecorations.length > 0
-    ? withoutChangedDecorations.add(doc, nextDecorations)
-    : withoutChangedDecorations;
+  let remainingBudget = MAX_TAG_TOKEN_DECORATIONS - next.find().length;
+  if (remainingBudget <= 0) {
+    return next;
+  }
+
+  for (const range of ranges) {
+    if (remainingBudget <= 0) break;
+    const decorations = collectTagTokenDecorationsInRange(doc, range.from, range.to, remainingBudget);
+    if (decorations.length === 0) continue;
+    next = next.add(doc, decorations);
+    remainingBudget -= decorations.length;
+  }
+
+  return next;
+}
+
+function transactionChangedContextMayContainTagTrigger(doc: any, tr: unknown): boolean {
+  if (typeof doc.textBetween !== 'function') return false;
+
+  const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+  for (const range of getTransactionChangedRanges(tr)) {
+    for (const pos of [range.newFrom, range.newTo]) {
+      const safePos = Math.max(0, Math.min(pos, docSize));
+      const from = Math.max(0, safePos - MAX_TAG_TOKEN_CHANGED_CONTEXT_CHARS);
+      const to = Math.min(docSize, safePos + MAX_TAG_TOKEN_CHANGED_CONTEXT_CHARS);
+      if (from >= to) continue;
+      TAG_TOKEN_TRIGGER_TEXT_PATTERN.lastIndex = 0;
+      if (TAG_TOKEN_TRIGGER_TEXT_PATTERN.test(doc.textBetween(from, to, '\n', '\ufffc'))) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 export function transactionMayAffectTagTokenDecorations(
@@ -348,32 +295,7 @@ export function transactionMayAffectTagTokenDecorations(
 ): boolean {
   return transactionInsertedTextMatches(tr, TAG_TOKEN_TRIGGER_TEXT_PATTERN)
     || transactionTouchesDecorations(previous, tr)
-    || transactionChangedNearbyTagTextMatches(doc, tr);
-}
-
-function transactionChangedNearbyTagTextMatches(doc: any, tr: unknown): boolean {
-  const ranges = getTransactionChangedRanges(tr);
-  for (const range of ranges) {
-    for (const pos of [range.newFrom, range.newTo]) {
-      try {
-        const $pos = doc.resolve(clampDocPos(doc, pos));
-        if (!$pos.parent?.isTextblock) {
-          continue;
-        }
-        const from = Math.max(0, $pos.parentOffset - TAG_TOKEN_CHANGE_CONTEXT_CHARS);
-        const to = Math.min(
-          $pos.parent.content.size,
-          $pos.parentOffset + TAG_TOKEN_CHANGE_CONTEXT_CHARS
-        );
-        TAG_TOKEN_TRIGGER_TEXT_PATTERN.lastIndex = 0;
-        if (TAG_TOKEN_TRIGGER_TEXT_PATTERN.test($pos.parent.textBetween(from, to, '\n', '\ufffc'))) {
-          return true;
-        }
-      } catch {
-      }
-    }
-  }
-  return false;
+    || transactionChangedContextMayContainTagTrigger(doc, tr);
 }
 
 export const tagTokenPlugin = $prose(() => new Plugin({
@@ -387,8 +309,7 @@ export const tagTokenPlugin = $prose(() => new Plugin({
       if (!transactionMayAffectTagTokenDecorations(previous, tr, tr.doc)) {
         return previous.map(tr.mapping, tr.doc);
       }
-      return updateTagTokenDecorationsIncrementally(previous, tr, tr.doc)
-        ?? createTagTokenDecorations(tr.doc);
+      return updateTagTokenDecorationsForTransaction(previous, tr, tr.doc);
     },
   },
   props: {

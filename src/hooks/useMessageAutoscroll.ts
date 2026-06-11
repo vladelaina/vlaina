@@ -93,6 +93,7 @@ export const useMessageAutoscroll = ({
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const contentResizeObserverRef = useRef<ResizeObserver | null>(null);
   const activeOutputFollowRafRef = useRef<number | null>(null);
+  const spacerUpdateRafRef = useRef<number | null>(null);
   const observedContainerRef = useRef<HTMLDivElement | null>(null);
   const observedContentRef = useRef<Element | null>(null);
   const messagesRef = useRef(messages);
@@ -129,6 +130,24 @@ export const useMessageAutoscroll = ({
       cancelAnimationFrame(activeOutputFollowRafRef.current);
     }
     activeOutputFollowRafRef.current = null;
+  }, []);
+
+  const cancelScheduledSpacerHeightUpdate = useCallback(() => {
+    if (spacerUpdateRafRef.current !== null) {
+      cancelAnimationFrame(spacerUpdateRafRef.current);
+      spacerUpdateRafRef.current = null;
+    }
+  }, []);
+
+  const scheduleSpacerHeightUpdate = useCallback(() => {
+    if (spacerUpdateRafRef.current !== null) {
+      return;
+    }
+
+    spacerUpdateRafRef.current = requestAnimationFrame(() => {
+      spacerUpdateRafRef.current = null;
+      updateSpacerHeightRef.current();
+    });
   }, []);
 
   const detachFromStreamingFollow = useCallback(() => {
@@ -589,6 +608,7 @@ export const useMessageAutoscroll = ({
       resizeObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
       observedContainerRef.current = null;
+      cancelScheduledSpacerHeightUpdate();
       return;
     }
 
@@ -603,19 +623,20 @@ export const useMessageAutoscroll = ({
 
     resizeObserverRef.current?.disconnect();
     const resizeObserver = new ResizeObserver(() => {
-      updateSpacerHeightRef.current();
+      scheduleSpacerHeightUpdate();
     });
 
     resizeObserver.observe(container);
     resizeObserverRef.current = resizeObserver;
     observedContainerRef.current = container;
-  }, [active, messages.length]);
+  }, [active, cancelScheduledSpacerHeightUpdate, messages.length, scheduleSpacerHeightUpdate]);
 
   useEffect(() => {
     if (!active) {
       contentResizeObserverRef.current?.disconnect();
       contentResizeObserverRef.current = null;
       observedContentRef.current = null;
+      cancelScheduledSpacerHeightUpdate();
       return;
     }
 
@@ -631,7 +652,7 @@ export const useMessageAutoscroll = ({
 
     contentResizeObserverRef.current?.disconnect();
     const resizeObserver = new ResizeObserver(() => {
-      updateSpacerHeightRef.current();
+      scheduleSpacerHeightUpdate();
       if (isStreamingRef.current) {
         scrollActiveOutputIfNeededRef.current();
       }
@@ -640,7 +661,7 @@ export const useMessageAutoscroll = ({
     resizeObserver.observe(content);
     contentResizeObserverRef.current = resizeObserver;
     observedContentRef.current = content;
-  }, [active, messages.length, spacerHeight]);
+  }, [active, cancelScheduledSpacerHeightUpdate, messages.length, scheduleSpacerHeightUpdate, spacerHeight]);
 
   useLayoutEffect(() => {
     if (
@@ -850,14 +871,15 @@ export const useMessageAutoscroll = ({
     }
 
     const handleResize = () => {
-      updateSpacerHeightRef.current();
+      scheduleSpacerHeightUpdate();
     };
 
     window.addEventListener("resize", handleResize);
     return () => {
       window.removeEventListener("resize", handleResize);
+      cancelScheduledSpacerHeightUpdate();
     };
-  }, [active]);
+  }, [active, cancelScheduledSpacerHeightUpdate, scheduleSpacerHeightUpdate]);
 
   useEffect(() => {
     return () => {
@@ -869,6 +891,7 @@ export const useMessageAutoscroll = ({
         cancelAnimationFrame(activeOutputFollowRafRef.current);
       }
       activeOutputFollowRafRef.current = null;
+      cancelScheduledSpacerHeightUpdate();
       observedContainerRef.current = null;
       observedContentRef.current = null;
       pendingScrollToCurrentTurnRef.current = false;

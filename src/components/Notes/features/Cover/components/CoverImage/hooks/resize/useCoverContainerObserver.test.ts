@@ -206,4 +206,44 @@ describe('useCoverContainerObserver', () => {
     unmount();
     expect(resizeObserverState.disconnect).toHaveBeenCalledTimes(2);
   });
+
+  it('coalesces rapid observer size changes into one frame commit', () => {
+    let pendingFrame: FrameRequestCallback | null = null;
+    globalThis.requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+      pendingFrame = callback;
+      return 9;
+    }) as typeof requestAnimationFrame;
+    globalThis.cancelAnimationFrame = vi.fn();
+
+    const setIsContainerResizing = vi.fn();
+    const { result } = renderHook(() => {
+      const containerRef = useRef<HTMLDivElement>(document.createElement('div'));
+      const isManualResizingRef = useRef(false);
+      const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+      useCoverContainerObserver({
+        containerRef,
+        isManualResizingRef,
+        setContainerSize: setSize,
+        setIsContainerResizing,
+      });
+      return size;
+    });
+
+    act(() => {
+      resizeObserverState.emit(500, 210);
+      resizeObserverState.emit(520, 220);
+      resizeObserverState.emit(540, 230);
+    });
+
+    expect(globalThis.requestAnimationFrame).toHaveBeenCalledTimes(1);
+    expect(setIsContainerResizing).toHaveBeenCalledTimes(1);
+    expect(setIsContainerResizing).toHaveBeenCalledWith(true);
+    expect(result.current).toBeNull();
+
+    act(() => {
+      pendingFrame?.(16);
+    });
+
+    expect(result.current).toEqual({ width: 540, height: 230 });
+  });
 });

@@ -9,6 +9,7 @@ import {
 import { createCaretOverlayRect } from '@/lib/ui/caretOverlayStyles';
 import type { HeadingDropPayload } from './externalHeadingDrop';
 import { parseSingleHeadingDropHtml } from './externalHeadingDrop';
+import { markEditorUserInput } from '../shared/userInputEvents';
 
 const EXTERNAL_TEXT_DROP_CURSOR_CLASS = 'editor-external-text-drop-cursor';
 export const MAX_EXTERNAL_TEXT_DRAG_TYPE_SCAN = 1024;
@@ -215,6 +216,7 @@ function insertExternalHeadingDrop(view: EditorView, event: DragEvent): boolean 
 
   event.preventDefault();
   view.dispatch(tr.scrollIntoView());
+  markEditorUserInput(view);
   view.focus();
   return true;
 }

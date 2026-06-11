@@ -253,6 +253,7 @@ export function ModelSelector({
   const isKeyboardNavigating = useRef(false)
   const reopenAfterSettingsCloseRef = useRef(false)
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const embeddedPositionFrameRef = useRef<number | null>(null)
   const [embeddedDropdownStyle, setEmbeddedDropdownStyle] = useState<CSSProperties | null>(null)
 
   const selectedModel = useMemo(() => {
@@ -529,20 +530,39 @@ export function ModelSelector({
       });
   }, [dropdownAlign, dropdownPlacement, isEmbedded]);
 
+  const scheduleEmbeddedDropdownPosition = useCallback(() => {
+      if (embeddedPositionFrameRef.current !== null) {
+          return;
+      }
+
+      embeddedPositionFrameRef.current = window.requestAnimationFrame(() => {
+          embeddedPositionFrameRef.current = null;
+          updateEmbeddedDropdownPosition();
+      });
+  }, [updateEmbeddedDropdownPosition]);
+
   useLayoutEffect(() => {
       if (!isOpen || !isEmbedded) {
+          if (embeddedPositionFrameRef.current !== null) {
+              window.cancelAnimationFrame(embeddedPositionFrameRef.current);
+              embeddedPositionFrameRef.current = null;
+          }
           setEmbeddedDropdownStyle(null);
           return;
       }
 
       updateEmbeddedDropdownPosition();
-      window.addEventListener('resize', updateEmbeddedDropdownPosition);
-      window.addEventListener('scroll', updateEmbeddedDropdownPosition, true);
+      window.addEventListener('resize', scheduleEmbeddedDropdownPosition);
+      window.addEventListener('scroll', scheduleEmbeddedDropdownPosition, true);
       return () => {
-          window.removeEventListener('resize', updateEmbeddedDropdownPosition);
-          window.removeEventListener('scroll', updateEmbeddedDropdownPosition, true);
+          window.removeEventListener('resize', scheduleEmbeddedDropdownPosition);
+          window.removeEventListener('scroll', scheduleEmbeddedDropdownPosition, true);
+          if (embeddedPositionFrameRef.current !== null) {
+              window.cancelAnimationFrame(embeddedPositionFrameRef.current);
+              embeddedPositionFrameRef.current = null;
+          }
       };
-  }, [isEmbedded, isOpen, updateEmbeddedDropdownPosition]);
+  }, [isEmbedded, isOpen, scheduleEmbeddedDropdownPosition, updateEmbeddedDropdownPosition]);
 
   const setKeyboardNavigating = useCallback((value: boolean) => {
       isKeyboardNavigating.current = value;

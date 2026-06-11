@@ -49,6 +49,7 @@ const SortableTab = memo(function SortableTab({
   const { title, disambiguation, isUntitledPlaceholder } = useNoteLabelDescriptor(tab.path, tab.name);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ id: tab.path });
   const labelRef = React.useRef<HTMLSpanElement | null>(null);
+  const labelClipFrameRef = React.useRef<number | null>(null);
   const [isLabelClipped, setIsLabelClipped] = React.useState(false);
   const isTitleShortened = truncateNoteLabel(title) !== title;
   const shouldShowTitleTooltip = isTitleShortened || isLabelClipped;
@@ -70,6 +71,17 @@ const SortableTab = memo(function SortableTab({
     setIsLabelClipped(label.scrollWidth > label.clientWidth + 1);
   }, []);
 
+  const scheduleLabelClippedUpdate = React.useCallback(() => {
+    if (labelClipFrameRef.current !== null) {
+      return;
+    }
+
+    labelClipFrameRef.current = requestAnimationFrame(() => {
+      labelClipFrameRef.current = null;
+      updateLabelClipped();
+    });
+  }, [updateLabelClipped]);
+
   React.useEffect(() => {
     updateLabelClipped();
     const label = labelRef.current;
@@ -77,10 +89,16 @@ const SortableTab = memo(function SortableTab({
       return;
     }
 
-    const observer = new ResizeObserver(updateLabelClipped);
+    const observer = new ResizeObserver(scheduleLabelClippedUpdate);
     observer.observe(label);
-    return () => observer.disconnect();
-  }, [title, disambiguation, updateLabelClipped]);
+    return () => {
+      observer.disconnect();
+      if (labelClipFrameRef.current !== null) {
+        cancelAnimationFrame(labelClipFrameRef.current);
+        labelClipFrameRef.current = null;
+      }
+    };
+  }, [title, disambiguation, scheduleLabelClippedUpdate, updateLabelClipped]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (isInteractiveTarget(e.target)) {

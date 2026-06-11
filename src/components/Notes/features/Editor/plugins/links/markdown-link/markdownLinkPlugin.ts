@@ -15,6 +15,7 @@ import {
     STOP_PROSE_SCAN,
     scanProseDescendants,
 } from '../../shared/boundedProseNodeScan';
+import { getTransactionChangedRanges } from '../../shared/transactionStepText';
 
 export const markdownLinkPluginKey = new PluginKey('markdown-link-paste');
 const MAX_MARKDOWN_LINK_DOC_SCAN_SIZE = 1024 * 1024;
@@ -38,6 +39,11 @@ export interface RawMarkdownLinkMatch {
     to: number;
 }
 
+interface MarkdownLinkScanRange {
+    from: number;
+    to: number;
+}
+
 function transactionStepMayCreateMarkdownLink(step: unknown): boolean {
     const slice = (step as { slice?: { content?: { textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string; size?: number } } }).slice;
     const content = slice?.content;
@@ -55,9 +61,14 @@ export function transactionMayCreateMarkdownLink(tr: unknown): boolean {
     return steps.some(transactionStepMayCreateMarkdownLink);
 }
 
-function textContainsRawMarkdownLink(text: string): boolean {
+export function textContainsRawMarkdownLink(text: string): boolean {
+    const scanText = text.slice(0, MAX_MARKDOWN_LINK_TEXT_SCAN_CHARS);
+    if (!MARKDOWN_LINK_TRIGGER_TEXT_PATTERN.test(scanText)) {
+        return false;
+    }
+
     MARKDOWN_LINK_PATTERN_GLOBAL.lastIndex = 0;
-    return MARKDOWN_LINK_PATTERN_GLOBAL.test(text.slice(0, MAX_MARKDOWN_LINK_TEXT_SCAN_CHARS));
+    return MARKDOWN_LINK_PATTERN_GLOBAL.test(scanText);
 }
 
 export function getMarkdownLinkInputTextBeforeCursor(
@@ -159,6 +170,22 @@ export function docChangeMayAffectRawMarkdownLink(prevDoc: ProseNode, nextDoc: P
     );
 }
 
+export function transactionChangeMayAffectRawMarkdownLink(
+    prevDoc: ProseNode,
+    nextDoc: ProseNode,
+    tr: unknown,
+): boolean {
+    const ranges = getTransactionChangedRanges(tr);
+    if (ranges.length === 0) {
+        return docChangeMayAffectRawMarkdownLink(prevDoc, nextDoc);
+    }
+
+    return ranges.some((range) => (
+        rangeTouchesRawMarkdownLink(prevDoc, range.oldFrom, range.oldTo)
+        || rangeTouchesRawMarkdownLink(nextDoc, range.newFrom, range.newTo)
+    ));
+}
+
 export function isMarkdownImagePatternBeforeCursor(textBefore: string, fullMatch: string): boolean {
     const matchStart = textBefore.length - fullMatch.length;
     return matchStart > 0 && textBefore[matchStart - 1] === '!';
@@ -190,6 +217,8 @@ export function collectRawMarkdownLinkMatches(
         if (!node.isText || !node.text) return true;
 
         const text = node.text.slice(0, MAX_MARKDOWN_LINK_TEXT_SCAN_CHARS);
+        if (!MARKDOWN_LINK_TRIGGER_TEXT_PATTERN.test(text)) return true;
+
         MARKDOWN_LINK_PATTERN_GLOBAL.lastIndex = 0;
 
         let match;
@@ -215,6 +244,173 @@ export function collectRawMarkdownLinkMatches(
 
         return true;
     }, MAX_MARKDOWN_LINK_DOC_SCAN_NODES);
+
+    return matches;
+}
+
+function collectRawMarkdownLinkMatchesFromTextNode(
+    text: string,
+    pos: number,
+    matches: RawMarkdownLinkMatch[],
+    limit: number,
+): boolean {
+    const scanText = text.slice(0, MAX_MARKDOWN_LINK_TEXT_SCAN_CHARS);
+    if (!MARKDOWN_LINK_TRIGGER_TEXT_PATTERN.test(scanText)) {
+        return true;
+    }
+
+    MARKDOWN_LINK_PATTERN_GLOBAL.lastIndex = 0;
+
+    let match;
+    while ((match = MARKDOWN_LINK_PATTERN_GLOBAL.exec(scanText)) !== null) {
+        if (match.index > 0 && scanText[match.index - 1] === '!') {
+            continue;
+        }
+
+        const fullMatch = match[0];
+        matches.push({
+            from: pos + match.index,
+            linkText: match[1],
+            linkUrl: match[2],
+            to: pos + match.index + fullMatch.length,
+        });
+
+        if (matches.length >= limit) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+export function collectRawMarkdownLinkMatchesInRange(
+    doc: ProseNode,
+    from: number,
+    to: number,
+    maxMatches = MAX_MARKDOWN_LINK_AUTO_COLLAPSE_MATCHES,
+): RawMarkdownLinkMatch[] {
+    const limit = Math.max(0, Math.floor(maxMatches));
+    const matches: RawMarkdownLinkMatch[] = [];
+    if (limit === 0 || typeof doc.nodesBetween !== 'function') return matches;
+
+    const docSize = doc.content.size;
+    const start = Math.max(0, Math.min(from, docSize));
+    const end = Math.max(start, Math.min(to, docSize));
+    if (start >= end) return matches;
+
+    doc.nodesBetween(start, end, (node, pos) => {
+        if (!node.isText || !node.text) return true;
+        return collectRawMarkdownLinkMatchesFromTextNode(node.text, pos, matches, limit);
+    });
+
+    return matches;
+}
+
+function addMarkdownLinkTextblockRangeAt(doc: ProseNode, pos: number, ranges: MarkdownLinkScanRange[]): void {
+    const docSize = doc.content.size;
+    const safePos = Math.max(0, Math.min(pos, docSize));
+
+    try {
+        const $pos = doc.resolve(safePos);
+        for (let depth = $pos.depth; depth > 0; depth -= 1) {
+            const node = $pos.node(depth);
+            if (!node.isTextblock) continue;
+            ranges.push({
+                from: $pos.start(depth),
+                to: $pos.end(depth),
+            });
+            return;
+        }
+    } catch {
+    }
+}
+
+function addMarkdownLinkChangedRanges(
+    doc: ProseNode,
+    transactions: readonly { docChanged?: boolean }[],
+    ranges: MarkdownLinkScanRange[],
+): void {
+    const docSize = doc.content.size;
+    for (const tr of transactions) {
+        if (!tr.docChanged) continue;
+        for (const range of getTransactionChangedRanges(tr)) {
+            const from = Math.max(0, Math.min(range.newFrom, range.newTo, docSize));
+            const to = Math.max(from, Math.min(Math.max(range.newFrom, range.newTo), docSize));
+
+            addMarkdownLinkTextblockRangeAt(doc, from, ranges);
+            addMarkdownLinkTextblockRangeAt(doc, to, ranges);
+
+            if (to > from && typeof doc.nodesBetween === 'function') {
+                doc.nodesBetween(from, to, (node, pos) => {
+                    if (!node.isTextblock || typeof node.nodeSize !== 'number') return true;
+                    ranges.push({
+                        from: pos + 1,
+                        to: Math.max(pos + 1, pos + node.nodeSize - 1),
+                    });
+                    return true;
+                });
+            }
+        }
+    }
+}
+
+function mergeMarkdownLinkScanRanges(ranges: MarkdownLinkScanRange[]): MarkdownLinkScanRange[] {
+    if (ranges.length <= 1) return ranges;
+
+    const sorted = [...ranges]
+        .filter((range) => Number.isFinite(range.from) && Number.isFinite(range.to) && range.to > range.from)
+        .sort((a, b) => a.from - b.from || a.to - b.to);
+    const merged: MarkdownLinkScanRange[] = [];
+
+    for (const range of sorted) {
+        const previous = merged[merged.length - 1];
+        if (!previous || range.from > previous.to + 1) {
+            merged.push({ ...range });
+            continue;
+        }
+        previous.to = Math.max(previous.to, range.to);
+    }
+
+    return merged;
+}
+
+export function collectMarkdownLinkAutoCollapseScanRanges(
+    oldState: { doc: ProseNode; selection: { from: number; to: number; eq: (other: any) => boolean } },
+    newState: { doc: ProseNode; selection: { from: number; to: number } },
+    transactions: readonly { docChanged?: boolean }[],
+): MarkdownLinkScanRange[] {
+    const ranges: MarkdownLinkScanRange[] = [];
+    const selectionChanged = !oldState.selection.eq(newState.selection);
+    const hasDocChange = transactions.some((tr) => tr.docChanged);
+
+    addMarkdownLinkChangedRanges(newState.doc, transactions, ranges);
+    if (selectionChanged) {
+        addMarkdownLinkTextblockRangeAt(newState.doc, newState.selection.from, ranges);
+        addMarkdownLinkTextblockRangeAt(newState.doc, newState.selection.to, ranges);
+        if (!hasDocChange) {
+            addMarkdownLinkTextblockRangeAt(newState.doc, oldState.selection.from, ranges);
+            addMarkdownLinkTextblockRangeAt(newState.doc, oldState.selection.to, ranges);
+        }
+    }
+
+    return mergeMarkdownLinkScanRanges(ranges);
+}
+
+function collectRawMarkdownLinkMatchesInRanges(
+    doc: ProseNode,
+    ranges: readonly MarkdownLinkScanRange[],
+): RawMarkdownLinkMatch[] {
+    const matches: RawMarkdownLinkMatch[] = [];
+
+    for (const range of ranges) {
+        if (matches.length >= MAX_MARKDOWN_LINK_AUTO_COLLAPSE_MATCHES) break;
+        matches.push(...collectRawMarkdownLinkMatchesInRange(
+            doc,
+            range.from,
+            range.to,
+            MAX_MARKDOWN_LINK_AUTO_COLLAPSE_MATCHES - matches.length,
+        ));
+    }
 
     return matches;
 }
@@ -290,14 +486,24 @@ export const markdownLinkPlugin = $prose(() => {
                     return { hasRawMarkdownLink: false };
                 }
 
-                if (!previous.hasRawMarkdownLink && !transactionMayCreateMarkdownLink(tr)) {
-                    return previous;
+                if (!previous.hasRawMarkdownLink) {
+                    if (oldState.doc.content.size > MAX_MARKDOWN_LINK_DOC_SCAN_SIZE) {
+                        return {
+                            hasRawMarkdownLink: docHasRawMarkdownLink(tr.doc),
+                        };
+                    }
+                    if (!transactionMayCreateMarkdownLink(tr)) {
+                        return previous;
+                    }
+                    return {
+                        hasRawMarkdownLink: transactionChangeMayAffectRawMarkdownLink(oldState.doc, tr.doc, tr),
+                    };
                 }
 
                 if (
                     previous.hasRawMarkdownLink
                     && !transactionMayCreateMarkdownLink(tr)
-                    && !docChangeMayAffectRawMarkdownLink(oldState.doc, tr.doc)
+                    && !transactionChangeMayAffectRawMarkdownLink(oldState.doc, tr.doc, tr)
                 ) {
                     return previous;
                 }
@@ -337,7 +543,12 @@ export const markdownLinkPlugin = $prose(() => {
 
             if (!linkMarkType) return null;
 
-            const rawMarkdownLinks = collectRawMarkdownLinkMatches(newState.doc);
+            const scanRanges = collectMarkdownLinkAutoCollapseScanRanges(oldState, newState, transactions);
+            if (scanRanges.length === 0) {
+                return null;
+            }
+
+            const rawMarkdownLinks = collectRawMarkdownLinkMatchesInRanges(newState.doc, scanRanges);
             for (const rawMarkdownLink of rawMarkdownLinks) {
                 const mapping = tr.mapping;
                 const mappedStart = mapping.map(rawMarkdownLink.from);
