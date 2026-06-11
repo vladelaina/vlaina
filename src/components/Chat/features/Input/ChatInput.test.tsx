@@ -68,15 +68,14 @@ describe('ChatInput', () => {
     expect(onSend).not.toHaveBeenCalled();
   });
 
-  it('renders the managed quota notice as an accent outline behind the composer', () => {
+  it('renders the managed quota notice behind the composer', () => {
     const { container } = renderChatInput({
       isManagedQuotaExhausted: true,
     });
 
     const banner = container.querySelector('[data-managed-quota-banner="true"]');
     expect(banner).not.toBeNull();
-    expect(banner).toHaveClass('border-[var(--vlaina-accent)]');
-    expect(banner).toHaveClass('bg-transparent');
-    expect(banner).not.toHaveClass('bg-[var(--vlaina-accent)]');
+    expect(banner).toHaveClass('bg-[var(--vlaina-color-accent-soft)]');
+    expect(banner).not.toHaveClass('border');
   });
 });

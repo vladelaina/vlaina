@@ -518,7 +518,7 @@ export const ChatInput = memo(function ChatInput({
         {isQuotaSendBlocked && (
           <div
             data-managed-quota-banner="true"
-            className="absolute -inset-x-3 bottom-0 z-0 flex min-h-16 flex-wrap items-end justify-center gap-x-1.5 gap-y-1 rounded-[var(--vlaina-radius-30px)] border border-[var(--vlaina-accent)] bg-transparent px-6 pb-2.5 pt-9 text-center text-[var(--vlaina-font-12)] font-semibold leading-4 text-[var(--vlaina-accent)] shadow-[0_10px_26px_color-mix(in_srgb,var(--vlaina-accent)_18%,transparent)]"
+            className="absolute inset-x-0 bottom-0 z-0 flex min-h-16 flex-wrap items-end justify-center gap-x-1.5 gap-y-1 rounded-[var(--vlaina-radius-26px)] bg-[var(--vlaina-color-accent-soft)] px-6 pb-2.5 pt-9 text-center text-[var(--vlaina-font-12)] font-semibold leading-4 text-[var(--vlaina-accent)] shadow-[0_10px_26px_color-mix(in_srgb,var(--vlaina-accent)_12%,transparent)]"
           >
             <span>{t('chat.freeRepliesExhausted')}</span>
             <button
@@ -540,8 +540,7 @@ export const ChatInput = memo(function ChatInput({
             chatComposerFrameClass,
             chatComposerSurfaceClass,
             isQuotaSendBlocked && [
-              '!border-[var(--vlaina-accent)]',
-              'shadow-[0_10px_28px_color-mix(in_srgb,var(--vlaina-accent)_16%,transparent)]',
+              'shadow-[0_10px_28px_color-mix(in_srgb,var(--vlaina-accent)_12%,transparent)]',
             ]
           )}
           onDragEnter={handleDragEnter}
