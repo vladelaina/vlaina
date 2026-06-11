@@ -6,6 +6,8 @@ import {
   useNotesSidebarTags,
 } from './useNotesSidebarTags';
 
+const MAX_TAG_CONTENT_READ_BYTES = 512 * 1024;
+
 const mocked = vi.hoisted(() => ({
   readFile: vi.fn(async () => ''),
   stat: vi.fn(async (): Promise<{ isFile?: boolean; isDirectory?: boolean; size?: number } | null> => null),
@@ -270,7 +272,7 @@ describe('useNotesSidebarTags', () => {
     }));
 
     await waitFor(() => {
-      expect(mocked.readFile).toHaveBeenCalledWith('/vault/alpha.md');
+      expect(mocked.readFile).toHaveBeenCalledWith('/vault/alpha.md', MAX_TAG_CONTENT_READ_BYTES);
     });
     await waitFor(() => {
       expect(result.current.tags).toEqual([]);

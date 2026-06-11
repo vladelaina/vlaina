@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadMentionedNotes } from './helpers';
 
+const MAX_NOTE_MENTION_READ_BYTES = 512 * 1024;
+
 const mocks = vi.hoisted(() => ({
   flushCurrentPendingEditorMarkdown: vi.fn(),
   storage: {
@@ -99,7 +101,7 @@ describe('folder markdown mention scan budgets', () => {
         content: '# Alpha',
       },
     ]);
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/z-alpha.md');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/z-alpha.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('prioritizes markdown notes before applying the folder mention listing scan cap', async () => {
@@ -132,7 +134,7 @@ describe('folder markdown mention scan budgets', () => {
         content: '# Late',
       },
     ]);
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/late.md');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/late.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('scans user dot markdown while skipping internal and generated folders', async () => {

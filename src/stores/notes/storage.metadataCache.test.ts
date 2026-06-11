@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const adapter = {
   stat: vi.fn<(path: string) => Promise<{ modifiedAt?: number | null; size?: number | null } | null>>(),
-  readFile: vi.fn<(path: string) => Promise<string>>(),
+  readFile: vi.fn<(path: string, maxBytes?: number) => Promise<string>>(),
   listDir: vi.fn<(path: string, options?: { includeHidden?: boolean }) => Promise<Array<{
     name: string;
     isDirectory?: boolean;

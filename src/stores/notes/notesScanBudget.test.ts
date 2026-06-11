@@ -10,7 +10,7 @@ const adapter = {
     isDirectory?: boolean;
     isFile?: boolean;
   }>>>(),
-  readFile: vi.fn<(path: string) => Promise<string>>(),
+  readFile: vi.fn<(path: string, maxBytes?: number) => Promise<string>>(),
   stat: vi.fn<(path: string) => Promise<{ modifiedAt?: number; size?: number } | null>>(),
 };
 

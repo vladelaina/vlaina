@@ -11,9 +11,11 @@ import {
 } from './storage';
 import type { MetadataFile } from './types';
 
+const MAX_METADATA_READ_BYTES = 5 * 1024 * 1024;
+
 const adapter = {
   exists: vi.fn<(path: string) => Promise<boolean>>(),
-  readFile: vi.fn<(path: string) => Promise<string>>(),
+  readFile: vi.fn<(path: string, maxBytes?: number) => Promise<string>>(),
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
   mkdir: vi.fn<(path: string, recursive?: boolean) => Promise<void>>(),
   getBasePath: vi.fn<() => Promise<string>>(),
@@ -126,10 +128,10 @@ describe('notes metadata storage', () => {
       version: 2,
       notes: {},
     });
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/alpha.md');
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/beta.markdown');
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/gamma.mdown');
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/delta.mkd');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/alpha.md', MAX_METADATA_READ_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/beta.markdown', MAX_METADATA_READ_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/gamma.mdown', MAX_METADATA_READ_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-extensions/delta.mkd', MAX_METADATA_READ_BYTES);
     expect(adapter.readFile).not.toHaveBeenCalledWith('/vault-extensions/image.png');
   });
 
@@ -211,8 +213,8 @@ describe('notes metadata storage', () => {
       notes: {},
     });
     expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-unsafe/..');
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-unsafe/alpha.md');
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-unsafe/docs/beta.md');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-unsafe/alpha.md', MAX_METADATA_READ_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-unsafe/docs/beta.md', MAX_METADATA_READ_BYTES);
     expect(adapter.readFile).not.toHaveBeenCalledWith('/vault-unsafe/../secret.md');
     expect(adapter.readFile).not.toHaveBeenCalledWith('/vault-unsafe/nested/evil.md');
     expect(adapter.readFile).not.toHaveBeenCalledWith('/vault-unsafe/bad\\evil.md');
@@ -274,7 +276,7 @@ describe('notes metadata storage', () => {
       version: 2,
       notes: {},
     });
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-huge-after-read/huge.md');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-huge-after-read/huge.md', MAX_METADATA_READ_BYTES);
   });
 
   it('does not recurse into heavy generated folders during metadata scans', async () => {
@@ -362,8 +364,8 @@ describe('notes metadata storage', () => {
         },
       },
     });
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-many-assets/late.md');
-    expect(adapter.readFile).toHaveBeenCalledWith('/vault-many-assets/late-folder/nested.md');
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-many-assets/late.md', MAX_METADATA_READ_BYTES);
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault-many-assets/late-folder/nested.md', MAX_METADATA_READ_BYTES);
   });
 
   it('keeps readable sibling metadata when one nested folder cannot be listed', async () => {

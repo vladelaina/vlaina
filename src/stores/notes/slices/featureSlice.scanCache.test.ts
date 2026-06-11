@@ -4,6 +4,8 @@ import { createFeatureSlice } from './featureSlice';
 import type { NotesStore } from '../types';
 import { createCachedNoteContentEntry } from '../document/noteContentCache';
 
+const MAX_SEARCHABLE_NOTE_BYTES = 512 * 1024;
+
 const mocks = vi.hoisted(() => ({
   readFile: vi.fn(),
   stat: vi.fn(),
@@ -100,7 +102,7 @@ describe('featureSlice scan cache validation', () => {
 
     await store.getState().scanAllNotes();
 
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md');
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_SEARCHABLE_NOTE_BYTES);
     expect(store.getState().noteContentsCache.get(notePath)).toEqual({
       content: '# Disk!',
       modifiedAt: null,
@@ -142,7 +144,7 @@ describe('featureSlice scan cache validation', () => {
     await store.getState().scanAllNotes();
 
     expect(mocks.stat).toHaveBeenCalledTimes(1);
-    expect(mocks.readFile).toHaveBeenCalledWith('/vault/early.md');
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/early.md', MAX_SEARCHABLE_NOTE_BYTES);
     expect(mocks.readFile).not.toHaveBeenCalledWith('/vault/late.md');
     expect(store.getState().noteContentsCache.has('early.md')).toBe(true);
     expect(store.getState().noteContentsCache.has('late.md')).toBe(false);

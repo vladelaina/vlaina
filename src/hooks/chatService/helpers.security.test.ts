@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadMentionedFolderImageAttachments, loadMentionedNotes } from './helpers';
 
+const MAX_NOTE_MENTION_READ_BYTES = 512 * 1024;
+
 const mocks = vi.hoisted(() => ({
   flushCurrentPendingEditorMarkdown: vi.fn(),
   storage: {
@@ -163,7 +165,7 @@ describe('chat mention path security', () => {
     ]);
 
     expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/.notes/alpha.md');
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/.notes/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
     expect(notes).toEqual([
       { path: '.notes/alpha.md', title: 'Alpha', content: '# Alpha' },
     ]);
@@ -308,7 +310,7 @@ describe('chat mention path security', () => {
     ]);
 
     expect(mocks.storage.stat).toHaveBeenCalledWith('/external-vault/docs/alpha.md');
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/external-vault/docs/alpha.md');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/external-vault/docs/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
     expect(notes).toEqual([
       { path: '/external-vault/docs/alpha.md', title: 'Alpha', content: '# Alpha' },
     ]);
@@ -323,7 +325,7 @@ describe('chat mention path security', () => {
     ]);
 
     expect(mocks.storage.stat).toHaveBeenCalledWith('/vault/docs/huge.md');
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/huge.md');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/huge.md', MAX_NOTE_MENTION_READ_BYTES);
     expect(notes).toEqual([]);
   });
 
@@ -343,7 +345,10 @@ describe('chat mention path security', () => {
     ]);
 
     expect(mocks.storage.stat).toHaveBeenCalledWith('\\\\SERVER\\Share/Docs/Alpha.md');
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('\\\\SERVER\\Share/Docs/Alpha.md');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith(
+      '\\\\SERVER\\Share/Docs/Alpha.md',
+      MAX_NOTE_MENTION_READ_BYTES,
+    );
     expect(notes).toEqual([
       { path: '\\\\server\\share\\Docs\\Alpha.md', title: 'Alpha', content: '# Alpha' },
     ]);

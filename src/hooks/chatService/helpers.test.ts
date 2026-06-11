@@ -18,6 +18,8 @@ import {
   refreshManagedBudgetIfNeeded,
 } from './helpers';
 
+const MAX_NOTE_MENTION_READ_BYTES = 512 * 1024;
+
 const mocks = vi.hoisted(() => ({
   isConnected: false,
   refreshBudget: vi.fn().mockResolvedValue(undefined),
@@ -468,7 +470,7 @@ describe('loadMentionedNotes', () => {
       'docs/c.md',
     ]);
     expect(mocks.storage.readFile).toHaveBeenCalledTimes(3);
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/d.md');
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/d.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('bounds note mention metadata before loading references', async () => {
@@ -502,7 +504,7 @@ describe('loadMentionedNotes', () => {
     expect(notes).toHaveLength(3);
     expect(notes[0]?.path).toBe('docs/alpha.md');
     expect(notes[0]?.title).toHaveLength(MAX_NOTE_MENTION_TITLE_CHARS);
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/beyond-scan.md');
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/beyond-scan.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('limits concurrent folder markdown note reads', async () => {
@@ -695,8 +697,8 @@ describe('loadMentionedNotes', () => {
       { path: 'docs/alpha.markdown', title: 'Docs/alpha', kind: 'note', content: '# Alpha' },
       { path: 'docs/nested/beta.mdown', title: 'Docs/nested/beta', kind: 'note', content: '# Beta' },
     ]);
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/outside/ignored.markdown');
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/nested/huge.md');
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/outside/ignored.markdown', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/docs/nested/huge.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('scans starred external folder mentions for markdown notes', async () => {
@@ -796,7 +798,7 @@ describe('loadMentionedNotes', () => {
     expect(notes).toEqual([
       { path: 'docs/alpha.md', title: 'Alpha', content: '# New!' },
     ]);
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/docs/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 
   it('includes a directory listing for folder mentions without markdown notes', async () => {
@@ -919,9 +921,9 @@ describe('loadMentionedNotes', () => {
     expect(notes.map((note) => note.path)).toEqual(['assets', 'assets/alpha.md']);
     expect(notes[0]?.content).not.toContain('secret');
     expect(notes[0]?.content).not.toContain('broken');
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/assets/alpha.md');
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/assets/secret\u202Egnp.md');
-    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/assets/broken\uFFFD.md');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith('/vault/assets/alpha.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/assets/secret\u202Egnp.md', MAX_NOTE_MENTION_READ_BYTES);
+    expect(mocks.storage.readFile).not.toHaveBeenCalledWith('/vault/assets/broken\uFFFD.md', MAX_NOTE_MENTION_READ_BYTES);
   });
 });
 

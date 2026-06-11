@@ -672,7 +672,10 @@ describe('chatStorage auto sync registration', () => {
 
     await saveSessionJson('session-1', [createMessage('m1')]);
 
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/session-1.json');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/chat/sessions/session-1.json',
+      MAX_SESSION_MESSAGES_BYTES,
+    );
     expect(mocks.storage.writeFile).toHaveBeenCalledWith(
       '/appdata/.vlaina/chat/sessions/session-1.json',
       expect.stringContaining('"m1"'),
@@ -688,7 +691,10 @@ describe('chatStorage auto sync registration', () => {
 
     await expect(saveSessionJson('session-1', [createMessage('m1')])).resolves.toBeUndefined();
 
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/session-1.json');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/chat/sessions/session-1.json',
+      MAX_SESSION_MESSAGES_BYTES,
+    );
     expect(mocks.storage.writeFile).toHaveBeenCalledWith(
       '/appdata/.vlaina/chat/sessions/session-1.json',
       expect.stringContaining('"m1"'),
@@ -704,7 +710,10 @@ describe('chatStorage auto sync registration', () => {
 
     await expect(saveSessionJson('session-1', [createMessage('m1')])).resolves.toBeUndefined();
 
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/session-1.json');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/chat/sessions/session-1.json',
+      MAX_SESSION_MESSAGES_BYTES,
+    );
     expect(mocks.storage.writeFile).toHaveBeenCalledWith(
       '/appdata/.vlaina/chat/sessions/session-1.json',
       expect.stringContaining('"m1"'),
@@ -780,7 +789,10 @@ describe('chatStorage auto sync registration', () => {
 
     await expect(loadSessionJson('session-1')).resolves.toBeNull();
 
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/session-1.json');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/chat/sessions/session-1.json',
+      MAX_SESSION_MESSAGES_BYTES,
+    );
   });
 
   it('does not load session files that disappear after stat', async () => {
@@ -790,7 +802,10 @@ describe('chatStorage auto sync registration', () => {
 
     await expect(loadSessionJson('session-1')).resolves.toBeNull();
 
-    expect(mocks.storage.readFile).toHaveBeenCalledWith('/appdata/.vlaina/chat/sessions/session-1.json');
+    expect(mocks.storage.readFile).toHaveBeenCalledWith(
+      '/appdata/.vlaina/chat/sessions/session-1.json',
+      MAX_SESSION_MESSAGES_BYTES,
+    );
   });
 
   it('deletes session files even when a canceled in-flight save fails', async () => {

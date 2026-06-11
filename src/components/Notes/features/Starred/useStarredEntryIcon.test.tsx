@@ -2,6 +2,8 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStarredEntryIcon } from './useStarredEntryIcon';
 
+const MAX_STARRED_ICON_METADATA_BYTES = 512 * 1024;
+
 const mocked = vi.hoisted(() => ({
   readFile: vi.fn(async () => ''),
   stat: vi.fn(async (): Promise<{ modifiedAt?: number; size?: number } | null> => null),
@@ -41,7 +43,7 @@ describe('useStarredEntryIcon', () => {
     await waitFor(() => {
       expect(result.current).toBe('💡');
     });
-    expect(mocked.readFile).toHaveBeenCalledWith('/vault-b/docs/alpha.md');
+    expect(mocked.readFile).toHaveBeenCalledWith('/vault-b/docs/alpha.md', MAX_STARRED_ICON_METADATA_BYTES);
   });
 
   it('reloads a cached starred note icon when file metadata changes', async () => {
@@ -156,7 +158,10 @@ describe('useStarredEntryIcon', () => {
     );
 
     await waitFor(() => {
-      expect(mocked.readFile).toHaveBeenCalledWith('/vault-b/docs/large-after-read.md');
+      expect(mocked.readFile).toHaveBeenCalledWith(
+        '/vault-b/docs/large-after-read.md',
+        MAX_STARRED_ICON_METADATA_BYTES,
+      );
     });
     expect(result.current).toBeUndefined();
   });

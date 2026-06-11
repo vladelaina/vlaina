@@ -559,7 +559,7 @@ async function readResolvedMentionedNoteContent(
     ) {
       return '';
     }
-    const content = await storage.readFile(resolvedPath.fullPath);
+    const content = await storage.readFile(resolvedPath.fullPath, MAX_NOTE_MENTION_READ_BYTES);
     return typeof content === 'string' && content.length <= MAX_NOTE_MENTION_READ_BYTES
       ? content
       : '';
