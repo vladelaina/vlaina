@@ -77,6 +77,8 @@ export function MarkdownEditor({
   const { contentOffset } = useEditorLayout(isPeeking, peekOffset);
   const scrollRootRef = useRef<HTMLDivElement | null>(null);
   const scrollPositionsRef = useRef(new Map<string, number>());
+  const scrollPositionSaveFrameRef = useRef<number | null>(null);
+  const pendingScrollPositionSaveRef = useRef<{ path: string; scrollTop: number } | null>(null);
   const activePathRef = useRef<string | null>(null);
   const restoreSessionRef = useRef<{ path: string; targetScrollTop: number } | null>(null);
   const lastRenderedCoverRef = useRef<RenderedCoverSnapshot | null>(null);
@@ -242,6 +244,16 @@ export function MarkdownEditor({
     const scrollRoot = scrollRootRef.current;
     if (!scrollRoot) return;
 
+    const commitPendingScrollPosition = () => {
+      scrollPositionSaveFrameRef.current = null;
+      const pending = pendingScrollPositionSaveRef.current;
+      pendingScrollPositionSaveRef.current = null;
+      if (!pending) {
+        return;
+      }
+      scrollPositionsRef.current.set(pending.path, pending.scrollTop);
+    };
+
     const handleScroll = () => {
       const path = activePathRef.current;
       if (!path) return;
@@ -249,12 +261,24 @@ export function MarkdownEditor({
       const restoreSession = restoreSessionRef.current;
       if (restoreSession?.path === path) return;
 
-      scrollPositionsRef.current.set(path, scrollRoot.scrollTop);
+      pendingScrollPositionSaveRef.current = {
+        path,
+        scrollTop: scrollRoot.scrollTop,
+      };
+      if (scrollPositionSaveFrameRef.current !== null) {
+        return;
+      }
+
+      scrollPositionSaveFrameRef.current = requestAnimationFrame(commitPendingScrollPosition);
     };
 
     scrollRoot.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       scrollRoot.removeEventListener('scroll', handleScroll);
+      if (scrollPositionSaveFrameRef.current !== null) {
+        cancelAnimationFrame(scrollPositionSaveFrameRef.current);
+        commitPendingScrollPosition();
+      }
     };
   }, [active]);
 

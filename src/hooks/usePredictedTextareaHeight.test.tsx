@@ -139,4 +139,54 @@ describe('usePredictedTextareaHeight', () => {
       }
     }
   });
+
+  it('coalesces observed resize height recalculation into one animation frame', () => {
+    let width = 320;
+    let pendingFrame: FrameRequestCallback | null = null;
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
+        pendingFrame = callback;
+        return 1;
+      });
+    const cancelAnimationFrameSpy = vi
+      .spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => {});
+    const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'clientWidth');
+    Object.defineProperty(HTMLTextAreaElement.prototype, 'clientWidth', {
+      configurable: true,
+      get: () => width,
+    });
+
+    try {
+      const view = render(<Harness value="wrap again" />);
+      const textarea = view.container.querySelector('textarea');
+      expect(textarea).not.toBeNull();
+      expect(textLayoutMocks.measureTextareaContentHeight).toHaveBeenCalledTimes(1);
+
+      width = 360;
+      act(() => {
+        ResizeObserverMock.instances[0]!.callback([], ResizeObserverMock.instances[0] as unknown as ResizeObserver);
+        ResizeObserverMock.instances[0]!.callback([], ResizeObserverMock.instances[0] as unknown as ResizeObserver);
+        ResizeObserverMock.instances[0]!.callback([], ResizeObserverMock.instances[0] as unknown as ResizeObserver);
+      });
+
+      expect(requestAnimationFrameSpy).toHaveBeenCalledTimes(1);
+      expect(textLayoutMocks.measureTextareaContentHeight).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        pendingFrame?.(16);
+      });
+
+      expect(textLayoutMocks.measureTextareaContentHeight).toHaveBeenCalledTimes(2);
+    } finally {
+      requestAnimationFrameSpy.mockRestore();
+      cancelAnimationFrameSpy.mockRestore();
+      if (originalClientWidth) {
+        Object.defineProperty(HTMLTextAreaElement.prototype, 'clientWidth', originalClientWidth);
+      } else {
+        delete (HTMLTextAreaElement.prototype as { clientWidth?: number }).clientWidth;
+      }
+    }
+  });
 });

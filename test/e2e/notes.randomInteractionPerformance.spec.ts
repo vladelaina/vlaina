@@ -9,6 +9,9 @@ import {
   measureRepeatedBlockScan,
   measureScrollFrames,
   openMarkdownFixture,
+  startMainThreadFrameProbe,
+  stopMainThreadFrameProbe,
+  type MainThreadFrameProbeResult,
   waitForEditorAnimationFrame,
 } from './notesE2E';
 import { TINY_PNG_DATA_URL } from './notesMarkdownSyntaxFixture';
@@ -28,6 +31,41 @@ type RandomMetric = {
   operation: string;
   durationMs: number;
   detail?: unknown;
+};
+
+type EditorDispatchProfileSummary = {
+  decorationPropTotalMs: number;
+  dispatchCount: number;
+  docChangedCount: number;
+  insertedTextLength: number;
+  maxDispatchMs: number;
+  pluginApplyTotalMs: number;
+  p95DispatchMs: number;
+  totalDispatchMs: number;
+  totalProfileMs: number;
+  totalStepCount: number;
+  updateStateCount: number;
+  updateStateMaxMs: number;
+  updateStateP95Ms: number;
+  updateStateTotalMs: number;
+  updateStateInnerCount: number;
+  updateStateInnerMaxMs: number;
+  updateStateInnerP95Ms: number;
+  updateStateInnerTotalMs: number;
+  slowestPluginApplies: Array<{
+    count: number;
+    key: string;
+    maxMs: number;
+    p95Ms: number;
+    totalMs: number;
+  }>;
+  slowestDecorationProps: Array<{
+    count: number;
+    key: string;
+    maxMs: number;
+    p95Ms: number;
+    totalMs: number;
+  }>;
 };
 
 type RandomOperation =
@@ -623,15 +661,18 @@ async function measureOperation<T>(
   step: number,
   operation: string,
   callback: () => Promise<T>,
-  detail?: unknown,
+  detail?: unknown | (() => unknown),
 ): Promise<T> {
   const startedAt = Date.now();
   const result = await callback();
+  const resolvedDetail = typeof detail === 'function'
+    ? (detail as () => unknown)()
+    : detail;
   metrics.push({
     step,
     operation,
     durationMs: Date.now() - startedAt,
-    detail,
+    detail: resolvedDetail,
   });
   return result;
 }
@@ -655,10 +696,36 @@ async function focusEditorAtEnd(page: Page) {
   await waitForEditorAnimationFrame(page);
 }
 
-async function typeAtEnd(page: Page, text: string) {
+async function typeAtEnd(page: Page, text: string): Promise<MainThreadFrameProbeResult & {
+  dispatchProfile: EditorDispatchProfileSummary | null;
+}> {
   await focusEditorAtEnd(page);
-  await page.keyboard.type(text, { delay: 0 });
-  await waitForEditorAnimationFrame(page);
+  const dispatchProfileStarted = await page.evaluate(() => (
+    window as any
+  ).__vlainaE2E.startEditorDispatchProfile?.() ?? false);
+  await startMainThreadFrameProbe(page);
+  let frameProbe: MainThreadFrameProbeResult = {
+    frameCount: 0,
+    longFramesOver50: 0,
+    longFramesOver100: 0,
+    longTaskCount: 0,
+    maxFrameMs: 0,
+    maxLongTaskMs: 0,
+    p95FrameMs: 0,
+  };
+  let dispatchProfile: EditorDispatchProfileSummary | null = null;
+  try {
+    await page.keyboard.type(text, { delay: 0 });
+    await waitForEditorAnimationFrame(page);
+  } finally {
+    frameProbe = await stopMainThreadFrameProbe(page);
+    dispatchProfile = dispatchProfileStarted
+      ? await page.evaluate(() => (
+        window as any
+      ).__vlainaE2E.stopEditorDispatchProfile?.() ?? null)
+      : null;
+  }
+  return { ...frameProbe, dispatchProfile };
 }
 
 async function pasteAtEnd(page: Page, text: string) {
@@ -889,7 +956,7 @@ test.describe('notes random interaction performance', () => {
         const operation: RandomOperation = syntaxCoverageFragment
           ? 'paste-syntax-coverage'
           : weightedPick(rng, operations);
-        const operationDetail = syntaxCoverageFragment
+        let operationDetail: unknown = syntaxCoverageFragment
           ? { category: syntaxCoverageFragment.category }
           : undefined;
         const stepLabel = syntaxCoverageFragment
@@ -910,7 +977,8 @@ test.describe('notes random interaction performance', () => {
 
             if (operation === 'type-random-paragraph') {
               const text = createRandomParagraph(rng, step);
-              await typeAtEnd(page, text);
+              const probe = await typeAtEnd(page, text);
+              operationDetail = { chars: text.length, ...probe };
               return;
             }
 
@@ -1102,7 +1170,7 @@ test.describe('notes random interaction performance', () => {
             const scrollMetrics = await measureScrollFrames(page, 12);
             expect(blockScanMetrics.p95Ms).toBeLessThan(250);
             expect(scrollMetrics?.maxFrameMs ?? 0).toBeLessThan(1_500);
-          }, operationDetail);
+          }, () => operationDetail);
         });
       }
 
@@ -1114,6 +1182,43 @@ test.describe('notes random interaction performance', () => {
         .slice(0, 12);
       const maxOperationMs = Math.max(...metrics.map((metric) => metric.durationMs));
       const avgOperationMs = metrics.reduce((sum, metric) => sum + metric.durationMs, 0) / Math.max(1, metrics.length);
+      const typeOperationDetails = metrics.flatMap((metric) => {
+        if (metric.operation !== 'type-random-paragraph') return [];
+        const detail = metric.detail as (Partial<MainThreadFrameProbeResult> & {
+          dispatchProfile?: Partial<EditorDispatchProfileSummary> | null;
+        }) | undefined;
+        return typeof detail?.maxFrameMs === 'number' ? [detail] : [];
+      });
+      const maxTypeOperationFrameMs = Math.max(0, ...typeOperationDetails.map((detail) => detail.maxFrameMs ?? 0));
+      const maxTypeOperationLongTaskMs = Math.max(0, ...typeOperationDetails.map((detail) => detail.maxLongTaskMs ?? 0));
+      const totalTypeOperationLongFramesOver100 = typeOperationDetails
+        .reduce((sum, detail) => sum + (detail.longFramesOver100 ?? 0), 0);
+      const maxTypeOperationDispatchMs = Math.max(
+        0,
+        ...typeOperationDetails.map((detail) => detail.dispatchProfile?.maxDispatchMs ?? 0),
+      );
+      const maxTypeOperationTotalDispatchMs = Math.max(
+        0,
+        ...typeOperationDetails.map((detail) => detail.dispatchProfile?.totalDispatchMs ?? 0),
+      );
+      const maxTypeOperationPluginApplyTotalMs = Math.max(
+        0,
+        ...typeOperationDetails.map((detail) => detail.dispatchProfile?.pluginApplyTotalMs ?? 0),
+      );
+      const maxTypeOperationDecorationPropTotalMs = Math.max(
+        0,
+        ...typeOperationDetails.map((detail) => detail.dispatchProfile?.decorationPropTotalMs ?? 0),
+      );
+      const maxTypeOperationUpdateStateTotalMs = Math.max(
+        0,
+        ...typeOperationDetails.map((detail) => detail.dispatchProfile?.updateStateTotalMs ?? 0),
+      );
+      const maxTypeOperationUpdateStateInnerTotalMs = Math.max(
+        0,
+        ...typeOperationDetails.map((detail) => detail.dispatchProfile?.updateStateInnerTotalMs ?? 0),
+      );
+      const totalTypeOperationDispatchCount = typeOperationDetails
+        .reduce((sum, detail) => sum + (detail.dispatchProfile?.dispatchCount ?? 0), 0);
 
       console.info('[notes-random-interaction-performance]', {
         seed,
@@ -1121,6 +1226,16 @@ test.describe('notes random interaction performance', () => {
         metricCount: metrics.length,
         maxOperationMs,
         avgOperationMs: Math.round(avgOperationMs * 10) / 10,
+        maxTypeOperationFrameMs,
+        maxTypeOperationLongTaskMs,
+        maxTypeOperationDispatchMs,
+        maxTypeOperationTotalDispatchMs,
+        maxTypeOperationPluginApplyTotalMs,
+        maxTypeOperationDecorationPropTotalMs,
+        maxTypeOperationUpdateStateTotalMs,
+        maxTypeOperationUpdateStateInnerTotalMs,
+        totalTypeOperationDispatchCount,
+        totalTypeOperationLongFramesOver100,
         slowestOperations,
         blockScanMetrics,
         scrollMetrics,
@@ -1155,6 +1270,10 @@ test.describe('notes random interaction performance', () => {
       expect(domMetrics.countsBySelector.horizontalRules).toBeGreaterThanOrEqual(3);
       expect(blockScanMetrics.p95Ms).toBeLessThan(250);
       expect(scrollMetrics?.maxFrameMs ?? 0).toBeLessThan(1_500);
+      expect(maxTypeOperationFrameMs).toBeLessThan(1_500);
+      expect(maxTypeOperationLongTaskMs).toBeLessThan(1_500);
+      expect(maxTypeOperationDispatchMs).toBeLessThan(1_500);
+      expect(totalTypeOperationLongFramesOver100).toBeLessThan(60);
       expect(maxOperationMs).toBeLessThan(15_000);
       expect(avgOperationMs).toBeLessThan(2_500);
     } finally {

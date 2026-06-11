@@ -13,6 +13,7 @@ import {
   abbrPluginKey,
   extractAbbrDefinitions,
   findAbbrUsages,
+  findAbbrUsagesInRange,
   normalizeAbbrTitle,
   transactionMayAffectAbbrDecorations,
 } from './abbrPlugin';
@@ -94,6 +95,32 @@ describe('abbrPlugin', () => {
     ]);
 
     expect(findAbbrUsages(doc, [{ abbr: 'HTML', fullText: 'HyperText Markup Language' }], 1)).toEqual([]);
+  });
+
+  it('collects abbreviation usages through the requested local range', () => {
+    const nodesBetween = (from: number, to: number, callback: (
+      node: FakeAbbrNode,
+      pos: number,
+      parent: FakeAbbrNode,
+    ) => void) => {
+      expect({ from, to }).toEqual({ from: 20, to: 80 });
+      callback(createTextNode('Local HTML usage'), 24, {});
+    };
+    const doc = {
+      content: { size: 120 },
+      nodesBetween,
+    };
+
+    expect(findAbbrUsagesInRange(
+      doc,
+      [{ abbr: 'HTML', fullText: 'HyperText Markup Language' }],
+      20,
+      80,
+    )).toEqual([{
+      start: 30,
+      end: 34,
+      fullText: 'HyperText Markup Language',
+    }]);
   });
 
   it('skips usage matching in overlong text nodes', () => {
@@ -266,6 +293,12 @@ describe('abbrPlugin', () => {
     );
 
     expect(transactionMayAffectAbbrDecorations(previous!, tr, view.state.doc, tr.doc)).toBe(true);
+    view.dispatch(tr);
+
+    const decorations = abbrPluginKey.getState(view.state)?.find() ?? [];
+    expect(decorations.map((decoration: Decoration) => (
+      view.state.doc.textBetween(decoration.from, decoration.to)
+    ))).toEqual(['HTML']);
 
     await editor.destroy();
   });

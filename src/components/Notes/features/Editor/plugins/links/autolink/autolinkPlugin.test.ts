@@ -9,7 +9,9 @@ import {
     autolinkPlugin,
     autolinkPluginKey,
     collectAutolinkDecorations,
+    collectAutolinkDecorationsInRange,
     findUrls,
+    textMayContainAutolinkCandidate,
     transactionMayCreateAutolink,
     transactionMayAffectExistingAutolinks,
 } from './autolinkPlugin';
@@ -44,6 +46,28 @@ function createDocNode(children: FakeAutolinkNode[], onAccess?: () => void): Fak
         resolve: () => ({ marks: () => [] }),
         type: { name: 'doc' },
     };
+}
+
+function findTextEndPosition(doc: any, text: string): number {
+    let position = -1;
+    doc.descendants((node: any, pos: number) => {
+        if (!node.isText || typeof node.text !== 'string') return true;
+        const index = node.text.indexOf(text);
+        if (index < 0) return true;
+        position = pos + index + text.length;
+        return false;
+    });
+    if (position < 0) {
+        throw new Error(`Unable to find text: ${text}`);
+    }
+    return position;
+}
+
+function getAutolinkTexts(view: any): string[] {
+    const decorations = autolinkPluginKey.getState(view.state)?.find() ?? [];
+    return decorations.map((decoration: Decoration) => (
+        view.state.doc.textBetween(decoration.from, decoration.to)
+    ));
 }
 
 describe('autolinkPlugin findUrls', () => {
@@ -154,6 +178,17 @@ describe('autolinkPlugin findUrls', () => {
         ]);
     });
 
+    it('does not treat ordinary sentence punctuation as an autolink candidate', () => {
+        expect(textMayContainAutolinkCandidate('plain sentence. still ordinary prose')).toBe(false);
+        expect(textMayContainAutolinkCandidate('has #tag-12 and inline words.')).toBe(false);
+    });
+
+    it('keeps partially typed autolinks eligible for local updates', () => {
+        expect(textMayContainAutolinkCandidate('Finish cati.me')).toBe(true);
+        expect(textMayContainAutolinkCandidate('Open www.e')).toBe(true);
+        expect(textMayContainAutolinkCandidate('Mail random@example.co')).toBe(true);
+    });
+
     it('decorates ordinary URLs without touching inline or block code', async () => {
         const editor = Editor.make()
             .config((ctx) => {
@@ -245,6 +280,62 @@ describe('autolinkPlugin findUrls', () => {
         const decorations = collectAutolinkDecorations(createDocNode([createTextNode(text)]));
 
         expect(decorations).toHaveLength(0);
+    });
+
+    it('collects autolinks through the requested local range instead of walking document children', () => {
+        const child = vi.fn(() => {
+            throw new Error('full document child scan should not run for local autolink updates');
+        });
+        const nodesBetween = vi.fn((
+            from: number,
+            to: number,
+            callback: (node: FakeAutolinkNode, pos: number, parent: FakeAutolinkNode) => void,
+        ) => {
+            expect({ from, to }).toEqual({ from: 80, to: 120 });
+            callback(
+                createTextNode('open https://range.example'),
+                88,
+                { type: { name: 'paragraph' } },
+            );
+        });
+        const doc = {
+            child,
+            content: { size: 300 },
+            nodesBetween,
+            resolve: () => ({ marks: () => [] }),
+        };
+
+        const decorations = collectAutolinkDecorationsInRange(doc, 80, 120);
+
+        expect(decorations).toHaveLength(1);
+        expect(nodesBetween).toHaveBeenCalledTimes(1);
+        expect(child).not.toHaveBeenCalled();
+        expect((decorations[0].type as any).attrs.href).toBe('https://range.example');
+    });
+
+    it('updates only the edited paragraph when a bare domain is completed character by character', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, [
+                    'Open https://example.com for docs.',
+                    ...Array.from({ length: 40 }, (_, index) => `Filler paragraph ${index} keeps this note large enough.`),
+                    'Finish cati.m',
+                ].join('\n\n'));
+            })
+            .use(commonmark)
+            .use(autolinkPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(getAutolinkTexts(view)).toEqual(['https://example.com']);
+
+        const insertAt = findTextEndPosition(view.state.doc, 'Finish cati.m');
+        view.dispatch(view.state.tr.insertText('e', insertAt, insertAt));
+
+        expect(getAutolinkTexts(view)).toEqual(['https://example.com', 'cati.me']);
+
+        await editor.destroy();
     });
 
     it('does not treat plain edits away from existing autolinks as affecting autolinks', () => {

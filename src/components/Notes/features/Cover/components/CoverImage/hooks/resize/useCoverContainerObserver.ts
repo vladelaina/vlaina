@@ -22,9 +22,11 @@ export function useCoverContainerObserver({
     if (!el) return;
 
     let resizeIdleTimer: number | null = null;
+    let resizeFrame: number | null = null;
     let resizeActive = false;
     let lastObservedWidth = 0;
     let lastObservedHeight = 0;
+    let pendingObservedSize: { width: number; height: number } | null = null;
 
     const clearResizeIdleTimer = () => {
       if (resizeIdleTimer === null) return;
@@ -36,8 +38,8 @@ export function useCoverContainerObserver({
       if (!setIsContainerResizing) return;
       if (!resizeActive) {
         resizeActive = true;
+        setIsContainerResizing(true);
       }
-      setIsContainerResizing(true);
       clearResizeIdleTimer();
       resizeIdleTimer = window.setTimeout(() => {
         resizeActive = false;
@@ -46,25 +48,47 @@ export function useCoverContainerObserver({
       }, 96);
     };
 
+    const commitContainerSize = (width: number, height: number) => {
+      setContainerSize((prev) => {
+        if (prev?.width === width && prev?.height === height) {
+          return prev;
+        }
+        return { width, height };
+      });
+    };
+
     const updateContainerSize = (width: number, height: number, syncState = true) => {
-      if (width <= 0 || height <= 0) return;
+      if (width <= 0 || height <= 0) return false;
 
       if (lastObservedWidth === width && lastObservedHeight === height) {
-        return;
+        return false;
       }
 
       lastObservedWidth = width;
       lastObservedHeight = height;
 
       if (!syncState) {
+        return true;
+      }
+
+      commitContainerSize(width, height);
+      return true;
+    };
+
+    const scheduleContainerSizeCommit = (width: number, height: number) => {
+      pendingObservedSize = { width, height };
+      if (resizeFrame !== null) {
         return;
       }
 
-      setContainerSize((prev) => {
-        if (prev?.width === width && prev?.height === height) {
-          return prev;
+      resizeFrame = window.requestAnimationFrame(() => {
+        resizeFrame = null;
+        const nextSize = pendingObservedSize;
+        pendingObservedSize = null;
+        if (!nextSize) {
+          return;
         }
-        return { width, height };
+        commitContainerSize(nextSize.width, nextSize.height);
       });
     };
 
@@ -84,14 +108,14 @@ export function useCoverContainerObserver({
 
       const roundedWidth = Math.round(entry.contentRect.width);
       const roundedHeight = Math.round(entry.contentRect.height);
-      const changed = roundedWidth !== lastObservedWidth || roundedHeight !== lastObservedHeight;
+      const changed = updateContainerSize(roundedWidth, roundedHeight, false);
 
       if (!changed) {
         return;
       }
 
       scheduleResizeSettled();
-      updateContainerSize(roundedWidth, roundedHeight, true);
+      scheduleContainerSizeCommit(roundedWidth, roundedHeight);
     });
 
     syncContainerSize();
@@ -99,6 +123,11 @@ export function useCoverContainerObserver({
     return () => {
       observer.disconnect();
       clearResizeIdleTimer();
+      if (resizeFrame !== null) {
+        window.cancelAnimationFrame(resizeFrame);
+        resizeFrame = null;
+      }
+      pendingObservedSize = null;
       resizeActive = false;
       setIsContainerResizing?.(false);
     };

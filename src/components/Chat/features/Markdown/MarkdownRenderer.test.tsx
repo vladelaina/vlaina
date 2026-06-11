@@ -186,6 +186,46 @@ describe("MarkdownRenderer", () => {
     expect(surface).toHaveClass("chat-markdown-live");
   });
 
+  it("coalesces markdown surface resize measurements into one animation frame", () => {
+    class ResizeObserverMock {
+      static instances: ResizeObserverMock[] = [];
+
+      callback: ResizeObserverCallback;
+      observe = vi.fn();
+      disconnect = vi.fn();
+
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback;
+        ResizeObserverMock.instances.push(this);
+      }
+    }
+    vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation(() => 1);
+    const cancelAnimationFrameSpy = vi
+      .spyOn(window, "cancelAnimationFrame")
+      .mockImplementation(() => {});
+
+    try {
+      render(<MarkdownRenderer content={"Visible"} />);
+      const observer = ResizeObserverMock.instances[0];
+      expect(observer).toBeTruthy();
+
+      act(() => {
+        observer!.callback([], observer! as unknown as ResizeObserver);
+        observer!.callback([], observer! as unknown as ResizeObserver);
+        observer!.callback([], observer! as unknown as ResizeObserver);
+      });
+
+      expect(requestAnimationFrameSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      requestAnimationFrameSpy.mockRestore();
+      cancelAnimationFrameSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("keeps the visible stream on the markdown surface", async () => {
     vi.useFakeTimers();
 

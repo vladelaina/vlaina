@@ -26,6 +26,7 @@ export interface SelectableBlockTarget {
 }
 
 const selectableBlockRangesCache = new WeakMap<EditorDoc, BlockRange[]>();
+const directTopLevelBlockRangeKeysCache = new WeakMap<EditorDoc, Set<string>>();
 
 interface SelectableBlockRangeCollectionState {
   ranges: BlockRange[];
@@ -38,6 +39,10 @@ function isNonDraggableBlockNode(name: string): boolean {
 
 function isListContainerNode(name: string): boolean {
   return LIST_CONTAINER_NODE_NAMES.has(name);
+}
+
+function getRangeCacheKey(from: number, to: number): string {
+  return `${from}:${to}`;
 }
 
 function resolveTopLevelNodeAtPos(
@@ -84,6 +89,12 @@ function isParagraphNode(name: string): boolean {
 
 function isHardBreakNode(name: string): boolean {
   return name === 'hardbreak' || name === 'hard_break';
+}
+
+function isStandaloneImageParagraphNode(node: EditorState['doc']): boolean {
+  if (node.type.name !== 'paragraph') return false;
+  if (getNodeChildCount(node) !== 1) return false;
+  return getNodeChild(node, 0)?.type.name === 'image';
 }
 
 function getNodeChildCount(node: EditorState['doc']): number {
@@ -359,6 +370,72 @@ function resolveRangeElement(view: EditorView, range: BlockRange): HTMLElement |
   return resolveBlockElementAtPos(view, range.from);
 }
 
+function collectDirectTopLevelBlockRangeKeysUncached(doc: EditorDoc): Set<string> {
+  const keys = new Set<string>();
+  doc.forEach((node, offset) => {
+    const nodeName = node.type.name;
+    if (
+      isListContainerNode(nodeName) ||
+      nodeName === 'list_item' ||
+      nodeName === 'image' ||
+      isStandaloneImageParagraphNode(node)
+    ) {
+      return;
+    }
+
+    keys.add(getRangeCacheKey(offset, offset + node.nodeSize));
+  });
+  return keys;
+}
+
+function collectDirectTopLevelBlockRangeKeys(doc: EditorDoc): Set<string> {
+  const cached = directTopLevelBlockRangeKeysCache.get(doc);
+  if (cached) return cached;
+
+  const keys = collectDirectTopLevelBlockRangeKeysUncached(doc);
+  directTopLevelBlockRangeKeysCache.set(doc, keys);
+  return keys;
+}
+
+function resolveKnownTopLevelBlockElement(view: EditorView, blockPos: number): HTMLElement | null {
+  const docSize = view.state.doc.content.size;
+  const probePos = Math.max(1, Math.min(blockPos + 1, docSize));
+
+  try {
+    const domPos = view.domAtPos(probePos);
+    let element = domPos.node instanceof HTMLElement ? domPos.node : domPos.node.parentElement;
+    while (element && element.parentElement !== view.dom) {
+      element = element.parentElement;
+    }
+    if (element && element.parentElement === view.dom) return element;
+  } catch {
+  }
+
+  const nodeDom = view.nodeDOM(blockPos);
+  if (!(nodeDom instanceof HTMLElement)) return null;
+
+  let element: HTMLElement | null = nodeDom;
+  while (element && element.parentElement !== view.dom) {
+    element = element.parentElement;
+  }
+  return element && element.parentElement === view.dom ? element : null;
+}
+
+function resolveDirectTopLevelTarget(view: EditorView, range: BlockRange): SelectableBlockTarget | null {
+  const directTopLevelRangeKeys = collectDirectTopLevelBlockRangeKeys(view.state.doc);
+  if (!directTopLevelRangeKeys.has(getRangeCacheKey(range.from, range.to))) {
+    return null;
+  }
+
+  const element = resolveKnownTopLevelBlockElement(view, range.from);
+  if (!element) return null;
+
+  const rect = element.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+
+  return { range, element, rect };
+}
+
 function createDOMRectFromBounds(left: number, top: number, right: number, bottom: number): DOMRect {
   return {
     x: left,
@@ -632,6 +709,9 @@ export function resolveSelectableBlockTargetByPos(view: EditorView, blockPos: nu
   const range = resolveSelectableBlockRange(view.state.doc, blockPos);
   if (!range) return null;
 
+  const directTarget = resolveDirectTopLevelTarget(view, range);
+  if (directTarget) return directTarget;
+
   const element = resolveRangeElement(view, range);
   if (!element) return null;
 
@@ -662,6 +742,12 @@ export function collectSelectableBlockTargets(
 
   const targets: SelectableBlockTarget[] = [];
   for (const range of targetRanges) {
+    const directTarget = resolveDirectTopLevelTarget(view, range);
+    if (directTarget) {
+      targets.push(directTarget);
+      continue;
+    }
+
     const element = resolveRangeElement(view, range);
     if (!element) continue;
 

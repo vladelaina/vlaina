@@ -602,11 +602,12 @@ export async function collectEditorDomMetrics(page: Page) {
     const editor = document.querySelector<HTMLElement>('.milkdown .ProseMirror');
     const scrollRoot = editor?.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
     const blockElements = Array.from(editor?.querySelectorAll<HTMLElement>(
-      'h1,h2,h3,h4,h5,h6,p,li,blockquote,pre,table,div[data-type="callout"],div[data-type="toc"],.frontmatter-block-container,div[data-type="math-block"],div[data-type="mermaid"],div[data-type="video"],div.image-block-container'
+      'h1,h2,h3,h4,h5,h6,p,li,blockquote,pre,table,div[data-type="callout"],div[data-type="toc"],.frontmatter-block-container,div[data-type="math-block"],div[data-type="mermaid"],div[data-type="video"],div.image-block-container,[data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"]'
     ) ?? []);
     const countsBySelector = {
       headings: editor?.querySelectorAll('h1,h2,h3,h4,h5,h6').length ?? 0,
       paragraphs: editor?.querySelectorAll('p').length ?? 0,
+      markdownBlankLines: editor?.querySelectorAll('[data-type="html-block"][data-value="<!--vlaina-markdown-blank-line-->"]').length ?? 0,
       blockquotes: editor?.querySelectorAll('blockquote').length ?? 0,
       callouts: editor?.querySelectorAll('div[data-type="callout"]').length ?? 0,
       bulletItems: editor?.querySelectorAll('ul > li').length ?? 0,
@@ -710,6 +711,101 @@ export async function waitForEditorAnimationFrame(page: Page): Promise<void> {
   await page.evaluate(() => new Promise<void>((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   }));
+}
+
+export type MainThreadFrameProbeResult = {
+  frameCount: number;
+  longFramesOver50: number;
+  longFramesOver100: number;
+  longTaskCount: number;
+  maxFrameMs: number;
+  maxLongTaskMs: number;
+  p95FrameMs: number;
+};
+
+export async function startMainThreadFrameProbe(page: Page, key = '__vlainaMainThreadFrameProbe'): Promise<void> {
+  await page.evaluate((probeKey) => {
+    const win = window as any;
+    const previousProbe = win[probeKey];
+    if (previousProbe?.frameId) {
+      cancelAnimationFrame(previousProbe.frameId);
+    }
+    previousProbe?.observer?.disconnect?.();
+
+    const probe = {
+      frameDeltas: [] as number[],
+      frameId: 0,
+      lastFrameAt: performance.now(),
+      longTasks: [] as number[],
+      observer: null as PerformanceObserver | null,
+      stopped: false,
+    };
+
+    if (typeof PerformanceObserver !== 'undefined') {
+      try {
+        const observer = new PerformanceObserver((list) => {
+          for (const entry of list.getEntries()) {
+            probe.longTasks.push(entry.duration);
+          }
+        });
+        observer.observe({ entryTypes: ['longtask'] });
+        probe.observer = observer;
+      } catch {
+      }
+    }
+
+    const tick = (now: number) => {
+      probe.frameDeltas.push(now - probe.lastFrameAt);
+      probe.lastFrameAt = now;
+      if (!probe.stopped) {
+        probe.frameId = requestAnimationFrame(tick);
+      }
+    };
+
+    probe.frameId = requestAnimationFrame(tick);
+    win[probeKey] = probe;
+  }, key);
+}
+
+export async function stopMainThreadFrameProbe(page: Page, key = '__vlainaMainThreadFrameProbe'): Promise<MainThreadFrameProbeResult> {
+  return page.evaluate((probeKey) => {
+    const win = window as any;
+    const probe = win[probeKey];
+    if (!probe) {
+      return {
+        frameCount: 0,
+        longFramesOver50: 0,
+        longFramesOver100: 0,
+        longTaskCount: 0,
+        maxFrameMs: 0,
+        maxLongTaskMs: 0,
+        p95FrameMs: 0,
+      };
+    }
+
+    probe.stopped = true;
+    if (probe.frameId) {
+      cancelAnimationFrame(probe.frameId);
+    }
+    probe.observer?.disconnect?.();
+    delete win[probeKey];
+
+    const frameDeltas = Array.isArray(probe.frameDeltas) ? probe.frameDeltas as number[] : [];
+    const longTasks = Array.isArray(probe.longTasks) ? probe.longTasks as number[] : [];
+    const sortedFrames = [...frameDeltas].sort((a, b) => a - b);
+    const pick = (ratio: number) =>
+      sortedFrames[Math.min(sortedFrames.length - 1, Math.max(0, Math.ceil(sortedFrames.length * ratio) - 1))] ?? 0;
+
+    return {
+      frameCount: frameDeltas.length,
+      longFramesOver50: frameDeltas.filter((value) => value > 50).length,
+      longFramesOver100: frameDeltas.filter((value) => value > 100).length,
+      longTaskCount: longTasks.length,
+      maxFrameMs: Math.round((Math.max(0, ...frameDeltas)) * 10) / 10,
+      maxLongTaskMs: Math.round((Math.max(0, ...longTasks)) * 10) / 10,
+      p95FrameMs: Math.round(pick(0.95) * 10) / 10,
+    };
+  }, key);
 }
 
 export async function measureScrollFrames(page: Page, frames = 45) {

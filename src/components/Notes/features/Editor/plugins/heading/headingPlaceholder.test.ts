@@ -75,11 +75,47 @@ describe('getHeadingPlaceholder', () => {
         await editor.destroy();
     });
 
-    it('rescans heading placeholders when input can change heading structure', async () => {
+    it('allows ordinary paragraph hashtag input without rescanning headings', async () => {
+        const editor = await createEditor('# Heading\n\nBody');
+        const view = editor.ctx.get(editorViewCtx);
+        const oldState = view.state;
+        const tr = oldState.tr.insertText(' #tag', oldState.doc.content.size - 1);
+
+        expect(
+            transactionMayAffectHeadingPlaceholders(
+                createHeadingPlaceholderDecorations(oldState.doc),
+                tr,
+                oldState.doc,
+                tr.doc,
+            ),
+        ).toBe(false);
+
+        await editor.destroy();
+    });
+
+    it('rescans heading placeholders when input can change block structure', async () => {
         const editor = await createEditor('Body');
         const view = editor.ctx.get(editorViewCtx);
         const oldState = view.state;
-        const tr = oldState.tr.insertText('#', 1);
+        const tr = oldState.tr.insertText('\n# Next', oldState.doc.content.size - 1);
+
+        expect(
+            transactionMayAffectHeadingPlaceholders(
+                createHeadingPlaceholderDecorations(oldState.doc),
+                tr,
+                oldState.doc,
+                tr.doc,
+            ),
+        ).toBe(true);
+
+        await editor.destroy();
+    });
+
+    it('rescans heading placeholders when editing a heading', async () => {
+        const editor = await createEditor('# Heading\n\nBody');
+        const view = editor.ctx.get(editorViewCtx);
+        const oldState = view.state;
+        const tr = oldState.tr.insertText('prefix ', 1);
 
         expect(
             transactionMayAffectHeadingPlaceholders(

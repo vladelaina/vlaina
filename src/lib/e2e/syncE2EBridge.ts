@@ -34,6 +34,48 @@ import type { VaultInfo } from '@/stores/useVaultStore';
 
 const E2E_LOCAL_STORAGE_KEY = 'vlaina:e2e:enabled';
 
+export interface EditorDispatchProfileSummary {
+  decorationPropTotalMs: number;
+  dispatchCount: number;
+  docChangedCount: number;
+  insertedTextLength: number;
+  maxDispatchMs: number;
+  pluginApplyTotalMs: number;
+  p95DispatchMs: number;
+  totalDispatchMs: number;
+  totalProfileMs: number;
+  totalStepCount: number;
+  updateStateCount: number;
+  updateStateMaxMs: number;
+  updateStateP95Ms: number;
+  updateStateTotalMs: number;
+  updateStateInnerCount: number;
+  updateStateInnerMaxMs: number;
+  updateStateInnerP95Ms: number;
+  updateStateInnerTotalMs: number;
+  slowestPluginApplies: Array<{
+    count: number;
+    key: string;
+    maxMs: number;
+    p95Ms: number;
+    totalMs: number;
+  }>;
+  slowestDispatches: Array<{
+    docChanged: boolean;
+    durationMs: number;
+    insertedTextLength: number;
+    selectionSet: boolean;
+    stepCount: number;
+  }>;
+  slowestDecorationProps: Array<{
+    count: number;
+    key: string;
+    maxMs: number;
+    p95Ms: number;
+    totalMs: number;
+  }>;
+}
+
 export interface E2EBridge {
   waitForUnifiedLoaded(): Promise<void>;
   getUnifiedData(): UnifiedData;
@@ -151,6 +193,8 @@ export interface E2EBridge {
   } | null;
   focusCurrentEditor(): Promise<boolean>;
   focusCurrentEditorAtEnd(): Promise<boolean>;
+  startEditorDispatchProfile(): boolean;
+  stopEditorDispatchProfile(): EditorDispatchProfileSummary | null;
   editorTextHasMark(text: string, markName: string, anchorText?: string): boolean;
   getEditorToolbarDebugState(): {
     selection: ReturnType<typeof getEditorSelectionSummary>;
@@ -527,6 +571,342 @@ async function focusCurrentEditorAtEnd(): Promise<boolean> {
   return hasEditorFocus();
 }
 
+type EditorDispatchProfileSample = {
+  docChanged: boolean;
+  durationMs: number;
+  insertedTextLength: number;
+  selectionSet: boolean;
+  stepCount: number;
+};
+
+type ActiveEditorDispatchProfile = {
+  decorationOriginals: Array<{
+    originalDecorations: unknown;
+    props: { decorations?: unknown };
+  }>;
+  decorationSamples: Map<string, number[]>;
+  originalDispatch: unknown;
+  originalUpdateState: unknown;
+  originalUpdateStateInner: unknown;
+  pluginOriginals: Array<{
+    originalApply: unknown;
+    stateSpec: { apply?: unknown };
+  }>;
+  pluginSamples: Map<string, number[]>;
+  samples: EditorDispatchProfileSample[];
+  startedAt: number;
+  updateStateInnerSamples: number[];
+  updateStateSamples: number[];
+  view: NonNullable<ReturnType<typeof getCurrentEditorView>>;
+};
+
+let activeEditorDispatchProfile: ActiveEditorDispatchProfile | null = null;
+
+function getTransactionInsertedTextLength(tr: unknown): number {
+  const steps = (tr as { steps?: readonly unknown[] }).steps ?? [];
+  let length = 0;
+
+  for (const step of steps) {
+    const content = (step as {
+      slice?: {
+        content?: {
+          size?: number;
+          textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string;
+        };
+      };
+    }).slice?.content;
+    if (!content || typeof content.size !== 'number') {
+      continue;
+    }
+    if (typeof content.textBetween === 'function') {
+      length += content.textBetween(0, content.size, '\n', '\ufffc').length;
+    } else {
+      length += content.size;
+    }
+  }
+
+  return length;
+}
+
+function stopEditorDispatchProfile(): EditorDispatchProfileSummary | null {
+  const profile = activeEditorDispatchProfile;
+  if (!profile) return null;
+
+  activeEditorDispatchProfile = null;
+  (profile.view as any).dispatch = profile.originalDispatch;
+  if (profile.originalUpdateState) {
+    (profile.view as any).updateState = profile.originalUpdateState;
+  }
+  if (profile.originalUpdateStateInner) {
+    (profile.view as any).updateStateInner = profile.originalUpdateStateInner;
+  }
+  for (const pluginOriginal of profile.pluginOriginals) {
+    pluginOriginal.stateSpec.apply = pluginOriginal.originalApply;
+  }
+  for (const decorationOriginal of profile.decorationOriginals) {
+    decorationOriginal.props.decorations = decorationOriginal.originalDecorations;
+  }
+
+  const samples = profile.samples;
+  const sortedDurations = samples.map((sample) => sample.durationMs).sort((a, b) => a - b);
+  const pick = (ratio: number) =>
+    sortedDurations[Math.min(sortedDurations.length - 1, Math.max(0, Math.ceil(sortedDurations.length * ratio) - 1))] ?? 0;
+  const round = (value: number) => Math.round(value * 10) / 10;
+  const summarizeSamples = (values: number[]) => {
+    const sortedValues = [...values].sort((a, b) => a - b);
+    const pickValue = (ratio: number) =>
+      sortedValues[Math.min(sortedValues.length - 1, Math.max(0, Math.ceil(sortedValues.length * ratio) - 1))] ?? 0;
+    return {
+      count: values.length,
+      maxMs: round(Math.max(0, ...values)),
+      p95Ms: round(pickValue(0.95)),
+      totalMs: round(values.reduce((sum, value) => sum + value, 0)),
+    };
+  };
+  const pluginApplySummaries = Array.from(profile.pluginSamples.entries()).map(([key, pluginSamples]) => {
+    const sortedPluginSamples = [...pluginSamples].sort((a, b) => a - b);
+    const pickPlugin = (ratio: number) =>
+      sortedPluginSamples[Math.min(sortedPluginSamples.length - 1, Math.max(0, Math.ceil(sortedPluginSamples.length * ratio) - 1))] ?? 0;
+    return {
+      count: pluginSamples.length,
+      key,
+      maxMs: round(Math.max(0, ...pluginSamples)),
+      p95Ms: round(pickPlugin(0.95)),
+      totalMs: round(pluginSamples.reduce((sum, value) => sum + value, 0)),
+    };
+  });
+  const decorationPropSummaries = Array.from(profile.decorationSamples.entries()).map(([key, decorationSamples]) => {
+    const sortedDecorationSamples = [...decorationSamples].sort((a, b) => a - b);
+    const pickDecoration = (ratio: number) =>
+      sortedDecorationSamples[Math.min(sortedDecorationSamples.length - 1, Math.max(0, Math.ceil(sortedDecorationSamples.length * ratio) - 1))] ?? 0;
+    return {
+      count: decorationSamples.length,
+      key,
+      maxMs: round(Math.max(0, ...decorationSamples)),
+      p95Ms: round(pickDecoration(0.95)),
+      totalMs: round(decorationSamples.reduce((sum, value) => sum + value, 0)),
+    };
+  });
+  const updateStateSummary = summarizeSamples(profile.updateStateSamples);
+  const updateStateInnerSummary = summarizeSamples(profile.updateStateInnerSamples);
+
+  return {
+    decorationPropTotalMs: round(decorationPropSummaries.reduce((sum, summary) => sum + summary.totalMs, 0)),
+    dispatchCount: samples.length,
+    docChangedCount: samples.filter((sample) => sample.docChanged).length,
+    insertedTextLength: samples.reduce((sum, sample) => sum + sample.insertedTextLength, 0),
+    maxDispatchMs: round(Math.max(0, ...samples.map((sample) => sample.durationMs))),
+    pluginApplyTotalMs: round(pluginApplySummaries.reduce((sum, summary) => sum + summary.totalMs, 0)),
+    p95DispatchMs: round(pick(0.95)),
+    totalDispatchMs: round(samples.reduce((sum, sample) => sum + sample.durationMs, 0)),
+    totalProfileMs: round(performance.now() - profile.startedAt),
+    totalStepCount: samples.reduce((sum, sample) => sum + sample.stepCount, 0),
+    updateStateCount: updateStateSummary.count,
+    updateStateMaxMs: updateStateSummary.maxMs,
+    updateStateP95Ms: updateStateSummary.p95Ms,
+    updateStateTotalMs: updateStateSummary.totalMs,
+    updateStateInnerCount: updateStateInnerSummary.count,
+    updateStateInnerMaxMs: updateStateInnerSummary.maxMs,
+    updateStateInnerP95Ms: updateStateInnerSummary.p95Ms,
+    updateStateInnerTotalMs: updateStateInnerSummary.totalMs,
+    slowestPluginApplies: pluginApplySummaries
+      .sort((left, right) => right.totalMs - left.totalMs)
+      .slice(0, 12),
+    slowestDispatches: [...samples]
+      .sort((left, right) => right.durationMs - left.durationMs)
+      .slice(0, 8)
+      .map((sample) => ({
+        docChanged: sample.docChanged,
+        durationMs: round(sample.durationMs),
+        insertedTextLength: sample.insertedTextLength,
+        selectionSet: sample.selectionSet,
+        stepCount: sample.stepCount,
+      })),
+    slowestDecorationProps: decorationPropSummaries
+      .sort((left, right) => right.totalMs - left.totalMs)
+      .slice(0, 12),
+  };
+}
+
+function getPluginProfileKey(plugin: unknown, index: number): string {
+  const candidate = plugin as {
+    key?: unknown;
+    spec?: {
+      key?: {
+        key?: unknown;
+      } | unknown;
+    };
+  };
+  const key = typeof candidate.key === 'string'
+    ? candidate.key
+    : typeof candidate.spec?.key === 'object' && candidate.spec.key && 'key' in candidate.spec.key && typeof candidate.spec.key.key === 'string'
+      ? candidate.spec.key.key
+      : typeof candidate.spec?.key === 'string'
+        ? candidate.spec.key
+        : `plugin-${index}`;
+  return key.replace(/\$\d+$/u, '');
+}
+
+function installPluginApplyProfilers(profile: ActiveEditorDispatchProfile): void {
+  const fields = (profile.view.state as unknown as {
+    config?: {
+      fields?: readonly {
+        apply?: unknown;
+        name?: unknown;
+      }[];
+    };
+  }).config?.fields;
+
+  if (Array.isArray(fields)) {
+    fields.forEach((field, index) => {
+      if (typeof field.apply !== 'function') {
+        return;
+      }
+
+      const originalApply = field.apply;
+      const key = typeof field.name === 'string' ? field.name : `state-field-${index}`;
+      profile.pluginOriginals.push({ originalApply, stateSpec: field });
+      field.apply = function profiledStateFieldApply(this: unknown, ...args: unknown[]) {
+        const startedAt = performance.now();
+        try {
+          return (originalApply as (...applyArgs: unknown[]) => unknown).apply(this, args);
+        } finally {
+          const samples = profile.pluginSamples.get(key) ?? [];
+          samples.push(performance.now() - startedAt);
+          profile.pluginSamples.set(key, samples);
+        }
+      };
+    });
+    return;
+  }
+
+  const plugins = profile.view.state.plugins as readonly unknown[];
+
+  plugins.forEach((plugin, index) => {
+    const stateSpec = (plugin as {
+      spec?: {
+        state?: {
+          apply?: unknown;
+        };
+      };
+    }).spec?.state;
+    if (!stateSpec || typeof stateSpec.apply !== 'function') {
+      return;
+    }
+
+    const originalApply = stateSpec.apply;
+    const key = getPluginProfileKey(plugin, index);
+    profile.pluginOriginals.push({ originalApply, stateSpec });
+    stateSpec.apply = function profiledPluginApply(this: unknown, ...args: unknown[]) {
+      const startedAt = performance.now();
+      try {
+        return (originalApply as (...applyArgs: unknown[]) => unknown).apply(this, args);
+      } finally {
+        const samples = profile.pluginSamples.get(key) ?? [];
+        samples.push(performance.now() - startedAt);
+        profile.pluginSamples.set(key, samples);
+      }
+    };
+  });
+}
+
+function installDecorationPropProfilers(profile: ActiveEditorDispatchProfile): void {
+  const plugins = profile.view.state.plugins as readonly unknown[];
+
+  plugins.forEach((plugin, index) => {
+    const props = (plugin as {
+      props?: {
+        decorations?: unknown;
+      };
+    }).props;
+    if (!props || typeof props.decorations !== 'function') {
+      return;
+    }
+
+    const originalDecorations = props.decorations;
+    const key = getPluginProfileKey(plugin, index);
+    profile.decorationOriginals.push({ originalDecorations, props });
+    props.decorations = function profiledDecorations(this: unknown, ...args: unknown[]) {
+      const startedAt = performance.now();
+      try {
+        return (originalDecorations as (...decorationsArgs: unknown[]) => unknown).apply(this, args);
+      } finally {
+        const samples = profile.decorationSamples.get(key) ?? [];
+        samples.push(performance.now() - startedAt);
+        profile.decorationSamples.set(key, samples);
+      }
+    };
+  });
+}
+
+function startEditorDispatchProfile(): boolean {
+  const view = getCurrentEditorView();
+  if (!view) return false;
+
+  stopEditorDispatchProfile();
+
+  const originalDispatch = view.dispatch;
+  const originalUpdateState = (view as any).updateState;
+  const originalUpdateStateInner = (view as any).updateStateInner;
+  const profile: ActiveEditorDispatchProfile = {
+    decorationOriginals: [],
+    decorationSamples: new Map(),
+    originalDispatch,
+    originalUpdateState,
+    originalUpdateStateInner,
+    pluginOriginals: [],
+    pluginSamples: new Map(),
+    samples: [],
+    startedAt: performance.now(),
+    updateStateInnerSamples: [],
+    updateStateSamples: [],
+    view,
+  };
+
+  installPluginApplyProfilers(profile);
+  installDecorationPropProfilers(profile);
+
+  if (typeof originalUpdateState === 'function') {
+    (view as any).updateState = function profiledUpdateState(this: unknown, ...args: unknown[]) {
+      const startedAt = performance.now();
+      try {
+        return originalUpdateState.apply(this, args);
+      } finally {
+        profile.updateStateSamples.push(performance.now() - startedAt);
+      }
+    };
+  }
+
+  if (typeof originalUpdateStateInner === 'function') {
+    (view as any).updateStateInner = function profiledUpdateStateInner(this: unknown, ...args: unknown[]) {
+      const startedAt = performance.now();
+      try {
+        return originalUpdateStateInner.apply(this, args);
+      } finally {
+        profile.updateStateInnerSamples.push(performance.now() - startedAt);
+      }
+    };
+  }
+
+  (view as any).dispatch = function profiledDispatch(this: unknown, tr: unknown) {
+    const startedAt = performance.now();
+    try {
+      return (originalDispatch as (this: unknown, tr: unknown) => unknown).call(this, tr);
+    } finally {
+      profile.samples.push({
+        docChanged: Boolean((tr as { docChanged?: boolean }).docChanged),
+        durationMs: performance.now() - startedAt,
+        insertedTextLength: getTransactionInsertedTextLength(tr),
+        selectionSet: Boolean((tr as { selectionSet?: boolean }).selectionSet),
+        stepCount: (tr as { steps?: readonly unknown[] }).steps?.length ?? 0,
+      });
+    }
+  };
+  activeEditorDispatchProfile = profile;
+
+  return true;
+}
+
 export function installSyncE2EBridge(): void {
   if (!isE2EBridgeEnabled() || window.__vlainaE2E) {
     return;
@@ -863,6 +1243,8 @@ export function installSyncE2EBridge(): void {
     getEditorSelectionSummary,
     focusCurrentEditor,
     focusCurrentEditorAtEnd,
+    startEditorDispatchProfile,
+    stopEditorDispatchProfile,
     editorTextHasMark,
     getEditorToolbarDebugState,
     writeClipboardText: async (text) => {

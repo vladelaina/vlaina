@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ export function AssetGrid({ onSelect, onHover, vaultPath, currentNotePath, compa
   const getAssetList = useNotesStore((state) => state.getAssetList);
   const { hoveredFilename, gridRef } = useAssetHover(onHover);
   const [containerWidth, setContainerWidth] = useState(0);
+  const widthFrameRef = useRef<number | null>(null);
 
   const assets = getAssetList();
   const baseItemSize = itemSize ?? (compact ? COMPACT_ITEM_SIZE_PX : REGULAR_ITEM_SIZE_PX);
@@ -53,6 +54,16 @@ export function AssetGrid({ onSelect, onHover, vaultPath, currentNotePath, compa
       const nextWidth = grid.clientWidth;
       setContainerWidth((current) => (current === nextWidth ? current : nextWidth));
     };
+    const scheduleWidthCommit = () => {
+      if (widthFrameRef.current !== null) {
+        return;
+      }
+
+      widthFrameRef.current = requestAnimationFrame(() => {
+        widthFrameRef.current = null;
+        commitWidth();
+      });
+    };
 
     commitWidth();
 
@@ -60,12 +71,14 @@ export function AssetGrid({ onSelect, onHover, vaultPath, currentNotePath, compa
       return;
     }
 
-    const resizeObserver = new ResizeObserver(() => {
-      commitWidth();
-    });
+    const resizeObserver = new ResizeObserver(scheduleWidthCommit);
     resizeObserver.observe(grid);
 
     return () => {
+      if (widthFrameRef.current !== null) {
+        cancelAnimationFrame(widthFrameRef.current);
+        widthFrameRef.current = null;
+      }
       resizeObserver.disconnect();
     };
   }, [gridRef]);

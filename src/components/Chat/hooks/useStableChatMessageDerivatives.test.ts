@@ -54,6 +54,53 @@ describe('useStableChatMessageDerivatives', () => {
     expect(view.result.current.sentUserMessages).toBe(firstSentUserMessages);
   });
 
+  it('keeps plain assistant image derivatives cached until an appended image token appears', async () => {
+    const assistant = createMessage('a1', 'assistant', 'plain response');
+
+    const view = renderHook(
+      ({ messages }) => useStableChatMessageDerivatives(messages),
+      {
+        initialProps: {
+          messages: [assistant] as ChatMessage[],
+        },
+      },
+    );
+    const firstImageGallery = view.result.current.imageGallery;
+
+    view.rerender({
+      messages: [{
+        ...assistant,
+        content: 'plain response !',
+        versions: [{
+          content: 'plain response !',
+          createdAt: assistant.timestamp,
+          kind: 'original' as const,
+          subsequentMessages: [],
+        }],
+      }],
+    });
+
+    expect(view.result.current.imageGallery).toBe(firstImageGallery);
+
+    view.rerender({
+      messages: [{
+        ...assistant,
+        content: 'plain response ![real](https://example.com/real.png)',
+        versions: [{
+          content: 'plain response ![real](https://example.com/real.png)',
+          createdAt: assistant.timestamp,
+          kind: 'original' as const,
+          subsequentMessages: [],
+        }],
+      }],
+    });
+
+    await waitFor(() => expect(view.result.current.imageGallery).toEqual([
+      { id: 'a1:0', src: 'https://example.com/real.png' },
+    ]));
+    expect(view.result.current.imageGallery).not.toBe(firstImageGallery);
+  });
+
   it('updates only the collection whose source data changed', async () => {
     const user = createMessage('u1', 'user', 'hello');
     const assistant = createMessage('a1', 'assistant', '![image](<https://example.com/1.png>)');

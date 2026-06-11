@@ -1,7 +1,10 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_THINKING_SELECTION_TEXT_NODES, ThinkingBlock } from './ThinkingBlock';
-import { dispatchChatSelectionStreamFreeze } from './chatSelectionStreamFreeze';
+import {
+  CHAT_SELECTION_STREAM_FREEZE_EVENT,
+  dispatchChatSelectionStreamFreeze,
+} from './chatSelectionStreamFreeze';
 import { MAX_CHAT_STREAM_ANIMATION_CHARS } from '@/components/Chat/features/Markdown/chatStreamTextAnimation';
 
 class ResizeObserverMock {
@@ -53,6 +56,42 @@ describe('ThinkingBlock', () => {
     view.unmount();
 
     expect(ResizeObserverMock.instances[0]!.disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the global selection freeze listener stable across content updates', () => {
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
+    const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
+    const view = render(
+      <ThinkingBlock
+        content="First thought"
+        isStreaming
+      />,
+    );
+
+    view.rerender(
+      <ThinkingBlock
+        content="Second thought"
+        isStreaming
+      />,
+    );
+    view.rerender(
+      <ThinkingBlock
+        content="Third thought"
+        isStreaming
+      />,
+    );
+
+    expect(
+      addEventListenerSpy.mock.calls.filter(([event]) => event === CHAT_SELECTION_STREAM_FREEZE_EVENT),
+    ).toHaveLength(1);
+
+    view.unmount();
+
+    expect(
+      removeEventListenerSpy.mock.calls.filter(([event]) => event === CHAT_SELECTION_STREAM_FREEZE_EVENT),
+    ).toHaveLength(1);
+    addEventListenerSpy.mockRestore();
+    removeEventListenerSpy.mockRestore();
   });
 
   it('shows completed thinking collapsed by default and allows it to be expanded', () => {

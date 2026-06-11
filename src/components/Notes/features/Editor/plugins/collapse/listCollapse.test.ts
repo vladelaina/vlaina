@@ -36,6 +36,21 @@ function dispatchTogglePointer(button: HTMLElement) {
   button.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
 }
 
+function findTextEndPosition(doc: any, text: string): number {
+  let position = -1;
+  doc.descendants((node: any, pos: number) => {
+    if (!node.isText || typeof node.text !== 'string') return true;
+    const index = node.text.indexOf(text);
+    if (index < 0) return true;
+    position = pos + index + text.length;
+    return false;
+  });
+  if (position < 0) {
+    throw new Error(`Text not found: ${text}`);
+  }
+  return position;
+}
+
 afterEach(() => {
   document.body.innerHTML = '';
 });
@@ -150,6 +165,17 @@ describe('listCollapsePlugin', () => {
     const view = editor.ctx.get(editorViewCtx);
     const pluginState = buildListCollapsePluginState(view.state.doc, new Set(), () => undefined);
     const tr = view.state.tr.insertText(' typed', view.state.doc.content.size - 1);
+
+    expect(canMapListCollapsePluginState(pluginState, tr, view.state.doc, tr.doc)).toBe(true);
+
+    await editor.destroy();
+  });
+
+  it('maps list collapse decorations for ordinary paragraph input before existing nested lists', async () => {
+    const editor = await createEditor('Intro\n\n- Parent\n  - Child\n\nTail');
+    const view = editor.ctx.get(editorViewCtx);
+    const pluginState = buildListCollapsePluginState(view.state.doc, new Set(), () => undefined);
+    const tr = view.state.tr.insertText(' typed', findTextEndPosition(view.state.doc, 'Intro'));
 
     expect(canMapListCollapsePluginState(pluginState, tr, view.state.doc, tr.doc)).toBe(true);
 

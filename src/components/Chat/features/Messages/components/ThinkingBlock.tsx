@@ -1,5 +1,6 @@
 import {
   memo,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -128,7 +129,7 @@ const StreamingThinkingMarkdownBlock = memo(function StreamingThinkingMarkdownBl
     ...componentOptions,
     codeBlockIndexOffset: block.codeBlockIndexOffset,
     imageIndexOffset: block.imageIndexOffset,
-  }), [block.codeBlockIndexOffset, block.content, block.imageIndexOffset, componentOptions]);
+  }), [block.codeBlockIndexOffset, block.imageIndexOffset, componentOptions]);
   const rehypePlugins = useMemo(() => [
     ...CHAT_MARKDOWN_REHYPE_PLUGINS,
     [createChatStreamTextPlugin, {
@@ -170,7 +171,7 @@ const ThinkingMarkdownContent = memo(function ThinkingMarkdownContent({
 }: ThinkingMarkdownContentProps) {
   const components = useMemo(
     () => createMarkdownComponents(componentOptions),
-    [componentOptions, renderedThinking],
+    [componentOptions],
   );
 
   if (renderedThinking.length > MAX_CHAT_MARKDOWN_RENDER_CHARS) {
@@ -243,6 +244,8 @@ export function ThinkingBlock({
   const messageStreamingRef = useRef(isMessageStreaming);
   const syncContentHeightRef = useRef<() => void>(() => {});
   const syncContentWidthRef = useRef<() => void>(() => {});
+  const contentMetricsRafRef = useRef<number | null>(null);
+  const beginSelectionFreezeRef = useRef<(target: EventTarget | null, button: number) => void>(() => {});
   messageStreamingRef.current = isMessageStreaming;
   if (!isMessageStreaming) {
     selectionFrozenThinkingRef.current = null;
@@ -280,6 +283,25 @@ export function ThinkingBlock({
     }
   };
 
+  const cancelScheduledContentMetricsSync = useCallback(() => {
+    if (contentMetricsRafRef.current !== null) {
+      cancelAnimationFrame(contentMetricsRafRef.current);
+      contentMetricsRafRef.current = null;
+    }
+  }, []);
+
+  const scheduleContentMetricsSync = useCallback(() => {
+    if (contentMetricsRafRef.current !== null) {
+      return;
+    }
+
+    contentMetricsRafRef.current = requestAnimationFrame(() => {
+      contentMetricsRafRef.current = null;
+      syncContentHeightRef.current();
+      syncContentWidthRef.current();
+    });
+  }, []);
+
   useEffect(() => {
     setIsCollapsed(!activelyThinking);
   }, [activelyThinking]);
@@ -300,15 +322,14 @@ export function ThinkingBlock({
 
     resizeObserverRef.current?.disconnect();
     const resizeObserver = new ResizeObserver(() => {
-      syncContentHeightRef.current();
-      syncContentWidthRef.current();
+      scheduleContentMetricsSync();
     });
     resizeObserver.observe(content);
     resizeObserverRef.current = resizeObserver;
     observedContentRef.current = content;
     syncContentHeightRef.current();
     syncContentWidthRef.current();
-  }, []);
+  }, [scheduleContentMetricsSync]);
 
   useEffect(() => {
     if (isCollapsed || !activelyThinking) {
@@ -403,7 +424,7 @@ export function ThinkingBlock({
     }, themeUiFeedbackTokens.chatThinkingSelectionReleaseDelayMs);
   };
 
-  const beginSelectionFreeze = (target: EventTarget | null, button: number) => {
+  beginSelectionFreezeRef.current = (target: EventTarget | null, button: number) => {
     const isThinkingTarget =
       target instanceof Element &&
       !!contentRef.current?.contains(target);
@@ -421,18 +442,18 @@ export function ThinkingBlock({
   };
 
   const handleSelectionPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    beginSelectionFreeze(event.target, event.button);
+    beginSelectionFreezeRef.current(event.target, event.button);
   };
 
   const handleSelectionMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
-    beginSelectionFreeze(event.target, event.button);
+    beginSelectionFreezeRef.current(event.target, event.button);
   };
 
   useEffect(() => {
     return addChatSelectionStreamFreezeListener(({ button, target }) => {
-      beginSelectionFreeze(target, button);
+      beginSelectionFreezeRef.current(target, button);
     });
-  });
+  }, []);
 
   const clearSelectionFreezeIfIdle = () => {
     if (isPointerSelectingRef.current) {
@@ -483,11 +504,12 @@ export function ThinkingBlock({
       document.removeEventListener("selectionchange", handleSelectionChange);
       clearUnlockTimeout();
       clearReleaseSelectionFreezeTimeout();
+      cancelScheduledContentMetricsSync();
       resizeObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
       observedContentRef.current = null;
     };
-  }, []);
+  }, [cancelScheduledContentMetricsSync]);
 
   const getMaxHeight = () => {
     if (isCollapsed) {

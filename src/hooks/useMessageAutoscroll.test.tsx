@@ -2108,6 +2108,109 @@ describe('useMessageAutoscroll', () => {
     requestAnimationFrameSpy.mockRestore();
   });
 
+  it('coalesces repeated content resize spacer updates into one animation frame', () => {
+    const rafCallbacks = new Map<number, FrameRequestCallback>();
+    let nextRafId = 1;
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
+        const id = nextRafId;
+        nextRafId += 1;
+        rafCallbacks.set(id, callback);
+        return id;
+      });
+    const cancelAnimationFrameSpy = vi
+      .spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation((id: number) => {
+        rafCallbacks.delete(id);
+      });
+
+    class ResizeObserverMock {
+      static instances: ResizeObserverMock[] = [];
+
+      callback: ResizeObserverCallback;
+      observed: Element | null = null;
+      observe = vi.fn((target: Element) => {
+        this.observed = target;
+      });
+      disconnect = vi.fn();
+
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback;
+        ResizeObserverMock.instances.push(this);
+      }
+    }
+
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+
+    const estimateMessageHeight = vi.fn(() => 120);
+    const messages = [createMessage('u1', 'user')];
+
+    function TestHarness() {
+      const { containerRef } = useMessageAutoscroll({
+        messages,
+        isStreaming: true,
+        chatId: 'chat-1',
+        showLoading: false,
+        estimateMessageHeight,
+      });
+
+      return (
+        <div data-testid="scrollable-coalesced-resize" ref={containerRef}>
+          <div data-testid="content-coalesced-resize" />
+        </div>
+      );
+    }
+
+    render(<TestHarness />);
+    const scrollable = rtlScreen.getByTestId('scrollable-coalesced-resize');
+    let scrollTop = 0;
+
+    Object.defineProperty(scrollable, 'clientHeight', {
+      configurable: true,
+      get: () => 600,
+    });
+    Object.defineProperty(scrollable, 'clientWidth', {
+      configurable: true,
+      get: () => 900,
+    });
+    Object.defineProperty(scrollable, 'scrollHeight', {
+      configurable: true,
+      get: () => 1800,
+    });
+    Object.defineProperty(scrollable, 'scrollTop', {
+      configurable: true,
+      get: () => scrollTop,
+      set: (value: number) => {
+        scrollTop = value;
+      },
+    });
+    estimateMessageHeight.mockClear();
+
+    const contentObserver = ResizeObserverMock.instances.find(
+      (instance) => instance.observed === rtlScreen.getByTestId('content-coalesced-resize'),
+    );
+    expect(contentObserver).toBeTruthy();
+
+    act(() => {
+      contentObserver!.callback([], contentObserver! as unknown as ResizeObserver);
+      contentObserver!.callback([], contentObserver! as unknown as ResizeObserver);
+      contentObserver!.callback([], contentObserver! as unknown as ResizeObserver);
+    });
+
+    expect(estimateMessageHeight).not.toHaveBeenCalled();
+
+    act(() => {
+      const callbacks = Array.from(rafCallbacks.values());
+      rafCallbacks.clear();
+      callbacks.forEach((callback) => callback(0));
+    });
+
+    expect(estimateMessageHeight).toHaveBeenCalledTimes(1);
+    requestAnimationFrameSpy.mockRestore();
+    cancelAnimationFrameSpy.mockRestore();
+  });
+
   it('stops following output after the user scrolls upward near the bottom', () => {
     const requestAnimationFrameSpy = vi
       .spyOn(window, 'requestAnimationFrame')

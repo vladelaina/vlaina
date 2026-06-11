@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ModelSelector } from './ModelSelector';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 
@@ -127,5 +127,47 @@ describe('ModelSelector', () => {
     });
 
     expect(mocks.refreshManagedProviderInBackground).toHaveBeenCalledWith({ force: true });
+  });
+
+  it('coalesces embedded dropdown scroll repositioning into one frame', async () => {
+    let pendingFrame: FrameRequestCallback | null = null;
+
+    render(
+      <ModelSelector
+        dropdownPlacement="top"
+        isEmbedded
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Model Alpha/ }));
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-model-selector-dropdown="true"]')).not.toBeNull();
+    });
+
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
+        pendingFrame = callback;
+        return 12;
+      });
+    const cancelAnimationFrameSpy = vi
+      .spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => {});
+
+    try {
+      fireEvent.scroll(window);
+      fireEvent.scroll(window);
+      fireEvent.scroll(window);
+
+      expect(requestAnimationFrameSpy).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        pendingFrame?.(16);
+      });
+    } finally {
+      requestAnimationFrameSpy.mockRestore();
+      cancelAnimationFrameSpy.mockRestore();
+    }
   });
 });

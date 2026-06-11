@@ -45,6 +45,7 @@ export function usePredictedTextareaHeight(
   } | null>(null);
   const retryFrameRef = useRef<number | null>(null);
   const retryTimeoutRef = useRef<number | null>(null);
+  const observedResizeFrameRef = useRef<number | null>(null);
 
   const clearPendingRetry = () => {
     if (retryFrameRef.current !== null) {
@@ -54,6 +55,13 @@ export function usePredictedTextareaHeight(
     if (retryTimeoutRef.current !== null) {
       window.clearTimeout(retryTimeoutRef.current);
       retryTimeoutRef.current = null;
+    }
+  };
+
+  const clearPendingObservedResize = () => {
+    if (observedResizeFrameRef.current !== null) {
+      cancelAnimationFrame(observedResizeFrameRef.current);
+      observedResizeFrameRef.current = null;
     }
   };
 
@@ -70,6 +78,39 @@ export function usePredictedTextareaHeight(
       retryTimeoutRef.current = null;
       applyHeightRef.current();
     }, 120);
+  };
+
+  const scheduleObservedResize = () => {
+    const current = textareaRef.current;
+    const lastApplied = lastAppliedRef.current;
+    if (
+      current &&
+      lastApplied &&
+      current.clientWidth === lastApplied.width &&
+      current.style.height === lastApplied.height
+    ) {
+      return;
+    }
+
+    if (observedResizeFrameRef.current !== null) {
+      return;
+    }
+
+    observedResizeFrameRef.current = requestAnimationFrame(() => {
+      observedResizeFrameRef.current = null;
+      const nextCurrent = textareaRef.current;
+      const nextLastApplied = lastAppliedRef.current;
+      if (
+        nextCurrent &&
+        nextLastApplied &&
+        nextCurrent.clientWidth === nextLastApplied.width &&
+        nextCurrent.style.height === nextLastApplied.height
+      ) {
+        return;
+      }
+
+      applyHeightRef.current();
+    });
   };
 
   useLayoutEffect(() => {
@@ -145,19 +186,7 @@ export function usePredictedTextareaHeight(
     }
 
     observerRef.current?.disconnect();
-    const resizeObserver = new ResizeObserver(() => {
-      const current = textareaRef.current;
-      const lastApplied = lastAppliedRef.current;
-      if (
-        current &&
-        lastApplied &&
-        current.clientWidth === lastApplied.width &&
-        current.style.height === lastApplied.height
-      ) {
-        return;
-      }
-      applyHeightRef.current();
-    });
+    const resizeObserver = new ResizeObserver(scheduleObservedResize);
     resizeObserver.observe(textarea);
     observerRef.current = resizeObserver;
     observedTextareaRef.current = textarea;
@@ -166,6 +195,7 @@ export function usePredictedTextareaHeight(
   useEffect(() => {
     return () => {
       clearPendingRetry();
+      clearPendingObservedResize();
       observerRef.current?.disconnect();
       observerRef.current = null;
       observedTextareaRef.current = null;
@@ -175,6 +205,9 @@ export function usePredictedTextareaHeight(
   }, []);
 
   return {
-    syncHeight: (nextValue) => applyHeightRef.current(nextValue),
+    syncHeight: (nextValue) => {
+      clearPendingObservedResize();
+      applyHeightRef.current(nextValue);
+    },
   };
 }

@@ -8,11 +8,13 @@ import { DOMParser as ProseDOMParser, type Node as ProseNode } from '@milkdown/k
 import { TextSelection } from '@milkdown/kit/prose/state';
 import {
   MAX_FOOTNOTE_REF_INPUT_PREFIX_CHECK_CHARS,
+  footnoteInteractionPluginKey,
   footnotePlugin,
   handleFootnoteArrowNavigation,
   handleFootnoteModEnterExit,
   hasNonBlankFootnoteRefInputPrefix,
   serializeFootnoteDefinitionToMarkdown,
+  transactionTouchesFootnoteContext,
 } from './footnotePlugin';
 import { normalizeFootnoteLabel, normalizeFootnotePreview } from './footnoteLabels';
 import { configureTheme } from '../../theme';
@@ -36,6 +38,21 @@ function createRecorder() {
   };
 
   return { calls, state };
+}
+
+function findTextEndPosition(doc: any, text: string): number {
+  let position = -1;
+  doc.descendants((node: any, pos: number) => {
+    if (!node.isText || typeof node.text !== 'string') return true;
+    const index = node.text.indexOf(text);
+    if (index < 0) return true;
+    position = pos + index + text.length;
+    return false;
+  });
+  if (position < 0) {
+    throw new Error(`Text not found: ${text}`);
+  }
+  return position;
 }
 
 describe('footnote markdown serialization', () => {
@@ -359,6 +376,78 @@ describe('footnote reference markup', () => {
     expect(view.state.selection.from).toBe(view.state.doc.child(0).nodeSize + originalFootnoteSize + 1);
 
     view.dom.removeEventListener('editor:block-user-input', userInputListener);
+    await editor.destroy();
+  });
+
+  it('keeps footnote interaction state stable for unrelated paragraph edits', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, ['Intro text.', '', 'Text[^note].', '', '[^note]: Footnote body'].join('\n'));
+      })
+      .use(commonmark)
+      .use(gfm)
+      .use(configureTheme)
+      .use(footnotePlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const initialPluginState = footnoteInteractionPluginKey.getState(view.state);
+    const tr = view.state.tr.insertText(' typed', findTextEndPosition(view.state.doc, 'Intro text.'));
+
+    expect(transactionTouchesFootnoteContext(view.state.doc, tr.doc, tr)).toBe(false);
+
+    view.dispatch(tr);
+
+    expect(footnoteInteractionPluginKey.getState(view.state)).toBe(initialPluginState);
+
+    await editor.destroy();
+  });
+
+  it('marks footnote definition edits as needing interaction sync', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, ['Text[^note].', '', '[^note]: Footnote body'].join('\n'));
+      })
+      .use(commonmark)
+      .use(gfm)
+      .use(configureTheme)
+      .use(footnotePlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const initialPluginState = footnoteInteractionPluginKey.getState(view.state);
+    const tr = view.state.tr.insertText(' updated', findTextEndPosition(view.state.doc, 'Footnote body'));
+
+    expect(transactionTouchesFootnoteContext(view.state.doc, tr.doc, tr)).toBe(true);
+
+    view.dispatch(tr);
+
+    const nextPluginState = footnoteInteractionPluginKey.getState(view.state);
+    expect(nextPluginState).not.toBe(initialPluginState);
+    expect(nextPluginState?.hasFootnotes).toBe(true);
+
+    await editor.destroy();
+  });
+
+  it('detects range deletions that span footnotes away from the range boundary', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, ['Start paragraph.', '', 'Text[^note].', '', '[^note]: Footnote body', '', 'End paragraph.'].join('\n'));
+      })
+      .use(commonmark)
+      .use(gfm)
+      .use(configureTheme)
+      .use(footnotePlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const tr = view.state.tr.delete(
+      findTextEndPosition(view.state.doc, 'Start paragraph.'),
+      findTextEndPosition(view.state.doc, 'End paragraph.'),
+    );
+
+    expect(transactionTouchesFootnoteContext(view.state.doc, tr.doc, tr)).toBe(true);
+
     await editor.destroy();
   });
 });

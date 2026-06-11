@@ -269,20 +269,6 @@ function transactionIsPureInsertion(tr: unknown): boolean {
     return ranges.length > 0 && ranges.every((range) => range.oldFrom === range.oldTo);
 }
 
-function changesOccurAfterExistingListCollapseDecorations(
-    pluginState: ListCollapsePluginState,
-    tr: unknown,
-): boolean {
-    const decorations = pluginState.decorations.find() as Array<{ from?: number; to?: number }>;
-    if (decorations.length === 0) return true;
-
-    const lastDecorationPos = decorations.reduce(
-        (max, decoration) => Math.max(max, decoration.to ?? decoration.from ?? 0),
-        0,
-    );
-    return getTransactionChangedRanges(tr).every((range) => range.oldFrom >= lastDecorationPos);
-}
-
 export function canMapListCollapsePluginState(
     pluginState: ListCollapsePluginState,
     tr: unknown,
@@ -292,7 +278,6 @@ export function canMapListCollapsePluginState(
     if (pluginState.collapsedItems.size > 0) return false;
     if (!transactionIsPureInsertion(tr)) return false;
     if (transactionTouchesDecorations(pluginState.decorations, tr)) return false;
-    if (!changesOccurAfterExistingListCollapseDecorations(pluginState, tr)) return false;
 
     return getTransactionChangedRanges(tr).every((range) => (
         !rangeTouchesListCollapseStructure(oldDoc, range.oldFrom, range.oldTo)

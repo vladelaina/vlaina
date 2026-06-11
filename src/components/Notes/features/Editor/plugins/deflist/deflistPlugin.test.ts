@@ -145,6 +145,33 @@ describe('deflistPlugin visual decorations', () => {
     await editor.destroy();
   });
 
+  it('maps existing decorations when typing an ordinary colon in body text', async () => {
+    const editor = await createEditor([
+      'Term',
+      '',
+      ': Definition',
+      '',
+      'Filler one',
+      '',
+      'Filler two',
+      '',
+      'Filler three',
+      '',
+      'Target paragraph',
+    ].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const previous = createDeflistDecorations(view.state.doc);
+    const tr = view.state.tr.insertText(
+      ':',
+      findTextPosition(view.state.doc, 'Target paragraph', 'end'),
+    );
+
+    expect(previous.find()).toHaveLength(2);
+    expect(transactionMayAffectDeflistDecorations(previous, tr, tr.doc)).toBe(false);
+
+    await editor.destroy();
+  });
+
   it('rebuilds decorations when typing a definition description prefix', async () => {
     const editor = await createEditor([
       'Term',

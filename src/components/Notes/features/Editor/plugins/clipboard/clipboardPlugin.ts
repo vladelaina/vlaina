@@ -42,6 +42,8 @@ import {
     createClipboardTraversalBudget,
     consumeClipboardTraversalNode,
 } from './clipboardTraversalBudget';
+import { markEditorUserInput } from '../shared/userInputEvents';
+import { hasHeadingDropPayload } from '../cursor/externalTextDropCursorPlugin';
 
 export const clipboardPluginKey = new PluginKey('editor-clipboard');
 export const MAX_MARKDOWN_PASTE_CHARS = 1024 * 1024;
@@ -52,6 +54,7 @@ export const MAX_INLINE_FOOTNOTE_PASTE_REFERENCES = 1000;
 export const MAX_INLINE_FOOTNOTE_PASTE_LABEL_CHARS = 256;
 export const MAX_PLAIN_TEXT_LINE_BREAK_PASTE_LINES = 5000;
 export const MAX_PLAIN_TEXT_PARAGRAPH_PASTE_BLOCKS = 1000;
+const MARKDOWN_BLANK_LINE_COMMENT = '<!--vlaina-markdown-blank-line-->';
 const INLINE_FOOTNOTE_REFERENCE_PATTERN = /\[\^([^\]\r\n]+)\]/g;
 const BLANK_LINE_PATTERN = /\n[ \t]*\n/;
 
@@ -586,6 +589,64 @@ export function createPlainParagraphNodesFromText(state: {
     ));
 }
 
+export function createPlainTextBlankLineSlice(state: {
+    schema: {
+        text: (text: string) => ProseNode;
+        nodes: {
+            html_block?: { create: (attrs: { value: string }) => ProseNode };
+            paragraph?: { create: (attrs?: unknown, content?: Fragment | ProseNode[] | null) => ProseNode };
+        };
+    };
+}, text: string): Slice | null {
+    const paragraphType = state.schema.nodes.paragraph;
+    if (!paragraphType) return null;
+    const htmlBlockType = state.schema.nodes.html_block;
+
+    const normalized = text.replace(/\r\n?/g, '\n').trim();
+    if (!BLANK_LINE_PATTERN.test(normalized)) return null;
+    if (countBlankLineDelimitedBlocks(normalized, MAX_PLAIN_TEXT_PARAGRAPH_PASTE_BLOCKS) > MAX_PLAIN_TEXT_PARAGRAPH_PASTE_BLOCKS) {
+        return null;
+    }
+
+    const nodes: ProseNode[] = [];
+    let paragraphLines: string[] = [];
+    let sawBlankLine = false;
+
+    const flushParagraph = () => {
+        if (paragraphLines.length === 0) return;
+        const paragraph = joinWrappedPlainTextLines(paragraphLines);
+        if (paragraph) {
+            nodes.push(paragraphType.create(undefined, [state.schema.text(paragraph)]));
+        }
+        paragraphLines = [];
+    };
+
+    for (const line of normalized.split('\n')) {
+        if (line.trim().length === 0) {
+            flushParagraph();
+            if (nodes.length > 0) {
+                nodes.push(htmlBlockType
+                    ? htmlBlockType.create({ value: MARKDOWN_BLANK_LINE_COMMENT })
+                    : paragraphType.create());
+                sawBlankLine = true;
+            }
+            continue;
+        }
+
+        paragraphLines.push(line);
+    }
+
+    flushParagraph();
+
+    while (nodes.length > 0 && nodes[nodes.length - 1]?.textContent === '') {
+        nodes.pop();
+    }
+
+    return sawBlankLine && nodes.length >= 2
+        ? new Slice(Fragment.fromArray(nodes), 0, 0)
+        : null;
+}
+
 export function collectMarkdownPasteTopLevelNodes(parsedDoc: ProseNode): ProseNode[] | null {
     const { content } = parsedDoc;
     if (!content) return null;
@@ -684,6 +745,7 @@ function dispatchParagraphPasteFromEmptyTaskItem(
 
     tr.setSelection(Selection.near(tr.doc.resolve(safePos), 1));
     view.dispatch(tr.scrollIntoView());
+    markEditorUserInput(view);
     return true;
 }
 
@@ -735,6 +797,7 @@ export const clipboardPlugin = $prose((ctx) => {
                 : Selection.near(tr.doc.resolve(safePos), 1)
         );
         view.dispatch(tr.scrollIntoView());
+        markEditorUserInput(view);
 
         return safePos;
     };
@@ -774,6 +837,173 @@ export const clipboardPlugin = $prose((ctx) => {
         if (!parsedNodes) return null;
 
         return isMarkdownStructuralResult(parsedNodes) ? parsedNodes : null;
+    };
+
+    const dispatchPlainTextPayload = (view: EditorView, text: string): boolean => {
+        const fencedPayload = parseStandaloneFencedCodeBlock(text);
+        replaceBlockSelectionBeforePaste(view);
+        const state = view.state;
+        if (state.selection.$from.parent.type.spec.code || state.selection.$to.parent.type.spec.code) {
+            return false;
+        }
+
+        const tocNode = createStandaloneTocPasteNode(state.schema, text);
+        if (tocNode) {
+            dispatchSliceAndKeepCursorAtTail(view, new Slice(Fragment.from(tocNode), 0, 0));
+            return true;
+        }
+
+        const mathBlockNode = parseStandaloneMathBlockPaste(state, text);
+        if (mathBlockNode) {
+            dispatchSliceAndKeepCursorAtTail(
+                view,
+                new Slice(Fragment.from(mathBlockNode), 0, 0),
+            );
+            return true;
+        }
+
+        const tabSeparatedTableMarkdown = createMarkdownTableFromTabSeparatedText(text);
+        if (tabSeparatedTableMarkdown) {
+            const tableNodes = parseMarkdownNodes(tabSeparatedTableMarkdown);
+            if (tableNodes) {
+                const tableSlice = createMarkdownPasteSlice(state, tableNodes);
+                dispatchSliceAndKeepCursorAtTail(view, tableSlice);
+                return true;
+            }
+        }
+
+        if (fencedPayload) {
+            const fencedLanguage = fencedPayload.language?.toLowerCase() ?? null;
+            if (isMermaidFenceLanguage(fencedLanguage)) {
+                const mermaidType = state.schema.nodes.mermaid;
+                if (mermaidType) {
+                    const mermaidNode = mermaidType.create({
+                        code: normalizeMermaidFenceCode(fencedLanguage, fencedPayload.code),
+                    });
+                    dispatchSliceAndKeepCursorAtTail(
+                        view,
+                        new Slice(Fragment.from(mermaidNode), 0, 0),
+                    );
+                    return true;
+                }
+            }
+
+            const fencedMarkdownCandidate = (
+                fencedLanguage === 'markdown'
+                || fencedLanguage === 'md'
+                || fencedLanguage === 'mdx'
+            ) ? fencedPayload.code : null;
+
+            if (fencedMarkdownCandidate) {
+                const markdownNodes = parseMarkdownNodes(fencedMarkdownCandidate);
+                if (markdownNodes) {
+                    const markdownSlice = createMarkdownPasteSlice(state, markdownNodes);
+                    dispatchSliceAndKeepCursorAtTail(
+                        view,
+                        markdownSlice,
+                        { preferRangeEnd: hasOnlyParagraphNodes(markdownNodes) },
+                    );
+                    return true;
+                }
+            }
+
+            const codeBlockType = state.schema.nodes.code_block;
+            if (!codeBlockType) return false;
+
+            const attrs = createCodeBlockAttrs({
+                language: codeBlockType.spec.attrs?.language
+                    ? normalizeCodeBlockLanguage(fencedPayload.language)
+                    : null,
+            });
+
+            const codeTextNode = fencedPayload.code ? state.schema.text(fencedPayload.code) : null;
+            const codeBlockNode = codeBlockType.create(attrs, codeTextNode ? [codeTextNode] : null);
+
+            const slice = new Slice(Fragment.from(codeBlockNode), 0, 0);
+            dispatchSliceAndKeepCursorAtTail(view, slice);
+            return true;
+        }
+
+        const headingPayload = parseStandaloneAtxHeading(text);
+        if (headingPayload) {
+            const headingType = state.schema.nodes.heading;
+            if (!headingType) return false;
+
+            const headingNode = headingType.create(
+                { level: headingPayload.level },
+                state.schema.text(headingPayload.text),
+            );
+            dispatchSliceAndKeepCursorAtTail(
+                view,
+                new Slice(Fragment.from(headingNode), 0, 0),
+            );
+            return true;
+        }
+
+        if (looksLikePlainTextWithOnlyBackslashHardBreakSignal(text)) {
+            const plainTextSlice = createPlainTextLineBreakSlice(state, text);
+            if (plainTextSlice) {
+                dispatchSliceAndKeepCursorAtTail(
+                    view,
+                    plainTextSlice,
+                );
+                return true;
+            }
+        }
+
+        const plainParagraphNodes = createPlainParagraphNodesFromText(state, text);
+        if (plainParagraphNodes && dispatchParagraphPasteFromEmptyTaskItem(view, plainParagraphNodes)) {
+            return true;
+        }
+
+        const markdownFenceCandidate = extractLargestMarkdownFenceContent(text);
+        const markdownNodes = parseMarkdownNodes(text) ?? (
+            markdownFenceCandidate ? parseMarkdownNodes(markdownFenceCandidate) : null
+        );
+        if (!markdownNodes) {
+            const plainTextBlankLineSlice = createPlainTextBlankLineSlice(state, text);
+            if (plainTextBlankLineSlice) {
+                dispatchSliceAndKeepCursorAtTail(
+                    view,
+                    plainTextBlankLineSlice,
+                );
+                return true;
+            }
+
+            const inlineFootnoteSlice = createInlineFootnoteReferenceSlice(state, text);
+            if (!inlineFootnoteSlice) return false;
+
+            dispatchSliceAndKeepCursorAtTail(
+                view,
+                inlineFootnoteSlice,
+                { preferRangeEnd: true },
+            );
+            return true;
+        }
+
+        const normalizedMarkdownNodes = replaceInlineFootnoteReferencesInNodes(state, markdownNodes);
+        if (hasOnlyParagraphNodes(normalizedMarkdownNodes)
+            && dispatchParagraphPasteFromEmptyTaskItem(view, normalizedMarkdownNodes)) {
+            return true;
+        }
+
+        const markdownSlice = createMarkdownPasteSlice(state, normalizedMarkdownNodes);
+        dispatchSliceAndKeepCursorAtTail(
+            view,
+            markdownSlice,
+            { preferRangeEnd: hasOnlyParagraphNodes(normalizedMarkdownNodes) },
+        );
+        return true;
+    };
+
+    const moveSelectionToDropPoint = (view: EditorView, event: DragEvent): boolean => {
+        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+        if (!pos) return false;
+
+        const safePos = Math.max(0, Math.min(pos.pos, view.state.doc.content.size));
+        const selection = Selection.near(view.state.doc.resolve(safePos), 1);
+        view.dispatch(view.state.tr.setSelection(selection));
+        return true;
     };
 
     return new Plugin({
@@ -876,7 +1106,35 @@ export const clipboardPlugin = $prose((ctx) => {
                         }
                     });
                     return true;
-                }
+                },
+                drop(view, event) {
+                    const dragEvent = event as DragEvent;
+                    if (dragEvent.dataTransfer?.files && dragEvent.dataTransfer.files.length > 0) {
+                        return false;
+                    }
+                    if (hasHeadingDropPayload(dragEvent.dataTransfer)) {
+                        return false;
+                    }
+
+                    const text = dragEvent.dataTransfer?.getData('text/plain');
+                    if (!text) return false;
+
+                    if (text.length > MAX_MARKDOWN_PASTE_CHARS) {
+                        dragEvent.preventDefault();
+                        return true;
+                    }
+
+                    if (!moveSelectionToDropPoint(view, dragEvent)) {
+                        return false;
+                    }
+
+                    if (!dispatchPlainTextPayload(view, text)) {
+                        return false;
+                    }
+
+                    dragEvent.preventDefault();
+                    return true;
+                },
             },
             handlePaste(view, event) {
                 const text = event.clipboardData?.getData('text/plain');
@@ -891,162 +1149,10 @@ export const clipboardPlugin = $prose((ctx) => {
                     return true;
                 }
 
-                const fencedPayload = parseStandaloneFencedCodeBlock(text);
-                replaceBlockSelectionBeforePaste(view);
-                const state = view.state;
-                if (state.selection.$from.parent.type.spec.code || state.selection.$to.parent.type.spec.code) {
+                if (!dispatchPlainTextPayload(view, text)) {
                     return false;
                 }
 
-                const tocNode = createStandaloneTocPasteNode(state.schema, text);
-                if (tocNode) {
-                    dispatchSliceAndKeepCursorAtTail(view, new Slice(Fragment.from(tocNode), 0, 0));
-                    event.preventDefault();
-                    return true;
-                }
-
-                const mathBlockNode = parseStandaloneMathBlockPaste(state, text);
-                if (mathBlockNode) {
-                    dispatchSliceAndKeepCursorAtTail(
-                        view,
-                        new Slice(Fragment.from(mathBlockNode), 0, 0),
-                    );
-                    event.preventDefault();
-                    return true;
-                }
-
-                const tabSeparatedTableMarkdown = createMarkdownTableFromTabSeparatedText(text);
-                if (tabSeparatedTableMarkdown) {
-                    const tableNodes = parseMarkdownNodes(tabSeparatedTableMarkdown);
-                    if (tableNodes) {
-                        const tableSlice = createMarkdownPasteSlice(state, tableNodes);
-                        dispatchSliceAndKeepCursorAtTail(view, tableSlice);
-                        event.preventDefault();
-                        return true;
-                    }
-                }
-
-                if (fencedPayload) {
-                    const fencedLanguage = fencedPayload.language?.toLowerCase() ?? null;
-                    if (isMermaidFenceLanguage(fencedLanguage)) {
-                        const mermaidType = state.schema.nodes.mermaid;
-                        if (mermaidType) {
-                            const mermaidNode = mermaidType.create({
-                                code: normalizeMermaidFenceCode(fencedLanguage, fencedPayload.code),
-                            });
-                            dispatchSliceAndKeepCursorAtTail(
-                                view,
-                                new Slice(Fragment.from(mermaidNode), 0, 0),
-                            );
-                            event.preventDefault();
-                            return true;
-                        }
-                    }
-
-                    const fencedMarkdownCandidate = (
-                        fencedLanguage === 'markdown'
-                        || fencedLanguage === 'md'
-                        || fencedLanguage === 'mdx'
-                    ) ? fencedPayload.code : null;
-
-                    if (fencedMarkdownCandidate) {
-                        const markdownNodes = parseMarkdownNodes(fencedMarkdownCandidate);
-                        if (markdownNodes) {
-                            const markdownSlice = createMarkdownPasteSlice(state, markdownNodes);
-                            dispatchSliceAndKeepCursorAtTail(
-                                view,
-                                markdownSlice,
-                                { preferRangeEnd: hasOnlyParagraphNodes(markdownNodes) },
-                            );
-                            event.preventDefault();
-                            return true;
-                        }
-                    }
-
-                    const codeBlockType = state.schema.nodes.code_block;
-                    if (!codeBlockType) return false;
-
-                    const attrs = createCodeBlockAttrs({
-                        language: codeBlockType.spec.attrs?.language
-                            ? normalizeCodeBlockLanguage(fencedPayload.language)
-                            : null,
-                    });
-
-                    const codeTextNode = fencedPayload.code ? state.schema.text(fencedPayload.code) : null;
-                    const codeBlockNode = codeBlockType.create(attrs, codeTextNode ? [codeTextNode] : null);
-
-                    const slice = new Slice(Fragment.from(codeBlockNode), 0, 0);
-                    dispatchSliceAndKeepCursorAtTail(view, slice);
-                    event.preventDefault();
-                    return true;
-                }
-
-                const headingPayload = parseStandaloneAtxHeading(text);
-                if (headingPayload) {
-                    const headingType = state.schema.nodes.heading;
-                    if (!headingType) return false;
-
-                    const headingNode = headingType.create(
-                        { level: headingPayload.level },
-                        state.schema.text(headingPayload.text),
-                    );
-                    dispatchSliceAndKeepCursorAtTail(
-                        view,
-                        new Slice(Fragment.from(headingNode), 0, 0),
-                    );
-                    event.preventDefault();
-                    return true;
-                }
-
-                // Try broader markdown parsing for mixed content.
-                if (looksLikePlainTextWithOnlyBackslashHardBreakSignal(text)) {
-                    const plainTextSlice = createPlainTextLineBreakSlice(state, text);
-                    if (plainTextSlice) {
-                        dispatchSliceAndKeepCursorAtTail(
-                            view,
-                            plainTextSlice,
-                        );
-                        event.preventDefault();
-                        return true;
-                    }
-                }
-
-                const plainParagraphNodes = createPlainParagraphNodesFromText(state, text);
-                if (plainParagraphNodes && dispatchParagraphPasteFromEmptyTaskItem(view, plainParagraphNodes)) {
-                    event.preventDefault();
-                    return true;
-                }
-
-                const markdownFenceCandidate = extractLargestMarkdownFenceContent(text);
-                const markdownNodes = parseMarkdownNodes(text) ?? (
-                    markdownFenceCandidate ? parseMarkdownNodes(markdownFenceCandidate) : null
-                );
-                if (!markdownNodes) {
-                    const inlineFootnoteSlice = createInlineFootnoteReferenceSlice(state, text);
-                    if (!inlineFootnoteSlice) return false;
-
-                    dispatchSliceAndKeepCursorAtTail(
-                        view,
-                        inlineFootnoteSlice,
-                        { preferRangeEnd: true },
-                    );
-                    event.preventDefault();
-                    return true;
-                }
-
-                const normalizedMarkdownNodes = replaceInlineFootnoteReferencesInNodes(state, markdownNodes);
-                if (hasOnlyParagraphNodes(normalizedMarkdownNodes)
-                    && dispatchParagraphPasteFromEmptyTaskItem(view, normalizedMarkdownNodes)) {
-                    event.preventDefault();
-                    return true;
-                }
-
-                const markdownSlice = createMarkdownPasteSlice(state, normalizedMarkdownNodes);
-                dispatchSliceAndKeepCursorAtTail(
-                    view,
-                    markdownSlice,
-                    { preferRangeEnd: hasOnlyParagraphNodes(normalizedMarkdownNodes) },
-                );
                 event.preventDefault();
                 return true;
             },

@@ -9,7 +9,7 @@ import {
   scanProseDescendants,
 } from '../shared/boundedProseNodeScan';
 import {
-  transactionChangedParentTextMatches,
+  getTransactionChangedRanges,
   transactionInsertedTextMatches,
   transactionTouchesDecorations,
   type DecorationSetLike,
@@ -24,7 +24,13 @@ export const MAX_TAG_TOKEN_DECORATIONS = 1000;
 export const MAX_TAG_TOKEN_DOC_SCAN_NODES = DEFAULT_PROSE_DOC_SCAN_NODE_LIMIT;
 const MAX_TAG_TOKEN_CHARS = 128;
 export const MAX_TAG_TOKEN_EDGE_RECTS = 1024;
+export const MAX_TAG_TOKEN_CHANGED_CONTEXT_CHARS = MAX_TAG_TOKEN_CHARS + 8;
 const TAG_TOKEN_TRIGGER_TEXT_PATTERN = /#/u;
+
+type TagTokenUpdateRange = {
+  from: number;
+  to: number;
+};
 
 export function resolveTagTokenEdgeOffset(
   token: HTMLElement,
@@ -83,40 +89,8 @@ export function createTagTokenDecorations(doc: any): DecorationSet {
       return STOP_PROSE_SCAN;
     }
 
-    if (!node.isText) {
-      return;
-    }
-
-    const parentType = parent.type?.name;
-    if (parentType && SKIPPED_TEXT_PARENT_TYPES.has(parentType)) {
-      return;
-    }
-
-    if (node.marks?.some((mark: any) => SKIPPED_MARK_TYPES.has(mark.type?.name))) {
-      return;
-    }
-
-    const text = node.text ?? '';
-    TAG_TOKEN_PATTERN.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = TAG_TOKEN_PATTERN.exec(text)) !== null) {
-      const tag = match[1]?.trim();
-      if (!tag || tag.length > MAX_TAG_TOKEN_CHARS || !isNoteTagToken(tag)) {
-        continue;
-      }
-
-      decorations.push(
-        Decoration.inline(pos + match.index, pos + match.index + match[0].length, {
-          class: `editor-tag-token tag cm-hashtag cm-meta v-tag ${chatComposerPillSurfaceClass}`,
-          'data-editor-tag-token': 'true',
-        }, {
-          inclusiveStart: false,
-          inclusiveEnd: false,
-        }),
-      );
-      if (decorations.length >= MAX_TAG_TOKEN_DECORATIONS) {
-        break;
-      }
+    if (node.isText) {
+      collectTagTokenDecorationsFromTextNode(node, pos, parent, decorations);
     }
 
     return decorations.length < MAX_TAG_TOKEN_DECORATIONS ? undefined : STOP_PROSE_SCAN;
@@ -127,6 +101,193 @@ export function createTagTokenDecorations(doc: any): DecorationSet {
     : DecorationSet.empty;
 }
 
+function collectTagTokenDecorationsFromTextNode(
+  node: any,
+  pos: number,
+  parent: any,
+  decorations: Decoration[],
+  maxDecorations = MAX_TAG_TOKEN_DECORATIONS,
+): void {
+  if (decorations.length >= maxDecorations) return;
+
+  const parentType = parent?.type?.name;
+  if (parentType && SKIPPED_TEXT_PARENT_TYPES.has(parentType)) {
+    return;
+  }
+
+  if (node.marks?.some((mark: any) => SKIPPED_MARK_TYPES.has(mark.type?.name))) {
+    return;
+  }
+
+  const text = node.text ?? '';
+  TAG_TOKEN_PATTERN.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = TAG_TOKEN_PATTERN.exec(text)) !== null) {
+    const tag = match[1]?.trim();
+    if (!tag || tag.length > MAX_TAG_TOKEN_CHARS || !isNoteTagToken(tag)) {
+      continue;
+    }
+
+    decorations.push(
+      Decoration.inline(pos + match.index, pos + match.index + match[0].length, {
+        class: `editor-tag-token tag cm-hashtag cm-meta v-tag ${chatComposerPillSurfaceClass}`,
+        'data-editor-tag-token': 'true',
+      }, {
+        inclusiveStart: false,
+        inclusiveEnd: false,
+      }),
+    );
+    if (decorations.length >= maxDecorations) {
+      break;
+    }
+  }
+}
+
+export function collectTagTokenDecorationsInRange(
+  doc: any,
+  from: number,
+  to: number,
+  maxDecorations = MAX_TAG_TOKEN_DECORATIONS,
+): Decoration[] {
+  const decorations: Decoration[] = [];
+  const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+  const start = Math.max(0, Math.min(from, docSize));
+  const end = Math.max(start, Math.min(to, docSize));
+  if (start >= end || typeof doc.nodesBetween !== 'function') {
+    return decorations;
+  }
+
+  doc.nodesBetween(start, end, (node: any, pos: number, parent: any) => {
+    if (decorations.length >= maxDecorations) return false;
+    if (!node.isText) return true;
+    collectTagTokenDecorationsFromTextNode(node, pos, parent, decorations, maxDecorations);
+    return decorations.length < maxDecorations;
+  });
+
+  return decorations;
+}
+
+function addTextblockRangeAt(doc: any, pos: number, ranges: TagTokenUpdateRange[]): void {
+  if (typeof doc.resolve !== 'function') return;
+  const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+  const safePos = Math.max(0, Math.min(pos, docSize));
+
+  try {
+    const $pos = doc.resolve(safePos);
+    for (let depth = $pos.depth; depth > 0; depth -= 1) {
+      const node = $pos.node(depth);
+      if (!node?.isTextblock) continue;
+      ranges.push({
+        from: $pos.start(depth),
+        to: $pos.end(depth),
+      });
+      return;
+    }
+  } catch {
+  }
+}
+
+function mergeTagTokenUpdateRanges(ranges: TagTokenUpdateRange[]): TagTokenUpdateRange[] {
+  if (ranges.length <= 1) return ranges;
+
+  const sorted = [...ranges]
+    .filter((range) => Number.isFinite(range.from) && Number.isFinite(range.to) && range.to > range.from)
+    .sort((a, b) => a.from - b.from || a.to - b.to);
+  const merged: TagTokenUpdateRange[] = [];
+
+  for (const range of sorted) {
+    const previous = merged[merged.length - 1];
+    if (!previous || range.from > previous.to + 1) {
+      merged.push({ ...range });
+      continue;
+    }
+    previous.to = Math.max(previous.to, range.to);
+  }
+
+  return merged;
+}
+
+export function collectTagTokenUpdateRanges(doc: any, tr: unknown): TagTokenUpdateRange[] {
+  const ranges: TagTokenUpdateRange[] = [];
+  const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+
+  for (const range of getTransactionChangedRanges(tr)) {
+    const from = Math.max(0, Math.min(range.newFrom, range.newTo, docSize));
+    const to = Math.max(from, Math.min(Math.max(range.newFrom, range.newTo), docSize));
+
+    addTextblockRangeAt(doc, from, ranges);
+    addTextblockRangeAt(doc, to, ranges);
+
+    if (to > from && typeof doc.nodesBetween === 'function') {
+      doc.nodesBetween(from, to, (node: any, pos: number) => {
+        if (!node.isTextblock || typeof node.nodeSize !== 'number') return true;
+        ranges.push({
+          from: pos + 1,
+          to: Math.max(pos + 1, pos + node.nodeSize - 1),
+        });
+        return true;
+      });
+    }
+  }
+
+  return mergeTagTokenUpdateRanges(ranges);
+}
+
+export function updateTagTokenDecorationsForTransaction(
+  previous: DecorationSet,
+  tr: unknown,
+  doc: any,
+): DecorationSet {
+  const mapped = previous.map((tr as { mapping: any }).mapping, doc);
+  const ranges = collectTagTokenUpdateRanges(doc, tr);
+  if (ranges.length === 0) {
+    return mapped;
+  }
+
+  const decorationsToRemove: Decoration[] = [];
+  for (const range of ranges) {
+    decorationsToRemove.push(...mapped.find(range.from, range.to) as Decoration[]);
+  }
+
+  let next = decorationsToRemove.length > 0
+    ? mapped.remove(decorationsToRemove)
+    : mapped;
+  let remainingBudget = MAX_TAG_TOKEN_DECORATIONS - next.find().length;
+  if (remainingBudget <= 0) {
+    return next;
+  }
+
+  for (const range of ranges) {
+    if (remainingBudget <= 0) break;
+    const decorations = collectTagTokenDecorationsInRange(doc, range.from, range.to, remainingBudget);
+    if (decorations.length === 0) continue;
+    next = next.add(doc, decorations);
+    remainingBudget -= decorations.length;
+  }
+
+  return next;
+}
+
+function transactionChangedContextMayContainTagTrigger(doc: any, tr: unknown): boolean {
+  if (typeof doc.textBetween !== 'function') return false;
+
+  const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+  for (const range of getTransactionChangedRanges(tr)) {
+    for (const pos of [range.newFrom, range.newTo]) {
+      const safePos = Math.max(0, Math.min(pos, docSize));
+      const from = Math.max(0, safePos - MAX_TAG_TOKEN_CHANGED_CONTEXT_CHARS);
+      const to = Math.min(docSize, safePos + MAX_TAG_TOKEN_CHANGED_CONTEXT_CHARS);
+      if (from >= to) continue;
+      TAG_TOKEN_TRIGGER_TEXT_PATTERN.lastIndex = 0;
+      if (TAG_TOKEN_TRIGGER_TEXT_PATTERN.test(doc.textBetween(from, to, '\n', '\ufffc'))) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 export function transactionMayAffectTagTokenDecorations(
   previous: DecorationSetLike,
   tr: unknown,
@@ -134,7 +295,7 @@ export function transactionMayAffectTagTokenDecorations(
 ): boolean {
   return transactionInsertedTextMatches(tr, TAG_TOKEN_TRIGGER_TEXT_PATTERN)
     || transactionTouchesDecorations(previous, tr)
-    || transactionChangedParentTextMatches(doc, tr, TAG_TOKEN_TRIGGER_TEXT_PATTERN);
+    || transactionChangedContextMayContainTagTrigger(doc, tr);
 }
 
 export const tagTokenPlugin = $prose(() => new Plugin({
@@ -148,7 +309,7 @@ export const tagTokenPlugin = $prose(() => new Plugin({
       if (!transactionMayAffectTagTokenDecorations(previous, tr, tr.doc)) {
         return previous.map(tr.mapping, tr.doc);
       }
-      return createTagTokenDecorations(tr.doc);
+      return updateTagTokenDecorationsForTransaction(previous, tr, tr.doc);
     },
   },
   props: {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Editor, defaultValueCtx, editorViewCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
+import { Editor, defaultValueCtx, editorViewCtx, remarkStringifyOptionsCtx, serializerCtx } from '@milkdown/kit/core';
 import { AllSelection, Selection, TextSelection } from '@milkdown/kit/prose/state';
 import { CellSelection } from '@milkdown/kit/prose/tables';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
@@ -16,6 +16,13 @@ import { mermaidPlugin } from '../mermaid';
 import { mathPlugin } from '../math';
 import { codePlugin } from '../code';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import {
+    normalizeSerializedMarkdownDocument,
+    stripTrailingNewlines,
+} from '@/lib/notes/markdown/markdownSerializationUtils';
+import { CHAT_HEADING_DRAG_MIME } from '@/lib/drag/chatHeadingDrag';
+
+const MARKDOWN_BLANK_LINE_COMMENT = '<!--vlaina-markdown-blank-line-->';
 
 function findTextRange(doc: any, text: string): { from: number; to: number } {
     let resolved: { from: number; to: number } | null = null;
@@ -147,6 +154,44 @@ function simulatePasteTextWithEvent(view: any, text: string): { handled: boolean
     view.someProp('handlePaste', (handlePaste: any) => {
         handled = handlePaste(view, event, null) || handled;
     });
+    return { handled, event };
+}
+
+function simulateDropText(
+    view: any,
+    text: string,
+    pos = 1,
+    options: {
+        types?: string[];
+        getData?: (type: string) => string;
+    } = {},
+): { handled: boolean; event: { preventDefault: ReturnType<typeof vi.fn> } } {
+    const originalPosAtCoords = view.posAtCoords;
+    view.posAtCoords = vi.fn(() => ({ pos, inside: -1 }));
+
+    const event = {
+        clientX: 12,
+        clientY: 24,
+        dataTransfer: {
+            files: { length: 0 },
+            types: options.types ?? ['text/plain'],
+            getData(type: string) {
+                if (options.getData) return options.getData(type);
+                return type === 'text/plain' ? text : '';
+            },
+        },
+        preventDefault: vi.fn(),
+    };
+
+    let handled = false;
+    try {
+        view.someProp('handleDOMEvents', (handleDOMEvents: any) => {
+            handled = handleDOMEvents.drop?.(view, event) || handled;
+        });
+    } finally {
+        view.posAtCoords = originalPosAtCoords;
+    }
+
     return { handled, event };
 }
 
@@ -1001,6 +1046,103 @@ describe('clipboardPlugin paste', () => {
         expect(view.state.doc.child(0).textContent).toBe('A');
         expect(view.state.doc.child(1).textContent).toBe('');
         expect(view.state.doc.child(2).textContent).toBe('B');
+
+        await editor.destroy();
+    });
+
+    it('preserves visible blank lines for plain text paste before reopening the note', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+                ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+                    ...prev,
+                    ...notesRemarkStringifyOptions,
+                }));
+            })
+            .use(commonmark)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, 'Alpha plain text\n\nBeta plain text')).toBe(true);
+
+        expect(view.state.doc.childCount).toBe(3);
+        expect(view.state.doc.child(0).textContent).toBe('Alpha plain text');
+        expect(view.state.doc.child(1).type.name).toBe('html_block');
+        expect(view.state.doc.child(1).attrs.value).toBe(MARKDOWN_BLANK_LINE_COMMENT);
+        expect(view.state.doc.child(1).textContent).toBe('');
+        expect(view.state.doc.child(2).textContent).toBe('Beta plain text');
+
+        const serializer = editor.ctx.get(serializerCtx);
+        expect(stripTrailingNewlines(normalizeSerializedMarkdownDocument(serializer(view.state.doc)))).toBe(
+            'Alpha plain text\n\nBeta plain text',
+        );
+
+        await editor.destroy();
+    });
+
+    it('does not intercept dedicated chat heading drops before the heading drop plugin', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        const { handled, event } = simulateDropText(view, '# Chat Heading', 1, {
+            types: [CHAT_HEADING_DRAG_MIME, 'text/plain'],
+            getData(type) {
+                if (type === CHAT_HEADING_DRAG_MIME) {
+                    return JSON.stringify({ level: 2, text: 'Chat Heading' });
+                }
+                return type === 'text/plain' ? '# Chat Heading' : '';
+            },
+        });
+
+        expect(handled).toBe(false);
+        expect(event.preventDefault).not.toHaveBeenCalled();
+        expect(view.state.doc.textContent).toBe('');
+
+        await editor.destroy();
+    });
+
+    it('routes dropped plain chat text through persistent markdown blank line nodes', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+                ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+                    ...prev,
+                    ...notesRemarkStringifyOptions,
+                }));
+            })
+            .use(commonmark)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        const { handled, event } = simulateDropText(view, 'Dropped A\n\n\nDropped B');
+
+        expect(handled).toBe(true);
+        expect(event.preventDefault).toHaveBeenCalledTimes(1);
+        expect(view.state.doc.childCount).toBe(4);
+        expect(view.state.doc.child(0).textContent).toBe('Dropped A');
+        expect(view.state.doc.child(1).type.name).toBe('html_block');
+        expect(view.state.doc.child(1).attrs.value).toBe(MARKDOWN_BLANK_LINE_COMMENT);
+        expect(view.state.doc.child(1).textContent).toBe('');
+        expect(view.state.doc.child(2).type.name).toBe('html_block');
+        expect(view.state.doc.child(2).attrs.value).toBe(MARKDOWN_BLANK_LINE_COMMENT);
+        expect(view.state.doc.child(2).textContent).toBe('');
+        expect(view.state.doc.child(3).textContent).toBe('Dropped B');
+
+        const serializer = editor.ctx.get(serializerCtx);
+        expect(stripTrailingNewlines(normalizeSerializedMarkdownDocument(serializer(view.state.doc)))).toBe(
+            'Dropped A\n\n\nDropped B',
+        );
 
         await editor.destroy();
     });

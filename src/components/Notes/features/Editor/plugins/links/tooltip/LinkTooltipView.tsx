@@ -40,6 +40,7 @@ export class LinkTooltipView {
     resizeObserver: ResizeObserver | null = null;
     mutationObserver: MutationObserver | null = null;
     cleanupEvents: (() => void) | null = null;
+    repositionFrameId: number | null = null;
 
     constructor(view: EditorView) {
         this.view = view;
@@ -52,11 +53,11 @@ export class LinkTooltipView {
         this.root = createRoot(this.dom);
 
         this.resizeObserver = typeof ResizeObserver !== 'undefined'
-            ? new ResizeObserver(() => this.reposition())
+            ? new ResizeObserver(() => this.scheduleReposition())
             : null;
 
         this.mutationObserver = typeof MutationObserver !== 'undefined'
-            ? new MutationObserver(() => this.reposition())
+            ? new MutationObserver(() => this.scheduleReposition())
             : null;
 
         this.cleanupEvents = installLinkTooltipEvents({
@@ -68,7 +69,7 @@ export class LinkTooltipView {
             },
             hide: (force) => this.hide(force),
             scheduleFocus: () => this.scheduleFocus(),
-            reposition: () => this.reposition(),
+            reposition: () => this.scheduleReposition(),
             clearHideTimer: () => this.clearHideTimer(),
             startHideTimer: () => this.startHideTimer(),
             clearShowTimer: () => this.clearShowTimer(),
@@ -118,6 +119,20 @@ export class LinkTooltipView {
         }
 
         this.applyPosition(this.activeAnchor);
+    }
+
+    scheduleReposition() {
+        if (this.repositionFrameId !== null) return;
+        this.repositionFrameId = requestAnimationFrame(() => {
+            this.repositionFrameId = null;
+            this.reposition();
+        });
+    }
+
+    cancelScheduledReposition() {
+        if (this.repositionFrameId === null) return;
+        cancelAnimationFrame(this.repositionFrameId);
+        this.repositionFrameId = null;
     }
 
     handleEdit = (link: HTMLElement, text: string, url: string, shouldClose = false) => {
@@ -178,6 +193,7 @@ export class LinkTooltipView {
 
         this.dom.classList.add('hidden');
         this.disconnectPositionDependencies();
+        this.cancelScheduledReposition();
         this.activeLink = null;
         this.activeAnchor = null;
     }
@@ -283,6 +299,7 @@ export class LinkTooltipView {
         this.timers.clearAll();
         this.cleanupEvents?.();
         this.disconnectPositionDependencies();
+        this.cancelScheduledReposition();
         this.root?.unmount();
         this.dom.remove();
     }

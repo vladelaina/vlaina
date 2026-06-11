@@ -237,7 +237,7 @@ export function createTextEditorViewSession<
     return anchor ? getAnchorViewportPosition(anchor) : state.position;
   };
 
-  const updateEditorPosition = (state: TState) => {
+  const updateEditorPosition = (state: TState, options?: { deferResize?: boolean }) => {
     if (!editorElement) {
       return;
     }
@@ -255,8 +255,12 @@ export function createTextEditorViewSession<
     editorElement.style.left = `${nextPosition.x}px`;
     editorElement.style.top = `${nextPosition.y}px`;
 
-    clearPendingTextareaResize();
-    resizeTextareaToContent();
+    if (options?.deferResize) {
+      scheduleTextareaResize();
+    } else {
+      clearPendingTextareaResize();
+      resizeTextareaToContent();
+    }
 
     anchorResizeTracker.update();
   };
@@ -271,25 +275,35 @@ export function createTextEditorViewSession<
     },
   });
 
+  const focusTextareaNow = () => {
+    const nextTextarea = refs.textareaElement;
+    if (!nextTextarea) {
+      return;
+    }
+
+    try {
+      nextTextarea.focus({ preventScroll: true });
+    } catch {
+      nextTextarea.focus();
+    }
+    const length = nextTextarea.value.length;
+    nextTextarea.setSelectionRange(length, length);
+  };
+
   const focusTextareaAtEnd = () => {
     if (focusTextareaTimer !== null && typeof window !== 'undefined') {
       window.clearTimeout(focusTextareaTimer);
     }
 
     if (typeof window === 'undefined') {
-      const nextTextarea = refs.textareaElement;
-      nextTextarea?.focus();
-      const length = nextTextarea?.value.length ?? 0;
-      nextTextarea?.setSelectionRange(length, length);
+      focusTextareaNow();
       return;
     }
 
+    focusTextareaNow();
     focusTextareaTimer = window.setTimeout(() => {
       focusTextareaTimer = null;
-      const nextTextarea = refs.textareaElement;
-      nextTextarea?.focus();
-      const length = nextTextarea?.value.length ?? 0;
-      nextTextarea?.setSelectionRange(length, length);
+      focusTextareaNow();
     }, 0);
   };
 
@@ -363,11 +377,13 @@ export function createTextEditorViewSession<
       }
 
       const nextRenderedKey = getStateRenderKey(state);
+      let didRenderEditor = false;
       if (renderedKey !== nextRenderedKey || !refs.textareaElement) {
         renderEditor(state);
+        didRenderEditor = true;
       }
 
-      updateEditorPosition(state);
+      updateEditorPosition(state, { deferResize: didRenderEditor });
     },
     destroy() {
       document.removeEventListener('mousedown', handleClickOutside);

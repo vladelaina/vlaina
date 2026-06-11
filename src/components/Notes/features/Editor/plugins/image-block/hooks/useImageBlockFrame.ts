@@ -30,11 +30,38 @@ export function useImageBlockFrame({
     const containerRef = providedContainerRef ?? fallbackContainerRef;
     const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const lastUsableSizeRef = useRef({ width: 0, height: 0 });
+    const pendingObservedSizeRef = useRef<{ width: number; height: number } | null>(null);
+    const resizeFrameRef = useRef<number | null>(null);
     const [dragDimensions, setDragDimensions] = useState<{ width: number; height: number } | null>(null);
     const [observedSize, setObservedSize] = useState({ width: 0, height: 0 });
 
     useEffect(() => {
         if (!containerRef.current) return;
+
+        const commitObservedSize = () => {
+            resizeFrameRef.current = null;
+            const nextSize = pendingObservedSizeRef.current;
+            pendingObservedSizeRef.current = null;
+            if (!nextSize) {
+                return;
+            }
+
+            setObservedSize((prev) => {
+                if (Math.abs(prev.width - nextSize.width) > 0.5 || Math.abs(prev.height - nextSize.height) > 0.5) {
+                    return nextSize;
+                }
+                return prev;
+            });
+        };
+
+        const scheduleObservedSize = (nextSize: { width: number; height: number }) => {
+            pendingObservedSizeRef.current = nextSize;
+            if (resizeFrameRef.current !== null) {
+                return;
+            }
+
+            resizeFrameRef.current = window.requestAnimationFrame(commitObservedSize);
+        };
 
         const resizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
@@ -47,18 +74,20 @@ export function useImageBlockFrame({
                     return;
                 }
 
-                setObservedSize((prev) => {
-                    if (Math.abs(prev.width - width) > 0.5 || Math.abs(prev.height - nextHeight) > 0.5) {
-                        return nextSize;
-                    }
-                    return prev;
-                });
+                scheduleObservedSize(nextSize);
             }
         });
 
         resizeObserver.observe(containerRef.current);
-        return () => resizeObserver.disconnect();
-    }, [isActive]);
+        return () => {
+            resizeObserver.disconnect();
+            if (resizeFrameRef.current !== null) {
+                window.cancelAnimationFrame(resizeFrameRef.current);
+                resizeFrameRef.current = null;
+            }
+            pendingObservedSizeRef.current = null;
+        };
+    }, [containerRef, isActive]);
 
     useEffect(() => {
         return () => {

@@ -11,10 +11,13 @@ import {
   isFootnoteDefinitionElement,
   isFootnoteReferenceElement,
   isFootnoteReferenceNodeName,
+  isFootnoteDefinitionNodeName,
+  MAX_FOOTNOTE_DOC_SCAN_NODES,
   MAX_SYNCED_FOOTNOTE_DEFS,
   MAX_SYNCED_FOOTNOTE_REFS,
   stepSliceContainsFootnote,
 } from './footnoteScan';
+import { getTransactionChangedRanges } from '../shared/transactionStepText';
 
 type UndoableInputRule = InputRule & { undoable?: boolean };
 
@@ -127,6 +130,77 @@ function transactionMayInsertFootnote(tr: unknown): boolean {
   return steps.some(stepSliceContainsFootnote);
 }
 
+function isFootnoteNodeName(nodeName: string | undefined): boolean {
+  return Boolean(nodeName && (
+    isFootnoteReferenceNodeName(nodeName)
+    || isFootnoteDefinitionNodeName(nodeName)
+  ));
+}
+
+function positionTouchesFootnoteNode(doc: any, pos: number): boolean {
+  try {
+    const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+    const resolvedPos = Math.max(0, Math.min(pos, docSize));
+    const $pos = doc.resolve(resolvedPos);
+
+    for (let depth = $pos.depth; depth > 0; depth -= 1) {
+      if (isFootnoteNodeName($pos.node(depth)?.type?.name)) {
+        return true;
+      }
+    }
+
+    return Boolean(
+      isFootnoteNodeName($pos.nodeBefore?.type?.name)
+      || isFootnoteNodeName($pos.nodeAfter?.type?.name)
+      || isFootnoteNodeName(doc.nodeAt?.(resolvedPos)?.type?.name)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function rangeTouchesFootnoteNode(doc: any, from: number, to: number): boolean {
+  const docSize = typeof doc.content?.size === 'number' ? doc.content.size : 0;
+  const start = Math.max(0, Math.min(from, to, docSize));
+  const end = Math.max(start, Math.min(Math.max(from, to), docSize));
+
+  if (positionTouchesFootnoteNode(doc, start) || positionTouchesFootnoteNode(doc, end)) {
+    return true;
+  }
+  if (end <= start || typeof doc.nodesBetween !== 'function') {
+    return false;
+  }
+
+  let scanned = 0;
+  let touchesFootnote = false;
+  doc.nodesBetween(start, end, (node: any) => {
+    scanned += 1;
+    if (scanned > MAX_FOOTNOTE_DOC_SCAN_NODES) {
+      touchesFootnote = true;
+      return false;
+    }
+    if (isFootnoteNodeName(node.type?.name)) {
+      touchesFootnote = true;
+      return false;
+    }
+    return true;
+  });
+
+  return touchesFootnote;
+}
+
+export function transactionTouchesFootnoteContext(oldDoc: any, newDoc: any, tr: unknown): boolean {
+  const ranges = getTransactionChangedRanges(tr);
+  if (ranges.length === 0) {
+    return true;
+  }
+
+  return ranges.some((range) => (
+    rangeTouchesFootnoteNode(oldDoc, range.oldFrom, range.oldTo)
+    || rangeTouchesFootnoteNode(newDoc, range.newFrom, range.newTo)
+  ));
+}
+
 export function handleFootnoteArrowNavigation(view: EditorView, event: KeyboardEvent): boolean {
   if (
     (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')
@@ -189,11 +263,14 @@ export const footnoteInteractionPlugin = $prose(() => {
       init(_config, state) {
         return { hasFootnotes: docHasFootnoteNodes(state.doc) };
       },
-      apply(tr, previous) {
+      apply(tr, previous, oldState) {
         if (!tr.docChanged) {
           return previous;
         }
-        if (!previous.hasFootnotes && !transactionMayInsertFootnote(tr)) {
+        if (
+          !transactionMayInsertFootnote(tr)
+          && !transactionTouchesFootnoteContext(oldState.doc, tr.doc, tr)
+        ) {
           return previous;
         }
         return { hasFootnotes: docHasFootnoteNodes(tr.doc) };
@@ -201,21 +278,27 @@ export const footnoteInteractionPlugin = $prose(() => {
     },
     view(view) {
       let lastSyncedDoc: object | null = null;
-      if (footnoteInteractionPluginKey.getState(view.state)?.hasFootnotes) {
+      let lastSyncedState: FootnoteInteractionPluginState | null = null;
+      const initialPluginState = footnoteInteractionPluginKey.getState(view.state) ?? null;
+      if (initialPluginState?.hasFootnotes) {
         syncFootnoteReferencePreviews(view.dom);
         lastSyncedDoc = view.state.doc;
+        lastSyncedState = initialPluginState;
       }
       return {
         update(nextView) {
-          if (!footnoteInteractionPluginKey.getState(nextView.state)?.hasFootnotes) {
+          const pluginState = footnoteInteractionPluginKey.getState(nextView.state) ?? null;
+          if (!pluginState?.hasFootnotes) {
             lastSyncedDoc = null;
+            lastSyncedState = pluginState;
             return;
           }
-          if (lastSyncedDoc === nextView.state.doc) {
+          if (lastSyncedDoc === nextView.state.doc || lastSyncedState === pluginState) {
             return;
           }
           syncFootnoteReferencePreviews(nextView.dom);
           lastSyncedDoc = nextView.state.doc;
+          lastSyncedState = pluginState;
         },
       };
     },

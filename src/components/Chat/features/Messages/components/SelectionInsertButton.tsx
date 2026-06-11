@@ -82,6 +82,7 @@ export function SelectionInsertButton() {
 
     let outsideClampRaf: number | null = null;
     let mouseUpRaf: number | null = null;
+    let syncStateRaf: number | null = null;
     const stopOutsideClamp = () => {
       if (outsideClampRaf !== null) {
         cancelAnimationFrame(outsideClampRaf);
@@ -92,6 +93,12 @@ export function SelectionInsertButton() {
       if (mouseUpRaf !== null) {
         cancelAnimationFrame(mouseUpRaf);
         mouseUpRaf = null;
+      }
+    };
+    const stopSyncStateRaf = () => {
+      if (syncStateRaf !== null) {
+        cancelAnimationFrame(syncStateRaf);
+        syncStateRaf = null;
       }
     };
     const resetSelectionInteractionState = () => {
@@ -223,6 +230,7 @@ export function SelectionInsertButton() {
     };
 
     const handleForceReset = () => {
+      stopSyncStateRaf();
       resetSelectionInteractionState();
       const nextState = computeStateFromSelection();
       lastStateSignatureRef.current = getStateSignature(nextState);
@@ -240,7 +248,7 @@ export function SelectionInsertButton() {
         setState(null);
         return;
       }
-      syncState();
+      scheduleSyncState();
     };
 
     const syncState = () => {
@@ -268,15 +276,35 @@ export function SelectionInsertButton() {
       setState(nextState);
     };
 
+    const scheduleSyncState = () => {
+      if (syncStateRaf !== null) {
+        return;
+      }
+
+      syncStateRaf = requestAnimationFrame(() => {
+        syncStateRaf = null;
+        syncState();
+      });
+    };
+    const handleSelectionChange = () => {
+      if (isSelectingFromChatRef.current) {
+        stopSyncStateRaf();
+        syncState();
+        return;
+      }
+
+      scheduleSyncState();
+    };
+
     window.addEventListener("mousedown", handleMouseDown, true);
     window.addEventListener("mousemove", handleMouseMove, true);
     window.addEventListener("mouseup", handleMouseUp, true);
     document.addEventListener("selectstart", handleSelectStart, true);
-    document.addEventListener("selectionchange", syncState);
-    window.addEventListener("mouseup", syncState);
-    window.addEventListener("keyup", syncState);
-    window.addEventListener("resize", syncState);
-    window.addEventListener("scroll", syncState, true);
+    document.addEventListener("selectionchange", handleSelectionChange);
+    window.addEventListener("mouseup", scheduleSyncState);
+    window.addEventListener("keyup", scheduleSyncState);
+    window.addEventListener("resize", scheduleSyncState);
+    window.addEventListener("scroll", scheduleSyncState, true);
     window.addEventListener("blur", handleWindowBlur);
     window.addEventListener("pagehide", handleForceReset);
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -284,15 +312,16 @@ export function SelectionInsertButton() {
     return () => {
       resetSelectionInteractionState();
       stopMouseUpRaf();
+      stopSyncStateRaf();
       window.removeEventListener("mousedown", handleMouseDown, true);
       window.removeEventListener("mousemove", handleMouseMove, true);
       window.removeEventListener("mouseup", handleMouseUp, true);
       document.removeEventListener("selectstart", handleSelectStart, true);
-      document.removeEventListener("selectionchange", syncState);
-      window.removeEventListener("mouseup", syncState);
-      window.removeEventListener("keyup", syncState);
-      window.removeEventListener("resize", syncState);
-      window.removeEventListener("scroll", syncState, true);
+      document.removeEventListener("selectionchange", handleSelectionChange);
+      window.removeEventListener("mouseup", scheduleSyncState);
+      window.removeEventListener("keyup", scheduleSyncState);
+      window.removeEventListener("resize", scheduleSyncState);
+      window.removeEventListener("scroll", scheduleSyncState, true);
       window.removeEventListener("blur", handleWindowBlur);
       window.removeEventListener("pagehide", handleForceReset);
       document.removeEventListener("visibilitychange", handleVisibilityChange);

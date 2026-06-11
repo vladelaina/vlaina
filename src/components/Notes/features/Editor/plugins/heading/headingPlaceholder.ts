@@ -12,7 +12,7 @@ import {
 } from '../shared/transactionStepText';
 
 export const MAX_HEADING_PLACEHOLDER_DECORATIONS = 1000;
-const HEADING_PLACEHOLDER_STRUCTURE_TRIGGER_PATTERN = /[#\n\r]/u;
+const HEADING_PLACEHOLDER_LINE_BREAK_PATTERN = /[\n\r]/u;
 
 export const getHeadingPlaceholder = (rawLevel: number): string => {
     return getDefaultHeadingPlaceholderText(rawLevel);
@@ -78,7 +78,7 @@ export function transactionMayAffectHeadingPlaceholders(
     oldDoc: any,
     newDoc: any,
 ): boolean {
-    return transactionInsertedTextMatches(tr, HEADING_PLACEHOLDER_STRUCTURE_TRIGGER_PATTERN)
+    return transactionInsertedTextMatches(tr, HEADING_PLACEHOLDER_LINE_BREAK_PATTERN)
         || transactionTouchesDecorations(previous, tr)
         || transactionTouchesHeadingContext(oldDoc, newDoc, tr);
 }
