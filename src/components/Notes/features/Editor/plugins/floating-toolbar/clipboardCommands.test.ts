@@ -64,7 +64,7 @@ describe('floating toolbar clipboard commands', () => {
     expect(collapseSelectionAndHideFloatingToolbar).toHaveBeenCalledWith(view);
   });
 
-  it('prefers the active text selection over stale selected blocks', async () => {
+  it('prefers the visible block selection over a stale text selection', async () => {
     const markdownSerializer = vi.fn();
     const selection = { empty: false, from: 1, to: 7, eq: vi.fn((next) => next === selection) };
     const doc = { eq: vi.fn((next) => next === doc) };
@@ -80,9 +80,13 @@ describe('floating toolbar clipboard commands', () => {
     const copied = await copySelectionToClipboard(view);
 
     expect(copied).toBe(true);
-    expect(serializeSelectionToClipboardText).toHaveBeenCalledWith(state, markdownSerializer);
-    expect(serializeSelectedBlocksToText).not.toHaveBeenCalled();
-    expect(writeTextToClipboard).toHaveBeenCalledWith('Current text');
+    expect(serializeSelectedBlocksToText).toHaveBeenCalledWith(
+      state,
+      blockSelectionMocks.selectedBlocks,
+      { markdownSerializer },
+    );
+    expect(serializeSelectionToClipboardText).not.toHaveBeenCalled();
+    expect(writeTextToClipboard).toHaveBeenCalledWith('Stale block');
   });
 
   it('falls back to plain selected text when selection serialization is empty', async () => {
