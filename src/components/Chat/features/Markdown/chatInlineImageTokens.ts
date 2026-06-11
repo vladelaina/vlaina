@@ -1,6 +1,9 @@
 import { parseMarkdownAndHtmlImageTokens } from '@/components/Chat/common/messageImageTokens';
 import { normalizeRenderableDataImageSrc } from '@/components/common/markdown/imagePolicy';
-import { htmlImageTagHasDataImageSrc } from '@/lib/markdown/markdownHtmlImageSrc';
+import {
+  htmlImageTagHasDataImageSrc,
+  parseHtmlImageSrcTokenFromTag,
+} from '@/lib/markdown/markdownHtmlImageSrc';
 import {
   findHtmlTagEnd,
   getInlineCodeRanges,
@@ -15,7 +18,6 @@ const LARGE_DATA_IMAGE_MIN_LENGTH = 50_000;
 const MAX_COMPACTED_INLINE_IMAGES = 1000;
 const MAX_SCANNED_INLINE_IMAGE_TOKENS = 2000;
 const MAX_EXISTING_INLINE_IMAGE_TOKENS = 2000;
-const MAX_OVERFLOW_DATA_IMAGE_SCAN_CHARS = 16 * 1024 * 1024;
 const MAX_OVERFLOW_HTML_IMAGE_TAG_END_SCAN_CHARS = 64 * 1024;
 const MAX_OVERFLOW_INLINE_CODE_PROTECTION_RANGES = 4000;
 const DATA_IMAGE_TARGET_HINT_PATTERN = /\bdata(?::|&|&#)/i;
@@ -129,7 +131,8 @@ export function compactLargeDataImageMarkdown(markdown: string): CompactedChatMa
 export function scrubChatInlineDataImageSyntax(markdown: string): string {
   return scrubOverflowHtmlInlineDataImages(scrubOverflowMarkdownDataImages(markdown, {
     replacement: '[image]',
-    maxTargetChars: MAX_OVERFLOW_DATA_IMAGE_SCAN_CHARS,
+    maxTargetChars: LARGE_DATA_IMAGE_MIN_LENGTH,
+    scrubMatchedDataImages: false,
   }));
 }
 
@@ -187,7 +190,7 @@ function scrubOverflowHtmlInlineDataImagesInRange(markdown: string, range: Conte
     }
 
     const tag = markdown.slice(start, tagEnd);
-    if (!htmlImageTagHasDataImageSrc(tag)) {
+    if (!htmlImageTagNeedsDataImageScrub(tag)) {
       output += markdown.slice(cursor, tagEnd);
       cursor = tagEnd;
       continue;
@@ -199,6 +202,15 @@ function scrubOverflowHtmlInlineDataImagesInRange(markdown: string, range: Conte
   }
 
   return output;
+}
+
+function htmlImageTagNeedsDataImageScrub(tag: string): boolean {
+  const src = parseHtmlImageSrcTokenFromTag(tag)?.src;
+  if (src) {
+    return /^data:image\//i.test(src.trimStart()) && src.length >= LARGE_DATA_IMAGE_MIN_LENGTH;
+  }
+
+  return htmlImageTagHasDataImageSrc(tag);
 }
 
 function indexOfAsciiCaseInsensitive(value: string, needle: string, fromIndex: number): number {

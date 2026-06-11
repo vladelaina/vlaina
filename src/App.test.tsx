@@ -65,6 +65,12 @@ const mocks = vi.hoisted(() => {
     refreshBudgetIfStale: vi.fn().mockResolvedValue(undefined),
     readImportedMarkdownThemeMetadata: vi.fn(),
     setTheme: vi.fn(),
+    initializeVaultStore: vi.fn().mockResolvedValue(undefined),
+    restoreLastAppViewMode: vi.fn(),
+    restoreNotesChatFloatingSize: vi.fn(),
+    setSidebarWidth: vi.fn(),
+    toggleSidebar: vi.fn(),
+    setAppViewMode: vi.fn(),
   };
 });
 
@@ -140,25 +146,36 @@ vi.mock('@/stores/useNotesStore', () => ({
   },
 }));
 
-vi.mock('@/stores/useVaultStore', () => ({
-  useVaultStore: () => ({
+vi.mock('@/stores/useVaultStore', () => {
+  const vaultState = {
     currentVault: null,
-    initialize: vi.fn(),
-  }),
-}));
+    initialize: mocks.initializeVaultStore,
+  };
 
-vi.mock('@/stores/uiSlice', () => ({
-  useUIStore: () => ({
+  return {
+    useVaultStore: (selector?: (state: typeof vaultState) => unknown) =>
+      selector ? selector(vaultState) : vaultState,
+  };
+});
+
+vi.mock('@/stores/uiSlice', () => {
+  const uiState = {
     appViewMode: 'chat',
     sidebarCollapsed: false,
     sidebarWidth: 320,
     notesChatPanelCollapsed: true,
-    setSidebarWidth: vi.fn(),
-    toggleSidebar: vi.fn(),
-    setAppViewMode: vi.fn(),
-    restoreLastAppViewMode: vi.fn(),
-  }),
-}));
+    setSidebarWidth: mocks.setSidebarWidth,
+    toggleSidebar: mocks.toggleSidebar,
+    setAppViewMode: mocks.setAppViewMode,
+    restoreLastAppViewMode: mocks.restoreLastAppViewMode,
+    restoreNotesChatFloatingSize: mocks.restoreNotesChatFloatingSize,
+  };
+
+  return {
+    useUIStore: (selector?: (state: typeof uiState) => unknown) =>
+      selector ? selector(uiState) : uiState,
+  };
+});
 
 vi.mock('@/stores/useToastStore', () => ({
   useToastStore: {
@@ -365,6 +382,13 @@ describe('App close flow', () => {
     mocks.readImportedMarkdownThemeMetadata.mockReset();
     mocks.readImportedMarkdownThemeMetadata.mockResolvedValue(null);
     mocks.setTheme.mockClear();
+    mocks.initializeVaultStore.mockClear();
+    mocks.initializeVaultStore.mockResolvedValue(undefined);
+    mocks.restoreLastAppViewMode.mockClear();
+    mocks.restoreNotesChatFloatingSize.mockClear();
+    mocks.setSidebarWidth.mockClear();
+    mocks.toggleSidebar.mockClear();
+    mocks.setAppViewMode.mockClear();
     document.documentElement.className = '';
     document.documentElement.removeAttribute('style');
     useUnifiedStore.setState((state) => ({

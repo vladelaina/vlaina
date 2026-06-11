@@ -181,6 +181,7 @@ export const SYNC_CONTRACTS: readonly SyncContractEntry[] = [
       'vlaina_last_app_view_mode',
       'vlaina_notes_chat_panel_collapsed',
       'vlaina_notes_chat_panel_width_v2',
+      'vlaina_notes_chat_floating_size',
     ],
     autoSyncKinds: ['ui-preferences'],
     crossWindow: true,

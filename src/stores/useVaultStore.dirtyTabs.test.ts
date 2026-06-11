@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => mocks.storage,
   isAbsolutePath: (path: string) => path.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(path),
+  normalizeAbsolutePath: (path: string) => path.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/\/+$/, ''),
 }));
 
 vi.mock('./vaultConfig', () => ({

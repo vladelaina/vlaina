@@ -451,10 +451,15 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.scheduleSidebarItemIntoView.mockClear();
     hoisted.consumeSuppressedCurrentNoteSidebarReveal.mockClear();
 
+    await Promise.all([
+      import('../Editor/utils/editorViewRegistry'),
+      import('./sidebarSearchNavigation'),
+    ]);
+
     fireEvent.click(getByText('topic:docs/tagged.md'));
 
+    expect(hoisted.suppressNextCurrentNoteSidebarReveal).toHaveBeenCalledWith('docs/tagged.md');
     await waitFor(() => {
-      expect(hoisted.suppressNextCurrentNoteSidebarReveal).toHaveBeenCalledWith('docs/tagged.md');
       expect(hoisted.openNote).toHaveBeenCalledWith('docs/tagged.md');
     });
 
