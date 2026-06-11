@@ -645,6 +645,7 @@ describe('unifiedStorage electron save', () => {
         lastAppViewMode: 'chat',
         colorMode: 'system',
         themeId: 'default',
+        notesChatFloatingSize: { width: 420, height: 680 },
       },
     });
     expect(mainPayload.data.customIcons.map((icon: { id: string }) => icon.id)).toEqual([
@@ -955,6 +956,7 @@ describe('unifiedStorage electron save', () => {
         lastAppViewMode: 'chat',
         colorMode: 'system',
         themeId: 'default',
+        notesChatFloatingSize: { width: 420, height: 680 },
       },
     });
   });
@@ -1042,6 +1044,7 @@ describe('unifiedStorage electron save', () => {
         lastAppViewMode: 'chat',
         colorMode: 'system',
         themeId: 'default',
+        notesChatFloatingSize: { width: 420, height: 680 },
       },
     });
     expect(payload.data.customIcons.map((icon: { id: string }) => icon.id)).toEqual([
