@@ -211,6 +211,21 @@ it('should drop root-path raw media urls in github html', () => {
   expect(result).toBe('<img><img><img><img src="./images/safe.png"><img src="../images/safe.png"><img src="https://example.com/safe.png"><iframe src="https://example.com/embed" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe><video src="https://example.com/demo.mp4"></video>')
 })
 
+it('should drop ambiguous remote raw media urls in github html', () => {
+  const result = sanitizeGithubHtml([
+    '<img src="https:example.com/no-authority.png">',
+    '<img src="http:/example.com/one-slash.png">',
+    String.raw`<iframe src="//example.com\embed"></iframe>`,
+    String.raw`<video src="https://example.com/movie.mp4" poster="//example.com\poster.png"></video>`,
+    '<img src="https://example.com/safe.png">',
+  ].join(''))
+
+  expect(result).toBe('<img><img><video src="https://example.com/movie.mp4"></video><img src="https://example.com/safe.png">')
+  expect(result).not.toContain('no-authority')
+  expect(result).not.toContain('one-slash')
+  expect(result).not.toContain('\\')
+})
+
 it('should drop protocol-relative links in github html', () => {
   const result = sanitizeGithubHtml('<a href="//example.com/path">protocol</a>')
 

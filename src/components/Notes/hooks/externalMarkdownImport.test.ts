@@ -13,6 +13,18 @@ const mocks = vi.hoisted(() => {
 
   return {
     storage,
+    authorizePath: vi.fn(),
+    electronBridge: null as null | {
+      dragDrop?: {
+        authorizePath?: (path: string) => Promise<{
+          name?: string;
+          path?: string;
+          isDirectory?: boolean;
+          isFile?: boolean;
+          size?: number;
+        } | null>;
+      };
+    },
     resolveUniquePath: vi.fn(),
     markExpectedExternalChange: vi.fn(),
   };
@@ -31,6 +43,10 @@ vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => mocks.storage,
 }));
 
+vi.mock('@/lib/electron/bridge', () => ({
+  getElectronBridge: () => mocks.electronBridge,
+}));
+
 vi.mock('@/stores/notes/utils/fs/pathOperations', () => ({
   resolveUniquePath: mocks.resolveUniquePath,
 }));
@@ -47,6 +63,8 @@ describe('importExternalMarkdownEntries', () => {
     mocks.storage.listDir.mockReset();
     mocks.storage.deleteFile.mockReset();
     mocks.storage.deleteDir.mockReset();
+    mocks.authorizePath.mockReset();
+    mocks.electronBridge = null;
     mocks.resolveUniquePath.mockReset();
     mocks.markExpectedExternalChange.mockReset();
   });
@@ -73,6 +91,70 @@ describe('importExternalMarkdownEntries', () => {
     expect(mocks.resolveUniquePath).toHaveBeenCalledWith('/vault', 'imports', 'alpha.markdown', false);
     expect(mocks.markExpectedExternalChange).toHaveBeenCalledWith('/vault/imports/alpha.markdown');
     expect(mocks.storage.copyFile).toHaveBeenCalledWith('/outside/alpha.markdown', '/vault/imports/alpha.markdown');
+  });
+
+  it('imports the authorized path when desktop authorization normalizes a dropped file path', async () => {
+    mocks.electronBridge = {
+      dragDrop: {
+        authorizePath: mocks.authorizePath,
+      },
+    };
+    mocks.authorizePath.mockResolvedValue({
+      name: 'canonical.markdown',
+      path: '/outside/canonical.markdown',
+      isFile: true,
+      isDirectory: false,
+      size: 1024,
+    });
+    mocks.storage.stat.mockResolvedValue({
+      isFile: true,
+      isDirectory: false,
+      size: 1024,
+    });
+    mocks.resolveUniquePath.mockResolvedValue({
+      relativePath: 'imports/canonical.markdown',
+      fullPath: '/vault/imports/canonical.markdown',
+      fileName: 'canonical.markdown',
+    });
+
+    const result = await importExternalMarkdownEntries('/vault', 'imports', ['/tmp/link.md']);
+
+    expect(result).toEqual({
+      importedNotePaths: ['imports/canonical.markdown'],
+      importedFolderPaths: [],
+      didImport: true,
+    });
+    expect(mocks.authorizePath).toHaveBeenCalledWith('/tmp/link.md');
+    expect(mocks.resolveUniquePath).toHaveBeenCalledWith('/vault', 'imports', 'canonical.markdown', false);
+    expect(mocks.storage.copyFile).toHaveBeenCalledWith(
+      '/outside/canonical.markdown',
+      '/vault/imports/canonical.markdown',
+    );
+  });
+
+  it('skips authorized import paths that resolve into internal note folders', async () => {
+    mocks.electronBridge = {
+      dragDrop: {
+        authorizePath: mocks.authorizePath,
+      },
+    };
+    mocks.authorizePath.mockResolvedValue({
+      name: 'workspace.md',
+      path: '/outside/.vlaina/workspace.md',
+      isFile: true,
+      isDirectory: false,
+      size: 1024,
+    });
+
+    const result = await importExternalMarkdownEntries('/vault', 'imports', ['/tmp/link.md']);
+
+    expect(result).toEqual({
+      importedNotePaths: [],
+      importedFolderPaths: [],
+      didImport: false,
+    });
+    expect(mocks.resolveUniquePath).not.toHaveBeenCalled();
+    expect(mocks.storage.copyFile).not.toHaveBeenCalled();
   });
 
   it('skips external markdown files that are too large to open later', async () => {
@@ -597,6 +679,31 @@ describe('importExternalMarkdownEntries', () => {
       vaultPath: '/outside',
       relativePath: 'alpha.md',
     }]);
+    expect(mocks.resolveUniquePath).not.toHaveBeenCalled();
+    expect(mocks.storage.copyFile).not.toHaveBeenCalled();
+  });
+
+  it('stars the authorized path when desktop authorization normalizes a dropped file path', async () => {
+    mocks.electronBridge = {
+      dragDrop: {
+        authorizePath: mocks.authorizePath,
+      },
+    };
+    mocks.authorizePath.mockResolvedValue({
+      name: 'canonical.markdown',
+      path: '/outside/canonical.markdown',
+      isFile: true,
+      isDirectory: false,
+    });
+
+    const result = await resolveExternalMarkdownEntriesForStarred('/vault', ['/tmp/link.md']);
+
+    expect(result).toEqual([{
+      kind: 'note',
+      vaultPath: '/outside',
+      relativePath: 'canonical.markdown',
+    }]);
+    expect(mocks.authorizePath).toHaveBeenCalledWith('/tmp/link.md');
     expect(mocks.resolveUniquePath).not.toHaveBeenCalled();
     expect(mocks.storage.copyFile).not.toHaveBeenCalled();
   });

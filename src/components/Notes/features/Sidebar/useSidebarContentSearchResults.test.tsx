@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { FolderNode } from '@/stores/useNotesStore';
 import {
@@ -20,6 +20,31 @@ function createRootFolder(noteCount: number, namePrefix: string): FolderNode {
       isFolder: false,
     })),
   };
+}
+
+function createRootFolderFromPaths(paths: string[]): FolderNode {
+  return {
+    id: 'root',
+    name: 'Notes',
+    path: '',
+    isFolder: true,
+    expanded: true,
+    children: paths.map((path) => ({
+      id: path,
+      name: path.split('/').pop() ?? path,
+      path,
+      isFolder: false,
+    })),
+  };
+}
+
+function createDeferredPromise() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((innerResolve) => {
+    resolve = innerResolve;
+  });
+
+  return { promise, resolve };
 }
 
 describe('useSidebarContentSearchResults', () => {
@@ -62,5 +87,51 @@ describe('useSidebarContentSearchResults', () => {
       expect(scanAllNotes).toHaveBeenCalledTimes(1);
     });
     expect(result.current.isContentScanPending).toBe(true);
+  });
+
+  it('starts another scan when searchable entries change during an in-flight scan', async () => {
+    const firstScan = createDeferredPromise();
+    const scanAllNotes = vi.fn()
+      .mockReturnValueOnce(firstScan.promise)
+      .mockReturnValue(new Promise<void>(() => {}));
+    const cancelNoteContentScan = vi.fn();
+    const pruneNoteContentsCacheToOpenNotes = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ rootFolder, cache }) => useSidebarContentSearchResults({
+        rootFolder,
+        getDisplayName: (path) => path.split('/').pop() ?? path,
+        noteContentsCache: cache,
+        scanAllNotes,
+        cancelNoteContentScan,
+        pruneNoteContentsCacheToOpenNotes,
+        searchQuery: 'needle',
+        isSearchOpen: true,
+      }),
+      {
+        initialProps: {
+          rootFolder: createRootFolderFromPaths(['docs/alpha.md']),
+          cache: new Map<string, { content: string }>(),
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(scanAllNotes).toHaveBeenCalledTimes(1);
+    });
+
+    rerender({
+      rootFolder: createRootFolderFromPaths(['docs/alpha.md', 'docs/beta.md']),
+      cache: new Map(),
+    });
+
+    await act(async () => {
+      firstScan.resolve();
+      await firstScan.promise;
+    });
+
+    await waitFor(() => {
+      expect(scanAllNotes).toHaveBeenCalledTimes(2);
+    });
   });
 });

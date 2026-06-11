@@ -114,6 +114,23 @@ function hasUnsafeExternalMarkdownPathSegment(path: string) {
     .some((segment) => !isSafeVaultPathSegment(segment));
 }
 
+function isAllowedExternalMarkdownPath(path: string) {
+  return !(
+    isBlankExternalMarkdownPath(path) ||
+    hasExplicitExternalMarkdownNonPathScheme(path) ||
+    isInsideInternalExternalMarkdownPath(path) ||
+    hasUnsafeExternalMarkdownPathSegment(path)
+  );
+}
+
+function getAuthorizedExternalMarkdownPath(
+  info: { path?: string | null } | null | undefined,
+  fallbackPath: string,
+) {
+  const authorizedPath = info?.path?.trim();
+  return authorizedPath || fallbackPath;
+}
+
 function spendExternalMarkdownScanBudget(budget: ExternalMarkdownImportBudget): boolean {
   if (budget.scannedEntries >= MAX_EXTERNAL_MARKDOWN_SCAN_ENTRIES) {
     return false;
@@ -346,12 +363,7 @@ export async function importExternalMarkdownEntries(
     if (!spendExternalMarkdownScanBudget(budget)) {
       break;
     }
-    if (
-      isBlankExternalMarkdownPath(absolutePath) ||
-      hasExplicitExternalMarkdownNonPathScheme(absolutePath) ||
-      isInsideInternalExternalMarkdownPath(absolutePath) ||
-      hasUnsafeExternalMarkdownPathSegment(absolutePath)
-    ) {
+    if (!isAllowedExternalMarkdownPath(absolutePath)) {
       continue;
     }
 
@@ -359,8 +371,13 @@ export async function importExternalMarkdownEntries(
     if (!info) {
       continue;
     }
+    const sourcePath = getAuthorizedExternalMarkdownPath(info, absolutePath);
+    if (!isAllowedExternalMarkdownPath(sourcePath)) {
+      continue;
+    }
+
     if (info?.isDirectory) {
-      if (shouldSkipExternalMarkdownDirectory(getBaseName(absolutePath))) {
+      if (shouldSkipExternalMarkdownDirectory(getBaseName(sourcePath))) {
         continue;
       }
       if (budget.visitedEntries >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES) {
@@ -368,7 +385,7 @@ export async function importExternalMarkdownEntries(
       }
       budget.visitedEntries += 1;
       await importExternalMarkdownDirectory(
-        absolutePath,
+        sourcePath,
         vaultPath,
         targetFolderPath || undefined,
         importedNotePaths,
@@ -378,7 +395,7 @@ export async function importExternalMarkdownEntries(
       continue;
     }
 
-    if (!info?.isFile || !isSupportedMarkdownSelection(absolutePath)) {
+    if (!info?.isFile || !isSupportedMarkdownSelection(sourcePath)) {
       continue;
     }
     if (budget.visitedEntries >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES) {
@@ -386,12 +403,12 @@ export async function importExternalMarkdownEntries(
     }
     budget.visitedEntries += 1;
 
-    if (!await isImportableExternalMarkdownFile(absolutePath, info)) {
+    if (!await isImportableExternalMarkdownFile(sourcePath, info)) {
       continue;
     }
 
     const importedPath = await importExternalMarkdownFile(
-      absolutePath,
+      sourcePath,
       vaultPath,
       targetFolderPath || undefined,
     );
@@ -427,12 +444,7 @@ export async function resolveExternalMarkdownEntriesForStarred(
     }
     scannedEntries += 1;
 
-    if (
-      isBlankExternalMarkdownPath(absolutePath) ||
-      hasExplicitExternalMarkdownNonPathScheme(absolutePath) ||
-      isInsideInternalExternalMarkdownPath(absolutePath) ||
-      hasUnsafeExternalMarkdownPathSegment(absolutePath)
-    ) {
+    if (!isAllowedExternalMarkdownPath(absolutePath)) {
       continue;
     }
 
@@ -440,7 +452,12 @@ export async function resolveExternalMarkdownEntriesForStarred(
     if (!info) {
       continue;
     }
-    const existingRelativePath = getExistingVaultRelativePath(vaultPath, absolutePath);
+    const sourcePath = getAuthorizedExternalMarkdownPath(info, absolutePath);
+    if (!isAllowedExternalMarkdownPath(sourcePath)) {
+      continue;
+    }
+
+    const existingRelativePath = getExistingVaultRelativePath(vaultPath, sourcePath);
 
     if (existingRelativePath) {
       if (info?.isDirectory) {
@@ -452,7 +469,7 @@ export async function resolveExternalMarkdownEntriesForStarred(
         continue;
       }
 
-      if (info?.isFile && isSupportedMarkdownSelection(absolutePath)) {
+      if (info?.isFile && isSupportedMarkdownSelection(sourcePath)) {
         targets.push({
           kind: 'note',
           vaultPath,
@@ -462,16 +479,16 @@ export async function resolveExternalMarkdownEntriesForStarred(
       }
     }
 
-    if (isPathInsideStarredVault(absolutePath, vaultPath)) {
+    if (isPathInsideStarredVault(sourcePath, vaultPath)) {
       continue;
     }
 
-    if (!info || (!info.isDirectory && !(info.isFile && isSupportedMarkdownSelection(absolutePath)))) {
+    if (!info || (!info.isDirectory && !(info.isFile && isSupportedMarkdownSelection(sourcePath)))) {
       continue;
     }
 
-    const parentPath = getParentPath(absolutePath);
-    const relativePath = getBaseName(absolutePath);
+    const parentPath = getParentPath(sourcePath);
+    const relativePath = getBaseName(sourcePath);
     if (!parentPath || !relativePath) {
       continue;
     }

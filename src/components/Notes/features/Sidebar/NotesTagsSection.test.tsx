@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NotesTagsSection } from './NotesTagsSection';
+import { MAX_CONCURRENT_TAG_NOTE_ICON_METADATA_READS, NotesTagsSection } from './NotesTagsSection';
 
 const mocked = vi.hoisted(() => ({
   readFile: vi.fn(async () => ''),
@@ -220,6 +220,56 @@ describe('NotesTagsSection', () => {
     });
     expect(mocked.stat).not.toHaveBeenCalled();
     expect(mocked.readFile).not.toHaveBeenCalled();
+  });
+
+  it('limits concurrent tag note icon metadata reads', async () => {
+    mocked.stat.mockResolvedValue({ isFile: true, modifiedAt: 1, size: 32 });
+    const readResolvers: Array<(content: string) => void> = [];
+    mocked.readFile.mockImplementation(
+      () => new Promise<string>((resolve) => {
+        readResolvers.push(resolve);
+      }),
+    );
+    const rowCount = MAX_CONCURRENT_TAG_NOTE_ICON_METADATA_READS + 3;
+
+    render(
+      <NotesTagsSection
+        tags={[
+          {
+            tag: 'fanout-topic',
+            count: rowCount,
+            paths: Array.from({ length: rowCount }, (_, index) => ({
+              path: `docs/fanout-${index}.md`,
+              query: '#fanout-topic',
+              contentMatchOrdinal: index,
+            })),
+          },
+        ]}
+        getDisplayName={(path) => path}
+        onOpenNote={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(await screen.findByText('fanout-topic'));
+
+    await waitFor(() => {
+      expect(mocked.readFile).toHaveBeenCalledTimes(MAX_CONCURRENT_TAG_NOTE_ICON_METADATA_READS);
+    });
+
+    const firstBatch = readResolvers.slice();
+    firstBatch.forEach((resolve) => resolve('---\nvlaina_icon: "limited"\n---\n# Note'));
+
+    await waitFor(() => {
+      expect(mocked.readFile).toHaveBeenCalledTimes(rowCount);
+    });
+
+    readResolvers
+      .slice(firstBatch.length)
+      .forEach((resolve) => resolve('---\nvlaina_icon: "limited"\n---\n# Note'));
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('note-icon')).toHaveLength(rowCount);
+    });
   });
 
   it('reloads cached tag note icon metadata when file metadata changes', async () => {
