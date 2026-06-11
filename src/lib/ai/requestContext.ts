@@ -33,6 +33,7 @@ const MAX_REQUEST_HISTORY_IMAGE_TARGET_CHARS = 4096;
 const MAX_REQUEST_HISTORY_IMAGE_LABEL_SCAN_CHARS = 1024 * 1024;
 const MAX_REQUEST_HISTORY_IMAGE_TOTAL_LABEL_SCAN_CHARS = 4 * MAX_REQUEST_HISTORY_IMAGE_LABEL_SCAN_CHARS;
 const MAX_REQUEST_HISTORY_IMAGE_TOKENS = 2000;
+const MAX_REQUEST_HISTORY_HTML_IMAGE_TAG_END_SCAN_CHARS = 64 * 1024;
 const MAX_REQUEST_HISTORY_HTML_TAG_SCAN_MARKERS = 4000;
 const MAX_REQUEST_HISTORY_INLINE_CODE_PROTECTION_RANGES = 4000;
 const CONTENT_TRUNCATION_MARKER = '\n[Earlier content omitted]\n';
@@ -42,6 +43,7 @@ const HISTORY_IMAGE_SOURCE_PREFIXES = [
   'app-file://',
   'file://',
 ];
+const HISTORY_IMAGE_SOURCE_HINT_PATTERN = /\b(?:data|attachment|app-file|file)(?::|&|&#)/i;
 
 export function formatTimeByOffset(offset: number, now = new Date()): string {
   const utcMs = now.getTime();
@@ -118,7 +120,11 @@ function scrubOverflowHistoryHtmlImagesInRange(content: string, range: ContentRa
       continue;
     }
 
-    const tagEnd = findHtmlTagEnd(content, start, range.end);
+    const tagEnd = findHtmlTagEnd(
+      content,
+      start,
+      Math.min(range.end, start + MAX_REQUEST_HISTORY_HTML_IMAGE_TAG_END_SCAN_CHARS + 1),
+    );
     const isUnboundedImageTag =
       tagEnd === -1 || tagEnd > range.end || tagEnd - start > MAX_REQUEST_HISTORY_IMAGE_TARGET_CHARS;
     if (isUnboundedImageTag) {
@@ -333,6 +339,7 @@ function replaceHistoryImageTokens(content: string): string {
   const replaced = replaceImageTokens(content, tokens, IMAGE_PLACEHOLDER);
   if (
     tokens.length >= MAX_REQUEST_HISTORY_IMAGE_TOKENS ||
+    HISTORY_IMAGE_SOURCE_HINT_PATTERN.test(replaced) ||
     countNeedleOccurrences(content, '![', MAX_REQUEST_HISTORY_IMAGE_TOKENS) > MAX_REQUEST_HISTORY_IMAGE_TOKENS ||
     countNeedleOccurrences(content, '<', MAX_REQUEST_HISTORY_HTML_TAG_SCAN_MARKERS) > MAX_REQUEST_HISTORY_HTML_TAG_SCAN_MARKERS
   ) {

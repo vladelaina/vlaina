@@ -1,8 +1,57 @@
-import { getNoteTitleFromPath } from '@/lib/notes/displayName';
+import { getNoteTitleFromPath, normalizeNotePathKey } from '@/lib/notes/displayName';
+import { isAbsolutePath } from '@/lib/storage/adapter';
 import type { CurrentNoteState, NotesStore } from '../types';
 
+function normalizeExternalAbsolutePath(path: string): string | null {
+  const normalized = normalizeNotePathKey(path) ?? path;
+  return isAbsolutePath(normalized) ? normalized : null;
+}
+
+export function getExternalPathComparisonKey(path: string): string {
+  const normalized = normalizeExternalAbsolutePath(path);
+  if (!normalized) {
+    return path;
+  }
+
+  return /^[A-Za-z]:\//.test(normalized) || normalized.startsWith('//')
+    ? normalized.toLowerCase()
+    : normalized;
+}
+
+export function isSameExternalPath(path: string, otherPath: string): boolean {
+  const normalizedPath = normalizeExternalAbsolutePath(path);
+  const normalizedOtherPath = normalizeExternalAbsolutePath(otherPath);
+  if (!normalizedPath || !normalizedOtherPath) {
+    return path === otherPath;
+  }
+
+  return getExternalPathComparisonKey(normalizedPath) === getExternalPathComparisonKey(normalizedOtherPath);
+}
+
+function getPathWithinSuffix(path: string, basePath: string): string | null {
+  const normalizedPath = normalizeExternalAbsolutePath(path);
+  const normalizedBasePath = normalizeExternalAbsolutePath(basePath);
+  if (!normalizedPath || !normalizedBasePath) {
+    if (path === basePath) {
+      return '';
+    }
+    return path.startsWith(`${basePath}/`) ? path.slice(basePath.length) : null;
+  }
+
+  const pathKey = getExternalPathComparisonKey(normalizedPath);
+  const basePathKey = getExternalPathComparisonKey(normalizedBasePath);
+  if (pathKey === basePathKey) {
+    return '';
+  }
+
+  const childPrefix = basePathKey.endsWith('/') ? basePathKey : `${basePathKey}/`;
+  return pathKey.startsWith(childPrefix)
+    ? normalizedPath.slice(normalizedBasePath.length)
+    : null;
+}
+
 function isPathWithin(path: string, basePath: string): boolean {
-  return path === basePath || path.startsWith(`${basePath}/`);
+  return getPathWithinSuffix(path, basePath) != null;
 }
 
 function isPreservedDeletedPath(
@@ -13,21 +62,31 @@ function isPreservedDeletedPath(
     return false;
   }
 
-  return typeof preservedPath === 'string'
-    ? preservedPath === path
-    : preservedPath.has(path);
+  if (typeof preservedPath === 'string') {
+    return isSameExternalPath(preservedPath, path);
+  }
+
+  for (const preserved of preservedPath) {
+    if (isSameExternalPath(preserved, path)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function remapPathForExternalRename(path: string, oldPath: string, newPath: string): string {
-  if (path === oldPath) {
+  const suffix = getPathWithinSuffix(path, oldPath);
+  if (suffix == null) {
+    return path;
+  }
+
+  if (!suffix) {
     return newPath;
   }
 
-  if (path.startsWith(`${oldPath}/`)) {
-    return `${newPath}${path.slice(oldPath.length)}`;
-  }
-
-  return path;
+  return newPath.endsWith('/') || suffix.startsWith('/')
+    ? `${newPath}${suffix}`
+    : `${newPath}/${suffix}`;
 }
 
 export function shouldRemoveForExternalDeletion(path: string, deletedPath: string): boolean {
@@ -46,7 +105,10 @@ export function remapOpenTabsForExternalRename(
 
   for (const tab of openTabs) {
     const nextPath = remapPathForExternalRename(tab.path, oldPath, newPath);
-    const shouldUpdateTitle = tab.path === oldPath && tab.name === oldTitle;
+    const tabTitle = getNoteTitleFromPath(tab.path);
+    const shouldUpdateTitle =
+      isSameExternalPath(tab.path, oldPath) &&
+      (tab.name === oldTitle || tab.name === tabTitle);
     const nextTab = nextPath === tab.path
       ? tab
       : {
@@ -54,9 +116,9 @@ export function remapOpenTabsForExternalRename(
           path: nextPath,
           name: shouldUpdateTitle ? newTitle : tab.name,
         };
-    const existingIndex = tabIndexByPath.get(nextPath);
+    const existingIndex = tabIndexByPath.get(getExternalPathComparisonKey(nextPath));
     if (existingIndex === undefined) {
-      tabIndexByPath.set(nextPath, mergedTabs.length);
+      tabIndexByPath.set(getExternalPathComparisonKey(nextPath), mergedTabs.length);
       mergedTabs.push(nextTab);
       continue;
     }
@@ -99,7 +161,12 @@ export function remapDisplayNamesForExternalRename(
 
   for (const [path, displayName] of displayNames.entries()) {
     const nextPath = remapPathForExternalRename(path, oldPath, newPath);
-    if (nextPath !== path && path === oldPath && displayName === oldTitle) {
+    const pathTitle = getNoteTitleFromPath(path);
+    if (
+      nextPath !== path &&
+      isSameExternalPath(path, oldPath) &&
+      (displayName === oldTitle || displayName === pathTitle)
+    ) {
       nextDisplayNames.set(nextPath, newTitle);
       continue;
     }
@@ -146,7 +213,19 @@ export function remapRecentNotesForExternalRename(
     return nextPath;
   });
 
-  return changed ? Array.from(new Set(nextRecentNotes)) : recentNotes;
+  if (!changed) {
+    return recentNotes;
+  }
+
+  const seenPaths = new Set<string>();
+  return nextRecentNotes.filter((path) => {
+    const key = getExternalPathComparisonKey(path);
+    if (seenPaths.has(key)) {
+      return false;
+    }
+    seenPaths.add(key);
+    return true;
+  });
 }
 
 export function remapExpandedFoldersForExternalRename(
@@ -164,7 +243,19 @@ export function remapExpandedFoldersForExternalRename(
     return nextPath;
   });
 
-  return changed ? Array.from(new Set(nextExpandedFolders)) : expandedFolders;
+  if (!changed) {
+    return expandedFolders;
+  }
+
+  const seenPaths = new Set<string>();
+  return nextExpandedFolders.filter((path) => {
+    const key = getExternalPathComparisonKey(path);
+    if (seenPaths.has(key)) {
+      return false;
+    }
+    seenPaths.add(key);
+    return true;
+  });
 }
 
 export function pruneRecentNotesForExternalDeletion(

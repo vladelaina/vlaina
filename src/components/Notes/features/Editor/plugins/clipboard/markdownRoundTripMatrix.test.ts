@@ -162,7 +162,7 @@ describe('markdown syntax persistence matrix', () => {
         '<mark style="BACKGROUND-COLOR: #ecf6ff">a * b &amp; c</mark>',
       ].join(' '),
       expected: [
-        '<span style="font-weight: 600; color: #123456">Use <em>literal</em> [text] "quote"</span>',
+        '<span style="color: #123456">Use </span>*<span style="color: #123456">literal</span>*<span style="color: #123456"> [text] "quote"</span>',
         '<mark style="background-color: #ecf6ff">a * b &amp; c</mark>',
       ].join(' '),
       expectedText: 'Use literal [text] "quote" a * b & c',
@@ -176,6 +176,7 @@ describe('markdown syntax persistence matrix', () => {
     {
       name: 'custom inline color html around markdown links remains stable',
       markdown: '<span style="color : #123456">[Docs](https://example.com)</span> <mark style="background-color : #ecf6ff">[Safe](docs/safe.md)</mark>',
+      expected: '[<span style="color: #123456">Docs</span>](https://example.com) [<mark style="background-color: #ecf6ff">Safe</mark>](docs/safe.md)',
       expectedText: 'Docs Safe',
     },
     {
@@ -199,6 +200,12 @@ describe('markdown syntax persistence matrix', () => {
       markdown: '<mark>a = b &lt; c</mark> <u>x + y &amp; z</u>',
       expected: '<mark>a = b &lt; c</mark> <u>x + y &amp; z</u>',
       expectedText: 'a = b < c x + y & z',
+    },
+    {
+      name: 'html-sensitive highlight and underline text',
+      markdown: '<mark>a &lt; b &amp; c</mark> <u>x &lt; y &amp; z</u>',
+      expected: '<mark>a &lt; b &amp; c</mark> <u>x &lt; y &amp; z</u>',
+      expectedText: 'a < b & c x < y & z',
     },
     {
       name: 'mermaid diagram',

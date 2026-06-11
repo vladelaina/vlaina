@@ -1,6 +1,11 @@
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import type { NoteTabState, RecentlyClosedTabState } from '../types';
-import { remapPathForExternalRename, shouldRemoveForExternalDeletion } from './externalPathSync';
+import {
+  getExternalPathComparisonKey,
+  isSameExternalPath,
+  remapPathForExternalRename,
+  shouldRemoveForExternalDeletion,
+} from './externalPathSync';
 
 const MAX_RECENTLY_CLOSED_TABS = 20;
 
@@ -26,17 +31,22 @@ export function remapRecentlyClosedTabsForExternalRename(
 
   for (const entry of recentlyClosedTabs) {
     const nextPath = remapPathForExternalRename(entry.tab.path, oldPath, newPath);
-    if (seenPaths.has(nextPath)) {
+    const tabTitle = getNoteTitleFromPath(entry.tab.path);
+    const nextPathKey = getExternalPathComparisonKey(nextPath);
+    if (seenPaths.has(nextPathKey)) {
       continue;
     }
 
-    seenPaths.add(nextPath);
+    seenPaths.add(nextPathKey);
     nextTabs.push({
       ...entry,
       tab: {
         ...entry.tab,
         path: nextPath,
-        name: entry.tab.path === oldPath && entry.tab.name === oldTitle ? newTitle : entry.tab.name,
+        name: isSameExternalPath(entry.tab.path, oldPath) &&
+          (entry.tab.name === oldTitle || entry.tab.name === tabTitle)
+          ? newTitle
+          : entry.tab.name,
       },
     });
   }

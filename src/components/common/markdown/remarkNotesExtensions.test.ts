@@ -75,6 +75,56 @@ describe('remarkNotesInlineExtensions', () => {
     });
   });
 
+  it('parses inline color html around markdown links', () => {
+    const tree: MdastNode = {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [
+            { type: 'html', value: '<span style="color : #123456">' },
+            {
+              type: 'link',
+              children: [{ type: 'text', value: 'Docs' }],
+            },
+            { type: 'html', value: '</span>' },
+            { type: 'text', value: ' ' },
+            { type: 'html', value: '<mark style="background-color : #ecf6ff">' },
+            {
+              type: 'link',
+              children: [{ type: 'text', value: 'Safe' }],
+            },
+            { type: 'html', value: '</mark>' },
+          ],
+        },
+      ],
+    };
+
+    remarkNotesInlineExtensions()(tree);
+
+    const paragraph = tree.children?.[0];
+    expect(paragraph?.children?.[0]).toMatchObject({
+      type: 'textColor',
+      color: '#123456',
+      children: [
+        {
+          type: 'link',
+          children: [{ type: 'text', value: 'Docs' }],
+        },
+      ],
+    });
+    expect(paragraph?.children?.[2]).toMatchObject({
+      type: 'bgColor',
+      color: '#ecf6ff',
+      children: [
+        {
+          type: 'link',
+          children: [{ type: 'text', value: 'Safe' }],
+        },
+      ],
+    });
+  });
+
   it('keeps nested raw html inside inline color containers as html', () => {
     const tree: MdastNode = {
       type: 'root',

@@ -44,7 +44,7 @@ export const highlightMark = $mark('highlight', () => ({
     match: (mark) => mark.type.name === 'highlight',
     runner: (state, _mark, node) => {
       const text = node.text || '';
-      if (text.includes('=')) {
+      if (shouldUseHtmlFallback(text, '=')) {
         state.addNode('html', undefined, `<mark>${escapeMarkdownHtmlText(text)}</mark>`);
         return true;
       } else {

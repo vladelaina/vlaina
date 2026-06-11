@@ -42,7 +42,9 @@ import {
   remapDisplayNamesForExternalRename,
   remapExpandedFoldersForExternalRename,
   remapOpenTabsForExternalRename,
+  remapPathForExternalRename,
   remapRecentNotesForExternalRename,
+  isSameExternalPath,
   shouldPreserveDeletedCurrentNote,
   shouldRemoveForExternalDeletion,
 } from '../document/externalPathSync';
@@ -138,6 +140,18 @@ function hasPreservedStarredAbsolutePath(
   const pathKey = getStarredVaultPathComparisonKey(path);
   for (const preservedPath of preservedDeletedPaths) {
     if (getStarredVaultPathComparisonKey(preservedPath) === pathKey) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function hasPreservedDeletedPath(
+  preservedDeletedPaths: ReadonlySet<string>,
+  path: string,
+): boolean {
+  for (const preservedPath of preservedDeletedPaths) {
+    if (isSameExternalPath(preservedPath, path)) {
       return true;
     }
   }
@@ -287,34 +301,30 @@ export function createWorkspaceExternalActions(
       const nextCurrentNote = remapCurrentNoteForExternalRename(currentNote, oldPath, newPath);
       const nextOpenTabs = remapOpenTabsForExternalRename(openTabs, oldPath, newPath);
       const shouldDropExistingRenameTarget =
-        oldPath !== newPath && !shouldRemoveForExternalDeletion(newPath, oldPath);
+        !isSameExternalPath(oldPath, newPath) && !shouldRemoveForExternalDeletion(newPath, oldPath);
       const displayNamesForRename = shouldDropExistingRenameTarget
         ? pruneDisplayNamesForExternalDeletion(displayNames, newPath)
         : displayNames;
       const cacheForRename = shouldDropExistingRenameTarget
         ? pruneCachedNoteContents(
             noteContentsCache,
-            (path) => path === newPath || path.startsWith(`${newPath}/`),
+            (path) => shouldRemoveForExternalDeletion(path, newPath),
           )
         : noteContentsCache;
       const metadataForRename = shouldDropExistingRenameTarget
         ? remapMetadataEntries(noteMetadata, (path) => (
-            path === newPath || path.startsWith(`${newPath}/`) ? null : path
+            shouldRemoveForExternalDeletion(path, newPath) ? null : path
           ))
         : noteMetadata;
       const nextDisplayNames = remapDisplayNamesForExternalRename(displayNamesForRename, oldPath, newPath);
       const nextRecentNotes = remapRecentNotesForExternalRename(recentNotes, oldPath, newPath);
       const nextRecentlyClosedTabs = remapRecentlyClosedTabsForExternalRename(recentlyClosedTabs, oldPath, newPath);
       const nextCache = remapCachedNoteContents(cacheForRename, (path) => {
-        if (path === oldPath) return newPath;
-        if (path.startsWith(`${oldPath}/`)) return `${newPath}${path.slice(oldPath.length)}`;
-        return path;
+        return remapPathForExternalRename(path, oldPath, newPath);
       });
 
       const nextMetadata = remapMetadataEntries(metadataForRename, (path) => {
-        if (path === oldPath) return newPath;
-        if (path.startsWith(`${oldPath}/`)) return `${newPath}${path.slice(oldPath.length)}`;
-        return path;
+        return remapPathForExternalRename(path, oldPath, newPath);
       });
 
       const vaultStarredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath) => {
@@ -421,13 +431,13 @@ export function createWorkspaceExternalActions(
       const nextRecentNotes = pruneRecentNotesForExternalDeletion(recentNotes, path, preservedPaths);
       const nextRecentlyClosedTabs = pruneRecentlyClosedTabsForExternalDeletion(recentlyClosedTabs, path);
       const nextCache = pruneCachedNoteContents(noteContentsCache, (cachedPath) => {
-        if (preservedDeletedPaths.has(cachedPath)) return false;
-        return cachedPath === path || cachedPath.startsWith(`${path}/`);
+        if (hasPreservedDeletedPath(preservedDeletedPaths, cachedPath)) return false;
+        return shouldRemoveForExternalDeletion(cachedPath, path);
       });
 
       const nextMetadata = remapMetadataEntries(noteMetadata, (relativePath) => {
-        if (preservedDeletedPaths.has(relativePath)) return relativePath;
-        if (relativePath === path || relativePath.startsWith(`${path}/`)) return null;
+        if (hasPreservedDeletedPath(preservedDeletedPaths, relativePath)) return relativePath;
+        if (shouldRemoveForExternalDeletion(relativePath, path)) return null;
         return relativePath;
       });
 
@@ -474,7 +484,7 @@ export function createWorkspaceExternalActions(
       });
 
       const nextCurrentNotePath =
-        currentNote && !preserveCurrentNote && (currentNote.path === path || currentNote.path.startsWith(`${path}/`))
+        currentNote && !preserveCurrentNote && shouldRemoveForExternalDeletion(currentNote.path, path)
           ? nextOpenTabs[nextOpenTabs.length - 1]?.path ?? null
           : currentNote?.path ?? null;
 
@@ -490,7 +500,7 @@ export function createWorkspaceExternalActions(
           : [],
       });
 
-      if (currentNote && !preserveCurrentNote && (currentNote.path === path || currentNote.path.startsWith(`${path}/`))) {
+      if (currentNote && !preserveCurrentNote && shouldRemoveForExternalDeletion(currentNote.path, path)) {
         if (nextOpenTabs.length > 0) {
           const lastTab = nextOpenTabs[nextOpenTabs.length - 1];
           if (lastTab) {

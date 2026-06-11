@@ -28,4 +28,17 @@ describe('requestContext HTML overflow image scrubbing', () => {
     expect(sanitized[0].content).not.toContain('<img');
     expect(sanitized[0].content).toContain('[Image] after');
   });
+
+  it('does not leak image sources after oversized HTML image tag scans', () => {
+    const content = [
+      `<img alt="${'a'.repeat(80 * 1024)}" src="attachment://secret.png">`,
+      'after',
+    ].join('\n');
+
+    const sanitized = sanitizeHistory([createMessage(content)]);
+
+    expect(sanitized[0].content).not.toContain('attachment://secret.png');
+    expect(sanitized[0].content).not.toContain('<img');
+    expect(sanitized[0].content).toContain('[Image]\nafter');
+  });
 });

@@ -12,13 +12,17 @@ import {
 } from '@/stores/notes/starred';
 import {
   getAbsoluteRenameWatchPaths,
+  getFsPathComparisonKey,
   hasUnsafeFsPathSegment,
   isMarkdownPath,
   normalizeFsPath,
 } from '../../hooks/notesExternalSyncUtils';
 
 function isPathWithin(path: string, basePath: string) {
-  return path === basePath || path.startsWith(`${basePath}/`);
+  const pathKey = getFsPathComparisonKey(path);
+  const basePathKey = getFsPathComparisonKey(basePath);
+  const childPrefix = basePathKey.endsWith('/') ? basePathKey : `${basePathKey}/`;
+  return pathKey === basePathKey || pathKey.startsWith(childPrefix);
 }
 
 function getExternalStarredWatchEntries(

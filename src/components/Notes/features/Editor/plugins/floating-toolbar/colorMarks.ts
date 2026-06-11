@@ -58,8 +58,9 @@ export const textColorMark = $mark('textColor', () => ({
     match: (mark) => mark.type.name === 'textColor',
     runner: (state, mark, node) => {
       const color = sanitizeCssColorValue(mark.attrs.color);
-      if (!color) return;
-      state.addNode('html', undefined, `<span style="color: ${color}">${escapeMarkdownHtmlText(node.text || '')}</span>`);
+      const text = node.text;
+      if (!color || !text) return;
+      state.addNode('html', undefined, `<span style="color: ${color}">${escapeMarkdownHtmlText(text)}</span>`);
       return true;
     },
   },
@@ -127,8 +128,9 @@ export const bgColorMark = $mark('bgColor', () => ({
     match: (mark) => mark.type.name === 'bgColor',
     runner: (state, mark, node) => {
       const color = sanitizeCssColorValue(mark.attrs.color);
-      if (!color) return;
-      state.addNode('html', undefined, `<mark style="background-color: ${color}">${escapeMarkdownHtmlText(node.text || '')}</mark>`);
+      const text = node.text;
+      if (!color || !text) return;
+      state.addNode('html', undefined, `<mark style="background-color: ${color}">${escapeMarkdownHtmlText(text)}</mark>`);
       return true;
     },
   },
@@ -155,7 +157,7 @@ export const underlineMark = $mark('underline', () => ({
     match: (mark) => mark.type.name === 'underline',
     runner: (state, _mark, node) => {
       const text = node.text || '';
-      if (text.includes('+')) {
+      if (text.includes('+') || /[<>&]/.test(text)) {
         state.addNode('html', undefined, `<u>${escapeMarkdownHtmlText(text)}</u>`);
         return true;
       } else {

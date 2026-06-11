@@ -50,20 +50,16 @@ vi.mock('../pendingEditorMarkdownFlusher', () => ({
   flushCurrentPendingEditorMarkdown: hoisted.flushCurrentPendingEditorMarkdown,
 }));
 
-vi.mock('@/lib/storage/adapter', () => ({
-  getBaseName: (path: string) => path.replace(/\\/g, '/').split('/').filter(Boolean).at(-1) ?? '',
-  getParentPath: (path: string) => {
-    const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '');
-    const index = normalized.lastIndexOf('/');
-    return index > 0 ? normalized.slice(0, index) : null;
-  },
-  getStorageAdapter: () => storageAdapter,
-  isAbsolutePath: (path: string) => path.startsWith('/'),
-  joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
-  normalizeAbsolutePath: (path: string) => {
-    if (!path.startsWith('/')) return path;
+vi.mock('@/lib/storage/adapter', () => {
+  function normalizeAbsolutePath(path: string): string {
+    const normalized = path.replace(/\\/g, '/');
+    const driveMatch = normalized.match(/^([A-Za-z]:)(?:\/|$)/);
+    const root = driveMatch ? `${driveMatch[1]}/` : normalized.startsWith('/') ? '/' : '';
+    if (!root) return path;
+
     const parts: string[] = [];
-    for (const part of path.split('/')) {
+    const rest = normalized.slice(root.length).replace(/^\/+/, '');
+    for (const part of rest.split('/')) {
       if (!part || part === '.') continue;
       if (part === '..') {
         parts.pop();
@@ -71,10 +67,34 @@ vi.mock('@/lib/storage/adapter', () => ({
       }
       parts.push(part);
     }
-    return `/${parts.join('/')}`;
-  },
-  normalizePath: (path: string) => path.replace(/\\/g, '/').replace(/\/+/g, '/'),
-}));
+
+    return parts.length > 0 ? `${root}${parts.join('/')}` : root;
+  }
+
+  return {
+    getBaseName: (path: string) => path.replace(/\\/g, '/').split('/').filter(Boolean).at(-1) ?? '',
+    getParentPath: (path: string) => {
+      const normalized = normalizeAbsolutePath(path).replace(/\/+$/, '');
+      const index = normalized.lastIndexOf('/');
+      if (index === -1) {
+        return null;
+      }
+      const parent = normalized.slice(0, index);
+      if (!parent) {
+        return '/';
+      }
+      if (/^[A-Za-z]:$/.test(parent)) {
+        return `${parent}/`;
+      }
+      return parent;
+    },
+    getStorageAdapter: () => storageAdapter,
+    isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
+    joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
+    normalizeAbsolutePath,
+    normalizePath: (path: string) => path.replace(/\\/g, '/').replace(/\/+/g, '/'),
+  };
+});
 
 function createFile(path: string, name: string): NoteFile {
   return {
@@ -162,6 +182,58 @@ describe('workspaceSlice external sync', () => {
     expect(store.getState().rootFolder?.children[0]).toEqual(
       createFolder('docs', 'docs', [createFile('docs/beta.md', 'beta')]),
     );
+  });
+
+  it('remaps absolute note state for Windows case-varied rename events', async () => {
+    const store = createNotesStore({
+      currentNote: { path: 'C:/Vault/Docs/Alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'C:/Vault/Docs/Alpha.md', name: 'Alpha', isDirty: false }],
+      recentNotes: ['C:/Vault/Docs/Alpha.md'],
+      displayNames: new Map([['C:/Vault/Docs/Alpha.md', 'Alpha']]),
+      noteContentsCache: new Map([
+        ['C:/Vault/Docs/Alpha.md', { content: '# alpha', modifiedAt: 1 }],
+      ]),
+      noteMetadata: {
+        version: 2,
+        notes: {
+          'C:/Vault/Docs/Alpha.md': { createdAt: 1 },
+        },
+      },
+      recentlyClosedTabs: [
+        {
+          tab: { path: 'C:/Vault/Docs/Alpha.md', name: 'Alpha', isDirty: false },
+          index: 0,
+        },
+      ],
+    });
+
+    await store.getState().applyExternalPathRename(
+      'c:/vault/docs/alpha.md',
+      'D:/Vault/Docs/Beta.md',
+    );
+
+    expect(store.getState().currentNote).toEqual({
+      path: 'D:/Vault/Docs/Beta.md',
+      content: '# alpha',
+    });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'D:/Vault/Docs/Beta.md', name: 'Beta', isDirty: false },
+    ]);
+    expect(store.getState().recentNotes).toEqual(['D:/Vault/Docs/Beta.md']);
+    expect(store.getState().displayNames.get('D:/Vault/Docs/Beta.md')).toBe('Beta');
+    expect(store.getState().noteContentsCache.get('D:/Vault/Docs/Beta.md')).toEqual({
+      content: '# alpha',
+      modifiedAt: 1,
+    });
+    expect(store.getState().noteContentsCache.has('C:/Vault/Docs/Alpha.md')).toBe(false);
+    expect(store.getState().noteMetadata?.notes).toEqual({
+      'D:/Vault/Docs/Beta.md': { createdAt: 1 },
+    });
+    expect(store.getState().recentlyClosedTabs[0]?.tab).toEqual({
+      path: 'D:/Vault/Docs/Beta.md',
+      name: 'Beta',
+      isDirty: false,
+    });
   });
 
   it('merges duplicate open tabs and tree nodes when an external rename lands on an open path', async () => {
@@ -484,6 +556,52 @@ describe('workspaceSlice external sync', () => {
 
     expect(store.getState().starredEntries).toEqual([keepEntry]);
     expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith([keepEntry]);
+  });
+
+  it('prunes absolute note state for Windows case-varied folder deletions', async () => {
+    const store = createNotesStore({
+      currentNote: { path: 'C:/Vault/Keep.md', content: '# keep' },
+      openTabs: [
+        { path: 'C:/Vault/Keep.md', name: 'Keep', isDirty: false },
+        { path: 'C:/Vault/Docs/Remove.md', name: 'Remove', isDirty: false },
+      ],
+      recentNotes: ['C:/Vault/Keep.md', 'C:/Vault/Docs/Remove.md'],
+      displayNames: new Map([
+        ['C:/Vault/Keep.md', 'Keep'],
+        ['C:/Vault/Docs/Remove.md', 'Remove'],
+      ]),
+      noteContentsCache: new Map([
+        ['C:/Vault/Keep.md', { content: '# keep', modifiedAt: 1 }],
+        ['C:/Vault/Docs/Remove.md', { content: '# remove', modifiedAt: 1 }],
+      ]),
+      noteMetadata: {
+        version: 2,
+        notes: {
+          'C:/Vault/Keep.md': { createdAt: 1 },
+          'C:/Vault/Docs/Remove.md': { createdAt: 2 },
+        },
+      },
+      recentlyClosedTabs: [
+        {
+          tab: { path: 'C:/Vault/Docs/Remove.md', name: 'Remove', isDirty: false },
+          index: 1,
+        },
+      ],
+    });
+
+    await store.getState().applyExternalPathDeletion('c:/vault/docs');
+
+    expect(store.getState().currentNote).toEqual({ path: 'C:/Vault/Keep.md', content: '# keep' });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'C:/Vault/Keep.md', name: 'Keep', isDirty: false },
+    ]);
+    expect(store.getState().recentNotes).toEqual(['C:/Vault/Keep.md']);
+    expect(store.getState().displayNames.has('C:/Vault/Docs/Remove.md')).toBe(false);
+    expect(store.getState().noteContentsCache.has('C:/Vault/Docs/Remove.md')).toBe(false);
+    expect(store.getState().noteMetadata?.notes).toEqual({
+      'C:/Vault/Keep.md': { createdAt: 1 },
+    });
+    expect(store.getState().recentlyClosedTabs).toEqual([]);
   });
 
   it('removes the in-memory tree node immediately when a file is deleted externally', async () => {

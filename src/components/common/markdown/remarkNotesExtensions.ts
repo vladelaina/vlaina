@@ -300,12 +300,7 @@ function replaceInlineColorHtmlContainerMark(tree: MdastNode) {
       if (closeIndex <= index + 1) continue;
 
       const content = node.children.slice(index + 1, closeIndex);
-      const canCollapseToColorMark = content.every((contentNode) => (
-        contentNode.type === 'text' &&
-        typeof contentNode.value === 'string' &&
-        !containsRawHtmlTag(contentNode.value)
-      ));
-      if (!canCollapseToColorMark && (textColorOpen || bgColorOpen)) {
+      if ((textColorOpen || bgColorOpen) && inlineContentContainsRawHtml(content)) {
         continue;
       }
 

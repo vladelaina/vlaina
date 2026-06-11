@@ -148,6 +148,36 @@ describe('useExternalStarredRenameSync', () => {
     expect(mocked.watchDesktopPath).not.toHaveBeenCalled();
   });
 
+  it('remaps Windows external starred notes from case-varied rename events', async () => {
+    mocked.vaultState.currentVault = { path: 'C:/Users/Me/Vault' };
+    mocked.notesState.starredEntries = [
+      {
+        id: 'starred-external-windows',
+        kind: 'note',
+        vaultPath: 'C:/Users/Me/Other',
+        relativePath: 'docs/alpha.md',
+        addedAt: 1,
+      },
+    ];
+
+    renderHook(() => useExternalStarredRenameSync());
+
+    await act(async () => {
+      await mocked.handlers.get('C:/Users/Me/Other/docs/alpha.md')?.({
+        type: { modify: { kind: 'rename', mode: 'both' } },
+        paths: [
+          'c:/users/me/other/docs/alpha.md',
+          'c:/users/me/other/docs/beta.md',
+        ],
+      });
+    });
+
+    expect(mocked.notesState.applyExternalPathRename).toHaveBeenCalledWith(
+      'c:/users/me/other/docs/alpha.md',
+      'c:/users/me/other/docs/beta.md',
+    );
+  });
+
   it('does not remap external starred notes to non-Markdown paths', async () => {
     mocked.notesState.starredEntries = [
       {
