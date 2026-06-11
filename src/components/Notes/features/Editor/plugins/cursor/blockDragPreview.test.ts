@@ -1302,7 +1302,7 @@ describe('createBlockDragPreview', () => {
         return mermaidBlocks[pos] ?? mermaidBlocks[0];
       },
       domAtPos(pos: number) {
-        return { node: mermaidBlocks[Math.min(pos, mermaidBlocks.length - 1)] };
+        return { node: editorRoot, offset: pos };
       },
     } as any;
 
