@@ -24,9 +24,10 @@ import { markExpectedExternalChange } from '../document/externalChangeRegistry';
 import { emitNotesExternalPathRename } from '../document/externalPathBroadcast';
 import { remapMetadataEntries } from '../storage';
 import {
+  getStarredEntryAbsolutePath,
+  getStarredVaultPathComparisonKey,
   getVaultStarredPaths,
   normalizeStarredRelativePath,
-  normalizeStarredVaultPath,
   remapStarredEntriesForVault,
   saveStarredRegistry,
 } from '../starred';
@@ -267,11 +268,11 @@ export function createFileSystemRenameActions(
             return entry;
           }
 
-          const normalizedEntryVaultPath = normalizeStarredVaultPath(entry.vaultPath);
-          const entryAbsolutePath = normalizedEntryVaultPath === '/'
-            ? `/${entry.relativePath}`
-            : `${normalizedEntryVaultPath}/${entry.relativePath}`.replace(/\\/g, '/');
-          if (entryAbsolutePath !== normalizedOldPath) {
+          const entryAbsolutePath = getStarredEntryAbsolutePath(entry);
+          if (
+            !entryAbsolutePath ||
+            getStarredVaultPathComparisonKey(entryAbsolutePath) !== getStarredVaultPathComparisonKey(normalizedOldPath)
+          ) {
             return entry;
           }
 

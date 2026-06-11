@@ -39,7 +39,6 @@ import {
   pruneOpenTabsForExternalDeletion,
   pruneRecentNotesForExternalDeletion,
   remapCurrentNoteForExternalRename,
-  remapPathForExternalRename,
   remapDisplayNamesForExternalRename,
   remapExpandedFoldersForExternalRename,
   remapOpenTabsForExternalRename,
@@ -64,8 +63,6 @@ function remapStarredEntriesForAbsoluteRename(
     return { entries, changed: false };
   }
 
-  const normalizedOldPath = normalizeStarredVaultPath(oldPath);
-  const normalizedNewPath = normalizeStarredVaultPath(newPath);
   let changed = false;
 
   const remapped = entries.flatMap((entry) => {
@@ -75,11 +72,7 @@ function remapStarredEntriesForAbsoluteRename(
     }
 
     const normalizedAbsolutePath = normalizeStarredVaultPath(absolutePath);
-    const nextAbsolutePath = remapPathForExternalRename(
-      normalizedAbsolutePath,
-      normalizedOldPath,
-      normalizedNewPath,
-    );
+    const nextAbsolutePath = remapStarredAbsolutePathForRename(normalizedAbsolutePath, oldPath, newPath);
     if (nextAbsolutePath === normalizedAbsolutePath) {
       return [entry];
     }
