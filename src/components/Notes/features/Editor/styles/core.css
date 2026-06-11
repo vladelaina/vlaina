@@ -202,7 +202,7 @@ body.editor-block-drag-active .editor-block-drag-preview-layer * {
 }
 
 .editor-block-controls .editor-block-control-btn:hover {
-  color: var(--vlaina-text-primary);
+  color: var(--vlaina-color-accent) !important;
   background: transparent;
 }
 
@@ -212,7 +212,12 @@ body.editor-block-drag-active .editor-block-drag-preview-layer * {
 }
 
 .editor-block-controls.visible .editor-block-control-handle:hover {
-  color: var(--vlaina-editor-block-selection-handle);
+  color: var(--vlaina-color-accent) !important;
+}
+
+.editor-block-controls .editor-block-control-handle:hover :is(svg, path) {
+  color: var(--vlaina-color-accent) !important;
+  fill: var(--vlaina-color-accent) !important;
 }
 
 .editor-block-controls .editor-block-control-btn:active {
@@ -227,10 +232,6 @@ body.editor-block-drag-active .editor-block-drag-preview-layer * {
 .editor-block-controls.dragging .editor-block-control-handle,
 .editor-block-controls .editor-block-control-handle:active {
   cursor: grabbing;
-}
-
-.editor-block-controls.dragging {
-  opacity: var(--vlaina-opacity-100);
 }
 
 .editor-block-drop-indicator {
@@ -273,11 +274,6 @@ body.editor-block-drag-active .editor-block-drag-preview-layer * {
   opacity: var(--vlaina-opacity-100);
 }
 
-.milkdown .ProseMirror .editor-block-drag-source {
-  opacity: var(--vlaina-opacity-38);
-  transition: opacity var(--vlaina-duration-120) var(--vlaina-ease-css-default);
-}
-
 .editor-block-drag-preview {
   position: fixed;
   left: var(--vlaina-space--10000px);
@@ -302,6 +298,7 @@ body.editor-block-drag-active .editor-block-drag-preview-layer * {
   background: transparent;
   color: var(--vlaina-block-drag-preview-fg);
   -webkit-text-fill-color: var(--vlaina-block-drag-preview-fg);
+  overflow: visible;
 }
 
 .editor-block-drag-preview-layer > * {

@@ -2,9 +2,15 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { getBlockSelectionPluginState } from './blockSelectionPluginState';
 import { getBlockRangesKey, normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
 import { pickPointerBlock } from './blockControlsUtils';
-import { createBlockDragPreview, type BlockDragPreviewHandle } from './blockDragPreview';
+import {
+  createBlockDragPreview,
+  createBlockDragSourceMarker,
+  type BlockDragPreviewHandle,
+  type BlockDragSourceMarkerHandle,
+} from './blockDragPreview';
 import { createBlockControlsDom } from './blockControlsDom';
 import { setBlockDraggingVisualState } from './blockDragVisualState';
+import { getListItemRangeEnd } from './blockUnitResolver';
 import { normalizeSelectedTextForComposer } from '@/lib/ui/normalizeSelectedTextForComposer';
 import {
   MAX_COMPOSER_PROGRAMMATIC_INSERT_CHARS,
@@ -27,10 +33,10 @@ import {
   type DropTarget,
   type HandleBlockTarget,
 } from './blockControlsInteractions';
+import { BLOCK_CONTROLS_LEFT_OFFSET_PX } from './blockControlsGeometry';
 import { createVerticalEdgeAutoScroll, type VerticalEdgeAutoScrollHandle } from './edgeAutoScroll';
 
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
-const CONTROLS_LEFT_OFFSET = 44;
 const MIN_DROP_DISTANCE_PX = 4;
 const HANDLE_VERTICAL_GAP_PX = 24;
 const WHEEL_DELTA_MODE_LINE = 1;
@@ -75,6 +81,7 @@ export class BlockControlsViewSession {
 
   private draggedRanges: BlockRange[] | null = null;
   private dragPreview: BlockDragPreviewHandle | null = null;
+  private dragSourceMarker: BlockDragSourceMarkerHandle | null = null;
   private pendingDrop: DropTarget | null = null;
   private dragStartClientX: number | null = null;
   private dragStartClientY: number | null = null;
@@ -94,6 +101,7 @@ export class BlockControlsViewSession {
   private cachedScrollTop = Number.NaN;
   private cachedSnapshotVersion = Number.NaN;
   private cachedSelectedBlocks: readonly BlockRange[] | null = null;
+  private cachedNormalizedSelectedRanges: BlockRange[] = [];
   private cachedDraggableRanges: BlockRange[] = [];
   private cachedDraggableSelectionKey = '';
   private dragWheelListenerAttached = false;
@@ -162,16 +170,21 @@ export class BlockControlsViewSession {
       this.dragPreview.destroy();
       this.dragPreview = null;
     }
+    if (this.dragSourceMarker) {
+      this.dragSourceMarker.destroy();
+      this.dragSourceMarker = null;
+    }
     this.controls.remove();
     this.dropIndicator.remove();
   }
 
-  private getDraggableSelection(): { ranges: BlockRange[]; key: string } {
+  private getDraggableSelection(): { ranges: BlockRange[]; key: string; selectedRanges: BlockRange[] } {
     const selectedBlocks = getBlockSelectionPluginState(this.view.state).selectedBlocks;
     if (this.cachedSelectedBlocks === selectedBlocks) {
       return {
         ranges: this.cachedDraggableRanges,
         key: this.cachedDraggableSelectionKey,
+        selectedRanges: this.cachedNormalizedSelectedRanges,
       };
     }
 
@@ -179,13 +192,20 @@ export class BlockControlsViewSession {
     const ranges = getDraggableBlockRanges(this.view, selectedRanges);
     const key = ranges.length > 0 ? getBlockRangesKey(ranges) : '';
     this.cachedSelectedBlocks = selectedBlocks;
+    this.cachedNormalizedSelectedRanges = selectedRanges;
     this.cachedDraggableRanges = ranges;
     this.cachedDraggableSelectionKey = key;
-    return { ranges, key };
+    return { ranges, key, selectedRanges };
   }
 
   private isPointerInEditorScrollRoot(): boolean {
     if (this.pointerX === null || this.pointerY === null) return false;
+    if (typeof this.doc.elementFromPoint === 'function') {
+      const hoveredElement = this.doc.elementFromPoint(this.pointerX, this.pointerY);
+      if (hoveredElement instanceof Node && this.controls.contains(hoveredElement)) {
+        return true;
+      }
+    }
     if (!this.scrollRoot) return true;
 
     const rect = this.scrollRoot.getBoundingClientRect();
@@ -294,6 +314,7 @@ export class BlockControlsViewSession {
 
   private invalidateSelectionCache(): void {
     this.cachedSelectedBlocks = null;
+    this.cachedNormalizedSelectedRanges = [];
     this.cachedDraggableRanges = [];
     this.cachedDraggableSelectionKey = '';
   }
@@ -330,20 +351,50 @@ export class BlockControlsViewSession {
     return this.cachedTargets;
   }
 
+  private resolveGroupedListHorizontalAnchor(
+    target: HandleBlockTarget,
+    targets: readonly HandleBlockTarget[],
+    draggableRanges: readonly BlockRange[],
+  ): HandleBlockTarget {
+    let anchor: HandleBlockTarget | null = null;
+
+    for (const range of draggableRanges) {
+      if (range.from === target.pos || range.from > target.pos) continue;
+      const listItemTo = getListItemRangeEnd(this.view.state.doc, range.from);
+      if (listItemTo === null || target.pos >= listItemTo) continue;
+
+      const candidate = targets.find((item) => item.pos === range.from)
+        ?? resolveBlockTargetByPos(this.view, range.from);
+      if (!candidate) continue;
+      if (!anchor || candidate.rect.left < anchor.rect.left || (
+        candidate.rect.left === anchor.rect.left && candidate.pos < anchor.pos
+      )) {
+        anchor = candidate;
+      }
+    }
+
+    return anchor ?? target;
+  }
+
   private showHandleForPointer(): void {
     if (this.draggedRanges) return;
     if (!this.isPointerInEditorScrollRoot()) {
       this.hideControls();
       return;
     }
+    const { selectedRanges } = this.getDraggableSelection();
     const targets = this.getCachedHandleTargets();
     const nextTarget = pickPointerBlock(targets, this.pointerY);
     if (!nextTarget || !this.isPointerNearTarget(nextTarget)) {
       this.hideControls();
       return;
     }
-    const horizontalAnchor = targets.length > 1 ? targets[0] : nextTarget;
-    setControlsPosition(this.controls, nextTarget, CONTROLS_LEFT_OFFSET, horizontalAnchor);
+    const horizontalAnchor = this.resolveGroupedListHorizontalAnchor(nextTarget, targets, selectedRanges);
+    if (horizontalAnchor === nextTarget) {
+      setControlsPosition(this.controls, nextTarget, BLOCK_CONTROLS_LEFT_OFFSET_PX);
+    } else {
+      setControlsPosition(this.controls, nextTarget, BLOCK_CONTROLS_LEFT_OFFSET_PX, { horizontalAnchor });
+    }
     this.controls.classList.add('visible');
   }
 
@@ -393,6 +444,10 @@ export class BlockControlsViewSession {
       this.dragPreview.destroy();
       this.dragPreview = null;
     }
+    if (this.dragSourceMarker) {
+      this.dragSourceMarker.destroy();
+      this.dragSourceMarker = null;
+    }
     setBlockDraggingVisualState(false);
     this.controls.classList.remove('dragging');
     this.hideDropIndicator();
@@ -418,6 +473,10 @@ export class BlockControlsViewSession {
     const composerText = serializeDraggedRangesForComposer(this.view, draggableRanges);
     setBlockDraggingVisualState(true, composerText ? { text: composerText } : null);
     this.controls.classList.add('dragging');
+    this.dragSourceMarker = createBlockDragSourceMarker({
+      view: this.view,
+      ranges: draggableRanges,
+    });
 
     const preview = createBlockDragPreview({
       view: this.view,

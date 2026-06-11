@@ -23,10 +23,19 @@ interface BlockDragPreviewOptions {
   clientY: number;
 }
 
+interface BlockDragSourceMarkerOptions {
+  view: EditorView;
+  ranges: readonly BlockRange[];
+}
+
 export interface BlockDragPreviewHandle {
   element: HTMLElement;
   offsetX: number;
   offsetY: number;
+  destroy: () => void;
+}
+
+export interface BlockDragSourceMarkerHandle {
   destroy: () => void;
 }
 
@@ -176,6 +185,52 @@ function collectPreviewItems(view: EditorView, ranges: readonly BlockRange[]): P
     });
   }
   return items;
+}
+
+function pushUniqueBlockDragSourceElement(elements: HTMLElement[], element: HTMLElement): void {
+  if (elements.some((existing) => existing.contains(element))) {
+    return;
+  }
+  for (let index = elements.length - 1; index >= 0; index -= 1) {
+    const existing = elements[index];
+    if (existing && element.contains(existing)) {
+      elements.splice(index, 1);
+    }
+  }
+  elements.push(element);
+}
+
+function collectBlockDragSourceElements(view: EditorView, ranges: readonly BlockRange[]): HTMLElement[] {
+  const elements: HTMLElement[] = [];
+
+  for (const range of ranges) {
+    const target = resolveSelectableBlockTargetByPos(view, range.from);
+    const element = target?.subElement ?? target?.element;
+    if (!element) continue;
+    pushUniqueBlockDragSourceElement(elements, element);
+  }
+
+  view.dom
+    .querySelectorAll<HTMLElement>('.editor-block-selected, .ProseMirror-selectednode')
+    .forEach((element) => pushUniqueBlockDragSourceElement(elements, element));
+
+  return elements;
+}
+
+export function createBlockDragSourceMarker({
+  view,
+  ranges,
+}: BlockDragSourceMarkerOptions): BlockDragSourceMarkerHandle | null {
+  const sourceElements = collectBlockDragSourceElements(view, ranges);
+  if (sourceElements.length === 0) return null;
+
+  sourceElements.forEach((element) => element.classList.add(SOURCE_CLASS));
+
+  return {
+    destroy: () => {
+      sourceElements.forEach((element) => element.classList.remove(SOURCE_CLASS));
+    },
+  };
 }
 
 function copyCssVariables(from: HTMLElement, to: HTMLElement): void {

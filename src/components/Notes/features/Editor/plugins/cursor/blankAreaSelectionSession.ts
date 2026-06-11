@@ -50,6 +50,36 @@ interface StartBlankAreaSelectionSessionOptions {
   onSyncSelectionState: () => void;
 }
 
+const EXTERNAL_BLANK_AREA_SELECTION_MIN_BLOCK_OVERLAP_PX = 12;
+
+function getBlockRangeKey(range: BlockRange): string {
+  return `${range.from}:${range.to}`;
+}
+
+function getHorizontalOverlapPx(left: RectBounds, right: RectBounds): number {
+  return Math.max(0, Math.min(left.right, right.right) - Math.max(left.left, right.left));
+}
+
+export function filterExternalBlankAreaSelectionEdgeGrazes(
+  blocks: readonly BlockRect[],
+  selectedBlocks: readonly BlockRange[],
+  selectionRect: RectBounds,
+  minBlockOverlapPx = EXTERNAL_BLANK_AREA_SELECTION_MIN_BLOCK_OVERLAP_PX,
+): BlockRange[] {
+  if (selectedBlocks.length === 0) {
+    return [];
+  }
+
+  const blockByRange = new Map(blocks.map((block) => [getBlockRangeKey(block), block]));
+  return selectedBlocks.filter((range) => {
+    const block = blockByRange.get(getBlockRangeKey(range));
+    if (!block) {
+      return false;
+    }
+    return getHorizontalOverlapPx(block, selectionRect) >= minBlockOverlapPx;
+  });
+}
+
 function createDragBox(doc: Document, dragBoxColor: string): HTMLDivElement {
   const box = doc.createElement('div');
   box.setAttribute('data-editor-drag-box', 'true');
@@ -137,6 +167,8 @@ export function startBlankAreaSelectionSession(
 
   const doc = view.dom.ownerDocument;
   const scrollRoot = view.dom.closest(scrollRootSelector) as HTMLElement | null;
+  const startedInsideEditor = event.target instanceof Node && view.dom.contains(event.target);
+  const shouldFilterExternalEdgeGrazes = startZone === 'outside-editor' && !startedInsideEditor;
   const startScrollLeft = scrollRoot?.scrollLeft ?? 0;
   const startScrollTop = scrollRoot?.scrollTop ?? 0;
   const rectResolver = createBlockRectResolver({
@@ -213,7 +245,13 @@ export function startBlankAreaSelectionSession(
       currentScrollLeft,
       currentScrollTop,
     );
-    const selectedBlocks = resolveIntersectedBlockRangesFromYIndex(docSpaceBlockIndex, docSpaceDragRect);
+    const selectedBlocks = shouldFilterExternalEdgeGrazes
+      ? filterExternalBlankAreaSelectionEdgeGrazes(
+        docSpaceBlockRects,
+        resolveIntersectedBlockRangesFromYIndex(docSpaceBlockIndex, docSpaceDragRect),
+        docSpaceDragRect,
+      )
+      : resolveIntersectedBlockRangesFromYIndex(docSpaceBlockIndex, docSpaceDragRect);
     const selectedIntersectionKey = getBlockRangesKey(selectedBlocks);
     if (!didResolveFirstNonEmptySelection && selectedBlocks.length > 0) {
       didResolveFirstNonEmptySelection = true;

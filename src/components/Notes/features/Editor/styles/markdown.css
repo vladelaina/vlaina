@@ -81,7 +81,7 @@
 
 .heading-toggle-btn {
   position: absolute;
-  left: var(--vlaina-editor-collapse-pos-heading);
+  left: var(--vlaina-editor-collapse-pos-heading, -22px);
   top: calc((1em + var(--vlaina-markdown-heading-line-extra, var(--vlaina-size-8px))) / 2);
   transform: translateY(var(--vlaina-translate--50pct));
   width: var(--vlaina-size-18px);

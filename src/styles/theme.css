@@ -459,7 +459,7 @@
   --vlaina-block-selection-fill-edge-default: calc(-1 * var(--vlaina-block-selection-bleed-y));
   --vlaina-block-selection-fill-top: var(--vlaina-block-selection-fill-edge-default);
   --vlaina-block-selection-fill-bottom: var(--vlaina-block-selection-fill-edge-default);
-  --vlaina-block-selection-bleed-x-default: var(--vlaina-space-48px);
+  --vlaina-block-selection-bleed-x-default: var(--vlaina-space-72px);
   --vlaina-block-selection-bleed-x-start: var(--vlaina-block-selection-bleed-x-default);
   --vlaina-block-selection-bleed-x-end: var(--vlaina-block-selection-bleed-x-default);
   --vlaina-block-selection-shadow:
@@ -470,15 +470,15 @@
   --vlaina-block-selection-shadow-y:
     0 var(--vlaina-block-selection-bleed-y) 0 0 var(--vlaina-block-selection-color),
     0 calc(-1 * var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-color);
-  --vlaina-block-selection-offset-x: var(--vlaina-space-0);
+  --vlaina-block-selection-offset-x: 0px;
   --vlaina-block-selection-list-contained-bleed-y: var(--vlaina-block-selection-bleed-y-list-contained);
   --vlaina-list-contained-block-selection-bleed-y: var(--vlaina-block-selection-list-contained-bleed-y);
-  --vlaina-list-marker-extra: var(--vlaina-space-0);
-  --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-48px);
+  --vlaina-list-marker-extra: 0px;
+  --vlaina-list-row-selection-bleed-x-start: var(--vlaina-space-72px);
   --vlaina-list-gap-placeholder-outdent: var(--vlaina-size-2rem);
-  --vlaina-block-selection-top-reserve-default: var(--vlaina-space-0);
+  --vlaina-block-selection-top-reserve-default: 0px;
   --vlaina-block-selection-top-reserve: var(--vlaina-block-selection-top-reserve-default);
-  --vlaina-block-selection-scrollbar-reserve-default: var(--vlaina-space-0);
+  --vlaina-block-selection-scrollbar-reserve-default: 0px;
   --vlaina-block-selection-scrollbar-reserve: var(--vlaina-block-selection-scrollbar-reserve-default);
   --vlaina-block-selection-table-scrollbar-reserve: var(--vlaina-space-14px);
   --vlaina-block-drag-preview-fg: var(--vlaina-color-block-drag-preview-fg);
@@ -503,12 +503,12 @@
   --vlaina-markdown-heading-line-extra: var(--vlaina-markdown-heading-line-extra-default);
   --vlaina-editor-collapse-gutter-base: var(--vlaina-collapse-gutter-base);
   --vlaina-editor-collapse-marker-gap: var(--vlaina-collapse-marker-gap);
-  --vlaina-editor-collapse-pos-heading: calc(-1 * var(--vlaina-editor-collapse-gutter-base));
-  --vlaina-editor-collapse-pos-list: calc(-1 * (var(--vlaina-editor-collapse-gutter-base) + var(--vlaina-editor-collapse-marker-gap)));
+  --vlaina-editor-collapse-pos-heading: calc(0px - var(--vlaina-editor-collapse-gutter-base));
+  --vlaina-editor-collapse-pos-list: calc(0px - var(--vlaina-editor-collapse-gutter-base) - var(--vlaina-editor-collapse-marker-gap));
   --vlaina-math-hover-color: var(--vlaina-hover-filled);
   --vlaina-math-hover-bleed-y-default: var(--vlaina-space-4px);
   --vlaina-math-hover-bleed-y: var(--vlaina-math-hover-bleed-y-default);
-  --vlaina-math-hover-bleed-x-start-default: var(--vlaina-space-0);
+  --vlaina-math-hover-bleed-x-start-default: 0px;
   --vlaina-math-hover-bleed-x-start: var(--vlaina-math-hover-bleed-x-start-default);
   --vlaina-shadow-external-drop-cursor: 0 0 0 1px var(--vlaina-color-external-drop-cursor-shadow);
   --vlaina-shadow-table-grip-dots: 6px 0 currentColor, 12px 0 currentColor;

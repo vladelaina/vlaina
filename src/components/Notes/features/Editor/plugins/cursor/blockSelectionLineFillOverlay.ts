@@ -5,7 +5,7 @@ import { getBlockRangesKey, normalizeBlockRanges, type BlockRange } from './bloc
 const LINE_FILL_LAYER_CLASS = 'editor-block-selection-line-fill-layer';
 const LINE_FILL_CLASS = 'editor-block-selection-line-fill';
 const ROW_MERGE_TOLERANCE_PX = 2;
-const FALLBACK_BLOCK_SELECTION_BLEED_X_PX = 48;
+const FALLBACK_BLOCK_SELECTION_BLEED_X_PX = 72;
 export const MAX_BLOCK_SELECTION_LINE_FILL_RANGES = 512;
 const MAX_BLOCK_SELECTION_LINE_FILL_ROWS_PER_RANGE = 128;
 const MAX_BLOCK_SELECTION_LINE_FILL_ELEMENTS = 1024;

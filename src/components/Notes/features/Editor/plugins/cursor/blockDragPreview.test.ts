@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   collectBlockDragPreviewElements,
   createBlockDragPreview,
+  createBlockDragSourceMarker,
   MAX_BLOCK_DRAG_PREVIEW_CAPTURE_CONCURRENCY,
   MAX_BLOCK_DRAG_PREVIEW_DOM_SCAN_ELEMENTS,
 } from './blockDragPreview';
@@ -64,6 +65,70 @@ describe('createBlockDragPreview', () => {
 
     expect(collection.complete).toBe(false);
     expect(collection.elements).toEqual([]);
+  });
+
+  it('marks dragged source blocks independently from preview creation', () => {
+    const editorRoot = document.createElement('div');
+    const block = document.createElement('p');
+    block.textContent = 'Drag source';
+    block.getBoundingClientRect = () => ({
+      left: 80,
+      top: 40,
+      right: 360,
+      bottom: 64,
+      width: 280,
+      height: 24,
+      x: 80,
+      y: 40,
+      toJSON: () => ({}),
+    } as DOMRect);
+    editorRoot.appendChild(block);
+    document.body.appendChild(editorRoot);
+
+    const paragraphNode = createNode('paragraph', 10);
+    const view = {
+      dom: editorRoot,
+      state: {
+        doc: {
+          content: { size: 10 },
+          childCount: 1,
+          child() {
+            return paragraphNode;
+          },
+          forEach(cb: (child: any, offset: number) => void) {
+            cb(paragraphNode, 0);
+          },
+          resolve(pos: number) {
+            return {
+              pos,
+              depth: 0,
+              nodeAfter: paragraphNode,
+              node() {
+                return createNode('doc', 10);
+              },
+              before() {
+                return 0;
+              },
+            };
+          },
+        },
+      },
+      nodeDOM() {
+        return block;
+      },
+    } as any;
+
+    const marker = createBlockDragSourceMarker({
+      view,
+      ranges: [{ from: 1, to: 9 }],
+    });
+
+    expect(marker).not.toBeNull();
+    expect(block.classList.contains('editor-block-drag-source')).toBe(true);
+
+    marker?.destroy();
+
+    expect(block.classList.contains('editor-block-drag-source')).toBe(false);
   });
 
   it('preserves the handle-to-block gap instead of snapping under the pointer', () => {

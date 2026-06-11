@@ -15,9 +15,23 @@ import {
 } from '../../utils/editorBlockPositionCache';
 
 const LIST_CHILD_INDENT_PX = 24;
+const LIST_MARKER_OFFSET_PX = 24;
 const MIN_DROP_LINE_WIDTH = 24;
 const DROP_LINE_BLEED_X = 10;
 const DEFAULT_CONTROLS_HEIGHT_PX = 24;
+const BLOCK_CONTROL_BUTTON_SIZE_PX = 24;
+const COLLAPSE_GUTTER_BASE_PX = 22;
+const COLLAPSE_MARKER_GAP_PX = 24;
+export const BLOCK_CONTROLS_DRAG_SURFACE_PAD_X_PX = 4;
+export const BLOCK_CONTROLS_COLLAPSE_GAP_PX = 10;
+
+const HEADING_COLLAPSE_CLEAR_OFFSET_PX = COLLAPSE_GUTTER_BASE_PX + BLOCK_CONTROL_BUTTON_SIZE_PX;
+const LIST_COLLAPSE_CLEAR_OFFSET_PX = COLLAPSE_GUTTER_BASE_PX + COLLAPSE_MARKER_GAP_PX;
+
+export const BLOCK_CONTROLS_LEFT_OFFSET_PX = Math.max(
+  HEADING_COLLAPSE_CLEAR_OFFSET_PX,
+  LIST_COLLAPSE_CLEAR_OFFSET_PX,
+) + BLOCK_CONTROLS_DRAG_SURFACE_PAD_X_PX + BLOCK_CONTROLS_COLLAPSE_GAP_PX;
 
 function resolveListContentLeft(item: HTMLElement, fallbackLeft: number): number {
   const firstBlock = item.firstElementChild as HTMLElement | null;
@@ -61,10 +75,13 @@ export function setControlsPosition(
   controls: HTMLElement,
   target: HandleBlockTarget,
   controlsLeftOffset: number,
-  horizontalAnchor: HandleBlockTarget = target,
+  options: {
+    horizontalAnchor?: HandleBlockTarget;
+  } = {},
 ): void {
-  const listMarkerOffset = horizontalAnchor.isListItem ? 24 : 0;
-  const left = Math.max(8, horizontalAnchor.rect.left - controlsLeftOffset - listMarkerOffset);
+  const horizontalTarget = options.horizontalAnchor ?? target;
+  const listMarkerOffset = horizontalTarget.isListItem ? LIST_MARKER_OFFSET_PX : 0;
+  const left = Math.max(8, horizontalTarget.rect.left - controlsLeftOffset - listMarkerOffset);
   const controlsHeight = controls.getBoundingClientRect().height || DEFAULT_CONTROLS_HEIGHT_PX;
   const top = target.rect.top + target.rect.height / 2 - controlsHeight / 2;
   controls.style.left = `${Math.round(left)}px`;
